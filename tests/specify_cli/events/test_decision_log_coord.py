@@ -167,6 +167,39 @@ class TestWrapWithDecisionGitLogCoordRouting:
         assert "worktree_root" in captured
         assert captured["worktree_root"] == coord_path
 
+    def test_resolve_mission_ulid_reads_primary_not_coord_worktree(self, tmp_path: Path) -> None:
+        """#2091 red-first: identity (``mission_id``) is persisted ONLY on the
+        primary checkout's meta.json. Under coordination topology the coord-aware
+        resolver returns the materialized coord worktree, whose mission dir has NO
+        meta.json — so reading identity there loses the ULID, ``_declared_id``
+        becomes ``None``, ``resolve_mid8`` declines to ``""`` (its #1918 contract),
+        and ``_wrap_with_decision_git_log`` composes the malformed
+        ``kitty/mission-<slug>-`` branch. ``_resolve_mission_ulid`` must read the
+        PRIMARY surface and return the ULID. RED on the unfixed code (returns the
+        slug), GREEN once the identity read is primary-anchored.
+        """
+        from runtime.next.runtime_bridge import _resolve_mission_ulid
+
+        slug = "my-feature-01KT3YBD"
+        mid8 = "01KT3YBD"
+        base_slug = "my-feature"
+        ulid = "01KT3YBDABCDEFGHIJKLMNOP"
+
+        # mission_id persisted on the PRIMARY checkout's meta.json only.
+        _write_coord_meta(tmp_path, slug)
+        # Materialized coord worktree whose mission dir has NO meta.json — the
+        # surface the coord-aware resolver would (wrongly) read identity from.
+        coord_mission_dir = (
+            tmp_path / ".worktrees" / f"{base_slug}-{mid8}-coord" / "kitty-specs" / slug
+        )
+        coord_mission_dir.mkdir(parents=True)
+        assert not (coord_mission_dir / "meta.json").exists()
+
+        assert _resolve_mission_ulid(slug, tmp_path) == ulid, (
+            "identity read must anchor on the primary checkout's meta.json, not "
+            "the coord worktree (which has no meta.json) — #2091"
+        )
+
     def test_repo_root_used_when_coord_absent(self, tmp_path: Path) -> None:
         """When coord worktree does not exist, repo_root becomes worktree_root (T019)."""
         from runtime.next.runtime_bridge import _wrap_with_decision_git_log

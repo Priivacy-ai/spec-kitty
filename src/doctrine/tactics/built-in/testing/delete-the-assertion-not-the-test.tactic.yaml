@@ -98,8 +98,6 @@ failure_modes:
      'passes' without delivering the behavior (vacuous acceptance)."
   - "Re-keying a brittle ratchet without draining the debt it allow-lists -
      cheaper-to-maintain debt lives forever."
-applies_to_languages:
-  - any
 references:
   - name: ZOMBIES TDD
     type: tactic

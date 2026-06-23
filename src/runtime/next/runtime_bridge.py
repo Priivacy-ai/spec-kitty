@@ -85,19 +85,26 @@ class DecisionGitLogUnavailable(RuntimeError):
 
 
 def _primary_runtime_feature_dir(repo_root: Path, mission_slug: str) -> Path:
-    """Return the topology-aware mission feature dir for meta.json reads.
+    """Return the PRIMARY-checkout mission feature dir for identity/meta reads.
 
-    Routes through the canonical coord-aware resolver
-    (:func:`candidate_feature_dir_for_mission`) rather than re-deriving a
-    raw mission-spec dir from the repo root and the bare slug by hand (the
-    residual slug-derived path-builder that ignored coord topology and the
-    ``-<mid8>`` suffix). One resolver, one path — FR-007/FR-009/FR-036.
+    Mission identity (``mission_id``, ``coordination_branch``, stored topology)
+    is persisted ONLY on the primary checkout's ``meta.json``. Under coordination
+    topology the topology-aware resolver (``candidate_feature_dir_for_mission``)
+    returns the coordination worktree once it is materialized — whose mission dir
+    has NO ``meta.json`` — so reading identity there found nothing and fell back
+    to the bare slug, yielding an empty ``mid8`` and a malformed
+    ``kitty/mission-<slug>-`` coord branch (#2091). Anchor on the topology-BLIND
+    :func:`primary_feature_dir_for_mission`, mirroring
+    :func:`_mission_routes_through_coordination` above and the canonical
+    precedent in ``core/paths.py`` (the same bug-class fixed for the merge
+    target): the coord-aware resolver fail-closes for a materialized-but-empty
+    coord worktree, so it must not gate primary-anchored identity reads.
     """
     from specify_cli.missions._read_path_resolver import (
-        candidate_feature_dir_for_mission,
+        primary_feature_dir_for_mission,
     )
 
-    return candidate_feature_dir_for_mission(repo_root, mission_slug)
+    return primary_feature_dir_for_mission(repo_root, mission_slug)
 
 
 def _resolve_coordination_branch(mission_slug: str, repo_root: Path) -> str:
@@ -212,6 +219,20 @@ def _wrap_with_decision_git_log(
         from specify_cli.lanes.branch_naming import resolve_mid8 as _resolve_mid8
         _declared_id = mission_id if mission_id != mission_slug else None
         _mid8 = _resolve_mid8(mission_slug, mission_id=_declared_id)
+
+        # Fail loud, never compose a malformed ``kitty/mission-<slug>-`` branch
+        # (#2091): an empty mid8 on a coord-routing mission means identity was
+        # unresolvable, so refuse here with a clear message rather than letting
+        # ``git worktree add`` fail with an opaque exit-128 on a non-existent
+        # branch. With the primary-anchored identity read above this is
+        # belt-and-suspenders, but it closes the dormant mask if any future read
+        # path loses the ULID again.
+        if coord_routing_topology and not _mid8:
+            raise DecisionGitLogUnavailable(
+                f"Cannot resolve mid8 for coordination-topology mission "
+                f"{mission_slug!r} (mission_id unresolvable); refusing to compose "
+                "a malformed coordination branch without durable decision evidence."
+            )
 
         # The decision-target topology SHAPE is READ from the WP02 stored topology
         # (FR-004 / SC-001) — never from ``_coord_path.exists()`` (the retired
