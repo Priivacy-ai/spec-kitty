@@ -311,3 +311,9 @@ Explanation count breakdown:
 - **WP10/WP11 (harness research + matrix)** is the source of truth for the harness tier (Tier-1 vs Tier-2) — the 14 harness how-tos above will be tier-gated by decision `01KS4KTS4V300M9MMTS1AJEGXY`. If the tier resolution drops a harness to Tier-3 "experimental", its `how-to/harnesses/<name>.md` slot demotes to a single note inside `supported-harnesses.md` rather than a standalone page.
 - **WP13/WP14 (publication checklist + finalization)** should treat §7 totals as the canonical scoreboard.
 - All new tutorial / how-to / explanation slots follow the Terminology Canon (`mission` only — no `feature` in canonical names; legacy `your-first-feature.md` is explicitly retired in §6.1).
+
+---
+
+## 10. Related development docs
+
+- [`docs/development/yaml-libraries.md`](yaml-libraries.md) — YAML library choice guide: when to use ruamel.yaml (round-trip, write-back) vs PyYAML `safe_load` (read-only). Documents current-state usage, known mixed-usage sites, and the aspirational enforcement rule (FR-009).
