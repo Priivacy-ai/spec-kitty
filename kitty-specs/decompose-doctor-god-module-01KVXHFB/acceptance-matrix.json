@@ -88,23 +88,19 @@
   "negative_invariants": [
     {
       "invariant_id": "NI-001",
-      "description": "I-8: no new responsibilities added to doctor.py — it remains the orchestration shim (app + 16 thin command shells + re-export block).",
-      "proof_type": "manual_review",
-      "evidence": "WP11 pointer-comment review + test_doctor_shim_reexports.test_pointer_comment_references_issue_2059; doctor.py only gained delegation shells.",
-      "pass_fail": "pass",
-      "verified_by": "claude:opus:reviewer-renata:reviewer",
-      "verified_at": "2026-06-25T00:00:00+00:00",
-      "notes": "Pointer comment references #2059 and 'do NOT add new responsibilities'."
+      "description": "I-6/H2: no module-level import of the merge module in _coordination_doctor (would reintroduce the doctor<->merge cycle).",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -nE '^from specify_cli.cli.commands.merge' src/specify_cli/cli/commands/_coordination_doctor.py",
+      "result": "confirmed_absent",
+      "evidence": "The merge import is indented inside _check_tracked_worktrees_content; the AST 'not module-level' + import-cycle regression tests in test_coordination_doctor.py pass."
     },
     {
       "invariant_id": "NI-002",
-      "description": "No new blanket lint/type suppressions introduced to pass the gates.",
-      "proof_type": "manual_review",
-      "evidence": "Each WP added zero new blanket suppressions; the pre-existing mission-state C901 suppression was REMOVED (WP06). Narrow type-ignore comments on duck-typed report objects were carried over verbatim from the original code, not newly added.",
-      "pass_fail": "pass",
-      "verified_by": "claude:opus:reviewer-renata:reviewer",
-      "verified_at": "2026-06-25T00:00:00+00:00",
-      "notes": "ruff + mypy --strict clean without relaxing any check."
+      "description": "No new blanket lint/type suppressions introduced to pass the gates; the pre-existing mission-state C901 suppression was removed.",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -rnE '# noqa: C901' src/specify_cli/cli/commands/doctor.py src/specify_cli/cli/commands/_mission_state_doctor.py",
+      "result": "confirmed_absent",
+      "evidence": "WP06 dropped the mission-state '# noqa: C901'; ruff + mypy --strict clean across all 10 modules without relaxing any check."
     }
   ]
 }
