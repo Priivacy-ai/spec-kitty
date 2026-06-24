@@ -19,8 +19,8 @@ subtasks:
 - T031
 - T032
 - T033
-agent: "claude:opus:randy-reducer:implementer"
-shell_pid: "3509758"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "3549043"
 history:
 - date: '2026-06-24'
   action: created
@@ -95,3 +95,5 @@ Recommended reviewer: standard. Verify the full re-export list resolves, `state_
 
 - 2026-06-24T19:54:56Z – claude – planning – WP created (deps WP10; sole owner of doctor.py).
 - 2026-06-24T22:59:00Z – claude:opus:randy-reducer:implementer – shell_pid=3509758 – Assigned agent via action command
+- 2026-06-24T23:13:21Z – claude:opus:randy-reducer:implementer – shell_pid=3509758 – Shim closeout: all re-exports resolve; state_roots decomposed; full gate sweep green (428 doctor + golden + cli_gate; ruff/C901/mypy clean); doctor.py 3434->1053 LOC
+- 2026-06-24T23:13:23Z – claude:opus:reviewer-renata:reviewer – shell_pid=3549043 – Started review via action command

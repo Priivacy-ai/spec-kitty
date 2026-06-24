@@ -161,8 +161,8 @@
 - **Goal**: Sole owner of `doctor.py` — finalize the re-export block, decompose `state_roots` CC17, verify the pointer comment, and run the full gate sweep proving byte-identity.
 - **Priority**: P1 (closeout). **Dependencies**: WP10. **Independent test**: golden + full doctor + cli_gate suites + ruff/C901/mypy all green.
 - **Requirement refs**: FR-001, FR-002, FR-005, FR-006, FR-007.
-- [ ] T031 Re-export sweep: all 11 private symbols + `app`/`SlashCommandGap` resolve from `doctor`; decompose `state_roots` cmd CC17 (WP11)
-- [ ] T032 Verify pointer comment references #2059; `doctor.py` ≤ ~400 LOC, no new responsibilities (WP11)
-- [ ] T033 Full gate sweep: golden + 58 doctor tests + cli_gate; ruff + C901 + mypy --strict clean, zero new suppressions (WP11)
+- [x] T031 Re-export sweep: all 11 private symbols + `app`/`SlashCommandGap` resolve from `doctor`; decompose `state_roots` cmd CC17 (WP11)
+- [x] T032 Verify pointer comment references #2059; `doctor.py` ≤ ~400 LOC, no new responsibilities (WP11)
+- [x] T033 Full gate sweep: golden + 58 doctor tests + cli_gate; ruff + C901 + mypy --strict clean, zero new suppressions (WP11)
 - **Owned files**: `src/specify_cli/cli/commands/doctor.py` (this WP is its SOLE owner) + `tests/specify_cli/cli/commands/test_doctor_shim_reexports.py`.
 - **Risks**: a missing re-export or a `state_roots` left at CC17 fails the closeout gate.
