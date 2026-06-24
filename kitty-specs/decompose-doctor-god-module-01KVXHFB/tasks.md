@@ -128,9 +128,9 @@
 - **Goal**: Move Cluster E (remediation render/flow); decompose `sparse_checkout` cmd CC19.
 - **Priority**: P1. **Dependencies**: WP07. **Independent test**: sparse-checkout tests ≥90% + golden green.
 - **Requirement refs**: FR-003, FR-004, FR-005.
-- [ ] T022 Create `_sparse_checkout_doctor.py`; decompose `sparse_checkout` cmd CC19 (WP08)
-- [ ] T023 Delegate `sparse-checkout` body to sibling (WP08)
-- [ ] T024 Focused tests ≥90%; golden green (WP08)
+- [x] T022 Create `_sparse_checkout_doctor.py`; decompose `sparse_checkout` cmd CC19 (WP08)
+- [x] T023 Delegate `sparse-checkout` body to sibling (WP08)
+- [x] T024 Focused tests ≥90%; golden green (WP08)
 - **Out-of-map edits**: `doctor.py` (delegation).
 - **Risks**: the `--fix` CI-refusal exit path (0 clean / 1 state-present-or-refusal) must be preserved.
 
