@@ -1,0 +1,125 @@
+{
+  "version": 1,
+  "mission_slug": "write-surface-coherence-01KVTVZS",
+  "mission_id": "01KVTVZS6ZT02NTR0YBJ9WWKMJ",
+  "mission_branch": "kitty/mission-write-surface-coherence-01KVTVZS",
+  "target_branch": "feat/write-surface-coherence",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/mission_runtime/artifacts.py",
+        "src/mission_runtime/resolution.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02",
+        "WP03",
+        "WP05",
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/acceptance/__init__.py",
+        "src/specify_cli/cli/commands/agent/mission.py",
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/cli/commands/safe_commit_cmd.py",
+        "src/specify_cli/cli/commands/spec_commit_cmd.py",
+        "src/specify_cli/coordination/commit_router.py",
+        "src/specify_cli/coordination/status_transition.py",
+        "src/specify_cli/git/commit_helpers.py",
+        "src/specify_cli/orchestrator_api/commands.py",
+        "src/specify_cli/task_utils/support.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/coordination/surface_resolver.py",
+        "src/specify_cli/missions/_read_path_resolver.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "tests/architectural/test_write_surface_placement_guard.py",
+        "tests/missions/test_write_surface_coherence.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-06-23T20:09:08.770712+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP03",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/coordination/commit_router.py' vs 'src/specify_cli/coordination/commit_router.py', 'src/specify_cli/cli/commands/agent/mission.py' vs 'src/specify_cli/cli/commands/agent/mission.py'; WP03 depends on WP02"
+      },
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP05",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/coordination/commit_router.py' vs 'src/specify_cli/coordination/commit_router.py', 'src/specify_cli/cli/commands/agent/mission.py' vs 'src/specify_cli/cli/commands/agent/mission.py'"
+      },
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP06",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/cli/commands/agent/mission.py' vs 'src/specify_cli/cli/commands/agent/mission.py'"
+      }
+    ],
+    "total_merges": 3,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 3
+    }
+  }
+}
