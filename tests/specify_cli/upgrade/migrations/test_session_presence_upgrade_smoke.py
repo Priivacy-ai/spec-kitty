@@ -30,9 +30,7 @@ import specify_cli.upgrade.migrations.m_3_3_0_session_presence_all_harnesses  # 
 
 from specify_cli.upgrade import MigrationRunner
 
-pytestmark = [pytest.mark.unit]
-
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 # ---------------------------------------------------------------------------
 # Harnesses whose config directories to create for the smoke project.
 # (NullWriter harnesses like qwen / kilocode / auggie / q are omitted because

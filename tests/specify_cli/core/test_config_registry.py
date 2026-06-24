@@ -28,8 +28,7 @@ from specify_cli.core.config import (
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 def test_vibe_in_ai_choices() -> None:
     assert "vibe" in AI_CHOICES
     assert AI_CHOICES["vibe"] == "Mistral Vibe"

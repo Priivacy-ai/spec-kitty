@@ -15,9 +15,7 @@ from specify_cli.session_presence.content import (
     SessionPresenceContent,
 )
 
-pytestmark = [pytest.mark.unit]
-
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 class TestRenderHealthy:
     def test_contains_version(self, healthy_content: SessionPresenceContent) -> None:
         assert "3.2.0" in healthy_content.render()

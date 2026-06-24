@@ -21,8 +21,7 @@ from specify_cli.decisions.service import DecisionError, open_decision
 from specify_cli.decisions import store as _store
 from spec_kitty_events.decisionpoint import DECISION_POINT_OPENED
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 MISSION_ID = "01KTEST_MISSION_ID_000001"
 MISSION_SLUG = "test-mission"
 

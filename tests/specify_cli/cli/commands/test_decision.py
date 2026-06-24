@@ -33,8 +33,7 @@ from specify_cli.decisions.service import DecisionError
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 MISSION_SLUG = "test-decision-cli-mission"
 MISSION_ID = "01KTESTCLIMDECISION00001"
 

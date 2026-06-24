@@ -13,9 +13,7 @@ from specify_cli.status.store import append_event
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
 # Reason: subprocess CLI invocation
-pytestmark = pytest.mark.non_sandbox
-
-
+pytestmark = [pytest.mark.non_sandbox, pytest.mark.fast]
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

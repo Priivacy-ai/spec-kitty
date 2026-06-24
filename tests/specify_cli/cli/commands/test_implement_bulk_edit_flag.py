@@ -16,8 +16,7 @@ from specify_cli.cli.commands.implement import implement as implement_fn
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 def test_implement_declares_acknowledge_flag() -> None:
     """The ``--acknowledge-not-bulk-edit`` option must be declared on the
     implement command. If a refactor removes or renames it, users who have

@@ -15,8 +15,7 @@ from specify_cli.frontmatter import read_frontmatter
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 runner = CliRunner()
 
 SPEC_CONTENT = """\

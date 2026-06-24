@@ -35,8 +35,7 @@ from specify_cli.next.decision import (
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
     """Seed a WP into a specific lane in the event log."""
     event = StatusEvent(

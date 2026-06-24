@@ -42,8 +42,7 @@ from specify_cli.skills.manifest_store import ManifestEntry, SkillsManifest
 # Helpers
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 _TEMPLATE_REPO_ROOT = (
     Path(__file__).parent.parent.parent.parent
 )  # tests/specify_cli/skills/../../.. → repo root

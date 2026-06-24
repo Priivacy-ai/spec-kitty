@@ -12,9 +12,7 @@ import pytest
 
 from specify_cli.events.sanitizer import sanitize_event_for_log
 
-pytestmark = [pytest.mark.unit]
-
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 # ---------------------------------------------------------------------------
 # T004 — PII field removal
 # ---------------------------------------------------------------------------

@@ -19,9 +19,7 @@ from specify_cli.skills.registry import CanonicalSkill, SkillRegistry
 from specify_cli.skills.retired import RETIRED_CANONICAL_SKILL_NAMES
 
 
-pytestmark = [pytest.mark.unit]
-
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 def _make_skill(
     root: Path,
     name: str,

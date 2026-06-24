@@ -30,9 +30,7 @@ from specify_cli.core.context_validation import (
 # Reason: repo_root detection returns /tmp in mutmut's forked sandbox CWD,
 #         which breaks the "not a worktree" negative assertion. Structural
 #         sandbox incompatibility; not a regression of production behaviour.
-pytestmark = pytest.mark.non_sandbox
-
-
+pytestmark = [pytest.mark.non_sandbox, pytest.mark.fast]
 def _hide_ambient_repo_markers(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Hide .kittify/.git markers above tmp_path for negative detection tests."""
     original_exists = Path.exists

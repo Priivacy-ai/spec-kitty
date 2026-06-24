@@ -31,8 +31,7 @@ from specify_cli.cli.commands.charter_bundle import app as charter_bundle_app
 # Helpers
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 runner = CliRunner()
 
 _yaml = YAML()

@@ -10,8 +10,7 @@ from specify_cli.intake_sources import HARNESS_PLAN_SOURCES, scan_for_plans
 from tests.specify_cli.intake_test_helpers import patched_harness_plan_sources
 
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 class TestHarnessPlanSources:
     def test_list_is_defined(self):
         assert isinstance(HARNESS_PLAN_SOURCES, list)

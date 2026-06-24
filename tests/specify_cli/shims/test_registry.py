@@ -26,8 +26,7 @@ from specify_cli.shims.registry import (
 )
 
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 class TestConsumerSkills:
     @pytest.mark.parametrize(
         "skill",

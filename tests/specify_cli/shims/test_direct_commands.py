@@ -29,8 +29,7 @@ from mission_runtime import ActionName, ACTION_NAMES
 # Helpers
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 def _setup_project(tmp_path: Path, agents: list[str]) -> None:
     """Create a minimal project with .kittify/config.yaml and agent dirs."""
     kittify = tmp_path / ".kittify"

@@ -21,8 +21,7 @@ from specify_cli.upgrade.skill_update import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 # The software-dev command templates were migrated from
 # ``src/specify_cli/missions/<type>/command-templates/`` to the canonical doctrine
 # mission-steps structure. The implement step's bulk-edit safety / occurrence

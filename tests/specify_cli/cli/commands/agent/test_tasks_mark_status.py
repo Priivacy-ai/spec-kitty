@@ -18,8 +18,7 @@ from specify_cli.core.wps_manifest import (
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 runner = CliRunner()
 
 

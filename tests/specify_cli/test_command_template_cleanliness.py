@@ -27,8 +27,7 @@ import pytest
 # Template discovery
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 from specify_cli.shims.registry import PROMPT_DRIVEN_COMMANDS
 
 # All full prompt-driven command templates.

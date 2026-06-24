@@ -34,8 +34,7 @@ from specify_cli.decisions.service import DecisionError
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 MISSION_SLUG = "test-charter-dm-mission"
 MISSION_ID = "01KCHARTERTESTMISSION0001"
 

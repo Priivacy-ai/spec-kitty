@@ -17,8 +17,7 @@ from specify_cli.invocation.writer import EVENTS_DIR, INDEX_PATH, InvocationWrit
 # Helpers
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 _INVOCATION_ID = "01ABCDEFGHJKMNPQRSTVWXYZ12"
 _INVOCATION_ID_2 = "01BCDEFGHJKMNPQRSTVWXYZ123"
 

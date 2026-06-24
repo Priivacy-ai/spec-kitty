@@ -23,8 +23,7 @@ from specify_cli.core.worktree import _existing_worktree_is_valid, create_wp_wor
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 def _make_frontmatter(
     execution_mode: str = "code_change",
     wp_id: str = "WP01",
