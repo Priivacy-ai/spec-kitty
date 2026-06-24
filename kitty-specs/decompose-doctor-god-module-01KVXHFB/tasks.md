@@ -139,9 +139,9 @@
 - **Goal**: Move Cluster C (workspace-husk status/fix/report).
 - **Priority**: P1. **Dependencies**: WP08. **Independent test**: workspace-husk tests ≥90% + golden green.
 - **Requirement refs**: FR-003, FR-004.
-- [ ] T025 Create `_workspace_husk_doctor.py` (WP09)
-- [ ] T026 Delegate `workspaces` body to sibling (WP09)
-- [ ] T027 Focused tests ≥90%; golden green (WP09)
+- [x] T025 Create `_workspace_husk_doctor.py` (WP09)
+- [x] T026 Delegate `workspaces` body to sibling (WP09)
+- [x] T027 Focused tests ≥90%; golden green (WP09)
 - **Out-of-map edits**: `doctor.py` (delegation).
 - **Risks**: husk `--fix` vs report exit (0 clean / 1 husks-or-error) preserved.
 

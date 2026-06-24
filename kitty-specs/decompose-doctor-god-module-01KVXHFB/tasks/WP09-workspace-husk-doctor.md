@@ -16,8 +16,8 @@ subtasks:
 - T025
 - T026
 - T027
-agent: "claude:opus:randy-reducer:implementer"
-shell_pid: "3436325"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "3468271"
 history:
 - date: '2026-06-24'
   action: created
@@ -90,3 +90,5 @@ Recommended reviewer: standard. Verify standalone extraction, exit contract unch
 
 - 2026-06-24T19:54:56Z – claude – planning – WP created (deps WP08).
 - 2026-06-24T22:16:32Z – claude:opus:randy-reducer:implementer – shell_pid=3436325 – Assigned agent via action command
+- 2026-06-24T22:25:44Z – claude:opus:randy-reducer:implementer – shell_pid=3436325 – Cluster C standalone-extracted; 100% cov; golden+husk tests green
+- 2026-06-24T22:26:19Z – claude:opus:reviewer-renata:reviewer – shell_pid=3468271 – Started review via action command
