@@ -16,6 +16,8 @@ subtasks:
 - T025
 - T026
 - T027
+agent: "claude:opus:randy-reducer:implementer"
+shell_pid: "3436325"
 history:
 - date: '2026-06-24'
   action: created
@@ -87,3 +89,4 @@ Recommended reviewer: standard. Verify standalone extraction, exit contract unch
 ## Activity Log
 
 - 2026-06-24T19:54:56Z – claude – planning – WP created (deps WP08).
+- 2026-06-24T22:16:32Z – claude:opus:randy-reducer:implementer – shell_pid=3436325 – Assigned agent via action command
