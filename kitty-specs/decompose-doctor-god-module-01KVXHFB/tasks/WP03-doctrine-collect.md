@@ -17,6 +17,8 @@ subtasks:
 - T007
 - T008
 - T009
+agent: "claude:opus:randy-reducer:implementer"
+shell_pid: "3046407"
 history:
 - date: '2026-06-24'
   action: created
@@ -92,3 +94,4 @@ Recommended reviewer: standard. Verify only collectors moved (not MODEL/RENDER),
 ## Activity Log
 
 - 2026-06-24T19:54:56Z – claude – planning – WP created (deps WP02; completes #1623 seam).
+- 2026-06-24T20:43:54Z – claude:opus:randy-reducer:implementer – shell_pid=3046407 – Assigned agent via action command
