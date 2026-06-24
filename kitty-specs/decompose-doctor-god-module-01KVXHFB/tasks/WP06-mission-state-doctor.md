@@ -16,6 +16,8 @@ subtasks:
 - T016
 - T017
 - T018
+agent: "claude:opus:randy-reducer:implementer"
+shell_pid: "3262641"
 history:
 - date: '2026-06-24'
   action: created
@@ -90,3 +92,4 @@ Recommended reviewer: standard. Verify the suppression is dropped (and unnecessa
 ## Activity Log
 
 - 2026-06-24T19:54:56Z – claude – planning – WP created (deps WP05; drop mission_state noqa).
+- 2026-06-24T21:34:11Z – claude:opus:randy-reducer:implementer – shell_pid=3262641 – Assigned agent via action command
