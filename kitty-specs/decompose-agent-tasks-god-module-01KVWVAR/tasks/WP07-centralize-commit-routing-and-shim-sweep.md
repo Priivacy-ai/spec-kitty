@@ -104,11 +104,16 @@ Replace the `_planning_commit_worktree` + `safe_commit` pair with `commit_for_mi
 `WORK_PACKAGE_TASK`, **threading `target_branch=` for the WP09 ff-advance** (currently absent at this
 call site — research §3 gap). Preserve message/exit code + the `--json` `commit_result` serialization.
 
-### T030 — Delete the now-dead pre-checks
-Remove `_skip_target_branch_commit()`, `_protected_branch_status_commit_error()`, their guard
-conditionals in `move_task`/`mark_status`, and the `_planning_commit_worktree` import in
-`map_requirements`. **Do NOT touch `mission.py`** (C-006 — its own use of `_planning_commit_worktree`
-is out of scope). Confirm no other caller depends on the deleted helpers (grep).
+### T030 — Delete the now-dead pre-checks — **DEFERRED (premise incorrect)**
+Original intent: remove `_skip_target_branch_commit()`, `_protected_branch_status_commit_error()`,
+their guard conditionals in `move_task`/`mark_status`. **Deferred**: these pre-checks are NOT dead.
+`commit_for_mission` only governs the commit step (refuses protected primary → exit 1), whereas
+`_skip_target_branch_commit` drives a load-bearing command-flow arm — in the coord-topology +
+protected-primary case it suppresses the WP-file write, reshapes the `--json` envelope, drives the
+`WP_METADATA_UNSUPPORTED_ON_PROTECTED_COORD_BRANCH` rejection, and **succeeds with exit 0** (coord
+branch is authoritative). Deleting it would flip exit 0 → exit 1, breaking #1615-1618 + C-003
+byte-identity. The `_planning_commit_worktree` import WAS removed from `tasks.py` (FR-006 ✓). True
+consolidation (teaching the router the exit-0 coord arm) = follow-up #TBD under #1797. See spec FR-007.
 
 ### T031 — Extend the FR-008 regression test
 Extend `tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py` to assert, for each of the 3
@@ -133,12 +138,12 @@ extended FR-008 test, `ruff check`, `mypy --strict`, and `pytest tests/architect
 
 ## Definition of Done
 
-- [ ] All 3 tails route through `commit_for_mission`; no residual `safe_commit` / `_planning_commit_worktree` in `tasks.py`.
-- [ ] Dead pre-checks deleted; `mission.py` untouched (C-006).
-- [ ] Protected-primary message text + exit codes proven byte-identical for all 3 tails (extended FR-008 test).
-- [ ] `#2058` pointer comment present at top of `tasks.py`.
-- [ ] Every function in `tasks.py` maxCC ≤15; file ≤ ~1200 LOC.
-- [ ] Golden contract test green; full suite green; ruff + mypy --strict clean; terminology guard green; no new suppressions.
+- [x] All 3 tails route through `commit_for_mission`; no residual `safe_commit` / `_planning_commit_worktree` CALL in `tasks.py` (comment refs only).
+- [~] Dead pre-checks deleted — **DEFERRED**: pre-checks are not dead (govern the coord-topology exit-0 silent-skip the router cannot reproduce; deleting breaks #1615-1618). `mission.py` untouched (C-006). Follow-up #TBD. See T030 / spec FR-007.
+- [x] Protected-primary message text + exit codes proven byte-identical for all 3 tails (extended FR-008 test).
+- [x] `#2058` pointer comment present at top of `tasks.py`.
+- [~] Every function in `tasks.py` maxCC ≤15 — **MET** (ruff C901 clean). File ≤ ~1200 LOC — **NOT met**: 3365 LOC (mega-function bodies not internally decomposed; body-thinning deferred, follow-up #TBD). See spec NFR-004/SC-002.
+- [x] Golden contract test green; full suite green; ruff + mypy --strict clean; terminology guard green; no new suppressions.
 
 ## Risks
 
