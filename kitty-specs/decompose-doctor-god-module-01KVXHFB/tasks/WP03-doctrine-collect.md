@@ -97,3 +97,4 @@ Recommended reviewer: standard. Verify only collectors moved (not MODEL/RENDER),
 - 2026-06-24T20:43:54Z – claude:opus:randy-reducer:implementer – shell_pid=3046407 – Assigned agent via action command
 - 2026-06-24T20:56:12Z – claude:opus:randy-reducer:implementer – shell_pid=3046407 – Collectors extracted to _doctrine_collect; #1623 triad complete; 92% cov; snapshot+golden green; ruff/mypy clean
 - 2026-06-24T20:56:20Z – claude:opus:reviewer-renata:reviewer – shell_pid=3107150 – Started review via action command
+- 2026-06-24T20:56:24Z – user – shell_pid=3107150 – Only collectors moved (MODEL/RENDER untouched); collect->model/render/shared one-way (AST-verified, no doctor import); 5 test-facing symbols re-export from doctor; byte-pinned doctrine snapshot green; 92% collector coverage; ruff/mypy --strict clean; behavior-preserving
