@@ -117,9 +117,9 @@
 - **Goal**: Move Cluster K (git-version + worktree/sparse-drift health); decompose `_check_lane_sparse_checkout_drift` CC19; keep `merge.path_is_under_worktrees` FUNCTION-LOCAL.
 - **Priority**: P1. **Dependencies**: WP06. **Independent test**: coordination tests ≥90% + import-graph shows no `doctor↔merge` cycle + golden green.
 - **Requirement refs**: FR-003, FR-004, FR-005, FR-007.
-- [ ] T019 Create `_coordination_doctor.py`; decompose `_check_lane_sparse_checkout_drift` CC19; KEEP `merge` import function-local (WP07)
-- [ ] T020 Delegate `coordination` body to sibling (WP07)
-- [ ] T021 Coordination tests ≥90%; no `doctor↔merge` cycle; golden green (WP07)
+- [x] T019 Create `_coordination_doctor.py`; decompose `_check_lane_sparse_checkout_drift` CC19; KEEP `merge` import function-local (WP07)
+- [x] T020 Delegate `coordination` body to sibling (WP07)
+- [x] T021 Coordination tests ≥90%; no `doctor↔merge` cycle; golden green (WP07)
 - **Out-of-map edits**: `doctor.py` (delegation).
 - **Risks**: hoisting `path_is_under_worktrees` to module scope reintroduces the `doctor↔merge` cycle (H2) — rejection criterion.
 
