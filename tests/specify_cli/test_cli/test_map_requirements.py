@@ -631,7 +631,7 @@ class TestMapRequirementsAutoCommitJson:
     unparseable by an orchestrating agent.
     """
 
-    @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
+    @patch("specify_cli.cli.commands.agent.tasks.commit_for_mission")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
@@ -640,16 +640,19 @@ class TestMapRequirementsAutoCommitJson:
         mock_branch: Mock,
         mock_slug: Mock,
         mock_locate: Mock,
-        mock_safe_commit: Mock,
+        mock_commit_for_mission: Mock,
         tmp_path: Path,
     ) -> None:
-        from specify_cli.git.commit_helpers import CommitResult
+        from specify_cli.coordination.commit_router import CommitRouterResult
 
         mock_locate.return_value = tmp_path
         mock_slug.return_value = "001-test"
         mock_branch.return_value = (tmp_path, "main")
-        mock_safe_commit.return_value = CommitResult(
-            sha="abc1234def", destination_ref="main", worktree_root=tmp_path
+        # WP07 / FR-006: the WP-file commit routes through ``commit_for_mission``.
+        # A committed router result carries the placement ref + commit hash; the
+        # command reconstructs the serializable ``commit_result`` envelope (#1891).
+        mock_commit_for_mission.return_value = CommitRouterResult(
+            status="committed", placement_ref="main", commit_hash="abc1234def"
         )
         _setup_feature(tmp_path)
 
@@ -672,4 +675,4 @@ class TestMapRequirementsAutoCommitJson:
         assert payload["result"] == "success"
         assert payload["committed"] is True
         assert payload["commit_sha"] == "abc1234def"
-        mock_safe_commit.assert_called_once()
+        mock_commit_for_mission.assert_called_once()

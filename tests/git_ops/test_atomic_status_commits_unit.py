@@ -28,6 +28,17 @@ from specify_cli.cli.commands.agent.tasks import (
     _validate_ready_for_review,
     app,
 )
+from specify_cli.coordination.commit_router import CommitRouterResult
+
+
+def _committed_result(ref: str = "main") -> CommitRouterResult:
+    """A router result mirroring a successful ``safe_commit`` (WP07 routing)."""
+    return CommitRouterResult(status="committed", placement_ref=ref, commit_hash="0" * 40)
+
+
+def _unchanged_result(ref: str = "main") -> CommitRouterResult:
+    """A router result that maps to the old falsy ``safe_commit`` return (WP07)."""
+    return CommitRouterResult(status="unchanged", placement_ref=ref)
 from specify_cli.status.locking import (
     FeatureStatusLockTimeoutError,
     feature_status_lock,
@@ -557,13 +568,13 @@ Test content.
             finally:
                 lock_state["held"] = False
 
-        def fake_safe_commit(**kwargs: object) -> bool:
-            del kwargs
+        def fake_commit_for_mission(*args: object, **kwargs: object) -> CommitRouterResult:
+            del args, kwargs
             assert lock_state["held"] is True
-            return True
+            return _committed_result()
 
         with patch("specify_cli.cli.commands.agent.tasks.feature_status_lock", tracking_lock):
-            with patch("specify_cli.cli.commands.agent.tasks.safe_commit", side_effect=fake_safe_commit):
+            with patch("specify_cli.cli.commands.agent.tasks.commit_for_mission", side_effect=fake_commit_for_mission):
                 result = runner.invoke(
                     app,
                     ["move-task", "WP01", "--to", "for_review", "--json"],
@@ -603,7 +614,7 @@ Test content.
 
         with (
             patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional", side_effect=tracking_emit),
-            patch("specify_cli.cli.commands.agent.tasks.safe_commit", return_value=True),
+            patch("specify_cli.cli.commands.agent.tasks.commit_for_mission", return_value=_committed_result("status-test")),
             patch("specify_cli.cli.commands.agent.tasks.console.print") as mock_print,
         ):
             result = runner.invoke(
@@ -651,7 +662,7 @@ Test content.
         mock_slug.return_value = "017-test-feature"
 
         with (
-            patch("specify_cli.cli.commands.agent.tasks.safe_commit", return_value=False),
+            patch("specify_cli.cli.commands.agent.tasks.commit_for_mission", return_value=_unchanged_result()),
             patch("specify_cli.cli.commands.agent.tasks.console.print") as mock_print,
         ):
             result = runner.invoke(
@@ -739,14 +750,14 @@ class TestMarkStatusAtomicCommit:
             finally:
                 lock_state["held"] = False
 
-        def fake_safe_commit(**kwargs: object) -> bool:
-            del kwargs
+        def fake_commit_for_mission(*args: object, **kwargs: object) -> CommitRouterResult:
+            del args, kwargs
             assert lock_state["held"] is True
-            return True
+            return _committed_result()
 
         with (
             patch("specify_cli.cli.commands.agent.tasks.feature_status_lock", tracking_lock),
-            patch("specify_cli.cli.commands.agent.tasks.safe_commit", side_effect=fake_safe_commit),
+            patch("specify_cli.cli.commands.agent.tasks.commit_for_mission", side_effect=fake_commit_for_mission),
             patch("specify_cli.cli.commands.agent.tasks.console.print") as mock_print,
         ):
             result = runner.invoke(
@@ -816,7 +827,7 @@ class TestMarkStatusAtomicCommit:
         _write_feature_tasks_md(feature_dir)
 
         with (
-            patch("specify_cli.cli.commands.agent.tasks.safe_commit", return_value=False),
+            patch("specify_cli.cli.commands.agent.tasks.commit_for_mission", return_value=_unchanged_result()),
             patch("specify_cli.cli.commands.agent.tasks.console.print") as mock_print,
         ):
             result = runner.invoke(
@@ -851,7 +862,7 @@ class TestMarkStatusAtomicCommit:
         _write_feature_tasks_md(feature_dir)
 
         with (
-            patch("specify_cli.cli.commands.agent.tasks.safe_commit", side_effect=RuntimeError("commit boom")),
+            patch("specify_cli.cli.commands.agent.tasks.commit_for_mission", side_effect=RuntimeError("commit boom")),
             patch("specify_cli.cli.commands.agent.tasks.console.print") as mock_print,
         ):
             result = runner.invoke(

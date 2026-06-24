@@ -7,12 +7,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 from typer.testing import CliRunner
 
 from mission_runtime import CommitTarget
+from specify_cli.coordination.commit_router import CommitRouterResult
 from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
 
 pytestmark = [pytest.mark.fast]
@@ -198,46 +198,44 @@ def test_map_requirements_auto_commit_uses_coord_placement_for_coord_files(
     )
     captured: dict[str, object] = {}
 
-    def fake_planning_commit_worktree(
+    def fake_commit_for_mission(
         repo_root: Path,
         mission_slug: str,
-        paths: tuple[Path, ...],
-        **_kwargs: object,
-    ) -> tuple[Path, tuple[Path, ...]]:
-        # Stands in for the real relocation: incoming paths come from the
-        # single-authority-resolved PRIMARY tasks surface; the helper returns the
-        # coord-worktree placement those files are staged into for the commit.
-        captured["planning_paths"] = paths
-        assert repo_root == primary_root
-        assert mission_slug == MISSION_SLUG
-        assert paths and all(primary_tasks_dir in path.parents for path in paths)
-        return coord_root, (wp_file.resolve(),)
-
-    def fake_safe_commit(
-        *,
-        repo_root: Path,
-        worktree_root: Path,
-        target: CommitTarget,
+        files: tuple[Path, ...],
         message: str,
-        paths: tuple[Path, ...],
-        capability: object,
+        policy: object,
+        *,
+        kind: object,
+        target_branch: str | None = None,
         **_kwargs: object,
-    ) -> SimpleNamespace:
+    ) -> CommitRouterResult:
+        # WP07 / FR-006: the WP-file commit now routes through the canonical
+        # ``commit_for_mission`` router, which OWNS placement + worktree resolution
+        # internally. The command's only contract is: pass the resolved WP files,
+        # the WORK_PACKAGE_TASK kind, and the threaded ``target_branch`` for the
+        # WP09 ff-advance. Capture those to pin the call shape.
+        from mission_runtime import MissionArtifactKind
+
         captured.update(
             {
                 "repo_root": repo_root,
-                "worktree_root": worktree_root,
-                "target": target,
+                "mission_slug": mission_slug,
+                "files": files,
                 "message": message,
-                "paths": paths,
-                "capability": capability,
+                "kind": kind,
+                "target_branch": target_branch,
             }
         )
         assert repo_root == primary_root
-        assert worktree_root == coord_root
-        assert target == placement
-        assert paths == (wp_file.resolve(),)
-        return SimpleNamespace(sha="abc1234")
+        assert mission_slug == MISSION_SLUG
+        assert kind == MissionArtifactKind.WORK_PACKAGE_TASK
+        # WP07: ``target_branch`` is threaded for the ff-advance (previously absent).
+        assert target_branch == "main"
+        return CommitRouterResult(
+            status="committed",
+            placement_ref=placement.ref,
+            commit_hash="abc1234",
+        )
 
     monkeypatch.setattr(tasks_mod, "locate_project_root", lambda: primary_root)
     monkeypatch.setattr(
@@ -251,17 +249,11 @@ def test_map_requirements_auto_commit_uses_coord_placement_for_coord_files(
     monkeypatch.setattr(
         tasks_mod, "_emit_sparse_session_warning", lambda *_args, **_kwargs: None
     )
-    monkeypatch.setattr(tasks_mod, "safe_commit", fake_safe_commit)
+    monkeypatch.setattr(tasks_mod, "commit_for_mission", fake_commit_for_mission)
     # write-surface-coherence WP02 / T009: ``_resolve_planning_placement`` now takes
-    # a required ``kind`` keyword; the stub accepts it (the actual write surface in
-    # this test is ``_planning_commit_worktree``, WP03-owned, stubbed below).
+    # a required ``kind`` keyword; the stub accepts it (used only by the pre-check).
     monkeypatch.setattr(
         mission_mod, "_resolve_planning_placement", lambda *_args, **_kwargs: placement
-    )
-    monkeypatch.setattr(
-        mission_mod,
-        "_planning_commit_worktree",
-        fake_planning_commit_worktree,
     )
     monkeypatch.setattr(
         "specify_cli.missions._read_path_resolver.resolve_feature_dir_for_slug",
@@ -285,4 +277,6 @@ def test_map_requirements_auto_commit_uses_coord_placement_for_coord_files(
     assert payload["committed"] is True
     assert payload["commit_sha"] == "abc1234"
     assert payload["mission_type"] == "documentation"
-    assert captured["worktree_root"] == coord_root
+    # The WP file the router received is a real WP01 task path (primary surface).
+    assert captured["files"]
+    assert all("WP01" in path.name for path in captured["files"])  # type: ignore[attr-defined]

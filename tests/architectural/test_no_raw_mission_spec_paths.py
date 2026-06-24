@@ -15,7 +15,14 @@ pytestmark = [pytest.mark.architectural]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SRC_ROOT = Path("src")
-_RAW_PATTERN = re.compile(r'"kitty-specs"|"kitty\.specs"|kitty_specs')
+# ``kitty_specs`` matches the standalone path-holding identifier/token only.
+# The identifier-boundary guards (``(?<![A-Za-z0-9_])`` / ``(?![A-Za-z0-9_])``)
+# stop the token from matching when it is an inner substring of a longer Python
+# identifier (e.g. the validator name ``_check_kitty_specs_contamination``),
+# which is a function name, not a raw mission-spec path construction.
+_RAW_PATTERN = re.compile(
+    r'"kitty-specs"|"kitty\.specs"|(?<![A-Za-z0-9_])kitty_specs(?![A-Za-z0-9_])'
+)
 _SEMANTIC_PATTERN = re.compile(r"KITTY_SPECS_DIR\s*/\s*\w")
 
 _RAW_EXEMPT_PARTS = (

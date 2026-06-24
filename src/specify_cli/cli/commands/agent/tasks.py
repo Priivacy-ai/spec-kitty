@@ -9,8 +9,6 @@ from __future__ import annotations
 
 from specify_cli.core.constants import (
     KITTY_SPECS_DIR,
-    MISSION_TYPE_RESEARCH,
-    MISSION_TYPE_SOFTWARE_DEV,
 )
 from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
@@ -19,8 +17,6 @@ from specify_cli.missions._read_path_resolver import (
     resolve_planning_read_dir,
 )
 import contextlib
-from dataclasses import dataclass
-import enum
 import json
 import logging
 from kernel._safe_re import re
@@ -48,11 +44,9 @@ from specify_cli.status import is_dossier_snapshot as _is_dossier_snapshot
 from specify_cli.status import PROGRESS_SEMANTICS, compute_done_percentage, compute_weighted_progress
 from specify_cli.status import resolve_lane_alias
 from specify_cli.status import EventPersistenceError, EVENTS_FILENAME
-from specify_cli.status import SNAPSHOT_FILENAME
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.lanes.persistence import MissingLanesError
-from specify_cli.lanes._git import lane_has_commit_beyond_base
 from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
 from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.core.paths import get_status_read_root
@@ -65,8 +59,7 @@ from mission_runtime import (
     resolve_topology,
     routes_through_coordination,
 )
-from specify_cli.core.commit_guard import GuardCapability
-from specify_cli.git import safe_commit
+from specify_cli.coordination.commit_router import commit_for_mission
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.status import feature_status_lock
 from specify_cli.core.agent_config import get_auto_commit_default
@@ -98,251 +91,102 @@ from specify_cli.task_utils import (
     split_frontmatter,
 )
 
+# WP02 (#2058): tasks.md/manifest parsing + WP-id resolution helpers and the
+# shared result vocabulary live in the ``tasks_outline`` seam. Imported here so
+# existing ``from ...agent.tasks import <name>`` call sites keep working.
+from specify_cli.cli.commands.agent.tasks_outline import (
+    TASKS_MD_FILENAME,
+    TaskIdResolutionFormat,
+    TaskIdResolutionOutcome,
+    TaskIdResult,
+    _INLINE_SUBTASKS_RE,
+    # WP03 (#2058): the pipe-table row parsers moved to ``tasks_materialization``
+    # along with their only former internal caller. They remain re-exported here
+    # (explicit ``as`` form) because existing tests import them from ``tasks``.
+    _is_pipe_table_task_row as _is_pipe_table_task_row,
+    _normalize_task_id_input,
+    _parse_pipe_table_header as _parse_pipe_table_header,
+    _resolve_history_wp_id,
+    _resolve_wp_id,
+)
+
+# WP03 (#2058): frontmatter/file persistence + markdown-row mutation helpers
+# live in the ``tasks_materialization`` seam. Re-exported here (out-of-map edit:
+# tasks.py is owned by WP07) so existing ``from ...agent.tasks import <name>``
+# call sites (workflow.py, implement.py, tests) keep working unchanged. Names not
+# referenced inside this module use the explicit ``as`` re-export form so ruff
+# recognizes the intentional public re-export and does not flag F401.
+from specify_cli.cli.commands.agent.tasks_materialization import (
+    _collect_status_artifacts,
+    _materialize_inline_subtask_status as _materialize_inline_subtask_status,
+    _persist_inline_subtask_status,
+    _persist_review_artifact_override,
+    _persist_review_feedback as _persist_review_feedback,
+    _resolve_checkbox,
+    _resolve_pipe_table,
+    _resolve_wp_slug,
+    _update_pipe_table_status as _update_pipe_table_status,
+)
+
+# WP06 (#2058): issue-matrix evaluation, review-verdict, the self-review
+# fallback guard, the stale/stalled review status annotations, and the
+# review-readiness validator live in the ``tasks_parsing_validation`` seam.
+# Re-exported here (explicit ``as`` form where not referenced internally) so
+# existing ``from ...agent.tasks import <name>`` call sites and the
+# ``@patch("...agent.tasks.<name>")`` contracts keep working unchanged. The
+# review-readiness validator is wrapped (not aliased) below so its
+# ``tasks``-resident collaborators stay injectable from this namespace.
+from specify_cli.cli.commands.agent.tasks_parsing_validation import (
+    _VALID_VERDICTS as _VALID_VERDICTS,
+    _apply_review_status_flags as _apply_review_status_flags,
+    _get_latest_review_cycle_verdict,
+    _issue_matrix_approval_blocker,
+    _self_review_fallback_option_error,
+    _validate_ready_for_review as _seam_validate_ready_for_review,
+)
+
+# WP04: dependency/cycle validation, lane-metadata helpers, and the
+# finalize_tasks validation core live in the ``tasks_finalize_validation`` seam.
+# The lane helpers are re-imported here so existing
+# ``from ...agent.tasks import <name>`` call sites keep working.
+from specify_cli.cli.commands.agent.tasks_finalize_validation import (
+    _is_backward_transition,
+    _lane_targets_for_emit,
+    _read_transactional_wp_lane,
+    _wp_lane_from_status_events,
+    compute_wp_frontmatter_updates,
+    detect_dependency_conflicts,
+    detect_dependency_cycles,
+    read_existing_frontmatter,
+    validate_wp_coverage,
+)
+
+# WP05 (#2058): dependent-gating / dependency-warning glue lives in the
+# ``tasks_dependency_graph`` seam. Re-imported here so existing
+# ``from ...agent.tasks import <name>`` call sites and ``monkeypatch.setattr``
+# targets keep working. NOTE: the ``core.dependency_graph`` call sites used by
+# ``validate_workflow`` deliberately stay in this module (no relocation, no cycle).
+from specify_cli.cli.commands.agent.tasks_dependency_graph import (
+    _behind_commits_touch_only_planning_artifacts,
+    _check_dependent_warnings,
+    compute_incomplete_dependents,
+)
+
+# Re-exported lane helpers consumed by tests via
+# ``from ...agent.tasks import <name>`` even though tasks.py uses them only
+# indirectly; listed in ``__all__`` so the re-export is explicit (C-007).
+__all__ = [
+    "_behind_commits_touch_only_planning_artifacts",
+    "_check_dependent_warnings",
+    "_lane_targets_for_emit",
+    "_wp_lane_from_status_events",
+    "app",
+    "compute_incomplete_dependents",
+]
+
 logger = logging.getLogger(__name__)
-TASKS_MD_FILENAME = "tasks.md"
 SPEC_MD_FILENAME = "spec.md"
 UTC_SECOND_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
-
-
-class TaskIdResolutionOutcome(enum.StrEnum):
-    UPDATED = "updated"
-    ALREADY_SATISFIED = "already_satisfied"
-    NOT_FOUND = "not_found"
-
-
-class TaskIdResolutionFormat(enum.StrEnum):
-    CHECKBOX = "checkbox"
-    PIPE_TABLE = "pipe_table"
-    INLINE_SUBTASKS = "inline_subtasks"
-    WP_ID = "wp_id"
-
-
-@dataclass
-class TaskIdResult:
-    id: str
-    outcome: TaskIdResolutionOutcome
-    format: TaskIdResolutionFormat | None
-    message: str
-
-
-# WP04/T022 (FR-017): normalize qualified task identifiers so that
-# `mark-status` accepts both bare (``T001`` / ``WP01``) and mission-qualified
-# (``<mission_slug>/T001`` or ``<mission_slug>:WP01``) emissions from
-# ``tasks-finalize`` and downstream automation. This is a parser-side
-# extension; the original token is returned unchanged when it does not match
-# a qualified shape so downstream "task not found" surfaces stay structured
-# for genuinely garbage input.
-_QUALIFIED_TASK_ID_RE = re.compile(
-    r"^[A-Za-z0-9][A-Za-z0-9._-]*[/:](?P<task>[A-Za-z]+\d+)$"
-)
-
-
-def _normalize_task_id_input(raw: str) -> str:
-    """Normalize a task ID to its bare form (e.g. ``T001`` or ``WP01``).
-
-    Accepts:
-        - ``T001`` / ``WP01`` (bare) -> returned unchanged
-        - ``<mission_slug>/T001`` (qualified) -> ``T001``
-        - ``<mission_slug>:WP01`` (qualified) -> ``WP01``
-
-    Garbage inputs are returned unchanged so the downstream "task ID not
-    found in tasks.md" error path remains the canonical structured
-    failure surface for unknown identifiers.
-    """
-    if not raw or not isinstance(raw, str):
-        return raw
-    candidate = raw.strip()
-    match = _QUALIFIED_TASK_ID_RE.match(candidate)
-    if match:
-        return match.group("task").upper()
-    return candidate
-
-
-# ---------------------------------------------------------------------------
-# FR-005 / FR-007: verdict guard helpers
-# ---------------------------------------------------------------------------
-
-# Known verdict values from the review-cycle schema.
-# Unknown values warn but do NOT block (backward compatibility).
-_VALID_VERDICTS: frozenset[str] = frozenset(
-    {"approved", "approved_after_orchestrator_fix", "arbiter_override", "rejected"}
-)
-
-
-def _issue_matrix_evaluation(
-    feature_dir: Path,
-    *,
-    spec_feature_dir: Path | None = None,
-) -> tuple[object, set[str], list[str], list[str]]:
-    from specify_cli.cli.commands.review._issue_matrix import (
-        IssueMatrixVerdict,
-        validate_issue_matrix,
-    )
-    from specify_cli.tasks.issue_matrix import detect_issue_references
-
-    refs = detect_issue_references((spec_feature_dir or feature_dir) / SPEC_MD_FILENAME)
-    result = validate_issue_matrix(feature_dir / "issue-matrix.md")
-    referenced_issues = {f"#{ref.number}" for ref in refs}
-    matrix_issues = _issue_matrix_row_issues(result)
-    unresolved_in_mission = _issue_matrix_in_mission_rows(
-        result,
-        referenced_issues,
-        IssueMatrixVerdict.IN_MISSION,
-    )
-    missing_issues = sorted(referenced_issues - matrix_issues)
-    return result, referenced_issues, missing_issues, unresolved_in_mission
-
-
-def _issue_matrix_row_issues(result: object) -> set[str]:
-    matrix_issues = {row.issue for row in result.rows}
-    for diagnostic in result.diagnostics:
-        match = re.search(r"Row for issue '([^']+)'", diagnostic.get("message", ""))
-        if match:
-            matrix_issues.add(match.group(1))
-    return matrix_issues
-
-
-def _issue_matrix_in_mission_rows(
-    result: object,
-    referenced_issues: set[str],
-    in_mission_verdict: object,
-) -> list[str]:
-    return sorted(
-        row.issue
-        for row in result.rows
-        if row.verdict is in_mission_verdict and row.issue in referenced_issues
-    )
-
-
-def _issue_matrix_diagnostic_lines(result: object) -> tuple[list[str], list[str]]:
-    from specify_cli.cli.commands.review._diagnostics import MissionReviewDiagnostic
-
-    unknown_issues: list[str] = []
-    other_messages: list[str] = []
-    for diagnostic in result.diagnostics:
-        message = diagnostic.get("message", "")
-        if diagnostic.get("diagnostic_code") == str(MissionReviewDiagnostic.ISSUE_MATRIX_VERDICT_UNKNOWN):
-            match = re.search(r"issue '([^']+)'", message)
-            unknown_issues.append(match.group(1) if match else message)
-        else:
-            other_messages.append(message)
-    return unknown_issues, other_messages
-
-
-def _issue_matrix_approval_blocker(
-    feature_dir: Path,
-    *,
-    target_lane: Lane | None = None,
-    primary_feature_dir: Path | None = None,
-) -> str | None:
-    """Return a blocking message when referenced issues still lack final verdicts.
-
-    ``target_lane`` controls how the non-terminal ``in-mission`` verdict is
-    treated. At ``approved`` (or when unspecified) an ``in-mission`` row is
-    acceptable — the issue is being closed by a later WP in this same mission,
-    so a dependency chain is not blocked on its own downstream work. At ``done``
-    (mission merge/acceptance) ``in-mission`` is rejected: every issue must have
-    reached a terminal verdict (``fixed`` / ``verified-already-fixed`` /
-    ``deferred-with-followup``) before the mission lands.
-    """
-    spec_feature_dir = (
-        primary_feature_dir
-        if primary_feature_dir is not None and (primary_feature_dir / SPEC_MD_FILENAME).exists()
-        else feature_dir
-    )
-    spec_path = spec_feature_dir / SPEC_MD_FILENAME
-    if not spec_path.exists():
-        return None
-
-    try:
-        from specify_cli.tasks.issue_matrix import detect_issue_references
-
-        refs = detect_issue_references(spec_path)
-    except Exception as exc:  # noqa: BLE001 -- approval guard must fail closed
-        logger.debug("Could not evaluate issue-matrix approval blocker: %s", exc)
-        return (
-            "ERROR: issue-matrix.md could not be evaluated before approval.\n"
-            f"Reason: {exc}\n"
-            "Fix the issue-matrix check before approving."
-        )
-
-    if not refs:
-        return None
-
-    matrix_path = feature_dir / "issue-matrix.md"
-    if not matrix_path.exists():
-        if _primary_issue_matrix_satisfies(
-            primary_feature_dir=primary_feature_dir,
-            feature_dir=feature_dir,
-            spec_feature_dir=spec_feature_dir,
-            target_lane=target_lane,
-        ):
-            return None
-        issue_list = ", ".join(f"#{ref.number}" for ref in refs)
-        return (
-            "ERROR: issue-matrix.md is required before approval.\n"
-            f"Referenced issues: {issue_list}\n"
-            "Fill verdicts before approving."
-        )
-
-    result, _, missing_issues, unresolved_in_mission = _issue_matrix_evaluation(
-        feature_dir,
-        spec_feature_dir=spec_feature_dir,
-    )
-    if target_lane != Lane.DONE:
-        unresolved_in_mission = []
-
-    if result.passed and not missing_issues and not unresolved_in_mission:
-        return None
-    if _primary_issue_matrix_satisfies(
-        primary_feature_dir=primary_feature_dir,
-        feature_dir=feature_dir,
-        spec_feature_dir=spec_feature_dir,
-        target_lane=target_lane,
-    ):
-        return None
-
-    unknown_issues, other_messages = _issue_matrix_diagnostic_lines(result)
-
-    lines = ["ERROR: issue-matrix.md has unresolved entries. Fill in verdicts before approving."]
-    if missing_issues:
-        lines.append(f"Missing rows: {', '.join(missing_issues)}")
-    if unknown_issues:
-        lines.append(f"Unknown: {', '.join(sorted(set(unknown_issues)))}")
-    if unresolved_in_mission:
-        lines.append(
-            "Still 'in-mission' (resolve to fixed / verified-already-fixed / "
-            f"deferred-with-followup before done): {', '.join(unresolved_in_mission)}"
-        )
-    for message in other_messages:
-        lines.append(f"- {message}")
-    return "\n".join(lines)
-
-
-def _primary_issue_matrix_satisfies(
-    *,
-    primary_feature_dir: Path | None,
-    feature_dir: Path,
-    spec_feature_dir: Path,
-    target_lane: Lane | None,
-) -> bool:
-    if primary_feature_dir is None or primary_feature_dir == feature_dir:
-        return False
-    if not (primary_feature_dir / "issue-matrix.md").exists():
-        return False
-
-    try:
-        result, _, missing_issues, unresolved_in_mission = _issue_matrix_evaluation(
-            primary_feature_dir,
-            spec_feature_dir=spec_feature_dir,
-        )
-    except Exception as exc:  # noqa: BLE001 -- fallback must not hide real blockers
-        logger.debug("Could not evaluate primary issue-matrix fallback: %s", exc)
-        return False
-
-    if target_lane != Lane.DONE:
-        unresolved_in_mission = []
-    return result.passed and not missing_issues and not unresolved_in_mission
 
 
 def _review_currency_check_branch(
@@ -403,185 +247,6 @@ def _map_requirements_feature_dir(main_repo_root: Path, mission_slug: str) -> Pa
         return candidate_feature_dir_for_mission(main_repo_root, mission_slug)
 
 
-def _self_review_fallback_option_error(
-    *,
-    enabled: bool,
-    target_lane: str,
-    force: bool,
-    intended_reviewer: str | None,
-    failure_reason: str | None,
-) -> str | None:
-    """Validate explicit self-review fallback metadata before approval."""
-    if not enabled:
-        if intended_reviewer or failure_reason:
-            return "--intended-reviewer/--reviewer-failure-reason require --self-review-fallback."
-        return None
-
-    if resolve_lane_alias(target_lane) not in (Lane.APPROVED, Lane.DONE):
-        return "--self-review-fallback is only valid when approving or marking done."
-    if not force:
-        return "--self-review-fallback requires --force so force_count records the independence override."
-    if not (intended_reviewer or "").strip():
-        return "--self-review-fallback requires --intended-reviewer <agent>."
-    if not (failure_reason or "").strip():
-        return "--self-review-fallback requires --reviewer-failure-reason <reason>."
-    return None
-
-
-# ---------------------------------------------------------------------------
-# WP01: Backward transition detection
-# ---------------------------------------------------------------------------
-# Canonical forward progression of work-package lanes. A move from lane X to
-# lane Y is "backward" iff both lanes are in this list and Y precedes X. Lanes
-# outside this list (blocked, canceled) are not part of the directional axis
-# and are never classified as backward by `_is_backward_transition`.
-_FORWARD_ORDER: list[str] = [
-    Lane.PLANNED,
-    Lane.CLAIMED,
-    Lane.IN_PROGRESS,
-    Lane.FOR_REVIEW,
-    Lane.IN_REVIEW,
-    Lane.APPROVED,
-    Lane.DONE,
-]
-
-
-def _is_backward_transition(current_lane: str, target_lane: str) -> bool:
-    """Return True iff target precedes current in the canonical forward order.
-
-    Purely directional: terminal-lane exit semantics (e.g. leaving ``done``)
-    are enforced upstream by ``validate_transition``; this helper does not
-    re-impose them. Lanes outside ``_FORWARD_ORDER`` (``blocked``,
-    ``canceled``) always return False.
-    """
-    c = resolve_lane_alias(current_lane)
-    t = resolve_lane_alias(target_lane)
-    if c not in _FORWARD_ORDER or t not in _FORWARD_ORDER:
-        return False
-    return _FORWARD_ORDER.index(t) < _FORWARD_ORDER.index(c)
-
-
-def _lane_targets_for_emit(current_lane: str, requested_lane: str) -> list[str]:
-    """Return forward intermediate lane hops from current to requested lane."""
-    current = resolve_lane_alias(current_lane)
-    target = resolve_lane_alias(requested_lane)
-    if current in _FORWARD_ORDER and target in _FORWARD_ORDER:
-        current_idx = _FORWARD_ORDER.index(current)
-        target_idx = _FORWARD_ORDER.index(target)
-        if target_idx > current_idx:
-            return _FORWARD_ORDER[current_idx + 1 : target_idx + 1]
-    return [target]
-
-
-def _wp_lane_from_status_events(events: list[StatusEvent], wp_id: str) -> Lane:
-    """Return a WP's current lane from canonical status events."""
-    if not events:
-        return Lane.GENESIS
-    from specify_cli.status import reduce as _reduce_status_events
-
-    snapshot = _reduce_status_events(events)
-    state = snapshot.work_packages.get(wp_id)
-    if not state:
-        return Lane.GENESIS
-    return Lane(state.get("lane", Lane.GENESIS))
-
-
-def _read_transactional_wp_lane(
-    *,
-    feature_dir: Path,
-    mission_slug: str,
-    wp_id: str,
-    repo_root: Path,
-) -> Lane:
-    """Read the WP lane from the same status target transactional writes use."""
-    return _wp_lane_from_status_events(
-        read_events_transactional(
-            feature_dir=feature_dir,
-            mission_slug=mission_slug,
-            repo_root=repo_root,
-        ),
-        wp_id,
-    )
-
-
-def _review_cycle_number(path: Path) -> int:
-    """Return the numeric review-cycle suffix for sorting review artifacts."""
-    match = re.search(r"review-cycle-(\d+)\.md", path.name)
-    return int(match.group(1)) if match else 0
-
-
-def _get_latest_review_cycle_verdict(wp_dir: Path) -> tuple[str | None, Path | None]:
-    """Return (verdict_value, artifact_path) for the latest review-cycle-N.md.
-
-    Scans *wp_dir* for ``review-cycle-<N>.md`` files, picks the highest-numbered
-    one, and returns the ``verdict`` frontmatter value together with the artifact
-    path so callers can name the file in error messages.
-
-    Returns (None, None) when no review-cycle artifacts exist.
-    Returns (None, artifact_path) when the artifact exists but verdict is absent
-    or malformed.
-
-    If the verdict is present but not in :data:`_VALID_VERDICTS`, a warning is
-    logged (but the value is still returned — callers decide what to do with it).
-    """
-    cycles = sorted(
-        wp_dir.glob("review-cycle-*.md"),
-        key=_review_cycle_number,
-    )
-    if not cycles:
-        return None, None
-    artifact = cycles[-1]
-    try:
-        text = artifact.read_text(encoding="utf-8")
-        frontmatter_str, _, _ = split_frontmatter(text)
-        if not frontmatter_str:
-            return None, artifact
-        verdict = extract_scalar(frontmatter_str, "verdict")
-        if verdict is not None and verdict not in _VALID_VERDICTS:
-            logger.warning(
-                "Warning: %s has unrecognized verdict '%s' — expected one of %s",
-                artifact.name,
-                verdict,
-                sorted(_VALID_VERDICTS),
-            )
-        return verdict, artifact
-    except Exception:  # noqa: BLE001 — review-cycle artifact may be malformed; fail-open
-        return None, artifact
-
-
-def _persist_review_artifact_override(
-    artifact_path: Path,
-    *,
-    repo_root: Path,
-    wp_id: str,
-    actor: str,
-    reason: str,
-) -> None:
-    """Record durable evidence that a rejected latest review was superseded."""
-    text = artifact_path.read_text(encoding="utf-8-sig")
-    frontmatter, body, padding = split_frontmatter(text)
-    timestamp = datetime.now(UTC).strftime(UTC_SECOND_TIMESTAMP_FORMAT)
-    frontmatter = set_scalar(frontmatter, "review_artifact_override_at", timestamp)
-    frontmatter = set_scalar(frontmatter, "review_artifact_override_actor", actor)
-    frontmatter = set_scalar(frontmatter, "review_artifact_override_wp_id", wp_id)
-    frontmatter = set_scalar(frontmatter, "review_artifact_override_reason", reason)
-    write_text_within_directory(
-        artifact_path,
-        build_document(frontmatter, body, padding),
-        root=repo_root,
-        encoding="utf-8",
-    )
-
-
-def _review_artifact_dir_for_wp(tasks_dir: Path, wp: dict) -> Path | None:
-    """Return the review-cycle artifact dir for a WP status row."""
-    wp_file = wp.get("file")
-    if isinstance(wp_file, str) and wp_file.endswith(".md"):
-        return tasks_dir / Path(wp_file).stem
-    wp_id = wp.get("id")
-    return tasks_dir / str(wp_id) if wp_id else None
-
-
 def _review_stall_threshold_minutes(repo_root: Path) -> int:
     """Read review.stall_threshold_minutes from .kittify/config.yaml."""
     config_file = repo_root / ".kittify" / "config.yaml"
@@ -595,95 +260,6 @@ def _review_stall_threshold_minutes(repo_root: Path) -> int:
         return int(value)
     except (AttributeError, OSError, TypeError, ValueError):
         return 30
-
-
-def _latest_status_event_time(events: list[StatusEvent], wp_id: str) -> datetime | None:
-    """Return the latest parsed event time for a WP."""
-    latest: datetime | None = None
-    for event in events:
-        if event.wp_id != wp_id or not event.at:
-            continue
-        try:
-            parsed = datetime.fromisoformat(event.at)
-        except ValueError:
-            continue
-        parsed = parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)
-        if latest is None or parsed > latest:
-            latest = parsed
-    return latest
-
-
-def _apply_review_status_flags(
-    work_packages: list[dict],
-    *,
-    tasks_dir: Path,
-    events: list[StatusEvent],
-    stall_threshold_minutes: int,
-) -> tuple[list[dict[str, object]], list[dict[str, object]]]:
-    """Annotate status rows with stale verdict and stalled-review warnings."""
-    stale_verdicts: list[dict[str, object]] = []
-    stalled_wps: list[dict[str, object]] = []
-    now = datetime.now(UTC)
-
-    for wp in work_packages:
-        wp_id = wp.get("id")
-        if not isinstance(wp_id, str) or not wp_id:
-            continue
-
-        lane = wp.get("lane")
-        if lane in (Lane.APPROVED, Lane.DONE):
-            wp_dir = _review_artifact_dir_for_wp(tasks_dir, wp)
-            if wp_dir is not None:
-                verdict, artifact = _get_latest_review_cycle_verdict(wp_dir)
-                if verdict == "rejected" and artifact is not None:
-                    warning = {
-                        "wp_id": wp_id,
-                        "artifact": artifact.name,
-                        "verdict": verdict,
-                    }
-                    stale_verdicts.append(warning)
-                    wp["_stale_verdict"] = True
-                    wp["stale_review_artifact"] = warning
-
-        if lane == Lane.IN_REVIEW:
-            last_event_time = _latest_status_event_time(events, wp_id)
-            if last_event_time is None:
-                continue
-            age_minutes = int((now - last_event_time).total_seconds() / 60)
-            if age_minutes > stall_threshold_minutes:
-                stall_label = f"STALLED — no move-task in {age_minutes}m"
-                warning = {
-                    "wp_id": wp_id,
-                    "age_minutes": age_minutes,
-                    "threshold_minutes": stall_threshold_minutes,
-                }
-                stalled_wps.append(warning)
-                wp["_stall_label"] = stall_label
-                wp["review_stall"] = warning
-
-    return stale_verdicts, stalled_wps
-
-
-def _collect_status_artifacts(feature_dir: Path) -> list[Path]:
-    """Return paths to all deterministic status artifacts that exist on disk.
-
-    These files are generated by the emit pipeline (events.jsonl, status.json)
-    and by task management (tasks.md).  Including them in a single commit
-    alongside the WP file ensures the working tree stays clean after every
-    ``move_task`` or ``workflow review`` transition.
-
-    Args:
-        feature_dir: Absolute path to the kitty-specs mission directory.
-
-    Returns:
-        List of existing artifact paths (may be empty).
-    """
-    candidates = [
-        feature_dir / EVENTS_FILENAME,
-        feature_dir / SNAPSHOT_FILENAME,
-        feature_dir / TASKS_MD_FILENAME,
-    ]
-    return [p for p in candidates if p.exists()]
 
 
 def _get_hic_marker(
@@ -1056,59 +632,6 @@ def _resolve_git_common_dir(main_repo_root: Path) -> Path:
     return common_dir
 
 
-def _resolve_wp_slug(main_repo_root: Path, mission_slug: str, task_id: str) -> str:
-    """Resolve the WP slug (e.g. 'WP01-some-title') from a task ID.
-
-    Looks for a file named '{task_id}-*.md' in kitty-specs/<mission>/tasks/.
-    Falls back to bare task_id if no matching file is found.
-    """
-    # WP04 / FR-006: ``tasks/WP*.md`` is a WORK_PACKAGE_TASK (primary-partition)
-    # artifact — author+read on PRIMARY (INV-5). Route the read through the
-    # kind-aware seam so a coord-topology mission's stale ``-coord`` husk cannot
-    # shadow the real primary WP files (#2062 read-side close).
-    from mission_runtime import MissionArtifactKind
-
-    tasks_dir = (
-        resolve_planning_read_dir(
-            main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
-        )
-        / "tasks"
-    )
-    if tasks_dir.exists():
-        for p in tasks_dir.iterdir():
-            if p.stem.startswith(f"{task_id}-") or p.stem == task_id:
-                return p.stem
-    return task_id
-
-
-def _persist_review_feedback(
-    *,
-    main_repo_root: Path,
-    mission_slug: str,
-    task_id: str,
-    feedback_source: Path,
-    reviewer_agent: str = "unknown",
-    affected_files: list[dict[str, str]] | None = None,
-) -> tuple[Path, str]:
-    """Persist review feedback through the shared review-cycle boundary.
-
-    Returns the created artifact path and canonical ``review-cycle://`` URI.
-    """
-    from specify_cli.review.cycle import create_rejected_review_cycle
-
-    wp_slug = _resolve_wp_slug(main_repo_root, mission_slug, task_id)
-    cycle = create_rejected_review_cycle(
-        main_repo_root=main_repo_root,
-        mission_slug=mission_slug,
-        wp_id=task_id,
-        wp_slug=wp_slug,
-        feedback_source=feedback_source,
-        reviewer_agent=reviewer_agent,
-        affected_files=affected_files,
-    )
-    return cycle.artifact_path, cycle.pointer
-
-
 def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _force: bool) -> list[str]:
     """Check for unchecked subtasks in tasks.md for a given WP.
 
@@ -1187,141 +710,6 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
     return unchecked
 
 
-def _check_dependent_warnings(repo_root: Path, mission_slug: str, wp_id: str, target_lane: str, json_mode: bool) -> None:
-    """Display warning when WP moves to for_review and has incomplete dependents.
-
-    Args:
-        repo_root: Repository root path
-        mission_slug: Feature slug (e.g., "010-lane-only-runtime")
-        wp_id: Work package ID (e.g., "WP01")
-        target_lane: Target lane being moved to
-        json_mode: If True, suppress Rich console output
-    """
-    # Only warn when moving to for_review
-    if target_lane != Lane.FOR_REVIEW:
-        return
-
-    # Don't show warnings in JSON mode
-    if json_mode:
-        return
-
-    # Write path: keep main-repo-root resolution so canonical serialization
-    # pins to the primary checkout regardless of where the operator stands.
-    main_repo_root = get_main_repo_root(repo_root)
-    feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
-
-    # Build dependency graph
-    try:
-        graph = build_dependency_graph(feature_dir)
-    except Exception:
-        # If we can't build the graph, skip warnings
-        return
-
-    # Get dependents
-    dependents = get_dependents(wp_id, graph)
-    if not dependents:
-        return  # No dependents, no warnings
-
-    # Check if any dependents are incomplete (not yet done)
-    # Lane is event-log-only; read from canonical event log
-    try:
-        from specify_cli.status import read_events as _dw_read_events
-        from specify_cli.status import reduce as _dw_reduce
-
-        _dw_events = _dw_read_events(feature_dir)
-        _dw_snapshot = _dw_reduce(_dw_events) if _dw_events else None
-        _dw_lanes: dict = {}
-        if _dw_snapshot:
-            for _dw_wp_id, _dw_state in _dw_snapshot.work_packages.items():
-                _dw_lanes[_dw_wp_id] = Lane(_dw_state.get("lane", Lane.PLANNED))
-    except Exception:
-        _dw_lanes = {}
-
-    incomplete = []
-    for dep_id in dependents:
-        try:
-            lane = _dw_lanes.get(dep_id, Lane.PLANNED)
-
-            if resolve_lane_alias(lane) in [Lane.PLANNED, Lane.IN_PROGRESS, Lane.CLAIMED]:
-                incomplete.append(dep_id)
-        except Exception:
-            # Skip if we can't read the dependent
-            continue
-
-    if incomplete:
-        current_workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
-        console.print("\n[yellow]⚠️  Dependency Alert[/yellow]")
-        console.print(f"{', '.join(incomplete)} depend on {wp_id} (not yet done)")
-        console.print("\nIf changes are requested during review:")
-        console.print("  1. Notify dependent WP agents")
-        console.print("  2. Dependent workspaces may need to incorporate your changes")
-        for dep in incomplete:
-            dep_workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, dep)
-            if dep_workspace.branch_name is None:
-                # Planning-lane WP: operates in the main repo checkout, no worktree
-                # to rebase.  The planning workspace is always up-to-date with main.
-                console.print(f"     {dep}: planning-lane workspace (main repo checkout) — no rebase needed; ensure main is up to date")
-            elif dep_workspace.branch_name == current_workspace.branch_name:
-                console.print(f"     {dep}: shares {current_workspace.branch_name} (same lane, no separate rebase command)")
-            else:
-                console.print(f"     cd {dep_workspace.worktree_path} && git rebase {current_workspace.branch_name}")
-        console.print()
-
-
-def _behind_commits_touch_only_planning_artifacts(
-    worktree_path: Path,
-    check_branch: str,
-    mission_slug: str,
-) -> bool:
-    """Return True when upstream commits only touch planning/status files.
-
-    This prevents lane transitions from being blocked by commits that update
-    task metadata on the planning branch (for example mark-status/move-task).
-    """
-    merge_base_result = subprocess.run(
-        ["git", "merge-base", "HEAD", check_branch],
-        cwd=worktree_path,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if merge_base_result.returncode != 0:
-        return False
-
-    merge_base = merge_base_result.stdout.strip()
-    if not merge_base:
-        return False
-
-    # Compare merge-base..base to inspect only commits that HEAD is behind on.
-    result = subprocess.run(
-        ["git", "diff", "--name-only", f"{merge_base}..{check_branch}"],
-        cwd=worktree_path,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if result.returncode != 0:
-        return False
-
-    changed_files = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-    if not changed_files:
-        return True
-
-    allowed_prefixes = (
-        f"kitty-specs/{mission_slug}/",
-        ".kittify/workspaces/",
-    )
-    allowed_exact_paths = {
-        ".kittify/config.yaml",
-        ".kittify/config.yml",
-    }
-    return all(path.startswith(allowed_prefixes) or path in allowed_exact_paths for path in changed_files)
-
-
 def _apply_stale_status_fields(wp: dict, stale_result: object) -> None:
     """Populate canonical and deprecated stale fields from one source of truth."""
     stale_payload = stale_result.stale.to_dict()
@@ -1383,345 +771,31 @@ def _validate_ready_for_review(
 ) -> tuple[bool, list[str]]:
     """Validate that WP is ready for review by checking for uncommitted changes.
 
-    For research missions: Checks for uncommitted research artifacts in planning repo.
-    For software-dev missions: Checks for uncommitted changes in worktree AND
-    verifies at least one implementation commit exists.
-
-    Args:
-        repo_root: Repository root path (could be main or worktree)
-        mission_slug: Feature slug (e.g., "010-lane-only-runtime")
-        wp_id: Work package ID (e.g., "WP01")
-        force: If True, skip validation (return success)
-        target_lane: Lane the caller is transitioning to. Used to parameterize
-            the retry hints emitted in guidance messages (FR-015) so reviewers
-            transitioning to ``approved``/``planned`` see the correct retry
-            command instead of a hard-coded ``for_review`` string.
-
-    Returns:
-        Tuple of (is_valid, guidance_messages)
-        - is_valid: True if ready for review, False if blocked
-        - guidance_messages: List of actionable instructions if blocked
+    Thin wrapper over the WP06 seam
+    (:func:`tasks_parsing_validation._validate_ready_for_review`). The
+    ``tasks``-resident collaborators are passed in from this module's live
+    globals so the existing ``@patch("...agent.tasks.<name>")`` contracts (e.g.
+    ``get_main_repo_root``, ``get_mission_type``, ``get_feature_target_branch``,
+    ``resolve_workspace_for_wp``, the git helpers, and ``console``) continue to
+    apply unchanged. Behaviour, validation order, error strings, and the
+    (bool, list[str]) return shape are preserved exactly.
     """
-    if force:
-        return True, []
-
-    guidance: list[str] = []
-    # Write path: keep main-repo-root resolution so canonical serialization
-    # pins to the primary checkout regardless of where the operator stands.
-    main_repo_root = get_main_repo_root(repo_root)
-    feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
-
-    # Detect mission type from feature's meta.json
-    mission_type = get_mission_type(feature_dir)
-
-    # Check 1: Uncommitted research artifacts in planning repo (applies to ALL missions)
-    # Research artifacts live in kitty-specs/ which is in the planning repo, not worktrees
-    result = subprocess.run(
-        ["git", "status", "--porcelain", str(feature_dir)], cwd=main_repo_root, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
+    return _seam_validate_ready_for_review(
+        repo_root,
+        mission_slug,
+        wp_id,
+        force,
+        target_lane=target_lane,
+        get_main_repo_root=get_main_repo_root,
+        get_mission_type=get_mission_type,
+        get_feature_target_branch=get_feature_target_branch,
+        resolve_workspace_for_wp=resolve_workspace_for_wp,
+        review_currency_check_branch=_review_currency_check_branch,
+        behind_commits_touch_only_planning_artifacts=_behind_commits_touch_only_planning_artifacts,
+        filter_runtime_state_paths=_filter_runtime_state_paths,
+        list_wp_branch_specs_changes_for_guard=_list_wp_branch_specs_changes_for_guard,
+        console=console,
     )
-    uncommitted_in_main = result.stdout.rstrip()
-
-    if uncommitted_in_main:
-        # Use the dirty classifier to partition paths into blocking vs. benign.
-        # Benign paths (status artifacts, other WPs' task files, metadata) are
-        # expected during concurrent multi-agent work and must NOT block handoff.
-        from specify_cli.review.dirty_classifier import classify_dirty_paths
-
-        raw_paths = []
-        raw_lines = []
-        for line in uncommitted_in_main.split("\n"):
-            if not line.strip():
-                continue
-            # git status --porcelain format: "XY path" (first 3 chars are status)
-            file_part = line[3:] if len(line) > 3 else line.strip()
-            # EXCLUDE policy (C-006): dossier snapshot writes are derived,
-            # ephemeral, and recomputable; they must never self-block a
-            # transition. Drop them before classification so they cannot
-            # leak into the blocking bucket via a path that bypasses
-            # ``.gitignore``.
-            if _is_dossier_snapshot(file_part):
-                continue
-            raw_paths.append(file_part)
-            raw_lines.append(line)
-
-        blocking, benign = classify_dirty_paths(
-            dirty_paths=raw_paths,
-            wp_id=wp_id,
-            mission_slug=mission_slug,
-        )
-
-        if benign:
-            # Log info only — benign dirty files do not block review handoff
-            console.print(f"[dim]Note: {len(benign)} unrelated dirty file(s) ignored (not owned by {wp_id})[/dim]")
-
-        if blocking:
-            # Only show lines whose file_part is in the blocking list
-            blocking_set = set(blocking)
-            blocking_lines = [line for line, fp in zip(raw_lines, raw_paths, strict=False) if fp in blocking_set]
-            guidance.append(f"Blocking: {len(blocking)} uncommitted file(s) owned by {wp_id}:")
-            guidance.append("")
-            guidance.append("Modified files in kitty-specs/:")
-            for line in blocking_lines[:5]:
-                guidance.append(f"  {line}")
-            if len(blocking_lines) > 5:
-                guidance.append(f"  ... and {len(blocking_lines) - 5} more")
-            guidance.append("")
-            guidance.append(f"Commit these files before moving to {target_lane}.")
-            guidance.append(f"  cd {main_repo_root}")
-            guidance.append(f"  git add kitty-specs/{mission_slug}/")
-            if mission_type == MISSION_TYPE_RESEARCH:
-                guidance.append(f'  git commit -m "research({wp_id}): <describe your research outputs>"')
-            else:
-                guidance.append(f'  git commit -m "docs({wp_id}): <describe your changes>"')
-            guidance.append("")
-            guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
-            return False, guidance
-
-    # Check 2: For software-dev missions, check worktree for implementation commits
-    if mission_type == MISSION_TYPE_SOFTWARE_DEV:
-        # Planning-artifact WPs run in the repo root and have no separate worktree
-        # to validate. We only short-circuit on planning-artifact mode when the
-        # canonical resolver succeeds; if the WP has no on-disk markdown file (e.g.
-        # in tests that mock surrounding state), fall through to the legacy
-        # worktree-existence checks below rather than hard-failing.
-        try:
-            workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
-        except (ValueError, FileNotFoundError):
-            workspace = None
-
-        if workspace is not None and workspace.resolution_kind == "repo_root":
-            return True, []
-
-        if workspace is None:
-            from specify_cli.lanes.branch_naming import worktree_path as _seam_worktree_path
-
-            # Legacy lane-a worktree grammar ({slug}-lane-a, no mid8) ⇒
-            # mission_id=None reproduces the historical name byte-identically (FR-005).
-            worktree_path = _seam_worktree_path(
-                main_repo_root, mission_slug, mission_id=None, lane_id="lane-a"
-            )
-        else:
-            worktree_path = workspace.worktree_path
-
-        if worktree_path.exists():
-            # #1833 fall-through-is-failure guards. Order is load-bearing:
-            # the .git-marker check runs BEFORE any git invocation so a husk
-            # directory never causes git to walk up into the primary repo.
-            from specify_cli.workspace.context import husk_resolution_error, verify_workspace_toplevel
-
-            if not (worktree_path / ".git").exists():
-                guidance.append(str(husk_resolution_error(worktree_path)))
-                return False, guidance
-
-            # Last-line defense (R4): the resolved path must be the toplevel
-            # of its own working tree before any other git call runs there.
-            toplevel_error = verify_workspace_toplevel(worktree_path)
-            if toplevel_error is not None:
-                guidance.append(str(toplevel_error))
-                return False, guidance
-
-            # Check for detached HEAD before other git status checks
-            from specify_cli.core.git_ops import get_current_branch as _get_branch
-
-            wt_branch = _get_branch(worktree_path)
-            if wt_branch is None:
-                guidance.append("Detached HEAD detected in worktree!")
-                guidance.append("")
-                guidance.append("Please reattach to a branch before review:")
-                guidance.append(f"  cd {worktree_path}")
-                guidance.append("  git checkout <your-branch>")
-                guidance.append("")
-                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
-                return False, guidance
-
-            # Check for in-progress git operations (merge/rebase/cherry-pick)
-            in_progress = []
-            state_checks = {
-                "MERGE_HEAD": "merge",
-                "REBASE_HEAD": "rebase",
-                "CHERRY_PICK_HEAD": "cherry-pick",
-            }
-            for ref, label in state_checks.items():
-                state_result = subprocess.run(
-                    ["git", "rev-parse", "-q", "--verify", ref], cwd=worktree_path, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
-                )
-                if state_result.returncode == 0:
-                    in_progress.append(label)
-
-            if in_progress:
-                guidance.append("In-progress git operation detected in worktree!")
-                guidance.append("")
-                guidance.append(f"Active operation(s): {', '.join(in_progress)}")
-                guidance.append("")
-                guidance.append("Resolve or abort before review:")
-                guidance.append(f"  cd {worktree_path}")
-                guidance.append("  git status")
-                guidance.append("  git merge --abort   # if merge")
-                guidance.append("  git rebase --abort  # if rebase")
-                guidance.append("  git cherry-pick --abort  # if cherry-pick")
-                guidance.append("")
-                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
-                return False, guidance
-
-            # Check if the lane worktree is behind the branch it is expected to
-            # track. In the lane-only model this is usually the mission branch.
-            target_branch = get_feature_target_branch(repo_root, mission_slug)
-
-            check_branch = _review_currency_check_branch(
-                main_repo_root=main_repo_root,
-                mission_slug=mission_slug,
-                target_branch=target_branch,
-                workspace=workspace,
-            )
-
-            result = subprocess.run(
-                ["git", "rev-list", "--count", f"HEAD..{check_branch}"],
-                cwd=worktree_path,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                check=False,
-            )
-            behind_count = 0
-            if result.returncode == 0 and result.stdout.strip():
-                try:
-                    behind_count = int(result.stdout.strip())
-                except ValueError:
-                    behind_count = 0
-
-            # Allow status/planning-only commits to avoid repeated rebase friction.
-            if behind_count > 0 and not _behind_commits_touch_only_planning_artifacts(
-                worktree_path,
-                check_branch,
-                mission_slug,
-            ):
-                guidance.append(f"{check_branch} branch has new commits not in this worktree!")
-                guidance.append("")
-                guidance.append(f"Your branch is behind {check_branch} by {behind_count} commit(s).")
-                guidance.append("Rebase before review:")
-                guidance.append(f"  cd {worktree_path}")
-                guidance.append(f"  git rebase {check_branch}")
-                guidance.append("")
-                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
-                return False, guidance
-
-            # Check for uncommitted changes in worktree
-            result = subprocess.run(
-                ["git", "status", "--porcelain"], cwd=worktree_path, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
-            )
-            # FR-015 / C-003: strip spec-kitty's own runtime-state files (e.g.
-            # .spec-kitty/review-lock.json written by the review tooling, or
-            # .kittify/ merge metadata) before deciding whether the worktree
-            # has genuine uncommitted implementation work. The deny-list is a
-            # fixed, named tuple (no patterns) so paths outside it still reach
-            # the blocking branch and surface as "Uncommitted implementation
-            # changes in worktree!" (C-004).
-            uncommitted_in_worktree = _filter_runtime_state_paths(result.stdout.strip())
-
-            if uncommitted_in_worktree:
-                staged_lines = []
-                unstaged_lines = []
-                for line in uncommitted_in_worktree.split("\n"):
-                    if not line.strip():
-                        continue
-                    if line.startswith("??"):
-                        unstaged_lines.append(line)
-                        continue
-                    status = line[:2]
-                    if status[0] != " ":
-                        staged_lines.append(line)
-                    if status[1] != " ":
-                        unstaged_lines.append(line)
-
-                if staged_lines and not unstaged_lines:
-                    guidance.append("Staged but uncommitted changes in worktree!")
-                elif staged_lines and unstaged_lines:
-                    guidance.append("Staged and unstaged changes in worktree!")
-                else:
-                    guidance.append("Uncommitted implementation changes in worktree!")
-                guidance.append("")
-                guidance.append("Modified files:")
-                for line in uncommitted_in_worktree.split("\n")[:5]:
-                    guidance.append(f"  {line}")
-                guidance.append("")
-                guidance.append("Commit your work first:")
-                guidance.append(f"  cd {worktree_path}")
-                guidance.append("  git add <deliverable-path-1> <deliverable-path-2> ...")
-                guidance.append(f'  git commit -m "feat({wp_id}): <describe implementation>"')
-                guidance.append("")
-                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
-                return False, guidance
-
-            # Check if branch has commits beyond base (use actual base, not target).
-            # Shared with the orchestrator-api for_review gate so both enforce the
-            # same "an implementation commit exists" rule.
-            if not lane_has_commit_beyond_base(worktree_path, check_branch):
-                guidance.append("No implementation commits on lane branch!")
-                guidance.append("")
-                guidance.append(f"The worktree exists but has no commits beyond {check_branch}.")
-                guidance.append("Either:")
-                guidance.append("  1. Commit your implementation work to the worktree")
-                guidance.append("  2. Or verify work is complete (use --force if nothing to commit)")
-                guidance.append("")
-                guidance.append(f"  cd {worktree_path}")
-                guidance.append("  git add <deliverable-path-1> <deliverable-path-2> ...")
-                guidance.append(f'  git commit -m "feat({wp_id}): <describe implementation>"')
-                guidance.append("")
-                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
-                return False, guidance
-
-            contamination_files = _list_wp_branch_specs_changes_for_guard(
-                worktree_path=worktree_path,
-                base_branch=check_branch,
-            )
-            if contamination_files:
-                # FR-009 / FR-010: resolve the planning branch from meta.json so
-                # the error message names the branch and gives a `git show` example.
-                # Falls back gracefully for legacy missions without meta.json.
-                _planning_branch: str | None = None
-                try:
-                    from specify_cli.mission_metadata import load_meta as _load_meta_lggrd
-
-                    _meta = _load_meta_lggrd(feature_dir)
-                    if _meta:
-                        _planning_branch = _meta.get("planning_base_branch") or _meta.get("target_branch")
-                except Exception as _lane_meta_exc:  # noqa: BLE001 - lane guard still reports contamination without optional metadata
-                    logger.debug(
-                        "Could not resolve planning_base_branch for lane guard: %s", _lane_meta_exc
-                    )
-
-                guidance.append("Committed kitty-specs files on this lane branch:")
-                for path in contamination_files[:5]:
-                    guidance.append(f"  {path}")
-                if len(contamination_files) > 5:
-                    guidance.append(f"  ... and {len(contamination_files) - 5} more")
-                guidance.append("")
-                if _planning_branch:
-                    _first_planning_path = (
-                        contamination_files[0] if contamination_files else "kitty-specs/<path-to-file>"
-                    )
-                    guidance.append(
-                        f"kitty-specs/ changes are not allowed on lane branches.\n"
-                        f"Planning artifacts must live on: {_planning_branch}\n\n"
-                        f"To verify a file exists on the planning branch:\n"
-                        f"  git show {_planning_branch}:{_first_planning_path}"
-                    )
-                else:
-                    guidance.append(
-                        "kitty-specs/ changes are not allowed on lane branches "
-                        "(planning branch unknown — check kitty-specs/ on the base branch)."
-                    )
-                guidance.append("")
-                guidance.append(f"Clean the branch before moving to {target_lane}:")
-                guidance.append(f"  cd {worktree_path}")
-                guidance.append(f"  git restore --source {check_branch} --staged --worktree -- kitty-specs/")
-                guidance.append('  git commit -m "chore: remove planning artifacts from lane branch"')
-                guidance.append("")
-                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
-                return False, guidance
-
-    return True, []
 
 
 def _wp_branch_merged_into_target(
@@ -2472,25 +1546,21 @@ def move_task(
                         write_text_within_directory(wp.path, updated_doc, root=main_repo_root, encoding="utf-8")
                         file_written = True
                         status_artifacts = _collect_status_artifacts(feature_dir)
-                        # The WP file is WORK_PACKAGE_TASK (primary): resolve the
-                        # destination through the ONE kind authority instead of the
-                        # hardcoded CommitTarget(ref=target_branch)
-                        # (write-surface-coherence WP02 / T032 / G-1). A primary kind
-                        # lands on the primary target branch for every topology, so
-                        # the partition — not a hardcoded ref — owns the routing.
-                        _wp_file_target = resolve_placement_only(
+                        # The WP file is WORK_PACKAGE_TASK (primary): route the commit
+                        # through the ONE canonical ``commit_for_mission`` entry point
+                        # (WP07 / FR-006) instead of the open-coded resolve_placement_only
+                        # + safe_commit pair. The router owns placement resolution AND the
+                        # protected-primary refusal; ``safe_commit`` is reached only via
+                        # the router (no direct call here).
+                        _router_result = commit_for_mission(
                             main_repo_root,
                             mission_slug,
+                            tuple([actual_file_path] + status_artifacts),
+                            commit_msg,
+                            ProtectionPolicy.resolve(main_repo_root),
                             kind=MissionArtifactKind.WORK_PACKAGE_TASK,
                         )
-                        commit_success = safe_commit(
-                            repo_root=main_repo_root,
-                            worktree_root=main_repo_root,
-                            target=_wp_file_target,
-                            message=commit_msg,
-                            paths=tuple([actual_file_path] + status_artifacts),
-                            capability=GuardCapability.STANDARD,
-                        )
+                        commit_success = _router_result.status == "committed"
 
                     if commit_success:
                         if not json_output:
@@ -2601,263 +1671,6 @@ def move_task(
         raise typer.Exit(1) from None
 
 
-def _is_pipe_table_task_row(line: str, task_id: str) -> bool:
-    """Return True if *line* is a pipe-table data row containing *task_id*.
-
-    Rules:
-    - Separator rows (|---|---| or |:---|:---:|) are always rejected.
-    - The task ID must appear as a whole cell, not as a substring of a longer
-      token (e.g. "T001" must not match "T0012" or "XT001").
-    """
-    # Reject separator rows: any row whose non-pipe content is only dashes/colons/spaces
-    if re.match(r"^\s*\|[\s\-:]+\|", line):
-        return False
-    # Match the task ID as a complete cell value (whitespace-padded OK)
-    return bool(re.search(rf"\|\s*{re.escape(task_id)}\s*\|", line))
-
-
-def _parse_pipe_table_header(lines: list[str], task_row_idx: int) -> dict[str, int]:
-    """Scan backwards from a pipe-table task row to find its header row.
-
-    Returns a mapping of lower-case column name -> zero-based column index.
-    Returns an empty dict if no header can be identified.
-    """
-    for i in range(task_row_idx - 1, -1, -1):
-        candidate = lines[i].strip()
-        # Skip separator rows
-        if re.match(r"^\|[\s\-:]+\|", candidate):
-            continue
-        # A header row must contain '|' and must not look like a separator
-        if "|" in candidate:
-            cells = [c.strip().lower() for c in candidate.split("|")[1:-1]]
-            return {name: idx for idx, name in enumerate(cells) if name}
-        # Anything else (blank line, heading, etc.) means no header found
-        break
-    return {}
-
-
-def _update_pipe_table_status(line: str, status: str, header_map: dict[str, int]) -> str:
-    """Update the status marker in a pipe-table row without corrupting other columns.
-
-    Strategy (in priority order):
-    1. If a "status" column exists in *header_map* -> update only that cell.
-    2. If a "parallel" column exists -> do NOT touch it; append a new status cell.
-    3. If the last cell already looks like a status marker ([P]/[D]/[ ]/[x]) ->
-       replace it in place.
-    4. Otherwise -> append a new status cell.
-    """
-    # Split on '|'; cells[0] and cells[-1] are empty strings outside the row.
-    cells = line.split("|")
-    inner_cells = cells[1:-1]
-
-    done_marker = " [D] "
-    pending_marker = " [ ] "
-    new_marker = done_marker if status == "done" else pending_marker
-
-    status_col = header_map.get("status")
-    parallel_col = header_map.get("parallel")
-
-    if status_col is not None and status_col < len(inner_cells):
-        # Update the designated status column only
-        inner_cells[status_col] = new_marker
-    elif parallel_col is not None:
-        # Parallel column exists — do NOT corrupt it; append status instead
-        inner_cells.append(new_marker)
-    else:
-        # No header guidance — check if the last cell looks like a status marker
-        if inner_cells and re.match(r"\s*\[\s*[PDx ]\s*\]\s*$", inner_cells[-1]):
-            inner_cells[-1] = new_marker
-        else:
-            inner_cells.append(new_marker)
-
-    return "|" + "|".join(inner_cells) + "|"
-
-
-_WP_HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s+(?P<title>.+?)\s*$")
-_WP_ID_TITLE_RE = re.compile(r"^(?:Work Package\s+)?(?P<wp_id>WP\d+)(?:\b|:)", re.IGNORECASE)
-
-
-def _match_history_wp_heading(line: str) -> str | None:
-    """Return the owning WP id from supported tasks.md section headings."""
-    heading_match = _WP_HEADING_RE.match(line)
-    if not heading_match:
-        return None
-
-    title = heading_match.group("title").strip()
-    if wp_match := _WP_ID_TITLE_RE.match(title):
-        return wp_match.group("wp_id").upper()
-    work_package_prefix = "Work Package "
-    if title.startswith(work_package_prefix):
-        suffix = title[len(work_package_prefix) :]
-        digit_count = 0
-        while digit_count < len(suffix) and digit_count < 2 and suffix[digit_count].isdigit():
-            digit_count += 1
-        if digit_count and (digit_count == len(suffix) or not suffix[digit_count].isdigit()):
-            remainder = suffix[digit_count:]
-            if not remainder or remainder[0].isspace() or remainder[0] in ":-" or ord(remainder[0]) == 0x2014:
-                return f"WP{int(suffix[:digit_count]):02d}"
-    return None
-
-
-def _extract_pipe_table_wp_id(line: str, header_map: dict[str, int]) -> str | None:
-    """Return the owning WP id from a pipe-table task row, when present."""
-    cells = [cell.strip() for cell in line.split("|")[1:-1]]
-    for column_name in ("wp", "work package", "work_package", "work package id", "work_package_id"):
-        column_index = header_map.get(column_name)
-        if column_index is not None and column_index < len(cells):
-            candidate = cells[column_index].upper()
-            wp_match = re.search(r"\b(WP\d+)\b", candidate)
-            if wp_match:
-                return wp_match.group(1)
-    for cell in cells:
-        candidate = cell.upper()
-        if re.fullmatch(r"WP\d+", candidate):
-            return candidate
-    return None
-
-
-def _resolve_history_wp_id(tasks_content: str, task_id: str) -> str | None:
-    """Resolve the WP that owns *task_id* from tasks.md structure."""
-    normalized_task_id = task_id.upper()
-    current_wp_id: str | None = None
-    lines = tasks_content.split("\n")
-
-    for line_index, line in enumerate(lines):
-        heading_wp_id = _match_history_wp_heading(line)
-        if heading_wp_id:
-            current_wp_id = heading_wp_id
-
-        if _is_pipe_table_task_row(line, normalized_task_id):
-            header_map = _parse_pipe_table_header(lines, line_index)
-            return _extract_pipe_table_wp_id(line, header_map) or current_wp_id
-
-        if re.search(rf"-\s*\[[ x]\]\s*{re.escape(normalized_task_id)}\b", line, re.IGNORECASE):
-            if current_wp_id:
-                return current_wp_id
-            explicit_wp = re.search(r"\b(WP\d+)\b", line, re.IGNORECASE)
-            if explicit_wp:
-                return explicit_wp.group(1).upper()
-            return None
-
-        inline_match = _INLINE_SUBTASKS_RE.search(line)
-        if inline_match:
-            ids = [value.strip().upper() for value in inline_match.group("ids").split(",")]
-            if normalized_task_id in ids:
-                return current_wp_id
-
-    return None
-
-
-_INLINE_SUBTASKS_RE = re.compile(
-    r"(?:Subtasks|\*\*Subtasks\*\*):\s*(?P<ids>(?:T|WP)\d+(?:\s*,\s*(?:T|WP)\d+)*)",
-    re.IGNORECASE,
-)
-
-
-def _resolve_checkbox(
-    task_id: str,
-    lines: list[str],
-    status: str,
-) -> TaskIdResult | None:
-    """Resolve and mutate checkbox rows for *task_id*."""
-    new_checkbox = "[x]" if status == "done" else "[ ]"
-    found = False
-    for i, line in enumerate(lines):
-        if re.search(rf"-\s*\[[ x]\]\s*{re.escape(task_id)}\b", line, re.IGNORECASE):
-            lines[i] = re.sub(r"-\s*\[[ x]\]", f"- {new_checkbox}", line)
-            found = True
-    if not found:
-        return None
-    return TaskIdResult(
-        id=task_id,
-        outcome=TaskIdResolutionOutcome.UPDATED,
-        format=TaskIdResolutionFormat.CHECKBOX,
-        message=f"Marked {task_id} as {status} (checkbox row updated).",
-    )
-
-
-def _resolve_pipe_table(
-    task_id: str,
-    lines: list[str],
-    status: str,
-) -> TaskIdResult | None:
-    """Resolve and mutate pipe-table rows for *task_id*."""
-    found = False
-    for i, line in enumerate(lines):
-        if _is_pipe_table_task_row(line, task_id):
-            header_map = _parse_pipe_table_header(lines, i)
-            lines[i] = _update_pipe_table_status(line, status, header_map)
-            found = True
-    if not found:
-        return None
-    return TaskIdResult(
-        id=task_id,
-        outcome=TaskIdResolutionOutcome.UPDATED,
-        format=TaskIdResolutionFormat.PIPE_TABLE,
-        message=f"Marked {task_id} as {status} (pipe-table row updated).",
-    )
-
-
-def _materialize_inline_subtask_status(
-    task_id: str,
-    tasks_content: str,
-    status: str,
-) -> tuple[str, bool]:
-    """Insert a checkbox row next to a matching inline Subtasks reference."""
-    new_checkbox = "[x]" if status == "done" else "[ ]"
-    normalized_task_id = task_id.upper()
-    lines = tasks_content.split("\n")
-
-    for line_idx, line in enumerate(lines):
-        match = _INLINE_SUBTASKS_RE.search(line)
-        if not match:
-            continue
-        ids = [value.strip().upper() for value in match.group("ids").split(",")]
-        if normalized_task_id not in ids:
-            continue
-
-        for existing_idx, existing_line in enumerate(lines):
-            if re.search(
-                rf"-\s*\[[ x]\]\s*{re.escape(task_id)}\b",
-                existing_line,
-                re.IGNORECASE,
-            ):
-                lines[existing_idx] = re.sub(
-                    r"-\s*\[[ x]\]",
-                    f"- {new_checkbox}",
-                    existing_line,
-                )
-                return "\n".join(lines), True
-
-        insert_at = line_idx + 1
-        while insert_at < len(lines) and re.match(r"\s*-\s*\[[ x]\]\s*(?:T|WP)\d+\b", lines[insert_at], re.IGNORECASE):
-            insert_at += 1
-        lines.insert(insert_at, f"- {new_checkbox} {task_id}")
-        return "\n".join(lines), True
-
-    return tasks_content, False
-
-
-def _persist_inline_subtask_status(
-    task_id: str,
-    status: str,
-    feature_dir: Path,
-    tasks_content: str | None = None,
-) -> bool:
-    """Persist an inline Subtasks match by materializing a checkbox row."""
-    tasks_path = feature_dir / TASKS_MD_FILENAME
-    if tasks_content is None:
-        if not tasks_path.exists():
-            return False
-        tasks_content = tasks_path.read_text(encoding="utf-8")
-
-    updated_content, persisted = _materialize_inline_subtask_status(task_id, tasks_content, status)
-    if not persisted:
-        return False
-    tasks_path.write_text(updated_content, encoding="utf-8")
-    return True
-
-
 def _resolve_inline_subtasks(
     task_id: str,
     tasks_content: str,
@@ -2894,42 +1707,6 @@ def _resolve_inline_subtasks(
                 ),
             )
     return None
-
-
-def _wp_id_exists(feature_dir: Path, wp_id: str) -> bool:
-    """Return True when *wp_id* has a canonical WP artifact or task mention."""
-    tasks_dir = feature_dir / "tasks"
-    if tasks_dir.exists():
-        wp_pattern = re.compile(rf"^{re.escape(wp_id)}(?:[-_.]|\.md$)", re.IGNORECASE)
-        if any(wp_pattern.match(path.name) for path in tasks_dir.glob("*.md")):
-            return True
-    tasks_path = feature_dir / TASKS_MD_FILENAME
-    if tasks_path.exists():
-        return bool(re.search(rf"\b{re.escape(wp_id)}\b", tasks_path.read_text(encoding="utf-8"), re.IGNORECASE))
-    return False
-
-
-def _resolve_wp_id(
-    wp_id: str,
-    status: str,
-    mission_slug: str | None,
-    feature_dir: Path,
-) -> TaskIdResult | None:
-    """Reject bare WP IDs; mark-status is scoped to task/subtask updates."""
-    if not re.match(r"^WP\d+$", wp_id, re.IGNORECASE):
-        return None
-
-    normalized_wp_id = wp_id.upper()
-    del status, mission_slug, feature_dir
-    return TaskIdResult(
-        id=normalized_wp_id,
-        outcome=TaskIdResolutionOutcome.NOT_FOUND,
-        format=TaskIdResolutionFormat.WP_ID,
-        message=(
-            f"{normalized_wp_id}: mark-status does not change work-package lanes. "
-            "Use `spec-kitty agent tasks move-task <WP_ID> --to <lane>`."
-        ),
-    )
 
 
 def _mark_status_json_payload(results: list[TaskIdResult]) -> dict[str, object]:
@@ -3120,22 +1897,21 @@ def mark_status(
                 try:
                     actual_tasks_path = tasks_md.resolve()
 
-                    # tasks.md is TASKS_INDEX (primary): resolve the destination
-                    # through the ONE kind authority instead of hardcoding
-                    # CommitTarget(ref=target_branch) (write-surface-coherence WP02 /
-                    # T032 / G-1 — no parallel routing hardcode for a planning file).
-                    _tasks_md_target = resolve_placement_only(
-                        main_repo_root, mission_slug, kind=MissionArtifactKind.TASKS_INDEX
+                    # tasks.md is TASKS_INDEX (primary): route the commit through the
+                    # ONE canonical ``commit_for_mission`` entry point (WP07 / FR-006)
+                    # instead of the open-coded resolve_placement_only + safe_commit
+                    # pair. The router owns placement resolution AND the
+                    # protected-primary refusal; ``safe_commit`` is reached only via
+                    # the router (no direct call here).
+                    _router_result = commit_for_mission(
+                        main_repo_root,
+                        mission_slug,
+                        (actual_tasks_path,),
+                        commit_msg,
+                        ProtectionPolicy.resolve(main_repo_root),
+                        kind=MissionArtifactKind.TASKS_INDEX,
                     )
-                    # Commit only the tasks.md file (preserves staging area)
-                    commit_success = safe_commit(
-                        repo_root=main_repo_root,
-                        worktree_root=main_repo_root,
-                        target=_tasks_md_target,
-                        message=commit_msg,
-                        paths=(actual_tasks_path,),
-                        capability=GuardCapability.STANDARD,
-                    )
+                    commit_success = _router_result.status == "committed"
 
                     if commit_success:
                         if not json_output:
@@ -3431,14 +2207,12 @@ def finalize_tasks(
         from specify_cli.core.dependency_parser import parse_dependencies_from_tasks_md as _shared_parse_deps
 
         dependencies_map: dict[str, list[str]] = _shared_parse_deps(tasks_content)
-        expected_wp_ids = sorted(
-            wp_file.stem.split("-")[0]
-            for wp_file in tasks_dir.glob("WP*.md")
-            if re.match(r"^WP\d{2}$", wp_file.stem.split("-")[0])
-        )
-        missing_wp_sections = [wp_id for wp_id in expected_wp_ids if wp_id not in dependencies_map]
-        extra_wp_sections = sorted(set(dependencies_map) - set(expected_wp_ids))
-        if missing_wp_sections or extra_wp_sections:
+
+        # WP04 seam: WP coverage + cycle + disagree-loud conflict validation,
+        # then a pure plan for the frontmatter rewrites. The command body only
+        # surfaces errors and performs the (validate-only-gated) writes.
+        coverage = validate_wp_coverage(dependencies_map, tasks_dir)
+        if not coverage.ok:
             _output_error(
                 json_output,
                 (
@@ -3448,99 +2222,38 @@ def finalize_tasks(
             )
             raise typer.Exit(1)
 
-        # Validate dependency graph for cycles
-        from specify_cli.core.dependency_graph import detect_cycles
-
-        cycles = detect_cycles(dependencies_map)
+        cycles = detect_dependency_cycles(dependencies_map)
         if cycles:
             _output_error(json_output, f"Circular dependencies detected: {cycles}")
             raise typer.Exit(1)
 
-        from specify_cli.frontmatter import write_frontmatter as _write_fm
-        from specify_cli.status import WPMetadata, read_wp_frontmatter as _read_wp_fm
-
-        # --- Pre-loop: read all existing frontmatter for conflict detection (T004) ---
-        existing_frontmatter: dict[str, WPMetadata] = {}
-        for _wp_file in tasks_dir.glob("WP*.md"):
-            _wp_id = _wp_file.stem.split("-")[0]
-            if not re.match(r"^WP\d{2}$", _wp_id):
-                continue
-            try:
-                _fm_meta, _ = _read_wp_fm(_wp_file)
-                existing_frontmatter[_wp_id] = _fm_meta
-            except Exception:
-                existing_frontmatter[_wp_id] = WPMetadata(work_package_id=_wp_id, title=_wp_id)
-
         # --- Dependency conflict detection (T004: disagree-loud) ---
-        # Precedence guarantee for FR-302/FR-303: when frontmatter already
-        # declares explicit dependencies AND the parser also finds deps but
-        # they disagree, we surface the conflict loudly instead of silently
-        # overwriting frontmatter.  This is intentional — the operator must
-        # resolve the disagreement before finalizing.  The preserve-existing
-        # path below (when parser finds nothing) is also part of this guarantee.
-        dep_conflict_errors: list[str] = []
-        for wp_id_chk, parsed_deps in dependencies_map.items():
-            existing_meta = existing_frontmatter.get(wp_id_chk, WPMetadata(work_package_id=wp_id_chk, title=wp_id_chk))
-            existing_deps: list[str] = list(existing_meta.dependencies)
-            if existing_deps and parsed_deps and set(existing_deps) != set(parsed_deps):
-                dep_conflict_errors.append(
-                    f"{wp_id_chk}: frontmatter has {sorted(existing_deps)}, "
-                    f"tasks.md parsed {sorted(parsed_deps)}. "
-                    f"Resolve the disagreement in tasks.md or WP frontmatter before finalizing."
-                )
+        existing_frontmatter = read_existing_frontmatter(tasks_dir)
+        dep_conflict_errors = detect_dependency_conflicts(dependencies_map, existing_frontmatter)
         if dep_conflict_errors:
             error_msg = "Dependency disagreement detected:\n" + "\n".join(dep_conflict_errors)
             _output_error(json_output, error_msg)
             raise typer.Exit(1)
 
-        # Update each WP file's frontmatter with dependencies (T005: use FrontmatterManager)
-        updated_count = 0
-        modified_wps: list[str] = []
-        unchanged_wps: list[str] = []
-        preserved_wps: list[str] = []
+        # Compute (side-effect-free) the frontmatter rewrites, then apply them
+        # gating ALL writes on validate_only (T005/T006).
+        from specify_cli.frontmatter import write_frontmatter as _write_fm
+
+        update_plan = compute_wp_frontmatter_updates(dependencies_map, tasks_dir)
+        for warning in update_plan.warnings:
+            console.print(f"[yellow]Warning:[/yellow] {warning}")
+
         would_modify: list[dict[str, object]] = []
-
-        for wp_id, parsed_deps in sorted(dependencies_map.items()):
-            # Find WP file
-            wp_files = list(tasks_dir.glob(f"{wp_id}-*.md")) + list(tasks_dir.glob(f"{wp_id}.md"))
-            if not wp_files:
-                console.print(f"[yellow]Warning:[/yellow] No file found for {wp_id}")
-                continue
-
-            wp_file = wp_files[0]
-
-            # Read current frontmatter using typed WPMetadata API
-            try:
-                wp_meta, body = _read_wp_fm(wp_file)
-            except Exception as e:
-                console.print(f"[yellow]Warning:[/yellow] Could not read {wp_file.name}: {e}")
-                continue
-
-            # --- Dependency resolution with preserve-existing (T004) ---
-            existing_deps = list(wp_meta.dependencies)
-            if not parsed_deps and existing_deps:
-                # Parser found nothing but frontmatter has deps — preserve existing
-                deps = existing_deps
-                preserved_wps.append(wp_id)
+        for write in update_plan.writes:
+            if not validate_only:
+                _write_fm(write.wp_file, write.updated_meta.model_dump(exclude_none=True), write.body)
             else:
-                deps = parsed_deps
+                would_modify.append({"wp_id": write.wp_id, "changes": {"dependencies": write.dependencies}})
 
-            old_deps_list = list(wp_meta.dependencies)
-            deps_changed = old_deps_list != deps
-
-            if deps_changed:
-                updated_meta = wp_meta.update(dependencies=deps)
-                # Gate ALL file writes on validate_only (T006)
-                if not validate_only:
-                    _write_fm(wp_file, updated_meta.model_dump(exclude_none=True), body)
-                else:
-                    would_modify.append({"wp_id": wp_id, "changes": {"dependencies": deps}})
-                updated_count += 1
-                if wp_id not in preserved_wps:
-                    modified_wps.append(wp_id)
-            else:
-                if wp_id not in preserved_wps:
-                    unchanged_wps.append(wp_id)
+        updated_count = update_plan.updated_count
+        modified_wps = update_plan.modified_wps
+        unchanged_wps = update_plan.unchanged_wps
+        preserved_wps = update_plan.preserved_wps
 
         # Bootstrap canonical status state for all WPs
         bootstrap_result = bootstrap_canonical_state(feature_dir, mission_slug, dry_run=validate_only)
@@ -3944,36 +2657,36 @@ def map_requirements(
                 spec_number = mission_slug.split("-")[0] if "-" in mission_slug else mission_slug
                 commit_msg = f"chore: Map requirements for {', '.join(sorted(new_mappings))} on spec {spec_number}"
                 try:
-                    from specify_cli.cli.commands.agent.mission import _planning_commit_worktree
-
                     # map-requirements edits WP prompt files → WORK_PACKAGE_TASK
-                    # (a primary kind, write-surface-coherence WP03 / T014). The
-                    # partition-aware helper returns the primary checkout for a
-                    # primary kind, so the commit lands on the primary target_branch
-                    # (matching ``commit_target`` resolved above) with no coord
-                    # transit.
-                    commit_worktree_root, commit_paths = _planning_commit_worktree(
+                    # (a primary kind, write-surface-coherence WP03 / T014). Route
+                    # the commit through the ONE canonical ``commit_for_mission``
+                    # entry point (WP07 / FR-006) instead of the open-coded
+                    # _planning_commit_worktree + safe_commit pair. The router owns
+                    # placement resolution, the primary checkout selection, and the
+                    # post-commit ff-advance; thread ``target_branch`` so the WP09
+                    # ff-advance fires for a coord write (previously absent here).
+                    _router_result = commit_for_mission(
                         main_repo_root,
                         mission_slug,
                         tuple(written_files),
+                        commit_msg,
+                        ProtectionPolicy.resolve(main_repo_root),
                         kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+                        target_branch=target_branch,
                     )
-                    # ``safe_commit`` returns a ``CommitResult`` whose
-                    # ``worktree_root`` is a ``Path``; serialize it via
-                    # ``to_dict`` so the ``--json`` payload stays a valid JSON
-                    # document instead of raising ``Object of type CommitResult
-                    # is not JSON serializable`` (issue #1891 / FR-013).
-                    commit_result = safe_commit(
-                        repo_root=main_repo_root,
-                        worktree_root=commit_worktree_root,
-                        target=commit_target,
-                        message=commit_msg,
-                        paths=tuple(commit_paths),
-                        capability=GuardCapability.STANDARD,
-                    )
-                    committed = True
-                    commit_sha = commit_result.sha
-                    commit_result_payload = commit_result.to_dict()
+                    if _router_result.status == "committed":
+                        committed = True
+                        commit_sha = _router_result.commit_hash
+                        # Preserve the ``--json`` ``commit_result`` envelope shape
+                        # (#1891 / FR-013): a primary kind commits from the primary
+                        # checkout to ``commit_target.ref``, so reconstruct the same
+                        # JSON-serializable mapping the ``CommitResult.to_dict()``
+                        # carried — byte-identical to the pre-router payload.
+                        commit_result_payload = {
+                            "sha": _router_result.commit_hash,
+                            "destination_ref": _router_result.placement_ref,
+                            "worktree_root": str(main_repo_root),
+                        }
                 except Exception as exc_commit:
                     if not json_output:
                         console.print(f"[yellow]Warning:[/yellow] Auto-commit skipped: {exc_commit}")

@@ -1,0 +1,142 @@
+{
+  "mission_not_found_list_tasks": {
+    "argv": [
+      "list-tasks",
+      "--json",
+      "--mission",
+      "no-such-mission"
+    ],
+    "exit_code": 2,
+    "json_shape": {
+      "error": "str",
+      "handle": "str"
+    },
+    "stream": "stderr"
+  },
+  "mission_not_found_status": {
+    "argv": [
+      "status",
+      "--json",
+      "--mission",
+      "no-such-mission"
+    ],
+    "exit_code": 2,
+    "json_shape": {
+      "error": "str",
+      "handle": "str"
+    },
+    "stream": "stderr"
+  },
+  "success_finalize_validate_only": {
+    "argv": [
+      "finalize-tasks",
+      "--mission",
+      "099-demo",
+      "--validate-only",
+      "--json"
+    ],
+    "exit_code": 0,
+    "json_shape": {
+      "bootstrap": {
+        "already_initialized": "int",
+        "newly_seeded": "int",
+        "skipped": "int",
+        "total_wps": "int",
+        "wp_details": "<map>"
+      },
+      "dependencies": "<map>",
+      "mission_number": "int",
+      "mission_slug": "str",
+      "mission_type": "str",
+      "result": "str",
+      "unchanged": [
+        "str"
+      ],
+      "updated_wp_count": "int",
+      "validate_only": "bool",
+      "would_modify": [],
+      "would_preserve": []
+    },
+    "stream": "stdout"
+  },
+  "success_list_tasks": {
+    "argv": [
+      "list-tasks",
+      "--mission",
+      "099-demo",
+      "--json"
+    ],
+    "exit_code": 0,
+    "json_shape": {
+      "count": "int",
+      "tasks": [
+        {
+          "lane": "str",
+          "path": "str",
+          "title": "str",
+          "work_package_id": "str"
+        }
+      ]
+    },
+    "stream": "stdout"
+  },
+  "success_status": {
+    "argv": [
+      "status",
+      "--mission",
+      "099-demo",
+      "--json"
+    ],
+    "exit_code": 0,
+    "json_shape": {
+      "auto_commit": "bool",
+      "by_lane": "<map>",
+      "done_count": "int",
+      "done_percentage": "float",
+      "mission_number": "int",
+      "mission_slug": "str",
+      "mission_type": "str",
+      "progress_percentage": "float",
+      "progress_semantics": "str",
+      "stale_verdicts": [],
+      "stale_wps": "int",
+      "stalled_wps": [],
+      "total_wps": "int",
+      "weighted_percentage": "float",
+      "work_packages": [
+        {
+          "agent": "str",
+          "agent_profile": "str",
+          "execution_mode": "str",
+          "file": "str",
+          "id": "str",
+          "lane": "str",
+          "phase": "str",
+          "shell_pid": "str",
+          "title": "str",
+          "workspace_kind": "str"
+        }
+      ]
+    },
+    "stream": "stdout"
+  },
+  "usage_error_missing_arg": {
+    "argv": [
+      "move-task"
+    ],
+    "exit_code": 2,
+    "stderr_contains": "Missing argument 'TASK_ID'"
+  },
+  "validation_error_mark_status": {
+    "argv": [
+      "mark-status",
+      "T001",
+      "--status",
+      "bogus",
+      "--mission",
+      "no-such-mission"
+    ],
+    "exit_code": 1,
+    "stdout_contains": "Invalid status 'bogus'"
+  }
+}
