@@ -17,6 +17,8 @@ subtasks:
 - T022
 - T023
 - T024
+agent: "claude:opus:randy-reducer:implementer"
+shell_pid: "3385089"
 history:
 - date: '2026-06-24'
   action: created
@@ -91,3 +93,4 @@ Recommended reviewer: standard. Verify the decomposition (C901 clean), `--fix`/C
 ## Activity Log
 
 - 2026-06-24T19:54:56Z – claude – planning – WP created (deps WP07; decompose sparse_checkout CC19).
+- 2026-06-24T22:03:51Z – claude:opus:randy-reducer:implementer – shell_pid=3385089 – Assigned agent via action command
