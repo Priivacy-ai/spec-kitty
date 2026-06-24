@@ -32,6 +32,7 @@ from pathlib import Path
 
 import pytest
 
+from mission_runtime import MissionArtifactKind
 from mission_runtime.resolution import resolve_placement_only
 from specify_cli.coordination.status_transition import (
     _current_branch,
@@ -230,10 +231,38 @@ def test_write_target_coord_arm_yields_coord_branch(
         _request(coord.primary_feature_dir, coord.mission_slug)
     )
     assert identity.destination_ref == coord.coord_branch
+    # The status write target uses the STATUS_STATE (coord-preserving) kind
+    # (write-surface-coherence WP02 / T031): under coord topology it keeps the
+    # coordination branch — byte-identical to the write-side destination_ref.
     assert (
         identity.destination_ref
-        == resolve_placement_only(coord.main_root, coord.mission_slug).ref
+        == resolve_placement_only(
+            coord.main_root, coord.mission_slug, kind=MissionArtifactKind.STATUS_STATE
+        ).ref
     )
+
+
+def test_resolve_write_target_stays_coord_after_required_kind(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """write-surface-coherence WP02 / T031 DoD: the STATUS write target stays COORD.
+
+    ``resolve_placement_only``'s ``kind`` is now REQUIRED (WP01). The status write
+    target (``_resolve_write_target`` / ``:332``) threads ``STATUS_STATE`` — a
+    coordination kind — so under coord topology it MUST keep resolving the
+    ``coordination_branch`` (C-001 / G-2). This pins that the required-kind
+    threading did NOT flip the status surface to the primary ``target_branch``:
+    RED if ``_resolve_write_target`` returns ``TARGET_BRANCH`` instead of the
+    coordination branch.
+    """
+    coord = build_coord(tmp_path)
+    monkeypatch.chdir(coord.coord_worktree)
+
+    resolved = _resolve_write_target(
+        coord.main_root, coord.mission_slug, coord.coord_branch
+    )
+    assert resolved == coord.coord_branch
+    assert resolved != TARGET_BRANCH
 
 
 def test_resolve_write_target_helper_no_meta_degrades_to_branch(
@@ -338,10 +367,15 @@ def test_read_write_resolution_equivalence_across_topologies(
     )
     assert _repo_root_for_feature(feature_dir, None) == main_root
 
-    # Target: write-side identity == read-side placement resolver.
+    # Target: write-side identity == read-side placement resolver. The status
+    # write target resolves with the STATUS_STATE (coord-preserving) kind
+    # (write-surface-coherence WP02 / T031): coord topology → coord branch,
+    # flat/submodule → target branch — matching ``expected_target`` for all three.
     identity = _identity_for_request(_request(feature_dir, slug))
     assert (
         identity.destination_ref
-        == resolve_placement_only(main_root, slug).ref
+        == resolve_placement_only(
+            main_root, slug, kind=MissionArtifactKind.STATUS_STATE
+        ).ref
         == expected_target
     )

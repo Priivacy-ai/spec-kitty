@@ -361,7 +361,17 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
 
 
 def load_meta(meta_path: Path) -> dict[str, Any]:
-    """Load ``meta.json`` from *meta_path*.
+    """Load ``meta.json`` from *meta_path* (path-signature adapter; NOT canonical).
+
+    The CANONICAL meta-reader authority is
+    :func:`specify_cli.mission_metadata.load_meta` (imported here as
+    ``_load_meta_canonical``).  This function is a thin **adapter** retained only
+    for its distinct calling convention -- it takes the ``meta.json`` *file path*
+    (not the parent dir) and translates the canonical
+    :class:`FileNotFoundError` into a :class:`TaskCliError` for the task CLI.  It
+    delegates entirely to the canonical reader and adds no parallel contract
+    (FR-009 / SC-004: the canonical authority is unambiguous -- this is an
+    adapter, not a fork).
 
     Preserves the original contract: missing → :class:`TaskCliError`,
     malformed JSON → :class:`ValueError` (behavior-neutral; original raised
@@ -436,6 +446,8 @@ __all__ = [
     "get_lane_from_frontmatter",
     "git_status_lines",
     "is_legacy_format",
+    # Path-signature adapter over the canonical mission_metadata.load_meta
+    # (FR-009 / SC-004) -- not a parallel authority; see its docstring.
     "load_meta",
     "locate_work_package",
     "match_frontmatter_line",

@@ -167,41 +167,77 @@ def _summary(repo_root: Path) -> AcceptanceSummary:
 
 
 def test_coord_topology_ignores_recognized_coordination_residue(tmp_path: Path) -> None:
-    """Coord mission with ONLY recognized residue → dirty gate PASSES.
+    """Coord mission with ONLY a COORD-partition residue → dirty gate PASSES.
 
-    ``plan.md`` is a coordination-owned artifact; under coord topology a stale
-    primary copy is residue, not dirt. (Positive side of the FR-008 cell — the
-    negative control is ``test_flat_topology_still_blocks_same_residue_paths``.)
+    write-surface-coherence WP01-04 narrowed the residue authority: planning
+    SOURCE/finalized docs (``spec.md`` / ``plan.md`` / ``tasks.md``) are now
+    PRIMARY-partition artifacts that live on ``target_branch``, so their stale
+    primary copies are REAL dirt — NOT droppable residue (the new contract; see
+    ``test_coord_topology_blocks_primary_planning_residue`` for that flip).
+
+    Only a COORD-partition artifact's stale primary copy is residue. Here we edit
+    ``analysis-report.md`` (``ANALYSIS_REPORT`` → coordination branch under coord
+    topology) and assert the dirty gate ignores it. (Positive side of the FR-008
+    cell — the negative control is ``test_flat_topology_still_blocks_same_residue_paths``.)
     """
     repo_root, feature_dir = _create_mission(
         tmp_path, topology="coord", wp_lanes={"WP01": Lane.DONE}
     )
 
-    (feature_dir / "plan.md").write_text("# plan\nEdited primary copy (coord residue).\n")
+    (feature_dir / "analysis-report.md").write_text(
+        "# analysis\nEdited primary copy (coord residue).\n"
+    )
 
     summary = _summary(repo_root)
 
-    assert not any("plan.md" in line for line in summary.git_dirty), summary.git_dirty
+    assert not any("analysis-report.md" in line for line in summary.git_dirty), summary.git_dirty
+
+
+def test_coord_topology_blocks_primary_planning_residue(tmp_path: Path) -> None:
+    """write-surface-coherence WP01-04 flip: a stale ``plan.md`` primary copy BLOCKS.
+
+    Under the pre-mission contract ``plan.md`` was coordination residue and the
+    coord dirty gate ignored it. WP01-04 moved the planning + finalized kinds
+    (``FINALIZED_EXECUTION_PLAN`` etc.) into ``_PRIMARY_ARTIFACT_KINDS``: they now
+    live with the mission on ``target_branch`` for EVERY topology, so a stale
+    primary copy is a real dirty-tree blocker even under coord topology. This is
+    the narrowing the partition introduced — it proves the residue filter no
+    longer over-allows planning artifacts.
+    """
+    repo_root, feature_dir = _create_mission(
+        tmp_path, topology="coord", wp_lanes={"WP01": Lane.DONE}
+    )
+
+    (feature_dir / "plan.md").write_text(
+        "# plan\nEdited primary copy (now a real dirty blocker — primary kind).\n"
+    )
+
+    summary = _summary(repo_root)
+
+    assert any("plan.md" in line for line in summary.git_dirty), summary.git_dirty
 
 
 def test_flat_topology_still_blocks_same_residue_paths(tmp_path: Path) -> None:
-    """NEGATIVE CONTROL: same residue path under a FLAT mission → STILL blocks.
+    """NEGATIVE CONTROL: a COORD-partition residue path under a FLAT mission → STILL blocks.
 
     This is the over-allow mutation-killer. The path is identical to the coord
-    cell above; only the stored topology differs. A flat mission routes through
-    PRIMARY, so ``routes_through_coordination`` is ``False`` — the residue filter
-    never runs and the real primary edit blocks. Exercises WP04's
-    ``is_coordination_artifact_residue_path`` flat→False behaviour at the gate.
+    cell above (``analysis-report.md``); only the stored topology differs. A flat
+    mission routes through PRIMARY, so ``routes_through_coordination`` is
+    ``False`` — the residue filter never runs and the real primary edit blocks.
+    Exercises WP04's ``is_coordination_artifact_residue_path`` flat→False
+    behaviour at the gate.
     """
     repo_root, feature_dir = _create_mission(
         tmp_path, topology="single_branch", wp_lanes={"WP01": Lane.DONE}
     )
 
-    (feature_dir / "plan.md").write_text("# plan\nEdited primary copy (flat — real dirt).\n")
+    (feature_dir / "analysis-report.md").write_text(
+        "# analysis\nEdited primary copy (flat — real dirt).\n"
+    )
 
     summary = _summary(repo_root)
 
-    assert any("plan.md" in line for line in summary.git_dirty), summary.git_dirty
+    assert any("analysis-report.md" in line for line in summary.git_dirty), summary.git_dirty
 
 
 def test_coord_topology_still_blocks_genuine_source_edit(tmp_path: Path) -> None:

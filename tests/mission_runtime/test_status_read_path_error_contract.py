@@ -30,6 +30,7 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import (
+    MissionArtifactKind,
     resolve_action_context,
     resolve_placement_only,
 )
@@ -167,7 +168,9 @@ def test_placement_only_canonical_dirname_resolves_with_warning(
     _materialize_coord_root_without_mission_dir(repo, _CANONICAL_DIRNAME)
 
     with caplog.at_level(logging.WARNING, logger=_SURFACE_LOGGER):
-        placement = resolve_placement_only(repo, _CANONICAL_DIRNAME)
+        placement = resolve_placement_only(
+            repo, _CANONICAL_DIRNAME, kind=MissionArtifactKind.STATUS_STATE
+        )
 
     assert placement is not None
     _assert_option_b_warning(caplog)
@@ -186,7 +189,9 @@ def test_placement_only_backfilled_dirname_resolves_with_warning(
     _materialize_coord_root_without_mission_dir(repo, _BACKFILLED_DIRNAME)
 
     with caplog.at_level(logging.WARNING, logger=_SURFACE_LOGGER):
-        placement = resolve_placement_only(repo, _BACKFILLED_DIRNAME)
+        placement = resolve_placement_only(
+            repo, _BACKFILLED_DIRNAME, kind=MissionArtifactKind.STATUS_STATE
+        )
 
     assert placement is not None
     assert any(

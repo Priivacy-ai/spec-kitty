@@ -37,7 +37,11 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
-from mission_runtime import CommitTarget
+from mission_runtime import (
+    CommitTarget,
+    MissionArtifactKind,
+    kind_for_mission_file,
+)
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.git import ProtectedBranchCommitError, safe_commit
@@ -189,13 +193,40 @@ def _mission_slug_from_paths(repo_root: Path, files: list[Path]) -> str | None:
     return None
 
 
-def _resolve_mission_aware_target(repo_root: Path, mission_slug: str) -> CommitTarget | None:
+def _mission_file_kind(repo_root: Path, files: list[Path], mission_slug: str) -> MissionArtifactKind | None:
+    """Classify the first kitty-specs file argument to its artifact kind.
+
+    write-surface-coherence WP03 / T012: the safe-commit command holds file
+    paths, so it derives the kind through the ONE public classifier
+    (:func:`mission_runtime.kind_for_mission_file`) rather than re-deriving the
+    partition here (NFR-004). The kind then selects the primary vs topology-routed
+    placement: a planning artifact (``spec.md`` / ``plan.md`` / ``tasks/WP*.md``)
+    is a primary kind and lands on the primary ``target_branch``; a status
+    bookkeeping file (``status.events.jsonl``) keeps the coordination route.
+    """
+    for path in files:
+        try:
+            rel = path.resolve().relative_to(repo_root.resolve())
+        except ValueError:
+            continue
+        kind = kind_for_mission_file(rel, mission_slug=mission_slug)
+        if kind is not None:
+            return kind
+    return None
+
+
+def _resolve_mission_aware_target(
+    repo_root: Path, mission_slug: str, kind: MissionArtifactKind
+) -> CommitTarget | None:
     """Resolve the mission-aware planning :class:`CommitTarget` via the WP03 seam.
 
     FR-007 / #2063: the mission-aware planning commit resolves its destination
-    from :func:`mission_runtime.resolve_placement_only` (the WP03 placement
-    projection — the SAME authority status events resolve to), NOT from
-    ``get_current_branch``/HEAD. Returns ``None`` when the seam cannot resolve the
+    from :func:`mission_runtime.resolve_placement_only` (the placement projection
+    — the SAME authority status events resolve to), NOT from
+    ``get_current_branch``/HEAD. The projection is kind-aware
+    (write-surface-coherence WP03 / T012): a planning-artifact ``kind`` resolves
+    to the primary ``target_branch`` under coordination topology (no coord
+    transit, FR-003 / C-005). Returns ``None`` when the seam cannot resolve the
     mission (no ``meta.json`` yet / not a real mission), so the caller falls back
     to the generic path rather than failing a legitimate operator commit that
     merely *looks* like it lives under ``kitty-specs/``.
@@ -203,7 +234,7 @@ def _resolve_mission_aware_target(repo_root: Path, mission_slug: str) -> CommitT
     from mission_runtime import ActionContextError, resolve_placement_only
 
     try:
-        return resolve_placement_only(repo_root, mission_slug)
+        return resolve_placement_only(repo_root, mission_slug, kind=kind)
     except (ActionContextError, FileNotFoundError, ValueError):
         return None
 
@@ -244,9 +275,15 @@ def _resolve_commit_target(
 
     mission_slug = _mission_slug_from_paths(repo_root, files)
     if mission_slug is not None:
-        seam_target = _resolve_mission_aware_target(repo_root, mission_slug)
-        if seam_target is not None:
-            return seam_target
+        # write-surface-coherence WP03 / T012: classify the file to its artifact
+        # kind so a planning artifact lands on the primary ``target_branch`` (not
+        # coord) under coordination topology. An unclassifiable kitty-specs file
+        # falls through to the generic HEAD path rather than mis-routing.
+        kind = _mission_file_kind(repo_root, files, mission_slug)
+        if kind is not None:
+            seam_target = _resolve_mission_aware_target(repo_root, mission_slug, kind)
+            if seam_target is not None:
+                return seam_target
 
     inferred = get_current_branch(repo_root)
     if inferred is None or inferred == "":

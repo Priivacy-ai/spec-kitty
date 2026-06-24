@@ -44,7 +44,11 @@ pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _STATUS_TRANSITION_REL = "src/specify_cli/coordination/status_transition.py"
-_ALLOW_LISTED_LINE = 336
+# write-surface-coherence WP02 / T031: the required STATUS_STATE kind threading in
+# ``_resolve_write_target`` shifted the deferred HEAD-selector fallback arm from
+# :336 to :343 (the ``coord_branch or _current_branch`` line). The numeral in the
+# docstrings/test names is descriptive history; this constant is the live anchor.
+_ALLOW_LISTED_LINE = 343
 _DEFERRED_SELECTOR = "coord_branch or _current_branch"
 
 

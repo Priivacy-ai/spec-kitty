@@ -1,11 +1,11 @@
-"""Regression: ``append-history`` must commit through the coordination worktree.
+"""Contract: ``append-history`` commits the WP prompt file to the PRIMARY surface.
 
-On a coordination-topology mission the WP prompt file lives in the coordination
-worktree (``.worktrees/<mission>-coord/...``). The handler used to commit it with
-``worktree_root`` set to the primary checkout, which ``safe_commit`` rejects with
-``SAFE_COMMIT_PATH_POLICY`` ("Planning artifacts must be committed from the
-coordination worktree"). This exercises the real CLI command against a real git
-repo with a materialized coordination worktree.
+write-surface-coherence WP03 (FR-003 / T013): a WP prompt file is a
+``WORK_PACKAGE_TASK`` — a PRIMARY artifact kind. So ``append-history`` commits it
+to the mission's primary ``target_branch`` for every topology, directly from the
+primary checkout — NOT through the coordination worktree (the planning→coord
+transit is removed, C-005). This re-pins the prior regression (which asserted the
+removed coord-transit contract) onto the primary surface.
 
 Uses git (unlike ``test_orchestrator_commands_integration.py``, which is git-free).
 """
@@ -32,6 +32,9 @@ MID8 = "01KHIST0"
 MISSION_ID = "01KHIST0000000000000000000"
 MISSION_DIRNAME = f"{MISSION_SLUG}-{MID8}"
 COORD_BRANCH = f"kitty/mission-{MISSION_DIRNAME}"
+# The mission's primary feature target_branch. Planning/WP-prompt commits land
+# here (FR-003), so it is a NON-protected feature branch the operator is on.
+TARGET_BRANCH = "feat/hist-target"
 
 _WP_FILE = (
     "---\n"
@@ -69,7 +72,7 @@ def coord_repo(tmp_path: Path) -> Path:
                 "mission_id": MISSION_ID,
                 "mid8": MID8,
                 "coordination_branch": COORD_BRANCH,
-                "target_branch": "main",
+                "target_branch": TARGET_BRANCH,
             }
         )
         + "\n",
@@ -80,8 +83,11 @@ def coord_repo(tmp_path: Path) -> Path:
     _git(repo, "commit", "-q", "-m", "seed mission")
     _git(repo, "branch", COORD_BRANCH)
 
-    # Materialize the coordination worktree (it exists by the time the orchestrate
-    # loop reaches append-history), so the WP file resolves inside it.
+    # The WP prompt file is a primary kind → lands on the primary feature
+    # target_branch (FR-003 / T013). The operator is ON that feature branch (D-3),
+    # so check it out as HEAD; the commit lands there directly with no coord
+    # transit. The coordination worktree still exists (status routes there).
+    _git(repo, "checkout", "-q", "-b", TARGET_BRANCH)
     coord_worktree = CoordinationWorkspace.worktree_path(repo, MISSION_SLUG, MID8)
     _git(repo, "worktree", "add", "-q", str(coord_worktree), COORD_BRANCH)
     return repo
@@ -108,7 +114,7 @@ def _invoke_append_history(repo: Path) -> object:
         )
 
 
-def test_append_history_commits_through_coordination_worktree(coord_repo: Path) -> None:
+def test_append_history_commits_to_primary_target_branch(coord_repo: Path) -> None:
     result = _invoke_append_history(coord_repo)
 
     assert result.exit_code == 0, result.output
@@ -116,15 +122,24 @@ def test_append_history_commits_through_coordination_worktree(coord_repo: Path) 
     assert data["success"] is True
     assert data["data"]["wp_id"] == "WP01"
 
-    # The activity-log edit is committed on the coordination branch, with the note.
+    # FR-003 / T013: the WP-prompt edit (WORK_PACKAGE_TASK, a primary kind) is
+    # committed on the PRIMARY feature target_branch, with the note.
     committed = _git(
         coord_repo,
         "show",
-        f"{COORD_BRANCH}:kitty-specs/{MISSION_DIRNAME}/tasks/WP01.md",
+        f"{TARGET_BRANCH}:kitty-specs/{MISSION_DIRNAME}/tasks/WP01.md",
     )
     assert "Starting implementation" in committed.stdout
 
-    # And the primary checkout's branch carries no such commit (it lives only on
-    # the coordination branch — the whole point of coord topology).
-    main_log = _git(coord_repo, "log", "--oneline", "main")
-    assert "append activity log" not in main_log.stdout
+    # And the coordination branch carries NO such commit — the planning→coord
+    # transit is removed (C-005). The WP edit never touches the coord branch.
+    coord_show = subprocess.run(
+        ["git", "show", f"{COORD_BRANCH}:kitty-specs/{MISSION_DIRNAME}/tasks/WP01.md"],
+        cwd=coord_repo,
+        capture_output=True,
+        text=True,
+    )
+    assert "Starting implementation" not in coord_show.stdout, (
+        "WP-prompt edit leaked onto the coordination branch — planning→coord "
+        "transit was not removed (FR-003 / C-005)."
+    )

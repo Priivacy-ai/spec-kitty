@@ -7,14 +7,29 @@ Covers:
   mission-aware planning path (a ``kitty-specs/<slug>/`` artifact for a resolvable
   mission) resolves its destination via the WP03 seam, never from
   ``get_current_branch``.
-* **T026** — a coord-topology planning commit (``spec.md``) lands on the
-  **seam-resolved** coordination branch (NOT primary HEAD), AND the committed
-  ``spec.md`` is **read back** from the same seam-resolved surface via the
-  next-command read leg (the #2063 round-trip SC-004 demands).
+* **T026 (re-pinned, WP02 FR-003 / C-005)** — under the converged write path a
+  coord-topology **planning** commit (``spec.md``, a ``SPEC`` kind) lands on the
+  **primary** ``target_branch`` (NOT the coordination worktree), and the committed
+  ``spec.md`` is **read back** from the same **primary** surface via the
+  next-command read leg (the #2063 round-trip, now coherent on the *primary*
+  seam per WP03 T012's "preserved and corrected" note). The paired coord-side
+  assertion proves the **bifurcation** still holds: a ``STATUS_STATE`` (C-001
+  coordination-partition) commit on the SAME mission still routes to the
+  coordination branch — so the test fails red if planning ever regressed back to
+  coord, *or* if status ever leaked onto primary.
 
-These tests exercise the REAL seam (``resolve_placement_only`` /
-``candidate_feature_dir_for_mission``) on a protected primary — a test that only
-mocks the router or asserts the WRITE leg is insufficient (renata / SC-004).
+These tests exercise the REAL kind-aware seam (``resolve_placement_only`` /
+``candidate_feature_dir_for_mission``) on a real protected-primary repo — a test
+that only mocks the router or asserts the WRITE leg is insufficient (renata /
+SC-004).
+
+WP02 history (delete-the-assertion-not-the-test): this class previously asserted
+the *removed* planning→coord contract (``placement_ref == _COORD_BRANCH``, read
+back from ``.worktrees/<slug>-coord/``). FR-003 removes that path and C-005
+forbids preserving it as a fallback (FR-002: "the coordination worktree is never
+the authoring/read surface for planning artifacts"). The round-trip structure and
+the anti-fakeable negative proof are KEPT and re-targeted onto the primary seam,
+not deleted.
 """
 
 from __future__ import annotations
@@ -25,6 +40,7 @@ from pathlib import Path
 
 import pytest
 
+from mission_runtime import MissionArtifactKind
 from specify_cli.coordination.commit_router import commit_for_mission
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
@@ -46,15 +62,23 @@ _SLUG = f"write-surface-authority-{_MID8}"
 # The coord branch reconstructs VERBATIM and is idempotent on an already-embedded
 # ``-<mid8>`` tail (coord_reconstruct_branch), so the mid8 appears ONCE.
 _COORD_BRANCH = f"kitty/mission-{_SLUG}"
-_SPEC_BODY = "# Spec\n\nFR-007: the planning commit lands on the seam-resolved surface.\n"
+_SPEC_BODY = "# Spec\n\nFR-003: the planning commit lands on the PRIMARY target branch.\n"
+# Coordination-partition artifact (C-001 / STATUS_STATE) — proves the bifurcation:
+# planning moves to primary while status stays on the coordination branch.
+_STATUS_BODY = '{"wp_id":"WP01","to_lane":"planned"}\n'
 
 
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
     return subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
 
 
-def _seed_coord_mission(repo_root: Path) -> tuple[Path, Path]:
-    """Seed a coord-topology mission (meta + spec.md) + the coordination branch."""
+def _seed_coord_mission(repo_root: Path) -> tuple[Path, Path, Path]:
+    """Seed a coord-topology mission (meta + spec.md + status) + the coordination branch.
+
+    Returns the feature dir, the planning ``spec.md`` path, and the coordination
+    ``status.events.jsonl`` path (the C-001 partition artifact the bifurcation
+    assertion commits with a ``STATUS_STATE`` kind).
+    """
     feature_dir = repo_root / "kitty-specs" / _SLUG
     feature_dir.mkdir(parents=True)
     meta = {
@@ -68,54 +92,74 @@ def _seed_coord_mission(repo_root: Path) -> tuple[Path, Path]:
     (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
     spec_path = feature_dir / "spec.md"
     spec_path.write_text(_SPEC_BODY, encoding="utf-8")
+    status_path = feature_dir / "status.events.jsonl"
+    status_path.write_text(_STATUS_BODY, encoding="utf-8")
     _git(repo_root, "add", "-A")
     _git(repo_root, "commit", "-m", "chore: seed coord-topology mission")
     _git(repo_root, "branch", _COORD_BRANCH)
-    return feature_dir, spec_path
+    return feature_dir, spec_path, status_path
 
 
 # ---------------------------------------------------------------------------
-# T026 — coord-topology planning commit WRITES to + READS BACK from the seam surface
+# T026 (re-pinned) — coord-topology PLANNING commit WRITES to + READS BACK from
+# the PRIMARY surface, while a coordination-partition commit stays on coord.
 # ---------------------------------------------------------------------------
 
 
 class TestCoordTopologyPlanningCommitRoundTrip:
-    """#2063 / SC-004: write lands on the seam-resolved surface AND reads back from it."""
+    """#2063 / SC-004 / FR-003: planning round-trips on PRIMARY; status stays coord.
 
-    def test_spec_commit_lands_and_reads_back_from_coordination_surface(
+    Re-pinned for write-surface-coherence WP02 (FR-003 / C-005). The pre-WP02
+    contract (planning→coord worktree) is removed; preserving it as a fallback is
+    forbidden (C-005, FR-002). The round-trip and the anti-fakeable negative proof
+    are kept and re-targeted onto the **primary** seam.
+    """
+
+    def test_spec_planning_commit_lands_and_reads_back_from_primary_surface(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
+        # Allow the planning commit to land on the protected primary ``main`` so the
+        # write→read-back round-trip is observable hermetically. WP02's contract is
+        # that a SPEC (a planning kind) routes to the primary ``target_branch`` for
+        # EVERY topology; the protected-ref refusal path is WP03's deadlock-removal
+        # responsibility (T015), not this round-trip's concern.
+        monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
         repo = build_protected_target_repo(tmp_path)
         repo.assert_target_is_protected()
-        feature_dir, spec_path = _seed_coord_mission(repo.repo_root)
+        _feature_dir, spec_path, status_path = _seed_coord_mission(repo.repo_root)
 
         # New spec content so there is something to commit.
         spec_path.write_text(_SPEC_BODY + "\nFR-009: status emission converges.\n", encoding="utf-8")
         expected_body = spec_path.read_text(encoding="utf-8")
 
-        # WRITE leg: route through the REAL seam (resolve_placement_only classifies
-        # the coord topology). No router mock — the placement_ref is the value the
-        # seam computes, not a stub.
+        # WRITE leg: route through the REAL kind-aware seam. No router mock — the
+        # placement_ref is the value resolve_placement_only computes for SPEC, not
+        # a stub. Under FR-003 a SPEC kind resolves to the PRIMARY target branch.
         policy = ProtectionPolicy.resolve(repo.repo_root)
         result = commit_for_mission(
             repo_root=repo.repo_root,
             mission_slug=_SLUG,
             files=(spec_path,),
-            message="spec: seam-resolved planning commit",
+            message="spec: kind-resolved planning commit",
             policy=policy,
+            kind=MissionArtifactKind.SPEC,
         )
 
         assert result.status == "committed", f"diagnostic={result.diagnostic!r}"
-        assert result.placement_ref == _COORD_BRANCH, (
-            "WRITE leg: the planning commit must land on the seam-resolved "
-            f"coordination branch, not primary HEAD; got {result.placement_ref!r}"
+        assert result.placement_ref == repo.target_branch, (
+            "WRITE leg: a planning (SPEC) commit must land on the PRIMARY "
+            f"target branch ({repo.target_branch!r}) under FR-003, NOT the "
+            f"coordination branch; got {result.placement_ref!r}"
+        )
+        assert result.placement_ref != _COORD_BRANCH, (
+            "WRITE leg: the removed planning→coord route regressed — the SPEC "
+            f"commit landed on the coordination branch {_COORD_BRANCH!r} (FR-003/C-005)."
         )
 
         # READ-BACK leg (SC-004): resolve the next-command read surface the way
-        # /spec-kitty.tasks would (candidate_feature_dir_for_mission, the coord-aware
-        # resolver) and assert the committed spec.md content is recoverable from THAT
-        # surface — the #2063 round-trip, not merely placement_ref == coord branch.
+        # /spec-kitty.tasks would (candidate_feature_dir_for_mission) and assert the
+        # committed spec.md content is recoverable from THAT surface — the #2063
+        # round-trip, now coherent on the PRIMARY seam (not merely placement_ref).
         read_surface = candidate_feature_dir_for_mission(repo.repo_root, _SLUG)
         read_back_spec = read_surface / "spec.md"
         assert read_back_spec.exists(), (
@@ -124,30 +168,56 @@ class TestCoordTopologyPlanningCommitRoundTrip:
             "and read legs diverge (the #2063 desync)."
         )
         assert read_back_spec.read_text(encoding="utf-8") == expected_body, (
-            "READ-BACK leg: spec.md read from the seam-resolved surface does not "
+            "READ-BACK leg: spec.md read from the resolved surface does not "
             "match the committed content — SC-004 round-trip is broken."
         )
 
-        # The read surface must be the coordination worktree (not the primary dir),
-        # proving the round-trip is on the SAME seam-resolved surface as the write.
-        assert ".worktrees" in str(read_surface), (
-            "READ-BACK leg: a coord-topology mission's read surface must be the "
-            f"materialised coordination worktree; got {read_surface}"
+        # The read surface must be the PRIMARY feature dir (NOT a coordination
+        # worktree), proving the round-trip is on the SAME primary surface as the
+        # write — the inverse of the removed planning→coord contract.
+        assert ".worktrees" not in str(read_surface), (
+            "READ-BACK leg: a planning artifact's read surface must be the PRIMARY "
+            f"feature dir, never a coordination worktree (FR-002); got {read_surface}"
         )
 
-    def test_negative_primary_read_does_not_see_the_coord_commit(
+        # BIFURCATION leg (C-001): a coordination-partition artifact on the SAME
+        # mission still routes to the coordination branch. This is what makes the
+        # test fail red if planning regressed to coord (placement collapse) OR if
+        # status leaked onto primary — proving the partition, not just "planning moved".
+        monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
+        status_path.write_text(_STATUS_BODY + '{"wp_id":"WP01","to_lane":"claimed"}\n', encoding="utf-8")
+        status_result = commit_for_mission(
+            repo_root=repo.repo_root,
+            mission_slug=_SLUG,
+            files=(status_path,),
+            message="status: coordination-partition commit",
+            policy=policy,
+            kind=MissionArtifactKind.STATUS_STATE,
+        )
+        assert status_result.placement_ref == _COORD_BRANCH, (
+            "BIFURCATION leg: a STATUS_STATE (C-001 coordination partition) commit "
+            f"must stay on the coordination branch {_COORD_BRANCH!r}; got "
+            f"{status_result.placement_ref!r}. If this equals the primary target "
+            "branch the partition has collapsed (status leaked onto primary)."
+        )
+        assert status_result.placement_ref != repo.target_branch, (
+            "BIFURCATION leg: status routed to the PRIMARY target branch — the "
+            "planning/coordination partition (FR-003 + C-001) has collapsed."
+        )
+
+    def test_negative_planning_commit_is_on_primary_not_coord_worktree(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Anti-fakeable: the PRIMARY checkout must NOT carry the committed spec change.
+        """Anti-fakeable inverse: the planning commit IS on primary and NOT on coord.
 
-        Proves the write actually moved off primary HEAD onto the coord surface —
-        if the commit had landed on primary, this would find the new content there
-        and the round-trip assertion above would be vacuous.
+        Proves the write actually landed on primary HEAD (so the round-trip above
+        is not vacuous) AND that it did not also leak onto the coordination branch
+        — the inverse of the removed planning→coord contract (FR-003 / C-005).
         """
-        monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
+        monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
         repo = build_protected_target_repo(tmp_path)
-        feature_dir, spec_path = _seed_coord_mission(repo.repo_root)
-        new_body = _SPEC_BODY + "\nonly-on-coord marker.\n"
+        _feature_dir, spec_path, _status_path = _seed_coord_mission(repo.repo_root)
+        new_body = _SPEC_BODY + "\nonly-on-primary marker.\n"
         spec_path.write_text(new_body, encoding="utf-8")
 
         policy = ProtectionPolicy.resolve(repo.repo_root)
@@ -155,21 +225,37 @@ class TestCoordTopologyPlanningCommitRoundTrip:
             repo_root=repo.repo_root,
             mission_slug=_SLUG,
             files=(spec_path,),
-            message="spec: coord-only marker",
+            message="spec: primary-only marker",
             policy=policy,
+            kind=MissionArtifactKind.SPEC,
         )
 
-        # The committed content lives on the coord branch, not on the primary HEAD.
+        # POSITIVE: the committed content IS on the primary target branch HEAD.
         primary_show = subprocess.run(
-            ["git", "show", f"main:kitty-specs/{_SLUG}/spec.md"],
+            ["git", "show", f"{repo.target_branch}:kitty-specs/{_SLUG}/spec.md"],
             cwd=repo.repo_root,
             capture_output=True,
             text=True,
             check=False,
         )
-        assert "only-on-coord marker" not in primary_show.stdout, (
-            "primary HEAD (main) carries the coord-only marker — the commit did "
-            "NOT route to the coordination surface (the #2063 write-surface bug)."
+        assert "only-on-primary marker" in primary_show.stdout, (
+            f"primary target branch ({repo.target_branch}) does NOT carry the "
+            "planning marker — a SPEC commit must land on primary (FR-003)."
+        )
+
+        # NEGATIVE (anti-fakeable): the planning change must NOT have leaked onto
+        # the coordination branch. The removed planning→coord route would have put
+        # it there — its absence proves the route is gone (C-005).
+        coord_show = subprocess.run(
+            ["git", "show", f"{_COORD_BRANCH}:kitty-specs/{_SLUG}/spec.md"],
+            cwd=repo.repo_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert "only-on-primary marker" not in coord_show.stdout, (
+            f"the coordination branch ({_COORD_BRANCH}) carries the planning "
+            "marker — the removed planning→coord route regressed (FR-003 / C-005)."
         )
 
 
@@ -235,9 +321,11 @@ class TestSafeCommitTwoResponsibilities:
             return "should-not-be-the-destination"
 
         monkeypatch.setattr(mod, "get_current_branch", _spy_head)
+        # write-surface-coherence WP03 / T012: the seam is now kind-aware — the
+        # safe-commit command threads the artifact kind into resolve_placement_only.
         monkeypatch.setattr(
             "mission_runtime.resolve_placement_only",
-            lambda _root, _slug: CommitTarget(ref="kitty/mission-001-demo-AAAA1111"),
+            lambda _root, _slug, *, kind: CommitTarget(ref="kitty/mission-001-demo-AAAA1111"),
         )
 
         target = mod._resolve_commit_target(
@@ -266,7 +354,7 @@ class TestSafeCommitTwoResponsibilities:
         spec.parent.mkdir(parents=True)
         spec.write_text("# Spec\n", encoding="utf-8")
 
-        def _raise(_root: Path, _slug: str) -> object:
+        def _raise(_root: Path, _slug: str, *, kind: object) -> object:
             raise ActionContextError("FEATURE_CONTEXT_UNRESOLVED", "no such mission")
 
         monkeypatch.setattr("mission_runtime.resolve_placement_only", _raise)

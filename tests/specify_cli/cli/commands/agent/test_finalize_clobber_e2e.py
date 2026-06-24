@@ -142,6 +142,12 @@ def _build_coord_topology(
     mission_id = "01CLOBBR000000000000000000"  # 26-char ULID (mid8 + 18 zeros)
     mission_dirname = f"{mission_slug}-{mid8}"
     coord_branch = f"kitty/mission-{mission_dirname}"
+    # write-surface-coherence (FR-002 / FR-008): planning artifacts (TASKS_INDEX)
+    # land on the primary feature target_branch — a NON-protected branch the
+    # operator is on. A protected ``main`` target would be REFUSED (G-4). Status
+    # still routes to the coordination branch (the partition), so the event-log
+    # survival subject of this test is unchanged.
+    target_branch = "feat/clobber-target"
 
     feature_dir = repo / "kitty-specs" / mission_dirname
     tasks_dir = feature_dir / "tasks"
@@ -154,7 +160,7 @@ def _build_coord_topology(
                 "mission_id": mission_id,
                 "mid8": mid8,
                 "coordination_branch": coord_branch,
-                "target_branch": "main",
+                "target_branch": target_branch,
             }
         )
         + "\n",
@@ -171,6 +177,9 @@ def _build_coord_topology(
     _git(repo, "commit", "-q", "-m", "seed mission")
     # Create the coordination branch pointing at same commit
     _git(repo, "branch", coord_branch)
+    # The operator is ON the feature target_branch (D-3 invariant): the planning
+    # commit lands there directly. Check it out as HEAD.
+    _git(repo, "checkout", "-q", "-b", target_branch)
 
     # Return mission_dirname as the CLI handle (what --mission expects)
     return repo, mission_dirname, mid8, coord_branch, feature_dir

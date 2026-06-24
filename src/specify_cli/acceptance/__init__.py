@@ -1413,6 +1413,7 @@ def _commit_acceptance_meta_via_router(
     structural protocol in ``commit_router`` (duck-typed; always a ``ProtectionPolicy``
     instance at runtime — using ``Any`` avoids a cross-module Protocol import).
     """
+    from mission_runtime import MissionArtifactKind
     from specify_cli.coordination.commit_router import commit_for_mission
 
     router_result = commit_for_mission(
@@ -1421,6 +1422,10 @@ def _commit_acceptance_meta_via_router(
         files=(meta_path,),
         message=f"Accept {mission_slug}",
         policy=policy,
+        # meta.json is PRIMARY_METADATA (write-surface-coherence WP02 / T009):
+        # acceptance meta moves to the primary surface on the WRITE side too,
+        # realizing the INV-5 read↔write symmetry. Primary kind → primary target.
+        kind=MissionArtifactKind.PRIMARY_METADATA,
     )
 
     if router_result.status == "unchanged":
@@ -1449,6 +1454,8 @@ def _commit_acceptance_meta_via_router(
                 files=(meta_path,),
                 message=f"Record acceptance commit for {mission_slug}",
                 policy=policy,
+                # meta.json → PRIMARY_METADATA (write-surface-coherence WP02 / T009).
+                kind=MissionArtifactKind.PRIMARY_METADATA,
             )
 
     return parent_commit, accept_commit, True

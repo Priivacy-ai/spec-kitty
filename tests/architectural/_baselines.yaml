@@ -147,7 +147,18 @@ test_no_dead_symbols:
   # status.lifecycle_events::{mission_event_log_path,read_lifecycle_events},
   # and the two events.py re-exports SignificanceEvaluatedPayload /
   # TimeoutExpiredPayload dropped from __all__ while keeping imports).
-  category_b_grandfathered_legacy: 271
+  # 271->286 (write-surface-coherence post-merge arch-gate adjudication):
+  # added the 22 ``scripts.tasks.task_helpers::*`` symbols (15-entry net rise
+  # over the 264 pre-existing frozenset members; cap raised to leave the same
+  # headroom). These are NOT new orphans — they are a pre-existing scanner
+  # blind-spot on upstream/main: ``task_helpers`` is imported by
+  # ``scripts/tasks/tasks_cli.py`` via a bare sys.path-relative
+  # ``from task_helpers import ...`` that the qualified-import AST scanner
+  # cannot resolve, identical to the already-grandfathered ``acceptance_support``
+  # sibling. The failure reproduces byte-identically at the merge base; this
+  # mission neither introduced nor worsened it. Burn-down (FR-303): qualify the
+  # import or teach the scanner script-style sys.path imports, then shrink.
+  category_b_grandfathered_legacy: 286
   # 6->4 (org-doctrine close-out WP04): removed the now-wired
   # charter.invocation_context::{OperationalContext,build_operational_context}
   # (WP14 added live src/ callers). Remaining 4: the two require_active_*

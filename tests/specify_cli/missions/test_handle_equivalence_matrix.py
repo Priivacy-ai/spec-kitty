@@ -22,6 +22,7 @@ import pytest
 from click.testing import Result
 
 from mission_runtime import (
+    MissionArtifactKind,
     resolve_action_context,
     resolve_placement_only,
     resolve_topology,
@@ -170,8 +171,15 @@ def test_coord_status_surface_identical_across_handle_forms(
 def test_flattened_placement_identical_across_handle_forms(
     repo: Path, handle: str
 ) -> None:
-    baseline = resolve_placement_only(repo, _FULL_SLUG)
-    placement = resolve_placement_only(repo, handle)
+    # STATUS_STATE (topology-routed kind) keeps the handle-invariance property
+    # under the now-required kind (write-surface-coherence WP02 / T031): a
+    # flattened mission routes to target_branch for any kind.
+    baseline = resolve_placement_only(
+        repo, _FULL_SLUG, kind=MissionArtifactKind.STATUS_STATE
+    )
+    placement = resolve_placement_only(
+        repo, handle, kind=MissionArtifactKind.STATUS_STATE
+    )
     assert placement == baseline  # ref-only CommitTarget equality (C-007)
     # FR-001b: routing reads the STORED topology, handle-invariant — a flattened
     # mission never routes through coordination, regardless of handle form.
@@ -181,7 +189,12 @@ def test_flattened_placement_identical_across_handle_forms(
 
 @pytest.mark.parametrize("handle", [_COORD_SLUG, _COORD_MID8, "091"])
 def test_coord_placement_never_flips_to_flattened(repo: Path, handle: str) -> None:
-    placement = resolve_placement_only(repo, handle)
+    # STATUS_STATE (coord-routed kind): a coord-topology mission keeps resolving
+    # the coordination branch under every handle form (write-surface-coherence
+    # WP02 / T031). A PRIMARY kind would correctly flip to primary, so the
+    # "never flips to flattened" coord-routing property is asserted with the
+    # coord-preserving kind.
+    placement = resolve_placement_only(repo, handle, kind=MissionArtifactKind.STATUS_STATE)
     assert routes_through_coordination(resolve_topology(repo, handle)) is True, (
         f"handle {handle!r} flipped a coord-topology mission to a coord-less "
         f"surface — planning commits would target {placement.ref!r} instead of "

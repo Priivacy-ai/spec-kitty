@@ -8,18 +8,21 @@ net: a fresh mission on a **protected-target** repo must complete
 branch" instruction (refusal-to-nowhere), and NOT failing with "spec.md not
 found".
 
-The decisive structural fact (verified in WP05 design): on a protected-target
-repo the mission's resolved placement is the NON-protected coordination branch,
-so a ``GuardCapability.STANDARD`` commit lands there cleanly with no guard
-relaxation (C-003 — the WP01 protection invariants stay green; see
-``tests/git/test_protection_preserved.py``).
+The decisive structural fact, REVISED by write-surface-coherence (FR-002 / FR-003 /
+G-1): planning artifacts are PRIMARY kinds, so their resolved placement is the
+mission's primary ``target_branch`` for EVERY topology — NOT the coordination
+branch (the planning→coord transit is removed, C-005). The commit lands directly
+on the primary checkout's HEAD. A protected ``target_branch`` is REFUSED with
+feature-branch guidance (FR-008 / G-4), not landed via coord transit.
 
-Topologies parametrized (FR-003 "must hold for protected-main, flattened, AND
+Topologies parametrized (FR-002 "must hold for protected-main, flattened, AND
 coordination topologies"):
 
-* ``protected-main``  — target == ``main`` (protected) + a coordination branch
-  (what ``mission create`` materializes); placement = the coord ref.
-* ``coordination``    — explicit coordination branch off a non-protected target.
+* ``protected-main``  — target == ``main`` (protected); the planning commit is
+  REFUSED (G-4 / FR-008) with guidance to start a feature branch.
+* ``coordination``    — a coordination-topology mission on a NON-protected feature
+  ``target_branch``; the operator is on that feature branch (D-3 invariant), so
+  the planning commit lands directly on it (G-1). Status still routes to coord.
 * ``flattened``       — non-protected target, NO coordination branch; placement
   == the target itself (FLATTENED).
 
@@ -46,6 +49,7 @@ from click.testing import Result
 from typer.testing import CliRunner
 
 from mission_runtime import (
+    MissionArtifactKind,
     resolve_placement_only,
     resolve_topology,
     routes_through_coordination,
@@ -72,6 +76,12 @@ class _Topology:
     target_branch: str
     coordination_branch: str | None
     expected_routes_coord: bool
+    # write-surface-coherence WP03 (FR-008 / G-4): a planning commit whose
+    # primary ``target_branch`` is a PROTECTED branch is REFUSED with
+    # feature-branch guidance (no coord transit). For a non-protected feature
+    # ``target_branch`` the planning commit lands directly on the primary
+    # checkout's HEAD (FR-002 / D-3 — the operator is on the feature branch).
+    expects_refusal: bool = False
 
 
 # The flattened (legacy, no-coordination-branch) topology is parametrized but
@@ -99,6 +109,8 @@ _TOPOLOGIES = [
         target_branch="main",
         coordination_branch=f"kitty/mission-sc6-mission-{_MID8}",
         expected_routes_coord=True,
+        # FR-008 / G-4: planning commit to a protected target_branch is refused.
+        expects_refusal=True,
     ),
     _Topology(
         name="coordination",
@@ -205,13 +217,18 @@ def _scaffold_mission(repo: Path, topology: _Topology) -> tuple[str, Path, str]:
     # Branch the non-protected target (and the coordination branch) off the seed
     # commit so they CONTAIN the mission artifacts.
     if topology.coordination_branch is not None:
-        # Coordination / protected-main: HEAD stays on the protected ``main`` the
-        # fixture created — exercising the catch-22 entry condition (the operator
-        # is on a protected branch when planning runs); the placement is the
-        # NON-protected coordination ref.
-        if topology.target_branch != "main":
-            _git(repo, "branch", topology.target_branch)
         _git(repo, "branch", topology.coordination_branch)
+        if topology.target_branch != "main":
+            # write-surface-coherence (FR-002 / D-3): a planning PRIMARY kind lands
+            # on the primary checkout's HEAD = the non-protected feature
+            # ``target_branch``. The operator works ON the feature branch (the D-3
+            # invariant that removes the catch-22), so check it out as HEAD — the
+            # commit then lands directly with no coord transit. Status still routes
+            # to the coordination branch (the partition).
+            _git(repo, "checkout", "-q", "-b", topology.target_branch)
+        # protected-main: target == ``main`` is HEAD already (the fixture default);
+        # the planning commit to the protected ref is REFUSED (FR-008 / G-4), so no
+        # checkout change is needed — the refusal is asserted by the test.
     elif topology.target_branch != "main":
         # Flattened: there is no coordination branch, so the placement IS the
         # (non-protected) target. Genuine flattened topology checks the target
@@ -219,7 +236,13 @@ def _scaffold_mission(repo: Path, topology: _Topology) -> tuple[str, Path, str]:
         # on that single branch (C-001).
         _git(repo, "checkout", "-q", "-b", topology.target_branch)
 
-    placement = resolve_placement_only(repo, mission_dirname)
+    # finalize-tasks commits tasks.md (TASKS_INDEX, a primary kind): under
+    # write-surface-coherence the planning artifact lands on the primary
+    # target_branch for every topology, so the placement_ref the assertion
+    # targets is resolved with TASKS_INDEX.
+    placement = resolve_placement_only(
+        repo, mission_dirname, kind=MissionArtifactKind.TASKS_INDEX
+    )
     # FR-001b: the coord-vs-primary decision reads the STORED topology, not a
     # per-ref enum on the placement.
     routes_coord = routes_through_coordination(resolve_topology(repo, mission_dirname))
@@ -270,10 +293,14 @@ def test_sc6_finalize_lands_on_resolved_placement_no_catch22(
     protected_target_repo: ProtectedTargetRepo,  # noqa: F811
     topology: _Topology,
 ) -> None:
-    """SC-6: finalize-tasks commits planning artifacts to the resolved placement.
+    """SC-6: finalize-tasks lands planning on a feature target, refuses a protected one.
 
-    No "spec.md not found"; no refusal-to-nowhere. The fixture guarantees the
-    guard is engaged (``.kittify/`` present) so the success is non-vacuous.
+    write-surface-coherence (FR-002 / FR-008 / G-1 / G-4): planning is a PRIMARY
+    kind. On a non-protected feature ``target_branch`` (the operator is on it,
+    D-3) the commit lands directly there; on a PROTECTED ``target_branch`` the
+    commit is REFUSED with feature-branch guidance (no coord transit). The fixture
+    guarantees the guard is engaged (``.kittify/`` present) so the result is
+    non-vacuous.
     """
     repo = protected_target_repo
     repo.assert_is_spec_kitty_project()
@@ -284,6 +311,38 @@ def test_sc6_finalize_lands_on_resolved_placement_no_catch22(
     )
 
     result = _run_finalize(repo.repo_root, mission_slug)
+
+    if topology.expects_refusal:
+        # FR-008 / G-4: a planning commit to a protected target_branch is refused
+        # with feature-branch guidance — NOT landed, and NOT routed through the
+        # coordination worktree (the planning→coord transit is removed, C-005).
+        assert result.exit_code != 0, (
+            f"[{topology.name}] finalize must REFUSE a planning commit to the "
+            f"protected target_branch (FR-008), got exit 0:\n{result.output}"
+        )
+        lowered = result.output.lower()
+        assert "feature branch" in lowered, (
+            f"[{topology.name}] refusal must name the feature-branch remedy "
+            f"(FR-008):\n{result.output}"
+        )
+        assert "coordination worktree" not in lowered, (
+            f"[{topology.name}] refusal must NOT advise the coordination worktree "
+            f"(C-005 — planning never transits coord):\n{result.output}"
+        )
+        # The protected target carries NO finalize commit (the refusal landed
+        # nothing).
+        log = subprocess.run(
+            ["git", "log", "--oneline", "-10", placement_ref],
+            cwd=repo.repo_root,
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout
+        assert "Add tasks for feature" not in log, (
+            f"[{topology.name}] a refused planning commit must NOT land on the "
+            f"protected target {placement_ref!r}:\n{log}"
+        )
+        return
 
     assert result.exit_code == 0, (
         f"[{topology.name}] finalize-tasks refused / failed (exit "
@@ -302,8 +361,8 @@ def test_sc6_finalize_lands_on_resolved_placement_no_catch22(
         f"[{topology.name}] finalize falsely reported spec.md missing"
     )
 
-    # The tasks commit landed on the RESOLVED placement ref — assert a commit
-    # with the finalize message exists on that branch.
+    # The tasks commit landed on the RESOLVED placement ref (the primary feature
+    # target_branch) — assert a commit with the finalize message exists there.
     log = subprocess.run(
         ["git", "log", "--oneline", "-10", placement_ref],
         cwd=repo.repo_root,
@@ -324,9 +383,11 @@ def test_sc6_finalize_is_idempotent_on_rerun(
 ) -> None:
     """F-001: a finalize RE-RUN does not wedge (PLANNING_BRANCH_NOT_PERSISTED).
 
-    The first finalize may materialize a coordination worktree; the second must
-    still resolve the merge target from the PRIMARY meta.json — not the
-    coord worktree (which never carries meta.json) — and succeed.
+    For a non-protected feature target the first finalize lands on the primary
+    feature branch and the second must still resolve the merge target from the
+    PRIMARY meta.json and succeed idempotently. For a protected target the
+    planning commit is REFUSED deterministically on every run (FR-008 / G-4) —
+    the refusal is itself idempotent (nothing lands, no wedge).
     """
     repo = protected_target_repo
     mission_slug, _feature_dir, _placement_ref = _scaffold_mission(
@@ -334,11 +395,29 @@ def test_sc6_finalize_is_idempotent_on_rerun(
     )
 
     first = _run_finalize(repo.repo_root, mission_slug)
+    second = _run_finalize(repo.repo_root, mission_slug)
+
+    if topology.expects_refusal:
+        # Deterministic refusal: both runs refuse with feature-branch guidance and
+        # never wedge.
+        for label, run in (("first", first), ("second", second)):
+            assert run.exit_code != 0, (
+                f"[{topology.name}] {label} finalize must refuse the protected "
+                f"target (FR-008), got exit 0:\n{run.output}"
+            )
+            assert "feature branch" in run.output.lower(), (
+                f"[{topology.name}] {label} refusal must name the feature-branch "
+                f"remedy:\n{run.output}"
+            )
+            assert "PLANNING_BRANCH_NOT_PERSISTED" not in run.output, (
+                f"[{topology.name}] {label} refusal wedged on "
+                f"PLANNING_BRANCH_NOT_PERSISTED:\n{run.output}"
+            )
+        return
+
     assert first.exit_code == 0, (
         f"[{topology.name}] first finalize failed:\n{first.output}"
     )
-
-    second = _run_finalize(repo.repo_root, mission_slug)
     assert second.exit_code == 0, (
         f"[{topology.name}] finalize RE-RUN wedged (F-001 idempotency regression) "
         f"(exit {second.exit_code}):\n{second.output}"

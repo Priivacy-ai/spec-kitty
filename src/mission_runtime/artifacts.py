@@ -34,9 +34,10 @@ class MissionArtifactKind(enum.Enum):
     STATUS_STATE = "status_state"
     ANALYSIS_REPORT = "analysis_report"
     # Planning SOURCE docs (/spec-kitty.specify + /spec-kitty.plan outputs).
-    # Under coordination topology these are committed to the coordination branch
-    # exactly like the finalized artifacts above, so a stale primary copy is
-    # coordination residue (not a dirty-tree blocker).
+    # write-surface-coherence WP01-04: these are PRIMARY-partition kinds (members
+    # of ``_PRIMARY_ARTIFACT_KINDS``). They live with their mission on the primary
+    # ``target_branch`` for EVERY topology and NEVER transit the coordination
+    # branch, so a stale primary copy is a REAL dirty-tree blocker — not residue.
     SPEC = "spec"
     DATA_MODEL = "data_model"
     RESEARCH = "research"
@@ -75,20 +76,37 @@ def kind_is_coordination_residue(
     return kind in _PLACEMENT_ARTIFACT_KINDS
 
 
-_PLACEMENT_ARTIFACT_KINDS: frozenset[MissionArtifactKind] = frozenset(
+# FR-004 / data-model.md "The swappable locus (NFR-004)": the single partition
+# whose membership routes a kind to the PRIMARY ``target_branch`` for every
+# topology shape (read AND write — INV-5 full symmetry). Planning + identity
+# artifacts (specify/plan/tasks/finalize/lanes/meta) live with their mission on
+# the primary surface; flipping a kind across the two sets is a one-line move,
+# never a code change (NFR-004).
+_PRIMARY_ARTIFACT_KINDS: frozenset[MissionArtifactKind] = frozenset(
     {
-        MissionArtifactKind.FINALIZED_EXECUTION_PLAN,
-        MissionArtifactKind.TASKS_INDEX,
-        MissionArtifactKind.WORK_PACKAGE_TASK,
-        MissionArtifactKind.LANE_STATE,
-        MissionArtifactKind.ACCEPTANCE_MATRIX,
-        MissionArtifactKind.ISSUE_MATRIX,
-        MissionArtifactKind.STATUS_STATE,
-        MissionArtifactKind.ANALYSIS_REPORT,
         MissionArtifactKind.SPEC,
         MissionArtifactKind.DATA_MODEL,
         MissionArtifactKind.RESEARCH,
         MissionArtifactKind.CHECKLIST,
+        MissionArtifactKind.FINALIZED_EXECUTION_PLAN,
+        MissionArtifactKind.TASKS_INDEX,
+        MissionArtifactKind.WORK_PACKAGE_TASK,
+        # LANE_STATE (lanes.json, finalize output) travels with tasks.md → PRIMARY.
+        MissionArtifactKind.LANE_STATE,
+        MissionArtifactKind.PRIMARY_METADATA,
+    }
+)
+
+# FR-004: the COORD partition — coordination-owned artifacts that route to the
+# coordination branch under coordination topology and whose stale primary copies
+# are coordination residue. ACCEPTANCE_MATRIX (accept-time verification) and
+# ANALYSIS_REPORT (record-analysis) stay COORD per data-model.md.
+_PLACEMENT_ARTIFACT_KINDS: frozenset[MissionArtifactKind] = frozenset(
+    {
+        MissionArtifactKind.ACCEPTANCE_MATRIX,
+        MissionArtifactKind.ISSUE_MATRIX,
+        MissionArtifactKind.STATUS_STATE,
+        MissionArtifactKind.ANALYSIS_REPORT,
     }
 )
 
@@ -126,6 +144,21 @@ def artifact_home_for(
             ignores_primary_coord_residue=False,
         )
 
+    # FR-002 / FR-004: planning + identity kinds resolve to the PRIMARY surface.
+    # This arm runs AFTER the read-anchored ``PRIMARY_METADATA`` arm above (which
+    # is also a ``_PRIMARY_ARTIFACT_KINDS`` member) so metadata keeps its
+    # never-committed-through-a-ref ``commit_target=None`` contract; the primary
+    # planning kinds DO carry the resolved primary ``placement_ref`` as their
+    # commit target. The returned shape is unchanged (NFR-004 / G-5).
+    if kind in _PRIMARY_ARTIFACT_KINDS:
+        return MissionArtifactHome(
+            kind=kind,
+            read_surface="primary",
+            write_surface="primary",
+            commit_target=placement_ref,
+            ignores_primary_coord_residue=False,
+        )
+
     if kind in _PLACEMENT_ARTIFACT_KINDS:
         return MissionArtifactHome(
             kind=kind,
@@ -145,11 +178,16 @@ def is_coordination_artifact_residue_path(
 ) -> bool:
     """Return True for primary-checkout residue owned by a coord placement.
 
-    The predicate is path-specific: planning SOURCE docs (``spec.md`` /
-    ``data-model.md`` / ``research.md`` / ``checklists/``) and finalized
-    planning/status artifacts are all committed to the coordination branch under
-    coordination topology, so their stale primary copies are ignored. Unknown
-    mission files and another mission's artifacts still block dirty-tree gates.
+    The predicate is path-specific and partition-aware (write-surface-coherence
+    WP01-04): only COORD-partition artifacts (the append-only status log/snapshot,
+    ``acceptance-matrix.json`` / ``issue-matrix.md`` / ``analysis-report.md``) are
+    committed to the coordination branch under coordination topology, so ONLY
+    their stale primary copies are ignored. Planning SOURCE + finalized + identity
+    docs (``spec.md`` / ``plan.md`` / ``tasks.md`` / ``tasks/WP*.md`` /
+    ``data-model.md`` / ``research.md`` / ``checklists/`` / ``lanes.json``) are now
+    PRIMARY-partition kinds that live on ``target_branch`` — their stale primary
+    copies are REAL dirt, NOT residue. Unknown mission files and another mission's
+    artifacts still block dirty-tree gates.
     """
     artifact_kind = _artifact_kind_for_path(path, mission_slug=mission_slug)
     if artifact_kind is None:
@@ -159,6 +197,41 @@ def is_coordination_artifact_residue_path(
     # This predicate is the coordination-residue question, so it projects the
     # ``COORD`` topology cell; the coord-less cells return False (no residue).
     return kind_is_coordination_residue(artifact_kind, MissionTopology.COORD)
+
+
+def is_primary_artifact_kind(kind: MissionArtifactKind) -> bool:
+    """Return True if ``kind`` is a PRIMARY-partition kind (lands on target_branch).
+
+    The public predicate over the swappable partition
+    (:data:`_PRIMARY_ARTIFACT_KINDS`, NFR-004): a primary kind (planning + identity
+    artifacts) resolves to the primary ``target_branch`` for every topology and
+    NEVER transits coordination. Consumers outside ``mission_runtime`` query the
+    partition through this package-root predicate rather than importing the
+    private set (shared-package-boundary).
+    """
+    return kind in _PRIMARY_ARTIFACT_KINDS
+
+
+def kind_for_mission_file(
+    path: str | Path,
+    *,
+    mission_slug: str | None = None,
+) -> MissionArtifactKind | None:
+    """Classify a ``kitty-specs/<slug>/`` file path to its :class:`MissionArtifactKind`.
+
+    The ONE public file→kind classification authority (write-surface-coherence
+    WP03 / NFR-004). Write-side callers that hold a *path* (the ``safe-commit``
+    command, ``append-history``) consume this helper so the kind partition is
+    derived from a single classifier instead of re-deriving it per call site.
+
+    Returns the kind for a recognised mission artifact (``spec.md`` → ``SPEC``,
+    ``tasks/WP*.md`` → ``WORK_PACKAGE_TASK``, ``status.events.jsonl`` →
+    ``STATUS_STATE``, …) and ``None`` for an unrecognised path or another
+    mission's artifact (when ``mission_slug`` is supplied). The returned kind's
+    partition membership (:data:`_PRIMARY_ARTIFACT_KINDS`) then selects the
+    primary vs topology-routed placement via :func:`resolve_placement_only`.
+    """
+    return _artifact_kind_for_path(path, mission_slug=mission_slug)
 
 
 def _artifact_kind_for_path(

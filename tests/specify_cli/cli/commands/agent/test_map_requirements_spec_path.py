@@ -252,7 +252,12 @@ def test_map_requirements_auto_commit_uses_coord_placement_for_coord_files(
         tasks_mod, "_emit_sparse_session_warning", lambda *_args, **_kwargs: None
     )
     monkeypatch.setattr(tasks_mod, "safe_commit", fake_safe_commit)
-    monkeypatch.setattr(mission_mod, "_resolve_planning_placement", lambda *_args: placement)
+    # write-surface-coherence WP02 / T009: ``_resolve_planning_placement`` now takes
+    # a required ``kind`` keyword; the stub accepts it (the actual write surface in
+    # this test is ``_planning_commit_worktree``, WP03-owned, stubbed below).
+    monkeypatch.setattr(
+        mission_mod, "_resolve_planning_placement", lambda *_args, **_kwargs: placement
+    )
     monkeypatch.setattr(
         mission_mod,
         "_planning_commit_worktree",

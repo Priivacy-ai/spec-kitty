@@ -27,6 +27,7 @@ from pathlib import Path
 
 import pytest
 import typer
+from click.testing import Result
 
 from mission_runtime import CommitTarget, MissionTopology
 from specify_cli.status import COORD_OWNED_STATUS_FILES
@@ -78,15 +79,18 @@ class TestRecordAnalysisCoordResidueNoDeadlock:
         git("config", "user.name", "Test")
         mission_dir = repo / "kitty-specs" / "residue-01ABCDEF"
         mission_dir.mkdir(parents=True)
+        # write-surface-coherence WP01-04 narrowed the residue authority: planning
+        # + finalized + identity kinds (``plan.md`` / ``tasks.md`` / ``tasks/WP*.md``
+        # / ``lanes.json``) are now PRIMARY-partition artifacts that live on
+        # ``target_branch`` — a stale primary copy is REAL dirt, not droppable
+        # residue. Only the COORD-partition artifacts (the status log/snapshot plus
+        # the coordination-owned matrices ``acceptance-matrix.json`` / ``issue-matrix.md``)
+        # remain residue whose stale primary copy the preflight must ignore.
         # Seed + commit coord-owned finalized artifacts so they are *tracked*; a
         # later edit makes them show up as worktree-modified residue.
         for name in sorted(COORD_OWNED_STATUS_FILES):
             (mission_dir / name).write_text("{}\n", encoding="utf-8")
         for rel_path in (
-            "plan.md",
-            "tasks.md",
-            "tasks/WP01.md",
-            "lanes.json",
             "acceptance-matrix.json",
             "issue-matrix.md",
         ):
@@ -96,14 +100,10 @@ class TestRecordAnalysisCoordResidueNoDeadlock:
         git("add", "-A")
         git("commit", "-m", "seed coord-owned artifacts")
         # The coord branch is now the canonical owner; the primary checkout edit
-        # below is exactly the coord residue that deadlocked #1814/#1998.
+        # below is exactly the COORD-partition residue that deadlocked #1814/#1998.
         for name in sorted(COORD_OWNED_STATUS_FILES):
             (mission_dir / name).write_text('{"stale": true}\n', encoding="utf-8")
         for rel_path in (
-            "plan.md",
-            "tasks.md",
-            "tasks/WP01.md",
-            "lanes.json",
             "acceptance-matrix.json",
             "issue-matrix.md",
         ):
@@ -132,9 +132,18 @@ class TestRecordAnalysisCoordResidueNoDeadlock:
             mission_slug="residue-01ABCDEF",
         )
 
-    def test_untracked_tasks_dir_residue_does_not_block_record_analysis(
+    def test_untracked_coord_residue_does_not_block_record_analysis(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        """An UNTRACKED COORD-partition residue file does not block record-analysis.
+
+        write-surface-coherence WP01-04 narrowing: the original fixture used an
+        untracked ``tasks/`` dir, but ``WORK_PACKAGE_TASK`` is now a PRIMARY kind
+        (a real dirty blocker). The coord-residue ignore path is exercised with an
+        untracked COORD-partition artifact (``acceptance-matrix.json`` →
+        ``ACCEPTANCE_MATRIX``), which stays coordination-owned under coord topology
+        — its stale primary copy must still be ignored by the dirty-tree preflight.
+        """
         from specify_cli.cli.commands.agent.mission import (
             _enforce_analysis_report_write_preflight,
         )
@@ -159,9 +168,11 @@ class TestRecordAnalysisCoordResidueNoDeadlock:
         (mission_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
         git("add", "-A")
         git("commit", "-m", "seed mission")
-        (mission_dir / "tasks").mkdir()
-        (mission_dir / "tasks" / "WP01.md").write_text("# WP01\n", encoding="utf-8")
-        assert "?? kitty-specs/residue-01ABCDEF/tasks/" in git("status", "--porcelain")
+        (mission_dir / "acceptance-matrix.json").write_text("{}\n", encoding="utf-8")
+        assert (
+            "?? kitty-specs/residue-01ABCDEF/acceptance-matrix.json"
+            in git("status", "--porcelain")
+        )
         monkeypatch.chdir(repo)
         _patch_mission_topology(monkeypatch, coord=True)
 
@@ -312,10 +323,24 @@ class TestImplementClaimNoPlanningArtifactSplit:
 
 _RESIDUE_MISSION_ID = "01T009RESIDUEFREE000000001"
 _RESIDUE_MID8 = _RESIDUE_MISSION_ID[:8]
+# write-surface-coherence WP01-04: planning artifacts (spec/plan/tasks/WP*) are
+# PRIMARY-partition kinds that commit to ``target_branch`` for every topology.
+# Under coord topology with a PROTECTED ``target_branch`` (``main``) the finalize
+# planning commit is REFUSED (FR-008). To exercise the residue-free finalize
+# (the #1814 class) the mission's ``target_branch`` must be a NON-protected
+# feature branch that is checked out, so the planning commit lands cleanly there
+# while status stays on the coordination branch.
+_RESIDUE_TARGET_BRANCH = "feat/residue-work"
 
 
 def _scaffold_residue_mission(repo: Path) -> str:
-    """SC6-shaped coordination-topology mission committed on ``main``."""
+    """SC6-shaped coordination-topology mission on a NON-protected feature branch.
+
+    write-surface-coherence WP01-04: ``target_branch`` is a non-protected feature
+    branch (not ``main``) so the planning artifacts (now PRIMARY-partition kinds)
+    commit to it instead of tripping the FR-008 protected-branch refusal, while
+    the ``coordination_branch`` keeps the mission coordination-topology for status.
+    """
     mission_dirname = f"residue-mission-{_RESIDUE_MID8}"
     feature_dir = repo / "kitty-specs" / mission_dirname
     tasks_dir = feature_dir / "tasks"
@@ -325,7 +350,7 @@ def _scaffold_residue_mission(repo: Path) -> str:
         "mission_slug": mission_dirname,
         "mission_id": _RESIDUE_MISSION_ID,
         "mid8": _RESIDUE_MID8,
-        "target_branch": "main",
+        "target_branch": _RESIDUE_TARGET_BRANCH,
         "coordination_branch": f"kitty/mission-residue-mission-{_RESIDUE_MID8}",
     }
     import json as _json
@@ -342,10 +367,11 @@ def _scaffold_residue_mission(repo: Path) -> str:
     # under test performs no frontmatter write — the porcelain check then
     # isolates exactly the stager-residue class (#1814 / FR-006).
     branch_strategy = (
-        "Planning artifacts for this mission were generated on main. During "
-        "/spec-kitty.implement this WP may branch from a dependency-specific "
-        "base, but completed changes must merge back into main unless the "
-        "human explicitly redirects the landing branch."
+        f"Planning artifacts for this mission were generated on "
+        f"{_RESIDUE_TARGET_BRANCH}. During /spec-kitty.implement this WP may "
+        f"branch from a dependency-specific base, but completed changes must "
+        f"merge back into {_RESIDUE_TARGET_BRANCH} unless the human explicitly "
+        f"redirects the landing branch."
     )
     (tasks_dir / "WP01-task.md").write_text(
         "---\n"
@@ -355,8 +381,8 @@ def _scaffold_residue_mission(repo: Path) -> str:
         "requirement_refs:\n"
         "- FR-001\n"
         "tracker_refs: []\n"
-        "planning_base_branch: main\n"
-        "merge_target_branch: main\n"
+        f"planning_base_branch: {_RESIDUE_TARGET_BRANCH}\n"
+        f"merge_target_branch: {_RESIDUE_TARGET_BRANCH}\n"
         f"branch_strategy: {branch_strategy}\n"
         "subtasks: []\n"
         "history: []\n"
@@ -384,13 +410,16 @@ def _scaffold_residue_mission(repo: Path) -> str:
     def git(*args: str) -> None:
         subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True)
 
+    # Check out the non-protected feature branch BEFORE committing the mission so
+    # the planning artifacts land on a branch whose HEAD safe_commit accepts.
+    git("checkout", "-q", "-b", _RESIDUE_TARGET_BRANCH)
     git("add", ".")
     git("commit", "-q", "-m", "seed mission")
     git("branch", f"kitty/mission-residue-mission-{_RESIDUE_MID8}")
     return mission_dirname
 
 
-def _run_real_finalize(repo: Path, mission_slug: str):
+def _run_real_finalize(repo: Path, mission_slug: str) -> Result:
     from unittest.mock import patch
 
     from typer.testing import CliRunner
@@ -489,6 +518,7 @@ class TestFinalizeLeavesNoPrimaryResidue:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         from mission_runtime import (
+            MissionArtifactKind,
             resolve_placement_only,
             resolve_topology,
             routes_through_coordination,
@@ -505,9 +535,14 @@ class TestFinalizeLeavesNoPrimaryResidue:
         result = _run_real_finalize(repo, mission_slug)
         assert result.exit_code == 0, f"finalize failed:\n{result.output}"
 
-        placement = resolve_placement_only(repo, mission_slug)
-        # FR-001b: the post-finalize protected-target mission routes through
-        # coordination — read from the STORED topology, not a per-ref enum.
+        # write-surface-coherence WP01: ``kind`` is REQUIRED. record-analysis
+        # writes ``ANALYSIS_REPORT`` (a COORD-partition kind), so its placement
+        # resolves to the coordination ref under coord topology.
+        placement = resolve_placement_only(
+            repo, mission_slug, kind=MissionArtifactKind.ANALYSIS_REPORT
+        )
+        # FR-001b: the coordination-topology mission routes through coordination —
+        # read from the STORED topology, not a per-ref enum.
         assert routes_through_coordination(resolve_topology(repo, mission_slug)) is True
         assert placement.ref
 

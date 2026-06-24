@@ -309,6 +309,37 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.scripts.tasks.acceptance_support::normalize_feature_encoding",
         "specify_cli.scripts.tasks.acceptance_support::resolve_acceptance_actor",
         "specify_cli.scripts.tasks.acceptance_support::perform_acceptance",
+        # ``task_helpers`` is a script-style sibling of ``acceptance_support``:
+        # its sole runtime caller (``scripts/tasks/tasks_cli.py``) imports it via
+        # a bare ``from task_helpers import ...`` (sys.path-relative, ``# noqa:
+        # E402``), which the qualified-import AST scanner cannot resolve — the
+        # same blind-spot already grandfathered for ``acceptance_support`` above.
+        # Pre-existing on upstream/main (predates this mission; ``task_helpers``
+        # ``__all__`` and this gate were both byte-identical at the merge base).
+        # Burn-down: convert the bare import to a qualified package import (or
+        # widen the scanner to resolve script sys.path imports) under FR-303.
+        "specify_cli.scripts.tasks.task_helpers::LANES",
+        "specify_cli.scripts.tasks.task_helpers::TIMESTAMP_FORMAT",
+        "specify_cli.scripts.tasks.task_helpers::TaskCliError",
+        "specify_cli.scripts.tasks.task_helpers::WorkPackage",
+        "specify_cli.scripts.tasks.task_helpers::activity_entries",
+        "specify_cli.scripts.tasks.task_helpers::append_activity_log",
+        "specify_cli.scripts.tasks.task_helpers::build_document",
+        "specify_cli.scripts.tasks.task_helpers::detect_conflicting_wp_status",
+        "specify_cli.scripts.tasks.task_helpers::ensure_lane",
+        "specify_cli.scripts.tasks.task_helpers::extract_scalar",
+        "specify_cli.scripts.tasks.task_helpers::find_repo_root",
+        "specify_cli.scripts.tasks.task_helpers::get_lane_from_frontmatter",
+        "specify_cli.scripts.tasks.task_helpers::git_status_lines",
+        "specify_cli.scripts.tasks.task_helpers::is_legacy_format",
+        "specify_cli.scripts.tasks.task_helpers::load_meta",
+        "specify_cli.scripts.tasks.task_helpers::locate_work_package",
+        "specify_cli.scripts.tasks.task_helpers::normalize_note",
+        "specify_cli.scripts.tasks.task_helpers::now_utc",
+        "specify_cli.scripts.tasks.task_helpers::path_has_changes",
+        "specify_cli.scripts.tasks.task_helpers::run_git",
+        "specify_cli.scripts.tasks.task_helpers::set_scalar",
+        "specify_cli.scripts.tasks.task_helpers::split_frontmatter",
         "specify_cli.shims::SkillRegistry",
         "specify_cli.shims::generate_shims",
         "specify_cli.skills.manifest_store::SCHEMA_VERSION",

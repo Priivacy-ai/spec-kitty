@@ -179,8 +179,13 @@ def _stub_placement(
     """
     placement = CommitTarget(ref="kitty/mission-x-coord")
     topology = MissionTopology.COORD if coord else MissionTopology.SINGLE_BRANCH
+    # write-surface-coherence WP01: ``resolve_placement_only`` now takes a REQUIRED
+    # ``kind`` keyword. ``_review_currency_check_branch`` calls it with
+    # ``kind=STATUS_STATE`` (the coord-base read), so the stub must accept ``kind``
+    # — a positional-only lambda raises TypeError, gets swallowed by the helper's
+    # except arm, and silently falls back to ``target_branch`` (the stale-stub trap).
     monkeypatch.setattr(
-        tasks_mod, "resolve_placement_only", lambda _root, _slug: placement
+        tasks_mod, "resolve_placement_only", lambda _root, _slug, *, kind: placement
     )
     monkeypatch.setattr(tasks_mod, "resolve_topology", lambda _root, _slug: topology)
     return placement

@@ -33,6 +33,7 @@ import pytest
 
 from mission_runtime import (
     ActionContextError,
+    MissionArtifactKind,
     resolve_action_context,
     resolve_placement_only,
 )
@@ -151,7 +152,11 @@ def test_ambiguous_handle_resolve_placement_only_raises_action_context_error(
     The translation must apply there too — not only in resolve_action_context.
     """
     with pytest.raises(ActionContextError) as excinfo:
-        resolve_placement_only(ambiguous_repo, _AMBIGUOUS_HANDLE)
+        resolve_placement_only(
+            ambiguous_repo,
+            _AMBIGUOUS_HANDLE,
+            kind=MissionArtifactKind.STATUS_STATE,
+        )
 
     assert excinfo.value.code == "MISSION_AMBIGUOUS_SELECTOR", (
         f"Expected code 'MISSION_AMBIGUOUS_SELECTOR', got {excinfo.value.code!r}. "

@@ -34,58 +34,68 @@ def test_placement_artifact_home_carries_ref_only_placement() -> None:
     assert home.ignores_primary_coord_residue is True
 
 
-def test_coordination_residue_path_filter_is_specific_to_finalized_artifacts() -> None:
-    assert is_coordination_artifact_residue_path(
-        "kitty-specs/demo/plan.md", mission_slug="demo"
-    )
-    assert is_coordination_artifact_residue_path(
-        "kitty-specs/demo/tasks/WP01.md", mission_slug="demo"
-    )
-    assert is_coordination_artifact_residue_path(
-        "kitty-specs/demo/tasks/", mission_slug="demo"
-    )
+def test_coordination_residue_path_filter_is_specific_to_coord_artifacts() -> None:
+    """Only the COORD-partition artifacts are coordination residue.
+
+    Remediated for write-surface-coherence WP01 (FR-002 / FR-004): the planning +
+    identity kinds (spec / data-model / research / checklist / plan / tasks /
+    lanes) were re-partitioned onto the PRIMARY ``target_branch``, so their stale
+    primary copies are NO LONGER coordination residue — they live with their
+    mission on primary by design. The residue authority now matches the COORD
+    partition only: issue-matrix, status events, analysis-report, acceptance-matrix.
+    """
     assert is_coordination_artifact_residue_path(
         "kitty-specs/demo/issue-matrix.md", mission_slug="demo"
     )
-    # Remediated 2026-06-23: under coordination topology the planning SOURCE docs
-    # (spec.md / data-model.md / research.md / checklists/) are committed to the
-    # coordination branch exactly like plan.md, so a stale primary copy IS coord
-    # residue. The prior assertion (spec.md NOT residue) encoded a now-overturned
-    # intent that blocked record-analysis on coord missions (#2084-sibling). See
-    # test_coordination_residue_includes_planning_source_docs.
     assert is_coordination_artifact_residue_path(
+        "kitty-specs/demo/status.events.jsonl", mission_slug="demo"
+    )
+    assert is_coordination_artifact_residue_path(
+        "kitty-specs/demo/analysis-report.md", mission_slug="demo"
+    )
+    # The re-partitioned PRIMARY kinds are NOT coordination residue (the WP01
+    # correctness change): their home is the primary surface.
+    assert not is_coordination_artifact_residue_path(
+        "kitty-specs/demo/plan.md", mission_slug="demo"
+    )
+    assert not is_coordination_artifact_residue_path(
+        "kitty-specs/demo/tasks/WP01.md", mission_slug="demo"
+    )
+    assert not is_coordination_artifact_residue_path(
         "kitty-specs/demo/spec.md", mission_slug="demo"
     )
     # Mission-isolation negative control (still valid): another mission's residue
     # never counts as this mission's residue.
     assert not is_coordination_artifact_residue_path(
-        "kitty-specs/other/plan.md", mission_slug="demo"
+        "kitty-specs/other/issue-matrix.md", mission_slug="demo"
     )
 
 
-def test_coordination_residue_includes_planning_source_docs() -> None:
-    """The planning SOURCE docs are coord-placement residue under coord topology.
+def test_planning_source_docs_are_not_coordination_residue() -> None:
+    """The planning SOURCE + identity docs are PRIMARY, not coord residue (WP01).
 
-    Red-first reproduction (2026-06-23): on the current incomplete residue set
-    these all return False, so the record-analysis dirty-gate counts the stale
-    primary copies as a dirty tree and refuses — the #2084-sibling that blocked
-    the implement bootstrap of mission single-authority-topology-cleanup-01KVRJ6P.
+    write-surface-coherence WP01 re-partitions the planning + identity kinds onto
+    the primary ``target_branch`` (FR-002 / FR-004): spec / data-model / research /
+    checklist / lanes resolve to the primary surface, so their stale primary copies
+    are NOT coordination residue. (The downstream dirty-filter reconciliation that
+    consumes this partition is WP05's confirmation, per the WP01 prompt.)
     """
-    for residue_path in (
+    for primary_path in (
         "kitty-specs/demo/spec.md",
         "kitty-specs/demo/data-model.md",
         "kitty-specs/demo/research.md",
         "kitty-specs/demo/checklists/requirements.md",
         "kitty-specs/demo/checklists/",
+        "kitty-specs/demo/tasks/",
     ):
-        assert is_coordination_artifact_residue_path(
-            residue_path, mission_slug="demo"
-        ), residue_path
+        assert not is_coordination_artifact_residue_path(
+            primary_path, mission_slug="demo"
+        ), primary_path
 
     # Negative controls — genuine non-residue paths must still block:
     #  - a real source edit is never mission residue
     #  - an unknown mission file is not in the residue authority
-    #  - another mission's source doc is not THIS mission's residue
+    #  - another mission's coord doc is not THIS mission's residue
     assert not is_coordination_artifact_residue_path(
         "src/specify_cli/foo.py", mission_slug="demo"
     )
@@ -93,7 +103,7 @@ def test_coordination_residue_includes_planning_source_docs() -> None:
         "kitty-specs/demo/notes-scratch.md", mission_slug="demo"
     )
     assert not is_coordination_artifact_residue_path(
-        "kitty-specs/other/spec.md", mission_slug="demo"
+        "kitty-specs/other/issue-matrix.md", mission_slug="demo"
     )
 
 

@@ -322,6 +322,7 @@ def _resolve_write_target(
     """
     from mission_runtime import (  # noqa: PLC0415
         ActionContextError,
+        MissionArtifactKind,
         resolve_placement_only,
     )
     from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
@@ -329,7 +330,13 @@ def _resolve_write_target(
     )
 
     try:
-        return resolve_placement_only(repo_root, mission_slug).ref
+        # The STATUS write target MUST keep resolving the coordination branch under
+        # coord topology (write-surface-coherence WP02 / T031 / C-001 / G-2).
+        # STATUS_STATE is a coordination kind, so the kind-aware placement keeps the
+        # topology-routed ref — it MUST NOT be flipped to a primary kind.
+        return resolve_placement_only(
+            repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE
+        ).ref
     except (ActionContextError, StatusReadPathNotFound, FileNotFoundError):
         # Unresolvable mission (pre-meta create window / ad-hoc fixture): fall
         # back to the prior selector so the bootstrap path stays functional.
