@@ -432,18 +432,23 @@ def test_sibling_site_commit_for_mission_called_on_protected_primary(
                 encoding="utf-8",
             )
 
+            # #2056 WP04 relocated the record-analysis command + its helpers into
+            # ``mission_record_analysis`` (the seam reads these from its OWN
+            # namespace), so the patch targets are the seam — not the ``mission``
+            # shim. (``mission`` re-exports the same symbols for import edges; WP09
+            # added ``_resolve_record_analysis_placement_ref`` there too.)
             monkeypatch.setattr(
-                "specify_cli.cli.commands.agent.mission.locate_project_root",
+                "specify_cli.cli.commands.agent.mission_record_analysis.locate_project_root",
                 lambda: repo.repo_root,
             )
             monkeypatch.setattr(
-                "specify_cli.cli.commands.agent.mission.get_main_repo_root",
+                "specify_cli.cli.commands.agent.mission_record_analysis.get_main_repo_root",
                 lambda _path: repo.repo_root,
             )
             from mission_runtime import CommitTarget
 
             monkeypatch.setattr(
-                "specify_cli.cli.commands.agent.mission._resolve_record_analysis_placement_ref",
+                "specify_cli.cli.commands.agent.mission_record_analysis._resolve_record_analysis_placement_ref",
                 lambda *_a, **_kw: CommitTarget(ref=coord_branch),
             )
 

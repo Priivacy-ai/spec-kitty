@@ -2414,7 +2414,7 @@ def map_requirements(
             auto_commit = get_auto_commit_default(main_repo_root)
         commit_target = CommitTarget(ref=target_branch)
         if auto_commit:
-            from specify_cli.cli.commands.agent.mission import _resolve_planning_placement
+            from specify_cli.coordination.commit_router import _resolve_planning_placement
 
             # map-requirements edits WP prompt files → WORK_PACKAGE_TASK (primary)
             # (write-surface-coherence WP02 / T009). Resolve the destination through
