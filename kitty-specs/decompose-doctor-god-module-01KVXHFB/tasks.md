@@ -62,9 +62,9 @@
 - **Goal**: Extract shared infra FIRST so every sibling imports a stable single-Console surface.
 - **Priority**: P1. **Dependencies**: WP01. **Independent test**: `test_doctor_shared.py` + golden green; one `Console()` instance.
 - **Requirement refs**: FR-007.
-- [ ] T004 Create `_doctor_shared.py` (console/guards/`_is_interactive_environment`/constants) (WP02)
-- [ ] T005 Point `doctor.py` + `_profile_health_render` to the single home; no new `Console()` (WP02)
-- [ ] T006 Focused `_doctor_shared` tests; golden green (WP02)
+- [x] T004 Create `_doctor_shared.py` (console/guards/`_is_interactive_environment`/constants) (WP02)
+- [x] T005 Point `doctor.py` + `_profile_health_render` to the single home; no new `Console()` (WP02)
+- [x] T006 Focused `_doctor_shared` tests; golden green (WP02)
 - **Out-of-map edits**: `doctor.py` (swap shared-infra defs → import from `_doctor_shared`); `_profile_health_render.py` (console home reconciliation). Sequential chain → no concurrent writer.
 - **Risks**: a per-module `Console()` breaks `--json` cleanliness + the doctrine snapshot (H1).
 
