@@ -21,8 +21,7 @@ from jsonschema import Draft202012Validator  # type: ignore[import-untyped]
 
 from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
 
-pytestmark = pytest.mark.doctrine
-
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 DOCTRINE_DIR = DOCTRINE_SOURCE_ROOT
 SCHEMA_DIR = DOCTRINE_DIR / "schemas"
 

@@ -17,9 +17,7 @@ from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
 
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
 # Reason: walks up to repo kitty-specs/
-pytestmark = pytest.mark.non_sandbox
-
-
+pytestmark = [pytest.mark.non_sandbox, pytest.mark.fast]
 # ─────────────────────────────────────────────────────────────
 # #1753: codebase-wide scope round-trips through the strict parser
 # ─────────────────────────────────────────────────────────────

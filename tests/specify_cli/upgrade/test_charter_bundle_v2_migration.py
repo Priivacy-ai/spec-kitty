@@ -24,8 +24,7 @@ from specify_cli.upgrade.migrations.m_3_2_0rc35_charter_manifest_defaults_repair
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 _yaml = YAML()
 _yaml.default_flow_style = False
 _yaml.explicit_start = False

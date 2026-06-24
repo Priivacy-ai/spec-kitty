@@ -12,8 +12,7 @@ from pathlib import Path
 import pytest
 
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 def _write_config(project_path: Path, agents: list[str]) -> None:
     """Write .kittify/config.yaml with the given agent list."""
     kittify = project_path / ".kittify"

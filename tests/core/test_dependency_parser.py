@@ -17,8 +17,7 @@ from specify_cli.core.dependency_parser import parse_dependencies_from_tasks_md
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 def _make_tasks_md(*wp_sections: tuple[str, str]) -> str:
     """Build a minimal tasks.md with the given (wp_id, body) pairs."""
     parts = []

@@ -27,8 +27,7 @@ from specify_cli.status.views import write_derived_views
 
 import pytest
 
-pytestmark = [pytest.mark.contract]
-
+pytestmark = [pytest.mark.contract, pytest.mark.fast]
 runner = CliRunner()
 
 

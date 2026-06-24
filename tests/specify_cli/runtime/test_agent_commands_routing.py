@@ -37,8 +37,7 @@ from specify_cli.runtime.agent_commands import (
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 def test_command_skill_agents_absent_from_command_config() -> None:
     """The loop in ``ensure_runtime`` iterates ``AGENT_COMMAND_CONFIG``.
 

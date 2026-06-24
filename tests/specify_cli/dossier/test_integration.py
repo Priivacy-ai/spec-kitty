@@ -55,8 +55,7 @@ from specify_cli.dossier.hasher import hash_file
 # ============================================================================
 
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 @pytest.fixture
 def minimal_feature_dir(tmp_path):
     """Create minimal feature with spec.md, plan.md, tasks.md."""

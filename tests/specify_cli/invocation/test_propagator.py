@@ -32,8 +32,7 @@ from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 def make_started_record() -> OpStartedEvent:
     return OpStartedEvent(
         invocation_id="01KPQRX2EVGMRVB4Q1JQBAZJV3",

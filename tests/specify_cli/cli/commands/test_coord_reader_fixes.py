@@ -13,9 +13,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
-
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 # ---------------------------------------------------------------------------
 # T016 / T017: resolve_mission_read_path path selection
 # ---------------------------------------------------------------------------

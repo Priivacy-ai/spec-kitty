@@ -20,8 +20,7 @@ from specify_cli.upgrade.runner import UpgradeResult
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 def test_git_status_paths_parses_modified_files(tmp_path: Path, monkeypatch) -> None:
     """Porcelain output with modified files is parsed correctly."""
     # Simulate: " M src/foo.py\0 M src/bar.py\0"

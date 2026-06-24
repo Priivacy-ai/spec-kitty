@@ -14,9 +14,7 @@ from tests.lane_test_utils import lane_branch_name, lane_worktree_path, write_si
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
-
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 def _mark_fake_worktree(path: Path) -> None:
     """Create the minimal marker required by workspace-resolution guards."""
     path.mkdir(parents=True, exist_ok=True)

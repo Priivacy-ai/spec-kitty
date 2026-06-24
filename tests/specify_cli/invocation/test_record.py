@@ -29,8 +29,7 @@ from specify_cli.invocation.record import (
     tier_eligible,
 )
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 _ULID = "01ABCDEFGHJKMNPQRSTVWXYZ12"
 _CONTRACT_ULID = "01KTK5JBD69FQ8XVRFV1J630MJ"
 

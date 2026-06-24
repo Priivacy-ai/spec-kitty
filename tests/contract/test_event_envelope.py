@@ -14,9 +14,7 @@ from unittest.mock import MagicMock
 import pytest
 
 
-pytestmark = [pytest.mark.contract]
-
-
+pytestmark = [pytest.mark.contract, pytest.mark.fast]
 def _make_emitter(team_slug: str = "test-team") -> MagicMock:
     """Create an EventEmitter with mocked dependencies for isolated testing.
 

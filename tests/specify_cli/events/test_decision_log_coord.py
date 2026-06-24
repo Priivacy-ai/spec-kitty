@@ -17,9 +17,7 @@ from specify_cli.events.decision_log import DecisionGitLog
 from specify_cli.sync.runtime_event_emitter import SyncRuntimeEventEmitter
 from runtime.next._internal_runtime.events import NullEmitter
 
-pytestmark = [pytest.mark.unit]
-
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

@@ -15,8 +15,7 @@ from specify_cli.core.wps_manifest import (
 )
 
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 class TestLoadWpsManifest:
     def test_load_valid_manifest(self, tmp_path: Path) -> None:
         wps = tmp_path / "wps.yaml"

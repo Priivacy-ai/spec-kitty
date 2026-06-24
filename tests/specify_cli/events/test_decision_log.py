@@ -36,9 +36,7 @@ from specify_cli.next._internal_runtime.significance import (
     TimeoutExpiredPayload,
 )
 
-pytestmark = [pytest.mark.unit]
-
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 # ---------------------------------------------------------------------------
 # Payload factories
 # ---------------------------------------------------------------------------

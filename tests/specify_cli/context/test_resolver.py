@@ -25,8 +25,7 @@ from specify_cli.lanes.persistence import write_lanes_json
 # explicit mission directory name so context-bound commands stay deterministic
 # while the backfill/audit surfaces close out remaining legacy metadata.
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 _DEFAULT_TEST_MISSION_ID = "01HVXYZTESTMISSION000000000"
 
 

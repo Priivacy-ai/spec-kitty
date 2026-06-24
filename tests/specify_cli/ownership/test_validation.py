@@ -20,8 +20,7 @@ from specify_cli.ownership.validation import (
 from specify_cli.status.wp_metadata import WPMetadata
 
 
-pytestmark = [pytest.mark.unit]
-
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 def _manifest(
     mode: ExecutionMode = ExecutionMode.CODE_CHANGE,
     owned: tuple[str, ...] = ("src/foo/**",),

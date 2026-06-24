@@ -21,8 +21,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.regression]
-
+pytestmark = [pytest.mark.regression, pytest.mark.fast]
 # ---------------------------------------------------------------------------
 # FR-017: source-scanning guards — stale strings must be absent, resolver
 #         imports must be present (guards against re-introduction)
