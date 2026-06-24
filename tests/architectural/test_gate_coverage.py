@@ -125,6 +125,27 @@ def test_required_selection_structures_present(gates: list[gc.Gate]) -> None:
     )
 
 
+def test_windows_gate_models_windows_ci_marker(gates: list[gc.Gate]) -> None:
+    """ci-windows.yml builds its test list dynamically (``git grep``), so its paths
+    can't be parsed and the gate falls back to the whole tree (see
+    ``CompiledGate.__init__``). That fallback is coverage-SAFE only because the
+    gate narrows by ``-m windows_ci``: every parsable ci-windows gate must carry
+    exactly that marker, or the whole-tree fallback would falsely mark
+    windows-only tests as covered (Issue #2034 review, alphonso MED).
+    """
+    windows_gates = [
+        g for g in gates if g.workflow == "ci-windows.yml" and g.marker_expr
+    ]
+    assert windows_gates, "no parsable pytest gate found in ci-windows.yml"
+    for g in windows_gates:
+        assert g.marker_expr == "windows_ci", (
+            f"{g.label()} models marker {g.marker_expr!r}, expected 'windows_ci'. "
+            "ci-windows paths are dynamic (git grep) so the gate falls back to the "
+            "whole tree; without the windows_ci narrowing the fallback over-claims "
+            "coverage."
+        )
+
+
 # ---------------------------------------------------------------------------
 # Selection-logic unit guards (no collection)
 # ---------------------------------------------------------------------------
@@ -133,6 +154,14 @@ def test_required_selection_structures_present(gates: list[gc.Gate]) -> None:
 def test_selection_logic_matches_marker_and_path() -> None:
     """A unit test marked only ``unit`` in a misc-shard dir is an orphan; the same
     path marked ``git_repo`` is covered. This is the #2034 failure mode in miniature.
+
+    ``selects`` is a *pure, deterministic* function of its arguments — the marker
+    expression compiles once and ``Expression.evaluate`` has no data-dependent
+    branch that can flip for a fixed marker set. The diagnostic messages below
+    therefore exist to make any *environmental* flake actionable: alphonso/debbie
+    saw a transient ``False`` here on the architectural shard and traced the class
+    to stale ``__pycache__`` / xdist worker contamination, not a logic fault. If
+    this ever fails, investigate the runner — do NOT rerun-to-green (Issue #2034).
     """
     misc_shard = gc.Gate(
         workflow="ci-quality.yml",
@@ -143,12 +172,20 @@ def test_selection_logic_matches_marker_and_path() -> None:
     )
     compiled = gc.CompiledGate(misc_shard)
     rel = "tests/tasks/test_tasks_2x_unit.py"
-    assert not compiled.selects(rel, f"{rel}::test_x", {"unit"})
-    assert compiled.selects(rel, f"{rel}::test_y", {"git_repo"})
+    assert not compiled.selects(rel, f"{rel}::test_x", {"unit"}), (
+        f"unit-only test wrongly selected by gate expr {misc_shard.marker_expr!r}."
+    )
+    assert compiled.selects(rel, f"{rel}::test_y", {"git_repo"}), (
+        f"git_repo test NOT selected by gate expr {misc_shard.marker_expr!r} for "
+        f"path {rel!r}. selects() is pure given these inputs, so a transient "
+        "failure here is an environment artifact (stale __pycache__ / xdist "
+        "isolation), not a logic regression — investigate the runner, do not "
+        "rerun-to-green (Issue #2034)."
+    )
     # Outside the gate's paths → never selected, regardless of marker.
     assert not compiled.selects(
         "tests/other/test_z.py", "tests/other/test_z.py::t", {"git_repo"}
-    )
+    ), "test outside the gate's paths was selected — the path filter is broken."
 
 
 def test_parser_ignores_non_command_pytest_tokens() -> None:
@@ -198,6 +235,131 @@ def test_collect_universe_fails_loudly_on_collection_error(
         gc.collect_universe()
 
 
+def test_analyze_detects_orphan_and_covered_records() -> None:
+    """Direct guard on the analyzer core: ``analyze`` must classify a zero-gate
+    test as an orphan and a gated test as covered.
+
+    The real-universe ratchet below only checks the *delta* against the baseline,
+    so mutating ``analyze`` to never detect orphans leaves it (and the backlog
+    test) green — the exact "untested-but-green" failure this PR exists to catch,
+    reproduced in the checker's own guard (Issue #2034 review, renata HIGH). This
+    synthetic universe pins the classification deterministically, no collection.
+    """
+    gate = gc.Gate(
+        workflow="ci-quality.yml",
+        job="integration-tests-core-misc",
+        shard="misc",
+        paths=["tests/tasks"],
+        marker_expr="git_repo or integration",
+    )
+    universe: list[gc.TestRecord] = [
+        # Orphan: in a gated path, but only an authoring marker no gate selects.
+        {
+            "nodeid": "tests/tasks/test_u.py::t",
+            "relpath": "tests/tasks/test_u.py",
+            "markers": ["unit"],
+        },
+        # Covered: same path, carries a marker the gate selects.
+        {
+            "nodeid": "tests/tasks/test_c.py::t",
+            "relpath": "tests/tasks/test_c.py",
+            "markers": ["git_repo"],
+        },
+    ]
+    report = gc.analyze([gate], universe)
+    assert report.orphan_files == ["tests/tasks/test_u.py"]
+    assert report.orphan_nodeids == ["tests/tasks/test_u.py::t"]
+    assert report.total == 2
+
+
+def test_selection_respects_ignore() -> None:
+    """A path under a gate's ``--ignore`` is NOT selected, even when path+marker match.
+
+    Guards the exclusion branch in :meth:`CompiledGate.selects`: disabling it
+    silently re-counts every ``--ignore``-d test as selected (the measured
+    duplicate count jumps from 1443 to ~9294), inflating coverage. The 29 real
+    ``--ignore`` args across the workflows make this branch load-bearing
+    (Issue #2034 review, renata HIGH).
+    """
+    gate = gc.Gate(
+        workflow="ci-quality.yml",
+        job="fast-tests",
+        shard=None,
+        paths=["tests"],
+        ignores=["tests/runtime"],
+        marker_expr="fast",
+    )
+    compiled = gc.CompiledGate(gate)
+    ignored = "tests/runtime/test_loop.py"
+    assert not compiled.selects(ignored, f"{ignored}::t", {"fast"}), (
+        "a test under --ignore=tests/runtime was selected — the ignore branch "
+        "is not excluding."
+    )
+    kept = "tests/tasks/test_x.py"
+    assert compiled.selects(kept, f"{kept}::t", {"fast"}), (
+        "a fast test outside the ignore was wrongly excluded."
+    )
+
+
+def test_path_matches_nodeid_prefix_branch() -> None:
+    """A ``::``-bearing entry matches by nodeid equality or prefix, not relpath."""
+    nodeid = "tests/a/test_x.py::TestK::test_m"
+    assert gc._path_matches("tests/a/test_x.py", nodeid, "tests/a/test_x.py::TestK")
+    assert gc._path_matches("tests/a/test_x.py", nodeid, nodeid)
+    assert not gc._path_matches(
+        "tests/a/test_x.py", "tests/a/test_x.py::TestZ::t", "tests/a/test_x.py::TestK"
+    )
+
+
+def test_substitute_matrix_expands_and_blanks() -> None:
+    """``${{ matrix.X }}`` expands to the variant value; other ``${{ ... }}`` blank."""
+    out = gc._substitute_matrix(
+        "pytest ${{ matrix.shard }} -m '${{ matrix.markers }}' ${{ github.sha }}",
+        {"shard": "tests/misc", "markers": "fast"},
+    )
+    assert "tests/misc" in out
+    assert "-m 'fast'" in out
+    assert "${{" not in out  # non-matrix expressions are blanked, not left literal
+
+
+def test_join_continuations_merges_backslash_lines() -> None:
+    """Backslash-continued shell lines join into one logical line; others stand alone."""
+    joined = gc._join_continuations(
+        "pytest tests/a \\\n  -m fast \\\n  --maxfail=1\necho done"
+    )
+    assert any("pytest tests/a" in ln and "--maxfail=1" in ln for ln in joined)
+    assert "echo done" in joined
+
+
+def test_strip_to_command_strips_env_and_runner_prefixes() -> None:
+    """Env-assignments and runner prefixes reduce down to the ``pytest`` token."""
+    assert gc._strip_to_command(
+        "FOO=1 BAR='x y' uv run pytest tests -m fast"
+    ).startswith("pytest")
+    assert gc._strip_to_command('"$VENV_PYTHON" -m pytest tests').startswith("pytest")
+    # A command where ``pytest`` is only an argument is NOT reduced to a pytest head.
+    assert not gc._strip_to_command("git grep -l pytest -- tests").startswith("pytest")
+
+
+def test_pytest_marker_expression_import_contract() -> None:
+    """The checker depends on pytest's private ``_pytest.mark.expression`` API.
+
+    pytest is floored (``>=9.0.3``) not upper-pinned, so a future breaking bump
+    could move or change this surface. Fail here with a clear pointer rather than
+    deep inside a ratchet run (Issue #2034 review, alphonso MED).
+    """
+    from typing import Any, cast
+
+    from _pytest.mark.expression import Expression
+
+    expr = Expression.compile("a and not b")
+    # pytest's matcher protocol is ``callable(name, /, **kw) -> bool``; a plain
+    # membership test is structurally compatible (cast silences the Protocol),
+    # mirroring ``CompiledGate.selects``.
+    assert expr.evaluate(cast("Any", lambda name: name in {"a"})) is True
+    assert expr.evaluate(cast("Any", lambda name: name in {"a", "b"})) is False
+
+
 # ---------------------------------------------------------------------------
 # Ratchet + report (one collection, shared via the module fixture)
 # ---------------------------------------------------------------------------
@@ -220,7 +382,22 @@ def test_no_new_orphan_surfaces(coverage_report: gc.CoverageReport) -> None:
     on that list with zero-gate tests is a *new* coverage leak and fails here.
     """
     baseline_files = set(gc.load_baseline().get("orphan_files", []))
-    new_files = sorted(set(coverage_report.orphan_files) - baseline_files)
+    current = set(coverage_report.orphan_files)
+    # Real-universe floor: the analyzer must still be DETECTING the recorded
+    # backlog — not silently returning an empty orphan set, which would also make
+    # ``new_files`` empty and fake a pass (renata HIGH; the synthetic
+    # ``test_analyze_detects_orphan_and_covered_records`` pins this deterministically
+    # too). Current orphans must be a non-empty subset of the frozen baseline:
+    # growth is caught below, legitimate shrinkage is warned (not failed) by
+    # ``test_orphan_backlog_does_not_grow``, so a strict ``==`` would contradict
+    # that intentional shrink-warns design.
+    assert current, (
+        "analyze() reported ZERO orphan files against the real suite — the checker "
+        "has STOPPED detecting coverage holes (expected a non-empty subset of the "
+        f"{len(baseline_files)}-file baseline). This is the checker silently going "
+        "blind, the one regression it must not allow."
+    )
+    new_files = sorted(current - baseline_files)
     assert not new_files, (
         f"{len(new_files)} test file(s) are selected by ZERO CI gates and are not "
         "in the recorded baseline — they will never run in CI:\n"

@@ -53,7 +53,11 @@ from typing import Any, cast
 from pytest import ExitCode
 
 # pytest's own marker-expression evaluator — guarantees identical semantics to a
-# real ``-m`` selection. Private API, but the suite pins pytest via uv.lock.
+# real ``-m`` selection. This is a *private* pytest API and ``pytest`` is floored
+# (``>=9.0.3``), NOT upper-pinned, so a breaking move of this import fails loudly
+# at import time rather than silently mis-modelling selection. The import contract
+# is pinned by ``test_pytest_marker_expression_import_contract`` in the companion
+# test module; ``uv.lock`` pins the exact resolved version for reproducible runs.
 from _pytest.mark.expression import Expression
 
 # One collected test: its nodeid, repo-relative path, and applied marker names.
@@ -286,6 +290,13 @@ class CompiledGate:
 
     def __init__(self, gate: Gate) -> None:
         self.gate = gate
+        # A gate whose positional paths could not be parsed (e.g. ci-windows.yml
+        # builds its test list dynamically via ``git grep``) falls back to the
+        # whole tree. That fallback is coverage-SAFE only when a marker expression
+        # narrows it: ci-windows runs ``-m windows_ci``, so it claims coverage of
+        # exactly the windows-only tests, not the whole suite. A whole-tree gate
+        # with NO marker would over-claim — guarded by
+        # ``test_windows_gate_models_windows_ci_marker``.
         self.paths = gate.paths or [_TESTS_ROOT]
         self.expr = Expression.compile(gate.marker_expr) if gate.marker_expr else None
 
