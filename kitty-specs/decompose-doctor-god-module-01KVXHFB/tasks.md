@@ -95,9 +95,9 @@
 - **Goal**: Move tool-surface + command-skill + slash cluster (the `skills` cmd fuses command-skills + slash); decompose `skills` CC20 + `_repair_command_skill_state` CC16.
 - **Priority**: P1. **Dependencies**: WP04. **Independent test**: surface helper tests ≥90% + golden + `tests/cli_gate/test_doctor_modes.py` green.
 - **Requirement refs**: FR-003, FR-004, FR-005, FR-006.
-- [ ] T013 Create `_command_surface_doctor.py`; decompose `skills` CC20 + `_repair_command_skill_state` CC16 (WP05)
-- [ ] T014 Delegate `command-files`/`skills`/`tool-surfaces`; re-export `SlashCommandGap`,`_load_slash_command_state`,`_repair_slash_command_state` (WP05)
-- [ ] T015 Focused tests ≥90%; golden + safety-mode tests green (WP05)
+- [x] T013 Create `_command_surface_doctor.py`; decompose `skills` CC20 + `_repair_command_skill_state` CC16 (WP05)
+- [x] T014 Delegate `command-files`/`skills`/`tool-surfaces`; re-export `SlashCommandGap`,`_load_slash_command_state`,`_repair_slash_command_state` (WP05)
+- [x] T015 Focused tests ≥90%; golden + safety-mode tests green (WP05)
 - **Out-of-map edits**: `doctor.py` (delegation + re-export).
 - **Risks**: `doctor skills`/`doctor sparse-checkout` safety predicates + argv fast-path key on names — keep names byte-identical (I-7).
 
