@@ -25,7 +25,7 @@
   "friendly_name": "decompose doctor god module",
   "merge_target_branch": "main",
   "mission_id": "01KVXHFBCKNVP1BJYFSCQEW4J0",
-  "mission_number": null,
+  "mission_number": 148,
   "mission_slug": "decompose-doctor-god-module-01KVXHFB",
   "mission_type": "software-dev",
   "purpose_context": "This mission advances decompose doctor god module on prog/2059-doctor so stakeholders can track the work from mission creation onward.",
