@@ -16,6 +16,8 @@ subtasks:
 - T028
 - T029
 - T030
+agent: "claude:opus:randy-reducer:implementer"
+shell_pid: "3475045"
 history:
 - date: '2026-06-24'
   action: created
@@ -89,3 +91,4 @@ Recommended reviewer: standard. Verify both exit contracts unchanged, the `resta
 ## Activity Log
 
 - 2026-06-24T19:54:56Z – claude – planning – WP created (deps WP09).
+- 2026-06-24T22:45:13Z – claude:opus:randy-reducer:implementer – shell_pid=3475045 – Assigned agent via action command
