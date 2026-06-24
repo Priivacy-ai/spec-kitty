@@ -277,8 +277,25 @@ def test_collect_feature_summary_does_not_dirty_repo(tmp_path: Path) -> None:
     assert summary2.git_dirty == [], f"Second call dirtied the repo: {summary2.git_dirty}"
 
 
-def test_collect_feature_summary_checks_required_artifacts_in_coord_worktree(tmp_path: Path) -> None:
-    """Regression: coord topology stores canonical planning artifacts in the coord worktree."""
+def test_collect_feature_summary_reads_planning_artifacts_from_primary(tmp_path: Path) -> None:
+    """FR-002 (#2085, WP03): the accept gate reads PLANNING artifacts from PRIMARY.
+
+    This previously asserted the OPPOSITE — that the coord worktree was the
+    artifact-read surface for spec/plan/tasks. WP03 split the single
+    ``status_feature_dir`` per-partition: PLANNING reads now resolve the PRIMARY
+    surface via the WP01 kind-aware seam, while only the STATUS reads
+    (status.events.jsonl, acceptance-matrix) stay coord-aware. The coord-only
+    single-authority read was the drift this mission removes, not a contract to
+    preserve (unification, not parity).
+
+    The coord-topology setup is kept; the assertions invert to the new contract:
+
+    * spec/plan/tasks deleted from PRIMARY (still present on coord) are reported
+      MISSING — proving the gate read primary, not coord;
+    * a ``NEEDS CLARIFICATION`` marker planted ONLY in the coord ``spec.md`` is
+      NOT surfaced — proving the clarification scan read the (now-absent) primary
+      ``spec.md`` rather than the coord copy.
+    """
     repo_root, feature_dir = _create_test_feature(tmp_path)
     mid8 = "01ABCDEF"
     coord_feature_dir = (
@@ -307,6 +324,9 @@ def test_collect_feature_summary_checks_required_artifacts_in_coord_worktree(tmp
     )
     (repo_root / ".gitignore").write_text(".worktrees/\n", encoding="utf-8")
     (coord_feature_dir / "tasks.md").write_text("# tasks.md\n- [ ] Coord-only unfinished task\n", encoding="utf-8")
+    # Coord ``spec.md`` carries a clarification marker; primary ``spec.md`` is
+    # deleted below. Post-WP03 the gate reads primary, so this coord marker MUST
+    # NOT leak into ``needs_clarification``.
     (coord_feature_dir / "spec.md").write_text(
         "# spec.md\n[NEEDS CLARIFICATION: coord marker] <!-- decision_id: 01KS0ABCDEF0123456789ABCDE -->\n",
         encoding="utf-8",
@@ -323,16 +343,13 @@ def test_collect_feature_summary_checks_required_artifacts_in_coord_worktree(tmp
     summary = collect_feature_summary(repo_root, _FEATURE_SLUG)
 
     assert summary.feature_dir == feature_dir
-    assert summary.missing_artifacts == []
-    # FR-009 (#2085a, WP12): unchecked-tasks completion now derives from WP
-    # terminal status. ``_create_test_feature`` forces WP01 to DONE, so the
-    # coord ``tasks.md``'s unticked checkbox no longer strands the mission — the
-    # checkbox gate is satisfied by the terminal WP. The load-bearing intent of
-    # this regression (the coord worktree IS the artifact-read surface) is still
-    # exercised by the ``needs_clarification`` assertion below, read from the
-    # coord ``spec.md``.
-    assert summary.unchecked_tasks == []
-    assert summary.needs_clarification == [str(coord_feature_dir / "spec.md")]
+    # PLANNING reads resolve PRIMARY (FR-002): the artifacts present only on coord
+    # are now correctly reported missing. A gate still reading coord would report
+    # ZERO missing (the false-green this remediation removes).
+    assert {"spec.md", "plan.md", "tasks.md"}.issubset(set(summary.missing_artifacts))
+    # The clarification scan read the (absent) primary ``spec.md``, NOT the coord
+    # copy — so the coord-only marker is not surfaced.
+    assert summary.needs_clarification == []
 
 
 def test_collect_feature_summary_anchors_feature_dir_on_primary_for_mid8_handle(tmp_path: Path) -> None:

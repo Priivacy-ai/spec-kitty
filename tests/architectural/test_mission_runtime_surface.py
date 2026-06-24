@@ -62,6 +62,10 @@ _PUBLIC_SURFACE = sorted(
         "classify_topology",
         "is_coordination_artifact_residue_path",
         "is_primary_artifact_kind",
+        # gate-read-surface-completion WP05 (FR-003): the self-bookkeeping allowlist
+        # predicate is a package-root public symbol consumed by the record-analysis
+        # dirty-tree preflight (DISJOINT from the coord-residue partition, G-5).
+        "is_self_bookkeeping_path",
         "kind_for_mission_file",
         "resolve_action_context",
         "resolve_placement_only",

@@ -17,6 +17,7 @@ from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
     is_coordination_artifact_residue_path,
+    is_self_bookkeeping_path,
     resolve_topology,
     routes_through_coordination,
 )
@@ -908,6 +909,13 @@ def _enforce_analysis_report_write_preflight(
         return
 
     dirty_paths = _git_dirty_paths(repo_root)
+    # FR-003 (#2102): drop spec-kitty's OWN bookkeeping churn unconditionally —
+    # ``meta.json`` + ``.kittify/encoding-provenance/global.jsonl`` are allowlisted
+    # via the self-bookkeeping authority (DISJOINT from the coord-residue partition).
+    # This runs regardless of topology because these files are spec-kitty's own
+    # metadata, not coordination residue. The G-5 invariant holds: a stale primary
+    # ``spec.md`` is NOT in the allowlist, so it survives this filter as "real dirt".
+    dirty_paths = [path for path in dirty_paths if not is_self_bookkeeping_path(path)]
     # FR-005 / FR-001b: drop coord-owned residue only under a coordination
     # topology, read from the WP02 STORED topology via the ONE canonical predicate
     # (never a per-ref ``.kind``). ``mission_slug`` is required to resolve the
@@ -1125,6 +1133,41 @@ def _kind_for_artifact(artifact_type: str) -> MissionArtifactKind:
         ) from exc
 
 
+def _planning_read_dir(repo_root: Path, mission_slug: str, *, artifact_type: str) -> Path:
+    """Resolve the read dir for a planning artifact via the single kind-aware seam.
+
+    The canonical chokepoint (gate-read-surface-completion WP01 / FR-004 / FR-009):
+    every gate command that reads a planning artifact routes through this one locus.
+    A PRIMARY-kind artifact resolves to the primary ``target_branch`` dir for ALL
+    topologies; a STATUS/bookkeeping kind resolves to its placed surface (coord under
+    coord topology). No gate command may reconstruct this via topology routing or a
+    bespoke primary-anchor helper — they consume the one seam
+    (:func:`~specify_cli.missions._read_path_resolver.resolve_planning_read_dir`).
+
+    The kind is NAMED via :func:`_kind_for_artifact` (no silent default — an unmapped
+    ``artifact_type`` raises so a new type cannot mis-route, DECISION 1 spirit). No new
+    resolver is introduced (C-001): this wraps the existing kind map and seam.
+
+    Raises:
+        KeyError: When ``artifact_type`` has no kind mapping (propagated unchanged from
+            :func:`_kind_for_artifact` — no silent default).
+        ValueError: When ``mission_slug`` is not a safe path segment (traversal guard,
+            propagated from the seam primitive).
+        MissionSelectorAmbiguous: When ``mission_slug`` is an ambiguous handle
+            (propagated unchanged from the seam — no silent pick).
+    """
+    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+
+    kind = _kind_for_artifact(artifact_type)
+    # Explicit ``Path`` annotation: under the project's ``follow_imports = "skip"``
+    # mypy config the cross-module ``resolve_planning_read_dir`` return is seen as
+    # ``Any``; the annotation re-narrows it (the function IS typed ``-> Path``) so the
+    # chokepoint return is not an ``Any`` leak — matching the sibling ``tasks.py``
+    # pattern rather than suppressing the check.
+    read_dir: Path = resolve_planning_read_dir(repo_root, mission_slug, kind=kind)
+    return read_dir
+
+
 def _commit_to_branch(
     file_path: Path,
     mission_slug: str,
@@ -1272,13 +1315,19 @@ def _resolve_mission_dir_name_primary_anchored(
     """Resolve a mission handle to its on-disk dir name WITHOUT requiring coord.
 
     #11 / #1718 / #1692: ``finalize-tasks`` only needs the mission slug to anchor
-    its primary-surface reads (it already re-anchors via
-    ``primary_feature_dir_for_mission``). The coord-aware ``_find_feature_directory``
+    its primary-surface reads. The coord-aware ``_find_feature_directory``
     fail-closes when a materialized-but-empty coordination worktree exists,
     pre-empting the primary read. This helper canonicalises the handle against
     the PRIMARY checkout only (no coord-existence gate), returning the mission
     dir name when the primary surface exists, or ``None`` so the caller falls
     back to the structured detection error (no silent wrong-path).
+
+    gate-read-surface-completion WP01 / FR-009: the primary-surface existence probe
+    routes through the ONE kind-aware chokepoint (``_planning_read_dir`` → the seam),
+    not a bespoke ``primary_feature_dir_for_mission`` call — there is no parallel
+    primary-anchor planning-read path left. The remaining
+    :func:`_canonicalize_handle` step is handle canonicalization (mid8 / ULID /
+    numeric / human slug → dir name), NOT a planning-path join, so it stays.
 
     Propagates :class:`MissionSelectorAmbiguous` (no silent fallback on an
     ambiguous selector, C-CTX-4 / C-009).
@@ -1291,21 +1340,22 @@ def _resolve_mission_dir_name_primary_anchored(
     from specify_cli.missions._read_path_resolver import (
         MissionSelectorAmbiguous,
         _canonicalize_handle,
-        primary_feature_dir_for_mission,
     )
 
     main_root = get_main_repo_root(repo_root)
 
-    # Literal directory name on the primary checkout. WP02/FR-002: derive the
-    # primary-checkout candidate through the topology-blind seam primitive
-    # (``primary_feature_dir_for_mission`` — it wraps ``get_main_repo_root`` and
-    # ``assert_safe_path_segment``, FR-004) instead of a raw ``KITTY_SPECS_DIR``
-    # join, then preserve this site's PRIMARY-ONLY ``.is_dir()`` existence intent.
-    # The coord-aware ``resolve_handle_to_read_path`` is deliberately NOT used
-    # here: ``finalize-tasks`` must read the primary surface even when a
-    # materialized-but-empty coordination worktree exists (#11 / #1718 / #1692),
-    # which the coord-aware seam would fail-close.
-    if primary_feature_dir_for_mission(repo_root, raw_handle).is_dir():
+    # Literal directory name on the primary checkout. gate-read-surface-completion
+    # WP01 / FR-009: the primary-surface planning-read anchor routes through the ONE
+    # kind-aware chokepoint (``_planning_read_dir`` → ``resolve_planning_read_dir``).
+    # SPEC is a PRIMARY-partition kind, so the seam resolves
+    # ``primary_feature_dir_for_mission`` topology-blind — byte-equivalent to the
+    # former direct primitive call, with no surviving bespoke primary-anchor path.
+    # This preserves the PRIMARY-ONLY ``.is_dir()`` existence intent: the coord-aware
+    # ``resolve_handle_to_read_path`` is deliberately NOT used here, because
+    # ``finalize-tasks`` must read the primary surface even when a materialized-but-
+    # empty coordination worktree exists (#11 / #1718 / #1692, which the coord-aware
+    # seam would fail-close; the seam's PRIMARY branch honors this fail-open intent).
+    if _planning_read_dir(repo_root, raw_handle, artifact_type="spec").is_dir():
         return raw_handle
 
     # Canonicalise the handle (mid8 / ULID / numeric / human slug) against the
@@ -1330,19 +1380,19 @@ def _primary_anchored_feature_dir(
     """Resolve a mission handle to its PRIMARY-checkout feature dir, or ``None``.
 
     The planning-authoring surface companion to finalize-tasks' input read: both
-    must anchor to the SAME primary surface (``primary_feature_dir_for_mission``)
-    so an agent authoring at the reported ``feature_dir`` writes where
-    finalize-tasks reads. Returns ``None`` (so the caller falls back to the
-    coord-aware resolver) when no explicit handle is given or the mission has no
-    primary-surface directory. Propagates :class:`MissionSelectorAmbiguous` — an
-    ambiguous handle is never silently resolved (C-CTX-4 / C-009).
+    must anchor to the SAME primary surface so an agent authoring at the reported
+    ``feature_dir`` writes where finalize-tasks reads. gate-read-surface-completion
+    WP01 / FR-009: that anchor now flows through the ONE kind-aware chokepoint
+    (``_planning_read_dir`` → the seam, which resolves the primary dir topology-blind
+    for the PRIMARY ``spec`` kind), not a bespoke ``primary_feature_dir_for_mission``
+    call. Returns ``None`` (so the caller falls back to the coord-aware resolver)
+    when no explicit handle is given or the mission has no primary-surface
+    directory. Propagates :class:`MissionSelectorAmbiguous` — an ambiguous handle is
+    never silently resolved (C-CTX-4 / C-009).
     """
     if not explicit_feature or not explicit_feature.strip():
         return None
-    from specify_cli.missions._read_path_resolver import (
-        MissionSelectorAmbiguous,
-        primary_feature_dir_for_mission,
-    )
+    from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 
     try:
         dir_name = _resolve_mission_dir_name_primary_anchored(repo_root, explicit_feature)
@@ -1352,7 +1402,12 @@ def _primary_anchored_feature_dir(
         raise ActionContextError(exc.error_code, str(exc)) from exc
     if not dir_name:
         return None
-    candidate = primary_feature_dir_for_mission(repo_root, dir_name)
+    # gate-read-surface-completion WP01 / FR-009: the planning-read anchor flows
+    # through the ONE kind-aware chokepoint (``_planning_read_dir`` → the seam),
+    # not a parallel ``primary_feature_dir_for_mission`` call. SPEC is a PRIMARY
+    # kind, so the seam resolves the primary dir topology-blind — byte-equivalent
+    # to the former direct primitive, with no surviving bespoke primary-anchor path.
+    candidate = _planning_read_dir(repo_root, dir_name, artifact_type="spec")
     return candidate if candidate.is_dir() else None
 
 
@@ -1971,13 +2026,27 @@ def record_analysis(
         # not the coord-aware ``feature_dir`` from ``_find_feature_directory``
         # (which resolves to the coordination worktree once one exists — and that
         # worktree lacks ``spec.md``, so ``write_analysis_report`` would fail with
-        # "Required artifact missing"). ``primary_feature_dir_for_mission`` is the
-        # topology-blind anchor already used elsewhere in this module; the
-        # coord-aware ``feature_dir`` still drives the placement-ref and dirty-tree
-        # preflight above.
-        from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+        # "Required artifact missing"). The coord-aware ``feature_dir`` still drives
+        # the placement-ref and dirty-tree preflight above.
+        #
+        # #2102 / FR-009 (gate-read-surface-completion WP04): collapse the manual
+        # coord-then-primary double-resolution onto the single kind-aware seam. The
+        # planning-read leg here resolves the dir that must hold ``spec.md`` (a SPEC
+        # kind — PRIMARY-partition) before the report is written; route it through
+        # WP01's kind-aware read seam (``resolve_planning_read_dir``, the same single
+        # authority ``tasks.py`` and ``_commit_to_branch`` route every planning
+        # read/write onto) keyed by ``_kind_for_artifact("spec")``, instead of a
+        # bespoke ``primary_feature_dir_for_mission`` call. SPEC is primary-partition,
+        # so the seam resolves to the SAME topology-blind primary dir — a
+        # behavior-NEUTRAL dedup (no observable delta), removing the parallel
+        # resolution. The analysis-report WRITE target stays primary (data-model.md
+        # KEEP); the dirty-tree allowlist / ANALYSIS_REPORT placement is WP05's
+        # concern and is untouched here.
+        from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 
-        write_feature_dir = primary_feature_dir_for_mission(repo_root, feature_dir.name)
+        write_feature_dir = resolve_planning_read_dir(
+            repo_root, feature_dir.name, kind=_kind_for_artifact("spec")
+        )
 
         result = write_analysis_report(
             feature_dir=write_feature_dir,
@@ -2221,8 +2290,26 @@ def setup_plan(
         _, target_branch = _show_branch_context(repo_root, mission_slug, json_output)
         current_branch = get_current_branch(repo_root) or target_branch
 
-        spec_file = feature_dir / "spec.md"
-        plan_file = feature_dir / "plan.md"
+        # gate-read-surface-completion WP02 / FR-001 / #2107 (out-of-map edit —
+        # WP01 owns ``mission.py``; rationale: re-point ``setup_plan``'s PLANNING
+        # reads onto WP01's ``_planning_read_dir`` chokepoint). RESTORED after the
+        # lane-d integration merge (32eb6df89) silently dropped the approved WP02
+        # diff, reverting these joins to the coord-aware ``feature_dir`` — the
+        # ratchet (FR-010) caught the regression. The driver bug: ``feature_dir``
+        # comes from the coord-aware ``_find_feature_directory`` (→
+        # ``resolve_handle_to_read_path`` → the coord worktree dir under a
+        # materialized coordination topology). Since #2106 the planning artifacts
+        # (spec.md, plan.md) live on the PRIMARY ``target_branch`` dir, so reading
+        # them off ``feature_dir`` resolves to the coord husk and blocks with
+        # ``SPEC_FILE_MISSING``. ``_planning_read_dir`` resolves SPEC / plan
+        # (PRIMARY-partition kinds) to the primary dir for ALL topologies, so the
+        # reads converge on the real artifact. Only the PLANNING reads move
+        # (C-002): ``feature_dir`` stays the surface for STATUS/lifecycle emission
+        # (``emit_artifact_phase``) and mission-type / dossier lookups below.
+        spec_read_dir = _planning_read_dir(repo_root, mission_slug, artifact_type="spec")
+        spec_file = spec_read_dir / "spec.md"
+        plan_read_dir = _planning_read_dir(repo_root, mission_slug, artifact_type="plan")
+        plan_file = plan_read_dir / "plan.md"
 
         if not spec_file.exists():
             payload = {
@@ -2248,17 +2335,15 @@ def setup_plan(
         # before plan.md can be scaffolded or committed. Section-presence only;
         # scaffold + arbitrary prose without an FR row is NOT substantive.
         #
-        # FR-011: single read-surface commit check. ``spec_file`` is already the
-        # READ-resolved surface (``feature_dir`` comes from
-        # ``_find_feature_directory`` →
-        # ``resolve_handle_to_read_path(require_exists=True)``): the coord
-        # worktree dir for a materialized coordination topology, the primary dir
-        # for the #1718 create-window. ``is_committed`` therefore checks
-        # ``spec_file`` against ``HEAD`` of the git surface it physically lives
-        # on — converging with the retired 3-leg OR on every reachable cell. The
-        # #1848 coord-deleted case never reaches here: ``_find_feature_directory``
-        # raises ``CoordinationBranchDeleted`` (a ``StatusReadPathNotFound``)
-        # above, caught as ``ActionContextError`` → ``Exit(1)``.
+        # FR-011: single read-surface commit check. ``spec_file`` is the
+        # READ-resolved surface — since gate-read-surface-completion WP02 it is
+        # resolved via the kind-aware chokepoint ``_planning_read_dir`` (SPEC is a
+        # PRIMARY-partition kind → the primary ``target_branch`` dir for ALL
+        # topologies), so ``is_committed`` checks ``spec_file`` against ``HEAD`` of
+        # the primary surface it physically lives on. The #1848 coord-deleted case
+        # never reaches here: ``_find_feature_directory`` raises
+        # ``CoordinationBranchDeleted`` (a ``StatusReadPathNotFound``) above,
+        # caught as ``ActionContextError`` → ``Exit(1)``.
         from specify_cli.missions._substantive import is_committed, is_substantive
 
         _commit_diagnostics: list[str] = []
