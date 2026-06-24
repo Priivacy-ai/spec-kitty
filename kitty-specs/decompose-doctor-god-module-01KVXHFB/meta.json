@@ -11,5 +11,7 @@
   "purpose_tldr": "decompose doctor god module",
   "slug": "decompose-doctor-god-module-01KVXHFB",
   "target_branch": "prog/2059-doctor",
-  "topology": "lanes"
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-24T20:24:54.848314+00:00"
 }
