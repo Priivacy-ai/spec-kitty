@@ -389,10 +389,17 @@ def test_setup_plan_commits_substantive_plan(tmp_path: Path) -> None:
     assert payload.get("phase_complete") is True
     assert payload.get("result") == "success"
     plan_rel = str((feature_dir / "plan.md").relative_to(tmp_path))
-    # Placement is config-determined (FR-003, operator decision 2026-06-11):
-    # ``mission create`` declares a coordination_branch in meta.json, so the
-    # substantive-plan auto-commit lands on the COORDINATION ref — not the
-    # primary HEAD. Assert the commit on whichever surface the config names.
+    # Placement is artifact-class-determined (write-surface coherence,
+    # planning-on-primary contract): ``plan.md`` is a FINALIZED_EXECUTION_PLAN
+    # planning artifact, so its auto-commit ALWAYS lands on the primary
+    # ``target_branch`` (HEAD here is ``main``) for every mission shape — even
+    # when ``mission create`` declares a coordination_branch in meta.json. Only
+    # status/bookkeeping artifacts (status.events.jsonl, issue-matrix, etc.)
+    # land on the coordination ref. Assert the planning artifact on primary.
+    assert _file_in_head(tmp_path, plan_rel) is True
+    # Bifurcation proof: when a coordination_branch is declared, the planning
+    # artifact must NOT have been routed onto it — that was the overturned
+    # planning-on-coord contract.
     meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
     coord_branch = meta.get("coordination_branch")
     if coord_branch:
@@ -400,12 +407,11 @@ def test_setup_plan_commits_substantive_plan(tmp_path: Path) -> None:
             ["git", "-C", str(tmp_path), "cat-file", "-e", f"{coord_branch}:{plan_rel}"],
             capture_output=True,
         )
-        assert shown.returncode == 0, (
-            f"plan.md not committed on the config-declared coordination "
-            f"branch {coord_branch!r}"
+        assert shown.returncode != 0, (
+            f"plan.md must NOT be committed on the coordination branch "
+            f"{coord_branch!r}; planning artifacts land on the primary "
+            f"target_branch under the write-surface coherence contract"
         )
-    else:
-        assert _file_in_head(tmp_path, plan_rel) is True
 
 
 def test_setup_plan_scaffolds_from_doctrine_package_default(
