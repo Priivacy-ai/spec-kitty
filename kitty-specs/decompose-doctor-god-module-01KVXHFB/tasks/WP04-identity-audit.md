@@ -18,6 +18,8 @@ subtasks:
 - T010
 - T011
 - T012
+agent: "claude:opus:randy-reducer:implementer"
+shell_pid: "3109154"
 history:
 - date: '2026-06-24'
   action: created
@@ -92,3 +94,4 @@ Recommended reviewer: standard. Verify `identity` is decomposed (C901 clean), ex
 ## Activity Log
 
 - 2026-06-24T19:54:56Z – claude – planning – WP created (deps WP03; decompose identity CC19).
+- 2026-06-24T20:56:40Z – claude:opus:randy-reducer:implementer – shell_pid=3109154 – Assigned agent via action command
