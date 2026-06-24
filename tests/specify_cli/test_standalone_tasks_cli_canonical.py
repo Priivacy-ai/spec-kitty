@@ -10,6 +10,7 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.status import CanonicalStatusNotFoundError
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.reducer import materialize
 from specify_cli.status.store import append_event, read_events
@@ -116,7 +117,11 @@ def test_src_task_helpers_require_canonical_status_for_lane(
     feature_dir = _build_feature(repo, with_events=False)
     task_helpers = _load_module("standalone_task_helpers_missing", SRC_TASK_HELPERS)
 
-    with pytest.raises(task_helpers.TaskCliError, match="Canonical status not found"):
+    # The lane reader propagates the typed CanonicalStatusNotFoundError
+    # unwrapped (see workflow.py _is_missing_canonical_status_error, which does a
+    # structured isinstance check rather than message-matching). The message
+    # still carries the "Canonical status not found" / finalize-tasks guidance.
+    with pytest.raises(CanonicalStatusNotFoundError, match="Canonical status not found"):
         task_helpers.get_lane_from_frontmatter(feature_dir / "tasks" / "WP01-test.md")
 
 
