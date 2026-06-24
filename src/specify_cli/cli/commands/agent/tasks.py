@@ -16,6 +16,7 @@ from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
     primary_feature_dir_for_mission,
     resolve_feature_dir_for_mission,
+    resolve_planning_read_dir,
 )
 import contextlib
 from dataclasses import dataclass
@@ -59,6 +60,7 @@ from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.mission import get_mission_type
 from mission_runtime import (
     CommitTarget,
+    MissionArtifactKind,
     resolve_placement_only,
     resolve_topology,
     routes_through_coordination,
@@ -356,7 +358,14 @@ def _review_currency_check_branch(
         return str(base_branch)
 
     try:
-        placement = resolve_placement_only(main_repo_root, mission_slug)
+        # base-ref read under coord topology — coord kind preserves G-2
+        # (write-surface-coherence WP02 / T031 site 3): review-currency compares
+        # against the coordination BASE ref under coord topology. STATUS_STATE keeps
+        # the coord ref; a primary kind would read the primary ref as the base and
+        # corrupt the currency comparison.
+        placement = resolve_placement_only(
+            main_repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE
+        )
     except Exception as exc:  # noqa: BLE001 -- legacy fixtures keep target-branch fallback
         logger.debug("Could not resolve review currency placement: %s", exc)
         return target_branch
@@ -943,7 +952,17 @@ def _coord_topology_active(repo_root: Path, mission_slug: str) -> bool:
 
 
 def _skip_target_branch_commit(repo_root: Path, mission_slug: str, target_branch: str) -> bool:
-    """Return True when coord topology makes protected target commits redundant."""
+    """Return True when the direct WP-file commit to a protected primary must be skipped.
+
+    NOT a routing authority (write-surface-coherence WP02 / T032 / G-1): the
+    commit DESTINATION for the WP file is owned solely by the kind authority
+    (``resolve_placement_only(kind=WORK_PACKAGE_TASK)``). This flag only decides
+    whether to SKIP the direct primary commit in the genuine protected-primary
+    case — coord topology active AND the primary ``target_branch`` is protected —
+    where committing directly to the protected ref is refused and the status
+    transition committed to the coordination branch is authoritative. It selects
+    no ref; it suppresses a commit that the protection policy would refuse anyway.
+    """
     # ProtectionPolicy.resolve is the sole I/O boundary (FR-007/NFR-003):
     # config+hatch reads happen once; is_protected() is I/O-free.
     return (
@@ -1043,7 +1062,18 @@ def _resolve_wp_slug(main_repo_root: Path, mission_slug: str, task_id: str) -> s
     Looks for a file named '{task_id}-*.md' in kitty-specs/<mission>/tasks/.
     Falls back to bare task_id if no matching file is found.
     """
-    tasks_dir = candidate_feature_dir_for_mission(main_repo_root, mission_slug) / "tasks"
+    # WP04 / FR-006: ``tasks/WP*.md`` is a WORK_PACKAGE_TASK (primary-partition)
+    # artifact — author+read on PRIMARY (INV-5). Route the read through the
+    # kind-aware seam so a coord-topology mission's stale ``-coord`` husk cannot
+    # shadow the real primary WP files (#2062 read-side close).
+    from mission_runtime import MissionArtifactKind
+
+    tasks_dir = (
+        resolve_planning_read_dir(
+            main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+        )
+        / "tasks"
+    )
     if tasks_dir.exists():
         for p in tasks_dir.iterdir():
             if p.stem.startswith(f"{task_id}-") or p.stem == task_id:
@@ -1097,7 +1127,14 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
     # Write path: keep main-repo-root resolution so canonical serialization
     # pins to the primary checkout regardless of where the operator stands.
     main_repo_root = get_main_repo_root(repo_root)
-    feature_dir = candidate_feature_dir_for_mission(main_repo_root, mission_slug)
+    # WP04 / FR-006: ``tasks.md`` is a TASKS_INDEX (primary-partition) artifact —
+    # read it from PRIMARY (INV-5) so a coord-topology mission's stale ``-coord``
+    # husk cannot shadow the real primary ``tasks.md`` (#2062 read-side close).
+    from mission_runtime import MissionArtifactKind
+
+    feature_dir = resolve_planning_read_dir(
+        main_repo_root, mission_slug, kind=MissionArtifactKind.TASKS_INDEX
+    )
     tasks_md = feature_dir / TASKS_MD_FILENAME
 
     if not tasks_md.exists():
@@ -2435,10 +2472,21 @@ def move_task(
                         write_text_within_directory(wp.path, updated_doc, root=main_repo_root, encoding="utf-8")
                         file_written = True
                         status_artifacts = _collect_status_artifacts(feature_dir)
+                        # The WP file is WORK_PACKAGE_TASK (primary): resolve the
+                        # destination through the ONE kind authority instead of the
+                        # hardcoded CommitTarget(ref=target_branch)
+                        # (write-surface-coherence WP02 / T032 / G-1). A primary kind
+                        # lands on the primary target branch for every topology, so
+                        # the partition — not a hardcoded ref — owns the routing.
+                        _wp_file_target = resolve_placement_only(
+                            main_repo_root,
+                            mission_slug,
+                            kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+                        )
                         commit_success = safe_commit(
                             repo_root=main_repo_root,
                             worktree_root=main_repo_root,
-                            target=CommitTarget(ref=target_branch),
+                            target=_wp_file_target,
                             message=commit_msg,
                             paths=tuple([actual_file_path] + status_artifacts),
                             capability=GuardCapability.STANDARD,
@@ -3072,11 +3120,18 @@ def mark_status(
                 try:
                     actual_tasks_path = tasks_md.resolve()
 
+                    # tasks.md is TASKS_INDEX (primary): resolve the destination
+                    # through the ONE kind authority instead of hardcoding
+                    # CommitTarget(ref=target_branch) (write-surface-coherence WP02 /
+                    # T032 / G-1 — no parallel routing hardcode for a planning file).
+                    _tasks_md_target = resolve_placement_only(
+                        main_repo_root, mission_slug, kind=MissionArtifactKind.TASKS_INDEX
+                    )
                     # Commit only the tasks.md file (preserves staging area)
                     commit_success = safe_commit(
                         repo_root=main_repo_root,
                         worktree_root=main_repo_root,
-                        target=CommitTarget(ref=target_branch),
+                        target=_tasks_md_target,
                         message=commit_msg,
                         paths=(actual_tasks_path,),
                         capability=GuardCapability.STANDARD,
@@ -3648,7 +3703,12 @@ def map_requirements(
         if auto_commit:
             from specify_cli.cli.commands.agent.mission import _resolve_planning_placement
 
-            commit_target = _resolve_planning_placement(main_repo_root, mission_slug)
+            # map-requirements edits WP prompt files → WORK_PACKAGE_TASK (primary)
+            # (write-surface-coherence WP02 / T009). Resolve the destination through
+            # the kind authority instead of the hardcoded target_branch above.
+            commit_target = _resolve_planning_placement(
+                main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+            )
         if auto_commit:
             protected_error = _protected_branch_status_commit_error(
                 commit_target.ref,
@@ -3867,10 +3927,17 @@ def map_requirements(
                 try:
                     from specify_cli.cli.commands.agent.mission import _planning_commit_worktree
 
+                    # map-requirements edits WP prompt files → WORK_PACKAGE_TASK
+                    # (a primary kind, write-surface-coherence WP03 / T014). The
+                    # partition-aware helper returns the primary checkout for a
+                    # primary kind, so the commit lands on the primary target_branch
+                    # (matching ``commit_target`` resolved above) with no coord
+                    # transit.
                     commit_worktree_root, commit_paths = _planning_commit_worktree(
                         main_repo_root,
                         mission_slug,
                         tuple(written_files),
+                        kind=MissionArtifactKind.WORK_PACKAGE_TASK,
                     )
                     # ``safe_commit`` returns a ``CommitResult`` whose
                     # ``worktree_root`` is a ``Path``; serialize it via

@@ -56,6 +56,7 @@ from typing import Any
 
 import pytest
 
+from mission_runtime import MissionArtifactKind
 from mission_runtime.resolution import resolve_placement_only
 from specify_cli.coordination.status_transition import (
     _current_branch,
@@ -333,7 +334,11 @@ def test_flat_every_adopted_fragment_resolves_to_base(
     assert _SlugResolver(fd)._mission_specs_root == fd.parent
 
     # --- placement / write-target fragment (branch_ref.destination_ref, FR-004) ---
-    placement = resolve_placement_only(primary.repo_root, primary.mission_slug)
+    # STATUS_STATE (coord-preserving) kind: flat topology → target_branch
+    # (write-surface-coherence WP02 / T031).
+    placement = resolve_placement_only(
+        primary.repo_root, primary.mission_slug, kind=MissionArtifactKind.STATUS_STATE
+    )
     assert placement.ref == primary.target_branch  # flat arm → target_branch
     # The adopted write-target resolver agrees and is CWD-invariant base, NOT HEAD.
     assert _resolve_write_target(primary.repo_root, primary.mission_slug, None) == (

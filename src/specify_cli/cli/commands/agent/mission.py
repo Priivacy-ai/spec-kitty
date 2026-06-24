@@ -15,6 +15,7 @@ from specify_cli.core.commit_guard import GuardCapability
 from mission_runtime import (
     ActionContextError,
     CommitTarget,
+    MissionArtifactKind,
     is_coordination_artifact_residue_path,
     resolve_topology,
     routes_through_coordination,
@@ -33,7 +34,7 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
-from typing import Annotated, Literal, cast
+from typing import Annotated, Any, Literal, cast
 
 from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.cli.selector_resolution import resolve_mission_handle, resolve_selector
@@ -433,16 +434,49 @@ def _utc_now_iso() -> str:
     return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def _read_feature_meta(feature_dir: Path) -> dict[str, object]:
-    """Read feature metadata when present."""
-    meta_file = feature_dir / "meta.json"
-    if not meta_file.exists():
-        return {}
-    try:
-        data = json.loads(meta_file.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return {}
-    return data if isinstance(data, dict) else {}
+def _read_feature_meta(feature_dir: Path) -> dict[str, Any]:
+    """Read feature metadata when present.
+
+    Routes through the canonical ``mission_metadata.load_meta`` authority
+    (FR-009 / SC-004) via the silent-empty adapter ``load_meta_or_empty``:
+    a missing *or* malformed ``meta.json`` degrades to ``{}`` -- never raises
+    (preserving the prior ``except (JSONDecodeError, OSError): return {}``).
+    """
+    from specify_cli.mission_metadata import load_meta_or_empty
+
+    # cast narrows the Any-valued return for warn_return_any; the canonical
+    # reader's contract guarantees a dict.
+    return cast("dict[str, Any]", load_meta_or_empty(feature_dir))
+
+
+def _read_meta_for_pr_bound(feature_dir: Path) -> dict[str, Any]:
+    """Read ``meta.json`` for the ``pr_bound`` write-back, silent-empty contract.
+
+    Routes through the canonical ``mission_metadata.load_meta`` authority
+    (FR-009 / SC-004) via ``load_meta_or_empty``: a missing *or* malformed file
+    degrades to ``{}`` so the write-back is skipped, preserving the prior
+    ``except (OSError, JSONDecodeError): pass`` (a corrupt meta never crashes
+    the create flow).
+    """
+    from specify_cli.mission_metadata import load_meta_or_empty
+
+    return cast("dict[str, Any]", load_meta_or_empty(feature_dir))
+
+
+def _read_meta_for_emission(feature_dir: Path) -> dict[str, Any] | None:
+    """Read ``meta.json`` for finalize-tasks event emission, silent-none contract.
+
+    Routes through the canonical ``mission_metadata.load_meta`` authority
+    (FR-009 / SC-004) with ``on_malformed="none"``: a missing *or* malformed
+    file degrades to ``None`` (the caller warns and skips emission), preserving
+    the prior ``except (JSONDecodeError, OSError)`` warn-and-continue behavior.
+    """
+    from specify_cli.mission_metadata import load_meta
+
+    return cast(
+        "dict[str, Any] | None",
+        load_meta(feature_dir, allow_missing=True, on_malformed="none"),
+    )
 
 
 def _resolve_feature_target_branch(feature_dir: Path, repo_root: Path) -> str:
@@ -733,7 +767,9 @@ def _resolve_record_analysis_placement_ref(repo_root: Path, feature_dir: Path) -
     return placement.placement_ref if placement is not None else None
 
 
-def _resolve_planning_placement(repo_root: Path, mission_slug: str) -> CommitTarget:
+def _resolve_planning_placement(
+    repo_root: Path, mission_slug: str, *, kind: MissionArtifactKind
+) -> CommitTarget:
     """Resolve the single planning-phase :class:`CommitTarget` for ``mission_slug``.
 
     WP05 / FR-003 / C-GUARD-3a (#1784): the ONE destination authority for every
@@ -743,10 +779,14 @@ def _resolve_planning_placement(repo_root: Path, mission_slug: str) -> CommitTar
     — so no planning commit path re-derives a destination from ``meta.json`` or
     the current git checkout (the catch-22 root). The placement is CWD-invariant
     and topology-correct (coordination / flattened / primary).
+
+    ``kind`` is REQUIRED (write-surface-coherence WP02): the projection is now
+    kind-aware, so the caller MUST name the artifact kind it is placing — a
+    primary kind lands on the primary target branch for every topology.
     """
     from mission_runtime import resolve_placement_only
 
-    return resolve_placement_only(repo_root, mission_slug)
+    return resolve_placement_only(repo_root, mission_slug, kind=kind)
 
 
 def _planning_commit_worktree(
@@ -754,6 +794,7 @@ def _planning_commit_worktree(
     mission_slug: str,
     paths: tuple[Path, ...],
     *,
+    kind: MissionArtifactKind = MissionArtifactKind.TASKS_INDEX,
     primary_paths_created_this_invocation: frozenset[Path] | None = None,
 ) -> tuple[Path, tuple[Path, ...]]:
     """Resolve the worktree a planning commit lands in for ``mission_slug``.
@@ -766,12 +807,25 @@ def _planning_commit_worktree(
     staging, skipping coord-owned status files, #1589). For a coord-less topology
     the destination is already HEAD of the main checkout, so it is used directly.
 
-    FR-005 / FR-001b: the coord-vs-primary routing decision reads the WP02 STORED
-    topology via the ONE canonical :func:`routes_through_coordination` predicate,
-    never a per-ref ``.kind is COORDINATION`` comparison (the retired arm).
+    write-surface-coherence WP03 / T014: this helper is now partition-aware. The
+    coord-staging body runs ONLY for coordination-partition artifact kinds; a
+    PRIMARY kind (the default — every caller here commits planning artifacts)
+    resolves to the primary ``target_branch`` for every topology, so it commits
+    directly from the primary checkout with NO coord transit (FR-003 / C-005).
+    This RETIRES the independent ``routes_through_coordination`` decision for
+    planning artifacts: the kind partition is the single routing authority, the
+    same one :func:`resolve_placement_only` consults.
 
     Returns ``(worktree_root, paths_to_commit)``.
     """
+    from mission_runtime import is_primary_artifact_kind
+
+    # PRIMARY kinds never transit coordination — commit directly from the primary
+    # checkout (write-surface-coherence WP03 / T014). The coord-staging body below
+    # is reached only by coordination-partition kinds (governed in WP05).
+    if is_primary_artifact_kind(kind):
+        return repo_root, paths
+
     if not routes_through_coordination(resolve_topology(repo_root, mission_slug)):
         return repo_root, paths
 
@@ -1044,6 +1098,33 @@ class CommitToBranchResult:
     diagnostic: str | None = None
 
 
+# write-surface-coherence WP02 (T007): the ``artifact_type`` string each caller
+# passes to :func:`_commit_to_branch` maps to a single canonical
+# :class:`~mission_runtime.MissionArtifactKind`. All of these are primary planning
+# kinds (they live with their mission on the primary surface), but the kind must
+# be NAMED, never guessed (DECISION 1) — an unmapped type raises so the gap is loud.
+_ARTIFACT_TYPE_TO_KIND: dict[str, MissionArtifactKind] = {
+    "spec": MissionArtifactKind.SPEC,
+    "plan": MissionArtifactKind.FINALIZED_EXECUTION_PLAN,
+    "tasks": MissionArtifactKind.TASKS_INDEX,
+}
+
+
+def _kind_for_artifact(artifact_type: str) -> MissionArtifactKind:
+    """Map a planning ``artifact_type`` string to its canonical artifact kind.
+
+    Raises ``KeyError`` (loud, not a silent ``SPEC`` default) when the type has no
+    mapping, so a new artifact type cannot silently mis-route (DECISION 1 spirit).
+    """
+    try:
+        return _ARTIFACT_TYPE_TO_KIND[artifact_type]
+    except KeyError as exc:
+        raise KeyError(
+            f"_commit_to_branch: no MissionArtifactKind mapped for artifact_type "
+            f"{artifact_type!r}; add it to _ARTIFACT_TYPE_TO_KIND (no silent default)."
+        ) from exc
+
+
 def _commit_to_branch(
     file_path: Path,
     mission_slug: str,
@@ -1095,6 +1176,7 @@ def _commit_to_branch(
         files=(file_path,),
         message=commit_msg,
         policy=policy,
+        kind=_kind_for_artifact(artifact_type),
         target_branch=_target_branch,
     )
 
@@ -1641,17 +1723,12 @@ def create_mission(
 
     # Persist pr_bound flag in meta.json (FR-033 schema addition).
     if pr_bound:
-        try:
-            meta_file = result.feature_dir / "meta.json"
-            if meta_file.exists():
-                meta_data = json.loads(meta_file.read_text(encoding="utf-8"))
-                if not meta_data.get("pr_bound"):
-                    meta_data["pr_bound"] = True
-                    from specify_cli.mission_metadata import write_meta
+        meta_data = _read_meta_for_pr_bound(result.feature_dir)
+        if meta_data and not meta_data.get("pr_bound"):
+            meta_data["pr_bound"] = True
+            from specify_cli.mission_metadata import write_meta
 
-                    write_meta(result.feature_dir, meta_data)
-        except (OSError, json.JSONDecodeError):
-            pass
+            write_meta(result.feature_dir, meta_data)
 
     # -- Output formatting (stays in the CLI layer) --
     if not json_output:
@@ -1927,6 +2004,11 @@ def record_analysis(
                 files=(result.path,),
                 message=f"Add analysis report for mission {_analysis_mission_slug}",
                 policy=_analysis_policy,
+                # ANALYSIS_REPORT is a COORD kind (write-surface-coherence WP02 /
+                # T008): the analysis report STAYS on the coordination branch under
+                # coord topology (C-001) — the explicit COORD caller proving the
+                # bifurcation. It must NOT be re-kinded to a primary kind.
+                kind=MissionArtifactKind.ANALYSIS_REPORT,
                 target_branch=get_feature_target_branch(repo_root, _analysis_mission_slug),
             )
 
@@ -2352,6 +2434,12 @@ def setup_plan(
                                     files=(gap_analysis_output, meta_file),
                                     message=f"Add gap analysis for feature {mission_slug}",
                                     policy=_gap_policy,
+                                    # Gap-analysis output + meta.json are primary
+                                    # planning artifacts (write-surface-coherence
+                                    # WP02 / T008); PRIMARY_METADATA names the
+                                    # identity anchor in the commit and routes to
+                                    # the primary target branch for every topology.
+                                    kind=MissionArtifactKind.PRIMARY_METADATA,
                                     target_branch=target_branch,
                                 )
                             if not json_output:
@@ -2395,6 +2483,10 @@ def setup_plan(
                             files=(meta_file,),
                             message=f"Update generator config for feature {mission_slug}",
                             policy=_gen_policy,
+                            # Generator config is persisted into meta.json →
+                            # PRIMARY_METADATA (write-surface-coherence WP02 / T008);
+                            # primary kind, lands on the primary target branch.
+                            kind=MissionArtifactKind.PRIMARY_METADATA,
                             target_branch=target_branch,
                         )
                 except Exception as gen_err:
@@ -3481,14 +3573,19 @@ def finalize_tasks(
         # Prepare metadata for event emission
         mission_slug = planning_dir.name
         meta_path = planning_dir / "meta.json"
-        meta = None
-        if meta_path.exists():
-            try:
-                meta = json.loads(meta_path.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError) as exc:
-                console.print(f"[yellow]Warning:[/yellow] Failed to read meta.json for event emission: {exc}")
-        else:
-            console.print("[yellow]Warning:[/yellow] meta.json missing; skipping MissionCreated emission")
+        # FR-009 / SC-004: route through the canonical load_meta authority
+        # (on_malformed="none") -- a missing or malformed meta.json degrades to
+        # None, and we warn + skip emission (behavior-neutral with the prior
+        # inline json.loads + except (JSONDecodeError, OSError) warn).
+        meta = _read_meta_for_emission(planning_dir)
+        if meta is None:
+            if meta_path.exists():
+                console.print(
+                    "[yellow]Warning:[/yellow] Failed to read meta.json for event "
+                    "emission (missing or malformed); skipping MissionCreated emission"
+                )
+            else:
+                console.print("[yellow]Warning:[/yellow] meta.json missing; skipping MissionCreated emission")
 
         # Local canonical TasksStarted (idempotent on mission_slug).
         # Recorded once finalize-tasks decides the mission has a usable WP
@@ -3833,6 +3930,10 @@ def finalize_tasks(
                     files=tuple(files_to_commit),
                     message=f"Add tasks for feature {mission_slug}",
                     policy=_tasks_policy,
+                    # finalize-tasks output (tasks.md + WP prompts + lanes.json) →
+                    # TASKS_INDEX (write-surface-coherence WP02 / T008); primary
+                    # kind, lands on the primary target branch for every topology.
+                    kind=MissionArtifactKind.TASKS_INDEX,
                     primary_paths_created_this_invocation=_primary_created,
                     target_branch=target_branch,
                 )

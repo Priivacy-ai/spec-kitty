@@ -29,6 +29,7 @@ from pathlib import Path
 
 import pytest
 
+from mission_runtime import MissionArtifactKind
 from mission_runtime.resolution import resolve_placement_only
 from specify_cli.coordination.status_transition import _repo_root_for_feature
 from specify_cli.coordination.surface_resolver import (
@@ -131,7 +132,11 @@ def test_coord_status_write_surface_is_coord_authority_never_primary(
     assert primary_surface_dir not in surface.parents
 
     # The placement / write-target is the coordination branch (C-TARGET coord arm).
-    placement = resolve_placement_only(coord.main_root, coord.mission_slug)
+    # The status write surface resolves with STATUS_STATE (coord-preserving) kind
+    # (write-surface-coherence WP02 / T031): coord topology keeps the coord branch.
+    placement = resolve_placement_only(
+        coord.main_root, coord.mission_slug, kind=MissionArtifactKind.STATUS_STATE
+    )
     assert placement.ref == coord.coord_branch
 
 

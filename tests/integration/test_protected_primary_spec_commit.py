@@ -43,6 +43,7 @@ from unittest.mock import patch
 
 import pytest
 
+from mission_runtime import MissionArtifactKind
 from specify_cli.coordination.commit_router import CommitRouterResult, commit_for_mission
 from specify_cli.git import protection_policy as _pp_module
 from specify_cli.git.protection_policy import ProtectionPolicy
@@ -129,17 +130,26 @@ class TestSpecCommitE2EOnProtectedPrimary:
     the positive assertions cannot pass on a materialiser no-op.
     """
 
-    def test_spec_commit_routes_to_coordination_branch(
+    def test_spec_commit_primary_kind_does_not_route_to_coordination(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Positive: spec-commit creates coord worktree and lands spec.md on coord branch.
+        """write-surface-coherence WP02 (FR-003 / C-005): SPEC does NOT route to coord.
 
-        Assertions:
-        1. coord worktree directory EXISTS after the command (created BY the command,
-           not pre-seeded).
-        2. spec.md is PRESENT in the coord worktree (staged/committed to coord branch).
-        3. Primary working tree is CLEAN (spec.md not staged on main).
-        4. ZERO ``SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS`` usage.
+        This row was RETIRED-AND-FLIPPED. Pre-WP02 ``spec-commit`` materialised the
+        coordination worktree and landed ``spec.md`` on the coord branch — the
+        "planning lives on coord" model this mission removes. SPEC is now a PRIMARY
+        artifact kind: ``commit_for_mission`` derives routing from the kind-aware
+        placement and a primary kind NEVER materialises the coord worktree.
+
+        The fixture's primary surface is a protected ``main`` with no feature
+        target, so the WP02 router returns the protected-ref refusal
+        (``no_op_wrong_surface``) rather than a coord commit. The DEADLOCK-FREE
+        landing for this protected-primary edge is FR-008 / WP03 (the refusal
+        message + safe-commit path are rewritten there); WP02 only proves the
+        planning→coord route is gone:
+
+        * the coordination worktree is NOT materialised, and
+        * the result is the protected-ref refusal, NOT a coord commit.
         """
         monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
 
@@ -147,40 +157,17 @@ class TestSpecCommitE2EOnProtectedPrimary:
         repo.assert_is_spec_kitty_project()
         repo.assert_target_is_protected()
 
-        feature_dir, spec_path = _seed_mission_on_protected_repo(repo)
+        _feature_dir, spec_path = _seed_mission_on_protected_repo(repo)
 
-        # Verify precondition: coord worktree does NOT exist before the command.
         coord_worktree = repo.repo_root / ".worktrees" / f"{_MISSION_SLUG}-{_MID8}-coord"
         assert not coord_worktree.exists(), (
             "Precondition violated: coord worktree must NOT exist before spec-commit."
         )
 
-        # Update spec.md with new content so there IS something to commit.
         spec_path.write_text("# Spec\n\nFR-001 must hold.\nFR-002 too.\n", encoding="utf-8")
 
-        # Patch _current_repo_root to point at our hermetic repo.
-        monkeypatch.setattr(
-            "specify_cli.cli.commands.spec_commit_cmd._current_repo_root",
-            lambda: repo.repo_root,
-        )
-
-        # Also patch resolve_placement_only to return COORDINATION for our mission.
-        from mission_runtime import CommitTarget
-
-        monkeypatch.setattr(
-            "specify_cli.coordination.commit_router.resolve_placement_only",
-            lambda _root, _slug: CommitTarget(
-                ref=_COORD_BRANCH,
-            ),
-        )
-
-        # Patch _resolve_mid8 to return our known mid8.
-        monkeypatch.setattr(
-            "specify_cli.coordination.commit_router._resolve_mid8",
-            lambda _root, _slug: _MID8,
-        )
-
-        # Run commit_for_mission directly (the canonical router the entrypoint delegates to).
+        # Run the SPEC commit through the canonical router with the real kind-aware
+        # resolver (NOT a coord-forcing stub): SPEC resolves to the primary target.
         policy = ProtectionPolicy.resolve(repo.repo_root)
         result = commit_for_mission(
             repo_root=repo.repo_root,
@@ -188,56 +175,45 @@ class TestSpecCommitE2EOnProtectedPrimary:
             files=(spec_path,),
             message="spec: FR-001 requirement",
             policy=policy,
+            kind=MissionArtifactKind.SPEC,
         )
 
-        # Assertion 1: coord worktree CREATED by the command (not pre-seeded).
-        assert coord_worktree.exists(), (
-            f"Coord worktree {coord_worktree} was not created by commit_for_mission. "
-            "Materialise-then-retry path did not engage."
+        # The planning→coord route is GONE: no coord worktree materialised.
+        assert not coord_worktree.exists(), (
+            "SPEC (primary kind) materialised the coordination worktree — the "
+            "planning→coord route was not removed (write-surface-coherence WP02)."
+        )
+        # On the protected-main fixture the primary target is refused (FR-008/WP03
+        # makes this land deadlock-free); the key WP02 assertion is that it is NOT
+        # a coord commit.
+        assert result.status == "no_op_wrong_surface", (
+            f"Expected a protected-ref refusal, got {result.status!r} "
+            f"(diagnostic={result.diagnostic!r})."
+        )
+        assert result.placement_ref != _COORD_BRANCH, (
+            f"SPEC commit resolved to the coord branch {result.placement_ref!r} — "
+            "the planning→coord route survived."
         )
 
-        # Assertion 2: result indicates committed (not unchanged/error).
-        assert result.status == "committed", (
-            f"Expected status='committed', got {result.status!r}. "
-            f"Diagnostic: {result.diagnostic!r}"
-        )
-        assert result.placement_ref == _COORD_BRANCH, (
-            f"Expected placement on {_COORD_BRANCH!r}, got {result.placement_ref!r}."
-        )
-
-        # Assertion 3: primary tree has no staged changes for spec.md (clean).
-        staged = _git_nocheck(repo.repo_root, "diff", "--cached", "--name-only").stdout
-        assert "spec.md" not in staged, (
-            f"spec.md found in primary staged area after spec-commit: {staged!r}. "
-            "The commit should have landed on the coord branch, not primary."
-        )
-
-        # Assertion 4: verify coord branch has the spec.md content.
-        coord_spec = coord_worktree / "kitty-specs" / _MISSION_SLUG / "spec.md"
-        assert coord_spec.exists(), (
-            f"spec.md not present in coord worktree at {coord_spec}. "
-            "Materialise-and-stage step did not copy the artifact."
-        )
-
-    def test_negative_commit_for_mission_is_load_bearing(
+    def test_negative_materialiser_is_load_bearing_for_coord_kind(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """NEGATIVE: bypass the materialiser → positive coord-placement assertion FAILS.
+        """NEGATIVE: bypass the materialiser on a COORD kind → coord placement FAILS.
 
-        This is the anti-fakeable proof: if ``_materialise_coord_worktree`` were
-        bypassed (returning the primary checkout instead of materialising the coord
-        worktree), the spec.md would land on the primary and the placement_ref would
-        not be the coord branch — the positive assertions above would go RED.
-
-        We stub ``_materialise_coord_worktree`` to return ``(repo_root, files)``
-        — the no-materialisation path — and confirm the result shows a NON-coord
-        placement (or a protection refusal), proving the positive test is load-bearing.
+        write-surface-coherence WP02 re-targets this anti-fakeable proof onto the
+        COORD path, which is where the materialiser is now load-bearing (primary
+        kinds no longer materialise). An ``ANALYSIS_REPORT`` (coord kind) under
+        coord topology MUST materialise the coordination worktree; if
+        ``_materialise_coord_worktree`` is bypassed (returns the primary checkout),
+        the commit cannot land on the coord branch — proving the coord-routing
+        path is not vacuously satisfied.
         """
         monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
 
         repo = build_protected_target_repo(tmp_path)
-        feature_dir, spec_path = _seed_mission_on_protected_repo(repo)
-        spec_path.write_text("# Spec\n\nFR-001 changed.\n", encoding="utf-8")
+        _feature_dir, spec_path = _seed_mission_on_protected_repo(repo)
+        report = _feature_dir / "analysis-report.md"
+        report.write_text("# Analysis\n\nNo blocking findings.\n", encoding="utf-8")
 
         import specify_cli.coordination.commit_router as commit_router_mod
         from mission_runtime import CommitTarget
@@ -258,28 +234,30 @@ class TestSpecCommitE2EOnProtectedPrimary:
         monkeypatch.setattr(
             commit_router_mod, "_materialise_coord_worktree", _bypass_materialiser
         )
+        # The kind-aware resolver returns the coord ref for a coord kind under
+        # coord topology; the router compares it against the primary target ("main"),
+        # so use_coord is True and the (bypassed) materialiser is engaged.
         monkeypatch.setattr(
             "specify_cli.coordination.commit_router.resolve_placement_only",
-            lambda _root, _slug: CommitTarget(
-                ref=_COORD_BRANCH,
-            ),
+            lambda _root, _slug, *, kind: CommitTarget(ref=_COORD_BRANCH),
+        )
+        monkeypatch.setattr(
+            "specify_cli.coordination.commit_router._resolve_primary_target_branch",
+            lambda _root, _slug: "main",
         )
 
         policy = ProtectionPolicy.resolve(repo.repo_root)
         result = commit_for_mission(
             repo_root=repo.repo_root,
             mission_slug=_MISSION_SLUG,
-            files=(spec_path,),
-            message="spec: FR-001",
+            files=(report,),
+            message="analysis: FR-001",
             policy=policy,
+            kind=MissionArtifactKind.ANALYSIS_REPORT,
         )
 
-        # NEGATIVE assertion: placement_ref must NOT be the coord branch.
-        # When the materialiser is bypassed, the commit goes to the primary (main),
-        # and safe_commit will either raise (HEAD mismatch) → result.status == "error",
-        # or the result placement_ref will not be the coord branch.
-        # Either way, the positive assertion ``result.placement_ref == _COORD_BRANCH``
-        # would FAIL — proving the positive test is NOT vacuously passing.
+        # NEGATIVE assertion: with the materialiser bypassed, the coord commit
+        # cannot succeed-on-coord — the positive coord-placement assertion fails.
         coord_worktree = repo.repo_root / ".worktrees" / f"{_MISSION_SLUG}-{_MID8}-coord"
         positive_would_pass = (
             result.status == "committed"
@@ -287,9 +265,9 @@ class TestSpecCommitE2EOnProtectedPrimary:
             and coord_worktree.exists()
         )
         assert not positive_would_pass, (
-            "NEGATIVE test failed: bypassing the materialiser still produced a result "
-            "that satisfies ALL positive assertions (committed + correct placement_ref "
-            "+ coord worktree exists). The positive test is therefore fakeable."
+            "NEGATIVE test failed: bypassing the materialiser still produced a "
+            "committed coord-branch result with a materialised worktree — the "
+            "coord-routing path is fakeable."
         )
 
 
@@ -395,6 +373,8 @@ def test_sibling_site_commit_for_mission_called_on_protected_primary(
                     files=(spec_path,),
                     message="spec: test",
                     policy=policy,
+                    # SPEC is a primary kind (write-surface-coherence WP02).
+                    kind=MissionArtifactKind.SPEC,
                 )
             # Direct call — the stub itself is what we called, so count = 1 here via the stub.
             # We assert the router returns the committed result (no-error).
@@ -529,6 +509,8 @@ def test_sibling_site_negative_no_op_materialiser_breaks_positive(
                     files=(spec_path,),
                     message="spec: test",
                     policy=policy,
+                    # SPEC is a primary kind (write-surface-coherence WP02).
+                    kind=MissionArtifactKind.SPEC,
                 )
             coord_worktree = repo.repo_root / ".worktrees" / f"{slug}-{mid8}-coord"
             positive_would_pass = (

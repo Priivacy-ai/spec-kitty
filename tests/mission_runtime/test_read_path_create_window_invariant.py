@@ -382,6 +382,7 @@ class TestCreateWindowCommitBoundaryNFR001:
         """
         from specify_cli.missions._read_path_resolver import resolve_handle_to_read_path
         from specify_cli.coordination import workspace as ws_module
+        from mission_runtime import MissionArtifactKind
         from specify_cli.coordination.commit_router import commit_for_mission
         from specify_cli.git.protection_policy import ProtectionPolicy
         from mission_runtime import CommitTarget
@@ -415,15 +416,21 @@ class TestCreateWindowCommitBoundaryNFR001:
         spec_path = primary_dir / "spec.md"
         spec_path.write_text("# Spec\n\nFirst write.\n", encoding="utf-8")
 
-        # Stub resolve_placement_only to return COORDINATION so commit_for_mission
-        # actually tries to materialise (normal path on a protected primary).
+        # Stub the kind-aware resolver to return COORDINATION so commit_for_mission
+        # actually tries to materialise (the coord path on a protected primary). A
+        # COORD kind (ANALYSIS_REPORT) is used because write-surface-coherence WP02
+        # routes primary kinds straight to the primary surface (no materialisation);
+        # the materialisation-at-commit-boundary invariant lives on the coord path.
         _coord_branch = f"kitty/mission-{_MISSION_DIR}"
+        report_path = primary_dir / "analysis-report.md"
+        report_path.write_text("# Analysis\n\nFirst write.\n", encoding="utf-8")
 
         with patch(
             "specify_cli.coordination.commit_router.resolve_placement_only",
-            lambda _root, _slug: CommitTarget(
-                ref=_coord_branch,
-            ),
+            lambda _root, _slug, *, kind: CommitTarget(ref=_coord_branch),
+        ), patch(
+            "specify_cli.coordination.commit_router._resolve_primary_target_branch",
+            lambda _root, _slug: "main",
         ), patch(
             "specify_cli.coordination.commit_router._resolve_mid8",
             lambda _root, _slug: _MID8,
@@ -433,9 +440,10 @@ class TestCreateWindowCommitBoundaryNFR001:
             commit_for_mission(
                 repo_root=tmp_path,
                 mission_slug=_BARE_SLUG,
-                files=(spec_path,),
-                message="spec: first write",
+                files=(report_path,),
+                message="analysis: first write",
                 policy=policy,
+                kind=MissionArtifactKind.ANALYSIS_REPORT,
             )
 
         calls_after_commit = len(materialise_calls)

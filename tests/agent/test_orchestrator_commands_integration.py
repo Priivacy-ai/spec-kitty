@@ -1097,7 +1097,18 @@ class TestAppendHistory:
         assert data["data"]["unexpected"] == [{"path": "unrelated.txt", "status_code": "A "}]
         assert wp_path.read_text(encoding="utf-8") == original
 
-    def test_branch_lookup_failure_captures_git_stderr_in_json(self, tmp_path):
+    def test_commit_failure_captures_error_in_json_and_restores_wp(self, tmp_path):
+        """A commit-time git failure surfaces as a JSON error and restores the WP file.
+
+        write-surface-coherence WP03 / T013: the WP prompt file is a primary kind
+        committed directly to the primary ``target_branch`` (no coord transit). In
+        a NON-git fixture the placement resolves to ``main`` but ``safe_commit``
+        then refuses because the checkout is not a git worktree
+        (``SAFE_COMMIT_NOT_A_WORKTREE``). The endpoint must still capture the
+        failure as a structured JSON error (a ``SafeCommitError`` code) and roll
+        the WP file back — the resilience contract the prior test pinned, now via
+        the primary-direct commit path.
+        """
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         wp_path = mission_dir / "tasks" / "WP01.md"
         original = wp_path.read_text(encoding="utf-8")
@@ -1125,8 +1136,12 @@ class TestAppendHistory:
         assert result.stderr == ""
         data = json.loads(result.output)
         assert data["success"] is False
-        assert data["error_code"] == "HISTORY_COMMIT_FAILED"
-        assert "fatal: not a git repository" in data["data"]["message"]
+        # A commit-time failure surfaces as a structured error code (the WP file
+        # never lands) and the WP file is rolled back unchanged.
+        assert data["error_code"] in {
+            "SAFE_COMMIT_NOT_A_WORKTREE",
+            "HISTORY_COMMIT_FAILED",
+        }, data
         assert wp_path.read_text(encoding="utf-8") == original
 
     def test_wp_not_found_error(self, tmp_path):

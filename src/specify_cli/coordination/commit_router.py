@@ -32,11 +32,27 @@ from typing import Literal, Protocol, runtime_checkable
 
 from mission_runtime import (
     CommitTarget,
+    MissionArtifactKind,
+    is_primary_artifact_kind,
     resolve_placement_only,
     resolve_topology,
     routes_through_coordination,
 )
 from specify_cli.git import safe_commit
+
+
+class PrimaryKindReachedCoordStagingError(RuntimeError):
+    """A PRIMARY-partition kind reached the coordination staging path (DECISION 8).
+
+    write-surface-coherence WP05 / FR-005 / C-004: once planning no longer transits
+    the coordination worktree (WP02/WP03), the coord-staging helpers are reachable
+    ONLY for coordination-partition writes. A ``_PRIMARY_ARTIFACT_KINDS`` member
+    arriving at :func:`_materialise_coord_worktree` / the staging helper would mean
+    a planning artifact is being staged onto the coordination branch — the exact
+    mis-route the partition was built to forbid. This is raised (not asserted, so
+    the invariant holds under ``python -O``) to keep "planning never reaches coord
+    staging" an ENFORCED invariant rather than a comment.
+    """
 
 
 @runtime_checkable
@@ -86,14 +102,16 @@ def commit_for_mission(
     message: str,
     policy: _ProtectionPolicyProtocol,
     *,
+    kind: MissionArtifactKind,
     primary_paths_created_this_invocation: frozenset[Path] | None = None,
     target_branch: str | None = None,
 ) -> CommitRouterResult:
-    """Commit planning artifacts to the mission's resolved placement.
+    """Commit a mission artifact to its kind-aware resolved placement.
 
     This is the single canonical commit entry point for all planning-phase
-    artifacts (spec, plan, tasks, gap-analysis, generator-config). It replaces
-    the formerly open-coded inline tails in ``agent/mission.py``.
+    artifacts (spec, plan, tasks, gap-analysis, generator-config) and the
+    coordination-owned ones (analysis-report, acceptance meta). It replaces the
+    formerly open-coded inline tails in ``agent/mission.py``.
 
     Args:
         repo_root:   Primary checkout root (where ``kitty-specs/`` lives).
@@ -104,6 +122,14 @@ def commit_for_mission(
                      instance (accepted via the structural
                      :class:`_ProtectionPolicyProtocol` to avoid a circular import;
                      duck-typed via ``is_protected``).
+        kind:        The :class:`~mission_runtime.MissionArtifactKind` being
+                     committed. REQUIRED keyword (DECISION 1 / write-surface-coherence
+                     WP02): there is no default, mirroring the now-required
+                     ``resolve_placement_only`` kind. A primary kind resolves to
+                     the primary ``target_branch`` for every topology and NEVER
+                     routes through coordination; a coordination kind keeps the
+                     topology-routed placement. An un-threaded caller fails to
+                     typecheck rather than silently mis-routing (FR-003 / C-005).
         primary_paths_created_this_invocation: Paths the caller materialised this
                      invocation (eligible for residue cleanup after staging, R6).
         target_branch: Short primary branch name for the post-commit ff-advance
@@ -113,26 +139,41 @@ def commit_for_mission(
     Returns:
         :class:`CommitRouterResult` with the typed outcome.
     """
-    placement: CommitTarget = resolve_placement_only(repo_root, mission_slug)
+    placement: CommitTarget = resolve_placement_only(repo_root, mission_slug, kind=kind)
 
-    # Determine whether the placement needs coordination routing. The decision
-    # reads the WP02 STORED topology via the ONE canonical predicate (FR-005 /
-    # FR-001b) — never a per-ref ``.kind`` (the retired transitional arm). A
-    # coord-routing topology materialises the coord worktree (C-001); the policy
-    # is still checked to guard against committing directly to a protected PRIMARY
-    # ref on a flattened/primary placement (FR-005).
-    use_coord = routes_through_coordination(resolve_topology(repo_root, mission_slug))
+    # FR-003 / C-005 / NFR-004: derive coord-vs-primary routing from the ONE
+    # kind-aware ``placement`` (the single authority), not a second predicate.
+    # The placement already encodes the partition: a ``_PRIMARY_ARTIFACT_KINDS``
+    # member resolves to the primary ``target_branch`` for EVERY topology shape,
+    # so it is a direct primary commit; every other kind keeps the topology-routed
+    # destination ref. ``use_coord`` is True iff the mission routes through
+    # coordination AND the kind-aware placement did NOT land on the primary target
+    # branch — i.e. only coordination kinds materialise the coord worktree (C-001).
+    # A primary kind therefore NEVER routes to coordination even under coord
+    # topology — this removes the planning→coord arm (write-surface-coherence WP02).
+    primary_target = _resolve_primary_target_branch(repo_root, mission_slug)
+    use_coord = (
+        routes_through_coordination(resolve_topology(repo_root, mission_slug))
+        and placement.ref != primary_target
+    )
 
     if not use_coord and policy.is_protected(placement.ref):
-        # Flattened or primary placement on a protected ref — surface a refusal
-        # with the actionable recover command (T008) rather than an opaque error.
+        # Primary placement on a protected ref — refused (FR-008 / G-4). A
+        # planning artifact resolves to the primary ``target_branch``; when that
+        # ref is protected the commit is refused with guidance to start a feature
+        # branch. The planning→coord transit is GONE (FR-003 / C-005 /
+        # write-surface-coherence WP03 T015), so the remedy is a feature branch,
+        # NOT the coordination worktree: the deadlock is removed by the
+        # feature-branch invariant (research D-3), not by transiting coord.
         return CommitRouterResult(
             status="no_op_wrong_surface",
             placement_ref=placement.ref,
             diagnostic=(
-                f"Refusing direct commit to protected ref '{placement.ref}'. "
-                f"Run 'spec-kitty spec-commit --mission {mission_slug} ...' to "
-                f"route through the coordination worktree."
+                f"Refusing to commit planning artifacts to the protected branch "
+                f"'{placement.ref}'. Start a non-protected feature branch and "
+                f"commit there: 'spec-kitty mission create --start-branch "
+                f"<feature-branch>' (or check out an existing feature branch). "
+                f"Planning artifacts must land on a feature branch."
             ),
         )
 
@@ -142,6 +183,7 @@ def commit_for_mission(
             mission_slug,
             placement,
             files,
+            kind=kind,
             primary_paths_created_this_invocation=primary_paths_created_this_invocation,
         )
     else:
@@ -195,7 +237,14 @@ def commit_for_mission(
     if commit_result is not None and hasattr(commit_result, "sha"):
         commit_hash = commit_result.sha
 
-    # WP09 / FR-010 (#1878): best-effort ff-advance after a coord write.
+    # WP09 / FR-010 (#1878): best-effort ff-advance after a coord write. This
+    # fires ONLY on the coord branch (``use_coord`` True ⇒ a coordination kind),
+    # so it now advances ``target_branch`` to a STATUS/bookkeeping-only coord HEAD
+    # (write-surface-coherence WP05 / FR-005): planning no longer transits coord,
+    # so the coord HEAD never mixes planning+status. The
+    # ``coord_owned_filenames=COORD_OWNED_STATUS_FILES`` exclusion in
+    # ``_try_advance_ref`` still matches exactly what a status-only coord write
+    # produces — no behaviour change for status writes; the planning case is gone.
     if use_coord and target_branch:
         _try_advance_ref(repo_root, target_branch, worktree_root)
 
@@ -211,12 +260,29 @@ def commit_for_mission(
 # ---------------------------------------------------------------------------
 
 
+def _resolve_primary_target_branch(repo_root: Path, mission_slug: str) -> str:
+    """Resolve the mission's PRIMARY ``target_branch`` ref.
+
+    This is the SAME ref ``resolve_placement_only`` returns for a primary kind
+    (it reads ``get_feature_target_branch`` internally), so comparing the
+    kind-aware ``placement.ref`` against it cleanly separates a primary commit
+    (``placement.ref == primary_target``) from a coordination one. Resolving it
+    here keeps ``use_coord`` derived from the ONE kind-aware placement authority
+    (NFR-004) rather than re-deriving the partition.
+    """
+    from specify_cli.core.paths import get_feature_target_branch
+
+    primary_target: str = get_feature_target_branch(repo_root, mission_slug)
+    return primary_target
+
+
 def _materialise_coord_worktree(
     repo_root: Path,
     mission_slug: str,
     _placement: object,
     files: tuple[Path, ...],
     *,
+    kind: MissionArtifactKind,
     primary_paths_created_this_invocation: frozenset[Path] | None = None,
 ) -> tuple[Path, tuple[Path, ...]]:
     """Resolve (materialise on demand) the coordination worktree and stage artifacts.
@@ -233,11 +299,27 @@ def _materialise_coord_worktree(
                       future callers. Resolution goes through
                       ``CoordinationWorkspace`` internally.
         files:        Artifacts to stage in the coord worktree.
+        kind:         The artifact kind being staged. DECISION 8 runtime guard
+                      (write-surface-coherence WP05): a PRIMARY-partition kind must
+                      NEVER reach coord staging — only coordination kinds do after
+                      WP02/WP03 removed the planning→coord route. Reaching here with
+                      a primary kind raises :class:`PrimaryKindReachedCoordStagingError`.
         primary_paths_created_this_invocation: Eligible residue paths (R6).
 
     Returns:
         ``(coord_worktree, coord_paths)`` on success; ``(repo_root, files)`` on error.
     """
+    # DECISION 8 / FR-005 / C-004: enforce the partition invariant at the coord
+    # staging boundary. ``commit_for_mission`` only routes coordination kinds here
+    # (``use_coord`` is False for primary kinds), so a primary kind arriving means a
+    # caller mis-routed a planning artifact onto the coordination branch — fail loud.
+    if is_primary_artifact_kind(kind):
+        raise PrimaryKindReachedCoordStagingError(
+            f"PRIMARY-partition kind {kind!r} reached coordination staging for "
+            f"mission {mission_slug!r}; planning artifacts must commit directly to "
+            f"the primary target branch and never transit the coordination worktree."
+        )
+
     from specify_cli.coordination.workspace import CoordinationWorkspace
 
     mid8 = _resolve_mid8(repo_root, mission_slug)
@@ -392,4 +474,7 @@ def _try_advance_ref(
         )
 
 
-__all__ = ["CommitRouterResult", "commit_for_mission"]
+__all__ = [
+    "CommitRouterResult",
+    "commit_for_mission",
+]

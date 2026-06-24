@@ -26,6 +26,7 @@ import pytest
 from mission_runtime import (
     ActionContextError,
     CommitTarget,
+    MissionArtifactKind,
     resolve_action_context,
     resolve_placement_only,
     resolve_topology,
@@ -33,6 +34,13 @@ from mission_runtime import (
 )
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
+
+# These parity tests assert the TOPOLOGY-routed destination is byte-identical to
+# the full resolver's ``destination_ref``. ``STATUS_STATE`` is a coordination
+# (topology-routed) kind, so it keeps that destination across all topologies —
+# the parity invariant these tests pin (WP01 made ``kind`` required; the
+# kind-aware primary partition is covered in ``test_artifact_partition.py``).
+_TOPOLOGY_ROUTED_KIND = MissionArtifactKind.STATUS_STATE
 
 _MISSION_SLUG = "wp05-placement-mission"
 _MISSION_ID = "01WP05PLACEMENTPARITY00001"
@@ -99,7 +107,7 @@ def test_flattened_topology_parity(repo: Path) -> None:
     _build_mission(repo, target_branch="feat/some-non-protected-branch")
     _commit_fixture(repo)
 
-    placement = resolve_placement_only(repo, _MISSION_SLUG)
+    placement = resolve_placement_only(repo, _MISSION_SLUG, kind=_TOPOLOGY_ROUTED_KIND)
 
     assert placement == _full_resolver_placement(repo)
     # FR-001b: routing is decided from the STORED topology, not a per-ref enum —
@@ -124,7 +132,7 @@ def test_coordination_topology_parity(repo: Path) -> None:
     # ("name proposes, authority disposes") resolves COORDINATION.
     _git(repo, "branch", coord)
 
-    placement = resolve_placement_only(repo, _MISSION_SLUG)
+    placement = resolve_placement_only(repo, _MISSION_SLUG, kind=_TOPOLOGY_ROUTED_KIND)
 
     assert placement == _full_resolver_placement(repo)
     # A declared+materialized coordination branch routes through coordination
@@ -148,7 +156,7 @@ def test_protected_main_with_coordination_branch_parity(repo: Path) -> None:
     # than raising CoordinationBranchDeleted (R3) on an absent ref.
     _git(repo, "branch", coord)
 
-    placement = resolve_placement_only(repo, _MISSION_SLUG)
+    placement = resolve_placement_only(repo, _MISSION_SLUG, kind=_TOPOLOGY_ROUTED_KIND)
 
     assert placement == _full_resolver_placement(repo)
     assert routes_through_coordination(resolve_topology(repo, _MISSION_SLUG)) is True
@@ -167,7 +175,7 @@ def test_protected_main_flattened_returns_protected_ref(repo: Path) -> None:
     _build_mission(repo, target_branch="main")
     _commit_fixture(repo)
 
-    placement = resolve_placement_only(repo, _MISSION_SLUG)
+    placement = resolve_placement_only(repo, _MISSION_SLUG, kind=_TOPOLOGY_ROUTED_KIND)
 
     assert placement == _full_resolver_placement(repo)
     assert routes_through_coordination(resolve_topology(repo, _MISSION_SLUG)) is False
@@ -181,9 +189,9 @@ def test_protected_main_flattened_returns_protected_ref(repo: Path) -> None:
 
 def test_empty_mission_slug_raises(repo: Path) -> None:
     with pytest.raises(ActionContextError):
-        resolve_placement_only(repo, "")
+        resolve_placement_only(repo, "", kind=_TOPOLOGY_ROUTED_KIND)
 
 
 def test_whitespace_mission_slug_raises(repo: Path) -> None:
     with pytest.raises(ActionContextError):
-        resolve_placement_only(repo, "   ")
+        resolve_placement_only(repo, "   ", kind=_TOPOLOGY_ROUTED_KIND)

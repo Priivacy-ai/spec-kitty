@@ -43,6 +43,8 @@ from mission_runtime.artifacts import (
     MissionArtifactKind,
     artifact_home_for,
     is_coordination_artifact_residue_path,
+    is_primary_artifact_kind,
+    kind_for_mission_file,
 )
 from mission_runtime.resolution import (
     ActionContextError,
@@ -67,6 +69,8 @@ __all__ = [
     "artifact_home_for",
     "classify_topology",
     "is_coordination_artifact_residue_path",
+    "is_primary_artifact_kind",
+    "kind_for_mission_file",
     "resolve_action_context",
     "resolve_placement_only",
     "resolve_topology",

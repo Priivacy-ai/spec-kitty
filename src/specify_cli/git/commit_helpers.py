@@ -282,8 +282,10 @@ class ProtectedBranchRefused(SafeCommitError):
         message = (
             f"safe_commit: refusing to commit to protected branch "
             f"{destination_ref!r} in {worktree_root}. "
-            f"Use the coordination worktree at .worktrees/<slug>-<mid8>-coord/, "
-            f"or land via the mission lane worktree."
+            f"Start a non-protected feature branch and commit there "
+            f"('spec-kitty mission create --start-branch <feature-branch>', or "
+            f"check out an existing feature branch). Planning artifacts must land "
+            f"on a feature branch, or land via the mission lane worktree."
         )
         super().__init__(
             message,

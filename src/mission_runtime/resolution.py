@@ -22,6 +22,10 @@ from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Any, Literal, cast, get_args
 
+from mission_runtime.artifacts import (
+    MissionArtifactKind,
+    _PRIMARY_ARTIFACT_KINDS,
+)
 from mission_runtime.context import (
     ArtifactPlacementFragment,
     BranchRefFragment,
@@ -1010,8 +1014,13 @@ def _assemble_artifact_placement_fragment(
     return ArtifactPlacementFragment(placement_ref=branch_ref.destination_ref)
 
 
-def resolve_placement_only(repo_root: Path, mission_slug: str) -> CommitTarget:
-    """Resolve the planning-phase :class:`CommitTarget` for a mission (FR-003).
+def resolve_placement_only(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    kind: MissionArtifactKind,
+) -> CommitTarget:
+    """Resolve the placement :class:`CommitTarget` for a mission artifact ``kind``.
 
     The **WP-less placement projection** (IC-04 / C-GUARD-3a): the planning
     phase (specify / plan / tasks / finalize-tasks) has no ``wp_id`` — no work
@@ -1034,14 +1043,28 @@ def resolve_placement_only(repo_root: Path, mission_slug: str) -> CommitTarget:
     there cleanly, with no "switch to the lane branch before lanes exist"
     refusal-to-nowhere.
 
+    The projection is now kind-aware (write-surface-coherence WP01, FR-002 /
+    FR-004): the READ side (:func:`artifact_home_for`) has routed by kind since
+    #2090; this WRITE-side projection now agrees. A ``_PRIMARY_ARTIFACT_KINDS``
+    member (spec / data-model / research / checklist / finalized plan /
+    tasks-index / WP task / lanes / metadata) resolves to the primary
+    ``target_branch`` for EVERY topology shape; every other kind keeps the
+    topology-routed ``destination_ref`` (the coordination branch under
+    coordination topology, else the target branch). ``kind`` is a REQUIRED
+    keyword (DECISION 1): there is no default, so an un-threaded call site fails
+    at the type/import level rather than silently flipping coord→primary.
+
     Args:
         repo_root: Repository root (resolved to the canonical primary root by
             the shared builder, so the result is CWD-invariant).
         mission_slug: The mission directory name / slug.
+        kind: The mission artifact kind being placed. REQUIRED — no default;
+            its partition membership selects the primary vs topology-routed ref.
 
     Returns:
-        The single :class:`CommitTarget` (``ref`` + topology ``kind``) planning
-        artifacts commit to — the same value object status events resolve to.
+        The single :class:`CommitTarget` the artifact commits to — the primary
+        ``target_branch`` ref for a primary kind, else the topology-routed
+        ``destination_ref`` (the value object status events resolve to).
 
     Raises:
         ActionContextError: when the mission slug cannot be resolved (no silent
@@ -1098,11 +1121,18 @@ def resolve_placement_only(repo_root: Path, mission_slug: str) -> CommitTarget:
         topology=topology,
         cwd=None,
     )
-    # The placement ref is the SAME CommitTarget the full resolver projects via
+    # FR-002 / FR-004 (write-surface-coherence WP01): the projection is
+    # kind-aware. A ``_PRIMARY_ARTIFACT_KINDS`` member routes to the primary
+    # ``target_branch`` already resolved above (via ``get_feature_target_branch``)
+    # for EVERY topology shape, so planning + identity artifacts live with their
+    # mission on the primary surface. Every other kind keeps the topology-routed
+    # ``destination_ref`` — the SAME CommitTarget the full resolver projects via
     # ``_assemble_artifact_placement_fragment`` (C-PLACE-1): one authority, two
-    # projections. We return the ``destination_ref`` directly rather than wrap it
-    # in an ArtifactPlacementFragment because planning callers want the bare
-    # CommitTarget to hand to ``safe_commit(target=...)``.
+    # projections. We return a bare CommitTarget rather than an
+    # ArtifactPlacementFragment because planning callers hand it straight to
+    # ``safe_commit(target=...)``.
+    if kind in _PRIMARY_ARTIFACT_KINDS:
+        return CommitTarget(ref=target_branch)
     return branch_ref.destination_ref
 
 

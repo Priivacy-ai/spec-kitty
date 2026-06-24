@@ -36,11 +36,7 @@ from typing import NoReturn
 
 import typer
 
-from mission_runtime import (
-    CommitTarget,
-    resolve_topology,
-    routes_through_coordination,
-)
+from mission_runtime import CommitTarget
 from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.git.commit_helpers import (
     SafeCommitBackstopError,
@@ -790,10 +786,23 @@ def _lane_base_ref(main_repo_root: Path, mission: str, manifest: object) -> str:
     that difference as long as the base is an ancestor of HEAD, which holds for
     both.
     """
-    from mission_runtime import ActionContextError, resolve_placement_only
+    from mission_runtime import (
+        ActionContextError,
+        MissionArtifactKind,
+        resolve_placement_only,
+    )
 
     try:
-        return str(resolve_placement_only(main_repo_root, mission).ref)
+        # base-ref read under coord topology — coord kind preserves G-2
+        # (write-surface-coherence WP02 / T031 site 4): the lane-base gate compares
+        # against the coordination BASE ref under coord topology. STATUS_STATE keeps
+        # the coord ref; a primary kind would read the primary ref as the base and
+        # corrupt the gate's `rev-list <base>..HEAD` ancestry check.
+        return str(
+            resolve_placement_only(
+                main_repo_root, mission, kind=MissionArtifactKind.STATUS_STATE
+            ).ref
+        )
     except ActionContextError:
         # Never return an empty ref: the commit gate runs `git rev-list <base>..HEAD`,
         # and an empty base silently degrades to an unreliable HEAD..HEAD. Fall back to
@@ -1258,40 +1267,38 @@ def transition(
 
 
 def _resolve_history_commit_args(
-    main_repo_root: Path, mission: str, mission_dir: Path
+    main_repo_root: Path, mission: str
 ) -> tuple[Path, CommitTarget]:
     """Resolve (worktree_root, target) for committing a WP prompt-file edit.
 
-    The WP prompt file is a planning artifact, so it commits to the same place
-    status events do — the canonical target from ``resolve_placement_only``.
-
-    Under coordination topology that target is the per-mission coordination
-    branch, and the file physically lives in the coordination worktree. It must
-    therefore be committed from that worktree: staging a
-    ``.worktrees/<mission>-coord/...`` path from the primary checkout is exactly
-    what trips ``SAFE_COMMIT_PATH_POLICY``. ``mission_dir`` already resolves to
-    ``<worktree_root>/kitty-specs/<mission>`` for whichever topology is active,
-    so its grandparent is the worktree the file lives in — the coordination
-    worktree under coord topology, the primary checkout otherwise.
+    The WP prompt file is a ``WORK_PACKAGE_TASK`` — a PRIMARY artifact kind
+    (write-surface-coherence WP03 / T013). So it commits to the primary
+    ``target_branch`` for every topology, via the kind-aware
+    :func:`resolve_placement_only`, NOT through the coordination worktree: the
+    planning→coord transit is removed (FR-003 / C-005). The WP prompt edit is
+    committed directly from the primary checkout.
 
     For flat/flattened (or unresolvable) missions the prior behaviour is kept:
     commit from the primary checkout on its current branch.
     """
-    from mission_runtime import ActionContextError, resolve_placement_only
+    from mission_runtime import (
+        ActionContextError,
+        MissionArtifactKind,
+        resolve_placement_only,
+    )
 
     try:
-        placement = resolve_placement_only(main_repo_root, mission)
+        # WORK_PACKAGE_TASK is a primary kind: the placement resolves to the
+        # primary target branch for every topology (no coord transit). The WP
+        # prompt edit therefore commits directly to the primary checkout.
+        placement = resolve_placement_only(
+            main_repo_root, mission, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+        )
     except ActionContextError:
         placement = None
 
-    # FR-005 / FR-001b: the coord-vs-primary routing decision reads the WP02
-    # STORED topology via the ONE canonical predicate, never a per-ref ``.kind``.
-    routes_coord = placement is not None and routes_through_coordination(
-        resolve_topology(main_repo_root, mission)
-    )
-    if placement is not None and routes_coord:
-        coord_worktree_root = mission_dir.parent.parent
-        return coord_worktree_root, placement
+    if placement is not None:
+        return main_repo_root, placement
 
     current_branch = subprocess.check_output(
         ["git", "-C", str(main_repo_root), "branch", "--show-current"],
@@ -1314,9 +1321,18 @@ def append_history(
     cmd = "append-history"
 
     main_repo_root = _get_main_repo_root()
-    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+    # Existence/identity gate via the coord-aware read seam (typed miss envelope).
+    _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
 
-    wp_path = _resolve_wp_file(mission_dir / "tasks", wp)
+    # FR-003 / T013: the WP prompt file is a WORK_PACKAGE_TASK (primary kind), so
+    # it is authored and committed on the PRIMARY checkout — never the coordination
+    # worktree (the planning→coord transit is removed, C-005). Resolve the WP file
+    # from the primary feature dir so the edit lands on the primary surface; a
+    # coord-anchored path would trip SAFE_COMMIT_PATH_POLICY (.worktrees/ staging).
+    from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+
+    primary_mission_dir = primary_feature_dir_for_mission(main_repo_root, mission)
+    wp_path = _resolve_wp_file(primary_mission_dir / "tasks", wp)
     if wp_path is None:
         _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
         return
@@ -1338,7 +1354,7 @@ def append_history(
         wp_path.write_text(build_document(fm, new_body, padding), encoding="utf-8")
 
         commit_worktree_root, commit_target = _resolve_history_commit_args(
-            main_repo_root, mission, mission_dir
+            main_repo_root, mission
         )
         safe_commit(
             repo_root=main_repo_root,
@@ -1380,7 +1396,7 @@ def append_history(
     entry_id = "hist-" + uuid.uuid4().hex
 
     data = {
-        **_mission_identity_payload(mission_dir),
+        **_mission_identity_payload(primary_mission_dir),
         "wp_id": wp,
         "history_entry_id": entry_id,
     }

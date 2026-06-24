@@ -286,14 +286,22 @@ def _seed_conflict_repo(repo: Path, conflict_rel: str) -> tuple[str, Path]:
 
 @pytest.mark.parametrize(
     "artifact_name",
-    ["plan.md", "issue-matrix.md", "analysis-report.md"],
+    ["issue-matrix.md", "analysis-report.md"],
 )
 def test_take_theirs_recognizes_previously_omitted_residue_member(
     tmp_path: Path, artifact_name: str
 ) -> None:
-    """T026: the three residue members the drifting local subset omitted are
-    now treated as coordination-owned ("take theirs" wins) — drawn from the
-    single authority, not a hardcoded literal."""
+    """T026: the COORD-partition residue members the drifting local subset omitted
+    are treated as coordination-owned ("take theirs" wins) — drawn from the single
+    authority, not a hardcoded literal.
+
+    write-surface-coherence WP01-04 narrowed the residue authority: ``plan.md``
+    (``FINALIZED_EXECUTION_PLAN``) and the other planning/finalized kinds are now
+    PRIMARY-partition artifacts that live on ``target_branch``, so they are NO
+    LONGER coordination residue and the take-theirs arm must not swallow them
+    (asserted by ``test_take_theirs_does_not_swallow_primary_planning_conflict``).
+    Only genuinely COORD-partition members (``issue-matrix.md`` →
+    ``ISSUE_MATRIX``, ``analysis-report.md`` → ``ANALYSIS_REPORT``) remain here."""
     repo = tmp_path / "repo"
     _init_git_repo(repo)
     conflict_rel = f"kitty-specs/{MISSION_SLUG}/{artifact_name}"
@@ -350,6 +358,41 @@ def test_take_theirs_does_not_swallow_non_residue_source_conflict(
     # spec.md is deliberately NOT coordination-owned residue (the authority's
     # docstring: spec.md still blocks). A plain prose conflict the classifier
     # has no rule for must surface as a Manual halt, not a silent take-theirs.
+    assert report.succeeded is False
+    rule_ids = {
+        c.resolution.rule_id
+        for c in report.classifications
+        if hasattr(c.resolution, "rule_id")
+    }
+    assert "R-COORDINATION-ARTIFACT-THEIRS" not in rule_ids
+
+
+def test_take_theirs_does_not_swallow_primary_planning_conflict(
+    tmp_path: Path,
+) -> None:
+    """write-surface-coherence WP01-04 narrowing: a conflicted ``plan.md`` is NOT
+    coordination residue anymore, so the take-theirs arm must NOT auto-resolve it.
+
+    Pre-mission ``plan.md`` was coordination residue and a rebase conflict on it
+    was silently resolved "take theirs". WP01-04 moved ``plan.md``
+    (``FINALIZED_EXECUTION_PLAN``) into ``_PRIMARY_ARTIFACT_KINDS``: it lives on
+    ``target_branch`` with its mission, so a real conflict on it must surface as a
+    Manual halt (the operator must reconcile), not be swallowed. This pins the
+    narrowing the partition introduced — the take-theirs set genuinely shrank.
+    """
+    repo = tmp_path / "repo"
+    _init_git_repo(repo)
+    conflict_rel = f"kitty-specs/{MISSION_SLUG}/plan.md"
+    mission_branch, worktree = _seed_conflict_repo(repo, conflict_rel)
+
+    report = attempt_auto_rebase(
+        lane=_make_lane(),
+        branch=f"kitty/mission-{MISSION_SLUG}-lane-a",
+        mission_branch=mission_branch,
+        repo_root=repo,
+        worktree_path=worktree,
+    )
+
     assert report.succeeded is False
     rule_ids = {
         c.resolution.rule_id

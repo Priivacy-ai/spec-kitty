@@ -152,7 +152,9 @@ def test_map_requirements_json_serializes_real_commit_result(
     )
     monkeypatch.setattr(tasks_mod, "safe_commit", fake_safe_commit)
     monkeypatch.setattr(
-        mission_mod, "_resolve_planning_placement", lambda *_args: placement
+        # write-surface-coherence WP02 / T009: ``_resolve_planning_placement`` gained
+        # a required ``kind`` keyword; the stub accepts it.
+        mission_mod, "_resolve_planning_placement", lambda *_args, **_kwargs: placement
     )
     monkeypatch.setattr(
         mission_mod, "_planning_commit_worktree", fake_planning_commit_worktree

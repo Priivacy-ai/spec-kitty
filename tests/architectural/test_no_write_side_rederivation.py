@@ -98,7 +98,11 @@ class _Finding:
 #: re-reads the seed file to prove the composite key still holds the deferred
 #: HEAD selector.
 _ALLOW_LIST_SEED: tuple[tuple[str, int], ...] = (
-    ("src/specify_cli/coordination/status_transition.py", 336),
+    # write-surface-coherence WP02 / T031: threading the required STATUS_STATE kind
+    # into ``_resolve_write_target`` shifted the deferred HEAD-selector fallback arm
+    # from :336 to :343 (the ``coord_branch or _current_branch`` line). The seed is
+    # re-anchored to the live line so the composite key still resolves it.
+    ("src/specify_cli/coordination/status_transition.py", 343),
 )
 
 

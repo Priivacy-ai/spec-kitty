@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mission_runtime import MissionTopology
+    from mission_runtime import MissionArtifactKind, MissionTopology
 
 
 STATUS_READ_PATH_NOT_FOUND_CODE = "STATUS_READ_PATH_NOT_FOUND"
@@ -1241,6 +1241,73 @@ def primary_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Path:
     return primary_dir
 
 
+def resolve_planning_read_dir(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    kind: MissionArtifactKind,
+) -> Path:
+    """Resolve a mission dir for a *read* of one artifact ``kind`` (per-kind split).
+
+    The kind-aware read seam (FR-006 / INV-4-5, WP04 — the #2062 stale-coord
+    read-side close). After WP01 re-partitioned the planning + identity kinds onto
+    the PRIMARY surface for BOTH read and write (INV-5 full symmetry), a planning
+    artifact (``spec.md`` / ``tasks.md`` / ``tasks/WP*.md`` / ``data-model.md`` /
+    ...) of a coordination-topology mission physically lives on the PRIMARY feature
+    dir. The kind-blind lenient resolver
+    (:func:`candidate_feature_dir_for_mission`) returns ONE dir by topology — for a
+    coord-topology mission it returns the materialized ``-coord`` husk, where a
+    stale pre-mission copy would SHADOW the real primary planning truth.
+
+    This seam splits the read by the artifact's partition — the SAME single
+    authority the write side uses, queried through the package-root public
+    predicate :func:`mission_runtime.is_primary_artifact_kind` (NO parallel
+    classification, NO private-submodule import — shared-package-boundary /
+    C-006 / NFR-004):
+
+    * a **PRIMARY-partition** kind (``is_primary_artifact_kind`` True) resolves
+      PRIMARY regardless of topology, via the topology-blind
+      :func:`primary_feature_dir_for_mission` primitive — mirroring the write-side
+      INV-5 symmetry, so a stale ``-coord`` husk can never shadow it (#2062 close);
+    * every other (STATUS-partition) kind keeps the topology-aware seam
+      (:func:`candidate_feature_dir_for_mission`) and ALL its C-005 KEEP transients
+      (#1718 create-window, #1848 coord-deleted) — the append-only event log stays
+      on coordination for coord-topology missions (C-001), so a STATUS read still
+      resolves the coord worktree.
+
+    The classification is the single partition the write side already owns;
+    flipping a kind across the partition is a one-line move in
+    ``mission_runtime.artifacts`` (NFR-004), never a code change here.
+
+    Args:
+        repo_root: Absolute repository root (primary checkout).
+        mission_slug: Mission slug or handle (resolved by the underlying primitive).
+        kind: The artifact kind being READ — decides the partition.
+
+    Returns:
+        Absolute mission directory for that kind's read surface.
+
+    Raises:
+        ValueError: When ``mission_slug`` is not a safe path segment (traversal
+            guard — propagated from the underlying primitive).
+        MissionSelectorAmbiguous: When ``mission_slug`` is an ambiguous handle
+            (propagated unchanged from the topology-aware seam — no silent pick).
+    """
+    # Single partition authority (C-006 / NFR-004): the SAME partition the write
+    # side keys on, queried through the package-root public predicate (NOT the
+    # private ``_PRIMARY_ARTIFACT_KINDS`` submodule symbol — shared-package-boundary,
+    # tests/architectural/test_mission_runtime_surface.py). Late import keeps the
+    # read-path module's cold-start cost low and breaks any import cycle through
+    # ``mission_runtime``.
+    from mission_runtime import is_primary_artifact_kind
+
+    if is_primary_artifact_kind(kind):
+        # PRIMARY-partition read → topology-blind primary dir (INV-5 symmetry).
+        return primary_feature_dir_for_mission(repo_root, mission_slug)
+    # STATUS-partition read → topology-aware seam (C-001 / C-005 transients intact).
+    return candidate_feature_dir_for_mission(repo_root, mission_slug)
+
+
 def resolve_bare_modern_mission_dir_name(
     repo_root: Path, mission_slug: str
 ) -> str | None:
@@ -1363,6 +1430,7 @@ __all__ = [
     "primary_feature_dir_for_mission",
     "probe_coord_state",
     "resolve_bare_modern_mission_dir_name",
+    "resolve_planning_read_dir",
     "resolve_feature_dir_for_mission",
     "resolve_feature_dir_for_slug",
     "resolve_handle_to_read_path",

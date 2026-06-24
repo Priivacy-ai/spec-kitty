@@ -779,11 +779,14 @@ def test_runtime_boundary_translates_ambiguous_selector(tmp_path: Path) -> None:
     strict-xfail (WP05 closer) is drained here at the WP06 collapse: WP05 landed,
     so the cell is GREEN.
     """
+    from mission_runtime import MissionArtifactKind
     from mission_runtime.resolution import ActionContextError, resolve_placement_only
 
     _build_ambiguous(tmp_path)
     with pytest.raises(ActionContextError) as excinfo:
-        resolve_placement_only(tmp_path, _AMBIG_MID8)
+        # The ambiguous-selector error fires before kind matters; any kind drives
+        # the same boundary translation (write-surface-coherence WP02 / T031).
+        resolve_placement_only(tmp_path, _AMBIG_MID8, kind=MissionArtifactKind.SPEC)
     # The translated boundary error must preserve the routing code (FR-005).
     assert excinfo.value.code == "MISSION_AMBIGUOUS_SELECTOR"
 

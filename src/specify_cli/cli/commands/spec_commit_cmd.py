@@ -27,6 +27,7 @@ from pathlib import Path
 import typer
 from rich.console import Console
 
+from mission_runtime import MissionArtifactKind
 from specify_cli.coordination.commit_router import CommitRouterResult, commit_for_mission
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.git.protection_policy import ProtectionPolicy
@@ -158,6 +159,11 @@ def spec_commit_command(
             files=tuple(abs_files),
             message=message,
             policy=policy,
+            # The operator-facing ``spec-commit`` entry point commits the SPEC
+            # planning artifact (write-surface-coherence WP02 / T007). SPEC is a
+            # primary kind, so it lands on the primary target branch for every
+            # topology — no planning→coord transit.
+            kind=MissionArtifactKind.SPEC,
             target_branch=target_branch,
         )
 

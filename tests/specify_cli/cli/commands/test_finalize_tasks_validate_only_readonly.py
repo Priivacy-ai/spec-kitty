@@ -45,9 +45,12 @@ runner = CliRunner()
 _MISSION_ID = "01T005VALIDATEONLY00000001"
 _MID8 = _MISSION_ID[:8]
 
-# The branch the operator is parked on when running --validate-only. It differs
-# from the mission target branch (``main``) so an eager checkout is observable.
-_PLANNING_BRANCH = "planning-work"
+# The branch the operator is parked on when running finalize. write-surface-
+# coherence (FR-002 / D-3): planning artifacts land on the primary feature
+# target_branch — a NON-protected branch the operator is ON. So the planning
+# branch IS the mission ``target_branch`` here; the commit-phase lands on it
+# directly, and ``--validate-only`` performs ZERO git mutations regardless.
+_PLANNING_BRANCH = "feat/planning-work"
 
 
 def _git(repo: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -124,7 +127,9 @@ def _scaffold_coord_mission_on_divergent_branch(repo: Path) -> str:
         "mission_slug": mission_dirname,
         "mission_id": _MISSION_ID,
         "mid8": _MID8,
-        "target_branch": "main",
+        # The primary feature target_branch is the (non-protected) branch the
+        # operator is on (FR-002 / D-3): planning artifacts land here directly.
+        "target_branch": _PLANNING_BRANCH,
         "coordination_branch": f"kitty/mission-{mission_slug}-{_MID8}",
     }
     (feature_dir / "meta.json").write_text(json.dumps(meta) + "\n", encoding="utf-8")
@@ -137,8 +142,8 @@ def _scaffold_coord_mission_on_divergent_branch(repo: Path) -> str:
     _git(repo, "commit", "-q", "-m", "seed mission")
     _git(repo, "branch", f"kitty/mission-{mission_slug}-{_MID8}")
 
-    # Park HEAD on a branch that is NOT the mission target: the precondition
-    # under which the pre-fix eager checkout mutated the repository.
+    # The operator is ON the feature target_branch (D-3 invariant): the planning
+    # commit lands there directly. ``--validate-only`` mutates NOTHING regardless.
     _git(repo, "checkout", "-q", "-b", _PLANNING_BRANCH)
 
     return mission_dirname
@@ -200,9 +205,9 @@ class TestValidateOnlyIsReadOnly:
         head_before = _git_bytes(repo, "symbolic-ref", "HEAD")
         porcelain_before = _git_bytes(repo, "status", "--porcelain")
         assert head_before.decode().strip().endswith(_PLANNING_BRANCH), (
-            "fixture precondition violated: HEAD must start on the planning "
-            "branch (≠ mission target) for the eager-checkout mutation to be "
-            "observable"
+            "fixture precondition violated: HEAD must start on the feature "
+            "target_branch so any mutation by --validate-only (which must be "
+            "ZERO) is observable against this known starting state"
         )
 
         result = _run_finalize(repo, mission_slug, "--validate-only")

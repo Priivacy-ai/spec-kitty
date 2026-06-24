@@ -28,6 +28,7 @@ from pathlib import Path
 
 import pytest
 
+from mission_runtime import MissionArtifactKind
 from mission_runtime.resolution import resolve_placement_only
 from specify_cli.coordination.status_transition import (
     _current_branch,
@@ -88,7 +89,11 @@ def test_inline_write_target_oracle_documents_git_head_divergence(
     monkeypatch.chdir(primary.repo_root)
 
     identity = _identity_for_request(_request(primary.feature_dir, primary.mission_slug))
-    factory = resolve_placement_only(primary.repo_root, primary.mission_slug)
+    # The status write target resolves with STATUS_STATE (coord-preserving) kind
+    # (write-surface-coherence WP02 / T031): flat topology → target_branch.
+    factory = resolve_placement_only(
+        primary.repo_root, primary.mission_slug, kind=MissionArtifactKind.STATUS_STATE
+    )
 
     # AFTER the WP05 adoption the write-target is CWD-invariant ``target_branch``,
     # NOT the off-target git HEAD the inline selector used to return (the bug).
@@ -128,9 +133,9 @@ def test_write_target_is_cwd_invariant_after_adoption(
     assert off.destination_ref != off_target
 
     # ...and the factory resolver agrees, unchanged across both CWD branches.
-    assert resolve_placement_only(primary.repo_root, primary.mission_slug).ref == (
-        TARGET_BRANCH
-    )
+    assert resolve_placement_only(
+        primary.repo_root, primary.mission_slug, kind=MissionArtifactKind.STATUS_STATE
+    ).ref == (TARGET_BRANCH)
 
 
 def test_coord_topology_both_selectors_agree_on_coord_branch(
@@ -149,7 +154,11 @@ def test_coord_topology_both_selectors_agree_on_coord_branch(
     identity = _identity_for_request(
         _request(coord.primary_feature_dir, coord.mission_slug)
     )
-    factory = resolve_placement_only(coord.main_root, coord.mission_slug)
+    # STATUS_STATE (coord-preserving) kind: coord topology → coord branch
+    # (write-surface-coherence WP02 / T031).
+    factory = resolve_placement_only(
+        coord.main_root, coord.mission_slug, kind=MissionArtifactKind.STATUS_STATE
+    )
 
     assert identity.destination_ref == coord.coord_branch
     assert factory.ref == coord.coord_branch
