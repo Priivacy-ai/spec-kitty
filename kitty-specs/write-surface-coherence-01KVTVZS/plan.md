@@ -10,8 +10,8 @@ Bifurcate the single placement authority (`resolve_placement_only`, consumed via
 (`spec.md`/`plan.md`/`tasks.md`/`tasks/WP*.md`) resolve to the primary
 `target_branch`; status/bookkeeping (`status.events.jsonl`,
 `decisions/index.json`, `issue-matrix.md`, WP transitions) resolve to the
-coordination ref. The decision is made in one seam (the `use_coord` arm at
-`commit_router.py:124`), so it closes the split for **all ≥7 planning-class
+coordination ref. The decision is made in one seam (the `use_coord` arm in
+`commit_router.py`), so it closes the split for **all ≥7 planning-class
 callers** at once. This is the write-side twin of the merged read-path
 single-authority work (mission `single-authority-topology-cleanup` / 01KVRJ6P,
 PR #2099); it builds on that mission's surfaces (C-006), does not re-implement
