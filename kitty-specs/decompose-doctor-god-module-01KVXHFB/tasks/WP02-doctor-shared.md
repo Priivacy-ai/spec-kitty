@@ -15,6 +15,8 @@ subtasks:
 - T004
 - T005
 - T006
+agent: "claude:opus:randy-reducer:implementer"
+shell_pid: "2988975"
 history:
 - date: '2026-06-24'
   action: created
@@ -91,3 +93,4 @@ Recommended reviewer: standard. Verify a single `Console()` instance, `_doctor_s
 ## Activity Log
 
 - 2026-06-24T19:54:56Z – claude – planning – WP created (deps WP01; resolves H1).
+- 2026-06-24T20:32:09Z – claude:opus:randy-reducer:implementer – shell_pid=2988975 – Assigned agent via action command
