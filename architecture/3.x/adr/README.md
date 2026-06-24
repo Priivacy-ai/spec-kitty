@@ -64,3 +64,5 @@ Use the shared template at [`../../adr-template.md`](../../adr-template.md).
 | 2026-06-15 | [Marketplace descriptor vs publish](2026-06-15-1-marketplace-descriptor-vs-publish.md) |
 | 2026-06-19 | [A materialized-but-empty coordination worktree hard-fails — no silent primary fallback](2026-06-19-1-coord-empty-surface-fallback.md) |
 | 2026-06-21 | [Protected-branch configuration is a standalone boundary-resolved value, not a nested context sub-object](2026-06-21-1-protected-branch-config-boundary-resolved-value.md) |
+| 2026-06-22 | [MissionTopology SSOT — store the mission shape, resolve it once](2026-06-22-1-mission-topology-ssot.md) |
+| 2026-06-24 | [Kind- and topology-aware artifact placement — one partition, read/write symmetry](2026-06-24-1-kind-and-topology-aware-artifact-placement.md) |
