@@ -219,6 +219,12 @@ def test_agent_check_json_prompts_when_update_available(tmp_path: Path, monkeypa
         lambda self, package: LatestVersionResult("999.0.0", "pypi", None),
     )
     monkeypatch.setattr("specify_cli.compat.detect_install_method", lambda: InstallMethod.PIPX)
+    # The agent-check producer builds its Invocation with ``env_ci=is_ci_env()``;
+    # under CI the planner selects NoNetworkProvider and the PyPIProvider mock
+    # never fires (latest_version stays None → action=none). Pin network-allowed
+    # so the real "update available → prompt" decision path is the one exercised,
+    # independent of whether the suite itself runs in a CI environment.
+    monkeypatch.setattr("specify_cli.compat.is_ci_env", lambda: False)
 
     result = _invoke_upgrade(["--agent-check", "--json"], cwd=tmp_path)
 
@@ -244,6 +250,10 @@ def test_agent_check_guidance_when_upgrade_command_unavailable(
         lambda self, package: LatestVersionResult("999.0.0", "pypi", None),
     )
     monkeypatch.setattr("specify_cli.compat.detect_install_method", lambda: InstallMethod.UNKNOWN)
+    # See test_agent_check_json_prompts_when_update_available: pin network-allowed
+    # so the PyPIProvider mock fires under CI and the real "manual upgrade required
+    # → guidance" path is exercised rather than the CI network-suppressed action=none.
+    monkeypatch.setattr("specify_cli.compat.is_ci_env", lambda: False)
 
     result = _invoke_upgrade(["--agent-check", "--json"], cwd=tmp_path)
 
