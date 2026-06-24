@@ -1,7 +1,7 @@
 {
-  "event_count": 31,
-  "last_event_id": "01KVXQHYWPXE2VW64STRRSYVSA",
-  "materialized_at": "2026-06-24T21:11:10.486478+00:00",
+  "event_count": 33,
+  "last_event_id": "01KVXQJK2NZCVK3G04DYZ11FHA",
+  "materialized_at": "2026-06-24T21:11:31.156860+00:00",
   "mission_number": "",
   "mission_slug": "decompose-doctor-god-module-01KVXHFB",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 7
+    "planned": 6
   },
   "work_packages": {
     "WP01": {
@@ -46,11 +46,11 @@
       "last_transition_at": "2026-06-24T21:11:10.486478+00:00"
     },
     "WP05": {
-      "actor": "finalize-tasks",
+      "actor": "claude:opus:randy-reducer:implementer",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01KVXMPCF6KRXJQHR53FQ8S8ES",
-      "last_transition_at": "2026-06-24T20:21:09.734067+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KVXQJK2NZCVK3G04DYZ11FHA",
+      "last_transition_at": "2026-06-24T21:11:31.156860+00:00"
     },
     "WP06": {
       "actor": "finalize-tasks",
