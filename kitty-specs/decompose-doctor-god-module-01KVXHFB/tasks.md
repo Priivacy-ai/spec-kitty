@@ -52,9 +52,9 @@
 - **Goal**: Capture a byte-identical proof of the `spec-kitty doctor` CLI surface BEFORE any extraction.
 - **Priority**: P1 (gate). **Dependencies**: none. **Independent test**: the new golden test passes at HEAD against the un-refactored `doctor.py`.
 - **Requirement refs**: FR-001, FR-002.
-- [ ] T001 Enumerate `app.registered_commands`: 16 frozen names + per-cmd param specs (WP01)
-- [ ] T002 Snapshot each subcommand `--help` (byte-pinned) (WP01)
-- [ ] T003 Pin exit-code contracts; cover `skills`/`restart-daemon`/`sparse-checkout --fix` names (WP01)
+- [x] T001 Enumerate `app.registered_commands`: 16 frozen names + per-cmd param specs (WP01)
+- [x] T002 Snapshot each subcommand `--help` (byte-pinned) (WP01)
+- [x] T003 Pin exit-code contracts; cover `skills`/`restart-daemon`/`sparse-checkout --fix` names (WP01)
 - **Risks**: a too-loose snapshot won't catch flag drift — pin names + params + help bytes.
 
 ## WP02 — `_doctor_shared` single console/guard home (IC-01, H1)

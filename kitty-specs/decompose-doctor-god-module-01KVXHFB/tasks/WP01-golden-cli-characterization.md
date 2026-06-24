@@ -15,8 +15,8 @@ subtasks:
 - T001
 - T002
 - T003
-agent: "claude:opus:randy-reducer:implementer"
-shell_pid: "2957510"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "2983459"
 history:
 - date: '2026-06-24'
   action: created
@@ -85,3 +85,5 @@ Recommended reviewer: standard. Verify the test enumerates all 16 names by set-e
 
 - 2026-06-24T19:54:56Z – claude – planning – WP created (golden harness, no deps).
 - 2026-06-24T20:24:58Z – claude:opus:randy-reducer:implementer – shell_pid=2957510 – Assigned agent via action command
+- 2026-06-24T20:31:07Z – claude:opus:randy-reducer:implementer – shell_pid=2957510 – Golden CLI characterization green at HEAD
+- 2026-06-24T20:31:14Z – claude:opus:reviewer-renata:reviewer – shell_pid=2983459 – Started review via action command
