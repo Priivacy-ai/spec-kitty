@@ -113,7 +113,7 @@ protected-primary case it suppresses the WP-file write, reshapes the `--json` en
 `WP_METADATA_UNSUPPORTED_ON_PROTECTED_COORD_BRANCH` rejection, and **succeeds with exit 0** (coord
 branch is authoritative). Deleting it would flip exit 0 → exit 1, breaking #1615-1618 + C-003
 byte-identity. The `_planning_commit_worktree` import WAS removed from `tasks.py` (FR-006 ✓). True
-consolidation (teaching the router the exit-0 coord arm) = follow-up #TBD under #1797. See spec FR-007.
+consolidation (teaching the router the exit-0 coord arm) = follow-up #2116 under #1797. See spec FR-007.
 
 ### T031 — Extend the FR-008 regression test
 Extend `tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py` to assert, for each of the 3
@@ -139,10 +139,10 @@ extended FR-008 test, `ruff check`, `mypy --strict`, and `pytest tests/architect
 ## Definition of Done
 
 - [x] All 3 tails route through `commit_for_mission`; no residual `safe_commit` / `_planning_commit_worktree` CALL in `tasks.py` (comment refs only).
-- [~] Dead pre-checks deleted — **DEFERRED**: pre-checks are not dead (govern the coord-topology exit-0 silent-skip the router cannot reproduce; deleting breaks #1615-1618). `mission.py` untouched (C-006). Follow-up #TBD. See T030 / spec FR-007.
+- [~] Dead pre-checks deleted — **DEFERRED**: pre-checks are not dead (govern the coord-topology exit-0 silent-skip the router cannot reproduce; deleting breaks #1615-1618). `mission.py` untouched (C-006). Follow-up #2116. See T030 / spec FR-007.
 - [x] Protected-primary message text + exit codes proven byte-identical for all 3 tails (extended FR-008 test).
 - [x] `#2058` pointer comment present at top of `tasks.py`.
-- [~] Every function in `tasks.py` maxCC ≤15 — **MET** (ruff C901 clean). File ≤ ~1200 LOC — **NOT met**: 3365 LOC (mega-function bodies not internally decomposed; body-thinning deferred, follow-up #TBD). See spec NFR-004/SC-002.
+- [~] Every function in `tasks.py` maxCC ≤15 — **MET** (ruff C901 clean). File ≤ ~1200 LOC — **NOT met**: 3365 LOC (mega-function bodies not internally decomposed; body-thinning deferred, follow-up #2116). See spec NFR-004/SC-002.
 - [x] Golden contract test green; full suite green; ruff + mypy --strict clean; terminology guard green; no new suppressions.
 
 ## Risks
