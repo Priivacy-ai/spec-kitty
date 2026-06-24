@@ -38,6 +38,7 @@ from unittest.mock import patch
 
 import pytest
 
+from mission_runtime import MissionArtifactKind
 from specify_cli.coordination.commit_router import CommitRouterResult, commit_for_mission
 from specify_cli.git import protection_policy as _pp_module
 from specify_cli.git.protection_policy import ProtectionPolicy
@@ -196,6 +197,7 @@ class TestProtectedBranchesConfigHonoring:
                 files=(spec,),
                 message="spec: direct commit",
                 policy=policy,
+                kind=MissionArtifactKind.SPEC,
             )
 
         # With empty protected_branches + PRIMARY kind, the router should NOT try to
@@ -217,7 +219,11 @@ class TestProtectedBranchesConfigHonoring:
         """US2: ``protection.protected_branches: [main]`` → routes to coord worktree.
 
         The complement of the empty-list test: when main IS declared protected,
-        the router must materialise the coord worktree.
+        a COORDINATION-partition artifact (analysis report) must materialise the
+        coord worktree. (Planning artifacts no longer transit coord under the
+        write-surface-coherence contract — they refuse on a protected primary
+        and direct the operator to a feature branch — so the coord-routing
+        mechanism is now exercised with a coord kind, ``ANALYSIS_REPORT``.)
         """
         monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
 
@@ -230,12 +236,14 @@ class TestProtectedBranchesConfigHonoring:
         slug = "via-coord"
         mid8 = _MID8
         coord_branch = f"kitty/mission-{slug}-{mid8}"
-        feature_dir, spec = _seed_mission(repo.repo_root, slug, mid8, coord_branch)
+        feature_dir, _spec = _seed_mission(repo.repo_root, slug, mid8, coord_branch)
+        report = feature_dir / "analysis-report.md"
+        report.write_text("# Analysis Report\n\nSeed.\n", encoding="utf-8")
         _git(repo.repo_root, "add", "-A")
         _git(repo.repo_root, "commit", "-m", "seed mission")
         # Create coord branch so CoordinationWorkspace.resolve can materialise a worktree.
         _git(repo.repo_root, "branch", coord_branch)
-        spec.write_text("# Spec\n\nUpdated via coord.\n", encoding="utf-8")
+        report.write_text("# Analysis Report\n\nUpdated via coord.\n", encoding="utf-8")
 
         policy = ProtectionPolicy.resolve(repo.repo_root)
         assert policy.is_protected("main"), (
@@ -254,9 +262,10 @@ class TestProtectedBranchesConfigHonoring:
             result = commit_for_mission(
                 repo_root=repo.repo_root,
                 mission_slug=slug,
-                files=(spec,),
-                message="spec: via coord",
+                files=(report,),
+                message="analysis-report: via coord",
                 policy=policy,
+                kind=MissionArtifactKind.ANALYSIS_REPORT,
             )
 
         coord_worktree = repo.repo_root / ".worktrees" / f"{slug}-{mid8}-coord"
@@ -322,6 +331,7 @@ class TestFR006HatchEndToEnd:
                 files=(spec,),
                 message="spec: hatch direct",
                 policy=policy,
+                kind=MissionArtifactKind.SPEC,
             )
 
         # FR-006 invariant 2: no coord worktree created (direct routing).
@@ -338,19 +348,27 @@ class TestFR006HatchEndToEnd:
     def test_hatch_inactive_does_route_to_coord(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """Baseline: without hatch, the normal protect→coord routing applies."""
+        """Baseline: without hatch, the normal protect→coord routing applies.
+
+        Exercised with a COORDINATION-partition kind (``ANALYSIS_REPORT``): under
+        the write-surface-coherence contract only coordination-owned artifacts
+        transit the coord worktree, so the protect→coord materialisation baseline
+        is now proved with an analysis-report write.
+        """
         monkeypatch.delenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", raising=False)
 
         repo = build_protected_target_repo(tmp_path)
         slug = "no-hatch-coord"
         mid8 = _MID8
         coord_branch = f"kitty/mission-{slug}-{mid8}"
-        feature_dir, spec = _seed_mission(repo.repo_root, slug, mid8, coord_branch)
+        feature_dir, _spec = _seed_mission(repo.repo_root, slug, mid8, coord_branch)
+        report = feature_dir / "analysis-report.md"
+        report.write_text("# Analysis Report\n\nSeed.\n", encoding="utf-8")
         _git(repo.repo_root, "add", "-A")
         _git(repo.repo_root, "commit", "-m", "seed")
         # Create coord branch so CoordinationWorkspace.resolve can materialise.
         _git(repo.repo_root, "branch", coord_branch)
-        spec.write_text("# Spec\n\nNo hatch.\n", encoding="utf-8")
+        report.write_text("# Analysis Report\n\nNo hatch.\n", encoding="utf-8")
 
         policy = ProtectionPolicy.resolve(repo.repo_root)
         assert not policy.operator_hatch_active, "Baseline: hatch must be OFF."
@@ -368,9 +386,10 @@ class TestFR006HatchEndToEnd:
             result = commit_for_mission(
                 repo_root=repo.repo_root,
                 mission_slug=slug,
-                files=(spec,),
-                message="spec: no hatch",
+                files=(report,),
+                message="analysis-report: no hatch",
                 policy=policy,
+                kind=MissionArtifactKind.ANALYSIS_REPORT,
             )
 
         coord_worktree = repo.repo_root / ".worktrees" / f"{slug}-{mid8}-coord"
