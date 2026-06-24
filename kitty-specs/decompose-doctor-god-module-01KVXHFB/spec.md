@@ -91,7 +91,7 @@ Two named circular-import hazards (from research §6) gate the design:
 - Small clusters already thin-delegating to external packages (B state-roots → `state.doctor`; F shim-registry → `compat`; G ops/invocation → `doctor.ops`) keep their thin command shells in `doctor.py`; only their private render helpers (`_print_overdue_details`, `_run_ops_sweep`) move if a cohesive sibling owns them, or stay if relocation adds no cohesion. Plan-phase decision (research OQ2).
 - The doctrine-health render helpers are already extracted to `_profile_health_render.py`; this mission only moves the *collectors* (OQ resolved: collectors → `_doctrine_collect`).
 - `_auth_doctor.py` (backs `auth doctor`, not the `doctor` group) is out of scope.
-- The deferred `doctor.py` god-module split is the FR-012 follow-up tracked by #1623/#2059; this mission is its residual closeout, not a new feature.
+- The deferred `doctor.py` god-module split is the doctrine-health-collector follow-up tracked by #1623 / this ticket; this mission is its residual closeout, not a new feature.
 
 ## Research Outcomes
 
