@@ -1,0 +1,32 @@
+{
+  "accept_commit": "bde217514831fd0e47ec087881f9f1cd80755830",
+  "acceptance_history": [
+    {
+      "accept_commit": "bde217514831fd0e47ec087881f9f1cd80755830",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-24T01:21:54.726625+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "3f23cb8e233ced567dea5dcbf13fcc54cc76bd72"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-24T01:21:54.726625+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "3f23cb8e233ced567dea5dcbf13fcc54cc76bd72",
+  "baseline_merge_commit": "056a78cedbaadb50af1af9b53fd1a12bb9829aac",
+  "created_at": "2026-06-23T18:30:54.432096+00:00",
+  "flattened": true,
+  "friendly_name": "Write-Surface Coherence",
+  "mission_id": "01KVTVZS6ZT02NTR0YBJ9WWKMJ",
+  "mission_number": null,
+  "mission_slug": "write-surface-coherence-01KVTVZS",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Today a coordination-topology mission authors its spec and plan on the coordination branch while task finalization reads the primary checkout, so a freshly-planned mission can report 'all requirements unmapped' and force the operator to hand-create a coordination worktree. This mission gives every planning-lifecycle command one shared surface authority: planning artifacts (spec, plan, tasks, work-package files) live on the primary checkout for every mission shape, while status bookkeeping stays on the coordination branch. It is the write-side companion to the already-merged read-path single-authority work.",
+  "purpose_tldr": "Give a coordination-topology mission one canonical planning surface so spec, plan, and tasks never split across branches.",
+  "slug": "write-surface-coherence-01KVTVZS",
+  "target_branch": "feat/write-surface-coherence",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-23T20:11:07.476859+00:00"
+}
