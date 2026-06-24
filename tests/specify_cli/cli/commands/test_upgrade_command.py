@@ -24,6 +24,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -41,7 +42,21 @@ from specify_cli.compat.provider import FakeLatestVersionProvider, LatestVersion
 # Contract path (relative to repo root)
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def _strip_ansi(text: str) -> str:
+    """Strip rich's ANSI color codes so substring assertions are robust.
+
+    Rich auto-highlights numerics (e.g. ``schema \x1b[1;36m7\x1b[0m``,
+    ``\x1b[1;36m3.1\x1b[0m.\x1b[1;36m0\x1b[0m``), which breaks plain substring
+    checks against the rendered output. Strip the codes to pin the message text
+    contract without coupling to the highlighter.
+    """
+    return _ANSI_RE.sub("", text)
+
 
 _WORKTREE_ROOT = Path(__file__).parent.parent.parent.parent.parent  # repo root
 _CONTRACT_PATH = (
@@ -204,6 +219,12 @@ def test_agent_check_json_prompts_when_update_available(tmp_path: Path, monkeypa
         lambda self, package: LatestVersionResult("999.0.0", "pypi", None),
     )
     monkeypatch.setattr("specify_cli.compat.detect_install_method", lambda: InstallMethod.PIPX)
+    # The agent-check producer builds its Invocation with ``env_ci=is_ci_env()``;
+    # under CI the planner selects NoNetworkProvider and the PyPIProvider mock
+    # never fires (latest_version stays None → action=none). Pin network-allowed
+    # so the real "update available → prompt" decision path is the one exercised,
+    # independent of whether the suite itself runs in a CI environment.
+    monkeypatch.setattr("specify_cli.compat.is_ci_env", lambda: False)
 
     result = _invoke_upgrade(["--agent-check", "--json"], cwd=tmp_path)
 
@@ -229,6 +250,10 @@ def test_agent_check_guidance_when_upgrade_command_unavailable(
         lambda self, package: LatestVersionResult("999.0.0", "pypi", None),
     )
     monkeypatch.setattr("specify_cli.compat.detect_install_method", lambda: InstallMethod.UNKNOWN)
+    # See test_agent_check_json_prompts_when_update_available: pin network-allowed
+    # so the PyPIProvider mock fires under CI and the real "manual upgrade required
+    # → guidance" path is exercised rather than the CI network-suppressed action=none.
+    monkeypatch.setattr("specify_cli.compat.is_ci_env", lambda: False)
 
     result = _invoke_upgrade(["--agent-check", "--json"], cwd=tmp_path)
 
@@ -432,11 +457,12 @@ def test_project_migration_needed_project_dry_run_json_contract(tmp_path: Path) 
 
 
 def _assert_too_new_project_human_output(output: str) -> None:
-    normalized = " ".join(output.split())
-    assert "This project uses Spec Kitty project schema 7" in output
+    plain = _strip_ansi(output)
+    normalized = " ".join(plain.split())
+    assert "This project uses Spec Kitty project schema 7" in normalized
     assert "supports up to schema" in normalized
-    assert "Upgrade your CLI:" in output
-    assert "pip install --upgrade spec-kitty-cli" in output
+    assert "Upgrade your CLI:" in plain
+    assert "pip install --upgrade spec-kitty-cli" in plain
 
 
 def test_project_too_new_for_cli_command_exit_5(tmp_path: Path) -> None:
@@ -981,7 +1007,7 @@ def test_dry_run_success_does_not_print_upgrade_complete() -> None:
 
 def test_real_run_success_line_unchanged() -> None:
     """A real (non-dry-run) successful upgrade keeps the success line."""
-    output = _render_upgrade_outcome(_make_upgrade_result(dry_run=False))
+    output = _strip_ansi(_render_upgrade_outcome(_make_upgrade_result(dry_run=False)))
     assert "Upgrade complete!" in output
     assert "3.1.0 -> 3.2.0" in output
     assert "Dry run complete" not in output

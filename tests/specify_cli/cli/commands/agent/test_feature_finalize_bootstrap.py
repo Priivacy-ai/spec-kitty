@@ -14,6 +14,7 @@ WP01 additions (T009):
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -29,7 +30,7 @@ from specify_cli.status.bootstrap import BootstrapResult
 # Fixtures
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 MODULE = "specify_cli.cli.commands.agent.mission"
 CORE_MODULE = "specify_cli.core.mission_creation"
@@ -253,7 +254,12 @@ class TestValidateOnlyDryRun:
             for p in ctx_patches.values():
                 p.stop()
 
-        output = capsys.readouterr().out
+        # Rich auto-highlights numerics with ANSI color codes (e.g.
+        # ``\x1b[1;36m1\x1b[0m``), so the digits in the summary line are not
+        # byte-contiguous with the surrounding words. Strip ANSI before the
+        # substring check to pin the contract (the summary text is rendered)
+        # without coupling to rich's highlighting.
+        output = re.sub(r"\x1b\[[0-9;]*m", "", capsys.readouterr().out)
         assert "Bootstrap:" in output
         assert "1 WPs would be seeded, 1 already initialized" in output
 
@@ -1272,8 +1278,19 @@ class TestOwnershipOverlapAcceptance:
         assert isinstance(errors, list)
         assert any("WP01" in e and "WP02" in e for e in errors)
 
-    def test_dependent_wps_overlap_still_fails(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-        """WP02→WP01 dependency (one lane) does NOT exempt narrow overlap."""
+    def test_dependent_wps_overlap_collapses_into_one_lane(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        """WP02→WP01 dependency makes overlap legitimate: it collapses, not fails.
+
+        Contract pinned by #2087/#2088 ("make ownership overlap lane-aware",
+        ``ownership/validation.py`` ``validate_no_overlap``): two WPs joined by a
+        directed dependency path own the same files legitimately because their
+        execution is forced into a sequential order. The no-overlap guard targets
+        *parallel* (dependency-unordered) WPs only — see ``test_independent_wps_
+        overlap_fails`` for the failing counterpart. Rather than erroring, the
+        dependent overlapping pair is collapsed into a single lane and validation
+        passes. This test keeps teeth by asserting the collapse is *recorded*
+        (a ``write_scope_overlap`` event), not silently dropped.
+        """
         _write_overlap_feature(
             tmp_path,
             wps=[
@@ -1283,8 +1300,22 @@ class TestOwnershipOverlapAcceptance:
             tasks_md="# Tasks\n\n## WP01\n\nNo dependencies.\n\n## WP02\n\nDepends on WP01.\n",
         )
         results = _run_finalize_validate_only(tmp_path, capsys)
-        failures = [r for r in results if r.get("error") == "Ownership validation failed"]
-        assert failures, f"a dependency hierarchy must NOT exempt overlapping narrow WPs; got {results}"
+        assert not [r for r in results if r.get("error") == "Ownership validation failed"], (
+            f"dependency-ordered overlap is legitimate and must NOT fail ownership validation; got {results}"
+        )
+        passed = [r for r in results if r.get("result") == "validation_passed"]
+        assert passed, f"expected validation_passed for dependency-ordered overlap; got {results}"
+        validation = passed[0].get("validation")
+        assert isinstance(validation, dict)
+        lanes_preview = validation.get("lanes_preview")
+        assert isinstance(lanes_preview, dict)
+        collapse_report = lanes_preview.get("collapse_report")
+        assert isinstance(collapse_report, dict)
+        events = collapse_report.get("events")
+        assert isinstance(events, list)
+        assert any(isinstance(e, dict) and e.get("rule") == "write_scope_overlap" for e in events), (
+            f"dependent overlap must be recorded as a write_scope_overlap collapse, not silently dropped; got {results}"
+        )
 
     def test_codebase_wide_is_the_only_exemption(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """A codebase-wide WP overlapping a narrow WP passes (end-to-end #1753)."""

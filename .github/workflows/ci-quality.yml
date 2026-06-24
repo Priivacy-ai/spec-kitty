@@ -1031,7 +1031,7 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — next"
         run: |
-          uv run python -m pytest tests/next/ tests/specify_cli/next/ \
+          uv run python -m pytest tests/next/ tests/specify_cli/next/ tests/runtime/ \
             -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/next \
             --cov=src/runtime/next \
@@ -1817,7 +1817,7 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — next"
         run: |
-          uv run python -m pytest tests/next/ tests/specify_cli/next/ \
+          uv run python -m pytest tests/next/ tests/specify_cli/next/ tests/runtime/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/next \

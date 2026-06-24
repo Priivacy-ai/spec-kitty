@@ -38,7 +38,7 @@ from specify_cli.skills.command_renderer import (
 # Test constants
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # New doctrine layout: src/doctrine/missions/mission-steps/<mission_type>/
 DOCTRINE_MISSION_STEPS_DIR = Path(__file__).parent.parent.parent.parent / "src" / "doctrine" / "missions" / "mission-steps"
