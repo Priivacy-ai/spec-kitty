@@ -11,13 +11,17 @@ requirement_refs:
 tracker_refs:
 - '2059'
 planning_base_branch: prog/2059-doctor
-merge_target_branch: main
+merge_target_branch: prog/2059-doctor
 branch_strategy: Planning artifacts for this mission were generated on prog/2059-doctor. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into prog/2059-doctor unless the human explicitly redirects the landing branch.
 created_at: '2026-06-24T19:54:56+00:00'
 subtasks:
 - T019
 - T020
 - T021
+history:
+- date: '2026-06-24'
+  action: created
+  actor: claude
 agent_profile: randy-reducer
 authoritative_surface: src/specify_cli/cli/commands/_coordination_doctor.py
 create_intent:
@@ -29,10 +33,6 @@ owned_files:
 - tests/specify_cli/cli/commands/test_coordination_doctor.py
 role: implementer
 tags: []
-history:
-- date: '2026-06-24'
-  action: created
-  actor: claude
 ---
 
 ## ⚡ Do This First: Load Agent Profile
