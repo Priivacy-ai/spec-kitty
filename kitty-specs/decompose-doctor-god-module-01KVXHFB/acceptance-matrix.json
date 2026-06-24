@@ -1,0 +1,19 @@
+{
+  "mission_slug": "decompose-doctor-god-module-01KVXHFB",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pending",
+  "criteria": [
+    {
+      "criterion_id": "AC-001",
+      "description": "TODO: replace with a real acceptance criterion",
+      "proof_type": "automated_test",
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "TODO: replace with a real acceptance criterion"
+    }
+  ],
+  "negative_invariants": []
+}
