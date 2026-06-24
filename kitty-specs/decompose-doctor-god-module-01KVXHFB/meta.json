@@ -1,8 +1,8 @@
 {
-  "coordination_branch": "kitty/mission-decompose-doctor-god-module-01KVXHFB",
   "created_at": "2026-06-24T19:24:53.523831+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "decompose doctor god module",
+  "merge_target_branch": "main",
   "mission_id": "01KVXHFBCKNVP1BJYFSCQEW4J0",
   "mission_number": null,
   "mission_slug": "decompose-doctor-god-module-01KVXHFB",
@@ -11,6 +11,5 @@
   "purpose_tldr": "decompose doctor god module",
   "slug": "decompose-doctor-god-module-01KVXHFB",
   "target_branch": "prog/2059-doctor",
-  "topology": "coord",
-  "merge_target_branch": "main"
+  "topology": "lanes"
 }
