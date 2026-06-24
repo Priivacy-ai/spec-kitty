@@ -73,9 +73,9 @@
 - **Goal**: Move the doctrine-health DATA COLLECTORS #1623 left in `doctor.py` into a sibling, completing the MODEL/RENDER/COLLECT triad.
 - **Priority**: P1. **Dependencies**: WP02. **Independent test**: collector tests ≥90% + byte-pinned doctrine snapshot + golden green.
 - **Requirement refs**: FR-003, FR-004, FR-006.
-- [ ] T007 Create `_doctrine_collect.py` (Cluster J collectors) (WP03)
-- [ ] T008 Delegate collectors in `doctor.py`; re-export `_collect_profile_health`,`_collect_org_layer_data`,`_build_pack_entries`,`_count_pack_artifacts`,`_resolve_pack_version`,`_render_org_layer_section` (WP03)
-- [ ] T009 Collector tests ≥90%; doctrine snapshot + golden green (WP03)
+- [x] T007 Create `_doctrine_collect.py` (Cluster J collectors) (WP03)
+- [x] T008 Delegate collectors in `doctor.py`; re-export `_collect_profile_health`,`_collect_org_layer_data`,`_build_pack_entries`,`_count_pack_artifacts`,`_resolve_pack_version`,`_render_org_layer_section` (WP03)
+- [x] T009 Collector tests ≥90%; doctrine snapshot + golden green (WP03)
 - **Out-of-map edits**: `doctor.py` (delegation + re-export). Do NOT touch `_doctrine_health.py`/`_profile_health_render.py` (already done by #1623).
 - **Risks**: moving a collector without re-exporting breaks the 58 test files' imports.
 

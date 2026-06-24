@@ -17,8 +17,8 @@ subtasks:
 - T007
 - T008
 - T009
-agent: "claude:opus:randy-reducer:implementer"
-shell_pid: "3046407"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "3107150"
 history:
 - date: '2026-06-24'
   action: created
@@ -95,3 +95,5 @@ Recommended reviewer: standard. Verify only collectors moved (not MODEL/RENDER),
 
 - 2026-06-24T19:54:56Z – claude – planning – WP created (deps WP02; completes #1623 seam).
 - 2026-06-24T20:43:54Z – claude:opus:randy-reducer:implementer – shell_pid=3046407 – Assigned agent via action command
+- 2026-06-24T20:56:12Z – claude:opus:randy-reducer:implementer – shell_pid=3046407 – Collectors extracted to _doctrine_collect; #1623 triad complete; 92% cov; snapshot+golden green; ruff/mypy clean
+- 2026-06-24T20:56:20Z – claude:opus:reviewer-renata:reviewer – shell_pid=3107150 – Started review via action command
