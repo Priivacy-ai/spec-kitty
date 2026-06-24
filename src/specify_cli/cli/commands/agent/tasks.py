@@ -3772,7 +3772,26 @@ def map_requirements(
             ref_list_parsed = [ref.strip() for ref in refs.split(",") if ref.strip()]
             new_mappings[wp.upper()] = [ref.upper() for ref in ref_list_parsed]
 
-        tasks_dir = feature_dir / "tasks"
+        # #2107 / FR-004 (gate-read-surface-completion WP04): the WP ``tasks/*.md``
+        # files are WORK_PACKAGE_TASK — a PRIMARY-partition kind. Resolve the read
+        # dir through the kind-aware seam (the SAME single authority WP01 routed the
+        # rest of the gate reads onto) instead of the topology-routed ``feature_dir``
+        # (``_map_requirements_feature_dir`` → coord), which on a coord-topology
+        # mission returns the materialised ``-coord`` husk whose ``tasks/`` is empty
+        # — the squad-found missed site (research.md Decision 3). The WRITE/commit
+        # leg below already resolves WORK_PACKAGE_TASK → primary via
+        # ``_resolve_planning_placement`` / ``_planning_commit_worktree``, so this
+        # re-points the READ to the same primary surface. STATUS legs are untouched
+        # (C-002); the ``tasks.md`` (TASKS_INDEX) read off ``feature_dir`` is a
+        # separate kind/site outside this site.
+        tasks_dir = (
+            resolve_planning_read_dir(
+                main_repo_root,
+                mission_slug,
+                kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+            )
+            / "tasks"
+        )
         existing_wps: set[str] = set()
         if tasks_dir.exists():
             for wp_file in tasks_dir.glob("WP*.md"):

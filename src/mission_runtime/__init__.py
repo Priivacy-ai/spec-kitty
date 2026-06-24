@@ -44,6 +44,7 @@ from mission_runtime.artifacts import (
     artifact_home_for,
     is_coordination_artifact_residue_path,
     is_primary_artifact_kind,
+    is_self_bookkeeping_path,
     kind_for_mission_file,
 )
 from mission_runtime.resolution import (
@@ -70,6 +71,7 @@ __all__ = [
     "classify_topology",
     "is_coordination_artifact_residue_path",
     "is_primary_artifact_kind",
+    "is_self_bookkeeping_path",
     "kind_for_mission_file",
     "resolve_action_context",
     "resolve_placement_only",

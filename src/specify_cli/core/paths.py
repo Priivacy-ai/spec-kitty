@@ -610,11 +610,18 @@ def get_feature_target_branch(repo_root: Path, mission_slug: str) -> str:
     Returns:
         Target branch name (e.g., ``"main"`` or ``"2.x"``).
     """
+    # Anchor the meta.json read on the PRIMARY surface — NOT the topology-aware
+    # candidate. Under coordination topology that candidate resolves to the
+    # coordination worktree, whose mission dir has no meta.json; reading it found
+    # nothing and silently fell back to the repo default (main), so the resolved
+    # commit/branch surface was the protected primary instead of the mission's
+    # ``target_branch`` (the finalize-tasks / implement-loop refusal-to-main bug,
+    # WP00 / FR-004). This mirrors ``resolve_merge_target_branch`` below exactly.
     from specify_cli.core.git_ops import resolve_primary_branch
-    from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
+    from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
 
     main_root = get_main_repo_root(repo_root)
-    meta_file = candidate_feature_dir_for_mission(main_root, mission_slug) / "meta.json"
+    meta_file = primary_feature_dir_for_mission(main_root, mission_slug) / "meta.json"
     fallback = str(resolve_primary_branch(main_root))
 
     if not meta_file.exists():
