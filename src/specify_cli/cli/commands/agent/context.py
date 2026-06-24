@@ -27,6 +27,16 @@ app = typer.Typer(
 
 console = Console()
 
+# #2101: actions whose ``feature_dir`` the agent uses to AUTHOR planning
+# artifacts (spec/plan/tasks/WP files, analysis report). These are authored on
+# the PRIMARY checkout and staged to the coordination branch at commit time, so
+# the reported ``feature_dir`` for these actions must be the primary surface —
+# unlike read-only actions (accept/status) which legitimately resolve the
+# coord-committed surface.
+_AUTHORING_ACTIONS: frozenset[str] = frozenset(
+    {"specify", "plan", "tasks", "tasks_outline", "tasks_packages", "analyze"}
+)
+
 
 def _find_feature_directory(
     repo_root: Path,
@@ -135,8 +145,23 @@ def resolve_context(
             cwd=Path.cwd(),
         )
 
+        payload = context.to_dict()
+        # #2101: planning artifacts are authored on the PRIMARY checkout and only
+        # staged to the coordination branch at commit time (commit_for_mission
+        # stages primary->coord; finalize's change-detection runs in the primary
+        # repo, where .worktrees/ is gitignored). The read-path resolver returns
+        # the coord worktree once materialized — but the step contracts tell the
+        # agent to author at this ``feature_dir``, so for the AUTHORING actions it
+        # must point at the primary checkout, matching where finalize/implement/
+        # check-prerequisites read and where the commit machinery stages from. The
+        # placement/commit target (branch_ref) stays the resolved coordination ref.
+        if action in _AUTHORING_ACTIONS:
+            from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+
+            payload["feature_dir"] = str(primary_feature_dir_for_mission(repo_root, mission_slug))
+
         if json_output:
-            print(json.dumps({"success": True, **context.to_dict()}, indent=2))
+            print(json.dumps({"success": True, **payload}, indent=2))
         else:
             console.print(f"[green]✓[/green] Resolved {action} context")
             console.print(f"  Mission: {context.mission_slug} ({context.detection_method})")

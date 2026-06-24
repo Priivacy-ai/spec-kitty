@@ -379,19 +379,19 @@ def _map_requirements_feature_dir(main_repo_root: Path, mission_slug: str) -> Pa
     slug-only ``mid8_from_slug`` heuristic missed the coord worktree when the
     operator handle carried no mid8 tail, while finalize resolved into it.
 
-    The unified resolver raises ``ActionContextError`` when the directory cannot
-    be located; ``map-requirements`` historically surfaced this as its own
-    ``Mission directory not found: …`` message via an existence guard on the
-    returned path. To preserve that user-facing contract (Risk #1) the typed
-    error is translated back into the non-existent candidate directory so the
-    caller's existing existence guard fires the unchanged message.
+    #2101: anchor on the PRIMARY checkout. Planning artifacts (including
+    ``tasks/WP*.md``) are authored on the primary surface (``context resolve``
+    reports the primary ``feature_dir`` for authoring actions) and only staged to
+    the coordination branch at commit time. ``map-requirements`` reads/writes the
+    WP frontmatter and must therefore see the SAME primary surface ``finalize``,
+    ``check-prerequisites`` and ``implement`` read — the coord-aware
+    ``resolve_feature_dir_for_mission`` (the prior #2064 behaviour) selected the
+    coord worktree, where the commit machinery (which stages primary->coord and
+    change-detects in the primary repo) cannot commit. ``primary_feature_dir_for_mission``
+    is a pure path constructor; a non-existent dir is returned as-is so the
+    caller's existence guard fires the unchanged ``Mission directory not found``.
     """
-    from mission_runtime import ActionContextError
-
-    try:
-        return resolve_feature_dir_for_mission(main_repo_root, mission_slug)
-    except ActionContextError:
-        return candidate_feature_dir_for_mission(main_repo_root, mission_slug)
+    return primary_feature_dir_for_mission(main_repo_root, mission_slug)
 
 
 def _self_review_fallback_option_error(
