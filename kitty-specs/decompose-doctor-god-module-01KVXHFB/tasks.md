@@ -106,9 +106,9 @@
 - **Goal**: Move Cluster H (audit/repair/teamspace-dry-run); keep `mission_state` dispatch-thin and drop its `# noqa: C901` once helpers move.
 - **Priority**: P1. **Dependencies**: WP05. **Independent test**: mission-state tests ≥90% + golden green.
 - **Requirement refs**: FR-003, FR-004.
-- [ ] T016 Create `_mission_state_doctor.py`; drop the `# noqa: C901` if helpers move (WP06)
-- [ ] T017 Delegate `mission-state` body to sibling helpers (WP06)
-- [ ] T018 Focused mission-state tests ≥90%; golden green (WP06)
+- [x] T016 Create `_mission_state_doctor.py`; drop the `# noqa: C901` if helpers move (WP06)
+- [x] T017 Delegate `mission-state` body to sibling helpers (WP06)
+- [x] T018 Focused mission-state tests ≥90%; golden green (WP06)
 - **Out-of-map edits**: `doctor.py` (delegation; drop the now-unneeded suppression).
 - **Risks**: mode-exclusivity (0 no-mode / 2 multi-mode) + gate exit 1 must be preserved exactly.
 
