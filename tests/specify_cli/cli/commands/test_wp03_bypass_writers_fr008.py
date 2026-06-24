@@ -203,3 +203,196 @@ class TestFR008MessagesNameFeatureBranch:
             "router refusal must NOT advise the coordination worktree; got: "
             f"{result.diagnostic!r}"
         )
+
+
+# ---------------------------------------------------------------------------
+# WP07 / #2058 / FR-006 — the three tasks.py planning-commit tails
+# (move-task / mark-status / map-requirements) route their commit through the
+# ONE canonical ``commit_for_mission`` router, and the protected-primary refusal
+# message + exit code stay byte-identical to the pre-refactor pre-check.
+# ---------------------------------------------------------------------------
+
+
+def _expected_protected_message(command: str, branch: str = "main") -> str:
+    """The EXACT protected-branch refusal message the tails surfaced pre-WP07.
+
+    Reconstructs ``_protected_branch_status_commit_error``'s string verbatim so a
+    drift in either the production message or this test fails loudly (C-003
+    byte-identity).
+    """
+    return (
+        f"Refusing to run `{command}` with auto-commit on protected branch "
+        f"'{branch}' before mutating status files. Run status commit "
+        "operations from an allowed coordination/lane branch, or rerun with "
+        "--no-auto-commit when you intentionally want to handle the status "
+        "artifact commit manually."
+    )
+
+
+class TestTasksTailsRouteThroughCommitForMission:
+    """T031: each tail commits ONLY via ``commit_for_mission`` (no direct git path)."""
+
+    def test_tasks_module_has_no_direct_safe_commit_symbol(self) -> None:
+        """tasks.py imports the router, not ``safe_commit`` — git goes via the router.
+
+        After WP07 the three tails no longer reference ``safe_commit`` directly;
+        the only commit surface is the imported ``commit_for_mission`` router. A
+        regrown direct ``safe_commit`` import/attribute would reintroduce a parallel
+        commit path (FR-006 / C-002).
+        """
+        from specify_cli.cli.commands.agent import tasks as tasks_mod
+
+        assert hasattr(tasks_mod, "commit_for_mission"), (
+            "tasks.py must import the canonical commit_for_mission router (FR-006)"
+        )
+        assert not hasattr(tasks_mod, "safe_commit"), (
+            "tasks.py must NOT carry a direct safe_commit symbol after WP07 — the "
+            "commit goes through commit_for_mission only (FR-006 / C-002)"
+        )
+
+    def test_tasks_py_has_no_direct_safe_commit_call(self) -> None:
+        """AST guard: zero ``safe_commit(...)`` call sites remain in tasks.py."""
+        import ast
+
+        src = Path(
+            "src/specify_cli/cli/commands/agent/tasks.py"
+        ).read_text(encoding="utf-8")
+        tree = ast.parse(src)
+        safe_commit_calls = [
+            node
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call)
+            and (
+                (isinstance(node.func, ast.Name) and node.func.id == "safe_commit")
+                or (
+                    isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "safe_commit"
+                )
+            )
+        ]
+        assert safe_commit_calls == [], (
+            "tasks.py still has direct safe_commit call sites; all three tails must "
+            "route through commit_for_mission (FR-006)"
+        )
+
+
+class TestTasksTailsProtectedPrimaryByteIdentical:
+    """T031: protected-primary refusal is byte-identical (message + exit code)."""
+
+    @pytest.fixture
+    def _protected_main(self, monkeypatch: pytest.MonkeyPatch) -> object:
+        """Patch the shared resolvers so each command reaches its auto-commit
+        pre-check on a PROTECTED ``main`` primary, then stops (exit 1).
+        """
+        from specify_cli.cli.commands.agent import tasks as tasks_mod
+
+        monkeypatch.setattr(tasks_mod, "locate_project_root", lambda: Path("/repo"))
+        monkeypatch.setattr(
+            tasks_mod, "_find_mission_slug", lambda **_kwargs: _SLUG
+        )
+        monkeypatch.setattr(
+            tasks_mod,
+            "_ensure_target_branch_checked_out",
+            lambda *_args, **_kwargs: (Path("/repo"), "main"),
+        )
+        monkeypatch.setattr(
+            tasks_mod, "_emit_sparse_session_warning", lambda *_args, **_kwargs: None
+        )
+        monkeypatch.setattr(
+            tasks_mod, "get_auto_commit_default", lambda *_args, **_kwargs: True
+        )
+
+        class _AlwaysProtected:
+            def is_protected(self, _ref: str) -> bool:
+                return True
+
+        monkeypatch.setattr(
+            "specify_cli.cli.commands.agent.tasks.ProtectionPolicy.resolve",
+            classmethod(lambda _cls, _root: _AlwaysProtected()),
+        )
+        # move-task must NOT take the coord-skip arm (that is a separate, preserved
+        # behaviour); force coord topology inactive so it hits the refusal pre-check.
+        monkeypatch.setattr(
+            tasks_mod, "_coord_topology_active", lambda *_args, **_kwargs: False
+        )
+        # map-requirements resolves its placement (filesystem) BEFORE the pre-check;
+        # stub it to a primary "main" target so the refusal arm fires deterministically
+        # without a real repo.
+        from mission_runtime import CommitTarget
+
+        monkeypatch.setattr(
+            "specify_cli.cli.commands.agent.mission._resolve_planning_placement",
+            lambda *_args, **_kwargs: CommitTarget(ref="main"),
+        )
+        # If the router were ever reached (it must NOT be — the pre-check refuses
+        # first), fail loudly: a reached router means the pre-check regressed.
+        def _router_must_not_be_reached(*_args: object, **_kwargs: object) -> object:
+            raise AssertionError(
+                "commit_for_mission was reached on a protected primary; the "
+                "pre-check refusal must short-circuit before any commit (C-003)"
+            )
+
+        monkeypatch.setattr(
+            tasks_mod, "commit_for_mission", _router_must_not_be_reached
+        )
+        return monkeypatch
+
+    def _assert_json_error_byte_identical(
+        self, output: str, command: str
+    ) -> None:
+        """The ``--json`` error envelope carries the message verbatim (no Rich reflow)."""
+        import json
+
+        payload = json.loads(output.strip().splitlines()[-1])
+        assert payload["error"] == _expected_protected_message(command), (
+            f"protected-primary message drifted for {command!r}; got:\n"
+            f"{payload['error']!r}"
+        )
+
+    def test_mark_status_protected_primary_message_byte_identical(
+        self, _protected_main: object
+    ) -> None:
+        from typer.testing import CliRunner
+
+        from specify_cli.cli.commands.agent.tasks import app
+
+        result = CliRunner().invoke(
+            app,
+            ["mark-status", "T001", "--status", "done", "--mission", _SLUG, "--auto-commit", "--json"],
+        )
+        assert result.exit_code == 1, result.output
+        self._assert_json_error_byte_identical(
+            result.output, "spec-kitty agent tasks mark-status"
+        )
+
+    def test_map_requirements_protected_primary_message_byte_identical(
+        self, _protected_main: object
+    ) -> None:
+        from typer.testing import CliRunner
+
+        from specify_cli.cli.commands.agent.tasks import app
+
+        result = CliRunner().invoke(
+            app,
+            ["map-requirements", "--wp", "WP01", "--refs", "FR-001", "--mission", _SLUG, "--auto-commit", "--json"],
+        )
+        assert result.exit_code == 1, result.output
+        self._assert_json_error_byte_identical(
+            result.output, "spec-kitty agent tasks map-requirements"
+        )
+
+    def test_move_task_protected_primary_message_byte_identical(
+        self, _protected_main: object
+    ) -> None:
+        from typer.testing import CliRunner
+
+        from specify_cli.cli.commands.agent.tasks import app
+
+        result = CliRunner().invoke(
+            app,
+            ["move-task", "WP01", "--to", "for_review", "--mission", _SLUG, "--auto-commit", "--json"],
+        )
+        assert result.exit_code == 1, result.output
+        self._assert_json_error_byte_identical(
+            result.output, "spec-kitty agent tasks move-task"
+        )

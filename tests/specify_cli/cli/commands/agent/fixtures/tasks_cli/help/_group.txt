@@ -1,0 +1,23 @@
+                                                                                                    
+ Usage: tasks [OPTIONS] COMMAND [ARGS]...                                                           
+                                                                                                    
+ Task workflow commands for AI agents                                                               
+                                                                                                    
+╭─ Options ────────────────────────────────────────────────────────────────────────────────────────╮
+│ --install-completion          Install completion for the current shell.                          │
+│ --show-completion             Show completion for the current shell, to copy it or customize the │
+│                               installation.                                                      │
+│ --help                        Show this message and exit.                                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────────────────────────╮
+│ move-task          Move task between lanes (planned → doing → for_review → approved → done).     │
+│ mark-status        Update task checkbox status in tasks.md for one or more tasks.                │
+│ list-tasks         List tasks with optional lane filtering.                                      │
+│ add-history        Append history entry to task activity log.                                    │
+│ finalize-tasks     Parse tasks.md and inject dependencies into WP frontmatter.                   │
+│ map-requirements   Register requirement-to-WP mappings with immediate validation.                │
+│ validate-workflow  Validate task metadata structure and workflow consistency.                    │
+│ status             Display kanban status board for all work packages in a feature.               │
+│ list-dependents    Find all WPs that depend on a given WP (downstream dependents).               │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+

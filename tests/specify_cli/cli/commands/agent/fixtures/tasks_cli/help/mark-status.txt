@@ -1,0 +1,34 @@
+                                                                                                    
+ Usage: tasks mark-status [OPTIONS] TASK_IDS...                                                     
+                                                                                                    
+ Update task checkbox status in tasks.md for one or more tasks.                                     
+                                                                                                    
+ Accepts MULTIPLE task IDs separated by spaces. All tasks are updated                               
+ in a single operation with one commit.                                                             
+                                                                                                    
+ Examples:                                                                                          
+     # Single task:                                                                                 
+     spec-kitty agent tasks mark-status T001 --status done                                          
+                                                                                                    
+     # Multiple tasks (space-separated):                                                            
+     spec-kitty agent tasks mark-status T001 T002 T003 --status done                                
+                                                                                                    
+     # Many tasks at once:                                                                          
+     spec-kitty agent tasks mark-status T040 T041 T042 T043 T044 T045 --status done --mission       
+ 001-my-feature                                                                                     
+                                                                                                    
+     # With JSON output:                                                                            
+     spec-kitty agent tasks mark-status T001 T002 --status done --json                              
+                                                                                                    
+╭─ Arguments ──────────────────────────────────────────────────────────────────────────────────────╮
+│ *    task_ids      TASK_IDS...  Task ID(s) - space-separated (e.g., T001 T002 T003) [required]   │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────────────────────────╮
+│ *  --status                             TEXT  Status: done/pending [required]                    │
+│    --mission                            TEXT  Mission slug                                       │
+│    --auto-commit    --no-auto-commit          Automatically commit tasks.md changes to target    │
+│                                               branch (default: from project config)              │
+│    --json                                     Output JSON format                                 │
+│    --help                                     Show this message and exit.                        │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+

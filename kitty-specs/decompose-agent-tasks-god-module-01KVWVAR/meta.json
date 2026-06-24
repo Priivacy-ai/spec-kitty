@@ -1,0 +1,27 @@
+{
+  "accept_commit": "f07a82eb4eee26a4ab4a04f990a33ff419d7e066",
+  "acceptance_history": [
+    {
+      "accept_commit": "f07a82eb4eee26a4ab4a04f990a33ff419d7e066",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-24T17:07:01.607519+00:00",
+      "accepted_by": "jeroennouws",
+      "accepted_from_commit": "8d950fd1eb79aaafe575822fd1b9912bb0b0fc34"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-24T17:07:01.607519+00:00",
+  "accepted_by": "jeroennouws",
+  "accepted_from_commit": "8d950fd1eb79aaafe575822fd1b9912bb0b0fc34",
+  "created_at": "2026-06-24T12:57:54.588923+00:00",
+  "friendly_name": "Decompose agent/tasks.py god-module",
+  "merge_target_branch": "main",
+  "mission_id": "01KVWVARJKSH9T2QNHJVE4ZC7Y",
+  "mission_number": 148,
+  "mission_slug": "decompose-agent-tasks-god-module-01KVWVAR",
+  "mission_type": "software-dev",
+  "slug": "decompose-agent-tasks-god-module-01KVWVAR",
+  "source_description": "Priivacy-ai/spec-kitty issue #2058 (parent #1797). Decompose the agent/tasks.py god-module (4633 LOC, maxCC ~178) into cohesive testable seams; preserve the public `agent tasks` CLI surface; plus the PR #2060 follow-up to route the 3 planning-commit tails through commit_for_mission (output-preserving) and delete dead is_protected pre-checks.",
+  "target_branch": "kitty/mission-decompose-agent-tasks-god-module-01KVWVAR",
+  "vcs": "git"
+}

@@ -117,8 +117,11 @@ def _capabilities_at_call_sites(path: Path, callee: str) -> list[GuardCapability
     [
         # (b) legacy workflow commit + baseline-artifact commit
         ("cli/commands/agent/workflow.py", "safe_commit", 2),
-        # (d) move-task / mark-status / map-requirements auto-commits
-        ("cli/commands/agent/tasks.py", "safe_commit", 3),
+        # (d) move-task / mark-status / map-requirements auto-commits now route
+        # through the canonical ``commit_for_mission`` router (WP07 / #2058 / FR-006);
+        # the single ``safe_commit`` site they share lives in the router and must
+        # still assert STANDARD (refused on a protected destination).
+        ("coordination/commit_router.py", "safe_commit", 1),
         # (c) finalize-tasks canonical seeding (both finalize surfaces)
         ("cli/commands/agent/mission.py", "bootstrap_canonical_state", 2),
         ("cli/commands/agent/tasks.py", "bootstrap_canonical_state", 1),

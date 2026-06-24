@@ -1,0 +1,245 @@
+schema_version: 1
+mission_id: 01KVWVARJKSH9T2QNHJVE4ZC7Y
+mission_slug: decompose-agent-tasks-god-module-01KVWVAR
+mission_number: 148
+friendly_name: Decompose agent/tasks.py god-module
+mission_type: software-dev
+target_branch: kitty/mission-decompose-agent-tasks-god-module-01KVWVAR
+created_at: '2026-06-24T18:11:49.981091+00:00'
+created_by:
+  kind: human
+  id: cli
+  display: spec-kitty retrospect
+provenance:
+  kind: explicit_create
+  invoked_at: '2026-06-24T18:11:49.981091+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+  command: spec-kitty retrospect create
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-003
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-004
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-012
+- id: h-005
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-012
+not_helpful:
+- id: n-011
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-023
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+    issues and decisions.
+- id: n-010
+  category: implementation
+  summary: WP06 needed 2 implementation cycles
+  evidence_refs:
+  - e-022
+  details: WP WP06 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a 
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-003
+  category: process
+  summary: WP01 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-015
+  details: WP WP01 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-004
+  category: process
+  summary: WP02 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-016
+  details: WP WP02 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-001
+  category: process
+  summary: WP03 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-013
+  details: WP WP03 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-005
+  category: process
+  summary: WP03 required 4 --force override(s) during workflow
+  evidence_refs:
+  - e-017
+  details: WP WP03 required 4 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-006
+  category: process
+  summary: WP04 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-018
+  details: WP WP04 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-007
+  category: process
+  summary: WP05 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-019
+  details: WP WP05 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-002
+  category: process
+  summary: WP06 had 1 lane bounce(s) before approval
+  evidence_refs:
+  - e-014
+  details: WP WP06 moved backward across workflow lanes 1 time(s) outside the documented reviewer-feedback flow.
+- id: n-008
+  category: process
+  summary: WP06 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-020
+  details: WP WP06 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-009
+  category: process
+  summary: WP07 required 4 --force override(s) during workflow
+  evidence_refs:
+  - e-021
+  details: WP WP07 required 4 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-012
+  category: review_loop
+  summary: mission-review-report.md present with findings
+  evidence_refs:
+  - e-024
+  details: A mission-review-report.md artifact is present for this mission. Review its findings to understand documented
+    review outcomes.
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/tasks/WP01-golden-cli-characterization-harness.md
+- id: e-006
+  kind: file
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/tasks/WP02-extract-tasks-outline-seam.md
+- id: e-007
+  kind: file
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/tasks/WP03-extract-tasks-materialization-seam.md
+- id: e-008
+  kind: file
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/tasks/WP04-extract-tasks-finalize-validation-seam.md
+- id: e-009
+  kind: file
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/tasks/WP05-extract-tasks-dependency-graph-seam.md
+- id: e-010
+  kind: file
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/tasks/WP06-extract-tasks-parsing-validation-seam.md
+- id: e-011
+  kind: file
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/tasks/WP07-centralize-commit-routing-and-shim-sweep.md
+- id: e-012
+  kind: file
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/status.events.jsonl
+- id: e-013
+  kind: event_range
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/status.events.jsonl
+  range: 01KVX1QAK506VHM8027JRWKC05
+- id: e-014
+  kind: event_range
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/status.events.jsonl
+  range: 01KVX4PQHM9YVVMGFAQKPKA41Y
+- id: e-015
+  kind: event_range
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/status.events.jsonl
+  range: 01KVXA0GDTZBHREG3Z2CX3PETE
+- id: e-016
+  kind: event_range
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/status.events.jsonl
+  range: 01KVXA0JGDSJ541QTRTKKSNTNM
+- id: e-017
+  kind: event_range
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/status.events.jsonl
+  range: 01KVX1QAK506VHM8027JRWKC05..01KVXA16083PSC0R5E7XPNZGYZ
+- id: e-018
+  kind: event_range
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/status.events.jsonl
+  range: 01KVXA0NS1AJAYHPJ97ZP05243
+- id: e-019
+  kind: event_range
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/status.events.jsonl
+  range: 01KVXA0QTR1AYH3YGNKTWDC6GK
+- id: e-020
+  kind: event_range
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/status.events.jsonl
+  range: 01KVX4KCPRZZPG89JGWJ82NXDG..01KVXA0SV5BJQS80DE61PNAN9H
+- id: e-021
+  kind: event_range
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/status.events.jsonl
+  range: 01KVX737XXA7TA9RSHN26DXX2J..01KVXA17QCX8ANJE8V66SVSERW
+- id: e-022
+  kind: event_range
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/status.events.jsonl
+  range: implementation_cycles
+- id: e-023
+  kind: file
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/analysis-report.md
+- id: e-024
+  kind: file
+  path: kitty-specs/decompose-agent-tasks-god-module-01KVWVAR/mission-review-report.md
+generator_version: '1.0'
+provenance_history: []

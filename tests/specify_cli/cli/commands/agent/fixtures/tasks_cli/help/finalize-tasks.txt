@@ -1,0 +1,20 @@
+                                                                                                    
+ Usage: tasks finalize-tasks [OPTIONS]                                                              
+                                                                                                    
+ Parse tasks.md and inject dependencies into WP frontmatter.                                        
+                                                                                                    
+ Scans tasks.md for "Depends on: WP##" patterns or phase groupings,                                 
+ builds dependency graph, validates for cycles, and writes dependencies                             
+ field to each WP file's frontmatter.                                                               
+                                                                                                    
+ Examples:                                                                                          
+     spec-kitty agent tasks finalize-tasks --mission 001-my-feature --json                          
+     spec-kitty agent tasks finalize-tasks --mission 021-my-feature --json                          
+                                                                                                    
+╭─ Options ────────────────────────────────────────────────────────────────────────────────────────╮
+│ --mission              TEXT  Mission slug                                                        │
+│ --json                       Output JSON format                                                  │
+│ --validate-only              Validate without writing changes                                    │
+│ --help                       Show this message and exit.                                         │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+

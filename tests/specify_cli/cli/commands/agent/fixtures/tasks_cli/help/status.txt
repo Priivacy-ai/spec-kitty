@@ -1,0 +1,25 @@
+                                                                                                    
+ Usage: tasks status [OPTIONS]                                                                      
+                                                                                                    
+ Display kanban status board for all work packages in a feature.                                    
+                                                                                                    
+ Shows a beautiful overview of work package statuses, progress metrics,                             
+ and next steps based on dependencies.                                                              
+                                                                                                    
+ WPs in "doing" with no commits for --stale-threshold minutes are flagged                           
+ as potentially stale (agent may have stopped).                                                     
+                                                                                                    
+ Example:                                                                                           
+     spec-kitty agent tasks status                                                                  
+     spec-kitty agent tasks status --mission 012-documentation-mission                              
+     spec-kitty agent tasks status --json                                                           
+     spec-kitty agent tasks status --stale-threshold 15                                             
+                                                                                                    
+╭─ Options ────────────────────────────────────────────────────────────────────────────────────────╮
+│ --mission                TEXT     Mission slug                                                   │
+│ --json                            Output as JSON                                                 │
+│ --stale-threshold        INTEGER  Minutes of inactivity before a WP is considered stale          │
+│                                   [default: 10]                                                  │
+│ --help                            Show this message and exit.                                    │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+
