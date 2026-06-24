@@ -41,7 +41,7 @@ from specify_cli.template.asset_generator import render_command_template
 # Constants
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 TEMPLATES_DIR = Path(__file__).parent.parent.parent.parent / "src" / "doctrine" / "missions" / "mission-steps" / "software-dev"
 

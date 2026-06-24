@@ -170,7 +170,11 @@ Workflow:
 1. Run `spec-kitty agent mission create …`. Note that `spec.md` is left
    untracked.
 2. Populate `spec.md` with real Functional / Non-Functional / Constraint rows.
-3. Commit `spec.md` yourself: `spec-kitty safe-commit --message "Add spec for <slug>" <feature_dir>/spec.md`.
+3. Commit `spec.md` yourself using the mission-aware entrypoint:
+   ```bash
+   spec-kitty spec-commit --mission <slug> --message "Add spec for <slug>" <feature_dir>/spec.md
+   ```
+   On a protected `main`/`master` primary this materializes the coordination worktree and lands the commit on the coordination branch (no deadlock); on an unprotected or flattened primary the commit is direct.
 4. Only then will `spec-kitty agent mission setup-plan` accept the spec phase<!-- glossary:glossary:phase -->
    as complete; otherwise it returns `phase_complete=false` with a
    `blocked_reason` mentioning "committed AND substantive".
