@@ -150,9 +150,9 @@
 - **Goal**: Move `orphan-daemons` + `restart-daemon` bodies into a cohesive daemon sibling.
 - **Priority**: P1. **Dependencies**: WP09. **Independent test**: daemon tests ≥90% + golden + argv-fast-path (`restart-daemon`) green.
 - **Requirement refs**: FR-003, FR-004.
-- [ ] T028 Create `_daemon_doctor.py` (WP10)
-- [ ] T029 Delegate the two daemon bodies; preserve `restart-daemon` 0/1/2/3 contract (WP10)
-- [ ] T030 Focused tests ≥90%; golden + argv-fast-path green (WP10)
+- [x] T028 Create `_daemon_doctor.py` (WP10)
+- [x] T029 Delegate the two daemon bodies; preserve `restart-daemon` 0/1/2/3 contract (WP10)
+- [x] T030 Focused tests ≥90%; golden + argv-fast-path green (WP10)
 - **Out-of-map edits**: `doctor.py` (delegation).
 - **Risks**: the four-state `restart-daemon` exit contract + `_is_doctor_restart_daemon_invocation` argv fast-path must be preserved.
 
