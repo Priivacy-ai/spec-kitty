@@ -1,16 +1,16 @@
 {
-  "event_count": 77,
-  "last_event_id": "01KVXZ108JHE3RJ4RSK86PABC0",
-  "materialized_at": "2026-06-24T23:21:43.442683+00:00",
+  "event_count": 66,
+  "last_event_id": "01KVXYHWFD83S8NTXDG3NK572M",
+  "materialized_at": "2026-06-24T23:13:28.045501+00:00",
   "mission_number": "",
   "mission_slug": "decompose-doctor-god-module-01KVXHFB",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 0,
+    "approved": 11,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 11,
+    "done": 0,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
@@ -18,81 +18,81 @@
   },
   "work_packages": {
     "WP01": {
-      "actor": "merge",
+      "actor": "user",
       "force_count": 0,
-      "lane": "done",
-      "last_event_id": "01KVXZ0R59VBH1RYRG1C4SXM4H",
-      "last_transition_at": "2026-06-24T23:21:35.145689+00:00"
+      "lane": "approved",
+      "last_event_id": "01KVXN9RAE5YAPCKARYNBCFF11",
+      "last_transition_at": "2026-06-24T20:31:44.462161+00:00"
     },
     "WP02": {
-      "actor": "merge",
+      "actor": "user",
       "force_count": 0,
-      "lane": "done",
-      "last_event_id": "01KVXZ0S22FBR6MZDVFDT9MHEH",
-      "last_transition_at": "2026-06-24T23:21:36.066247+00:00"
+      "lane": "approved",
+      "last_event_id": "01KVXNZEENT8CPFY2FT0GNDJ3B",
+      "last_transition_at": "2026-06-24T20:43:35.253919+00:00"
     },
     "WP03": {
-      "actor": "merge",
+      "actor": "user",
       "force_count": 0,
-      "lane": "done",
-      "last_event_id": "01KVXZ0SVEQ57PWRA1V9QW3K6N",
-      "last_transition_at": "2026-06-24T23:21:36.878226+00:00"
+      "lane": "approved",
+      "last_event_id": "01KVXPPWZ5ETCEYYT55WKGB12W",
+      "last_transition_at": "2026-06-24T20:56:23.781821+00:00"
     },
     "WP04": {
-      "actor": "merge",
+      "actor": "user",
       "force_count": 0,
-      "lane": "done",
-      "last_event_id": "01KVXZ0TMHCRMMQZQHNZT1D4G3",
-      "last_transition_at": "2026-06-24T23:21:37.682016+00:00"
+      "lane": "approved",
+      "last_event_id": "01KVXQHYWPXE2VW64STRRSYVSA",
+      "last_transition_at": "2026-06-24T21:11:10.486478+00:00"
     },
     "WP05": {
-      "actor": "merge",
+      "actor": "user",
       "force_count": 0,
-      "lane": "done",
-      "last_event_id": "01KVXZ0VDZZ2YSRRJ262JERA9N",
-      "last_transition_at": "2026-06-24T23:21:38.495740+00:00"
+      "lane": "approved",
+      "last_event_id": "01KVXRVK5B0ASZDHXTKN261045",
+      "last_transition_at": "2026-06-24T21:33:54.731657+00:00"
     },
     "WP06": {
-      "actor": "merge",
+      "actor": "user",
       "force_count": 0,
-      "lane": "done",
-      "last_event_id": "01KVXZ0W8301S8TK50V0CPY26N",
-      "last_transition_at": "2026-06-24T23:21:39.331163+00:00"
+      "lane": "approved",
+      "last_event_id": "01KVXSS53T9VDY8R5252K16M8Y",
+      "last_transition_at": "2026-06-24T21:50:03.386266+00:00"
     },
     "WP07": {
-      "actor": "merge",
+      "actor": "user",
       "force_count": 0,
-      "lane": "done",
-      "last_event_id": "01KVXZ0X1M3KATPDP82KP34N5N",
-      "last_transition_at": "2026-06-24T23:21:40.148904+00:00"
+      "lane": "approved",
+      "last_event_id": "01KVXTHDC4N64JTWWKMW3MA0AZ",
+      "last_transition_at": "2026-06-24T22:03:18.276627+00:00"
     },
     "WP08": {
-      "actor": "merge",
+      "actor": "user",
       "force_count": 0,
-      "lane": "done",
-      "last_event_id": "01KVXZ0XV58Y07ZEZK0TFMBMP5",
-      "last_transition_at": "2026-06-24T23:21:40.965227+00:00"
+      "lane": "approved",
+      "last_event_id": "01KVXV8YBCKV5KZECMZCSHPXPH",
+      "last_transition_at": "2026-06-24T22:16:09.324853+00:00"
     },
     "WP09": {
-      "actor": "merge",
+      "actor": "user",
       "force_count": 0,
-      "lane": "done",
-      "last_event_id": "01KVXZ0YMDAW458SFZCG2Z20AV",
-      "last_transition_at": "2026-06-24T23:21:41.774019+00:00"
+      "lane": "approved",
+      "last_event_id": "01KVXW0G5E873B7V387YQ4AMYV",
+      "last_transition_at": "2026-06-24T22:29:01.242145+00:00"
     },
     "WP10": {
-      "actor": "merge",
+      "actor": "user",
       "force_count": 0,
-      "lane": "done",
-      "last_event_id": "01KVXZ0ZF2YGRQ6KBC9NES54SC",
-      "last_transition_at": "2026-06-24T23:21:42.626129+00:00"
+      "lane": "approved",
+      "last_event_id": "01KVXXPTXVGJF8NACYWCQP6P99",
+      "last_transition_at": "2026-06-24T22:58:41.723131+00:00"
     },
     "WP11": {
-      "actor": "merge",
+      "actor": "user",
       "force_count": 0,
-      "lane": "done",
-      "last_event_id": "01KVXZ108JHE3RJ4RSK86PABC0",
-      "last_transition_at": "2026-06-24T23:21:43.442683+00:00"
+      "lane": "approved",
+      "last_event_id": "01KVXYHWFD83S8NTXDG3NK572M",
+      "last_transition_at": "2026-06-24T23:13:28.045501+00:00"
     }
   }
 }
