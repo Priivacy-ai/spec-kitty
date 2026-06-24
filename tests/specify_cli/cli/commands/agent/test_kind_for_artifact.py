@@ -14,7 +14,7 @@ import pytest
 from mission_runtime import MissionArtifactKind
 from specify_cli.cli.commands.agent.mission import _kind_for_artifact
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 @pytest.mark.parametrize(

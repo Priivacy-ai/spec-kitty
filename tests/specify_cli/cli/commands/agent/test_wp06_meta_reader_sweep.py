@@ -44,7 +44,7 @@ import pytest
 
 from specify_cli.mission_metadata import META_FILENAME, write_meta
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _MISSION_ID = "01KVTVZSQ7XB2M9K4D8N3FZ0YT"
 _MID8 = _MISSION_ID[:8]  # "01KVTVZS"

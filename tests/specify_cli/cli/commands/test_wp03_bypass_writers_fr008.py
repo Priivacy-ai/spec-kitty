@@ -22,7 +22,7 @@ import pytest
 from mission_runtime import MissionArtifactKind, kind_for_mission_file
 from specify_cli.git.commit_helpers import ProtectedBranchRefused
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 # Realistic identity (NFR-005 / test-data policy): real ULID + mid8 + slug.
 _SLUG = "write-surface-coherence-01KVTVZS"
