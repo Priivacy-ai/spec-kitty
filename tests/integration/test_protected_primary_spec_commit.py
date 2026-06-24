@@ -226,6 +226,7 @@ class TestSpecCommitE2EOnProtectedPrimary:
             placement: object,
             files: tuple[Path, ...],
             *,
+            kind: MissionArtifactKind,
             primary_paths_created_this_invocation: frozenset[Path] | None = None,
         ) -> tuple[Path, tuple[Path, ...]]:
             # Return the primary checkout directly — no coord worktree created.
@@ -360,8 +361,45 @@ def test_sibling_site_commit_for_mission_called_on_protected_primary(
     ):
         if site in ("spec_commit",):
             # Run commit_for_mission directly through the router (T022 primary site).
+            #
+            # write-surface-coherence WP02/WP05 re-pin: a forced-coord placement is
+            # only legitimate for a COORD kind now (a primary kind like SPEC NEVER
+            # routes to coord and would trip the DECISION-8 guard). Use
+            # ``ANALYSIS_REPORT`` (a coordination kind) so the forced-coord scenario
+            # is consistent with the partition, and bypass the materialiser to a
+            # controlled primary checkout so the direct-call site exercises the
+            # coord-routing arm without needing a real coord worktree.
+            import specify_cli.coordination.commit_router as commit_router_mod
             from mission_runtime import CommitTarget
 
+            report = feature_dir / "analysis-report.md"
+            report.write_text("# Analysis\n\nNo blocking findings.\n", encoding="utf-8")
+
+            def _bypass_materialiser(
+                repo_root: Path,
+                mission_slug: str,
+                placement: object,
+                files: tuple[Path, ...],
+                *,
+                kind: MissionArtifactKind,
+                primary_paths_created_this_invocation: frozenset[Path] | None = None,
+            ) -> tuple[Path, tuple[Path, ...]]:
+                return repo_root, files
+
+            monkeypatch.setattr(
+                commit_router_mod, "_materialise_coord_worktree", _bypass_materialiser
+            )
+
+            # Stub the terminal ``safe_commit`` so the coord-routing arm completes
+            # deterministically without needing a real coord-branch checkout — the
+            # assertion under test is that the router runs the coord arm and returns
+            # a sane (non-error) status, not the git mechanics of the commit itself.
+            class _FakeCommit:
+                sha = "abcdef1234567"
+
+            monkeypatch.setattr(
+                commit_router_mod, "safe_commit", lambda **_kw: _FakeCommit()
+            )
             with patch(
                 "specify_cli.coordination.commit_router.resolve_placement_only",
                 return_value=CommitTarget(ref=coord_branch),
@@ -370,11 +408,12 @@ def test_sibling_site_commit_for_mission_called_on_protected_primary(
                 result = commit_for_mission(
                     repo_root=repo.repo_root,
                     mission_slug=slug,
-                    files=(spec_path,),
-                    message="spec: test",
+                    files=(report,),
+                    message="analysis: test",
                     policy=policy,
-                    # SPEC is a primary kind (write-surface-coherence WP02).
-                    kind=MissionArtifactKind.SPEC,
+                    # ANALYSIS_REPORT is a coordination kind: it legitimately routes
+                    # to coord, so the sibling-site materialiser arm is exercised.
+                    kind=MissionArtifactKind.ANALYSIS_REPORT,
                 )
             # Direct call — the stub itself is what we called, so count = 1 here via the stub.
             # We assert the router returns the committed result (no-error).
@@ -492,6 +531,7 @@ def test_sibling_site_negative_no_op_materialiser_breaks_positive(
                 placement: object,
                 files: tuple[Path, ...],
                 *,
+                kind: MissionArtifactKind,
                 primary_paths_created_this_invocation: frozenset[Path] | None = None,
             ) -> tuple[Path, tuple[Path, ...]]:
                 return repo_root, files

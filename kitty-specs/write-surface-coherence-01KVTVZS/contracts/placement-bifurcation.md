@@ -19,7 +19,8 @@ resolve_placement(M, kind: MissionArtifactKind) -> CommitTarget:
 
 _PRIMARY_ARTIFACT_KINDS = {SPEC, DATA_MODEL, RESEARCH, CHECKLIST,
                            FINALIZED_EXECUTION_PLAN, TASKS_INDEX,
-                           WORK_PACKAGE_TASK, PRIMARY_METADATA}   # flip = move a kind
+                           WORK_PACKAGE_TASK, LANE_STATE,
+                           PRIMARY_METADATA}   # flip = move a kind
 ```
 
 ## Guarantees
@@ -33,8 +34,9 @@ _PRIMARY_ARTIFACT_KINDS = {SPEC, DATA_MODEL, RESEARCH, CHECKLIST,
 - **G-4**: A PLANNING commit whose `target_branch` is a protected branch is
   **refused** (`ProtectedBranchRefused`-class), with guidance to start a feature
   branch. (FR-008)
-- **G-5**: The PLANNING destination is produced by the single
-  `_planning_destination_ref` locus. Flipping it changes neither the returned
+- **G-5**: The PLANNING-vs-coordination partition is decided by the single
+  inline `if kind in _PRIMARY_ARTIFACT_KINDS` check (the frozenset IS the
+  locus). Flipping a kind's membership changes neither the returned
   `CommitTarget` shape nor the `resolve_placement_only`/`commit_for_mission`
   signatures — callers and the context object are blind to the choice. (NFR-004)
 
