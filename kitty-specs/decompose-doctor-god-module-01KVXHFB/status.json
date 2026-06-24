@@ -1,16 +1,16 @@
 {
-  "event_count": 71,
-  "last_event_id": "01KVXZ2GVP68KDYMYZ1SPAW8K7",
-  "materialized_at": "2026-06-24T23:22:33.206906+00:00",
+  "event_count": 72,
+  "last_event_id": "01KVXZ2HEZYN8CB87VSYXATFKZ",
+  "materialized_at": "2026-06-24T23:22:33.823160+00:00",
   "mission_number": "148",
   "mission_slug": "decompose-doctor-god-module-01KVXHFB",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 6,
+    "approved": 5,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 5,
+    "done": 6,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
@@ -53,11 +53,11 @@
       "last_transition_at": "2026-06-24T23:22:33.206906+00:00"
     },
     "WP06": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 0,
-      "lane": "approved",
-      "last_event_id": "01KVXSS53T9VDY8R5252K16M8Y",
-      "last_transition_at": "2026-06-24T21:50:03.386266+00:00"
+      "lane": "done",
+      "last_event_id": "01KVXZ2HEZYN8CB87VSYXATFKZ",
+      "last_transition_at": "2026-06-24T23:22:33.823160+00:00"
     },
     "WP07": {
       "actor": "user",
