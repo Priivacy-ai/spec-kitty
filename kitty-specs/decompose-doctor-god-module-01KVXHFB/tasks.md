@@ -84,9 +84,9 @@
 - **Goal**: Move identity+topology helpers; decompose `identity` CC19 to ≤15-CC tested helpers.
 - **Priority**: P1. **Dependencies**: WP03. **Independent test**: identity/topology helper tests ≥90% + golden green.
 - **Requirement refs**: FR-003, FR-004, FR-005, FR-006.
-- [ ] T010 Create `_identity_audit.py`; decompose `identity` CC19 (WP04)
-- [ ] T011 Delegate `identity`/`topology` bodies; re-export touched symbols (WP04)
-- [ ] T012 Focused tests ≥90%; golden green (WP04)
+- [x] T010 Create `_identity_audit.py`; decompose `identity` CC19 (WP04)
+- [x] T011 Delegate `identity`/`topology` bodies; re-export touched symbols (WP04)
+- [x] T012 Focused tests ≥90%; golden green (WP04)
 - **Out-of-map edits**: `doctor.py` (delegation + re-export).
 - **Risks**: `identity` `--fail-on` exit semantics must be byte-preserved across the decomposition.
 
