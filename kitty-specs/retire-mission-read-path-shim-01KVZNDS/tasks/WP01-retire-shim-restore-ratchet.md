@@ -15,7 +15,9 @@ tracker_refs:
 planning_base_branch: feat/retire-mission-read-path-shim
 merge_target_branch: feat/retire-mission-read-path-shim
 branch_strategy: Planning artifacts for this mission were generated on feat/retire-mission-read-path-shim. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/retire-mission-read-path-shim unless the human explicitly redirects the landing branch.
-created_at: '2026-06-25T15:33:23+00:00'
+base_branch: kitty/mission-retire-mission-read-path-shim-01KVZNDS
+base_commit: 1e48af40a412c01a5100502290f1930cf0ad53f1
+created_at: '2026-06-25T16:00:15.029561+00:00'
 subtasks:
 - T001
 - T002
@@ -25,6 +27,7 @@ subtasks:
 - T006
 - T007
 agent: claude
+shell_pid: '304688'
 history:
 - date: '2026-06-25'
   action: created

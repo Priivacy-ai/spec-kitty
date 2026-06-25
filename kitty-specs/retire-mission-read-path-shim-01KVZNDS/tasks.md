@@ -42,13 +42,13 @@ reviewable, atomic unit.
 
 **Included subtasks**:
 
-- [ ] T001 Repoint the 7 shim imports in `test_coord_reader_fixes.py` to `specify_cli.missions._read_path_resolver`, aliasing `_resolve_mission_read_path as resolve_mission_read_path` (WP01)
-- [ ] T002 Delete `src/specify_cli/mission_read_path.py` (WP01)
-- [ ] T003 Drop `"specify_cli.mission_read_path"` from `_CATEGORY_4_BACKCOMPAT_SHIMS` in `tests/architectural/test_no_dead_modules.py` (WP01)
-- [ ] T004 Drop `"specify_cli.mission_read_path::resolve_mission_read_path"` from `_CATEGORY_C_BACKCOMPAT_SHIM_REEXPORT` in `tests/architectural/test_no_dead_symbols.py` (WP01)
-- [ ] T005 Decrement `category_4_backcompat_shims: 9 → 8` in `tests/architectural/_baselines.yaml` with a `# justification:` comment (WP01)
-- [ ] T006 Tidy the stale shim docstring (~line 100) in `tests/architectural/test_single_mission_surface_resolver.py` (WP01)
-- [ ] T007 Verify: run `pytest tests/architectural/`, the repointed test file, `ruff check .`, and `mypy src/specify_cli`; confirm all green and the `src/` grep is clean (WP01)
+- [x] T001 Repoint the 7 shim imports in `test_coord_reader_fixes.py` to `specify_cli.missions._read_path_resolver`, aliasing `_resolve_mission_read_path as resolve_mission_read_path` (WP01)
+- [x] T002 Delete `src/specify_cli/mission_read_path.py` (WP01)
+- [x] T003 Drop `"specify_cli.mission_read_path"` from `_CATEGORY_4_BACKCOMPAT_SHIMS` in `tests/architectural/test_no_dead_modules.py` (WP01)
+- [x] T004 Drop `"specify_cli.mission_read_path::resolve_mission_read_path"` from `_CATEGORY_C_BACKCOMPAT_SHIM_REEXPORT` in `tests/architectural/test_no_dead_symbols.py` (WP01)
+- [x] T005 Decrement `category_4_backcompat_shims: 9 → 8` in `tests/architectural/_baselines.yaml` with a `# justification:` comment (WP01)
+- [x] T006 Tidy the stale shim docstring (~line 100) in `tests/architectural/test_single_mission_surface_resolver.py` (WP01)
+- [x] T007 Verify: run `pytest tests/architectural/`, the repointed test file, `ruff check .`, and `mypy src/specify_cli`; confirm all green and the `src/` grep is clean (WP01)
 
 **Implementation sketch**:
 1. Repoint imports first (T001) so no commit references a missing module.
