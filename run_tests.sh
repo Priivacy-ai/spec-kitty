@@ -1,11 +1,9 @@
 #!/bin/bash
-# Test runner for the worktree that ensures correct imports
+# Test runner for the worktree (delegates to the canonical uv-managed test path).
 
-# Change to worktree directory
+# Change to the worktree directory so uv resolves the project venv.
 cd "$(dirname "$0")"
 
-# Add the src directory to PYTHONPATH
-export PYTHONPATH="${PWD}/src:${PWD}:${PYTHONPATH}"
-
-# Run tests with explicit path settings
-python -m pytest tests/ "$@"
+# Run the suite via uv (the canonical authority; see the Makefile `test` target and
+# CONTRIBUTING). uv sync's editable install handles src/ imports, so no manual PYTHONPATH.
+uv run pytest tests/ "$@"
