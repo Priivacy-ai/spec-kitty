@@ -743,6 +743,37 @@ def clear_merge_metadata(feature_dir: Path) -> dict[str, Any]:
     return cleared
 
 
+def clear_coordination_metadata(feature_dir: Path) -> dict[str, Any]:
+    """Remove the ``coordination_branch`` marker from ``meta.json`` (flatten).
+
+    Used by ``spec-kitty mission close --discard``: once the coordination branch
+    and worktree have been torn down, the mission is intentionally flattened to a
+    single-branch/primary topology. Leaving a dangling ``coordination_branch`` key
+    pointing at a now-deleted branch makes ``resolve_action_context`` fail closed
+    (``CoordinationBranchDeleted`` — "data loss") on every subsequent command for
+    that mission. Clearing it is the canonical "flatten the mission" recovery the
+    surface resolver itself recommends.
+
+    Returns a snapshot of the cleared fields (empty when none were present). The
+    write is tolerant (``validate=False``) so it never fails on legacy missions
+    whose ``meta.json`` predates a required field.
+
+    Raises:
+        FileNotFoundError: If ``meta.json`` does not exist in *feature_dir*.
+    """
+    meta = load_meta(feature_dir)
+    if meta is None:
+        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+
+    cleared: dict[str, Any] = {}
+    if "coordination_branch" in meta:
+        cleared["coordination_branch"] = meta.pop("coordination_branch")
+
+    if cleared:
+        write_meta(feature_dir, meta, validate=False)
+    return cleared
+
+
 def get_change_mode(feature_dir: Path) -> str | None:
     """Read ``change_mode`` from meta.json.
 

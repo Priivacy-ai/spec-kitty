@@ -142,3 +142,114 @@ def test_close_discard_tears_down_coordination_worktree_and_branch(
     )
     branches = _git(repo, "branch", "--list", COORD_BRANCH).stdout.strip()
     assert branches == "", f"coordination branch leaked after `close --discard`: {branches!r}"
+
+
+def test_close_discard_is_idempotent_on_rerun(
+    coord_mission: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A second `close --discard` after a successful one is a clean success —
+    the residual verifier must not false-fail when there is nothing left."""
+    repo = coord_mission
+    monkeypatch.chdir(repo)
+
+    first = runner.invoke(
+        mission_type.app, ["close", "--mission", SLUG, "--discard", "--force"],
+        env={"PWD": str(repo)},
+    )
+    assert first.exit_code == 0, first.output
+
+    second = runner.invoke(
+        mission_type.app, ["close", "--mission", SLUG, "--discard", "--force"],
+        env={"PWD": str(repo)},
+    )
+    assert second.exit_code == 0, second.output
+
+
+def test_close_discard_flattens_coordination_branch_from_meta(
+    coord_mission: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """After a discard deletes the coord branch, meta.json must no longer declare
+    `coordination_branch` — otherwise subsequent commands trip
+    CoordinationBranchDeleted (the dangling-reference data-loss guard)."""
+    repo = coord_mission
+    monkeypatch.chdir(repo)
+    meta_path = repo / "kitty-specs" / SLUG / "meta.json"
+    assert "coordination_branch" in json.loads(meta_path.read_text())
+
+    result = runner.invoke(
+        mission_type.app, ["close", "--mission", SLUG, "--discard", "--force"],
+        env={"PWD": str(repo)},
+    )
+    assert result.exit_code == 0, result.output
+    assert "coordination_branch" not in json.loads(meta_path.read_text())
+
+
+def test_close_without_discard_tears_down_coord_worktree(
+    coord_mission: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The non-discard `close` (re-anchored too) must tear down the coordination
+    worktree on a coord mission — pre-fix it silently no-op'd as well — while
+    leaving the branches intact (no --discard)."""
+    repo = coord_mission
+    monkeypatch.chdir(repo)
+
+    result = runner.invoke(
+        mission_type.app, ["close", "--mission", SLUG], env={"PWD": str(repo)}
+    )
+    assert result.exit_code == 0, result.output
+    assert not CoordinationWorkspace.is_present(repo, SLUG, MID8)
+    # Non-discard leaves branches in place.
+    assert _git(repo, "branch", "--list", COORD_BRANCH).stdout.strip() != ""
+
+
+def test_close_discard_fails_closed_on_corrupt_lanes_json(
+    coord_mission: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A corrupt lanes.json must abort the discard (non-zero, no teardown) rather
+    than silently degrade a modern mission to the legacy single-branch path and
+    leave its lane branches/worktrees behind."""
+    repo = coord_mission
+    (repo / "kitty-specs" / SLUG / "lanes.json").write_text("{ not json", encoding="utf-8")
+    monkeypatch.chdir(repo)
+
+    result = runner.invoke(
+        mission_type.app, ["close", "--mission", SLUG, "--discard", "--force"],
+        env={"PWD": str(repo)},
+    )
+    assert result.exit_code != 0
+    assert "corrupt" in result.output.lower()
+    # Aborted before teardown — coord worktree untouched.
+    assert CoordinationWorkspace.is_present(repo, SLUG, MID8)
+
+
+def test_verify_discard_complete_flags_leaks(tmp_path: Path) -> None:
+    """The residual verifier raises (non-zero) when an expected branch survives,
+    and is silent when everything is gone."""
+    from specify_cli.cli.commands.mission_type import _verify_discard_complete
+
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / ".kittify").mkdir()
+    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "config", "user.email", "t@example.com")
+    _git(repo, "config", "user.name", "Test")
+    fdir = repo / "kitty-specs" / SLUG
+    fdir.mkdir(parents=True)
+    meta_path = fdir / "meta.json"
+    meta_path.write_text(
+        json.dumps({"mission_slug": SLUG, "coordination_branch": COORD_BRANCH}),
+        encoding="utf-8",
+    )
+    (repo / "README.md").write_text("x\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "seed")
+
+    # No leftover branch/worktree → clean (no raise).
+    _verify_discard_complete(repo, SLUG, MID8, fdir, meta_path)
+
+    # A surviving coordination branch is a leak → typer.Exit (non-zero).
+    import typer
+
+    _git(repo, "branch", COORD_BRANCH)
+    with pytest.raises(typer.Exit):
+        _verify_discard_complete(repo, SLUG, MID8, fdir, meta_path)
