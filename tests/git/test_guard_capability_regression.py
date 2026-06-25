@@ -122,8 +122,16 @@ def _capabilities_at_call_sites(path: Path, callee: str) -> list[GuardCapability
         # the single ``safe_commit`` site they share lives in the router and must
         # still assert STANDARD (refused on a protected destination).
         ("coordination/commit_router.py", "safe_commit", 1),
-        # (c) finalize-tasks canonical seeding (both finalize surfaces)
-        ("cli/commands/agent/mission.py", "bootstrap_canonical_state", 2),
+        # (c) finalize-tasks canonical seeding (both finalize surfaces) — the
+        # #2056 decomposition relocated these two seeding call sites out of the
+        # ``mission`` god module into the ``mission_finalize`` seam. The raw
+        # ``bootstrap_canonical_state`` calls now live inside the
+        # ``_bootstrap_canonical_state_via_mission`` patch-seam wrapper (which
+        # forwards ``capability`` as a variable, not a surface literal); the
+        # operator-asserted capability literal is on the TWO wrapper call sites
+        # — one defaulting to STANDARD, one passing ``GuardCapability.STANDARD``
+        # explicitly — exactly mirroring the upstream pre-decomposition shape.
+        ("cli/commands/agent/mission_finalize.py", "_bootstrap_canonical_state_via_mission", 2),
         ("cli/commands/agent/tasks.py", "bootstrap_canonical_state", 1),
     ],
 )

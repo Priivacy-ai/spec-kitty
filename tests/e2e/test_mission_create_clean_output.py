@@ -81,10 +81,14 @@ def test_create_mission_calls_mark_invocation_succeeded_after_json_write() -> No
     to ``mark_invocation_succeeded()`` in the agent/mission/ command
     surface, and it must appear after the final ``_emit_json(...)`` of
     the create-payload success branch.
+
+    The ``create`` command body (and its ``mark_invocation_succeeded()``
+    call) was relocated by the #2056 mission.py decomposition into the
+    ``mission_create`` seam module; scan that file.
     """
     from pathlib import Path
 
-    from specify_cli.cli.commands.agent import mission as mission_module
+    from specify_cli.cli.commands.agent import mission_create as mission_module
 
     source_path = Path(mission_module.__file__)
     source = source_path.read_text(encoding="utf-8")
@@ -97,13 +101,13 @@ def test_create_mission_calls_mark_invocation_succeeded_after_json_write() -> No
     )
 
     # It must appear after the final JSON write of the create payload —
-    # i.e. after ``_emit_json(_inject_branch_contract(create_payload, ...``
+    # i.e. after ``_emit_json(_inject_branch_contract(_build_create_payload(...``
     create_payload_emit_re = re.compile(
-        r"_emit_json\(\s*_inject_branch_contract\(\s*create_payload",
+        r"_emit_json\(\s*_inject_branch_contract\(\s*_build_create_payload",
     )
     emit_match = create_payload_emit_re.search(source)
     assert emit_match is not None, (
-        "Could not locate the create_payload _emit_json(...) call in mission.py; "
+        "Could not locate the create_payload _emit_json(...) call in mission_create.py; "
         "either the call moved or the JSON success path was renamed."
     )
     assert matches[0].start() > emit_match.start(), (

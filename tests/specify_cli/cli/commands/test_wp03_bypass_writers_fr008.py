@@ -317,11 +317,14 @@ class TestTasksTailsProtectedPrimaryByteIdentical:
         )
         # map-requirements resolves its placement (filesystem) BEFORE the pre-check;
         # stub it to a primary "main" target so the refusal arm fires deterministically
-        # without a real repo.
+        # without a real repo. tasks.py imports ``_resolve_planning_placement`` via a
+        # function-local import from ``commit_router`` (the canonical source), so patch
+        # it THERE — patching the inert ``mission`` re-export leaves the real resolver
+        # live and it crashes on the fake ``/repo`` (post-#2056 reconciliation).
         from mission_runtime import CommitTarget
 
         monkeypatch.setattr(
-            "specify_cli.cli.commands.agent.mission._resolve_planning_placement",
+            "specify_cli.coordination.commit_router._resolve_planning_placement",
             lambda *_args, **_kwargs: CommitTarget(ref="main"),
         )
         # If the router were ever reached (it must NOT be — the pre-check refuses

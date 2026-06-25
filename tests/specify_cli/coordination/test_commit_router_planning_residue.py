@@ -74,26 +74,43 @@ def test_mission_re_exports_relocated_symbols() -> None:
 
 
 def test_tasks_py_imports_from_commit_router() -> None:
-    """``tasks.py`` must import the relocated primitives from commit_router."""
+    """``tasks.py`` must import the relocated primitives from commit_router.
+
+    Post-merge reality (WP08 residue check): ``tasks.py``'s map-requirements
+    body routes through ``commit_for_mission`` (the canonical entry point), so
+    the now-dead direct ``_planning_commit_worktree`` import was correctly
+    dropped — only ``_resolve_planning_placement`` is imported live. The
+    relocation invariant for ``_planning_commit_worktree`` (DEFINED in
+    commit_router) is asserted separately below; the residue rule remains that
+    whatever tasks.py imports, it imports from commit_router and NOT from the
+    ``mission`` god module.
+    """
     import specify_cli.cli.commands.agent.tasks as tasks_mod
 
     src = Path(tasks_mod.__file__).read_text(encoding="utf-8")
     tree = ast.parse(src)
     imported_from_router: set[str] = set()
     imported_from_mission: set[str] = set()
-    targets = {"_planning_commit_worktree", "_resolve_planning_placement"}
+    candidates = {"_planning_commit_worktree", "_resolve_planning_placement"}
     for node in ast.walk(tree):
         if not isinstance(node, ast.ImportFrom) or node.module is None:
             continue
-        names = {alias.name for alias in node.names} & targets
+        names = {alias.name for alias in node.names} & candidates
         if not names:
             continue
         if node.module == "specify_cli.coordination.commit_router":
             imported_from_router |= names
         elif node.module == "specify_cli.cli.commands.agent.mission":
             imported_from_mission |= names
-    assert imported_from_router == targets
+    # ``_planning_commit_worktree`` is no longer imported by tasks.py (its
+    # map-requirements path routes through ``commit_for_mission``); the live
+    # import is exactly ``_resolve_planning_placement``.
+    assert imported_from_router == {"_resolve_planning_placement"}
     assert not imported_from_mission, "tasks.py must NOT import these from mission after WP08"
+    # The relocated ``_planning_commit_worktree`` still LIVES in commit_router
+    # even though tasks.py no longer imports it directly.
+    assert hasattr(commit_router, "_planning_commit_worktree")
+    assert commit_router._planning_commit_worktree.__module__ == commit_router.__name__
 
 
 def test_commit_router_has_no_cli_imports() -> None:
