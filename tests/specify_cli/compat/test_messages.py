@@ -85,7 +85,7 @@ def _make_plan(
         max_supported=max_supported,
         metadata_error=metadata_error,
     )
-    upgrade_hint = build_upgrade_hint(install_method)
+    upgrade_hint = build_upgrade_hint(install_method, target_version=latest_version)
     exit_code_map = {
         Decision.ALLOW: 0,
         Decision.ALLOW_WITH_NAG: 0,
@@ -256,6 +256,18 @@ class TestRenderHuman:
         text = render_human(p)
         for line in text.splitlines():
             assert line == line.rstrip(), f"Trailing whitespace in line: {line!r}"
+
+    def test_uv_tool_pinned_command_renders(self) -> None:
+        p = _make_plan(
+            Decision.ALLOW_WITH_NAG,
+            Fr023Case.CLI_UPDATE_AVAILABLE,
+            is_outdated=True,
+            latest_version="3.2.2",
+            install_method=InstallMethod.UV_TOOL,
+        )
+        text = render_human(p)
+        assert "uv tool install --force spec-kitty-cli==3.2.2" in text
+        assert "<unavailable>" not in text
 
 
 # ---------------------------------------------------------------------------
