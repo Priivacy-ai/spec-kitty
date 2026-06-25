@@ -321,6 +321,38 @@ def _resolve_mission_dir_or_fail(command: str, main_repo_root: Path, mission_slu
     return mission_dir
 
 
+def _planning_read_dir(main_repo_root: Path, mission_slug: str) -> Path:
+    """Return the PRIMARY-surface mission dir for planning-artifact reads (#2118).
+
+    PRIMARY-partition artifacts — ``lanes.json`` (``LANE_STATE``) and the WP
+    ``tasks/`` files (``WORK_PACKAGE_TASK``) — live with their mission on the
+    primary ``target_branch`` for EVERY topology since the write-surface-coherence
+    work (#2090): planning never transits the coordination branch. The coord-aware
+    :func:`_resolve_mission_dir` returns the *coordination worktree*, which carries
+    ONLY status artifacts (``status.events.jsonl`` / ``status.json``) +
+    coordination-owned ones (``analysis-report.md``). Reading ``lanes.json`` or
+    ``tasks/`` off that surface under coordination topology silently no-ops — the
+    dependency graph comes back empty and the orchestrator stalls with every WP
+    stuck at ``lane=planned`` (#2118).
+
+    This routes PRIMARY-partition reads through the canonical per-kind read seam
+    :func:`resolve_planning_read_dir`, the read-side twin of the write-side
+    partition (``mission_runtime.is_primary_artifact_kind``): a PRIMARY kind
+    resolves the topology-blind primary dir, so both ``LANE_STATE`` and
+    ``WORK_PACKAGE_TASK`` co-resolve here. STATUS reads (``read_events`` /
+    ``reduce`` / ``materialize`` / status-event writes) MUST keep the coord-aware
+    :func:`_resolve_mission_dir` — the append-only event log stays on coordination
+    for coord-topology missions. This mirrors the meta.json treatment already in
+    :func:`_resolve_merge_target_branch`.
+    """
+    from mission_runtime import MissionArtifactKind
+    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+
+    return resolve_planning_read_dir(
+        main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    )
+
+
 def _mission_identity_payload(mission_dir: Path) -> dict[str, str]:
     """Return canonical mission identity fields for machine-facing payloads."""
     identity = resolve_mission_identity(mission_dir)
@@ -392,7 +424,6 @@ def _resolve_merge_target_branch(main_repo_root: Path, mission_slug: str, target
 
 def _build_merge_preflight(
     main_repo_root: Path,
-    mission_dir: Path,
     mission_slug: str,
     target: str | None,
 ) -> _MergePreflightResult:
@@ -427,7 +458,9 @@ def _build_merge_preflight(
             errors.append(f"Target branch '{resolved_target}' does not exist locally or on origin.")
 
     try:
-        require_lanes_json(mission_dir)
+        # lanes.json is a PRIMARY-partition artifact — read from the primary
+        # surface, NOT the coord worktree mission_dir (#2118).
+        require_lanes_json(_planning_read_dir(main_repo_root, mission_slug))
     except (MissingLanesError, CorruptLanesError) as exc:
         errors.append(str(exc))
 
@@ -489,7 +522,9 @@ def _execute_lane_merge(
     from specify_cli.policy.config import load_policy_config
     from specify_cli.policy.merge_gates import evaluate_merge_gates
 
-    lanes_manifest = require_lanes_json(mission_dir)
+    # lanes.json is PRIMARY-partition — read from the primary surface, not the
+    # coord worktree mission_dir (#2118).
+    lanes_manifest = require_lanes_json(_planning_read_dir(main_repo_root, mission_slug))
     lanes_manifest.target_branch = target_branch
     merge_strategy = MergeStrategy(strategy)
 
@@ -652,13 +687,17 @@ def mission_state(
     from specify_cli.status import read_events
     from specify_cli.core.dependency_graph import build_dependency_graph
 
+    # STATUS reads stay on the coord-aware dir; PRIMARY reads (dep graph from WP
+    # frontmatter, tasks/ enumeration) come from the primary surface (#2118).
+    planning_dir = _planning_read_dir(main_repo_root, mission)
+
     # Query endpoint: reduce from event log without rewriting status.json.
     snapshot = reduce(read_events(mission_dir))
-    dep_graph = build_dependency_graph(mission_dir)
+    dep_graph = build_dependency_graph(planning_dir)
 
     # Build the full WP set from task files + dep graph + snapshot
     # so that untouched WPs (no events yet) still appear as "planned"
-    tasks_dir = mission_dir / "tasks"
+    tasks_dir = planning_dir / "tasks"
     task_file_wp_ids: set[str] = set()
     if tasks_dir.exists():
         for p in tasks_dir.iterdir():
@@ -711,8 +750,11 @@ def list_ready(
     from specify_cli.core.dependency_graph import build_dependency_graph, dependency_readiness_for_wp
 
     # Query endpoint: reduce from event log without rewriting status.json.
+    # STATUS read off the coord-aware dir; the dependency graph (WP frontmatter,
+    # PRIMARY-partition) off the primary surface (#2118 — an empty dep graph here
+    # is exactly what stalls the orchestrator under coordination topology).
     snapshot = reduce(read_events(mission_dir))
-    dep_graph = build_dependency_graph(mission_dir)
+    dep_graph = build_dependency_graph(_planning_read_dir(main_repo_root, mission))
     wp_states = snapshot.work_packages
     wp_lanes = {
         dep_id: wp_state_for(state.get("lane", Lane.PLANNED)).lane
@@ -837,7 +879,8 @@ def _resolve_start_workspace(
     from specify_cli.lanes.branch_naming import worktree_path as _wt_path
     from specify_cli.lanes.persistence import read_lanes_json
 
-    manifest = read_lanes_json(mission_dir)
+    # lanes.json is PRIMARY-partition — read from the primary surface (#2118).
+    manifest = read_lanes_json(_planning_read_dir(main_repo_root, mission))
     lane = manifest.lane_for_wp(wp) if manifest is not None else None
     if manifest is None or lane is None:
         # Legacy WP-based worktree form ({mission}-{wp}, no mid8): the seam's
@@ -909,7 +952,7 @@ def start_implementation(
     main_repo_root = _get_main_repo_root()
     mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
 
-    wp_path = _resolve_wp_file(mission_dir / "tasks", wp)
+    wp_path = _resolve_wp_file(_planning_read_dir(main_repo_root, mission) / "tasks", wp)
     if wp_path is None:
         _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
         return
@@ -1044,7 +1087,7 @@ def start_review(
     main_repo_root = _get_main_repo_root()
     mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
 
-    wp_path = _resolve_wp_file(mission_dir / "tasks", wp)
+    wp_path = _resolve_wp_file(_planning_read_dir(main_repo_root, mission) / "tasks", wp)
     if wp_path is None:
         _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
         return
@@ -1124,7 +1167,8 @@ def _enforce_for_review_commit_gate(
     from specify_cli.lanes.branch_naming import worktree_path as _wt_path
     from specify_cli.lanes.persistence import read_lanes_json
 
-    manifest = read_lanes_json(mission_dir)
+    # lanes.json is PRIMARY-partition — read from the primary surface (#2118).
+    manifest = read_lanes_json(_planning_read_dir(main_repo_root, mission))
     if manifest is None:
         return
     lane = manifest.lane_for_wp(wp)
@@ -1210,7 +1254,7 @@ def transition(
     main_repo_root = _get_main_repo_root()
     mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
 
-    wp_path = _resolve_wp_file(mission_dir / "tasks", wp)
+    wp_path = _resolve_wp_file(_planning_read_dir(main_repo_root, mission) / "tasks", wp)
     if wp_path is None:
         _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
         return
@@ -1426,8 +1470,10 @@ def accept_mission(
     from specify_cli.status import materialize
     from specify_cli.core.dependency_graph import build_dependency_graph
 
+    # STATUS read off the coord-aware dir; dependency graph (WP frontmatter,
+    # PRIMARY-partition) off the primary surface (#2118).
     snapshot = materialize(mission_dir)
-    dep_graph = build_dependency_graph(mission_dir)
+    dep_graph = build_dependency_graph(_planning_read_dir(main_repo_root, mission))
 
     # Check all WPs (from dep_graph) are approved/done; WPs with no events are implicitly planned.
     all_wp_ids = set(dep_graph.keys()) | set(snapshot.work_packages.keys())
@@ -1524,7 +1570,7 @@ def merge_mission(
     main_repo_root = _get_main_repo_root()
     mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
 
-    preflight = _build_merge_preflight(main_repo_root, mission_dir, mission, target)
+    preflight = _build_merge_preflight(main_repo_root, mission, target)
     if preflight.errors:
         _fail(
             cmd,
