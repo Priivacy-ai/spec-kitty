@@ -25,7 +25,10 @@ from typing import Any
 
 from specify_cli.core.atomic import atomic_write
 from specify_cli.lanes.branch_naming import worktree_dir_name, worktree_path as _seam_worktree_path
-from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_slug
+from specify_cli.missions._read_path_resolver import (
+    resolve_feature_dir_for_slug,
+    resolve_planning_read_dir,
+)
 from specify_cli.ownership.inference import infer_execution_mode, score_execution_mode_signals
 from specify_cli.ownership.models import ExecutionMode
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
@@ -519,7 +522,8 @@ def resolve_active_wp_for_branch(
             f"canonical active_wp={active_wp_id}; lane_id={context.lane_id}"
         )
 
-    wp_path = _find_wp_file(feature_dir / "tasks", active_wp_id)
+    wp_feature_dir = _work_package_feature_dir(repo_root, context.mission_slug)
+    wp_path = _find_wp_file(wp_feature_dir / "tasks", active_wp_id)
     if wp_path is None:
         return _active_wp_diagnostic(
             context,
@@ -578,6 +582,24 @@ def _find_wp_file(tasks_dir: Path, wp_id: str) -> Path | None:
     if not tasks_dir.is_dir():
         return None
     return next(iter(sorted(tasks_dir.glob(f"{wp_id}*.md"))), None)
+
+
+def _work_package_feature_dir(repo_root: Path, mission_slug: str) -> Path:
+    """Return the PRIMARY read surface for ``tasks/WP*.md`` files."""
+    from mission_runtime import MissionArtifactKind
+
+    return resolve_planning_read_dir(
+        repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    )
+
+
+def _lane_state_feature_dir(repo_root: Path, mission_slug: str) -> Path:
+    """Return the PRIMARY read surface for ``lanes.json``."""
+    from mission_runtime import MissionArtifactKind
+
+    return resolve_planning_read_dir(
+        repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+    )
 
 
 def _normalized_feature_cache_key(repo_root: Path, mission_slug: str) -> tuple[str, str]:
@@ -663,7 +685,7 @@ def build_normalized_wp_index(
     callers share one canonical classification result.
     """
     cache_key = _normalized_feature_cache_key(repo_root, mission_slug)
-    feature_dir = resolve_feature_dir_for_slug(repo_root, mission_slug)
+    feature_dir = _work_package_feature_dir(repo_root, mission_slug)
     tasks_dir = feature_dir / "tasks"
     snapshot = _normalized_feature_snapshot(tasks_dir)
     cached = _FEATURE_WP_METADATA_CACHE.get(cache_key)
@@ -711,7 +733,7 @@ def get_normalized_wp(
         error = _FEATURE_WP_METADATA_ERROR_CACHE.get(cache_key, {}).get(wp_id)
         if error is not None:
             raise error
-        raise ValueError(f"Work package {wp_id} was not found under {resolve_feature_dir_for_slug(repo_root, mission_slug) / 'tasks'}")
+        raise ValueError(f"Work package {wp_id} was not found under {_work_package_feature_dir(repo_root, mission_slug) / 'tasks'}")
     return entry
 
 
@@ -749,7 +771,7 @@ def resolve_workspace_for_wp(
         )
         # Try to populate lane_wp_ids from lanes.json if available.
         lane_wp_ids: list[str] = []
-        feature_dir = resolve_feature_dir_for_slug(repo_root, mission_slug)
+        feature_dir = _lane_state_feature_dir(repo_root, mission_slug)
         lanes_manifest = read_lanes_json(feature_dir)
         if lanes_manifest is not None:
             planning_lane = lanes_manifest.lane_for_wp(wp_id)
@@ -787,7 +809,7 @@ def resolve_workspace_for_wp(
             context=context,
         )
 
-    feature_dir = resolve_feature_dir_for_slug(repo_root, mission_slug)
+    feature_dir = _lane_state_feature_dir(repo_root, mission_slug)
     from specify_cli.lanes.branch_naming import lane_branch_name
     from specify_cli.lanes.compute import PLANNING_LANE_ID, is_planning_lane
     from specify_cli.lanes.persistence import require_lanes_json, resolve_lanes_dir
@@ -850,7 +872,7 @@ def resolve_feature_worktree(repo_root: Path, mission_slug: str) -> Path | None:
         if candidate.is_dir():
             return candidate
 
-    feature_dir = resolve_feature_dir_for_slug(repo_root, mission_slug)
+    feature_dir = _lane_state_feature_dir(repo_root, mission_slug)
     from specify_cli.lanes.persistence import read_lanes_json
 
     lanes_manifest = read_lanes_json(feature_dir)
