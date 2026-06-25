@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "mission_slug": "shrink-ratchet-allowlists-01KW0EAZ",
+  "mission_id": "01KW0EAZNFYGVB6GVSE353Q25Z",
+  "mission_branch": "kitty/mission-shrink-ratchet-allowlists-01KW0EAZ",
+  "target_branch": "feat/shrink-ratchet-allowlists",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/synthesizer/write_pipeline.py",
+        "src/specify_cli/compat/_adapters/detector.py",
+        "src/specify_cli/compat/_adapters/gate.py",
+        "src/specify_cli/compat/_adapters/version_checker.py",
+        "tests/architectural/_baselines.yaml",
+        "tests/architectural/test_compat_shims.py",
+        "tests/architectural/test_no_dead_modules.py",
+        "tests/architectural/test_no_dead_symbols.py",
+        "tests/contract/test_example_round_trip.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-06-25T22:43:16.696281+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
