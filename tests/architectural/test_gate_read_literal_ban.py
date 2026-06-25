@@ -689,11 +689,18 @@ def test_dir_read_arm_default_deny_accept_package_clean() -> None:
 # are tracked here until that mission lands.
 _DIR_READ_KNOWN_RESIDUALS: frozenset[str] = frozenset(
     {
+        # Genuinely entangled — these read PRIMARY (tasks/deps) AND STATUS (event
+        # log / lanes) through ONE feature_dir, so they need a dir-split refactor,
+        # not a resolver swap: ``_preview_claimable_wp_for_mission`` →
+        # ``preview_claimable_wp`` (discovery.py reads tasks + dep graph + lanes off
+        # one dir); ``implement``/``review`` reuse ``feature_dir`` for both the dep
+        # graph and ``read_events``. Tracked for the implement-loop write-surface
+        # mission. The clean siblings (``_resolve_review_context``,
+        # ``_mark_wp_merged_done``) were swapped to the primary surface in the #2115
+        # PR and removed from this pin.
         "src/specify_cli/cli/commands/agent/workflow.py::_preview_claimable_wp_for_mission",
-        "src/specify_cli/cli/commands/agent/workflow.py::_resolve_review_context",
         "src/specify_cli/cli/commands/agent/workflow.py::implement",
         "src/specify_cli/cli/commands/agent/workflow.py::review",
-        "src/specify_cli/cli/commands/merge.py::_mark_wp_merged_done",
     }
 )
 

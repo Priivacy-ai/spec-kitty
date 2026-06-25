@@ -356,11 +356,15 @@ def _mark_wp_merged_done(
     Includes event-log dedup: if the target transition already exists in the log
     the emission is skipped so that retries are idempotent.
     """
-    # Primary checkout path — used only for WP file lookup (tasks/*.md live here).
-    # Do not use the read-path resolver: after the first coord status commit it
-    # can route to the coordination worktree, whose sparse/materialized surface
-    # may carry status files but not task markdown.
-    primary_feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    # Primary checkout path — WP files (tasks/*.md, WORK_PACKAGE_TASK) live on the
+    # PRIMARY surface, and the transactional status helpers below also need a
+    # meta-bearing (PRIMARY) feature dir to resolve/commit to the coordination
+    # branch. ``candidate_feature_dir_for_mission`` is coord-aware and routes to the
+    # coordination worktree once one exists — which carries status but NOT task
+    # markdown, the exact mis-route the comment warned about (#2115). Use the
+    # topology-blind primary constructor so both the WP lookup and the status meta
+    # source land on the primary surface.
+    primary_feature_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
     wp_path = None
     for candidate in sorted((primary_feature_dir / "tasks").glob(f"{wp_id}*.md")):
         wp_path = candidate

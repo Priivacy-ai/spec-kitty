@@ -1922,7 +1922,10 @@ def _resolve_review_context(
         return ctx
 
     workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
-    feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    # lanes.json (LANE_STATE) + WP tasks/ (WORK_PACKAGE_TASK) are PRIMARY-partition;
+    # read them from the primary surface, not the coord-aware dir whose coord
+    # worktree lacks them under coord topology (#2115).
+    feature_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
     lanes_manifest = None
     try:
         from specify_cli.lanes.persistence import read_lanes_json

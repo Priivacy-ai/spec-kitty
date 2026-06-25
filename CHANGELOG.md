@@ -36,11 +36,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   writes used the coord-aware resolver while `mission.py finalize-tasks` already
   anchored `lanes.json` to primary) now resolve through `resolve_planning_read_dir`
   / `primary_feature_dir_for_mission` (primary surface for all topologies). STATUS
-  reads/writes stay on the coordination worktree. **Deferred (tracked):**
-  `_mark_wp_merged_done` (tasks/status conflation, mid-decomposition in #2133) and
-  the `workflow.py` implement/review surface remain on the read-ban residual pin
-  (both degrade gracefully); `mission_number` baking off the mission branch (where
-  `meta.json` no longer lives) needs a separate placement decision.
+  reads/writes stay on the coordination worktree. Also fixed: `merge`'s
+  `_mark_wp_merged_done` (WP-file lookup + status meta source → primary; status
+  emission still routes to coordination via the transactional helpers) and
+  `_resolve_review_context` (lanes.json + tasks/ → primary). **Deferred (tracked,
+  non-blocking):** `workflow.py` `implement`/`review` and `preview_claimable_wp`
+  read PRIMARY (tasks/deps) and STATUS (event-log lanes) through a single
+  `feature_dir` — a dir-split refactor, not a resolver swap, owned by the
+  implement-loop write-surface mission; and `mission_number` baking writes to the
+  mission-branch worktree where `meta.json` no longer lives (post-#2090) — a merge-
+  sequence placement change, and `mission_number` is display-only (never used for
+  lookup/locking/routing) so a null value does not block merge or accept.
 
 ## [3.2.2] - 2026-06-24
 
