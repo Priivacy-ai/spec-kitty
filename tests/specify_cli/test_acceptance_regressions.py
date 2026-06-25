@@ -352,11 +352,29 @@ def test_collect_feature_summary_reads_planning_artifacts_from_primary(tmp_path:
     assert summary.needs_clarification == []
 
 
-def test_collect_feature_summary_anchors_feature_dir_on_primary_for_mid8_handle(tmp_path: Path) -> None:
-    """Regression: a mid8 handle must resolve, with the summary identity anchor
-    on the primary-checkout mission dir while WP/status reads stay coord-aware."""
+_MISSION_ID = "01ABCDEF0123456789ABCDEFGH"
+
+
+@pytest.mark.parametrize(
+    "handle",
+    # The handle tiers that resolve the fixture mission via resolve_mission:
+    # mid8 (mission_id[:8]), full ULID (mission_id), and the numeric prefix of the
+    # mission *slug* (099-test-feature -> "099"; NOT meta.mission_number).
+    [_MISSION_ID[:8], _MISSION_ID, _FEATURE_SLUG.split("-", 1)[0]],
+    ids=["mid8", "ulid", "numeric"],
+)
+def test_collect_feature_summary_anchors_primary_across_handle_tiers(
+    tmp_path: Path, handle: str
+) -> None:
+    """A mid8 / ULID / numeric handle must resolve the accept gate's PRIMARY-partition
+    reads to the primary mission dir (#2126), while STATUS reads stay coord-aware.
+
+    Asserts all three legs: the identity anchor (``feature_dir``), the
+    ``_iter_work_packages`` leg (``lanes``), and the ``_planning_read_dir`` leg
+    (``missing_artifacts`` — a raw-handle mis-resolve would list spec/plan/tasks as
+    missing because it would compose a nonexistent ``kitty-specs/<handle>`` dir)."""
     repo_root, feature_dir = _create_test_feature(tmp_path)
-    mid8 = "01ABCDEF"
+    mid8 = _MISSION_ID[:8]
     coord_feature_dir = (
         repo_root
         / ".worktrees"
@@ -374,7 +392,7 @@ def test_collect_feature_summary_anchors_feature_dir_on_primary_for_mid8_handle(
 
     meta_path = feature_dir / "meta.json"
     meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    meta["mission_id"] = "01ABCDEF0123456789ABCDEFGH"
+    meta["mission_id"] = _MISSION_ID
     meta["mid8"] = mid8
     meta["coordination_branch"] = f"kitty/mission-{_FEATURE_SLUG}-{mid8}"
     meta_path.write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -390,10 +408,14 @@ def test_collect_feature_summary_anchors_feature_dir_on_primary_for_mid8_handle(
         capture_output=True,
     )
 
-    summary = collect_feature_summary(repo_root, mid8)
+    summary = collect_feature_summary(repo_root, handle)
 
+    # Identity anchor -> primary checkout dir.
     assert summary.feature_dir == feature_dir
+    # `_iter_work_packages` leg (WP tasks/) resolved off the primary surface.
     assert summary.lanes["done"] == ["WP01"]
+    # `_planning_read_dir` leg (spec/plan/tasks) resolved off the primary surface.
+    assert summary.missing_artifacts == []
 
 
 def test_collect_feature_summary_blocks_workflow_changes_without_runner_evidence(tmp_path: Path) -> None:

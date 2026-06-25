@@ -47,7 +47,7 @@ class TestLoadSlashCommandState:
         from specify_cli.cli.commands.doctor import _load_slash_command_state
 
         monkeypatch.setattr(
-            "specify_cli.cli.commands.doctor._get_slash_command_agents",
+            "specify_cli.cli.commands._command_surface_doctor._get_slash_command_agents",
             lambda project_path: ["claude"],
         )
         monkeypatch.setattr(
@@ -83,7 +83,7 @@ class TestLoadSlashCommandState:
             f.write_text(f"{_VERSION_MARKER_PREFIX} {version} -->\n# body")
 
         monkeypatch.setattr(
-            "specify_cli.cli.commands.doctor._get_slash_command_agents",
+            "specify_cli.cli.commands._command_surface_doctor._get_slash_command_agents",
             lambda project_path: ["claude"],
         )
         monkeypatch.setattr(
@@ -101,7 +101,7 @@ class TestLoadSlashCommandState:
         from specify_cli.cli.commands.doctor import _load_slash_command_state
 
         monkeypatch.setattr(
-            "specify_cli.cli.commands.doctor._get_slash_command_agents",
+            "specify_cli.cli.commands._command_surface_doctor._get_slash_command_agents",
             lambda project_path: [],  # no configured agents
         )
 
@@ -133,7 +133,7 @@ class TestAuditFalsePositives:
         (cmd_dir / filename).write_text(f"{_VERSION_MARKER_PREFIX} 0.0.1 -->\n# body")
 
         monkeypatch.setattr(
-            "specify_cli.cli.commands.doctor._get_slash_command_agents",
+            "specify_cli.cli.commands._command_surface_doctor._get_slash_command_agents",
             lambda project_path: ["claude"],
         )
         monkeypatch.setattr(
@@ -365,7 +365,7 @@ class TestDoctorSkillsJson:
     ) -> None:
         from typer.testing import CliRunner
 
-        from specify_cli.cli.commands import doctor
+        from specify_cli.cli.commands import _command_surface_doctor, doctor
 
         gap = doctor.SlashCommandGap(
             "claude",
@@ -373,19 +373,21 @@ class TestDoctorSkillsJson:
             tmp_path / "spec-kitty.specify.md",
             "missing",
         )
+        # locate_project_root is resolved in the doctor command shell (the
+        # patchable seam); the command-surface internals live in the sibling.
         monkeypatch.setattr(doctor, "locate_project_root", lambda: tmp_path)
         monkeypatch.setattr(
-            doctor,
+            _command_surface_doctor,
             "_load_command_skill_state",
             lambda _project_path: (object(), object(), [], [], [], False),
         )
         monkeypatch.setattr(
-            doctor,
+            _command_surface_doctor,
             "_command_skill_payload",
             lambda *_args: {"ok": True},
         )
         monkeypatch.setattr(
-            doctor,
+            _command_surface_doctor,
             "_load_slash_command_state",
             lambda _project_path: (["claude"], [gap]),
         )

@@ -64,7 +64,15 @@ def _prepare_dry_run(
     monkeypatch.setattr(merge_mod, "_enforce_git_preflight", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(merge_mod, "_resolve_target_branch", lambda *_args, **_kwargs: ("main", "flag"))
     monkeypatch.setattr(merge_mod, "_validate_target_branch", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(merge_mod, "require_lanes_json", lambda _feature_dir: _manifest())
+    # WP06 (#2057): the dry-run preview now runs in the ``forecast`` seam, so the
+    # collaborators it consumes must be patched there (the shim no longer binds
+    # ``require_lanes_json`` — it moved with the executor/forecast seams).
+    monkeypatch.setattr(
+        "specify_cli.merge.forecast.get_main_repo_root", lambda repo_root: repo_root
+    )
+    monkeypatch.setattr(
+        "specify_cli.merge.forecast.require_lanes_json", lambda _feature_dir: _manifest()
+    )
     monkeypatch.setattr(
         merge_mod,
         "_enforce_target_branch_sync_preflight",
@@ -113,7 +121,7 @@ class TestCheckMissionBranch:
 
     def test_branch_exists_returns_true(self, tmp_path: Path) -> None:
         with patch(
-            "specify_cli.cli.commands.merge._has_branch_ref",
+            "specify_cli.merge.preflight._has_branch_ref",
             return_value=True,
         ):
             exists, blocker = _check_mission_branch(
@@ -125,10 +133,10 @@ class TestCheckMissionBranch:
 
     def test_branch_missing_returns_false_with_payload(self, tmp_path: Path) -> None:
         with patch(
-            "specify_cli.cli.commands.merge._has_branch_ref",
+            "specify_cli.merge.preflight._has_branch_ref",
             return_value=False,
         ), patch(
-            "specify_cli.cli.commands.merge.run_command",
+            "specify_cli.merge.preflight.run_command",
             return_value=(0, "abc1234def5678\n", ""),
         ):
             exists, blocker = _check_mission_branch(
@@ -149,7 +157,7 @@ class TestCheckMissionBranch:
         from specify_cli.lanes.branch_naming import BranchIdentityUnresolved
 
         with patch(
-            "specify_cli.cli.commands.merge._has_branch_ref",
+            "specify_cli.merge.preflight._has_branch_ref",
             return_value=False,
         ), pytest.raises(BranchIdentityUnresolved):
             _check_mission_branch("my-mission", tmp_path)
@@ -157,10 +165,10 @@ class TestCheckMissionBranch:
     def test_branch_missing_uses_manifest_branch_when_supplied(self, tmp_path: Path) -> None:
         manifest_branch = "kitty/mission-my-mission-01KQ-01KQTEST"
         with patch(
-            "specify_cli.cli.commands.merge._has_branch_ref",
+            "specify_cli.merge.preflight._has_branch_ref",
             return_value=False,
         ), patch(
-            "specify_cli.cli.commands.merge.run_command",
+            "specify_cli.merge.preflight.run_command",
             return_value=(0, "abc1234def5678\n", ""),
         ):
             exists, blocker = _check_mission_branch(
@@ -402,7 +410,9 @@ class TestMergeDryRunMissingBranch:
         monkeypatch.setattr(merge_mod, "show_banner", lambda: None)
         monkeypatch.setattr(merge_mod, "find_repo_root", lambda: tmp_path)
         monkeypatch.setattr(merge_mod, "get_main_repo_root", lambda repo_root: repo_root)
-        monkeypatch.setattr(merge_mod, "cleanup_merge_workspace", Mock())
+        # WP04/WP10 (#2057): --abort cleans workspaces via the resolve seam's
+        # _cleanup_merge_workspaces_for_state -> cleanup_merge_workspace binding.
+        monkeypatch.setattr("specify_cli.merge.resolve.cleanup_merge_workspace", Mock())
         monkeypatch.setattr(merge_mod, "abort_git_merge", lambda _repo_root: False)
 
         command = merge_mod.merge.__wrapped__
@@ -619,7 +629,7 @@ class TestMergeDryRunMissingBranch:
     ) -> None:
         """merge --dry-run --json does not require a local mission branch."""
         _prepare_dry_run(monkeypatch, tmp_path, branch_ok=False)
-        monkeypatch.setattr(merge_mod, "needs_number_assignment", lambda _feature_dir: False)
+        monkeypatch.setattr("specify_cli.merge.forecast.needs_number_assignment", lambda _feature_dir: False)
 
         _invoke_merge_dry_run(json_output=True)
 
@@ -637,7 +647,7 @@ class TestMergeDryRunMissingBranch:
     ) -> None:
         """merge --dry-run (no --json) still emits the preview payload."""
         _prepare_dry_run(monkeypatch, tmp_path, branch_ok=False)
-        monkeypatch.setattr(merge_mod, "needs_number_assignment", lambda _feature_dir: False)
+        monkeypatch.setattr("specify_cli.merge.forecast.needs_number_assignment", lambda _feature_dir: False)
 
         _invoke_merge_dry_run(json_output=False)
 
@@ -654,21 +664,20 @@ class TestMergeDryRunMissingBranch:
         capsys: pytest.CaptureFixture[str],
     ) -> None:
         """Real merge is blocked before irreversible git operations."""
-        monkeypatch.setattr(merge_mod, "get_main_repo_root", lambda repo_root: repo_root)
-        monkeypatch.setattr(merge_mod, "require_no_sparse_checkout", lambda *_args, **_kwargs: None)
-        monkeypatch.setattr(merge_mod, "require_lanes_json", lambda _feature_dir: _manifest())
+        monkeypatch.setattr("specify_cli.merge.executor.get_main_repo_root", lambda repo_root: repo_root)
+        monkeypatch.setattr("specify_cli.merge.executor.require_no_sparse_checkout", lambda *_args, **_kwargs: None)
+        monkeypatch.setattr("specify_cli.merge.executor.require_lanes_json", lambda _feature_dir: _manifest())
+        # WP10 (#2057): the wrapper reads these collaborators from the executor seam.
         monkeypatch.setattr(
-            merge_mod,
-            "_enforce_target_branch_sync_preflight",
+            "specify_cli.merge.executor._enforce_target_branch_sync_preflight",
             lambda *_args, **_kwargs: None,
         )
         monkeypatch.setattr(
-            merge_mod,
-            "_check_mission_branch",
+            "specify_cli.merge.executor._check_mission_branch",
             lambda _mission_slug, _repo_root, **_kwargs: (False, _blocker()),
         )
         acquire_lock = Mock(return_value=True)
-        monkeypatch.setattr(merge_mod, "acquire_merge_lock", acquire_lock)
+        monkeypatch.setattr("specify_cli.merge.executor.acquire_merge_lock", acquire_lock)
 
         with pytest.raises(typer.Exit) as exc_info:
             merge_mod._run_lane_based_merge(
@@ -694,24 +703,29 @@ class TestMergeDryRunMissingBranch:
         state = SimpleNamespace(push_requested=True)
         preflight_calls: list[dict[str, object]] = []
 
-        monkeypatch.setattr(merge_mod, "get_main_repo_root", lambda repo_root: repo_root)
-        monkeypatch.setattr(merge_mod, "_resolve_merge_actor", lambda _repo_root: "tester")
-        monkeypatch.setattr(merge_mod, "require_no_sparse_checkout", lambda *_args, **_kwargs: None)
-        monkeypatch.setattr(merge_mod, "require_lanes_json", lambda _feature_dir: _manifest())
+        monkeypatch.setattr("specify_cli.merge.executor.get_main_repo_root", lambda repo_root: repo_root)
+        monkeypatch.setattr("specify_cli.merge.executor._resolve_merge_actor", lambda _repo_root: "tester")
+        monkeypatch.setattr("specify_cli.merge.executor.require_no_sparse_checkout", lambda *_args, **_kwargs: None)
+        monkeypatch.setattr("specify_cli.merge.executor.require_lanes_json", lambda _feature_dir: _manifest())
         monkeypatch.setattr(
-            merge_mod,
-            "resolve_mission_identity",
+            "specify_cli.merge.executor.resolve_mission_identity",
             lambda _feature_dir: SimpleNamespace(mission_id="01TESTPUSHREQUESTED"),
         )
         monkeypatch.setattr(merge_mod, "load_state", lambda _repo_root, _mission_id=None: state)
+        # WP05 (#2057): _effective_push_requested now reads load_state from
+        # the preflight seam, so patch it there too.
+        monkeypatch.setattr(
+            "specify_cli.merge.preflight.load_state",
+            lambda _repo_root, _mission_id=None: state,
+        )
 
         def fail_preflight(*_args: object, **kwargs: object) -> None:
             preflight_calls.append(kwargs)
             raise typer.Exit(1)
 
-        monkeypatch.setattr(merge_mod, "_enforce_target_branch_sync_preflight", fail_preflight)
+        monkeypatch.setattr("specify_cli.merge.executor._enforce_target_branch_sync_preflight", fail_preflight)
         acquire_lock = Mock(return_value=True)
-        monkeypatch.setattr(merge_mod, "acquire_merge_lock", acquire_lock)
+        monkeypatch.setattr("specify_cli.merge.executor.acquire_merge_lock", acquire_lock)
 
         with pytest.raises(typer.Exit):
             merge_mod._run_lane_based_merge(
@@ -744,17 +758,22 @@ class TestMergeDryRunMissingBranch:
         state = SimpleNamespace(push_requested=False)
         preflight = Mock()
 
-        monkeypatch.setattr(merge_mod, "get_main_repo_root", lambda repo_root: repo_root)
-        monkeypatch.setattr(merge_mod, "_resolve_merge_actor", lambda _repo_root: "tester")
-        monkeypatch.setattr(merge_mod, "require_no_sparse_checkout", lambda *_args, **_kwargs: None)
-        monkeypatch.setattr(merge_mod, "require_lanes_json", lambda _feature_dir: _manifest())
+        monkeypatch.setattr("specify_cli.merge.executor.get_main_repo_root", lambda repo_root: repo_root)
+        monkeypatch.setattr("specify_cli.merge.executor._resolve_merge_actor", lambda _repo_root: "tester")
+        monkeypatch.setattr("specify_cli.merge.executor.require_no_sparse_checkout", lambda *_args, **_kwargs: None)
+        monkeypatch.setattr("specify_cli.merge.executor.require_lanes_json", lambda _feature_dir: _manifest())
         monkeypatch.setattr(
-            merge_mod,
-            "resolve_mission_identity",
+            "specify_cli.merge.executor.resolve_mission_identity",
             lambda _feature_dir: SimpleNamespace(mission_id="01TESTNOPUSHREQUEST"),
         )
         monkeypatch.setattr(merge_mod, "load_state", lambda _repo_root, _mission_id=None: state)
-        monkeypatch.setattr(merge_mod, "_enforce_target_branch_sync_preflight", preflight)
+        # WP05 (#2057): _effective_push_requested now reads load_state from
+        # the preflight seam, so patch it there too.
+        monkeypatch.setattr(
+            "specify_cli.merge.preflight.load_state",
+            lambda _repo_root, _mission_id=None: state,
+        )
+        monkeypatch.setattr("specify_cli.merge.executor._enforce_target_branch_sync_preflight", preflight)
         monkeypatch.setattr(
             merge_mod,
             "_check_mission_branch",
@@ -782,7 +801,9 @@ class TestMergeDryRunHappyPath:
     ) -> None:
         """Existing happy-path preflight behavior is unaffected."""
         _prepare_dry_run(monkeypatch, tmp_path, branch_ok=True)
-        monkeypatch.setattr(merge_mod, "needs_number_assignment", lambda _feature_dir: False)
+        monkeypatch.setattr(
+            "specify_cli.merge.forecast.needs_number_assignment", lambda _feature_dir: False
+        )
 
         _invoke_merge_dry_run(json_output=True)
 

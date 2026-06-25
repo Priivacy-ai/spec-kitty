@@ -1049,7 +1049,9 @@ def move_task(
         # Load work package first (needed for current_lane check)
         wp = locate_work_package(repo_root, mission_slug, task_id)
         # Lane is event-log-only; read from canonical event log not frontmatter
-        _mt_feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+        _mt_feature_dir = resolve_planning_read_dir(
+            main_repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE
+        )
         old_lane = _read_transactional_wp_lane(
             feature_dir=_mt_feature_dir,
             mission_slug=mission_slug,
@@ -1286,7 +1288,9 @@ def move_task(
             emit_reason = f"Force move to {target_lane}"
 
         # Determine feature_dir for the event store
-        feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+        feature_dir = resolve_planning_read_dir(
+            main_repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE
+        )
 
         # --- Arbiter override detection (T032) ---
         # When a --force move from planned to a forward lane follows a rejection event,
@@ -1804,7 +1808,9 @@ def mark_status(
             if protected_error is not None:
                 _output_error(json_output, protected_error)
                 raise typer.Exit(1)
-        feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+        feature_dir = resolve_planning_read_dir(
+            main_repo_root, mission_slug, kind=MissionArtifactKind.TASKS_INDEX
+        )
         tasks_md = feature_dir / TASKS_MD_FILENAME
 
         with feature_status_lock(main_repo_root, mission_slug):
@@ -2021,14 +2027,20 @@ def list_tasks(
         # Ensure we operate on the target branch for this feature
         main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
 
-        # Find all task files
-        tasks_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug) / "tasks"
+        # Find all task files on the PRIMARY planning surface. STATUS reads below
+        # intentionally remain coord-aware.
+        planning_dir = resolve_planning_read_dir(
+            main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+        )
+        tasks_dir = planning_dir / "tasks"
         if not tasks_dir.exists():
             _output_error(json_output, f"Tasks directory not found: {tasks_dir}")
             raise typer.Exit(1)
 
         # Load canonical lanes from event log
-        _lt_feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+        _lt_feature_dir = resolve_planning_read_dir(
+            main_repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE
+        )
         try:
             from specify_cli.status import read_events as _lt_read_events
             from specify_cli.status import reduce as _lt_reduce
@@ -2190,7 +2202,9 @@ def finalize_tasks(
         mission_slug = _find_mission_slug(explicit_mission=mission, json_output=json_output, repo_root=repo_root)
         # Ensure we operate on the target branch for this feature
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
-        feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+        feature_dir = resolve_planning_read_dir(
+            main_repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE
+        )
         # tasks.md (TASKS_INDEX) and the WP ``tasks/`` files (WORK_PACKAGE_TASK) are
         # PRIMARY-partition — read AND written on the primary surface for every
         # topology (#2090). Resolve them via the kind-aware seam so a coord-topology
@@ -2198,11 +2212,14 @@ def finalize_tasks(
         # (#2115). ``feature_dir`` (coord-aware) is kept below for the STATUS bootstrap.
         from mission_runtime import MissionArtifactKind as _MAK
 
-        planning_dir = resolve_planning_read_dir(
+        tasks_index_dir = resolve_planning_read_dir(
+            main_repo_root, mission_slug, kind=_MAK.TASKS_INDEX
+        )
+        work_package_dir = resolve_planning_read_dir(
             main_repo_root, mission_slug, kind=_MAK.WORK_PACKAGE_TASK
         )
-        tasks_md = planning_dir / TASKS_MD_FILENAME
-        tasks_dir = planning_dir / "tasks"
+        tasks_md = tasks_index_dir / TASKS_MD_FILENAME
+        tasks_dir = work_package_dir / "tasks"
 
         if not tasks_md.exists():
             _output_error(json_output, f"tasks.md not found: {tasks_md}")
@@ -2279,7 +2296,7 @@ def finalize_tasks(
                 "dependencies": dependencies_map,
                 # meta.json is PRIMARY_METADATA — read identity from the primary
                 # surface, not the coord-aware feature_dir (#2115).
-                **_mission_identity_payload(planning_dir),
+                **_mission_identity_payload(work_package_dir),
                 "bootstrap": {
                     "total_wps": bootstrap_result.total_wps,
                     "already_initialized": bootstrap_result.already_initialized,
@@ -2298,7 +2315,7 @@ def finalize_tasks(
                 "dependencies": dependencies_map,
                 # meta.json is PRIMARY_METADATA — read identity from the primary
                 # surface, not the coord-aware feature_dir (#2115).
-                **_mission_identity_payload(planning_dir),
+                **_mission_identity_payload(work_package_dir),
                 "bootstrap": {
                     "total_wps": bootstrap_result.total_wps,
                     "already_initialized": bootstrap_result.already_initialized,
@@ -2428,7 +2445,7 @@ def map_requirements(
             auto_commit = get_auto_commit_default(main_repo_root)
         commit_target = CommitTarget(ref=target_branch)
         if auto_commit:
-            from specify_cli.cli.commands.agent.mission import _resolve_planning_placement
+            from specify_cli.coordination.commit_router import _resolve_planning_placement
 
             # map-requirements edits WP prompt files → WORK_PACKAGE_TASK (primary)
             # (write-surface-coherence WP02 / T009). Resolve the destination through
@@ -2772,7 +2789,9 @@ def validate_workflow(
                 errors.append(f"Missing required field: {field}")
 
         # Get lane from event log (canonical source)
-        _vw_feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
+        _vw_feature_dir = resolve_planning_read_dir(
+            repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE
+        )
         try:
             from specify_cli.status import read_events as _vw_read_events
             from specify_cli.status import reduce as _vw_reduce
@@ -2914,12 +2933,10 @@ def status(
         # The event-log reads above/below deliberately stay on ``feature_dir`` (C-002).
         from mission_runtime import MissionArtifactKind as _MAK
 
-        tasks_dir = (
-            resolve_planning_read_dir(
-                main_repo_root, mission_slug, kind=_MAK.WORK_PACKAGE_TASK
-            )
-            / "tasks"
+        planning_dir = resolve_planning_read_dir(
+            main_repo_root, mission_slug, kind=_MAK.WORK_PACKAGE_TASK
         )
+        tasks_dir = planning_dir / "tasks"
 
         if not tasks_dir.exists():
             console.print(f"[red]Error:[/red] Tasks directory not found: {tasks_dir}")
@@ -3033,7 +3050,7 @@ def status(
             done_pct = round(compute_done_percentage(done_count, total_wps), 1)
             progress_pct = round(compute_weighted_progress(_st_snapshot).percentage, 1) if _st_snapshot else 0
             result = {
-                **_mission_identity_payload(feature_dir),
+                **_mission_identity_payload(planning_dir),
                 "total_wps": total_wps,
                 "by_lane": dict(lane_counts),
                 "work_packages": work_packages,
@@ -3351,7 +3368,9 @@ def list_dependents(
 
         mission_slug = _find_mission_slug(explicit_mission=mission, json_output=json_output, repo_root=repo_root)
         main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
-        feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+        feature_dir = resolve_planning_read_dir(
+            main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+        )
 
         if not feature_dir.exists():
             _output_error(json_output, f"Mission directory not found: {feature_dir}")

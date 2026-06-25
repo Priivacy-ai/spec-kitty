@@ -111,12 +111,34 @@ def split_repo(tmp_path: Path) -> Path:
     (feature_dir / "lanes.json").write_text(
         json.dumps(_LANES_JSON) + "\n", encoding="utf-8"
     )
-    (feature_dir / "tasks.md").write_text("# Tasks\n\n- WP01\n- WP02\n", encoding="utf-8")
+    (feature_dir / "tasks.md").write_text(
+        "# Tasks\n\n## WP01\n- [ ] T001 Do WP01\n\n## WP02\n- [ ] T002 Do WP02\n",
+        encoding="utf-8",
+    )
     _git(repo, "add", "kitty-specs")
     _git(repo, "commit", "-q", "-m", "planning artifacts on target")
 
     coord_worktree = CoordinationWorkspace.worktree_path(repo, MISSION_SLUG, MID8)
     _git(repo, "worktree", "add", "-q", str(coord_worktree), COORD_BRANCH)
+    coord_feature_dir = coord_worktree / "kitty-specs" / MISSION_DIRNAME
+    (coord_feature_dir / "status.events.jsonl").write_text(
+        json.dumps(
+            {
+                "event_id": "01KNAT0V000000000000000001",
+                "mission_slug": MISSION_SLUG,
+                "mission_id": MISSION_ID,
+                "wp_id": "WP02",
+                "from_lane": "genesis",
+                "to_lane": "in_progress",
+                "at": "2026-06-25T00:00:00+00:00",
+                "actor": "test",
+                "force": True,
+                "execution_mode": "code_change",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     return repo
 
 
@@ -187,6 +209,86 @@ def test_tasks_status_lists_wps_under_coord_split(split_repo: Path) -> None:
         f"WPs not found via the primary surface (got {wp_ids}); the status command "
         "read tasks/ off the coord worktree (#2115)."
     )
+    lanes_by_wp = {wp["id"]: wp["lane"] for wp in output["work_packages"]}
+    assert lanes_by_wp["WP02"] == "in_progress", (
+        "WP02 lane did not come from the coord status event log; status command "
+        f"may have over-routed STATUS reads to primary (got {lanes_by_wp})."
+    )
+
+
+def test_list_tasks_reads_primary_tasks_and_coord_status(split_repo: Path) -> None:
+    """``agent tasks list-tasks`` reads WP files from PRIMARY and lanes from coord."""
+    from specify_cli.cli.commands.agent.tasks import app
+
+    with (
+        patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=split_repo),
+        patch(
+            "specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out",
+            return_value=(split_repo, TARGET_BRANCH),
+        ),
+    ):
+        result = runner.invoke(app, ["list-tasks", "--mission", MISSION_DIRNAME, "--json"])
+
+    assert result.exit_code == 0, result.stdout
+    output = json.loads(result.stdout)
+    lanes_by_wp = {task["work_package_id"]: task["lane"] for task in output["tasks"]}
+    assert lanes_by_wp["WP01"] == "planned"
+    assert lanes_by_wp["WP02"] == "in_progress"
+
+
+def test_list_dependents_reads_primary_dependency_graph(split_repo: Path) -> None:
+    """``agent tasks list-dependents`` builds the dependency graph from PRIMARY."""
+    from specify_cli.cli.commands.agent.tasks import app
+
+    with (
+        patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=split_repo),
+        patch(
+            "specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out",
+            return_value=(split_repo, TARGET_BRANCH),
+        ),
+    ):
+        result = runner.invoke(
+            app, ["list-dependents", "WP01", "--mission", MISSION_DIRNAME, "--json"]
+        )
+
+    assert result.exit_code == 0, result.stdout
+    output = json.loads(result.stdout)
+    assert output["dependents"] == ["WP02"]
+
+
+def test_mark_status_updates_primary_tasks_md_under_coord_split(split_repo: Path) -> None:
+    """``agent tasks mark-status`` mutates PRIMARY ``tasks.md``, not coord husk."""
+    from specify_cli.cli.commands.agent.tasks import app
+
+    primary_tasks_md = split_repo / "kitty-specs" / MISSION_DIRNAME / "tasks.md"
+    coord_tasks_md = _coord_feature_dir(split_repo) / "tasks.md"
+    assert not coord_tasks_md.exists()
+
+    with (
+        patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=split_repo),
+        patch(
+            "specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out",
+            return_value=(split_repo, TARGET_BRANCH),
+        ),
+        patch("specify_cli.cli.commands.agent.tasks.get_auto_commit_default", return_value=False),
+    ):
+        result = runner.invoke(
+            app,
+            ["mark-status", "T001", "--status", "done", "--mission", MISSION_DIRNAME, "--json"],
+        )
+
+    assert result.exit_code == 0, result.stdout
+    assert "- [x] T001 Do WP01" in primary_tasks_md.read_text(encoding="utf-8")
+    assert not coord_tasks_md.exists()
+
+
+def test_locate_work_package_reads_primary_wp_and_coord_lane(split_repo: Path) -> None:
+    """Shared WP locator splits PRIMARY WP files from coord status events."""
+    from specify_cli.task_utils import locate_work_package
+
+    wp = locate_work_package(split_repo, MISSION_DIRNAME, "WP02")
+    assert wp.path == split_repo / "kitty-specs" / MISSION_DIRNAME / "tasks" / "WP02.md"
+    assert wp.current_lane == "in_progress"
 
 
 def test_preview_claimable_wp_reads_lanes_off_status_dir(tmp_path: Path) -> None:

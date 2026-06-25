@@ -255,13 +255,17 @@ def test_mark_wp_merged_done_uses_typed_frontmatter(
     tmp_path: Path,
     monkeypatch: Any,
 ) -> None:
-    """Verify _mark_wp_merged_done uses read_wp_frontmatter (typed) not read_frontmatter (raw dict)."""
-    import specify_cli.cli.commands.merge as merge_mod
+    """Verify _mark_wp_merged_done uses read_wp_frontmatter (typed) not read_frontmatter (raw dict).
 
-    # The old read_frontmatter import should not exist on the module
-    assert not hasattr(merge_mod, "read_frontmatter"), "merge module still imports read_frontmatter; should use read_wp_frontmatter"
-    # The new typed import must be present
-    assert hasattr(merge_mod, "read_wp_frontmatter"), "merge module must import read_wp_frontmatter"
+    WP08 (#2057): _mark_wp_merged_done moved to the ``done_bookkeeping`` seam, so
+    the typed-frontmatter import now lives there (not on the command shim).
+    """
+    import specify_cli.merge.done_bookkeeping as db_mod
+
+    # The old read_frontmatter (raw dict) import must not exist on the seam.
+    assert not hasattr(db_mod, "read_frontmatter"), "done_bookkeeping still imports read_frontmatter; should use read_wp_frontmatter"
+    # The new typed import must be present where _mark_wp_merged_done now lives.
+    assert hasattr(db_mod, "read_wp_frontmatter"), "done_bookkeeping must import read_wp_frontmatter"
 
 
 def test_assert_merged_wps_reached_done_allows_done_snapshot(

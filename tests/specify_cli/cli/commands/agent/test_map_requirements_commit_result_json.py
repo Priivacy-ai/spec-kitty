@@ -101,7 +101,9 @@ def test_map_requirements_json_serializes_real_commit_result(
     """
     import typer
 
-    from specify_cli.cli.commands.agent import mission as mission_mod
+    # #2056 WP08: the planning-commit primitives relocated to commit_router and
+    # tasks.py imports them from there, so patch the canonical home.
+    from specify_cli.coordination import commit_router as commit_router_mod
     from specify_cli.cli.commands.agent import tasks as tasks_mod
 
     primary_root, primary_mission_dir, coord_root = _build_primary_and_coord(tmp_path)
@@ -147,7 +149,7 @@ def test_map_requirements_json_serializes_real_commit_result(
     monkeypatch.setattr(
         # write-surface-coherence WP02 / T009: ``_resolve_planning_placement`` gained
         # a required ``kind`` keyword; the stub accepts it.
-        mission_mod, "_resolve_planning_placement", lambda *_args, **_kwargs: placement
+        commit_router_mod, "_resolve_planning_placement", lambda *_args, **_kwargs: placement
     )
     monkeypatch.setattr(
         "specify_cli.missions._read_path_resolver.resolve_feature_dir_for_slug",

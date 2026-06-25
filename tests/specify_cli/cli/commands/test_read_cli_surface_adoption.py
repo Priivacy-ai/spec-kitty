@@ -71,11 +71,11 @@ _BARE_SLUG: str = "e2e-coord-proof"
 _MISSION_DIR: str = f"{_BARE_SLUG}-{_MID8}"
 # The coordination branch name embedded in ``meta.json``.
 _COORD_BRANCH: str = f"kitty/mission-{_MISSION_DIR}"
-# Coord-distinguishing WP ids: the primary checkout carries ``_PRIMARY_ONLY_WP``
-# and the coord worktree carries ``_COORD_ONLY_WP``.  A CLI that reads the coord
-# surface surfaces the coord-only WP in its output; one that wrongly reads the
-# primary surfaces the primary-only WP.  This gives a positive coord-vs-primary
-# observable signal beyond the spy capture.
+# Surface-distinguishing WP ids: the primary checkout carries
+# ``_PRIMARY_ONLY_WP`` and the coord worktree carries ``_COORD_ONLY_WP``.
+# Post-#2090, WP task files are PRIMARY artifacts while lane status remains
+# STATUS-owned. ``tasks status`` must list the primary WP while reducing lane
+# state from the coord event log.
 _PRIMARY_ONLY_WP: str = "WP01"
 _COORD_ONLY_WP: str = "WP02"
 
@@ -126,14 +126,10 @@ def _build_coord_fresh_mission(repo_root: Path) -> Path:
         encoding="utf-8",
     )
 
-    # Coordination worktree: topology-authoritative read surface.
+    # Coordination worktree: STATUS-authoritative read surface.
     coord_root = repo_root / ".worktrees" / f"{_MISSION_DIR}-coord"
     coord_mission_dir = coord_root / "kitty-specs" / _MISSION_DIR
     coord_mission_dir.mkdir(parents=True)
-    # The coord dir carries a DISTINCT WP (``_COORD_ONLY_WP``) absent from the
-    # primary checkout, so a CLI that consumes feature_dir surfaces the coord WP
-    # and a CLI that wrongly consumes the primary surfaces ``_PRIMARY_ONLY_WP``
-    # (or fails not-found).  This is the coord-distinguishing observable signal.
     coord_tasks_dir = coord_mission_dir / "tasks"
     coord_tasks_dir.mkdir()
     (coord_tasks_dir / f"{_COORD_ONLY_WP}-coord.md").write_text(
@@ -147,7 +143,22 @@ def _build_coord_fresh_mission(repo_root: Path) -> Path:
         """),
         encoding="utf-8",
     )
-    (coord_mission_dir / "status.events.jsonl").write_text("", encoding="utf-8")
+    status_event = {
+        "event_id": "01KVJPEQ7M3K8N2QXR4VBZ9HCE",
+        "mission_slug": _BARE_SLUG,
+        "mission_id": _FULL_ULID,
+        "wp_id": _PRIMARY_ONLY_WP,
+        "from_lane": "genesis",
+        "to_lane": "in_progress",
+        "at": "2026-06-25T00:00:00+00:00",
+        "actor": "test",
+        "force": True,
+        "execution_mode": "code_change",
+    }
+    (coord_mission_dir / "status.events.jsonl").write_text(
+        json.dumps(status_event) + "\n",
+        encoding="utf-8",
+    )
 
     return coord_mission_dir
 
@@ -229,26 +240,26 @@ class TestAgentTasksStatusCoordResolution:
             "Resolved dir equals the PRIMARY checkout — coord was not selected"
         )
 
-        # Observable-behavior assertions (squad: born-green-framing). Proving the
-        # seam is CALLED is not enough — ``status()`` must actually CONSUME the
-        # coord dir.  (a) exit_code 0: a status() that ignores ``feature_dir`` and
-        # falls into the not-found ``Exit(1)`` branch is caught here.
+        # Observable-behavior assertions. Proving the seam is CALLED is not
+        # enough — ``status()`` must consume coord STATUS while reading PRIMARY
+        # tasks.
         assert result.exit_code == 0, (
             "agent tasks status did NOT exit 0 — status() did not consume the "
             f"coord feature_dir.\n  stdout: {result.stdout}\n"
             f"  exc: {result.exception!r}"
         )
-        # (b) coord-distinguishing signal: the coord dir carries ``_COORD_ONLY_WP``
-        # while the primary carries ``_PRIMARY_ONLY_WP``.  A status() that consumed
-        # the PRIMARY dir would surface the primary WP instead — so the output must
-        # name the coord WP and must NOT name the primary-only WP.
-        assert _COORD_ONLY_WP in result.stdout, (
-            f"Coord-only work package {_COORD_ONLY_WP!r} absent from status output — "
-            f"status() consumed the wrong surface.\n  stdout: {result.stdout}"
+        # (b) PRIMARY task signal + coord STATUS signal.
+        assert _PRIMARY_ONLY_WP in result.stdout, (
+            f"Primary work package {_PRIMARY_ONLY_WP!r} absent from status output.\n"
+            f"  stdout: {result.stdout}"
         )
-        assert _PRIMARY_ONLY_WP not in result.stdout, (
-            f"Primary-only work package {_PRIMARY_ONLY_WP!r} present in status "
-            "output — status() consumed the PRIMARY dir, not the coord dir.\n"
+        assert _COORD_ONLY_WP not in result.stdout, (
+            f"Coord-only work package {_COORD_ONLY_WP!r} present in status output — "
+            "status() consumed tasks from the STATUS surface.\n"
+            f"  stdout: {result.stdout}"
+        )
+        assert "in_progress" in result.stdout, (
+            "Coord event-log lane was not reflected in status output.\n"
             f"  stdout: {result.stdout}"
         )
 

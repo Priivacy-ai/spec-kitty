@@ -231,35 +231,35 @@ def _real_merge_external_mocks(*, real_baseline_recording: bool = False):
     ``meta.json``.
     """
     baseline_recording_targets = {
-        "specify_cli.cli.commands.merge._record_baseline_merge_commit",
-        "specify_cli.cli.commands.merge._assert_baseline_merge_commit_on_target",
-        "specify_cli.cli.commands.merge.safe_commit",
+        "specify_cli.merge.executor._record_baseline_merge_commit",
+        "specify_cli.merge.executor._assert_baseline_merge_commit_on_target",
+        "specify_cli.merge.executor.safe_commit",
     }
     patch_specs: list[tuple[str, dict[str, object]]] = [
-        ("specify_cli.cli.commands.merge._mark_wp_merged_done", {}),
-        ("specify_cli.cli.commands.merge._record_merged_wps_done_for_merge", {}),
-        ("specify_cli.cli.commands.merge._assert_merged_wps_reached_done", {}),
-        ("specify_cli.cli.commands.merge._assert_merged_wps_done_on_target", {}),
-        ("specify_cli.cli.commands.merge._record_baseline_merge_commit", {"return_value": None}),
-        ("specify_cli.cli.commands.merge._assert_baseline_merge_commit_on_target", {}),
-        ("specify_cli.cli.commands.merge.safe_commit", {}),
-        ("specify_cli.cli.commands.merge.trigger_feature_dossier_sync_if_enabled", {}),
-        ("specify_cli.cli.commands.merge.emit_mission_closed", {}),
-        ("specify_cli.cli.commands.merge._emit_merge_diff_summary", {}),
-        ("specify_cli.cli.commands.merge.run_check", {}),
-        ("specify_cli.cli.commands.merge.require_no_sparse_checkout", {}),
+        ("specify_cli.merge.done_bookkeeping._mark_wp_merged_done", {}),
+        ("specify_cli.merge.executor._record_merged_wps_done_for_merge", {}),
+        ("specify_cli.merge.done_bookkeeping._assert_merged_wps_reached_done", {}),
+        ("specify_cli.merge.executor._assert_merged_wps_done_on_target", {}),
+        ("specify_cli.merge.executor._record_baseline_merge_commit", {"return_value": None}),
+        ("specify_cli.merge.executor._assert_baseline_merge_commit_on_target", {}),
+        ("specify_cli.merge.executor.safe_commit", {}),
+        ("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled", {}),
+        ("specify_cli.merge.executor.emit_mission_closed", {}),
+        ("specify_cli.merge.executor._emit_merge_diff_summary", {}),
+        ("specify_cli.merge.executor.run_check", {}),
+        ("specify_cli.merge.executor.require_no_sparse_checkout", {}),
         ("specify_cli.cli.commands.merge._enforce_git_preflight", {}),
-        ("specify_cli.cli.commands.merge._enforce_review_artifact_consistency", {}),
-        ("specify_cli.cli.commands.merge._enforce_canonical_status_history", {}),
-        ("specify_cli.cli.commands.merge._warn_or_confirm_hollow_reviews", {}),
-        ("specify_cli.cli.commands.merge._bake_mission_number_into_mission_branch", {"return_value": None}),
-        ("specify_cli.cli.commands.merge._refresh_primary_checkout_after_merge", {}),
+        ("specify_cli.merge.executor._enforce_review_artifact_consistency", {}),
+        ("specify_cli.merge.executor._enforce_canonical_status_history", {}),
+        ("specify_cli.merge.executor._warn_or_confirm_hollow_reviews", {}),
+        ("specify_cli.merge.executor._bake_mission_number_into_mission_branch", {"return_value": None}),
+        ("specify_cli.merge.executor._refresh_primary_checkout_after_merge", {}),
         # Post-merge working-tree invariant fires on test-only files; the merge
         # has already run through real git by the time this would raise.
-        ("specify_cli.cli.commands.merge._classify_porcelain_lines", {"return_value": ([], 0)}),
+        ("specify_cli.merge.executor._classify_porcelain_lines", {"return_value": ([], 0)}),
         ("specify_cli.policy.merge_gates.evaluate_merge_gates", {}),
         ("specify_cli.policy.config.load_policy_config", {}),
-        ("specify_cli.cli.commands.merge.has_remote", {"return_value": False}),
+        ("specify_cli.merge.executor.has_remote", {"return_value": False}),
     ]
     with contextlib.ExitStack() as stack:
         mocks: dict[str, MagicMock] = {}
@@ -276,7 +276,7 @@ def _real_merge_external_mocks(*, real_baseline_recording: bool = False):
         mocks["specify_cli.policy.config.load_policy_config"].return_value = policy
         stale_report = MagicMock()
         stale_report.findings = []
-        mocks["specify_cli.cli.commands.merge.run_check"].return_value = stale_report
+        mocks["specify_cli.merge.executor.run_check"].return_value = stale_report
         yield mocks
 
 
@@ -474,7 +474,12 @@ def test_doctor_flags_tracked_worktrees_content(tmp_path: Path) -> None:
     _bootstrap_coord_mission(tmp_path, with_tracked_worktrees_junk=True)
 
     runner = CliRunner()
-    with patch("specify_cli.cli.commands.doctor.locate_project_root", return_value=tmp_path):
+    # #2059: the coordination command resolves repo_root in its sibling module
+    # (_coordination_doctor), so patch the resolution seam there.
+    with patch(
+        "specify_cli.cli.commands._coordination_doctor.locate_project_root",
+        return_value=tmp_path,
+    ):
         result = runner.invoke(doctor_app, ["coordination", "--json"])
 
     assert result.exit_code == 1, (
@@ -510,9 +515,12 @@ def test_post_merge_validation_reads_in_branch_status_path(tmp_path: Path) -> No
 
     captured_refs: list[str] = []
 
-    import specify_cli.cli.commands.merge as merge_mod
+    # WP08 (#2057): _assert_merged_wps_done_on_target moved to the
+    # ``done_bookkeeping`` seam, so its ``run_command`` collaborator must be
+    # spied there (patching the shim no longer intercepts the call).
+    import specify_cli.merge.done_bookkeeping as db_mod
 
-    real_run_command = merge_mod.run_command
+    real_run_command = db_mod.run_command
 
     def spy_run_command(cmd, *args, **kwargs):  # noqa: ANN001, ANN002, ANN003
         if len(cmd) >= 3 and cmd[0] == "git" and cmd[1] == "show":
@@ -520,7 +528,7 @@ def test_post_merge_validation_reads_in_branch_status_path(tmp_path: Path) -> No
         return real_run_command(cmd, *args, **kwargs)
 
     # The done event is already committed in-branch on main via bootstrap.
-    with patch.object(merge_mod, "run_command", side_effect=spy_run_command):
+    with patch.object(db_mod, "run_command", side_effect=spy_run_command):
         _assert_merged_wps_done_on_target(
             tmp_path,
             MISSION_SLUG,

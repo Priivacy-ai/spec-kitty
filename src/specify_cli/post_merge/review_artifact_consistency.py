@@ -105,9 +105,11 @@ def _schema_error_message(exc: ValueError, artifact_path: Path) -> str:
 def find_rejected_review_artifact_conflicts(
     feature_dir: Path,
     wp_ids: list[str] | None = None,
+    *,
+    status_dir: Path | None = None,
 ) -> list[ReviewArtifactFinding]:
     """Return review artifact findings that block merge readiness."""
-    snapshot = materialize(feature_dir)
+    snapshot = materialize(status_dir or feature_dir)
     selected_wp_ids = wp_ids or sorted(snapshot.work_packages)
     findings: list[ReviewArtifactFinding] = []
 
@@ -267,6 +269,7 @@ def run_review_artifact_consistency_preflight(
     feature_dir: Path,
     *,
     wp_ids: list[str] | None = None,
+    status_dir: Path | None = None,
 ) -> ReviewArtifactPreflightResult:
     """Run the review-artifact consistency gate and wrap the result.
 
@@ -274,5 +277,9 @@ def run_review_artifact_consistency_preflight(
     ``merge --dry-run`` so the two surfaces cannot drift. Callers that need
     rendering can call ``ReviewArtifactPreflightResult.diagnostics()``.
     """
-    findings = find_rejected_review_artifact_conflicts(feature_dir, wp_ids)
+    findings = find_rejected_review_artifact_conflicts(
+        feature_dir,
+        wp_ids,
+        status_dir=status_dir,
+    )
     return ReviewArtifactPreflightResult(findings=tuple(findings))

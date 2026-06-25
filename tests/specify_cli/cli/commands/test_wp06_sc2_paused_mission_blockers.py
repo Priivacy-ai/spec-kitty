@@ -38,11 +38,17 @@ pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 def _patch_mission_topology(
     monkeypatch: pytest.MonkeyPatch, *, coord: bool
 ) -> None:
-    """Stub the mission module's stored-topology read (FR-001b routing reads topology)."""
-    from specify_cli.cli.commands.agent import mission as _mission_mod
+    """Stub the record-analysis seam's stored-topology read (FR-001b routing reads topology).
+
+    #2056 WP04 relocated record-analysis + its dirty-tree preflight into
+    ``mission_record_analysis``; the preflight reads ``resolve_topology`` from
+    that seam's namespace, so the patch targets the seam (not the ``mission``
+    shim, which no longer carries this name).
+    """
+    from specify_cli.cli.commands.agent import mission_record_analysis as _record_seam
 
     topology = MissionTopology.COORD if coord else MissionTopology.SINGLE_BRANCH
-    monkeypatch.setattr(_mission_mod, "resolve_topology", lambda _root, _slug: topology)
+    monkeypatch.setattr(_record_seam, "resolve_topology", lambda _root, _slug: topology)
 
 
 def _patch_implement_topology(
@@ -657,8 +663,14 @@ class TestStagerResidueCleanupScoping:
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """If the primary bytes do not match the staged coord copy (e.g. a
-        racing writer), cleanup skips the file instead of deleting it."""
-        import specify_cli.cli.commands.agent.mission as mission_module
+        racing writer), cleanup skips the file instead of deleting it.
+
+        #2056 WP08: the stager relocated from mission.py into commit_router (the
+        former mission.py ``_stage_finalize_artifacts_in_coord_worktree``
+        reconciled into the router's canonical ``_stage_artifacts_in_coord_worktree``),
+        so the ``shutil.copy2`` patch + call target the router namespace.
+        """
+        import specify_cli.coordination.commit_router as commit_router_module
 
         repo = tmp_path / "repo"
         coord = tmp_path / "coord"
@@ -670,9 +682,9 @@ class TestStagerResidueCleanupScoping:
             Path(str(d)).write_text("original\n", encoding="utf-8")
             Path(str(s)).write_text("mutated-after-staging\n", encoding="utf-8")
 
-        monkeypatch.setattr(mission_module.shutil, "copy2", _copy_then_mutate_src)
+        monkeypatch.setattr(commit_router_module.shutil, "copy2", _copy_then_mutate_src)
 
-        mission_module._stage_finalize_artifacts_in_coord_worktree(
+        commit_router_module._stage_finalize_artifacts_in_coord_worktree(
             [src],
             coord,
             repo,

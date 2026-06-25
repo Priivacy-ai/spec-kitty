@@ -543,11 +543,12 @@ def _execute_lane_merge(
     policy = load_policy_config(main_repo_root)
     all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids]
     gate_eval = evaluate_merge_gates(
-        mission_dir,
+        _planning_read_dir(main_repo_root, mission_slug),
         mission_slug,
         all_wp_ids,
         policy.merge_gates,
         main_repo_root,
+        status_dir=mission_dir,
     )
     if not gate_eval.overall_pass:
         blocking = [gate.details for gate in gate_eval.gates if gate.blocking]

@@ -25,15 +25,34 @@ import pytest
 from mission_runtime import CommitTarget, MissionTopology
 from specify_cli.cli.commands.agent import mission as mission_mod
 
+# #2056 WP04 (Seam A): record-analysis + its dirty-tree preflight relocated to
+# ``mission_record_analysis``. The preflight resolves its mutable dependencies
+# (is_git_repo / _git_dirty_paths / is_coordination_artifact_residue_path /
+# resolve_topology) from the seam module's namespace, so the preflight tests
+# patch the seam.
+from specify_cli.cli.commands.agent import mission_record_analysis as record_seam
+
+# #2056 WP08: ``_planning_commit_worktree`` relocated from ``mission`` into the
+# canonical ``coordination/commit_router``; the helper now reads
+# ``resolve_topology`` / ``_resolve_mid8`` from the router namespace, so its tests
+# patch + call the router (the former mission_mod patch site is retired).
+from specify_cli.coordination import commit_router as commit_router_mod
+
 pytestmark = pytest.mark.unit
 
 _MISSION_PY = Path(mission_mod.__file__)
 
 
 def _patch_topology(monkeypatch: pytest.MonkeyPatch, *, coord: bool) -> None:
-    """Stub the mission module's stored-topology read (routing reads the topology)."""
+    """Stub the commit_router's stored-topology read (routing reads the topology)."""
     topology = MissionTopology.COORD if coord else MissionTopology.SINGLE_BRANCH
-    monkeypatch.setattr(mission_mod, "resolve_topology", lambda _root, _slug: topology)
+    monkeypatch.setattr(commit_router_mod, "resolve_topology", lambda _root, _slug: topology)
+
+
+def _patch_seam_topology(monkeypatch: pytest.MonkeyPatch, *, coord: bool) -> None:
+    """Stub the record-analysis seam's stored-topology read for preflight tests."""
+    topology = MissionTopology.COORD if coord else MissionTopology.SINGLE_BRANCH
+    monkeypatch.setattr(record_seam, "resolve_topology", lambda _root, _slug: topology)
 
 
 def test_planning_commit_worktree_flattened_keeps_main_checkout(
@@ -45,7 +64,7 @@ def test_planning_commit_worktree_flattened_keeps_main_checkout(
     artifact.parent.mkdir(parents=True)
     artifact.write_text("# Spec\n", encoding="utf-8")
 
-    worktree, paths = mission_mod._planning_commit_worktree(
+    worktree, paths = commit_router_mod._planning_commit_worktree(
         tmp_path, "001-demo", (artifact,)
     )
     assert worktree == tmp_path
@@ -61,7 +80,7 @@ def test_planning_commit_worktree_primary_keeps_main_checkout(
     artifact.parent.mkdir(parents=True)
     artifact.write_text("# Spec\n", encoding="utf-8")
 
-    worktree, paths = mission_mod._planning_commit_worktree(
+    worktree, paths = commit_router_mod._planning_commit_worktree(
         tmp_path, "001-demo", (artifact,)
     )
     assert worktree == tmp_path
@@ -89,19 +108,20 @@ def test_planning_commit_worktree_coord_kind_attempts_coord_worktree(
     artifact.write_text("# Analysis\n", encoding="utf-8")
 
     consulted: list[str] = []
-    monkeypatch.setattr(
-        mission_mod,
-        "_safe_load_meta",
-        lambda _root, slug: consulted.append(slug) or None,
-    )
 
-    worktree, paths = mission_mod._planning_commit_worktree(
+    def _spy_resolve_mid8(_root: object, slug: str) -> None:
+        consulted.append(slug)
+        return None
+
+    monkeypatch.setattr(commit_router_mod, "_resolve_mid8", _spy_resolve_mid8)
+
+    worktree, paths = commit_router_mod._planning_commit_worktree(
         tmp_path, "001-demo", (artifact,), kind=MissionArtifactKind.ANALYSIS_REPORT
     )
     # mid8 unresolvable → degrades to main checkout, but the coord branch WAS taken.
     assert consulted == ["001-demo"], (
         "the COORDINATION branch of routes_through_coordination was not taken — "
-        "_safe_load_meta (past the predicate) was never consulted"
+        "_resolve_mid8 (past the predicate) was never consulted"
     )
     assert worktree == tmp_path  # degraded fallback (no mid8)
 
@@ -125,13 +145,14 @@ def test_planning_commit_worktree_primary_kind_short_circuits_under_coord(
     artifact.write_text("# Tasks\n", encoding="utf-8")
 
     consulted: list[str] = []
-    monkeypatch.setattr(
-        mission_mod,
-        "_safe_load_meta",
-        lambda _root, slug: consulted.append(slug) or None,
-    )
 
-    worktree, paths = mission_mod._planning_commit_worktree(
+    def _spy_resolve_mid8(_root: object, slug: str) -> None:
+        consulted.append(slug)
+        return None
+
+    monkeypatch.setattr(commit_router_mod, "_resolve_mid8", _spy_resolve_mid8)
+
+    worktree, paths = commit_router_mod._planning_commit_worktree(
         tmp_path, "001-demo", (artifact,), kind=MissionArtifactKind.TASKS_INDEX
     )
     assert consulted == [], (
@@ -147,19 +168,19 @@ def test_analysis_preflight_coordination_drops_residue(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A COORDINATION placement drops coord-artifact residue from the dirty set."""
-    monkeypatch.setattr(mission_mod, "is_git_repo", lambda _root: True)
+    monkeypatch.setattr(record_seam, "is_git_repo", lambda _root: True)
     monkeypatch.setattr(
-        mission_mod, "_git_dirty_paths", lambda _root: ["kitty-specs/001-demo/spec.md"]
+        record_seam, "_git_dirty_paths", lambda _root: ["kitty-specs/001-demo/spec.md"]
     )
     # Treat the residue path as coord-owned residue so it is dropped → no dirty set.
     monkeypatch.setattr(
-        mission_mod, "is_coordination_artifact_residue_path", lambda _p, *, mission_slug=None: True
+        record_seam, "is_coordination_artifact_residue_path", lambda _p, *, mission_slug=None: True
     )
-    _patch_topology(monkeypatch, coord=True)
+    _patch_seam_topology(monkeypatch, coord=True)
 
     placement = CommitTarget(ref="kitty/mission-001-demo-AAAA1111")
     # Should NOT raise (residue dropped → empty dirty set).
-    mission_mod._enforce_analysis_report_write_preflight(
+    record_seam._enforce_analysis_report_write_preflight(
         tmp_path, json_output=True, placement_ref=placement, mission_slug="001-demo"
     )
 
@@ -168,21 +189,21 @@ def test_analysis_preflight_primary_keeps_residue_and_gates(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """A non-coord placement does NOT drop residue → a dirty tree still gates (NFR-003)."""
-    monkeypatch.setattr(mission_mod, "is_git_repo", lambda _root: True)
+    monkeypatch.setattr(record_seam, "is_git_repo", lambda _root: True)
     monkeypatch.setattr(
-        mission_mod, "_git_dirty_paths", lambda _root: ["kitty-specs/001-demo/spec.md"]
+        record_seam, "_git_dirty_paths", lambda _root: ["kitty-specs/001-demo/spec.md"]
     )
     # Even if the path WOULD qualify as residue, a non-coord placement skips the drop.
     monkeypatch.setattr(
-        mission_mod, "is_coordination_artifact_residue_path", lambda _p, *, mission_slug=None: True
+        record_seam, "is_coordination_artifact_residue_path", lambda _p, *, mission_slug=None: True
     )
-    _patch_topology(monkeypatch, coord=False)
+    _patch_seam_topology(monkeypatch, coord=False)
 
     placement = CommitTarget(ref="main")
     import typer
 
     with pytest.raises(typer.Exit):
-        mission_mod._enforce_analysis_report_write_preflight(
+        record_seam._enforce_analysis_report_write_preflight(
             tmp_path, json_output=True, placement_ref=placement, mission_slug="001-demo"
         )
 
@@ -243,19 +264,19 @@ def test_analysis_preflight_real_residue_filter_keeps_stale_primary_spec(
     """
     import typer
 
-    monkeypatch.setattr(mission_mod, "is_git_repo", lambda _root: True)
+    monkeypatch.setattr(record_seam, "is_git_repo", lambda _root: True)
     monkeypatch.setattr(
-        mission_mod,
+        record_seam,
         "_git_dirty_paths",
         lambda _root: ["kitty-specs/001-demo/spec.md"],
     )
     # NOTE: deliberately NOT patching ``is_coordination_artifact_residue_path`` —
     # the real predicate (post-WP01) must return False for a primary spec.md.
-    _patch_topology(monkeypatch, coord=True)
+    _patch_seam_topology(monkeypatch, coord=True)
 
     placement = CommitTarget(ref="kitty/mission-001-demo-AAAA1111")
     with pytest.raises(typer.Exit):
-        mission_mod._enforce_analysis_report_write_preflight(
+        record_seam._enforce_analysis_report_write_preflight(
             tmp_path, json_output=True, placement_ref=placement, mission_slug="001-demo"
         )
 
@@ -270,16 +291,16 @@ def test_analysis_preflight_real_residue_filter_still_drops_coord_status(
     real predicate returns True and the preflight drops it → no gate. This proves
     the ripple narrowed the filter to genuinely coord-owned kinds, not disabled it.
     """
-    monkeypatch.setattr(mission_mod, "is_git_repo", lambda _root: True)
+    monkeypatch.setattr(record_seam, "is_git_repo", lambda _root: True)
     monkeypatch.setattr(
-        mission_mod,
+        record_seam,
         "_git_dirty_paths",
         lambda _root: ["kitty-specs/001-demo/status.events.jsonl"],
     )
-    _patch_topology(monkeypatch, coord=True)
+    _patch_seam_topology(monkeypatch, coord=True)
 
     placement = CommitTarget(ref="kitty/mission-001-demo-AAAA1111")
     # Should NOT raise: the coord-owned status residue is dropped → empty dirty set.
-    mission_mod._enforce_analysis_report_write_preflight(
+    record_seam._enforce_analysis_report_write_preflight(
         tmp_path, json_output=True, placement_ref=placement, mission_slug="001-demo"
     )

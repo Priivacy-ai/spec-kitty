@@ -295,11 +295,11 @@ def test_record_analysis_command_persists_report(tmp_path, monkeypatch):
     input_file.write_text("# Analysis\n\nCritical Issues Count: 0\nPASS\n", encoding="utf-8")
 
     monkeypatch.setattr(
-        "specify_cli.cli.commands.agent.mission.locate_project_root",
+        "specify_cli.cli.commands.agent.mission_record_analysis.locate_project_root",
         lambda: repo_root,
     )
     monkeypatch.setattr(
-        "specify_cli.cli.commands.agent.mission.get_main_repo_root",
+        "specify_cli.cli.commands.agent.mission_record_analysis.get_main_repo_root",
         lambda path: path,
     )
     monkeypatch.setattr(
@@ -308,7 +308,7 @@ def test_record_analysis_command_persists_report(tmp_path, monkeypatch):
     )
     emitted: dict[str, object] = {}
     monkeypatch.setattr(
-        "specify_cli.cli.commands.agent.mission._emit_json",
+        "specify_cli.cli.commands.agent.mission_record_analysis._emit_json",
         lambda payload: emitted.update(payload),
     )
 
@@ -346,10 +346,10 @@ def test_record_analysis_refuses_dirty_worktree_before_write(tmp_path, monkeypat
     input_file.write_text("# Analysis\n\nPASS\n", encoding="utf-8")
 
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr("specify_cli.cli.commands.agent.mission.locate_project_root", lambda: repo_root)
-    monkeypatch.setattr("specify_cli.cli.commands.agent.mission.get_main_repo_root", lambda path: path)
+    monkeypatch.setattr("specify_cli.cli.commands.agent.mission_record_analysis.locate_project_root", lambda: repo_root)
+    monkeypatch.setattr("specify_cli.cli.commands.agent.mission_record_analysis.get_main_repo_root", lambda path: path)
     emitted: dict[str, object] = {}
-    monkeypatch.setattr("specify_cli.cli.commands.agent.mission._emit_json", lambda payload: emitted.update(payload))
+    monkeypatch.setattr("specify_cli.cli.commands.agent.mission_record_analysis._emit_json", lambda payload: emitted.update(payload))
 
     result = CliRunner().invoke(
         mission_app,
@@ -382,10 +382,10 @@ def test_record_analysis_succeeds_on_protected_branch_via_materialize(tmp_path, 
 
     monkeypatch.chdir(tmp_path)
     monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
-    monkeypatch.setattr("specify_cli.cli.commands.agent.mission.locate_project_root", lambda: repo_root)
-    monkeypatch.setattr("specify_cli.cli.commands.agent.mission.get_main_repo_root", lambda path: path)
+    monkeypatch.setattr("specify_cli.cli.commands.agent.mission_record_analysis.locate_project_root", lambda: repo_root)
+    monkeypatch.setattr("specify_cli.cli.commands.agent.mission_record_analysis.get_main_repo_root", lambda path: path)
     emitted: dict[str, object] = {}
-    monkeypatch.setattr("specify_cli.cli.commands.agent.mission._emit_json", lambda payload: emitted.update(payload))
+    monkeypatch.setattr("specify_cli.cli.commands.agent.mission_record_analysis._emit_json", lambda payload: emitted.update(payload))
 
     result = CliRunner().invoke(
         mission_app,

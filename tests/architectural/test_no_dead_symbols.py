@@ -737,6 +737,111 @@ _CATEGORY_C_BUILTIN_OVERRIDE_POLICY: frozenset[str] = frozenset(
 )
 
 
+# ---------- C. Merge god-module decomposition shim re-exports (mission #2057) -
+# The ``cli/commands/merge.py`` god-module (3383 LOC, maxCC ~102) was
+# decomposed into cohesive seams under ``specify_cli/merge/`` (issue #2057,
+# behavior-preserving refactor). FR-006 mandates that the thin command shim
+# re-export every relocated symbol so the ~41 importing test files and external
+# back-compat consumers keep working with ZERO import edits and a byte-stable
+# ``__all__``. Each symbol below is LIVE runtime code defined in (and used by)
+# a ``merge/*`` seam; the shim re-export simply has no *src/* caller importing
+# it *via the shim* (the seams import siblings directly, one-way — C-006/INV-2;
+# tests import the relocated names from the shim, which this gate does not
+# count). On origin/main this gate passed because each symbol's canonical home
+# was already a seam with a cross-file src importer; the decomposition widened
+# the shim's re-export surface from 24 to ~57 names, so the proof-of-life that
+# previously covered them no longer reaches the new re-exports. Burn-down
+# (FR-303): when the importing test files are repointed to the seam homes, the
+# shim re-exports (and these entries) can be deleted.
+_CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057: frozenset[str] = frozenset(
+    {
+        f"specify_cli.cli.commands.merge::{name}"
+        for name in (
+            "_assert_baseline_merge_commit_on_target",
+            "_assert_bookkeeping_snapshot_path_is_trusted",
+            "_assert_merged_wps_done_on_target",
+            "_assert_merged_wps_reached_done",
+            "_assert_status_path_within_target_surface",
+            "_assert_status_surface_path_is_trusted",
+            "_bake_mission_number_into_mission_branch",
+            "BaselineMergeCommitError",
+            "_branch_trees_equal",
+            "_capture_bookkeeping_snapshots",
+            "_check_mission_branch",
+            "_classify_porcelain_lines",
+            "_clear_merge_state_for_mission",
+            "_collect_hollow_review_warnings",
+            "_effective_push_requested",
+            "_emit_merge_diff_summary",
+            "_emit_remediation_hint",
+            "_enforce_canonical_status_history",
+            "_enforce_planning_artifact_target_branch",
+            "_enforce_review_artifact_consistency",
+            "_enforce_target_branch_sync_preflight",
+            "_has_branch_ref",
+            "_has_transition_to",
+            "HollowReviewWarnings",
+            "_is_git_repo",
+            "_is_linear_history_rejection",
+            "_lane_already_integrated",
+            "LINEAR_HISTORY_REJECTION_TOKENS",
+            "_load_merge_state_for_mission",
+            "_load_or_create_merge_state",
+            "MissionBranchBlocker",
+            "_paths_have_status_changes",
+            "_project_status_bookkeeping_to_target",
+            "_raw_porcelain_status",
+            "_read_committed_meta_json",
+            "_reconcile_completed_wps_for_resume",
+            "_record_baseline_merge_commit",
+            "_recorded_baseline_from_working_meta",
+            "_refresh_primary_checkout_after_merge",
+            "_resolve_merge_actor",
+            "_restore_final_bookkeeping_snapshots",
+            "_run_lane_based_merge",
+            "_run_lane_based_merge_locked",
+            "_STATUS_EVENTS_FILENAME",
+            "_STATUS_FILENAME",
+            "_target_bookkeeping_status_paths",
+            "TARGET_BRANCH_NOT_SYNCHRONIZED",
+            "_target_branch_still_at_baseline",
+            "TARGET_BRANCH_SYNC_INVARIANT",
+            "_target_branch_sync_payload",
+            "target_branch_sync_remediation",
+            "_validate_mission_slug_path_segment",
+            "_warn_or_confirm_hollow_reviews",
+        )
+    }
+    | {
+        # Seam-INTERNAL helpers / the phase-state dataclass that mission #2057
+        # exports from each new seam's own ``__all__`` as the FR-004 focused-test
+        # contract (the per-seam test files import these names directly to drive
+        # >=90% coverage of the moved code). Each is LIVE runtime code with
+        # multiple intra-module references; they lost their cross-file *src/*
+        # caller when the decomposition moved the consuming call out of
+        # ``cli/commands/merge.py`` into a sibling seam (so the gate's
+        # cross-file-src-importer proof-of-life no longer reaches them). They are
+        # not dead — only seam-private + test-exercised. Burn-down (FR-303): drop
+        # them from the seam ``__all__`` (leaving them as unexported internals)
+        # once the focused tests reference them without the public-contract
+        # expectation, or wire a runtime cross-seam caller.
+        "specify_cli.merge.bookkeeping_projection::_assert_status_surface_file_path_is_trusted",
+        "specify_cli.merge.bookkeeping_projection::_read_optional_bytes",
+        "specify_cli.merge.bookkeeping_projection::_restore_optional_bytes",
+        "specify_cli.merge.executor::_MergeRunState",
+        "specify_cli.merge.ordering::_already_baked",
+        "specify_cli.merge.ordering::_compute_next_mission_number_or_none",
+        "specify_cli.merge.ordering::_is_assigned_mission_number",
+        "specify_cli.merge.ordering::_mark_mission_number_baked",
+        "specify_cli.merge.ordering::_write_mission_number_to_branch",
+        "specify_cli.merge.push_preflight::check_push_safety",
+        "specify_cli.merge.resolve::_extract_mission_slug",
+        "specify_cli.merge.resolve::_iter_merge_states_for_slug",
+        "specify_cli.merge.resolve::_merge_state_key_candidates",
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``).
@@ -756,6 +861,7 @@ _SYMBOL_ALLOWLIST: frozenset[str] = (
     | _CATEGORY_C_BRANCH_NAMING_FAILOVER_SEAM
     | _CATEGORY_C_BACKCOMPAT_SHIM_REEXPORT
     | _CATEGORY_C_BUILTIN_OVERRIDE_POLICY
+    | _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057
 )
 
 

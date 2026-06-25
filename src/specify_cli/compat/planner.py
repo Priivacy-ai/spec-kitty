@@ -896,7 +896,7 @@ def _plan_impl(
     install_method = detect_install_method()
 
     # --- Step 5: Build upgrade hint ---
-    upgrade_hint = build_upgrade_hint(install_method)
+    upgrade_hint = build_upgrade_hint(install_method, target_version=latest_version)
 
     # --- Step 6: Decide ---
     decision, fr023_case = decide(project_status, safety, cli_status, invocation)

@@ -18,7 +18,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-import specify_cli.cli.commands.doctor as doctor_mod
+import specify_cli.cli.commands._mission_state_doctor as mission_state_mod
 from specify_cli.cli.commands.doctor import app
 
 pytestmark = [pytest.mark.integration]
@@ -66,7 +66,7 @@ class TestModeValidationErrors:
         Act: invoke mission-state with no mode flag.
         Assert: exit_code == 0, output mentions --audit.
         """
-        monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+        monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
         result = runner.invoke(app, ["mission-state"])
         assert result.exit_code == 0
         assert "--audit" in result.output
@@ -80,7 +80,7 @@ class TestModeValidationErrors:
         Act: invoke mission-state --audit --fix.
         Assert: exit_code == 2, error message in output.
         """
-        monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+        monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
         result = runner.invoke(app, ["mission-state", "--audit", "--fix"])
         assert result.exit_code == 2
         combined = (result.output or "") + (result.stderr or "")
@@ -95,7 +95,7 @@ class TestModeValidationErrors:
         Act: invoke mission-state --audit --teamspace-dry-run.
         Assert: exit_code == 2.
         """
-        monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+        monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
         result = runner.invoke(
             app, ["mission-state", "--audit", "--teamspace-dry-run"]
         )
@@ -110,7 +110,7 @@ class TestModeValidationErrors:
         Act: invoke mission-state --fix --teamspace-dry-run.
         Assert: exit_code == 2.
         """
-        monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+        monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
         result = runner.invoke(
             app, ["mission-state", "--fix", "--teamspace-dry-run"]
         )
@@ -125,7 +125,7 @@ class TestModeValidationErrors:
         Act: invoke mission-state --audit --fail-on critical.
         Assert: exit_code == 2, 'teamspace-blocker' in error (valid values listed).
         """
-        monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+        monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
         result = runner.invoke(
             app,
             [
@@ -150,7 +150,7 @@ class TestModeValidationErrors:
         Act: invoke mission-state --audit --include-fixtures --fixture-dir <dir>.
         Assert: exit_code == 2.
         """
-        monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+        monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
         fixture_dir = tmp_path / "fixtures"
         _make_clean_mission(fixture_dir)
         result = runner.invoke(
@@ -171,7 +171,14 @@ class TestModeValidationErrors:
         Arrange: locate_project_root returns None (no project).
         Act: invoke mission-state --audit (no --fixture-dir).
         Assert: exit_code == 1.
+
+        The ``mission-state`` command shell resolves the project root through
+        the doctor shim's ``locate_project_root`` seam (#2059, mirrors the
+        ``workspaces`` shell) and forwards it to ``run_mission_state``; patch
+        that seam to drive the no-project path through the public surface.
         """
+        import specify_cli.cli.commands.doctor as doctor_mod
+
         with patch.object(doctor_mod, "locate_project_root", return_value=None):
             result = runner.invoke(app, ["mission-state", "--audit"])
         assert result.exit_code == 1
@@ -200,7 +207,7 @@ class TestAuditModeCharacterization:
         """
         fixture_dir = tmp_path / "fixtures"
         _make_clean_mission(fixture_dir)
-        monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+        monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
         result = runner.invoke(
             app, ["mission-state", "--audit", "--fixture-dir", str(fixture_dir)]
         )
@@ -217,7 +224,7 @@ class TestAuditModeCharacterization:
         """
         fixture_dir = tmp_path / "fixtures"
         _make_clean_mission(fixture_dir)
-        monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+        monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
         result = runner.invoke(
             app,
             ["mission-state", "--audit", "--json", "--fixture-dir", str(fixture_dir)],
@@ -273,7 +280,7 @@ class TestFixModeCharacterization:
         Act: invoke mission-state --fix --json.
         Assert: exit_code == 0, JSON output is parseable.
         """
-        monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+        monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
         report_mock = self._build_repair_report()
 
         with patch(
@@ -299,7 +306,7 @@ class TestFixModeCharacterization:
         Act: invoke mission-state --fix.
         Assert: exit_code == 0, 'repair' or 'updated' in output.
         """
-        monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+        monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
         report_mock = self._build_repair_report()
 
         with patch(
@@ -324,7 +331,7 @@ class TestFixModeCharacterization:
         Act: invoke mission-state --fix --json.
         Assert: exit_code == 1, error info in output.
         """
-        monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+        monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
 
         from specify_cli.migration.mission_state import MissionStateRepairError
 
@@ -350,7 +357,7 @@ class TestFixModeCharacterization:
         Act: invoke mission-state --fix --json.
         Assert: exit_code == 1.
         """
-        monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+        monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
 
         error_result = MagicMock()
         error_result.status = "error"
@@ -413,7 +420,7 @@ class TestTeamspaceDryRunModeCharacterization:
         Act: invoke mission-state --teamspace-dry-run --json.
         Assert: exit_code == 0, JSON output is parseable.
         """
-        monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+        monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
         report_mock = self._build_dry_run_report(valid=True)
 
         with patch(
@@ -438,7 +445,7 @@ class TestTeamspaceDryRunModeCharacterization:
         Act: invoke mission-state --teamspace-dry-run.
         Assert: exit_code == 0, 'valid' in output.
         """
-        monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+        monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
         report_mock = self._build_dry_run_report(valid=True)
 
         with patch(
@@ -463,7 +470,7 @@ class TestTeamspaceDryRunModeCharacterization:
         Act: invoke mission-state --teamspace-dry-run.
         Assert: exit_code == 1, failure indicated in output.
         """
-        monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+        monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
         report_mock = self._build_dry_run_report(valid=False)
 
         with patch(
@@ -486,7 +493,7 @@ class TestTeamspaceDryRunModeCharacterization:
         Act: invoke mission-state --teamspace-dry-run --json.
         Assert: exit_code == 1, error info in output.
         """
-        monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)
+        monkeypatch.setattr(mission_state_mod, "locate_project_root", lambda: tmp_path)
 
         from specify_cli.migration.mission_state import MissionStateDryRunError
 

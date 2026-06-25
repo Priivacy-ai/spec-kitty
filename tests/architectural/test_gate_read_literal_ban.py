@@ -154,13 +154,17 @@ class _Surface:
 # reads a planning artifact; each MUST route those reads through the kind-aware seam.
 _READ_ARM_SURFACES: tuple[_Surface, ...] = (
     _Surface(
-        "src/specify_cli/cli/commands/agent/mission.py",
+        # #2056 decomposition: ``setup_plan`` relocated from ``mission.py`` into the
+        # ``mission_setup_plan`` seam; scan the body where it now lives.
+        "src/specify_cli/cli/commands/agent/mission_setup_plan.py",
         "setup_plan",
         "FR-009(a)/#2107 driver: reads spec.md/plan.md via the kind-aware seam, "
         "not the coord-aware feature_dir.",
     ),
     _Surface(
-        "src/specify_cli/cli/commands/agent/mission.py",
+        # #2056 decomposition: ``record_analysis`` relocated from ``mission.py`` into
+        # the ``mission_record_analysis`` seam; scan the body where it now lives.
+        "src/specify_cli/cli/commands/agent/mission_record_analysis.py",
         "record_analysis",
         "FR-009(b)/#2102: collapses the coord-then-primary double-resolution onto "
         "resolve_planning_read_dir for the spec read.",
@@ -200,7 +204,9 @@ _WRITE_ARM_SURFACES: tuple[_Surface, ...] = (
         "G-6/WP00: meta.json anchored to primary_feature_dir_for_mission.",
     ),
     _Surface(
-        "src/specify_cli/cli/commands/agent/mission.py",
+        # #2056 decomposition: ``finalize_tasks`` relocated from ``mission.py`` into
+        # the ``mission_finalize`` seam; scan the body where it now lives.
+        "src/specify_cli/cli/commands/agent/mission_finalize.py",
         "finalize_tasks",
         "G-6/FR-009(e): the finalize-tasks commit-branch resolution reads "
         "planning_dir = primary_feature_dir_for_mission, never the candidate.",
@@ -634,14 +640,9 @@ def test_read_arm_default_deny_no_unlisted_topology_join() -> None:
 # the encoding normalizer → ``_planning_read_dir``) the accept package is clean.
 #
 # The broadened dir-read arm ALSO surfaced an N+2 cluster OUTSIDE this mission's
-# scope — the implement/review/merge command surface reads WP ``tasks/`` off
-# coord-aware resolvers (``workflow.py::implement`` / ``review`` /
-# ``_resolve_review_context`` / ``_preview_claimable_wp_for_mission``,
-# ``tasks.py::status`` / ``finalize_tasks``, ``merge.py::_mark_wp_merged_done``).
-# Those belong to a SEPARATE implement-loop write-surface mission (the #1716
-# cluster) and are NAMED here (not silently fixed) so the residual is tracked, not
-# hidden — fixing them in THIS behavior-neutral accept-gate closeout would breach
-# locality (DIRECTIVE_024).
+# scope — the implement/review command surface reads WP ``tasks/`` off coord-aware
+# resolvers. The cleaner one-hop sites were closed by the #2115 native-flow
+# primary/status split, so the pin below now tracks only the remaining bodies.
 
 
 def test_dir_read_arm_default_deny_accept_package_clean() -> None:
@@ -670,39 +671,9 @@ def test_dir_read_arm_default_deny_accept_package_clean() -> None:
     )
 
 
-# The implement/review/merge WP-task bare-dir reads the broadened arm surfaced —
-# the N+2 cluster OUTSIDE this accept-gate closeout. NAMED so the residual is
-# tracked (debbie step 5: "don't silently fix-and-hide"); fenced by a SEPARATE
-# implement-loop write-surface mission (the #1716 cluster). The pin below asserts
-# this is exactly the set the scan finds, so neither a NEW implement-loop dir-read
-# (set grows → FAIL) nor a silent fix (set shrinks → FAIL, prompting removal here)
-# slips by unobserved.
-#
-# #2115 fix (PR for the native-flow coord-read cluster): ``tasks.py::status`` and
-# ``tasks.py::finalize_tasks`` were routed through the kind-aware seam
-# (``resolve_planning_read_dir``) and are no longer flagged, so they are removed
-# from the pin. The remaining entries belong to the deferred implement-loop
-# write-surface mission (``workflow.py`` implement/review + their helpers, which
-# read STATUS and PRIMARY through one conflated dir) and ``merge.py``'s
-# ``_mark_wp_merged_done`` (tasks/status conflation, also mid-decomposition in
-# #2133 → ``merge/done_bookkeeping.py``); both degrade gracefully (warn + skip) and
-# are tracked here until that mission lands.
-_DIR_READ_KNOWN_RESIDUALS: frozenset[str] = frozenset(
-    {
-        # ``implement``/``review`` reuse a single ``feature_dir`` for both PRIMARY
-        # reads (WP tasks/, dep graph, sub-artifacts) and STATUS reads (read_events),
-        # routed through several helpers — a per-call-site dir-split that needs live
-        # native-flow verification (worktree allocation + status emission are the
-        # highest blast radius), tracked for the implement-loop write-surface
-        # mission. The clean siblings were fixed in the #2115 PR and removed from
-        # this pin: ``_resolve_review_context`` + ``_mark_wp_merged_done`` (resolver
-        # swaps) and ``_preview_claimable_wp_for_mission`` (its
-        # ``preview_claimable_wp`` callee gained a backward-compatible ``status_dir``
-        # so tasks/deps read PRIMARY while lanes read the coord status surface).
-        "src/specify_cli/cli/commands/agent/workflow.py::implement",
-        "src/specify_cli/cli/commands/agent/workflow.py::review",
-    }
-)
+# Known implement/review WP-task bare-dir reads surfaced by the broadened arm.
+# Keep this pin empty unless a deliberately-deferred residual has a tracker.
+_DIR_READ_KNOWN_RESIDUALS: frozenset[str] = frozenset()
 
 
 def test_dir_read_arm_known_residuals_are_pinned() -> None:

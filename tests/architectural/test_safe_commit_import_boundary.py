@@ -91,7 +91,9 @@ _DELETED_CHANNEL_SYMBOLS: tuple[str, ...] = (
 # here; this ratchet only inspects direct ``safe_commit`` calls.
 _ALLOWLISTED_DESTINATION_REF_SAFE_COMMIT_SITES: frozenset[str] = frozenset(
     {
-        "src/specify_cli/cli/commands/merge.py",
+        # Relocated from cli/commands/merge.py to the merge/executor.py seam in
+        # mission #2057's behavior-preserving god-module decomposition.
+        "src/specify_cli/merge/executor.py",
     }
 )
 

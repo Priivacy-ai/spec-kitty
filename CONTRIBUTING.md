@@ -118,6 +118,67 @@ To run the suite in parallel (typically ≥2× faster on a ≥4-core machine), p
 the serial daemon pass and the coverage-neutrality gates, see
 [Running the test suite in parallel](development/testing-parallel.md).
 
+### Testing Unreleased Main or a Pull Request
+
+When you need to test the current `main` branch or a specific pull request
+before it is published to PyPI, avoid replacing your normal global
+`spec-kitty` install unless that is the thing you are testing.
+
+For normal contributor work, run from a source checkout:
+
+```bash
+git clone https://github.com/Priivacy-ai/spec-kitty.git
+cd spec-kitty
+
+# Latest main:
+git switch main
+git pull --ff-only
+
+# Or a specific pull request:
+gh pr checkout <PR_NUMBER>
+
+uv sync --frozen --all-extras
+
+SPEC_KITTY_NO_UPGRADE_CHECK=1 SPEC_KITTY_NO_NAG=1 \
+  .venv/bin/spec-kitty --version
+```
+
+For a one-shot smoke test without cloning or installing a persistent tool, use
+`uvx --isolated`:
+
+```bash
+# Latest main:
+SPEC_KITTY_NO_UPGRADE_CHECK=1 SPEC_KITTY_NO_NAG=1 \
+  uvx --isolated --from "git+https://github.com/Priivacy-ai/spec-kitty.git@main" \
+  spec-kitty --version
+
+# Specific pull request:
+SPEC_KITTY_NO_UPGRADE_CHECK=1 SPEC_KITTY_NO_NAG=1 \
+  uvx --isolated --from "git+https://github.com/Priivacy-ai/spec-kitty.git@refs/pull/<PR_NUMBER>/head" \
+  spec-kitty --version
+```
+
+For a temporary installed binary, isolate both the tool environment and the
+generated executable:
+
+```bash
+tmp="$(mktemp -d)"
+
+UV_TOOL_DIR="$tmp/tools" UV_TOOL_BIN_DIR="$tmp/bin" \
+  uv tool install --force \
+  "spec-kitty-cli @ git+https://github.com/Priivacy-ai/spec-kitty.git@refs/pull/<PR_NUMBER>/head"
+
+SPEC_KITTY_NO_UPGRADE_CHECK=1 SPEC_KITTY_NO_NAG=1 \
+  "$tmp/bin/spec-kitty" --version
+
+rm -rf "$tmp"
+```
+
+If you are testing a fork branch or an exact commit, replace the URL/ref with
+`git+https://github.com/<OWNER>/spec-kitty.git@<BRANCH_OR_SHA>`. Hosted
+tracker and sync flows are opt-in; set `SPEC_KITTY_ENABLE_SAAS_SYNC=1` only
+when the scenario explicitly exercises those flows.
+
 ### Test Isolation
 
 Tests use several mechanisms to ensure they run against source code:

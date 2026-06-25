@@ -1271,7 +1271,7 @@ def implement(
             from specify_cli.mission_metadata import resolve_mission_identity
 
             _identity = resolve_mission_identity(
-                resolve_feature_dir_for_mission(_main_repo_for_preflight, mission_slug)
+                primary_feature_dir_for_mission(_main_repo_for_preflight, mission_slug)
             )
             _mission_id_for_preflight = _identity.mission_id
         except Exception:  # noqa: BLE001 — meta.json may not exist for legacy missions
@@ -1383,7 +1383,7 @@ def implement(
                 )
                 raise typer.Exit(1)
 
-        feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+        feature_dir = primary_feature_dir_for_mission(main_repo_root, mission_slug)
         has_feedback, review_feedback_ref, review_feedback_file, review_feedback_source = _resolve_review_feedback_context(
             feature_dir=feature_dir,
             wp_id=normalized_wp_id,
@@ -1578,9 +1578,8 @@ def implement(
                     trigger_feature_dossier_sync_if_enabled,
                 )
 
-                _impl_feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
                 trigger_feature_dossier_sync_if_enabled(
-                    _impl_feature_dir,
+                    feature_dir,
                     mission_slug,
                     repo_root,
                 )
@@ -2475,7 +2474,7 @@ def review(
 
         # Capture dependency warning for both file and summary
         dependents_warning = []
-        feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
+        feature_dir = primary_feature_dir_for_mission(main_repo_root, mission_slug)
         graph = build_dependency_graph(feature_dir)
         dependents = get_dependents(normalized_wp_id, graph)
         if dependents:
@@ -2484,7 +2483,8 @@ def review(
                 from specify_cli.status import read_events as _rw_read_events
                 from specify_cli.status import reduce as _rw_reduce
 
-                _rw_events = _rw_read_events(feature_dir)
+                status_feature_dir = _canonical_status_feature_dir(main_repo_root, mission_slug)
+                _rw_events = _rw_read_events(status_feature_dir)
                 _rw_snapshot = _rw_reduce(_rw_events) if _rw_events else None
                 _rw_lanes: dict = {}
                 if _rw_snapshot:
@@ -2609,7 +2609,7 @@ def review(
 
         # Baseline Test Context — load cached baseline and surface pre-existing failures
         _rv_wp_slug = wp.path.stem
-        _rv_feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+        _rv_feature_dir = primary_feature_dir_for_mission(main_repo_root, mission_slug)
         try:
             from specify_cli.review.baseline import BaselineTestResult as _BaselineTestResult
 
@@ -2646,7 +2646,7 @@ def review(
         # Determine the writable in-repo feedback path.
         # Derive wp_slug from the WP file stem (e.g. "WP03-external-reviewer-handoff").
         wp_slug = wp.path.stem  # e.g. "WP03-external-reviewer-handoff"
-        sub_artifact_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug) / "tasks" / wp_slug
+        sub_artifact_dir = primary_feature_dir_for_mission(main_repo_root, mission_slug) / "tasks" / wp_slug
         sub_artifact_dir.mkdir(parents=True, exist_ok=True)
 
         # Determine the next review cycle number based on existing files.
@@ -2731,7 +2731,7 @@ def review(
 
         # Write full prompt to file
         full_content = "\n".join(lines)
-        _mission_identity = resolve_mission_identity(resolve_feature_dir_for_mission(main_repo_root, mission_slug))
+        _mission_identity = resolve_mission_identity(primary_feature_dir_for_mission(main_repo_root, mission_slug))
         _review_metadata = build_review_prompt_metadata(
             repo_root=main_repo_root,
             mission_id=_mission_identity.mission_id,

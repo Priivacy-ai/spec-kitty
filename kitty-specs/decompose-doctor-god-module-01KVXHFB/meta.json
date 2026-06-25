@@ -1,0 +1,39 @@
+{
+  "accept_commit": "d8e5dbf3581aa8b82b6cfce492c01396bd3430ec",
+  "acceptance_history": [
+    {
+      "accept_commit": "e6a21ef341df1481d2cde76ade8d9868cd15167b",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-24T23:18:38.838407+00:00",
+      "accepted_by": "jeroennouws",
+      "accepted_from_commit": "645e6c5c6e9275fbee959bcc8c351aca602aec20"
+    },
+    {
+      "accept_commit": "d8e5dbf3581aa8b82b6cfce492c01396bd3430ec",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-24T23:21:12.501000+00:00",
+      "accepted_by": "jeroennouws",
+      "accepted_from_commit": "89489012b3b9d6ead9c974d62f69e0ee408b5096"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-24T23:21:12.501000+00:00",
+  "accepted_by": "jeroennouws",
+  "accepted_from_commit": "89489012b3b9d6ead9c974d62f69e0ee408b5096",
+  "baseline_merge_commit": "196526a28b01241e4a8b9c0e7c3e3671eccd909e",
+  "created_at": "2026-06-24T19:24:53.523831+00:00",
+  "flattened": true,
+  "friendly_name": "decompose doctor god module",
+  "merge_target_branch": "main",
+  "mission_id": "01KVXHFBCKNVP1BJYFSCQEW4J0",
+  "mission_number": 148,
+  "mission_slug": "decompose-doctor-god-module-01KVXHFB",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances decompose doctor god module on prog/2059-doctor so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "decompose doctor god module",
+  "slug": "decompose-doctor-god-module-01KVXHFB",
+  "target_branch": "prog/2059-doctor",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-24T20:24:54.848314+00:00"
+}
