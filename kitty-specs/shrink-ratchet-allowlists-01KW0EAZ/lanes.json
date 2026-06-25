@@ -11,7 +11,6 @@
         "WP01"
       ],
       "write_scope": [
-        "src/charter/synthesizer/write_pipeline.py",
         "src/specify_cli/compat/_adapters/detector.py",
         "src/specify_cli/compat/_adapters/gate.py",
         "src/specify_cli/compat/_adapters/version_checker.py",
@@ -24,15 +23,13 @@
       "predicted_surfaces": [
         "api",
         "artifact-rendering",
-        "legacy-cleanup",
-        "tracker-integration",
-        "workspace"
+        "legacy-cleanup"
       ],
       "depends_on_lanes": [],
       "parallel_group": 0
     }
   ],
-  "computed_at": "2026-06-25T22:43:16.696281+00:00",
+  "computed_at": "2026-06-25T23:33:39.238223+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": []
 }
