@@ -14,6 +14,9 @@ surface; they operate on per-mission metadata, not doctrine mission types.
 
 from __future__ import annotations
 
+import contextlib
+import json
+
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import get_main_repo_root
 from specify_cli.lanes.branch_naming import resolve_mid8
@@ -23,8 +26,6 @@ from specify_cli.missions._read_path_resolver import (
     primary_feature_dir_for_mission,
     resolve_feature_dir_for_mission,
 )
-import contextlib
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from collections.abc import Iterable
@@ -674,7 +675,7 @@ def _discard_mission(
     # branch-first order silently leaked the coordination/lane branches.
     _teardown_coordination_worktree(repo_root, mission_slug, mid8_value)
     if lanes_manifest is not None:
-        _remove_lane_worktrees(repo_root, mission_slug, mid8_value, lanes_manifest)
+        _remove_lane_worktrees(repo_root, mission_slug, lanes_manifest)
         _delete_lane_branches(repo_root, mission_slug, lanes_manifest)
         return
     _delete_legacy_coordination_branch(repo_root, meta_path)
@@ -783,26 +784,38 @@ def _verify_discard_complete(
     """Fail closed if a discard left worktrees or branches behind (#2120).
 
     The bug this guards against is a *silent* no-op that still printed success.
-    After teardown, any surviving mission worktree (under ``.worktrees/<slug>-*``,
-    covering both the coordination and lane worktrees) or expected branch is a
-    real leak — surface it as a non-zero error instead of a false ``✓``.
+    After teardown, any surviving coordination worktree, EXACT lane worktree, or
+    expected branch is a real leak — surface it as a non-zero error instead of a
+    false ``✓``. Worktrees are matched by exact name (not a ``<slug>-*`` prefix)
+    so a sibling mission sharing the prefix neither masks a leak nor trips a
+    spurious failure.
     """
     leaks: list[str] = []
-
-    prefix = f"{mission_slug}-"
-    leaked_worktrees: set[str] = set()
-    # On-disk worktree directories under .worktrees/<slug>-* ...
     worktrees_root = repo_root / ".worktrees"
-    if worktrees_root.exists():
-        for entry in worktrees_root.iterdir():
-            if entry.is_dir() and entry.name.startswith(prefix):
-                leaked_worktrees.add(entry.name)
-    # ... AND git worktree registrations (catches a stale/broken registration
-    # whose directory is already gone — invisible to the on-disk scan).
-    for registered in _registered_worktree_names(repo_root):
-        if registered.startswith(prefix):
-            leaked_worktrees.add(registered)
-    leaks.extend(f".worktrees/{name}" for name in sorted(leaked_worktrees))
+    # A surviving worktree leaks if its directory is on disk OR a stale/broken git
+    # registration remains (dir gone) — the latter is invisible to an on-disk scan.
+    registered = set(_registered_worktree_names(repo_root))
+
+    # Coordination worktree — exact canonical name, on disk OR still registered.
+    if mid8_value:
+        from specify_cli.coordination import CoordinationWorkspace
+
+        coord_name = CoordinationWorkspace.worktree_path(
+            repo_root, mission_slug, mid8_value
+        ).name
+        if (
+            CoordinationWorkspace.is_present(repo_root, mission_slug, mid8_value)
+            or coord_name in registered
+        ):
+            leaks.append(f".worktrees/{coord_name}")
+
+    # Lane worktrees — EXACT names from the manifest (no prefix over-match),
+    # likewise checked both on disk and in the git worktree registry.
+    manifest = _load_lanes_manifest(feature_dir)
+    if manifest is not None:
+        for name in sorted(_expected_lane_worktree_dir_names(mission_slug, manifest)):
+            if (worktrees_root / name).is_dir() or name in registered:
+                leaks.append(f".worktrees/{name}")
 
     for branch in _expected_discard_branches(feature_dir, mission_slug, meta_path):
         if _branch_exists(repo_root, branch):
@@ -934,32 +947,46 @@ def _force_delete_branch_if_exists(repo_root: Path, branch_name: str) -> None:
     )
 
 
+def _expected_lane_worktree_dir_names(mission_slug: str, lanes_manifest: Any) -> set[str]:
+    """Exact on-disk lane-worktree dir names a discard targets (no prefix match).
+
+    Composed by the canonical ``worktree_dir_name`` grammar, keyed on the same
+    ``mission_slug`` (= ``feature_dir.name``) and lane set as
+    :func:`_delete_lane_branches`, so worktree removal and branch deletion target
+    the SAME lanes. Replaces ``.worktrees/<slug>-*`` prefix matching, which
+    over-matches a *sibling* mission whose name shares the prefix (legacy non-mid8
+    slugs) and could delete its worktree — including uncommitted work.
+    """
+    from specify_cli.lanes.branch_naming import worktree_dir_name
+    from specify_cli.lanes.compute import is_planning_lane
+
+    return {
+        worktree_dir_name(mission_slug, mission_id=None, lane_id=lane.lane_id)
+        for lane in lanes_manifest.lanes
+        if not is_planning_lane(lane)
+    }
+
+
 def _remove_lane_worktrees(
     repo_root: Path,
     mission_slug: str,
-    mid8_value: str,
     lanes_manifest: Any,
 ) -> None:
-    """Remove every operator-visible lane worktree for this mission."""
+    """Remove this mission's operator-visible lane worktrees by EXACT name.
+
+    The coordination worktree is handled separately by
+    :func:`_teardown_coordination_worktree`.
+    """
     import subprocess as _subprocess
 
-    # Lane worktrees are at .worktrees/<slug>-<mid8>-<lane_id>/ by convention.
     worktrees_root = repo_root / ".worktrees"
     if not worktrees_root.exists():
         return
 
-    # Best-effort: scan worktrees that start with the mission slug.
-    prefix_with_mid8 = f"{mission_slug}-{mid8_value}-" if mid8_value else f"{mission_slug}-"
-    prefix_legacy = f"{mission_slug}-"
     removed = 0
-    for entry in worktrees_root.iterdir():
+    for name in sorted(_expected_lane_worktree_dir_names(mission_slug, lanes_manifest)):
+        entry = worktrees_root / name
         if not entry.is_dir():
-            continue
-        name = entry.name
-        if name.endswith("-coord"):
-            # Coordination worktree is handled separately.
-            continue
-        if not (name.startswith(prefix_with_mid8) or name.startswith(prefix_legacy)):
             continue
         _subprocess.run(
             ["git", "-C", str(repo_root), "worktree", "remove", str(entry), "--force"],

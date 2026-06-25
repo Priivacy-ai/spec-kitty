@@ -259,6 +259,41 @@ def test_codex_renderer_profile_with_empty_description_falls_back_to_purpose() -
 
 
 # ---------------------------------------------------------------------------
+# Issue #2103 — tomli_w must not be a module-level import. It is pulled in
+# during command registration, so a stale install missing the (declared)
+# dependency would brick every CLI command at import time. It is imported
+# lazily inside render() instead, with an actionable error.
+# ---------------------------------------------------------------------------
+
+
+def test_codex_renderer_does_not_import_tomli_w_at_module_level() -> None:
+    """A module-level ``import tomli_w`` would bind it as a module attribute;
+    the lazy import inside ``render()`` does not. Guards the #2103 regression."""
+    from specify_cli.tool_surface.profiles import codex_renderer
+
+    assert not hasattr(codex_renderer, "tomli_w")
+
+
+def test_codex_render_missing_tomli_w_raises_actionable_error(monkeypatch) -> None:
+    """When ``tomli_w`` is unavailable, ``render()`` fails with guidance to
+    reinstall/upgrade — not an opaque ``ModuleNotFoundError`` traceback."""
+    import builtins
+
+    real_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if name == "tomli_w":
+            raise ModuleNotFoundError("No module named 'tomli_w'")
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+
+    profile = make_test_profile(slug="architect-alphonso")
+    with pytest.raises(ModuleNotFoundError, match="upgrade spec-kitty"):
+        CodexProfileRenderer().render(profile)
+
+
+# ---------------------------------------------------------------------------
 # Codex optional-field passthrough (WP08 — covers the *present* branches of
 # codex_renderer._optional_fields, which the absent-only tests above miss).
 # AgentProfile is a frozen pydantic model with no native model/sandbox fields,

@@ -7,6 +7,26 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### 🐛 Fixed
+
+- **Orchestrator no longer stalls on a coord/`pr_bound` mission rooted on a writable
+  target branch (#2118).** Continuing the split-brain remediation: the `#2090`
+  write-surface change routes planning artifacts (`lanes.json` → `LANE_STATE`, WP
+  `tasks/` → `WORK_PACKAGE_TASK`) to the primary `target_branch`, but the
+  `orchestrator-api` read path still read them off the coordination worktree (which
+  carries only status). Under coordination topology the dependency graph came back
+  empty, so `list-ready`/`mission-state` saw no schedulable work and the orchestrator
+  stalled with every WP stuck at `lane=planned`. The orchestrator's PRIMARY-partition
+  reads (`require_lanes_json`, `read_lanes_json`, `build_dependency_graph`, WP
+  `tasks/` lookup) now resolve through the kind-aware `resolve_planning_read_dir`
+  seam (primary surface for all topologies), mirroring the existing `meta.json`
+  treatment in `_resolve_merge_target_branch`; STATUS reads (`read_events` /
+  `materialize`) stay on the coordination worktree. Related: #2115 (the
+  implement/review/merge read-surface twin), #1716 / #1878 (coordination-topology
+  coherence).
+
 ## [3.2.2] - 2026-06-24
 
 Patch release continuing the post-3.2.0 stabilization, focused on the

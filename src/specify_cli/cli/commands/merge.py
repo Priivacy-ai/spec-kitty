@@ -896,7 +896,7 @@ def _assert_status_surface_path_is_trusted(
         raise ValueError(f"Untrusted status surface path: {status_feature_dir}")
 
     trusted_root = worktrees_root if resolves_under_worktrees else specs_root
-    return ensure_within_any(status_resolved, roots=[trusted_root])
+    return ensure_within_directory(status_resolved, trusted_root)
 
 
 def _assert_status_surface_file_path_is_trusted(

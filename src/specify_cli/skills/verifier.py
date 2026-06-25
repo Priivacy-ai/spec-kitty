@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.skills.manifest import (
     ManagedFileEntry,
     ManagedSkillManifest,
@@ -22,6 +23,7 @@ from specify_cli.skills.registry import SkillRegistry
 from specify_cli.skills.command_renderer import ensure_skill_frontmatter
 from specify_cli.template import get_local_repo_root
 from specify_cli.upgrade.skill_update import is_external_symlink
+from specify_cli.core.utils import ensure_within_directory
 
 logger = logging.getLogger(__name__)
 
@@ -177,7 +179,7 @@ def repair_skills(
                 )
             )
             repaired += 1
-        except OSError as exc:
+        except (OSError, ValueError) as exc:
             logger.warning("Failed to repair %s: %s", entry.installed_path, exc)
             failed += 1
 
@@ -248,7 +250,8 @@ def _expected_hash(entry: ManagedFileEntry, registry: SkillRegistry | None) -> s
 
 def _sync_skill_to_global_root(skill: Any, global_root: Path) -> None:
     """Refresh one global canonical skill directory before relinking a project file."""
-    dest_dir = global_root / skill.name
+    safe_skill_name = assert_safe_path_segment(skill.name)
+    dest_dir = global_root / safe_skill_name
     dest_dir.parent.mkdir(parents=True, exist_ok=True)
     if dest_dir.exists() or dest_dir.is_symlink():
         if dest_dir.is_symlink() or dest_dir.is_file():
@@ -282,11 +285,12 @@ def _copy_skill_file(
     """Copy a managed skill file, normalizing SKILL.md frontmatter if needed."""
     if is_external_symlink(dest, project_root):
         raise OSError(f"Refusing to write managed skill outside project root via symlink: {dest}")
+    safe_dest = ensure_within_directory(dest, project_root)
     if source_file == SKILL_MANIFEST_FILENAME:
         content = source.read_text(encoding="utf-8")
-        dest.write_text(ensure_skill_frontmatter(content, skill_name), encoding="utf-8")
+        safe_dest.write_text(ensure_skill_frontmatter(content, skill_name), encoding="utf-8")
         return
-    shutil.copy2(source, dest)
+    shutil.copy2(source, safe_dest)
 
 
 def _expected_content_hash(source: Path, skill_name: str, source_file: str) -> str:

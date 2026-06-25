@@ -33,6 +33,8 @@ from dataclasses import dataclass
 from fnmatch import fnmatch
 from pathlib import Path
 
+from specify_cli.core.utils import ensure_within_directory, write_text_within_directory
+
 logger = logging.getLogger(__name__)
 
 # All possible skill root directories from agent-path-matrix.md.
@@ -127,6 +129,8 @@ def apply_text_replacements(
     file_path: Path,
     replacements: list[tuple[str, str]],
     context_filter: Callable[[Path], bool] | None = None,
+    *,
+    trusted_root: Path | None = None,
 ) -> bool:
     """Apply a list of text replacements to a file.
 
@@ -137,6 +141,8 @@ def apply_text_replacements(
             True if the file should be processed, False to skip it. When None
             (the default), all files are processed. This allows callers to
             exclude files by pattern (e.g., skip ``.kittify/`` paths).
+        trusted_root: Optional root directory the target file must remain under
+            before this helper reads or writes it.
 
     Returns:
         True if the file was modified, False if no changes were needed
@@ -145,8 +151,19 @@ def apply_text_replacements(
     if context_filter is not None and not context_filter(file_path):
         return False
 
+    project_root = (
+        trusted_root.resolve() if trusted_root is not None else _project_root_for_skill_path(file_path)
+    )
+    if project_root is None:
+        # Fail-closed: the file is not under a recognized skill root, so the
+        # HOME-managed-symlink write guard cannot anchor it. Refuse to read or
+        # write through an unverified path (PR #2043 review, alphonso).
+        return False
+
+    safe_file_path = ensure_within_directory(file_path, trusted_root) if trusted_root else file_path
+
     try:
-        content = file_path.read_text(encoding="utf-8")
+        content = safe_file_path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
         return False
 
@@ -155,20 +172,7 @@ def apply_text_replacements(
         content = content.replace(old, new)
 
     if content != original:
-        project_root = _project_root_for_skill_path(file_path)
-        if project_root is None:
-            # Fail-closed: a replacement was computed but the file is not under a
-            # recognized skill root, so the HOME-managed-symlink write guard cannot
-            # anchor it. Drop the write rather than write through an unverified
-            # path, but log it — a silent drop is indistinguishable from
-            # "no replacement needed" to callers (PR #2043 review, alphonso).
-            logger.warning(
-                "Skipping text replacement for %s: not under a recognized skill "
-                "root, cannot anchor the managed-symlink write guard.",
-                file_path,
-            )
-            return False
-        wrote, _warning = write_skill_text(file_path, content, project_root)
+        wrote, _warning = write_skill_text(safe_file_path, content, project_root)
         return wrote
     return False
 
@@ -284,7 +288,7 @@ def write_skill_text(
         warning = f"Skipped {rel}: symlinked path points outside repo (HOME-managed canonical copy)"
         logger.warning(warning)
         return False, warning
-    dest.write_text(content, encoding=encoding)
+    write_text_within_directory(dest, content, root=project_root, encoding=encoding)
     return True, None
 
 
