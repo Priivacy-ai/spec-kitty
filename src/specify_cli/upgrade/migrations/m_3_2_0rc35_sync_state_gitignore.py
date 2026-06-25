@@ -11,9 +11,11 @@ from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
 _SYNC_STATE_ENTRY = ".kittify/sync-state.json"
+_PROVENANCE_ENTRY = ".kittify/encoding-provenance/global.jsonl"
+_GITIGNORE_ENTRIES = (_SYNC_STATE_ENTRY, _PROVENANCE_ENTRY)
 _LOCAL_RUNTIME_TRACKED_PATHS = (
     ".kittify/charter/context-state.json",
-    ".kittify/encoding-provenance/global.jsonl",
+    _PROVENANCE_ENTRY,
 )
 
 
@@ -59,15 +61,15 @@ class KittifyRuntimeGitHygieneMigration(BaseMigration):
 
     def detect(self, project_path: Path) -> bool:
         gitignore_path = project_path / ".gitignore"
-        sync_entry_missing = (
-            not gitignore_path.exists()
-            or _SYNC_STATE_ENTRY not in gitignore_path.read_text(encoding="utf-8")
+        gitignore_text = (
+            gitignore_path.read_text(encoding="utf-8") if gitignore_path.exists() else ""
         )
+        entry_missing = any(entry not in gitignore_text for entry in _GITIGNORE_ENTRIES)
         tracked_runtime = any(
             _is_tracked(project_path, path)
             for path in _LOCAL_RUNTIME_TRACKED_PATHS
         )
-        return sync_entry_missing or tracked_runtime
+        return entry_missing or tracked_runtime
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         if not project_path.exists():
@@ -84,20 +86,20 @@ class KittifyRuntimeGitHygieneMigration(BaseMigration):
             return MigrationResult(
                 success=True,
                 changes_made=[
-                    f"Would add {_SYNC_STATE_ENTRY} to .gitignore",
-                    *[f"Would untrack local runtime file: {path}" for path in tracked],
-                ],
+                    f"Would add {entry} to .gitignore" for entry in _GITIGNORE_ENTRIES
+                ]
+                + [f"Would untrack local runtime file: {path}" for path in tracked],
             )
 
         changes: list[str] = []
         errors: list[str] = []
 
         manager = GitignoreManager(project_path)
-        modified = manager.ensure_entries([_SYNC_STATE_ENTRY])
+        modified = manager.ensure_entries(list(_GITIGNORE_ENTRIES))
         if modified:
-            changes.append(f"Added {_SYNC_STATE_ENTRY} to .gitignore")
+            changes.append(f"Added gitignore entries: {', '.join(_GITIGNORE_ENTRIES)}")
         else:
-            changes.append(f"{_SYNC_STATE_ENTRY} already present in .gitignore")
+            changes.append("gitignore entries already present")
 
         for path in _LOCAL_RUNTIME_TRACKED_PATHS:
             if not _is_tracked(project_path, path):
