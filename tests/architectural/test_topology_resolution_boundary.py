@@ -102,10 +102,14 @@ _ALLOWLISTED_COORD_PREDICATE_SITES: frozenset[str] = frozenset(
         # proposal is the only signal). Authority-first, shape as last resort.
         "src/specify_cli/workspace/root_resolver.py",
         # ---- NON-coord-routing worktree-context detection (out of seam scope) -
-        # mission_type cleanup loop skips the "-coord" dir while pruning lane
-        # worktree dirs; it is a teardown filter, not a status-surface routing
-        # decision — the registry authority would be the wrong tool here.
-        "src/specify_cli/cli/commands/mission_type.py",
+        # NOTE (#2123 — discard exact-set fix): ``cli/commands/mission_type.py``
+        # used to be allowlisted here for its lane-prune cleanup loop's raw
+        # ``-coord`` dir-shape skip. That loop was migrated to the blessed
+        # ``CoordinationWorkspace`` authority + a manifest-derived exact lane set
+        # (no ``<slug>-*`` prefix / ``-coord`` shape predicate remains), so the
+        # entry is REMOVED — its removal IS the proof the migration completed for
+        # that site. Do NOT re-add it: a new raw predicate there is now a
+        # C-SEAM-1 regression.
         # Operator navigation hint: extracts the main-repo prefix from a
         # ``.worktrees`` cwd to print a "cd <repo>" suggestion. Pure UX string
         # building, no coord routing.
