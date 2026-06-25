@@ -1242,8 +1242,17 @@ def collect_feature_summary(
 
     snapshot_wps = _collect_snapshot_wps(feature, status_feature_dir, activity_issues)
 
+    # #2122: PRIMARY-partition reads (WP tasks/, planning artifacts) must key on
+    # the canonical PRIMARY slug, not the raw handle. A mid8/ULID/numeric handle
+    # passed straight to the kind-aware seam composes a nonexistent
+    # `kitty-specs/<handle>` dir. `feature_dir` is the already-resolved primary
+    # anchor, so its name is the canonical primary slug (which can legitimately
+    # differ from the coord read-dir name for backfilled legacy missions).
+    # STATUS reads above/below stay coord-aware on the raw `feature` (C-002).
+    primary_slug = feature_dir.name
+
     expected_wp_ids: list[str] = []
-    for wp in _iter_work_packages(repo_root, feature):
+    for wp in _iter_work_packages(repo_root, primary_slug):
         wp_id = wp.work_package_id or wp.path.stem
         title = (wp.title or "").strip('"')
         expected_wp_ids.append(wp_id)
@@ -1290,7 +1299,7 @@ def collect_feature_summary(
     # (status.events.jsonl) and below (acceptance-matrix via _check_lane_gates) stay on
     # the coord-aware status_feature_dir (C-002). The single status_feature_dir variable
     # is split per-partition WITHOUT renaming it (additive: a new planning_read_dir).
-    planning_read_dir = _planning_read_dir(repo_root, feature)
+    planning_read_dir = _planning_read_dir(repo_root, primary_slug)
 
     unchecked_tasks = _find_unchecked_tasks(planning_read_dir / TASKS_FILE)
     needs_clarification = _check_needs_clarification(
