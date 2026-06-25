@@ -276,10 +276,6 @@ _CATEGORY_4_BACKCOMPAT_SHIMS: frozenset[str] = frozenset(
         "specify_cli.doc_generators",
         "specify_cli.doc_state",
         "specify_cli.gap_analysis",
-        # mission 01KVJPEQ re-pointed runtime_bridge.py (the last production
-        # importer) to the canonical resolve_handle_to_read_path seam; the
-        # shim stays for external/back-compat ``spec-kitty next`` consumers.
-        "specify_cli.mission_read_path",
         "specify_cli.state_contract",
         "specify_cli.tasks_support",
         "specify_cli.workspace_context",

@@ -15,9 +15,7 @@ tracker_refs:
 planning_base_branch: feat/retire-mission-read-path-shim
 merge_target_branch: feat/retire-mission-read-path-shim
 branch_strategy: Planning artifacts for this mission were generated on feat/retire-mission-read-path-shim. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/retire-mission-read-path-shim unless the human explicitly redirects the landing branch.
-base_branch: kitty/mission-retire-mission-read-path-shim-01KVZNDS
-base_commit: 1e48af40a412c01a5100502290f1930cf0ad53f1
-created_at: '2026-06-25T16:00:15.029561+00:00'
+created_at: '2026-06-25T15:33:23+00:00'
 subtasks:
 - T001
 - T002
@@ -26,8 +24,8 @@ subtasks:
 - T005
 - T006
 - T007
-agent: claude
-shell_pid: '304688'
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "328733"
 history:
 - date: '2026-06-25'
   action: created
@@ -240,3 +238,10 @@ changing any test body.
 - **Baseline off-by-one (C-001)**: Reviewer — confirm the declared 8 equals the live `_CATEGORY_4_BACKCOMPAT_SHIMS` size and that `test_ratchet_baselines.py` passes.
 - **Scope creep (C-003)**: Reviewer — confirm `test_cli_status_mediation.py` and `test_issue_1615_1616_1617_1618.py` are NOT in the diff.
 - **Private-member lint**: Importing `_resolve_mission_read_path` may trip a "private member accessed" rule. Only add a suppression if a real rule actually fires; keep it narrow with an inline rationale (the worker is intended for in-repo use — the shim was its only public face). Per charter, do not pre-emptively suppress.
+
+## Activity Log
+
+- 2026-06-25T16:00:16Z – claude:opus:randy-reducer:implementer – shell_pid=304688 – Assigned agent via action command
+- 2026-06-25T16:17:10Z – claude:opus:randy-reducer:implementer – shell_pid=304688 – Shim retired; 7 imports repointed to canonical _read_path_resolver (aliased private worker _resolve_mission_read_path); both allowlist entries dropped; category_4_backcompat_shims 9->8 with justification; docstring tidied. Verification: src grep clean (zero matches); targeted gates 42 passed; full tests/architectural/ 494 passed with 1 pre-existing unrelated failure (test_pytest_marker_convention::test_support_helper_tree_is_exempt, fails identically on clean base); ruff exit 0.
+- 2026-06-25T16:18:43Z – claude:opus:reviewer-renata:reviewer – shell_pid=328733 – Started review via action command
+- 2026-06-25T16:23:11Z – user – shell_pid=328733 – Review passed: shim src/specify_cli/mission_read_path.py deleted (src grep empty); 7 import sites in test_coord_reader_fixes.py repointed to specify_cli.missions._read_path_resolver aliasing private worker _resolve_mission_read_path as resolve_mission_read_path (C-002 ok — no bare public symbol on canonical module, worker NOT in __all__, StatusReadPathNotFound imported directly as public, no re-promotion, test bodies unchanged); both architectural allowlist entries dropped; _baselines.yaml category_4_backcompat_shims 9->8 with # justification comment, declared 8 == live frozenset size 8 (C-001 ok); stale docstring tidied, snippet fixture untouched; no scope creep (test_cli_status_mediation.py and test_issue_1615_1616_1617_1618.py NOT in diff, only the 6 owned files changed); gates green: 42 passed, ruff exit 0; issue-matrix verdicts recorded (#2048 fixed by this WP, #2049 deferred-with-followup per spec Out of Scope).

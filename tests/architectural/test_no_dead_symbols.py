@@ -680,17 +680,6 @@ _CATEGORY_C_BRANCH_NAMING_FAILOVER_SEAM: frozenset[str] = frozenset(
 # ---------- C. Backward-compat shim re-export (mission 01KVJPEQ) ----------
 _CATEGORY_C_BACKCOMPAT_SHIM_REEXPORT: frozenset[str] = frozenset(
     {
-        # resolve_mission_read_path re-exported by the canonical-home backward-
-        # compat shim ``specify_cli.mission_read_path`` (allowlisted as a
-        # category-4 dead-MODULE backcompat shim in test_no_dead_modules.py).
-        # Mission 01KVJPEQ re-pointed its last production importer
-        # (runtime/next/runtime_bridge.py) to the canonical
-        # ``resolve_handle_to_read_path`` seam, so the re-export now has no src/
-        # caller BY DESIGN — it stays for external/back-compat consumers. The
-        # ``from ... import`` + ``__all__`` re-export pattern is required so ruff
-        # treats it as an intentional re-export (not F401). Follow-up: retiring
-        # the shim entirely is a separate backcompat decision (FR-303).
-        "specify_cli.mission_read_path::resolve_mission_read_path",
         # Mission decompose-agent-tasks-god-module-01KVWVAR (#2058) split the
         # ``agent/tasks.py`` god-module into ``tasks_outline``,
         # ``tasks_materialization``, ``tasks_finalize_validation``, and
