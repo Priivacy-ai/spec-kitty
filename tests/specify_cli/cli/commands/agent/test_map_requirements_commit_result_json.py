@@ -22,6 +22,7 @@ import pytest
 from typer.testing import CliRunner
 
 from mission_runtime import CommitTarget
+from specify_cli.coordination.commit_router import CommitRouterResult
 from specify_cli.git.commit_helpers import CommitResult
 
 pytestmark = [pytest.mark.fast]
@@ -110,34 +111,26 @@ def test_map_requirements_json_serializes_real_commit_result(
         ref=f"kitty/mission-{MISSION_SLUG}",
     )
 
-    def fake_planning_commit_worktree(
+    def fake_commit_for_mission(
         repo_root: Path,
         mission_slug: str,
-        paths: tuple[Path, ...],
-        **_kwargs: object,
-    ) -> tuple[Path, tuple[Path, ...]]:
-        # Mirrors the real ``_planning_commit_worktree`` 3-positional signature
-        # ``(repo_root, mission_slug, paths, *, primary_paths_created_this_invocation)``.
-        # The single-authority cleanup removed the threaded ``placement`` arg that
-        # an earlier 4-positional fake carried; calling that stale fake from the
-        # 3-arg call site raised ``TypeError`` (swallowed → committed stayed False).
-        return coord_root, paths
-
-    def fake_safe_commit(
-        *,
-        repo_root: Path,
-        worktree_root: Path,
-        target: CommitTarget,
+        files: tuple[Path, ...],
         message: str,
-        paths: tuple[Path, ...],
-        capability: object,
+        policy: object,
+        *,
+        kind: object,
+        target_branch: str | None = None,
         **_kwargs: object,
-    ) -> CommitResult:
-        # A REAL CommitResult with a Path field — the un-serializable culprit.
-        return CommitResult(
-            sha=_COMMIT_SHA,
-            destination_ref=target.ref,
-            worktree_root=worktree_root,
+    ) -> CommitRouterResult:
+        # WP07 / FR-006: ``map-requirements`` now routes its WP-file commit through
+        # the canonical ``commit_for_mission`` router. A successful router result
+        # carries the placement ref + commit hash; the command reconstructs the
+        # ``commit_result`` JSON envelope from those + the (primary) repo_root, so
+        # the ``--json`` payload stays serializable (#1891 / FR-013).
+        return CommitRouterResult(
+            status="committed",
+            placement_ref=placement.ref,
+            commit_hash=_COMMIT_SHA,
         )
 
     monkeypatch.setattr(tasks_mod, "locate_project_root", lambda: primary_root)
@@ -150,14 +143,11 @@ def test_map_requirements_json_serializes_real_commit_result(
     monkeypatch.setattr(
         tasks_mod, "_emit_sparse_session_warning", lambda *_args, **_kwargs: None
     )
-    monkeypatch.setattr(tasks_mod, "safe_commit", fake_safe_commit)
+    monkeypatch.setattr(tasks_mod, "commit_for_mission", fake_commit_for_mission)
     monkeypatch.setattr(
         # write-surface-coherence WP02 / T009: ``_resolve_planning_placement`` gained
         # a required ``kind`` keyword; the stub accepts it.
         mission_mod, "_resolve_planning_placement", lambda *_args, **_kwargs: placement
-    )
-    monkeypatch.setattr(
-        mission_mod, "_planning_commit_worktree", fake_planning_commit_worktree
     )
     monkeypatch.setattr(
         "specify_cli.missions._read_path_resolver.resolve_feature_dir_for_slug",
@@ -202,10 +192,12 @@ def test_map_requirements_json_serializes_real_commit_result(
     assert isinstance(worktree_root, str), (
         f"worktree_root must serialize to a string, got {type(worktree_root)!r}"
     )
-    # Negative control on the serialization mutant: not "" / "None".
+    # Negative control on the serialization mutant: not "" / "None". A primary
+    # kind (WORK_PACKAGE_TASK) commits from the PRIMARY checkout (WP07 routing),
+    # so worktree_root is the primary repo root — assert it is that path string.
     assert worktree_root not in ("", "None")
-    assert MISSION_SLUG in worktree_root, (
-        f"worktree_root should carry the mission slug; got {worktree_root!r}"
+    assert worktree_root == str(primary_root), (
+        f"worktree_root should be the primary checkout; got {worktree_root!r}"
     )
 
 

@@ -365,10 +365,15 @@ def resolve_target_branch(
         if current_branch is None:
             raise RuntimeError("Could not determine current branch")
 
-    # Read target branch from meta.json
-    from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
+    # Read target branch from meta.json on the PRIMARY surface — NOT the
+    # topology-aware candidate, which under coordination topology resolves to the
+    # coordination worktree (no meta.json) and silently falls back to the protected
+    # repo primary ``main`` (WP00 / FR-004 — the implement-loop refusal-to-main bug).
+    # ``primary_feature_dir_for_mission`` resolves repo_path → main root internally,
+    # mirroring ``resolve_merge_target_branch`` / ``get_feature_target_branch``.
+    from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
 
-    meta_file = candidate_feature_dir_for_mission(repo_path, mission_slug) / "meta.json"
+    meta_file = primary_feature_dir_for_mission(repo_path, mission_slug) / "meta.json"
     fallback = resolve_primary_branch(repo_path)
     target = fallback
     if meta_file.exists():

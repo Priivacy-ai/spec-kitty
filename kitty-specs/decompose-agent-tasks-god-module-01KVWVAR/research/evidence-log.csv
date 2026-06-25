@@ -1,0 +1,12 @@
+id,finding,evidence_location,decision_link
+E01,tasks.py exposes 9 typer commands under app(name="tasks"); this is the frozen contract,src/specify_cli/cli/commands/agent/tasks.py:716,D1/FR-001
+E02,Complexity concentrated in 6 mega-functions (~2474 LOC / 53%): move_task/status/map_requirements/_validate_ready_for_review/mark_status/finalize_tasks,tasks.py:1824,2956,3387,3607,4085 and 1377,D3/R2
+E03,5 cohesive seams identified (outline/materialization/finalize-validation/dependency-graph/parsing-validation) + residual shim,research.md §2,D1/FR-003
+E04,There are 3 commit tails not 4; all already kind-aware via resolve_placement_only/_planning_commit_worktree,tasks.py:2486;tasks.py:3131;tasks.py:3947,D4/FR-006
+E05,commit_for_mission refuses protected-primary planning commits (status=no_op_wrong_surface) — coord-worktree fallback removed in WP02/WP03,coordination/commit_router.py:98-141,160-178,D4/R1
+E06,Bespoke pre-checks become dead once tails route through commit_for_mission,tasks.py:921-932;954-971;2448-2470;3021-3029;3928,D4/FR-007
+E07,FR-008-style refusal regression already exists; extend rather than duplicate,tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py:139-206,D4/FR-008
+E08,dependency_graph imports only status.py (no cli import) -> no cycle; LOW extraction risk; call sites stay in shim,core/dependency_graph.py; tasks.py:1215,1221,4603,4604,§4
+E09,No golden CLI contract test exists; coverage is import/seam-heavy not contract-heavy,research.md §5; tests/.../test_tasks.py:43-62,D2/C-005
+E10,New test work estimated ~410 LOC (golden 150 / routing 100 / materialization 80 / readiness 50 / parser 30),research.md §5,D2/R3
+E11,Residual shim realistically ~800-1200 LOC; maxCC<=15 is the binding target,research.md §2,§5,D3/NFR-004

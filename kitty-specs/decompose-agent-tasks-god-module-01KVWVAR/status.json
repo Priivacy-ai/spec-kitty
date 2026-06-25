@@ -1,0 +1,70 @@
+{
+  "event_count": 59,
+  "last_event_id": "01KVXA17QCX8ANJE8V66SVSERW",
+  "materialized_at": "2026-06-24T17:14:50.989012+00:00",
+  "mission_number": "148",
+  "mission_slug": "decompose-agent-tasks-god-module-01KVWVAR",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 7,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KVXA0GDTZBHREG3Z2CX3PETE",
+      "last_transition_at": "2026-06-24T17:14:27.130199+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KVXA0JGDSJ541QTRTKKSNTNM",
+      "last_transition_at": "2026-06-24T17:14:29.261252+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KVXA16083PSC0R5E7XPNZGYZ",
+      "last_transition_at": "2026-06-24T17:14:49.224487+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KVXA0NS1AJAYHPJ97ZP05243",
+      "last_transition_at": "2026-06-24T17:14:32.609944+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KVXA0QTR1AYH3YGNKTWDC6GK",
+      "last_transition_at": "2026-06-24T17:14:34.712271+00:00"
+    },
+    "WP06": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KVXA0SV5BJQS80DE61PNAN9H",
+      "last_transition_at": "2026-06-24T17:14:36.773418+00:00"
+    },
+    "WP07": {
+      "actor": "user",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KVXA17QCX8ANJE8V66SVSERW",
+      "last_transition_at": "2026-06-24T17:14:50.989012+00:00"
+    }
+  }
+}

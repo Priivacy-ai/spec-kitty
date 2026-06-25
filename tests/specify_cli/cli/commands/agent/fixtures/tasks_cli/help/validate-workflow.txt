@@ -1,0 +1,17 @@
+                                                                                                    
+ Usage: tasks validate-workflow [OPTIONS] TASK_ID                                                   
+                                                                                                    
+ Validate task metadata structure and workflow consistency.                                         
+                                                                                                    
+ Examples:                                                                                          
+ spec-kitty agent tasks validate-workflow WP01 --json                                               
+                                                                                                    
+╭─ Arguments ──────────────────────────────────────────────────────────────────────────────────────╮
+│ *    task_id      TEXT  Task ID (e.g., WP01) [required]                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────────────────────────╮
+│ --mission        TEXT  Mission slug                                                              │
+│ --json                 Output JSON format                                                        │
+│ --help                 Show this message and exit.                                               │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+

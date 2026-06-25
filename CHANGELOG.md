@@ -7,15 +7,39 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased - 3.2.2]
+## [3.2.2] - 2026-06-24
 
-Patch release continuing the post-3.2.0 stabilization. Adopts a coherent test-flakiness handling
-policy and the supporting infrastructure, plus a root-cause fix for a collection-order flake, and
-fixes coord-topology orchestration so WPs can no longer reach `done` with nothing committed or merged
-into the wrong branch.
+Patch release continuing the post-3.2.0 stabilization, focused on the
+**coordination/primary surface-resolution ("split-brain" / file-location)
+remediation**. Remediation of these recent file-location issues is **ongoing**, but
+progress is significant enough to warrant a new release — we will continue stabilizing
+the functionality. This release also adopts a coherent test-flakiness policy, hardens
+CI test coverage, and decomposes the `agent/tasks.py` god-module.
 
 ### ✨ Added
 
+- **Single, kind- and topology-aware artifact-surface authority (split-brain remediation).**
+  Mission planning artifacts and reads/writes now resolve through one canonical surface
+  authority instead of drifting between the coordination worktree and the primary checkout:
+  - `MissionTopology` SSOT + `routes_through_coordination` route every decision site through
+    one classifier; a single read-surface resolver and a single **write-surface** authority
+    replace the parallel derivations (#2070, single-authority topology cleanup).
+  - Planning + identity artifacts are placed by a kind-aware `MissionArtifactKind` partition —
+    planning/identity kinds land on the primary `target_branch` for all topologies; status/
+    bookkeeping stays on coordination (#2090 write-surface coherence; ADR for kind- and
+    topology-aware placement, #2101).
+  - The planning-lifecycle **gate/verify commands** (`setup-plan`, `accept`, `map-requirements`,
+    `record-analysis`, `research`, and the `finalize-tasks` commit) now read/commit planning
+    artifacts via that seam — closing the case where a coord-topology mission authored on
+    primary but verified from coordination (#2113; closes #2107, #2085, #2102). A default-deny
+    architectural literal-ban ratchet prevents the class from regrowing.
+- **CI test-coverage hardening.** A static gate-coverage checker + orphan ratchet flags tests
+  selected by zero CI gates and ratchets the backlog down (#2067, folds #1933); hot
+  churn-magnet orphans and `tests/runtime/` are now gated and run on every PR (#2108, #2109, #2111).
+- **Maintainability:** the 4633-LOC `agent/tasks.py` god-module is decomposed into five cohesive,
+  one-way-import seam modules with a byte-identical CLI surface; the three planning-commit tails
+  are centralized through `commit_for_mission` (#2058 / #2114; follow-up body-thinning + FR-007
+  consolidation tracked in #2116).
 - **Test-flakiness handling policy (#2038):** a suite-wide policy (`docs/development/testing-flakiness.md`)
   — never retry-to-green; three tiers (budget / correctness / environmental), each with one sanctioned
   response — plus an env-gated, **non-blocking** `quarantine` pytest marker (held out of every normal/
@@ -23,6 +47,18 @@ into the wrong branch.
 
 ### 🐛 Fixed
 
+- **Surface-resolution "split-brain" / file-location fixes (coordination vs primary).**
+  - Mission-identity reads (mid8 / `mission_id`) are anchored on the **primary** surface, so a
+    coord-topology mission no longer builds a malformed coordination branch from an empty mid8 (#2091).
+  - `finalize-tasks` aligns on the primary planning surface and the ownership-overlap validator is
+    **lane/dependency-aware** — dependency-ordered WPs that legitimately share `owned_files` are no
+    longer falsely rejected (#2087, #2088).
+  - The read path no longer returns a stale coordination "husk" for a flattened/single-branch mission:
+    the stored topology gates the husk short-circuit (#2062); `map-requirements` and `finalize-tasks`
+    share one WP-frontmatter read surface (#2064).
+  - Write-branch resolvers (`get_feature_target_branch`, `resolve_target_branch`, the `finalize-tasks`
+    commit) read `meta.json` on the **primary** surface, so commits no longer silently fall back to the
+    repo default `main` under coordination topology.
 - **Coord-topology orchestration: WPs reached `done` with nothing committed or integrated.** Three fixes,
   all on the external `orchestrator-api` path for coordination-topology missions:
   - `start-implementation` no longer crashed with `TypeError: transactional status batch only supports one

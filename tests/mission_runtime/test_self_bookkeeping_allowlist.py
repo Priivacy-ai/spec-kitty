@@ -1,0 +1,158 @@
+"""WP05 / FR-003 (#2102): the record-analysis self-bookkeeping allowlist.
+
+spec-kitty's own bookkeeping files (``meta.json`` and the encoding-provenance
+``.kittify/encoding-provenance/global.jsonl``) classify ``kind=None`` against the
+mission-artifact partition, so before this WP the record-analysis dirty-tree
+preflight (:func:`_enforce_analysis_report_write_preflight`) treated their churn as
+"real dirt" and **falsely blocked** the write. FR-003 adds a *self-bookkeeping
+allowlist*, kept **DISJOINT** from the coord-residue partition.
+
+The invariant under test (contract G-5, debbie's hazard): the allowlist contains
+ONLY spec-kitty's own metadata. A stale **primary** ``spec.md`` is a PRIMARY-partition
+planning artifact — it is **NOT** allowlisted and remains "real dirt" that still blocks.
+Conflating the two sets is the failure mode this suite pins.
+
+Both arms drive the REAL preflight entry point (``_enforce_analysis_report_write_preflight``)
+on a real git repo with production-shaped fixtures (26-char ULID ``mission_id``).
+"""
+
+from __future__ import annotations
+
+import subprocess
+from pathlib import Path
+
+import pytest
+import typer
+
+from mission_runtime.artifacts import is_self_bookkeeping_path
+from specify_cli.cli.commands.agent.mission import (
+    _enforce_analysis_report_write_preflight,
+)
+
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
+# Production-shaped identity (real 26-char ULID mission_id, 8-char mid8).
+_MISSION_ID = "01KVW9B0SELFBOOKKEEPINGTST"  # 26 chars
+_MID8 = "01KVW9B0"  # first 8 chars
+_MISSION_SLUG = f"gate-read-surface-completion-{_MID8}"
+
+
+def _git(repo_root: Path, *args: str) -> None:
+    subprocess.run(["git", *args], cwd=repo_root, check=True, capture_output=True)
+
+
+def _init_repo(tmp_path: Path) -> Path:
+    repo_root = tmp_path
+    _git(repo_root, "init", "-q")
+    _git(repo_root, "config", "user.email", "test@example.com")
+    _git(repo_root, "config", "user.name", "Test")
+    return repo_root
+
+
+def _seed_committed_mission(repo_root: Path) -> Path:
+    """Create + commit a production-shaped mission so the tree starts clean."""
+    feature_dir = repo_root / "kitty-specs" / _MISSION_SLUG
+    feature_dir.mkdir(parents=True)
+    meta = (
+        "{\n"
+        f'  "created_at": "2026-06-24T00:00:00+00:00",\n'
+        f'  "friendly_name": "Gate Read Surface Completion",\n'
+        f'  "mid8": "{_MID8}",\n'
+        f'  "mission_id": "{_MISSION_ID}",\n'
+        f'  "mission_slug": "{_MISSION_SLUG}",\n'
+        f'  "mission_type": "software-dev",\n'
+        f'  "slug": "{_MISSION_SLUG}",\n'
+        f'  "target_branch": "feat/gate-read-surface-completion"\n'
+        "}\n"
+    )
+    (feature_dir / "meta.json").write_text(meta, encoding="utf-8")
+    (feature_dir / "spec.md").write_text("# Spec\n\nFR-003.\n", encoding="utf-8")
+    provenance = repo_root / ".kittify" / "encoding-provenance"
+    provenance.mkdir(parents=True)
+    (provenance / "global.jsonl").write_text(
+        '{"path": "kitty-specs/x/spec.md", "encoding": "utf-8"}\n', encoding="utf-8"
+    )
+    _git(repo_root, "add", "-A")
+    _git(repo_root, "commit", "-q", "-m", "seed mission")
+    return feature_dir
+
+
+# ---------------------------------------------------------------------------
+# Pure predicate (the allowlist authority) — disjoint-set contract.
+# ---------------------------------------------------------------------------
+
+
+class TestSelfBookkeepingPredicate:
+    def test_meta_json_is_self_bookkeeping(self) -> None:
+        assert is_self_bookkeeping_path(f"kitty-specs/{_MISSION_SLUG}/meta.json")
+
+    def test_provenance_jsonl_is_self_bookkeeping(self) -> None:
+        assert is_self_bookkeeping_path(".kittify/encoding-provenance/global.jsonl")
+
+    def test_primary_spec_is_not_self_bookkeeping(self) -> None:
+        # G-5 invariant: a stale primary spec.md is planning dirt, NOT bookkeeping.
+        assert not is_self_bookkeeping_path(f"kitty-specs/{_MISSION_SLUG}/spec.md")
+
+    def test_unrelated_global_jsonl_is_not_over_allowlisted(self) -> None:
+        # Suffix match is anchored on the provenance path, so a bare global.jsonl
+        # elsewhere must NOT be over-allowlisted.
+        assert not is_self_bookkeeping_path("some/other/dir/global.jsonl")
+
+
+# ---------------------------------------------------------------------------
+# The real dirty-tree preflight — FR-003 false-block fix + G-5 invariant.
+# ---------------------------------------------------------------------------
+
+
+def _modify_self_bookkeeping(feature_dir: Path, repo_root: Path) -> None:
+    """Make the self-bookkeeping files dirty (the false-block trigger)."""
+    (feature_dir / "meta.json").write_text(
+        (feature_dir / "meta.json").read_text(encoding="utf-8").replace(
+            "Gate Read Surface Completion", "Gate Read Surface Completion (touched)"
+        ),
+        encoding="utf-8",
+    )
+    (repo_root / ".kittify" / "encoding-provenance" / "global.jsonl").write_text(
+        '{"path": "kitty-specs/x/spec.md", "encoding": "utf-8"}\n'
+        '{"path": "kitty-specs/y/plan.md", "encoding": "utf-8"}\n',
+        encoding="utf-8",
+    )
+
+
+def test_preflight_does_not_block_on_self_bookkeeping_churn(tmp_path: Path) -> None:
+    """FR-003: dirty meta.json + provenance jsonl no longer falsely block.
+
+    The allowlist is consulted regardless of topology (these are spec-kitty's own
+    metadata, not coord residue) — so the preflight returns cleanly.
+    """
+    repo_root = _init_repo(tmp_path)
+    feature_dir = _seed_committed_mission(repo_root)
+    _modify_self_bookkeeping(feature_dir, repo_root)
+
+    # No exception => preflight passed (self-bookkeeping churn is allowlisted).
+    _enforce_analysis_report_write_preflight(
+        repo_root,
+        json_output=True,
+        placement_ref=None,
+        mission_slug=_MISSION_SLUG,
+    )
+
+
+def test_preflight_still_blocks_on_stale_primary_spec(tmp_path: Path) -> None:
+    """G-5 invariant: a stale primary spec.md is real dirt and STILL blocks.
+
+    The allowlist is DISJOINT from planning artifacts — spec.md is never allowlisted.
+    """
+    repo_root = _init_repo(tmp_path)
+    feature_dir = _seed_committed_mission(repo_root)
+    # Self-bookkeeping churn is allowlisted, but the stale primary spec.md is NOT.
+    _modify_self_bookkeeping(feature_dir, repo_root)
+    (feature_dir / "spec.md").write_text("# Spec\n\nFR-003 EDITED.\n", encoding="utf-8")
+
+    with pytest.raises(typer.Exit):
+        _enforce_analysis_report_write_preflight(
+            repo_root,
+            json_output=True,
+            placement_ref=None,
+            mission_slug=_MISSION_SLUG,
+        )

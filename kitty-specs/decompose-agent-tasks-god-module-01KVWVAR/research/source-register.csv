@@ -1,0 +1,12 @@
+id,source,type,accessed,notes
+S01,src/specify_cli/cli/commands/agent/tasks.py,source-file,2026-06-24,Target god-module (4633 LOC) under decomposition
+S02,src/specify_cli/coordination/commit_router.py,source-file,2026-06-24,commit_for_mission signature + protected-primary refusal logic
+S03,src/specify_cli/git/commit_helpers.py,source-file,2026-06-24,safe_commit definition (lines 843-928)
+S04,src/specify_cli/cli/commands/agent/mission.py,source-file,2026-06-24,_planning_commit_worktree definition (lines 792-860); convention pointer for #2056
+S05,src/specify_cli/core/dependency_graph.py,source-file,2026-06-24,dependency graph helpers (391 LOC); coupling assessment
+S06,tests/specify_cli/cli/commands/agent/ (test_tasks*.py),test-suite,2026-06-24,~72 core tests; coverage baseline
+S07,tests/specify_cli/cli/commands/test_wp03_bypass_writers_fr008.py,test-file,2026-06-24,Existing protected-primary refusal regression (FR-008-style)
+S08,https://github.com/Priivacy-ai/spec-kitty/issues/2058,issue,2026-06-24,Source ticket + PR #2060 adversarial-review scope comment
+S09,Explore agent: seam map,agent-report,2026-06-24,Function inventory + seam assignment + risk notes
+S10,Explore agent: coupling/commit-router trace,agent-report,2026-06-24,Import graph + 3-tail trace + dead-code identification
+S11,Explore agent: test-coverage audit,agent-report,2026-06-24,Per-seam coverage + golden-test recommendation

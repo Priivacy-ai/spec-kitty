@@ -1,0 +1,62 @@
+                                                                                                    
+ Usage: tasks move-task [OPTIONS] TASK_ID                                                           
+                                                                                                    
+ Move task between lanes (planned → doing → for_review → approved → done).                          
+                                                                                                    
+ Examples:                                                                                          
+ spec-kitty agent tasks move-task WP01 --to doing --assignee claude --json                          
+ spec-kitty agent tasks move-task WP02 --to for_review --agent claude --shell-pid $$                
+ spec-kitty agent tasks move-task WP03 --to approved --note "Review passed"                         
+ spec-kitty agent tasks move-task WP03 --to done --done-override-reason "Branch deleted after       
+ hotfix merge"                                                                                      
+ spec-kitty agent tasks move-task WP03 --to planned --review-feedback-file feedback.md              
+                                                                                                    
+╭─ Arguments ──────────────────────────────────────────────────────────────────────────────────────╮
+│ *    task_id      TEXT  Task ID (e.g., WP01) [required]                                          │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────────────────────────╮
+│ *  --to                                                TEXT  Target lane                         │
+│                                                              (planned/doing/for_review/approved… │
+│                                                              [required]                          │
+│    --mission                                           TEXT  Mission slug                        │
+│    --agent                                             TEXT  Agent name                          │
+│    --assignee                                          TEXT  Assignee name (sets assignee when   │
+│                                                              moving to doing)                    │
+│    --shell-pid                                         TEXT  Shell PID                           │
+│    --note                                              TEXT  History note                        │
+│    --review-feedback-file                              PATH  Path to review feedback file        │
+│                                                              (required for --to planned,         │
+│                                                              including with --force)             │
+│    --approval-ref                                      TEXT  Approval reference for              │
+│                                                              approval/done transitions (e.g.,    │
+│                                                              PR#42)                              │
+│    --reviewer                                          TEXT  Reviewer name (auto-detected from   │
+│                                                              git if omitted)                     │
+│    --self-review-fallback                                    Record that approval is a           │
+│                                                              self-review fallback after the      │
+│                                                              intended reviewer failed.           │
+│    --intended-reviewer                                 TEXT  Reviewer that should have reviewed  │
+│                                                              this WP before fallback.            │
+│    --reviewer-failure-reason                           TEXT  Reason the intended reviewer        │
+│                                                              failed.                             │
+│    --done-override-reason                              TEXT  Required when --to done and merge   │
+│                                                              ancestry cannot be verified;        │
+│                                                              recorded in history/event reason    │
+│    --force                                                   Force move even with unchecked      │
+│                                                              subtasks (does not bypass planned   │
+│                                                              rollback feedback requirement)      │
+│    --tracker-ref                                       TEXT  External tracker reference (e.g.,   │
+│                                                              '#1298' or 'JIRA-123'). Repeatable; │
+│                                                              appended to the WP frontmatter      │
+│                                                              tracker_refs.                       │
+│    --skip-review-artifact-check                              Override a rejected latest review   │
+│                                                              artifact when arbiter-approving;    │
+│                                                              requires --note and records         │
+│                                                              override evidence.                  │
+│    --auto-commit                   --no-auto-commit          Automatically commit WP file        │
+│                                                              changes to target branch (default:  │
+│                                                              from project config)                │
+│    --json                                                    Output JSON format                  │
+│    --help                                                    Show this message and exit.         │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+

@@ -129,6 +129,24 @@ _COORD_RESIDUE_DIRS: dict[str, MissionArtifactKind] = {
     "checklists": MissionArtifactKind.CHECKLIST,
 }
 
+# FR-003 (#2102) / data-model.md "Self-bookkeeping allowlist" / contract G-5:
+# spec-kitty's OWN bookkeeping files. These classify ``kind=None`` against the
+# mission-artifact partition above, so the record-analysis dirty-tree preflight
+# used to treat their churn as "real dirt" and FALSELY block the write. This set
+# is DISJOINT from the coord-residue partition (``_COORD_RESIDUE_FILENAMES`` /
+# ``_PLACEMENT_ARTIFACT_KINDS``) and from the planning kinds: it contains ONLY
+# spec-kitty's own metadata, NEVER a planning artifact. The G-5 invariant — a
+# stale primary ``spec.md`` remains non-allowlisted "real dirt" — holds precisely
+# because ``spec.md`` is a planning kind and is NOT a member here.
+#
+# ``meta.json`` matches by bare filename (it can live under any mission dir).
+# ``global.jsonl`` is matched by its FULL relative path SUFFIX so an unrelated
+# ``global.jsonl`` elsewhere is not over-allowlisted (FR-003 over-allowlist hazard).
+_SELF_BOOKKEEPING_FILENAMES: frozenset[str] = frozenset({"meta.json"})
+_SELF_BOOKKEEPING_SUFFIXES: tuple[str, ...] = (
+    ".kittify/encoding-provenance/global.jsonl",
+)
+
 
 def artifact_home_for(
     kind: MissionArtifactKind,
@@ -261,3 +279,26 @@ def _artifact_kind_for_path(
         return _COORD_RESIDUE_FILENAMES.get(name) or _COORD_RESIDUE_DIRS.get(name)
 
     return _COORD_RESIDUE_DIRS.get(mission_rel_parts[0])
+
+
+def is_self_bookkeeping_path(path: str | Path) -> bool:
+    """Return True for spec-kitty's OWN bookkeeping files (FR-003 allowlist).
+
+    The self-bookkeeping allowlist authority (#2102 / data-model.md / contract
+    G-5): ``meta.json`` (mission identity metadata) and the encoding-provenance
+    ``.kittify/encoding-provenance/global.jsonl`` are spec-kitty's own bookkeeping,
+    not mission planning artifacts. The record-analysis dirty-tree preflight
+    consults this predicate to drop their churn from the dirty set so it stops
+    falsely blocking — regardless of topology (these are not coord residue).
+
+    This allowlist is DISJOINT from the coord-residue partition and from the
+    planning kinds: a stale primary ``spec.md`` is a PRIMARY-partition planning
+    artifact, is NOT a member here, and therefore remains "real dirt" that blocks
+    (the G-5 invariant). ``meta.json`` matches by bare filename; ``global.jsonl``
+    matches by full relative-path SUFFIX so an unrelated ``global.jsonl`` elsewhere
+    is not over-allowlisted.
+    """
+    normalized = str(path).replace("\\", "/").rstrip("/")
+    if PurePosixPath(normalized).name in _SELF_BOOKKEEPING_FILENAMES:
+        return True
+    return any(normalized.endswith(suffix) for suffix in _SELF_BOOKKEEPING_SUFFIXES)

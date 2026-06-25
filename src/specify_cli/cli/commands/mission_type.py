@@ -23,6 +23,7 @@ from specify_cli.missions._read_path_resolver import (
     primary_feature_dir_for_mission,
     resolve_feature_dir_for_mission,
 )
+import contextlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -606,6 +607,14 @@ def close_cmd(
     # handle while the command reports success.
     mission_slug = feature_dir.name
 
+    # Surface fix (#2120): identity/lane reads (meta.json/lanes.json) and the
+    # teardown below are all PRIMARY-anchored. The resolver above stays the
+    # canonical handle-resolution + structured-error source, but once a
+    # coordination worktree exists it returns that worktree's status-only dir
+    # (no meta.json → _read_mission_mid8 empties → teardown silently no-ops).
+    # Re-anchor to the primary mission dir, matching how `mission reopen` resolves.
+    feature_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
+
     meta_path = feature_dir / "meta.json"
     mid8_value = _read_mission_mid8(meta_path)
 
@@ -618,14 +627,20 @@ def close_cmd(
             meta_path=meta_path,
             force=force,
         )
-
-    # Teardown the coordination worktree. Same path as merge.py:1568.
-    # Idempotent: no-ops on legacy missions / when already torn down.
-    _teardown_coordination_worktree(repo_root, mission_slug, mid8_value)
-
-    if discard:
+        # Fail closed (#2120): a destructive discard must not report success
+        # while leaving worktrees/branches behind. Verify BEFORE flattening so the
+        # legacy-branch check can still read coordination_branch from meta.json.
+        _verify_discard_complete(
+            repo_root, mission_slug, mid8_value, feature_dir, meta_path
+        )
+        # Flatten: drop the now-dangling coordination_branch marker so subsequent
+        # commands for this mission don't trip CoordinationBranchDeleted (#2120).
+        _flatten_discarded_mission(feature_dir)
         console.print(f"[green]✓[/green] Mission {mission_slug} discarded.")
     else:
+        # Teardown the coordination worktree. Same path as merge.py:1568.
+        # Idempotent: no-ops on legacy missions / when already torn down.
+        _teardown_coordination_worktree(repo_root, mission_slug, mid8_value)
         console.print(f"[green]✓[/green] Mission {mission_slug} closed.")
 
 
@@ -653,12 +668,172 @@ def _discard_mission(
     force: bool,
 ) -> None:
     _confirm_discard(mission_slug, force=force)
-    lanes_manifest = _load_lanes_manifest(feature_dir)
+    lanes_manifest = _load_lanes_manifest_for_discard(feature_dir, mission_slug)
+    # Remove ALL worktrees BEFORE deleting their branches (#2120): a branch that
+    # is checked out in a worktree cannot be `git branch -D`'d, so the prior
+    # branch-first order silently leaked the coordination/lane branches.
+    _teardown_coordination_worktree(repo_root, mission_slug, mid8_value)
     if lanes_manifest is not None:
-        _delete_lane_branches(repo_root, mission_slug, lanes_manifest)
         _remove_lane_worktrees(repo_root, mission_slug, mid8_value, lanes_manifest)
+        _delete_lane_branches(repo_root, mission_slug, lanes_manifest)
         return
     _delete_legacy_coordination_branch(repo_root, meta_path)
+
+
+def _load_lanes_manifest_for_discard(feature_dir: Path, mission_slug: str) -> Any | None:
+    """Load ``lanes.json`` for a discard, failing CLOSED on corruption.
+
+    Unlike :func:`_load_lanes_manifest` (which degrades a corrupt manifest to
+    ``None``), a destructive discard must not silently route a modern mission
+    through the legacy single-branch path on a corrupt manifest — that would
+    leave the lane branches/worktrees behind while reporting success (#2120).
+    A *missing* manifest is still a legacy mission (``None``); a *corrupt* one
+    aborts.
+    """
+    from specify_cli.lanes.persistence import (
+        CorruptLanesError,
+        MissingLanesError,
+        require_lanes_json,
+    )
+
+    try:
+        return require_lanes_json(feature_dir)
+    except MissingLanesError:
+        return None
+    except CorruptLanesError as exc:
+        console.print(
+            f"[red]Error:[/red] cannot discard {mission_slug}: lanes.json is "
+            f"corrupt ({exc}). Repair or remove it, then retry."
+        )
+        raise typer.Exit(1) from exc
+
+
+def _branch_exists(repo_root: Path, branch_name: str) -> bool:
+    import subprocess as _subprocess
+
+    result = _subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{branch_name}"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return result.returncode == 0
+
+
+def _registered_worktree_names(repo_root: Path) -> list[str]:
+    """Return the directory names of every git-registered worktree.
+
+    Reads ``git worktree list --porcelain`` so the residual check can catch a
+    stale/broken registration whose on-disk directory is already gone — which a
+    plain ``.worktrees/`` directory scan would miss.
+    """
+    import subprocess as _subprocess
+
+    result = _subprocess.run(
+        ["git", "worktree", "list", "--porcelain"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return []
+    names: list[str] = []
+    for line in result.stdout.splitlines():
+        if line.startswith("worktree "):
+            names.append(Path(line[len("worktree "):].strip()).name)
+    return names
+
+
+def _expected_discard_branches(
+    feature_dir: Path, mission_slug: str, meta_path: Path
+) -> list[str]:
+    """The branches a discard is expected to delete (for post-teardown verify).
+
+    Mirrors :func:`_delete_lane_branches` / :func:`_delete_legacy_coordination_branch`
+    so the residual check verifies exactly the set the discard tried to remove.
+    """
+    branches: list[str] = []
+    manifest = _load_lanes_manifest(feature_dir)
+    if manifest is not None:
+        from specify_cli.lanes.branch_naming import lane_branch_name
+        from specify_cli.lanes.compute import is_planning_lane
+
+        for lane in manifest.lanes:
+            if is_planning_lane(lane):
+                continue
+            branches.append(lane_branch_name(mission_slug, lane.lane_id))
+        branches.append(manifest.mission_branch)
+        return branches
+    meta = load_meta(meta_path.parent, allow_missing=True, on_malformed="none")
+    coord_branch = meta.get("coordination_branch") if isinstance(meta, dict) else None
+    if coord_branch:
+        branches.append(str(coord_branch))
+    return branches
+
+
+def _verify_discard_complete(
+    repo_root: Path,
+    mission_slug: str,
+    mid8_value: str,
+    feature_dir: Path,
+    meta_path: Path,
+) -> None:
+    """Fail closed if a discard left worktrees or branches behind (#2120).
+
+    The bug this guards against is a *silent* no-op that still printed success.
+    After teardown, any surviving mission worktree (under ``.worktrees/<slug>-*``,
+    covering both the coordination and lane worktrees) or expected branch is a
+    real leak — surface it as a non-zero error instead of a false ``✓``.
+    """
+    leaks: list[str] = []
+
+    prefix = f"{mission_slug}-"
+    leaked_worktrees: set[str] = set()
+    # On-disk worktree directories under .worktrees/<slug>-* ...
+    worktrees_root = repo_root / ".worktrees"
+    if worktrees_root.exists():
+        for entry in worktrees_root.iterdir():
+            if entry.is_dir() and entry.name.startswith(prefix):
+                leaked_worktrees.add(entry.name)
+    # ... AND git worktree registrations (catches a stale/broken registration
+    # whose directory is already gone — invisible to the on-disk scan).
+    for registered in _registered_worktree_names(repo_root):
+        if registered.startswith(prefix):
+            leaked_worktrees.add(registered)
+    leaks.extend(f".worktrees/{name}" for name in sorted(leaked_worktrees))
+
+    for branch in _expected_discard_branches(feature_dir, mission_slug, meta_path):
+        if _branch_exists(repo_root, branch):
+            leaks.append(f"branch {branch}")
+
+    if not leaks:
+        return
+
+    console.print(
+        f"[red]Error:[/red] discard of {mission_slug} did not complete — these "
+        "artifacts were not removed:"
+    )
+    for leak in leaks:
+        console.print(f"  - {leak}")
+    console.print(
+        "[dim]Remove them manually (git worktree remove --force / git branch -D) "
+        "and retry, or report this as a bug.[/dim]"
+    )
+    raise typer.Exit(1)
+
+
+def _flatten_discarded_mission(feature_dir: Path) -> None:
+    """Drop the dangling ``coordination_branch`` marker after a discard (#2120).
+
+    Tolerant: a missing meta.json (legacy mission) is a no-op — flattening is a
+    best-effort cleanup, never a hard failure of an otherwise-successful discard.
+    """
+    from specify_cli.mission_metadata import clear_coordination_metadata
+
+    with contextlib.suppress(FileNotFoundError):
+        clear_coordination_metadata(feature_dir)
 
 
 def _confirm_discard(mission_slug: str, *, force: bool) -> None:

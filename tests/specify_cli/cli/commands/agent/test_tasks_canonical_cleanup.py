@@ -231,7 +231,7 @@ class TestFinalizeTasksBootstrap:
 class TestBodyNotesNoLane:
     """Body notes written by move_task and add_history must NOT contain lane=."""
 
-    @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
+    @patch("specify_cli.cli.commands.agent.tasks.commit_for_mission")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.read_events_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
@@ -460,7 +460,7 @@ class TestMoveTaskHardFail:
             f"Error should mention missing canonical status but got:\n{result.output}"
         )
 
-    @patch("specify_cli.cli.commands.agent.tasks.safe_commit")
+    @patch("specify_cli.cli.commands.agent.tasks.commit_for_mission")
     @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.read_events_transactional")
     @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")

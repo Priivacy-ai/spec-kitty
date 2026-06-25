@@ -399,7 +399,11 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
     Legacy format: WP files in tasks/{lane}/ subdirectories
     New format: WP files in flat tasks/ directory with lane in frontmatter
     """
-    feature_path = resolve_feature_dir_for_mission(repo_root, feature)
+    # WORK_PACKAGE_TASK is a PRIMARY-partition kind: route the WP-task read
+    # through the kind-aware seam so a coord-topology mission reads its tasks off
+    # the PRIMARY surface (where they live), not the materialized -coord husk
+    # whose tasks/ dir is absent (closeout N+1 — debbie §3).
+    feature_path = _wp_tasks_read_dir(repo_root, feature)
     tasks_dir = feature_path / "tasks"
     if not tasks_dir.exists():
         raise AcceptanceError(f"Feature '{feature}' has no tasks directory at {tasks_dir}.")
@@ -628,7 +632,17 @@ def normalize_feature_encoding(repo_root: Path, feature: str) -> list[Path]:
         "\u00b7": "*",  # Middle dot -> asterisk
     }
 
-    feature_dir = resolve_feature_dir_for_mission(repo_root, feature)
+    # Every artifact this normalizer touches — the planning docs in
+    # ``PRIMARY_ARTIFACT_FILES`` plus the ``tasks/`` (WORK_PACKAGE_TASK),
+    # ``research/`` (RESEARCH) and ``checklists/`` (CHECKLIST) subtrees — is a
+    # PRIMARY-partition kind, so the encoding-recovery scan must read the PRIMARY
+    # surface, not the coord-aware husk. Pre-fix this used
+    # ``resolve_feature_dir_for_mission`` (coord-aware); on a coord-topology
+    # mission it scanned the materialized ``-coord`` worktree, missing the real
+    # primary artifacts an encoding fault lives in (closeout N+1 sibling — debbie
+    # §3). ``_planning_read_dir`` resolves the PRIMARY surface via the same
+    # kind-aware seam; behavior-neutral for a FLATTENED mission.
+    feature_dir = _planning_read_dir(repo_root, feature)
     if not feature_dir.exists():
         return []
 
@@ -748,6 +762,104 @@ def _status_read_feature_dir(repo_root: Path, feature: str, feature_dir: Path) -
 
     status_dir = resolve_handle_to_read_path(repo_root, feature)
     return status_dir if status_dir.exists() else feature_dir
+
+
+# Planning artifacts the accept gate inspects, mapped to their canonical
+# ``MissionArtifactKind`` (FR-002 / data-model.md site map rows 2-9). Every entry
+# is a PRIMARY-partition kind (``is_primary_artifact_kind`` True), so each resolves
+# the SAME primary feature dir through the WP01 read seam. ``quickstart.md`` carries
+# no dedicated kind; it is a planning checklist doc and is classified ``CHECKLIST``
+# (a PRIMARY-partition kind) explicitly here — no silent default (DECISION 1 spirit).
+def _accept_planning_artifact_kinds() -> dict[str, Any]:
+    from mission_runtime import MissionArtifactKind
+
+    return {
+        SPEC_FILE: MissionArtifactKind.SPEC,
+        PLAN_FILE: MissionArtifactKind.FINALIZED_EXECUTION_PLAN,
+        TASKS_FILE: MissionArtifactKind.TASKS_INDEX,
+        RESEARCH_FILE: MissionArtifactKind.RESEARCH,
+        DATA_MODEL_FILE: MissionArtifactKind.DATA_MODEL,
+        QUICKSTART_FILE: MissionArtifactKind.CHECKLIST,
+    }
+
+
+def _planning_read_dir(repo_root: Path, feature: str) -> Path:
+    """Return the PRIMARY mission dir the accept gate reads planning artifacts from.
+
+    FR-002 (#2085): the accept gate's PLANNING reads (spec/plan/tasks/research/
+    data-model/quickstart) are split off the coord-aware ``status_feature_dir`` and
+    routed onto the SINGLE kind-aware read seam
+    (:func:`~specify_cli.missions._read_path_resolver.resolve_planning_read_dir`,
+    WP01). Because every planning artifact the gate reads is a PRIMARY-partition
+    kind, they all resolve the same primary feature dir; we resolve once (keyed on
+    ``SPEC``) and the per-artifact existence checks reuse it. This is NOT a parallel
+    resolver (C-001 forbids a NEW resolver, not consuming the existing one): it is a
+    thin caller of the shared chokepoint, mirroring ``mission.py::_planning_read_dir``.
+
+    The STATUS/acceptance reads (``status.events.jsonl``, acceptance-matrix) keep
+    using ``status_feature_dir`` with its leniency (C-002) — they are NOT routed here.
+    """
+    from mission_runtime import is_primary_artifact_kind
+
+    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+
+    kinds = _accept_planning_artifact_kinds()
+    # Guard the "resolve once and reuse" invariant: every planning artifact the gate
+    # reads MUST be a PRIMARY-partition kind, so they all resolve the same primary
+    # dir. If a future single-line reclassification in ``mission_runtime.artifacts``
+    # moves one across the partition (NFR-004), fail LOUD here rather than silently
+    # reading a stale coord surface for one artifact.
+    non_primary = sorted(name for name, kind in kinds.items() if not is_primary_artifact_kind(kind))
+    if non_primary:
+        raise AcceptanceError(
+            "Accept-gate planning split invariant violated: planning artifact(s) "
+            f"{non_primary} are no longer PRIMARY-partition kinds; the per-artifact "
+            "read dir must be resolved individually (FR-002 / data-model.md)."
+        )
+    # Explicit ``Path`` annotation: under the project's ``follow_imports = "skip"``
+    # mypy config the cross-module ``resolve_planning_read_dir`` return is seen as
+    # ``Any``; the annotation re-narrows it (the function IS typed ``-> Path``) so the
+    # chokepoint return is not an ``Any`` leak — matching ``mission.py::_planning_read_dir``.
+    read_dir: Path = resolve_planning_read_dir(repo_root, feature, kind=kinds[SPEC_FILE])
+    return read_dir
+
+
+def _wp_tasks_read_dir(repo_root: Path, feature: str) -> Path:
+    """Return the PRIMARY mission dir the accept gate reads WP tasks from.
+
+    Closeout N+1 (debbie §3): the accept gate's WP-task iteration
+    (:func:`_iter_work_packages`) reads ``tasks/WP*.md`` — a
+    ``WORK_PACKAGE_TASK`` artifact, a PRIMARY-partition kind. Pre-fix it resolved
+    the coord-aware :func:`resolve_feature_dir_for_mission`, landing on the
+    materialized ``-coord`` worktree whose ``tasks/`` directory is ABSENT (WP
+    tasks live on PRIMARY for both read and write — INV-5 symmetry). The REAL
+    accept gate then raised ``AcceptanceError: ... has no tasks directory`` for a
+    coord-topology mission whose WP tasks live (correctly) only on primary.
+
+    This routes the WP-task read through the SAME kind-aware chokepoint
+    (:func:`~specify_cli.missions._read_path_resolver.resolve_planning_read_dir`)
+    the planning-doc reads use, keyed on ``WORK_PACKAGE_TASK`` — mirroring the
+    WP04 ``map-requirements`` fix (tasks.py: ``resolve_planning_read_dir`` for the
+    WP-task glob). Behavior-neutral for a FLATTENED mission (candidate == primary).
+    The STATUS reads stay on ``status_feature_dir`` (C-002), unchanged.
+    """
+    from mission_runtime import MissionArtifactKind, is_primary_artifact_kind
+
+    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+
+    # Fail LOUD if a future reclassification moves WORK_PACKAGE_TASK off the
+    # primary partition (NFR-004): the gate's WP-task read must stay on the same
+    # single primary surface as the WP-task write, never silently a coord husk.
+    if not is_primary_artifact_kind(MissionArtifactKind.WORK_PACKAGE_TASK):
+        raise AcceptanceError(
+            "Accept-gate WP-task read invariant violated: WORK_PACKAGE_TASK is no "
+            "longer a PRIMARY-partition kind; the WP-task read dir must be resolved "
+            "against its current partition (closeout N+1 / data-model.md)."
+        )
+    read_dir: Path = resolve_planning_read_dir(
+        repo_root, feature, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    )
+    return read_dir
 
 
 def _primary_anchor_feature_dir(repo_root: Path, feature: str, read_dir: Path) -> Path:
@@ -1173,18 +1285,25 @@ def collect_feature_summary(
 
     _validate_wp_readiness(expected_wp_ids, snapshot_wps, status_feature_dir / EVENTS_FILENAME, activity_issues)
 
-    unchecked_tasks = _find_unchecked_tasks(status_feature_dir / TASKS_FILE)
+    # FR-002 (#2085): PLANNING reads (spec/plan/tasks/research/data-model/quickstart)
+    # resolve the PRIMARY surface via the WP01 kind-aware seam; the STATUS reads above
+    # (status.events.jsonl) and below (acceptance-matrix via _check_lane_gates) stay on
+    # the coord-aware status_feature_dir (C-002). The single status_feature_dir variable
+    # is split per-partition WITHOUT renaming it (additive: a new planning_read_dir).
+    planning_read_dir = _planning_read_dir(repo_root, feature)
+
+    unchecked_tasks = _find_unchecked_tasks(planning_read_dir / TASKS_FILE)
     needs_clarification = _check_needs_clarification(
         [
-            status_feature_dir / "spec.md",
-            status_feature_dir / "plan.md",
-            status_feature_dir / "quickstart.md",
-            status_feature_dir / TASKS_FILE,
-            status_feature_dir / "research.md",
-            status_feature_dir / "data-model.md",
+            planning_read_dir / "spec.md",
+            planning_read_dir / "plan.md",
+            planning_read_dir / "quickstart.md",
+            planning_read_dir / TASKS_FILE,
+            planning_read_dir / "research.md",
+            planning_read_dir / "data-model.md",
         ]
     )
-    missing_required, missing_optional = _missing_artifacts(status_feature_dir)
+    missing_required, missing_optional = _missing_artifacts(planning_read_dir)
 
     path_violations: list[str] = []
     path_convention_warning: str | None = None

@@ -691,6 +691,27 @@ _CATEGORY_C_BACKCOMPAT_SHIM_REEXPORT: frozenset[str] = frozenset(
         # treats it as an intentional re-export (not F401). Follow-up: retiring
         # the shim entirely is a separate backcompat decision (FR-303).
         "specify_cli.mission_read_path::resolve_mission_read_path",
+        # Mission decompose-agent-tasks-god-module-01KVWVAR (#2058) split the
+        # ``agent/tasks.py`` god-module into ``tasks_outline``,
+        # ``tasks_materialization``, ``tasks_finalize_validation``, and
+        # ``tasks_dependency_graph`` seams. These six names are RE-EXPORTED from
+        # ``agent.tasks.__all__`` (``from ...tasks_* import <name>`` + ``__all__``)
+        # purely to keep the existing test-facing import/patch surface stable:
+        # the suite imports them via ``from ...agent.tasks import <name>`` and
+        # patches them at ``...agent.tasks.<name>`` (see tests/agent/*,
+        # tests/contract/*). The dead-symbol gate counts only cross-file *src/*
+        # ``__all__`` importers, so a test-only re-export surface is invisible to
+        # it (NOT dead). Manufacturing a fake src/ importer is the anti-pattern
+        # this gate warns against, so they are allow-listed instead. ``app`` is
+        # the seam's Typer sub-app, registered (not src-imported), mirroring the
+        # already-grandfathered ``specify_cli.cli.commands.agent::app`` entry.
+        # Burns down if/when the re-export is collapsed into the seam modules.
+        "specify_cli.cli.commands.agent.tasks::_behind_commits_touch_only_planning_artifacts",
+        "specify_cli.cli.commands.agent.tasks::_check_dependent_warnings",
+        "specify_cli.cli.commands.agent.tasks::_lane_targets_for_emit",
+        "specify_cli.cli.commands.agent.tasks::_wp_lane_from_status_events",
+        "specify_cli.cli.commands.agent.tasks::app",
+        "specify_cli.cli.commands.agent.tasks::compute_incomplete_dependents",
     }
 )
 
