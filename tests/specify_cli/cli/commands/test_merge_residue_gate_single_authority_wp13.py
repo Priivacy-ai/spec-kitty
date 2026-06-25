@@ -202,8 +202,11 @@ def test_ff_advance_still_raises_on_obstructing_non_residue_file(
 # The merge-path modules that advance a branch ref after a coordination write.
 # Every ``advance_branch_ref`` call in these modules must pass the residue
 # allow-list so a post-write ff-advance does not abort on legitimate residue.
+# Mission #2057 / WP07: the mission-number bake cluster (the merge-path
+# ``advance_branch_ref`` caller) moved from ``cli/commands/merge.py`` into the
+# ``merge/ordering.py`` seam, so the ratchet follows the call to its new home.
 _REF_ADVANCE_CALLERS = (
-    "src/specify_cli/cli/commands/merge.py",
+    "src/specify_cli/merge/ordering.py",
     "src/specify_cli/lanes/merge.py",
 )
 _COORD_OWNED_KWARG = "coord_owned_filenames"
@@ -434,7 +437,10 @@ _RESIDUE_LITERAL_MEMBERS = frozenset(
 # by FR-012). Each must import/reference the authority; none may carry a literal.
 _MERGE_PATH_CONSUMERS = (
     "src/specify_cli/lanes/auto_rebase.py",
-    "src/specify_cli/cli/commands/merge.py",
+    # Mission #2057 / WP10: the post-merge porcelain invariant (the residue-
+    # authority consumer in the merge path) moved from cli/commands/merge.py
+    # into the merge/executor.py seam, so the ratchet follows it there.
+    "src/specify_cli/merge/executor.py",
 )
 
 

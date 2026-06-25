@@ -110,19 +110,25 @@ class TestMergeWithAllowOverride:
     ) -> None:
         """Verify the merge command threads ``--allow-sparse-checkout`` to the preflight.
 
-        We patch ``require_no_sparse_checkout`` at the merge-module import site
-        and assert it receives ``override_flag=True`` when the CLI is invoked
-        with ``--allow-sparse-checkout``. This verifies the live wiring (T020)
-        independently of any downstream merge work.
+        We patch ``require_no_sparse_checkout`` at the executor seam (post-#2057
+        decomposition the sparse-checkout preflight lives in
+        ``specify_cli.merge.executor._run_lane_based_merge``; the executor never
+        imports the command shim — C-007 one-way-import invariant — so the
+        canonical patch target is the executor module, matching every sibling
+        ``patch("specify_cli.merge.executor.require_no_sparse_checkout")`` in the
+        suite). We assert it receives ``override_flag=True`` when the CLI is
+        invoked with ``--allow-sparse-checkout``. This verifies the live wiring
+        (T020) independently of any downstream merge work.
         """
         from specify_cli.cli.commands import merge as merge_mod
+        from specify_cli.merge import executor as executor_mod
 
         observed: dict[str, object] = {}
 
         def fake_preflight(**kwargs: object) -> None:
             observed.update(kwargs)
 
-        monkeypatch.setattr(merge_mod, "require_no_sparse_checkout", fake_preflight)
+        monkeypatch.setattr(executor_mod, "require_no_sparse_checkout", fake_preflight)
 
         # Short-circuit everything else so the command returns before doing
         # actual work — we only care that the preflight was called with the
@@ -133,7 +139,7 @@ class TestMergeWithAllowOverride:
         def stop_after_preflight(*_args: object, **_kwargs: object) -> object:
             raise _StopEarly()
 
-        monkeypatch.setattr(merge_mod, "require_lanes_json", stop_after_preflight)
+        monkeypatch.setattr(executor_mod, "require_lanes_json", stop_after_preflight)
 
         repo = tmp_path / "r"
         _init_git_repo(repo)
@@ -180,6 +186,7 @@ class TestMergeWithAllowOverride:
         the emitted log record.
         """
         from specify_cli.cli.commands import merge as merge_mod
+        from specify_cli.merge import executor as executor_mod
 
         repo = tmp_path / "r"
         _init_git_repo(repo)
@@ -206,7 +213,7 @@ class TestMergeWithAllowOverride:
                 "stub",
             )
 
-        monkeypatch.setattr(merge_mod, "require_no_sparse_checkout", capturing_preflight)
+        monkeypatch.setattr(executor_mod, "require_no_sparse_checkout", capturing_preflight)
 
         class _StopEarly(Exception):
             pass
@@ -214,7 +221,7 @@ class TestMergeWithAllowOverride:
         def stop_after_preflight(*_args: object, **_kwargs: object) -> object:
             raise _StopEarly()
 
-        monkeypatch.setattr(merge_mod, "require_lanes_json", stop_after_preflight)
+        monkeypatch.setattr(executor_mod, "require_lanes_json", stop_after_preflight)
 
         caplog.set_level(logging.WARNING, logger=sc_mod.logger.name)
 
