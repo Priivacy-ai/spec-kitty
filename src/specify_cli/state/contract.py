@@ -177,6 +177,17 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         notes="Machine-local SaaS sync relay queue; never commit.",
     ),
     StateSurface(
+        name="encoding_provenance_global_log",
+        path_pattern=".kittify/encoding-provenance/global.jsonl",
+        root=StateRoot.PROJECT,
+        format=StateFormat.JSONL,
+        authority=AuthorityClass.LOCAL_RUNTIME,
+        git_class=GitClass.IGNORED,
+        owner_module="charter/_io",
+        creation_trigger="charter file decoding outside kitty-specs/<mission>/",
+        notes="Machine-local encoding audit log; never commit.",
+    ),
+    StateSurface(
         name="runtime_feature_index",
         path_pattern=".kittify/runtime/feature-runs.json",
         root=StateRoot.PROJECT,

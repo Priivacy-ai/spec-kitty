@@ -70,9 +70,21 @@ def test_contract_runtime_entries_complete():
     assert len(entries) >= 4, f"Expected at least 4 runtime entries, got {len(entries)}"  # noqa: PLR2004
     assert ".kittify/.dashboard" in entries
     assert ".kittify/merge-state.json" in entries
+    assert ".kittify/encoding-provenance/" in entries
     assert ".kittify/runtime/" in entries
     assert ".kittify/events/" in entries
     assert ".kittify/dossiers/" in entries
+
+
+def test_gitignore_manager_protects_encoding_provenance(tmp_path: Path) -> None:
+    """Fresh init protection hides the global encoding provenance log."""
+    from specify_cli.gitignore_manager import GitignoreManager
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    result = GitignoreManager(tmp_path).protect_all_agents()
+
+    assert result.success
+    assert _is_ignored(tmp_path, ".kittify/encoding-provenance/global.jsonl")
 
 
 def test_research_evidence_logs_are_trackable():
