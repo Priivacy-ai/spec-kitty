@@ -48,7 +48,9 @@ from specify_cli.cli.commands.agent.mission_branch_context import (
     _inject_branch_contract,
 )
 from specify_cli.cli.commands.agent.mission_feature_resolution import (
+    _ARTIFACT_TYPE_TO_KIND as _ARTIFACT_TYPE_TO_KIND,
     _build_setup_plan_detection_error,
+    _kind_for_artifact as _kind_for_artifact,
     _sole_mission_slug_or_none,
 )
 
@@ -152,31 +154,14 @@ class CommitToBranchResult:
     diagnostic: str | None = None
 
 
-# write-surface-coherence WP02 (T007): the ``artifact_type`` string each caller
-# passes to :func:`_commit_to_branch` maps to a single canonical
-# :class:`~mission_runtime.MissionArtifactKind`. All of these are primary planning
-# kinds (they live with their mission on the primary surface), but the kind must
-# be NAMED, never guessed (DECISION 1) — an unmapped type raises so the gap is loud.
-_ARTIFACT_TYPE_TO_KIND: dict[str, MissionArtifactKind] = {
-    "spec": MissionArtifactKind.SPEC,
-    "plan": MissionArtifactKind.FINALIZED_EXECUTION_PLAN,
-    "tasks": MissionArtifactKind.TASKS_INDEX,
-}
-
-
-def _kind_for_artifact(artifact_type: str) -> MissionArtifactKind:
-    """Map a planning ``artifact_type`` string to its canonical artifact kind.
-
-    Raises ``KeyError`` (loud, not a silent ``SPEC`` default) when the type has no
-    mapping, so a new artifact type cannot silently mis-route (DECISION 1 spirit).
-    """
-    try:
-        return _ARTIFACT_TYPE_TO_KIND[artifact_type]
-    except KeyError as exc:
-        raise KeyError(
-            f"_commit_to_branch: no MissionArtifactKind mapped for artifact_type "
-            f"{artifact_type!r}; add it to _ARTIFACT_TYPE_TO_KIND (no silent default)."
-        ) from exc
+# write-surface-coherence WP02 (T007): the ``artifact_type`` → canonical
+# :class:`~mission_runtime.MissionArtifactKind` map and its ``_kind_for_artifact``
+# lookup were RELOCATED to ``mission_feature_resolution`` (the INV-8 one-way leaf)
+# by #2113 / gate-read-surface-completion so the shared ``_planning_read_dir``
+# chokepoint can name its kind without an import cycle. They are re-exported above
+# (``_ARTIFACT_TYPE_TO_KIND`` / ``_kind_for_artifact``) to keep this module's public
+# surface — consumed by ``_commit_to_branch`` below, ``lifecycle.py``, the
+# ``mission`` shim, and the unit tests — unchanged.
 
 
 def _commit_to_branch(
@@ -361,6 +346,15 @@ def _enforce_spec_gate(
     if not spec_file.exists():
         _emit_spec_missing(spec_file, feature_dir, mission_slug, json_output=json_output)
 
+    # FR-011: single read-surface commit check. ``spec_file`` is the
+    # READ-resolved surface — since gate-read-surface-completion WP02 it is
+    # resolved via the kind-aware chokepoint ``_planning_read_dir`` (SPEC is a
+    # PRIMARY-partition kind → the primary ``target_branch`` dir for ALL
+    # topologies), so ``is_committed`` checks ``spec_file`` against ``HEAD`` of
+    # the primary surface it physically lives on. The #1848 coord-deleted case
+    # never reaches here: ``_find_feature_directory`` raises
+    # ``CoordinationBranchDeleted`` (a ``StatusReadPathNotFound``) above,
+    # caught as ``ActionContextError`` → ``Exit(1)``.
     from specify_cli.missions._substantive import is_committed, is_substantive
 
     _commit_diagnostics: list[str] = []
@@ -776,8 +770,29 @@ def setup_plan(
         _, target_branch = _mission._show_branch_context(repo_root, mission_slug, json_output)
         current_branch = _mission.get_current_branch(repo_root) or target_branch
 
-        spec_file = feature_dir / "spec.md"
-        plan_file = feature_dir / "plan.md"
+        # gate-read-surface-completion WP02 / FR-001 / #2107 (out-of-map edit —
+        # WP01 owns ``mission.py``; rationale: re-point ``setup_plan``'s PLANNING
+        # reads onto WP01's ``_planning_read_dir`` chokepoint). RESTORED after the
+        # lane-d integration merge (32eb6df89) silently dropped the approved WP02
+        # diff, reverting these joins to the coord-aware ``feature_dir`` — the
+        # ratchet (FR-010) caught the regression. The driver bug: ``feature_dir``
+        # comes from the coord-aware ``_find_feature_directory`` (→
+        # ``resolve_handle_to_read_path`` → the coord worktree dir under a
+        # materialized coordination topology). Since #2106 the planning artifacts
+        # (spec.md, plan.md) live on the PRIMARY ``target_branch`` dir, so reading
+        # them off ``feature_dir`` resolves to the coord husk and blocks with
+        # ``SPEC_FILE_MISSING``. ``_planning_read_dir`` resolves SPEC / plan
+        # (PRIMARY-partition kinds) to the primary dir for ALL topologies, so the
+        # reads converge on the real artifact. Only the PLANNING reads move
+        # (C-002): ``feature_dir`` stays the surface for STATUS/lifecycle emission
+        # (``emit_artifact_phase``) and mission-type / dossier lookups below.
+        # Routed through the ``mission`` shim (``_mission`` deferred-imported at the
+        # top of this body) so the historical ``mission._planning_read_dir`` patch
+        # seam — exercised by ``test_setup_plan_read_surface`` — reaches this caller.
+        spec_read_dir = _mission._planning_read_dir(repo_root, mission_slug, artifact_type="spec")
+        spec_file = spec_read_dir / "spec.md"
+        plan_read_dir = _mission._planning_read_dir(repo_root, mission_slug, artifact_type="plan")
+        plan_file = plan_read_dir / "plan.md"
 
         if _enforce_spec_gate(
             spec_file,

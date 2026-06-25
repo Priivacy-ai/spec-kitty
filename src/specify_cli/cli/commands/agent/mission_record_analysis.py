@@ -29,6 +29,7 @@ from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
     is_coordination_artifact_residue_path,
+    is_self_bookkeeping_path,
     resolve_topology,
     routes_through_coordination,
 )
@@ -121,6 +122,13 @@ def _enforce_analysis_report_write_preflight(
         return
 
     dirty_paths = _git_dirty_paths(repo_root)
+    # FR-003 (#2102): drop spec-kitty's OWN bookkeeping churn unconditionally —
+    # ``meta.json`` + ``.kittify/encoding-provenance/global.jsonl`` are allowlisted
+    # via the self-bookkeeping authority (DISJOINT from the coord-residue partition).
+    # This runs regardless of topology because these files are spec-kitty's own
+    # metadata, not coordination residue. The G-5 invariant holds: a stale primary
+    # ``spec.md`` is NOT in the allowlist, so it survives this filter as "real dirt".
+    dirty_paths = [path for path in dirty_paths if not is_self_bookkeeping_path(path)]
     # FR-005 / FR-001b: drop coord-owned residue only under a coordination
     # topology, read from the WP02 STORED topology via the ONE canonical predicate
     # (never a per-ref ``.kind``). ``mission_slug`` is required to resolve the
@@ -238,13 +246,28 @@ def record_analysis(
         # not the coord-aware ``feature_dir`` from ``_find_feature_directory``
         # (which resolves to the coordination worktree once one exists — and that
         # worktree lacks ``spec.md``, so ``write_analysis_report`` would fail with
-        # "Required artifact missing"). ``primary_feature_dir_for_mission`` is the
-        # topology-blind anchor already used elsewhere in this module; the
-        # coord-aware ``feature_dir`` still drives the placement-ref and dirty-tree
-        # preflight above.
-        from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+        # "Required artifact missing"). The coord-aware ``feature_dir`` still drives
+        # the placement-ref and dirty-tree preflight above.
+        #
+        # #2102 / FR-009 (gate-read-surface-completion WP04): collapse the manual
+        # coord-then-primary double-resolution onto the single kind-aware seam. The
+        # planning-read leg here resolves the dir that must hold ``spec.md`` (a SPEC
+        # kind — PRIMARY-partition) before the report is written; route it through
+        # WP01's kind-aware read seam (``resolve_planning_read_dir``, the same single
+        # authority ``tasks.py`` and ``_commit_to_branch`` route every planning
+        # read/write onto) keyed by ``_kind_for_artifact("spec")``, instead of a
+        # bespoke ``primary_feature_dir_for_mission`` call. SPEC is primary-partition,
+        # so the seam resolves to the SAME topology-blind primary dir — a
+        # behavior-NEUTRAL dedup (no observable delta), removing the parallel
+        # resolution. The analysis-report WRITE target stays primary (data-model.md
+        # KEEP); the dirty-tree allowlist / ANALYSIS_REPORT placement is WP05's
+        # concern and is untouched here.
+        from specify_cli.cli.commands.agent.mission_feature_resolution import _kind_for_artifact
+        from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 
-        write_feature_dir = primary_feature_dir_for_mission(repo_root, feature_dir.name)
+        write_feature_dir = resolve_planning_read_dir(
+            repo_root, feature_dir.name, kind=_kind_for_artifact("spec")
+        )
 
         result = write_analysis_report(
             feature_dir=write_feature_dir,
