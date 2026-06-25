@@ -14,7 +14,7 @@ whose original rationale no longer holds — symbols deleted, shims dead, contra
 mission removes the evidence-backed stale entries and corrects drift in the tracking issue. Sister issue
 #2048 (the `category_4` `9→8` reversal) is handled separately in PR #2152 and is **out of scope** here.
 
-> **Scope note (FR-006 deferred → #2158):** the dead-symbol-gate parser bug (`_extract_all_literal`) was
+> **Scope note (parser fix deferred → #2158):** the dead-symbol-gate parser bug (`_extract_all_literal`) was
 > originally in scope, but un-blinding it surfaces **~117 pre-existing dead symbols across ~57 modules**
 > — a blast radius that would *grow* the ratchet, not shrink it. It is split out to its own issue
 > [#2158](https://github.com/Priivacy-ai/spec-kitty/issues/2158). This mission delivers the clean
