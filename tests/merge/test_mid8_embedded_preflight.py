@@ -66,7 +66,7 @@ class TestCheckMissionBranchMid8:
             return ref == _CANONICAL_BRANCH
 
         with patch(
-            "specify_cli.cli.commands.merge._has_branch_ref",
+            "specify_cli.merge.preflight._has_branch_ref",
             side_effect=has_ref,
         ):
             exists, blocker = _check_mission_branch(
@@ -84,10 +84,10 @@ class TestCheckMissionBranchMid8:
     ) -> None:
         """When the canonical branch is genuinely missing, the blocker names it."""
         with patch(
-            "specify_cli.cli.commands.merge._has_branch_ref",
+            "specify_cli.merge.preflight._has_branch_ref",
             return_value=False,
         ), patch(
-            "specify_cli.cli.commands.merge.run_command",
+            "specify_cli.merge.preflight.run_command",
             return_value=(0, "abc1234def5678\n", ""),
         ):
             exists, blocker = _check_mission_branch(
@@ -106,7 +106,7 @@ class TestCheckMissionBranchMid8:
         slug = "mission-identity-seam-and-1908-panel-01KV6510"
         canonical = f"kitty/mission-{slug}"
         with patch(
-            "specify_cli.cli.commands.merge._has_branch_ref",
+            "specify_cli.merge.preflight._has_branch_ref",
             side_effect=lambda _repo, ref: ref == canonical,
         ):
             exists, blocker = _check_mission_branch(slug, tmp_path, mission_id=None)
@@ -121,7 +121,7 @@ class TestCheckMissionBranchMid8:
         slug = "017-my-legacy-feature"
         canonical = f"kitty/mission-{slug}"
         with patch(
-            "specify_cli.cli.commands.merge._has_branch_ref",
+            "specify_cli.merge.preflight._has_branch_ref",
             side_effect=lambda _repo, ref: ref == canonical,
         ):
             exists, blocker = _check_mission_branch(slug, tmp_path, mission_id=None)
@@ -133,7 +133,7 @@ class TestCheckMissionBranchMid8:
         """A recorded lanes.json.mission_branch is honoured verbatim."""
         recorded = "kitty/mission-explicitly-recorded-01KQTEST"
         with patch(
-            "specify_cli.cli.commands.merge._has_branch_ref",
+            "specify_cli.merge.preflight._has_branch_ref",
             side_effect=lambda _repo, ref: ref == recorded,
         ):
             exists, blocker = _check_mission_branch(
@@ -208,7 +208,7 @@ class TestCheckMissionBranchResolverWarning:
         slug = "mission-identity-seam-and-1908-panel-01KV6510"
         canonical = f"kitty/mission-{slug}"
         with patch(
-            "specify_cli.cli.commands.merge._has_branch_ref",
+            "specify_cli.merge.preflight._has_branch_ref",
             side_effect=lambda _repo, ref: ref == canonical,
         ), warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")
@@ -225,7 +225,7 @@ class TestCheckMissionBranchResolverWarning:
         slug = "017-my-legacy-feature"
         canonical = f"kitty/mission-{slug}"
         with patch(
-            "specify_cli.cli.commands.merge._has_branch_ref",
+            "specify_cli.merge.preflight._has_branch_ref",
             side_effect=lambda _repo, ref: ref == canonical,
         ), warnings.catch_warnings(record=True) as caught:
             warnings.simplefilter("always")

@@ -27,6 +27,7 @@ from specify_cli.compat._detect.install_method import InstallMethod
 # ---------------------------------------------------------------------------
 
 _COMMAND_RE = re.compile(r"^[A-Za-z0-9 .\-+_/=:]{1,128}$")
+_VERSION_RE = re.compile(r"^[A-Za-z0-9.\-+]{1,64}$")
 
 
 # ---------------------------------------------------------------------------
@@ -78,7 +79,7 @@ _HINT_TABLE: dict[InstallMethod, tuple[str | None, str | None]] = {
         None,
     ),
     InstallMethod.UV_TOOL: (
-        "uv tool upgrade spec-kitty-cli",
+        "uv tool install --force spec-kitty-cli",
         None,
     ),
     InstallMethod.PIP_USER: (
@@ -122,10 +123,17 @@ for _method, (_cmd, _note) in _HINT_TABLE.items():
 # ---------------------------------------------------------------------------
 
 
+def _targeted_uv_tool_command(package: str, target_version: str | None) -> str | None:
+    if target_version is None or not _VERSION_RE.match(target_version):
+        return None
+    return f"uv tool install --force {package}=={target_version}"
+
+
 def build_upgrade_hint(
     install_method: InstallMethod,
     *,
-    package: str = "spec-kitty-cli",  # noqa: ARG001  (reserved for future parametrisation)
+    package: str = "spec-kitty-cli",
+    target_version: str | None = None,
 ) -> UpgradeHint:
     """Return the :class:`UpgradeHint` for *install_method*.
 
@@ -134,11 +142,14 @@ def build_upgrade_hint(
 
     Args:
         install_method: The detected :class:`InstallMethod`.
-        package: Reserved for future parametrisation (currently unused; the
-            table is keyed solely on *install_method*).
+        package: Package name to include in dynamic hints.
+        target_version: Optional latest version. For uv-tool installs this is
+            used to override exact prerelease pins in uv receipts.
 
     Returns:
         A :class:`UpgradeHint` from the static table.
     """
     command, note = _HINT_TABLE[install_method]
+    if install_method == InstallMethod.UV_TOOL:
+        command = _targeted_uv_tool_command(package, target_version) or command
     return UpgradeHint(install_method=install_method, command=command, note=note)

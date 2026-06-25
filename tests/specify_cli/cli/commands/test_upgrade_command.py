@@ -265,6 +265,28 @@ def test_agent_check_guidance_when_upgrade_command_unavailable(
     assert payload["upgrade_note"]
 
 
+def test_agent_check_uv_tool_command_targets_latest_version(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    from specify_cli.compat._detect.install_method import InstallMethod
+    from specify_cli.compat.cache import NagCache
+    from specify_cli.compat.provider import PyPIProvider
+
+    monkeypatch.setattr("specify_cli.compat.cache.NagCache.default", lambda: NagCache(tmp_path / "agent-cache.json"))
+    monkeypatch.setattr(
+        PyPIProvider,
+        "get_latest",
+        lambda self, package: LatestVersionResult("3.2.3", "pypi", None),
+    )
+    monkeypatch.setattr("specify_cli.compat.detect_install_method", lambda: InstallMethod.UV_TOOL)
+    monkeypatch.setattr("specify_cli.compat.is_ci_env", lambda: False)
+
+    result = _invoke_upgrade(["--agent-check", "--json"], cwd=tmp_path)
+
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["action"] == "prompt"
+    assert payload["upgrade_command"] == "uv tool install --force spec-kitty-cli==3.2.3"
+
+
 def test_agent_choice_not_now_records_snooze(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from specify_cli.compat.cache import NagCache
 

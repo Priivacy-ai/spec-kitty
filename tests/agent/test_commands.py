@@ -18,6 +18,11 @@ pytestmark = pytest.mark.fast
 accept_module = importlib.import_module("specify_cli.cli.commands.accept")
 dashboard_module = importlib.import_module("specify_cli.cli.commands.dashboard")
 merge_module = importlib.import_module("specify_cli.cli.commands.merge")
+# Mission #2057 relocated target-branch validation into the merge ``preflight``
+# seam; ``_validate_target_branch`` resolves ``run_command`` from that module's
+# namespace, so the dry-run tests patch the seam (the merge shim re-exports
+# ``run_command`` for patch-target stability, but the live call resolves here).
+merge_preflight_module = importlib.import_module("specify_cli.merge.preflight")
 research_module = importlib.import_module("specify_cli.cli.commands.research")
 lifecycle_module = importlib.import_module("specify_cli.cli.commands.lifecycle")
 verify_module = importlib.import_module("specify_cli.cli.commands.verify")
@@ -282,6 +287,7 @@ def test_merge_dry_run_outputs_lane_payload(monkeypatch, tmp_path: Path) -> None
         lambda *_args, **_kwargs: None,
     )
     monkeypatch.setattr(merge_module, "run_command", fake_run_command)
+    monkeypatch.setattr(merge_preflight_module, "run_command", fake_run_command)
 
     result = runner.invoke(
         cli_app,
@@ -322,6 +328,7 @@ def test_merge_json_dry_run_requires_lane_manifest(monkeypatch, tmp_path: Path) 
         lambda *_args, **_kwargs: None,
     )
     monkeypatch.setattr(merge_module, "run_command", fake_run_command)
+    monkeypatch.setattr(merge_preflight_module, "run_command", fake_run_command)
 
     result = runner.invoke(
         cli_app,
@@ -341,13 +348,18 @@ def test_merge_git_preflight_json_payload_includes_cli_version(
     repo_root.mkdir()
     (repo_root / ".git").mkdir()
 
+    # ``_enforce_git_preflight`` lives in ``specify_cli.merge.preflight`` (mission
+    # #2057 decomposition) and resolves ``run_git_preflight`` /
+    # ``build_git_preflight_failure_payload`` in *that* module's namespace, so the
+    # stubs must be installed there — patching the ``merge`` shim is dead (mirrors
+    # the sibling dry-run tests that patch ``merge_preflight_module``).
     monkeypatch.setattr(
-        merge_module,
+        merge_preflight_module,
         "run_git_preflight",
         lambda *_args, **_kwargs: type("Preflight", (), {"passed": False})(),
     )
     monkeypatch.setattr(
-        merge_module,
+        merge_preflight_module,
         "build_git_preflight_failure_payload",
         lambda *_args, **_kwargs: {
             "error_code": "GIT_PREFLIGHT_FAILED",
@@ -384,6 +396,7 @@ def test_merge_json_dry_run_requires_feature_resolution(monkeypatch, tmp_path: P
         lambda *_args, **_kwargs: None,
     )
     monkeypatch.setattr(merge_module, "run_command", fake_run_command)
+    monkeypatch.setattr(merge_preflight_module, "run_command", fake_run_command)
 
     result = runner.invoke(
         cli_app,
@@ -416,6 +429,7 @@ def test_merge_json_dry_run_honors_keep_flags(monkeypatch, tmp_path: Path) -> No
         lambda *_args, **_kwargs: None,
     )
     monkeypatch.setattr(merge_module, "run_command", fake_run_command)
+    monkeypatch.setattr(merge_preflight_module, "run_command", fake_run_command)
     result = runner.invoke(
         cli_app,
         [

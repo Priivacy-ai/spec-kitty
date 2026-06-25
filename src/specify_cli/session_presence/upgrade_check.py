@@ -88,24 +88,37 @@ class UpgradeChecker:
 
         try:
             CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-            script = (
-                "import subprocess, json, os; "
-                "from pathlib import Path; "
-                "from datetime import datetime, timezone; "
-                "r = subprocess.run("
-                "    ['uv', 'pip', 'index', 'versions', 'spec-kitty-cli', '--quiet'],"
-                "    capture_output=True, text=True, timeout=10"
-                "); "
-                "v = r.stdout.strip().split('\\n')[0] if r.returncode == 0 and r.stdout.strip() else None; "
-                f"p = Path(r'{CACHE_PATH}'); "
-                "p.parent.mkdir(parents=True, exist_ok=True); "
-                "tmp = p.with_suffix('.tmp'); "
-                "tmp.write_text(json.dumps({"
-                "    'checked_at': datetime.now(timezone.utc).isoformat(),"
-                "    'latest_version': v"
-                "})); "
-                "os.replace(tmp, p)"
-            )
+            script = f"""
+import json
+import os
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+
+v = None
+try:
+    req = urllib.request.Request(
+        "https://pypi.org/pypi/spec-kitty-cli/json",
+        headers={{"User-Agent": "spec-kitty-cli session-presence-upgrade-check"}},
+    )
+    with urllib.request.urlopen(req, timeout=10) as response:
+        payload = json.load(response)
+    info = payload.get("info") if isinstance(payload, dict) else None
+    candidate = info.get("version") if isinstance(info, dict) else None
+    if isinstance(candidate, str):
+        v = candidate
+except Exception:
+    v = None
+
+p = Path({str(CACHE_PATH)!r})
+p.parent.mkdir(parents=True, exist_ok=True)
+tmp = p.with_suffix(".tmp")
+tmp.write_text(json.dumps({{
+    "checked_at": datetime.now(timezone.utc).isoformat(),
+    "latest_version": v,
+}}))
+os.replace(tmp, p)
+"""
             subprocess.Popen(
                 ["python3", "-c", script],
                 start_new_session=True,

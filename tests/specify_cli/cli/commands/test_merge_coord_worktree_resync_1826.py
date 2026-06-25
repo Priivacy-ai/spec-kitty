@@ -286,43 +286,43 @@ def _merge_external_mocks():
     ``_assert_merged_wps_reached_done``.
     """
     patches = {
-        "run_check": patch("specify_cli.cli.commands.merge.run_check"),
-        "sparse": patch("specify_cli.cli.commands.merge.require_no_sparse_checkout"),
+        "run_check": patch("specify_cli.merge.executor.run_check"),
+        "sparse": patch("specify_cli.merge.executor.require_no_sparse_checkout"),
         "preflight": patch("specify_cli.cli.commands.merge._enforce_git_preflight"),
         "review_consistency": patch(
-            "specify_cli.cli.commands.merge._enforce_review_artifact_consistency"
+            "specify_cli.merge.executor._enforce_review_artifact_consistency"
         ),
         "status_history": patch(
-            "specify_cli.cli.commands.merge._enforce_canonical_status_history"
+            "specify_cli.merge.executor._enforce_canonical_status_history"
         ),
-        "hollow": patch("specify_cli.cli.commands.merge._warn_or_confirm_hollow_reviews"),
+        "hollow": patch("specify_cli.merge.executor._warn_or_confirm_hollow_reviews"),
         "baseline_record": patch(
-            "specify_cli.cli.commands.merge._record_baseline_merge_commit",
+            "specify_cli.merge.executor._record_baseline_merge_commit",
         ),
         "baseline_assert": patch(
-            "specify_cli.cli.commands.merge._assert_baseline_merge_commit_on_target"
+            "specify_cli.merge.executor._assert_baseline_merge_commit_on_target"
         ),
         "done_on_target": patch(
-            "specify_cli.cli.commands.merge._assert_merged_wps_done_on_target"
+            "specify_cli.merge.executor._assert_merged_wps_done_on_target"
         ),
-        "safe_commit": patch("specify_cli.cli.commands.merge.safe_commit"),
+        "safe_commit": patch("specify_cli.merge.executor.safe_commit"),
         "dossier": patch(
-            "specify_cli.cli.commands.merge.trigger_feature_dossier_sync_if_enabled"
+            "specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"
         ),
-        "mission_closed": patch("specify_cli.cli.commands.merge.emit_mission_closed"),
-        "diff_summary": patch("specify_cli.cli.commands.merge._emit_merge_diff_summary"),
+        "mission_closed": patch("specify_cli.merge.executor.emit_mission_closed"),
+        "diff_summary": patch("specify_cli.merge.executor._emit_merge_diff_summary"),
         "refresh_primary": patch(
-            "specify_cli.cli.commands.merge._refresh_primary_checkout_after_merge"
+            "specify_cli.merge.executor._refresh_primary_checkout_after_merge"
         ),
         # Post-merge working-tree invariant fires on test-only files; the merge
         # has already run through real git by the time this would raise.
         "porcelain": patch(
-            "specify_cli.cli.commands.merge._classify_porcelain_lines",
+            "specify_cli.merge.executor._classify_porcelain_lines",
             return_value=([], 0),
         ),
         "gates": patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
         "policy": patch("specify_cli.policy.config.load_policy_config"),
-        "remote": patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
+        "remote": patch("specify_cli.merge.executor.has_remote", return_value=False),
     }
     with contextlib.ExitStack() as stack:
         mocks = {name: stack.enter_context(p) for name, p in patches.items()}

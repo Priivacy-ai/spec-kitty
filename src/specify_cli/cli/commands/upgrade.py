@@ -348,7 +348,8 @@ def _agent_check_payload() -> dict[str, object]:
     result = compat_plan(invocation, now=now)
     cli_status = result.cli_status
     install_method = detect_install_method()
-    hint = build_upgrade_hint(install_method)
+    latest_version = cli_status.latest_version
+    hint = build_upgrade_hint(install_method, target_version=latest_version)
 
     payload: dict[str, object] = {
         "schema_version": 1,
@@ -367,7 +368,6 @@ def _agent_check_payload() -> dict[str, object]:
         payload["reason"] = "nag_disabled"
         return payload
 
-    latest_version = cli_status.latest_version
     if not _version_is_newer(latest_version, cli_status.installed_version):
         return payload
 

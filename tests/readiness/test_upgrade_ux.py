@@ -721,7 +721,7 @@ class TestRunUpgradeUxAlwaysSafe:
         assert outcome.auto_upgrade_attempted is True
         assert outcome.prompted is False
 
-    def test_uv_tool_auto_upgrade_uses_uv_tool_upgrade(
+    def test_uv_tool_auto_upgrade_reinstalls_target_version(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(sys, "argv", ["spec-kitty", "status"])
@@ -747,7 +747,7 @@ class TestRunUpgradeUxAlwaysSafe:
             prompt=lambda: pytest.fail("prompt must not fire on always-upgrade"),
             installer_detector=lambda: InstallMethod.UV_TOOL,
         )
-        assert calls == [["uv", "tool", "upgrade", "spec-kitty-cli"]]
+        assert calls == [["uv", "tool", "install", "--force", "spec-kitty-cli==2.0"]]
         assert outcome.auto_upgrade_attempted is True
         assert outcome.auto_upgrade_exit_code == 0
 
@@ -783,7 +783,7 @@ class TestRunUpgradeUxAlwaysSafe:
             prompt=lambda: pytest.fail("prompt must not fire on always-upgrade"),
             installer_detector=lambda: InstallMethod.UV_TOOL,
         )
-        assert calls[0][0] == ["uv", "tool", "upgrade", "spec-kitty-cli"]
+        assert calls[0][0] == ["uv", "tool", "install", "--force", "spec-kitty-cli==2.0"]
         assert calls[0][1] is not None
         assert calls[0][1]["UV_TOOL_DIR"] == str(tool_dir)
         assert outcome.auto_upgrade_attempted is True
@@ -823,7 +823,7 @@ class TestRunUpgradeUxAlwaysSafe:
             prompt=lambda: pytest.fail("prompt must not fire on always-upgrade"),
             installer_detector=lambda: InstallMethod.UV_TOOL,
         )
-        assert calls[0] == ["uv", "tool", "upgrade", "--python", "3.13", "spec-kitty-cli"]
+        assert calls[0] == ["uv", "tool", "install", "--force", "--python", "3.13", "spec-kitty-cli==2.0"]
         assert outcome.auto_upgrade_attempted is True
 
 

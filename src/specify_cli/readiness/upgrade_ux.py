@@ -26,6 +26,7 @@ call ``_render_nag_if_needed`` directly and is unchanged.
 from __future__ import annotations
 
 import os
+import re
 import subprocess  # noqa: S404 — required to invoke the existing `spec-kitty upgrade` binary
 import sys
 from collections.abc import Callable
@@ -66,6 +67,7 @@ ENV_UPGRADE_NEVER_ASK = "SPEC_KITTY_UPGRADE_NEVER_ASK"
 ENV_UPGRADE_DISABLED = "SPEC_KITTY_UPGRADE_DISABLED"
 
 _TRUTHY = frozenset({"1", "true", "yes", "on"})
+_VERSION_RE = re.compile(r"^[A-Za-z0-9.\-+]{1,64}$")
 
 
 def _truthy(raw: str | None) -> bool:
@@ -214,7 +216,7 @@ def is_currently_snoozed(
 # ---------------------------------------------------------------------------
 
 
-def _default_upgrade_runner(method: object) -> int:
+def _default_upgrade_runner(method: object, *, latest_version: str | None = None) -> int:
     """Invoke the owning installer's upgrade command via subprocess.
 
     Returns the process exit code.  Never raises; on OSError / timeout
@@ -233,9 +235,9 @@ def _default_upgrade_runner(method: object) -> int:
     if not isinstance(method, InstallMethod):
         return 1
 
-    uv_tool_argv = ["uv", "tool", "upgrade"]
+    uv_tool_argv = ["uv", "tool", "install", "--force"]
     uv_tool_argv.extend(_uv_tool_python_args())
-    uv_tool_argv.append("spec-kitty-cli")
+    uv_tool_argv.append(_package_arg_for_latest(latest_version))
     argv_by_method = {
         InstallMethod.PIPX: ["pipx", "upgrade", "spec-kitty-cli"],
         InstallMethod.UV_TOOL: uv_tool_argv,
@@ -302,6 +304,12 @@ def _active_uv_tool_receipt() -> dict[str, object] | None:
     except Exception:  # noqa: BLE001
         return None
     return None
+
+
+def _package_arg_for_latest(latest_version: str | None) -> str:
+    if latest_version is not None and _VERSION_RE.match(latest_version):
+        return f"spec-kitty-cli=={latest_version}"
+    return "spec-kitty-cli"
 
 
 def _active_uv_tool_dir() -> Path | None:
@@ -509,10 +517,15 @@ def _run_auto_upgrade_if_safe(
     *,
     safe: bool,
     method: object,
+    latest_version: str | None,
     upgrade_runner: Callable[[], int] | None,
 ) -> tuple[bool, int | None, bool]:
     if safe:
-        runner_exit = _default_upgrade_runner(method) if upgrade_runner is None else upgrade_runner()
+        runner_exit = (
+            _default_upgrade_runner(method, latest_version=latest_version)
+            if upgrade_runner is None
+            else upgrade_runner()
+        )
         return True, runner_exit, False
     _print_unsafe_installer_guidance(str(method))
     return False, None, True
@@ -524,11 +537,13 @@ def _handle_always_preference(
     kwargs: dict[str, object],
     safe: bool,
     method: object,
+    current_latest: str | None,
     upgrade_runner: Callable[[], int] | None,
 ) -> UpgradeUxOutcome:
     attempted, exit_code, guidance_only = _run_auto_upgrade_if_safe(
         safe=safe,
         method=method,
+        latest_version=current_latest,
         upgrade_runner=upgrade_runner,
     )
     if exit_code == 0:
@@ -561,6 +576,7 @@ def _handle_prompt_choice(
         auto_upgrade_attempted, exit_code, guidance_only = _run_auto_upgrade_if_safe(
             safe=safe,
             method=method,
+            latest_version=current_latest,
             upgrade_runner=upgrade_runner,
         )
     return _persist_and_return(
@@ -686,6 +702,7 @@ def run_upgrade_ux(  # noqa: C901,PLR0911,PLR0912,PLR0913,PLR0915 — orchestrat
                 kwargs=kwargs,
                 safe=safe,
                 method=method,
+                current_latest=current_latest,
                 upgrade_runner=upgrade_runner,
             )
 
