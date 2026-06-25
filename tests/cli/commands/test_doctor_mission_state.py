@@ -171,8 +171,15 @@ class TestModeValidationErrors:
         Arrange: locate_project_root returns None (no project).
         Act: invoke mission-state --audit (no --fixture-dir).
         Assert: exit_code == 1.
+
+        The ``mission-state`` command shell resolves the project root through
+        the doctor shim's ``locate_project_root`` seam (#2059, mirrors the
+        ``workspaces`` shell) and forwards it to ``run_mission_state``; patch
+        that seam to drive the no-project path through the public surface.
         """
-        with patch.object(mission_state_mod, "locate_project_root", return_value=None):
+        import specify_cli.cli.commands.doctor as doctor_mod
+
+        with patch.object(doctor_mod, "locate_project_root", return_value=None):
             result = runner.invoke(app, ["mission-state", "--audit"])
         assert result.exit_code == 1
 

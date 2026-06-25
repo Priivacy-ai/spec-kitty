@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import logging
+import sys  # noqa: F401 — re-exported patch target: tests monkeypatch ``doctor.sys.stdin`` (#2059)
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
 
@@ -936,6 +937,15 @@ def mission_state(
     ] = False,
 ) -> None:
     """Audit, repair, or TeamSpace-validate mission-state shapes."""
+    # Resolve the project root HERE, through the shim's ``locate_project_root``
+    # binding — the patchable seam (#2059, mirrors the ``workspaces`` shell). A
+    # ``None`` root is valid for a fixtures-only run, so it is forwarded as-is;
+    # the sibling reconciles ``None`` against ``--fixture-dir`` / fixtures.
+    try:
+        resolved_root = locate_project_root()
+    except Exception as exc:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1) from exc
     run_mission_state(
         audit=audit,
         fix=fix,
@@ -947,6 +957,7 @@ def mission_state(
         include_fixtures=include_fixtures,
         manifest_path=manifest_path,
         allow_dirty=allow_dirty,
+        repo_root=resolved_root,
     )
 
 

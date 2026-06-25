@@ -38,6 +38,17 @@ __all__ = [
 ]
 
 
+class _RootUnset:
+    """Sentinel: caller omitted ``repo_root``, so resolve it here.
+
+    ``None`` is a *valid* resolved root (fixtures-only run), so the
+    "not passed" state needs a dedicated sentinel rather than ``None``.
+    """
+
+
+_ROOT_UNSET = _RootUnset()
+
+
 def _print_rich_audit_report(report: object) -> None:
     """Print a Rich table summarising audit findings per mission."""
     from specify_cli.audit import RepoAuditReport
@@ -140,11 +151,19 @@ def _resolve_fail_on(fail_on: str | None) -> tuple[Severity | None, bool]:
 def _resolve_audit_root(
     fixture_dir: Path | None,
     include_fixtures: bool,
+    repo_root: Path | None | _RootUnset = _ROOT_UNSET,
 ) -> tuple[Path, Path | None]:
     """Resolve the effective (repo_root, fixture_dir) pair.
 
     Handles --include-fixtures / --fixture-dir interplay and project-root
     discovery. Returns (repo_root, fixture_dir).
+
+    ``repo_root`` is the project root resolved by the ``doctor mission-state``
+    command shell through its patchable ``locate_project_root`` seam (#2059
+    decomposition keeps the seam in the shim — see ``run_workspaces``). It is
+    sentinel-typed via ``_ROOT_UNSET`` so callers that pass an explicit
+    ``None`` (no project found, fixtures-only) are honored, while direct
+    callers that omit it fall back to discovering the root here.
 
     Raises typer.Exit(1) if no repo root can be found.
     Raises typer.Exit(2) if --include-fixtures and --fixture-dir conflict,
@@ -160,11 +179,14 @@ def _resolve_audit_root(
             typer.echo(f"Bundled audit fixtures not found: {resolved_fixture_dir}", err=True)
             raise typer.Exit(2)
 
-    try:
-        resolved_repo_root = locate_project_root()
-    except Exception as exc:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(1) from exc
+    if isinstance(repo_root, _RootUnset):
+        try:
+            resolved_repo_root = locate_project_root()
+        except Exception as exc:
+            console.print("[red]Error:[/red] Not in a spec-kitty project")
+            raise typer.Exit(1) from exc
+    else:
+        resolved_repo_root = repo_root
 
     if resolved_repo_root is None:
         if resolved_fixture_dir is None:
@@ -363,11 +385,20 @@ def run_mission_state(
     include_fixtures: bool,
     manifest_path: Path | None,
     allow_dirty: bool,
+    repo_root: Path | None | _RootUnset = _ROOT_UNSET,
 ) -> None:
-    """Dispatch entry point for ``doctor mission-state`` (mode-exclusive contract)."""
+    """Dispatch entry point for ``doctor mission-state`` (mode-exclusive contract).
+
+    ``repo_root`` is forwarded by the ``doctor mission-state`` command shell,
+    which resolves it through the shim's patchable ``locate_project_root`` seam
+    (#2059 — mirrors ``run_workspaces``). Omitting it makes this helper discover
+    the root itself, preserving the standalone entrypoint contract.
+    """
     mode = _validate_modes(audit, fix, teamspace_dry_run)
     fail_on_severity, fail_on_teamspace_blocker = _resolve_fail_on(fail_on)
-    resolved_root, resolved_fixture_dir = _resolve_audit_root(fixture_dir, include_fixtures)
+    resolved_root, resolved_fixture_dir = _resolve_audit_root(
+        fixture_dir, include_fixtures, repo_root
+    )
 
     if mode == _MissionStateMode.FIX:
         _run_mission_repair(
