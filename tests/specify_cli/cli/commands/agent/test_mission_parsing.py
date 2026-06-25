@@ -18,6 +18,8 @@ import pytest
 from specify_cli.cli.commands.agent import mission_parsing as seam
 from specify_cli.status import WPMetadata
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 # ---------------------------------------------------------------------------
 # _extract_wp_ids_from_task_files

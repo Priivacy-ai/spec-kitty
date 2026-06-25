@@ -18,6 +18,8 @@ import pytest
 
 from specify_cli.cli.commands.agent import mission_branch_context as seam
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 # ---------------------------------------------------------------------------
 # _inject_branch_contract

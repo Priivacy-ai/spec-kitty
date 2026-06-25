@@ -71,6 +71,7 @@ from .emit import (
 )
 from .wp_metadata import (
     WPMetadata,
+    _Builder,
     read_wp_frontmatter,
 )
 from .lane_reader import (
@@ -102,6 +103,7 @@ from .adapters import (
     register_saas_fanout_handler,
 )
 from .bootstrap import (
+    BootstrapResult,
     bootstrap_canonical_state,
 )
 from .event_log_merge import (
@@ -284,6 +286,8 @@ __all__ = [
     "VerificationResult",
     "WorkspaceHuskRegistrationError",
     "WPMetadata",
+    "_Builder",
+    "BootstrapResult",
     "audit_repo",
     "append_event",
     "bootstrap_canonical_state",

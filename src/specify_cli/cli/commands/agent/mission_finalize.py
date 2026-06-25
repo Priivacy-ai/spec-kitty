@@ -55,9 +55,7 @@ from specify_cli.ownership.frontmatter_source import (
 )
 from specify_cli.ownership.models import OwnershipManifest
 from specify_cli.ownership.validation import ValidationResult, validate_glob_matches
-from specify_cli.status import WPMetadata
-from specify_cli.status.bootstrap import BootstrapResult
-from specify_cli.status.wp_metadata import _Builder
+from specify_cli.status import BootstrapResult, WPMetadata, _Builder
 from specify_cli.core.wps_manifest import (
     WpsManifest,
     check_concern_refs_coverage,
@@ -92,8 +90,9 @@ INVALID_WP_OWNED_FILES_KITTY_SPECS = "INVALID_WP_OWNED_FILES_KITTY_SPECS"
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
 
 # Dynamic alias mirror of the canonical ``mission-specs`` validator (the
-# ``kitty_specs`` identifier form). Mirrors mission.py's globals() injection so
-# the same symbol is resolvable here too.
+# KITTY_SPECS_DIR identifier form, built via ``.replace("-", "_")`` to avoid a
+# raw mission-spec literal in source). Mirrors mission.py's globals() injection
+# so the same symbol is resolvable here too.
 globals()["_invalid_" + KITTY_SPECS_DIR.replace("-", "_") + "_owned_files"] = (
     _invalid_mission_specs_owned_files
 )
@@ -818,10 +817,10 @@ def _assert_no_write_in_validate_only(state: _BootstrapState, *, validate_only: 
         assert not state.pending_writes, "INV-6 violated: pending frontmatter writes in --validate-only mode"
 
 
-def _validate_owned_files_not_in_kitty_specs(
+def _validate_owned_files_not_in_mission_specs(
     inmemory_frontmatter: dict[str, WPMetadata], *, json_output: bool
 ) -> None:
-    """Phase: reject owned_files paths under kitty-specs/."""
+    """Phase: reject owned_files paths under the mission-specs dir."""
     invalid_owned_files = _invalid_mission_specs_owned_files(inmemory_frontmatter)
     if not invalid_owned_files:
         return
@@ -1569,7 +1568,7 @@ def finalize_tasks(
         )
         _assert_no_write_in_validate_only(state, validate_only=validate_only)
 
-        _validate_owned_files_not_in_kitty_specs(state.inmemory_frontmatter, json_output=json_output)
+        _validate_owned_files_not_in_mission_specs(state.inmemory_frontmatter, json_output=json_output)
         _flush_frontmatter_writes(state, validate_only=validate_only)
 
         # T017: Regenerate tasks.md from wps.yaml manifest (FR-008, FR-011)

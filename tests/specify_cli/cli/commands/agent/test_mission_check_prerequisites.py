@@ -18,6 +18,8 @@ import pytest
 
 from specify_cli.cli.commands.agent import mission_check_prerequisites as seam
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 # ---------------------------------------------------------------------------
 # _paths_only_payload

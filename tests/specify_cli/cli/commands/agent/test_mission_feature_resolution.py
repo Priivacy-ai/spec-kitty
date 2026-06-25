@@ -21,6 +21,8 @@ from mission_runtime import ActionContextError
 from specify_cli.cli.commands.agent import mission_feature_resolution as seam
 from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 # ---------------------------------------------------------------------------
 # Fixtures

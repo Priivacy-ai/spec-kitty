@@ -17,6 +17,8 @@ import typer
 
 from specify_cli.cli.commands.agent import mission_accept_merge as seam
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 # ---------------------------------------------------------------------------
 # _find_latest_feature_worktree

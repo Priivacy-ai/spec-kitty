@@ -21,6 +21,8 @@ import typer
 
 from specify_cli.cli.commands.agent import mission_setup_plan as seam
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 # ---------------------------------------------------------------------------
 # _enforce_saas_sync_auth_refusal

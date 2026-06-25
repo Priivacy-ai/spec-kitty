@@ -19,6 +19,8 @@ import typer
 
 from specify_cli.cli.commands.agent import mission_create as seam
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 def _mk_result(tmp_path: Path, **over: Any) -> Any:
     """Build a minimal ``MissionCreationResult`` stand-in."""

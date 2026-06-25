@@ -215,9 +215,10 @@ def _invalid_mission_specs_owned_files(
     return invalid
 
 
-# Dynamic alias preserved from mission.py: the canonical ``mission-specs`` term
-# is normalized to a ``kitty_specs`` identifier so callers (and patch targets)
-# can reference ``_invalid_kitty_specs_owned_files`` unchanged.
+# Dynamic alias preserved from mission.py: the alias name is built from
+# ``KITTY_SPECS_DIR`` at runtime (``.replace("-", "_")``) so callers (and patch
+# targets) keep resolving the ``_invalid_<dir>_owned_files`` symbol unchanged,
+# without hardcoding a raw mission-spec literal in source.
 globals()["_invalid_" + KITTY_SPECS_DIR.replace("-", "_") + "_owned_files"] = _invalid_mission_specs_owned_files
 
 

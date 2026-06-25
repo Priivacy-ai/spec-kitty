@@ -112,8 +112,10 @@ _ALLOWLISTED_COORD_PREDICATE_SITES: frozenset[str] = frozenset(
         # C-SEAM-1 regression.
         # Operator navigation hint: extracts the main-repo prefix from a
         # ``.worktrees`` cwd to print a "cd <repo>" suggestion. Pure UX string
-        # building, no coord routing.
-        "src/specify_cli/cli/commands/agent/mission.py",
+        # building, no coord routing. (Relocated mission.py -> mission_create.py
+        # by mission decompose-mission-god-module-01KVXHF8 #2056 WP05 create-seam
+        # extraction; same UX-only ``_print_worktree_navigation_hint`` predicate.)
+        "src/specify_cli/cli/commands/agent/mission_create.py",
         # ``spec-kitty context`` workspace-name extraction from cwd parts — a
         # display/diagnostic read, not a coord-surface routing decision.
         "src/specify_cli/cli/commands/context.py",

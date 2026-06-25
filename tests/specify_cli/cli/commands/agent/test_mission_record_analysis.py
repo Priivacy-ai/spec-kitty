@@ -21,6 +21,8 @@ from mission_runtime import ActionContextError, CommitTarget, MissionTopology
 from specify_cli.cli.commands.agent import mission_record_analysis as seam
 from specify_cli.cli.commands.agent.mission import app as mission_app
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 # ---------------------------------------------------------------------------
 # _git_dirty_paths

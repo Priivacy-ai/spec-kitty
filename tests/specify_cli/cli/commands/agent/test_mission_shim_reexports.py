@@ -20,7 +20,7 @@ import pytest
 
 from specify_cli.cli.commands.agent import mission as mission_mod
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # Every symbol that must resolve as ``mission.<name>``. Grouped for readability;

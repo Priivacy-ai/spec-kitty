@@ -26,6 +26,8 @@ import typer
 from specify_cli.cli.commands.agent import mission_finalize as seam
 from specify_cli.status import WPMetadata
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 # ---------------------------------------------------------------------------
 # _branch_tree_relative_path
@@ -299,13 +301,13 @@ def test_flush_frontmatter_writes_persists_when_committing(tmp_path: Path) -> No
 
 def test_owned_files_kitty_specs_gate_passes_for_source_paths() -> None:
     meta = WPMetadata(work_package_id="WP01", title="t", owned_files=["src/x.py"])
-    seam._validate_owned_files_not_in_kitty_specs({"WP01": meta}, json_output=True)
+    seam._validate_owned_files_not_in_mission_specs({"WP01": meta}, json_output=True)
 
 
 def test_owned_files_kitty_specs_gate_rejects_kitty_specs_path() -> None:
     meta = WPMetadata(work_package_id="WP01", title="t", owned_files=["kitty-specs/001-m/spec.md"])
     with pytest.raises(typer.Exit):
-        seam._validate_owned_files_not_in_kitty_specs({"WP01": meta}, json_output=True)
+        seam._validate_owned_files_not_in_mission_specs({"WP01": meta}, json_output=True)
 
 
 # ---------------------------------------------------------------------------

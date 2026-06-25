@@ -29,7 +29,7 @@ from mission_runtime import CommitTarget, MissionArtifactKind
 from specify_cli.coordination import commit_router
 from specify_cli.status import COORD_OWNED_STATUS_FILES
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------
@@ -50,12 +50,27 @@ def test_symbols_defined_in_commit_router() -> None:
 def test_mission_re_exports_relocated_symbols() -> None:
     from specify_cli.cli.commands.agent import mission as mission_mod
 
-    assert mission_mod._planning_commit_worktree is commit_router._planning_commit_worktree
-    assert mission_mod._resolve_planning_placement is commit_router._resolve_planning_placement
-    assert (
-        mission_mod._stage_finalize_artifacts_in_coord_worktree
-        is commit_router._stage_finalize_artifacts_in_coord_worktree
-    )
+    # FR-007: the relocated planning-commit primitives are DEFINED in
+    # ``commit_router`` and the ``mission`` shim merely re-exports them. Assert
+    # by ``__module__`` rather than object identity: another test in the suite
+    # (``tests/coordination/test_commit_router.py``) ``importlib.reload``s
+    # commit_router, which rebinds its module-level functions to fresh objects
+    # while the shim retains its original import binding — an ``is`` check is
+    # order-dependent and flakes under that reload, but the relocation invariant
+    # (symbol owned by commit_router, re-exported by the shim) still holds.
+    for name in (
+        "_planning_commit_worktree",
+        "_resolve_planning_placement",
+        "_stage_finalize_artifacts_in_coord_worktree",
+    ):
+        shim_obj = getattr(mission_mod, name)
+        assert shim_obj is not None, f"mission shim dropped re-export of {name}"
+        # ``_stage_finalize_artifacts_in_coord_worktree`` is the reconciled alias
+        # of ``_stage_artifacts_in_coord_worktree`` (same defining module).
+        assert shim_obj.__module__ == commit_router.__name__, (
+            f"mission.{name} must be re-exported from commit_router, "
+            f"got it from {shim_obj.__module__}"
+        )
 
 
 def test_tasks_py_imports_from_commit_router() -> None:
