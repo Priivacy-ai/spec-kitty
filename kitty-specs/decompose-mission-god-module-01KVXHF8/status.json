@@ -1,0 +1,84 @@
+{
+  "event_count": 47,
+  "last_event_id": "01KVY0ECP12P524KBWG4HVXNMZ",
+  "materialized_at": "2026-06-24T23:46:30.721180+00:00",
+  "mission_number": "",
+  "mission_slug": "decompose-mission-god-module-01KVXHF8",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 8,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 1,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KVXNDGKCY7EQ1GPBP4D3ZSJY",
+      "last_transition_at": "2026-06-24T20:33:47.628986+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KVXPCAXP3M6RT7D4VCT7AJAZ",
+      "last_transition_at": "2026-06-24T20:50:37.622678+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KVXQ3R2N1KT1XP0Z43RSTHPF",
+      "last_transition_at": "2026-06-24T21:03:24.757687+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KVXRDEEARH5NHE878NWX7X34",
+      "last_transition_at": "2026-06-24T21:26:11.146213+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KVXT7TVFKR984N4EZEV4ZVXP",
+      "last_transition_at": "2026-06-24T21:58:04.399107+00:00"
+    },
+    "WP06": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KVXX4CFCBA6EZ989MRDB3MSV",
+      "last_transition_at": "2026-06-24T22:48:37.101828+00:00"
+    },
+    "WP07": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KVXZ40V4P1A3NQRRXWVJ3113",
+      "last_transition_at": "2026-06-24T23:23:22.340577+00:00"
+    },
+    "WP08": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KVY0DVRJ8QK1MJ9YYAH5DBX6",
+      "last_transition_at": "2026-06-24T23:46:13.394191+00:00"
+    },
+    "WP09": {
+      "actor": "claude:opus:randy-reducer:implementer",
+      "force_count": 0,
+      "lane": "in_progress",
+      "last_event_id": "01KVY0ECP12P524KBWG4HVXNMZ",
+      "last_transition_at": "2026-06-24T23:46:30.721180+00:00"
+    }
+  }
+}

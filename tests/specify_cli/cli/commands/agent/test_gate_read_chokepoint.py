@@ -208,8 +208,15 @@ def test_retired_caller_propagates_ambiguous_selector(
         )
 
     # Force the canonicalization step the workhorse runs to report ambiguity.
+    # #2056 decomposition: ``_primary_anchored_feature_dir`` and its sibling
+    # ``_resolve_mission_dir_name_primary_anchored`` both live in the
+    # ``mission_feature_resolution`` seam, and the (same-module) sibling call
+    # resolves in THAT namespace — so patch the helper on the seam module, not the
+    # ``mission`` shim re-export.
+    from specify_cli.cli.commands.agent import mission_feature_resolution as _seam
+
     monkeypatch.setattr(
-        mission_mod,
+        _seam,
         "_resolve_mission_dir_name_primary_anchored",
         _raise_ambiguous,
     )

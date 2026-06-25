@@ -428,6 +428,117 @@ def _stage_artifacts_in_coord_worktree(
     return coord_files
 
 
+# ---------------------------------------------------------------------------
+# Planning-commit residue (relocated from mission.py — #2056 WP08 / T032).
+#
+# These were the last planning-commit primitives living in the ``mission`` god
+# module. ``tasks.py``'s map-requirements + planning auto-commit paths consume
+# them (LIVE on this base), so they are RELOCATED here — the canonical commit
+# router — not deleted. ``mission.py`` re-exports them as deliberate shims so
+# historical ``mission.<name>`` patch targets keep resolving (WP09 owns the
+# final shim sweep). INV-8: one-way — commit_router never imports the mission
+# seams; the ``CoordinationWorkspace`` / ``resolve_mid8`` reads use the same
+# lower-layer authorities the existing router helpers already use.
+# ---------------------------------------------------------------------------
+
+
+def _resolve_planning_placement(
+    repo_root: Path, mission_slug: str, *, kind: MissionArtifactKind
+) -> CommitTarget:
+    """Resolve the single planning-phase :class:`CommitTarget` for ``mission_slug``.
+
+    WP05 / FR-003 / C-GUARD-3a (#1784): the ONE destination authority for every
+    planning-phase commit (spec / plan / tasks / finalize-tasks / doc-mission
+    bookkeeping). Routes through ``mission_runtime.resolve_placement_only`` — the
+    WP-less projection over the SAME resolution authority the full resolver uses
+    — so no planning commit path re-derives a destination from ``meta.json`` or
+    the current git checkout (the catch-22 root). The placement is CWD-invariant
+    and topology-correct (coordination / flattened / primary).
+
+    ``kind`` is REQUIRED (write-surface-coherence WP02): the projection is now
+    kind-aware, so the caller MUST name the artifact kind it is placing — a
+    primary kind lands on the primary target branch for every topology.
+    """
+    return resolve_placement_only(repo_root, mission_slug, kind=kind)
+
+
+def _planning_commit_worktree(
+    repo_root: Path,
+    mission_slug: str,
+    paths: tuple[Path, ...],
+    *,
+    kind: MissionArtifactKind = MissionArtifactKind.TASKS_INDEX,
+    primary_paths_created_this_invocation: frozenset[Path] | None = None,
+) -> tuple[Path, tuple[Path, ...]]:
+    """Resolve the worktree a planning commit lands in for ``mission_slug``.
+
+    WP05: ``safe_commit`` requires ``worktree_root`` HEAD to equal the
+    destination ref. When :func:`routes_through_coordination` holds for the
+    STORED topology the destination is the coordination branch, which is checked
+    out in the per-mission coordination worktree — so the commit must run there
+    (and the artifacts, written to the main checkout, are copied across for
+    staging, skipping coord-owned status files, #1589). For a coord-less topology
+    the destination is already HEAD of the main checkout, so it is used directly.
+
+    write-surface-coherence WP03 / T014: this helper is partition-aware. The
+    coord-staging body runs ONLY for coordination-partition artifact kinds; a
+    PRIMARY kind (the default — every caller here commits planning artifacts)
+    resolves to the primary ``target_branch`` for every topology, so it commits
+    directly from the primary checkout with NO coord transit (FR-003 / C-005).
+
+    #2056 WP08 / T033: the coord-staging body reuses the router's existing
+    ``_resolve_mid8`` + ``CoordinationWorkspace`` + ``_stage_artifacts_in_coord_
+    worktree`` primitives — the reconciliation of the former mission.py
+    ``_stage_finalize_artifacts_in_coord_worktree`` near-duplicate into the
+    single canonical staging helper.
+
+    Returns ``(worktree_root, paths_to_commit)``.
+    """
+    # PRIMARY kinds never transit coordination — commit directly from the primary
+    # checkout (write-surface-coherence WP03 / T014). The coord-staging body below
+    # is reached only by coordination-partition kinds.
+    if is_primary_artifact_kind(kind):
+        return repo_root, paths
+
+    if not routes_through_coordination(resolve_topology(repo_root, mission_slug)):
+        return repo_root, paths
+
+    mid8 = _resolve_mid8(repo_root, mission_slug)
+    if mid8 is None:
+        return repo_root, paths
+
+    from specify_cli.coordination.workspace import CoordinationWorkspace
+
+    # Materialize the coordination worktree on demand (the coord branch already
+    # exists from ``mission create``). This is the catch-22 killer: the planning
+    # commit ALWAYS reaches its resolved coordination placement instead of
+    # falling back to the protected main checkout and tripping the guard.
+    try:
+        coord_wt = CoordinationWorkspace.resolve(repo_root, mission_slug, mid8)
+    except Exception:
+        # Resolution failed (e.g. branch mismatch under a divergent worktree);
+        # fall back to the main checkout so the existing diagnostics surface
+        # rather than crashing the lifecycle (C-004 strangler safety).
+        return repo_root, paths
+
+    coord_paths = _stage_artifacts_in_coord_worktree(
+        list(paths),
+        coord_wt,
+        repo_root,
+        primary_paths_created_this_invocation=primary_paths_created_this_invocation,
+    )
+    return coord_wt, tuple(coord_paths)
+
+
+# Backwards-compatible alias: the former mission.py name for the staging helper.
+# #2056 WP08 / T033 collapsed the near-duplicate into the canonical router
+# helper; this alias preserves the historical
+# ``_stage_finalize_artifacts_in_coord_worktree`` symbol for the existing
+# coord-staging unit tests (and the ``mission`` re-export shim) without forking
+# a second copy.
+_stage_finalize_artifacts_in_coord_worktree = _stage_artifacts_in_coord_worktree
+
+
 def _any_path_absent(paths: tuple[Path, ...]) -> bool:
     """Return True iff any path in *paths* does not exist on disk."""
     return any(not path.exists() for path in paths)

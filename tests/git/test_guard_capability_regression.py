@@ -122,8 +122,16 @@ def _capabilities_at_call_sites(path: Path, callee: str) -> list[GuardCapability
         # the single ``safe_commit`` site they share lives in the router and must
         # still assert STANDARD (refused on a protected destination).
         ("coordination/commit_router.py", "safe_commit", 1),
-        # (c) finalize-tasks canonical seeding (both finalize surfaces)
-        ("cli/commands/agent/mission.py", "bootstrap_canonical_state", 2),
+        # (c) finalize-tasks canonical seeding (both finalize surfaces) — the
+        # #2056 decomposition relocated these two seeding call sites out of the
+        # ``mission`` god module into the ``mission_finalize`` seam. The raw
+        # ``bootstrap_canonical_state`` calls now live inside the
+        # ``_bootstrap_canonical_state_via_mission`` patch-seam wrapper (which
+        # forwards ``capability`` as a variable, not a surface literal); the
+        # operator-asserted capability literal is on the TWO wrapper call sites
+        # — one defaulting to STANDARD, one passing ``GuardCapability.STANDARD``
+        # explicitly — exactly mirroring the upstream pre-decomposition shape.
+        ("cli/commands/agent/mission_finalize.py", "_bootstrap_canonical_state_via_mission", 2),
         ("cli/commands/agent/tasks.py", "bootstrap_canonical_state", 1),
     ],
 )
@@ -155,6 +163,75 @@ def test_status_bookkeeping_call_sites_are_refused_on_protected_destination(
             "which evaluate() ALLOWS on a protected ref — ordinary status "
             "bookkeeping must be refused there (assert STANDARD)"
         )
+
+
+# ---------------------------------------------------------------------------
+# Wrapper capability-forwarding parity (#2056 decomposition): the AST parity
+# test above eyes the ``_bootstrap_canonical_state_via_mission`` call-site
+# literals, NOT the raw ``bootstrap_canonical_state`` call inside the wrapper.
+# That makes it blind to a wrapper that silently substitutes a protected-flow
+# capability while its call sites pass STANDARD. This test restores the named
+# guard-parity teeth by driving the wrapper directly and asserting the
+# capability it FORWARDS to the underlying ``bootstrap_canonical_state`` is
+# exactly the one each call site intends (no capability-crossing).
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("call_kwargs", "expected_capability"),
+    [
+        # Dry-run call site (mission_finalize.py:~936): no ``capability`` kwarg,
+        # so the wrapper must NOT inject one — the underlying callee then applies
+        # its STANDARD default. A wrapper that forced MERGE_BOOKKEEPING here would
+        # be caught.
+        ({"dry_run": True}, GuardCapability.STANDARD),
+        # Non-dry-run call site (mission_finalize.py:~1396): passes
+        # ``GuardCapability.STANDARD`` explicitly; the wrapper must forward that
+        # exact literal, not substitute a protected-flow capability.
+        ({"dry_run": False, "capability": GuardCapability.STANDARD}, GuardCapability.STANDARD),
+    ],
+)
+def test_bootstrap_wrapper_forwards_call_site_capability(
+    call_kwargs: dict[str, object], expected_capability: GuardCapability
+) -> None:
+    """``_bootstrap_canonical_state_via_mission`` must not cross the capability.
+
+    The wrapper routes through the ``mission`` patch seam; we replace the seam's
+    ``bootstrap_canonical_state`` with a spy and assert the capability it RECEIVES
+    matches the call site's intent. When the call site omits ``capability`` the
+    wrapper must omit it too (the callee then defaults to STANDARD); when the call
+    site passes a literal the wrapper must forward that exact value. A wrapper that
+    silently forwards a protected-flow capability (e.g. ``MERGE_BOOKKEEPING``) would
+    fail here — closing the gap the AST call-site parity test cannot see.
+    """
+    from specify_cli.cli.commands.agent import mission as _mission
+    from specify_cli.cli.commands.agent.mission_finalize import (
+        _bootstrap_canonical_state_via_mission,
+    )
+
+    captured: dict[str, object] = {}
+    sentinel = object()
+
+    def _spy(feature_dir, mission_slug, *, dry_run=False, capability=GuardCapability.STANDARD):  # type: ignore[no-untyped-def]
+        # Record the capability the wrapper actually hands the real callee. The
+        # default mirrors the production ``bootstrap_canonical_state`` signature so
+        # an omitted forward resolves to STANDARD exactly as production does.
+        captured["capability"] = capability
+        return sentinel
+
+    with patch.object(_mission, "bootstrap_canonical_state", _spy):
+        result = _bootstrap_canonical_state_via_mission(
+            Path("/nonexistent/planning"), "001-guard-regression", **call_kwargs  # type: ignore[arg-type]
+        )
+
+    assert result is sentinel
+    assert captured["capability"] is expected_capability, (
+        "_bootstrap_canonical_state_via_mission forwarded "
+        f"{captured['capability']!r} to bootstrap_canonical_state but the call "
+        f"site intends {expected_capability!r} — the wrapper crossed the asserted "
+        "GuardCapability (a protected-flow waiver invisible to the AST call-site "
+        "parity test above)"
+    )
 
 
 # ---------------------------------------------------------------------------

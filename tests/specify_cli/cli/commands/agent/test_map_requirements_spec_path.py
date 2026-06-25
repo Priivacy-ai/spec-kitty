@@ -158,7 +158,9 @@ def test_map_requirements_auto_commit_uses_coord_placement_for_coord_files(
     """Auto-commit must commit coord-owned WP files from the coord worktree."""
     import typer
 
-    from specify_cli.cli.commands.agent import mission as mission_mod
+    # #2056 WP08: the planning-commit primitives relocated to commit_router and
+    # tasks.py imports them from there, so patch the canonical home.
+    from specify_cli.coordination import commit_router as commit_router_mod
     from specify_cli.cli.commands.agent import tasks as tasks_mod
 
     primary_root = tmp_path / "primary"
@@ -253,7 +255,7 @@ def test_map_requirements_auto_commit_uses_coord_placement_for_coord_files(
     # write-surface-coherence WP02 / T009: ``_resolve_planning_placement`` now takes
     # a required ``kind`` keyword; the stub accepts it (used only by the pre-check).
     monkeypatch.setattr(
-        mission_mod, "_resolve_planning_placement", lambda *_args, **_kwargs: placement
+        commit_router_mod, "_resolve_planning_placement", lambda *_args, **_kwargs: placement
     )
     monkeypatch.setattr(
         "specify_cli.missions._read_path_resolver.resolve_feature_dir_for_slug",

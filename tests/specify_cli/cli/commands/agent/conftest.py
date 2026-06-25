@@ -33,6 +33,8 @@ exit code) still fails loudly.
 
 from __future__ import annotations
 
+import importlib
+
 import pytest
 from rich.console import Console
 
@@ -87,3 +89,30 @@ def _portable_cli_render_env(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         tests_module, "err_console", _portable_console(stderr=True), raising=False
     )
+
+    # #2056 decomposition: the ``agent mission`` surface no longer renders through a
+    # single ``mission.console`` — each extracted seam owns its own module-level
+    # ``console = Console()``. Each snapshots the forcing env at import time, so under
+    # a ``FORCE_COLOR`` harness (e.g. Claude Code sets ``FORCE_COLOR=3``) Rich
+    # syntax-highlight ANSI (notably leading-digit colourising of mission slugs like
+    # ``001-demo``) leaks into the human/JSON output and false-REDs plain-substring
+    # assertions that pass in CI's plain environment. Neutralise every seam console so
+    # the whole package stays FORCE_COLOR-portable (contract-preserving: colour only).
+    for _seam_name in (
+        "mission",
+        "mission_create",
+        "mission_check_prerequisites",
+        "mission_setup_plan",
+        "mission_record_analysis",
+        "mission_finalize",
+        "mission_accept_merge",
+        "mission_branch_context",
+        "mission_parsing",
+    ):
+        _seam_module = importlib.import_module(
+            f"specify_cli.cli.commands.agent.{_seam_name}"
+        )
+        if hasattr(_seam_module, "console"):
+            monkeypatch.setattr(
+                _seam_module, "console", _portable_console(), raising=False
+            )

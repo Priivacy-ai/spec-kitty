@@ -10,6 +10,7 @@ import pytest
 from rich.console import Console
 
 import specify_cli.cli.commands.agent.mission as mission_module
+import specify_cli.cli.commands.agent.mission_setup_plan as setup_plan_module
 import specify_cli.coordination.commit_router as commit_router_module
 from specify_cli.cli.commands.agent.mission import _commit_to_branch
 
@@ -99,8 +100,11 @@ def test_commit_to_branch_legacy_called_process_empty_commit_does_not_print_succ
     # caught inside ``commit_for_mission`` (mapped to ``status="unchanged"``), so
     # the canonical interception point is the router's ``safe_commit`` symbol.
     monkeypatch.setattr(commit_router_module, "safe_commit", fake_safe_commit)
+    # WP06 (#2056): ``_commit_to_branch`` (and its ``_print_artifact_unchanged``
+    # console write) relocated to ``mission_setup_plan``; patch that module's
+    # ``console`` to capture the "unchanged" notice.
     monkeypatch.setattr(
-        mission_module,
+        setup_plan_module,
         "console",
         Console(file=output, force_terminal=False, color_system=None, width=120),
     )

@@ -1,0 +1,79 @@
+{
+  "mission_slug": "decompose-mission-god-module-01KVXHF8",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Frozen CLI surface — all 8 `agent mission` subcommands behave byte-identically after the decomposition.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_mission_cli_golden_contract.py (16 passed) — the WP01 golden characterization harness, green through every WP (WP02-WP09).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:randy-reducer:implementer",
+      "verified_at": "2026-06-25T00:00:00+00:00",
+      "notes": "Golden contract pins the public CLI surface; remained green across all 9 WPs."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Decomposition pointer comment — mission.py carries a top-of-file pointer comment documenting the shim role + seam map.",
+      "proof_type": "manual_review",
+      "evidence": "src/specify_cli/cli/commands/agent/mission.py lines 1-39 (WP09 / T039): the SHIM pointer comment documents the shim role + the full WP02-WP08 seam map.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:randy-reducer:implementer",
+      "verified_at": "2026-06-25T00:00:00+00:00",
+      "notes": "Replaced the GOD-MODULE warning with the de-godded SHIM pointer comment."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Decompose into the 4 research-resolved seams (feature-resolution, parsing, record-analysis, branch-context) plus lifecycle families.",
+      "proof_type": "automated_test",
+      "evidence": "mission_feature_resolution (WP02), mission_parsing (WP03), mission_record_analysis (WP04), mission_branch_context/mission_check_prerequisites/mission_create (WP05), mission_setup_plan/mission_accept_merge (WP06), mission_finalize (WP07) — each a one-way leaf module; full agent-command suite green (2429 passed in the WP09 sweep). mission.py reduced 4125 -> 362 LOC.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:randy-reducer:implementer",
+      "verified_at": "2026-06-25T00:00:00+00:00",
+      "notes": "All cohesive seams extracted; mission.py is a thin shim."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Per-seam focused tests (>=90% coverage) — each seam carries focused tests.",
+      "proof_type": "automated_test",
+      "evidence": "Per-seam test files added across WPs (e.g. test_mission_finalize_phases.py 25 tests for WP07, test_commit_router_planning_residue.py 11 tests for WP08, test_mission_shim_reexports.py 55 assertions for WP09); the WP09 gate sweep ran 2429 passed / 0 failed across the mission-touching suite.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:randy-reducer:implementer",
+      "verified_at": "2026-06-25T00:00:00+00:00",
+      "notes": "Focused per-seam + per-phase-helper tests added in each WP's PR."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Internal decomposition of the mega-functions (finalize_tasks 1227 LOC, setup_plan, create) into <=15-CC phase helpers.",
+      "proof_type": "automated_test",
+      "evidence": "finalize_tasks decomposed into <=15-CC phase helpers in mission_finalize.py (WP07); setup_plan/create decomposed in WP05/WP06. `ruff check` C901<=15 clean across mission.py + all seams; INV-6 (validate-only zero-mutation) reinforced by _assert_no_write_in_validate_only + test_mission_finalize_phases.py.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:randy-reducer:implementer",
+      "verified_at": "2026-06-25T00:00:00+00:00",
+      "notes": "Every phase helper passes ruff C901<=15; behavior preserved (golden + finalize suite green)."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Shim re-exports every test-patched / importable name (~100) so mission.<name> patch targets keep resolving.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_mission_shim_reexports.py (55 parametrized assertions) pins the full surveyed mission.<name> surface; closed the WP04 shim gaps (_resolve_record_analysis_placement_ref + _enforce_analysis_report_write_preflight). WP09 sweep passed with zero patch-target churn.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:randy-reducer:implementer",
+      "verified_at": "2026-06-25T00:00:00+00:00",
+      "notes": "AST survey of @patch + from-import + alias-attr = all required names resolve via mission."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Relocate (not delete) the planning-commit residue — _planning_commit_worktree, _resolve_planning_placement, _stage_finalize_artifacts_in_coord_worktree move to commit_router; tasks.py repointed.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/coordination/test_commit_router_planning_residue.py (11 tests, WP08): symbols defined in commit_router, tasks.py imports them from commit_router (AST-verified), mission re-exports them, INV-8 no-cli-import guard, reconciled staging helper (#1589 + R6). Symbols are LIVE (tasks.py calls them) — relocated, never deleted.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:randy-reducer:implementer",
+      "verified_at": "2026-06-25T00:00:00+00:00",
+      "notes": "Reconciled the near-duplicate staging helper into the canonical commit_router._stage_artifacts_in_coord_worktree."
+    }
+  ],
+  "negative_invariants": []
+}

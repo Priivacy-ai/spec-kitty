@@ -1,0 +1,17 @@
+{
+  "created_at": "2026-06-24T19:24:50.685468+00:00",
+  "flattened": true,
+  "friendly_name": "decompose mission god module",
+  "merge_target_branch": "main",
+  "mission_id": "01KVXHF8KXPEBHQ3J9T5KSDJTX",
+  "mission_number": 148,
+  "mission_slug": "decompose-mission-god-module-01KVXHF8",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances decompose mission god module on prog/2056-mission so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "decompose mission god module",
+  "slug": "decompose-mission-god-module-01KVXHF8",
+  "target_branch": "prog/2056-mission",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-24T20:24:49.696329+00:00"
+}

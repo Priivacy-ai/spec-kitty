@@ -48,17 +48,17 @@ def _make_coord_without_spec(coord_feature_dir: Path) -> None:
 
 def _patch_resolution(monkeypatch, repo_root: Path, coord_feature_dir: Path) -> None:
     monkeypatch.setattr(
-        "specify_cli.cli.commands.agent.mission.locate_project_root",
+        "specify_cli.cli.commands.agent.mission_record_analysis.locate_project_root",
         lambda: repo_root,
     )
     monkeypatch.setattr(
-        "specify_cli.cli.commands.agent.mission.get_main_repo_root",
+        "specify_cli.cli.commands.agent.mission_record_analysis.get_main_repo_root",
         lambda path: path,
     )
     # _find_feature_directory is the coord-aware resolver; force it to return the
     # coordination-worktree path (the buggy input the write path must NOT use).
     monkeypatch.setattr(
-        "specify_cli.cli.commands.agent.mission._find_feature_directory",
+        "specify_cli.cli.commands.agent.mission_record_analysis._find_feature_directory",
         lambda *_args, **_kwargs: coord_feature_dir,
     )
 
@@ -77,7 +77,7 @@ def test_record_analysis_writes_to_primary_when_coord_lacks_spec(tmp_path, monke
     _patch_resolution(monkeypatch, repo_root, coord_feature_dir)
     emitted: dict[str, object] = {}
     monkeypatch.setattr(
-        "specify_cli.cli.commands.agent.mission._emit_json",
+        "specify_cli.cli.commands.agent.mission_record_analysis._emit_json",
         lambda payload: emitted.update(payload),
     )
 
@@ -109,7 +109,7 @@ def test_record_analysis_writes_to_primary_without_coord_worktree(tmp_path, monk
     _patch_resolution(monkeypatch, repo_root, primary_feature_dir)
     emitted: dict[str, object] = {}
     monkeypatch.setattr(
-        "specify_cli.cli.commands.agent.mission._emit_json",
+        "specify_cli.cli.commands.agent.mission_record_analysis._emit_json",
         lambda payload: emitted.update(payload),
     )
 
@@ -205,7 +205,7 @@ def test_record_analysis_persists_outer_wrapper_format_under_coord(tmp_path, mon
     _patch_resolution(monkeypatch, repo_root, coord_feature_dir)
     emitted: dict[str, object] = {}
     monkeypatch.setattr(
-        "specify_cli.cli.commands.agent.mission._emit_json",
+        "specify_cli.cli.commands.agent.mission_record_analysis._emit_json",
         lambda payload: emitted.update(payload),
     )
 
@@ -275,26 +275,26 @@ def test_record_analysis_materialise_then_retry_when_invoked_from_coord_worktree
     monkeypatch.chdir(coord_root)
     monkeypatch.delenv("SPEC_KITTY_TEST_MODE", raising=False)
     monkeypatch.setattr(
-        "specify_cli.cli.commands.agent.mission.locate_project_root",
+        "specify_cli.cli.commands.agent.mission_record_analysis.locate_project_root",
         lambda: repo_root,
     )
     monkeypatch.setattr(
-        "specify_cli.cli.commands.agent.mission.get_main_repo_root",
+        "specify_cli.cli.commands.agent.mission_record_analysis.get_main_repo_root",
         lambda _path: repo_root,
     )
     monkeypatch.setattr(
-        "specify_cli.cli.commands.agent.mission._find_feature_directory",
+        "specify_cli.cli.commands.agent.mission_record_analysis._find_feature_directory",
         lambda *_args, **_kwargs: coord_feature_dir,
     )
     monkeypatch.setattr(
-        "specify_cli.cli.commands.agent.mission._resolve_record_analysis_placement_ref",
+        "specify_cli.cli.commands.agent.mission_record_analysis._resolve_record_analysis_placement_ref",
         lambda *_args, **_kwargs: CommitTarget(
             ref="kitty/sample-01KS",
         ),
     )
     emitted: dict[str, object] = {}
     monkeypatch.setattr(
-        "specify_cli.cli.commands.agent.mission._emit_json",
+        "specify_cli.cli.commands.agent.mission_record_analysis._emit_json",
         lambda payload: emitted.update(payload),
     )
 

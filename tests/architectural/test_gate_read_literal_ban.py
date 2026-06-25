@@ -154,13 +154,17 @@ class _Surface:
 # reads a planning artifact; each MUST route those reads through the kind-aware seam.
 _READ_ARM_SURFACES: tuple[_Surface, ...] = (
     _Surface(
-        "src/specify_cli/cli/commands/agent/mission.py",
+        # #2056 decomposition: ``setup_plan`` relocated from ``mission.py`` into the
+        # ``mission_setup_plan`` seam; scan the body where it now lives.
+        "src/specify_cli/cli/commands/agent/mission_setup_plan.py",
         "setup_plan",
         "FR-009(a)/#2107 driver: reads spec.md/plan.md via the kind-aware seam, "
         "not the coord-aware feature_dir.",
     ),
     _Surface(
-        "src/specify_cli/cli/commands/agent/mission.py",
+        # #2056 decomposition: ``record_analysis`` relocated from ``mission.py`` into
+        # the ``mission_record_analysis`` seam; scan the body where it now lives.
+        "src/specify_cli/cli/commands/agent/mission_record_analysis.py",
         "record_analysis",
         "FR-009(b)/#2102: collapses the coord-then-primary double-resolution onto "
         "resolve_planning_read_dir for the spec read.",
@@ -200,7 +204,9 @@ _WRITE_ARM_SURFACES: tuple[_Surface, ...] = (
         "G-6/WP00: meta.json anchored to primary_feature_dir_for_mission.",
     ),
     _Surface(
-        "src/specify_cli/cli/commands/agent/mission.py",
+        # #2056 decomposition: ``finalize_tasks`` relocated from ``mission.py`` into
+        # the ``mission_finalize`` seam; scan the body where it now lives.
+        "src/specify_cli/cli/commands/agent/mission_finalize.py",
         "finalize_tasks",
         "G-6/FR-009(e): the finalize-tasks commit-branch resolution reads "
         "planning_dir = primary_feature_dir_for_mission, never the candidate.",
