@@ -26,6 +26,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `materialize`) stay on the coordination worktree. Related: #2115 (the
   implement/review/merge read-surface twin), #1716 / #1878 (coordination-topology
   coherence).
+- **Native `merge` and `tasks status` no longer break on a coord/`pr_bound` mission
+  (#2115).** Same coord/feat split as #2118, now on the native command surface:
+  `spec-kitty merge` read `lanes.json` (and `meta.json` for identity / mission-id
+  resume keys) off the coordination worktree — hard-blocking with `lanes.json is
+  required for …/<slug>-coord/…` — and `spec-kitty agent tasks status` read WP
+  `tasks/` there (`Tasks directory not found`). Those PRIMARY-partition reads (and
+  `tasks finalize-tasks`' WP-frontmatter read+write, which had a latent split: its
+  writes used the coord-aware resolver while `mission.py finalize-tasks` already
+  anchored `lanes.json` to primary) now resolve through `resolve_planning_read_dir`
+  / `primary_feature_dir_for_mission` (primary surface for all topologies). STATUS
+  reads/writes stay on the coordination worktree. **Deferred (tracked):**
+  `_mark_wp_merged_done` (tasks/status conflation, mid-decomposition in #2133) and
+  the `workflow.py` implement/review surface remain on the read-ban residual pin
+  (both degrade gracefully); `mission_number` baking off the mission branch (where
+  `meta.json` no longer lives) needs a separate placement decision.
 
 ## [3.2.2] - 2026-06-24
 

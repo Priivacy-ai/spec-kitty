@@ -1571,7 +1571,10 @@ def _merge_state_key_candidates(repo_root: Path, mission_slug: str | None) -> li
         return []
     keys: list[str] = []
     try:
-        feature_dir = candidate_feature_dir_for_mission(
+        # meta.json (PRIMARY_METADATA) lives on the primary surface — read the ULID
+        # there so a coord-topology mission's resume/abort state keyed by mission_id
+        # is found (the coord worktree lacks meta.json → ULID key missed) (#2115).
+        feature_dir = primary_feature_dir_for_mission(
             get_main_repo_root(repo_root),
             mission_slug,
         )
@@ -2163,6 +2166,14 @@ def _run_lane_based_merge(
     """
     main_repo = get_main_repo_root(repo_root)
     feature_dir = candidate_feature_dir_for_mission(main_repo, mission_slug)
+    # lanes.json (LANE_STATE) and meta.json (PRIMARY_METADATA) are PRIMARY-partition
+    # artifacts — they live on the primary/target surface for every topology (#2090).
+    # The coord-aware ``feature_dir`` resolves the coordination worktree once one
+    # exists, and that worktree carries only STATUS artifacts → ``require_lanes_json``
+    # there hard-blocks with "lanes.json is required" (#2115). Read those from the
+    # primary surface; ``feature_dir`` stays coord-aware for the STATUS flow threaded
+    # into ``_run_lane_based_merge_locked``.
+    primary_dir = primary_feature_dir_for_mission(main_repo, mission_slug)
 
     # -- WP05/T020/FR-006: Sparse-checkout preflight --
     # Must run BEFORE any state change (before merge-state writes, before the
@@ -2175,7 +2186,7 @@ def _run_lane_based_merge(
     # cannot flow through the command under any condition.
     _preflight_mission_id: str | None = None
     try:
-        _preflight_identity = resolve_mission_identity(feature_dir)
+        _preflight_identity = resolve_mission_identity(primary_dir)
         _preflight_mission_id = _preflight_identity.mission_id
     except Exception:  # noqa: BLE001 — meta.json may be missing for legacy missions
         _preflight_mission_id = None
@@ -2191,13 +2202,13 @@ def _run_lane_based_merge(
 
     from specify_cli.lanes.compute import is_planning_artifact_only
 
-    lanes_manifest = require_lanes_json(feature_dir)
+    lanes_manifest = require_lanes_json(primary_dir)
     if target_override:
         lanes_manifest.target_branch = target_override
     planning_artifact_only = is_planning_artifact_only(lanes_manifest)
 
     # -- Resolve canonical mission_id from meta.json (P2 fix: use ULID, not slug) --
-    identity = resolve_mission_identity(feature_dir)
+    identity = resolve_mission_identity(primary_dir)
     canonical_id = identity.mission_id or mission_slug  # fallback for legacy missions without ULID
 
     effective_push = _effective_push_requested(main_repo, canonical_id, push)
@@ -2406,7 +2417,10 @@ def _run_lane_based_merge_locked(
     # mission_id from meta.json: a non-empty value means this is a MODERN lane
     # mission and the baseline_merge_commit invariants below are HARD failures.
     try:
-        _baseline_mission_id = resolve_mission_identity(feature_dir).mission_id
+        # meta.json is PRIMARY_METADATA — read identity from the primary surface
+        # (``target_feature_dir``), not the coord-aware ``feature_dir`` whose coord
+        # worktree lacks meta.json under coord topology (#2115).
+        _baseline_mission_id = resolve_mission_identity(target_feature_dir).mission_id
     except Exception:  # noqa: BLE001 — meta.json may be missing/corrupt for legacy missions
         _baseline_mission_id = None
 
@@ -3185,7 +3199,9 @@ def merge(
             raise typer.Exit(1)
 
         try:
-            lanes_manifest = require_lanes_json(candidate_feature_dir_for_mission(get_main_repo_root(repo_root), resolved_feature))
+            # lanes.json is PRIMARY-partition — read from the primary surface, not
+            # the coord-aware dir (which lacks it under coord topology) (#2115).
+            lanes_manifest = require_lanes_json(primary_feature_dir_for_mission(get_main_repo_root(repo_root), resolved_feature))
         except (MissingLanesError, CorruptLanesError) as exc:
             error_msg = str(exc)
             if json_output:

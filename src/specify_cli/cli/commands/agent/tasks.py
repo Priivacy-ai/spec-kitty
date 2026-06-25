@@ -2191,8 +2191,18 @@ def finalize_tasks(
         # Ensure we operate on the target branch for this feature
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
         feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
-        tasks_md = feature_dir / TASKS_MD_FILENAME
-        tasks_dir = feature_dir / "tasks"
+        # tasks.md (TASKS_INDEX) and the WP ``tasks/`` files (WORK_PACKAGE_TASK) are
+        # PRIMARY-partition — read AND written on the primary surface for every
+        # topology (#2090). Resolve them via the kind-aware seam so a coord-topology
+        # mission with a materialized coord worktree doesn't read/write the husk
+        # (#2115). ``feature_dir`` (coord-aware) is kept below for the STATUS bootstrap.
+        from mission_runtime import MissionArtifactKind as _MAK
+
+        planning_dir = resolve_planning_read_dir(
+            main_repo_root, mission_slug, kind=_MAK.WORK_PACKAGE_TASK
+        )
+        tasks_md = planning_dir / TASKS_MD_FILENAME
+        tasks_dir = planning_dir / "tasks"
 
         if not tasks_md.exists():
             _output_error(json_output, f"tasks.md not found: {tasks_md}")
@@ -2267,7 +2277,9 @@ def finalize_tasks(
                 "unchanged": unchanged_wps,
                 "updated_wp_count": updated_count,
                 "dependencies": dependencies_map,
-                **_mission_identity_payload(feature_dir),
+                # meta.json is PRIMARY_METADATA — read identity from the primary
+                # surface, not the coord-aware feature_dir (#2115).
+                **_mission_identity_payload(planning_dir),
                 "bootstrap": {
                     "total_wps": bootstrap_result.total_wps,
                     "already_initialized": bootstrap_result.already_initialized,
@@ -2284,7 +2296,9 @@ def finalize_tasks(
                 "unchanged_wps": unchanged_wps,
                 "preserved_wps": preserved_wps,
                 "dependencies": dependencies_map,
-                **_mission_identity_payload(feature_dir),
+                # meta.json is PRIMARY_METADATA — read identity from the primary
+                # surface, not the coord-aware feature_dir (#2115).
+                **_mission_identity_payload(planning_dir),
                 "bootstrap": {
                     "total_wps": bootstrap_result.total_wps,
                     "already_initialized": bootstrap_result.already_initialized,
@@ -2893,7 +2907,19 @@ def status(
                 )
                 raise typer.Exit(1)
 
-        tasks_dir = feature_dir / "tasks"
+        # WP `tasks/` is a WORK_PACKAGE_TASK (PRIMARY-partition) artifact — read it
+        # from the PRIMARY surface via the kind-aware seam, NOT the coord-aware
+        # ``feature_dir`` (which carries only STATUS artifacts under coord topology;
+        # reading ``tasks/`` there yields "Tasks directory not found" — #2115/#2118).
+        # The event-log reads above/below deliberately stay on ``feature_dir`` (C-002).
+        from mission_runtime import MissionArtifactKind as _MAK
+
+        tasks_dir = (
+            resolve_planning_read_dir(
+                main_repo_root, mission_slug, kind=_MAK.WORK_PACKAGE_TASK
+            )
+            / "tasks"
+        )
 
         if not tasks_dir.exists():
             console.print(f"[red]Error:[/red] Tasks directory not found: {tasks_dir}")

@@ -677,10 +677,18 @@ def test_dir_read_arm_default_deny_accept_package_clean() -> None:
 # this is exactly the set the scan finds, so neither a NEW implement-loop dir-read
 # (set grows → FAIL) nor a silent fix (set shrinks → FAIL, prompting removal here)
 # slips by unobserved.
+#
+# #2115 fix (PR for the native-flow coord-read cluster): ``tasks.py::status`` and
+# ``tasks.py::finalize_tasks`` were routed through the kind-aware seam
+# (``resolve_planning_read_dir``) and are no longer flagged, so they are removed
+# from the pin. The remaining entries belong to the deferred implement-loop
+# write-surface mission (``workflow.py`` implement/review + their helpers, which
+# read STATUS and PRIMARY through one conflated dir) and ``merge.py``'s
+# ``_mark_wp_merged_done`` (tasks/status conflation, also mid-decomposition in
+# #2133 → ``merge/done_bookkeeping.py``); both degrade gracefully (warn + skip) and
+# are tracked here until that mission lands.
 _DIR_READ_KNOWN_RESIDUALS: frozenset[str] = frozenset(
     {
-        "src/specify_cli/cli/commands/agent/tasks.py::finalize_tasks",
-        "src/specify_cli/cli/commands/agent/tasks.py::status",
         "src/specify_cli/cli/commands/agent/workflow.py::_preview_claimable_wp_for_mission",
         "src/specify_cli/cli/commands/agent/workflow.py::_resolve_review_context",
         "src/specify_cli/cli/commands/agent/workflow.py::implement",
