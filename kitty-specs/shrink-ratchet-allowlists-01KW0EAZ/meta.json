@@ -1,0 +1,15 @@
+{
+  "coordination_branch": "kitty/mission-shrink-ratchet-allowlists-01KW0EAZ",
+  "created_at": "2026-06-25T22:27:48.015302+00:00",
+  "flattened": false,
+  "friendly_name": "Shrink Architectural Ratchet Allowlists",
+  "mission_id": "01KW0EAZNFYGVB6GVSE353Q25Z",
+  "mission_number": null,
+  "mission_slug": "shrink-ratchet-allowlists-01KW0EAZ",
+  "mission_type": "software-dev",
+  "purpose_context": "The architectural ratchet allowlists in tests/architectural/ have accumulated exception entries that no longer hold: symbols deleted, shims dead, contract files removed. This mission removes the evidence-backed stale entries across four categories (slice-F deferred, grandfathered legacy, legacy-contract, pure-shim adapters), fixes a dead-symbol-gate parser bug that was masking the slice-F entries, and corrects drift in the tracking issue — so the gate keeps eroding architectural debt instead of silently ratcheting it up.",
+  "purpose_tldr": "Burn down stale architectural-ratchet exception allowlist entries, restoring the SHRINK gate's downward trend.",
+  "slug": "shrink-ratchet-allowlists-01KW0EAZ",
+  "target_branch": "feat/shrink-ratchet-allowlists",
+  "topology": "coord"
+}
