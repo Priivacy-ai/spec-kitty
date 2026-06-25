@@ -1063,10 +1063,16 @@ def _preview_claimable_wp_for_mission(repo_root: Path, mission_slug: str):
     """
     from runtime.next.discovery import preview_claimable_wp
 
-    feature_dir = resolve_feature_dir_for_mission(get_main_repo_root(repo_root), mission_slug)
-    if not (feature_dir / "tasks").is_dir():
+    main_repo_root = get_main_repo_root(repo_root)
+    # WP tasks/ + dep graph are PRIMARY-partition → primary surface; the status
+    # event log (lanes) is STATUS-partition → coord-aware surface under coord
+    # topology. Pass both so a coord mission's tasks/ aren't read off the
+    # status-only coordination worktree (#2115).
+    planning_dir = primary_feature_dir_for_mission(main_repo_root, mission_slug)
+    if not (planning_dir / "tasks").is_dir():
         return None
-    return preview_claimable_wp(feature_dir)
+    status_dir = _canonical_status_feature_dir(main_repo_root, mission_slug)
+    return preview_claimable_wp(planning_dir, status_dir=status_dir)
 
 
 def _auto_claim_failure_message(preview: object | None) -> str:

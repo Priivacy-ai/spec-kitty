@@ -689,16 +689,16 @@ def test_dir_read_arm_default_deny_accept_package_clean() -> None:
 # are tracked here until that mission lands.
 _DIR_READ_KNOWN_RESIDUALS: frozenset[str] = frozenset(
     {
-        # Genuinely entangled — these read PRIMARY (tasks/deps) AND STATUS (event
-        # log / lanes) through ONE feature_dir, so they need a dir-split refactor,
-        # not a resolver swap: ``_preview_claimable_wp_for_mission`` →
-        # ``preview_claimable_wp`` (discovery.py reads tasks + dep graph + lanes off
-        # one dir); ``implement``/``review`` reuse ``feature_dir`` for both the dep
-        # graph and ``read_events``. Tracked for the implement-loop write-surface
-        # mission. The clean siblings (``_resolve_review_context``,
-        # ``_mark_wp_merged_done``) were swapped to the primary surface in the #2115
-        # PR and removed from this pin.
-        "src/specify_cli/cli/commands/agent/workflow.py::_preview_claimable_wp_for_mission",
+        # ``implement``/``review`` reuse a single ``feature_dir`` for both PRIMARY
+        # reads (WP tasks/, dep graph, sub-artifacts) and STATUS reads (read_events),
+        # routed through several helpers — a per-call-site dir-split that needs live
+        # native-flow verification (worktree allocation + status emission are the
+        # highest blast radius), tracked for the implement-loop write-surface
+        # mission. The clean siblings were fixed in the #2115 PR and removed from
+        # this pin: ``_resolve_review_context`` + ``_mark_wp_merged_done`` (resolver
+        # swaps) and ``_preview_claimable_wp_for_mission`` (its
+        # ``preview_claimable_wp`` callee gained a backward-compatible ``status_dir``
+        # so tasks/deps read PRIMARY while lanes read the coord status surface).
         "src/specify_cli/cli/commands/agent/workflow.py::implement",
         "src/specify_cli/cli/commands/agent/workflow.py::review",
     }

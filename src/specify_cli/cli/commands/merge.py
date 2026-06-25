@@ -1173,15 +1173,18 @@ def _write_mission_number_to_branch(
     mission_slug: str,
     next_number: int,
     merge_state: MergeState | None,
-) -> bool:
-    """Step 2: write the integer into meta.json on the mission branch, commit,
-    and fast-forward the branch ref.
+) -> bool | None:
+    """Step 2: write the integer into meta.json on ``mission_branch``, commit,
+    and fast-forward the branch ref. Mechanically branch-agnostic — the caller
+    may invoke it on the target branch when meta.json lives there (#2115).
 
     Returns:
         True when a fresh write + commit was applied; False when nothing was
         written because (a) the branch is missing, (b) the worktree could not
-        be created, (c) meta.json is missing or malformed, or (d) the value
-        was already equal (idempotency hit — still persists the baked flag).
+        be created, (c) meta.json is malformed, or (d) the value was already
+        equal (idempotency hit — still persists the baked flag); ``None`` when
+        meta.json is simply ABSENT on this branch, so the caller can retry on a
+        branch that carries it (the PRIMARY surface / target branch).
     """
     import json as _json
     import subprocess as _subprocess
@@ -1234,12 +1237,17 @@ def _write_mission_number_to_branch(
             )
             return False
         if not meta_path.exists():
-            logger.warning(
-                "meta.json missing on mission branch %s for %s; cannot bake mission_number",
+            # meta.json is a PRIMARY-partition artifact (#2090): on a coord-topology
+            # mission it lives on the target branch, NOT the coordination/mission
+            # branch. Signal "absent here" (None, distinct from the False skips) so
+            # the caller can retry on the target branch where it actually lives
+            # (#2115). A plain warning + False would leave mission_number null.
+            logger.debug(
+                "meta.json absent on branch %s for %s; caller may retry on target",
                 mission_branch,
                 mission_slug,
             )
-            return False
+            return None
 
         meta_data = _json.loads(meta_path.read_text(encoding="utf-8"))
         if not isinstance(meta_data, dict):
@@ -1394,9 +1402,20 @@ def _bake_mission_number_into_mission_branch(
         )
         return None
 
-    if not _write_mission_number_to_branch(
+    baked = _write_mission_number_to_branch(
         main_repo, mission_branch, mission_slug, next_number, merge_state
-    ):
+    )
+    if baked is None:
+        # meta.json absent on the mission/coordination branch — post-#2090 it is a
+        # PRIMARY artifact living on the target branch. Bake it there (where it is
+        # already tracked) so the number lands on the merged result instead of
+        # being silently dropped (#2115). The mission→target merge that follows
+        # carries no meta.json (the mission branch has none), so no conflict; the
+        # max+1 idempotency scan keys on the target tip, so re-runs stay no-ops.
+        baked = _write_mission_number_to_branch(
+            main_repo, target_branch, mission_slug, next_number, merge_state
+        )
+    if not baked:
         return None
 
     console.print(

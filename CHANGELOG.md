@@ -39,14 +39,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reads/writes stay on the coordination worktree. Also fixed: `merge`'s
   `_mark_wp_merged_done` (WP-file lookup + status meta source → primary; status
   emission still routes to coordination via the transactional helpers) and
-  `_resolve_review_context` (lanes.json + tasks/ → primary). **Deferred (tracked,
-  non-blocking):** `workflow.py` `implement`/`review` and `preview_claimable_wp`
-  read PRIMARY (tasks/deps) and STATUS (event-log lanes) through a single
-  `feature_dir` — a dir-split refactor, not a resolver swap, owned by the
-  implement-loop write-surface mission; and `mission_number` baking writes to the
-  mission-branch worktree where `meta.json` no longer lives (post-#2090) — a merge-
-  sequence placement change, and `mission_number` is display-only (never used for
-  lookup/locking/routing) so a null value does not block merge or accept.
+  `_resolve_review_context` (lanes.json + tasks/ → primary). `agent implement`'s
+  auto-claim preview (`preview_claimable_wp`) gained a backward-compatible
+  `status_dir` so WP tasks/dep-graph read PRIMARY while lanes read the coordination
+  status surface. `mission_number` baking now falls back to the **target** branch
+  (where `meta.json` lives post-#2090) when the coordination/mission branch carries
+  no `meta.json`, instead of warning and leaving the number null. **Deferred
+  (tracked, non-blocking):** the `workflow.py` `implement`/`review` command bodies
+  reuse one `feature_dir` for both PRIMARY (tasks/deps/sub-artifacts) and STATUS
+  (event-log) reads across several helpers; that per-call-site dir-split needs live
+  native-flow verification (worktree allocation + status emission) and is owned by
+  the implement-loop write-surface mission. The common orchestrate path is
+  unaffected — it routes through the already-fixed orchestrator-api (#2128).
 
 ## [3.2.2] - 2026-06-24
 
