@@ -183,12 +183,12 @@ def _patched_lane_based_merge_dependencies(
 ):
     """Patch heavy merge dependencies while preserving strategy call assertions."""
     with ExitStack() as stack:
-        stack.enter_context(patch("specify_cli.cli.commands.merge.require_lanes_json", return_value=manifest))
-        stack.enter_context(patch("specify_cli.cli.commands.merge.load_state", return_value=None))
-        stack.enter_context(patch("specify_cli.cli.commands.merge.save_state"))
-        stack.enter_context(patch("specify_cli.cli.commands.merge.get_main_repo_root", return_value=tmp_path))
-        stack.enter_context(patch("specify_cli.cli.commands.merge._enforce_target_branch_sync_preflight"))
-        stack.enter_context(patch("specify_cli.cli.commands.merge._check_mission_branch", return_value=(True, None)))
+        stack.enter_context(patch("specify_cli.merge.executor.require_lanes_json", return_value=manifest))
+        stack.enter_context(patch("specify_cli.merge.resolve.load_state", return_value=None))
+        stack.enter_context(patch("specify_cli.merge.done_bookkeeping.save_state"))
+        stack.enter_context(patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path))
+        stack.enter_context(patch("specify_cli.merge.executor._enforce_target_branch_sync_preflight"))
+        stack.enter_context(patch("specify_cli.merge.executor._check_mission_branch", return_value=(True, None)))
         stack.enter_context(patch("specify_cli.status.get_wp_lane", return_value="done"))
         mock_lane_merge = stack.enter_context(
             patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result)
@@ -196,18 +196,18 @@ def _patched_lane_based_merge_dependencies(
         mock_mission_merge = stack.enter_context(
             patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result)
         )
-        stack.enter_context(patch("specify_cli.cli.commands.merge._mark_wp_merged_done"))
-        stack.enter_context(patch("specify_cli.cli.commands.merge.safe_commit", return_value=True))
+        stack.enter_context(patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"))
+        stack.enter_context(patch("specify_cli.merge.executor.safe_commit", return_value=True))
         mock_run_check = stack.enter_context(patch("specify_cli.post_merge.stale_assertions.run_check"))
         mock_gates = stack.enter_context(patch("specify_cli.policy.merge_gates.evaluate_merge_gates"))
         mock_policy = stack.enter_context(patch("specify_cli.policy.config.load_policy_config"))
-        stack.enter_context(patch("specify_cli.cli.commands.merge.run_command", return_value=(0, "abc123", "")))
-        stack.enter_context(patch("specify_cli.cli.commands.merge.has_remote", return_value=False))
-        stack.enter_context(patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"))
-        stack.enter_context(patch("specify_cli.cli.commands.merge.clear_state"))
-        stack.enter_context(patch("specify_cli.cli.commands.merge.emit_mission_closed"))
+        stack.enter_context(patch("specify_cli.merge.executor.run_command", return_value=(0, "abc123", "")))
+        stack.enter_context(patch("specify_cli.merge.executor.has_remote", return_value=False))
+        stack.enter_context(patch("specify_cli.merge.executor.cleanup_merge_workspace"))
+        stack.enter_context(patch("specify_cli.merge.executor.clear_state"))
+        stack.enter_context(patch("specify_cli.merge.executor.emit_mission_closed"))
         stack.enter_context(patch("specify_cli.merge.state.MergeState"))
-        stack.enter_context(patch("specify_cli.cli.commands.merge.trigger_feature_dossier_sync_if_enabled"))
+        stack.enter_context(patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"))
 
         stale_report = MagicMock()
         stale_report.findings = []

@@ -152,28 +152,34 @@ class TestMergeToleratesUntrackedFiles:
             return (0, "?? .worktrees/scratch/\n?? tmp.txt\n")
 
         patches = [
-            patch("specify_cli.cli.commands.merge.require_lanes_json", return_value=manifest),
-            patch("specify_cli.cli.commands.merge.load_state", return_value=None),
-            patch("specify_cli.cli.commands.merge.save_state"),
-            patch("specify_cli.cli.commands.merge.get_main_repo_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.merge.require_no_sparse_checkout"),
+            patch("specify_cli.merge.executor.require_lanes_json", return_value=manifest),
+            patch("specify_cli.merge.resolve.load_state", return_value=None),
+            patch("specify_cli.merge.done_bookkeeping.save_state"),
+            patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path),
+            patch("specify_cli.merge.executor.require_no_sparse_checkout"),
             patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
             patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
-            patch("specify_cli.cli.commands.merge._mark_wp_merged_done"),
-            patch("specify_cli.cli.commands.merge.safe_commit"),
-            patch("specify_cli.cli.commands.merge._assert_merged_wps_reached_done"),
+            patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"),
+            patch("specify_cli.merge.executor.safe_commit"),
+            patch("specify_cli.merge.done_bookkeeping._assert_merged_wps_reached_done"),
             patch("specify_cli.post_merge.stale_assertions.run_check"),
             patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
             patch("specify_cli.policy.config.load_policy_config"),
-            patch("specify_cli.cli.commands.merge.run_command", side_effect=fake_run_command),
-            patch("specify_cli.cli.commands.merge._raw_porcelain_status", side_effect=fake_raw_porcelain),
-            patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
-            patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"),
-            patch("specify_cli.cli.commands.merge.clear_state"),
-            patch("specify_cli.cli.commands.merge._bake_mission_number_into_mission_branch"),
-            patch("specify_cli.cli.commands.merge.trigger_feature_dossier_sync_if_enabled"),
-            patch("specify_cli.cli.commands.merge.emit_mission_closed"),
-            patch("specify_cli.cli.commands.merge._emit_merge_diff_summary"),
+            patch("specify_cli.merge.executor.run_command", side_effect=fake_run_command),
+            patch("specify_cli.merge.executor._raw_porcelain_status", side_effect=fake_raw_porcelain),
+            patch("specify_cli.merge.executor.has_remote", return_value=False),
+            patch("specify_cli.merge.executor.cleanup_merge_workspace"),
+            patch("specify_cli.merge.executor.clear_state"),
+            patch("specify_cli.merge.executor._bake_mission_number_into_mission_branch"),
+            patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
+            patch("specify_cli.merge.executor.emit_mission_closed"),
+            patch("specify_cli.merge.executor._emit_merge_diff_summary"),
+            # WP10 (#2057): branch preflight + target asserts moved to the
+            # preflight / done_bookkeeping / baseline seams; appended last to
+            # keep positional mock indices stable.
+            patch("specify_cli.merge.executor._check_mission_branch", return_value=(True, None)),
+            patch("specify_cli.merge.executor._assert_merged_wps_done_on_target"),
+            patch("specify_cli.merge.executor._assert_baseline_merge_commit_on_target"),
         ]
 
         with contextlib.ExitStack() as stack:
@@ -234,28 +240,34 @@ class TestMergeToleratesUntrackedFiles:
             return (0, "?? .worktrees/\n M src/operator_change.py\n")
 
         patches = [
-            patch("specify_cli.cli.commands.merge.require_lanes_json", return_value=manifest),
-            patch("specify_cli.cli.commands.merge.load_state", return_value=None),
-            patch("specify_cli.cli.commands.merge.save_state"),
-            patch("specify_cli.cli.commands.merge.get_main_repo_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.merge.require_no_sparse_checkout"),
+            patch("specify_cli.merge.executor.require_lanes_json", return_value=manifest),
+            patch("specify_cli.merge.resolve.load_state", return_value=None),
+            patch("specify_cli.merge.done_bookkeeping.save_state"),
+            patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path),
+            patch("specify_cli.merge.executor.require_no_sparse_checkout"),
             patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
             patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
-            patch("specify_cli.cli.commands.merge._mark_wp_merged_done"),
-            patch("specify_cli.cli.commands.merge.safe_commit"),
-            patch("specify_cli.cli.commands.merge._assert_merged_wps_reached_done"),
+            patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"),
+            patch("specify_cli.merge.executor.safe_commit"),
+            patch("specify_cli.merge.done_bookkeeping._assert_merged_wps_reached_done"),
             patch("specify_cli.post_merge.stale_assertions.run_check"),
             patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
             patch("specify_cli.policy.config.load_policy_config"),
-            patch("specify_cli.cli.commands.merge.run_command", side_effect=fake_run_command),
-            patch("specify_cli.cli.commands.merge._raw_porcelain_status", side_effect=fake_raw_porcelain),
-            patch("specify_cli.cli.commands.merge.has_remote", return_value=False),
-            patch("specify_cli.cli.commands.merge.cleanup_merge_workspace"),
-            patch("specify_cli.cli.commands.merge.clear_state"),
-            patch("specify_cli.cli.commands.merge._bake_mission_number_into_mission_branch"),
-            patch("specify_cli.cli.commands.merge.trigger_feature_dossier_sync_if_enabled"),
-            patch("specify_cli.cli.commands.merge.emit_mission_closed"),
-            patch("specify_cli.cli.commands.merge._emit_merge_diff_summary"),
+            patch("specify_cli.merge.executor.run_command", side_effect=fake_run_command),
+            patch("specify_cli.merge.executor._raw_porcelain_status", side_effect=fake_raw_porcelain),
+            patch("specify_cli.merge.executor.has_remote", return_value=False),
+            patch("specify_cli.merge.executor.cleanup_merge_workspace"),
+            patch("specify_cli.merge.executor.clear_state"),
+            patch("specify_cli.merge.executor._bake_mission_number_into_mission_branch"),
+            patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
+            patch("specify_cli.merge.executor.emit_mission_closed"),
+            patch("specify_cli.merge.executor._emit_merge_diff_summary"),
+            # WP10 (#2057): branch preflight + target asserts moved to the
+            # preflight / done_bookkeeping / baseline seams; appended last to
+            # keep positional mock indices stable.
+            patch("specify_cli.merge.executor._check_mission_branch", return_value=(True, None)),
+            patch("specify_cli.merge.executor._assert_merged_wps_done_on_target"),
+            patch("specify_cli.merge.executor._assert_baseline_merge_commit_on_target"),
         ]
 
         with contextlib.ExitStack() as stack:

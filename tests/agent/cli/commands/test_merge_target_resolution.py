@@ -95,10 +95,16 @@ def _patch_merge_environment(
             return 1, "", "fatal: not a valid object name"
         return 0, "", ""
 
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.merge.run_command",
-        fake_run_command,
-    )
+    # WP10 (#2057): the merge flow's git probes are now split across seams —
+    # target validation reads ``run_command`` from ``merge.preflight`` /
+    # ``merge.resolve`` and the lane executor from ``merge.executor``. Patch all
+    # the surfaces this flow traverses so the fake git stays in effect.
+    for _target in (
+        "specify_cli.merge.executor.run_command",
+        "specify_cli.merge.preflight.run_command",
+        "specify_cli.merge.resolve.run_command",
+    ):
+        monkeypatch.setattr(_target, fake_run_command)
 
 
 def test_merge_without_feature_on_feature_branch_reads_meta_target(monkeypatch, tmp_path: Path) -> None:

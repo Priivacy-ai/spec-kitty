@@ -18,6 +18,14 @@ import pytest
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.lanes.auto_rebase import _is_coordination_owned_artifact
 
+# Pure-logic predicate tests (no subprocess/git/tmp_path): `fast` is a registered
+# marker (pytest.ini) and is the marker the lanes CI shard selects
+# (`tests/lanes/ ... -m "fast and not windows_ci"` in ci-quality.yml), so these
+# tests run in a CI gate instead of falling into the zero-gate orphan set. The
+# sibling test_auto_rebase_additive.py uses `git_repo` only because it builds a
+# real repo; these tests do not, so `fast` matches their nature.
+pytestmark = pytest.mark.fast
+
 _SLUG = "managed-artifacts-01KVZP8E"
 
 

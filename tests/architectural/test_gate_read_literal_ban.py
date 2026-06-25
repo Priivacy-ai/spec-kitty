@@ -685,7 +685,11 @@ _DIR_READ_KNOWN_RESIDUALS: frozenset[str] = frozenset(
         "src/specify_cli/cli/commands/agent/workflow.py::_resolve_review_context",
         "src/specify_cli/cli/commands/agent/workflow.py::implement",
         "src/specify_cli/cli/commands/agent/workflow.py::review",
-        "src/specify_cli/cli/commands/merge.py::_mark_wp_merged_done",
+        # NB(#2057): ``merge.py::_mark_wp_merged_done`` was relocated into the
+        # ``specify_cli/merge/done_bookkeeping.py`` seam by the merge-decomposition
+        # mission; ``merge.py`` now only re-exports it. The dir-read scan scopes
+        # ``cli/commands/`` only, so the residual left this surface — unpin it so
+        # the ratchet stays tight (the test instructs this exact removal).
     }
 )
 
