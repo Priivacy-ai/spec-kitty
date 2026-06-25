@@ -49,7 +49,11 @@ from specify_cli.merge.conflict_classifier import (
     validate_resolution,
 )
 from specify_cli.status import EventLogMergeError, materialize, merge_event_log_texts
-from mission_runtime import is_coordination_artifact_residue_path
+from mission_runtime import (
+    MissionArtifactKind,
+    is_coordination_artifact_residue_path,
+    kind_for_mission_file,
+)
 
 __all__ = [
     "AutoRebaseReport",
@@ -61,6 +65,41 @@ _STATUS_JSON_FILENAME = "status.json"
 RULE_ID_STATUS_EVENTS = "R-STATUS-EVENTS-JSONL-UNION"
 RULE_ID_STATUS_JSON = "R-STATUS-JSON-REMATERIALIZE"
 RULE_ID_COORDINATION_ARTIFACT = "R-COORDINATION-ARTIFACT-THEIRS"
+
+# Auto-rebase manages a SUPERSET of the surface-residue set, because two
+# DISTINCT concerns were conflated by the #2070 delegation:
+#
+#   1. *Surface residue* — "is a stale PRIMARY-checkout copy of this file mere
+#      residue of a coordination-owned artifact?" Answered by the single authority
+#      ``mission_runtime.is_coordination_artifact_residue_path`` (imported above so
+#      this consumer still draws residue recognition from that authority — WP13 /
+#      FR-012). Post write-surface-coherence (#2090) the COORD-partition members
+#      (``issue-matrix.md`` / ``analysis-report.md`` / ``acceptance-matrix.json``)
+#      are residue, while ``plan.md`` / ``tasks.md`` / ``lanes.json`` /
+#      ``tasks/WP*.md`` moved to the PRIMARY partition and are NO LONGER residue
+#      (a stale primary copy is REAL dirt — the dirty-tree gates depend on this and
+#      it MUST NOT be reverted, #2128).
+#
+#   2. *Auto-rebase managed-artifact reconciliation* — "when a stale lane worktree
+#      copy of a mission-owned PLANNING-LAYOUT artifact CONFLICTS with the mission
+#      branch during auto-rebase, take the mission branch's copy deterministically."
+#      The finalize-tasks layout (``lanes.json`` → ``LANE_STATE``, ``tasks/WP*.md``
+#      → ``WORK_PACKAGE_TASK``) is owned by the mission branch; a lane's drifted
+#      copy is discarded in favour of theirs. These are PRIMARY-partition (hence NOT
+#      surface residue) yet still managed by auto-rebase — the two concerns are
+#      orthogonal.
+#
+# NOT included here (these stay Manual halts so the operator reconciles real
+# authored drift): ``plan.md`` (``FINALIZED_EXECUTION_PLAN``) and ``tasks.md``
+# (``TASKS_INDEX``) — narrative planning docs whose conflicts are author-owned —
+# and the planning SOURCE docs (``spec.md`` / ``data-model.md`` / ``research.md`` /
+# ``checklists/``). Status artifacts have their own union / rematerialize rules.
+_AUTO_REBASE_MANAGED_LAYOUT_KINDS: frozenset[MissionArtifactKind] = frozenset(
+    {
+        MissionArtifactKind.LANE_STATE,
+        MissionArtifactKind.WORK_PACKAGE_TASK,
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -153,17 +192,29 @@ def _is_status_json_path(rel_path: str) -> bool:
 
 
 def _is_coordination_owned_artifact(rel_path: str) -> bool:
-    """True for a coordination-owned planning/status artifact in the conflict.
+    """True for an artifact the auto-rebase "take theirs" arm deterministically
+    resolves in favour of the mission branch's copy.
 
-    Converged onto the single residue authority
-    (:func:`mission_runtime.is_coordination_artifact_residue_path`) — this site
-    no longer carries its own ``{tasks.md, lanes.json, acceptance-matrix.json}``
-    subset, which had drifted to omit ``plan.md`` / ``issue-matrix.md`` /
-    ``analysis-report.md`` (FR-012 / #1887). The "take theirs" arm now
-    recognizes the FULL residue set, including ``tasks/WP*.md`` files (handled
-    by the authority's ``tasks`` directory rule).
+    Two arms — the auto-rebase managed set is a SUPERSET of surface residue (see
+    :data:`_AUTO_REBASE_MANAGED_LAYOUT_KINDS` for the full rationale):
+
+    1. *Surface residue* — drawn from the single authority
+       :func:`mission_runtime.is_coordination_artifact_residue_path`
+       (``issue-matrix.md`` / ``analysis-report.md`` / ``acceptance-matrix.json``).
+    2. *Mission-owned planning LAYOUT* — ``lanes.json`` (``LANE_STATE``) and
+       ``tasks/WP*.md`` (``WORK_PACKAGE_TASK``). These moved to the PRIMARY
+       partition in #2090 so they are NO LONGER surface residue, yet auto-rebase
+       still resolves a stale lane copy take-theirs against the finalize-tasks
+       layout. The #2070 delegation to the residue predicate alone dropped them
+       and broke deterministic reconciliation (this regression's root cause).
+
+    ``plan.md`` / ``tasks.md`` and the planning SOURCE docs are intentionally in
+    NEITHER arm — their conflicts surface as Manual halts.
     """
-    return is_coordination_artifact_residue_path(rel_path)
+    if is_coordination_artifact_residue_path(rel_path):
+        return True
+    kind = kind_for_mission_file(rel_path)
+    return kind is not None and kind in _AUTO_REBASE_MANAGED_LAYOUT_KINDS
 
 
 def _git_show_stage(worktree: Path, rel_path: str, stage: int) -> str | None:
