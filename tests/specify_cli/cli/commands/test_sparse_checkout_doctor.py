@@ -16,6 +16,8 @@ import typer
 
 from specify_cli.cli.commands import _sparse_checkout_doctor as sc
 
+pytestmark = [pytest.mark.fast]
+
 
 # --- _resolve_repo_root ------------------------------------------------------
 

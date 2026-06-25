@@ -16,6 +16,8 @@ import typer
 
 from specify_cli.cli.commands import _command_surface_doctor as cs
 
+pytestmark = [pytest.mark.fast]
+
 
 # --- _slash_gap_for_path -----------------------------------------------------
 

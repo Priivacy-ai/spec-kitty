@@ -14,6 +14,8 @@ import pytest
 
 from specify_cli.cli.commands import _doctor_shared
 
+pytestmark = [pytest.mark.fast]
+
 
 def test_console_is_single_shared_instance_across_import_sites() -> None:
     # H1/I-3: exactly one Console() backs the whole doctor surface. The shim,

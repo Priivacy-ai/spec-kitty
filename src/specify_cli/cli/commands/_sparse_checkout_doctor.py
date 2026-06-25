@@ -22,10 +22,12 @@ from specify_cli.core.paths import locate_project_root
 
 from ._doctor_shared import _is_interactive_environment, console
 
+# ``__all__`` lists this sibling's single cross-module entrypoint. The render
+# helpers are intra-module (used here + by this module's own unit tests) and are
+# deliberately NOT exported — listing them would register orphan public symbols
+# under the dead-symbol gate (tests/architectural/test_no_dead_symbols).
 __all__ = [
     "run_sparse_checkout",
-    "_render_sparse_finding",
-    "_render_remediation_plan",
 ]
 
 _FIX_HINT = "spec-kitty doctor sparse-checkout --fix"

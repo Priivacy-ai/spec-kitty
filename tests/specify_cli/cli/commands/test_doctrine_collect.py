@@ -17,6 +17,8 @@ import pytest
 
 from specify_cli.cli.commands import _doctrine_collect as collect
 
+pytestmark = [pytest.mark.fast]
+
 
 # --- _resolve_pack_version ---------------------------------------------------
 

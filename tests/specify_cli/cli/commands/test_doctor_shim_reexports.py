@@ -13,6 +13,8 @@ import importlib
 
 import pytest
 
+pytestmark = [pytest.mark.fast]
+
 # The contracted public + test-facing private symbols (cli-surface-contract.md +
 # the WP07 coordination helpers the doctor test files import).
 _CONTRACTED_SYMBOLS = [

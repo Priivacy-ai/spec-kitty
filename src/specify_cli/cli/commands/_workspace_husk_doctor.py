@@ -20,11 +20,12 @@ import typer
 
 from ._doctor_shared import console
 
+# ``__all__`` lists this sibling's single cross-module entrypoint. The render
+# helpers are intra-module (used here + by this module's own unit tests) and are
+# deliberately NOT exported — listing them would register orphan public symbols
+# under the dead-symbol gate (tests/architectural/test_no_dead_symbols).
 __all__ = [
     "run_workspaces",
-    "_workspace_husk_status_label",
-    "_emit_workspace_husk_fix",
-    "_emit_workspace_husk_report",
 ]
 
 

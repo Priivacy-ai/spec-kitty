@@ -24,19 +24,19 @@ from ._profile_health_render import _SELECTION_KIND_PLURALS
 if TYPE_CHECKING:
     from ._doctrine_health import DoctrineHealthReport
 
+# ``__all__`` lists the collectors re-exported through the ``doctor`` shim
+# (FR-006) plus the collectors ``doctor.py`` delegates to. The remaining
+# helpers are intra-module (used here + by this module's own unit tests) and
+# are deliberately NOT exported — listing them would register orphan public
+# symbols under the dead-symbol gate (tests/architectural/test_no_dead_symbols).
 __all__ = [
-    "_ORG_ARTIFACT_DIRS",
     "_resolve_pack_version",
     "_count_pack_artifacts",
-    "_summarize_org_charter",
     "_collect_profile_health",
     "_attach_pack_health",
     "_build_pack_entries",
     "_collect_doctrine_collisions",
     "_collect_org_layer_data",
-    "_resolve_artifact_source",
-    "_read_project_selections",
-    "_read_org_required",
     "_build_selection_block",
 ]
 

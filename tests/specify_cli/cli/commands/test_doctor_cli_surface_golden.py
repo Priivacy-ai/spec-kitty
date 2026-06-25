@@ -31,6 +31,8 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.doctor import app
 
+pytestmark = [pytest.mark.fast]
+
 # --- Frozen contract: the 16 subcommand names (cli-surface-contract.md) -------
 
 FROZEN_SUBCOMMANDS: frozenset[str] = frozenset(

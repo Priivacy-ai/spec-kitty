@@ -29,19 +29,12 @@ from ._doctor_shared import console
 if TYPE_CHECKING:
     from specify_cli.audit import Severity
 
+# ``__all__`` lists this sibling's single cross-module entrypoint. The dispatch
+# helpers are intra-module (used here + by this module's own unit tests) and are
+# deliberately NOT exported — listing them would register orphan public symbols
+# under the dead-symbol gate (tests/architectural/test_no_dead_symbols).
 __all__ = [
-    "_MissionStateMode",
-    "_print_rich_audit_report",
-    "_audit_fixture_root",
-    "_validate_modes",
-    "_resolve_fail_on",
-    "_resolve_audit_root",
-    "_emit_mission_state",
-    "_run_mission_repair",
-    "_run_teamspace_dry_run_mode",
-    "_emit_json_error",
-    "_audit_fail_gate",
-    "_run_audit_mode",
+    "run_mission_state",
 ]
 
 

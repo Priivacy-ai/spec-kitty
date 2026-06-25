@@ -15,6 +15,8 @@ import pytest
 import typer
 
 from specify_cli.cli.commands import _identity_audit as ia
+
+pytestmark = [pytest.mark.fast]
 from specify_cli.status import IdentityState
 
 

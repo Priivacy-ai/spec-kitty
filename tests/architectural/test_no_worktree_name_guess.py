@@ -580,9 +580,9 @@ _SHORTID_NAMED_EXCLUSIONS_FILES: dict[tuple[str, str], str] = {
 # functions — the composite key disambiguates them via the qualname component.
 _SHORTID_ALLOWED_SITES: frozenset[tuple[str, str]] = frozenset(
     {
-        # ── doctor.py:3074 — diagnostic short-id TOLERANCE, not a missed route ──
+        # ── _coordination_doctor.py — diagnostic short-id TOLERANCE, not a missed route ──
         # ``short = resolve_mid8(slug, mission_id=mission_id) or mission_id[:8]``
-        # inside ``_check_coordination_worktree_health``.
+        # inside ``_check_coordination_worktree_health`` (moved from doctor.py by #2059).
         # WP03 routed the derivation through the failover-aware ``resolve_mid8``;
         # the ``or mission_id[:8]`` tail is a CONSCIOUS fallback that keeps the
         # doctor diagnostic emitting a display short-id even when resolve_mid8
@@ -591,7 +591,7 @@ _SHORTID_ALLOWED_SITES: frozenset[tuple[str, str]] = frozenset(
             "_check_coordination_worktree_health",
             "short = resolve_mid8 ( mission_slug , mission_id = mission_id ) or mission_id [ : 8 ]",
         ),
-        # ── doctor.py:3166 — same idiom, different function ──
+        # ── _coordination_doctor.py — same idiom, different function ──
         # Inside ``_check_lane_sparse_checkout_drift``.  Byte-identical source
         # line; distinct qualname makes the composite key unique (T025-distinct-keys).
         (
@@ -602,15 +602,18 @@ _SHORTID_ALLOWED_SITES: frozenset[tuple[str, str]] = frozenset(
 )
 
 # Stale-detection map for the short-id allow-list: composite_key → relative file path.
+# #2059 moved both tolerance sites out of ``doctor.py`` into the ``_coordination_doctor``
+# sibling (same functions, byte-identical lines); the composite keys are unchanged, only
+# the home file moved.
 _SHORTID_ALLOWED_SITES_FILES: dict[tuple[str, str], str] = {
     (
         "_check_coordination_worktree_health",
         "short = resolve_mid8 ( mission_slug , mission_id = mission_id ) or mission_id [ : 8 ]",
-    ): "src/specify_cli/cli/commands/doctor.py",
+    ): "src/specify_cli/cli/commands/_coordination_doctor.py",
     (
         "_check_lane_sparse_checkout_drift",
         "short = resolve_mid8 ( mission_slug , mission_id = mission_id ) or mission_id [ : 8 ]",
-    ): "src/specify_cli/cli/commands/doctor.py",
+    ): "src/specify_cli/cli/commands/_coordination_doctor.py",
 }
 
 # Pre-mission baseline of mission-identity ``[:8]`` slices across ``src/`` (the
@@ -619,7 +622,8 @@ _SHORTID_ALLOWED_SITES_FILES: dict[tuple[str, str], str] = {
 # than a re-derivation of the live tree. Composition (verified at WP02 land):
 #   branch_naming.py:146/199/415  (3, HOME)
 #   mission_runtime/context.py:99/112  (2, HOME)
-#   cli/commands/doctor.py:3074/3166  (2, allow-listed tolerance)
+#   cli/commands/_coordination_doctor.py  (2, allow-listed tolerance; moved from
+#       doctor.py by #2059)
 # => 7 raw matches; 5 in homes + 2 allow-listed => 0 un-accounted consumers.
 _SHORTID_BASELINE_RAW_MATCHES = 7
 
@@ -1052,20 +1056,25 @@ def test_new_offender_in_allowlisted_function_is_flagged_red() -> None:
 
 
 def test_two_doctor_sites_produce_distinct_composite_keys() -> None:
-    """The two byte-identical doctor.py sites produce DISTINCT composite keys.
+    """The two byte-identical doctor tolerance sites produce DISTINCT composite keys.
 
-    Both ``doctor.py:3074`` and ``doctor.py:3166`` contain the same source line
+    Both sites contain the same source line
     ``short = resolve_mid8(mission_slug, mission_id=mission_id) or mission_id[:8]``.
     A bare token-line key would collide, silently allowing one to cover the other.
     The qualname component distinguishes them: ``_check_coordination_worktree_health``
     vs ``_check_lane_sparse_checkout_drift``.  This test proves the two entries in
     ``_SHORTID_ALLOWED_SITES`` are genuinely distinct.
+
+    #2059 decomposed ``doctor.py``: both functions (and their byte-identical
+    tolerance lines) moved into the ``_coordination_doctor`` sibling. The composite
+    keys are unchanged (qualname + token-line are byte-preserved); only the file the
+    sites live in changed, so this test now scans the sibling.
     """
     from tests.architectural._ratchet_keys import composite_key_from_file
 
-    doctor_path = _REPO_ROOT / "src/specify_cli/cli/commands/doctor.py"
+    doctor_path = _REPO_ROOT / "src/specify_cli/cli/commands/_coordination_doctor.py"
     if not doctor_path.exists():
-        pytest.skip("doctor.py not present in this checkout")
+        pytest.skip("_coordination_doctor.py not present in this checkout")
 
     # Locate the two byte-identical tolerance sites by source content rather than
     # by hardcoded line numbers — the literal-line pins drift whenever an edit
@@ -1079,7 +1088,7 @@ def test_two_doctor_sites_produce_distinct_composite_keys() -> None:
     ]
     assert len(site_linenos) == 2, (
         "expected exactly two byte-identical `mission_id[:8]` tolerance sites in "
-        f"doctor.py, found {len(site_linenos)} at lines {site_linenos}"
+        f"_coordination_doctor.py, found {len(site_linenos)} at lines {site_linenos}"
     )
 
     key_3074 = composite_key_from_file(doctor_path, site_linenos[0])

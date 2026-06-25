@@ -27,12 +27,16 @@ from specify_cli.core.paths import locate_project_root
 
 from ._doctor_shared import console
 
+# ``__all__`` lists this sibling's cross-module contract: the entrypoint +
+# ``DoctorFinding`` + the health-check helpers ``doctor.py`` re-exports. The
+# remaining helpers (``_detect_git_version``, ``_check_tracked_worktrees_content``)
+# are intra-module (used here + by this module's own unit tests) and are
+# deliberately NOT exported — listing them would register orphan public symbols
+# under the dead-symbol gate (tests/architectural/test_no_dead_symbols).
 __all__ = [
     "DoctorFinding",
     "run_coordination_health",
-    "_detect_git_version",
     "_check_git_version",
-    "_check_tracked_worktrees_content",
     "_check_coordination_worktree_health",
     "_check_lane_sparse_checkout_drift",
 ]

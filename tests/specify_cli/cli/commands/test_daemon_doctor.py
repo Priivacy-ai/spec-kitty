@@ -15,6 +15,8 @@ import typer
 
 from specify_cli.cli.commands import _daemon_doctor as dd
 
+pytestmark = [pytest.mark.fast]
+
 
 @dataclass
 class _OwnerRecord:

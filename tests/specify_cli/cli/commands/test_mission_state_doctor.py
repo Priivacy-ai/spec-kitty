@@ -16,6 +16,8 @@ import typer
 
 from specify_cli.cli.commands import _mission_state_doctor as ms
 
+pytestmark = [pytest.mark.fast]
+
 
 # --- _validate_modes ---------------------------------------------------------
 

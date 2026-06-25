@@ -18,6 +18,8 @@ import typer
 
 from specify_cli.cli.commands import _coordination_doctor as cd
 
+pytestmark = [pytest.mark.fast]
+
 
 # --- _detect_git_version -----------------------------------------------------
 

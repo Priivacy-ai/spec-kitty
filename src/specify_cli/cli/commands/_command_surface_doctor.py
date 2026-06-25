@@ -42,26 +42,19 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# ``__all__`` lists this sibling's cross-module public contract only: the
+# command entrypoints ``doctor.py`` delegates to plus the FR-006 test-facing
+# symbols re-exported through the ``doctor`` shim. The remaining helpers are
+# intra-module (exercised by this module + its own unit tests) and are
+# deliberately NOT exported — listing them would make them orphan public
+# symbols under the dead-symbol gate (tests/architectural/test_no_dead_symbols).
 __all__ = [
     "SlashCommandGap",
     "run_command_files",
     "run_skills_audit",
     "run_tool_surfaces_audit",
-    "_vibe_skill_path_configured",
-    "_get_slash_command_agents",
     "_load_slash_command_state",
-    "_print_slash_command_report",
     "_repair_slash_command_state",
-    "_slash_command_payload",
-    "_load_and_optionally_repair_slash_commands",
-    "_print_slash_command_payload",
-    "_load_command_skill_state",
-    "_repair_command_skill_state",
-    "_command_skill_payload",
-    "_print_command_skill_paths",
-    "_print_command_skill_report",
-    "_configured_tool_keys",
-    "_print_tool_surface_human",
 ]
 
 

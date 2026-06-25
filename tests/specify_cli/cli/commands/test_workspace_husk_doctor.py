@@ -16,6 +16,8 @@ import typer
 
 from specify_cli.cli.commands import _workspace_husk_doctor as wh
 
+pytestmark = [pytest.mark.fast]
+
 
 # --- _workspace_husk_status_label --------------------------------------------
 

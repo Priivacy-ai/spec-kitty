@@ -28,16 +28,13 @@ from ._doctor_shared import console
 if TYPE_CHECKING:
     from specify_cli.status import IdentityState
 
+# ``__all__`` lists this sibling's cross-module entrypoints only. The
+# decomposed helpers are intra-module (used here + by this module's own unit
+# tests) and are deliberately NOT exported — listing them would register orphan
+# public symbols under the dead-symbol gate (tests/architectural/test_no_dead_symbols).
 __all__ = [
     "run_identity_audit",
     "run_topology_audit",
-    "_scope_to_mission",
-    "_scope_prefixes",
-    "_print_dup_and_ambig",
-    "_print_identity_human",
-    "_read_stored_topology",
-    "_collect_topology_rows",
-    "_print_topology_human",
 ]
 
 
