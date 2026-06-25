@@ -77,9 +77,7 @@ def _find_latest_feature_worktree(repo_root: Path) -> Path | None:
 
 def _find_feature_worktree(repo_root: Path, mission_slug: str) -> Path | None:
     """Find a deterministic worktree for a feature slug."""
-    # ``resolve_feature_worktree`` resolves to ``Any`` under strict mypy (the
-    # workspace.context surface is untyped); its runtime contract is ``Path | None``.
-    return cast("Path | None", resolve_feature_worktree(repo_root, mission_slug))
+    return resolve_feature_worktree(repo_root, mission_slug)
 
 
 def accept_feature(

@@ -14,7 +14,7 @@ the golden CLI characterization harness (WP01) is the regression net.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from mission_runtime import ActionContextError
 from specify_cli import __version__ as SPEC_KITTY_VERSION
@@ -32,9 +32,7 @@ def _read_feature_meta(feature_dir: Path) -> dict[str, Any]:
     """
     from specify_cli.mission_metadata import load_meta_or_empty
 
-    # cast narrows the Any-valued return for warn_return_any; the canonical
-    # reader's contract guarantees a dict.
-    return cast("dict[str, Any]", load_meta_or_empty(feature_dir))
+    return load_meta_or_empty(feature_dir)
 
 
 def _safe_load_meta(repo_root: Path, mission_slug: str) -> dict[str, object] | None:

@@ -127,7 +127,7 @@ def _read_wp_frontmatter(wp_file: Path) -> tuple[WPMetadata, str]:
     """Route ``read_wp_frontmatter`` through ``mission`` (patch seam)."""
     from specify_cli.cli.commands.agent import mission as _mission
 
-    return cast("tuple[WPMetadata, str]", _mission.read_wp_frontmatter(wp_file))
+    return _mission.read_wp_frontmatter(wp_file)
 
 
 def _resolve_planning_branch_via_mission(
@@ -136,11 +136,8 @@ def _resolve_planning_branch_via_mission(
     """Route ``_resolve_planning_branch`` through ``mission`` (patch seam)."""
     from specify_cli.cli.commands.agent import mission as _mission
 
-    return cast(
-        str,
-        _mission._resolve_planning_branch(
-            repo_root, primary_dir, target_branch_override=target_branch_override
-        ),
+    return _mission._resolve_planning_branch(
+        repo_root, primary_dir, target_branch_override=target_branch_override
     )
 
 
@@ -151,11 +148,8 @@ def _bootstrap_canonical_state_via_mission(
     from specify_cli.cli.commands.agent import mission as _mission
 
     if capability is None:
-        return cast(BootstrapResult, _mission.bootstrap_canonical_state(planning_dir, mission_slug, dry_run=dry_run))
-    return cast(
-        BootstrapResult,
-        _mission.bootstrap_canonical_state(planning_dir, mission_slug, dry_run=dry_run, capability=capability),
-    )
+        return _mission.bootstrap_canonical_state(planning_dir, mission_slug, dry_run=dry_run)
+    return _mission.bootstrap_canonical_state(planning_dir, mission_slug, dry_run=dry_run, capability=capability)
 
 
 def _validate_ownership_via_mission(
@@ -164,7 +158,7 @@ def _validate_ownership_via_mission(
     """Route ``validate_ownership`` through ``mission`` (patch seam)."""
     from specify_cli.cli.commands.agent import mission as _mission
 
-    return cast(ValidationResult, _mission.validate_ownership(wp_manifests, wp_dependencies))
+    return _mission.validate_ownership(wp_manifests, wp_dependencies)
 
 
 # ---------------------------------------------------------------------------
@@ -232,7 +226,7 @@ def _resolve_repo_root(json_output: bool) -> Path:
         else:
             console.print(f"[red]Error:[/red] {PROJECT_ROOT_NOT_FOUND}")
         raise typer.Exit(1)
-    return cast(Path, repo_root)
+    return repo_root
 
 
 def _run_saas_boundary_preflight(repo_root: Path, *, json_output: bool, validate_only: bool) -> None:
@@ -284,7 +278,7 @@ def _resolve_mission_slug(repo_root: Path, feature: str | None, *, json_output: 
         ambiguous = None
 
     if mission_dir_name is not None:
-        return cast(str, mission_dir_name)
+        return mission_dir_name
 
     try:
         feature_dir = _mission._find_feature_directory(repo_root, cwd, explicit_feature=feature)
@@ -306,7 +300,7 @@ def _resolve_mission_slug(repo_root: Path, feature: str | None, *, json_output: 
             if "example_command" in payload:
                 console.print(f"  {payload['example_command']}")
         raise typer.Exit(1) from None
-    return cast(str, feature_dir.name)
+    return feature_dir.name
 
 
 def _resolve_target_branch(

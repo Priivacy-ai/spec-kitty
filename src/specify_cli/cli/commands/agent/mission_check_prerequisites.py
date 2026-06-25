@@ -59,7 +59,7 @@ def _read_meta_for_pr_bound(feature_dir: Path) -> dict[str, Any]:
     """
     from specify_cli.mission_metadata import load_meta_or_empty
 
-    return cast("dict[str, Any]", load_meta_or_empty(feature_dir))
+    return load_meta_or_empty(feature_dir)
 
 
 def _read_meta_for_emission(feature_dir: Path) -> dict[str, Any] | None:
@@ -72,10 +72,7 @@ def _read_meta_for_emission(feature_dir: Path) -> dict[str, Any] | None:
     """
     from specify_cli.mission_metadata import load_meta
 
-    return cast(
-        "dict[str, Any] | None",
-        load_meta(feature_dir, allow_missing=True, on_malformed="none"),
-    )
+    return load_meta(feature_dir, allow_missing=True, on_malformed="none")
 
 
 def _emit_check_prerequisites_detection_error(

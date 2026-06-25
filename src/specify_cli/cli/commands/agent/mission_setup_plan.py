@@ -306,10 +306,7 @@ def _resolve_setup_plan_feature_dir(repo_root: Path, feature: str | None, *, jso
     try:
         from mission_runtime import ActionContextError
 
-        return cast(
-            Path,
-            _mission._find_feature_directory(repo_root, cwd, explicit_feature=resolved_feature),
-        )
+        return _mission._find_feature_directory(repo_root, cwd, explicit_feature=resolved_feature)
     except (ValueError, ActionContextError) as detection_error:
         payload = _build_setup_plan_detection_error(repo_root, str(detection_error), feature)
         if json_output:

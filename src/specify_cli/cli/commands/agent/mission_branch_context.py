@@ -33,7 +33,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import subprocess
-from typing import Annotated, cast
+from typing import Annotated
 
 from rich.console import Console
 import typer
@@ -346,10 +346,7 @@ def _resolve_planning_branch(
     del repo_root  # No longer used; kept in signature for API stability.
     if target_branch_override is not None and target_branch_override.strip():
         return target_branch_override.strip()
-    # ``load_mission_target_branch`` resolves to ``Any`` under the narrow
-    # ``follow_imports=skip`` mypy profile used for changed-file gating; its
-    # runtime contract guarantees ``str``.
-    return cast("str", load_mission_target_branch(feature_dir))
+    return load_mission_target_branch(feature_dir)
 
 
 def _get_current_branch(repo_root: Path) -> str:
