@@ -825,7 +825,7 @@ def _validate_owned_files_not_in_mission_specs(
     if not invalid_owned_files:
         return
     error_msg = "WP owned_files cannot include paths under kitty-specs/"
-    payload = {
+    payload: dict[str, object] = {
         "error": error_msg,
         "error_code": INVALID_WP_OWNED_FILES_KITTY_SPECS,
         "invalid_owned_files": invalid_owned_files,
