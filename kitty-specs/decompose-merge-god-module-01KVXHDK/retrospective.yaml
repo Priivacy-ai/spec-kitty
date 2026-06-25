@@ -1,0 +1,278 @@
+schema_version: 1
+mission_id: 01KVXHDKSV2159A525JZ0KB1P4
+mission_slug: decompose-merge-god-module-01KVXHDK
+mission_number:
+friendly_name: decompose merge god module
+mission_type: software-dev
+target_branch: prog/2057-merge
+created_at: '2026-06-25T00:12:51.361346+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-06-25T00:12:51.361346+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-016
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-016
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-016
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-016
+- id: h-005
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-016
+- id: h-006
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-016
+- id: h-007
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-016
+- id: h-008
+  category: implementation
+  summary: WP08 completed without rejection cycles
+  evidence_refs:
+  - e-016
+- id: h-009
+  category: implementation
+  summary: WP09 completed without rejection cycles
+  evidence_refs:
+  - e-016
+- id: h-010
+  category: implementation
+  summary: WP10 completed without rejection cycles
+  evidence_refs:
+  - e-016
+- id: h-011
+  category: implementation
+  summary: WP11 completed without rejection cycles
+  evidence_refs:
+  - e-016
+not_helpful:
+- id: n-011
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-027
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+    issues and decisions.
+- id: n-001
+  category: process
+  summary: WP02 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-017
+  details: WP WP02 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-002
+  category: process
+  summary: WP03 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-018
+  details: WP WP03 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-003
+  category: process
+  summary: WP04 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-019
+  details: WP WP04 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-004
+  category: process
+  summary: WP05 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-020
+  details: WP WP05 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-005
+  category: process
+  summary: WP06 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-021
+  details: WP WP06 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-006
+  category: process
+  summary: WP07 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-022
+  details: WP WP07 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-007
+  category: process
+  summary: WP08 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-023
+  details: WP WP08 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-008
+  category: process
+  summary: WP09 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-024
+  details: WP WP09 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-009
+  category: process
+  summary: WP10 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-025
+  details: WP WP10 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-010
+  category: process
+  summary: WP11 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-026
+  details: WP WP11 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/tasks/WP01-golden-cli-harness.md
+- id: e-006
+  kind: file
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/tasks/WP02-constants-seam.md
+- id: e-007
+  kind: file
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/tasks/WP03-git-probes-seam.md
+- id: e-008
+  kind: file
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/tasks/WP04-resolve-seam.md
+- id: e-009
+  kind: file
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/tasks/WP05-preflight-seam.md
+- id: e-010
+  kind: file
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/tasks/WP06-forecast-seam.md
+- id: e-011
+  kind: file
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/tasks/WP07-ordering-bake-seam.md
+- id: e-012
+  kind: file
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/tasks/WP08-done-bookkeeping-seam.md
+- id: e-013
+  kind: file
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/tasks/WP09-bookkeeping-projection-seam.md
+- id: e-014
+  kind: file
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/tasks/WP10-executor-decomposition.md
+- id: e-015
+  kind: file
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/tasks/WP11-shim-thinning-gate-sweep.md
+- id: e-016
+  kind: file
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/status.events.jsonl
+- id: e-017
+  kind: event_range
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/status.events.jsonl
+  range: 01KVXNVBETK6104K38T73R4S4Q..01KVXNWH9KQMREV2MJA9X46A6T
+- id: e-018
+  kind: event_range
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/status.events.jsonl
+  range: 01KVXPEKD4YK6XRFVT7C766XDY..01KVXPF7BFX5AZTGGCPG3SRG6E
+- id: e-019
+  kind: event_range
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/status.events.jsonl
+  range: 01KVXPXGNKRD9J38NN7T018RCG..01KVXPY6S11S77HBE2G3F4254R
+- id: e-020
+  kind: event_range
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/status.events.jsonl
+  range: 01KVXR6S3V217S5C2KXHHMHA6T..01KVXR7E69H1CSVA73VF55JMH6
+- id: e-021
+  kind: event_range
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/status.events.jsonl
+  range: 01KVXRTZA2QF4965T6TDMPKP99..01KVXRVE87SP0HQAPXD5TKPAVY
+- id: e-022
+  kind: event_range
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/status.events.jsonl
+  range: 01KVXSG0WA1M4FTC60987BC4WH..01KVXSGFY4ZW5T1NE5D0P6MFYA
+- id: e-023
+  kind: event_range
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/status.events.jsonl
+  range: 01KVXT971VSDHZV2TC1K72PQXR..01KVXT9QJD9AZRSSMC56NXJXA2
+- id: e-024
+  kind: event_range
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/status.events.jsonl
+  range: 01KVXV7XB752TK2D3QWSJPVHQT..01KVXV8E49B9SK477QC3CFMS85
+- id: e-025
+  kind: event_range
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/status.events.jsonl
+  range: 01KVY13X8C2DXBNEZM3S5D1BVQ..01KVY14QZYZSV8VS3WDEX0PHMM
+- id: e-026
+  kind: event_range
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/status.events.jsonl
+  range: 01KVY1JR7D7T45HARQMVC7P81D..01KVY1KA5C985XT6R9QCMKC3VS
+- id: e-027
+  kind: file
+  path: kitty-specs/decompose-merge-god-module-01KVXHDK/analysis-report.md
+generator_version: '1.0'
+provenance_history: []
