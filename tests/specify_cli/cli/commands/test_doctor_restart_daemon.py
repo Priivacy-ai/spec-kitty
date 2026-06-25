@@ -569,3 +569,123 @@ def test_runs_outside_project_does_not_crash(
 
     result = _runner().invoke(doctor_module.app, ["restart-daemon", "--json"])
     assert result.exit_code == 1
+
+
+# ---------------------------------------------------------------------------
+# Production hot path (#2059, GAP 2)
+#
+# Production ``spec-kitty doctor restart-daemon [--json]`` never runs the Typer
+# command body for the bare invocation: ``main()`` short-circuits into
+# ``_run_doctor_restart_daemon_process_fast_path`` which renders the result and
+# calls ``os._exit(result.exit_code)`` — bypassing the Typer/Click stack the
+# CliRunner exercises above. The golden test only asserts ``exit_code in
+# {0,1,2,3}`` (any of four passes). These tests drive the PRODUCTION fast-path
+# directly and pin EACH state to its SPECIFIC exit code.
+#
+# Because the fast-path calls ``os._exit`` (which would kill the test process),
+# we patch ``os._exit`` to record the code and raise a sentinel that stops
+# execution exactly at the production exit boundary.
+# ---------------------------------------------------------------------------
+
+
+class _ExitCaptured(BaseException):
+    """Sentinel raised in place of ``os._exit`` to halt at the exit boundary."""
+
+    def __init__(self, code: int) -> None:
+        super().__init__(code)
+        self.code = code
+
+
+def _run_production_fast_path(
+    monkeypatch: pytest.MonkeyPatch, argv: list[str]
+) -> int:
+    """Invoke the production restart-daemon fast-path and capture the os._exit code.
+
+    Drives ``specify_cli._run_doctor_restart_daemon_process_fast_path`` — the
+    real production seam — not the Typer CliRunner shell.
+    """
+    import specify_cli
+
+    captured: dict[str, int] = {}
+
+    def _fake_exit(code: int) -> None:
+        captured["code"] = code
+        raise _ExitCaptured(code)
+
+    monkeypatch.setattr("specify_cli.os._exit", _fake_exit, raising=True)
+
+    with pytest.raises(_ExitCaptured):
+        specify_cli._run_doctor_restart_daemon_process_fast_path(argv)
+
+    assert "code" in captured, "production fast-path must reach os._exit"
+    return captured["code"]
+
+
+_FAST_PATH_ARGV = ["spec-kitty", "doctor", "restart-daemon", "--json"]
+
+
+def test_production_fast_path_happy_path_exits_zero(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """restarted → production fast-path calls ``os._exit(0)``."""
+    _install_owner_record_fakes(
+        monkeypatch, record=_FakeRecord(pid=12345), path_exists=True
+    )
+    _install_daemon_state_file_fake(monkeypatch, exists=True)
+    _install_stop_fake(monkeypatch, result=(True, "Sync daemon stopped."))
+    _install_launch_fake(
+        monkeypatch,
+        outcome=DaemonStartOutcome(started=True, skipped_reason=None, pid=67890),
+    )
+
+    assert _run_production_fast_path(monkeypatch, _FAST_PATH_ARGV) == 0
+
+
+def test_production_fast_path_no_owner_exits_one(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """no_owner → production fast-path calls ``os._exit(1)``."""
+    _install_owner_record_fakes(monkeypatch, record=None, path_exists=False)
+    _install_daemon_state_file_fake(monkeypatch, exists=False)
+    _install_stop_fake(monkeypatch, result=(False, "should-not-call"))
+    _install_launch_fake(
+        monkeypatch,
+        outcome=DaemonStartOutcome(started=False, skipped_reason="x", pid=None),
+    )
+
+    assert _run_production_fast_path(monkeypatch, _FAST_PATH_ARGV) == 1
+
+
+def test_production_fast_path_respawn_failure_exits_two(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """respawn_failed → production fast-path calls ``os._exit(2)``."""
+    _install_owner_record_fakes(
+        monkeypatch, record=_FakeRecord(pid=12345), path_exists=True
+    )
+    _install_daemon_state_file_fake(monkeypatch, exists=True)
+    _install_stop_fake(monkeypatch, result=(True, "Sync daemon stopped."))
+    _install_launch_fake(
+        monkeypatch, outcome=RuntimeError("port allocation failed")
+    )
+
+    assert _run_production_fast_path(monkeypatch, _FAST_PATH_ARGV) == 2
+
+
+def test_production_fast_path_stop_failure_exits_three(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """stop_failed → production fast-path calls ``os._exit(3)``."""
+    _install_owner_record_fakes(
+        monkeypatch, record=_FakeRecord(pid=12345), path_exists=True
+    )
+    _install_daemon_state_file_fake(monkeypatch, exists=True)
+    _install_stop_fake(
+        monkeypatch, result=RuntimeError("daemon unresponsive")
+    )
+    _install_launch_fake(
+        monkeypatch,
+        outcome=DaemonStartOutcome(started=True, skipped_reason=None, pid=99999),
+    )
+
+    assert _run_production_fast_path(monkeypatch, _FAST_PATH_ARGV) == 3

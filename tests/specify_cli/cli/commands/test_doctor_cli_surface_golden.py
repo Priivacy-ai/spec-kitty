@@ -475,3 +475,121 @@ def test_public_and_load_bearing_symbols_are_importable() -> None:
 
     assert _app is app
     assert _gap is not None
+
+
+# --- T004: cross-surface name coupling (#2059, GAP 1) ------------------------
+#
+# FROZEN_SUBCOMMANDS pins the live Typer names, but three OTHER string-keyed
+# surfaces hard-code a subset of those names and are NOT cross-checked by the
+# golden snapshots above:
+#
+#   1. the ``compat.safety_modes`` SAFETY_REGISTRY tuples
+#      (e.g. ``("doctor", "skills")``, ``("doctor", "sparse-checkout")``);
+#   2. the ``__init__`` argv fast-path predicates that key on the literal
+#      ``"skills"`` / ``"restart-daemon"`` tokens; and
+#   3. the ``cli.commands`` registration fast-path predicate for
+#      ``"restart-daemon"``.
+#
+# A rename that updates FROZEN_SUBCOMMANDS + doctor.py but forgets one of these
+# surfaces silently desyncs: the mode-gate tests monkeypatch sys.argv to the
+# hard-coded literal, so they stay green. These tests derive expected values
+# from the LIVE app + the real registry/predicate symbols (no second copy of
+# the literal), so such a rename FAILS here.
+
+
+def _live_doctor_subcommand_names() -> frozenset[str]:
+    cli = get_command(app)
+    assert isinstance(cli, click.Group)
+    return frozenset(cli.commands.keys())
+
+
+def test_safety_registry_doctor_names_are_live_subcommands() -> None:
+    """Every ``("doctor", <name>)`` tuple in the safety registry must be a
+    live registered subcommand.
+
+    Teeth: rename a doctor subcommand in ``doctor.py`` (which flows into the
+    live app + must be mirrored into FROZEN_SUBCOMMANDS) WITHOUT updating
+    ``safety_modes.py`` and the stale registered name is no longer live →
+    this assertion fails. The mode-gate tests would not catch it because they
+    monkeypatch ``sys.argv`` to the hard-coded literal.
+    """
+    from specify_cli.compat.safety import SAFETY_REGISTRY
+    from specify_cli.compat.safety_modes import register_mode_predicates
+
+    # Idempotent; ensures the doctor subcommand tuples are present.
+    register_mode_predicates()
+
+    registered_doctor_names = {
+        path[1]
+        for path in SAFETY_REGISTRY
+        if len(path) == 2 and path[0] == "doctor"
+    }
+    # Sanity: the registry actually carries the load-bearing names so this
+    # test cannot pass vacuously if the registry is ever emptied.
+    assert {"skills", "sparse-checkout"} <= registered_doctor_names
+
+    live = _live_doctor_subcommand_names()
+    orphaned = registered_doctor_names - live
+    assert not orphaned, (
+        "safety_modes.py registers doctor subcommand name(s) that are no "
+        f"longer live in the Typer app: {sorted(orphaned)}. A subcommand was "
+        "renamed in doctor.py without updating compat/safety_modes.py."
+    )
+
+
+def test_init_skills_fast_path_predicate_keys_on_a_live_name() -> None:
+    """The ``__init__`` ``doctor skills`` fast-path predicate must recognise
+    the LIVE ``skills`` subcommand name.
+
+    Teeth: rename ``skills`` in ``doctor.py`` + FROZEN_SUBCOMMANDS but leave the
+    ``args[1] == "skills"`` literal in ``__init__._is_doctor_skills_invocation``
+    untouched and this predicate stops matching the live name → fails.
+    """
+    from specify_cli import _is_doctor_skills_invocation
+
+    live = _live_doctor_subcommand_names()
+    assert "skills" in live, "golden contract guarantees a 'skills' subcommand"
+
+    # Build argv from the LIVE name, not a copied literal.
+    argv = ["spec-kitty", "doctor", "skills", "--json"]
+    assert _is_doctor_skills_invocation(argv) is True
+    # Negative control: a different live subcommand must NOT match the
+    # skills-specific predicate (proves the predicate keys on the name).
+    other = next(name for name in sorted(live) if name != "skills")
+    assert _is_doctor_skills_invocation(["spec-kitty", "doctor", other]) is False
+
+
+def test_restart_daemon_fast_path_predicates_key_on_a_live_name() -> None:
+    """The three ``restart-daemon`` argv fast-path predicates (two in
+    ``__init__`` + one in ``cli.commands``) must recognise the LIVE
+    ``restart-daemon`` subcommand name.
+
+    Teeth: rename ``restart-daemon`` in ``doctor.py`` + FROZEN_SUBCOMMANDS but
+    leave the ``["doctor", "restart-daemon"]`` literals in the predicates
+    untouched and they stop matching the live name → fails.
+    """
+    from specify_cli import (
+        _is_doctor_restart_daemon_invocation,
+        _is_doctor_restart_daemon_process_fast_path,
+    )
+    from specify_cli.cli.commands import _is_doctor_restart_daemon_fast_path
+
+    live = _live_doctor_subcommand_names()
+    assert "restart-daemon" in live, (
+        "golden contract guarantees a 'restart-daemon' subcommand"
+    )
+
+    # Build argv from the LIVE name, not a copied literal.
+    argv = ["spec-kitty", "doctor", "restart-daemon"]
+    argv_json = ["spec-kitty", "doctor", "restart-daemon", "--json"]
+    assert _is_doctor_restart_daemon_invocation(argv) is True
+    assert _is_doctor_restart_daemon_process_fast_path(argv_json) is True
+    assert _is_doctor_restart_daemon_fast_path(argv_json) is True
+
+    # Negative control: another live subcommand must NOT trip the
+    # restart-daemon-specific predicates (proves they key on the name).
+    other = next(name for name in sorted(live) if name != "restart-daemon")
+    other_argv = ["spec-kitty", "doctor", other]
+    assert _is_doctor_restart_daemon_invocation(other_argv) is False
+    assert _is_doctor_restart_daemon_process_fast_path(other_argv) is False
+    assert _is_doctor_restart_daemon_fast_path(other_argv) is False
