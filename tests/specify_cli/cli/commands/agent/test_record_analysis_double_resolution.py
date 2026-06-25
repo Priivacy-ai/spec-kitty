@@ -43,7 +43,12 @@ import pytest
 pytestmark = [pytest.mark.fast]
 
 _REPO_ROOT = Path(__file__).resolve().parents[5]
-_MISSION_PY = _REPO_ROOT / "src" / "specify_cli" / "cli" / "commands" / "agent" / "mission.py"
+# #2056 decomposition: ``record_analysis`` relocated from the monolithic
+# ``mission.py`` into the ``mission_record_analysis`` seam (Seam A). The AST guard
+# scans the module where the function body now physically lives.
+_MISSION_PY = (
+    _REPO_ROOT / "src" / "specify_cli" / "cli" / "commands" / "agent" / "mission_record_analysis.py"
+)
 
 _PRIMARY_ANCHOR = "primary_feature_dir_for_mission"
 # The canonical kind-aware read seam (WP01 chokepoint) — ``tasks.py`` and
