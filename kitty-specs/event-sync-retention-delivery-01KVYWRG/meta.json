@@ -1,0 +1,13 @@
+{
+  "coordination_branch": "kitty/mission-event-sync-retention-delivery-01KVYWRG",
+  "created_at": "2026-06-25T08:01:22.402301+00:00",
+  "friendly_name": "event sync retention delivery",
+  "mission_id": "01KVYWRGF148VXAXDJ90MECYRR",
+  "mission_number": null,
+  "mission_slug": "event-sync-retention-delivery-01KVYWRG",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances event sync retention delivery on mission/event-sync-retention-delivery so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "event sync retention delivery",
+  "slug": "event-sync-retention-delivery-01KVYWRG",
+  "target_branch": "mission/event-sync-retention-delivery"
+}
