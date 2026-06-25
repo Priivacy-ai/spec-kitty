@@ -1,0 +1,79 @@
+{
+  "mission_slug": "decompose-merge-god-module-01KVXHDK",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Preserve the spec-kitty merge CLI surface byte-for-byte (flags, defaults, help, hidden --feature alias, --json gate, dry-run JSON key set, error/exit paths).",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_merge_cli_golden.py (golden characterization harness, 8 tests) stayed byte-identical green across WP01-WP11; pins help/flags, --json gate, dry-run JSON key set, REJECTED_REVIEW_ARTIFACT_CONFLICT.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": "2026-06-25T00:00:00+00:00",
+      "notes": "Final merge suite 562 passed; golden test is the byte-identity meter."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Top-of-file #2057 decomposition pointer comment (matches #2056/#1623 convention) documenting the seam map and shim role.",
+      "proof_type": "code_review",
+      "evidence": "WP11 installed the pointer comment at the top of src/specify_cli/cli/commands/merge.py listing all 10 seam modules + the one-way-import / no-grow / __all__ rules.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": "2026-06-25T00:00:00+00:00",
+      "notes": "Convention mirrors #2056/#1623."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Decompose merge.py into the research-resolved seams (constants, git_probes, resolve, preflight/push_preflight, forecast, ordering, done_bookkeeping, bookkeeping_projection, executor).",
+      "proof_type": "code_review",
+      "evidence": "WP02-WP10 created/extended src/specify_cli/merge/{_constants,git_probes,resolve,preflight,push_preflight,forecast,ordering,done_bookkeeping,bookkeeping_projection,executor}.py; merge.py shrank 3383 -> 559 LOC.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": "2026-06-25T00:00:00+00:00",
+      "notes": "All seams one-way-import (AST-enforced in each seam test)."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Each extracted seam carries a focused test file with >=90% coverage of the moved code.",
+      "proof_type": "automated_test",
+      "evidence": "tests/merge/test_{constants,git_probes,resolve,preflight,forecast,ordering_bake,done_bookkeeping,bookkeeping_projection}_seam.py + tests/merge/test_executor_phase_boundary.py — all green; each exercises the moved branches directly.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": "2026-06-25T00:00:00+00:00",
+      "notes": "Per-seam tests authored in the seam's own WP."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Internally decompose the CC-102 driver and other >15-CC functions to <=15 CC each.",
+      "proof_type": "automated_test",
+      "evidence": "radon cc -n B over merge.py + all seams shows every function <=15: _run_lane_based_merge_locked decomposed into 13 phase helpers via _MergeRunState; _collect_hollow_review_warnings (CC21), _mark_wp_merged_done (CC22), _assert_merged_wps_done_on_target (CC16) split; ruff C901 (max-complexity 15) clean.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": "2026-06-25T00:00:00+00:00",
+      "notes": "Ruff C901 == Sonar S3776 ceiling of 15."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Re-export relocated symbols from the shim so the 3 src consumers + ~41 test files import unchanged.",
+      "proof_type": "automated_test",
+      "evidence": "orchestrator_api/commands.py, agent/mission.py, doctor.py import-smoke green; every seam test asserts shim re-exports the same object; full merge suite (562) + integration (71) green with the shim's __all__ preserved.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": "2026-06-25T00:00:00+00:00",
+      "notes": "Test patch-targets repointed to seam homes where collaborators moved (behavior-preserving)."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Preserve the #1827 baseline record/assert ordering (INV-5) and the restore-on-error rollback (INV-6) exactly, with a phase-boundary regression test.",
+      "proof_type": "automated_test",
+      "evidence": "tests/merge/test_executor_phase_boundary.py asserts record->commit->assert ordering + BaselineMergeCommitError/commit-failure/porcelain-violation restore-then-reraise; tests/specify_cli/merge/test_1827_baseline_regression.py green.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": "2026-06-25T00:00:00+00:00",
+      "notes": "INV-5 + INV-6 preserved across the executor phase boundaries."
+    }
+  ],
+  "negative_invariants": []
+}
