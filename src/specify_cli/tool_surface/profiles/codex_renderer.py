@@ -17,8 +17,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import tomli_w
-
 from charter.profiles import AgentProfile
 
 # Native format identifier (stable string recorded in the manifest).
@@ -72,7 +70,25 @@ class CodexProfileRenderer:
         )
 
     def render(self, profile: AgentProfile) -> str:
-        """Return valid TOML text for the Codex per-project agent format."""
+        """Return valid TOML text for the Codex per-project agent format.
+
+        ``tomli_w`` is imported lazily here rather than at module load: it is a
+        declared runtime dependency but is only needed on this Codex-rendering
+        path, so a stale/mismatched install that is missing it must not brick
+        every CLI command at import time (issue #2103). The guard turns the
+        opaque ``ModuleNotFoundError`` into an actionable message.
+        """
+        try:
+            import tomli_w
+        except ModuleNotFoundError as exc:
+            raise ModuleNotFoundError(
+                "tomli_w is required to render Codex agent profiles but is not "
+                "available in this environment. spec-kitty declares it as a "
+                "runtime dependency, so this usually means a stale install — "
+                "reinstall or upgrade spec-kitty (e.g. `uv tool upgrade "
+                "spec-kitty`) so its declared dependencies are present."
+            ) from exc
+
         description = profile.description or profile.purpose or ""
         doc: dict[str, object] = {
             "name": profile.name or profile.profile_id,
