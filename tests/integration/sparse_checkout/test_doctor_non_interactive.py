@@ -84,14 +84,14 @@ def _force_interactive(monkeypatch: pytest.MonkeyPatch) -> None:
     own helper, which is the only path the command consults.
     """
     monkeypatch.setattr(
-        "specify_cli.cli.commands.doctor._is_interactive_environment",
+        "specify_cli.cli.commands._sparse_checkout_doctor._is_interactive_environment",
         lambda: True,
     )
 
 
 def _force_non_interactive(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
-        "specify_cli.cli.commands.doctor._is_interactive_environment",
+        "specify_cli.cli.commands._sparse_checkout_doctor._is_interactive_environment",
         lambda: False,
     )
 
@@ -103,7 +103,7 @@ def test_non_interactive_stdin_not_tty(
     repo = _seed_sparse_repo(tmp_path)
 
     monkeypatch.setattr(
-        "specify_cli.cli.commands.doctor.locate_project_root", lambda: repo
+        "specify_cli.cli.commands._sparse_checkout_doctor.locate_project_root", lambda: repo
     )
     _force_non_interactive(monkeypatch)
 
@@ -186,7 +186,7 @@ def test_interactive_yes_remediates_primary(
     repo = _seed_sparse_repo(tmp_path)
 
     monkeypatch.setattr(
-        "specify_cli.cli.commands.doctor.locate_project_root", lambda: repo
+        "specify_cli.cli.commands._sparse_checkout_doctor.locate_project_root", lambda: repo
     )
     _force_interactive(monkeypatch)
 
@@ -216,7 +216,7 @@ def test_interactive_no_aborts_cleanly(
     repo = _seed_sparse_repo(tmp_path)
 
     monkeypatch.setattr(
-        "specify_cli.cli.commands.doctor.locate_project_root", lambda: repo
+        "specify_cli.cli.commands._sparse_checkout_doctor.locate_project_root", lambda: repo
     )
     _force_interactive(monkeypatch)
 
@@ -239,7 +239,7 @@ def test_interactive_dirty_refusal_surface(
     (repo / "README.md").write_text("# Hello — edited\n", encoding="utf-8")
 
     monkeypatch.setattr(
-        "specify_cli.cli.commands.doctor.locate_project_root", lambda: repo
+        "specify_cli.cli.commands._sparse_checkout_doctor.locate_project_root", lambda: repo
     )
     _force_interactive(monkeypatch)
 

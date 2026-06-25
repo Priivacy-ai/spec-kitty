@@ -132,7 +132,7 @@ def test_doctor_clean_repo_no_sparse_finding(
     _init_bare_repo(repo)
 
     monkeypatch.setattr(
-        "specify_cli.cli.commands.doctor.locate_project_root",
+        "specify_cli.cli.commands._sparse_checkout_doctor.locate_project_root",
         lambda: repo,
     )
 
@@ -152,7 +152,7 @@ def test_doctor_sparse_primary_emits_finding(
     _enable_sparse(repo, pattern="README.md\nsrc/\n")
 
     monkeypatch.setattr(
-        "specify_cli.cli.commands.doctor.locate_project_root",
+        "specify_cli.cli.commands._sparse_checkout_doctor.locate_project_root",
         lambda: repo,
     )
 
@@ -183,7 +183,7 @@ def test_doctor_sparse_primary_and_worktrees_lists_all_paths(
     wt_b = _add_worktree(repo, "lane-b")
 
     monkeypatch.setattr(
-        "specify_cli.cli.commands.doctor.locate_project_root",
+        "specify_cli.cli.commands._sparse_checkout_doctor.locate_project_root",
         lambda: repo,
     )
 
@@ -204,7 +204,7 @@ def test_doctor_managed_lane_sparse_checkout_is_not_legacy_finding(
     wt = _init_managed_lane_repo(repo)
 
     monkeypatch.setattr(
-        "specify_cli.cli.commands.doctor.locate_project_root",
+        "specify_cli.cli.commands._sparse_checkout_doctor.locate_project_root",
         lambda: repo,
     )
 
@@ -225,11 +225,11 @@ def test_doctor_fix_plan_skips_managed_lane_sparse_checkout(
     _enable_sparse(repo, pattern="README.md\n")
 
     monkeypatch.setattr(
-        "specify_cli.cli.commands.doctor.locate_project_root",
+        "specify_cli.cli.commands._sparse_checkout_doctor.locate_project_root",
         lambda: repo,
     )
     monkeypatch.setattr(
-        "specify_cli.cli.commands.doctor._is_interactive_environment",
+        "specify_cli.cli.commands._sparse_checkout_doctor._is_interactive_environment",
         lambda: True,
     )
     monkeypatch.setattr("builtins.input", lambda _prompt: "n")

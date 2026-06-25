@@ -474,7 +474,12 @@ def test_doctor_flags_tracked_worktrees_content(tmp_path: Path) -> None:
     _bootstrap_coord_mission(tmp_path, with_tracked_worktrees_junk=True)
 
     runner = CliRunner()
-    with patch("specify_cli.cli.commands.doctor.locate_project_root", return_value=tmp_path):
+    # #2059: the coordination command resolves repo_root in its sibling module
+    # (_coordination_doctor), so patch the resolution seam there.
+    with patch(
+        "specify_cli.cli.commands._coordination_doctor.locate_project_root",
+        return_value=tmp_path,
+    ):
         result = runner.invoke(doctor_app, ["coordination", "--json"])
 
     assert result.exit_code == 1, (
