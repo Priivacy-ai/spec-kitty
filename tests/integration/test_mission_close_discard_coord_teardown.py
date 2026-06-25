@@ -56,6 +56,19 @@ def _git(repo: Path, *args: str) -> subprocess.CompletedProcess:
     )
 
 
+def _init_repo(tmp_path: Path) -> Path:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    (repo / ".kittify").mkdir()
+    _git(repo, "init", "-q", "-b", "main")
+    _git(repo, "config", "user.email", "t@example.com")
+    _git(repo, "config", "user.name", "Test")
+    (repo / "README.md").write_text("seed\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "seed")
+    return repo
+
+
 @pytest.fixture
 def coord_mission(tmp_path: Path) -> Path:
     """A coordination mission in the split-brain surface layout.
@@ -253,3 +266,85 @@ def test_verify_discard_complete_flags_leaks(tmp_path: Path) -> None:
     _git(repo, "branch", COORD_BRANCH)
     with pytest.raises(typer.Exit):
         _verify_discard_complete(repo, SLUG, MID8, fdir, meta_path)
+
+
+def _single_lane_manifest(slug: str):
+    from specify_cli.lanes.models import ExecutionLane, LanesManifest
+
+    return LanesManifest(
+        version=1,
+        mission_slug=slug,
+        mission_id=slug,
+        mission_branch=f"kitty/mission-{slug}",
+        target_branch="main",
+        lanes=[
+            ExecutionLane(
+                lane_id="lane-a", wp_ids=("WP01",), write_scope=(),
+                predicted_surfaces=(), depends_on_lanes=(), parallel_group=0,
+            )
+        ],
+        computed_at="2026-01-01T00:00:00+00:00",
+        computed_from="test",
+    )
+
+
+def test_expected_lane_worktree_dir_names_are_exact() -> None:
+    """The expected-name set is exact (no `<slug>-*` prefix) and excludes the
+    planning lane — so it can never match a sibling mission's worktree."""
+    from specify_cli.cli.commands.mission_type import _expected_lane_worktree_dir_names
+    from specify_cli.lanes.models import ExecutionLane
+
+    manifest = _single_lane_manifest("alpha")
+    manifest.lanes.append(
+        ExecutionLane(
+            lane_id="lane-planning", wp_ids=(), write_scope=(),
+            predicted_surfaces=(), depends_on_lanes=(), parallel_group=0,
+        )
+    )
+    assert _expected_lane_worktree_dir_names("alpha", manifest) == {"alpha-lane-a"}
+
+
+def test_remove_lane_worktrees_does_not_delete_sibling_mission(tmp_path: Path) -> None:
+    """Data-loss guard (#2120 follow-up): discarding mission `alpha` removes only
+    its OWN lane worktree, never sibling `alpha-beta`'s worktree (whose dir name
+    shares the `alpha-` prefix) — preserving the sibling's uncommitted work. The
+    pre-fix `<slug>-*` prefix scan deleted it."""
+    from specify_cli.cli.commands.mission_type import _remove_lane_worktrees
+
+    repo = _init_repo(tmp_path)
+    _git(repo, "worktree", "add", "--detach", str(repo / ".worktrees" / "alpha-lane-a"))
+    sibling_wt = repo / ".worktrees" / "alpha-beta-lane-a"
+    _git(repo, "worktree", "add", "--detach", str(sibling_wt))
+    (sibling_wt / "uncommitted.txt").write_text("precious sibling work\n", encoding="utf-8")
+
+    _remove_lane_worktrees(repo, "alpha", _single_lane_manifest("alpha"))
+
+    assert not (repo / ".worktrees" / "alpha-lane-a").exists(), "target worktree must be removed"
+    assert sibling_wt.exists(), "SIBLING worktree must be preserved (no prefix over-match)"
+    assert (sibling_wt / "uncommitted.txt").read_text(encoding="utf-8") == "precious sibling work\n"
+
+
+def test_verify_flags_stale_coordination_worktree_registration(tmp_path: Path) -> None:
+    """A broken coord teardown (directory gone, git registration left behind) is
+    still a leak: `is_present` (on-disk) returns False, so the verifier must also
+    check the git worktree registry — else discard falsely reports success."""
+    import shutil
+
+    import typer
+
+    from specify_cli.cli.commands.mission_type import _verify_discard_complete
+
+    repo = _init_repo(tmp_path)
+    fdir = repo / "kitty-specs" / SLUG
+    fdir.mkdir(parents=True)
+    # No coordination_branch / lanes.json → the ONLY possible leak is the
+    # stale coord worktree registration.
+    (fdir / "meta.json").write_text(json.dumps({"mission_slug": SLUG}), encoding="utf-8")
+
+    coord_path = CoordinationWorkspace.worktree_path(repo, SLUG, MID8)
+    _git(repo, "worktree", "add", "--detach", str(coord_path))
+    shutil.rmtree(coord_path)  # broken teardown: dir removed, registration remains
+
+    assert not CoordinationWorkspace.is_present(repo, SLUG, MID8)  # on-disk gone ...
+    with pytest.raises(typer.Exit):  # ... but the stale registration is still a leak
+        _verify_discard_complete(repo, SLUG, MID8, fdir, fdir / "meta.json")
