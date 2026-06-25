@@ -677,7 +677,7 @@ _CATEGORY_C_BRANCH_NAMING_FAILOVER_SEAM: frozenset[str] = frozenset(
 )
 
 
-# ---------- C. Backward-compat shim re-export (mission 01KVJPEQ) ----------
+# ---------- C. Test-facing agent.tasks re-export compatibility ----------
 _CATEGORY_C_BACKCOMPAT_SHIM_REEXPORT: frozenset[str] = frozenset(
     {
         # Mission decompose-agent-tasks-god-module-01KVWVAR (#2058) split the

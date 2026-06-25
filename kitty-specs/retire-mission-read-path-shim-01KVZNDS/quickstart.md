@@ -6,7 +6,7 @@ exist (no `contracts/` directory) — this is an internal code-retirement missio
 ## Preconditions
 
 - On branch `feat/retire-mission-read-path-shim` (or its execution worktree).
-- Per DIR-003, issue #2048 assigned to the HiC before implementation begins.
+- For a fresh tracker-backed implementation, assign issue #2048 to the HiC per DIR-003 before work begins; reviewers should verify the live tracker state instead of treating this artifact as assignment evidence.
 
 ## The change (what the implementer does)
 

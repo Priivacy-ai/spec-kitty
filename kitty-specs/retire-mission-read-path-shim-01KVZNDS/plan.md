@@ -22,8 +22,8 @@ tidy one stale docstring. No production behavior changes.
 **Target Platform**: Linux/macOS developer + CI environments
 **Project Type**: single (Python CLI package `specify_cli`)
 **Performance Goals**: N/A — no hot path affected
-**Constraints**: Zero `src/` behavior change (NFR-002); baseline count MUST exactly match live frozenset size (C-001); `_baselines.yaml` edit MUST carry a `# justification:` comment (C-004)
-**Scale/Scope**: 5 files changed (1 deletion, 1 test repoint, 2 allowlist edits, 1 baseline edit) + 1 optional docstring tidy
+**Constraints**: Zero supported-canonical-consumer runtime behavior change (NFR-002); baseline count MUST exactly match live frozenset size (C-001); `_baselines.yaml` edit MUST carry a `# justification:` comment (C-004)
+**Scale/Scope**: 7 source/test/ratchet files (1 deletion, 1 test repoint, 2 allowlist edits, 1 baseline edit, 2 prose/allowlist tidies) plus mission artifacts documenting the backcompat decision
 
 ## Charter Check
 
@@ -33,14 +33,16 @@ Charter present at `.kittify/charter/charter.md`. Relevant gates:
 
 - **Burn-down Policy (C-004) / SHRINK ratchet** — This mission *advances* the policy (restores the
   downward trend by decrementing `category_4_backcompat_shims`); fully compliant. ✅
-- **`__all__` Declaration Convention (C-007)** — The canonical re-export `resolve_mission_read_path`
-  remains exported from `_read_path_resolver`; only the redundant shim entry point is removed. No
+- **`__all__` Declaration Convention (C-007)** — `_resolve_mission_read_path` remains private and
+  absent from `_read_path_resolver.__all__`; white-box tests alias the private worker locally, while
+  supported callers use `resolve_handle_to_read_path` / `resolve_feature_dir_for_mission`. No
   `__all__` regression. ✅
 - **ATDD-First (C-011)** — The acceptance gate is the existing architectural suite; the change is
   validated by making `pytest tests/architectural/` pass with count = 8. No new product behavior to
   test-drive; existing behavioral tests are preserved via repoint (NFR-003). ✅
-- **DIR-003 (tracker ticket assignment)** — At implement time, issue #2048 must be assigned to the
-  HiC before work begins. Recorded as an implementation precondition. ✅
+- **DIR-003 (tracker ticket assignment)** — For fresh tracker-backed implementation, issue #2048
+  should be assigned to the HiC before work begins. Assignment must be verified from the tracker and
+  is not inferred from this artifact. ⚠️
 - **Identifier Safety (DIR-001/002)** — No slug/identifier normalization touched. N/A.
 
 No violations. No Complexity Tracking entries required.

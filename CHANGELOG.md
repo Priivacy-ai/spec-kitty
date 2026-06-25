@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
+- Retired the unsupported `specify_cli.mission_read_path` backcompat import path (#2048),
+  after its last production caller had moved to `specify_cli.missions._read_path_resolver`.
+  Supported callers should use `resolve_handle_to_read_path` /
+  `resolve_feature_dir_for_mission`; white-box tests that need the 3-argument worker may
+  import `_resolve_mission_read_path` directly.
 - **Orchestrator no longer stalls on a coord/`pr_bound` mission rooted on a writable
   target branch (#2118).** Continuing the split-brain remediation: the `#2090`
   write-surface change routes planning artifacts (`lanes.json` → `LANE_STATE`, WP

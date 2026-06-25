@@ -69,7 +69,7 @@ the orphaned module passing the dead-module gate. This WP repoints the one remai
 deletes the module, drops its two architectural allowlist entries, and decrements the baseline
 9 → 8 — all in one atomic change so the architectural suite stays green at HEAD.
 
-**No production behavior changes.** The only `src/` edit is deleting the shim file.
+**No supported production runtime behavior changes.** The only `src/` edit is deleting the shim file; the old unsupported import path intentionally stops importing.
 
 ## Context
 
@@ -98,7 +98,7 @@ deletes the module, drops its two architectural allowlist entries, and decrement
 ## Constraints (from spec.md / plan.md)
 
 - **C-001**: After removal, the declared baseline MUST equal the live frozenset size (8). Recount before setting.
-- **C-002**: Import the public re-exported name by aliasing the private worker — `_resolve_mission_read_path as resolve_mission_read_path`. Do NOT re-promote the worker to public or add it to `__all__`.
+- **C-002**: Preserve the local test name by aliasing the private worker — `_resolve_mission_read_path as resolve_mission_read_path`. Do NOT re-promote the worker to public or add it to `__all__`.
 - **C-003**: Do NOT modify files that import from the canonical resolver or only assert the symbol-name string.
 - **C-004**: The `_baselines.yaml` edit MUST carry a `# justification:` comment (per that file's edit policy, lines 11–17).
 

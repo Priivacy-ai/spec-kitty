@@ -67,7 +67,7 @@ removed, and the ratchet trend is restored downward.
 |----|-------------|--------|
 | FR-001 | The external/back-compat consumer question for `specify_cli.mission_read_path` is resolved as "safe to delete": the module path is internal, undocumented as public API, and has zero in-repo `src/` callers; external direct-importers are treated as unsupported. | Confirmed |
 | FR-002 | The module `src/specify_cli/mission_read_path.py` is deleted from the repository. | Pending |
-| FR-003 | Every test import of `from specify_cli.mission_read_path import resolve_mission_read_path` (and the `_COMPAT_ATTRS` error-contract names, if imported) is re-pointed to the canonical `specify_cli.missions._read_path_resolver`, preserving the public symbol name `resolve_mission_read_path`. | Pending |
+| FR-003 | Every test import of `from specify_cli.mission_read_path import resolve_mission_read_path` (and the `_COMPAT_ATTRS` error-contract names, if imported) is re-pointed to `specify_cli.missions._read_path_resolver`, importing the private worker `_resolve_mission_read_path` under the local test alias `resolve_mission_read_path`. | Pending |
 | FR-004 | The entry `"specify_cli.mission_read_path"` is removed from `_CATEGORY_4_BACKCOMPAT_SHIMS` in `tests/architectural/test_no_dead_modules.py`. | Pending |
 | FR-005 | The entry `"specify_cli.mission_read_path::resolve_mission_read_path"` is removed from `_CATEGORY_C_BACKCOMPAT_SHIM_REEXPORT` in `tests/architectural/test_no_dead_symbols.py`. | Pending |
 | FR-006 | `category_4_backcompat_shims` in `tests/architectural/_baselines.yaml` is decremented from 9 to 8, with a `# justification:` comment per the file's edit policy (lines 11–17). | Pending |
@@ -78,7 +78,7 @@ removed, and the ratchet trend is restored downward.
 | ID | Requirement | Threshold / Measure | Status |
 |----|-------------|---------------------|--------|
 | NFR-001 | The full architectural test suite passes after the change. | `pytest tests/architectural/` exits 0, including `test_ratchet_baselines.py`, `test_no_dead_modules.py`, `test_no_dead_symbols.py`. | Pending |
-| NFR-002 | No production behavior changes. | Zero edits to any file under `src/` other than deleting the shim module; no `src/` import of the retired path remains (grep returns 0 matches). | Pending |
+| NFR-002 | No production runtime behavior changes for supported canonical consumers. | Zero edits to any file under `src/` other than deleting the shim module; no `src/` import of the retired path remains (grep returns 0 matches). The unsupported old import path intentionally no longer imports. | Pending |
 | NFR-003 | Repointed test files retain their original assertions and coverage. | The 7 import sites in `test_coord_reader_fixes.py` execute the same `resolve_mission_read_path` behavior via the canonical seam; the file's test count is unchanged and all pass. | Pending |
 | NFR-004 | Lint and type gates stay green. | `ruff check .` and `mypy` report zero new issues on the diff. | Pending |
 
@@ -87,7 +87,7 @@ removed, and the ratchet trend is restored downward.
 | ID | Constraint | Status |
 |----|-----------|--------|
 | C-001 | The baseline decrement MUST exactly match the live frozenset size (8). The ratchet test cross-checks the declared count against the actual allowlist contents; a mismatch fails the gate. | Active |
-| C-002 | The canonical worker is privatized as `_resolve_mission_read_path` and dropped from the resolver's `__all__`; repointed importers MUST import the public re-exported name `resolve_mission_read_path` from `specify_cli.missions._read_path_resolver` (not the underscore-prefixed worker), preserving the existing public contract. | Active |
+| C-002 | The canonical worker is privatized as `_resolve_mission_read_path` and dropped from the resolver's `__all__`; repointed white-box tests MAY import that private worker under the local alias `resolve_mission_read_path`, while supported production callers MUST use public seams such as `resolve_handle_to_read_path` or `resolve_feature_dir_for_mission`. | Active |
 | C-003 | Files that already import from the canonical resolver, or that only assert the symbol-name string in production source, MUST NOT be modified. | Active |
 | C-004 | Per `_baselines.yaml` edit policy, the PR diff touching that file MUST carry a `# justification:` comment explaining why the decrement is safe. | Active |
 
@@ -102,7 +102,7 @@ removed, and the ratchet trend is restored downward.
 ## Key Entities
 
 - **`mission_read_path.py`** — the shim module being deleted (re-exports `resolve_mission_read_path` plus `_COMPAT_ATTRS` error-contract names via `__getattr__`).
-- **`_read_path_resolver.py`** — the canonical resolver that all importers must point to.
+- **`_read_path_resolver.py`** — the canonical resolver module; public callers use its public seams, while low-level white-box tests may alias `_resolve_mission_read_path`.
 - **`_baselines.yaml`** — the architectural ratchet baseline ledger.
 - **`test_no_dead_modules.py` / `test_no_dead_symbols.py`** — the dead-code gates holding the allowlist entries to remove.
 
