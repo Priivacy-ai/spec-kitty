@@ -58,10 +58,23 @@ def _wp(wp_id: str, deps: str = "[]") -> str:
 
 _LANES_JSON = {
     "version": 1,
-    "feature_slug": MISSION_DIRNAME,
+    "mission_slug": MISSION_DIRNAME,
+    "mission_id": MISSION_ID,
     "target_branch": TARGET_BRANCH,
     "mission_branch": COORD_BRANCH,
-    "lanes": [{"lane_id": "lane-a", "wp_ids": ["WP01", "WP02"]}],
+    "computed_at": "2026-01-01T00:00:00+00:00",
+    "computed_from": "tasks.md",
+    "planning_artifact_wps": [],
+    "lanes": [
+        {
+            "lane_id": "lane-a",
+            "wp_ids": ["WP01", "WP02"],
+            "write_scope": ["src/"],
+            "predicted_surfaces": ["api"],
+            "depends_on_lanes": [],
+            "parallel_group": 1,
+        }
+    ],
 }
 
 
