@@ -49,7 +49,7 @@ class TestCommandHints:
         "method,expected_fragment",
         [
             (InstallMethod.PIPX, "pipx upgrade"),
-            (InstallMethod.UV_TOOL, "uv tool upgrade"),
+            (InstallMethod.UV_TOOL, "uv tool install --force"),
             (InstallMethod.PIP_USER, "pip install --user --upgrade"),
             (InstallMethod.PIP_SYSTEM, "pip install --upgrade"),
             (InstallMethod.BREW, "brew upgrade"),
@@ -190,6 +190,14 @@ class TestBuildUpgradeHintPackageArg:
         """The *package* kwarg is accepted (reserved for future use)."""
         hint = build_upgrade_hint(InstallMethod.PIPX, package="spec-kitty-cli")
         assert hint.install_method == InstallMethod.PIPX
+
+    def test_uv_tool_target_version_overrides_receipt_pin(self) -> None:
+        hint = build_upgrade_hint(InstallMethod.UV_TOOL, target_version="3.2.2")
+        assert hint.command == "uv tool install --force spec-kitty-cli==3.2.2"
+
+    def test_uv_tool_invalid_target_version_falls_back_to_unpinned(self) -> None:
+        hint = build_upgrade_hint(InstallMethod.UV_TOOL, target_version="3.2.2;rm")
+        assert hint.command == "uv tool install --force spec-kitty-cli"
 
 
 # ---------------------------------------------------------------------------
