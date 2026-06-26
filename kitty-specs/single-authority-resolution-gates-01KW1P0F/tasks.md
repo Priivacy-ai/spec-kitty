@@ -101,10 +101,10 @@ WP08 (pre-condition + gate reconciliation) ← deps WP02,03,04,05
 - **Priority:** P1 · **Independent test:** the canonicalizer gate green for these files; `:454` pinned.
 - **Depends on:** WP01.
 - **Subtasks:**
-  - [ ] T015 Sanction `_read_path_resolver.py` seam sites; pin `:454` (WP03)
-  - [ ] T016 Route/sanction `mission_type.py` (WP03)
-  - [ ] T017 Route/sanction `retrospective/writer.py` (WP03)
-  - [ ] T018 Shrink allowlist for routed seam sites (WP03)
+  - [x] T015 Sanction `_read_path_resolver.py` seam sites; pin `:454` (WP03)
+  - [x] T016 Route/sanction `mission_type.py` (WP03)
+  - [x] T017 Route/sanction `retrospective/writer.py` (WP03)
+  - [x] T018 Shrink allowlist for routed seam sites (WP03)
 - **Risks:** don't double-fold already-canonical sites; `:454` must be allowlisted not "fixed" (FR-011 recursion).
 
 ## WP04 — Canonicalizer consumer sweep: merge/core/coordination (IC-02c part 1)
@@ -125,11 +125,11 @@ WP08 (pre-condition + gate reconciliation) ← deps WP02,03,04,05
 - **Priority:** P1 · **Independent test:** gate green for these files.
 - **Depends on:** WP01.
 - **Subtasks:**
-  - [ ] T023 Route `status/aggregate.py` (4) (WP05)
-  - [ ] T024 Route `mission_runtime/resolution.py` (4) (WP05)
-  - [ ] T025 Route `runtime_bridge.py` (`:98`, `:177`) (WP05)
-  - [ ] T026 Route `agent/workflow.py` + `mission_finalize.py` + `mission_feature_resolution.py` + `acceptance/__init__.py` (WP05)
-  - [ ] T027 Shrink allowlist for WP05 sites (WP05)
+  - [x] T023 Route `status/aggregate.py` (4) (WP05)
+  - [x] T024 Route `mission_runtime/resolution.py` (4) (WP05)
+  - [x] T025 Route `runtime_bridge.py` (`:98`, `:177`) (WP05)
+  - [x] T026 Route `agent/workflow.py` + `mission_finalize.py` + `mission_feature_resolution.py` + `acceptance/__init__.py` (WP05)
+  - [x] T027 Shrink allowlist for WP05 sites (WP05)
 - **Risks:** the judgment-heavy cluster; ambiguity propagation; `runtime_bridge.py` is the corrected latent path (`src/runtime/next/`).
 
 ## WP06 — Convergence test (IC-05)
