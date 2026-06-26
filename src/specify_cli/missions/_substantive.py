@@ -352,4 +352,6 @@ def is_committed(
     return head_hit
 
 
-__all__ = ["Kind", "describe_technical_context_gap", "is_committed", "is_substantive"]
+# Kind: demoted — used only within this module; no cross-module src/
+# from-import callers (WP01 harden-dead-symbol-gate-01KW0RJR).
+__all__ = ["describe_technical_context_gap", "is_committed", "is_substantive"]

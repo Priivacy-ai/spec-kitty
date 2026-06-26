@@ -40,10 +40,12 @@ logger = logging.getLogger(__name__)
 __all__ = [
     "build_mission_registry",
     "format_path_for_display",
-    "gather_feature_paths",
+    # gather_feature_paths: demoted — no cross-module src/ from-import callers
+    # (WP01 harden-dead-symbol-gate-01KW0RJR).
     "get_feature_artifacts",
     "get_workflow_status",
-    "read_file_resilient",
+    # read_file_resilient: demoted — no cross-module src/ from-import callers
+    # (WP01 harden-dead-symbol-gate-01KW0RJR).
     "read_only_weighted_percentage",
     "resolve_feature_dir",
     "resolve_active_feature",

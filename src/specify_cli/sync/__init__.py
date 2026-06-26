@@ -135,7 +135,9 @@ __all__ = [
     "is_saas_sync_enabled",
     "saas_sync_disabled_message",
     "emit_diagnostic",
-    "register_default_handlers",
+    # register_default_handlers: demoted — no cross-module src/ callers; used
+    # only by tests to restore handler state (WP01 harden-dead-symbol-gate).
+    # Remains callable as an unexported internal.
     # LocalCommit core (WP05)
     "SyncState",
     "load_sync_state",

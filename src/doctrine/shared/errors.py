@@ -132,9 +132,9 @@ def reject_inline_refs_in_procedure_steps(
 
 
 __all__ = [
-    "FORBIDDEN_STEP_FIELDS",
-    "FORBIDDEN_TOP_LEVEL_FIELDS",
-    "build_migration_hint",
+    # FORBIDDEN_STEP_FIELDS, FORBIDDEN_TOP_LEVEL_FIELDS, build_migration_hint:
+    # demoted — no cross-module src/ from-import callers; used only within
+    # this module (WP01 harden-dead-symbol-gate-01KW0RJR).
     "reject_inline_refs",
     "reject_inline_refs_in_procedure_steps",
 ]

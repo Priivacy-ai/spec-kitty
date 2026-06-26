@@ -48,7 +48,6 @@ import psutil
 from specify_cli.sync.daemon import (
     DAEMON_EXEC_ARG_PREFIX,
     DAEMON_SCOPE_ARG_PREFIX,
-    _daemon_root,
     _daemon_scope_root,
     _get_package_version,
     _is_process_alive,
@@ -815,11 +814,14 @@ def build_record_for_current_process(
 # re-importing daemon internals.
 __all__ = [
     "DaemonOwnerRecord",
-    "MISMATCH_FIELDS",
-    "ReapResult",
+    # MISMATCH_FIELDS: demoted — intra-module constant; no cross-module src/
+    # from-import callers (WP01 harden-dead-symbol-gate-01KW0RJR).
+    # ReapResult: demoted — no cross-module src/ from-import callers (WP01).
     "build_record_for_current_process",
-    "canonical_executable_scope",
-    "check_daemon_owner_match",
+    # canonical_executable_scope: demoted — no cross-module src/ from-import
+    # callers (WP01 harden-dead-symbol-gate-01KW0RJR).
+    # check_daemon_owner_match: demoted — no cross-module src/ callers;
+    # only exercised by tests (WP01 harden-dead-symbol-gate-01KW0RJR).
     "compute_foreground_identity",
     "is_orphan",
     "list_orphan_records",
@@ -830,5 +832,7 @@ __all__ = [
     "redact_token",
     "remove_owner_record",
     "write_owner_record",
-    "_daemon_root",
+    # _daemon_root: private symbol re-exported from daemon — removed from
+    # __all__ (WP01 harden-dead-symbol-gate-01KW0RJR). Remains importable
+    # as an unexported internal for intra-package use.
 ]

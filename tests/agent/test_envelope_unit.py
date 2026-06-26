@@ -7,6 +7,7 @@ import json
 import pytest
 
 from specify_cli.orchestrator_api.envelope import (
+    BANNED_FLAGS,
     CONTRACT_VERSION,
     PolicyMetadata,
     make_envelope,
@@ -127,11 +128,19 @@ class TestParsePolicyValid:
             parse_and_validate_policy(raw)
 
     def test_parse_policy_preserves_valid_dangerous_flags_entries(self):
-        """Non-secret dangerous_flags entries survive validation unchanged."""
-        policy_dict = self._valid_policy(dangerous_flags=["--full-auto"])
+        """Non-secret, non-banned dangerous_flags entries survive validation unchanged."""
+        policy_dict = self._valid_policy(dangerous_flags=["--some-allowed-flag"])
         raw = json.dumps(policy_dict)
         policy = parse_and_validate_policy(raw)
-        assert policy.dangerous_flags == ["--full-auto"]
+        assert policy.dangerous_flags == ["--some-allowed-flag"]
+
+    @pytest.mark.parametrize("banned_flag", sorted(BANNED_FLAGS))
+    def test_parse_policy_rejects_banned_flag(self, banned_flag: str) -> None:
+        """Every BANNED_FLAGS entry must be rejected with a clear error."""
+        policy_dict = self._valid_policy(dangerous_flags=[banned_flag])
+        raw = json.dumps(policy_dict)
+        with pytest.raises(ValueError, match="banned flag"):
+            parse_and_validate_policy(raw)
 
     def test_parse_policy_tool_restrictions_must_be_string_or_null(self):
         """Structured tool_restrictions cannot bypass policy metadata scanning."""

@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "40bcfaf405144e201515c29f3be35e67b19e884b",
+  "coordination_branch": "kitty/mission-harden-dead-symbol-gate-01KW0RJR",
+  "created_at": "2026-06-26T01:26:48.461278+00:00",
+  "flattened": false,
+  "friendly_name": "Harden the Dead-Symbol Gate",
+  "mission_id": "01KW0RJRCC3DKNCGS4CDMNCKKH",
+  "mission_number": 149,
+  "mission_slug": "harden-dead-symbol-gate-01KW0RJR",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The architectural dead-symbol gate (tests/architectural/test_no_dead_symbols.py) has two limitations: a parser bug (_extract_all_literal) that blinds it to ~57 modules, and caller-detection that only recognizes 'from X import Y' — missing module-style calls, lazy package re-exports, Typer command registration, dynamic registries, and return-type flow. Fixing only the parser would surface ~107 live-but-invisible symbols and tempt a mass-allowlist that grows the very ratchet issue #2049 works to shrink. This mission instead fixes the parser AND enhances caller detection so those ~107 are correctly seen as live (no allowlist growth), cleans up the handful of genuinely-dead symbols, and closes a latent security gap (an unsafe-flag blocklist that was defined but never enforced).",
+  "purpose_tldr": "Fix the dead-symbol gate's parser bug and teach it the call patterns it's blind to, so it inspects all public symbols without false-flagging live code.",
+  "slug": "harden-dead-symbol-gate-01KW0RJR",
+  "target_branch": "feat/harden-dead-symbol-gate",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-26T02:11:06.012703+00:00"
+}

@@ -121,8 +121,10 @@ def clear_registry() -> None:
 
 
 __all__ = [
-    "GlossaryRunnerProtocol",
+    # GlossaryRunnerProtocol: demoted — no cross-module src/ from-import
+    # callers (WP01 harden-dead-symbol-gate-01KW0RJR).
     "register",
     "get_runner",
-    "clear_registry",
+    # clear_registry: demoted — test-only reset helper; no cross-module src/
+    # from-import callers (WP01 harden-dead-symbol-gate-01KW0RJR).
 ]

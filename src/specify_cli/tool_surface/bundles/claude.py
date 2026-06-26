@@ -473,6 +473,7 @@ def _has_non_trivial_hooks(bundle_dir: Path) -> bool:
 __all__ = [
     "ClaudeCodeBundleProjector",
     "ClaudeBundleProjector",
-    "BuildError",
+    # BuildError: demoted — re-exported from _builder; no cross-module src/
+    # from-import callers of this module (WP01 harden-dead-symbol-gate-01KW0RJR).
     "_validate_bundle",
 ]

@@ -329,8 +329,8 @@ def maybe_emit_upgrade_notice(
 
 
 __all__ = [
-    "OPT_OUT_ENV_VAR",
-    "TTL_SUCCESS_SECONDS",
-    "TTL_UNKNOWN_SECONDS",
+    # OPT_OUT_ENV_VAR, TTL_SUCCESS_SECONDS, TTL_UNKNOWN_SECONDS: demoted —
+    # consumed only within this module; no cross-module src/ from-import
+    # callers (WP01 harden-dead-symbol-gate-01KW0RJR).
     "maybe_emit_upgrade_notice",
 ]

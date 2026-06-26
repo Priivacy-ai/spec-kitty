@@ -70,6 +70,7 @@ def filter_dossier_snapshots(paths: list[str]) -> list[str]:
 
 
 __all__ = [
-    "filter_dossier_snapshots",
+    # filter_dossier_snapshots: demoted — no cross-module src/ from-import
+    # callers (WP01 harden-dead-symbol-gate-01KW0RJR).
     "is_dossier_snapshot",
 ]

@@ -1876,15 +1876,13 @@ def rebuild_mission_event_log(
 
 
 __all__ = [
-    "CANONICAL_ENVELOPE_SCHEMA_VERSION",
-    "MIGRATION_SCHEMA_VERSION",
-    "MissionEventRebuildResult",
+    # CANONICAL_ENVELOPE_SCHEMA_VERSION, MIGRATION_SCHEMA_VERSION,
+    # MissionEventRebuildResult, RepairReport, TeamspaceDryRunRowMapping,
+    # deterministic_ulid: demoted — migration-internal; no cross-module
+    # src/ from-import callers (WP01 harden-dead-symbol-gate-01KW0RJR).
     "MissionStateDryRunError",
     "MissionStateRepairError",
-    "RepairReport",
-    "TeamspaceDryRunRowMapping",
     "TeamspaceDryRunReport",
-    "deterministic_ulid",
     "rebuild_mission_event_log",
     "repair_repo",
     "teamspace_dry_run",
