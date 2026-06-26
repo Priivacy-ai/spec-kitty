@@ -144,14 +144,14 @@ def test_coord_health_missing_worktree(
 
 def test_scan_lane_unresolvable(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(cd, "_lane_sparse_file", lambda _d: None)
-    finding = cd._scan_lane_sparse_drift(tmp_path, "m", {"a"})
+    finding = cd._scan_lane_sparse_drift(tmp_path, {"a"})
     assert finding is not None
     assert finding.error_code == cd._LANE_DRIFT_CODE
 
 
 def test_scan_lane_missing_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(cd, "_lane_sparse_file", lambda _d: tmp_path / "nope")
-    finding = cd._scan_lane_sparse_drift(tmp_path, "m", {"a"})
+    finding = cd._scan_lane_sparse_drift(tmp_path, {"a"})
     assert finding is not None
     assert "missing the sparse-checkout" in finding.message
 
@@ -160,7 +160,7 @@ def test_scan_lane_drift_detected(monkeypatch: pytest.MonkeyPatch, tmp_path: Pat
     sparse = tmp_path / "sparse"
     sparse.write_text("pattern-a\n", encoding="utf-8")
     monkeypatch.setattr(cd, "_lane_sparse_file", lambda _d: sparse)
-    finding = cd._scan_lane_sparse_drift(tmp_path, "m", {"pattern-a", "pattern-b"})
+    finding = cd._scan_lane_sparse_drift(tmp_path, {"pattern-a", "pattern-b"})
     assert finding is not None
     assert finding.extra["missing_patterns"] == ["pattern-b"]
 
@@ -169,7 +169,7 @@ def test_scan_lane_healthy(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> N
     sparse = tmp_path / "sparse"
     sparse.write_text("pattern-a\npattern-b\n", encoding="utf-8")
     monkeypatch.setattr(cd, "_lane_sparse_file", lambda _d: sparse)
-    assert cd._scan_lane_sparse_drift(tmp_path, "m", {"pattern-a"}) is None
+    assert cd._scan_lane_sparse_drift(tmp_path, {"pattern-a"}) is None
 
 
 def test_check_lane_drift_legacy_skips() -> None:
@@ -241,14 +241,14 @@ def test_collect_findings_no_specs_dir(
 
 def test_coord_head_finding_mismatch(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(subprocess, "check_output", lambda *a, **k: "refs/heads/other\n")
-    finding = cd._coord_worktree_head_finding(tmp_path, "kitty/x", "m")
+    finding = cd._coord_worktree_head_finding(tmp_path, "kitty/x")
     assert finding is not None
     assert finding.error_code == "COORDINATION_WORKTREE_BRANCH_MISMATCH"
 
 
 def test_coord_head_finding_match(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setattr(subprocess, "check_output", lambda *a, **k: "refs/heads/kitty/x\n")
-    assert cd._coord_worktree_head_finding(tmp_path, "kitty/x", "m") is None
+    assert cd._coord_worktree_head_finding(tmp_path, "kitty/x") is None
 
 
 def test_coord_head_finding_detached(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -256,7 +256,7 @@ def test_coord_head_finding_detached(monkeypatch: pytest.MonkeyPatch, tmp_path: 
         raise subprocess.CalledProcessError(1, "git")
 
     monkeypatch.setattr(subprocess, "check_output", _boom)
-    finding = cd._coord_worktree_head_finding(tmp_path, "kitty/x", "m")
+    finding = cd._coord_worktree_head_finding(tmp_path, "kitty/x")
     assert finding is not None
 
 

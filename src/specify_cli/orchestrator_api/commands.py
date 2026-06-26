@@ -1371,11 +1371,17 @@ def append_history(
     # FR-003 / T013: the WP prompt file is a WORK_PACKAGE_TASK (primary kind), so
     # it is authored and committed on the PRIMARY checkout — never the coordination
     # worktree (the planning→coord transit is removed, C-005). Resolve the WP file
-    # from the primary feature dir so the edit lands on the primary surface; a
-    # coord-anchored path would trip SAFE_COMMIT_PATH_POLICY (.worktrees/ staging).
-    from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
-
-    primary_mission_dir = primary_feature_dir_for_mission(main_repo_root, mission)
+    # through the canonical per-kind read seam (``_planning_read_dir`` →
+    # ``resolve_planning_read_dir``, the same seam the sibling planning reads use),
+    # NOT a raw handle-blind ``primary_feature_dir_for_mission`` call: that primitive
+    # composes the handle verbatim, so a bare ``mid8`` / full ULID / numeric handle
+    # would land on a DIVERGENT dir than where the WP prompt actually lives (the
+    # #2136/#2164 write/placement divergence). The seam folds the handle to its
+    # canonical ``<slug>-<mid8>`` dir for every form (and propagates
+    # ``MissionSelectorAmbiguous`` — no silent pick). The kind is PRIMARY so the
+    # resolved dir is the primary surface — a coord-anchored path would trip
+    # SAFE_COMMIT_PATH_POLICY (.worktrees/ staging).
+    primary_mission_dir = _planning_read_dir(main_repo_root, mission)
     wp_path = _resolve_wp_file(primary_mission_dir / "tasks", wp)
     if wp_path is None:
         _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")

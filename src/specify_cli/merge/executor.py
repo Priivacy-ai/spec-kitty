@@ -103,7 +103,7 @@ from specify_cli.missions._read_path_resolver import (
     primary_feature_dir_for_mission,
 )
 from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
-from specify_cli.sync import emit_diff_summary_recorded, emit_mission_closed
+from specify_cli.sync.events import emit_diff_summary_recorded, emit_mission_closed
 from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
 from mission_runtime import is_coordination_artifact_residue_path
 
@@ -780,33 +780,36 @@ def _phase_cleanup_worktrees_and_branches(run: _MergeRunState) -> None:
         console.print(f"  Cleaned up {len(lanes_manifest.lanes)} lane branch(es) + mission branch")
 
     # -- WP07 / FR-016 / SC-10: Coordination worktree teardown --
+    #
+    # The shared ``teardown_coordination_topology`` seam (FR-004) persists the
+    # retrospective to its durable home BEFORE destroying the worktree
+    # (persist-before-destroy, FR-005), then performs the idempotent worktree
+    # removal that safely no-ops for legacy missions that never created a
+    # coordination worktree (FR-017). Without this seam, the coordination
+    # worktree is destroyed here while ``run_retrospective_postcondition`` fires
+    # only afterwards in the outer ``merge()`` — the merge-path destroy-before-
+    # persist ordering bug. Destroy stays best-effort inside the seam; persist
+    # runs OUTSIDE that swallow.
     if run.remove_worktree:
-        try:
-            from specify_cli.coordination import CoordinationWorkspace
-            from specify_cli.mission_metadata import load_meta as _load_meta
+        from specify_cli.coordination.teardown import teardown_coordination_topology
+        from specify_cli.mission_metadata import load_meta as _load_meta
 
-            _meta_for_teardown = _load_meta(run.feature_dir)
-            _mid8_for_teardown = (
-                str(_meta_for_teardown.get("mid8", "")).strip()
-                if isinstance(_meta_for_teardown, dict)
-                else ""
-            )
-            if _mid8_for_teardown:
-                CoordinationWorkspace.teardown(
-                    run.main_repo,
-                    run.mission_slug,
-                    _mid8_for_teardown,
-                )
-                logger.debug(
-                    "Coordination worktree teardown for %s-%s completed",
-                    run.mission_slug,
-                    _mid8_for_teardown,
-                )
-        except Exception as _coord_teardown_exc:  # noqa: BLE001 — teardown is best-effort cleanup; never block a successful merge
-            logger.warning(
-                "Coordination worktree teardown failed (non-fatal): %s",
-                _coord_teardown_exc,
-            )
+        _meta_for_teardown = _load_meta(run.feature_dir)
+        _mid8_for_teardown = (
+            str(_meta_for_teardown.get("mid8", "")).strip()
+            if isinstance(_meta_for_teardown, dict)
+            else ""
+        )
+        teardown_coordination_topology(
+            run.main_repo,
+            run.mission_slug,
+            _mid8_for_teardown,
+        )
+        logger.debug(
+            "Coordination topology teardown for %s-%s completed",
+            run.mission_slug,
+            _mid8_for_teardown,
+        )
 
 
 def _phase_finalize_and_summary(run: _MergeRunState) -> None:

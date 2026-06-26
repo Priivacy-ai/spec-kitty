@@ -247,16 +247,19 @@ def _teardown_coordination_for_abort(
     resolved: str | None,
     state_entry: tuple[str | None, MergeState] | None,
 ) -> None:
-    """Best-effort coordination-worktree teardown during ``--abort`` (FR-016).
+    """Coordination-topology teardown during ``--abort`` (FR-016).
 
-    Idempotent; a no-op for legacy missions without coordination state. Never
-    raises — abort cleanup must leave the workspace in the same shape as a clean
-    run even when teardown fails.
+    Idempotent; a no-op for legacy missions without coordination state. The
+    slug/meta RESOLUTION stays best-effort (a partial-state abort may have no
+    resolvable slug), but the actual teardown routes through the shared
+    ``teardown_coordination_topology`` seam (FR-004) OUTSIDE that swallow so the
+    persist-before-destroy leg (FR-005) is not masked as "best-effort cleanup".
     """
-    try:
-        from specify_cli.coordination import CoordinationWorkspace
-        from specify_cli.mission_metadata import load_meta as _load_meta
+    from specify_cli.coordination.teardown import teardown_coordination_topology
+    from specify_cli.mission_metadata import load_meta as _load_meta
 
+    abort_teardown_args: tuple[Path, str, str] | None = None
+    try:
         main_for_abort = get_main_repo_root(repo_root)
         coord_slug = resolved
         if coord_slug is None and state_entry is not None:
@@ -266,12 +269,16 @@ def _teardown_coordination_for_abort(
         feature_dir = candidate_feature_dir_for_mission(main_for_abort, coord_slug)
         meta = _load_meta(feature_dir)
         mid8 = str(meta.get("mid8", "")).strip() if isinstance(meta, dict) else ""
-        if mid8 and coord_slug:
-            CoordinationWorkspace.teardown(main_for_abort, coord_slug, mid8)
-    except Exception as exc:  # noqa: BLE001 — abort cleanup is best-effort
+        abort_teardown_args = (main_for_abort, coord_slug, mid8)
+    except Exception as exc:  # noqa: BLE001 — slug resolution is best-effort
         logger.debug(
-            "Coordination worktree teardown during --abort failed (non-fatal): %s", exc
+            "Coordination teardown during --abort skipped (unresolved slug/meta): %s",
+            exc,
         )
+
+    if abort_teardown_args is not None:
+        # Persist-before-destroy runs OUTSIDE the resolution swallow.
+        teardown_coordination_topology(*abort_teardown_args)
 
 
 def _dispatch_abort(repo_root: Path, mission: str | None, feature: str | None) -> None:

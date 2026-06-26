@@ -8,7 +8,6 @@ ReviewResult derivation.
 
 from __future__ import annotations
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 import re
@@ -181,10 +180,17 @@ def resolve_review_cycle_pointer(repo_root: Path, pointer: str) -> ResolvedRevie
 
     if value.startswith("review-cycle://"):
         parts = validate_review_cycle_pointer(value)
+        # #2136/#2164: resolve the mission dir through the SAME topology-aware fold
+        # the WRITE seam uses (``create_rejected_review_cycle`` →
+        # ``candidate_feature_dir_for_mission``) rather than a raw
+        # ``kitty-specs/<mission_slug>`` join. The pointer's mission_slug
+        # is whatever handle the emitting writer was given; a bare ``mid8`` / human
+        # slug names the on-disk ``<slug>-<mid8>`` dir only after canonicalization,
+        # so the raw join would compose a DIVERGENT path from where the artifact was
+        # written. The shared resolver converges every handle form on the one dir and
+        # propagates ``MissionSelectorAmbiguous`` (no silent pick — C-009).
         candidate = (
-            repo_root
-            / KITTY_SPECS_DIR
-            / parts.mission_slug
+            candidate_feature_dir_for_mission(repo_root, parts.mission_slug)
             / "tasks"
             / parts.wp_slug
             / parts.filename

@@ -129,7 +129,8 @@ def test_coord_health_warns_when_missing(fresh_mission_repo: Path) -> None:
     f = findings[0]
     assert f.severity == "warning"
     assert f.error_code == "COORDINATION_WORKTREE_MISSING"
-    assert "worktree repair" in (f.next_step or "")
+    # WP05 (#1890): phantom `agent worktree repair` repointed to the real command.
+    assert "doctor workspaces --fix" in (f.next_step or "")
 
 
 def test_coord_health_warns_on_branch_mismatch(fresh_mission_repo: Path) -> None:

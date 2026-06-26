@@ -124,8 +124,9 @@ def test_coord_empty_warns_loudly_and_returns_primary(
         "warning must name recovery path (a): flatten the mission by removing "
         f"the `coordination_branch` key. Got: {message!r}"
     )
-    assert "spec-kitty agent worktree repair" in message, (
-        "warning must name recovery path (b): the concrete repair command. "
+    assert "doctor workspaces --fix" in message, (
+        "warning must name recovery path (b): the real repair command "
+        "(spec-kitty doctor workspaces --fix, per FR-007/#1890). "
         f"Got: {message!r}"
     )
     # (c) The resolver RETURNS the PRIMARY dir — Option B fallback, not a raise,

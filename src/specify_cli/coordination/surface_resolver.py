@@ -18,8 +18,8 @@ operator-decided **loud primary fallback** (Option B; FR-001 / FR-003 / #1716):
 the resolver falls back to the primary checkout and proceeds, emitting a single
 ``logging.WARNING`` (:data:`_COORD_EMPTY_FALLBACK_WARNING`) that names the
 stale-surface risk AND both operator recovery paths — flatten (drop
-``coordination_branch`` from ``meta.json``) OR ``spec-kitty agent worktree
-repair --mission <slug>``. It NEVER silently degrades: the warning makes the
+``coordination_branch`` from ``meta.json``) OR run
+``spec-kitty doctor workspaces --fix``. It NEVER silently degrades: the warning makes the
 fallback observable so an operator or orchestrating agent can intervene. The
 decision is recorded in
 ``architecture/3.x/adr/2026-06-19-1-coord-empty-surface-fallback.md`` and bound
@@ -106,8 +106,8 @@ def _topology_uses_coord_surface(topology: MissionTopology) -> bool:
 # worktree root is materialized but carries no mission dir, the resolver returns
 # the PRIMARY checkout and emits this single ``logging.WARNING`` so the fallback
 # is observable. The message names the stale-surface risk AND both operator
-# recovery paths (flatten OR `spec-kitty agent worktree repair`); it is built once
-# (paula C-warning-dup) and reuses the ADR recovery text. The ``{slug}`` /
+# recovery paths (flatten OR `spec-kitty doctor workspaces --fix`); it is built
+# once (paula C-warning-dup) and reuses the ADR recovery text. The ``{slug}`` /
 # ``{coord_root}`` fields are filled at emit time.
 _COORD_EMPTY_FALLBACK_WARNING = (
     "Coordination worktree for mission %(slug)r is materialized but carries no "
@@ -116,7 +116,7 @@ _COORD_EMPTY_FALLBACK_WARNING = (
     "EITHER (a) flattening the mission — remove the `coordination_branch` key "
     "from meta.json so the primary checkout becomes authoritative — OR "
     "(b) recreating/populating the coordination worktree by running "
-    "`spec-kitty agent worktree repair --mission %(slug)s`."
+    "`spec-kitty doctor workspaces --fix`."
 )
 
 
@@ -200,10 +200,9 @@ class CoordinationBranchDeleted(StatusReadPathNotFound):  # type: ignore[misc, u
         self.coordination_branch = coordination_branch
         self.next_step = (
             f"The coordination branch {coordination_branch!r} declared in "
-            f"meta.json no longer exists in git. Run `spec-kitty agent worktree "
-            f"repair --mission {mission_slug}`, or flatten the mission by "
-            f"removing the `coordination_branch` key from meta.json if the "
-            f"coordination topology was intentionally torn down."
+            f"meta.json no longer exists in git. Run `spec-kitty doctor workspaces --fix`, "
+            f"or flatten the mission by removing the `coordination_branch` key from "
+            f"meta.json if the coordination topology was intentionally torn down."
         )
         super().__init__(
             repo_root=repo_root,
@@ -779,7 +778,7 @@ def resolve_status_surface_with_anchor(
     # root is materialized but its mission dir is absent (coord-empty). Reading the
     # primary checkout may expose a stale, split-brain status surface (#1589/#1821),
     # so emit a single loud ``logging.WARNING`` naming the risk AND both recovery
-    # paths (flatten OR `spec-kitty agent worktree repair`) — making the fallback
+    # paths (flatten OR `spec-kitty doctor workspaces --fix`) — making the fallback
     # observable so an operator/orchestrating agent can intervene — then return the
     # PRIMARY surface and proceed. Before materialization (``UNMATERIALIZED``) the
     # composed coord path is returned as-is; the create→first-write window keeps the

@@ -47,6 +47,7 @@ SPK_SKILLS = {
     "spk-team-connectors",
     "spk-team-sync",
     "spk-team-tracker",
+    "spk-team-upsun-cli-sync",
 }
 LEGACY_ALIAS_SKILLS = {
     "ad-hoc-profile-load",

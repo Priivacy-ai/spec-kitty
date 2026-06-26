@@ -295,6 +295,7 @@ def test_full_partition_resolves_per_membership(coord_mission: _CoordMission) ->
         MissionArtifactKind.WORK_PACKAGE_TASK,
         MissionArtifactKind.LANE_STATE,
         MissionArtifactKind.PRIMARY_METADATA,
+        MissionArtifactKind.RETROSPECTIVE,
     }
     coord_kinds = {
         MissionArtifactKind.STATUS_STATE,

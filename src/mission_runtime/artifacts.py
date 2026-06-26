@@ -42,6 +42,11 @@ class MissionArtifactKind(enum.Enum):
     DATA_MODEL = "data_model"
     RESEARCH = "research"
     CHECKLIST = "checklist"
+    # Terminal PRIMARY-partition artifact (FR-002): the post-merge retrospective
+    # (``retrospective.yaml``) lives with its mission in the durable
+    # ``kitty-specs/<slug>/`` home for EVERY topology and never transits the
+    # coordination branch.
+    RETROSPECTIVE = "retrospective"
 
 
 @dataclass(frozen=True)
@@ -94,6 +99,9 @@ _PRIMARY_ARTIFACT_KINDS: frozenset[MissionArtifactKind] = frozenset(
         # LANE_STATE (lanes.json, finalize output) travels with tasks.md → PRIMARY.
         MissionArtifactKind.LANE_STATE,
         MissionArtifactKind.PRIMARY_METADATA,
+        # FR-002: the post-merge retrospective is a terminal PRIMARY-partition
+        # artifact — it resolves to the durable mission home for every topology.
+        MissionArtifactKind.RETROSPECTIVE,
     }
 )
 
@@ -122,6 +130,7 @@ _COORD_RESIDUE_FILENAMES: dict[str, MissionArtifactKind] = {
     "spec.md": MissionArtifactKind.SPEC,
     "data-model.md": MissionArtifactKind.DATA_MODEL,
     "research.md": MissionArtifactKind.RESEARCH,
+    "retrospective.yaml": MissionArtifactKind.RETROSPECTIVE,
 }
 
 _COORD_RESIDUE_DIRS: dict[str, MissionArtifactKind] = {

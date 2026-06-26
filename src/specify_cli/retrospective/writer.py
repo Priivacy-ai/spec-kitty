@@ -20,6 +20,7 @@ from typing import Any, Literal
 
 from ruamel.yaml import YAML
 
+from specify_cli.core.constants import RETROSPECTIVE_FILENAME
 from specify_cli.retrospective.schema import (
     GenActor,
     GenEvidenceRef,
@@ -33,20 +34,68 @@ from specify_cli.retrospective.schema import (
 )
 
 
+def resolve_retrospective_home(repo_root: Path, mission_slug: str) -> Path:
+    """Return the durable PRIMARY home dir for a mission's retrospective record.
+
+    The SINGLE home-resolution authority for ``retrospective.yaml`` (FR-001/003,
+    #2119). Every retrospective placement site routes through THIS function so the
+    record lands in the durable tracked home (``kitty-specs/<slug>/``) for EVERY
+    topology — never the ephemeral coordination worktree (the #1771 coord-leak
+    this mission cures). Re-introducing an independent resolution (a coord-aware
+    ``resolve_feature_dir_for_*`` call, or a hardcoded ``.kittify/missions/...``
+    payload) at any placement site is a regression the FR-003 structural test
+    (``test_home_resolution_single_authority``) fails the build on.
+
+    The retrospective is a terminal PRIMARY-partition artifact
+    (:attr:`MissionArtifactKind.RETROSPECTIVE`, gated below); the home is the
+    topology-blind :func:`primary_feature_dir_for_mission` primitive.
+
+    FR-011 write leg (#2136): the blind primitive composes its handle verbatim,
+    so the caller canonicalizes the handle here FIRST — mirroring the read leg's
+    caller-side fold (:func:`resolve_planning_read_dir`) and reusing the SAME
+    shared canonicalizer (no bespoke resolver — C-006). An *ambiguous* handle
+    propagates :class:`MissionSelectorAmbiguous` — no silent pick (C-009).
+
+    Raises:
+        AssertionError: If the partition predicate ever stops classifying
+            ``RETROSPECTIVE`` as a PRIMARY kind (a guard against a silent
+            re-partition reintroducing the coord-leak).
+        MissionSelectorAmbiguous: When ``mission_slug`` matches >1 mission.
+        ValueError: When ``mission_slug`` is not a safe path segment.
+    """
+    from mission_runtime import MissionArtifactKind, is_primary_artifact_kind
+    from specify_cli.missions._read_path_resolver import (
+        _canonicalize_primary_read_handle,
+        primary_feature_dir_for_mission,
+    )
+
+    # The retrospective is a PRIMARY-partition kind by contract (FR-002): assert
+    # the partition before resolving so a future re-partition that quietly demotes
+    # RETROSPECTIVE to a coord kind is caught here, not by a re-leaked record.
+    assert is_primary_artifact_kind(MissionArtifactKind.RETROSPECTIVE)
+    # FR-011 write leg (#2136/#2164): the topology-blind primitive composes its
+    # handle verbatim, so the caller folds the handle FIRST through the SAME proven
+    # full-fold the PRIMARY read leg uses (``_canonicalize_primary_read_handle`` —
+    # identity forms + bare-human-slug). The prior ``_canonicalize_bare_modern_handle``
+    # only folded a bare *human slug*; a bare ``mid8`` / full ULID / numeric prefix
+    # therefore composed a DIVERGENT dir on the write leg while the read leg resolved
+    # the real one (the #2136 read/write divergence this closes). An *ambiguous*
+    # handle propagates :class:`MissionSelectorAmbiguous` — no silent pick (C-009).
+    canonical = _canonicalize_primary_read_handle(repo_root, mission_slug)
+    feature_dir: Path = primary_feature_dir_for_mission(repo_root, canonical)
+    return feature_dir
+
+
 def canonical_record_path(repo_root: Path, mission_slug: str) -> Path:
     """Return the canonical (tracked) retrospective.yaml path for a mission.
 
-    FR-006 (#1771): the retrospective *record* lives in the mission's tracked
-    feature_dir (``kitty-specs/<slug>/retrospective.yaml``), alongside
-    spec/plan/tasks — NOT under the gitignored ``.kittify/missions/`` tree. The
-    feature_dir is resolved through the single coord-topology-aware read
-    primitive (``resolve_feature_dir_for_slug`` → ``resolve_mission_read_path``),
-    so the record sits beside the same surface the status events use (C-005).
+    FR-001/003 (#2119): the record lives in the mission's durable PRIMARY home
+    (``kitty-specs/<slug>/retrospective.yaml``), resolved through the single
+    :func:`resolve_retrospective_home` authority for every topology — never the
+    ephemeral coordination worktree (the #1771 coord-leak).
     """
-    from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_slug
-
-    feature_dir: Path = resolve_feature_dir_for_slug(repo_root, mission_slug)
-    return feature_dir / "retrospective.yaml"
+    path: Path = resolve_retrospective_home(repo_root, mission_slug) / RETROSPECTIVE_FILENAME
+    return path
 
 
 def _legacy_record_path(repo_root: Path, mission_id: str) -> Path:
@@ -57,7 +106,8 @@ def _legacy_record_path(repo_root: Path, mission_id: str) -> Path:
     writes never target this path; readers fall back to it so archived/legacy
     records remain visible.
     """
-    return repo_root / ".kittify" / "missions" / mission_id / "retrospective.yaml"
+    path: Path = repo_root / ".kittify" / "missions" / mission_id / RETROSPECTIVE_FILENAME
+    return path
 
 
 def resolve_existing_record_path(
@@ -104,6 +154,72 @@ class RecordExistsError(WriterError):
         )
 
 
+def _atomic_write_yaml(data: dict[str, Any], canonical: Path, target_dir: Path) -> None:
+    """Atomically write a dict as YAML to ``canonical``.
+
+    Shared primitive used by both ``write_record`` and ``write_gen_record``.
+
+    Sequence:
+    1. Serialize ``data`` via ruamel.yaml round-trip dumper to a uniquely-named
+       tempfile in ``target_dir`` (same filesystem as ``canonical`` →
+       ``os.replace`` is guaranteed atomic on POSIX/APFS/NTFS).
+    2. ``fsync()`` the tempfile fd, close.
+    3. ``os.replace(tmp, canonical)`` — atomic rename.
+    4. Best-effort ``fsync()`` on the parent directory fd to flush the rename
+       into the inode (non-fatal on failure).
+
+    Raises:
+        WriterError: On any IO or serialization error.  The tempfile is
+            unlinked on failure so no partial file remains.
+    """
+    tmp_name = f"{RETROSPECTIVE_FILENAME}.tmp.{os.getpid()}.{os.urandom(4).hex()}"
+    tmp_path = target_dir / tmp_name
+
+    try:
+        yaml = YAML(typ="rt")
+        yaml.default_flow_style = False
+        yaml.preserve_quotes = True
+        yaml.width = 120
+
+        buf = io.BytesIO()
+        yaml.dump(data, buf)
+        serialized = buf.getvalue()
+
+        fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
+        try:
+            os.write(fd, serialized)
+            os.fsync(fd)
+        finally:
+            os.close(fd)
+
+        os.replace(str(tmp_path), str(canonical))
+
+        # Best-effort dir fsync.
+        try:
+            dir_fd = os.open(str(target_dir), os.O_RDONLY)
+            try:
+                os.fsync(dir_fd)
+            finally:
+                os.close(dir_fd)
+        except OSError:
+            pass
+
+    except WriterError:
+        raise
+    except OSError as exc:
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise WriterError(f"IO error writing retrospective record: {exc}") from exc
+    except Exception as exc:
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
+        raise WriterError(f"Unexpected error writing retrospective record: {exc}") from exc
+
+
 def write_record(record: RetrospectiveRecord, *, repo_root: Path) -> Path:
     """Atomically write a retrospective record to its canonical path.
 
@@ -112,10 +228,7 @@ def write_record(record: RetrospectiveRecord, *, repo_root: Path) -> Path:
     2. Compute the canonical tracked path: <feature_dir>/retrospective.yaml
        (FR-006 #1771 — kitty-specs/<slug>/, never the gitignored .kittify tree).
     3. Create the target directory if needed.
-    4. Serialize via ruamel.yaml round-trip dumper to a tempfile in the same directory.
-    5. fsync() the tempfile, close.
-    6. os.replace(tmp, canonical)  — atomic on POSIX/APFS.
-    7. Best-effort fsync() on the parent directory fd.
+    4. Serialize and persist atomically via :func:`_atomic_write_yaml`.
 
     Returns the absolute canonical path that was written.
 
@@ -144,59 +257,9 @@ def write_record(record: RetrospectiveRecord, *, repo_root: Path) -> Path:
     except OSError as exc:
         raise WriterError(f"Cannot create target directory {target_dir}: {exc}") from exc
 
-    # Build a tempfile in the same directory (same filesystem → os.replace is atomic).
-    tmp_name = f"retrospective.yaml.tmp.{os.getpid()}.{os.urandom(4).hex()}"
-    tmp_path = target_dir / tmp_name
-
-    try:
-        yaml = YAML(typ="rt")
-        yaml.default_flow_style = False
-        yaml.width = 120
-
-        # Convert the model to a plain dict for serialization.
-        data = validated.model_dump(mode="python")
-
-        buf = io.BytesIO()
-        yaml.dump(data, buf)
-        serialized = buf.getvalue()
-
-        # Write tempfile, fsync, close.
-        fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
-        try:
-            os.write(fd, serialized)
-            os.fsync(fd)
-        finally:
-            os.close(fd)
-
-        # Atomic rename.
-        os.replace(str(tmp_path), str(canonical))
-
-        # Best-effort fsync the directory to flush the rename into the inode.
-        try:
-            dir_fd = os.open(str(target_dir), os.O_RDONLY)
-            try:
-                os.fsync(dir_fd)
-            finally:
-                os.close(dir_fd)
-        except OSError:
-            # Non-fatal: directory fsync is best-effort per the spec.
-            pass
-
-    except WriterError:
-        raise
-    except OSError as exc:
-        # Clean up tempfile if it still exists.
-        try:
-            tmp_path.unlink(missing_ok=True)
-        except OSError:
-            pass
-        raise WriterError(f"IO error writing retrospective record: {exc}") from exc
-    except Exception as exc:
-        try:
-            tmp_path.unlink(missing_ok=True)
-        except OSError:
-            pass
-        raise WriterError(f"Unexpected error writing retrospective record: {exc}") from exc
+    # Convert the model to a plain dict and delegate atomic write to shared helper.
+    data = validated.model_dump(mode="python")
+    _atomic_write_yaml(data, canonical, target_dir)
 
     return canonical
 
@@ -416,59 +479,6 @@ def _merge_gen_records(existing: GenRetrospectiveRecord, new: GenRetrospectiveRe
     )
 
 
-def _atomic_write_gen(data: dict[str, Any], canonical: Path, target_dir: Path) -> None:
-    """Atomically write a dict as YAML to canonical path.
-
-    Write to <canonical>.tmp.<pid>.<random>, fsync, os.replace.
-    """
-    tmp_name = f"retrospective.yaml.tmp.{os.getpid()}.{os.urandom(4).hex()}"
-    tmp_path = target_dir / tmp_name
-
-    try:
-        yaml = YAML(typ="rt")
-        yaml.default_flow_style = False
-        yaml.preserve_quotes = True
-        yaml.width = 120
-
-        buf = io.BytesIO()
-        yaml.dump(data, buf)
-        serialized = buf.getvalue()
-
-        fd = os.open(str(tmp_path), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
-        try:
-            os.write(fd, serialized)
-            os.fsync(fd)
-        finally:
-            os.close(fd)
-
-        os.replace(str(tmp_path), str(canonical))
-
-        # Best-effort dir fsync.
-        try:
-            dir_fd = os.open(str(target_dir), os.O_RDONLY)
-            try:
-                os.fsync(dir_fd)
-            finally:
-                os.close(dir_fd)
-        except OSError:
-            pass
-
-    except WriterError:
-        raise
-    except OSError as exc:
-        try:
-            tmp_path.unlink(missing_ok=True)
-        except OSError:
-            pass
-        raise WriterError(f"IO error writing retrospective record: {exc}") from exc
-    except Exception as exc:
-        try:
-            tmp_path.unlink(missing_ok=True)
-        except OSError:
-            pass
-        raise WriterError(f"Unexpected error writing retrospective record: {exc}") from exc
-
-
 def write_gen_record(
     record: GenRetrospectiveRecord,
     *,
@@ -580,6 +590,6 @@ def write_gen_record(
         raise WriterError(f"Unknown write mode {mode!r}; expected 'error', 'overwrite', or 'update'")
 
     data = _gen_record_to_dict(final_record)
-    _atomic_write_gen(data, canonical, target_dir)
+    _atomic_write_yaml(data, canonical, target_dir)
 
     return canonical

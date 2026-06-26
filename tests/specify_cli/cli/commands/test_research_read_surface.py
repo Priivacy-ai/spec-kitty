@@ -135,13 +135,16 @@ def _seed_coord_topology(repo_root: Path) -> tuple[Path, Path]:
     return primary_dir, coord_husk_dir
 
 
-def _run_research(repo_root: Path):  # type: ignore[no-untyped-def]
+def _run_research(repo_root: Path, mission_handle: str = SLUG_WITH_MID8):  # type: ignore[no-untyped-def]
     """Invoke the REAL ``research`` command (pre-existing entry point).
 
     ``find_repo_root`` / ``get_project_root_or_exit`` are patched to the fixture
     root; the dossier sync is neutralized (it is fire-and-forget over the network).
     The seam (``resolve_planning_read_dir``) runs for real against the on-disk
     fixture — the production fix is exercised, not stubbed.
+
+    ``mission_handle`` defaults to the canonical ``<slug>-<mid8>`` directory name;
+    pass a bare ``MID8`` to exercise the #2122 handle→slug canonicalization path.
     """
     import typer
 
@@ -167,7 +170,7 @@ def _run_research(repo_root: Path):  # type: ignore[no-untyped-def]
             # A single-command typer app omits the command name from argv.
             result = runner.invoke(
                 app,
-                ["--mission", SLUG_WITH_MID8],
+                ["--mission", mission_handle],
                 catch_exceptions=False,
             )
     finally:
@@ -217,6 +220,35 @@ def test_research_scaffolds_onto_primary_for_coord_topology(tmp_path: Path) -> N
     # CSV stubs also land on primary.
     assert (primary_dir / "research" / "evidence-log.csv").exists()
     assert not (coord_husk_dir / "research" / "evidence-log.csv").exists()
+
+
+# --------------------------------------------------------------------------- #
+# Red-first (#2122): a BARE MID8 handle must canonicalize to the slug before the
+# PRIMARY-partition planning read composes ``kitty-specs/<value>`` literally.
+# Pre-fix the bare ``MID8`` was joined as ``kitty-specs/<mid8>/`` (handle-blind
+# primary arm) → the read missed the real primary plan; the FILLED primary plan
+# was never consulted and the artifacts scaffolded onto a wrong/non-existent dir.
+# --------------------------------------------------------------------------- #
+def test_research_resolves_bare_mid8_handle_to_primary_slug(tmp_path: Path) -> None:
+    """GREEN: ``research --mission <mid8>`` resolves the FILLED primary plan and
+    scaffolds onto the canonical primary dir (not ``kitty-specs/<mid8>``)."""
+    primary_dir, coord_husk_dir = _seed_coord_topology(tmp_path)
+
+    # Drive the REAL command with a BARE mid8 handle (not the full slug).
+    result = _run_research(tmp_path, mission_handle=MID8)
+
+    assert result.exit_code == 0, result.output
+    assert "appears to be unfilled" not in result.output, result.output
+    # Artifacts land on the canonical PRIMARY dir, never on a literal
+    # ``kitty-specs/<mid8>`` dir nor the coord husk.
+    for rel in ("research.md", "data-model.md"):
+        assert (primary_dir / rel).exists(), f"{rel} missing on PRIMARY surface"
+        assert not (coord_husk_dir / rel).exists(), (
+            f"{rel} leaked onto the COORD husk (#2122 regression)"
+        )
+    assert not (tmp_path / "kitty-specs" / MID8).exists(), (
+        "research composed a literal kitty-specs/<mid8> dir (handle-blind primary arm)"
+    )
 
 
 # --------------------------------------------------------------------------- #

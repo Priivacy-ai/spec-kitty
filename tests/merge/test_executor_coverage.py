@@ -577,7 +577,11 @@ def test_phase_cleanup_removes_worktrees_and_branches(tmp_path: Path) -> None:
         patch.object(ex, "_worktree_removal_delay", return_value=0),
         patch.object(ex, "run_command", side_effect=_fake_cmd),
         patch("specify_cli.mission_metadata.load_meta", return_value={"mid8": "deadbeef"}),
-        patch("specify_cli.coordination.CoordinationWorkspace") as cw_mock,
+        # WP04 (#2119): coordination teardown now routes through the shared
+        # ``teardown_coordination_topology`` seam. Patch the seam's real destroy
+        # target (``coordination.workspace``) and stub the persist leg.
+        patch("specify_cli.post_merge.retrospective_terminus.run_retrospective_postcondition"),
+        patch("specify_cli.coordination.workspace.CoordinationWorkspace") as cw_mock,
     ):
         ex._phase_cleanup_worktrees_and_branches(run)
     # The worktree removal command ran.
@@ -606,6 +610,9 @@ def test_phase_cleanup_skips_missing_worktree_and_branch(tmp_path: Path) -> None
         patch.object(ex, "_worktree_removal_delay", return_value=0),
         patch.object(ex, "run_command", side_effect=_fake_cmd),
         patch("specify_cli.mission_metadata.load_meta", return_value={}),
+        # WP04 (#2119): the seam runs the persist leg before the (no-op) destroy;
+        # stub it so an empty-meta mission does not hit the real generator.
+        patch("specify_cli.post_merge.retrospective_terminus.run_retrospective_postcondition"),
     ):
         ex._phase_cleanup_worktrees_and_branches(run)
     # Worktree absent -> never removed; branch missing -> never deleted.
@@ -614,17 +621,27 @@ def test_phase_cleanup_skips_missing_worktree_and_branch(tmp_path: Path) -> None
 
 
 def test_phase_cleanup_coord_teardown_failure_is_non_fatal(tmp_path: Path) -> None:
+    # WP04 (#2119): the cleanup phase now routes coordination teardown through the
+    # shared ``teardown_coordination_topology`` seam, which persists the
+    # retrospective BEFORE destroying the worktree. The DESTROY leg stays
+    # best-effort: a worktree-removal failure must NOT raise out of the phase.
+    # Patch the seam's real destroy target (``coordination.workspace``) so the
+    # fault injection genuinely exercises the swallowed destroy, and stub the
+    # persist leg (which runs OUTSIDE the swallow) so it does not interfere.
     run = _make_run(tmp_path, remove_worktree=True, delete_branch=False)
     with (
         patch.object(ex, "_worktree_removal_delay", return_value=0),
         patch.object(ex, "run_command", return_value=(0, "", "")),
         patch("specify_cli.lanes.branch_naming.worktree_path", return_value=tmp_path / "absent"),
         patch("specify_cli.mission_metadata.load_meta", return_value={"mid8": "deadbeef"}),
-        patch("specify_cli.coordination.CoordinationWorkspace") as cw_mock,
+        patch("specify_cli.post_merge.retrospective_terminus.run_retrospective_postcondition"),
+        patch("specify_cli.coordination.workspace.CoordinationWorkspace") as cw_mock,
     ):
         cw_mock.teardown.side_effect = RuntimeError("teardown boom")
-        # Must not raise — teardown failure is best-effort.
+        # Must not raise — the destroy leg inside the seam is best-effort.
         ex._phase_cleanup_worktrees_and_branches(run)
+        # The destroy leg WAS reached (proves the seam routed to teardown).
+        cw_mock.teardown.assert_called_once()
 
 
 # --- _phase_finalize_and_summary --------------------------------------------

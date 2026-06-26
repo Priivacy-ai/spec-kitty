@@ -17,17 +17,27 @@ from __future__ import annotations
 
 import json
 import sys
+from collections.abc import Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 from rich.table import Table
 
 from ._doctor_shared import _STARTED_AT_COLUMN, console
 
+if TYPE_CHECKING:
+    # Type-only import: keeps the ``specify_cli.sync`` domain import
+    # function-local at runtime while annotations use the concrete record type
+    # instead of ``object`` + ``# type: ignore``.
+    from specify_cli.sync.owner import DaemonOwnerRecord
+
 __all__ = ["run_orphan_daemons", "run_restart_daemon"]
 
 
-def _render_orphan_daemons_table(orphans: list[object], retire_hint: str) -> None:
+def _render_orphan_daemons_table(
+    orphans: Sequence[DaemonOwnerRecord], retire_hint: str
+) -> None:
     """Render the orphan daemon records table + retirement hint (human output)."""
     console.print(f"\n[bold]Orphan Daemons[/bold] — {len(orphans)} record(s)\n")
     table = Table(box=None, padding=(0, 2), show_edge=False)
@@ -38,11 +48,11 @@ def _render_orphan_daemons_table(orphans: list[object], retire_hint: str) -> Non
     table.add_column(_STARTED_AT_COLUMN, min_width=20)
     for record in orphans:
         table.add_row(
-            str(record.pid),  # type: ignore[attr-defined]
-            str(record.port),  # type: ignore[attr-defined]
-            record.package_version,  # type: ignore[attr-defined]
-            record.executable_path,  # type: ignore[attr-defined]
-            record.started_at,  # type: ignore[attr-defined]
+            str(record.pid),
+            str(record.port),
+            record.package_version,
+            record.executable_path,
+            record.started_at,
         )
     console.print(table)
     console.print()

@@ -9,8 +9,9 @@ Covers the FR-001/FR-002 contract:
 * On a merged mission (all WPs terminal), a ``MissionReopened`` event postdating
   the last merge marker makes ``derive_mission_lifecycle`` report a ``reopened``
   (actionable) surface_state — the FR-002 crux.
-* The two new types stay off the SaaS strict-validation path and round-trip
-  through ``read_events`` as reducer-skipped.
+* The two new types are classified as post-mission lifecycle facts by the
+  CLI's own ``lifecycle._POST_MISSION_EVENT_TYPES`` set (the local-only
+  authority) and round-trip through ``read_events`` as reducer-skipped.
 """
 
 from __future__ import annotations
@@ -364,12 +365,36 @@ def test_post_mission_events_sorted_and_last_follow_up_recorded(tmp_path: Path) 
 # ---------------------------------------------------------------------------
 
 
-def test_new_types_not_on_saas_strict_path() -> None:
-    """The two new types must not be in the external model map (local-only)."""
-    from spec_kitty_events.conformance.validators import _EVENT_TYPE_TO_MODEL
+def test_new_types_stay_local_only_via_cli_contract() -> None:
+    """The two new types stay local-only via the CLI's OWN exclusion contract.
 
-    assert MISSION_REOPENED not in _EVENT_TYPE_TO_MODEL
-    assert FOLLOW_UP_RECORDED not in _EVENT_TYPE_TO_MODEL
+    Re-pinned (events 6.1.0 canonicalization): the original assertion proxied
+    "local-only" through *absence from the external model map*
+    (``spec_kitty_events.conformance.validators._EVENT_TYPE_TO_MODEL``). That
+    proxy was always fragile and is now false — events 6.1.0 promoted
+    ``MissionReopened`` / ``FollowUpRecorded`` (and ~10 other CLI lifecycle
+    types) into the canonical map, so map-absence no longer holds and never
+    was the seam that keeps these events out of the WP state machine.
+
+    The robust invariant lives at the CLI seam: ``lifecycle._POST_MISSION_EVENT_TYPES``
+    is the authority that classifies these as post-mission lifecycle facts —
+    they are collected for the *local* re-open/archive classification
+    (``derive_mission_lifecycle``) and are reducer-skipped so they never mutate
+    WP ``status.json``. Asserting on the CLI's own frozenset (and on the
+    reducer-skip + classification behavior exercised by the sibling tests)
+    keeps this test's intent — these stay local to the mission's lifecycle
+    surface — while being robust to the events package adding canonical models.
+    """
+    from specify_cli.status.lifecycle import _POST_MISSION_EVENT_TYPES
+
+    # The CLI's own post-mission classification set is the local-only authority.
+    assert MISSION_REOPENED in _POST_MISSION_EVENT_TYPES
+    assert FOLLOW_UP_RECORDED in _POST_MISSION_EVENT_TYPES
+    # And it is exactly these two types (a third type silently joining the set
+    # would change the local classification surface and must be deliberate).
+    assert sorted(_POST_MISSION_EVENT_TYPES) == sorted(
+        {MISSION_REOPENED, FOLLOW_UP_RECORDED}
+    )
 
 
 def test_events_round_trip_as_reducer_skipped(tmp_path: Path) -> None:
