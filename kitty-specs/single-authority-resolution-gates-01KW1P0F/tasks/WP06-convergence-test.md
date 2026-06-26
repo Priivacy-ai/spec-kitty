@@ -19,6 +19,7 @@ subtasks:
 - T031
 - T032
 agent: claude
+shell_pid: '3109006'
 history:
 - timestamp: '2026-06-26T11:02:04Z'
   actor: planner
@@ -229,3 +230,7 @@ Verify:
 4. No `pytest.raises(Exception)` — exception types must be specific.
 5. The test file passes `ruff` and `mypy` without suppressions.
 6. The convergence test runs in the fast tier and completes in under 10 seconds.
+
+## Activity Log
+
+- 2026-06-26T14:30:10Z – user – shell_pid=3109006 – Verified: 12 convergence tests pass (read≡write all forms, red-first negative control, constant-stub rejected), gate 30/30. Integrated on lane-f.

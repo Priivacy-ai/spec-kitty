@@ -289,3 +289,7 @@ Verify:
 7. T040 allowlist shrink is honest: every removed entry corresponds to a site that appears in a WP02–WP05 routed-site manifest; no speculative removals.
 8. `test_routed_count_floor` floor is a concrete integer, not a formula referencing live scan output; the floor represents what was actually routed, not an optimistic ceiling.
 9. If `_MIN_DISCOVERED_ROWS` was lowered below `20`, the commit body names the specific sites that disappeared from `discover_rows()` output (GAP-5 accounting).
+
+## Activity Log
+
+- 2026-06-26T14:30:12Z – user – Verified: routed-count floor 27 (live 31), coord-floor 17 (honest census), C-003 #2161 confirmed, full arch 529 passed. Integrated on lane-f.
