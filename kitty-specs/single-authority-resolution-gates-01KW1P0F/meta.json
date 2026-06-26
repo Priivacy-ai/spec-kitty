@@ -10,5 +10,7 @@
   "purpose_tldr": "Stop the implement/review loop blocking on coord-vs-primary surface splits, and make the mission-path resolution boundary impossible to silently diverge again.",
   "slug": "single-authority-resolution-gates-01KW1P0F",
   "target_branch": "design/infra-logic-separation-2173",
-  "topology": "flat"
+  "topology": "flat",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-26T12:05:47.937465+00:00"
 }
