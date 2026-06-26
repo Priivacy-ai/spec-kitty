@@ -14,8 +14,8 @@ subtasks:
 - T020
 - T021
 - T022
-agent: "claude:sonnet:python-pedro:implementer"
-shell_pid: "2931106"
+agent: "claude:sonnet:reviewer-renata:reviewer"
+shell_pid: "2992342"
 history:
 - timestamp: '2026-06-26T11:02:04Z'
   actor: planner
@@ -292,3 +292,5 @@ Reviewers should confirm:
 ## Activity Log
 
 - 2026-06-26T12:36:48Z – claude:sonnet:python-pedro:implementer – shell_pid=2931106 – Assigned agent via action command
+- 2026-06-26T12:53:18Z – claude:sonnet:python-pedro:implementer – shell_pid=2931106 – WP04 at 62ac4c1a1: 8 sites routed (merge/core/coordination), commit_router:355 except narrowed for MissionSelectorAmbiguous (C-002), stale allowlist entries removed -> gate 30/30 green.
+- 2026-06-26T12:53:47Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=2992342 – Started review via action command
