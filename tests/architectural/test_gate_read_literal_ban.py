@@ -640,14 +640,9 @@ def test_read_arm_default_deny_no_unlisted_topology_join() -> None:
 # the encoding normalizer → ``_planning_read_dir``) the accept package is clean.
 #
 # The broadened dir-read arm ALSO surfaced an N+2 cluster OUTSIDE this mission's
-# scope — the implement/review/merge command surface reads WP ``tasks/`` off
-# coord-aware resolvers (``workflow.py::implement`` / ``review`` /
-# ``_resolve_review_context`` / ``_preview_claimable_wp_for_mission``,
-# ``tasks.py::status`` / ``finalize_tasks``, ``merge.py::_mark_wp_merged_done``).
-# Those belong to a SEPARATE implement-loop write-surface mission (the #1716
-# cluster) and are NAMED here (not silently fixed) so the residual is tracked, not
-# hidden — fixing them in THIS behavior-neutral accept-gate closeout would breach
-# locality (DIRECTIVE_024).
+# scope — the implement/review command surface reads WP ``tasks/`` off coord-aware
+# resolvers. The cleaner one-hop sites were closed by the #2115 native-flow
+# primary/status split, so the pin below now tracks only the remaining bodies.
 
 
 def test_dir_read_arm_default_deny_accept_package_clean() -> None:
@@ -676,28 +671,9 @@ def test_dir_read_arm_default_deny_accept_package_clean() -> None:
     )
 
 
-# The implement/review/merge WP-task bare-dir reads the broadened arm surfaced —
-# the N+2 cluster OUTSIDE this accept-gate closeout. NAMED so the residual is
-# tracked (debbie step 5: "don't silently fix-and-hide"); fenced by a SEPARATE
-# implement-loop write-surface mission (the #1716 cluster). The pin below asserts
-# this is exactly the set the scan finds, so neither a NEW implement-loop dir-read
-# (set grows → FAIL) nor a silent fix (set shrinks → FAIL, prompting removal here)
-# slips by unobserved.
-_DIR_READ_KNOWN_RESIDUALS: frozenset[str] = frozenset(
-    {
-        "src/specify_cli/cli/commands/agent/tasks.py::finalize_tasks",
-        "src/specify_cli/cli/commands/agent/tasks.py::status",
-        "src/specify_cli/cli/commands/agent/workflow.py::_preview_claimable_wp_for_mission",
-        "src/specify_cli/cli/commands/agent/workflow.py::_resolve_review_context",
-        "src/specify_cli/cli/commands/agent/workflow.py::implement",
-        "src/specify_cli/cli/commands/agent/workflow.py::review",
-        # NB(#2057): ``merge.py::_mark_wp_merged_done`` was relocated into the
-        # ``specify_cli/merge/done_bookkeeping.py`` seam by the merge-decomposition
-        # mission; ``merge.py`` now only re-exports it. The dir-read scan scopes
-        # ``cli/commands/`` only, so the residual left this surface — unpin it so
-        # the ratchet stays tight (the test instructs this exact removal).
-    }
-)
+# Known implement/review WP-task bare-dir reads surfaced by the broadened arm.
+# Keep this pin empty unless a deliberately-deferred residual has a tracker.
+_DIR_READ_KNOWN_RESIDUALS: frozenset[str] = frozenset()
 
 
 def test_dir_read_arm_known_residuals_are_pinned() -> None:

@@ -169,7 +169,9 @@ def _claimable_selection_reason(
     return "no_planned_wps"
 
 
-def preview_claimable_wp(feature_dir: Path) -> ClaimablePreview:
+def preview_claimable_wp(
+    feature_dir: Path, *, status_dir: Path | None = None
+) -> ClaimablePreview:
     """Return the WP that ``agent action implement`` would auto-claim, if any.
 
     Walks ``<feature_dir>/tasks/WP*.md`` in alphabetical order, reads each
@@ -180,7 +182,15 @@ def preview_claimable_wp(feature_dir: Path) -> ClaimablePreview:
     ``done`` is the WP the explicit action would claim.
 
     Args:
-        feature_dir: Absolute path to ``kitty-specs/<mission_slug>/``.
+        feature_dir: PRIMARY-surface mission dir (``kitty-specs/<mission_slug>/``)
+            — the source of the WP ``tasks/`` files and the dependency graph
+            (both PRIMARY-partition, WORK_PACKAGE_TASK).
+        status_dir: Optional dir for the STATUS read (event-log lanes). Under
+            coordination topology the append-only event log lives on the
+            coordination worktree, NOT the primary surface, so the caller passes
+            the coord-aware status dir here while ``feature_dir`` stays primary
+            (#2115). Defaults to ``feature_dir`` for flattened/legacy missions
+            where both partitions share one surface (backward-compatible).
 
     Returns:
         :class:`ClaimablePreview` whose ``wp_id`` matches what ``agent action
@@ -203,9 +213,10 @@ def preview_claimable_wp(feature_dir: Path) -> ClaimablePreview:
             candidates=(),
         )
 
-    # Read lanes from the canonical status event log (lane is event-log-only).
+    # Lanes come from the canonical status event log (STATUS-partition → status_dir
+    # under coord topology); candidates + dep graph are PRIMARY (→ feature_dir).
     return _preview_from_candidates(
         candidates,
-        _load_wp_lanes(feature_dir),
+        _load_wp_lanes(status_dir if status_dir is not None else feature_dir),
         build_dependency_graph(feature_dir),
     )

@@ -618,23 +618,25 @@ class TestImplementCommand:
 
 
 class TestImplementCoordTopologyLanesJson:
-    """Regression tests for #1991: lanes.json read from coord worktree.
+    """Regression tests for lanes.json placement under coord topology (#1991 → #2115).
 
-    finalize-tasks writes lanes.json to the coordination branch and deletes
-    the primary-checkout copy via _stage_finalize_artifacts_in_coord_worktree.
-    The implement validate block must read it from the coord-aware surface
-    (_lanes_feature_dir), not from the meta-anchored primary feature_dir.
+    #1991/#2052 originally made implement read lanes.json from the coordination
+    worktree. #2090 then moved planning artifacts (lanes.json = LANE_STATE) to the
+    primary ``target_branch`` for every topology, and #2115 fixed the read side to
+    match: ``_resolve_lanes_dir`` resolves the PRIMARY surface. So under coord
+    topology implement reads lanes.json from PRIMARY; the coord worktree carries
+    only STATUS artifacts.
     """
 
-    def test_lanes_json_read_from_coord_dir_not_primary(
+    def test_lanes_json_read_from_primary_dir_under_coord_topology(
         self,
         tmp_path: Path,
         capsys: pytest.CaptureFixture[str],
     ) -> None:
-        """lanes.json in coord dir only — implement must NOT fail with MissingLanesError."""
+        """lanes.json on the primary surface — implement reads it there (#2115)."""
         mission_slug = "010-feature"
 
-        # Primary checkout: meta.json + WP file + status — NO lanes.json
+        # Primary checkout: meta.json + WP file + status + lanes.json (PRIMARY-partition)
         primary_dir = tmp_path / "kitty-specs" / mission_slug
         create_meta_json(primary_dir)
         wp_file = primary_dir / "tasks" / "WP01-setup.md"
@@ -645,12 +647,12 @@ class TestImplementCoordTopologyLanesJson:
             "authoritative_surface: src/wp01/\n---\n# WP01",
             encoding="utf-8",
         )
+        create_lanes_json(primary_dir, wp_ids=("WP01",))
         _seed_planned(primary_dir, "WP01")
 
-        # Coord dir: lanes.json + status — NO meta.json (mirrors real coord topology)
+        # Coord dir: status only — NO lanes.json, NO meta.json (real coord topology)
         coord_dir = tmp_path / ".worktrees" / f"{mission_slug}-coord" / "kitty-specs" / mission_slug
         coord_dir.mkdir(parents=True)
-        create_lanes_json(coord_dir, wp_ids=("WP01",))
         _seed_planned(coord_dir, "WP01")
 
         # Status surface points to coord (finalize-tasks seeds events there)
@@ -684,9 +686,10 @@ class TestImplementCoordTopologyLanesJson:
                 "specify_cli.cli.commands.implement.detect_feature_context",
                 return_value=("010", mission_slug),
             ),
-            # Both coord-aware resolvers return coord_dir — triggers meta.json
-            # fallback so feature_dir lands on primary, but _lanes_feature_dir
-            # stays on coord_dir (the fix for #1991).
+            # Both coord-aware resolvers return coord_dir — proving lanes.json is
+            # NOT read through them. ``_resolve_lanes_dir`` resolves the PRIMARY
+            # surface independently (resolve_planning_read_dir), so implement still
+            # finds lanes.json on primary even when these point at coord (#2115).
             patch(
                 "specify_cli.cli.commands.implement.resolve_feature_dir_for_mission",
                 return_value=coord_dir,
@@ -729,10 +732,10 @@ class TestImplementCoordTopologyLanesJson:
         payload = json.loads(capsys.readouterr().out.strip())
         error = payload.get("error", "")
 
-        # KEY assertion: the pre-fix error must NOT appear
+        # KEY assertion: lanes.json on PRIMARY is found — no MissingLanesError.
         assert "lanes.json is required" not in error, (
-            f"Implement read lanes.json from the primary dir (deleted by finalize-tasks) "
-            f"instead of the coord dir — #1991 regression. Got: {error!r}"
+            f"Implement failed to read lanes.json from the primary surface "
+            f"(LANE_STATE is PRIMARY-partition) — #2115 regression. Got: {error!r}"
         )
         # We reached the workspace-create step, which confirms lanes.json was found
         assert "__workspace_create_sentinel__" in error, (

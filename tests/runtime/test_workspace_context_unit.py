@@ -305,6 +305,56 @@ class TestContextIndexAndResolution:
 
         assert refreshed["WP03"].metadata.execution_mode == "planning_artifact"
 
+    def test_build_normalized_wp_index_reads_wp_files_from_primary_when_status_surface_is_coord(
+        self, kittify_project: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        feature_dir = _seed_mission(kittify_project)
+        _write_wp(
+            feature_dir / "tasks",
+            "WP02",
+            "Code change",
+            "Update src/specify_cli/workspace_context.py.",
+            execution_mode="code_change",
+            owned_files=["src/specify_cli/workspace_context.py"],
+        )
+        coord_dir = kittify_project / ".worktrees" / "001-feature-coord" / "kitty-specs" / "001-feature"
+        coord_dir.mkdir(parents=True)
+        monkeypatch.setattr(
+            workspace_context_module,
+            "resolve_feature_dir_for_slug",
+            lambda *_args, **_kwargs: coord_dir,
+        )
+
+        index = build_normalized_wp_index(kittify_project, "001-feature")
+
+        assert index["WP02"].path == feature_dir / "tasks" / "WP02-test.md"
+
+    def test_resolve_workspace_for_wp_reads_lane_manifest_from_primary_when_status_surface_is_coord(
+        self, kittify_project: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        feature_dir = _seed_mission(kittify_project)
+        _write_wp(
+            feature_dir / "tasks",
+            "WP02",
+            "Code change",
+            "Update src/specify_cli/workspace_context.py.",
+            execution_mode="code_change",
+            owned_files=["src/specify_cli/workspace_context.py"],
+        )
+        write_lanes_json(feature_dir, _lane_manifest())
+        coord_dir = kittify_project / ".worktrees" / "001-feature-coord" / "kitty-specs" / "001-feature"
+        coord_dir.mkdir(parents=True)
+        monkeypatch.setattr(
+            workspace_context_module,
+            "resolve_feature_dir_for_slug",
+            lambda *_args, **_kwargs: coord_dir,
+        )
+
+        resolved = resolve_workspace_for_wp(kittify_project, "001-feature", "WP02")
+
+        assert resolved.resolution_kind == "lane_workspace"
+        assert resolved.lane_id == "lane-a"
+
     def test_build_normalized_wp_index_accepts_unrelated_legacy_unknown_base_commit(
         self, kittify_project: Path
     ) -> None:

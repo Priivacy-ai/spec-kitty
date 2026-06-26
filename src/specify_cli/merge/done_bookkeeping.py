@@ -27,7 +27,7 @@ from specify_cli.core.git_ops import run_command
 from specify_cli.merge._constants import _STATUS_EVENTS_FILENAME, logger
 from specify_cli.merge.git_probes import path_is_under_worktrees
 from specify_cli.merge.state import MergeState, save_state
-from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
 from specify_cli.status import WPMetadata, read_wp_frontmatter
 
 if TYPE_CHECKING:
@@ -230,11 +230,10 @@ def _mark_wp_merged_done(
     """
     from specify_cli.status import Lane as _Lane
 
-    # Primary checkout path — used only for WP file lookup (tasks/*.md live here).
-    # Do not use the read-path resolver: after the first coord status commit it
-    # can route to the coordination worktree, whose sparse/materialized surface
-    # may carry status files but not task markdown.
-    primary_feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    # WP task files and mission metadata are PRIMARY artifacts. The coord-aware
+    # resolver can return a status-only coordination worktree, so keep this lookup
+    # anchored on the primary surface.
+    primary_feature_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
     wp_path = _resolve_wp_path(primary_feature_dir, wp_id)
     if wp_path is None:
         console.print(f"[yellow]Warning:[/yellow] Could not locate WP file for {wp_id}; skipping merge-complete status update.")

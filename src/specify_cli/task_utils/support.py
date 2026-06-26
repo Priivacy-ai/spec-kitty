@@ -300,13 +300,20 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
     Legacy format: WP files in tasks/{lane}/ subdirectories
     New format: WP files in flat tasks/ directory with lane in frontmatter
     """
+    from mission_runtime import MissionArtifactKind
     from specify_cli.core.paths import get_main_repo_root
-    from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_slug
+    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+    from specify_cli.status import get_wp_lane
 
     # Always use main repo's kitty-specs - it's the source of truth
     # This fixes the bug where worktree's stale kitty-specs/ would be used
     main_root = get_main_repo_root(repo_root)
-    feature_path = resolve_feature_dir_for_slug(main_root, feature)
+    feature_path = resolve_planning_read_dir(
+        main_root, feature, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    )
+    status_feature_path = resolve_planning_read_dir(
+        main_root, feature, kind=MissionArtifactKind.STATUS_STATE
+    )
 
     tasks_root = feature_path / "tasks"
     if not tasks_root.exists():
@@ -335,8 +342,14 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
             if path.name.lower() == "readme.md":
                 continue
             if wp_pattern.match(path.name):
-                # Get lane from frontmatter
-                lane = get_lane_from_frontmatter(path, warn_on_missing=False)
+                # WP file lives on PRIMARY; lane lives on the STATUS surface.
+                filename_wp_match = re.match(r"^(WP\d+)", path.name, re.IGNORECASE)
+                status_wp_id = filename_wp_match.group(1).upper() if filename_wp_match else wp_id
+                wp_lane = get_wp_lane(
+                    status_feature_path,
+                    status_wp_id,
+                )
+                lane = str(getattr(wp_lane, "value", wp_lane))
                 candidates.append((lane, path, tasks_root))
 
     if not candidates:

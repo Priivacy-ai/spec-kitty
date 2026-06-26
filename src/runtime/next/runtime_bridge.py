@@ -3041,6 +3041,7 @@ def decide_next_via_runtime(  # noqa: C901
 def _build_finalized_override_query_decision(
     *,
     agent: str | None,
+    repo_root: Path,
     mission_slug: str,
     mission_type: str,
     now: str,
@@ -3065,7 +3066,10 @@ def _build_finalized_override_query_decision(
         if finalized_override == "implement":
             from runtime.next.discovery import preview_claimable_wp
 
-            preview = preview_claimable_wp(feature_dir)
+            preview = preview_claimable_wp(
+                _primary_runtime_feature_dir(repo_root, mission_slug),
+                status_dir=feature_dir,
+            )
             override_wp_id = preview.wp_id
             if preview.wp_id is None and preview.selection_reason is not None:
                 reason = preview.selection_reason
@@ -3277,6 +3281,7 @@ def query_current_state(
         if finalized_override is not None:
             return _build_finalized_override_query_decision(
                 agent=agent,
+                repo_root=repo_root,
                 mission_slug=mission_slug,
                 mission_type=mission_type,
                 now=now,

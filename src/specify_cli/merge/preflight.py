@@ -362,11 +362,16 @@ def _enforce_review_artifact_consistency(
     *,
     repo_root: Path,
     feature_dir: Path,
+    status_dir: Path | None = None,
     mission_slug: str,
     wp_ids: list[str],
 ) -> None:
     """Block terminal signoff when the latest review artifact is rejected."""
-    preflight = run_review_artifact_consistency_preflight(feature_dir, wp_ids=wp_ids)
+    preflight = run_review_artifact_consistency_preflight(
+        feature_dir,
+        wp_ids=wp_ids,
+        status_dir=status_dir,
+    )
     if preflight.passed:
         return
     findings = list(preflight.findings)

@@ -232,11 +232,12 @@ def _phase_gates_and_state(run: _MergeRunState) -> None:
 
     policy = load_policy_config(run.main_repo)
     gate_eval = evaluate_merge_gates(
-        run.feature_dir,
+        run.target_feature_dir,
         run.mission_slug,
         run.all_wp_ids,
         policy.merge_gates,
         run.main_repo,
+        status_dir=run.feature_dir,
     )
     for gate in gate_eval.gates:
         icon = "[green]✓[/green]" if gate.verdict == "pass" else "[yellow]⚠[/yellow]" if not gate.blocking else "[red]✗[/red]"
@@ -318,7 +319,9 @@ def _phase_baseline_and_surface(run: _MergeRunState) -> None:
 
     # -- Resolve the canonical mission_id (ULID) to gate modern-mission invariants --
     try:
-        run.baseline_mission_id = resolve_mission_identity(run.feature_dir).mission_id
+        run.baseline_mission_id = resolve_mission_identity(
+            run.target_feature_dir
+        ).mission_id
     except Exception:  # noqa: BLE001 — meta.json may be missing/corrupt for legacy missions
         run.baseline_mission_id = None
 
@@ -893,7 +896,8 @@ def _run_lane_based_merge_locked(
     # must not write merge state).
     _enforce_review_artifact_consistency(
         repo_root=main_repo,
-        feature_dir=feature_dir,
+        feature_dir=target_feature_dir,
+        status_dir=feature_dir,
         mission_slug=mission_slug,
         wp_ids=all_wp_ids,
     )
@@ -970,11 +974,12 @@ def _run_lane_based_merge(
     """
     main_repo = get_main_repo_root(repo_root)
     feature_dir = candidate_feature_dir_for_mission(main_repo, mission_slug)
+    primary_dir = primary_feature_dir_for_mission(main_repo, mission_slug)
 
     # -- WP05/T020/FR-006: Sparse-checkout preflight (BEFORE any state change) --
     _preflight_mission_id: str | None = None
     try:
-        _preflight_identity = resolve_mission_identity(feature_dir)
+        _preflight_identity = resolve_mission_identity(primary_dir)
         _preflight_mission_id = _preflight_identity.mission_id
     except Exception:  # noqa: BLE001 — meta.json may be missing for legacy missions
         _preflight_mission_id = None
@@ -990,13 +995,13 @@ def _run_lane_based_merge(
 
     from specify_cli.lanes.compute import is_planning_artifact_only
 
-    lanes_manifest = require_lanes_json(feature_dir)
+    lanes_manifest = require_lanes_json(primary_dir)
     if target_override:
         lanes_manifest.target_branch = target_override
     planning_artifact_only = is_planning_artifact_only(lanes_manifest)
 
     # -- Resolve canonical mission_id from meta.json (use ULID, not slug) --
-    identity = resolve_mission_identity(feature_dir)
+    identity = resolve_mission_identity(primary_dir)
     canonical_id = identity.mission_id or mission_slug  # fallback for legacy missions without ULID
 
     effective_push = _effective_push_requested(main_repo, canonical_id, push)

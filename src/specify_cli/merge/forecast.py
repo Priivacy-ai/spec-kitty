@@ -31,7 +31,10 @@ from specify_cli.merge._constants import logger
 from specify_cli.merge.config import MergeStrategy
 from specify_cli.merge.ordering import assign_next_mission_number
 from specify_cli.merge.state import needs_number_assignment
-from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import (
+    candidate_feature_dir_for_mission,
+    primary_feature_dir_for_mission,
+)
 from specify_cli.post_merge.review_artifact_consistency import (
     REJECTED_REVIEW_ARTIFACT_CONFLICT,
     ReviewArtifactPreflightResult,
@@ -148,17 +151,20 @@ def run_dry_run_forecast(
         )
         raise typer.Exit(1)
 
+    primary_feature_dir = primary_feature_dir_for_mission(
+        get_main_repo_root(repo_root), resolved_feature
+    )
+    status_feature_dir = candidate_feature_dir_for_mission(
+        get_main_repo_root(repo_root), resolved_feature
+    )
+
     try:
         lanes_manifest = require_lanes_json(
-            candidate_feature_dir_for_mission(get_main_repo_root(repo_root), resolved_feature)
+            primary_feature_dir
         )
     except (MissingLanesError, CorruptLanesError) as exc:
         _emit_dry_run_error(error_msg=str(exc), json_output=json_output)
         raise typer.Exit(1) from exc
-
-    feature_dir_for_preview = candidate_feature_dir_for_mission(
-        get_main_repo_root(repo_root), resolved_feature
-    )
 
     # FR-007/FR-008/FR-009: Run the same review-artifact consistency gate
     # that real merge runs (issue #991). When a rejected review-cycle
@@ -170,8 +176,9 @@ def run_dry_run_forecast(
         wp for lane in lanes_manifest.lanes for wp in lane.wp_ids
     ]
     review_artifact_preflight = run_review_artifact_consistency_preflight(
-        feature_dir_for_preview,
+        primary_feature_dir,
         wp_ids=dry_run_all_wp_ids,
+        status_dir=status_feature_dir,
     )
     if not review_artifact_preflight.passed:
         _emit_review_artifact_block(
@@ -183,7 +190,7 @@ def run_dry_run_forecast(
         )
         raise typer.Exit(1)
 
-    would_assign_number = _scan_would_assign_mission_number(repo_root, feature_dir_for_preview)
+    would_assign_number = _scan_would_assign_mission_number(repo_root, primary_feature_dir)
 
     payload: dict[str, object] = {
         "spec_kitty_version": SPEC_KITTY_VERSION,

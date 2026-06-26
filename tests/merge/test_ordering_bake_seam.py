@@ -352,7 +352,7 @@ def test_write_skips_when_worktree_add_fails(tmp_path: Path) -> None:
 
 
 def test_write_skips_when_meta_missing(tmp_path: Path) -> None:
-    """meta.json absent on the mission branch worktree -> False (lines 385-391)."""
+    """meta.json absent on the mission branch worktree -> retryable None."""
     def _fake_run(args: list[str], **kwargs: object) -> CompletedProcess[str]:
         return CompletedProcess(args, 0, stdout="", stderr="")
 
@@ -364,7 +364,7 @@ def test_write_skips_when_meta_missing(tmp_path: Path) -> None:
         # The composed meta path under the tmp scan worktree never exists.
         assert ordering._write_mission_number_to_branch(
             tmp_path, "kitty/mission-m", "m", 3, _state()
-        ) is False
+        ) is None
 
 
 def test_write_refuses_when_meta_path_under_worktrees(tmp_path: Path) -> None:

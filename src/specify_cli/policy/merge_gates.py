@@ -89,6 +89,8 @@ def evaluate_merge_gates(
     wp_ids: list[str],
     policy: MergeGateConfig,
     repo_root: Path,
+    *,
+    status_dir: Path | None = None,
 ) -> MergeGateEvaluation:
     """Evaluate all merge gates for a feature.
 
@@ -106,6 +108,7 @@ def evaluate_merge_gates(
         mission_slug=mission_slug,
         evaluated_at=datetime.now(UTC).isoformat(),
     )
+    status_feature_dir = status_dir or feature_dir
     identity = resolve_mission_identity(feature_dir)
     evaluation.mission_slug = identity.mission_slug
     evaluation.mission_number = (
@@ -122,7 +125,7 @@ def evaluate_merge_gates(
 
     if policy.require_review_approval:
         evaluation.gates.append(
-            _evaluate_evidence_gate(feature_dir, wp_ids, is_blocking)
+            _evaluate_evidence_gate(status_feature_dir, wp_ids, is_blocking)
         )
 
     if policy.require_risk_check:
@@ -132,7 +135,12 @@ def evaluate_merge_gates(
 
     if policy.require_deps_complete:
         evaluation.gates.append(
-            _evaluate_dependency_gate(feature_dir, wp_ids, is_blocking)
+            _evaluate_dependency_gate(
+                feature_dir,
+                wp_ids,
+                is_blocking,
+                status_dir=status_feature_dir,
+            )
         )
 
     return evaluation
@@ -227,7 +235,11 @@ def _evaluate_risk_gate(
 
 
 def _evaluate_dependency_gate(
-    feature_dir: Path, wp_ids: list[str], is_blocking: bool,
+    feature_dir: Path,
+    wp_ids: list[str],
+    is_blocking: bool,
+    *,
+    status_dir: Path | None = None,
 ) -> GateResult:
     """Check that all WP dependencies are in done lane."""
     try:
@@ -238,7 +250,7 @@ def _evaluate_dependency_gate(
         graph = build_dependency_graph(feature_dir)
         # Merge gate evaluation must remain read-only. Writing status.json here
         # dirties the repo and can block repeated merge attempts.
-        snapshot = reduce(read_events(feature_dir))
+        snapshot = reduce(read_events(status_dir or feature_dir))
 
         wp_lanes: dict[str, str] = {}
         if snapshot and hasattr(snapshot, "work_packages"):

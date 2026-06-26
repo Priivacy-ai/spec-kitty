@@ -71,6 +71,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `materialize`) stay on the coordination worktree. Related: #2115 (the
   implement/review/merge read-surface twin), #1716 / #1878 (coordination-topology
   coherence).
+- **Native `merge` and `tasks status` no longer break on a coord/`pr_bound` mission
+  (#2115).** Same coord/feat split as #2118, now on the native command surface:
+  `spec-kitty merge` read `lanes.json` (and `meta.json` for identity / mission-id
+  resume keys) off the coordination worktree — hard-blocking with `lanes.json is
+  required for …/<slug>-coord/…` — and `spec-kitty agent tasks status` read WP
+  `tasks/` there (`Tasks directory not found`). Those PRIMARY-partition reads (and
+  `tasks finalize-tasks`' WP-frontmatter read+write, which had a latent split: its
+  writes used the coord-aware resolver while `mission.py finalize-tasks` already
+  anchored `lanes.json` to primary) now resolve through `resolve_planning_read_dir`
+  / `primary_feature_dir_for_mission` (primary surface for all topologies). STATUS
+  reads/writes stay on the coordination worktree. Also fixed: `merge`'s
+  `_mark_wp_merged_done` (WP-file lookup + status meta source → primary; status
+  emission still routes to coordination via the transactional helpers) and
+  `_resolve_review_context` (lanes.json + tasks/ → primary). `agent implement`'s
+  auto-claim preview (`preview_claimable_wp`) gained a backward-compatible
+  `status_dir` so WP tasks/dep-graph read PRIMARY while lanes read the coordination
+  status surface. `mission_number` baking now falls back to the **target** branch
+  (where `meta.json` lives post-#2090) when the coordination/mission branch carries
+  no `meta.json`, instead of warning and leaving the number null. **Deferred
+  (tracked, non-blocking):** the `workflow.py` `implement`/`review` command bodies
+  reuse one `feature_dir` for both PRIMARY (tasks/deps/sub-artifacts) and STATUS
+  (event-log) reads across several helpers; that per-call-site dir-split needs live
+  native-flow verification (worktree allocation + status emission) and is owned by
+  the implement-loop write-surface mission. The common orchestrate path is
+  unaffected — it routes through the already-fixed orchestrator-api (#2128).
 
 ## [3.2.2] - 2026-06-24
 

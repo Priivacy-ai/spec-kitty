@@ -108,7 +108,7 @@ not_helpful:
   summary: analysis-report.md present with findings
   evidence_refs:
   - e-027
-  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented
     issues and decisions.
 - id: n-001
   category: process

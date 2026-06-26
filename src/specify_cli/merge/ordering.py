@@ -322,15 +322,15 @@ def _write_mission_number_to_branch(
     mission_slug: str,
     next_number: int,
     merge_state: MergeState | None,
-) -> bool:
-    """Step 2: write the integer into meta.json on the mission branch, commit,
-    and fast-forward the branch ref.
+) -> bool | None:
+    """Step 2: write the integer into meta.json on a branch and fast-forward it.
 
     Returns:
         True when a fresh write + commit was applied; False when nothing was
         written because (a) the branch is missing, (b) the worktree could not
-        be created, (c) meta.json is missing or malformed, or (d) the value
-        was already equal (idempotency hit — still persists the baked flag).
+        be created, (c) meta.json is malformed, or (d) the value was already
+        equal (idempotency hit); None when meta.json is absent on this branch
+        and the caller may retry on the primary/target branch.
     """
     import json as _json
     import subprocess as _subprocess
@@ -383,12 +383,12 @@ def _write_mission_number_to_branch(
             )
             return False
         if not meta_path.exists():
-            _merge_logger.warning(
-                "meta.json missing on mission branch %s for %s; cannot bake mission_number",
+            _merge_logger.debug(
+                "meta.json absent on branch %s for %s; caller may retry on target",
                 mission_branch,
                 mission_slug,
             )
-            return False
+            return None
 
         meta_data = _json.loads(meta_path.read_text(encoding="utf-8"))
         if not isinstance(meta_data, dict):
@@ -543,9 +543,14 @@ def _bake_mission_number_into_mission_branch(
         )
         return None
 
-    if not _write_mission_number_to_branch(
+    baked = _write_mission_number_to_branch(
         main_repo, mission_branch, mission_slug, next_number, merge_state
-    ):
+    )
+    if baked is None:
+        baked = _write_mission_number_to_branch(
+            main_repo, target_branch, mission_slug, next_number, merge_state
+        )
+    if not baked:
         return None
 
     console.print(
