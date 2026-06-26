@@ -170,7 +170,7 @@ def test_implement_blocks_without_claiming_when_alloc_fails(
         mock_ensure_vcs.return_value = MagicMock(value="git")
 
         with pytest.raises(typer.Exit):
-            implement("WP01", feature=feature_slug, recover=False)
+            implement("WP01", mission=feature_slug, recover=False)
 
         # Confirm the allocator was actually invoked.
         assert mock_alloc.called

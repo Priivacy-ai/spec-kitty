@@ -34,7 +34,7 @@ def test_merge_dry_run_loads_lane_manifest(monkeypatch, tmp_path) -> None:
     monkeypatch.setattr("specify_cli.merge.preflight.run_command", fake_run_command)
     monkeypatch.setattr("specify_cli.merge.resolve.run_command", fake_run_command)
 
-    result = runner.invoke(cli_app, ["merge", "--json", "--dry-run", "--feature", "010-feat", "--target", "main"])
+    result = runner.invoke(cli_app, ["merge", "--json", "--dry-run", "--mission", "010-feat", "--target", "main"])
 
     assert result.exit_code == 0
     payload = json.loads(result.stdout.strip())
@@ -58,7 +58,7 @@ def test_merge_dry_run_refuses_missing_lanes_manifest(monkeypatch, tmp_path) -> 
     monkeypatch.setattr("specify_cli.merge.preflight.run_command", fake_run_command)
     monkeypatch.setattr("specify_cli.merge.resolve.run_command", fake_run_command)
 
-    result = runner.invoke(cli_app, ["merge", "--json", "--dry-run", "--feature", "010-feat", "--target", "main"])
+    result = runner.invoke(cli_app, ["merge", "--json", "--dry-run", "--mission", "010-feat", "--target", "main"])
 
     assert result.exit_code == 1
     payload = json.loads(result.stdout.strip())

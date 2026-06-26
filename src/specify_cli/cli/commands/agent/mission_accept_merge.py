@@ -118,7 +118,6 @@ def accept_feature(
         # Call top-level accept with mapped parameters
         _mission.top_level_accept(
             mission=feature,
-            feature=None,
             mode=mode,
             actor=None,  # Agent commands don't use --actor
             test=[],  # Agent commands don't use --test

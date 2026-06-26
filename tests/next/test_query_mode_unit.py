@@ -76,7 +76,7 @@ class TestQueryModeDoesNotAdvance:
 
         with (
             patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.next_cmd.resolve_selector", return_value=SimpleNamespace(canonical_value="069-test")),
+            patch("specify_cli.cli.commands.next_cmd._resolve_mission_slug", return_value="069-test"),
             patch("specify_cli.next.runtime_bridge.query_current_state", return_value=mock_decision) as mock_query,
             patch("specify_cli.cli.commands.next_cmd.decide_next") as mock_decide,
         ):
@@ -93,7 +93,7 @@ class TestQueryModeDoesNotAdvance:
 
         with (
             patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.next_cmd.resolve_selector", return_value=SimpleNamespace(canonical_value="069-test")),
+            patch("specify_cli.cli.commands.next_cmd._resolve_mission_slug", return_value="069-test"),
             patch("specify_cli.next.runtime_bridge.query_current_state", return_value=mock_decision) as mock_query,
         ):
             result = runner.invoke(
@@ -107,7 +107,7 @@ class TestQueryModeDoesNotAdvance:
     def test_result_success_still_requires_agent(self, tmp_path: Path) -> None:
         with (
             patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.next_cmd.resolve_selector", return_value=SimpleNamespace(canonical_value="069-test")),
+            patch("specify_cli.cli.commands.next_cmd._resolve_mission_slug", return_value="069-test"),
         ):
             result = runner.invoke(
                 cli_app,
@@ -132,7 +132,7 @@ class TestQueryModeDoesNotAdvance:
         )
         with (
             patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.next_cmd.resolve_selector", return_value=SimpleNamespace(canonical_value="069-test")),
+            patch("specify_cli.cli.commands.next_cmd._resolve_mission_slug", return_value="069-test"),
         ):
             result = runner.invoke(
                 cli_app,
@@ -156,7 +156,7 @@ class TestQueryModeDoesNotAdvance:
     def test_answer_requires_result_when_used_without_result(self, tmp_path: Path) -> None:
         with (
             patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.next_cmd.resolve_selector", return_value=SimpleNamespace(canonical_value="069-test")),
+            patch("specify_cli.cli.commands.next_cmd._resolve_mission_slug", return_value="069-test"),
         ):
             result = runner.invoke(
                 cli_app,
@@ -172,7 +172,7 @@ class TestQueryModeDoesNotAdvance:
 
         with (
             patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.next_cmd.resolve_selector", return_value=SimpleNamespace(canonical_value="069-test")),
+            patch("specify_cli.cli.commands.next_cmd._resolve_mission_slug", return_value="069-test"),
             patch("specify_cli.cli.commands.next_cmd._handle_answer", return_value="input:approval") as mock_answer,
             patch("specify_cli.next.runtime_bridge.query_current_state", return_value=mock_decision) as mock_query,
         ):
@@ -192,7 +192,7 @@ class TestQueryModeDoesNotAdvance:
 
         with (
             patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.next_cmd.resolve_selector", return_value=SimpleNamespace(canonical_value="069-test")),
+            patch("specify_cli.cli.commands.next_cmd._resolve_mission_slug", return_value="069-test"),
             patch("specify_cli.cli.commands.next_cmd._handle_answer", return_value="input:approval"),
             patch("specify_cli.next.runtime_bridge.query_current_state", return_value=mock_decision),
         ):
@@ -212,7 +212,7 @@ class TestQueryModeOutput:
 
         with (
             patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.next_cmd.resolve_selector", return_value=SimpleNamespace(canonical_value="069-test")),
+            patch("specify_cli.cli.commands.next_cmd._resolve_mission_slug", return_value="069-test"),
             patch("specify_cli.next.runtime_bridge.query_current_state", return_value=mock_decision),
         ):
             result = runner.invoke(
@@ -242,7 +242,7 @@ class TestQueryModeOutput:
 
         with (
             patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.next_cmd.resolve_selector", return_value=SimpleNamespace(canonical_value="069-test")),
+            patch("specify_cli.cli.commands.next_cmd._resolve_mission_slug", return_value="069-test"),
             patch("specify_cli.next.runtime_bridge.query_current_state", return_value=mock_decision),
         ):
             result = runner.invoke(
@@ -260,7 +260,7 @@ class TestQueryModeOutput:
 
         with (
             patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.next_cmd.resolve_selector", return_value=SimpleNamespace(canonical_value="069-test")),
+            patch("specify_cli.cli.commands.next_cmd._resolve_mission_slug", return_value="069-test"),
             patch("specify_cli.next.runtime_bridge.query_current_state", return_value=mock_decision),
         ):
             result = runner.invoke(
@@ -292,7 +292,7 @@ class TestQueryModeOutput:
 
         with (
             patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.next_cmd.resolve_selector", return_value=SimpleNamespace(canonical_value="069-test")),
+            patch("specify_cli.cli.commands.next_cmd._resolve_mission_slug", return_value="069-test"),
             patch("specify_cli.next.runtime_bridge.query_current_state", return_value=mock_decision),
         ):
             result = runner.invoke(
@@ -312,7 +312,7 @@ class TestQueryModeOutput:
 
         with (
             patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.next_cmd.resolve_selector", return_value=SimpleNamespace(canonical_value="069-test")),
+            patch("specify_cli.cli.commands.next_cmd._resolve_mission_slug", return_value="069-test"),
             patch("specify_cli.next.runtime_bridge.query_current_state", return_value=mock_decision),
         ):
             result = runner.invoke(
@@ -334,7 +334,7 @@ class TestQueryModeOutput:
 
         with (
             patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.next_cmd.resolve_selector", return_value=SimpleNamespace(canonical_value="069-test")),
+            patch("specify_cli.cli.commands.next_cmd._resolve_mission_slug", return_value="069-test"),
             patch("specify_cli.next.runtime_bridge.query_current_state", return_value=mock_decision),
         ):
             result = runner.invoke(
@@ -352,7 +352,7 @@ class TestQueryModeOutput:
 
         with (
             patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.next_cmd.resolve_selector", return_value=SimpleNamespace(canonical_value="069-test")),
+            patch("specify_cli.cli.commands.next_cmd._resolve_mission_slug", return_value="069-test"),
             patch("specify_cli.next.runtime_bridge.query_current_state", return_value=mock_decision),
         ):
             result = runner.invoke(
@@ -780,7 +780,7 @@ class TestQueryModeErrorOutput:
 
         with (
             patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.next_cmd.resolve_selector", return_value=SimpleNamespace(canonical_value="069-test")),
+            patch("specify_cli.cli.commands.next_cmd._resolve_mission_slug", return_value="069-test"),
             patch(
                 "specify_cli.next.runtime_bridge.query_current_state",
                 side_effect=QueryModeValidationError("Mission 'software-dev' has no issuable first step for run '069-test'"),
@@ -798,7 +798,7 @@ class TestQueryModeErrorOutput:
     def test_json_answer_failure_returns_single_error_document(self, tmp_path: Path) -> None:
         with (
             patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.next_cmd.resolve_selector", return_value=SimpleNamespace(canonical_value="069-test")),
+            patch("specify_cli.cli.commands.next_cmd._resolve_mission_slug", return_value="069-test"),
             patch("specify_cli.cli.commands.next_cmd._handle_answer", side_effect=typer.Exit("No pending decisions to answer")),
         ):
             result = runner.invoke(
@@ -834,7 +834,7 @@ class TestResultSuccessStillAdvances:
 
         with (
             patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.next_cmd.resolve_selector", return_value=SimpleNamespace(canonical_value="069-test")),
+            patch("specify_cli.cli.commands.next_cmd._resolve_mission_slug", return_value="069-test"),
             patch("specify_cli.cli.commands.next_cmd.decide_next", return_value=mock_decision) as mock_decide,
             patch("specify_cli.next.runtime_bridge.query_current_state") as mock_query,
             patch("specify_cli.mission_v1.events.emit_event"),
@@ -872,10 +872,7 @@ class TestMissionNotFoundNextStep:
 
         with (
             patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-            patch(
-                "specify_cli.cli.commands.next_cmd.resolve_selector",
-                return_value=SimpleNamespace(canonical_value="069-missing"),
-            ),
+            patch("specify_cli.cli.commands.next_cmd._resolve_mission_slug", return_value="069-missing"),
             patch(
                 "specify_cli.next.runtime_bridge.query_current_state",
                 side_effect=MissionNotFoundError("069-missing"),
@@ -899,10 +896,7 @@ class TestMissionNotFoundNextStep:
 
         with (
             patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-            patch(
-                "specify_cli.cli.commands.next_cmd.resolve_selector",
-                return_value=SimpleNamespace(canonical_value="069-missing"),
-            ),
+            patch("specify_cli.cli.commands.next_cmd._resolve_mission_slug", return_value="069-missing"),
             patch(
                 "specify_cli.next.runtime_bridge.query_current_state",
                 side_effect=MissionNotFoundError("069-missing"),

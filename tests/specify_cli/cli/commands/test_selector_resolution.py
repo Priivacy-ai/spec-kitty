@@ -350,49 +350,32 @@ def test_mission_current_canonical_succeeds(tmp_path: Path) -> None:
     assert mission_slug in result.output
 
 
-def test_mission_current_alias_succeeds_with_warning(tmp_path: Path, warning_stream: io.StringIO) -> None:
-    mission_slug = "077-demo-mission"
-    (tmp_path / "kitty-specs" / mission_slug).mkdir(parents=True)
+def test_mission_current_feature_flag_rejected(tmp_path: Path) -> None:
+    """``--feature`` has been removed from ``mission current``; parser rejects it (exit 2).
 
+    Previously the flag was a hidden alias for ``--mission``; WP03 (#1060) removed it.
+    Supplying ``--feature`` now produces "No such option" from the argument parser.
+    """
     with (
         patch("specify_cli.cli.commands.mission_type.get_project_root_or_exit", return_value=tmp_path),
-        patch("specify_cli.cli.commands.mission_type.get_mission_for_feature", return_value=SimpleNamespace(name="software-dev")),
-        patch("specify_cli.cli.commands.mission_type._mission_details_lines", return_value=["ok"]),
     ):
-        result = runner.invoke(mission_app, ["current", "--feature", mission_slug])
+        result = runner.invoke(mission_app, ["current", "--feature", "077-demo-mission"])
 
-    assert result.exit_code == 0, result.output
-    assert "--feature is deprecated; use --mission" in warning_stream.getvalue()
-
-
-def test_mission_current_alias_overrides_detected_mission(tmp_path: Path, warning_stream: io.StringIO) -> None:
-    detected = "077-detected"
-    explicit = "077-explicit"
-    (tmp_path / "kitty-specs" / detected).mkdir(parents=True)
-    (tmp_path / "kitty-specs" / explicit).mkdir(parents=True)
-
-    with (
-        patch("specify_cli.cli.commands.mission_type.get_project_root_or_exit", return_value=tmp_path),
-        patch("specify_cli.cli.commands.mission_type._detect_current_feature", return_value=detected),
-        patch("specify_cli.cli.commands.mission_type.get_mission_for_feature", return_value=SimpleNamespace(name="software-dev")),
-        patch("specify_cli.cli.commands.mission_type._mission_details_lines", return_value=["ok"]),
-    ):
-        result = runner.invoke(mission_app, ["current", "--feature", explicit])
-
-    assert result.exit_code == 0, result.output
-    assert explicit in result.output
-    assert detected not in result.output
-    assert "--feature is deprecated; use --mission" in warning_stream.getvalue()
+    assert result.exit_code == 2, result.output
+    assert "no such option" in result.output.lower()
 
 
-def test_mission_current_dual_flag_conflict_fails(tmp_path: Path) -> None:
+def test_mission_current_feature_with_mission_rejected(tmp_path: Path) -> None:
+    """Supplying both ``--mission`` and ``--feature`` to ``mission current`` is rejected
+    by the parser (exit 2 / unknown option) now that ``--feature`` is removed (WP03).
+    """
     with (
         patch("specify_cli.cli.commands.mission_type.get_project_root_or_exit", return_value=tmp_path),
     ):
         result = runner.invoke(mission_app, ["current", "--mission", "077-a", "--feature", "077-b"])
 
-    assert result.exit_code != 0
-    assert "Conflicting selectors" in result.output
+    assert result.exit_code == 2, result.output
+    assert "no such option" in result.output.lower()
 
 
 def test_agent_mission_create_canonical_succeeds(tmp_path: Path) -> None:
@@ -509,7 +492,6 @@ def test_next_step_canonical_selector_passes_mission_slug(
         next_step.__wrapped__(
             agent="codex",
             mission="077-demo-mission",
-            feature=None,
             json_output=True,
             result=None,
             answer=None,
@@ -525,6 +507,13 @@ def test_next_step_alias_selector_warns_and_passes_mission_slug(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
+    """``--mission`` is the sole selector for ``next`` after alias removal (#1060-A).
+
+    The ``--feature`` alias was hard-removed from ``next`` in WP02; this test
+    verifies that passing ``--mission`` directly routes the slug correctly and
+    emits no deprecation warning.  The test name is preserved (NFR-001) with
+    an updated docstring reflecting the ``--mission``-only reality.
+    """
     captured: dict[str, object] = {}
 
     def _fake_query(agent: str, mission_slug: str, repo_root: Path):
@@ -548,8 +537,7 @@ def test_next_step_alias_selector_warns_and_passes_mission_slug(
     ):
         next_step.__wrapped__(
             agent="codex",
-            mission=None,
-            feature="077-demo-mission",
+            mission="077-demo-mission",
             json_output=True,
             result=None,
             answer=None,
@@ -558,27 +546,28 @@ def test_next_step_alias_selector_warns_and_passes_mission_slug(
 
     out = capsys.readouterr()
     assert captured["mission_slug"] == "077-demo-mission"
-    assert "--feature is deprecated; use --mission" in out.err
+    # No deprecation warning: --feature alias is fully removed, --mission is canonical.
+    assert "--feature is deprecated" not in out.err
 
 
 def test_next_step_dual_flag_conflict_fails(
     tmp_path: Path,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    with patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path):
-        with pytest.raises(typer.Exit):
-            next_step.__wrapped__(
-                agent="codex",
-                mission="077-a",
-                feature="077-b",
-                json_output=True,
-                result=None,
-                answer=None,
-                decision_id=None,
-            )
+    """``next --feature`` is rejected at the CLI level after alias removal (#1060-A).
 
-    out = capsys.readouterr()
-    assert "Conflicting selectors" in out.err
+    The ``--feature`` alias was hard-removed from ``next`` in WP02, so the
+    dual-flag conflict scenario no longer exists at the function level.  This
+    test verifies the parser-level rejection: ``next --feature <slug>`` must
+    produce exit 2 / "No such option".  The test name is preserved (NFR-001)
+    with an updated docstring and assertion reflecting the ``--mission``-only
+    reality.
+    """
+    from specify_cli import app as main_app
+
+    result = runner.invoke(main_app, ["next", "--agent", "codex", "--feature", "077-b"])
+    assert result.exit_code == 2, result.output
+    assert "No such option" in result.output
 
 
 def test_agent_tasks_status_canonical_selector_succeeds(tmp_path: Path) -> None:
@@ -642,36 +631,37 @@ def test_top_level_tasks_mission_selector_forwards_to_finalize_tasks() -> None:
     assert captured == {"feature": "077-demo-mission", "json_output": True}
 
 
-def test_top_level_tasks_selector_conflict_gives_ambiguity_guidance() -> None:
+def test_top_level_tasks_feature_flag_rejected() -> None:
+    """``--feature`` has been removed from ``lifecycle tasks``; parser rejects it (exit 2).
+
+    Previously the flag was a hidden alias for ``--mission``; WP03 (#1060) removed it.
+    Supplying ``--feature`` (alone or combined with ``--mission``) now produces
+    "No such option" from the argument parser.
+    """
     with patch("specify_cli.cli.commands.lifecycle._enforce_initialized"):
         result = runner.invoke(
             _build_top_level_lifecycle_app(),
             ["tasks", "--mission", "077-a", "--feature", "077-b", "--json"],
         )
 
-    assert result.exit_code != 0
-    assert "Conflicting selectors" in result.output
-    assert "pass only --mission" in result.output
+    assert result.exit_code == 2, result.output
+    assert "no such option" in result.output.lower()
 
 
-def test_top_level_tasks_without_selector_emits_mission_disambiguation(
+def test_top_level_tasks_without_selector_exits_2(
     tmp_path: Path,
 ) -> None:
-    specs_dir = tmp_path / "kitty-specs"
-    for slug in ("077-alpha", "078-beta"):
-        mission_dir = specs_dir / slug
-        mission_dir.mkdir(parents=True)
-        (mission_dir / "spec.md").write_text(f"# {slug}\n", encoding="utf-8")
+    """Omitting ``--mission`` from ``lifecycle tasks`` exits with code 2 (BadParameter).
 
+    WP03 (#1060) replaced the no-selector disambiguation guidance path with an
+    inline guard that raises ``typer.BadParameter`` (→ exit 2) when ``--mission``
+    is absent or blank. Previously the command exited 1 with a JSON error payload
+    listing available missions; after WP03 the parser-level error is preferred.
+    """
     with (
         patch("specify_cli.cli.commands.lifecycle._enforce_initialized"),
-        patch("specify_cli.cli.commands.lifecycle.locate_project_root", return_value=tmp_path),
     ):
         result = runner.invoke(_build_top_level_lifecycle_app(), ["tasks", "--json"])
 
-    assert result.exit_code == 1, result.output
-    payload = _extract_json(result.output)
-    assert payload["error"] == "2 missions found, pass --mission <slug> to disambiguate"
-    assert payload["available_missions"] == ["077-alpha", "078-beta"]
-    assert payload["example_command"] == "spec-kitty tasks --mission 077-alpha --json"
-    assert payload["remediation"] == "Re-run with --mission <slug>"
+    assert result.exit_code == 2, result.output
+    assert not isinstance(result.exception, TypeError)

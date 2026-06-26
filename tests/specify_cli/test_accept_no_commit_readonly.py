@@ -355,7 +355,6 @@ def test_accept_no_commit_via_cli_converges_and_leaves_tree_clean(
     try:
         accept(
             mission=_CLI_SLUG,
-            feature=None,
             mode="auto",
             actor="tester",
             test=[],

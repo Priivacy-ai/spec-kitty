@@ -229,9 +229,12 @@ spec-kitty verify-setup
 
 ### SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION
 
-Suppress warnings for the deprecated `--feature` alias.
+This variable is now inert. The `--feature` alias has been hard-removed from all
+user-facing commands as of this release. No deprecation warnings are emitted;
+this variable has no effect. Operators who have this set in their environment may
+safely unset it.
 
-**Purpose**: Only for transitional automation that still emits the old selector.
+**Previously**: Suppressed warnings for the deprecated `--feature` alias.
 
 ### SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION
 
@@ -284,7 +287,7 @@ The codebase also contains test and harness overrides such as `SPEC_KITTY_TEST_M
 | `SPEC_KITTY_SIMPLE_HELP` | Use simpler help output | `1` |
 | `SPEC_KITTY_NO_BANNER` | Suppress startup banner | `1` |
 | `SPECIFY_REPO_ROOT` | Override repo-root discovery | `/path/to/repo` |
-| `SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION` | Silence deprecated `--feature` warnings | `1` |
+| `SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION` | **Inert** — `--feature` alias removed; no warnings emitted | N/A |
 | `SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION` | Silence deprecated mission-type warnings | `1` |
 | `CODEX_HOME` | Legacy Codex CLI prompt-home override | Legacy only; current Codex skills live under `.agents/skills/` |
 

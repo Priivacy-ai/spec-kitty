@@ -136,7 +136,7 @@ def test_plan_and_tasks_delegate_to_agent_lifecycle(monkeypatch) -> None:
     monkeypatch.setattr(lifecycle_module.agent_feature, "finalize_tasks", fake_finalize_tasks)
     monkeypatch.setattr(lifecycle_module, "assert_initialized", lambda **_kwargs: None)
 
-    plan_result = runner.invoke(cli_app, ["plan", "--feature", "001-demo", "--json"])
+    plan_result = runner.invoke(cli_app, ["plan", "--mission", "001-demo", "--json"])
     tasks_result = runner.invoke(cli_app, ["tasks", "--mission", "001-demo", "--json"])
 
     assert plan_result.exit_code == 0
@@ -177,7 +177,7 @@ def test_research_creates_artifacts(monkeypatch, tmp_path: Path) -> None:
     )
     monkeypatch.setattr(research_module, "resolve_template_path", lambda *_args, **_kwargs: None)
 
-    result = runner.invoke(cli_app, ["research", "--feature", "001-demo-feature", "--force"])
+    result = runner.invoke(cli_app, ["research", "--mission", "001-demo-feature", "--force"])
     assert result.exit_code == 0
 
     assert (feature_dir / "research.md").exists()
@@ -242,11 +242,11 @@ def test_accept_checklist_json_output(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_accept_requires_explicit_feature_flag(monkeypatch, tmp_path: Path) -> None:
-    """After heuristic detection removal, accept without --mission exits 1.
+    """After heuristic detection removal, accept without --mission exits non-zero.
 
     The old test_accept_json_suppresses_fallback_announcement was testing that
     detect_mission_slug auto-detection worked.  Now that auto-detection is gone,
-    accept without --mission is an explicit error.
+    accept without --mission is an explicit error (exits 2 per typer convention).
     """
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
@@ -258,8 +258,8 @@ def test_accept_requires_explicit_feature_flag(monkeypatch, tmp_path: Path) -> N
         ["accept", "--mode", "checklist", "--json", "--allow-fail"],
     )
 
-    # Must fail because --mission is required
-    assert result.exit_code == 1
+    # Must fail because --mission is required (exit 2 = typer error for missing param)
+    assert result.exit_code != 0
     output = result.stdout
     assert "error" in output.lower() or "mission" in output.lower(), (
         f"Expected error about missing mission, got: {output}"
@@ -291,7 +291,7 @@ def test_merge_dry_run_outputs_lane_payload(monkeypatch, tmp_path: Path) -> None
 
     result = runner.invoke(
         cli_app,
-        ["merge", "--json", "--dry-run", "--feature", "010-test-feature", "--target", "main"],
+        ["merge", "--json", "--dry-run", "--mission", "010-test-feature", "--target", "main"],
     )
     assert result.exit_code == 0
     payload = json.loads(result.stdout.strip())
@@ -332,7 +332,7 @@ def test_merge_json_dry_run_requires_lane_manifest(monkeypatch, tmp_path: Path) 
 
     result = runner.invoke(
         cli_app,
-        ["merge", "--json", "--dry-run", "--feature", "010-test-feature", "--target", "main"],
+        ["merge", "--json", "--dry-run", "--mission", "010-test-feature", "--target", "main"],
     )
     assert result.exit_code == 1
     payload = json.loads(result.stdout.strip())
@@ -436,7 +436,7 @@ def test_merge_json_dry_run_honors_keep_flags(monkeypatch, tmp_path: Path) -> No
             "merge",
             "--json",
             "--dry-run",
-            "--feature",
+            "--mission",
             "010-test-feature",
             "--target",
             "main",

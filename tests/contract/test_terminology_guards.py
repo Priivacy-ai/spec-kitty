@@ -32,6 +32,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # Authority: spec.md FR-003, FR-004.
 # ---------------------------------------------------------------------------
 INSCOPE_FEATURE_FREE_FILES: tuple[str, ...] = (
+    # Original 10 internal command files cleaned in the prior mission (WP01/WP02
+    # of release-3-2-0a5-tranche-1).
     "src/specify_cli/cli/commands/agent/status.py",
     "src/specify_cli/cli/commands/agent/tasks.py",
     "src/specify_cli/cli/commands/agent/workflow.py",
@@ -42,6 +44,16 @@ INSCOPE_FEATURE_FREE_FILES: tuple[str, ...] = (
     "src/specify_cli/cli/commands/validate_encoding.py",
     "src/specify_cli/cli/commands/validate_tasks.py",
     "src/specify_cli/cli/commands/verify.py",
+    # 8 user-facing command files de-aliased in mission feature-alias-removal-
+    # 01KW0N87 WP01–WP03.  Authority: spec.md FR-007.
+    "src/specify_cli/cli/commands/implement.py",
+    "src/specify_cli/cli/commands/merge.py",
+    "src/specify_cli/cli/commands/next_cmd.py",
+    "src/specify_cli/cli/commands/research.py",
+    "src/specify_cli/cli/commands/context.py",
+    "src/specify_cli/cli/commands/accept.py",
+    "src/specify_cli/cli/commands/lifecycle.py",
+    "src/specify_cli/cli/commands/mission_type.py",
 )
 
 CLI_COMMAND_GLOBS = ("src/specify_cli/cli/commands/**/*.py",)

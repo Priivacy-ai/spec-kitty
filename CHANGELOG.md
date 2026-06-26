@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### 💥 Breaking Changes
+
+- **Removed**: Hidden `--feature` alias hard-removed from 8 user-facing CLI commands
+  (`implement`, `merge`, `next`, `research`, `context`, `accept`,
+  `lifecycle plan`, `lifecycle tasks`, `mission-type current`).
+  Passing `--feature` on any of these commands now yields exit code 2 with
+  "No such option: --feature". Use `--mission` instead. (#1060)
+- **Fixed**: No-selector guard on all 8 commands now exits with code 2 and a readable
+  error message instead of a potential `TypeError` traceback.
+
 ### 🐛 Fixed
 
 - **`spec-kitty accept` no longer false-positives on a mission's `contracts/` path

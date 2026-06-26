@@ -36,7 +36,6 @@ from typing import Annotated
 
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.paths import get_main_repo_root, locate_project_root
-from specify_cli.cli.selector_resolution import resolve_selector
 from runtime.next._runtime_pkg_notice import maybe_emit_runtime_pkg_notice
 
 
@@ -68,10 +67,6 @@ def next_step(
         ),
     ] = None,
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
-    feature: Annotated[
-        str | None,
-        typer.Option("--feature", hidden=True, help="(deprecated) Use --mission"),
-    ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON decision only")] = False,
     answer: Annotated[str | None, typer.Option("--answer", help="Answer to a pending decision")] = None,
     decision_id: Annotated[str | None, typer.Option("--decision-id", help="Decision ID (required if multiple pending)")] = None,
@@ -113,7 +108,7 @@ def next_step(
     )
 
     try:
-        mission_slug = _resolve_mission_slug(mission, feature, repo_root)
+        mission_slug = _resolve_mission_slug(mission, repo_root)
     except _StatusReadPathNotFound as _exc:
         # FR-001 / C-IC02: preserve the typed read-path error (code + checked
         # paths + read-path remediation) instead of collapsing to MISSION_NOT_FOUND.
@@ -328,21 +323,13 @@ def _run_charter_preflight_for_next(repo_root, *, advancing: bool, json_output: 
         run_preflight_for_dashboard(repo_root)
 
 
-def _resolve_mission_slug(mission: str | None, feature: str | None, repo_root: Path) -> str:
-    try:
-        resolved = resolve_selector(
-            canonical_value=mission,
-            canonical_flag="--mission",
-            alias_value=feature,
-            alias_flag="--feature",
-            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
-            command_hint="--mission <slug>",
-        )
-    except typer.BadParameter as exc:
-        print(f"Error: {exc}", file=sys.stderr)
-        raise typer.Exit(1) from exc
+def _resolve_mission_slug(mission: str | None, repo_root: Path) -> str:
+    mission_norm = mission.strip() if isinstance(mission, str) else None
+    if not mission_norm:
+        raise typer.BadParameter("--mission <slug> is required")
+    mission_slug = mission_norm
 
-    raw_handle = resolved.canonical_value
+    raw_handle = mission_slug
     # F-001: ``--mission`` accepts handles (bare mid8, full ULID, numeric
     # prefix). Canonicalize at this boundary — the same pattern as the agent
     # ``_find_mission_slug`` helpers — so every downstream consumer

@@ -8,7 +8,6 @@ treat ``result is None`` as a read-only query.
 from __future__ import annotations
 
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -79,8 +78,8 @@ class TestBareNextDoesNotAdvance:
                 return_value=tmp_path,
             ),
             patch(
-                "specify_cli.cli.commands.next_cmd.resolve_selector",
-                return_value=SimpleNamespace(canonical_value="fixture-mission"),
+                "specify_cli.cli.commands.next_cmd._resolve_mission_slug",
+                return_value="fixture-mission",
             ),
             patch(
                 "specify_cli.next.runtime_bridge.query_current_state",
@@ -110,8 +109,8 @@ class TestBareNextDoesNotAdvance:
                 return_value=tmp_path,
             ),
             patch(
-                "specify_cli.cli.commands.next_cmd.resolve_selector",
-                return_value=SimpleNamespace(canonical_value="fixture-mission"),
+                "specify_cli.cli.commands.next_cmd._resolve_mission_slug",
+                return_value="fixture-mission",
             ),
             patch(
                 "specify_cli.next.runtime_bridge.query_current_state",
@@ -134,8 +133,8 @@ class TestBareNextDoesNotAdvance:
                 return_value=tmp_path,
             ),
             patch(
-                "specify_cli.cli.commands.next_cmd.resolve_selector",
-                return_value=SimpleNamespace(canonical_value="fixture-mission"),
+                "specify_cli.cli.commands.next_cmd._resolve_mission_slug",
+                return_value="fixture-mission",
             ),
             patch(
                 "specify_cli.next.runtime_bridge.query_current_state",
@@ -178,8 +177,8 @@ class TestBareNextDoesNotAdvance:
                 return_value=tmp_path,
             ),
             patch(
-                "specify_cli.cli.commands.next_cmd.resolve_selector",
-                return_value=SimpleNamespace(canonical_value="fixture-mission"),
+                "specify_cli.cli.commands.next_cmd._resolve_mission_slug",
+                return_value="fixture-mission",
             ),
             patch(
                 "specify_cli.cli.commands.next_cmd.decide_next",
