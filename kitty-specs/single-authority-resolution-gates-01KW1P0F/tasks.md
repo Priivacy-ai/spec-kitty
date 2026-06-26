@@ -113,10 +113,10 @@ WP08 (pre-condition + gate reconciliation) ← deps WP02,03,04,05
 - **Priority:** P1 · **Independent test:** gate green for these files; routed-count contributes to SC-004.
 - **Depends on:** WP01.
 - **Subtasks:**
-  - [ ] T019 Route `merge/bookkeeping_projection.py` (2) + `executor.py` (1) (WP04)
-  - [ ] T020 Route `core/paths.py` (2) + `core/git_ops.py` (1) (WP04)
-  - [ ] T021 Route `coordination/surface_resolver.py` (1) + `commit_router.py` (1) (WP04)
-  - [ ] T022 Shrink allowlist for WP04 sites (WP04)
+  - [x] T019 Route `merge/bookkeeping_projection.py` (2) + `executor.py` (1) (WP04)
+  - [x] T020 Route `core/paths.py` (2) + `core/git_ops.py` (1) (WP04)
+  - [x] T021 Route `coordination/surface_resolver.py` (1) + `commit_router.py` (1) (WP04)
+  - [x] T022 Shrink allowlist for WP04 sites (WP04)
 - **Risks:** ambiguity propagation (C-002); avoid double-fold; some coordination sites may be legitimate coord-writes (verify before routing).
 
 ## WP05 — Canonicalizer consumer sweep: status/runtime/agent (IC-02c part 2)
@@ -151,10 +151,10 @@ WP08 (pre-condition + gate reconciliation) ← deps WP02,03,04,05
 - **Priority:** P2 · **Independent test:** ratchet reds on a new `/tmp` literal; FR-008 verification recorded.
 - **Depends on:** WP01.
 - **Subtasks:**
-  - [ ] T033 Frozen-baseline `/tmp` ratchet (WP07)
-  - [ ] T034 `/tmp` ratchet self-mutation test (WP07)
-  - [ ] T035 FR-008 empirical re-derive (collect-only diff) (WP07)
-  - [ ] T036 Record FR-008 verification outcome (WP07)
+  - [x] T033 Frozen-baseline `/tmp` ratchet (WP07)
+  - [x] T034 `/tmp` ratchet self-mutation test (WP07)
+  - [x] T035 FR-008 empirical re-derive (collect-only diff) (WP07)
+  - [x] T036 Record FR-008 verification outcome (WP07)
 - **Risks:** scope discipline (no #1842 sweep, no `ci-quality.yml` matrix); FR-008 must not add redundant markers to already-running files.
 
 ## WP08 — Pre-condition verify + existing-gate reconciliation (IC-07)

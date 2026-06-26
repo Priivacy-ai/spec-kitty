@@ -15,8 +15,8 @@ subtasks:
 - T034
 - T035
 - T036
-agent: "claude:sonnet:python-pedro:implementer"
-shell_pid: "2931106"
+agent: "claude:sonnet:reviewer-renata:reviewer"
+shell_pid: "2985328"
 history:
 - timestamp: '2026-06-26T11:02:04Z'
   actor: planner
@@ -236,3 +236,7 @@ Verify:
 ## Activity Log
 
 - 2026-06-26T12:36:57Z – claude:sonnet:python-pedro:implementer – shell_pid=2931106 – Assigned agent via action command
+- 2026-06-26T12:47:24Z – user – shell_pid=2931106 – Moved to claimed
+- 2026-06-26T12:47:31Z – user – shell_pid=2931106 – Moved to in_progress
+- 2026-06-26T12:51:33Z – claude:sonnet:python-pedro:implementer – shell_pid=2931106 – WP07 implemented at d52d65916: frozen-baseline /tmp ratchet (99-file baseline) + self-mutation green; FR-008 verified-by-collect-only (both files already run, no marker).
+- 2026-06-26T12:51:59Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=2985328 – Started review via action command
