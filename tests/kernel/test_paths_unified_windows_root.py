@@ -11,7 +11,8 @@ from pathlib import Path
 import pytest
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 
 @pytest.mark.windows_ci
 def test_runtime_consumers_share_single_windows_root_except_auth() -> None:
