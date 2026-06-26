@@ -86,13 +86,13 @@ WP08 (pre-condition + gate reconciliation) ← deps WP02,03,04,05
 - **Priority:** P0 · **Independent test:** the #2154 + #2155 reproductions pass; `git/commit_helpers.py` unchanged.
 - **Depends on:** WP01.
 - **Subtasks:**
-  - [ ] T008 Route `mark_status` write-leg (`tasks.py:1807`) (WP02)
-  - [ ] T009 Red-first 3-leg convergence (coord AND flat) (WP02)
-  - [ ] T010 Route `move_task` mixed bundle (`tasks.py:1555`); un-swallow (WP02)
-  - [ ] T011 Route claim mixed bundle (`implement.py:1311`); un-swallow (WP02)
-  - [ ] T012 Route/sanction `tasks.py` (2) + `implement.py` (4) canon sites (WP02)
-  - [ ] T013 Coord-topology integration test (#2155) (WP02)
-  - [ ] T014 Record WP02's routed sites for WP08's manifest; no allowlist edit (WP02)
+  - [x] T008 Route `mark_status` write-leg (`tasks.py:1807`) (WP02)
+  - [x] T009 Red-first 3-leg convergence (coord AND flat) (WP02)
+  - [x] T010 Route `move_task` mixed bundle (`tasks.py:1555`); un-swallow (WP02)
+  - [x] T011 Route claim mixed bundle (`implement.py:1311`); un-swallow (WP02)
+  - [x] T012 Route/sanction `tasks.py` (2) + `implement.py` (4) canon sites (WP02)
+  - [x] T013 Coord-topology integration test (#2155) (WP02)
+  - [x] T014 Record WP02's routed sites for WP08's manifest; no allowlist edit (WP02)
 - **Risks:** the intra-function write/commit split; the swallow hides failure — the fix must surface a genuine failure; do NOT touch the guard (C-006, merge-blocker); reachable only under coord-topology + unprotected branch.
 
 ## WP03 — Canonicalizer seam-module sweep (IC-02b)

@@ -19,8 +19,8 @@ subtasks:
 - T012
 - T013
 - T014
-agent: "claude:opus:python-pedro:implementer"
-shell_pid: "2931106"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "3076371"
 history:
 - timestamp: '2026-06-26T11:02:04Z'
   actor: planner
@@ -275,3 +275,5 @@ Focus review on these structural properties:
 ## Activity Log
 
 - 2026-06-26T12:36:40Z – claude:opus:python-pedro:implementer – shell_pid=2931106 – Assigned agent via action command
+- 2026-06-26T13:18:27Z – claude:opus:python-pedro:implementer – shell_pid=2931106 – WP02 at d121216ac: #2154 write-leg routed to :658 authority (3-leg convergence); #2155 RE-VERIFIED REPRODUCED+FIXED at tasks.py:1555 (coord-status partition drops .worktrees/ paths, error surfaced) + implement.py:1311; 6 canon sites; C-006 guard untouched; gate 30/30 + 7 new tests.
+- 2026-06-26T13:18:28Z – claude:opus:reviewer-renata:reviewer – shell_pid=3076371 – Started review via action command
