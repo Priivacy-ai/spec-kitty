@@ -50,11 +50,11 @@ resolution/placement boundaries, rather than importing a new mechanism.
 
 ## Decision Drivers
 
-* **Close the bug class by construction**, not by per-caller memory — a forgotten or mis-copied fold must be a CI failure, not a latent runtime divergence.
-* **Minimal churn, no partial-adoption tax** — the remedy must not split the codebase into "ported" and "un-ported" halves with two coexisting conventions.
-* **Match an idiom the repo already uses** — `test_protection_resolver_call_sites.py` is the proven, shipped precedent; copy it rather than invent.
-* **Preserve no-silent-fallback and fail-closed semantics** — ambiguity raises a typed error (`MissionSelectorAmbiguous`, C-009 / WP07); a cold-miss fails loud, never a verbatim passthrough.
-* **Stay out of the blind primitive** — folding the guard into `primary_feature_dir_for_mission` recurses (FR-011); the guard lives at the seam.
+- **Close the bug class by construction**, not by per-caller memory — a forgotten or mis-copied fold must be a CI failure, not a latent runtime divergence.
+- **Minimal churn, no partial-adoption tax** — the remedy must not split the codebase into "ported" and "un-ported" halves with two coexisting conventions.
+- **Match an idiom the repo already uses** — `test_protection_resolver_call_sites.py` is the proven, shipped precedent; copy it rather than invent.
+- **Preserve no-silent-fallback and fail-closed semantics** — ambiguity raises a typed error (`MissionSelectorAmbiguous`, C-009 / WP07); a cold-miss fails loud, never a verbatim passthrough.
+- **Stay out of the blind primitive** — folding the guard into `primary_feature_dir_for_mission` recurses (FR-011); the guard lives at the seam.
 
 ## Considered Options
 
@@ -65,8 +65,7 @@ resolution/placement boundaries, rather than importing a new mechanism.
 
 ## Decision Outcome
 
-**Chosen option:** "Single sanctioned seam + AST call-site gate" (Option 3), because it closes the
-#2164 / #2160 bug class **by construction** at roughly a tenth of the churn of a full DI port, with
+**Chosen option:** "Single sanctioned seam + AST call-site gate" (Option 3), because it closes the #2164 / #2160 bug class **by construction** at roughly a tenth of the churn of a full DI port, with
 no partial-adoption tax, by generalizing a pattern the repository already ships and trusts.
 
 Every resolution/placement boundary **delegates to the single canonical fold** rather than
@@ -92,21 +91,21 @@ the one sanctioned authority per boundary, exactly as the FR-010 gate names
 
 #### Positive
 
-* **By-construction closure** of the #2164 (canonicalizer) and #2160 (coord-authority) classes: a future caller cannot silently re-introduce a raw compose or a wrong-surface write — the gate fails CI.
-* **~10% of the port's churn** — one delegation per seam + one convergence test + one AST gate, versus a Protocol + adapter + stub + DI seam threaded through ~80 call sites with ~27 test rewrites.
-* **No partial-adoption tax** — there is no "ported vs un-ported" half-state; a site either delegates to the sanctioned fold or trips the gate.
-* **Generalizes a proven in-repo pattern** (`test_protection_resolver_call_sites.py`) — no new mechanism, no framework, no god-object.
-* **Applies uniformly** to both instances: the same seam-plus-gate shape fences the canonicalizer (#2164) and the coord-vs-primary authority (#2160).
+- **By-construction closure** of the #2164 (canonicalizer) and #2160 (coord-authority) classes: a future caller cannot silently re-introduce a raw compose or a wrong-surface write — the gate fails CI.
+- **~10% of the port's churn** — one delegation per seam + one convergence test + one AST gate, versus a Protocol + adapter + stub + DI seam threaded through ~80 call sites with ~27 test rewrites.
+- **No partial-adoption tax** — there is no "ported vs un-ported" half-state; a site either delegates to the sanctioned fold or trips the gate.
+- **Generalizes a proven in-repo pattern** (`test_protection_resolver_call_sites.py`) — no new mechanism, no framework, no god-object.
+- **Applies uniformly** to both instances: the same seam-plus-gate shape fences the canonicalizer (#2164) and the coord-vs-primary authority (#2160).
 
 #### Negative
 
-* **The gate does NOT consolidate the duplicated `kitty-specs/` enumeration** (3+ parallel walkers) or the per-call uncached re-walk / TOCTOU — that genuine consolidation needs the **Phase 2** `MissionResolver` port and is explicitly out of scope here.
-* **AST gates carry their own maintenance** — line-pin / allowlist upkeep, and the curated sanctioned-seam allowlist must be deliberately extended (with a rationale comment naming the one flow each entry authorises), per the FR-010 precedent.
-* **Forward-only** — the gate fences *new* bypasses; it does not retroactively reconcile a mission already written to the wrong surface (the flatten / manual-recovery flow remains the remedy for legacy splits).
+- **The gate does NOT consolidate the duplicated `kitty-specs/` enumeration** (3+ parallel walkers) or the per-call uncached re-walk / TOCTOU — that genuine consolidation needs the **Phase 2** `MissionResolver` port and is explicitly out of scope here.
+- **AST gates carry their own maintenance** — line-pin / allowlist upkeep, and the curated sanctioned-seam allowlist must be deliberately extended (with a rationale comment naming the one flow each entry authorises), per the FR-010 precedent.
+- **Forward-only** — the gate fences *new* bypasses; it does not retroactively reconcile a mission already written to the wrong surface (the flatten / manual-recovery flow remains the remedy for legacy splits).
 
 #### Neutral
 
-* Status/coord write destinations are unchanged — this decision governs *how* a boundary is crossed (one sanctioned seam), not *which* surface a given artifact kind targets (the kind partition, settled by the predecessor ADRs).
+- Status/coord write destinations are unchanged — this decision governs *how* a boundary is crossed (one sanctioned seam), not *which* surface a given artifact kind targets (the kind partition, settled by the predecessor ADRs).
 
 ### Confirmation
 
@@ -126,13 +125,13 @@ Each caller remembers to canonicalize the handle / select the surface before com
 
 **Pros:**
 
-* Zero new infrastructure; the code already works for canonical handles.
+- Zero new infrastructure; the code already works for canonical handles.
 
 **Cons:**
 
-* **#2164 proves it leaks** — the convention propagated **three variant folds** that diverged.
-* The #2160 class is the same leak on the authority axis (mark-status / move-task / safe_commit).
-* Correctness depends on every caller's memory; the N+1 returns on the next edit.
+- **#2164 proves it leaks** — the convention propagated **three variant folds** that diverged.
+- The #2160 class is the same leak on the authority axis (mark-status / move-task / safe_commit).
+- Correctness depends on every caller's memory; the N+1 returns on the next edit.
 
 ### Option 2 — Fold the guard into the blind primitive
 
@@ -140,12 +139,12 @@ Make `primary_feature_dir_for_mission` canonicalize internally.
 
 **Pros:**
 
-* Conceptually "one place," if it could work.
+- Conceptually "one place," if it could work.
 
 **Cons:**
 
-* **Infinite recursion (FR-011), live-reproduced** — `_canonicalize_bare_modern_handle` calls the primitive, so folding canonicalization into it recurses.
-* Breaks the primitive's deliberate handle-blind contract.
+- **Infinite recursion (FR-011), live-reproduced** — `_canonicalize_bare_modern_handle` calls the primitive, so folding canonicalization into it recurses.
+- Breaks the primitive's deliberate handle-blind contract.
 
 ### Option 3 — Single sanctioned seam + AST call-site gate (CHOSEN)
 
@@ -153,11 +152,11 @@ Every boundary delegates to one canonical fold; an AST gate + curated allowlist 
 
 **Pros:**
 
-* Closes the class **by construction**; ~10% of the port's churn; no partial-adoption tax; generalizes a proven idiom; applies uniformly to #2164 and #2160; preserves typed-ambiguity + fail-closed.
+- Closes the class **by construction**; ~10% of the port's churn; no partial-adoption tax; generalizes a proven idiom; applies uniformly to #2164 and #2160; preserves typed-ambiguity + fail-closed.
 
 **Cons:**
 
-* Does not consolidate enumeration / TOCTOU (Phase 2); AST gate carries line-pin / allowlist maintenance.
+- Does not consolidate enumeration / TOCTOU (Phase 2); AST gate carries line-pin / allowlist maintenance.
 
 ### Option 4 — Full injectable DI port (DEFERRED to Phase 2)
 
@@ -166,12 +165,12 @@ A `MissionResolver` Protocol + `FsMissionResolver` + `FakeMissionResolver`, owni
 
 **Pros:**
 
-* Consolidates the 3+ parallel walkers, the per-call re-walk, and the TOCTOU; makes the pure builder FS-free-testable; is the concrete first move on #1619's spine.
+- Consolidates the 3+ parallel walkers, the per-call re-walk, and the TOCTOU; makes the pure builder FS-free-testable; is the concrete first move on #1619's spine.
 
 **Cons:**
 
-* **Over-built for the #2164 / #2160 bug-closure alone** — >10× the diff (Protocol + adapter + stub + DI seam across ~80 sites + ~27 test rewrites) to close the *same* class the gate closes.
-* It is the **enumeration-consolidation / #1619-unblock** layer, a distinct strategic concern — recorded here as the **deferred follow-on**, not this decision.
+- **Over-built for the #2164 / #2160 bug-closure alone** — >10× the diff (Protocol + adapter + stub + DI seam across ~80 sites + ~27 test rewrites) to close the *same* class the gate closes.
+- It is the **enumeration-consolidation / #1619-unblock** layer, a distinct strategic concern — recorded here as the **deferred follow-on**, not this decision.
 
 ## More Information
 
@@ -185,7 +184,7 @@ unblock). It is the layer the operator's original resolver-port thesis pointed a
 into the **shell / builder**, never onto the frozen `MissionExecutionContext` value object. It is recorded
 here as the next strategic move, not part of this decision.
 
-* Synthesis / investigation record: [`docs/engineering_notes/2173-infra-logic-separation/00-SYNTHESIS.md`](../../../docs/engineering_notes/2173-infra-logic-separation/00-SYNTHESIS.md)
-* Cross-references: [#2173](https://github.com/Priivacy-ai/spec-kitty/issues/2173), [#1619](https://github.com/Priivacy-ai/spec-kitty/issues/1619), [#2164](https://github.com/Priivacy-ai/spec-kitty/issues/2164), [#2160](https://github.com/Priivacy-ai/spec-kitty/issues/2160)
-* Predecessor ADRs: [2026-06-24-1 — Kind- and Topology-Aware Artifact Placement](2026-06-24-1-kind-and-topology-aware-artifact-placement.md) · [2026-06-22-1 — MissionTopology SSOT](2026-06-22-1-mission-topology-ssot.md) · [2026-06-24-2 — Write-Branch Resolution PRIMARY Anchor](2026-06-24-2-write-branch-resolution-primary-anchor.md)
-* Gate precedent to copy: [`tests/architectural/test_protection_resolver_call_sites.py`](../../../tests/architectural/test_protection_resolver_call_sites.py)
+- Synthesis / investigation record: [`docs/engineering_notes/2173-infra-logic-separation/00-SYNTHESIS.md`](../../../docs/engineering_notes/2173-infra-logic-separation/00-SYNTHESIS.md)
+- Cross-references: [#2173](https://github.com/Priivacy-ai/spec-kitty/issues/2173), [#1619](https://github.com/Priivacy-ai/spec-kitty/issues/1619), [#2164](https://github.com/Priivacy-ai/spec-kitty/issues/2164), [#2160](https://github.com/Priivacy-ai/spec-kitty/issues/2160)
+- Predecessor ADRs: [2026-06-24-1 — Kind- and Topology-Aware Artifact Placement](2026-06-24-1-kind-and-topology-aware-artifact-placement.md) · [2026-06-22-1 — MissionTopology SSOT](2026-06-22-1-mission-topology-ssot.md) · [2026-06-24-2 — Write-Branch Resolution PRIMARY Anchor](2026-06-24-2-write-branch-resolution-primary-anchor.md)
+- Gate precedent to copy: [`tests/architectural/test_protection_resolver_call_sites.py`](../../../tests/architectural/test_protection_resolver_call_sites.py)
