@@ -1,6 +1,8 @@
 {
+  "accept_commit": "f35ebe6a3f7e39fbc06e518f28f4708aa80998c0",
   "acceptance_history": [
     {
+      "accept_commit": "f35ebe6a3f7e39fbc06e518f28f4708aa80998c0",
       "acceptance_mode": "pr",
       "accepted_at": "2026-06-26T13:18:55.024458+00:00",
       "accepted_by": "claude:opus:orchestrator",
