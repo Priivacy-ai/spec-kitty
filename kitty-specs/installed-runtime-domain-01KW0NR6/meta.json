@@ -1,0 +1,17 @@
+{
+  "coordination_branch": "kitty/mission-installed-runtime-domain-01KW0NR6",
+  "created_at": "2026-06-26T00:37:20.970056+00:00",
+  "flattened": false,
+  "friendly_name": "Centralize installed CLI runtime + remediation planning",
+  "mission_id": "01KW0NR6E9XCH0QAREQWQ5ZDPB",
+  "mission_number": null,
+  "mission_slug": "installed-runtime-domain-01KW0NR6",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Centralize installed CLI runtime + remediation planning on feat/installed-runtime-domain so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "One installer/runtime domain model (InstalledCliRuntime + RemediationCommand) + a uv-receipt adapter + a remediation planner, consumed by review/upgrade-UX/upgrade-hints; collapses 3 duplicate receipt parsers and 5 remediation-construction sites.",
+  "slug": "installed-runtime-domain-01KW0NR6",
+  "target_branch": "feat/installed-runtime-domain",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-26T01:23:34.709885+00:00"
+}

@@ -323,7 +323,7 @@ def _agent_check_payload() -> dict[str, object]:
         NagCache,
         UpgradeConfig,
         build_upgrade_hint,
-        detect_install_method,
+        detect_runtime,
         is_ci_env,
         plan as compat_plan,
     )
@@ -347,7 +347,7 @@ def _agent_check_payload() -> dict[str, object]:
     )
     result = compat_plan(invocation, now=now)
     cli_status = result.cli_status
-    install_method = detect_install_method()
+    install_method = detect_runtime().install_method
     latest_version = cli_status.latest_version
     hint = build_upgrade_hint(install_method, target_version=latest_version)
 
@@ -662,10 +662,10 @@ def _check_project_not_too_new(
                 result = _plan(inv)
                 print(json.dumps(result.rendered_json, indent=2))
             else:
-                from specify_cli.compat._detect.install_method import detect_install_method
+                from specify_cli.compat._detect.runtime import detect_runtime as _detect_runtime
                 from specify_cli.compat.upgrade_hint import build_upgrade_hint
 
-                method = detect_install_method()
+                method = _detect_runtime().install_method
                 hint = build_upgrade_hint(method)
                 hint_str = hint.command if hint.command is not None else hint.note or "Upgrade your CLI."
                 console.print(

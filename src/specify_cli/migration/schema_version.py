@@ -172,6 +172,19 @@ def check_compatibility(
         )
 
     if project_version > cli_version:
+        # FR-021: route upgrade command through domain planner; fall back if it raises.
+        try:
+            from specify_cli.compat._detect.runtime import detect_runtime
+            from specify_cli.compat.remediation import (
+                RemediationIntent,
+                plan_remediation,
+            )
+            _runtime = detect_runtime()
+            _cmd = plan_remediation(_runtime, RemediationIntent.UPGRADE, target_version=None)
+            _upgrade_cmd = _cmd.render(_runtime.platform)
+        except ValueError:
+            _upgrade_cmd = "pipx upgrade spec-kitty-cli"  # safe fallback
+
         return CompatibilityResult(
             status=CompatibilityStatus.CLI_OUTDATED,
             project_version=project_version,
@@ -179,7 +192,7 @@ def check_compatibility(
             message=(
                 f"Spec Kitty project schema {project_version} is newer than this CLI "
                 f"supports ({cli_version}). "
-                "Upgrade your CLI: `pipx upgrade spec-kitty-cli` or use the "
+                f"Upgrade your CLI: `{_upgrade_cmd}` or use the "
                 "upgrade command for your installer. For virtualenv installs, "
                 "run `pip install --upgrade spec-kitty-cli`."
             ),
