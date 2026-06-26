@@ -316,3 +316,20 @@ def test_standalone_tasks_cli_requires_canonical_status(
     assert result.returncode == 1
     assert "Canonical status not found" in result.stderr
     assert "finalize-tasks" in result.stderr
+
+
+@pytest.mark.parametrize("subcommand", ["status", "verify", "accept", "merge"])
+def test_src_tasks_cli_mission_is_sole_selector(subcommand: str) -> None:
+    """--mission is the only selector on the src standalone CLI (issue #1060).
+
+    The legacy ``--feature`` argparse alias has been removed; ``--mission`` must
+    still populate the ``feature`` dest that the command handlers read.
+    """
+    tasks_cli = _load_module(f"standalone_tasks_cli_selector_{subcommand}", SRC_TASKS_CLI)
+    parser = tasks_cli.build_parser()
+
+    parsed = parser.parse_args([subcommand, "--mission", "099-example-mission"])
+    assert parsed.feature == "099-example-mission"
+
+    with pytest.raises(SystemExit), redirect_stderr(io.StringIO()):
+        parser.parse_args([subcommand, "--feature", "099-example-mission"])
