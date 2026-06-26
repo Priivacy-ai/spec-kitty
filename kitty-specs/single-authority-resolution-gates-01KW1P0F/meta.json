@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-06-26T10:01:07.103090+00:00",
+  "flattened": true,
+  "friendly_name": "Single-Authority Resolution Gates",
+  "mission_id": "01KW1P0FRYK89H5TK5QK8148X9",
+  "mission_number": null,
+  "mission_slug": "single-authority-resolution-gates-01KW1P0F",
+  "mission_type": "software-dev",
+  "purpose_context": "Mission artifact writes/reads (task and status files) bypass the existing single resolution authority in places, blocking work packages on phantom unchecked-subtasks (#2154) and silently dropping status writes (#2155), and leaving the handle-divergence class #2164 fixed only at named sites with no guard against regression. This mission routes the bypassing write legs through the canonical kind-aware authority and adds architectural call-site gates that make a future bypass a CI failure.",
+  "purpose_tldr": "Stop the implement/review loop blocking on coord-vs-primary surface splits, and make the mission-path resolution boundary impossible to silently diverge again.",
+  "slug": "single-authority-resolution-gates-01KW1P0F",
+  "target_branch": "design/infra-logic-separation-2173",
+  "topology": "flat",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-26T12:05:47.937465+00:00"
+}

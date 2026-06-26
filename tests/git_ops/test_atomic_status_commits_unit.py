@@ -671,8 +671,13 @@ Test content.
             )
 
         assert result.exit_code == 0, result.stdout
+        # WP02 (#2155 / T010): the contract is that move_task WARNS (never fails)
+        # when the router reports a non-committed result — exit_code stays 0. The
+        # warning wording now surfaces the router status/diagnostic ("...did not
+        # land (<status>)") instead of the bare "Failed to auto-commit" so a
+        # swallowed guard refusal is no longer hidden behind a soft, opaque message.
         assert any(
-            "Failed to auto-commit" in str(call.args[0])
+            "auto-commit did not land" in str(call.args[0])
             for call in mock_print.call_args_list
             if call.args
         )

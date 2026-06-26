@@ -39,6 +39,7 @@ from specify_cli.core.constants import (
     MISSION_TYPE_RESEARCH,
 )
 from specify_cli.missions._read_path_resolver import (
+    _canonicalize_primary_read_handle,
     candidate_feature_dir_for_mission,
     primary_feature_dir_for_mission,
     resolve_feature_dir_for_mission,
@@ -1091,7 +1092,13 @@ def _analysis_report_gate_dir(main_repo_root: Path, mission_slug: str) -> Path:
     the freshness hash, so the gate would falsely report it missing). Extracted as
     a named seam so the read-anchor decision is unit-testable in isolation.
     """
-    return primary_feature_dir_for_mission(main_repo_root, mission_slug)
+    # WP05/FR-005: route through _canonicalize_primary_read_handle so every handle
+    # form (bare mid8 / ULID / numeric prefix / bare human slug) lands on the
+    # correct composed primary dir.
+    return primary_feature_dir_for_mission(
+        main_repo_root,
+        _canonicalize_primary_read_handle(main_repo_root, mission_slug),
+    )
 
 
 def _require_current_analysis_report(feature_dir: Path, repo_root: Path, mission_slug: str) -> None:

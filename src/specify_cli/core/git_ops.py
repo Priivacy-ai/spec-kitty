@@ -371,9 +371,15 @@ def resolve_target_branch(
     # repo primary ``main`` (WP00 / FR-004 — the implement-loop refusal-to-main bug).
     # ``primary_feature_dir_for_mission`` resolves repo_path → main root internally,
     # mirroring ``resolve_merge_target_branch`` / ``get_feature_target_branch``.
-    from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+    from specify_cli.missions._read_path_resolver import (
+        _canonicalize_primary_read_handle,
+        primary_feature_dir_for_mission,
+    )
 
-    meta_file = primary_feature_dir_for_mission(repo_path, mission_slug) / "meta.json"
+    meta_file = primary_feature_dir_for_mission(
+        repo_path,
+        _canonicalize_primary_read_handle(repo_path, mission_slug),
+    ) / "meta.json"
     fallback = resolve_primary_branch(repo_path)
     target = fallback
     if meta_file.exists():

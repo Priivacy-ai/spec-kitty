@@ -1,0 +1,111 @@
+# Resolution-authority gate allowlist (WP01 / single-authority-resolution-gates-01KW1P0F).
+#
+# Composite-keyed (enclosing_qualname, line) pre-sweep baseline. Every entry
+# carries a mandatory rationale. SHRINK-ONLY: sweep WPs (WP02-WP05) remove
+# entries as they route sites; no WP may ADD an entry beyond the baseline.
+# Two entries are PERMANENT fixtures, never removed:
+#   * canonicalizer _canonicalize_bare_modern_handle:454 (C-001/FR-011 bare probe)
+#   * coord_authority decisions/emit.py + widen/state.py (by-design coord writes)
+#
+# WP03 shrink: removed close_cmd:592 (routed through _canonicalize_primary_read_handle).
+# WP03 additions: WP03 SANCTION entries for read_primary_meta:820,
+#   resolve_handle_to_read_path:950/:972/:1023, _stored_topology_best_effort:1208.
+# WP05 shrink (2026-06-26): removed 12 routed canonicalizer entries for the
+#   status/runtime/agent sweep (T023-T026):
+#     _mid8_from_primary_meta:386, _resolve_coordination_branch:703, _resolve_topology:740,
+#     _resolve_mission_id:811, _primary_runtime_feature_dir:98,
+#     _mission_routes_through_coordination:177, _primary_anchor_feature_dir:889,
+#     _safe_load_meta:138, finalize_tasks:1497, _analysis_report_gate_dir:1094,
+#     MissionStatus._find_meta_path:506, MissionStatus.save:747.
+# WP05 sanction: MissionStatus._find_meta_path (bare_dir_name) updated line 526→533
+#   (shifted by 1 from import addition in _find_meta_path's local import block).
+# WP05 coord_authority line updates (workflow.py lines shifted by +7 due to import
+#   addition and routing comment in _analysis_report_gate_dir):
+#   implement:1268→1275, 1380→1387, 1575→1582; review:2469→2476, 2603→2610,
+#   2640→2647, 2725→2732.
+
+canonicalizer_baseline: 34
+coord_authority_baseline: 18
+
+canonicalizer:
+  - qualname: _canonicalize_bare_modern_handle
+    line: 454
+    rationale: "C-001/FR-011 sanctioned bare probe inside _canonicalize_bare_modern_handle (the FR-004 bare-human-slug fold) - folding canonicalization into the primitive would recurse; PERMANENT fixture, never remove"
+  - qualname: read_primary_meta
+    line: 820
+    rationale: "WP03 SANCTION: seam-internal first-probe in read_primary_meta — callers (resolve_handle_to_read_path:930, _stored_topology_best_effort:1204) pass already-canonicalized handles; the raw first-probe is intentional (try literal dir, then _canonicalize_handle fallback in body at :834); wrapping here would double-fold the composed handle"
+  - qualname: resolve_handle_to_read_path
+    line: 950
+    rationale: "WP03 SANCTION: handle is already canonical at this point — reassigned from _canonicalize_bare_modern_handle(repo_root, handle) at :930 in the same function before classify_from_meta call; _canonicalize_bare_modern_handle is not the full primary-read fold (_canonicalize_primary_read_handle) so the gate cannot detect it via def-use, but handle IS provably composed at :950"
+  - qualname: resolve_handle_to_read_path
+    line: 972
+    rationale: "WP03 SANCTION: handle is already canonical at this point — reassigned from _canonicalize_bare_modern_handle(repo_root, handle) at :930 in the same function; used here as the fail-closed gate's error payload; same handle flows into the typed error, not into a resolution path"
+  - qualname: resolve_handle_to_read_path
+    line: 1023
+    rationale: "WP03 SANCTION: handle is already canonical at this point — reassigned from _canonicalize_bare_modern_handle(repo_root, handle) at :930; keyword-arg call form (primary_candidate=primary_feature_dir_for_mission(repo_root, handle)); gate discriminator handles kwargs; handle provably composed before this site"
+  - qualname: _stored_topology_best_effort
+    line: 1208
+    rationale: "WP03 SANCTION: canonical_handle = _canonicalize_bare_modern_handle(repo_root, mission_slug) assigned at :1204 in the same function; _canonicalize_bare_modern_handle is the bare-human-slug fold (FR-004/NFR-004) — not _canonicalize_primary_read_handle but provably composed at :1208"
+  - qualname: MissionStatus._find_meta_path
+    line: 533
+    rationale: "WP05 SANCTION: bare_dir_name is returned by resolve_bare_modern_mission_dir_name (called on line 531) which returns meta_path.parent.name — the actual on-disk composed dir name (e.g. 'demo-feature-01ABCDEF'). This is a feature_dir.name-equivalent; the gate cannot detect it via def-use (bare_dir_name is a local str variable, not a .name attribute read) but the invariant is guaranteed by the callee's implementation and docstring. Already-canonical by provenance."
+
+coord_authority:
+  # WP02 (T008/T014): ``mark_status:1807`` is ROUTED — its write leg now uses the
+  # kind-aware resolve_planning_read_dir(kind=TASKS_INDEX) (closes #2154), so it is
+  # no longer a kind-blind resolve_feature_dir_for_mission write and its entry is
+  # removed (the NFR-003 staleness twin-guard would otherwise red-fail on it).
+  # The remaining tasks.py / implement.py coord-authority entries below are
+  # line-drift RE-PINS only (same kind-blind write site, new line after the WP02
+  # edits shifted the file) — NOT routed, still pre-sweep baseline for WP02-WP05.
+  - qualname: move_task
+    line: 1085
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - will be routed in WP02-WP05"
+  - qualname: move_task
+    line: 1322
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - will be routed in WP02-WP05"
+  - qualname: list_tasks
+    line: 2108
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - will be routed in WP02-WP05"
+  - qualname: list_tasks
+    line: 2114
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - will be routed in WP02-WP05"
+  - qualname: validate_workflow
+    line: 2848
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - will be routed in WP02-WP05"
+  - qualname: list_dependents
+    line: 3415
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - will be routed in WP02-WP05"
+  - qualname: implement
+    line: 1275
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - line shifted from 1268 by WP05 import addition (_canonicalize_primary_read_handle) to module-level _read_path_resolver import block"
+  - qualname: implement
+    line: 1387
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - line shifted from 1380 by WP05 import addition and _analysis_report_gate_dir routing comment"
+  - qualname: implement
+    line: 1582
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - line shifted from 1575 by WP05 import addition and routing changes"
+  - qualname: review
+    line: 2476
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - line shifted from 2469 by WP05 routing changes"
+  - qualname: review
+    line: 2610
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - line shifted from 2603 by WP05 routing changes"
+  - qualname: review
+    line: 2647
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - line shifted from 2640 by WP05 routing changes"
+  - qualname: review
+    line: 2732
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - line shifted from 2725 by WP05 routing changes"
+  - qualname: implement
+    line: 1017
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/implement.py) - will be routed in WP02-WP05 (WP02 line-drift re-pin from 1000)"
+  - qualname: _mission_dir
+    line: 71
+    rationale: "legitimate coord-owned write that bypasses commit_for_mission by design - coord status authority is at the caller level, not the commit level; PERMANENT fixture"
+  - qualname: _prepare_merge_metadata
+    line: 624
+    rationale: "pre-sweep baseline write (src/specify_cli/scripts/tasks/tasks_cli.py) - will be routed in WP02-WP05"
+  - qualname: WidenPendingStore.__init__
+    line: 63
+    rationale: "legitimate coord-owned write that bypasses commit_for_mission by design - coord status authority is at the caller level, not the commit level; PERMANENT fixture"

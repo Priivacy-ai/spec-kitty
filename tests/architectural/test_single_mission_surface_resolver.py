@@ -100,6 +100,28 @@ for the orchestrator's pre-merge sweep:
   ``__all__`` symbol debt from seam additions (src-side; outside WP05's
   test-only owned surface). The ``specify_cli.mission_read_path`` shim that
   formerly contributed to this debt was retired by #2048.
+
+C-003 pre-condition verification (WP08 / T037)
+----------------------------------------------
+The ``#2161`` read-leg handle-safety fix is a PRE-CONDITION of this mission
+(spec C-003): it must be present on the base before WP02-WP05 build on it. This
+WP verifies (does NOT re-implement) it. Evidence captured on the integrated lane:
+
+- Introducing commit: ``ecf45f52c`` ("feat(2119): retrospective durable-home +
+  handle-safe write/read seams + topology-aware teardown") — the #2119/#2161
+  handle-safe read/write seam work.
+- Fix function: ``_canonicalize_primary_read_handle`` is DEFINED at
+  ``src/specify_cli/missions/_read_path_resolver.py:1244`` and APPLIED at ``:1367``
+  (``canonical = _canonicalize_primary_read_handle(repo_root, mission_slug)``
+  immediately before the handle-blind ``primary_feature_dir_for_mission`` compose
+  at ``:1368``).
+- This fix is DISTINCT from the ``:454`` bare probe
+  (``primary_feature_dir_for_mission(repo_root, handle)`` inside
+  ``_canonicalize_bare_modern_handle``), which is the C-001/FR-011 topology-blind
+  recursion probe — sanctioned, never folded. The read-leg fix lives at the
+  seam (``:1367``), NOT at the primitive call.
+
+C-003 status: PRESENT on the base. T038/T040 may build on it.
 """
 
 from __future__ import annotations
@@ -238,16 +260,23 @@ _RAW_JOIN_SITES: tuple[tuple[str, int, str], ...] = (
     # seed line drifted; the composite key (qualname ``_coord_mid8`` + join token
     # line) is re-pointed at the identical joins, NOT a raw ``file.py:NNN`` line
     # bump (CT1 / no new bypass).
+    # NOTE (WP04 re-key, single-authority-resolution-gates-01KW1P0F): drifted
+    # 493→494 and 498→499 when WP04 routed ``resolve_status_surface_with_anchor``
+    # through ``_canonicalize_primary_read_handle`` (import line + 3-line call
+    # split added above these joins). Same two ``_coord_mid8`` DIAG joins —
+    # byte-identical inside the immediate ``raise`` — only their seed line drifted;
+    # the composite key (qualname ``_coord_mid8`` + join token line) is re-pointed
+    # at the identical joins, NOT a raw ``file.py:NNN`` line bump (CT1 / no new bypass).
     (
         "specify_cli/coordination/surface_resolver.py",
-        493,
+        494,
         "DIAG — _coord_mid8 fail-closed raise payload: "
         "CoordinationWorkspace.worktree_path(...) / KITTY_SPECS_DIR / mission_slug "
         "inside StatusReadPathNotFound constructor; no FS sink (raise is immediate).",
     ),
     (
         "specify_cli/coordination/surface_resolver.py",
-        498,
+        499,
         "DIAG — _coord_mid8 fail-closed raise payload: "
         "repo_root / KITTY_SPECS_DIR / mission_slug for primary_candidate field; "
         "no FS sink (raise is immediate).",

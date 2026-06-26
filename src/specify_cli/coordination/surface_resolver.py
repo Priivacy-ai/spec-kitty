@@ -59,6 +59,7 @@ from specify_cli.mission_metadata import load_meta
 from specify_cli.missions._read_path_resolver import (
     CoordState,
     StatusReadPathNotFound,
+    _canonicalize_primary_read_handle,
     candidate_feature_dir_for_mission,
     coord_feature_dir,
     primary_feature_dir_for_mission,
@@ -694,7 +695,10 @@ def resolve_status_surface_with_anchor(
     # the write path then inherits via ``_identity_for_request``). Re-anchor the
     # config read on the canonical primary dir so the surface authority is
     # config-determined, never topology-determined-then-config-lost.
-    primary_dir: Path = primary_feature_dir_for_mission(repo_root, mission_slug)
+    primary_dir: Path = primary_feature_dir_for_mission(
+        repo_root,
+        _canonicalize_primary_read_handle(repo_root, mission_slug),
+    )
     if meta is None:
         # FR-006: canonical reader contract (a) — None on missing, ValueError on
         # malformed (defaults stated explicitly).

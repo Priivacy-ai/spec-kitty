@@ -92,10 +92,15 @@ def _primary_runtime_feature_dir(repo_root: Path, mission_slug: str) -> Path:
     coord worktree, so it must not gate primary-anchored identity reads.
     """
     from specify_cli.missions._read_path_resolver import (
+        _canonicalize_primary_read_handle,
         primary_feature_dir_for_mission,
     )
 
-    return primary_feature_dir_for_mission(repo_root, mission_slug)
+    # WP05/FR-005: route through _canonicalize_primary_read_handle.
+    return primary_feature_dir_for_mission(
+        repo_root,
+        _canonicalize_primary_read_handle(repo_root, mission_slug),
+    )
 
 
 def _resolve_coordination_branch(mission_slug: str, repo_root: Path) -> str:
@@ -167,6 +172,7 @@ def _mission_routes_through_coordination(mission_slug: str, repo_root: Path) -> 
     """
     from specify_cli.migration.backfill_topology import read_topology
     from specify_cli.missions._read_path_resolver import (
+        _canonicalize_primary_read_handle,
         primary_feature_dir_for_mission,
     )
 
@@ -174,7 +180,11 @@ def _mission_routes_through_coordination(mission_slug: str, repo_root: Path) -> 
     # meta.json lives), mirroring ``resolution._resolve_coordination_branch`` — the
     # coord-aware resolver fail-closes for a materialized-but-empty coord worktree,
     # so it must not gate this read.
-    feature_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
+    # WP05/FR-005: route through _canonicalize_primary_read_handle.
+    feature_dir = primary_feature_dir_for_mission(
+        repo_root,
+        _canonicalize_primary_read_handle(repo_root, mission_slug),
+    )
     try:
         topology = read_topology(feature_dir)
     except (FileNotFoundError, ValueError, OSError):

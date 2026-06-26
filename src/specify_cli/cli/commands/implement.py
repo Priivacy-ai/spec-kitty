@@ -184,9 +184,16 @@ def find_wp_file(repo_root: Path, mission_slug: str, wp_id: str) -> Path:
     WP-file read on the primary surface, consistent with finalize-tasks and
     ``mission_runtime.resolve_placement_only``.
     """
-    from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+    from specify_cli.missions._read_path_resolver import (
+        _canonicalize_primary_read_handle,
+        primary_feature_dir_for_mission,
+    )
 
-    tasks_dir = primary_feature_dir_for_mission(repo_root, mission_slug) / "tasks"
+    # FR-011 / T012: fold the handle to its canonical on-disk dir NAME before the
+    # topology-blind primary compose, so a bare mid8 / human slug lands on the
+    # durable ``<slug>-<mid8>`` home (ambiguous handle RAISES — no silent pick).
+    _canonical_handle = _canonicalize_primary_read_handle(repo_root, mission_slug)
+    tasks_dir = primary_feature_dir_for_mission(repo_root, _canonical_handle) / "tasks"
     if not tasks_dir.exists():
         raise FileNotFoundError(f"Tasks directory not found: {tasks_dir}")
 
@@ -388,12 +395,17 @@ def _resolve_bookkeeping_transaction_identifiers(
     mission_meta: dict[str, Any] | None = None
     if repo_root is not None:
         from specify_cli.missions._read_path_resolver import (
+            _canonicalize_primary_read_handle,
             primary_feature_dir_for_mission,
         )
 
+        # FR-011 / T012: fold the handle to its canonical dir NAME first so a bare
+        # mid8 / human slug resolves the durable ``<slug>-<mid8>`` home (ambiguous
+        # handle RAISES — no silent pick).
+        _canonical_handle = _canonicalize_primary_read_handle(repo_root, mission_slug)
         try:
             mission_meta = _load_meta(
-                primary_feature_dir_for_mission(repo_root, mission_slug)
+                primary_feature_dir_for_mission(repo_root, _canonical_handle)
             )
         except Exception:  # noqa: BLE001 — meta missing/corrupt is legacy
             mission_meta = None
@@ -527,10 +539,15 @@ def _planning_artifact_source_dir(repo_root: Path, feature_dir: Path, mission_sl
         return feature_dir
     if rel.parts and rel.parts[0] == WORKTREES_DIR:
         from specify_cli.missions._read_path_resolver import (
+            _canonicalize_primary_read_handle,
             primary_feature_dir_for_mission,
         )
 
-        primary_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
+        # FR-011 / T012: fold the handle to its canonical dir NAME first so a bare
+        # mid8 / human slug resolves the durable ``<slug>-<mid8>`` home (ambiguous
+        # handle RAISES — no silent pick).
+        _canonical_handle = _canonicalize_primary_read_handle(repo_root, mission_slug)
+        primary_dir = primary_feature_dir_for_mission(repo_root, _canonical_handle)
         if primary_dir.exists():
             return primary_dir
     return feature_dir
@@ -1011,10 +1028,15 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         # which route through the canonical surface authority, not this dir.)
         if not (feature_dir / "meta.json").exists():
             from specify_cli.missions._read_path_resolver import (
+                _canonicalize_primary_read_handle,
                 primary_feature_dir_for_mission,
             )
 
-            primary_candidate = primary_feature_dir_for_mission(repo_root, mission_slug)
+            # FR-011 / T012: fold the handle to its canonical dir NAME first so a
+            # bare mid8 / human slug resolves the durable ``<slug>-<mid8>`` home
+            # (ambiguous handle RAISES — no silent pick).
+            _canonical_handle = _canonicalize_primary_read_handle(repo_root, mission_slug)
+            primary_candidate = primary_feature_dir_for_mission(repo_root, _canonical_handle)
             if (primary_candidate / "meta.json").exists():
                 feature_dir = primary_candidate
         wp_file = find_wp_file(repo_root, mission_slug, wp_id)
@@ -1296,7 +1318,30 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
 
                 meta_file = feature_dir / "meta.json"
                 config_file = repo_root / ".kittify" / "config.yaml"
-                files_to_commit = [wp_file.resolve(), *[path.resolve() for path in _collect_status_artifacts(feature_dir)]]
+                # #2155 (FR-002 / T011): bundle ONLY primary-surface artifacts into
+                # the primary-root claim commit. The status transition was already
+                # committed to the coordination branch by
+                # ``start_implementation_status`` (the transactional emitter); under
+                # coord topology the coord-owned status files (events.jsonl /
+                # status.json) resolved by ``_collect_status_artifacts`` live UNDER
+                # ``.worktrees/``, so staging them from the primary root trips the
+                # #1887 ``SafeCommitPathPolicyError`` guard — which the former broad
+                # ``except`` swallowed as an "Auto-commit skipped" warning, leaving
+                # the feature branch dirty (the surviving #2155 residual). The
+                # canonical ``COORD_OWNED_STATUS_FILES`` partition drops those files
+                # on coord topology only; on a flat/legacy mission they ARE canonical
+                # on PRIMARY and stay in the bundle.
+                if routes_through_coordination(resolve_topology(repo_root, mission_slug)):
+                    from specify_cli.status import COORD_OWNED_STATUS_FILES
+
+                    status_paths = [
+                        path.resolve()
+                        for path in _collect_status_artifacts(feature_dir)
+                        if path.name not in COORD_OWNED_STATUS_FILES
+                    ]
+                else:
+                    status_paths = [path.resolve() for path in _collect_status_artifacts(feature_dir)]
+                files_to_commit = [wp_file.resolve(), *status_paths]
                 if meta_file.exists():
                     files_to_commit.append(meta_file.resolve())
                 if config_file.exists():
@@ -1316,12 +1361,25 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
                         paths=tuple(files_to_commit),
                     )
                     console.print(f"[cyan]→ {wp_id} moved to 'doing'[/cyan]")
-                except Exception as _commit_exc:  # noqa: BLE001 — log + continue
+                except SafeCommitPathPolicyError:
+                    # #2155 (FR-002 / T011): a wrong-surface guard refusal is a real
+                    # defect, not an "Auto-commit skipped" warning — re-raise so it
+                    # surfaces instead of leaving the branch silently dirty. The
+                    # partition above prevents this on a correct bundle; reaching here
+                    # means a coord-owned path leaked into the primary commit and the
+                    # C-006 guard MUST stay authoritative (never swallowed).
+                    raise
+                except Exception as _commit_exc:  # noqa: BLE001 — non-policy git failures stay soft
                     console.print(
                         f"[yellow]Warning:[/yellow] Could not auto-commit lane change: {_commit_exc}"
                     )
             else:
                 console.print(f"[cyan]→ {wp_id} moved to 'doing' (auto-commit disabled, changes staged only)[/cyan]")
+    except SafeCommitPathPolicyError:
+        # #2155 (FR-002 / T011): a wrong-surface guard refusal must NOT be folded
+        # into the soft "Could not update WP status" warning — let it propagate so
+        # the defect surfaces (the inner handler already re-raised it on purpose).
+        raise
     except Exception as exc:
         console.print(f"[yellow]Warning:[/yellow] Could not update WP status: {exc}")
 

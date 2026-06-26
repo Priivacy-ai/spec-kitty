@@ -1492,9 +1492,19 @@ def finalize_tasks(
         _run_saas_boundary_preflight(repo_root, json_output=json_output, validate_only=validate_only)
         mission_slug = _resolve_mission_slug(repo_root, feature, json_output=json_output)
 
-        from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+        from specify_cli.missions._read_path_resolver import (
+            _canonicalize_primary_read_handle,
+            primary_feature_dir_for_mission,
+        )
 
-        primary_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
+        # WP05/FR-005: _resolve_mission_slug may return a raw operator-supplied
+        # handle (the raw_handle fast-path in _resolve_mission_dir_name_primary_anchored
+        # at line 258). Route through _canonicalize_primary_read_handle to ensure
+        # the composed primary dir is resolved for every handle form.
+        primary_dir = primary_feature_dir_for_mission(
+            repo_root,
+            _canonicalize_primary_read_handle(repo_root, mission_slug),
+        )
         planning_dir = primary_dir
         target_branch = _resolve_target_branch(
             repo_root, primary_dir, target_branch_override=target_branch_override, json_output=json_output

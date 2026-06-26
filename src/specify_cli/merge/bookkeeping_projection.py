@@ -19,7 +19,10 @@ from specify_cli.core.git_ops import run_command
 from specify_cli.core.paths import assert_safe_path_segment, get_main_repo_root
 from specify_cli.core.utils import ensure_within_any, ensure_within_directory
 from specify_cli.merge._constants import _STATUS_EVENTS_FILENAME, _STATUS_FILENAME
-from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import (
+    _canonicalize_primary_read_handle,
+    primary_feature_dir_for_mission,
+)
 
 
 def _validate_mission_slug_path_segment(mission_slug: str) -> str:
@@ -44,8 +47,9 @@ def _target_bookkeeping_status_paths(
     the target branch, so it must stage primary-checkout paths only.
     """
     safe_mission_slug = _validate_mission_slug_path_segment(mission_slug)
+    canonical_slug = _canonicalize_primary_read_handle(main_repo, safe_mission_slug)
     target_feature_dir = (
-        primary_feature_dir_for_mission(main_repo, safe_mission_slug)
+        primary_feature_dir_for_mission(main_repo, canonical_slug)
         if is_under_worktrees_segment(status_feature_dir)
         else status_feature_dir
     )
@@ -76,7 +80,10 @@ def _assert_status_path_within_target_surface(
     """
     assert_safe_path_segment(mission_slug)
     repo_resolved = get_main_repo_root(repo_root).resolve(strict=False)
-    surface_root = primary_feature_dir_for_mission(repo_resolved, mission_slug).resolve(strict=False)
+    surface_root = primary_feature_dir_for_mission(
+        repo_resolved,
+        _canonicalize_primary_read_handle(repo_resolved, mission_slug),
+    ).resolve(strict=False)
     contained: Path = ensure_within_any(candidate, roots=[surface_root])
     return contained
 

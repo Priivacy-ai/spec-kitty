@@ -1,0 +1,77 @@
+{
+  "event_count": 41,
+  "last_event_id": "01KW25D640V7VT77PWN8402DGN",
+  "materialized_at": "2026-06-26T14:30:11.840882+00:00",
+  "mission_number": "",
+  "mission_slug": "single-authority-resolution-gates-01KW1P0F",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 8,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KW1YVD125MK381X70T4977CM",
+      "last_transition_at": "2026-06-26T12:35:37.634241+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KW222WBRTNT8TBRQ59V6Y6GM",
+      "last_transition_at": "2026-06-26T13:32:08.440698+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KW21BV55826A0SK2VHQHDTPF",
+      "last_transition_at": "2026-06-26T13:19:33.541373+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KW2063E9EXPXJN4V4FTSAS7A",
+      "last_transition_at": "2026-06-26T12:58:56.841521+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KW22ADDK5G12BT02FR4CJW3P",
+      "last_transition_at": "2026-06-26T13:36:15.283349+00:00"
+    },
+    "WP06": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KW25D4HXMFC695HGK0D8QR39",
+      "last_transition_at": "2026-06-26T14:30:10.237831+00:00"
+    },
+    "WP07": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KW2052H02MNH4C3SVF9QDJA7",
+      "last_transition_at": "2026-06-26T12:58:23.136173+00:00"
+    },
+    "WP08": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KW25D640V7VT77PWN8402DGN",
+      "last_transition_at": "2026-06-26T14:30:11.840882+00:00"
+    }
+  }
+}
