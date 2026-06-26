@@ -15,7 +15,8 @@ subtasks:
 - T034
 - T035
 - T036
-agent: claude
+agent: "claude:sonnet:python-pedro:implementer"
+shell_pid: "2931106"
 history:
 - timestamp: '2026-06-26T11:02:04Z'
   actor: planner
@@ -231,3 +232,7 @@ Verify:
 4. No markers were added to files that `--collect-only` confirms already run.
 5. The ratchet does NOT scan the production `src/` tree — only `tests/`.
 6. `ruff` and `mypy` both pass with zero suppressions on the two new files.
+
+## Activity Log
+
+- 2026-06-26T12:36:57Z – claude:sonnet:python-pedro:implementer – shell_pid=2931106 – Assigned agent via action command
