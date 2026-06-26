@@ -44,12 +44,12 @@ owned by #2048/PR #2152).
 
 **Included subtasks**:
 
-- [ ] T001 FR-001: remove `write_pipeline::StagedArtifact` and `::promote` from `category_a_slice_f_deferred` (`test_no_dead_symbols.py`); set `_baselines.yaml` `category_a_slice_f_deferred: 9` (live was 11 → −2 = 9; confirm) (WP01)
-- [ ] T002 FR-002: remove `charter.activate::charter_activate_app` and `charter.deactivate::charter_deactivate_app` from `category_b_grandfathered_legacy`; set `_baselines.yaml` `category_b_grandfathered_legacy: 284` (confirm live == 284; do NOT add any other entries) (WP01)
-- [ ] T003 FR-004: delete `src/specify_cli/compat/_adapters/{version_checker,gate,detector}.py`; remove their entries from `_ADAPTER_FILES` (`test_compat_shims.py`), `category_5` (`test_no_dead_modules.py`), and the adapter dead-symbol entries (`test_no_dead_symbols.py`); set `_baselines.yaml` `pure_shim_files: 0` and `category_5_wp_in_flight_adapters: 0` (WP01)
-- [ ] T004 FR-003: remove the dangling `kitty-specs/033-github-observability-event-metadata/contracts/event-envelope.md` entry from `legacy_contract_allowlist` in `tests/contract/test_example_round_trip.py`; set `_baselines.yaml` `legacy_contract_allowlist: 151` (WP01)
-- [ ] T005 FR-005: post (or confirm already-posted) a comment on #2049 with the path/count corrections and note the parser fix moved to #2158 (WP01)
-- [ ] T006 Verify: `PWHEADLESS=1 uv run pytest tests/architectural/ tests/contract/ -q`, `uv run ruff check` (diff-scoped), `uv run mypy`; confirm every baseline matches its live size, `category_4` untouched, and `test_no_dead_symbols.py` shows a net SHRINK (WP01)
+- [x] T001 FR-001: remove `write_pipeline::StagedArtifact` and `::promote` from `category_a_slice_f_deferred` (`test_no_dead_symbols.py`); set `_baselines.yaml` `category_a_slice_f_deferred: 9` (live was 11 → −2 = 9; confirm) (WP01)
+- [x] T002 FR-002: remove `charter.activate::charter_activate_app` and `charter.deactivate::charter_deactivate_app` from `category_b_grandfathered_legacy`; set `_baselines.yaml` `category_b_grandfathered_legacy: 284` (confirm live == 284; do NOT add any other entries) (WP01)
+- [x] T003 FR-004: delete `src/specify_cli/compat/_adapters/{version_checker,gate,detector}.py`; remove their entries from `_ADAPTER_FILES` (`test_compat_shims.py`), `category_5` (`test_no_dead_modules.py`), and the adapter dead-symbol entries (`test_no_dead_symbols.py`); set `_baselines.yaml` `pure_shim_files: 0` and `category_5_wp_in_flight_adapters: 0` (WP01)
+- [x] T004 FR-003: remove the dangling `kitty-specs/033-github-observability-event-metadata/contracts/event-envelope.md` entry from `legacy_contract_allowlist` in `tests/contract/test_example_round_trip.py`; set `_baselines.yaml` `legacy_contract_allowlist: 151` (WP01)
+- [x] T005 FR-005: post (or confirm already-posted) a comment on #2049 with the path/count corrections and note the parser fix moved to #2158 (WP01)
+- [x] T006 Verify: `PWHEADLESS=1 uv run pytest tests/architectural/ tests/contract/ -q`, `uv run ruff check` (diff-scoped), `uv run mypy`; confirm every baseline matches its live size, `category_4` untouched, and `test_no_dead_symbols.py` shows a net SHRINK (WP01)
 
 **Implementation sketch**:
 1. Reset the lane to base (discard the prior parser-fix attempt).
