@@ -1,8 +1,9 @@
 """Windows runtime-root consistency tests.
 
-Auth session storage is intentionally excluded from the shared runtime root:
-it lives under ``%USERPROFILE%\\.spec-kitty\\auth`` while tracker/sync/daemon
-state continues to use the runtime-root helpers.
+Auth session storage now resolves through the shared runtime root
+(DM-01KW1KDHVGWZ0QERDMV1CRJ15S): on Windows it lives under the platformdirs
+LocalAppData base (``%LOCALAPPDATA%\\spec-kitty\\auth``), the same base
+tracker/sync/daemon state uses, and honors ``SPEC_KITTY_HOME`` when set.
 """
 from __future__ import annotations
 
@@ -60,12 +61,20 @@ def test_runtime_consumers_share_single_windows_root_except_auth() -> None:
 
 
 @pytest.mark.windows_ci
-def test_auth_store_uses_user_home_root_on_windows() -> None:
-    """Auth storage now lives under %USERPROFILE%\\.spec-kitty\\auth."""
+def test_auth_store_uses_runtime_root_app_data_base_on_windows() -> None:
+    """Auth storage resolves through the unified runtime root on Windows.
+
+    DM-01KW1KDHVGWZ0QERDMV1CRJ15S: the Windows auth store was previously
+    hardcoded to ``~/.spec-kitty/auth``. It now resolves through
+    :func:`specify_cli.paths.get_runtime_root` — the platformdirs LocalAppData
+    base (``%LOCALAPPDATA%\\spec-kitty\\auth``), matching tracker/sync/daemon
+    state and honoring ``SPEC_KITTY_HOME``.
+    """
     from specify_cli.auth.secure_storage import WindowsFileStorage
+    from specify_cli.paths import get_runtime_root
 
     auth = WindowsFileStorage()
-    assert auth.store_path == Path.home() / ".spec-kitty" / "auth"
+    assert auth.store_path == get_runtime_root().auth_dir
 
 
 @pytest.mark.windows_ci
