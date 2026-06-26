@@ -10,8 +10,9 @@ These tests prove two complementary invariants:
 
 2. **First-party caller check (T015 / FR-003):** No source under
    ``src/doctrine/`` passes ``--feature`` to any of the 18 in-scope internal
-   command files.  The existing doctrine hits reference out-of-scope commands
-   (``next``, ``merge``) only.
+   command files.  ``next`` and ``merge`` are now in-scope and the stale
+   doctrine ``--feature`` references on them have been removed — doctrine no
+   longer references ``--feature`` on any command.
 
 Rationale
 ---------

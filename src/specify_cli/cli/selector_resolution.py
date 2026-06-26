@@ -64,7 +64,6 @@ class SelectorResolution:
 
 def _doc_path_for(alias_flag: str) -> str:
     return {
-        "--feature": "docs/migration/feature-flag-deprecation.md",
         "--mission": "docs/migration/mission-type-flag-deprecation.md",
     }[alias_flag]
 

@@ -103,14 +103,14 @@ def _extract_json(output: str) -> dict:
 
 def test_canonical_only_returns_value(warning_stream: io.StringIO) -> None:
     result = resolve_selector(
-        canonical_value="077-demo",
-        canonical_flag="--mission",
+        canonical_value="software-dev",
+        canonical_flag="--mission-type",
         alias_value=None,
-        alias_flag="--feature",
-        suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+        alias_flag="--mission",
+        suppress_env_var="SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION",
     )
 
-    assert result.canonical_value == "077-demo"
+    assert result.canonical_value == "software-dev"
     assert result.alias_used is False
     assert result.alias_flag is None
     assert result.warning_emitted is False
@@ -120,29 +120,29 @@ def test_canonical_only_returns_value(warning_stream: io.StringIO) -> None:
 def test_alias_only_returns_canonical_value(warning_stream: io.StringIO) -> None:
     result = resolve_selector(
         canonical_value=None,
-        canonical_flag="--mission",
-        alias_value="077-demo",
-        alias_flag="--feature",
-        suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+        canonical_flag="--mission-type",
+        alias_value="software-dev",
+        alias_flag="--mission",
+        suppress_env_var="SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION",
     )
 
-    assert result.canonical_value == "077-demo"
+    assert result.canonical_value == "software-dev"
     assert result.alias_used is True
-    assert result.alias_flag == "--feature"
+    assert result.alias_flag == "--mission"
     assert result.warning_emitted is True
-    assert "Warning: --feature is deprecated; use --mission." in warning_stream.getvalue()
+    assert "Warning: --mission is deprecated; use --mission-type." in warning_stream.getvalue()
 
 
 def test_both_equal_returns_value_with_warning(warning_stream: io.StringIO) -> None:
     result = resolve_selector(
-        canonical_value="077-demo",
-        canonical_flag="--mission",
-        alias_value="077-demo",
-        alias_flag="--feature",
-        suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+        canonical_value="software-dev",
+        canonical_flag="--mission-type",
+        alias_value="software-dev",
+        alias_flag="--mission",
+        suppress_env_var="SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION",
     )
 
-    assert result.canonical_value == "077-demo"
+    assert result.canonical_value == "software-dev"
     assert result.alias_used is True
     assert result.warning_emitted is True
     assert warning_stream.getvalue().count("Warning:") == 1
@@ -151,11 +151,11 @@ def test_both_equal_returns_value_with_warning(warning_stream: io.StringIO) -> N
 def test_both_different_raises_bad_parameter() -> None:
     with pytest.raises(typer.BadParameter, match="Conflicting selectors"):
         resolve_selector(
-            canonical_value="077-a",
-            canonical_flag="--mission",
-            alias_value="077-b",
-            alias_flag="--feature",
-            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+            canonical_value="software-dev",
+            canonical_flag="--mission-type",
+            alias_value="research",
+            alias_flag="--mission",
+            suppress_env_var="SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION",
         )
 
 
@@ -163,10 +163,10 @@ def test_neither_raises_bad_parameter() -> None:
     with pytest.raises(typer.BadParameter, match="--mission <slug>"):
         resolve_selector(
             canonical_value=None,
-            canonical_flag="--mission",
+            canonical_flag="--mission-type",
             alias_value=None,
-            alias_flag="--feature",
-            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+            alias_flag="--mission",
+            suppress_env_var="SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION",
             command_hint="--mission <slug>",
         )
 
@@ -175,10 +175,10 @@ def test_both_empty_strings_raise_bad_parameter() -> None:
     with pytest.raises(typer.BadParameter, match="--mission <slug>"):
         resolve_selector(
             canonical_value="",
-            canonical_flag="--mission",
+            canonical_flag="--mission-type",
             alias_value="",
-            alias_flag="--feature",
-            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+            alias_flag="--mission",
+            suppress_env_var="SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION",
             command_hint="--mission <slug>",
         )
 
@@ -186,13 +186,13 @@ def test_both_empty_strings_raise_bad_parameter() -> None:
 def test_canonical_whitespace_only_treated_as_none(warning_stream: io.StringIO) -> None:
     result = resolve_selector(
         canonical_value="   ",
-        canonical_flag="--mission",
-        alias_value="077-demo",
-        alias_flag="--feature",
-        suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+        canonical_flag="--mission-type",
+        alias_value="software-dev",
+        alias_flag="--mission",
+        suppress_env_var="SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION",
     )
 
-    assert result.canonical_value == "077-demo"
+    assert result.canonical_value == "software-dev"
     assert result.alias_used is True
     assert result.warning_emitted is True
     assert "Warning:" in warning_stream.getvalue()
@@ -201,17 +201,17 @@ def test_canonical_whitespace_only_treated_as_none(warning_stream: io.StringIO) 
 def test_warning_emitted_for_each_direct_call_without_click_context(warning_stream: io.StringIO) -> None:
     first = resolve_selector(
         canonical_value=None,
-        canonical_flag="--mission",
-        alias_value="077-demo",
-        alias_flag="--feature",
-        suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+        canonical_flag="--mission-type",
+        alias_value="software-dev",
+        alias_flag="--mission",
+        suppress_env_var="SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION",
     )
     second = resolve_selector(
         canonical_value=None,
-        canonical_flag="--mission",
-        alias_value="077-demo-2",
-        alias_flag="--feature",
-        suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+        canonical_flag="--mission-type",
+        alias_value="research",
+        alias_flag="--mission",
+        suppress_env_var="SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION",
     )
 
     assert first.warning_emitted is True
@@ -224,17 +224,17 @@ def test_warning_emitted_only_once_within_click_invocation(warning_stream: io.St
     with click.Context(command):
         first = resolve_selector(
             canonical_value=None,
-            canonical_flag="--mission",
-            alias_value="077-demo",
-            alias_flag="--feature",
-            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+            canonical_flag="--mission-type",
+            alias_value="software-dev",
+            alias_flag="--mission",
+            suppress_env_var="SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION",
         )
         second = resolve_selector(
             canonical_value=None,
-            canonical_flag="--mission",
-            alias_value="077-demo-2",
-            alias_flag="--feature",
-            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+            canonical_flag="--mission-type",
+            alias_value="research",
+            alias_flag="--mission",
+            suppress_env_var="SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION",
         )
 
     assert first.warning_emitted is True
@@ -244,16 +244,16 @@ def test_warning_emitted_only_once_within_click_invocation(warning_stream: io.St
 
 def test_warning_emitted_again_for_different_pair_in_same_click_invocation(
     warning_stream: io.StringIO,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # Dedup is keyed on (invocation, canonical_flag, alias_flag): two *distinct*
+    # pairs both warn within one invocation. Only one canonical/alias pair
+    # (--mission -> --mission-type) survives in production now, so stub the
+    # doc-path lookup to exercise the generic key-composition contract with a
+    # second synthetic pair instead of coupling to the production flag registry.
+    monkeypatch.setattr(selector_resolution, "_doc_path_for", lambda _flag: "docs/migration/x.md")
     command = click.Command("dummy")
     with click.Context(command):
-        resolve_selector(
-            canonical_value=None,
-            canonical_flag="--mission",
-            alias_value="077-demo",
-            alias_flag="--feature",
-            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
-        )
         resolve_selector(
             canonical_value=None,
             canonical_flag="--mission-type",
@@ -261,24 +261,36 @@ def test_warning_emitted_again_for_different_pair_in_same_click_invocation(
             alias_flag="--mission",
             suppress_env_var="SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION",
         )
+        resolve_selector(
+            canonical_value=None,
+            canonical_flag="--legacy-canonical",
+            alias_value="legacy-value",
+            alias_flag="--legacy-alias",
+            suppress_env_var="SPEC_KITTY_SUPPRESS_LEGACY_DEPRECATION",
+        )
 
     assert warning_stream.getvalue().count("Warning:") == 2
 
 
-def test_warning_emitted_again_for_different_pair(warning_stream: io.StringIO) -> None:
-    resolve_selector(
-        canonical_value=None,
-        canonical_flag="--mission",
-        alias_value="077-demo",
-        alias_flag="--feature",
-        suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
-    )
+def test_warning_emitted_again_for_different_pair(
+    warning_stream: io.StringIO,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # See sibling test: two distinct (canonical, alias) pairs warn separately.
+    monkeypatch.setattr(selector_resolution, "_doc_path_for", lambda _flag: "docs/migration/x.md")
     resolve_selector(
         canonical_value=None,
         canonical_flag="--mission-type",
         alias_value="software-dev",
         alias_flag="--mission",
         suppress_env_var="SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION",
+    )
+    resolve_selector(
+        canonical_value=None,
+        canonical_flag="--legacy-canonical",
+        alias_value="legacy-value",
+        alias_flag="--legacy-alias",
+        suppress_env_var="SPEC_KITTY_SUPPRESS_LEGACY_DEPRECATION",
     )
 
     assert warning_stream.getvalue().count("Warning:") == 2
@@ -288,13 +300,13 @@ def test_suppression_env_var_skips_warning(
     monkeypatch: pytest.MonkeyPatch,
     warning_stream: io.StringIO,
 ) -> None:
-    monkeypatch.setenv("SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION", "1")
+    monkeypatch.setenv("SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION", "1")
     result = resolve_selector(
         canonical_value=None,
-        canonical_flag="--mission",
-        alias_value="077-demo",
-        alias_flag="--feature",
-        suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+        canonical_flag="--mission-type",
+        alias_value="software-dev",
+        alias_flag="--mission",
+        suppress_env_var="SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION",
     )
 
     assert result.alias_used is True
