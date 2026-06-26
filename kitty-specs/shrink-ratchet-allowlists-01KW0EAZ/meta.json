@@ -1,6 +1,8 @@
 {
+  "accept_commit": "e9cac52282f9f3a932cecf5be566d63ed62b26ee",
   "acceptance_history": [
     {
+      "accept_commit": "e9cac52282f9f3a932cecf5be566d63ed62b26ee",
       "acceptance_mode": "pr",
       "accepted_at": "2026-06-26T00:10:51.706120+00:00",
       "accepted_by": "jeroennouws",
