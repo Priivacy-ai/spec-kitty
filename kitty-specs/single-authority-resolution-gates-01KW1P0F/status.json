@@ -1,7 +1,7 @@
 {
-  "event_count": 19,
-  "last_event_id": "01KW1YXHV5V7GNS0DVV0MS1G8A",
-  "materialized_at": "2026-06-26T12:36:48.101437+00:00",
+  "event_count": 21,
+  "last_event_id": "01KW1YXNXR078GT0JNXE88BDBH",
+  "materialized_at": "2026-06-26T12:36:52.280156+00:00",
   "mission_number": "",
   "mission_slug": "single-authority-resolution-gates-01KW1P0F",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 3,
+    "in_progress": 4,
     "in_review": 0,
-    "planned": 4
+    "planned": 3
   },
   "work_packages": {
     "WP01": {
@@ -46,11 +46,11 @@
       "last_transition_at": "2026-06-26T12:36:48.101437+00:00"
     },
     "WP05": {
-      "actor": "finalize-tasks",
+      "actor": "claude:sonnet:python-pedro:implementer",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01KW1TACC039XDZ6B877WJ1WJM",
-      "last_transition_at": "2026-06-26T11:16:25.600538+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KW1YXNXR078GT0JNXE88BDBH",
+      "last_transition_at": "2026-06-26T12:36:52.280156+00:00"
     },
     "WP06": {
       "actor": "finalize-tasks",
