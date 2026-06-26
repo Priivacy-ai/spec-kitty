@@ -14,7 +14,8 @@ subtasks:
 - T016
 - T017
 - T018
-agent: claude
+agent: "claude:sonnet:python-pedro:implementer"
+shell_pid: "2931106"
 history:
 - timestamp: '2026-06-26T11:02:04Z'
   actor: planner
@@ -241,3 +242,7 @@ Reviewers should confirm:
 5. `mission_type.py:592` has the `_canonicalize_primary_read_handle` import and call;
    `MissionSelectorAmbiguous` is not caught.
 6. `ruff` and `mypy` are clean on all touched files.
+
+## Activity Log
+
+- 2026-06-26T12:36:45Z – claude:sonnet:python-pedro:implementer – shell_pid=2931106 – Assigned agent via action command
