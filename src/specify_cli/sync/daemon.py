@@ -37,7 +37,7 @@ from enum import Enum
 from functools import cache
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Optional, Tuple, cast
 
 if sys.platform == "win32":
     import msvcrt
@@ -104,25 +104,77 @@ def _daemon_root() -> Path:
     return base
 
 
-# Module-level path constants derived from platform-aware helpers so that
-# existing code referencing these names continues to work unchanged.
-DAEMON_STATE_FILE = _daemon_root() / "sync-daemon"
-DAEMON_LOG_FILE = _daemon_root() / "sync-daemon.log"
-DAEMON_LOCK_FILE = _daemon_root() / "sync-daemon.lock"
+# Daemon state/log/lock paths are derived lazily from the platform-aware
+# ``_daemon_root()`` helper. Resolving them on every access (rather than freezing
+# them at import time) is what lets ``SPEC_KITTY_HOME`` — and test ``HOME``
+# monkeypatching — take effect even when it is set or changed after this module
+# was first imported (#2171, mirrors the ``SPEC_KITTY_DIR`` shim below).
+#
+# A test (or caller) may still pin an explicit value with
+# ``monkeypatch.setattr(daemon, "DAEMON_STATE_FILE", path)``; that binds the name
+# as a real module global, which then shadows ``__getattr__`` for lookups. The
+# in-module helpers below honor such an override first so production reads and
+# patched-out tests agree on a single seam.
+_LAZY_PATH_RESOLVERS: dict[str, Callable[[], Path]]  # forward decl for helpers
+
+
+def _resolve_lazy_path(name: str, resolver: Callable[[], Path]) -> Path:
+    """Return an explicitly-pinned module override for ``name`` if present, else
+    the lazily-resolved default.
+
+    The four lazy path names are never defined as real module globals (they are
+    served by ``__getattr__``), so ``globals().get(name)`` is ``None`` unless a
+    caller — typically a test via ``monkeypatch.setattr`` — pinned a value. Any
+    such override (a real ``Path`` or a duck-typed test double exposing the
+    ``Path`` surface the daemon uses) is honored verbatim; otherwise the
+    platform-aware default is resolved fresh on every call.
+    """
+    override: Any = globals().get(name)
+    if override is not None:
+        # Production overrides are real Paths; tests may pin a duck-typed double
+        # exposing the Path surface the daemon consumes. Either is honored.
+        return cast("Path", override)
+    return resolver()
+
+
+def _daemon_state_file() -> Path:
+    """Return the daemon singleton state file under the current daemon root."""
+    return _resolve_lazy_path("DAEMON_STATE_FILE", lambda: _daemon_root() / "sync-daemon")
+
+
+def _daemon_log_file() -> Path:
+    """Return the daemon log file under the current daemon root."""
+    return _resolve_lazy_path("DAEMON_LOG_FILE", lambda: _daemon_root() / "sync-daemon.log")
+
+
+def _daemon_lock_file() -> Path:
+    """Return the daemon advisory-lock file under the current daemon root."""
+    return _resolve_lazy_path("DAEMON_LOCK_FILE", lambda: _daemon_root() / "sync-daemon.lock")
+
+
+_LAZY_PATH_RESOLVERS = {
+    "SPEC_KITTY_DIR": _spec_kitty_dir,
+    "DAEMON_STATE_FILE": _daemon_state_file,
+    "DAEMON_LOG_FILE": _daemon_log_file,
+    "DAEMON_LOCK_FILE": _daemon_lock_file,
+}
 
 
 def __getattr__(name: str) -> Path:
-    """Lazily resolve the retired ``SPEC_KITTY_DIR`` module constant.
+    """Lazily resolve path-valued module constants on every access.
 
-    ``SPEC_KITTY_DIR`` used to be evaluated at import time, which froze it to
-    the home directory present when the module first loaded and defeated
-    ``SPEC_KITTY_HOME`` / test ``HOME`` monkeypatching (research.md D5). It is
-    now resolved on every access via :func:`_spec_kitty_dir`. Kept as a
-    module-level shim because external importers (and several daemon tests)
-    still reference the name.
+    ``SPEC_KITTY_DIR`` and the ``DAEMON_*_FILE`` paths used to be evaluated at
+    import time, which froze them to the home directory present when the module
+    first loaded and defeated ``SPEC_KITTY_HOME`` / test ``HOME`` monkeypatching
+    (research.md D5, #2171). They are now resolved on every access. Kept as
+    module-level shims because external importers (and several daemon tests)
+    reference the names. NOTE: importers must read them as module attributes
+    (``daemon.DAEMON_STATE_FILE``); a ``from daemon import DAEMON_STATE_FILE``
+    binds the value once and re-freezes it.
     """
-    if name == "SPEC_KITTY_DIR":
-        return _spec_kitty_dir()
+    resolver = _LAZY_PATH_RESOLVERS.get(name)
+    if resolver is not None:
+        return resolver()
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -528,7 +580,7 @@ def _decide_self_retire(server: HTTPServer, my_port: int) -> None:
     will reconcile it, so we keep running.
     """
     try:
-        _url, parsed_port, _token, parsed_pid = _parse_daemon_file(DAEMON_STATE_FILE)
+        _url, parsed_port, _token, parsed_pid = _parse_daemon_file(_daemon_state_file())
     except Exception:
         logger.debug("self-check tick: parse error, skipping")
         return
@@ -814,10 +866,10 @@ def daemon_exec_marker() -> str:
 
 def get_sync_daemon_status(timeout: float = 0.5) -> SyncDaemonStatus:
     """Return health and sync metadata for the machine-global daemon."""
-    if not DAEMON_STATE_FILE.exists():
+    if not _daemon_state_file().exists():
         return SyncDaemonStatus(healthy=False)
 
-    url, port, token, pid = _parse_daemon_file(DAEMON_STATE_FILE)
+    url, port, token, pid = _parse_daemon_file(_daemon_state_file())
     if port is None:
         return SyncDaemonStatus(healthy=False, url=url, token=token, pid=pid)
 
@@ -894,7 +946,7 @@ def _kill_and_cleanup(pid: int | None, *, wait_timeout: float = 2.0) -> None:
                         pass
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             pass
-    DAEMON_STATE_FILE.unlink(missing_ok=True)
+    _daemon_state_file().unlink(missing_ok=True)
 
 
 def _daemon_start_skip_reason(
@@ -936,10 +988,10 @@ def _release_daemon_lock(lock_fd: Any) -> None:
 
 
 def _read_daemon_pid() -> int | None:
-    if not DAEMON_STATE_FILE.exists():
+    if not _daemon_state_file().exists():
         return None
     try:
-        _u, _p, _t, pid = _parse_daemon_file(DAEMON_STATE_FILE)
+        _u, _p, _t, pid = _parse_daemon_file(_daemon_state_file())
     except Exception:
         return None
     return pid
@@ -979,7 +1031,7 @@ def ensure_sync_daemon_running(  # noqa: C901 — lifecycle decision matrix plus
     # Row 4 & 5: AUTO + REMOTE_REQUIRED — attempt to start
     _daemon_root().mkdir(parents=True, exist_ok=True)
 
-    lock_fd = open(DAEMON_LOCK_FILE, "w")  # noqa: SIM115
+    lock_fd = open(_daemon_lock_file(), "w")  # noqa: SIM115
     acquired = False
     try:
         try:
@@ -1078,7 +1130,7 @@ def _ensure_sync_daemon_running_locked(
             token,
             timeout=_STARTUP_HEALTH_TIMEOUT_SECONDS,
         ):
-            _write_daemon_file(DAEMON_STATE_FILE, url, port, token, proc.pid)
+            _write_daemon_file(_daemon_state_file(), url, port, token, proc.pid)
             return url, port, True
         time.sleep(delay)
 
@@ -1111,11 +1163,11 @@ def _reap_same_executable_orphans() -> None:
 
 
 def _reuse_or_cleanup_existing_daemon() -> tuple[str, int, bool] | None:
-    if not DAEMON_STATE_FILE.exists():
+    if not _daemon_state_file().exists():
         return None
 
     existing_url, existing_port, existing_token, existing_pid = _parse_daemon_file(
-        DAEMON_STATE_FILE
+        _daemon_state_file()
     )
     if existing_port is not None and _check_sync_daemon_health(
         existing_port,
@@ -1137,17 +1189,17 @@ def _reuse_or_cleanup_existing_daemon() -> tuple[str, int, bool] | None:
         return None
 
     if existing_pid is not None and not _is_process_alive(existing_pid):
-        DAEMON_STATE_FILE.unlink(missing_ok=True)
+        _daemon_state_file().unlink(missing_ok=True)
     elif existing_pid is not None:
         _kill_and_cleanup(existing_pid)
     else:
-        DAEMON_STATE_FILE.unlink(missing_ok=True)
+        _daemon_state_file().unlink(missing_ok=True)
     return None
 
 
 def _spawn_sync_daemon_process(port: int, token: str) -> subprocess.Popen[str]:
-    DAEMON_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    log_fh = open(DAEMON_LOG_FILE, "a")  # noqa: SIM115
+    _daemon_log_file().parent.mkdir(parents=True, exist_ok=True)
+    log_fh = open(_daemon_log_file(), "a")  # noqa: SIM115
     proc = subprocess.Popen(
         # The trailing marker argv elements are inert for the script
         # (``python -c`` exposes them only via ``sys.argv``) but let the
@@ -1190,12 +1242,12 @@ def _stop_daemon_by_http(url: str, token: str | None) -> None:
 
 def stop_sync_daemon(timeout: float = 5.0) -> tuple[bool, str]:
     """Stop the machine-global sync daemon."""
-    if not DAEMON_STATE_FILE.exists():
+    if not _daemon_state_file().exists():
         return False, "No sync daemon metadata found."
 
-    url, port, token, pid = _parse_daemon_file(DAEMON_STATE_FILE)
+    url, port, token, pid = _parse_daemon_file(_daemon_state_file())
     if port is None:
-        DAEMON_STATE_FILE.unlink(missing_ok=True)
+        _daemon_state_file().unlink(missing_ok=True)
         return False, "Sync daemon metadata was invalid and has been cleared."
 
     if not _check_sync_daemon_health(port, token):
@@ -1209,7 +1261,7 @@ def stop_sync_daemon(timeout: float = 5.0) -> tuple[bool, str]:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         if not _check_sync_daemon_health(port, token, timeout=0.2):
-            DAEMON_STATE_FILE.unlink(missing_ok=True)
+            _daemon_state_file().unlink(missing_ok=True)
             return True, "Sync daemon stopped."
         time.sleep(0.05)
 
@@ -1218,7 +1270,7 @@ def stop_sync_daemon(timeout: float = 5.0) -> tuple[bool, str]:
             psutil.Process(pid).kill()
         except (psutil.NoSuchProcess, psutil.AccessDenied):
             pass
-    DAEMON_STATE_FILE.unlink(missing_ok=True)
+    _daemon_state_file().unlink(missing_ok=True)
     return True, "Sync daemon stopped."
 
 
@@ -1284,10 +1336,10 @@ def scan_sync_daemons() -> DaemonSingletonReport:
     excluded from the orphan list.
     """
     state_pid: int | None = None
-    state_present = DAEMON_STATE_FILE.exists()
+    state_present = _daemon_state_file().exists()
     if state_present:
         try:
-            _, _, _, state_pid = _parse_daemon_file(DAEMON_STATE_FILE)
+            _, _, _, state_pid = _parse_daemon_file(_daemon_state_file())
         except Exception:  # noqa: BLE001
             state_pid = None
 

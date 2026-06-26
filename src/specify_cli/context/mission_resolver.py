@@ -133,7 +133,11 @@ def _build_index(repo_root: Path) -> list[ResolvedMission]:
     """Walk ``kitty-specs/`` and return a list of indexable missions.
 
     Missions whose ``meta.json`` lacks a ``mission_id`` are silently skipped.
-    Non-directory entries (e.g. ``README.md``) are also skipped.
+    Non-directory entries (e.g. ``README.md``) are also skipped. A ``meta.json``
+    that parses to a non-object (e.g. a JSON array) is skipped here rather than
+    crashing the index: per-mission topology validation belongs to the consumer
+    (``status.aggregate._read_meta``), which fails the *targeted* mission closed
+    with ``MissionMetadataUnavailable``.
     """
     specs_dir = repo_root / KITTY_SPECS_DIR
     if not specs_dir.exists():
@@ -149,6 +153,10 @@ def _build_index(repo_root: Path) -> list[ResolvedMission]:
         try:
             data = json.loads(meta_path.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
+            continue
+        if not isinstance(data, dict):
+            # Malformed meta.json (non-object) — not indexable by identity.
+            # The consumer validates and fails the targeted mission closed.
             continue
         mission_id: str | None = data.get("mission_id") or None
         if not mission_id:
