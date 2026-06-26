@@ -111,6 +111,49 @@ class TestSpecKittyHomeEnvOverride:
 
 
 # ---------------------------------------------------------------------------
+# T005 (mission spec-kitty-home-isolation): SPEC_KITTY_HOME precedence flows
+# into specify_cli.paths.get_runtime_root().base with the SAME walrus-falsy
+# idiom as kernel.paths.get_kittify_home(). The two canonical home helpers must
+# agree under the env override so the runtime state root and the asset home stay
+# unified (FR-005 / C-002, FR-011, FR-012).
+# ---------------------------------------------------------------------------
+
+
+class TestRuntimeRootSpecKittyHomeParity:
+    """get_runtime_root().base honors SPEC_KITTY_HOME exactly like get_kittify_home."""
+
+    def test_runtime_root_base_matches_env(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """A non-empty SPEC_KITTY_HOME becomes get_runtime_root().base verbatim."""
+        from specify_cli.paths import get_runtime_root
+
+        custom = str(tmp_path / "custom-home")
+        monkeypatch.setenv("SPEC_KITTY_HOME", custom)
+        assert get_runtime_root().base == Path(custom)
+
+    def test_runtime_root_and_kittify_home_agree_under_env(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Under SPEC_KITTY_HOME both helpers resolve to the same path."""
+        from specify_cli.paths import get_runtime_root
+
+        custom = str(tmp_path / "shared-home")
+        monkeypatch.setenv("SPEC_KITTY_HOME", custom)
+        assert get_runtime_root().base == get_kittify_home()
+
+    def test_empty_env_falls_through_for_runtime_root(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Empty SPEC_KITTY_HOME is falsy ⇒ POSIX ``~/.spec-kitty`` default."""
+        from specify_cli.paths import get_runtime_root, windows_paths
+
+        monkeypatch.setenv("SPEC_KITTY_HOME", "")
+        monkeypatch.setattr(windows_paths, "_current_platform", lambda: "linux")
+        assert get_runtime_root().base == Path.home() / ".spec-kitty"
+
+
+# ---------------------------------------------------------------------------
 # T006: get_package_asset_root — package asset discovery
 # ---------------------------------------------------------------------------
 

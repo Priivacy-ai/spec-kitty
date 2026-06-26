@@ -232,13 +232,22 @@ class _SlugResolver:
             if meta_path.exists():
                 try:
                     data = json.loads(meta_path.read_text(encoding="utf-8"))
-                    mission_id = data.get("mission_id") or None
                 except (json.JSONDecodeError, OSError) as exc:
                     logger.warning(
                         "Could not read meta.json for slug %r: %s",
                         mission_slug,
                         exc,
                     )
+                else:
+                    if isinstance(data, dict):
+                        mission_id = data.get("mission_id") or None
+                    else:
+                        logger.warning(
+                            "meta.json for slug %r is not an object (got %s); "
+                            "mission_id will be None",
+                            mission_slug,
+                            type(data).__name__,
+                        )
             else:
                 logger.warning(
                     "No meta.json found for mission_slug %r (orphaned event); mission_id will be None for these events",

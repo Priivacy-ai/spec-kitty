@@ -44,7 +44,7 @@ import socket
 from dataclasses import dataclass, field
 from datetime import datetime, UTC
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from rich.console import Console
 from rich.table import Table
@@ -60,8 +60,8 @@ from specify_cli.core.file_lock import (
     force_release,
     read_lock_record,
 )
+from specify_cli.sync import daemon as _daemon
 from specify_cli.sync.daemon import (
-    DAEMON_STATE_FILE,
     SyncDaemonStatus,
     get_sync_daemon_status,
     stop_sync_daemon,
@@ -269,6 +269,28 @@ def _read_lock_summary(stuck_threshold_s: float) -> LockSummary:
     )
 
 
+def __getattr__(name: str) -> Path:
+    """Expose ``DAEMON_STATE_FILE`` as a lazy module attribute.
+
+    The path is owned and lazily resolved by :mod:`specify_cli.sync.daemon`
+    (#2171). Re-export it here so callers and tests read the current value via
+    ``_auth_doctor.DAEMON_STATE_FILE`` instead of an import-time-frozen binding.
+    """
+    if name == "DAEMON_STATE_FILE":
+        return _daemon.DAEMON_STATE_FILE
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def _daemon_state_file() -> Path:
+    """Return a pinned ``DAEMON_STATE_FILE`` override, else the canonical lazy
+    daemon state path. Tests isolate via ``monkeypatch.setattr(_auth_doctor,
+    "DAEMON_STATE_FILE", ...)``; that override is honored verbatim."""
+    override = globals().get("DAEMON_STATE_FILE")
+    if override is not None:
+        return cast("Path", override)
+    return _daemon.DAEMON_STATE_FILE
+
+
 def _read_daemon_summary() -> DaemonSummary | None:
     """Return :class:`DaemonSummary` when a daemon state file exists.
 
@@ -276,7 +298,7 @@ def _read_daemon_summary() -> DaemonSummary | None:
     *local* probe and explicitly allowed by C-007. When no state file is
     present we return ``None`` (no daemon expected).
     """
-    if not DAEMON_STATE_FILE.exists():
+    if not _daemon_state_file().exists():
         return None
 
     status: SyncDaemonStatus = get_sync_daemon_status()

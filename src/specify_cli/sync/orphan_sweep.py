@@ -23,17 +23,20 @@ import subprocess
 import time
 import urllib.request
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 import psutil
 
+from specify_cli.sync import daemon as _daemon
 from specify_cli.sync.daemon import (
     DAEMON_PORT_MAX_ATTEMPTS,
     DAEMON_PORT_START,
-    DAEMON_STATE_FILE,
     _fetch_health_payload,
     _parse_daemon_file,
 )
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 __all__ = [
     "OrphanDaemon",
@@ -41,6 +44,34 @@ __all__ = [
     "enumerate_orphans",
     "sweep_orphans",
 ]
+
+
+def __getattr__(name: str) -> Path:
+    """Expose ``DAEMON_STATE_FILE`` as a lazy module attribute.
+
+    The singleton state path is owned by :mod:`specify_cli.sync.daemon` and is
+    resolved lazily there so ``SPEC_KITTY_HOME`` is honored after import (#2171).
+    Re-export it here as a module attribute (rather than an import-time-frozen
+    binding) so callers and tests can read ``orphan_sweep.DAEMON_STATE_FILE`` and
+    get the current value.
+    """
+    if name == "DAEMON_STATE_FILE":
+        return _daemon.DAEMON_STATE_FILE
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def _daemon_state_file() -> Path:
+    """Return this module's pinned ``DAEMON_STATE_FILE`` override, else the
+    canonical lazily-resolved daemon state path.
+
+    Tests isolate the sweep by pinning ``orphan_sweep.DAEMON_STATE_FILE`` with
+    ``monkeypatch.setattr``; that override is honored verbatim. Otherwise the
+    value flows through from :mod:`specify_cli.sync.daemon`.
+    """
+    override = globals().get("DAEMON_STATE_FILE")
+    if override is not None:
+        return cast("Path", override)
+    return _daemon.DAEMON_STATE_FILE
 
 
 # Per-port budgets. The 50 ms TCP connect-check is the dominant filter for
@@ -192,9 +223,10 @@ def _lookup_listening_pid_with_lsof(port: int) -> int | None:
 
 def _read_singleton_port() -> int | None:
     """Return the port recorded in ``DAEMON_STATE_FILE``, or ``None`` if absent/malformed."""
-    if not DAEMON_STATE_FILE.exists():
+    state_file = _daemon_state_file()
+    if not state_file.exists():
         return None
-    _url, port, _token, _pid = _parse_daemon_file(DAEMON_STATE_FILE)
+    _url, port, _token, _pid = _parse_daemon_file(state_file)
     if port is None:
         return None
     return int(port)

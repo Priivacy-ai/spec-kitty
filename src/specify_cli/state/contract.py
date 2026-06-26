@@ -15,12 +15,19 @@ _CHARTER_SYNTHESIS_TRIGGER = "spec-kitty charter synthesize"
 
 
 class StateRoot(StrEnum):
-    """Root directory that anchors a family of state surfaces."""
+    """Root directory that anchors a family of state surfaces.
+
+    ``GLOBAL_SYNC`` surface patterns below carry a documentation-only
+    ``~/.spec-kitty/`` prefix; their absolute resolution is NOT computed here.
+    Resolution is anchored at the authoritative runtime root
+    (``specify_cli.paths.get_runtime_root().base``), which honors
+    ``SPEC_KITTY_HOME`` and defaults to ``~/.spec-kitty`` on POSIX (FR-009/010).
+    """
 
     PROJECT = "project"  # .kittify/
     FEATURE = "feature"  # kitty-specs/<feature>/
     GLOBAL_RUNTIME = "global_runtime"  # ~/.kittify/
-    GLOBAL_SYNC = "global_sync"  # ~/.spec-kitty/
+    GLOBAL_SYNC = "global_sync"  # get_runtime_root().base (default ~/.spec-kitty/)
     GIT_INTERNAL = "git_internal"  # .git/spec-kitty/
 
 

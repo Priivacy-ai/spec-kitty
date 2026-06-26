@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "4aed0f4b9f34f7ccfa1bd78ecd225e34b2999d45",
+  "coordination_branch": "kitty/mission-spec-kitty-home-isolation-01KW1JXX",
+  "created_at": "2026-06-26T09:07:17.458509+00:00",
+  "flattened": false,
+  "friendly_name": "SPEC_KITTY_HOME State Isolation",
+  "mission_id": "01KW1JXXTH8YVMADWF0G80H765",
+  "mission_number": 150,
+  "mission_slug": "spec-kitty-home-isolation-01KW1JXX",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Private-Teamspace and Upsun operators rely on SPEC_KITTY_HOME to keep production and dev sessions separate, but today it only isolates runtime/Mission assets while sync config, credentials, queues, the daemon, the Lamport clock, and tracker state still fall back to the shared ~/.spec-kitty home. This mission makes SPEC_KITTY_HOME the single authoritative root for all global state so the documented isolation contract actually holds, preventing operators from unknowingly reusing the wrong credentials or targeting the wrong environment.",
+  "purpose_tldr": "Make SPEC_KITTY_HOME truly isolate all local sync, auth, tracker, and daemon state so operators stop silently sharing dev credentials and server URLs across environments.",
+  "slug": "spec-kitty-home-isolation-01KW1JXX",
+  "source_description": "GitHub issue #2171 — SPEC_KITTY_HOME does not isolate POSIX sync/auth/tracker/daemon state (https://github.com/Priivacy-ai/spec-kitty/issues/2171)",
+  "target_branch": "fix/spec-kitty-home-isolation",
+  "topology": "coord",
+  "vcs": "git"
+}

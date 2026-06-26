@@ -29,14 +29,24 @@ class TrackerCredentialError(RuntimeError):
 def _tracker_root() -> Path:
     """Return the tracker state directory for the current platform.
 
-    On Windows: resolves to ``%LOCALAPPDATA%\\spec-kitty\\tracker\\``
-    via the unified RuntimeRoot.
-    On POSIX: returns ``~/.spec-kitty`` unchanged (preserving existing behavior).
+    Both branches resolve through the unified ``get_runtime_root().base``, which
+    honors ``SPEC_KITTY_HOME``.
+
+    On Windows: the nested ``base/tracker`` directory (``RuntimeRoot.tracker_dir``).
+    On POSIX: ``base`` directly (flat layout — credentials land at
+    ``base/credentials``). This preserves the historical
+    ``~/.spec-kitty/credentials`` location when ``SPEC_KITTY_HOME`` is unset
+    (NFR-001 / research.md D3); the POSIX-flat vs Windows-nested divergence is
+    intentional.
     """
+    from specify_cli.paths import get_runtime_root  # noqa: PLC0415
+
+    root = get_runtime_root()
+    # ``Path(...)`` re-narrows to ``Path`` because subdir mypy runs treat the
+    # ``specify_cli.*`` lazy import as ``Any`` (``follow_imports = "skip"``).
     if sys.platform == "win32":
-        from specify_cli.paths import get_runtime_root  # noqa: PLC0415
-        return get_runtime_root().tracker_dir
-    return Path.home() / ".spec-kitty"
+        return Path(root.tracker_dir)
+    return Path(root.base)
 
 
 def _credentials_path() -> Path:

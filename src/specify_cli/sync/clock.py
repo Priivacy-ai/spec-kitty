@@ -11,6 +11,20 @@ from datetime import datetime, timezone, UTC
 from pathlib import Path
 
 from specify_cli.core.atomic import atomic_write
+from specify_cli.paths import get_runtime_root
+
+
+def _default_clock_path() -> Path:
+    """Return the Lamport clock storage path, honouring ``SPEC_KITTY_HOME``.
+
+    Resolved lazily so environment overrides and test ``HOME`` monkeypatching
+    are honoured (WP01 / research.md D5). On POSIX with the env var unset this
+    is ``~/.spec-kitty/clock.json`` — byte-identical to the legacy path.
+    """
+    # ``get_runtime_root`` is seen as ``Any`` here because mypy skips imports
+    # for ``specify_cli.*`` (follow_imports=skip); coerce at the typed boundary.
+    base: Path = get_runtime_root().base
+    return base / "clock.json"
 
 
 def generate_node_id() -> str:
@@ -35,7 +49,7 @@ class LamportClock:
     value: int = 0
     node_id: str = field(default_factory=generate_node_id)
     _storage_path: Path = field(
-        default_factory=lambda: Path.home() / ".spec-kitty" / "clock.json",
+        default_factory=_default_clock_path,
         repr=False,
     )
 
@@ -77,7 +91,7 @@ class LamportClock:
         Creates a new clock with value=0 if file doesn't exist or is invalid.
         """
         if storage_path is None:
-            storage_path = Path.home() / ".spec-kitty" / "clock.json"
+            storage_path = _default_clock_path()
 
         if not storage_path.exists():
             clock = cls(_storage_path=storage_path)

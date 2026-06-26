@@ -67,6 +67,9 @@ def storage(tmp_path: Path) -> FastFileFallback:
 
 
 def test_default_store_dir_uses_spec_kitty_auth_root(monkeypatch, tmp_path: Path):
+    # WP03: default_store_dir() now resolves through get_runtime_root(); with
+    # SPEC_KITTY_HOME unset on POSIX it still equals ``~/.spec-kitty/auth``.
+    monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     storage = FastFileFallback()
     assert storage.store_path == tmp_path / ".spec-kitty" / "auth"

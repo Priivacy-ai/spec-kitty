@@ -18,6 +18,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
+- **`SPEC_KITTY_HOME` now isolates *all* local Spec Kitty state, not just runtime
+  assets (fixes #2171).** Previously the variable governed runtime/Mission assets
+  while global sync state — sync `config.toml`, hosted-auth session and refresh
+  lock, event queues and the active queue scope, the Lamport clock, the sync
+  daemon (state/log/lock), and tracker credentials/cache — still resolved to the
+  shared default home (`~/.spec-kitty` on POSIX). An operator who exported
+  `SPEC_KITTY_HOME` to target a separate hosted environment would silently read
+  and write their everyday dev session. Every global-state surface now derives
+  from a single authoritative root (`specify_cli.paths.get_runtime_root`) that
+  honors `SPEC_KITTY_HOME` on Linux, macOS, and Windows. When the variable is
+  unset the POSIX default (`~/.spec-kitty`) is byte-identical to prior releases;
+  on Windows the surfaces that previously leaked to `~/.spec-kitty` are
+  normalized onto the platformdirs app-data base. No automatic migration of
+  existing `~/.spec-kitty` data is performed — setting the variable selects a
+  (possibly fresh) separate root and leaves existing default-home data in place.
 - **`spec-kitty accept` no longer false-positives on a mission's `contracts/` path
   convention.** The accept gate's path-convention check (`validate_mission_paths`)
   resolved every mission-declared path against the repo root, so a mission-artifact

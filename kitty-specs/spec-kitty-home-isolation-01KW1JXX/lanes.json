@@ -1,0 +1,139 @@
+{
+  "version": 1,
+  "mission_slug": "spec-kitty-home-isolation-01KW1JXX",
+  "mission_id": "01KW1JXXTH8YVMADWF0G80H765",
+  "mission_branch": "kitty/mission-spec-kitty-home-isolation-01KW1JXX",
+  "target_branch": "fix/spec-kitty-home-isolation",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/paths/__init__.py",
+        "src/specify_cli/paths/windows_paths.py",
+        "tests/kernel/test_paths.py",
+        "tests/kernel/test_paths_unified_windows_root.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/sync/clock.py",
+        "src/specify_cli/sync/config.py",
+        "src/specify_cli/sync/daemon.py",
+        "src/specify_cli/sync/queue.py",
+        "tests/sync/test_config_background_daemon.py",
+        "tests/sync/test_daemon_owner_record.py",
+        "tests/sync/test_offline_queue.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/auth/secure_storage/file_fallback.py",
+        "src/specify_cli/auth/secure_storage/windows_storage.py",
+        "src/specify_cli/auth/token_manager.py",
+        "tests/auth/test_secure_storage_file.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/tracker/credentials.py",
+        "src/specify_cli/tracker/store.py",
+        "tests/tracker/test_credentials_windows_paths.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/state/contract.py",
+        "src/specify_cli/state/doctor.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "src/doctrine/skills/spk-team-upsun-cli-sync/SKILL.md",
+        "tests/audit/test_no_legacy_path_literals.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-06-26T11:13:05.026621+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
