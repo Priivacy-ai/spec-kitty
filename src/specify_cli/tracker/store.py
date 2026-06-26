@@ -12,7 +12,13 @@ from collections.abc import Sequence
 
 
 def _spec_kitty_dir() -> Path:
-    return Path.home() / ".spec-kitty"
+    # Unified runtime root honors SPEC_KITTY_HOME; the flat ``trackers`` suffix
+    # is re-appended by ``_trackers_dir()`` (POSIX layout preserved, NFR-001).
+    # ``Path(...)`` re-narrows to ``Path`` because subdir mypy runs treat the
+    # ``specify_cli.*`` lazy import as ``Any`` (``follow_imports = "skip"``).
+    from specify_cli.paths import get_runtime_root  # noqa: PLC0415
+
+    return Path(get_runtime_root().base)
 
 
 def _trackers_dir() -> Path:

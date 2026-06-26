@@ -158,11 +158,11 @@ description: "Work package task list for SPEC_KITTY_HOME State Isolation"
 
 ### Included Subtasks
 
-- [ ] T021 Extend `tests/audit/test_no_legacy_path_literals.py` — no hand-rolled `Path.home() / ".spec-kitty"` in `sync/auth/tracker/state` (allowlist keystone + asset-home + migration/fallback)
-- [ ] T022 Add CLI integration test (distinct HOME + SPEC_KITTY_HOME → all state under SPEC_KITTY_HOME; default home clean) in `tests/integration/test_spec_kitty_home_cli.py`
-- [ ] T023 Update `src/doctrine/skills/spk-team-upsun-cli-sync/SKILL.md` (true isolation + verification command)
-- [ ] T024 Add `CHANGELOG.md` entry (isolation fix + Windows path normalization)
-- [ ] T025 Run full suite + `ruff` + `mypy --strict` + terminology guard; confirm green
+- [x] T021 Extend `tests/audit/test_no_legacy_path_literals.py` — no hand-rolled `Path.home() / ".spec-kitty"` in `sync/auth/tracker/state` (allowlist keystone + asset-home + migration/fallback)
+- [x] T022 Add CLI integration test (distinct HOME + SPEC_KITTY_HOME → all state under SPEC_KITTY_HOME; default home clean) in `tests/integration/test_spec_kitty_home_cli.py`
+- [x] T023 Update `src/doctrine/skills/spk-team-upsun-cli-sync/SKILL.md` (true isolation + verification command)
+- [x] T024 Add `CHANGELOG.md` entry (isolation fix + Windows path normalization)
+- [x] T025 Run full suite + `ruff` + `mypy --strict` + terminology guard; confirm green
 
 ### Dependencies
 

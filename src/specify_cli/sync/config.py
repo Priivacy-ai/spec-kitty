@@ -7,6 +7,7 @@ from typing import Any
 import toml
 
 from specify_cli.core.atomic import atomic_write
+from specify_cli.paths import get_runtime_root
 
 from .queue import DEFAULT_MAX_QUEUE_SIZE
 
@@ -28,7 +29,13 @@ class SyncConfig:
     """Manage sync configuration"""
 
     def __init__(self) -> None:
-        self.config_dir = Path.home() / '.spec-kitty'
+        # Resolve lazily per instance (not at import) so ``SPEC_KITTY_HOME``
+        # and test ``HOME`` monkeypatching are honoured. On POSIX with the env
+        # var unset this is ``~/.spec-kitty`` — byte-identical to the legacy
+        # path (WP01 / NFR-001). ``get_runtime_root`` is seen as ``Any`` here
+        # (mypy follow_imports=skip for ``specify_cli.*``); coerce at the typed
+        # boundary.
+        self.config_dir: Path = get_runtime_root().base
         self.config_file = self.config_dir / 'config.toml'
 
     def _load(self) -> dict[str, Any]:

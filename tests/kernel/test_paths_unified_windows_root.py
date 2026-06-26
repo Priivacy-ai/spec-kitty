@@ -83,3 +83,48 @@ def test_runtime_root_base_is_absolute() -> None:
 
     root = get_runtime_root()
     assert root.base.is_absolute(), f"Expected absolute base path, got: {root.base}"
+
+
+# ---------------------------------------------------------------------------
+# SPEC_KITTY_HOME precedence flows into the unified runtime root (FR-011/FR-012).
+# These run on every platform (no windows_ci gate) by pinning the platform-
+# detection source, proving the env base is honored cross-platform and that the
+# RuntimeRoot-derived directories inherit it. (Wiring the per-surface consumers
+# — tracker/sync/auth — through this base is downstream WP02-WP05 work and is
+# intentionally NOT asserted here.)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("platform", ["linux", "darwin", "win32"])
+def test_spec_kitty_home_sets_runtime_base_on_all_platforms(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, platform: str
+) -> None:
+    """A non-empty SPEC_KITTY_HOME is the unified base on every platform."""
+    from specify_cli.paths import get_runtime_root, windows_paths
+
+    base = tmp_path / "env-home"
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(base))
+    monkeypatch.setattr(windows_paths, "_current_platform", lambda: platform)
+
+    root = get_runtime_root()
+
+    assert root.platform == platform
+    assert root.base == base
+    assert root.tracker_dir == base / "tracker"
+    assert root.sync_dir == base / "sync"
+    assert root.daemon_dir == base / "daemon"
+
+
+@pytest.mark.parametrize("platform", ["linux", "darwin"])
+def test_empty_spec_kitty_home_falls_through_to_posix_default(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, platform: str
+) -> None:
+    """An empty SPEC_KITTY_HOME is falsy ⇒ POSIX ``~/.spec-kitty`` default."""
+    from specify_cli.paths import get_runtime_root, windows_paths
+
+    fake_home = tmp_path / "home"
+    monkeypatch.setattr(Path, "home", classmethod(lambda _cls: fake_home))
+    monkeypatch.setattr(windows_paths, "_current_platform", lambda: platform)
+    monkeypatch.setenv("SPEC_KITTY_HOME", "")
+
+    assert get_runtime_root().base == fake_home / ".spec-kitty"

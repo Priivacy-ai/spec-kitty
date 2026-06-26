@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import importlib
 import sys
-from pathlib import Path
 
 
 import pytest
@@ -49,7 +48,14 @@ def test_from_environment_windows_returns_windows_file_storage(monkeypatch):
         assert isinstance(storage, WindowsFileStorage), (
             f"Expected WindowsFileStorage on win32, got {type(storage).__name__}"
         )
-        assert storage.store_path == Path.home() / ".spec-kitty" / "auth"
+        # WP03 / DM-01KW1KDHVGWZ0QERDMV1CRJ15S: the Windows store is no longer
+        # hardcoded to ``~/.spec-kitty/auth``; it now resolves through the
+        # unified runtime root (platformdirs base on real Windows,
+        # ``$SPEC_KITTY_HOME`` when set). Assert against get_runtime_root() so
+        # the test reflects the normalization rather than a coincidental path.
+        from specify_cli.paths import get_runtime_root
+
+        assert storage.store_path == get_runtime_root().auth_dir
         assert "specify_cli.auth.secure_storage.keychain" not in sys.modules, (
             "keychain module must never be imported in the file-only storage model"
         )

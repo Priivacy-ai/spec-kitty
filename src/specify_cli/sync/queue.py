@@ -11,6 +11,8 @@ from typing import Any, Protocol
 
 import toml
 
+from specify_cli.paths import get_runtime_root
+
 
 class _BatchEventResultLike(Protocol):
     """Minimal protocol for batch result records consumed by queue processing."""
@@ -360,8 +362,17 @@ class QueueStats:
 
 
 def _spec_kitty_dir() -> Path:
-    """Return ~/.spec-kitty for the current HOME."""
-    return Path.home() / ".spec-kitty"
+    """Return the runtime state root, honouring ``SPEC_KITTY_HOME`` (WP01).
+
+    All consumers append their own suffix (``credentials``, ``auth``,
+    ``queue.db``, ``queues``, ``active_queue_scope``, ``config.toml``). On
+    POSIX with the env var unset this is ``~/.spec-kitty`` — byte-identical to
+    the legacy path (NFR-001).
+    """
+    # ``get_runtime_root`` is seen as ``Any`` here because mypy skips imports
+    # for ``specify_cli.*`` (follow_imports=skip); coerce at the typed boundary.
+    base: Path = get_runtime_root().base
+    return base
 
 
 def _credentials_path() -> Path:

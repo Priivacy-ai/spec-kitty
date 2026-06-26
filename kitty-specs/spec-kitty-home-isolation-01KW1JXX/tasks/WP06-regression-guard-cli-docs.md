@@ -22,8 +22,8 @@ subtasks:
 - T025
 phase: Phase 3 - Harden & Document
 assignee: ''
-agent: claude
-shell_pid: '88364'
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "77280"
 history:
 - at: '2026-06-26T11:06:32Z'
   actor: system
@@ -152,3 +152,7 @@ Close out the mission: an architectural guard so the literal can't re-scatter, a
 ### Updating Status
 
 Use `spec-kitty agent tasks move-task WP06 --to <status>`.
+- 2026-06-26T12:34:39Z – claude:opus:python-pedro:implementer – shell_pid=88364 – Assigned agent via action command
+- 2026-06-26T13:06:27Z – claude:opus:python-pedro:implementer – shell_pid=88364 – Ready (forced past known coord/primary subtask-gate): WP06 gates green
+- 2026-06-26T13:06:40Z – claude:opus:reviewer-renata:reviewer – shell_pid=77280 – Started review via action command
+- 2026-06-26T13:13:58Z – user – shell_pid=77280 – Review passed: guard verified red/green (clean GREEN -> injected Path.home()/'.spec-kitty' in sync/config.py RED -> revert GREEN), allowlist precise (5 files; reroute dirs sync/auth/tracker/state NOT exempt), CLI isolation test exercises real Typer app via CliRunner with unset-fallback case, SKILL.md+CHANGELOG accurate (Windows normalization + no-auto-migration), terminology canon preserved. ruff clean; mypy 19 pre-existing only (none in reroute files); integration subset 613 passed/10 skipped + 18 acceptance passed.

@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 import pytest
 
 from specify_cli.auth.secure_storage import WindowsFileStorage
 from specify_cli.auth.session import StoredSession, Team
+from specify_cli.paths import get_runtime_root
 
 
 pytestmark = [pytest.mark.integration]
@@ -47,7 +47,14 @@ def test_windows_file_store_round_trip(tmp_path):
 
 
 @pytest.mark.windows_ci
-def test_windows_file_store_default_path_under_userprofile():
-    """Default store_path is rooted under %USERPROFILE%\\.spec-kitty\\auth."""
+def test_windows_file_store_default_path_under_runtime_root():
+    """Default store_path is the unified runtime root's ``auth`` dir.
+
+    WP03 / DM-01KW1KDHVGWZ0QERDMV1CRJ15S: the Windows store was previously
+    hardcoded to ``~/.spec-kitty/auth``. It now resolves through
+    :func:`specify_cli.paths.get_runtime_root` — the platformdirs LocalAppData
+    base on real Windows (``%LOCALAPPDATA%\\spec-kitty\\auth``), or
+    ``$SPEC_KITTY_HOME/auth`` when that environment variable is set.
+    """
     store = WindowsFileStorage()
-    assert store.store_path == Path.home() / ".spec-kitty" / "auth"
+    assert store.store_path == get_runtime_root().auth_dir

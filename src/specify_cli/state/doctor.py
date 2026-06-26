@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from specify_cli.paths import get_runtime_root
 from specify_cli.state.contract import (
     STATE_SURFACES,
     AuthorityClass,
@@ -23,6 +24,12 @@ from specify_cli.state.contract import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Documentation-only prefix carried by the declarative GLOBAL_SYNC surface
+# patterns (e.g. ``~/.spec-kitty/config.toml``). The authoritative root is
+# ``get_runtime_root().base`` (which honors ``SPEC_KITTY_HOME``); this prefix is
+# stripped before joining so resolution never recomputes the home (FR-010).
+_GLOBAL_SYNC_PATTERN_PREFIX = "~/.spec-kitty/"
 
 
 # ---------------------------------------------------------------------------
@@ -133,12 +140,15 @@ def _check_surface_present(repo_root: Path, surface: StateSurface) -> bool:
 
             path = get_kittify_home() / surface.path_pattern
     elif surface.root == StateRoot.GLOBAL_SYNC:
-        if surface.path_pattern.startswith("~/"):
-            # Resolve from home directory (e.g. ~/.spec-kitty/...)
-            relative = surface.path_pattern[2:]  # Strip ~/
-            path = Path.home() / relative
+        # Anchor global-sync surfaces at the authoritative runtime root, which
+        # honors SPEC_KITTY_HOME. The declarative patterns keep their
+        # documentation-only "~/.spec-kitty/" prefix; strip it before joining.
+        sync_base = get_runtime_root().base
+        if surface.path_pattern.startswith(_GLOBAL_SYNC_PATTERN_PREFIX):
+            relative = surface.path_pattern[len(_GLOBAL_SYNC_PATTERN_PREFIX) :]
+            path = sync_base / relative
         else:
-            path = Path.home() / ".spec-kitty" / surface.path_pattern
+            path = sync_base / surface.path_pattern
     elif surface.root == StateRoot.GIT_INTERNAL:
         # Resolve git common-dir (worktree-aware — .git may be a file, not a dir)
         import subprocess
@@ -250,7 +260,9 @@ def check_state_roots(repo_root: Path) -> StateRootsReport:
     # Resolve roots
     project_root = repo_root / ".kittify"
     global_runtime = get_kittify_home()
-    global_sync = Path.home() / ".spec-kitty"
+    # Authoritative runtime root (honors SPEC_KITTY_HOME); never recompute the
+    # default home independently (FR-010).
+    global_sync = get_runtime_root().base
 
     report.roots = [
         StateRootInfo(

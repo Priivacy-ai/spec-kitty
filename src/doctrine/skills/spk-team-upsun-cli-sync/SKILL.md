@@ -42,6 +42,29 @@ Local testing rule: any command path touching hosted auth, tracker, or sync
 must run with `SPEC_KITTY_ENABLE_SAAS_SYNC=1`. The env script sets it; preserve
 it when composing commands manually.
 
+## Verifying State Isolation
+
+To confirm that a dedicated `SPEC_KITTY_HOME` actually captures the local state
+(and that your everyday `~/.spec-kitty` is untouched), run the isolation check:
+
+```bash
+tmp_home="$(mktemp -d)"
+tmp_skh="$(mktemp -d)"
+
+HOME="$tmp_home" \
+SPEC_KITTY_HOME="$tmp_skh" \
+SPEC_KITTY_ENABLE_SAAS_SYNC=1 \
+spec-kitty sync server https://example.invalid
+
+echo "--- default home (must be EMPTY of config) ---"
+find "$tmp_home" -maxdepth 3 -type f | sort
+echo "--- SPEC_KITTY_HOME (must contain config.toml) ---"
+find "$tmp_skh" -maxdepth 3 -type f | sort
+```
+
+Expected: `config.toml` appears under `$SPEC_KITTY_HOME`; `$HOME/.spec-kitty/config.toml`
+does **not** exist. `spec-kitty state doctor` reports the same global-sync root.
+
 ## Verification
 
 Before treating an environment as healthy:
@@ -63,12 +86,22 @@ selected SaaS target: `spec-kitty sync now --report sync-report.json`. Current
 behavior:
 
 - Local event rows are deleted after server `success`, `duplicate`, or
-  `failed_permanent` outcomes, so `sync now` is not replay-safe across multiple
-  transient Upsun environments.
-- Queue storage: `~/.spec-kitty/queues/queue-<hash>.db` for scoped queues, with
-  legacy fallback `~/.spec-kitty/queue.db`.
-- `SPEC_KITTY_HOME` isolates auth/state but may not isolate the event queue;
-  verify before relying on it.
+  `failed_permanent` outcomes.
+- Normal `sync now` is therefore not replay-safe across multiple transient
+  Upsun environments.
+- Event queue storage resolves under the selected state root: scoped
+  authenticated queues at `<root>/queues/queue-<hash>.db` with the legacy
+  fallback `<root>/queue.db`. With `SPEC_KITTY_HOME` set, `<root>` is that
+  directory; unset on POSIX it is `~/.spec-kitty`.
+- `SPEC_KITTY_HOME` now isolates **all** local Spec Kitty state — sync config,
+  hosted-auth session and refresh lock, the event queues and active queue scope,
+  the Lamport clock, the sync daemon (state/log/lock), and tracker
+  credentials/cache — not just runtime/Mission assets. Pointing it at a
+  dedicated directory gives the Upsun target a fully isolated session with zero
+  cross-contamination from your everyday `~/.spec-kitty` dev state (fixes
+  [#2171](https://github.com/Priivacy-ai/spec-kitty/issues/2171)). On Windows the
+  state resolves onto the platformdirs app-data base when the variable is unset.
+  No automatic migration of existing `~/.spec-kitty` data is performed.
 
 ## Server Drain Inspection
 

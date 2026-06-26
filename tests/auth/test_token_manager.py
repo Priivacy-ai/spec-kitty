@@ -845,11 +845,14 @@ async def test_refresh_outcome_enum_has_six_canonical_members():
 
 
 def test_refresh_lock_path_is_under_spec_kitty_home():
-    """The default (non-test) lock path lands under ``~/.spec-kitty/auth/``.
+    """The default (non-test) lock path resolves through the runtime root.
 
     The autouse fixture redirects ``_refresh_lock_path`` to a tmp path; here
-    we inspect the original source so the documented production contract
-    (``~/.spec-kitty/auth/refresh.lock`` on POSIX) stays under test.
+    we inspect the original source so the documented production contract stays
+    under test. WP03 reroutes the helper through
+    :func:`specify_cli.paths.get_runtime_root` (honoring ``SPEC_KITTY_HOME``),
+    so the lock lands under ``<runtime-root>/auth/refresh.lock`` —
+    ``~/.spec-kitty/auth/refresh.lock`` on POSIX with the env var unset.
     """
     import inspect  # noqa: PLC0415
 
@@ -858,7 +861,7 @@ def test_refresh_lock_path_is_under_spec_kitty_home():
     assert "def _refresh_lock_path" in source
     body = source.split("def _refresh_lock_path", 1)[1].split("\n\nclass", 1)[0]
     assert "refresh.lock" in body
-    assert ".spec-kitty" in body
+    assert "get_runtime_root" in body
     assert "auth" in body
 
 

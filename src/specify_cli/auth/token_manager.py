@@ -35,6 +35,8 @@ import sys
 import threading
 from pathlib import Path
 
+from specify_cli.paths import get_runtime_root
+
 from .errors import (
     NotAuthenticatedError,
     RefreshTokenExpiredError,
@@ -67,22 +69,25 @@ _REFRESH_BUFFER_SECONDS = 5
 # Hard ceiling for the bounded refresh transaction (NFR-002).
 _REFRESH_MAX_HOLD_S = 10.0
 
-_SPEC_KITTY_DIRNAME = ".spec-kitty"
-
 
 def _refresh_lock_path() -> Path:
     """Return the machine-wide refresh-lock file path.
 
-    Mirrors the ``_daemon_root()`` pattern from ``sync/daemon.py``. On
-    POSIX the file lives at ``~/.spec-kitty/auth/refresh.lock``; on Windows
-    it is routed through :class:`specify_cli.paths.RuntimeRoot.auth_dir`
-    so it lands beside the platform's encrypted session file.
+    Mirrors the ``_daemon_root()`` pattern from ``sync/daemon.py``. The lock
+    lives beside the platform's encrypted session file under
+    :class:`specify_cli.paths.RuntimeRoot.auth_dir`, resolved through
+    :func:`specify_cli.paths.get_runtime_root` so it honors ``SPEC_KITTY_HOME``
+    (WP01) on every platform. With the environment variable unset this is
+    ``~/.spec-kitty/auth/refresh.lock`` on POSIX and the platformdirs base on
+    Windows.
     """
     if sys.platform == "win32":  # pragma: no cover - platform-specific
-        from specify_cli.paths import get_runtime_root  # noqa: PLC0415
-
         return get_runtime_root().auth_dir / "refresh.lock"
-    return Path.home() / _SPEC_KITTY_DIRNAME / "auth" / "refresh.lock"
+    # ``specify_cli.*`` is type-checked with ``follow_imports = skip``, so the
+    # cross-package ``get_runtime_root()`` is seen as ``Any`` here; bind to a
+    # ``Path``-typed local to keep the declared return type honest.
+    posix_lock: Path = get_runtime_root().base / "auth" / "refresh.lock"
+    return posix_lock
 
 
 class TokenManager:

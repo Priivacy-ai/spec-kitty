@@ -5,6 +5,7 @@ specify_cli.tracker, specify_cli.sync, or any kernel subpackage.
 """
 from __future__ import annotations
 
+import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -58,14 +59,25 @@ class RuntimeRoot:
 def get_runtime_root() -> RuntimeRoot:
     """Return the canonical runtime state root for the current platform.
 
-    On Windows: uses ``platformdirs.user_data_dir`` (non-roaming LocalAppData).
-    On POSIX  : returns ``~/.spec-kitty`` unchanged.
+    Resolution order (all platforms):
+
+    1. ``SPEC_KITTY_HOME`` environment variable, when set to a non-empty value
+       — used verbatim as ``base`` (so ``config.toml`` lands at
+       ``$SPEC_KITTY_HOME/config.toml``; the env path is *not* suffixed with
+       ``.spec-kitty``).
+    2. On Windows: ``platformdirs.user_data_dir`` (non-roaming LocalAppData).
+    3. On POSIX  : ``~/.spec-kitty``.
+
+    An empty ``SPEC_KITTY_HOME`` is falsy and falls through to the platform
+    default, matching ``kernel.paths.get_kittify_home`` (the asset-home helper).
 
     This function is **pure** — it performs no I/O and creates no directories.
     Directory creation is the caller's responsibility.
     """
     platform = _current_platform()
-    if platform == "win32":
+    if env_home := os.environ.get("SPEC_KITTY_HOME"):
+        base = Path(env_home)
+    elif platform == "win32":
         try:
             base = Path(
                 platformdirs.user_data_dir("spec-kitty", appauthor=False, roaming=False)

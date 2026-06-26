@@ -55,11 +55,24 @@ from specify_cli.core.loopback_http import (
     build_loopback_url,
     create_loopback_server,
 )
+from specify_cli.paths import get_runtime_root
 from specify_cli.sync.diagnostics import SyncDiagnosticCode, emit_sync_diagnostic
 
 logger = logging.getLogger(__name__)
 
-_SPEC_KITTY_DIRNAME = ".spec-kitty"
+
+def _spec_kitty_dir() -> Path:
+    """Return the runtime state root, honouring ``SPEC_KITTY_HOME`` (WP01).
+
+    Resolved lazily on every call so environment overrides and test ``HOME``
+    monkeypatching are honoured (research.md D5). On POSIX this is
+    ``~/.spec-kitty`` when ``SPEC_KITTY_HOME`` is unset — byte-identical to the
+    retired import-time ``SPEC_KITTY_DIR`` constant it replaces.
+    """
+    # ``get_runtime_root`` is seen as ``Any`` here because mypy skips imports
+    # for ``specify_cli.*`` (follow_imports=skip); coerce at the typed boundary.
+    base: Path = get_runtime_root().base
+    return base
 
 
 def _sync_root() -> Path:
@@ -67,12 +80,13 @@ def _sync_root() -> Path:
 
     On Windows: resolves to ``%LOCALAPPDATA%\\spec-kitty\\sync\\``
     via the unified RuntimeRoot.
-    On POSIX: returns ``~/.spec-kitty/sync`` unchanged (preserving existing behavior).
+    On POSIX: returns ``<runtime root>/sync`` (``~/.spec-kitty/sync`` when
+    ``SPEC_KITTY_HOME`` is unset), preserving the existing flat layout.
     """
     if sys.platform == "win32":
-        from specify_cli.paths import get_runtime_root  # noqa: PLC0415
         return get_runtime_root().sync_dir
-    return Path.home() / _SPEC_KITTY_DIRNAME / "sync"
+    base: Path = get_runtime_root().base
+    return base / "sync"
 
 
 def _daemon_root() -> Path:
@@ -80,21 +94,36 @@ def _daemon_root() -> Path:
 
     On Windows: resolves to ``%LOCALAPPDATA%\\spec-kitty\\daemon\\``
     via the unified RuntimeRoot.
-    On POSIX: returns ``~/.spec-kitty`` unchanged (state files live directly
-    under ~/.spec-kitty on POSIX, preserving existing behavior).
+    On POSIX: returns the runtime root itself (``~/.spec-kitty`` when
+    ``SPEC_KITTY_HOME`` is unset) — daemon state files live directly under the
+    flat root on POSIX (research.md D3), never under a ``daemon`` subdir.
     """
     if sys.platform == "win32":
-        from specify_cli.paths import get_runtime_root  # noqa: PLC0415
         return get_runtime_root().daemon_dir
-    return Path.home() / _SPEC_KITTY_DIRNAME
+    base: Path = get_runtime_root().base
+    return base
 
 
 # Module-level path constants derived from platform-aware helpers so that
 # existing code referencing these names continues to work unchanged.
-SPEC_KITTY_DIR = Path.home() / _SPEC_KITTY_DIRNAME
 DAEMON_STATE_FILE = _daemon_root() / "sync-daemon"
 DAEMON_LOG_FILE = _daemon_root() / "sync-daemon.log"
 DAEMON_LOCK_FILE = _daemon_root() / "sync-daemon.lock"
+
+
+def __getattr__(name: str) -> Path:
+    """Lazily resolve the retired ``SPEC_KITTY_DIR`` module constant.
+
+    ``SPEC_KITTY_DIR`` used to be evaluated at import time, which froze it to
+    the home directory present when the module first loaded and defeated
+    ``SPEC_KITTY_HOME`` / test ``HOME`` monkeypatching (research.md D5). It is
+    now resolved on every access via :func:`_spec_kitty_dir`. Kept as a
+    module-level shim because external importers (and several daemon tests)
+    still reference the name.
+    """
+    if name == "SPEC_KITTY_DIR":
+        return _spec_kitty_dir()
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 class DaemonIntent(str, Enum):

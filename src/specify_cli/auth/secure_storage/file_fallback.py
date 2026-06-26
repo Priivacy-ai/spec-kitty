@@ -1,7 +1,9 @@
 """Encrypted file backend for persisted auth sessions.
 
-The canonical session store lives under ``~/.spec-kitty/auth/`` on every
-platform:
+The canonical session store lives under the unified runtime root resolved by
+:func:`specify_cli.paths.get_runtime_root` — ``~/.spec-kitty/auth/`` on POSIX,
+the platformdirs LocalAppData base on Windows, or ``$SPEC_KITTY_HOME/auth`` when
+that environment variable is set:
 
 - ``session.json`` — AES-256-GCM ciphertext
 - ``session.salt`` — 16-byte random salt for the scrypt KDF
@@ -26,6 +28,8 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.kdf.scrypt import Scrypt
 from filelock import FileLock
 
+from specify_cli.paths import get_runtime_root
+
 from ..errors import SecureStorageError, StorageDecryptionError
 from ..session import StoredSession
 from ..session_hot_path import invalidate_session_hot_path, publish_session_hot_path
@@ -34,8 +38,18 @@ from .abstract import SecureStorage
 log = logging.getLogger(__name__)
 
 def default_store_dir() -> Path:
-    """Default on-disk location for the encrypted file store."""
-    return Path.home() / ".spec-kitty" / "auth"
+    """Default on-disk location for the encrypted file store.
+
+    Resolves through :func:`specify_cli.paths.get_runtime_root` so the store
+    honors ``SPEC_KITTY_HOME`` and the platform default (``~/.spec-kitty`` on
+    POSIX, platformdirs LocalAppData on Windows). Equivalent to
+    ``get_runtime_root().auth_dir``.
+    """
+    # ``specify_cli.*`` is type-checked with ``follow_imports = skip``, so the
+    # cross-package ``get_runtime_root()`` is seen as ``Any`` here; bind to a
+    # ``Path``-typed local to keep the declared return type honest.
+    store_dir: Path = get_runtime_root().base / "auth"
+    return store_dir
 _CRED_NAME = "session.json"
 _SALT_NAME = "session.salt"
 _LOCK_NAME = "session.lock"
