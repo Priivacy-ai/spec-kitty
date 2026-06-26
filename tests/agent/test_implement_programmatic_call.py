@@ -43,7 +43,6 @@ def test_implement_has_optioninfo_defaults_for_risky_params() -> None:
 
     # Safe params — their default is the Python sentinel None, not OptionInfo
     assert params["mission"].default is None
-    assert params["feature"].default is None
     assert params["base"].default is None
 
 

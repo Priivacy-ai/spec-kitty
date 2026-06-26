@@ -141,7 +141,7 @@ def test_mission_current_no_feature_shows_message(tmp_path: Path) -> None:
     ):
         result = runner.invoke(app, ["current"])
 
-    assert result.exit_code == 1
+    assert result.exit_code == 2
     assert "No active mission detected" in result.output
 
 

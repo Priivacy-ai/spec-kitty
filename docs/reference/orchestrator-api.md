@@ -10,7 +10,7 @@ external orchestrators.
 
 It is intentionally stricter than the human-facing CLI:
 
-- use `--mission`, never `--feature`
+- use `--mission`; the `--feature` flag has been removed from all user-facing commands
 - expect one JSON envelope on stdout for both success and failure
 - treat `error_code` as the stable machine discriminator
 - do not append `--json`; JSON is the default output for this command group
@@ -76,9 +76,9 @@ Forbidden in orchestrator-api payloads:
 
 - `feature_slug`
 
-Forbidden at the CLI boundary:
+Removed at the CLI boundary:
 
-- `--feature`
+- `--feature` (hard-removed in #1060; passing it yields exit code 2 with "No such option: --feature")
 
 ## Commands
 

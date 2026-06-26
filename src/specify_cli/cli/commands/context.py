@@ -15,7 +15,6 @@ from rich.console import Console
 from rich.table import Table
 from typing_extensions import Annotated
 
-from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.task_utils import find_repo_root, TaskCliError
 from specify_cli.core.paths import locate_project_root
 from specify_cli.workspace.context import (
@@ -241,7 +240,6 @@ def cleanup_command(
 def mission_resolve_command(
     wp: Annotated[str, typer.Option("--wp", help="Work package code (e.g., WP01)")],
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., 057-mission-name)")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
     agent: Annotated[str | None, typer.Option("--agent", help="Agent name (default: 'unknown')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output full JSON context (default: token only)")] = False,
 ) -> None:
@@ -266,19 +264,15 @@ def mission_resolve_command(
         console.print("[red]Error:[/red] Could not locate project root (no .kittify/ directory found)")
         raise typer.Exit(1)
 
-    mission_slug = resolve_selector(
-        canonical_value=mission,
-        canonical_flag="--mission",
-        alias_value=feature,
-        alias_flag="--feature",
-        suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
-        command_hint="--mission <slug>",
-    ).canonical_value
+    mission_norm = mission.strip() if isinstance(mission, str) else None
+    if not mission_norm:
+        raise typer.BadParameter("--mission <slug> is required")
+    canonical = mission_norm
 
     try:
         ctx = resolve_context(
             wp_code=wp,
-            mission_slug=mission_slug,
+            mission_slug=canonical,
             agent=agent or "unknown",
             repo_root=repo_root,
         )

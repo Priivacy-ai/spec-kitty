@@ -78,6 +78,12 @@ def test_every_feature_flag_is_hidden() -> None:
     Defensively reads ``hidden`` via ``getattr`` so a future Click/Typer
     upgrade that renames or restructures the attribute fails loudly here
     rather than silently letting an alias re-surface.
+
+    NOTE (FR-009 / mission feature-alias-removal-01KW0N87): After WP01–WP03
+    all ``--feature`` flags were hard-removed from user-facing commands.  This
+    test now passes trivially because there are no ``--feature`` parameters at
+    all — see ``test_zero_feature_flags_exist_cli_wide`` for the stronger
+    zero-presence assertion.
     """
     offenders: list[str] = []
     for path, cmd in _walk_leaf_commands(cli):
@@ -89,6 +95,27 @@ def test_every_feature_flag_is_hidden() -> None:
     assert not offenders, (
         "FR-006 regression: --feature flag is visible on these commands "
         "(must be hidden=True):\n  " + "\n  ".join(offenders)
+    )
+
+
+def test_zero_feature_flags_exist_cli_wide() -> None:
+    """After alias removal, no ``--feature`` Typer option should exist anywhere in the CLI.
+
+    Stronger companion to ``test_every_feature_flag_is_hidden``: asserts that
+    the CLI tree contains ZERO ``--feature`` parameters (hidden or visible),
+    not merely that any remaining ones are hidden.
+
+    Authority: spec.md FR-009 / mission feature-alias-removal-01KW0N87 WP04.
+    """
+    feature_options: list[str] = []
+    for path, cmd in _walk_leaf_commands(cli):
+        for param in cmd.params:
+            if _param_declares_feature_flag(param):
+                feature_options.append(" ".join(path))
+    assert feature_options == [], (
+        f"Found {len(feature_options)} '--feature' option(s) in CLI tree on "
+        f"command(s): {feature_options}.  All --feature aliases must be removed "
+        "(FR-009 / mission feature-alias-removal-01KW0N87)."
     )
 
 

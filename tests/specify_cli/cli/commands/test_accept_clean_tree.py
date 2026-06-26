@@ -214,7 +214,7 @@ def test_accept_leaves_clean_tree_with_materialized_matrix(
     # Successful (non-json) accept returns normally; no Exit is raised.
     accept(
         mission=_SLUG,
-        feature=None,
+
         mode="auto",
         actor="tester",
         test=[],
@@ -255,7 +255,7 @@ def test_accept_clean_tree_without_negative_invariant(
 
     accept(
         mission=_SLUG,
-        feature=None,
+
         mode="auto",
         actor="tester",
         test=[],
@@ -291,7 +291,7 @@ def test_accept_fails_when_residual_commit_fails_after_success(
     with pytest.raises(typer.Exit) as exc_info:
         accept(
             mission=_SLUG,
-            feature=None,
+
             mode="auto",
             actor="tester",
             test=[],

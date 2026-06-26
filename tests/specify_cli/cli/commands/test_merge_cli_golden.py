@@ -48,14 +48,14 @@ pytestmark = pytest.mark.fast
 # The one-line help (docstring) must be byte-identical.
 EXPECTED_ONE_LINE_HELP = "Merge a lane-based feature into its target branch."
 
-# The EXACT set of every long option the parser exposes — including the hidden
-# ``--feature`` alias, which is absent from --help but still parsed. This is the
+# The EXACT set of every long option the parser exposes. This is the
 # load-bearing flag-surface contract (#2057): byte-identity of the parser option
 # set, derived from the live ``click.Command.params`` and compared with strict
 # set-equality (no missing, no extra). The previous substring-on-help-text check
 # silently accepted prefix-preserving renames such as ``--push`` -> ``--push-remote``
 # (``"--push" in out`` stays True). Exact set-equality catches both renames and
 # any new/dropped flag.
+# NOTE: ``--feature`` was removed in mission feature-alias-removal-01KW0N87 (WP01).
 EXPECTED_PARSER_LONG_FLAGS = frozenset(
     {
         "--strategy",
@@ -68,7 +68,6 @@ EXPECTED_PARSER_LONG_FLAGS = frozenset(
         "--dry-run",
         "--json",
         "--mission",
-        "--feature",
         "--resume",
         "--abort",
         "--context",
@@ -79,15 +78,10 @@ EXPECTED_PARSER_LONG_FLAGS = frozenset(
 )
 
 # The exact visible/hidden partition of the parser's long options, keyed on each
-# ``click.Option.hidden`` attribute (NOT on rendered help-text width). Frozen
-# byte-accurately from the live parser. ``--feature`` is the sole hidden legacy
-# alias; every other long option is an operator-visible surface flag. This pins
-# the *visibility dimension* the total-set ``EXPECTED_PARSER_LONG_FLAGS`` equality
-# cannot see: it catches a visible->hidden flip (an operator flag silently
-# vanishing from help, e.g. ``--push`` gaining ``hidden=True``) AND a
-# hidden->visible flip (the legacy alias leaking into help).
-EXPECTED_VISIBLE_LONG_FLAGS = EXPECTED_PARSER_LONG_FLAGS - {"--feature"}
-EXPECTED_HIDDEN_LONG_FLAGS = frozenset({"--feature"})
+# ``click.Option.hidden`` attribute (NOT on rendered help-text width). After WP01
+# removed ``--feature``, there are no hidden flags — every option is visible.
+EXPECTED_VISIBLE_LONG_FLAGS = EXPECTED_PARSER_LONG_FLAGS
+EXPECTED_HIDDEN_LONG_FLAGS: frozenset[str] = frozenset()
 
 # The exact key set of the clean ``--dry-run --json`` payload (contract §2).
 EXPECTED_DRY_RUN_PAYLOAD_KEYS = frozenset(
@@ -126,8 +120,8 @@ def _live_parser_long_flags() -> frozenset[str]:
     primary ``.opts`` and toggle ``.secondary_opts`` such as ``--keep-branch``),
     keeping only ``--long`` forms. ``add_completion=False`` keeps Typer from
     injecting ``--install-completion`` / ``--show-completion`` so the set is purely
-    the merge surface. Hidden options (``--feature``) are still real parser
-    options and are included.
+    the merge surface. After WP01 ``--feature`` was removed entirely; all
+    remaining options are visible.
     """
     app = typer.Typer(add_completion=False)
     app.command()(merge_module.merge)
@@ -256,33 +250,19 @@ def test_help_pins_one_line_help_and_every_visible_flag(
     assert "--feature" not in out
 
 
-def test_hidden_feature_alias_is_accepted_by_the_parser(
+def test_feature_alias_is_rejected_by_the_parser(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """``--feature`` is hidden from help but still parsed (legacy alias for --mission).
+    """``--feature`` is fully removed; the parser rejects it with exit 2.
 
-    A bare slug with no committed mission dir keeps its raw form and proceeds to
-    the lanes.json lookup — the resulting "lanes.json is required" error proves
-    the parser ACCEPTED the hidden flag (rather than rejecting it as unknown) and
-    routed its value into the mission-slug resolution path.
-
-    The target-branch existence preflight (``_validate_target_branch``) runs
-    BEFORE the lanes.json lookup and is environment-dependent: a default ``main``
-    target does not exist on a PR-merge CI checkout, so it would short-circuit
-    with a "target branch does not exist" error before this test's assertion is
-    reached. We stub it to a no-op so the test exercises the behavior it is named
-    for (hidden-alias parser acceptance) deterministically, regardless of whether
-    ``main`` exists on the runner.
+    After mission feature-alias-removal-01KW0N87 WP01, ``--feature`` is no
+    longer a registered option on merge. Passing it must produce Typer's
+    "No such option: --feature" error (exit 2), confirming hard removal.
     """
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.merge._validate_target_branch", lambda *a, **kw: None
-    )
     runner = CliRunner()
     result = runner.invoke(_build_merge_app(), ["--dry-run", "--feature", "no-such-mission"])
-    assert result.exit_code == 1
-    assert "No such option" not in result.stdout
-    assert "lanes.json is required for" in result.stdout
-    assert "no-such-mission" in result.stdout
+    assert result.exit_code == 2
+    assert "No such option" in result.output
 
 
 # --- --json gate (T003) -----------------------------------------------------
@@ -346,6 +326,32 @@ def test_unresolved_mission_slug_exits_one(monkeypatch: pytest.MonkeyPatch) -> N
     runner = CliRunner()
     result = runner.invoke(_build_merge_app(), ["--dry-run"])
     assert result.exit_code == 1
+    assert "Mission slug could not be resolved. Use --mission <slug>." in result.stdout
+
+
+def test_unresolved_mission_slug_non_dry_run_exits_two(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Non-dry-run merge with no resolvable mission slug exits 2 (T006 / FR-003).
+
+    The ``if not resolved_mission:`` terminal in the real-merge path (merge.py)
+    must produce exit code 2 — the canonical "no selector" signal — not 1.
+    This pin guards against regression of that specific branch.
+    """
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.merge._enforce_git_preflight", lambda *a, **kw: None
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.merge._resolve_mission_slug", lambda *a, **kw: None
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.merge._resolve_target_branch",
+        lambda *a, **kw: ("main", "cli"),
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.merge._validate_target_branch", lambda *a, **kw: None
+    )
+    runner = CliRunner()
+    result = runner.invoke(_build_merge_app(), [])
+    assert result.exit_code == 2
     assert "Mission slug could not be resolved. Use --mission <slug>." in result.stdout
 
 

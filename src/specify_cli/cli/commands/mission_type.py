@@ -36,7 +36,6 @@ from rich.table import Table
 from rich.text import Text
 
 from specify_cli.cli.helpers import console, get_project_root_or_exit
-from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.mission import (
     Mission,
     MissionError,
@@ -185,17 +184,13 @@ def _detect_current_feature(project_root: Path) -> str | None:
 @app.command("current")
 def current_cmd(
     mission: Annotated[str | None, typer.Option("--mission", "-f", help="Mission slug")] = None,
-    feature: Annotated[
-        str | None,
-        typer.Option("--feature", hidden=True, help="(deprecated) Use --mission"),
-    ] = None,
 ) -> None:
     """Show currently active mission for a mission (auto-detects mission from cwd)."""
     project_root = get_project_root_or_exit()
 
     detected_mission = _detect_current_feature(project_root)
 
-    if mission is None and feature is None and not detected_mission:
+    if mission is None and not detected_mission:
         console.print(
             "[yellow]No active mission detected.[/yellow]\n"
             "\nUse [cyan]--mission <slug>[/cyan] to specify one, "
@@ -214,28 +209,19 @@ def current_cmd(
                     console.print(f"  - {slug}")
                 if len(missions) > 10:
                     console.print(f"  ... and {len(missions) - 10} more")
-        raise typer.Exit(1)
+        raise typer.Exit(2)
 
     mission_slug: str
-    if mission is None and feature is None:
-        # Neither flag was explicitly provided — use auto-detected mission as-is.
+    if mission is None:
+        # No flag was explicitly provided — use auto-detected mission as-is.
         # (We already exited above when detected_mission was also None.)
         assert detected_mission is not None
         mission_slug = detected_mission
     else:
-        try:
-            resolved = resolve_selector(
-                canonical_value=mission,
-                canonical_flag="--mission",
-                alias_value=feature,
-                alias_flag="--feature",
-                suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
-                command_hint="--mission <slug>",
-            )
-            mission_slug = resolved.canonical_value
-        except typer.BadParameter as exc:
-            console.print(f"[red]Error:[/red] {exc}")
-            raise typer.Exit(1) from exc
+        mission_norm = mission.strip() if isinstance(mission, str) else None
+        if not mission_norm:
+            raise typer.BadParameter("--mission <slug> is required")
+        mission_slug = mission_norm
 
     try:
         feature_dir = resolve_feature_dir_for_mission(project_root, mission_slug)

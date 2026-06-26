@@ -2,21 +2,23 @@
 
 These tests prove two complementary invariants:
 
-1. **Out-of-scope preservation (T014 / FR-005):** The ``merge`` command (an
-   explicitly *deferred* out-of-scope command) still accepts ``--feature`` as a
-   hidden alias and the CLI parser does NOT reject it with "No such option".
+1. **Hard-removal verification (T014 / FR-005):** The ``merge`` command
+   (previously a deferred out-of-scope command) now fully rejects ``--feature``;
+   the CLI parser returns exit 2 / "No such option".  All 8 user-facing commands
+   cleaned in mission feature-alias-removal-01KW0N87 WP01–WP03 are covered by
+   the in-scope file list below.
 
 2. **First-party caller check (T015 / FR-003):** No source under
-   ``src/doctrine/`` passes ``--feature`` to any of the 10 in-scope internal
+   ``src/doctrine/`` passes ``--feature`` to any of the 18 in-scope internal
    command files.  The existing doctrine hits reference out-of-scope commands
    (``next``, ``merge``) only.
 
 Rationale
 ---------
-The WP01/WP02 removals eliminated ``--feature`` from the 10 in-scope command
-files in ``INSCOPE_FEATURE_FREE_FILES`` (see ``test_terminology_guards.py``).
-Out-of-scope commands such as ``merge``, ``next``, and ``implement`` still carry
-the hidden alias for backwards compatibility.  This file locks that boundary.
+Mission feature-alias-removal-01KW0N87 (WP01–WP03) eliminated ``--feature``
+from all 8 user-facing commands.  ``merge``, ``next``, ``implement``,
+``research``, ``context``, ``accept``, ``lifecycle``, and ``mission-type``
+now only accept ``--mission``.  This file locks that boundary.
 
 All tests are offline / loopback — no network calls, no real git operations.
 """
@@ -41,6 +43,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # Kept in sync deliberately as a cross-file assertion boundary.
 # ---------------------------------------------------------------------------
 _INSCOPE_FILES: tuple[str, ...] = (
+    # Original 10 internal command files cleaned in the prior mission.
     "src/specify_cli/cli/commands/agent/status.py",
     "src/specify_cli/cli/commands/agent/tasks.py",
     "src/specify_cli/cli/commands/agent/workflow.py",
@@ -51,6 +54,16 @@ _INSCOPE_FILES: tuple[str, ...] = (
     "src/specify_cli/cli/commands/validate_encoding.py",
     "src/specify_cli/cli/commands/validate_tasks.py",
     "src/specify_cli/cli/commands/verify.py",
+    # 8 user-facing command files de-aliased in mission feature-alias-removal-
+    # 01KW0N87 WP01–WP03.  Authority: spec.md FR-007.
+    "src/specify_cli/cli/commands/implement.py",
+    "src/specify_cli/cli/commands/merge.py",
+    "src/specify_cli/cli/commands/next_cmd.py",
+    "src/specify_cli/cli/commands/research.py",
+    "src/specify_cli/cli/commands/context.py",
+    "src/specify_cli/cli/commands/accept.py",
+    "src/specify_cli/cli/commands/lifecycle.py",
+    "src/specify_cli/cli/commands/mission_type.py",
 )
 
 # Leaf command names that correspond to the in-scope files, used for the
@@ -79,83 +92,61 @@ runner = CliRunner()
 # ---------------------------------------------------------------------------
 
 
-def test_merge_still_accepts_feature_alias() -> None:
-    """``merge --feature <slug>`` must be accepted by the parser (FR-005).
+def test_merge_rejects_feature_alias() -> None:
+    """``merge --feature <slug>`` must be rejected by the parser (WP01 hard removal).
 
-    The ``merge`` command is an explicitly out-of-scope, deferred command that
-    intentionally retains the hidden ``--feature`` alias.  If the alias were
-    removed the CLI parser would return exit code 2 with "No such option:
-    --feature".
+    After mission feature-alias-removal-01KW0N87 WP01, ``--feature`` is fully
+    removed from the merge command.  Passing it must produce Typer's
+    "No such option: --feature" parse error (exit 2).
 
-    We assert two things:
-    1. Exit code is NOT 2 (parser accepted the flag).
-    2. Output does NOT contain "No such option" (parser did not reject it).
-
-    The exact body-level error (require_main_repo guard, auth check, mission
-    directory missing, etc.) varies by environment and is intentionally
-    not asserted here — we only care that the flag was parsed.
-
-    Offline: no network call; the command exits before any git I/O.
+    Offline: no network call; the command exits at the parser level.
     """
     result = runner.invoke(app, ["merge", "--feature", "some-mission-slug"])
 
-    # Exit 2 means Click/Typer rejected the flag ("No such option").
-    assert result.exit_code != 2, (
-        "FR-005 regression: 'merge --feature' was rejected by the parser "
-        "(exit 2 / 'No such option').  The hidden alias must be kept on "
-        "out-of-scope commands.\n"
+    # Exit 2 means Click/Typer rejected the flag ("No such option") — expected.
+    assert result.exit_code == 2, (
+        "WP01 regression: 'merge --feature' was NOT rejected by the parser "
+        "(expected exit 2 / 'No such option').  The alias must be fully removed.\n"
         f"Output: {result.output!r}"
     )
 
-    # Belt-and-suspenders: even with a non-2 exit code, rule out a parse error
-    # message in case future Click/Typer versions change exit code semantics.
-    assert "No such option" not in result.output, (
-        "FR-005 regression: 'merge --feature' produced a 'No such option' "
-        "parse error.  The hidden alias must remain on out-of-scope commands.\n"
+    assert "No such option" in result.output, (
+        "WP01 regression: 'merge --feature' did not produce 'No such option' "
+        "parse error.  The alias must be fully removed.\n"
         f"Output: {result.output!r}"
     )
 
 
-def test_merge_feature_and_mission_both_accepted() -> None:
-    """Both ``--feature`` and ``--mission`` must be accepted by the merge parser.
+def test_merge_mission_accepted_feature_rejected() -> None:
+    """``--mission`` is accepted; ``--feature`` is rejected by the merge parser (WP01).
 
-    Verifies the canonical alias pair is intact: ``--mission`` (canonical) and
-    ``--feature`` (hidden deprecated alias) both resolve identically — neither
-    flag is absent from the command's option table and neither causes a parse
-    error (exit 2 / "No such option").
+    After mission feature-alias-removal-01KW0N87 WP01, only ``--mission`` (the
+    canonical flag) is accepted.  ``--feature`` must produce a parse error
+    (exit 2 / "No such option").
 
-    Authority: spec.md FR-005; merge.py ``mission or feature`` pattern.
+    Authority: WP01 hard-removal contract.
     """
     result_mission = runner.invoke(app, ["merge", "--mission", "some-mission-slug"])
     result_feature = runner.invoke(app, ["merge", "--feature", "some-mission-slug"])
 
-    # Both must be accepted (not a parse error / exit 2)
+    # --mission must be accepted (not a parse error / exit 2)
     assert result_mission.exit_code != 2, (
         "Canonical '--mission' flag rejected by merge parser (exit 2).\n"
         f"Output: {result_mission.output!r}"
     )
-    assert result_feature.exit_code != 2, (
-        "Hidden '--feature' alias rejected by merge parser (exit 2).\n"
-        f"Output: {result_feature.output!r}"
-    )
-
-    # Neither must emit a "No such option" parse-rejection message.
     assert "No such option" not in result_mission.output, (
         "Canonical '--mission' produced a parse-rejection message.\n"
         f"Output: {result_mission.output!r}"
     )
-    assert "No such option" not in result_feature.output, (
-        "Hidden '--feature' produced a parse-rejection message.\n"
+
+    # --feature must be rejected (exit 2 / "No such option")
+    assert result_feature.exit_code == 2, (
+        "WP01 regression: '--feature' was NOT rejected by merge parser (expected exit 2).\n"
         f"Output: {result_feature.output!r}"
     )
-
-    # Both must produce the same exit code — identical resolution path.
-    assert result_mission.exit_code == result_feature.exit_code, (
-        "FR-005 regression: '--mission' and '--feature' produce different exit "
-        f"codes ({result_mission.exit_code} vs {result_feature.exit_code}), "
-        "which means the aliases no longer resolve identically.\n"
-        f"--mission output: {result_mission.output!r}\n"
-        f"--feature output: {result_feature.output!r}"
+    assert "No such option" in result_feature.output, (
+        "WP01 regression: '--feature' did not produce 'No such option' parse error.\n"
+        f"Output: {result_feature.output!r}"
     )
 
 
@@ -309,14 +300,14 @@ def test_doctrine_feature_hits_are_only_outofscope_commands() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_merge_feature_alias_is_hidden_in_cli_introspection() -> None:
-    """Introspection confirms merge's ``--feature`` alias is still ``hidden=True``.
+def test_merge_has_no_feature_param_in_cli_introspection() -> None:
+    """Introspection confirms merge has NO ``--feature`` parameter (WP01 hard removal).
 
     Uses Click's command-tree API (via ``typer.main.get_command``) to inspect
-    the merge command's parameters directly.  This is the authoritative source
-    of truth for what Click exposes to the shell.
+    the merge command's parameters directly.  After WP01, ``--feature`` must be
+    completely absent from the merge command's parameter list.
 
-    Authority: spec.md FR-005 and FR-006.
+    Authority: WP01 hard-removal contract.
     """
     import click
     from typer.main import get_command
@@ -330,15 +321,11 @@ def test_merge_feature_alias_is_hidden_in_cli_introspection() -> None:
         for param in merge_cmd.params
         if "--feature" in (list(getattr(param, "opts", []) or []) + list(getattr(param, "secondary_opts", []) or []))
     ]
-    assert feature_params, (
-        "FR-005 regression: merge command has no '--feature' parameter at all. "
-        "The hidden alias must be preserved on out-of-scope commands."
+    assert not feature_params, (
+        "WP01 regression: merge command still has a '--feature' parameter. "
+        "The alias must be fully removed (hard removal, not hidden).\n"
+        f"Found: {feature_params!r}"
     )
-    for param in feature_params:
-        assert getattr(param, "hidden", False), (
-            f"FR-006 regression: merge '--feature' param is not hidden=True "
-            f"(param: {param!r}).  It must remain a hidden deprecated alias."
-        )
 
 
 def test_inscope_files_have_no_feature_param_in_cli_introspection() -> None:

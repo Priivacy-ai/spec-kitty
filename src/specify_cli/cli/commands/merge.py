@@ -228,18 +228,18 @@ if TYPE_CHECKING:
     from specify_cli.merge.state import MergeState
 
 
-def _resolve_slug_or_exit(repo_root: Path, mission: str | None, feature: str | None) -> str | None:
-    """Resolve the operator-supplied mission/feature handle to a canonical slug.
+def _resolve_slug_or_exit(repo_root: Path, mission: str | None) -> str | None:
+    """Resolve the operator-supplied mission handle to a canonical slug.
 
-    Shared by the abort/resume/main paths; raises ``typer.Exit(1)`` with the
+    Shared by the abort/resume/main paths; raises ``typer.Exit(2)`` with the
     canonical path-segment diagnostic when the handle is traversal-unsafe.
     """
-    mission_slug_raw = (mission or feature or "").strip() or None
+    mission_slug_raw = (mission or "").strip() or None
     try:
         return _resolve_mission_slug(repo_root, mission_slug_raw)
     except ValueError as exc:
         console.print(f"[red]Error:[/red] {_SAFE_PATH_SEGMENT_DIAGNOSTIC}: {exc}")
-        raise typer.Exit(1) from exc
+        raise typer.Exit(2) from exc
 
 
 def _teardown_coordination_for_abort(
@@ -281,11 +281,11 @@ def _teardown_coordination_for_abort(
         teardown_coordination_topology(*abort_teardown_args)
 
 
-def _dispatch_abort(repo_root: Path, mission: str | None, feature: str | None) -> None:
+def _dispatch_abort(repo_root: Path, mission: str | None) -> None:
     """Handle ``merge --abort``: clear state, locks, legacy files, git merge, coord."""
     from contextlib import suppress
 
-    resolved = _resolve_slug_or_exit(repo_root, mission, feature)
+    resolved = _resolve_slug_or_exit(repo_root, mission)
     state_entry = _load_merge_state_entry_for_mission(repo_root, resolved)
     if state_entry is None and resolved is None:
         state_entry = _load_merge_state_entry_for_mission(repo_root, None)
@@ -332,14 +332,14 @@ def _dispatch_abort(repo_root: Path, mission: str | None, feature: str | None) -
         console.print("[green]Aborted in-progress git merge.[/green]")
 
 
-def _dispatch_resume(repo_root: Path, mission: str | None, feature: str | None) -> str | None:
+def _dispatch_resume(repo_root: Path, mission: str | None) -> str | None:
     """Handle ``merge --resume``: require interrupted state; return the mission slug.
 
     Returns the mission slug to thread into the main flow (the operator may have
     omitted ``--mission``, in which case the stored slug is adopted).
     """
-    mission_slug_raw = (mission or feature or "").strip() or None
-    resolved = _resolve_slug_or_exit(repo_root, mission, feature)
+    mission_slug_raw = (mission or "").strip() or None
+    resolved = _resolve_slug_or_exit(repo_root, mission)
     existing_state = _load_merge_state_for_mission(repo_root, resolved)
     if existing_state is None:
         console.print("[red]Error:[/red] No interrupted merge to resume.")
@@ -354,7 +354,7 @@ def _dispatch_resume(repo_root: Path, mission: str | None, feature: str | None) 
 def _run_real_merge(
     repo_root: Path,
     *,
-    resolved_feature: str,
+    resolved_mission: str,
     resolved_target_branch: str,
     resolved_strategy: MergeStrategy,
     delete_branch: bool,
@@ -367,7 +367,7 @@ def _run_real_merge(
     try:
         _run_lane_based_merge(
             repo_root=repo_root,
-            mission_slug=resolved_feature,
+            mission_slug=resolved_mission,
             push=push,
             delete_branch=delete_branch,
             remove_worktree=remove_worktree,
@@ -386,7 +386,7 @@ def _run_real_merge(
         raise typer.Exit(1) from exc
 
     # -- Post-merge: WP07/FR-007 retrospective postcondition (fail-open) --
-    run_retrospective_postcondition(mission_slug=resolved_feature, repo_root=repo_root)
+    run_retrospective_postcondition(mission_slug=resolved_mission, repo_root=repo_root)
 
     # -- Post-merge: suggest mission review + retrospective review/synthesis --
     console.print(
@@ -397,7 +397,7 @@ def _run_real_merge(
         "[cyan]Then, while context is fresh, review the retrospective that was"
         " captured at terminus:[/cyan]\n"
         "  [bold]spec-kitty retrospect summary[/bold] — cross-mission view\n"
-        f"  [bold]spec-kitty agent retrospect synthesize --mission {resolved_feature}[/bold]"
+        f"  [bold]spec-kitty agent retrospect synthesize --mission {resolved_mission}[/bold]"
         " — apply staged proposals (dry-run; add --apply to mutate)"
     )
 
@@ -416,7 +416,6 @@ def merge(
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without executing"),
     json_output: bool = typer.Option(False, "--json", help="Output deterministic JSON (dry-run mode)"),
     mission: str = typer.Option(None, "--mission", help="Mission slug when merging from main branch"),
-    feature: str = typer.Option(None, "--feature", hidden=True, help="Legacy alias for --mission"),
     resume: bool = typer.Option(False, "--resume", help="Resume an interrupted merge from the last incomplete WP"),
     abort: bool = typer.Option(False, "--abort", help="Abort an in-progress merge, cleaning up state and worktrees"),
     context_token: str = typer.Option(None, "--context", help="Unused compatibility flag"),
@@ -445,11 +444,11 @@ def merge(
         raise typer.Exit(1) from exc
 
     if abort:
-        _dispatch_abort(repo_root, mission, feature)
+        _dispatch_abort(repo_root, mission)
         return
 
     if resume:
-        mission = _dispatch_resume(repo_root, mission, feature)
+        mission = _dispatch_resume(repo_root, mission)
         # Fall through to the normal merge flow which will detect the state.
 
     _enforce_git_preflight(repo_root, json_output=json_output)
@@ -457,22 +456,22 @@ def merge(
     # T009 — FR-005/FR-006: Resolve strategy: CLI flag > config > default (SQUASH)
     resolved_strategy: MergeStrategy = strategy or load_merge_config(repo_root).strategy or MergeStrategy.SQUASH
 
-    resolved_feature = _resolve_slug_or_exit(repo_root, mission, feature)
+    resolved_mission = _resolve_slug_or_exit(repo_root, mission)
 
     # T004: Auto-detect existing state when running merge without --resume
-    if not resume and resolved_feature:
-        existing_state = load_state(repo_root, resolved_feature)
+    if not resume and resolved_mission:
+        existing_state = load_state(repo_root, resolved_mission)
         if existing_state is not None and existing_state.remaining_wps:
             console.print(
-                f"[bold cyan]Detected interrupted merge[/bold cyan] for {resolved_feature} "
+                f"[bold cyan]Detected interrupted merge[/bold cyan] for {resolved_mission} "
                 f"({len(existing_state.completed_wps)}/{len(existing_state.wp_order)} WPs done). "
                 "Auto-resuming."
             )
 
-    resolved_target_branch, target_source = _resolve_target_branch(repo_root, resolved_feature, target_branch)
+    resolved_target_branch, target_source = _resolve_target_branch(repo_root, resolved_mission, target_branch)
     _validate_target_branch(
         repo_root,
-        resolved_feature,
+        resolved_mission,
         resolved_target_branch,
         target_source,
         json_output=json_output,
@@ -495,7 +494,7 @@ def merge(
         # (FR-001, FR-004); ``run_dry_run_forecast`` terminates the dry-run path.
         run_dry_run_forecast(
             repo_root=repo_root,
-            resolved_feature=resolved_feature,
+            resolved_feature=resolved_mission,
             resolved_target_branch=resolved_target_branch,
             resolved_strategy=resolved_strategy,
             delete_branch=delete_branch,
@@ -505,13 +504,13 @@ def merge(
         )
         return
 
-    if not resolved_feature:
+    if not resolved_mission:
         console.print("[red]Error:[/red] Mission slug could not be resolved. Use --mission <slug>.")
-        raise typer.Exit(1)
+        raise typer.Exit(2)
 
     _run_real_merge(
         repo_root,
-        resolved_feature=resolved_feature,
+        resolved_mission=resolved_mission,
         resolved_target_branch=resolved_target_branch,
         resolved_strategy=resolved_strategy,
         delete_branch=delete_branch,

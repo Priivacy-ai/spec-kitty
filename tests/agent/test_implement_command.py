@@ -184,7 +184,7 @@ class TestImplementCommand:
             ),
         ):
             with pytest.raises(typer.Exit):
-                implement("WP01", feature="010-feature", recover=False)
+                implement("WP01", mission="010-feature", recover=False)
 
     def test_implement_json_output_is_clean(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         feature_dir = tmp_path / "kitty-specs" / "010-feature"
@@ -233,7 +233,7 @@ class TestImplementCommand:
                 is_reuse=False,
             )
 
-            implement("WP01", feature="010-feature", json_output=True, recover=False)
+            implement("WP01", mission="010-feature", json_output=True, recover=False)
 
         payload = json.loads(capsys.readouterr().out.strip())
         assert payload["workspace"] == ".worktrees/010-feature-lane-a"
@@ -275,7 +275,7 @@ class TestImplementCommand:
             ),
         ):
             with pytest.raises(typer.Exit):
-                implement("WP01", feature="010-feature", json_output=True, recover=False)
+                implement("WP01", mission="010-feature", json_output=True, recover=False)
 
         payload = json.loads(capsys.readouterr().out.strip())
         assert payload["status"] == "error"
@@ -331,7 +331,7 @@ class TestImplementCommand:
                 is_reuse=True,
             )
 
-            implement("WP02", feature="010-feature", recover=False)
+            implement("WP02", mission="010-feature", recover=False)
 
             kwargs = mock_create_lane_workspace.call_args.kwargs
             assert kwargs["wp_id"] == "WP02"
@@ -379,7 +379,7 @@ class TestImplementCommand:
             ) as mock_create_lane_workspace,
         ):
             with pytest.raises(typer.Exit):
-                implement("WP02", feature="010-feature", auto_commit=True, recover=False)
+                implement("WP02", mission="010-feature", auto_commit=True, recover=False)
 
         assert mock_commit_planning.call_count == 0
         assert mock_create_lane_workspace.call_count == 0
@@ -475,7 +475,7 @@ class TestImplementCommand:
                 resolution_kind="lane_workspace",
             )
 
-            implement("WP01", feature="010-feature", auto_commit=True, recover=False)
+            implement("WP01", mission="010-feature", auto_commit=True, recover=False)
 
         mock_commit_planning.assert_called_once()
         # NFR-003: the resolver must have been invoked (not vacuous)
@@ -541,7 +541,7 @@ class TestImplementCommand:
                 resolution_kind="lane_workspace",
             )
 
-            implement("WP01", feature="010-feature", auto_commit=False, recover=False)
+            implement("WP01", mission="010-feature", auto_commit=False, recover=False)
 
         assert captured["execution_mode"] == "worktree"
         assert captured["workspace_context"].startswith("worktree:")
@@ -610,7 +610,7 @@ class TestImplementCommand:
                 resolution_kind="repo_root",
             )
 
-            implement("WP02", feature="010-feature", auto_commit=False, recover=False)
+            implement("WP02", mission="010-feature", auto_commit=False, recover=False)
 
             kwargs = mock_create_lane_workspace.call_args.kwargs
             assert kwargs["lanes_manifest"] is None
@@ -724,7 +724,7 @@ class TestImplementCoordTopologyLanesJson:
             ),
         ):
             with pytest.raises(typer.Exit):
-                implement("WP01", feature=mission_slug, json_output=True, recover=False)
+                implement("WP01", mission=mission_slug, json_output=True, recover=False)
 
         payload = json.loads(capsys.readouterr().out.strip())
         error = payload.get("error", "")

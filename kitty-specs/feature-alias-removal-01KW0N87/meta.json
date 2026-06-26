@@ -1,0 +1,15 @@
+{
+  "coordination_branch": "kitty/mission-feature-alias-removal-01KW0N87",
+  "created_at": "2026-06-26T00:28:37.566452+00:00",
+  "flattened": false,
+  "friendly_name": "Remove hidden --feature alias from user-facing CLI commands",
+  "mission_id": "01KW0N879YNT6HYB6DX1JE6STX",
+  "mission_number": null,
+  "mission_slug": "feature-alias-removal-01KW0N87",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Remove hidden --feature alias from user-facing CLI commands on feat/feature-alias-removal so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Hard-remove the deprecated hidden --feature alias from the 8 user-facing top-level commands; --mission becomes the sole selector.",
+  "slug": "feature-alias-removal-01KW0N87",
+  "target_branch": "feat/feature-alias-removal",
+  "topology": "coord"
+}
