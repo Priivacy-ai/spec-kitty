@@ -10,8 +10,10 @@ This mission adds no datastore. The "model" is the set of **resolution-boundary 
 | **Canonical fold** | `_canonicalize_primary_read_handle(handle) -> dir_name` | `_read_path_resolver.py:1244` | Idempotent; raises `MissionSelectorAmbiguous` on >1 match; fail-closed on cold-miss; NEVER called from inside the primitive (C-001) |
 | **Blind primitive** | `primary_feature_dir_for_mission(repo_root, dir_name) -> Path` | `_read_path_resolver.py:1212` | Topology- and handle-blind by design (TBYD); composes the literal dir; must remain blind — input MUST already be canonical |
 | **Kind-aware authority** | `commit_for_mission(kind=)`, `resolve_planning_read_dir(kind=)`, `resolve_status_surface_with_anchor` | status/tasks paths | The single decider of coord-vs-primary write/read target for a given artifact kind; a mission-artifact WRITE must route through it |
-| **Kind-blind resolver** | `resolve_feature_dir_for_mission` | callers | Returns `context.feature_dir` (topology-aware but kind-blind); legitimate for some reads/probes; **forbidden for a mandated kind-aware write** |
-| **Gate allowlist** | `(enclosing_qualname, token_line) -> rationale` | `tests/architectural/…` | Composite-keyed (survives line drift); shrink-only; every entry must match a live call site (staleness twin-guard); each carries a rationale |
+| **Kind-blind resolver** | `resolve_feature_dir_for_mission` | callers (~58, mostly reads/probes) | Returns `context.feature_dir` (topology-aware but kind-blind); legitimate for reads/probes AND for some by-design coord-owned writes (decision_log, widen); **forbidden for a mandated kind-aware write** |
+| **Coordination transaction** | `BookkeepingTransaction` / `workflow.py:_commit_workflow_change` | status/WP bundle commits | Re-anchors coord-owned status writes into the coord worktree so the guard passes by coupling; the model the two #2155 callers must adopt |
+| **`safe_commit` guard** | refuses staged path whose 1st segment *relative to `worktree_root`* is `.worktrees/` | `git/commit_helpers.py:983-991` | The #1887 wrong-surface backstop; **NOT modified** by this mission (C-006) |
+| **Gate allowlist** | `(enclosing_qualname, token_line) -> rationale` | `tests/architectural/…` | Composite-keyed (net-new; survives line drift); shrink-only vs pre-sweep baseline; every entry must match a live call site (staleness twin-guard) + name an already-canonical provenance |
 
 ## Authority relationships
 

@@ -22,10 +22,15 @@ Consolidated from the binding ADR 2026-06-26-1, the investigation note (`docs/en
 - **Rationale**: the kind-aware authority *exists* and is correct on two of three legs; only the write leg bypasses it. No new authority needed — this is a routing fix.
 - **Alternatives**: introduce a new authority (unnecessary duplication); change the validator instead (wrong — the validator and commit are already correct; the write is the outlier).
 
-## D-5 — #2155: surface-aware guard, co-landed
-- **Decision**: make `safe_commit`'s `.worktrees/` blanket-refusal (`commit_helpers.py:298-320`) **surface-aware** — defer to the kind/topology partition — and co-land it with D-4.
-- **Rationale**: the blanket refusal conflicts with the legitimate coord-owned status write under coordination topology; fixing D-4's routing alone leaves commits blocked (debbie). The guard must still refuse genuinely-wrong-surface writes — it becomes *surface-aware*, not *relaxed*.
-- **Alternatives**: remove the guard (unsafe — loses the wrong-surface protection); fix routing only (commits stay blocked — the #2155 conflict persists).
+## D-5 — #2155: route the two mixed-bundle callers, DON'T touch the guard (revised post residual-hunt)
+- **Decision**: route the `move_task` (`tasks.py:1555`) and `implement`/claim (`implement.py:1311`) mixed-partition auto-commit bundles through the `BookkeepingTransaction` pattern `workflow.py:_commit_workflow_change` already uses (coord status → coord surface; WP file → primary), surfacing rather than swallowing `SafeCommitPathPolicyError`. The `safe_commit` guard (`src/specify_cli/git/commit_helpers.py:983-991`) is **NOT modified**.
+- **Rationale**: the residual hunt (debbie exhaustive + python-pedro cross-check, two independent traces) proved the guard is already surface-aware (keys on `worktree_root`-foreignness) and the genuine residual is two callers committing coord status paths through a *primary* worktree — a mixed-partition bundle #2154's routing does not dissolve. The swallow ("Auto-commit skipped" warning) is why it's been low-visibility. Mutating the guard to be "kind-aware" cannot distinguish a leak from a legit coord write (only `worktree_root`-relativity can) → re-opens #1887 for zero gain.
+- **Alternatives**: mutate the guard to defer to the kind partition (REJECTED — re-opens #1887, the original spec framing); "regression test only" (REJECTED — there IS a real residual at the two callers; a test without the routing fix would just pin the bug).
+
+## D-8 — Discriminator is provenance/def-use, not name-matching (post-plan squad)
+- **Decision**: the canonicalizer discriminator judges "canonical" by **intra-function def-use** (the arg is assigned from `_canonicalize_primary_read_handle`, or is a known-canonical `feature_dir.name`, in the same function), not by name-substring; routing is the default over allowlisting, with a routed-count floor and a pre-sweep baseline.
+- **Rationale**: a scan-by-name gate can only force the ~27 bare-handle consumer sites into the allowlist; nothing forbids mass-allowlisting all 38 and freezing that as the shrink-only baseline → SC-004 green with zero routing (alphonso + renata converged). A name-substring "canonical" check auto-passes the ~5 sites that already contain `canonical` in the arg name. Def-use + routed-count-floor + pre-sweep-baseline close the vacuity.
+- **Alternatives**: pure name-matching (fakeable); full data-flow analysis (over-built — intra-function def-use suffices for the realistic site shapes).
 
 ## D-6 — Convergence test is stub-driven
 - **Decision**: assert read-seam ≡ write/placement-seam for every handle form via an injectable/stub resolver, no live `kitty-specs/` fixtures.
