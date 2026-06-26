@@ -656,27 +656,28 @@ class TimeoutEscalationResult(BaseModel):
 
 __all__ = [
     # Constants
-    "DIMENSION_NAMES",
-    "DEFAULT_BANDS",
+    # DIMENSION_NAMES: demoted — intra-module constant used in validators;
+    # no cross-module src/ from-import callers (WP01 harden-dead-symbol-gate-01KW0RJR).
+    # DEFAULT_BANDS: demoted — no cross-module src/ from-import callers (WP01).
     "HARD_TRIGGER_REGISTRY",
     # Models (WP01)
-    "SignificanceDimension",
-    "RoutingBand",
-    "HardTriggerClass",
+    # SignificanceDimension: demoted — no cross-module src/ from-import callers (WP01).
+    # RoutingBand: demoted — no cross-module src/ from-import callers (WP01).
+    # HardTriggerClass: demoted — no cross-module src/ from-import callers (WP01).
     # Models (WP02)
     "SignificanceScore",
-    "TimeoutPolicy",
+    # TimeoutPolicy: demoted — no cross-module src/ from-import callers (WP01).
     # Models (WP03)
     "SignificanceEvaluatedPayload",
     "TimeoutExpiredPayload",
     "SoftGateDecision",
-    "DimensionScoreOverride",
+    # DimensionScoreOverride: demoted — no cross-module src/ from-import callers (WP01).
     # Models (WP04)
     "TimeoutEscalationResult",
     # Functions (WP01)
-    "make_routing_bands",
-    "validate_band_cutoffs",
-    "resolve_hard_triggers",
+    # make_routing_bands: demoted — no cross-module src/ from-import callers (WP01).
+    # validate_band_cutoffs: demoted — no cross-module src/ from-import callers (WP01).
+    # resolve_hard_triggers: demoted — no cross-module src/ from-import callers (WP01).
     "validate_dimension_scores",
     # Functions (WP02)
     "evaluate_significance",

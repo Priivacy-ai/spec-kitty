@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "mission_slug": "harden-dead-symbol-gate-01KW0RJR",
+  "mission_id": "01KW0RJRCC3DKNCGS4CDMNCKKH",
+  "mission_branch": "kitty/mission-harden-dead-symbol-gate-01KW0RJR",
+  "target_branch": "feat/harden-dead-symbol-gate",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/doctrine/versioning.py",
+        "src/specify_cli/auth/transport.py",
+        "src/specify_cli/compat/safety_modes.py",
+        "src/specify_cli/legacy_detector.py",
+        "src/specify_cli/orchestrator_api/envelope.py",
+        "src/specify_cli/readiness/upgrade_ux.py",
+        "src/specify_cli/sync/owner.py",
+        "tests/agent/test_envelope_unit.py",
+        "tests/architectural/_baselines.yaml",
+        "tests/architectural/test_no_dead_symbols.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-06-26T01:53:06.960865+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

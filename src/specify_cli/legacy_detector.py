@@ -76,7 +76,8 @@ def get_legacy_lane_counts(feature_path: Path) -> dict[str, int]:
 
 
 __all__ = [
-    "LEGACY_LANE_DIRS",
+    # LEGACY_LANE_DIRS: demoted — no cross-module src/ callers (WP01).
+    # get_legacy_lane_counts: demoted — no cross-module src/ from-import
+    # callers (WP01 harden-dead-symbol-gate-01KW0RJR).
     "is_legacy_format",
-    "get_legacy_lane_counts",
 ]

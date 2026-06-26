@@ -81,4 +81,6 @@ def escape_for_comment(s: str) -> str:
     return _truncate_utf8_safe(cleaned, MAX_PROVENANCE_BYTES)
 
 
-__all__ = ["MAX_PROVENANCE_BYTES", "escape_for_comment"]
+# MAX_PROVENANCE_BYTES: demoted — no cross-module src/ from-import callers
+# (WP01 harden-dead-symbol-gate-01KW0RJR).
+__all__ = ["escape_for_comment"]

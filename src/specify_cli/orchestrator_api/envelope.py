@@ -22,8 +22,9 @@ from typing import Any
 CONTRACT_VERSION = "1.1.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
-# Banned flags: defined here as validation constants (NOT invoked anywhere).
-# The CI scan excludes this file from the banned-flag grep.
+# Banned flags: enforced by parse_and_validate_policy() below (a policy whose
+# dangerous_flags include any of these is rejected). The CI scan excludes this
+# file from the banned-flag grep (this is the allowlist definition itself).
 BANNED_FLAGS: frozenset[str] = frozenset(
     [
         "--full-auto",
@@ -158,6 +159,11 @@ def parse_and_validate_policy(raw_json: str) -> PolicyMetadata:
     for flag in data["dangerous_flags"]:
         if not isinstance(flag, str):
             raise ValueError("--policy.dangerous_flags entries must be strings")
+        if flag in BANNED_FLAGS:
+            raise ValueError(
+                f"--policy.dangerous_flags contains a banned flag: {flag!r}. "
+                "Banned flags must never appear in orchestrator policy payloads."
+            )
 
     tool_restrictions = data.get("tool_restrictions")
     if tool_restrictions is not None and not isinstance(tool_restrictions, str):
@@ -187,9 +193,11 @@ def policy_to_dict(policy: PolicyMetadata) -> dict[str, Any]:
 __all__ = [
     "CONTRACT_VERSION",
     "MIN_PROVIDER_VERSION",
-    "BANNED_FLAGS",
+    # BANNED_FLAGS: demoted — referenced intra-module by parse_and_validate_policy;
+    # no cross-module src/ from-import callers (WP01 harden-dead-symbol-gate-01KW0RJR).
     "make_envelope",
-    "PolicyMetadata",
+    # PolicyMetadata: demoted — return type used only within this module;
+    # no cross-module src/ from-import callers (WP01).
     "parse_and_validate_policy",
     "policy_to_dict",
 ]

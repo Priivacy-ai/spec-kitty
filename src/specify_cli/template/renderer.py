@@ -205,7 +205,8 @@ def _apply_variables(content: str, variables: Mapping[str, str]) -> str:
 
 __all__ = [
     "DEFAULT_PATH_PATTERNS",
-    "_annotate_glossary_refs",
+    # _annotate_glossary_refs: demoted — private helper with no cross-module
+    # src/ callers (WP01 harden-dead-symbol-gate-01KW0RJR).
     "parse_frontmatter",
     "render_template",
     "render_template_text",

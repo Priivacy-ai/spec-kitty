@@ -214,5 +214,5 @@ __all__ = [
     "status_impl",
     "format_duration",
     "format_storage_backend",
-    "format_auth_method",
+    # format_auth_method: demoted — no cross-module src/ callers (WP01).
 ]

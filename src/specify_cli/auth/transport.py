@@ -528,5 +528,5 @@ __all__ = [
     "get_client",
     "get_async_client",
     "reset_clients",
-    "reset_user_facing_dedup",
+    # reset_user_facing_dedup: demoted — no cross-module src/ callers (WP01).
 ]

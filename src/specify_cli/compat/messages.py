@@ -213,4 +213,6 @@ def render_json(plan: Plan) -> dict[str, Any]:
     }
 
 
-__all__ = ["MESSAGES", "render_human", "render_json"]
+# MESSAGES: demoted — consumed only within this module; no cross-module
+# src/ from-import callers (WP01 harden-dead-symbol-gate-01KW0RJR).
+__all__ = ["render_human", "render_json"]

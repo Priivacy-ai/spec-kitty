@@ -59,7 +59,8 @@ __all__ = [
     "ActionContextError",
     "ActionName",
     "resolve_action_context",
-    "resolve_context_for_mission",
+    # resolve_context_for_mission: demoted — no cross-module src/ from-import
+    # callers (WP01 harden-dead-symbol-gate-01KW0RJR).
     "resolve_placement_only",
 ]
 

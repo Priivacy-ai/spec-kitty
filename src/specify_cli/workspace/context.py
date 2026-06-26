@@ -905,12 +905,17 @@ def cleanup_orphaned_contexts(repo_root: Path) -> int:
 
 
 __all__ = [
-    "ActiveWPResolution",
+    # ActiveWPResolution: demoted — no cross-module src/ from-import callers
+    # (WP01 harden-dead-symbol-gate-01KW0RJR).
     "NormalizedWorkPackage",
     "ResolvedWorkspace",
-    "WORKSPACE_HUSK_RECOVERY_COMMAND",
+    # WORKSPACE_HUSK_RECOVERY_COMMAND: demoted — no cross-module src/
+    # from-import callers (WP01 harden-dead-symbol-gate-01KW0RJR).
     "WorkspaceContext",
-    "WorkspaceResolutionError",
+    # WorkspaceResolutionError: demoted — no cross-module src/ from-import
+    # callers (WP01 harden-dead-symbol-gate-01KW0RJR).
+    # Resolution error raised and caught within this module; tests access
+    # it via explicit import, which works regardless of __all__.
     "husk_resolution_error",
     "verify_workspace_toplevel",
     "build_normalized_wp_index",
