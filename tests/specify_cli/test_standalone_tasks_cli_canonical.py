@@ -204,30 +204,6 @@ def test_src_tasks_cli_stage_update_writes_status_artifacts(
     assert str(events[-1].to_lane) == "in_progress"
 
 
-def test_src_tasks_cli_check_legacy_format_warns_once(
-    tmp_path: Path,
-    isolated_env: dict[str, str],
-) -> None:
-    del isolated_env
-    repo = tmp_path / "repo"
-    repo.mkdir()
-    _init_repo(repo)
-    feature_dir = repo / "kitty-specs" / "060-legacy-test"
-    (feature_dir / "tasks" / "planned").mkdir(parents=True)
-    (feature_dir / "tasks" / "planned" / "WP01.md").write_text("# WP01\n", encoding="utf-8")
-    tasks_cli = _load_module("standalone_tasks_cli_legacy", SRC_TASKS_CLI)
-    tasks_cli._legacy_warning_shown = False
-
-    stderr = io.StringIO()
-    with redirect_stderr(stderr):
-        assert tasks_cli._check_legacy_format(feature_dir.name, repo) is True
-        assert tasks_cli._check_legacy_format(feature_dir.name, repo) is True
-
-    output = stderr.getvalue()
-    assert output.count("Legacy directory-based lanes detected.") == 1
-    assert "status.events.jsonl" in output
-
-
 def test_src_tasks_cli_rollback_uses_canonical_event_history(
     tmp_path: Path,
     isolated_env: dict[str, str],
@@ -293,6 +269,39 @@ def test_src_tasks_cli_rollback_uses_canonical_event_history(
     assert update_args.lane == "planned"
     assert update_args.agent == "reviewer"
     assert update_args.note == "Rolled back to planned"
+
+
+def test_tasks_cli_rejects_pre30_layout(
+    tmp_path: Path,
+    isolated_env: dict[str, str],
+) -> None:
+    """Hard-reject pre-3.0 layout: exit 1 + correct message, no mutation (T020/NFR-004)."""
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _init_repo(repo)
+
+    # Build a pre-3.0 fixture: tasks/planned/WP01.md exists
+    feature = repo / "kitty-specs" / "001-test"
+    planned = feature / "tasks" / "planned"
+    planned.mkdir(parents=True)
+    wp = planned / "WP01.md"
+    wp.write_text("---\nwork_package_id: WP01\n---\n", encoding="utf-8")
+
+    mtime_before = wp.stat().st_mtime
+
+    result = run_python_script(
+        SRC_TASKS_CLI,
+        ["list", "001-test"],
+        cwd=repo,
+        env=isolated_env,
+    )
+
+    assert result.returncode == 1
+    output = result.stdout + result.stderr
+    assert "Pre-3.0 layout detected" in output
+    assert "spec-kitty upgrade" in output
+    # NFR-006: no mutation — WP file must not have been modified
+    assert wp.stat().st_mtime == mtime_before
 
 
 @pytest.mark.parametrize("script_path", [ROOT_TASKS_CLI, SRC_TASKS_CLI])

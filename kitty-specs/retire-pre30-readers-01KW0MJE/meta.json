@@ -1,0 +1,15 @@
+{
+  "coordination_branch": "kitty/mission-retire-pre30-readers-01KW0MJE",
+  "created_at": "2026-06-26T00:16:44.131114+00:00",
+  "flattened": false,
+  "friendly_name": "Retire pre-3.0 status/task readers from active runtime",
+  "mission_id": "01KW0MJEK2JFDM8VP8Q0EVY1P6",
+  "mission_number": null,
+  "mission_slug": "retire-pre30-readers-01KW0MJE",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Retire pre-3.0 status/task readers from active runtime on main so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Move legacy lane-directory and frontmatter-lane readers out of the active runtime hot path; hard-reject unmigrated pre-3.0 projects at the command boundary.",
+  "slug": "retire-pre30-readers-01KW0MJE",
+  "target_branch": "main",
+  "topology": "coord"
+}
