@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "mission_slug": "retire-mission-read-path-shim-01KVZNDS",
+  "mission_id": "01KVZNDSTYTHRR5T8PZ3DXHEKZ",
+  "mission_branch": "kitty/mission-retire-mission-read-path-shim-01KVZNDS",
+  "target_branch": "feat/retire-mission-read-path-shim",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/mission_read_path.py",
+        "tests/architectural/_baselines.yaml",
+        "tests/architectural/test_no_dead_modules.py",
+        "tests/architectural/test_no_dead_symbols.py",
+        "tests/architectural/test_single_mission_surface_resolver.py",
+        "tests/specify_cli/cli/commands/test_coord_reader_fixes.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-06-25T15:40:30.361948+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

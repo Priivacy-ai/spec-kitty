@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "9c953a74818d2ef462f33a8a080fa1a20b2a5f5f",
+  "coordination_branch": "kitty/mission-retire-mission-read-path-shim-01KVZNDS",
+  "created_at": "2026-06-25T15:12:25.951041+00:00",
+  "flattened": false,
+  "friendly_name": "Retire mission_read_path Backcompat Shim",
+  "mission_id": "01KVZNDSTYTHRR5T8PZ3DXHEKZ",
+  "mission_number": 149,
+  "mission_slug": "retire-mission-read-path-shim-01KVZNDS",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Mission 01KVJPEQ re-pointed the last production importer off the specify_cli.mission_read_path backcompat shim onto the canonical resolver, leaving the shim with zero src callers but bumping the SHRINK ratchet for backcompat shims from 8 to 9. This mission retires the now-dead shim, repoints its remaining test importers to the canonical seam, drops its architectural allowlist entries, and restores the ratchet's downward trend so the architectural gate keeps eroding debt rather than accumulating it.",
+  "purpose_tldr": "Delete the dead specify_cli.mission_read_path shim and reverse the architectural ratchet bump it caused.",
+  "slug": "retire-mission-read-path-shim-01KVZNDS",
+  "target_branch": "feat/retire-mission-read-path-shim",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-25T16:00:13.258148+00:00"
+}

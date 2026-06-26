@@ -143,10 +143,11 @@ TOPOLOGY_BLIND_CALLS: frozenset[str] = frozenset(
 SELECTION_READ_CALLS: frozenset[str] = frozenset(
     {
         # WP01 (01KVN754) privatized the worker ``resolve_mission_read_path`` →
-        # ``_resolve_mission_read_path`` (dropped from ``__all__``; reachable
-        # publicly only via the ``mission_read_path`` back-compat shim alias).
+        # ``_resolve_mission_read_path`` and #2048 retired the historical
+        # ``mission_read_path`` shim alias.
         # The discriminator tracks BOTH names so a direct selection call cannot
-        # slip the guard by importing the private worker OR the shim re-export.
+        # slip the guard by importing the private worker or recreating the old
+        # public spelling.
         "resolve_mission_read_path",
         "_resolve_mission_read_path",
     }

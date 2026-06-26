@@ -40,11 +40,13 @@ test_no_dead_modules:
   # justification: 4 external/CLI entry points invoked outside the
   # spec-kitty import graph (commit_guard_hook + 3 task helpers).
   category_3_external_cli_entrypoints: 4
-  # justification: 9 documented backward-compat shim modules whose
-  # absence of static src/ callers is the point. (+1: specify_cli.mission_read_path,
-  # mission 01KVJPEQ re-pointed its last production importer runtime_bridge.py to
-  # the canonical resolve_handle_to_read_path seam; shim retained for back-compat.)
-  category_4_backcompat_shims: 9
+  # justification: 8 documented backward-compat shim modules whose
+  # absence of static src/ callers is the point. (#2048 retired dead shim
+  # specify_cli.mission_read_path: zero src callers after 01KVJPEQ re-pointed the
+  # last production importer to the canonical resolve_handle_to_read_path seam.
+  # Reverses the 01KVJPEQ 8->9 bump and restores the SHRINK trend; live
+  # _CATEGORY_4_BACKCOMPAT_SHIMS size is now 8.)
+  category_4_backcompat_shims: 8
   # justification: 3 compat-shim WP-in-flight adapters.
   category_5_wp_in_flight_adapters: 3  # justification: specify_cli.compat._adapters.{detector,gate,version_checker}; doctrine.missions.mission_step_repository wired in charter-pack-activation-layer-01KSYE4V (removed)
   # justification: 3 frozen-contract internal re-exports under

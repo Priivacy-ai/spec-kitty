@@ -97,8 +97,9 @@ for the orchestrator's pre-merge sweep:
   reviewer reference snapshots.
 - ``test_pytest_marker_convention.py``: pre-existing ratchet drift.
 - ``test_no_dead_modules.py`` / ``test_no_dead_symbols.py``: dead-module /
-  ``__all__`` symbol debt from the WP01 ``specify_cli.mission_read_path`` shim
-  and seam additions (src-side; outside WP05's test-only owned surface).
+  ``__all__`` symbol debt from seam additions (src-side; outside WP05's
+  test-only owned surface). The ``specify_cli.mission_read_path`` shim that
+  formerly contributed to this debt was retired by #2048.
 """
 
 from __future__ import annotations
