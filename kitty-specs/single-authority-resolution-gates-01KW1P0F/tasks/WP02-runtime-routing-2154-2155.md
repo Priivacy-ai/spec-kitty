@@ -19,7 +19,8 @@ subtasks:
 - T012
 - T013
 - T014
-agent: claude
+agent: "claude:opus:python-pedro:implementer"
+shell_pid: "2931106"
 history:
 - timestamp: '2026-06-26T11:02:04Z'
   actor: planner
@@ -270,3 +271,7 @@ Focus review on these structural properties:
 4. **T013 negative control.** The wrong-surface `.worktrees/` write must STILL be refused after the fix. Confirm the test asserts `SafeCommitPathPolicyError` is raised (not just that it isn't swallowed) for the deliberately wrong-surface staged file.
 5. **Allowlist shrink is honest.** Verify that every removed allowlist entry corresponds to a site that no longer appears in the canonicalizer scanner output. A removed entry for a site that STILL exists in the source is a staleness bypass, not a legitimate shrink.
 6. **No canon-site over-allowlisting.** For each T012 allowlist entry, the rationale must name a specific canonical provenance (e.g. "parameter received from caller as pre-resolved `feature_dir.name`"). Entries with rationale `"unknown"` or `"to be investigated"` must be rejected.
+
+## Activity Log
+
+- 2026-06-26T12:36:40Z – claude:opus:python-pedro:implementer – shell_pid=2931106 – Assigned agent via action command
