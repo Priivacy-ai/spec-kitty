@@ -17,6 +17,7 @@ subtasks:
 phase: Phase 2 - Reroute
 assignee: ''
 agent: claude
+shell_pid: '37267'
 history:
 - at: '2026-06-26T11:06:32Z'
   actor: system
