@@ -52,7 +52,7 @@ The unifying defect (ADR 2026-06-26-1): crossing a resolution boundary is a *con
 
 | ID | Constraint | Status |
 |----|------------|--------|
-| C-001 | The canonicalizer guard lives at the **seam in front of** `primary_feature_dir_for_mission`; canonicalization is NEVER folded into the primitive (the canonical fold *probes via* the primitive at `_read_path_resolver.py:454` — folding in recurses; FR-011). Acceptance **regression-pins** that `_read_path_resolver.py:454` stays a bare-handle probe and is allowlisted with the FR-011 rationale. **Merge-blocker.** | Proposed |
+| C-001 | The canonicalizer guard lives at the **seam in front of** `primary_feature_dir_for_mission`; canonicalization is NEVER folded into the primitive (the canonical fold *probes via* the primitive at `_read_path_resolver.py:454` — folding in recurses; this is the **recursion fence**, the lesson of the prior canonicalizer recursion bug). Acceptance **regression-pins** that `_read_path_resolver.py:454` stays a bare-handle probe and is allowlisted with the recursion-fence rationale. **Merge-blocker.** | Proposed |
 | C-002 | Every patched seam propagates `MissionSelectorAmbiguous` unchanged; no silent first-match (C-009/WP07). Cold-miss fails closed and loud. **Merge-blocker.** | Proposed |
 | C-003 | The read-leg handle-safety fix (#2161) is a **pre-condition**; a one-step verification confirms it is present on the base before building on it (not re-implemented). | Proposed |
 | C-004 | Out of scope (do not expand): Phase 2 (the `MissionResolver` DI port), the `ResolvedMission` identity work (#2138, #2139, #1868), and the distinct surfaces #2091, #2100, #2123, #2115. | Proposed |
