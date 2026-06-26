@@ -22,7 +22,7 @@ owned by #2048/PR #2152).
 | ID | Description | WP | Parallel |
 |----|-------------|----|----------|
 | T001 | FR-001: remove 2 `category_a_slice_f_deferred` entries; baseline → 9 (+ drift fix) | WP01 | |
-| T002 | FR-002: remove 2 `category_b_grandfathered_legacy` entries; baseline → 284 | WP01 | |
+| T002 | FR-002: remove 2 `category_b_grandfathered_legacy` entries; baseline → 276 | WP01 | |
 | T003 | FR-004: delete 3 `compat/_adapters/*` files + 4 paired allowlists; `pure_shim_files`/`category_5` → 0 | WP01 | |
 | T004 | FR-003: remove dangling `legacy_contract_allowlist` entry; baseline → 151 | WP01 | |
 | T005 | FR-005: post issue/doc corrections to #2049 (note parser fix → #2158) | WP01 | |
@@ -40,12 +40,12 @@ owned by #2048/PR #2152).
 - **Dependencies**: none
 - **Prompt**: [tasks/WP01-burn-down-ratchet-allowlists.md](./tasks/WP01-burn-down-ratchet-allowlists.md)
 - **Estimated prompt size**: ~360 lines (6 subtasks)
-- **Independent test**: `PWHEADLESS=1 uv run pytest tests/architectural/ tests/contract/ -q` green; `_baselines.yaml` shows `category_a_slice_f_deferred: 9`, `category_b_grandfathered_legacy: 284`, `legacy_contract_allowlist: 151`, `pure_shim_files: 0`, `category_5_wp_in_flight_adapters: 0`, `category_4_backcompat_shims` unchanged; `test_no_dead_symbols.py` net change is small (entries removed, not added).
+- **Independent test**: `PWHEADLESS=1 uv run pytest tests/architectural/ tests/contract/ -q` green; `_baselines.yaml` shows `category_a_slice_f_deferred: 9`, `category_b_grandfathered_legacy: 276`, `legacy_contract_allowlist: 151`, `pure_shim_files: 0`, `category_5_wp_in_flight_adapters: 0`, `category_4_backcompat_shims` unchanged; `test_no_dead_symbols.py` net change is small (entries removed, not added).
 
 **Included subtasks**:
 
 - [x] T001 FR-001: remove `write_pipeline::StagedArtifact` and `::promote` from `category_a_slice_f_deferred` (`test_no_dead_symbols.py`); set `_baselines.yaml` `category_a_slice_f_deferred: 9` (live was 11 → −2 = 9; confirm) (WP01)
-- [x] T002 FR-002: remove `charter.activate::charter_activate_app` and `charter.deactivate::charter_deactivate_app` from `category_b_grandfathered_legacy`; set `_baselines.yaml` `category_b_grandfathered_legacy: 284` (confirm live == 284; do NOT add any other entries) (WP01)
+- [x] T002 FR-002: remove `charter.activate::charter_activate_app` and `charter.deactivate::charter_deactivate_app` from `category_b_grandfathered_legacy`; set `_baselines.yaml` `category_b_grandfathered_legacy: 276` (286−2−9+1 incl. adapter entries + MismatchType orphan; confirm live == 276) (WP01)
 - [x] T003 FR-004: delete `src/specify_cli/compat/_adapters/{version_checker,gate,detector}.py`; remove their entries from `_ADAPTER_FILES` (`test_compat_shims.py`), `category_5` (`test_no_dead_modules.py`), and the adapter dead-symbol entries (`test_no_dead_symbols.py`); set `_baselines.yaml` `pure_shim_files: 0` and `category_5_wp_in_flight_adapters: 0` (WP01)
 - [x] T004 FR-003: remove the dangling `kitty-specs/033-github-observability-event-metadata/contracts/event-envelope.md` entry from `legacy_contract_allowlist` in `tests/contract/test_example_round_trip.py`; set `_baselines.yaml` `legacy_contract_allowlist: 151` (WP01)
 - [x] T005 FR-005: post (or confirm already-posted) a comment on #2049 with the path/count corrections and note the parser fix moved to #2158 (WP01)

@@ -35,7 +35,7 @@ mission removes the evidence-backed stale entries and corrects drift in the trac
 **Actor:** Maintainer running the architectural + contract suites after the burn-down.
 **Trigger:** `pytest tests/architectural/ tests/contract/` on the feature branch.
 **Success outcome:** Suites pass with the four reduced baselines (`category_a_slice_f_deferred: 9`,
-`category_b_grandfathered_legacy: 284`, `legacy_contract_allowlist: 151`, `pure_shim_files: 0`), each
+`category_b_grandfathered_legacy: 276`, `legacy_contract_allowlist: 151`, `pure_shim_files: 0`), each
 matching its live frozenset size; the dead-symbol gate now inspects `write_pipeline.py`'s public symbols.
 
 ### Acceptance scenarios
@@ -55,7 +55,7 @@ matching its live frozenset size; the dead-symbol gate now inspects `write_pipel
 | ID | Requirement | Status |
 |----|-------------|--------|
 | FR-001 | Remove the 2 stale entries `charter.synthesizer.write_pipeline::StagedArtifact` and `::promote` from `category_a_slice_f_deferred` (`tests/architectural/test_no_dead_symbols.py`) and set `_baselines.yaml` `category_a_slice_f_deferred` to **9** (live frozenset is currently 11 vs a stale declared 12; this both removes the 2 entries and fixes the drift). | Pending |
-| FR-002 | Remove the 2 stale entries `specify_cli.cli.commands.charter.activate::charter_activate_app` and `…deactivate::charter_deactivate_app` from `category_b_grandfathered_legacy` (`test_no_dead_symbols.py`) — both symbols were deleted by a prior charter-app refactor (absence asserted by `tests/specify_cli/test_charter_activate_cli.py`) — and set `_baselines.yaml` `category_b_grandfathered_legacy` to **284**. | Pending |
+| FR-002 | Remove the 2 stale entries `specify_cli.cli.commands.charter.activate::charter_activate_app` and `…deactivate::charter_deactivate_app` from `category_b_grandfathered_legacy` (`test_no_dead_symbols.py`) — both symbols were deleted by a prior charter-app refactor (absence asserted by `tests/specify_cli/test_charter_activate_cli.py`) — and set `_baselines.yaml` `category_b_grandfathered_legacy` to **276**. The category also holds the 9 adapter dead-symbol entries removed by FR-004, and the adapter deletion orphans `core.version_checker::MismatchType` (grandfathered, +1): 286 − 2 − 9 + 1 = 276. | Pending |
 | FR-003 | Remove the dangling entry `kitty-specs/033-github-observability-event-metadata/contracts/event-envelope.md` (mission dir no longer exists) from `legacy_contract_allowlist` in `tests/contract/test_example_round_trip.py` and set `_baselines.yaml` `legacy_contract_allowlist` to **151**. | Pending |
 | FR-004 | Retire the 3 dead pure-shim adapter files `src/specify_cli/compat/_adapters/{version_checker,gate,detector}.py` (zero functional importers; real consumers use the canonical modules directly), removing their entries from `_ADAPTER_FILES` (`test_compat_shims.py`), `_CATEGORY_5_*` (`test_no_dead_modules.py`), and the dead-symbol allowlist (`test_no_dead_symbols.py`); set `_baselines.yaml` `pure_shim_files` to **0** and `category_5_wp_in_flight_adapters` to **0**. | Pending |
 | FR-005 | Correct the drift in the tracking issue / docs: `legacy_contract_allowlist` lives in `tests/contract/` (not `tests/architectural/`); live counts are `category_7_grandfathered_orphans = 7` (issue said 6) and `category_b_grandfathered_legacy = 286` (issue said 271); note the parser fix moved to #2158. Record corrections in the mission artifacts / a comment on #2049. | Pending |
@@ -81,7 +81,7 @@ matching its live frozenset size; the dead-symbol gate now inspects `write_pipel
 
 ## Success Criteria
 
-1. Four baselines reduced and matching live sizes: `category_a_slice_f_deferred: 9`, `category_b_grandfathered_legacy: 284`, `legacy_contract_allowlist: 151`, `pure_shim_files: 0` (+ `category_5_wp_in_flight_adapters: 0`).
+1. Four baselines reduced and matching live sizes: `category_a_slice_f_deferred: 9`, `category_b_grandfathered_legacy: 276`, `legacy_contract_allowlist: 151`, `pure_shim_files: 0` (+ `category_5_wp_in_flight_adapters: 0`).
 2. The 3 `compat/_adapters/*` shim files are gone; `grep -rn "compat._adapters" src/ tests/` returns only intentional references (ideally none).
 3. `pytest tests/architectural/ tests/contract/` is green at the reduced baselines, with no net allowlist growth.
 4. `ruff check .` and `mypy` are clean on the diff.
