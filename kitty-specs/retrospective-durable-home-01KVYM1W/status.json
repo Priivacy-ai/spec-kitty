@@ -1,0 +1,63 @@
+{
+  "event_count": 42,
+  "last_event_id": "01KW12RJXVHKVJDZ7FYY47AA3C",
+  "materialized_at": "2026-06-26T04:24:45.243942+00:00",
+  "mission_number": "149",
+  "mission_slug": "retrospective-durable-home-01KVYM1W",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KW12RGH97TDN1V8TVQ068C32",
+      "last_transition_at": "2026-06-26T04:24:42.793550+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KW12RHHJ5M99CDJPF1TXMCRH",
+      "last_transition_at": "2026-06-26T04:24:43.826525+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KW12RJ0CYYFYPZ5FTNNXN0T6",
+      "last_transition_at": "2026-06-26T04:24:44.300231+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KW12RJXVHKVJDZ7FYY47AA3C",
+      "last_transition_at": "2026-06-26T04:24:45.243942+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KW12RH2S8SAKJV0YXYXZ3WSH",
+      "last_transition_at": "2026-06-26T04:24:43.353967+00:00"
+    },
+    "WP06": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KW12RJF1JP4QRP99XPD8FDYM",
+      "last_transition_at": "2026-06-26T04:24:44.769864+00:00"
+    }
+  }
+}

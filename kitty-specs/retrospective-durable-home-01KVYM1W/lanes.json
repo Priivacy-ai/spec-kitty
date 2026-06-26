@@ -1,0 +1,140 @@
+{
+  "version": 1,
+  "mission_slug": "retrospective-durable-home-01KVYM1W",
+  "mission_id": "01KVYM1WS4M2FG00WGJV04N879",
+  "mission_branch": "kitty/mission-retrospective-durable-home-01KVYM1W",
+  "target_branch": "fix/3.2.3-coord-surface-regressions",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "architecture/3.x/adr/2026-06-25-1-terminal-artifact-durable-home-teardown.md",
+        "src/specify_cli/missions/_read_path_resolver.py",
+        "tests/missions/test_surface_resolution_equivalence.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/doctrine/skills/spec-kitty-mission-system/SKILL.md",
+        "src/specify_cli/cli/commands/_coordination_doctor.py",
+        "src/specify_cli/coordination/surface_resolver.py",
+        "tests/architectural/test_no_phantom_worktree_repair.py",
+        "tests/coordination/test_surface_resolver_coord_empty_warning.py",
+        "tests/specify_cli/coordination/test_surface_resolver.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/mission_runtime/artifacts.py",
+        "tests/mission_runtime/test_retrospective_artifact_kind.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03",
+        "WP06"
+      ],
+      "write_scope": [
+        "src/runtime/next/_internal_runtime/retrospective_terminus.py",
+        "src/specify_cli/cli/commands/retrospect.py",
+        "src/specify_cli/core/constants.py",
+        "src/specify_cli/post_merge/retrospective_terminus.py",
+        "src/specify_cli/retrospective/lifecycle_events.py",
+        "src/specify_cli/retrospective/summary.py",
+        "src/specify_cli/retrospective/writer.py",
+        "tests/core/test_retrospective_filename_constant.py",
+        "tests/retrospective/test_home_resolution_single_authority.py",
+        "tests/retrospective/test_record_committable_1771.py",
+        "tests/retrospective/test_retrospective_durable_home_coord.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/merge.py",
+        "src/specify_cli/cli/commands/mission_type.py",
+        "src/specify_cli/coordination/teardown.py",
+        "src/specify_cli/merge/executor.py",
+        "tests/coordination/test_teardown_seam_persist_before_destroy.py",
+        "tests/coordination/test_teardown_single_seam_routing.py",
+        "tests/merge/test_executor_coverage.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-c"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-06-25T20:20:39.588305+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP06",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/specify_cli/retrospective/writer.py' vs 'src/specify_cli/retrospective/writer.py', 'src/specify_cli/retrospective/lifecycle_events.py' vs 'src/specify_cli/retrospective/lifecycle_events.py', 'src/specify_cli/post_merge/retrospective_terminus.py' vs 'src/specify_cli/post_merge/retrospective_terminus.py', 'src/runtime/next/_internal_runtime/retrospective_terminus.py' vs 'src/runtime/next/_internal_runtime/retrospective_terminus.py'; WP06 depends on WP03"
+      }
+    ],
+    "total_merges": 1,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 1
+    }
+  }
+}

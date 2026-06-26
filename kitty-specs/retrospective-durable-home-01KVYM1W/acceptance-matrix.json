@@ -1,0 +1,119 @@
+{
+  "mission_slug": "retrospective-durable-home-01KVYM1W",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03/lane-c d5d60862f",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP adversarial review)",
+      "verified_at": "2026-06-26T04:14:47.825976+00:00",
+      "notes": "6 retrospective home-resolution sites consolidated onto resolve_retrospective_home (primary-anchored); live-coord-divergence test asserts '.worktrees' not in resolved.parts, RED-first proven (reverting -> resolves into .worktrees/<slug>-coord/)"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02/lane-b 0921f37bb",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP adversarial review)",
+      "verified_at": "2026-06-26T04:14:47.825976+00:00",
+      "notes": "RETROSPECTIVE added to MissionArtifactKind + _PRIMARY_ARTIFACT_KINDS; is_coordination_artifact_residue_path('retrospective.yaml')==False (PRIMARY, not residue) verified live; mutation-probe non-vacuous"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03/lane-c d5d60862f",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP adversarial review)",
+      "verified_at": "2026-06-26T04:14:47.825976+00:00",
+      "notes": "enumerating AST structural test: zero placement sites resolve independently / use a coord-aware resolver; mutation-probed RED on revert"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04/lane-d acb9817b8",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP adversarial review)",
+      "verified_at": "2026-06-26T04:14:47.825976+00:00",
+      "notes": "shared coordination/teardown.py seam; anti-rename grep: zero CoordinationWorkspace.teardown( outside the seam in src/; 3 sites (merge/executor.py cleanup, merge.py --abort, mission_type.py close/discard) routed through the seam"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04/lane-d acb9817b8",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP adversarial review)",
+      "verified_at": "2026-06-26T04:14:47.825976+00:00",
+      "notes": "persist-before-destroy on BOTH merge + discard paths, persist outside the swallow; fault-injection mutation-probed RED on both paths (neutralize persist -> retrospective absent at durable home); #2133 test test_phase_cleanup_coord_teardown_failure_is_non_fatal UPDATED per DIR-041"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "STRUCK (regression-reference only, WP04 T048)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP adversarial review)",
+      "verified_at": "2026-06-26T04:14:47.825976+00:00",
+      "notes": "STRUCK / out of scope: done-by-#2129 on the upstream merge target. NOTE: #2129 is NOT on the fix/3.2.3 base; _remove_lane_worktrees still prefix-matches there. The lane-prefix exact-set lands when fix/3.2.3 merges to upstream/main (which carries #2129). Not a #2119 deliverable."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05/lane-e 19222b192",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP adversarial review)",
+      "verified_at": "2026-06-26T04:14:47.825976+00:00",
+      "notes": "phantom 'agent worktree repair' repointed to 'doctor workspaces --fix' across 8 sites (_coordination_doctor.py x4 + surface_resolver.py x3 + SKILL.md); git grep 'agent worktree repair' src/ -> ZERO; src/-scoped count-agnostic grep-guard mutation-probed RED"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04/lane-d acb9817b8",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP adversarial review)",
+      "verified_at": "2026-06-26T04:14:47.825976+00:00",
+      "notes": "2 dead helpers (_list_active_worktrees, _print_active_worktrees) removed; zero callers proven tree-wide; forbidden-term landmine cleared"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04/lane-d acb9817b8",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP adversarial review)",
+      "verified_at": "2026-06-26T04:14:47.825976+00:00",
+      "notes": "stale merge.py:1568 cross-reference comment corrected to the real teardown region; :607 prefix-prose left (accurate on this base, _remove_lane_worktrees still prefix-matches)"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06/lane-c d5d60862f",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP adversarial review)",
+      "verified_at": "2026-06-26T04:14:47.825976+00:00",
+      "notes": "retrospective.yaml literal hoisted to RETROSPECTIVE_FILENAME constant (core/constants.py) across 9 sites; count-agnostic AST guard mutation-probed; behaviorally neutral"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01/lane-a 2c19c1c5f",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP adversarial review)",
+      "verified_at": "2026-06-26T04:14:47.825976+00:00",
+      "notes": "caller-canonicalization at resolve_planning_read_dir (primitive primary_feature_dir_for_mission stays blind, avoids :454 recursion); equivalence test bare-mid8==bare-slug==pre-resolved, ambiguous raises MissionSelectorAmbiguous; mutation-probed RED"
+    }
+  ],
+  "negative_invariants": []
+}
