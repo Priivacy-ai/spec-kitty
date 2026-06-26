@@ -21,7 +21,8 @@ subtasks:
 - T005
 - T006
 - T007
-agent: claude
+agent: "claude:opus:python-pedro:implementer"
+shell_pid: "2896952"
 history:
 - timestamp: '2026-06-26T11:02:04Z'
   actor: planner
@@ -276,3 +277,7 @@ Focus review on these structural properties:
 4. **Floor is the honest census** — verify `38` (or higher) is the scanner's actual output on the current `src/` tree, not a pre-committed assumption.
 5. **C-001 pin** — confirm `_read_path_resolver.py:454` is in the allowlist and its rationale references FR-011 and the recursion risk. Any reviewer who sees this entry removed in a follow-up WP must reject the PR.
 6. **No modification to `git/commit_helpers.py`** — `git diff HEAD src/specify_cli/git/commit_helpers.py` must be empty at WP01 merge.
+
+## Activity Log
+
+- 2026-06-26T12:05:49Z – claude:opus:python-pedro:implementer – shell_pid=2896952 – Assigned agent via action command
