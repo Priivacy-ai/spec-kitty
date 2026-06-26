@@ -483,6 +483,32 @@ def test_slug_resolver_returns_none_for_malformed_meta(tmp_path: Path) -> None:
     assert resolver.resolve("034-feature-name") is None
 
 
+def test_slug_resolver_returns_none_for_non_dict_meta(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """A meta.json that parses to a non-object (e.g. a JSON array) leaves
+    mission_id unresolved instead of crashing on ``data.get`` — and logs why.
+
+    Guards the same defect class as the resolver/aggregate non-dict fail-closed
+    path: ``json.loads("[]")`` yields a ``list``, on which ``.get`` would raise
+    ``AttributeError``. The slug resolver must degrade to ``None`` with a warning.
+    """
+    mission_dir = tmp_path / "kitty-specs" / "034-feature-name"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text("[]", encoding="utf-8")
+
+    resolver = _SlugResolver(mission_dir)
+
+    with caplog.at_level("WARNING", logger="specify_cli.status.store"):
+        assert resolver.resolve("034-feature-name") is None
+
+    assert any(
+        "is not an object" in record.getMessage()
+        and "034-feature-name" in record.getMessage()
+        for record in caplog.records
+    ), "non-dict meta.json must emit the 'is not an object' WARNING"
+
+
 def test_slug_resolver_happy_path_resolves_from_meta(tmp_path: Path) -> None:
     """A valid slug still resolves mission_id from <root>/<slug>/meta.json (guard preserved)."""
     mission_dir = tmp_path / "kitty-specs" / "034-feature-name"

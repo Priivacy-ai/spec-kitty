@@ -53,17 +53,18 @@ def _pin_home(monkeypatch: pytest.MonkeyPatch, home: Path) -> None:
 
 @pytest.mark.parametrize("platform", PLATFORMS)
 def test_spec_kitty_home_overrides_base_on_all_platforms(
-    monkeypatch: pytest.MonkeyPatch, platform: str
+    monkeypatch: pytest.MonkeyPatch, platform: str, tmp_path: Path
 ) -> None:
     """Set env ⇒ base is the env path verbatim, regardless of platform."""
     _force_platform(monkeypatch, platform)
     # Stub the Windows default too, to prove the env branch wins before it.
     _stub_windows_data_dir(monkeypatch)
-    monkeypatch.setenv("SPEC_KITTY_HOME", "/tmp/x")
+    env_base = tmp_path / "skhome"
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(env_base))
 
     root = get_runtime_root()
 
-    assert root.base == Path("/tmp/x")
+    assert root.base == env_base
     assert root.platform == platform
 
 
