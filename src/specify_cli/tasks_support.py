@@ -19,7 +19,6 @@ from specify_cli.task_utils.support import (  # noqa: F401
     find_repo_root,
     get_lane_from_frontmatter,
     git_status_lines,
-    is_legacy_format,
     load_meta,
     locate_work_package,
     match_frontmatter_line,

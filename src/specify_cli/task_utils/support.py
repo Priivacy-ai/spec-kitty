@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.core.paths import get_main_repo_root, locate_project_root
-from specify_cli.legacy_detector import is_legacy_format
 from specify_cli.mission_metadata import load_meta as _load_meta_canonical
 
 # Canonical lane tuple — imported from the leaf module to avoid pulling in the
@@ -317,27 +316,17 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
     # Does NOT match: WP04b.md, WP04b-something.md
     wp_pattern = re.compile(rf"^{re.escape(wp_id)}(?:[-_.]|\.md$)")
 
-    use_legacy = is_legacy_format(feature_path)
     candidates = []
 
-    if use_legacy:
-        # Legacy format: search lane subdirectories
-        for lane_dir in tasks_root.iterdir():
-            if not lane_dir.is_dir():
-                continue
-            lane = lane_dir.name
-            for path in lane_dir.rglob("*.md"):
-                if wp_pattern.match(path.name):
-                    candidates.append((lane, path, lane_dir))
-    else:
-        # New format: search flat tasks/ directory
-        for path in tasks_root.glob("*.md"):
-            if path.name.lower() == "readme.md":
-                continue
-            if wp_pattern.match(path.name):
-                # Get lane from frontmatter
-                lane = get_lane_from_frontmatter(path, warn_on_missing=False)
-                candidates.append((lane, path, tasks_root))
+    # Flat-layout only: search flat tasks/ directory (lane from frontmatter).
+    # The boundary guard (WP02) prevents pre-3.0 projects from reaching here.
+    for path in tasks_root.glob("*.md"):
+        if path.name.lower() == "readme.md":
+            continue
+        if wp_pattern.match(path.name):
+            # Get lane from frontmatter
+            lane = get_lane_from_frontmatter(path, warn_on_missing=False)
+            candidates.append((lane, path, tasks_root))
 
     if not candidates:
         raise TaskCliError(f"Work package '{wp_id}' not found under kitty-specs/{feature}/tasks.")
@@ -445,7 +434,6 @@ __all__ = [
     "find_repo_root",
     "get_lane_from_frontmatter",
     "git_status_lines",
-    "is_legacy_format",
     # Path-signature adapter over the canonical mission_metadata.load_meta
     # (FR-009 / SC-004) -- not a parallel authority; see its docstring.
     "load_meta",

@@ -27,7 +27,7 @@ from ..scanner import (
     scan_feature_kanban,
 )
 from .base import DashboardHandler
-from specify_cli.legacy_detector import is_legacy_format
+from specify_cli.upgrade.legacy_detector import is_legacy_format
 from specify_cli.mission import MissionError, get_mission_by_name
 
 __all__ = ["FeatureHandler"]

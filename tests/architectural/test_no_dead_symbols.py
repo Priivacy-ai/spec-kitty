@@ -331,7 +331,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.scripts.tasks.task_helpers::find_repo_root",
         "specify_cli.scripts.tasks.task_helpers::get_lane_from_frontmatter",
         "specify_cli.scripts.tasks.task_helpers::git_status_lines",
-        "specify_cli.scripts.tasks.task_helpers::is_legacy_format",
         "specify_cli.scripts.tasks.task_helpers::load_meta",
         "specify_cli.scripts.tasks.task_helpers::locate_work_package",
         "specify_cli.scripts.tasks.task_helpers::normalize_note",

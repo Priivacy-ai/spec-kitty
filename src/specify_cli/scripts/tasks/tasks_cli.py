@@ -45,7 +45,6 @@ from task_helpers import (  # noqa: E402
     ensure_lane,
     extract_scalar,
     find_repo_root,
-    is_legacy_format,
     normalize_note,
     now_utc,
     run_git,
@@ -53,6 +52,7 @@ from task_helpers import (  # noqa: E402
     split_frontmatter,
     locate_work_package,
 )
+from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout  # noqa: E402
 from acceptance_support import (  # noqa: E402
     AcceptanceError,
     AcceptanceSummary,
@@ -206,34 +206,6 @@ def _handle_encoding_failure(exc: ArtifactEncodingError, attempted_fix: bool) ->
     sys.exit(1)
 
 
-_legacy_warning_shown = False
-
-
-def _check_legacy_format(feature: str, repo_root: Path) -> bool:
-    """Check for legacy format and warn once. Returns True if legacy format detected."""
-    global _legacy_warning_shown
-    feature_path = resolve_feature_dir_for_mission(repo_root, feature)
-    if is_legacy_format(feature_path):
-        if not _legacy_warning_shown:
-            print("\n" + "=" * 60, file=sys.stderr)
-            print("Legacy directory-based lanes detected.", file=sys.stderr)
-            print("", file=sys.stderr)
-            print("Your project uses the old lane structure (tasks/planned/, tasks/doing/, etc.).", file=sys.stderr)
-            print(
-                "Run `spec-kitty upgrade` to migrate to flat tasks with canonical status events.",
-                file=sys.stderr,
-            )
-            print("", file=sys.stderr)
-            print("Benefits of upgrading:", file=sys.stderr)
-            print("  - No file conflicts during lane changes", file=sys.stderr)
-            print("  - Canonical status stored in status.events.jsonl", file=sys.stderr)
-            print("  - Better multi-agent compatibility", file=sys.stderr)
-            print("=" * 60 + "\n", file=sys.stderr)
-            _legacy_warning_shown = True
-        return True
-    return False
-
-
 def update_command(args: argparse.Namespace) -> None:
     """Append a canonical status transition for a work package."""
     # Validate lane value first
@@ -246,10 +218,12 @@ def update_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
     feature = args.feature
 
-    # Check for legacy format and error out
-    if _check_legacy_format(feature, repo_root):
-        print("Error: Cannot use 'update' command on legacy format.", file=sys.stderr)
-        print("Run 'spec-kitty upgrade' first, then retry.", file=sys.stderr)
+    # Boundary guard — hard-reject pre-3.0 layout before any WP mutation
+    feature_path = resolve_feature_dir_for_mission(repo_root, feature)
+    try:
+        check_pre30_layout(feature_path)
+    except Pre30LayoutError as e:
+        print(str(e), file=sys.stderr)
         sys.exit(1)
 
     wp = locate_work_package(repo_root, feature, args.work_package)
@@ -287,6 +261,15 @@ def update_command(args: argparse.Namespace) -> None:
 
 def history_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
+
+    # Boundary guard — hard-reject pre-3.0 layout before any WP mutation
+    feature_path = resolve_feature_dir_for_mission(repo_root, args.feature)
+    try:
+        check_pre30_layout(feature_path)
+    except Pre30LayoutError as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(1)
+
     wp = locate_work_package(repo_root, args.feature, args.work_package)
     agent = args.agent or wp.agent or "system"
     shell_pid = args.shell_pid or wp.shell_pid or ""
@@ -321,92 +304,61 @@ def list_command(args: argparse.Namespace) -> None:
     if not feature_dir.exists():
         raise TaskCliError(f"Feature '{args.feature}' has no tasks directory at {feature_dir}.")
 
-    # Check for legacy format and warn
-    use_legacy = is_legacy_format(feature_path)
-    if use_legacy:
-        _check_legacy_format(args.feature, repo_root)
+    # Boundary guard — hard-reject pre-3.0 layout before listing
+    try:
+        check_pre30_layout(feature_path)
+    except Pre30LayoutError as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(1)
 
     rows = []
 
-    if use_legacy:
-        # Legacy format: scan lane subdirectories
-        for lane in LANES:
-            lane_dir = feature_dir / lane
-            if not lane_dir.exists():
-                continue
-            for path in sorted(lane_dir.rglob("*.md")):
-                text = path.read_text(encoding="utf-8-sig")
-                front, body, padding = split_frontmatter(text)
-                wp = WorkPackage(
-                    feature=args.feature,
-                    path=path,
-                    current_lane=lane,
-                    relative_subpath=path.relative_to(lane_dir),
-                    frontmatter=front,
-                    body=body,
-                    padding=padding,
-                )
-                wp_id = wp.work_package_id or path.stem
-                title = (wp.title or "").strip('"')
-                assignee = (wp.assignee or "").strip()
-                agent = (wp.agent or "").strip()
-                rows.append(
-                    {
-                        "lane": lane,
-                        "id": wp_id,
-                        "title": title,
-                        "assignee": assignee,
-                        "agent": agent,
-                        "path": str(path.relative_to(repo_root)),
-                    }
-                )
-    else:
-        # New format: scan flat tasks/ directory and read canonical lane from the event log
-        from specify_cli.status import read_events as _read_events  # noqa: PLC0415
-        from specify_cli.status import wp_state_for  # noqa: PLC0415
+    # Scan flat tasks/ directory and read canonical lane from the event log
+    from specify_cli.status import read_events as _read_events  # noqa: PLC0415
+    from specify_cli.status import wp_state_for  # noqa: PLC0415
 
-        # Validate that canonical status events exist for this feature
-        _feature_events = _read_events(feature_path)
-        if not _feature_events:
-            print(
-                "Error: Canonical status not found for this feature.\n"
-                "Run 'spec-kitty agent mission finalize-tasks' to bootstrap status events.",
-                file=sys.stderr,
-            )
-            sys.exit(1)
+    # Validate that canonical status events exist for this feature
+    _feature_events = _read_events(feature_path)
+    if not _feature_events:
+        print(
+            "Error: Canonical status not found for this feature.\n"
+            "Run 'spec-kitty agent mission finalize-tasks' to bootstrap status events.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
-        for path in sorted(feature_dir.glob("*.md")):
-            if path.name.lower() == "readme.md":
-                continue
-            text = path.read_text(encoding="utf-8-sig")
-            front, body, padding = split_frontmatter(text)
-            # Extract wp_id from frontmatter to look up event-log lane
-            wp_id = extract_scalar(front, "work_package_id") or path.stem
-            lane = _derive_current_lane(feature_path, wp_id)
-            display = wp_state_for(lane).display_category()
-            wp = WorkPackage(
-                feature=args.feature,
-                path=path,
-                current_lane=lane,
-                relative_subpath=path.relative_to(feature_dir),
-                frontmatter=front,
-                body=body,
-                padding=padding,
-            )
-            title = (wp.title or "").strip('"')
-            assignee = (wp.assignee or "").strip()
-            agent = (wp.agent or "").strip()
-            rows.append(
-                {
-                    "lane": lane,
-                    "display": display,
-                    "id": wp_id,
-                    "title": title,
-                    "assignee": assignee,
-                    "agent": agent,
-                    "path": str(path.relative_to(repo_root)),
-                }
-            )
+    for path in sorted(feature_dir.glob("*.md")):
+        if path.name.lower() == "readme.md":
+            continue
+        text = path.read_text(encoding="utf-8-sig")
+        front, body, padding = split_frontmatter(text)
+        # Extract wp_id from frontmatter to look up event-log lane
+        wp_id = extract_scalar(front, "work_package_id") or path.stem
+        lane = _derive_current_lane(feature_path, wp_id)
+        display = wp_state_for(lane).display_category()
+        wp = WorkPackage(
+            feature=args.feature,
+            path=path,
+            current_lane=lane,
+            relative_subpath=path.relative_to(feature_dir),
+            frontmatter=front,
+            body=body,
+            padding=padding,
+        )
+        title = (wp.title or "").strip('"')
+        assignee = (wp.assignee or "").strip()
+        agent = (wp.agent or "").strip()
+        rows.append(
+            {
+                "lane": lane,
+                "display": display,
+                "id": wp_id,
+                "title": title,
+                "assignee": assignee,
+                "agent": agent,
+                "path": str(path.relative_to(repo_root)),
+            }
+        )
 
     if not rows:
         print(f"No work packages found for feature '{args.feature}'.")

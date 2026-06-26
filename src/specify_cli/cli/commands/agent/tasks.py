@@ -66,6 +66,7 @@ from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.status import bootstrap_canonical_state
 from specify_cli.core.utils import write_text_within_directory
 from specify_cli.workspace.context import get_normalized_wp, resolve_workspace_for_wp
+from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
 
 
 def resolve_primary_branch(repo_root: Path) -> str:
@@ -1046,10 +1047,17 @@ def move_task(
             if worktree_kitty and (worktree_kitty / mission_slug / "tasks").exists():
                 console.print(f"[dim]Note: Using planning repo's kitty-specs/ on {target_branch} (worktree copy ignored)[/dim]")
 
+        # Boundary guard — hard-reject pre-3.0 layout before any WP mutation
+        _mt_feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+        try:
+            check_pre30_layout(_mt_feature_dir)
+        except Pre30LayoutError as e:
+            _output_error(json_output, str(e))
+            raise typer.Exit(1) from None
+
         # Load work package first (needed for current_lane check)
         wp = locate_work_package(repo_root, mission_slug, task_id)
         # Lane is event-log-only; read from canonical event log not frontmatter
-        _mt_feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
         old_lane = _read_transactional_wp_lane(
             feature_dir=_mt_feature_dir,
             mission_slug=mission_slug,
@@ -1805,6 +1813,12 @@ def mark_status(
                 _output_error(json_output, protected_error)
                 raise typer.Exit(1)
         feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+        # Boundary guard — hard-reject pre-3.0 layout before any WP mutation
+        try:
+            check_pre30_layout(feature_dir)
+        except Pre30LayoutError as e:
+            _output_error(json_output, str(e))
+            raise typer.Exit(1) from None
         tasks_md = feature_dir / TASKS_MD_FILENAME
 
         with feature_status_lock(main_repo_root, mission_slug):
@@ -2109,7 +2123,15 @@ def add_history(
         mission_slug = _find_mission_slug(explicit_mission=mission, json_output=json_output, repo_root=repo_root)
 
         # Ensure we operate on the target branch for this feature
-        _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
+        _ah_main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
+
+        # Boundary guard — hard-reject pre-3.0 layout before any WP mutation
+        _ah_feature_dir = resolve_feature_dir_for_mission(_ah_main_repo_root, mission_slug)
+        try:
+            check_pre30_layout(_ah_feature_dir)
+        except Pre30LayoutError as e:
+            _output_error(json_output, str(e))
+            raise typer.Exit(1) from None
 
         # Load work package
         wp = locate_work_package(repo_root, mission_slug, task_id)
@@ -2191,6 +2213,12 @@ def finalize_tasks(
         # Ensure we operate on the target branch for this feature
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
         feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+        # Boundary guard — hard-reject pre-3.0 layout before any WP mutation
+        try:
+            check_pre30_layout(feature_dir)
+        except Pre30LayoutError as e:
+            _output_error(json_output, str(e))
+            raise typer.Exit(1) from None
         tasks_md = feature_dir / TASKS_MD_FILENAME
         tasks_dir = feature_dir / "tasks"
 
@@ -2438,6 +2466,12 @@ def map_requirements(
         # #2064: resolve the WP ``tasks/`` dir through the SAME seam finalize uses
         # (one read surface), not the divergent ``resolve_feature_dir_for_slug``.
         feature_dir = _map_requirements_feature_dir(main_repo_root, mission_slug)
+        # Boundary guard — hard-reject pre-3.0 layout before any WP mutation
+        try:
+            check_pre30_layout(feature_dir)
+        except Pre30LayoutError as e:
+            _output_error(json_output, str(e))
+            raise typer.Exit(1) from None
         # PRIMARY-input invariant: ``spec.md`` is authored on PRIMARY — unchanged.
         primary_dir = primary_feature_dir_for_mission(main_repo_root, mission_slug)
 
@@ -2742,7 +2776,15 @@ def validate_workflow(
         mission_slug = _find_mission_slug(explicit_mission=mission, json_output=json_output, repo_root=repo_root)
 
         # Ensure we operate on the target branch for this feature
-        _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
+        _vw_main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
+
+        # Boundary guard — hard-reject pre-3.0 layout before reading any WP
+        _vw_guard_feature_dir = resolve_feature_dir_for_mission(_vw_main_repo_root, mission_slug)
+        try:
+            check_pre30_layout(_vw_guard_feature_dir)
+        except Pre30LayoutError as e:
+            _output_error(json_output, str(e))
+            raise typer.Exit(1) from None
 
         # Load work package
         wp = locate_work_package(repo_root, mission_slug, task_id)
@@ -3326,6 +3368,12 @@ def list_dependents(
         mission_slug = _find_mission_slug(explicit_mission=mission, json_output=json_output, repo_root=repo_root)
         main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
         feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+        # Boundary guard — hard-reject pre-3.0 layout before reading any WP
+        try:
+            check_pre30_layout(feature_dir)
+        except Pre30LayoutError as e:
+            _output_error(json_output, str(e))
+            raise typer.Exit(1) from None
 
         if not feature_dir.exists():
             _output_error(json_output, f"Mission directory not found: {feature_dir}")

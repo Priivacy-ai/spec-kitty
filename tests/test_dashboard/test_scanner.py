@@ -597,6 +597,71 @@ def test_dashboard_scan_degrades_when_registry_unreadable_in_non_git_project(
     assert feature["kanban_stats"]["approved"] == 0
 
 
+# ── scan_feature_kanban error-handling paths ───────────────────────────────
+
+
+def test_scan_feature_kanban_canonical_status_not_found_returns_empty_lanes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """CanonicalStatusNotFoundError aborts WP iteration and returns empty lanes.
+
+    Covers scanner.py lines 872-877: the except-branch warning log and the
+    early ``return lanes`` that short-circuits the rest of the loop when the
+    feature's event log has not yet been seeded by finalize-tasks.
+    """
+    from specify_cli.status import CanonicalStatusNotFoundError
+
+    feature_dir = tmp_path / "kitty-specs" / "001-no-event-log"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-demo.md").write_text(
+        "---\nwork_package_id: WP01\n---\n# Work Package Prompt: Demo\n",
+        encoding="utf-8",
+    )
+
+    def _raise_canonical(*_args: object, **_kwargs: object) -> None:
+        raise CanonicalStatusNotFoundError("no event log seeded")
+
+    monkeypatch.setattr(scanner, "_process_wp_file", _raise_canonical)
+
+    lanes = scanner.scan_feature_kanban(tmp_path, "001-no-event-log")
+
+    assert all(len(v) == 0 for v in lanes.values()), (
+        "all lanes must be empty when CanonicalStatusNotFoundError is raised "
+        "during WP processing"
+    )
+
+
+def test_scan_feature_kanban_generic_exception_is_logged_and_skipped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A generic Exception from _process_wp_file is logged and the WP is skipped.
+
+    Covers scanner.py lines 878-880: the broad except-branch logger.error call
+    and the ``continue`` that keeps the loop alive for subsequent WP files.
+    """
+    feature_dir = tmp_path / "kitty-specs" / "001-bad-wp"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (tasks_dir / "WP01-broken.md").write_text(
+        "---\nwork_package_id: WP01\n---\n# Work Package Prompt: Broken\n",
+        encoding="utf-8",
+    )
+
+    def _raise_generic(*_args: object, **_kwargs: object) -> None:
+        raise RuntimeError("simulated unexpected processing error")
+
+    monkeypatch.setattr(scanner, "_process_wp_file", _raise_generic)
+
+    # Must not propagate — the broad except catches it and continues.
+    lanes = scanner.scan_feature_kanban(tmp_path, "001-bad-wp")
+
+    assert all(len(v) == 0 for v in lanes.values()), (
+        "all lanes must be empty after a broken WP is skipped via the generic "
+        "exception handler"
+    )
+
+
 # ── NFR-006: Dashboard kanban bucketing identity ───────────────────────────
 
 

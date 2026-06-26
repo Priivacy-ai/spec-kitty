@@ -47,7 +47,6 @@ _ACCEPTANCE_SUPPORT_COMPAT_SET: frozenset[str] = frozenset(
         "find_repo_root",
         "get_lane_from_frontmatter",
         "git_status_lines",
-        "is_legacy_format",
         "load_meta",
         "locate_work_package",
         "normalize_note",
@@ -77,6 +76,11 @@ def test_all_public_names_importable() -> None:
     for name in task_helpers.__all__:
         obj = getattr(task_helpers, name, None)
         assert obj is not None, f"task_helpers.{name} is None or not importable"
+
+
+def test_task_helpers_does_not_export_is_legacy_format() -> None:
+    """is_legacy_format was de-exported from task_helpers in mission retire-pre30-readers."""
+    assert "is_legacy_format" not in task_helpers.__all__
 
 
 # ---------- Behavioral result-equality for hot helpers ----------

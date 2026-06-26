@@ -1,10 +1,4 @@
-#!/usr/bin/env python3
-"""Legacy format detection for Spec Kitty lane management.
-
-This module provides utilities to detect whether a feature uses the old
-directory-based lane structure (tasks/planned/, tasks/doing/, etc.) or
-the new frontmatter-only lane system (flat tasks/ directory).
-"""
+"""Legacy layout detector — migration/upgrade namespace. Canonical import: specify_cli.upgrade.legacy_detector."""
 
 from __future__ import annotations
 
@@ -47,36 +41,7 @@ def is_legacy_format(feature_path: Path) -> bool:
     return False
 
 
-def get_legacy_lane_counts(feature_path: Path) -> dict[str, int]:
-    """Get count of work packages in each legacy lane directory.
-
-    Useful for migration reporting and validation.
-
-    Args:
-        feature_path: Path to the feature directory
-
-    Returns:
-        Dictionary mapping lane names to count of .md files in each.
-        Only includes lanes that have files.
-    """
-    tasks_dir = feature_path / "tasks"
-    counts: dict[str, int] = {}
-
-    if not tasks_dir.exists():
-        return counts
-
-    for lane in LEGACY_LANE_DIRS:
-        lane_path = tasks_dir / lane
-        if lane_path.is_dir():
-            md_files = list(lane_path.glob("*.md"))
-            if md_files:
-                counts[lane] = len(md_files)
-
-    return counts
-
-
 __all__ = [
     "LEGACY_LANE_DIRS",
     "is_legacy_format",
-    "get_legacy_lane_counts",
 ]

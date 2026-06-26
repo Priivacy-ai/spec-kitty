@@ -159,16 +159,21 @@ work_package_id: WP01
                     # Successfully fixed scenario
                     assert "WP01" in card.get("id", ""), "Should have work package ID"
 
-    def test_scan_feature_kanban_auto_fixes_and_loads(self):
-        """Test 3.4: Verify auto-fix allows successful load after initial error."""
+    def test_scan_feature_kanban_legacy_returns_empty_lanes(self):
+        """Test 3.4: Verify legacy (pre-3.0) format returns empty lanes without scanning.
+
+        After WP03/WP04 the boundary guard blocks mutation commands from reaching
+        legacy features; the dashboard read-only scan annotates them as legacy
+        and returns empty lanes instead of iterating lane subdirectories.
+        """
         with TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)  # Convert to Path
-            # Create feature structure
+            # Create legacy feature structure (tasks/planned/ subdirectory layout)
             feature_dir = tmpdir / "kitty-specs" / "001-test"
             tasks_dir = feature_dir / "tasks" / "planned"
             tasks_dir.mkdir(parents=True)
 
-            # Create work package with encoding issue
+            # Create work package with encoding issue in the legacy layout
             wp_file = tasks_dir / "WP01-test.md"
             wp_content = """---
 work_package_id: WP01
@@ -180,19 +185,25 @@ Implement authentication with User\u2019s profile support.
 """
             wp_file.write_bytes(wp_content.encode('cp1252'))
 
-            # Scan with auto-fix (default behavior)
+            # Scan: legacy format is detected and returns empty lanes (no subdir iteration)
             lanes = scan_feature_kanban(Path(tmpdir), "001-test")
 
-            # Should have successfully loaded the card
+            # Should have lanes structure
+            assert isinstance(lanes, dict), "Should return lanes dictionary"
             assert "planned" in lanes, "Should have planned lane"
 
-            # File should be fixed on disk now
-            fixed_content = wp_file.read_text(encoding='utf-8')
-            assert "User's" in fixed_content, "File should be fixed to valid UTF-8"
+            # Legacy format: all lanes are empty (no lane-subdirectory iteration)
+            assert all(
+                len(cards) == 0 for cards in lanes.values()
+            ), "Legacy format returns empty lanes \u2014 no lane-subdir iteration post-3.0"
 
-            # Backup should exist
+            # File is untouched: no auto-fix applied since it was never read
+            with pytest.raises(UnicodeDecodeError):
+                wp_file.read_text(encoding='utf-8')
+
+            # No backup created (file was not read/fixed)
             backup = wp_file.with_suffix('.md.bak')
-            assert backup.exists(), "Backup should be created"
+            assert not backup.exists(), "No backup for legacy features (not scanned)"
 
     def test_scan_empty_feature(self):
         """Verify scanning empty feature doesn't crash."""

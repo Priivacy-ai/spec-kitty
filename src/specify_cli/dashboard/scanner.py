@@ -13,7 +13,7 @@ from typing import Any
 
 from specify_cli.dashboard.charter_path import resolve_project_charter_path
 from specify_cli.lanes.branch_naming import resolve_mid8
-from specify_cli.legacy_detector import is_legacy_format
+from specify_cli.upgrade.legacy_detector import is_legacy_format
 from specify_cli.status import wp_state_for
 from specify_cli.status import Lane
 from specify_cli.text_sanitization import sanitize_file
@@ -852,49 +852,35 @@ def scan_feature_kanban(project_dir: Path, feature_id: str) -> dict[str, list[di
     if not tasks_dir.exists():
         return lanes
 
-    use_legacy = is_legacy_format(feature_dir)
+    if is_legacy_format(feature_dir):
+        # Pre-3.0 layout: the boundary guard blocks mutation commands from
+        # reaching this path; the dashboard read-only scan annotates the feature
+        # as legacy without iterating lane subdirectories.
+        return lanes
 
-    if use_legacy:
-        # Legacy format: scan lane subdirectories
-        for lane in lanes:
-            lane_dir = tasks_dir / lane
-            if not lane_dir.exists():
-                continue
+    # New format: scan flat tasks/ directory, lane from event log
+    from specify_cli.status import CanonicalStatusNotFoundError
 
-            for prompt_file in lane_dir.rglob("WP*.md"):
-                try:
-                    task_data = _process_wp_file(prompt_file, project_dir, lane)
-                    if task_data is not None:
-                        lanes[lane].append(task_data)
-                except Exception as exc:
-                    logger.error(f"Unexpected error processing {prompt_file.name}: {exc}")
-                    continue
+    for prompt_file in tasks_dir.glob("WP*.md"):
+        try:
+            task_data = _process_wp_file(prompt_file, project_dir, "planned")
+            if task_data is not None:
+                raw_lane = task_data.get("lane", "planned")
+                state = wp_state_for(raw_lane)
+                column = _KANBAN_COLUMN_FOR_LANE.get(state.lane, "planned")
+                lanes[column].append(task_data)
+        except CanonicalStatusNotFoundError:
+            logger.warning(
+                "No event log for feature '%s' — cannot render kanban",
+                feature_dir.name,
+            )
+            return lanes  # Return empty kanban — feature not finalized
+        except Exception as exc:
+            logger.error(f"Unexpected error processing {prompt_file.name}: {exc}")
+            continue
 
-            lanes[lane].sort(key=work_package_sort_key)
-    else:
-        # New format: scan flat tasks/ directory, lane from event log
-        from specify_cli.status import CanonicalStatusNotFoundError
-
-        for prompt_file in tasks_dir.glob("WP*.md"):
-            try:
-                task_data = _process_wp_file(prompt_file, project_dir, "planned")
-                if task_data is not None:
-                    raw_lane = task_data.get("lane", "planned")
-                    state = wp_state_for(raw_lane)
-                    column = _KANBAN_COLUMN_FOR_LANE.get(state.lane, "planned")
-                    lanes[column].append(task_data)
-            except CanonicalStatusNotFoundError:
-                logger.warning(
-                    "No event log for feature '%s' — cannot render kanban",
-                    feature_dir.name,
-                )
-                return lanes  # Return empty kanban — feature not finalized
-            except Exception as exc:
-                logger.error(f"Unexpected error processing {prompt_file.name}: {exc}")
-                continue
-
-        # Sort all lanes
-        for lane in lanes:
-            lanes[lane].sort(key=work_package_sort_key)
+    # Sort all lanes
+    for lane in lanes:
+        lanes[lane].sort(key=work_package_sort_key)
 
     return lanes
