@@ -1,5 +1,13 @@
 # Quickstart / Verification: Shrink Architectural Ratchet Allowlists
 
+> **⚠️ RE-SCOPE (post-implementation):** FR-006 (the `_extract_all_literal` parser fix) and the
+> `write_pipeline.__all__` trim were **deferred to #2158** — un-blinding the parser surfaced ~117
+> dead symbols (a ratchet *growth*). The delivered mission does NOT touch the parser or
+> `write_pipeline.py`. Actual `category_b_grandfathered_legacy` = **276** (the 9 adapter dead-symbol
+> entries also lived in category_b, and the adapter deletion orphaned `MismatchType`, +1). Sections
+> below that describe the parser fix / `__all__` trim / a 284 target are superseded by this note.
+
+
 No API contracts (no `contracts/` dir) — internal architectural-debt burn-down. Run everything via
 `uv run` (the installed `spec-kitty`/tooling may lag local `main`).
 
