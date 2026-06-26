@@ -23,6 +23,7 @@ subtasks:
 phase: Phase 3 - Harden & Document
 assignee: ''
 agent: claude
+shell_pid: '88364'
 history:
 - at: '2026-06-26T11:06:32Z'
   actor: system
