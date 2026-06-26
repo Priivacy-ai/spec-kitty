@@ -1,6 +1,11 @@
 """Resolution convergence test — read-seam dir == write/placement-seam dir (FR-006 / SC-005).
 
-This module is the executable proof of FR-006 (SC-005): after WP02–WP05 route every call
+This module is a STUB-LEVEL convergence check for FR-006 (SC-005). The load-bearing,
+red-first PRODUCTION convergence proof (monkeypatching the real ``_read_path_resolver``
+primitives, calling real ``resolve_planning_read_dir(kind=TASKS_INDEX)``) lives in
+``tests/specify_cli/cli/commands/test_coord_status_commit_2155.py``
+(``test_mark_status_write_leg_matches_commit_leg_{coord,flat}_topology``); this is the
+structural stub mirror documenting the same contract. After WP02–WP05 route every call
 site through the canonical kind-aware seam, no handle form can map differently between the
 read leg and the write leg.  The test is STUB-DRIVEN — no live ``kitty-specs/`` fixtures
 are accessed.
