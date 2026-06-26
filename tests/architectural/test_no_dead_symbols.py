@@ -83,8 +83,6 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[str] = frozenset(
         "charter.compact::CompactView",
         "charter.compact::extract_section_anchors",
         "charter.synthesizer.provenance::ProvenanceEntry",
-        "charter.synthesizer.write_pipeline::StagedArtifact",
-        "charter.synthesizer.write_pipeline::promote",
         "kernel._safe_re::is_re2_active",
     }
 )
@@ -147,8 +145,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.cli.commands.agent.config::app",
         "specify_cli.cli.commands.agent::app",
         "specify_cli.cli.commands.auth::app",
-        "specify_cli.cli.commands.charter.activate::charter_activate_app",
-        "specify_cli.cli.commands.charter.deactivate::charter_deactivate_app",
         "specify_cli.cli.commands.context::app",
         "specify_cli.cli.commands.doctrine::app",
         "specify_cli.cli.commands.implement::_ensure_vcs_in_meta",
@@ -163,15 +159,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         # _render_nag_if_needed and _should_suppress_nag removed from
         # allowlist: both now have live callers in the CLI startup readiness
         # coordinator path (Priivacy-ai/spec-kitty#1093).
-        "specify_cli.compat._adapters.detector::VersionDetector",
-        "specify_cli.compat._adapters.gate::_EXEMPT_COMMANDS",
-        "specify_cli.compat._adapters.gate::check_schema_version",
-        "specify_cli.compat._adapters.version_checker::MismatchType",
-        "specify_cli.compat._adapters.version_checker::compare_versions",
-        "specify_cli.compat._adapters.version_checker::format_version_error",
-        "specify_cli.compat._adapters.version_checker::get_cli_version",
-        "specify_cli.compat._adapters.version_checker::get_project_version",
-        "specify_cli.compat._adapters.version_checker::should_check_version",
         "specify_cli.core.context_validation::CurrentContext",
         "specify_cli.core.context_validation::ExecutionContext",
         "specify_cli.core.context_validation::detect_execution_context",
@@ -192,6 +179,13 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.core.paths::resolve_with_context",
         "specify_cli.core.upgrade_probe::DEFAULT_TIMEOUT_S",
         "specify_cli.core.upgrade_probe::PYPI_JSON_URL",
+        # MismatchType is a Literal type alias used internally in
+        # version_checker.py (function annotations); it was previously
+        # indirectly covered via the now-deleted compat/_adapters/version_checker.py
+        # re-export. The adapter deletion (FR-004) surfaced the orphan; grandfathered
+        # until a follow-up mission either wires a direct src/ import or removes it
+        # from __all__ (FR-303).
+        "specify_cli.core.version_checker::MismatchType",
         "specify_cli.core.worktree_topology::FeatureTopology",
         "specify_cli.core.worktree_topology::WPTopologyEntry",
         "specify_cli.core.worktree_topology::render_topology_text",

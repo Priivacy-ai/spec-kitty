@@ -28,11 +28,12 @@ _REPO_ROOT = Path(__file__).parent.parent.parent
 _ADAPTERS_DIR = _REPO_ROOT / "src" / "specify_cli" / "compat" / "_adapters"
 _FIXTURES_DIR = Path(__file__).parent / "_fixtures"
 
-_ADAPTER_FILES = [
-    _ADAPTERS_DIR / "version_checker.py",
-    _ADAPTERS_DIR / "gate.py",
-    _ADAPTERS_DIR / "detector.py",
-]
+_ADAPTER_FILES: list[Path] = []
+# All three adapter files (version_checker.py, gate.py, detector.py) were
+# deleted in shrink-ratchet-allowlists WP01 (FR-004): no functional
+# src/ callers existed, so removal is safe. The list is now empty and
+# the parametrised tests below are skipped. The bad-adapter fixture
+# test still exercises the checker logic independently.
 
 _DISALLOWED_NODE_TYPES = (
     ast.FunctionDef,

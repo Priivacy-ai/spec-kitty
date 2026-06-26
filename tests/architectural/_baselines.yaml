@@ -45,8 +45,10 @@ test_no_dead_modules:
   # mission 01KVJPEQ re-pointed its last production importer runtime_bridge.py to
   # the canonical resolve_handle_to_read_path seam; shim retained for back-compat.)
   category_4_backcompat_shims: 9
-  # justification: 3 compat-shim WP-in-flight adapters.
-  category_5_wp_in_flight_adapters: 3  # justification: specify_cli.compat._adapters.{detector,gate,version_checker}; doctrine.missions.mission_step_repository wired in charter-pack-activation-layer-01KSYE4V (removed)
+  # justification: 0 compat-shim WP-in-flight adapters; all 3 adapter files
+  # (detector, gate, version_checker) deleted in this mission (FR-004) — no
+  # functional src/ callers confirmed before deletion.
+  category_5_wp_in_flight_adapters: 0  # justification: specify_cli.compat._adapters.{detector,gate,version_checker} deleted (shrink-ratchet-allowlists WP01 FR-004)
   # justification: 3 frozen-contract internal re-exports under
   # next/_internal_runtime/ frozen by shared-package-boundary-cutover.
   category_6_frozen_runtime_reexports: 3
@@ -95,10 +97,10 @@ test_auth_transport_singleton:
 
 # tests/architectural/test_compat_shims.py
 test_compat_shims:
-  # justification: 3 pure-shim adapter files under
-  # src/specify_cli/compat/_adapters/. Per C-006 this MUST shrink to
-  # 0 by 4.0 (the compat-planner mission is the burn-down owner).
-  pure_shim_files: 3
+  # justification: 0 pure-shim adapter files; all 3 adapter files
+  # (detector, gate, version_checker) deleted in this mission (FR-004).
+  # Per C-006 the target was 0 by 4.0 — achieved here.
+  pure_shim_files: 0  # justification: all 3 compat/_adapters/ files deleted (shrink-ratchet-allowlists WP01 FR-004)
 
 # tests/contract/test_example_round_trip.py
 # Populated by WP03 after the legacy-contract-allowlist discovery
@@ -112,7 +114,7 @@ test_example_round_trip:
   # CI-wiring YAML snippet (not a Pydantic model payload). The baseline
   # participates in the burn-down policy (C-004): it MUST shrink as legacy
   # missions backfill the ``# pydantic_model:`` / ``# expect:`` frontmatter.
-  legacy_contract_allowlist: 152
+  legacy_contract_allowlist: 151  # justification: 033-github-observability-event-metadata/ dir absent; stale event-envelope.md entry removed (shrink-ratchet-allowlists WP01 FR-003)
 
 # tests/architectural/test_all_declarations_required.py
 # Populated by WP02 after the charter/kernel __all__ sweep. WP01
@@ -137,7 +139,7 @@ test_no_dead_symbols:
   # wired" carry-over. WP02 left their public-API contracts intact;
   # a future mission must wire / prune / delete each. 13->12: shrank when
   # WP03 (org-doctrine close-out) wired one Cat-A symbol; locked in here.
-  category_a_slice_f_deferred: 12
+  category_a_slice_f_deferred: 9  # justification: removed write_pipeline::{StagedArtifact,promote} (gate is blind to write_pipeline without parser fix, deferred to #2158; removal is safe) — shrink-ratchet-allowlists WP01 FR-001
   # justification: 271 pre-existing public symbols across doctrine +
   # specify_cli whose ``__all__`` predates the WP02 gate. C-007 /
   # FR-121 scopes WP02 to charter+kernel; this category is the
@@ -158,7 +160,7 @@ test_no_dead_symbols:
   # sibling. The failure reproduces byte-identically at the merge base; this
   # mission neither introduced nor worsened it. Burn-down (FR-303): qualify the
   # import or teach the scanner script-style sys.path imports, then shrink.
-  category_b_grandfathered_legacy: 286
+  category_b_grandfathered_legacy: 276  # justification: removed charter.{activate,deactivate}::*_app (FR-002, -2) + 9 compat._adapters.* dead-symbol entries (FR-004, deleted files); added core.version_checker::MismatchType (orphaned by adapter deletion, grandfathered per FR-303) — net 286→276, shrink-ratchet-allowlists WP01
   # 6->4 (org-doctrine close-out WP04): removed the now-wired
   # charter.invocation_context::{OperationalContext,build_operational_context}
   # (WP14 added live src/ callers). Remaining 4: the two require_active_*
