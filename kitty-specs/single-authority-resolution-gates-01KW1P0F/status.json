@@ -1,7 +1,7 @@
 {
-  "event_count": 6,
-  "last_event_id": "01KW1TACTJ8VH0FN77W67R9TPH",
-  "materialized_at": "2026-06-26T11:16:26.066766+00:00",
+  "event_count": 7,
+  "last_event_id": "01KW1TAD94X5C72XWRH1EQA0KY",
+  "materialized_at": "2026-06-26T11:16:26.532201+00:00",
   "mission_number": "",
   "mission_slug": "single-authority-resolution-gates-01KW1P0F",
   "mission_type": "software-dev",
@@ -14,7 +14,7 @@
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 6
+    "planned": 7
   },
   "work_packages": {
     "WP01": {
@@ -58,6 +58,13 @@
       "lane": "planned",
       "last_event_id": "01KW1TACTJ8VH0FN77W67R9TPH",
       "last_transition_at": "2026-06-26T11:16:26.066766+00:00"
+    },
+    "WP07": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01KW1TAD94X5C72XWRH1EQA0KY",
+      "last_transition_at": "2026-06-26T11:16:26.532201+00:00"
     }
   }
 }
