@@ -402,3 +402,4 @@ Reviewers should confirm:
 - 2026-06-26T12:36:53Z – claude:sonnet:python-pedro:implementer – shell_pid=2931106 – Assigned agent via action command
 - 2026-06-26T13:05:29Z – claude:sonnet:python-pedro:implementer – shell_pid=2931106 – Ready: 13 sites routed across 7 files, 30/30 gate tests pass, ruff clean, allowlist shrinks 34→21
 - 2026-06-26T13:14:46Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=3065322 – Started review via action command
+- 2026-06-26T13:36:15Z – user – shell_pid=3065322 – Review passed (renata): contamination-clean (mission_type reverted, close_cmd restored), 12 sites routed, aggregate:526 sanction grounded, _commit_workflow_change untouched, C-002 propagates, gate 30/30, 433 status/runtime tests, T027 allowlist deviation necessary+correct.

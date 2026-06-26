@@ -294,3 +294,4 @@ Reviewers should confirm:
 - 2026-06-26T12:36:48Z – claude:sonnet:python-pedro:implementer – shell_pid=2931106 – Assigned agent via action command
 - 2026-06-26T12:53:18Z – claude:sonnet:python-pedro:implementer – shell_pid=2931106 – WP04 at 62ac4c1a1: 8 sites routed (merge/core/coordination), commit_router:355 except narrowed for MissionSelectorAmbiguous (C-002), stale allowlist entries removed -> gate 30/30 green.
 - 2026-06-26T12:53:47Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=2992342 – Started review via action command
+- 2026-06-26T12:58:57Z – user – shell_pid=2992342 – Review passed (renata): 8 sites routed (canonicalize-after-validation correct), C-002 except-narrowing verified, gate 30/30 incl twin-guard, allowlist shrunk to exactly 8 entries (baseline 34 frozen), 604/604 module tests, scope/ruff/mypy clean.

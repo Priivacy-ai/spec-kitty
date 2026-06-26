@@ -240,3 +240,4 @@ Verify:
 - 2026-06-26T12:47:31Z – user – shell_pid=2931106 – Moved to in_progress
 - 2026-06-26T12:51:33Z – claude:sonnet:python-pedro:implementer – shell_pid=2931106 – WP07 implemented at d52d65916: frozen-baseline /tmp ratchet (99-file baseline) + self-mutation green; FR-008 verified-by-collect-only (both files already run, no marker).
 - 2026-06-26T12:51:59Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=2985328 – Started review via action command
+- 2026-06-26T12:58:23Z – user – shell_pid=2985328 – Review passed (renata): frozen-baseline ratchet real (injected fake offender -> RED confirmed), self-mutation via helper, FR-008 verify-only (no markers added, both files collect), scope clean, ruff/mypy clean.
