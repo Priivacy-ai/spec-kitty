@@ -22,7 +22,7 @@ from specify_cli.tracker import credentials
 from specify_cli.tracker.store import build_tracker_scope, default_tracker_db_path
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # Stable scope inputs (hoisted so the literals live in exactly one place).

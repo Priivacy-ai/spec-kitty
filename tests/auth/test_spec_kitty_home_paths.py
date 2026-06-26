@@ -20,10 +20,14 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 from specify_cli.auth import token_manager as tm_module
 from specify_cli.auth.secure_storage.file_fallback import default_store_dir
 from specify_cli.auth.secure_storage.windows_storage import WindowsFileStorage
 from specify_cli.paths import get_runtime_root
+
+pytestmark = [pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

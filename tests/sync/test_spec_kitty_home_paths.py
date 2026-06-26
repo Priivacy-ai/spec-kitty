@@ -34,6 +34,9 @@ if TYPE_CHECKING:
     from specify_cli.auth.token_manager import StoredSession
 
 
+pytestmark = [pytest.mark.fast]
+
+
 def _configure_root(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, *, env_set: bool) -> Path:
     """Point HOME / SPEC_KITTY_HOME at throwaway dirs; return the expected base.
 

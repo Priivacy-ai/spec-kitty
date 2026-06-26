@@ -25,7 +25,7 @@ from specify_cli.state.contract import (
 )
 from specify_cli.state.doctor import StateRootsReport, check_state_roots
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _global_sync_root(report: StateRootsReport) -> Path:
