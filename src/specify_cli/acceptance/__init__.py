@@ -37,7 +37,7 @@ from specify_cli.task_utils import (
     run_git,
     split_frontmatter,
 )
-from specify_cli.upgrade.legacy_detector import is_legacy_format as _is_legacy_pre30
+from specify_cli.upgrade.pre30_guard import check_pre30_layout
 
 logger = logging.getLogger(__name__)
 
@@ -397,8 +397,9 @@ class AcceptanceResult:
 def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
     """Iterate over work packages in flat tasks/ directory layout.
 
-    Pre-3.0 missions (lane-directory layout) are skipped with a warning.
-    Run ``spec-kitty upgrade`` to migrate before running acceptance scan.
+    Pre-3.0 missions (lane-directory layout) are hard-rejected with
+    :class:`~specify_cli.upgrade.pre30_guard.Pre30LayoutError` — run
+    ``spec-kitty upgrade`` to migrate before running the acceptance scan.
     """
     # WORK_PACKAGE_TASK is a PRIMARY-partition kind: route the WP-task read
     # through the kind-aware seam so a coord-topology mission reads its tasks off
@@ -409,13 +410,14 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
     if not tasks_dir.exists():
         raise AcceptanceError(f"Feature '{feature}' has no tasks directory at {tasks_dir}.")
 
-    # Pre-3.0 layout: skip with a clear warning — run `spec-kitty upgrade` to migrate.
-    if _is_legacy_pre30(feature_path):
-        logger.warning(
-            "Skipping pre-3.0 mission %s: run `spec-kitty upgrade` to migrate before acceptance scan.",
-            feature_path.name,
-        )
-        return
+    # Pre-3.0 layout: hard-reject (defense-in-depth — collect_feature_summary
+    # also guards eagerly). The retirement of the legacy reader must NOT degrade
+    # into a silent warn-and-skip: yielding zero work packages makes
+    # AcceptanceSummary vacuously ``all_done`` and lets ``accept`` auto-commit an
+    # unmigrated mission whose real (possibly un-done) WPs still sit in
+    # ``tasks/planned/`` etc. (#1057 / squad Blocker 1). Fail closed with the
+    # ``spec-kitty upgrade`` migration message, matching the task commands.
+    check_pre30_layout(feature_path)
 
     # Flat-layout: tasks/ directory, lane from frontmatter.
     for path in sorted(tasks_dir.glob("*.md")):
@@ -1211,6 +1213,15 @@ def collect_feature_summary(
     tasks_dir = feature_dir / "tasks"
     if not feature_dir.exists():
         raise AcceptanceError(f"Mission directory not found: {feature_dir}")
+
+    # #1057 / squad Blocker 1: hard-reject a pre-3.0 lane-directory mission BEFORE
+    # building the summary. WP tasks are a PRIMARY-partition kind, so they live on
+    # the primary anchor dir; the legacy detector reads ``tasks/{lane}/`` there.
+    # Without this guard the retired legacy reader degraded into an empty WP set →
+    # vacuously ``all_done`` → ``accept`` auto-committed an unmigrated mission. The
+    # raised ``Pre30LayoutError`` carries the ``spec-kitty upgrade`` instruction and
+    # is surfaced as exit 1 by every acceptance/verify entrypoint.
+    check_pre30_layout(feature_dir)
 
     branch, worktree_root, primary_repo_root, git_dirty_raw = _resolve_git_context(repo_root)
 

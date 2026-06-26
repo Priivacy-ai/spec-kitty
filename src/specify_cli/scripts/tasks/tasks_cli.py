@@ -161,6 +161,15 @@ def _collect_summary_with_encoding(
     strict_metadata: bool,
     normalize_encoding: bool,
 ) -> AcceptanceSummary:
+    # Boundary guard — hard-reject pre-3.0 layout before building any summary so
+    # accept/verify/status cannot vacuously pass on an unmigrated mission whose
+    # real WPs sit in tasks/{lane}/ (#1057). Mirrors the task-command pattern.
+    feature_path = resolve_feature_dir_for_mission(repo_root, feature)
+    try:
+        check_pre30_layout(feature_path)
+    except Pre30LayoutError as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(1)
     try:
         return collect_feature_summary(
             repo_root,
@@ -639,6 +648,16 @@ def merge_command(args: argparse.Namespace) -> None:
             f"Current branch '{current_branch}' does not match detected feature '{feature}'."
             " Run this command from the feature worktree or specify --mission explicitly."
         )
+
+    # Boundary guard — hard-reject pre-3.0 layout before any merge mutation
+    # (#1057). An unmigrated mission must fail closed with the upgrade message,
+    # never merge a lane-directory layout the runtime no longer reads.
+    merge_feature_path = resolve_feature_dir_for_mission(find_repo_root(), feature)
+    try:
+        check_pre30_layout(merge_feature_path)
+    except Pre30LayoutError as e:
+        print(str(e), file=sys.stderr)
+        sys.exit(1)
 
     try:
         git_common = run_git(["rev-parse", "--git-common-dir"], cwd=repo_root, check=True).stdout.strip()

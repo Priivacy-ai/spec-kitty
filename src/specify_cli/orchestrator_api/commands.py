@@ -1502,8 +1502,18 @@ def accept_mission(
         return
 
     from specify_cli.acceptance import collect_feature_summary
+    from specify_cli.upgrade.pre30_guard import Pre30LayoutError
 
-    summary = collect_feature_summary(main_repo_root, mission)
+    try:
+        summary = collect_feature_summary(main_repo_root, mission)
+    except Pre30LayoutError as exc:
+        # #1057 / squad Blocker 1: pre-3.0 lane-directory missions hard-reject
+        # rather than producing a vacuous all-done summary. A mission whose layout
+        # the runtime no longer reads is not acceptable until migrated, so it maps
+        # to MISSION_NOT_READY; the full `spec-kitty upgrade` instruction rides in
+        # the message field (keeping the orchestrator JSON envelope contract).
+        _fail(cmd, "MISSION_NOT_READY", str(exc), _mission_identity_payload(mission_dir))
+        return
     workflow_evidence_issues = [
         issue for issue in summary.activity_issues if issue.startswith("Workflow run evidence required:")
     ]
