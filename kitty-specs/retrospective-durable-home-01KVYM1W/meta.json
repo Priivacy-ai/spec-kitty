@@ -1,0 +1,32 @@
+{
+  "accept_commit": "646de8b2038d82503b7409c8b25513994ec741a2",
+  "acceptance_history": [
+    {
+      "accept_commit": "646de8b2038d82503b7409c8b25513994ec741a2",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-26T04:14:49.044521+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "56da2a22c9cbc9c8ba08eb5949ac231f91932643"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-26T04:14:49.044521+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "56da2a22c9cbc9c8ba08eb5949ac231f91932643",
+  "baseline_merge_commit": "d53f7b21f0b0c995e142ea01155d200c42a456fc",
+  "created_at": "2026-06-25T05:29:12.740756+00:00",
+  "flattened": true,
+  "friendly_name": "Teardown-Surface Hardening + Retrospective Durable Home",
+  "mission_id": "01KVYM1WS4M2FG00WGJV04N879",
+  "mission_number": 149,
+  "mission_slug": "retrospective-durable-home-01KVYM1W",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "When a coordination-topology mission is closed or merged, its retrospective is currently written into an ephemeral coordination worktree that is then deleted, so the record is silently lost. This mission gives retrospectives a durable home on the primary mission surface and guarantees they are persisted before any teardown, so post-mission learnings are never discarded.",
+  "purpose_tldr": "Mission retrospectives survive teardown by living in the tracked mission folder, not the throwaway coordination worktree.",
+  "slug": "retrospective-durable-home-01KVYM1W",
+  "target_branch": "fix/3.2.3-coord-surface-regressions",
+  "topology": "flat",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-25T20:59:11.206878+00:00"
+}

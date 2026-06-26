@@ -1,0 +1,194 @@
+schema_version: 1
+mission_id: 01KVYM1WS4M2FG00WGJV04N879
+mission_slug: retrospective-durable-home-01KVYM1W
+mission_number: 149
+friendly_name: Teardown-Surface Hardening + Retrospective Durable Home
+mission_type: software-dev
+target_branch: fix/3.2.3-coord-surface-regressions
+created_at: '2026-06-26T04:24:57.634165+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-06-26T04:24:57.634165+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-005
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-006
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-011
+not_helpful:
+- id: n-007
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-018
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+    issues and decisions.
+- id: n-001
+  category: process
+  summary: WP01 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-012
+  details: WP WP01 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-002
+  category: process
+  summary: WP02 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-013
+  details: WP WP02 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-003
+  category: process
+  summary: WP03 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-014
+  details: WP WP03 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-004
+  category: process
+  summary: WP04 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-015
+  details: WP WP04 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-005
+  category: process
+  summary: WP05 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-016
+  details: WP WP05 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-006
+  category: process
+  summary: WP06 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-017
+  details: WP WP06 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/retrospective-durable-home-01KVYM1W/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/retrospective-durable-home-01KVYM1W/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/retrospective-durable-home-01KVYM1W/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/retrospective-durable-home-01KVYM1W/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/retrospective-durable-home-01KVYM1W/tasks/WP01-handle-safe-primary-seam.md
+- id: e-006
+  kind: file
+  path: kitty-specs/retrospective-durable-home-01KVYM1W/tasks/WP02-retrospective-kind-authority.md
+- id: e-007
+  kind: file
+  path: kitty-specs/retrospective-durable-home-01KVYM1W/tasks/WP03-consolidate-home-resolution.md
+- id: e-008
+  kind: file
+  path: kitty-specs/retrospective-durable-home-01KVYM1W/tasks/WP04-teardown-seam-persist-tidy.md
+- id: e-009
+  kind: file
+  path: kitty-specs/retrospective-durable-home-01KVYM1W/tasks/WP05-recovery-command-repoint.md
+- id: e-010
+  kind: file
+  path: kitty-specs/retrospective-durable-home-01KVYM1W/tasks/WP06-filename-literal-hoist.md
+- id: e-011
+  kind: file
+  path: kitty-specs/retrospective-durable-home-01KVYM1W/status.events.jsonl
+- id: e-012
+  kind: event_range
+  path: kitty-specs/retrospective-durable-home-01KVYM1W/status.events.jsonl
+  range: 01KW0ATM0N9EZBJ8HHMENHM6QJ
+- id: e-013
+  kind: event_range
+  path: kitty-specs/retrospective-durable-home-01KVYM1W/status.events.jsonl
+  range: 01KW0BA1E8QK6PMB9ZX0GZ6PJZ..01KW0BKPMEGYY22X29PN289MBF
+- id: e-014
+  kind: event_range
+  path: kitty-specs/retrospective-durable-home-01KVYM1W/status.events.jsonl
+  range: 01KW0CHGZG4PRQW2AC5FD03X8J..01KW0D1EYTCNT6JQSA012SS12Q
+- id: e-015
+  kind: event_range
+  path: kitty-specs/retrospective-durable-home-01KVYM1W/status.events.jsonl
+  range: 01KW11DF1D1CHYT8YKM5M00Q8P..01KW120YNHYS3A3EYW1A73VZYA
+- id: e-016
+  kind: event_range
+  path: kitty-specs/retrospective-durable-home-01KVYM1W/status.events.jsonl
+  range: 01KW0A4F8F1M64FYF6HPEW4KR3..01KW0AQ7HHPWCCS0ATMBFGFG04
+- id: e-017
+  kind: event_range
+  path: kitty-specs/retrospective-durable-home-01KVYM1W/status.events.jsonl
+  range: 01KW0DGH9Z5VNX2DQ7GHR8ZD32..01KW0DXQYR9AWBRXS9MJPVYX49
+- id: e-018
+  kind: file
+  path: kitty-specs/retrospective-durable-home-01KVYM1W/analysis-report.md
+generator_version: '1.0'
+provenance_history: []

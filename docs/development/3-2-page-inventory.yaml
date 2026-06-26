@@ -3262,6 +3262,34 @@
   current_target: false
   citation_refs: []
   notes: Internal 3.2 documentation mission planning/support artifact.
+- path: docs/engineering_notes/3-2-3-surface-resolution-cluster/00-SYNTHESIS.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Internal 3.2.3 surface-resolution cluster research synthesis.
+- path: docs/engineering_notes/3-2-3-surface-resolution-cluster/alphonso-ssot-verdict.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Internal 3.2.3 surface-resolution cluster investigation evidence.
+- path: docs/engineering_notes/3-2-3-surface-resolution-cluster/debbie-live-confirmation.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Internal 3.2.3 surface-resolution cluster investigation evidence.
+- path: docs/engineering_notes/3-2-3-surface-resolution-cluster/paula-cluster-consolidation.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Internal 3.2.3 surface-resolution cluster investigation evidence.
 - path: docs/engineering_notes/3-2-x-goal-corroboration/DIALECTIC-SYNTHESIS.md
   tag: internal
   divio_type: none

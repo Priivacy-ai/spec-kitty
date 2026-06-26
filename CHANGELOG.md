@@ -7,7 +7,14 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased] - 3.2.3
+
+### ✨ Added
+
+- **Retrospectives now have a durable home and survive coordination teardown (#2119).**
+  A new `RETROSPECTIVE` primary-artifact kind routes `retrospective.yaml` to the
+  tracked `kitty-specs/<slug>/` mission folder for every topology, instead of the
+  ephemeral coordination worktree that is deleted on teardown.
 
 ### 🐛 Fixed
 
@@ -28,6 +35,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Supported callers should use `resolve_handle_to_read_path` /
   `resolve_feature_dir_for_mission`; white-box tests that need the 3-argument worker may
   import `_resolve_mission_read_path` directly.
+- **Retrospectives are persisted before any coordination teardown (#2119, #1771).**
+  The merge and `close --discard` paths now write the retrospective to its durable
+  home *before* destroying the coordination worktree (persist-before-destroy, run
+  outside the best-effort swallow), via one shared `coordination/teardown.py` seam
+  that consolidates the previously-duplicated teardown call sites. The 6 retrospective
+  home-resolution sites are unified onto a single primary-anchored authority.
+- **Handle-blind PRIMARY reads are canonicalized at the seam entry (#2136).**
+  `resolve_planning_read_dir` now canonicalizes a bare `mid8`/`slug` handle on the
+  caller side (keeping the `primary_feature_dir_for_mission` primitive blind to avoid
+  recursion), so a bare handle no longer resolves to a different directory than a
+  pre-resolved `<slug>-<mid8>` one; ambiguous handles raise rather than silently pick.
+- **Phantom `spec-kitty agent worktree repair` recovery guidance replaced with the
+  real `spec-kitty doctor workspaces --fix` (#1890)**, enforced by a `src/`-scoped,
+  count-agnostic grep-guard.
+
+### ♻️ Changed
+
+- **Extracted a shared atomic-YAML writer in `retrospective/writer.py` (#2125)**,
+  de-duplicating the write-temp-then-rename logic across the record-write sites, and
+  hoisted the `retrospective.yaml` filename to a single named constant.
+
 - **Orchestrator no longer stalls on a coord/`pr_bound` mission rooted on a writable
   target branch (#2118).** Continuing the split-brain remediation: the `#2090`
   write-surface change routes planning artifacts (`lanes.json` → `LANE_STATE`, WP
