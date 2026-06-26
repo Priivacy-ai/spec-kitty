@@ -15,8 +15,8 @@ subtasks:
 - T025
 - T026
 - T027
-agent: "claude:sonnet:python-pedro:implementer"
-shell_pid: "2931106"
+agent: "claude:sonnet:reviewer-renata:reviewer"
+shell_pid: "3065322"
 history:
 - timestamp: '2026-06-26T11:02:04Z'
   actor: planner
@@ -400,3 +400,5 @@ Reviewers should confirm:
 ## Activity Log
 
 - 2026-06-26T12:36:53Z – claude:sonnet:python-pedro:implementer – shell_pid=2931106 – Assigned agent via action command
+- 2026-06-26T13:05:29Z – claude:sonnet:python-pedro:implementer – shell_pid=2931106 – Ready: 13 sites routed across 7 files, 30/30 gate tests pass, ruff clean, allowlist shrinks 34→21
+- 2026-06-26T13:14:46Z – claude:sonnet:reviewer-renata:reviewer – shell_pid=3065322 – Started review via action command
