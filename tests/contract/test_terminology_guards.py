@@ -172,7 +172,11 @@ def test_no_mission_run_slug_help_text_in_cli_commands():
 
 
 def test_no_visible_feature_alias_in_cli_commands():
-    """--feature is acceptable only as a hidden=True alias.
+    """--feature must not appear at all in CLI-command Typer option blocks.
+
+    The alias was fully removed (#1060); it is no longer permitted even as a
+    ``hidden=True`` option. This is consistent with
+    ``test_zero_feature_flags_exist_cli_wide``.
 
     Authority: spec.md FR-005 and charter terminology canon.
     """
@@ -182,13 +186,11 @@ def test_no_visible_feature_alias_in_cli_commands():
             for offset, option_block in _iter_typer_option_blocks(content):
                 if '"--feature"' not in option_block:
                     continue
-                if "hidden=True" in option_block:
-                    continue
                 line = _line_number(content, offset)
                 pytest.fail(
-                    f"{path.relative_to(REPO_ROOT)}:{line}: --feature declared without hidden=True. "
+                    f"{path.relative_to(REPO_ROOT)}:{line}: --feature declared in a Typer option block. "
                     "Authority: spec.md FR-005 and charter terminology canon. "
-                    "Fix: declare --feature only as a hidden deprecated alias."
+                    "Fix: --feature must not appear at all — it was fully removed, not hidden."
                 )
 
 
@@ -449,9 +451,11 @@ def test_grep_guards_do_not_scan_historical_artifacts():
 def test_no_feature_alias_in_internal_command_cluster() -> None:
     """The in-scope internal command cluster must contain zero occurrences of ``--feature``.
 
-    This gate is stricter than ``test_no_visible_feature_alias_in_cli_commands``
-    (which only checks Typer Option blocks for ``hidden=True``).  The WP01/WP02
-    removals eliminated the alias entirely from these 10 files.  ANY reintroduction
+    This gate complements ``test_no_visible_feature_alias_in_cli_commands``
+    (which forbids ``--feature`` in any Typer Option block) by scanning the
+    in-scope files for ANY ``--feature`` literal, not just option declarations.
+    The WP01/WP02 removals eliminated the alias entirely from these 10 files.
+    ANY reintroduction
     — whether inside a typer.Option call, an ``alias_flag="--feature"`` argument,
     a ``resolve_selector(... "--feature" ...)`` call, or a stray comment-free
     string literal — must fail this gate.

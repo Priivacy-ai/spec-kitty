@@ -230,7 +230,6 @@ def _delegate_to_top_level_merge(
             dry_run=dry_run,
             json_output=False,
             mission=(resolved_feature or ""),
-            feature=cast(str, None),
             resume=False,  # Agent commands don't support resume
             abort=False,  # Agent commands don't support abort
             context_token=cast(str, None),

@@ -346,8 +346,8 @@ spec-kitty next --agent <agent> --mission <mission-slug> --result failed --json
 spec-kitty next --agent <agent> --mission <mission-slug> --result blocked --json
 ```
 
-> **Note:** `--feature` is a hidden deprecated alias for `--mission`.
-> Always use `--mission` in new scripts.
+> **Note:** `--mission` is the sole selector. The legacy `--feature` alias has
+> been removed (#1060); passing `--feature` now exits with `No such option`.
 
 The `--result` flag tells the runtime the outcome of the previous step.
 If omitted, `spec-kitty next` returns current state without advancing (query mode).
