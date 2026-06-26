@@ -991,15 +991,24 @@ def _record_module_attr_edges(
     tree: ast.Module,
     alias_map: dict[str, str],
     per_symbol: dict[str, set[str]],
+    known_modules: frozenset[str],
 ) -> None:
     """Record caller-edges from ``alias.attr`` attribute patterns (detector a).
 
     For every ``<alias>.<name>`` node where ``<alias>`` resolves to a
-    dotted module via ``alias_map``, records
+    *real module* (a key in ``known_modules``) via ``alias_map``, records
     ``per_symbol[resolved_module].add(name)``.
 
     This subsumes the previously-missing Typer ``app.command()`` and
     lifecycle-module attribute patterns (detector c in the research).
+
+    The ``known_modules`` guard is load-bearing (T004 / no-false-negative):
+    ``from M import SomeClass as C`` binds ``C`` to the *synthetic* path
+    ``M.SomeClass`` (a symbol, not a module). A class-attribute access
+    ``C.NAME`` must NOT record a module-edge on ``M`` — otherwise
+    ``_submodule_index`` would index ``M.SomeClass`` under prefix ``M`` and
+    rule 3 of ``_symbol_has_caller`` would falsely rescue a genuinely-dead
+    ``M::NAME``, silently re-blinding the very gate this mission hardens.
     """
     for node in ast.walk(tree):
         if (
@@ -1007,19 +1016,24 @@ def _record_module_attr_edges(
             and isinstance(node.value, ast.Name)
             and node.value.id in alias_map
         ):
-            per_symbol.setdefault(alias_map[node.value.id], set()).add(node.attr)
+            resolved = alias_map[node.value.id]
+            if resolved in known_modules:
+                per_symbol.setdefault(resolved, set()).add(node.attr)
 
 
 def _record_getattr_str_edges(
     tree: ast.Module,
     alias_map: dict[str, str],
     per_symbol: dict[str, set[str]],
+    known_modules: frozenset[str],
 ) -> None:
     """Record caller-edges from ``getattr(alias, 'name')`` patterns (detector d).
 
     For every ``getattr(<alias>, <str_literal>)`` call where ``<alias>``
-    resolves via ``alias_map``, records
-    ``per_symbol[resolved_module].add(str_literal)``.
+    resolves to a *real module* (in ``known_modules``) via ``alias_map``,
+    records ``per_symbol[resolved_module].add(str_literal)``. See
+    ``_record_module_attr_edges`` for why the ``known_modules`` guard is
+    required to avoid re-blinding the gate via a symbol-path collision.
     """
     for node in ast.walk(tree):
         if not (
@@ -1034,7 +1048,9 @@ def _record_getattr_str_edges(
             continue
         if not (isinstance(attr_arg, ast.Constant) and isinstance(attr_arg.value, str)):
             continue
-        per_symbol.setdefault(alias_map[obj.id], set()).add(attr_arg.value)
+        resolved = alias_map[obj.id]
+        if resolved in known_modules:
+            per_symbol.setdefault(resolved, set()).add(attr_arg.value)
 
 
 def _find_facade_lazy_dict_name(tree: ast.Module) -> str | None:
@@ -1082,6 +1098,7 @@ def _record_facade_edges(
     containing_pkg: str,
     str_consts: dict[str, str],
     per_symbol: dict[str, set[str]],
+    known_modules: frozenset[str],
 ) -> None:
     """Record caller-edges from a ``__getattr__``-style lazy-import facade (detector b).
 
@@ -1130,7 +1147,8 @@ def _record_facade_edges(
             if mod_path is None:
                 continue
             resolved = _resolve_relative_module(mod_path, containing_pkg)
-            per_symbol.setdefault(resolved, set()).add(attr_name)
+            if resolved in known_modules:
+                per_symbol.setdefault(resolved, set()).add(attr_name)
 
 
 def _extract_all_literal(tree: ast.Module) -> frozenset[str] | None:
@@ -1222,6 +1240,12 @@ def _imports_by_target(
     """
     per_symbol: dict[str, set[str]] = {}
     star_targets: set[str] = set()
+    # The set of REAL src modules. Attribute/getattr/facade detectors only
+    # record an edge when the alias resolves to a member of this set, so a
+    # symbol-path collision (``from M import Cls as C; C.NAME``) cannot
+    # re-blind the gate (T004 / no-false-negative). See
+    # ``_record_module_attr_edges``.
+    known_modules = frozenset(path_to_dotted.values())
     for path, tree in path_to_tree.items():
         containing = _package_of(path)
         alias_map, str_consts = _build_alias_map_and_consts(tree, containing)
@@ -1233,9 +1257,9 @@ def _imports_by_target(
                         star_targets.add(target)
                     else:
                         per_symbol.setdefault(target, set()).add(alias.name)
-        _record_module_attr_edges(tree, alias_map, per_symbol)
-        _record_getattr_str_edges(tree, alias_map, per_symbol)
-        _record_facade_edges(tree, containing, str_consts, per_symbol)
+        _record_module_attr_edges(tree, alias_map, per_symbol, known_modules)
+        _record_getattr_str_edges(tree, alias_map, per_symbol, known_modules)
+        _record_facade_edges(tree, containing, str_consts, per_symbol, known_modules)
     return per_symbol, star_targets
 
 
@@ -1296,6 +1320,36 @@ def _submodule_index(per_symbol: dict[str, set[str]]) -> dict[str, list[str]]:
     return out
 
 
+def _compute_offenders(
+    decls: dict[str, frozenset[str]],
+    per_symbol: dict[str, set[str]],
+    star_targets: set[str],
+    allowlist: frozenset[str],
+) -> list[str]:
+    """Return sorted ``module::Name`` offenders for the symbol-level gate.
+
+    Extracted so the end-to-end "teeth" self-test
+    (``test_gate_still_flags_a_truly_dead_symbol``) drives a constructed
+    dead-symbol fixture through the *exact* aggregate path the real gate
+    uses — proving the four additive caller-detectors did not turn the gate
+    into a silent no-op (NFR-001 / gate-can't-self-validate).
+    """
+    submodule_index = _submodule_index(per_symbol)
+    offenders: list[str] = []
+    for mod_dotted, names in sorted(decls.items()):
+        if mod_dotted in star_targets:
+            # Star-imported elsewhere; ``__all__`` is consumed wholesale.
+            continue
+        for name in sorted(names):
+            qualified = f"{mod_dotted}::{name}"
+            if qualified in allowlist:
+                continue
+            if _symbol_has_caller(name, mod_dotted, per_symbol, submodule_index):
+                continue
+            offenders.append(qualified)
+    return offenders
+
+
 def test_no_public_symbol_in_all_is_unimported() -> None:
     """Every name in every ``__all__`` must have at least one caller in src/.
 
@@ -1307,18 +1361,7 @@ def test_no_public_symbol_in_all_is_unimported() -> None:
     per_symbol, star_targets = _imports_by_target(path_to_dotted, path_to_tree)
     submodule_index = _submodule_index(per_symbol)
 
-    offenders: list[str] = []
-    for mod_dotted, names in sorted(decls.items()):
-        if mod_dotted in star_targets:
-            # Star-imported elsewhere; ``__all__`` is consumed wholesale.
-            continue
-        for name in sorted(names):
-            qualified = f"{mod_dotted}::{name}"
-            if qualified in _SYMBOL_ALLOWLIST:
-                continue
-            if _symbol_has_caller(name, mod_dotted, per_symbol, submodule_index):
-                continue
-            offenders.append(qualified)
+    offenders = _compute_offenders(decls, per_symbol, star_targets, _SYMBOL_ALLOWLIST)
 
     # Detect stale allowlist entries (good news: the symbol gained a
     # caller; remove from allowlist).
@@ -1410,7 +1453,7 @@ def test_no_false_negative_module_attr_detector() -> None:
     tree = ast.parse(src)
     alias_map, _ = _build_alias_map_and_consts(tree, "")
     ps: dict[str, set[str]] = {}
-    _record_module_attr_edges(tree, alias_map, ps)
+    _record_module_attr_edges(tree, alias_map, ps, frozenset({"other_pkg"}))
     sub_idx = _submodule_index(ps)
 
     # The resolved module IS rescued.
@@ -1429,7 +1472,7 @@ def test_no_false_negative_getattr_detector() -> None:
     tree = ast.parse(src)
     alias_map, _ = _build_alias_map_and_consts(tree, "")
     ps: dict[str, set[str]] = {}
-    _record_getattr_str_edges(tree, alias_map, ps)
+    _record_getattr_str_edges(tree, alias_map, ps, frozenset({"target_mod"}))
     sub_idx = _submodule_index(ps)
 
     assert _symbol_has_caller("Bar", "target_mod", ps, sub_idx), (
@@ -1455,7 +1498,9 @@ def test_no_false_negative_facade_detector() -> None:
     tree = ast.parse(src)
     _, str_consts = _build_alias_map_and_consts(tree, "mypkg")
     ps: dict[str, set[str]] = {}
-    _record_facade_edges(tree, "mypkg", str_consts, ps)
+    _record_facade_edges(
+        tree, "mypkg", str_consts, ps, frozenset({"mypkg.sub", "mypkg.other"})
+    )
     sub_idx = _submodule_index(ps)
 
     # Cls is exported from mypkg.sub
@@ -1468,3 +1513,65 @@ def test_no_false_negative_facade_detector() -> None:
     assert not _symbol_has_caller("Cls", "mypkg.unrelated", ps, sub_idx), (
         "mypkg.unrelated::Cls must NOT be rescued"
     )
+
+
+def test_no_false_negative_aliased_symbol_import_does_not_reblind() -> None:
+    """T004 regression: ``from M import Cls as C; C.NAME`` must NOT rescue ``M::NAME``.
+
+    This is the re-blinding vector the ``known_modules`` guard closes. ``C``
+    binds to the synthetic path ``M.SomeClass`` (a symbol, not a module);
+    a class-attribute access ``C.NAME`` must not be mistaken for a
+    module-attribute access on ``M``. ``M`` is a real module, but
+    ``M.SomeClass`` is not — so no edge may be recorded, and a genuinely-dead
+    ``M::NAME`` stays flagged.
+    """
+    src = "from M import SomeClass as C\nC.NAME"
+    tree = ast.parse(src)
+    alias_map, _ = _build_alias_map_and_consts(tree, "")
+    # ``M`` is a real module; ``M.SomeClass`` (the alias target) is NOT.
+    known_modules = frozenset({"M"})
+    ps: dict[str, set[str]] = {}
+    _record_module_attr_edges(tree, alias_map, ps, known_modules)
+    sub_idx = _submodule_index(ps)
+
+    assert not _symbol_has_caller("NAME", "M", ps, sub_idx), (
+        "M::NAME must NOT be rescued by the class-attribute access C.NAME "
+        "(C = SomeClass imported from M); recording that edge would re-blind "
+        "the gate via _submodule_index rule 3."
+    )
+    # Sanity: without the guard the collision DOES rescue — proves the guard
+    # is the load-bearing difference, not a vacuous assertion.
+    ps_unguarded: dict[str, set[str]] = {}
+    _record_module_attr_edges(
+        tree, alias_map, ps_unguarded, frozenset({"M", "M.SomeClass"})
+    )
+    assert _symbol_has_caller(
+        "NAME", "M", ps_unguarded, _submodule_index(ps_unguarded)
+    ), "control: with M.SomeClass treated as a module, the collision rescues M::NAME"
+
+
+def test_gate_still_flags_a_truly_dead_symbol() -> None:
+    """End-to-end teeth (NFR-001): the hardened gate is not a silent no-op.
+
+    Four additive caller-detectors can only ADD rescues, so a self-test must
+    prove the aggregate path still FLAGS a symbol that nothing imports — and
+    still PASSES one that has a real caller. Driven through the same
+    ``_compute_offenders`` path the production gate uses.
+    """
+    decls = {"synthetic.deadmod": frozenset({"NeverImported"})}
+
+    # No caller of any kind → still flagged.
+    flagged = _compute_offenders(decls, {}, set(), frozenset())
+    assert flagged == ["synthetic.deadmod::NeverImported"], (
+        f"gate must flag a symbol with zero callers; got {flagged!r}"
+    )
+
+    # A real direct importer → not flagged (control).
+    with_caller = {"synthetic.deadmod": {"NeverImported"}}
+    assert _compute_offenders(decls, with_caller, set(), frozenset()) == [], (
+        "a symbol with a real caller must NOT be flagged"
+    )
+
+    # Allowlisted → not flagged (control for the exception path).
+    allow = frozenset({"synthetic.deadmod::NeverImported"})
+    assert _compute_offenders(decls, {}, set(), allow) == []
