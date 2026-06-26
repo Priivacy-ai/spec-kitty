@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-26T13:18:55.024458+00:00",
+      "accepted_by": "claude:opus:orchestrator",
+      "accepted_from_commit": "572cdd12f353434aea6d7d80260fd984331f6415"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-26T13:18:55.024458+00:00",
+  "accepted_by": "claude:opus:orchestrator",
+  "accepted_from_commit": "572cdd12f353434aea6d7d80260fd984331f6415",
   "coordination_branch": "kitty/mission-spec-kitty-home-isolation-01KW1JXX",
   "created_at": "2026-06-26T09:07:17.458509+00:00",
   "flattened": false,
