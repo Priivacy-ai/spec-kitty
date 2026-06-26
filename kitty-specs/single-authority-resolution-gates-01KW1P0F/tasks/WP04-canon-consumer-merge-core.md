@@ -14,7 +14,8 @@ subtasks:
 - T020
 - T021
 - T022
-agent: claude
+agent: "claude:sonnet:python-pedro:implementer"
+shell_pid: "2931106"
 history:
 - timestamp: '2026-06-26T11:02:04Z'
   actor: planner
@@ -287,3 +288,7 @@ Reviewers should confirm:
 4. No coord-authority sites (IC-03) were misclassified as canonicalizer sites.
 5. `ruff` and `mypy` are clean on all 6 source files.
 6. `git/commit_helpers.py` is unmodified (verify via `git diff -- src/specify_cli/git/commit_helpers.py`).
+
+## Activity Log
+
+- 2026-06-26T12:36:48Z – claude:sonnet:python-pedro:implementer – shell_pid=2931106 – Assigned agent via action command
