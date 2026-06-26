@@ -201,6 +201,21 @@ description: "Work package task list for SPEC_KITTY_HOME State Isolation"
 | FR-012 | WP01 |
 | FR-013 | WP06 |
 
+### Non-Functional & Constraint Coverage
+
+`map-requirements` validates functional requirements only; NFR/Constraint coverage is tracked here for traceability.
+
+| Requirement ID | Covered By Work Package(s) |
+|----------------|----------------------------|
+| NFR-001 (POSIX byte-identical when unset) | WP01, WP02, WP03, WP04, WP05, WP06 |
+| NFR-002 (pure resolution, no dir creation) | WP01 |
+| NFR-003 (Windows precedence + normalization) | WP01, WP03 |
+| NFR-004 (ruff/mypy/≥90% coverage) | WP06 (+ per-WP lint/type runs) |
+| NFR-005 (no secrets outside resolved root) | WP03 |
+| C-001 (no auto-migration) | WP06 |
+| C-002 (in-repo scope only) | WP06 |
+| C-003 (single state-root selector) | WP01, WP03, WP04 |
+
 ---
 
 ## Subtask Index (Reference)

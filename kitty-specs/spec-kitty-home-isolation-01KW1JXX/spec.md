@@ -100,7 +100,7 @@ while preserving today's behavior exactly when the variable is unset.
 |----|-------------|---------------------|--------|
 | NFR-001 | Backward compatibility when `SPEC_KITTY_HOME` is unset. | POSIX state paths are byte-identical to the current `~/.spec-kitty` layout; 0 regressions in the existing suite plus dedicated no-env assertions. | Proposed |
 | NFR-002 | Path resolution remains a pure operation. | Resolving any state path creates 0 directories as a side effect. | Proposed |
-| NFR-003 | Windows behavior is preserved and overridable. | With the variable unset, Windows resolution is unchanged; with it set, the variable takes precedence — both proven by win32-path tests. | Proposed |
+| NFR-003 | Windows behavior is consistent and overridable. | With the variable unset, Windows resolves to the platformdirs app-data base; surfaces that previously leaked to `~/.spec-kitty` are intentionally normalized onto that base (decision `DM-01KW1KDHVGWZ0QERDMV1CRJ15S`; no auto-migration of existing data); with the variable set, it takes precedence — all proven by win32-path tests. | Proposed |
 | NFR-004 | Code quality bar. | New/changed code passes `ruff` and `mypy --strict` with 0 issues and 0 warnings; new code carries ≥90% test coverage. | Proposed |
 | NFR-005 | Credential safety. | 0 credentials or secrets are written or logged outside the resolved root. | Proposed |
 
@@ -157,6 +157,11 @@ while preserving today's behavior exactly when the variable is unset.
   the isolated root will move it themselves. *(Confirmed — see C-001.)*
 - "Global sync state" here means the cross-mission state under the runtime state root; it
   does **not** change per-repository or per-mission artifact locations.
+- On Windows, several surfaces currently leak to `~/.spec-kitty` while others use the
+  platformdirs app-data base. The fix normalizes all surfaces onto the single platformdirs
+  base (decision `DM-01KW1KDHVGWZ0QERDMV1CRJ15S`); a few unset-Windows paths therefore move
+  onto that base. This is intended (see NFR-003) and carries no automatic data migration
+  (C-001).
 
 ---
 
