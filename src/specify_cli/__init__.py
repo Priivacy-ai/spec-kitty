@@ -325,7 +325,12 @@ def main() -> None:
     # handler is installed (no double-printing).
     from specify_cli.cli.logging_bootstrap import install_cli_logging_bootstrap
 
-    install_cli_logging_bootstrap()
+    # Machine mode: when invoked with ``--json``, agents commonly capture the
+    # merged ``2>&1`` stream and parse it — so diagnostic warnings/logs on stderr
+    # would corrupt the JSON. Run the bootstrap in silent mode so a successful
+    # ``--json`` run emits only the JSON object (errors are still emitted as JSON
+    # on stdout by the commands themselves).
+    install_cli_logging_bootstrap(json_mode="--json" in sys.argv)
 
     # Ensure UTF-8 encoding on Windows to handle Unicode characters in git output
     # Fixes: https://github.com/Priivacy-ai/spec-kitty/issues/66
