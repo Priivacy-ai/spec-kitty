@@ -492,6 +492,7 @@ class MissionStatus:
         """
         from specify_cli.missions._read_path_resolver import (
             StatusReadPathNotFound,
+            _canonicalize_primary_read_handle,
             candidate_feature_dir_for_mission,
             primary_feature_dir_for_mission,
             resolve_bare_modern_mission_dir_name,
@@ -503,7 +504,13 @@ class MissionStatus:
         # raw ``repo_root / KITTY_SPECS_DIR / <slug>`` surface path (WP01
         # raw-bypass; FR-008). The slug is also grammar-checked one level up at
         # the ``load`` boundary.
-        primary_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
+        # WP05/FR-005: route through _canonicalize_primary_read_handle so every
+        # handle form (bare mid8 / ULID / numeric prefix / bare human slug) lands
+        # on the correct composed primary dir — not a wrong literal dir.
+        primary_dir = primary_feature_dir_for_mission(
+            repo_root,
+            _canonicalize_primary_read_handle(repo_root, mission_slug),
+        )
         raw_meta = primary_dir / _META_JSON_FILENAME
         # Pure-path happy path: when the literal slug already names an existing
         # primary mission dir with ``meta.json``, it IS the canonical directory
@@ -741,11 +748,14 @@ class MissionStatus:
             # raw ``repo_root / KITTY_SPECS_DIR / <slug>`` self-composition for
             # any surface — even error-path diagnostics (WP01 raw-bypass).
             from specify_cli.missions._read_path_resolver import (
+                _canonicalize_primary_read_handle,
                 primary_feature_dir_for_mission,
             )
 
+            # WP05/FR-005: route through _canonicalize_primary_read_handle.
             diag_primary = primary_feature_dir_for_mission(
-                self.repo_root, self.mission_slug
+                self.repo_root,
+                _canonicalize_primary_read_handle(self.repo_root, self.mission_slug),
             )
             raise MissionMetadataUnavailable(
                 mission_slug=self.mission_slug,

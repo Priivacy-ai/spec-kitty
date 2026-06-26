@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 from specify_cli.missions._read_path_resolver import (
+    _canonicalize_primary_read_handle,
     primary_feature_dir_for_mission,
     resolve_feature_dir_for_mission,
 )
@@ -886,7 +887,13 @@ def _primary_anchor_feature_dir(repo_root: Path, feature: str, read_dir: Path) -
        primary-side directory exists (identity/existence was already validated
        by the read resolution).
     """
-    primary_candidate: Path = primary_feature_dir_for_mission(repo_root, feature)
+    # WP05/FR-005: route through _canonicalize_primary_read_handle so every
+    # handle form (bare mid8 / ULID / numeric prefix / bare human slug) lands
+    # on the correct composed primary dir.
+    primary_candidate: Path = primary_feature_dir_for_mission(
+        repo_root,
+        _canonicalize_primary_read_handle(repo_root, feature),
+    )
     if primary_candidate.exists():
         return primary_candidate
 

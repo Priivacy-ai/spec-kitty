@@ -99,6 +99,7 @@ from specify_cli.merge.state import (
 from specify_cli.merge.workspace import _worktree_removal_delay, cleanup_merge_workspace
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.missions._read_path_resolver import (
+    _canonicalize_primary_read_handle,
     candidate_feature_dir_for_mission,
     primary_feature_dir_for_mission,
 )
@@ -883,7 +884,10 @@ def _run_lane_based_merge_locked(
     """
     from specify_cli.lanes.compute import is_planning_artifact_only
 
-    target_feature_dir = primary_feature_dir_for_mission(main_repo, mission_slug)
+    target_feature_dir = primary_feature_dir_for_mission(
+        main_repo,
+        _canonicalize_primary_read_handle(main_repo, mission_slug),
+    )
     all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids]
     planning_artifact_only = is_planning_artifact_only(lanes_manifest)
 

@@ -589,7 +589,16 @@ def close_cmd(
     # coordination worktree exists it returns that worktree's status-only dir
     # (no meta.json → _read_mission_mid8 empties → teardown silently no-ops).
     # Re-anchor to the primary mission dir, matching how `mission reopen` resolves.
-    feature_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
+    # FR-005/WP03: fold through _canonicalize_primary_read_handle so the gate
+    # detects the handle as provably canonical (mission_slug is feature_dir.name
+    # from :584 — already composed — but the fold is explicit for the gate seam).
+    from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
+        _canonicalize_primary_read_handle,
+    )
+    feature_dir = primary_feature_dir_for_mission(
+        repo_root,
+        _canonicalize_primary_read_handle(repo_root, mission_slug),
+    )
 
     meta_path = feature_dir / "meta.json"
     mid8_value = _read_mission_mid8(meta_path)

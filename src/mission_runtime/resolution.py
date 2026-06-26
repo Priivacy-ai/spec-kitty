@@ -375,15 +375,21 @@ def _mid8_from_primary_meta(repo_root: Path, mission_slug: str) -> str:
     from specify_cli.coordination.surface_resolver import resolve_declared_mid8
     from specify_cli.mission_metadata import load_meta
     from specify_cli.missions._read_path_resolver import (
+        _canonicalize_primary_read_handle,
         primary_feature_dir_for_mission,
     )
 
     # FR-006: canonical reader contract (a) — None on a missing file, ValueError on
     # malformed; the ``except ValueError`` below reproduces the historical
     # malformed→"" degrade. Defaults are stated explicitly to document the chosen arm.
+    # WP05/FR-005: extract to local so the canonicalized handle feeds load_meta.
     try:
+        primary_dir = primary_feature_dir_for_mission(
+            repo_root,
+            _canonicalize_primary_read_handle(repo_root, mission_slug),
+        )
         meta = load_meta(
-            primary_feature_dir_for_mission(repo_root, mission_slug),
+            primary_dir,
             allow_missing=True,
             on_malformed="raise",
         )
@@ -697,10 +703,15 @@ def _resolve_coordination_branch(primary_root: Path, mission_slug: str) -> str |
     """
     from specify_cli.mission_metadata import load_meta
     from specify_cli.missions._read_path_resolver import (
+        _canonicalize_primary_read_handle,
         primary_feature_dir_for_mission,
     )
 
-    primary_dir = primary_feature_dir_for_mission(primary_root, mission_slug)
+    # WP05/FR-005: route through _canonicalize_primary_read_handle.
+    primary_dir = primary_feature_dir_for_mission(
+        primary_root,
+        _canonicalize_primary_read_handle(primary_root, mission_slug),
+    )
     # FR-006: canonical reader contract (a) — None on missing, ValueError on
     # malformed (defaults stated explicitly to document the chosen arm).
     try:
@@ -734,10 +745,15 @@ def _resolve_topology(primary_root: Path, mission_slug: str) -> MissionTopology:
     from mission_runtime.context import classify_topology
     from specify_cli.migration.backfill_topology import read_topology
     from specify_cli.missions._read_path_resolver import (
+        _canonicalize_primary_read_handle,
         primary_feature_dir_for_mission,
     )
 
-    primary_dir = primary_feature_dir_for_mission(primary_root, mission_slug)
+    # WP05/FR-005: route through _canonicalize_primary_read_handle.
+    primary_dir = primary_feature_dir_for_mission(
+        primary_root,
+        _canonicalize_primary_read_handle(primary_root, mission_slug),
+    )
     try:
         stored: MissionTopology = read_topology(primary_dir)
         return stored
@@ -805,10 +821,15 @@ def _resolve_mission_id(primary_root: Path, mission_slug: str) -> str:
     """
     from specify_cli.mission_metadata import load_meta
     from specify_cli.missions._read_path_resolver import (
+        _canonicalize_primary_read_handle,
         primary_feature_dir_for_mission,
     )
 
-    primary_dir = primary_feature_dir_for_mission(primary_root, mission_slug)
+    # WP05/FR-005: route through _canonicalize_primary_read_handle.
+    primary_dir = primary_feature_dir_for_mission(
+        primary_root,
+        _canonicalize_primary_read_handle(primary_root, mission_slug),
+    )
     # FR-006: canonical reader contract (a) — None on missing, ValueError on
     # malformed; the malformed arm degrades to the ``legacy-`` sentinel below.
     try:

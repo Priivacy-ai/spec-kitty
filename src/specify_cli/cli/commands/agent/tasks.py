@@ -11,6 +11,7 @@ from specify_cli.core.constants import (
     KITTY_SPECS_DIR,
 )
 from specify_cli.missions._read_path_resolver import (
+    _canonicalize_primary_read_handle,
     candidate_feature_dir_for_mission,
     primary_feature_dir_for_mission,
     resolve_feature_dir_for_mission,
@@ -60,6 +61,7 @@ from mission_runtime import (
     routes_through_coordination,
 )
 from specify_cli.coordination.commit_router import commit_for_mission
+from specify_cli.git import SafeCommitPathPolicyError
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.status import feature_status_lock
 from specify_cli.core.agent_config import get_auto_commit_default
@@ -545,6 +547,37 @@ def _skip_target_branch_commit(repo_root: Path, mission_slug: str, target_branch
         _coord_topology_active(repo_root, mission_slug)
         and ProtectionPolicy.resolve(repo_root).is_protected(target_branch)
     )
+
+
+def _primary_bundle_status_artifacts(
+    main_repo_root: Path, mission_slug: str, status_artifacts: list[Path]
+) -> list[Path]:
+    """Drop coord-owned status files from a PRIMARY-surface auto-commit bundle.
+
+    #2155 (FR-002 / T010): the ``move_task`` auto-commit routes the WP file (a
+    ``WORK_PACKAGE_TASK`` / primary-partition artifact) through
+    ``commit_for_mission(kind=WORK_PACKAGE_TASK)``, which commits on the PRIMARY
+    repo root. Under coordination topology the coord-owned status files
+    (``status.events.jsonl`` / ``status.json``) resolved by
+    :func:`_collect_status_artifacts` live UNDER ``.worktrees/`` (the coord
+    worktree) and are ALREADY committed to the coordination branch by the
+    transactional emitter (``emit_status_transition_transactional``). Staging
+    those ``.worktrees/`` paths from the primary root trips the
+    ``SafeCommitPathPolicyError`` guard (#1887), which ``commit_for_mission``
+    folds into a ``status="error"`` result — leaving the working tree dirty and
+    the WP file uncommitted (the surviving #2155 residual).
+
+    The single canonical partition (``COORD_OWNED_STATUS_FILES``, the same set
+    ``implement.py:_exclude_coord_owned`` keys on) excludes coord-owned status
+    under coord topology only. On a flat/legacy mission the status files ARE
+    canonical on PRIMARY, so they stay in the bundle (the never-divergent
+    flat-topology behaviour the WP02 stored topology resolves transparently).
+    """
+    if not routes_through_coordination(resolve_topology(main_repo_root, mission_slug)):
+        return status_artifacts
+    from specify_cli.status import COORD_OWNED_STATUS_FILES
+
+    return [p for p in status_artifacts if p.name not in COORD_OWNED_STATUS_FILES]
 
 
 def _coord_status_events_path(repo_root: Path, mission_slug: str) -> Path | None:
@@ -1340,12 +1373,17 @@ def move_task(
             pass  # review package not available yet
 
         if target_lane in (Lane.APPROVED, Lane.DONE):
+            # FR-011 / T012: fold the operator handle to its canonical on-disk dir
+            # NAME before the topology-blind primary compose, so a bare mid8 / human
+            # slug lands on the durable ``<slug>-<mid8>`` home (and an ambiguous
+            # handle RAISES ``MissionSelectorAmbiguous`` — no silent pick, C-002).
+            _canonical_handle = _canonicalize_primary_read_handle(main_repo_root, mission_slug)
             issue_matrix_blocker = _issue_matrix_approval_blocker(
                 feature_dir,
                 target_lane=target_lane,
                 primary_feature_dir=primary_feature_dir_for_mission(
                     main_repo_root,
-                    mission_slug,
+                    _canonical_handle,
                 ),
             )
             if issue_matrix_blocker:
@@ -1545,7 +1583,21 @@ def move_task(
                     else:
                         write_text_within_directory(wp.path, updated_doc, root=main_repo_root, encoding="utf-8")
                         file_written = True
-                        status_artifacts = _collect_status_artifacts(feature_dir)
+                        # #2155 (FR-002 / T010): bundle ONLY primary-partition
+                        # artifacts into the ``WORK_PACKAGE_TASK`` primary commit.
+                        # Coord-owned status (events.jsonl / status.json) is already
+                        # committed to the coordination branch by the transactional
+                        # emitter; under coord topology it lives UNDER ``.worktrees/``,
+                        # so staging it from the primary root trips the #1887 guard,
+                        # which ``commit_for_mission`` folds into ``status="error"``
+                        # (the swallowed mixed-bundle residual). The partition keeps
+                        # ``tasks.md`` (TASKS_INDEX / primary) in the bundle and drops
+                        # the coord-owned files on coord topology only.
+                        status_artifacts = _primary_bundle_status_artifacts(
+                            main_repo_root,
+                            mission_slug,
+                            _collect_status_artifacts(feature_dir),
+                        )
                         # The WP file is WORK_PACKAGE_TASK (primary): route the commit
                         # through the ONE canonical ``commit_for_mission`` entry point
                         # (WP07 / FR-006) instead of the open-coded resolve_placement_only
@@ -1565,9 +1617,29 @@ def move_task(
                     if commit_success:
                         if not json_output:
                             console.print(f"[cyan]→ Committed status change to {target_branch} branch[/cyan]")
-                    elif not _skip_target_commit and not json_output:
-                        console.print("[yellow]Warning:[/yellow] Failed to auto-commit")
+                    elif not _skip_target_commit:
+                        # #2155 (FR-002 / T010): do NOT silently swallow a router
+                        # error as a soft "Failed to auto-commit". A non-committed
+                        # primary bundle (e.g. a guard refusal folded into
+                        # ``status="error"``) leaves the tree dirty — surface the
+                        # router diagnostic so the failure is visible, never hidden.
+                        diagnostic = getattr(_router_result, "diagnostic", None)
+                        detail = f": {diagnostic}" if diagnostic else ""
+                        if not json_output:
+                            console.print(
+                                f"[yellow]Warning:[/yellow] WP-file auto-commit "
+                                f"did not land ({_router_result.status}){detail}"
+                            )
 
+                except SafeCommitPathPolicyError:
+                    # #2155 (FR-002 / T010): a wrong-surface guard refusal is a real
+                    # defect, never an "Auto-commit skipped" warning — re-raise so it
+                    # surfaces. The partition above prevents this on a correct bundle;
+                    # reaching here means a coord-owned path leaked into the primary
+                    # commit and must NOT be hidden (C-006 guard stays authoritative).
+                    if not file_written:
+                        write_text_within_directory(wp.path, updated_doc, root=main_repo_root, encoding="utf-8")
+                    raise
                 except Exception as e:
                     if not file_written:
                         write_text_within_directory(wp.path, updated_doc, root=main_repo_root, encoding="utf-8")
@@ -1804,7 +1876,18 @@ def mark_status(
             if protected_error is not None:
                 _output_error(json_output, protected_error)
                 raise typer.Exit(1)
-        feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+        # #2154 (FR-001 / T008): ``tasks.md`` is a TASKS_INDEX (primary-partition)
+        # artifact — resolve the WRITE leg through the SAME kind-aware authority the
+        # validation read (``_check_unchecked_tasks`` ``:658``) and the commit leg
+        # (``:1906``) use, so the subtask write lands on the PRIMARY surface a
+        # coord-topology mission reads back from. The kind-blind
+        # ``resolve_feature_dir_for_mission`` returns the ``-coord`` husk under coord
+        # topology, so the write and the validation read diverged and every WP
+        # blocked on a phantom "unchecked subtasks" failure (#2154). The kind-aware
+        # authority resolves PRIMARY transparently for flat/legacy missions too.
+        feature_dir = resolve_planning_read_dir(
+            main_repo_root, mission_slug, kind=MissionArtifactKind.TASKS_INDEX
+        )
         tasks_md = feature_dir / TASKS_MD_FILENAME
 
         with feature_status_lock(main_repo_root, mission_slug):
@@ -2439,7 +2522,11 @@ def map_requirements(
         # (one read surface), not the divergent ``resolve_feature_dir_for_slug``.
         feature_dir = _map_requirements_feature_dir(main_repo_root, mission_slug)
         # PRIMARY-input invariant: ``spec.md`` is authored on PRIMARY — unchanged.
-        primary_dir = primary_feature_dir_for_mission(main_repo_root, mission_slug)
+        # FR-011 / T012: fold the handle to its canonical dir NAME first so a bare
+        # mid8 / human slug resolves the durable ``<slug>-<mid8>`` home (ambiguous
+        # handle RAISES — no silent pick, C-002).
+        _canonical_handle = _canonicalize_primary_read_handle(main_repo_root, mission_slug)
+        primary_dir = primary_feature_dir_for_mission(main_repo_root, _canonical_handle)
 
         if not feature_dir.exists():
             _output_error(json_output, f"Mission directory not found: {feature_dir}")

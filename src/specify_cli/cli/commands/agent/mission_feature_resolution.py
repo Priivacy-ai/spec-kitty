@@ -132,10 +132,15 @@ def _safe_load_meta(repo_root: Path, mission_slug: str) -> dict[str, object] | N
     """
     from specify_cli.mission_metadata import load_meta
     from specify_cli.missions._read_path_resolver import (
+        _canonicalize_primary_read_handle,
         primary_feature_dir_for_mission,
     )
 
-    feature_dir = primary_feature_dir_for_mission(repo_root, mission_slug)
+    # WP05/FR-005: route through _canonicalize_primary_read_handle.
+    feature_dir = primary_feature_dir_for_mission(
+        repo_root,
+        _canonicalize_primary_read_handle(repo_root, mission_slug),
+    )
     try:
         meta = load_meta(feature_dir)
     except ValueError:

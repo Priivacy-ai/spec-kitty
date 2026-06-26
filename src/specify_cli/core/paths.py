@@ -618,10 +618,16 @@ def get_feature_target_branch(repo_root: Path, mission_slug: str) -> str:
     # ``target_branch`` (the finalize-tasks / implement-loop refusal-to-main bug,
     # WP00 / FR-004). This mirrors ``resolve_merge_target_branch`` below exactly.
     from specify_cli.core.git_ops import resolve_primary_branch
-    from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+    from specify_cli.missions._read_path_resolver import (
+        _canonicalize_primary_read_handle,
+        primary_feature_dir_for_mission,
+    )
 
     main_root = get_main_repo_root(repo_root)
-    meta_file = primary_feature_dir_for_mission(main_root, mission_slug) / "meta.json"
+    meta_file = primary_feature_dir_for_mission(
+        main_root,
+        _canonicalize_primary_read_handle(main_root, mission_slug),
+    ) / "meta.json"
     fallback = str(resolve_primary_branch(main_root))
 
     if not meta_file.exists():
@@ -662,14 +668,20 @@ def resolve_merge_target_branch(
     # imported very early, while these pull in the missions/git layers that import
     # back into core — module-level imports here would form a circular import.
     from specify_cli.core.git_ops import resolve_primary_branch
-    from specify_cli.missions._read_path_resolver import primary_feature_dir_for_mission
+    from specify_cli.missions._read_path_resolver import (
+        _canonicalize_primary_read_handle,
+        primary_feature_dir_for_mission,
+    )
 
     main_root = get_main_repo_root(repo_root)
     fallback = str(resolve_primary_branch(main_root))
     if not mission_slug:
         return fallback, "primary_branch"
 
-    meta_file = primary_feature_dir_for_mission(main_root, mission_slug) / "meta.json"
+    meta_file = primary_feature_dir_for_mission(
+        main_root,
+        _canonicalize_primary_read_handle(main_root, mission_slug),
+    ) / "meta.json"
     if meta_file.exists():
         try:
             data = json.loads(meta_file.read_text(encoding="utf-8"))
