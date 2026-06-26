@@ -56,8 +56,9 @@ src/specify_cli/
 │   ├── receivers.py            #   Teamspace + external-receiver target types + stub
 │   └── config.py               #   EventSyncConfig (retention × delivery presets)
 ├── sync/
-│   ├── queue.py                #   shrinks to a thin compat/shim over events+delivery (or retires)
-│   └── migrate_journal.py      #   NEW — server-scoped queue → journal + ledger backfill
+│   ├── queue.py                #   KEEPS body_upload_queue/body_upload_failure_log (setup-plan/
+│   │                           #   dossier sync — NOT event queueing); only EVENT queueing moves out
+│   └── migrate_journal.py      #   NEW — discover queue-<digest>.db scoped DBs → journal + ledger backfill
 └── cli/commands/sync*          #   sync now / server / status / gc / archive wiring
 
 tests/
@@ -66,7 +67,7 @@ tests/
 └── ...                         # observable-state + on-disk assertions
 ```
 
-**Structure Decision**: Single-project CLI library. The two new domains (`events/`, `delivery/`) carry all new logic; `sync/queue.py` is reduced to a compatibility seam (or retired) once the dispatcher/journal land, so existing `sync` CLI commands keep working with new semantics.
+**Structure Decision**: Single-project CLI library. The two new domains (`events/`, `delivery/`) carry all new event-delivery logic. `sync/queue.py` is **not** retired: it continues to own `body_upload_queue` / `body_upload_failure_log` (setup-plan / dossier body uploads, which are not event queueing — C-006). Only the event-queueing responsibility moves out, so existing `sync` CLI commands keep working with new semantics and non-event uploads are untouched.
 
 ## Implementation Concern Map
 
@@ -82,11 +83,19 @@ tests/
 
 ### IC-02 — Event Journal (append-only, producer-scoped)
 
-- **Purpose**: Durable local payload store that does not know delivery state; producer-scoped, not server-scoped.
-- **Relevant requirements**: FR-001, FR-003, FR-011 (coalesce only among undelivered events).
+- **Purpose**: Durable local payload store that does not know delivery state; producer-scoped, not server-scoped. **Append-only with NO coalescing at this stage** — coalescing is deliberately deferred to IC-02a because it needs the ledger to answer "delivered anywhere?".
+- **Relevant requirements**: FR-001, FR-003.
 - **Affected surfaces**: `events/journal.py`, `events/models.py`.
 - **Sequencing/depends-on**: IC-01.
-- **Risks**: coalescing must not mutate an event with any terminal delivery — the correctness trap; needs the ledger to answer "delivered anywhere?".
+- **Risks**: must not re-introduce the in-place mutation that today's `_try_coalesce` does; until IC-04a lands, every produced event is a distinct row.
+
+### IC-02a — Coalescing with delivered-event immutability (deferred until the ledger exists)
+
+- **Purpose**: Re-introduce coalescing safely — collapse only events with no terminal delivery to any target; once an event has been delivered anywhere it is immutable and a new event is a new row (mark the prior superseded).
+- **Relevant requirements**: FR-011.
+- **Affected surfaces**: `events/journal.py` (coalesce path), `delivery/ledger.py` (delivered-anywhere query).
+- **Sequencing/depends-on**: IC-02, **IC-04 (ledger must exist first)**.
+- **Risks**: the correctness trap from the review — delivered-event immutability is a **required DB test** (NFR-002), not prose. A coalesce attempt against a delivered event must leave it byte-for-byte unchanged.
 
 ### IC-03 — Delivery Target Registry & identity
 
@@ -106,11 +115,19 @@ tests/
 
 ### IC-05 — Sync Dispatcher
 
-- **Purpose**: Select journal events lacking terminal successful delivery for the active target, post, update the ledger; never delete source events. Map `success`/`duplicate`/`failed_permanent` to ledger writes (today they DELETE, `queue.py:1693`); keep `pending`/`rejected`/`failed_transient` semantics (already aligned, `queue.py:1666-1678`).
-- **Relevant requirements**: FR-001, FR-004, FR-005, FR-011.
+- **Purpose**: Select journal events lacking terminal delivery for the active target, post, update the ledger; never delete source events. Outcome mapping (today `success`/`duplicate`/`failed_permanent` all DELETE, `queue.py:1693`): `success`/`duplicate` → terminal-success ledger rows; `pending`/`rejected`/`failed_transient` keep their current semantics (already aligned, `queue.py:1666-1678`) as ledger state, not deletes. **`failed_permanent` is NOT a delete and NOT a success** — see IC-05a.
+- **Relevant requirements**: FR-001, FR-004, FR-005.
 - **Affected surfaces**: `delivery/dispatcher.py`, `cli/commands/sync*`.
 - **Sequencing/depends-on**: IC-02, IC-04.
 - **Risks**: complexity ceiling — split select/post/record phases.
+
+### IC-05a — Terminal-failed state machine (`failed_permanent`)
+
+- **Purpose**: Decide what a permanent failure (e.g. oversized event) means once events are never deleted. Resolution: a **terminal-failed ledger state** that is *selector-excluded* from future drains (so the drain still progresses, as the old DELETE achieved) and stays inspectable; the payload is retained, never deleted. Re-attempt only via explicit operator action.
+- **Relevant requirements**: FR-015.
+- **Affected surfaces**: `delivery/ledger.py` (state), `delivery/dispatcher.py` (selection excludes terminal-failed).
+- **Sequencing/depends-on**: IC-04, IC-05.
+- **Risks**: forgetting to exclude terminal-failed from the selector would loop the drain on an oversized event. Tests for oversized events are required.
 
 ### IC-06 — EventSyncConfig policy & modes
 
@@ -120,21 +137,21 @@ tests/
 - **Sequencing/depends-on**: IC-05.
 - **Risks**: clear mode semantics (LOCAL_RETENTION journals-no-deliver; OPT_OUT neither).
 
-### IC-07 — External receiver & test stub
+### IC-07 — `DeliveryReceiver` contract (Teamspace / external / stub)
 
-- **Purpose**: Generalize delivery to an operator endpoint; provide a localhost stub that accepts+records, so tests/fork-CI need no Teamspace/`teamspace_key`.
-- **Relevant requirements**: FR-007, FR-008, SC-005.
-- **Affected surfaces**: `delivery/receivers.py`, test fixtures.
+- **Purpose**: Define one explicit `DeliveryReceiver` contract so all target types share the IC-05 dispatch path: **endpoint URL**, **auth/headers**, **per-event result mapping** (→ success/duplicate/pending/rejected/terminal-failed/transient), **retry semantics**, and **which gates apply**. The current Teamspace batch path is SaaS-gated + Private-Teamspace-gated + Bearer-auth + fixed to `/api/v1/events/batch/` (`sync/batch.py`) — that becomes the Teamspace receiver; `external` is operator-supplied URL/auth with no Teamspace gating; `stub` is a localhost receiver with no credentials. Provide a real no-credentials localhost stub so tests/fork-CI need no `teamspace_key`.
+- **Relevant requirements**: FR-007, FR-008, FR-014, SC-005, SC-007.
+- **Affected surfaces**: `delivery/receivers.py`, `delivery/dispatcher.py` (consumes the contract), test fixtures.
 - **Sequencing/depends-on**: IC-05, IC-06.
-- **Risks**: stub must be a real target type, not a test-only fork of the dispatch path.
+- **Risks**: the stub must be a real target type implementing the same contract, not a test-only fork of the dispatch path. Gates must be expressed per receiver, not hard-coded in the dispatcher.
 
-### IC-08 — Migration off the server-scoped queue
+### IC-08 — Migration off the hash-scoped queues
 
-- **Purpose**: Consolidate possibly-several `server|user|team` queue DBs into one producer-scoped journal + backfill ledger; preserve all currently-queued payloads; be explicit that delivered-and-deleted events are unrecoverable.
-- **Relevant requirements**: FR-013, NFR-005.
-- **Affected surfaces**: `sync/migrate_journal.py`, existing `queue.py` scope helpers.
+- **Purpose**: Migrate currently-queued events out of the existing `queue-<digest>.db` scoped DBs into the journal + ledger. The digest is a one-way hash of `server|user|team`, so URL/scope **cannot be recovered from the filename** — the migration must therefore: (a) **discover** all scoped DBs (glob the queue dir, not just the legacy `queue.db` the current migration handles), (b) attach migrated events to a **best-effort or explicitly-`unknown`** delivery target rather than fabricating identity, (c) define **duplicate-`event_id` collision rules** when consolidating multiple DBs, (d) **skip/handle an unrecognized digest** without aborting, and (e) be explicit that delivered-and-deleted events are unrecoverable (only currently-queued payloads survive).
+- **Relevant requirements**: FR-013, NFR-005, SC-006.
+- **Affected surfaces**: `sync/migrate_journal.py`, existing `queue.py` scope helpers (`build_queue_scope`, the digest path builder).
 - **Sequencing/depends-on**: IC-02, IC-04.
-- **Risks**: atomicity per DB; idempotent re-run; honest handling of multiple source DBs.
+- **Risks**: atomicity per DB; idempotent re-run; plural-source tests (multiple DBs, unknown scope, duplicate `event_id`) are required by SC-006 — a single-DB happy path is insufficient.
 
 ### IC-09 — `sync status` / `gc` / `archive`
 

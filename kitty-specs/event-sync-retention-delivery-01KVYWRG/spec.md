@@ -73,7 +73,7 @@ An operator can see how much is retained and how much is delivered to the curren
 - **Target reset under a stable URL**: a preview env is wiped but keeps its URL. URL+scope identity would report "fully delivered" while the server has nothing. The system records server-advertised deployment identity and uses a *change* in it to detect the reset and offer a re-drain — without forking target identity on every redeploy (Upsun re-stamps `deployment_id` per push).
 - **Coalescing after delivery**: a new event arrives that would coalesce into an event already delivered to some target. The system must not mutate a delivered event (that would make the ledger lie); it coalesces only among undelivered events and otherwise records a new event, marking the prior superseded.
 - **Migration with no recoverable history**: events already delivered-and-deleted under the old destructive queue cannot be reconstructed; migration preserves only currently-queued payloads and says so.
-- **Multiple pre-existing scoped queue DBs** (`server|user|team`) must consolidate into one producer-scoped journal without losing queued payloads.
+- **Hash-only scoped DB paths**: existing scoped queues are stored as `queue-<digest>.db`, where the digest is a one-way hash of `server|user|team` — so the original URL/scope **cannot be recovered from the filename**. Migration must (a) discover all such DBs, (b) attach migrated events to a best-effort or explicitly-`unknown` delivery target rather than fabricating identity, (c) define duplicate-`event_id` collision rules when consolidating multiple DBs, and (d) handle an unrecognized digest without aborting. (The current migration only folds a legacy `queue.db` into the active scope — insufficient.)
 - **Content rejection vs transient failure**: a per-event content rejection records a failure state without losing the payload; a batch-level transient failure (401/403/5xx/timeout) updates attempt metadata without poisoning per-event retry counts.
 
 ## Requirements *(mandatory)*
@@ -94,14 +94,16 @@ An operator can see how much is retained and how much is delivered to the curren
 | FR-010 | Explicit `sync gc`/`sync archive` | As an operator, I want destructive cleanup only by explicit command, preserving ledger history. | Medium | Open |
 | FR-011 | Coalescing honesty | As an operator, I want coalescing to never mutate an already-delivered event. | High | Open |
 | FR-012 | Target-reset detection | As an operator, I want a notice/offer to re-drain when a stable URL's deployment identity changes. | Low | Open |
-| FR-013 | Migration of existing queues | As an operator, I want existing scoped queue DBs migrated into the journal without losing queued payloads. | High | Open |
+| FR-013 | Migration of existing queues | As an operator, I want existing scoped queue DBs (hash-only `queue-<digest>.db` paths) discovered and migrated into the journal without losing queued payloads, with unknown-scope and duplicate-`event_id` handling defined. | High | Open |
+| FR-014 | DeliveryReceiver contract | As a maintainer, I want each delivery target type to implement one explicit `DeliveryReceiver` contract (endpoint URL, auth/headers, per-event result mapping, retry semantics, and which gates apply) so Teamspace, external-receiver, and stub share one dispatch path. | High | Open |
+| FR-015 | Terminal-failed handling | As an operator, I want permanently-failed events (e.g. oversized) recorded as a terminal-failed ledger state that is excluded from future drains and stays inspectable — the drain still progresses, but the payload is not deleted. | High | Open |
 
 ### Non-Functional Requirements
 
 | ID | Title | Requirement | Category | Priority | Status |
 |----|-------|-------------|----------|----------|--------|
 | NFR-001 | Observable-state tests | Tests assert observable CLI output and on-disk/ledger state, not internal call order. | Quality | High | Open |
-| NFR-002 | Coverage of delivery outcomes | Tests cover success, duplicate, pending, transient failure, rejection, and explicit GC/archive. | Quality | High | Open |
+| NFR-002 | Coverage of delivery outcomes | Tests cover success, duplicate, pending, transient failure, rejection, terminal-failed (oversized), explicit GC/archive, **delivered-event immutability** (a DB test: a coalesce attempt against an event with any terminal delivery does not mutate it), and **multi-DB migration** (multiple `queue-<digest>.db` sources, unknown-scope, duplicate `event_id`). | Quality | High | Open |
 | NFR-003 | Idempotent re-delivery | Re-draining already-delivered event IDs to a target yields `duplicate` handling with no data corruption; event IDs are unchanged. | Reliability | High | Open |
 | NFR-004 | Bounded growth visibility | `sync status` surfaces journal size; GC is suggested once the journal is large AND fully delivered to all known targets. | Reliability | Medium | Open |
 | NFR-005 | Migration safety | Migration is atomic per DB and never loses currently-queued payloads. | Reliability | High | Open |
@@ -112,9 +114,10 @@ An operator can see how much is retained and how much is delivered to the curren
 |----|-------|------------|----------|----------|--------|
 | C-001 | Separate core domain | Modeled as a separate domain in core — `events/` (journal) + `delivery/` (target registry + ledger + dispatcher) + `EventSyncConfig` policy — not woven into the existing `queue.py`. (Stijn, hard requirement.) | Technical | High | Open |
 | C-002 | Identity = URL + scope | Delivery target identity is canonical-URL + user/team scope (`UNIQUE(url_hash, team_slug, user_email)`); deployment metadata is recorded as provenance/reset-detection, never an identity key. | Technical | High | Open |
-| C-003 | Single active target (MVP) | MVP delivers to one operator-selected active target; no automatic fan-out. The ledger's per-event/per-target shape must be able to grow into many-targets without a schema break. | Technical | High | Open |
+| C-003 | Single active target (decided) | MVP delivers to one operator-selected active target; no automatic fan-out. **Decided 2026-06-25 (stability over volume):** the fan-out lean raised in review was declined on #2131 — "deliver to the chosen target" avoids partial-failure/ordering semantics for no MVP gain, and matches the original non-goal ("operator-selected target sync is sufficient"). The ledger's per-event/per-target shape must still be able to grow into many-targets later without a schema break. | Technical | High | Decided |
 | C-004 | SaaS health metadata is a cross-repo dependency | CLI ships with URL-only identity first; consuming `/api/v1/sync/health/` deployment metadata is sequenced after the SaaS exposes it (separate `spec-kitty-saas` follow-on). | Technical | Medium | Open |
 | C-005 | No event-ID changes | This mission does not change event IDs and does not require SaaS to retain events forever or replicate cross-environment. | Technical | Medium | Open |
+| C-006 | Body-upload tables untouched | `queue.py` also owns `body_upload_queue` / `body_upload_failure_log` (setup-plan / dossier sync) — these are NOT event queueing. The new `events`/`delivery` domains take over event delivery only; the body-upload tables and their flow stay in place. No "retire `queue.py`" step may break non-event uploads. | Technical | High | Open |
 
 ### Key Entities
 
@@ -122,6 +125,7 @@ An operator can see how much is retained and how much is delivered to the curren
 - **Delivery Target**: one endpoint identity — canonical URL + url_hash + user/team scope; optional recorded deployment metadata (`server_instance_id`, `deployment_id`, `environment_name`, `git_sha`).
 - **Delivery Ledger**: per-event/per-target row — status, attempt count, timestamps, server drain state, last HTTP status/error/response. Answers "was X delivered to Y, when, with what result?"
 - **EventSyncConfig**: operator/repository policy selecting retention (on/off) × delivery (none / Teamspace / external-receiver), exposed as the four named modes.
+- **DeliveryReceiver**: the contract a delivery target type implements — endpoint URL, auth/headers, per-event result mapping (→ success/duplicate/pending/rejected/terminal-failed/transient), retry semantics, and which gates apply (Teamspace: SaaS+Private-Teamspace+Bearer; external: operator-supplied; stub: none). One dispatch path drives all three.
 
 ## Success Criteria *(mandatory)*
 
@@ -132,4 +136,5 @@ An operator can see how much is retained and how much is delivered to the curren
 - **SC-003**: `sync status` reports retained event count and current-target delivery count as distinct numbers.
 - **SC-004**: Every terminal successful delivery records endpoint URL and user/team scope (and deployment identity when SaaS health exposes it).
 - **SC-005**: The full suite — including fork CI — passes against a stub receiver with no Teamspace credentials present.
-- **SC-006**: Migrating an existing scoped queue DB preserves 100% of currently-queued payloads and loses none.
+- **SC-006**: Migrating from **one or more** existing `queue-<digest>.db` scoped DBs preserves 100% of currently-queued payloads, resolves duplicate `event_id`s deterministically, attaches events to a best-effort-or-`unknown` target without fabricating identity, and loses none.
+- **SC-007**: Every delivery target type drives the same dispatch path via one `DeliveryReceiver` contract; a permanently-failed event is recorded terminal-failed, excluded from future drains, and never deleted.
