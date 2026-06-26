@@ -361,3 +361,25 @@ kitty-specs/<feature>/
 **"No event log found"**: Run `spec-kitty agent status migrate --mission <slug>` to bootstrap from existing frontmatter state.
 
 **Stale claims reported by doctor**: Either continue work on the WP or release the claim by moving it back to `planned` (requires reason).
+
+### Pre-3.0 layout rejection
+
+Active `spec-kitty` commands (task, status, acceptance) require a post-3.0
+project layout — flat `tasks/WP*.md` files and `status.events.jsonl` as the
+status source of truth. Commands that encounter a pre-3.0 lane-directory layout
+(`tasks/planned/`, `tasks/doing/`, `tasks/for_review/`, `tasks/done/`
+containing `.md` files) will refuse to proceed:
+
+```
+Pre-3.0 layout detected (tasks/planned/ directories or frontmatter lane state).
+Run `spec-kitty upgrade` to migrate before continuing.
+```
+
+**Migration path**: Run `spec-kitty upgrade` (or
+`spec-kitty upgrade --migration 0.9.0_frontmatter_only_lanes`) to move WP
+files from lane subdirectories to flat `tasks/`. After upgrade, all active
+commands will work normally.
+
+The `lane` frontmatter field is historical/migration-only and is not written
+or read by any active command. Status is tracked exclusively through
+`status.events.jsonl`.

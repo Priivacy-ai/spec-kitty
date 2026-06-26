@@ -34,10 +34,10 @@ from specify_cli.task_utils import (
     WorkPackage,
     get_lane_from_frontmatter,
     git_status_lines,
-    is_legacy_format,
     run_git,
     split_frontmatter,
 )
+from specify_cli.upgrade.legacy_detector import is_legacy_format as _is_legacy_pre30
 
 logger = logging.getLogger(__name__)
 
@@ -395,10 +395,10 @@ class AcceptanceResult:
 
 
 def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
-    """Iterate over work packages, supporting both legacy and new formats.
+    """Iterate over work packages in flat tasks/ directory layout.
 
-    Legacy format: WP files in tasks/{lane}/ subdirectories
-    New format: WP files in flat tasks/ directory with lane in frontmatter
+    Pre-3.0 missions (lane-directory layout) are skipped with a warning.
+    Run ``spec-kitty upgrade`` to migrate before running acceptance scan.
     """
     # WORK_PACKAGE_TASK is a PRIMARY-partition kind: route the WP-task read
     # through the kind-aware seam so a coord-topology mission reads its tasks off
@@ -409,50 +409,34 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
     if not tasks_dir.exists():
         raise AcceptanceError(f"Feature '{feature}' has no tasks directory at {tasks_dir}.")
 
-    use_legacy = is_legacy_format(feature_path)
+    # Pre-3.0 layout: skip with a clear warning — run `spec-kitty upgrade` to migrate.
+    if _is_legacy_pre30(feature_path):
+        logger.warning(
+            "Skipping pre-3.0 mission %s: run `spec-kitty upgrade` to migrate before acceptance scan.",
+            feature_path.name,
+        )
+        return
 
-    if use_legacy:
-        # Legacy format: iterate over lane subdirectories
-        for lane_dir in sorted(tasks_dir.iterdir()):
-            if not lane_dir.is_dir():
-                continue
-            lane = lane_dir.name
-            if lane not in LANES:
-                continue
-            for path in sorted(lane_dir.rglob("*.md")):
-                text = _read_text_strict(path)
-                front, body, padding = split_frontmatter(text)
-                relative = path.relative_to(lane_dir)
-                yield WorkPackage(
-                    feature=feature,
-                    path=path,
-                    current_lane=lane,
-                    relative_subpath=relative,
-                    frontmatter=front,
-                    body=body,
-                    padding=padding,
-                )
-    else:
-        # New format: flat tasks/ directory, lane from frontmatter
-        for path in sorted(tasks_dir.glob("*.md")):
-            if path.name.lower() == "readme.md":
-                continue
-            text = _read_text_strict(path)
-            front, body, padding = split_frontmatter(text)
-            try:
-                lane = get_lane_from_frontmatter(path, warn_on_missing=False)
-            except CanonicalStatusNotFoundError:
-                lane = "uninitialized"
-            relative = path.relative_to(tasks_dir)
-            yield WorkPackage(
-                feature=feature,
-                path=path,
-                current_lane=lane,
-                relative_subpath=relative,
-                frontmatter=front,
-                body=body,
-                padding=padding,
-            )
+    # Flat-layout: tasks/ directory, lane from frontmatter.
+    for path in sorted(tasks_dir.glob("*.md")):
+        if path.name.lower() == "readme.md":
+            continue
+        text = _read_text_strict(path)
+        front, body, padding = split_frontmatter(text)
+        try:
+            lane = get_lane_from_frontmatter(path, warn_on_missing=False)
+        except CanonicalStatusNotFoundError:
+            lane = "uninitialized"
+        relative = path.relative_to(tasks_dir)
+        yield WorkPackage(
+            feature=feature,
+            path=path,
+            current_lane=lane,
+            relative_subpath=relative,
+            frontmatter=front,
+            body=body,
+            padding=padding,
+        )
 
 
 def detect_mission_slug(
