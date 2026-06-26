@@ -18,6 +18,7 @@ from specify_cli.acceptance import (
     perform_acceptance,
     resolve_acceptance_actor,
 )
+from specify_cli.upgrade.pre30_guard import Pre30LayoutError
 from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.cli.helpers import console, show_banner
@@ -301,6 +302,19 @@ def accept(
             # (read-only) leaves the matrix untouched.
             mutate_matrix=not diagnose,
         )
+    except Pre30LayoutError as exc:
+        # #1057 / squad Blocker 1: a pre-3.0 lane-directory mission must hard-reject
+        # with the `spec-kitty upgrade` instruction and write NOTHING — never fall
+        # through to a vacuous all-done summary that auto-commits an unmigrated
+        # mission.
+        _safe_emit_error_logged(str(exc))
+        if json_output:
+            print(json.dumps({"error": str(exc)}))
+        else:
+            tracker.error("verify", str(exc))
+            console.print(tracker.render())
+            console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1)
     except AcceptanceError as exc:
         _safe_emit_error_logged(str(exc))
         if json_output:
