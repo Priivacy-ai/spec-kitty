@@ -189,7 +189,7 @@ def test_explicit_feature_flag_reads_meta_target(monkeypatch, tmp_path: Path) ->
 
     result = runner.invoke(
         cli_app,
-        ["merge", "--dry-run", "--json", "--feature", slug],
+        ["merge", "--dry-run", "--json", "--mission", slug],
     )
 
     assert result.exit_code == 0
@@ -213,7 +213,7 @@ def test_explicit_feature_flag_missing_meta_falls_back_to_primary(monkeypatch, t
 
     result = runner.invoke(
         cli_app,
-        ["merge", "--dry-run", "--json", "--feature", slug],
+        ["merge", "--dry-run", "--json", "--mission", slug],
     )
 
     assert result.exit_code == 0

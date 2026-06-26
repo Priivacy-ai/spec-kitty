@@ -121,7 +121,6 @@ def test_accept_command_delegates_to_toplevel(mock_locate: MagicMock, mock_accep
     # Verify top-level accept was called
     mock_accept.assert_called_once_with(
         mission=None,
-        feature=None,
         mode="auto",
         actor=None,
         test=[],
@@ -155,7 +154,6 @@ def test_accept_command_passes_flags(mock_locate: MagicMock, mock_accept: MagicM
     # Verify all flags passed to top-level accept
     mock_accept.assert_called_once_with(
         mission="001-test",
-        feature=None,
         mode=ACCEPTANCE_MODE_CHECKLIST,
         actor=None,
         test=[],
@@ -486,7 +484,6 @@ def test_accept_command_with_all_flags_console_output(mock_locate: MagicMock, mo
     # Verify top-level accept was called
     mock_accept.assert_called_once_with(
         mission="001-test",
-        feature=None,
         mode=ACCEPTANCE_MODE_CHECKLIST,
         actor=None,
         test=[],

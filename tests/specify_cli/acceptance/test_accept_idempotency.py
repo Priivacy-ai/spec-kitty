@@ -195,7 +195,6 @@ def _run_accept(*, no_commit: bool, diagnose: bool) -> None:
     try:
         accept(
             mission=_SLUG,
-            feature=None,
             mode="auto",
             actor="tester",
             test=[],

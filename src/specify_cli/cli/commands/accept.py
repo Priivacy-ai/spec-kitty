@@ -40,7 +40,7 @@ def _safe_emit_error_logged(message: str) -> None:
         pass
 
 
-def _spec_artifact_dirty_paths(repo_root: Path, feature_slug: str) -> list[str]:
+def _spec_artifact_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
     """Return tracked-but-uncommitted spec/meta artifacts under the mission dir.
 
     The acceptance pipeline materializes derived artifacts (e.g.
@@ -54,7 +54,7 @@ def _spec_artifact_dirty_paths(repo_root: Path, feature_slug: str) -> list[str]:
     Untracked files (``??``) are deliberately excluded so the cleanup commit
     never sweeps in unrelated, unmanaged files the operator may have created.
     """
-    prefix = f"kitty-specs/{feature_slug}/"
+    prefix = f"kitty-specs/{mission_slug}/"
     dirty: list[str] = []
     for line in git_status_lines(repo_root):
         # Porcelain format: two status chars, a space, then the path.
@@ -70,7 +70,7 @@ def _spec_artifact_dirty_paths(repo_root: Path, feature_slug: str) -> list[str]:
     return dirty
 
 
-def _commit_residual_acceptance_artifacts(repo_root: Path, feature_slug: str) -> bool:
+def _commit_residual_acceptance_artifacts(repo_root: Path, mission_slug: str) -> bool:
     """Stage and commit any leftover acceptance artifacts so the tree is clean.
 
     Returns True when a follow-up commit was created. This preserves the
@@ -78,7 +78,7 @@ def _commit_residual_acceptance_artifacts(repo_root: Path, feature_slug: str) ->
     commit) while guaranteeing a successful ``accept`` leaves no
     staged-but-uncommitted or modified-unstaged spec/meta artifacts behind.
     """
-    dirty = _spec_artifact_dirty_paths(repo_root, feature_slug)
+    dirty = _spec_artifact_dirty_paths(repo_root, mission_slug)
     if not dirty:
         return False
 
@@ -100,7 +100,7 @@ def _commit_residual_acceptance_artifacts(repo_root: Path, feature_slug: str) ->
         return False
 
     run_git(
-        ["commit", "-m", f"Finalize acceptance artifacts for {feature_slug}", "--", *dirty],
+        ["commit", "-m", f"Finalize acceptance artifacts for {mission_slug}", "--", *dirty],
         cwd=repo_root,
         check=True,
     )
@@ -228,12 +228,6 @@ def accept(
         "--mission",
         help="Mission slug to accept",
     ),
-    feature: str | None = typer.Option(
-        None,
-        "--feature",
-        hidden=True,
-        help="(deprecated) Use --mission",
-    ),
     mode: str = typer.Option("auto", "--mode", case_sensitive=False, help="Acceptance mode: auto, pr, local, or checklist"),
     actor: str | None = typer.Option(None, "--actor", help="Name to record as the acceptance actor"),
     test: list[str] = typer.Option([], "--test", help="Validation command executed (repeatable)", show_default=False),
@@ -267,7 +261,7 @@ def accept(
     # Resolve mission handle — supports slug, numeric prefix, mid8, or full ULID.
     # resolve_mission_handle() handles AmbiguousHandleError / MissionNotFoundError
     # and calls sys.exit(2) on failure; no try/except needed.
-    raw_handle = mission or feature
+    raw_handle = mission
     if raw_handle is None:
         _safe_emit_error_logged("No mission handle provided")
         if json_output:
@@ -276,7 +270,7 @@ def accept(
             tracker.error("detect", "--mission <slug> is required")
             console.print(tracker.render())
             console.print("[red]Error:[/red] --mission <slug> is required")
-        raise typer.Exit(1)
+        raise typer.Exit(2)
 
     resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)
     mission_slug = resolved.mission_slug

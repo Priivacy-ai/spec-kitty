@@ -279,7 +279,7 @@ class TestImplementBaseFlagIntegration:
             try:
                 implement(
                     wp_id="WP06",
-                    feature="068-test",
+                    mission="068-test",
                     auto_commit=False,
                     json_output=False,
                     recover=False,
@@ -345,7 +345,7 @@ class TestImplementBaseFlagIntegration:
             with pytest.raises((typer.Exit, SystemExit)) as exc_info:
                 implement(
                     wp_id="WP06",
-                    feature="068-test",
+                    mission="068-test",
                     auto_commit=False,
                     json_output=False,
                     recover=False,

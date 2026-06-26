@@ -87,7 +87,6 @@ def test_agent_mission_accept_passes_explicit_feature_none(
     assert result.exit_code == 0, result.output
     mock_top_level_accept.assert_called_once_with(
         mission="077-mission-terminology-cleanup",
-        feature=None,
         mode="auto",
         actor=None,
         test=[],
@@ -111,7 +110,6 @@ def test_agent_mission_accept_passes_diagnose_flag(
     assert result.exit_code == 0, result.output
     mock_top_level_accept.assert_called_once_with(
         mission="077-mission-terminology-cleanup",
-        feature=None,
         mode="auto",
         actor=None,
         test=[],

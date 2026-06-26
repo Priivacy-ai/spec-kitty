@@ -75,7 +75,6 @@ def test_implement_aborts_before_worktree_allocation_on_failure(
         _call_implement_unwrapped(
             wp_id="WP01",
             mission="042-test-feature",
-            feature=None,
             auto_commit=None,
             json_output=False,
             recover=False,
@@ -114,7 +113,6 @@ def test_implement_proceeds_past_preflight_when_passed(
         _call_implement_unwrapped(
             wp_id="WP01",
             mission="042-test-feature",
-            feature=None,
             auto_commit=None,
             json_output=False,
             recover=False,

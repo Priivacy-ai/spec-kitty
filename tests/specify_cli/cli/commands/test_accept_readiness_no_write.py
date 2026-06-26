@@ -321,7 +321,6 @@ def _run_readiness(repo_root: Path) -> int | None:
     try:
         accept(
             mission=_SLUG,
-            feature=None,
             mode="auto",
             actor="tester",
             test=[],

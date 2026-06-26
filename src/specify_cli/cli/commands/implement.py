@@ -141,7 +141,6 @@ def _json_safe_output(func):
 
 def detect_feature_context(
     mission_flag: str | None = None,
-    feature_flag: str | None = None,
     repo_root: Path | None = None,
 ) -> tuple[str | None, str]:
     """Require an explicit mission slug and return ``(mission_number, slug)``.
@@ -152,7 +151,7 @@ def detect_feature_context(
     """
     import re as _re
 
-    raw_handle = mission_flag or feature_flag
+    raw_handle = mission_flag
     if raw_handle is None:
         console.print("[red]Error:[/red] --mission <slug> is required")
         raise typer.Exit(1)
@@ -850,7 +849,6 @@ def _ensure_vcs_in_meta(feature_dir: Path, _repo_root: Path) -> VCSBackend:
 def _run_recover_mode(
     _wp_id: str,
     mission: str | None,
-    feature: str | None,
     json_output: bool,
 ) -> None:
     """Run crash recovery for the given mission.
@@ -865,7 +863,7 @@ def _run_recover_mode(
 
     try:
         repo_root = find_repo_root()
-        _feature_number, mission_slug = detect_feature_context(mission, feature, repo_root=repo_root)
+        _mission_number, mission_slug = detect_feature_context(mission, repo_root=repo_root)
     except (TaskCliError, typer.Exit) as exc:
         if json_output:
             print(json.dumps({"status": "error", "error": str(exc)}))
@@ -948,7 +946,6 @@ def _run_recover_mode(
 def implement(  # noqa: C901 — orchestration function, complexity inherent
     wp_id: str = typer.Argument(..., help="Work package ID (for example, WP01)"),
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (for example, 001-my-feature)")] = None,
-    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
     auto_commit: Annotated[
         bool | None,
         typer.Option("--auto-commit/--no-auto-commit", help="Auto-commit status and planning changes (default: from project config)"),
@@ -992,8 +989,16 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
     from specify_cli.core.agent_config import get_auto_commit_default
     from specify_cli.core.dependency_graph import dependency_readiness_for_wp, parse_wp_dependencies
 
+    # SC-003 no-selector guard: exit 2 when --mission is omitted (mirrors
+    # all other commands and aligns with the no-selector-error-contract).
+    # Guard runs BEFORE --recover so that `implement --recover` with no
+    # --mission also exits 2, not 1 via detect_feature_context.
+    if mission is None:
+        console.print("[red]Error:[/red] --mission <slug> is required")
+        raise typer.Exit(2)
+
     if recover:
-        _run_recover_mode(wp_id, mission, feature, json_output)
+        _run_recover_mode(wp_id, mission, json_output)
         return
 
     tracker = StepTracker(f"Implement {wp_id}")
@@ -1013,7 +1018,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         run_preflight_or_abort(repo_root, consumer="implement")
         if auto_commit is None:
             auto_commit = get_auto_commit_default(repo_root)
-        _feature_number, mission_slug = detect_feature_context(mission, feature, repo_root=repo_root)
+        _mission_number, mission_slug = detect_feature_context(mission, repo_root=repo_root)
         feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
         if not (feature_dir / "meta.json").exists():
             feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)

@@ -538,7 +538,7 @@ def test_next_resolve_mission_slug_returns_canonical_slug(
 ) -> None:
     from specify_cli.cli.commands.next_cmd import _resolve_mission_slug
 
-    assert _resolve_mission_slug(handle, None, repo) == _FULL_SLUG, (
+    assert _resolve_mission_slug(handle, repo) == _FULL_SLUG, (
         f"next --mission {handle!r} must canonicalize at the boundary so "
         "decide_next / get_or_start_run never key runtime state by the raw "
         "operator handle"
@@ -559,7 +559,7 @@ def test_next_run_identity_identical_across_handle_forms(
 
     baseline = runtime_bridge.get_or_start_run(_FULL_SLUG, repo, "software-dev")
 
-    slug = _resolve_mission_slug(handle, None, repo)
+    slug = _resolve_mission_slug(handle, repo)
     run_ref = runtime_bridge.get_or_start_run(slug, repo, "software-dev")
 
     assert run_ref.run_id == baseline.run_id, (
@@ -587,7 +587,7 @@ def test_next_resolve_mission_slug_preserves_unresolvable_handle(
     mode)."""
     from specify_cli.cli.commands.next_cmd import _resolve_mission_slug
 
-    assert _resolve_mission_slug("no-such-mission", None, repo) == "no-such-mission"
+    assert _resolve_mission_slug("no-such-mission", repo) == "no-such-mission"
 
 
 def test_next_resolve_mission_slug_propagates_ambiguity(repo: Path) -> None:
@@ -601,7 +601,7 @@ def test_next_resolve_mission_slug_propagates_ambiguity(repo: Path) -> None:
     )
 
     with pytest.raises(MissionSelectorAmbiguous):
-        _resolve_mission_slug("083", None, repo)
+        _resolve_mission_slug("083", repo)
 
 
 # ---------------------------------------------------------------------------

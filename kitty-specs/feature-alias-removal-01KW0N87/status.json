@@ -1,0 +1,63 @@
+{
+  "event_count": 38,
+  "last_event_id": "01KW1CZ02DVDTXFCY58V0EYV4A",
+  "materialized_at": "2026-06-26T07:23:01.069696+00:00",
+  "mission_number": "",
+  "mission_slug": "feature-alias-removal-01KW0N87",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 5,
+    "blocked": 1,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KW0VQJMWQCGNN1DKTPGJDY85",
+      "last_transition_at": "2026-06-26T02:21:52.157020+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KW0XWH0KKXTNSPF7QP3TCGVY",
+      "last_transition_at": "2026-06-26T02:59:31.475226+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KW1067GHRFBRS55MZCP1FZP6",
+      "last_transition_at": "2026-06-26T03:39:46.577819+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KW11A48Z69N5DC70VQM56BDV",
+      "last_transition_at": "2026-06-26T03:59:22.911492+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KW1CR4S4NKDTNRPKTPKA7DVR",
+      "last_transition_at": "2026-06-26T07:19:16.516568+00:00"
+    },
+    "WP06": {
+      "actor": "implement-command",
+      "force_count": 0,
+      "lane": "blocked",
+      "last_event_id": "01KW1CZ02DVDTXFCY58V0EYV4A",
+      "last_transition_at": "2026-06-26T07:23:01.069696+00:00"
+    }
+  }
+}
