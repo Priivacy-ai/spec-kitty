@@ -21,7 +21,7 @@ history:
 - at: '2026-06-26T11:06:32Z'
   actor: system
   action: Prompt generated via /spec-kitty.tasks
-agent_profile: ''
+agent_profile: python-pedro
 authoritative_surface: src/specify_cli/state/
 create_intent:
 - tests/state/test_doctor_spec_kitty_home.py
@@ -41,7 +41,7 @@ task_type: implement
 
 Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the frontmatter (or any user-defined profile), and behave according to its guidance before parsing the rest of this prompt.
 
-- **Profile**: `{{agent_profile}}`
+- **Profile**: `python-pedro`
 - **Role**: `implementer`
 - **Agent/tool**: `claude`
 
