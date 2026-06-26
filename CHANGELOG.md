@@ -11,6 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
+- **`spec-kitty accept` no longer false-positives on a mission's `contracts/` path
+  convention.** The accept gate's path-convention check (`validate_mission_paths`)
+  resolved every mission-declared path against the repo root, so a mission-artifact
+  path like software-dev's `deliverables: contracts/` (also an `artifacts.optional`
+  entry) was sought at `<repo_root>/contracts/` and reported missing — telling the
+  operator to `mkdir -p contracts/` even though `contracts/` existed and was committed
+  at `kitty-specs/<mission>/contracts/`. A declared path that is a mission artifact
+  (member of `mission.config.artifacts`) is now resolved against the mission's primary
+  feature dir via the canonical `planning_read_dir` surface (the same one
+  `_missing_artifacts` uses) — no repo-root fallback; build paths (`src/`/`tests/`/
+  `docs/`) stay repo-root. A residual of the #1716 / #2113 "no resolution to the repo
+  primary for mission artifacts" cluster.
 - Retired the unsupported `specify_cli.mission_read_path` backcompat import path (#2048),
   after its last production caller had moved to `specify_cli.missions._read_path_resolver`.
   Supported callers should use `resolve_handle_to_read_path` /

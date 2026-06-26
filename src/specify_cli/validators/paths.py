@@ -125,12 +125,18 @@ def _prefix_required_path(path_prefix: str | Path | None, relative_path: str) ->
     return joined.as_posix()
 
 
+def _normalize_path_token(token: str) -> str:
+    """Normalise a path/artifact token for membership comparison (strip slashes)."""
+    return str(token).strip().strip("/")
+
+
 def validate_mission_paths(
     mission: Mission,
     project_root: Path,
     *,
     strict: bool = False,
     path_prefix: str | Path | None = None,
+    feature_dir: Path | None = None,
 ) -> PathValidationResult:
     """Validate that project directories follow mission-defined conventions.
 
@@ -142,14 +148,25 @@ def validate_mission_paths(
             mission-declared paths. Research missions use this to validate
             configured deliverable directories instead of fixed repository-root
             directories.
+        feature_dir: The mission's PRIMARY-surface directory
+            (``kitty-specs/<mission>/``). When supplied, a declared path that is
+            also a mission artifact (a member of ``mission.config.artifacts``,
+            e.g. ``contracts/``) is resolved against ``feature_dir`` — those live
+            with the mission, NOT at the repo root. Build/repo paths
+            (``src/``/``tests/``/``docs/``) keep resolving against ``project_root``.
+            There is no repo-root fallback for an artifact path (#2115 / #1716
+            residual of the "no resolution to the repo primary" rule — it mirrors
+            the #2113 ``_planning_read_dir`` seam). Research's ``path_prefix``
+            routing is unaffected.
 
     Returns:
         PathValidationResult summarising the state of each required path.
     """
 
+    declared = dict(mission.config.paths or {})
     required_paths = {
         key: _prefix_required_path(path_prefix, relative_path)
-        for key, relative_path in dict(mission.config.paths or {}).items()
+        for key, relative_path in declared.items()
     }
     result = PathValidationResult(
         mission_name=mission.name,
@@ -159,9 +176,30 @@ def validate_mission_paths(
     if not required_paths:
         return result
 
+    # Mission-artifact path tokens (e.g. ``contracts/``) — resolved against the
+    # mission's feature_dir rather than the repo root. Only consulted when a
+    # feature_dir is supplied and we are not in research's path_prefix mode.
+    artifact_tokens: set[str] = set()
+    if feature_dir is not None and not path_prefix:
+        # Defensive: a real ``MissionConfig`` always carries ``artifacts``, but a
+        # partial mock/config may not — treat its absence as "no artifact paths"
+        # (all paths resolve at the repo root, the pre-feature_dir behaviour).
+        artifacts = getattr(mission.config, "artifacts", None)
+        required = getattr(artifacts, "required", ()) or ()
+        optional = getattr(artifacts, "optional", ()) or ()
+        artifact_tokens = {
+            _normalize_path_token(name) for name in (*required, *optional)
+        }
+
     for key, relative_path in required_paths.items():
         candidate = Path(relative_path)
-        full_path = candidate if candidate.is_absolute() else project_root / candidate
+        if candidate.is_absolute():
+            full_path = candidate
+        elif _normalize_path_token(declared[key]) in artifact_tokens:
+            # Mission artifact → resolve on the mission's primary surface.
+            full_path = feature_dir / candidate  # type: ignore[operator]
+        else:
+            full_path = project_root / candidate
         if full_path.exists():
             result.existing_paths.append(relative_path)
             continue

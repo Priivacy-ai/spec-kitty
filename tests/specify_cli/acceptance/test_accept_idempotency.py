@@ -74,7 +74,7 @@ def _create_lane_feature(repo_root: Path, *, with_negative_invariant: bool) -> P
     _git(repo_root, "branch", "-M", "main")
 
     (repo_root / ".kittify").mkdir()
-    for required_dir in ("src", "tests", "contracts", "docs"):
+    for required_dir in ("src", "tests", "docs"):
         path = repo_root / required_dir
         path.mkdir()
         (path / ".gitkeep").write_text("")
@@ -82,6 +82,8 @@ def _create_lane_feature(repo_root: Path, *, with_negative_invariant: bool) -> P
     feature_dir = repo_root / "kitty-specs" / _SLUG
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    # contracts/ is a mission artifact → under the feature dir, not repo root (#2115)
+    (feature_dir / "contracts").mkdir(parents=True, exist_ok=True)
 
     meta = {
         "mission_number": "099",

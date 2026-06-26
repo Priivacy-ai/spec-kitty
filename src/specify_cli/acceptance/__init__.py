@@ -1335,6 +1335,11 @@ def collect_feature_summary(
             repo_root,
             strict=False,
             path_prefix=_path_prefix_for_mission(mission, feature_dir),
+            # Mission-artifact paths (e.g. ``contracts/``) live on the PRIMARY
+            # mission surface, not the repo root — resolve them via the canonical
+            # ``planning_read_dir`` seam (same surface ``_missing_artifacts`` uses),
+            # never ``repo_root`` (#2115 / #1716 residual). Build paths stay repo-root.
+            feature_dir=planning_read_dir,
         )
         if path_result.missing_paths:
             if strict_metadata:

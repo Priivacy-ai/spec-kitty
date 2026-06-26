@@ -160,9 +160,22 @@ def test_validation_result_format_report() -> None:
 class _MissionStub:
     """Minimal mission-like object for path validator tests."""
 
-    def __init__(self, name: str, paths: dict[str, str]) -> None:
+    def __init__(
+        self,
+        name: str,
+        paths: dict[str, str],
+        *,
+        required_artifacts: tuple[str, ...] = (),
+        optional_artifacts: tuple[str, ...] = (),
+    ) -> None:
         self.name = name
-        self.config = SimpleNamespace(paths=paths)
+        self.config = SimpleNamespace(
+            paths=paths,
+            artifacts=SimpleNamespace(
+                required=list(required_artifacts),
+                optional=list(optional_artifacts),
+            ),
+        )
 
 
 def test_validate_paths_all_exist(tmp_path: Path) -> None:
@@ -197,6 +210,76 @@ def test_validate_paths_strict_mode_raises(tmp_path: Path) -> None:
 
     assert excinfo.value.result.missing_paths == ["src/"]
     assert "Path Convention Errors" in excinfo.value.result.format_errors()
+
+
+def test_mission_artifact_path_resolves_against_feature_dir(tmp_path: Path) -> None:
+    """A declared path that is also a mission artifact (e.g. ``contracts/``) is
+    resolved against the mission's feature_dir, while build paths (``src/``) stay
+    at the repo root (#2115). No repo-root fallback for the artifact path.
+    """
+    repo_root = tmp_path / "repo"
+    (repo_root / "src").mkdir(parents=True)  # build path → repo root
+    feature_dir = repo_root / "kitty-specs" / "010-feature"
+    (feature_dir / "contracts").mkdir(parents=True)  # mission artifact → feature_dir
+    # NOTE: contracts/ deliberately does NOT exist at repo_root.
+
+    mission = _MissionStub(
+        "Software Dev Kitty",
+        {"workspace": "src/", "deliverables": "contracts/"},
+        optional_artifacts=("contracts/",),
+    )
+
+    result = validate_mission_paths(
+        mission, repo_root, strict=False, feature_dir=feature_dir
+    )
+
+    assert result.is_valid, result.warnings
+    assert set(result.existing_paths) == {"src/", "contracts/"}
+    assert not result.missing_paths
+
+
+def test_mission_artifact_path_without_feature_dir_misses_at_repo_root(
+    tmp_path: Path,
+) -> None:
+    """Non-vacuity / documents the pre-#2115 bug: with no feature_dir, ``contracts/``
+    (a mission artifact under the feature dir) is wrongly sought at the repo root
+    and reported missing — the false positive the fix removes by passing feature_dir.
+    """
+    repo_root = tmp_path / "repo"
+    (repo_root / "src").mkdir(parents=True)
+    feature_dir = repo_root / "kitty-specs" / "010-feature"
+    (feature_dir / "contracts").mkdir(parents=True)
+
+    mission = _MissionStub(
+        "Software Dev Kitty",
+        {"workspace": "src/", "deliverables": "contracts/"},
+        optional_artifacts=("contracts/",),
+    )
+
+    # Pre-fix call shape (no feature_dir) — contracts/ resolves at repo_root → missing.
+    result = validate_mission_paths(mission, repo_root, strict=False)
+
+    assert result.missing_paths == ["contracts/"]
+
+
+def test_non_artifact_path_stays_repo_root_even_with_feature_dir(tmp_path: Path) -> None:
+    """A declared path that is NOT a mission artifact (``tests/``) resolves against
+    the repo root even when feature_dir is supplied — build paths are repo-relative.
+    """
+    repo_root = tmp_path / "repo"
+    (repo_root / "tests").mkdir(parents=True)  # exists at repo root
+    feature_dir = repo_root / "kitty-specs" / "010-feature"
+    (feature_dir / "tests").mkdir(parents=True)  # decoy under feature_dir
+
+    mission = _MissionStub("Software Dev Kitty", {"tests": "tests/"})
+
+    result = validate_mission_paths(
+        mission, repo_root, strict=False, feature_dir=feature_dir
+    )
+
+    # tests/ is not a mission artifact → repo-root resolution; present there → valid.
+    assert result.is_valid
+    assert result.existing_paths == ["tests/"]
 
 
 def test_suggest_directory_creation_handles_files_and_dirs() -> None:
