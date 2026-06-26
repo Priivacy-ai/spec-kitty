@@ -123,16 +123,10 @@ for _method, (_cmd, _note) in _HINT_TABLE.items():
 # ---------------------------------------------------------------------------
 
 
-def _targeted_uv_tool_command(package: str, target_version: str | None) -> str | None:
-    if target_version is None or not _VERSION_RE.match(target_version):
-        return None
-    return f"uv tool install --force {package}=={target_version}"
-
-
 def build_upgrade_hint(
     install_method: InstallMethod,
     *,
-    package: str = "spec-kitty-cli",
+    package: str = "spec-kitty-cli",  # noqa: ARG001  # public API; plan_remediation hardcodes the package in this migration step
     target_version: str | None = None,
 ) -> UpgradeHint:
     """Return the :class:`UpgradeHint` for *install_method*.
@@ -140,16 +134,49 @@ def build_upgrade_hint(
     The returned hint satisfies the invariant that exactly one of ``command``
     or ``note`` is non-None.
 
+    Implementation routes through ``plan_remediation()`` so that the planner
+    path and the hint path share a single source of truth.  ``_HINT_TABLE``
+    is retained as the authoritative fallback for MANUAL_GUIDANCE methods
+    (SOURCE, UNKNOWN, SYSTEM_PACKAGE) to preserve the exact note strings
+    (SC-003 / SC-006).
+
     Args:
         install_method: The detected :class:`InstallMethod`.
-        package: Package name to include in dynamic hints.
-        target_version: Optional latest version. For uv-tool installs this is
-            used to override exact prerelease pins in uv receipts.
+        package: Package name (reserved; ``spec-kitty-cli`` is always used
+            by the underlying planner in this migration step).
+        target_version: Optional latest version.  For uv-tool installs this
+            is used to build a pinned upgrade command.
 
     Returns:
-        A :class:`UpgradeHint` from the static table.
+        A :class:`UpgradeHint` whose ``command`` / ``note`` is identical to
+        the pre-migration static-table value for every install method
+        (SC-003 guarantee verified by the snapshot-parity tests in
+        ``tests/specify_cli/compat/test_remediation.py``).
     """
-    command, note = _HINT_TABLE[install_method]
-    if install_method == InstallMethod.UV_TOOL:
-        command = _targeted_uv_tool_command(package, target_version) or command
-    return UpgradeHint(install_method=install_method, command=command, note=note)
+    from dataclasses import replace as _replace  # stdlib — no circular import risk
+
+    from specify_cli.compat._detect.runtime import detect_runtime  # deferred
+    from specify_cli.compat.remediation import (  # deferred
+        RemediationIntent,
+        plan_remediation,
+    )
+
+    runtime = detect_runtime()
+
+    # When the caller supplies an install_method that differs from what
+    # detect_runtime() found (e.g. tests that parametrise over all methods),
+    # override the method so plan_remediation builds the correct argv while
+    # preserving any uv-receipt details that may already be available.
+    if runtime.install_method != install_method:
+        runtime = _replace(runtime, install_method=install_method)
+
+    cmd = plan_remediation(runtime, RemediationIntent.UPGRADE, target_version)
+    try:
+        rendered = cmd.render(runtime.platform)
+    except ValueError:
+        # MANUAL_GUIDANCE or CHK028 violation — fall back to static table so
+        # note strings remain byte-for-byte identical to the pre-migration values.
+        command, note = _HINT_TABLE[install_method]
+        return UpgradeHint(install_method=install_method, command=command, note=note)
+
+    return UpgradeHint(install_method=install_method, command=rendered, note=None)

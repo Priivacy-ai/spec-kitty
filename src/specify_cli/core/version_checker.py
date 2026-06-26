@@ -202,6 +202,19 @@ to match the installed CLI version.
 """.strip()
 
     elif mismatch_type == "project_newer":
+        # FR-021: route upgrade command through domain planner; fall back if it raises.
+        try:
+            from specify_cli.compat._detect.runtime import detect_runtime
+            from specify_cli.compat.remediation import (
+                RemediationIntent,
+                plan_remediation,
+            )
+            _runtime = detect_runtime()
+            _cmd = plan_remediation(_runtime, RemediationIntent.UPGRADE, target_version=None)
+            upgrade_cmd = _cmd.render(_runtime.platform)
+        except ValueError:
+            upgrade_cmd = "pipx upgrade spec-kitty-cli"  # safe fallback
+
         return f"""
 {border}
 ❌ ERROR: Version Mismatch Detected
@@ -215,7 +228,7 @@ Your project is NEWER than your CLI.
 This project was created or upgraded with a newer version
 of spec-kitty-cli. Please upgrade your CLI:
 
-  pipx upgrade spec-kitty-cli
+  {upgrade_cmd}
 
 Or use the upgrade command for your install method, such as
 `uv tool upgrade spec-kitty-cli` or `python -m pip install --upgrade

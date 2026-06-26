@@ -16,10 +16,7 @@ See: src/specify_cli/cli/commands/review/ERROR_CODES.md (authored by WP03)
 from __future__ import annotations
 
 import json
-import shlex
 import subprocess  # noqa: F401  (monkeypatched in tests)
-import sys
-import tomllib
 from pathlib import Path
 from typing import Annotated, Literal
 
@@ -32,13 +29,11 @@ from specify_cli.cli.commands._test_env_check import (  # noqa: F401
     TestExtraMissing,
     assert_pytest_available,
 )
-from specify_cli.compat._detect.install_method import (  # noqa: F401
-    InstallMethod,
-    detect_install_method,
-)
+from specify_cli.compat._detect.install_method import InstallMethod  # noqa: F401
+from specify_cli.compat._detect.runtime import InstalledCliRuntime, detect_runtime
+from specify_cli.compat.remediation import RemediationCommand, plan_remediation, RemediationIntent
 from specify_cli.cli.selector_resolution import resolve_mission_handle  # noqa: F401
 from specify_cli.task_utils import TaskCliError, find_repo_root  # noqa: F401
-from specify_cli.version_utils import get_version  # noqa: F401
 
 from ._ble001_audit import (  # noqa: F401
     Ble001SuppressionFinding,
@@ -51,13 +46,6 @@ from ._issue_matrix import validate_issue_matrix  # noqa: F401
 from ._lane_gate import check_wp_lanes  # noqa: F401
 from ._mode import MissionReviewMode, ModeMismatchError, resolve_mode  # noqa: F401
 from ._report import GateRecord, write_review_report  # noqa: F401
-
-
-_PACKAGE_NAME = "spec-kitty-cli"
-_PYTEST_NAME = "pytest"
-_SUPPORTED_UV_REQUIREMENT_KEYS = frozenset(
-    {"name", "specifier", "directory", "editable", "path", "git", "url"}
-)
 
 
 def _fail_missing_test_extra(console: object) -> None:
@@ -81,293 +69,34 @@ def _fail_missing_test_extra(console: object) -> None:
 
 
 def _missing_test_extra_remediation() -> str:
-    uv_tool_command = _uv_tool_reinstall_command()
-    if uv_tool_command is not None:
-        return uv_tool_command
-    if _active_uv_tool_receipt_has_spec_kitty():
-        return _fallback_uv_tool_reinstall_command()
+    """Return the repair command for the missing [test] extra.
 
+    Uses detect_runtime() (CHK032: never raises) and plan_remediation()
+    to produce a platform-appropriate reinstall command.  For UV_TOOL
+    installs the command uses ``--extra test`` (SC-001: single receipt
+    read per invocation via detect_runtime()).  If render() raises
+    ValueError (e.g. CHK028 path-safety violation), returns cmd.note or
+    a safe guidance fallback.  For all other install methods returns
+    ``uv sync --extra test``.
+    """
+    runtime: InstalledCliRuntime = detect_runtime()
+    if runtime.install_method != InstallMethod.UV_TOOL:
+        return "uv sync --extra test"
+    cmd: RemediationCommand = plan_remediation(
+        runtime, RemediationIntent.REINSTALL_WITH_TEST, target_version=None
+    )
     try:
-        install_method = detect_install_method()
-    except Exception:  # noqa: BLE001
-        install_method = InstallMethod.UNKNOWN
-
-    if install_method == InstallMethod.UV_TOOL:
-        return _fallback_uv_tool_reinstall_command()
-
-    return "uv sync --extra test"
-
-
-def _versioned_package() -> str:
-    version = get_version()
-    package = "spec-kitty-cli"
-    if version and version != "0.0.0-dev":
-        package = f"{package}=={version}"
-    return package
-
-
-def _fallback_uv_tool_reinstall_command() -> str:
-    if _active_uv_tool_receipt_path() is not None:
-        return (
-            "Spec Kitty could not preserve uv receipt provenance automatically; "
-            "reinstall the same uv tool source with --with pytest"
-        )
-    return f"{_uv_tool_env_prefix()}uv tool install --force --with pytest {_versioned_package()}"
-
-
-def _uv_tool_reinstall_command() -> str | None:
-    try:
-        receipt = _active_uv_tool_receipt()
-        if receipt is None:
-            return None
-
-        requirements = _uv_tool_receipt_tool(receipt).get("requirements", [])
-        if not isinstance(requirements, list):
-            return None
-
-        tool_requirement = _find_uv_tool_requirement(requirements)
-        if tool_requirement is None:
-            return None
-
-        with_args = _uv_tool_with_args(requirements)
-        package_args = _uv_tool_package_args(tool_requirement)
-        if with_args is None or package_args is None:
-            return None
-
-        args = ["uv", "tool", "install", "--force"]
-        args.extend(_uv_tool_python_args(receipt))
-        args.extend(with_args)
-        args.extend(package_args)
-        return f"{_uv_tool_env_prefix()}{' '.join(shlex.quote(arg) for arg in args)}"
-    except Exception:  # noqa: BLE001
-        return None
-
-
-def _active_uv_tool_receipt() -> dict[str, object] | None:
-    try:
-        receipt_path = _active_uv_tool_receipt_path()
-        if receipt_path is None:
-            return None
-        receipt = tomllib.loads(receipt_path.read_text(encoding="utf-8"))
-        if isinstance(receipt, dict):
-            return receipt
-    except Exception:  # noqa: BLE001
-        return None
-    return None
-
-
-def _active_uv_tool_receipt_path() -> Path | None:
-    try:
-        executable_parent = Path(sys.executable).parent
-        if executable_parent.name.lower() not in {"bin", "scripts"}:
-            return None
-
-        receipt_path = executable_parent.parent / "uv-receipt.toml"
-        if receipt_path.exists():
-            return receipt_path
-    except Exception:  # noqa: BLE001
-        return None
-    return None
-
-
-def _uv_tool_receipt_tool(receipt: dict[str, object]) -> dict[str, object]:
-    tool = receipt.get("tool")
-    return tool if isinstance(tool, dict) else {}
-
-
-def _find_uv_tool_requirement(requirements: list[object]) -> dict[str, object] | None:
-    for requirement in requirements:
-        if isinstance(requirement, dict) and requirement.get("name") == _PACKAGE_NAME:
-            return requirement
-    return None
-
-
-def _active_uv_tool_receipt_has_spec_kitty() -> bool:
-    receipt = _active_uv_tool_receipt()
-    if receipt is None:
-        return False
-    requirements = _uv_tool_receipt_tool(receipt).get("requirements", [])
-    return isinstance(requirements, list) and _find_uv_tool_requirement(requirements) is not None
-
-
-def _uv_tool_with_args(requirements: list[object]) -> list[str] | None:
-    args: list[str] = []
-    has_pytest = False
-    for requirement in requirements:
-        if not isinstance(requirement, dict):
-            continue
-        if requirement.get("name") == _PACKAGE_NAME:
-            continue
-        if requirement.get("name") == _PYTEST_NAME:
-            has_pytest = True
-        requirement_args = _uv_tool_requirement_args(requirement)
-        if requirement_args is None:
-            return None
-        args.extend(requirement_args)
-    if not has_pytest:
-        args.extend(["--with", _PYTEST_NAME])
-    return args
-
-
-def _uv_tool_requirement_args(requirement: dict[str, object]) -> list[str] | None:
-    if not _uv_tool_requirement_is_supported(requirement):
-        return None
-
-    editable = _nonempty_str(requirement.get("editable"))
-    if editable is not None:
-        return ["--with-editable", editable]
-
-    requirement_arg = _uv_tool_requirement_arg(requirement)
-    if requirement_arg is not None:
-        return ["--with", requirement_arg]
-
-    return None
-
-
-def _uv_tool_requirement_arg(requirement: dict[str, object]) -> str | None:
-    directory = _nonempty_str(requirement.get("directory"))
-    if directory is not None:
-        return directory
-
-    path = _nonempty_str(requirement.get("path"))
-    if path is not None:
-        return path
-
-    git = _nonempty_str(requirement.get("git"))
-    if git is not None:
-        return _uv_git_source(git)
-
-    url = _nonempty_str(requirement.get("url"))
-    if url is not None:
-        return url
-
-    name = _nonempty_str(requirement.get("name"))
-    if name is None:
-        return None
-    specifier = _nonempty_str(requirement.get("specifier"))
-    return f"{name}{specifier or ''}"
-
-
-def _uv_tool_package_args(requirement: dict[str, object]) -> list[str] | None:
-    if not _uv_tool_requirement_is_supported(requirement):
-        return None
-
-    directory = _nonempty_str(requirement.get("directory"))
-    if directory is not None:
-        return [directory]
-
-    editable = _nonempty_str(requirement.get("editable"))
-    if editable is not None:
-        return ["--editable", editable]
-
-    path = _nonempty_str(requirement.get("path"))
-    if path is not None:
-        return [path]
-
-    git = _nonempty_str(requirement.get("git"))
-    if git is not None:
-        return [_PACKAGE_NAME, "--from", _uv_git_source(git)]
-
-    url = _nonempty_str(requirement.get("url"))
-    if url is not None:
-        return [url]
-
-    specifier = _nonempty_str(requirement.get("specifier"))
-    if specifier is not None:
-        return [f"{_PACKAGE_NAME}{specifier}"]
-
-    return [_PACKAGE_NAME]
-
-
-def _uv_tool_requirement_is_supported(requirement: dict[str, object]) -> bool:
-    return set(requirement).issubset(_SUPPORTED_UV_REQUIREMENT_KEYS)
-
-
-def _uv_tool_python_args(receipt: dict[str, object]) -> list[str]:
-    tool = _uv_tool_receipt_tool(receipt)
-    python = _nonempty_str(tool.get("python"))
-    if python is None:
-        return []
-    return ["--python", python]
-
-
-def _uv_git_source(git: str) -> str:
-    return git if git.startswith("git+") else f"git+{git}"
-
-
-def _nonempty_str(value: object) -> str | None:
-    if isinstance(value, str) and value.strip():
-        return value
-    return None
-
-
-def _uv_tool_env_prefix() -> str:
-    env_values = _uv_tool_env_values()
-    if sys.platform == "win32":
-        return "".join(
-            f"$env:{name}={_powershell_quote(str(value))}; "
-            for name, value in env_values
-        )
-    return "".join(f"{name}={shlex.quote(str(value))} " for name, value in env_values)
-
-
-def _uv_tool_env_values() -> list[tuple[str, Path]]:
-    env_values: list[tuple[str, Path]] = []
-    tool_dir = _active_uv_tool_dir()
-    if tool_dir is not None and not _same_path(tool_dir, Path.home() / ".local" / "share" / "uv" / "tools"):
-        env_values.append(("UV_TOOL_DIR", tool_dir))
-    bin_dir = _active_uv_tool_bin_dir()
-    if bin_dir is not None and not _same_path(bin_dir, Path.home() / ".local" / "bin"):
-        env_values.append(("UV_TOOL_BIN_DIR", bin_dir))
-    return env_values
-
-
-def _powershell_quote(value: str) -> str:
-    return "'" + value.replace("'", "''") + "'"
-
-
-def _active_uv_tool_dir() -> Path | None:
-    try:
-        executable_parent = Path(sys.executable).parent
-        if executable_parent.name.lower() not in {"bin", "scripts"}:
-            return None
-        tool_env = executable_parent.parent
-        if not (tool_env / "uv-receipt.toml").exists():
-            return None
-        return tool_env.parent
-    except Exception:  # noqa: BLE001
-        return None
-
-
-def _active_uv_tool_bin_dir() -> Path | None:
-    try:
-        receipt = _active_uv_tool_receipt()
-        if receipt is None:
-            return None
-        entrypoints = _uv_tool_receipt_tool(receipt).get("entrypoints", [])
-        if not isinstance(entrypoints, list):
-            return None
-        for entrypoint in entrypoints:
-            if not isinstance(entrypoint, dict) or entrypoint.get("name") != "spec-kitty":
-                continue
-            install_path = _nonempty_str(entrypoint.get("install-path"))
-            if install_path is not None:
-                return Path(install_path).parent
-    except Exception:  # noqa: BLE001
-        return None
-    return None
-
-
-def _same_path(left: Path, right: Path) -> bool:
-    try:
-        return left.resolve() == right.resolve()
-    except Exception:  # noqa: BLE001
-        return left == right
+        rendered: str = cmd.render(runtime.platform)
+        return rendered
+    except ValueError:
+        note: str | None = cmd.note
+        return note if note is not None else "see spec-kitty docs"
 
 
 def _resolve_repo_root(console: object) -> Path:
     try:
-        return find_repo_root()
+        root: Path = find_repo_root()
+        return root
     except TaskCliError as exc:
         console.print(f"[red]Error:[/red] {exc}")  # type: ignore[attr-defined]
         raise typer.Exit(2) from exc
@@ -388,10 +117,11 @@ def _resolve_mode_or_exit(
     baseline_merge_commit: str | None,
 ) -> tuple[MissionReviewMode, bool]:
     try:
-        return resolve_mode(
+        result: tuple[MissionReviewMode, bool] = resolve_mode(
             cli_flag=cli_mode,
             baseline_merge_commit=baseline_merge_commit,
         )
+        return result
     except ModeMismatchError as exc:
         diagnostic = {
             "diagnostic_code": str(exc.diagnostic_code),
