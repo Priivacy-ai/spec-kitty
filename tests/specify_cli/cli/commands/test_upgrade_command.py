@@ -218,7 +218,7 @@ def test_agent_check_json_prompts_when_update_available(tmp_path: Path, monkeypa
         "get_latest",
         lambda self, package: LatestVersionResult("999.0.0", "pypi", None),
     )
-    monkeypatch.setattr("specify_cli.compat.detect_install_method", lambda: InstallMethod.PIPX)
+    monkeypatch.setattr("specify_cli.compat._detect.install_method.detect_install_method", lambda: InstallMethod.PIPX)
     # The agent-check producer builds its Invocation with ``env_ci=is_ci_env()``;
     # under CI the planner selects NoNetworkProvider and the PyPIProvider mock
     # never fires (latest_version stays None → action=none). Pin network-allowed
@@ -249,7 +249,7 @@ def test_agent_check_guidance_when_upgrade_command_unavailable(
         "get_latest",
         lambda self, package: LatestVersionResult("999.0.0", "pypi", None),
     )
-    monkeypatch.setattr("specify_cli.compat.detect_install_method", lambda: InstallMethod.UNKNOWN)
+    monkeypatch.setattr("specify_cli.compat._detect.install_method.detect_install_method", lambda: InstallMethod.UNKNOWN)
     # See test_agent_check_json_prompts_when_update_available: pin network-allowed
     # so the PyPIProvider mock fires under CI and the real "manual upgrade required
     # → guidance" path is exercised rather than the CI network-suppressed action=none.
@@ -280,7 +280,7 @@ def test_agent_check_uv_tool_command_targets_latest_version(tmp_path: Path, monk
         "get_latest",
         lambda self, package: LatestVersionResult("999.0.0", "pypi", None),
     )
-    monkeypatch.setattr("specify_cli.compat.detect_install_method", lambda: InstallMethod.UV_TOOL)
+    monkeypatch.setattr("specify_cli.compat._detect.install_method.detect_install_method", lambda: InstallMethod.UV_TOOL)
     monkeypatch.setattr("specify_cli.compat.is_ci_env", lambda: False)
 
     result = _invoke_upgrade(["--agent-check", "--json"], cwd=tmp_path)

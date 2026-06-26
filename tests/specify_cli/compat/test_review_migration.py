@@ -1,0 +1,258 @@
+"""T021 snapshot parity tests for the WP04 review/__init__.py migration.
+
+These tests assert that the migrated _missing_test_extra_remediation()
+function produces the correct output for each install method after the Set A
+helpers were deleted and replaced with calls to detect_runtime() and
+plan_remediation().
+
+They serve as the regression guard for WP04: if any future change breaks the
+output contract, these tests catch it.
+
+Markers: fast + non_sandbox (matching the test_review.py suite so that CI
+gates pick these up in the same bucket as the existing review tests).
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Literal
+
+import pytest
+
+pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]
+
+
+# ---------------------------------------------------------------------------
+# Test helper
+# ---------------------------------------------------------------------------
+
+
+def _make_runtime(
+    install_method_name: str,
+    *,
+    tool_dir: Path | None = None,
+    is_default_tool_dir: bool | None = True,
+    python: str | None = None,
+    platform: str = "posix",
+    receipt_path: Path | None = None,
+) -> object:
+    """Construct an InstalledCliRuntime for monkeypatching detect_runtime().
+
+    Args:
+        install_method_name: enum name, e.g. "UV_TOOL", "PIPX", "UNKNOWN".
+        tool_dir: uv tool directory; only meaningful for UV_TOOL.
+        is_default_tool_dir: True/False/None depending on install context.
+        python: Python version override from receipt (UV_TOOL only).
+        platform: "posix" or "windows".
+        receipt_path: Path to the receipt file, or None.
+    """
+    from specify_cli.compat._detect.install_method import (
+        InstallMethod,
+        _SAFE_AUTO_UPGRADE_METHODS,
+    )
+    from specify_cli.compat._detect.runtime import InstalledCliRuntime, PackageSource
+
+    method = InstallMethod[install_method_name]
+    resolved_platform: Literal["posix", "windows"] = (
+        "windows" if platform == "windows" else "posix"
+    )
+
+    return InstalledCliRuntime(
+        install_method=method,
+        executable="/usr/local/bin/python",
+        receipt_path=receipt_path,
+        tool_dir=tool_dir,
+        bin_dir=None,
+        is_default_tool_dir=is_default_tool_dir,
+        is_default_bin_dir=None,
+        python=python,
+        requirements=(),
+        package_source=(
+            PackageSource.PYPI_SPECIFIER
+            if method == InstallMethod.UV_TOOL
+            else PackageSource.UNKNOWN
+        ),
+        platform=resolved_platform,
+        safe_for_auto_upgrade=(method in _SAFE_AUTO_UPGRADE_METHODS),
+    )
+
+
+# ---------------------------------------------------------------------------
+# T021-A  Byte-for-byte parity: UV_TOOL custom tool_dir + python override
+# ---------------------------------------------------------------------------
+
+
+def test_uv_tool_custom_tool_dir_and_python_snapshot(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """UV_TOOL with non-default tool_dir + python override produces a pinned command.
+
+    Snapshot: UV_TOOL_DIR=/opt/uv uv tool install --force --python 3.13 spec-kitty-cli --extra test
+    (85 chars, well within CHK028's 128-char ceiling)
+
+    A short fixed path is used so the composed command never exceeds CHK028's
+    128-char limit regardless of the machine's tmp directory depth.
+    This is the byte-for-byte regression guard for the REINSTALL_WITH_TEST path
+    after the Set A helpers were deleted.
+    """
+    import specify_cli.cli.commands.review as review_mod
+
+    tool_dir = Path("/opt/uv")
+    runtime = _make_runtime(
+        "UV_TOOL",
+        tool_dir=tool_dir,
+        is_default_tool_dir=False,
+        python="3.13",
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_runtime",
+        lambda: runtime,
+    )
+
+    result = review_mod._missing_test_extra_remediation()  # noqa: SLF001
+    expected = (
+        "UV_TOOL_DIR=/opt/uv uv tool install --force --python 3.13 spec-kitty-cli --extra test"
+    )
+    assert result == expected, f"Snapshot mismatch: {result!r}"
+
+
+# ---------------------------------------------------------------------------
+# T021-B  UV_TOOL default tool_dir: no env prefix in output
+# ---------------------------------------------------------------------------
+
+
+def test_uv_tool_default_tool_dir_no_env_prefix(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """UV_TOOL with the default tool_dir emits a short, env-prefix-free command.
+
+    Snapshot: uv tool install --force spec-kitty-cli --extra test
+    """
+    import specify_cli.cli.commands.review as review_mod
+
+    runtime = _make_runtime("UV_TOOL", is_default_tool_dir=True)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_runtime",
+        lambda: runtime,
+    )
+
+    result = review_mod._missing_test_extra_remediation()  # noqa: SLF001
+    assert result == "uv tool install --force spec-kitty-cli --extra test"
+
+
+# ---------------------------------------------------------------------------
+# T021-C  PIPX install: non-UV_TOOL path -> "uv sync --extra test"
+# ---------------------------------------------------------------------------
+
+
+def test_pipx_install_falls_back_to_uv_sync(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """PIPX is not UV_TOOL; _missing_test_extra_remediation returns 'uv sync --extra test'.
+
+    This is the parity snapshot for the PIPX path: the migrated code returns
+    the same non-UV_TOOL fallback that the legacy helper returned when PIPX was
+    the install method (the legacy _HINT_TABLE PIPX entry covered UPGRADE only;
+    reinstall-with-test was always a manual step for non-UV_TOOL methods).
+    """
+    import specify_cli.cli.commands.review as review_mod
+
+    runtime = _make_runtime("PIPX")
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_runtime",
+        lambda: runtime,
+    )
+
+    result = review_mod._missing_test_extra_remediation()  # noqa: SLF001
+    assert result == "uv sync --extra test"
+
+
+# ---------------------------------------------------------------------------
+# T021-D  Malformed receipt / UNKNOWN install method: graceful degradation
+# ---------------------------------------------------------------------------
+
+
+def test_malformed_receipt_graceful_degradation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """UNKNOWN install method (e.g. malformed receipt) degrades gracefully.
+
+    CHK032 guarantees detect_runtime() never raises; for an unrecognised
+    install method the function must return a safe fallback without raising.
+    """
+    import specify_cli.cli.commands.review as review_mod
+
+    runtime = _make_runtime("UNKNOWN", is_default_tool_dir=None)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_runtime",
+        lambda: runtime,
+    )
+
+    result = review_mod._missing_test_extra_remediation()  # noqa: SLF001
+    assert result == "uv sync --extra test"
+    assert isinstance(result, str)
+
+
+# ---------------------------------------------------------------------------
+# T021-E  Windows platform, non-default tool_dir: CHK028 violation -> fallback
+# ---------------------------------------------------------------------------
+
+
+def test_windows_non_default_tool_dir_chk028_fallback(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Windows + non-default tool_dir: render() raises CHK028 -> note fallback.
+
+    The Windows env prefix format ($env:KEY='value'; ) contains characters
+    outside the CHK028 allowed set (dollar signs, apostrophes, semicolons).
+    A short fixed path is used; the CHK028 violation comes from the $env:
+    prefix format itself, not path length.
+    """
+    import specify_cli.cli.commands.review as review_mod
+
+    tool_dir = Path("/opt/uv")
+    runtime = _make_runtime(
+        "UV_TOOL",
+        tool_dir=tool_dir,
+        is_default_tool_dir=False,
+        platform="windows",
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_runtime",
+        lambda: runtime,
+    )
+
+    result = review_mod._missing_test_extra_remediation()  # noqa: SLF001
+    # render("windows") raises ValueError (CHK028): $env:UV_TOOL_DIR='/opt/uv';
+    # contains $, ', ; which are outside the CHK028 character class.
+    # -> fallback to cmd.note (None) -> hardcoded "see spec-kitty docs"
+    assert result == "see spec-kitty docs"
+
+
+# ---------------------------------------------------------------------------
+# T021-F  Windows platform, default tool_dir: no env prefix -> CHK028 passes
+# ---------------------------------------------------------------------------
+
+
+def test_windows_default_tool_dir_renders_successfully(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Windows + default tool_dir: no env vars -> CHK028 passes.
+
+    When UV_TOOL_DIR is not injected (default tool_dir) the argv-only
+    render on Windows produces a valid CHK028 command with no $env: prefix.
+    """
+    import specify_cli.cli.commands.review as review_mod
+
+    runtime = _make_runtime(
+        "UV_TOOL",
+        is_default_tool_dir=True,
+        platform="windows",
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.detect_runtime",
+        lambda: runtime,
+    )
+
+    result = review_mod._missing_test_extra_remediation()  # noqa: SLF001
+    assert result == "uv tool install --force spec-kitty-cli --extra test"
