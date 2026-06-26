@@ -71,13 +71,13 @@ WP08 (pre-condition + gate reconciliation) ← deps WP02,03,04,05
 - **Priority:** P0 (foundation) · **Independent test:** `pytest tests/architectural/test_resolution_authority_gates.py -q` green; both self-mutation tests red-on-inject.
 - **Depends on:** none.
 - **Subtasks:**
-  - [ ] T001 Composite-key `(qualname, token_line)` allowlist machinery + loader (WP01)
-  - [ ] T002 Canonicalizer def-use discriminator (scan-by-name + intra-function provenance) (WP01)
-  - [ ] T003 Coord-authority discriminator (explicit write-vs-read predicate) (WP01)
-  - [ ] T004 Seed pre-sweep baseline allowlist (WP01)
-  - [ ] T005 Self-mutation tests (both discriminators, distinct injection sites) (WP01)
-  - [ ] T006 Concrete floor (≥38) + shrink-only staleness twin-guard (WP01)
-  - [ ] T007 Wire into fast tier; verify <30 s (WP01)
+  - [x] T001 Composite-key `(qualname, token_line)` allowlist machinery + loader (WP01)
+  - [x] T002 Canonicalizer def-use discriminator (scan-by-name + intra-function provenance) (WP01)
+  - [x] T003 Coord-authority discriminator (explicit write-vs-read predicate) (WP01)
+  - [x] T004 Seed pre-sweep baseline allowlist (WP01)
+  - [x] T005 Self-mutation tests (both discriminators, distinct injection sites) (WP01)
+  - [x] T006 Concrete floor (≥38) + shrink-only staleness twin-guard (WP01)
+  - [x] T007 Wire into fast tier; verify <30 s (WP01)
 - **Risks:** composite-key is net-new (not a copy — don't under-budget); floor must be the live census; the coord-authority write-vs-read predicate has no name proxy (must allowlist decision_log/widen).
 
 ## WP02 — #2154 + #2155 runtime routing + tasks.py/implement.py canon (IC-04a, IC-04b)
