@@ -7,7 +7,7 @@ Per FR-037 of the spec-kitty-mission-review skill Gate-4. One row per issue refe
 | #2154 | mark_status write-leg lands on coord; move_task validates primary (WP blocked) | fixed | WP02 (FR-001 — routes :1807 write through resolve_planning_read_dir kind=TASKS_INDEX) |
 | #2155 | mixed-bundle auto-commit silently drops coord-owned status write | fixed | WP02 (FR-002 — routes implement.py:1311 [+ re-verify tasks.py:1555] via BookkeepingTransaction; guard untouched) |
 | #2164 | Un-canonicalized handle reaches the topology-blind primitive (no regression guard) | fixed | WP01 gate + WP03/04/05 sweep (FR-004/005 — closed by construction) |
-| #2160 | Coord-authority class (write leg bypasses the kind-aware authority) | fixed | WP02 closes the #2154+#2155 instances |
+| #2160 | Coord-authority class (write leg bypasses the kind-aware authority) | deferred-with-followup | Core class #2154+#2155 closed by WP02; #2160 UMBRELLA stays OPEN for checklist children #2115/#2017/#2140 (out-of-scope/Phase-2) — do NOT auto-close on merge |
 | #1842 | Literal `/tmp/` paths in test files | fixed | WP07 (FR-007 — frozen-baseline ratchet; full litter sweep OUT of scope) |
 | #2034 | Mission-owned contract tests excluded from CI shards | verified-already-fixed | WP07 (FR-008 — conditional/empirical collect-only verify; named files already run → likely verify-only) |
 | #2161 | Read-leg handle-safety fix (pre-condition) | verified-already-fixed | Landed on base; WP08-T037 (C-003) verifies present, not re-implemented |
