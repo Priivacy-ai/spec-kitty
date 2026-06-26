@@ -157,6 +157,7 @@ The existing Idiom-B machinery in `tests/architectural/surface_resolution_audit/
 4. Add the mandatory `_read_path_resolver.py:454` entry under `canonicalizer:` with rationale `"C-001/FR-011 sanctioned bare probe inside _canonicalize_primary_read_handle — folding canonicalization into the primitive would recurse"`. This entry MUST NOT be removed by any sweep WP; it is a permanent fixture.
 5. Add the `decisions/emit.py` and `widen/state.py` entries under `coord_authority:` with rationale `"legitimate coord-owned write that bypasses commit_for_mission by design — coord status authority is at the caller level, not the commit level"`.
 6. Record the total baseline counts (`canonicalizer_baseline: N` and `coord_authority_baseline: M`) as top-level YAML scalars so the twin-guard in T006 can compare.
+7. **Emit the COMMITTED read-vs-write classification record** — write a file (e.g. `tests/architectural/surface_resolution_audit/write_candidate_classification.yaml` or a section in the allowlist YAML) that covers ALL 53 `resolve_feature_dir_for_mission` call sites with a verdict per site: `{write, read, probe}`. This is the IC-03 mandated classification artifact. Every site classified as `write` must appear in the allowlist (routed-or-sanctioned-with-rationale); the count of write-classified sites is the concrete floor integer used in T006's `test_coord_authority_gate_floor` (step 2 above). Commit this artifact alongside the allowlist YAML so it is part of the WP01 merge.
 
 **Validation checklist:**
 - [ ] Running the two discriminators against the seeded allowlist produces zero violations
@@ -164,6 +165,7 @@ The existing Idiom-B machinery in `tests/architectural/surface_resolution_audit/
 - [ ] `decisions/emit.py` and `widen/state.py` are present under `coord_authority`
 - [ ] Every entry has a non-empty `rationale` field
 - [ ] `canonicalizer_baseline` count recorded correctly (≥ 38 total entries including permanent ones)
+- [ ] Classification artifact committed: all 53 `resolve_feature_dir_for_mission` sites classified as `write`, `read`, or `probe`; write-classified count is the concrete integer literal used as the floor in T006
 
 **Edge cases:** If the scanner discovers more than 38 sites, record the actual count — do not clip at 38. The floor requirement is ≥ 38; the actual census may be higher.
 
@@ -200,7 +202,7 @@ The existing Idiom-B machinery in `tests/architectural/surface_resolution_audit/
 
 **Steps:**
 1. Write `test_canonicalizer_gate_floor` — run the full canonicalizer scan on the real `src/` tree (the full `src/specify_cli/` and `src/runtime/` subtrees), count discovered call sites (sanctioned + unsanctioned), and assert `count >= 38`. The literal `38` is the live census from the spec; do not use `> 0` or `>= 1` (NFR-002 explicitly rejects these).
-2. Write `test_coord_authority_gate_floor` — same pattern; assert count ≥ the live write-candidate count discovered in T004.
+2. Write `test_coord_authority_gate_floor` — same pattern; assert count ≥ a **hard-coded concrete integer literal floor** (e.g. `>= 12`). Run the write-candidate scan from T004 FIRST, then set the floor to the actual integer you counted — do NOT express the floor as `>= len(scanned_writes)` or any other self-referential expression (that is tautological and catches nothing). Live reality: there are 53 `resolve_feature_dir_for_mission` call sites and approximately 15 write-indicator files, so the honest write-candidate census is a dozen-plus. Set the floor to that concrete number.
 3. Write `test_allowlist_no_stale_entries` — load `resolution_gate_allowlist.yaml`, derive the live `GateAllowlistKey` set from both scanners, call `staleness_twin_guard`, and assert the returned stale list is empty. This is the twin-guard specified by NFR-003.
 4. Write `test_allowlist_shrink_only` — load the `canonicalizer_baseline` and `coord_authority_baseline` scalars from the YAML, derive the current allowlist entry counts, and assert `current_count <= baseline`. This is the enforcement of NFR-003's pre-sweep baseline: even after T004 seeds it, future WPs cannot add entries (they can only remove them as they route sites).
 
@@ -234,15 +236,16 @@ The existing Idiom-B machinery in `tests/architectural/surface_resolution_audit/
 
 ## Branch Strategy
 
-This WP operates directly on the planning base branch `design/infra-logic-separation-2173` (flattened mission, `branch_strategy: direct`). There are no execution lanes for this mission; all implementation happens in a single worktree per `lanes.json` absence. Do not push to `origin/main` — the merge target is the design branch, which will be PR'd to `main` by the operator after review.
+This WP operates directly on the planning base branch `design/infra-logic-separation-2173` (flattened mission, `branch_strategy: direct`). Do not push to `origin/main` — the merge target is the design branch, which will be PR'd to `main` by the operator after review.
 
-Work in the worktree that `spec-kitty implement WP01` creates under `.worktrees/<slug>-lane-<id>` (or the legacy `.worktrees/<feature>-WP01` path if `lanes.json` is absent). Commit only the owned files listed in the frontmatter; do not touch any file in `.claude/`, `.amazonq/`, or other agent directories (these are generated copies).
+Lanes are computed in `lanes.json` (8 lanes). Work in the worktree that `spec-kitty implement WP01` creates under `.worktrees/<slug>-<mid8>-lane-<id>`. Commit only the owned files listed in the frontmatter; do not touch any file in `.claude/`, `.amazonq/`, or other agent directories (these are generated copies). Run `move-task`/status transitions from the main `design/infra-logic-separation-2173` checkout (flat-mission status discipline — per CLAUDE.md "Flat-mission implement-loop friction").
 
 ## Definition of Done
 
 - [ ] `tests/architectural/test_resolution_authority_gates.py` exists and all tests pass with `pytest tests/architectural/test_resolution_authority_gates.py -q`
 - [ ] `tests/architectural/resolution_gate_allowlist.yaml` is seeded with the complete pre-sweep baseline; every entry has a non-empty `rationale`
-- [ ] `canonicalizer_baseline` ≥ 38 and `coord_authority_baseline` ≥ live write-candidate count are recorded as YAML scalars
+- [ ] `canonicalizer_baseline` ≥ 38 and `coord_authority_baseline` ≥ live write-candidate count (concrete integer, not a formula) are recorded as YAML scalars
+- [ ] Classification artifact committed: all 53 `resolve_feature_dir_for_mission` call sites classified as `write`/`read`/`probe`; write-classified count matches the `coord_authority_baseline` floor (IC-03)
 - [ ] `_read_path_resolver.py:454` is present in the canonicalizer allowlist with a C-001/FR-011 rationale (merge-blocker C-001)
 - [ ] `decisions/emit.py` and `widen/state.py` are present in the coord-authority allowlist with their by-design rationale
 - [ ] Both self-mutation tests pass (T005): inject → FAIL, revert → PASS

@@ -17,6 +17,7 @@ subtasks:
 - T037
 - T038
 - T039
+- T040
 agent: claude
 history:
 - timestamp: '2026-06-26T11:02:04Z'
@@ -30,6 +31,7 @@ execution_mode: code_change
 model: claude-sonnet-4-6
 owned_files:
 - tests/architectural/test_single_mission_surface_resolver.py
+- tests/architectural/_baselines.yaml
 role: implementer
 tags: []
 ---
@@ -153,6 +155,8 @@ communication obligation, not a prohibition on necessary edits.
   entry no longer matches a live site, the gate will fail on this test; that is the signal to
   remove the entry.
 
+**GAP-5 — No silent downward floor:** If the reconciled `_MIN_DISCOVERED_ROWS` ends up LOWER than its pre-sweep value of `20`, you MUST record in the commit body the exact delta and the specific routed sites that account for it (i.e. which formerly raw-join sites are now canonical seam calls and thus no longer appear in `discover_rows()` output). An UNEXPLAINED downward floor move — setting `_MIN_DISCOVERED_ROWS` to a lower number without naming which sites disappeared — is a merge-blocker. The floor may legitimately decrease if sites were routed (fewer raw-join bypasses to discover), but the accounting must be explicit and traceable.
+
 ### T039 — Full `tests/architectural/` sweep green
 
 Run the full architectural suite and confirm it is green:
@@ -195,14 +199,44 @@ PYTHONPATH=$PWD/src pytest tests/git/ -q -p no:cacheprovider 2>&1 | tail -10
 If these fail on tests unrelated to this mission's diff, cross-check against the lane base.
 Report results in T039.
 
+### T040 — Final allowlist shrink + routed-count floor assertion (SC-004)
+
+**Purpose:** Perform the SINGLE final shrink of `tests/architectural/resolution_gate_allowlist.yaml`, removing every entry whose site is now def-use-canonical (routed by WP02–WP05). Add a `test_routed_count_floor` assertion as the machine guard against mass-allowlisting (SC-004).
+
+**Files:** `tests/architectural/resolution_gate_allowlist.yaml`, `tests/architectural/test_resolution_authority_gates.py` (add one new test function)
+
+> **Note:** `resolution_gate_allowlist.yaml` is created by WP01 (it is in WP01's `create_intent`), so it is NOT in WP08's `create_intent`. It is in WP08's `owned_files` because WP08 performs the authoritative shrink. `_baselines.yaml` already exists on the base branch; do not re-create it.
+>
+> Reconciling `surface_resolution_audit/**` (WP01-owned) is a rationale'd out-of-map edit if it touches files in that subdirectory — record the rationale in the commit message.
+
+**Steps:**
+1. Collect the routed-site manifests from the WP02–WP05 commit messages. These identify every pre-sweep allowlist entry that corresponds to a site now def-use-canonical.
+2. Remove those entries from `resolution_gate_allowlist.yaml`. Keep all permanent sanctions:
+   - `_read_path_resolver.py:454` (C-001/FR-011 recursion probe) — NEVER remove
+   - `decisions/emit.py` (coord-authority, by-design)
+   - `widen/state.py` (coord-authority, by-design)
+   - Any WP02–WP05 sanctioned-with-rationale entries (already-canonical provenance)
+3. Verify the staleness twin-guard passes after removal: `test_allowlist_no_stale_entries` must be GREEN.
+4. Add `test_routed_count_floor` to `test_resolution_authority_gates.py`:
+   - Run the canonicalizer scan and count the sites classified as def-use-canonical (routed, not in the allowlist as pre-sweep entries).
+   - Assert this count is `>= 27` (approximate: 38 pre-sweep baseline minus ~9–11 already-canonical seam-internal sites that were always-sanctioned = ~27 sites that were genuinely bare and got routed by WP02–WP05). Set the floor to the concrete integer you actually counted from the sweep manifests.
+   - Assert the final allowlist entry count is `<= pre_sweep_baseline` (where `pre_sweep_baseline` is the `canonicalizer_baseline` scalar read from the YAML). This is SC-004 machine enforcement: a mass-allowlisting that preserves entries for already-routed sites would be caught.
+5. Run the full gate suite and confirm green: `pytest tests/architectural/test_resolution_authority_gates.py -q`.
+
+**Validation checklist:**
+- [ ] Every routed site from WP02–WP05 manifests has its pre-sweep allowlist entry removed
+- [ ] Permanent sanctions (`_read_path_resolver.py:454`, `decisions/emit.py`, `widen/state.py`) are untouched
+- [ ] `test_allowlist_no_stale_entries` GREEN after shrink
+- [ ] `test_routed_count_floor` added; floor is a concrete integer derived from the sweep manifest count, not a formula
+- [ ] Final allowlist entry count `<= canonicalizer_baseline` scalar (SC-004)
+- [ ] `pytest tests/architectural/test_resolution_authority_gates.py -q` GREEN
+
 ## Branch Strategy
 
 Branch: `design/infra-logic-separation-2173` (direct commit, no sub-branch).
 WP08 is a sequenced gating WP — it must come AFTER WP02, WP03, WP04, and WP05 are all
 approved. Do not claim WP08 until all four dependency WPs are in `approved` or `done` state.
-The owned surface is `tests/architectural/test_single_mission_surface_resolver.py`. Any edit
-to `surface_resolution_audit/audit.py` is explicitly marked as an out-of-map edit in the
-commit message.
+Primary owned surface: `tests/architectural/` (`test_single_mission_surface_resolver.py`, `resolution_gate_allowlist.yaml`, `_baselines.yaml`). Any edit to `surface_resolution_audit/audit.py` (WP01-owned) is an out-of-map edit and must be recorded explicitly in the commit message.
 
 ## Definition of Done
 
@@ -213,8 +247,11 @@ commit message.
 - [ ] `_MIN_DISCOVERED_ROWS` updated to reflect the post-sweep row count (non-zero, non-trivial).
 - [ ] All stale `_RAW_JOIN_SITES` entries removed (sites routed by WP02–WP05 are not allowlisted).
 - [ ] Remaining `_RAW_JOIN_SITES` entries re-verified by `composite_key_from_file` at current seed lines.
+- [ ] If `_MIN_DISCOVERED_ROWS` decreased below pre-sweep value of `20`: delta and accounting sites recorded in commit body (GAP-5 — unexplained downward floor is a merge-blocker).
 - [ ] Full `tests/architectural/` sweep run (T039); zero NEW failures (pre-existing documented).
 - [ ] `tests/integration/` and `tests/git/` shards run; any failures cross-checked against lane base.
+- [ ] T040: `resolution_gate_allowlist.yaml` shrunk — every routed-site pre-sweep entry removed; permanent sanctions retained; `test_allowlist_no_stale_entries` GREEN.
+- [ ] T040: `test_routed_count_floor` added to `test_resolution_authority_gates.py`; floor is a concrete integer (≥ 27 approximate) matching the sweep manifest count; final allowlist entry count ≤ `canonicalizer_baseline` (SC-004).
 - [ ] `ruff check` and `mypy` pass on modified files with zero suppressions.
 - [ ] SC-003 + SC-004 from quickstart.md satisfied at the integrated level.
 
@@ -249,3 +286,6 @@ Verify:
    of pass/fail counts in the WP notes.
 5. Any new failure in `tests/architectural/` (not pre-existing on the lane base) is a merge-blocker.
 6. Out-of-map edits to `audit.py` are justified and documented in the commit message.
+7. T040 allowlist shrink is honest: every removed entry corresponds to a site that appears in a WP02–WP05 routed-site manifest; no speculative removals.
+8. `test_routed_count_floor` floor is a concrete integer, not a formula referencing live scan output; the floor represents what was actually routed, not an optimistic ceiling.
+9. If `_MIN_DISCOVERED_ROWS` was lowered below `20`, the commit body names the specific sites that disappeared from `discover_rows()` output (GAP-5 accounting).

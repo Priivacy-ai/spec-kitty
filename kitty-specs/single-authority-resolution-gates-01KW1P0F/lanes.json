@@ -154,6 +154,7 @@
         "WP08"
       ],
       "write_scope": [
+        "tests/architectural/_baselines.yaml",
         "tests/architectural/test_single_mission_surface_resolver.py"
       ],
       "predicted_surfaces": [
@@ -169,7 +170,7 @@
       "parallel_group": 2
     }
   ],
-  "computed_at": "2026-06-26T11:16:27.474950+00:00",
+  "computed_at": "2026-06-26T12:01:02.588597+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": []
 }

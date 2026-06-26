@@ -3,7 +3,7 @@
 **Mission:** `single-authority-resolution-gates-01KW1P0F` · **Branch:** `design/infra-logic-separation-2173` (flattened)
 **Spec:** [spec.md](./spec.md) · **Plan:** [plan.md](./plan.md) · **Contracts:** [contracts/resolution-gates.md](./contracts/resolution-gates.md)
 
-8 work packages from IC-01…IC-07. **Lane discipline:** `tasks.py` + `implement.py` (both runtime + canon sites) are owned solely by **WP02** — no other WP edits them. The shared gate allowlist `tests/architectural/resolution_gate_allowlist.yaml` is owned by **WP01** (seeds the pre-sweep baseline); the sweep WPs (WP02–WP05) remove their own routed entries as a rationale'd shrink-only out-of-map edit (NFR-003).
+8 work packages from IC-01…IC-07. **Lane discipline:** `tasks.py` + `implement.py` (both runtime + canon sites) are owned solely by **WP02** — no other WP edits them. The shared gate allowlist `tests/architectural/resolution_gate_allowlist.yaml` is owned by **WP01** (seeds the pre-sweep baseline); shrunk **once** by **WP08** (the final routed-count + shrink pass, T040); the sweep WPs (WP02–WP05) **route code only** and record their routed sites for WP08's manifest — dissolving any parallel-lane allowlist contention (NFR-003, SC-004).
 
 ## Dependency graph
 
@@ -35,20 +35,20 @@ WP08 (pre-condition + gate reconciliation) ← deps WP02,03,04,05
 | T011 | Route claim mixed bundle (`implement.py:1311`) via `BookkeepingTransaction`; un-swallow | WP02 | |
 | T012 | Route/sanction `tasks.py` (2) + `implement.py` (4) canon sites | WP02 | |
 | T013 | Coord-topology integration test (#2155: commits clean, wrong-surface still refused) | WP02 | |
-| T014 | Remove WP02's routed sites from the baseline allowlist (shrink) | WP02 | |
+| T014 | Record WP02's routed sites for WP08's shrink manifest (no allowlist edit) | WP02 | |
 | T015 | Sanction `_read_path_resolver.py` seam-internal sites; pin `:454` bare probe (C-001) | WP03 | [P] |
 | T016 | Route/sanction `mission_type.py` (`:592` route, `:1048` already-canonical) | WP03 | [P] |
 | T017 | Route/sanction `retrospective/writer.py` | WP03 | [P] |
-| T018 | Shrink allowlist for routed seam sites | WP03 | [P] |
+| T018 | Record WP03's routed sites for WP08's manifest (no allowlist edit) | WP03 | [P] |
 | T019 | Route `merge/bookkeeping_projection.py` (2) + `merge/executor.py` (1) | WP04 | [P] |
 | T020 | Route `core/paths.py` (2) + `core/git_ops.py` (1) | WP04 | [P] |
 | T021 | Route `coordination/surface_resolver.py` (1) + `commit_router.py` (1) | WP04 | [P] |
-| T022 | Shrink allowlist for WP04 sites | WP04 | [P] |
+| T022 | Record WP04's routed sites for WP08's manifest (no allowlist edit) | WP04 | [P] |
 | T023 | Route `status/aggregate.py` (4) | WP05 | [P] |
 | T024 | Route `mission_runtime/resolution.py` (4) | WP05 | [P] |
 | T025 | Route `runtime_bridge.py` (`:98`, `:177`) | WP05 | [P] |
 | T026 | Route `agent/workflow.py` + `mission_finalize.py` + `mission_feature_resolution.py` + `acceptance/__init__.py` | WP05 | [P] |
-| T027 | Shrink allowlist for WP05 sites | WP05 | [P] |
+| T027 | Record WP05's routed sites for WP08's manifest (no allowlist edit) | WP05 | [P] |
 | T028 | Stub resolver with distinguishable P1–P5 per-form outputs | WP06 | |
 | T029 | Parametrize all handle forms; assert read-seam ≡ write/placement-seam | WP06 | |
 | T030 | Ambiguity-raises + cold-miss fail-closed cases | WP06 | |
@@ -61,6 +61,7 @@ WP08 (pre-condition + gate reconciliation) ← deps WP02,03,04,05
 | T037 | C-003 verify #2161 read-leg present on base | WP08 | |
 | T038 | Reconcile existing surface-resolver gate floors/allowlists post-sweep | WP08 | |
 | T039 | Full `tests/architectural/` sweep green | WP08 | |
+| T040 | Final allowlist shrink + `test_routed_count_floor` (≥27 routed) + ≤ pre-sweep baseline | WP08 | |
 
 ---
 
@@ -91,7 +92,7 @@ WP08 (pre-condition + gate reconciliation) ← deps WP02,03,04,05
   - [ ] T011 Route claim mixed bundle (`implement.py:1311`); un-swallow (WP02)
   - [ ] T012 Route/sanction `tasks.py` (2) + `implement.py` (4) canon sites (WP02)
   - [ ] T013 Coord-topology integration test (#2155) (WP02)
-  - [ ] T014 Shrink WP02's routed allowlist entries (WP02)
+  - [ ] T014 Record WP02's routed sites for WP08's manifest; no allowlist edit (WP02)
 - **Risks:** the intra-function write/commit split; the swallow hides failure — the fix must surface a genuine failure; do NOT touch the guard (C-006, merge-blocker); reachable only under coord-topology + unprotected branch.
 
 ## WP03 — Canonicalizer seam-module sweep (IC-02b)
@@ -165,4 +166,5 @@ WP08 (pre-condition + gate reconciliation) ← deps WP02,03,04,05
   - [ ] T037 C-003 verify #2161 read-leg present on base (WP08)
   - [ ] T038 Reconcile existing surface-resolver gate floors/allowlists (WP08)
   - [ ] T039 Full `tests/architectural/` sweep green (WP08)
+  - [ ] T040 Final allowlist shrink + routed-count floor (≥27) + ≤ pre-sweep baseline (WP08)
 - **Risks:** a site move silently breaking a pre-existing gate's floor (easy to miss in per-WP review; the full sweep catches it).

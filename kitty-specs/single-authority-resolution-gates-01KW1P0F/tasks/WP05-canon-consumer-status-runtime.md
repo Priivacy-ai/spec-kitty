@@ -312,24 +312,22 @@ mypy src/specify_cli/cli/commands/agent/workflow.py \
      src/specify_cli/acceptance/__init__.py --ignore-missing-imports
 ```
 
-### T027 — Shrink allowlist for WP05 sites
+### T027 — Record routed sites for WP08 allowlist shrink
 
-After T023–T026, remove from `tests/architectural/resolution_gate_allowlist.yaml` every
-entry whose call-site key corresponds to a site routed in this WP. Keep entries for
-sanctioned sites (e.g. `aggregate.py:547` if sanctioned, and any `mission_finalize.py`
-site where `_resolve_mission_slug` proved already-canonical).
+After T023–T026, confirm each routed site passes the canonicalizer gate (def-use-canonical, zero violations) and record the routed-site manifest for WP08.
 
-The allowlist is shrink-only (NFR-003). The staleness twin-guard built in WP01 will fail
-the build if a removed site's composite key still appears.
+> **Allowlist ownership note:** WP08 performs the SINGLE final shrink of `tests/architectural/resolution_gate_allowlist.yaml` — removing every entry whose site is now def-use-canonical (routed). WP05 does NOT edit the shared allowlist YAML to remove pre-sweep entries. This avoids cross-lane edit contention on the shared file. Your DoD is that WP05's routed sites pass the canonicalizer gate, not that the YAML is smaller after this WP. Sanctioned-with-rationale entries (e.g. `aggregate.py:547`, any `mission_finalize.py` site proven already-canonical) are permitted as out-of-map adds to the allowlist; pre-sweep entries for routed sites wait for WP08 to remove.
 
-**Edit:** `tests/architectural/resolution_gate_allowlist.yaml` — remove only WP05's
-routed-site entries. Leave all other WP's entries intact.
+**Steps:**
+1. Run the gate and confirm zero violations for WP05-owned files.
+2. Record in the commit message body which pre-sweep allowlist entries correspond to sites now routed — this is the manifest WP08 consumes.
+3. Do NOT remove entries from `tests/architectural/resolution_gate_allowlist.yaml` in this WP.
 
 **Final validation (full gate suite):**
 ```bash
 pytest tests/architectural/test_resolution_authority_gates.py -q
 ```
-Both discriminators GREEN. Staleness twin-guard GREEN. No stale entries for routed sites.
+Both discriminators GREEN for WP05-owned files. `resolution_gate_allowlist.yaml` must NOT be modified in this WP.
 
 Also run the full fast-tier architectural suite to catch any pre-existing gate whose floor
 shifted:
@@ -340,8 +338,7 @@ pytest tests/architectural/ -q
 ## Branch Strategy
 
 Work directly on `design/infra-logic-separation-2173` (flattened mission, `branch_strategy: direct`).
-Stage and commit only `owned_files` plus `tests/architectural/resolution_gate_allowlist.yaml`
-(allowlist shrink). No changes to `git/commit_helpers.py` (C-006) or WP02-owned files.
+Stage and commit only `owned_files`. No changes to `git/commit_helpers.py` (C-006), WP02-owned files, or `tests/architectural/resolution_gate_allowlist.yaml` (allowlist shrink is WP08's job).
 
 ## Definition of Done
 
@@ -357,9 +354,8 @@ Stage and commit only `owned_files` plus `tests/architectural/resolution_gate_al
 - [ ] `agent/mission_finalize.py:1497` routed (or sanctioned after verifying `_resolve_mission_slug`).
 - [ ] `agent/mission_feature_resolution.py:138` routed.
 - [ ] `acceptance/__init__.py:889` routed.
-- [ ] `tests/architectural/resolution_gate_allowlist.yaml` shrunk — all routed entries removed;
-      all sanctioned entries retained; no stale entries fail the twin-guard.
-- [ ] `pytest tests/architectural/test_resolution_authority_gates.py -q` GREEN.
+- [ ] All WP05 routed sites pass the canonicalizer gate as def-use-canonical; routed-site manifest recorded in commit message for WP08's final shrink. `resolution_gate_allowlist.yaml` NOT modified in this WP.
+- [ ] `pytest tests/architectural/test_resolution_authority_gates.py -q` GREEN (both discriminators; staleness twin-guard may still show pre-sweep entries for other-WP sites).
 - [ ] `pytest tests/architectural/ -q` GREEN (no pre-existing gate broken by site moves).
 - [ ] `ruff check` and `mypy` pass with zero issues on all 7 modified source files.
 - [ ] No changes to `git/commit_helpers.py` (C-006 merge-blocker).

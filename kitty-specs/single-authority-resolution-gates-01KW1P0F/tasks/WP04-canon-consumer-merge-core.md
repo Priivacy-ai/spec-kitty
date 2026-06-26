@@ -218,30 +218,27 @@ ruff check src/specify_cli/coordination/surface_resolver.py src/specify_cli/coor
 mypy src/specify_cli/coordination/surface_resolver.py src/specify_cli/coordination/commit_router.py --ignore-missing-imports
 ```
 
-### T022 — Shrink allowlist for WP04 sites
+### T022 — Record routed sites for WP08 allowlist shrink
 
-After T019–T021, every site that was routed no longer needs an allowlist entry. Remove from
-`tests/architectural/resolution_gate_allowlist.yaml` all entries whose call-site keys
-correspond to the 8 sites handled in this WP (the ones now routed through
-`_canonicalize_primary_read_handle`).
+After T019–T021, confirm each of the 8 routed sites passes the canonicalizer gate (def-use-canonical, zero violations), then record the routed-site manifest for WP08.
 
-The allowlist is shrink-only (NFR-003): do not add entries for routed sites. The staleness
-twin-guard built in WP01 will fail the build if a removed site's key still appears.
+> **Allowlist ownership note:** WP08 performs the SINGLE final shrink of `tests/architectural/resolution_gate_allowlist.yaml` — removing every entry whose site is now def-use-canonical (routed). WP04 does NOT edit the shared allowlist YAML to remove pre-sweep entries. This avoids cross-lane edit contention on the shared file. Your DoD is that WP04's routed sites pass the canonicalizer gate, not that the YAML is smaller after this WP.
 
-**Edit:** `tests/architectural/resolution_gate_allowlist.yaml` — remove only this WP's
-routed-site entries. Do not touch entries belonging to WP01, WP02, WP03, or WP05.
+**Steps:**
+1. Run the full gate suite and confirm zero violations for the 8 WP04-owned sites.
+2. Record in the commit message body which pre-sweep allowlist entries correspond to the 8 now-routed sites — this is the manifest WP08 consumes.
+3. Do NOT remove entries from `tests/architectural/resolution_gate_allowlist.yaml` in this WP.
 
 **Final validation (run the full gate suite, not just the canonicalizer):**
 ```bash
 pytest tests/architectural/test_resolution_authority_gates.py -q
 ```
-Both discriminators must be GREEN. Staleness twin-guard GREEN. No stale allowlist entries.
+Both discriminators must be GREEN for WP04-owned files. `resolution_gate_allowlist.yaml` must NOT be modified in this WP.
 
 ## Branch Strategy
 
 Work directly on `design/infra-logic-separation-2173` (flattened mission, `branch_strategy: direct`).
-Stage and commit only `owned_files` plus `tests/architectural/resolution_gate_allowlist.yaml`
-(allowlist shrink). No changes to `git/commit_helpers.py` (C-006) or WP02-owned files.
+Stage and commit only `owned_files`. No changes to `git/commit_helpers.py` (C-006), WP02-owned files, or `tests/architectural/resolution_gate_allowlist.yaml` (allowlist shrink is WP08's job).
 
 ## Definition of Done
 
@@ -254,10 +251,9 @@ Stage and commit only `owned_files` plus `tests/architectural/resolution_gate_al
 - [ ] `coordination/surface_resolver.py:697` is routed through `_canonicalize_primary_read_handle`.
 - [ ] `coordination/commit_router.py:355` is routed without silently swallowing
       `MissionSelectorAmbiguous` (C-002); the `except Exception` narrowed if needed.
-- [ ] `tests/architectural/resolution_gate_allowlist.yaml` shrunk — all 8 routing sites
-      removed from the allowlist; no stale entries.
+- [ ] All 8 WP04 routed sites pass the canonicalizer gate as def-use-canonical; routed-site manifest recorded in commit message for WP08's final shrink. `resolution_gate_allowlist.yaml` NOT modified in this WP.
 - [ ] `pytest tests/architectural/test_resolution_authority_gates.py -q` GREEN (both
-      discriminators + staleness twin-guard).
+      discriminators; staleness twin-guard may still show pre-sweep entries for other-WP sites).
 - [ ] `ruff check` and `mypy` pass with zero issues on all 6 modified source files.
 - [ ] No changes to `git/commit_helpers.py` (C-006 merge-blocker).
 - [ ] No changes to `tasks.py` or `implement.py` (WP02-owned).

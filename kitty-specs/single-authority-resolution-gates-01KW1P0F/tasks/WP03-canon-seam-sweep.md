@@ -91,7 +91,7 @@ Live call sites discovered by `git grep -n "primary_feature_dir_for_mission("`:
 
 | Line | Snippet | Status |
 |------|---------|--------|
-| `:454` | `literal_primary = primary_feature_dir_for_mission(repo_root, handle)` | PIN — recursion probe inside `_canonicalize_primary_read_handle`; bare-handle is intentional by FR-011 |
+| `:454` | `literal_primary = primary_feature_dir_for_mission(repo_root, handle)` | PIN — recursion probe inside `_canonicalize_bare_modern_handle` (def at `:418`); bare-handle is intentional by FR-011. Note: the enclosing function is `_canonicalize_bare_modern_handle`, NOT `_canonicalize_primary_read_handle` (def `:1244`) — use `_canonicalize_bare_modern_handle` as the allowlist qualname for this entry. |
 | `:820` | `primary_dir = primary_feature_dir_for_mission(repo_root, handle)` | Inspect caller: `handle` originates from an identity-resolver cascade; verify provenance — likely already canonical within `_resolve_mission_read_path` |
 | `:950` | `primary_feature_dir_for_mission(repo_root, handle)` inside `classify_from_meta` call | Inspect: same seam cascade; verify `handle` is canonical at that depth |
 | `:972` | `primary_candidate = primary_feature_dir_for_mission(repo_root, handle)` | Inspect: appears in a coord-window guard; verify whether `handle` is already folded |
@@ -100,9 +100,7 @@ Live call sites discovered by `git grep -n "primary_feature_dir_for_mission("`:
 | `:1368` | `return primary_feature_dir_for_mission(repo_root, canonical)` | Already canonical — `canonical = _canonicalize_primary_read_handle(repo_root, mission_slug)` on `:1367`; sanction |
 
 **Action for each site:**
-1. `:454` — Add an allowlist entry with key `(_canonicalize_primary_read_handle, 454)` and
-   rationale `"C-001/FR-011 recursion probe: bare-handle probe is the definition of the canonical
-   fold; wrapping it recurses forever"`. Do NOT touch the code.
+1. `:454` — Add an allowlist entry with key `(_canonicalize_bare_modern_handle, 454)` (the enclosing function is `_canonicalize_bare_modern_handle`, def at `:418` — NOT `_canonicalize_primary_read_handle`, def at `:1244`) and rationale `"C-001/FR-011 recursion probe: bare-handle probe is the definition of the canonical fold; wrapping it recurses forever"`. Do NOT touch the code. Verify the qualname by checking which `def` statement directly encloses `:454` before writing the entry.
 2. `:820`, `:950`, `:972`, `:1023` — Trace the intra-function `handle` provenance. If `handle`
    arrives already from `_canonicalize_primary_read_handle` (or is the result of a prior
    cascade step that guarantees canonical form), record it as `SANCTION` with the rationale
@@ -177,27 +175,24 @@ pytest tests/architectural/test_resolution_authority_gates.py -q -k "canonicaliz
 ```
 The site at `:85` must not appear in the gate's failure output.
 
-### T018 — Shrink allowlist for routed seam sites
+### T018 — Record routed seam sites for WP08 allowlist shrink
 
-After completing T015–T017, remove from `tests/architectural/resolution_gate_allowlist.yaml`
-every entry that was sanctioned pre-sweep for `:592` (mission_type bare route) and any
-other sites this WP has now routed through `_canonicalize_primary_read_handle`. Keep all
-entries for sites that are sanctioned-with-rationale (`:454`, `:1048`, `:1208`, `:1368`,
-`:85`, and any seam-internal sites proven already-canonical in T015).
+After completing T015–T017, identify which pre-sweep entries in `tests/architectural/resolution_gate_allowlist.yaml` correspond to sites this WP has now routed (e.g. `:592` in `mission_type.py`) and which are now sanctioned-with-rationale (`:454`, `:1048`, `:1208`, `:1368`, `:85`, and any seam-internal sites proven already-canonical in T015).
 
-The allowlist is shrink-only (NFR-003): do not add net-new entries for sites you have
-routed — routing removes the need for an allowlist entry. The staleness twin-guard in
-WP01's gate will fail if a removed site's key still appears in the allowlist.
+> **Allowlist ownership note:** WP08 performs the SINGLE final shrink of `tests/architectural/resolution_gate_allowlist.yaml` — removing every entry whose site is now def-use-canonical (routed). WP03 does NOT edit the shared allowlist YAML to remove pre-sweep entries. This avoids cross-lane edit contention on the shared file. Your DoD is that WP03's routed and sanctioned sites pass the gate (gate is GREEN for these files), not that the YAML is smaller after this WP.
 
-**Edit:** `tests/architectural/resolution_gate_allowlist.yaml` — remove only this WP's
-routed entries; leave all WP01-seeded entries intact for sites handled by other WPs.
+The allowlist is shrink-only (NFR-003): sanctioned-with-rationale entries (newly added in T015–T017) are permitted as out-of-map adds; pre-sweep entries for routed sites wait for WP08 to remove.
+
+**Steps:**
+1. Run the gate and confirm zero violations for the WP03-owned files.
+2. Record in the commit message body which pre-sweep entries correspond to sites now routed — this is the manifest WP08 consumes.
+3. Do NOT remove entries from `tests/architectural/resolution_gate_allowlist.yaml` in this WP.
 
 **Validation:**
 ```bash
 pytest tests/architectural/test_resolution_authority_gates.py -q
 ```
-Both discriminators must be GREEN. The staleness twin-guard must be GREEN (no stale
-allowlist entries).
+Both discriminators must be GREEN for the WP03-owned files. The staleness twin-guard may still show pre-sweep entries for other-WP sites (those are their responsibility); WP03's own routed sites must produce no violations.
 
 ## Branch Strategy
 
@@ -215,8 +210,7 @@ WP02-owned.
 - [ ] `mission_type.py:592` is routed through `_canonicalize_primary_read_handle`.
 - [ ] `mission_type.py:1048` is sanctioned (allowlist entry names `:1047` canonical assignment).
 - [ ] `retrospective/writer.py:85` is sanctioned (allowlist entry names `:84` canonical assignment).
-- [ ] `tests/architectural/resolution_gate_allowlist.yaml` is shrunk — no allowlist entries
-      remain for sites that are now routed; no stale entries fail the twin-guard.
+- [ ] WP03's routed sites pass the canonicalizer gate as def-use-canonical; routed-site manifest recorded in commit message for WP08's final shrink. `resolution_gate_allowlist.yaml` is NOT modified to remove pre-sweep entries in this WP (WP08 owns the shrink).
 - [ ] `pytest tests/architectural/test_resolution_authority_gates.py -q` is GREEN.
 - [ ] `ruff check` and `mypy` pass with zero issues on all modified files.
 - [ ] No changes to `git/commit_helpers.py` (C-006 merge-blocker — guard is read-only).

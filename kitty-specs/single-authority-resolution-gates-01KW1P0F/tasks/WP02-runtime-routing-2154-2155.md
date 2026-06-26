@@ -70,17 +70,19 @@ See `spec.md` FR-001/FR-002, `contracts/resolution-gates.md` Contract 3/Contract
 
 **Key line anchors (verify before editing — line numbers may shift across commits):**
 - `:1807` — the write leg; currently calls `resolve_feature_dir_for_mission(ctx)` to obtain `feature_dir`, then writes `status.events.jsonl` relative to it. This is the line to change.
-- `:1906` — the commit leg; calls `resolve_planning_read_dir(kind=TASKS_INDEX)` (or equivalent kind-aware authority). This is the REFERENCE pattern: the write must use the same call.
-- `:658` — `move_task`'s validation; uses the same kind-aware authority. Cross-check that your fix makes `:1807` agree with both `:658` and `:1906`.
+- `:658` — `move_task`'s validation; calls `resolve_planning_read_dir(main_repo_root, mission_slug, kind=MissionArtifactKind.TASKS_INDEX)`. This is the CORRECT REFERENCE pattern: the write at `:1807` must use the same call. **Copy the pattern from `:658` into `:1807`.**
+- `:1906` — the commit leg; also calls `resolve_planning_read_dir(kind=TASKS_INDEX)`. Cross-check that your fix makes `:1807` agree with both `:658` and `:1906`.
+
+> **Note:** `:1906` is `commit_for_mission(...kind=TASKS_INDEX)` but it commits a path derived from the SAME kind-blind `:1807` `feature_dir`, so it is NOT the kind-aware reference — `:658` (move_task validation) is the correct template to copy into `:1807`. Using `:1906` as the reference would still leave `:1807` unrepaired.
 
 **Steps:**
 1. Read `tasks.py` around `:1807` to identify the exact call and local variable name. Note what `feature_dir` is used for after resolution (the status artifact write path is derived from it).
-2. Replace the kind-blind resolver call at `:1807` with the same kind-aware authority used at `:1906`. The resolved directory must point to the PRIMARY surface for the `TASKS_INDEX` kind.
+2. Replace the kind-blind resolver call at `:1807` with the same kind-aware authority used at `:658` — `resolve_planning_read_dir(main_repo_root, mission_slug, kind=MissionArtifactKind.TASKS_INDEX)`. The resolved directory must point to the PRIMARY surface for the `TASKS_INDEX` kind.
 3. Do NOT remove the kind-blind resolver call if it is also used elsewhere in the same function for a DIFFERENT purpose (e.g. a read probe). Scope the change narrowly to the write-leg variable.
 4. Confirm the replacement does not change the behavior for flat/legacy missions (where coord and primary are the same dir — the kind-aware authority handles this transparently).
 
 **Validation checklist:**
-- [ ] `git diff src/specify_cli/cli/commands/agent/tasks.py` shows the write leg at `:1807` uses `resolve_planning_read_dir(kind=TASKS_INDEX)` (or the same authority as `:1906`)
+- [ ] `git diff src/specify_cli/cli/commands/agent/tasks.py` shows the write leg at `:1807` uses `resolve_planning_read_dir(kind=TASKS_INDEX)` matching the pattern at `:658`
 - [ ] `git diff src/specify_cli/git/commit_helpers.py` is EMPTY (C-006)
 - [ ] Under coordination topology: `mark_status` write dir == `move_task` validation read dir (asserted by T009)
 - [ ] Under flat topology: behavior is unchanged (T009 covers this case too)
@@ -110,29 +112,32 @@ See `spec.md` FR-001/FR-002, `contracts/resolution-gates.md` Contract 3/Contract
 
 ---
 
-### T010 — Route `move_task` mixed bundle (`tasks.py:1555`); un-swallow errors
+### T010 — Verify and route `move_task` bundle (`tasks.py:1555`); un-swallow if needed
 
-**Purpose:** The `move_task` auto-commit at `:1555` bundles a primary WP file with coord-owned status artifacts in a single primary-surface commit. The `SafeCommitPathPolicyError` is currently caught and swallowed as a yellow warning. Fix: split the bundle so the coord status commits via the coordination transaction (the `BookkeepingTransaction` pattern in `src/specify_cli/agent/workflow.py:_commit_workflow_change`) and the WP file commits to primary. Surface — do not re-swallow — any remaining genuine error.
+**Purpose:** The original premise that `tasks.py:1555` is an open-coded `safe_commit` bundle that swallows `SafeCommitPathPolicyError` is STALE. As of PR #2106 (write-surface-coherence migration), `tasks.py:1555` is already `commit_for_mission(...kind=WORK_PACKAGE_TASK)` (the kind-aware router), and `tasks.py` has ZERO direct `safe_commit(` calls. The `except Exception` at `:1571` catches router failures, not a guard-refusal swallow.
+
+**FIRST ACTION — Re-verify LIVE before implementing anything:** Check whether the #2155 mixed-bundle residual still reproduces at `tasks.py:1555`. Specifically: does `commit_for_mission(kind=WORK_PACKAGE_TASK)` at `:1555` bundle coord-owned status artifacts (e.g. `status.events.jsonl`, `status.json`) that commit with `worktree_root`=primary so the guard fires — and then get caught by the broad `except` at `:1571`?
+
+**Investigation steps:**
+1. Read `tasks.py:1540–1580` to understand the bundle composition at `:1555` and the exception handler at `:1571`.
+2. Check what files are staged as part of the `commit_for_mission(kind=WORK_PACKAGE_TASK)` call: does the router include coord-owned status artifacts in the primary bundle?
+3. **If the mixed-bundle residual reproduces:** route the coord status OUT of the `WORK_PACKAGE_TASK` bundle so coord status commits via the coordination transaction (coord status → coord surface, same pattern as the `implement.py` fix in T011). Remove or narrow the broad `except` at `:1571` so `SafeCommitPathPolicyError` is NOT silently swallowed.
+4. **If the router already partitions it correctly** (coord status goes to coord surface, no guard-refusal): document the live verification result in this task's completion notes and DROP the `tasks.py:1555` implementation change. The verification itself is the deliverable for this half of T010.
+
+Do NOT assume an open-coded `safe_commit(` exists in `tasks.py` — verify live before writing any fix code.
 
 **Files:** `src/specify_cli/cli/commands/agent/tasks.py`
 
-**Model pattern to follow:** Read `src/specify_cli/agent/workflow.py` and find `_commit_workflow_change`. Understand how it uses `BookkeepingTransaction` to route coord-owned status artifacts to the coord surface while the primary-surface commit proceeds separately. Your fix at `:1555` must replicate this split.
-
-**Steps:**
-1. Read `tasks.py:1555` and the surrounding function to understand what is being committed and in what order.
-2. Identify the coord-owned artifacts in the bundle (e.g. `status.events.jsonl`, `status.json`, WP frontmatter `lane:` field updates). These must route to the coord surface.
-3. Identify the primary-surface artifact (the WP `.md` file itself). This commits to primary.
-4. Replace the single-bundle commit with a two-phase commit: (a) commit the coord-owned artifacts via the `BookkeepingTransaction` or `_commit_workflow_change` pattern to the coord surface, then (b) commit the WP file to primary.
-5. Remove the `except SafeCommitPathPolicyError` swallow (or the equivalent `try/except` that converts it to a warning). If `SafeCommitPathPolicyError` is raised by the primary-surface commit, it must propagate — it indicates a genuine wrong-surface staging event.
-6. If the function currently catches a broad exception that includes `SafeCommitPathPolicyError`, narrow the handler to exclude it.
+**Model pattern to follow:** Read `src/specify_cli/agent/workflow.py` and find `_commit_workflow_change`. Understand how it uses `BookkeepingTransaction` to route coord-owned status artifacts to the coord surface while the primary-surface commit proceeds separately. If the residual reproduces, your fix at `:1555` replicates this split.
 
 **Validation checklist:**
+- [ ] Live verification performed: result documented (reproduces or does not reproduce)
 - [ ] `git diff src/specify_cli/git/commit_helpers.py` is EMPTY (C-006)
-- [ ] Under coord topology + unprotected branch: the auto-commit succeeds without swallowed errors; worktree is clean after commit; coord status artifacts are in the coord commit; WP file is in the primary commit (asserted by T013)
-- [ ] A deliberately wrong-surface `.worktrees/` file staged from the primary worktree is still refused by the guard (T013 negative control)
-- [ ] No `except SafeCommitPathPolicyError: logger.warning(...)` or equivalent swallow pattern remains at `:1555` in the final diff
+- [ ] If residual reproduced: coord status artifacts are no longer in the `WORK_PACKAGE_TASK` bundle; `SafeCommitPathPolicyError` is not swallowed at `:1571` (asserted by T013)
+- [ ] If residual already fixed: verification note records what was checked and why no code change is needed
+- [ ] No `except SafeCommitPathPolicyError: logger.warning(...)` or equivalent swallow remains in the final diff (whether or not code was changed)
 
-**Edge cases:** If the mission is flat (no coord worktree), the two-phase split must degrade gracefully — the coord transaction becomes a no-op and all artifacts commit to primary. Test this case in T013.
+**Edge cases:** If the mission is flat (no coord worktree), any two-phase split must degrade gracefully — the coord transaction becomes a no-op and all artifacts commit to primary. Test this case in T013 regardless of whether a code change was made.
 
 ---
 
@@ -170,6 +175,8 @@ See `spec.md` FR-001/FR-002, `contracts/resolution-gates.md` Contract 3/Contract
 3. For sites where the handle is NOT already canonical (a bare mission slug passed directly): wrap the call to precede it with `canonical_dir = _canonicalize_primary_read_handle(ctx, raw_handle)` and update the `primary_feature_dir_for_mission` call to use `canonical_dir`.
 4. Import `_canonicalize_primary_read_handle` if not already imported. Check the existing import section of each file — avoid adding a new import that creates a circular dependency (the function lives in `missions/_read_path_resolver.py`).
 
+> **Allowlist discipline:** Route the canon sites. Do NOT edit the shared `resolution_gate_allowlist.yaml` to shrink it as part of this task — WP08 performs the single final allowlist shrink after all sweep WPs are complete (this avoids cross-lane edit contention on the shared YAML). Your DoD for these sites is that they pass the canonicalizer gate as def-use-canonical (routed). New sanctioned entries (already-canonical rationale) are permitted as out-of-map adds per lane discipline; removals wait for WP08.
+
 **Validation checklist:**
 - [ ] After edits, running the WP01 canonicalizer gate against `tasks.py` and `implement.py` produces zero violations (or every remaining site is in the allowlist)
 - [ ] New allowlist entries have `rationale` fields naming the specific canonical provenance
@@ -203,27 +210,25 @@ See `spec.md` FR-001/FR-002, `contracts/resolution-gates.md` Contract 3/Contract
 
 ---
 
-### T014 — Remove WP02's routed sites from the baseline allowlist
+### T014 — Record routed sites for WP08 allowlist shrink
 
-**Purpose:** Shrink `tests/architectural/resolution_gate_allowlist.yaml` by removing every entry that was routed in T008/T010/T011/T012. This is a rationale'd out-of-map edit to WP01's owned file, permitted by the lane discipline in `tasks.md`: "the sweep WPs (WP02–WP05) remove their own routed entries as a rationale'd shrink-only out-of-map edit."
+**Purpose:** Document which WP02-routed sites have been resolved so WP08 can perform the single final shrink of `resolution_gate_allowlist.yaml`. WP02 does NOT edit the shared allowlist YAML in this task — that is exclusively WP08's job, performed after all sweep WPs (WP02–WP05) are complete.
 
-**Files:** `tests/architectural/resolution_gate_allowlist.yaml` (owned by WP01; WP02 performs a rationale'd shrink edit)
+> **Allowlist ownership note:** WP08 performs the SINGLE final shrink of `tests/architectural/resolution_gate_allowlist.yaml` — removing every entry whose site is now def-use-canonical (routed). WP02 does NOT edit the shared allowlist YAML to remove pre-sweep entries. This avoids cross-lane edit contention on the shared file. Your DoD is that WP02's routed sites pass the gate as def-use-canonical (routed), not that the YAML is smaller after this WP.
 
 **Steps:**
-1. After T008/T010/T011/T012 are complete, re-run the WP01 canonicalizer and coord-authority scanners against the full `src/` tree. Identify which previously-seeded allowlist entries now have NO matching live call site (because the site was routed away).
-2. Remove those entries from the YAML. Do NOT remove entries for sites that are still present but now sanctioned (i.e. where you added an allowlist entry with an already-canonical rationale in T012).
-3. Verify that after removal, `test_allowlist_no_stale_entries` (WP01/T006) still passes — the twin-guard must see no stale entries.
-4. Verify that the new allowlist entry count is ≤ the `canonicalizer_baseline` / `coord_authority_baseline` scalars. If new T012 allowlist entries were added, the net count should still be ≤ the baseline (routed entries removed ≥ new sanctioned entries added).
-5. Commit the YAML change with the message: `fix(WP02): shrink resolution gate allowlist — WP02 routed sites removed` and reference the specific T-codes in the commit body.
+1. After T008/T010/T011/T012 are complete, re-run the WP01 canonicalizer and coord-authority scanners against the full `src/` tree.
+2. Record (in the WP commit message body or a notes section) which previously-seeded allowlist entries now have NO matching live violation (because the site was routed or sanctioned with a new entry). This is the manifest WP08 consumes to perform the shrink.
+3. Verify that for each routed site, the gate passes (site classified as def-use-canonical, no violation emitted).
+4. Do NOT remove entries from `tests/architectural/resolution_gate_allowlist.yaml` in this WP — leave that file unchanged from WP01's seeding. WP08 owns the shrink.
 
 **Validation checklist:**
-- [ ] `test_allowlist_no_stale_entries` passes after the YAML shrink
-- [ ] `test_allowlist_shrink_only` passes: current count ≤ `canonicalizer_baseline` and ≤ `coord_authority_baseline`
-- [ ] Permanent entries (`_read_path_resolver.py:454`, `decisions/emit.py`, `widen/state.py`) are NOT removed
-- [ ] Every removed entry corresponds to a call site that no longer appears in the live scanner output
-- [ ] Commit message references the T-codes (T008, T010, T011, T012) and the rationale ("sites routed through kind-aware authority")
+- [ ] The WP01 canonicalizer gate shows zero violations for `tasks.py` and `implement.py` after T008/T010/T011/T012 (sites are routed or sanctioned)
+- [ ] Permanent entries (`_read_path_resolver.py:454`, `decisions/emit.py`, `widen/state.py`) are untouched
+- [ ] Commit message records which sites were routed (T008, T010 outcome, T011, T012) for WP08's manifest
+- [ ] `tests/architectural/resolution_gate_allowlist.yaml` is NOT modified in this WP
 
-**Edge cases:** If T012 adds new allowlist entries for already-canonical sites, the removal of routed entries must outnumber or equal the additions for the shrink-only invariant to hold. If they don't (unlikely), flag this to the reviewer — it indicates a miscalibrated pre-sweep baseline and should be investigated before merge.
+**Edge cases:** If T012 adds new allowlist entries for already-canonical sites (permitted out-of-map adds), document those additions in the commit message so WP08 knows they are intentional sanctions, not pre-sweep entries to remove.
 
 ## Branch Strategy
 
@@ -234,12 +239,12 @@ Work in the worktree that `spec-kitty implement WP02` creates. Commit only the o
 ## Definition of Done
 
 - [ ] `tasks.py:1807` write leg uses `resolve_planning_read_dir(kind=TASKS_INDEX)` (or the same kind-aware authority as `:1906`) — closes #2154
-- [ ] `tasks.py:1555` and `implement.py:1311` no longer swallow `SafeCommitPathPolicyError`; coord status commits to coord surface; WP file commits to primary — closes #2155
+- [ ] `implement.py:1311` no longer swallows `SafeCommitPathPolicyError`; coord status commits to coord surface; WP file commits to primary — closes #2155 (confirmed surviving defect). `tasks.py:1555` live-verified: if mixed-bundle residual reproduces, same fix applied; if already partitioned correctly by `commit_for_mission` router, documented and no code change.
 - [ ] `git/commit_helpers.py` is UNCHANGED (C-006 merge-blocker; verify with `git diff`)
 - [ ] T009 passes: 3-leg convergence under coord AND flat topologies (write dir == commit leg dir == validation read dir)
 - [ ] T013 passes: coord-topology integration test; wrong-surface `.worktrees/` write still refused by the unchanged guard
 - [ ] All 6 canon sites in `tasks.py` (2) and `implement.py` (4) are routed or sanctioned (T012)
-- [ ] WP02's routed entries are removed from the allowlist; `test_allowlist_no_stale_entries` passes; net count ≤ baseline (T014)
+- [ ] WP02's routed sites pass the canonicalizer gate as def-use-canonical (T014); routed-site manifest recorded in commit message for WP08's final allowlist shrink; `resolution_gate_allowlist.yaml` NOT modified in this WP
 - [ ] `ruff check src/specify_cli/cli/commands/agent/tasks.py src/specify_cli/cli/commands/implement.py` passes with zero issues
 - [ ] `mypy src/specify_cli/cli/commands/agent/tasks.py src/specify_cli/cli/commands/implement.py` passes with zero issues/warnings
 - [ ] `pytest tests/specify_cli/cli/commands/test_coord_status_commit_2155.py -q` exits green
