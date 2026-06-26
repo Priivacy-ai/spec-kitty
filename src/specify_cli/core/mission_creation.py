@@ -27,7 +27,6 @@ from specify_cli.core.paths import is_worktree_context, locate_project_root
 from specify_cli.git import safe_commit
 from specify_cli.lanes.branch_naming import mission_dir_name, resolve_mid8
 from specify_cli.mission_metadata import validate_purpose_summary
-from specify_cli.sync.events import emit_mission_created
 
 logger = logging.getLogger(__name__)
 
@@ -520,32 +519,13 @@ def create_mission_core(
             _phase_evt_exc,
         )
 
-    # Best-effort SaaS fan-out (occurs after local persistence above).
-    with contextlib.suppress(Exception):
-        emit_mission_created(
-            mission_slug=mission_slug_formatted,
-            mission_number=None,  # no number pre-merge (FR-044)
-            mission_type=str(meta.get("mission_type") or mission or "software-dev"),
-            target_branch=planning_branch,
-            wp_count=0,
-            friendly_name=normalized_friendly_name,
-            purpose_tldr=normalized_purpose_tldr,
-            purpose_context=normalized_purpose_context,
-            created_at=str(meta["created_at"]) if meta.get("created_at") else None,
-            mission_id=meta.get("mission_id"),
-        )
+    # Dossier sync (fire-and-forget via registered adapter)
+    # SaaS fan-out is already handled by emit_mission_created_local above —
+    # it calls fire_lifecycle_saas_fanout internally via append_lifecycle_event.
+    # No direct INTEGRATION imports needed here (FR-004/FR-006).
+    from specify_cli.status import fire_dossier_sync
 
-    # Dossier sync (fire-and-forget)
-    with contextlib.suppress(Exception):
-        from specify_cli.sync.dossier_pipeline import (
-            trigger_feature_dossier_sync_if_enabled,
-        )
-
-        trigger_feature_dossier_sync_if_enabled(
-            feature_dir,
-            mission_slug_formatted,
-            resolved_root,
-        )
+    fire_dossier_sync(feature_dir, mission_slug_formatted, resolved_root)
 
     # ------------------------------------------------------------------
     # 9. Consume pending origin if present (ticket-first flow)
@@ -589,51 +569,22 @@ def _consume_pending_origin_if_present(
     feature_dir: Path,
     meta: dict[str, Any],
 ) -> tuple[bool, bool, str | None, dict[str, Any]]:
-    """Bind a staged pending origin after mission creation, if present."""
-    from specify_cli.tracker.origin import OriginBindingError, bind_mission_origin
-    from specify_cli.tracker.origin_models import OriginCandidate
-    from specify_cli.tracker.ticket_context import clear_pending_origin, read_pending_origin
+    """Bind a staged pending origin after mission creation, if present.
 
-    pending = read_pending_origin(repo_root)
-    if not pending:
-        return False, False, None, meta
+    Dispatches to the registered PendingOriginConsumer via
+    ``core.adapters.consume_pending_origin`` so that this module carries no
+    direct INTEGRATION imports (FR-004/FR-006).  The concrete implementation
+    lives in ``tracker/origin_consumer.py`` and is registered at tracker
+    startup.  When no consumer is registered the call is a safe no-op
+    that returns ``(False, False, None, meta)``.
+    """
+    from specify_cli.core.adapters import consume_pending_origin
 
-    provider = str(pending.get("provider") or "").strip().lower()
-    issue_id = str(pending.get("issue_id") or "").strip()
-    issue_key = str(pending.get("issue_key") or "").strip()
-
-    if not provider or not issue_id or not issue_key:
-        return (
-            True,
-            False,
-            "Pending origin is missing required provider/issue identifiers.",
-            meta,
-        )
-
-    candidate = OriginCandidate(
-        external_issue_id=issue_id,
-        external_issue_key=issue_key,
-        title=str(pending.get("title") or "").strip(),
-        status=str(pending.get("status") or "").strip(),
-        url=str(pending.get("url") or "").strip(),
-        match_type="pending_origin",
-        body=str(pending.get("body") or "").strip() or None,
+    # Typed binding required: mypy uses follow_imports=skip for specify_cli.*
+    # so the return of consume_pending_origin is seen as Any here; the
+    # explicit annotation re-introduces the correct return type so the caller
+    # does not propagate Any (no blanket suppression needed).
+    result: tuple[bool, bool, str | None, dict[str, Any]] = consume_pending_origin(
+        repo_root, feature_dir, meta
     )
-
-    try:
-        updated_meta, _ = bind_mission_origin(
-            feature_dir=feature_dir,
-            candidate=candidate,
-            provider=provider,
-            resource_type=None,
-            resource_id=None,
-        )
-    except OriginBindingError as exc:
-        logger.warning("Pending origin bind failed for %s: %s", feature_dir, exc)
-        return True, False, str(exc), meta
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("Pending origin bind failed unexpectedly for %s: %s", feature_dir, exc)
-        return True, False, str(exc), meta
-
-    clear_pending_origin(repo_root)
-    return True, True, None, updated_meta
+    return result

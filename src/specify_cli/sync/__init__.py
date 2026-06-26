@@ -271,6 +271,26 @@ def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
     EventModel(**event)
     OfflineQueue().queue_event(event)
 
+    # -----------------------------------------------------------------------
+    # Daemon/WebSocket push for MissionCreated envelopes (FR-005, WP03)
+    #
+    # Before WP02, ``core/mission_creation.py`` called
+    # ``sync.events.emit_mission_created`` directly, which also invoked
+    # ``_publish_event_via_sync_daemon`` and ``_request_dashboard_sync``.
+    # That direct CORE→INTEGRATION call was removed (Leak #1 fix). To
+    # preserve the daemon/WebSocket behaviour for MissionCreated events,
+    # we extend this observer to fire those calls here — inside the
+    # registered observer only, zero new CORE imports needed.
+    # -----------------------------------------------------------------------
+    if event_type == "MissionCreated":
+        from specify_cli.sync.events import (
+            _publish_event_via_sync_daemon,
+            _request_dashboard_sync,
+        )
+
+        _publish_event_via_sync_daemon(event, repo_root)
+        _request_dashboard_sync(repo_root)
+
 
 def register_default_handlers() -> None:
     """Register the default sync handlers into ``specify_cli.status.adapters``.
@@ -292,6 +312,86 @@ def register_default_handlers() -> None:
         register_dossier_sync_handler(_dossier_sync_handler)
         register_saas_fanout_handler(_saas_fanout_handler)
         register_lifecycle_saas_fanout_handler(_lifecycle_saas_fanout_handler)
+
+    with _contextlib.suppress(ImportError):
+        from specify_cli.invocation.adapters import (
+            register_saas_client_factory,
+            register_sync_routing_resolver,
+        )
+
+        def _sync_routing_resolver(path):  # type: ignore[no-untyped-def]
+            """Return effective_sync_enabled, or None for non-project paths.
+
+            Never raises — resolves None cleanly when the path is not a
+            spec-kitty project so the normal non-project fast-path does
+            not produce a spurious exc_info=True DEBUG log.
+
+            Imports resolve_checkout_sync_routing at call time (not closure)
+            so that test patches on specify_cli.sync.routing are respected.
+            """
+            from specify_cli.sync.routing import resolve_checkout_sync_routing
+
+            routing = resolve_checkout_sync_routing(path)
+            if routing is None:
+                return None
+            return routing.effective_sync_enabled
+
+        def _saas_client_factory(repo_root):  # type: ignore[no-untyped-def]  # noqa: ARG001
+            """Return the connected WebSocketClient if authenticated; None otherwise.
+
+            Mirrors the gating logic from invocation/propagator.py::_get_saas_client
+            (NFR-003 behavior-preserving contract):
+              1. is_authenticated must be True
+              2. a current session must exist
+              3. token_manager._ws_client must be present and .connected
+
+            Returns None in every non-connected case so the propagator's
+            local-first fast-path (client is None → early return) is preserved.
+            Returns the EXISTING connected _ws_client rather than constructing a
+            fresh disconnected WebSocketClient (a fresh client has .connected=False
+            and send_event raises ConnectionError immediately).
+            """
+            try:
+                from specify_cli.auth import get_token_manager
+
+                token_manager = get_token_manager()
+                if not bool(token_manager.is_authenticated):
+                    return None
+
+                session = token_manager.get_current_session()
+                if session is None:
+                    return None
+
+                client = getattr(token_manager, "_ws_client", None)
+                if client is None or not getattr(client, "connected", False):
+                    return None
+
+                return client
+            except Exception:  # noqa: BLE001
+                return None
+
+        register_sync_routing_resolver(_sync_routing_resolver)
+        register_saas_client_factory(_saas_client_factory)
+
+    # -----------------------------------------------------------------------
+    # Surviving MissionCreated SaaS fan-out path (FR-005 collapse, WP03):
+    #
+    #   emit_mission_created_local(feature_dir, ...)        ← status/lifecycle_events.py
+    #       └── append_lifecycle_event(log_path, ...)
+    #             └── _queue_lifecycle_event_if_enabled(...)
+    #                   └── fire_lifecycle_saas_fanout(...)   ← status/adapters.py
+    #                         └── _lifecycle_saas_fanout_handler()  ← this module
+    #                               ├── OfflineQueue().queue_event(event)
+    #                               └── [MissionCreated only]
+    #                                   ├── _publish_event_via_sync_daemon(event, repo_root)
+    #                                   └── _request_dashboard_sync(repo_root)
+    #
+    # The ``emit_mission_created`` module-level function in ``sync/events.py``
+    # and the ``EventEmitter.emit_mission_created`` method in ``sync/emitter.py``
+    # are NOT deleted — they remain as valid INTEGRATION-internal API (used by
+    # tests and future sync-internal callers).  Neither is imported from any
+    # CORE module after WP02.
+    # -----------------------------------------------------------------------
 
 
 # Initial registration at import time. Subsequent code (production or
