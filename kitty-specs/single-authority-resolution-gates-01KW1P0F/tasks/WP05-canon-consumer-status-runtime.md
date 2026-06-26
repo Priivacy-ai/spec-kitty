@@ -15,7 +15,8 @@ subtasks:
 - T025
 - T026
 - T027
-agent: claude
+agent: "claude:sonnet:python-pedro:implementer"
+shell_pid: "2931106"
 history:
 - timestamp: '2026-06-26T11:02:04Z'
   actor: planner
@@ -395,3 +396,7 @@ Reviewers should confirm:
    broken by this WP's site moves.
 7. `ruff` and `mypy` are clean on all 7 source files.
 8. `git/commit_helpers.py` is unmodified.
+
+## Activity Log
+
+- 2026-06-26T12:36:53Z – claude:sonnet:python-pedro:implementer – shell_pid=2931106 – Assigned agent via action command
