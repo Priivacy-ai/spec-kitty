@@ -24,7 +24,8 @@ FR-024 compliance:
 
 from __future__ import annotations
 
-from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
+from specify_cli.core.constants import RETROSPECTIVE_FILENAME
+from specify_cli.retrospective.writer import resolve_retrospective_home
 import json
 import logging
 from dataclasses import dataclass, field
@@ -333,15 +334,15 @@ def emit_captured(
     if not record.mission_slug:
         raise ValueError("record.mission_slug must be non-empty to determine feature_dir")
 
-    feature_dir = resolve_feature_dir_for_mission(repo_root, record.mission_slug)
+    feature_dir = resolve_retrospective_home(repo_root, record.mission_slug)
     lamport = _next_lamport(feature_dir)
     event_id = _generate_ulid()
     at = _now_utc()
 
-    # FR-006 (#1771): the record lives in the tracked feature_dir, not the
-    # gitignored .kittify/missions/ tree. feature_dir is already resolved above
-    # through the canonical coord-topology-aware read primitive.
-    canonical_path = feature_dir / "retrospective.yaml"
+    # FR-001/003 (#2119): the record lives in the durable PRIMARY home for every
+    # topology, resolved above through the single durable-home authority — never
+    # the materialized ``-coord`` husk (the #1771 coord-leak this mission cures).
+    canonical_path = feature_dir / RETROSPECTIVE_FILENAME
 
     event = RetrospectiveCaptured(
         schema_version=1,
@@ -408,7 +409,7 @@ def emit_capture_failed(
     if not mission_slug:
         raise ValueError("mission_slug must be non-empty to determine feature_dir")
 
-    feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
+    feature_dir = resolve_retrospective_home(repo_root, mission_slug)
     lamport = _next_lamport(feature_dir)
     event_id = _generate_ulid()
     at = _now_utc()
@@ -477,7 +478,7 @@ def emit_skipped(
     if not mission_slug:
         raise ValueError("mission_slug must be non-empty to determine feature_dir")
 
-    feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
+    feature_dir = resolve_retrospective_home(repo_root, mission_slug)
     lamport = _next_lamport(feature_dir)
     event_id = _generate_ulid()
     at = _now_utc()

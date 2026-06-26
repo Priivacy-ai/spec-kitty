@@ -1241,6 +1241,55 @@ def primary_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Path:
     return primary_dir
 
 
+def _canonicalize_primary_read_handle(repo_root: Path, handle: str) -> str:
+    """Fold a mission *handle* to its canonical on-disk dir NAME for a PRIMARY read.
+
+    The caller-side companion that keeps :func:`primary_feature_dir_for_mission`
+    handle-blind (FR-011 / #2136). A PRIMARY-partition read of
+    :func:`resolve_planning_read_dir` must land on the durable
+    ``kitty-specs/<slug>-<mid8>/`` home for EVERY handle form the operator may type,
+    but the topology-blind primitive composes the literal name verbatim — so a bare
+    ``mid8`` / full ULID / numeric prefix / bare human slug would diverge onto a
+    wrong literal dir.
+
+    This composes the TWO existing read-path canonicalizers (NO parallel resolver —
+    C-006), mirroring the live :func:`_resolve_mission_read_path` cascade:
+
+    1. :func:`_canonicalize_bare_modern_handle` rewrites a bare *human slug* whose
+       on-disk dir actually carries the composed ``<slug>-<mid8>`` name (the FR-004
+       bare-human-slug fold). When it already embeds a ``mid8`` (the present-leg /
+       unresolvable-leg short-circuits) the handle is returned unchanged.
+    2. :func:`_canonicalize_handle` resolves the *identity* forms (bare ``mid8`` /
+       ULID / numeric prefix) to the canonical ``(slug, mid8, feature_dir)`` and
+       carries the already-located directory — so its NAME is the canonical dir name
+       (parse, don't re-derive: a backfilled dir whose name lacks the ``-<mid8>``
+       tail would double-suffix on recompose).
+
+    Returns the canonical dir name when an identity form resolves, otherwise the
+    bare-modern-folded handle (unchanged for an already-canonical or genuinely
+    unresolvable handle — the back-compat no-op leg, NFR-005).
+
+    Raises:
+        MissionSelectorAmbiguous: When the handle matches more than one mission —
+            propagated unchanged from :func:`_canonicalize_handle`; NEVER a silent
+            pick (C-006 / C-009 / WP07 no-silent-fallback).
+    """
+    bare_folded = _canonicalize_bare_modern_handle(repo_root, handle)
+    if bare_folded != handle:
+        # A bare *human slug* was folded to its composed ``<slug>-<mid8>`` dir name.
+        return bare_folded
+    # Identity forms (bare mid8 / ULID / numeric prefix): the resolver carries the
+    # already-located dir, so its NAME is the canonical dir name (parse, don't
+    # re-derive). An ambiguous handle RAISES here (no silent pick).
+    resolved = _canonicalize_handle(repo_root, handle)
+    if resolved is not None:
+        _, _, canonical_dir = resolved
+        return canonical_dir.name
+    # Genuinely unresolvable (no matching mission, no meta) — the back-compat no-op
+    # leg: literal compose, byte-identical to the pre-FR-011 behaviour (NFR-005).
+    return bare_folded
+
+
 def resolve_planning_read_dir(
     repo_root: Path,
     mission_slug: str,
@@ -1290,8 +1339,10 @@ def resolve_planning_read_dir(
     Raises:
         ValueError: When ``mission_slug`` is not a safe path segment (traversal
             guard — propagated from the underlying primitive).
-        MissionSelectorAmbiguous: When ``mission_slug`` is an ambiguous handle
-            (propagated unchanged from the topology-aware seam — no silent pick).
+        MissionSelectorAmbiguous: When ``mission_slug`` is an ambiguous handle —
+            propagated unchanged from the PRIMARY-leg caller-canonicalization
+            (:func:`_canonicalize_primary_read_handle`, FR-011) or, for a
+            STATUS-partition kind, from the topology-aware seam. No silent pick.
     """
     # Single partition authority (C-006 / NFR-004): the SAME partition the write
     # side keys on, queried through the package-root public predicate (NOT the
@@ -1303,7 +1354,18 @@ def resolve_planning_read_dir(
 
     if is_primary_artifact_kind(kind):
         # PRIMARY-partition read → topology-blind primary dir (INV-5 symmetry).
-        return primary_feature_dir_for_mission(repo_root, mission_slug)
+        # Caller-canonicalization (FR-011 / #2136): a bare ``mid8`` / human slug
+        # does NOT name the on-disk ``<slug>-<mid8>`` dir, so passing the RAW handle
+        # to the topology-blind primitive would literal-compose a DIVERGENT dir.
+        # Fold the handle to its canonical dir NAME HERE — mirroring the live
+        # caller-canonicalization exemplars ``:1204``/``:1208`` and ``:820`` — and
+        # pass the canonical NAME DOWN to the blind compose. The primitive
+        # ``primary_feature_dir_for_mission`` STAYS handle-blind by contract: folding
+        # canonicalization into ITS body recurses forever (the shared canonicalizers
+        # call the primitive). An ambiguous handle propagates ``MissionSelectorAmbiguous``
+        # unchanged from :func:`_canonicalize_handle` — no silent pick (C-006 / C-009).
+        canonical = _canonicalize_primary_read_handle(repo_root, mission_slug)
+        return primary_feature_dir_for_mission(repo_root, canonical)
     # STATUS-partition read → topology-aware seam (C-001 / C-005 transients intact).
     return candidate_feature_dir_for_mission(repo_root, mission_slug)
 

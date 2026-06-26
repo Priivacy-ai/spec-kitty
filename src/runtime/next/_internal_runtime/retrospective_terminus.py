@@ -38,7 +38,7 @@ from specify_cli.retrospective.schema import (
     ActorRef,
     RetrospectiveRecord,
 )
-from specify_cli.retrospective.writer import write_record
+from specify_cli.retrospective.writer import canonical_record_path, write_record
 
 logger = logging.getLogger(__name__)
 
@@ -71,10 +71,17 @@ def _mission_slug_from_feature_dir(feature_dir: Path) -> str:
 
 
 def _record_path_str(record: RetrospectiveRecord, repo_root: Path) -> str:
-    """Return canonical record path as string for event payload."""
-    canonical = (
-        repo_root / ".kittify" / "missions" / record.mission.mission_id / "retrospective.yaml"
-    )
+    """Return canonical record path as string for the event payload.
+
+    FR-001/003 (#2119): the emitted payload path MUST equal the ACTUAL write home
+    (``kitty-specs/<slug>/retrospective.yaml``), not the legacy gitignored
+    ``.kittify/missions/<id>/`` string. Route through the SINGLE durable-home
+    authority (:func:`resolve_retrospective_home`) so the payload re-homes in
+    lock-step with the record — never re-splitting the brain. The handle is
+    canonicalized inside the authority (FR-011 write leg) so a bare slug still
+    reports the canonical durable home.
+    """
+    canonical = canonical_record_path(repo_root, record.mission.mission_slug)
     return str(canonical)
 
 

@@ -22,7 +22,7 @@ from specify_cli.retrospective.schema import (
     RecordProvenance,
     RetrospectiveRecord,
 )
-from specify_cli.retrospective.writer import WriterError, write_record
+from specify_cli.retrospective.writer import WriterError, _atomic_write_yaml, write_record
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -249,3 +249,86 @@ def test_dir_fsync_failure_is_non_fatal(tmp_path: Path, monkeypatch: pytest.Monk
     # Should not raise despite dir fsync failing.
     canonical = write_record(record, repo_root=tmp_path)
     assert canonical.exists()
+
+
+# ---------------------------------------------------------------------------
+# _atomic_write_yaml unit tests — shared helper contract
+# ---------------------------------------------------------------------------
+
+
+def test_atomic_write_yaml_writes_data_to_canonical(tmp_path: Path) -> None:
+    """Helper writes the dict data and produces a readable YAML file at canonical."""
+    from ruamel.yaml import YAML
+
+    canonical = tmp_path / "retrospective.yaml"
+    data = {"key": "value", "number": 42}
+
+    _atomic_write_yaml(data, canonical, tmp_path)
+
+    assert canonical.exists()
+    yaml_safe = YAML(typ="safe")
+    loaded = yaml_safe.load(canonical.read_text(encoding="utf-8"))
+    assert loaded == data
+
+
+def test_atomic_write_yaml_uses_temp_then_rename(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Helper must write to a .tmp file FIRST, then rename it to canonical atomically."""
+    import os as _os
+
+    canonical = tmp_path / "retrospective.yaml"
+    captured_replace: list[tuple[str, str]] = []
+    original_replace = _os.replace
+
+    def capturing_replace(src: str, dst: str) -> None:
+        captured_replace.append((src, dst))
+        original_replace(src, dst)
+
+    monkeypatch.setattr(_os, "replace", capturing_replace)
+
+    _atomic_write_yaml({"x": 1}, canonical, tmp_path)
+
+    assert len(captured_replace) == 1
+    src_path, dst_path = captured_replace[0]
+    # Temp file must have been in the same directory as canonical.
+    assert Path(src_path).parent == canonical.parent
+    # Temp file name must contain '.tmp'.
+    assert ".tmp" in Path(src_path).name
+    # Destination must be the canonical path.
+    assert Path(dst_path) == canonical
+    # After rename, canonical holds the data; temp file is gone.
+    assert canonical.exists()
+    assert not Path(src_path).exists()
+
+
+def test_atomic_write_yaml_crash_leaves_no_canonical(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """If os.replace raises, the canonical file must not exist."""
+    import os as _os
+
+    def crashing_replace(src: str, dst: str) -> None:  # type: ignore[misc]
+        raise OSError("Simulated crash")
+
+    monkeypatch.setattr(_os, "replace", crashing_replace)
+
+    canonical = tmp_path / "retrospective.yaml"
+    with pytest.raises(WriterError, match="IO error"):
+        _atomic_write_yaml({"x": 1}, canonical, tmp_path)
+
+    assert not canonical.exists()
+
+
+def test_atomic_write_yaml_cleans_up_tempfile_on_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Tempfile must be removed after an OS error during write."""
+    import os as _os
+
+    def failing_write(fd: int, data: bytes) -> int:
+        raise OSError("Simulated disk full")
+
+    monkeypatch.setattr(_os, "write", failing_write)
+
+    canonical = tmp_path / "retrospective.yaml"
+    with pytest.raises(WriterError):
+        _atomic_write_yaml({"x": 1}, canonical, tmp_path)
+
+    # No .tmp sibling files should remain.
+    leftover = [f for f in tmp_path.iterdir() if ".tmp" in f.name]
+    assert leftover == [], f"Unexpected tempfiles left behind: {leftover}"

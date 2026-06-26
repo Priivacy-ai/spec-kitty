@@ -59,6 +59,11 @@ class DoctorFinding:
 _MIN_GIT_VERSION: tuple[int, int] = (2, 25)
 _LANE_DRIFT_CODE = "LANE_SPARSE_CHECKOUT_DRIFT"
 
+#: Recovery command for workspace / worktree issues (SC-005 / FR-007 / #1890).
+#: The former worktree-repair subcommand was removed post-#2135; the real
+#: recovery surface is ``doctor workspaces --fix``.
+_WORKSPACE_RECOVERY_CMD = "spec-kitty doctor workspaces --fix"
+
 
 def _detect_git_version() -> tuple[int, int] | None:
     """Return ``(major, minor)`` of the local git binary, or ``None`` on failure."""
@@ -195,7 +200,7 @@ def _coordination_identity(
 
 
 def _coord_worktree_head_finding(
-    worktree: Path, coord_branch: str, mission_slug: str
+    worktree: Path, coord_branch: str
 ) -> DoctorFinding | None:
     """Return a finding if the coord worktree HEAD is off the coord branch."""
     import subprocess as _subprocess
@@ -216,8 +221,7 @@ def _coord_worktree_head_finding(
             f"expected {coord_branch!r}."
         ),
         next_step=(
-            f"Inspect the worktree manually; then run "
-            f"`spec-kitty agent worktree repair --mission {mission_slug}` "
+            f"Inspect the worktree manually; then run `{_WORKSPACE_RECOVERY_CMD}` "
             "to restore."
         ),
         error_code="COORDINATION_WORKTREE_BRANCH_MISMATCH",
@@ -290,14 +294,13 @@ def _check_coordination_worktree_health(
                 f"mission {mission_slug!r}."
             ),
             next_step=(
-                f"Run `spec-kitty agent worktree repair --mission {mission_slug}` "
-                "to recreate it."
+                f"Run `{_WORKSPACE_RECOVERY_CMD}` to recreate it."
             ),
             error_code="COORDINATION_WORKTREE_MISSING",
         )]
 
     findings: list[DoctorFinding] = []
-    head_finding = _coord_worktree_head_finding(worktree, coord_branch, mission_slug)
+    head_finding = _coord_worktree_head_finding(worktree, coord_branch)
     if head_finding is not None:
         findings.append(head_finding)
     dirty_finding = _coord_worktree_dirty_finding(worktree)
@@ -331,18 +334,16 @@ def _lane_sparse_file(lane_dir: Path) -> Path | None:
 
 
 def _scan_lane_sparse_drift(
-    lane_dir: Path, mission_slug: str, expected: set[str]
+    lane_dir: Path, expected: set[str]
 ) -> DoctorFinding | None:
     """Return a drift finding for one lane worktree, or None when it is healthy."""
-    repair_hint = (
-        f"Run `spec-kitty agent worktree repair --mission {mission_slug}` to restore."
-    )
+    repair_hint = f"Run `{_WORKSPACE_RECOVERY_CMD}` to restore."
     sparse_file = _lane_sparse_file(lane_dir)
     if sparse_file is None:
         return DoctorFinding(
             severity="warning",
             message=f"Could not resolve sparse-checkout path for {lane_dir}.",
-            next_step=f"Run `spec-kitty agent worktree repair --mission {mission_slug}`.",
+            next_step=f"Run `{_WORKSPACE_RECOVERY_CMD}`.",
             error_code=_LANE_DRIFT_CODE,
         )
     if not sparse_file.exists():
@@ -418,7 +419,7 @@ def _check_lane_sparse_checkout_drift(
         if str(lane_dir.resolve()) not in wt_list:
             # Not a registered git worktree; skip silently.
             continue
-        finding = _scan_lane_sparse_drift(lane_dir, mission_slug, expected)
+        finding = _scan_lane_sparse_drift(lane_dir, expected)
         if finding is not None:
             findings.append(finding)
 

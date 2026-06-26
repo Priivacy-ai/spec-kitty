@@ -12,7 +12,7 @@ Source-of-truth contract:
 from __future__ import annotations
 
 from specify_cli.coordination.surface_resolver import resolve_status_surface
-from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR
+from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR, RETROSPECTIVE_FILENAME
 from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
 )
@@ -1022,7 +1022,7 @@ def summary_cmd(  # noqa: C901
             state = classify_mission_record(feature_dir_for_classify)
 
             # Also check .kittify/missions/<id>/retrospective.yaml
-            if (mission_dir / "retrospective.yaml").exists() and state == "missing":
+            if (mission_dir / RETROSPECTIVE_FILENAME).exists() and state == "missing":
                 state = classify_mission_record(mission_dir)
 
             aggregate_counts[state] = aggregate_counts.get(state, 0) + 1

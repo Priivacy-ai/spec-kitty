@@ -230,16 +230,24 @@ _RAW_JOIN_SITES: tuple[tuple[str, int, str], ...] = (
     # drifted; the composite key (qualname ``_coord_mid8`` + join token line) is
     # re-pointed at the identical joins, NOT a raw ``file.py:NNN`` line bump (CT1 /
     # WP02 test-DoD (a)).
+    # NOTE (post-merge re-key, 3.2.3-coord-surface-regressions): drifted 494→493
+    # and 499→498 when the #2119/#2125 retrospective-home seam edited the
+    # ``_coord_mid8`` docstring/error prose above these joins, shifting the two
+    # fail-closed raise payloads up one line each. Same two ``_coord_mid8``
+    # DIAG joins — byte-identical inside the immediate ``raise`` — only their
+    # seed line drifted; the composite key (qualname ``_coord_mid8`` + join token
+    # line) is re-pointed at the identical joins, NOT a raw ``file.py:NNN`` line
+    # bump (CT1 / no new bypass).
     (
         "specify_cli/coordination/surface_resolver.py",
-        494,
+        493,
         "DIAG — _coord_mid8 fail-closed raise payload: "
         "CoordinationWorkspace.worktree_path(...) / KITTY_SPECS_DIR / mission_slug "
         "inside StatusReadPathNotFound constructor; no FS sink (raise is immediate).",
     ),
     (
         "specify_cli/coordination/surface_resolver.py",
-        499,
+        498,
         "DIAG — _coord_mid8 fail-closed raise payload: "
         "repo_root / KITTY_SPECS_DIR / mission_slug for primary_candidate field; "
         "no FS sink (raise is immediate).",
@@ -288,20 +296,15 @@ _RAW_JOIN_SITES: tuple[tuple[str, int, str], ...] = (
         "mission_dir_name(mission_slug, mid8=...) grammar seam (not raw operator input); "
         "seam is defined in lanes/branch_naming.py (FR-032/FR-044).",
     ),
-    # ----- review/cycle.py: _validate_segment seam validates before join -----
-    # ``validate_review_cycle_pointer(value)`` at :183 calls ``_validate_segment``
-    # (which calls ``assert_safe_path_segment``) on ``parts.mission_slug`` at
-    # lines 140-141 BEFORE the join at :185.  The seam pre-validates; the join
-    # then uses the validated ``parts.mission_slug``.  The resulting path is
-    # existence-checked (``candidate.exists()``), not used as a surface selector.
-    (
-        "specify_cli/review/cycle.py",
-        185,
-        "TBYD — _validate_segment / assert_safe_path_segment validates "
-        "parts.mission_slug at lines 140-141 (validate_review_cycle_pointer) "
-        "BEFORE this join; the candidate path is existence-checked, not used "
-        "as a resolver-bypass surface selection.",
-    ),
+    # ----- DRAINED by mission retrospective-durable-home-01KVYM1W (#2136/#2164):
+    # the raw ``KITTY_SPECS_DIR / parts.mission_slug`` join formerly at
+    # review/cycle.py:185 in ``resolve_review_cycle_pointer`` was routed through the
+    # shared write-seam resolver ``candidate_feature_dir_for_mission`` (which folds
+    # every handle form and propagates ``MissionSelectorAmbiguous`` — no silent pick,
+    # C-009), matching the WRITE seam ``create_rejected_review_cycle``.  No raw join
+    # remains, so its allowlist entry was removed to keep this guard precise
+    # (``test_allowlist_entries_are_not_stale``).  The downstream ``wp_slug``
+    # path-joins remain dispositioned in the untrusted-path inventory.
     # ----- DRAINED by WP02 (FR-002): the four read-CLI raw-join bootstraps that
     # formerly lived here (decision.py:464 D-6 factory boundary +
     # agent/context.py:72, agent/mission.py:1327, agent/mission.py:1378 #2046

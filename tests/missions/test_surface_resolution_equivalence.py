@@ -118,8 +118,10 @@ from pathlib import Path
 import pytest
 
 from mission_runtime import (
+    MissionArtifactKind,
     MissionTopology,
     classify_topology,
+    is_primary_artifact_kind,
     routes_through_coordination,
 )
 from specify_cli.coordination.surface_resolver import (
@@ -135,9 +137,12 @@ from specify_cli.migration.backfill_topology import (
     read_topology,
 )
 from specify_cli.missions._read_path_resolver import (
+    MissionSelectorAmbiguous,
     StatusReadPathNotFound,
+    primary_feature_dir_for_mission,
     read_primary_meta,
     resolve_handle_to_read_path,
+    resolve_planning_read_dir,
     stored_topology_from_meta,
 )
 from specify_cli.status.aggregate import MissionStatus
@@ -1082,3 +1087,161 @@ def test_unbackfilled_flattened_repro_resolves_primary_after_wp06(
         f"{primary.resolve()} (boundary absorption), NOT the stale coord husk "
         f"{husk.resolve()} (#2062 / NFR-002)"
     )
+
+
+# ---------------------------------------------------------------------------
+# WP01 (retrospective-durable-home, FR-011 / #2136) — handle-safe PRIMARY read
+# seam. The kind-aware read seam ``resolve_planning_read_dir`` feeds its
+# PRIMARY-partition leg into the topology-BLIND primitive
+# ``primary_feature_dir_for_mission``. A bare ``mid8`` / human slug does NOT name
+# the on-disk ``<slug>-<mid8>`` dir, so the raw-handle compose DIVERGED (the
+# #2136 bug). WP01 canonicalizes IN THE CALLER (mirroring the live exemplars),
+# leaving the primitive blind. These cells prove the cure THROUGH the read seam.
+# ---------------------------------------------------------------------------
+
+# A PRIMARY-partition kind drives the ``is_primary_artifact_kind`` leg the bug
+# lives on. ``SPEC`` is canonically PRIMARY-partition (mission_runtime.artifacts).
+
+
+def _primary_kind() -> MissionArtifactKind:
+    """The PRIMARY-partition ``MissionArtifactKind`` driving the seam's bug leg.
+
+    Asserts the partition membership so a re-shuffle in ``mission_runtime.artifacts``
+    (the FR-006 one-line move) that flips ``SPEC`` off the PRIMARY partition fails
+    loudly here rather than silently routing the test onto the STATUS leg.
+    """
+    kind = MissionArtifactKind.SPEC
+    assert is_primary_artifact_kind(kind), (
+        "SPEC must be a PRIMARY-partition kind to exercise the PRIMARY leg of "
+        "resolve_planning_read_dir (the #2136 bug leg)"
+    )
+    return kind
+
+
+def _build_canonical_primary(repo_root: Path) -> Path:
+    """Materialise a canonical ``kitty-specs/<slug>-<mid8>/`` PRIMARY dir.
+
+    Production-shaped identity (real 26-char ULID, mid8 = first 8 lowercase). The
+    dir name is the COMPOSED ``<slug>-<mid8>`` — so a bare ``mid8`` or bare human
+    slug has a genuinely WRONG literal-compose target (``kitty-specs/<bare>``),
+    making the divergence observable (the false-green guard in T011's notes).
+    """
+    _init_repo(repo_root)
+    canonical_dir = repo_root / "kitty-specs" / SLUG_WITH_MID8
+    _write_meta(canonical_dir, mission_id=MISSION_ID)
+    return canonical_dir
+
+
+def test_primary_read_seam_handle_equivalence(tmp_path: Path) -> None:
+    """T011/T012 (FR-011): bare-mid8 ≡ bare-slug ≡ ``<slug>-<mid8>`` → SAME dir.
+
+    Drives the PRE-EXISTING entry point ``resolve_planning_read_dir`` (the seam the
+    #2136 bug lives in) on a PRIMARY-partition kind, three handle forms against ONE
+    canonical ``<slug>-<mid8>`` primary dir:
+
+    * the composed ``<slug>-<mid8>`` (the canonical anchor);
+    * a bare lowercase ``mid8`` (``MID8`` — the canonical disambiguator alone);
+    * a bare human slug (``MISSION_SLUG`` — no mid8 tail).
+
+    RED on the pre-WP01 code: the PRIMARY leg passed the RAW handle to the
+    topology-blind ``primary_feature_dir_for_mission``, so the bare forms composed
+    ``kitty-specs/<bare>`` — a DIFFERENT dir than the composed anchor. GREEN after
+    the caller-canonicalization: all three fold to the SAME canonical dir.
+
+    Asserts the OBSERVABLE resolved dir (``Path.resolve()`` equality), never the
+    internal call graph. The canonical anchor is pinned to the on-disk composed dir
+    (not mere leg-equality) so a "both wrong but equal" mutant cannot pass.
+    """
+    canonical_dir = _build_canonical_primary(tmp_path)
+    kind = _primary_kind()
+    expected = canonical_dir.resolve()
+
+    composed = resolve_planning_read_dir(tmp_path, SLUG_WITH_MID8, kind=kind).resolve()
+    bare_mid8 = resolve_planning_read_dir(tmp_path, MID8, kind=kind).resolve()
+    bare_slug = resolve_planning_read_dir(tmp_path, MISSION_SLUG, kind=kind).resolve()
+
+    # Absolute anchor: the composed handle resolves the real on-disk canonical dir.
+    assert composed == expected, (
+        f"composed handle resolved {composed}, expected the canonical PRIMARY dir "
+        f"{expected}"
+    )
+    # Equivalence: the bare forms fold to the SAME canonical dir (FR-011 / #2136).
+    assert bare_mid8 == expected, (
+        f"bare mid8 {MID8!r} resolved {bare_mid8} but must fold to the canonical "
+        f"PRIMARY dir {expected} (handle-safe read seam — #2136)"
+    )
+    assert bare_slug == expected, (
+        f"bare slug {MISSION_SLUG!r} resolved {bare_slug} but must fold to the "
+        f"canonical PRIMARY dir {expected} (handle-safe read seam — #2136)"
+    )
+
+
+def test_primary_read_seam_ambiguous_handle_raises(tmp_path: Path) -> None:
+    """T011 (FR-011 / C-009): an ambiguous handle raises, never silently picks.
+
+    Two missions colliding on the same mid8 prefix → the bare mid8 is ambiguous.
+    The PRIMARY leg's caller-canonicalization MUST propagate
+    ``MissionSelectorAmbiguous`` (``MISSION_AMBIGUOUS_SELECTOR``) unchanged — the
+    no-silent-fallback contract (WP07 regression class). A silent pick of either
+    candidate dir is the regression this asserts against.
+    """
+    _build_ambiguous(tmp_path)
+    kind = _primary_kind()
+
+    with pytest.raises(MissionSelectorAmbiguous) as excinfo:
+        resolve_planning_read_dir(tmp_path, _AMBIG_MID8, kind=kind)
+    assert excinfo.value.error_code == "MISSION_AMBIGUOUS_SELECTOR"
+
+
+def test_primary_read_seam_canonical_handle_is_noop(tmp_path: Path) -> None:
+    """T013 (NFR-005): a canonical ``<slug>-<mid8>`` handle is a no-op.
+
+    The ``meta.json``-present short-circuit leg of
+    ``_canonicalize_bare_modern_handle`` returns the handle unchanged, so the
+    canonical handle resolves to exactly the literal compose — byte-identical to the
+    pre-WP01 behaviour for an already-canonical handle.
+    """
+    canonical_dir = _build_canonical_primary(tmp_path)
+    kind = _primary_kind()
+
+    resolved = resolve_planning_read_dir(tmp_path, SLUG_WITH_MID8, kind=kind).resolve()
+    # No-op: the canonical handle resolves the literal composed dir — the SAME path
+    # the blind primitive composes directly (the present-leg short-circuit).
+    assert resolved == canonical_dir.resolve()
+    assert resolved == primary_feature_dir_for_mission(tmp_path, SLUG_WITH_MID8).resolve()
+
+
+def test_primary_read_seam_unresolvable_handle_is_byte_identical(tmp_path: Path) -> None:
+    """T013 (NFR-005): an unresolvable handle behaves EXACTLY as the blind compose.
+
+    An unresolvable handle (no matching mission, no ``meta.json``) hits the
+    unresolvable leg of ``_canonicalize_bare_modern_handle`` → the handle is
+    returned unchanged → literal compose, byte-identical to the pre-WP01 raw-handle
+    behaviour AND to a direct call into the blind primitive.
+    """
+    _init_repo(tmp_path)  # no kitty-specs, no mission at all
+    kind = _primary_kind()
+    handle = "no-such-mission"
+
+    resolved = resolve_planning_read_dir(tmp_path, handle, kind=kind).resolve()
+    # Byte-identical to the blind primitive's literal compose (no-op fold).
+    assert resolved == primary_feature_dir_for_mission(tmp_path, handle).resolve()
+
+
+def test_primitive_stays_blind_under_bare_handle(tmp_path: Path) -> None:
+    """T013 step 4 (NFR-005): the primitive STILL diverges for a bare handle.
+
+    The cure lives in the CALLER, not the primitive. A direct call to the
+    topology-blind ``primary_feature_dir_for_mission`` with a bare ``mid8`` STILL
+    literal-composes the bare name (``kitty-specs/<mid8>``) — a DIFFERENT dir than
+    the canonical ``<slug>-<mid8>``. This proves the primitive's blind contract is
+    preserved (no canonicalization folded into its body — recursion-safety) and
+    that the seam-level equivalence is genuinely the caller's doing.
+    """
+    canonical_dir = _build_canonical_primary(tmp_path)
+
+    blind = primary_feature_dir_for_mission(tmp_path, MID8).resolve()
+    # The blind primitive composes the bare name verbatim — it does NOT canonicalize.
+    assert blind == (tmp_path / "kitty-specs" / MID8).resolve()
+    # ... and that is a genuinely DIFFERENT dir than the canonical one (non-vacuous).
+    assert blind != canonical_dir.resolve()

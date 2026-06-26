@@ -16,6 +16,7 @@ WP03 addition (T017):
 
 from __future__ import annotations
 
+from specify_cli.core.constants import RETROSPECTIVE_FILENAME
 from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 import json
 import logging
@@ -333,7 +334,8 @@ def _resolve_summary_record_path(project_path: Path, mission_dir: Path) -> Path:
         if tracked.exists():
             return tracked
     # Back-compat: legacy in-registry record path.
-    return mission_dir / "retrospective.yaml"
+    legacy: Path = mission_dir / RETROSPECTIVE_FILENAME
+    return legacy
 
 
 # ---------------------------------------------------------------------------
@@ -663,7 +665,7 @@ def classify_mission_record(feature_dir: Path) -> MissionRecordState:
         This function provides the *classifier logic* only. CLI output-shape changes
         belong to WP05 T027. Do not call this from CLI commands in this WP.
     """
-    record_path = feature_dir / "retrospective.yaml"
+    record_path = feature_dir / RETROSPECTIVE_FILENAME
 
     if record_path.exists():
         try:

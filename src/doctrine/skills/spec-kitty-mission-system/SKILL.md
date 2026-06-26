@@ -506,8 +506,8 @@ to query the resulting WP state after the action completes.
 
 ### Workspace recovery
 
-If a worktree is missing or corrupted, do **not** use `agent worktree repair` — that
-command does not exist. The real recovery surface is:
+If a worktree is missing or corrupted, use the real recovery command (post-#2135,
+the former `worktree repair` subcommand no longer exists):
 
 ```bash
 spec-kitty doctor workspaces --fix

@@ -28,7 +28,6 @@ from specify_cli.missions._read_path_resolver import (
 )
 from dataclasses import dataclass
 from pathlib import Path
-from collections.abc import Iterable
 from typing import Annotated, Any
 
 import typer
@@ -73,24 +72,6 @@ def _resolve_primary_repo_root(project_root: Path) -> Path:
     for segment in parts[1:idx]:
         base /= segment
     return base
-
-
-def _list_active_worktrees(repo_root: Path) -> list[str]:
-    """Return list of active worktree directories relative to the repo root."""
-    worktrees_dir = repo_root / ".worktrees"
-    if not worktrees_dir.exists():
-        return []
-
-    active: list[str] = []
-    for entry in sorted(worktrees_dir.iterdir()):
-        if not entry.is_dir():
-            continue
-        try:
-            rel = entry.relative_to(repo_root)
-        except ValueError:
-            rel = entry
-        active.append(str(rel))
-    return active
 
 
 def _mission_details_lines(mission: Mission, include_description: bool = True) -> list[str]:
@@ -308,14 +289,6 @@ def info_cmd(
         border_style="cyan",
     )
     console.print(panel)
-
-
-def _print_active_worktrees(active_worktrees: Iterable[str]) -> None:
-    console.print("[red]Cannot switch missions: active features exist[/red]")
-    console.print("\n[yellow]Active worktrees:[/yellow]")
-    for wt in active_worktrees:
-        console.print(f"  • {wt}")
-    console.print("\n[cyan]Suggestion:[/cyan] Complete, merge, or remove these worktrees before switching missions.")
 
 
 @app.command("create")
@@ -604,8 +577,10 @@ def close_cmd(
     # DIRECTORY only, while `_discard_mission` / `_teardown_coordination_worktree`
     # compose names from the slug — `_delete_lane_branches` via
     # `lane_branch_name(raw, lane_id)` and `_remove_lane_worktrees` via the
-    # `.worktrees/` `f"{raw}-"` prefix match would silently no-op on a raw
-    # handle while the command reports success.
+    # exact-name `_expected_lane_worktree_dir_names` composition
+    # (`<slug>-<mid8>-lane-<id>`). Fed a raw handle, those helpers would compose
+    # the WRONG on-disk names and leave the real worktrees/branches behind while
+    # the command reports success.
     mission_slug = feature_dir.name
 
     # Surface fix (#2120): identity/lane reads (meta.json/lanes.json) and the
@@ -639,7 +614,9 @@ def close_cmd(
         _flatten_discarded_mission(feature_dir)
         console.print(f"[green]✓[/green] Mission {mission_slug} discarded.")
     else:
-        # Teardown the coordination worktree. Same path as merge.py:1568.
+        # Teardown the coordination worktree. Routes through the shared
+        # ``coordination/teardown.py`` seam (persist-before-destroy), the same
+        # seam the ``spec-kitty merge`` cleanup + ``--abort`` paths use.
         # Idempotent: no-ops on legacy missions / when already torn down.
         _teardown_coordination_worktree(repo_root, mission_slug, mid8_value)
         console.print(f"[green]✓[/green] Mission {mission_slug} closed.")
@@ -904,24 +881,24 @@ def _delete_legacy_coordination_branch(repo_root: Path, meta_path: Path) -> None
 def _teardown_coordination_worktree(repo_root: Path, mission_slug: str, mid8_value: str) -> None:
     if not mid8_value:
         return
-    try:
-        from specify_cli.coordination import CoordinationWorkspace
+    # Route through the shared ``teardown_coordination_topology`` seam (FR-004):
+    # persist the retrospective to its durable home BEFORE destroying the
+    # coordination worktree (persist-before-destroy, FR-005). The destroy leg is
+    # best-effort inside the seam; we report success/failure from the on-disk
+    # ``is_present`` truth so the operator sees whether manual cleanup is needed.
+    from specify_cli.coordination.teardown import teardown_coordination_topology
+    from specify_cli.coordination.workspace import CoordinationWorkspace
 
-        CoordinationWorkspace.teardown(repo_root, mission_slug, mid8_value)
-        if CoordinationWorkspace.is_present(repo_root, mission_slug, mid8_value):
-            console.print(
-                "[yellow]Warning:[/yellow] coordination worktree still "
-                "present after teardown; manual cleanup may be required."
-            )
-        else:
-            console.print(
-                f"[green]✓[/green] Coordination worktree torn down for "
-                f"{mission_slug}-{mid8_value}"
-            )
-    except Exception as exc:  # noqa: BLE001 — teardown is best-effort
+    teardown_coordination_topology(repo_root, mission_slug, mid8_value)
+    if CoordinationWorkspace.is_present(repo_root, mission_slug, mid8_value):
         console.print(
-            f"[yellow]Warning:[/yellow] coordination worktree teardown "
-            f"failed (non-fatal): {exc}"
+            "[yellow]Warning:[/yellow] coordination worktree still "
+            "present after teardown; manual cleanup may be required."
+        )
+    else:
+        console.print(
+            f"[green]✓[/green] Coordination worktree torn down for "
+            f"{mission_slug}-{mid8_value}"
         )
 
 
@@ -1047,6 +1024,7 @@ def _resolve_mission_handle(repo_root: Path, handle: str) -> _ResolvedMissionHan
     )
     from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
         MissionSelectorAmbiguous,
+        _canonicalize_primary_read_handle,
     )
 
     try:
@@ -1059,7 +1037,15 @@ def _resolve_mission_handle(repo_root: Path, handle: str) -> _ResolvedMissionHan
         ) from exc
     except MissionNotFoundError:
         # Legacy / no-mission_id handle: fall back to the literal slug directory.
-        feature_dir = primary_feature_dir_for_mission(repo_root, handle)
+        # #2136/#2164: fold the handle through the proven full-fold FIRST so a bare
+        # human slug whose on-disk primary dir carries the composed ``<slug>-<mid8>``
+        # name lands on the real dir (the identity resolver above keys on the dir NAME
+        # and so cannot match a bare slug onto a composed dir — it raised
+        # MissionNotFoundError). The fold is a NO-OP for a genuinely literal/legacy
+        # dir name (back-compat preserved) and propagates ``MissionSelectorAmbiguous``
+        # on an ambiguous handle (no silent pick — C-009).
+        canonical_handle = _canonicalize_primary_read_handle(repo_root, handle)
+        feature_dir = primary_feature_dir_for_mission(repo_root, canonical_handle)
         meta = _safe_load_meta(feature_dir)
         return _ResolvedMissionHandle(
             mission_id=(meta or {}).get("mission_id") if meta else None,

@@ -64,6 +64,71 @@ def test_canonical_record_path_is_not_gitignored(tmp_path: Path) -> None:
     )
 
 
+# Production-shaped identity for the coord-divergence re-pin (real ULID + mid8).
+_COORD_MISSION_ID = "01KVYM1WQ4D5E6F7G8H9J0K1M2"
+_COORD_MID8 = _COORD_MISSION_ID[:8]  # "01KVYM1W"
+_COORD_SLUG_WITH_MID8 = f"record-committable-{_COORD_MID8}"
+
+
+def _seed_divergent_coord_topology(repo_root: Path) -> None:
+    """Materialize a coord mission: composed PRIMARY dir + a coord husk lacking meta.
+
+    The #1771 trap shape (NFR-002 / DIR-041 re-pin): the primary ``meta.json``
+    declares a ``coordination_branch`` + COORD topology, and the materialized coord
+    worktree mission dir LACKS ``meta.json`` / ``lanes.json`` — so the coord surface
+    genuinely diverges from primary. On this fixture the OLD coord-aware resolver
+    leaks into ``.worktrees``; the durable-home authority must not.
+    """
+    from mission_runtime import MissionTopology
+    from specify_cli.migration.backfill_topology import _write_meta_canonical
+    from specify_cli.missions._read_path_resolver import coord_feature_dir
+
+    meta: dict[str, object] = {
+        "mission_id": _COORD_MISSION_ID,
+        "mid8": _COORD_MID8,
+        "mission_slug": _COORD_SLUG_WITH_MID8,
+        "coordination_branch": f"kitty/mission-{_COORD_SLUG_WITH_MID8}",
+        "topology": MissionTopology.COORD.value,
+    }
+    primary_dir = repo_root / "kitty-specs" / _COORD_SLUG_WITH_MID8
+    primary_dir.mkdir(parents=True, exist_ok=True)
+    _write_meta_canonical(primary_dir / "meta.json", meta)
+
+    coord_mission_dir = coord_feature_dir(repo_root, _COORD_SLUG_WITH_MID8, _COORD_MID8)
+    coord_mission_dir.mkdir(parents=True, exist_ok=True)
+    (coord_mission_dir / "status.json").write_text("{}\n", encoding="utf-8")
+    assert not (coord_mission_dir / "meta.json").exists()
+    assert not (coord_mission_dir / "lanes.json").exists()
+
+
+def test_canonical_record_path_does_not_leak_into_coord_worktree(tmp_path: Path) -> None:
+    """DIR-041 re-pin: the record path stays in the durable home under coord topology.
+
+    The original ``"kitty-specs" in parts`` assertion above is a #1771 FALSE-GREEN
+    on its own — it is true for BOTH the durable home AND a
+    ``.worktrees/<slug>-coord/kitty-specs/...`` husk path, so it passes even when
+    the record re-homes into the coord worktree. This re-pin drives a
+    genuinely-divergent coord fixture and strengthens the contract to ALSO require
+    ``".worktrees" not in record_path.parts`` — the record must NOT leak into the
+    ephemeral coord worktree.
+    """
+    _init_repo_with_gitignore(tmp_path)
+    _seed_divergent_coord_topology(tmp_path)
+
+    record_path = canonical_record_path(tmp_path, _COORD_SLUG_WITH_MID8)
+
+    # The strengthened guard: ``kitty-specs in parts`` ALONE is insufficient.
+    assert "kitty-specs" in record_path.parts
+    assert ".worktrees" not in record_path.parts, (
+        f"Retrospective record path {record_path} re-homed into the coord "
+        "worktree — the #1771 coord-leak the durable-home authority must cure."
+    )
+    assert ".kittify" not in record_path.parts
+    assert not _is_git_ignored(tmp_path, record_path)
+    expected = tmp_path / "kitty-specs" / _COORD_SLUG_WITH_MID8 / "retrospective.yaml"
+    assert record_path.resolve() == expected.resolve()
+
+
 def test_legacy_path_was_gitignored_control(tmp_path: Path) -> None:
     """Control: the OLD .kittify/missions/ path IS git-ignored (the original bug)."""
     _init_repo_with_gitignore(tmp_path)

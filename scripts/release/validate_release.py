@@ -41,13 +41,63 @@ RELEASE_VERSION_RE = re.compile(
     r"(?:(?P<stage>a|b|rc|alpha|beta)(?P<stage_num>\d*))?$",
     re.IGNORECASE,
 )
+_CHANGELOG_VERSION_SUB = r"\d+\.\d+\.\d+(?:(?:a|b|rc)\d+|(?:alpha|beta)\d*)?"
+# A changelog heading may carry a version, an ``Unreleased`` marker, or both, in
+# any of these shapes (with or without the surrounding ``[ ]``):
+#   ## [3.2.3]                  -> finalized section for 3.2.3
+#   ## [3.2.3] - 2026-06-24     -> finalized section with a date suffix
+#   ## [Unreleased] - 3.2.3     -> pending pre-release section declaring 3.2.3
+#   ## [3.2.3] - Unreleased     -> pending pre-release section declaring 3.2.3
+#   ## 3.2.3 - Unreleased       -> pending pre-release section declaring 3.2.3
+#   ## Unreleased - 3.2.3       -> pending pre-release section declaring 3.2.3
+#   ## [Unreleased - 3.2.3]     -> pending pre-release section declaring 3.2.3
+#   ## [Unreleased]             -> version-less placeholder (no declared version)
+# The ``unreleased*`` capture groups let callers distinguish a *pending* section
+# (rejected on actual tag/publish runs) from a *finalized* one.
 CHANGELOG_HEADING_RE = re.compile(
-    r"^##\s*(?:\[\s*)?"
-    r"(?:(?:Unreleased)\s*-\s*)?"
-    r"(?P<version>\d+\.\d+\.\d+(?:(?:a|b|rc)\d+|(?:alpha|beta)\d*)?)"
-    r"(?:\s*\]|)(?:\s*-.*)?$",
+    r"^##\s*"
+    r"(?:\[\s*)?"
+    r"(?:"
+    r"(?P<unreleased_a>Unreleased)\s*\]?\s*(?:-\s*)?(?P<version_a>" + _CHANGELOG_VERSION_SUB + r")"
+    r"|"
+    r"(?P<version_b>" + _CHANGELOG_VERSION_SUB + r")\s*\]?\s*(?:-\s*(?P<unreleased_b>Unreleased))?"
+    r"|"
+    r"(?P<unreleased_c>Unreleased)\s*\]?"
+    r")"
+    r"\s*\]?"
+    r"(?:\s*-.*)?$",
     re.IGNORECASE,
 )
+
+
+@dataclass
+class ChangelogHeading:
+    """A parsed CHANGELOG ``## ...`` heading.
+
+    ``version`` is ``None`` for a version-less ``## [Unreleased]`` placeholder.
+    ``unreleased`` is ``True`` when the heading carries an ``Unreleased`` marker,
+    i.e. the section is *pending* and not yet finalized for a publish run.
+    """
+
+    version: str | None
+    unreleased: bool
+
+
+def parse_changelog_heading(line: str) -> ChangelogHeading | None:
+    """Parse a single changelog line into a :class:`ChangelogHeading`.
+
+    Returns ``None`` when *line* is not a recognised release heading.
+    """
+    match = CHANGELOG_HEADING_RE.match(line)
+    if not match:
+        return None
+    version = match.group("version_a") or match.group("version_b")
+    unreleased = bool(
+        match.group("unreleased_a")
+        or match.group("unreleased_b")
+        or match.group("unreleased_c")
+    )
+    return ChangelogHeading(version=version, unreleased=unreleased)
 
 
 @dataclass
@@ -313,15 +363,40 @@ def changelog_has_entry(changelog: str, version: str) -> bool:
     capture = False
     content: list[str] = []
     for line in lines:
-        heading = CHANGELOG_HEADING_RE.match(line)
+        heading = parse_changelog_heading(line)
         if heading:
             if capture:
                 break
-            capture = heading.group("version") == version
+            capture = heading.version == version
             continue
         if capture:
             content.append(line.strip())
     if not capture:
+        return False
+    return any(fragment for fragment in content if fragment)
+
+
+def changelog_section_is_finalized(changelog: str, version: str) -> bool:
+    """Return ``True`` when *version* has a populated, non-``Unreleased`` section.
+
+    A heading carrying an ``Unreleased`` marker is *pending* — populated but not
+    finalized — so it does not satisfy a publish/tag run.
+    """
+    lines = changelog.splitlines()
+    capture = False
+    capture_unreleased = False
+    content: list[str] = []
+    for line in lines:
+        heading = parse_changelog_heading(line)
+        if heading:
+            if capture:
+                break
+            capture = heading.version == version
+            capture_unreleased = heading.unreleased
+            continue
+        if capture:
+            content.append(line.strip())
+    if not capture or capture_unreleased:
         return False
     return any(fragment for fragment in content if fragment)
 
@@ -335,11 +410,11 @@ def first_populated_changelog_entry_version(changelog: str) -> str | None:
         return current_version is not None and any(fragment for fragment in content)
 
     for line in changelog.splitlines():
-        heading = CHANGELOG_HEADING_RE.match(line)
+        heading = parse_changelog_heading(line)
         if heading:
             if populated():
                 return current_version
-            current_version = heading.group("version")
+            current_version = heading.version
             content = []
             continue
         if current_version is not None:
@@ -677,6 +752,23 @@ def run_validation(args: argparse.Namespace) -> ValidationResult:
             ValidationIssue(
                 message=f"CHANGELOG.md lacks a populated section for {version}.",
                 hint="Add release notes under a '## {version}' heading.",
+            )
+        )
+    elif args.mode == "tag" and not changelog_section_is_finalized(
+        changelog_text, version
+    ):
+        # Branch mode tolerates a pending ``## [Unreleased] - X.Y.Z`` heading, but
+        # an actual publish run must point at a finalized ``## [X.Y.Z]`` section.
+        issues.append(
+            ValidationIssue(
+                message=(
+                    f"CHANGELOG.md lacks a finalized section for {version}: "
+                    "the section is still marked 'Unreleased'."
+                ),
+                hint=(
+                    f"Finalize the release notes by retitling the heading to "
+                    f"'## [{version}]' (with the release date) before tagging."
+                ),
             )
         )
 

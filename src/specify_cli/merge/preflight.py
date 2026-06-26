@@ -236,8 +236,15 @@ def _enforce_git_preflight(repo_root: Path, *, json_output: bool) -> None:
         print(json.dumps(enriched))
     else:
         console.print(f"[red]Error:[/red] {payload['error']}")
-        for cmd in payload.get("remediation", []):
-            console.print(f"  - Run: {cmd}")
+        # ``payload`` is a heterogeneous ``dict[str, object]`` (the JSON-shaped
+        # failure payload). Read the remediation entry from it — the contract is
+        # that the human channel mirrors the payload — and narrow the erased
+        # ``object`` value with an ``isinstance`` guard so it type-checks as an
+        # iterable without a cast or ``# type: ignore``.
+        remediation = payload.get("remediation")
+        if isinstance(remediation, list):
+            for cmd in remediation:
+                console.print(f"  - Run: {cmd}")
     raise typer.Exit(1)
 
 

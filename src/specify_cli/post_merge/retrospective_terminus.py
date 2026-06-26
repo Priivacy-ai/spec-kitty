@@ -20,6 +20,8 @@ import logging
 from pathlib import Path
 from typing import Literal
 
+from specify_cli.core.constants import RETROSPECTIVE_FILENAME
+
 logger = logging.getLogger(__name__)
 
 FailureCategory = Literal[
@@ -61,14 +63,15 @@ def run_retrospective_postcondition(
     """
     # Late import to keep module-level import graph clean and to avoid heavy
     # optional deps being pulled in unconditionally at CLI startup.
-    from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
-        resolve_feature_dir_for_slug,
-    )
+    # FR-001/003 (#2119): route through the single durable-home authority so the
+    # post-merge terminus reads/writes the retrospective in the PRIMARY home for
+    # every topology — never the materialized ``-coord`` husk (the #1771 leak).
+    from specify_cli.retrospective.writer import resolve_retrospective_home  # noqa: PLC0415
 
-    feature_dir = resolve_feature_dir_for_slug(repo_root, mission_slug)
+    feature_dir = resolve_retrospective_home(repo_root, mission_slug)
 
     # T031 — Merge-completion postcondition: check for retrospective.yaml.
-    retro_path = feature_dir / "retrospective.yaml"
+    retro_path = feature_dir / RETROSPECTIVE_FILENAME
     if retro_path.exists():
         logger.debug(
             "retrospective.yaml already exists for mission %s — postcondition satisfied (no-op)",

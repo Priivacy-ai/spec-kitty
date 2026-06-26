@@ -14,13 +14,24 @@ pattern. The ``sparse-checkout`` subcommand name is owned by the shell in
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 
 from specify_cli.core.paths import locate_project_root
 
 from ._doctor_shared import _is_interactive_environment, console
+
+if TYPE_CHECKING:
+    # Type-only imports: zero runtime cost, so the heavy domain modules stay
+    # function-local at runtime (circular-import safety) while annotations use
+    # the concrete types instead of ``object`` + ``# type: ignore``.
+    from specify_cli.git.sparse_checkout import SparseCheckoutScanReport
+    from specify_cli.git.sparse_checkout_remediation import (
+        SparseCheckoutRemediationResult,
+    )
 
 # ``__all__`` lists this sibling's single cross-module entrypoint. The render
 # helpers are intra-module (used here + by this module's own unit tests) and are
@@ -33,7 +44,7 @@ __all__ = [
 _FIX_HINT = "spec-kitty doctor sparse-checkout --fix"
 
 
-def _render_sparse_finding(report: object) -> None:
+def _render_sparse_finding(report: SparseCheckoutScanReport) -> None:
     """Render Quickstart Flow 1 finding output to the console.
 
     Kept separate from the command callback so tests can exercise the
@@ -41,11 +52,6 @@ def _render_sparse_finding(report: object) -> None:
     paths on a single line regardless of terminal width — the doctor
     output contract is that affected paths are grep-able verbatim.
     """
-    # Local import avoids circular-import edge cases during module load.
-    from specify_cli.git.sparse_checkout import SparseCheckoutScanReport
-
-    assert isinstance(report, SparseCheckoutScanReport)
-
     console.print(
         "[yellow]⚠ Legacy sparse-checkout state detected[/yellow]",
         soft_wrap=True,
@@ -85,12 +91,8 @@ def _render_sparse_finding(report: object) -> None:
     console.print(f"    {_FIX_HINT}", soft_wrap=True)
 
 
-def _render_remediation_plan(report: object) -> None:
+def _render_remediation_plan(report: SparseCheckoutScanReport) -> None:
     """Print the numbered step-by-step plan operators see before consenting."""
-    from specify_cli.git.sparse_checkout import SparseCheckoutScanReport
-
-    assert isinstance(report, SparseCheckoutScanReport)
-
     console.print("Proceed? This will:")
     step = 1
     console.print(f"  {step}. git sparse-checkout disable (primary)")
@@ -138,32 +140,36 @@ def _prompt_consent() -> bool:
     return response == "y"
 
 
-def _render_remediation_results(results: list[object]) -> bool:
+def _render_remediation_results(
+    results: Sequence[SparseCheckoutRemediationResult],
+) -> bool:
     """Render per-path remediation results; return True iff any path failed."""
     any_failure = False
     for r in results:
-        if r.success:  # type: ignore[attr-defined]
-            steps = len(r.steps_completed)  # type: ignore[attr-defined]
+        if r.success:
+            steps = len(r.steps_completed)
             console.print(
-                f"[green]✓[/green] {r.path}: remediated "  # type: ignore[attr-defined]
+                f"[green]✓[/green] {r.path}: remediated "
                 f"({steps} steps, clean verify)"
             )
         else:
             any_failure = True
-            detail = r.error_detail or "unknown error"  # type: ignore[attr-defined]
-            step = r.error_step or "unknown step"  # type: ignore[attr-defined]
+            detail = r.error_detail or "unknown error"
+            step = r.error_step or "unknown step"
             console.print(
-                f"[red]✗[/red] {r.path}: failed at {step} — {detail}"  # type: ignore[attr-defined]
+                f"[red]✗[/red] {r.path}: failed at {step} — {detail}"
             )
     return any_failure
 
 
-def _emit_dirty_refusal(results: list[object]) -> None:
+def _emit_dirty_refusal(
+    results: Sequence[SparseCheckoutRemediationResult],
+) -> None:
     """Emit the dirty-tree refusal message and exit 1."""
     console.print("[red]✗ Cannot remediate: uncommitted changes detected.[/red]")
     for r in results:
-        if r.dirty_before_remediation:  # type: ignore[attr-defined]
-            console.print(f"  {r.path}")  # type: ignore[attr-defined]
+        if r.dirty_before_remediation:
+            console.print(f"  {r.path}")
     console.print()
     console.print("  Commit or stash your changes and retry:")
     console.print("    git stash push -u")
@@ -171,7 +177,7 @@ def _emit_dirty_refusal(results: list[object]) -> None:
     raise typer.Exit(1)
 
 
-def _apply_sparse_remediation(report: object) -> None:
+def _apply_sparse_remediation(report: SparseCheckoutScanReport) -> None:
     """Interactive --fix arm: show plan, prompt, remediate, render results.
 
     Exits 0 on operator abort or full success; exits 1 on dirty-tree refusal

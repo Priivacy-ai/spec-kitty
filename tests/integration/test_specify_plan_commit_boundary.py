@@ -414,6 +414,94 @@ def test_setup_plan_commits_substantive_plan(tmp_path: Path) -> None:
         )
 
 
+def _run_setup_plan_real_resolver(repo: Path, mission_handle: str) -> dict[str, object]:
+    """Drive ``setup-plan`` with the REAL ``_find_feature_directory`` resolver.
+
+    ``_run_setup_plan`` stubs ``_find_feature_directory`` (returning
+    ``kitty-specs/<handle>`` verbatim), which would MASK the #2122 handle→slug
+    bug for a bare-mid8 handle. This harness leaves the resolver unstubbed so a
+    bare ``--mission <mid8>`` exercises the real handle-canonicalization on the
+    planning-read path (the wrapper at ``mission.py::_planning_read_dir``).
+    """
+    import os
+
+    from specify_cli.cli.commands.agent import mission as mission_module
+    from typer.testing import CliRunner
+
+    runner = CliRunner()
+
+    def _fake_show_branch_context(
+        _repo_root: Path, _slug: str, _json: bool
+    ) -> tuple[str, str]:
+        return ("main", "main")
+
+    _prev_allow = os.environ.get("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS")
+    os.environ["SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"] = "1"
+    try:
+        with (
+            patch.object(mission_module, "locate_project_root", return_value=repo),
+            patch.object(mission_module, "get_main_repo_root", return_value=repo),
+            patch.object(mission_module, "_enforce_git_preflight"),
+            patch.object(
+                mission_module,
+                "_show_branch_context",
+                side_effect=_fake_show_branch_context,
+            ),
+            patch.object(mission_module, "get_current_branch", return_value="main"),
+            patch.object(mission_module, "_resolve_feature_target_branch", return_value="main"),
+            patch(
+                "specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled"
+            ),
+        ):
+            result = runner.invoke(
+                mission_module.app,
+                ["setup-plan", "--json", "--mission", mission_handle],
+                catch_exceptions=False,
+            )
+    finally:
+        if _prev_allow is None:
+            os.environ.pop("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", None)
+        else:
+            os.environ["SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS"] = _prev_allow
+    assert result.exit_code in (0, 1), f"unexpected exit {result.exit_code}: {result.output}"
+    output = result.output.strip()
+    start = output.find("{")
+    end = output.rfind("}")
+    assert start != -1 and end != -1, f"no JSON in output: {output!r}"
+    payload: dict[str, object] = json.loads(output[start : end + 1])
+    return payload
+
+
+def test_setup_plan_resolves_bare_mid8_handle_to_primary_slug(tmp_path: Path) -> None:
+    """#2122 guard: ``setup-plan --mission <mid8>`` canonicalizes the handle to
+    the primary slug before the PRIMARY-partition planning read, so a bare mid8
+    does not compose ``kitty-specs/<mid8>`` and miss the real spec/plan.
+
+    Drives the REAL ``_find_feature_directory`` resolver (unstubbed) so the
+    handle→slug step is exercised, not masked.
+    """
+    _init_git_repo(tmp_path)
+    feature_dir = _create_mission(tmp_path, "bare-mid8-plan-guard")
+    meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+    mid8 = str(meta["mission_id"])[:8]
+    assert mid8 and feature_dir.name.endswith(mid8), "fixture must carry a real mid8 tail"
+
+    (feature_dir / "spec.md").write_text(_SUBSTANTIVE_SPEC, encoding="utf-8")
+    _commit_file(tmp_path, str((feature_dir / "spec.md").relative_to(tmp_path)), "spec")
+    (feature_dir / "plan.md").write_text(_SUBSTANTIVE_PLAN, encoding="utf-8")
+
+    # Bare mid8 handle — NOT the full <slug>-<mid8> directory name.
+    payload = _run_setup_plan_real_resolver(tmp_path, mid8)
+
+    # The spec/plan reads resolved the real primary dir (not kitty-specs/<mid8>),
+    # so the gate sees the committed substantive spec and the populated plan.
+    assert payload.get("result") == "success", payload
+    assert payload.get("phase_complete") is True, payload
+    assert not (tmp_path / "kitty-specs" / mid8).exists(), (
+        "setup-plan composed a literal kitty-specs/<mid8> dir (handle-blind primary arm)"
+    )
+
+
 def test_setup_plan_scaffolds_from_doctrine_package_default(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
