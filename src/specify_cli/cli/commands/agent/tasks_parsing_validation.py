@@ -975,23 +975,18 @@ def _validate_ready_for_review(
 
 __all__ = [
     "_apply_review_status_flags",
-    "_check_branch_currency",
-    "_check_implementation_commit_present",
-    "_check_kitty_specs_contamination",
-    "_check_uncommitted_worktree_changes",
-    "_check_worktree_health",
+    # _check_branch_currency, _check_implementation_commit_present,
+    # _check_kitty_specs_contamination, _check_uncommitted_worktree_changes,
+    # _check_worktree_health, _issue_matrix_diagnostic_lines,
+    # _issue_matrix_evaluation, _issue_matrix_in_mission_rows,
+    # _issue_matrix_row_issues, _latest_status_event_time,
+    # _primary_issue_matrix_satisfies:
+    # demoted — no cross-module src/ callers (WP01 harden-dead-symbol-gate).
+    # _review_artifact_dir_for_wp, _review_cycle_number,
+    # _validate_research_artifacts, _validate_worktree_state:
+    # demoted — no cross-module src/ callers (WP01 harden-dead-symbol-gate).
     "_get_latest_review_cycle_verdict",
     "_issue_matrix_approval_blocker",
-    "_issue_matrix_diagnostic_lines",
-    "_issue_matrix_evaluation",
-    "_issue_matrix_in_mission_rows",
-    "_issue_matrix_row_issues",
-    "_latest_status_event_time",
-    "_primary_issue_matrix_satisfies",
-    "_review_artifact_dir_for_wp",
-    "_review_cycle_number",
     "_self_review_fallback_option_error",
     "_validate_ready_for_review",
-    "_validate_research_artifacts",
-    "_validate_worktree_state",
 ]

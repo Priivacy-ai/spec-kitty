@@ -473,14 +473,16 @@ def run_migration(
 
 __all__ = [
     "CURRENT_BUNDLE_SCHEMA_VERSION",
-    "MIN_READABLE_BUNDLE_SCHEMA",
-    "MAX_READABLE_BUNDLE_SCHEMA",
+    # MIN_READABLE_BUNDLE_SCHEMA, MAX_READABLE_BUNDLE_SCHEMA: demoted — no
+    # cross-module src/ from-import callers (WP01 harden-dead-symbol-gate-01KW0RJR).
     "BundleCompatibilityStatus",
-    "BundleCompatibilityResult",
-    "MigrationResult",
+    # BundleCompatibilityResult: demoted — no cross-module src/ from-import
+    # callers (WP01 harden-dead-symbol-gate-01KW0RJR).
+    # MigrationResult: demoted — no cross-module src/ from-import callers (WP01).
     "check_bundle_compatibility",
     "get_bundle_schema_version",
-    "migrate_v1_to_v2",
+    # migrate_v1_to_v2: demoted — no cross-module src/ from-import callers;
+    # called only via register-arg dispatch (WP01 harden-dead-symbol-gate-01KW0RJR).
     "repair_v2_synthesis_manifest_defaults",
     "run_migration",
 ]

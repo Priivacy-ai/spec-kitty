@@ -56,7 +56,7 @@ command path replaces the prior entry without duplication.
 
 from __future__ import annotations
 
-from .safety import Safety, SafetyPredicate, _InvocationProtocol, register_safety
+from .safety import Safety, _InvocationProtocol, register_safety
 
 # ---------------------------------------------------------------------------
 # Dashboard
@@ -197,13 +197,9 @@ def register_mode_predicates() -> None:
 
 
 # Public re-exports for callers that want to import from this module directly.
+# WP01 (harden-dead-symbol-gate-01KW0RJR): private/test-only symbols removed
+# from __all__ (demoted to unexported internals). They remain importable by
+# tests via the full qualified name; they are not runtime cross-module API.
 __all__ = [
-    "_DASHBOARD_UNSAFE_FLAGS",
-    "_DOCTOR_UNSAFE_FLAGS",
-    "_mission_state_predicate",
-    "_ORCHESTRATOR_API_UNSAFE_SUBCOMMANDS",
-    "_orchestrator_api_predicate",
-    "_sparse_checkout_predicate",
     "register_mode_predicates",
-    "SafetyPredicate",
 ]

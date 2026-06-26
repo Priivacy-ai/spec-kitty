@@ -161,8 +161,10 @@ def classify(invocation: _InvocationProtocol) -> Safety:
 
 __all__ = [
     "Safety",
-    "SafetyPredicate",
-    "SAFETY_REGISTRY",
+    # SafetyPredicate: demoted — no cross-module src/ callers; type alias
+    # used only within this module (WP01 harden-dead-symbol-gate-01KW0RJR).
+    # SAFETY_REGISTRY: demoted — global dict written via register_safety();
+    # no cross-module src/ from-import callers (WP01).
     "classify",
     "register_safety",
 ]

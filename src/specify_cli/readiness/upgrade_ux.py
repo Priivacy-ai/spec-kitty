@@ -768,14 +768,12 @@ def _persist(cache: _NagCacheLike, kwargs: dict[str, object]) -> None:
 
 
 __all__ = [
-    "ENV_UPGRADE_AUTO",
+    # ENV_UPGRADE_AUTO, ENV_UPGRADE_NEVER_ASK: demoted — env-var constants
+    # consumed only within this module (WP01 harden-dead-symbol-gate-01KW0RJR).
     "ENV_UPGRADE_DISABLED",
-    "ENV_UPGRADE_NEVER_ASK",
-    "EffectivePreference",
-    "PromptCallback",
+    # EffectivePreference, PromptCallback, UpgradeUxOutcome, advance_snooze:
+    # demoted — no cross-module src/ from-import callers (WP01).
     "UpgradeChoice",
-    "UpgradeUxOutcome",
-    "advance_snooze",
     "apply_choice",
     "is_currently_snoozed",
     "needs_reset",

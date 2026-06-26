@@ -366,11 +366,10 @@ def validate_issue_matrix(path: Path) -> IssueMatrixValidationResult:  # noqa: C
 
 
 __all__ = [
-    "COLUMN_ALIASES",
-    "IssueMatrixRow",
+    # COLUMN_ALIASES, IssueMatrixRow, MANDATORY_COLUMNS, NAMED_OPTIONAL_COLUMNS:
+    # demoted — intra-module only; no cross-module src/ from-import callers
+    # (WP01 harden-dead-symbol-gate-01KW0RJR).
     "IssueMatrixValidationResult",
     "IssueMatrixVerdict",
-    "MANDATORY_COLUMNS",
-    "NAMED_OPTIONAL_COLUMNS",
     "validate_issue_matrix",
 ]

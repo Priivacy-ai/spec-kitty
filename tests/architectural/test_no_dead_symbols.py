@@ -84,7 +84,8 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[str] = frozenset(
         "charter.compact::extract_section_anchors",
         "charter.synthesizer.provenance::ProvenanceEntry",
         "charter.synthesizer.write_pipeline::StagedArtifact",
-        "charter.synthesizer.write_pipeline::promote",
+        # promote: rescued by detector (a) — add_typer/app.command patterns
+        # now capture module-attr accesses (WP01 harden-dead-symbol-gate).
         "kernel._safe_re::is_re2_active",
     }
 )
@@ -144,22 +145,18 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.cli.commands._auth_doctor::render_report_json",
         "specify_cli.cli.commands._branch_strategy_gate::GateDecision",
         "specify_cli.cli.commands._branch_strategy_gate::GateOutcome",
-        "specify_cli.cli.commands.agent.config::app",
-        "specify_cli.cli.commands.agent::app",
-        "specify_cli.cli.commands.auth::app",
+        # agent.config::app, agent::app, auth::app, context::app,
+        # doctrine::app, mission::app, review::review_mission, sync::app,
+        # verify::verify_setup: rescued by detector (a) — add_typer(mod.app)
+        # and app.command()(mod.fn) accesses are now walked as module-attr
+        # accesses (WP01 harden-dead-symbol-gate-01KW0RJR).
         "specify_cli.cli.commands.charter.activate::charter_activate_app",
         "specify_cli.cli.commands.charter.deactivate::charter_deactivate_app",
-        "specify_cli.cli.commands.context::app",
-        "specify_cli.cli.commands.doctrine::app",
         "specify_cli.cli.commands.implement::_ensure_vcs_in_meta",
         "specify_cli.cli.commands.implement::detect_feature_context",
         "specify_cli.cli.commands.implement::find_wp_file",
-        "specify_cli.cli.commands.mission::app",
         "specify_cli.cli.commands.review::TestExtraMissing",
         "specify_cli.cli.commands.review::assert_pytest_available",
-        "specify_cli.cli.commands.review::review_mission",
-        "specify_cli.cli.commands.sync::app",
-        "specify_cli.cli.commands.verify::verify_setup",
         # _render_nag_if_needed and _should_suppress_nag removed from
         # allowlist: both now have live callers in the CLI startup readiness
         # coordinator path (Priivacy-ai/spec-kitty#1093).
@@ -220,8 +217,8 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.dashboard.api_types::WorktreeInfo",
         "specify_cli.dashboard.lifecycle::_write_dashboard_file",
         "specify_cli.dashboard.templates::get_dashboard_html",
-        "specify_cli.decisions.emit::emit_decision_opened",
-        "specify_cli.decisions.emit::emit_decision_resolved",
+        # emit_decision_opened, emit_decision_resolved: rescued by detector (a)
+        # — decisions module accessed via module-attr pattern (WP01).
         "specify_cli.doctrine.org_charter::GovernancePolicy",
         "specify_cli.doctrine.org_charter::REQUIRED_KIND_FIELDS",
         "specify_cli.doctrine.org_charter::apply_org_charter_pre_fill",
@@ -457,15 +454,13 @@ _CATEGORY_C_WP_IN_FLIGHT_WORKFLOW_REGISTRY: frozenset[str] = frozenset()
 
 # ---------- C. Charter command split legacy patch surface ----------
 # WP06 split ``cli.commands.charter`` from a monolithic module into a package.
-# These two package-level exports intentionally support legacy
-# package-level mock patch targets in tests and downstream
-# consumers while submodules resolve the values dynamically from the package.
-_CATEGORY_C_CHARTER_SPLIT_LEGACY_PATCH_SURFACE: frozenset[str] = frozenset(
-    {
-        "specify_cli.cli.commands.charter::_dm_service",
-        "specify_cli.cli.commands.charter::find_repo_root",
-    }
-)
+# WP01 (harden-dead-symbol-gate-01KW0RJR): both entries are now rescued by
+# detector (a) — charter submodules import the package as
+# ``import specify_cli.cli.commands.charter as _charter_pkg`` and access
+# ``_charter_pkg.find_repo_root()`` / ``_charter_pkg._dm_service`` via
+# module-attribute accesses that the new gate walks.  Emptied so the stale-
+# allowlist check does not fail.
+_CATEGORY_C_CHARTER_SPLIT_LEGACY_PATCH_SURFACE: frozenset[str] = frozenset()
 
 # ---------- C. Mission #1348 coordination-branch atomic event log ----------
 # Mission `mission-coordination-branch-atomic-event-log-01KSPTVW`
@@ -699,7 +694,7 @@ _CATEGORY_C_BACKCOMPAT_SHIM_REEXPORT: frozenset[str] = frozenset(
         "specify_cli.cli.commands.agent.tasks::_check_dependent_warnings",
         "specify_cli.cli.commands.agent.tasks::_lane_targets_for_emit",
         "specify_cli.cli.commands.agent.tasks::_wp_lane_from_status_events",
-        "specify_cli.cli.commands.agent.tasks::app",
+        # agent.tasks::app: rescued by detector (a) (WP01 harden-dead-symbol-gate).
         "specify_cli.cli.commands.agent.tasks::compute_incomplete_dependents",
     }
 )
@@ -787,7 +782,7 @@ _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057: frozenset[str] = frozenset(
             "_refresh_primary_checkout_after_merge",
             "_resolve_merge_actor",
             "_restore_final_bookkeeping_snapshots",
-            "_run_lane_based_merge",
+            # _run_lane_based_merge: rescued by detector (a) (WP01).
             "_run_lane_based_merge_locked",
             "_STATUS_EVENTS_FILENAME",
             "_STATUS_FILENAME",
@@ -831,12 +826,37 @@ _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057: frozenset[str] = frozenset(
 )
 
 
+# ---------- B. T001-unblinded symbols (WP01 harden-dead-symbol-gate) ----------
+# The T001 bug in ``_extract_all_literal`` caused any module with a top-level
+# ``ast.AnnAssign`` (like ``MESSAGES: dict[...] = {...}``) BEFORE ``__all__``
+# to be silently zeroed, hiding those modules from the gate entirely.  WP01
+# fixes the parser; these symbols surfaced as offenders for the first time.
+# They are grandfathered at the same "investigate + wire/prune/delete" policy
+# as ``_CATEGORY_B_GRANDFATHERED_LEGACY``.  Burns down when each symbol is
+# wired from a runtime caller, removed from ``__all__``, or deleted (FR-303).
+_CATEGORY_B_T001_UNBLINDED: frozenset[str] = frozenset(
+    {
+        # auth.transport: public client classes and factory functions that
+        # external consumers (plugins, org-packs, SaaS integration — #2158
+        # SaaS-migration wave FR-006) use directly; no internal src/
+        # from-import callers because the SaaS migration is deferred.
+        "specify_cli.auth.transport::AuthenticatedClient",
+        "specify_cli.auth.transport::AsyncAuthenticatedClient",
+        "specify_cli.auth.transport::AuthRefreshFailed",
+        "specify_cli.auth.transport::get_client",
+        "specify_cli.auth.transport::get_async_client",
+        "specify_cli.auth.transport::reset_clients",
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``).
 _SYMBOL_ALLOWLIST: frozenset[str] = (
     _CATEGORY_A_SLICE_F_DEFERRED
     | _CATEGORY_B_GRANDFATHERED_LEGACY
+    | _CATEGORY_B_T001_UNBLINDED
     | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE
     | _CATEGORY_C_WP_IN_FLIGHT_WORKFLOW_REGISTRY
     | _CATEGORY_C_CHARTER_SPLIT_LEGACY_PATCH_SURFACE
@@ -896,6 +916,224 @@ def _resolve_import_from(node: ast.ImportFrom, containing_pkg: str) -> str:
     return ".".join(base_parts)
 
 
+def _extract_str_consts_from_body(tree: ast.Module) -> dict[str, str]:
+    """Extract top-level ``NAME = "string"`` constants from a module body.
+
+    Only top-level body nodes are inspected (not nested scopes) to avoid
+    false matches from deeply nested string literals.
+
+    Used by ``_build_alias_map_and_consts`` as a separate helper to keep
+    ``_build_alias_map_and_consts`` within the McCabe complexity ceiling.
+    """
+    str_consts: dict[str, str] = {}
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            if isinstance(node.value, ast.Constant) and isinstance(node.value.value, str):
+                for tgt in node.targets:
+                    if isinstance(tgt, ast.Name):
+                        str_consts[tgt.id] = node.value.value
+        elif (
+            isinstance(node, ast.AnnAssign)
+            and node.value is not None
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+            and isinstance(node.target, ast.Name)
+        ):
+            str_consts[node.target.id] = node.value.value
+    return str_consts
+
+
+def _build_alias_map_and_consts(
+    tree: ast.Module,
+    containing_pkg: str,
+) -> tuple[dict[str, str], dict[str, str]]:
+    """Build per-file import alias map and top-level string constants.
+
+    Returns ``(alias_map, str_consts)`` where:
+
+    * ``alias_map`` maps a local Python name to the dotted module it
+      resolves to.  Only explicit ``asname`` bindings are captured:
+
+      - ``import a.b.c as x``  →  ``{"x": "a.b.c"}``
+      - ``from X import Y as Z``  →  ``{"Z": "X.Y"}`` (absolute X)
+
+      Plain ``import a.b.c`` (no alias) is skipped: the gate only needs
+      to trace ``x.attr``-style attribute accesses where the module is
+      bound to a single local name.
+
+    * ``str_consts`` maps top-level ``NAME = "string"`` (or ``AnnAssign``)
+      to the string value.  Used by ``_record_facade_edges`` to resolve
+      symbolic module-path variables like ``_EVENTS_MODULE = ".events"``.
+    """
+    alias_map: dict[str, str] = {}
+    # Walk ALL nodes for import aliases: late/local imports (inside functions
+    # or try-blocks) are common in spec-kitty for cycle-safety, and the
+    # module-attr detector must see them.  String-constant resolution is
+    # limited to top-level body (see ``_extract_str_consts_from_body``).
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.asname:
+                    alias_map[alias.asname] = alias.name
+                elif "." not in alias.name:
+                    # ``import flat_module`` — local name IS the module name.
+                    # Dotted imports (``import a.b.c``) are skipped: the local
+                    # binding is just ``a``, which would mismatch the full path.
+                    alias_map[alias.name] = alias.name
+        elif isinstance(node, ast.ImportFrom):
+            target = _resolve_import_from(node, containing_pkg)
+            for alias in node.names:
+                if alias.name != "*" and alias.asname:
+                    alias_map[alias.asname] = f"{target}.{alias.name}"
+    return alias_map, _extract_str_consts_from_body(tree)
+
+
+def _record_module_attr_edges(
+    tree: ast.Module,
+    alias_map: dict[str, str],
+    per_symbol: dict[str, set[str]],
+) -> None:
+    """Record caller-edges from ``alias.attr`` attribute patterns (detector a).
+
+    For every ``<alias>.<name>`` node where ``<alias>`` resolves to a
+    dotted module via ``alias_map``, records
+    ``per_symbol[resolved_module].add(name)``.
+
+    This subsumes the previously-missing Typer ``app.command()`` and
+    lifecycle-module attribute patterns (detector c in the research).
+    """
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Attribute)
+            and isinstance(node.value, ast.Name)
+            and node.value.id in alias_map
+        ):
+            per_symbol.setdefault(alias_map[node.value.id], set()).add(node.attr)
+
+
+def _record_getattr_str_edges(
+    tree: ast.Module,
+    alias_map: dict[str, str],
+    per_symbol: dict[str, set[str]],
+) -> None:
+    """Record caller-edges from ``getattr(alias, 'name')`` patterns (detector d).
+
+    For every ``getattr(<alias>, <str_literal>)`` call where ``<alias>``
+    resolves via ``alias_map``, records
+    ``per_symbol[resolved_module].add(str_literal)``.
+    """
+    for node in ast.walk(tree):
+        if not (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Name)
+            and node.func.id == "getattr"
+            and len(node.args) >= 2
+        ):
+            continue
+        obj, attr_arg = node.args[0], node.args[1]
+        if not (isinstance(obj, ast.Name) and obj.id in alias_map):
+            continue
+        if not (isinstance(attr_arg, ast.Constant) and isinstance(attr_arg.value, str)):
+            continue
+        per_symbol.setdefault(alias_map[obj.id], set()).add(attr_arg.value)
+
+
+def _find_facade_lazy_dict_name(tree: ast.Module) -> str | None:
+    """Return the lazy-imports dict variable referenced in a ``__getattr__`` facade.
+
+    Searches for ``def __getattr__(name): ... DICT[name] ...`` at module
+    scope.  Returns the dict variable name, or ``None`` if not a facade.
+    """
+    for node in tree.body:
+        if not (isinstance(node, ast.FunctionDef) and node.name == "__getattr__"):
+            continue
+        if not node.args.args:
+            continue
+        arg_id = node.args.args[0].arg
+        for child in ast.walk(node):
+            if (
+                isinstance(child, ast.Subscript)
+                and isinstance(child.value, ast.Name)
+                and isinstance(child.slice, ast.Name)
+                and child.slice.id == arg_id
+            ):
+                return child.value.id
+    return None
+
+
+def _resolve_relative_module(mod_path: str, containing_pkg: str) -> str:
+    """Resolve a relative-or-absolute dotted module path to its absolute form.
+
+    ``".clock"`` resolved from ``"specify_cli.sync"`` →
+    ``"specify_cli.sync.clock"``.  Absolute paths are returned unchanged.
+    """
+    if not mod_path.startswith("."):
+        return mod_path
+    level = len(mod_path) - len(mod_path.lstrip("."))
+    rel = mod_path.lstrip(".")
+    pkg_parts = containing_pkg.split(".") if containing_pkg else []
+    base_parts = pkg_parts[: len(pkg_parts) - (level - 1)] if level > 1 else list(pkg_parts)
+    if rel:
+        base_parts = base_parts + rel.split(".")
+    return ".".join(base_parts)
+
+
+def _record_facade_edges(
+    tree: ast.Module,
+    containing_pkg: str,
+    str_consts: dict[str, str],
+    per_symbol: dict[str, set[str]],
+) -> None:
+    """Record caller-edges from a ``__getattr__``-style lazy-import facade (detector b).
+
+    Detects the pattern::
+
+        _LAZY_IMPORTS = {
+            "Foo": (".bar", "Foo"),           # literal relative module
+            "Baz": (_EVENTS_MODULE, "Baz"),   # name resolved via str_consts
+        }
+        def __getattr__(name):
+            module_path, attr = _LAZY_IMPORTS[name]
+            ...
+
+    For each resolvable dict entry, records
+    ``per_symbol[resolved_submodule].add(attr_name)``.  The ``_LAZY_IMPORTS``
+    dict may be typed (``ast.AnnAssign``) or untyped (``ast.Assign``).
+    """
+    dict_name = _find_facade_lazy_dict_name(tree)
+    if dict_name is None:
+        return
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            targets: list[ast.expr] = list(node.targets)
+            value_node: ast.expr | None = node.value
+        elif isinstance(node, ast.AnnAssign):
+            targets = [node.target]
+            value_node = node.value
+        else:
+            continue
+        if not any(isinstance(t, ast.Name) and t.id == dict_name for t in targets):
+            continue
+        if not isinstance(value_node, ast.Dict):
+            continue
+        for val in value_node.values:
+            if not isinstance(val, (ast.Tuple, ast.List)) or len(val.elts) != 2:
+                continue
+            mod_expr, attr_expr = val.elts
+            if not (isinstance(attr_expr, ast.Constant) and isinstance(attr_expr.value, str)):
+                continue
+            attr_name: str = attr_expr.value
+            mod_path: str | None = None
+            if isinstance(mod_expr, ast.Constant) and isinstance(mod_expr.value, str):
+                mod_path = mod_expr.value
+            elif isinstance(mod_expr, ast.Name) and mod_expr.id in str_consts:
+                mod_path = str_consts[mod_expr.id]
+            if mod_path is None:
+                continue
+            resolved = _resolve_relative_module(mod_path, containing_pkg)
+            per_symbol.setdefault(resolved, set()).add(attr_name)
+
+
 def _extract_all_literal(tree: ast.Module) -> frozenset[str] | None:
     """Return the names listed in the module's ``__all__`` if static.
 
@@ -919,6 +1157,8 @@ def _extract_all_literal(tree: ast.Module) -> frozenset[str] | None:
             tgt = node.target
             if isinstance(tgt, ast.Name) and tgt.id == "__all__":
                 value = node.value
+            else:
+                continue  # non-__all__ AnnAssign; skip rather than fall-through
         else:
             continue
         if value is None:
@@ -985,6 +1225,7 @@ def _imports_by_target(
     star_targets: set[str] = set()
     for path, tree in path_to_tree.items():
         containing = _package_of(path)
+        alias_map, str_consts = _build_alias_map_and_consts(tree, containing)
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom):
                 target = _resolve_import_from(node, containing)
@@ -993,6 +1234,9 @@ def _imports_by_target(
                         star_targets.add(target)
                     else:
                         per_symbol.setdefault(target, set()).add(alias.name)
+        _record_module_attr_edges(tree, alias_map, per_symbol)
+        _record_getattr_str_edges(tree, alias_map, per_symbol)
+        _record_facade_edges(tree, containing, str_consts, per_symbol)
     return per_symbol, star_targets
 
 
@@ -1112,3 +1356,116 @@ def test_no_public_symbol_in_all_is_unimported() -> None:
             "from the allowlist:\n  - " + bullets
         )
     assert not messages, "\n\n".join(messages)
+
+
+# ---------------------------------------------------------------------------
+# T001 regression — _extract_all_literal parser bug fix
+# ---------------------------------------------------------------------------
+
+
+def test_extract_all_literal_skips_non_all_annassign() -> None:
+    """A non-``__all__`` AnnAssign before ``__all__`` must not blind the parser.
+
+    Regression for the T001 bug: a top-level ``MESSAGES: dict[...] = {...}``
+    (ast.AnnAssign whose target is NOT ``__all__``) was falling through to
+    ``if value is None: return frozenset()``, silently zeroing the module's
+    ``__all__``.  After the fix, such nodes are skipped with ``continue``.
+    """
+    src = 'MESSAGES: dict[str, str] = {"x": "y"}\n__all__ = ["Foo", "Bar"]'
+    tree = ast.parse(src)
+    result = _extract_all_literal(tree)
+    assert result == frozenset({"Foo", "Bar"}), (
+        f"Expected frozenset({{Foo, Bar}}), got {result!r}"
+    )
+
+
+def test_extract_all_literal_typed_all_annassign() -> None:
+    """A typed ``__all__: list[str] = [...]`` AnnAssign is parsed correctly."""
+    src = '__all__: list[str] = ["Alpha", "Beta"]'
+    tree = ast.parse(src)
+    result = _extract_all_literal(tree)
+    assert result == frozenset({"Alpha", "Beta"})
+
+
+def test_extract_all_literal_bare_annassign_returns_frozenset_empty() -> None:
+    """``__all__: list[str]`` with no value is treated as dynamic (frozenset())."""
+    src = "__all__: list[str]"
+    tree = ast.parse(src)
+    result = _extract_all_literal(tree)
+    assert result == frozenset()
+
+
+# ---------------------------------------------------------------------------
+# T004 no-false-negative guard — detectors must bind to RESOLVED module only
+# ---------------------------------------------------------------------------
+
+
+def test_no_false_negative_module_attr_detector() -> None:
+    """Detector (a) must rescue the resolved module's symbol, not a coincidental one.
+
+    This is the binding invariant from the WP01 spec: ``alias.Foo`` where
+    ``alias`` resolves to ``other_pkg`` rescues **only** ``other_pkg::Foo``,
+    NOT any different module that happens to declare a symbol named ``Foo``.
+    """
+    src = "import other_pkg as alias\nalias.Foo"
+    tree = ast.parse(src)
+    alias_map, _ = _build_alias_map_and_consts(tree, "")
+    ps: dict[str, set[str]] = {}
+    _record_module_attr_edges(tree, alias_map, ps)
+    sub_idx = _submodule_index(ps)
+
+    # The resolved module IS rescued.
+    assert _symbol_has_caller("Foo", "other_pkg", ps, sub_idx), (
+        "other_pkg::Foo must be rescued by alias.Foo access"
+    )
+    # A different module with the same symbol name is NOT rescued.
+    assert not _symbol_has_caller("Foo", "declaring_module", ps, sub_idx), (
+        "declaring_module::Foo must NOT be rescued by alias.Foo where alias→other_pkg"
+    )
+
+
+def test_no_false_negative_getattr_detector() -> None:
+    """Detector (d) must rescue the resolved module's symbol only."""
+    src = "import target_mod\ngetattr(target_mod, 'Bar')"
+    tree = ast.parse(src)
+    alias_map, _ = _build_alias_map_and_consts(tree, "")
+    ps: dict[str, set[str]] = {}
+    _record_getattr_str_edges(tree, alias_map, ps)
+    sub_idx = _submodule_index(ps)
+
+    assert _symbol_has_caller("Bar", "target_mod", ps, sub_idx), (
+        "target_mod::Bar must be rescued by getattr(target_mod, 'Bar')"
+    )
+    assert not _symbol_has_caller("Bar", "unrelated_mod", ps, sub_idx), (
+        "unrelated_mod::Bar must NOT be rescued"
+    )
+
+
+def test_no_false_negative_facade_detector() -> None:
+    """Detector (b) must rescue only the submodule the facade re-exports from."""
+    src = (
+        '_PREFIX = ".sub"\n'
+        "_LAZY = {\n"
+        '    "Cls": (_PREFIX, "Cls"),\n'
+        '    "fn": (".other", "fn"),\n'
+        "}\n"
+        "def __getattr__(name):\n"
+        "    mod_path, attr = _LAZY[name]\n"
+        "    return attr\n"
+    )
+    tree = ast.parse(src)
+    _, str_consts = _build_alias_map_and_consts(tree, "mypkg")
+    ps: dict[str, set[str]] = {}
+    _record_facade_edges(tree, "mypkg", str_consts, ps)
+    sub_idx = _submodule_index(ps)
+
+    # Cls is exported from mypkg.sub
+    assert _symbol_has_caller("Cls", "mypkg.sub", ps, sub_idx), (
+        "mypkg.sub::Cls must be rescued by the facade"
+    )
+    # fn is exported from mypkg.other
+    assert _symbol_has_caller("fn", "mypkg.other", ps, sub_idx)
+    # Neither rescues an unrelated module
+    assert not _symbol_has_caller("Cls", "mypkg.unrelated", ps, sub_idx), (
+        "mypkg.unrelated::Cls must NOT be rescued"
+    )

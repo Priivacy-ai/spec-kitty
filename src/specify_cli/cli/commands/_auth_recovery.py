@@ -302,6 +302,5 @@ __all__ = [
     "detect_logged_out_with_connected_teamspace",
     "emit_structured_stderr",
     "handle_unauthenticated_with_teamspace",
-    "is_interactive",
-    "offer_login_recovery",
+    # is_interactive, offer_login_recovery: demoted — no cross-module src/ callers (WP01).
 ]

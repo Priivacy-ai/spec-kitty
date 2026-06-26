@@ -288,7 +288,7 @@ def build_glossary_drg_layer(
 
 __all__ = [
     "GlossaryTermIndex",
-    "build_glossary_drg_layer",
+    # build_glossary_drg_layer, glossary_urn: demoted — no cross-module src/
+    # from-import callers (WP01 harden-dead-symbol-gate-01KW0RJR).
     "build_index",
-    "glossary_urn",
 ]

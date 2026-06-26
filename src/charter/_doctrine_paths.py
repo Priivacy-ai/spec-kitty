@@ -58,4 +58,6 @@ def resolve_project_root(repo_root: Path) -> Path | None:
     return None
 
 
-__all__ = ["resolve_project_root", "_PROJECT_ROOT_CANDIDATES"]
+# _PROJECT_ROOT_CANDIDATES: demoted — internal path constant; no cross-module
+# src/ from-import callers (WP01 harden-dead-symbol-gate-01KW0RJR).
+__all__ = ["resolve_project_root"]

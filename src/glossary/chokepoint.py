@@ -349,7 +349,8 @@ class GlossaryChokepoint:
 
 
 __all__ = [
-    "DEFAULT_APPLICABLE_SCOPES",
+    # DEFAULT_APPLICABLE_SCOPES: demoted — no cross-module src/ from-import
+    # callers (WP01 harden-dead-symbol-gate-01KW0RJR).
     "GlossaryChokepoint",
     "GlossaryObservationBundle",
 ]
