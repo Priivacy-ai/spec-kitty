@@ -1,25 +1,38 @@
-"""#2064 read-surface desync regression: map-requirements and finalize-tasks
-must resolve the WP ``tasks/`` directory through ONE seam-resolved surface.
+"""map-requirements read-surface authority on a coord topology.
 
-WP06 / FR-008 / SC-005. The bug: ``tasks.py::map_requirements`` was the lone read
-path on ``resolve_feature_dir_for_slug`` (whose slug-only ``mid8_from_slug``
-heuristic misses the coordination worktree when the operator handle carries no
-mid8 tail), while ``tasks.py::finalize_tasks`` (and the rest of ``tasks.py``)
-resolve through ``resolve_feature_dir_for_mission`` (the
-``resolve_action_context(action="tasks")`` seam, which reads the declared mid8
-from primary ``meta.json``). On a coord topology the two return DIFFERENT
-``tasks/`` directories, so ``map-requirements`` writes/reads one and finalize
-reads the other → spurious ``unmapped_functional_requirements``.
+The original #2064 regression (WP06 / FR-008 / SC-005) was a read-surface DESYNC:
+``tasks.py::map_requirements`` was the lone read path on
+``resolve_feature_dir_for_slug`` (whose slug-only ``mid8_from_slug`` heuristic
+misses the coordination worktree when the operator handle carries no mid8 tail),
+while ``tasks.py::finalize_tasks`` resolved through
+``resolve_feature_dir_for_mission`` (the ``resolve_action_context(action="tasks")``
+seam, which reads the declared mid8 from primary ``meta.json``). #2064's fix
+unified the two so both resolved the SAME coord ``tasks/`` dir — encoding the
+PRE-#2106 model in which planning artifacts transit the coordination worktree.
 
-These tests are NON-FAKEABLE: ``test_pre_fix_resolvers_diverge_on_coord_topology``
-proves the precondition that makes #2064 real (the two PRE-fix read surfaces
-return different ``Path`` objects for this fixture), and
-``test_map_and_finalize_agree_on_coord_topology`` proves the consequence — that
-the unified resolver ``map_requirements`` now uses agrees with finalize's, so the
-WP frontmatter staged into the coord ``tasks/`` dir is visible to BOTH, yielding
-zero unmapped functional requirements. A bare ``compute_coverage`` assertion in
-isolation would be insufficient (coverage math was never the bug); these tests
-exercise the cross-command directory agreement on a real coord topology.
+**#2115 supersedes that coord-agreement invariant.** #2106 moved planning
+artifacts (``spec.md`` / ``tasks.md`` / ``tasks/WP*.md`` / ...) onto the PRIMARY
+checkout for ALL topologies (INV-5 read/write symmetry), and #2115 consummates it:
+WP03 re-pointed ``_map_requirements_feature_dir`` onto
+``resolve_planning_read_dir(kind=WORK_PACKAGE_TASK)`` — a PRIMARY-partition kind —
+so ``map-requirements`` now reads the PRIMARY planning surface via the seam. On a
+coord topology it therefore DIVERGES from the coord-aware
+``resolve_feature_dir_for_mission`` (the STATUS-partition seam): the WP frontmatter
+authority is the PRIMARY ``tasks/`` dir, NOT the materialized ``-coord`` husk.
+
+These tests are NON-FAKEABLE:
+* ``test_pre_fix_resolvers_diverge_on_coord_topology`` proves the raw-resolver
+  precondition that made the original #2064 desync real (the two legacy read
+  surfaces return different ``Path`` objects for a coord-staged fixture).
+* ``test_map_resolves_primary_planning_surface_on_coord_topology`` re-pins the
+  #2064 ``map_and_finalize_agree`` test to the post-#2106/#2115 authority: it
+  stages WP frontmatter on the PRIMARY ``tasks/`` (post-#2106 reality), proves
+  ``map_requirements`` resolves PRIMARY through the seam (NOT the coord husk),
+  and asserts the cross-command consequence — full coverage from PRIMARY, while
+  the empty coord husk (where the pre-#2115 routing read) would surface every FR
+  as unmapped. A bare ``compute_coverage`` assertion in isolation would be
+  insufficient (coverage math was never the bug); the test exercises the
+  seam-resolved primary surface on a real coord topology.
 """
 
 from __future__ import annotations
@@ -100,13 +113,50 @@ def _build_coord_topology(repo_root: Path) -> Path:
     _write_meta(repo_root / "kitty-specs" / _SLUG)
 
     # Materialized coordination worktree: the canonical staged WP frontmatter.
-    coord_root = CoordinationWorkspace.worktree_path(repo_root, _SLUG, _MID8)
+    # ``worktree_path`` is annotated ``Any`` upstream — pin the local Path so the
+    # derived ``tasks/`` return type stays concrete (no-any-return, boy-scout).
+    coord_root: Path = CoordinationWorkspace.worktree_path(repo_root, _SLUG, _MID8)
     coord_feature_dir = coord_root / "kitty-specs" / f"{_SLUG}-{_MID8}"
     _write_meta(coord_feature_dir)
     coord_tasks = coord_feature_dir / "tasks"
     _write_wp(coord_tasks, "WP01", ["FR-001", "FR-002"])
     _write_wp(coord_tasks, "WP02", ["FR-003"])
     return coord_tasks
+
+
+def _build_coord_topology_with_primary_planning(repo_root: Path) -> Path:
+    """Build a coord-topology mission with WP frontmatter on the PRIMARY ``tasks/``.
+
+    The post-#2106/#2115 reality (INV-5 read/write symmetry): planning artifacts —
+    including WP frontmatter — are authored AND read on the PRIMARY checkout for
+    EVERY topology. We stage the full FR coverage in the PRIMARY ``tasks/`` dir and
+    leave the materialized coordination husk's ``tasks/`` EMPTY — the exact shape
+    #2115 consummates: ``map_requirements`` must read PRIMARY (full coverage), not
+    the stale ``-coord`` husk (zero coverage). Returns the PRIMARY ``tasks/`` dir.
+
+    Distinct from :func:`_build_coord_topology` (which coord-stages the WP
+    frontmatter to preserve the raw-resolver divergence precondition); mutating
+    that shared fixture would break ``test_pre_fix_resolvers_diverge_on_coord_topology``.
+    """
+    subprocess.run(["git", "init", "-q"], cwd=repo_root, check=True)
+    subprocess.run(["git", "config", "user.email", "t@t"], cwd=repo_root, check=True)
+    subprocess.run(["git", "config", "user.name", "t"], cwd=repo_root, check=True)
+
+    # Primary checkout: declares identity + coord branch AND carries the canonical
+    # WP frontmatter — the post-#2106 planning surface map_requirements now reads.
+    primary_feature_dir = repo_root / "kitty-specs" / _SLUG
+    _write_meta(primary_feature_dir)
+    primary_tasks = primary_feature_dir / "tasks"
+    _write_wp(primary_tasks, "WP01", ["FR-001", "FR-002"])
+    _write_wp(primary_tasks, "WP02", ["FR-003"])
+
+    # Materialized coordination worktree: identity husk with an EMPTY ``tasks/`` —
+    # the stale shadow the pre-#2115 coord-routed read would have surfaced.
+    coord_root = CoordinationWorkspace.worktree_path(repo_root, _SLUG, _MID8)
+    coord_feature_dir = coord_root / "kitty-specs" / f"{_SLUG}-{_MID8}"
+    _write_meta(coord_feature_dir)
+    (coord_feature_dir / "tasks").mkdir(parents=True, exist_ok=True)
+    return primary_tasks
 
 
 def test_pre_fix_resolvers_diverge_on_coord_topology(tmp_path: Path) -> None:
@@ -134,35 +184,51 @@ def test_pre_fix_resolvers_diverge_on_coord_topology(tmp_path: Path) -> None:
     assert "-coord" in str(mission_dir)
 
 
-def test_map_and_finalize_agree_on_coord_topology(tmp_path: Path) -> None:
-    """Post-WP06: map_requirements and finalize resolve the SAME coord dir.
+def test_map_resolves_primary_planning_surface_on_coord_topology(
+    tmp_path: Path,
+) -> None:
+    """#2115 (supersedes #2064 ``map_and_finalize_agree``): map reads PRIMARY.
 
-    ``_map_requirements_feature_dir`` (the unified resolver map_requirements now
-    uses) and ``resolve_feature_dir_for_mission`` (finalize's seam) must return
-    the SAME ``tasks/`` directory, so the WP frontmatter staged into coord is
-    visible to BOTH commands → zero ``unmapped_functional_requirements``.
+    #2106 moved planning artifacts onto the PRIMARY checkout for all topologies;
+    #2115 / WP03 re-pointed ``_map_requirements_feature_dir`` onto
+    ``resolve_planning_read_dir(kind=WORK_PACKAGE_TASK)`` — a PRIMARY-partition
+    kind. So on a coord topology ``map_requirements`` now resolves the PRIMARY
+    ``tasks/`` surface and DIVERGES from the coord-aware
+    ``resolve_feature_dir_for_mission`` (the STATUS-partition seam, which still
+    lands on the ``-coord`` husk). The WP frontmatter authority is PRIMARY.
+
+    The OLD #2064 invariant ``map == resolve_feature_dir_for_mission`` (both
+    coord) is obsolete — it encoded the pre-#2106 transit-through-coord model.
     """
-    coord_tasks = _build_coord_topology(tmp_path)
+    primary_tasks = _build_coord_topology_with_primary_planning(tmp_path)
 
     map_feature_dir = _map_requirements_feature_dir(tmp_path, _SLUG)
     finalize_feature_dir = resolve_feature_dir_for_mission(tmp_path, _SLUG)
 
-    # One read surface: same ``tasks/`` Path for both commands.
-    assert map_feature_dir == finalize_feature_dir
-    assert (map_feature_dir / "tasks") == coord_tasks
+    # NEW invariant: map resolves the PRIMARY surface — NOT the coord husk.
+    assert ".worktrees" not in str(map_feature_dir)
+    assert "-coord" not in str(map_feature_dir)
+    assert (map_feature_dir / "tasks") == primary_tasks
+    assert map_feature_dir == tmp_path / "kitty-specs" / _SLUG
 
-    # Cross-command consequence: reading the WP frontmatter through the unified
-    # surface yields FULL coverage — zero unmapped functional requirements.
+    # The coord-agreement of #2064 is SUPERSEDED: finalize's coord-aware seam
+    # still lands on the ``-coord`` husk, so map now DIVERGES from it.
+    assert map_feature_dir != finalize_feature_dir
+    assert "-coord" in str(finalize_feature_dir)
+
+    # Cross-command consequence: reading the WP frontmatter through the
+    # seam-resolved PRIMARY surface yields FULL coverage — zero unmapped FRs.
     refs = read_all_wp_requirement_refs(map_feature_dir / "tasks")
     coverage = compute_coverage(refs, _FUNCTIONAL_IDS)
     assert coverage["unmapped_functional"] == []
 
-    # Witness the bug it replaces: the PRE-fix (divergent) surface reads the
-    # PRIMARY ``tasks/`` dir, which has NO WP frontmatter → every FR is unmapped.
-    pre_fix_dir = resolve_feature_dir_for_slug(tmp_path, _SLUG)
-    pre_fix_refs = read_all_wp_requirement_refs(pre_fix_dir / "tasks")
-    pre_fix_coverage = compute_coverage(pre_fix_refs, _FUNCTIONAL_IDS)
-    assert sorted(pre_fix_coverage["unmapped_functional"]) == sorted(_FUNCTIONAL_IDS)
+    # Witness the model flip #2115 consummates: the coord husk (where the
+    # pre-#2115 coord-routed read resolved) has an EMPTY ``tasks/`` — reading
+    # THERE would surface every FR as unmapped (the spurious-unmapped class of
+    # bug). map_requirements no longer routes there.
+    coord_refs = read_all_wp_requirement_refs(finalize_feature_dir / "tasks")
+    coord_coverage = compute_coverage(coord_refs, _FUNCTIONAL_IDS)
+    assert sorted(coord_coverage["unmapped_functional"]) == sorted(_FUNCTIONAL_IDS)
 
 
 # --- T034: FR-005 predicate routing at the review-currency decision site ------
