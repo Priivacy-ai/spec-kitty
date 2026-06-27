@@ -227,11 +227,11 @@ def test_one_leak_plus_one_reference_miss_exits_1(
                     "inventory_rows_count": 3,
                     "findings": [
                         {
-                            "rule_id": "LEAK-FRONTMATTER-MISMATCH",
+                            "rule_id": "LEAK-MISSING-BANNER",
                             "severity": "error",
-                            "location": "docs/current/mismatch.md",
-                            "message": "frontmatter says supported",
-                            "suggested_action": "reconcile",
+                            "location": "docs/archive/no-banner.md",
+                            "message": "archival page missing banner",
+                            "suggested_action": "add banner",
                         }
                     ],
                     "exit_code": 1,

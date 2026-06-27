@@ -215,9 +215,11 @@ un-merged spine.
 
 - The Divio axis (tutorials/how-to/reference/explanation) folds onto Common Docs sections
   (`guides/` + `api/` + `architecture/`) — a relabelling, not a loss of content.
-- The three Common Docs Agent Skills (`scaffold`/`write`/`find`) install as peer skills, but
-  `find`'s static lookup table is **not** adopted — its topic→path role is backed by the richer,
-  gated DRG + page-inventory.
+- The three Common Docs Agent Skills (`scaffold`/`write`/`find`) shipped as **three doctrine
+  tactics** (`common-docs-scaffold` / `common-docs-write` / `common-docs-find`) rather than as
+  peer skills, superseding the earlier "install as peer skills" wording. `find`'s static lookup
+  table is still **not** adopted — its topic→path role is backed by the richer, gated DRG +
+  page-inventory.
 
 ### Confirmation
 

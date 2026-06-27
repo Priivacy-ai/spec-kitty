@@ -1,10 +1,11 @@
 # Dirty inventory: each entry is engineered to trigger exactly one rule.
-# Expected: exactly 5 findings, one per rule_id.
+# Expected: exactly 4 findings, one per (live) rule_id.
+# (LEAK-FRONTMATTER-MISMATCH was retired in Mission B — the blocking
+#  INVENTORY-LOCKFILE-DRIFT gate subsumes frontmatter/inventory drift.)
 #
 # - links-archival.md → LEAK-CURRENT-LINKS-ARCHIVAL
 # - banner-ok.md → no finding (archival w/ banner; target of the link above)
 # - no-banner.md → LEAK-MISSING-BANNER
-# - mismatch.md → LEAK-FRONTMATTER-MISMATCH
 # - docs/orphan/stray.md → LEAK-MISSING-INVENTORY (NOT listed below)
 # - docs/missing.md → LEAK-MISSING-FILE (listed but not on disk)
 - path: docs/current/links-archival.md
@@ -28,13 +29,6 @@
   current_target: false
   citation_refs: []
   notes: triggers LEAK-MISSING-BANNER
-- path: docs/current/mismatch.md
-  tag: current
-  divio_type: how-to
-  owning_workstream: E
-  current_target: true
-  citation_refs: []
-  notes: triggers LEAK-FRONTMATTER-MISMATCH
 - path: docs/missing.md
   tag: current
   divio_type: how-to

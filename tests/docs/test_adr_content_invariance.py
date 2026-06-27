@@ -17,8 +17,14 @@ gate for that move (C-002 / NFR-001):
   the pre-image base cannot be resolved — a silent 0-file run is the precise
   false-green this gate exists to catch.
 
-The reconciliation-ADR self-amendment (FR-013) is WP15's sanctioned prose edit;
-at WP06 every ADR is a pure move, so all 117 are invariant here.
+The reconciliation-ADR self-amendment (FR-013) is WP15's sanctioned prose edit:
+the ``2026-06-27-1-common-docs-reconciliation.md`` decision body is mutated on
+purpose (its "install as peer skills" Neutral note now records the three doctrine
+tactics that shipped). C-002's no-content-mutation protects ADR decision-records
+being *moved* — **not** this one sanctioned self-amendment — so this single file
+is excluded from the byte-identity comparison (it still counts in the 117-file
+census; it just isn't held byte-invariant). Every *other* ADR is a pure move and
+stays byte-invariant.
 """
 
 from __future__ import annotations
@@ -48,6 +54,13 @@ _DOCS_ADR: Final[Path] = _REPO_ROOT / "docs" / "adr"
 _ERAS: Final[tuple[str, ...]] = ("1.x", "2.x", "3.x")
 _DATE_PREFIX: Final[re.Pattern[str]] = re.compile(r"^\d{4}-\d{2}-\d{2}-")
 _EXPECTED_CENSUS: Final[int] = 117
+
+#: The one ADR sanctioned to be self-amended in Mission B (FR-013): its Neutral
+#: note is rewritten to record the three doctrine tactics that shipped. It is
+#: excluded from the byte-identity comparison (but still counted in the census),
+#: so the invariance proof compares ``_EXPECTED_CENSUS - 1`` files.
+_SANCTIONED_SELF_AMENDMENT: Final[str] = "2026-06-27-1-common-docs-reconciliation.md"
+_EXPECTED_INVARIANT: Final[int] = _EXPECTED_CENSUS - 1
 
 #: Planning base refs that still hold the pre-move ``architecture/.../adr``
 #: originals. The merge-base of HEAD with the first that resolves is the
@@ -118,6 +131,9 @@ def _preimage_originals(base_sha: str) -> dict[Path, str]:
             continue
         name = path.rsplit("/", 1)[-1]
         if not _DATE_PREFIX.match(name):
+            continue
+        if name == _SANCTIONED_SELF_AMENDMENT:
+            # FR-013 sanctioned self-amendment — excluded from byte-identity.
             continue
         era = _legacy_path_to_era(path)
         if era is None:
@@ -198,7 +214,10 @@ class TestContentInvariance:
 
         assert missing_post == [], f"pre-image had no post file: {missing_post}"
         assert mismatches == [], f"decision-body mutated (C-002): {mismatches}"
-        assert compared == _EXPECTED_CENSUS, (
+        # _EXPECTED_CENSUS - 1: the one FR-013 sanctioned self-amendment is
+        # excluded from byte-identity (it is intentionally mutated), so a
+        # non-vacuous run compares every *other* ADR.
+        assert compared == _EXPECTED_INVARIANT, (
             f"non-vacuous invariance: compared {compared}, expected "
-            f"{_EXPECTED_CENSUS} — a 0/partial run is a false-green"
+            f"{_EXPECTED_INVARIANT} — a 0/partial run is a false-green"
         )
