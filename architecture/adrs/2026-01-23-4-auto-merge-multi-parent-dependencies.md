@@ -1,1 +1,0 @@
-../1.x/adr/2026-01-23-4-auto-merge-multi-parent-dependencies.md
