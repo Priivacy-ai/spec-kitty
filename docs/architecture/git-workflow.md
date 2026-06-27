@@ -1,6 +1,6 @@
 ---
 title: 'Git Workflow: Who Does What'
-description: 'Explanation of Git Workflow: Who Does What in Spec Kitty 3.2, including the model, rationale, and operator implications.'
+description: "The boundary between infrastructure git that Python owns (worktrees, status commits, merges) and content git that agents own (code, rebases, conflicts), plus auto-commit rules."
 doc_status: active
 updated: '2026-06-12'
 related:

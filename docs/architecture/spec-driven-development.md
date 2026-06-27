@@ -1,6 +1,6 @@
 ---
 title: Spec-Driven Development Explained
-description: Explanation of Spec-Driven Development Explained in Spec Kitty 3.2, including the model, rationale, and operator implications.
+description: "Why Spec Kitty writes a full specification before any code: the spec becomes the executable contract that drives specify, plan, and tasks and enables parallel work packages."
 doc_status: active
 updated: '2026-06-12'
 related:

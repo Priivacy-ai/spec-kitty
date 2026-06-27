@@ -1,6 +1,6 @@
 ---
 title: The Runtime Loop Explained
-description: Explanation of The Runtime Loop Explained in Spec Kitty 3.2, including the model, rationale, and operator implications.
+description: "How spec-kitty next inverts control so the runtime picks the next action: query versus advancing mode and the four decisions, step, decision_required, blocked, and terminal."
 doc_status: active
 updated: '2026-06-03'
 related:

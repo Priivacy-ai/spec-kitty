@@ -1,6 +1,6 @@
 ---
 title: Git Worktrees Explained
-description: Explanation of Git Worktrees Explained in Spec Kitty 3.2, including the model, rationale, and operator implications.
+description: "What git worktrees are and why Spec Kitty gives each execution lane its own: what worktrees share and keep separate, plus lifecycle commands and crash recovery."
 doc_status: active
 updated: '2026-06-17'
 related:

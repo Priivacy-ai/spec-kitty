@@ -1,6 +1,6 @@
 ---
 title: Execution Lanes
-description: Explanation of Execution Lanes in Spec Kitty 3.2, including the model, rationale, and operator implications.
+description: "Spec Kitty's lane-based execution model: finalize-tasks computes lanes.json from dependencies and file ownership, giving each lane one worktree and branch to preserve parallelism."
 doc_status: active
 updated: '2026-06-17'
 related:
