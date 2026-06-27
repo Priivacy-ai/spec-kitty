@@ -330,18 +330,69 @@ def _read_arm_scan(func: ast.AST, *, include_dirs: bool) -> list[str]:
     STATUS dir reads stay clean by construction — they are joined off
     ``status_feature_dir`` (bound from ``_status_read_feature_dir``, NOT a
     topology-routed resolver in the fenced set), so neither arm trips on them.
+
+    **T004 (inline-call shape, WP02):** also detects ``resolver(...) / "<artifact>"``
+    where the left operand is a direct :class:`ast.Call` to a coord-aware resolver.
+    Prior to T004 the scanner was blind to this shape — ``_find_first_for_review_wp``
+    and ``list_tasks`` read ``tasks/`` inline without a two-hop binding.
+
+    **C-008 (sub-path exclusion, WP02):** a dir-literal join (``Name / "tasks"`` or
+    ``resolver(...) / "tasks"``) that is itself the left operand of a further
+    ``/``-chain (e.g. ``/ "tasks" / wp_slug / …``) is NOT flagged.  These are per-WP
+    review-cycle sub-artifact reads that legitimately stay coordination-aware —
+    the matched read/write pair in ``review/cycle.py`` and the ``implement`` /
+    ``review`` feedback paths (C-008).  The exclusion applies to the dir arm only;
+    planning ``.md`` files are always terminal in real pathlib join chains.
     """
     topology_routed = _names_bound_from(func, _TOPOLOGY_ROUTED_READ_RESOLVERS)
+
+    # C-008: pre-collect BinOp node ids that appear as the left operand of
+    # another Div BinOp — i.e. they are part of a longer ``/ a / b / …`` chain.
+    # Applied to the dir arm only; planning ``.md`` files are terminal.
+    chained_binop_ids: set[int] = set()
+    if include_dirs:
+        for n in ast.walk(func):
+            if isinstance(n, ast.BinOp) and isinstance(n.op, ast.Div):
+                chained_binop_ids.add(id(n.left))
+
     violations: list[str] = []
     for node in ast.walk(func):
-        if not isinstance(node, ast.BinOp):
+        if not isinstance(node, ast.BinOp) or not isinstance(node.op, ast.Div):
             continue
-        base = _planning_join_base_name(node)
-        if base is None and include_dirs:
-            base = _planning_dir_join_base_name(node)
-        if base is not None and base in topology_routed:
-            artifact = node.right.value  # type: ignore[attr-defined]
-            violations.append(f"{base} / {artifact}")
+
+        right = node.right
+        if not isinstance(right, ast.Constant):
+            continue
+        value: str = right.value  # type: ignore[assignment]
+
+        is_md = value in _PLANNING_ARTIFACT_LITERALS
+        is_dir = include_dirs and value in _PLANNING_DIR_LITERALS
+        if not is_md and not is_dir:
+            continue
+
+        # C-008: a dir-literal join that is part of a longer path chain is a
+        # review-cycle sub-artifact (``tasks / wp_slug / …``), not a bare PRIMARY
+        # dir read.  Skip it to avoid flagging ``implement`` / ``review`` /
+        # ``review/cycle.py`` review-cycle paths as false-positive residuals.
+        if is_dir and id(node) in chained_binop_ids:
+            continue
+
+        left = node.left
+
+        # Shape 1 (two-hop): a name explicitly bound from a coord-aware resolver
+        # inside this scope is joined with a planning artifact or dir literal.
+        if isinstance(left, ast.Name) and left.id in topology_routed:
+            violations.append(f"{left.id} / {value}")
+
+        # Shape 2 (T004 — inline-call): the resolver call is the DIRECT left
+        # operand of the BinOp, with no intermediate name binding.  Pre-T004
+        # this shape was scanner-invisible despite being the same coord-vs-primary
+        # divergence as the two-hop form at runtime.
+        elif isinstance(left, ast.Call):
+            callee = _call_func_name(left)
+            if callee is not None and callee in _TOPOLOGY_ROUTED_READ_RESOLVERS:
+                violations.append(f"{callee}(...) / {value}")
+
     return violations
 
 
@@ -577,6 +628,16 @@ _ACCEPT_PACKAGE_DIRS: tuple[Path, ...] = (
     _SRC_ROOT / "specify_cli" / "acceptance",
 )
 
+# T005 (WP02): widened scope for the dir-read residual-pin test.  Covers all of
+# ``src/specify_cli/`` so the N+7 residuals outside ``cli/commands/`` are surfaced
+# and tracked (``workspace/context.py``, ``task_utils/``, ``agent_utils/``,
+# ``scripts/tasks/``).  The accept-gate package (``acceptance/``) is included here
+# but is verified clean by its own default-deny test
+# (``test_dir_read_arm_default_deny_accept_package_clean``).
+_WHOLE_SRC_SCAN_DIRS: tuple[Path, ...] = (
+    _SRC_ROOT / "specify_cli",
+)
+
 
 def _iter_functions_under(
     pkg_dirs: tuple[Path, ...],
@@ -683,36 +744,78 @@ def test_dir_read_arm_default_deny_accept_package_clean() -> None:
 # this is exactly the set the scan finds, so neither a NEW implement-loop dir-read
 # (set grows → FAIL) nor a silent fix (set shrinks → FAIL, prompting removal here)
 # slips by unobserved.
+# T008 (WP02) — post-widening baseline census:
+#   Scope: all of src/specify_cli/ (T005), scanner: two-hop + T004 inline-call,
+#   C-008 sub-path exclusion applied (workflow.py::implement / ::review /
+#   review/cycle.py::resolve_review_cycle_pointer / ::create_rejected_review_cycle
+#   all suppressed — their tasks/ reads are chained sub-artifact paths).
+#   Total pinned: 12 (10 category-a in-loop + 2 category-b out-of-scope + 0 category-c).
+#   Shrink-only baseline: each WP03–WP06 route removes its entry;
+#   any new unrouted site in src/specify_cli/ that the scanner can SEE (a bare
+#   `resolver(...) / "<dir|.md>"` two-hop or inline join) FAILS the test (NFR-001).
+#   COVERAGE LIMIT (reviewer-renata): this ratchet's vocabulary is dir/.md literals
+#   (`_PLANNING_DIR_LITERALS`/`_PLANNING_ARTIFACT_LITERALS`). It does NOT include
+#   `lanes.json` (LANE_STATE) — so the in-scope `lanes.json` reads WP05 routes
+#   (workspace/context.py) and the out-of-scope merge/+lanes/ cluster (#2185) are
+#   NOT gated here; they are covered only by the WP01 coord-topology fixture tests.
 _DIR_READ_KNOWN_RESIDUALS: frozenset[str] = frozenset(
     {
-        "src/specify_cli/cli/commands/agent/tasks.py::finalize_tasks",
-        "src/specify_cli/cli/commands/agent/tasks.py::status",
-        "src/specify_cli/cli/commands/agent/workflow.py::_preview_claimable_wp_for_mission",
-        "src/specify_cli/cli/commands/agent/workflow.py::_resolve_review_context",
-        "src/specify_cli/cli/commands/agent/workflow.py::implement",
-        "src/specify_cli/cli/commands/agent/workflow.py::review",
-        # NB(#2057): ``merge.py::_mark_wp_merged_done`` was relocated into the
-        # ``specify_cli/merge/done_bookkeeping.py`` seam by the merge-decomposition
-        # mission; ``merge.py`` now only re-exports it. The dir-read scan scopes
-        # ``cli/commands/`` only, so the residual left this surface — unpin it so
-        # the ratchet stays tight (the test instructs this exact removal).
+        # -------------------------------------------------------------------
+        # Category (a): IN-LOOP — ALL ROUTED (WP03–WP06 complete).
+        # tasks.py::finalize_tasks, ::list_tasks, ::status were ROUTED by WP03.
+        # workflow.py::_find_first_for_review_wp, ::_preview_claimable_wp_for_mission,
+        # ::_resolve_review_context were ROUTED by WP04 (FR-002/FR-009).
+        # task_utils/support.py::locate_work_package,
+        # workspace/context.py::build_normalized_wp_index,
+        # workspace/context.py::get_normalized_wp,
+        # workspace/context.py::resolve_active_wp_for_branch were ROUTED by WP05
+        # (FR-005/FR-009) — removed from this set.
+        # tasks_dependency_graph.py::_check_dependent_warnings,
+        # tasks_parsing_validation.py::_validate_ready_for_review,
+        # validate_tasks.py::validate_tasks_cmd were ROUTED by WP06 (FR-004/FR-006/
+        # FR-009).  These three sites were gate-blind (the tasks/ join lives inside
+        # helper functions, not at the resolver call site), so no pins were ever added;
+        # routing closes the coord-topology defect — zero in-loop residuals remain.
+        # -------------------------------------------------------------------
+        # Category (b): OUT-OF-SCOPE — pinned with tracking-issue reference;
+        # no silent skip.  These are PRIMARY-partition tasks/ reads outside the
+        # implement loop or in modules outside this mission's C-009 boundary.
+        # -------------------------------------------------------------------
+        "src/specify_cli/agent_utils/status.py::show_kanban_status",
+        # Two-hop: feature_dir / "tasks" — kanban display command; out-of-loop.
+        # TICKET-AND-PIN HIGH (research.md FR-008 sweep).  Tracked by #2187
+        # (route show_kanban_status tasks-read off coord; same class as #2185).
+        "src/specify_cli/scripts/tasks/tasks_cli.py::list_command",
+        # Two-hop: feature_path / "tasks" — legacy pre-3.0 task CLI script.
+        # Cite #2167 (retire pre-3.0 scripts/tasks/ legacy reader).
+        # -------------------------------------------------------------------
+        # Category (c): C-008 PERMANENT-COORD — none.
+        # T006 sub-path exclusion fully suppresses workflow.py::implement /
+        # ::review and review/cycle.py::resolve_review_cycle_pointer /
+        # ::create_rejected_review_cycle at function granularity: all their
+        # tasks/ reads are chained (``/ wp_slug / …`` sub-artifact paths) and
+        # are excluded by the chained-BinOp gate.  No permanent-coord pins needed.
+        # -------------------------------------------------------------------
     }
 )
 
 
 def test_dir_read_arm_known_residuals_are_pinned() -> None:
-    """The implement/review/merge WP-task dir-read residuals match the named set.
+    """The implement-loop WP-task dir-read residuals match the named set exactly.
 
-    Observability ratchet for the OUT-OF-SCOPE N+2 cluster: the broadened dir-read
-    arm flags these implement-loop sites, which belong to a separate implement-loop
-    write-surface mission. Pinning the exact set means a NEWLY-introduced
-    implement-loop dir-read (set grows) FAILS here — it cannot hide behind the known
-    cluster — and a fix in the follow-up mission (set shrinks) ALSO fails, prompting
-    its removal from this pin. The accept-gate package is fenced separately and stays
-    clean (``test_dir_read_arm_default_deny_accept_package_clean``).
+    Observability ratchet for the full src/specify_cli/ residual surface (T005,
+    WP02): the widened dir-read arm walks ALL of ``src/specify_cli/`` (not just
+    ``cli/commands/``) so residuals outside the command package are also surfaced
+    and pinned.  Pinning the exact set means:
+    - A NEWLY-introduced dir-read off a coord-aware resolver (set grows) FAILS here
+      — it cannot hide behind the known cluster.
+    - A fix in a follow-up WP (set shrinks) ALSO fails, prompting its removal from
+      ``_DIR_READ_KNOWN_RESIDUALS`` so the ratchet stays tight.
+    The accept-gate package is fenced separately and stays clean
+    (``test_dir_read_arm_default_deny_accept_package_clean``).
     """
     found: dict[str, list[str]] = {}
-    for rel_path, func in _iter_functions_under(_COMMAND_PACKAGE_DIRS):
+    for rel_path, func in _iter_functions_under(_WHOLE_SRC_SCAN_DIRS):
         hits = read_arm_violations(func)
         if hits:
             found[f"{rel_path}::{func.name}"] = hits
@@ -873,6 +976,80 @@ def test_read_arm_self_test_passes_clean_wp_tasks_seam_and_status_dir() -> None:
     Guards against the dir-read arm false-positiving on legitimate STATUS dir reads.
     """
     hits = read_arm_violations(_func_from_source(_READ_CLEAN_WP_TASKS_VIA_SEAM))
+    assert hits == [], hits
+
+
+# ---- T004 inline-call shape + C-008 sub-path exclusion self-tests (WP02 T006) ----
+#
+# Pre-T004 reasoning (the RED the inline arm closes):
+# ``read_arm_violations`` on ``_DIR_READ_VIOLATION_INLINE_CALL`` returned ``[]``
+# because the scanner only inspected the left operand for ``ast.Name`` and the
+# name ``candidate_feature_dir_for_mission`` is a Call, not a Name.  With T004
+# the Call left-operand is matched directly against ``_TOPOLOGY_ROUTED_READ_RESOLVERS``.
+
+# T004: inline-call shape — resolver call is the DIRECT left operand of / "tasks".
+# This is the ``_find_first_for_review_wp`` / ``list_tasks`` shape (research.md).
+_DIR_READ_VIOLATION_INLINE_CALL = """
+def f(repo_root, mission_slug):
+    tasks_dir = candidate_feature_dir_for_mission(repo_root, mission_slug) / "tasks"
+    return sorted(tasks_dir.glob("WP*.md"))
+"""
+
+# Routed shape: dir derived from the sanctioned seam (resolve_planning_read_dir),
+# not from a coord-aware resolver.  Must NOT be flagged (precision guard).
+_DIR_READ_CLEAN_INLINE_ROUTED = """
+def f(repo_root, mission_slug):
+    read_dir = resolve_planning_read_dir(repo_root, mission_slug, kind="WORK_PACKAGE_TASK")
+    tasks_dir = read_dir / "tasks"
+    return sorted(tasks_dir.glob("WP*.md"))
+"""
+
+# C-008 sub-path exclusion: the resolver call IS on the left of "tasks", but
+# "tasks" is immediately chained into a longer path (/ wp_slug).  This is the
+# review-cycle sub-artifact shape (``implement`` / ``review`` / ``review/cycle.py``);
+# the scanner must NOT flag it even though the inline-call resolver matches.
+_DIR_READ_CLEAN_C008_SUBPATH = """
+def f(repo_root, mission_slug, wp_slug):
+    sub_artifact_dir = (
+        candidate_feature_dir_for_mission(repo_root, mission_slug) / "tasks" / wp_slug
+    )
+    return sub_artifact_dir
+"""
+
+
+def test_dir_read_arm_self_test_flags_inline_call_shape() -> None:
+    """T004 non-vacuity: ``resolver(...) / 'tasks'`` (inline-call) is FLAGGED.
+
+    Without the T004 arm this snippet returned zero hits, even though the defect
+    shape is the same coord-vs-primary divergence as the two-hop form at runtime.
+    This self-test fails (RED) when T004 is absent and passes (GREEN) when it is
+    present, proving the arm is load-bearing.
+    """
+    hits = read_arm_violations(_func_from_source(_DIR_READ_VIOLATION_INLINE_CALL))
+    assert hits == ["candidate_feature_dir_for_mission(...) / tasks"], hits
+
+
+def test_dir_read_arm_self_test_passes_routed_inline_seam() -> None:
+    """Precision: ``resolve_planning_read_dir(...) / 'tasks'`` is NOT flagged.
+
+    The dir is derived from the sanctioned seam (not a coord-aware resolver), so
+    the T004 inline-call arm must not false-positive on it.
+    """
+    hits = read_arm_violations(_func_from_source(_DIR_READ_CLEAN_INLINE_ROUTED))
+    assert hits == [], hits
+
+
+def test_dir_read_arm_self_test_c008_subpath_not_flagged() -> None:
+    """C-008 exclusion: ``resolver(...) / 'tasks' / wp_slug`` is NOT flagged.
+
+    The inner ``resolver(...) / 'tasks'`` BinOp is the left operand of a further
+    ``/ wp_slug`` chain, so its id is in ``chained_binop_ids`` and is excluded.
+    This is the review-cycle sub-artifact shape — ``implement`` / ``review`` /
+    ``review/cycle.py`` all use it and legitimately stay coordination-aware (C-008
+    matched read/write pair).  Flagging it would force false positives on those
+    functions even after their PRIMARY planning-read leg is routed by WP03–WP06.
+    """
+    hits = read_arm_violations(_func_from_source(_DIR_READ_CLEAN_C008_SUBPATH))
     assert hits == [], hits
 
 
