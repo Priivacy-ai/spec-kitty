@@ -1,8 +1,11 @@
 ---
-title: "Profile Invocation Reference"
-description: "Reference for dispatch, profile-invocation complete, invocation trail fields, and lifecycle states."
+title: Profile Invocation Reference
+description: Reference for dispatch, profile-invocation complete, invocation trail fields, and lifecycle states.
+doc_status: active
+updated: '2026-06-15'
+related:
+- docs/3x/charter-overview.md
 ---
-
 # Profile Invocation Reference
 
 Profile invocation is the local audit-trail mechanism used by standalone

@@ -1,8 +1,14 @@
 ---
-title: "Orchestrator API Reference"
-description: "Machine-contract API for external orchestration providers."
+title: Orchestrator API Reference
+description: Machine-contract API for external orchestration providers.
+doc_status: active
+updated: '2026-06-26'
+related:
+- docs/api/event-envelope.md
+- docs/migration/feature-flag-deprecation.md
+- docs/migration/mission-id-canonical-identity.md
+- docs/migration/mission-type-flag-deprecation.md
 ---
-
 # Orchestrator API Reference
 
 `spec-kitty orchestrator-api` is the canonical JSON-first host interface for

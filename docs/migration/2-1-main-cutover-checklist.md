@@ -1,8 +1,9 @@
 ---
-title: "2.1 Main-Branch Cutover Checklist"
-description: "Migration guidance for 2.1 Main-Branch Cutover Checklist in Spec Kitty 3.2, including upgrade context and historical behavior boundaries."
+title: 2.1 Main-Branch Cutover Checklist
+description: Checklist for promoting the 2.x line to main, parking the old line as 1.x-maintenance, and shipping 2.1.0 as the first stable PyPI release on the new main.
+doc_status: active
+updated: '2026-06-03'
 ---
-
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 
 # 2.1 Main-Branch Cutover Checklist

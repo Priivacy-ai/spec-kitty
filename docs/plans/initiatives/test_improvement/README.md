@@ -1,3 +1,9 @@
+---
+title: Test Improvement Initiative
+description: 'The test-improvement initiative (2.x-scoped): encoding and plan-validation guardrails, marked complete and pending merge to the 2.x branch.'
+doc_status: draft
+updated: '2026-04-05'
+---
 # Test Improvement Initiative
 
 > **Status:** Complete — pending merge to `2.x`

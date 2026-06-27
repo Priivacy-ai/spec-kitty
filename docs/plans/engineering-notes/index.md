@@ -1,8 +1,16 @@
 ---
-title: "Engineering notes"
-description: "Internal engineering notes for Spec Kitty: runtime and state overhaul, surface-resolution clusters, triage logs, architectural reviews, and reflections."
+title: Engineering notes
+description: 'Internal engineering notes for Spec Kitty: runtime and state overhaul, surface-resolution clusters, triage logs, architectural reviews, and reflections.'
+doc_status: draft
+updated: '2026-06-27'
+related:
+- docs/plans/engineering-notes/architectural-review/README.md
+- docs/plans/engineering-notes/finding/README.md
+- docs/plans/engineering-notes/reflections/README.md
+- docs/plans/engineering-notes/runtime_and_state_overhaul/README.md
+- docs/plans/engineering-notes/triage/README.md
+- docs/plans/index.md
 ---
-
 # Engineering notes
 
 Internal engineering material organized into topic clusters. These notes capture

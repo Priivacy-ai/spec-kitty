@@ -1,8 +1,12 @@
 ---
-title: "Understanding the Org Doctrine Layer"
-description: "How the three-layer doctrine model resolves built-in, org, and project artifacts, how provenance tracking works, and how org charter policy composes with the project charter."
+title: Understanding the Org Doctrine Layer
+description: How the three-layer doctrine model resolves built-in, org, and project artifacts, how provenance tracking works, and how org charter policy composes with the project charter.
+doc_status: active
+updated: '2026-06-12'
+related:
+- docs/architecture/charter-synthesis-drg.md
+- docs/migration/doctrine-local-overlay-to-org-layer.md
 ---
-
 # Understanding the Org Doctrine Layer
 
 Spec Kitty resolves governance doctrine through three layers: a **built-in** layer shipped

@@ -1,3 +1,9 @@
+---
+title: CaaCS DELTA — Did v3.1.10→v3.2.0 Move the Forensic Needle? (researcher-robbie)
+description: "Researcher Robbie's CaaCS DELTA analysis: did v3.1.10 to v3.2.0 move the forensic needle? A quantitative before-after read, read-only."
+doc_status: draft
+updated: '2026-06-16'
+---
 # CaaCS DELTA — Did v3.1.10→v3.2.0 Move the Forensic Needle? (researcher-robbie)
 
 **Author:** Researcher Robbie (CaaCS quantitative data engine — DELTA / before-after lens).

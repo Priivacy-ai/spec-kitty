@@ -1,10 +1,11 @@
 ---
-title: "Launch-Readiness Behavior (Coming Soon)"
-description: "Explanation of Launch-Readiness Behavior (Coming Soon) in Spec Kitty 3.2, including the model, rationale, and operator implications."
+title: Launch-Readiness Behavior (Coming Soon)
+description: "Pre-launch design intent for Teamspace: how hosted-readiness defaults flip from opt-in to on, and the launch-coordinator playbook. None of it is in effect today."
+doc_status: active
+updated: '2026-06-03'
 type: explanation
 audience: launch coordinators
 ---
-
 # Launch-Readiness Behavior (Coming Soon)
 
 > **Status: pre-launch.** This page describes the behavior the Spec

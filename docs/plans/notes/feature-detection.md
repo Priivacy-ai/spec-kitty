@@ -1,3 +1,9 @@
+---
+title: 'Architecture: Centralized Feature Detection'
+description: Historical 1.x-notes copy of the centralized feature-detection architecture (v0.14.0), retained as a deep-dive beneath the living architecture.
+doc_status: draft
+updated: '2026-02-23'
+---
 # Architecture: Centralized Feature Detection
 
 **Status**: Implemented (v0.14.0)

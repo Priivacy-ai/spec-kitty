@@ -1,3 +1,9 @@
+---
+title: 05 — Architectural Synthesis
+description: 'Architectural synthesis across notes 01-04 of the runtime and state overhaul: the single root cause, the forces in tension, and the invariants to preserve.'
+doc_status: draft
+updated: '2026-06-03'
+---
 # 05 — Architectural Synthesis
 
 Architect's reading across `01`–`04`. This is interpretation, not new fact; every claim traces to a

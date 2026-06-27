@@ -1,8 +1,32 @@
 ---
-title: "How-to guides"
-description: "Task-oriented guides for Spec Kitty: install and upgrade, create specs and plans, implement and review work packages, manage agents, and merge missions."
+title: How-to guides
+description: 'Task-oriented guides for Spec Kitty: install and upgrade, create specs and plans, implement and review work packages, manage agents, and merge missions.'
+doc_status: active
+updated: '2026-06-27'
+related:
+- docs/guides/accept-and-merge.md
+- docs/guides/create-plan.md
+- docs/guides/create-specification.md
+- docs/guides/generate-tasks.md
+- docs/guides/handle-dependencies.md
+- docs/guides/implement-work-package.md
+- docs/guides/install-and-upgrade.md
+- docs/guides/install-linux.md
+- docs/guides/install-macos.md
+- docs/guides/install-spec-kitty.md
+- docs/guides/install-windows.md
+- docs/guides/keep-main-clean.md
+- docs/guides/manage-agents.md
+- docs/guides/manage-glossary.md
+- docs/guides/merge-feature.md
+- docs/guides/parallel-development.md
+- docs/guides/recover-from-implementation-crash.md
+- docs/guides/recover-from-interrupted-merge.md
+- docs/guides/review-work-package.md
+- docs/guides/run-an-autonomous-mission.md
+- docs/guides/run-governed-mission.md
+- docs/guides/setup-governance.md
 ---
-
 # How-to guides
 
 Focused, task-oriented guides for specific operator goals. Each page assumes you already

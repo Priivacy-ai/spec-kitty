@@ -1,11 +1,17 @@
 ---
-title: "Install Spec Kitty on macOS"
-description: "Install the Spec Kitty 3.2 CLI on macOS with pipx, uv, or a virtual environment and verify the command works."
+title: Install Spec Kitty on macOS
+description: Install the Spec Kitty 3.2 CLI on macOS with pipx, uv, or a virtual environment and verify the command works.
+doc_status: active
+updated: '2026-06-03'
 type: how-to
+related:
+- docs/guides/install-linux.md
+- docs/guides/install-windows.md
+- docs/guides/non-interactive-init.md
+- docs/guides/upgrade-cli.md
 audience: end-users
 os: macos
 ---
-
 # Install Spec Kitty on macOS
 
 Install the `spec-kitty` CLI on macOS using your preferred Python tooling. Three install methods are covered; pick one.

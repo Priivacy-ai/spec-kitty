@@ -1,8 +1,16 @@
 ---
-title: "Configuration"
-description: "Durable configuration and toolchain references for Spec Kitty: library choices and CI linting policy."
+title: Configuration
+description: 'Durable configuration and toolchain references for Spec Kitty: library choices and CI linting policy.'
+doc_status: active
+updated: '2026-06-27'
+related:
+- docs/configuration/linting-cutoff-policy.md
+- docs/configuration/yaml-libraries.md
+- docs/guides/index.md
+- docs/index.md
+- docs/operations/index.md
+- docs/plans/index.md
 ---
-
 # Configuration
 
 Durable settings, toolchain, and policy references — pages that document *how

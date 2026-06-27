@@ -1,8 +1,15 @@
 ---
-title: "Configuration Reference"
-description: "Reference for Spec Kitty configurations. Explore parameters for meta.json, work package frontmatter, docfx.json, toc.yml, and agent settings."
+title: Configuration Reference
+description: Reference for Spec Kitty configurations. Explore parameters for meta.json, work package frontmatter, docfx.json, toc.yml, and agent settings.
+doc_status: active
+updated: '2026-06-15'
+related:
+- docs/api/agent-subcommands.md
+- docs/api/cli-commands.md
+- docs/api/environment-variables.md
+- docs/api/file-structure.md
+- docs/api/missions.md
 ---
-
 # Configuration Reference
 
 This document describes all configuration files used by Spec Kitty.

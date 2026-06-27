@@ -1,3 +1,9 @@
+---
+title: 3.2.x Goal Corroboration — Planning / Tracking POV (planner-priti)
+description: "Planner Priti's corroboration of the 3.2.x goals from the planning/tracking lens: the git-meta and tracker record of missions, PRs, issues, and commit counts."
+doc_status: draft
+updated: '2026-06-16'
+---
 # 3.2.x Goal Corroboration — Planning / Tracking POV (planner-priti)
 
 > **Author:** Planner Priti (work-decomposition & delivery-sequencing specialist).

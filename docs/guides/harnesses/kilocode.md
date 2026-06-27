@@ -1,8 +1,11 @@
 ---
-title: "Use Spec Kitty in Kilo Code"
-description: "Configure the Use Spec Kitty in Kilo Code harness for Spec Kitty 3.2 commands, generated skills, and agent workflow integration."
+title: Use Spec Kitty in Kilo Code
+description: 'How to use Spec Kitty in Kilo Code (supported tier) via the workflow mechanism: prerequisites, workflow install, and the Spec Kitty command flow.'
+doc_status: active
+updated: '2026-06-03'
+related:
+- docs/guides/install-spec-kitty.md
 ---
-
 # Use Spec Kitty in Kilo Code
 
 > **Tier:** supported. Workflow mechanism.

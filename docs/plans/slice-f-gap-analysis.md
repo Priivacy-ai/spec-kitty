@@ -1,3 +1,9 @@
+---
+title: Slice F — Codebase-to-Intent Gap Analysis
+description: "Architect Alphonso's codebase-to-intent gap analysis for Slice F (2026-05-18): where implementation diverges from the intended multi-context extensibility."
+doc_status: draft
+updated: '2026-05-19'
+---
 # Slice F — Codebase-to-Intent Gap Analysis
 
 **Author:** Architect Alphonso (ad-hoc profile session)  

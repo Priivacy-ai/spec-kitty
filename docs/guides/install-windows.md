@@ -1,11 +1,18 @@
 ---
-title: "Install Spec Kitty on Windows"
-description: "Install the Spec Kitty 3.2 CLI on Windows 10 or 11 with PowerShell, pipx, uv, or a virtual environment."
+title: Install Spec Kitty on Windows
+description: Install the Spec Kitty 3.2 CLI on Windows 10 or 11 with PowerShell, pipx, uv, or a virtual environment.
+doc_status: active
+updated: '2026-06-12'
 type: how-to
+related:
+- docs/guides/install-linux.md
+- docs/guides/install-macos.md
+- docs/guides/non-interactive-init.md
+- docs/guides/upgrade-cli.md
+- docs/guides/worktrees-with-mcp-agents.md
 audience: end-users
 os: windows
 ---
-
 # Install Spec Kitty on Windows
 
 Install the `spec-kitty` CLI on Windows 10 or Windows 11. PowerShell is recommended; CMD works too.

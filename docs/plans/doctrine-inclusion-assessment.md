@@ -1,3 +1,9 @@
+---
+title: Doctrine Inclusion Assessment
+description: 'Assessment (2026-04-01) of which doctrine artifacts to include, based on PRs #305/#348 and the agent-profile-implementation-rebased branch.'
+doc_status: draft
+updated: '2026-04-05'
+---
 # Doctrine Inclusion Assessment
 
 Status: assessment as of 2026-04-01, based on PR #305 / #348 and the

@@ -1,3 +1,9 @@
+---
+title: Naming / Identity SSOT Strangler — Intended (Target) Architecture
+description: "Architect Alphonso's intended (target) architecture for the naming/identity SSOT strangler: the design the strangler converges toward, read-only at 3.2.0."
+doc_status: draft
+updated: '2026-06-26'
+---
 # Naming / Identity SSOT Strangler — Intended (Target) Architecture
 
 **Author:** Architect Alphonso (design-lens investigation, research squad)

@@ -1,3 +1,9 @@
+---
+title: 3.2 Navigation update plan (T007 / T008)
+description: Diff-shaped navigation update plan (T007/T008) for every TOC file under docs/ plus the five nav-group definitions required by FR-003 and FR-004.
+doc_status: draft
+updated: '2026-05-21'
+---
 # 3.2 Navigation update plan (T007 / T008)
 
 > Diff-shaped plan for every TOC file under `docs/**` plus the five nav-group

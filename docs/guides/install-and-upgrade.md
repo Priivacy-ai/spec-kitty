@@ -1,8 +1,11 @@
 ---
-title: "How to Install and Upgrade Spec Kitty"
-description: "How to install and upgrade spec kitty with Spec Kitty 3.2: Spec Kitty has two distinct upgrade concepts:."
+title: How to Install and Upgrade Spec Kitty
+description: 'How to install and upgrade spec kitty with Spec Kitty 3.2: Spec Kitty has two distinct upgrade concepts:.'
+doc_status: active
+updated: '2026-06-03'
+related:
+- docs/guides/non-interactive-init.md
 ---
-
 # How to Install and Upgrade Spec Kitty
 
 > **Formal requirements**: [`kitty-specs/cli-upgrade-nag-lazy-project-migrations-01KQ6YDN/spec.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/cli-upgrade-nag-lazy-project-migrations-01KQ6YDN/spec.md)

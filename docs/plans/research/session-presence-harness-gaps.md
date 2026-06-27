@@ -1,3 +1,9 @@
+---
+title: 'Research Notes: Session Presence — Harness Capability Gaps'
+description: Open research notes by Architect Alphonso on session-presence harness capability gaps that require investigation before implementation.
+doc_status: draft
+updated: '2026-06-07'
+---
 # Research Notes: Session Presence — Harness Capability Gaps
 
 **Status:** Open — items below require investigation before implementation  

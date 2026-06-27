@@ -1,8 +1,12 @@
 ---
-title: "Documentation templates"
-description: "Static templates and front-end assets used to render the Spec Kitty documentation site, including the public stylesheet and script bundle."
+title: Documentation templates
+description: Static templates and front-end assets used to render the Spec Kitty documentation site, including the public stylesheet and script bundle.
+doc_status: active
+updated: '2026-06-27'
+related:
+- docs/assets/index.md
+- docs/index.md
 ---
-
 # Documentation templates
 
 Templates and front-end assets used when rendering the Spec Kitty documentation site.

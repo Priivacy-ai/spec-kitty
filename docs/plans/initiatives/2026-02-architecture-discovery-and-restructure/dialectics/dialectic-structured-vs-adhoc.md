@@ -1,3 +1,9 @@
+---
+title: 'Dialectic: Incorporating Structured Missions and Ad-Hoc Specialist Interaction'
+description: Dialectical analysis (thesis-antithesis-retort) on combining structured missions with ad-hoc specialist interaction in Spec Kitty's direction (2026-02-28).
+doc_status: draft
+updated: '2026-06-12'
+---
 # Dialectic: Incorporating Structured Missions and Ad-Hoc Specialist Interaction
 
 **Date:** 2026-02-28 **Context:** Spec Kitty architectural direction

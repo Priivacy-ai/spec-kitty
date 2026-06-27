@@ -1,3 +1,14 @@
+---
+title: Calibration Report Template
+description: Template for per-mission calibration reports documenting the §4.5.1 inequality check (R-005) for every mission step; reports are created and updated by WP10.
+doc_status: active
+updated: '2026-04-27'
+related:
+- docs/architecture/calibration/documentation.md
+- docs/architecture/calibration/erp-custom.md
+- docs/architecture/calibration/research.md
+- docs/architecture/calibration/software-dev.md
+---
 # Calibration Report Template
 
 Each per-mission calibration report documents the §4.5.1 inequality check

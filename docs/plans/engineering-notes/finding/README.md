@@ -1,3 +1,11 @@
+---
+title: Engineering notes — Findings
+description: 'Landing page for the findings engineering notes: process observations from running missions end-to-end, as read-only inputs to future doctrine improvements.'
+doc_status: draft
+updated: '2026-05-26'
+related:
+- docs/plans/engineering-notes/finding/2026-05-24-mission-01KSAF14-orchestration-findings.md
+---
 # Engineering notes — Findings
 
 This directory holds **process findings** from running missions end-to-end: places where the orchestration, the CLI gates, the lane model, or the doctrine surfaces produced friction or behaved in ways that surprised an attentive operator.

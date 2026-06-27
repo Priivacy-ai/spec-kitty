@@ -1,8 +1,11 @@
 ---
-title: "Use Spec Kitty in Google Gemini CLI"
-description: "Configure the Use Spec Kitty in Google Gemini CLI harness for Spec Kitty 3.2 commands, generated skills, and agent workflow integration."
+title: Use Spec Kitty in Google Gemini CLI
+description: 'How to use Spec Kitty in Google Gemini CLI (supported tier) via TOML commands: prerequisites, command install, and the Spec Kitty workflow.'
+doc_status: active
+updated: '2026-06-03'
+related:
+- docs/guides/install-spec-kitty.md
 ---
-
 # Use Spec Kitty in Google Gemini CLI
 
 > **Tier:** supported.

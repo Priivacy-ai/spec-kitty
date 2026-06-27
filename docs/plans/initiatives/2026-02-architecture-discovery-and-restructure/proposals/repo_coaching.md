@@ -1,3 +1,9 @@
+---
+title: Recommended directory structure
+description: Raw proposal dump from a 2026-02-17 repo-architecture-coaching brainstorm session, preserved as input to the architecture-discovery initiative.
+doc_status: draft
+updated: '2026-03-10'
+---
 2026-02-17:13:18
 
 Mode: repo architecture coaching

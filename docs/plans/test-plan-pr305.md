@@ -1,3 +1,9 @@
+---
+title: 'Test Plan — PR #305 (feature/agent-profile-implementation)'
+description: 'Test plan for PR #305 (agent-profile-implementation): the test scope, approach, and coverage targets recorded in a field-table format.'
+doc_status: draft
+updated: '2026-04-08'
+---
 # Test Plan — PR #305 (feature/agent-profile-implementation)
 
 | Field | Value |

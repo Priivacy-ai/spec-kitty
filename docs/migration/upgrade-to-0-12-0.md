@@ -1,8 +1,9 @@
 ---
-title: "Upgrading to Spec Kitty 0.12.0"
-description: "Migration guidance for Upgrading to Spec Kitty 0.12.0 in Spec Kitty 3.2, including upgrade context and historical behavior boundaries."
+title: Upgrading to Spec Kitty 0.12.0
+description: Historical upgrade path to Spec Kitty 0.12.0, where agent management became config-driven so migrations respect configuration instead of recreating deleted agent dirs.
+doc_status: active
+updated: '2026-06-03'
 ---
-
 > Migration note: This page documents a historical upgrade path to Spec Kitty 0.12.0. For current 3.2 upgrades, use [Upgrade the Spec Kitty CLI](../how-to/upgrade-cli.md) and [Upgrade project files](../how-to/upgrade-project.md).
 
 # Upgrading to Spec Kitty 0.12.0

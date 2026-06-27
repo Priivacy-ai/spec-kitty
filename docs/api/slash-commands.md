@@ -1,8 +1,9 @@
 ---
-title: "Spec Kitty slash commands reference — CLI quick reference"
-description: "Quick reference guide for Spec Kitty slash commands. Learn how to invoke specify, plan, tasks, implement, review, accept, and merge within AI coding agents."
+title: Spec Kitty slash commands reference — CLI quick reference
+description: Quick reference guide for Spec Kitty slash commands. Learn how to invoke specify, plan, tasks, implement, review, accept, and merge within AI coding agents.
+doc_status: active
+updated: '2026-06-09'
 ---
-
 # Slash Command Reference
 
 Slash commands are invoked inside your AI agent (Claude Code, Codex CLI, Cursor, etc.). They are generated from Spec Kitty command templates and typically accept optional free-form arguments.

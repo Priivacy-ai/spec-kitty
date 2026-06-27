@@ -1,8 +1,15 @@
 ---
-title: "How to Merge a Mission"
-description: "How to merge a mission with Spec Kitty 3.2: Use this guide to merge completed work packages from a Spec Kitty mission into its target branch."
+title: How to Merge a Mission
+description: 'How to merge a mission with Spec Kitty 3.2: Use this guide to merge completed work packages from a Spec Kitty mission into its target branch.'
+doc_status: active
+updated: '2026-06-03'
+related:
+- docs/guides/accept-and-merge.md
+- docs/guides/keep-main-clean.md
+- docs/guides/review-work-package.md
+- docs/guides/run-an-autonomous-mission.md
+- docs/guides/use-retrospective-learning.md
 ---
-
 # How to Merge a Mission
 
 Use this guide to merge completed work packages from a Spec Kitty mission into its target branch.

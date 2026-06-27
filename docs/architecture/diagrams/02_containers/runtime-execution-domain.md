@@ -1,3 +1,12 @@
+---
+title: 3.x Runtime/Execution Domain (Container Detail)
+description: 'Living 3.x container detail for the runtime/execution domain: the current view of how mission execution and orchestration are structured in Spec Kitty.'
+doc_status: active
+updated: '2026-06-12'
+related:
+- docs/architecture/diagrams/02_containers/README.md
+- docs/architecture/diagrams/03_components/README.md
+---
 # 3.x Runtime/Execution Domain (Container Detail)
 
 | Field | Value |

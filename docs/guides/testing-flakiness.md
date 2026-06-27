@@ -1,3 +1,11 @@
+---
+title: Test-flakiness handling policy
+description: "Spec Kitty's suite-wide flaky-test policy: how to detect a flake, what is and isn't allowed (never retry-to-green), and the disposition of each known flake surface."
+doc_status: active
+updated: '2026-06-21'
+related:
+- docs/guides/testing-parallel.md
+---
 # Test-flakiness handling policy
 
 A *flaky* test is one whose pass/fail outcome changes between runs **without any

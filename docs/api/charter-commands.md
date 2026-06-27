@@ -1,8 +1,12 @@
 ---
-title: "Charter CLI Reference"
-description: "Full reference for all spec-kitty charter subcommands, verified against live --help output."
+title: Charter CLI Reference
+description: Full reference for all spec-kitty charter subcommands, verified against live --help output.
+doc_status: active
+updated: '2026-06-03'
+related:
+- docs/3x/charter-overview.md
+- docs/3x/governance-files.md
 ---
-
 # Charter CLI Reference
 
 > **Note**: Examples use `uv run spec-kitty ...`, which is the source-checkout invocation. If

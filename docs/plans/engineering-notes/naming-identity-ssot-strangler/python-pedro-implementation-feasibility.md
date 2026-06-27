@@ -1,3 +1,9 @@
+---
+title: Naming/Identity SSOT Strangler — Implementer Feasibility (python-pedro lens)
+description: "Python Pedro's implementer feasibility for the naming/identity SSOT strangler: call-graphs, threading cost, and test scaffolding, read-only at 3.2.0."
+doc_status: draft
+updated: '2026-06-16'
+---
 # Naming/Identity SSOT Strangler — Implementer Feasibility (python-pedro lens)
 
 **Profile:** python-pedro (implementer — feasibility, call-graphs, test scaffolding).

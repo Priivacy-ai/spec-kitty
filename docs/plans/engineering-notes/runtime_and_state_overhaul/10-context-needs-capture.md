@@ -1,3 +1,11 @@
+---
+title: '10 — Context Needs: Requirements Capture (idea → working code)'
+description: Requirements capture (Phase 2, intuition pass) of what each context needs in the runtime and state overhaul; some claims later revised by note 11.
+doc_status: draft
+updated: '2026-06-15'
+related:
+- docs/plans/engineering-notes/runtime_and_state_overhaul/11-dialectic-and-revised-claims.md
+---
 # 10 — Context Needs: Requirements Capture (idea → working code)
 
 **Phase:** 2 (requirements) · **Date:** 2026-06-03 · **Status:** intuition pass (lens 1 of 3)

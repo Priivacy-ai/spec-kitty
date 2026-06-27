@@ -1,3 +1,9 @@
+---
+title: Naming/Identity & Read-Path SSOT — Related-Ticket Discovery Sweep (planner-priti)
+description: Planner Priti's related-ticket discovery sweep for the naming/identity and read-path SSOT work, under the decision-documentation directive.
+doc_status: draft
+updated: '2026-06-16'
+---
 # Naming/Identity & Read-Path SSOT — Related-Ticket Discovery Sweep (planner-priti)
 
 > **Profile-loaded.** Authored as **Planner Priti** (work-decomposition + delivery

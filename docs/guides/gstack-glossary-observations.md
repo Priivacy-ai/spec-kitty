@@ -1,8 +1,11 @@
 ---
-title: "Render Glossary Observations from InvocationPayload (gstack / host agents)"
-description: "How gstack-compatible host agents should interpret and display the glossary_observations field returned by the Spec Kitty invocation executor."
+title: Render Glossary Observations from InvocationPayload (gstack / host agents)
+description: How gstack-compatible host agents should interpret and display the glossary_observations field returned by the Spec Kitty invocation executor.
+doc_status: active
+updated: '2026-06-03'
+related:
+- docs/guides/setup-codex-spec-kitty-launcher.md
 ---
-
 # Render Glossary Observations from InvocationPayload
 
 When Spec Kitty's invocation executor processes a request it runs a fast inline

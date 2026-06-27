@@ -1,3 +1,9 @@
+---
+title: 'Stakeholder Persona: Project Owner'
+description: 'External project-owner persona: ships meaningful outcomes quickly while keeping project direction coherent, valuing fast onboarding and clear governance defaults.'
+doc_status: active
+updated: '2026-06-12'
+---
 # Stakeholder Persona: Project Owner
 
 | Field | Value |

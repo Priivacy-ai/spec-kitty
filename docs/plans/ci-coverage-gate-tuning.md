@@ -1,3 +1,9 @@
+---
+title: CI Coverage Gate — Tuning Notes
+description: 'Tuning notes for the split CI coverage gate introduced by mission 062 (WP07): how the project-wide and new-code coverage thresholds were calibrated.'
+doc_status: draft
+updated: '2026-04-04'
+---
 # CI Coverage Gate — Tuning Notes
 
 ## Context

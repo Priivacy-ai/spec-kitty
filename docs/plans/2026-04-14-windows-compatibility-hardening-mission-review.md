@@ -1,3 +1,9 @@
+---
+title: 'Mission Review Report: windows-compatibility-hardening-01KP5R6K'
+description: "Post-merge mission review for windows-compatibility-hardening-01KP5R6K: the reviewer's spec-to-code fidelity, coverage, and risk findings (2026-04-14)."
+doc_status: draft
+updated: '2026-04-15'
+---
 # Mission Review Report: windows-compatibility-hardening-01KP5R6K
 
 **Reviewer**: claude:opus-4.6:mission-reviewer

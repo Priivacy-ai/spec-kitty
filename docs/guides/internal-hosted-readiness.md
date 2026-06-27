@@ -1,10 +1,13 @@
 ---
-title: "Internal Hosted-Readiness Mode (Pre-Launch)"
-description: "How to internal hosted-readiness mode (pre-launch) with Spec Kitty 3.2: Internal Hosted-Readiness Mode (Pre-Launch)."
+title: Internal Hosted-Readiness Mode (Pre-Launch)
+description: 'How to internal hosted-readiness mode (pre-launch) with Spec Kitty 3.2: Internal Hosted-Readiness Mode (Pre-Launch).'
+doc_status: active
+updated: '2026-06-03'
 type: how-to
+related:
+- docs/guides/upgrade-cli.md
 audience: internal / pre-launch operators
 ---
-
 # Internal Hosted-Readiness Mode (Pre-Launch)
 
 > **Audience:** internal contributors and dev operators who are dogfooding

@@ -1,3 +1,9 @@
+---
+title: '08 — Architecture Phase 1: Intermediary Summary'
+description: Intermediary summary of Phase 1 (grounding and first design reconnaissance) of the runtime and state overhaul (#1619), marked complete (2026-06-03).
+doc_status: draft
+updated: '2026-06-03'
+---
 # 08 — Architecture Phase 1: Intermediary Summary
 
 **Phase:** 1 (grounding + first design reconnaissance) — **complete.**

@@ -1,3 +1,9 @@
+---
+title: 'CaaCS findings ↔ #822 open sub-issues cross-check'
+description: 'Cross-check mapping the 2026-05 CaaCS audit findings onto the open sub-issues of epic #822 (3.2.0 stabilization and release readiness), with per-issue state.'
+doc_status: active
+updated: '2026-05-11'
+---
 # CaaCS findings ↔ #822 open sub-issues cross-check
 
 ## Inputs

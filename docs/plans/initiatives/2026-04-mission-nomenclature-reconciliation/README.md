@@ -1,3 +1,9 @@
+---
+title: 'Initiative: Mission Nomenclature Reconciliation'
+description: Initiative operationalizing the ADR on Mission Type / Mission / Mission Run terminology, reconciling nomenclature across the codebase and docs.
+doc_status: draft
+updated: '2026-04-05'
+---
 # Initiative: Mission Nomenclature Reconciliation
 
 This initiative operationalizes ADR

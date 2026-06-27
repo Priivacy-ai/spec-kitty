@@ -1,9 +1,13 @@
 ---
-title: "Branch-Target Routing"
-description: "Explanation of how Spec Kitty decides which git branch receives each type of change — planning artifacts, status events, code, and documentation."
+title: Branch-Target Routing
+description: Explanation of how Spec Kitty decides which git branch receives each type of change — planning artifacts, status events, code, and documentation.
+doc_status: active
+updated: '2026-06-17'
 type: explanation
+related:
+- docs/architecture/execution-lanes.md
+- docs/architecture/git-worktrees.md
 ---
-
 # Branch-Target Routing
 
 When spec-kitty runs a mission with execution lanes, different kinds of changes

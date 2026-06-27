@@ -1,3 +1,9 @@
+---
+title: Paula Patterns — CaaCS Recurring-Defect / Temporal Backing for the Naming-Identity SSOT Strangler (3.2.1)
+description: "Paula Patterns' CaaCS recurring-defect and temporal backing for the naming/identity SSOT strangler: forensic evidence behind the static duplication map (3.2.1)."
+doc_status: draft
+updated: '2026-06-16'
+---
 # Paula Patterns — CaaCS Recurring-Defect / Temporal Backing for the Naming-Identity SSOT Strangler (3.2.1)
 
 > **I am Paula Patterns**, running the **Code-as-a-Crime-Scene (CaaCS)** forensic lens.

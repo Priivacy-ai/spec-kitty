@@ -1,8 +1,11 @@
 ---
-title: "Use Spec Kitty in Letta Code"
-description: "Configure the Use Spec Kitty in Letta Code harness for Spec Kitty 3.2 commands, generated skills, and agent workflow integration."
+title: Use Spec Kitty in Letta Code
+description: 'How to use Spec Kitty in Letta Code (partial tier): command-skill packages install in 3.2, but real-session smoke evidence is not yet recorded.'
+doc_status: active
+updated: '2026-06-03'
+related:
+- docs/guides/install-spec-kitty.md
 ---
-
 # Use Spec Kitty in Letta Code
 
 > **Tier:** **partial** — Spec Kitty installs Letta Code command-skill packages in 3.2, but real-session smoke evidence is not yet recorded.

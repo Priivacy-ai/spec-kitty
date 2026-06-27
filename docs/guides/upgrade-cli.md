@@ -1,10 +1,14 @@
 ---
-title: "Upgrade the Spec Kitty CLI"
-description: "Upgrade the Spec Kitty CLI to 3.2, verify the installed binary, and know when project migrations are still required."
+title: Upgrade the Spec Kitty CLI
+description: Upgrade the Spec Kitty CLI to 3.2, verify the installed binary, and know when project migrations are still required.
+doc_status: active
+updated: '2026-06-03'
 type: how-to
+related:
+- docs/guides/install-and-upgrade.md
+- docs/guides/upgrade-project.md
 audience: end-users
 ---
-
 # Upgrade the Spec Kitty CLI
 
 Upgrade the `spec-kitty` binary to a newer release. This page covers the CLI itself only; for upgrading an existing project's `.kittify/` scaffold to match, see [Upgrade a project](upgrade-project.md).

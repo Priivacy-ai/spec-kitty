@@ -1,8 +1,11 @@
 ---
-title: "Mission Types Reference"
-description: "Reference for Spec Kitty mission types (software-dev, research, and documentation). Learn how blueprints define phases, step bindings, and custom workflows."
+title: Mission Types Reference
+description: Reference for Spec Kitty mission types (software-dev, research, and documentation). Learn how blueprints define phases, step bindings, and custom workflows.
+doc_status: active
+updated: '2026-06-12'
+related:
+- docs/api/configuration.md
 ---
-
 # Mission Types Reference
 
 Spec Kitty supports three built-in mission types, each tailored to a different kind of work. A mission type is the reusable workflow blueprint. A mission is the concrete tracked item under `kitty-specs/<mission-slug>/`.
