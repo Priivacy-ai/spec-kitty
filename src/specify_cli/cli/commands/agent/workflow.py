@@ -43,6 +43,7 @@ from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
     primary_feature_dir_for_mission,
     resolve_feature_dir_for_mission,
+    resolve_planning_read_dir,
 )
 import json
 import logging
@@ -74,7 +75,7 @@ from specify_cli.core.dependency_graph import (
 )
 from specify_cli.core.paths import get_feature_target_branch, get_main_repo_root, is_worktree_context, locate_project_root
 from specify_cli.core.utils import write_text_within_directory
-from mission_runtime import CommitTarget
+from mission_runtime import CommitTarget, MissionArtifactKind
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
@@ -1053,21 +1054,28 @@ def _normalize_wp_id(wp_arg: str) -> str:
 def _preview_claimable_wp_for_mission(repo_root: Path, mission_slug: str):
     """Return the shared claimable preview for *mission_slug*, if tasks exist.
 
-    The readiness preview is always computed against the repository-root
-    checkout's canonical status event log — never a worktree-local copy, which
-    may lag the latest status commit. This keeps the displayed auto-claim
-    candidate and ``selection_reason`` in agreement with the authoritative
-    dependency gate that governs the implement action (which also reads from the
-    repository-root checkout), so a genuinely-ready WP is never falsely reported
-    as ``dependencies_not_satisfied`` when this command runs from a stale
-    worktree.
+    WP04 / T016 / FR-002: tasks/ and dependency reads route to the PRIMARY
+    checkout via ``resolve_planning_read_dir(kind=WORK_PACKAGE_TASK)`` so a
+    coord-topology mission (whose tasks/ live on PRIMARY, not the STATUS-only
+    coord husk) is never reported as having no tasks.  The status-event read
+    uses the coord-aware ``candidate_feature_dir_for_mission`` so lanes come
+    from the authoritative coord husk — never a worktree-local copy, which may
+    lag the latest status commit (dependency gate invariant preserved).
     """
     from runtime.next.discovery import preview_claimable_wp
 
-    feature_dir = resolve_feature_dir_for_mission(get_main_repo_root(repo_root), mission_slug)
-    if not (feature_dir / "tasks").is_dir():
+    main_root = get_main_repo_root(repo_root)
+    # WORK_PACKAGE_TASK is PRIMARY-partition: routes to the primary checkout
+    # regardless of coord topology (no shadowing by STATUS-only coord husk).
+    planning_dir = resolve_planning_read_dir(
+        main_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    )
+    if not (planning_dir / "tasks").is_dir():
         return None
-    return preview_claimable_wp(feature_dir)
+    # status_dir: coord-aware so events come from the coord husk under coord
+    # topology (candidate_feature_dir_for_mission is the STATUS-partition leg).
+    status_dir = candidate_feature_dir_for_mission(main_root, mission_slug)
+    return preview_claimable_wp(planning_dir, status_dir=status_dir)
 
 
 def _auto_claim_failure_message(preview: object | None) -> str:
@@ -1929,7 +1937,13 @@ def _resolve_review_context(
         return ctx
 
     workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
-    feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    # WP04 / T017 / FR-002: lanes.json (LANE_STATE — PRIMARY-partition) and
+    # tasks/ (WORK_PACKAGE_TASK — PRIMARY-partition) both route to the primary
+    # checkout.  Under coord topology, candidate_feature_dir_for_mission returned
+    # the STATUS-only coord husk (no lanes.json, no tasks/) — a wrong-leg read.
+    feature_dir = resolve_planning_read_dir(
+        repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    )
     lanes_manifest = None
     try:
         from specify_cli.lanes.persistence import read_lanes_json
@@ -2086,42 +2100,58 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> str | None:
     Returns:
         WP ID of first for_review task, or None if not found
     """
-    # M4 / T044 (FR-011, IC-E) — CONSCIOUS DEFERRAL.
-    # The manual ``current``-walk below (a second feature-dir authority,
-    # distinct from the C14 implement re-resolution that WP05 removed) is
-    # intentionally left in place. Rationale: this is a review-mode discovery
-    # helper (locate the first ``for_review`` WP), not an operator-facing
-    # read-path fidelity surface, so the blast radius is low. It also encodes a
-    # deliberate "read the kitty-specs of the worktree I am standing in" intent
-    # — worktree-local first, then walk, then repo_root — which the coord-aware
-    # canonical resolver (anchored at repo_root) does not preserve. Routing it
-    # through the resolver would change the read anchor and reach into coord
-    # topology read semantics beyond #1832's fragment-adopt scope (D-1 minimal
-    # carry). Deferred deliberately; tracked alongside the broader read-side
-    # adoption work, not silently dropped.
+    # WP04 / T017 / FR-002: tasks/ reads route through the planning seam
+    # (WORK_PACKAGE_TASK → PRIMARY) so coord-topology missions find tasks/ on
+    # the primary checkout, not the STATUS-only coord husk.  The worktree-local
+    # walk preserves the original intent (check worktree-local first, then walk,
+    # then fall back to repo_root); get_main_repo_root() inside the seam ensures
+    # the primary dir is relative to the main checkout regardless of cwd.
+    # The STATUS leg uses candidate_feature_dir_for_mission(repo_root, ...) so
+    # events come from the authoritative coord husk under coord topology (C-001).
     from specify_cli.core.paths import is_worktree_context
 
     cwd = Path.cwd().resolve()
 
     # Check if we're in a worktree - if so, use worktree's kitty-specs
     if is_worktree_context(cwd):
-        # We're in a worktree, look for kitty-specs relative to cwd
-        if (candidate_feature_dir_for_mission(cwd, mission_slug)).exists():
-            tasks_dir = candidate_feature_dir_for_mission(cwd, mission_slug) / "tasks"
+        # We're in a worktree, look for kitty-specs relative to cwd.
+        # WP04: route tasks/ through the planning seam (WORK_PACKAGE_TASK).
+        _cwd_tasks = (
+            resolve_planning_read_dir(cwd, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK)
+            / "tasks"
+        )
+        if _cwd_tasks.exists():
+            tasks_dir = _cwd_tasks
         else:
             # Walk up to find kitty-specs
             current = cwd
             while current != current.parent:
-                if (candidate_feature_dir_for_mission(current, mission_slug)).exists():
-                    tasks_dir = candidate_feature_dir_for_mission(current, mission_slug) / "tasks"
+                _cur_tasks = (
+                    resolve_planning_read_dir(
+                        current, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+                    )
+                    / "tasks"
+                )
+                if _cur_tasks.exists():
+                    tasks_dir = _cur_tasks
                     break
                 current = current.parent
             else:
                 # Fallback to repo_root
-                tasks_dir = resolve_feature_dir_for_mission(repo_root, mission_slug) / "tasks"
+                tasks_dir = (
+                    resolve_planning_read_dir(
+                        repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+                    )
+                    / "tasks"
+                )
     else:
         # We're in main repo
-        tasks_dir = resolve_feature_dir_for_mission(repo_root, mission_slug) / "tasks"
+        tasks_dir = (
+            resolve_planning_read_dir(
+                repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+            )
+            / "tasks"
+        )
 
     if not tasks_dir.exists():
         return None
@@ -2129,14 +2159,16 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> str | None:
     # Find all WP files
     wp_files = sorted(tasks_dir.glob("WP*.md"))
 
-    # Load lanes from canonical event log (lane is event-log-only)
-    feature_dir = tasks_dir.parent
+    # Load lanes from canonical event log (lane is event-log-only).
+    # WP04: status events stay on the coord-aware resolver so coord-topology
+    # missions read the authoritative event log, not the primary decoy (C-001).
+    _status_feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
     _fr_events = []
     try:
         from specify_cli.status import read_events as _fr_read_events
         from specify_cli.status import reduce as _fr_reduce
 
-        _fr_events = _fr_read_events(feature_dir)
+        _fr_events = _fr_read_events(_status_feature_dir)
         _fr_snapshot = _fr_reduce(_fr_events) if _fr_events else None
         _fr_lanes: dict = {}
         if _fr_snapshot:
@@ -2473,16 +2505,23 @@ def review(
 
         # Capture dependency warning for both file and summary
         dependents_warning = []
-        feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
-        graph = build_dependency_graph(feature_dir)
+        # WP04 / T018 / FR-002: build_dependency_graph reads tasks/ (PRIMARY-partition)
+        # → route through the planning seam.  Status-event reads stay on the coord-aware
+        # resolver (C-001) so dependents' lane comes from the authoritative event log.
+        _review_planning_dir = resolve_planning_read_dir(
+            repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+        )
+        graph = build_dependency_graph(_review_planning_dir)
         dependents = get_dependents(normalized_wp_id, graph)
         if dependents:
-            # Load lanes from event log (lane is event-log-only)
+            # Load lanes from event log (lane is event-log-only).
+            # Status reads stay coord-aware (C-001).
+            _review_status_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
             try:
                 from specify_cli.status import read_events as _rw_read_events
                 from specify_cli.status import reduce as _rw_reduce
 
-                _rw_events = _rw_read_events(feature_dir)
+                _rw_events = _rw_read_events(_review_status_dir)
                 _rw_snapshot = _rw_reduce(_rw_events) if _rw_events else None
                 _rw_lanes: dict = {}
                 if _rw_snapshot:
