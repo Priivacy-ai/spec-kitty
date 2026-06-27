@@ -35,6 +35,7 @@ WP03 ROUTE / KEEP map (re-resolved on the lane-c tree, verified)
 | agent_utils/status.py `show_kanban_status` tasks (:126, #2187) | ROUTE | WORK_PACKAGE_TASK |
 | agent_utils/status.py `show_kanban_status` identity (:132, #2186) | ROUTE | PRIMARY_METADATA |
 | agent_utils/status.py `show_kanban_status` events (:151)   | KEEP    | coord-aware (C-001) |
+| lanes/lifecycle_sync.py `sync_lane_after_coordination_commit` lanes read (:130) | ROUTE | LANE_STATE (#2185 cross-fn residual) |
 """
 
 from __future__ import annotations
@@ -351,3 +352,117 @@ def test_show_kanban_status_identity_leg_reads_primary(
         f"got {result['mission_type']!r} (the sentinel means the read regressed)"
     )
     assert result["mission_type"] != SENTINEL_HUSK_MISSION_TYPE
+
+
+# ---------------------------------------------------------------------------
+# lanes/lifecycle_sync.py — sync_lane_after_coordination_commit (LANE_STATE)
+#
+# Cross-function residual the census + same-function call-shape arm MISSED
+# (#2185): the lanes.json dir was bound ONE FUNCTION UP (the coord-aware STATUS
+# ``feature_dir`` threaded by the auto-rebase callers) and passed in as a
+# parameter, so the arm's same-function-binding check never flagged it. This is
+# a BEHAVIORAL backstop (the arm cannot catch it) with an executed RED-on-revert.
+# ---------------------------------------------------------------------------
+
+
+def _revert_lanes_read_to_coord_aware(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Patch ``lifecycle_sync.resolve_planning_read_dir`` to the coord-aware resolver.
+
+    The EXECUTED pre-#2185 revert: a kind-blind resolver that returns the
+    topology-aware candidate dir (the STATUS-only ``-coord`` husk for a coord
+    mission), exactly as the pre-fix code did by trusting the threaded
+    coord-aware ``feature_dir``. The routed LANE_STATE read then lands on the husk
+    (no ``lanes.json``) and the auto-rebase silently skips.
+    """
+    from specify_cli.missions._read_path_resolver import (
+        candidate_feature_dir_for_mission,
+    )
+
+    def _coord_aware(repo_root: Any, mission_slug: str, *, kind: Any) -> Any:
+        return candidate_feature_dir_for_mission(repo_root, mission_slug)
+
+    monkeypatch.setattr(
+        "specify_cli.lanes.lifecycle_sync.resolve_planning_read_dir", _coord_aware
+    )
+
+
+def test_lifecycle_sync_reads_primary_lanes_not_coord_husk(
+    coord_topology_mission_sentinel_meta: CoordTopologyContext,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``sync_lane_after_coordination_commit`` routes its lanes.json read onto PRIMARY.
+
+    Domain value: whether the post-coordination auto-rebase FIRES (a returned
+    ``AutoRebaseReport``) or silently SKIPS (``None``). On the divergent coord
+    fixture the STATUS-only husk lacks ``lanes.json``; trusting the coord-aware
+    feature dir returns ``None`` → ``lanes_manifest is None`` → the function returns
+    ``None`` and the lane auto-rebase NEVER runs (the #2185 residual). The routed
+    LANE_STATE read finds the PRIMARY ``lanes.json`` (lane-a → WP01) so the function
+    proceeds and ``attempt_auto_rebase`` is invoked for ``lane-a``.
+
+    RED-on-revert (executed below): reverting the LANE_STATE read to the coord-aware
+    resolver lands on the husk (no ``lanes.json``) → the function returns ``None``
+    and ``attempt_auto_rebase`` is NEVER called.
+
+    NFR-004: no primary-dir stub — the PRIMARY-vs-coord routing decision
+    (``resolve_planning_read_dir(LANE_STATE)``) runs inside production code; the
+    auto-rebase spy only CAPTURES the lane and the worktree shell is pre-created so
+    the test exercises the lanes READ, not the (separately-covered) rebase git
+    mechanics.
+    """
+    from specify_cli.lanes import lifecycle_sync
+    from specify_cli.lanes.auto_rebase import AutoRebaseReport
+    from specify_cli.lanes.branch_naming import worktree_path as _worktree_path
+
+    ctx = coord_topology_mission_sentinel_meta
+
+    # Re-state the falsifiability premise: the husk genuinely lacks lanes.json.
+    assert not (ctx.coord_feature_dir / "lanes.json").exists()
+
+    # Pre-create the lane worktree shell so the function skips the heavy
+    # ``git worktree add`` and reaches the auto-rebase decision. Its path mirrors
+    # the function's own ``_worktree_path(repo, slug, mission_id=None, lane_id=…)``.
+    lane_worktree = _worktree_path(ctx.repo, ctx.slug, mission_id=None, lane_id="lane-a")
+    lane_worktree.mkdir(parents=True, exist_ok=True)
+    (lane_worktree / ".git").write_text("gitdir: fixture\n", encoding="utf-8")
+
+    calls: list[str] = []
+
+    def _spy_attempt_auto_rebase(*, lane: Any, **_kwargs: Any) -> AutoRebaseReport:
+        calls.append(lane.lane_id)
+        return AutoRebaseReport(lane_id=lane.lane_id, attempted=True, succeeded=True)
+
+    monkeypatch.setattr(lifecycle_sync, "attempt_auto_rebase", _spy_attempt_auto_rebase)
+
+    report = lifecycle_sync.sync_lane_after_coordination_commit(
+        repo_root=ctx.repo,
+        mission_slug=ctx.slug,
+        wp_id="WP01",
+        coordination_branch=ctx.coord_branch,
+    )
+
+    assert report is not None and report.succeeded, (
+        "routed LANE_STATE read must find the PRIMARY lanes.json so the auto-rebase "
+        "FIRES (returns a report); None means the read regressed to the coord husk"
+    )
+    assert calls == ["lane-a"], (
+        "the post-coordination auto-rebase must run for lane-a (WP01's PRIMARY lane)"
+    )
+
+    # --- Executed revert→RED: route the LANE_STATE read to the coord-aware husk. ---
+    calls.clear()
+    _revert_lanes_read_to_coord_aware(monkeypatch)
+    reverted = lifecycle_sync.sync_lane_after_coordination_commit(
+        repo_root=ctx.repo,
+        mission_slug=ctx.slug,
+        wp_id="WP01",
+        coordination_branch=ctx.coord_branch,
+    )
+    assert reverted is None, (
+        "REVERT GUARD FAILED: with the lanes read reverted to coord-aware the husk "
+        "has no lanes.json → the function must SKIP (return None)"
+    )
+    assert calls == [], (
+        "REVERT GUARD FAILED: the auto-rebase must NOT fire when the lanes read "
+        "lands on the coord husk"
+    )

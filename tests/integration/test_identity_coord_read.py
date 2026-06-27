@@ -31,7 +31,7 @@ gap between the two missions (FR-005).
 |-------------------------------------------------------|---------|----------|
 | next_cmd.py `_pair_previous_lifecycle_record`  (~:190)| ROUTE   | this file: test_pairing_* (end-to-end domain value) |
 | next_cmd.py `_write_issuance_lifecycle_record` (~:260)| ROUTE   | this file: test_issuance_* (end-to-end domain value) |
-| next_cmd.py `_handle_answer_flow` get_mission_type    | ROUTE   | this file: test_answer_flow_type_* (captured type) |
+| next_cmd.py `_handle_answer` get_mission_type    | ROUTE   | this file: test_answer_flow_type_* (captured type) |
 | implement.py `implement` json-output identity (~:1404)| ROUTE   | FR-007 call-shape arm (static): clean post-route; |
 |                                                       |         |  shares the next_cmd primary-fold pattern |
 | workflow.py sparse-checkout preflight mission_id      | ROUTE   | FR-007 call-shape arm (static) |
@@ -197,7 +197,7 @@ def test_pairing_lifecycle_completion_uses_primary_mission_id(
 
 
 # ---------------------------------------------------------------------------
-# next_cmd `_handle_answer_flow` get_mission_type (ROUTE — :619)
+# next_cmd `_handle_answer` get_mission_type (ROUTE — :619)
 # ---------------------------------------------------------------------------
 
 
@@ -214,7 +214,7 @@ def test_answer_flow_get_mission_type_reads_primary_type(
     coord_topology_mission_sentinel_meta: CoordTopologyContext,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """``_handle_answer_flow`` reads the PRIMARY mission TYPE for ``get_or_start_run``.
+    """``_handle_answer`` reads the PRIMARY mission TYPE for ``get_or_start_run``.
 
     The runtime bridge's ``get_or_start_run`` is faked to CAPTURE the
     ``mission_type`` argument (a returned domain value) and short-circuit. Routed →

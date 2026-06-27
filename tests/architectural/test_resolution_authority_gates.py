@@ -23,8 +23,8 @@ Shared machinery (IC-01, NFR-001/002/003):
 
 * Composite key ``(enclosing_qualname, token_line)`` computed **live** from
   source — survives benign line drift, unlike a raw ``file:line`` key.
-* Concrete integer floors (canonicalizer ``>= 38``; coord-authority a hard-coded
-  literal ``>= 16``) so a broken scanner returning zero rows cannot pass
+* Concrete integer floors (canonicalizer ``>= 45``; coord-authority a hard-coded
+  literal ``>= 13``) so a broken scanner returning zero rows cannot pass
   vacuously (NFR-002 rejects ``> 0`` / ``>= 1``).
 * Shrink-only governance: a staleness twin-guard fails the build on any
   allowlist entry that no longer matches a live call site, and a baseline scalar
@@ -1074,9 +1074,9 @@ def test_canonicalizer_bare_modern_fold_auto_routes(tmp_path: Path) -> None:
 
 # --- T006: concrete floors + shrink-only twin-guard ------------------------
 def test_canonicalizer_gate_floor() -> None:
-    """Concrete floor: the canonicalizer scan finds >= 38 real call sites (NFR-002).
+    """Concrete floor: the canonicalizer scan finds >= 45 real call sites (NFR-002).
 
-    The literal 38 is the live census on the current ``src/`` tree; a broken
+    The literal 45 is the live census on the current ``src/`` tree; a broken
     scanner returning zero rows trivially fails this. ``> 0`` / ``>= 1`` are
     explicitly rejected by NFR-002.
     """
@@ -1097,16 +1097,16 @@ def test_routed_count_floor() -> None:
     discriminator classifies as *canonical* (routed) and asserts that count stays
     within ``ROUTED_CANONICALIZER_FLOOR_MARGIN`` of the floor AND strictly above it.
 
-    The floor is a CONCRETE integer (``ROUTED_CANONICALIZER_FLOOR == 31``), NOT
+    The floor is a CONCRETE integer (``ROUTED_CANONICALIZER_FLOOR == 38``), NOT
     ``>= len(scanned routed sites)``. A tautological ``>= live_routed`` would be
     satisfied even if a future regression allowlisted every site instead of routing
-    it (routed → 0, allowlist → 38, gate still green). Hard-coding the census
+    it (routed → 0, allowlist → 45, gate still green). Hard-coding the census
     makes mass-allowlisting CI-red.
 
-    Live routed count after WP07 is 35 (38 total minus the 3 permanent sanctions;
-    the 4 bare-modern-fold sites are now auto-classified by T031). The floor 31
-    is ``35 − ROUTED_CANONICALIZER_FLOOR_MARGIN(4)`` — deliberately below live
-    so the assertion has teeth, but tight enough to catch a loose ratchet.
+    Live routed count is 42 (45 total minus the 3 permanent sanctions; the 4
+    bare-modern-fold sites are auto-classified by T031). The floor 38 is
+    ``42 − ROUTED_CANONICALIZER_FLOOR_MARGIN(4)`` — deliberately below live so the
+    assertion has teeth, but tight enough to catch a loose ratchet.
 
     Both bounds are enforced:
     * ``live − MARGIN <= floor < live``  (lower: floor is tight; upper: anti-vacuous)
@@ -1136,9 +1136,9 @@ def test_routed_count_floor() -> None:
 
 
 def test_coord_authority_gate_floor() -> None:
-    """Concrete floor: >= 15 WRITE-classified coord call sites (NFR-002).
+    """Concrete floor: >= 13 WRITE-classified coord call sites (NFR-002).
 
-    15 is the hard-coded live write-candidate census (NOT ``>= len(scanned)`` —
+    13 is the hard-coded live write-candidate census (NOT ``>= len(scanned)`` —
     that is tautological). Sites that sit in a function carrying a write indicator
     (this count INCLUDES the 2 by-design coord-owned writes — ``decisions/emit.py``
     and ``widen/state.py`` — which are write-classified by design and sanctioned in
@@ -1148,9 +1148,11 @@ def test_coord_authority_gate_floor() -> None:
     WP07 tightened the floor 17 → 14. The 2026-06-27 rebase onto upstream/main then
     carried concurrent mission #1057, which inserted a ``check_pre30_layout`` boundary
     guard into ``list_dependents`` — re-introducing a kind-blind resolve probe there —
-    raising the honest live census 14 → 15. The ``coord_authority_baseline`` scalar
-    (now 15) caps the allowlist *entry count*, a different quantity from the write
-    *site* census (which they happen to equal here).
+    raising the honest live census 14 → 15. This mission's WP routing then moved a
+    further 2 write-classified sites onto the kind-aware seam, shrinking the live
+    census 15 → 13. The ``coord_authority_baseline`` scalar (now 13) caps the
+    allowlist *entry count*, a different quantity from the write *site* census
+    (which they happen to equal here).
     """
     writes = [s for s in scan_coord_authority_call_sites(SRC_ROOT) if s.is_write]
     assert len(writes) >= COORD_AUTHORITY_WRITE_FLOOR, (

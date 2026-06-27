@@ -34,6 +34,7 @@ WP02 ROUTE / KEEP map (re-resolved on the lane-b tree, verified)
 | executor.py `_run_lane_based_merge` `require_lanes_json`    | ROUTE   | LANE_STATE      |
 | executor.py `_run_lane_based_merge` canonical identity      | ROUTE   | PRIMARY_METADATA|
 | executor.py `_run_lane_based_merge_locked` `target_feature_dir` (:887) | KEEP (pre-routed) | PRIMARY |
+| executor.py `_phase_baseline_and_surface` `baseline_mission_id` (:324) | ROUTE | PRIMARY_METADATA (#2186 cross-fn residual) |
 | executor.py `run.feature_dir` / `status_feature_dir` STATUS legs | KEEP | coord-aware (C-001) |
 | resolve.py `_merge_state_key_candidates` identity (:98)     | ROUTE   | PRIMARY_METADATA|
 | resolve.py `_resolve_mission_slug` handle canon (:63)       | KEEP    | candidate_ (no-fallback boundary) |
@@ -371,3 +372,78 @@ def test_abort_teardown_reads_primary_meta_not_husk_sentinel(
         "the husk SENTINEL id was read during --abort teardown — the meta read "
         "regressed to the coord-aware resolver (the STATUS-only husk)."
     )
+
+
+# ---------------------------------------------------------------------------
+# executor.py — _phase_baseline_and_surface baseline_mission_id (PRIMARY_METADATA)
+#
+# Cross-function residual the census + same-function call-shape arm MISSED
+# (#2186): ``run.feature_dir`` is the coord-aware STATUS dir bound in
+# ``_run_lane_based_merge`` (one function up) and threaded onto the run; the
+# baseline phase consumed it for an IDENTITY read. Same-function-binding checks
+# never flagged it. BEHAVIORAL backstop with an executed RED-on-revert.
+# ---------------------------------------------------------------------------
+
+
+def test_executor_baseline_identity_reads_primary_mission_id(
+    coord_topology_mission_sentinel_meta: CoordTopologyContext,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``_phase_baseline_and_surface`` captures the PRIMARY ``baseline_mission_id``.
+
+    ``run.baseline_mission_id`` is a PRIMARY_METADATA read (#2186). The gate +
+    lane-merge phases that precede the baseline phase are neutralised so the flow
+    reaches it with a PRODUCTION-constructed ``run`` whose ``target_feature_dir`` is
+    the real ``primary_feature_dir_for_mission`` anchor resolved at :889 (NFR-004:
+    the PRIMARY-vs-coord choice runs in production; we only capture). We capture the
+    resolved id in the next phase and short-circuit.
+
+    Routed → the PRIMARY id. RED-on-revert (structurally guaranteed by the divergent
+    sentinel fixture, and confirmed by an executed source revert of :324 back to
+    ``run.feature_dir``): reading off the coord-aware STATUS leg lands on the husk
+    sentinel meta → the captured id is ``6KERGF2ZNFBPR91YEZMARG99KS`` ≠ the PRIMARY id.
+    """
+    from specify_cli.merge import executor
+
+    ctx = coord_topology_mission_sentinel_meta
+    captured: dict[str, Any] = {}
+
+    # Neutralise the heavy phases that precede the baseline phase. The run is still
+    # CONSTRUCTED by production ``_run_lane_based_merge_locked`` (so target_feature_dir
+    # is the real primary anchor); only the gate/merge work is skipped.
+    monkeypatch.setattr(executor, "require_no_sparse_checkout", lambda **kwargs: None)
+    # The review-artifact preflight (run BEFORE the phases) materializes the coord
+    # husk STATUS log, which the shared fixture seeds as a deliberately non-reducible
+    # wrong-leg probe — not under test here. Neutralise it so the flow reaches the
+    # baseline phase; the STATUS partition is exercised by the NFR-001 tests.
+    monkeypatch.setattr(
+        executor, "_enforce_review_artifact_consistency", lambda **kwargs: None
+    )
+    monkeypatch.setattr(executor, "_phase_gates_and_state", lambda run: None)
+    monkeypatch.setattr(executor, "_phase_merge_lanes", lambda run: None)
+
+    def _capture_after_baseline(run: Any) -> NoReturn:
+        captured["baseline_mission_id"] = run.baseline_mission_id
+        raise _StopProbe
+
+    monkeypatch.setattr(
+        executor, "_phase_bake_and_pre_target_done", _capture_after_baseline
+    )
+
+    with pytest.raises(_StopProbe):
+        executor._run_lane_based_merge(
+            ctx.repo,
+            ctx.slug,
+            push=False,
+            delete_branch=False,
+            remove_worktree=False,
+        )
+
+    assert captured.get("baseline_mission_id") == _PRIMARY_MISSION_ID, (
+        "the merge baseline identity read must resolve the PRIMARY meta.json.\n"
+        f"  Expected : {_PRIMARY_MISSION_ID}\n"
+        f"  Got      : {captured.get('baseline_mission_id')!r}\n"
+        "Got the husk sentinel — the baseline read regressed to the coord-aware "
+        "run.feature_dir STATUS leg."
+    )
+    assert captured["baseline_mission_id"] != SENTINEL_HUSK_MISSION_ID
