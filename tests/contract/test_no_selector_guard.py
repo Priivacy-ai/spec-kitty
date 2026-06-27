@@ -18,7 +18,7 @@ from typer.testing import CliRunner
 
 from specify_cli import app
 
-pytestmark = [pytest.mark.contract]
+pytestmark = [pytest.mark.contract, pytest.mark.integration]
 
 runner = CliRunner()
 
