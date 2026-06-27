@@ -1,7 +1,7 @@
 {
-  "event_count": 15,
-  "last_event_id": "01KW4EXZ3KQV8P3WJX19HWGAW3",
-  "materialized_at": "2026-06-27T11:55:07.763321+00:00",
+  "event_count": 16,
+  "last_event_id": "01KW4NSTS7RVBF8CN4528VC4CS",
+  "materialized_at": "2026-06-27T13:55:12.295680+00:00",
   "mission_number": "",
   "mission_slug": "common-docs-structural-move-01KW3SBK",
   "mission_type": "software-dev",
@@ -46,11 +46,11 @@
       "last_transition_at": "2026-06-27T11:55:02.198633+00:00"
     },
     "WP05": {
-      "actor": "finalize-tasks",
-      "force_count": 0,
+      "actor": "user",
+      "force_count": 1,
       "lane": "planned",
-      "last_event_id": "01KW4EXT5GXHJ7TACN4F4JEA28",
-      "last_transition_at": "2026-06-27T11:55:02.704629+00:00"
+      "last_event_id": "01KW4NSTS7RVBF8CN4528VC4CS",
+      "last_transition_at": "2026-06-27T13:55:12.295680+00:00"
     },
     "WP06": {
       "actor": "finalize-tasks",
