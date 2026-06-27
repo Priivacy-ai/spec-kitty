@@ -4,7 +4,10 @@
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import (
+    resolve_feature_dir_for_mission,
+    resolve_planning_read_dir,
+)
 import argparse
 import json
 import os
@@ -271,8 +274,15 @@ def update_command(args: argparse.Namespace) -> None:
 def history_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
 
-    # Boundary guard — hard-reject pre-3.0 layout before any WP mutation
-    feature_path = resolve_feature_dir_for_mission(repo_root, args.feature)
+    # Boundary guard — hard-reject pre-3.0 layout before any WP mutation.
+    # Resolve through the kind-aware authority (resolution-authority gate:
+    # history_command is WRITE-classified, so a kind-blind resolver here would
+    # be a coord-authority violation).
+    from mission_runtime import MissionArtifactKind  # noqa: E402
+
+    feature_path = resolve_planning_read_dir(
+        repo_root, args.feature, kind=MissionArtifactKind.TASKS_INDEX
+    )
     try:
         check_pre30_layout(feature_path)
     except Pre30LayoutError as e:

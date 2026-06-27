@@ -31,7 +31,7 @@ from specify_cli.status.models import StatusEvent
 from specify_cli.status.store import append_event
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _SLUG = "099-legacy-pre30-mission"
 _UPGRADE_HINT = "spec-kitty upgrade"
