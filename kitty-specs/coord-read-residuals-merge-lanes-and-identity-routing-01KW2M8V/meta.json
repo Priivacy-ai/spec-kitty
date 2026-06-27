@@ -1,0 +1,31 @@
+{
+  "accept_commit": "0a54db81660dd4c7065455f5d71dc4c3ba562214",
+  "acceptance_history": [
+    {
+      "accept_commit": "0a54db81660dd4c7065455f5d71dc4c3ba562214",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-27T12:42:58.051620+00:00",
+      "accepted_by": "claude",
+      "accepted_from_commit": "932f8279b73937920ebb9797e2ed5fbcb00d2e2a"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-27T12:42:58.051620+00:00",
+  "accepted_by": "claude",
+  "accepted_from_commit": "932f8279b73937920ebb9797e2ed5fbcb00d2e2a",
+  "baseline_merge_commit": "3e0491a26fd01d3f9cb8cc3664841bd07b0c510d",
+  "created_at": "2026-06-26T18:49:58.302264+00:00",
+  "flattened": true,
+  "friendly_name": "coord read residuals merge lanes and identity routing",
+  "mission_id": "01KW2M8V8X5FQ5KSM501K5EYQD",
+  "mission_number": 151,
+  "mission_slug": "coord-read-residuals-merge-lanes-and-identity-routing-01KW2M8V",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances coord read residuals merge lanes and identity routing on mission/coord-read-residuals-2185-2186 so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "coord read residuals merge lanes and identity routing",
+  "slug": "coord-read-residuals-merge-lanes-and-identity-routing-01KW2M8V",
+  "target_branch": "mission/coord-read-residuals-2185-2186",
+  "topology": "flat",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-27T09:08:13.128340+00:00"
+}
