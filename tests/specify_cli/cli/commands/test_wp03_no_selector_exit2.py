@@ -22,11 +22,41 @@ import typer
 from typer.testing import CliRunner
 
 from specify_cli import app as main_app
-from specify_cli.cli.commands.lifecycle import plan, tasks
+from specify_cli.cli.commands.lifecycle import _require_mission_or_exit, plan, tasks
 from specify_cli.cli.commands.mission_type import app as mission_type_app
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 runner = CliRunner()
+
+
+class TestRequireMissionOrExit:
+    """Direct coverage for the version-robust no-selector helper plan/tasks share.
+
+    Replaces the prior ``typer.BadParameter`` path, whose Rich error-panel
+    rendering is dropped by some Typer versions (the ``--mission`` hint then
+    never reaches captured output). The helper prints the message itself, so the
+    contract is asserted independently of CLI rendering.
+    """
+
+    def test_valid_slug_passes_through(self) -> None:
+        assert _require_mission_or_exit("  001-demo  ", json_output=False) == "001-demo"
+
+    def test_human_no_selector_exits_2_with_mission_hint(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        with pytest.raises(typer.Exit) as exc_info:
+            _require_mission_or_exit(None, json_output=False)
+        assert exc_info.value.exit_code == 2
+        assert "--mission" in capsys.readouterr().out
+
+    def test_json_no_selector_exits_2_with_mission_hint(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        with pytest.raises(typer.Exit) as exc_info:
+            _require_mission_or_exit("   ", json_output=True)
+        assert exc_info.value.exit_code == 2
+        out = capsys.readouterr().out
+        assert '"error"' in out and "--mission" in out
 
 _plan_app = typer.Typer()
 _plan_app.command()(plan)
