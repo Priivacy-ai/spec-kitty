@@ -163,16 +163,37 @@ def specify(
                 )
 
 
+_MISSION_REQUIRED_MSG = "--mission <slug> is required"
+
+
+def _require_mission_or_exit(mission: str | None, *, json_output: bool) -> str:
+    """Return the normalized mission slug, or emit the no-selector error and Exit(2).
+
+    Mirrors the sibling commands' (accept/next/research) no-selector contract: a
+    direct console/JSON message plus ``typer.Exit(2)``. We deliberately avoid
+    ``typer.BadParameter`` here — its Rich error-panel rendering is dropped by
+    some Typer versions when raised from a command body, so the ``--mission``
+    hint never reaches captured output (an FR-008 regression that surfaced once
+    the no-selector guard tests were gated into CI). A direct print to the same
+    stdout console the sibling commands use is version-robust.
+    """
+    mission_norm = mission.strip() if isinstance(mission, str) else None
+    if not mission_norm:
+        if json_output:
+            print(json.dumps({"error": _MISSION_REQUIRED_MSG}))
+        else:
+            _console.print(f"[red]Error:[/red] {_MISSION_REQUIRED_MSG}")
+        raise typer.Exit(2)
+    return mission_norm
+
+
 def plan(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug (e.g., 001-user-authentication)"),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
 ) -> None:
     """Scaffold plan.md for a feature."""
     _enforce_initialized(json_output=json_output)
-    mission_norm = mission.strip() if isinstance(mission, str) else None
-    if not mission_norm:
-        raise typer.BadParameter("--mission <slug> is required")
-    mission_slug = mission_norm
+    mission_slug = _require_mission_or_exit(mission, json_output=json_output)
     agent_feature.setup_plan(feature=mission_slug, json_output=json_output)
 
     # FR-002: Wire widen-enabled interview for the plan flow.
@@ -226,10 +247,7 @@ def tasks(
 ) -> None:
     """Finalize tasks metadata after task generation."""
     _enforce_initialized(json_output=json_output)
-    mission_norm = mission.strip() if isinstance(mission, str) else None
-    if not mission_norm:
-        raise typer.BadParameter("--mission <slug> is required")
-    mission_slug = mission_norm
+    mission_slug = _require_mission_or_exit(mission, json_output=json_output)
     agent_feature.finalize_tasks(feature=mission_slug, json_output=json_output)
 
 
