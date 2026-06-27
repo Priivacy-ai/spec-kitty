@@ -13,10 +13,11 @@ mutate in place. Errors during parsing or validation are surfaced as a
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, Final
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
@@ -27,7 +28,46 @@ __all__ = [
     "PageInventoryEntry",
     "VersionTag",
     "load_inventory",
+    "parse_frontmatter",
 ]
+
+
+_FRONTMATTER_FENCE: Final[str] = "---"
+
+
+def parse_frontmatter(text: str) -> dict[str, Any]:
+    """Parse a markdown page's leading ``---`` YAML frontmatter block.
+
+    Canonical, ``ruamel``-based frontmatter extractor shared by every docs
+    ruler (the inventory lockfile generator, the ``related:`` validator, and
+    the anti-sprawl structure ratchet) so the three agree byte-for-byte on
+    what a frontmatter block is and how it parses.
+
+    Returns an empty mapping when the page has no frontmatter or the block is
+    malformed (the rulers are report-only and must not crash on a single bad
+    page).
+    """
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != _FRONTMATTER_FENCE:
+        return {}
+
+    closing_index: int | None = None
+    for index in range(1, len(lines)):
+        if lines[index].strip() == _FRONTMATTER_FENCE:
+            closing_index = index
+            break
+    if closing_index is None:
+        return {}
+
+    block = "\n".join(lines[1:closing_index])
+    yaml = YAML(typ="safe")
+    try:
+        loaded = yaml.load(block)
+    except YAMLError:
+        return {}
+    if not isinstance(loaded, Mapping):
+        return {}
+    return {str(key): value for key, value in loaded.items()}
 
 
 class VersionTag(StrEnum):
@@ -52,14 +92,20 @@ class DivioType(StrEnum):
 
 @dataclass(slots=True, frozen=True)
 class PageInventoryEntry:
-    """One row of ``docs/development/3-2-page-inventory.yaml``."""
+    """One row of ``docs/development/3-2-page-inventory.yaml``.
+
+    ``citation_refs`` was retired in mission ``common-docs-consolidation``
+    (ADR ``2026-06-27-1`` decision D1): only 6 of 565 rows ever populated it,
+    so cross-references move to a ``related:`` frontmatter list. The field is
+    no longer part of the rollup schema and is ignored if still present in a
+    legacy inventory file.
+    """
 
     path: str
     tag: VersionTag
     divio_type: DivioType
     owning_workstream: str
     current_target: bool
-    citation_refs: tuple[str, ...]
     notes: str | None
 
 
@@ -77,7 +123,6 @@ _REQUIRED_KEYS: frozenset[str] = frozenset(
         "divio_type",
         "owning_workstream",
         "current_target",
-        "citation_refs",
     }
 )
 
@@ -181,16 +226,6 @@ def _validate_row(
             f"'current_target' must be a boolean"
         )
 
-    refs_raw = row["citation_refs"]
-    if not isinstance(refs_raw, list) or not all(
-        isinstance(item, str) for item in refs_raw
-    ):
-        raise LoadError(
-            f"{inventory_path}: row {index} ({path_value}) "
-            f"'citation_refs' must be a list of strings"
-        )
-    citation_refs = tuple(refs_raw)
-
     notes_raw = row.get("notes")
     if notes_raw is not None and not isinstance(notes_raw, str):
         raise LoadError(
@@ -216,6 +251,5 @@ def _validate_row(
         divio_type=divio_type,
         owning_workstream=owning_workstream,
         current_target=current_target,
-        citation_refs=citation_refs,
         notes=notes_raw,
     )
