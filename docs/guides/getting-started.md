@@ -120,17 +120,17 @@ Continue with [Your First Feature](your-first-feature.md) for the complete workf
 
 ### Related How-To Guides
 
-- [Install and Upgrade](../how-to/install-and-upgrade.md) - Additional installation options
-- [Create a Specification](../how-to/create-specification.md) - Deep dive into `/spec-kitty.specify`
-- [Non-Interactive Init](../how-to/non-interactive-init.md) - Scripted project setup
+- [Install and Upgrade](install-and-upgrade.md) - Additional installation options
+- [Create a Specification](create-specification.md) - Deep dive into `/spec-kitty.specify`
+- [Non-Interactive Init](non-interactive-init.md) - Scripted project setup
 
 ### Reference Documentation
 
-- [CLI Commands](../reference/cli-commands.md) - Full command reference
-- [Slash Commands](../reference/slash-commands.md) - AI agent slash commands
-- [Supported Agents](../reference/supported-agents.md) - Slash-command agents supported by the CLI
+- [CLI Commands](../api/cli-commands.md) - Full command reference
+- [Slash Commands](../api/slash-commands.md) - AI agent slash commands
+- [Supported Agents](../api/supported-agents.md) - Slash-command agents supported by the CLI
 
 ### Learn More
 
-- [Spec-Driven Development](../explanation/spec-driven-development.md) - Why specs matter
-- [Mission System](../explanation/mission-system.md) - How missions shape workflows
+- [Spec-Driven Development](../architecture/spec-driven-development.md) - Why specs matter
+- [Mission System](../architecture/mission-system.md) - How missions shape workflows

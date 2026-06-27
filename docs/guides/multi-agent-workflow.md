@@ -79,7 +79,7 @@ OK Created workspace: .worktrees/###-feature-lane-b
 
 ## Git Worktrees, Briefly
 
-Each execution lane is a Git worktree on its own branch. Sequential WPs may reuse the same lane workspace, while independent WPs run in parallel in separate lane worktrees. For details, see [Execution Workspace Model](../explanation/execution-lanes.md) and [Git Worktrees](../explanation/git-worktrees.md).
+Each execution lane is a Git worktree on its own branch. Sequential WPs may reuse the same lane workspace, while independent WPs run in parallel in separate lane worktrees. For details, see [Execution Workspace Model](../architecture/execution-lanes.md) and [Git Worktrees](../architecture/git-worktrees.md).
 
 ## Tips for Coordinating Agents
 
@@ -99,20 +99,20 @@ You've completed the core tutorials. Explore how-to guides for specific tasks or
 
 ### Related How-To Guides
 
-- [Parallel Development](../how-to/parallel-development.md) - Run multiple agents simultaneously
-- [Handle Dependencies](../how-to/handle-dependencies.md) - Manage WP dependencies
-- [Implement a Work Package](../how-to/implement-work-package.md) - Detailed implementation steps
-- [Use the Dashboard](../how-to/use-dashboard.md) - Monitor progress in real time
+- [Parallel Development](parallel-development.md) - Run multiple agents simultaneously
+- [Handle Dependencies](handle-dependencies.md) - Manage WP dependencies
+- [Implement a Work Package](implement-work-package.md) - Detailed implementation steps
+- [Use the Dashboard](use-dashboard.md) - Monitor progress in real time
 
 ### Reference Documentation
 
-- [Agent Subcommands](../reference/agent-subcommands.md) - Agent workflow commands
-- [CLI Commands](../reference/cli-commands.md) - Full command reference
-- [File Structure](../reference/file-structure.md) - Worktree layout
+- [Agent Subcommands](../api/agent-subcommands.md) - Agent workflow commands
+- [CLI Commands](../api/cli-commands.md) - Full command reference
+- [File Structure](../api/file-structure.md) - Worktree layout
 
 ### Learn More
 
-- [Multi-Agent Orchestration](../explanation/multi-agent-orchestration.md) - Coordination patterns
-- [Run External Orchestrator](../how-to/run-external-orchestrator.md) - Automate WP execution with the external provider
-- [Execution Workspace Model](../explanation/execution-lanes.md) - Isolation strategy
-- [Git Worktrees](../explanation/git-worktrees.md) - How worktrees work
+- [Multi-Agent Orchestration](../architecture/multi-agent-orchestration.md) - Coordination patterns
+- [Run External Orchestrator](run-external-orchestrator.md) - Automate WP execution with the external provider
+- [Execution Workspace Model](../architecture/execution-lanes.md) - Isolation strategy
+- [Git Worktrees](../architecture/git-worktrees.md) - How worktrees work

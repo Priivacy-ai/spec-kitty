@@ -30,9 +30,9 @@ and enforce operational logging behavior through Directive 014 and Directive 015
 
 | # | Actor                      | Type     | Persona     | Role in Journey                                                   |
 |---|----------------------------|----------|-------------|-------------------------------------------------------------------|
-| 1 | Maintainer                 | `human`  | [Maintainer](../../audience/internal/maintainer.md) | Defines governance outcome and approves changes                   |
-| 2 | codex generic: kitty-aware | `llm`    | [AI Collaboration Agent](../../audience/internal/ai-collaboration-agent.md) | Executes curation, updates artifacts, and reports outcomes        |
-| 3 | Spec Kitty CLI             | `system` | [Spec Kitty CLI Runtime](../../audience/internal/spec-kitty-cli-runtime.md) | Validates commands, updates charter extracts, reports status |
+| 1 | Maintainer                 | `human`  | [Maintainer](../../context/audience/internal/maintainer.md) | Defines governance outcome and approves changes                   |
+| 2 | codex generic: kitty-aware | `llm`    | [AI Collaboration Agent](../../context/audience/internal/ai-collaboration-agent.md) | Executes curation, updates artifacts, and reports outcomes        |
+| 3 | Spec Kitty CLI             | `system` | [Spec Kitty CLI Runtime](../../context/audience/internal/spec-kitty-cli-runtime.md) | Validates commands, updates charter extracts, reports status |
 
 ---
 

@@ -149,4 +149,4 @@ the cause, do not retry:
 - [ADR 2026-04-20-1](../../docs/adr/3.x/2026-04-20-1-mutation-testing-as-local-only-quality-gate.md)
   — the `flaky` / `non_sandbox` markers (mutmut deselection; distinct from this
   policy).
-- [How-to: run mutation tests](../how-to/run-mutation-tests.md).
+- [How-to: run mutation tests](run-mutation-tests.md).

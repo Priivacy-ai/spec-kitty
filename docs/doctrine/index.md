@@ -22,5 +22,5 @@ directives, tactics, profiles) that compose governed mission behavior.
 ## See also
 
 - [Documentation home](../index.md)
-- [How Charter works](../3x/index.md)
-- [Org doctrine layer](../explanation/org-doctrine-layer.md)
+- [How Charter works](../context/index.md)
+- [Org doctrine layer](../architecture/org-doctrine-layer.md)

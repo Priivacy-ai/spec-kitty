@@ -186,8 +186,8 @@ spec-kitty agent tasks status --mission <slug>
 
 ## Command Reference
 
-- [Slash Commands](../reference/slash-commands.md) - All `/spec-kitty.*` commands
-- [Agent Subcommands](../reference/agent-subcommands.md) - Workflow commands
+- [Slash Commands](../api/slash-commands.md) - All `/spec-kitty.*` commands
+- [Agent Subcommands](../api/agent-subcommands.md) - Workflow commands
 
 ## See Also
 
@@ -197,9 +197,9 @@ spec-kitty agent tasks status --mission <slug>
 
 ## Background
 
-- [Kanban Workflow](../explanation/kanban-workflow.md) - Lane transitions explained
-- [Multi-Agent Orchestration](../explanation/multi-agent-orchestration.md) - Agent handoffs
+- [Kanban Workflow](../architecture/kanban-workflow.md) - Lane transitions explained
+- [Multi-Agent Orchestration](../architecture/multi-agent-orchestration.md) - Agent handoffs
 
 ## Getting Started
 
-- [Your First Feature](../tutorials/your-first-feature.md) - Complete workflow walkthrough
+- [Your First Feature](your-first-feature.md) - Complete workflow walkthrough

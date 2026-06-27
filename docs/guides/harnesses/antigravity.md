@@ -40,7 +40,7 @@ Antigravity CLI installed records:
 
 ## Where Spec Kitty installs files
 
-Per the [supported-harnesses matrix](../../reference/supported-harnesses.md),
+Per the [supported-harnesses matrix](../../api/supported-harnesses.md),
 Spec Kitty currently writes Antigravity workflow files under:
 
 - **Directory:** `.agent/workflows/`

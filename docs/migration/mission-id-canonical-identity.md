@@ -257,8 +257,8 @@ any event log entries keyed off the original ULID will become orphaned.
 ## Related Documentation
 
 - [Mission Identity Model in `CLAUDE.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/CLAUDE.md#mission-identity-model-083) — developer-facing contract summary.
-- [Event Envelope Reference](../reference/event-envelope.md) — how `mission_id` flows into the machine contract.
-- [Orchestrator API Reference](../reference/orchestrator-api.md) — `--mission` selector semantics.
-- [Execution Lanes](../explanation/execution-lanes.md) — lane branch and worktree naming.
+- [Event Envelope Reference](../api/event-envelope.md) — how `mission_id` flows into the machine contract.
+- [Orchestrator API Reference](../api/orchestrator-api.md) — `--mission` selector semantics.
+- [Execution Lanes](../architecture/execution-lanes.md) — lane branch and worktree naming.
 - [Feature Detection architecture note](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/architecture/feature-detection.md) — historical context for the pre-083 selector.
 - [Feature Flag Deprecation](feature-flag-deprecation.md) — the earlier `--feature` → `--mission` migration.

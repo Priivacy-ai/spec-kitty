@@ -542,18 +542,18 @@ For the operator-narrative walkthrough (decision resolution, advancement, recove
 ## See Also
 
 - [Configuration](configuration.md) — Mission configuration details
-- [Spec-Driven Development](../explanation/spec-driven-development.md) — The philosophy behind missions
-- [Mission System](../explanation/mission-system.md) — Why missions exist
+- [Spec-Driven Development](../architecture/spec-driven-development.md) — The philosophy behind missions
+- [Mission System](../architecture/mission-system.md) — Why missions exist
 
 ## Getting Started
 
-- [Claude Code Workflow](../tutorials/claude-code-workflow.md)
+- [Claude Code Workflow](../guides/claude-code-workflow.md)
 
 ## Practical Usage
 
-- [Use the Dashboard](../how-to/use-dashboard.md)
-- [Non-Interactive Init](../how-to/non-interactive-init.md)
+- [Use the Dashboard](../guides/use-dashboard.md)
+- [Non-Interactive Init](../guides/non-interactive-init.md)
 
 ## Background
 
-- [Mission System](../explanation/mission-system.md)
+- [Mission System](../architecture/mission-system.md)

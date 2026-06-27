@@ -174,4 +174,4 @@ If `kitty-specs/` is still in the repo, your mission history reappears automatic
 
 - [Reinstall spec-kitty](install-macos.md)
 - [Upgrade the CLI](upgrade-cli.md)
-- [Init lifecycle reference](../reference/init-lifecycle.md)
+- [Init lifecycle reference](../api/init-lifecycle.md)

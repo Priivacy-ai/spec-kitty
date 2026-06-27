@@ -392,20 +392,20 @@ For the full command reference, see
 | `--resume` | Resume an interrupted merge | - |
 | `--abort` | Abort and clear merge state | - |
 
-Full CLI reference: [CLI Commands](../reference/cli-commands.md)
+Full CLI reference: [CLI Commands](../api/cli-commands.md)
 
 ## See Also
 
 - [Accept and Merge](accept-and-merge.md#troubleshooting) - Recovery and conflict resolution
 - [Accept and Merge](accept-and-merge.md) - Mission validation before merge
-- [Execution Lanes](../explanation/execution-lanes.md) - How worktrees work
+- [Execution Lanes](../architecture/execution-lanes.md) - How worktrees work
 - [Review Work Packages](review-work-package.md) - WP review process
 
 ## Background
 
-- [Execution Lanes](../explanation/execution-lanes.md) - How worktrees work
-- [Git Worktrees](../explanation/git-worktrees.md) - Git worktree fundamentals
+- [Execution Lanes](../architecture/execution-lanes.md) - How worktrees work
+- [Git Worktrees](../architecture/git-worktrees.md) - Git worktree fundamentals
 
 ## Getting Started
 
-- [Your First Feature](../tutorials/your-first-feature.md) - Complete workflow walkthrough
+- [Your First Feature](your-first-feature.md) - Complete workflow walkthrough

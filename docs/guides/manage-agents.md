@@ -15,7 +15,7 @@ Learn how to add, remove, and manage AI agents in your spec-kitty project after 
 
 Spec-kitty supports slash-command agents such as Claude Code, Gemini CLI, Cursor, Qwen Code, OpenCode, Windsurf, GitHub Copilot, Kilo Code, Auggie CLI, Kiro CLI, legacy Amazon Q, and Google Antigravity. It also supports command-skill agents such as Codex CLI, Mistral Vibe, Pi, and Letta Code. (Roo Code shut down on 2026-05-15 and is no longer supported.)
 
-This guide applies after you've run `spec-kitty init` and want to change which agents are active in your project. For initial setup, see the [Getting Started](../tutorials/getting-started.md) guide.
+This guide applies after you've run `spec-kitty init` and want to change which agents are active in your project. For initial setup, see the [Getting Started](getting-started.md) guide.
 
 Agent configuration is managed through `.kittify/config.yaml` and the `spec-kitty agent config` command family. The config file acts as the single source of truth for which agents are active in the project. Slash-command agents use user-global command roots such as `~/.opencode/command/`; Codex, Vibe, Pi, and Letta use project-local command skills under `.agents/skills/`.
 
@@ -560,9 +560,9 @@ spec-kitty agent config add claude  # Not "cluade"
 
 If your issue isn't covered here:
 
-1. Check [Supported AI Agents](../reference/supported-agents.md) for agent-specific requirements
-2. Review [Configuration Reference](../reference/configuration.md) for config.yaml schema
-3. Consult [CLI Commands Reference](../reference/agent-subcommands.md#spec-kitty-agent-config) for detailed command syntax
+1. Check [Supported AI Agents](../api/supported-agents.md) for agent-specific requirements
+2. Review [Configuration Reference](../api/configuration.md) for config.yaml schema
+3. Consult [CLI Commands Reference](../api/agent-subcommands.md#spec-kitty-agent-config) for detailed command syntax
 4. Report bugs at [spec-kitty GitHub Issues](https://github.com/Priivacy-ai/spec-kitty/issues)
 
 ## See Also
@@ -571,15 +571,15 @@ For more information on agent management and related topics:
 
 ### Command Reference
 
-- [CLI Commands: spec-kitty agent config](../reference/agent-subcommands.md#spec-kitty-agent-config) - Detailed command syntax, flags, and options for all agent config subcommands
+- [CLI Commands: spec-kitty agent config](../api/agent-subcommands.md#spec-kitty-agent-config) - Detailed command syntax, flags, and options for all agent config subcommands
 
 ### Supported Agents
 
-- [Supported AI Agents](../reference/supported-agents.md) - Complete list of slash-command agents with capabilities, installation requirements, and usage notes
+- [Supported AI Agents](../api/supported-agents.md) - Complete list of slash-command agents with capabilities, installation requirements, and usage notes
 
 ### Configuration
 
-- [Configuration Reference](../reference/configuration.md) - Complete `.kittify/config.yaml` schema for agent availability and preferred roles
+- [Configuration Reference](../api/configuration.md) - Complete `.kittify/config.yaml` schema for agent availability and preferred roles
 
 ### Architecture
 

@@ -31,10 +31,10 @@ boundaries must remain explicit for safe operation.
 
 | Audience | Why This View Matters |
 |---|---|
-| [Project Owner](../../audience/external/project-owner.md) | Understands accountability and approval boundaries. |
-| [System Architect](../../audience/internal/system-architect.md) | Validates integration and authority contracts. |
-| [AI Collaboration Agent](../../audience/internal/ai-collaboration-agent.md) | Aligns execution behavior with host-owned constraints. |
-| [Spec Kitty CLI Runtime](../../audience/internal/spec-kitty-cli-runtime.md) | Enforces command and state authority boundaries. |
+| [Project Owner](../../context/audience/external/project-owner.md) | Understands accountability and approval boundaries. |
+| [System Architect](../../context/audience/internal/system-architect.md) | Validates integration and authority contracts. |
+| [AI Collaboration Agent](../../context/audience/internal/ai-collaboration-agent.md) | Aligns execution behavior with host-owned constraints. |
+| [Spec Kitty CLI Runtime](../../context/audience/internal/spec-kitty-cli-runtime.md) | Enforces command and state authority boundaries. |
 
 ## Context Diagram (Mermaid)
 

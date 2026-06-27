@@ -228,7 +228,7 @@ When a new AI agent appears, Spec Kitty can add support by:
 3. **Converting templates**: Generate command files in the agent's format
 4. **Adding CLI checks**: Verify the agent's CLI tool is installed (if CLI-based)
 
-See [Agent Subcommands](../reference/agent-subcommands.md) for the workflow command reference.
+See [Agent Subcommands](../api/agent-subcommands.md) for the workflow command reference.
 
 ## Command Execution Flow
 
@@ -269,15 +269,15 @@ The command file provides all instructions; the agent executes them.
 
 ## Try It
 
-- [Claude Code Integration](../tutorials/claude-code-integration.md)
-- [Claude Code Workflow](../tutorials/claude-code-workflow.md)
+- [Claude Code Integration](../guides/claude-code-integration.md)
+- [Claude Code Workflow](../guides/claude-code-workflow.md)
 
 ## How-To Guides
 
-- [Non-Interactive Init](../how-to/non-interactive-init.md)
-- [Install Spec Kitty](../how-to/install-spec-kitty.md)
+- [Non-Interactive Init](../guides/non-interactive-init.md)
+- [Install Spec Kitty](../guides/install-spec-kitty.md)
 
 ## Reference
 
-- [Supported Agents](../reference/supported-agents.md)
-- [Agent Subcommands](../reference/agent-subcommands.md)
+- [Supported Agents](../api/supported-agents.md)
+- [Agent Subcommands](../api/agent-subcommands.md)

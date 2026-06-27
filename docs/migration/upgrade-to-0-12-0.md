@@ -4,7 +4,7 @@ description: Historical upgrade path to Spec Kitty 0.12.0, where agent managemen
 doc_status: active
 updated: '2026-06-03'
 ---
-> Migration note: This page documents a historical upgrade path to Spec Kitty 0.12.0. For current 3.2 upgrades, use [Upgrade the Spec Kitty CLI](../how-to/upgrade-cli.md) and [Upgrade project files](../how-to/upgrade-project.md).
+> Migration note: This page documents a historical upgrade path to Spec Kitty 0.12.0. For current 3.2 upgrades, use [Upgrade the Spec Kitty CLI](../guides/upgrade-cli.md) and [Upgrade project files](../guides/upgrade-project.md).
 
 # Upgrading to Spec Kitty 0.12.0
 
@@ -90,4 +90,4 @@ spec-kitty agent config add claude codex
 **Q: How do I ensure an agent doesn't come back after upgrade?**
 - A: Use `spec-kitty agent config remove <agent>` before upgrading. This removes it from `config.yaml`.
 
-For command details, see [Managing AI Agents](../how-to/manage-agents.md).
+For command details, see [Managing AI Agents](../guides/manage-agents.md).

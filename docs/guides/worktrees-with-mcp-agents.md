@@ -54,5 +54,5 @@ If that still does not stick, treat the current session as attached to the wrong
 ## See Also
 
 - [Implement a Work Package](implement-work-package.md)
-- [Git Worktrees Explained](../explanation/git-worktrees.md)
+- [Git Worktrees Explained](../architecture/git-worktrees.md)
 - [Parallel Development](parallel-development.md)

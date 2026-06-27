@@ -198,7 +198,7 @@ Run `spec-kitty init`. This command accepts the following flags:
 # Getting Started
 
 Run `spec-kitty init` to set up your project.
-For all available options, see the [CLI Reference](../reference/cli-commands.md#spec-kitty-init).
+For all available options, see the [CLI Reference](../api/cli-commands.md#spec-kitty-init).
 ```
 
 ### Wrong Type for User State
@@ -223,7 +223,7 @@ it cannot automatically determine which changes to keep...
 4. Remove conflict markers
 5. Stage and commit: `git add . && git commit`
 
-For background on why conflicts occur, see [Git Worktrees Explained](../explanation/git-worktrees.md).
+For background on why conflicts occur, see [Git Worktrees Explained](git-worktrees.md).
 ```
 
 ## Further Reading
@@ -242,14 +242,14 @@ For background on why conflicts occur, see [Git Worktrees Explained](../explanat
 
 ## Try It
 
-- [Claude Code Workflow](../tutorials/claude-code-workflow.md)
+- [Claude Code Workflow](../guides/claude-code-workflow.md)
 
 ## How-To Guides
 
-- [Install Spec Kitty](../how-to/install-spec-kitty.md)
-- [Use the Dashboard](../how-to/use-dashboard.md)
+- [Install Spec Kitty](../guides/install-spec-kitty.md)
+- [Use the Dashboard](../guides/use-dashboard.md)
 
 ## Reference
 
-- [Configuration](../reference/configuration.md)
-- [File Structure](../reference/file-structure.md)
+- [Configuration](../api/configuration.md)
+- [File Structure](../api/file-structure.md)

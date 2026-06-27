@@ -11,7 +11,7 @@ related:
 Profile invocation is the local audit-trail mechanism used by standalone
 `spec-kitty dispatch` calls. Each dispatch loads Charter context, opens an Op,
 and writes an append-only JSONL record. For an explanation of the model, see
-[Understanding Governed Profile Invocation](../explanation/governed-profile-invocation.md).
+[Understanding Governed Profile Invocation](../architecture/governed-profile-invocation.md).
 
 `spec-kitty next` is the canonical mission loop. In the current 3.2.x CLI it
 issues governed prompt files and separate mission-step lifecycle records; it
@@ -161,6 +161,6 @@ record results in `InvalidModeForEvidenceError`, and no write occurs. Re-run
 
 ## See Also
 
-- [Understanding Governed Profile Invocation](../explanation/governed-profile-invocation.md)
-- [How to Run a Governed Mission](../how-to/run-governed-mission.md)
-- [How Charter Works](../3x/charter-overview.md)
+- [Understanding Governed Profile Invocation](../architecture/governed-profile-invocation.md)
+- [How to Run a Governed Mission](../guides/run-governed-mission.md)
+- [How Charter Works](../context/charter-overview.md)

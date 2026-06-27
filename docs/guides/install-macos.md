@@ -144,4 +144,4 @@ pipx ensurepath
 - [Upgrade the CLI](upgrade-cli.md)
 - [Linux install guide](install-linux.md)
 - [Windows install guide](install-windows.md)
-- [Pip vs pipx vs uv — which to choose](../explanation/pip-vs-pipx-vs-uv.md)
+- [Pip vs pipx vs uv — which to choose](../architecture/pip-vs-pipx-vs-uv.md)

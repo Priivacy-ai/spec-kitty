@@ -103,7 +103,7 @@ the skill renders for new missions.
 ## Activation
 
 Activation is a charter-time decision and is fully opt-in. Run the
-[charter interview](../how-to/setup-governance.md) and select **any one** of
+[charter interview](../guides/setup-governance.md) and select **any one** of
 the following library items:
 
 - paradigm `structured-prompt-driven-development`
@@ -387,7 +387,7 @@ Mission seed material:
 
 Related Spec Kitty docs:
 
-- [How to set up project governance](../how-to/setup-governance.md) — the
+- [How to set up project governance](../guides/setup-governance.md) — the
   charter interview is where you opt into this pack.
-- [Spec-driven development explained](../explanation/spec-driven-development.md) —
+- [Spec-driven development explained](../architecture/spec-driven-development.md) —
   the broader workflow that the canvas slots into.

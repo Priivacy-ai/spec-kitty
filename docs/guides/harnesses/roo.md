@@ -23,5 +23,5 @@ spec-kitty agent config remove roo
 
 ## See also
 
-- [Supported AI Agents](../../reference/supported-agents.md) — the authoritative
+- [Supported AI Agents](../../api/supported-agents.md) — the authoritative
   list of currently supported harnesses, including the Roo Code deprecation notice.

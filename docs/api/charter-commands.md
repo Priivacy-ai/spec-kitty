@@ -13,7 +13,7 @@ related:
 > Spec Kitty is installed on your PATH, the same flags work with `spec-kitty ...`.
 
 This reference covers all `charter` subcommands. For a task-oriented walkthrough, see
-[How to Synthesize and Maintain Doctrine](../how-to/synthesize-doctrine.md).
+[How to Synthesize and Maintain Doctrine](../guides/synthesize-doctrine.md).
 
 ---
 
@@ -210,7 +210,7 @@ a symlink, sync follows the symlink for reads; the generated YAML files are stil
 `.kittify/charter/`, not beside the symlink target. `charter generate` refuses to overwrite a
 symlinked `charter.md` before compilation, sync, gitignore updates, or staging; use symlinks only
 for sync-only extraction or update the target directly. See
-[Governance Files Reference](../3x/governance-files.md#external-governance-documents) for the
+[Governance Files Reference](../context/governance-files.md#external-governance-documents) for the
 source-of-truth model when a project also has a public constitution.
 
 | Flag | Description | Default |
@@ -299,6 +299,6 @@ uv run spec-kitty charter bundle validate --json
 
 ## See Also
 
-- [How Charter Works](../3x/charter-overview.md)
-- [How to Synthesize and Maintain Doctrine](../how-to/synthesize-doctrine.md)
-- [Governance Files Reference](../3x/governance-files.md)
+- [How Charter Works](../context/charter-overview.md)
+- [How to Synthesize and Maintain Doctrine](../guides/synthesize-doctrine.md)
+- [Governance Files Reference](../context/governance-files.md)

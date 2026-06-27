@@ -91,18 +91,18 @@ Explore the full workflow in [Your First Feature](your-first-feature.md) or dive
 
 ### Related How-To Guides
 
-- [Switch Missions](../how-to/switch-missions.md) - Change mission types
-- [Create a Specification](../how-to/create-specification.md) - Start with any mission
-- [Install and Upgrade](../how-to/install-and-upgrade.md) - Initial setup options
+- [Switch Missions](switch-missions.md) - Change mission types
+- [Create a Specification](create-specification.md) - Start with any mission
+- [Install and Upgrade](install-and-upgrade.md) - Initial setup options
 
 ### Reference Documentation
 
-- [Missions](../reference/missions.md) - All mission types reference
-- [CLI Commands](../reference/cli-commands.md) - Full command reference
-- [Configuration](../reference/configuration.md) - Project settings
+- [Missions](../api/missions.md) - All mission types reference
+- [CLI Commands](../api/cli-commands.md) - Full command reference
+- [Configuration](../api/configuration.md) - Project settings
 
 ### Learn More
 
-- [Mission System](../explanation/mission-system.md) - How missions work internally
-- [Documentation Mission](../explanation/documentation-mission.md) - Divio-based docs workflow
-- [Spec-Driven Development](../explanation/spec-driven-development.md) - The underlying philosophy
+- [Mission System](../architecture/mission-system.md) - How missions work internally
+- [Documentation Mission](../architecture/documentation-mission.md) - Divio-based docs workflow
+- [Spec-Driven Development](../architecture/spec-driven-development.md) - The underlying philosophy

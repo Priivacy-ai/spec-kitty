@@ -625,9 +625,9 @@ Claude Code, Cursor, Windsurf all support slash commands natively. The commands 
 ## Next Steps
 
 1. **Try the Quick Start** - 5 minute hands-on experience
-2. **Review Dashboard Guide** - [Use the Dashboard](../how-to/use-dashboard.md)
+2. **Review Dashboard Guide** - [Use the Dashboard](use-dashboard.md)
 3. **Read Full Workflow** - [Getting Started Tutorial](getting-started.md)
-4. **Explore Advanced Features** - [Multi-Agent Orchestration](../explanation/multi-agent-orchestration.md)
+4. **Explore Advanced Features** - [Multi-Agent Orchestration](../architecture/multi-agent-orchestration.md)
 
 ---
 
@@ -641,9 +641,9 @@ Claude Code, Cursor, Windsurf all support slash commands natively. The commands 
 - Dashboard won't open → Kill existing instance first
 
 **Documentation**:
-- [Spec-Driven Development](../explanation/spec-driven-development.md)
-- [Execution Lanes](../explanation/execution-lanes.md)
-- [Multi-Agent Orchestration](../explanation/multi-agent-orchestration.md)
+- [Spec-Driven Development](../architecture/spec-driven-development.md)
+- [Execution Lanes](../architecture/execution-lanes.md)
+- [Multi-Agent Orchestration](../architecture/multi-agent-orchestration.md)
 
 ---
 
@@ -669,18 +669,18 @@ The opinionated workflow isn't arbitrary - it's specifically designed around how
 
 ## Related How-To Guides
 
-- [Install Spec Kitty](../how-to/install-spec-kitty.md)
-- [Use the Dashboard](../how-to/use-dashboard.md)
-- [Non-Interactive Init](../how-to/non-interactive-init.md)
+- [Install Spec Kitty](install-spec-kitty.md)
+- [Use the Dashboard](use-dashboard.md)
+- [Non-Interactive Init](non-interactive-init.md)
 
 ## Reference
 
-- [CLI Commands](../reference/cli-commands.md)
-- [Slash Commands](../reference/slash-commands.md)
-- [Supported Agents](../reference/supported-agents.md)
+- [CLI Commands](../api/cli-commands.md)
+- [Slash Commands](../api/slash-commands.md)
+- [Supported Agents](../api/supported-agents.md)
 
 ## Learn More
 
-- [Spec-Driven Development](../explanation/spec-driven-development.md)
-- [AI Agent Architecture](../explanation/ai-agent-architecture.md)
-- [Kanban Workflow](../explanation/kanban-workflow.md)
+- [Spec-Driven Development](../architecture/spec-driven-development.md)
+- [AI Agent Architecture](../architecture/ai-agent-architecture.md)
+- [Kanban Workflow](../architecture/kanban-workflow.md)

@@ -15,7 +15,7 @@ validating it, optionally assembling several packs into a single distributable, 
 it, and configuring consumer projects to install it.
 
 For background on what the org layer is and how it composes with built-in and project
-doctrine, see [Understanding the Org Doctrine Layer](../explanation/org-doctrine-layer.md).
+doctrine, see [Understanding the Org Doctrine Layer](../architecture/org-doctrine-layer.md).
 
 ---
 
@@ -159,7 +159,7 @@ The `org-charter.yaml` file is **optional**. Packs that ship only doctrine artif
 policy) simply omit it.
 
 For more on how `org-charter.yaml` composes when multiple packs are configured, see
-[the org charter composition section of the explanation doc](../explanation/org-doctrine-layer.md#org-charter-composition).
+[the org charter composition section of the explanation doc](../architecture/org-doctrine-layer.md#org-charter-composition).
 
 ---
 
@@ -433,7 +433,7 @@ edges or nodes instead.
 
 ## See also
 
-- [Understanding the Org Doctrine Layer](../explanation/org-doctrine-layer.md)
+- [Understanding the Org Doctrine Layer](../architecture/org-doctrine-layer.md)
 - [Migrating shared doctrine to the org layer](../migration/doctrine-local-overlay-to-org-layer.md)
 - [How to set up project governance](setup-governance.md)
 - [How to synthesize and maintain doctrine](synthesize-doctrine.md)

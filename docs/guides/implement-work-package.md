@@ -84,9 +84,9 @@ spec-kitty agent tasks move-task WP01 --to for_review --note "Ready for review: 
 
 ## Command Reference
 
-- [Slash Commands](../reference/slash-commands.md) - All `/spec-kitty.*` commands
-- [Agent Subcommands](../reference/agent-subcommands.md) - Workflow commands
-- [CLI Commands](../reference/cli-commands.md) - Full CLI reference
+- [Slash Commands](../api/slash-commands.md) - All `/spec-kitty.*` commands
+- [Agent Subcommands](../api/agent-subcommands.md) - Workflow commands
+- [CLI Commands](../api/cli-commands.md) - Full CLI reference
 
 ## See Also
 
@@ -97,11 +97,11 @@ spec-kitty agent tasks move-task WP01 --to for_review --note "Ready for review: 
 
 ## Background
 
-- [Execution Lanes](../explanation/execution-lanes.md) - How lane worktrees are computed and reused
-- [Git Worktrees](../explanation/git-worktrees.md) - How worktrees work
-- [Kanban Workflow](../explanation/kanban-workflow.md) - Lane transitions
+- [Execution Lanes](../architecture/execution-lanes.md) - How lane worktrees are computed and reused
+- [Git Worktrees](../architecture/git-worktrees.md) - How worktrees work
+- [Kanban Workflow](../architecture/kanban-workflow.md) - Lane transitions
 
 ## Getting Started
 
-- [Your First Feature](../tutorials/your-first-feature.md) - Complete workflow walkthrough
-- [Multi-Agent Workflow](../tutorials/multi-agent-workflow.md) - Parallel development
+- [Your First Feature](your-first-feature.md) - Complete workflow walkthrough
+- [Multi-Agent Workflow](multi-agent-workflow.md) - Parallel development

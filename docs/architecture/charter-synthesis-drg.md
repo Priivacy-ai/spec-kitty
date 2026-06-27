@@ -10,8 +10,8 @@ related:
 # Understanding Charter: Synthesis, DRG, and Governed Context
 
 This document explains the Charter synthesis model and the DRG-backed context system. For a
-practical walkthrough, see [How Charter Works](../3x/charter-overview.md). For step-by-step
-how-to instructions, see [How to Synthesize and Maintain Doctrine](../how-to/synthesize-doctrine.md).
+practical walkthrough, see [How Charter Works](../context/charter-overview.md). For step-by-step
+how-to instructions, see [How to Synthesize and Maintain Doctrine](../guides/synthesize-doctrine.md).
 
 ---
 
@@ -151,7 +151,7 @@ after charter edits.
 
 ## See Also
 
-- [How Charter Works](../3x/charter-overview.md)
-- [Governance Files Reference](../3x/governance-files.md)
-- [How to Synthesize and Maintain Doctrine](../how-to/synthesize-doctrine.md)
-- [Troubleshooting Charter Failures](../how-to/troubleshoot-charter.md)
+- [How Charter Works](../context/charter-overview.md)
+- [Governance Files Reference](../context/governance-files.md)
+- [How to Synthesize and Maintain Doctrine](../guides/synthesize-doctrine.md)
+- [Troubleshooting Charter Failures](../guides/troubleshoot-charter.md)

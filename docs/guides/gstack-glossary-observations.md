@@ -101,4 +101,4 @@ for the full event schema.
 
 - [Set Up a Codex Launcher for Spec Kitty](setup-codex-spec-kitty-launcher.md)
 - [Trail Model](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/trail-model.md)
-- [CLI Commands](../reference/cli-commands.md)
+- [CLI Commands](../api/cli-commands.md)

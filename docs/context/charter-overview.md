@@ -11,7 +11,7 @@ related:
 Charter is the governance layer that turns your project's policy document (`charter.md`) into
 structured context that every agent mission action automatically receives. This page explains the
 mental model. For a step-by-step walkthrough, see the
-[Governed Charter Workflow Tutorial](../tutorials/charter-governed-workflow.md).
+[Governed Charter Workflow Tutorial](../guides/charter-governed-workflow.md).
 
 > **Key invariant**: `.kittify/charter/charter.md` is the Spec Kitty runtime policy source. A
 > project may also keep a public constitution or governance document outside `.kittify/`, but
@@ -162,6 +162,6 @@ See [Governance Files Reference](governance-files.md) for the full table.
 ## See Also
 
 - [Governance Files Reference](governance-files.md) — authoritative file table
-- [How to Set Up Project Governance](../how-to/setup-governance.md) — initial setup walkthrough
-- [How to Synthesize and Maintain Doctrine](../how-to/synthesize-doctrine.md) — day-to-day synthesis
-- [Understanding Charter: Synthesis, DRG, and Governed Context](../explanation/charter-synthesis-drg.md) — deeper explanation
+- [How to Set Up Project Governance](../guides/setup-governance.md) — initial setup walkthrough
+- [How to Synthesize and Maintain Doctrine](../guides/synthesize-doctrine.md) — day-to-day synthesis
+- [Understanding Charter: Synthesis, DRG, and Governed Context](../architecture/charter-synthesis-drg.md) — deeper explanation

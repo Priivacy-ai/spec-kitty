@@ -92,10 +92,10 @@ spec-kitty auth login
 ```
 
 **See also**:
-- [Internal Hosted-Readiness (Pre-Launch)](../how-to/internal-hosted-readiness.md)
+- [Internal Hosted-Readiness (Pre-Launch)](../guides/internal-hosted-readiness.md)
   for the full operator walkthrough of the hidden hosted-readiness
   mode this flag enables today.
-- [Launch-Readiness Behavior (Coming Soon)](../explanation/launch-readiness-future.md)
+- [Launch-Readiness Behavior (Coming Soon)](../architecture/launch-readiness-future.md)
   for how this variable's meaning changes at the public Teamspace
   launch.
 
@@ -112,10 +112,10 @@ spec-kitty auth login
 ```
 
 **See also**:
-- [Internal Hosted-Readiness (Pre-Launch)](../how-to/internal-hosted-readiness.md)
+- [Internal Hosted-Readiness (Pre-Launch)](../guides/internal-hosted-readiness.md)
   -- this URL override is a dev / staging tool used by internal
   operators, not user behavior.
-- [Launch-Readiness Behavior (Coming Soon)](../explanation/launch-readiness-future.md)
+- [Launch-Readiness Behavior (Coming Soon)](../architecture/launch-readiness-future.md)
   -- the override remains internal-only after launch; only the
   user-facing default URL changes.
 
@@ -301,13 +301,13 @@ The codebase also contains test and harness overrides such as `SPEC_KITTY_TEST_M
 
 - [Configuration](configuration.md) — Configuration file reference
 - [CLI Commands](cli-commands.md) — Command line reference
-- [Non-Interactive Init](../how-to/non-interactive-init.md) — Common automation patterns
+- [Non-Interactive Init](../guides/non-interactive-init.md) — Common automation patterns
 
 ## Getting Started
 
-- [Claude Code Workflow](../tutorials/claude-code-workflow.md)
+- [Claude Code Workflow](../guides/claude-code-workflow.md)
 
 ## Practical Usage
 
-- [Non-Interactive Init](../how-to/non-interactive-init.md)
-- [Install Spec Kitty](../how-to/install-spec-kitty.md)
+- [Non-Interactive Init](../guides/non-interactive-init.md)
+- [Install Spec Kitty](../guides/install-spec-kitty.md)

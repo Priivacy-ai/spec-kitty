@@ -241,13 +241,13 @@ Spec Kitty does not install or manage git hooks. The pre-commit hook that previo
 
 ## Try It
 
-- [Claude Code Workflow](../tutorials/claude-code-workflow.md)
+- [Claude Code Workflow](../guides/claude-code-workflow.md)
 
 ## How-To Guides
 
-- [Install Spec Kitty](../how-to/install-spec-kitty.md)
+- [Install Spec Kitty](../guides/install-spec-kitty.md)
 
 ## Reference
 
-- [CLI Commands](../reference/cli-commands.md)
-- [File Structure](../reference/file-structure.md)
+- [CLI Commands](../api/cli-commands.md)
+- [File Structure](../api/file-structure.md)

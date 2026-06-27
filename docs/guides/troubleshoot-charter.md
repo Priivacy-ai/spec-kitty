@@ -10,7 +10,7 @@ related:
 
 This guide covers the most common Charter failure modes and how to fix them.
 
-For background, see [How Charter Works](../3x/charter-overview.md).
+For background, see [How Charter Works](../context/charter-overview.md).
 
 ---
 
@@ -195,7 +195,7 @@ uv run spec-kitty agent retrospect synthesize --mission my-feature-slug --propos
 
 ## See Also
 
-- [How to Synthesize and Maintain Doctrine](../how-to/synthesize-doctrine.md)
-- [How to Use the Retrospective Learning Loop](../how-to/use-retrospective-learning.md)
-- [Retrospective Schema Reference](../reference/retrospective-schema.md)
-- [How Charter Works](../3x/charter-overview.md)
+- [How to Synthesize and Maintain Doctrine](synthesize-doctrine.md)
+- [How to Use the Retrospective Learning Loop](use-retrospective-learning.md)
+- [Retrospective Schema Reference](../api/retrospective-schema.md)
+- [How Charter Works](../context/charter-overview.md)

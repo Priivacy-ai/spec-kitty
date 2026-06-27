@@ -273,14 +273,14 @@ my-project/
 ## See Also
 
 - [Configuration](configuration.md) — Configuration file formats
-- [Execution Lanes](../explanation/execution-lanes.md) — How worktrees work
-- [Git Worktrees](../explanation/git-worktrees.md) — Git worktrees explained
+- [Execution Lanes](../architecture/execution-lanes.md) — How worktrees work
+- [Git Worktrees](../architecture/git-worktrees.md) — Git worktrees explained
 
 ## Getting Started
 
-- [Claude Code Integration](../tutorials/claude-code-integration.md)
+- [Claude Code Integration](../guides/claude-code-integration.md)
 
 ## Practical Usage
 
-- [Install Spec Kitty](../how-to/install-spec-kitty.md)
-- [Upgrade to 0.11.0](../how-to/install-and-upgrade.md)
+- [Install Spec Kitty](../guides/install-spec-kitty.md)
+- [Upgrade to 0.11.0](../guides/install-and-upgrade.md)

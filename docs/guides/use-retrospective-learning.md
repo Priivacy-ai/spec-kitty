@@ -9,7 +9,7 @@ updated: '2026-06-03'
 This guide is the canonical operator how-to for the retrospective learning loop introduced in
 Spec Kitty 3.2.0. Other docs link here. For conceptual background on the four-category model and
 bounded contexts, see
-[Understanding the Retrospective Learning Loop](../explanation/retrospective-learning-loop.md).
+[Understanding the Retrospective Learning Loop](../architecture/retrospective-learning-loop.md).
 
 ---
 
@@ -233,6 +233,6 @@ For the full operator quickstart including test-runner commands, see
 
 ## See Also
 
-- [Understanding the Retrospective Learning Loop](../explanation/retrospective-learning-loop.md) — conceptual explanation
-- [Retrospective Schema Reference](../reference/retrospective-schema.md) — YAML and event schemas
-- [CLI Commands Reference](../reference/cli-commands.md#spec-kitty-retrospect) — flag reference
+- [Understanding the Retrospective Learning Loop](../architecture/retrospective-learning-loop.md) — conceptual explanation
+- [Retrospective Schema Reference](../api/retrospective-schema.md) — YAML and event schemas
+- [CLI Commands Reference](../api/cli-commands.md#spec-kitty-retrospect) — flag reference

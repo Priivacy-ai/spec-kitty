@@ -163,4 +163,4 @@ Plain `python` may resolve to a Microsoft Store stub on a fresh install; `py` al
 - [Keep MCP Agents in the Worktree](worktrees-with-mcp-agents.md)
 - [macOS install guide](install-macos.md)
 - [Linux install guide](install-linux.md)
-- [Pip vs pipx vs uv — which to choose](../explanation/pip-vs-pipx-vs-uv.md)
+- [Pip vs pipx vs uv — which to choose](../architecture/pip-vs-pipx-vs-uv.md)

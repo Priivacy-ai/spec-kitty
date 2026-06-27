@@ -8,7 +8,7 @@ updated: '2026-04-20'
 
 *`docs/migrations/06_migration_and_shim_rules.md`*
 *Mission: migration-shim-ownership-rules-01KPDYDW (#615)*
-*See also: [05_ownership_map.md](05_ownership_map.md) (slice inventory)*
+*See also: [05_ownership_map.md](../architecture/05_ownership_map.md) (slice inventory)*
 
 ---
 

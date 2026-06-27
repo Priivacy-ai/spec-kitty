@@ -41,5 +41,5 @@ schemas. Use these pages to look up exact flags, fields, and values.
 
 ## See also
 
-- [How-to guides](../how-to/index.md) — task-oriented instructions.
-- [Explanation](../explanation/index.md) — conceptual background.
+- [How-to guides](../guides/index.md) — task-oriented instructions.
+- [Explanation](../architecture/index.md) — conceptual background.

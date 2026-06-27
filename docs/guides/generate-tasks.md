@@ -77,9 +77,9 @@ kitty-specs/012-feature/tasks/WP03-tests.md
 
 ## Command Reference
 
-- [Slash Commands](../reference/slash-commands.md) - All `/spec-kitty.*` commands
-- [Agent Subcommands](../reference/agent-subcommands.md) - `finalize-tasks` and more
-- [File Structure](../reference/file-structure.md) - Where tasks are stored
+- [Slash Commands](../api/slash-commands.md) - All `/spec-kitty.*` commands
+- [Agent Subcommands](../api/agent-subcommands.md) - `finalize-tasks` and more
+- [File Structure](../api/file-structure.md) - Where tasks are stored
 
 ## See Also
 
@@ -90,9 +90,9 @@ kitty-specs/012-feature/tasks/WP03-tests.md
 
 ## Background
 
-- [Kanban Workflow](../explanation/kanban-workflow.md) - Lane transitions explained
-- [Execution Workspace Model](../explanation/execution-lanes.md) - Why modern features use lane worktrees
+- [Kanban Workflow](../architecture/kanban-workflow.md) - Lane transitions explained
+- [Execution Workspace Model](../architecture/execution-lanes.md) - Why modern features use lane worktrees
 
 ## Getting Started
 
-- [Your First Feature](../tutorials/your-first-feature.md) - Complete workflow walkthrough
+- [Your First Feature](your-first-feature.md) - Complete workflow walkthrough

@@ -43,10 +43,10 @@ artifacts rather than feature artifacts.
 
 | # | Actor | Type | Persona | Role in Journey |
 |---|-------|------|---------|-----------------|
-| 1 | Architect | `human` | [System Architect](../../audience/internal/system-architect.md) | Provides domain knowledge, makes trade-off decisions, validates design outputs |
-| 2 | AI Agent | `llm` | [AI Collaboration Agent](../../audience/internal/ai-collaboration-agent.md) | Conducts structured discovery, researches patterns, produces architecture artifacts, checks alignment |
-| 3 | Spec-Kitty CLI | `system` | [Spec Kitty CLI Runtime](../../audience/internal/spec-kitty-cli-runtime.md) | Orchestrates phases, stores artifacts, manages architecture document lifecycle |
-| 4 | Codebase | `system` | [Project Codebase](../../audience/internal/project-codebase.md) | Provides evidence for alignment checks — existing patterns, module structure, dependency graph |
+| 1 | Architect | `human` | [System Architect](../../context/audience/internal/system-architect.md) | Provides domain knowledge, makes trade-off decisions, validates design outputs |
+| 2 | AI Agent | `llm` | [AI Collaboration Agent](../../context/audience/internal/ai-collaboration-agent.md) | Conducts structured discovery, researches patterns, produces architecture artifacts, checks alignment |
+| 3 | Spec-Kitty CLI | `system` | [Spec Kitty CLI Runtime](../../context/audience/internal/spec-kitty-cli-runtime.md) | Orchestrates phases, stores artifacts, manages architecture document lifecycle |
+| 4 | Codebase | `system` | [Project Codebase](../../context/audience/internal/project-codebase.md) | Provides evidence for alignment checks — existing patterns, module structure, dependency graph |
 
 ---
 

@@ -127,8 +127,8 @@ WP02 has dependencies. Use: spec-kitty agent action implement WP02 --agent <name
 
 ## Command Reference
 
-- [CLI Commands](../reference/cli-commands.md) - `spec-kitty implement` reference
-- [Agent Subcommands](../reference/agent-subcommands.md) - Workflow commands
+- [CLI Commands](../api/cli-commands.md) - `spec-kitty implement` reference
+- [Agent Subcommands](../api/agent-subcommands.md) - Workflow commands
 
 ## See Also
 
@@ -138,10 +138,10 @@ WP02 has dependencies. Use: spec-kitty agent action implement WP02 --agent <name
 
 ## Background
 
-- [Execution Lanes](../explanation/execution-lanes.md) - Why dependencies matter
-- [Git Worktrees](../explanation/git-worktrees.md) - Branching mechanics
-- [Kanban Workflow](../explanation/kanban-workflow.md) - Lane transitions
+- [Execution Lanes](../architecture/execution-lanes.md) - Why dependencies matter
+- [Git Worktrees](../architecture/git-worktrees.md) - Branching mechanics
+- [Kanban Workflow](../architecture/kanban-workflow.md) - Lane transitions
 
 ## Getting Started
 
-- [Multi-Agent Workflow](../tutorials/multi-agent-workflow.md) - Parallel development tutorial
+- [Multi-Agent Workflow](multi-agent-workflow.md) - Parallel development tutorial

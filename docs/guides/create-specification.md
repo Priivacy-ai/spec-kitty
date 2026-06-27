@@ -57,8 +57,8 @@ During discovery, answer follow-up questions (roles, constraints, success criter
 
 ## Command Reference
 
-- [Slash Commands](../reference/slash-commands.md) - All `/spec-kitty.*` commands
-- [CLI Commands](../reference/cli-commands.md) - Full CLI reference
+- [Slash Commands](../api/slash-commands.md) - All `/spec-kitty.*` commands
+- [CLI Commands](../api/cli-commands.md) - Full CLI reference
 
 ## See Also
 
@@ -68,10 +68,10 @@ During discovery, answer follow-up questions (roles, constraints, success criter
 
 ## Background
 
-- [Spec-Driven Development](../explanation/spec-driven-development.md) - Why specs come first
-- [Mission System](../explanation/mission-system.md) - How missions affect specifications
+- [Spec-Driven Development](../architecture/spec-driven-development.md) - Why specs come first
+- [Mission System](../architecture/mission-system.md) - How missions affect specifications
 
 ## Getting Started
 
-- [Getting Started Tutorial](../tutorials/getting-started.md) - Hands-on introduction
-- [Your First Feature](../tutorials/your-first-feature.md) - Complete workflow walkthrough
+- [Getting Started Tutorial](getting-started.md) - Hands-on introduction
+- [Your First Feature](your-first-feature.md) - Complete workflow walkthrough

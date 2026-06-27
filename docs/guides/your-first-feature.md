@@ -159,12 +159,12 @@ Before you move on, complete the three post-merge steps:
    ```
 
 For the full retrospective workflow, see
-[How to Use Retrospective Learning](../how-to/use-retrospective-learning.md).
+[How to Use Retrospective Learning](use-retrospective-learning.md).
 
 ## Troubleshooting
 
 - **"Planning created a worktree"**: Planning stays in the repository root checkout in the current 3.2 workflow. If you see an unexpected planning worktree, upgrade with `spec-kitty upgrade`.
-- **"I want to plan from here but not land on `main`"**: Stay in the repository root checkout and choose the right target branch first. See [How to Keep Main Clean](../how-to/keep-main-clean.md).
+- **"I want to plan from here but not land on `main`"**: Stay in the repository root checkout and choose the right target branch first. See [How to Keep Main Clean](keep-main-clean.md).
 - **"WP has dependencies"**: Keep following the `spec-kitty next` decisions; the runtime will only issue implementation work when its dependencies are satisfied.
 - **Review fails validation**: Run `spec-kitty validate-tasks --fix` and re-run `/spec-kitty.review`.
 
@@ -174,21 +174,21 @@ Continue with [Multi-Agent Workflow](multi-agent-workflow.md) to learn parallel 
 
 ### Related How-To Guides
 
-- [Create a Plan](../how-to/create-plan.md) - Detailed planning guidance
-- [Keep Main Clean](../how-to/keep-main-clean.md) - Choose a target branch without changing planning location
-- [Generate Tasks](../how-to/generate-tasks.md) - Work package generation
-- [Implement a Work Package](../how-to/implement-work-package.md) - Implementation details
-- [Review a Work Package](../how-to/review-work-package.md) - Review process
-- [Accept and Merge](../how-to/accept-and-merge.md) - Final merge workflow
+- [Create a Plan](create-plan.md) - Detailed planning guidance
+- [Keep Main Clean](keep-main-clean.md) - Choose a target branch without changing planning location
+- [Generate Tasks](generate-tasks.md) - Work package generation
+- [Implement a Work Package](implement-work-package.md) - Implementation details
+- [Review a Work Package](review-work-package.md) - Review process
+- [Accept and Merge](accept-and-merge.md) - Final merge workflow
 
 ### Reference Documentation
 
-- [CLI Commands](../reference/cli-commands.md) - Full command reference
-- [Slash Commands](../reference/slash-commands.md) - Agent slash commands
-- [File Structure](../reference/file-structure.md) - Project layout explained
+- [CLI Commands](../api/cli-commands.md) - Full command reference
+- [Slash Commands](../api/slash-commands.md) - Agent slash commands
+- [File Structure](../api/file-structure.md) - Project layout explained
 
 ### Learn More
 
-- [Execution Workspace Model](../explanation/execution-lanes.md) - Why modern features use lane worktrees
-- [Kanban Workflow](../explanation/kanban-workflow.md) - Lane transitions
-- [Spec-Driven Development](../explanation/spec-driven-development.md) - The philosophy
+- [Execution Workspace Model](../architecture/execution-lanes.md) - Why modern features use lane worktrees
+- [Kanban Workflow](../architecture/kanban-workflow.md) - Lane transitions
+- [Spec-Driven Development](../architecture/spec-driven-development.md) - The philosophy

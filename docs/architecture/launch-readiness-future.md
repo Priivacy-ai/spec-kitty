@@ -14,7 +14,7 @@ audience: launch coordinators
 > experience, see the [README](https://github.com/Priivacy-ai/spec-kitty/blob/main/README.md). For the internal
 > hosted-readiness preview that lets contributors dogfood the hidden
 > mode now, see
-> [Internal Hosted-Readiness Mode (Pre-Launch)](../how-to/internal-hosted-readiness.md).
+> [Internal Hosted-Readiness Mode (Pre-Launch)](../guides/internal-hosted-readiness.md).
 
 ## Why this doc exists
 
@@ -51,7 +51,7 @@ the launch flip. They remain internal developer tools — they are not
 user behavior either before or after launch. Internal contributors
 who need to point a session at a dev or staging hosted environment
 continue to use the workflow documented in
-[Internal Hosted-Readiness Mode (Pre-Launch)](../how-to/internal-hosted-readiness.md).
+[Internal Hosted-Readiness Mode (Pre-Launch)](../guides/internal-hosted-readiness.md).
 
 In other words: **the dev/staging override path is the same forever;
 only the user-facing defaults change at launch.**
@@ -120,7 +120,7 @@ SPEC_KITTY_UPGRADE_NEVER_ASK=1 spec-kitty status
 SPEC_KITTY_NAG_THROTTLE_SECONDS=86400 spec-kitty status
 ```
 
-See [Environment Variables Reference](../reference/environment-variables.md)
+See [Environment Variables Reference](../api/environment-variables.md)
 for the exact active env keys.
 
 ## Operator playbook for the launch flip
@@ -166,12 +166,12 @@ editorial rule. It is what keeps the launch honest.
 
 ## Related
 
-- [Internal Hosted-Readiness Mode (Pre-Launch)](../how-to/internal-hosted-readiness.md)
+- [Internal Hosted-Readiness Mode (Pre-Launch)](../guides/internal-hosted-readiness.md)
   — the active dogfooding doc for today.
-- [Recovery: Logged out on a connected teamspace](../recovery/logged-out-teamspace.md)
+- [Recovery: Logged out on a connected teamspace](../operations/logged-out-teamspace.md)
   — the recovery contract that ships at launch unchanged.
-- [Environment variables reference](../reference/environment-variables.md)
+- [Environment variables reference](../api/environment-variables.md)
   — the canonical entries for `SPEC_KITTY_ENABLE_SAAS_SYNC` and
   `SPEC_KITTY_SAAS_URL`.
-- [Upgrade the Spec Kitty CLI](../how-to/upgrade-cli.md)
+- [Upgrade the Spec Kitty CLI](../guides/upgrade-cli.md)
   — backs the `spec-kitty upgrade --cli` remediation snippet.

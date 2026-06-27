@@ -38,6 +38,6 @@ Reference docs are:
 
 ## See Also
 
-- [Claude Code Integration Tutorial](../tutorials/claude-code-integration.md) - Learning-oriented guide
-- [Use the Dashboard](../how-to/use-dashboard.md) - Task-oriented instructions
-- [Spec-Driven Development](../explanation/spec-driven-development.md) - Understanding-oriented background
+- [Claude Code Integration Tutorial](../guides/claude-code-integration.md) - Learning-oriented guide
+- [Use the Dashboard](../guides/use-dashboard.md) - Task-oriented instructions
+- [Spec-Driven Development](../architecture/spec-driven-development.md) - Understanding-oriented background

@@ -34,9 +34,9 @@ The system should support this as a pull-based flow:
 
 | # | Actor | Type | Persona | Role in Journey |
 |---|-------|------|---------|-----------------|
-| 1 | Lead Developer | `human` | [Lead Developer](../../audience/internal/lead-developer.md) | Identifies external practice and approves adoption |
-| 2 | AI Agent | `llm` | [AI Collaboration Agent](../../audience/internal/ai-collaboration-agent.md) | Performs curation analysis and proposes doctrine mapping |
-| 3 | Spec-Kitty CLI | `system` | [Spec Kitty CLI Runtime](../../audience/internal/spec-kitty-cli-runtime.md) | Stores curation artifacts, updates governance artifacts, validates schemas |
+| 1 | Lead Developer | `human` | [Lead Developer](../../context/audience/internal/lead-developer.md) | Identifies external practice and approves adoption |
+| 2 | AI Agent | `llm` | [AI Collaboration Agent](../../context/audience/internal/ai-collaboration-agent.md) | Performs curation analysis and proposes doctrine mapping |
+| 3 | Spec-Kitty CLI | `system` | [Spec Kitty CLI Runtime](../../context/audience/internal/spec-kitty-cli-runtime.md) | Stores curation artifacts, updates governance artifacts, validates schemas |
 
 ---
 

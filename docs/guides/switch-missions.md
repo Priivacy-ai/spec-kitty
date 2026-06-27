@@ -78,8 +78,8 @@ Key artifacts:
 
 ## Command Reference
 
-- [Missions](../reference/missions.md) - All available missions
-- [CLI Commands](../reference/cli-commands.md) - Mission CLI commands
+- [Missions](../api/missions.md) - All available missions
+- [CLI Commands](../api/cli-commands.md) - Mission CLI commands
 
 ## See Also
 
@@ -88,9 +88,9 @@ Key artifacts:
 
 ## Background
 
-- [Mission System](../explanation/mission-system.md) - How missions work internally
-- [Documentation Mission](../explanation/documentation-mission.md) - Divio documentation workflow
+- [Mission System](../architecture/mission-system.md) - How missions work internally
+- [Documentation Mission](../architecture/documentation-mission.md) - Divio documentation workflow
 
 ## Getting Started
 
-- [Missions Overview](../tutorials/missions-overview.md) - Tutorial walkthrough
+- [Missions Overview](missions-overview.md) - Tutorial walkthrough

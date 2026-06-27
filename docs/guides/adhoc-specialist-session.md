@@ -122,6 +122,6 @@ The decision note can then be committed to `architecture/` or used as input to t
 
 ## Related
 
-- [Slash Command Reference](../reference/slash-commands.md)
-- [AI Agent Architecture](../explanation/ai-agent-architecture.md)
-- [Mission System](../explanation/mission-system.md)
+- [Slash Command Reference](../api/slash-commands.md)
+- [AI Agent Architecture](../architecture/ai-agent-architecture.md)
+- [Mission System](../architecture/mission-system.md)

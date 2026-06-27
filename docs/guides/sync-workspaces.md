@@ -157,4 +157,4 @@ Sync your workspace:
 ## See Also
 
 - [Handle Dependencies](handle-dependencies.md) — Keeping dependent WPs in sync
-- [CLI Commands Reference](../reference/cli-commands.md#spec-kitty-sync) — Full command reference
+- [CLI Commands Reference](../api/cli-commands.md#spec-kitty-sync) — Full command reference

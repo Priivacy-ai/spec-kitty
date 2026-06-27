@@ -403,11 +403,11 @@ automatically receive the current Charter context.
 
 ## Command Reference
 
-- [CLI Commands](../reference/cli-commands.md) -- Full CLI reference including charter subcommands
+- [CLI Commands](../api/cli-commands.md) -- Full CLI reference including charter subcommands
 
 ## See Also
 
-- [How Charter Works](../3x/charter-overview.md) -- Charter mental model and synthesis flow
+- [How Charter Works](../context/charter-overview.md) -- Charter mental model and synthesis flow
 - [How to Synthesize and Maintain Doctrine](synthesize-doctrine.md) -- Full synthesis workflow
 - [Create a Specification](create-specification.md) -- Start a feature with governance active
 - [Switch Missions](switch-missions.md) -- How missions interact with governance
@@ -416,4 +416,4 @@ automatically receive the current Charter context.
 
 ## Background
 
-- [Mission System](../explanation/mission-system.md) -- How missions use governance context
+- [Mission System](../architecture/mission-system.md) -- How missions use governance context

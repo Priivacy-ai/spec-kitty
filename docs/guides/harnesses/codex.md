@@ -22,7 +22,7 @@ related:
 
 ## Where Spec Kitty installs files
 
-Per the [supported-harnesses matrix](../../reference/supported-harnesses.md), Codex CLI consumes Spec Kitty as **Agent Skills** (not slash commands). Spec Kitty installs:
+Per the [supported-harnesses matrix](../../api/supported-harnesses.md), Codex CLI consumes Spec Kitty as **Agent Skills** (not slash commands). Spec Kitty installs:
 
 - **Directory:** `.agents/skills/spec-kitty.<command>/`
 - **Files:** one `SKILL.md` per command (`spec-kitty.specify/SKILL.md`, `spec-kitty.plan/SKILL.md`, `spec-kitty.tasks/SKILL.md`, `spec-kitty.implement/SKILL.md`, etc.).
