@@ -1,5 +1,6 @@
 ---
 title: 2.x — vision (history slot)
+description: 'Per-era vision record for the 2.x architecture track: part of the versioned history beneath the living architecture, giving the decay path a home as content ages out.'
 doc_status: active
 updated: '2026-06-12'
 ---

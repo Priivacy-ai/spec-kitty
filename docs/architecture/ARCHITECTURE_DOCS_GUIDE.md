@@ -1,5 +1,6 @@
 ---
 title: Architecture Documentation Guide
+description: Retired guide to the 2.x-era version-tiered architecture-docs layout; now a redirect pointing readers to the canonical documentation home and the llms.txt rubric.
 doc_status: active
 updated: '2026-06-27'
 related:

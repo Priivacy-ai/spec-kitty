@@ -1,5 +1,6 @@
 ---
 title: '2026-05-11 — findings vs issues (#645, #822 refresh, open bugs)'
+description: '2026-05-11 refresh cross-checking the CaaCS audit findings against open issues (#645, #822) and adding two new slow-burn refactor candidates surfaced by the pass.'
 doc_status: active
 updated: '2026-06-12'
 ---

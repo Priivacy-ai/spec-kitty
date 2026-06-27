@@ -1,5 +1,6 @@
 ---
 title: 06 — Unified Charter Bundle
+description: 'The unified charter bundle architecture: the canonical bundle manifest, its module and JSON Schema, introduced as the charter chokepoint by mission 01KP5Q2G.'
 doc_status: active
 updated: '2026-04-14'
 ---

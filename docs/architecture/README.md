@@ -1,5 +1,6 @@
 ---
 title: Architecture
+description: 'The canonical architecture corpus landing page: the two-surface boundary rule (architecture/ vs docs/) and how living architecture sits above versioned history.'
 doc_status: active
 updated: '2026-06-12'
 related:

@@ -1,5 +1,6 @@
 ---
 title: 2.x System Landscape
+description: "2.x system landscape snapshot (C4 level 0): the historical bird's-eye view of Spec Kitty's external actors and surrounding systems, preserved beneath the living model."
 doc_status: active
 updated: '2026-04-05'
 ---

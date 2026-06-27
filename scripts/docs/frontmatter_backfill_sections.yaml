@@ -81,8 +81,7 @@ sections:
     doc_status_rule: deprecated
   - name: architecture
     pages: 63
-    description_status: pending
-    descriptions_needed: 42
+    description_status: done
   - name: changelog
     pages: 2
     description_status: done

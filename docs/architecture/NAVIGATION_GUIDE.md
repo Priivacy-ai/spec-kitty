@@ -1,5 +1,6 @@
 ---
 title: Architecture Navigation Guide
+description: Retired guide to 2.x-era architecture navigation paths; now a redirect pointing readers to the canonical documentation home and the llms.txt intent-routing rubric.
 doc_status: active
 updated: '2026-06-27'
 related:
