@@ -11,7 +11,7 @@
     - name: Explanation
       href: explanation/
     - name: Current 3.2 Charter model
-      href: 3x/
+      href: context/
 - name: Migration to 3.2
   href: migration/
 - name: Mission Runs

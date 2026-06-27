@@ -394,6 +394,28 @@ moves:
       cross-root move (durable-vs-ephemeral split resolves #2054).
 
   # --- Shadow trees (FR-008) ---
+  # docs/1x + docs/2x are true HTML snapshots — hand-authored <meta refresh>
+  # redirect stubs already pointing at /archive/1x/ and /archive/2x/. They are
+  # DELETED (single-root invariant SC-001); their per-page baseline URLs are
+  # redirected to the pre-existing canonical archive twin (docs/archive/{1x,2x}/*)
+  # so WP07 re-derives covering stubs (NFR-002). These are NOT file relocations
+  # (the archive twin is already canonical content) — they pair with the
+  # do_not_change exceptions (no in-place reference rewrite). WP10 (the move WP)
+  # ensures these redirect-moves are represented here; WP07 re-derives the map.
+  - from: ["docs/1x"]
+    to: docs/archive/1x
+    reason: >-
+      True HTML snapshots (manual redirect stubs to /archive/1x/) — DELETE +
+      REDIRECT each baseline URL to the pre-existing archive twin
+      (docs/archive/1x/*) for WP07 stub coverage (NFR-002). NOT a file
+      relocation; paired with the do_not_change exception (no ref rewrite).
+  - from: ["docs/2x"]
+    to: docs/archive/2x
+    reason: >-
+      True HTML snapshots (manual redirect stubs to /archive/2x/) — DELETE +
+      REDIRECT each baseline URL to the pre-existing archive twin
+      (docs/archive/2x/*) for WP07 stub coverage (NFR-002). NOT a file
+      relocation; paired with the do_not_change exception (no ref rewrite).
   - from: ["docs/3x"]
     to: docs/context
     reason: >-
