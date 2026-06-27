@@ -4,7 +4,7 @@ description: Historical Spec Kitty 1.x and 2.x documentation archive, preserved 
 doc_status: deprecated
 updated: '2026-06-03'
 related:
-- docs/3x/index.md
+- docs/context/index.md
 - docs/archive/1x/index.md
 - docs/archive/2x/index.md
 - docs/index.md

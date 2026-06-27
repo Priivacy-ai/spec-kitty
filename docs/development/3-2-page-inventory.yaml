@@ -8,6 +8,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/01KSMG8Y-closeout/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/01KSMG8Y-closeout/retro.md
   tag: current
   divio_type: none
@@ -741,6 +747,12 @@
   current_target: true
   notes: null
 - path: docs/adr/3.x/adr-github-app-installation-authority.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/adr/index.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -2078,6 +2090,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/integrations/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/migration/2-1-main-cutover-checklist.md
   tag: current
   divio_type: none
@@ -3183,6 +3201,12 @@
   current_target: true
   notes: null
 - path: docs/retrospective-learning-loop.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/security/index.md
   tag: current
   divio_type: none
   owning_workstream: none

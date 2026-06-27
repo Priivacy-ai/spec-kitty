@@ -4,7 +4,7 @@ description: Adversarial four-lens review of Common Docs adoption for spec-kitty
 doc_status: active
 updated: '2026-06-27'
 related:
-- architecture/3.x/adr/README.md
+- docs/adr/3.x/README.md
 - docs/development/3-2-page-inventory.yaml
 - docs/docfx.json
 - docs/llms.txt

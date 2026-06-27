@@ -487,7 +487,9 @@ def main(argv: list[str] | None = None) -> int:
         print(f"[relative_link_fixer] CHECK: {len(dead)} dead bare-relative body links")
         for un in dead:
             print(f"  {un.file}: {un.link}")
-        return 0
+        # Mission B / WP14 flips this body-link-resolution gate to blocking: any
+        # dead bare-relative body link reds CI (was report-only in WP18).
+        return 1 if dead else 0
 
     report = run(repo_root, occ, dry_run=args.dry_run)
     _print_report(report, "DRY-RUN" if args.dry_run else "APPLIED")

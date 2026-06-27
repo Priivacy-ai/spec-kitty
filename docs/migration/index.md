@@ -4,7 +4,7 @@ description: Migration hub for upgrading existing Spec Kitty projects to the cur
 doc_status: active
 updated: '2026-06-03'
 related:
-- docs/3x/index.md
+- docs/context/index.md
 - docs/archive/index.md
 - docs/migration/2-1-main-cutover-checklist.md
 - docs/migration/charter-ownership-consolidation.md

@@ -4,7 +4,7 @@ description: Reference for dispatch, profile-invocation complete, invocation tra
 doc_status: active
 updated: '2026-06-15'
 related:
-- docs/3x/charter-overview.md
+- docs/context/charter-overview.md
 ---
 # Profile Invocation Reference
 

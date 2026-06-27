@@ -4,7 +4,7 @@ description: 'The publication checklist for the Spec Kitty 3.2 documentation ref
 doc_status: draft
 updated: '2026-06-12'
 related:
-- docs/3x/index.md
+- docs/context/index.md
 - docs/plans/3-2-archive-migration-plan.md
 - docs/plans/3-2-cli-reference-audit-meta-issues.md
 - docs/plans/3-2-cli-reference-methodology.md

@@ -4,7 +4,7 @@ description: Diagnose and fix stale bundle, missing doctrine, compact-context, r
 doc_status: active
 updated: '2026-06-03'
 related:
-- docs/3x/charter-overview.md
+- docs/context/charter-overview.md
 ---
 # Troubleshooting Charter Failures
 

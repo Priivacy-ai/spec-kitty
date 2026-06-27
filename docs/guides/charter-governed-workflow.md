@@ -4,7 +4,7 @@ description: Learn to set up governance, synthesize doctrine, and run a governed
 doc_status: active
 updated: '2026-06-03'
 related:
-- docs/3x/charter-overview.md
+- docs/context/charter-overview.md
 ---
 # Tutorial: Governed Charter Workflow End-to-End
 
