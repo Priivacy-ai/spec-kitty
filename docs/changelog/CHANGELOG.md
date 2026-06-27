@@ -2220,7 +2220,7 @@ command and no new top-level runtime dependencies.
 - **`specify_cli.charter` compatibility shim** — The re-export shim at `src/specify_cli/charter/` has been
   removed. External code importing `specify_cli.charter.*` must migrate to the canonical package:
   `from charter import <name>`. See
-  [architecture/2.x/05_ownership_map.md](architecture/2.x/05_ownership_map.md) for the full
+  [docs/architecture/05_ownership_map.md](docs/architecture/05_ownership_map.md) for the full
   charter slice entry and the reference exemplar pattern. Closes #611.
 
 ## [3.1.8] - 2026-04-29
