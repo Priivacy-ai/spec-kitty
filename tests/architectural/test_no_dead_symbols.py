@@ -827,6 +827,23 @@ _CATEGORY_B_T001_UNBLINDED: frozenset[str] = frozenset(
 )
 
 
+# ---------- C. Common Docs directive-id SSOT (scripts/-consumed) ----------
+# ``COMMON_DOCS_DIRECTIVE_ID`` is the single source of truth for the Common
+# Docs directive id (C-003 binding-must-resolve). Its only callers are the
+# anti-sprawl structure ratchet (``scripts/docs/anti_sprawl_ratchet.py``) and
+# that ratchet's self-test — both wired from scripts/ + tests/, not from any
+# src/ module — so the qualified-import scanner sees no src/ caller. The module
+# is correspondingly allowlisted in ``test_no_dead_modules._CATEGORY_2``.
+# Manufacturing a fake src/ caller is the anti-pattern this gate warns against;
+# allowlisted instead. (The dead-symbols gate is a separate file from the
+# dead-modules gate, so the module allowlist does not suppress this check.)
+_CATEGORY_C_COMMON_DOCS_RATCHET_CONSTANT: frozenset[str] = frozenset(
+    {
+        "doctrine.directives.common_docs::COMMON_DOCS_DIRECTIVE_ID",
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``).
@@ -834,6 +851,7 @@ _SYMBOL_ALLOWLIST: frozenset[str] = (
     _CATEGORY_A_SLICE_F_DEFERRED
     | _CATEGORY_B_GRANDFATHERED_LEGACY
     | _CATEGORY_B_T001_UNBLINDED
+    | _CATEGORY_C_COMMON_DOCS_RATCHET_CONSTANT
     | _CATEGORY_C_WP_IN_FLIGHT_CHARTER_SCOPE
     | _CATEGORY_C_WP_IN_FLIGHT_WORKFLOW_REGISTRY
     | _CATEGORY_C_CHARTER_SPLIT_LEGACY_PATCH_SURFACE

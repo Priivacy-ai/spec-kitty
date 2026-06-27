@@ -2269,6 +2269,27 @@
   current_target: false
   citation_refs: []
   notes: '#2173 Phase 1 infra-logic-separation investigation synthesis (3-squad findings + coherent view).'
+- path: docs/engineering_notes/651-docs-consolidation/02-common-docs-standard.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: 'Common Docs standard full-adoption mechanics + metadata-in-file A-vs-B verdict (frontmatter-as-SSOT, inventory-as-lockfile).'
+- path: docs/engineering_notes/651-docs-consolidation/03-target-structure-mapping.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: 'Canonical 13-dir target structure + per-tree mapping decisions + open engineering_notes-location question.'
+- path: docs/engineering_notes/651-docs-consolidation/index.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: '#2165/#651 docs-consolidation four-lens review + full-consolidation direction (era-split ADRs, unified living design).'
 - path: docs/engineering_notes/architectural-review/2026-05-25-deep-dive-architectural-review.md
   tag: internal
   divio_type: none
