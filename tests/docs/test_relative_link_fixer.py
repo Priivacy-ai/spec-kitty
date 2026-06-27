@@ -291,23 +291,16 @@ class TestRewriteBodyHelper:
 
 
 class TestLiveTreeGate:
-    """Pin the real ``docs/`` to zero dead bare-relative links bar nav-stub gaps.
+    """Pin the real ``docs/`` to **zero** dead bare-relative body links.
 
-    The three permitted entries are ``docs/index.md`` landing-page cards that
-    link to section index pages which do not exist on disk (no ``integrations``
-    / ``security`` section; ``docs/adr`` has no ``index.md``).  They have no
-    deterministic target, so the fixer correctly reports rather than guesses
-    them; they are recorded here for the issue-matrix.  Any *new* dead link is a
-    regression this gate catches.
+    WP14 created the three section landing pages the ``docs/index.md`` cards
+    pointed at (``adr/index.md``, ``integrations/index.md``, ``security/index.md``)
+    as part of flipping the body-link gate to blocking, so the former nav-stub
+    gaps are now resolved and the allowlist is empty: any dead bare-relative
+    body link is a regression this gate catches.
     """
 
-    _KNOWN_GAPS: Final[frozenset[tuple[str, str]]] = frozenset(
-        {
-            ("docs/index.md", "adr/index.md"),
-            ("docs/index.md", "integrations/index.md"),
-            ("docs/index.md", "security/index.md"),
-        }
-    )
+    _KNOWN_GAPS: Final[frozenset[tuple[str, str]]] = frozenset()
 
     def test_assembled_tree_has_no_unexpected_dead_links(self) -> None:
         dead = {

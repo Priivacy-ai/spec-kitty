@@ -57,6 +57,13 @@ __all__ = [
 
 DEFAULT_DOCS_ROOT: Final[str] = "docs"
 
+#: Content-invariant doc subtree excluded from the description gate. ADR decision
+#: bodies are byte-identical to their pre-move originals (C-002, enforced by
+#: ``test_adr_content_invariance``) and carry only bare ``status`` frontmatter —
+#: by design they have no ``description``. Holding them to the 50-180 band would
+#: make the gate un-flippable to blocking against a correct tree.
+_EXCLUDE_PREFIXES: Final[tuple[str, ...]] = ("docs/adr/",)
+
 #: Inclusive description length band (NFR-003). 50 and 180 are both **valid**;
 #: 49 and 181 are violations. These boundaries are the gate's whole contract.
 MIN_DESCRIPTION_LENGTH: Final[int] = 50
@@ -128,6 +135,8 @@ def validate_descriptions(*, docs_root: Path, repo_root: Path) -> LengthReport:
         return LengthReport(checked_count=0, violations=[])
 
     for md_path in sorted(docs_root.rglob("*.md")):
+        if _repo_relative(md_path, repo_root).startswith(_EXCLUDE_PREFIXES):
+            continue  # content-invariant ADR bodies carry no description (C-002)
         description = _read_description(md_path)
         checked += 1
         reason = check_description_length(description)

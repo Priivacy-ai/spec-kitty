@@ -305,12 +305,17 @@ def test_cli_report_only_exit_zero_and_writes_report(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Orchestrator integration (report-only sub-check, opt-in)
+# Orchestrator integration (blocking sub-check, default-on — Mission B / WP14)
 # ---------------------------------------------------------------------------
 
 
-def test_orchestrator_lockfile_subcheck_emits_warnings_only(tmp_path: Path) -> None:
-    """The inverted ruler emits INVENTORY-LOCKFILE-DRIFT warnings (never errors)."""
+def test_orchestrator_lockfile_subcheck_emits_blocking_errors(tmp_path: Path) -> None:
+    """The inverted ruler emits INVENTORY-LOCKFILE-DRIFT *errors* (WP14 flip).
+
+    Mission B makes the lockfile gate blocking: every drift finding is now
+    ``error`` severity so the aggregate ``check_docs_freshness`` exit reds on
+    drift (it keys off ``any(f.severity == "error")``).
+    """
     repo_root, docs_root = _seed_docs_tree(tmp_path)
     committed_path = repo_root / "inventory.yaml"
     committed_path.write_text(
@@ -329,7 +334,7 @@ def test_orchestrator_lockfile_subcheck_emits_warnings_only(tmp_path: Path) -> N
     )
     assert findings, "expected drift findings"
     assert all(f.rule_id == "INVENTORY-LOCKFILE-DRIFT" for f in findings)
-    assert all(f.severity == "warning" for f in findings)
+    assert all(f.severity == "error" for f in findings)
 
 
 def test_orchestrator_lockfile_subcheck_skips_missing_docs_root(

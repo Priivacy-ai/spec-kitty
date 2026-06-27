@@ -38,8 +38,10 @@ from scripts.docs.redirect_stub_generator import (
     render_redirect_map,
 )
 
-# The single docs-published move that relocates a baseline URL: docs/context -> docs/context.
-_MOVE_3X = Move(sources=("docs/context",), dest="docs/context")
+# The docs-published move that relocates a baseline URL: WP10 distils the
+# ``docs/3x`` charter shadow tree into ``docs/context`` (so ``3x/*.html`` ->
+# ``context/*.html``). Source != dest, so it produces real redirect entries.
+_MOVE_3X = Move(sources=("docs/3x",), dest="docs/context")
 
 # Realistic published-URL paths.
 _DIRECT_URL = "tutorials/getting-started.html"
@@ -94,6 +96,35 @@ def test_committed_redirect_map_is_diff_stable() -> None:
     assert yaml.safe_load(rendered) == committed
 
 
+# The shadow-tree redirects WP10 must preserve (FR-008): the ``docs/<v>x`` trees.
+# These are the *teeth* of this gate — every one must be present and correct in
+# the committed map. The committed map is a strict superset (WP08/WP18 added the
+# Divio re-section redirects, e.g. ``explanation/* -> architecture/*``); the
+# exact, diff-stable identity of the full map is pinned separately by
+# ``test_committed_redirect_map_is_diff_stable``.
+_SHADOW_TREE_REDIRECTS = {
+    # docs/1x snapshot -> pre-existing archive/1x twin
+    "1x/artifacts-and-commands.html": "archive/1x/artifacts-and-commands.html",
+    "1x/branches-and-workspaces.html": "archive/1x/branches-and-workspaces.html",
+    "1x/index.html": "archive/1x/index.html",
+    "1x/orchestration-and-api.html": "archive/1x/orchestration-and-api.html",
+    "1x/workflow.html": "archive/1x/workflow.html",
+    # docs/2x snapshot -> pre-existing archive/2x twin
+    "2x/adr-coverage.html": "archive/2x/adr-coverage.html",
+    "2x/doctrine-and-charter.html": "archive/2x/doctrine-and-charter.html",
+    "2x/glossary-system.html": "archive/2x/glossary-system.html",
+    "2x/index.html": "archive/2x/index.html",
+    "2x/model-discipline-routing.html": "archive/2x/model-discipline-routing.html",
+    "2x/model-to-task_type.html": "archive/2x/model-to-task_type.html",
+    "2x/orchestration-and-api.html": "archive/2x/orchestration-and-api.html",
+    "2x/runtime-and-missions.html": "archive/2x/runtime-and-missions.html",
+    # docs/context live charter content -> distilled into context/
+    "3x/charter-overview.html": "context/charter-overview.html",
+    "3x/governance-files.html": "context/governance-files.html",
+    "3x/index.html": "context/index.html",
+}
+
+
 def test_committed_map_covers_the_shadow_tree_redirects() -> None:
     """The committed map covers every deleted/moved shadow-tree URL (FR-008).
 
@@ -101,31 +132,18 @@ def test_committed_map_covers_the_shadow_tree_redirects() -> None:
     (true HTML snapshots) are DELETED and each baseline URL redirects to its
     pre-existing canonical archive twin (``archive/<v>x/*``); ``docs/context`` (live
     charter content) is distilled + moved into ``context/`` and redirected there.
-    This pins the full post-WP10 map — exactly what WP07's T045 anticipated:
-    100% coverage is asserted once WP10's shadow-tree redirects land.
+    The committed map grew to a full-coverage map (WP18 re-section redirects
+    folded in), so this gate asserts the shadow-tree redirects are a **subset**
+    — drop or corrupt any one and it reds — while the full map's exact identity
+    is pinned by ``test_committed_redirect_map_is_diff_stable``.
     """
     committed = load_redirect_map(DEFAULT_REDIRECT_MAP)
-    assert committed == {
-        # docs/1x snapshot -> pre-existing archive/1x twin
-        "1x/artifacts-and-commands.html": "archive/1x/artifacts-and-commands.html",
-        "1x/branches-and-workspaces.html": "archive/1x/branches-and-workspaces.html",
-        "1x/index.html": "archive/1x/index.html",
-        "1x/orchestration-and-api.html": "archive/1x/orchestration-and-api.html",
-        "1x/workflow.html": "archive/1x/workflow.html",
-        # docs/2x snapshot -> pre-existing archive/2x twin
-        "2x/adr-coverage.html": "archive/2x/adr-coverage.html",
-        "2x/doctrine-and-charter.html": "archive/2x/doctrine-and-charter.html",
-        "2x/glossary-system.html": "archive/2x/glossary-system.html",
-        "2x/index.html": "archive/2x/index.html",
-        "2x/model-discipline-routing.html": "archive/2x/model-discipline-routing.html",
-        "2x/model-to-task_type.html": "archive/2x/model-to-task_type.html",
-        "2x/orchestration-and-api.html": "archive/2x/orchestration-and-api.html",
-        "2x/runtime-and-missions.html": "archive/2x/runtime-and-missions.html",
-        # docs/context live charter content -> distilled into context/
-        "3x/charter-overview.html": "context/charter-overview.html",
-        "3x/governance-files.html": "context/governance-files.html",
-        "3x/index.html": "context/index.html",
+    missing = {
+        old: new
+        for old, new in _SHADOW_TREE_REDIRECTS.items()
+        if committed.get(old) != new
     }
+    assert missing == {}, f"shadow-tree redirects missing/wrong in committed map: {missing}"
 
 
 # --- emit + no-404 ----------------------------------------------------------

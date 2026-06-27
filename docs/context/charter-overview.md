@@ -4,7 +4,7 @@ description: The Charter mental model — synthesis, DRG, governed context, and 
 doc_status: active
 updated: '2026-06-03'
 related:
-- docs/3x/governance-files.md
+- docs/context/governance-files.md
 ---
 # How Charter Works
 

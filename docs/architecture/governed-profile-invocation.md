@@ -4,7 +4,7 @@ description: 'How standalone dispatch works under governance: route, inject cont
 doc_status: active
 updated: '2026-06-15'
 related:
-- docs/3x/charter-overview.md
+- docs/context/charter-overview.md
 ---
 # Understanding Governed Profile Invocation
 

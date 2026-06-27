@@ -4,7 +4,7 @@ description: 'How Spec Kitty doctrine works: the artifact model behind governed 
 doc_status: active
 updated: '2026-06-27'
 related:
-- docs/3x/index.md
+- docs/context/index.md
 - docs/doctrine/README.md
 - docs/doctrine/spdd-reasons.md
 - docs/index.md

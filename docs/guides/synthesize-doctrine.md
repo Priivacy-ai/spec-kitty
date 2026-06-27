@@ -4,8 +4,8 @@ description: Run charter synthesize and charter resynthesize, validate the bundl
 doc_status: active
 updated: '2026-06-03'
 related:
-- docs/3x/charter-overview.md
-- docs/3x/governance-files.md
+- docs/context/charter-overview.md
+- docs/context/governance-files.md
 ---
 # How to Synthesize and Maintain Doctrine
 

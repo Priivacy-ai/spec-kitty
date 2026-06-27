@@ -137,6 +137,14 @@ def _stub_subchecks_clean(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         orchestrator, "_invoke_cli_reference_freshness", _fake_ref
     )
+    # The inventory-lockfile drift sub-check is now default-on (WP14) and would
+    # otherwise regenerate against the staged fixture inventory. It has its own
+    # dedicated suite (test_inventory_lockfile.py); isolate it here so these
+    # orchestration tests stay focused on aggregation, mirroring the leakage/ref
+    # sub-check stubs above.
+    monkeypatch.setattr(
+        orchestrator, "_check_inventory_lockfile_drift", lambda *_a, **_k: []
+    )
 
 
 def test_happy_path_exits_0(
@@ -750,6 +758,9 @@ def test_run_orchestrator_strict_mode_flag_propagates(
     monkeypatch.setattr(orchestrator, "_invoke_version_leakage", _fake_leakage)
     monkeypatch.setattr(
         orchestrator, "_invoke_cli_reference_freshness", _fake_ref
+    )
+    monkeypatch.setattr(
+        orchestrator, "_check_inventory_lockfile_drift", lambda *_a, **_k: []
     )
 
     with chdir(workspace):

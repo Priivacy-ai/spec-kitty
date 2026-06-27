@@ -132,8 +132,14 @@ def _legacy_path_to_era(path: str) -> str | None:
     for era in _ERAS:
         if path.startswith(f"architecture/{era}/adr/"):
             return era
-    if path.startswith("docs/adr/3.x/"):
-        return "3.x"  # the 20 era-less ADRs land under 3.x at pinned names
+    # The 20 era-less ADRs lived in the flat ``architecture/adrs/`` home (and a
+    # late-mission ``docs/adr/3.x/`` staging area). WP06's extended converter
+    # moves both into ``docs/adr/3.x/`` at pinned names. The pre-image base for
+    # these is ``architecture/adrs/<name>`` (the merge-base predates their
+    # ``docs/adr/3.x/`` appearance), so recognising that flat home is what makes
+    # the census reach the full 117 on the assembled tree.
+    if path.startswith("architecture/adrs/") or path.startswith("docs/adr/3.x/"):
+        return "3.x"
     return None
 
 

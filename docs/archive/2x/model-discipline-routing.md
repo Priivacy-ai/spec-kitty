@@ -4,7 +4,7 @@ description: Historical Spec Kitty 2.x archive page for 2.x Model Discipline and
 doc_status: deprecated
 updated: '2026-06-03'
 related:
-- docs/3x/index.md
+- docs/context/index.md
 - docs/archive/2x/model-to-task_type.md
 ---
 > Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../context/index.md) for current docs.

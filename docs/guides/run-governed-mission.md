@@ -4,7 +4,7 @@ description: Run spec-kitty next with Charter context injection, read JSON outpu
 doc_status: active
 updated: '2026-06-03'
 related:
-- docs/3x/charter-overview.md
+- docs/context/charter-overview.md
 ---
 # How to Run a Governed Mission
 

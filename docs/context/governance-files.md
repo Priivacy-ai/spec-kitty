@@ -4,7 +4,7 @@ description: Authoritative reference for every file under .kittify/charter/ — 
 doc_status: active
 updated: '2026-06-03'
 related:
-- docs/3x/charter-overview.md
+- docs/context/charter-overview.md
 ---
 # Governance Files Reference
 

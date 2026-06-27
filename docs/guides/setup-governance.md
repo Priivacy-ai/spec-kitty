@@ -4,7 +4,7 @@ description: Configure your project charter, generate structured governance conf
 doc_status: active
 updated: '2026-06-03'
 related:
-- docs/3x/charter-overview.md
+- docs/context/charter-overview.md
 - docs/guides/create-specification.md
 - docs/guides/non-interactive-init.md
 - docs/guides/switch-missions.md

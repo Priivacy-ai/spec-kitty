@@ -4,7 +4,7 @@ description: Historical Spec Kitty 1.x archive page for 1.x Documentation (Legac
 doc_status: deprecated
 updated: '2026-06-03'
 related:
-- docs/3x/index.md
+- docs/context/index.md
 - docs/archive/1x/artifacts-and-commands.md
 - docs/archive/1x/branches-and-workspaces.md
 - docs/archive/1x/orchestration-and-api.md
