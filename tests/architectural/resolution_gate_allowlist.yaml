@@ -59,23 +59,23 @@ coord_authority:
   # line-drift RE-PINS only (same kind-blind write site, new line after the WP02
   # edits shifted the file) — NOT routed, still pre-sweep baseline for WP02-WP05.
   - qualname: move_task
-    line: 1085
-    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - will be routed in WP02-WP05"
+    line: 1084
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - will be routed in WP02-WP05; line drift 1085->1084 from #1057 pre-3.0 guard insertion"
   - qualname: move_task
-    line: 1322
-    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - will be routed in WP02-WP05"
+    line: 1330
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - will be routed in WP02-WP05; line drift 1322->1330 from #1057 pre-3.0 guard insertion"
   - qualname: list_tasks
-    line: 2108
-    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - will be routed in WP02-WP05"
+    line: 2122
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - will be routed in WP02-WP05; line drift 2108->2122 from #1057 pre-3.0 guard insertion"
   - qualname: list_tasks
-    line: 2114
-    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - will be routed in WP02-WP05"
+    line: 2128
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - will be routed in WP02-WP05; line drift 2114->2128 from #1057 pre-3.0 guard insertion"
   - qualname: validate_workflow
-    line: 2848
-    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - will be routed in WP02-WP05"
+    line: 2900
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - will be routed in WP02-WP05; line drift 2848->2900 from #1057 pre-3.0 guard insertion (the guard's own resolve is now kind-aware resolve_planning_read_dir)"
   - qualname: list_dependents
-    line: 3415
-    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - will be routed in WP02-WP05"
+    line: 3467
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - will be routed in WP02-WP05; line drift 3415->3467 from #1057 pre-3.0 guard insertion"
   - qualname: implement
     line: 1275
     rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - line shifted from 1268 by WP05 import addition (_canonicalize_primary_read_handle) to module-level _read_path_resolver import block"
@@ -98,14 +98,14 @@ coord_authority:
     line: 2732
     rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - line shifted from 2725 by WP05 routing changes"
   - qualname: implement
-    line: 1017
-    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/implement.py) - will be routed in WP02-WP05 (WP02 line-drift re-pin from 1000)"
+    line: 1022
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/implement.py) - will be routed in WP02-WP05 (line-drift re-pin 1017->1022; pre-existing drift on upstream/main, re-pinned to converge the gate)"
   - qualname: _mission_dir
     line: 71
     rationale: "legitimate coord-owned write that bypasses commit_for_mission by design - coord status authority is at the caller level, not the commit level; PERMANENT fixture"
   - qualname: _prepare_merge_metadata
-    line: 624
-    rationale: "pre-sweep baseline write (src/specify_cli/scripts/tasks/tasks_cli.py) - will be routed in WP02-WP05"
+    line: 595
+    rationale: "pre-sweep baseline write (src/specify_cli/scripts/tasks/tasks_cli.py) - will be routed in WP02-WP05; line drift 624->595 from #1057 _check_legacy_format removal"
   - qualname: WidenPendingStore.__init__
     line: 63
     rationale: "legitimate coord-owned write that bypasses commit_for_mission by design - coord status authority is at the caller level, not the commit level; PERMANENT fixture"

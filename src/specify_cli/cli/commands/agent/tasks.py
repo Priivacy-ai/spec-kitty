@@ -2208,8 +2208,13 @@ def add_history(
         # Ensure we operate on the target branch for this feature
         _ah_main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
 
-        # Boundary guard — hard-reject pre-3.0 layout before any WP mutation
-        _ah_feature_dir = resolve_feature_dir_for_mission(_ah_main_repo_root, mission_slug)
+        # Boundary guard — hard-reject pre-3.0 layout before any WP mutation.
+        # Resolve through the kind-aware authority (resolution-authority gate:
+        # add_history is a WRITE-classified function, so a kind-blind
+        # resolve_feature_dir_for_mission here would be a coord-authority violation).
+        _ah_feature_dir = resolve_planning_read_dir(
+            _ah_main_repo_root, mission_slug, kind=MissionArtifactKind.TASKS_INDEX
+        )
         try:
             check_pre30_layout(_ah_feature_dir)
         except Pre30LayoutError as e:
@@ -2865,8 +2870,13 @@ def validate_workflow(
         # Ensure we operate on the target branch for this feature
         _vw_main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
 
-        # Boundary guard — hard-reject pre-3.0 layout before reading any WP
-        _vw_guard_feature_dir = resolve_feature_dir_for_mission(_vw_main_repo_root, mission_slug)
+        # Boundary guard — hard-reject pre-3.0 layout before reading any WP.
+        # Resolve through the kind-aware authority (resolution-authority gate:
+        # validate_workflow is WRITE-classified, so a kind-blind resolver here
+        # would be a coord-authority violation).
+        _vw_guard_feature_dir = resolve_planning_read_dir(
+            _vw_main_repo_root, mission_slug, kind=MissionArtifactKind.TASKS_INDEX
+        )
         try:
             check_pre30_layout(_vw_guard_feature_dir)
         except Pre30LayoutError as e:
