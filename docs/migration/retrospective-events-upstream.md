@@ -222,6 +222,6 @@ tranche's acceptance does not require the upstream release to land (AD-004).
 ## See also
 
 - Events contract: [`kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contracts/retrospective_events_v1.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contracts/retrospective_events_v1.md)
-- Shared package boundary ADR: [`docs/adr/2.x/2026-04-25-1-shared-package-boundary.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/2.x/2026-04-25-1-shared-package-boundary.md)
+- Shared package boundary ADR: [`docs/adr/3.x/2026-04-25-1-shared-package-boundary.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-04-25-1-shared-package-boundary.md)
 - Boundary test: `tests/architectural/test_retrospective_events_boundary.py`
 - Operator overview: [`docs/architecture/retrospective-learning-loop.md`](../explanation/retrospective-learning-loop.md)

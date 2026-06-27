@@ -159,6 +159,23 @@ exceptions:
       cli/commands/doctor.py:509) re-point in IC-02 PRE-move, dual-read
       (old `architecture/2.x/` UNION new `docs/migrations/`), resolution-tested.
 
+  - path: "src/specify_cli/cli/commands/**/*.md"
+    action: manual_review
+    reason: >-
+      README/doc files under cli/commands/ are force-classified `cli_commands` by
+      their path, but WP08's edits are doc-path STRING references (the moved-path
+      rewrite), not command-surface changes. manual_review (reviewer confirms only
+      doc-path strings changed).
+
+  - path: "src/specify_cli/cli/commands/upgrade.py"
+    action: manual_review
+    reason: >-
+      FILE-LEVEL CARVE-OUT from the `cli_commands: do_not_change` blanket (same as
+      doctor.py below). WP08's edit is a doc-path STRING in a docstring/help
+      reference (`docs/how-to/install-and-upgrade.md` -> `docs/guides/...` per the
+      Divio re-section), NOT a subcommand/flag/command-surface change. Reviewer:
+      confirm the diff is only the doc-path string.
+
   - path: "src/specify_cli/cli/commands/doctor.py"
     action: manual_review
     reason: >-
@@ -202,6 +219,23 @@ exceptions:
       land-first, resolution-tested, dual-read (old∪new). `.kittify/` is
       out-of-relocate-scope (config not moved); only these authority-path VALUES
       change. The generated governance.yaml picks up the new values on next sync.
+
+  # --- src/ doc-path STRING refs (WP08 T047) + the WP01 dual-read drop (T046). ---
+  - path: "src/**/*.py"
+    action: manual_review
+    reason: >-
+      WP08's T047 rewrites doc-path STRING references inside docstrings/comments
+      (e.g. ``architecture/2.x/06_unified_charter_bundle.md`` ->
+      ``docs/architecture/06_unified_charter_bundle.md``), and T046 drops the WP01
+      dual-read old-path branches in the runtime readers. These are
+      `filesystem_paths`/`user_facing_strings` edits + a runtime-read cleanup, NOT
+      code-symbol or import renames — the `bulk_ref_rewrite.py` tool's OWN
+      `do_not_change` filter already skips the `code_symbols`/`import_paths`
+      categories. The diff-compliance gate's file-level `code_symbols`
+      classification of any edited `.py` over-blocks these legitimate doc-path-string
+      edits; route to `manual_review` so the reviewer confirms no symbol/import
+      actually changed (verified on the WP08 diff: changed lines are doc-path
+      strings only, except the T046 dual-read drop in authority_paths/compat).
 
   # --- Redirect-baseline paths: do not blind-rewrite. ---
   - path: "docs/1x/**"

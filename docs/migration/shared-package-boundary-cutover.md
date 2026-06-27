@@ -89,7 +89,7 @@ for editable-install patterns that don't pollute committed config.
 
 ## Why this happened
 
-See [ADR 2026-04-25-1: Shared Package Boundary](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/2.x/2026-04-25-1-shared-package-boundary.md)
+See [ADR 2026-04-25-1: Shared Package Boundary](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-04-25-1-shared-package-boundary.md)
 for the full decision rationale and the alternatives considered.
 
 ## Supersedes

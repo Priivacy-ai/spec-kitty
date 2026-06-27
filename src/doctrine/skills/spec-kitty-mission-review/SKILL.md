@@ -522,7 +522,7 @@ For each hit, ask:
 ## Step 8.5: Enforce the Hard Gates (Contract / Architectural / Cross-Repo E2E / Issue Matrix)
 
 As of 2026-04-26 (mission `stability-and-hygiene-hardening-2026-04-01KQ4ARB`,
-ADR `docs/adr/2.x/2026-04-26-3-e2e-hard-gate.md`), mission review
+ADR `docs/adr/3.x/2026-04-26-3-e2e-hard-gate.md`), mission review
 runs four hard gates in order. A FAIL on any gate produces a FAIL verdict
 in Step 9 unless the operator-exception path documented below is used.
 

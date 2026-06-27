@@ -11,7 +11,7 @@ is a thin delegator over :meth:`WPState.transition_to`; no edge/guard/force
 logic lives outside these state objects, and no production code consults a
 parallel ``(from, to)`` table as a gate.
 
-See ADR: docs/adr/2.x/2026-04-06-1-wp-state-pattern-for-lane-behavior.md
+See ADR: docs/adr/3.x/2026-04-06-1-wp-state-pattern-for-lane-behavior.md
 See also: docs/adr/3.x/2026-06-07-1-wp-lane-fsm-genesis-and-finalize-clobber.md
 (genesis lane, guard/force migration into the state objects, finalize clobber fix)
 """

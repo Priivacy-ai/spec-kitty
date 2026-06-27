@@ -232,11 +232,17 @@ def split_frontmatter(text: str) -> tuple[str, str]:
 
 
 def rewrite_text(
-    text: str, subs: Iterable[Substitution], *, is_markdown: bool
+    text: str,
+    subs: Iterable[Substitution],
+    *,
+    is_markdown: bool,
+    repo_root: Path,
 ) -> tuple[str, int]:
     """Apply every substitution to *text*; return ``(new_text, num_rewrites)``.
 
-    Markdown frontmatter is preserved verbatim (WP12 territory).
+    Markdown frontmatter is preserved verbatim (WP12 territory).  After the
+    declared substitutions land, dead ADR-era landings are healed onto their
+    deduped survivor twin (see :func:`reconcile_adr_era_twins`).
     """
 
     frontmatter, body = split_frontmatter(text) if is_markdown else ("", text)
@@ -244,7 +250,126 @@ def rewrite_text(
     for sub in subs:
         body, num = _compile(sub).subn(sub.new, body)
         count += num
+    body, reroutes = reconcile_adr_era_twins(body, repo_root)
+    count += len(reroutes)
     return frontmatter + body, count
+
+
+# --------------------------------------------------------------------------- #
+# ADR era-twin reconciliation                                                 #
+# --------------------------------------------------------------------------- #
+#
+# WP06's ADR conversion deduped the late-2.x ADRs that existed on base as
+# *symlink twins* under BOTH ``architecture/2.x/adr/`` and
+# ``architecture/3.x/adr/`` down to a single realpath-unique survivor at
+# ``docs/adr/3.x/<file>``.  The mechanical prefix rewrite, however, turns an
+# ``architecture/2.x/adr/<file>`` reference into ``docs/adr/2.x/<file>`` — a path
+# that no longer exists for those twins.  This pass routes every such
+# mechanically-dead ``docs/adr/<era>/<file>`` link onto the era that actually
+# survived the dedup, deterministically and without hard-coding the affected
+# filenames.
+
+# Concrete ``docs/adr/<era>/<file.ext>`` link tokens.  ADR records are flat files
+# under ``docs/adr/<era>/``, so the captured remainder is a single filename with
+# an extension (a bare ``docs/adr/2.x/`` directory mention carries no file and is
+# intentionally not matched).
+_ADR_ERA_LINK = re.compile(
+    r"docs/adr/(?P<era>[A-Za-z0-9][\w.]*?)/(?P<rest>[A-Za-z0-9][\w.\-]*\.[A-Za-z0-9]+)"
+)
+
+# Teeth: a *repo-root-anchored* ADR link — not preceded by another path char, so
+# relative (``../../docs/adr/...``) and absolute (``/docs/adr/...``) forms are
+# excluded.  The bare-relative intra-doc links are validated separately (a
+# follow-up, out of WP08 scope); this guard keeps the on-disk resolution check
+# scoped to the occurrence-map-driven rewrites the tool owns.
+_ANCHORED_ADR_LINK = re.compile(r"(?<![\w./-])" + _ADR_ERA_LINK.pattern)
+
+
+def _adr_era_dirs(repo_root: Path) -> list[str]:
+    """Sorted names of the ``docs/adr/<era>/`` directories present on disk."""
+
+    adr_root = repo_root / "docs" / "adr"
+    if not adr_root.is_dir():
+        return []
+    return sorted(child.name for child in adr_root.iterdir() if child.is_dir())
+
+
+def resolve_adr_era_twin(era: str, rest: str, repo_root: Path) -> str | None:
+    """Return the *surviving* era for a deduped ADR whose landing is mechanically dead.
+
+    When ``docs/adr/<era>/<rest>`` is absent on disk but a sibling
+    ``docs/adr/<other>/<rest>`` exists (the dedup survivor), return that sibling
+    era.  Returns ``None`` when the mechanical landing already resolves or no
+    same-basename twin exists under any sibling era directory.
+    """
+
+    adr_root = repo_root / "docs" / "adr"
+    if (adr_root / era / rest).exists():
+        return None
+    for sibling in _adr_era_dirs(repo_root):
+        if sibling != era and (adr_root / sibling / rest).exists():
+            return sibling
+    return None
+
+
+def reconcile_adr_era_twins(
+    body: str, repo_root: Path
+) -> tuple[str, list[tuple[str, str]]]:
+    """Reroute every dead ``docs/adr/<era>/<file>`` link onto its surviving twin.
+
+    Operates on the *rewritten* body so it also heals already-landed residuals:
+    the tool is idempotent and the ``architecture/`` prefix no longer matches a
+    reference that a prior run already rewrote to a (now dead) ``docs/adr/2.x/``
+    target.  Returns ``(new_body, reroutes)`` where *reroutes* is the list of
+    ``(old_token, new_token)`` pairs changed.
+    """
+
+    reroutes: list[tuple[str, str]] = []
+
+    def _swap(match: re.Match[str]) -> str:
+        era, rest = match.group("era"), match.group("rest")
+        survivor = resolve_adr_era_twin(era, rest, repo_root)
+        if survivor is None:
+            return match.group(0)
+        new_token = f"docs/adr/{survivor}/{rest}"
+        reroutes.append((match.group(0), new_token))
+        return new_token
+
+    return _ADR_ERA_LINK.sub(_swap, body), reroutes
+
+
+def find_dead_twinned_adr_links(
+    repo_root: Path,
+    roots: Iterable[str] = DEFAULT_ROOTS,
+    *,
+    include_root_md: bool = True,
+) -> list[tuple[str, str, str]]:
+    """Teeth check: no tool-owned ``docs/adr/<era>/<file>`` link is dead-but-twinned.
+
+    Scans the swept, non-excluded file bodies for *repo-root-anchored* ADR link
+    tokens (the occurrence-map-driven ADR rewrite class).  Reports only the
+    *dead-target class WP08 owns*: a token whose ``docs/adr/<era>/<file>`` target
+    is absent **while a same-basename survivor exists under a sibling era**
+    (``docs/adr/<other>/<file>``) — i.e. the deduped-twin mis-route this tool
+    introduced and must heal.  Returns ``(rel_path, dead_token, survivor_token)``.
+
+    Genuinely-absent placeholders/fixtures with no surviving twin
+    (``YYYY-MM-DD-N``-style templates, ``some-slug``/``bad.md`` test data) are
+    *not* reported — they are a different, out-of-WP08-scope concern.  Frontmatter
+    is excluded (WP12 territory, never rewritten by this tool).
+    """
+
+    dead: list[tuple[str, str, str]] = []
+    for path in iter_target_files(repo_root, roots, include_root_md=include_root_md):
+        text = path.read_text(encoding="utf-8")
+        _, body = split_frontmatter(text) if path.suffix == ".md" else ("", text)
+        rel = path.relative_to(repo_root).as_posix()
+        for match in _ANCHORED_ADR_LINK.finditer(body):
+            era, rest = match.group("era"), match.group("rest")
+            survivor = resolve_adr_era_twin(era, rest, repo_root)
+            if survivor is not None:
+                dead.append((rel, match.group(0), f"docs/adr/{survivor}/{rest}"))
+    return dead
 
 
 # --------------------------------------------------------------------------- #
@@ -313,7 +438,7 @@ def run(
     for path in iter_target_files(repo_root, roots, include_root_md=include_root_md):
         original = path.read_text(encoding="utf-8")
         rewritten, num = rewrite_text(
-            original, subs, is_markdown=path.suffix == ".md"
+            original, subs, is_markdown=path.suffix == ".md", repo_root=repo_root
         )
         if num == 0 or rewritten == original:
             continue
