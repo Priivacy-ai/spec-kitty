@@ -57,8 +57,8 @@ flags `current` pages that link to `archival` pages without a migration
 banner on the destination.
 
 **Example pages.**
-- `docs/3x/charter-overview.md`
-- `docs/3x/index.md`
+- `docs/context/charter-overview.md`
+- `docs/context/index.md`
 - `docs/guides/install-macos.md` (target page set by FR-017 once landed)
 
 ### `supported`
@@ -292,7 +292,7 @@ git ls-files docs/ architecture/ README.md \
 | `architecture/` (root files) | 5 | Internal — index pages |
 | `docs/architecture/calibration/` | 5 | Internal — calibration notes |
 | `docs/architecture/` | 4 | Internal mirror of architecture intent |
-| `docs/3x/` | 4 | All `current` |
+| `docs/context/` | 4 | All `current` |
 | `docs/doctrine/` | 2 | `current` — doctrine surface |
 | `docs/architecture/assessments/` | 1 | Internal |
 | `docs/operations/` | 1 | `current` |
@@ -308,7 +308,7 @@ WP02):
 
 | Tag | Expected count | Source |
 |-----|---------------:|--------|
-| `current` | ~85 | `docs/3x/` + `docs/guides/` + `docs/guides/` + `docs/api/` + `docs/doctrine/` + `docs/operations/` + root `README.md` + the 3.2-relevant subset of `docs/architecture/` |
+| `current` | ~85 | `docs/context/` + `docs/guides/` + `docs/guides/` + `docs/api/` + `docs/doctrine/` + `docs/operations/` + root `README.md` + the 3.2-relevant subset of `docs/architecture/` |
 | `supported` | ~25 | Remaining 3.1-era pages in `docs/architecture/` and `docs/api/` pending re-audit |
 | `archival` | 15 | `docs/1x/` (6) + `docs/2x/` (9) |
 | `migration` | 12 | `docs/migration/` |

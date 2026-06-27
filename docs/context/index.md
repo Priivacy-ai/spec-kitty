@@ -11,12 +11,12 @@ stakeholder/audience persona catalog, and the current Charter-era overview.
 
 <!--
   #2053 LANDING ZONE (coordinate only — do NOT build the charter-landing page here).
-  Under FR-008 / C-004 the live `docs/3x` charter content was distilled + moved
+  Under FR-008 / C-004 the live `docs/context` charter content was distilled + moved
   into this `docs/context/` section (never blind-deleted), and the old `3x/*`
   URLs redirect here via WP07 stubs:
-    docs/3x/charter-overview.md -> docs/context/charter-overview.md  (3x/charter-overview.html -> context/charter-overview.html)
-    docs/3x/governance-files.md -> docs/context/governance-files.md  (3x/governance-files.html -> context/governance-files.html)
-    docs/3x/index.md            -> folded into this page (below)      (3x/index.html            -> context/index.html)
+    docs/context/charter-overview.md -> docs/context/charter-overview.md  (3x/charter-overview.html -> context/charter-overview.html)
+    docs/context/governance-files.md -> docs/context/governance-files.md  (3x/governance-files.html -> context/governance-files.html)
+    docs/context/index.md            -> folded into this page (below)      (3x/index.html            -> context/index.html)
   #2053 should later surface a dedicated top-level charter landing page sourced
   from these context pages. That implementation is OUT OF SCOPE for Mission B.
 -->
@@ -24,13 +24,13 @@ stakeholder/audience persona catalog, and the current Charter-era overview.
 This section is the unified home (Mission B, FR-009) for:
 
 - **Glossary contexts** (`*.md`) — canonical terminology per bounded context,
-  relocated from `glossary/contexts/`. These remain the doctrine-extraction
+  relocated from `docs/context/`. These remain the doctrine-extraction
   source consumed by `scripts/generate_contextive_glossaries.py` (C-006); the
   dashboard glossary seed files under `.kittify/glossaries/` are unchanged.
 - **`audience/`** — architecture audience personas (internal/external),
-  relocated from `architecture/audience/`.
+  relocated from `docs/context/audience/`.
 - **Charter-era overview** — the current Spec Kitty 3.2 Charter governance
-  model, distilled here from the retired `docs/3x` shadow tree (FR-008). See
+  model, distilled here from the retired `docs/context` shadow tree (FR-008). See
   [How Charter Works](charter-overview.md) and the
   [Governance Files Reference](governance-files.md).
 

@@ -81,7 +81,7 @@ contract regex `^>\s*(?:Archive notice|Migration note)\b`.
 | `docs/2x/adr-coverage.md` | archival | move | `docs/archive/2x/adr-coverage.md` | Archive notice (2.x) | No incoming links from `current` pages detected. |
 | `docs/2x/doctrine-and-charter.md` | archival | move | `docs/archive/2x/doctrine-and-charter.md` | Archive notice (2.x) | No incoming links from `current` pages detected. |
 | `docs/2x/glossary-system.md` | archival | move | `docs/archive/2x/glossary-system.md` | Archive notice (2.x) | No incoming links from `current` pages detected. |
-| `docs/2x/index.md` | archival | move | `docs/archive/2x/index.md` | Archive notice (2.x) | Referenced from `docs/3x/index.md:81` as `[\`docs/2x/\`](../archive/2x/index.md)` — **live link**. Execution mission must update this to `../archive/2x/index.md` (relative from `docs/3x/index.md`). |
+| `docs/2x/index.md` | archival | move | `docs/archive/2x/index.md` | Archive notice (2.x) | Referenced from `docs/context/index.md:81` as `[\`docs/2x/\`](../archive/2x/index.md)` — **live link**. Execution mission must update this to `../archive/2x/index.md` (relative from `docs/context/index.md`). |
 | `docs/2x/model-discipline-routing.md` | archival | move | `docs/archive/2x/model-discipline-routing.md` | Archive notice (2.x) | No incoming links from `current` pages detected. |
 | `docs/2x/model-to-task_type.md` | archival | move | `docs/archive/2x/model-to-task_type.md` | Archive notice (2.x) | No incoming links from `current` pages detected. |
 | `docs/2x/orchestration-and-api.md` | archival | move | `docs/archive/2x/orchestration-and-api.md` | Archive notice (2.x) | No incoming links from `current` pages detected. |
@@ -125,7 +125,7 @@ the only live links into `docs/1x/**` or `docs/2x/**` found in the current
 
 | Source file | Line | Current link target | Updated link target |
 |-------------|------|---------------------|---------------------|
-| `docs/3x/index.md` | 81 | `../2x/index.md` | `../archive/2x/index.md` |
+| `docs/context/index.md` | 81 | `../2x/index.md` | `../archive/2x/index.md` |
 
 Path-label mentions in `docs/index.md` (line 43) and
 `docs/development/3-2-version-taxonomy.md` (lines 15, 90–91, 108–110, 281, 285,
@@ -234,7 +234,7 @@ This subsection confirms each guardrail invariant:
 - Banner injection into each moved file.
 - Toc updates in `docs/toc.yml`, `docs/1x/toc.yml`, `docs/2x/toc.yml` (owned
   by the navigation WPs).
-- Link rewrites in `docs/3x/index.md` and any path-label updates in
+- Link rewrites in `docs/context/index.md` and any path-label updates in
   `docs/index.md` / `docs/development/3-2-version-taxonomy.md`.
 - Frontmatter reconciliation between moved pages and the inventory
   manifest (the leakage check `LEAK-FRONTMATTER-MISMATCH` rule will surface
