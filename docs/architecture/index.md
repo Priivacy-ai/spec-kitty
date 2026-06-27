@@ -11,8 +11,8 @@ end-user documentation.
 
 ## In this section
 
-- [Connector auth / binding separation](adr-connector-auth-binding-separation.md) — separating connector authentication from binding.
-- [GitHub App installation authority](adr-github-app-installation-authority.md) — installation-authority model for the GitHub App.
+- [Connector auth / binding separation](../adr/3.x/adr-connector-auth-binding-separation.md) — separating connector authentication from binding.
+- [GitHub App installation authority](../adr/3.x/adr-github-app-installation-authority.md) — installation-authority model for the GitHub App.
 - [Feature detection](feature-detection.md) — how Spec Kitty detects project frameworks and capabilities.
 - [Gap analysis: connector installation model](gap-analysis-connector-installation-model.md) — open gaps in the connector installation model.
 
