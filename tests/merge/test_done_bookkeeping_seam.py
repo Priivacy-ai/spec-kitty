@@ -350,7 +350,7 @@ def test_approved_replay_returns_none_on_transition_error() -> None:
 
 def test_mark_wp_merged_done_warns_when_wp_file_missing(tmp_path: Path) -> None:
     with (
-        patch.object(db, "candidate_feature_dir_for_mission", return_value=tmp_path),
+        patch.object(db, "resolve_planning_read_dir", return_value=tmp_path),
         patch.object(db, "_resolve_wp_path", return_value=None),
     ):
         # No exception, just a warning + early return.
@@ -360,7 +360,7 @@ def test_mark_wp_merged_done_warns_when_wp_file_missing(tmp_path: Path) -> None:
 def test_mark_wp_merged_done_noop_when_already_done(tmp_path: Path) -> None:
     wp_file = tmp_path / "WP01.md"
     with (
-        patch.object(db, "candidate_feature_dir_for_mission", return_value=tmp_path),
+        patch.object(db, "resolve_planning_read_dir", return_value=tmp_path),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
         patch.object(db, "read_wp_frontmatter", return_value=(object(), "")),
         patch.object(db, "resolve_status_surface"),
@@ -375,7 +375,7 @@ def test_mark_wp_merged_done_noop_when_already_done(tmp_path: Path) -> None:
 def test_mark_wp_merged_done_dedup_skips_when_done_transition_exists(tmp_path: Path) -> None:
     wp_file = tmp_path / "WP01.md"
     with (
-        patch.object(db, "candidate_feature_dir_for_mission", return_value=tmp_path),
+        patch.object(db, "resolve_planning_read_dir", return_value=tmp_path),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
         patch.object(db, "read_wp_frontmatter", return_value=(object(), "")),
         patch.object(db, "resolve_status_surface"),
@@ -397,7 +397,7 @@ def test_mark_wp_merged_done_warns_on_final_transition_error(tmp_path: Path) -> 
     wp_file = tmp_path / "WP01.md"
     meta = SimpleNamespace(review_status="approved", reviewed_by="reviewer-renata", agent="claude")
     with (
-        patch.object(db, "candidate_feature_dir_for_mission", return_value=tmp_path),
+        patch.object(db, "resolve_planning_read_dir", return_value=tmp_path),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
         patch.object(db, "read_wp_frontmatter", return_value=(meta, "")),
         patch.object(db, "resolve_status_surface"),
@@ -428,7 +428,7 @@ def test_mark_wp_merged_done_warns_when_lane_not_approved(tmp_path: Path) -> Non
     wp_file = tmp_path / "WP01.md"
     meta = SimpleNamespace(review_status="approved", reviewed_by="reviewer-renata", agent="claude")
     with (
-        patch.object(db, "candidate_feature_dir_for_mission", return_value=tmp_path),
+        patch.object(db, "resolve_planning_read_dir", return_value=tmp_path),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
         patch.object(db, "read_wp_frontmatter", return_value=(meta, "")),
         patch.object(db, "resolve_status_surface"),
@@ -454,7 +454,7 @@ def test_mark_wp_merged_done_aborts_when_replay_returns_none(tmp_path: Path) -> 
     wp_file = tmp_path / "WP01.md"
     meta = SimpleNamespace(review_status="approved", reviewed_by="reviewer-renata", agent="claude")
     with (
-        patch.object(db, "candidate_feature_dir_for_mission", return_value=tmp_path),
+        patch.object(db, "resolve_planning_read_dir", return_value=tmp_path),
         patch.object(db, "_resolve_wp_path", return_value=wp_file),
         patch.object(db, "read_wp_frontmatter", return_value=(meta, "")),
         patch.object(db, "resolve_status_surface"),
