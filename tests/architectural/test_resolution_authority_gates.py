@@ -83,7 +83,10 @@ COORD_KIND_AWARE_AUTHORITY = "commit_for_mission(kind=) / resolve_planning_read_
 CANONICALIZER_FLOOR = 38
 # WP07 re-pin: WP06 routing reduced the live write-classified coord census from 17 to 14;
 # 3 sites were removed (list_dependents, review at one former line, one list_tasks variant).
-COORD_AUTHORITY_WRITE_FLOOR = 14
+# REBASE (2026-06-27): concurrent mission #1057 inserted a check_pre30_layout boundary
+# guard into list_dependents, re-introducing a kind-blind resolve probe there; the honest
+# merged-tree live write census is now 15 (the 14 prior + #1057's list_dependents probe).
+COORD_AUTHORITY_WRITE_FLOOR = 15
 
 # WP07 / SC-004 — routed-count floor (the anti-mass-allowlist machine guard).
 # The number of canonicalizer call sites that are *routed* (def-use-canonical,
@@ -1112,18 +1115,21 @@ def test_routed_count_floor() -> None:
 
 
 def test_coord_authority_gate_floor() -> None:
-    """Concrete floor: >= 14 WRITE-classified coord call sites (NFR-002).
+    """Concrete floor: >= 15 WRITE-classified coord call sites (NFR-002).
 
-    14 is the hard-coded live write-candidate census (NOT ``>= len(scanned)`` —
+    15 is the hard-coded live write-candidate census (NOT ``>= len(scanned)`` —
     that is tautological). Sites that sit in a function carrying a write indicator
     (this count INCLUDES the 2 by-design coord-owned writes — ``decisions/emit.py``
     and ``widen/state.py`` — which are write-classified by design and sanctioned in
     the allowlist). History: WP08 set this to the then-honest census of 17; this
     mission's WP06 routing then moved 3 write-classified sites onto the kind-aware
     seam (``list_dependents``/``review`` dependents-warning reads → primary), so
-    WP07 tightened the floor 17 → 14 to the new honest live census. The
-    ``coord_authority_baseline`` scalar (now 14) caps the allowlist *entry count*,
-    a different quantity from the write *site* census (which they happen to equal here).
+    WP07 tightened the floor 17 → 14. The 2026-06-27 rebase onto upstream/main then
+    carried concurrent mission #1057, which inserted a ``check_pre30_layout`` boundary
+    guard into ``list_dependents`` — re-introducing a kind-blind resolve probe there —
+    raising the honest live census 14 → 15. The ``coord_authority_baseline`` scalar
+    (now 15) caps the allowlist *entry count*, a different quantity from the write
+    *site* census (which they happen to equal here).
     """
     writes = [s for s in scan_coord_authority_call_sites(SRC_ROOT) if s.is_write]
     assert len(writes) >= COORD_AUTHORITY_WRITE_FLOOR, (
