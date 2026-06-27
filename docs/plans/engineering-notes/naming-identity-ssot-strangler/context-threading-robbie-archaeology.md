@@ -1,5 +1,6 @@
 ---
 title: Context-Threading Design Archaeology — Robbie
+description: "Researcher Robbie's design archaeology of context-threading: tracing how the threading design evolved, read-only at 3.2.0."
 doc_status: draft
 updated: '2026-06-16'
 ---

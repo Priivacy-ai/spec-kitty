@@ -1,6 +1,6 @@
 ---
 title: Use Spec Kitty in Claude Code
-description: Configure the Use Spec Kitty in Claude Code harness for Spec Kitty 3.2 commands, generated skills, and agent workflow integration.
+description: 'How to use Spec Kitty in Claude Code, the first-class integration-tested reference harness: prerequisites, command install, and the slash-command workflow.'
 doc_status: active
 updated: '2026-06-03'
 related:

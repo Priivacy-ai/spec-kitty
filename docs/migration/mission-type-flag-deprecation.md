@@ -1,6 +1,6 @@
 ---
 title: 'Migration: --mission to --mission-type'
-description: 'Migration guidance for Migration: --mission to --mission-type in Spec Kitty 3.2, including upgrade context and historical behavior boundaries.'
+description: 'Migration from --mission to --mission-type, deprecated in mission 077: why the rename, the condition-gated removal (no calendar date), and the required changes.'
 doc_status: active
 updated: '2026-06-03'
 ---

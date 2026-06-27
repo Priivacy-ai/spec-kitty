@@ -1,5 +1,6 @@
 ---
 title: '11 — Dialectic: Corroboration vs Refutation → Revised Claims'
+description: Dialectic (Phase 2) corroborating versus refuting the context-needs claims under the Architect Alphonso framing, yielding the revised claims for the overhaul.
 doc_status: draft
 updated: '2026-06-03'
 ---

@@ -1,5 +1,6 @@
 ---
 title: Execution Context Factory — Read/Write Symmetry & Multi-Mission Approach
+description: Design refinement (2026-06-16) on the execution context factory's read/write symmetry and multi-mission approach, informing the read-path-error-fidelity mission.
 doc_status: draft
 updated: '2026-06-17'
 ---

@@ -1,5 +1,6 @@
 ---
 title: Runtime & State Overhaul — Engineering Notes
+description: 'Landing page for the runtime and state overhaul engineering notes: design exploration complete and handed off for ADR finalization (epic #1619).'
 doc_status: draft
 updated: '2026-06-03'
 related:

@@ -49,6 +49,26 @@ mechanical_pass:  # T071 — title/doc_status/updated/related landed tree-wide
   pages_changed: 415
   related_dangling: 0
 
+# OVERALL: all 13 live docs/ sections (19 top-level dirs) description-complete.
+# description_length_check --strict: 0 violations / 415 checked.
+# related_validator --strict: 0 dangling / 562 edges checked.
+# doc_status distribution: active 244, draft 155 (plans), deprecated 16 (archive+closeout).
+overall_status: complete
+
+# NOTE — fields intentionally NOT backfilled (out of WP12's gated DoD; for WP13):
+#   version_tag / type (divio) / owning_workstream were NOT carried onto pages.
+#   The only source is the stale pre-move inventory (covers 55/415 docs pages),
+#   and these fields are not gated by WP12 (title/description/doc_status/updated
+#   + 0-dangling related are). WP13's inventory_lockfile.py is the proper place
+#   to derive/roll them up FROM the now-authoritative frontmatter (e.g. divio
+#   from section, owning_workstream from path).
+#
+# NOTE — the canonical frontmatter_backfill.py --write was deliberately NOT run
+#   blind: its doc_status comes from the stale inventory's degenerate
+#   internal->draft mapping and would clobber the section-based discriminator on
+#   the ~55 reachable pages (the exact override WP11-review asked WP12 to apply).
+#   The mechanical pass IS T071's intent, with the corrected discriminator.
+
 sections:
   - name: "3x"
     pages: 3
@@ -105,9 +125,11 @@ sections:
     description_status: done
   - name: plans
     pages: 158
-    description_status: pending
-    descriptions_needed: 156
-    doc_status_rule: draft
+    description_status: done
+    doc_status_rule: draft  # plus 3 author-signed `status: active` honored -> active
+    note: >-
+      Authored in two sub-batches: non-engineering-notes (82) and the
+      engineering-notes research-squad subtree (74, incl. 3 over-length trims).
   - name: release-goals
     pages: 4
     description_status: done

@@ -1,5 +1,6 @@
 ---
 title: DIR-013 Sub-Issues Filed for Mission 01KSF9HJ
+description: Record of the GitHub sub-issues filed per DIR-013 (Pre-existing Failure Reporting Rule) from the mission 01KSF9HJ test-failure triage.
 doc_status: draft
 updated: '2026-06-27'
 related:

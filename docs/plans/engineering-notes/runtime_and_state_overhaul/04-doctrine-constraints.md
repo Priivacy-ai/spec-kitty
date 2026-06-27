@@ -1,5 +1,6 @@
 ---
 title: '04 — Doctrine Constraints: The Rules Any Domain Split Must Obey'
+description: 'Doctrine constraints for the runtime and state overhaul: the binding governance artifacts any domain split must obey, with directive enforcement levels noted.'
 doc_status: draft
 updated: '2026-06-03'
 ---

@@ -1,5 +1,6 @@
 ---
 title: '03 — Architecture Context: 3.x Intent, Deep-Dive Review, CAACS Audits'
+description: 'Architecture context for the runtime and state overhaul: what 3.x intent, the deep-dive review, and the CaaCS audits already commit to and flag as debt.'
 doc_status: draft
 updated: '2026-06-03'
 ---

@@ -1,5 +1,6 @@
 ---
 title: Neutral scoring — 3.2.1 lead-slice candidates (architectural lens)
+description: Architect Alphonso's neutral architectural scoring of the 3.2.1 lead-slice candidates, a non-confirmatory read-only analysis pass.
 doc_status: draft
 updated: '2026-06-16'
 ---

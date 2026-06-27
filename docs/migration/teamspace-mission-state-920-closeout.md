@@ -1,6 +1,6 @@
 ---
 title: TeamSpace Mission-State 920 Closeout Evidence
-description: Migration guidance for TeamSpace Mission-State 920 Closeout Evidence in Spec Kitty 3.2, including upgrade context and historical behavior boundaries.
+description: 'Closeout evidence for TeamSpace mission-state issue #920, generated from a clean workspace: the artifacts proving the mission-state repair landed correctly.'
 doc_status: active
 updated: '2026-06-03'
 ---

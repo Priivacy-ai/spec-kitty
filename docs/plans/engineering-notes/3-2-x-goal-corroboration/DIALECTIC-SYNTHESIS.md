@@ -1,5 +1,6 @@
 ---
 title: Dialectic synthesis — 3.2.x design under white-team + red-team
+description: 'Dialectic synthesis of the 3.2.x design under white-team corroboration and red-team refutation: what survives the adversarial test and what does not (2026-06-16).'
 doc_status: draft
 updated: '2026-06-16'
 ---

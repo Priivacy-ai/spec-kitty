@@ -1,5 +1,6 @@
 ---
 title: Paula Patterns — 3.2.3 Cluster Investigation
+description: Paula Patterns' cluster investigation of the 3.2.3 surface-resolution regressions, naming the recurring duplication shape and the canonical consolidation.
 doc_status: draft
 updated: '2026-06-26'
 ---

@@ -1,5 +1,6 @@
 ---
 title: '12 — Actor Mental Model: Self · Purpose · Environment'
+description: 'Actor mental model (abstraction level-up) for the runtime and state overhaul: stepping up from context plumbing to ask what an actor is across self, purpose, environment.'
 doc_status: draft
 updated: '2026-06-03'
 related:

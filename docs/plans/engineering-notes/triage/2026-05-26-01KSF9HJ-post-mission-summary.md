@@ -1,5 +1,6 @@
 ---
 title: Mission 01KSF9HJ — Post-Mission Summary (WP04 closeout)
+description: 'Post-mission summary (WP04 closeout, 2026-05-26) for the test-stabilization-and-debt-pass mission 01KSF9HJ: the delta achieved and residual debt.'
 doc_status: draft
 updated: '2026-06-27'
 related:

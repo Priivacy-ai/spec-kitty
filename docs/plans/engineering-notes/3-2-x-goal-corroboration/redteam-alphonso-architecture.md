@@ -1,5 +1,6 @@
 ---
 title: RED TEAM — Architecture Refutation (Architect Alphonso, antithesis)
+description: Architect Alphonso's red-team architecture refutation (dialectic antithesis) of the 3.2.x goals, read-only on the naming-identity-ssot-alignment branch.
 doc_status: draft
 updated: '2026-06-16'
 ---

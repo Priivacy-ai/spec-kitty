@@ -1,5 +1,6 @@
 ---
 title: '09 — Context Decomposition: A Conceptual Model'
+description: Conceptual decomposition model (Phase 2) testing the hypothesis that context is not one object but several domain-owned chunks, for the runtime and state overhaul.
 doc_status: draft
 updated: '2026-06-03'
 related:

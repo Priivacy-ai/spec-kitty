@@ -1,5 +1,6 @@
 ---
 title: Paula Patterns — 3.2.x Goal Corroboration from the Emerging-Patterns POV
+description: "Paula Patterns' corroboration of the 3.2.x goals from the emerging-patterns lens: which recurring boundary leaks and whack-a-field fixes the goals address."
 doc_status: draft
 updated: '2026-06-16'
 ---

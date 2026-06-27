@@ -1,6 +1,6 @@
 ---
 title: 'Cutover Runbook: Retrospective Events — Local to Upstream'
-description: 'Migration guidance for Cutover Runbook: Retrospective Events — Local to Upstream in Spec Kitty 3.2, including upgrade context and historical behavior.'
+description: 'Cutover runbook for moving retrospective events from local emission to the upstream spec_kitty_events package, pending its release: the steps and the relevant ADR.'
 doc_status: active
 updated: '2026-06-03'
 ---

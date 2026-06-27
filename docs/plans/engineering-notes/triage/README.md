@@ -1,5 +1,6 @@
 ---
 title: Triage notes
+description: 'Landing page for the triage engineering notes: mission-scoped root-cause clustering, DIR-013 sub-issue plans, and post-mission delta summaries.'
 doc_status: draft
 updated: '2026-05-26'
 ---

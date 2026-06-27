@@ -1,6 +1,6 @@
 ---
 title: Managing AI Agents
-description: 'How to managing ai agents with Spec Kitty 3.2: Learn how to add, remove, and manage AI agents in your spec-kitty project after initialization.'
+description: How to add, remove, and manage AI agents in a spec-kitty project after initialization, across the supported slash-command and Agent-Skills harnesses.
 doc_status: active
 updated: '2026-06-15'
 related:
