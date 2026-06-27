@@ -1,0 +1,31 @@
+{
+  "accept_commit": "6bdda5e21db4a14e4d4cd9cbef4246d1c66fbec3",
+  "acceptance_history": [
+    {
+      "accept_commit": "6bdda5e21db4a14e4d4cd9cbef4246d1c66fbec3",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-27T17:44:00.453091+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "6c681ef7fd5164a7397ec3790ed2280c331f5676"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-27T17:44:00.453091+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "6c681ef7fd5164a7397ec3790ed2280c331f5676",
+  "baseline_merge_commit": "d55cbdef2c656c08ed8e366b4301b58b3ae72f8c",
+  "created_at": "2026-06-27T15:29:26.757176+00:00",
+  "flattened": false,
+  "friendly_name": "lifecycle tooling friction",
+  "mission_id": "01KW4V6CQ43CMRKN7C1E6GQGXB",
+  "mission_number": 152,
+  "mission_slug": "lifecycle-tooling-friction-01KW4V6C",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances lifecycle tooling friction on mission/lifecycle-tooling-friction so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "lifecycle tooling friction",
+  "slug": "lifecycle-tooling-friction-01KW4V6C",
+  "target_branch": "mission/lifecycle-tooling-friction",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-27T16:22:57.557430+00:00"
+}
