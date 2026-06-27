@@ -68,7 +68,7 @@ its child tickets to the branch's missions.
 | Ticket | Title | Branch coverage |
 |---|---|---|
 | #1007 | Clarify charter source of truth for projects with existing constitutions | **NOT started** |
-| #1013 | Implement charter governance references and external-doc guidance | **PARTIAL** — `docs/development/runtime-charter-doctrine-boundary.md` and `docs/explanation/org-doctrine-layer.md` are net-new explanatory docs. They address the org-layer surface but not the general "which charter wins" question for pre-existing constitutions. |
+| #1013 | Implement charter governance references and external-doc guidance | **PARTIAL** — `docs/development/runtime-charter-doctrine-boundary.md` and `docs/architecture/org-doctrine-layer.md` are net-new explanatory docs. They address the org-layer surface but not the general "which charter wins" question for pre-existing constitutions. |
 
 ---
 

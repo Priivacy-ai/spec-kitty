@@ -56,7 +56,7 @@ All 19 Functional Requirements from `spec.md` are mapped to owning WP and test f
 | FR-016 | Curated Windows-critical suite | WP07 | `pytest.ini` marker + 9 `windows_ci` test files | ADEQUATE | — |
 | FR-017 | Every confirmed bug has native-Windows test | WP08 | `tests/regressions/test_issue_{101,71,105}_*.py`, upgraded `test_issue_586_*.py` | ADEQUATE (windows_ci only) | — |
 | FR-018 | Second-pass repo-wide audit | WP09 | `architecture/2026-04-14-windows-compatibility-hardening.md` (audit report) | PARTIAL | See DRIFT-2 |
-| FR-019 | Docs updated for Windows path story | WP09 | `CLAUDE.md`, `docs/explanation/windows-state.md`, 2 ADRs | ADEQUATE | — |
+| FR-019 | Docs updated for Windows path story | WP09 | `CLAUDE.md`, `docs/architecture/windows-state.md`, 2 ADRs | ADEQUATE | — |
 
 **Legend:** ADEQUATE = test constrains the required behavior in production. PARTIAL = test exists but has a weakness documented in a DRIFT/RISK row. MISSING = no test found. None of the 19 FRs are MISSING.
 

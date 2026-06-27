@@ -162,7 +162,7 @@ but is not needed — these types have natural ownership in doctrine.
 
 ### Step 0 — Write the ADR (first commit)
 
-**File**: `architecture/2.x/adr/2026-03-XX-glossary-type-ownership.md`
+**File**: `docs/adr/2.x/2026-03-XX-glossary-type-ownership.md`
 
 Documents:
 - Glossary primitive types are owned by `doctrine`, re-exported by `specify_cli`

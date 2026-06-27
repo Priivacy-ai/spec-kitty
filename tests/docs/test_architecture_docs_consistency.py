@@ -19,11 +19,18 @@ import pytest
 pytestmark = [pytest.mark.unit]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-ARCH_DIR = REPO_ROOT / "architecture"
+# Common Docs structural fold (Mission B): the architecture corpus moved under
+# ``docs/`` — living design to ``docs/architecture/``, ADRs to ``docs/adr/<era>/``,
+# audience personas to ``docs/context/audience/``, user journeys to
+# ``docs/plans/user_journey/``.
+ARCH_DIR = REPO_ROOT / "docs" / "architecture"
+ADR_DIR = REPO_ROOT / "docs" / "adr"
+AUDIENCE_DIR = REPO_ROOT / "docs" / "context" / "audience"
+USER_JOURNEY_DIR = REPO_ROOT / "docs" / "plans" / "user_journey"
 
 ADR_TRACKS = {
-    "1.x": ARCH_DIR / "1.x" / "adr",
-    "2.x": ARCH_DIR / "2.x" / "adr",
+    "1.x": ADR_DIR / "1.x",
+    "2.x": ADR_DIR / "2.x",
 }
 
 ADR_FILENAME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-\d+-.+\.md$")
@@ -35,13 +42,13 @@ REQUIRED_ARCH_PATHS: list[Path] = [
     ARCH_DIR / "adr-template.md",
     ARCH_DIR / "ARCHITECTURE_DOCS_GUIDE.md",
     ARCH_DIR / "NAVIGATION_GUIDE.md",
-    ARCH_DIR / "adrs",
-    ARCH_DIR / "audience" / "README.md",
-    ARCH_DIR / "audience" / "internal",
-    ARCH_DIR / "audience" / "external",
-    ARCH_DIR / "1.x" / "adr",
-    ARCH_DIR / "2.x" / "adr",
-    ARCH_DIR / "2.x" / "user_journey",
+    ADR_DIR,
+    AUDIENCE_DIR / "README.md",
+    AUDIENCE_DIR / "internal",
+    AUDIENCE_DIR / "external",
+    ADR_DIR / "1.x",
+    ADR_DIR / "2.x",
+    USER_JOURNEY_DIR,
 ]
 
 # Each entry is a tuple of (human-readable label, compiled pattern).
@@ -198,10 +205,9 @@ ACTOR_LINK_RE = re.compile(r"\[([^\]]+)\]\((\.\.\/\.\.\/audience[^)]+)\)")
 
 
 def _collect_user_journey_files() -> list[Path]:
-    user_journey_dir = ARCH_DIR / "2.x" / "user_journey"
-    if not user_journey_dir.is_dir():
+    if not USER_JOURNEY_DIR.is_dir():
         return []
-    return sorted(user_journey_dir.glob("*.md"))
+    return sorted(USER_JOURNEY_DIR.glob("*.md"))
 
 
 USER_JOURNEY_FILES = _collect_user_journey_files()

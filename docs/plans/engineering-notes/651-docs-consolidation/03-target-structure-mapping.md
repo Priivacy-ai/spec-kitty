@@ -80,7 +80,7 @@ docs/
 ## Sequencing
 
 - **Ship now (hygiene, no design):** `index.md` for `engineering_notes/` + `development/`,
-  `CLAUDE.md:531` dead-link fix, ADR README backfill, verify-close the `architecture/adrs/`
+  `CLAUDE.md:531` dead-link fix, ADR README backfill, verify-close the `docs/adr/3.x/`
   shim, retire `NAVIGATION_GUIDE.md`, add the `llms.txt` routing rubric.
 - **Consolidation mission (gated by the reconciliation ADR first):** single-root +
   history move (`adr/<era>/`) + collapse the split-brain + unify the living design; link

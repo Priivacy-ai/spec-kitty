@@ -60,7 +60,7 @@ event to the trail file.
 uv run spec-kitty profile-invocation complete \
   --invocation-id 01KQABCDEF1234567890 \
   --outcome done \
-  --artifact docs/how-to/my-guide.md \
+  --artifact docs/guides/my-guide.md \
   --commit abc123def456
 
 uv run spec-kitty profile-invocation complete \

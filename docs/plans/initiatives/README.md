@@ -3,7 +3,7 @@
 This directory contains active or exploratory architecture initiatives for the 2.x track.
 
 Initiatives are intentionally non-canonical.
-Canonical decisions must land in `architecture/2.x/adr/` once accepted.
+Canonical decisions must land in `docs/adr/2.x/` once accepted.
 
 ## Current Initiatives
 

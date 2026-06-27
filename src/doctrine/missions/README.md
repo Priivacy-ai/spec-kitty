@@ -31,6 +31,6 @@ This directory also contains shared mission primitives:
 
 ## Glossary Reference
 
-See [Mission](../../../glossary/contexts/orchestration.md#mission) and
-[Command Template](../../../glossary/contexts/orchestration.md#command-template)
+See [Mission](../../../docs/context/orchestration.md#mission) and
+[Command Template](../../../docs/context/orchestration.md#command-template)
 in the orchestration glossary context.

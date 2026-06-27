@@ -2,7 +2,7 @@
 """
 Generate Contextive-compatible YAML glossary files from canonical glossary markdown.
 
-Reads glossary/contexts/*.md and a traceability map to produce:
+Reads docs/context/*.md and a traceability map to produce:
   - src/specify_cli/.contextive/<slug>.yml  (one per referenced context)
   - <scope-path>/.contextive.yml            (imports relevant contexts)
 
@@ -30,22 +30,14 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def resolve_glossary_contexts_dir(repo_root: Path) -> Path:
-    """Return the glossary-contexts dir, preferring the new ``docs/context`` home.
+    """Return the canonical ``docs/context`` glossary-contexts dir.
 
-    Mission B (FR-009 / C-006) relocates the glossary from ``glossary/contexts/``
-    to ``docs/context/``. Dual-read (C-003): the new home is tried first; when it
-    does not exist the legacy ``glossary/contexts/`` is returned if present, so
-    this doctrine-extraction source resolves both before and after the tree move
-    (WP03). When neither exists the new canonical home is returned. The legacy
-    branch is dropped in WP08's reference sweep.
+    Mission B (FR-009 / C-006) relocated the glossary from ``glossary/contexts/``
+    to ``docs/context/``. WP01 staged a dual-read against the legacy home while
+    the move was in flight; now that the tree has landed (WP03) the legacy
+    branch is dropped — ``docs/context`` is the sole doctrine-extraction source.
     """
-    new_dir = repo_root / "docs" / "context"
-    if new_dir.is_dir():
-        return new_dir
-    legacy_dir = repo_root / "glossary" / "contexts"
-    if legacy_dir.is_dir():
-        return legacy_dir
-    return new_dir
+    return repo_root / "docs" / "context"
 
 
 GLOSSARY_CONTEXTS_DIR = resolve_glossary_contexts_dir(REPO_ROOT)

@@ -22,7 +22,7 @@ Terms describing rule ownership, precedence, and policy controls in Spec Kitty.
 | **Context** | Governance |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Location** | `architecture/1.x/adr/` and `architecture/2.x/adr/` |
+| **Location** | `docs/adr/1.x/` and `docs/adr/2.x/` |
 
 ---
 

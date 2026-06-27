@@ -76,7 +76,7 @@ Third-party tools (CI checks, the shim registry in mission #615, future scripts)
 import yaml
 from pathlib import Path
 
-manifest = yaml.safe_load(Path("architecture/2.x/05_ownership_manifest.yaml").read_text())
+manifest = yaml.safe_load(Path("docs/architecture/05_ownership_manifest.yaml").read_text())
 runtime = manifest["runtime_mission_execution"]
 may_call = runtime["dependency_rules"]["may_call"]
 # assert import-graph compliance

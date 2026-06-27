@@ -5,7 +5,7 @@ This module owns all remote-state inspection that is only relevant when
 remain network-free; callers that perform a local-only merge must never
 import from this module.
 
-See architecture/3.x/adr/2026-06-05-1-merge-publish-layer-boundary.md
+See docs/adr/3.x/2026-06-05-1-merge-publish-layer-boundary.md
 Issue: https://github.com/Priivacy-ai/spec-kitty/issues/1706
 """
 

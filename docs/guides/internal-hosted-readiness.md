@@ -139,7 +139,7 @@ SPEC_KITTY_ENABLE_SAAS_SYNC=1 spec-kitty sync doctor
 
 # 3. Confirm the logged-out recovery surfaces in non-interactive mode.
 #    Expect exit code 4 and the structured stderr line documented in
-#    docs/recovery/logged-out-teamspace.md.
+#    docs/operations/logged-out-teamspace.md.
 SPEC_KITTY_ENABLE_SAAS_SYNC=1 SPEC_KITTY_NON_INTERACTIVE=1 \
   spec-kitty sync now < /dev/null
 echo "exit=$?"

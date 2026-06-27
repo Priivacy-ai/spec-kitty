@@ -8,7 +8,7 @@ description: "Migration guidance for Migration: Mission ID as Canonical Identity
 # Migration: Mission ID as Canonical Identity
 
 **Status**: Shipped with mission `083-mission-id-canonical-identity-migration`.
-**ADR**: [2026-04-09-1](https://github.com/Priivacy-ai/spec-kitty/blob/main/architecture/adrs/2026-04-09-1-mission-identity-uses-ulid-not-sequential-prefix.md)
+**ADR**: [2026-04-09-1](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-04-09-1-mission-identity-uses-ulid-not-sequential-prefix.md)
 **Issue**: [Priivacy-ai/spec-kitty#557](https://github.com/Priivacy-ai/spec-kitty/issues/557)
 **Audience**: Operators upgrading existing Spec Kitty projects to the 3.x line
 that ships the `mission_id` identity model.

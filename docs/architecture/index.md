@@ -19,4 +19,4 @@ end-user documentation.
 ## See also
 
 - [Documentation home](../index.md)
-- [Architecture Decision Records](../../architecture/3.x/adr/README.md)
+- [Architecture Decision Records](../../docs/adr/3.x/README.md)

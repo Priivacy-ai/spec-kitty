@@ -9,7 +9,7 @@ regenerating the snapshot is meant to fail loudly.
 
 See:
 - ``kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/contracts/events-envelope.md``
-- ``architecture/2.x/adr/2026-04-26-1-contract-pinning-resolved-version.md``
+- ``docs/adr/3.x/2026-04-26-1-contract-pinning-resolved-version.md``
 - ``docs/development/contract-pinning.md``
 """
 from __future__ import annotations

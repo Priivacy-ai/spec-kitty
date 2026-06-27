@@ -20,6 +20,6 @@ top* of `architecture/` (see [`../README.md`](../README.md) for the boundary and
 
 | Artifact | Meaning | Home | Mutability |
 |---|---|---|---|
-| Vision | Forward intent | `architecture/vision/` (top-level, living) | May change |
+| Vision | Forward intent | `docs/architecture/vision/` (top-level, living) | May change |
 | Decision (ADR) | Ratified decision | `architecture/<version>/adr/` | Immutable, era-stamped |
 | Spike | Exploration | `architecture/<version>/research/` | Versioned record |

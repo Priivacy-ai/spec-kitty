@@ -32,7 +32,7 @@ what an external bug reporter would see.  Each subprocess is a clean
 Python invocation against the installed package.
 
 Spec source: FR-019, FR-020, FR-021, SC-05, SC-06, SC-11; ADR
-``architecture/3.x/adr/`` for the bookkeeping contract rationale.
+``docs/adr/3.x/`` for the bookkeeping contract rationale.
 """
 
 from __future__ import annotations
