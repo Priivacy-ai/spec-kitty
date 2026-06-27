@@ -1391,7 +1391,22 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
     if json_output:
         result_execution_mode = result.execution_mode if isinstance(result.execution_mode, str) else resolved_workspace.execution_mode
         workspace_rel = str(workspace_path.relative_to(repo_root))
-        identity = resolve_mission_identity(feature_dir)
+        # FR-004/FR-005 (#2186): the JSON ``mission_slug``/``mission_number``/
+        # ``mission_type`` come from meta.json, which lives ONLY on the PRIMARY
+        # checkout. ``feature_dir`` above may have landed on the coord husk (the
+        # topology-aware resolve→candidate cascade); give the identity read its OWN
+        # PRIMARY anchor rather than relying on the conditional meta-fallback above
+        # (C-EXCL-FALLBACK — so that fallback can be retired later). NFR-004: no
+        # primary-dir stub — this resolves the durable PRIMARY home for real.
+        from specify_cli.missions._read_path_resolver import (
+            _canonicalize_primary_read_handle,
+            primary_feature_dir_for_mission,
+        )
+
+        _identity_dir = primary_feature_dir_for_mission(
+            repo_root, _canonicalize_primary_read_handle(repo_root, mission_slug)
+        )
+        identity = resolve_mission_identity(_identity_dir)
         print(
             json.dumps(
                 {
