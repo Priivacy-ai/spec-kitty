@@ -300,7 +300,7 @@ Create a hello module.
             repo,
             "implement",
             "WP01",
-            "--feature",
+            "--mission",
             mission_slug,
             "--json",
         )
@@ -321,7 +321,7 @@ Create a hello module.
                 repo,
                 "implement",
                 "WP01",
-                "--feature",
+                "--mission",
                 mission_slug,
             )
 

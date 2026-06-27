@@ -25,7 +25,7 @@ from specify_cli import app as main_app
 from specify_cli.cli.commands.lifecycle import plan, tasks
 from specify_cli.cli.commands.mission_type import app as mission_type_app
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 runner = CliRunner()
 
 _plan_app = typer.Typer()
@@ -99,7 +99,7 @@ class TestMissionCurrentNoSelector:
         assert result.exit_code == 2, result.output
         assert "no such option" in result.output.lower()
 
-    def test_no_mission_no_type_error(self) -> None:
+    def test_no_mission_no_type_error(self, tmp_path: Path) -> None:
         """No ``--mission`` and no auto-detected mission exits 2 (SC-003, not TypeError).
 
         Patches ``get_project_root_or_exit`` so the function body is reached
@@ -107,7 +107,7 @@ class TestMissionCurrentNoSelector:
         the project-root guard (``raise typer.Exit(1)``).
         """
         with patch("specify_cli.cli.commands.mission_type.get_project_root_or_exit") as mock_root:
-            mock_root.return_value = Path("/tmp/nonexistent-test-path")
+            mock_root.return_value = tmp_path / "nonexistent-test-path"
             result = runner.invoke(main_app, ["mission", "current"])
         assert result.exit_code == 2, (
             f"Expected exit code 2 (SC-003 no-selector guard), got {result.exit_code}"

@@ -13,7 +13,7 @@ import typer
 from typer.testing import CliRunner
 from specify_cli import app as main_app
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 runner = CliRunner()
 
 
