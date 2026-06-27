@@ -1,1 +1,0 @@
-../../3.x/adr/2026-04-26-1-contract-pinning-resolved-version.md

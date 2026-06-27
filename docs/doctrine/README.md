@@ -1,11 +1,8 @@
 ---
 title: Doctrine Packs
 description: Index of optional Spec Kitty doctrine packs that activate through charter selection.
-doc_status: active
-updated: '2026-05-26'
-related:
-- docs/doctrine/spdd-reasons.md
 ---
+
 # Doctrine Packs
 
 A **doctrine pack** is a bundle of related built-in doctrine artifacts

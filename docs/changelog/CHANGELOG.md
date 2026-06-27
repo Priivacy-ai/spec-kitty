@@ -1,9 +1,3 @@
----
-title: Changelog
-description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
-doc_status: active
-updated: '2026-06-26'
----
 # Changelog
 
 <!-- markdownlint-disable MD024 -->

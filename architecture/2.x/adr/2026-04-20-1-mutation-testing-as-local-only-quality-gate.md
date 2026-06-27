@@ -1,1 +1,0 @@
-../../3.x/adr/2026-04-20-1-mutation-testing-as-local-only-quality-gate.md

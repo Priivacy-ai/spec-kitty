@@ -1,1 +1,0 @@
-../2.x/adr/2026-02-21-1-consistent-code-style-enforcement-via-git-hooks.md

@@ -1,10 +1,3 @@
----
-title: 'Gap Analysis: Migrating Spec-Kitty to the Installation-Link-Mapping-Override Connector Model'
-doc_status: draft
-updated: '2026-04-06'
-related:
-- docs/plans/notes/adr-connector-auth-binding-separation.md
----
 # Gap Analysis: Migrating Spec-Kitty to the Installation-Link-Mapping-Override Connector Model
 
 **Status**: Draft

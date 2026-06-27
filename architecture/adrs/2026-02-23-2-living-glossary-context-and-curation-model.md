@@ -1,1 +1,0 @@
-../2.x/adr/2026-02-23-2-living-glossary-context-and-curation-model.md

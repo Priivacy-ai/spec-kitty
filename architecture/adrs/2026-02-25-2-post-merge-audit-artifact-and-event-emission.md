@@ -1,1 +1,0 @@
-../2.x/adr/2026-02-25-2-post-merge-audit-artifact-and-event-emission.md

@@ -1,1 +1,0 @@
-../../3.x/adr/2026-04-15-2-explicit-empty-charter-selections-remain-empty.md

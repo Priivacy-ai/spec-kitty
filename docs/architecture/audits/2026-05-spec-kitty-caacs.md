@@ -1,9 +1,3 @@
----
-title: spec-kitty CaaCS Audit — 2026-05
-description: 'The full 2026-05 Code-as-a-Crime-Scene forensic audit of the spec-kitty repository: metadata, hotspot findings, and the bus-factor and complexity observations.'
-doc_status: active
-updated: '2026-05-19'
----
 # spec-kitty CaaCS Audit — 2026-05
 
 ## Audit metadata

@@ -1,8 +1,3 @@
----
-title: 'User Journey: Ad-Hoc Specialist Session (Quick Task)'
-doc_status: draft
-updated: '2026-06-12'
----
 # User Journey: Ad-Hoc Specialist Session (Quick Task)
 
 **Status**: DRAFT  

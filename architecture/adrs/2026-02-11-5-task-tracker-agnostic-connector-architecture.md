@@ -1,1 +1,0 @@
-../2.x/adr/2026-02-11-5-task-tracker-agnostic-connector-architecture.md

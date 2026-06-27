@@ -1,1 +1,0 @@
-../2.x/adr/2026-02-09-3-event-log-merge-semantics.md

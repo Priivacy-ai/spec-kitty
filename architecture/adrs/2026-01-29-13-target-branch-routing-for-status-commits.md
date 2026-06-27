@@ -1,1 +1,0 @@
-../2.x/adr/2026-01-29-13-target-branch-routing-for-status-commits.md

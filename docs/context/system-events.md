@@ -1,14 +1,3 @@
----
-title: 'Context: System Events'
-description: "Glossary context for system events: Spec Kitty's append-only event model, replay behavior, and system-level event types like the event envelope."
-doc_status: active
-updated: '2026-03-10'
-related:
-- docs/context/dossier.md
-- docs/context/execution.md
-- docs/context/identity.md
-- docs/context/orchestration.md
----
 ## Context: System Events
 
 Terms describing Spec Kitty's append-only event model, replay behavior, and system-level event types.

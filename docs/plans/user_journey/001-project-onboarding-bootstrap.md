@@ -1,8 +1,3 @@
----
-title: 'User Journey: Project Onboarding & Bootstrap'
-doc_status: draft
-updated: '2026-04-05'
----
 # User Journey: Project Onboarding & Bootstrap
 
 | Field | Value |
