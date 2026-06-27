@@ -1279,8 +1279,16 @@ def implement(
         try:
             from specify_cli.mission_metadata import resolve_mission_identity
 
+            # FR-005 (#2186): anchor the preflight ``mission_id`` on the PRIMARY
+            # checkout. The coord-aware resolver lands on the STATUS-only husk (no
+            # meta.json) — a wrong/empty id for the sparse-checkout override log.
             _identity = resolve_mission_identity(
-                resolve_feature_dir_for_mission(_main_repo_for_preflight, mission_slug)
+                primary_feature_dir_for_mission(
+                    _main_repo_for_preflight,
+                    _canonicalize_primary_read_handle(
+                        _main_repo_for_preflight, mission_slug
+                    ),
+                )
             )
             _mission_id_for_preflight = _identity.mission_id
         except Exception:  # noqa: BLE001 — meta.json may not exist for legacy missions
@@ -1640,11 +1648,19 @@ def implement(
             except Exception as _fix_mode_err:
                 logger.warning("Fix-mode prompt generation failed, falling through to full prompt: %s", _fix_mode_err)
 
-        # Detect mission type and get deliverables_path for research missions
-        mission_type = get_mission_type(feature_dir)
+        # Detect mission type and get deliverables_path for research missions.
+        # FR-005 (#2186): the mission TYPE is a meta.json read and meta.json lives
+        # ONLY on PRIMARY. ``feature_dir`` here is bound from the coord-aware
+        # resolver (it is the STATUS leg for this loop), so read the type off its
+        # OWN PRIMARY-anchored dir — do NOT re-point the shared ``feature_dir``
+        # (it carries STATUS semantics the surrounding code depends on, C-001).
+        _mission_type_dir = primary_feature_dir_for_mission(
+            repo_root, _canonicalize_primary_read_handle(repo_root, mission_slug)
+        )
+        mission_type = get_mission_type(_mission_type_dir)
         deliverables_path = None
         if mission_type == MISSION_TYPE_RESEARCH:
-            deliverables_path = get_deliverables_path(feature_dir, mission_slug)
+            deliverables_path = get_deliverables_path(_mission_type_dir, mission_slug)
 
         # Capture baseline test results (one-time, cached) before the agent starts coding
         # wp.path.stem is e.g. "WP04-baseline-test-capture"
@@ -2736,7 +2752,15 @@ def review(
 
         # Write full prompt to file
         full_content = "\n".join(lines)
-        _mission_identity = resolve_mission_identity(resolve_feature_dir_for_mission(main_repo_root, mission_slug))
+        # FR-005 (#2186): the review-prompt metadata ``mission_id`` is a meta.json
+        # read → PRIMARY only. Anchor on the topology-blind PRIMARY dir, not the
+        # coord-aware resolver (which selects the meta-less husk).
+        _mission_identity = resolve_mission_identity(
+            primary_feature_dir_for_mission(
+                main_repo_root,
+                _canonicalize_primary_read_handle(main_repo_root, mission_slug),
+            )
+        )
         _review_metadata = build_review_prompt_metadata(
             repo_root=main_repo_root,
             mission_id=_mission_identity.mission_id,

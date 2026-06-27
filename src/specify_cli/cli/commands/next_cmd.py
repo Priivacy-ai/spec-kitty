@@ -21,7 +21,9 @@ opened directly from the next command.
 from __future__ import annotations
 
 from specify_cli.missions._read_path_resolver import (
+    _canonicalize_primary_read_handle,
     candidate_feature_dir_for_mission,
+    primary_feature_dir_for_mission,
     resolve_feature_dir_for_mission,
 )
 import contextlib
@@ -178,8 +180,18 @@ def _pair_previous_lifecycle_record(
     from specify_cli.mission_metadata import resolve_mission_identity
 
     repo_root_path = Path(str(repo_root)) if not isinstance(repo_root, Path) else repo_root
+    # FR-004 (#2186): the lifecycle ``mission_id`` MUST be read from the PRIMARY
+    # checkout. ``resolve_feature_dir_for_mission`` is topology-aware and selects
+    # the STATUS-only ``-coord`` husk once one exists — which carries no meta.json
+    # (a wrong-leg read raises or, with a stale husk meta, returns the wrong id).
+    # Anchor identity on the topology-blind PRIMARY dir (handle folded first so a
+    # bare mid8 / human slug resolves the durable ``<slug>-<mid8>`` home; an
+    # ambiguous handle RAISES — no silent pick, C-003).
     try:
-        feature_dir = resolve_feature_dir_for_mission(repo_root_path, mission_slug)
+        feature_dir = primary_feature_dir_for_mission(
+            repo_root_path,
+            _canonicalize_primary_read_handle(repo_root_path, mission_slug),
+        )
     except Exception:
         return
 
@@ -244,8 +256,14 @@ def _write_issuance_lifecycle_record(
         return
 
     repo_root_path = Path(str(repo_root)) if not isinstance(repo_root, Path) else repo_root
+    # FR-004 (#2186): same PRIMARY anchoring as the completion pairing above — the
+    # ``started`` lifecycle record's ``mission_id`` must come from the PRIMARY
+    # meta.json, never the coord husk (which lacks it or carries a stale id).
     try:
-        feature_dir = resolve_feature_dir_for_mission(repo_root_path, mission_slug)
+        feature_dir = primary_feature_dir_for_mission(
+            repo_root_path,
+            _canonicalize_primary_read_handle(repo_root_path, mission_slug),
+        )
     except Exception:
         return
 
@@ -615,7 +633,15 @@ def _handle_answer(
         runtime_bridge = _runtime_bridge_module()
         from specify_cli.mission import get_mission_type
 
-        feature_dir = resolve_feature_dir_for_mission(repo_root_path, mission_slug)
+        # FR-004 (#2186): the mission TYPE drives ``get_or_start_run``. Reading it
+        # off the topology-aware resolver lands on the STATUS-only coord husk (no
+        # meta.json) → ``get_mission_type`` returns the default ``software-dev``,
+        # starting the run with the WRONG type for a non-default mission. Anchor on
+        # the PRIMARY dir so the type is read from the real meta.json.
+        feature_dir = primary_feature_dir_for_mission(
+            repo_root_path,
+            _canonicalize_primary_read_handle(repo_root_path, mission_slug),
+        )
         mission_type = get_mission_type(feature_dir)
         run_ref = runtime_bridge.get_or_start_run(mission_slug, repo_root_path, mission_type)
 
