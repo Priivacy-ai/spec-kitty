@@ -23,7 +23,7 @@
 ## Core Motivations
 
 - **Professional Drivers**: Faster implementation with fewer ambiguous handoffs.
-- **Emotional or Cognitive Drivers**: Wants high signal in docs and low ceremony overhead.
+- **Emotional or Cognitive Drivers**: Wants high signal in docs and low process overhead.
 - **Systemic Positioning**: Bridge between architecture intent and daily coding operations.
 
 ---
