@@ -37,7 +37,7 @@ operational and cross-repo work outside this branch:
 |---|---:|---|
 | spec-kitty `#921` audit engine | implemented | `tests/audit -q` passed: 174 tests. |
 | spec-kitty `#922` CLI audit command | implemented | `tests/audit/test_audit_cli.py` covered `--audit`, `--json`, `--mission`, `--fail-on`, and `--include-fixtures`. |
-| spec-kitty `#923` identity ADR | implemented on this branch | ADR added at `docs/adr/2.x/2026-05-10-1-deterministic-historical-mission-state-repair.md`; fork-seed behavior covered in `test_deterministic_repair_ids_follow_fork_seed_material`. |
+| spec-kitty `#923` identity ADR | implemented on this branch | ADR added at `docs/adr/3.x/2026-05-10-1-deterministic-historical-mission-state-repair.md`; fork-seed behavior covered in `test_deterministic_repair_ids_follow_fork_seed_material`. |
 | spec-kitty `#924` local canonicalizer | implemented | `tests/migration/test_mission_state_repair.py` covers canonicalization, idempotency, deterministic IDs, event preservation, quarantine, and manifest evidence. |
 | spec-kitty `#925` distributed Git safety | implemented on this branch | Added tests for held common-dir lock and dirty relevant paths in a linked worktree. No commit mode exists, so path-whitelisted staging is not applicable. |
 | spec-kitty `#926` deterministic public migration | implemented | Two-clone rehearsal verifies byte-identical diffs and deterministic dry-run output. |
@@ -64,7 +64,7 @@ Commands run in the clean checkout:
 
 ```bash
 python scripts/release/validate_release.py --mode branch --tag-pattern 'v*.*.*'
-uv run ruff check docs/adr/2.x/2026-05-10-1-deterministic-historical-mission-state-repair.md docs/migration/teamspace-mission-state-repair.md docs/migration/teamspace-mission-state-920-closeout.md src/specify_cli/migration/mission_state.py src/specify_cli/sync/batch.py tests/migration/test_mission_state_repair.py tests/migration/test_teamspace_migration_rehearsal.py tests/sync/test_batch_sync.py tests/release/test_dogfood_command_set.py tests/release/test_validate_metadata_yaml_sync.py
+uv run ruff check docs/adr/3.x/2026-05-10-1-deterministic-historical-mission-state-repair.md docs/migration/teamspace-mission-state-repair.md docs/migration/teamspace-mission-state-920-closeout.md src/specify_cli/migration/mission_state.py src/specify_cli/sync/batch.py tests/migration/test_mission_state_repair.py tests/migration/test_teamspace_migration_rehearsal.py tests/sync/test_batch_sync.py tests/release/test_dogfood_command_set.py tests/release/test_validate_metadata_yaml_sync.py
 SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run python -m pytest tests/contract/test_events_envelope_matches_resolved_version.py tests/migration/test_mission_state_repair.py tests/migration/test_teamspace_migration_rehearsal.py tests/sync/test_batch_sync.py::TestHistoricalMissionStateGuard tests/release/test_check_shared_package_drift.py tests/architectural/test_pyproject_shape.py tests/release/test_dogfood_command_set.py tests/release/test_validate_metadata_yaml_sync.py -q
 uv run python -m pytest tests/audit -q
 uv lock --check

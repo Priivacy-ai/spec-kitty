@@ -1,7 +1,7 @@
 """Stale-lane auto-rebase orchestrator.
 
 Drives the auto-rebase pipeline described in
-``docs/adr/2.x/2026-05-14-1-stale-lane-auto-rebase-classifier-policy.md``:
+``docs/adr/3.x/2026-05-14-1-stale-lane-auto-rebase-classifier-policy.md``:
 
 1. Attempt ``git merge <mission-branch>`` inside the lane worktree.
 2. If the merge succeeds cleanly, return :class:`AutoRebaseReport` with

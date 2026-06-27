@@ -9,7 +9,7 @@ description: "Migration guidance for Cross-Repo E2E Gate — Operator Migration 
 
 **Status**: Active as of mission
 `stability-and-hygiene-hardening-2026-04-01KQ4ARB` (2026-04-26).
-**ADR**: [`docs/adr/2.x/2026-04-26-3-e2e-hard-gate.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/2.x/2026-04-26-3-e2e-hard-gate.md)
+**ADR**: [`docs/adr/3.x/2026-04-26-3-e2e-hard-gate.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-04-26-3-e2e-hard-gate.md)
 **Skill**: [`src/doctrine/skills/spec-kitty-mission-review/SKILL.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/skills/spec-kitty-mission-review/SKILL.md)
 
 This guide tells operators how to run the cross-repo end-to-end gate
@@ -168,7 +168,7 @@ blockers*, not for deferred bugs.
 ## Cross-references
 
 - ADR (the gate rationale, full alternatives table):
-  [`docs/adr/2.x/2026-04-26-3-e2e-hard-gate.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/2.x/2026-04-26-3-e2e-hard-gate.md)
+  [`docs/adr/3.x/2026-04-26-3-e2e-hard-gate.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-04-26-3-e2e-hard-gate.md)
 - Skill source (the enforcement code path):
   [`src/doctrine/skills/spec-kitty-mission-review/SKILL.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/skills/spec-kitty-mission-review/SKILL.md)
 - Mission spec (FR-038, FR-039, FR-040, FR-041, NFR-006, C-010):

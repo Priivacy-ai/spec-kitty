@@ -29,7 +29,10 @@ if str(_REPO_ROOT) not in sys.path:
 
 from scripts.docs.bulk_ref_rewrite import (  # noqa: E402
     build_substitutions,
+    find_dead_twinned_adr_links,
     load_moves,
+    reconcile_adr_era_twins,
+    resolve_adr_era_twin,
     resolve_destination,
     run,
     split_frontmatter,
@@ -283,3 +286,181 @@ def test_split_frontmatter() -> None:
     assert fm == "---\na: 1\n---\n"
     assert body == "body\n"
     assert split_frontmatter("no frontmatter\n") == ("", "no frontmatter\n")
+
+
+# --------------------------------------------------------------------------- #
+# ADR era-twin resolution (cycle-2 defect: deduped late-2.x ADRs)
+# --------------------------------------------------------------------------- #
+#
+# WP06 deduped the late-2.x ADRs that existed as symlink twins under BOTH
+# architecture/2.x/adr/ and architecture/3.x/adr/ down to a single survivor at
+# docs/adr/3.x/<file>.  The mechanical prefix rewrite turns an
+# architecture/2.x/adr/<file> reference into a now-dead docs/adr/2.x/<file>.
+# These tests pin the era-twin reroute and the on-disk-resolution teeth check.
+
+# A real 2.x ADR that survived under docs/adr/2.x/ (era dir is NOT empty).
+_REAL_2X = "2026-03-15-1-vertical-slice.md"
+# A deduped late-2.x ADR whose only survivor lives under docs/adr/3.x/.
+_DEDUPED = "2026-05-16-1-doctrine-layer-merge-semantics.md"
+
+_ERA_TWIN_MAP = """\
+target:
+  term: "architecture/"
+  replacement: "docs/"
+  operation: rename
+moves:
+  - from: ["architecture/2.x/adr"]
+    to: docs/adr/2.x
+    reason: "Era ADRs (2.x) -> docs/adr/2.x."
+  - from: ["architecture/3.x/adr"]
+    to: docs/adr/3.x
+    reason: "Era ADRs (3.x) -> docs/adr/3.x (dedup survivor lives here)."
+"""
+
+
+def _build_era_twin_repo(root: Path) -> Path:
+    """Post-move tree where the deduped ADR survives only under 3.x."""
+
+    occ = root / "kitty-specs" / "m" / "occurrence_map.yaml"
+    occ.parent.mkdir(parents=True, exist_ok=True)
+    occ.write_text(_ERA_TWIN_MAP, encoding="utf-8")
+    # 3.x holds the dedup survivor; 2.x is a *populated* era dir (real 2.x ADRs).
+    _write(root / "docs/adr/3.x" / _DEDUPED, "# survivor\n")
+    _write(root / "docs/adr/2.x" / _REAL_2X, "# genuine 2.x adr\n")
+    return occ
+
+
+class TestAdrEraTwinResolution:
+    def test_fresh_rewrite_routes_deduped_adr_to_survivor(self, tmp_path: Path) -> None:
+        """architecture/2.x/adr/<deduped> -> docs/adr/3.x/<deduped> (not dead 2.x)."""
+        occ = _build_era_twin_repo(tmp_path)
+        page = tmp_path / "src" / "mod.py"
+        _write(page, f'ADR = "architecture/2.x/adr/{_DEDUPED}"\n')
+        run(tmp_path, occ, roots=("src",), include_root_md=False)
+        text = page.read_text()
+        assert f"docs/adr/3.x/{_DEDUPED}" in text
+        assert "docs/adr/2.x/" not in text
+
+    def test_already_landed_dead_residual_is_healed(self, tmp_path: Path) -> None:
+        """A prior run already wrote the dead docs/adr/2.x/<deduped>; re-run heals it.
+
+        The idempotency lookbehind means the architecture/ prefix no longer
+        matches, so the heal must happen on the already-landed token.
+        """
+        occ = _build_era_twin_repo(tmp_path)
+        page = tmp_path / "docs" / "guide.md"
+        _write(page, f"See `docs/adr/2.x/{_DEDUPED}` for details.\n")
+        report = run(tmp_path, occ, roots=("docs",), include_root_md=False)
+        assert report.total_rewrites == 1
+        assert f"docs/adr/3.x/{_DEDUPED}" in page.read_text()
+
+    def test_genuine_2x_reference_is_preserved(self, tmp_path: Path) -> None:
+        """A 2.x ADR that really survives at docs/adr/2.x/ must NOT be rerouted."""
+        occ = _build_era_twin_repo(tmp_path)
+        page = tmp_path / "docs" / "guide.md"
+        _write(page, f"see architecture/2.x/adr/{_REAL_2X}\n")
+        run(tmp_path, occ, roots=("docs",), include_root_md=False)
+        text = page.read_text()
+        assert f"docs/adr/2.x/{_REAL_2X}" in text
+        assert "docs/adr/3.x/" not in text
+
+    def test_no_twin_placeholder_is_left_untouched(self, tmp_path: Path) -> None:
+        """A dead docs/adr/2.x/<file> with no surviving twin is out of scope."""
+        occ = _build_era_twin_repo(tmp_path)
+        page = tmp_path / "docs" / "guide.md"
+        body = "template at docs/adr/2.x/YYYY-MM-DD-N-your-decision.md\n"
+        _write(page, body)
+        run(tmp_path, occ, roots=("docs",), include_root_md=False)
+        assert page.read_text() == body
+
+    def test_relative_and_url_embedded_tokens_are_healed(self, tmp_path: Path) -> None:
+        """Tool-owned docs/adr tokens inside relative links / blob URLs heal too."""
+        occ = _build_era_twin_repo(tmp_path)
+        page = tmp_path / "docs" / "sub" / "p.md"
+        _write(
+            page,
+            f"rel [a](../../docs/adr/2.x/{_DEDUPED}) and "
+            f"url https://example.test/blob/main/docs/adr/2.x/{_DEDUPED}\n",
+        )
+        run(tmp_path, occ, roots=("docs",), include_root_md=False)
+        text = page.read_text()
+        assert f"../../docs/adr/3.x/{_DEDUPED}" in text
+        assert f"blob/main/docs/adr/3.x/{_DEDUPED}" in text
+        assert "docs/adr/2.x/" not in text
+
+    def test_idempotent_after_era_twin_heal(self, tmp_path: Path) -> None:
+        occ = _build_era_twin_repo(tmp_path)
+        page = tmp_path / "docs" / "guide.md"
+        _write(page, f"See architecture/2.x/adr/{_DEDUPED}.\n")
+        run(tmp_path, occ, roots=("docs",), include_root_md=False)
+        healed = page.read_text()
+        second = run(tmp_path, occ, roots=("docs",), include_root_md=False)
+        assert second.total_rewrites == 0
+        assert page.read_text() == healed
+
+
+def test_resolve_adr_era_twin_unit(tmp_path: Path) -> None:
+    _build_era_twin_repo(tmp_path)
+    # deduped survivor is at 3.x -> a 2.x ref resolves to the 3.x twin
+    assert resolve_adr_era_twin("2.x", _DEDUPED, tmp_path) == "3.x"
+    # a ref that already resolves at its own era -> no reroute
+    assert resolve_adr_era_twin("2.x", _REAL_2X, tmp_path) is None
+    assert resolve_adr_era_twin("3.x", _DEDUPED, tmp_path) is None
+    # no twin anywhere -> no reroute
+    assert resolve_adr_era_twin("2.x", "9999-99-99-1-ghost.md", tmp_path) is None
+
+
+def test_reconcile_adr_era_twins_reports_reroutes(tmp_path: Path) -> None:
+    _build_era_twin_repo(tmp_path)
+    body = f"a docs/adr/2.x/{_DEDUPED} b docs/adr/2.x/{_REAL_2X}\n"
+    new_body, reroutes = reconcile_adr_era_twins(body, tmp_path)
+    assert reroutes == [(f"docs/adr/2.x/{_DEDUPED}", f"docs/adr/3.x/{_DEDUPED}")]
+    assert f"docs/adr/3.x/{_DEDUPED}" in new_body
+    # the genuine 2.x ref is untouched
+    assert f"docs/adr/2.x/{_REAL_2X}" in new_body
+
+
+# --------------------------------------------------------------------------- #
+# Teeth: on-disk resolution of tool-owned ADR rewrites
+# --------------------------------------------------------------------------- #
+
+
+def test_teeth_flags_dead_twinned_link(tmp_path: Path) -> None:
+    """RED teeth: a dead docs/adr/2.x/<deduped> with a 3.x survivor is reported."""
+    _build_era_twin_repo(tmp_path)
+    _write(tmp_path / "docs" / "guide.md", f"x docs/adr/2.x/{_DEDUPED}\n")
+    dead = find_dead_twinned_adr_links(tmp_path, roots=("docs",), include_root_md=False)
+    assert dead == [
+        ("docs/guide.md", f"docs/adr/2.x/{_DEDUPED}", f"docs/adr/3.x/{_DEDUPED}")
+    ]
+
+
+def test_teeth_clean_after_run_and_ignores_no_twin_placeholders(
+    tmp_path: Path,
+) -> None:
+    """GREEN teeth: after the heal no dead-twinned link remains; placeholders ignored."""
+    occ = _build_era_twin_repo(tmp_path)
+    _write(
+        tmp_path / "docs" / "guide.md",
+        f"dead architecture/2.x/adr/{_DEDUPED} "
+        f"real architecture/2.x/adr/{_REAL_2X} "
+        "ghost docs/adr/2.x/2099-01-01-1-some-slug.md\n",
+    )
+    run(tmp_path, occ, roots=("docs",), include_root_md=False)
+    assert (
+        find_dead_twinned_adr_links(tmp_path, roots=("docs",), include_root_md=False)
+        == []
+    )
+
+
+def test_teeth_skips_frontmatter_fields(tmp_path: Path) -> None:
+    """Frontmatter (WP12 territory) is never the tool's rewrite -> not teeth-flagged."""
+    _build_era_twin_repo(tmp_path)
+    _write(
+        tmp_path / "docs" / "guide.md",
+        f"---\nrelated: [docs/adr/2.x/{_DEDUPED}]\n---\nbody\n",
+    )
+    assert (
+        find_dead_twinned_adr_links(tmp_path, roots=("docs",), include_root_md=False)
+        == []
+    )
