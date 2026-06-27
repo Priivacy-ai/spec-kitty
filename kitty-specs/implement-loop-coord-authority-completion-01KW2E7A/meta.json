@@ -1,0 +1,31 @@
+{
+  "accept_commit": "ec15d2a2e413e4e0ed6c173606b6ef77bf0de39b",
+  "acceptance_history": [
+    {
+      "accept_commit": "ec15d2a2e413e4e0ed6c173606b6ef77bf0de39b",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-27T05:09:44.175665+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "b854fdd06d46110cb1e7dffe92af7709632ac171"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-27T05:09:44.175665+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "b854fdd06d46110cb1e7dffe92af7709632ac171",
+  "created_at": "2026-06-26T17:04:16.825886+00:00",
+  "flattened": true,
+  "friendly_name": "Implement-Loop Coord-Authority Completion",
+  "mission_id": "01KW2E7ADSXDM65M14XCSSKV03",
+  "mission_number": null,
+  "mission_slug": "implement-loop-coord-authority-completion-01KW2E7A",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "After #2106 moved planning artifacts to the primary surface for all topologies, the implement/review/merge loop still resolves work-package task directories through coordination-aware resolvers. For a coordination-topology mission this lands on an empty husk, breaking status, finalize, review, and post-merge done-transitions. This mission routes those reads onto the kind-aware authority seam, closes the gate blind-spot that hid one residual, retires a verified-resolved spec-read risk, and folds a resolution-gate discriminator hygiene follow-up.",
+  "purpose_tldr": "Close the #2160 split-brain remediation so the implement/review/merge loop reads work-package artifacts from the one canonical authority path, not the empty coordination husk.",
+  "slug": "implement-loop-coord-authority-completion-01KW2E7A",
+  "target_branch": "design/coord-authority-remediation-2160",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-26T19:01:19.964496+00:00"
+}

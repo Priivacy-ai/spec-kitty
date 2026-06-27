@@ -1,0 +1,159 @@
+{
+  "mission_slug": "implement-loop-coord-authority-completion-01KW2E7A",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_coord_loop_tasks.py \u2014 tasks status/list route tasks/ via resolve_planning_read_dir(WORK_PACKAGE_TASK); status leg coord (both-legs assert)",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata (WP03 approved)",
+      "verified_at": "2026-06-27T05:08:40Z",
+      "notes": "Satisfied by WP03; reviewer-renata APPROVE; tests green."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_coord_loop_workflow.py \u2014 workflow.py routed; discovery.py backward-compat status_dir split; 11 payload tests unchanged",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata (WP04 approved)",
+      "verified_at": "2026-06-27T05:08:40Z",
+      "notes": "Satisfied by WP04; reviewer-renata APPROVE; tests green."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_coord_loop_tasks.py \u2014 finalize_tasks dir-read leg routed to seam; bootstrap STATUS leg coord",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata (WP03 approved)",
+      "verified_at": "2026-06-27T05:08:40Z",
+      "notes": "Satisfied by WP03; reviewer-renata APPROVE; tests green."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_coord_loop_depgraph.py \u2014 build_dependency_graph caller + research read routed; build_dependency_graph sig unchanged",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata (WP06 approved)",
+      "verified_at": "2026-06-27T05:08:40Z",
+      "notes": "Satisfied by WP06; reviewer-renata APPROVE; tests green."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_coord_loop_workspace.py \u2014 workspace/context+resolver+task_utils routed; tasks=WORK_PACKAGE_TASK, lanes.json=LANE_STATE; :470 mixed split",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata (WP05 approved)",
+      "verified_at": "2026-06-27T05:08:40Z",
+      "notes": "Satisfied by WP05; reviewer-renata APPROVE; tests green."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "STATUS-partition reads kept coord-aware at every routed site (per-leg both-legs assertions); status/matrix suites unchanged",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata (WP03-06 approved)",
+      "verified_at": "2026-06-27T05:08:40Z",
+      "notes": "Satisfied by WP03-06; reviewer-renata APPROVE; tests green."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_gate_read_literal_ban.py \u2014 inline-call-shape arm + whole-src scope + C-008 sub-path exclusion + mandatory self-test",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata (WP02 approved)",
+      "verified_at": "2026-06-27T05:08:40Z",
+      "notes": "Satisfied by WP02; reviewer-renata APPROVE; tests green."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "whole-src scan surfaced full set; in-loop pins drained to 0; out-of-scope pinned to #2185/#2186/#2167/#2187",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata (WP02 approved)",
+      "verified_at": "2026-06-27T05:08:40Z",
+      "notes": "Satisfied by WP02; reviewer-renata APPROVE; tests green."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "each routing WP removed its pins in the same commit; in-loop _DIR_READ_KNOWN_RESIDUALS empty",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata (WP03-06 approved)",
+      "verified_at": "2026-06-27T05:08:40Z",
+      "notes": "Satisfied by WP03-06; reviewer-renata APPROVE; tests green."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/test_is_committed_contract.py \u2014 caller-driven positive pin (real _planning_read_dir==primary); docstring refreshed (C-004)",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata (WP08 approved)",
+      "verified_at": "2026-06-27T05:08:40Z",
+      "notes": "Satisfied by WP08; reviewer-renata APPROVE; tests green."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_resolution_authority_gates.py \u2014 is_def_use_canonical folds bare-modern seam; permanent allowlist 7->3 (asserted ==3)",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata (WP07 approved)",
+      "verified_at": "2026-06-27T05:08:40Z",
+      "notes": "Satisfied by WP07; reviewer-renata APPROVE; tests green."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "ROUTED_CANONICALIZER_FLOOR recomputed 31 with tight bounds live-MARGIN<=floor<live (35-4<=31<35)",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata (WP07 approved)",
+      "verified_at": "2026-06-27T05:08:40Z",
+      "notes": "Satisfied by WP07; reviewer-renata APPROVE; tests green."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "FEATURE_CONTEXT_UNRESOLVED_CODE removed; zero importers; #2158 dead-symbol gate green",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata (WP09 approved)",
+      "verified_at": "2026-06-27T05:08:40Z",
+      "notes": "Satisfied by WP09; reviewer-renata APPROVE; tests green."
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Verify FR-014 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "tests/integration/coord_topology_fixture.py \u2014 un-stubbed coord-topology fixture + dual-leg asserters (decoy enforces resolved-path+content equality)",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata (WP01 approved)",
+      "verified_at": "2026-06-27T05:08:40Z",
+      "notes": "Satisfied by WP01; reviewer-renata APPROVE; tests green."
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Verify FR-015 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "#2185 (merge/lanes) + #2186 (identity) filed; #2167 (scripts/tasks) + #2187 (show_kanban) cited in pins",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata (WP02 approved)",
+      "verified_at": "2026-06-27T05:08:40Z",
+      "notes": "Satisfied by WP02; reviewer-renata APPROVE; tests green."
+    }
+  ],
+  "negative_invariants": []
+}
