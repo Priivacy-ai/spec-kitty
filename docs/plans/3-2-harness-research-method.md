@@ -1,6 +1,6 @@
 # 3.2 Harness Research Method
 
-**Purpose:** Define a repeatable, evidence-driven procedure for classifying the AI coding harnesses (a.k.a. "agents") that Spec Kitty supports. The output of this method is the support matrix at [`docs/api/supported-harnesses.md`](../reference/supported-harnesses.md).
+**Purpose:** Define a repeatable, evidence-driven procedure for classifying the AI coding harnesses (a.k.a. "agents") that Spec Kitty supports. The output of this method is the support matrix at [`docs/reference/supported-harnesses.md`](../reference/supported-harnesses.md).
 
 **Sources of authority:**
 - [`CLAUDE.md`](../../CLAUDE.md) §"Supported AI Agents" — canonical list of installed surfaces.
@@ -89,7 +89,7 @@ done
 **Notes:**
 - `spec-kitty-standalone.md` is the lane-bootstrap surface; the full `/spec-kitty.*` command set lives at the source under `src/specify_cli/missions/*/command-templates/` and is materialized by `spec-kitty agent config sync` (see `CLAUDE.md` §"Adding/Removing Agents").
 - `.agents/skills/spec-kitty/` is the Agent Skills package directory (not the SKILL.md file) shared between Codex CLI, Mistral Vibe, Pi, and Letta Code (per `CLAUDE.md` §"Agent Skills Agents"). <!-- tool-surface: ignore -->
-- Current Codex CLI support uses the shared Agent Skills packages under `.agents/skills/spec-kitty.<command>/SKILL.md`. Legacy `.codex/` roots were not observed in this lane; they may still exist on hosts initialized by older CLI versions and are documented as legacy-only (see `docs/api/environment-variables.md` §CODEX_HOME).
+- Current Codex CLI support uses the shared Agent Skills packages under `.agents/skills/spec-kitty.<command>/SKILL.md`. Legacy `.codex/` roots were not observed in this lane; they may still exist on hosts initialized by older CLI versions and are documented as legacy-only (see `docs/reference/environment-variables.md` §CODEX_HOME).
 - Google Antigravity (`.agent/workflows/`) is present in the current CLI agent registry and is included in the matrix.
 
 ---
@@ -182,7 +182,7 @@ Promote when **all** of the following hold:
 
 1. Integration tests in `src/specify_cli/` exercise the harness's installed surface end-to-end.
 2. The harness's command mechanism is the host's canonical UX (slash command or Agent Skill — not a prompt-file workaround).
-3. The per-harness "how-to" page under `docs/guides/harnesses/<key>.md` exists and is non-stub.
+3. The per-harness "how-to" page under `docs/how-to/harnesses/<key>.md` exists and is non-stub.
 4. CHANGELOG entry records the promotion.
 
 ### 6.3 Demotion
@@ -197,7 +197,7 @@ A harness demotes when:
 
 ## 7. Per-harness research dossier — 2026-05-21
 
-The matrix in [`docs/api/supported-harnesses.md`](../reference/supported-harnesses.md) is the canonical output. The research notes that fed each row are summarized below.
+The matrix in [`docs/reference/supported-harnesses.md`](../reference/supported-harnesses.md) is the canonical output. The research notes that fed each row are summarized below.
 
 | Key | Display name | Mechanism | Tier | Citation | Notes |
 |-----|--------------|-----------|------|----------|-------|
@@ -226,4 +226,4 @@ The matrix in [`docs/api/supported-harnesses.md`](../reference/supported-harness
 - Re-run the inventory step (§2) on every release.
 - Re-run the citation step (§4) on every release as part of the freshness audit (WP13).
 - Update tiers per the promotion rule (§6); record demotions in CHANGELOG.
-- The matrix (`docs/api/supported-harnesses.md`) is the canonical published artifact; this research method document is the procedural source of truth that explains how the matrix is built.
+- The matrix (`docs/reference/supported-harnesses.md`) is the canonical published artifact; this research method document is the procedural source of truth that explains how the matrix is built.

@@ -134,7 +134,7 @@ def test_prepare_upgrade_commit_files_excludes_root_files(
             "kitty-specs/001-test/tasks/WP01.md",
             "README.md",
             "AGENTS.md",
-            "docs/guides/upgrade.md",
+            "docs/how-to/upgrade.md",
         },
     )
 
@@ -143,7 +143,7 @@ def test_prepare_upgrade_commit_files_excludes_root_files(
     assert {str(path) for path in files} == {
         ".kittify/metadata.yaml",
         "kitty-specs/001-test/tasks/WP01.md",
-        "docs/guides/upgrade.md",
+        "docs/how-to/upgrade.md",
     }
 
 

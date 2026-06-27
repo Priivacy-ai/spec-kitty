@@ -15,81 +15,81 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|----------|
-| T001 | Read the occurrence map's runtime-read contract | WP01 | |
-| T002 | Author the resolution-test harness (RED-first) | WP01 | |
-| T003 | `authority_paths.py`: dual-read ADR + glossary literals | WP01 | |
-| T004 | Shim-registry readers: dual-read to `docs/migrations/` | WP01 | |
-| T005 | Remediation string lock-step (`cli/commands/doctor.py:509`) | WP01 | |
-| T006 | Non-`src/` read 5: `generate_contextive_glossaries.py` | WP01 | |
-| T007 | Non-`src/` read 6: `governance.yaml` authority_paths | WP01 | |
-| T008 | Prove all 6 reads resolve + suite green | WP01 | |
-| T009 | Install DocFX (pinned) | WP02 | |
-| T010 | Build the PRE-move tree | WP02 | |
-| T011 | Snapshot the `_site` URL set into the manifest | WP02 | |
-| T012 | Unit test the capture | WP02 | |
-| T013 | Commit the baseline manifest BEFORE WP03 | WP02 | |
-| T014 | Move the living-design surfaces → `docs/architecture/` | WP03 | |
-| T015 | Move migration + shim artifacts → `docs/migrations/` | WP03 | |
-| T016 | Move research/initiatives/journeys/loose-plans → `docs/plans/` | WP03 | |
-| T017 | Move glossary + audiences → `docs/context/` (C-006) | WP03 | |
-| T018 | CHANGELOG relocate-with-alias | WP03 | |
-| T019 | Append move pairs to redirect map repr + verify section index.md | WP03 | |
-| T020 | Verify the move + suite green | WP03 | |
-| T021 | Enumerate + classify every `docs/development/` page | WP04 | [P] |
-| T022 | Classify `docs/engineering_notes/` | WP04 | [P] |
-| T023 | Move durable pages → operations/guides/configuration | WP04 | [P] |
-| T024 | Move ephemeral pages → `docs/plans/` | WP04 | [P] |
-| T025 | Assert the inventory file STAYED PUT | WP04 | [P] |
-| T026 | Verify the re-section + suite green | WP04 | [P] |
-| T027 | Parser 1: markdown-table header | WP05 | [P] |
-| T028 | Parser 2: bold-inline header | WP05 | [P] |
-| T029 | Parser 3: dash-bullet header (the missed dialect) | WP05 | [P] |
-| T030 | Frontmatter emitter (bare `status`, MADR vocabulary) | WP05 | [P] |
-| T031 | Content-invariance check (reuse `_inventory.parse_frontmatter`) | WP05 | [P] |
-| T032 | Test the converter on all 3 dialects + invariance | WP05 | [P] |
-| T033 | Prove the 47 mirrors byte-identical, THEN drop | WP06 | [P] |
-| T034 | Convert + move the 97 era ADRs → `docs/adr/<era>/` | WP06 | [P] |
-| T035 | Migrate the 20 era-less ADRs → `docs/adr/3.x/` at pinned filenames | WP06 | [P] |
-| T036 | Run content-invariance over all 117 | WP06 | [P] |
-| T037 | Census check: count == 117 | WP06 | [P] |
-| T038 | Close the flat shim | WP06 | [P] |
-| T039 | Verify + suite green | WP06 | [P] |
-| T040 | Derive the redirect map from `occurrence_map.yaml` `moves:` | WP07 | [P] |
-| T041 | `generate(redirect_map, site_dir) -> emitted_stubs` | WP07 | [P] |
-| T042 | `check_coverage(baseline, redirect_map, site_dir) -> uncovered[]` | WP07 | [P] |
-| T043 | Test the generator + coverage | WP07 | [P] |
-| T044 | Wire into `docs-pages.yml` (between build + upload) | WP07 | [P] |
-| T045 | Verify coverage == 100% against the committed baseline | WP07 | [P] |
-| T046 | Drop the WP01 dual-read OLD branches | WP08 | [P] |
-| T047 | Rewrite the remaining `src/` references (the ~39 non-runtime) | WP08 | [P] |
-| T048 | Rewrite `tests/` fixtures + assertions | WP08 | [P] |
-| T049 | Rewrite `kitty-specs/` + `docs/` prose references | WP08 | [P] |
-| T050 | Targeted-ref-update: `ci-quality.yml` glob (CRITICAL) | WP08 | [P] |
-| T051 | Targeted-ref-update: glossary functional refs + governance verify | WP08 | [P] |
-| T052 | CHANGELOG reference rewrite (alias-aware) | WP08 | [P] |
-| T053 | Verify the sweep + suite green | WP08 | [P] |
-| T054 | Rewrite `docs/docfx.json` content + exclude globs | WP09 | [P] |
-| T055 | Rewrite every `toc.yml` href to the 13 sections | WP09 | [P] |
-| T056 | Update `docs/llms.txt` + `docs/index.md` nav | WP09 | [P] |
-| T057 | DocFX build green on the post-move tree | WP09 | [P] |
-| T058 | Verify + coordinate #648 | WP09 | [P] |
-| T059 | Delete `docs/1x` + `docs/2x` with redirect entries | WP10 | [P] |
-| T060 | Distil `docs/3x` live charter content | WP10 | [P] |
-| T061 | Fix the 3 `docs/3x` nav refs | WP10 | [P] |
-| T062 | Record the #2053 landing zone | WP10 | [P] |
-| T063 | Verify-before-delete the 4 `docs/architecture/` orphans | WP10 | [P] |
-| T064 | Verify + redirect coverage for the shadow deletes | WP10 | [P] |
-| T065 | Define the `tag → doc_status` mapping table | WP11 | |
-| T066 | Build the backfill tool (`frontmatter_backfill.py`) | WP11 | |
-| T067 | Build the 50–180 `description` length gate | WP11 | |
-| T068 | Derive `related` edges from in-body links | WP11 | |
-| T069 | Test the tooling | WP11 | |
-| T070 | Verify + suite green | WP11 | |
-| T071 | Run WP11's backfill tool over the tree | WP12 | |
-| T072 | Author `description` for every page (50–180) | WP12 | |
-| T073 | Author/complete `related` edges (0 dangling) | WP12 | |
-| T074 | Validate the full frontmatter set | WP12 | |
-| T075 | Verify + hand off to WP13 | WP12 | |
+| T001 | Read the occurrence map's runtime-read contract | WP01 | | [D] |
+| T002 | Author the resolution-test harness (RED-first) | WP01 | | [D] |
+| T003 | `authority_paths.py`: dual-read ADR + glossary literals | WP01 | | [D] |
+| T004 | Shim-registry readers: dual-read to `docs/migrations/` | WP01 | | [D] |
+| T005 | Remediation string lock-step (`cli/commands/doctor.py:509`) | WP01 | | [D] |
+| T006 | Non-`src/` read 5: `generate_contextive_glossaries.py` | WP01 | | [D] |
+| T007 | Non-`src/` read 6: `governance.yaml` authority_paths | WP01 | | [D] |
+| T008 | Prove all 6 reads resolve + suite green | WP01 | | [D] |
+| T009 | Install DocFX (pinned) | WP02 | | [D] |
+| T010 | Build the PRE-move tree | WP02 | | [D] |
+| T011 | Snapshot the `_site` URL set into the manifest | WP02 | | [D] |
+| T012 | Unit test the capture | WP02 | | [D] |
+| T013 | Commit the baseline manifest BEFORE WP03 | WP02 | | [D] |
+| T014 | Move the living-design surfaces → `docs/architecture/` | WP03 | | [D] |
+| T015 | Move migration + shim artifacts → `docs/migrations/` | WP03 | | [D] |
+| T016 | Move research/initiatives/journeys/loose-plans → `docs/plans/` | WP03 | | [D] |
+| T017 | Move glossary + audiences → `docs/context/` (C-006) | WP03 | | [D] |
+| T018 | CHANGELOG relocate-with-alias | WP03 | | [D] |
+| T019 | Append move pairs to redirect map repr + verify section index.md | WP03 | | [D] |
+| T020 | Verify the move + suite green | WP03 | | [D] |
+| T021 | Enumerate + classify every `docs/development/` page | WP04 | [D] |
+| T022 | Classify `docs/engineering_notes/` | WP04 | [D] |
+| T023 | Move durable pages → operations/guides/configuration | WP04 | [D] |
+| T024 | Move ephemeral pages → `docs/plans/` | WP04 | [D] |
+| T025 | Assert the inventory file STAYED PUT | WP04 | [D] |
+| T026 | Verify the re-section + suite green | WP04 | [D] |
+| T027 | Parser 1: markdown-table header | WP05 | [D] |
+| T028 | Parser 2: bold-inline header | WP05 | [D] |
+| T029 | Parser 3: dash-bullet header (the missed dialect) | WP05 | [D] |
+| T030 | Frontmatter emitter (bare `status`, MADR vocabulary) | WP05 | [D] |
+| T031 | Content-invariance check (reuse `_inventory.parse_frontmatter`) | WP05 | [D] |
+| T032 | Test the converter on all 3 dialects + invariance | WP05 | [D] |
+| T033 | Prove the 47 mirrors byte-identical, THEN drop | WP06 | [D] |
+| T034 | Convert + move the 97 era ADRs → `docs/adr/<era>/` | WP06 | [D] |
+| T035 | Migrate the 20 era-less ADRs → `docs/adr/3.x/` at pinned filenames | WP06 | [D] |
+| T036 | Run content-invariance over all 117 | WP06 | [D] |
+| T037 | Census check: count == 117 | WP06 | [D] |
+| T038 | Close the flat shim | WP06 | [D] |
+| T039 | Verify + suite green | WP06 | [D] |
+| T040 | Derive the redirect map from `occurrence_map.yaml` `moves:` | WP07 | [D] |
+| T041 | `generate(redirect_map, site_dir) -> emitted_stubs` | WP07 | [D] |
+| T042 | `check_coverage(baseline, redirect_map, site_dir) -> uncovered[]` | WP07 | [D] |
+| T043 | Test the generator + coverage | WP07 | [D] |
+| T044 | Wire into `docs-pages.yml` (between build + upload) | WP07 | [D] |
+| T045 | Verify coverage == 100% against the committed baseline | WP07 | [D] |
+| T046 | Drop the WP01 dual-read OLD branches | WP08 | [D] |
+| T047 | Rewrite the remaining `src/` references (the ~39 non-runtime) | WP08 | [D] |
+| T048 | Rewrite `tests/` fixtures + assertions | WP08 | [D] |
+| T049 | Rewrite `kitty-specs/` + `docs/` prose references | WP08 | [D] |
+| T050 | Targeted-ref-update: `ci-quality.yml` glob (CRITICAL) | WP08 | [D] |
+| T051 | Targeted-ref-update: glossary functional refs + governance verify | WP08 | [D] |
+| T052 | CHANGELOG reference rewrite (alias-aware) | WP08 | [D] |
+| T053 | Verify the sweep + suite green | WP08 | [D] |
+| T054 | Rewrite `docs/docfx.json` content + exclude globs | WP09 | [D] |
+| T055 | Rewrite every `toc.yml` href to the 13 sections | WP09 | [D] |
+| T056 | Update `docs/llms.txt` + `docs/index.md` nav | WP09 | [D] |
+| T057 | DocFX build green on the post-move tree | WP09 | [D] |
+| T058 | Verify + coordinate #648 | WP09 | [D] |
+| T059 | Delete `docs/1x` + `docs/2x` with redirect entries | WP10 | [D] |
+| T060 | Distil `docs/3x` live charter content | WP10 | [D] |
+| T061 | Fix the 3 `docs/3x` nav refs | WP10 | [D] |
+| T062 | Record the #2053 landing zone | WP10 | [D] |
+| T063 | Verify-before-delete the 4 `docs/architecture/` orphans | WP10 | [D] |
+| T064 | Verify + redirect coverage for the shadow deletes | WP10 | [D] |
+| T065 | Define the `tag → doc_status` mapping table | WP11 | | [D] |
+| T066 | Build the backfill tool (`frontmatter_backfill.py`) | WP11 | | [D] |
+| T067 | Build the 50–180 `description` length gate | WP11 | | [D] |
+| T068 | Derive `related` edges from in-body links | WP11 | | [D] |
+| T069 | Test the tooling | WP11 | | [D] |
+| T070 | Verify + suite green | WP11 | | [D] |
+| T071 | Run WP11's backfill tool over the tree | WP12 | | [D] |
+| T072 | Author `description` for every page (50–180) | WP12 | | [D] |
+| T073 | Author/complete `related` edges (0 dangling) | WP12 | | [D] |
+| T074 | Validate the full frontmatter set | WP12 | | [D] |
+| T075 | Verify + hand off to WP13 | WP12 | | [D] |
 | T076 | Regenerate the lockfile from frontmatter | WP13 | |
 | T077 | Drive drift to 0 | WP13 | |
 | T078 | Prove generate == committed (deterministic) | WP13 | |
@@ -106,6 +106,18 @@
 | T089 | Retire `LEAK-FRONTMATTER-MISMATCH` (FR-014) | WP15 | |
 | T090 | Confirm no enforcement gap | WP15 | |
 | T091 | Verify + suite green | WP15 | |
+| T092 | Move how-to + tutorials → docs/guides | WP16 | | [D] |
+| T093 | Move reference → docs/api | WP16 | | [D] |
+| T094 | Move explanation → docs/architecture | WP16 | | [D] |
+| T095 | Move recovery → docs/operations | WP16 | | [D] |
+| T096 | Regenerate redirect_map + re-verify coverage | WP16 | | [D] |
+| T097 | Verify re-section + suite green | WP16 | | [D] |
+| T098 | Build the relative-link resolver | WP18 | |
+| T099 | Dry-run + report unresolvable | WP18 | |
+| T100 | Apply the relative-link rewrites | WP18 | |
+| T101 | Body-link-resolution gate | WP18 | |
+| T102 | Test the fixer | WP18 | |
+| T103 | Verify + suite green | WP18 | |
 
 ## Work Packages
 
@@ -168,3 +180,11 @@
 ### WP15 — ADR-note amendment + LEAK retirement — `tasks/WP15-adr-amendment-leak-retirement.md`
 - **Goal**: Amend the reconciliation ADR Neutral note → 3 doctrine tactics (FR-013, sanctioned self-amendment); retire `LEAK-FRONTMATTER-MISMATCH` now the lockfile gate is blocking (FR-014). **Requirements**: FR-013, FR-014. **Independent test**: no enforcement gap; the amendment is scoped out of the invariance check.
 - **Subtasks**: T087–T091. **Deps**: WP14. **Spine tail.**
+
+### WP16 — Divio re-section (FR-009 IC-01 correction) — `tasks/WP16-divio-resection.md`
+- **Goal**: Fold the 120 existing Divio pages (how-to+tutorials→guides, reference→api, explanation→architecture, recovery→operations) into the 13-section structure per FR-009 — the IC-01 correction the original spine missed (surfaced by WP09 review; without it the pages orphan and guides/api stay empty). Regenerate WP07's redirect_map to cover the now-moved published URLs. **Requirements**: FR-001, FR-009. **Independent test**: source→dest byte reconciliation (no data loss); the 120 Divio URLs redirect-covered against the 168 baseline; docs/api populated. **Bulk overlap**: writes guides/operations/architecture (WP04/WP03) + redirect_map (WP07) as sequenced leeway.
+- **Subtasks**: T092–T097. **Deps**: WP03, WP04, WP07. Lands before WP08/WP12/WP14 (they depend on it for the complete assembled tree).
+
+### WP18 — Relative-link integrity (FR-005 complement) — `tasks/WP18-relative-link-integrity.md`
+- **Goal**: Fix the bare-relative intra-doc body links broken by the restructure (WP08-review IC — hundreds of `../../3.x/adr/…`-style links; not occurrence-map refs so WP08 didn't own them, and no existing gate catches them). A `moves:`-driven resolver rewrites each to its new location + a body-link-resolution gate so the class can't recur. Added in-mission (operator decision, mirrors WP16). **Requirements**: FR-005, NFR-004. **Independent test**: every bare-relative intra-doc body link in `docs/` resolves on disk; unresolvable links reported not guessed.
+- **Subtasks**: T098–T103. **Deps**: WP04, WP06, WP08, WP10, WP16 (the full final tree). Lands before WP14 (its body-link gate joins the full-gate dry-run).

@@ -17,7 +17,7 @@ subtasks:
 - T062
 - T063
 - T064
-agent: ""
+agent: "claude:opus:python-pedro:implementer"
 history: []
 agent_profile: python-pedro
 authoritative_surface: docs/3x
@@ -29,6 +29,7 @@ owned_files:
 - docs/3x/**
 role: implementer
 tags: []
+shell_pid: "1518600"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -115,3 +116,6 @@ Planning + final merge target: `docs/2165-mission-b-structural-move`. Depends on
 ## Activity Log
 
 - (populated at implement time)
+- 2026-06-27T14:35:39Z – claude:opus:python-pedro:implementer – shell_pid=1518600 – Assigned agent via action command
+- 2026-06-27T15:20:50Z – claude:opus:python-pedro:implementer – shell_pid=1518600 – shadow trees: 1x/2x deleted→archive-redirect, 3x distilled→context (C-004 verbatim content-preservation mapping), 4 orphans handled (2 ADRs promoted, 2 homed), single-root SC-001, 11/11 redirect tests
+- 2026-06-27T15:27:19Z – user – shell_pid=1518600 – Review passed: 1x/2x deleted+redirect-covered (13 archive redirects; deleted shadows were meta-refresh stubs, live .md twins in docs/archive/{1x,2x}), 3x DISTILLED into context (C-004 content-preservation INDEPENDENTLY verified — charter-overview.md & governance-files.md byte-identical blobs d042269/ebcb6cd, index.md fully folded with all 13 links+sections; nav toc/llms/index repoint to context/, no 3x survives), 4 orphans verified+homed (2 connector-auth ADRs promoted to docs/adr/3.x/, feature-detection+gap-analysis in docs/architecture/), single-root SC-001 confirmed (docs/1x|2x|3x GONE), terminology guard green. Redirect suite 10/11 green; the 1 failure (test_committed_redirect_map_is_diff_stable) is a PROVEN orchestrator-reset artifact (df709272d wiped lane occurrence_map) — re-derived against WP10 canonical occurrence_map at c1d5a9584 yields 16==16 MATCH. #2053 landing zone coordinate-only. Flags assessed: 3->16 re-pin legitimate; ~30 dangling 3x prose links=WP08; docfx 3x block=WP09.

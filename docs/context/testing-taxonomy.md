@@ -286,7 +286,7 @@ The categories below are listed by the question they answer.
 
 | | |
 |---|---|
-| **Definition** | A test that is structurally incompatible with `mutmut`'s forked sandbox (subprocess CLI calls, whole-codebase AST walks, wheel builds, or repo-state fixtures outside `also_copy`). Documented in ADR `docs/adr/2.x/2026-04-20-1`. |
+| **Definition** | A test that is structurally incompatible with `mutmut`'s forked sandbox (subprocess CLI calls, whole-codebase AST walks, wheel builds, or repo-state fixtures outside `also_copy`). Documented in ADR `architecture/2.x/adr/2026-04-20-1`. |
 | **Use when** | The test fails inside `mutmut`'s forked-sandbox environment because of one of the structural reasons above. |
 | **Do NOT use when** | The test runs cleanly in `mutmut`. |
 | **CI role** | Excluded from mutation-testing runs; runs normally in the standard suite. |
@@ -301,7 +301,7 @@ The categories below are listed by the question they answer.
 
 | | |
 |---|---|
-| **Definition** | A test that passes in the standard suite but is non-deterministic under `mutmut` or forked pipelines. Each entry is debt — the goal is to root-cause and remove the marker, not to accumulate them. See ADR `docs/adr/2.x/2026-04-20-1`. |
+| **Definition** | A test that passes in the standard suite but is non-deterministic under `mutmut` or forked pipelines. Each entry is debt — the goal is to root-cause and remove the marker, not to accumulate them. See ADR `architecture/2.x/adr/2026-04-20-1`. |
 | **Use when** | A test passes in the main suite but observably fails under `mutmut` for reasons unrelated to mutation coverage. Add this marker AND open an issue to root-cause it. |
 | **Do NOT use when** | The test is genuinely broken in the main suite — that is a bug, not flakiness. |
 | **CI role** | Excluded from mutation runs. Each entry has an open issue; reviewers should track the count down, not up. |

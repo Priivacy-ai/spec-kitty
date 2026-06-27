@@ -19,7 +19,7 @@ Grep anchors for the reviewer:
   * logger name:   ``specify_cli.coordination.surface_resolver``
   * warning const: ``surface_resolver._COORD_EMPTY_FALLBACK_WARNING``
 
-ADR: ``docs/adr/3.x/2026-06-19-1-coord-empty-surface-fallback.md``.
+ADR: ``architecture/3.x/adr/2026-06-19-1-coord-empty-surface-fallback.md``.
 """
 
 from __future__ import annotations

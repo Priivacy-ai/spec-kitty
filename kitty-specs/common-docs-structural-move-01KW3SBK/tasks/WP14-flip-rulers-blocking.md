@@ -5,6 +5,8 @@ dependencies:
 - WP13
 - WP06
 - WP10
+- WP16
+- WP18
 requirement_refs:
 - FR-011
 - C-005

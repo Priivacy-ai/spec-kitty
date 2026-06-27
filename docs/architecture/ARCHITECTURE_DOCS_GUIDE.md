@@ -9,5 +9,5 @@ To find Spec Kitty documentation and architecture, start here instead:
 - [3.x ADRs](3.x/adr/README.md) — the canonical Architecture Decision Records index, with naming, status, and template conventions.
 - [Architecture README](README.md) — current layout of the `architecture/` tree.
 
-New (current-era) decisions land in `docs/adr/3.x/` using the shared
+New (current-era) decisions land in `architecture/3.x/adr/` using the shared
 [ADR template](adr-template.md).

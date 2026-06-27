@@ -132,7 +132,7 @@ def _legacy_path_to_era(path: str) -> str | None:
     for era in _ERAS:
         if path.startswith(f"architecture/{era}/adr/"):
             return era
-    if path.startswith("docs/adr/3.x/"):
+    if path.startswith("architecture/adrs/"):
         return "3.x"  # the 20 era-less ADRs land under 3.x at pinned names
     return None
 

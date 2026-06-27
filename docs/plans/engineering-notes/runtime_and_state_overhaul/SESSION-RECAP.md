@@ -110,7 +110,7 @@ organ** — the prompt is its entire sensorium — so #1619 is really about *fix
 perception of its environment*, not about paths. Refinements from Stijn folded in: **Constitution ==
 Charter** (Constitution deprecated); **Activity Ledger = MissionRun state**; **Actor is a metamodel
 concept** disambiguating into AgentProfile / Operator(Human-In-Charge) / External System; this model
-will likely become a published `docs/architecture/` doc once crystallized.
+will likely become a published `docs/explanation/` doc once crystallized.
 
 **Dialectic on "Mission ≡ MissionRun" (`13`).** Stijn proposed Mission and MissionRun are one concept
 (Mission = deprecated alias). A corroborate/refute run **refuted** it: the relationship is **1:many**

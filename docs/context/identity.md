@@ -48,7 +48,7 @@ Terms describing who performs work and who owns semantic decisions.
 | **Context** | Identity |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Location** | `docs/context/audience/` |
+| **Location** | `architecture/audience/` |
 | **Related terms** | [Mission Participant](#mission-participant), [Human-in-Charge (HiC)](#human-in-charge-hic), [Internal Audience Persona](#internal-audience-persona), [External Audience Persona](#external-audience-persona) |
 
 ---
@@ -61,7 +61,7 @@ Terms describing who performs work and who owns semantic decisions.
 | **Context** | Identity |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Persona catalog** | [Internal Audience Index](../../docs/context/audience/internal/README.md), [Lead Developer](../../docs/context/audience/internal/lead-developer.md), [Maintainer](../../docs/context/audience/internal/maintainer.md), [System Architect](../../docs/context/audience/internal/system-architect.md), [Spec Kitty CLI Runtime](../../docs/context/audience/internal/spec-kitty-cli-runtime.md), [AI Collaboration Agent](../../docs/context/audience/internal/ai-collaboration-agent.md), [Project Codebase](../../docs/context/audience/internal/project-codebase.md) |
+| **Persona catalog** | [Internal Audience Index](../../architecture/audience/internal/README.md), [Lead Developer](../../architecture/audience/internal/lead-developer.md), [Maintainer](../../architecture/audience/internal/maintainer.md), [System Architect](../../architecture/audience/internal/system-architect.md), [Spec Kitty CLI Runtime](../../architecture/audience/internal/spec-kitty-cli-runtime.md), [AI Collaboration Agent](../../architecture/audience/internal/ai-collaboration-agent.md), [Project Codebase](../../architecture/audience/internal/project-codebase.md) |
 | **Related terms** | [Audience Persona](#audience-persona), [Mission Participant](#mission-participant) |
 
 ---
@@ -74,7 +74,7 @@ Terms describing who performs work and who owns semantic decisions.
 | **Context** | Identity |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Persona catalog** | [External Audience Index](../../docs/context/audience/external/README.md), [Project Owner](../../docs/context/audience/external/project-owner.md), [External Tech Lead Evaluator](../../docs/context/audience/external/tech-lead-evaluator.md), [External Architect Evaluator](../../docs/context/audience/external/architect-evaluator.md), [External Product Manager Evaluator](../../docs/context/audience/external/product-manager-evaluator.md) |
+| **Persona catalog** | [External Audience Index](../../architecture/audience/external/README.md), [Project Owner](../../architecture/audience/external/project-owner.md), [External Tech Lead Evaluator](../../architecture/audience/external/tech-lead-evaluator.md), [External Architect Evaluator](../../architecture/audience/external/architect-evaluator.md), [External Product Manager Evaluator](../../architecture/audience/external/product-manager-evaluator.md) |
 | **Related terms** | [Audience Persona](#audience-persona), [Mission Owner](#mission-owner) |
 
 ---

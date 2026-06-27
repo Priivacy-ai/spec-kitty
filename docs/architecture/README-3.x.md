@@ -11,14 +11,14 @@ the 3.0.0 release on 2026-03-30.
 
 The 2.x track (`architecture/2.x/`) captured the architecture through the
 2.x → 3.x cutover. ADRs dated on or after 2026-03-30 live here in 3.x; older
-ADRs remain in `docs/adr/2.x/`. Back-compat symlinks at the old
-`docs/adr/2.x/<filename>` paths point at the new 3.x location so
+ADRs remain in `architecture/2.x/adr/`. Back-compat symlinks at the old
+`architecture/2.x/adr/<filename>` paths point at the new 3.x location so
 existing references — in CHANGELOG entries, test snapshots, and shipped
 docs — continue to resolve.
 
 ## ADR Authoring
 
-Use the shared template at `docs/architecture/adr-template.md`. The same template
+Use the shared template at `architecture/adr-template.md`. The same template
 serves all tracks (1.x, 2.x, 3.x) — there is no per-track template fork.
 
 Naming: `YYYY-MM-DD-N-descriptive-title-with-dashes.md` where `N` increments

@@ -28,7 +28,7 @@ pre-migration state as current.
 
 ## Discrepancy 1: Implementation Mapping Status is Stale
 
-**Location:** `docs/architecture/04_implementation_mapping/README.md`, line 312
+**Location:** `architecture/2.x/04_implementation_mapping/README.md`, line 312
 
 **Architecture claims:**
 > MissionRepository package relocation | In Progress |
@@ -56,7 +56,7 @@ subsystem, not mission assets.
 
 ## Discrepancy 2: Loop B Connector Path is Pre-054
 
-**Location:** `docs/architecture/04_implementation_mapping/README.md`, line 99
+**Location:** `architecture/2.x/04_implementation_mapping/README.md`, line 99
 
 **Architecture claims:**
 ```
@@ -75,7 +75,7 @@ line 89) but has not been corrected.
 
 ## Discrepancy 3: Agent Tool Connectors Row is Pre-054
 
-**Location:** `docs/architecture/04_implementation_mapping/README.md`, line 36
+**Location:** `architecture/2.x/04_implementation_mapping/README.md`, line 36
 
 **Architecture claims:**
 > `specify_cli/missions/` still exists as a legacy resolution path and fallback

@@ -20,11 +20,11 @@ ledger is *observational only* and should become the canonical source.
 
 **Affirmative (best):** behaviour is designed as a runtime-resolved governed *(profile, action,
 governance-context)* triple, with a first-class lifecycle trail meant to be consumable, not just
-audit — `docs/architecture/governed-profile-invocation.md:14-32, 96-126`.
+audit — `docs/explanation/governed-profile-invocation.md:14-32, 96-126`.
 
 **Refutation (damaging, and correct):**
 - Run-start freezing is a **deliberate determinism contract**, not a bug:
-  `docs/adr/2.x/2026-02-17-1-canonical-next-command-runtime-loop.md:42-43` — "`next` planning
+  `architecture/2.x/adr/2026-02-17-1-canonical-next-command-runtime-loop.md:42-43` — "`next` planning
   uses the **frozen mission template captured at run start (not live mission file edits)**" with
   drift → `blocked`. Honoured by `engine.py:129 _freeze_template()` + `planner.py:305 _check_template_drift()`.
 - The premise "behaviour is frozen / ledger is observational" is **factually wrong for the parts that
@@ -50,14 +50,14 @@ audit — `docs/architecture/governed-profile-invocation.md:14-32, 96-126`.
 **We claimed:** mission phase (planning→implementing→integrating→done) is *not first-class* and should be.
 
 **Affirmative (best):** "Mission phase" is named as a runtime decision input
-(`docs/architecture/runtime-loop.md:33`) and every journey uses explicit phase tables.
+(`docs/explanation/runtime-loop.md:33`) and every journey uses explicit phase tables.
 
 **Refutation (correct):** a mission-level state machine **schema already exists** —
 `src/doctrine/missions/models.py:76 MissionOrchestration` (`states`, `transitions`, `guards`,
 `required_artifacts`); run progress is persisted in `MissionRunSnapshot` (`completed_steps`,
 `issued_step_id`, `blocked_reason`); per-type `action_sequence` orders the lifecycle; the 9-lane
 `WPState` machine owns WP-level phase. **And** the canonical terminology ADR *deliberately demotes*
-"phase": `docs/adr/3.x/2026-04-04-2:110-111` — prefer `mission action`/`step` for runtime nodes.
+"phase": `architecture/3.x/adr/2026-04-04-2:110-111` — prefer `mission action`/`step` for runtime nodes.
 
 **Reconciliation — what's actually true:**
 - Phase-position **is** first-class — but **distributed** across `action_sequence` (type ordering),
@@ -79,16 +79,16 @@ audit — `docs/architecture/governed-profile-invocation.md:14-32, 96-126`.
 
 **Affirmative (strong):**
 - The bootstrap journey **explicitly designs** charter-selected approaches to reconfigure
-  branch/worktree/merge at run time — `docs/plans/user_journey/001-project-onboarding-bootstrap.md:224,
+  branch/worktree/merge at run time — `architecture/2.x/user_journey/001-project-onboarding-bootstrap.md:224,
   236-241`, Acceptance Scenario 7 `:192-198`.
 - A working **charter-default → config → default** precedence already exists for merge
   (`merge/config.py:4-7`; `MergeState.strategy`), and the retrospective ADR **ratifies that exact
-  pattern as house style** with a traceable `source_map`: `docs/adr/3.x/2026-05-19-1:79-85`
+  pattern as house style** with a traceable `source_map`: `architecture/3.x/adr/2026-05-19-1:79-85`
   ("Charter wins by default; config may delegate").
 - `branch_strategy` / `execution_mode` are already charter-extracted and per-WP-carried fields.
 
 **Refutation (the critical constraint):** per-run **workspace/branch topology** override is an
-**anti-goal**. `docs/adr/3.x/2026-04-03-1` makes `lanes.json` mandatory and **fail-closed**:
+**anti-goal**. `architecture/3.x/adr/2026-04-03-1` makes `lanes.json` mandatory and **fail-closed**:
 "There is **no runtime fallback** to per-WP worktrees… or structure 'detection' logic." A per-run
 mutable topology policy would reintroduce exactly the variability that ADR deliberately removed for
 merge-safety.
@@ -113,7 +113,7 @@ merge-safety.
 **We claimed:** model the flow as a *new* composition of domain-owned context fragments.
 
 **Affirmative (principles, strong):** domain-owned boundaries with stable seams are house doctrine —
-`docs/architecture/00_landscape/README.md:52-55`; `docs/architecture/02_containers/runtime-execution-domain.md:24-37`
+`architecture/2.x/00_landscape/README.md:52-55`; `architecture/2.x/02_containers/runtime-execution-domain.md:24-37`
 ("Runtime decisioning and lifecycle mutation are separate authorities… worktree context does not
 reassign lifecycle authority… metadata is the routing authority"); the bounded-context map in
 `2026-05-19-1:201-231`.
@@ -122,7 +122,7 @@ reassign lifecycle authority… metadata is the routing authority"); the bounded
 - `src/specify_cli/core/execution_context.py:44 ActionContext` composes
   `action, mission_slug, feature_dir, target_branch, wp_id, lane_id, branch_name, execution_mode,
   workspace_path, commands, dependencies` — **the fragments we proposed** — and is backed by an
-  **accepted ADR**: `docs/adr/3.x/2026-03-09-1-prompts-do-not-discover-context-commands-do.md`
+  **accepted ADR**: `architecture/adrs/2026-03-09-1-prompts-do-not-discover-context-commands-do.md`
   ("Prompts do not discover context. Commands do.").
 - `context/models.py:18 MissionContext` (identity binding) and
   `next/_internal_runtime/schema.py:493 StepContextBundle` already compose context at boundaries.

@@ -38,48 +38,48 @@ class TestDefaultAuthorityPaths:
     def test_default_glossary_path_surfaces_when_directory_present(
         self, tmp_path: Path
     ) -> None:
-        _make_dir(tmp_path, "docs/context")
+        _make_dir(tmp_path, "glossary/contexts")
         result = render_authority_paths(tmp_path, DoctrineSelectionConfig())
         assert AUTHORITY_PATHS_HEADER in result
-        assert "docs/context/" in result
-        assert DEFAULT_AUTHORITY_PATHS["docs/context/"] in result
+        assert "glossary/contexts/" in result
+        assert DEFAULT_AUTHORITY_PATHS["glossary/contexts/"] in result
 
     def test_default_adr_path_surfaces_when_directory_present(
         self, tmp_path: Path
     ) -> None:
-        _make_dir(tmp_path, "docs/adr/3.x")
+        _make_dir(tmp_path, "architecture/3.x/adr")
         result = render_authority_paths(tmp_path, DoctrineSelectionConfig())
         assert AUTHORITY_PATHS_HEADER in result
-        assert "docs/adr/3.x/" in result
-        assert DEFAULT_AUTHORITY_PATHS["docs/adr/3.x/"] in result
+        assert "architecture/3.x/adr/" in result
+        assert DEFAULT_AUTHORITY_PATHS["architecture/3.x/adr/"] in result
 
     def test_default_path_skipped_when_directory_missing(self, tmp_path: Path) -> None:
-        # No docs/context in tmp_path — render must not list it.
+        # No glossary/contexts in tmp_path — render must not list it.
         result = render_authority_paths(tmp_path, DoctrineSelectionConfig())
-        assert "docs/context/" not in result
+        assert "glossary/contexts/" not in result
 
 
 class TestCharterDeclaredAuthorityPaths:
     """Charter-declared paths append to defaults, with dedup."""
 
     def test_charter_declared_path_additive(self, tmp_path: Path) -> None:
-        _make_dir(tmp_path, "docs/context")
+        _make_dir(tmp_path, "glossary/contexts")
         _make_dir(tmp_path, "docs/runbooks")
         selection = DoctrineSelectionConfig(authority_paths=["docs/runbooks/"])
         result = render_authority_paths(tmp_path, selection)
-        assert "docs/context/" in result
+        assert "glossary/contexts/" in result
         assert "docs/runbooks/" in result
         assert DEFAULT_CHARTER_DECLARED_WHEN_CLAUSE in result
 
     def test_charter_declared_duplicate_of_default_deduped(
         self, tmp_path: Path
     ) -> None:
-        _make_dir(tmp_path, "docs/context")
-        selection = DoctrineSelectionConfig(authority_paths=["docs/context/"])
+        _make_dir(tmp_path, "glossary/contexts")
+        selection = DoctrineSelectionConfig(authority_paths=["glossary/contexts/"])
         result = render_authority_paths(tmp_path, selection)
         # The path appears exactly once even though both default and
         # declared lists carry it.
-        assert result.count("docs/context/") == 1
+        assert result.count("glossary/contexts/") == 1
 
 
 class TestEmptyResult:

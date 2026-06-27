@@ -15,7 +15,7 @@ subtasks:
 - T056
 - T057
 - T058
-agent: ""
+agent: "claude:opus:reviewer-renata:reviewer"
 history: []
 agent_profile: python-pedro
 authoritative_surface: docs/docfx.json
@@ -28,6 +28,7 @@ owned_files:
 - docs/index.md
 role: implementer
 tags: []
+shell_pid: "1468138"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -107,3 +108,7 @@ Planning + final merge target: `docs/2165-mission-b-structural-move`. Depends on
 ## Activity Log
 
 - (populated at implement time)
+- 2026-06-27T13:37:55Z – claude:opus:python-pedro:implementer – shell_pid=1421969 – Assigned agent via action command
+- 2026-06-27T13:57:31Z – claude:opus:python-pedro:implementer – shell_pid=1421969 – docfx.json+toc+llms+index → 13-section layout (serialized-keys); empty globs/dangles are cross-WP-pending (adr←WP06, ops←WP04); DocFX build-green deferred to assembled-tree CI (no dotnet local)
+- 2026-06-27T13:59:02Z – claude:opus:reviewer-renata:reviewer – shell_pid=1468138 – Started review via action command
+- 2026-06-27T14:05:34Z – user – shell_pid=1468138 – Review passed: 13-section docfx/toc/llms/index, category-clean (4 owned files only, no prose/frontmatter bleed; index.md frontmatter de-version is owned entry-page identity, not WP12 doc_status backfill), all dangles cross-WP-pending (adr<-WP06, operations<-WP04, configuration/integrations/security/guides/api<-WP10 scaffold), DocFX build-green honestly deferred to assembled-tree CI; IC-01 guides/api verdict: REAL occurrence-map gap - FR-009 mandates Divio->guides/+api/+architecture/ but moves: spine omits tutorials/how-to->guides, reference->api, explanation->architecture (120 Divio files orphan, guides/api stay empty). NOT a WP09 defect (WP09 correctly built spec-mandated target config); operator to file IC-01 occurrence-map correction.

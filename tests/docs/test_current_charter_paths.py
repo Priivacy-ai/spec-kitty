@@ -11,8 +11,8 @@ pytestmark = pytest.mark.fast
 
 CURRENT_DOC_PATHS = (
     Path("docs/3x"),
-    Path("docs/guides"),
-    Path("docs/api"),
+    Path("docs/how-to"),
+    Path("docs/reference"),
     Path("spec-driven.md"),
 )
 

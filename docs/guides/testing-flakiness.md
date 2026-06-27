@@ -20,7 +20,7 @@ current disposition of every known flake surface in this repo.
 
 This repo already registers a `flaky` pytest marker, and it means something
 **narrow and unrelated** to this policy. Per
-[ADR 2026-04-20-1](../../docs/adr/3.x/2026-04-20-1-mutation-testing-as-local-only-quality-gate.md),
+[ADR 2026-04-20-1](../../architecture/3.x/adr/2026-04-20-1-mutation-testing-as-local-only-quality-gate.md),
 `@pytest.mark.flaky` means *"passes reliably in the main suite but is
 non-deterministic **under `mutmut` / forking pipelines**"* — it is a deselection
 bucket for the mutation-testing sandbox, **not** a CI-quarantine mechanism.
@@ -138,7 +138,7 @@ the cause, do not retry:
 
 - [Running the test suite in parallel](testing-parallel.md) — per-worker HOME
   isolation, the serial daemon pass, and the stability ratchet.
-- [ADR 2026-04-20-1](../../docs/adr/3.x/2026-04-20-1-mutation-testing-as-local-only-quality-gate.md)
+- [ADR 2026-04-20-1](../../architecture/3.x/adr/2026-04-20-1-mutation-testing-as-local-only-quality-gate.md)
   — the `flaky` / `non_sandbox` markers (mutmut deselection; distinct from this
   policy).
 - [How-to: run mutation tests](../how-to/run-mutation-tests.md).

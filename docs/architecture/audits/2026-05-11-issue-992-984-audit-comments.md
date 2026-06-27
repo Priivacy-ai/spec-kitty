@@ -2,8 +2,8 @@
 
 ## Inputs
 
-- **Audit referenced**: `docs/architecture/audits/2026-05-spec-kitty-caacs.md` (CaaCS audit, 2026-05-08 base + 2026-05-09 multi-window expansion).
-- **Prior crosscheck**: `docs/architecture/audits/2026-05-11-findings-vs-issues-update.md` (already classifies #992 as STRONG on F2 + brownfield; #984 as STRONG on F18, PARTIAL on F2).
+- **Audit referenced**: `architecture/audits/2026-05-spec-kitty-caacs.md` (CaaCS audit, 2026-05-08 base + 2026-05-09 multi-window expansion).
+- **Prior crosscheck**: `architecture/audits/2026-05-11-findings-vs-issues-update.md` (already classifies #992 as STRONG on F2 + brownfield; #984 as STRONG on F18, PARTIAL on F2).
 - **Brownfield paradigm**: `brownfield-onboarding.paradigm.yaml` (investigate-before-changing, document/transfer first then refactor — DM-D).
 - **Issues read on 2026-05-11**:
   - `gh issue view 992 --repo Priivacy-ai/spec-kitty --comments --json …` (full body + 1 comment).
@@ -83,7 +83,7 @@ The single comment, from stijn-dejongh (2026-05-07): the bug queue is accurate, 
 ### Useful audit comment for #992 (DRAFT — do not post)
 
 ```markdown
-Adding some forensic backing from the recent CaaCS audit (`docs/architecture/audits/2026-05-spec-kitty-caacs.md`, multi-window expansion `docs/architecture/audits/2026-05-11-findings-vs-issues-update.md`) that lines up with this epic's diagnosis and may help calibrate Phase 0 / Phase 1 sequencing.
+Adding some forensic backing from the recent CaaCS audit (`architecture/audits/2026-05-spec-kitty-caacs.md`, multi-window expansion `architecture/audits/2026-05-11-findings-vs-issues-update.md`) that lines up with this epic's diagnosis and may help calibrate Phase 0 / Phase 1 sequencing.
 
 **Where the audit converges with this epic**
 
@@ -166,7 +166,7 @@ The body does **not** explicitly name `agent_utils/status.py`. It names CLI beha
 ### Useful audit comment for #984 (DRAFT — do not post)
 
 ```markdown
-Some adjacent context from the recent CaaCS audit (`docs/architecture/audits/2026-05-spec-kitty-caacs.md`) that may help scope the fix.
+Some adjacent context from the recent CaaCS audit (`architecture/audits/2026-05-spec-kitty-caacs.md`) that may help scope the fix.
 
 This bug sits inside two audit findings:
 
@@ -183,8 +183,8 @@ One worth-pinning detail: this is a **resolution** bug, not a **rendering** bug.
 If the fix surfaces that `get_main_repo_root` is shared with `merge`, `next`, or `agent action`, that's relevant to issue #992's Workstream 1 (WorkPackageLifecycle authority) and worth cross-linking.
 
 Audit references for whoever picks this up:
-- `docs/architecture/audits/2026-05-spec-kitty-caacs.md` — F2, F15, F18 in the findings section.
-- `docs/architecture/audits/2026-05-11-findings-vs-issues-update.md` §"Multi-window refresh" — `agent_utils/status.py` slow-burn entry.
+- `architecture/audits/2026-05-spec-kitty-caacs.md` — F2, F15, F18 in the findings section.
+- `architecture/audits/2026-05-11-findings-vs-issues-update.md` §"Multi-window refresh" — `agent_utils/status.py` slow-burn entry.
 
 Not a blocker for the fix; just noting the surrounding terrain.
 ```
@@ -223,7 +223,7 @@ Not a blocker for the fix; just noting the surrounding terrain.
 ### #984
 
 - Option 1 (post draft as-is): viable. Adds the F18 link and the resolver-vs-renderer scoping note.
-- Option 2 (slim): just "`agent_utils/status.py` is F18-flagged in the audit; regression test scope should be resolver-isolated; see audit at `docs/architecture/audits/2026-05-spec-kitty-caacs.md`." Three sentences.
+- Option 2 (slim): just "`agent_utils/status.py` is F18-flagged in the audit; regression test scope should be resolver-isolated; see audit at `architecture/audits/2026-05-spec-kitty-caacs.md`." Three sentences.
 - Option 3 (don't post): the issue's suggested-fix is already correct; the audit adds calibration, not direction.
 
 **Recommendation: Option 2 — slim comment.** Justification: the bug is small and scoped; a long audit-context comment risks burying the existing fix-suggestion. A 3-sentence pointer to F18 and the resolver-vs-renderer distinction is enough.

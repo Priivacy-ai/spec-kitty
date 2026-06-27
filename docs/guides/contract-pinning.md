@@ -3,7 +3,7 @@
 > **Status**: stable (2026-04-26)
 >
 > **Authority**:
-> - [`docs/adr/3.x/2026-04-26-1-contract-pinning-resolved-version.md`](../../docs/adr/3.x/2026-04-26-1-contract-pinning-resolved-version.md)
+> - [`architecture/2.x/adr/2026-04-26-1-contract-pinning-resolved-version.md`](../../architecture/2.x/adr/2026-04-26-1-contract-pinning-resolved-version.md)
 >   (DIRECTIVE_003)
 > - Mission `stability-and-hygiene-hardening-2026-04-01KQ4ARB`,
 >   FR-022 / FR-023.
@@ -131,4 +131,4 @@ snapshots when bumping; just add the new one.
 - Mission spec: [`kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/spec.md`](../../kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/spec.md)
 - Mission review gate (FR-023): `tests/integration/test_mission_review_contract_gate.py`
 - Public-import freeze (FR-024): `tests/architectural/test_events_tracker_public_imports.py`
-- Companion ADR (boundary cutover): [`docs/adr/3.x/2026-04-25-1-shared-package-boundary.md`](../../docs/adr/3.x/2026-04-25-1-shared-package-boundary.md)
+- Companion ADR (boundary cutover): [`architecture/2.x/adr/2026-04-25-1-shared-package-boundary.md`](../../architecture/2.x/adr/2026-04-25-1-shared-package-boundary.md)

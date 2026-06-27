@@ -112,7 +112,7 @@ class TestDoctrineSelectionAuthorityPathsField:
     def test_default_is_not_shared_between_instances(self) -> None:
         a = DoctrineSelectionConfig()
         b = DoctrineSelectionConfig()
-        a.authority_paths.append("docs/context/")
+        a.authority_paths.append("glossary/contexts/")
         assert b.authority_paths == []
 
     def test_round_trip_without_authority_paths(self) -> None:
@@ -141,21 +141,21 @@ class TestDoctrineSelectionAuthorityPathsField:
             "available_tools: []\n"
             "template_set: null\n"
             "authority_paths:\n"
-            "  - docs/context/\n"
-            "  - docs/adr/3.x/\n"
+            "  - glossary/contexts/\n"
+            "  - architecture/3.x/adr/\n"
         )
         data = _load_yaml_str(yaml_text)
         config = DoctrineSelectionConfig(**data)
 
         assert config.authority_paths == [
-            "docs/context/",
-            "docs/adr/3.x/",
+            "glossary/contexts/",
+            "architecture/3.x/adr/",
         ]
 
         dumped = config.model_dump(exclude_defaults=True)
         assert dumped["authority_paths"] == [
-            "docs/context/",
-            "docs/adr/3.x/",
+            "glossary/contexts/",
+            "architecture/3.x/adr/",
         ]
 
 

@@ -68,7 +68,7 @@ AGENT_DIRS = [
 ALLOWLIST_PREFIXES = (
     "kitty-specs/",  # mission-level checklists/ directory is canonical
     "docs/01KSMG8Y-closeout/",  # historical failure closeout, not live surface
-    "docs/plans/engineering-notes/triage/",  # historical triage notes, not live surface
+    "docs/engineering_notes/triage/",  # historical triage notes, not live surface
 )
 
 ALLOWLIST_FILENAMES = (

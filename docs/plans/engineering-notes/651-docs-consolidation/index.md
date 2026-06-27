@@ -49,10 +49,10 @@ path), and a second **architect-alphonso** (generated-docsite impact).
   conventions land on a *live* generator today.
 - **The split-brain @xtfer fears already exists.** `docs/1x|2x|3x` + `docs/architecture/`
   is a *shadow duplicate* of `architecture/1.x|2.x|3.x`, and the "never duplicate" boundary
-  contract in `docs/architecture/README.md` **is already leaking.**
+  contract in `architecture/README.md` **is already leaking.**
 - **Blast radius of a structural move:** ~**503 referencing files / 1,589 link
   occurrences** (42 in `src/` — a missed rewrite is a *runtime* break, not a dead link;
-  151 hits on `docs/adr/3.x` alone).
+  151 hits on `architecture/3.x/adr` alone).
 
 ## The four lenses (summary)
 
@@ -113,9 +113,9 @@ this); and the existing split-brain is *resolved* rather than perpetuated.
 ## Slicing
 
 - **Ship now (hygiene, no design dependency):** `index.md` for `engineering_notes/` +
-  `development/`, fix `CLAUDE.md:531` dead link → `docs/architecture/documentation-mission.md`,
-  backfill the 7 missing ADRs in `docs/adr/3.x/README.md`, verify-and-close the
-  `docs/adr/3.x/` shim (already symlinks), retire the 2.x-stale `NAVIGATION_GUIDE.md`,
+  `development/`, fix `CLAUDE.md:531` dead link → `docs/explanation/documentation-mission.md`,
+  backfill the 7 missing ADRs in `architecture/3.x/adr/README.md`, verify-and-close the
+  `architecture/adrs/` shim (already symlinks), retire the 2.x-stale `NAVIGATION_GUIDE.md`,
   add the `llms.txt` routing rubric.
 - **Consolidation mission (gated by ONE reconciliation ADR first):** paula's four lanes —
   (A) single-root + history move (`adr/<era>/`) + collapse the `docs/*x` / `architecture/*.x`
@@ -148,5 +148,5 @@ Both open questions below were resolved before Mission B opens.
 - Key files: `docs/development/3-2-page-inventory.yaml`, `scripts/docs/check_docs_freshness.py`,
   `scripts/docs/version_leakage_check.py`, `tests/docs/test_docs_seo.py`, `docs/docfx.json`,
   `.github/workflows/docs-pages.yml`, `scripts/docs/seo_postprocess.py`,
-  `docs/architecture/README.md` (the boundary contract this supersedes), `docs/adr/3.x/`,
-  `docs/architecture/NAVIGATION_GUIDE.md`, `docs/llms.txt`, `src/doctrine/graph.yaml` (DRG).
+  `architecture/README.md` (the boundary contract this supersedes), `architecture/3.x/adr/`,
+  `architecture/NAVIGATION_GUIDE.md`, `docs/llms.txt`, `src/doctrine/graph.yaml` (DRG).

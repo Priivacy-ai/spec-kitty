@@ -133,7 +133,7 @@ mission with zero captured learnings. The 3.2.0 default-policy promise of
 "a real retrospective lands automatically" requires the generator to actually
 generate.
 
-**Workaround.** Author findings manually in `docs/plans/engineering-notes/finding/`
+**Workaround.** Author findings manually in `docs/engineering_notes/finding/`
 (this file). Treat the `retrospective.yaml` as a provenance record only.
 
 **Follow-up candidate.** The generator could mine: (a) `status.events.jsonl`

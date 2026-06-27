@@ -2,7 +2,7 @@
 
 This is the third and final *ruler* of the Common Docs consolidation: a
 **report-only** structural guard that detects the four sprawl regressions the
-reconciliation ADR (``docs/adr/3.x/2026-06-27-1-common-docs-reconciliation.md``)
+reconciliation ADR (``architecture/3.x/adr/2026-06-27-1-common-docs-reconciliation.md``)
 and ``DIRECTIVE_042`` are meant to cure. Mission B flips it to **blocking**
 against the cleaned tree (paired with a full-gate dry-run per C-004); here it
 only *reports* — it always exits ``0`` unless ``--strict`` is passed.

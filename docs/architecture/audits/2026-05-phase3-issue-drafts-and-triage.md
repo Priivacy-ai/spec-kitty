@@ -2,7 +2,7 @@
 
 ## Methodology
 
-This document is a planning aid produced from two existing artifacts on disk: the CaaCS forensic audit at `docs/architecture/audits/2026-05-spec-kitty-caacs.md` (commit `bc64dec6ee37dbbd6bc21a0a1aa3195f2bab1b57`, 2026-05-08) and the `#822` crosscheck at `docs/architecture/audits/2026-05-822-crosscheck.md`. It expands the crosscheck's two gap lists into actionable shapes: ready-to-post GitHub issue drafts for the 12 audit findings without an open backing issue, and a triage table of recommendations for the 13 open `#822` sub-issues without forensic backing.
+This document is a planning aid produced from two existing artifacts on disk: the CaaCS forensic audit at `architecture/audits/2026-05-spec-kitty-caacs.md` (commit `bc64dec6ee37dbbd6bc21a0a1aa3195f2bab1b57`, 2026-05-08) and the `#822` crosscheck at `architecture/audits/2026-05-822-crosscheck.md`. It expands the crosscheck's two gap lists into actionable shapes: ready-to-post GitHub issue drafts for the 12 audit findings without an open backing issue, and a triage table of recommendations for the 13 open `#822` sub-issues without forensic backing.
 
 What this document does **not** do: it does not post, edit, close, or label any issue; it does not modify the audits; it does not commit. Every recommendation in Part 2 is a flag for a maintainer to decide on, never a destructive instruction.
 
@@ -64,8 +64,8 @@ The audit's firefighting analysis (~0.3% of commits after stripping false positi
 
 #### References
 
-- Audit: `docs/architecture/audits/2026-05-spec-kitty-caacs.md` — Top findings #1, "Bus factor / knowledge map" section, "DDD ratification notes (architect)"
-- Crosscheck: `docs/architecture/audits/2026-05-822-crosscheck.md` — F1 forward map (zero matches)
+- Audit: `architecture/audits/2026-05-spec-kitty-caacs.md` — Top findings #1, "Bus factor / knowledge map" section, "DDD ratification notes (architect)"
+- Crosscheck: `architecture/audits/2026-05-822-crosscheck.md` — F1 forward map (zero matches)
 - Doctrine: `src/doctrine/tactics/built-in/analysis/forensic-repository-audit.tactic.yaml`, `src/doctrine/procedures/built-in/legacy-codebase-triage.procedure.yaml`
 - Related (WEAK matches in the same risk area): #771 (touches `merge.py`, in the F2 cluster)
 
@@ -121,8 +121,8 @@ This is a load-bearing seam (the mission state ↔ git worktree transaction). Th
 
 #### References
 
-- Audit: `docs/architecture/audits/2026-05-spec-kitty-caacs.md` — Top findings #2, "Hotspot table" rows #2/#3, "Triage matrix → Important + not urgent"
-- Crosscheck: `docs/architecture/audits/2026-05-822-crosscheck.md` — F2 forward map (zero matches)
+- Audit: `architecture/audits/2026-05-spec-kitty-caacs.md` — Top findings #2, "Hotspot table" rows #2/#3, "Triage matrix → Important + not urgent"
+- Crosscheck: `architecture/audits/2026-05-822-crosscheck.md` — F2 forward map (zero matches)
 - Doctrine: `src/doctrine/tactics/built-in/analysis/forensic-repository-audit.tactic.yaml`, `src/doctrine/procedures/built-in/legacy-codebase-triage.procedure.yaml`
 - Related (WEAK matches): #771 (auto-rebase on `merge.py`, adjacent file in same cluster)
 
@@ -167,8 +167,8 @@ Stray top-level directories suggest active subsystems that are not there. New co
 
 #### References
 
-- Audit: `docs/architecture/audits/2026-05-spec-kitty-caacs.md` — Top findings #5, "Triage matrix → Parallelisable"
-- Crosscheck: `docs/architecture/audits/2026-05-822-crosscheck.md` — F5 (zero matches)
+- Audit: `architecture/audits/2026-05-spec-kitty-caacs.md` — Top findings #5, "Triage matrix → Parallelisable"
+- Crosscheck: `architecture/audits/2026-05-822-crosscheck.md` — F5 (zero matches)
 
 ---
 
@@ -214,8 +214,8 @@ If one file is dead, every co-edit is wasted effort and a chance to drift. If bo
 
 #### References
 
-- Audit: `docs/architecture/audits/2026-05-spec-kitty-caacs.md` — "Temporal coupling" pair #20, "Triage matrix → Important + urgent"
-- Crosscheck: `docs/architecture/audits/2026-05-822-crosscheck.md` — F6 (zero matches)
+- Audit: `architecture/audits/2026-05-spec-kitty-caacs.md` — "Temporal coupling" pair #20, "Triage matrix → Important + urgent"
+- Crosscheck: `architecture/audits/2026-05-822-crosscheck.md` — F6 (zero matches)
 - Doctrine: `src/doctrine/tactics/built-in/analysis/forensic-repository-audit.tactic.yaml`
 
 ---
@@ -265,8 +265,8 @@ Templates are the contract between runtime and mission and that contract is the 
 
 #### References
 
-- Audit: `docs/architecture/audits/2026-05-spec-kitty-caacs.md` — "Cross-cutting observation #2", "Temporal coupling" pairs #11/#14/#18/#19, "DDD ratification notes (architect)"
-- Crosscheck: `docs/architecture/audits/2026-05-822-crosscheck.md` — F7 (zero matches)
+- Audit: `architecture/audits/2026-05-spec-kitty-caacs.md` — "Cross-cutting observation #2", "Temporal coupling" pairs #11/#14/#18/#19, "DDD ratification notes (architect)"
+- Crosscheck: `architecture/audits/2026-05-822-crosscheck.md` — F7 (zero matches)
 
 ---
 
@@ -313,8 +313,8 @@ A supporting CLI file at this size and with this MI is a maintenance tax on ever
 
 #### References
 
-- Audit: `docs/architecture/audits/2026-05-spec-kitty-caacs.md` — Hotspot row #26, "Triage matrix → Important + not urgent", "DDD ratification notes (architect)"
-- Crosscheck: `docs/architecture/audits/2026-05-822-crosscheck.md` — F8 (zero matches)
+- Audit: `architecture/audits/2026-05-spec-kitty-caacs.md` — Hotspot row #26, "Triage matrix → Important + not urgent", "DDD ratification notes (architect)"
+- Crosscheck: `architecture/audits/2026-05-822-crosscheck.md` — F8 (zero matches)
 
 ---
 
@@ -360,8 +360,8 @@ A 94-CC bootstrap function is a brittle entrypoint. Init failures land badly —
 
 #### References
 
-- Audit: `docs/architecture/audits/2026-05-spec-kitty-caacs.md` — Hotspot row #7, "Triage matrix → Important + not urgent"
-- Crosscheck: `docs/architecture/audits/2026-05-822-crosscheck.md` — F9 (zero matches)
+- Audit: `architecture/audits/2026-05-spec-kitty-caacs.md` — Hotspot row #7, "Triage matrix → Important + not urgent"
+- Crosscheck: `architecture/audits/2026-05-822-crosscheck.md` — F9 (zero matches)
 
 ---
 
@@ -408,8 +408,8 @@ A hub disguised as a bridge inverts dependencies: callers think they're talking 
 
 #### References
 
-- Audit: `docs/architecture/audits/2026-05-spec-kitty-caacs.md` — Hotspot row #21, "Triage matrix → Important + not urgent", "DDD ratification notes (architect)"
-- Crosscheck: `docs/architecture/audits/2026-05-822-crosscheck.md` — F10 (zero matches)
+- Audit: `architecture/audits/2026-05-spec-kitty-caacs.md` — Hotspot row #21, "Triage matrix → Important + not urgent", "DDD ratification notes (architect)"
+- Crosscheck: `architecture/audits/2026-05-822-crosscheck.md` — F10 (zero matches)
 
 ---
 
@@ -457,8 +457,8 @@ Migrations only run once but they run on every user. A bug in a high-CC migratio
 
 #### References
 
-- Audit: `docs/architecture/audits/2026-05-spec-kitty-caacs.md` — "Triage matrix → Parallelisable"
-- Crosscheck: `docs/architecture/audits/2026-05-822-crosscheck.md` — F11 (only WEAK match: #629, distinct files)
+- Audit: `architecture/audits/2026-05-spec-kitty-caacs.md` — "Triage matrix → Parallelisable"
+- Crosscheck: `architecture/audits/2026-05-822-crosscheck.md` — F11 (only WEAK match: #629, distinct files)
 
 ---
 
@@ -508,8 +508,8 @@ The sync subsystem is the integration boundary with the SaaS-side teamspace. It 
 
 #### References
 
-- Audit: `docs/architecture/audits/2026-05-spec-kitty-caacs.md` — "Cross-cutting observation #3", "Bus factor / knowledge map"
-- Crosscheck: `docs/architecture/audits/2026-05-822-crosscheck.md` — F12 (PARTIAL: #889, #306)
+- Audit: `architecture/audits/2026-05-spec-kitty-caacs.md` — "Cross-cutting observation #3", "Bus factor / knowledge map"
+- Crosscheck: `architecture/audits/2026-05-822-crosscheck.md` — F12 (PARTIAL: #889, #306)
 - Related (PARTIAL matches in same cluster): #889, #306
 
 ---
@@ -551,14 +551,14 @@ Decisions about which F-rated function to refactor first should be informed by w
 
 #### Acceptance criteria
 
-- A second audit document exists at `docs/architecture/audits/2026-Qx-spec-kitty-caacs-tests.md`.
+- A second audit document exists at `architecture/audits/2026-Qx-spec-kitty-caacs-tests.md`.
 - Each F-rated function in the original audit has a coverage figure attached.
 - A short summary note flags which F-rated functions are safe to refactor immediately and which need test investment first.
 
 #### References
 
-- Audit: `docs/architecture/audits/2026-05-spec-kitty-caacs.md` — "Limitations" #2, "Open follow-ups for cross-check" #9
-- Crosscheck: `docs/architecture/audits/2026-05-822-crosscheck.md` — F13 (zero matches)
+- Audit: `architecture/audits/2026-05-spec-kitty-caacs.md` — "Limitations" #2, "Open follow-ups for cross-check" #9
+- Crosscheck: `architecture/audits/2026-05-822-crosscheck.md` — F13 (zero matches)
 - Doctrine: `src/doctrine/tactics/built-in/analysis/forensic-repository-audit.tactic.yaml`, `src/doctrine/procedures/built-in/legacy-codebase-triage.procedure.yaml`
 
 ---
@@ -600,14 +600,14 @@ Spec-kitty is a methodology tool. Its dogfood missions in `kitty-specs/` are the
 
 #### Acceptance criteria
 
-- A second audit document exists at `docs/architecture/audits/2026-Qx-spec-kitty-caacs-specs.md`.
+- A second audit document exists at `architecture/audits/2026-Qx-spec-kitty-caacs-specs.md`.
 - A spec ↔ source temporal-coupling table is included.
 - A short summary identifies the top three feature missions whose specs co-changed most with `src/` after the initial implementation.
 
 #### References
 
-- Audit: `docs/architecture/audits/2026-05-spec-kitty-caacs.md` — "Limitations" #1, "Open follow-ups for cross-check" #10
-- Crosscheck: `docs/architecture/audits/2026-05-822-crosscheck.md` — F14 (zero matches)
+- Audit: `architecture/audits/2026-05-spec-kitty-caacs.md` — "Limitations" #1, "Open follow-ups for cross-check" #10
+- Crosscheck: `architecture/audits/2026-05-822-crosscheck.md` — F14 (zero matches)
 - Doctrine: `src/doctrine/tactics/built-in/analysis/forensic-repository-audit.tactic.yaml`, `src/doctrine/procedures/built-in/legacy-codebase-triage.procedure.yaml`
 
 ---

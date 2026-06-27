@@ -25,7 +25,7 @@ enforcement (FR-009, contracts/C-GUARD-1, NFR-004):
     this ratchet so the shim cannot regrow a userbase before it is retired.
 
 Spec source: FR-009, NFR-004, contracts/C-GUARD-1; ticket #1355; ADR
-``docs/adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md``.
+``architecture/3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md``.
 """
 
 from __future__ import annotations

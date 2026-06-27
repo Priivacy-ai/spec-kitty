@@ -74,7 +74,7 @@ Together they determine the next action. For example: "We are in the implement p
 
 Agents call `spec-kitty next` in a loop, executing whatever it returns until the mission is complete. This keeps agent behavior deterministic and auditable -- the runtime decides what happens next, not the agent.
 
-ADR reference: `docs/adr/2.x/2026-02-17-1-canonical-next-command-runtime-loop.md`
+ADR reference: `architecture/2.x/adr/2026-02-17-1-canonical-next-command-runtime-loop.md`
 
 ## Mission Discovery and Loading
 
@@ -88,7 +88,7 @@ The resolution order is:
 4. User-global location (`~/.spec-kitty/`)
 5. Packaged doctrine mission defaults
 
-ADR reference: `docs/adr/2.x/2026-02-17-2-runtime-owned-mission-discovery-loading.md`
+ADR reference: `architecture/2.x/adr/2026-02-17-2-runtime-owned-mission-discovery-loading.md`
 
 Implementation references:
 
@@ -109,10 +109,10 @@ Plus `blocked` (reachable from planned/claimed/in_progress/for_review/in_review/
 
 ADR references:
 
-1. `docs/adr/2.x/2026-02-09-1-canonical-wp-status-model.md`
-2. `docs/adr/2.x/2026-02-09-2-wp-lifecycle-state-machine.md`
-3. `docs/adr/2.x/2026-02-09-3-event-log-merge-semantics.md`
-4. `docs/adr/2.x/2026-02-09-4-cross-repo-evidence-completion.md`
+1. `architecture/2.x/adr/2026-02-09-1-canonical-wp-status-model.md`
+2. `architecture/2.x/adr/2026-02-09-2-wp-lifecycle-state-machine.md`
+3. `architecture/2.x/adr/2026-02-09-3-event-log-merge-semantics.md`
+4. `architecture/2.x/adr/2026-02-09-4-cross-repo-evidence-completion.md`
 
 ## External Orchestration Boundary
 

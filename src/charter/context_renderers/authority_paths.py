@@ -12,9 +12,10 @@ Design notes
 
 * **Default authority paths** are hard-coded here so every project gets the
   same convention without having to declare them in the charter
-  (``docs/context/`` for terminology canon, ``docs/adr/3.x/`` for
-  architectural intent — the canonical homes after the Common Docs structural
-  fold).  Each default carries a project-agnostic "When you ..., ..."
+  (``glossary/contexts/`` for terminology canon, ``architecture/3.x/adr/``
+  for architectural intent — the canonical track since the 3.x era; the
+  back-compat symlinks at ``architecture/2.x/adr/`` resolve into this
+  directory).  Each default carries a project-agnostic "When you ..., ..."
   conditional.
 * **Charter-declared paths** come from
   :attr:`charter.schemas.DoctrineSelectionConfig.authority_paths` and are
@@ -57,21 +58,29 @@ _ADR_WHEN: str = (
 
 
 DEFAULT_AUTHORITY_PATHS: dict[str, str] = {
+    "glossary/contexts/": _TERMINOLOGY_WHEN,
     "docs/context/": _TERMINOLOGY_WHEN,
+    "architecture/3.x/adr/": _ADR_WHEN,
     "docs/adr/3.x/": _ADR_WHEN,
 }
 """Mapping of default authority directory to its when-doing copy.
 
-Each home is rendered with a trailing slash so callers that grep for
-``docs/context/`` (the ATDD assertion form) match unambiguously.
+Both copies are rendered with a trailing slash so callers that grep for
+``glossary/contexts/`` (the ATDD assertion form) match unambiguously.
 
-**Mission B (C-003 / NFR-005):** the doc-tree fold relocated the terminology
-canon to ``docs/context/`` and the architectural-intent ADRs to
-``docs/adr/3.x/``.  The WP01 dual-read staged both the pre-fold homes and the
-new homes while the move was in flight; now that the tree has landed
-(WP03/WP06) the legacy branches are dropped — only the canonical new homes
-remain.  Rendering stays existence-gated, so a home surfaces only when its
-directory is present.
+The ADR default was updated from ``architecture/2.x/adr/`` to
+``architecture/3.x/adr/`` (FR-011 / WP07 — authority-path flip).
+Back-compat symlinks at ``architecture/2.x/adr/`` continue to resolve into
+the 3.x directory, so existing projects with the old path in their charter
+are unaffected by the renderer change.
+
+**Mission B dual-read (C-003 / NFR-005):** the doc-tree fold relocates
+``glossary/contexts/`` → ``docs/context/`` and ``architecture/3.x/adr/`` →
+``docs/adr/3.x/``.  Both the legacy and the new homes are listed here so the
+read resolves *before* the move (only the legacy home exists) and *after* it
+(only the new home exists).  Rendering is existence-gated, so at most one home
+of each pair surfaces at a time — no double-render.  The legacy branches are
+dropped in WP08's reference sweep once the tree has moved (WP03).
 """
 
 
@@ -125,7 +134,7 @@ def render_authority_paths(
         The charter-resolved doctrine selection.  Its
         :attr:`authority_paths` list contributes additional pointers
         beyond the built-in defaults; entries that duplicate a default
-        path (e.g. ``docs/context/``) are deduplicated.
+        path (e.g. ``glossary/contexts/``) are deduplicated.
 
     Returns
     -------

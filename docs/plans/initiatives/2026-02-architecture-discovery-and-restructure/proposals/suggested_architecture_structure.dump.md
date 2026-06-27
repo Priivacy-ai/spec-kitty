@@ -8,7 +8,7 @@ Below are two ready-to-drop README drafts.
 
 ---
 
-# `docs/architecture/README.md`
+# `architecture/README.md`
 
 ```md
 # Architecture

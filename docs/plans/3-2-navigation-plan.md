@@ -12,8 +12,8 @@
 > - `docs/development/3-2-version-taxonomy.md` (WP01 — five-tag taxonomy)
 > - `docs/docfx.json` (confirmed doc-site generator: **DocFX**)
 > - Live TOC files: `docs/toc.yml`, `docs/1x/toc.yml`, `docs/2x/toc.yml`,
->   `docs/3x/toc.yml`, `docs/architecture/toc.yml`, `docs/guides/toc.yml`,
->   `docs/migration/toc.yml`, `docs/api/toc.yml`, `docs/guides/toc.yml`
+>   `docs/3x/toc.yml`, `docs/explanation/toc.yml`, `docs/how-to/toc.yml`,
+>   `docs/migration/toc.yml`, `docs/reference/toc.yml`, `docs/tutorials/toc.yml`
 >
 > **No live TOC file is edited by WP03.** This plan is the deliverable.
 > Per FR-004 / Renata finding R4: the doc-site generator is **DocFX**
@@ -33,11 +33,11 @@ docs/toc.yml
 docs/1x/toc.yml
 docs/2x/toc.yml
 docs/3x/toc.yml
-docs/architecture/toc.yml
-docs/guides/toc.yml
+docs/explanation/toc.yml
+docs/how-to/toc.yml
 docs/migration/toc.yml
-docs/api/toc.yml
-docs/guides/toc.yml
+docs/reference/toc.yml
+docs/tutorials/toc.yml
 ```
 
 That is **nine TOC files**. T007 covers every one of them with either a
@@ -330,7 +330,7 @@ directory is for charter/governance overview pages and stays unchanged.
 
 ---
 
-### 5. `docs/architecture/toc.yml` — Divio "Explanation" child TOC
+### 5. `docs/explanation/toc.yml` — Divio "Explanation" child TOC
 
 **Before snapshot** (live, 30 lines, 15 entries):
 
@@ -370,17 +370,17 @@ directory is for charter/governance overview pages and stays unchanged.
 **After snapshot:** (no functional changes)
 
 Same 15 entries. Inventory matches the TOC exactly (15 `current`-tagged
-pages under `docs/architecture/`; all 15 already listed).
+pages under `docs/explanation/`; all 15 already listed).
 
 **Diff:** (no changes)
 
 **Rationale.** WP02 inventory and the live TOC are already in lock-step
-for `docs/architecture/`. Editorial reordering (e.g. moving the four
+for `docs/explanation/`. Editorial reordering (e.g. moving the four
 "Understanding…" entries into a sub-group) is deferred to WP08 IA review.
 
 ---
 
-### 6. `docs/guides/toc.yml` — Divio "How-To Guides" child TOC
+### 6. `docs/how-to/toc.yml` — Divio "How-To Guides" child TOC
 
 **Before snapshot** (live, 58 lines, 29 entries):
 
@@ -448,7 +448,7 @@ for `docs/architecture/`. Editorial reordering (e.g. moving the four
 **After snapshot:** retains the 29 live entries in their current order
 **and** appends 9 entries for pages the WP02 inventory carries as
 `current` but the TOC does not yet list, plus 1 `migration`-tagged page
-that lives in `docs/guides/` rather than `docs/migration/`:
+that lives in `docs/how-to/` rather than `docs/migration/`:
 
 ```yaml
 # ... 29 entries above unchanged ...
@@ -594,7 +594,7 @@ A separate `mission-type-flag-deprecation.md` entry exists for the
 
 ---
 
-### 8. `docs/api/toc.yml` — Divio "Reference" child TOC
+### 8. `docs/reference/toc.yml` — Divio "Reference" child TOC
 
 **Before snapshot** (live, 26 lines, 13 entries):
 
@@ -663,7 +663,7 @@ linkable from leakage-check failures).
 
 ---
 
-### 9. `docs/guides/toc.yml` — Divio "Tutorials" child TOC
+### 9. `docs/tutorials/toc.yml` — Divio "Tutorials" child TOC
 
 **Before snapshot** (live, 14 lines, 7 entries):
 
@@ -705,11 +705,11 @@ mission-canonical phrasing per Charter Terminology Canon, but that is a
 | `docs/1x/toc.yml` | 5 | 5 | 5 | no changes |
 | `docs/2x/toc.yml` | 8 | 6 | 8 | additive + rename |
 | `docs/3x/toc.yml` | 3 | 3 | 3 | no changes |
-| `docs/architecture/toc.yml` | 15 | 15 | 15 | no changes |
-| `docs/guides/toc.yml` | 38 | 29 | 38 | additive |
+| `docs/explanation/toc.yml` | 15 | 15 | 15 | no changes |
+| `docs/how-to/toc.yml` | 38 | 29 | 38 | additive |
 | `docs/migration/toc.yml` | 11 | 3 | 11 | additive |
-| `docs/api/toc.yml` | 16 | 13 | 16 | additive |
-| `docs/guides/toc.yml` | 7 | 7 | 7 | no changes |
+| `docs/reference/toc.yml` | 16 | 13 | 16 | additive |
+| `docs/tutorials/toc.yml` | 7 | 7 | 7 | no changes |
 | **Total** | **103** | **90** | **112** | — |
 
 Pages **excluded** from any TOC by design:
@@ -721,7 +721,7 @@ Pages **excluded** from any TOC by design:
   `docs/contextive-glossaries.md`, `docs/host-surface-parity.md`,
   `docs/retrospective-learning-loop.md`, `docs/status-model.md`,
   `docs/trail-model.md`) and one `current` recovery page
-  (`docs/operations/logged-out-teamspace.md`). These are intentionally
+  (`docs/recovery/logged-out-teamspace.md`). These are intentionally
   excluded from child TOCs; whether they should appear in the root
   `docs/toc.yml` as siblings of `Home` is **deferred to WP08 IA review**.
 - The repo-root `README.md` is `current`-tagged and lives outside the
@@ -740,12 +740,12 @@ drafted for WP07 reference and WP08 IA cross-linking.
 **Members.** All 88 pages tagged `current` in the WP02 inventory:
 
 - `docs/3x/**` (3 pages)
-- `docs/guides/**` (7 pages)
-- `docs/guides/**` (37 pages)
-- `docs/api/**` (16 pages)
-- `docs/architecture/**` (15 pages)
+- `docs/tutorials/**` (7 pages)
+- `docs/how-to/**` (37 pages)
+- `docs/reference/**` (16 pages)
+- `docs/explanation/**` (15 pages)
 - `docs/doctrine/**` (2 pages)
-- `docs/operations/**` (1 page)
+- `docs/recovery/**` (1 page)
 - `docs/` root pages (6 pages: `index.md`, `contextive-glossaries.md`,
   `host-surface-parity.md`, `retrospective-learning-loop.md`,
   `status-model.md`, `trail-model.md`)
@@ -802,7 +802,7 @@ point.
 - `docs/migration/shared-package-boundary-cutover.md`
 - `docs/migration/teamspace-mission-state-920-closeout.md`
 - `docs/migration/teamspace-mission-state-repair.md`
-- `docs/guides/2-1-main-cutover-checklist.md` (located under `how-to/`
+- `docs/how-to/2-1-main-cutover-checklist.md` (located under `how-to/`
   for editorial reasons; tagged `migration` in inventory)
 
 **Landing-page wording draft (1–2 sentences).**

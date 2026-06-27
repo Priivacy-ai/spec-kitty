@@ -20,7 +20,7 @@ subtasks:
 - T037
 - T038
 - T039
-agent: ""
+agent: "claude:opus:reviewer-renata:reviewer"
 history: []
 agent_profile: python-pedro
 authoritative_surface: docs/adr
@@ -36,6 +36,7 @@ owned_files:
 - tests/docs/test_adr_content_invariance.py
 role: implementer
 tags: []
+shell_pid: "1656577"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -140,3 +141,13 @@ Planning + final merge target: `docs/2165-mission-b-structural-move`. Depends on
 ## Activity Log
 
 - (populated at implement time)
+- 2026-06-27T14:35:24Z – claude:opus:python-pedro:implementer – shell_pid=1517523 – Assigned agent via action command
+- 2026-06-27T14:56:21Z – user – shell_pid=1517523 – Moved to planned
+- 2026-06-27T15:21:08Z – claude:opus:python-pedro:implementer – shell_pid=1603906 – Started implementation via action command
+- 2026-06-27T15:33:29Z – claude:opus:python-pedro:implementer – shell_pid=1603906 – 117 ADRs converted via extended WP05 converter (0 hard-errors; Accepted 93/Proposed 13/Superseded 11), 71 symlinks dereferenced (no dangling), invariance compared==117 raw-byte, flat shim closed, census==117
+- 2026-06-27T15:33:43Z – claude:opus:reviewer-renata:reviewer – shell_pid=1629367 – Started review via action command
+- 2026-06-27T15:40:17Z – user – shell_pid=1629367 – Moved to planned
+- 2026-06-27T15:41:31Z – claude:opus:python-pedro:implementer – shell_pid=1647095 – Started implementation via action command
+- 2026-06-27T15:46:59Z – claude:opus:python-pedro:implementer – shell_pid=1647095 – cycle 3: exempt docs/adr/ from terminology guard (historical ADRs immutable, mirrors kitty-specs/) + narrowness regression test; guard green, invariance/census/resolution intact
+- 2026-06-27T15:47:01Z – claude:opus:reviewer-renata:reviewer – shell_pid=1656577 – Started review via action command
+- 2026-06-27T15:50:44Z – user – shell_pid=1656577 – Cycle-3 approved (reviewer-renata): resolves the sole cycle-2 blocker (terminology guard RED). docs/adr/ added to _EXCLUDED_PATH_FRAGMENTS mirroring kitty-specs/ historical-artifact precedent with NFR-001/C-002 rationale comment; narrow regression test test_docs_adr_exemption_is_narrow proves docs/adr/ exempt while docs/guides|architecture|top-level still scanned (verified it FAILS under a blanket docs/ exemption). Guard GREEN (3 passed, was RED). Fidelity intact: census 117 realpath-unique, content-invariance + census suite 4 passed, no dangling symlinks, ruff/mypy clean. Only out-of-map touch is the guard test (justified leeway, documented in commit + comment).

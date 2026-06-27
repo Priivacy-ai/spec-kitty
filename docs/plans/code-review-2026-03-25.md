@@ -201,7 +201,7 @@ The second clause is a tautology of the first. The condition is equivalent to
 
 ## 5. Architecture Divergences vs. `architecture/2.x`
 
-Four divergences are already documented in `docs/architecture/04_implementation_mapping/README.md`.
+Four divergences are already documented in `architecture/2.x/04_implementation_mapping/README.md`.
 One is not.
 
 ### DIV-1 — CLI bypasses Control Plane → Orchestration boundary (documented)

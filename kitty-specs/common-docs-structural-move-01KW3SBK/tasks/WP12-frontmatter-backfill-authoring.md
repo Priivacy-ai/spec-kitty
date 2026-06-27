@@ -3,6 +3,7 @@ work_package_id: WP12
 title: Frontmatter backfill AUTHORING (~580 pages) — description (50–180) + related; run the backfill
 dependencies:
 - WP11
+- WP16
 requirement_refs:
 - FR-010
 - NFR-003
@@ -17,7 +18,7 @@ subtasks:
 - T073
 - T074
 - T075
-agent: ""
+agent: "claude:opus:reviewer-renata:reviewer"
 history: []
 agent_profile: python-pedro
 authoritative_surface: scripts/docs/frontmatter_backfill_sections.yaml
@@ -28,6 +29,7 @@ owned_files:
 - scripts/docs/frontmatter_backfill_sections.yaml
 role: implementer
 tags: []
+shell_pid: "1707324"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -128,3 +130,11 @@ Planning + final merge target: `docs/2165-mission-b-structural-move`. Depends on
 ## Activity Log
 
 - (populated at implement time)
+- 2026-06-27T15:28:32Z – claude:opus:python-pedro:implementer – shell_pid=1617967 – Assigned agent via action command
+- 2026-06-27T15:55:22Z – claude:opus:python-pedro:implementer – shell_pid=1617967 – frontmatter authoring COMPLETE: 415 pages, 251 descriptions authored + 28 filler rewritten (0 violations), 0 dangling/562 edges, section-based doc_status (244/155/16), git-follow updated dates, 0 body changes (category-clean)
+- 2026-06-27T15:55:24Z – claude:opus:reviewer-renata:reviewer – shell_pid=1673792 – Started review via action command
+- 2026-06-27T16:01:37Z – user – shell_pid=1673792 – Moved to planned
+- 2026-06-27T16:02:33Z – claude:opus:python-pedro:implementer – shell_pid=1697362 – Started implementation via action command
+- 2026-06-27T16:07:49Z – claude:opus:python-pedro:implementer – shell_pid=1697362 – cycle 2: hand-authored real descriptions for the 12 docs/architecture/ filler pages; boilerplate grep empty; 0 violations/415, 0 dangling/562; only 12 description fields changed
+- 2026-06-27T16:07:51Z – claude:opus:reviewer-renata:reviewer – shell_pid=1707324 – Started review via action command
+- 2026-06-27T16:10:31Z – user – shell_pid=1707324 – Cycle-2 approved (supersedes prior cycle-1 reject artifact): 12 docs/architecture/ filler descriptions replaced with real content-derived ones — boilerplate grep empty (no 'including the model, rationale, and operator implications', no 'Explained Explained', no 'Explanation of {TITLE'); all 12 new descriptions verified against page bodies (kanban '27 transitions/nine lanes', doctrine DRG edges specializes_from/delegates_to/enhances/overrides, launch Teamspace not-in-effect today); gates green (description_length 0 violations/415, related_validator 0 dangling/562); scope clean (12 files, 12 ins/12 del, only description: lines changed).

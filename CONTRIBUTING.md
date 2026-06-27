@@ -329,7 +329,7 @@ If the broken package lives in a global or Homebrew Python environment, remove
 the stale `spec_kitty_events/` directory and matching `.dist-info/` metadata
 from that interpreter's `site-packages`, then reinstall
 `spec-kitty-events`. See
-[Diagnose Installation Problems](docs/guides/diagnose-installation.md#9-shared-package-imports-resolve-as-a-namespace-package)
+[Diagnose Installation Problems](docs/how-to/diagnose-installation.md#9-shared-package-imports-resolve-as-a-namespace-package)
 for the full recovery procedure.
 
 ### How Test Isolation Works

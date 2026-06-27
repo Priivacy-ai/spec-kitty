@@ -78,4 +78,4 @@ If Pi does not expose the command in your installed version, the artifacts remai
 
 ## Where to learn more about Pi TUI
 
-Authoritative documentation: <https://pi.dev/docs/latest/skills> (accessed 2026-05-21). The matrix row in [`docs/api/supported-harnesses.md`](../../reference/supported-harnesses.md) remains the promotion tracker.
+Authoritative documentation: <https://pi.dev/docs/latest/skills> (accessed 2026-05-21). The matrix row in [`docs/reference/supported-harnesses.md`](../../reference/supported-harnesses.md) remains the promotion tracker.

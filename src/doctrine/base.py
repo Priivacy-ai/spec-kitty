@@ -47,7 +47,7 @@ class DoctrineLayerCollisionWarning(UserWarning):
     """Emitted when a higher doctrine layer shadows an artifact from a lower layer.
 
     Field-level merge semantics apply (see ADR
-    ``docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md``):
+    ``architecture/2.x/adr/2026-05-16-1-doctrine-layer-merge-semantics.md``):
     fields present in the higher layer's YAML replace same-named fields in the
     lower layer; absent fields fall through. This warning makes the collision
     operator-visible so silent shadowing of builtin or org artifacts cannot

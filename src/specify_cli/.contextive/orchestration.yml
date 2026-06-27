@@ -1,7 +1,7 @@
 # GENERATED FILE — do not edit manually.
 # Run: python scripts/generate_contextive_glossaries.py generate
 #
-# Source: docs/context/orchestration.md
+# Source: glossary/contexts/orchestration.md
 
 contexts:
   - name: "Orchestration"

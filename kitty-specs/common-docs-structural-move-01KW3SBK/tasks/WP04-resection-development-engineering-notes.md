@@ -17,7 +17,7 @@ subtasks:
 - T024
 - T025
 - T026
-agent: ""
+agent: "claude:opus:reviewer-renata:reviewer"
 history: []
 agent_profile: python-pedro
 authoritative_surface: docs/development
@@ -32,6 +32,7 @@ owned_files:
 - docs/configuration/**
 role: implementer
 tags: []
+shell_pid: "1491686"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -120,3 +121,7 @@ Planning + final merge target: `docs/2165-mission-b-structural-move`. Depends on
 ## Activity Log
 
 - (populated at implement time)
+- 2026-06-27T13:37:41Z – claude:opus:python-pedro:implementer – shell_pid=1421969 – Assigned agent via action command
+- 2026-06-27T14:18:35Z – claude:opus:python-pedro:implementer – shell_pid=1421969 – re-section: 2 ops/5 guides/2 config/34 ephemeral→plans + engineering_notes subtree (121 renames), auditable rule-fired table, inventory stayed put + regression guard, terminology/ruff/mypy clean
+- 2026-06-27T14:18:49Z – claude:opus:reviewer-renata:reviewer – shell_pid=1491686 – Started review via action command
+- 2026-06-27T14:23:23Z – user – shell_pid=1491686 – Review passed: per-file classification sound (spot-checked 9: ssh-deploy-keys/identity-boundary-ci-gate->operations, testing-flakiness->guides, yaml-libraries/linting-cutoff-policy->configuration + 4 tie-breakers), 4 tie-breakers RATIFIED ephemeral->plans (version-taxonomy mission-tied w/ SSOT in data-model, ci-coverage-gate branch-tied, model-first dated/PR-tied, quality_check_structure narrates one-time change while durable linting-cutoff-policy correctly split to configuration), 121 renames all R100 byte-preserved (0 delete+recreate), inventory STAYED PUT + guard green (5 passed) + 4 lockfile modules untouched, engineering_notes->plans/engineering-notes disjoint from WP03, no WP03-plans collision, terminology guard green, ruff clean, #2054 resolution recorded for issue-matrix
