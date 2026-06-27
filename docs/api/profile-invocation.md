@@ -1,11 +1,8 @@
 ---
-title: Profile Invocation Reference
-description: Reference for dispatch, profile-invocation complete, invocation trail fields, and lifecycle states.
-doc_status: active
-updated: '2026-06-15'
-related:
-- docs/3x/charter-overview.md
+title: "Profile Invocation Reference"
+description: "Reference for dispatch, profile-invocation complete, invocation trail fields, and lifecycle states."
 ---
+
 # Profile Invocation Reference
 
 Profile invocation is the local audit-trail mechanism used by standalone
@@ -63,7 +60,7 @@ event to the trail file.
 uv run spec-kitty profile-invocation complete \
   --invocation-id 01KQABCDEF1234567890 \
   --outcome done \
-  --artifact docs/how-to/my-guide.md \
+  --artifact docs/guides/my-guide.md \
   --commit abc123def456
 
 uv run spec-kitty profile-invocation complete \

@@ -1,1 +1,0 @@
-../1.x/adr/2026-01-26-9-worktree-cleanup-at-merge-not-eager.md

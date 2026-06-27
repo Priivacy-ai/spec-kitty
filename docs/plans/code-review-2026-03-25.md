@@ -1,9 +1,3 @@
----
-title: Code Review — 2026-03-25
-description: "Code-review record dated 2026-03-25: the reviewed scope, the findings, and their dispositions captured in the review's field table."
-doc_status: draft
-updated: '2026-04-05'
----
 # Code Review — 2026-03-25
 
 | Field | Value |
@@ -207,7 +201,7 @@ The second clause is a tautology of the first. The condition is equivalent to
 
 ## 5. Architecture Divergences vs. `architecture/2.x`
 
-Four divergences are already documented in `architecture/2.x/04_implementation_mapping/README.md`.
+Four divergences are already documented in `docs/architecture/04_implementation_mapping/README.md`.
 One is not.
 
 ### DIV-1 — CLI bypasses Control Plane → Orchestration boundary (documented)

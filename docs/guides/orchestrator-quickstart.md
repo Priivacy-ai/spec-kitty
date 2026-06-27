@@ -1,11 +1,8 @@
 ---
-title: Orchestrator Quickstart
-description: Learn how Spec Kitty and spec-kitty-orchestrator work together to run a small mission through implementation and review.
-doc_status: active
-updated: '2026-06-03'
-related:
-- docs/guides/your-first-feature.md
+title: "Orchestrator Quickstart"
+description: "Learn how Spec Kitty and spec-kitty-orchestrator work together to run a small mission through implementation and review."
 ---
+
 # Orchestrator Quickstart
 
 This tutorial shows the external orchestration model end to end:

@@ -1,13 +1,10 @@
 ---
-title: Internal Hosted-Readiness Mode (Pre-Launch)
-description: 'How to internal hosted-readiness mode (pre-launch) with Spec Kitty 3.2: Internal Hosted-Readiness Mode (Pre-Launch).'
-doc_status: active
-updated: '2026-06-03'
+title: "Internal Hosted-Readiness Mode (Pre-Launch)"
+description: "How to internal hosted-readiness mode (pre-launch) with Spec Kitty 3.2: Internal Hosted-Readiness Mode (Pre-Launch)."
 type: how-to
-related:
-- docs/guides/upgrade-cli.md
 audience: internal / pre-launch operators
 ---
+
 # Internal Hosted-Readiness Mode (Pre-Launch)
 
 > **Audience:** internal contributors and dev operators who are dogfooding
@@ -142,7 +139,7 @@ SPEC_KITTY_ENABLE_SAAS_SYNC=1 spec-kitty sync doctor
 
 # 3. Confirm the logged-out recovery surfaces in non-interactive mode.
 #    Expect exit code 4 and the structured stderr line documented in
-#    docs/recovery/logged-out-teamspace.md.
+#    docs/operations/logged-out-teamspace.md.
 SPEC_KITTY_ENABLE_SAAS_SYNC=1 SPEC_KITTY_NON_INTERACTIVE=1 \
   spec-kitty sync now < /dev/null
 echo "exit=$?"

@@ -1,11 +1,8 @@
 ---
-title: Use Spec Kitty in GitHub Copilot
-description: 'How to use Spec Kitty in GitHub Copilot (supported tier) via the prompt-file mechanism: prerequisites, prompt install, and the Spec Kitty command workflow.'
-doc_status: active
-updated: '2026-06-03'
-related:
-- docs/guides/install-spec-kitty.md
+title: "Use Spec Kitty in GitHub Copilot"
+description: "Configure the Use Spec Kitty in GitHub Copilot harness for Spec Kitty 3.2 commands, generated skills, and agent workflow integration."
 ---
+
 # Use Spec Kitty in GitHub Copilot
 
 > **Tier:** supported. Prompt-file mechanism.

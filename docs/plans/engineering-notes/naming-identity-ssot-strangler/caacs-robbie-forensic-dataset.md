@@ -1,9 +1,3 @@
----
-title: CaaCS — Robbie's Forensic Dataset (Quantitative Evidence Base)
-description: "Researcher Robbie's CaaCS forensic dataset: the quantitative evidence base for the naming/identity SSOT strangler, read-only at 3.2.0."
-doc_status: draft
-updated: '2026-06-16'
----
 # CaaCS — Robbie's Forensic Dataset (Quantitative Evidence Base)
 
 **Author:** Researcher Robbie (CaaCS squad — quantitative data engine)
@@ -15,8 +9,8 @@ updated: '2026-06-16'
 > it on this branch). Tactic applied: **`forensic-repository-audit`** (the repo's canonical
 > CaaCS method, after Tornhill's *Your Code as a Crime Scene*): churn hotspots → bus-factor →
 > bug hotspots → velocity → firefighting → complexity overlay → change-coupling. Method/format
-> reused verbatim from `architecture/audits/2026-05-spec-kitty-caacs.md` and
-> `architecture/assessments/code-as-a-crime-scene-overview.md`.
+> reused verbatim from `docs/architecture/audits/2026-05-spec-kitty-caacs.md` and
+> `docs/architecture/assessments/code-as-a-crime-scene-overview.md`.
 
 This note is the **empirical/temporal** companion to the static squad's structural findings in
 `00-OVERVIEW.md`. The static lenses (randy/paula/pedro/alphonso) mapped the *shape* of the

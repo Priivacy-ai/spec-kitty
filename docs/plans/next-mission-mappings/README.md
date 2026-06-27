@@ -1,9 +1,3 @@
----
-title: next` Mission Mapping Tracker
-description: Tracker for mission-specific spec-kitty next mapping/template gaps accepted temporarily, with the status rules governing each tracked gap.
-doc_status: draft
-updated: '2026-02-17'
----
 # `next` Mission Mapping Tracker
 
 This directory tracks mission-specific `spec-kitty next` mapping/template gaps that are accepted temporarily.

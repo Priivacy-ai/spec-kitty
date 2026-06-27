@@ -1,11 +1,8 @@
 ---
-title: Multi-Agent Parallel Development
-description: 'Tutorial for Multi-Agent Parallel Development in Spec Kitty 3.2: Learn how to coordinate multiple AI agents working on different work packages simultaneously.'
-doc_status: active
-updated: '2026-06-12'
-related:
-- docs/guides/your-first-feature.md
+title: "Multi-Agent Parallel Development"
+description: "Tutorial for Multi-Agent Parallel Development in Spec Kitty 3.2: Learn how to coordinate multiple AI agents working on different work packages simultaneously."
 ---
+
 # Multi-Agent Parallel Development
 
 **Divio type**: Tutorial

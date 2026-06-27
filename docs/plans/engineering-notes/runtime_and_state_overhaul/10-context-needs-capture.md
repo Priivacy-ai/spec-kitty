@@ -1,11 +1,3 @@
----
-title: '10 — Context Needs: Requirements Capture (idea → working code)'
-description: Requirements capture (Phase 2, intuition pass) of what each context needs in the runtime and state overhaul; some claims later revised by note 11.
-doc_status: draft
-updated: '2026-06-15'
-related:
-- docs/plans/engineering-notes/runtime_and_state_overhaul/11-dialectic-and-revised-claims.md
----
 # 10 — Context Needs: Requirements Capture (idea → working code)
 
 **Phase:** 2 (requirements) · **Date:** 2026-06-03 · **Status:** intuition pass (lens 1 of 3)
@@ -24,7 +16,7 @@ baseline the eventual context model + BPMN/interaction/model diagrams must satis
 
 1. **Intuition** (this pass) — architect + operator gut, *before* consulting sources. Captures what
    we believe is needed, so the sources confirm/deny rather than anchor us.
-2. **Existing docs** — corroborate against User Journeys (`architecture/2.x/user_journey/`,
+2. **Existing docs** — corroborate against User Journeys (`docs/plans/user_journey/`,
    `architecture/3.x/`), ADRs, status-model docs.
 3. **Existing code** — corroborate against the actual resolvers/call sites (builds on `02`/`07`).
 

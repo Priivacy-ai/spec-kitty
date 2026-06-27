@@ -1,4 +1,4 @@
-"""Schema validation for architecture/2.x/05_ownership_manifest.yaml.
+"""Schema validation for docs/architecture/05_ownership_manifest.yaml.
 
 Asserts structural completeness per data-model.md §4.
 Runs in <1 s (NFR-002).
@@ -13,7 +13,7 @@ import yaml
 
 pytestmark = [pytest.mark.architectural]
 
-MANIFEST_PATH = Path(__file__).parents[2] / "architecture" / "2.x" / "05_ownership_manifest.yaml"
+MANIFEST_PATH = Path(__file__).parents[2] / "docs" / "architecture" / "05_ownership_manifest.yaml"
 
 REQUIRED_SLICE_KEYS = frozenset(
     {

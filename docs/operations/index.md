@@ -1,16 +1,8 @@
 ---
-title: Operations
-description: 'Durable operational runbooks for Spec Kitty: deployment, CI/CD setup, and standing CI-gate procedures that outlive any single mission.'
-doc_status: active
-updated: '2026-06-27'
-related:
-- docs/configuration/index.md
-- docs/guides/index.md
-- docs/index.md
-- docs/operations/identity-boundary-ci-gate.md
-- docs/operations/ssh-deploy-keys.md
-- docs/plans/index.md
+title: "Operations"
+description: "Durable operational runbooks for Spec Kitty: deployment, CI/CD setup, and standing CI-gate procedures that outlive any single mission."
 ---
+
 # Operations
 
 Durable operational procedures — deployment, on-call, incident, and standing

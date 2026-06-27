@@ -1,9 +1,3 @@
----
-title: 2.x User Journey Evaluation
-description: 'Evaluation (2026-02-28) of the 2.x user journeys: how well they cover the intended scenarios and where the coverage gaps are.'
-doc_status: draft
-updated: '2026-03-10'
----
 # 2.x User Journey Evaluation
 
 Date: 2026-02-28
@@ -12,8 +6,8 @@ Date: 2026-02-28
 
 This evaluation compares:
 
-1. Canonical user journeys imported from `develop` into `architecture/2.x/user_journey/`
-2. Exploratory user journeys from the brainstorm corpus in `architecture/2.x/initiatives/2026-02-architecture-discovery-and-restructure/user_journey/`
+1. Canonical user journeys imported from `develop` into `docs/plans/user_journey/`
+2. Exploratory user journeys from the brainstorm corpus in `docs/plans/initiatives/2026-02-architecture-discovery-and-restructure/user_journey/`
 
 ## Assessment
 
@@ -28,7 +22,7 @@ This evaluation compares:
 
 ## Decision
 
-1. Keep canonical journeys in `architecture/2.x/user_journey/`.
+1. Keep canonical journeys in `docs/plans/user_journey/`.
 2. Keep brainstorm journeys initiative-scoped until they are:
    - reconciled with current runtime architecture,
    - mapped to explicit ADR decisions,

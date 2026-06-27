@@ -19,7 +19,7 @@ FR-001/FR-007 sole authority):
   guards that Option B did NOT over-reach): the no-coord state and the
   create→first-write window (coord declared, worktree NOT materialized).
 
-ADR: ``architecture/3.x/adr/2026-06-19-1-coord-empty-surface-fallback.md``.
+ADR: ``docs/adr/3.x/2026-06-19-1-coord-empty-surface-fallback.md``.
 """
 
 from __future__ import annotations

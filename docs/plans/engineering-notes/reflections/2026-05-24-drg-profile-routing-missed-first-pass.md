@@ -1,9 +1,3 @@
----
-title: DRG profile routing not applied on first tasks generation
-description: 'Reflection: DRG profile routing was not applied on the first /spec-kitty.tasks run for mission 01KSAF14, so Python WPs were misassigned; what happened and why.'
-doc_status: draft
-updated: '2026-05-26'
----
 # DRG profile routing not applied on first tasks generation
 
 When I ran `/spec-kitty.tasks` for mission `charter-ux-and-org-pack-vocabulary-01KSAF14`, every Python-implementation work package was assigned the generic `implementer-ivan` profile. The HiC had to ask explicitly for "proper assignment based on dynamic DRG routing and task context" before the more-specific `python-pedro` (routing priority 80, with `pydantic / pytest / pathlib / refactor / python` in its action-domain set) was applied to WP01-WP08.

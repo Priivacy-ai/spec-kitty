@@ -1,9 +1,8 @@
 ---
-title: Understanding the Retrospective Learning Loop
-description: Conceptual explanation of the four-category model, bounded contexts, event-model layering, and the synthesize anti-corruption layer.
-doc_status: active
-updated: '2026-06-03'
+title: "Understanding the Retrospective Learning Loop"
+description: "Conceptual explanation of the four-category model, bounded contexts, event-model layering, and the synthesize anti-corruption layer."
 ---
+
 # Understanding the Retrospective Learning Loop
 
 This document explains why the retrospective learning loop exists and how it works at a conceptual
@@ -200,4 +199,4 @@ to see details.
 
 - [How to Use Retrospective Learning](../how-to/use-retrospective-learning.md) — operator how-to
 - [Retrospective Schema Reference](../reference/retrospective-schema.md) — YAML and event schemas
-- [ADR: Retrospective Default-On Policy Architecture](https://github.com/Priivacy-ai/spec-kitty/blob/main/architecture/3.x/adr/2026-05-19-1-retrospective-default-policy-architecture.md) — architectural decisions
+- [ADR: Retrospective Default-On Policy Architecture](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-05-19-1-retrospective-default-policy-architecture.md) — architectural decisions

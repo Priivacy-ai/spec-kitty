@@ -1,19 +1,8 @@
 ---
-title: Guides
-description: 'Durable contributor how-to guides for Spec Kitty: testing workflows, review gates, contract pinning, and cross-package local development.'
-doc_status: active
-updated: '2026-06-27'
-related:
-- docs/configuration/index.md
-- docs/guides/contract-pinning.md
-- docs/guides/local-overrides.md
-- docs/guides/review-gates.md
-- docs/guides/testing-flakiness.md
-- docs/guides/testing-parallel.md
-- docs/index.md
-- docs/operations/index.md
-- docs/plans/index.md
+title: "Guides"
+description: "Durable contributor how-to guides for Spec Kitty: testing workflows, review gates, contract pinning, and cross-package local development."
 ---
+
 # Guides
 
 Durable contributor how-tos and workflow guides — task-oriented pages that

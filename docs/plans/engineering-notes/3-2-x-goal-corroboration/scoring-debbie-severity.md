@@ -1,9 +1,3 @@
----
-title: 3.2.1 scoping — Debbie severity scoring (NEUTRAL panel)
-description: Debugger Debbie's neutral severity scoring of the 3.2.1 scoping candidates, a no-predetermined-answer panel pass, read-only at 3.2.0.
-doc_status: draft
-updated: '2026-06-16'
----
 # 3.2.1 scoping — Debbie severity scoring (NEUTRAL panel)
 
 **Author:** Debugger Debbie (NEUTRAL severity-scoring pass — no predetermined answer).

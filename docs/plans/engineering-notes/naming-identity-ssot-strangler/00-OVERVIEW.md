@@ -1,9 +1,3 @@
----
-title: Naming / Identity SSOT Strangler — Capstone Overview (3.2.1)
-description: "Capstone overview (3.2.1) of the naming/identity SSOT strangler: Architect Alphonso's aggregation of the research squad's findings, read-only at 3.2.0."
-doc_status: draft
-updated: '2026-06-16'
----
 # Naming / Identity SSOT Strangler — Capstone Overview (3.2.1)
 
 **Author:** Architect Alphonso (squad aggregation — capstone deliverable)
@@ -293,7 +287,7 @@ resolvers (path · identity · status) build the per-domain Contexts." This slic
 proven branch_naming seam shape** from identity-naming (done) to project-root (B) and lanes-dir (C),
 retires the duplicate surfaces, and ratchets the closed classes shut — assembling the runtime/state
 SSOT one resolver at a time, exactly as the consolidated domain model prescribes
-(`docs/engineering_notes/runtime_and_state_overhaul/17-consolidated-domain-model.md` §6: "harden
+(`docs/plans/engineering-notes/runtime_and_state_overhaul/17-consolidated-domain-model.md` §6: "harden
 ExecutionContext + enforce the Status boundary first, Strangler"). The deep coord/primary write-side
 work (#1878) is the *next* increment, deliberately deferred so this slice stays small, byte-identical,
 and shadow-path-free.

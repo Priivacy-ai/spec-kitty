@@ -19,7 +19,7 @@ callers were migrated to this package root). A few historical command-oriented
 names remain as compatibility attributes for first-party callers, but they are
 not part of the public ``__all__`` surface.
 
-See ADR ``architecture/3.x/adr/2026-06-07-1-execution-state-canonical-surface.md``.
+See ADR ``docs/adr/3.x/2026-06-07-1-execution-state-canonical-surface.md``.
 """
 from __future__ import annotations
 

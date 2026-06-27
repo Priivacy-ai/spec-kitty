@@ -1,11 +1,3 @@
----
-title: 'User Journey: System Design & Shared Understanding'
-description: 'User journey for system design and shared understanding: how a team builds shared design context through Spec Kitty, in a field-table record.'
-doc_status: draft
-updated: '2026-04-05'
-related:
-- docs/plans/user_journey/001-project-onboarding-bootstrap.md
----
 # User Journey: System Design & Shared Understanding
 
 | Field | Value |
@@ -84,7 +76,7 @@ but a set of continuously-referenced resources that downstream commands
 3. **Ambiguity is a feature, not a bug**: When the AI detects the same term used differently (e.g., "Order" meaning different things in different modules), this is surfaced as a bounded context hint, not forced to resolution.
 4. **Every decision requires at least one alternative**: Per Traceable Decisions directive — "we chose X" is insufficient; "we chose X over Y because..." is required.
 5. **The architect has final authority**: Human In Charge — the AI proposes terminology, boundaries, and decisions; the human disposes.
-6. **Existing ADRs are checked before new decisions**: If prior ADRs exist in `architecture/2.x/adr/`, the AI loads them and flags conflicts.
+6. **Existing ADRs are checked before new decisions**: If prior ADRs exist in `docs/adr/2.x/`, the AI loads them and flags conflicts.
 7. **Codebase scan is automatic**: The AI examines existing code for naming patterns whether or not the architect asks — findings are presented for review.
 8. **NFRs must be measurable**: "The system should be fast" is rejected; "p95 < 200ms under 1000 concurrent users" is accepted.
 
@@ -143,7 +135,7 @@ but a set of continuously-referenced resources that downstream commands
    - Capture 1-3 key cross-boundary flows
    - Use `user-journey-template.md` format (actors, phases, events, coordination rules)
    - Link to stakeholder personas
-   - Store in `architecture/2.x/user_journey/`
+   - Store in `docs/plans/user_journey/`
 
 5. **Constraint & NFR capture**:
    - Hard constraints (technology locks, team size, compliance)
@@ -153,13 +145,13 @@ but a set of continuously-referenced resources that downstream commands
 6. **Decision formalization**:
    - ADRs for significant decisions surfaced during the session
    - Each ADR: context, decision, alternatives (min 2), consequences
-   - Store in `architecture/2.x/adr/`
+   - Store in `docs/adr/2.x/`
 
 7. **Artifact generation**:
    - `glossary/README.md` — living glossary (new or updated)
-   - `architecture/audience/internal/*.md` or `architecture/audience/external/*.md` — persona files (optional)
-   - `architecture/2.x/user_journey/*.md` — user journey maps
-   - `architecture/2.x/adr/YYYY-MM-DD-N-*.md` — decision records
+   - `docs/context/audience/internal/*.md` or `docs/context/audience/external/*.md` — persona files (optional)
+   - `docs/plans/user_journey/*.md` — user journey maps
+   - `docs/adr/2.x/YYYY-MM-DD-N-*.md` — decision records
    - `architecture/design-vision.md` — system context, quality attributes, solution overview (optional)
 
 ### Out of Scope (Deferred)
@@ -236,7 +228,7 @@ but a set of continuously-referenced resources that downstream commands
 
 **Evidence gate**: At least 1 journey captured.
 
-**Output**: `architecture/2.x/user_journey/NNN-journey-name.md` files.
+**Output**: `docs/plans/user_journey/NNN-journey-name.md` files.
 
 ### Phase 6: Constraint & NFR Capture
 
@@ -262,7 +254,7 @@ but a set of continuously-referenced resources that downstream commands
 
 **Evidence gate**: At least 1 ADR if any significant decision was made.
 
-**Output**: `architecture/2.x/adr/YYYY-MM-DD-N-*.md` files.
+**Output**: `docs/adr/2.x/YYYY-MM-DD-N-*.md` files.
 
 ### Phase 8: Artifact Generation
 

@@ -1,13 +1,8 @@
 ---
-title: AI Agent Architecture Explained
-description: "How Spec Kitty stays agent-agnostic across 12 AI agents: slash commands backed by one shared command-template source, rendered per agent format, driving the same lane workflow."
-doc_status: active
-updated: '2026-06-15'
-related:
-- docs/architecture/execution-lanes.md
-- docs/architecture/kanban-workflow.md
-- docs/architecture/mission-system.md
+title: "AI Agent Architecture Explained"
+description: "Explanation of AI Agent Architecture Explained in Spec Kitty 3.2, including the model, rationale, and operator implications."
 ---
+
 # AI Agent Architecture Explained
 
 Spec Kitty supports 12 different AI agents, allowing teams to use their preferred tools. This document explains how the multi-agent system works and why it's designed this way.

@@ -1,11 +1,8 @@
 ---
-title: Run the External Orchestrator
-description: Use spec-kitty-orchestrator with spec-kitty orchestrator-api to automate multi-agent WP execution.
-doc_status: active
-updated: '2026-06-03'
-related:
-- docs/guides/build-custom-orchestrator.md
+title: "Run the External Orchestrator"
+description: "Use spec-kitty-orchestrator with spec-kitty orchestrator-api to automate multi-agent WP execution."
 ---
+
 # Run the External Orchestrator
 
 Use this guide to run `spec-kitty-orchestrator` against a mission managed by

@@ -1,9 +1,8 @@
 ---
-title: Claude Code Workflow
-description: End-to-end guide for running Spec Kitty with the Claude Code CLI and kanban dashboard.
-doc_status: active
-updated: '2026-06-12'
+title: "Claude Code Workflow"
+description: "End-to-end guide for running Spec Kitty with the Claude Code CLI and kanban dashboard."
 ---
+
 # Claude Code Workflow
 
 Anthropic’s **Claude Code** pairs naturally with Spec Kitty’s guardrails. This guide explains how to integrate the Claude CLI, wire the prompts, and keep the **Claude dashboard automation** in lockstep with the Spec Kitty kanban view.

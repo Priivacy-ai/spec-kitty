@@ -11,7 +11,7 @@ For single-project repos (no ``charter_scopes:`` configured),
 ``test_wp_prompt_governance_contract.py`` fixtures pass unchanged
 (NFR-001 binding).
 
-See ADR-8 (``architecture/adrs/2026-05-18-1-monorepo-charter-scope.md``).
+See ADR-8 (``docs/adr/3.x/2026-05-18-1-monorepo-charter-scope.md``).
 """
 
 from __future__ import annotations

@@ -1,13 +1,8 @@
 ---
-title: The Runtime Loop Explained
-description: "How spec-kitty next inverts control so the runtime picks the next action: query versus advancing mode and the four decisions, step, decision_required, blocked, and terminal."
-doc_status: active
-updated: '2026-06-03'
-related:
-- docs/architecture/kanban-workflow.md
-- docs/architecture/mission-system.md
-- docs/architecture/multi-agent-orchestration.md
+title: "The Runtime Loop Explained"
+description: "Explanation of The Runtime Loop Explained in Spec Kitty 3.2, including the model, rationale, and operator implications."
 ---
+
 # The Runtime Loop Explained
 
 Spec Kitty offers two ways to advance work through a mission: slash commands and the runtime loop. This document explains the runtime loop -- what it is, when to use it, and how to interpret what it tells you.

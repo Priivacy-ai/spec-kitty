@@ -1,12 +1,8 @@
 ---
-title: Repair Tool Surfaces After an Upgrade
-description: How to understand the Tool vs Agent vs Tool Surface distinction in Spec Kitty 3.2 and repair missing generated surfaces with doctor tool-surfaces --fix after upgrading.
-doc_status: active
-updated: '2026-06-15'
-related:
-- docs/guides/diagnose-installation.md
-- docs/guides/upgrade-project.md
+title: "Repair Tool Surfaces After an Upgrade"
+description: "How to understand the Tool vs Agent vs Tool Surface distinction in Spec Kitty 3.2 and repair missing generated surfaces with doctor tool-surfaces --fix after upgrading."
 ---
+
 # Repair Tool Surfaces After an Upgrade
 
 When you upgrade Spec Kitty, or clone a project fresh, the per-tool files that

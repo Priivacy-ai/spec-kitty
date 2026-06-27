@@ -1,17 +1,8 @@
 ---
-title: 1.x Documentation (Legacy Track)
-description: Historical Spec Kitty 1.x archive page for 1.x Documentation (Legacy Track); use Spec Kitty 3.2 docs for current projects and upgrades.
-doc_status: deprecated
-updated: '2026-06-03'
-related:
-- docs/3x/index.md
-- docs/archive/1x/artifacts-and-commands.md
-- docs/archive/1x/branches-and-workspaces.md
-- docs/archive/1x/orchestration-and-api.md
-- docs/archive/1x/workflow.md
-- docs/index.md
-- docs/migration/index.md
+title: "1.x Documentation (Legacy Track)"
+description: "Historical Spec Kitty 1.x archive page for 1.x Documentation (Legacy Track); use Spec Kitty 3.2 docs for current projects and upgrades."
 ---
+
 > Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../3x/index.md) for current docs.
 
 # 1.x Documentation (Legacy Track)

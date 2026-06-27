@@ -1,11 +1,3 @@
----
-title: Functional Ownership Map
-description: 'The functional ownership map: which code slices own which functional areas of Spec Kitty, used to scope missions and avoid cross-slice ownership overlap.'
-doc_status: active
-updated: '2026-06-01'
-related:
-- docs/architecture/06_unified_charter_bundle.md
----
 # Functional Ownership Map
 
 | Field     | Value                                                                                                                              |
@@ -84,7 +76,7 @@ Third-party tools (CI checks, the shim registry in mission #615, future scripts)
 import yaml
 from pathlib import Path
 
-manifest = yaml.safe_load(Path("architecture/2.x/05_ownership_manifest.yaml").read_text())
+manifest = yaml.safe_load(Path("docs/architecture/05_ownership_manifest.yaml").read_text())
 runtime = manifest["runtime_mission_execution"]
 may_call = runtime["dependency_rules"]["may_call"]
 # assert import-graph compliance

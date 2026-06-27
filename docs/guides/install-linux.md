@@ -1,17 +1,11 @@
 ---
-title: Install Spec Kitty on Linux
-description: Install the Spec Kitty 3.2 CLI on Linux with pipx, uv, or a virtual environment and verify the command works.
-doc_status: active
-updated: '2026-06-03'
+title: "Install Spec Kitty on Linux"
+description: "Install the Spec Kitty 3.2 CLI on Linux with pipx, uv, or a virtual environment and verify the command works."
 type: how-to
-related:
-- docs/guides/install-macos.md
-- docs/guides/install-windows.md
-- docs/guides/non-interactive-init.md
-- docs/guides/upgrade-cli.md
 audience: end-users
 os: linux
 ---
+
 # Install Spec Kitty on Linux
 
 Install the `spec-kitty` CLI on a Linux distribution using your preferred Python tooling.

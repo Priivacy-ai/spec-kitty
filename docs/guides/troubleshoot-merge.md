@@ -1,13 +1,8 @@
 ---
-title: How to Troubleshoot Merge Issues
-description: 'How to troubleshoot merge issues with Spec Kitty 3.2: Use this guide to recover from interrupted merges, resolve conflicts, and fix pre-flight failures.'
-doc_status: active
-updated: '2026-06-14'
-related:
-- docs/guides/accept-and-merge.md
-- docs/guides/handle-dependencies.md
-- docs/guides/merge-feature.md
+title: "How to Troubleshoot Merge Issues"
+description: "How to troubleshoot merge issues with Spec Kitty 3.2: Use this guide to recover from interrupted merges, resolve conflicts, and fix pre-flight failures."
 ---
+
 # How to Troubleshoot Merge Issues
 
 Use this guide to recover from interrupted merges, resolve conflicts, and fix pre-flight failures.

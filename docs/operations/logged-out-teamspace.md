@@ -1,9 +1,8 @@
 ---
-title: 'Recovery: Logged out on a connected teamspace'
-description: 'Recovery for a repository connected to a Spec Kitty teamspace when the local CLI session is logged out: the teamspace-aware recovery path sync commands surface.'
-doc_status: active
-updated: '2026-06-03'
+title: "Recovery: Logged out on a connected teamspace"
+description: "Recovery guide for Recovery: Logged out on a connected teamspace in Spec Kitty 3.2, including symptoms, repair steps, and expected outcomes."
 ---
+
 # Recovery: Logged out on a connected teamspace
 
 When a repository is connected to a Spec Kitty teamspace but the local CLI

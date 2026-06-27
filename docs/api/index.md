@@ -1,23 +1,8 @@
 ---
-title: Reference
-description: 'Authoritative Spec Kitty specifications: CLI and agent subcommands, slash commands, charter commands, configuration, environment variables, and schemas.'
-doc_status: active
-updated: '2026-06-27'
-related:
-- docs/api/agent-subcommands.md
-- docs/api/charter-commands.md
-- docs/api/cli-commands.md
-- docs/api/configuration.md
-- docs/api/environment-variables.md
-- docs/api/event-envelope.md
-- docs/api/file-structure.md
-- docs/api/orchestrator-api.md
-- docs/api/retrospective-schema.md
-- docs/api/slash-commands.md
-- docs/api/supported-agents.md
-- docs/api/supported-harnesses.md
-- docs/api/terminology.md
+title: "Reference"
+description: "Authoritative Spec Kitty specifications: CLI and agent subcommands, slash commands, charter commands, configuration, environment variables, and schemas."
 ---
+
 # Reference
 
 Precise, authoritative specifications for Spec Kitty's command surfaces, configuration, and

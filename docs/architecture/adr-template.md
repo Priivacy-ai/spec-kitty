@@ -1,9 +1,3 @@
----
-title: '[Short descriptive title]'
-description: 'The ADR authoring template for Spec Kitty: the filename convention, status/date/decider header, and section structure every architecture decision record follows.'
-doc_status: active
-updated: '2026-06-12'
----
 # [Short descriptive title]
 
 **Filename:** `YYYY-MM-DD-N-descriptive-title-with-dashes.md` (where N is 1, 2, 3... for that day)

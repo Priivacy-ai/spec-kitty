@@ -32,9 +32,9 @@ SLICE_F_TERMS = [
 
 
 def test_all_slice_f_terms_are_canonical_in_doctrine_context() -> None:
-    """All 10 Slice F terms must have Status: canonical in glossary/contexts/doctrine.md."""
+    """All 10 Slice F terms must have Status: canonical in docs/context/doctrine.md."""
     repo_root = Path(__file__).resolve().parents[2]
-    glossary_path = repo_root / "glossary" / "contexts" / "doctrine.md"
+    glossary_path = repo_root / "docs" / "context" / "doctrine.md"
     assert glossary_path.exists(), f"glossary not found: {glossary_path}"
     glossary = glossary_path.read_text()
 

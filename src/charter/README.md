@@ -45,8 +45,8 @@ not prompt-runtime governance context.
 
 ## Architecture references
 
-- Container view: `architecture/2.x/02_containers/README.md` — "Charter and Governance Engine"
-- Component view: `architecture/2.x/03_components/README.md` — Governance section
-- Init flow: `architecture/2.x/user_journey/init-doctrine-flow.md`
-- Governance ADR: `architecture/2.x/adr/2026-02-23-1-doctrine-artifact-governance-model.md`
-- Glossary: `glossary/contexts/governance.md`
+- Container view: `docs/architecture/02_containers/README.md` — "Charter and Governance Engine"
+- Component view: `docs/architecture/03_components/README.md` — Governance section
+- Init flow: `docs/plans/user_journey/init-doctrine-flow.md`
+- Governance ADR: `docs/adr/2.x/2026-02-23-1-doctrine-artifact-governance-model.md`
+- Glossary: `docs/context/governance.md`

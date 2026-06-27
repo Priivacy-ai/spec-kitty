@@ -34,7 +34,7 @@ _VALID_ENTRY: dict[str, object] = {
 
 def _write_registry(tmp_path: Path, payload: object) -> Path:
     """Write payload as YAML to the canonical shim-registry location."""
-    registry_dir = tmp_path / "architecture" / "2.x"
+    registry_dir = tmp_path / "docs" / "migrations"
     registry_dir.mkdir(parents=True)
     registry_path = registry_dir / "shim-registry.yaml"
     yaml = YAML()
@@ -45,7 +45,7 @@ def _write_registry(tmp_path: Path, payload: object) -> Path:
 
 def _write_raw_registry(tmp_path: Path, content: str) -> Path:
     """Write raw string content to the canonical shim-registry path."""
-    registry_dir = tmp_path / "architecture" / "2.x"
+    registry_dir = tmp_path / "docs" / "migrations"
     registry_dir.mkdir(parents=True)
     (registry_dir / "shim-registry.yaml").write_text(content)
     return tmp_path
@@ -211,7 +211,7 @@ class TestLoadRegistryMalformedYaml:
         assert any("YAML" in e for e in exc_info.value.errors)
 
     def test_binary_junk_raises_registry_schema_error(self, tmp_path: Path) -> None:
-        registry_dir = tmp_path / "architecture" / "2.x"
+        registry_dir = tmp_path / "docs" / "migrations"
         registry_dir.mkdir(parents=True)
         (registry_dir / "shim-registry.yaml").write_bytes(b"\xff\xfe" + b"\x00" * 20)
         with pytest.raises((RegistrySchemaError, UnicodeDecodeError)):

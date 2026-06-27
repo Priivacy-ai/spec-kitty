@@ -1,13 +1,8 @@
 ---
-title: Diagnose Installation Problems
-description: 'How to diagnose installation problems with Spec Kitty 3.2: When Spec Kitty stops working -- skills go missing, slash commands vanish, or the runtime reports.'
-doc_status: active
-updated: '2026-06-14'
-related:
-- docs/guides/install-spec-kitty.md
-- docs/guides/manage-agents.md
-- docs/guides/use-dashboard.md
+title: "Diagnose Installation Problems"
+description: "How to diagnose installation problems with Spec Kitty 3.2: When Spec Kitty stops working -- skills go missing, slash commands vanish, or the runtime reports."
 ---
+
 # Diagnose Installation Problems
 
 When Spec Kitty stops working -- skills go missing, slash commands vanish, or

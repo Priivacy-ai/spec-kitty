@@ -1,9 +1,3 @@
----
-title: Mutation Testing Findings (WP05)
-description: 'Findings from the WP05 mutation-testing baseline run across the status/, glossary/, merge/, and core/ priority modules: surviving mutants and gaps.'
-doc_status: draft
-updated: '2026-04-25'
----
 # Mutation Testing Findings (WP05)
 
 This document captures findings from the WP05 mutation testing baseline run against all four priority modules:

@@ -1,11 +1,8 @@
 ---
-title: Governance Files Reference
-description: Authoritative reference for every file under .kittify/charter/ — who writes it, what it contains, and whether you can edit it.
-doc_status: active
-updated: '2026-06-03'
-related:
-- docs/3x/charter-overview.md
+title: "Governance Files Reference"
+description: "Authoritative reference for every file under .kittify/charter/ — who writes it, what it contains, and whether you can edit it."
 ---
+
 # Governance Files Reference
 
 The Charter governance layer lives primarily in `.kittify/charter/`, with promoted project-local

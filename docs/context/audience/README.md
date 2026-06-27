@@ -1,12 +1,3 @@
----
-title: Architecture Audience
-description: 'Architecture audience catalog: the canonical internal and external persona references for Spec Kitty, split by delivery-boundary membership for journeys and reviews.'
-doc_status: active
-updated: '2026-03-10'
-related:
-- docs/context/audience/external/README.md
-- docs/context/audience/internal/README.md
----
 # Architecture Audience
 
 This directory captures architecture-level personas for Spec Kitty.
@@ -17,7 +8,7 @@ Personas are split into two groups:
 
 Use these persona documents as the canonical audience reference for:
 
-- actor mapping in `architecture/2.x/user_journey/*.md`
+- actor mapping in `docs/plans/user_journey/*.md`
 - trade-off validation in architecture decisions
 - communication and adoption planning for architecture changes
 
@@ -30,6 +21,6 @@ Use these persona documents as the canonical audience reference for:
 
 ## Conventions
 
-1. Persona links used in actor tables must point to files under `architecture/audience/internal/` or `architecture/audience/external/`.
+1. Persona links used in actor tables must point to files under `docs/context/audience/internal/` or `docs/context/audience/external/`.
 2. Personas are architecture artifacts, not user-marketing profiles.
 3. Keep persona behavior aligned with active ADRs and user journeys.

@@ -1,11 +1,8 @@
 ---
-title: Use Spec Kitty in Letta Code
-description: 'How to use Spec Kitty in Letta Code (partial tier): command-skill packages install in 3.2, but real-session smoke evidence is not yet recorded.'
-doc_status: active
-updated: '2026-06-03'
-related:
-- docs/guides/install-spec-kitty.md
+title: "Use Spec Kitty in Letta Code"
+description: "Configure the Use Spec Kitty in Letta Code harness for Spec Kitty 3.2 commands, generated skills, and agent workflow integration."
 ---
+
 # Use Spec Kitty in Letta Code
 
 > **Tier:** **partial** — Spec Kitty installs Letta Code command-skill packages in 3.2, but real-session smoke evidence is not yet recorded.
@@ -86,4 +83,4 @@ If Letta does not expose the command in your installed version, the artifacts re
 
 ## Where to learn more about Letta Code
 
-Authoritative documentation: <https://docs.letta.com/letta-code/skills/> (accessed 2026-06-02). The matrix row in [`docs/reference/supported-harnesses.md`](../../reference/supported-harnesses.md) remains the promotion tracker.
+Authoritative documentation: <https://docs.letta.com/letta-code/skills/> (accessed 2026-06-02). The matrix row in [`docs/api/supported-harnesses.md`](../../reference/supported-harnesses.md) remains the promotion tracker.

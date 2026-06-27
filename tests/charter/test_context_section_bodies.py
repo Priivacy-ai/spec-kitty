@@ -42,7 +42,7 @@ _CHARTER_WITH_ALL_SECTIONS = textwrap.dedent(
     ## Regression Vigilance (2026-04-06)
 
     When renaming an identifier-bearing term, the reviewer MUST grep the
-    diff for the old term and MUST consult ``glossary/contexts/`` before
+    diff for the old term and MUST consult ``docs/context/`` before
     approving.
 
     ## Code Review Checklist
@@ -115,7 +115,7 @@ _CHARTER_WITH_FENCED_SECTION_HEADING_EXAMPLE = textwrap.dedent(
 
     ## Regression Vigilance
 
-    The real rule requires the reviewer to consult glossary/contexts/.
+    The real rule requires the reviewer to consult docs/context/.
 
     ## Code Review Checklist
 
@@ -218,7 +218,7 @@ class TestVerbatimBodies:
 
         body = _rendered_section_body(result, "Regression Vigilance")
 
-        assert "consult glossary/contexts/" in body
+        assert "consult docs/context/" in body
         assert "This is example text" not in body
         assert "canonical term is **Mission**" not in body
         assert "check terminology alignment" not in body
@@ -243,7 +243,7 @@ class TestVerbatimBodies:
         )
 
         assert result is not None
-        assert "consult glossary/contexts/" in result
+        assert "consult docs/context/" in result
         assert "This is example text" not in result
 
     def test_nested_critical_headings_are_recoverable(self) -> None:

@@ -1,9 +1,3 @@
----
-title: Naming / Identity SSOT Strangler — Intended (Target) Architecture
-description: "Architect Alphonso's intended (target) architecture for the naming/identity SSOT strangler: the design the strangler converges toward, read-only at 3.2.0."
-doc_status: draft
-updated: '2026-06-26'
----
 # Naming / Identity SSOT Strangler — Intended (Target) Architecture
 
 **Author:** Architect Alphonso (design-lens investigation, research squad)
@@ -27,7 +21,7 @@ aggregates the whole squad; this document supplies the north star, not the missi
   coord/primary split is the marquee translation seam — it must stay a translation, not a fork.
 - **DIR-032 Conceptual Alignment** — terminology confirmed against CLAUDE.md canon
   (Mission Identity Model, Status Model, Execution Workspace Strategy, Shared Package Boundary)
-  and the #1619 consolidated domain model (`docs/engineering_notes/runtime_and_state_overhaul/17-consolidated-domain-model.md`).
+  and the #1619 consolidated domain model (`docs/plans/engineering-notes/runtime_and_state_overhaul/17-consolidated-domain-model.md`).
 
 The branch_naming seam (3.2.0, PR #2001) is the **template shape** every other concern must
 generalize to:

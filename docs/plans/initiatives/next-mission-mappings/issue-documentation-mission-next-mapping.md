@@ -1,9 +1,3 @@
----
-title: 'Tracking Issue: `documentation` Mission `next` Mapping'
-description: Open tracking issue for the documentation mission's spec-kitty next mapping/template gap, owned by the spec-kitty team.
-doc_status: draft
-updated: '2026-02-17'
----
 # Tracking Issue: `documentation` Mission `next` Mapping
 
 Status: OPEN

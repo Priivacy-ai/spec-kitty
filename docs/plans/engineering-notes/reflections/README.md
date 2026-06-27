@@ -1,16 +1,8 @@
----
-title: Engineering notes — Reflections
-description: 'Landing page for the reflections engineering notes: quick dated notes on process inaccuracies and ad-hoc findings, not architectural decisions or doctrine.'
-doc_status: draft
-updated: '2026-06-01'
-related:
-- docs/plans/engineering-notes/reflections/2026-05-24-drg-profile-routing-missed-first-pass.md
----
 # Engineering notes — Reflections
 
 This directory holds **quick, dated notes about process inaccuracies, idiosyncratic mismatches, and ad-hoc findings** that surface during day-to-day work on Spec Kitty itself or in projects that adopt Spec Kitty.
 
-It is intentionally **not** a place for architectural decisions (those go to `architecture/3.x/adr/`), nor for charter doctrine (that goes to `.kittify/doctrine/`), nor for mission specs (those live under `kitty-specs/`).
+It is intentionally **not** a place for architectural decisions (those go to `docs/adr/3.x/`), nor for charter doctrine (that goes to `.kittify/doctrine/`), nor for mission specs (those live under `kitty-specs/`).
 
 ## What belongs here
 

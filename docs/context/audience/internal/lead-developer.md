@@ -1,9 +1,3 @@
----
-title: 'Stakeholder Persona: Lead Developer'
-description: 'Internal lead-developer persona: translates architecture and governance intent into practical, day-to-day implementation behavior across the codebase.'
-doc_status: active
-updated: '2026-06-12'
----
 # Stakeholder Persona: Lead Developer
 
 | Field | Value |

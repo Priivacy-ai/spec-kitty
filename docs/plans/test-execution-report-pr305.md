@@ -1,9 +1,3 @@
----
-title: 'Test Execution Report — PR #305 (feature/agent-profile-implementation)'
-description: 'Test execution report for PR #305 (agent-profile-implementation): the suites run, the results, and any failures captured in a field-table record.'
-doc_status: draft
-updated: '2026-04-05'
----
 # Test Execution Report — PR #305 (feature/agent-profile-implementation)
 
 | Field | Value |
@@ -442,7 +436,7 @@ inside `if _is_windows()`. On Linux/macOS this code path is never executed.
 **Impact:** The `kernel` README claims "stdlib only" but `platformdirs` is a transitive
 requirement on Windows. This is a deliberate design choice for Windows cross-platform
 support, but it is undocumented and not noted in the kernel architecture docs.  
-**Fix:** Add a comment and note in `architecture/2.x/04_implementation_mapping/README.md`:
+**Fix:** Add a comment and note in `docs/architecture/04_implementation_mapping/README.md`:
 > `kernel` is stdlib-only on Linux/macOS. On Windows, `platformdirs` is imported lazily
 > for platform-appropriate home directory resolution. This is the only sanctioned
 > third-party import in `kernel/`.

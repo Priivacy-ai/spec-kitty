@@ -1,9 +1,8 @@
 ---
-title: Set up Post-Edit Lint Hooks
-description: Configure your AI agent harness to automatically run ruff and mypy after every code edit using spec-kitty lint.
-doc_status: active
-updated: '2026-06-15'
+title: "Set up Post-Edit Lint Hooks"
+description: "Configure your AI agent harness to automatically run ruff and mypy after every code edit using spec-kitty lint."
 ---
+
 # Set up Post-Edit Lint Hooks
 
 One of the most effective ways to reduce review cycles is to catch linting and type errors at the **cheapest point**: immediately after the AI agent makes a change.

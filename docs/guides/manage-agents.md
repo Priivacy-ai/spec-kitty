@@ -1,12 +1,8 @@
 ---
-title: Managing AI Agents
-description: How to add, remove, and manage AI agents in a spec-kitty project after initialization, across the supported slash-command and Agent-Skills harnesses.
-doc_status: active
-updated: '2026-06-15'
-related:
-- docs/guides/install-and-upgrade.md
-- docs/guides/install-spec-kitty.md
+title: "Managing AI Agents"
+description: "How to managing ai agents with Spec Kitty 3.2: Learn how to add, remove, and manage AI agents in your spec-kitty project after initialization."
 ---
+
 # Managing AI Agents
 
 Learn how to add, remove, and manage AI agents in your spec-kitty project after initialization.
@@ -83,7 +79,7 @@ Managed command surfaces are created and refreshed by CLI commands. You should n
 
 > **Why This Matters**: In spec-kitty 0.11.x and earlier, users could manually delete agent directories, but migrations would recreate them. Starting in 0.12.0, migrations respect `config.yaml` - if an agent is not listed in `available`, its directory stays deleted. See [Upgrading to 0.12.0](install-and-upgrade.md) for details.
 
-For architectural details, see [ADR #6: Config-Driven Agent Management](https://github.com/Priivacy-ai/spec-kitty/blob/main/architecture/1.x/adr/2026-01-23-6-config-driven-agent-management.md).
+For architectural details, see [ADR #6: Config-Driven Agent Management](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/1.x/2026-01-23-6-config-driven-agent-management.md).
 
 ## Listing Agents
 
@@ -583,7 +579,7 @@ For more information on agent management and related topics:
 
 ### Architecture
 
-- [ADR #6: Config-Driven Agent Management](https://github.com/Priivacy-ai/spec-kitty/blob/main/architecture/1.x/adr/2026-01-23-6-config-driven-agent-management.md) - Architectural decision record explaining why migrations now respect `config.yaml` and the config-driven model rationale
+- [ADR #6: Config-Driven Agent Management](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/1.x/2026-01-23-6-config-driven-agent-management.md) - Architectural decision record explaining why migrations now respect `config.yaml` and the config-driven model rationale
 
 ### Migration Guides
 

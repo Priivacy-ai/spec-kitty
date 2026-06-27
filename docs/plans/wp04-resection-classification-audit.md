@@ -1,13 +1,13 @@
 ---
-title: WP04 re-section classification audit
-description: 'Per-file durable-vs-ephemeral classification record for the docs/development + docs/engineering_notes re-section (Mission B, FR-012, #2054).'
+title: "WP04 re-section classification audit"
+description: "Per-file durable-vs-ephemeral classification record for the docs/development + docs/engineering_notes re-section (Mission B, FR-012, #2054)."
 doc_status: draft
-updated: '2026-06-27'
 ---
+
 # WP04 re-section classification audit (FR-012 / #2054)
 
 This note is the **auditable per-file record** for WP04's re-section of the
-former `docs/development/` and `docs/engineering_notes/` working sets. Every
+former `docs/development/` and `docs/plans/engineering-notes/` working sets. Every
 page was classified individually (not a wholesale directory move) against the
 explicit decision rules in the WP04 prompt, and the **rule that fired** is
 recorded per page so the reviewer audits the *reason*, not just the bucket.
@@ -86,10 +86,10 @@ WP04 does not churn per-file frontmatter either.
 | `wp-prompt-governance-atdd-findings.md` | E1 — ATDD findings |
 | `tracking/next-mission-mappings/*` (3 files) | E1 — "tracking" in path → `plans/next-mission-mappings/` |
 
-## `docs/engineering_notes/` → `plans/engineering-notes/`
+## `docs/plans/engineering-notes/` → `plans/engineering-notes/`
 
 The whole `engineering_notes/` tree is investigations / traces / reflections /
-triage (E1 by the occurrence-map `moves:` `docs/engineering_notes → docs/plans`).
+triage (E1 by the occurrence-map `moves:` `docs/plans/engineering-notes → docs/plans`).
 Moved as a **subtree** (`plans/engineering-notes/`) to stay fully disjoint from
 WP03's `architecture/`-rooted plans content (avoids the `index.md` collision).
 

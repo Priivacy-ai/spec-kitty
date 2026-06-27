@@ -1,15 +1,10 @@
 ---
-title: spec-kitty upgrade lifecycle
-description: Reference for the spec-kitty upgrade command lifecycle. Understand the project schema check, CLI migrations, and agent command synchronization.
-doc_status: active
-updated: '2026-06-09'
+title: "spec-kitty upgrade lifecycle"
+description: "Reference for the spec-kitty upgrade command lifecycle. Understand the project schema check, CLI migrations, and agent command synchronization."
 type: reference
-related:
-- docs/api/cli-commands.md
-- docs/api/environment-variables.md
-- docs/api/init-lifecycle.md
 audience: end-users
 ---
+
 # `spec-kitty upgrade` lifecycle
 
 Reference description of what `spec-kitty upgrade` modifies, in what order, and how its options interact. For task-oriented walkthroughs see [Upgrade the CLI](../how-to/upgrade-cli.md) and [Upgrade a project](../how-to/upgrade-project.md).

@@ -1,12 +1,3 @@
----
-title: '06 — Domains & Splits: Technical Concretization'
-description: 'Technical concretization of the consolidated domain model for the runtime and state overhaul: the proposed domains and splits, grounded in package fan-out findings.'
-doc_status: draft
-updated: '2026-06-03'
-related:
-- docs/plans/engineering-notes/runtime_and_state_overhaul/16-codebase-reassessment-fanout.md
-- docs/plans/engineering-notes/runtime_and_state_overhaul/17-consolidated-domain-model.md
----
 # 06 — Domains & Splits: Technical Concretization
 
 > **Rewritten (2026-06-03)** as the **technical/codebase concretization of the consolidated model
@@ -211,7 +202,7 @@ context** (not three independent objects) — vs. leaving the projections separa
 
 > **All §7 questions decided as of 2026-06-03.** Remaining work is ADR drafting + implementation.
 
-1. **Draft ADRs** (vocabulary ratified per DIRECTIVE_032) → `architecture/3.x/adr/`: (a) domain model (`17`) + Status ownership; (b) ExecutionContext owner + one-atomicity-domain commit rule; (c) Effector/Actor.
+1. **Draft ADRs** (vocabulary ratified per DIRECTIVE_032) → `docs/adr/3.x/`: (a) domain model (`17`) + Status ownership; (b) ExecutionContext owner + one-atomicity-domain commit rule; (c) Effector/Actor.
 2. **Build the e2e ratchet** (step 6.1).
 3. **Strangler increments** in the order of §6, each gated by the ratchet.
 4. **Close #1619** when no raw mission-state reads remain outside the resolver (except documented fallbacks) and the e2e parity test is green from both CWDs.

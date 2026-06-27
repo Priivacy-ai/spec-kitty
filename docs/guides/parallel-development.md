@@ -1,14 +1,8 @@
 ---
-title: How to Develop in Parallel with Multiple Agents
-description: Run multiple Spec Kitty agents in parallel while keeping work packages isolated and coordinated.
-doc_status: active
-updated: '2026-06-14'
-related:
-- docs/guides/handle-dependencies.md
-- docs/guides/implement-work-package.md
-- docs/guides/run-external-orchestrator.md
-- docs/guides/use-dashboard.md
+title: "How to Develop in Parallel with Multiple Agents"
+description: "Run multiple Spec Kitty agents in parallel while keeping work packages isolated and coordinated."
 ---
+
 # How to Develop in Parallel with Multiple Agents
 
 Parallel development lets you move independent work packages (WPs) at the same time while keeping each execution workspace isolated. Spec Kitty's lane-based worktree model makes this safe and predictable.

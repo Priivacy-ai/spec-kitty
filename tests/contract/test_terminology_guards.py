@@ -331,11 +331,11 @@ def test_reference_examples_match_runtime_requirements():
     Authority: spec.md FR-010, FR-013, FR-022.
     """
 
-    cli_reference = _read(REPO_ROOT / "docs/reference/cli-commands.md")
+    cli_reference = _read(REPO_ROOT / "docs/api/cli-commands.md")
     assert "spec-kitty next --json" not in cli_reference
     assert "bare call (no `--agent`)" not in cli_reference
 
-    agent_reference = _read(REPO_ROOT / "docs/reference/agent-subcommands.md")
+    agent_reference = _read(REPO_ROOT / "docs/api/agent-subcommands.md")
     forbidden_example_lines = (
         r"^spec-kitty agent mission accept$",
         r"^spec-kitty agent mission accept --json$",

@@ -1,9 +1,3 @@
----
-title: Command-Contract Drift — Ground Truth, Inventory, and Guard Design
-description: "Python Pedro's research on #2007's command-contract drift: the ground truth, an inventory of skill/prompt/doc divergence, and a guard design."
-doc_status: draft
-updated: '2026-06-26'
----
 # Command-Contract Drift — Ground Truth, Inventory, and Guard Design
 
 **Author:** Python Pedro (research op, bounded)
@@ -77,7 +71,7 @@ line 621 — the CLI snippets are vestigial and contradict the skill's own canon
 
 ### Worktree-repair references — already correctly absent from SOURCE prompts/skills
 
-- `agent worktree repair` appears **only** in `docs/engineering_notes/naming-identity-ssot-strangler/*`
+- `agent worktree repair` appears **only** in `docs/plans/engineering-notes/naming-identity-ssot-strangler/*`
   as tracker-sweep notes (#1890), explicitly flagged as "nonexistent command / follow-up". These are
   archaeology notes, **not** prescriptive snippets, so they are not active drift. The SOURCE
   setup-doctor skill's worktree-recovery section (`common-failure-signatures.md:150-180`) already uses
@@ -124,7 +118,7 @@ import, the SaaS-gated path handling) is solved and battle-tested.
 
 1. **Source set:** glob SOURCE only — `src/doctrine/skills/**/*.md`, `src/doctrine/skills/**/references/*.md`,
    `src/doctrine/missions/mission-steps/**/*.md`, and (a second, looser tier) `docs/**/*.md`.
-   Exclude `docs/engineering_notes/**` (archaeology/notes, not prescriptive) and all generated agent
+   Exclude `docs/plans/engineering-notes/**` (archaeology/notes, not prescriptive) and all generated agent
    dirs (`.claude/`, `.amazonq/`, …).
 2. **Snippet capture:** extract fenced ```` ```bash ```` blocks, then within them match lines
    beginning (after optional `uv run `, `$ `, `#`-prefixed comments stripped) with `spec-kitty `.
@@ -145,7 +139,7 @@ import, the SaaS-gated path handling) is solved and battle-tested.
   `…`, `$`, `{`, uppercase, or quote. Placeholders never appear in a command path position.
 - **Bool-flag auto-negation:** `--no-mark-loaded`, `--no-auto-commit`, `--no-worktrees`. Mitigation:
   build the option set from click params and add the `--no-<name>` form for every `is_flag`/bool option.
-- **Reference-table prose:** `docs/reference/*.md` print `--mark-loaded --no-mark-loaded` as help text,
+- **Reference-table prose:** `docs/api/*.md` print `--mark-loaded --no-mark-loaded` as help text,
   not invocations. Mitigation: only scan inside ```` ```bash ```` fences; ignore tables / `Usage:` dumps.
 - **Continuation lines & pipes:** `\`-continued commands and `| jq` tails. Mitigation: join `\`
   continuations; cut at the first `|`, `&&`, `;`, `>`.

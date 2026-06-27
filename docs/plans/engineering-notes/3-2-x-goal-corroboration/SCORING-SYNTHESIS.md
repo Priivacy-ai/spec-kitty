@@ -1,9 +1,3 @@
----
-title: 3.2.1 lead-slice — neutral scoring synthesis
-description: "Neutral scoring synthesis for the 3.2.1 lead slice after the biased white-team and the red-team passes: three scorers' consolidated ranking (2026-06-16)."
-doc_status: draft
-updated: '2026-06-16'
----
 # 3.2.1 lead-slice — neutral scoring synthesis
 
 **Date:** 2026-06-16. **Method:** after the white-team corroboration (found confirmation-biased) and

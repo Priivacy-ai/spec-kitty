@@ -673,7 +673,7 @@ def detect_project_areas(docs_dir: Path, project_root: Path) -> list[str]:
     """Detect project areas from directory structure.
 
     Heuristics:
-    - Check docs/ subdirectories (e.g., docs/tutorials/auth/ → "auth" area)
+    - Check docs/ subdirectories (e.g., docs/guides/auth/ → "auth" area)
     - Check source code directories (e.g., src/api/ → "api" area)
     - Fallback: Single area named after project
 

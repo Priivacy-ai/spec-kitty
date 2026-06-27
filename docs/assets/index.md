@@ -1,11 +1,8 @@
 ---
-title: Documentation assets
-description: 'Static assets for the Spec Kitty documentation site: stylesheets, images, and the standalone backlog and evolution HTML views.'
-doc_status: active
-updated: '2026-06-27'
-related:
-- docs/index.md
+title: "Documentation assets"
+description: "Static assets for the Spec Kitty documentation site: stylesheets, images, and the standalone backlog and evolution HTML views."
 ---
+
 # Documentation assets
 
 Static assets referenced by the Spec Kitty documentation site. These files are served

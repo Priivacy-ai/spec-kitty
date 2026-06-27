@@ -1,1 +1,0 @@
-../2.x/adr/2026-02-11-6-pypi-exact-pinning-for-spec-kitty-events.md

@@ -1,15 +1,9 @@
----
-title: '#2007 training-bug ticket mapping & sequencing impact — planner-priti'
-description: "Planner Priti's ticket mapping and sequencing-impact analysis for the #2007 training bugs, with live-verified issue states and milestones (2026-06-16)."
-doc_status: draft
-updated: '2026-06-16'
----
 # #2007 training-bug ticket mapping & sequencing impact — planner-priti
 
 **Date:** 2026-06-16 · **Author:** planner-priti (read-only research op; no tracker mutation) ·
 **Source:** `gh issue view 2007` + per-candidate `gh issue view` (states/milestones verified live).
 **Decision context:** `docs/release-goals/3.2.x.md`, the neutral panel
-`docs/engineering_notes/3-2-x-goal-corroboration/SCORING-SYNTHESIS.md`, and the in-flight naming rider
+`docs/plans/engineering-notes/3-2-x-goal-corroboration/SCORING-SYNTHESIS.md`, and the in-flight naming rider
 `kitty-specs/naming-identity-routing-rider-01KV7SFD/` (branch `feat/naming-rider-3-2-1`).
 
 #2007 itself: **OPEN**, labels `bug` + `epic` + `3.2.0`, **milestone = none** (the `3.2.0` *label* is

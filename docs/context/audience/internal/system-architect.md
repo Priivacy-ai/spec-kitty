@@ -1,9 +1,3 @@
----
-title: 'Stakeholder Persona: System Architect'
-description: 'Internal system-architect persona: establishes architecture boundaries that stay coherent as the Spec Kitty system evolves, making trade-offs explicit.'
-doc_status: active
-updated: '2026-06-12'
----
 # Stakeholder Persona: System Architect
 
 | Field | Value |

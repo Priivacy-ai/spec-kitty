@@ -1,11 +1,8 @@
 ---
-title: Documentation Mission Guide
-description: The Documentation Kitty mission — Divio 4-type system, gap analysis, generators, and Charter-era governance integration.
-doc_status: active
-updated: '2026-06-12'
-related:
-- docs/architecture/governed-profile-invocation.md
+title: "Documentation Mission Guide"
+description: "The Documentation Kitty mission — Divio 4-type system, gap analysis, generators, and Charter-era governance integration."
 ---
+
 # Documentation Mission Guide
 
 This guide covers the Documentation Kitty mission, which helps you create and maintain high-quality software documentation following Write the Docs and Divio principles.
@@ -723,7 +720,7 @@ Responses to prompts:
 - Reference: Full CLI command reference (auto-generated from argparse)
 - Explanation: Architecture and design decisions
 - Use Sphinx with autodoc for API reference
-- Organize as docs/tutorial/, docs/howto/, docs/reference/, docs/explanation/
+- Organize as docs/tutorial/, docs/howto/, docs/api/, docs/architecture/
 ```
 
 **Step 3: Generate Tasks**
@@ -748,8 +745,8 @@ Agent creates:
 - `docs/conf.py` (Sphinx configuration)
 - `docs/tutorial/getting-started.md`
 - `docs/howto/configuring.md`, `docs/howto/deploying.md`
-- `docs/reference/cli.md` (generated from argparse)
-- `docs/explanation/architecture.md`
+- `docs/api/cli.md` (generated from argparse)
+- `docs/architecture/architecture.md`
 - Updated README with docs link
 
 **Step 5: Review and Accept**

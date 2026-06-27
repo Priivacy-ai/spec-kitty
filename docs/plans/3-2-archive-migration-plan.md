@@ -1,12 +1,3 @@
----
-title: Spec Kitty 3.2 — Archive & Migration Plan
-description: 'Archive and migration plan for the Spec Kitty 3.2 docs mission (WP09 / FR-013): how legacy and version-tiered pages are archived and redirected in the refresh.'
-doc_status: draft
-updated: '2026-06-27'
-related:
-- docs/archive/2x/index.md
-- docs/migration/from-charter-2x.md
----
 # Spec Kitty 3.2 — Archive & Migration Plan
 
 **Mission**: `spec-kitty-3-2-docs-01KS4KSZ`
@@ -30,7 +21,7 @@ and reviewers can audit.
 
 - **Inventory** (WP02): `docs/development/3-2-page-inventory.yaml` — 13
   archival rows (5 under `docs/1x/**`, 8 under `docs/2x/**`) and 12 migration
-  rows (11 already in `docs/migration/`, 1 in `docs/how-to/`).
+  rows (11 already in `docs/migration/`, 1 in `docs/guides/`).
 - **Occurrence map** (WP01): `kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/occurrence_map.yaml`
   — `filesystem_paths.rewrite` rules:
   - `docs/1x/` → `docs/archive/1x/`
@@ -91,7 +82,7 @@ contract regex `^>\s*(?:Archive notice|Migration note)\b`.
 
 | Source path | Tag | Disposition | Target path | Banner | Notes |
 |-------------|-----|-------------|-------------|--------|-------|
-| `docs/how-to/2-1-main-cutover-checklist.md` | migration | convert-to-migration-note | `docs/migration/2-1-main-cutover-checklist.md` | Migration note (2.1 → 2.x) | Inventory flag `MANUAL_REVIEW`: page lives in `docs/how-to/` but documents a historical cutover and is tagged `migration`. Execution mission must move and update any `how-to` toc entries / cross-links. |
+| `docs/guides/2-1-main-cutover-checklist.md` | migration | convert-to-migration-note | `docs/migration/2-1-main-cutover-checklist.md` | Migration note (2.1 → 2.x) | Inventory flag `MANUAL_REVIEW`: page lives in `docs/guides/` but documents a historical cutover and is tagged `migration`. Execution mission must move and update any `how-to` toc entries / cross-links. |
 | `docs/migration/charter-ownership-consolidation.md` | migration | banner-only | _(in place)_ | Migration note (early 3.x → 3.2) | Already under `docs/migration/`; only prepend banner. |
 | `docs/migration/cross-repo-e2e-gate.md` | migration | banner-only | _(in place)_ | Migration note (early 3.x → 3.2) | Already under `docs/migration/`; only prepend banner. |
 | `docs/migration/doctrine-local-overlay-to-org-layer.md` | migration | banner-only | _(in place)_ | Migration note (early 3.x → 3.2) | Already under `docs/migration/`; only prepend banner. |
@@ -173,7 +164,7 @@ for r in rows:
 
 ### migration (12)
 
-- [x] `docs/how-to/2-1-main-cutover-checklist.md`
+- [x] `docs/guides/2-1-main-cutover-checklist.md`
 - [x] `docs/migration/charter-ownership-consolidation.md`
 - [x] `docs/migration/cross-repo-e2e-gate.md`
 - [x] `docs/migration/doctrine-local-overlay-to-org-layer.md`
@@ -205,7 +196,7 @@ This subsection confirms each guardrail invariant:
    versions. No move lands outside `docs/archive/<1x|2x>/`.
 
 2. **Convert-to-migration-note alignment.** The single
-   `convert-to-migration-note` row (`docs/how-to/2-1-main-cutover-checklist.md`)
+   `convert-to-migration-note` row (`docs/guides/2-1-main-cutover-checklist.md`)
    targets `docs/migration/2-1-main-cutover-checklist.md`, satisfying the WP09
    reviewer rule "every `convert-to-migration-note` target lands under
    `docs/migration/`."

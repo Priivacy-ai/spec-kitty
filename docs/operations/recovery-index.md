@@ -1,12 +1,8 @@
 ---
-title: Recovery guides
-description: Recovery procedures for Spec Kitty operational states, such as restoring access after a logged-out teamspace session.
-doc_status: active
-updated: '2026-06-27'
-related:
-- docs/index.md
-- docs/operations/logged-out-teamspace.md
+title: "Recovery guides"
+description: "Recovery procedures for Spec Kitty operational states, such as restoring access after a logged-out teamspace session."
 ---
+
 # Recovery guides
 
 Task-oriented recovery procedures for getting an installation or session back to a healthy

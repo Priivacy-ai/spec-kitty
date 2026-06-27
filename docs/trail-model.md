@@ -1,11 +1,3 @@
----
-title: Trail Model
-description: 'Operator reference for the Phase 4 trail model: how every standalone spec-kitty dispatch writes an auditable JSONL trail for accountability, SaaS coherence, and provenance.'
-doc_status: active
-updated: '2026-06-15'
-related:
-- docs/host-surface-parity.md
----
 # Trail Model
 
 *Operator reference for the Phase 4 runtime consumption baseline.*

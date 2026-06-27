@@ -1,9 +1,3 @@
----
-title: Recommended directory structure
-description: Raw proposal dump from a 2026-02-17 repo-architecture-coaching brainstorm session, preserved as input to the architecture-discovery initiative.
-doc_status: draft
-updated: '2026-03-10'
----
 2026-02-17:13:18
 
 Mode: repo architecture coaching
@@ -149,7 +143,7 @@ Pick one and stick to it.
 
 ## A very practical README for `architecture/`
 
-In `architecture/README.md`, clarify the contract:
+In `docs/architecture/README.md`, clarify the contract:
 
 * “If you want to understand how the system works today, read 01–04.”
 * “If you want to see what we’re currently exploring, check initiatives.”
@@ -168,4 +162,4 @@ That migration step is part of the discipline.
 
 ---
 
-If you want, I can draft the `architecture/README.md` and `architecture/initiatives/README.md` texts so the separation is explicit and contributors don’t accidentally blur the boundary.
+If you want, I can draft the `docs/architecture/README.md` and `architecture/initiatives/README.md` texts so the separation is explicit and contributors don’t accidentally blur the boundary.

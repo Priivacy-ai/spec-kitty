@@ -1,9 +1,3 @@
----
-title: 'Research synthesis — #2007 (3.2.0 training bugs Robert witnessed)'
-description: "Research synthesis for #2007 (3.2.0 training bugs): the four-profile squad's repro, ticket map, systemic read, and command-drift findings (2026-06-16)."
-doc_status: draft
-updated: '2026-06-16'
----
 # Research synthesis — #2007 (3.2.0 training bugs Robert witnessed)
 
 **Date:** 2026-06-16. **Squad:** debugger-debbie (repro-on-HEAD) · planner-priti (ticket map + sequencing)
