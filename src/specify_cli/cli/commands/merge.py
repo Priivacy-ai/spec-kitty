@@ -52,8 +52,9 @@ from __future__ import annotations
 
 from specify_cli.core.constants import KITTIFY_DIR
 from specify_cli.missions._read_path_resolver import (
-    candidate_feature_dir_for_mission,
+    resolve_planning_read_dir,
 )
+from mission_runtime import MissionArtifactKind
 import json
 from typing import TYPE_CHECKING
 
@@ -266,7 +267,15 @@ def _teardown_coordination_for_abort(
             coord_slug = state_entry[1].mission_slug
         if not coord_slug:
             raise ValueError("cannot resolve mission slug for coordination cleanup")
-        feature_dir = candidate_feature_dir_for_mission(main_for_abort, coord_slug)
+        # FR-001 (#2185): ``meta.json`` (PRIMARY_METADATA, PRIMARY-partition) lives
+        # ONLY on the PRIMARY checkout post-#2106. The ``--abort`` teardown reads it
+        # to discover the mission identity (``mid8``) of the coord worktree to tear
+        # down — reading off the kind-blind resolver lands on the STATUS-only
+        # ``-coord`` husk, whose ``meta.json`` is absent or carries a stale/sentinel
+        # identity. Route by kind so the teardown anchors on the real PRIMARY meta.
+        feature_dir = resolve_planning_read_dir(
+            main_for_abort, coord_slug, kind=MissionArtifactKind.PRIMARY_METADATA
+        )
         meta = _load_meta(feature_dir)
         mid8 = str(meta.get("mid8", "")).strip() if isinstance(meta, dict) else ""
         abort_teardown_args = (main_for_abort, coord_slug, mid8)

@@ -10,7 +10,12 @@ All recovery transitions use actor="recovery" for auditability.
 
 from __future__ import annotations
 
-from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission, resolve_feature_dir_for_mission
+from mission_runtime import MissionArtifactKind
+from specify_cli.missions._read_path_resolver import (
+    candidate_feature_dir_for_mission,
+    resolve_feature_dir_for_mission,
+    resolve_planning_read_dir,
+)
 import json
 import logging
 import subprocess
@@ -325,7 +330,231 @@ def _get_all_wp_lanes_from_events(feature_dir: Path) -> dict[str, str]:
         return {}
 
 
-def scan_recovery_state(  # noqa: C901
+def _compute_recovery_action(
+    *,
+    worktree_exists: bool,
+    context_exists: bool,
+    has_commits: bool,
+    status_lane: str,
+) -> str:
+    """Map the (worktree, context, commits, status) signals to a recovery action.
+
+    Pure decision table extracted from ``scan_recovery_state`` (FR-002 / C901):
+    deterministic, side-effect-free, and unit-testable without filesystem or git.
+    """
+    if not worktree_exists:
+        # Branch exists but the worktree is gone (regardless of context state).
+        return "recreate_worktree"
+    if not context_exists:
+        # Worktree exists but the context file is gone.
+        return "recreate_context"
+    if has_commits and bool(_get_recovery_transitions(Lane(status_lane))):
+        # Everything exists but status is behind the filesystem reality.
+        return "emit_transitions"
+    return "no_action"
+
+
+def _collect_contexts_by_lane(
+    repo_root: Path, mission_slug: str,
+) -> dict[str, WorkspaceContext]:
+    """Return the existing workspace contexts for *mission_slug* keyed by lane."""
+    return {
+        ctx.lane_id: ctx
+        for ctx in list_contexts(repo_root)
+        if ctx.mission_slug == mission_slug
+    }
+
+
+def _scan_live_branch_states(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    primary_dir: Path,
+    coord_dir: Path,
+    mission_branch: str,
+    lane_branches: list[str],
+    contexts_by_lane: dict[str, WorkspaceContext],
+) -> list[RecoveryState]:
+    """Build recovery states for every WP that still has a live lane branch.
+
+    PRIMARY/STATUS split (FR-002 / C-001): lane→WP membership is read from
+    ``lanes.json`` on *primary_dir* (LANE_STATE, PRIMARY-partition), while the
+    per-WP lane comes from the status event log on *coord_dir* (STATUS — stays
+    coord-aware).
+    """
+    recovery_states: list[RecoveryState] = []
+    for branch in lane_branches:
+        lane_id = parse_lane_id_from_branch(branch)
+        if lane_id is None:
+            continue
+
+        worktree_path_from_git = _worktree_exists_for_branch(repo_root, branch)
+        expected_worktree = _worktree_path(
+            repo_root, mission_slug, mission_id=None, lane_id=lane_id
+        )
+        worktree_exists = (
+            worktree_path_from_git is not None
+            or expected_worktree.exists()
+        )
+
+        context = contexts_by_lane.get(lane_id)
+        context_exists = context is not None
+        has_commits = _branch_has_commits_beyond(repo_root, branch, mission_branch)
+
+        # PRIMARY leg: lane→WP membership from lanes.json.
+        wp_ids = _find_wp_ids_for_lane(primary_dir, lane_id)
+        if not wp_ids:
+            wp_ids = list(context.lane_wp_ids) if context and context.lane_wp_ids else ["unknown"]
+
+        for wp_id in wp_ids:
+            # STATUS leg: the per-WP lane comes from the event log (coord-aware).
+            status_lane = _get_wp_lane_from_events(coord_dir, wp_id)
+            recovery_states.append(
+                RecoveryState(
+                    wp_id=wp_id,
+                    lane_id=lane_id,
+                    branch_name=branch,
+                    branch_exists=True,
+                    worktree_exists=worktree_exists,
+                    context_exists=context_exists,
+                    status_lane=status_lane,
+                    has_commits=has_commits,
+                    recovery_action=_compute_recovery_action(
+                        worktree_exists=worktree_exists,
+                        context_exists=context_exists,
+                        has_commits=has_commits,
+                        status_lane=status_lane,
+                    ),
+                )
+            )
+    return recovery_states
+
+
+def _enumerate_expected_wp_ids(primary_dir: Path) -> list[str]:
+    """Return the union of WP IDs from the tasks/ dir and lanes.json (PRIMARY).
+
+    Both ``tasks/`` (WORK_PACKAGE_TASK) and ``lanes.json`` (LANE_STATE) are
+    PRIMARY-partition artifacts — *primary_dir* must already be the routed
+    PRIMARY read dir (FR-002).
+    """
+    all_task_wp_ids = _read_all_wp_ids_from_tasks(primary_dir)
+    try:
+        from specify_cli.lanes.persistence import read_lanes_json
+        manifest = read_lanes_json(primary_dir)
+        if manifest is not None:
+            for lane in manifest.lanes:
+                for wid in lane.wp_ids:
+                    if wid not in all_task_wp_ids:
+                        all_task_wp_ids.append(wid)
+    except Exception:  # noqa: BLE001
+        logger.debug("Could not read lanes.json for wp enumeration in %s", primary_dir)
+    return all_task_wp_ids
+
+
+def _append_merged_and_deleted(
+    recovery_states: list[RecoveryState],
+    *,
+    all_task_wp_ids: list[str],
+    represented_wps: set[str],
+    all_wp_lanes: dict[str, str],
+) -> None:
+    """Append synthetic ``merged_and_deleted`` states for branchless done WPs."""
+    for wp_id in all_task_wp_ids:
+        if wp_id in represented_wps:
+            continue
+        event_lane = all_wp_lanes.get(wp_id, Lane.PLANNED.value)
+        if event_lane == Lane.DONE.value:
+            recovery_states.append(
+                RecoveryState(
+                    wp_id=wp_id,
+                    lane_id="",
+                    branch_name="",
+                    branch_exists=False,
+                    worktree_exists=False,
+                    context_exists=False,
+                    status_lane=event_lane,
+                    has_commits=False,
+                    recovery_action="no_action",
+                    resolution_note="merged_and_deleted",
+                )
+            )
+
+
+def _collect_done_wp_ids(
+    recovery_states: list[RecoveryState], all_wp_lanes: dict[str, str],
+) -> set[str]:
+    """Return the set of WP IDs that are done (via recovery states or event log)."""
+    done_wp_ids: set[str] = set()
+    for rs in recovery_states:
+        if rs.status_lane == Lane.DONE.value or rs.resolution_note == "merged_and_deleted":
+            done_wp_ids.add(rs.wp_id)
+    for wp_id_ev, lane_ev in all_wp_lanes.items():
+        if lane_ev == Lane.DONE.value:
+            done_wp_ids.add(wp_id_ev)
+    return done_wp_ids
+
+
+def _compute_ready_to_start(
+    primary_dir: Path,
+    *,
+    all_task_wp_ids: list[str],
+    done_wp_ids: set[str],
+    represented_wps: set[str],
+    recovery_states: list[RecoveryState],
+) -> list[str]:
+    """Return WP IDs whose declared deps are all done (PRIMARY tasks/ read).
+
+    ``_read_wp_dependencies`` reads WP frontmatter from ``tasks/`` (WORK_PACKAGE_TASK,
+    PRIMARY-partition) on *primary_dir*. Empty when there is no post-merge context.
+    """
+    if not done_wp_ids:
+        return []
+    ready_to_start: list[str] = []
+    for wp_id in all_task_wp_ids:
+        if wp_id in done_wp_ids:
+            continue
+        if wp_id in represented_wps:
+            existing = next((rs for rs in recovery_states if rs.wp_id == wp_id), None)
+            if existing and existing.resolution_note not in (
+                "merged_and_deleted", "ready_to_start_from_target", "",
+            ):
+                continue
+        deps = _read_wp_dependencies(primary_dir, wp_id)
+        if deps and all(dep in done_wp_ids for dep in deps):
+            ready_to_start.append(wp_id)
+    return ready_to_start
+
+
+def _append_ready_to_start(
+    recovery_states: list[RecoveryState],
+    *,
+    ready_to_start: list[str],
+    all_wp_lanes: dict[str, str],
+) -> None:
+    """Append synthetic ``ready_to_start_from_target`` states (de-duplicated)."""
+    for wp_id in ready_to_start:
+        if any(
+            rs.wp_id == wp_id and rs.resolution_note == "ready_to_start_from_target"
+            for rs in recovery_states
+        ):
+            continue
+        recovery_states.append(
+            RecoveryState(
+                wp_id=wp_id,
+                lane_id="",
+                branch_name="",
+                branch_exists=False,
+                worktree_exists=False,
+                context_exists=False,
+                status_lane=all_wp_lanes.get(wp_id, "planned"),
+                has_commits=False,
+                recovery_action="no_action",
+                resolution_note="ready_to_start_from_target",
+            )
+        )
+
+
+def scan_recovery_state(
     repo_root: Path,
     mission_slug: str,
     *,
@@ -347,220 +576,73 @@ def scan_recovery_state(  # noqa: C901
     When ``consult_status_events=False``, only the live-branch scan runs
     (legacy path, no event-log consultation).
 
+    PRIMARY/STATUS read split (FR-002 / #2185, C-001): planning artifacts
+    (``lanes.json`` / ``tasks/``, PRIMARY-partition) resolve through the
+    kind-aware seam onto the PRIMARY checkout; the status event log (STATUS)
+    stays coord-aware so it reads the worktree-local ``status.events.jsonl``.
+
     Returns a list of RecoveryState objects for WPs that need attention.
     The returned list now also contains synthetic RecoveryState entries
     (recovery_action="no_action") for WPs that are ``ready_to_start_from_target``
     even though they have no live branch — callers can check the
     ``resolution_note`` field to distinguish these from real recovery cases.
     """
-    feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    # PRIMARY leg: lanes.json / tasks/ live on the PRIMARY checkout (#2106). A
+    # single PRIMARY read dir co-resolves both LANE_STATE and WORK_PACKAGE_TASK.
+    primary_dir = resolve_planning_read_dir(
+        repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+    )
+    # STATUS leg: the append-only event log stays coord-aware (C-001 / #2155).
+    coord_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
 
-    # Collect all lane branches (skip the mission integration branch itself)
     branches = _list_mission_branches(repo_root, mission_slug)
-    lane_branches = [
-        b for b in branches
-        if parse_lane_id_from_branch(b) is not None
-    ]
+    lane_branches = [b for b in branches if parse_lane_id_from_branch(b) is not None]
 
-    mission_branch = _resolve_mission_branch(feature_dir, mission_slug)
+    mission_branch = _resolve_mission_branch(primary_dir, mission_slug)
+    contexts_by_lane = _collect_contexts_by_lane(repo_root, mission_slug)
 
-    # Build a map of existing contexts by lane_id
-    contexts_by_lane: dict[str, WorkspaceContext] = {}
-    for ctx in list_contexts(repo_root):
-        if ctx.mission_slug == mission_slug:
-            contexts_by_lane[ctx.lane_id] = ctx
+    all_wp_lanes: dict[str, str] = (
+        _get_all_wp_lanes_from_events(coord_dir) if consult_status_events else {}
+    )
 
-    # -----------------------------------------------------------------
-    # Status-events-aware path (consult_status_events=True)
-    # -----------------------------------------------------------------
-    # Build a full lane-snapshot so we can answer:
-    # (a) Is this WP already "done" (merged-and-deleted)?
-    # (b) Are all of this WP's declared deps "done"?
-    all_wp_lanes: dict[str, str] = {}
-    if consult_status_events:
-        all_wp_lanes = _get_all_wp_lanes_from_events(feature_dir)
-
-    recovery_states: list[RecoveryState] = []
-
-    for branch in lane_branches:
-        lane_id = parse_lane_id_from_branch(branch)
-        if lane_id is None:
-            continue
-
-        # Check worktree existence
-        worktree_path_from_git = _worktree_exists_for_branch(repo_root, branch)
-        expected_worktree = _worktree_path(
-            repo_root, mission_slug, mission_id=None, lane_id=lane_id
-        )
-        worktree_exists = (
-            worktree_path_from_git is not None
-            or expected_worktree.exists()
-        )
-
-        # Check context existence
-        context = contexts_by_lane.get(lane_id)
-        context_exists = context is not None
-
-        # Check if branch has commits beyond the mission branch
-        has_commits = _branch_has_commits_beyond(repo_root, branch, mission_branch)
-
-        # Get WP IDs for this lane
-        wp_ids = _find_wp_ids_for_lane(feature_dir, lane_id)
-        if not wp_ids:
-            # If we can't find WP IDs from lanes.json, use context
-            wp_ids = list(context.lane_wp_ids) if context and context.lane_wp_ids else ["unknown"]
-
-        # Determine recovery action for each WP in the lane
-        for wp_id in wp_ids:
-            status_lane = _get_wp_lane_from_events(feature_dir, wp_id)
-
-            # Determine the needed recovery action
-            if not worktree_exists and not context_exists:
-                # Both missing but branch exists — need full recovery
-                recovery_action = "recreate_worktree"
-            elif not worktree_exists and context_exists:
-                # Context exists but worktree is gone
-                recovery_action = "recreate_worktree"
-            elif worktree_exists and not context_exists:
-                # Worktree exists but context is gone
-                recovery_action = "recreate_context"
-            elif has_commits and bool(_get_recovery_transitions(Lane(status_lane))):
-                # Everything exists but status is behind
-                recovery_action = "emit_transitions"
-            else:
-                recovery_action = "no_action"
-
-            recovery_states.append(
-                RecoveryState(
-                    wp_id=wp_id,
-                    lane_id=lane_id,
-                    branch_name=branch,
-                    branch_exists=True,
-                    worktree_exists=worktree_exists,
-                    context_exists=context_exists,
-                    status_lane=status_lane,
-                    has_commits=has_commits,
-                    recovery_action=recovery_action,
-                )
-            )
+    recovery_states = _scan_live_branch_states(
+        repo_root,
+        mission_slug,
+        primary_dir=primary_dir,
+        coord_dir=coord_dir,
+        mission_branch=mission_branch,
+        lane_branches=lane_branches,
+        contexts_by_lane=contexts_by_lane,
+    )
 
     if not consult_status_events:
         # Legacy path: no event-log consultation, return early.
         return recovery_states
 
-    # -----------------------------------------------------------------
-    # Extended status-events path: scan WPs with NO live branch
-    # -----------------------------------------------------------------
-    # Build the set of WP IDs already represented in recovery_states.
+    # Extended status-events path: scan WPs with NO live branch.
     represented_wps = {rs.wp_id for rs in recovery_states}
+    all_task_wp_ids = _enumerate_expected_wp_ids(primary_dir)
+    _append_merged_and_deleted(
+        recovery_states,
+        all_task_wp_ids=all_task_wp_ids,
+        represented_wps=represented_wps,
+        all_wp_lanes=all_wp_lanes,
+    )
 
-    # Determine the set of expected WPs from lanes.json / tasks dir.
-    all_task_wp_ids = _read_all_wp_ids_from_tasks(feature_dir)
-    # Also pull from lanes.json if available.
-    try:
-        from specify_cli.lanes.persistence import read_lanes_json
-        manifest = read_lanes_json(feature_dir)
-        if manifest is not None:
-            for lane in manifest.lanes:
-                for wid in lane.wp_ids:
-                    if wid not in all_task_wp_ids:
-                        all_task_wp_ids.append(wid)
-    except Exception:  # noqa: BLE001
-        logger.debug("Could not read lanes.json for wp enumeration in %s", feature_dir)
-
-    # For every known WP that is NOT represented by a live branch, check
-    # whether the event log says it is "done" and whether its dependents
-    # are ready to start.
-    for wp_id in all_task_wp_ids:
-        if wp_id in represented_wps:
-            continue
-
-        event_lane = all_wp_lanes.get(wp_id, Lane.PLANNED.value)
-
-        if event_lane == Lane.DONE.value:
-            # WP is done in the event log but has no live branch →
-            # it was merged-and-deleted. Record it as a synthetic
-            # no-action state with a resolution_note so callers know
-            # why the branch is absent.
-            recovery_states.append(
-                RecoveryState(
-                    wp_id=wp_id,
-                    lane_id="",
-                    branch_name="",
-                    branch_exists=False,
-                    worktree_exists=False,
-                    context_exists=False,
-                    status_lane=event_lane,
-                    has_commits=False,
-                    recovery_action="no_action",
-                    resolution_note="merged_and_deleted",
-                )
-            )
-
-    # Build the updated represented set (now includes merged-and-deleted).
     represented_wps = {rs.wp_id for rs in recovery_states}
-
-    # Compute ready_to_start_from_target: a WP whose branch is absent AND
-    # not yet done AND all its declared deps are done (either via live
-    # merged_and_deleted record above or via event-log lane == "done").
-    done_wp_ids: set[str] = set()
-    for rs in recovery_states:
-        if rs.status_lane == Lane.DONE.value or rs.resolution_note == "merged_and_deleted":
-            done_wp_ids.add(rs.wp_id)
-    # Also include WPs the event-log says are done that may not appear in
-    # the task files list yet.
-    for wp_id_ev, lane_ev in all_wp_lanes.items():
-        if lane_ev == Lane.DONE.value:
-            done_wp_ids.add(wp_id_ev)
-
-    # We only compute ready_to_start when the event log shows that at least
-    # one WP has been merged-and-deleted. If the log is empty (mission not
-    # started) or has no done entries, there is no "post-merge" context and
-    # the ready_to_start list is meaningless.
-    ready_to_start: list[str] = []
-    if not done_wp_ids:
-        # No done WPs → not in a post-merge state; skip ready_to_start
-        pass
-    else:
-        for wp_id in all_task_wp_ids:
-            if wp_id in done_wp_ids:
-                continue  # already done
-            # Skip WPs that have a live branch (being actively worked on)
-            if wp_id in represented_wps:
-                existing = next((rs for rs in recovery_states if rs.wp_id == wp_id), None)
-                if existing and existing.resolution_note not in ("merged_and_deleted", "ready_to_start_from_target", ""):
-                    continue
-
-            deps = _read_wp_dependencies(feature_dir, wp_id)
-            if deps and all(dep in done_wp_ids for dep in deps):
-                # All explicit deps are done → this WP is unblocked.
-                ready_to_start.append(wp_id)
-
-    # Attach ready_to_start info as a special synthetic state (so callers
-    # can retrieve it from the list return value using a well-known
-    # resolution_note without changing the return type signature).
-    # We ALSO embed the list into the existing entries for convenience by
-    # monkey-patching the first entry; however the cleanest API is to check
-    # resolution_note == "ready_to_start_from_target" on any entry.
-    for wp_id in ready_to_start:
-        # Avoid duplicating entries that already exist
-        if any(rs.wp_id == wp_id and rs.resolution_note == "ready_to_start_from_target" for rs in recovery_states):
-            continue
-        recovery_states.append(
-            RecoveryState(
-                wp_id=wp_id,
-                lane_id="",
-                branch_name="",
-                branch_exists=False,
-                worktree_exists=False,
-                context_exists=False,
-                status_lane=all_wp_lanes.get(wp_id, "planned"),
-                has_commits=False,
-                recovery_action="no_action",
-                resolution_note="ready_to_start_from_target",
-            )
-        )
-
+    done_wp_ids = _collect_done_wp_ids(recovery_states, all_wp_lanes)
+    ready_to_start = _compute_ready_to_start(
+        primary_dir,
+        all_task_wp_ids=all_task_wp_ids,
+        done_wp_ids=done_wp_ids,
+        represented_wps=represented_wps,
+        recovery_states=recovery_states,
+    )
+    _append_ready_to_start(
+        recovery_states,
+        ready_to_start=ready_to_start,
+        all_wp_lanes=all_wp_lanes,
+    )
     return recovery_states
 
 
@@ -608,7 +690,12 @@ def recover_context(
     When the context file is missing but the branch and worktree exist,
     reconstruct the context from available metadata.
     """
-    feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
+    # FR-001 (#2185): lane→WP membership and the mission branch are read from
+    # ``lanes.json`` (LANE_STATE) / ``meta.json`` (PRIMARY_METADATA) — both
+    # PRIMARY-partition, resolved topology-blind onto the PRIMARY checkout.
+    feature_dir = resolve_planning_read_dir(
+        repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+    )
     worktree_path = _worktree_path(
         repo_root, mission_slug, mission_id=None, lane_id=state.lane_id
     )
@@ -661,6 +748,10 @@ def reconcile_status(
     from specify_cli.coordination.status_transition import emit_status_transition_transactional
     from specify_cli.status import TransitionRequest  # noqa: PLC0415
 
+    # KEEP coord-aware (C-001 / #2155 analog): this ``feature_dir`` feeds
+    # ``emit_status_transition_transactional`` below — a STATUS-WRITE leg. The
+    # status event log lives on the coordination worktree for coord-topology
+    # missions, so this MUST stay on the coord-aware resolver — never route it.
     feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
     current_lane = state.status_lane
 

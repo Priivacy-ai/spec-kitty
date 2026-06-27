@@ -31,7 +31,8 @@ from specify_cli.merge._constants import logger
 from specify_cli.merge.config import MergeStrategy
 from specify_cli.merge.ordering import assign_next_mission_number
 from specify_cli.merge.state import needs_number_assignment
-from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+from mission_runtime import MissionArtifactKind
 from specify_cli.post_merge.review_artifact_consistency import (
     REJECTED_REVIEW_ARTIFACT_CONFLICT,
     ReviewArtifactPreflightResult,
@@ -149,15 +150,31 @@ def run_dry_run_forecast(
         raise typer.Exit(1)
 
     try:
+        # FR-001 (#2185): ``lanes.json`` is a LANE_STATE (PRIMARY-partition)
+        # artifact — it lives ONLY on the PRIMARY checkout post-#2106. The
+        # kind-blind ``candidate_feature_dir_for_mission`` lands on the STATUS-only
+        # ``-coord`` husk for a coord-topology mission, where ``lanes.json`` is
+        # absent → the forecast spuriously reports missing lanes. Route by kind so
+        # the dry-run reads the real PRIMARY lane manifest.
         lanes_manifest = require_lanes_json(
-            candidate_feature_dir_for_mission(get_main_repo_root(repo_root), resolved_feature)
+            resolve_planning_read_dir(
+                get_main_repo_root(repo_root),
+                resolved_feature,
+                kind=MissionArtifactKind.LANE_STATE,
+            )
         )
     except (MissingLanesError, CorruptLanesError) as exc:
         _emit_dry_run_error(error_msg=str(exc), json_output=json_output)
         raise typer.Exit(1) from exc
 
-    feature_dir_for_preview = candidate_feature_dir_for_mission(
-        get_main_repo_root(repo_root), resolved_feature
+    # FR-001 (#2185): the review-artifact consistency preflight reads ``tasks/``
+    # review-cycle artifacts (WORK_PACKAGE_TASK, PRIMARY-partition) and the
+    # ``would_assign_mission_number`` scan reads ``meta.json`` — both live on the
+    # PRIMARY checkout. Resolve by the WP-task kind so neither lands on the husk.
+    feature_dir_for_preview = resolve_planning_read_dir(
+        get_main_repo_root(repo_root),
+        resolved_feature,
+        kind=MissionArtifactKind.WORK_PACKAGE_TASK,
     )
 
     # FR-007/FR-008/FR-009: Run the same review-artifact consistency gate

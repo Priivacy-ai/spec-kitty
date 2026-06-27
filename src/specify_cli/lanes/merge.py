@@ -14,7 +14,8 @@ Strategy note (FR-006, FR-007):
 
 from __future__ import annotations
 
-from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
+from mission_runtime import MissionArtifactKind
+from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 import os
 import subprocess
 import sys
@@ -65,7 +66,12 @@ def _resolve_lane_manifest(
     """Return the provided manifest or load it from disk."""
     if lanes_manifest is not None:
         return lanes_manifest
-    feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
+    # FR-001 (#2185): ``lanes.json`` is LANE_STATE (PRIMARY-partition) — it lives
+    # ONLY on the PRIMARY checkout post-#2106. The coord-aware resolver lands on
+    # the STATUS-only ``-coord`` husk (no lanes.json), so route by kind.
+    feature_dir = resolve_planning_read_dir(
+        repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+    )
     return read_lanes_json(feature_dir)
 
 
@@ -195,7 +201,10 @@ def merge_mission_to_target(
         MissionMergeResult with success/error status.
     """
     if lanes_manifest is None:
-        feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
+        # FR-001 (#2185): LANE_STATE read — PRIMARY-partition (see above).
+        feature_dir = resolve_planning_read_dir(
+            repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+        )
         lanes_manifest = read_lanes_json(feature_dir)
         if lanes_manifest is None:
             return MissionMergeResult(
