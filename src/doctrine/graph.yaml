@@ -176,6 +176,9 @@ nodes:
 - urn: directive:DIRECTIVE_041
   kind: directive
   label: Tests as Scaffold, Not Friction
+- urn: directive:DIRECTIVE_042
+  kind: directive
+  label: Common Docs Documentation Standard
 - urn: paradigm:anemic-domain-model
   kind: paradigm
 - urn: paradigm:atomic-design
@@ -274,6 +277,9 @@ nodes:
 - urn: styleguide:aggregate-design-rules
   kind: styleguide
   label: Aggregate Design Rules
+- urn: styleguide:common-docs
+  kind: styleguide
+  label: Common Docs Styleguide
 - urn: styleguide:deployable-skill-authoring
   kind: styleguide
   label: Deployable Skill Authoring Styleguide
@@ -381,6 +387,18 @@ nodes:
 - urn: tactic:code-review-incremental
   kind: tactic
   label: Incremental Code Review
+- urn: tactic:common-docs-curation
+  kind: tactic
+  label: Common Docs Curation
+- urn: tactic:common-docs-find
+  kind: tactic
+  label: Common Docs Find
+- urn: tactic:common-docs-scaffold
+  kind: tactic
+  label: Common Docs Scaffold
+- urn: tactic:common-docs-write
+  kind: tactic
+  label: Common Docs Write
 - urn: tactic:compositional-stream-boundaries
   kind: tactic
   label: Compositional Stream Boundaries
@@ -1568,6 +1586,21 @@ edges:
 - source: directive:DIRECTIVE_041
   target: tactic:tdd-red-green-refactor
   relation: suggests
+- source: directive:DIRECTIVE_042
+  target: styleguide:common-docs
+  relation: suggests
+- source: directive:DIRECTIVE_042
+  target: tactic:common-docs-curation
+  relation: suggests
+- source: directive:DIRECTIVE_042
+  target: tactic:common-docs-find
+  relation: suggests
+- source: directive:DIRECTIVE_042
+  target: tactic:common-docs-scaffold
+  relation: suggests
+- source: directive:DIRECTIVE_042
+  target: tactic:common-docs-write
+  relation: suggests
 - source: paradigm:behaviour-driven-development
   target: directive:DIRECTIVE_034
   relation: requires
@@ -1969,6 +2002,21 @@ edges:
 - source: styleguide:aggregate-design-rules
   target: tactic:domain-event-capture
   relation: suggests
+- source: styleguide:common-docs
+  target: directive:DIRECTIVE_042
+  relation: suggests
+- source: styleguide:common-docs
+  target: tactic:common-docs-curation
+  relation: suggests
+- source: styleguide:common-docs
+  target: tactic:common-docs-find
+  relation: suggests
+- source: styleguide:common-docs
+  target: tactic:common-docs-scaffold
+  relation: suggests
+- source: styleguide:common-docs
+  target: tactic:common-docs-write
+  relation: suggests
 - source: styleguide:java-conventions
   target: agent_profile:java-jenny
   relation: suggests
@@ -2293,6 +2341,38 @@ edges:
   target: tactic:review-intent-and-risk-first
   relation: suggests
   when: Applying the intent-first review philosophy that this tactic adds incremental discipline to
+- source: tactic:common-docs-curation
+  target: directive:DIRECTIVE_042
+  relation: suggests
+  when: Consult throughout placement, frontmatter authoring, and ADR migration to apply the binding documentation rules.
+- source: tactic:common-docs-curation
+  target: styleguide:common-docs
+  relation: suggests
+  when: Consult while authoring frontmatter, naming files, and writing cross-references to apply the rule-to-check conventions.
+- source: tactic:common-docs-find
+  target: directive:DIRECTIVE_042
+  relation: suggests
+  when: Consult to apply the frontmatter-SSOT and generated-lockfile rules that make the DRG and page-inventory the authorities to search.
+- source: tactic:common-docs-find
+  target: styleguide:common-docs
+  relation: suggests
+  when: Consult to read the frontmatter fields (section, doc_status, related:) the lockfile and DRG expose for resolution.
+- source: tactic:common-docs-scaffold
+  target: directive:DIRECTIVE_042
+  relation: suggests
+  when: Consult while choosing the section and path to apply the single-root, 13-section, doc_status placement rules.
+- source: tactic:common-docs-scaffold
+  target: styleguide:common-docs
+  relation: suggests
+  when: Consult while seeding frontmatter and naming the file to apply the schema, kebab-case naming, and section-index conventions.
+- source: tactic:common-docs-write
+  target: directive:DIRECTIVE_042
+  relation: suggests
+  when: Consult to apply the binding frontmatter-SSOT and doc_status rules the styleguide conventions enforce.
+- source: tactic:common-docs-write
+  target: styleguide:common-docs
+  relation: suggests
+  when: 'Consult throughout authoring to apply the frontmatter schema, the 50-180 description band, related: paths, Divio type, and naming.'
 - source: tactic:compositional-stream-boundaries
   target: tactic:atomic-state-ownership
   relation: suggests

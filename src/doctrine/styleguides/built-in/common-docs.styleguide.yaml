@@ -1,0 +1,102 @@
+schema_version: "1.0"
+id: common-docs
+title: Common Docs Styleguide
+scope: docs
+applies_to_languages: []
+
+principles:
+  - "Single root, 13 sections. All documentation lives under one Common Docs root with the 13-section structure: index, context, architecture, adr, plans, api, configuration, integrations, security, guides, operations, migrations, changelog. Each directory carries its own index.md. No second documentation root and no per-version shadow tree."
+  - "Frontmatter is the per-page source of truth. In-file YAML frontmatter is the sole authority for per-page metadata. The page-inventory rollup is regenerated FROM frontmatter as a freshness-gated lockfile; it is never a parallel hand-maintained store."
+  - "Lifecycle key is doc_status, never status. The frontmatter lifecycle key is the namespaced doc_status with the controlled vocabulary draft | active | deprecated | superseded. The bare key status is prohibited in frontmatter because it collides with the work-package lane status model. The freshness date is carried by updated: YYYY-MM-DD."
+  - "SEO description is bounded. Frontmatter carries a description string of 50-180 characters (inclusive) consumed by the SEO post-processing step; descriptions outside that band are rejected."
+  - "Cross-references use related: resolvable paths. Cross-references are a related: frontmatter list of repo-relative .md paths that each resolve to an existing file. The dead citation_refs sidecar field is not reintroduced."
+  - "ADRs live under adr/<era>/ with YAML frontmatter. Architecture Decision Records are filed under adr/1.x/, adr/2.x/, or adr/3.x/ by era of decision and carry YAML frontmatter so the docsite can index them. The living architectural design collapses into a single unversioned architecture/ location."
+  - "Naming is kebab-case and section-scoped. Documentation file and directory names are lowercase kebab-case; ADR filenames keep their dated prefix; one concern per file."
+  - "Curate by delete-stale. docs/ is not a wiki: one concern per file, every behaviour-changing change updates the relevant docs in the same commit, and stale or deprecated documents are distilled into a decision (adr/) or design (architecture/) and then retired rather than accumulating."
+
+patterns:
+  - name: doc_status namespacing
+    description: >
+      Use the namespaced doc_status lifecycle key so a documentation lifecycle
+      value can never be confused with the work-package lane status term, by a
+      reader or by a grep.
+    bad_example: |
+      ---
+      title: Charter Activation
+      status: active
+      ---
+    good_example: |
+      ---
+      title: Charter Activation
+      doc_status: active
+      updated: 2026-06-27
+      ---
+  - name: related cross-reference
+    description: >
+      Express a cross-reference as a related: list of resolvable repo-relative
+      .md paths, validated at build time, rather than the dead citation_refs
+      sidecar field.
+    bad_example: |
+      # in docs/development/3-2-page-inventory.yaml
+      citation_refs: []   # populated in only 6 of 565 rows — effectively dead
+    good_example: |
+      ---
+      title: Charter Activation
+      doc_status: active
+      related:
+        - ../architecture/charter-activation.md
+        - ../adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md
+      ---
+
+anti_patterns:
+  - name: Second documentation root
+    description: >
+      A second top-level documentation root or a per-version shadow tree
+      re-creates the split-brain the Common Docs root exists to cure.
+    bad_example: |
+      architecture/3.x/...        # one root
+      docs/architecture/3x/...    # shadow duplicate of the same content
+    good_example: |
+      docs/architecture/...       # single living design, unversioned
+      docs/adr/3.x/...            # immutable era history only
+  - name: Sidecar metadata SSOT
+    description: >
+      Treating a sidecar inventory as the metadata source of truth forces
+      authors to keep a remembered rollup in sync and leaves the published site
+      reading a different store than the one being edited.
+    bad_example: |
+      # 565-row page-inventory.yaml hand-maintained as SSOT;
+      # frontmatter generated from it.
+    good_example: |
+      # Frontmatter is SSOT; page-inventory.yaml is regenerated from it
+      # and a freshness gate asserts the committed rollup is in sync.
+
+# Rule -> check mapping table (T008). Every documentation rule names the ONE live
+# check that enforces it. Zero rows carry check = none — that is what makes this
+# styleguide a checkable artifact rather than narrative. The named gates are
+# delivered by sibling work packages of the Common Docs consolidation mission.
+tooling:
+  structure-single-root-13-section: "WP05 anti-sprawl structure ratchet (asserts a single Common Docs root, all 13 sections present, no shadow tree; self-test also asserts DIRECTIVE_042 resolves to a loaded directive)."
+  adr-era-layout: "WP05 anti-sprawl structure ratchet (asserts ADRs resolve under adr/<era>/ and the living architecture/ is unversioned)."
+  naming-kebab-case: "WP05 anti-sprawl structure ratchet (asserts documentation file/dir names are lowercase kebab-case)."
+  curation-delete-stale: "WP05 anti-sprawl structure ratchet (asserts no orphaned/shadow documentation accumulates outside the single root)."
+  frontmatter-doc-status: "WP04 page-inventory lockfile freshness gate reads frontmatter REPORT-ONLY (it regenerates the rollup FROM frontmatter and reds on drift). It does NOT yet assert the doc_status controlled vocabulary or reject a bare status key; that vocabulary enforcement is deferred to Mission B (lands with the frontmatter backfill)."
+  frontmatter-ssot-lockfile: "WP04 page-inventory lockfile freshness gate (asserts the rollup is regenerated FROM frontmatter and the committed lockfile is in sync)."
+  frontmatter-seo-description: "WP04 page-inventory lockfile freshness gate (asserts every description is 50-180 characters)."
+  related-resolvable-paths: "WP03 related: path validator (asserts every related: entry resolves to an existing repo-relative .md path)."
+
+quality_test: >
+  A documentation change satisfies this styleguide when: the structure ratchet
+  (WP05) is green for a single 13-section root with no shadow tree; the
+  page-inventory lockfile freshness gate (WP04) is green — the rollup regenerates
+  FROM frontmatter with no drift, and every description is within 50-180
+  characters (the doc_status controlled vocabulary and the bare-status rejection
+  are read REPORT-ONLY in Mission A; that enforcement is deferred to Mission B);
+  and the related: path validator (WP03) resolves every cross-reference.
+
+references:
+  - src/doctrine/directives/built-in/042-common-docs.directive.yaml
+  - src/doctrine/tactics/built-in/common-docs-curation.tactic.yaml
+  - src/doctrine/tactics/built-in/common-docs-scaffold.tactic.yaml
+  - src/doctrine/tactics/built-in/common-docs-write.tactic.yaml
+  - src/doctrine/tactics/built-in/common-docs-find.tactic.yaml
