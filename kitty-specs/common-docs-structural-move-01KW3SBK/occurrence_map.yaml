@@ -425,6 +425,41 @@ moves:
       out-of-relocate-scope (not re-pointed). The two copies are kept in sync;
       root is the alias, docs/changelog is canonical.
 
+  # --- Divio -> 13-section re-section (FR-009, IC-01 correction / WP16) ---
+  # The 120 PUBLISHED Divio pages (how-to 67 + tutorials 9 + reference 22 +
+  # explanation 20 + recovery 2 baseline URLs) were absent from the original
+  # spine (IC-01 gap surfaced by WP09's review): without these pairs the pages
+  # orphan, guides/api stay empty, and the redirect derivation cannot preserve
+  # their public URLs. These are docs/-internal RE-SECTIONS (source under the
+  # published tree), so each baseline URL DOES earn a redirect entry — the
+  # redirect_map regen reads exactly these four pairs.
+  - from: ["docs/how-to", "docs/tutorials"]
+    to: docs/guides
+    reason: >-
+      Task- and learning-oriented Divio pages (how-to + tutorials) -> the
+      unified guides/ section (joins WP04's guides). N->1 merge: section
+      scaffolds (index.md/toc.yml) are kept data-preservingly under a
+      <source-section>- prefix (never overwrite WP04's canonical guides/index.md);
+      the 76 content pages relocate 1:1 with no basename collision.
+  - from: ["docs/reference"]
+    to: docs/api
+    reason: >-
+      Reference pages -> the NEW docs/api/ section (fills WP09's previously-empty
+      docfx glob). api/ is a fresh section, so reference/index.md becomes the
+      canonical api/index.md (section landing) — pure byte-preserving rename.
+  - from: ["docs/explanation"]
+    to: docs/architecture
+    reason: >-
+      Explanation ("why") pages -> the unified living design WP03 populated.
+      N->1 merge into a populated section: explanation's scaffolds kept under an
+      explanation- prefix (never overwrite WP03's architecture/index.md); the 19
+      content pages relocate 1:1 with no collision.
+  - from: ["docs/recovery"]
+    to: docs/operations
+    reason: >-
+      Recovery runbooks -> operations/ (joins WP04's ops). recovery/index.md kept
+      as operations/recovery-index.md (never overwrite WP04's operations/index.md).
+
   # --- DocFX manifest + TOC rewrite (FR-007) — config, rewritten in place ---
   - from: ["docs/docfx.json", "docs/llms.txt"]
     to: docs
@@ -502,7 +537,7 @@ status:
       doc PAGES but NOT this inventory file. The 4 constants in
       inventory_lockfile.py / check_docs_freshness.py / version_leakage_check.py
       / _inventory.py are UNCHANGED. Resolves the freshness-gate self-block.
-  path_pair_mappings: 23          # entries in moves: (20 original + 3 enumeration-completion)
+  path_pair_mappings: 27          # entries in moves: (20 original + 3 enumeration-completion + 4 Divio re-section, IC-01/WP16)
   runtime_critical_reads:
     # Re-derived live (C-003): genuine runtime path-RESOLUTION reads, not
     # docstring/prose mentions. Land FIRST with resolution tests (NFR-005).
