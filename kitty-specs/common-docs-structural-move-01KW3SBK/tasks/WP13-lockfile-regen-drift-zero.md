@@ -103,3 +103,4 @@ Planning + final merge target: `docs/2165-mission-b-structural-move`. Depends on
 
 - (populated at implement time)
 - 2026-06-27T17:46:30Z – claude:opus:python-pedro:implementer – shell_pid=1933182 – Assigned agent via action command
+- 2026-06-27T17:54:13Z – user – shell_pid=1933182 – Moved to planned

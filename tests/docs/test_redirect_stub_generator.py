@@ -38,8 +38,8 @@ from scripts.docs.redirect_stub_generator import (
     render_redirect_map,
 )
 
-# The single docs-published move that relocates a baseline URL: docs/3x -> docs/context.
-_MOVE_3X = Move(sources=("docs/3x",), dest="docs/context")
+# The single docs-published move that relocates a baseline URL: docs/context -> docs/context.
+_MOVE_3X = Move(sources=("docs/context",), dest="docs/context")
 
 # Realistic published-URL paths.
 _DIRECT_URL = "tutorials/getting-started.html"
@@ -99,7 +99,7 @@ def test_committed_map_covers_the_shadow_tree_redirects() -> None:
 
     WP10 resolves the three ``docs/<v>x`` shadow trees: ``docs/1x`` + ``docs/2x``
     (true HTML snapshots) are DELETED and each baseline URL redirects to its
-    pre-existing canonical archive twin (``archive/<v>x/*``); ``docs/3x`` (live
+    pre-existing canonical archive twin (``archive/<v>x/*``); ``docs/context`` (live
     charter content) is distilled + moved into ``context/`` and redirected there.
     This pins the full post-WP10 map — exactly what WP07's T045 anticipated:
     100% coverage is asserted once WP10's shadow-tree redirects land.
@@ -121,7 +121,7 @@ def test_committed_map_covers_the_shadow_tree_redirects() -> None:
         "2x/model-to-task_type.html": "archive/2x/model-to-task_type.html",
         "2x/orchestration-and-api.html": "archive/2x/orchestration-and-api.html",
         "2x/runtime-and-missions.html": "archive/2x/runtime-and-missions.html",
-        # docs/3x live charter content -> distilled into context/
+        # docs/context live charter content -> distilled into context/
         "3x/charter-overview.html": "context/charter-overview.html",
         "3x/governance-files.html": "context/governance-files.html",
         "3x/index.html": "context/index.html",

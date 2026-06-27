@@ -18,7 +18,7 @@ updated: '2026-05-21'
 > - `docs/development/3-2-version-taxonomy.md` (WP01 — five-tag taxonomy)
 > - `docs/docfx.json` (confirmed doc-site generator: **DocFX**)
 > - Live TOC files: `docs/toc.yml`, `docs/1x/toc.yml`, `docs/2x/toc.yml`,
->   `docs/3x/toc.yml`, `docs/architecture/toc.yml`, `docs/guides/toc.yml`,
+>   `docs/context/toc.yml`, `docs/architecture/toc.yml`, `docs/guides/toc.yml`,
 >   `docs/migration/toc.yml`, `docs/api/toc.yml`, `docs/guides/toc.yml`
 >
 > **No live TOC file is edited by WP03.** This plan is the deliverable.
@@ -38,7 +38,7 @@ enumerates `toc.yml` files for every published directory under `docs/`:
 docs/toc.yml
 docs/1x/toc.yml
 docs/2x/toc.yml
-docs/3x/toc.yml
+docs/context/toc.yml
 docs/architecture/toc.yml
 docs/guides/toc.yml
 docs/migration/toc.yml
@@ -303,7 +303,7 @@ directory move to `docs/archive/2x/` is WP09's job.
 
 ---
 
-### 4. `docs/3x/toc.yml` — 3.x current child TOC
+### 4. `docs/context/toc.yml` — 3.x current child TOC
 
 **Before snapshot** (live, 6 lines):
 
@@ -330,7 +330,7 @@ directory move to `docs/archive/2x/` is WP09's job.
 **Diff:** (no changes)
 
 **Rationale.** Inventory carries exactly 3 `current`-tagged pages under
-`docs/3x/` and all three are already in the TOC. The 3.2 refresh adds
+`docs/context/` and all three are already in the TOC. The 3.2 refresh adds
 content to `how-to/`, `reference/`, and `explanation/`; the `3x/`
 directory is for charter/governance overview pages and stays unchanged.
 
@@ -710,7 +710,7 @@ mission-canonical phrasing per Charter Terminology Canon, but that is a
 | `docs/toc.yml` | n/a (parent) | 9 | 9 (regrouped) | structural |
 | `docs/1x/toc.yml` | 5 | 5 | 5 | no changes |
 | `docs/2x/toc.yml` | 8 | 6 | 8 | additive + rename |
-| `docs/3x/toc.yml` | 3 | 3 | 3 | no changes |
+| `docs/context/toc.yml` | 3 | 3 | 3 | no changes |
 | `docs/architecture/toc.yml` | 15 | 15 | 15 | no changes |
 | `docs/guides/toc.yml` | 38 | 29 | 38 | additive |
 | `docs/migration/toc.yml` | 11 | 3 | 11 | additive |
@@ -745,7 +745,7 @@ drafted for WP07 reference and WP08 IA cross-linking.
 
 **Members.** All 88 pages tagged `current` in the WP02 inventory:
 
-- `docs/3x/**` (3 pages)
+- `docs/context/**` (3 pages)
 - `docs/guides/**` (7 pages)
 - `docs/guides/**` (37 pages)
 - `docs/api/**` (16 pages)
