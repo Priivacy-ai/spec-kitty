@@ -1,60 +1,44 @@
 # Spec Kitty Documentation
 
-Spec Kitty is the current documentation set for the Spec Kitty CLI, Charter governance model, AI harness integration, mission runtime, and project upgrade workflows. The docs are organized into a single 13-section Common Docs structure under one entry point.
+Spec Kitty 3.2 is the current documentation set for the Spec Kitty CLI, Charter governance model, AI harness integration, mission runtime, and project upgrade workflows.
 
 ## Current Version Stance
 
 - Current docs: https://docs.spec-kitty.ai/
-- Current overview: https://docs.spec-kitty.ai/context/
-- Current runtime model: Charter-era Spec Kitty
+- Current overview: https://docs.spec-kitty.ai/3x/
+- Current runtime model: Charter-era Spec Kitty 3.2
 - Current project governance source: `.kittify/charter/charter.md`
 - Current mission loop command: `spec-kitty next --agent <name> --mission <slug>`
 - Historical 1.x and 2.x pages are archived under `/archive/` and are not the starting point for new projects.
 
 ## Best Entry Points
 
-- Single entry point: https://docs.spec-kitty.ai/
-- New users and guided workflows: https://docs.spec-kitty.ai/guides/
-- API, CLI, schema, and environment reference: https://docs.spec-kitty.ai/api/
-- Configuration: https://docs.spec-kitty.ai/configuration/
-- Charter, governance, glossary, and audiences: https://docs.spec-kitty.ai/context/
-- Architecture and living design: https://docs.spec-kitty.ai/architecture/
-- Architecture decision records: https://docs.spec-kitty.ai/adr/
-- Upgrading projects: https://docs.spec-kitty.ai/migrations/
+- New users: https://docs.spec-kitty.ai/tutorials/getting-started.html
+- Upgrading projects: https://docs.spec-kitty.ai/migration/
+- Installing or upgrading CLI/project state: https://docs.spec-kitty.ai/how-to/install-and-upgrade.html
+- Harness support matrix: https://docs.spec-kitty.ai/reference/supported-harnesses.html
+- CLI reference: https://docs.spec-kitty.ai/reference/cli-commands.html
+- Charter model explanation: https://docs.spec-kitty.ai/3x/charter-overview.html
 - Historical archive: https://docs.spec-kitty.ai/archive/
 
-## Documentation Sections
+## Documentation Types
 
-The docs are a single 13-section Common Docs structure:
-
-- `context/` — glossary human narrative, audiences, and the Charter-era governance model.
-- `architecture/` — unified, unversioned living design.
-- `adr/` — architecture decision records by era (1.x, 2.x, 3.x).
-- `plans/` — user journeys, investigations, and traces (distil-then-retire).
-- `api/` — exact CLI, file, schema, and environment behavior.
-- `configuration/` — configuration files, flags, and environment variables.
-- `integrations/` — AI harness and external-system integration.
-- `security/` — security posture, credentials, and secrets handling.
-- `guides/` — task-oriented guides and guided learning workflows.
-- `operations/` — operational and developer-workflow guides.
-- `migrations/` — version migrations, upgrade paths, and shim rules.
-- `changelog/` — release history.
+- Tutorials teach complete guided workflows.
+- How-to guides solve specific operator tasks.
+- Reference pages define exact CLI, file, schema, and environment behavior.
+- Explanation pages describe mental models, architecture, and tradeoffs.
 
 ## Intent Routing
 
-When the question is about X, read Y first (each section has its own `index.md` landing page):
+When the question is about X, read Y first:
 
-- Getting started or first project — read `guides/index.md`.
-- Installing or upgrading the CLI or a project — read `guides/index.md`, then the migration notes under `migrations/index.md`.
-- Running a specific task (spec, plan, tasks, implement, review, merge) — read `guides/index.md`.
-- An exact command, flag, file, schema, or environment variable — read `api/index.md`.
-- Configuration files and environment variables — read `configuration/index.md`.
-- AI harness support and external integrations — read `integrations/index.md`.
-- Security, credentials, or secrets handling — read `security/index.md`.
-- Why something works the way it does (mental model, architecture, tradeoffs) — read `architecture/index.md`.
-- A specific architectural decision and its rationale — read `adr/index.md`.
-- Governance, Charter, doctrine, glossary, or agent profiles — read `context/index.md`.
-- Upgrading from 1.x or 2.x, or finding archived behavior — read `migrations/index.md`, then `archive/index.md`.
-- Recovering from a failed or interrupted operation — read `operations/index.md`.
-- Roadmap, investigations, or research traces — read `plans/index.md`.
-- Release history — read `changelog/index.md`.
+- Getting started or first project — read `tutorials/index.html`, then `tutorials/getting-started.html`.
+- Installing or upgrading the CLI or a project — read `how-to/install-and-upgrade.html` and the platform guides under `how-to/`.
+- Running a specific task (spec, plan, tasks, implement, review, merge) — read `how-to/index.html`, then the matching task guide.
+- An exact command, flag, file, schema, or environment variable — read `reference/index.html`, then `reference/cli-commands.html`.
+- Why something works the way it does (mental model, architecture, tradeoffs) — read `explanation/index.html`.
+- Governance, Charter, doctrine, or agent profiles — read `3x/index.html` and `doctrine/index.html`.
+- Upgrading from 1.x or 2.x, or finding archived behavior — read `migration/index.html`, then `archive/index.html`.
+- Recovering from a failed or interrupted operation — read `recovery/index.html` and the recovery how-tos under `how-to/`.
+- Which AI harness is supported and how — read `reference/supported-harnesses.html` and `reference/supported-agents.html`.
+- Mission state, work-package lanes, or the status model — read `status-model.html` and `explanation/kanban-workflow.html`.
