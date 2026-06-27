@@ -34,9 +34,10 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
+from specify_cli.invocation.adapters import get_saas_client as _get_saas_client_from_seam
+from specify_cli.invocation.adapters import resolve_sync_routing
 from specify_cli.invocation.projection_policy import EventKind, ModeOfWork, resolve_projection
 from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent
-from specify_cli.sync.routing import resolve_checkout_sync_routing
 
 # v2 Op lifecycle events accepted by the propagator (WP01 schema split).
 OpEvent = OpStartedEvent | OpCompletedEvent
@@ -54,35 +55,14 @@ def _track_send_task(task: asyncio.Task[Any]) -> None:
     task.add_done_callback(_PENDING_SEND_TASKS.discard)
 
 
-def _get_saas_client(repo_root: Path) -> Any | None:  # noqa: ARG001
-    """Return the connected WebSocketClient if authenticated; None otherwise.
+def _get_saas_client(repo_root: Path) -> Any | None:
+    """Return the connected SaaS client if available; None otherwise.
 
-    Mirrors the pattern in src/specify_cli/sync/emitter.py _is_authenticated()
-    and _route_event().  Never raises — returns None when no token is configured
-    or the WebSocket is not yet connected.
+    Dispatches through the invocation adapter seam so that propagator.py
+    has no direct import edge into the sync package (Leak #3 fix).
+    Never raises — the seam guarantees safe-degrade on missing registration.
     """
-    try:
-        from specify_cli.auth import get_token_manager
-        from specify_cli.sync.client import WebSocketClient
-
-        token_manager = get_token_manager()
-        if not bool(token_manager.is_authenticated):
-            return None
-
-        session = token_manager.get_current_session()
-        if session is None:
-            return None
-
-        # Attempt to get (or lazily build) a connected client.
-        # We intentionally avoid caching a singleton here: the propagator is
-        # process-scoped; if the session expires between invocations the next
-        # call returns None gracefully.
-        client: WebSocketClient | None = getattr(token_manager, "_ws_client", None)
-        if client is None or not getattr(client, "connected", False):
-            return None
-        return client
-    except Exception:  # noqa: BLE001
-        return None  # No token configured or sync module unavailable → no-op
+    return _get_saas_client_from_seam(repo_root)
 
 
 def _propagate_one(record: OpEvent, repo_root: Path) -> None:
@@ -102,8 +82,12 @@ def _propagate_one(record: OpEvent, repo_root: Path) -> None:
       4. Envelope build + send
     """
     # 1. Sync-gate: LOCAL-FIRST invariant (C-002, FR-012). Must remain first.
-    routing = resolve_checkout_sync_routing(repo_root)
-    if routing is not None and not routing.effective_sync_enabled:
+    # resolve_sync_routing returns bool | None via the invocation adapter seam:
+    #   None  → no resolver registered (safe-degrade, proceed)
+    #   True  → sync explicitly enabled (proceed)
+    #   False → sync explicitly disabled (early return, no-op)
+    sync_enabled = resolve_sync_routing(repo_root)
+    if sync_enabled is False:
         return  # Sync explicitly disabled for this checkout → no-op
 
     # 2. Auth/client lookup. Must remain second.

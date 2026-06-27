@@ -88,7 +88,7 @@ def test_mission_create_appends_mission_created_and_specify_started(tmp_path: Pa
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}.emit_mission_created"),
+        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(tmp_path, "lifecycle-stream-1067", **_mission_summary("lifecycle-stream-1067"))
@@ -115,7 +115,7 @@ def test_mission_create_specify_started_payload_references_spec_md(tmp_path: Pat
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}.emit_mission_created"),
+        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(tmp_path, "lifecycle-stream-1067", **_mission_summary("lifecycle-stream-1067"))
@@ -139,7 +139,7 @@ def test_mission_create_specify_started_is_idempotent(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}.emit_mission_created"),
+        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         first = create_mission_core(tmp_path, "lifecycle-stream-1067", **_mission_summary("lifecycle-stream-1067"))

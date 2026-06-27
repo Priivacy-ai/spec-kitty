@@ -131,7 +131,7 @@ def _common_patches(tmp_path: Path, mission_slug: str = "060-test-feature"):
             return_value=_fake_commit_result
         ),
         f"{MODULE}.run_command": MagicMock(return_value=(0, "abc1234", "")),
-        f"{CORE_MODULE}.emit_mission_created": MagicMock(),
+        "specify_cli.status.fire_dossier_sync": MagicMock(),
         f"{MODULE}.emit_wp_created": MagicMock(),
         f"{MODULE}.get_emitter": MagicMock(
             return_value=MagicMock(generate_causation_id=MagicMock(return_value="test-id")),

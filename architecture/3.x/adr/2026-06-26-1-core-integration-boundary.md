@@ -1,0 +1,233 @@
+# CORE / INTEGRATION Boundary Model
+
+**Filename:** `2026-06-26-1-core-integration-boundary.md`
+
+**Status:** Accepted
+
+**Date:** 2026-06-26
+
+**Deciders:** Jeroen Nouws (owner), Spec Kitty planning system (recommendation)
+
+**Technical Story:**
+- Mission `integration-boundary-01KW0PBE` — fix and enforce the CORE/INTEGRATION boundary
+- ADR `architecture/adrs/2026-05-11-1-defer-391-structural-extraction-from-3-2-x.md` — context for deferred physical extraction
+- `architecture/2.x/05_ownership_manifest.yaml` — package ownership map
+
+---
+
+## Context and Problem Statement
+
+`src/specify_cli/` contains two conceptually distinct layers: a **CORE** layer that
+implements the canonical mission lifecycle and governance logic, and an **INTEGRATION**
+layer that connects spec-kitty to external systems (SaaS, issue trackers, orchestrator).
+
+Before this mission, three import leaks allowed CORE modules to depend directly on
+INTEGRATION modules, violating the intended separation. These violations:
+
+1. Made the governance engine dependent on external-connector availability and startup
+   ordering.
+2. Made isolated testing of CORE logic harder (import side effects from INTEGRATION).
+3. Prevented future physical extraction of INTEGRATION to `src/orchestrator/`.
+
+This ADR records the boundary model, the one-directional rule, all allowlist exemptions,
+and deferred scope items so that contributors can understand the model without reading the
+enforcement test.
+
+## Decision Drivers
+
+* CORE governance logic (state machine, mission creation, readiness, invocation lifecycle)
+  must remain fast and independently testable without importing outbound connectors.
+* INTEGRATION modules (sync, tracker, SaaS, orchestrator client) can legitimately read
+  CORE state; the reverse dependency is an architectural inversion.
+* The observer/adapter registry pattern (already in use for `status/adapters.py`) is the
+  proven mechanism for decoupling CORE events from INTEGRATION consumers.
+* Physical extraction to `src/orchestrator/` is a planned future step; the boundary must
+  be enforced in-place first so that extraction can proceed safely.
+
+## Considered Options
+
+* **(A) Enforce in-place boundary** — add adapter registries in CORE; move INTEGRATION
+  logic into INTEGRATION-owned consumers; enforce with an AST-based test.
+* **(B) Defer until physical extraction** — allow the leaks to remain until
+  `src/orchestrator/` is ready.
+* **(C) Silently allowlist all three leaks** — add three blanket exemptions to the test.
+
+## Decision Outcome
+
+**Chosen option: (A) Enforce in-place boundary**, because CORE governance logic must be
+independently testable and the adapter-registry pattern is already proven in the codebase.
+Options (B) and (C) preserve structural coupling that makes the governance engine brittle.
+
+---
+
+## Set Definitions
+
+### CORE Set
+
+Modules that implement the canonical mission lifecycle and governance logic.
+These modules **MUST NOT** import from the INTEGRATION set.
+
+| Package | Root path | Description |
+|---------|-----------|-------------|
+| `core` | `src/specify_cli/core/` | Mission creation, contract gate, dependency graph |
+| `status` | `src/specify_cli/status/` | State machine, event log, adapter registry |
+| `readiness` | `src/specify_cli/readiness/` | Readiness checks and coordinator |
+| `invocation` | `src/specify_cli/invocation/` | Op lifecycle propagation and registry |
+
+### INTEGRATION Set
+
+Modules that connect spec-kitty to external systems.
+These modules **MAY** import CORE facades (allowed direction).
+
+| Package | Root path | Description |
+|---------|-----------|-------------|
+| `orchestrator_api` | `src/specify_cli/orchestrator_api/` | Orchestrator HTTP client |
+| `sync` | `src/specify_cli/sync/` | Real-time SaaS sync, WebSocket, OfflineQueue |
+| `tracker` | `src/specify_cli/tracker/` | Issue-tracker origin binding |
+| `saas` | `src/specify_cli/saas/` | SaaS-specific feature flags and rollout |
+| `saas_client` | `src/specify_cli/saas_client/` | SaaS REST client |
+
+### Out-of-Scope Modules (C-004)
+
+The following modules are **not classified** in either set for this mission.
+Their import patterns are **not checked** by `test_integration_boundary.py`.
+
+| Package | Root path | Reason for exclusion |
+|---------|-----------|----------------------|
+| `coordination` | `src/specify_cli/coordination/` | Deferred (C-004) |
+| `lanes` | `src/specify_cli/lanes/` | Deferred (C-004) |
+| `runtime` | `src/specify_cli/runtime/` and `src/runtime/` | Deferred (C-004) |
+
+---
+
+## The One-Directional Rule and Its Rationale
+
+```
+CORE must NOT import INTEGRATION.
+INTEGRATION may import CORE facades.
+```
+
+**Rationale:** CORE modules implement the canonical mission lifecycle and governance
+logic; coupling them to outbound adapters would make the governance engine depend on the
+availability and startup ordering of external connectors. Inversion (CORE fires events;
+INTEGRATION registers handlers) keeps the governance path fast, testable, and independent
+of connectivity.
+
+The adapter/observer registry pattern is the sanctioned mechanism for this inversion:
+
+- Core → Sync/Tracker/SaaS fan-out: register an observer with `status/adapters.py` or
+  `core/adapters.py`; call the fire function.
+- Invocation → Sync: register via `invocation/adapters.py`.
+
+---
+
+## Enforcement
+
+`tests/architectural/test_integration_boundary.py` enforces this rule on every CI run.
+The test:
+
+1. Uses stdlib `ast.walk` to scan **all** import forms — module-level,
+   `if TYPE_CHECKING:` blocks, and lazy function-body imports.
+2. Scans every `.py` file in all four CORE-set directories recursively.
+3. Fails with a message identifying: the violating source file, the offending import
+   path, and the corrective action (NFR-002: at least 3 diagnostic fields).
+4. Carries `pytest.mark.architectural`.
+5. Includes a path-existence sanity check for every CORE-set directory so that a
+   directory rename causes a loud failure rather than a vacuous pass (C-008).
+6. Includes a sanity sub-test that proves the allowlist cannot be bypassed silently.
+
+Any new `.py` file added to a CORE-set directory is automatically covered without
+any test change (FR-001, C-008).
+
+---
+
+## Allowlist Exemptions
+
+Each entry permits one specific `(source_module, imported_module)` pair with a written
+rationale. Exactly **one** exemption existed at the time this mission merged.
+
+| Source | Imported | Rationale | Planned resolution |
+|--------|----------|-----------|-------------------|
+| `readiness/coordinator.py` | `specify_cli.saas.rollout` | `is_saas_sync_enabled` is a pure feature-flag read (shared-config v1) with no side effects. Not a structural SaaS dependency. Exempted until `is_saas_sync_enabled` is relocated to a core/kernel config module. | Follow-up mission — no issue number assigned yet; tracked in this document. |
+
+**Adding new exemptions:** Do NOT add an allowlist entry unless the crossing is a
+deliberate, time-bounded exception with a written follow-up plan. Edit
+`test_integration_boundary.py` directly with a written rationale. Broadening an
+existing entry is not permitted.
+
+---
+
+## Adapter Registries Introduced by This Mission
+
+Three adapter registries were introduced or used to eliminate the leaks:
+
+| Registry | Module | Registration site |
+|----------|--------|-------------------|
+| Pending-origin consumer | `core/adapters.py` | `tracker/__init__.py` startup hook |
+| Sync-routing resolver | `invocation/adapters.py` | `sync/__init__.py` startup hook |
+| SaaS-client factory | `invocation/adapters.py` | `sync/__init__.py` startup hook |
+
+All registries follow the idempotent, non-raising contract established by
+`status/adapters.py`.
+
+---
+
+## Deferred Scope
+
+The following items are **out of scope** for this mission and are explicitly deferred:
+
+- **Physical extraction to `src/orchestrator/`** — deferred per ADR
+  `architecture/adrs/2026-05-11-1-defer-391-structural-extraction-from-3-2-x.md` and the
+  ownership manifest `architecture/2.x/05_ownership_manifest.yaml`. The boundary is
+  enforced in-place first; the physical move to a separate top-level package is a
+  follow-up mission.
+- **Bidirectional enforcement** (preventing INTEGRATION from importing CORE in ways that
+  violate contract) — out of scope for this mission (C-003); deferred to a follow-up.
+- **`coordination/`, `lanes/`, `runtime/`** — not classified in either set; their import
+  patterns are not checked by `test_integration_boundary.py` (C-004). Their boundary
+  classification is deferred.
+
+---
+
+## Consequences
+
+### Positive
+
+* CORE governance logic is independently testable without importing external connectors.
+* A new `.py` file in any CORE-set directory is automatically covered by the enforcement
+  test — no test change required.
+* The adapter-registry pattern is consistent across the codebase
+  (`status/adapters.py`, `core/adapters.py`, `invocation/adapters.py`).
+* Physical extraction to `src/orchestrator/` can proceed safely on top of this enforced
+  boundary.
+
+### Negative
+
+* The single remaining allowlist entry (`readiness/coordinator.py` →
+  `specify_cli.saas.rollout`) leaves one structural coupling in CORE until
+  `is_saas_sync_enabled` is relocated.
+
+### Neutral
+
+* `coordination/`, `lanes/`, and `runtime/` remain unclassified; their import patterns
+  accumulate unchecked until a follow-up mission addresses C-004.
+
+### Confirmation
+
+This decision is correct when:
+
+1. All three original leaks are fixed (WP01–WP03 merged and approved).
+2. `pytest tests/architectural/test_integration_boundary.py` passes with exactly one
+   allowlist entry.
+3. A follow-up mission successfully relocates `is_saas_sync_enabled` and removes the
+   last allowlist entry.
+
+## More Information
+
+- Mission spec: [`kitty-specs/integration-boundary-01KW0PBE/spec.md`](../../../kitty-specs/integration-boundary-01KW0PBE/spec.md)
+- Data model (set definitions and allowlist): [`kitty-specs/integration-boundary-01KW0PBE/data-model.md`](../../../kitty-specs/integration-boundary-01KW0PBE/data-model.md)
+- Contract: [`kitty-specs/integration-boundary-01KW0PBE/contracts/integration-boundary-rule.md`](../../../kitty-specs/integration-boundary-01KW0PBE/contracts/integration-boundary-rule.md)
+- Enforcement test: `tests/architectural/test_integration_boundary.py`
+- Physical extraction deferral: [`architecture/adrs/2026-05-11-1-defer-391-structural-extraction-from-3-2-x.md`](../../adrs/2026-05-11-1-defer-391-structural-extraction-from-3-2-x.md)
+- Ownership manifest: [`architecture/2.x/05_ownership_manifest.yaml`](../../2.x/05_ownership_manifest.yaml)
+- Shared-package-boundary precedent: [`architecture/3.x/adr/2026-04-25-1-shared-package-boundary.md`](2026-04-25-1-shared-package-boundary.md)

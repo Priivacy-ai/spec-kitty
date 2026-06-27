@@ -54,8 +54,7 @@ def _patched_mission_creation_context(tmp_path: Path):
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}.emit_mission_created"),
-        patch("specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled"),
+        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         yield

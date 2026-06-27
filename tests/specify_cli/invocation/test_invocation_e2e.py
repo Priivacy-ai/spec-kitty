@@ -37,7 +37,6 @@ from specify_cli.invocation.executor import ProfileInvocationExecutor
 from specify_cli.invocation.modes import ModeOfWork
 from specify_cli.invocation.record import OpStartedEvent
 from specify_cli.invocation.writer import EVENTS_DIR
-from specify_cli.sync.routing import CheckoutSyncRouting
 
 
 # ---------------------------------------------------------------------------
@@ -217,8 +216,8 @@ def test_invocations_list_reads_local_only(tmp_path: Path) -> None:
     jsonl.write_text(json.dumps(started_record) + "\n", encoding="utf-8")
 
     # _iter_records reads local JSONL with no SaaS access
-    # Patch resolve_checkout_sync_routing to ensure no SaaS lookup is attempted
-    with patch("specify_cli.invocation.propagator.resolve_checkout_sync_routing") as mock_routing:
+    # Patch resolve_sync_routing (seam) to ensure no SaaS lookup is attempted
+    with patch("specify_cli.invocation.propagator.resolve_sync_routing") as mock_routing:
         records = list(_iter_records(events_dir, profile_filter=None, limit=100, repo_root=project))
         # SaaS routing is NOT called by the read path — assert it was never invoked
         mock_routing.assert_not_called()
@@ -246,21 +245,10 @@ def test_sync_disabled_no_saas_events(tmp_path: Path) -> None:
     # (b) the JSONL file is written by the executor, not manually
     project = _setup_minimal_project(tmp_path)
 
-    disabled_routing = CheckoutSyncRouting(
-        repo_root=project,
-        project_uuid="test-uuid",
-        project_slug="test-slug",
-        build_id=None,
-        repo_slug="test-repo",
-        local_sync_enabled=False,
-        repo_default_sync_enabled=None,
-        effective_sync_enabled=False,
-    )
-
     with (
         patch(
-            "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-            return_value=disabled_routing,
+            "specify_cli.invocation.propagator.resolve_sync_routing",
+            return_value=False,  # sync explicitly disabled
         ),
         patch(
             "specify_cli.invocation.propagator._get_saas_client",
@@ -825,21 +813,10 @@ def test_sync_disabled_no_propagation_errors(tmp_path: Path) -> None:
     """
     project = _setup_minimal_project(tmp_path)
 
-    disabled_routing = CheckoutSyncRouting(
-        repo_root=project,
-        project_uuid="test-uuid",
-        project_slug="test-slug",
-        build_id=None,
-        repo_slug="test-repo",
-        local_sync_enabled=False,
-        repo_default_sync_enabled=None,
-        effective_sync_enabled=False,
-    )
-
     with (
         patch(
-            "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-            return_value=disabled_routing,
+            "specify_cli.invocation.propagator.resolve_sync_routing",
+            return_value=False,  # sync explicitly disabled
         ),
         patch("specify_cli.invocation.propagator._get_saas_client") as mock_client,
     ):
