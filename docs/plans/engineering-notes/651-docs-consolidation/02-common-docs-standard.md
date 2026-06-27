@@ -1,6 +1,6 @@
 ---
 title: Common Docs standard — full-adoption mechanics & the metadata-SSOT verdict
-description: What the Common Docs standard actually mandates, how spec-kitty adopts it fully (with adr/<era>/), and the verdict that in-file frontmatter becomes the metadata SSOT with the page-inventory regenerated as a validated lockfile.
+description: What the Common Docs standard mandates, how spec-kitty adopts it fully, and the verdict that in-file frontmatter becomes the metadata SSOT with a regenerated inventory lockfile.
 doc_status: active
 updated: '2026-06-27'
 related:

@@ -1,5 +1,6 @@
 ---
 title: Naming/Identity SSOT Strangler — Tracker Landscape (planner-priti)
+description: "Planner Priti's tracker landscape for the naming/identity SSOT strangler: the issues, epics, and sequencing under the decision-documentation directive."
 doc_status: draft
 updated: '2026-06-16'
 ---

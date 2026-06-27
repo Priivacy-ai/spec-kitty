@@ -1,6 +1,6 @@
 ---
 title: 'Migration: Mission ID as Canonical Identity'
-description: 'Migration guidance for Migration: Mission ID as Canonical Identity in Spec Kitty 3.2, including upgrade context and historical behavior boundaries.'
+description: "Migration to mission_id (ULID) as a mission's canonical identity, shipped with mission 083: the new identity model, the backfill, and the ADR behind it."
 doc_status: active
 updated: '2026-06-03'
 related:

@@ -1,5 +1,6 @@
 ---
 title: '#2007 tracker-hygiene action log — planner-priti'
+description: "Planner Priti's tracker-hygiene action log for #2007: the scoping and recording-only operations performed under operator authorization (2026-06-16)."
 doc_status: draft
 updated: '2026-06-16'
 ---

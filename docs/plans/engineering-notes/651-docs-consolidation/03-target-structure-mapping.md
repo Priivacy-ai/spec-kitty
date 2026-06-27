@@ -1,6 +1,6 @@
 ---
 title: 'Target structure & tree mapping — #651 docs consolidation'
-description: The canonical Common Docs top-level structure for spec-kitty and the per-tree mapping decisions (operator-directed), including the glossary/dashboard constraint and the open engineering_notes-location question.
+description: The canonical Common Docs top-level structure for spec-kitty and the per-tree mapping decisions, including the glossary/dashboard constraint and engineering_notes location.
 doc_status: active
 updated: '2026-06-27'
 related:

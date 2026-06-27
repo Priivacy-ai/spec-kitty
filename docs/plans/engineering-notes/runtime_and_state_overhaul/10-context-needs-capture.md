@@ -1,5 +1,6 @@
 ---
 title: '10 — Context Needs: Requirements Capture (idea → working code)'
+description: Requirements capture (Phase 2, intuition pass) of what each context needs in the runtime and state overhaul; some claims later revised by note 11.
 doc_status: draft
 updated: '2026-06-15'
 related:

@@ -1,5 +1,6 @@
 ---
 title: Engineering notes — Findings
+description: 'Landing page for the findings engineering notes: process observations from running missions end-to-end, as read-only inputs to future doctrine improvements.'
 doc_status: draft
 updated: '2026-05-26'
 related:

@@ -1,5 +1,6 @@
 ---
 title: Engineering notes — Architectural reviews
+description: 'Landing page for the architectural-reviews engineering notes: on-demand deep-dive reviews of the spec-kitty codebase by architect-profile agents.'
 doc_status: draft
 updated: '2026-05-26'
 related:

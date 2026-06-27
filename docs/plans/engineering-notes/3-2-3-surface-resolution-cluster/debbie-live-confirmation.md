@@ -1,5 +1,6 @@
 ---
 title: Spec Kitty 3.2.3 patch — debugger-debbie investigation
+description: Debugger Debbie's live confirmation and root-cause of each 3.2.3 surface-resolution ticket, classifying the coord/primary split-brain and whether SSOT alignment fixes it.
 doc_status: draft
 updated: '2026-06-26'
 ---

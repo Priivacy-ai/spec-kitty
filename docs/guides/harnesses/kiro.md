@@ -1,6 +1,6 @@
 ---
 title: Use Spec Kitty in Kiro
-description: Configure the Use Spec Kitty in Kiro harness for Spec Kitty 3.2 commands, generated skills, and agent workflow integration.
+description: 'How to use Spec Kitty in Kiro (partial tier): a bootstrap-only surface in 3.2, to be promoted once the full /spec-kitty.* command set is verified end-to-end.'
 doc_status: active
 updated: '2026-06-03'
 related:

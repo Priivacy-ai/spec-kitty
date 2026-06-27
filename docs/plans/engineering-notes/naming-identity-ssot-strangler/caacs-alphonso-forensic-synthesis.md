@@ -1,5 +1,6 @@
 ---
 title: 'CaaCS — Architect Alphonso: Forensic→Architecture Synthesis (3.2.1)'
+description: Architect Alphonso's CaaCS forensic-to-architecture synthesis (3.2.1) for the naming/identity SSOT strangler, connecting behavioral evidence to the design.
 doc_status: draft
 updated: '2026-06-16'
 ---

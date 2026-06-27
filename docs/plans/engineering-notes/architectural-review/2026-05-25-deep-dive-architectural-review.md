@@ -1,5 +1,6 @@
 ---
 title: Architectural deep-dive — 2026-05-25
+description: Architect Alphonso's post-mission-122 architectural deep-dive (2026-05-25) across the full src/ tree, emphasizing the charter/doctrine/specify_cli bounded contexts.
 doc_status: draft
 updated: '2026-05-26'
 ---

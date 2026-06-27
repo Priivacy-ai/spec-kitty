@@ -1,5 +1,6 @@
 ---
 title: 16 — Codebase Reassessment (Debbie/Pedro fan-out)
+description: 'Codebase reassessment (Phase 2-3 bridge): six parallel investigators validating the sharpened domain hypotheses against the code, for the runtime and state overhaul.'
 doc_status: draft
 updated: '2026-06-03'
 ---

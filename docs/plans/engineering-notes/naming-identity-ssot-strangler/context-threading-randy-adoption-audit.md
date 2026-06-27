@@ -1,5 +1,6 @@
 ---
 title: Randy Reducer — Context-Threading Adoption Audit (the non-adoption split-brain)
+description: "Randy Reducer's empirical context-threading adoption audit: measuring the non-adoption split-brain against one specific operator claim."
 doc_status: draft
 updated: '2026-06-16'
 ---
