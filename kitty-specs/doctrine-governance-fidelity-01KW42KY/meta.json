@@ -1,0 +1,31 @@
+{
+  "accept_commit": "158275d97d4e5eced5b99e3414e8851fb7b3725c",
+  "acceptance_history": [
+    {
+      "accept_commit": "158275d97d4e5eced5b99e3414e8851fb7b3725c",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-27T11:24:51.838950+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "058470b34012a92c5b273dbbc1a79c61787841e6"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-27T11:24:51.838950+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "058470b34012a92c5b273dbbc1a79c61787841e6",
+  "baseline_merge_commit": "0fcc9d2db6ff1bbad50403069f8ee394f29a7495",
+  "created_at": "2026-06-27T08:19:56.235053+00:00",
+  "flattened": false,
+  "friendly_name": "doctrine governance fidelity",
+  "mission_id": "01KW42KY6AXQ3B6DTCTFT0XMTV",
+  "mission_number": 151,
+  "mission_slug": "doctrine-governance-fidelity-01KW42KY",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances doctrine governance fidelity on mission/doctrine-governance-fidelity so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "doctrine governance fidelity",
+  "slug": "doctrine-governance-fidelity-01KW42KY",
+  "target_branch": "mission/doctrine-governance-fidelity",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-27T09:49:57.341011+00:00"
+}
