@@ -170,6 +170,15 @@ def build_parser() -> argparse.ArgumentParser:
         help="Pass --strict-mode through to the CLI reference checker.",
     )
     parser.add_argument(
+        "--inventory-lockfile",
+        action="store_true",
+        help=(
+            "Enable the report-only frontmatter->inventory lockfile drift check "
+            "(ADR 2026-06-27-1 D1). Emits INVENTORY-LOCKFILE-DRIFT warnings; "
+            "never changes the exit code in Mission A."
+        ),
+    )
+    parser.add_argument(
         "--random-seed",
         type=int,
         default=None,
@@ -283,6 +292,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         strict_mode=args.strict_mode,
         saas_sync_enabled=True,
         random_seed=args.random_seed,
+        inventory_lockfile_check=args.inventory_lockfile,
     )
 
     _emit_report(report, ci=args.ci, report_path=args.report)
@@ -299,11 +309,18 @@ def run_orchestrator(
     strict_mode: bool,
     saas_sync_enabled: bool,
     random_seed: int | None = None,
+    inventory_lockfile_check: bool = False,
 ) -> FreshnessReport:
     """Run every sub-check and assemble a :class:`FreshnessReport`.
 
     Pure orchestration logic — split out from :func:`main` so tests can
     drive it without spelunking through argparse.
+
+    When ``inventory_lockfile_check`` is set, the inverted ruler (ADR
+    2026-06-27-1 D1) regenerates the inventory from in-file frontmatter and
+    reports any drift against the committed lockfile as
+    ``INVENTORY-LOCKFILE-DRIFT`` *warnings* — report-only in Mission A, so the
+    aggregate exit code is unaffected.
     """
     started_at = _now_iso()
     findings: list[FreshnessFinding] = []
@@ -411,6 +428,10 @@ def run_orchestrator(
     # --- Sub-check 4: page-inventory completeness --------------------------
     completeness = _check_page_inventory_completeness(inventory, docs_root)
     findings.extend(completeness)
+
+    # --- Sub-check 5: inventory lockfile drift (report-only, opt-in) --------
+    if inventory_lockfile_check:
+        findings.extend(_check_inventory_lockfile_drift(inventory, docs_root))
 
     visible_paths_count = sum(
         1 for f in findings if f.rule_id.startswith("REF-")
@@ -651,6 +672,56 @@ def _check_page_inventory_completeness(
             )
         )
     return findings
+
+
+# ---------------------------------------------------------------------------
+# Inventory lockfile drift (inverted ruler — report-only)
+# ---------------------------------------------------------------------------
+
+
+def _check_inventory_lockfile_drift(
+    inventory: Path, docs_root: Path
+) -> list[FreshnessFinding]:
+    """Regenerate the rollup from frontmatter and report drift as warnings.
+
+    This is the inverted ruler (ADR 2026-06-27-1 D1): rather than asserting
+    "every page is in the sidecar", it asserts "the committed inventory equals
+    a fresh generation from frontmatter". Report-only in Mission A — every
+    finding is a ``warning`` so the aggregate exit code stays clean.
+    """
+    from scripts.docs.inventory_lockfile import run_generate_and_compare
+
+    if not docs_root.exists() or not docs_root.is_dir():
+        return []
+
+    report = run_generate_and_compare(
+        docs_root=docs_root,
+        inventory=inventory,
+        repo_root=None,
+        strict=False,
+    )
+    findings: list[FreshnessFinding] = []
+    for path in report.drift.added:
+        findings.append(_lockfile_finding(path, "present in frontmatter, absent from inventory"))
+    for path in report.drift.removed:
+        findings.append(_lockfile_finding(path, "present in inventory, absent from frontmatter walk"))
+    for path in report.drift.changed:
+        findings.append(_lockfile_finding(path, "inventory row disagrees with regenerated frontmatter"))
+    return findings
+
+
+def _lockfile_finding(location: str, message: str) -> FreshnessFinding:
+    """Build a report-only ``INVENTORY-LOCKFILE-DRIFT`` warning."""
+    return FreshnessFinding(
+        rule_id="INVENTORY-LOCKFILE-DRIFT",
+        severity="warning",
+        location=location,
+        message=message,
+        suggested_action=(
+            "regenerate the lockfile with scripts/docs/inventory_lockfile.py "
+            "(Mission B makes this gate blocking)"
+        ),
+    )
 
 
 # ---------------------------------------------------------------------------

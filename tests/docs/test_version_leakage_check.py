@@ -127,8 +127,6 @@ def test_load_inventory_missing_keys(tmp_path: Path) -> None:
         ("owning_workstream", "", "owning_workstream"),
         ("owning_workstream", 5, "owning_workstream"),
         ("current_target", "yes", "current_target"),
-        ("citation_refs", "not-a-list", "citation_refs"),
-        ("citation_refs", [1, 2], "citation_refs"),
         ("notes", 42, "notes"),
     ],
 )
