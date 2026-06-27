@@ -265,18 +265,23 @@ def _resolve_template_set(
     requested_template_set: str | None,
     catalog: DoctrineCatalog,
 ) -> str:
+    # ``catalog`` resolves to ``Any`` under single-file mypy, so bind the
+    # attribute to its declared element type; this lets mypy infer ``str`` for
+    # ``min(...)`` instead of propagating ``Any`` (no-any-return).
+    template_sets: frozenset[str] = catalog.template_sets
+
     if requested_template_set:
-        if catalog.template_sets and requested_template_set not in catalog.template_sets:
-            options = ", ".join(sorted(catalog.template_sets))
+        if template_sets and requested_template_set not in template_sets:
+            options = ", ".join(sorted(template_sets))
             raise ValueError(f"Unknown template set '{requested_template_set}'. Available template sets: {options}")
         return requested_template_set
 
     mission_default = f"{mission}-default"
-    if mission_default in catalog.template_sets:
+    if mission_default in template_sets:
         return mission_default
 
-    if catalog.template_sets:
-        return min(catalog.template_sets)
+    if template_sets:
+        return min(template_sets)
 
     return mission_default
 
@@ -941,7 +946,7 @@ def _render_directives(
 
     docs = interview.answers.get("documentation_policy")
     if docs:
-        lines.append(f"{index}. Keep documentation synchronized with workflow and behavior changes.")
+        lines.append(f"{index}. Keep documentation synchronized with workflow and behavior changes: {docs}")
         index += 1
 
     if not lines:
