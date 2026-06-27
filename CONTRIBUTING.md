@@ -116,7 +116,7 @@ pytest tests/integration/test_version_isolation.py  # Isolation tests
 
 To run the suite in parallel (typically ≥2× faster on a ≥4-core machine), plus
 the serial daemon pass and the coverage-neutrality gates, see
-[Running the test suite in parallel](development/testing-parallel.md).
+[Running the test suite in parallel](docs/development/testing-parallel.md).
 
 ### Testing Unreleased Main or a Pull Request
 

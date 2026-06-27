@@ -30,7 +30,7 @@ This is expected and documented:
 - The triage classifies **90 of the 249** baseline failures as **pre-existing
   C99-bucket** items that fall outside the mission scope (FR-005 / C-005).
 - Per DIR-013, these are filed as **10 GitHub sub-issues** (see
-  [`dir013-issues.md`](dir013-issues.md)) for follow-up missions to own.
+  [`dir013-issues.md`](2026-05-25-01KSF9HJ-dir013-sub-issues.md)) for follow-up missions to own.
 - The fix-here portion (clusters C1–C11, ~161 failures by triage count) is
   resolved on the mission branch but **not yet merged into `main`**. The full
   post-merge baseline will only be measurable after `spec-kitty merge` lands
@@ -58,7 +58,7 @@ subsequent missions.
 | 9 | C99-j chokepoints — meta.json + lane regression | #1309 |
 | 10 | C99-j misc — auth / invocation / doctrine / mypy / mission switching | #1310 |
 
-See [`dir013-issues.md`](dir013-issues.md) for the full table.
+See [`dir013-issues.md`](2026-05-25-01KSF9HJ-dir013-sub-issues.md) for the full table.
 
 ## Work-package landing summary
 
@@ -81,7 +81,7 @@ See [`dir013-issues.md`](dir013-issues.md) for the full table.
 
 ## Acceptance criteria status
 
-- **FR-001 / FR-002 (triage):** ✅ — [`triage.md`](triage.md) buckets all 249
+- **FR-001 / FR-002 (triage):** ✅ — [`triage.md`](2026-05-25-01KSF9HJ-test-failure-triage.md) buckets all 249
   baseline failures across 13 clusters, owners assigned.
 - **FR-003 / FR-004 (Wave T surgical):** ✅ — WP02 + WP03 landed.
 - **FR-005 (defer-to-sub-issue clarity):** ✅ — 10 DIR-013 issues filed.

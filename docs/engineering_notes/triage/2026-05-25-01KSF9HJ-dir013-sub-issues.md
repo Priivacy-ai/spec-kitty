@@ -2,7 +2,7 @@
 
 This document records the GitHub sub-issues filed per DIR-013
 (Pre-existing Failure Reporting Rule) from the triage in
-[`triage.md`](triage.md). Parent issue: [Priivacy-ai/spec-kitty#1298].
+[`triage.md`](2026-05-25-01KSF9HJ-test-failure-triage.md). Parent issue: [Priivacy-ai/spec-kitty#1298].
 
 All issues filed against `Priivacy-ai/spec-kitty` on 2026-05-25 from the
 WP04 closeout workstation.
