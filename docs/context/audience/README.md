@@ -1,3 +1,11 @@
+---
+title: Architecture Audience
+doc_status: active
+updated: '2026-03-10'
+related:
+- docs/context/audience/external/README.md
+- docs/context/audience/internal/README.md
+---
 # Architecture Audience
 
 This directory captures architecture-level personas for Spec Kitty.

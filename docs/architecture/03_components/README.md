@@ -1,3 +1,10 @@
+---
+title: 2.x Components
+doc_status: active
+updated: '2026-04-05'
+related:
+- docs/architecture/README.md
+---
 # 2.x Components
 
 | Field | Value |

@@ -1,8 +1,11 @@
 ---
-title: "Migration: Mission ID as Canonical Identity"
-description: "Migration guidance for Migration: Mission ID as Canonical Identity in Spec Kitty 3.2, including upgrade context and historical behavior boundaries."
+title: 'Migration: Mission ID as Canonical Identity'
+description: 'Migration guidance for Migration: Mission ID as Canonical Identity in Spec Kitty 3.2, including upgrade context and historical behavior boundaries.'
+doc_status: active
+updated: '2026-06-03'
+related:
+- docs/migration/feature-flag-deprecation.md
 ---
-
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 
 # Migration: Mission ID as Canonical Identity

@@ -1,3 +1,8 @@
+---
+title: Test Improvement Initiative
+doc_status: draft
+updated: '2026-04-05'
+---
 # Test Improvement Initiative
 
 > **Status:** Complete — pending merge to `2.x`

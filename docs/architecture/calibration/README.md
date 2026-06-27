@@ -1,3 +1,13 @@
+---
+title: Calibration Report Template
+doc_status: active
+updated: '2026-04-27'
+related:
+- docs/architecture/calibration/documentation.md
+- docs/architecture/calibration/erp-custom.md
+- docs/architecture/calibration/research.md
+- docs/architecture/calibration/software-dev.md
+---
 # Calibration Report Template
 
 Each per-mission calibration report documents the §4.5.1 inequality check

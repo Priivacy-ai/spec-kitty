@@ -1,3 +1,11 @@
+---
+title: Core Code Patterns Applied in the Codebase
+doc_status: active
+updated: '2026-05-19'
+related:
+- docs/architecture/04_implementation_mapping/README.md
+- docs/status-model.md
+---
 # Core Code Patterns Applied in the Codebase
 
 | Field | Value |

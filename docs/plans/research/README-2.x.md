@@ -1,3 +1,8 @@
+---
+title: 2.x — research (history slot)
+doc_status: draft
+updated: '2026-06-12'
+---
 # 2.x — research (history slot)
 
 Per-era **research** (spike/exploration) record for the 2.x architecture track.

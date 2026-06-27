@@ -1,3 +1,12 @@
+---
+title: 'Context: Planning & Tracking'
+doc_status: active
+updated: '2026-06-12'
+related:
+- docs/context/execution.md
+- docs/context/orchestration.md
+- docs/context/system-events.md
+---
 ## Context: Planning & Tracking
 
 Terms describing how work is organized, classified, and dispatched in the issue

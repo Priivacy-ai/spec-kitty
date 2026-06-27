@@ -1,0 +1,1 @@
+../2.x/adr/2026-01-30-18-auto-detect-merged-single-parent-dependencies.md

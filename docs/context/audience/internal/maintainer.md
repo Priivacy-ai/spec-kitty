@@ -1,3 +1,8 @@
+---
+title: 'Stakeholder Persona: Maintainer'
+doc_status: active
+updated: '2026-06-12'
+---
 # Stakeholder Persona: Maintainer
 
 | Field | Value |

@@ -1,3 +1,8 @@
+---
+title: 'Initiative: 2026-03 Doctrine-to-Execution Integration'
+doc_status: draft
+updated: '2026-04-05'
+---
 # Initiative: 2026-03 Doctrine-to-Execution Integration
 
 This initiative captures the assessment and roadmap for wiring the doctrine

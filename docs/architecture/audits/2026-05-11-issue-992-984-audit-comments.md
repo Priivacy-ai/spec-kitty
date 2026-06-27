@@ -1,3 +1,8 @@
+---
+title: 'Audit relationship to #992 and #984 — deep read'
+doc_status: active
+updated: '2026-06-12'
+---
 # Audit relationship to #992 and #984 — deep read
 
 ## Inputs

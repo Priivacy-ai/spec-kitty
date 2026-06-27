@@ -1,3 +1,8 @@
+---
+title: 1. What “Ad-Hoc Agent Profile Interaction” Actually Is
+doc_status: draft
+updated: '2026-06-12'
+---
 2026-02-17:11:49
 
 Mode: exploratory design brainstorm

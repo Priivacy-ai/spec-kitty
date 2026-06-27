@@ -1,3 +1,10 @@
+---
+title: 'Context: Technology Foundations'
+doc_status: active
+updated: '2026-03-10'
+related:
+- docs/context/dossier.md
+---
 ## Context: Technology Foundations
 
 General technology terms that appear throughout Spec Kitty documentation. Included here so that readers unfamiliar with these concepts have a clear reference point.

@@ -1,3 +1,13 @@
+---
+title: 'Context: Execution'
+doc_status: active
+updated: '2026-06-14'
+related:
+- docs/context/governance.md
+- docs/context/identity.md
+- docs/context/lexical.md
+- docs/context/system-events.md
+---
 ## Context: Execution
 
 Terms describing tool invocation and semantic safety gates during generation.

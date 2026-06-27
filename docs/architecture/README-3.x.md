@@ -1,3 +1,8 @@
+---
+title: Architecture 3.x
+doc_status: active
+updated: '2026-05-19'
+---
 # Architecture 3.x
 
 This directory is the current architecture track for Spec Kitty, starting with

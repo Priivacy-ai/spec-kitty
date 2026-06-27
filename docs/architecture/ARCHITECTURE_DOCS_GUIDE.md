@@ -1,3 +1,11 @@
+---
+title: Architecture Documentation Guide
+doc_status: active
+updated: '2026-06-27'
+related:
+- docs/architecture/README.md
+- docs/architecture/adr-template.md
+---
 # Architecture Documentation Guide
 
 > Retired. This guide described a 2.x-era, version-tiered architecture-docs layout that is no longer current.

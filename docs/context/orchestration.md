@@ -1,3 +1,13 @@
+---
+title: 'Context: Orchestration'
+doc_status: active
+updated: '2026-06-13'
+related:
+- docs/context/doctrine.md
+- docs/context/identity.md
+- docs/context/system-events.md
+- docs/context/technology-foundations.md
+---
 ## Context: Orchestration
 
 Terms describing lifecycle and runtime orchestration semantics.

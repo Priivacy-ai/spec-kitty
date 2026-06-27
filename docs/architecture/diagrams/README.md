@@ -1,3 +1,13 @@
+---
+title: Architecture Diagrams (living C4)
+doc_status: active
+updated: '2026-06-15'
+related:
+- docs/architecture/README.md
+- docs/architecture/diagrams/01_context/README.md
+- docs/architecture/diagrams/02_containers/README.md
+- docs/architecture/diagrams/03_components/README.md
+---
 # Architecture Diagrams (living C4)
 
 This directory holds the **living C4 model** for the **current 3.x architecture**.

@@ -1,3 +1,11 @@
+---
+title: 3.x System Context
+doc_status: active
+updated: '2026-06-15'
+related:
+- docs/architecture/diagrams/02_containers/README.md
+- docs/architecture/diagrams/03_components/README.md
+---
 # 3.x System Context
 
 | Field | Value |

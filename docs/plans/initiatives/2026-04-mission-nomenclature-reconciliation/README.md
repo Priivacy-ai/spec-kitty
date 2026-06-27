@@ -1,3 +1,8 @@
+---
+title: 'Initiative: Mission Nomenclature Reconciliation'
+doc_status: draft
+updated: '2026-04-05'
+---
 # Initiative: Mission Nomenclature Reconciliation
 
 This initiative operationalizes ADR

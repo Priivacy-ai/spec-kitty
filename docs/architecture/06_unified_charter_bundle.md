@@ -1,3 +1,8 @@
+---
+title: 06 — Unified Charter Bundle
+doc_status: active
+updated: '2026-04-14'
+---
 # 06 — Unified Charter Bundle
 
 **Status**: v1.0.0 (introduced by mission

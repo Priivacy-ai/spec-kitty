@@ -1,3 +1,8 @@
+---
+title: 'Post-Mission Test Baseline: 01KSMG8Y'
+doc_status: deprecated
+updated: '2026-06-15'
+---
 # Post-Mission Test Baseline: 01KSMG8Y
 
 **Mission**: Pre-Doctrine Test Stabilization

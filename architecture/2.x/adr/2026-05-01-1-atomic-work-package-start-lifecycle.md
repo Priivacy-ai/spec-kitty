@@ -1,0 +1,1 @@
+../../3.x/adr/2026-05-01-1-atomic-work-package-start-lifecycle.md

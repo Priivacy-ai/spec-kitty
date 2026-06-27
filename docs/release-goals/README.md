@@ -1,3 +1,8 @@
+---
+title: Release Goals — Declarations of Intent
+doc_status: active
+updated: '2026-06-16'
+---
 # Release Goals — Declarations of Intent
 
 This directory holds one **declaration of intent** per *emergent release milestone*. It is the

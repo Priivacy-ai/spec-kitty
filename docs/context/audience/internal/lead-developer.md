@@ -1,3 +1,8 @@
+---
+title: 'Stakeholder Persona: Lead Developer'
+doc_status: active
+updated: '2026-06-12'
+---
 # Stakeholder Persona: Lead Developer
 
 | Field | Value |

@@ -1,3 +1,8 @@
+---
+title: 'User Journey: Formalization at Session End (Experiment → Repeatable Approach)'
+doc_status: draft
+updated: '2026-06-12'
+---
 # User Journey: Formalization at Session End (Experiment → Repeatable Approach)
 
 **Status**: DRAFT  

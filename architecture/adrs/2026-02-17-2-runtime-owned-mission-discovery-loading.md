@@ -1,0 +1,1 @@
+../2.x/adr/2026-02-17-2-runtime-owned-mission-discovery-loading.md

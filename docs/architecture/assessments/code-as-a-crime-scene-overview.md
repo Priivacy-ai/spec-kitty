@@ -1,3 +1,8 @@
+---
+title: Code as a Crime Scene — High-Level Overview
+doc_status: active
+updated: '2026-05-19'
+---
 # Code as a Crime Scene — High-Level Overview
 
 > Pedagogical overview of the Code-as-a-Crime-Scene (CaaCS) auditing technique, with empirical observations from the 2026-05 run on spec-kitty (extended scope).

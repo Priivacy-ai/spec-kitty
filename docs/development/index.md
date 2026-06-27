@@ -1,23 +1,43 @@
 ---
-title: "Development notes"
-description: "Internal contributor notes for Spec Kitty: testing policy, review gates, contract pinning, local overrides, and the 3.2 documentation information architecture."
+title: Development
+description: 'Landing note for the re-sectioned development docs: durable pages moved to operations/guides/configuration, ephemeral notes to plans; the page-inventory tooling artifact stays here.'
+doc_status: active
+updated: '2026-06-27'
+related:
+- docs/configuration/index.md
+- docs/guides/index.md
+- docs/index.md
+- docs/operations/index.md
+- docs/plans/index.md
 ---
+# Development
 
-# Development notes
+The former `docs/development/` working set has been **re-sectioned per-file**
+into the durable-vs-ephemeral structure (Mission B, FR-001 / FR-012, resolving
+[#2054](https://github.com/Priivacy-ai/spec-kitty/issues/2054)). Pages no longer
+mix durable references with one-off tracking notes.
 
-Internal engineering and contributor process notes. These pages document how Spec Kitty
-is built, tested, and reviewed; they target maintainers rather than end users.
+## Where the pages went
 
-## Key pages
+- **Durable operational runbooks** → [`../operations/`](../operations/index.md)
+  (deploy keys, the identity-boundary CI gate).
+- **Durable contributor how-tos** → [`../guides/`](../guides/index.md)
+  (testing flakiness/parallel, contract pinning, review gates, local overrides).
+- **Durable config / toolchain references** → [`../configuration/`](../configuration/index.md)
+  (YAML library choice, linting cutoff policy).
+- **Ephemeral working notes** (audits, debriefs, mission/effort-scoped plans,
+  investigations, the former `engineering_notes/` and `tracking/` clusters)
+  → [`../plans/`](../plans/index.md) under the distil-then-retire lifecycle.
 
-- [Testing flakiness policy](testing-flakiness.md) — detection, tiers, and the never-retry-to-green rule.
-- [Review gates](review-gates.md) — the gates a change passes before merge.
-- [Contract pinning](contract-pinning.md) — pinning observable contracts in tests.
-- [Local overrides](local-overrides.md) — dev editable/path overrides that must never be committed.
-- [3.2 information architecture](3-2-information-architecture.md) — the documentation refresh IA.
+## What stays here
 
-Many additional `3-2-*` working notes in this directory track the 3.2 documentation
-refresh (publication checklist, navigation plan, version taxonomy, and audit logs).
+- **`3-2-page-inventory.yaml`** — the page-inventory tooling artifact. It STAYS
+  PUT by operator directive; the freshness/lockfile tooling
+  (`scripts/docs/inventory_lockfile.py`, `check_docs_freshness.py`,
+  `version_leakage_check.py`, `_inventory.py`) reads it at this stable path.
+  A regression guard (`tests/docs/test_inventory_path_stable.py`) asserts the
+  path cannot silently move.
+- **`mutation-testing-tactic.yaml`** — a doctrine tactic artifact (non-page).
 
 ## See also
 

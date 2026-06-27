@@ -1,3 +1,8 @@
+---
+title: Changelog
+doc_status: active
+updated: '2026-06-26'
+---
 # Changelog
 
 <!-- markdownlint-disable MD024 -->

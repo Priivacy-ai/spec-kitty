@@ -1,3 +1,8 @@
+---
+title: Migrations
+doc_status: active
+updated: '2026-06-27'
+---
 # Migrations
 
 Migration and shim rules for Spec Kitty cutovers.

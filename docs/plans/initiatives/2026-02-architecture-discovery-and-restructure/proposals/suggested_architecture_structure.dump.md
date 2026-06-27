@@ -1,3 +1,8 @@
+---
+title: architecture/README.md
+doc_status: draft
+updated: '2026-06-12'
+---
 2026-02-17:13:31
 
 Mode: architecture documentation drafting

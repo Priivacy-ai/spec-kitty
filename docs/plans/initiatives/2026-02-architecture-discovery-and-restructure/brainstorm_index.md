@@ -1,3 +1,17 @@
+---
+title: Index of brainstorm
+doc_status: draft
+updated: '2026-03-10'
+related:
+- docs/plans/initiatives/2026-02-architecture-discovery-and-restructure/dialectics/dialectic-structured-vs-adhoc.md
+- docs/plans/initiatives/2026-02-architecture-discovery-and-restructure/lineage/session_start.dump.md
+- docs/plans/initiatives/2026-02-architecture-discovery-and-restructure/lineage/session_step1.dump.md
+- docs/plans/initiatives/2026-02-architecture-discovery-and-restructure/proposals/repo_coaching.md
+- docs/plans/initiatives/2026-02-architecture-discovery-and-restructure/proposals/suggested_architecture_structure.dump.md
+- docs/plans/initiatives/2026-02-architecture-discovery-and-restructure/user_journey/uj-adhoc-specialist-session.md
+- docs/plans/initiatives/2026-02-architecture-discovery-and-restructure/user_journey/uj-formalization-session-end.md
+- docs/plans/initiatives/2026-02-architecture-discovery-and-restructure/user_journey/uj-formalized-approach-to-mission.md
+---
 # Index of brainstorm
 
 This directory captures a brainstorming session on repository structuring, and a new set of user journeys.

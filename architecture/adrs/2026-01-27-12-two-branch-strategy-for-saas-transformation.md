@@ -1,0 +1,1 @@
+../2.x/adr/2026-01-27-12-two-branch-strategy-for-saas-transformation.md

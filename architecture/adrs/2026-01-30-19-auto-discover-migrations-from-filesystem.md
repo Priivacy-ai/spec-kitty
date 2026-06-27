@@ -1,0 +1,1 @@
+../2.x/adr/2026-01-30-19-auto-discover-migrations-from-filesystem.md

@@ -1,0 +1,1 @@
+../../3.x/adr/2026-04-19-1-cli-auth-uses-encrypted-file-only-session-storage.md

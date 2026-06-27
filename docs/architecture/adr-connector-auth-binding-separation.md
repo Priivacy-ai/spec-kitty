@@ -1,3 +1,8 @@
+---
+title: 'ADR: Connector Installation, User Link, and Resource Mapping Separation'
+doc_status: active
+updated: '2026-04-06'
+---
 # ADR: Connector Installation, User Link, and Resource Mapping Separation
 
 **Status**: Accepted
