@@ -1,0 +1,70 @@
+schema_version: "1.0"
+id: common-docs-scaffold
+name: Common Docs Scaffold
+purpose: >
+  How to scaffold a new Common Doc from nothing: pick the one owning section of
+  the 13-section structure, create the file at the section-aware path, seed the
+  in-file frontmatter schema (including the namespaced doc_status), and add the
+  section index.md when the section is new. Use this when a concern has no home
+  yet under the single Common Docs root.
+steps:
+  - title: Choose the owning section
+    description: >
+      Select exactly one of the 13 sections that owns the concern: index,
+      context, architecture, adr, plans, api, configuration, integrations,
+      security, guides, operations, migrations, changelog. One concern lives in
+      one section — never spread the same concern across two sections and never
+      invent a fourteenth section or a per-version shadow tree. Durable design
+      decisions go to adr/ (by era) or architecture/ (living, unversioned);
+      in-flight investigations and traces go to plans/ under the distil-then-retire
+      lifecycle.
+    examples:
+      - "A new dashboard how-to is owned by guides/; the durable decision it documents is owned by adr/3.x/, not duplicated in both."
+      - "A migration runbook is owned by migrations/; a connector integration note is owned by integrations/."
+  - title: Create the file at the section-aware path
+    description: >
+      Place the new file under the single Common Docs root at
+      <root>/<section>/<kebab-case-name>.md, using lowercase kebab-case for both
+      directory and file names. ADR filenames keep their dated prefix. Do not
+      create a second documentation root or a per-version shadow directory; if
+      the section already exists, add the file beside its siblings.
+    examples:
+      - "docs/guides/open-the-dashboard.md for a new how-to."
+      - "docs/adr/3.x/2026-06-27-1-common-docs-root.md for a new era ADR, keeping the dated prefix."
+  - title: Seed the frontmatter schema
+    description: >
+      Open the file with in-file YAML frontmatter as the per-page source of
+      truth: title; the namespaced doc_status (draft | active | deprecated |
+      superseded) — never a bare status key; updated: YYYY-MM-DD; a description of
+      50-180 characters for SEO; and a related: list of resolvable repo-relative
+      .md paths (empty list if there are none yet). A freshly scaffolded page
+      normally starts at doc_status: draft. Do not create a sidecar metadata
+      store; the page-inventory rollup is regenerated from this frontmatter.
+    examples:
+      - "doc_status: draft with updated: 2026-06-27, a 110-character description, and related: [] for a brand-new page."
+      - "A scaffolded ADR starts doc_status: draft (PROPOSED) and is flipped to doc_status: active when accepted."
+  - title: Add the section index when the section is new
+    description: >
+      If the chosen section did not exist before, create its index.md so every
+      one of the 13 sections carries its own index, and seed that index.md with
+      the same frontmatter schema. The structure ratchet expects all 13 sections
+      present with an index per directory; a section without an index.md fails the
+      ratchet.
+    examples:
+      - "Creating the first file under integrations/ also creates integrations/index.md with doc_status: active."
+      - "Adding migrations/ for the first time seeds migrations/index.md so the 13-section ratchet stays green."
+failure_modes:
+  - "The new file is dropped under a second documentation root or a per-version shadow tree, re-creating the split-brain."
+  - "The concern is scattered across two sections instead of being owned by exactly one."
+  - "Frontmatter is seeded with a bare status key, colliding with the work-package lane status model."
+  - "A new section is created without its index.md, so the 13-section structure ratchet goes red."
+  - "The description is seeded outside the 50-180 character band and fails the lockfile freshness gate."
+references:
+  - name: Common Docs Documentation Standard
+    type: directive
+    id: DIRECTIVE_042
+    when: Consult while choosing the section and path to apply the single-root, 13-section, doc_status placement rules.
+  - name: Common Docs Styleguide
+    type: styleguide
+    id: common-docs
+    when: Consult while seeding frontmatter and naming the file to apply the schema, kebab-case naming, and section-index conventions.

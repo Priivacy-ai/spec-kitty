@@ -1,0 +1,72 @@
+schema_version: "1.0"
+id: DIRECTIVE_042
+title: Common Docs Documentation Standard
+intent: >
+  Documentation is governed, single-source-of-truth content, not a wiki. Every
+  documentation file lives under the single Common Docs root, declares its own
+  lifecycle metadata in in-file frontmatter, and is curated under a delete-stale
+  policy. This directive binds the conventions decided in the Common Docs
+  reconciliation ADR (2026-06-27) so they are enforced by live checks rather than
+  remembered by authors.
+enforcement: required
+scope: >
+  Applies whenever a documentation file under the Common Docs root is created,
+  moved, renamed, or its lifecycle metadata changes; whenever an Architecture
+  Decision Record is authored or migrated; and during review of any change that
+  adds, relocates, or deletes documentation.
+procedures:
+  - Place every documentation file inside the single Common Docs root using the
+    13-section structure (index, context, architecture, adr, plans, api,
+    configuration, integrations, security, guides, operations, migrations,
+    changelog); never create a second documentation root or a per-version shadow
+    tree.
+  - Record per-page lifecycle metadata in in-file frontmatter as the sole source
+    of truth — the page-inventory rollup is a generated lockfile derived FROM
+    frontmatter, never a parallel hand-maintained authority.
+  - Use the namespaced frontmatter key `doc_status` (vocabulary
+    draft / active / deprecated / superseded) for the documentation *lifecycle*;
+    the bare key `status` is prohibited as a doc-lifecycle field because it
+    collides with the work-package lane status model. Architecture Decision
+    Records are the one sanctioned exception — ADR frontmatter uses `status` for
+    the MADR *decision* status (Proposed / Accepted / Deprecated / Superseded),
+    the established MADR convention.
+  - Express cross-references with a `related:` frontmatter list of resolvable
+    repo-relative `.md` paths; do not reintroduce the dead `citation_refs`
+    sidecar field.
+  - File Architecture Decision Records under `adr/<era>/` with YAML frontmatter,
+    preserving the era-of-decision history; the living architectural design
+    collapses into a single unversioned `architecture/` location.
+  - Curate under the delete-stale policy — one concern per file, every
+    behaviour-changing change updates the relevant docs in the same commit, and
+    stale or deprecated documents are distilled then retired rather than
+    accumulating as a wiki.
+integrity_rules:
+  - There is exactly one documentation root; a second root or a per-version
+    shadow tree is a red-line violation.
+  - In-file frontmatter is the single source of truth for per-page metadata; any
+    second store of the same datum must be a generated, freshness-gated lockfile.
+  - No documentation frontmatter may use a bare `status` key for the doc
+    lifecycle; use `doc_status` instead. ADR frontmatter is exempt — it uses
+    `status` for the MADR decision status (Proposed / Accepted / Deprecated /
+    Superseded).
+  - Every `related:` entry must resolve to an existing repo-relative `.md` path.
+validation_criteria:
+  - The structure ratchet confirms a single Common Docs root with all 13 sections
+    present and no shadow tree.
+  - The page-inventory lockfile freshness gate confirms the rollup matches a fresh
+    regeneration from frontmatter.
+  - No documentation frontmatter uses a bare `status` key for the doc lifecycle
+    (`doc_status` is used instead); ADR frontmatter retains `status` for the MADR
+    decision status by design.
+  - The `related:` path validator confirms every cross-reference resolves.
+references:
+  - type: styleguide
+    id: common-docs
+  - type: tactic
+    id: common-docs-curation
+  - type: tactic
+    id: common-docs-scaffold
+  - type: tactic
+    id: common-docs-write
+  - type: tactic
+    id: common-docs-find
