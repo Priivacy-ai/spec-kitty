@@ -528,7 +528,7 @@ npm install --save-dev jsdoc docdash   # JavaScript generator
 ```
 Low-confidence classification: add `---\ntype: tutorial\n---` frontmatter. Unpopulated templates: replace all `[TODO: ...]` placeholders.
 
-**Implementation:** `src/specify_cli/missions/documentation/mission.yaml`, `doc_generators.py`, `gap_analysis.py`, `doc_state.py`. User guide: [docs/documentation-mission.md](docs/documentation-mission.md).
+**Implementation:** `src/specify_cli/missions/documentation/mission.yaml`, `doc_generators.py`, `gap_analysis.py`, `doc_state.py`. User guide: [docs/explanation/documentation-mission.md](docs/explanation/documentation-mission.md).
 
 ---
 

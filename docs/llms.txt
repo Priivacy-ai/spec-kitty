@@ -27,3 +27,18 @@ Spec Kitty 3.2 is the current documentation set for the Spec Kitty CLI, Charter 
 - How-to guides solve specific operator tasks.
 - Reference pages define exact CLI, file, schema, and environment behavior.
 - Explanation pages describe mental models, architecture, and tradeoffs.
+
+## Intent Routing
+
+When the question is about X, read Y first:
+
+- Getting started or first project — read `tutorials/index.html`, then `tutorials/getting-started.html`.
+- Installing or upgrading the CLI or a project — read `how-to/install-and-upgrade.html` and the platform guides under `how-to/`.
+- Running a specific task (spec, plan, tasks, implement, review, merge) — read `how-to/index.html`, then the matching task guide.
+- An exact command, flag, file, schema, or environment variable — read `reference/index.html`, then `reference/cli-commands.html`.
+- Why something works the way it does (mental model, architecture, tradeoffs) — read `explanation/index.html`.
+- Governance, Charter, doctrine, or agent profiles — read `3x/index.html` and `doctrine/index.html`.
+- Upgrading from 1.x or 2.x, or finding archived behavior — read `migration/index.html`, then `archive/index.html`.
+- Recovering from a failed or interrupted operation — read `recovery/index.html` and the recovery how-tos under `how-to/`.
+- Which AI harness is supported and how — read `reference/supported-harnesses.html` and `reference/supported-agents.html`.
+- Mission state, work-package lanes, or the status model — read `status-model.html` and `explanation/kanban-workflow.html`.

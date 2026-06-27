@@ -1,0 +1,20 @@
+---
+title: "Doctrine documentation"
+description: "How Spec Kitty doctrine works: the artifact model behind governed missions and the Structured-Prompt-Driven Development (SPDD) REASONS canvas."
+---
+
+# Doctrine documentation
+
+Explanation-oriented pages about Spec Kitty doctrine — the layered artifacts (paradigms,
+directives, tactics, profiles) that compose governed mission behavior.
+
+## In this section
+
+- [Doctrine overview](README.md) — the doctrine artifact model and how artifacts compose.
+- [SPDD / REASONS](spdd-reasons.md) — Structured-Prompt-Driven Development and the REASONS canvas.
+
+## See also
+
+- [Documentation home](../index.md)
+- [How Charter works](../3x/index.md)
+- [Org doctrine layer](../explanation/org-doctrine-layer.md)

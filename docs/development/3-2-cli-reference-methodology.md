@@ -3,7 +3,7 @@
 **Status**: Methodology note for mission `spec-kitty-3-2-docs-01KS4KSZ`, WP05.
 **Authority**: Spec FR-006 (recover prior CLI reference methodology from git history).
 **Companion artifacts**:
-- Workspace audit: [`cli-audit-3-2.md`](../../../cli-audit-3-2.md) (192 visible / 5 hidden / 2 deprecated paths; 113 of 192 visible covered today).
+- Workspace audit: `cli-audit-3-2.md` (192 visible / 5 hidden / 2 deprecated paths; 113 of 192 visible covered today).
 - Builder contract: [`contracts/build_cli_reference.md`](../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/contracts/build_cli_reference.md).
 - Deferred decision: `01KS4KTM69EG2KVX5MQ54FQ939` (hand vs hybrid vs generated mode).
 

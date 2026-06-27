@@ -4,7 +4,7 @@
 
 **Sources of authority:**
 - [`CLAUDE.md`](../../CLAUDE.md) §"Supported AI Agents" — canonical list of installed surfaces.
-- [`kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/start-here.md`](../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/start-here.md) §"Supported Harness Research" plus the current CLI agent registry — 17 candidate subjects.
+- `kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/start-here.md` §"Supported Harness Research" plus the current CLI agent registry — 17 candidate subjects.
 - [`data-model.md`](../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/data-model.md) §"HarnessEntry" — schema each row must satisfy.
 
 **Access date for all citations in this revision:** 2026-05-21.

@@ -1933,6 +1933,20 @@
   current_target: false
   citation_refs: []
   notes: null
+- path: docs/architecture/index.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Architecture-notes section landing page.
+- path: docs/assets/index.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Documentation-assets section landing page.
 - path: docs/contextive-glossaries.md
   tag: current
   divio_type: none
@@ -1940,6 +1954,13 @@
   current_target: true
   citation_refs: []
   notes: Top-level docs page (contextive-glossaries.md); provisional current.
+- path: docs/development/index.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Development-notes section landing page.
 - path: docs/development/3-2-coord-merge-issue-hygiene-log.md
   tag: internal
   divio_type: none
@@ -2213,6 +2234,13 @@
   current_target: false
   citation_refs: []
   notes: null
+- path: docs/doctrine/index.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: C
+  current_target: true
+  citation_refs: []
+  notes: Doctrine section landing page.
 - path: docs/doctrine/README.md
   tag: current
   divio_type: explanation
@@ -2227,6 +2255,13 @@
   current_target: true
   citation_refs: []
   notes: Doctrine explanation; provisional current — confirm in WP08 IA review.
+- path: docs/engineering_notes/index.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Engineering-notes section landing page.
 - path: docs/engineering_notes/2173-infra-logic-separation/00-SYNTHESIS.md
   tag: internal
   divio_type: none
@@ -2448,6 +2483,13 @@
   current_target: false
   citation_refs: []
   notes: Index for mission-scoped triage artifacts.
+- path: docs/explanation/index.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: C
+  current_target: true
+  citation_refs: []
+  notes: Explanation section landing page.
 - path: docs/explanation/ai-agent-architecture.md
   tag: current
   divio_type: explanation
@@ -2590,6 +2632,13 @@
   current_target: false
   citation_refs: []
   notes: "2.1 → 2.x cutover checklist moved under docs/migration/ for historical migration context."
+- path: docs/how-to/index.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: C
+  current_target: true
+  citation_refs: []
+  notes: How-to guides section landing page.
 - path: docs/how-to/accept-and-merge.md
   tag: current
   divio_type: how-to
@@ -3008,6 +3057,13 @@
   current_target: false
   citation_refs: []
   notes: P0 test-failure baseline refresh working note (dated snapshot); internal-only.
+- path: docs/recovery/index.md
+  tag: current
+  divio_type: how-to
+  owning_workstream: E
+  current_target: true
+  citation_refs: []
+  notes: Recovery guides section landing page.
 - path: docs/recovery/logged-out-teamspace.md
   tag: current
   divio_type: how-to
@@ -3015,6 +3071,13 @@
   current_target: true
   citation_refs: []
   notes: Recovery how-to; provisional current.
+- path: docs/reference/index.md
+  tag: current
+  divio_type: reference
+  owning_workstream: B
+  current_target: true
+  citation_refs: []
+  notes: Reference section landing page.
 - path: docs/reference/README.md
   tag: current
   divio_type: reference
@@ -3155,6 +3218,13 @@
   current_target: true
   citation_refs: []
   notes: Top-level docs page (status-model.md); provisional current.
+- path: docs/templates/index.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Documentation-templates section landing page.
 - path: docs/trail-model.md
   tag: current
   divio_type: none
@@ -3162,6 +3232,13 @@
   current_target: true
   citation_refs: []
   notes: Top-level docs page (trail-model.md); provisional current.
+- path: docs/tutorials/index.md
+  tag: current
+  divio_type: tutorial
+  owning_workstream: C
+  current_target: true
+  citation_refs: []
+  notes: Tutorials section landing page.
 - path: docs/tutorials/charter-governed-workflow.md
   tag: current
   divio_type: tutorial
@@ -3493,6 +3570,13 @@
   current_target: false
   citation_refs: []
   notes: Internal naming, identity, and read-path SSOT investigation evidence.
+- path: docs/release-goals/index.md
+  tag: internal
+  divio_type: none
+  owning_workstream: none
+  current_target: false
+  citation_refs: []
+  notes: Release-goals section landing page.
 - path: docs/release-goals/3.2.x.md
   tag: internal
   divio_type: none

@@ -51,11 +51,15 @@ Use the shared template at [`../../adr-template.md`](../../adr-template.md).
 | 2026-05-14 | [Stale-lane auto-rebase classifier policy](2026-05-14-1-stale-lane-auto-rebase-classifier-policy.md) |
 | 2026-05-16 | [Doctrine layer merge semantics](2026-05-16-1-doctrine-layer-merge-semantics.md) |
 | 2026-05-19 | [Retrospective default-on policy architecture](2026-05-19-1-retrospective-default-policy-architecture.md) |
+| 2026-05-24 | [Charter freshness UX contract](2026-05-24-1-charter-freshness-ux-contract.md) |
+| 2026-05-24 | [Pack augmentation vocabulary — `overrides` and `enhances` as declarative fields](2026-05-24-2-pack-augmentation-vocabulary.md) |
+| 2026-05-24 | [`shipped` → `built-in` vocabulary cutover for doctrine layer label](2026-05-24-3-shipped-to-built-in-cutover.md) |
 | 2026-06-02 | [Pi agent is skill-only: no prompt templates, invoker deferred](2026-06-02-1-pi-agent-skill-only-support.md) |
 | 2026-06-02 | [Letta agent is skill-only: no slash-command templates, invoker and session model deferred](2026-06-02-2-letta-agent-skill-only-support.md) |
 | 2026-06-03 | [Execution-state domain model](2026-06-03-1-execution-state-domain-model.md) |
 | 2026-06-03 | [ExecutionContext owner and CommitTarget atomicity](2026-06-03-2-executioncontext-owner-and-committarget.md) |
 | 2026-06-03 | [Effector/Actor model](2026-06-03-3-effector-actor-model.md) |
+| 2026-06-05 | [Merge publish-layer boundary](2026-06-05-1-merge-publish-layer-boundary.md) |
 | 2026-06-06 | [Plan concerns to work package traceability](2026-06-06-1-plan-concerns-to-work-package-traceability.md) |
 | 2026-06-07 | [Execution-state canonical surface (`mission_runtime`)](2026-06-07-1-execution-state-canonical-surface.md) |
 | 2026-06-07 | [Session presence: multi-harness architecture](2026-06-07-1-session-presence-multi-harness-architecture.md) |
@@ -66,3 +70,6 @@ Use the shared template at [`../../adr-template.md`](../../adr-template.md).
 | 2026-06-21 | [Protected-branch configuration is a standalone boundary-resolved value, not a nested context sub-object](2026-06-21-1-protected-branch-config-boundary-resolved-value.md) |
 | 2026-06-22 | [MissionTopology SSOT — store the mission shape, resolve it once](2026-06-22-1-mission-topology-ssot.md) |
 | 2026-06-24 | [Kind- and topology-aware artifact placement — one partition, read/write symmetry](2026-06-24-1-kind-and-topology-aware-artifact-placement.md) |
+| 2026-06-24 | [Write-branch resolution anchors `meta.json` on the PRIMARY surface (write-surface twin)](2026-06-24-2-write-branch-resolution-primary-anchor.md) |
+| 2026-06-25 | [Terminal-artifact durable home + topology-aware teardown contract](2026-06-25-1-terminal-artifact-durable-home-teardown.md) |
+| 2026-06-26 | [Single-authority seam + call-site gate for resolution boundaries (Phase 1)](2026-06-26-1-single-authority-seam-and-call-site-gate.md) |
