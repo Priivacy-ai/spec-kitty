@@ -51,7 +51,7 @@ corroborates the operator's "created explicitly for dealing with this" framing.
 Yes — in three independent places, escalating from principle → contract → WP acceptance criterion.
 
 ### 2a. ADR `2026-03-09-1` — "Prompts Do Not Discover Context, Commands Do" (the root intent)
-`architecture/adrs/2026-03-09-1-prompts-do-not-discover-context-commands-do.md`. This is the
+`docs/adr/3.x/2026-03-09-1-prompts-do-not-discover-context-commands-do.md`. This is the
 canonical statement of compute-once / thread-through. Direct quotes:
 
 - Decision driver 2: **"Single source of truth for feature, WP, dependency, and branch context."**
@@ -70,7 +70,7 @@ the model to **rediscover context from cwd, branch name, feature directories, an
 (`:34`) — the prose analogue of inline `[:8]`/path re-derivation in code.
 
 ### 2b. Overhaul doc `09` — the fragments-as-value-objects model (the design crystallization)
-`docs/engineering_notes/runtime_and_state_overhaul/09-context-decomposition-model.md`:
+`docs/plans/engineering-notes/runtime_and_state_overhaul/09-context-decomposition-model.md`:
 
 - Hypothesis under test (`:4`, attributed to Stijn — the operator): *"'Context' is not one object.
   It is several domain-owned chunks … each modeled in its proper domain, then **aggregated by

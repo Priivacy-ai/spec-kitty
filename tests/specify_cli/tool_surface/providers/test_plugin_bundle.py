@@ -158,7 +158,7 @@ def test_repair_noop_when_nothing_actionable(tmp_path: Path) -> None:
 # action, and is therefore permitted: the bare ``marketplace`` token was removed
 # so a descriptor write (``_write_marketplace_json``, ``"marketplace.json"``) no
 # longer trips the guard, while ``marketplace_publish``/``*_publish`` still do.
-# See architecture/3.x/adr/2026-06-15-1-marketplace-descriptor-vs-publish.md.
+# See docs/adr/3.x/2026-06-15-1-marketplace-descriptor-vs-publish.md.
 
 _FORBIDDEN_TOKENS = (
     "publish",

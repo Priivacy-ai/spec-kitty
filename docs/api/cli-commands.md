@@ -5,7 +5,7 @@ description: "Complete Spec Kitty 3.2 CLI command reference with subcommands, op
 
 # CLI Command Reference
 
-This reference lists the user-facing `spec-kitty` CLI commands and their flags exactly as surfaced by `--help`. For agent-only commands, see `docs/reference/agent-subcommands.md`.
+This reference lists the user-facing `spec-kitty` CLI commands and their flags exactly as surfaced by `--help`. For agent-only commands, see `docs/api/agent-subcommands.md`.
 
 Terminology note:
 - `Mission Type` = reusable workflow blueprint
@@ -1118,7 +1118,7 @@ _Project health diagnostics_
 
  Check for overdue compatibility shims in the shim registry.
 
- Reads architecture/2.x/shim-registry.yaml and compares each entry's
+ Reads docs/migrations/shim-registry.yaml and compares each entry's
  removal_target_release against the current project version. Fails with
  exit code 1 if any shim is overdue (removal release has shipped but
  shim file still exists on disk).
@@ -4029,7 +4029,7 @@ _Tracker synchronization commands_
    6  Project metadata corrupt (BLOCK_PROJECT_CORRUPT)
    1  General error
 
- See also: ``docs/how-to/install-and-upgrade.md``
+ See also: ``docs/guides/install-and-upgrade.md``
 
  Examples:
      spec-kitty upgrade              # Upgrade to current version

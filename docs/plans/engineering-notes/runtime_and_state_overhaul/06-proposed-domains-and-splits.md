@@ -202,7 +202,7 @@ context** (not three independent objects) — vs. leaving the projections separa
 
 > **All §7 questions decided as of 2026-06-03.** Remaining work is ADR drafting + implementation.
 
-1. **Draft ADRs** (vocabulary ratified per DIRECTIVE_032) → `architecture/3.x/adr/`: (a) domain model (`17`) + Status ownership; (b) ExecutionContext owner + one-atomicity-domain commit rule; (c) Effector/Actor.
+1. **Draft ADRs** (vocabulary ratified per DIRECTIVE_032) → `docs/adr/3.x/`: (a) domain model (`17`) + Status ownership; (b) ExecutionContext owner + one-atomicity-domain commit rule; (c) Effector/Actor.
 2. **Build the e2e ratchet** (step 6.1).
 3. **Strangler increments** in the order of §6, each gated by the ratchet.
 4. **Close #1619** when no raw mission-state reads remain outside the resolver (except documented fallbacks) and the e2e parity test is green from both CWDs.

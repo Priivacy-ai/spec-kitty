@@ -206,7 +206,7 @@ Added strict-mode type annotations to all test files authored during this initia
 ## 4. Test Structure Redesign — Vertical Slices
 
 **Status:** Complete (all directories migrated) ✓  
-**ADR:** `architecture/2.x/adr/2026-03-15-1-vertical-slice-test-organisation.md`
+**ADR:** `docs/adr/2.x/2026-03-15-1-vertical-slice-test-organisation.md`
 
 ### Problem
 

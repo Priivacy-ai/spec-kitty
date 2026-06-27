@@ -79,7 +79,7 @@ history: []
 ---
 # WP01 — Author tutorial scaffolding
 
-Create the initial Divio tutorial scaffolding under ``docs/tutorials/``.
+Create the initial Divio tutorial scaffolding under ``docs/guides/``.
 """
 
 

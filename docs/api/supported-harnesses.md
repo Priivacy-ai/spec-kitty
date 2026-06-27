@@ -68,7 +68,7 @@ Full tier criteria and promotion rules are maintained in `docs/development/3-2-h
 A harness moves up tiers only when new evidence lands. See `docs/development/3-2-harness-research-method.md` §6 for the full rule. Summary:
 
 1. **`partial` → `supported`** when (a) the installer produces a full `/spec-kitty.*` set, (b) a current external citation is recorded, and (c) at least one smoke test has been documented.
-2. **`supported` → `first_class`** when (a) integration tests exercise the harness end-to-end, (b) the mechanism is the harness's canonical UX, (c) the per-harness page under `docs/how-to/harnesses/<key>.md` is non-stub, and (d) the promotion is logged in CHANGELOG.
+2. **`supported` → `first_class`** when (a) integration tests exercise the harness end-to-end, (b) the mechanism is the harness's canonical UX, (c) the per-harness page under `docs/guides/harnesses/<key>.md` is non-stub, and (d) the promotion is logged in CHANGELOG.
 3. **Demotion** happens when citations cannot be re-verified across two freshness audits, the upstream is deprecated, or the installer ceases to produce a valid surface.
 
 Tier moves are recorded in this matrix's row notes and the project CHANGELOG.
@@ -79,4 +79,4 @@ Tier moves are recorded in this matrix's row notes and the project CHANGELOG.
 
 - The inventory step is re-run on every release; the citation step is re-run on every release as part of the freshness audit (WP13).
 - This matrix is the published artifact; the procedure that backs it is maintained at `docs/development/3-2-harness-research-method.md`.
-- Per-harness "how-to" pages live at `docs/how-to/harnesses/<key>.md` and are promoted under the plan's matrix-first default (decision `01KS4KTS4V300M9MMTS1AJEGXY`).
+- Per-harness "how-to" pages live at `docs/guides/harnesses/<key>.md` and are promoted under the plan's matrix-first default (decision `01KS4KTS4V300M9MMTS1AJEGXY`).

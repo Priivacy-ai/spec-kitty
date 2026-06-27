@@ -9,7 +9,7 @@ Inferred or Unknown entries are commented out as TODO blocks.
 Ordering rule: harness-specific hidden dirs (e.g. ``.opencode/plans/``) before
 generic root-level names.  Within a harness, list most-specific path first.
 
-Source: docs/reference/agent-plan-artifacts.md
+Source: docs/api/agent-plan-artifacts.md
 Last updated: 2026-04-20
 """
 

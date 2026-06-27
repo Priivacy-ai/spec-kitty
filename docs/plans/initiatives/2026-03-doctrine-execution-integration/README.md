@@ -224,7 +224,7 @@ and runtime execution. It targets three integration surfaces:
    prompt. Same injection pattern as charter governance context
    (`_render_charter_context()` in `workflow.py`). This makes profiles
    functional participants in the Execution Coordination behavior loop
-   (see `architecture/2.x/02_containers/README.md`).
+   (see `docs/architecture/02_containers/README.md`).
 
 3. **Default fallback identity (`generic-agent`)** — Proposed in `_proposed/`
    with single directive reference. Ensures backward compatibility for projects
@@ -337,8 +337,8 @@ This means:
 ## Related Artifacts
 
 - Feature 046 spec: `kitty-specs/046-doctrine-artifact-domain-models/spec.md`
-- System Landscape: `architecture/2.x/00_landscape/README.md`
-- Implementation Mapping: `architecture/2.x/04_implementation_mapping/README.md`
+- System Landscape: `docs/architecture/00_landscape/README.md`
+- Implementation Mapping: `docs/architecture/04_implementation_mapping/README.md`
 - Current resolver: `src/specify_cli/charter/resolver.py`
 - Current prompt builder: `src/specify_cli/next/prompt_builder.py`
 - Mission schema: `src/doctrine/schemas/mission.schema.yaml`

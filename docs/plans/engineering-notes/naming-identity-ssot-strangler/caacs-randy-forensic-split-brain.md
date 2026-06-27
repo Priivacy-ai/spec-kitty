@@ -32,7 +32,7 @@ live under `backup/20260615-2110/*`. **Squash caveat is load-bearing here** (see
   velocity-adjusted window** for the recent pass and full-history for the
   sustained pass.
 - **Exclusions.** `*.lock`, `node_modules`, `dist/`, `__snapshots__`,
-  `kitty-specs/`, `docs/engineering_notes/`, `research/`, `.po/.pot`. Tests counted
+  `kitty-specs/`, `docs/plans/engineering-notes/`, `research/`, `.po/.pot`. Tests counted
   separately (not excluded) for the test-ratio overlay.
 - **Squash distortion (mandatory caveat).** `fcf9be595` collapses the entire
   01KV6510 mission into one commit. The granular lane tips each still touched the

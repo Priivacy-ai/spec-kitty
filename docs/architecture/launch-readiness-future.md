@@ -138,7 +138,7 @@ in the release-cut documentation in `architecture/` and the
    tutorials) to introduce Teamspace as **available** — never as
    "always was". The current pre-launch local-first framing remains
    the on-ramp.
-4. Move this doc from `docs/explanation/` to a launch-day "what's
+4. Move this doc from `docs/architecture/` to a launch-day "what's
    new" location, or update its banner from
    `Status: pre-launch` to `Status: launched` once the flip is
    live. **Do not retroactively edit this doc as if its content

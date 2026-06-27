@@ -7,7 +7,7 @@ duplication.
 ## How it works
 
 ```
-glossary/contexts/*.md        ← canonical term definitions (edit here)
+docs/context/*.md        ← canonical term definitions (edit here)
         │
         ▼
 scripts/generate_contextive_glossaries.py
@@ -57,7 +57,7 @@ scopes:
    - path: "src/specify_cli/my_new_package"
      description: "What this package does"
      contexts:
-       - orchestration     # choose from glossary/contexts/ filenames (without .md)
+       - orchestration     # choose from docs/context/ filenames (without .md)
    ```
 3. Run the generator:
    ```bash
@@ -67,7 +67,7 @@ scopes:
 
 ## Available context slugs
 
-Each filename (without `.md`) under `glossary/contexts/` is a valid context slug:
+Each filename (without `.md`) under `docs/context/` is a valid context slug:
 
 | Slug | Domain |
 |------|--------|
@@ -99,5 +99,5 @@ If the generated files are stale, the check step fails and tells you to re-run t
 All files under `src/specify_cli/.contextive/` and any `<package>/.contextive.yml` file whose first
 line reads `# GENERATED FILE` are machine-generated. Edit the canonical sources instead:
 
-- Term definitions → `glossary/contexts/<slug>.md`
+- Term definitions → `docs/context/<slug>.md`
 - Scope mapping → `.kittify/traceability/contextive-map.yaml`

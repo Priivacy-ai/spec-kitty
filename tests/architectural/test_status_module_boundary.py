@@ -42,7 +42,7 @@ Residual allow-list (post-WP10):
 
 See also:
   - ``tests/architectural/test_shared_package_boundary.py`` — template / pattern
-  - ADR ``architecture/3.x/adr/2026-06-03-1-execution-state-domain-model.md``
+  - ADR ``docs/adr/3.x/2026-06-03-1-execution-state-domain-model.md``
   - Contract: ``kitty-specs/execution-state-canonical-surface-01KTG6P9/contracts/status_boundary.md``
 """
 from __future__ import annotations

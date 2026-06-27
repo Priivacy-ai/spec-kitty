@@ -1,6 +1,6 @@
 # Migration and Shim Ownership Rules
 
-*`architecture/2.x/06_migration_and_shim_rules.md`*
+*`docs/migrations/06_migration_and_shim_rules.md`*
 *Mission: migration-shim-ownership-rules-01KPDYDW (#615)*
 *See also: [05_ownership_map.md](05_ownership_map.md) (slice inventory)*
 
@@ -104,7 +104,7 @@ Extension beyond one release is permitted when external consumers have been noti
 
 ### Registry schema
 
-The registry at `architecture/2.x/shim-registry.yaml` is the authoritative list of all known compatibility shims. Its schema is defined in `kitty-specs/migration-shim-ownership-rules-01KPDYDW/contracts/shim-registry-schema.yaml`. Each entry requires:
+The registry at `docs/migrations/shim-registry.yaml` is the authoritative list of all known compatibility shims. Its schema is defined in `kitty-specs/migration-shim-ownership-rules-01KPDYDW/contracts/shim-registry-schema.yaml`. Each entry requires:
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -120,7 +120,7 @@ The registry at `architecture/2.x/shim-registry.yaml` is the authoritative list 
 ### How to add a new entry
 
 1. Copy the shim template from Section 4 into the appropriate `src/specify_cli/<legacy_name>.py` or `src/specify_cli/<legacy_name>/__init__.py`.
-2. Add an entry to `architecture/2.x/shim-registry.yaml` with all required fields.
+2. Add an entry to `docs/migrations/shim-registry.yaml` with all required fields.
 3. Open a tracker issue for the removal and record its reference in `tracker_issue`.
 4. Run `spec-kitty doctor shim-registry` and confirm it exits 0 with the new entry showing `pending` status.
 5. Follow the quickstart at `kitty-specs/migration-shim-ownership-rules-01KPDYDW/quickstart.md` for a step-by-step checklist.
@@ -141,7 +141,7 @@ When `removal_target_release` is reached, the removal PR must:
 
 ### `spec-kitty doctor shim-registry`
 
-This command reads `architecture/2.x/shim-registry.yaml`, loads `[project].version` from `pyproject.toml`, and classifies each registered shim:
+This command reads `docs/migrations/shim-registry.yaml`, loads `[project].version` from `pyproject.toml`, and classifies each registered shim:
 
 | Exit code | Meaning |
 |-----------|---------|
@@ -163,7 +163,7 @@ The scanner detects both `__deprecated__ = True` (assignment) and `__deprecated_
 
 ### `tests/architectural/test_shim_registry_schema.py`
 
-This test loads the live `architecture/2.x/shim-registry.yaml` and runs it through `validate_registry()`. It also exercises the validator against known-bad fixtures (missing required fields, wrong types, bad semver, invalid tracker references, `removal_target_release < introduced_in_release`) to confirm that `RegistrySchemaError` is raised with a field-specific message for each violation.
+This test loads the live `docs/migrations/shim-registry.yaml` and runs it through `validate_registry()`. It also exercises the validator against known-bad fixtures (missing required fields, wrong types, bad semver, invalid tracker references, `removal_target_release < introduced_in_release`) to confirm that `RegistrySchemaError` is raised with a field-specific message for each violation.
 
 ---
 
@@ -189,8 +189,8 @@ The charter mission therefore demonstrates rule family (c) by *not* introducing 
 
 | Artifact | Purpose |
 |----------|---------|
-| `architecture/2.x/05_ownership_map.md` | Slice-by-slice ownership map (mission #610) |
-| `architecture/2.x/shim-registry.yaml` | Machine-readable compatibility shim registry (this mission) |
+| `docs/architecture/05_ownership_map.md` | Slice-by-slice ownership map (mission #610) |
+| `docs/migrations/shim-registry.yaml` | Machine-readable compatibility shim registry (this mission) |
 | `kitty-specs/migration-shim-ownership-rules-01KPDYDW/contracts/shim-registry-schema.yaml` | Authoritative YAML schema for registry entries |
 | `kitty-specs/migration-shim-ownership-rules-01KPDYDW/quickstart.md` | 5-step registration recipe for new shims |
 | `src/specify_cli/compat/registry.py` | Python loader and validator for `shim-registry.yaml` |

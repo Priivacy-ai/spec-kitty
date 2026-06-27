@@ -168,7 +168,7 @@ html_static_path = ['_static']
     "excludePattern": "(node_modules/|test/)"
   },
   "opts": {
-    "destination": "docs/reference/api/javascript",
+    "destination": "docs/api/api/javascript",
     "template": "node_modules/docdash",
     "recurse": true
   },

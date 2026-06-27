@@ -8,7 +8,7 @@ mutation drives it RED.
 
 Fixtures are realistic ADR-shaped documents with real dated filenames and real
 header bytes. The dash-bullet fixture is shaped from the canonical real file
-``architecture/3.x/adr/2026-04-15-2-explicit-empty-charter-selections-remain-empty.md``
+``docs/adr/3.x/2026-04-15-2-explicit-empty-charter-selections-remain-empty.md``
 (the ``2.x/adr/`` path is a back-compat symlink into 3.x — never the fixture
 source).
 """
@@ -44,7 +44,7 @@ from scripts.docs.adr_converter import _status_root  # noqa: E402
 # ---------------------------------------------------------------------------
 
 # 46 of 117 ADRs use the markdown-table dialect.
-# Shaped from architecture/3.x/adr/2026-04-19-1-cli-auth-uses-...md
+# Shaped from docs/adr/3.x/2026-04-19-1-cli-auth-uses-...md
 TABLE_ADR = """\
 # CLI Auth Uses Browser-Mediated OAuth With Encrypted File-Only Session Storage
 
@@ -69,7 +69,7 @@ Encrypt the session file at rest; never persist tokens to the OS keyring.
 """
 
 # 70 of 117 ADRs use the bold-inline dialect (the dominant format).
-# Shaped from architecture/3.x/adr/2026-06-02-2-letta-agent-skill-only-support.md
+# Shaped from docs/adr/3.x/2026-06-02-2-letta-agent-skill-only-support.md
 BOLD_ADR = """\
 # Letta agent is skill-only: no slash-command templates
 
@@ -97,7 +97,7 @@ Letta is skill-only; no `.letta/commands/` slash-command templates are shipped.
 
 # 1 of 117 ADRs uses the dash-bullet dialect — the dialect the spec missed.
 # Verbatim bytes from the canonical real file
-# architecture/3.x/adr/2026-04-15-2-explicit-empty-charter-selections-remain-empty.md
+# docs/adr/3.x/2026-04-15-2-explicit-empty-charter-selections-remain-empty.md
 DASH_BULLET_ADR = """\
 # ADR 2026-04-15-2: Explicit Empty Charter Selections Remain Empty
 
@@ -320,7 +320,7 @@ def test_titleless_input_raises_clear_error() -> None:
 
 # 26 of 117 ADRs use the colon-OUTSIDE-bold dialect (``**Status**: X``). The
 # cycle-2 bold parser only matched the colon-INSIDE form (``**Status:** X``).
-# Shaped from architecture/3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md
+# Shaped from docs/adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md
 BOLD_OUTSIDE_ADR = """\
 # ADR 2026-06-03-2: ExecutionContext Owner and CommitTarget Atomicity
 
@@ -340,7 +340,7 @@ Two related structural decisions are needed before implementation WPs can begin.
 
 # 1 of 117 ADRs uses the dash+bold hybrid (``- **Status:** X``). The dash-bullet
 # line wraps the field in bold.
-# Shaped from architecture/adrs/2026-05-18-1-monorepo-charter-scope.md
+# Shaped from docs/adr/3.x/2026-05-18-1-monorepo-charter-scope.md
 DASH_BOLD_ADR = """\
 # ADR-8: Monorepo charter scope via `CharterScope` abstraction
 
@@ -363,7 +363,7 @@ A monorepo ships multiple charters scoped by the mission's filesystem location.
 # Broken-Date era-less ADR: the ``**Date:**`` header sits AFTER a revision-log
 # block, so field consumption stops at the ``- rev 1`` bullet before reaching it.
 # The status value is double-bold-wrapped and em-dash-qualified.
-# Shaped from architecture/adrs/2026-05-12-1-wp03-review-mode-contract-PROPOSED.md
+# Shaped from docs/adr/3.x/2026-05-12-1-wp03-review-mode-contract-PROPOSED.md
 BROKEN_DATE_ADR = """\
 # PROPOSAL: `spec-kitty review` lightweight vs post-merge mode contract (WP03)
 
@@ -386,7 +386,7 @@ The review command needs a clear lightweight-vs-post-merge mode contract.
 
 # Absent-Date ADR: no ``Date`` header at all (only a ``<DATE> (to be filled)``
 # body placeholder); the status carries a parenthetical deferral qualifier.
-# Shaped from architecture/adrs/2026-05-18-2-delete-specify-cli-auth-transport.md
+# Shaped from docs/adr/3.x/2026-05-18-2-delete-specify-cli-auth-transport.md
 ABSENT_DATE_ADR = """\
 # ADR 2026-05-18-2 — DELETE specify_cli.auth.transport (deferred to Robert)
 
@@ -545,7 +545,7 @@ def test_unmappable_qualified_status_still_hard_errors() -> None:
 def test_date_derived_from_filename_when_header_broken() -> None:
     # The ``**Date:**`` header sits after the revision-log block, so it is never
     # consumed as a field. The filename's date prefix is the fallback.
-    filename = "architecture/adrs/2026-05-12-1-wp03-review-mode-contract-PROPOSED.md"
+    filename = "docs/adr/3.x/2026-05-12-1-wp03-review-mode-contract-PROPOSED.md"
     converted = convert(BROKEN_DATE_ADR, filename=filename)
     parsed = _inventory.parse_frontmatter(converted)
 
@@ -557,7 +557,7 @@ def test_date_derived_from_filename_when_header_broken() -> None:
 def test_date_derived_from_filename_when_header_absent() -> None:
     # No ``Date`` header at all — only a ``<DATE> (to be filled)`` body
     # placeholder. The filename prefix supplies the date.
-    filename = "architecture/adrs/2026-05-18-2-delete-specify-cli-auth-transport.md"
+    filename = "docs/adr/3.x/2026-05-18-2-delete-specify-cli-auth-transport.md"
     converted = convert(ABSENT_DATE_ADR, filename=filename)
     parsed = _inventory.parse_frontmatter(converted)
 
@@ -569,7 +569,7 @@ def test_date_derived_from_filename_when_header_absent() -> None:
 def test_real_date_header_wins_over_filename() -> None:
     # The fallback is a fallback: a present ``Date`` header is authoritative even
     # when the filename carries a (different) date prefix.
-    filename = "architecture/3.x/adr/2099-01-01-1-some-slug.md"
+    filename = "docs/adr/3.x/2099-01-01-1-some-slug.md"
     header = parse_header(BOLD_ADR, filename=filename)
 
     assert header.date == "2026-06-02"  # from the header, not the 2099 filename

@@ -171,7 +171,7 @@ making `graph.yaml` generated-local), but no policy document exists.
 
 ### Codebase gaps
 
-- No policy document in `docs/` or `docs/reference/` describes the commit vs
+- No policy document in `docs/` or `docs/api/` describes the commit vs
   generated-local decision for each artifact.
 - No `.gitignore` rule explicitly documents the intent (existing ignore pattern is
   implicit).
@@ -250,7 +250,7 @@ the references and external-doc guidance the ADR mandated.
 **Partial — explanatory docs exist; migration guidance and ADR follow-up are absent.**
 
 `docs/development/runtime-charter-doctrine-boundary.md` and
-`docs/explanation/org-doctrine-layer.md` were added by Mission A/B. These document the
+`docs/architecture/org-doctrine-layer.md` were added by Mission A/B. These document the
 org-layer architecture. They do not address the charter-vs-external-constitution
 question.
 
@@ -382,6 +382,6 @@ without requiring production readiness.
 | 2. CI DRG integrity gate | #1103 | `.github/workflows/ci-*.yml`, `tests/architectural/`, `src/doctrine/graph.yaml` (regen) | Minimal |
 | 3. Git policy + charter source-of-truth docs | #1102, #1007, #1013 | `docs/`, `.gitignore`, legacy test cleanup | Minimal |
 | 4. Charter lint + status + synthesize freshness | #1099, #1101, #1104 | `charter_lint/_drg.py`, `charter_lint/engine.py`, `charter_lint/findings.py`, `charter.py` | Low |
-| 5. ADR-8 (monorepo design) | #522 | `architecture/2.x/adr/` | Minimal |
+| 5. ADR-8 (monorepo design) | #522 | `docs/adr/2.x/` | Minimal |
 | 6. Session-start preflight | #1100 | `specify_cli/preflight.py` (new), `specify_cli/next/runtime_bridge.py`, `charter.py` | Medium |
 | 7. Composable workflow sequencing | #682 | New mission, ~6–8 WPs | Medium-High |

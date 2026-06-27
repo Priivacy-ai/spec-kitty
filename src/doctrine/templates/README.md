@@ -27,5 +27,5 @@ Mission content templates live under `src/doctrine/missions/<mission>/templates/
 
 ## Glossary Reference
 
-See [Template Set](../../../glossary/contexts/doctrine.md#template-set) in the
+See [Template Set](../../../docs/context/doctrine.md#template-set) in the
 doctrine glossary context.

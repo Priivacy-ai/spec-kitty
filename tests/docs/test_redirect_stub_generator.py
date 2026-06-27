@@ -74,7 +74,7 @@ def test_derive_maps_published_move_to_new_url() -> None:
 def test_derive_ignores_never_published_internal_moves() -> None:
     # architecture/** + CHANGELOG.md were never published URLs, so a baseline-driven
     # derivation yields no public-URL redirect for them (their source is not docs/).
-    arch_move = Move(sources=("architecture/2.x/adr",), dest="docs/adr/2.x")
+    arch_move = Move(sources=("docs/adr/2.x",), dest="docs/adr/2.x")
     changelog_move = Move(sources=("CHANGELOG.md",), dest="docs/changelog")
     mapping = derive_redirect_map(
         [_DIRECT_URL, _MOVED_URL], [arch_move, changelog_move]

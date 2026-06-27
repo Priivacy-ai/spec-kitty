@@ -83,4 +83,4 @@ If Letta does not expose the command in your installed version, the artifacts re
 
 ## Where to learn more about Letta Code
 
-Authoritative documentation: <https://docs.letta.com/letta-code/skills/> (accessed 2026-06-02). The matrix row in [`docs/reference/supported-harnesses.md`](../../reference/supported-harnesses.md) remains the promotion tracker.
+Authoritative documentation: <https://docs.letta.com/letta-code/skills/> (accessed 2026-06-02). The matrix row in [`docs/api/supported-harnesses.md`](../../reference/supported-harnesses.md) remains the promotion tracker.

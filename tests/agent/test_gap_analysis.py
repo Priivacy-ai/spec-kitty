@@ -196,9 +196,9 @@ def test_coverage_matrix_initialization():
     matrix = CoverageMatrix(
         project_areas=["auth", "api"],
         cells={
-            ("auth", "tutorial"): Path("docs/tutorials/auth.md"),
-            ("auth", "reference"): Path("docs/reference/auth.md"),
-            ("api", "reference"): Path("docs/reference/api.md"),
+            ("auth", "tutorial"): Path("docs/guides/auth.md"),
+            ("auth", "reference"): Path("docs/api/auth.md"),
+            ("api", "reference"): Path("docs/api/api.md"),
         },
     )
 
@@ -212,8 +212,8 @@ def test_coverage_matrix_get_gaps():
     matrix = CoverageMatrix(
         project_areas=["auth", "api"],
         cells={
-            ("auth", "tutorial"): Path("docs/tutorials/auth.md"),
-            ("auth", "reference"): Path("docs/reference/auth.md"),
+            ("auth", "tutorial"): Path("docs/guides/auth.md"),
+            ("auth", "reference"): Path("docs/api/auth.md"),
             # Missing: auth/how-to, auth/explanation, api/tutorial, api/how-to, api/reference, api/explanation
         },
     )
@@ -231,9 +231,9 @@ def test_coverage_matrix_percentage():
     matrix = CoverageMatrix(
         project_areas=["auth", "api"],
         cells={
-            ("auth", "tutorial"): Path("docs/tutorials/auth.md"),
-            ("auth", "reference"): Path("docs/reference/auth.md"),
-            ("api", "reference"): Path("docs/reference/api.md"),
+            ("auth", "tutorial"): Path("docs/guides/auth.md"),
+            ("auth", "reference"): Path("docs/api/auth.md"),
+            ("api", "reference"): Path("docs/api/api.md"),
         },
     )
 
@@ -248,8 +248,8 @@ def test_coverage_matrix_markdown_table():
     matrix = CoverageMatrix(
         project_areas=["auth"],
         cells={
-            ("auth", "tutorial"): Path("docs/tutorials/auth.md"),
-            ("auth", "reference"): Path("docs/reference/auth.md"),
+            ("auth", "tutorial"): Path("docs/guides/auth.md"),
+            ("auth", "reference"): Path("docs/api/auth.md"),
         },
     )
 

@@ -400,7 +400,7 @@ sequenceDiagram
 6. **Shared `Actor` type** — vocabulary now; a code type only if a shared seam emerges. `[2d]`
 
 ## Next refinement candidates
-- Promote Tier 1 + 2 into a published `docs/explanation/` doc once the Context subdomain settles.
+- Promote Tier 1 + 2 into a published `docs/architecture/` doc once the Context subdomain settles.
 - Add a **BPMN swimlane** (User / Code / Agent) over the idea→working-code flow, showing which context
   is resolved/consumed at each step — the requirements view (`10`) made executable.
 - A **sequence diagram** of the governed invocation (resolve identity → topology → behaviour → render prompt → act → record evidence).

@@ -5,7 +5,7 @@ Per-era **vision** record for the 2.x architecture track. This is part of the
 [`../../README.md`](../../README.md) for the boundary and decay rules).
 
 This slot exists so the *decay path* has a home: when a piece of the living
-top-level architecture (`architecture/vision/`, `architecture/diagrams/`) is no
+top-level architecture (`docs/architecture/vision/`, `docs/architecture/diagrams/`) is no
 longer current or future, it is **demoted** into the matching `vision/` directory
 of its era — history accrues by version, nothing is deleted.
 

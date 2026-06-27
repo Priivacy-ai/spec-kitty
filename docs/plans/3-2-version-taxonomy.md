@@ -53,7 +53,7 @@ banner on the destination.
 **Example pages.**
 - `docs/3x/charter-overview.md`
 - `docs/3x/index.md`
-- `docs/how-to/install-macos.md` (target page set by FR-017 once landed)
+- `docs/guides/install-macos.md` (target page set by FR-017 once landed)
 
 ### `supported`
 
@@ -76,7 +76,7 @@ the 3.2 migration note when behaviour differs." A `current`-tagged page may
 link to a `supported`-tagged page without triggering the leakage check.
 
 **Example pages.**
-- Any page that today lives under `docs/explanation/` or `docs/reference/`
+- Any page that today lives under `docs/architecture/` or `docs/api/`
   describing 3.1 surface still in 3.2 without revision (assigned by the
   WP02 page inventory).
 
@@ -159,7 +159,7 @@ page may link anywhere.
 **Example pages.**
 - `docs/development/3-2-version-taxonomy.md` (this file)
 - `docs/development/local-overrides.md`
-- `architecture/3.x/adr/2026-04-25-1-shared-package-boundary.md`
+- `docs/adr/3.x/2026-04-25-1-shared-package-boundary.md`
 
 ---
 
@@ -269,27 +269,27 @@ git ls-files docs/ architecture/ README.md \
 | Bucket | Count | Notes |
 |--------|------:|-------|
 | `architecture/2.x/` | 110 | Internal — 2.x architectural intent |
-| `architecture/adrs/` | 67 | Internal — Architecture Decision Records |
-| `docs/how-to/` | 39 | Mostly `current` / `supported` (WP02 will tag) |
+| `docs/adr/3.x/` | 67 | Internal — Architecture Decision Records |
+| `docs/guides/` | 39 | Mostly `current` / `supported` (WP02 will tag) |
 | `docs/development/` | 32 | Internal — maintainer-facing |
 | `architecture/3.x/` | 27 | Internal — 3.x architectural intent |
 | `architecture/1.x/` | 18 | Internal — historical architectural intent |
-| `docs/reference/` | 17 | Mostly `current` (CLI reference + harness reference) |
-| `docs/explanation/` | 16 | Mostly `current` / `supported` |
-| `architecture/audience/` | 13 | Internal — audience-targeted architecture notes |
+| `docs/api/` | 17 | Mostly `current` (CLI reference + harness reference) |
+| `docs/architecture/` | 16 | Mostly `current` / `supported` |
+| `docs/context/audience/` | 13 | Internal — audience-targeted architecture notes |
 | `docs/migration/` | 12 | All `migration` |
 | `docs/2x/` | 9 | All `archival` — move to `docs/archive/2x/` per WP09 |
 | `docs/` (root files) | 8 | Mostly index pages and top-level explanation |
-| `docs/tutorials/` | 8 | Mostly `current` (3.2 first-mission tutorial lives here) |
-| `architecture/audits/` | 7 | Internal — audit records |
+| `docs/guides/` | 8 | Mostly `current` (3.2 first-mission tutorial lives here) |
+| `docs/architecture/audits/` | 7 | Internal — audit records |
 | `docs/1x/` | 6 | All `archival` — move to `docs/archive/1x/` per WP09 |
 | `architecture/` (root files) | 5 | Internal — index pages |
-| `architecture/calibration/` | 5 | Internal — calibration notes |
+| `docs/architecture/calibration/` | 5 | Internal — calibration notes |
 | `docs/architecture/` | 4 | Internal mirror of architecture intent |
 | `docs/3x/` | 4 | All `current` |
 | `docs/doctrine/` | 2 | `current` — doctrine surface |
-| `architecture/assessments/` | 1 | Internal |
-| `docs/recovery/` | 1 | `current` |
+| `docs/architecture/assessments/` | 1 | Internal |
+| `docs/operations/` | 1 | `current` |
 | `README.md` (root) | 1 | `current` |
 
 **Sanity totals.** `docs/**` accounts for 159 files;
@@ -302,8 +302,8 @@ WP02):
 
 | Tag | Expected count | Source |
 |-----|---------------:|--------|
-| `current` | ~85 | `docs/3x/` + `docs/how-to/` + `docs/tutorials/` + `docs/reference/` + `docs/doctrine/` + `docs/recovery/` + root `README.md` + the 3.2-relevant subset of `docs/explanation/` |
-| `supported` | ~25 | Remaining 3.1-era pages in `docs/explanation/` and `docs/reference/` pending re-audit |
+| `current` | ~85 | `docs/3x/` + `docs/guides/` + `docs/guides/` + `docs/api/` + `docs/doctrine/` + `docs/operations/` + root `README.md` + the 3.2-relevant subset of `docs/architecture/` |
+| `supported` | ~25 | Remaining 3.1-era pages in `docs/architecture/` and `docs/api/` pending re-audit |
 | `archival` | 15 | `docs/1x/` (6) + `docs/2x/` (9) |
 | `migration` | 12 | `docs/migration/` |
 | `internal` | 276 | All of `architecture/**` (254) + all of `docs/development/` (32) + `docs/architecture/` (4) — minor double-counting reconciled during inventory |
