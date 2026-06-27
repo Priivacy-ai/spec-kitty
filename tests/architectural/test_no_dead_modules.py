@@ -240,11 +240,21 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
 # Loaded by scripts/generate_schemas.py via dotted-string
 # importlib.import_module to derive JSON schemas from Pydantic
 # models. Never imported by runtime code.
+#
+# Also carries constant modules wired from scripts/ rather than src/ —
+# same "consumed from scripts/, not src/" pattern as the schema generators
+# above (scripts/generate_schemas.py).
 _CATEGORY_2_BUILD_SCHEMA_GENERATORS: frozenset[str] = frozenset(
     {
         "doctrine.agent_profiles.schema_models",
         "doctrine.import_candidates.models",
         "doctrine.model_task_routing.models",
+        # constant module consumed by scripts/docs/anti_sprawl_ratchet.py
+        # (wired from scripts/, not src/) — same pattern as
+        # scripts/generate_schemas.py. COMMON_DOCS_DIRECTIVE_ID is the
+        # single source of truth for the Common Docs directive id, imported
+        # by the anti-sprawl structure ratchet and its self-test.
+        "doctrine.directives.common_docs",
     }
 )
 
