@@ -169,7 +169,11 @@ def _claimable_selection_reason(
     return "no_planned_wps"
 
 
-def preview_claimable_wp(feature_dir: Path) -> ClaimablePreview:
+def preview_claimable_wp(
+    feature_dir: Path,
+    *,
+    status_dir: Path | None = None,
+) -> ClaimablePreview:
     """Return the WP that ``agent action implement`` would auto-claim, if any.
 
     Walks ``<feature_dir>/tasks/WP*.md`` in alphabetical order, reads each
@@ -180,13 +184,28 @@ def preview_claimable_wp(feature_dir: Path) -> ClaimablePreview:
     ``done`` is the WP the explicit action would claim.
 
     Args:
-        feature_dir: Absolute path to ``kitty-specs/<mission_slug>/``.
+        feature_dir: Absolute path to ``kitty-specs/<mission_slug>/`` for
+            **planning artifacts** (``tasks/``, dependency graph).  Under
+            coord topology this is the PRIMARY checkout dir (not the coord
+            husk, which carries STATUS-only files).
+        status_dir: Absolute path to the directory that holds the canonical
+            ``status.events.jsonl`` for lane state.  When ``None`` (default),
+            ``feature_dir`` is used for both planning and status reads — the
+            existing single-arg callers (``runtime_bridge``, existing tests)
+            keep working unchanged.  Pass a distinct coord-aware path here
+            when the caller operates under coord topology so events come from
+            the authoritative coord husk rather than a primary decoy.
 
     Returns:
         :class:`ClaimablePreview` whose ``wp_id`` matches what ``agent action
         implement`` would claim, or ``None`` with a structured
         ``selection_reason``.
     """
+    # WP04 / T015: tasks/ and dependency-graph reads use the planning arg;
+    # status events use status_dir (or fall back to feature_dir for single-arg
+    # callers — backward-compatible).
+    _status_dir = status_dir if status_dir is not None else feature_dir
+
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.is_dir():
         return ClaimablePreview(
@@ -204,8 +223,9 @@ def preview_claimable_wp(feature_dir: Path) -> ClaimablePreview:
         )
 
     # Read lanes from the canonical status event log (lane is event-log-only).
+    # Dependency graph is a planning artifact → feature_dir (primary partition).
     return _preview_from_candidates(
         candidates,
-        _load_wp_lanes(feature_dir),
+        _load_wp_lanes(_status_dir),
         build_dependency_graph(feature_dir),
     )

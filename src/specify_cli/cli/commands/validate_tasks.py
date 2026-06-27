@@ -12,7 +12,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from specify_cli.cli.helpers import console, get_project_root_or_exit
-from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_slug
+from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 from specify_cli.task_metadata_validation import (
     repair_lane_mismatch,
     scan_all_tasks_for_mismatches,
@@ -110,17 +110,25 @@ def validate_tasks(
     if mission_slug is None:
         console.print("[red]Error:[/red] --mission <slug> is required (or use --all)")
         raise typer.Exit(1)
-    feature_dir = resolve_feature_dir_for_slug(repo_root, mission_slug)
+    # FR-009 / single-leg PRIMARY (T028).
+    # scan_all_tasks_for_mismatches reads WP-frontmatter from tasks/planned|doing|…/WP*.md
+    # (WORK_PACKAGE_TASK partition).  Before this fix, the coord-aware resolver returned the
+    # STATUS-only husk which carries no tasks/ → silent {} (pre-fix bug).
+    from mission_runtime import MissionArtifactKind  # late import — keeps cold-start cost low
 
-    if not feature_dir.exists():
-        console.print(f"[red]Error:[/red] Feature directory not found: {feature_dir}")
+    planning_dir = resolve_planning_read_dir(
+        repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    )
+
+    if not planning_dir.exists():
+        console.print(f"[red]Error:[/red] Feature directory not found: {planning_dir}")
         raise typer.Exit(1)
 
     console.print(f"[cyan]Validating task metadata for feature:[/cyan] {mission_slug}")
     console.print()
 
     mismatches, fixed = _validate_feature_tasks(
-        feature_dir, fix=fix, agent=agent, shell_pid=shell_pid
+        planning_dir, fix=fix, agent=agent, shell_pid=shell_pid
     )
 
     if mismatches == 0:
@@ -138,9 +146,23 @@ def validate_tasks(
 
 
 def _validate_feature_tasks(
-    feature_dir: Path, *, fix: bool, agent: str, shell_pid: str
+    feature_dir: Path,
+    *,
+    fix: bool,
+    agent: str,
+    shell_pid: str,
 ) -> tuple[int, int]:
     """Validate task metadata for a single feature directory.
+
+    Reads WP-frontmatter from the PRIMARY planning surface (tasks/planned|doing|…/WP*.md).
+    This is a single-leg PRIMARY read: the frontmatter ``lane:`` field is compared against
+    the lane-subdir the file lives in; no STATUS leg (status.events.jsonl) is read.
+
+    Args:
+        feature_dir: PRIMARY-partition planning dir (tasks/ frontmatter reads).
+        fix: When True, automatically repair lane mismatches in-place.
+        agent: Agent name written to the activity log on repair.
+        shell_pid: Shell PID written to the activity log on repair.
 
     Returns:
         Tuple of (mismatches_found, mismatches_fixed)

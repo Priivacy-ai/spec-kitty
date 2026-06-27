@@ -28,7 +28,11 @@ from specify_cli.context.store import save_context
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.persistence import require_lanes_json
 from specify_cli.mission_metadata import mission_identity_fields
-from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
+from mission_runtime import MissionArtifactKind
+from specify_cli.missions._read_path_resolver import (
+    resolve_feature_dir_for_mission,
+    resolve_planning_read_dir,
+)
 from specify_cli.status import WPMetadata, read_wp_frontmatter
 
 
@@ -158,9 +162,14 @@ def resolve_context(
     # 1. Read project_uuid
     project_uuid = _read_project_uuid(repo_root)
 
-    # 2. Locate feature directory
+    # 2. Locate feature directory — primary-anchor pattern (implement.py:1018).
+    # ``resolve_feature_dir_for_mission`` is coord-aware: it resolves the
+    # canonical directory for F-001 slug canonicalization. Reads that follow
+    # (meta.json, WP frontmatter, lanes.json) are PRIMARY-partition artifacts
+    # and are routed through ``resolve_planning_read_dir`` so they are
+    # topology-blind (C-007: no consolidation of the coord-aware resolver).
     try:
-        feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
+        _canon_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
     except ActionContextError as exc:
         # FR-001 / M1 (T038): preserve the resolver's typed read-path signal
         # instead of flattening it into "Check that the mission slug is correct."
@@ -174,9 +183,6 @@ def resolve_context(
             f"'{mission_slug}'. {exc}"
         )
         raise FeatureNotFoundError(msg) from exc
-    if not feature_dir.exists():
-        msg = f"Feature directory not found: {feature_dir}. Check that '{mission_slug}' is the correct feature slug."
-        raise FeatureNotFoundError(msg)
 
     # F-001 boundary canonicalization (the finalize-tasks pattern): the
     # caller-supplied ``mission_slug`` is an operator HANDLE (full slug, bare
@@ -186,7 +192,17 @@ def resolve_context(
     # MissionContext token fields — by the resolved directory name, never the
     # raw handle. A raw mid8 here composes a wrong-but-plausible
     # ``kitty/mission-<mid8>-…`` ref and persists a raw ``mission_slug``.
-    mission_slug = feature_dir.name
+    mission_slug = _canon_dir.name
+
+    # Route all PRIMARY-partition reads (meta.json, WP frontmatter, lanes.json)
+    # through the seam so they always resolve to the primary checkout under coord
+    # topology (coord husk carries STATUS events only, not planning artifacts).
+    feature_dir = resolve_planning_read_dir(
+        repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    )
+    if not feature_dir.exists():
+        msg = f"Feature directory not found: {feature_dir}. Check that '{mission_slug}' is the correct feature slug."
+        raise FeatureNotFoundError(msg)
 
     # 3. Read meta.json
     meta = _read_meta_json(feature_dir)

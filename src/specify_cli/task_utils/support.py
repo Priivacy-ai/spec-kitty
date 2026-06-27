@@ -299,13 +299,17 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
     Legacy format: WP files in tasks/{lane}/ subdirectories
     New format: WP files in flat tasks/ directory with lane in frontmatter
     """
+    from mission_runtime import MissionArtifactKind
     from specify_cli.core.paths import get_main_repo_root
-    from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_slug
+    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 
-    # Always use main repo's kitty-specs - it's the source of truth
-    # This fixes the bug where worktree's stale kitty-specs/ would be used
+    # Always use main repo's kitty-specs - it's the source of truth.
+    # Route through the seam (WORK_PACKAGE_TASK) so tasks/ reads resolve to the
+    # primary checkout under coord topology (coord husk carries STATUS only).
     main_root = get_main_repo_root(repo_root)
-    feature_path = resolve_feature_dir_for_slug(main_root, feature)
+    feature_path = resolve_planning_read_dir(
+        main_root, feature, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    )
 
     tasks_root = feature_path / "tasks"
     if not tasks_root.exists():

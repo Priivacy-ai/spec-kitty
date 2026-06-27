@@ -227,27 +227,24 @@ def _review_currency_check_branch(
 def _map_requirements_feature_dir(main_repo_root: Path, mission_slug: str) -> Path:
     """Resolve the WP ``tasks/`` read surface for ``map-requirements`` (#2064).
 
-    Routes through the SAME seam-resolved entry point ``finalize_tasks`` (and the
-    rest of ``tasks.py``) use — :func:`resolve_feature_dir_for_mission` (the
-    ``resolve_action_context(action="tasks")`` seam) — so the WP-frontmatter read
-    cannot diverge from finalize on a coord/flattened topology. Previously this
-    command was the lone read path on ``resolve_feature_dir_for_slug``, whose
-    slug-only ``mid8_from_slug`` heuristic missed the coord worktree when the
-    operator handle carried no mid8 tail, while finalize resolved into it.
+    Routes through ``resolve_planning_read_dir(kind=WORK_PACKAGE_TASK)`` — the
+    per-leg seam split (WP03 / FR-001 / C-001): the WP-frontmatter read always
+    lands on the PRIMARY checkout regardless of topology (INV-5 symmetry), so a
+    coord-topology mission no longer routes to the STATUS-only coord husk for this
+    planning-artifact read.
 
-    The unified resolver raises ``ActionContextError`` when the directory cannot
-    be located; ``map-requirements`` historically surfaced this as its own
-    ``Mission directory not found: …`` message via an existence guard on the
-    returned path. To preserve that user-facing contract (Risk #1) the typed
-    error is translated back into the non-existent candidate directory so the
-    caller's existing existence guard fires the unchanged message.
+    ``resolve_planning_read_dir`` delegates to the topology-blind
+    :func:`primary_feature_dir_for_mission`, which never raises — preserving the
+    user-facing contract that ``map-requirements`` surfaces its own
+    ``"Mission directory not found: …"`` message via the caller's existence guard
+    on the returned path (Risk #1 — unchanged user-facing behaviour).
     """
-    from mission_runtime import ActionContextError
-
-    try:
-        return resolve_feature_dir_for_mission(main_repo_root, mission_slug)
-    except ActionContextError:
-        return candidate_feature_dir_for_mission(main_repo_root, mission_slug)
+    # WP03 / FR-001 / C-001: tasks/ is WORK_PACKAGE_TASK (PRIMARY-partition).
+    # The topology-blind primary_feature_dir_for_mission never raises, so the
+    # caller's existence guard preserves the historical user-facing contract.
+    return resolve_planning_read_dir(
+        main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    )
 
 
 def _review_stall_threshold_minutes(repo_root: Path) -> int:
@@ -2118,13 +2115,17 @@ def list_tasks(
         # Ensure we operate on the target branch for this feature
         main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
 
-        # Find all task files
-        tasks_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug) / "tasks"
+        # Find all task files — tasks/ is PRIMARY-partition (FR-001 / C-001 per-leg
+        # split — WP03 T010): WP task files live on the primary checkout regardless
+        # of topology; a coord-topology mission's STATUS-only husk has no tasks/.
+        tasks_dir = resolve_planning_read_dir(
+            main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+        ) / "tasks"
         if not tasks_dir.exists():
             _output_error(json_output, f"Tasks directory not found: {tasks_dir}")
             raise typer.Exit(1)
 
-        # Load canonical lanes from event log
+        # Load canonical lanes from event log (STATUS-partition — stays coord-aware, C-001)
         _lt_feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
         try:
             from specify_cli.status import read_events as _lt_read_events
@@ -2301,14 +2302,21 @@ def finalize_tasks(
         # Ensure we operate on the target branch for this feature
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
         feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
-        # Boundary guard — hard-reject pre-3.0 layout before any WP mutation
+        # Boundary guard — hard-reject pre-3.0 layout before any WP mutation (#1057)
         try:
             check_pre30_layout(feature_dir)
         except Pre30LayoutError as e:
             _output_error(json_output, str(e))
             raise typer.Exit(1) from None
-        tasks_md = feature_dir / TASKS_MD_FILENAME
-        tasks_dir = feature_dir / "tasks"
+        # tasks.md and tasks/ are PRIMARY-partition (FR-001 / C-001 per-leg split
+        # — WP03 T011): WP task files live on the primary checkout regardless of
+        # topology. Only the STATUS artifacts (bootstrap, event log) use the
+        # coord-aware resolver below.
+        primary_feature_dir = resolve_planning_read_dir(
+            main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+        )
+        tasks_md = primary_feature_dir / TASKS_MD_FILENAME
+        tasks_dir = primary_feature_dir / "tasks"
 
         if not tasks_md.exists():
             _output_error(json_output, f"tasks.md not found: {tasks_md}")
@@ -2371,7 +2379,9 @@ def finalize_tasks(
         unchanged_wps = update_plan.unchanged_wps
         preserved_wps = update_plan.preserved_wps
 
-        # Bootstrap canonical status state for all WPs
+        # Bootstrap canonical status state for all WPs — STATUS-partition: reads
+        # the event log and meta.json via the topology-aware resolver (C-001).
+        feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
         bootstrap_result = bootstrap_canonical_state(feature_dir, mission_slug, dry_run=validate_only)
 
         if validate_only:
@@ -3032,7 +3042,13 @@ def status(
                 )
                 raise typer.Exit(1)
 
-        tasks_dir = feature_dir / "tasks"
+        # PRIMARY leg — tasks/ is PRIMARY-partition (FR-001 / C-001 per-leg split
+        # — WP03 T009). The STATUS leg stays on the coord-aware ``feature_dir``
+        # above (WP08 T037, FR-030 / C-001); only the tasks-dir read routes to
+        # PRIMARY so a coord-topology mission finds its WP files (not the husk).
+        tasks_dir = resolve_planning_read_dir(
+            main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+        ) / "tasks"
 
         if not tasks_dir.exists():
             console.print(f"[red]Error:[/red] Tasks directory not found: {tasks_dir}")
@@ -3465,12 +3481,18 @@ def list_dependents(
         mission_slug = _find_mission_slug(explicit_mission=mission, json_output=json_output, repo_root=repo_root)
         main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
         feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
-        # Boundary guard — hard-reject pre-3.0 layout before reading any WP
+        # Boundary guard — hard-reject pre-3.0 layout before reading any WP (#1057)
         try:
             check_pre30_layout(feature_dir)
         except Pre30LayoutError as e:
             _output_error(json_output, str(e))
             raise typer.Exit(1) from None
+        # tasks/ is PRIMARY-partition — pass the primary planning dir to the graph
+        # builder so build_dependency_graph reads WP tasks/ from PRIMARY (T012 / FR-001).
+        # The function signature is unchanged; the caller here is the only one routed.
+        feature_dir = resolve_planning_read_dir(
+            main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+        )
 
         if not feature_dir.exists():
             _output_error(json_output, f"Mission directory not found: {feature_dir}")
