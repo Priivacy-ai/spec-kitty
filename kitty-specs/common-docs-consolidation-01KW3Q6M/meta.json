@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "52b1f7bcd2a5774c19b6f56b5b7d22a8ac0e4387",
+  "coordination_branch": "kitty/mission-common-docs-consolidation-01KW3Q6M",
+  "created_at": "2026-06-27T05:00:26.186112+00:00",
+  "flattened": false,
+  "friendly_name": "Common Docs Doctrine & Reconciliation (Mission A)",
+  "mission_id": "01KW3Q6MP9900A9824JDTQPA8P",
+  "mission_number": 151,
+  "mission_slug": "common-docs-consolidation-01KW3Q6M",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Mission A of the Common Docs consolidation (a 3-ship split). It delivers the rules and the rulers - the reconciliation ADR that decides every open mechanism (frontmatter-as-SSOT, the DocFX redirect approach, the glossary read-path, the era-less-ADR migration plan, the status namespace, the 13-section target, the curation policy), the built-in Common Docs directive/styleguide/tactics, and the related:-validator + lockfile-generator + anti-sprawl ratchet in report-only mode - so Mission B (the structural move) executes against merged, governed, self-testing doctrine. Mission A mutates no doc-tree files.",
+  "purpose_tldr": "Establish the governed foundation for the Common Docs consolidation: the reconciliation ADR, the built-in doctrine, and the report-only enforcement rulers (each self-testing).",
+  "slug": "common-docs-consolidation-01KW3Q6M",
+  "target_branch": "docs/2165-consolidation-research",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-27T06:36:37.163641+00:00"
+}

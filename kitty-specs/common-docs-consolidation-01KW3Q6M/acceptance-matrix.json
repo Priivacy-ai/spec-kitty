@@ -1,0 +1,89 @@
+{
+  "mission_slug": "common-docs-consolidation-01KW3Q6M",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Reconciliation ADR (accepted) decides all 7 mechanisms (Candidate A, doc_status, DocFX redirect, glossary read-path, era-less migration, 13-section, curation).",
+      "proof_type": "manual_review",
+      "evidence": "WP01: architecture/3.x/adr/2026-06-27-1-common-docs-reconciliation.md \u2014 7 decisions at pre-settled values; reviewer-renata approved.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T08:50:00+00:00",
+      "notes": "Verified via the WP review + self-test (Mission A, report-only)."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Common Docs directive is bound to the ratchet (referenced and resolves to a loaded directive).",
+      "proof_type": "automated_test",
+      "evidence": "WP02 DIRECTIVE_042 (COMMON_DOCS_DIRECTIVE_ID shared constant); WP05 binding self-test asserts it resolves to a loaded graph node and a bogus id does NOT.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T08:50:00+00:00",
+      "notes": "Verified via the WP review + self-test (Mission A, report-only)."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Common Docs styleguide codifies the conventions; every rule maps to a live check.",
+      "proof_type": "manual_review",
+      "evidence": "WP02 styleguide rule->check table: 8 rows, zero check=none (frontmatter->WP04, related:->WP03, structure->WP05).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T08:50:00+00:00",
+      "notes": "Verified via the WP review + self-test (Mission A, report-only)."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Common Docs tactic(s) authored and DRG-wired; freshness gated.",
+      "proof_type": "automated_test",
+      "evidence": "WP02 tactics (curation + scaffold/write/find); `spec-kitty doctrine regenerate-graph --check` exit 0 (DRG fresh).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T08:50:00+00:00",
+      "notes": "Verified via the WP review + self-test (Mission A, report-only)."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "related: path validator (report-only) with a self-test that bites.",
+      "proof_type": "automated_test",
+      "evidence": "WP03 scripts/docs/related_validator.py; self-test red-first (no-op stub reds 3 assertions), checked_count>0, baseline 0 dangling, exit 0.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T08:50:00+00:00",
+      "notes": "Verified via the WP review + self-test (Mission A, report-only)."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "frontmatter->inventory lockfile generator + check_docs_freshness inversion + linchpin tamper self-test.",
+      "proof_type": "automated_test",
+      "evidence": "WP04 scripts/docs/inventory_lockfile.py; tamper test reds against an echo generator (generated(before)!=generated(after)); LEAK-FRONTMATTER-MISMATCH untouched; report-only exit 0.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T08:50:00+00:00",
+      "notes": "Verified via the WP review + self-test (Mission A, report-only)."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "anti-sprawl ratchet (report-only): 4 detectors + content-anchored 13-section floor + directive binding.",
+      "proof_type": "automated_test",
+      "evidence": "WP05 scripts/docs/anti_sprawl_ratchet.py; 4 injection fixtures red-first; floor=13 sections; binding resolves (bogus rejected); baseline 142, exit 0.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T08:50:00+00:00",
+      "notes": "Verified via the WP review + self-test (Mission A, report-only)."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Common Docs Agent Skills question resolved.",
+      "proof_type": "manual_review",
+      "evidence": "WP06+WP02: skills implemented as 3 doctrine tactics (scaffold/write/find); no dangling installed-skill reference; ADR 'install as peer skills' note deferred to Mission B.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-06-27T08:50:00+00:00",
+      "notes": "Verified via the WP review + self-test (Mission A, report-only)."
+    }
+  ],
+  "negative_invariants": []
+}
