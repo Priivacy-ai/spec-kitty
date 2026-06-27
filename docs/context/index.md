@@ -1,5 +1,6 @@
 ---
 title: Context
+description: "Context section landing page: the unified home for Spec Kitty's canonical glossary contexts and the stakeholder/audience persona catalog (Mission B, FR-009)."
 doc_status: active
 updated: '2026-06-27'
 ---

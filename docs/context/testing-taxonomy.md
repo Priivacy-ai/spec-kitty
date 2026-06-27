@@ -1,5 +1,6 @@
 ---
 title: 'Context: Testing Taxonomy'
+description: 'Glossary context for the testing taxonomy: the canonical pytest-marker categories for the tests/ tree and how to choose markers for a new test file.'
 doc_status: active
 updated: '2026-05-30'
 ---

@@ -1,5 +1,6 @@
 ---
 title: 'Stakeholder Persona: Maintainer'
+description: 'Internal maintainer persona: keeps governance operations sustainable, auditable, and low-friction for contributors across the Spec Kitty project.'
 doc_status: active
 updated: '2026-06-12'
 ---
