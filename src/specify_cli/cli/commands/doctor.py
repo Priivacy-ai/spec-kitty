@@ -508,7 +508,7 @@ def _print_overdue_details(report: ShimRegistryReport, console: Console) -> None
             )
             console.print(
                 "      Option B: Extend removal_target_release in"
-                " architecture/2.x/shim-registry.yaml with extension_rationale"
+                " docs/migrations/shim-registry.yaml with extension_rationale"
             )
 
 

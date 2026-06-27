@@ -19,7 +19,7 @@ subtasks:
 - T006
 - T007
 - T008
-agent: "claude:opus:python-pedro:implementer"
+agent: ""
 history: []
 agent_profile: python-pedro
 authoritative_surface: src/charter/context_renderers/authority_paths.py
@@ -36,7 +36,6 @@ owned_files:
 - tests/docs/test_runtime_read_resolution.py
 role: implementer
 tags: []
-shell_pid: "1233974"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -143,4 +142,3 @@ Planning + final merge target: `docs/2165-mission-b-structural-move`. This is th
 ## Activity Log
 
 - (populated at implement time)
-- 2026-06-27T12:06:12Z – claude:opus:python-pedro:implementer – shell_pid=1233974 – Assigned agent via action command
