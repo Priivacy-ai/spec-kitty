@@ -23,6 +23,7 @@ from tests.integration.coord_topology_fixture import (  # noqa: F401
     assert_reads_primary,
     assert_status_from_coord,
     coord_topology_mission,
+    coord_topology_mission_sentinel_meta,
     flat_topology_mission,
 )
 
@@ -33,5 +34,6 @@ __all__ = [
     "assert_reads_primary",
     "assert_status_from_coord",
     "coord_topology_mission",
+    "coord_topology_mission_sentinel_meta",
     "flat_topology_mission",
 ]

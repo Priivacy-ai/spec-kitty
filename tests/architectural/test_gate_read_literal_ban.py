@@ -135,6 +135,63 @@ _META_JSON_LITERAL = "meta.json"
 
 
 # ---------------------------------------------------------------------------
+# CALL-SHAPE arm vocabulary (coord-read-residuals FR-007, WP01).
+#
+# The two arms above fence PATH-JOIN literals (``dir / "spec.md"`` /
+# ``dir / "tasks"`` / ``anchor(...) / "meta.json"``). They are STRUCTURALLY BLIND
+# to two read shapes this Mission routes, because neither is a planning path-join
+# literal:
+#
+#   (a) IDENTITY  — ``resolve_mission_identity(dir)`` / ``get_mission_type(dir)``
+#       (a ``meta.json`` read expressed as a FUNCTION CALL, not a path join).
+#   (b) LANES.JSON — ``read_lanes_json(dir)`` / ``require_lanes_json(dir)``
+#       (a LANE_STATE read expressed as a function call).
+#
+# Both are coord-vs-primary divergences: under coordination topology a ``dir``
+# bound from a coord-aware resolver selects the STATUS-only ``-coord`` husk, which
+# (post-#2106) carries neither ``meta.json`` nor ``lanes.json``. The call-shape arm
+# flags such a call when its FIRST arg is a ``dir`` bound (in the same function)
+# from a coord-aware resolver WITHOUT a primary fold.
+#
+# Scope is bounded PER SHAPE (FR-007 / SC-005) so the arm never red-CIs on
+# out-of-scope strangers (``sync/``, ``acceptance/``, ``policy/``,
+# ``orchestrator_api/`` — follow-on): identity → ``cli/commands/`` +
+# ``agent_utils/status.py``; lanes.json → ``merge/`` + ``lanes/`` +
+# ``core/worktree_topology.py``.
+
+# The coord-aware read resolvers whose result, passed to an identity / lanes.json
+# read, is the divergence shape (they select the coord husk under coord topology).
+_COORD_AWARE_CALLSHAPE_RESOLVERS: frozenset[str] = frozenset(
+    {
+        "resolve_feature_dir_for_mission",
+        "candidate_feature_dir_for_mission",
+        "resolve_feature_dir_for_slug",
+    }
+)
+
+# The PRIMARY-fold seams. A ``dir`` bound from one of these (or an inline call to
+# one) is the SANCTIONED shape and is NEVER flagged: the read lands on the durable
+# PRIMARY ``kitty-specs/<slug>-<mid8>/`` home for every handle/topology.
+_PRIMARY_FOLD_CALLSHAPE_FUNCS: frozenset[str] = frozenset(
+    {
+        "_canonicalize_primary_read_handle",
+        "primary_feature_dir_for_mission",
+        "resolve_planning_read_dir",
+    }
+)
+
+# Shape (a): identity reads (a meta.json read expressed as a function call).
+_IDENTITY_READ_FUNCS: frozenset[str] = frozenset(
+    {"resolve_mission_identity", "get_mission_type"}
+)
+
+# Shape (b): lanes.json (LANE_STATE) reads.
+_LANES_READ_FUNCS: frozenset[str] = frozenset(
+    {"read_lanes_json", "require_lanes_json"}
+)
+
+
+# ---------------------------------------------------------------------------
 # Pinned enumerated surfaces. Adding a NEW gate command (read) or write-branch
 # resolver WITHOUT adding it here makes the pin test below FAIL — a ratchet that
 # silently skips a new surface is vacuous (T024.3).
@@ -474,6 +531,66 @@ def write_arm_anchors(func: ast.AST) -> tuple[bool, bool]:
 
 
 # ===========================================================================
+# CALL-SHAPE arm scanner (coord-read-residuals FR-007).
+# ===========================================================================
+#
+# Flag a call ``read_func(dir, ...)`` (identity or lanes.json) whose first arg is
+# a coord-aware ``dir`` WITHOUT a primary fold. Two binding shapes are detected,
+# mirroring the existing read-arm scanner's two-hop + inline-call coverage:
+#
+#   * two-hop: ``d = resolve_feature_dir_for_mission(...); read_func(d)`` — ``d``
+#     is a Name bound from a coord-aware resolver and NOT (re)bound from a primary
+#     fold in the same function.
+#   * inline-call: ``read_func(resolve_feature_dir_for_mission(...))`` — the
+#     coord-aware resolver call is the DIRECT first argument.
+#
+# The SANCTIONED shape — ``read_func(primary_feature_dir_for_mission(repo, _canonicalize_primary_read_handle(repo, slug)))``
+# (or the two-hop binding off a primary-fold seam) — is NEVER flagged.
+
+
+def callshape_violations(func: ast.AST, *, read_funcs: frozenset[str]) -> list[str]:
+    """Coord-aware identity/lanes.json reads inside *func* without a primary fold.
+
+    ``read_funcs`` selects the shape: :data:`_IDENTITY_READ_FUNCS` (identity) or
+    :data:`_LANES_READ_FUNCS` (lanes.json). Returns ``"<read_func>(<arg>)"``
+    descriptors — one per flagged call.
+
+    A call is flagged iff its first positional arg is EITHER:
+
+    * a ``Name`` bound (same function) from a coord-aware resolver and NOT also
+      bound from a primary-fold seam (the two-hop shape — a benign rebinding off a
+      primary fold clears the flag); or
+    * a direct ``Call`` to a coord-aware resolver (the inline-call shape).
+
+    A first arg bound from / built by a primary-fold seam is the sanctioned shape
+    and is never flagged. A first arg that is a plain function PARAMETER (not bound
+    from any resolver in this function) is likewise not flagged — the divergence is
+    a *local* coord-aware binding, not a caller-supplied dir.
+    """
+    coord_bound = _names_bound_from(func, _COORD_AWARE_CALLSHAPE_RESOLVERS)
+    primary_bound = _names_bound_from(func, _PRIMARY_FOLD_CALLSHAPE_FUNCS)
+
+    violations: list[str] = []
+    for node in ast.walk(func):
+        if not isinstance(node, ast.Call):
+            continue
+        callee = _call_func_name(node)
+        if callee is None or callee not in read_funcs or not node.args:
+            continue
+        first = node.args[0]
+        # Two-hop: a locally coord-bound Name, not re-folded onto PRIMARY.
+        if isinstance(first, ast.Name):
+            if first.id in coord_bound and first.id not in primary_bound:
+                violations.append(f"{callee}({first.id})")
+        # Inline-call: the coord-aware resolver call is the direct first argument.
+        elif isinstance(first, ast.Call):
+            inner = _call_func_name(first)
+            if inner is not None and inner in _COORD_AWARE_CALLSHAPE_RESOLVERS:
+                violations.append(f"{callee}({inner}(...))")
+    return violations
+
+
+# ===========================================================================
 # (1) READ arm — the enumerated gate surfaces are clean on the real tree.
 # ===========================================================================
 
@@ -781,10 +898,10 @@ _DIR_READ_KNOWN_RESIDUALS: frozenset[str] = frozenset(
         # no silent skip.  These are PRIMARY-partition tasks/ reads outside the
         # implement loop or in modules outside this mission's C-009 boundary.
         # -------------------------------------------------------------------
-        "src/specify_cli/agent_utils/status.py::show_kanban_status",
-        # Two-hop: feature_dir / "tasks" — kanban display command; out-of-loop.
-        # TICKET-AND-PIN HIGH (research.md FR-008 sweep).  Tracked by #2187
-        # (route show_kanban_status tasks-read off coord; same class as #2185).
+        # DRAINED (#2187, coord-read-residuals WP03): show_kanban_status now routes
+        # its ``tasks/`` glob through the kind-aware seam (kind=WORK_PACKAGE_TASK),
+        # reading off PRIMARY — so the read-arm no longer flags it. Removed from the
+        # set per FR-008 (the sole ratchet-visible Lane A drain; set shrinks by one).
         "src/specify_cli/scripts/tasks/tasks_cli.py::list_command",
         # Two-hop: feature_path / "tasks" — legacy pre-3.0 task CLI script.
         # Cite #2167 (retire pre-3.0 scripts/tasks/ legacy reader).
@@ -1090,3 +1207,163 @@ def test_write_arm_self_test_passes_primary_meta_anchor() -> None:
     )
     assert reads_via_candidate is False
     assert reads_via_primary is True
+
+
+# ===========================================================================
+# (5) CALL-SHAPE arm self-tests (coord-read-residuals FR-007, WP01 T003).
+# ===========================================================================
+#
+# MANDATORY synthetic-AST non-vacuity proof for BOTH shapes (identity + lanes.json),
+# in BOTH binding forms (two-hop + inline-call). The literal path-join scanners are
+# structurally blind to these function-call reads, so this arm is the only detector
+# for the coord-vs-primary divergence in identity/lanes.json reads. These self-tests
+# prove — every run — that the arm FLAGS the pre-fix shape and PASSES the routed
+# shape, so a future edit that neuters ``callshape_violations`` goes RED here
+# (DIRECTIVE_041: the teeth are an automated regression, not a manual ritual).
+
+# ---- IDENTITY shape (resolve_mission_identity / get_mission_type) ----
+
+# Two-hop violation: dir bound from a coord-aware resolver, then identity-read.
+# This is the pre-fix ``next_cmd._write_issuance_lifecycle_record`` shape.
+_IDENTITY_VIOLATION_TWO_HOP = '''
+def f(repo_root, mission_slug):
+    feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
+    identity = resolve_mission_identity(feature_dir)
+    return identity.mission_id
+'''
+
+# Inline-call violation: the coord-aware resolver call is the direct argument.
+# This is the pre-fix ``workflow.py:2739`` shape.
+_IDENTITY_VIOLATION_INLINE = '''
+def f(main_repo_root, mission_slug):
+    return resolve_mission_identity(
+        resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+    ).mission_id
+'''
+
+# Routed (clean): the dir is built by the PRIMARY fold seam. Must NOT be flagged.
+# This is the post-fix shape for every routed identity site.
+_IDENTITY_CLEAN_PRIMARY_FOLD = '''
+def f(repo_root, mission_slug):
+    primary_dir = primary_feature_dir_for_mission(
+        repo_root, _canonicalize_primary_read_handle(repo_root, mission_slug)
+    )
+    mission_type = get_mission_type(primary_dir)
+    return mission_type
+'''
+
+# Precision guard: a plain parameter ``feature_dir`` (caller-supplied, not bound
+# from a coord-aware resolver in this function) is NOT the divergence shape — the
+# caller already resolved it. Must NOT be flagged (else every helper that ACCEPTS
+# a feature_dir would red-CI).
+_IDENTITY_CLEAN_PARAMETER_DIR = '''
+def f(feature_dir):
+    identity = resolve_mission_identity(feature_dir)
+    return identity.mission_id
+'''
+
+
+def test_callshape_arm_identity_flags_two_hop() -> None:
+    """IDENTITY two-hop: ``d = resolve_feature_dir_for_mission(...); resolve_mission_identity(d)``
+    is FLAGGED (the pre-fix lifecycle-record shape)."""
+    hits = callshape_violations(
+        _func_from_source(_IDENTITY_VIOLATION_TWO_HOP), read_funcs=_IDENTITY_READ_FUNCS
+    )
+    assert hits == ["resolve_mission_identity(feature_dir)"], hits
+
+
+def test_callshape_arm_identity_flags_inline_call() -> None:
+    """IDENTITY inline-call: ``resolve_mission_identity(resolve_feature_dir_for_mission(...))``
+    is FLAGGED (the pre-fix ``workflow.py:2739`` shape)."""
+    hits = callshape_violations(
+        _func_from_source(_IDENTITY_VIOLATION_INLINE), read_funcs=_IDENTITY_READ_FUNCS
+    )
+    assert hits == ["resolve_mission_identity(resolve_feature_dir_for_mission(...))"], hits
+
+
+def test_callshape_arm_identity_passes_primary_fold() -> None:
+    """Precision: an identity read off ``primary_feature_dir_for_mission(_canonicalize_primary_read_handle(...))``
+    is NOT flagged (the sanctioned routed shape)."""
+    hits = callshape_violations(
+        _func_from_source(_IDENTITY_CLEAN_PRIMARY_FOLD), read_funcs=_IDENTITY_READ_FUNCS
+    )
+    assert hits == [], hits
+
+
+def test_callshape_arm_identity_passes_parameter_dir() -> None:
+    """Precision: an identity read of a caller-supplied parameter ``feature_dir``
+    (not locally bound from a coord-aware resolver) is NOT flagged."""
+    hits = callshape_violations(
+        _func_from_source(_IDENTITY_CLEAN_PARAMETER_DIR), read_funcs=_IDENTITY_READ_FUNCS
+    )
+    assert hits == [], hits
+
+
+# ---- LANES.JSON shape (read_lanes_json / require_lanes_json) ----
+
+# Two-hop violation: dir bound from a coord-aware resolver, then lanes.json read.
+# This is the pre-fix ``lanes/merge.py`` / ``core/worktree_topology.py`` shape
+# (the #2185 cluster — its remediation lands in WP02, but the arm + self-test
+# ship here so the detector exists before the routing).
+_LANES_VIOLATION_TWO_HOP = '''
+def f(repo_root, mission_slug):
+    feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    lanes_manifest = require_lanes_json(feature_dir)
+    return lanes_manifest
+'''
+
+# Inline-call violation: coord-aware resolver call is the direct argument.
+_LANES_VIOLATION_INLINE = '''
+def f(repo_root, mission_slug):
+    return read_lanes_json(resolve_feature_dir_for_slug(repo_root, mission_slug))
+'''
+
+# Routed (clean): dir built by the PRIMARY fold seam. Must NOT be flagged.
+_LANES_CLEAN_PRIMARY_FOLD = '''
+def f(repo_root, mission_slug):
+    primary_dir = primary_feature_dir_for_mission(
+        repo_root, _canonicalize_primary_read_handle(repo_root, mission_slug)
+    )
+    return read_lanes_json(primary_dir)
+'''
+
+
+def test_callshape_arm_lanes_flags_two_hop() -> None:
+    """LANES two-hop: ``d = candidate_feature_dir_for_mission(...); require_lanes_json(d)``
+    is FLAGGED (the pre-fix #2185 merge/lanes/core shape the literal vocabulary
+    could not see)."""
+    hits = callshape_violations(
+        _func_from_source(_LANES_VIOLATION_TWO_HOP), read_funcs=_LANES_READ_FUNCS
+    )
+    assert hits == ["require_lanes_json(feature_dir)"], hits
+
+
+def test_callshape_arm_lanes_flags_inline_call() -> None:
+    """LANES inline-call: ``read_lanes_json(resolve_feature_dir_for_slug(...))``
+    is FLAGGED."""
+    hits = callshape_violations(
+        _func_from_source(_LANES_VIOLATION_INLINE), read_funcs=_LANES_READ_FUNCS
+    )
+    assert hits == ["read_lanes_json(resolve_feature_dir_for_slug(...))"], hits
+
+
+def test_callshape_arm_lanes_passes_primary_fold() -> None:
+    """Precision: a lanes.json read off the PRIMARY fold seam is NOT flagged."""
+    hits = callshape_violations(
+        _func_from_source(_LANES_CLEAN_PRIMARY_FOLD), read_funcs=_LANES_READ_FUNCS
+    )
+    assert hits == [], hits
+
+
+def test_callshape_arm_shape_isolation() -> None:
+    """Scope isolation: the IDENTITY ``read_funcs`` does not flag a lanes.json call
+    and vice-versa — each shape's vocabulary is bounded to its own read functions.
+    """
+    identity_func = _func_from_source(_IDENTITY_VIOLATION_TWO_HOP)
+    lanes_func = _func_from_source(_LANES_VIOLATION_TWO_HOP)
+    # The identity vocabulary sees the identity violation but not the lanes one.
+    assert callshape_violations(identity_func, read_funcs=_IDENTITY_READ_FUNCS)
+    assert callshape_violations(lanes_func, read_funcs=_IDENTITY_READ_FUNCS) == []
+    # The lanes vocabulary sees the lanes violation but not the identity one.
+    assert callshape_violations(lanes_func, read_funcs=_LANES_READ_FUNCS)
+    assert callshape_violations(identity_func, read_funcs=_LANES_READ_FUNCS) == []

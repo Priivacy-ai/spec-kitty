@@ -10,6 +10,7 @@ import pytest
 # and tests/integration/coord_topology_fixture.py for the implementation.
 from tests.integration.conftest_coord_topology import (  # noqa: F401
     coord_topology_mission,
+    coord_topology_mission_sentinel_meta,
     flat_topology_mission,
 )
 
