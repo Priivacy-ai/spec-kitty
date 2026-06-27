@@ -4,6 +4,15 @@ from __future__ import annotations
 
 import pytest
 
+# Register the coord-topology test fixture + asserters so they are available
+# to every test in the tests/integration/ subtree without a per-file import.
+# See tests/integration/conftest_coord_topology.py for the registration facade
+# and tests/integration/coord_topology_fixture.py for the implementation.
+from tests.integration.conftest_coord_topology import (  # noqa: F401
+    coord_topology_mission,
+    flat_topology_mission,
+)
+
 
 @pytest.fixture(autouse=True)
 def _disable_saas_sync_for_integration_tests(monkeypatch: pytest.MonkeyPatch) -> None:
