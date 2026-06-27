@@ -71,11 +71,16 @@ _BARE_SLUG: str = "e2e-coord-proof"
 _MISSION_DIR: str = f"{_BARE_SLUG}-{_MID8}"
 # The coordination branch name embedded in ``meta.json``.
 _COORD_BRANCH: str = f"kitty/mission-{_MISSION_DIR}"
-# Coord-distinguishing WP ids: the primary checkout carries ``_PRIMARY_ONLY_WP``
-# and the coord worktree carries ``_COORD_ONLY_WP``.  A CLI that reads the coord
-# surface surfaces the coord-only WP in its output; one that wrongly reads the
-# primary surfaces the primary-only WP.  This gives a positive coord-vs-primary
-# observable signal beyond the spy capture.
+# Leg-distinguishing WP ids: the primary checkout carries ``_PRIMARY_ONLY_WP``
+# and the coord husk carries ``_COORD_ONLY_WP``.  Under the #2115/#2106 authority
+# WP task files live on the PRIMARY checkout for ALL topologies; a "coord-only WP"
+# (present only on the coord husk, absent from primary) is exactly the
+# husk-divergence #2115 ELIMINATES.  ``agent tasks status`` therefore enumerates
+# its WP LIST from the PRIMARY tasks/ leg (C-001 per-leg split — WP03 T009), so it
+# surfaces ``_PRIMARY_ONLY_WP`` and must NOT surface the coord-husk
+# ``_COORD_ONLY_WP``.  (Its STATUS-events leg stays coord-aware; that is asserted
+# separately via the seam spy returning the coord dir.)  This gives a positive
+# primary-vs-coord-husk observable signal beyond the spy capture.
 _PRIMARY_ONLY_WP: str = "WP01"
 _COORD_ONLY_WP: str = "WP02"
 
@@ -172,10 +177,18 @@ class TestAgentTasksStatusCoordResolution:
     ``resolve_mid8(slug, mission_id=None)`` path (always returning ``""``), so
     the bare-slug read landed on the PRIMARY dir without consulting the coord
     worktree.  The assertion names the COORD dir and would FAIL on the pre-adoption tree.
+
+    Per-leg authority (#2115/#2106, C-001 — WP03): ``agent tasks status`` is a
+    MIXED-read command.  Its STATUS-events leg (lane state) stays coord-aware —
+    ``resolve_handle_to_read_path`` returns the COORD dir (asserted via the spy).
+    Its tasks/ ENUMERATION leg routes to PRIMARY via
+    ``resolve_planning_read_dir(kind=WORK_PACKAGE_TASK)`` because WP task files
+    live on the primary checkout for ALL topologies.  So the WP LIST in the
+    output reflects the PRIMARY tasks/ dir, never the coord husk.
     """
 
     def test_bare_slug_resolves_coord_dir(self, tmp_path: Path) -> None:
-        """T022a (SC-002): bare slug via tasks status → coord worktree dir, not primary."""
+        """T022a (SC-002): bare slug → coord STATUS leg + PRIMARY tasks-enum leg."""
         coord_dir = _build_coord_fresh_mission(tmp_path)
         primary_dir = tmp_path / "kitty-specs" / _BARE_SLUG
 
@@ -231,25 +244,29 @@ class TestAgentTasksStatusCoordResolution:
 
         # Observable-behavior assertions (squad: born-green-framing). Proving the
         # seam is CALLED is not enough — ``status()`` must actually CONSUME the
-        # coord dir.  (a) exit_code 0: a status() that ignores ``feature_dir`` and
-        # falls into the not-found ``Exit(1)`` branch is caught here.
+        # resolved dirs.  (a) exit_code 0: a status() that fell into the not-found
+        # ``Exit(1)`` branch (empty tasks dir or unresolved feature_dir) is caught here.
         assert result.exit_code == 0, (
             "agent tasks status did NOT exit 0 — status() did not consume the "
-            f"coord feature_dir.\n  stdout: {result.stdout}\n"
+            f"resolved dirs.\n  stdout: {result.stdout}\n"
             f"  exc: {result.exception!r}"
         )
-        # (b) coord-distinguishing signal: the coord dir carries ``_COORD_ONLY_WP``
-        # while the primary carries ``_PRIMARY_ONLY_WP``.  A status() that consumed
-        # the PRIMARY dir would surface the primary WP instead — so the output must
-        # name the coord WP and must NOT name the primary-only WP.
-        assert _COORD_ONLY_WP in result.stdout, (
-            f"Coord-only work package {_COORD_ONLY_WP!r} absent from status output — "
-            f"status() consumed the wrong surface.\n  stdout: {result.stdout}"
-        )
-        assert _PRIMARY_ONLY_WP not in result.stdout, (
-            f"Primary-only work package {_PRIMARY_ONLY_WP!r} present in status "
-            "output — status() consumed the PRIMARY dir, not the coord dir.\n"
+        # (b) per-leg signal (#2115/#2106, C-001 — WP03): the tasks/ ENUMERATION
+        # leg routes to PRIMARY, so the WP LIST reflects the primary tasks/ dir.
+        # The primary carries ``_PRIMARY_ONLY_WP``; the coord husk carries
+        # ``_COORD_ONLY_WP``.  A status() that wrongly enumerated WPs from the coord
+        # husk would surface the coord WP instead — so the output MUST name the
+        # primary WP and MUST NOT name the coord-husk WP.  (The STATUS-events leg is
+        # still coord-aware — proven above by the spy returning ``coord_dir``.)
+        assert _PRIMARY_ONLY_WP in result.stdout, (
+            f"Primary work package {_PRIMARY_ONLY_WP!r} absent from status output — "
+            f"the tasks/ enumeration leg did not consume the PRIMARY surface.\n"
             f"  stdout: {result.stdout}"
+        )
+        assert _COORD_ONLY_WP not in result.stdout, (
+            f"Coord-husk work package {_COORD_ONLY_WP!r} present in status output — "
+            "the tasks/ enumeration leg consumed the coord husk, not the PRIMARY "
+            f"surface (the husk-divergence #2115 eliminates).\n  stdout: {result.stdout}"
         )
 
     def test_full_handle_resolves_same_coord_dir(self, tmp_path: Path) -> None:
