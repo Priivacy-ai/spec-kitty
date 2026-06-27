@@ -17,7 +17,8 @@ policy registered so it cannot see ``status.events.jsonl`` or
 
 from __future__ import annotations
 
-from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
+from mission_runtime import MissionArtifactKind
+from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 import json
 import subprocess
 from pathlib import Path
@@ -357,7 +358,19 @@ def _read_coordination_branch(
     ``kitty-specs/<mission_slug>/meta.json`` — the same place WP03's
     mission_create writes it.
     """
-    meta_path = candidate_feature_dir_for_mission(repo_root, mission_slug) / "meta.json"
+    # FR-001 (#2185): this is the chicken-and-egg coord discovery — it reads
+    # ``meta.json`` (PRIMARY_METADATA, PRIMARY-partition) to *discover* whether the
+    # mission routes through a coordination branch. The kind-aware seam is
+    # topology-blind for PRIMARY kinds, so it correctly anchors on the PRIMARY
+    # checkout where ``meta.json`` lives post-#2106 (the coord husk has none / a
+    # STATUS-only one) — never the coord-aware resolver (which would need the very
+    # answer this read produces).
+    meta_path = (
+        resolve_planning_read_dir(
+            repo_root, mission_slug, kind=MissionArtifactKind.PRIMARY_METADATA
+        )
+        / "meta.json"
+    )
     if not meta_path.exists():
         return None
     try:

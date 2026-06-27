@@ -6,7 +6,11 @@ to display beautiful status boards without going through the CLI.
 
 from __future__ import annotations
 
-from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
+from mission_runtime import MissionArtifactKind
+from specify_cli.missions._read_path_resolver import (
+    resolve_feature_dir_for_mission,
+    resolve_planning_read_dir,
+)
 import re
 from collections import Counter
 from datetime import UTC, datetime
@@ -116,20 +120,29 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
         # primary checkout's potentially-divergent state.
         main_repo_root = get_status_read_root()
 
-        # Locate feature directory
+        # STATUS leg (C-001 / NFR-001): the append-only event log stays
+        # coord-aware so the kanban lanes reflect the worktree-local log.
         feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
 
         if not feature_dir.exists():
             console.print(f"[red]Error:[/red] Feature directory not found: {feature_dir}")
             return {"error": f"Feature directory not found: {feature_dir}"}
 
-        tasks_dir = feature_dir / "tasks"
+        # PRIMARY leg: the WP*.md frontmatter glob (#2187, WORK_PACKAGE_TASK) and
+        # the mission identity (#2186, PRIMARY_METADATA) live ONLY on the PRIMARY
+        # checkout post-#2106 — the coord husk carries neither. Both PRIMARY-kinds
+        # resolve topology-blind to the same PRIMARY dir via the kind-aware seam.
+        primary_dir = resolve_planning_read_dir(
+            main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+        )
+
+        tasks_dir = primary_dir / "tasks"
 
         if not tasks_dir.exists():
             console.print(f"[red]Error:[/red] Tasks directory not found: {tasks_dir}")
             return {"error": f"Tasks directory not found: {tasks_dir}"}
 
-        identity = resolve_mission_identity(feature_dir)
+        identity = resolve_mission_identity(primary_dir)
 
         # Load project config for stall threshold
         config_file = main_repo_root / ".kittify" / "config.yaml"

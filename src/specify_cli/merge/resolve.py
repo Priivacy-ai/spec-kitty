@@ -27,7 +27,11 @@ from specify_cli.merge.state import (
 )
 from specify_cli.merge.workspace import cleanup_merge_workspace
 from specify_cli.mission_metadata import resolve_mission_identity
-from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import (
+    candidate_feature_dir_for_mission,
+    resolve_planning_read_dir,
+)
+from mission_runtime import MissionArtifactKind
 
 
 def _extract_mission_slug(branch_name: str) -> str | None:
@@ -95,9 +99,17 @@ def _merge_state_key_candidates(repo_root: Path, mission_slug: str | None) -> li
         return []
     keys: list[str] = []
     try:
-        feature_dir = candidate_feature_dir_for_mission(
+        # FR-001 (#2185): the merge-state key is the canonical ``mission_id`` from
+        # ``meta.json`` (PRIMARY_METADATA, PRIMARY-partition) — it lives ONLY on the
+        # PRIMARY checkout post-#2106. The kind-blind resolver lands on the
+        # STATUS-only ``-coord`` husk for a coord-topology mission, where reading
+        # identity yields a missing/sentinel id → the wrong merge-state key. Route by
+        # kind. (The ``:63`` handle→dir-name canonicalization in ``_resolve_mission_slug``
+        # stays on ``candidate_`` — that is the no-silent-fallback boundary.)
+        feature_dir = resolve_planning_read_dir(
             get_main_repo_root(repo_root),
             mission_slug,
+            kind=MissionArtifactKind.PRIMARY_METADATA,
         )
         if feature_dir.exists():
             identity = resolve_mission_identity(feature_dir)

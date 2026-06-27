@@ -102,7 +102,9 @@ from specify_cli.missions._read_path_resolver import (
     _canonicalize_primary_read_handle,
     candidate_feature_dir_for_mission,
     primary_feature_dir_for_mission,
+    resolve_planning_read_dir,
 )
+from mission_runtime import MissionArtifactKind
 from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
 from specify_cli.sync.events import emit_diff_summary_recorded, emit_mission_closed
 from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
@@ -973,12 +975,29 @@ def _run_lane_based_merge(
             logged via ``require_no_sparse_checkout``.
     """
     main_repo = get_main_repo_root(repo_root)
+    # STATUS leg (C-001 / KEEP): ``feature_dir`` is threaded into
+    # ``_run_lane_based_merge_locked`` as ``run.feature_dir`` and feeds the
+    # coord-aware STATUS legs (``status_feature_dir``). It MUST stay on the
+    # topology-aware resolver so the append-only event log resolves the coord
+    # worktree for a coord-topology mission.
     feature_dir = candidate_feature_dir_for_mission(main_repo, mission_slug)
+    # PRIMARY-partition reads (FR-002 #2185), routed per-leg DIRECTLY (NOT threaded
+    # from the ``:887`` ``target_feature_dir`` anchor in the *locked* function): the
+    # mission identity (PRIMARY_METADATA) and ``lanes.json`` (LANE_STATE) live ONLY
+    # on the PRIMARY checkout post-#2106. Reading them off the coord-aware
+    # ``feature_dir`` above lands on the STATUS-only husk → a missing/sentinel
+    # ``meta.json`` and an absent ``lanes.json``. Resolve each by its real kind.
+    primary_meta_dir = resolve_planning_read_dir(
+        main_repo, mission_slug, kind=MissionArtifactKind.PRIMARY_METADATA
+    )
+    lanes_read_dir = resolve_planning_read_dir(
+        main_repo, mission_slug, kind=MissionArtifactKind.LANE_STATE
+    )
 
     # -- WP05/T020/FR-006: Sparse-checkout preflight (BEFORE any state change) --
     _preflight_mission_id: str | None = None
     try:
-        _preflight_identity = resolve_mission_identity(feature_dir)
+        _preflight_identity = resolve_mission_identity(primary_meta_dir)
         _preflight_mission_id = _preflight_identity.mission_id
     except Exception:  # noqa: BLE001 — meta.json may be missing for legacy missions
         _preflight_mission_id = None
@@ -994,13 +1013,13 @@ def _run_lane_based_merge(
 
     from specify_cli.lanes.compute import is_planning_artifact_only
 
-    lanes_manifest = require_lanes_json(feature_dir)
+    lanes_manifest = require_lanes_json(lanes_read_dir)
     if target_override:
         lanes_manifest.target_branch = target_override
     planning_artifact_only = is_planning_artifact_only(lanes_manifest)
 
     # -- Resolve canonical mission_id from meta.json (use ULID, not slug) --
-    identity = resolve_mission_identity(feature_dir)
+    identity = resolve_mission_identity(primary_meta_dir)
     canonical_id = identity.mission_id or mission_slug  # fallback for legacy missions without ULID
 
     effective_push = _effective_push_requested(main_repo, canonical_id, push)
