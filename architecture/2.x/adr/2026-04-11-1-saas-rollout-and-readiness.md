@@ -1,0 +1,1 @@
+../../3.x/adr/2026-04-11-1-saas-rollout-and-readiness.md

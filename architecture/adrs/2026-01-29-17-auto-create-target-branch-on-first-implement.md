@@ -1,0 +1,1 @@
+../2.x/adr/2026-01-29-17-auto-create-target-branch-on-first-implement.md

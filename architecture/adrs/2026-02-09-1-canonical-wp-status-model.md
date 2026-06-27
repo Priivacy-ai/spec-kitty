@@ -1,0 +1,1 @@
+../2.x/adr/2026-02-09-1-canonical-wp-status-model.md

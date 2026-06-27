@@ -1,3 +1,11 @@
+---
+title: 'Architecture: Centralized Feature Detection'
+description: Architecture of centralized feature detection (v0.14.0), partly superseded by mission 083's canonical mission_id identity model; kept as the prior-design record.
+doc_status: active
+updated: '2026-04-12'
+related:
+- docs/migration/mission-id-canonical-identity.md
+---
 # Architecture: Centralized Feature Detection
 
 **Status**: Implemented (v0.14.0); superseded in part by mission `083-mission-id-canonical-identity-migration`.

@@ -1,8 +1,9 @@
 ---
-title: "Cross-Repo E2E Gate — Operator Migration Guide"
-description: "Migration guidance for Cross-Repo E2E Gate — Operator Migration Guide in Spec Kitty 3.2, including upgrade context and historical behavior boundaries."
+title: Cross-Repo E2E Gate — Operator Migration Guide
+description: Migration guidance for Cross-Repo E2E Gate — Operator Migration Guide in Spec Kitty 3.2, including upgrade context and historical behavior boundaries.
+doc_status: active
+updated: '2026-06-03'
 ---
-
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 
 # Cross-Repo E2E Gate — Operator Migration Guide

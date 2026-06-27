@@ -1,3 +1,9 @@
+---
+title: 'Initiative: Tracker Binding Context Discovery'
+description: Initiative packaging the follow-on implementation prompts for the three repositories affected by the tracker-binding-context-discovery ADR.
+doc_status: draft
+updated: '2026-04-04'
+---
 # Initiative: Tracker Binding Context Discovery
 
 This directory packages the follow-on implementation prompts for the three

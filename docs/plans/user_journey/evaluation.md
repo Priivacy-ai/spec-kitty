@@ -1,3 +1,9 @@
+---
+title: 2.x User Journey Evaluation
+description: 'Evaluation (2026-02-28) of the 2.x user journeys: how well they cover the intended scenarios and where the coverage gaps are.'
+doc_status: draft
+updated: '2026-03-10'
+---
 # 2.x User Journey Evaluation
 
 Date: 2026-02-28

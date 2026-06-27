@@ -1,0 +1,1 @@
+../2.x/adr/2026-01-31-1-vendor-spec-kitty-events.md

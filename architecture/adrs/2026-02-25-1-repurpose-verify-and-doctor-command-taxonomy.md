@@ -1,0 +1,1 @@
+../2.x/adr/2026-02-25-1-repurpose-verify-and-doctor-command-taxonomy.md

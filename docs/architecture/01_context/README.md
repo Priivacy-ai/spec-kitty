@@ -1,3 +1,11 @@
+---
+title: 2.x System Context
+description: "2.x system context (C4 level 1): the historical record of Spec Kitty's external actors and system boundaries, preserved beneath the current living architecture."
+doc_status: active
+updated: '2026-03-10'
+related:
+- docs/architecture/README.md
+---
 # 2.x System Context
 
 | Field | Value |

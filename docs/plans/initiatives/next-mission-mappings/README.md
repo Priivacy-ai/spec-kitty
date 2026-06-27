@@ -1,3 +1,9 @@
+---
+title: 'Initiative: `next` Mission Mapping Tracker'
+description: Tracker for mission-specific spec-kitty next mapping/template gaps accepted temporarily; initiative artifacts rather than ADRs, with their status rules.
+doc_status: draft
+updated: '2026-02-17'
+---
 # Initiative: `next` Mission Mapping Tracker
 
 This directory tracks mission-specific `spec-kitty next` mapping/template gaps that are accepted temporarily.

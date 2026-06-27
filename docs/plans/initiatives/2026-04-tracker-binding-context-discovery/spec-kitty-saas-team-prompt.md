@@ -1,3 +1,9 @@
+---
+title: 'Prompt: `spec-kitty-saas` Team'
+description: Ready-to-run /spec-kitty.specify input prompt for the spec-kitty-saas team's slice of the tracker-binding-context-discovery work.
+doc_status: draft
+updated: '2026-04-04'
+---
 # Prompt: `spec-kitty-saas` Team
 
 Use this file as the input to `/spec-kitty.specify` in the `spec-kitty-saas`

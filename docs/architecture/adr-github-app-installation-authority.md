@@ -1,3 +1,11 @@
+---
+title: 'ADR: GitHub App Installation Identity Is Provider-Authoritative; Nango Is Secondary'
+description: Accepted ADR making GitHub App installation identity provider-authoritative and Nango secondary for connector binding and resource-mapping decisions.
+doc_status: active
+updated: '2026-04-06'
+related:
+- docs/architecture/adr-connector-auth-binding-separation.md
+---
 # ADR: GitHub App Installation Identity Is Provider-Authoritative; Nango Is Secondary
 
 **Status**: Accepted
