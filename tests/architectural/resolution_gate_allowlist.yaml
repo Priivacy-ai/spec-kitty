@@ -43,9 +43,22 @@
 #   coord_authority_baseline 14->15 and COORD_AUTHORITY_WRITE_FLOOR 14->15 raised to
 #   the honest merged-tree live write census (15). Not a sweep-WP inflation: the new
 #   entry is a concurrent-mission boundary guard, not our routing regressing.
+# coord-read-residuals WP01 (2026-06-27, FR-004/FR-005 identity routing):
+#   The #2186 identity routing in workflow.py converted TWO coord-aware
+#   resolve_feature_dir_for_mission calls (the sparse-checkout-preflight mission_id
+#   read in `implement` + the review-prompt-metadata mission_id read in `review`)
+#   to the PRIMARY anchor primary_feature_dir_for_mission(_canonicalize_primary_read_handle(...)).
+#   Those two sites are now PRIMARY reads, no longer coord-aware write-census sites:
+#     - removed implement:1283 (the preflight resolve_feature_dir_for_mission)
+#     - removed review:2739 (the review-prompt resolve_feature_dir_for_mission)
+#   The remaining four workflow.py coord-authority entries are pure LINE-DRIFT re-pins
+#   (the identity routing added lines above them, no semantic change):
+#     implement 1395->1403, 1590->1598; review 2617->2633, 2654->2670.
+#   coord_authority_baseline 15->13 and COORD_AUTHORITY_WRITE_FLOOR 15->13 tightened
+#   to the honest live write census (13) — a genuine shrink from routing, not a re-pin.
 
 canonicalizer_baseline: 3
-coord_authority_baseline: 15
+coord_authority_baseline: 13
 
 canonicalizer:
   - qualname: _canonicalize_bare_modern_handle
@@ -82,23 +95,17 @@ coord_authority:
     line: 3483
     rationale: "#1057-INTRODUCED boundary-guard probe (src/specify_cli/cli/commands/agent/tasks.py): the kind-blind resolve at 3483 feeds check_pre30_layout(feature_dir) (the #1057 pre-3.0 layout hard-reject), then the real dependents READ re-routes through resolve_planning_read_dir(kind=WORK_PACKAGE_TASK). Same by-design pattern as move_task:1081. The function is WRITE-classified by the conservative function-granularity predicate (json.dumps in the body), but the kind-blind probe is not the write target. Added during the upstream/main rebase: our WP06 had routed list_dependents away (removed list_dependents:3415), but concurrent mission #1057 independently inserted a check_pre30_layout boundary guard here that requires a raw kind-blind resolve — a genuine new by-design coord-owned probe."
   - qualname: implement
-    line: 1283
-    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - WP07 re-pin 1275->1283 (line drift from further WP06 routing changes)"
+    line: 1403
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - coord-read-residuals WP01 line-drift re-pin 1395->1403 (identity routing added lines above)"
   - qualname: implement
-    line: 1395
-    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - WP07 re-pin 1387->1395 (line drift)"
-  - qualname: implement
-    line: 1590
-    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - WP07 re-pin 1582->1590 (line drift)"
+    line: 1598
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - coord-read-residuals WP01 line-drift re-pin 1590->1598 (identity routing added lines above)"
   - qualname: review
-    line: 2617
-    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - WP07 re-pin 2476->2649->2617 (nit: vestigial _find_first_for_review_wp walk collapse -32 lines)"
+    line: 2633
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - coord-read-residuals WP01 line-drift re-pin 2617->2633 (identity routing added lines above)"
   - qualname: review
-    line: 2654
-    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - WP07 re-pin 2610->2686->2654 (nit: vestigial walk collapse -32 lines)"
-  - qualname: review
-    line: 2739
-    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - WP07 re-pin 2647->2771->2739 (nit: vestigial walk collapse -32 lines)"
+    line: 2670
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - coord-read-residuals WP01 line-drift re-pin 2654->2670 (identity routing added lines above)"
   - qualname: implement
     line: 1022
     rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/implement.py) - will be routed in WP02-WP05 (line-drift re-pin 1017->1022; pre-existing drift on upstream/main, re-pinned to converge the gate)"

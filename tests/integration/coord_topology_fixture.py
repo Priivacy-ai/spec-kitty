@@ -33,6 +33,26 @@ import pytest
 _COORD_EVENT_MARKER = "COORD_AUTHORITY_MARKER_WP01_01KW2E7A"
 _DECOY_EVENT_MARKER = "PRIMARY_DECOY_MARKER_WP01_01KW2E7A"
 
+# ---------------------------------------------------------------------------
+# FR-009 sentinel-husk-meta divergence (coord-read-residuals WP01 / T001).
+#
+# The base coord husk is STATUS-only (no meta.json) — a wrong-leg identity read
+# RAISES (missing meta), which a defensive ``except`` would silently swallow to a
+# no-op. That makes an identity-routing bug INVISIBLE. The sentinel variant
+# instead WRITES a husk ``meta.json`` that is PRESENT-but-WRONG: it carries a
+# sentinel ``mission_id`` (and a distinct ``mission_type``) that differ from the
+# PRIMARY values, so a wrong-leg read returns a SILENT-WRONG-VALUE rather than
+# raising. The identity proof then asserts a returned DOMAIN VALUE (mission_id /
+# mission_type), and reverting a routed read to the coord-aware resolver surfaces
+# the sentinel/wrong type → the test goes RED (FR-009 / NFR-004).
+#
+# 26-char Crockford-base32 ULID, intentionally distinct from the fixture's
+# resolved PRIMARY id (``01KW2E7AFC0000000000000001``).
+SENTINEL_HUSK_MISSION_ID = "6KERGF2ZNFBPR91YEZMARG99KS"
+# Distinct from the PRIMARY ``software-dev`` so a ``get_mission_type`` revert is
+# falsifiable on a returned domain value (not just the mission_id leg).
+SENTINEL_HUSK_MISSION_TYPE = "research"
+
 
 # ---------------------------------------------------------------------------
 # Context dataclasses
@@ -73,6 +93,15 @@ class CoordTopologyContext:
 
     decoy_events_path: Path
     """Decoy ``status.events.jsonl`` on the primary (distinct content — wrong-leg probe)."""
+
+    coord_husk_meta_path: Path | None = None
+    """Husk ``meta.json`` path when the SENTINEL variant wrote one, else ``None``.
+
+    Present only for the ``coord_topology_mission_sentinel_meta`` variant (FR-009 /
+    T001): the husk carries a PRESENT-but-WRONG ``meta.json`` (``mission_id`` =
+    :data:`SENTINEL_HUSK_MISSION_ID`, ``mission_type`` =
+    :data:`SENTINEL_HUSK_MISSION_TYPE`). For the base (STATUS-only) fixture this is
+    ``None`` and no husk ``meta.json`` exists (the base invariant)."""
 
 
 @dataclass(frozen=True)
@@ -194,13 +223,19 @@ def _write_meta(
     mission_id: str,
     topology: str,
     coordination_branch: str | None,
+    mission_type: str = "software-dev",
 ) -> None:
-    """Write ``meta.json`` for a mission to *feature_dir*."""
+    """Write ``meta.json`` for a mission to *feature_dir*.
+
+    ``mission_type`` defaults to the PRIMARY ``software-dev``; the FR-009 sentinel
+    husk passes a distinct value so a wrong-leg ``get_mission_type`` read is
+    falsifiable on a returned domain value.
+    """
     meta: dict[str, object] = {
         "mission_id": mission_id,
         "mission_slug": slug,
         "slug": slug,
-        "mission_type": "software-dev",
+        "mission_type": mission_type,
         "target_branch": "main",
         "vcs": "git",
         "topology": topology,
@@ -237,21 +272,31 @@ def _status_event_line(slug: str, wp_id: str, *, marker: str) -> str:
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture()
-def coord_topology_mission(tmp_path: Path) -> CoordTopologyContext:
-    """Materialise a post-#2106 coordination-topology mission (FR-014 / T001).
+def _build_coord_topology(
+    tmp_path: Path, *, write_husk_meta: bool
+) -> CoordTopologyContext:
+    """Materialise a post-#2106 coordination-topology mission (FR-014 / FR-009).
 
-    Shape on disk after this fixture runs:
+    ONE divergence definition shared by both the base (STATUS-only husk) fixture
+    and the FR-009 sentinel-husk-meta variant — every consumer imports this single
+    shape (T001: define divergence in ONE place).
+
+    Shape on disk after this builder runs:
 
     * ``<repo>/kitty-specs/<slug>/`` (PRIMARY):
-      - ``meta.json``  — ``topology=coord``, ``coordination_branch`` set
+      - ``meta.json``  — ``topology=coord``, ``coordination_branch`` set,
+        ``mission_id = 01KW2E7AFC0000000000000001``, ``mission_type=software-dev``
       - ``tasks/WP01.md``
       - ``lanes.json``
       - ``status.events.jsonl``  — DECOY (distinct content from coord)
 
     * ``<repo>/.worktrees/<slug>-coord/kitty-specs/<slug>/`` (coord husk):
       - ``status.events.jsonl``  — AUTHORITATIVE (coord marker)
-      - NO ``tasks/``, NO ``lanes.json``, NO ``meta.json``
+      - NO ``tasks/``, NO ``lanes.json``
+      - ``meta.json`` — ONLY when ``write_husk_meta`` (the FR-009 sentinel: a
+        PRESENT-but-WRONG meta whose ``mission_id`` / ``mission_type`` differ from
+        PRIMARY). When ``write_husk_meta`` is ``False`` the husk carries NO
+        ``meta.json`` (the base STATUS-only invariant).
 
     **No resolver is patched** — topology routing uses real git + filesystem.
     """
@@ -266,7 +311,10 @@ def coord_topology_mission(tmp_path: Path) -> CoordTopologyContext:
 
     # 1. Initialise repo under a coord-specific subdir so a test that also
     #    requests flat_topology_mission does not collide on tmp_path/repo.
-    repo = _make_git_repo(tmp_path / "coord")
+    #    The sentinel variant uses a distinct subdir so a single test may request
+    #    both the base and sentinel fixtures without a worktree-path collision.
+    repo_subdir = "coord-sentinel" if write_husk_meta else "coord"
+    repo = _make_git_repo(tmp_path / repo_subdir)
 
     # 2. Create the coord branch pointing at the initial commit (no mission
     #    files yet).  The worktree checked out at this branch will carry
@@ -321,16 +369,51 @@ def coord_topology_mission(tmp_path: Path) -> CoordTopologyContext:
         encoding="utf-8",
     )
 
-    # 7. Structural self-checks: the husk must carry STATUS only.
+    # 7. FR-009 sentinel husk meta (the present-but-wrong identity), or the base
+    #    STATUS-only invariant. The husk NEVER carries tasks/ or lanes.json under
+    #    either variant — only the meta.json presence differs.
+    coord_husk_meta_path: Path | None = None
+    if write_husk_meta:
+        _write_meta(
+            coord_mission_dir,
+            slug=slug,
+            mission_id=SENTINEL_HUSK_MISSION_ID,
+            topology="coord",
+            coordination_branch=coord_branch,
+            mission_type=SENTINEL_HUSK_MISSION_TYPE,
+        )
+        coord_husk_meta_path = coord_mission_dir / "meta.json"
+
+    # 8. Structural self-checks. The husk must always carry STATUS only — the
+    #    base invariant (no tasks/, no lanes.json) holds for BOTH variants. The
+    #    sentinel variant OVERRIDES the base ``no meta.json`` invariant with the
+    #    HARD divergence triad (FR-009 / T001).
     assert not (coord_mission_dir / "tasks").exists(), (
         "Fixture invariant violated: coord husk must not carry tasks/"
     )
     assert not (coord_mission_dir / "lanes.json").exists(), (
         "Fixture invariant violated: coord husk must not carry lanes.json"
     )
-    assert not (coord_mission_dir / "meta.json").exists(), (
-        "Fixture invariant violated: coord husk must not carry meta.json"
-    )
+    if write_husk_meta:
+        # HARD divergence triad (asserted BEFORE any routed-path drive): the husk
+        # lacks lanes.json + tasks/ (above), AND its meta carries the sentinel id
+        # that is distinct from the resolved PRIMARY id (a silent-wrong-value, not
+        # a missing file).
+        assert coord_husk_meta_path is not None
+        husk_meta = json.loads(coord_husk_meta_path.read_text(encoding="utf-8"))
+        assert husk_meta["mission_id"] == SENTINEL_HUSK_MISSION_ID, (
+            "Sentinel triad violated: husk meta mission_id must be the sentinel "
+            f"{SENTINEL_HUSK_MISSION_ID!r}, got {husk_meta['mission_id']!r}."
+        )
+        assert husk_meta["mission_id"] != mission_id, (
+            "Sentinel triad violated: husk meta mission_id must DIFFER from the "
+            f"resolved PRIMARY id {mission_id!r} (else the identity proof is "
+            "non-falsifiable)."
+        )
+    else:
+        assert not (coord_mission_dir / "meta.json").exists(), (
+            "Fixture invariant violated: base coord husk must not carry meta.json"
+        )
 
     return CoordTopologyContext(
         repo=repo,
@@ -342,7 +425,35 @@ def coord_topology_mission(tmp_path: Path) -> CoordTopologyContext:
         coord_feature_dir=coord_mission_dir,
         status_events_path=status_events_path,
         decoy_events_path=decoy_events_path,
+        coord_husk_meta_path=coord_husk_meta_path,
     )
+
+
+@pytest.fixture()
+def coord_topology_mission(tmp_path: Path) -> CoordTopologyContext:
+    """Base coord-topology mission: STATUS-only husk (no ``meta.json``).
+
+    Thin wrapper over :func:`_build_coord_topology` — the shared divergence
+    definition. Behaviour is byte-identical to the pre-refactor fixture (the
+    husk carries NO ``tasks/`` / ``lanes.json`` / ``meta.json``).
+    """
+    return _build_coord_topology(tmp_path, write_husk_meta=False)
+
+
+@pytest.fixture()
+def coord_topology_mission_sentinel_meta(tmp_path: Path) -> CoordTopologyContext:
+    """FR-009 sentinel-husk-meta variant (coord-read-residuals WP01 / T001).
+
+    Same topology as :func:`coord_topology_mission` BUT the coord husk carries a
+    PRESENT-but-WRONG ``meta.json`` (``mission_id`` = :data:`SENTINEL_HUSK_MISSION_ID`,
+    ``mission_type`` = :data:`SENTINEL_HUSK_MISSION_TYPE`), distinct from the
+    resolved PRIMARY id/type. This OVERRIDES the base ``no meta.json`` invariant so
+    a wrong-leg identity read returns a SILENT-WRONG-VALUE (the sentinel) instead
+    of raising — making an identity-routing bug falsifiable on a returned domain
+    value (FR-009 / NFR-004). ``lanes.json`` + ``tasks/`` stay PRIMARY-only (the
+    HARD divergence triad, asserted in the builder before return).
+    """
+    return _build_coord_topology(tmp_path, write_husk_meta=True)
 
 
 @pytest.fixture()
@@ -494,11 +605,14 @@ def assert_both_legs(
 
 
 __all__ = [
+    "SENTINEL_HUSK_MISSION_ID",
+    "SENTINEL_HUSK_MISSION_TYPE",
     "CoordTopologyContext",
     "FlatTopologyContext",
     "assert_both_legs",
     "assert_reads_primary",
     "assert_status_from_coord",
     "coord_topology_mission",
+    "coord_topology_mission_sentinel_meta",
     "flat_topology_mission",
 ]

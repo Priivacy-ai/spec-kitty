@@ -80,13 +80,29 @@ COORD_KIND_AWARE_AUTHORITY = "commit_for_mission(kind=) / resolve_planning_read_
 # Concrete integer floors (NFR-002). These are the live census counts measured
 # on the current ``src/`` tree, NOT ``> 0`` placeholders. If the scanners are
 # correct and the tree grows, raise these to the new honest census.
-CANONICALIZER_FLOOR = 38
+#
+# coord-read-residuals WP01 (FR-010 floor honesty): the #2186 identity routing
+# added SEVEN new DIRECT ``primary_feature_dir_for_mission(_canonicalize_primary_read_handle(...))``
+# anchors (NOT the ``resolve_planning_read_dir`` seam — so the census DOES move):
+#   1. next_cmd._pair_previous_lifecycle_record
+#   2. next_cmd._write_issuance_lifecycle_record
+#   3. next_cmd._handle_answer_flow
+#   4. implement.implement (json-output identity, was :1394)
+#   5. workflow sparse-checkout preflight (was :1282)
+#   6. workflow get_mission_type leg (own anchor, was :1644)
+#   7. workflow review-prompt metadata (was :2739)
+# Census: total 38 → 45, routed 35 → 42 (measured before/after on the merged base).
+CANONICALIZER_FLOOR = 45
 # WP07 re-pin: WP06 routing reduced the live write-classified coord census from 17 to 14;
 # 3 sites were removed (list_dependents, review at one former line, one list_tasks variant).
 # REBASE (2026-06-27): concurrent mission #1057 inserted a check_pre30_layout boundary
 # guard into list_dependents, re-introducing a kind-blind resolve probe there; the honest
 # merged-tree live write census is now 15 (the 14 prior + #1057's list_dependents probe).
-COORD_AUTHORITY_WRITE_FLOOR = 15
+# coord-read-residuals WP01 (2026-06-27): the #2186 identity routing converted two
+# coord-aware resolve_feature_dir_for_mission write-census sites (workflow.py preflight
+# `implement` + `review` review-prompt) to the PRIMARY anchor, shrinking the live write
+# census 15 -> 13 (a genuine routing shrink, not a re-pin).
+COORD_AUTHORITY_WRITE_FLOOR = 13
 
 # WP07 / SC-004 — routed-count floor (the anti-mass-allowlist machine guard).
 # The number of canonicalizer call sites that are *routed* (def-use-canonical,
@@ -101,7 +117,12 @@ COORD_AUTHORITY_WRITE_FLOOR = 15
 # this guard exists to catch.
 ROUTED_CANONICALIZER_FLOOR_MARGIN = 4
 # WP07 recomputed: post-T031 live routed = 35; floor = 35 − MARGIN(4) = 31.
-ROUTED_CANONICALIZER_FLOOR = 31
+# coord-read-residuals WP01 (FR-010): the 7 new identity anchors routed through the
+# DIRECT primitive (not the seam) raised the live routed census 35 → 42; floor
+# recomputed 42 − MARGIN(4) = 38. This is a REAL gain (not a re-pinned integer):
+# 7 identity reads that previously resolved off coord-aware resolvers now provably
+# anchor on PRIMARY via the canonical fold, and the gate counts them.
+ROUTED_CANONICALIZER_FLOOR = 38
 
 
 # --------------------------------------------------------------------------- #
