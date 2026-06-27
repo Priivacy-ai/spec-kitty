@@ -552,15 +552,15 @@ Work paused due to external dependency, then resumed.
 
 ## Try It
 
-- [Claude Code Integration](../tutorials/claude-code-integration.md)
+- [Claude Code Integration](../guides/claude-code-integration.md)
 
 ## How-To Guides
 
-- [Use the Dashboard](../how-to/use-dashboard.md)
-- [Sync Workspaces](../how-to/sync-workspaces.md)
-- [Non-Interactive Init](../how-to/non-interactive-init.md)
+- [Use the Dashboard](../guides/use-dashboard.md)
+- [Sync Workspaces](../guides/sync-workspaces.md)
+- [Non-Interactive Init](../guides/non-interactive-init.md)
 
 ## Reference
 
-- [CLI Commands](../reference/cli-commands.md)
-- [Slash Commands](../reference/slash-commands.md)
+- [CLI Commands](../api/cli-commands.md)
+- [Slash Commands](../api/slash-commands.md)

@@ -103,4 +103,4 @@ After a manual merge, run `spec-kitty upgrade` to ensure any post-merge hooks (w
 
 - [Merge Feature](merge-feature.md) — full merge workflow
 - [Recover from Implementation Crash](recover-from-implementation-crash.md) — when a WP is stuck mid-implementation
-- [CLI Reference: spec-kitty merge](../reference/cli-commands.md#spec-kitty-merge)
+- [CLI Reference: spec-kitty merge](../api/cli-commands.md#spec-kitty-merge)

@@ -31,6 +31,6 @@ here when you want the mental model behind a feature rather than step-by-step in
 
 ## See also
 
-- [Tutorials](../tutorials/index.md) — learning-oriented walkthroughs.
-- [How-to guides](../how-to/index.md) — task-oriented instructions.
-- [Reference](../reference/index.md) — authoritative specifications.
+- [Tutorials](../guides/index.md) — learning-oriented walkthroughs.
+- [How-to guides](../guides/index.md) — task-oriented instructions.
+- [Reference](../api/index.md) — authoritative specifications.

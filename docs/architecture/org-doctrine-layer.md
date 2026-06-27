@@ -16,7 +16,7 @@ explains the model, the resolution rules, the provenance tags you will see in to
 output, and the architectural boundary that keeps the three layers cleanly separated.
 
 For step-by-step instructions on producing a pack, see [How to create an org doctrine
-pack](../how-to/create-an-org-doctrine-pack.md). For migration guidance from a local
+pack](../guides/create-an-org-doctrine-pack.md). For migration guidance from a local
 overlay, see [Migrating shared doctrine to the org layer](../migration/doctrine-local-overlay-to-org-layer.md).
 
 ---
@@ -364,7 +364,7 @@ installed pack contents.
 
 ## See also
 
-- [How to create an org doctrine pack](../how-to/create-an-org-doctrine-pack.md)
+- [How to create an org doctrine pack](../guides/create-an-org-doctrine-pack.md)
 - [Migrating shared doctrine to the org layer](../migration/doctrine-local-overlay-to-org-layer.md)
-- [How to set up project governance](../how-to/setup-governance.md)
+- [How to set up project governance](../guides/setup-governance.md)
 - [Understanding Charter: Synthesis, DRG, and Governed Context](charter-synthesis-drg.md)

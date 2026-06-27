@@ -250,7 +250,7 @@ Expected — the nag is suppressed in CI but the compatibility gate is not. Add
 
 ## See also
 
-- [CLI Commands](../reference/cli-commands.md)
-- [Environment Variables](../reference/environment-variables.md)
-- [Getting Started Tutorial](../tutorials/getting-started.md)
+- [CLI Commands](../api/cli-commands.md)
+- [Environment Variables](../api/environment-variables.md)
+- [Getting Started Tutorial](getting-started.md)
 - [Non-Interactive Init](non-interactive-init.md)

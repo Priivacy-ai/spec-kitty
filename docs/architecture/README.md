@@ -128,6 +128,6 @@ rg -n "Status:|Decision Outcome|Technical Story" docs/adr/3.x docs/adr/2.x docs/
 
 ## See also
 
-- Project terminology canon: project-root [`glossary/README.md`](../glossary/README.md)
+- Project terminology canon: project-root [`glossary/README.md`](../../glossary/README.md)
 - [`docs/architecture/ARCHITECTURE_DOCS_GUIDE.md`](ARCHITECTURE_DOCS_GUIDE.md)
 - [`docs/architecture/NAVIGATION_GUIDE.md`](NAVIGATION_GUIDE.md)

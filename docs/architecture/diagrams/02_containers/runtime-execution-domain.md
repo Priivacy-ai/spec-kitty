@@ -62,7 +62,7 @@ flowchart LR
 - `CommitTarget` is `(ref, kind)`: a destination `ref` paired with its topology
   `kind` — `PRIMARY`, `COORDINATION`, or `FLATTENED`. (It is NOT the earlier
   `(worktree_root, destination_ref)` sketch — see the 2026-06-10 addendum to ADR
-  [`../../3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md`](../../3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md).)
+  [`../../3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md`](../../../adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md).)
 - `resolve_placement_only` is a narrower entry point over the **same** resolution
   authority as `resolve_action_context` — the topology classification is
   byte-identical for the same mission, not a parallel resolver.
@@ -156,8 +156,8 @@ flowchart LR
 
 ## Traceability
 
-- Domain model ADR: [`../../3.x/adr/2026-06-03-1-execution-state-domain-model.md`](../../3.x/adr/2026-06-03-1-execution-state-domain-model.md)
-- Canonical execution surface ADR: [`../../3.x/adr/2026-06-07-1-execution-state-canonical-surface.md`](../../3.x/adr/2026-06-07-1-execution-state-canonical-surface.md)
-- WP State pattern ADR: [`../../3.x/adr/2026-04-06-1-wp-state-pattern-for-lane-behavior.md`](../../3.x/adr/2026-04-06-1-wp-state-pattern-for-lane-behavior.md)
+- Domain model ADR: [`../../3.x/adr/2026-06-03-1-execution-state-domain-model.md`](../../../adr/3.x/2026-06-03-1-execution-state-domain-model.md)
+- Canonical execution surface ADR: [`../../3.x/adr/2026-06-07-1-execution-state-canonical-surface.md`](../../../adr/3.x/2026-06-07-1-execution-state-canonical-surface.md)
+- WP State pattern ADR: [`../../3.x/adr/2026-04-06-1-wp-state-pattern-for-lane-behavior.md`](../../../adr/3.x/2026-04-06-1-wp-state-pattern-for-lane-behavior.md)
 - Container map: [`README.md`](README.md)
 - Component model: [`../03_components/README.md`](../03_components/README.md)

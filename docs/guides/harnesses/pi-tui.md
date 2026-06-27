@@ -13,7 +13,7 @@ related:
 
 ## Partial-tier note
 
-Pi TUI is classified `partial` in the 3.2 [support matrix](../../reference/supported-harnesses.md) because:
+Pi TUI is classified `partial` in the 3.2 [support matrix](../../api/supported-harnesses.md) because:
 
 1. The Spec Kitty installer produces command-skill packages under `.agents/skills/spec-kitty.*/SKILL.md`.
 2. Pi's current skills documentation says project `.agents/skills/` directories are discovered, and that skills register as `/skill:<name>` commands.
@@ -32,7 +32,7 @@ Promotion to `supported` requires at least one documented smoke test against a r
 
 ## Where Spec Kitty installs files
 
-Per the [supported-harnesses matrix](../../reference/supported-harnesses.md), Pi consumes Spec Kitty as Agent Skills. Spec Kitty installs:
+Per the [supported-harnesses matrix](../../api/supported-harnesses.md), Pi consumes Spec Kitty as Agent Skills. Spec Kitty installs:
 
 - **Directory:** `.agents/skills/spec-kitty.<command>/`
 - **Files:** one `SKILL.md` per command (`spec-kitty.specify/SKILL.md`, `spec-kitty.plan/SKILL.md`, `spec-kitty.tasks/SKILL.md`, `spec-kitty.implement/SKILL.md`, etc.).
@@ -81,4 +81,4 @@ If Pi does not expose the command in your installed version, the artifacts remai
 
 ## Where to learn more about Pi TUI
 
-Authoritative documentation: <https://pi.dev/docs/latest/skills> (accessed 2026-05-21). The matrix row in [`docs/api/supported-harnesses.md`](../../reference/supported-harnesses.md) remains the promotion tracker.
+Authoritative documentation: <https://pi.dev/docs/latest/skills> (accessed 2026-05-21). The matrix row in [`docs/api/supported-harnesses.md`](../../api/supported-harnesses.md) remains the promotion tracker.

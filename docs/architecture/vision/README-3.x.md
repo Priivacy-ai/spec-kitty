@@ -8,7 +8,7 @@ updated: '2026-06-12'
 
 Per-era **vision** record for the 3.x architecture track. This is part of the
 **versioned history beneath** the living architecture (see
-[`../../README.md`](../../README.md) for the boundary and decay rules).
+[`../../README.md`](../README.md) for the boundary and decay rules).
 
 The 3.x era is the **current** track: forward vision lives in the living top-level
 `docs/architecture/vision/`, and current-era ADRs land in `docs/adr/3.x/`. This

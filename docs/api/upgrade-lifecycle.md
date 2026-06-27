@@ -12,7 +12,7 @@ audience: end-users
 ---
 # `spec-kitty upgrade` lifecycle
 
-Reference description of what `spec-kitty upgrade` modifies, in what order, and how its options interact. For task-oriented walkthroughs see [Upgrade the CLI](../how-to/upgrade-cli.md) and [Upgrade a project](../how-to/upgrade-project.md).
+Reference description of what `spec-kitty upgrade` modifies, in what order, and how its options interact. For task-oriented walkthroughs see [Upgrade the CLI](../guides/upgrade-cli.md) and [Upgrade a project](../guides/upgrade-project.md).
 
 ## Two upgrade scopes
 
@@ -170,8 +170,8 @@ spec-kitty upgrade --project --no-nag --json
 
 ## See also
 
-- [Upgrade the CLI](../how-to/upgrade-cli.md)
-- [Upgrade a project](../how-to/upgrade-project.md)
+- [Upgrade the CLI](../guides/upgrade-cli.md)
+- [Upgrade a project](../guides/upgrade-project.md)
 - [Init lifecycle](init-lifecycle.md)
 - [Environment variables](environment-variables.md)
 - [CLI commands](cli-commands.md)

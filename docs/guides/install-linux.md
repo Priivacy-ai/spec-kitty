@@ -151,4 +151,4 @@ If `uv` is in `~/.cargo/bin` instead of `~/.local/bin`, add that path too.
 - [Upgrade the CLI](upgrade-cli.md)
 - [macOS install guide](install-macos.md)
 - [Windows install guide](install-windows.md)
-- [Pip vs pipx vs uv — which to choose](../explanation/pip-vs-pipx-vs-uv.md)
+- [Pip vs pipx vs uv — which to choose](../architecture/pip-vs-pipx-vs-uv.md)

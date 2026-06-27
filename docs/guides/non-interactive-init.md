@@ -381,9 +381,9 @@ Usage:
 
 ## Command Reference
 
-- [`spec-kitty init`](../reference/cli-commands.md#spec-kitty-init)
-- [`spec-kitty dashboard`](../reference/cli-commands.md#spec-kitty-dashboard)
-- [`spec-kitty agent`](../reference/agent-subcommands.md)
+- [`spec-kitty init`](../api/cli-commands.md#spec-kitty-init)
+- [`spec-kitty dashboard`](../api/cli-commands.md#spec-kitty-dashboard)
+- [`spec-kitty agent`](../api/agent-subcommands.md)
 
 ## See Also
 
@@ -392,5 +392,5 @@ Usage:
 
 ## Background
 
-- [AI Agent Architecture](../explanation/ai-agent-architecture.md)
-- [Execution Lanes](../explanation/execution-lanes.md)
+- [AI Agent Architecture](../architecture/ai-agent-architecture.md)
+- [Execution Lanes](../architecture/execution-lanes.md)

@@ -39,7 +39,7 @@ gate work) were moved here with their history preserved via `git mv`.
 
 ## See Also
 
-- [3.x ADR Index](adr/README.md)
-- [2.x README](../2.x/README.md) — prior architecture track
-- [Top-level architecture README](../README.md)
-- [Shared ADR template](../adr-template.md)
+- [3.x ADR Index](../adr/3.x/README.md)
+- [2.x README](README-2.x.md) — prior architecture track
+- [Top-level architecture README](README.md)
+- [Shared ADR template](adr-template.md)

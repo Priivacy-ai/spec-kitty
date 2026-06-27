@@ -16,12 +16,12 @@ Terminology note:
 
 ## Getting Started
 
-- [Claude Code Workflow](../tutorials/claude-code-workflow.md)
+- [Claude Code Workflow](../guides/claude-code-workflow.md)
 
 ## Practical Usage
 
-- [Use the Dashboard](../how-to/use-dashboard.md)
-- [Non-Interactive Init](../how-to/non-interactive-init.md)
+- [Use the Dashboard](../guides/use-dashboard.md)
+- [Non-Interactive Init](../guides/non-interactive-init.md)
 
 <!-- BEGIN GENERATED -->
 # Agent Subcommand Reference

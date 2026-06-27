@@ -8,7 +8,7 @@ updated: '2026-06-12'
 
 Per-era **vision** record for the 2.x architecture track. This is part of the
 **versioned history beneath** the living architecture (see
-[`../../README.md`](../../README.md) for the boundary and decay rules).
+[`../../README.md`](../README.md) for the boundary and decay rules).
 
 This slot exists so the *decay path* has a home: when a piece of the living
 top-level architecture (`docs/architecture/vision/`, `docs/architecture/diagrams/`) is no

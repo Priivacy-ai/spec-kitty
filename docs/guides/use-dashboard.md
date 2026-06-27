@@ -69,8 +69,8 @@ This stops the background process and clears the `.kittify/.dashboard` metadata.
 
 ## Command Reference
 
-- [CLI Commands](../reference/cli-commands.md) - Dashboard commands
-- [Slash Commands](../reference/slash-commands.md) - `/spec-kitty.dashboard`
+- [CLI Commands](../api/cli-commands.md) - Dashboard commands
+- [Slash Commands](../api/slash-commands.md) - `/spec-kitty.dashboard`
 
 ## See Also
 
@@ -79,10 +79,10 @@ This stops the background process and clears the `.kittify/.dashboard` metadata.
 
 ## Background
 
-- [Kanban Workflow](../explanation/kanban-workflow.md) - Lane system explained
-- [Multi-Agent Orchestration](../explanation/multi-agent-orchestration.md) - Agent coordination
+- [Kanban Workflow](../architecture/kanban-workflow.md) - Lane system explained
+- [Multi-Agent Orchestration](../architecture/multi-agent-orchestration.md) - Agent coordination
 
 ## Getting Started
 
-- [Your First Feature](../tutorials/your-first-feature.md) - See dashboard in action
-- [Claude Code Integration](../tutorials/claude-code-integration.md) - Dashboard with Claude
+- [Your First Feature](your-first-feature.md) - See dashboard in action
+- [Claude Code Integration](claude-code-integration.md) - Dashboard with Claude

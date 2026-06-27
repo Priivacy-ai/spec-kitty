@@ -98,9 +98,9 @@ Use the dashboard to monitor lane movement and agent activity in real time.
 
 ## Command Reference
 
-- [Agent Subcommands](../reference/agent-subcommands.md) - Workflow commands for agents
-- [CLI Commands](../reference/cli-commands.md) - Full CLI reference
-- [Orchestrator API](../reference/orchestrator-api.md) - Host contract for external automation providers
+- [Agent Subcommands](../api/agent-subcommands.md) - Workflow commands for agents
+- [CLI Commands](../api/cli-commands.md) - Full CLI reference
+- [Orchestrator API](../api/orchestrator-api.md) - Host contract for external automation providers
 
 ## See Also
 
@@ -110,11 +110,11 @@ Use the dashboard to monitor lane movement and agent activity in real time.
 
 ## Background
 
-- [Multi-Agent Orchestration](../explanation/multi-agent-orchestration.md) - Coordination patterns
-- [Execution Workspace Model](../explanation/execution-lanes.md) - Isolation strategy
-- [Git Worktrees](../explanation/git-worktrees.md) - How worktrees work
+- [Multi-Agent Orchestration](../architecture/multi-agent-orchestration.md) - Coordination patterns
+- [Execution Workspace Model](../architecture/execution-lanes.md) - Isolation strategy
+- [Git Worktrees](../architecture/git-worktrees.md) - How worktrees work
 
 ## Getting Started
 
-- [Multi-Agent Workflow](../tutorials/multi-agent-workflow.md) - Hands-on parallel tutorial
+- [Multi-Agent Workflow](multi-agent-workflow.md) - Hands-on parallel tutorial
 - [Run External Orchestrator](run-external-orchestrator.md) - Automate lane transitions with `spec-kitty-orchestrator`

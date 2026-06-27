@@ -42,10 +42,10 @@ but a set of continuously-referenced resources that downstream commands
 
 | # | Actor | Type | Persona | Role in Journey |
 |---|-------|------|---------|-----------------|
-| 1 | Architect | `human` | [System Architect](../../audience/internal/system-architect.md) | Provides domain knowledge, names concepts, validates boundaries, makes trade-off decisions |
-| 2 | AI Agent | `llm` | [AI Collaboration Agent](../../audience/internal/ai-collaboration-agent.md) | Conducts structured discovery, extracts terminology, researches patterns, produces artifacts, checks consistency |
-| 3 | Spec-Kitty CLI | `system` | [Spec Kitty CLI Runtime](../../audience/internal/spec-kitty-cli-runtime.md) | Orchestrates phases, manages artifact lifecycle, links design outputs to downstream commands |
-| 4 | Codebase | `system` | [Project Codebase](../../audience/internal/project-codebase.md) | Provides evidence for alignment checks — existing naming, module structure, implicit patterns |
+| 1 | Architect | `human` | [System Architect](../../context/audience/internal/system-architect.md) | Provides domain knowledge, names concepts, validates boundaries, makes trade-off decisions |
+| 2 | AI Agent | `llm` | [AI Collaboration Agent](../../context/audience/internal/ai-collaboration-agent.md) | Conducts structured discovery, extracts terminology, researches patterns, produces artifacts, checks consistency |
+| 3 | Spec-Kitty CLI | `system` | [Spec Kitty CLI Runtime](../../context/audience/internal/spec-kitty-cli-runtime.md) | Orchestrates phases, manages artifact lifecycle, links design outputs to downstream commands |
+| 4 | Codebase | `system` | [Project Codebase](../../context/audience/internal/project-codebase.md) | Provides evidence for alignment checks — existing naming, module structure, implicit patterns |
 
 ---
 

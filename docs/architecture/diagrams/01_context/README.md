@@ -32,10 +32,10 @@ boundaries must remain explicit for safe operation.
 
 | Audience | Why This View Matters |
 |---|---|
-| [Project Owner](../../audience/external/project-owner.md) | Understands accountability and approval boundaries. |
-| [System Architect](../../audience/internal/system-architect.md) | Validates integration and authority contracts. |
-| [AI Collaboration Agent](../../audience/internal/ai-collaboration-agent.md) | Aligns execution behavior with host-owned constraints. |
-| [Spec Kitty CLI Runtime](../../audience/internal/spec-kitty-cli-runtime.md) | Enforces command and state authority boundaries. |
+| [Project Owner](../../../context/audience/external/project-owner.md) | Understands accountability and approval boundaries. |
+| [System Architect](../../../context/audience/internal/system-architect.md) | Validates integration and authority contracts. |
+| [AI Collaboration Agent](../../../context/audience/internal/ai-collaboration-agent.md) | Aligns execution behavior with host-owned constraints. |
+| [Spec Kitty CLI Runtime](../../../context/audience/internal/spec-kitty-cli-runtime.md) | Enforces command and state authority boundaries. |
 
 ## Context Diagram (Mermaid)
 
@@ -73,7 +73,7 @@ flowchart LR
 
 The 3.x system is organized into **four bounded modules** that communicate only
 through Open Host Service (OHS) facades
-([`../../3.x/adr/2026-06-03-1-execution-state-domain-model.md`](../../3.x/adr/2026-06-03-1-execution-state-domain-model.md)).
+([`../../3.x/adr/2026-06-03-1-execution-state-domain-model.md`](../../../adr/3.x/2026-06-03-1-execution-state-domain-model.md)).
 
 ```mermaid
 flowchart LR
@@ -105,7 +105,7 @@ flowchart LR
 
 1. Mission metadata (`meta.json`) carries canonical mission identity (`mission_id`)
    and target-line intent used for lifecycle routing (`2026-04-09-1`).
-2. A single resolved [`CommitTarget(ref, kind)`](../../3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md)
+2. A single resolved [`CommitTarget(ref, kind)`](../../../adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md)
    is the one destination both planning artifacts and status events resolve to.
 3. Worktree invocation does not transfer canonical lifecycle authority; the
    resolved context is CWD-invariant.
@@ -128,8 +128,8 @@ flowchart LR
 
 ## Traceability
 
-- Domain model ADR: [`../../3.x/adr/2026-06-03-1-execution-state-domain-model.md`](../../3.x/adr/2026-06-03-1-execution-state-domain-model.md)
-- Canonical execution surface ADR: [`../../3.x/adr/2026-06-07-1-execution-state-canonical-surface.md`](../../3.x/adr/2026-06-07-1-execution-state-canonical-surface.md)
-- ExecutionContext owner + CommitTarget ADR (incl. 2026-06-10 addendum): [`../../3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md`](../../3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md)
+- Domain model ADR: [`../../3.x/adr/2026-06-03-1-execution-state-domain-model.md`](../../../adr/3.x/2026-06-03-1-execution-state-domain-model.md)
+- Canonical execution surface ADR: [`../../3.x/adr/2026-06-07-1-execution-state-canonical-surface.md`](../../../adr/3.x/2026-06-07-1-execution-state-canonical-surface.md)
+- ExecutionContext owner + CommitTarget ADR (incl. 2026-06-10 addendum): [`../../3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md`](../../../adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md)
 - Container view: [`../02_containers/README.md`](../02_containers/README.md)
 - Component view: [`../03_components/README.md`](../03_components/README.md)

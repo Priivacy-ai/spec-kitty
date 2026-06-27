@@ -395,7 +395,7 @@ Over time, artifacts may gradually diverge from glossary definitions. Catch drif
 In Charter 3.x, the glossary is integrated with the governance layer. This section covers the
 four aspects of that integration.
 
-For background on the Charter model, see [How Charter Works](../3x/charter-overview.md).
+For background on the Charter model, see [How Charter Works](../context/charter-overview.md).
 
 ### Glossary as runtime doctrine
 
@@ -481,12 +481,12 @@ uv run spec-kitty charter synthesize
 ## See Also
 
 - [How to Synthesize and Maintain Doctrine](synthesize-doctrine.md) -- Propagate glossary changes
-- [How Charter Works](../3x/charter-overview.md) -- Charter mental model
-- [Understanding the Retrospective Learning Loop](../explanation/retrospective-learning-loop.md) -- How proposals flow from retrospectives to glossary
+- [How Charter Works](../context/charter-overview.md) -- Charter mental model
+- [Understanding the Retrospective Learning Loop](../architecture/retrospective-learning-loop.md) -- How proposals flow from retrospectives to glossary
 - [Create a Specification](create-specification.md) -- Where terms first appear in your workflow
 - [Switch Missions](switch-missions.md) -- Mission-level glossary configuration
 - [Install and Upgrade](install-spec-kitty.md) -- Initial project setup including glossary initialization
 
 ## Background
 
-- [Spec-Driven Development](../explanation/spec-driven-development.md) -- The philosophy behind terminology-driven workflows
+- [Spec-Driven Development](../architecture/spec-driven-development.md) -- The philosophy behind terminology-driven workflows

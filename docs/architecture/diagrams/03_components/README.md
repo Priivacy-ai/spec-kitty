@@ -145,7 +145,7 @@ flowchart TB
   and is not depicted (`2026-04-25-1`, `2026-06-07-1`).
 - `CommitTarget` is `(ref, kind)`, not `(worktree_root, destination_ref)` — see
   the 2026-06-10 addendum to ADR
-  [`../../3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md`](../../3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md).
+  [`../../3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md`](../../../adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md).
 - Authorization is one explicit `GuardCapability` argument; the five legacy
   privilege channels were folded in and are not depicted.
 
@@ -292,11 +292,11 @@ Guard summary:
 
 ## Traceability
 
-- Domain model ADR: [`../../3.x/adr/2026-06-03-1-execution-state-domain-model.md`](../../3.x/adr/2026-06-03-1-execution-state-domain-model.md)
-- Canonical execution surface ADR: [`../../3.x/adr/2026-06-07-1-execution-state-canonical-surface.md`](../../3.x/adr/2026-06-07-1-execution-state-canonical-surface.md)
-- ExecutionContext owner + CommitTarget ADR (incl. 2026-06-10 addendum): [`../../3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md`](../../3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md)
-- Effector/Actor model ADR: [`../../3.x/adr/2026-06-03-3-effector-actor-model.md`](../../3.x/adr/2026-06-03-3-effector-actor-model.md)
-- WP State pattern ADR: [`../../3.x/adr/2026-04-06-1-wp-state-pattern-for-lane-behavior.md`](../../3.x/adr/2026-04-06-1-wp-state-pattern-for-lane-behavior.md)
-- Doctrine-layer merge semantics ADR: [`../../3.x/adr/2026-05-16-1-doctrine-layer-merge-semantics.md`](../../3.x/adr/2026-05-16-1-doctrine-layer-merge-semantics.md)
+- Domain model ADR: [`../../3.x/adr/2026-06-03-1-execution-state-domain-model.md`](../../../adr/3.x/2026-06-03-1-execution-state-domain-model.md)
+- Canonical execution surface ADR: [`../../3.x/adr/2026-06-07-1-execution-state-canonical-surface.md`](../../../adr/3.x/2026-06-07-1-execution-state-canonical-surface.md)
+- ExecutionContext owner + CommitTarget ADR (incl. 2026-06-10 addendum): [`../../3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md`](../../../adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md)
+- Effector/Actor model ADR: [`../../3.x/adr/2026-06-03-3-effector-actor-model.md`](../../../adr/3.x/2026-06-03-3-effector-actor-model.md)
+- WP State pattern ADR: [`../../3.x/adr/2026-04-06-1-wp-state-pattern-for-lane-behavior.md`](../../../adr/3.x/2026-04-06-1-wp-state-pattern-for-lane-behavior.md)
+- Doctrine-layer merge semantics ADR: [`../../3.x/adr/2026-05-16-1-doctrine-layer-merge-semantics.md`](../../../adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md)
 - Context view: [`../01_context/README.md`](../01_context/README.md)
 - Container view: [`../02_containers/README.md`](../02_containers/README.md)

@@ -343,7 +343,7 @@ agents:
 - `available` (list): Agent keys currently active in project
 
 **See**:
-- [Managing AI Agents](../how-to/manage-agents.md) - Complete guide to agent management commands
+- [Managing AI Agents](../guides/manage-agents.md) - Complete guide to agent management commands
 - [CLI Reference: spec-kitty agent config](agent-subcommands.md#spec-kitty-agent-config) - Command syntax and options
 - [ADR #6: Config-Driven Agent Management](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/1.x/2026-01-23-6-config-driven-agent-management.md) - Architectural decision rationale
 
@@ -510,9 +510,9 @@ If you see this file in older projects, it will be ignored. The mission in each 
 
 ## Getting Started
 
-- [Claude Code Integration](../tutorials/claude-code-integration.md)
+- [Claude Code Integration](../guides/claude-code-integration.md)
 
 ## Practical Usage
 
-- [Non-Interactive Init](../how-to/non-interactive-init.md)
-- [Upgrade to 0.11.0](../how-to/install-and-upgrade.md)
+- [Non-Interactive Init](../guides/non-interactive-init.md)
+- [Upgrade to 0.11.0](../guides/install-and-upgrade.md)

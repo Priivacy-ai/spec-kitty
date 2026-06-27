@@ -72,33 +72,33 @@ For the full mental model, see [How Charter Works](charter-overview.md).
 
 #### Tutorials — learning-oriented
 
-- [Governed Charter Workflow End-to-End](../tutorials/charter-governed-workflow.md) — Start from a fresh repo, set up governance, synthesize doctrine, and run a governed mission action
-- [Getting Started with Spec Kitty](../tutorials/getting-started.md) — First project from scratch
-- [Multi-Agent Workflow](../tutorials/multi-agent-workflow.md) — Run a mission across multiple harnesses
+- [Governed Charter Workflow End-to-End](../guides/charter-governed-workflow.md) — Start from a fresh repo, set up governance, synthesize doctrine, and run a governed mission action
+- [Getting Started with Spec Kitty](../guides/getting-started.md) — First project from scratch
+- [Multi-Agent Workflow](../guides/multi-agent-workflow.md) — Run a mission across multiple harnesses
 
 #### How-to guides — task-oriented
 
-- [How to Set Up Project Governance](../how-to/setup-governance.md) — Charter interview, generate, and sync
-- [How to Synthesize and Maintain Doctrine](../how-to/synthesize-doctrine.md) — `charter synthesize`, `charter resynthesize`, bundle validation
-- [How to Run a Governed Mission](../how-to/run-governed-mission.md) — `spec-kitty next --agent` with Charter context injection
-- [How to Manage the Glossary](../how-to/manage-glossary.md) — Living glossary, Charter integration, retrospective proposals
-- [How to Use the Retrospective Learning Loop](../how-to/use-retrospective-learning.md) — `retrospect summary`, `agent retrospect synthesize`
-- [Troubleshooting Charter Failures](../how-to/troubleshoot-charter.md) — Stale bundle, missing doctrine, compact-context, retro gate failures
+- [How to Set Up Project Governance](../guides/setup-governance.md) — Charter interview, generate, and sync
+- [How to Synthesize and Maintain Doctrine](../guides/synthesize-doctrine.md) — `charter synthesize`, `charter resynthesize`, bundle validation
+- [How to Run a Governed Mission](../guides/run-governed-mission.md) — `spec-kitty next --agent` with Charter context injection
+- [How to Manage the Glossary](../guides/manage-glossary.md) — Living glossary, Charter integration, retrospective proposals
+- [How to Use the Retrospective Learning Loop](../guides/use-retrospective-learning.md) — `retrospect summary`, `agent retrospect synthesize`
+- [Troubleshooting Charter Failures](../guides/troubleshoot-charter.md) — Stale bundle, missing doctrine, compact-context, retro gate failures
 
 #### Reference — authoritative specifications
 
-- [Charter CLI Reference](../reference/charter-commands.md) — All `charter` subcommands with flags
-- [CLI Commands](../reference/cli-commands.md) — Full spec-kitty CLI reference including Charter-era additions
-- [Profile Invocation Reference](../reference/profile-invocation.md) — standalone dispatch and invocation trail
-- [Retrospective Schema Reference](../reference/retrospective-schema.md) — `retrospective.yaml` schema, proposal kinds, exit codes
+- [Charter CLI Reference](../api/charter-commands.md) — All `charter` subcommands with flags
+- [CLI Commands](../api/cli-commands.md) — Full spec-kitty CLI reference including Charter-era additions
+- [Profile Invocation Reference](../api/profile-invocation.md) — standalone dispatch and invocation trail
+- [Retrospective Schema Reference](../api/retrospective-schema.md) — `retrospective.yaml` schema, proposal kinds, exit codes
 - [Governance Files Reference](governance-files.md) — Every file in `.kittify/charter/`
 
 #### Explanation — conceptual background
 
 - [How Charter Works](charter-overview.md) — Mental model: doctrine → DRG → governed context
-- [Understanding Charter: Synthesis, DRG, and Governed Context](../explanation/charter-synthesis-drg.md) — Deep dive into synthesis and the Directive Relationship Graph
-- [Understanding Governed Profile Invocation](../explanation/governed-profile-invocation.md) — The `(profile, action, governance-context)` triple
-- [Understanding the Retrospective Learning Loop](../explanation/retrospective-learning-loop.md) — Why retrospectives exist and how the gate model works
+- [Understanding Charter: Synthesis, DRG, and Governed Context](../architecture/charter-synthesis-drg.md) — Deep dive into synthesis and the Directive Relationship Graph
+- [Understanding Governed Profile Invocation](../architecture/governed-profile-invocation.md) — The `(profile, action, governance-context)` triple
+- [Understanding the Retrospective Learning Loop](../architecture/retrospective-learning-loop.md) — Why retrospectives exist and how the gate model works
 
 ### Migration
 

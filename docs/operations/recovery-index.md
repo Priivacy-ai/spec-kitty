@@ -18,5 +18,5 @@ state after a failure or interruption.
 
 ## See also
 
-- [How-to guides](../how-to/index.md) — including crash and interrupted-merge recovery.
+- [How-to guides](../guides/index.md) — including crash and interrupted-merge recovery.
 - [Documentation home](../index.md)

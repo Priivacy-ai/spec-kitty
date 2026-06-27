@@ -33,5 +33,5 @@ build a mental model before reaching for the task-focused how-to guides.
 
 ## See also
 
-- [How-to guides](../how-to/index.md) — task-oriented instructions.
-- [Explanation](../explanation/index.md) — conceptual background.
+- [How-to guides](index.md) — task-oriented instructions.
+- [Explanation](../architecture/index.md) — conceptual background.

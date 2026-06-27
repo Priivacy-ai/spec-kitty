@@ -236,6 +236,6 @@ mutation calls.
 
 ## See Also
 
-- [Orchestrator Quickstart](../tutorials/orchestrator-quickstart.md)
-- [Orchestrator API Reference](../reference/orchestrator-api.md)
+- [Orchestrator Quickstart](orchestrator-quickstart.md)
+- [Orchestrator API Reference](../api/orchestrator-api.md)
 - [How to Build a Custom Orchestrator](build-custom-orchestrator.md)

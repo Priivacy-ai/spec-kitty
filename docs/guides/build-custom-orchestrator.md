@@ -143,4 +143,4 @@ Use [`spec-kitty-orchestrator`](https://github.com/Priivacy-ai/spec-kitty-orches
 ## See Also
 
 - [Run the External Orchestrator](run-external-orchestrator.md)
-- [Orchestrator API Reference](../reference/orchestrator-api.md)
+- [Orchestrator API Reference](../api/orchestrator-api.md)

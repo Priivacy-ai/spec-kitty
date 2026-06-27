@@ -319,7 +319,7 @@ spec-kitty implement WP02
 ## Command Reference
 
 - [Merge Feature Guide](merge-feature.md) - Complete merge workflow
-- [CLI Commands](../reference/cli-commands.md) - Full CLI reference
+- [CLI Commands](../api/cli-commands.md) - Full CLI reference
 
 ## See Also
 
@@ -329,9 +329,9 @@ spec-kitty implement WP02
 
 ## Background
 
-- [Execution Lanes](../explanation/execution-lanes.md) - How worktrees and merging work
-- [Git Worktrees](../explanation/git-worktrees.md) - Git worktree fundamentals
+- [Execution Lanes](../architecture/execution-lanes.md) - How worktrees and merging work
+- [Git Worktrees](../architecture/git-worktrees.md) - Git worktree fundamentals
 
 ## Getting Started
 
-- [Your First Feature](../tutorials/your-first-feature.md) - Complete workflow walkthrough
+- [Your First Feature](your-first-feature.md) - Complete workflow walkthrough

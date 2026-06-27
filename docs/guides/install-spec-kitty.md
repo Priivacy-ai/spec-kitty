@@ -210,9 +210,9 @@ rm gcm-linux_amd64.2.6.1.deb
 
 ## Command Reference
 
-- [`spec-kitty init`](../reference/cli-commands.md#spec-kitty-init)
-- [`spec-kitty upgrade`](../reference/cli-commands.md#spec-kitty-upgrade)
-- [`spec-kitty doctor skills`](../reference/cli-commands.md)
+- [`spec-kitty init`](../api/cli-commands.md#spec-kitty-init)
+- [`spec-kitty upgrade`](../api/cli-commands.md#spec-kitty-upgrade)
+- [`spec-kitty doctor skills`](../api/cli-commands.md)
 
 ## See Also
 
@@ -222,5 +222,5 @@ rm gcm-linux_amd64.2.6.1.deb
 
 ## Background
 
-- [Spec-Driven Development](../explanation/spec-driven-development.md)
-- [Mission System](../explanation/mission-system.md)
+- [Spec-Driven Development](../architecture/spec-driven-development.md)
+- [Mission System](../architecture/mission-system.md)

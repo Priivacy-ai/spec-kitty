@@ -8,7 +8,7 @@ related:
 ---
 # Tutorial: Governed Charter Workflow End-to-End
 
-> **Background**: If you're new to Charter, read [How Charter Works](../3x/charter-overview.md) first.
+> **Background**: If you're new to Charter, read [How Charter Works](../context/charter-overview.md) first.
 
 ## What you'll build
 
@@ -241,7 +241,7 @@ uv run spec-kitty retrospect summary --json
 ```
 
 For the full operator workflow including proposal application, see
-[How to Use Retrospective Learning](../how-to/use-retrospective-learning.md).
+[How to Use Retrospective Learning](use-retrospective-learning.md).
 
 ---
 
@@ -249,16 +249,16 @@ For the full operator workflow including proposal application, see
 
 You've completed the full Charter governance loop. Here is where to go from here:
 
-- [How to Synthesize and Maintain Doctrine](../how-to/synthesize-doctrine.md) — partial resynthesis, provenance, recovery from stale bundles
-- [How to Run a Governed Mission](../how-to/run-governed-mission.md) — composed steps, prompt resolution, blocked decisions
-- [How to Use the Retrospective Learning Loop](../how-to/use-retrospective-learning.md) — preview and apply synthesis proposals
-- [Understanding Charter: Synthesis, DRG, and the Bundle](../3x/charter-overview.md) — deeper conceptual background
+- [How to Synthesize and Maintain Doctrine](synthesize-doctrine.md) — partial resynthesis, provenance, recovery from stale bundles
+- [How to Run a Governed Mission](run-governed-mission.md) — composed steps, prompt resolution, blocked decisions
+- [How to Use the Retrospective Learning Loop](use-retrospective-learning.md) — preview and apply synthesis proposals
+- [Understanding Charter: Synthesis, DRG, and the Bundle](../context/charter-overview.md) — deeper conceptual background
 
 ---
 
 ## See also
 
-- [How to Set Up Project Governance](../how-to/setup-governance.md)
-- [How to Synthesize and Maintain Doctrine](../how-to/synthesize-doctrine.md)
-- [How to Run a Governed Mission](../how-to/run-governed-mission.md)
-- [How Charter Works: Synthesis, DRG, and the Bundle](../3x/charter-overview.md)
+- [How to Set Up Project Governance](setup-governance.md)
+- [How to Synthesize and Maintain Doctrine](synthesize-doctrine.md)
+- [How to Run a Governed Mission](run-governed-mission.md)
+- [How Charter Works: Synthesis, DRG, and the Bundle](../context/charter-overview.md)

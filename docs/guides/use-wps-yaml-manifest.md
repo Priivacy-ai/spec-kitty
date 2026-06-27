@@ -76,7 +76,7 @@ work_packages:
 | `id` | Yes | Work-package identifier (e.g., `WP01`) |
 | `title` | Yes | Short human-readable name |
 | `dependencies` | No | List of WP IDs this WP depends on. **Key invariant**: once present (even as `[]`), this field is never overwritten by the pipeline. |
-| `owned_files` | No | Files this WP exclusively writes. Used for parallelism assignment (see [Parallelism Preservation](../explanation/execution-lanes.md#parallelism-preservation)). |
+| `owned_files` | No | Files this WP exclusively writes. Used for parallelism assignment (see [Parallelism Preservation](../architecture/execution-lanes.md#parallelism-preservation)). |
 | `requirement_refs` | No | Requirement IDs from `spec.md` this WP implements |
 | `plan_concern_refs` | No | `IC-##` implementation concern IDs from `plan.md` this WP addresses |
 | `cross_cutting` | No | Set to `true` when a WP is shared infrastructure with no specific IC-## concern |
@@ -131,7 +131,7 @@ Existing `wps.yaml` files without `plan_concern_refs` continue to parse and fina
 
 ## See Also
 
-- [Parallelism Preservation](../explanation/execution-lanes.md#parallelism-preservation) — how `owned_files` drives lane assignment
+- [Parallelism Preservation](../architecture/execution-lanes.md#parallelism-preservation) — how `owned_files` drives lane assignment
 - [Create a Plan](create-plan.md) — how implementation concerns are created
 - [Generate Tasks](generate-tasks.md) — the full task generation workflow
-- [CLI Reference: spec-kitty tasks](../reference/cli-commands.md#spec-kitty-tasks)
+- [CLI Reference: spec-kitty tasks](../api/cli-commands.md#spec-kitty-tasks)

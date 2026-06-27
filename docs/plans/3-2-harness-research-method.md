@@ -6,7 +6,7 @@ updated: '2026-06-27'
 ---
 # 3.2 Harness Research Method
 
-**Purpose:** Define a repeatable, evidence-driven procedure for classifying the AI coding harnesses (a.k.a. "agents") that Spec Kitty supports. The output of this method is the support matrix at [`docs/api/supported-harnesses.md`](../reference/supported-harnesses.md).
+**Purpose:** Define a repeatable, evidence-driven procedure for classifying the AI coding harnesses (a.k.a. "agents") that Spec Kitty supports. The output of this method is the support matrix at [`docs/api/supported-harnesses.md`](../api/supported-harnesses.md).
 
 **Sources of authority:**
 - [`CLAUDE.md`](../../CLAUDE.md) §"Supported AI Agents" — canonical list of installed surfaces.
@@ -203,7 +203,7 @@ A harness demotes when:
 
 ## 7. Per-harness research dossier — 2026-05-21
 
-The matrix in [`docs/api/supported-harnesses.md`](../reference/supported-harnesses.md) is the canonical output. The research notes that fed each row are summarized below.
+The matrix in [`docs/api/supported-harnesses.md`](../api/supported-harnesses.md) is the canonical output. The research notes that fed each row are summarized below.
 
 | Key | Display name | Mechanism | Tier | Citation | Notes |
 |-----|--------------|-----------|------|----------|-------|

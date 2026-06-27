@@ -204,8 +204,8 @@ For detailed troubleshooting including pre-flight failures, conflict resolution,
 
 ## Command Reference
 
-- [Slash Commands](../reference/slash-commands.md) - All `/spec-kitty.*` commands
-- [CLI Commands](../reference/cli-commands.md) - Full CLI reference
+- [Slash Commands](../api/slash-commands.md) - All `/spec-kitty.*` commands
+- [CLI Commands](../api/cli-commands.md) - Full CLI reference
 
 ## See Also
 
@@ -218,9 +218,9 @@ For detailed troubleshooting including pre-flight failures, conflict resolution,
 
 ## Background
 
-- [Execution Lanes](../explanation/execution-lanes.md) - Worktree cleanup
-- [Git Worktrees](../explanation/git-worktrees.md) - How worktrees work
+- [Execution Lanes](../architecture/execution-lanes.md) - Worktree cleanup
+- [Git Worktrees](../architecture/git-worktrees.md) - How worktrees work
 
 ## Getting Started
 
-- [Your First Feature](../tutorials/your-first-feature.md) - Complete workflow walkthrough
+- [Your First Feature](your-first-feature.md) - Complete workflow walkthrough

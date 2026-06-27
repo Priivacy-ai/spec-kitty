@@ -36,9 +36,9 @@ and charter into a single guided onboarding, replacing the standalone
 
 | # | Actor | Type | Persona | Role in Journey |
 |---|-------|------|---------|-----------------|
-| 1 | Project Owner | `human` | [Project Owner](../../audience/external/project-owner.md) | Answers vision and governance questions; makes scope decisions |
-| 2 | AI Agent | `llm` | [AI Collaboration Agent](../../audience/internal/ai-collaboration-agent.md) | Conducts discovery interview; generates vision.md and charter.md |
-| 3 | Spec-Kitty CLI | `system` | [Spec Kitty CLI Runtime](../../audience/internal/spec-kitty-cli-runtime.md) | Scaffolds project structure; validates prerequisites; stores artifacts |
+| 1 | Project Owner | `human` | [Project Owner](../../context/audience/external/project-owner.md) | Answers vision and governance questions; makes scope decisions |
+| 2 | AI Agent | `llm` | [AI Collaboration Agent](../../context/audience/internal/ai-collaboration-agent.md) | Conducts discovery interview; generates vision.md and charter.md |
+| 3 | Spec-Kitty CLI | `system` | [Spec Kitty CLI Runtime](../../context/audience/internal/spec-kitty-cli-runtime.md) | Scaffolds project structure; validates prerequisites; stores artifacts |
 
 ---
 

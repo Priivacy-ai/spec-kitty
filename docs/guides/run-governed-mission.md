@@ -10,7 +10,7 @@ related:
 
 This guide covers running a mission action under Charter governance using `spec-kitty next`.
 
-For background on governed profile invocation, see [How Charter Works](../3x/charter-overview.md).
+For background on governed profile invocation, see [How Charter Works](../context/charter-overview.md).
 
 ---
 
@@ -25,7 +25,7 @@ Confirm your governance is ready before running a mission:
    agent-generated artifacts are promoted.
 
 If the bundle is stale, run the synthesis flow first. See
-[How to Synthesize and Maintain Doctrine](../how-to/synthesize-doctrine.md).
+[How to Synthesize and Maintain Doctrine](synthesize-doctrine.md).
 
 ---
 
@@ -153,7 +153,7 @@ uv run spec-kitty next --agent claude --mission my-feature-slug \
 
 ## See Also
 
-- [How Charter Works](../3x/charter-overview.md)
-- [Understanding Governed Profile Invocation](../explanation/governed-profile-invocation.md)
-- [Charter CLI Reference](../reference/charter-commands.md)
-- [How to Synthesize and Maintain Doctrine](../how-to/synthesize-doctrine.md)
+- [How Charter Works](../context/charter-overview.md)
+- [Understanding Governed Profile Invocation](../architecture/governed-profile-invocation.md)
+- [Charter CLI Reference](../api/charter-commands.md)
+- [How to Synthesize and Maintain Doctrine](synthesize-doctrine.md)

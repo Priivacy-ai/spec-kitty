@@ -13,7 +13,7 @@ related:
 
 ## Partial-tier note
 
-Letta Code is classified `partial` in the 3.2 [support matrix](../../reference/supported-harnesses.md) because:
+Letta Code is classified `partial` in the 3.2 [support matrix](../../api/supported-harnesses.md) because:
 
 1. The Spec Kitty installer produces command-skill packages under `.agents/skills/spec-kitty.*/SKILL.md`.
 2. Letta Code's skills documentation says `.agents/skills/` is the preferred project-scoped skills location.
@@ -32,7 +32,7 @@ Promotion to `supported` requires at least one documented smoke test against a r
 
 ## Where Spec Kitty installs files
 
-Per the [supported-harnesses matrix](../../reference/supported-harnesses.md), Letta Code consumes Spec Kitty as Agent Skills. Spec Kitty installs:
+Per the [supported-harnesses matrix](../../api/supported-harnesses.md), Letta Code consumes Spec Kitty as Agent Skills. Spec Kitty installs:
 
 - **Directory:** `.agents/skills/spec-kitty.<command>/`
 - **Files:** one `SKILL.md` per command (`spec-kitty.specify/SKILL.md`, `spec-kitty.plan/SKILL.md`, `spec-kitty.tasks/SKILL.md`, `spec-kitty.implement/SKILL.md`, etc.).
@@ -86,4 +86,4 @@ If Letta does not expose the command in your installed version, the artifacts re
 
 ## Where to learn more about Letta Code
 
-Authoritative documentation: <https://docs.letta.com/letta-code/skills/> (accessed 2026-06-02). The matrix row in [`docs/api/supported-harnesses.md`](../../reference/supported-harnesses.md) remains the promotion tracker.
+Authoritative documentation: <https://docs.letta.com/letta-code/skills/> (accessed 2026-06-02). The matrix row in [`docs/api/supported-harnesses.md`](../../api/supported-harnesses.md) remains the promotion tracker.

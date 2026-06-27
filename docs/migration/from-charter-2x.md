@@ -29,7 +29,7 @@ the Charter era) to the current Charter-era 3.x.
 | Synthesis status | `charter status` (sync status only) | `charter status` (sync status + synthesis/operator state + optional provenance) |
 | CLI structure | `spec-kitty charter <subcommand>` | Same — `spec-kitty charter <subcommand>` |
 | Mission execution | Direct workflow commands: `/spec-kitty.specify`, `/spec-kitty.plan`, etc. | `spec-kitty next --agent <name> --mission <slug>` with automatic Charter context injection |
-| Retrospective | Not available in 2.x | Default-on in 3.2.0+: `retrospective.yaml` is authored automatically at mission completion. `spec-kitty retrospect create --mission <slug>` authors on demand; `retrospect summary` aggregates (read-only); `agent retrospect synthesize --mission <slug>` previews/applies proposals. See [How to Use Retrospective Learning](../how-to/use-retrospective-learning.md). |
+| Retrospective | Not available in 2.x | Default-on in 3.2.0+: `retrospective.yaml` is authored automatically at mission completion. `spec-kitty retrospect create --mission <slug>` authors on demand; `retrospect summary` aggregates (read-only); `agent retrospect synthesize --mission <slug>` previews/applies proposals. See [How to Use Retrospective Learning](../guides/use-retrospective-learning.md). |
 | Profile invocation | Not available in 2.x | `spec-kitty dispatch "<request>"` + `profile-invocation complete` |
 | Governance context injection | `charter context --action <action>` (available; used by runtime) | Same command available for debugging; automatic injection via `spec-kitty next` |
 
@@ -175,7 +175,7 @@ a full synthesis with agent-generated content.
 ### 5. compact-context warnings in agent prompts
 
 After migrating, agents may receive compact-context mode warnings if your governance layer is
-large. This is expected — see [Troubleshooting Charter Failures](../how-to/troubleshoot-charter.md)
+large. This is expected — see [Troubleshooting Charter Failures](../guides/troubleshoot-charter.md)
 for workarounds.
 
 ### 6. Duplicate public constitution and runtime charter drift
@@ -190,14 +190,14 @@ references the public constitution and extracts cleanly with `spec-kitty charter
 ## Getting help
 
 If you encounter issues not covered here, see
-[Troubleshooting Charter Failures](../how-to/troubleshoot-charter.md).
+[Troubleshooting Charter Failures](../guides/troubleshoot-charter.md).
 
 ---
 
 ## See Also
 
-- [How to Set Up Project Governance](../how-to/setup-governance.md)
-- [How to Synthesize and Maintain Doctrine](../how-to/synthesize-doctrine.md)
-- [Troubleshooting Charter Failures](../how-to/troubleshoot-charter.md)
-- [Spec Kitty 3.x — Charter Era](../3x/index.md)
+- [How to Set Up Project Governance](../guides/setup-governance.md)
+- [How to Synthesize and Maintain Doctrine](../guides/synthesize-doctrine.md)
+- [Troubleshooting Charter Failures](../guides/troubleshoot-charter.md)
+- [Spec Kitty 3.x — Charter Era](../context/index.md)
 - [Spec Kitty 2.x Docs (archived)](../archive/2x/index.md)

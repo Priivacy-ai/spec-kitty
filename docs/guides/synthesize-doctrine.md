@@ -12,7 +12,7 @@ related:
 This guide covers the day-to-day synthesis workflow: checking status, linting, running synthesis,
 validating the bundle, and recovering from stale or corrupted state.
 
-For background on the synthesis model, see [How Charter Works](../3x/charter-overview.md).
+For background on the synthesis model, see [How Charter Works](../context/charter-overview.md).
 
 ---
 
@@ -204,7 +204,7 @@ before synthesis.
 
 ## See Also
 
-- [How Charter Works](../3x/charter-overview.md)
-- [Governance Files Reference](../3x/governance-files.md)
-- [Charter CLI Reference](../reference/charter-commands.md)
-- [Troubleshooting Charter Failures](../how-to/troubleshoot-charter.md)
+- [How Charter Works](../context/charter-overview.md)
+- [Governance Files Reference](../context/governance-files.md)
+- [Charter CLI Reference](../api/charter-commands.md)
+- [Troubleshooting Charter Failures](troubleshoot-charter.md)

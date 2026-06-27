@@ -114,10 +114,10 @@ Only fall back to `pip in a venv` when you are managing the venv intentionally (
 
 ## See also
 
-- [Install on macOS](../how-to/install-macos.md)
-- [Install on Linux](../how-to/install-linux.md)
-- [Install on Windows](../how-to/install-windows.md)
-- [Upgrade the CLI](../how-to/upgrade-cli.md)
+- [Install on macOS](../guides/install-macos.md)
+- [Install on Linux](../guides/install-linux.md)
+- [Install on Windows](../guides/install-windows.md)
+- [Upgrade the CLI](../guides/upgrade-cli.md)
 - [pipx docs](https://pipx.pypa.io/)
 - [uv docs](https://docs.astral.sh/uv/)
 - [PEP 668: externally managed environments](https://peps.python.org/pep-0668/)

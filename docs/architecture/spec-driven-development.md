@@ -212,15 +212,15 @@ Spec-driven development with Spec Kitty enables parallel work:
 
 ## Try It
 
-- [Claude Code Integration](../tutorials/claude-code-integration.md)
-- [Claude Code Workflow](../tutorials/claude-code-workflow.md)
+- [Claude Code Integration](../guides/claude-code-integration.md)
+- [Claude Code Workflow](../guides/claude-code-workflow.md)
 
 ## How-To Guides
 
-- [Install Spec Kitty](../how-to/install-spec-kitty.md)
-- [Use the Dashboard](../how-to/use-dashboard.md)
+- [Install Spec Kitty](../guides/install-spec-kitty.md)
+- [Use the Dashboard](../guides/use-dashboard.md)
 
 ## Reference
 
-- [CLI Commands](../reference/cli-commands.md)
-- [Slash Commands](../reference/slash-commands.md)
+- [CLI Commands](../api/cli-commands.md)
+- [Slash Commands](../api/slash-commands.md)

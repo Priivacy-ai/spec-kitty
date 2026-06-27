@@ -32,4 +32,4 @@ surface-resolution work (`3-2-3-surface-resolution-cluster/`), and naming/identi
 ## See also
 
 - [Documentation home](../index.md)
-- [Development notes](../development/index.md)
+- [Development notes](../../development/index.md)

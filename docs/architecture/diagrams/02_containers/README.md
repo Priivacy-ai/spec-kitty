@@ -36,7 +36,7 @@ resolution, and the single commit-protection decision.
 
 The four bounded modules are the top-level containers. They communicate through
 **Open Host Service (OHS) facades** only
-([`../../3.x/adr/2026-06-03-1-execution-state-domain-model.md`](../../3.x/adr/2026-06-03-1-execution-state-domain-model.md)).
+([`../../3.x/adr/2026-06-03-1-execution-state-domain-model.md`](../../../adr/3.x/2026-06-03-1-execution-state-domain-model.md)).
 
 ```mermaid
 flowchart TB
@@ -120,7 +120,7 @@ flowchart TB
 - `CommitTarget` is `(ref, kind)` — a destination ref paired with its topology
   classification. The earlier sketch of `(worktree_root, destination_ref)` is
   superseded and **not** depicted (see the 2026-06-10 addendum to
-  [`../../3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md`](../../3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md)).
+  [`../../3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md`](../../../adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md)).
 - Commit protection is one pure decision (`commit_guard.evaluate`) parameterized
   by an explicit `GuardCapability`; the five legacy privilege channels were
   folded into that capability and are not depicted.
@@ -185,10 +185,10 @@ execution/routing invariants.
 
 ## Traceability
 
-- Domain model ADR: [`../../3.x/adr/2026-06-03-1-execution-state-domain-model.md`](../../3.x/adr/2026-06-03-1-execution-state-domain-model.md)
-- Canonical execution surface ADR: [`../../3.x/adr/2026-06-07-1-execution-state-canonical-surface.md`](../../3.x/adr/2026-06-07-1-execution-state-canonical-surface.md)
-- ExecutionContext owner + CommitTarget ADR (incl. 2026-06-10 addendum): [`../../3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md`](../../3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md)
-- Shared package boundary ADR: [`../../3.x/adr/2026-04-25-1-shared-package-boundary.md`](../../3.x/adr/2026-04-25-1-shared-package-boundary.md)
+- Domain model ADR: [`../../3.x/adr/2026-06-03-1-execution-state-domain-model.md`](../../../adr/3.x/2026-06-03-1-execution-state-domain-model.md)
+- Canonical execution surface ADR: [`../../3.x/adr/2026-06-07-1-execution-state-canonical-surface.md`](../../../adr/3.x/2026-06-07-1-execution-state-canonical-surface.md)
+- ExecutionContext owner + CommitTarget ADR (incl. 2026-06-10 addendum): [`../../3.x/adr/2026-06-03-2-executioncontext-owner-and-committarget.md`](../../../adr/3.x/2026-06-03-2-executioncontext-owner-and-committarget.md)
+- Shared package boundary ADR: [`../../3.x/adr/2026-04-25-1-shared-package-boundary.md`](../../../adr/3.x/2026-04-25-1-shared-package-boundary.md)
 - Runtime/execution detail: [`runtime-execution-domain.md`](runtime-execution-domain.md)
 - Context view: [`../01_context/README.md`](../01_context/README.md)
 - Component view: [`../03_components/README.md`](../03_components/README.md)

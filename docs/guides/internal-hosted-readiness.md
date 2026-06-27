@@ -81,7 +81,7 @@ spec-kitty auth login
 > **Important framing.** `SPEC_KITTY_SAAS_URL` is an internal **dev /
 > staging override**. It is not user behavior. End users — today and
 > at launch — never set it. If you are documenting end-user behavior,
-> reference the [launch-readiness-future](../explanation/launch-readiness-future.md)
+> reference the [launch-readiness-future](../architecture/launch-readiness-future.md)
 > doc, which describes the user-facing default URL.
 
 ## Readiness states the coordinator surfaces
@@ -95,7 +95,7 @@ operator-visible behavior, not the enum literal.
 |---|---|---|
 | Hosted mode disabled (variable unset / falsy) | No Teamspace-labeled output. Coordinator is a no-op. The stable disabled-message string is emitted only by commands that explicitly ask for it (e.g., `spec-kitty sync now` without opt-in). | None — this is the local-first default. |
 | Hosted mode enabled, authenticated | Hosted output flows normally. | None. |
-| Hosted mode enabled, logged out on a connected Teamspace | Interactive: a Rich panel offers `[L]ogin / [S]kip / [Q]uit`. Non-interactive: a stable stderr line plus exit code `4`. See [Recovery: Logged out on a connected teamspace](../recovery/logged-out-teamspace.md). | `spec-kitty auth login` |
+| Hosted mode enabled, logged out on a connected Teamspace | Interactive: a Rich panel offers `[L]ogin / [S]kip / [Q]uit`. Non-interactive: a stable stderr line plus exit code `4`. See [Recovery: Logged out on a connected teamspace](../operations/logged-out-teamspace.md). | `spec-kitty auth login` |
 | Hosted mode enabled, tracker unreachable | The relevant sync / tracker command surfaces the failure with a doctor pointer. | `spec-kitty sync doctor` |
 | Hosted mode enabled, CLI upgrade required | The startup-readiness path nag-renders the upgrade guidance (already gated by the Wave 1 suppression contract). | `spec-kitty upgrade --cli` |
 
@@ -127,7 +127,7 @@ The canonical source for the policy precedence is the data-model
 section of the mission spec for the readiness coordinator
 (`kitty-specs/cli-startup-readiness-coordinator-skeleton-01KS7JRV/data-model.md`).
 The recovery doc covers the operator-visible behavior of each bucket;
-see [Recovery: Logged out on a connected teamspace](../recovery/logged-out-teamspace.md).
+see [Recovery: Logged out on a connected teamspace](../operations/logged-out-teamspace.md).
 
 ## Verify locally end-to-end
 
@@ -153,8 +153,8 @@ the CLI's subprocess. Re-export and retry.
 
 ## Related
 
-- [Recovery: Logged out on a connected teamspace](../recovery/logged-out-teamspace.md)
-- [Environment variables reference](../reference/environment-variables.md)
+- [Recovery: Logged out on a connected teamspace](../operations/logged-out-teamspace.md)
+- [Environment variables reference](../api/environment-variables.md)
   — full entries for `SPEC_KITTY_ENABLE_SAAS_SYNC` and
   `SPEC_KITTY_SAAS_URL`.
 - [Upgrade the Spec Kitty CLI](upgrade-cli.md) — for the
@@ -165,6 +165,6 @@ the CLI's subprocess. Re-export and retry.
 
 If you are documenting what end users will see, **stop reading this
 page** and switch to
-[Launch-Readiness Behavior (Coming Soon)](../explanation/launch-readiness-future.md).
+[Launch-Readiness Behavior (Coming Soon)](../architecture/launch-readiness-future.md).
 That doc owns the at-launch user-facing semantics; this doc owns the
 pre-launch internal operator experience.

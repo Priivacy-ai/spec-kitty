@@ -23,7 +23,7 @@ related:
 
 ## Where Spec Kitty installs files
 
-Per the [supported-harnesses matrix](../../reference/supported-harnesses.md), Amazon Q CLI uses the prompt-file mechanism. Spec Kitty installs:
+Per the [supported-harnesses matrix](../../api/supported-harnesses.md), Amazon Q CLI uses the prompt-file mechanism. Spec Kitty installs:
 
 - **Directory:** `.amazonq/prompts/`
 - **Files:** `spec-kitty.specify.md`, `spec-kitty.plan.md`, `spec-kitty.tasks.md`, `spec-kitty.implement.md`, `spec-kitty.review.md`, `spec-kitty.accept.md`, `spec-kitty.merge.md`, `spec-kitty.dashboard.md`, `spec-kitty.status.md`, `spec-kitty.charter.md`, `spec-kitty.analyze.md`, `spec-kitty.research.md`.

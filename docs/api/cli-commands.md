@@ -20,14 +20,14 @@ Terminology note:
 
 ## Getting Started
 
-- [Claude Code Integration](../tutorials/claude-code-integration.md)
-- [Claude Code Workflow](../tutorials/claude-code-workflow.md)
+- [Claude Code Integration](../guides/claude-code-integration.md)
+- [Claude Code Workflow](../guides/claude-code-workflow.md)
 
 ## Practical Usage
 
-- [Install Spec Kitty](../how-to/install-spec-kitty.md)
-- [Use the Dashboard](../how-to/use-dashboard.md)
-- [Upgrade to 0.11.0](../how-to/install-and-upgrade.md)
+- [Install Spec Kitty](../guides/install-spec-kitty.md)
+- [Use the Dashboard](../guides/use-dashboard.md)
+- [Upgrade to 0.11.0](../guides/install-and-upgrade.md)
 
 ## Command Internals
 

@@ -245,4 +245,4 @@ when the doctrine overlay needs to be refreshed.
 ## See Also
 
 - [How Charter Works](charter-overview.md) — mental model and synthesis flow
-- [How to Synthesize and Maintain Doctrine](../how-to/synthesize-doctrine.md) — day-to-day synthesis workflow
+- [How to Synthesize and Maintain Doctrine](../guides/synthesize-doctrine.md) — day-to-day synthesis workflow

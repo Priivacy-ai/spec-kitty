@@ -134,6 +134,6 @@ See [Uninstall](uninstall.md) for the full rollback procedure.
 ## Next steps
 
 - [Upgrade the CLI](upgrade-cli.md)
-- [Upgrade lifecycle reference](../reference/upgrade-lifecycle.md)
-- [Init lifecycle reference](../reference/init-lifecycle.md)
+- [Upgrade lifecycle reference](../api/upgrade-lifecycle.md)
+- [Init lifecycle reference](../api/init-lifecycle.md)
 - [Install and upgrade overview](install-and-upgrade.md)

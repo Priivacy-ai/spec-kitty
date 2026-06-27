@@ -205,11 +205,11 @@ authoritative mission lane history.
 
 ## What to read next
 
-- [Run the External Orchestrator](../how-to/run-external-orchestrator.md) for
+- [Run the External Orchestrator](run-external-orchestrator.md) for
   operational commands and troubleshooting.
-- [Build a Custom Orchestrator](../how-to/build-custom-orchestrator.md) if you
+- [Build a Custom Orchestrator](build-custom-orchestrator.md) if you
   want to write your own provider loop.
-- [Orchestrator API Reference](../reference/orchestrator-api.md) for command
+- [Orchestrator API Reference](../api/orchestrator-api.md) for command
   flags and JSON payloads.
-- [Multi-Agent Orchestration](../explanation/multi-agent-orchestration.md) for
+- [Multi-Agent Orchestration](../architecture/multi-agent-orchestration.md) for
   the host/provider model.

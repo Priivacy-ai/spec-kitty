@@ -109,5 +109,5 @@ When a newer CLI version is available on PyPI, spec-kitty prints a single banner
 ## Next steps
 
 - [Upgrade an existing project](upgrade-project.md)
-- [Upgrade lifecycle reference](../reference/upgrade-lifecycle.md)
+- [Upgrade lifecycle reference](../api/upgrade-lifecycle.md)
 - [Install and upgrade overview](install-and-upgrade.md)

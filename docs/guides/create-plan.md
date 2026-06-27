@@ -75,9 +75,9 @@ may become multiple WPs; multiple small concerns may merge into one WP.
 
 ## Command Reference
 
-- [Slash Commands](../reference/slash-commands.md) - All `/spec-kitty.*` commands
-- [CLI Commands](../reference/cli-commands.md) - Full CLI reference
-- [File Structure](../reference/file-structure.md) - Where plans are stored
+- [Slash Commands](../api/slash-commands.md) - All `/spec-kitty.*` commands
+- [CLI Commands](../api/cli-commands.md) - Full CLI reference
+- [File Structure](../api/file-structure.md) - Where plans are stored
 
 ## See Also
 
@@ -87,9 +87,9 @@ may become multiple WPs; multiple small concerns may merge into one WP.
 
 ## Background
 
-- [Spec-Driven Development](../explanation/spec-driven-development.md) - The philosophy
-- [Kanban Workflow](../explanation/kanban-workflow.md) - How work flows after planning
+- [Spec-Driven Development](../architecture/spec-driven-development.md) - The philosophy
+- [Kanban Workflow](../architecture/kanban-workflow.md) - How work flows after planning
 
 ## Getting Started
 
-- [Your First Feature](../tutorials/your-first-feature.md) - Complete workflow walkthrough
+- [Your First Feature](your-first-feature.md) - Complete workflow walkthrough

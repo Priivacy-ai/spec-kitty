@@ -27,7 +27,7 @@ The numbered C4 levels are kept stable so navigation and tooling stay predictabl
 ## The 3.x domain model these diagrams depict
 
 The model is the **four bounded modules** ratified in
-[`../3.x/adr/2026-06-03-1-execution-state-domain-model.md`](../3.x/adr/2026-06-03-1-execution-state-domain-model.md):
+[`../3.x/adr/2026-06-03-1-execution-state-domain-model.md`](../../adr/3.x/2026-06-03-1-execution-state-domain-model.md):
 
 | Module | Domain responsibility |
 |---|---|
@@ -40,7 +40,7 @@ Modules communicate via **Open Host Service (OHS) facades** only; direct
 cross-module imports of internal submodules are prohibited by architectural tests.
 Status and kanban are owned **exclusively by Mission Management** (the `status/`
 OHS facade). The canonical execution-state surface is the top-level
-[`mission_runtime`](../3.x/adr/2026-06-07-1-execution-state-canonical-surface.md)
+[`mission_runtime`](../../adr/3.x/2026-06-07-1-execution-state-canonical-surface.md)
 package. The **Op execution tier** (`spec-kitty dispatch` plus
 `profile-invocation complete` and the pre/post-mission lifecycle) sits across
 the modules as the shared Op shape.
