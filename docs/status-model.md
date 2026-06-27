@@ -1,5 +1,6 @@
 ---
 title: 'Status Model: Operator Documentation'
+description: 'Operator reference for the Spec Kitty status model: the append-only event-log lane state machine, the canonical --mission selector, and mission_id ULID identity.'
 doc_status: active
 updated: '2026-06-27'
 related:

@@ -1,5 +1,6 @@
 ---
 title: Migration and Shim Ownership Rules
+description: The migration and shim ownership rulebook governing bundle/runtime migrations and back-compat shims during package extraction, which every extraction mission must cite.
 doc_status: active
 updated: '2026-04-20'
 ---

@@ -1,5 +1,6 @@
 ---
 title: Contract pinning workflow (`spec-kitty-events`)
+description: 'The contract-pinning workflow for spec-kitty-events: how tests/contract pin a resolved package version, why it exists, and the ADR and mission authority behind it.'
 doc_status: active
 updated: '2026-05-28'
 ---

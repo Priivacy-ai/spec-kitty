@@ -1,5 +1,6 @@
 ---
 title: Identity-Boundary CI Gate
+description: 'The drift-detector required CI check running the canonical-registry recognition test on every PR to catch drift against the consumer-recognition contract (an #1247 gate).'
 doc_status: active
 updated: '2026-06-12'
 ---

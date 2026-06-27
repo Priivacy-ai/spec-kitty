@@ -1,5 +1,6 @@
 ---
 title: 'YAML library choice: ruamel.yaml vs PyYAML'
+description: 'When Spec Kitty uses ruamel.yaml versus PyYAML: the round-trip-vs-read-only deciding criterion and the named codebase sites that currently deviate from it.'
 doc_status: active
 updated: '2026-06-23'
 ---
