@@ -1,19 +1,29 @@
 - name: Home
   href: index.md
-- name: 3.2 Current
-  items:
-    - name: Tutorials
-      href: tutorials/
-    - name: How-To Guides
-      href: how-to/
-    - name: Reference
-      href: reference/
-    - name: Explanation
-      href: explanation/
-    - name: Current 3.2 Charter model
-      href: 3x/
-- name: Migration to 3.2
-  href: migration/
+- name: Context
+  href: context/index.md
+- name: Architecture
+  href: architecture/index.md
+- name: ADRs
+  href: adr/index.md
+- name: Plans
+  href: plans/index.md
+- name: API
+  href: api/index.md
+- name: Configuration
+  href: configuration/index.md
+- name: Integrations
+  href: integrations/index.md
+- name: Security
+  href: security/index.md
+- name: Guides
+  href: guides/index.md
+- name: Operations
+  href: operations/index.md
+- name: Migrations
+  href: migrations/index.md
+- name: Changelog
+  href: changelog/index.md
 - name: Mission Runs
   href: kitty-specs/index.html
 - name: Historical Archive
