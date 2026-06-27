@@ -7,7 +7,7 @@ import functools
 import json
 import re
 import subprocess
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from datetime import UTC, datetime
 from io import StringIO
 from pathlib import Path
@@ -52,6 +52,15 @@ from specify_cli.workspace.context import resolve_workspace_for_wp
 
 console = Console()
 _WP_ID_RE = re.compile(r"^WP\d{2}$", re.IGNORECASE)
+_META_JSON_FILENAME = "meta.json"
+# vcs-lock fields written by ``mission_metadata.set_vcs_lock`` (the canonical
+# writer). #2222 / C-003: this lock is one-time VCS-TYPE state, NOT the
+# concurrency mutex, so a dependency-free back-to-back claim must not be blocked
+# by the prior claim's own uncommitted lock self-write. Mirrored here as a named
+# constant (S1192) rather than imported because ``mission_metadata`` exposes no
+# field-name constant and this WP must not edit that module (upstream gap: a
+# ``VCS_LOCK_FIELDS`` export there would let this be imported instead).
+_VCS_LOCK_META_FIELDS: frozenset[str] = frozenset({"vcs", "vcs_locked_at"})
 
 
 def _protected_branch_status_commit_error(branch: str, repo_root: Path) -> str | None:
@@ -576,6 +585,86 @@ def _status_paths_for_commit(
     return _exclude_coord_owned((e.path for e in entries), coord_branch_for_filter)
 
 
+def _is_vcs_lock_only_meta_diff(
+    committed: Mapping[str, Any] | None, working: Mapping[str, Any]
+) -> bool:
+    """Pure decision: is the meta.json change ONLY the one-time vcs-lock fields?
+
+    Returns ``True`` iff every key whose value differs between the *committed*
+    baseline and the *working*-tree meta.json is a member of
+    :data:`_VCS_LOCK_META_FIELDS` (#2222 / C-003). The comparison is on parsed
+    JSON, so it is robust to byte-level reformatting by ``write_meta``.
+
+    An empty diff returns ``False`` (nothing to exclude); any non-lock key in
+    the diff returns ``False`` so a genuinely dirty meta.json still blocks the
+    claim (the required negative guard — the exclusion is lock-field-only, never
+    a blanket meta.json bypass).
+    """
+    base: Mapping[str, Any] = committed or {}
+    changed_keys = {
+        key for key in set(base) | set(working) if base.get(key) != working.get(key)
+    }
+    return bool(changed_keys) and changed_keys <= _VCS_LOCK_META_FIELDS
+
+
+def _parse_meta_mapping(raw: bytes) -> dict[str, Any] | None:
+    """Parse meta.json *raw* bytes to a dict, or ``None`` when it is not a JSON
+    object (defensive: a non-object/corrupt meta is never treated as lock-only)."""
+    try:
+        parsed = json.loads(raw.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _committed_meta_mapping(
+    repo_root: Path, repo_rel: str, ref: str | None
+) -> dict[str, Any] | None:
+    """The committed meta.json mapping at *ref* (or ``HEAD`` for flat/legacy
+    missions), or ``None`` when the path is absent there or unparseable."""
+    blob = _coord_branch_blob(repo_root, ref or "HEAD", repo_rel)
+    if blob is None:
+        return None
+    return _parse_meta_mapping(blob)
+
+
+def _drop_vcs_lock_only_meta(
+    repo_root: Path, paths: list[str], ref: str | None, *, auto_commit: bool
+) -> list[str]:
+    """Drop a vcs-lock-only meta.json change from the dirty-tree claim guard.
+
+    #2222 / C-003: ``mission_metadata.set_vcs_lock`` writes a one-time VCS-TYPE
+    lock to meta.json — never the concurrency mutex. Under ``auto_commit=False``
+    the prior dependency-free claim leaves that self-write uncommitted; without
+    this exclusion the next claim's dirty-tree guard wrongly aborts. Excluding a
+    lock-only diff is stop-gating (the lock stays uncommitted), NOT
+    auto-committing it, and opens no race.
+
+    Byte-identical no-op on the default ``auto_commit=True`` path (NFR-001): the
+    exclusion is gated here so the guard's commit set is untouched when
+    auto-commit is on. The exclusion is scoped strictly to the lock-field-only
+    diff (see :func:`_is_vcs_lock_only_meta_diff`); any non-lock meta.json edit
+    is kept and still blocks the claim.
+    """
+    if auto_commit:
+        return paths
+    kept: list[str] = []
+    for repo_rel in paths:
+        if Path(repo_rel).name != _META_JSON_FILENAME:
+            kept.append(repo_rel)
+            continue
+        source = (repo_root / Path(repo_rel)).resolve()
+        if not source.exists():
+            kept.append(repo_rel)
+            continue
+        working = _parse_meta_mapping(source.read_bytes())
+        committed = _committed_meta_mapping(repo_root, repo_rel, ref)
+        if working is not None and _is_vcs_lock_only_meta_diff(committed, working):
+            continue
+        kept.append(repo_rel)
+    return kept
+
+
 def _resolve_placement_ref(
     repo_root: Path, *, mission_slug: str, wp_id: str
 ) -> CommitTarget | None:
@@ -690,6 +779,13 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
         )[0]
 
     status_paths = _status_paths_for_commit(entries, coord_branch_for_filter)
+    # #2222 / C-003: under auto_commit=False, ignore the mission's own one-time
+    # vcs-lock self-write to meta.json so a back-to-back dependency-free claim is
+    # not blocked by it (no-op when auto_commit=True — NFR-001). Helper-gated so
+    # the guard gains no new branch (it keeps its existing C901 complexity waiver).
+    status_paths = _drop_vcs_lock_only_meta(
+        repo_root, status_paths, coord_branch_for_filter, auto_commit=auto_commit
+    )
     files_to_commit = list(status_paths)
     if coord_branch_for_filter:
         files_to_commit.extend(
@@ -699,6 +795,9 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
             )
         )
     files_to_commit = list(dict.fromkeys(files_to_commit))
+    files_to_commit = _drop_vcs_lock_only_meta(
+        repo_root, files_to_commit, coord_branch_for_filter, auto_commit=auto_commit
+    )
     if not files_to_commit:
         return
 

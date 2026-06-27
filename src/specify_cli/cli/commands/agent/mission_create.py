@@ -26,6 +26,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, cast
 
+from mission_runtime import MissionTopology
 from rich.console import Console
 import typer
 
@@ -227,6 +228,7 @@ def _run_create_core_phase(
     purpose_context: str | None,
     force_recreate_coordination_branch: bool,
     json_output: bool,
+    topology: MissionTopology = MissionTopology.COORD,
 ) -> MissionCreationResult:
     """Invoke ``create_mission_core`` with the deterministic error funnel.
 
@@ -250,6 +252,7 @@ def _run_create_core_phase(
             friendly_name=friendly_name,
             purpose_tldr=purpose_tldr,
             purpose_context=purpose_context,
+            topology=topology,
             force_recreate_coordination_branch=force_recreate_coordination_branch,
         )
     except CoordinationBranchDiverged as exc:
@@ -324,6 +327,9 @@ def _build_create_payload(result: MissionCreationResult) -> dict[str, object]:
         # can read the canonical ref without re-deriving it.
         "coordination_branch": getattr(result, "coordination_branch", None),
         "coordination_branch_created": getattr(result, "coordination_branch_created", False),
+        # Mission topology (WP03 / #2218) — the operator's create-time shape,
+        # surfaced so `specify --json` callers can read it without re-deriving.
+        "topology": str(result.meta.get("topology", "")),
     }
 
 
@@ -381,6 +387,18 @@ def create_mission(
     purpose_tldr: Annotated[str | None, typer.Option("--purpose-tldr", help="One-line stakeholder TLDR for the mission")] = None,
     purpose_context: Annotated[str | None, typer.Option("--purpose-context", help="Short stakeholder-facing paragraph for the mission")] = None,
     pr_bound: Annotated[bool, typer.Option("--pr-bound/--no-pr-bound", help="Mark mission as PR-bound (gate fires on merge_target_branch)")] = False,
+    topology: Annotated[
+        MissionTopology,
+        typer.Option(
+            "--topology",
+            help=(
+                "Create-time mission shape: single_branch | lanes | coord | "
+                "lanes_with_coord. Coordination-bearing shapes (coord, "
+                "lanes_with_coord) mint a coordination branch; branch-flat "
+                "shapes (single_branch, lanes) do not. Default: coord."
+            ),
+        ),
+    ] = MissionTopology.COORD,
     branch_strategy: Annotated[
         str | None,
         typer.Option(
@@ -453,6 +471,7 @@ def create_mission(
         friendly_name=friendly_name,
         purpose_tldr=purpose_tldr,
         purpose_context=purpose_context,
+        topology=topology,
         force_recreate_coordination_branch=force_recreate_coordination_branch,
         json_output=json_output,
     )

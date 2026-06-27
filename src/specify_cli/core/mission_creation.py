@@ -20,7 +20,7 @@ from typing import Any
 
 from ulid import ULID
 
-from mission_runtime import CommitTarget
+from mission_runtime import CommitTarget, MissionTopology
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.git_ops import get_current_branch, is_git_repo
 from specify_cli.core.paths import is_worktree_context, locate_project_root
@@ -207,6 +207,7 @@ def create_mission_core(
     friendly_name: str | None = None,
     purpose_tldr: str | None = None,
     purpose_context: str | None = None,
+    topology: MissionTopology = MissionTopology.COORD,
     force_recreate_coordination_branch: bool = False,
 ) -> MissionCreationResult:
     """Create a new feature with all scaffolding.
@@ -238,6 +239,14 @@ def create_mission_core(
     purpose_context:
         Optional short paragraph explaining the mission in stakeholder terms.
         When omitted, it defaults to a branch-aware summary sentence.
+    topology:
+        Operator's create-time mission shape (#2218). Defaults to
+        :attr:`MissionTopology.COORD` for backward-compat. The coordination
+        branch is minted only for the coordination-bearing shapes
+        (``COORD`` / ``LANES_WITH_COORD``); ``SINGLE_BRANCH`` / ``LANES`` skip
+        the mint and never write ``coordination_branch``. The explicit choice
+        is persisted verbatim into ``meta.json`` — never re-derived from
+        ``classify_topology`` (which cannot reproduce ``LANES`` pre-finalize).
 
     Returns
     -------
@@ -395,40 +404,56 @@ def create_mission_core(
     meta.setdefault("created_at", datetime.now(timezone.utc).isoformat())  # noqa: UP017
 
     # ------------------------------------------------------------------
-    # 6.5 Coordination branch (WP03 / issue #1348)
+    # 6.5 Coordination branch (WP03 / issue #1348, #2218)
     #
     # Mint (or idempotently reuse) the per-mission coordination branch
-    # ``kitty/mission-<slug>-<mid8>`` parented off ``planning_branch``.
-    # This is the topology foundation that WP04 (CoordinationWorkspace) and
-    # WP05 (BookkeepingTransaction) build upon.  Persisting the branch ref
-    # in ``meta.json`` makes downstream commands self-describing — no
-    # re-derivation, no drift.
+    # ``kitty/mission-<slug>-<mid8>`` parented off ``planning_branch`` — but
+    # ONLY for the coordination-bearing shapes the operator chose. The
+    # branch-flat shapes (``SINGLE_BRANCH`` / ``LANES``) skip the mint and
+    # never write ``coordination_branch``, so create-time topology choice is
+    # honoured end-to-end (#2218). Persisting the branch ref in ``meta.json``
+    # makes downstream commands self-describing — no re-derivation, no drift.
     # ------------------------------------------------------------------
-    from specify_cli.missions._create import ensure_coordination_branch
+    from specify_cli.missions._create import topology_mints_coordination_branch
 
-    coordination_outcome = ensure_coordination_branch(
-        repo_root=resolved_root,
-        mission_slug=mission_slug_formatted,
-        mission_id=mission_id,
-        target_branch=planning_branch,
-        force_recreate=force_recreate_coordination_branch,
-    )
-    meta["coordination_branch"] = coordination_outcome.branch_name
+    coordination_branch_value: str | None = None
+    coordination_branch_created_flag = False
+    if topology_mints_coordination_branch(topology):
+        from specify_cli.missions._create import ensure_coordination_branch
+
+        coordination_outcome = ensure_coordination_branch(
+            repo_root=resolved_root,
+            mission_slug=mission_slug_formatted,
+            mission_id=mission_id,
+            target_branch=planning_branch,
+            force_recreate=force_recreate_coordination_branch,
+        )
+        coordination_branch_value = coordination_outcome.branch_name
+        coordination_branch_created_flag = coordination_outcome.created
+        meta["coordination_branch"] = coordination_outcome.branch_name
 
     # ------------------------------------------------------------------
-    # 6.6 Mission topology (FR-002 / #2069)
+    # 6.6 Mission topology (FR-002 / #2069, #2218)
     #
-    # Store the orthogonal coordination × lanes shape as an authoritative
-    # ``topology`` value so it is READ thereafter, never re-inferred from
-    # disk/git at resolve time. A freshly created mission has no ``lanes.json``
-    # yet (lanes arise only after finalize), so create-time classification only
-    # ever yields ``COORD`` (coord branch present) or ``SINGLE_BRANCH``. The
-    # 2×2 grid is computed by WP01's single authority — never re-derived here.
-    # ``flattened`` is a separate boolean provenance flag, NOT a topology value.
+    # STORE the operator's explicit ``MissionTopology`` choice verbatim so it is
+    # READ thereafter, never re-inferred from disk/git at resolve time. The
+    # explicit choice is authoritative because ``classify_topology`` CANNOT
+    # reproduce the ``LANES`` selection at create time (no ``lanes.json`` exists
+    # pre-``finalize-tasks``). We only use the classifier to CORROBORATE the
+    # coordination-determined cells (``COORD`` / ``SINGLE_BRANCH``): the minted
+    # state must agree with the stored choice, else fail closed. ``flattened`` is
+    # a separate boolean provenance flag, NOT a topology value.
     # ------------------------------------------------------------------
     from mission_runtime import classify_topology
 
-    topology = classify_topology(meta.get("coordination_branch") or None, has_lanes=False)
+    if topology in (MissionTopology.COORD, MissionTopology.SINGLE_BRANCH):
+        corroborated = classify_topology(meta.get("coordination_branch") or None, has_lanes=False)
+        if corroborated is not topology:
+            raise MissionCreationError(
+                f"Topology corroboration failed for '{mission_slug_formatted}': stored "
+                f"'{topology.value}' but the minted coordination state classifies as "
+                f"'{corroborated.value}'."
+            )
     meta["topology"] = topology.value
     meta.setdefault("flattened", False)
 
@@ -578,8 +603,8 @@ def create_mission_core(
         origin_binding_attempted=origin_binding_attempted,
         origin_binding_succeeded=origin_binding_succeeded,
         origin_binding_error=origin_binding_error,
-        coordination_branch=coordination_outcome.branch_name,
-        coordination_branch_created=coordination_outcome.created,
+        coordination_branch=coordination_branch_value,
+        coordination_branch_created=coordination_branch_created_flag,
     )
 
 

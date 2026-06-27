@@ -6,7 +6,7 @@ These guidelines govern the quality and correctness standards for work-package d
 
 ## Core Authorship Rules
 
-- Use absolute paths when referencing files, directories, and owned surfaces in WP frontmatter.
+- Use repo-root-relative paths (e.g. `src/...`, `tests/...`) when referencing files, directories, and owned surfaces in WP frontmatter — these must match the repo-root-relative form the ownership validator accepts, not host-machine or worktree-prefixed paths.
 - ERROR on dependency cycles, unresolved spec/plan references, or tasks that exceed the size guidance — do not silently generate a degraded plan.
 - Mark `[NEEDS CLARIFICATION: …]` only when the user deliberately postpones a decision; resolve every other ambiguity against spec.md and plan.md before writing tasks.
 

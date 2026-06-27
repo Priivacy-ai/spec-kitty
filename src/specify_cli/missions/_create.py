@@ -43,6 +43,8 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from mission_runtime import MissionTopology
+
 from specify_cli.lanes._git import branch_exists as _branch_exists
 from specify_cli.lanes._git import ref_exists as _ref_resolves
 from specify_cli.lanes.branch_naming import coord_branch_name as _seam_coord_branch_name
@@ -52,7 +54,34 @@ __all__ = [
     "CoordinationBranchResult",
     "coordination_branch_name",
     "ensure_coordination_branch",
+    "topology_mints_coordination_branch",
 ]
+
+
+# ---------------------------------------------------------------------------
+# Create-time topology decision (WP03 / issue #2218)
+# ---------------------------------------------------------------------------
+
+#: The two coordination-bearing cells of the orthogonal coordination × lanes
+#: grid. A mission in either shape gets a per-mission coordination branch at
+#: creation; the branch-flat shapes (``SINGLE_BRANCH`` / ``LANES``) do not.
+_COORDINATION_BEARING_TOPOLOGIES: frozenset[MissionTopology] = frozenset(
+    {MissionTopology.COORD, MissionTopology.LANES_WITH_COORD}
+)
+
+
+def topology_mints_coordination_branch(topology: MissionTopology) -> bool:
+    """Return ``True`` when *topology* requires a per-mission coordination branch.
+
+    Pure lookup over the operator's explicit create-time choice (#2218): the
+    coordination-bearing cells (``COORD`` / ``LANES_WITH_COORD``) mint the
+    branch; the branch-flat cells (``SINGLE_BRANCH`` / ``LANES``) skip it and
+    leave ``coordination_branch`` out of ``meta.json`` entirely. The decision is
+    NEVER re-derived from disk/git state — it is the stored choice, so a
+    ``lanes`` selection (which ``classify_topology`` cannot reproduce
+    pre-``finalize-tasks``) is honoured.
+    """
+    return topology in _COORDINATION_BEARING_TOPOLOGIES
 
 
 # ---------------------------------------------------------------------------
@@ -157,7 +186,10 @@ def coordination_branch_name(mission_slug: str, mission_id: str) -> str:
     as the prior hand-rolled body did, so this LIVE ``mission create`` composer
     produces byte-identical branch names for embedded, bare, and legacy slugs.
     """
-    return _seam_coord_branch_name(mission_slug, mission_id=mission_id)
+    # ``str(...)`` pins the return type: the seam is annotated loosely and
+    # returns ``Any``; the value is always a branch-name string (Boy Scout fix,
+    # DIR-025 — silences a pre-existing ``no-any-return`` without a suppression).
+    return str(_seam_coord_branch_name(mission_slug, mission_id=mission_id))
 
 
 def ensure_coordination_branch(

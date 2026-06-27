@@ -22,6 +22,7 @@ from specify_cli.lanes.branch_naming import resolve_mid8
 import contextlib
 import datetime
 import json
+import logging
 import re
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -54,6 +55,8 @@ from specify_cli.retrospective.schema import (
 if TYPE_CHECKING:
     from specify_cli.retrospective.policy import RetrospectivePolicy
 
+_LOGGER = logging.getLogger(__name__)
+
 # Public constant: version this generator so future tooling can reason about
 # field-by-field freshness.
 GENERATOR_VERSION = "1.0"
@@ -70,6 +73,57 @@ _NEEDS_CLARIFICATION_RE = re.compile(r"\[NEEDS CLARIFICATION:", re.IGNORECASE)
 _FR_REF_RE = re.compile(r"\b(FR-\d{3,})\b")
 
 _WP_ID_RE = re.compile(r"^\w{2,5}\d{2,3}$")
+
+# FR-008: the absent-``data-model.md`` gap is conditional on the spec declaring
+# concrete domain entities. A spec "declares domain entities" when it carries a
+# populated "Key Entities" section — at least one real ``- **Name**:`` bullet, not
+# the unfilled template placeholder ``- **[Entity 1]**``.
+_KEY_ENTITIES_HEADING_RE = re.compile(r"^#{1,6}\s+Key Entities", re.IGNORECASE | re.MULTILINE)
+_ENTITY_BULLET_RE = re.compile(r"^\s*[-*]\s+\*\*(?!\[)[^*\n]+\*\*", re.MULTILINE)
+_ANY_HEADING_RE = re.compile(r"^#{1,6}\s", re.MULTILINE)
+
+# FR-007: tracer ingestion. A tracer entry is a numbered/bulleted item with a bold
+# lead, e.g. ``1. **[implement] symptom ...**`` or ``- **symptom**``.
+_TRACE_ENTRY_RE = re.compile(r"(?m)^\s*(?:\d+\.|[-*])\s+\*\*(.+?)\*\*")
+# Disposition keyword markers used to route a tracer entry to a findings channel.
+# Gap markers take precedence (an explicit "candidate gap" beats an otherwise-clean
+# disposition).
+_TRACE_GAP_MARKERS: tuple[str, ...] = (
+    "candidate gap",
+    "candidate-gap",
+    "open (",
+    "open)",
+    "**open",
+)
+_TRACE_HELPED_MARKERS: tuple[str, ...] = (
+    "no gap",
+    "expected",
+    "worked as designed",
+    "**fixed",
+    "fixed —",
+    "fixed -",
+)
+
+
+def _spec_declares_domain_entities(spec_text: str) -> bool:
+    """Return True when spec.md declares concrete domain entities (FR-008).
+
+    Detects a populated "Key Entities" section: the heading is present AND at least
+    one entity bullet carries a real name (not the ``- **[Entity 1]**`` template
+    placeholder). Missions with no Key Entities section — or only unfilled
+    placeholders — are treated as having no domain entities, so the absent-
+    ``data-model.md`` gap is suppressed for governance/wiring missions.
+    """
+    if not spec_text:
+        return False
+    heading = _KEY_ENTITIES_HEADING_RE.search(spec_text)
+    if heading is None:
+        return False
+    section = spec_text[heading.end():]
+    next_heading = _ANY_HEADING_RE.search(section)
+    if next_heading is not None:
+        section = section[: next_heading.start()]
+    return _ENTITY_BULLET_RE.search(section) is not None
 
 
 # ---------------------------------------------------------------------------
@@ -164,6 +218,29 @@ def _load_wp_files(feature_dir: Path) -> list[tuple[str, str]]:
     for wp_path in wp_files:
         with contextlib.suppress(OSError):
             result.append((wp_path.name, wp_path.read_text(encoding="utf-8")))
+    return result
+
+
+def _load_traces(feature_dir: Path) -> list[tuple[str, str]]:
+    """Load tracer markdown files from ``<feature_dir>/traces/*.md`` (FR-007).
+
+    Returns sorted ``(rel_path, text)`` pairs. Best-effort: a tracer that cannot be
+    read as UTF-8 text (binary/corrupt) is skipped with a warning rather than
+    crashing the generator (#2217 edge case). An empty/structureless tracer reads
+    cleanly and simply contributes no findings downstream.
+    """
+    traces_dir = feature_dir / "traces"
+    if not traces_dir.is_dir():
+        return []
+    result: list[tuple[str, str]] = []
+    for trace_path in sorted(traces_dir.glob("*.md"), key=lambda p: p.name):
+        try:
+            text = trace_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            _LOGGER.warning("Skipping unreadable tracer %s: %s", trace_path.name, exc)
+            continue
+        rel = f"kitty-specs/{feature_dir.name}/traces/{trace_path.name}"
+        result.append((rel, text))
     return result
 
 
@@ -647,6 +724,75 @@ def _resolve_mission_number(raw: object) -> int | None:
 # ---------------------------------------------------------------------------
 
 
+def _parse_trace_entries(text: str) -> list[tuple[str, str]]:
+    """Split tracer markdown into ``(summary, body)`` entries (FR-007).
+
+    An entry begins at a numbered/bulleted item with a bold lead and runs until the
+    next such item (or end of file). The bold lead is the summary; the full span is
+    the body (used for disposition classification). Content with no structured
+    entries yields ``[]`` — best-effort, never raises.
+    """
+    matches = list(_TRACE_ENTRY_RE.finditer(text))
+    entries: list[tuple[str, str]] = []
+    for idx, match in enumerate(matches):
+        summary = match.group(1).strip()
+        if not summary:
+            continue
+        body_end = matches[idx + 1].start() if idx + 1 < len(matches) else len(text)
+        body = text[match.start():body_end].strip()
+        entries.append((summary, body))
+    return entries
+
+
+def _classify_trace_disposition(body: str) -> str:
+    """Route a tracer entry to a findings channel by its documented disposition.
+
+    Returns one of ``"gap"`` / ``"helped"`` / ``"not_helpful"``. Gap markers win
+    over helped markers; an entry with neither is treated as documented friction
+    (not_helpful).
+    """
+    lowered = body.lower()
+    if any(marker in lowered for marker in _TRACE_GAP_MARKERS):
+        return "gap"
+    if any(marker in lowered for marker in _TRACE_HELPED_MARKERS):
+        return "helped"
+    return "not_helpful"
+
+
+def _build_trace_findings(
+    *,
+    traces: list[tuple[str, str]],
+    finding_id_counters: dict[str, list[int]],
+    ev_reg: _EvidenceRegistry,
+) -> tuple[list[GenFinding], list[GenFinding], list[GenFinding]]:
+    """Build ``(helped, not_helpful, gaps)`` tooling findings from tracers (FR-007).
+
+    Each tracer entry becomes a ``tooling``-category finding routed by its
+    disposition. Tracers with no structured entries contribute nothing.
+    """
+    helped: list[GenFinding] = []
+    not_helpful: list[GenFinding] = []
+    gaps: list[GenFinding] = []
+    bucket: dict[str, tuple[list[GenFinding], str]] = {
+        "helped": (helped, "h"),
+        "not_helpful": (not_helpful, "n"),
+        "gap": (gaps, "g"),
+    }
+    for trace_rel, text in traces:
+        for summary, body in _parse_trace_entries(text):
+            target, prefix = bucket[_classify_trace_disposition(body)]
+            target.append(
+                GenFinding(
+                    id=_next_finding_id(prefix, finding_id_counters),
+                    category="tooling",
+                    summary=f"Tracer: {summary}"[:200],
+                    details=body[:1000],
+                    evidence_refs=[ev_reg.add_file(trace_rel)],
+                )
+            )
+    return helped, not_helpful, gaps
+
+
 def _build_ingestor_findings(
     *,
     workflow_failures_text: str | None,
@@ -657,15 +803,19 @@ def _build_ingestor_findings(
     review_report_rel: str,
     finding_id_counters: dict[str, list[int]],
     ev_reg: _EvidenceRegistry,
-) -> tuple[list[GenFinding], list[GenFinding]]:
-    """Build helped/not_helpful findings from mission-local ingestor artifacts.
+    traces: list[tuple[str, str]] | None = None,
+) -> tuple[list[GenFinding], list[GenFinding], list[GenFinding]]:
+    """Build helped/not_helpful/gaps findings from mission-local ingestor artifacts.
 
-    Returns (helped_additions, not_helpful_additions).
+    Returns (helped_additions, not_helpful_additions, gaps_additions).
     All ingestors are optional: if the file is absent (text is None) the ingestor
-    is a no-op and the generator continues without raising.
+    is a no-op and the generator continues without raising. The tracer ingestor
+    (FR-007) extends this same seam — ``traces`` feed the same finding channels as
+    the workflow-failures-log / analysis-report / mission-review artifacts.
     """
     helped: list[GenFinding] = []
     not_helpful: list[GenFinding] = []
+    gaps: list[GenFinding] = []
 
     # workflow-failures-log.md ingestor (T036)
     if workflow_failures_text is not None:
@@ -734,7 +884,17 @@ def _build_ingestor_findings(
             )
         )
 
-    return helped, not_helpful
+    # Tracer ingestor (T012 / FR-007) — extends this seam, same finding channels.
+    trace_helped, trace_not_helpful, trace_gaps = _build_trace_findings(
+        traces=traces or [],
+        finding_id_counters=finding_id_counters,
+        ev_reg=ev_reg,
+    )
+    helped.extend(trace_helped)
+    not_helpful.extend(trace_not_helpful)
+    gaps.extend(trace_gaps)
+
+    return helped, not_helpful, gaps
 
 
 # ---------------------------------------------------------------------------
@@ -746,12 +906,12 @@ def _build_findings(
     *,
     events: list[dict[str, Any]],
     spec_text: str,
-    plan_text: str,
     research_text: str | None,
     data_model_text: str | None,
     workflow_failures_text: str | None,
     analysis_report_text: str | None,
     review_report_text: str | None,
+    traces: list[tuple[str, str]],
     wp_files: list[tuple[str, str]],
     wp_evidence_ids: dict[str, str],
     events_rel: str,
@@ -908,33 +1068,38 @@ def _build_findings(
                     evidence_refs=[ev_reg.add_file(spec_rel)],
                 )
             )
-        if data_model_text is None and (spec_text or plan_text):
+        # FR-008: only flag the absent data-model when the spec declares concrete
+        # domain entities. Governance/wiring missions with no Key Entities section
+        # legitimately have no data model, so the gap would be a false positive.
+        if data_model_text is None and _spec_declares_domain_entities(spec_text):
             gaps.append(
                 GenFinding(
                     id=_next_finding_id("g", finding_id_counters),
                     category="doc",
                     summary="data-model.md absent",
                     details=(
-                        "spec.md is present but data-model.md is missing. "
+                        "spec.md declares domain entities but data-model.md is missing. "
                         "A data model document clarifies domain entity relationships."
                     ),
                     evidence_refs=[ev_reg.add_file(spec_rel)],
                 )
             )
 
-    # --- Mission-local ingestor findings (T036, T037)
-    ingestor_helped, ingestor_not_helpful = _build_ingestor_findings(
+    # --- Mission-local ingestor findings (T036, T037, T012/FR-007 tracers)
+    ingestor_helped, ingestor_not_helpful, ingestor_gaps = _build_ingestor_findings(
         workflow_failures_text=workflow_failures_text,
         analysis_report_text=analysis_report_text,
         review_report_text=review_report_text,
         workflow_failures_rel=workflow_failures_rel,
         analysis_report_rel=analysis_report_rel,
         review_report_rel=review_report_rel,
+        traces=traces,
         finding_id_counters=finding_id_counters,
         ev_reg=ev_reg,
     )
     helped.extend(ingestor_helped)
     not_helpful.extend(ingestor_not_helpful)
+    gaps.extend(ingestor_gaps)
 
     # Stable sort: byte-deterministic output
     helped.sort(key=lambda f: (f.category, f.summary))
@@ -1023,6 +1188,9 @@ def generate_retrospective(
     analysis_report_text = _read_optional_text(feature_dir / "analysis-report.md")
     review_report_text = _read_optional_text(feature_dir / "mission-review-report.md")
 
+    # Tracer artifacts (T012 / FR-007): traces/*.md feed the ingestor seam.
+    traces = _load_traces(feature_dir)
+
     wp_files = _load_wp_files(feature_dir)
     events = _load_events(feature_dir)
 
@@ -1063,12 +1231,12 @@ def generate_retrospective(
     helped, not_helpful, gaps, proposals = _build_findings(
         events=events,
         spec_text=spec_text,
-        plan_text=plan_text,
         research_text=research_text,
         data_model_text=data_model_text,
         workflow_failures_text=workflow_failures_text,
         analysis_report_text=analysis_report_text,
         review_report_text=review_report_text,
+        traces=traces,
         wp_files=wp_files,
         wp_evidence_ids=wp_evidence_ids,
         events_rel=events_rel,

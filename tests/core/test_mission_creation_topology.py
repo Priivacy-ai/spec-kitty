@@ -76,29 +76,35 @@ def test_coord_create_mints_coord_topology(tmp_path: Path) -> None:
 
 
 def test_no_coord_create_mints_single_branch(tmp_path: Path) -> None:
-    """When no coordination branch is minted, topology == 'single_branch'."""
-    from specify_cli.missions._create import CoordinationBranchResult
+    """An explicit ``single_branch`` create skips the mint and stores
+    topology == 'single_branch' with NO coordination_branch key.
+
+    Re-pinned to the #2218 contract (WP03): topology is now the operator's
+    EXPLICIT ``MissionTopology`` choice, not a value re-derived by
+    ``classify_topology`` from a (possibly stubbed) mint outcome. A
+    ``single_branch`` choice is coordination-flat, so ``ensure_coordination_branch``
+    is never called and ``meta.json`` carries no ``coordination_branch`` key.
+    The old form stubbed ``ensure_coordination_branch`` to return ``branch_name=None``
+    (a non-production value) to coax classify into ``single_branch``; that path is
+    retired."""
+    from mission_runtime import MissionTopology
 
     _init_git_repo(tmp_path)
-    # Simulate a create that does not materialise a coordination branch: the
-    # branch ref is absent, so classify_topology sees no coord and yields
-    # SINGLE_BRANCH (the second create-reachable cell).
-    no_coord = CoordinationBranchResult(
-        branch_name=None,  # type: ignore[arg-type]  # exercises the no-coord create cell
-        created=False,
-        skipped_reason="target_branch missing",
-    )
-
     with (
         _patched_context(tmp_path),
         patch(
             "specify_cli.missions._create.ensure_coordination_branch",
-            return_value=no_coord,
-        ),
+        ) as mint,
     ):
-        create_mission_core(tmp_path, "topology-single", **_mission_summary("topology-single"))
+        create_mission_core(
+            tmp_path,
+            "topology-single",
+            topology=MissionTopology.SINGLE_BRANCH,
+            **_mission_summary("topology-single"),
+        )
 
     meta = _read_meta(tmp_path)
-    assert meta["coordination_branch"] is None
+    assert "coordination_branch" not in meta
     assert meta["topology"] == "single_branch"
+    mint.assert_not_called()  # branch-flat shape: the mint is skipped entirely
     assert meta["flattened"] is False

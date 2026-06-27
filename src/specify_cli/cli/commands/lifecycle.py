@@ -12,6 +12,7 @@ import json
 import re
 
 import typer
+from mission_runtime import MissionTopology
 from rich.console import Console
 
 from specify_cli.cli.selector_resolution import resolve_selector
@@ -63,12 +64,17 @@ def _emit_scaffold_only_guidance(mission_slug: str) -> None:
     _console.print(f"[cyan]Next:[/cyan] {_scaffold_next_action(mission_slug)}")
 
 
-def _create_mission_for_specify_json(slug: str, mission_type: str | None) -> None:
+def _create_mission_for_specify_json(slug: str, mission_type: str | None, topology: MissionTopology) -> None:
     """Run mission creation and enrich its single JSON payload for direct specify."""
     capture = io.StringIO()
     try:
         with contextlib.redirect_stdout(capture):
-            agent_feature.create_mission(mission_slug=slug, mission_type=mission_type, json_output=True)
+            agent_feature.create_mission(
+                mission_slug=slug,
+                mission_type=mission_type,
+                topology=topology,
+                json_output=True,
+            )
     except typer.Exit:
         print(capture.getvalue(), end="")
         raise
@@ -125,6 +131,16 @@ def specify(
     mission: str = typer.Argument(..., help="Mission name or slug (e.g., user-authentication)"),
     mission_type: str | None = typer.Option(None, "--mission-type", help="Mission type (e.g., software-dev, research)"),
     mission_type_alias: str | None = typer.Option(None, "--mission", hidden=True, help="(deprecated) Use --mission-type"),
+    topology: MissionTopology = typer.Option(
+        MissionTopology.COORD,
+        "--topology",
+        help=(
+            "Create-time mission shape: single_branch | lanes | coord | "
+            "lanes_with_coord. Coordination-bearing shapes (coord, "
+            "lanes_with_coord) mint a coordination branch; branch-flat shapes "
+            "(single_branch, lanes) do not. Default: coord."
+        ),
+    ),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
 ) -> None:
     """Create a feature scaffold in kitty-specs/."""
@@ -142,9 +158,14 @@ def specify(
         )
         resolved_mission_type = resolved.canonical_value
     if json_output:
-        _create_mission_for_specify_json(slug, resolved_mission_type)
+        _create_mission_for_specify_json(slug, resolved_mission_type, topology)
     else:
-        agent_feature.create_mission(mission_slug=slug, mission_type=resolved_mission_type, json_output=False)
+        agent_feature.create_mission(
+            mission_slug=slug,
+            mission_type=resolved_mission_type,
+            topology=topology,
+            json_output=False,
+        )
         _emit_scaffold_only_guidance(slug)
 
     # FR-002: Wire widen-enabled interview for the specify flow.

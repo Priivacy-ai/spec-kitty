@@ -5,6 +5,13 @@ subtasks:
 title: "Replace with work package title"
 task_type: "implement"  # implement | review | plan | specify | research — drives agent_profile suggestion
 phase: "Phase N - Replace with phase name"
+execution_mode: "code_change"  # code_change | planning_artifact — drives ownership consistency checks
+owned_files:  # Repo-root-relative paths/globs this WP owns (e.g. src/..., tests/...) — never host-absolute or worktree-prefixed
+  - "src/replace/with/owned/surface.py"
+  - "tests/replace/with/owned/test_surface.py"
+authoritative_surface: "src/replace/with/primary/surface/"  # Repo-root-relative prefix; must prefix at least one owned_files entry
+create_intent:  # Repo-root-relative paths this WP will CREATE (suppresses literal-path zero-match at finalize)
+  - "tests/replace/with/new/test_surface.py"
 agent_profile: ""  # Agent profile identifier (e.g., implementer-ivan, architect-alphonso)
 role: ""           # Role within the profile (e.g., "implementer", "reviewer")
 agent: ""          # CLI agent/tool identifier (claude, codex, copilot, etc.)
