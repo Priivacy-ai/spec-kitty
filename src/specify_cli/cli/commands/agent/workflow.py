@@ -426,16 +426,17 @@ def _render_lane_auto_rebase_failure(exc: BaseException) -> None:
 def _sync_lane_after_coordination_commit(
     *,
     repo_root: Path,
-    feature_dir: Path,
     mission_slug: str,
     wp_id: str,
     coord_branch: str,
 ) -> None:
     from specify_cli.lanes.lifecycle_sync import sync_lane_after_coordination_commit
 
+    # No ``feature_dir``: ``sync_lane_after_coordination_commit`` self-resolves the
+    # LANE_STATE (lanes.json) read onto the PRIMARY anchor (#2185). Passing the
+    # coord-aware STATUS dir here previously routed the lanes read onto the husk.
     sync_lane_after_coordination_commit(
         repo_root=repo_root,
-        feature_dir=feature_dir,
         mission_slug=mission_slug,
         wp_id=wp_id,
         coordination_branch=coord_branch,
@@ -594,7 +595,6 @@ def _commit_workflow_change(
             try:
                 _sync_lane_after_coordination_commit(
                     repo_root=repo_root,
-                    feature_dir=feature_dir,
                     mission_slug=mission_slug,
                     wp_id=wp_id,
                     coord_branch=str(coord_branch),

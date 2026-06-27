@@ -320,8 +320,17 @@ def _phase_baseline_and_surface(run: _MergeRunState) -> None:
     run.target_baseline_sha = target_baseline_sha.strip() if _ret == 0 else "HEAD~1"
 
     # -- Resolve the canonical mission_id (ULID) to gate modern-mission invariants --
+    # FR (#2186): baseline identity is a PRIMARY_METADATA read. Route it onto the
+    # PRIMARY anchor (``target_feature_dir`` is the pre-routed
+    # ``primary_feature_dir_for_mission(_canonicalize_primary_read_handle(…))`` —
+    # the SAME primary leg the :1000/:1022 identity reads use). Reading off the
+    # coord-aware ``run.feature_dir`` STATUS leg lands on the meta-less / sentinel
+    # ``-coord`` husk for a coord-topology mission → a None/wrong baseline id.
+    # ``run.feature_dir`` stays the coord STATUS leg, untouched (C-001).
     try:
-        run.baseline_mission_id = resolve_mission_identity(run.feature_dir).mission_id
+        run.baseline_mission_id = resolve_mission_identity(
+            run.target_feature_dir
+        ).mission_id
     except Exception:  # noqa: BLE001 — meta.json may be missing/corrupt for legacy missions
         run.baseline_mission_id = None
 

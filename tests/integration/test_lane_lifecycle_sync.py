@@ -114,7 +114,6 @@ def test_lifecycle_sync_clean_rebase_updates_lane_worktree(tmp_path: Path) -> No
 
     report = sync_lane_after_coordination_commit(
         repo_root=repo,
-        feature_dir=feature_dir,
         mission_slug="sync-clean",
         wp_id="WP01",
         coordination_branch=coordination_branch,
@@ -155,7 +154,6 @@ def test_lifecycle_sync_recreates_missing_lane_worktree(tmp_path: Path) -> None:
 
     report = sync_lane_after_coordination_commit(
         repo_root=repo,
-        feature_dir=feature_dir,
         mission_slug="sync-missing-worktree",
         wp_id="WP01",
         coordination_branch=coordination_branch,
@@ -195,7 +193,6 @@ def test_lifecycle_sync_conflict_refuses_and_preserves_lane_state(tmp_path: Path
     with pytest.raises(LaneAutoRebaseSyncError) as exc_info:
         sync_lane_after_coordination_commit(
             repo_root=repo,
-            feature_dir=feature_dir,
             mission_slug="sync-conflict",
             wp_id="WP01",
             coordination_branch=coordination_branch,
