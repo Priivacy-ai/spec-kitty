@@ -1,8 +1,3 @@
----
-title: 'Initiative: 2026-02 Brainstorm Capture'
-doc_status: draft
-updated: '2026-03-10'
----
 # Initiative: 2026-02 Brainstorm Capture
 
 This initiative preserves and evaluates the brainstorm corpus that was originally captured under `tmp/doc_brainstorm/`.

@@ -1,8 +1,3 @@
----
-title: Spec Kitty × Doctrine Integration Proposal
-doc_status: draft
-updated: '2026-06-12'
----
 # Spec Kitty × Doctrine Integration Proposal
 
 **Date:** 2026-02-28

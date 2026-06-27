@@ -1,11 +1,3 @@
----
-title: Functional Ownership Map
-description: 'The functional ownership map: which code slices own which functional areas of Spec Kitty, used to scope missions and avoid cross-slice ownership overlap.'
-doc_status: active
-updated: '2026-06-01'
-related:
-- docs/architecture/06_unified_charter_bundle.md
----
 # Functional Ownership Map
 
 | Field     | Value                                                                                                                              |

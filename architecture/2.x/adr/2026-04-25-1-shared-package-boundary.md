@@ -1,1 +1,0 @@
-../../3.x/adr/2026-04-25-1-shared-package-boundary.md

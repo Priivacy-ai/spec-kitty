@@ -1,1 +1,0 @@
-../2.x/adr/2026-02-25-3-mission-audit-primitive-hardening-and-2x-policy.md

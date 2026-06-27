@@ -1,8 +1,3 @@
----
-title: 'User Journey: Formalized Approach → Mission Recipe'
-doc_status: draft
-updated: '2026-06-12'
----
 # User Journey: Formalized Approach → Mission Recipe
 
 **Status**: DRAFT  

@@ -1,12 +1,3 @@
----
-title: 'Context: Identity'
-description: 'Glossary context for identity: who performs work and who owns semantic decisions, defining the agent and related workflow-coordination roles.'
-doc_status: active
-updated: '2026-06-14'
-related:
-- docs/context/execution.md
-- docs/context/practices-principles.md
----
 ## Context: Identity
 
 Terms describing who performs work and who owns semantic decisions.

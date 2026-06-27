@@ -1,15 +1,8 @@
 ---
-title: Historical Archive
-description: Historical Spec Kitty 1.x and 2.x documentation archive, preserved for audits and older project behavior lookup.
-doc_status: deprecated
-updated: '2026-06-03'
-related:
-- docs/3x/index.md
-- docs/archive/1x/index.md
-- docs/archive/2x/index.md
-- docs/index.md
-- docs/migration/index.md
+title: "Historical Archive"
+description: "Historical Spec Kitty 1.x and 2.x documentation archive, preserved for audits and older project behavior lookup."
 ---
+
 > Archive notice: This page collects historical Spec Kitty documentation. For current 3.2 workflows, start with [Spec Kitty 3.2](../index.md) or [Migration to Spec Kitty 3.2](../migration/index.md).
 
 # Historical Archive

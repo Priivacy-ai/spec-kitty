@@ -1,8 +1,3 @@
----
-title: 'User Journey: Curating External Practice into Governance'
-doc_status: draft
-updated: '2026-04-05'
----
 # User Journey: Curating External Practice into Governance
 
 | Field | Value |

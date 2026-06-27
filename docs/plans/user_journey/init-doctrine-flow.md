@@ -1,8 +1,3 @@
----
-title: Init-Doctrine Flow — User Journey
-doc_status: draft
-updated: '2026-04-07'
----
 # Init-Doctrine Flow — User Journey
 
 **Status**: Implemented (WP07)

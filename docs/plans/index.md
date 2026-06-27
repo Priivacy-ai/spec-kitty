@@ -1,8 +1,3 @@
----
-title: Plans
-doc_status: draft
-updated: '2026-06-27'
----
 # Plans
 
 Investigations, research deliverables, initiatives, user journeys, and design

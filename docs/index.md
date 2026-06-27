@@ -1,14 +1,8 @@
 ---
-title: Spec Kitty 3.2 Documentation
-description: Current Spec Kitty 3.2 documentation for new adopters, upgrade operators, harness users, and CLI integrators.
-doc_status: active
-updated: '2026-06-03'
-related:
-- docs/3x/index.md
-- docs/migration/from-charter-2x.md
-- docs/migration/index.md
-- docs/migration/upgrade-to-0-12-0.md
+title: "Spec Kitty 3.2 Documentation"
+description: "Current Spec Kitty 3.2 documentation for new adopters, upgrade operators, harness users, and CLI integrators."
 ---
+
 <section class="sk-docs-hero" aria-labelledby="sk-docs-title">
   <p class="sk-eyebrow">Spec Kitty 3.2</p>
   <h1 id="sk-docs-title">Spec Kitty 3.2 documentation</h1>

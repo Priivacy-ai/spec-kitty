@@ -1,8 +1,3 @@
----
-title: 2.x User Journey Evaluation
-doc_status: draft
-updated: '2026-03-10'
----
 # 2.x User Journey Evaluation
 
 Date: 2026-02-28

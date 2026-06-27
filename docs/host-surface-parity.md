@@ -1,9 +1,3 @@
----
-title: Host-Surface Parity Matrix
-description: Spec Kitty's authoritative matrix of how each supported host surface teaches the governance-injection contract for spec-kitty dispatch, with per-surface parity status.
-doc_status: active
-updated: '2026-06-15'
----
 # Host-Surface Parity Matrix
 
 This is Spec Kitty's authoritative record of how each supported host surface teaches hosts about the governance-injection contract for `spec-kitty dispatch "<request>"` and `spec-kitty profile-invocation complete`.

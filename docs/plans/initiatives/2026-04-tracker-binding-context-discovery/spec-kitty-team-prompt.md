@@ -1,8 +1,3 @@
----
-title: 'Prompt: `spec-kitty` Team'
-doc_status: draft
-updated: '2026-04-04'
----
 # Prompt: `spec-kitty` Team
 
 Use this file as the input to `/spec-kitty.specify` in the `spec-kitty` repo.

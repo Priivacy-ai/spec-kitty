@@ -1,8 +1,3 @@
----
-title: Test Suite Acceleration — Final Remediation Plan
-doc_status: draft
-updated: '2026-06-20'
----
 All load-bearing facts are confirmed. The HOME hazard is real (`Path.home() / ".spec-kitty"` at conftest.py:119, autouse in agent conftest with no HOME monkeypatch), the FSM parametrize is exactly as described, and the CI critical-path chain is verified. I have sufficient verified ground truth to produce the final synthesis report.
 
 # Test Suite Acceleration — Final Remediation Plan

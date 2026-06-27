@@ -1,13 +1,3 @@
----
-title: 2.x Implementation Mapping
-description: '2.x implementation mapping (C4 level 4): the historical link from architecture components to the code that realizes them, preserved beneath the living model.'
-doc_status: active
-updated: '2026-05-15'
-related:
-- docs/architecture/00_landscape/README.md
-- docs/architecture/04_implementation_mapping/code-patterns.md
-- docs/architecture/05_ownership_map.md
----
 # 2.x Implementation Mapping
 
 | Field | Value |

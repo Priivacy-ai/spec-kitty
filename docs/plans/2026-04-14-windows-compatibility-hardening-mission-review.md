@@ -1,8 +1,3 @@
----
-title: 'Mission Review Report: windows-compatibility-hardening-01KP5R6K'
-doc_status: draft
-updated: '2026-04-15'
----
 # Mission Review Report: windows-compatibility-hardening-01KP5R6K
 
 **Reviewer**: claude:opus-4.6:mission-reviewer

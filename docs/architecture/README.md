@@ -1,15 +1,3 @@
----
-title: Architecture
-description: 'The canonical architecture corpus landing page: the two-surface boundary rule (architecture/ vs docs/) and how living architecture sits above versioned history.'
-doc_status: active
-updated: '2026-06-12'
-related:
-- docs/architecture/ARCHITECTURE_DOCS_GUIDE.md
-- docs/architecture/NAVIGATION_GUIDE.md
-- docs/architecture/diagrams/01_context/README.md
-- docs/architecture/diagrams/02_containers/README.md
-- docs/architecture/diagrams/03_components/README.md
----
 # Architecture
 
 This directory is the canonical architecture corpus for Spec Kitty.

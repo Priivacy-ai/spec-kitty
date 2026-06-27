@@ -1,13 +1,3 @@
----
-title: 'Context: Lexical'
-description: "Glossary context for the glossary's own data model: how terms are represented, resolved, and tracked, including the term-surface concept."
-doc_status: active
-updated: '2026-03-10'
-related:
-- docs/context/execution.md
-- docs/context/identity.md
-- docs/context/system-events.md
----
 ## Context: Lexical
 
 Terms describing the glossary's own internal data model — how terms are represented, resolved, and tracked.

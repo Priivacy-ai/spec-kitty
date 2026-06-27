@@ -1,1 +1,0 @@
-../1.x/adr/2026-01-25-8-deterministic-csv-schema-enforcement.md

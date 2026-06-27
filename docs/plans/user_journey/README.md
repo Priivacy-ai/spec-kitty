@@ -1,15 +1,3 @@
----
-title: 'Spec Kitty Architecture: User Journeys'
-doc_status: draft
-updated: '2026-04-05'
-related:
-- docs/plans/user_journey/001-project-onboarding-bootstrap.md
-- docs/plans/user_journey/002-system-architecture-design.md
-- docs/plans/user_journey/003-system-design-and-shared-understanding.md
-- docs/plans/user_journey/004-curating-external-practice-into-governance.md
-- docs/plans/user_journey/005-governance-mission-charter-operations.md
-- docs/plans/user_journey/evaluation.md
----
 # Spec Kitty Architecture: User Journeys
 
 > This directory contains **user journey descriptions** that contribute to

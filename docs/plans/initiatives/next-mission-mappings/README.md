@@ -1,8 +1,3 @@
----
-title: 'Initiative: `next` Mission Mapping Tracker'
-doc_status: draft
-updated: '2026-02-17'
----
 # Initiative: `next` Mission Mapping Tracker
 
 This directory tracks mission-specific `spec-kitty next` mapping/template gaps that are accepted temporarily.

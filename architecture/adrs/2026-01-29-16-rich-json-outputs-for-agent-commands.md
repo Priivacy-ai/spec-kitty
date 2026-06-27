@@ -1,1 +1,0 @@
-../2.x/adr/2026-01-29-16-rich-json-outputs-for-agent-commands.md

@@ -1,8 +1,3 @@
----
-title: 'User Journey: Governance Mission Creation and Charter Operations'
-doc_status: draft
-updated: '2026-03-10'
----
 # User Journey: Governance Mission Creation and Charter Operations
 
 | Field | Value |

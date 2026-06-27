@@ -1,8 +1,3 @@
----
-title: 'Initiative: Tracker Binding Context Discovery'
-doc_status: draft
-updated: '2026-04-04'
----
 # Initiative: Tracker Binding Context Discovery
 
 This directory packages the follow-on implementation prompts for the three

@@ -1,15 +1,3 @@
----
-title: 'Context: Doctrine'
-description: 'Glossary context for the Doctrine domain model and artifact taxonomy: how reusable governance knowledge is structured into composable behavior and constraints.'
-doc_status: active
-updated: '2026-05-30'
-related:
-- docs/context/configuration-project-structure.md
-- docs/context/execution.md
-- docs/context/governance.md
-- docs/context/identity.md
-- docs/context/orchestration.md
----
 ## Context: Doctrine
 
 Terms describing the Doctrine domain model and doctrine artifact taxonomy.

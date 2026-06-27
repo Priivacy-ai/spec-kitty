@@ -1,1 +1,0 @@
-../../3.x/adr/2026-04-21-1-private-teamspace-and-repository-sharing-boundary.md

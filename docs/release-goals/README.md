@@ -1,9 +1,3 @@
----
-title: Release Goals — Declarations of Intent
-description: 'Explains the release-goals section: one durable declaration of intent per emergent minor release milestone, scoped by minor cycle rather than by individual patch.'
-doc_status: active
-updated: '2026-06-16'
----
 # Release Goals — Declarations of Intent
 
 This directory holds one **declaration of intent** per *emergent release milestone*. It is the
