@@ -70,6 +70,9 @@ COORD_BLIND_RESOLVER = "resolve_feature_dir_for_mission"
 
 # The canonical fold the handle arg must flow from (intra-function def-use).
 CANONICAL_FOLD_SEAM = "_canonicalize_primary_read_handle"
+# T031/FR-011: the bare-human-slug fold seam — handle provably composed after
+# assignment from this function (``_canonicalize_bare_modern_handle``).
+BARE_MODERN_FOLD_SEAM = "_canonicalize_bare_modern_handle"
 
 # The kind-aware authorities a flagged coord write must route through instead.
 COORD_KIND_AWARE_AUTHORITY = "commit_for_mission(kind=) / resolve_planning_read_dir(kind=)"
@@ -78,17 +81,24 @@ COORD_KIND_AWARE_AUTHORITY = "commit_for_mission(kind=) / resolve_planning_read_
 # on the current ``src/`` tree, NOT ``> 0`` placeholders. If the scanners are
 # correct and the tree grows, raise these to the new honest census.
 CANONICALIZER_FLOOR = 38
-COORD_AUTHORITY_WRITE_FLOOR = 17
+# WP07 re-pin: WP06 routing reduced the live write-classified coord census from 17 to 14;
+# 3 sites were removed (list_dependents, review at one former line, one list_tasks variant).
+COORD_AUTHORITY_WRITE_FLOOR = 14
 
-# WP08 / SC-004 — routed-count floor (the anti-mass-allowlist machine guard).
+# WP07 / SC-004 — routed-count floor (the anti-mass-allowlist machine guard).
 # The number of canonicalizer call sites that are *routed* (def-use-canonical,
 # i.e. NOT relying on an allowlist sanction) must stay at or above the SC-004
-# census of genuinely-bare sites that WP02-WP05 routed. Live routed count after
-# the integrated sweep is 31 (38 total sites minus the 7 permanent sanctions);
-# the floor is the concrete SC-004 census integer, NOT ``len(scanned)`` — a
-# tautological ``>= len(routed)`` would pass under mass-allowlisting, which is
-# exactly what this guard exists to catch.
-ROUTED_CANONICALIZER_FLOOR = 27
+# census of genuinely-bare sites that WP02-WP07 routed. After T031 teaches the
+# discriminator the bare-modern fold, 4 formerly-allowlisted sites auto-route:
+# live routed count is 35 (38 total sites minus the 3 permanent sanctions).
+# Floor = 35 − MARGIN(4) = 31. Both bounds are asserted in test_routed_count_floor:
+#   live − MARGIN <= floor < live  (lower: prevents loose ratchet; upper: anti-vacuous).
+# The floor is the concrete census integer, NOT ``len(scanned)`` — a tautological
+# ``>= len(routed)`` would pass under mass-allowlisting, which is exactly what
+# this guard exists to catch.
+ROUTED_CANONICALIZER_FLOOR_MARGIN = 4
+# WP07 recomputed: post-T031 live routed = 35; floor = 35 − MARGIN(4) = 31.
+ROUTED_CANONICALIZER_FLOOR = 31
 
 
 # --------------------------------------------------------------------------- #
@@ -302,7 +312,12 @@ def _canonicalizer_handle_arg(call: ast.Call) -> ast.expr | None:
 def _names_assigned_from_fold(
     fn: ast.FunctionDef | ast.AsyncFunctionDef,
 ) -> set[str]:
-    """Local names assigned from a ``_canonicalize_primary_read_handle(...)`` call.
+    """Local names assigned from a canonical fold seam call.
+
+    Recognizes both the primary-read fold (``_canonicalize_primary_read_handle``)
+    and the bare-modern fold (``_canonicalize_bare_modern_handle`` — T031/FR-011):
+    a handle assigned from either seam is provably composed and qualifies as
+    intra-function def-use canonical.
 
     Intra-function only: ``ast.walk`` stays within the SAME function body, so a
     ``canonical`` variable assigned in a *caller's* scope never canonicalizes a
@@ -316,7 +331,10 @@ def _names_assigned_from_fold(
             value, targets = node.value, list(node.targets)
         elif isinstance(node, ast.AnnAssign) and node.value is not None:
             value, targets = node.value, [node.target]
-        if isinstance(value, ast.Call) and _callee_name(value) == CANONICAL_FOLD_SEAM:
+        if isinstance(value, ast.Call) and _callee_name(value) in (
+            CANONICAL_FOLD_SEAM,
+            BARE_MODERN_FOLD_SEAM,
+        ):
             for tgt in targets:
                 if isinstance(tgt, ast.Name):
                     out.add(tgt.id)
@@ -688,6 +706,50 @@ def test_canonicalizer_accepts_dir_name_attribute() -> None:
     assert is_def_use_canonical(_canonicalizer_handle_arg(call), fn) is True
 
 
+def test_canonicalizer_accepts_bare_modern_fold_assigned_handle() -> None:
+    """T034/T031: a handle assigned from the bare-modern fold seam is canonical.
+
+    Exercises the new ``BARE_MODERN_FOLD_SEAM`` branch in
+    ``_names_assigned_from_fold``: when ``canonical = _canonicalize_bare_modern_handle(...)``
+    precedes a ``primary_feature_dir_for_mission(repo, canonical)`` call in the
+    SAME function, the def-use discriminator classifies it as canonical — the
+    same guarantee as the primary-read fold (C-005: behavior-preserving;
+    the handle is provably composed in both cases).
+    """
+    call, fn = _single_call(
+        "def f(repo, handle):\n"
+        "    canonical = _canonicalize_bare_modern_handle(repo, handle)\n"
+        "    return primary_feature_dir_for_mission(repo, canonical)\n"
+    )
+    assert is_def_use_canonical(_canonicalizer_handle_arg(call), fn) is True
+
+
+def test_canonicalizer_bare_modern_fold_does_not_canonicalize_raw_param() -> None:
+    """T031: the bare-modern fold in a CALLEE does not canonicalize the caller's raw param.
+
+    A handle variable named ``canonical`` that arrived as a raw function parameter
+    (never folded IN the callee's own body) is NOT trusted — even if the caller
+    passed something folded. FR-004 def-use is strictly intra-function.
+    """
+    src = (
+        "def caller(repo, handle):\n"
+        "    canonical = _canonicalize_bare_modern_handle(repo, handle)\n"
+        "    return callee(repo, canonical)\n"
+        "def callee(repo, canonical):\n"
+        "    return primary_feature_dir_for_mission(repo, canonical)\n"
+    )
+    tree = ast.parse(src)
+    parents = _parent_map(tree)
+    call = next(
+        n
+        for n in ast.walk(tree)
+        if isinstance(n, ast.Call) and _callee_name(n) == CANONICALIZER_PRIMITIVE
+    )
+    fn = _enclosing_function(parents, call)
+    # ``canonical`` in ``callee`` is a bare parameter — never folded IN callee.
+    assert is_def_use_canonical(_canonicalizer_handle_arg(call), fn) is False
+
+
 def test_canonicalizer_def_use_is_intra_function_only() -> None:
     """A ``canonical`` var folded in a DIFFERENT function does not canonicalize."""
     src = (
@@ -806,14 +868,53 @@ def test_c001_bare_probe_is_pinned_in_allowlist() -> None:
     NOT ``_canonicalize_primary_read_handle``.
     """
     keys = set(load_allowlist(ALLOWLIST_PATH)["canonicalizer"])
-    pinned = GateAllowlistKey("_canonicalize_bare_modern_handle", 454)
-    assert pinned in keys, (
-        "C-001: _read_path_resolver.py:454 must stay in the canonicalizer allowlist "
-        "with the FR-011 rationale — folding canonicalization into the primitive "
-        "would recurse. Removing this entry is a merge-blocker regression."
-    )
+    # Line is matched against the live tree — check YAML agrees with what exists in src.
     live = _live_canonicalizer_keys(SRC_ROOT)
-    assert pinned in live, "the C-001 pin must match a live call site"
+    c001_matches = {k for k in keys if k.enclosing_qualname == "_canonicalize_bare_modern_handle"}
+    assert c001_matches, (
+        "C-001: _read_path_resolver.py _canonicalize_bare_modern_handle must stay in "
+        "the canonicalizer allowlist with the FR-011 rationale — folding canonicalization "
+        "into the primitive would recurse. Removing this entry is a merge-blocker regression."
+    )
+    pinned = next(iter(c001_matches))
+    assert pinned in live, (
+        f"the C-001 pin ({pinned}) must match a live call site — re-pin the line number"
+    )
+
+
+def test_canonicalizer_permanent_allowlist_is_exactly_3() -> None:
+    """T032: canonicalizer allowlist == exactly 3 permanent raw-param sanctions after WP07.
+
+    The 4 bare-modern-fold entries (``resolve_handle_to_read_path:950/972/1023``,
+    ``_stored_topology_best_effort:1208``) are auto-classified canonical by the
+    T031 discriminator and MUST NOT appear in the allowlist. Exactly 3 permanent
+    sanctions remain — all legitimate raw-parameter sites that the def-use
+    discriminator cannot auto-detect:
+
+    * ``_canonicalize_bare_modern_handle`` — C-001 bare probe (would recurse if folded)
+    * ``read_primary_meta`` — seam-internal first-probe (raw bare param by design)
+    * ``MissionStatus._find_meta_path`` — handle from ``resolve_bare_modern_mission_dir_name``
+      (already-canonical by provenance, not a detectable fold assignment)
+
+    ``len == 3`` (not just ``<= baseline``) catches a regression where one of the
+    4 auto-routed entries was re-added to the allowlist instead of being removed.
+    """
+    keys = load_allowlist(ALLOWLIST_PATH)["canonicalizer"]
+    assert len(keys) == 3, (
+        f"canonicalizer allowlist must have exactly 3 permanent entries after WP07 "
+        f"(got {len(keys)}); the 4 bare-modern-fold entries must be auto-classified "
+        "by T031, not sanctioned in the allowlist"
+    )
+    expected_qualnames = frozenset({
+        "_canonicalize_bare_modern_handle",
+        "read_primary_meta",
+        "MissionStatus._find_meta_path",
+    })
+    actual_qualnames = frozenset(k.enclosing_qualname for k in keys)
+    assert actual_qualnames == expected_qualnames, (
+        f"wrong permanent entries — expected {set(expected_qualnames)}, "
+        f"got {set(actual_qualnames)}"
+    )
 
 
 def test_coord_by_design_writes_in_allowlist() -> None:
@@ -913,6 +1014,40 @@ def test_coord_authority_self_mutation_injects_violation(tmp_path: Path) -> None
     assert check_coord_authority_gate(scratch_src, {site_key}) == []
 
 
+def test_canonicalizer_bare_modern_fold_auto_routes(tmp_path: Path) -> None:
+    """T034: gate passes without allowlist when the bare-modern fold is used (T031 branch).
+
+    Self-mutation proof that the new ``BARE_MODERN_FOLD_SEAM`` discriminator
+    branch in ``_names_assigned_from_fold`` takes effect in the full gate scan:
+    inject a module where ``primary_feature_dir_for_mission`` receives a handle
+    that was assigned from ``_canonicalize_bare_modern_handle`` in the same
+    function, then verify the gate classifies it as canonical (no violation,
+    no allowlist entry required).
+
+    This directly covers the new ``BARE_MODERN_FOLD_SEAM`` branch (NFR-003).
+    """
+    pkg = tmp_path / "src" / "scratch_pkg"
+    pkg.mkdir(parents=True)
+    (tmp_path / "src" / "__init__.py").write_text("", encoding="utf-8")
+    (pkg / "__init__.py").write_text("", encoding="utf-8")
+    (pkg / "bare_modern_router.py").write_text(
+        "class BareModernRouter:\n"
+        "    def resolve(self, repo_root, handle):\n"
+        "        canonical = _canonicalize_bare_modern_handle(repo_root, handle)\n"
+        "        return primary_feature_dir_for_mission(repo_root, canonical)\n",
+        encoding="utf-8",
+    )
+    scratch_src = tmp_path / "src"
+
+    # Gate passes with an empty allowlist — the bare-modern fold is auto-classified
+    # canonical by the T031 discriminator; no sanction entry is needed.
+    violations = check_canonicalizer_gate(scratch_src, set())
+    assert violations == [], (
+        f"T031/T034: bare-modern fold should auto-classify as canonical; "
+        f"got violations: {violations}"
+    )
+
+
 # --- T006: concrete floors + shrink-only twin-guard ------------------------
 def test_canonicalizer_gate_floor() -> None:
     """Concrete floor: the canonicalizer scan finds >= 38 real call sites (NFR-002).
@@ -929,25 +1064,28 @@ def test_canonicalizer_gate_floor() -> None:
 
 
 def test_routed_count_floor() -> None:
-    """SC-004 anti-mass-allowlist guard: routed canonicalizer sites stay >= census.
+    """SC-004 anti-mass-allowlist guard: routed canonicalizer sites stay >= floor.
 
-    WP02-WP05 ROUTED the bare ``primary_feature_dir_for_mission`` call sites
-    through ``_canonicalize_primary_read_handle`` (or a provably-canonical
-    ``feature_dir.name`` read) — they did NOT mass-allowlist them. This test
-    proves that: it counts the sites the def-use discriminator classifies as
-    *canonical* (routed) and asserts that count is at least the SC-004 census of
-    genuinely-bare sites the sweeps were obligated to route.
+    WP02-WP07 ROUTED the bare ``primary_feature_dir_for_mission`` call sites
+    through ``_canonicalize_primary_read_handle`` or ``_canonicalize_bare_modern_handle``
+    (T031 — or a provably-canonical ``feature_dir.name`` read) — they did NOT
+    mass-allowlist them. This test proves that: it counts the sites the def-use
+    discriminator classifies as *canonical* (routed) and asserts that count stays
+    within ``ROUTED_CANONICALIZER_FLOOR_MARGIN`` of the floor AND strictly above it.
 
-    The floor is a CONCRETE integer (``ROUTED_CANONICALIZER_FLOOR == 27``), NOT
+    The floor is a CONCRETE integer (``ROUTED_CANONICALIZER_FLOOR == 31``), NOT
     ``>= len(scanned routed sites)``. A tautological ``>= live_routed`` would be
-    satisfied even if a future regression allowlisted every site instead of
-    routing it (routed → 0, allowlist → 38, gate still green). Hard-coding the
-    census makes mass-allowlisting CI-red: route a site away and the routed count
-    drops below 27, failing here.
+    satisfied even if a future regression allowlisted every site instead of routing
+    it (routed → 0, allowlist → 38, gate still green). Hard-coding the census
+    makes mass-allowlisting CI-red.
 
-    Live routed count after the integrated sweep is 31 (38 total sites minus the
-    7 permanent sanctions in the allowlist). The 27 floor is the SC-004 census
-    with a small safety margin below the live 31.
+    Live routed count after WP07 is 35 (38 total minus the 3 permanent sanctions;
+    the 4 bare-modern-fold sites are now auto-classified by T031). The floor 31
+    is ``35 − ROUTED_CANONICALIZER_FLOOR_MARGIN(4)`` — deliberately below live
+    so the assertion has teeth, but tight enough to catch a loose ratchet.
+
+    Both bounds are enforced:
+    * ``live − MARGIN <= floor < live``  (lower: floor is tight; upper: anti-vacuous)
     """
     sites = scan_canonicalizer_call_sites(SRC_ROOT)
     routed = [s for s in sites if s.is_canonical]
@@ -955,28 +1093,37 @@ def test_routed_count_floor() -> None:
         f"routed (def-use-canonical) canonicalizer census dropped to "
         f"{len(routed)}; expected >= {ROUTED_CANONICALIZER_FLOOR} (SC-004). "
         "A drop below this floor means sites were allowlisted instead of routed "
-        "(mass-allowlisting) — route them through _canonicalize_primary_read_handle."
+        "(mass-allowlisting) — route them through the canonical fold seam."
     )
-    # SC-004 corollary: the floor is NOT tautological — it must be a concrete
-    # integer strictly below the live routed census, so the assertion has teeth.
+    # Upper bound: the floor is NOT tautological — it must be strictly below live.
     assert len(routed) > ROUTED_CANONICALIZER_FLOOR, (
         "ROUTED_CANONICALIZER_FLOOR must be a concrete census integer strictly "
         "below the live routed count, not ``>= len(routed)`` (NFR-002 anti-vacuous)."
     )
+    # Lower bound (T033): the floor is tight — within MARGIN of the live count.
+    # This prevents the floor from drifting silently below a meaningful threshold
+    # (a floor of 0 would pass the upper check but provide no guard at all).
+    assert len(routed) - ROUTED_CANONICALIZER_FLOOR <= ROUTED_CANONICALIZER_FLOOR_MARGIN, (
+        f"ROUTED_CANONICALIZER_FLOOR ({ROUTED_CANONICALIZER_FLOOR}) is more than "
+        f"ROUTED_CANONICALIZER_FLOOR_MARGIN ({ROUTED_CANONICALIZER_FLOOR_MARGIN}) "
+        f"below the live routed count ({len(routed)}); tighten the floor to within "
+        "the margin to prevent a loose ratchet."
+    )
 
 
 def test_coord_authority_gate_floor() -> None:
-    """Concrete floor: >= 17 WRITE-classified coord call sites (NFR-002).
+    """Concrete floor: >= 14 WRITE-classified coord call sites (NFR-002).
 
-    17 is the hard-coded live write-candidate census (NOT ``>= len(scanned)`` —
-    that is tautological). The honest census: 52 ``resolve_feature_dir_for_mission``
-    sites, of which 17 sit in a function carrying a write indicator (this count
-    INCLUDES the 2 by-design coord-owned writes — ``decisions/emit.py`` and
-    ``widen/state.py`` — which are write-classified by design and sanctioned in
-    the allowlist). WP08 tightened this floor from the pre-sweep 16 to the honest
-    live census of 17 (renata's WP01 note). 18 was rejected: the live write
-    census is 17, not 18 — the ``coord_authority_baseline: 18`` scalar caps the
-    allowlist *entry count*, a different quantity from the write *site* census.
+    14 is the hard-coded live write-candidate census (NOT ``>= len(scanned)`` —
+    that is tautological). Sites that sit in a function carrying a write indicator
+    (this count INCLUDES the 2 by-design coord-owned writes — ``decisions/emit.py``
+    and ``widen/state.py`` — which are write-classified by design and sanctioned in
+    the allowlist). History: WP08 set this to the then-honest census of 17; this
+    mission's WP06 routing then moved 3 write-classified sites onto the kind-aware
+    seam (``list_dependents``/``review`` dependents-warning reads → primary), so
+    WP07 tightened the floor 17 → 14 to the new honest live census. The
+    ``coord_authority_baseline`` scalar (now 14) caps the allowlist *entry count*,
+    a different quantity from the write *site* census (which they happen to equal here).
     """
     writes = [s for s in scan_coord_authority_call_sites(SRC_ROOT) if s.is_write]
     assert len(writes) >= COORD_AUTHORITY_WRITE_FLOOR, (
