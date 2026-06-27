@@ -1,5 +1,6 @@
 ---
 title: F1 Knowledge-Capture Plan
+description: 'Proposed knowledge-capture plan anchored in CaaCS Finding F1 (bus factor of 1 across src/ hotspots), honoring DM-D: document and transfer before refactoring.'
 doc_status: active
 updated: '2026-05-11'
 ---

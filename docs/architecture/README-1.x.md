@@ -1,5 +1,6 @@
 ---
 title: Architecture 1.x
+description: 'Landing page for the legacy 1.x architecture record: the 1.x ADR corpus and architecture notes migrated from deprecated docs locations, retained as history.'
 doc_status: active
 updated: '2026-03-10'
 ---

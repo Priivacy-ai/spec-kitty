@@ -1,5 +1,6 @@
 ---
 title: 2.x Implementation Mapping
+description: '2.x implementation mapping (C4 level 4): the historical link from architecture components to the code that realizes them, preserved beneath the living model.'
 doc_status: active
 updated: '2026-05-15'
 related:

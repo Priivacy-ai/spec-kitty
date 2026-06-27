@@ -1,5 +1,6 @@
 ---
 title: Architecture 2.x
+description: 'Landing page for the 2.x architecture track: its core decisions and constraints, end-to-end behavior expectations, and user-journey records (now prior-era history).'
 doc_status: active
 updated: '2026-05-15'
 related:

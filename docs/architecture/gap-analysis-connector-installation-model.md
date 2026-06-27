@@ -1,5 +1,6 @@
 ---
 title: 'Gap Analysis: Migrating Spec-Kitty to the Installation-Link-Mapping-Override Connector Model'
+description: Draft gap analysis for migrating spec-kitty and spec-kitty-saas to the installation-link-mapping-override connector model, scoped against the separation ADR.
 doc_status: active
 updated: '2026-04-06'
 related:

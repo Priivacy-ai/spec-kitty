@@ -1,5 +1,6 @@
 ---
 title: 2.x Containers
+description: '2.x containers view (C4 level 2): the historical decomposition of Spec Kitty into deployable and runnable containers, preserved beneath the current living model.'
 doc_status: active
 updated: '2026-04-05'
 related:

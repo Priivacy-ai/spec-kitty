@@ -1,5 +1,6 @@
 ---
 title: 3.x System Context
+description: 'Living 3.x system context (C4 level 1): the current external actors and system boundaries of Spec Kitty, part of the living C4 model atop architecture/.'
 doc_status: active
 updated: '2026-06-15'
 related:

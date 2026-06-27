@@ -1,5 +1,6 @@
 ---
 title: 3.x Containers
+description: 'Living 3.x containers view (C4 level 2): the current decomposition of Spec Kitty into deployable and runnable containers, part of the living C4 model.'
 doc_status: active
 updated: '2026-06-15'
 related:
