@@ -26,11 +26,20 @@ from typing import Any
 
 import yaml
 
+from doctrine.drg.models import DRGGraph, NodeKind
+
+# Only the three governance predicates are advertised as the public-by-name API
+# (they are the live cross-module callees, wired from
+# ``specify_cli.cli.commands._doctrine_collect``). The supporting types/constant
+# (``ReplaceableBuiltin``, ``ReplaceableBuiltinsPolicy``, ``POLICY_RELPATH``,
+# ``UnsanctionedOverride``) remain module-level symbols — direct
+# ``from doctrine.drg.override_policy import X`` still works for the
+# architectural tests that consume them by-name — they are simply not part of the
+# ``import *`` public surface (#2082 FR-011).
 __all__ = [
-    "ReplaceableBuiltin",
-    "ReplaceableBuiltinsPolicy",
-    "POLICY_RELPATH",
     "load_replaceable_builtins",
+    "find_overridden_builtin_urns",
+    "find_unsanctioned_overrides",
 ]
 
 #: Repo-root-relative path of the allowlist file.
@@ -144,3 +153,87 @@ def load_replaceable_builtins(repo_root: Path) -> ReplaceableBuiltinsPolicy:
         _parse_entry(raw, index) for index, raw in enumerate(raw_entries)
     )
     return ReplaceableBuiltinsPolicy(entries=entries)
+
+
+# ---------------------------------------------------------------------------
+# Pure governance predicates over an already-merged DRG graph.
+#
+# These take already-loaded inputs (a merged ``DRGGraph``, the frozenset of
+# built-in URNs, a parsed ``ReplaceableBuiltinsPolicy``) and return findings.
+# They perform NO filesystem I/O, NO merge, and NO allowlist parsing — that is
+# the caller's job. Keeping them pure makes the governance gate reusable by any
+# consumer repo that has already run the merge.
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class UnsanctionedOverride:
+    """A built-in override that the repo's allowlist does not sanction."""
+
+    urn: str
+    kind: str
+    why: str
+
+
+def _is_directive_urn(urn: str) -> bool:
+    return urn.split(":", 1)[0] == NodeKind.DIRECTIVE.value
+
+
+def find_overridden_builtin_urns(
+    merged: DRGGraph,
+    built_in_urns: frozenset[str],
+) -> dict[str, str]:
+    """Return ``{urn: kind}`` for every built-in URN now carrying org provenance.
+
+    A merged node that sits at a built-in URN but is tagged ``org:<pack>`` is,
+    by construction of :func:`doctrine.drg.merge.merge_three_layers`, a permitted
+    same-kind override (``org_override``). This is the authoritative override set
+    — equivalent to the ``org_override`` conflict records, recovered purely from
+    the merged graph.
+
+    Scope (intentional): only ``org:``-provenance overrides are adjudicated.
+    A *project*-tier override of a built-in URN (``project`` provenance) is
+    deliberately OUT of scope — project doctrine is the trusted operator tier
+    and is not gated by the consumer-facing replaceable-builtins allowlist.
+    """
+    return {
+        node.urn: node.kind.value
+        for node in merged.nodes
+        if (node.provenance or "").startswith("org:") and node.urn in built_in_urns
+    }
+
+
+def find_unsanctioned_overrides(
+    targets: dict[str, str],
+    policy: ReplaceableBuiltinsPolicy,
+) -> list[UnsanctionedOverride]:
+    """Return every overridden built-in URN not sanctioned by *policy* (pure).
+
+    *targets* maps each overridden built-in URN to its kind (see
+    :func:`find_overridden_builtin_urns`). For each target:
+
+    * the URN MUST be on the allowlist (fail-closed if absent); and
+    * a built-in **directive** override additionally requires a non-empty reason.
+
+    The result is empty when every override is sanctioned (or none exist).
+    """
+    findings: list[UnsanctionedOverride] = []
+    for urn, kind in sorted(targets.items()):
+        if not policy.is_allowed(urn):
+            findings.append(
+                UnsanctionedOverride(
+                    urn=urn,
+                    kind=kind,
+                    why="not on .kittify/doctrine/replaceable-builtins.yaml",
+                )
+            )
+            continue
+        if _is_directive_urn(urn) and not (policy.reason_for(urn) or "").strip():
+            findings.append(
+                UnsanctionedOverride(
+                    urn=urn,
+                    kind=kind,
+                    why="directive override requires a non-empty reason",
+                )
+            )
+    return findings

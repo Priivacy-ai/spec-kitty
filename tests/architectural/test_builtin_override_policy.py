@@ -19,7 +19,6 @@ reusable so a consumer repo can re-run the same governance gate.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
@@ -30,6 +29,8 @@ from doctrine.drg.models import DRGGraph, DRGNode, NodeKind
 from doctrine.drg.org_pack_loader import OrgDRGFragment
 from doctrine.drg.override_policy import (
     ReplaceableBuiltinsPolicy,
+    find_overridden_builtin_urns,
+    find_unsanctioned_overrides,
     load_replaceable_builtins,
 )
 
@@ -37,79 +38,6 @@ pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _BUILT_IN_GRAPH = _REPO_ROOT / "src" / "doctrine" / "graph.yaml"
-
-
-@dataclass(frozen=True)
-class UnsanctionedOverride:
-    """A built-in override that the repo's allowlist does not sanction."""
-
-    urn: str
-    kind: str
-    why: str
-
-
-def _is_directive_urn(urn: str) -> bool:
-    return urn.split(":", 1)[0] == NodeKind.DIRECTIVE.value
-
-
-def find_overridden_builtin_urns(
-    merged: DRGGraph,
-    built_in_urns: frozenset[str],
-) -> dict[str, str]:
-    """Return ``{urn: kind}`` for every built-in URN now carrying org provenance.
-
-    A merged node that sits at a built-in URN but is tagged ``org:<pack>`` is,
-    by construction of :func:`doctrine.drg.merge.merge_three_layers`, a permitted
-    same-kind override (``org_override``). This is the authoritative override set
-    — equivalent to the ``org_override`` conflict records, recovered purely from
-    the merged graph.
-
-    Scope (intentional): only ``org:``-provenance overrides are adjudicated.
-    A *project*-tier override of a built-in URN (``project`` provenance) is
-    deliberately OUT of scope — project doctrine is the trusted operator tier
-    and is not gated by the consumer-facing replaceable-builtins allowlist.
-    """
-    return {
-        node.urn: node.kind.value
-        for node in merged.nodes
-        if (node.provenance or "").startswith("org:") and node.urn in built_in_urns
-    }
-
-
-def find_unsanctioned_overrides(
-    targets: dict[str, str],
-    policy: ReplaceableBuiltinsPolicy,
-) -> list[UnsanctionedOverride]:
-    """Return every overridden built-in URN not sanctioned by *policy* (pure).
-
-    *targets* maps each overridden built-in URN to its kind (see
-    :func:`find_overridden_builtin_urns`). For each target:
-
-    * the URN MUST be on the allowlist (fail-closed if absent); and
-    * a built-in **directive** override additionally requires a non-empty reason.
-
-    The result is empty when every override is sanctioned (or none exist).
-    """
-    findings: list[UnsanctionedOverride] = []
-    for urn, kind in sorted(targets.items()):
-        if not policy.is_allowed(urn):
-            findings.append(
-                UnsanctionedOverride(
-                    urn=urn,
-                    kind=kind,
-                    why="not on .kittify/doctrine/replaceable-builtins.yaml",
-                )
-            )
-            continue
-        if _is_directive_urn(urn) and not (policy.reason_for(urn) or "").strip():
-            findings.append(
-                UnsanctionedOverride(
-                    urn=urn,
-                    kind=kind,
-                    why="directive override requires a non-empty reason",
-                )
-            )
-    return findings
 
 
 def _load_org_fragments(repo_root: Path) -> list[OrgDRGFragment]:
