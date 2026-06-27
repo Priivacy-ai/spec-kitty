@@ -62,7 +62,7 @@ The current docs keep the four Divio types separate so you can choose by intent:
 
 ## Current 3.2 surface
 
-- [3.2 current overview](context/index.md) explains the current Charter-era model.
+- [3.2 current overview](3x/index.md) explains the current Charter-era model.
 - [Install and upgrade guides](how-to/upgrade-project.md) are the source of truth for current project files.
 - [Supported harnesses](reference/supported-harnesses.md) shows the host support matrix.
 - [Slash commands](reference/slash-commands.md) maps host command files to Spec Kitty actions.
