@@ -84,6 +84,22 @@ _COORD_BRANCH: str = f"kitty/mission-{_MISSION_DIR}"
 _PRIMARY_ONLY_WP: str = "WP01"
 _COORD_ONLY_WP: str = "WP02"
 
+# ---------------------------------------------------------------------------
+# Status-event constants — coord STATUS-leg output-observable guard
+# ---------------------------------------------------------------------------
+# Two events seed the COORD surface's ``status.events.jsonl`` so that WP01
+# lands at ``in_progress`` after reduction.  The PRIMARY surface has NO
+# ``status.events.jsonl`` at all — reading from primary yields the default
+# lane (``genesis``).  This makes the STATUS-leg consumption output-observable:
+# a wrong-leg read produces ``genesis``, the correct coord read produces
+# ``in_progress``, so an assertion on the rendered lane value catches the
+# regression without any spy-level introspection.
+#
+# Real 26-char Crockford base-32 ULID event_ids per the testing-principles
+# styleguide (NFR-005) — handcrafted short placeholders mask real behaviour.
+_COORD_STATUS_EVENT_ID_1: str = "01KVJPEQ7M0000000000000001"  # planned → claimed
+_COORD_STATUS_EVENT_ID_2: str = "01KVJPEQ7M0000000000000002"  # claimed → in_progress
+
 
 # ---------------------------------------------------------------------------
 # Shared fixture builder
@@ -136,9 +152,10 @@ def _build_coord_fresh_mission(repo_root: Path) -> Path:
     coord_mission_dir = coord_root / "kitty-specs" / _MISSION_DIR
     coord_mission_dir.mkdir(parents=True)
     # The coord dir carries a DISTINCT WP (``_COORD_ONLY_WP``) absent from the
-    # primary checkout, so a CLI that consumes feature_dir surfaces the coord WP
-    # and a CLI that wrongly consumes the primary surfaces ``_PRIMARY_ONLY_WP``
-    # (or fails not-found).  This is the coord-distinguishing observable signal.
+    # primary checkout.  Under the per-leg authority (#2115/#2106, C-001) the
+    # WP-LIST enumeration leg reads PRIMARY tasks/ (``_PRIMARY_ONLY_WP`` → WP01
+    # appears; ``_COORD_ONLY_WP`` → WP02 absent from primary, so NOT surfaced).
+    # The STATUS-events leg stays coord-aware (guarded below via seeded events).
     coord_tasks_dir = coord_mission_dir / "tasks"
     coord_tasks_dir.mkdir()
     (coord_tasks_dir / f"{_COORD_ONLY_WP}-coord.md").write_text(
@@ -152,7 +169,45 @@ def _build_coord_fresh_mission(repo_root: Path) -> Path:
         """),
         encoding="utf-8",
     )
-    (coord_mission_dir / "status.events.jsonl").write_text("", encoding="utf-8")
+    # Seed the coord STATUS-events leg: WP01 (primary-visible) transitions
+    # planned → claimed → in_progress.  The primary surface has NO events file
+    # at all — so a STATUS-leg read from primary yields ``genesis`` (default).
+    # This contrast makes the coord STATUS-leg consumption output-observable
+    # (see ``test_bare_slug_resolves_coord_dir`` lane assertion).
+    coord_events = [
+        {
+            "actor": "test-fixture",
+            "at": "2026-06-26T10:00:00+00:00",
+            "event_id": _COORD_STATUS_EVENT_ID_1,
+            "evidence": None,
+            "execution_mode": "code_change",
+            "feature_slug": _BARE_SLUG,
+            "force": False,
+            "from_lane": "planned",
+            "reason": None,
+            "review_ref": None,
+            "to_lane": "claimed",
+            "wp_id": _PRIMARY_ONLY_WP,
+        },
+        {
+            "actor": "test-fixture",
+            "at": "2026-06-26T11:00:00+00:00",
+            "event_id": _COORD_STATUS_EVENT_ID_2,
+            "evidence": None,
+            "execution_mode": "code_change",
+            "feature_slug": _BARE_SLUG,
+            "force": False,
+            "from_lane": "claimed",
+            "reason": None,
+            "review_ref": None,
+            "to_lane": "in_progress",
+            "wp_id": _PRIMARY_ONLY_WP,
+        },
+    ]
+    (coord_mission_dir / "status.events.jsonl").write_text(
+        "\n".join(json.dumps(ev) for ev in coord_events) + "\n",
+        encoding="utf-8",
+    )
 
     return coord_mission_dir
 
@@ -267,6 +322,31 @@ class TestAgentTasksStatusCoordResolution:
             f"Coord-husk work package {_COORD_ONLY_WP!r} present in status output — "
             "the tasks/ enumeration leg consumed the coord husk, not the PRIMARY "
             f"surface (the husk-divergence #2115 eliminates).\n  stdout: {result.stdout}"
+        )
+
+        # STATUS-leg consumption output-observable guard (reviewer-debbie pre-merge
+        # concession): the coord ``status.events.jsonl`` seeds WP01 at ``in_progress``
+        # (planned→claimed→in_progress).  The PRIMARY surface has NO events file at
+        # all — reading from primary yields the default lane (``genesis``).
+        #
+        # Falsification: if the STATUS-events leg were swapped to read the PRIMARY
+        # surface instead of the COORD surface, the reducer would see no events and
+        # return lane=``genesis`` (not ``in_progress``).  This assertion would FAIL,
+        # catching the regression that the spy-return assertion alone cannot.
+        output_data = json.loads(result.stdout)
+        wp_list = output_data.get("work_packages", [])
+        wp01_data = next(
+            (wp for wp in wp_list if wp.get("id") == _PRIMARY_ONLY_WP), None
+        )
+        assert wp01_data is not None, (
+            f"{_PRIMARY_ONLY_WP!r} must appear in JSON 'work_packages'.\n"
+            f"  work_packages: {wp_list}\n  stdout: {result.stdout}"
+        )
+        assert wp01_data.get("lane") == "in_progress", (
+            f"WP01 lane must be 'in_progress' from COORD events — "
+            f"got {wp01_data.get('lane')!r}.\n"
+            "  'genesis' or 'planned' means the STATUS-events leg is reading "
+            "the PRIMARY surface (no events there) instead of the COORD surface."
         )
 
     def test_full_handle_resolves_same_coord_dir(self, tmp_path: Path) -> None:
