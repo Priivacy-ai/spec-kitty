@@ -1,6 +1,6 @@
 ---
 title: Kanban Workflow Explained
-description: Explanation of Kanban Workflow Explained in Spec Kitty 3.2, including the model, rationale, and operator implications.
+description: "How Spec Kitty tracks work-package progress: the nine lanes, the 27 allowed transitions and their guards, the append-only event log, and who moves work between them."
 doc_status: active
 updated: '2026-06-12'
 related:

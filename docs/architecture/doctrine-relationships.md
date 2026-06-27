@@ -1,6 +1,6 @@
 ---
 title: 'Doctrine relationships: lineage, delegation, and augmentation'
-description: 'Explanation of Doctrine relationships: lineage, delegation, and augmentation in Spec Kitty 3.2, including the model, rationale, and operator implications.'
+description: "How Spec Kitty models doctrine lineage, delegation, and augmentation as typed DRG edges (specializes_from, delegates_to, enhances/overrides) rather than artifact fields."
 doc_status: active
 updated: '2026-06-03'
 ---
