@@ -1,8 +1,14 @@
 ---
-title: "Spec Kitty 3.2 current overview"
-description: "Landing page for current Spec Kitty 3.2 Charter-era documentation."
+title: Spec Kitty 3.2 current overview
+description: Landing page for current Spec Kitty 3.2 Charter-era documentation.
+doc_status: active
+updated: '2026-06-15'
+related:
+- docs/3x/charter-overview.md
+- docs/3x/governance-files.md
+- docs/migration/from-charter-2x.md
+- docs/migration/index.md
 ---
-
 # Spec Kitty 3.2 current overview
 
 You are looking at Spec Kitty 3.2 documentation. This is the current product surface for new projects and upgrades.

@@ -1,3 +1,10 @@
+---
+title: 2.x System Context
+doc_status: active
+updated: '2026-03-10'
+related:
+- docs/architecture/README.md
+---
 # 2.x System Context
 
 | Field | Value |

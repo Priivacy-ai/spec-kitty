@@ -1,3 +1,10 @@
+---
+title: 'Context: Identity Fields'
+doc_status: active
+updated: '2026-04-10'
+related:
+- docs/context/orchestration.md
+---
 ## Context: Identity Fields
 
 Terms describing the 3-tier identity model introduced in mission 081. The identity layer separates three boundary levels:

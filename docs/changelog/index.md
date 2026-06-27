@@ -1,3 +1,10 @@
+---
+title: Changelog
+doc_status: active
+updated: '2026-06-27'
+related:
+- docs/changelog/CHANGELOG.md
+---
 # Changelog
 
 The canonical Spec Kitty changelog lives in this section as

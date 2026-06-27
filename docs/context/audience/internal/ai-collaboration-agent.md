@@ -1,3 +1,8 @@
+---
+title: 'Stakeholder Persona: AI Collaboration Agent'
+doc_status: active
+updated: '2026-03-10'
+---
 # Stakeholder Persona: AI Collaboration Agent
 
 | Field | Value |

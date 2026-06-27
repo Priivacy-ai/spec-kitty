@@ -1,3 +1,10 @@
+---
+title: Architecture Navigation Guide
+doc_status: active
+updated: '2026-06-27'
+related:
+- docs/architecture/README.md
+---
 # Architecture Navigation Guide
 
 > Retired. This guide described 2.x-era navigation paths that are no longer current.

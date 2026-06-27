@@ -1,3 +1,8 @@
+---
+title: 'Stakeholder Persona: Spec Kitty CLI Runtime'
+doc_status: active
+updated: '2026-06-12'
+---
 # Stakeholder Persona: Spec Kitty CLI Runtime
 
 | Field | Value |

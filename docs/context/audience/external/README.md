@@ -1,3 +1,13 @@
+---
+title: External Audience Personas
+doc_status: active
+updated: '2026-03-10'
+related:
+- docs/context/audience/external/architect-evaluator.md
+- docs/context/audience/external/product-manager-evaluator.md
+- docs/context/audience/external/project-owner.md
+- docs/context/audience/external/tech-lead-evaluator.md
+---
 # External Audience Personas
 
 These personas represent stakeholders outside the Spec Kitty runtime boundary.

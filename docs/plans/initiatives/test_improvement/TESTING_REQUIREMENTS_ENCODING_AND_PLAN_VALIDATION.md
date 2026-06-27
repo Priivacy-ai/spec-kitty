@@ -1,3 +1,8 @@
+---
+title: 'Functional Testing Requirements: Encoding & Plan Validation Guardrails'
+doc_status: draft
+updated: '2026-06-12'
+---
 # Functional Testing Requirements: Encoding & Plan Validation Guardrails
 
 ## Overview

@@ -1,3 +1,8 @@
+---
+title: 'CaaCS findings ↔ #822 open sub-issues cross-check'
+doc_status: active
+updated: '2026-05-11'
+---
 # CaaCS findings ↔ #822 open sub-issues cross-check
 
 ## Inputs

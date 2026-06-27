@@ -1,0 +1,1 @@
+../2.x/adr/2026-01-29-15-merge-first-suggestion-for-completed-dependencies.md

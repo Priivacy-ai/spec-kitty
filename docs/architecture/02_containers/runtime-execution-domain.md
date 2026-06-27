@@ -1,3 +1,8 @@
+---
+title: 2.x Runtime/Execution Domain (Container Detail)
+doc_status: active
+updated: '2026-03-10'
+---
 # 2.x Runtime/Execution Domain (Container Detail)
 
 | Field | Value |

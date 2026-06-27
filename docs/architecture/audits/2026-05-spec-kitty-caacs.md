@@ -1,3 +1,8 @@
+---
+title: spec-kitty CaaCS Audit — 2026-05
+doc_status: active
+updated: '2026-05-19'
+---
 # spec-kitty CaaCS Audit — 2026-05
 
 ## Audit metadata

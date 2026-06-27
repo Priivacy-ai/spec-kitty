@@ -1,0 +1,1 @@
+../2.x/adr/2026-01-27-11-dual-repository-pattern.md

@@ -1,3 +1,10 @@
+---
+title: 'Status Model: Operator Documentation'
+doc_status: active
+updated: '2026-06-27'
+related:
+- docs/migration/mission-id-canonical-identity.md
+---
 # Status Model: Operator Documentation
 
 **Feature**: 034-feature-status-state-model-remediation

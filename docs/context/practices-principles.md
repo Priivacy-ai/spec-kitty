@@ -1,3 +1,10 @@
+---
+title: 'Context: Practices and Principles'
+doc_status: active
+updated: '2026-03-10'
+related:
+- docs/context/identity.md
+---
 ## Context: Practices and Principles
 
 Terms describing operating principles for glossary-semantic-integrity execution.

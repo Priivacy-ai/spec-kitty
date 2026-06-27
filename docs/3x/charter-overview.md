@@ -1,8 +1,11 @@
 ---
-title: "How Charter Works"
-description: "The Charter mental model — synthesis, DRG, governed context, and profile invocation."
+title: How Charter Works
+description: The Charter mental model — synthesis, DRG, governed context, and profile invocation.
+doc_status: active
+updated: '2026-06-03'
+related:
+- docs/3x/governance-files.md
 ---
-
 # How Charter Works
 
 Charter is the governance layer that turns your project's policy document (`charter.md`) into

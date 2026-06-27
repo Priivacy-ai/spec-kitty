@@ -1,0 +1,1 @@
+../../3.x/adr/2026-05-10-1-deterministic-historical-mission-state-repair.md

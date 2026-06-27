@@ -1,3 +1,8 @@
+---
+title: 'Dialectic: Incorporating Structured Missions and Ad-Hoc Specialist Interaction'
+doc_status: draft
+updated: '2026-06-12'
+---
 # Dialectic: Incorporating Structured Missions and Ad-Hoc Specialist Interaction
 
 **Date:** 2026-02-28 **Context:** Spec Kitty architectural direction

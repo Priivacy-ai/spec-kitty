@@ -1,3 +1,8 @@
+---
+title: 'CaaCS Meta-Assessment & Input for #666 Spike'
+doc_status: active
+updated: '2026-05-11'
+---
 # CaaCS Meta-Assessment & Input for #666 Spike
 
 > Reflective synthesis of the 2026-05 ad-hoc Code-as-a-Crime-Scene (CaaCS) run on spec-kitty.

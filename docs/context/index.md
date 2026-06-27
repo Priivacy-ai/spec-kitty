@@ -1,3 +1,8 @@
+---
+title: Context
+doc_status: active
+updated: '2026-06-27'
+---
 # Context
 
 Domain context for Spec Kitty: the canonical glossary contexts and the

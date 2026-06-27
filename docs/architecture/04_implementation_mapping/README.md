@@ -1,3 +1,12 @@
+---
+title: 2.x Implementation Mapping
+doc_status: active
+updated: '2026-05-15'
+related:
+- docs/architecture/00_landscape/README.md
+- docs/architecture/04_implementation_mapping/code-patterns.md
+- docs/architecture/05_ownership_map.md
+---
 # 2.x Implementation Mapping
 
 | Field | Value |

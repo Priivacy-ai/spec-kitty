@@ -1,3 +1,10 @@
+---
+title: 'Context: Dossier'
+doc_status: active
+updated: '2026-03-10'
+related:
+- docs/context/technology-foundations.md
+---
 ## Context: Dossier
 
 Terms describing the local artifact inventory, integrity validation, and drift detection system.

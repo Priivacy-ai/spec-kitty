@@ -1,3 +1,8 @@
+---
+title: 2.x System Landscape
+doc_status: active
+updated: '2026-04-05'
+---
 # 2.x System Landscape
 
 | Field | Value |

@@ -1,3 +1,8 @@
+---
+title: Migration and Shim Ownership Rules
+doc_status: active
+updated: '2026-04-20'
+---
 # Migration and Shim Ownership Rules
 
 *`architecture/2.x/06_migration_and_shim_rules.md`*

@@ -1,3 +1,8 @@
+---
+title: Architecture 2.x Initiatives
+doc_status: draft
+updated: '2026-04-04'
+---
 # Architecture 2.x Initiatives
 
 This directory contains active or exploratory architecture initiatives for the 2.x track.

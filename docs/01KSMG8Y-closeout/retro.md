@@ -1,3 +1,8 @@
+---
+title: 'Mission Retrospective: 01KSMG8Y — Pre-Doctrine Test Stabilization'
+doc_status: deprecated
+updated: '2026-05-30'
+---
 # Mission Retrospective: 01KSMG8Y — Pre-Doctrine Test Stabilization
 
 **Date**: 2026-05-27

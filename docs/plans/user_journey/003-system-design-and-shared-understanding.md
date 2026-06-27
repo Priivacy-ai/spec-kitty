@@ -1,3 +1,10 @@
+---
+title: 'User Journey: System Design & Shared Understanding'
+doc_status: draft
+updated: '2026-04-05'
+related:
+- docs/plans/user_journey/001-project-onboarding-bootstrap.md
+---
 # User Journey: System Design & Shared Understanding
 
 | Field | Value |

@@ -1,3 +1,8 @@
+---
+title: 'Architecture: Centralized Feature Detection'
+doc_status: draft
+updated: '2026-02-23'
+---
 # Architecture: Centralized Feature Detection
 
 **Status**: Implemented (v0.14.0)

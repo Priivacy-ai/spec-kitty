@@ -1,3 +1,8 @@
+---
+title: 'Testing Progress: Encoding & Plan Validation Guardrails'
+doc_status: draft
+updated: '2026-06-12'
+---
 # Testing Progress: Encoding & Plan Validation Guardrails
 
 **Date:** 2025-11-13

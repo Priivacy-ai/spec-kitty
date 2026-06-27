@@ -1,3 +1,8 @@
+---
+title: 'Research Notes: Session Presence — Harness Capability Gaps'
+doc_status: draft
+updated: '2026-06-07'
+---
 # Research Notes: Session Presence — Harness Capability Gaps
 
 **Status:** Open — items below require investigation before implementation  

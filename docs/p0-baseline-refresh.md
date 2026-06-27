@@ -1,3 +1,8 @@
+---
+title: Baseline Refresh — P0 Test Failures
+doc_status: active
+updated: '2026-06-01'
+---
 # Baseline Refresh — P0 Test Failures
 
 **Date**: 2026-06-01

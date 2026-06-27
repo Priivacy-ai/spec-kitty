@@ -1,3 +1,12 @@
+---
+title: 3.x Containers
+doc_status: active
+updated: '2026-06-15'
+related:
+- docs/architecture/diagrams/01_context/README.md
+- docs/architecture/diagrams/02_containers/runtime-execution-domain.md
+- docs/architecture/diagrams/03_components/README.md
+---
 # 3.x Containers
 
 | Field | Value |

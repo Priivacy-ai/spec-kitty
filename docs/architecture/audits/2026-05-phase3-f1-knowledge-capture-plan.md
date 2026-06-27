@@ -1,3 +1,8 @@
+---
+title: F1 Knowledge-Capture Plan
+doc_status: active
+updated: '2026-05-11'
+---
 # F1 Knowledge-Capture Plan
 
 > Anchored in the CaaCS audit's Finding F1 (bus factor = 1 across 14/15 src/ hotspots).

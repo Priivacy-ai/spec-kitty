@@ -1,3 +1,11 @@
+---
+title: 2.x Containers
+doc_status: active
+updated: '2026-04-05'
+related:
+- docs/architecture/02_containers/runtime-execution-domain.md
+- docs/architecture/README.md
+---
 # 2.x Containers
 
 | Field | Value |

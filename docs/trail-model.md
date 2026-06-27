@@ -1,3 +1,10 @@
+---
+title: Trail Model
+doc_status: active
+updated: '2026-06-15'
+related:
+- docs/host-surface-parity.md
+---
 # Trail Model
 
 *Operator reference for the Phase 4 runtime consumption baseline.*

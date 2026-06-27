@@ -1,3 +1,8 @@
+---
+title: 'Stakeholder Persona: Project Owner'
+doc_status: active
+updated: '2026-06-12'
+---
 # Stakeholder Persona: Project Owner
 
 | Field | Value |

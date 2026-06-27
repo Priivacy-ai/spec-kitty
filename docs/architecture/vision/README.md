@@ -1,3 +1,10 @@
+---
+title: Architecture Vision (living)
+doc_status: active
+updated: '2026-06-12'
+related:
+- docs/architecture/README.md
+---
 # Architecture Vision (living)
 
 This directory holds the **current and future** architecture vision for Spec Kitty —

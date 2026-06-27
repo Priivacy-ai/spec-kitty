@@ -1,3 +1,11 @@
+---
+title: 3.x Runtime/Execution Domain (Container Detail)
+doc_status: active
+updated: '2026-06-12'
+related:
+- docs/architecture/diagrams/02_containers/README.md
+- docs/architecture/diagrams/03_components/README.md
+---
 # 3.x Runtime/Execution Domain (Container Detail)
 
 | Field | Value |

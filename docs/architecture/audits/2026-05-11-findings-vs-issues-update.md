@@ -1,3 +1,8 @@
+---
+title: '2026-05-11 — findings vs issues (#645, #822 refresh, open bugs)'
+doc_status: active
+updated: '2026-06-12'
+---
 # 2026-05-11 — findings vs issues (#645, #822 refresh, open bugs)
 
 ## Inputs

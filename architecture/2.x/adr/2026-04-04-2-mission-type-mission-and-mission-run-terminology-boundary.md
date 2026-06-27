@@ -1,0 +1,1 @@
+../../3.x/adr/2026-04-04-2-mission-type-mission-and-mission-run-terminology-boundary.md

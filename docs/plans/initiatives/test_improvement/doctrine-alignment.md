@@ -1,3 +1,8 @@
+---
+title: Doctrine Alignment Analysis
+doc_status: draft
+updated: '2026-03-15'
+---
 # Doctrine Alignment Analysis
 
 > **Status:** Discovery  

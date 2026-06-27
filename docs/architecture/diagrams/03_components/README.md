@@ -1,3 +1,11 @@
+---
+title: 3.x Components
+doc_status: active
+updated: '2026-06-15'
+related:
+- docs/architecture/diagrams/01_context/README.md
+- docs/architecture/diagrams/02_containers/README.md
+---
 # 3.x Components
 
 | Field | Value |

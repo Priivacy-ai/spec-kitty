@@ -1,3 +1,8 @@
+---
+title: 3.x — vision (history slot)
+doc_status: active
+updated: '2026-06-12'
+---
 # 3.x — vision (history slot)
 
 Per-era **vision** record for the 3.x architecture track. This is part of the

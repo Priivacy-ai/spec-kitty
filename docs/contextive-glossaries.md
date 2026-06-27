@@ -1,3 +1,8 @@
+---
+title: Contextive Glossary Integration
+doc_status: active
+updated: '2026-04-05'
+---
 # Contextive Glossary Integration
 
 Spec Kitty generates [Contextive](https://contextive.tech)-compatible YAML glossary files from the

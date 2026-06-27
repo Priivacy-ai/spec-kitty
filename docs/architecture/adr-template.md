@@ -1,3 +1,8 @@
+---
+title: '[Short descriptive title]'
+doc_status: active
+updated: '2026-06-12'
+---
 # [Short descriptive title]
 
 **Filename:** `YYYY-MM-DD-N-descriptive-title-with-dashes.md` (where N is 1, 2, 3... for that day)

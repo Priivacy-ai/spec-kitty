@@ -1,3 +1,8 @@
+---
+title: 'Context: Testing Taxonomy'
+doc_status: active
+updated: '2026-05-30'
+---
 ## Context: Testing Taxonomy
 
 Canonical categories for tests in this project's `tests/` tree. Each category is a pytest marker declared in `pytest.ini` `[pytest] markers`. Every test file MUST declare a module-level `pytestmark = [pytest.mark.<name>]` carrying at least one of these markers (architectural convention enforced by `tests/architectural/test_pytest_marker_convention.py`). CI quality gates and developer-loop profiles select tests by marker (`uv run pytest -m fast`, `-m architectural`, `-m "contract or unit"`, …), so an untagged test is silently invisible to those filters.
