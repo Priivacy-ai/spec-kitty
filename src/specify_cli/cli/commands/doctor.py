@@ -47,6 +47,8 @@ from ._doctor_shared import (
 if TYPE_CHECKING:
     from specify_cli.compat.doctor import ShimRegistryReport
 
+    from ._doctrine_health import DoctrineHealthReport
+
 app = typer.Typer(name="doctor", help="Project health diagnostics")
 # WP08 (#1623): the doctrine/profile health *render* helpers were extracted to
 # ``_profile_health_render`` (which instantiates the single ``console``
@@ -983,6 +985,15 @@ def doctrine_check(
     ``pack-manifest.yaml`` ``pack_version``), per-artifact YAML counts, and
     ``org-charter.yaml`` policy status when present.
 
+    Override governance (FR-010 / FR-012): when org packs are configured, any
+    ``org:``-provenance override of a built-in DRG node that is NOT sanctioned
+    by ``.kittify/doctrine/replaceable-builtins.yaml`` is reported as an
+    ``unsanctioned_overrides`` finding and flips the report unhealthy (RC=1).
+    Project-tier (``.kittify/doctrine/``) overrides of built-ins are
+    intentionally **ungoverned** — project doctrine is the trusted operator tier
+    and is not gated by the consumer-facing allowlist; only org-tier overrides
+    are adjudicated.
+
     Examples:
         spec-kitty doctor doctrine
         spec-kitty doctor doctrine --json
@@ -1043,7 +1054,43 @@ def doctrine_check(
         selection_block,
         repo_root,
     )
+    # WP08 (FR-010): surface unsanctioned built-in overrides loudly (the JSON
+    # surface already carries them via the ``org_drg`` passthrough).
+    _render_unsanctioned_override_findings(report)
     raise typer.Exit(exit_code)
+
+
+def _render_unsanctioned_override_findings(report: DoctrineHealthReport) -> None:
+    """Render the loud ``unsanctioned built-in override`` block (FR-010 / FR-012).
+
+    Reads the dedicated ``org_drg['unsanctioned_overrides']`` key (assembled in
+    ``_doctrine_collect``) — narrowed with ``isinstance`` so no ``# type: ignore``
+    is needed — rather than re-deriving the merged blob in ``org_drg['errors']``.
+    A no-op when there are no findings (e.g. no org packs configured).
+    """
+    org_drg = report.org_drg
+    findings = org_drg.get("unsanctioned_overrides") if isinstance(org_drg, dict) else None
+    if not isinstance(findings, list) or not findings:
+        return
+    console.print(
+        f"\n[bold red]Unsanctioned built-in override(s)[/bold red] — "
+        f"{len(findings)} not allowlisted\n"
+    )
+    for finding in findings:
+        if not isinstance(finding, dict):
+            continue
+        console.print(
+            f"  • [red]{finding.get('urn')}[/red] "
+            f"({finding.get('kind')}): {finding.get('why')}"
+        )
+    console.print(
+        "  [dim]Add the URN to .kittify/doctrine/replaceable-builtins.yaml "
+        "(with a reason for directives) or remove the org override.[/dim]"
+    )
+    console.print(
+        "  [dim]Only org-tier overrides are adjudicated; project-tier "
+        "(.kittify/doctrine/) overrides are intentionally ungoverned (FR-012).[/dim]"
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -22,6 +22,8 @@ from typing import TYPE_CHECKING
 from ._profile_health_render import _SELECTION_KIND_PLURALS
 
 if TYPE_CHECKING:
+    from doctrine.drg.models import DRGGraph
+
     from ._doctrine_health import DoctrineHealthReport
 
 # ``__all__`` lists the collectors re-exported through the ``doctor`` shim
@@ -360,7 +362,27 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
 
     try:
         built_in = load_graph_or_dir(resolve_doctrine_root())
-        merge_three_layers(built_in=built_in, org_fragments=fragments, project=None)
+        # WP08 (FR-010): reuse the SAME merge the org-layer section already runs
+        # (C-006 — no new DRG plumbing). The merged graph is now captured, not
+        # discarded, so the promoted predicates can adjudicate built-in overrides.
+        merged = merge_three_layers(
+            built_in=built_in, org_fragments=fragments, project=None
+        )
+        built_in_urns = frozenset(node.urn for node in built_in.nodes)
+        unsanctioned = _adjudicate_org_overrides(merged, built_in_urns, repo_root)
+        if unsanctioned:
+            # Dedicated key for precise rendering (human/JSON) AND an entry in
+            # ``errors`` so the honest ``DoctrineHealthReport.healthy`` predicate
+            # flips the report unhealthy (RC=1) without a parallel health path.
+            result["unsanctioned_overrides"] = unsanctioned
+            _append_org_errors(
+                result,
+                [
+                    f"unsanctioned built-in override: {f['urn']} "
+                    f"({f['kind']}) — {f['why']}"
+                    for f in unsanctioned
+                ],
+            )
     except OrgDRGConflictError as exc:
         result["collision_warnings"] = [
             {
@@ -375,6 +397,50 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
         pass
 
     return result
+
+
+def _append_org_errors(result: dict[str, object], messages: list[str]) -> None:
+    """Append *messages* to ``result['errors']`` with isinstance narrowing.
+
+    ``DoctrineHealthReport.healthy`` treats a non-empty ``org_drg['errors']`` as
+    unhealthy, so this is the in-ownership channel that flips the exit code when
+    an unsanctioned override is found (no edit to ``_doctrine_health.py``).
+    """
+    existing = result.get("errors")
+    errors = list(existing) if isinstance(existing, list) else []
+    errors.extend(messages)
+    result["errors"] = errors
+
+
+def _adjudicate_org_overrides(
+    merged: DRGGraph,
+    built_in_urns: frozenset[str],
+    repo_root: Path,
+) -> list[dict[str, str]]:
+    """Adjudicate org overrides of built-in DRG nodes against the repo allowlist.
+
+    Pure governance helper extracted from :func:`_collect_org_layer_data` to keep
+    that collector at complexity ≤ 15 (NFR-003). It reuses the WP07-promoted
+    predicates over an ALREADY-MERGED graph and runs no merge of its own
+    (C-006). Only ``org:``-provenance overrides are adjudicated; project-tier
+    (``.kittify/doctrine/``) overrides are intentionally ungoverned (FR-012).
+
+    Returns a JSON-serialisable list of ``{"urn", "kind", "why"}`` findings —
+    empty when every override is sanctioned by
+    ``.kittify/doctrine/replaceable-builtins.yaml`` (or none exist).
+    """
+    from doctrine.drg.override_policy import (  # noqa: PLC0415
+        find_overridden_builtin_urns,
+        find_unsanctioned_overrides,
+        load_replaceable_builtins,
+    )
+
+    targets = find_overridden_builtin_urns(merged, built_in_urns)
+    if not targets:
+        return []
+    policy = load_replaceable_builtins(repo_root)
+    findings = find_unsanctioned_overrides(targets, policy)
+    return [{"urn": f.urn, "kind": f.kind, "why": f.why} for f in findings]
 
 
 def _resolve_artifact_source(

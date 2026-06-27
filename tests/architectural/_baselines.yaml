@@ -58,16 +58,13 @@ test_no_dead_modules:
   # bringing the live size to 7. Per C-006 this category MUST shrink
   # by >= 2 entries per major release; target = 0 by 4.0.
   # Lowered 7 -> 6 to lock in observed shrinkage (one further orphan removed).
-  # justification: 6 -> 7 (doctrine.drg.override_policy): governance-as-test
-  # surface consumed only by tests/architectural/test_builtin_override_policy.py
-  # (the built-in-override allowlist is enforced by a per-repo TEST, not a
-  # runtime path). Burns down when a runtime caller (doctor doctrine override
-  # diagnostics) is wired. Stays within the C-006 cap of 7.
-  # burn-down ticket (FR-303): #2082 (wire override_policy into doctor doctrine
-  # -> consumer-facing enforcement, then lower 7 -> 6); sub-issue of #2080
-  # (daphne-led DRG/doctrine audit + remediate). NOTE: this bump re-consumes the
-  # headroom of the prior deliberate 7 -> 6 shrinkage; tracked under #2082.
-  category_7_grandfathered_orphans: 7
+  # #2082 FR-011 burn-down LANDED: WP08 wired override_policy's three governance
+  # predicates into the `spec-kitty doctor doctrine` runtime caller
+  # (specify_cli.cli.commands._doctrine_collect), so the module now has a real
+  # src/ caller and is no longer an orphan; WP09 narrowed its __all__ to those
+  # three live functions and retired the doctrine.drg.override_policy allowlist
+  # entry. Re-lowered 7 -> 6, reversing the prior deliberate bump.
+  category_7_grandfathered_orphans: 6
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:
