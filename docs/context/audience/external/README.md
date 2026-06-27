@@ -1,5 +1,6 @@
 ---
 title: External Audience Personas
+description: Index of external-audience personas — stakeholders outside the Spec Kitty runtime boundary — with their actor type, primary concern, and linked user journeys.
 doc_status: active
 updated: '2026-03-10'
 related:

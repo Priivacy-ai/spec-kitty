@@ -1,5 +1,6 @@
 ---
 title: 'Context: Practices and Principles'
+description: 'Glossary context for practices and principles: the operating principles guiding glossary-semantic-integrity execution, such as the mostly-invisible process.'
 doc_status: active
 updated: '2026-03-10'
 related:

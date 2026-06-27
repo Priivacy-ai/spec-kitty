@@ -1,5 +1,6 @@
 ---
 title: Internal Audience Personas
+description: Index of internal-audience personas — contributors and system/runtime actors inside the Spec Kitty delivery boundary — with actor type, concern, and linked journeys.
 doc_status: active
 updated: '2026-03-10'
 related:

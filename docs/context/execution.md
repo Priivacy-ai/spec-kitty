@@ -1,5 +1,6 @@
 ---
 title: 'Context: Execution'
+description: 'Glossary context for execution semantics: tool invocation and the semantic safety gates applied during generation within a Spec Kitty mission.'
 doc_status: active
 updated: '2026-06-14'
 related:
