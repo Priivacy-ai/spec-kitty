@@ -754,7 +754,7 @@ def _plan_impl(
     project_root_resolver: Callable[[Path], Path | None] | None,
 ) -> Plan:
     """Inner implementation of plan() — may raise; caller wraps in try/except."""
-    from specify_cli.compat._detect.install_method import detect_install_method
+    from specify_cli.compat._detect.runtime import detect_runtime
     from specify_cli.compat.cache import NagCache, NagCacheRecord
     from specify_cli.compat.config import UpgradeConfig
     from specify_cli.compat.provider import (
@@ -893,7 +893,7 @@ def _plan_impl(
     safety = classify(invocation)
 
     # --- Step 4: Detect install method ---
-    install_method = detect_install_method()
+    install_method = detect_runtime().install_method
 
     # --- Step 5: Build upgrade hint ---
     upgrade_hint = build_upgrade_hint(install_method, target_version=latest_version)

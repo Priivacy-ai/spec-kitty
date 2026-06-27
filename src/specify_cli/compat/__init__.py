@@ -15,7 +15,7 @@ Public API (WP01–WP06, upgrade-nag / planner domain):
     LatestVersionProvider, LatestVersionResult, PyPIProvider, NoNetworkProvider, FakeLatestVersionProvider,
     NagCache, NagCacheRecord,
     UpgradeConfig,
-    InstallMethod, detect_install_method,
+    InstallMethod, detect_runtime,
     UpgradeHint, build_upgrade_hint,
     Invocation, ProjectState, CliStatus, ProjectStatus, MigrationStep,
 
@@ -63,7 +63,8 @@ from specify_cli.compat.config import UpgradeConfig
 # ---------------------------------------------------------------------------
 # WP05 — Install-method detection and upgrade hints
 # ---------------------------------------------------------------------------
-from specify_cli.compat._detect.install_method import InstallMethod, detect_install_method
+from specify_cli.compat._detect.install_method import InstallMethod
+from specify_cli.compat._detect.runtime import detect_runtime
 from specify_cli.compat.upgrade_hint import UpgradeHint, build_upgrade_hint
 
 # ---------------------------------------------------------------------------
@@ -117,7 +118,7 @@ __all__ = [
     "UpgradeConfig",
     # WP05 — Install method + hints
     "InstallMethod",
-    "detect_install_method",
+    "detect_runtime",
     "UpgradeHint",
     "build_upgrade_hint",
     # WP06 — Planner
