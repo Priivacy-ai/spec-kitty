@@ -19,7 +19,7 @@ subtasks:
 - T030
 - T031
 - T032
-agent: ""
+agent: "claude:opus:reviewer-renata:reviewer"
 history: []
 agent_profile: python-pedro
 authoritative_surface: scripts/docs/adr_converter.py
@@ -32,6 +32,7 @@ owned_files:
 - tests/docs/test_adr_converter.py
 role: implementer
 tags: []
+shell_pid: "1581114"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -124,3 +125,16 @@ Planning + final merge target: `docs/2165-mission-b-structural-move`. Depends on
 ## Activity Log
 
 - (populated at implement time)
+- 2026-06-27T13:37:46Z – claude:opus:python-pedro:implementer – shell_pid=1421969 – Assigned agent via action command
+- 2026-06-27T13:48:35Z – claude:opus:python-pedro:implementer – shell_pid=1421969 – ADR converter: 3 parsers (incl dash-bullet), invariance reuses _inventory.parse_frontmatter, mutation-RED proven, 18 tests, ruff/mypy 0
+- 2026-06-27T13:49:32Z – claude:opus:reviewer-renata:reviewer – shell_pid=1449211 – Started review via action command
+- 2026-06-27T13:55:12Z – user – shell_pid=1449211 – Moved to planned
+- 2026-06-27T13:56:39Z – claude:opus:python-pedro:implementer – shell_pid=1463724 – Started implementation via action command
+- 2026-06-27T14:08:51Z – claude:opus:python-pedro:implementer – shell_pid=1463724 – cycle 2: raw-byte mutation test (load-bearing proven), 19 tests, ruff/mypy 0. --force: kitty-specs-on-lane guard (lane code clean; status-chore divergence only)
+- 2026-06-27T14:10:58Z – claude:opus:reviewer-renata:reviewer – shell_pid=1482929 – Started review via action command
+- 2026-06-27T14:15:28Z – user – shell_pid=1482929 – Cycle-2 re-review APPROVED by reviewer-renata: prior rejection blocker (raw-byte invariance test-pinning gap) is remediated. New test test_whitespace_only_mutation_drives_invariance_red pins raw-byte invariance with a whitespace-only mutation (mutated.split()==converted.split()); proven load-bearing — under a normalized .split() compare probe ONLY this test goes RED (1 failed/18 passed), word-sub test stays green; probe reverted, production unchanged (cycle-2 diff is test-only, 18 insertions). 19 tests pass, ruff/mypy 0.
+- 2026-06-27T14:56:23Z – user – shell_pid=1482929 – Moved to planned
+- 2026-06-27T14:56:47Z – claude:opus:python-pedro:implementer – shell_pid=1552831 – Started implementation via action command
+- 2026-06-27T15:13:59Z – claude:opus:python-pedro:implementer – shell_pid=1552831 – cycle 3: extended converter (5 dialects, status alias table both ambiguous→Superseded, Date-from-filename); dry-run over 188 real ADRs = 0 hard-errors / 0 invariance fails; 39 tests, ruff/mypy 0
+- 2026-06-27T15:14:11Z – claude:opus:reviewer-renata:reviewer – shell_pid=1581114 – Started review via action command
+- 2026-06-27T15:19:36Z – user – shell_pid=1581114 – Cycle-3 re-review APPROVED. review-cycle-3.md reopen's 4 required extensions all implemented (commit 4afe5040) and independently verified: (1) colon-outside-bold + (2) dash+bold dialects parse correctly; (3) status alias table — derivable qualifieds strip to MADR root, amended/partially-superseded→Superseded explicit+auditable+fail-closed (Ratified hard-errors), body verbatim (C-002); (4) Date-from-filename fallback (real header wins; no-date+no-filename hard-errors). Independent dry-run over 117 real ADRs: 0 hard-errors, 0 invariance fails (Accepted 93/Superseded 11/Proposed 13; 4 README non-ADRs correctly fail-closed). Raw-byte invariance + whitespace-only mutation test intact. 39 tests green, ruff clean, mypy clean.

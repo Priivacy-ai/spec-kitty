@@ -4,6 +4,7 @@ title: Bulk reference rewrite (~1299 occ rewrite target via occurrence map; kitt
 dependencies:
 - WP03
 - WP06
+- WP16
 requirement_refs:
 - FR-005
 - FR-009
@@ -20,7 +21,7 @@ subtasks:
 - T051
 - T052
 - T053
-agent: ""
+agent: "claude:opus:reviewer-renata:reviewer"
 history: []
 agent_profile: python-pedro
 authoritative_surface: scripts/docs/bulk_ref_rewrite.py
@@ -37,6 +38,7 @@ owned_files:
 - tests/docs/test_bulk_ref_rewrite.py
 role: implementer
 tags: []
+shell_pid: "1914509"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -159,3 +161,11 @@ Planning + final merge target: `docs/2165-mission-b-structural-move`. Depends on
 ## Activity Log
 
 - (populated at implement time)
+- 2026-06-27T15:51:46Z – claude:opus:python-pedro:implementer – shell_pid=1667144 – Assigned agent via action command
+- 2026-06-27T16:49:12Z – claude:opus:python-pedro:implementer – shell_pid=1667144 – bulk rewrite: 1054 occ/282 files via occurrence-map tool (landing-aware), stale-ref 938→57 (0 in-scope misses), kitty-specs+docs/adr 0 changed, ci-quality gate fires on docs/**, CHANGELOG alias intact, dual-read dropped, 16 tool tests; flags: code-patterns IC-01 + relative-link debt
+- 2026-06-27T16:54:33Z – claude:opus:reviewer-renata:reviewer – shell_pid=1816194 – Started review via action command
+- 2026-06-27T17:05:12Z – user – shell_pid=1816194 – Moved to planned
+- 2026-06-27T17:06:31Z – claude:opus:python-pedro:implementer – shell_pid=1842672 – Started implementation via action command
+- 2026-06-27T17:37:55Z – claude:opus:python-pedro:implementer – shell_pid=1842672 – cycle 2: era-twin resolution — 31 dead docs/adr/2.x refs rerouted to surviving 3.x (resolve on disk), teeth check find_dead_twinned_adr_links (0 dead-twinned), 27 tests, do_not_change preserved
+- 2026-06-27T17:37:58Z – claude:opus:reviewer-renata:reviewer – shell_pid=1914509 – Started review via action command
+- 2026-06-27T17:44:03Z – user – shell_pid=1914509 – Cycle-2 approved (override prior cycle-1 rejection artifact): era-twin resolution heals dead docs/adr/2.x refs -> surviving 3.x; all 11 rerouted 3.x targets + all real 2.x file refs verified on-disk; generalized via on-disk _adr_era_dirs (no hardcoded list); teeth find_dead_twinned_adr_links non-vacuous (RED+GREEN, excludes relative/absolute via anchored lookbehind) returns 0 on real tree; 27 tests green; ruff clean; do_not_change (kitty-specs 0, docs/adr untouched by sweep) + terminology + ci-quality docs/** glob intact; idempotent

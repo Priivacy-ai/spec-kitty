@@ -11,7 +11,7 @@
         "WP01"
       ],
       "write_scope": [
-        ".kittify/charter/governance.yaml",
+        ".kittify/charter/charter.md",
         "scripts/generate_contextive_glossaries.py",
         "src/charter/context_renderers/authority_paths.py",
         "src/specify_cli/cli/commands/doctor.py",
@@ -219,7 +219,8 @@
       ],
       "predicted_surfaces": [
         "api",
-        "app-shell"
+        "app-shell",
+        "artifact-rendering"
       ],
       "depends_on_lanes": [
         "lane-c",
@@ -249,6 +250,30 @@
       "parallel_group": 4
     },
     {
+      "lane_id": "lane-p",
+      "wp_ids": [
+        "WP16"
+      ],
+      "write_scope": [
+        "docs/api/**",
+        "docs/explanation/**",
+        "docs/how-to/**",
+        "docs/recovery/**",
+        "docs/reference/**",
+        "docs/tutorials/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-c",
+        "lane-d",
+        "lane-g"
+      ],
+      "parallel_group": 4
+    },
+    {
       "lane_id": "lane-h",
       "wp_ids": [
         "WP08"
@@ -264,11 +289,13 @@
       "predicted_surfaces": [
         "api",
         "app-shell",
+        "artifact-rendering",
         "legacy-cleanup"
       ],
       "depends_on_lanes": [
         "lane-c",
-        "lane-f"
+        "lane-f",
+        "lane-p"
       ],
       "parallel_group": 5
     },
@@ -282,10 +309,12 @@
       ],
       "predicted_surfaces": [
         "api",
+        "artifact-rendering",
         "tracker-integration"
       ],
       "depends_on_lanes": [
-        "lane-k"
+        "lane-k",
+        "lane-p"
       ],
       "parallel_group": 5
     },
@@ -309,6 +338,27 @@
       "parallel_group": 6
     },
     {
+      "lane_id": "lane-q",
+      "wp_ids": [
+        "WP18"
+      ],
+      "write_scope": [
+        "scripts/docs/relative_link_fixer.py",
+        "tests/docs/test_relative_link_fixer.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-d",
+        "lane-f",
+        "lane-h",
+        "lane-j",
+        "lane-p"
+      ],
+      "parallel_group": 6
+    },
+    {
       "lane_id": "lane-n",
       "wp_ids": [
         "WP14"
@@ -325,7 +375,9 @@
       "depends_on_lanes": [
         "lane-f",
         "lane-j",
-        "lane-m"
+        "lane-m",
+        "lane-p",
+        "lane-q"
       ],
       "parallel_group": 7
     },
@@ -347,7 +399,7 @@
       "parallel_group": 8
     }
   ],
-  "computed_at": "2026-06-27T12:01:49.016567+00:00",
+  "computed_at": "2026-06-27T17:46:00.373887+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": []
 }

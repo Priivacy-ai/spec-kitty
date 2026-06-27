@@ -17,7 +17,7 @@ gate. Run it when:
 - You suspect a module has "happy-path-only" tests (coverage high, asserts flimsy).
 - You're reviewing a contributor PR and want to sanity-check their test discipline.
 
-See [ADR 2026-04-20-1](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-04-20-1-mutation-testing-as-local-only-quality-gate.md)
+See [ADR 2026-04-20-1](https://github.com/Priivacy-ai/spec-kitty/blob/main/architecture/2.x/adr/2026-04-20-1-mutation-testing-as-local-only-quality-gate.md)
 for the decision to ship it local-only, and the curated doctrine set in
 `src/doctrine/tactics/built-in/mutation-testing-workflow.tactic.yaml` and
 `src/doctrine/styleguides/built-in/mutation-aware-test-design.styleguide.yaml` for
@@ -210,7 +210,7 @@ mode:
 
 ## See also
 
-- [ADR 2026-04-20-1](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-04-20-1-mutation-testing-as-local-only-quality-gate.md)
+- [ADR 2026-04-20-1](https://github.com/Priivacy-ai/spec-kitty/blob/main/architecture/2.x/adr/2026-04-20-1-mutation-testing-as-local-only-quality-gate.md)
   — the decision record covering scope, doctrine, and the `non_sandbox`/`flaky`
   marker taxonomy.
 - [`src/doctrine/tactics/built-in/mutation-testing-workflow.tactic.yaml`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/tactics/built-in/mutation-testing-workflow.tactic.yaml)

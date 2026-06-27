@@ -720,7 +720,7 @@ Responses to prompts:
 - Reference: Full CLI command reference (auto-generated from argparse)
 - Explanation: Architecture and design decisions
 - Use Sphinx with autodoc for API reference
-- Organize as docs/tutorial/, docs/howto/, docs/api/, docs/architecture/
+- Organize as docs/tutorial/, docs/howto/, docs/reference/, docs/explanation/
 ```
 
 **Step 3: Generate Tasks**
@@ -745,8 +745,8 @@ Agent creates:
 - `docs/conf.py` (Sphinx configuration)
 - `docs/tutorial/getting-started.md`
 - `docs/howto/configuring.md`, `docs/howto/deploying.md`
-- `docs/api/cli.md` (generated from argparse)
-- `docs/architecture/architecture.md`
+- `docs/reference/cli.md` (generated from argparse)
+- `docs/explanation/architecture.md`
 - Updated README with docs link
 
 **Step 5: Review and Accept**

@@ -74,7 +74,7 @@ def test_derive_maps_published_move_to_new_url() -> None:
 def test_derive_ignores_never_published_internal_moves() -> None:
     # architecture/** + CHANGELOG.md were never published URLs, so a baseline-driven
     # derivation yields no public-URL redirect for them (their source is not docs/).
-    arch_move = Move(sources=("docs/adr/2.x",), dest="docs/adr/2.x")
+    arch_move = Move(sources=("architecture/2.x/adr",), dest="docs/adr/2.x")
     changelog_move = Move(sources=("CHANGELOG.md",), dest="docs/changelog")
     mapping = derive_redirect_map(
         [_DIRECT_URL, _MOVED_URL], [arch_move, changelog_move]
@@ -94,9 +94,34 @@ def test_committed_redirect_map_is_diff_stable() -> None:
     assert yaml.safe_load(rendered) == committed
 
 
-def test_committed_map_covers_the_three_move19_urls() -> None:
+def test_committed_map_covers_the_shadow_tree_redirects() -> None:
+    """The committed map covers every deleted/moved shadow-tree URL (FR-008).
+
+    WP10 resolves the three ``docs/<v>x`` shadow trees: ``docs/1x`` + ``docs/2x``
+    (true HTML snapshots) are DELETED and each baseline URL redirects to its
+    pre-existing canonical archive twin (``archive/<v>x/*``); ``docs/3x`` (live
+    charter content) is distilled + moved into ``context/`` and redirected there.
+    This pins the full post-WP10 map — exactly what WP07's T045 anticipated:
+    100% coverage is asserted once WP10's shadow-tree redirects land.
+    """
     committed = load_redirect_map(DEFAULT_REDIRECT_MAP)
     assert committed == {
+        # docs/1x snapshot -> pre-existing archive/1x twin
+        "1x/artifacts-and-commands.html": "archive/1x/artifacts-and-commands.html",
+        "1x/branches-and-workspaces.html": "archive/1x/branches-and-workspaces.html",
+        "1x/index.html": "archive/1x/index.html",
+        "1x/orchestration-and-api.html": "archive/1x/orchestration-and-api.html",
+        "1x/workflow.html": "archive/1x/workflow.html",
+        # docs/2x snapshot -> pre-existing archive/2x twin
+        "2x/adr-coverage.html": "archive/2x/adr-coverage.html",
+        "2x/doctrine-and-charter.html": "archive/2x/doctrine-and-charter.html",
+        "2x/glossary-system.html": "archive/2x/glossary-system.html",
+        "2x/index.html": "archive/2x/index.html",
+        "2x/model-discipline-routing.html": "archive/2x/model-discipline-routing.html",
+        "2x/model-to-task_type.html": "archive/2x/model-to-task_type.html",
+        "2x/orchestration-and-api.html": "archive/2x/orchestration-and-api.html",
+        "2x/runtime-and-missions.html": "archive/2x/runtime-and-missions.html",
+        # docs/3x live charter content -> distilled into context/
         "3x/charter-overview.html": "context/charter-overview.html",
         "3x/governance-files.html": "context/governance-files.html",
         "3x/index.html": "context/index.html",

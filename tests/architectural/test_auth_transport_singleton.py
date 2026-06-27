@@ -1,7 +1,7 @@
 """Architectural test: centralized auth transport boundary (FR-030).
 
 Pins the invariant from
-``docs/adr/3.x/2026-04-26-2-auth-transport-boundary.md``: the
+``architecture/2.x/adr/2026-04-26-2-auth-transport-boundary.md``: the
 sync, tracker, and websocket subsystems MUST acquire HTTP transports
 from ``specify_cli.auth.transport`` (or the auth-internal SaaS-fallback
 helper). Direct ``httpx.Client(...)`` / ``httpx.AsyncClient(...)``
@@ -57,7 +57,7 @@ _WALKED_SUBSYSTEMS: tuple[Path, ...] = (
 # WP06. The intent is documented inside ``saas_client._request``'s
 # docstring; the next sweep should remove this entry along with the
 # corresponding test-mock migration. See ADR
-# ``docs/adr/3.x/2026-04-26-2-auth-transport-boundary.md`` for
+# ``architecture/2.x/adr/2026-04-26-2-auth-transport-boundary.md`` for
 # the broader boundary decision.
 _TRANSPORT_ALLOWLIST: frozenset[Path] = frozenset(
     {

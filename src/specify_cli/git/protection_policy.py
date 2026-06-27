@@ -8,7 +8,7 @@ directly for this purpose.
 
 Design basis
 ------------
-ADR ``docs/adr/3.x/2026-06-21-1-protected-branch-config-boundary-resolved-value.md``
+ADR ``architecture/3.x/adr/2026-06-21-1-protected-branch-config-boundary-resolved-value.md``
 and design squad research ``protected-branch-carrier-decision.md`` establish the
 standalone-value-object shape.  The existing ``core.commit_guard.evaluate`` /
 ``ProtectionState`` seam is *reused unchanged*; this module only resolves the

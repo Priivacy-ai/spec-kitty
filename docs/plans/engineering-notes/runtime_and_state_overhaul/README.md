@@ -54,7 +54,7 @@ to a design, so the design conversation is anchored in evidence rather than memo
 
 - Ticket bodies and comments fetched from `Priivacy-ai/spec-kitty` issues #1619, #1615, #1616, #1617, #1618, #1602, #1348, and PR #1627 on 2026-06-03.
 - Code citations against working tree at the rc35 development checkout (commit context: `main` @ `48a687db3`).
-- Architecture digest from `docs/adr/3.x/*` + `docs/plans/engineering-notes/architectural-review/2026-05-25-deep-dive-architectural-review.md` + `docs/architecture/audits/2026-05-*caacs*`.
+- Architecture digest from `architecture/3.x/adr/*` + `docs/engineering_notes/architectural-review/2026-05-25-deep-dive-architectural-review.md` + `architecture/audits/2026-05-*caacs*`.
 - Doctrine digest from `src/doctrine/{directives,paradigms,tactics,styleguides}/built-in/*`.
 
 All `path:line` citations are point-in-time; verify before acting on any single line.

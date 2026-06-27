@@ -101,6 +101,6 @@ Removal is a separate change. There is no date-based removal promise.
 ## References
 
 - [Mission spec](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/077-mission-terminology-cleanup/spec.md)
-- [Mission Type / Mission / Mission Run Terminology Boundary ADR](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-04-04-2-mission-type-mission-and-mission-run-terminology-boundary.md)
-- [Mission Nomenclature Reconciliation initiative](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/plans/initiatives/2026-04-mission-nomenclature-reconciliation/README.md)
+- [Mission Type / Mission / Mission Run Terminology Boundary ADR](https://github.com/Priivacy-ai/spec-kitty/blob/main/architecture/2.x/adr/2026-04-04-2-mission-type-mission-and-mission-run-terminology-boundary.md)
+- [Mission Nomenclature Reconciliation initiative](https://github.com/Priivacy-ai/spec-kitty/blob/main/architecture/2.x/initiatives/2026-04-mission-nomenclature-reconciliation/README.md)
 - [Tracking issue #241](https://github.com/Priivacy-ai/spec-kitty/issues/241)

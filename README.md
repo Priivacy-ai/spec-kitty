@@ -46,7 +46,7 @@ It is probably overkill for one-off edits, tiny scripts, or teams that do not us
 | Keep quality visible | Review, accept, merge, and retrospective gates |
 | See progress | Optional local kanban dashboard with `spec-kitty dashboard` |
 | Integrate agents | Slash commands or skills for Claude Code, Codex, Cursor, Gemini, Copilot, Windsurf, OpenCode, and more |
-| Learn from missions | Every completed mission generates a retrospective by default. Tune via `.kittify/config.yaml#retrospective` or charter; see [how-to](docs/guides/use-retrospective-learning.md). |
+| Learn from missions | Every completed mission generates a retrospective by default. Tune via `.kittify/config.yaml#retrospective` or charter; see [how-to](docs/how-to/use-retrospective-learning.md). |
 
 ## Common Use Cases
 
@@ -97,7 +97,7 @@ cd my-project
 spec-kitty verify-setup
 ```
 
-Replace `claude` with your agent key when needed. Common choices include `codex`, `cursor`, `gemini`, `copilot`, `opencode`, `qwen`, `windsurf`, `kiro`, `vibe`, `pi`, and `letta`. See [Supported Agents](docs/api/supported-agents.md) for the current list.
+Replace `claude` with your agent key when needed. Common choices include `codex`, `cursor`, `gemini`, `copilot`, `opencode`, `qwen`, `windsurf`, `kiro`, `vibe`, `pi`, and `letta`. See [Supported Agents](docs/reference/supported-agents.md) for the current list.
 
 Open your AI coding agent in the project and run the core workflow:
 
@@ -129,7 +129,7 @@ autonomous facilitator), not by `merge`. Once it exists, use
 `spec-kitty agent retrospect synthesize --mission <mission-slug>` to apply any
 staged proposals (dry-run by default — pass `--apply` to mutate).
 
-For the full walkthrough, see [Your First Feature](docs/guides/your-first-feature.md).
+For the full walkthrough, see [Your First Feature](docs/tutorials/your-first-feature.md).
 
 ## Everyday Commands
 
@@ -146,28 +146,28 @@ For the full walkthrough, see [Your First Feature](docs/guides/your-first-featur
 
 Start here:
 
-- [Getting Started](docs/guides/getting-started.md)
-- [Your First Feature](docs/guides/your-first-feature.md)
-- [Orchestrator Quickstart](docs/guides/orchestrator-quickstart.md)
-- [CLI Command Reference](docs/api/cli-commands.md)
-- [Slash Commands](docs/api/slash-commands.md)
-- [Supported Agents](docs/api/supported-agents.md)
-- [Dashboard Guide](docs/guides/use-dashboard.md)
-- [Install and Upgrade](docs/guides/install-and-upgrade.md)
+- [Getting Started](docs/tutorials/getting-started.md)
+- [Your First Feature](docs/tutorials/your-first-feature.md)
+- [Orchestrator Quickstart](docs/tutorials/orchestrator-quickstart.md)
+- [CLI Command Reference](docs/reference/cli-commands.md)
+- [Slash Commands](docs/reference/slash-commands.md)
+- [Supported Agents](docs/reference/supported-agents.md)
+- [Dashboard Guide](docs/how-to/use-dashboard.md)
+- [Install and Upgrade](docs/how-to/install-and-upgrade.md)
 
 Deeper topics:
 
-- [Spec-Driven Development](docs/architecture/spec-driven-development.md)
-- [Mission System](docs/architecture/mission-system.md)
-- [Git Worktrees](docs/architecture/git-worktrees.md)
-- [Multi-Agent Orchestration](docs/architecture/multi-agent-orchestration.md)
-- [External Orchestrator Runbook](docs/guides/run-external-orchestrator.md)
-- [Hosted Sync Workspaces](docs/guides/sync-workspaces.md)
+- [Spec-Driven Development](docs/explanation/spec-driven-development.md)
+- [Mission System](docs/explanation/mission-system.md)
+- [Git Worktrees](docs/explanation/git-worktrees.md)
+- [Multi-Agent Orchestration](docs/explanation/multi-agent-orchestration.md)
+- [External Orchestrator Runbook](docs/how-to/run-external-orchestrator.md)
+- [Hosted Sync Workspaces](docs/how-to/sync-workspaces.md)
 
 Hosted auth, sync, and tracker flows remain opt-in. For setup details, see
-[Hosted Sync Workspaces](docs/guides/sync-workspaces.md), [Internal
-Hosted-Readiness](docs/guides/internal-hosted-readiness.md), and
-[Launch-Readiness Behavior](docs/architecture/launch-readiness-future.md).
+[Hosted Sync Workspaces](docs/how-to/sync-workspaces.md), [Internal
+Hosted-Readiness](docs/how-to/internal-hosted-readiness.md), and
+[Launch-Readiness Behavior](docs/explanation/launch-readiness-future.md).
 
 ## FAQ
 
@@ -177,7 +177,7 @@ Spec Kitty can be used as part of a dark software factory or autonomous coding p
 
 ### Which AI coding agents does Spec Kitty support?
 
-Spec Kitty supports common AI coding agents and coding harnesses including Claude Code, Codex, Cursor, Gemini, GitHub Copilot, OpenCode, Qwen, Windsurf, Kiro, Vibe, Pi, and Letta. See [Supported Agents](docs/api/supported-agents.md).
+Spec Kitty supports common AI coding agents and coding harnesses including Claude Code, Codex, Cursor, Gemini, GitHub Copilot, OpenCode, Qwen, Windsurf, Kiro, Vibe, Pi, and Letta. See [Supported Agents](docs/reference/supported-agents.md).
 
 ### How is Spec Kitty different from prompt templates or Spec Kit?
 

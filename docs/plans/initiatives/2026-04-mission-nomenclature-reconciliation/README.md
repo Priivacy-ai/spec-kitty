@@ -67,7 +67,7 @@ Goal: make the ADR and glossary the uncontested source of truth before any code
 rename proceeds.
 
 Tasks:
-- Update `docs/context/orchestration.md` to match the ADR exactly.
+- Update `glossary/contexts/orchestration.md` to match the ADR exactly.
 - Update `glossary/historical-terms.md` so `Feature` is marked as a
   compatibility alias, not a co-equal current term.
 - Add or update glossary entries for `Mission Type`, `Mission Action`,
@@ -78,12 +78,12 @@ Tasks:
   `Mission`, `Feature`, and `Mission Run`.
 
 Representative files:
-- `docs/context/orchestration.md`
-- `docs/context/doctrine.md`
-- `docs/context/identity.md`
+- `glossary/contexts/orchestration.md`
+- `glossary/contexts/doctrine.md`
+- `glossary/contexts/identity.md`
 - `glossary/historical-terms.md`
 - `docs/2x/runtime-and-missions.md`
-- `docs/architecture/mission-system.md`
+- `docs/explanation/mission-system.md`
 
 Acceptance gate:
 - No glossary entry defines `Mission Run` as the tracked item.
@@ -118,8 +118,8 @@ Representative files:
 - `src/specify_cli/cli/commands/agent/workflow.py`
 - `src/specify_cli/cli/commands/mission_type.py`
 - `src/specify_cli/cli/commands/implement.py`
-- `docs/api/cli-commands.md`
-- `docs/api/agent-subcommands.md`
+- `docs/reference/cli-commands.md`
+- `docs/reference/agent-subcommands.md`
 
 Acceptance gate:
 - No canonical help text says `--mission-run` selects `kitty-specs/<slug>/`.
@@ -145,8 +145,8 @@ Representative files:
 - `src/specify_cli/context/models.py`
 - `src/specify_cli/state_contract.py`
 - `src/specify_cli/orchestrator_api/commands.py`
-- `docs/api/orchestrator-api.md`
-- `docs/api/event-envelope.md`
+- `docs/reference/orchestrator-api.md`
+- `docs/reference/event-envelope.md`
 - `docs/status-model.md`
 
 Acceptance gate:
@@ -195,9 +195,9 @@ Representative files:
 - `src/doctrine/skills/spec-kitty-mission-system/SKILL.md`
 - `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md`
 - `src/doctrine/skills/spec-kitty-charter-doctrine/SKILL.md`
-- `docs/api/missions.md`
-- `docs/architecture/runtime-loop.md`
-- `docs/guides/*`
+- `docs/reference/missions.md`
+- `docs/explanation/runtime-loop.md`
+- `docs/tutorials/*`
 - `.agents/skills/**`
 - `.claude/skills/**`
 

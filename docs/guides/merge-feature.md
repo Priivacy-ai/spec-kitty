@@ -190,7 +190,7 @@ May require manual resolution:
 ┌─────────────────────────────────────┬───────────┬────────────┐
 │ File                                │ WPs       │ Confidence │
 ├─────────────────────────────────────┼───────────┼────────────┤
-│ docs/guides/merge-feature.md        │ WP01, WP03│ possible   │
+│ docs/how-to/merge-feature.md        │ WP01, WP03│ possible   │
 └─────────────────────────────────────┴───────────┴────────────┘
 
 Auto-resolvable (status files):

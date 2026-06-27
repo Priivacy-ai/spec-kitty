@@ -19,7 +19,7 @@ contributors can understand older behavior; current projects should use the 3.2 
 
 1. Doctrine artifacts are typed and schema-validated under `src/doctrine/`.
 2. Charter generation uses interview answers plus doctrine catalog selection.
-3. Glossary is context-owned (`docs/context/*.md`) and integrated into mission execution through glossary hooks.
+3. Glossary is context-owned (`glossary/contexts/*.md`) and integrated into mission execution through glossary hooks.
 4. Runtime loop and mission discovery are driven by canonical `next` and runtime precedence rules.
 
 ## Start Here
@@ -38,8 +38,8 @@ contributors can understand older behavior; current projects should use the 3.2 
 
 ## Architecture Repository Layout
 
-- 2.x domain map: `docs/architecture/README-2.x.md#domain-breakdown`
-- 2.x C4 docs: `docs/architecture/01_context/`, `docs/architecture/02_containers/`, `docs/architecture/03_components/`
-- 2.x ADRs: `docs/adr/2.x/`
-- 2.x user journeys: `docs/plans/user_journey/`
-- architecture personas: `docs/context/audience/`
+- 2.x domain map: `architecture/2.x/README.md#domain-breakdown`
+- 2.x C4 docs: `architecture/2.x/01_context/`, `architecture/2.x/02_containers/`, `architecture/2.x/03_components/`
+- 2.x ADRs: `architecture/2.x/adr/`
+- 2.x user journeys: `architecture/2.x/user_journey/`
+- architecture personas: `architecture/audience/`

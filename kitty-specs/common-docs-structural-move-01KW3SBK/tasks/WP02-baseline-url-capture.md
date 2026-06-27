@@ -16,7 +16,7 @@ subtasks:
 - T011
 - T012
 - T013
-agent: ""
+agent: "claude:opus:reviewer-renata:reviewer"
 history: []
 agent_profile: python-pedro
 authoritative_surface: scripts/docs/capture_baseline_urls.py
@@ -31,6 +31,7 @@ owned_files:
 - tests/docs/test_capture_baseline_urls.py
 role: implementer
 tags: []
+shell_pid: "1348197"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -110,3 +111,7 @@ Planning + final merge target: `docs/2165-mission-b-structural-move`. Sequenced 
 ## Activity Log
 
 - (populated at implement time)
+- 2026-06-27T12:40:43Z – claude:opus:python-pedro:implementer – shell_pid=1311976 – Assigned agent via action command
+- 2026-06-27T12:51:57Z – claude:opus:python-pedro:implementer – shell_pid=1311976 – Ready: baseline manifest captured (168 URLs), deterministic/sorted/de-duped. DERIVED-from-source (dotnet/DocFX not installed locally); honors docfx.json content+resource globs (md->html, _*.md & toc.yml excluded, src/dest remap, standalone html resources). Site-walk mode unit-tested for CI. ruff=0, mypy --strict=0 (explicit-package-bases), pytest 8/8 green. Gap: kitty-specs/**/*.html generated at build (0 pre-build), not in denominator.
+- 2026-06-27T12:54:30Z – claude:opus:reviewer-renata:reviewer – shell_pid=1348197 – Started review via action command
+- 2026-06-27T13:00:45Z – user – shell_pid=1348197 – Review passed: 168 URLs faithful to docfx.json globs (re-derived=168, byte-identical regen=deterministic); **-glob fix verified (unscoped bug reproduces 311, scooping architecture/+closeout dirs; regression test pins it); derive+site-walk modes coherent; 8 tests non-vacuous (unscoping ** turns double_star test RED); 5 sampled URLs map to real source files; published roots all present, development/engineering_notes/doctrine/closeout correctly excluded; docfx.json frozen, only 3 owned files touched; ruff/mypy --strict 0. architecture/ absent is CORRECT (not in docfx globs=404 today); kitty-specs/**.html exclusion defensible (build-generated, site-walk repro documented).

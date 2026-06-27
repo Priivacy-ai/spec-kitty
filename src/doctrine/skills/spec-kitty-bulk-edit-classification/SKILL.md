@@ -338,7 +338,7 @@ Dismissing carelessly defeats the guardrail. When in doubt, upgrade.
 The schema for `occurrence_map.yaml` — the required top-level `target:` block,
 the eight categories, and the four-value `action` vocabulary
 (`do_not_change`, `manual_review`, `rename`, `rename_if_user_visible`) — is
-documented in [`docs/api/bulk-edit-gate.md`](../../../docs/api/bulk-edit-gate.md).
+documented in [`docs/reference/bulk-edit-gate.md`](../../../docs/reference/bulk-edit-gate.md).
 Consult that file when:
 
 - You need to look up exactly what an `action` value means.

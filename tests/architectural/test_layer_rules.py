@@ -1,7 +1,7 @@
 """2.x package boundary invariants.
 
 These tests enforce the dependency direction documented in
-docs/architecture/00_landscape/README.md:
+architecture/2.x/00_landscape/README.md:
 
     kernel (root) <- doctrine <- charter <- glossary/runtime <- specify_cli
 

@@ -61,7 +61,7 @@ identity — an additive change over what already works.
 
 ### 3. Charter context already points agents at ADRs
 
-`src/charter/context_renderers/authority_paths.py` hardcodes `docs/adr/2.x/`
+`src/charter/context_renderers/authority_paths.py` hardcodes `architecture/2.x/adr/`
 as a default authority path with the annotation:
 
 > *"architectural intent — when you change a structural boundary, read the relevant ADR"*
@@ -143,7 +143,7 @@ heuristic.
 
 Extend `DEFAULT_AUTHORITY_PATHS` (or the charter-context section-body renderer) to
 include the mission-local `adrs/` path when it exists, alongside the project-level
-`docs/adr/2.x/`:
+`architecture/2.x/adr/`:
 
 ```python
 # In render_authority_paths, when a feature_dir is known:
@@ -197,7 +197,7 @@ is an ADR (for the ADR primitive) plus an implementation spec. Suggested scope:
 **Research phase outputs:**
 - Canonical storage decision: single location vs dual (`kitty-specs/adrs/` + `kitty-specs/<mission>/adrs/`).
 - Minimum schema validated against three real existing ADR corpora in the repo
-  (`docs/adr/2.x/*.md`, `kitty-specs/*/research/architecture-decisions/`, spec-kitty-saas ADRs).
+  (`architecture/2.x/adr/*.md`, `kitty-specs/*/research/architecture-decisions/`, spec-kitty-saas ADRs).
 - ID strategy decision: recommend ULID-based frontmatter ID with path as fallback,
   matching the mission identity model (ADR `2026-04-09-1`).
 - External-doc boundary decision: link vs import vs ignore, with migration guidance
@@ -220,8 +220,8 @@ is an ADR (for the ADR primitive) plus an implementation spec. Suggested scope:
 | Existing artifact | Connection to #1040 | 3.2.0 seam | 3.3.x work |
 |---|---|---|---|
 | `governance-profile.yaml` → `activations: []` | Activation hook for ADR-prompting during `plan`/`research` | Add `adr-drafting-workflow` procedure reference | Wire to typed artifact creation |
-| `authority_paths.py` → `docs/adr/2.x/` | Already surfaces project ADR directory | Add mission-local `adrs/` path | Parametrise from mission context |
+| `authority_paths.py` → `architecture/2.x/adr/` | Already surfaces project ADR directory | Add mission-local `adrs/` path | Parametrise from mission context |
 | `dossier/indexer.py` → heuristic `"adr"` filename match | Discovery already works | Register in `expected-artifacts.yaml` | Replace heuristic with typed loader |
 | `expected-artifacts.yaml` → `optional_always` | Optional artifact registration | Add `adrs/*.md` entry | Schema-validate via `AdrArtifact` |
 | Architect Alphonso profile → `adr-drafting-workflow` tactic | Profile declares intent; tactic has no output path | ADR template gives it a landing zone | Full procedure wired to CLI creation |
-| `charter.context` section anchors | `docs/adr/2.x/` appears as authority path | Mission-local path added | ADR status surfaced in governance context |
+| `charter.context` section anchors | `architecture/2.x/adr/` appears as authority path | Mission-local path added | ADR status surfaced in governance context |

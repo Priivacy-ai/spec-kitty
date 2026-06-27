@@ -219,7 +219,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
     'shim-registry': [
         'Usage: doctor shim-registry [OPTIONS]',
         'Check for overdue compatibility shims in the shim registry.',
-        "Reads docs/migrations/shim-registry.yaml and compares each entry's",
+        "Reads architecture/2.x/shim-registry.yaml and compares each entry's",
         'removal_target_release against the current project version. Fails with',
         'exit code 1 if any shim is overdue (removal release has shipped but',
         'shim file still exists on disk).',

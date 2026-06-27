@@ -33,7 +33,7 @@ Exit codes (R-08):
   5  BLOCK_CLI_UPGRADE (project too new — not overridable by --yes)
   6  BLOCK_PROJECT_CORRUPT
 
-See also: docs/guides/install-and-upgrade.md
+See also: docs/how-to/install-and-upgrade.md
 """
 
 from __future__ import annotations
@@ -725,7 +725,7 @@ def upgrade(  # noqa: C901
       6  Project metadata corrupt (BLOCK_PROJECT_CORRUPT)
       1  General error
 
-    See also: ``docs/guides/install-and-upgrade.md``
+    See also: ``docs/how-to/install-and-upgrade.md``
 
     Examples:
         spec-kitty upgrade              # Upgrade to current version

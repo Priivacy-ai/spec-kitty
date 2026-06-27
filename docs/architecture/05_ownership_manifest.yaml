@@ -1,4 +1,4 @@
-# docs/architecture/05_ownership_manifest.yaml
+# architecture/2.x/05_ownership_manifest.yaml
 #
 # Machine-readable companion to 05_ownership_map.md.
 # Validated by tests/architecture/test_ownership_manifest_schema.py.

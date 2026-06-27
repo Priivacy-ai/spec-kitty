@@ -194,4 +194,4 @@ available_tools:
 | `src/specify_cli/cli/commands/init.py` | Added `_load_doctrine_defaults()`, `_apply_doctrine_defaults()`, `_run_inline_interview()`, `_run_doctrine_stack_init()`; wired `_run_doctrine_stack_init()` call after `_maybe_generate_structure_templates()` |
 | `src/charter/defaults.yaml` | Predefined governance selections for accept-defaults path |
 | `tests/specify_cli/cli/commands/test_init_doctrine.py` | New: 7 ATDD acceptance tests (US-1 scenarios 1-3, US-2 scenarios 1-4) |
-| `docs/plans/user_journey/init-doctrine-flow.md` | New: this document |
+| `architecture/2.x/user_journey/init-doctrine-flow.md` | New: this document |

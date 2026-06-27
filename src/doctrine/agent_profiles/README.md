@@ -68,6 +68,6 @@ Profiles are validated against `schemas/agent-profile.schema.yaml`.
 
 ## Glossary Reference
 
-See [Agent](../../../docs/context/identity.md#agent) and
-[Tool](../../../docs/context/execution.md#tool) in the glossary for the
+See [Agent](../../../glossary/contexts/identity.md#agent) and
+[Tool](../../../glossary/contexts/execution.md#tool) in the glossary for the
 canonical naming distinction.

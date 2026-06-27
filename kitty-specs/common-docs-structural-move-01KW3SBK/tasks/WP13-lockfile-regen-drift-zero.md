@@ -16,7 +16,7 @@ subtasks:
 - T077
 - T078
 - T079
-agent: ""
+agent: "claude:opus:python-pedro:implementer"
 history: []
 agent_profile: python-pedro
 authoritative_surface: docs/development/3-2-page-inventory.yaml
@@ -26,6 +26,7 @@ owned_files:
 - docs/development/3-2-page-inventory.yaml
 role: implementer
 tags: []
+shell_pid: "1933182"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -101,3 +102,4 @@ Planning + final merge target: `docs/2165-mission-b-structural-move`. Depends on
 ## Activity Log
 
 - (populated at implement time)
+- 2026-06-27T17:46:30Z – claude:opus:python-pedro:implementer – shell_pid=1933182 – Assigned agent via action command

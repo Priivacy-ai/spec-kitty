@@ -270,7 +270,7 @@ be brief.
   a deprecation shim that delegates to `foo` and emits a warning.
 - Rejected: hard rename without a shim (breaks downstream).
 
-**Structure** — *brief*. Files: `src/foo/api.py`, `docs/api/foo.md`,
+**Structure** — *brief*. Files: `src/foo/api.py`, `docs/reference/foo.md`,
 the shim module.
 
 **Operations**

@@ -41,7 +41,7 @@ the single highest-leverage structural fix.
 3. **Single highest-leverage structural fix:** **make every named command consume the resolved
    `ExecutionContext` and preserve its typed `ActionContextError.code` end-to-end (no reclassification),
    gated by a repo-wide command-snippet guard that validates CLI snippets in skills/prompts/doctrine —
-   not just `docs/api/` — against the live Typer registry.** One adoption ratchet kills bugs
+   not just `docs/reference/` — against the live Typer registry.** One adoption ratchet kills bugs
    #4/#7/#8/#11/#12/#14/#15 (wrong-authority + flattened-error class); one snippet guard kills
    #1/#5/#9/#13/#16 (drift class). Both extend mechanisms that already exist on this branch.
 
@@ -206,12 +206,12 @@ This branch (`pr/tool-surface-contract-residuals`) already carries most of the m
 - `src/specify_cli/tool_surface/docs.py` — `DocsLinter`, `RegistryPathIndex`, `FINDING_UNREGISTERED_PATH`
   (`tests/specify_cli/tool_surface/test_docs.py`). A registry-backed docs linter exists.
 - `tests/architectural/test_docs_cli_reference_parity.py` — walks the live Typer surface via
-  `scripts.docs._typer_walker.walk` and asserts parity against `docs/api/cli-commands.md` +
+  `scripts.docs._typer_walker.walk` and asserts parity against `docs/reference/cli-commands.md` +
   `agent-subcommands.md`. **It also already scans skill docs for `spec-kitty agent profile <sub>` tokens
   and asserts each `<sub>` is registered (FR-017/FR-018)** — the *exact* pattern #2007 wants, but scoped
   to one command family.
 
-**The gap is reach, not mechanism.** Today the parity guard covers `docs/api/*.md` and one
+**The gap is reach, not mechanism.** Today the parity guard covers `docs/reference/*.md` and one
 profile-subcommand token scan. #2007 needs that token-scan generalized across the **whole published
 corpus**: `src/doctrine/missions/mission-steps/**/prompt.md` (the SOURCE prompts), `.agents/skills/**/
 SKILL.md` and the 12 agent command dirs (generated copies — guard the SOURCE), and `docs/**`.

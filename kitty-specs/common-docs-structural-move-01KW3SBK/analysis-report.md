@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: common-docs-structural-move-01KW3SBK
 mission_id: 01KW3SBKN0S5A9MR0CBW2YGS7H
-generated_at: '2026-06-27T12:05:52.032152+00:00'
+generated_at: '2026-06-27T17:46:25.737313+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
@@ -15,16 +15,16 @@ input_artifacts:
     sha256: db0683a3127c648ba815a484ef6df7094dd7859be1348d6ee5e5dcfc4c6b917e
   tasks.md:
     path: /home/stijn/Documents/_code/SDD/fork/spec-kitty-doctrine-qol/kitty-specs/common-docs-structural-move-01KW3SBK/tasks.md
-    sha256: aaa00b6540dede58fc399240b1fbb4872848f189669e025071f3c40b4bf01b06
+    sha256: 3a167aa735ae040bd96dfabb86a39f8aaed337234fbb83e0f674b65c9eb4b43b
   charter:
     path: /home/stijn/Documents/_code/SDD/fork/spec-kitty-doctrine-qol/.kittify/charter/charter.md
     sha256: d393b068f20eab1bb918c2f53e669d01048f049e8b0f948ff6001fc280517c08
 verdict: ready
 issue_counts:
-  high: 0
   low: 2
-  medium: 0
   critical: 0
+  high: 0
+  medium: 0
   info: 0
 findings:
 - id: C1

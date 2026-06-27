@@ -1,7 +1,7 @@
 """Compatibility-shim infrastructure for spec-kitty.
 
 This package owns:
-- Loading and validating docs/migrations/shim-registry.yaml
+- Loading and validating architecture/2.x/shim-registry.yaml
 - Classifying each registered shim (pending/overdue/grandfathered/removed)
 - The engine behind `spec-kitty doctor shim-registry`
 - The upgrade-nag and project-migration compatibility planner (WP01–WP06)

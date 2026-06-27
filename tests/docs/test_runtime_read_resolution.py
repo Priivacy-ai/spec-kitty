@@ -9,8 +9,8 @@ re-pointed **before** the tree moves, each staged as a **dual-read** (old ∪
 new) so the read resolves both *before* the move (old branch) and *after* it
 (new branch). These tests exercise the **real reader** for each of the six
 reads against a fixture tree that mirrors the *post-move* layout, proving the
-new path resolves — and a companion assertion proving the *old* path no longer
-resolves (WP08 dropped the dual-read once the tree landed; new home only).
+new path resolves — and a companion assertion proving the *old* path still
+resolves (the dual-read invariant; the old branch is dropped later, in WP08).
 
 A test here that merely asserts ``literal == "docs/..."`` would be a
 false-green: every case drives the production reader (``render_authority_paths``,
@@ -114,13 +114,13 @@ class TestAuthorityPathDefaultsResolveNewHomes:
         result = render_authority_paths(tmp_path, DoctrineSelectionConfig())
         assert f"{NEW_CONTEXT_DIR}/" in result
 
-    def test_old_homes_no_longer_resolve(self, tmp_path: Path) -> None:
-        """WP08 dropped the dual-read: the legacy homes are no longer defaults."""
+    def test_old_homes_still_resolve_dual_read(self, tmp_path: Path) -> None:
+        """Dual-read invariant: the OLD homes keep resolving (tree not moved)."""
         _mkdir(tmp_path, OLD_ADR_DIR)
         _mkdir(tmp_path, OLD_CONTEXT_DIR)
         result = render_authority_paths(tmp_path, DoctrineSelectionConfig())
-        assert f"{OLD_ADR_DIR}/" not in result
-        assert f"{OLD_CONTEXT_DIR}/" not in result
+        assert f"{OLD_ADR_DIR}/" in result
+        assert f"{OLD_CONTEXT_DIR}/" in result
 
     def test_both_new_homes_are_registered_defaults(self) -> None:
         """The new homes are real default keys, not only fixture artefacts."""
@@ -148,11 +148,11 @@ class TestShimRegistryReadersResolveNewHome:
         report = check_shim_registry(tmp_path)
         assert report.registry_path == tmp_path.joinpath(*NEW_SHIM_REGISTRY)
 
-    def test_old_home_no_longer_resolves(self, tmp_path: Path) -> None:
-        """WP08 dropped the dual-read: the legacy architecture/2.x home is not read."""
+    def test_old_home_still_resolves_dual_read(self, tmp_path: Path) -> None:
+        """Dual-read: the legacy architecture/2.x home keeps resolving."""
         _write_registry(tmp_path, OLD_SHIM_REGISTRY)
-        with pytest.raises(FileNotFoundError):
-            load_registry(tmp_path)
+        entries = load_registry(tmp_path)
+        assert len(entries) == 1
 
     def test_new_home_preferred_over_old(self, tmp_path: Path) -> None:
         """When both exist, the NEW home wins (forward-correct resolution)."""
@@ -210,11 +210,11 @@ class TestGlossarySourceResolvesNewHome:
         resolved = resolve_glossary_contexts_dir(tmp_path)
         assert resolved == tmp_path / NEW_CONTEXT_DIR
 
-    def test_old_home_no_longer_resolves(self, tmp_path: Path) -> None:
-        """WP08 dropped the dual-read: the resolver returns only docs/context."""
+    def test_old_home_still_resolves_dual_read(self, tmp_path: Path) -> None:
+        """Dual-read: the legacy glossary/contexts home keeps resolving."""
         _mkdir(tmp_path, OLD_CONTEXT_DIR)
         resolved = resolve_glossary_contexts_dir(tmp_path)
-        assert resolved == tmp_path / NEW_CONTEXT_DIR
+        assert resolved == tmp_path / OLD_CONTEXT_DIR
 
     def test_new_home_preferred_over_old(self, tmp_path: Path) -> None:
         _mkdir(tmp_path, OLD_CONTEXT_DIR)

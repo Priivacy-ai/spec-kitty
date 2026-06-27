@@ -143,7 +143,7 @@ Pick one and stick to it.
 
 ## A very practical README for `architecture/`
 
-In `docs/architecture/README.md`, clarify the contract:
+In `architecture/README.md`, clarify the contract:
 
 * “If you want to understand how the system works today, read 01–04.”
 * “If you want to see what we’re currently exploring, check initiatives.”
@@ -162,4 +162,4 @@ That migration step is part of the discipline.
 
 ---
 
-If you want, I can draft the `docs/architecture/README.md` and `architecture/initiatives/README.md` texts so the separation is explicit and contributors don’t accidentally blur the boundary.
+If you want, I can draft the `architecture/README.md` and `architecture/initiatives/README.md` texts so the separation is explicit and contributors don’t accidentally blur the boundary.

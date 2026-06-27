@@ -387,7 +387,7 @@ def filter_graph_by_activation(
 # Layer boundary note: ``src/charter/`` cannot import from
 # ``specify_cli.doctrine.*`` (the dependency rule is
 # ``kernel <- doctrine <- charter <- specify_cli`` per
-# ``docs/architecture/00_landscape/README.md``). Runtime callers that need to
+# ``architecture/2.x/00_landscape/README.md``). Runtime callers that need to
 # both filter the graph and load org-charter policies must invoke
 # :func:`filter_graph_by_activation` here and
 # ``specify_cli.doctrine.org_charter.load_org_charter_policies`` from their

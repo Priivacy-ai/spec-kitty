@@ -2,7 +2,7 @@
 
 **Reviewer**: Architect Alphonso (post-mission-122 audit)
 **Scope**: full `src/` tree, with emphasis on the charter / doctrine / specify_cli bounded contexts and the new `charter_freshness` / `charter_preflight` packages introduced by mission `01KSAF14`
-**Inputs**: `docs/plans/engineering-notes/finding/`, `docs/plans/engineering-notes/reflections/`, the post-merge mission-review report, the open-issue tracker
+**Inputs**: `docs/engineering_notes/finding/`, `docs/engineering_notes/reflections/`, the post-merge mission-review report, the open-issue tracker
 
 ---
 
@@ -119,7 +119,7 @@ These are all "the runtime side of charter", differing only in *when* they fire 
 
 ## 4. Mapping to existing engineering notes
 
-The 10 findings in `docs/plans/engineering-notes/finding/2026-05-24-mission-01KSAF14-orchestration-findings.md` and the 1 reflection in `docs/plans/engineering-notes/reflections/2026-05-24-drg-profile-routing-missed-first-pass.md` are mostly *operator-side* observations. Where they have an architectural corollary:
+The 10 findings in `docs/engineering_notes/finding/2026-05-24-mission-01KSAF14-orchestration-findings.md` and the 1 reflection in `docs/engineering_notes/reflections/2026-05-24-drg-profile-routing-missed-first-pass.md` are mostly *operator-side* observations. Where they have an architectural corollary:
 
 | Mission finding | Architectural corollary |
 |---|---|

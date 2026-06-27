@@ -18,7 +18,7 @@ subtasks:
 - T068
 - T069
 - T070
-agent: ""
+agent: "claude:opus:reviewer-renata:reviewer"
 history: []
 agent_profile: python-pedro
 authoritative_surface: scripts/docs/frontmatter_backfill.py
@@ -35,6 +35,7 @@ owned_files:
 - tests/docs/test_description_length_gate.py
 role: implementer
 tags: []
+shell_pid: "1558429"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -122,3 +123,7 @@ Planning + final merge target: `docs/2165-mission-b-structural-move`. Depends on
 ## Activity Log
 
 - (populated at implement time)
+- 2026-06-27T14:35:43Z – claude:opus:python-pedro:implementer – shell_pid=1518600 – Assigned agent via action command
+- 2026-06-27T14:58:44Z – claude:opus:python-pedro:implementer – shell_pid=1518600 – frontmatter tooling: tag→doc_status table (580 rows), backfill tool, 50-180 length gate (49/181 RED), related derivation (dangling impossible by construction), 20 tests, ruff/mypy 0
+- 2026-06-27T14:58:58Z – claude:opus:reviewer-renata:reviewer – shell_pid=1558429 – Started review via action command
+- 2026-06-27T15:04:18Z – user – shell_pid=1558429 – Review passed: tag->doc_status sound (current/migration->active, archival->deprecated per directive 042 vocab; internal via current_target; counts sum to 580: internal 419/current 133/archival 14/migration 14), length gate non-vacuous inclusive 50-180 (49/181 RED, 50/180 green, missing/blank RED, --strict exits 1 default 0), related dangling-impossible by construction (only resolvable .md under docs root written; unresolved flagged never emitted), tooling-only (WP11 commit defc39a47 touches only the 4 owned files; no per-page authoring), ruff/mypy --strict 0, 20 tests green. IC verdicts: (a) updated via git log %cs SOUND as fallback (existing frontmatter wins) caveat WP12: git-mv structural move resets committer date to the move commit so prefer authored updated where content-freshness matters; (b) internal/current_target signal is DEGENERATE (current_target is 1:1 with tag==current; 0/419 internal are current targets so ALL 419 internal collapse to draft, active branch never fires on real data) -- accepted as safe conservative tooling default (draft won't publish as active; WP12 refines per-page) but WP12 MUST decide uniform-draft vs a real discriminator (path-based adr/ vs engineering-notes/, or marker); (c) divio key carried as type: CORRECT, matches inventory_lockfile.py _FM_DIVIO_TYPE='type'.

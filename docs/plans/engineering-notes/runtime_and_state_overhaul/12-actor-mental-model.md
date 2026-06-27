@@ -15,7 +15,7 @@ a **deprecated alias**; Charter is canonical. (2) The **Activity Ledger is Missi
 (purpose-side); the operational **environment is a related but separate concern**. (3) **Actor** is a
 **metamodel concept** — *someone/something effecting change upon the system* — that disambiguates into
 **AgentProfile** (LLM agent), **Human-In-Charge / Operator** (human), and **External System**.
-(4) This model will likely graduate to a published `docs/architecture/` doc once crystallized.
+(4) This model will likely graduate to a published `docs/explanation/` doc once crystallized.
 
 ---
 
@@ -248,7 +248,7 @@ mission aggregate. To confirm when we draw the model diagram.
 - **Constitution == Charter** (Constitution deprecated). ✅
 - **Activity Ledger = MissionRun state**; environment is a related-but-separate concern. ✅
 - **Actor = metamodel concept** → {AgentProfile, Operator/Human-In-Charge, External System}. ✅
-- **Will graduate to a published `docs/architecture/` doc** once crystallized. ✅ (tracked)
+- **Will graduate to a published `docs/explanation/` doc** once crystallized. ✅ (tracked)
 
 **Still open:**
 1. **Operator self** — do we model the human's authority/role more explicitly (is `human-in-charge` a

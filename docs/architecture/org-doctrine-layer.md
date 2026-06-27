@@ -151,7 +151,7 @@ artifact (kind, ID, higher layer, lower layer, field counts), or reports
 are in play. The same data is available as a `collisions` array under
 `--json`.
 
-See [ADR 2026-05-16-1](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md)
+See [ADR 2026-05-16-1](https://github.com/Priivacy-ai/spec-kitty/blob/main/architecture/3.x/adr/2026-05-16-1-doctrine-layer-merge-semantics.md)
 for the rationale behind this design.
 
 ---

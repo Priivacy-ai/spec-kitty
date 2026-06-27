@@ -49,7 +49,7 @@ WRITER_REGISTRY: dict[str, Writer] = {
     "vibe":  SkillsPreambleWriter("vibe"),
     "letta": SkillsPreambleWriter("letta"),
     # Pattern E — NullWriter (no known orientation mechanism; no error raised)
-    # See docs/plans/research/session-presence-harness-gaps.md for research status.
+    # See architecture/3.x/research/session-presence-harness-gaps.md for research status.
     "qwen":     NullWriter("qwen"),
     "kilocode": NullWriter("kilocode"),
     "auggie":   NullWriter("auggie"),

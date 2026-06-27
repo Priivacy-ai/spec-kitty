@@ -100,7 +100,7 @@ Python 3.11+, pytest, mypy strict.
 
 When renaming any identifier-bearing term (e.g. shipped → built-in,
 provenance → source-attribution), the reviewer MUST grep the diff for the
-old term, MUST consult the project glossary at ``docs/context/``,
+old term, MUST consult the project glossary at ``glossary/contexts/``,
 and MUST flag any unconverted occurrence as a defect.
 
 ## Code Review Checklist
@@ -109,7 +109,7 @@ and MUST flag any unconverted occurrence as a defect.
 - Terminology in code and docs aligns with the project glossary
   (DIRECTIVE_032 — Conceptual Alignment).
 - No new code path violates an architectural ADR in
-  ``docs/adr/3.x/``.
+  ``architecture/3.x/adr/``.
 
 ## Charter Resolution Hints
 
@@ -531,7 +531,7 @@ class TestProfileDirectivesSurfacedInWpPrompt:
             "DIRECTIVE_032" in prompt or "Conceptual Alignment" in prompt
         )
         glossary_pointer = (
-            "docs/context/" in prompt or "project glossary" in prompt
+            "glossary/contexts/" in prompt or "project glossary" in prompt
         )
         assert directive_present and glossary_pointer, (
             "Review WP prompt MUST cite DIRECTIVE_032 (Conceptual Alignment) AND "
@@ -635,7 +635,7 @@ class TestPromptReferencesAuthorityPaths:
             mission_type="software-dev",
         )
         glossary_path_present = (
-            "docs/context/" in prompt or "glossary/" in prompt
+            "glossary/contexts/" in prompt or "glossary/" in prompt
         )
         glossary_fetch_with_conditional = bool(
             re.search(r"spec-kitty\s+.*glossary", prompt, re.IGNORECASE)
@@ -643,7 +643,7 @@ class TestPromptReferencesAuthorityPaths:
         )
         assert glossary_path_present or glossary_fetch_with_conditional, (
             "Implement prompt MUST reference the project glossary path "
-            "(`docs/context/`) OR include a fetch command paired with a "
+            "(`glossary/contexts/`) OR include a fetch command paired with a "
             'when-doing-X conditional ("when you introduce a new term, consult …").'
         )
 
@@ -660,7 +660,7 @@ class TestPromptReferencesAuthorityPaths:
             repo_root=repo_root,
             mission_type="software-dev",
         )
-        adr_path_present = "docs/adr/3.x/" in prompt or "architecture/adr" in prompt
+        adr_path_present = "architecture/3.x/adr/" in prompt or "architecture/adr" in prompt
         adr_fetch_with_conditional = bool(
             re.search(r"adr", prompt, re.IGNORECASE) and _WHEN_DOING_RE.search(prompt)
         )

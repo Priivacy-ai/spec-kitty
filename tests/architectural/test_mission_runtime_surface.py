@@ -18,7 +18,7 @@ Rules enforced:
 
 See also:
   - ``tests/architectural/test_status_module_boundary.py`` — template / pattern
-  - ADR ``docs/adr/3.x/2026-06-07-1-execution-state-canonical-surface.md``
+  - ADR ``architecture/3.x/adr/2026-06-07-1-execution-state-canonical-surface.md``
   - Contract ``kitty-specs/execution-state-canonical-surface-01KTG6P9/contracts/mission_runtime_api.md``
 """
 from __future__ import annotations

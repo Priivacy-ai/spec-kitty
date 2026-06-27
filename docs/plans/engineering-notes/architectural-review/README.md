@@ -14,7 +14,7 @@ It is the third sibling of [`reflections/`](../reflections/) and [`finding/`](..
 
 ## What does NOT belong here
 
-- Per-mission ADRs — those go to `docs/adr/3.x/`.
+- Per-mission ADRs — those go to `architecture/3.x/adr/`.
 - Operator-side process notes — those go to `finding/`.
 - Orchestrator self-corrections — those go to `reflections/`.
 - Ad-hoc code reviews of a single PR — use `code-review` skill output.

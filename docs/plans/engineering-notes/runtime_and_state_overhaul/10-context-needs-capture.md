@@ -16,7 +16,7 @@ baseline the eventual context model + BPMN/interaction/model diagrams must satis
 
 1. **Intuition** (this pass) — architect + operator gut, *before* consulting sources. Captures what
    we believe is needed, so the sources confirm/deny rather than anchor us.
-2. **Existing docs** — corroborate against User Journeys (`docs/plans/user_journey/`,
+2. **Existing docs** — corroborate against User Journeys (`architecture/2.x/user_journey/`,
    `architecture/3.x/`), ADRs, status-model docs.
 3. **Existing code** — corroborate against the actual resolvers/call sites (builds on `02`/`07`).
 

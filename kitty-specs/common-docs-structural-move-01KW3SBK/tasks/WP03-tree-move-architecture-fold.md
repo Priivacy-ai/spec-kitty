@@ -20,7 +20,7 @@ subtasks:
 - T018
 - T019
 - T020
-agent: ""
+agent: "claude:opus:reviewer-renata:reviewer"
 history: []
 agent_profile: python-pedro
 authoritative_surface: architecture/
@@ -63,6 +63,7 @@ owned_files:
 - docs/changelog/**
 role: implementer
 tags: []
+shell_pid: "1389389"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -161,3 +162,7 @@ Planning + final merge target: `docs/2165-mission-b-structural-move`. This is th
 ## Activity Log
 
 - (populated at implement time)
+- 2026-06-27T13:02:25Z – claude:opus:python-pedro:implementer – shell_pid=1360345 – Assigned agent via action command
+- 2026-06-27T13:18:02Z – claude:opus:python-pedro:implementer – shell_pid=1360345 – Ready: 113 non-ADR files moved (docs/architecture, docs/plans, docs/context, docs/migrations 2, docs/changelog canonical+root alias); source->dest 113/113 byte-match, count 113==113; C-006 test_runtime_read_resolution.py GREEN (17 passed), glossary seed .kittify/glossaries untouched; terminology guard GREEN (reworded 1 pre-existing 'ceremony' in moved persona); ADR trees + 3-2-page-inventory.yaml zero diff. IC-01: 3 collision clusters (10 divergent files, moves: collapses N->1) resolved data-preserving via era-suffix (README-1.x/2.x/3.x.md) - needs reviewer ratification. Expected WP08-owned breakage: test_architecture_docs_consistency.py 2 fails (stale OLD-layout fixture + ADR-tree link to moved adr-template.md) - occurrence_map tests_fixtures sweep; tests/ not in WP03 owned_files.
+- 2026-06-27T13:19:17Z – claude:opus:reviewer-renata:reviewer – shell_pid=1389389 – Started review via action command
+- 2026-06-27T13:26:42Z – user – shell_pid=1389389 – Review passed: 111/112 renames byte-identical + 1 canon-mandated ceremony->process reword (zero data loss), CHANGELOG aliased byte-equal=113/113 moves; collision-clusters era-suffixed (data-preserving, distillation=follow-up); C-006 green (15 passed); terminology guard green; ADR trees+inventory+tests/+docfx untouched; architecture/ now ADR-only

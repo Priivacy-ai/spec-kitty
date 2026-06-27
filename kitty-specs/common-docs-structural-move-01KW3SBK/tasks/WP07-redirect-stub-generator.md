@@ -18,7 +18,7 @@ subtasks:
 - T043
 - T044
 - T045
-agent: ""
+agent: "claude:opus:reviewer-renata:reviewer"
 history: []
 agent_profile: python-pedro
 authoritative_surface: scripts/docs/redirect_stub_generator.py
@@ -34,6 +34,7 @@ owned_files:
 - .github/workflows/docs-pages.yml
 role: implementer
 tags: []
+shell_pid: "1501867"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -121,3 +122,7 @@ Planning + final merge target: `docs/2165-mission-b-structural-move`. Depends on
 ## Activity Log
 
 - (populated at implement time)
+- 2026-06-27T13:37:51Z – claude:opus:python-pedro:implementer – shell_pid=1421969 – Assigned agent via action command
+- 2026-06-27T14:24:17Z – claude:opus:python-pedro:implementer – shell_pid=1421969 – redirect-stub generator + coverage gate: redirect_map single-writer from moves:, 165/168 covered (3 WP-pending), no stub→404, 11 tests incl RED-on-gap, CI inject+verify wired, ruff/mypy 0
+- 2026-06-27T14:24:41Z – claude:opus:reviewer-renata:reviewer – shell_pid=1501867 – Started review via action command
+- 2026-06-27T14:29:22Z – user – shell_pid=1501867 – Review passed: redirect_map single-writer diff-stable, only docs/3x published (verified), no stub->404, coverage non-vacuous (165/168, 3 legit WP-pending), RED-on-gap proven, CI inject+verify between build+upload, ruff/mypy 0

@@ -19,7 +19,7 @@ subtasks:
 - T006
 - T007
 - T008
-agent: ""
+agent: "claude:opus:reviewer-renata:reviewer"
 history: []
 agent_profile: python-pedro
 authoritative_surface: src/charter/context_renderers/authority_paths.py
@@ -32,10 +32,11 @@ owned_files:
 - src/specify_cli/compat/registry.py
 - src/specify_cli/cli/commands/doctor.py
 - scripts/generate_contextive_glossaries.py
-- .kittify/charter/governance.yaml
+- .kittify/charter/charter.md
 - tests/docs/test_runtime_read_resolution.py
 role: implementer
 tags: []
+shell_pid: "1284515"
 ---
 
 ## ⚡ Do This First: Load Agent Profile
@@ -142,3 +143,7 @@ Planning + final merge target: `docs/2165-mission-b-structural-move`. This is th
 ## Activity Log
 
 - (populated at implement time)
+- 2026-06-27T12:06:12Z – claude:opus:python-pedro:implementer – shell_pid=1233974 – Assigned agent via action command
+- 2026-06-27T12:26:36Z – claude:opus:python-pedro:implementer – shell_pid=1233974 – Ready: 6 runtime reads dual-read + resolution-tested (15 passed; RED-first proven 9-fail on reverted source). ruff=0 mypy=0 on changed src; compat regression 110 passed. IC-01: read#6 re-pointed in canonical .kittify/charter/charter.md (governance.yaml is gitignored/generated; scope-warning expected).
+- 2026-06-27T12:31:15Z – claude:opus:reviewer-renata:reviewer – shell_pid=1284515 – Started review via action command
+- 2026-06-27T12:38:40Z – user – shell_pid=1284515 – Review passed: 6 dual-reads verified; 15 resolution tests pass non-vacuous (real readers; spot-check reds on reverting docs/context candidate); C-006 seed read-path untouched; zero file renames (move deferred WP03); ruff 0, mypy 0 on src (script yaml import-untyped pre-existing); manual_review sound (doctor.py 1-line string; governance.yaml gitignored so charter.md edit correct). issue-matrix set in-mission (spine head).
