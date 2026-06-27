@@ -1,1 +1,0 @@
-../../3.x/adr/2026-04-06-1-wp-state-pattern-for-lane-behavior.md

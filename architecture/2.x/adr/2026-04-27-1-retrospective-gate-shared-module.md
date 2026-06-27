@@ -1,1 +1,0 @@
-../../3.x/adr/2026-04-27-1-retrospective-gate-shared-module.md

@@ -1,1 +1,0 @@
-../2.x/adr/2026-04-09-2-cli-saas-auth-is-browser-mediated-oauth-not-password.md

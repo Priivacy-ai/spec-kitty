@@ -1,1 +1,0 @@
-../../3.x/adr/2026-04-26-2-auth-transport-boundary.md
