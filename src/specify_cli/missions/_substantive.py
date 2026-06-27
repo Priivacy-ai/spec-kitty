@@ -317,10 +317,11 @@ def is_committed(
     primary-target-branch). The OR was load-bearing only when a caller fed the
     PRIMARY-checkout path while the spec lived solely on the coordination
     branch — but the sole non-test caller (setup-plan) already feeds the
-    READ-resolved ``spec_file``: for a materialized coordination topology the
-    read path resolves to the coord worktree dir (whose ``HEAD`` carries the
-    spec), and for the #1718 create-window it resolves to the primary dir
-    (whose ``HEAD`` carries the spec). The #1848 coord-deleted case never
+    READ-resolved ``spec_file``: since #2106 (gate-read-surface-completion)
+    re-partitioned SPEC as a primary-kind, the caller now resolves SPEC to the
+    PRIMARY dir for ALL topologies — both the coord-topology case (the coord
+    worktree carries status events only, no planning artifacts) and the #1718
+    create-window. The #1848 coord-deleted case never
     reaches this function — the read-path resolution upstream raises
     ``CoordinationBranchDeleted`` (a ``StatusReadPathNotFound``) and the caller
     exits before the commit check. So the read-resolved surface converges with
