@@ -165,7 +165,7 @@ def build_charter_context(
     # MEDIUM-2: honour the scope kwarg by overriding repo_root when provided.
     if scope is not None:
         repo_root = scope.root
-    profile_record = _load_agent_profile(profile) if profile else None
+    profile_record = _load_agent_profile(profile, repo_root) if profile else None
 
     # WP06 / FR-015 — surface a loud diagnostic when the consumer's
     # config references an org pack whose snapshot is missing on disk.
@@ -1314,22 +1314,20 @@ def _build_activation_aware_doctrine_service(
     other five callers of :func:`_build_doctrine_service` are deliberately left
     on the unwrapped service so their return type and behaviour are unchanged.
 
-    Backward compatibility: when the project declares no agent-profile
-    activation restriction (``activated_agent_profiles is None`` — the default
-    for projects without an explicit charter activation list), the wrapper has
-    no filtering to apply, so the inner service is returned unwrapped. This
-    keeps pre-#1636 behaviour byte-identical for unrestricted projects while
-    enforcing the gate as soon as a restriction is configured.
+    Single builder contract (R5): the service is ALWAYS wrapped, even when
+    ``activated_agent_profiles is None``. The wrapper's three-state filter
+    treats ``None`` as "admit all", so the unrestricted case stays byte-identical
+    in *behaviour* to the legacy fetch path while giving both activation-service
+    builders one contract — ``_inner`` is always valid and ``.agent_profiles``
+    is always a gated ``dict``. This matches
+    :func:`specify_cli.doctrine_service_factory.build_activation_aware_doctrine_service`,
+    which also wraps unconditionally.
     """
     from charter.pack_context import PackContext
     from charter.resolver import DoctrineService as ActivationAwareDoctrineService
 
     inner = _build_doctrine_service(repo_root, org_roots=org_roots)
     pack_context = PackContext.from_config(repo_root)
-    if pack_context.activated_agent_profiles is None:
-        # No activation restriction configured: the gate is a no-op, so return
-        # the unwrapped service (identical to the legacy fetch path).
-        return inner
     return ActivationAwareDoctrineService(inner, pack_context=pack_context)
 
 
@@ -1588,14 +1586,21 @@ _PROFILE_INLINE_BODY_LIMIT_CHARS = 2_400
 # at construction; we cache the default instance so per-call cost in the
 # resolver is a dict lookup (NFR-002 budget).
 _DEFAULT_AGENT_PROFILE_REPO: AgentProfileRepository | None = None
+# Per-repo cache of the **charter-activation-aware** profile map (org + project
+# + built-in, gated by ``activated_agent_profiles``). Populated only when the
+# repo declares org packs, so the no-org-packs path stays byte-identical to the
+# built-in-only fast path above (NFR-001). Keyed by resolved ``repo_root``.
+_ACTIVATION_AWARE_PROFILE_MAPS: dict[Path, dict[str, AgentProfile]] = {}
 
 
 def _default_agent_profile_repository() -> AgentProfileRepository:
-    """Return a process-wide cached :class:`AgentProfileRepository`.
+    """Return a process-wide cached **built-in-only** :class:`AgentProfileRepository`.
 
     The repository is constructed lazily on first call and reused for the
     lifetime of the interpreter. Tests that need a clean repository can
-    reset the cache via :func:`_reset_agent_profile_cache`.
+    reset the cache via :func:`_reset_agent_profile_cache`. This is the
+    no-org-packs fast path; org-aware resolution flows through
+    :func:`_activation_aware_profile_map` instead.
     """
     global _DEFAULT_AGENT_PROFILE_REPO
     if _DEFAULT_AGENT_PROFILE_REPO is None:
@@ -1604,12 +1609,82 @@ def _default_agent_profile_repository() -> AgentProfileRepository:
 
 
 def _reset_agent_profile_cache() -> None:
-    """Clear the cached default :class:`AgentProfileRepository` (test hook)."""
+    """Clear the cached profile stores (test hook)."""
     global _DEFAULT_AGENT_PROFILE_REPO
     _DEFAULT_AGENT_PROFILE_REPO = None
+    _ACTIVATION_AWARE_PROFILE_MAPS.clear()
 
 
-def _load_agent_profile(profile_id: str) -> AgentProfile | None:
+def _existing_org_roots(repo_root: Path) -> list[Path]:
+    """Return on-disk org-pack roots declared in ``.kittify/config.yaml``.
+
+    Best-effort: a missing/corrupt config yields an empty list so the caller
+    falls back to the built-in-only fast path. Imports stay charter→doctrine
+    (never charter→specify_cli) so the layer rule holds.
+    """
+    try:
+        from doctrine.drg.org_pack_config import resolve_org_roots  # noqa: PLC0415
+    except ImportError:
+        return []
+    try:
+        return [root for root in resolve_org_roots(repo_root) if root.exists()]
+    except Exception:  # noqa: BLE001 — context rendering stays best-effort
+        return []
+
+
+def _profiles_dict_from_service(service: object) -> dict[str, AgentProfile]:
+    """Return the activation-aware service's pre-gated ``{id: profile}`` map.
+
+    Single builder contract (R5): every activation-service builder now ALWAYS
+    wraps, so ``service.agent_profiles`` is the wrapper's already-gated ``dict``.
+    The empty fallback defends against a service that exposes no mapping.
+    """
+    attr = getattr(service, "agent_profiles", None)
+    return dict(attr) if isinstance(attr, dict) else {}
+
+
+def _activation_aware_profile_map(
+    repo_root: Path, org_roots: list[Path]
+) -> dict[str, AgentProfile]:
+    """Return (and cache) the activation-gated profile map for ``repo_root``.
+
+    Reuses the in-module :func:`_build_activation_aware_doctrine_service`
+    (the FR-016 precedent) so the ``activated_agent_profiles`` three-state
+    gate is honoured — never re-implemented — and threads the discovered org
+    roots in as **data** (no ``specify_cli`` import, preserving the layer
+    rule).
+    """
+    cached = _ACTIVATION_AWARE_PROFILE_MAPS.get(repo_root)
+    if cached is not None:
+        return cached
+    service = _build_activation_aware_doctrine_service(repo_root, org_roots=org_roots)
+    profile_map = _profiles_dict_from_service(service)
+    _ACTIVATION_AWARE_PROFILE_MAPS[repo_root] = profile_map
+    return profile_map
+
+
+def _resolve_agent_profile_record(
+    profile_id: str, repo_root: Path | None
+) -> AgentProfile | None:
+    """Resolve *profile_id*, threading charter activation when org packs exist.
+
+    ``repo_root is None`` (callers with no repo context) and "no org packs
+    declared" both take the built-in-only fast path (byte-identical to the
+    pre-mission behaviour, NFR-001). Org packs present → activation-aware map
+    so a dispatched, **activated** org profile resolves (FR-005) while a
+    de-activated one returns ``None`` (NFR-002).
+    """
+    if repo_root is None:
+        return _default_agent_profile_repository().get(profile_id)
+    org_roots = _existing_org_roots(repo_root)
+    if not org_roots:
+        return _default_agent_profile_repository().get(profile_id)
+    return _activation_aware_profile_map(repo_root, org_roots).get(profile_id)
+
+
+def _load_agent_profile(
+    profile_id: str, repo_root: Path | None = None
+) -> AgentProfile | None:
     """Resolve *profile_id* via the doctrine layer. Returns ``None`` on miss.
 
     Errors are intentionally swallowed: this helper is on the prompt-build
@@ -1618,7 +1693,7 @@ def _load_agent_profile(profile_id: str) -> AgentProfile | None:
     prompt collapsing.
     """
     try:
-        record = _default_agent_profile_repository().get(profile_id)
+        record = _resolve_agent_profile_record(profile_id, repo_root)
     except Exception:  # noqa: BLE001 — best-effort lookup
         _LOGGER.warning(
             "Profile '%s' lookup failed; profile-cited sections will be omitted.",

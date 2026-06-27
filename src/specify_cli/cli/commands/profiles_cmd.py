@@ -10,7 +10,6 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from specify_cli.invocation.registry import ProfileRegistry
 from specify_cli.task_utils import find_repo_root
 
 if TYPE_CHECKING:
@@ -90,15 +89,22 @@ def _profile_catalog(
     provenance: dict[str, str | None] = {}
     owner: dict[str, AgentProfileRepository] = {}
 
-    for profile in ProfileRegistry(repo_root).list_all():
+    # Display surface (FR-008 audited): the profile CLI is the operator-facing
+    # *catalog view*, NOT dispatch routing, so it reads the UNGATED built-in +
+    # legacy-invocation catalog directly from ``legacy_repo``. ``--all`` /
+    # ``--show-available`` annotate each row with its activated|available state,
+    # which requires de-activated profiles to remain visible here. (The gated
+    # routing catalog now lives in ``ProfileRegistry`` per R3 and must not be
+    # used as this view's source, or de-activated rows would vanish.)
+    for profile in legacy_repo.list_all():
         layer = legacy_repo.get_provenance(profile.profile_id)
         by_id[profile.profile_id] = profile
         provenance[profile.profile_id] = layer
         owner[profile.profile_id] = legacy_repo
 
     # Overlay charter doctrine project/org profiles that the legacy invocation
-    # registry cannot see. Built-ins stay controlled by ProfileRegistry so
-    # existing tests/monkeypatches keep their pre-activation behavior.
+    # registry cannot see. The doctrine inner repository is read UNGATED so the
+    # catalog view shows every layer; activation state is annotated separately.
     project_doctrine_profiles = repo_root / _KITTIFY_DIR / "doctrine" / "agent_profiles"
     from doctrine.drg.org_pack_config import resolve_org_roots
 

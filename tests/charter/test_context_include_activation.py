@@ -195,9 +195,13 @@ class TestAgentProfileActivationGate:
 
 
 class TestScopedToAgentProfileOnly:
-    def test_helper_returns_wrapped_service_only_when_restricted(
+    def test_helper_always_returns_wrapped_service(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
+        # R5 single builder contract: the helper ALWAYS returns the
+        # activation-aware wrapper, whether or not a restriction is configured.
+        # The unrestricted (``None``) case stays byte-identical in *behaviour*
+        # because the wrapper's None branch admits every profile.
         from charter.resolver import DoctrineService as ActivationAwareDoctrineService
 
         stub = _StubService(
@@ -212,10 +216,13 @@ class TestScopedToAgentProfileOnly:
         wrapped = context_module._build_activation_aware_doctrine_service(tmp_path)
         assert isinstance(wrapped, ActivationAwareDoctrineService)
 
-        # No restriction -> unwrapped inner service (identical legacy object).
+        # No restriction -> STILL wrapped, and the None branch admits all so the
+        # gated map carries the profile unchanged (single contract, R5).
         (tmp_path / ".kittify" / "config.yaml").unlink()
-        unwrapped = context_module._build_activation_aware_doctrine_service(tmp_path)
-        assert unwrapped is stub
+        unrestricted = context_module._build_activation_aware_doctrine_service(tmp_path)
+        assert isinstance(unrestricted, ActivationAwareDoctrineService)
+        assert object.__getattribute__(unrestricted, "_inner") is stub
+        assert "python-pedro" in unrestricted.agent_profiles
 
     def test_other_kinds_use_unwrapped_service(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

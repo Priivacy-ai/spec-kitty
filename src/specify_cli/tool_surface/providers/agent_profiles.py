@@ -343,7 +343,15 @@ class AgentProfilesProvider:
         *,
         dry_run: bool = False,
     ) -> RepairResult:
-        """Re-project and write files for missing/drifted statuses."""
+        """Re-project missing/drifted profiles and prune de-activated orphans.
+
+        Beyond writing missing/drifted files, the ``--fix`` path reconciles the
+        managed surface with the current **activation-admitted** projection set:
+        any manifest-tracked, project-local file whose profile is no longer
+        admitted (de-activated or removed) is deleted and its manifest entry
+        dropped (R8). Pruning runs even when nothing is missing/drifted, since a
+        de-activated profile produces no status at all.
+        """
         actionable = [
             s for s in statuses if s.state in (STATE_MISSING, STATE_DRIFTED)
         ]
@@ -352,8 +360,6 @@ class AgentProfilesProvider:
             for s in statuses
             if s.state in (STATE_NOT_APPLICABLE, STATE_UNSUPPORTED)
         )
-        if not actionable:
-            return RepairResult(skipped=skipped, dry_run=dry_run)
         if dry_run:
             return RepairResult(
                 repaired=tuple(_surface_id(s.instance) for s in actionable),
@@ -375,13 +381,60 @@ class AgentProfilesProvider:
         failed: list[str] = []
         for status in actionable:
             self._repair_one(status, projector, index, manifest, repaired, failed)
-        manifest.save()
+        pruned = self._prune_orphans(projector, project_root, manifest)
+        # Preserve the historical no-op contract: only touch the manifest on
+        # disk when something was actually written or pruned.
+        if actionable or pruned:
+            manifest.save()
         return RepairResult(
             repaired=tuple(repaired),
             skipped=skipped,
             failed=tuple(failed),
             dry_run=False,
         )
+
+    @staticmethod
+    def _prune_orphans(
+        projector: ProfileProjector,
+        project_root: Path,
+        manifest: ProfileManifest,
+    ) -> list[str]:
+        """Delete manifest-tracked files no longer in the admitted projection set.
+
+        The admitted set is recomputed per tracked tool key via
+        :meth:`ProfileProjector.project`, which applies the charter activation
+        gate (``default_profile_repository``). Any project-local manifest entry
+        whose output path is absent from that set is an orphan: its file is
+        deleted and the entry dropped. Only manifest-tracked entries are
+        touched — unrelated user files under ``.claude/agents/`` are never
+        removed. User-global (Amazon Q) entries are not project-managed and are
+        left untouched.
+        """
+        tracked = [
+            e for e in manifest.all_entries() if e.format != FORMAT_AMAZON_Q_AGENT
+        ]
+        if not tracked:
+            return []
+        admitted: set[str] = set()
+        for tool_key in sorted({e.tool_key for e in tracked}):
+            for native in projector.project(tool_key, project_root):
+                admitted.add(str(native.output_path))
+        pruned: list[str] = []
+        for entry in tracked:
+            output = str(entry.output_path)
+            if output in admitted:
+                continue
+            path = entry.output_path
+            try:
+                if path.exists():
+                    path.unlink()
+            except OSError:
+                # Keep the entry consistent with the on-disk file: if the file
+                # cannot be removed, leave the manifest entry recorded.
+                continue
+            manifest.remove(path)
+            pruned.append(output)
+        return pruned
 
     @staticmethod
     def _project_index(
