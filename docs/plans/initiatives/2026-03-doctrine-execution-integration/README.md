@@ -1,3 +1,9 @@
+---
+title: 'Initiative: 2026-03 Doctrine-to-Execution Integration'
+description: Initiative capturing the assessment and roadmap for wiring the feature-046 doctrine repository layer into the charter resolver and execution path.
+doc_status: draft
+updated: '2026-04-05'
+---
 # Initiative: 2026-03 Doctrine-to-Execution Integration
 
 This initiative captures the assessment and roadmap for wiring the doctrine

@@ -1,0 +1,1 @@
+../../3.x/adr/2026-05-14-1-stale-lane-auto-rebase-classifier-policy.md

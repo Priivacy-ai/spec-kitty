@@ -1,0 +1,1 @@
+../2.x/adr/2026-02-17-3-events-contract-parity-and-vendor-deprecation.md

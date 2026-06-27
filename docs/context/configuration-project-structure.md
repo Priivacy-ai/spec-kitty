@@ -1,3 +1,16 @@
+---
+title: 'Context: Configuration and Project Structure'
+description: Glossary context defining where policy, runtime configuration, and mission artifacts live in a Spec Kitty project (.kittify/, kitty-specs/, and related terms).
+doc_status: active
+updated: '2026-04-10'
+related:
+- docs/context/doctrine.md
+- docs/context/execution.md
+- docs/context/governance.md
+- docs/context/identity.md
+- docs/context/orchestration.md
+- docs/context/system-events.md
+---
 ## Context: Configuration and Project Structure
 
 Terms describing where policy, runtime configuration, and mission artifacts live in a Spec Kitty project.

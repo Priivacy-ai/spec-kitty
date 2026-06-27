@@ -1,3 +1,11 @@
+---
+title: Architecture Vision (living)
+description: 'Landing page for the living architecture vision: the current and future, still-changeable forward intent at the top of architecture/, above versioned history.'
+doc_status: active
+updated: '2026-06-12'
+related:
+- docs/architecture/README.md
+---
 # Architecture Vision (living)
 
 This directory holds the **current and future** architecture vision for Spec Kitty —

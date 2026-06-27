@@ -1,3 +1,9 @@
+---
+title: Architecture 3.x
+description: 'Landing page for the 3.x architecture track (since the 3.0.0 release on 2026-03-30): its core decisions, constraints, and end-to-end behavior expectations.'
+doc_status: active
+updated: '2026-05-19'
+---
 # Architecture 3.x
 
 This directory is the current architecture track for Spec Kitty, starting with

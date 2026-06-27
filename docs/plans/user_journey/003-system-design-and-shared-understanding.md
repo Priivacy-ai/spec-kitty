@@ -1,3 +1,11 @@
+---
+title: 'User Journey: System Design & Shared Understanding'
+description: 'User journey for system design and shared understanding: how a team builds shared design context through Spec Kitty, in a field-table record.'
+doc_status: draft
+updated: '2026-04-05'
+related:
+- docs/plans/user_journey/001-project-onboarding-bootstrap.md
+---
 # User Journey: System Design & Shared Understanding
 
 | Field | Value |

@@ -1,0 +1,1 @@
+../2.x/adr/2026-02-23-3-versioned-1x-2x-docs-site-without-hosted-platform-scope.md

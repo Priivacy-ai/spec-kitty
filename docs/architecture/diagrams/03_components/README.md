@@ -1,3 +1,12 @@
+---
+title: 3.x Components
+description: 'Living 3.x components view (C4 level 3): the current breakdown of Spec Kitty container internals into components, part of the living C4 model.'
+doc_status: active
+updated: '2026-06-15'
+related:
+- docs/architecture/diagrams/01_context/README.md
+- docs/architecture/diagrams/02_containers/README.md
+---
 # 3.x Components
 
 | Field | Value |

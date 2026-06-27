@@ -1,3 +1,9 @@
+---
+title: Init-Doctrine Flow — User Journey
+description: 'User journey for the init-doctrine flow (implemented in WP07): how doctrine is initialized during project setup, covering FR-001 through FR-020 and C-002.'
+doc_status: draft
+updated: '2026-04-07'
+---
 # Init-Doctrine Flow — User Journey
 
 **Status**: Implemented (WP07)

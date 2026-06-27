@@ -1,3 +1,9 @@
+---
+title: 'Post-Mission Test Baseline: 01KSMG8Y'
+description: 'Post-mission test baseline for the 01KSMG8Y Pre-Doctrine Test Stabilization mission: the 20,227-test run and 138-failure count captured against the NFR-001 gate.'
+doc_status: deprecated
+updated: '2026-06-15'
+---
 # Post-Mission Test Baseline: 01KSMG8Y
 
 **Mission**: Pre-Doctrine Test Stabilization
