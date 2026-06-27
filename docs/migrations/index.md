@@ -1,5 +1,6 @@
 ---
 title: Migrations
+description: 'Migrations landing page: the unified home for the migration/shim ruleset and the back-compat shim registry relocated from architecture/2.x, plus their runtime readers.'
 doc_status: active
 updated: '2026-06-27'
 ---

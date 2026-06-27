@@ -1,5 +1,6 @@
 ---
 title: Contextive Glossary Integration
+description: How Spec Kitty generates Contextive-compatible YAML glossaries from the canonical glossary markdown, giving IDE users in-editor term hover panels without duplication.
 doc_status: active
 updated: '2026-04-05'
 ---

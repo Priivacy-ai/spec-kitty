@@ -1,5 +1,6 @@
 ---
 title: 'Mission Retrospective: 01KSMG8Y — Pre-Doctrine Test Stabilization'
+description: 'Retrospective for the 01KSMG8Y Pre-Doctrine Test Stabilization mission: goal, the NFR-001 ≤ 75-failure gate, scope WP01-WP11, and the learnings carried forward.'
 doc_status: deprecated
 updated: '2026-05-30'
 ---

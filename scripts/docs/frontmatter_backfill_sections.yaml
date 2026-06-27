@@ -74,12 +74,10 @@ sections:
     description_status: done
   - name: "(root)"
     pages: 7
-    description_status: pending
-    descriptions_needed: 6
+    description_status: done
   - name: 01KSMG8Y-closeout
     pages: 2
-    description_status: pending
-    descriptions_needed: 2
+    description_status: done
     doc_status_rule: deprecated
   - name: architecture
     pages: 63
@@ -87,32 +85,26 @@ sections:
     descriptions_needed: 42
   - name: changelog
     pages: 2
-    description_status: pending
-    descriptions_needed: 2
+    description_status: done
   - name: configuration
     pages: 3
-    description_status: pending
-    descriptions_needed: 2
+    description_status: done
   - name: context
     pages: 28
     description_status: pending
     descriptions_needed: 28
   - name: development
     pages: 1
-    description_status: pending
-    descriptions_needed: 1
+    description_status: done
   - name: guides
     pages: 82
-    description_status: pending
-    descriptions_needed: 5
+    description_status: done
   - name: migrations
     pages: 2
-    description_status: pending
-    descriptions_needed: 2
+    description_status: done
   - name: operations
     pages: 5
-    description_status: pending
-    descriptions_needed: 2
+    description_status: done
   - name: plans
     pages: 158
     description_status: pending
@@ -120,5 +112,4 @@ sections:
     doc_status_rule: draft
   - name: release-goals
     pages: 4
-    description_status: pending
-    descriptions_needed: 3
+    description_status: done

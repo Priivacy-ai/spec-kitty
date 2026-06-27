@@ -1,6 +1,6 @@
 ---
 title: Development
-description: 'Landing note for the re-sectioned development docs: durable pages moved to operations/guides/configuration, ephemeral notes to plans; the page-inventory tooling artifact stays here.'
+description: Landing page for the retired docs/development working set, mapping where each former page moved under the durable operations, guides, and configuration sections.
 doc_status: active
 updated: '2026-06-27'
 related:
