@@ -47,19 +47,25 @@ AUTHORITY_PATHS_HEADER: str = "Project authority paths:"
 """The literal section header anchored by the ATDD self-sufficiency test."""
 
 
+_TERMINOLOGY_WHEN: str = (
+    "canonical terminology — when you encounter a domain term in the "
+    "diff, grep this directory"
+)
+_ADR_WHEN: str = (
+    "architectural intent — when you change a structural boundary, "
+    "read the relevant ADR"
+)
+
+
 DEFAULT_AUTHORITY_PATHS: dict[str, str] = {
-    "glossary/contexts/": (
-        "canonical terminology — when you encounter a domain term in the "
-        "diff, grep this directory"
-    ),
-    "architecture/3.x/adr/": (
-        "architectural intent — when you change a structural boundary, "
-        "read the relevant ADR"
-    ),
+    "glossary/contexts/": _TERMINOLOGY_WHEN,
+    "docs/context/": _TERMINOLOGY_WHEN,
+    "architecture/3.x/adr/": _ADR_WHEN,
+    "docs/adr/3.x/": _ADR_WHEN,
 }
 """Mapping of default authority directory to its when-doing copy.
 
-Both defaults are rendered with a trailing slash so callers that grep for
+Both copies are rendered with a trailing slash so callers that grep for
 ``glossary/contexts/`` (the ATDD assertion form) match unambiguously.
 
 The ADR default was updated from ``architecture/2.x/adr/`` to
@@ -67,6 +73,14 @@ The ADR default was updated from ``architecture/2.x/adr/`` to
 Back-compat symlinks at ``architecture/2.x/adr/`` continue to resolve into
 the 3.x directory, so existing projects with the old path in their charter
 are unaffected by the renderer change.
+
+**Mission B dual-read (C-003 / NFR-005):** the doc-tree fold relocates
+``glossary/contexts/`` → ``docs/context/`` and ``architecture/3.x/adr/`` →
+``docs/adr/3.x/``.  Both the legacy and the new homes are listed here so the
+read resolves *before* the move (only the legacy home exists) and *after* it
+(only the new home exists).  Rendering is existence-gated, so at most one home
+of each pair surfaces at a time — no double-render.  The legacy branches are
+dropped in WP08's reference sweep once the tree has moved (WP03).
 """
 
 

@@ -1,7 +1,7 @@
 {
-  "event_count": 17,
-  "last_event_id": "01KW4FJ7DYF0ENGPXSTW7E0ZVE",
-  "materialized_at": "2026-06-27T12:06:11.646188+00:00",
+  "event_count": 15,
+  "last_event_id": "01KW4EXZ3KQV8P3WJX19HWGAW3",
+  "materialized_at": "2026-06-27T11:55:07.763321+00:00",
   "mission_number": "",
   "mission_slug": "common-docs-structural-move-01KW3SBK",
   "mission_type": "software-dev",
@@ -12,17 +12,17 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "in_review": 0,
-    "planned": 14
+    "planned": 15
   },
   "work_packages": {
     "WP01": {
-      "actor": "claude:opus:python-pedro:implementer",
+      "actor": "finalize-tasks",
       "force_count": 0,
-      "lane": "in_progress",
-      "last_event_id": "01KW4FJ7DYF0ENGPXSTW7E0ZVE",
-      "last_transition_at": "2026-06-27T12:06:11.646188+00:00"
+      "lane": "planned",
+      "last_event_id": "01KW4EXR4YVHCR1H3C8WEWJYHK",
+      "last_transition_at": "2026-06-27T11:55:00.638200+00:00"
     },
     "WP02": {
       "actor": "finalize-tasks",

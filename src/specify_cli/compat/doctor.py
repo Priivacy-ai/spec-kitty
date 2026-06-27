@@ -9,7 +9,11 @@ from pathlib import Path
 
 from packaging.version import Version
 
-from specify_cli.compat.registry import ShimEntry, load_registry
+from specify_cli.compat.registry import (
+    ShimEntry,
+    load_registry,
+    resolve_shim_registry_path,
+)
 
 
 class ShimStatus(enum.Enum):
@@ -66,7 +70,7 @@ def check_shim_registry(repo_root: Path) -> ShimRegistryReport:
         toml_data = tomllib.load(fp)
     project_version: str = toml_data["project"]["version"]
 
-    registry_path = repo_root / "architecture" / "2.x" / "shim-registry.yaml"
+    registry_path = resolve_shim_registry_path(repo_root)
     entries = load_registry(repo_root)
     current = Version(project_version)
 

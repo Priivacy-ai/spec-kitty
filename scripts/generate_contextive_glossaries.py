@@ -27,7 +27,28 @@ import yaml
 # ---------------------------------------------------------------------------
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-GLOSSARY_CONTEXTS_DIR = REPO_ROOT / "glossary" / "contexts"
+
+
+def resolve_glossary_contexts_dir(repo_root: Path) -> Path:
+    """Return the glossary-contexts dir, preferring the new ``docs/context`` home.
+
+    Mission B (FR-009 / C-006) relocates the glossary from ``glossary/contexts/``
+    to ``docs/context/``. Dual-read (C-003): the new home is tried first; when it
+    does not exist the legacy ``glossary/contexts/`` is returned if present, so
+    this doctrine-extraction source resolves both before and after the tree move
+    (WP03). When neither exists the new canonical home is returned. The legacy
+    branch is dropped in WP08's reference sweep.
+    """
+    new_dir = repo_root / "docs" / "context"
+    if new_dir.is_dir():
+        return new_dir
+    legacy_dir = repo_root / "glossary" / "contexts"
+    if legacy_dir.is_dir():
+        return legacy_dir
+    return new_dir
+
+
+GLOSSARY_CONTEXTS_DIR = resolve_glossary_contexts_dir(REPO_ROOT)
 MAP_FILE = REPO_ROOT / ".kittify" / "traceability" / "contextive-map.yaml"
 
 GENERATED_HEADER_LINES = [

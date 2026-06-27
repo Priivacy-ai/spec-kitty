@@ -313,9 +313,14 @@ template sets, tools, or authority directories.
 template_set: software-dev-default
 available_tools: [git, spec-kitty, pytest, mypy, ruff]
 authority_paths:
-  - glossary/contexts/        # canonical terminology
-  - architecture/3.x/adr/    # canonical architectural decisions (3.x era)
-  - architecture/adrs/        # active ADR directory (de-facto convention)
+  # Mission B dual-read (C-003): legacy + new homes listed together so the
+  # authority-path read resolves both before and after the docs/ fold (WP03).
+  # The legacy branches are dropped in WP08's reference sweep.
+  - glossary/contexts/        # canonical terminology (legacy home)
+  - docs/context/             # canonical terminology (new home, FR-009)
+  - architecture/3.x/adr/    # canonical architectural decisions (legacy, 3.x era)
+  - docs/adr/3.x/             # canonical architectural decisions (new home)
+  - architecture/adrs/        # active ADR directory (legacy de-facto convention)
 ```
 
 ---
