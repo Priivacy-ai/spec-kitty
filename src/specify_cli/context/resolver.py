@@ -194,9 +194,9 @@ def resolve_context(
     # ``kitty/mission-<mid8>-…`` ref and persists a raw ``mission_slug``.
     mission_slug = _canon_dir.name
 
-    # Route all PRIMARY-partition reads (meta.json, WP frontmatter, lanes.json)
-    # through the seam so they always resolve to the primary checkout under coord
-    # topology (coord husk carries STATUS events only, not planning artifacts).
+    # Route all PRIMARY-partition reads (meta.json, WP frontmatter) through the
+    # seam so they always resolve to the primary checkout under coord topology
+    # (coord husk carries STATUS events only, not planning artifacts).
     feature_dir = resolve_planning_read_dir(
         repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
     )
@@ -219,11 +219,16 @@ def resolve_context(
     # Compute authoritative_ref: uniform lane lookup for ALL WPs (including planning_artifact).
     # After T010, planning_artifact WPs are assigned to the "lane-planning" lane in lanes.json.
     # lane_branch_name() returns target_branch for lane-planning (T011).
+    # lanes.json is LANE_STATE (PRIMARY-partition) — use its truthful kind so a
+    # future LANE_STATE re-partition does not silently misroute.
     target_branch = meta["target_branch"]
-    lane = require_lanes_json(feature_dir).lane_for_wp(wp_code)
+    _lanes_dir = resolve_planning_read_dir(
+        repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+    )
+    lane = require_lanes_json(_lanes_dir).lane_for_wp(wp_code)
     if lane is None:
         msg = (
-            f"WP {wp_code!r} has no lane assignment in {feature_dir / 'lanes.json'}. "
+            f"WP {wp_code!r} has no lane assignment in {_lanes_dir / 'lanes.json'}. "
             f"Run 'spec-kitty agent mission finalize-tasks --mission {mission_slug}' "
             f"to compute lanes."
         )
