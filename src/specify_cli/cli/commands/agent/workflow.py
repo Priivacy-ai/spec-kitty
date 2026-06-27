@@ -1944,11 +1944,16 @@ def _resolve_review_context(
     feature_dir = resolve_planning_read_dir(
         repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
     )
+    # lanes.json is LANE_STATE (PRIMARY-partition) — use its truthful kind so a
+    # future LANE_STATE re-partition does not silently misroute.
+    _lanes_dir = resolve_planning_read_dir(
+        repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+    )
     lanes_manifest = None
     try:
         from specify_cli.lanes.persistence import read_lanes_json
 
-        lanes_manifest = read_lanes_json(feature_dir)
+        lanes_manifest = read_lanes_json(_lanes_dir)
     except Exception:
         lanes_manifest = None
 
@@ -2102,56 +2107,19 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> str | None:
     """
     # WP04 / T017 / FR-002: tasks/ reads route through the planning seam
     # (WORK_PACKAGE_TASK → PRIMARY) so coord-topology missions find tasks/ on
-    # the primary checkout, not the STATUS-only coord husk.  The worktree-local
-    # walk preserves the original intent (check worktree-local first, then walk,
-    # then fall back to repo_root); get_main_repo_root() inside the seam ensures
-    # the primary dir is relative to the main checkout regardless of cwd.
+    # the primary checkout, not the STATUS-only coord husk.
+    # resolve_planning_read_dir is cwd-invariant for PRIMARY-partition kinds:
+    # primary_feature_dir_for_mission anchors on get_main_repo_root(repo_root),
+    # so cwd / walk-up / repo_root all resolve the same primary dir — the
+    # multi-branch walk was vestigial after WP04.
     # The STATUS leg uses candidate_feature_dir_for_mission(repo_root, ...) so
     # events come from the authoritative coord husk under coord topology (C-001).
-    from specify_cli.core.paths import is_worktree_context
-
-    cwd = Path.cwd().resolve()
-
-    # Check if we're in a worktree - if so, use worktree's kitty-specs
-    if is_worktree_context(cwd):
-        # We're in a worktree, look for kitty-specs relative to cwd.
-        # WP04: route tasks/ through the planning seam (WORK_PACKAGE_TASK).
-        _cwd_tasks = (
-            resolve_planning_read_dir(cwd, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK)
-            / "tasks"
+    tasks_dir = (
+        resolve_planning_read_dir(
+            repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
         )
-        if _cwd_tasks.exists():
-            tasks_dir = _cwd_tasks
-        else:
-            # Walk up to find kitty-specs
-            current = cwd
-            while current != current.parent:
-                _cur_tasks = (
-                    resolve_planning_read_dir(
-                        current, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
-                    )
-                    / "tasks"
-                )
-                if _cur_tasks.exists():
-                    tasks_dir = _cur_tasks
-                    break
-                current = current.parent
-            else:
-                # Fallback to repo_root
-                tasks_dir = (
-                    resolve_planning_read_dir(
-                        repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
-                    )
-                    / "tasks"
-                )
-    else:
-        # We're in main repo
-        tasks_dir = (
-            resolve_planning_read_dir(
-                repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
-            )
-            / "tasks"
-        )
+        / "tasks"
+    )
 
     if not tasks_dir.exists():
         return None
