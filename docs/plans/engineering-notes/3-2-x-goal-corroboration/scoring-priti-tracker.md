@@ -1,9 +1,3 @@
----
-title: 3.2.1 LEAD-slice scoring — NEUTRAL tracker / ROI / dependency-readiness pass (planner-priti)
-description: Planner Priti's neutral 3.2.1 lead-slice scoring on tracker reality, dependency-readiness, ROI (impact over effort), and Eisenhower importance/urgency.
-doc_status: draft
-updated: '2026-06-16'
----
 # 3.2.1 LEAD-slice scoring — NEUTRAL tracker / ROI / dependency-readiness pass (planner-priti)
 
 > **Author:** Planner Priti (work-decomposition + delivery-sequencing). **Lens:** tracker reality,

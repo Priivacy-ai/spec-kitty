@@ -1,13 +1,8 @@
 ---
-title: The Mission System Explained
-description: "Why mission types exist and how they nest: the Mission Type, Mission, Work Package, and Workspace hierarchy, the four blueprints, and the two state machines next coordinates."
-doc_status: active
-updated: '2026-06-26'
-related:
-- docs/architecture/divio-documentation.md
-- docs/architecture/kanban-workflow.md
-- docs/architecture/spec-driven-development.md
+title: "The Mission System Explained"
+description: "Explanation of The Mission System Explained in Spec Kitty 3.2, including the model, rationale, and operator implications."
 ---
+
 # The Mission System Explained
 
 Spec Kitty's mission system lets you choose a workflow blueprint optimized for your type of work. This document explains why mission types exist, how they shape your experience, and how the pieces fit together.

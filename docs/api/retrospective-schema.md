@@ -1,9 +1,8 @@
 ---
-title: Retrospective Schema and Events Reference
-description: retrospective.yaml field schema, proposal kinds, retrospective status events, and synthesizer exit codes.
-doc_status: active
-updated: '2026-06-03'
+title: "Retrospective Schema and Events Reference"
+description: "retrospective.yaml field schema, proposal kinds, retrospective status events, and synthesizer exit codes."
 ---
+
 # Retrospective Schema and Events Reference
 
 This reference documents the `retrospective.yaml` schema, proposal types, retrospective status

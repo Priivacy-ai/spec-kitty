@@ -1,9 +1,3 @@
----
-title: Spec Kitty × Doctrine Integration Proposal
-description: Proposal (2026-02-28) capturing the architectural direction for integrating Spec Kitty with the doctrine layer, an input to the discovery initiative.
-doc_status: draft
-updated: '2026-06-12'
----
 # Spec Kitty × Doctrine Integration Proposal
 
 **Date:** 2026-02-28

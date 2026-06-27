@@ -1,11 +1,3 @@
----
-title: 2.x Components
-description: '2.x components view (C4 level 3): the historical breakdown of Spec Kitty container internals into components, preserved beneath the current living architecture.'
-doc_status: active
-updated: '2026-04-05'
-related:
-- docs/architecture/README.md
----
 # 2.x Components
 
 | Field | Value |

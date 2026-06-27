@@ -1,11 +1,3 @@
----
-title: 'User Journey: System Architecture Design'
-description: 'User journey for system architecture design: how an architect drives architecture decisions through Spec Kitty, in a field-table record.'
-doc_status: draft
-updated: '2026-04-05'
-related:
-- docs/plans/user_journey/001-project-onboarding-bootstrap.md
----
 # User Journey: System Architecture Design
 
 | Field | Value |
@@ -85,7 +77,7 @@ artifacts rather than feature artifacts.
 3. **Pattern research is evidence-based** — the AI agent must cite known patterns (Gang of Four, POSA, DDD, Hexagonal, etc.) with trade-off analysis, not invent novel architectures.
 4. **Every architectural decision requires at minimum one alternative** — "we chose X" is insufficient; "we chose X over Y and Z because..." is required (per Traceable Decisions directive).
 5. **The architect has final authority** — the AI proposes, the human disposes. This is a Human In Charge flow; the AI must not record a decision as final without explicit architect confirmation.
-6. **Existing ADRs are checked before new decisions** — if the project has prior ADRs (in `architecture/2.x/adr/`), the AI loads relevant ones and flags conflicts before proposing new patterns.
+6. **Existing ADRs are checked before new decisions** — if the project has prior ADRs (in `docs/adr/2.x/`), the AI loads relevant ones and flags conflicts before proposing new patterns.
 7. **NFRs must be measurable** — "the system should be fast" is rejected; "p95 response time < 200ms under 1000 concurrent users" is accepted.
 
 ---
@@ -153,8 +145,8 @@ artifacts rather than feature artifacts.
 7. **Artifact generation**:
    - `architecture/design-vision.md` — high-level vision, quality attributes, solution overview
    - `architecture/functional-requirements.md` — stakeholder table, top-level FRs with MoSCoW
-   - `architecture/2.x/adr/YYYY-MM-DD-N-*.md` — one ADR per significant decision
-   - `architecture/audience/internal/` and `architecture/audience/external/` — optional persona files for key stakeholder types
+   - `docs/adr/2.x/YYYY-MM-DD-N-*.md` — one ADR per significant decision
+   - `docs/context/audience/internal/` and `docs/context/audience/external/` — optional persona files for key stakeholder types
 
 ### Out of Scope (Deferred)
 
@@ -275,8 +267,8 @@ For each design area (domain modeling, integration, cross-cutting, data flow):
 **CLI commits**:
 - `architecture/design-vision.md` (new or updated)
 - `architecture/functional-requirements.md` (new or updated)
-- `architecture/2.x/adr/YYYY-MM-DD-N-*.md` (one per decision)
-- `architecture/audience/internal/*.md` or `architecture/audience/external/*.md` (if full personas requested)
+- `docs/adr/2.x/YYYY-MM-DD-N-*.md` (one per decision)
+- `docs/context/audience/internal/*.md` or `docs/context/audience/external/*.md` (if full personas requested)
 
 ### Phase 9: Downstream Alignment
 
@@ -317,7 +309,7 @@ For each design area (domain modeling, integration, cross-cutting, data flow):
    when the architect runs `/spec-kitty.design`,
    then the AI conducts a structured interview across Phases 1-7,
    and produces `design-vision.md`, `functional-requirements.md`,
-   and at least one ADR in `architecture/2.x/adr/`.
+   and at least one ADR in `docs/adr/2.x/`.
 
 2. **Existing project architecture evolution**
    Given a project with existing `architecture/design-vision.md` and 3 ADRs,
@@ -372,7 +364,7 @@ For each design area (domain modeling, integration, cross-cutting, data flow):
 10. **Stakeholder persona generation**
     Given the architect identifies "DevOps Engineer" as a key stakeholder,
     when they request a full persona during Phase 1,
-   then the AI generates `architecture/audience/internal/devops-engineer.md`
+   then the AI generates `docs/context/audience/internal/devops-engineer.md`
     using the `stakeholder-persona-template.md` format.
 
 ---
@@ -382,7 +374,7 @@ For each design area (domain modeling, integration, cross-cutting, data flow):
 | Decision | Rationale | ADR |
 |----------|-----------|-----|
 | Design outputs live in `architecture/` not `kitty-specs/` | Architecture is project-wide, not per-feature; `kitty-specs/` is for feature-scoped work | pending |
-| ADRs use existing `architecture/2.x/adr/` directory | Aligns with versioned architecture structure | pending |
+| ADRs use existing `docs/adr/2.x/` directory | Aligns with versioned architecture structure | pending |
 | Codebase scan is always performed (not opt-in) | Architecture decisions without codebase awareness produce ivory-tower designs | pending |
 | Minimum 3 alternatives required per decision | Per Traceable Decisions directive; prevents anchoring on first idea | pending |
 | NFRs must be measurable | Vague quality attributes ("fast", "secure") cannot guide pattern selection | pending |

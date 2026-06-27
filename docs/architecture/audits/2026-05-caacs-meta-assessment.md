@@ -1,9 +1,3 @@
----
-title: 'CaaCS Meta-Assessment & Input for #666 Spike'
-description: 'Reflective meta-assessment of the 2026-05 ad-hoc CaaCS run on spec-kitty: synthesis for adoption stakeholders (DM-C) and input to the #666 skill-design spike.'
-doc_status: active
-updated: '2026-05-11'
----
 # CaaCS Meta-Assessment & Input for #666 Spike
 
 > Reflective synthesis of the 2026-05 ad-hoc Code-as-a-Crime-Scene (CaaCS) run on spec-kitty.
@@ -12,12 +6,12 @@ updated: '2026-05-11'
 **Status:** synthesis complete; adoption decision (DM-C) pending. **See 2026-05-11 update below.**
 **Author:** Planner Priti (ad-hoc planning session, 2026-05).
 **Companion documents:**
-- `architecture/audits/2026-05-spec-kitty-caacs.md` — the audit (extended 2026-05-09 with `tests/` + `kitty-specs/` scope; extended 2026-05-11 with multi-window refactor-candidate synthesis)
-- `architecture/audits/2026-05-822-crosscheck.md` — the original #822 backlog crosscheck (2026-05-08)
-- `architecture/audits/2026-05-phase3-issue-drafts-and-triage.md` — operational follow-ups
-- `architecture/audits/2026-05-phase3-f1-knowledge-capture-plan.md` — F1 remediation plan
-- `architecture/assessments/code-as-a-crime-scene-overview.md` — high-level explainer of the technique (added 2026-05-09)
-- `architecture/audits/2026-05-11-findings-vs-issues-update.md` — relating findings to #645, refreshed #822, and open bug tickets (added 2026-05-11)
+- `docs/architecture/audits/2026-05-spec-kitty-caacs.md` — the audit (extended 2026-05-09 with `tests/` + `kitty-specs/` scope; extended 2026-05-11 with multi-window refactor-candidate synthesis)
+- `docs/architecture/audits/2026-05-822-crosscheck.md` — the original #822 backlog crosscheck (2026-05-08)
+- `docs/architecture/audits/2026-05-phase3-issue-drafts-and-triage.md` — operational follow-ups
+- `docs/architecture/audits/2026-05-phase3-f1-knowledge-capture-plan.md` — F1 remediation plan
+- `docs/architecture/assessments/code-as-a-crime-scene-overview.md` — high-level explainer of the technique (added 2026-05-09)
+- `docs/architecture/audits/2026-05-11-findings-vs-issues-update.md` — relating findings to #645, refreshed #822, and open bug tickets (added 2026-05-11)
 **Doctrine references:** `tactic:forensic-repository-audit` (updated 2026-05-11 with a multi-window refactor-candidate step), `procedure:legacy-codebase-triage`, and the provisional `paradigm:brownfield-onboarding` (added 2026-05-11).
 
 ---
@@ -35,7 +29,7 @@ updated: '2026-05-11'
 >
 > **Implication for §6 (DM-C):** the shift from zero to two STRONG matches in three days *strengthens* — does not weaken — the adoption argument. The audit surfaced structural concerns the team independently filed within days. Where CaaCS looked first, the tracker followed. The case for CaaCS as an opt-in pre-investigation step (per §6) is empirically reinforced.
 >
-> Full detail: `architecture/audits/2026-05-11-findings-vs-issues-update.md`. A companion document reading #992 and #984 in full with proposed audit-evidence comment text lives at `architecture/audits/2026-05-11-issue-992-984-audit-comments.md`.
+> Full detail: `docs/architecture/audits/2026-05-11-findings-vs-issues-update.md`. A companion document reading #992 and #984 in full with proposed audit-evidence comment text lives at `docs/architecture/audits/2026-05-11-issue-992-984-audit-comments.md`.
 >
 > The original §1 executive summary below is preserved as the time-of-writing record (2026-05-08). Read this update note as the live state.
 
@@ -49,8 +43,8 @@ This work was an ad-hoc Code-as-a-Crime-Scene (CaaCS) audit of spec-kitty, adapt
 |---|---|---|
 | **0** Priming | Parallel research: CaaCS technique, issues #822 / #665 / #666, repo shape | Briefing into the planning conversation |
 | **1** Doctrine extraction | PR-able doctrine artifacts | `forensic-repository-audit.tactic.yaml`, `legacy-codebase-triage.procedure.yaml`, DRG updates (commit `bc64dec6e`) |
-| **2** Discovery run | Vanity-filtered forensic audit of all of `src/` (~757 files, 1y window) | `architecture/audits/2026-05-spec-kitty-caacs.md` (commit `cd0052e97`); architect-ratified DDD column (`af2bbd0ee`) |
-| **3** Synthesis | Crosscheck vs #822 + issue drafts + triage + F1 plan + this meta | `architecture/audits/2026-05-822-crosscheck.md` (commit `e9610c964`) and the Phase 3 commit that adds this document |
+| **2** Discovery run | Vanity-filtered forensic audit of all of `src/` (~757 files, 1y window) | `docs/architecture/audits/2026-05-spec-kitty-caacs.md` (commit `cd0052e97`); architect-ratified DDD column (`af2bbd0ee`) |
+| **3** Synthesis | Crosscheck vs #822 + issue drafts + triage + F1 plan + this meta | `docs/architecture/audits/2026-05-822-crosscheck.md` (commit `e9610c964`) and the Phase 3 commit that adds this document |
 
 **Top finding:** bus factor = 1; 89.5% of `src/` commits in the last year are single-author; 14 of 15 hotspots are >90% single-author. Pipeline trust is healthy (~0.3% reverts/hotfixes); velocity is accelerating. The unambiguous structural-remediation target is `cli/commands/agent/{tasks,workflow,mission}.py` — top of churn, top of bug-grep, top of complexity, densest temporal-coupling cluster.
 
@@ -107,7 +101,7 @@ That zero-STRONG outcome is the answer to the latent question behind #665/#666: 
 | F6 Duplicate task-prompt-template smell | 🟡 Smell | No |
 | F7–F14 | various | mostly No (3 PARTIAL, 7 WEAK matches in total) |
 
-Full table and prose: `architecture/audits/2026-05-spec-kitty-caacs.md`. Mapping detail: `architecture/audits/2026-05-822-crosscheck.md`.
+Full table and prose: `docs/architecture/audits/2026-05-spec-kitty-caacs.md`. Mapping detail: `docs/architecture/audits/2026-05-822-crosscheck.md`.
 
 ## 4. Reflections on the approach
 

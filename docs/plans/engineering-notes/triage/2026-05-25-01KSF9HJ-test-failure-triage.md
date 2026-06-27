@@ -1,9 +1,3 @@
----
-title: Mission 01KSF9HJ — Test Triage (WP01)
-description: 'Test triage (WP01, 2026-05-25) for mission 01KSF9HJ: root-cause clustering of the full pytest-suite failures against main HEAD.'
-doc_status: draft
-updated: '2026-05-29'
----
 # Mission 01KSF9HJ — Test Triage (WP01)
 
 **Triaged:** 2026-05-25 (this WP)

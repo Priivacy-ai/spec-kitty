@@ -1,15 +1,8 @@
 ---
-title: Configuration Reference
-description: Reference for Spec Kitty configurations. Explore parameters for meta.json, work package frontmatter, docfx.json, toc.yml, and agent settings.
-doc_status: active
-updated: '2026-06-15'
-related:
-- docs/api/agent-subcommands.md
-- docs/api/cli-commands.md
-- docs/api/environment-variables.md
-- docs/api/file-structure.md
-- docs/api/missions.md
+title: "Configuration Reference"
+description: "Reference for Spec Kitty configurations. Explore parameters for meta.json, work package frontmatter, docfx.json, toc.yml, and agent settings."
 ---
+
 # Configuration Reference
 
 This document describes all configuration files used by Spec Kitty.
@@ -345,7 +338,7 @@ agents:
 **See**:
 - [Managing AI Agents](../how-to/manage-agents.md) - Complete guide to agent management commands
 - [CLI Reference: spec-kitty agent config](agent-subcommands.md#spec-kitty-agent-config) - Command syntax and options
-- [ADR #6: Config-Driven Agent Management](https://github.com/Priivacy-ai/spec-kitty/blob/main/architecture/1.x/adr/2026-01-23-6-config-driven-agent-management.md) - Architectural decision rationale
+- [ADR #6: Config-Driven Agent Management](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/1.x/2026-01-23-6-config-driven-agent-management.md) - Architectural decision rationale
 
 > **Legacy behavior**: Projects without `agents.available` field default to the full slash-command agent set for backward compatibility (currently 13 agent keys in the active CLI surface). To adopt config-driven model, use `spec-kitty agent config remove` to remove unwanted agents.
 

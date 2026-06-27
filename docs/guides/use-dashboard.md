@@ -1,12 +1,8 @@
 ---
-title: How to Use the Spec Kitty Dashboard
-description: Start, view, and manage the real-time kanban dashboard for Spec Kitty work packages.
-doc_status: active
-updated: '2026-06-03'
-related:
-- docs/guides/parallel-development.md
-- docs/guides/review-work-package.md
+title: "How to Use the Spec Kitty Dashboard"
+description: "Start, view, and manage the real-time kanban dashboard for Spec Kitty work packages."
 ---
+
 # How to Use the Spec Kitty Dashboard
 
 The dashboard provides live, project-wide visibility into work packages, lanes, and agent activity. Start it on demand whenever you want to inspect progress.

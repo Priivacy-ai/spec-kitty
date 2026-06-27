@@ -1,14 +1,3 @@
----
-title: 'Context: Execution'
-description: 'Glossary context for execution semantics: tool invocation and the semantic safety gates applied during generation within a Spec Kitty mission.'
-doc_status: active
-updated: '2026-06-14'
-related:
-- docs/context/governance.md
-- docs/context/identity.md
-- docs/context/lexical.md
-- docs/context/system-events.md
----
 ## Context: Execution
 
 Terms describing tool invocation and semantic safety gates during generation.
@@ -235,7 +224,7 @@ Terms describing tool invocation and semantic safety gates during generation.
 | **Materialization trigger** | First concrete actor-kind-mismatch bug, or first feature requiring cross-log (status/retrospective/run) actor identity join |
 | **Placement when materialized** | `src/specify_cli/kernel/actor.py` (Shared Kernel layer) |
 | **Related terms** | [communication artefact](#communication-artefact) |
-| **ADR** | `architecture/3.x/adr/2026-06-03-3-effector-actor-model.md` |
+| **ADR** | `docs/adr/3.x/2026-06-03-3-effector-actor-model.md` |
 
 ---
 

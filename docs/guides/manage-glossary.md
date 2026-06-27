@@ -1,15 +1,8 @@
 ---
-title: How to Manage the Glossary
-description: Curate canonical terminology, resolve conflicts, and configure strictness enforcement.
-doc_status: active
-updated: '2026-06-03'
-related:
-- docs/3x/charter-overview.md
-- docs/guides/create-specification.md
-- docs/guides/install-spec-kitty.md
-- docs/guides/switch-missions.md
-- docs/guides/synthesize-doctrine.md
+title: "How to Manage the Glossary"
+description: "Curate canonical terminology, resolve conflicts, and configure strictness enforcement."
 ---
+
 # How to Manage the Glossary
 
 The glossary keeps terminology consistent across all mission artifacts. Every term has a surface form (the word itself), a definition, a scope that determines its precedence, a confidence score, and a status. When the runtime detects a conflict between a term used in an artifact and its glossary definition, it can block generation until you resolve the inconsistency.

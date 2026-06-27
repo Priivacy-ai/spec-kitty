@@ -40,7 +40,7 @@ Replacement-key mapping
 Docs URL
 --------
 User-facing migration guidance lives at:
-    ``docs/how-to/use-retrospective-learning.md``
+    ``docs/guides/use-retrospective-learning.md``
 (written by WP07; referenced here as a relative path).
 """
 
@@ -66,7 +66,7 @@ REPLACEMENT_KEYS: dict[str, str] = {
 }
 
 #: User-facing docs URL (relative path; WP07 ensures this doc exists).
-_DOCS_URL: str = "docs/how-to/use-retrospective-learning.md"
+_DOCS_URL: str = "docs/guides/use-retrospective-learning.md"
 
 
 # ---------------------------------------------------------------------------

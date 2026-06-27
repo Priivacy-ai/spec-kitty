@@ -1,9 +1,3 @@
----
-title: 15 — Dialectic on the Refined Domain Model
-description: Consolidation-gate dialectic (Phase 2) on the refined Tier-1 domain model from note 14, corroborating then refuting and reconciling for the overhaul.
-doc_status: draft
-updated: '2026-06-03'
----
 # 15 — Dialectic on the Refined Domain Model
 
 **Phase:** 2 (consolidation gate) · **Date:** 2026-06-03 · **Method:** `dialectic-research` tactic

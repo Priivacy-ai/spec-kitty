@@ -1,11 +1,3 @@
----
-title: 14 — Model Diagrams (multi-tier)
-description: Multi-tier model diagrams (Phase 2) for the runtime and state overhaul's conceptual domain model, authored under the Architect Alphonso persona.
-doc_status: draft
-updated: '2026-06-03'
-related:
-- docs/plans/engineering-notes/runtime_and_state_overhaul/17-consolidated-domain-model.md
----
 # 14 — Model Diagrams (multi-tier)
 
 **Phase:** 2 (conceptual modeling) · **Date:** 2026-06-03 · **Persona:** Architect Alphonso (architecture
@@ -408,7 +400,7 @@ sequenceDiagram
 6. **Shared `Actor` type** — vocabulary now; a code type only if a shared seam emerges. `[2d]`
 
 ## Next refinement candidates
-- Promote Tier 1 + 2 into a published `docs/explanation/` doc once the Context subdomain settles.
+- Promote Tier 1 + 2 into a published `docs/architecture/` doc once the Context subdomain settles.
 - Add a **BPMN swimlane** (User / Code / Agent) over the idea→working-code flow, showing which context
   is resolved/consumed at each step — the requirements view (`10`) made executable.
 - A **sequence diagram** of the governed invocation (resolve identity → topology → behaviour → render prompt → act → record evidence).

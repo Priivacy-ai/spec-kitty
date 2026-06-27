@@ -1,12 +1,8 @@
 ---
-title: Why the Divio Documentation System?
-description: "Why Spec Kitty organizes docs with the Divio four-type system, tutorials, how-to, reference, and explanation, so each user need maps to one doc type, not mixed-concern pages."
-doc_status: active
-updated: '2026-06-12'
-related:
-- docs/architecture/mission-system.md
-- docs/architecture/spec-driven-development.md
+title: "Why the Divio Documentation System?"
+description: "Explanation of Why the Divio Documentation System? in Spec Kitty 3.2, including the model, rationale, and operator implications."
 ---
+
 # Why the Divio Documentation System?
 
 Spec Kitty uses the Divio documentation system to organize its docs. This document explains why we chose this system and how it works.

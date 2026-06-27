@@ -1,9 +1,8 @@
 ---
-title: Bulk-edit gate reference
-description: Reference schema for Spec Kitty bulk-edit gates. Learn how to configure occurrence_map.yaml for renaming operations, actions, and validation.
-doc_status: active
-updated: '2026-06-09'
+title: "Bulk-edit gate reference"
+description: "Reference schema for Spec Kitty bulk-edit gates. Learn how to configure occurrence_map.yaml for renaming operations, actions, and validation."
 ---
+
 # Bulk-edit gate reference
 
 When a mission's `meta.json` declares `change_mode: bulk_edit`, the planning

@@ -1,9 +1,3 @@
----
-title: 1.x — research (history slot)
-description: Per-era research (spike/exploration) record for the 1.x architecture track, part of the versioned history beneath the living architecture.
-doc_status: draft
-updated: '2026-06-12'
----
 # 1.x — research (history slot)
 
 Per-era **research** (spike/exploration) record for the 1.x architecture track.

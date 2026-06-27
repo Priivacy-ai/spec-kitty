@@ -1,1 +1,0 @@
-../../3.x/adr/2026-04-19-2-ticket-delivery-is-cli-plumbing-specification-is-llm-content.md

@@ -1,12 +1,8 @@
 ---
-title: How to Switch Missions
-description: Choose and change missions to match software, research, or documentation workflows.
-doc_status: active
-updated: '2026-06-03'
-related:
-- docs/guides/create-specification.md
-- docs/guides/install-and-upgrade.md
+title: "How to Switch Missions"
+description: "Choose and change missions to match software, research, or documentation workflows."
 ---
+
 # How to Switch Missions
 
 Missions shape the prompts, artifacts, and workflows Spec Kitty uses for each feature. Each feature selects one mission during `/spec-kitty.specify`, and you can inspect or start new features with a different mission at any time.

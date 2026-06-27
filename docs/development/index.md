@@ -1,15 +1,8 @@
 ---
-title: Development
-description: Landing page for the retired docs/development working set, mapping where each former page moved under the durable operations, guides, and configuration sections.
-doc_status: active
-updated: '2026-06-27'
-related:
-- docs/configuration/index.md
-- docs/guides/index.md
-- docs/index.md
-- docs/operations/index.md
-- docs/plans/index.md
+title: "Development"
+description: "Landing note for the re-sectioned development docs: durable pages moved to operations/guides/configuration, ephemeral notes to plans; the page-inventory tooling artifact stays here."
 ---
+
 # Development
 
 The former `docs/development/` working set has been **re-sectioned per-file**

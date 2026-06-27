@@ -1,12 +1,8 @@
 ---
-title: 'Your First Feature: Complete Workflow'
-description: Walk through a complete Spec Kitty 3.2 mission from specification through plan, tasks, implementation, review, and merge.
-doc_status: active
-updated: '2026-06-03'
-related:
-- docs/guides/getting-started.md
-- docs/guides/multi-agent-workflow.md
+title: "Your First Feature: Complete Workflow"
+description: "Walk through a complete Spec Kitty 3.2 mission from specification through plan, tasks, implementation, review, and merge."
 ---
+
 # Your First Feature: Complete Workflow
 
 **Divio type**: Tutorial

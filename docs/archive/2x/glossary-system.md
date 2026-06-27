@@ -1,11 +1,8 @@
 ---
-title: 2.x Glossary System
-description: Historical Spec Kitty 2.x archive page for 2.x Glossary System; use Spec Kitty 3.2 docs for current Charter-era workflows.
-doc_status: deprecated
-updated: '2026-06-03'
-related:
-- docs/3x/index.md
+title: "2.x Glossary System"
+description: "Historical Spec Kitty 2.x archive page for 2.x Glossary System; use Spec Kitty 3.2 docs for current Charter-era workflows."
 ---
+
 > Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../3x/index.md) for current docs.
 
 # 2.x Glossary System
@@ -19,7 +16,7 @@ In 2.x the glossary is a living system: terms are added, curated, promoted, and 
 2.x glossary content is organized by context domain:
 
 1. `glossary/README.md` -- overview and conventions
-2. `glossary/contexts/*.md` -- domain-specific term files
+2. `docs/context/*.md` -- domain-specific term files
 
 Current domains include execution, orchestration, governance, identity, doctrine, dossier, lexical, system-events, and technology-foundations.
 

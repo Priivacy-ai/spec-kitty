@@ -1,9 +1,3 @@
----
-title: 'Post-Implementation Review: Feature 054 — Charter Interview Compiler and Bootstrap'
-description: 'Post-implementation review of feature 054 (charter interview compiler and bootstrap): what shipped, what went well, and the follow-ups, in a field table.'
-doc_status: draft
-updated: '2026-04-05'
----
 # Post-Implementation Review: Feature 054 — Charter Interview Compiler and Bootstrap
 
 | Field | Value |
@@ -323,7 +317,7 @@ direction.
 ## Related Documents
 
 - Feature 054 spec: `kitty-specs/054-charter-interview-compiler-and-bootstrap/spec.md`
-- Doctrine execution integration: `architecture/2.x/initiatives/2026-03-doctrine-execution-integration/`
-- Implementation mapping: `architecture/2.x/04_implementation_mapping/README.md`
-- System landscape: `architecture/2.x/00_landscape/README.md`
-- ADR Doctrine Governance: `architecture/2.x/adr/2026-02-23-1-doctrine-artifact-governance-model.md`
+- Doctrine execution integration: `docs/plans/initiatives/2026-03-doctrine-execution-integration/`
+- Implementation mapping: `docs/architecture/04_implementation_mapping/README.md`
+- System landscape: `docs/architecture/00_landscape/README.md`
+- ADR Doctrine Governance: `docs/adr/2.x/2026-02-23-1-doctrine-artifact-governance-model.md`

@@ -3,7 +3,7 @@
 Mission ``charter-ux-and-org-pack-vocabulary-01KSAF14`` / WP10 / T057.
 
 The point of this test is to FREEZE the field-merge semantics described in
-``architecture/3.x/adr/2026-05-16-1-doctrine-layer-merge-semantics.md`` and in
+``docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md`` and in
 ``kitty-specs/charter-ux-and-org-pack-vocabulary-01KSAF14/quickstart.md`` §4a.
 
 FR-028 retired inline ``enhances`` / ``overrides`` fields on doctrine artifacts.

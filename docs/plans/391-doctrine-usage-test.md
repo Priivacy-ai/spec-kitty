@@ -1,9 +1,3 @@
----
-title: '#391 Doctrine Usage Test (WP11 dogfood)'
-description: 'The #391 doctrine-usage dogfood test (WP11) for the doctrine-glossary-architecture-consolidation mission, exercising FR-012 and success criteria SC-1/SC-6.'
-doc_status: draft
-updated: '2026-06-12'
----
 # #391 Doctrine Usage Test (WP11 dogfood)
 
 Mission: `doctrine-glossary-architecture-consolidation-01KTNWFC` — FR-012, SC-1/SC-6.

@@ -1,1 +1,0 @@
-../1.x/adr/2026-01-23-2-explicit-base-branch-tracking.md

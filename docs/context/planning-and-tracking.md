@@ -1,13 +1,3 @@
----
-title: 'Context: Planning & Tracking'
-description: 'Glossary context for planning and tracking: how work is organized, classified, and dispatched across the tracker and execution tiers (companion to the seed).'
-doc_status: active
-updated: '2026-06-12'
-related:
-- docs/context/execution.md
-- docs/context/orchestration.md
-- docs/context/system-events.md
----
 ## Context: Planning & Tracking
 
 Terms describing how work is organized, classified, and dispatched in the issue

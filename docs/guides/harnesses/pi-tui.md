@@ -1,11 +1,8 @@
 ---
-title: Use Spec Kitty in Pi TUI
-description: 'How to use Spec Kitty in Pi TUI (partial tier): command-skill packages install in 3.2, but real-session smoke evidence is not yet recorded.'
-doc_status: active
-updated: '2026-06-03'
-related:
-- docs/guides/install-spec-kitty.md
+title: "Use Spec Kitty in Pi TUI"
+description: "Configure the Use Spec Kitty in Pi TUI harness for Spec Kitty 3.2 commands, generated skills, and agent workflow integration."
 ---
+
 # Use Spec Kitty in Pi TUI
 
 > **Tier:** **partial** — Spec Kitty installs Pi command-skill packages in 3.2, but real-session smoke evidence is not yet recorded.
@@ -81,4 +78,4 @@ If Pi does not expose the command in your installed version, the artifacts remai
 
 ## Where to learn more about Pi TUI
 
-Authoritative documentation: <https://pi.dev/docs/latest/skills> (accessed 2026-05-21). The matrix row in [`docs/reference/supported-harnesses.md`](../../reference/supported-harnesses.md) remains the promotion tracker.
+Authoritative documentation: <https://pi.dev/docs/latest/skills> (accessed 2026-05-21). The matrix row in [`docs/api/supported-harnesses.md`](../../reference/supported-harnesses.md) remains the promotion tracker.

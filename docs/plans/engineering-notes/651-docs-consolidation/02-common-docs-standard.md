@@ -1,14 +1,15 @@
 ---
-title: Common Docs standard — full-adoption mechanics & the metadata-SSOT verdict
-description: What the Common Docs standard mandates, how spec-kitty adopts it fully, and the verdict that in-file frontmatter becomes the metadata SSOT with a regenerated inventory lockfile.
-doc_status: active
-updated: '2026-06-27'
+title: "Common Docs standard — full-adoption mechanics & the metadata-SSOT verdict"
+description: "What the Common Docs standard actually mandates, how spec-kitty adopts it fully (with adr/<era>/), and the verdict that in-file frontmatter becomes the metadata SSOT with the page-inventory regenerated as a validated lockfile."
+status: active
+updated: 2026-06-27
 related:
-- docs/development/3-2-page-inventory.yaml
-- docs/docfx.json
-- docs/plans/engineering-notes/651-docs-consolidation/03-target-structure-mapping.md
-- docs/plans/engineering-notes/651-docs-consolidation/index.md
+  - docs/engineering_notes/651-docs-consolidation/index.md
+  - docs/engineering_notes/651-docs-consolidation/03-target-structure-mapping.md
+  - docs/development/3-2-page-inventory.yaml
+  - docs/docfx.json
 ---
+
 # Common Docs standard — full-adoption mechanics & the metadata-SSOT verdict
 
 > Research capture (paula-patterns, 2026-06-27) of the **actual** Common Docs standard
@@ -88,7 +89,7 @@ redirect/alias-on-move, the anti-sprawl ratchet — is bespoke.
 |---|---|---|
 | `architecture/` living design (root C4/overview) | `docs/architecture/` | collapse the era-split — operator: era belongs to history |
 | `architecture/{1.x,2.x,3.x}/adr/` (99 ADRs) | `docs/adr/<era>/` | **relax the standard's flat `adr/`** to preserve historical reasoning |
-| `architecture/diagrams,audience,audits,vision/` | `docs/architecture/` + `docs/context/` | vision→context, audits→architecture |
+| `docs/architecture/diagrams,audience,audits,vision/` | `docs/architecture/` + `docs/context/` | vision→context, audits→architecture |
 | `docs/{tutorials,how-to,reference,explanation}` | `docs/guides/` + `docs/api/` + `docs/architecture/` | Divio folds onto Common Docs sections |
 | `docs/{1x,2x,3x}/` + `docs/architecture/` shadow | **deleted** | the split-brain — consolidation's core payload |
 | `development/` + `docs/development/` | `docs/guides/development.md` + `docs/operations/` | |
@@ -120,14 +121,14 @@ as installed Agent Skills (`.agents/skills/`). The three built-in tactics live a
 | `common-docs-write` | `common-docs-write.tactic.yaml` | Author body + frontmatter to pass live gates (SEO band, `related:` form, Divio type, naming) |
 | `common-docs-find` | `common-docs-find.tactic.yaml` | Locate the owning doc via the DRG + page-inventory lockfile — **rejects** the static lookup table |
 
-The ADR (`architecture/3.x/adr/2026-06-27-1-common-docs-reconciliation.md`) records in its
+The ADR (`docs/adr/3.x/2026-06-27-1-common-docs-reconciliation.md`) records in its
 Neutral consequences that the three skills "install as peer skills" — that note predates the
 operator's doctrine-tactics decision and is **superseded** by the WP02 outcome. The ADR is
 intentionally not edited in Mission A; its Neutral consequences will be reconciled in Mission B.
 
 **Bespoke (the real mission weight):** ~**1,589 link rewrites across ~503 files** (42 in
 `src/` — a missed rewrite is a **runtime break**, not a dead link; 151 on
-`architecture/3.x/adr`); a build-time **`related:` path validator**; the **redirect/alias
+`docs/adr/3.x`); a build-time **`related:` path validator**; the **redirect/alias
 shim** (DocFX has no native aliases → URL/SEO churn on every move); the **anti-sprawl
 ratchet** (`tests/architectural/` gate).
 

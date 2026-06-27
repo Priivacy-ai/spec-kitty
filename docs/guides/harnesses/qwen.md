@@ -1,11 +1,8 @@
 ---
-title: Use Spec Kitty in Qwen Code
-description: 'How to use Spec Kitty in Qwen Code (supported tier) via TOML commands: prerequisites, command install, and the Spec Kitty workflow.'
-doc_status: active
-updated: '2026-06-03'
-related:
-- docs/guides/install-spec-kitty.md
+title: "Use Spec Kitty in Qwen Code"
+description: "Configure the Use Spec Kitty in Qwen Code harness for Spec Kitty 3.2 commands, generated skills, and agent workflow integration."
 ---
+
 # Use Spec Kitty in Qwen Code
 
 > **Tier:** supported.

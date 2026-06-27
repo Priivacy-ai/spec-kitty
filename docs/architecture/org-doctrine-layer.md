@@ -1,12 +1,8 @@
 ---
-title: Understanding the Org Doctrine Layer
-description: How the three-layer doctrine model resolves built-in, org, and project artifacts, how provenance tracking works, and how org charter policy composes with the project charter.
-doc_status: active
-updated: '2026-06-12'
-related:
-- docs/architecture/charter-synthesis-drg.md
-- docs/migration/doctrine-local-overlay-to-org-layer.md
+title: "Understanding the Org Doctrine Layer"
+description: "How the three-layer doctrine model resolves built-in, org, and project artifacts, how provenance tracking works, and how org charter policy composes with the project charter."
 ---
+
 # Understanding the Org Doctrine Layer
 
 Spec Kitty resolves governance doctrine through three layers: a **built-in** layer shipped
@@ -155,7 +151,7 @@ artifact (kind, ID, higher layer, lower layer, field counts), or reports
 are in play. The same data is available as a `collisions` array under
 `--json`.
 
-See [ADR 2026-05-16-1](https://github.com/Priivacy-ai/spec-kitty/blob/main/architecture/3.x/adr/2026-05-16-1-doctrine-layer-merge-semantics.md)
+See [ADR 2026-05-16-1](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md)
 for the rationale behind this design.
 
 ---

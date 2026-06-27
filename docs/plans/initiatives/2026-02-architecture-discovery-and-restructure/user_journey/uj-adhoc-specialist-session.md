@@ -1,9 +1,3 @@
----
-title: 'User Journey: Ad-Hoc Specialist Session (Quick Task)'
-description: Draft user journey for an ad-hoc specialist session (quick task), captured 2026-02-17, exploring lightweight specialist interaction in Spec Kitty.
-doc_status: draft
-updated: '2026-06-12'
----
 # User Journey: Ad-Hoc Specialist Session (Quick Task)
 
 **Status**: DRAFT  

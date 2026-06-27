@@ -1,9 +1,3 @@
----
-title: 'ADR: Connector Installation, User Link, and Resource Mapping Separation'
-description: Historical 1.x-notes copy of the accepted ADR separating connector installation, user link, and resource mapping from per-binding token storage.
-doc_status: draft
-updated: '2026-04-06'
----
 # ADR: Connector Installation, User Link, and Resource Mapping Separation
 
 **Status**: Accepted

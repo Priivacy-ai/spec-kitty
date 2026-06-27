@@ -1,9 +1,3 @@
----
-title: Layered Doctrine Resolution — Design Blueprint
-description: 'Design blueprint (approved 2026-05-15) for layered doctrine resolution across issues #832/#883/#1013: how doctrine layers compose and resolve.'
-doc_status: draft
-updated: '2026-06-15'
----
 # Layered Doctrine Resolution — Design Blueprint
 
 Status: approved for mission planning, 2026-05-15  

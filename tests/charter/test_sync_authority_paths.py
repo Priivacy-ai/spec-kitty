@@ -40,8 +40,8 @@ available_tools:
   - spec-kitty
   - pytest
 authority_paths:
-  - glossary/contexts/
-  - architecture/3.x/adr/
+  - docs/context/
+  - docs/adr/3.x/
 governance_references:
   - spec/constitution.md
 ```
@@ -59,8 +59,8 @@ def test_fenced_yaml_authority_paths_extracted(tmp_path: Path) -> None:
     doctrine = data["doctrine"]
     assert isinstance(doctrine, dict)
     assert doctrine.get("authority_paths") == [
-        "glossary/contexts/",
-        "architecture/3.x/adr/",
+        "docs/context/",
+        "docs/adr/3.x/",
     ]
     assert doctrine.get("governance_references") == ["spec/constitution.md"]
 
@@ -189,7 +189,7 @@ def test_non_string_authority_path_rejected() -> None:
 
 ```yaml
 authority_paths:
-  - glossary/contexts/
+  - docs/context/
   - 12345
 ```
 """

@@ -1,9 +1,3 @@
----
-title: Doctrine Alignment Analysis
-description: Discovery-stage analysis (2026-03-12) of how the test-improvement initiative aligns with Spec Kitty doctrine and where the gaps are.
-doc_status: draft
-updated: '2026-03-15'
----
 # Doctrine Alignment Analysis
 
 > **Status:** Discovery  

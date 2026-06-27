@@ -1,11 +1,8 @@
 ---
-title: Use Spec Kitty in Windsurf
-description: 'How to use Spec Kitty in Windsurf (supported tier) via the workflow mechanism: prerequisites, workflow install, and the Spec Kitty command flow.'
-doc_status: active
-updated: '2026-06-03'
-related:
-- docs/guides/install-spec-kitty.md
+title: "Use Spec Kitty in Windsurf"
+description: "Configure the Use Spec Kitty in Windsurf harness for Spec Kitty 3.2 commands, generated skills, and agent workflow integration."
 ---
+
 # Use Spec Kitty in Windsurf
 
 > **Tier:** supported. Workflow mechanism.

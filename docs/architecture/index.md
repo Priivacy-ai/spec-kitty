@@ -1,15 +1,8 @@
 ---
-title: Architecture notes
-description: Internal architecture notes covering Spec Kitty connector authentication, GitHub App installation authority, and project feature-detection design.
-doc_status: active
-updated: '2026-06-27'
-related:
-- docs/architecture/adr-connector-auth-binding-separation.md
-- docs/architecture/adr-github-app-installation-authority.md
-- docs/architecture/feature-detection.md
-- docs/architecture/gap-analysis-connector-installation-model.md
-- docs/index.md
+title: "Architecture notes"
+description: "Internal architecture notes covering Spec Kitty connector authentication, GitHub App installation authority, and project feature-detection design."
 ---
+
 # Architecture notes
 
 Internal architecture and design notes for Spec Kitty subsystems. These pages capture
@@ -26,4 +19,4 @@ end-user documentation.
 ## See also
 
 - [Documentation home](../index.md)
-- [Architecture Decision Records](../../architecture/3.x/adr/README.md)
+- [Architecture Decision Records](../../docs/adr/3.x/README.md)

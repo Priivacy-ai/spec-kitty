@@ -1,13 +1,8 @@
 ---
-title: Kanban Workflow Explained
-description: "How Spec Kitty tracks work-package progress: the nine lanes, the 27 allowed transitions and their guards, the append-only event log, and who moves work between them."
-doc_status: active
-updated: '2026-06-12'
-related:
-- docs/architecture/ai-agent-architecture.md
-- docs/architecture/execution-lanes.md
-- docs/architecture/spec-driven-development.md
+title: "Kanban Workflow Explained"
+description: "Explanation of Kanban Workflow Explained in Spec Kitty 3.2, including the model, rationale, and operator implications."
 ---
+
 # Kanban Workflow Explained
 
 Spec Kitty uses a kanban-style workflow to track work package progress. This document explains how lanes work, why we track status this way, and what happens when work moves between lanes.

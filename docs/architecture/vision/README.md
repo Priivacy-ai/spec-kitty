@@ -1,11 +1,3 @@
----
-title: Architecture Vision (living)
-description: 'Landing page for the living architecture vision: the current and future, still-changeable forward intent at the top of architecture/, above versioned history.'
-doc_status: active
-updated: '2026-06-12'
-related:
-- docs/architecture/README.md
----
 # Architecture Vision (living)
 
 This directory holds the **current and future** architecture vision for Spec Kitty —
@@ -28,6 +20,6 @@ top* of `architecture/` (see [`../README.md`](../README.md) for the boundary and
 
 | Artifact | Meaning | Home | Mutability |
 |---|---|---|---|
-| Vision | Forward intent | `architecture/vision/` (top-level, living) | May change |
+| Vision | Forward intent | `docs/architecture/vision/` (top-level, living) | May change |
 | Decision (ADR) | Ratified decision | `architecture/<version>/adr/` | Immutable, era-stamped |
 | Spike | Exploration | `architecture/<version>/research/` | Versioned record |

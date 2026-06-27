@@ -1,17 +1,11 @@
----
-title: 'Architecture: Centralized Feature Detection'
-description: Historical 1.x-notes copy of the centralized feature-detection architecture (v0.14.0), retained as a deep-dive beneath the living architecture.
-doc_status: draft
-updated: '2026-02-23'
----
 # Architecture: Centralized Feature Detection
 
 **Status**: Implemented (v0.14.0)
 **Author**: System Architecture
 **Last Updated**: 2026-01-27
 
-> ADR index note: ADRs are now versioned under `architecture/1.x/adr/` and `architecture/2.x/adr/`.
-> Legacy links through `architecture/adrs/` are kept for compatibility.
+> ADR index note: ADRs are now versioned under `docs/adr/1.x/` and `docs/adr/2.x/`.
+> Legacy links through `docs/adr/3.x/` are kept for compatibility.
 
 ## Problem Statement
 

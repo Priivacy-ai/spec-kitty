@@ -1,9 +1,3 @@
----
-title: 1. What “Ad-Hoc Agent Profile Interaction” Actually Is
-description: Raw lineage dump of the 2026-02-17 exploratory design brainstorm session opener, preserved as provenance for the architecture-discovery initiative.
-doc_status: draft
-updated: '2026-06-12'
----
 2026-02-17:11:49
 
 Mode: exploratory design brainstorm

@@ -1,15 +1,8 @@
 ---
-title: How to Set Up Project Governance
-description: Configure your project charter, generate structured governance config, and keep it in sync.
-doc_status: active
-updated: '2026-06-03'
-related:
-- docs/3x/charter-overview.md
-- docs/guides/create-specification.md
-- docs/guides/non-interactive-init.md
-- docs/guides/switch-missions.md
-- docs/guides/synthesize-doctrine.md
+title: "How to Set Up Project Governance"
+description: "Configure your project charter, generate structured governance config, and keep it in sync."
 ---
+
 # How to Set Up Project Governance
 
 Spec Kitty uses a charter to govern how agents behave during workflow actions. This guide walks you through creating a charter, generating structured config from it, and keeping everything in sync as your project evolves.

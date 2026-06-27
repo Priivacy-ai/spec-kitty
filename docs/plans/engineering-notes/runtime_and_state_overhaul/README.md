@@ -1,28 +1,3 @@
----
-title: Runtime & State Overhaul — Engineering Notes
-description: 'Landing page for the runtime and state overhaul engineering notes: design exploration complete and handed off for ADR finalization (epic #1619).'
-doc_status: draft
-updated: '2026-06-03'
-related:
-- docs/plans/engineering-notes/runtime_and_state_overhaul/01-ticket-capture.md
-- docs/plans/engineering-notes/runtime_and_state_overhaul/02-current-state-map.md
-- docs/plans/engineering-notes/runtime_and_state_overhaul/03-architecture-context.md
-- docs/plans/engineering-notes/runtime_and_state_overhaul/04-doctrine-constraints.md
-- docs/plans/engineering-notes/runtime_and_state_overhaul/05-architectural-synthesis.md
-- docs/plans/engineering-notes/runtime_and_state_overhaul/06-proposed-domains-and-splits.md
-- docs/plans/engineering-notes/runtime_and_state_overhaul/07-existing-pattern-and-domain-extraction.md
-- docs/plans/engineering-notes/runtime_and_state_overhaul/08-architecture-phase-1-summary.md
-- docs/plans/engineering-notes/runtime_and_state_overhaul/09-context-decomposition-model.md
-- docs/plans/engineering-notes/runtime_and_state_overhaul/10-context-needs-capture.md
-- docs/plans/engineering-notes/runtime_and_state_overhaul/11-dialectic-and-revised-claims.md
-- docs/plans/engineering-notes/runtime_and_state_overhaul/12-actor-mental-model.md
-- docs/plans/engineering-notes/runtime_and_state_overhaul/13-dialectic-mission-vs-missionrun.md
-- docs/plans/engineering-notes/runtime_and_state_overhaul/14-model-diagrams.md
-- docs/plans/engineering-notes/runtime_and_state_overhaul/15-dialectic-on-the-domain-model.md
-- docs/plans/engineering-notes/runtime_and_state_overhaul/16-codebase-reassessment-fanout.md
-- docs/plans/engineering-notes/runtime_and_state_overhaul/17-consolidated-domain-model.md
-- docs/plans/engineering-notes/runtime_and_state_overhaul/SESSION-RECAP.md
----
 # Runtime & State Overhaul — Engineering Notes
 
 **Status:** Design exploration complete; handed to @robertDouglass for ADR finalization
@@ -79,7 +54,7 @@ to a design, so the design conversation is anchored in evidence rather than memo
 
 - Ticket bodies and comments fetched from `Priivacy-ai/spec-kitty` issues #1619, #1615, #1616, #1617, #1618, #1602, #1348, and PR #1627 on 2026-06-03.
 - Code citations against working tree at the rc35 development checkout (commit context: `main` @ `48a687db3`).
-- Architecture digest from `architecture/3.x/adr/*` + `docs/engineering_notes/architectural-review/2026-05-25-deep-dive-architectural-review.md` + `architecture/audits/2026-05-*caacs*`.
+- Architecture digest from `docs/adr/3.x/*` + `docs/plans/engineering-notes/architectural-review/2026-05-25-deep-dive-architectural-review.md` + `docs/architecture/audits/2026-05-*caacs*`.
 - Doctrine digest from `src/doctrine/{directives,paradigms,tactics,styleguides}/built-in/*`.
 
 All `path:line` citations are point-in-time; verify before acting on any single line.

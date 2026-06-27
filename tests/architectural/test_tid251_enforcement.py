@@ -1,6 +1,6 @@
 """Architectural guard — the TID251 banned-API ban is *enforced*, not advisory.
 
-ADR ``architecture/adrs/2026-05-28-1-ci-dependency-resolution-and-test-surface-consistency.md``
+ADR ``docs/adr/3.x/2026-05-28-1-ci-dependency-resolution-and-test-surface-consistency.md``
 (Gap 3 / Gap 5, Decision Outcome) commits to "automated enforcement rather than
 convention": tests must not reimplement the charter hash algorithm
 (``hashlib.sha256``) nor catch ``click.exceptions.*`` directly, and that rule must

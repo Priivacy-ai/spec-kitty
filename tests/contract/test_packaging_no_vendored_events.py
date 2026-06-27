@@ -26,7 +26,7 @@ This module provides two layers of mechanical enforcement:
    equals the version pinned in ``uv.lock``. This catches silent version
    drift where the wrong version is active in the venv.
 
-See ADR ``architecture/2.x/adr/2026-04-25-1-shared-package-boundary.md``
+See ADR ``docs/adr/2.x/2026-04-25-1-shared-package-boundary.md``
 for the rationale and ``kitty-specs/shared-package-boundary-cutover-01KQ22DS/spec.md``
 for the constraint definitions.
 """

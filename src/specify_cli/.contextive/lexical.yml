@@ -1,7 +1,7 @@
 # GENERATED FILE — do not edit manually.
 # Run: python scripts/generate_contextive_glossaries.py generate
 #
-# Source: glossary/contexts/lexical.md
+# Source: docs/context/lexical.md
 
 contexts:
   - name: "Lexical"

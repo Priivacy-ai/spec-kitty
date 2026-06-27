@@ -1,15 +1,9 @@
----
-title: '2026-05-11 — findings vs issues (#645, #822 refresh, open bugs)'
-description: '2026-05-11 refresh cross-checking the CaaCS audit findings against open issues (#645, #822) and adding two new slow-burn refactor candidates surfaced by the pass.'
-doc_status: active
-updated: '2026-06-12'
----
 # 2026-05-11 — findings vs issues (#645, #822 refresh, open bugs)
 
 ## Inputs
 
-- **Audit referenced**: `architecture/audits/2026-05-spec-kitty-caacs.md` (commit `bc64dec6ee37dbbd6bc21a0a1aa3195f2bab1b57`, 2026-05-08).
-- **Prior crosscheck**: `architecture/audits/2026-05-822-crosscheck.md` (dated 2026-05-08).
+- **Audit referenced**: `docs/architecture/audits/2026-05-spec-kitty-caacs.md` (commit `bc64dec6ee37dbbd6bc21a0a1aa3195f2bab1b57`, 2026-05-08).
+- **Prior crosscheck**: `docs/architecture/audits/2026-05-822-crosscheck.md` (dated 2026-05-08).
 - **Multi-window refresh (2026-05-11)** introduced two new slow-burn refactor candidates: `src/specify_cli/orchestrator_api/commands.py` (1097 SLOC, F#28 full-history, R#24 4-mo) and `src/specify_cli/agent_utils/status.py` (570 SLOC, F#29 full-history, R#26 4-mo, contains the `_display_status_board` F-53 renderer).
 - **Provisional doctrine paradigm**: `brownfield-onboarding` (investigate before changing; document/transfer first; hierarchical reference bundles).
 - **Issue tracker reads** (all via `gh` against `Priivacy-ai/spec-kitty`, 2026-05-11):
@@ -76,7 +70,7 @@ Issue 645 is a multi-step architectural epic (rescoped 2026-05-03 from "Frontend
 | F17 (mission↔src/ co-change limited) | **NONE** | Structural pipeline observation, not addressed. |
 | F18 (`agent_utils/status.py` under-tested) | **PARTIAL** | The epic's MissionRegistry (#956) and `WorkPackageAssignment` schema (#957) create a canonical materialization layer that `agent_utils/status.py` should eventually consume; if executed, it would naturally reduce that file's filesystem-walking footprint and make its renderer thinner. Not a direct target, but in the structural path. |
 | orchestrator_api/commands.py slow-burn | **WEAK** | The epic explicitly says "do not overload the orchestrator API with product/application concerns" — orthogonal-by-design. |
-| Brownfield-onboarding paradigm | **PARTIAL** | The epic's Step 0 explicitly "codifies doctrine + architectural tests" before refactoring further, which is the brownfield "document first, refactor second" pattern. Also: `architecture/2.x/05_ownership_map.md` updates are part of each merged mission. The doctrine layer is exactly where brownfield-onboarding would land. |
+| Brownfield-onboarding paradigm | **PARTIAL** | The epic's Step 0 explicitly "codifies doctrine + architectural tests" before refactoring further, which is the brownfield "document first, refactor second" pattern. Also: `docs/architecture/05_ownership_map.md` updates are part of each merged mission. The doctrine layer is exactly where brownfield-onboarding would land. |
 
 **Overall**: #645 is a strong-execution architectural epic, but its scope only weakly overlaps the audit's structural-remediation findings. It is also visibly close to **done** — Steps 1–6 have shipped, Steps 7–9 are the remainder.
 

@@ -1,9 +1,8 @@
 ---
-title: finalize-tasks internals reference
-description: Deep dive into the finalize-tasks internal command behavior. Learn about empty owned_files handling, status events, and dependency-depth cycle detection.
-doc_status: active
-updated: '2026-06-09'
+title: "finalize-tasks internals reference"
+description: "Deep dive into the finalize-tasks internal command behavior. Learn about empty owned_files handling, status events, and dependency-depth cycle detection."
 ---
+
 # `finalize-tasks` internals reference
 
 Two non-obvious behaviours an operator may encounter when running

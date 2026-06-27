@@ -1,12 +1,13 @@
 ---
-title: 'Target structure & tree mapping — #651 docs consolidation'
-description: The canonical Common Docs top-level structure for spec-kitty and the per-tree mapping decisions, including the glossary/dashboard constraint and engineering_notes location.
-doc_status: active
-updated: '2026-06-27'
+title: "Target structure & tree mapping — #651 docs consolidation"
+description: "The canonical Common Docs top-level structure for spec-kitty and the per-tree mapping decisions (operator-directed), including the glossary/dashboard constraint and the open engineering_notes-location question."
+status: active
+updated: 2026-06-27
 related:
-- docs/plans/engineering-notes/651-docs-consolidation/02-common-docs-standard.md
-- docs/plans/engineering-notes/651-docs-consolidation/index.md
+  - docs/engineering_notes/651-docs-consolidation/index.md
+  - docs/engineering_notes/651-docs-consolidation/02-common-docs-standard.md
 ---
+
 # Target structure & tree mapping (#651 docs consolidation)
 
 > Operator-directed target structure and mapping decisions (2026-06-27). Companion to
@@ -79,7 +80,7 @@ docs/
 ## Sequencing
 
 - **Ship now (hygiene, no design):** `index.md` for `engineering_notes/` + `development/`,
-  `CLAUDE.md:531` dead-link fix, ADR README backfill, verify-close the `architecture/adrs/`
+  `CLAUDE.md:531` dead-link fix, ADR README backfill, verify-close the `docs/adr/3.x/`
   shim, retire `NAVIGATION_GUIDE.md`, add the `llms.txt` routing rubric.
 - **Consolidation mission (gated by the reconciliation ADR first):** single-root +
   history move (`adr/<era>/`) + collapse the split-brain + unify the living design; link

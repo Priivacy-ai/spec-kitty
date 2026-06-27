@@ -1,9 +1,8 @@
 ---
-title: Agent Plan Artifacts Reference
-description: Reference for agent plan artifacts generated during missions. Learn the role of spec.md, plan.md, tasks.md, and checklists/requirements.md.
-doc_status: active
-updated: '2026-06-15'
+title: "Agent Plan Artifacts Reference"
+description: "Reference for agent plan artifacts generated during missions. Learn the role of spec.md, plan.md, tasks.md, and checklists/requirements.md."
 ---
+
 # Agent Plan Artifacts Reference
 
 This document catalogs whether each supported harness has a plan mode, where it

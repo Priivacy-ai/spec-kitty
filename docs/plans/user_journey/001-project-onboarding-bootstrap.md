@@ -1,9 +1,3 @@
----
-title: 'User Journey: Project Onboarding & Bootstrap'
-description: 'User journey for project onboarding and bootstrap: how a new project is initialized and brought to a working Spec Kitty state, in a field-table record.'
-doc_status: draft
-updated: '2026-04-05'
----
 # User Journey: Project Onboarding & Bootstrap
 
 | Field | Value |

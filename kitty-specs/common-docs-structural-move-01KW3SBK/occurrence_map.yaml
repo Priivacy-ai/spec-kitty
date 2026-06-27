@@ -159,6 +159,19 @@ exceptions:
       cli/commands/doctor.py:509) re-point in IC-02 PRE-move, dual-read
       (old `architecture/2.x/` UNION new `docs/migrations/`), resolution-tested.
 
+  - path: "src/specify_cli/cli/commands/doctor.py"
+    action: manual_review
+    reason: >-
+      FILE-LEVEL CARVE-OUT from the `cli_commands: do_not_change` blanket. This
+      file is a CLI command module (hence the category), but the WP01 edit is the
+      single user-facing REMEDIATION STRING (~line 509) naming the shim-registry
+      path — a `user_facing_strings`/`filesystem_paths` reference re-pointed in
+      lock-step with the two compat readers (T005, C-003), NOT a subcommand/flag
+      rename. The `doctor shim-registry` command name is untouched. Reviewer:
+      confirm the diff is ONLY the path string (dual-read old∪new). Without this
+      exception the diff-compliance gate blocks the lock-step re-point
+      (cli_commands→do_not_change at file granularity).
+
   # --- NON-src LAND-FIRST reads (NOT moved; re-pointed in lock-step, C-003). ---
   # These two are out-of-relocate-scope surfaces (a script + a config) that
   # RESOLVE a moved path at runtime. They are not `moves:` entries — their
@@ -175,14 +188,20 @@ exceptions:
       `scripts/` is out-of-relocate-scope (the file is NOT moved); only its
       target literal is updated in place.
 
-  - path: ".kittify/charter/governance.yaml"
+  - path: ".kittify/charter/charter.md"
     action: manual_review
     reason: >-
-      `authority_paths` block (lines ~33-36) lists `glossary/contexts/`,
-      `architecture/3.x/adr/`, `architecture/adrs/` — all moving targets.
-      Re-point to the new homes (docs/context/, docs/adr/3.x/) in lock-step,
-      land-first, resolution-tested. `.kittify/` is out-of-relocate-scope
-      (config not moved); only these authority-path VALUES are updated.
+      6th runtime read — the TRACKED SOURCE for the authority_paths block.
+      IC-01 CORRECTION (WP01): the earlier map named `.kittify/charter/governance.yaml`,
+      but that file is **gitignored (.gitignore:112) and GENERATED** from charter.md
+      via `spec-kitty charter sync` — a direct edit there is non-durable (won't
+      commit; overwritten on next sync). Edit the canonical tracked source
+      `.kittify/charter/charter.md` instead: its authority_paths block (~line 315)
+      lists `glossary/contexts/`, `architecture/3.x/adr/`, `architecture/adrs/` —
+      all moving targets. Re-point to the new homes (docs/context/, docs/adr/3.x/)
+      land-first, resolution-tested, dual-read (old∪new). `.kittify/` is
+      out-of-relocate-scope (config not moved); only these authority-path VALUES
+      change. The generated governance.yaml picks up the new values on next sync.
 
   # --- Redirect-baseline paths: do not blind-rewrite. ---
   - path: "docs/1x/**"
@@ -247,12 +266,14 @@ targeted_ref_updates:
       `architecture/2.x/04_implementation_mapping/code-patterns.md` -> the new
       living-design home `docs/architecture/code-patterns.md`.
     severity: functional
-  - path: ".kittify/charter/governance.yaml"
-    locus: "authority_paths block, lines ~33-36"
+  - path: ".kittify/charter/charter.md"
+    locus: "authority_paths block, ~line 315 (TRACKED SOURCE; governance.yaml is generated + gitignored)"
     change: >-
       Re-point `glossary/contexts/` -> `docs/context/`, `architecture/3.x/adr/`
-      -> `docs/adr/3.x/`, `architecture/adrs/` -> `docs/adr/3.x/`. ALSO a
-      land-first runtime read (see exceptions) — same edit, resolution-tested.
+      -> `docs/adr/3.x/`, `architecture/adrs/` -> `docs/adr/3.x/`. Edit charter.md
+      (the tracked source), NOT the generated `.kittify/charter/governance.yaml`
+      (gitignored, regenerated via `charter sync`). ALSO a land-first runtime read
+      (see exceptions) — same edit, resolution-tested.
     severity: critical
   - path: "pyproject.toml"
     locus: "ADR path mention in a comment"
@@ -432,6 +453,45 @@ moves:
       Not relocated — content globs + llms.txt entries REWRITTEN in place to
       the 13-section layout (serialized_keys: manual_review). Listed here to
       mark them as reviewer-approved touch points of the restructure.
+
+  # --- Divio → 13-section re-section (FR-009) — IC-01 CORRECTION (was MISSING) ---
+  # The existing docs/ Divio dirs (how-to/reference/explanation/tutorials/recovery)
+  # are PUBLISHED (120 of WP02's 168 baseline URLs) but the original moves: spine
+  # had NO entries for them, so they would orphan and guides/api would stay empty.
+  # FR-009 mandates the mapping. Executed by WP16; redirect_map regenerates to cover
+  # these (published → redirect stubs required, NFR-002).
+  - from: ["docs/how-to", "docs/tutorials"]
+    to: docs/guides
+    reason: >-
+      Divio how-to + tutorials (task- and learning-oriented) -> docs/guides
+      (FR-009). Published URLs -> redirect stubs required (WP16 regenerates the
+      WP07 redirect_map). N->1 merge: disambiguate any filename collision
+      data-preservingly (do not overwrite).
+  - from: ["docs/reference"]
+    to: docs/api
+    reason: "Divio reference -> docs/api (FR-009). Published -> redirect required."
+  - from: ["docs/explanation"]
+    to: docs/architecture
+    reason: >-
+      Divio explanation (the why / architecture rationale) -> the unified living
+      docs/architecture (FR-009, merges with WP03's C4 design). Published ->
+      redirect required; watch for name collisions with WP03-landed files.
+  - from: ["docs/recovery"]
+    to: docs/operations
+    reason: >-
+      Divio recovery runbooks -> docs/operations (FR-009, joins WP04's ops
+      content). Published -> redirect required.
+
+  # --- Shadow-tree HTML snapshots → archive (WP10, FR-008) — IC-01: redirect basis ---
+  # docs/1x + docs/2x are true HTML snapshots whose live twins already exist under
+  # docs/archive/{1x,2x}. WP10 deletes the snapshots; these moves: give WP07's
+  # generator the basis to emit the 13 shadow→archive redirect stubs (NFR-002).
+  - from: ["docs/1x"]
+    to: docs/archive/1x
+    reason: "Shadow HTML snapshot deleted; old URLs redirect to the live archive twin (WP10/FR-008)."
+  - from: ["docs/2x"]
+    to: docs/archive/2x
+    reason: "Shadow HTML snapshot deleted; old URLs redirect to the live archive twin (WP10/FR-008)."
 
 # ---------------------------------------------------------------------------
 # Regenerated census + runtime metadata (status block — additionalProperties).

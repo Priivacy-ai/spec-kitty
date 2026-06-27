@@ -1,9 +1,3 @@
----
-title: Model-First Schema Generation
-description: 'Design note on model-first schema generation: deriving schemas from the data model rather than hand-authoring them, in a field-table record.'
-doc_status: draft
-updated: '2026-04-04'
----
 # Model-First Schema Generation
 
 | Field | Value |

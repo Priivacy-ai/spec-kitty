@@ -1,9 +1,3 @@
----
-title: 'PR #305 Review Resolution Plan'
-description: 'Resolution plan for the PR #305 review (specs 046/048/054): the agreed approach to the critical and major issues the review identified.'
-doc_status: draft
-updated: '2026-04-06'
----
 # PR #305 Review Resolution Plan
 
 **Context**: A prior code review of PR #305 (specs 046, 048, 054) identified two
@@ -168,7 +162,7 @@ but is not needed — these types have natural ownership in doctrine.
 
 ### Step 0 — Write the ADR (first commit)
 
-**File**: `architecture/2.x/adr/2026-03-XX-glossary-type-ownership.md`
+**File**: `docs/adr/2.x/2026-03-XX-glossary-type-ownership.md`
 
 Documents:
 - Glossary primitive types are owned by `doctrine`, re-exported by `specify_cli`

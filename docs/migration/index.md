@@ -1,25 +1,8 @@
 ---
-title: Migration to Spec Kitty 3.2
-description: Migration hub for upgrading existing Spec Kitty projects to the current 3.2 Charter-era runtime and archive boundary.
-doc_status: active
-updated: '2026-06-03'
-related:
-- docs/3x/index.md
-- docs/archive/index.md
-- docs/migration/2-1-main-cutover-checklist.md
-- docs/migration/charter-ownership-consolidation.md
-- docs/migration/cross-repo-e2e-gate.md
-- docs/migration/doctrine-local-overlay-to-org-layer.md
-- docs/migration/feature-flag-deprecation.md
-- docs/migration/from-charter-2x.md
-- docs/migration/mission-id-canonical-identity.md
-- docs/migration/mission-type-flag-deprecation.md
-- docs/migration/retrospective-events-upstream.md
-- docs/migration/shared-package-boundary-cutover.md
-- docs/migration/teamspace-mission-state-920-closeout.md
-- docs/migration/teamspace-mission-state-repair.md
-- docs/migration/upgrade-to-0-12-0.md
+title: "Migration to Spec Kitty 3.2"
+description: "Migration hub for upgrading existing Spec Kitty projects to the current 3.2 Charter-era runtime and archive boundary."
 ---
+
 > Migration note: This page collects migration paths and historical cutover notes. For new projects, start with [Getting Started](../tutorials/getting-started.md).
 
 # Migration to Spec Kitty 3.2

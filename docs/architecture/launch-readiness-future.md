@@ -1,11 +1,10 @@
 ---
-title: Launch-Readiness Behavior (Coming Soon)
-description: "Pre-launch design intent for Teamspace: how hosted-readiness defaults flip from opt-in to on, and the launch-coordinator playbook. None of it is in effect today."
-doc_status: active
-updated: '2026-06-03'
+title: "Launch-Readiness Behavior (Coming Soon)"
+description: "Explanation of Launch-Readiness Behavior (Coming Soon) in Spec Kitty 3.2, including the model, rationale, and operator implications."
 type: explanation
 audience: launch coordinators
 ---
+
 # Launch-Readiness Behavior (Coming Soon)
 
 > **Status: pre-launch.** This page describes the behavior the Spec
@@ -139,7 +138,7 @@ in the release-cut documentation in `architecture/` and the
    tutorials) to introduce Teamspace as **available** — never as
    "always was". The current pre-launch local-first framing remains
    the on-ramp.
-4. Move this doc from `docs/explanation/` to a launch-day "what's
+4. Move this doc from `docs/architecture/` to a launch-day "what's
    new" location, or update its banner from
    `Status: pre-launch` to `Status: launched` once the flip is
    live. **Do not retroactively edit this doc as if its content

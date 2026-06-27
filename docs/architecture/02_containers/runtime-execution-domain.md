@@ -1,9 +1,3 @@
----
-title: 2.x Runtime/Execution Domain (Container Detail)
-description: '2.x container detail for the runtime/execution domain: the historical view of how mission execution and orchestration were structured, kept as decayed history.'
-doc_status: active
-updated: '2026-03-10'
----
 # 2.x Runtime/Execution Domain (Container Detail)
 
 | Field | Value |

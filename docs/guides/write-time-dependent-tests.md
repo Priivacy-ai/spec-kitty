@@ -1,9 +1,8 @@
 ---
 title: Write Time-Dependent Tests
 description: Inject stable clocks in tests and avoid wall-clock reads inside assertions.
-doc_status: active
-updated: '2026-06-15'
 ---
+
 # Write Time-Dependent Tests
 
 Time-dependent behavior must be tested with a stable reference time wherever the production API can accept one.

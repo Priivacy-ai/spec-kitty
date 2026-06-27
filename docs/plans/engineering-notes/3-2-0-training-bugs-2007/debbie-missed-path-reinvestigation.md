@@ -1,9 +1,3 @@
----
-title: 'Issue #2007 — Debbie RE-INVESTIGATION: the "missed path" behind the wrongly-"fixed" five'
-description: "Debugger Debbie's re-investigation of #2007: the missed code path behind the five bugs that were wrongly marked fixed (2026-06-16)."
-doc_status: draft
-updated: '2026-06-16'
----
 # Issue #2007 — Debbie RE-INVESTIGATION: the "missed path" behind the wrongly-"fixed" five
 
 **Author:** Debugger Debbie

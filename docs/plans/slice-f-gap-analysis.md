@@ -1,9 +1,3 @@
----
-title: Slice F — Codebase-to-Intent Gap Analysis
-description: "Architect Alphonso's codebase-to-intent gap analysis for Slice F (2026-05-18): where implementation diverges from the intended multi-context extensibility."
-doc_status: draft
-updated: '2026-05-19'
----
 # Slice F — Codebase-to-Intent Gap Analysis
 
 **Author:** Architect Alphonso (ad-hoc profile session)  
@@ -56,7 +50,7 @@ The 3.2.0 epic rephrases this as:
   order — the multi-root iteration primitive exists.
 
 **What is missing:**
-- **ADR-8 document** at `architecture/2.x/adr/2026-MM-DD-8-monorepo-cross-repo-charter-visibility.md`.
+- **ADR-8 document** at `docs/adr/2.x/2026-MM-DD-8-monorepo-cross-repo-charter-visibility.md`.
   Referenced in Mission A spec and the 3.2.0 epic; does not exist on disk.
 - **Per-package charter scoping** — `find_repo_root()` in `specify_cli` always walks up
   to the single git root. There is no concept of a per-package `.kittify/` in a monorepo.

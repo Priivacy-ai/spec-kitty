@@ -1,9 +1,3 @@
----
-title: Infra-to-logic separation (#2173) — investigation synthesis
-description: "Investigation synthesis for the infra-to-logic separation epic (#2173, sub of #1619): three profile-loaded squads' conclusions on injecting infra as ports (2026-06-26)."
-doc_status: draft
-updated: '2026-06-26'
----
 # Infra-to-logic separation (#2173) — investigation synthesis
 
 **Date:** 2026-06-26 · **Branch:** `design/infra-logic-separation-2173` · **Epic:** #2173 (sub-issue of #1619)

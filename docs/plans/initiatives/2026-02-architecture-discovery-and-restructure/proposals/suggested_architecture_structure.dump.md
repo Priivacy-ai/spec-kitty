@@ -1,9 +1,3 @@
----
-title: architecture/README.md
-description: Raw proposal dump from a 2026-02-17 architecture-documentation-drafting session suggesting a repository structure, preserved for the discovery initiative.
-doc_status: draft
-updated: '2026-06-12'
----
 2026-02-17:13:31
 
 Mode: architecture documentation drafting
@@ -14,7 +8,7 @@ Below are two ready-to-drop README drafts.
 
 ---
 
-# `architecture/README.md`
+# `docs/architecture/README.md`
 
 ```md
 # Architecture

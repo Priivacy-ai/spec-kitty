@@ -1,19 +1,8 @@
 ---
-title: Reference Documentation
-description: Reference documentation overview for Spec Kitty. Access CLI commands, configuration parameters, slash command reference, and file layouts.
-doc_status: active
-updated: '2026-06-09'
-related:
-- docs/api/agent-subcommands.md
-- docs/api/cli-commands.md
-- docs/api/configuration.md
-- docs/api/environment-variables.md
-- docs/api/file-structure.md
-- docs/api/missions.md
-- docs/api/orchestrator-api.md
-- docs/api/slash-commands.md
-- docs/api/supported-agents.md
+title: "Reference Documentation"
+description: "Reference documentation overview for Spec Kitty. Access CLI commands, configuration parameters, slash command reference, and file layouts."
 ---
+
 # Reference Documentation
 
 This directory contains information-oriented reference documentation for Spec Kitty.

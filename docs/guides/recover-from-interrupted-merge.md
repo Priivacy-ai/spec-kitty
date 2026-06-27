@@ -1,12 +1,8 @@
 ---
-title: Recover from an Interrupted Merge
-description: 'How to recover from an interrupted merge with Spec Kitty 3.2: Learn how to resume or abort a spec-kitty merge that was interrupted before it completed.'
-doc_status: active
-updated: '2026-06-03'
-related:
-- docs/guides/merge-feature.md
-- docs/guides/recover-from-implementation-crash.md
+title: "Recover from an Interrupted Merge"
+description: "How to recover from an interrupted merge with Spec Kitty 3.2: Learn how to resume or abort a spec-kitty merge that was interrupted before it completed."
 ---
+
 # Recover from an Interrupted Merge
 
 Learn how to resume or abort a `spec-kitty merge` that was interrupted before it completed.

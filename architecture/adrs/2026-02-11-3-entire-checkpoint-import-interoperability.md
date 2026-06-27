@@ -1,1 +1,0 @@
-../2.x/adr/2026-02-11-3-entire-checkpoint-import-interoperability.md

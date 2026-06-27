@@ -1,11 +1,8 @@
 ---
-title: Use Spec Kitty in OpenCode
-description: 'How to use Spec Kitty in OpenCode (supported tier): prerequisites, command install, and the Spec Kitty slash-command workflow.'
-doc_status: active
-updated: '2026-06-03'
-related:
-- docs/guides/install-spec-kitty.md
+title: "Use Spec Kitty in OpenCode"
+description: "Configure the Use Spec Kitty in OpenCode harness for Spec Kitty 3.2 commands, generated skills, and agent workflow integration."
 ---
+
 # Use Spec Kitty in OpenCode
 
 > **Tier:** supported.

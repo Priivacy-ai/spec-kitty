@@ -1,15 +1,9 @@
----
-title: Architecture 2.x Initiatives
-description: 'Landing page for the 2.x architecture initiatives: active or exploratory, intentionally non-canonical work that feeds future architecture decisions.'
-doc_status: draft
-updated: '2026-04-04'
----
 # Architecture 2.x Initiatives
 
 This directory contains active or exploratory architecture initiatives for the 2.x track.
 
 Initiatives are intentionally non-canonical.
-Canonical decisions must land in `architecture/2.x/adr/` once accepted.
+Canonical decisions must land in `docs/adr/2.x/` once accepted.
 
 ## Current Initiatives
 

@@ -1,11 +1,8 @@
 ---
-title: Build a Custom Orchestrator
-description: Implement your own external orchestration runtime against spec-kitty orchestrator-api.
-doc_status: active
-updated: '2026-06-03'
-related:
-- docs/guides/run-external-orchestrator.md
+title: "Build a Custom Orchestrator"
+description: "Implement your own external orchestration runtime against spec-kitty orchestrator-api."
 ---
+
 # Build a Custom Orchestrator
 
 Use this guide to implement your own orchestration strategy while keeping `spec-kitty` as the workflow host.

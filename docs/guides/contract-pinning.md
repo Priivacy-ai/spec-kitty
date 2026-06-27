@@ -1,15 +1,9 @@
----
-title: Contract pinning workflow (`spec-kitty-events`)
-description: 'The contract-pinning workflow for spec-kitty-events: how tests/contract pin a resolved package version, why it exists, and the ADR and mission authority behind it.'
-doc_status: active
-updated: '2026-05-28'
----
 # Contract pinning workflow (`spec-kitty-events`)
 
 > **Status**: stable (2026-04-26)
 >
 > **Authority**:
-> - [`architecture/2.x/adr/2026-04-26-1-contract-pinning-resolved-version.md`](../../architecture/2.x/adr/2026-04-26-1-contract-pinning-resolved-version.md)
+> - [`docs/adr/2.x/2026-04-26-1-contract-pinning-resolved-version.md`](../../docs/adr/2.x/2026-04-26-1-contract-pinning-resolved-version.md)
 >   (DIRECTIVE_003)
 > - Mission `stability-and-hygiene-hardening-2026-04-01KQ4ARB`,
 >   FR-022 / FR-023.
@@ -137,4 +131,4 @@ snapshots when bumping; just add the new one.
 - Mission spec: [`kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/spec.md`](../../kitty-specs/stability-and-hygiene-hardening-2026-04-01KQ4ARB/spec.md)
 - Mission review gate (FR-023): `tests/integration/test_mission_review_contract_gate.py`
 - Public-import freeze (FR-024): `tests/architectural/test_events_tracker_public_imports.py`
-- Companion ADR (boundary cutover): [`architecture/2.x/adr/2026-04-25-1-shared-package-boundary.md`](../../architecture/2.x/adr/2026-04-25-1-shared-package-boundary.md)
+- Companion ADR (boundary cutover): [`docs/adr/2.x/2026-04-25-1-shared-package-boundary.md`](../../docs/adr/2.x/2026-04-25-1-shared-package-boundary.md)

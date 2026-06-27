@@ -1,9 +1,3 @@
----
-title: Mission 01KSAF14 orchestration findings (10 items)
-description: 'Ten process findings from running the charter-ux-and-org-pack-vocabulary mission (01KSAF14) end-to-end on 2026-05-24: 10 WPs across 4 waves.'
-doc_status: draft
-updated: '2026-06-01'
----
 # Mission 01KSAF14 orchestration findings (10 items)
 
 Process observations from running mission `charter-ux-and-org-pack-vocabulary-01KSAF14` end-to-end on 2026-05-24: 10 WPs across 4 waves, 25-30 sub-agent dispatches, merged via squash to `main` at `37407a3b2`. The mission itself landed cleanly. These notes are about the **how**, not the **what** — places where the operator-facing surface behaved in ways the orchestrator did not anticipate from reading the skill prompts alone.
@@ -139,7 +133,7 @@ mission with zero captured learnings. The 3.2.0 default-policy promise of
 "a real retrospective lands automatically" requires the generator to actually
 generate.
 
-**Workaround.** Author findings manually in `docs/engineering_notes/finding/`
+**Workaround.** Author findings manually in `docs/plans/engineering-notes/finding/`
 (this file). Treat the `retrospective.yaml` as a provenance record only.
 
 **Follow-up candidate.** The generator could mine: (a) `status.events.jsonl`

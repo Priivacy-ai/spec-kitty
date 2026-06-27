@@ -27,30 +27,21 @@ _OPTIONAL_KEYS = {"extension_rationale", "notes"}
 _ALL_KNOWN_KEYS = _REQUIRED_KEYS | _OPTIONAL_KEYS
 
 
-# Shim-registry relocation (Mission B, FR-001): the registry moves from
-# ``architecture/2.x/shim-registry.yaml`` to ``docs/migrations/shim-registry.yaml``.
-# Dual-read (C-003): prefer the new home, fall back to the legacy location so
-# the read resolves both before and after the tree move (WP03). The legacy
-# branch is dropped in WP08's reference sweep.
+# Shim-registry relocation (Mission B, FR-001): the registry now lives at
+# ``docs/migrations/shim-registry.yaml``. WP01 staged a dual-read against the
+# pre-fold home while the move was in flight; now that the tree has landed
+# (WP03) the legacy branch is dropped — the canonical home is the sole
+# resolution target.
 _SHIM_REGISTRY_NEW: tuple[str, ...] = ("docs", "migrations", "shim-registry.yaml")
-_SHIM_REGISTRY_LEGACY: tuple[str, ...] = ("architecture", "2.x", "shim-registry.yaml")
 
 
 def resolve_shim_registry_path(repo_root: Path) -> Path:
-    """Return the shim-registry path, preferring the new ``docs/migrations`` home.
+    """Return the canonical ``docs/migrations/shim-registry.yaml`` path.
 
-    The new ``docs/migrations/shim-registry.yaml`` is tried first; when it does
-    not exist the legacy ``architecture/2.x/shim-registry.yaml`` is returned if
-    present (dual-read). When neither exists the new canonical home is returned
-    so callers raise a forward-correct :class:`FileNotFoundError`.
+    The path is returned whether or not it exists so callers raise a
+    forward-correct :class:`FileNotFoundError` naming the canonical home.
     """
-    new_path = repo_root.joinpath(*_SHIM_REGISTRY_NEW)
-    if new_path.exists():
-        return new_path
-    legacy_path = repo_root.joinpath(*_SHIM_REGISTRY_LEGACY)
-    if legacy_path.exists():
-        return legacy_path
-    return new_path
+    return repo_root.joinpath(*_SHIM_REGISTRY_NEW)
 
 
 @dataclasses.dataclass(frozen=True)
