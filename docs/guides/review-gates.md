@@ -1,3 +1,11 @@
+---
+title: 'Review Gates: Pre-PR / Pre-Review Checklist'
+description: The pre-PR/pre-review hygiene checklist contributors run locally — environment sync and test gates — so review focuses on substance, not avoidable environment drift.
+doc_status: active
+updated: '2026-04-29'
+related:
+- docs/guides/local-overrides.md
+---
 # Review Gates: Pre-PR / Pre-Review Checklist
 
 This page documents the small set of hygiene steps a contributor should run

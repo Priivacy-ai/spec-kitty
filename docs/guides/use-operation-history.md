@@ -1,8 +1,9 @@
 ---
-title: "Use Operation History"
-description: "How to use operation history with Spec Kitty 3.2: The spec-kitty ops command group provides read-only access to your git operation history via git reflog.."
+title: Use Operation History
+description: 'How to use operation history with Spec Kitty 3.2: The spec-kitty ops command group provides read-only access to your git operation history via git reflog..'
+doc_status: active
+updated: '2026-06-03'
 ---
-
 # Use Operation History
 
 The `spec-kitty ops` command group provides read-only access to your git operation history via `git reflog`. Use it to review recent actions and understand what happened in your repository.

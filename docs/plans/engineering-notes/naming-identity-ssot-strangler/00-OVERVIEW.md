@@ -1,3 +1,9 @@
+---
+title: Naming / Identity SSOT Strangler — Capstone Overview (3.2.1)
+description: "Capstone overview (3.2.1) of the naming/identity SSOT strangler: Architect Alphonso's aggregation of the research squad's findings, read-only at 3.2.0."
+doc_status: draft
+updated: '2026-06-16'
+---
 # Naming / Identity SSOT Strangler — Capstone Overview (3.2.1)
 
 **Author:** Architect Alphonso (squad aggregation — capstone deliverable)

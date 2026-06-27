@@ -1,10 +1,15 @@
 ---
-title: "spec-kitty init lifecycle"
-description: "Reference for the spec-kitty init command lifecycle. Understand what files are created, ignored, and how options behave in non-interactive environments."
+title: spec-kitty init lifecycle
+description: Reference for the spec-kitty init command lifecycle. Understand what files are created, ignored, and how options behave in non-interactive environments.
+doc_status: active
+updated: '2026-06-15'
 type: reference
+related:
+- docs/api/cli-commands.md
+- docs/api/supported-agents.md
+- docs/api/upgrade-lifecycle.md
 audience: end-users
 ---
-
 # `spec-kitty init` lifecycle
 
 Reference description of what `spec-kitty init` creates, in what order, and how its options interact. For installation, see [Install on macOS / Linux / Windows](../how-to/install-macos.md).

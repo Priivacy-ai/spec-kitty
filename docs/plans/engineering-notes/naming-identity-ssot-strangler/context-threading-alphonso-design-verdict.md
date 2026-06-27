@@ -1,3 +1,9 @@
+---
+title: Context-Threading — Architect Alphonso Design-Intent Verdict (3.2.1)
+description: "Architect Alphonso's design-intent verdict on context-threading (3.2.1): adjudicating the operator's claim for the naming/identity SSOT strangler."
+doc_status: draft
+updated: '2026-06-16'
+---
 # Context-Threading — Architect Alphonso Design-Intent Verdict (3.2.1)
 
 **Author:** Architect Alphonso (design-intent lens — operator-claim adjudication)

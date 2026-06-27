@@ -1,3 +1,12 @@
+---
+title: Spec Kitty 3.2 — Archive & Migration Plan
+description: 'Archive and migration plan for the Spec Kitty 3.2 docs mission (WP09 / FR-013): how legacy and version-tiered pages are archived and redirected in the refresh.'
+doc_status: draft
+updated: '2026-06-27'
+related:
+- docs/archive/2x/index.md
+- docs/migration/from-charter-2x.md
+---
 # Spec Kitty 3.2 — Archive & Migration Plan
 
 **Mission**: `spec-kitty-3-2-docs-01KS4KSZ`

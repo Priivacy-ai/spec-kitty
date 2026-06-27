@@ -1,8 +1,13 @@
 ---
-title: "Supported AI Agents Reference"
-description: "Reference for Spec Kitty supported AI agents. Learn about slash command integrations, global directories, and config-driven agent management."
+title: Supported AI Agents Reference
+description: Reference for Spec Kitty supported AI agents. Learn about slash command integrations, global directories, and config-driven agent management.
+doc_status: active
+updated: '2026-06-15'
+related:
+- docs/api/cli-commands.md
+- docs/api/slash-commands.md
+- docs/api/supported-harnesses.md
 ---
-
 # Supported AI Agents Reference
 
 Spec Kitty currently exposes **16 agent surfaces**: 12 slash-command or prompt-file hosts and 4 project-local command-skill hosts.

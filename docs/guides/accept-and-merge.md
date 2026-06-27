@@ -1,8 +1,17 @@
 ---
-title: "How to Accept and Merge a Mission"
+title: How to Accept and Merge a Mission
 description: "How to accept and merge a mission with Spec Kitty 3.2: Use this guide to validate mission readiness and merge to the mission's target branch."
+doc_status: active
+updated: '2026-06-03'
+related:
+- docs/guides/install-and-upgrade.md
+- docs/guides/keep-main-clean.md
+- docs/guides/merge-feature.md
+- docs/guides/review-work-package.md
+- docs/guides/run-an-autonomous-mission.md
+- docs/guides/troubleshoot-merge.md
+- docs/guides/use-retrospective-learning.md
 ---
-
 # How to Accept and Merge a Mission
 
 Use this guide to validate mission readiness and merge to the mission's target branch.

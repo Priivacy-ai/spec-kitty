@@ -1,8 +1,11 @@
 ---
-title: "Troubleshooting Charter Failures"
-description: "Diagnose and fix stale bundle, missing doctrine, compact-context, retrospective gate, and synthesizer rejection failures."
+title: Troubleshooting Charter Failures
+description: Diagnose and fix stale bundle, missing doctrine, compact-context, retrospective gate, and synthesizer rejection failures.
+doc_status: active
+updated: '2026-06-03'
+related:
+- docs/3x/charter-overview.md
 ---
-
 # Troubleshooting Charter Failures
 
 This guide covers the most common Charter failure modes and how to fix them.

@@ -1,3 +1,9 @@
+---
+title: 'Initiative: 2026-02 Brainstorm Capture'
+description: Initiative preserving and evaluating the 2026-02 brainstorm corpus originally captured under tmp/doc_brainstorm/, with its structure and evaluation.
+doc_status: draft
+updated: '2026-03-10'
+---
 # Initiative: 2026-02 Brainstorm Capture
 
 This initiative preserves and evaluates the brainstorm corpus that was originally captured under `tmp/doc_brainstorm/`.

@@ -1,8 +1,9 @@
 ---
-title: "Agent Subcommand Reference"
-description: "Reference for spec-kitty agent subcommands. Learn how agent-only actions like config, status, decision, and retrospect behave in workflows."
+title: Agent Subcommand Reference
+description: Reference for spec-kitty agent subcommands. Learn how agent-only actions like config, status, decision, and retrospect behave in workflows.
+doc_status: active
+updated: '2026-06-15'
 ---
-
 # Agent Subcommand Reference
 
 The `spec-kitty agent` commands are designed for AI agents and automation tooling. They generally emit JSON and update task metadata or mission artifacts directly.

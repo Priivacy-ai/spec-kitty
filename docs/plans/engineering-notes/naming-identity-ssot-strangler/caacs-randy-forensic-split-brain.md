@@ -1,3 +1,9 @@
+---
+title: Randy Reducer — CaaCS Forensic Split-Brain (temporal validation of the static map)
+description: "Randy Reducer's CaaCS forensic split-brain note: temporal validation of the static authority map for the naming/identity SSOT strangler."
+doc_status: draft
+updated: '2026-06-16'
+---
 # Randy Reducer — CaaCS Forensic Split-Brain (temporal validation of the static map)
 
 > **Persona:** I am **Randy Reducer**. Semantic compression: fewer lines, same

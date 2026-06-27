@@ -1,8 +1,15 @@
 ---
-title: "Git Worktrees Explained"
-description: "Explanation of Git Worktrees Explained in Spec Kitty 3.2, including the model, rationale, and operator implications."
+title: Git Worktrees Explained
+description: "What git worktrees are and why Spec Kitty gives each execution lane its own: what worktrees share and keep separate, plus lifecycle commands and crash recovery."
+doc_status: active
+updated: '2026-06-17'
+related:
+- docs/architecture/branch-target-routing.md
+- docs/architecture/execution-lanes.md
+- docs/architecture/kanban-workflow.md
+- docs/architecture/spec-driven-development.md
+- docs/migration/mission-id-canonical-identity.md
 ---
-
 # Git Worktrees Explained
 
 Git worktrees are the technology that enables Spec Kitty's parallel development model. This document explains what worktrees are, why Spec Kitty uses them, and how they work in the modern lane-based execution model.

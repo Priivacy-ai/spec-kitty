@@ -1,8 +1,14 @@
 ---
-title: "Run an Autonomous Mission"
-description: "Run specify, plan, tasks, implementation review, mission review, and retrospective steps without manual merge workarounds."
+title: Run an Autonomous Mission
+description: Run specify, plan, tasks, implementation review, mission review, and retrospective steps without manual merge workarounds.
+doc_status: active
+updated: '2026-06-03'
+related:
+- docs/guides/accept-and-merge.md
+- docs/guides/merge-feature.md
+- docs/guides/run-external-orchestrator.md
+- docs/guides/troubleshoot-merge.md
 ---
-
 # Run an Autonomous Mission
 
 Use this guide when an agent or external orchestrator runs a Spec Kitty mission

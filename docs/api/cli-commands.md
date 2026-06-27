@@ -1,8 +1,12 @@
 ---
-title: "CLI Command Reference"
-description: "Complete Spec Kitty 3.2 CLI command reference with subcommands, options, mission workflow commands, and generated help output."
+title: CLI Command Reference
+description: Complete Spec Kitty 3.2 CLI command reference with subcommands, options, mission workflow commands, and generated help output.
+doc_status: active
+updated: '2026-06-26'
+related:
+- docs/api/bulk-edit-gate.md
+- docs/api/finalize-tasks-internals.md
 ---
-
 # CLI Command Reference
 
 This reference lists the user-facing `spec-kitty` CLI commands and their flags exactly as surfaced by `--help`. For agent-only commands, see `docs/api/agent-subcommands.md`.

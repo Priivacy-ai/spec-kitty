@@ -1,8 +1,13 @@
 ---
-title: "How to Create an Org Doctrine Pack"
-description: "Author, validate, assemble, publish, and consume a spec-kitty org doctrine pack."
+title: How to Create an Org Doctrine Pack
+description: Author, validate, assemble, publish, and consume a spec-kitty org doctrine pack.
+doc_status: active
+updated: '2026-06-03'
+related:
+- docs/guides/setup-governance.md
+- docs/guides/synthesize-doctrine.md
+- docs/migration/doctrine-local-overlay-to-org-layer.md
 ---
-
 # How to Create an Org Doctrine Pack
 
 This guide walks a governance system maintainer through producing an org doctrine pack,

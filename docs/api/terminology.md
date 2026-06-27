@@ -1,8 +1,11 @@
 ---
-title: "Terminology Reference"
-description: "Terminology reference for Spec Kitty. Clear vocabulary definitions for missions, work packages, lanes, charters, and status event logs."
+title: Terminology Reference
+description: Terminology reference for Spec Kitty. Clear vocabulary definitions for missions, work packages, lanes, charters, and status event logs.
+doc_status: active
+updated: '2026-06-13'
+related:
+- docs/migration/mission-id-canonical-identity.md
 ---
-
 # Terminology Reference
 
 This document defines the **target-state** canonical terminology for Spec Kitty's three-tier domain model and identity layer. All new code, CLI surfaces, documentation, and API contracts should converge on these terms.

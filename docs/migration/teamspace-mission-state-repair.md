@@ -1,8 +1,9 @@
 ---
-title: "TeamSpace Mission-State Repair"
-description: "Migration guidance for TeamSpace Mission-State Repair in Spec Kitty 3.2, including upgrade context and historical behavior boundaries."
+title: TeamSpace Mission-State Repair
+description: How Spec Kitty deterministically repairs historical kitty-specs/ mission state before a repository connects to TeamSpace, starting with the audit-first run.
+doc_status: active
+updated: '2026-06-03'
 ---
-
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 
 # TeamSpace Mission-State Repair

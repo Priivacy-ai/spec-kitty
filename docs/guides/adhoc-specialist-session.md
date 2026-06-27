@@ -1,8 +1,9 @@
 ---
-title: "How to Start an Ad-Hoc Specialist Session"
-description: "How to start an ad-hoc specialist session with Spec Kitty 3.2: How to Start an Ad-Hoc Specialist Session."
+title: How to Start an Ad-Hoc Specialist Session
+description: 'How to start an ad-hoc specialist session with Spec Kitty 3.2: How to Start an Ad-Hoc Specialist Session.'
+doc_status: active
+updated: '2026-06-15'
 ---
-
 # How to Start an Ad-Hoc Specialist Session
 
 Use `spec-kitty dispatch "<request>"` to open a governed standalone Op without starting a full mission. Add `--profile <profile>` only when you intentionally want a specific specialist profile.

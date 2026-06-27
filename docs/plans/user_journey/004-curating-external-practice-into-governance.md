@@ -1,3 +1,9 @@
+---
+title: 'User Journey: Curating External Practice into Governance'
+description: 'User journey for curating external practice into governance: how external concepts are imported into doctrine, in a field-table record.'
+doc_status: draft
+updated: '2026-04-05'
+---
 # User Journey: Curating External Practice into Governance
 
 | Field | Value |

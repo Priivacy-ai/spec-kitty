@@ -1,3 +1,9 @@
+---
+title: 'Calibration Report: erp-custom'
+description: 'Calibration report for the erp-custom (ERP integration) mission: the §4.5.1 inequality check per step against its overlay and ERP-integration fixture.'
+doc_status: active
+updated: '2026-04-27'
+---
 # Calibration Report: erp-custom
 
 **Mission**: erp-custom (ERP Integration custom mission)  

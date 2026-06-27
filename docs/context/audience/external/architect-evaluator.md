@@ -1,3 +1,9 @@
+---
+title: 'Stakeholder Persona: External Architect Evaluator'
+description: "External architect-evaluator persona: assesses whether Spec Kitty's architecture and decision model are robust enough for long-term organizational adoption."
+doc_status: active
+updated: '2026-06-12'
+---
 # Stakeholder Persona: External Architect Evaluator
 
 | Field | Value |

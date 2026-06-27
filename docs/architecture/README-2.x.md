@@ -1,3 +1,16 @@
+---
+title: Architecture 2.x
+description: 'Landing page for the 2.x architecture track: its core decisions and constraints, end-to-end behavior expectations, and user-journey records (now prior-era history).'
+doc_status: active
+updated: '2026-05-15'
+related:
+- docs/architecture/01_context/README.md
+- docs/architecture/02_containers/README.md
+- docs/architecture/02_containers/runtime-execution-domain.md
+- docs/architecture/03_components/README.md
+- docs/architecture/04_implementation_mapping/README.md
+- docs/architecture/04_implementation_mapping/code-patterns.md
+---
 # Architecture 2.x
 
 This directory is the current architecture track for Spec Kitty.

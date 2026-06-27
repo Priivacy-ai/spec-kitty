@@ -1,3 +1,9 @@
+---
+title: '#2007 — Systemic Architecture Connection (Architect Alphonso)'
+description: "Architect Alphonso's systemic-architecture connection for #2007 (read-only research op): how the training bugs trace to a shared architectural root (2026-06-16)."
+doc_status: draft
+updated: '2026-06-16'
+---
 # #2007 — Systemic Architecture Connection (Architect Alphonso)
 
 **Author:** Architect Alphonso (architecture lens; research op, read-only — no commit/switch)

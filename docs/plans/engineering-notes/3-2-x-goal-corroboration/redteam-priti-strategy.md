@@ -1,3 +1,9 @@
+---
+title: RED TEAM — Refuting the 3.2.x Strategy & Corroboration (planner-priti, antithesis)
+description: Planner Priti's red-team refutation (dialectic antithesis) of the 3.2.x strategy and corroboration, read-only at 3.2.0.
+doc_status: draft
+updated: '2026-06-16'
+---
 # RED TEAM — Refuting the 3.2.x Strategy & Corroboration (planner-priti, antithesis)
 
 > **Author:** Planner Priti, operating as RED TEAM (dialectical antithesis).

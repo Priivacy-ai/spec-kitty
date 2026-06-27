@@ -1,3 +1,9 @@
+---
+title: 'Doctrine Migration: Architecture Alignment Review'
+description: 'Architecture-alignment review of the doctrine migration: how the migration fits the target architecture and the open concerns, in a field-table record.'
+doc_status: draft
+updated: '2026-04-04'
+---
 # Doctrine Migration: Architecture Alignment Review
 
 | Field | Value |

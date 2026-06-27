@@ -1,3 +1,9 @@
+---
+title: Code Review — 2026-03-25
+description: "Code-review record dated 2026-03-25: the reviewed scope, the findings, and their dispositions captured in the review's field table."
+doc_status: draft
+updated: '2026-04-05'
+---
 # Code Review — 2026-03-25
 
 | Field | Value |

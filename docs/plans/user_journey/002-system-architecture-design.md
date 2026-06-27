@@ -1,3 +1,11 @@
+---
+title: 'User Journey: System Architecture Design'
+description: 'User journey for system architecture design: how an architect drives architecture decisions through Spec Kitty, in a field-table record.'
+doc_status: draft
+updated: '2026-04-05'
+related:
+- docs/plans/user_journey/001-project-onboarding-bootstrap.md
+---
 # User Journey: System Architecture Design
 
 | Field | Value |

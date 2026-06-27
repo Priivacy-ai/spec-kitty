@@ -1,8 +1,12 @@
 ---
-title: "Use the wps.yaml Manifest"
-description: "How to use the wps.yaml manifest with Spec Kitty 3.2, including work-package dependencies and plan-concern traceability."
+title: Use the wps.yaml Manifest
+description: How to use the wps.yaml manifest with Spec Kitty 3.2, including work-package dependencies and plan-concern traceability.
+doc_status: active
+updated: '2026-06-06'
+related:
+- docs/guides/create-plan.md
+- docs/guides/generate-tasks.md
 ---
-
 # Use the `wps.yaml` Manifest
 
 Learn about the structured work-package manifest format introduced in 3.1.0 and how it fits into the `finalize-tasks` workflow.

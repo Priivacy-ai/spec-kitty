@@ -1,3 +1,18 @@
+---
+title: Spec Kitty 3.2 Documentation Publication Checklist
+description: 'The publication checklist for the Spec Kitty 3.2 documentation refresh (WP14 / FR-021): the steps the docs release engineer runs before publishing.'
+doc_status: draft
+updated: '2026-06-12'
+related:
+- docs/3x/index.md
+- docs/plans/3-2-archive-migration-plan.md
+- docs/plans/3-2-cli-reference-audit-meta-issues.md
+- docs/plans/3-2-cli-reference-methodology.md
+- docs/plans/3-2-harness-research-method.md
+- docs/plans/3-2-information-architecture.md
+- docs/plans/3-2-navigation-plan.md
+- docs/plans/3-2-version-taxonomy.md
+---
 # Spec Kitty 3.2 Documentation Publication Checklist
 
 **Mission:** `spec-kitty-3-2-docs-01KS4KSZ` (WP14 / FR-021)

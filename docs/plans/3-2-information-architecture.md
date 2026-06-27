@@ -1,3 +1,9 @@
+---
+title: Spec Kitty 3.2 Documentation — Information Architecture
+description: 'Information-architecture design for the Spec Kitty 3.2 documentation refresh (WP08): the section structure, navigation groups, and page-placement decisions.'
+doc_status: draft
+updated: '2026-06-23'
+---
 # Spec Kitty 3.2 Documentation — Information Architecture
 
 **Mission:** `spec-kitty-3-2-docs-01KS4KSZ`

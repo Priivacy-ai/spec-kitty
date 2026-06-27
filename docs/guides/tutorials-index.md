@@ -1,8 +1,18 @@
 ---
-title: "Tutorials"
-description: "Learning-oriented Spec Kitty walkthroughs: getting started, your first feature, the governed charter workflow, and multi-agent and Claude Code integration."
+title: Tutorials
+description: 'Learning-oriented Spec Kitty walkthroughs: getting started, your first feature, the governed charter workflow, and multi-agent and Claude Code integration.'
+doc_status: active
+updated: '2026-06-27'
+related:
+- docs/guides/charter-governed-workflow.md
+- docs/guides/claude-code-integration.md
+- docs/guides/claude-code-workflow.md
+- docs/guides/getting-started.md
+- docs/guides/missions-overview.md
+- docs/guides/multi-agent-workflow.md
+- docs/guides/orchestrator-quickstart.md
+- docs/guides/your-first-feature.md
 ---
-
 # Tutorials
 
 Learning-oriented, step-by-step walkthroughs for new users. Work through these in order to

@@ -1,8 +1,12 @@
 ---
-title: "How to Synthesize and Maintain Doctrine"
-description: "Run charter synthesize and charter resynthesize, validate the bundle, check provenance, and recover from stale state."
+title: How to Synthesize and Maintain Doctrine
+description: Run charter synthesize and charter resynthesize, validate the bundle, check provenance, and recover from stale state.
+doc_status: active
+updated: '2026-06-03'
+related:
+- docs/3x/charter-overview.md
+- docs/3x/governance-files.md
 ---
-
 # How to Synthesize and Maintain Doctrine
 
 This guide covers the day-to-day synthesis workflow: checking status, linting, running synthesis,

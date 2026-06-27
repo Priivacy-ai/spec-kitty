@@ -1,3 +1,9 @@
+---
+title: Slice F Mission Debrief
+description: 'Debrief for the slice-f-multi-context-extensibility mission (121) on the org-doctrine-layer branch: what shipped and the lessons carried forward.'
+doc_status: draft
+updated: '2026-05-19'
+---
 # Slice F Mission Debrief
 
 **Mission:** `slice-f-multi-context-extensibility-01KRX5C8` (mission_number=121)

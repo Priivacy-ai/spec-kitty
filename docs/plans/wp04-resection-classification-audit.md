@@ -1,9 +1,9 @@
 ---
-title: "WP04 re-section classification audit"
-description: "Per-file durable-vs-ephemeral classification record for the docs/development + docs/engineering_notes re-section (Mission B, FR-012, #2054)."
+title: WP04 re-section classification audit
+description: 'Per-file durable-vs-ephemeral classification record for the docs/development + docs/engineering_notes re-section (Mission B, FR-012, #2054).'
 doc_status: draft
+updated: '2026-06-27'
 ---
-
 # WP04 re-section classification audit (FR-012 / #2054)
 
 This note is the **auditable per-file record** for WP04's re-section of the

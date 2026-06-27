@@ -1,3 +1,11 @@
+---
+title: Org Doctrine Layer — Post-Implementation Architecture Review
+description: "Architect Alphonso's post-merge architecture review (2026-05-16) of the org doctrine layer: how the shipped design holds up and the follow-ups."
+doc_status: draft
+updated: '2026-06-01'
+related:
+- docs/plans/layered-doctrine-resolution-design.md
+---
 # Org Doctrine Layer — Post-Implementation Architecture Review
 
 **Author:** Architect Alphonso (post-merge architectural review)

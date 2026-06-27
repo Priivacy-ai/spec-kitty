@@ -1,3 +1,9 @@
+---
+title: 3.2 CLI Reference Methodology
+description: 'Methodology note for the 3.2 docs mission (WP05 / FR-006): the recovered procedure for generating the spec-kitty CLI reference from the live Typer surface.'
+doc_status: draft
+updated: '2026-06-27'
+---
 # 3.2 CLI Reference Methodology
 
 **Status**: Methodology note for mission `spec-kitty-3-2-docs-01KS4KSZ`, WP05.

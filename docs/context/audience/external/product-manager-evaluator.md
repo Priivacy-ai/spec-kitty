@@ -1,3 +1,9 @@
+---
+title: 'Stakeholder Persona: External Product Manager Evaluator'
+description: 'External product-manager-evaluator persona: gauges whether Spec Kitty improves discovery-to-delivery flow while preserving product intent and decision accountability.'
+doc_status: active
+updated: '2026-06-12'
+---
 # Stakeholder Persona: External Product Manager Evaluator
 
 | Field | Value |

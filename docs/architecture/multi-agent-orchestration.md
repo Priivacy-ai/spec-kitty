@@ -1,8 +1,11 @@
 ---
-title: "Multi-Agent Orchestration"
-description: "Coordination model for multi-agent delivery with a host-owned workflow state and external orchestration providers."
+title: Multi-Agent Orchestration
+description: Coordination model for multi-agent delivery with a host-owned workflow state and external orchestration providers.
+doc_status: active
+updated: '2026-06-03'
+related:
+- docs/architecture/kanban-workflow.md
 ---
-
 # Multi-Agent Orchestration
 
 Spec Kitty supports multi-agent delivery through a host/provider split:

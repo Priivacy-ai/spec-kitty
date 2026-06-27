@@ -1,3 +1,9 @@
+---
+title: 'User Journey: Governance Mission Creation and Charter Operations'
+description: 'User journey for governance mission creation and charter operations: how charters are interviewed, compiled, and operated, in a field-table record.'
+doc_status: draft
+updated: '2026-03-10'
+---
 # User Journey: Governance Mission Creation and Charter Operations
 
 | Field | Value |

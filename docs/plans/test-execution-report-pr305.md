@@ -1,3 +1,9 @@
+---
+title: 'Test Execution Report — PR #305 (feature/agent-profile-implementation)'
+description: 'Test execution report for PR #305 (agent-profile-implementation): the suites run, the results, and any failures captured in a field-table record.'
+doc_status: draft
+updated: '2026-04-05'
+---
 # Test Execution Report — PR #305 (feature/agent-profile-implementation)
 
 | Field | Value |

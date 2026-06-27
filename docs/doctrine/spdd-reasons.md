@@ -1,8 +1,9 @@
 ---
 title: SPDD and the REASONS Canvas
 description: Optional Spec Kitty doctrine pack that records change-intent and change-boundary as a structured artifact alongside the spec and plan.
+doc_status: active
+updated: '2026-05-26'
 ---
-
 # SPDD and the REASONS Canvas (opt-in doctrine pack)
 
 This is an **optional** doctrine pack. Projects that do not select it see no

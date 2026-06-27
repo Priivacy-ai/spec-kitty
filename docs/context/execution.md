@@ -1,3 +1,14 @@
+---
+title: 'Context: Execution'
+description: 'Glossary context for execution semantics: tool invocation and the semantic safety gates applied during generation within a Spec Kitty mission.'
+doc_status: active
+updated: '2026-06-14'
+related:
+- docs/context/governance.md
+- docs/context/identity.md
+- docs/context/lexical.md
+- docs/context/system-events.md
+---
 ## Context: Execution
 
 Terms describing tool invocation and semantic safety gates during generation.

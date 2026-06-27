@@ -1,3 +1,9 @@
+---
+title: 'Post-Implementation Review: Feature 054 — Charter Interview Compiler and Bootstrap'
+description: 'Post-implementation review of feature 054 (charter interview compiler and bootstrap): what shipped, what went well, and the follow-ups, in a field table.'
+doc_status: draft
+updated: '2026-04-05'
+---
 # Post-Implementation Review: Feature 054 — Charter Interview Compiler and Bootstrap
 
 | Field | Value |

@@ -1,3 +1,9 @@
+---
+title: CI Quality Workflow Structure
+description: Visual overview of the CI Quality workflow structure, showing how linting checks were converted from blocking to informational, with a solution summary.
+doc_status: draft
+updated: '2026-02-25'
+---
 # CI Quality Workflow Structure
 
 This document provides a visual overview of the CI Quality workflow structure, showing how linting checks were converted from blocking to informational warnings.

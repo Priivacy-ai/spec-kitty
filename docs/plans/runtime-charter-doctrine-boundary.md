@@ -1,3 +1,11 @@
+---
+title: Runtime → Charter → Doctrine — boundary audit and recommendations
+description: Architect Alphonso's audit (2026-05-17) of the runtime to charter to doctrine boundary, with recommendations for tightening the seams.
+doc_status: draft
+updated: '2026-05-19'
+related:
+- docs/plans/doctrine-artifact-selection-preflight.md
+---
 # Runtime → Charter → Doctrine — boundary audit and recommendations
 
 **Author:** Architect Alphonso

@@ -1,3 +1,9 @@
+---
+title: Mission-Next Compatibility Matrix
+description: Historical compatibility matrix between spec-kitty-cli and the retired spec-kitty-runtime PyPI package, describing the pre-cutover version pairing.
+doc_status: draft
+updated: '2026-04-25'
+---
 # Mission-Next Compatibility Matrix
 
 > **HISTORICAL** — describes the pre-cutover compatibility matrix between

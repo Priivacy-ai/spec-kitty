@@ -1,3 +1,11 @@
+---
+title: Engineering notes — Architectural reviews
+description: 'Landing page for the architectural-reviews engineering notes: on-demand deep-dive reviews of the spec-kitty codebase by architect-profile agents.'
+doc_status: draft
+updated: '2026-05-26'
+related:
+- docs/plans/engineering-notes/architectural-review/2026-05-25-deep-dive-architectural-review.md
+---
 # Engineering notes — Architectural reviews
 
 This directory holds **deep-dive architectural reviews** of the spec-kitty codebase, performed by architect-profile agents on demand (typically post-merge of a substantial mission or before a major release).

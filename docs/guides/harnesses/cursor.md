@@ -1,8 +1,11 @@
 ---
-title: "Use Spec Kitty in Cursor"
-description: "Configure the Use Spec Kitty in Cursor harness for Spec Kitty 3.2 commands, generated skills, and agent workflow integration."
+title: Use Spec Kitty in Cursor
+description: 'How to use Spec Kitty in Cursor (supported tier): prerequisites, command install, and the Spec Kitty slash-command workflow inside the editor.'
+doc_status: active
+updated: '2026-06-03'
+related:
+- docs/guides/install-spec-kitty.md
 ---
-
 # Use Spec Kitty in Cursor
 
 > **Tier:** supported.

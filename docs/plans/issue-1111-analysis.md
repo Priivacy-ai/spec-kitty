@@ -1,3 +1,9 @@
+---
+title: 'Issue #1111 Analysis — Branch Alignment Report'
+description: "Architect Alphonso's branch-alignment analysis for issue #1111: how the affected branches diverge and what alignment is needed (2026-05-18)."
+doc_status: draft
+updated: '2026-05-19'
+---
 # Issue #1111 Analysis — Branch Alignment Report
 
 **Author:** Architect Alphonso (ad-hoc profile session)  

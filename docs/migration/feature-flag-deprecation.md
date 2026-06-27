@@ -1,8 +1,9 @@
 ---
-title: "Migration: --feature to --mission"
-description: "Migration guidance for Migration: --feature to --mission in Spec Kitty 3.2, including upgrade context and historical behavior boundaries."
+title: 'Migration: --feature to --mission'
+description: 'Migration from the --feature flag to --mission, deprecated in mission 077 and partially removed in 3.2.x (#1060-A): the timeline and the required call-site changes.'
+doc_status: active
+updated: '2026-06-15'
 ---
-
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 
 # Migration: `--feature` to `--mission`
