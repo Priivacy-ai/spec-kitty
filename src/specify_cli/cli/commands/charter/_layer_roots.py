@@ -21,8 +21,15 @@ def resolve_layer_roots(repo_root: Path) -> dict[str, Path]:
     if (project_root / "doctrine").is_dir():
         roots["project"] = project_root
 
+    # FR-013: register the first resolved org pack root regardless of whether it
+    # nests a ``doctrine/`` subdir. Runtime resolves org packs from the *flat*
+    # ``<pack>/<plural>/`` layout (``resolve_org_roots`` → ``DoctrineService``),
+    # which has no ``<pack>/doctrine/`` subdir; gating on ``doctrine/.is_dir()``
+    # silently dropped those packs so flat-layout artifacts failed to activate
+    # ("Unknown <kind> ID"). The layout-tolerant scan in
+    # ``pack_manager._scan_layer_dirs`` accepts both flat and nested packs.
     for org_root in resolve_org_roots(repo_root):
-        if (org_root / "doctrine").is_dir():
+        if org_root.is_dir():
             roots["org"] = org_root
             break
 

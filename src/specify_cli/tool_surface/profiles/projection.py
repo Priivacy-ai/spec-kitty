@@ -18,6 +18,8 @@ from pathlib import Path
 
 from charter.profiles import AgentProfile, AgentProfileRepository
 
+from specify_cli.invocation.org_profiles import resolve_activated_org_profiles
+
 from ..findings import (
     PROFILE_NAME_INVALID,
     PROFILE_OVERLAY_CONFLICT,
@@ -73,9 +75,38 @@ def default_profile_repository(project_root: Path) -> AgentProfileRepository:
     load from ``.kittify/agent_profiles/`` when that directory exists; it is
     passed through unconditionally because the repository treats a missing
     ``project_dir`` gracefully (no overlay).
+
+    The **charter-activation-admitted** org-pack profiles are then merged on top
+    of the project layer (#2166). They are obtained exclusively through WP02's
+    :func:`resolve_activated_org_profiles`, which applies the charter activation
+    gate, so a *de-activated* org profile never reaches the host surface. A raw
+    ``org_dirs=`` splice is intentionally NOT used here: it would bypass the gate
+    and surface declared-but-de-activated profiles (C-008).
     """
     project_dir = project_root / _PROJECT_PROFILE_SUBDIR
-    return AgentProfileRepository(project_dir=project_dir)
+    repo = AgentProfileRepository(project_dir=project_dir)
+    _merge_activated_org_profiles(repo, project_root)
+    return repo
+
+
+def _merge_activated_org_profiles(
+    repo: AgentProfileRepository, repo_root: Path
+) -> None:
+    """Merge WP02's activation-admitted org profiles onto ``repo`` in place.
+
+    Consumes the provenance-preserving :class:`ResolvedOrgProfile` records so the
+    projection manifest records each org agent with a non-builtin ``source_layer``
+    (``"org"``) and its on-disk ``source_path`` — the #2166 acceptance hinge. The
+    project (``.kittify/agent_profiles``) and built-in layers are left untouched;
+    with no declared org packs the resolver returns an empty list and projection
+    is byte-identical to the pre-mission output (NFR-001).
+    """
+    for resolved in resolve_activated_org_profiles(repo_root):
+        repo.register_overlay(
+            resolved.profile,
+            layer=resolved.source_layer,
+            source_path=resolved.source_path,
+        )
 
 
 class ProfileProjector:

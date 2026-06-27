@@ -190,6 +190,24 @@ def _scan_layout_for(kind: ArtifactKind | None) -> tuple[str, str, bool]:
     return (f"doctrine/{kind.plural}", kind.glob_pattern, True)
 
 
+def _resolve_org_layer_dir(root: Path, kind: ArtifactKind, base_dir: str) -> Path:
+    """Resolve the org-layer scan directory, tolerant of flat vs nested layouts.
+
+    FR-013 unifies the charter activation subsystem with runtime, which resolves
+    org packs from the **flat** ``<pack>/<plural>/`` layout
+    (``resolve_org_roots`` → ``DoctrineService``). Flat is therefore the
+    canonical, preferred layout. The legacy nested
+    ``<pack>/doctrine/<plural>/org/`` layout is kept as a fallback so packs that
+    already ship the nested layout keep resolving — a layout-tolerant default,
+    not a hard cutover (post-tasks squad decision; keeps the un-owned nested
+    catalog fixtures green).
+    """
+    flat = root / kind.plural
+    if flat.is_dir():
+        return flat
+    return root / base_dir / "org"
+
+
 def _config_stem(path: Path) -> str:
     """Return the config/file-stem ID for an artifact path.
 
@@ -563,6 +581,8 @@ class CharterPackManager:
             if layered and layer == "project" and kind is not None:
                 kind_dir = _PROJECT_KIND_DIRS.get(kind, kind.plural)
                 candidate = root / "doctrine" / kind_dir
+            elif layered and layer == "org" and kind is not None:
+                candidate = _resolve_org_layer_dir(root, kind, base_dir)
             elif layered:
                 candidate = root / base_dir / layer
             elif layer == "built-in":

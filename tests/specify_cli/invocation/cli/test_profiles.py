@@ -102,14 +102,18 @@ class TestProfilesListTableOutput:
 class TestProfilesListNoProfiles:
     def test_no_profiles_json_returns_empty_array(self, tmp_path: Path) -> None:
         """When no profiles are returned, --json outputs empty array."""
-        from specify_cli.invocation.registry import ProfileRegistry
-
         project = tmp_path
         (project / ".kittify").mkdir(parents=True)
 
+        # R3: the display catalog now derives from ``_profile_catalog`` (the
+        # ungated built-in + legacy + doctrine view), not the gated routing
+        # ``ProfileRegistry``. Patch the catalog seam to simulate emptiness.
         with (
             patch("specify_cli.cli.commands.profiles_cmd.find_repo_root", return_value=project),
-            patch.object(ProfileRegistry, "list_all", return_value=[]),
+            patch(
+                "specify_cli.cli.commands.profiles_cmd._profile_catalog",
+                return_value=([], {}, {}),
+            ),
         ):
             result = runner.invoke(cli_app, ["profiles", "list", "--json"])
         assert result.exit_code == 0
@@ -117,14 +121,15 @@ class TestProfilesListNoProfiles:
 
     def test_no_profiles_table_shows_helpful_message(self, tmp_path: Path) -> None:
         """When no profiles found, a helpful message is shown."""
-        from specify_cli.invocation.registry import ProfileRegistry
-
         project = tmp_path
         (project / ".kittify").mkdir(parents=True)
 
         with (
             patch("specify_cli.cli.commands.profiles_cmd.find_repo_root", return_value=project),
-            patch.object(ProfileRegistry, "list_all", return_value=[]),
+            patch(
+                "specify_cli.cli.commands.profiles_cmd._profile_catalog",
+                return_value=([], {}, {}),
+            ),
         ):
             result = runner.invoke(cli_app, ["profiles", "list"])
         assert result.exit_code == 0
