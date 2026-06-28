@@ -40,7 +40,10 @@ import pytest
 
 from runtime.next.decision import Decision, DecisionKind
 from runtime.next.discovery import preview_claimable_wp
-from runtime.next.runtime_bridge import _build_finalized_override_query_decision
+from runtime.next.runtime_bridge import (
+    _build_finalized_override_query_decision,
+    query_current_state,
+)
 from tests.integration.coord_topology_fixture import (
     CoordTopologyContext,
     coord_topology_mission,
@@ -110,6 +113,11 @@ def _build_implement_override_decision(ctx: CoordTopologyContext) -> Decision:
     )
 
 
+def _mark_primary_task_board_finalized(ctx: CoordTopologyContext) -> None:
+    """Create the primary ``tasks.md`` marker required by finalized-board override."""
+    (ctx.primary_feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+
+
 class TestNextPreviewRoutesToPrimary:
     """FR-004 / SC-002: claimable-preview previews from PRIMARY under coord topology."""
 
@@ -126,6 +134,7 @@ class TestNextPreviewRoutesToPrimary:
         → ``wp_id`` becomes ``None`` → this assertion goes RED.
         """
         ctx = coord_topology_mission
+        _mark_primary_task_board_finalized(ctx)
         _seed_coord_planned_event(ctx)
 
         decision = _build_implement_override_decision(ctx)
@@ -154,6 +163,7 @@ class TestNextPreviewRoutesToPrimary:
         reverting T011 collapses the routed result onto this empty unrouted one.
         """
         ctx = coord_topology_mission
+        _mark_primary_task_board_finalized(ctx)
         _seed_coord_planned_event(ctx)
 
         # ROUTED (post-fix): PRIMARY surface → WP01.
@@ -190,3 +200,26 @@ class TestNextPreviewRoutesToPrimary:
             "Equal values mean the routing fix is absent (T011 reverted)."
         )
         assert routed.wp_id == _EXPECTED_PRIMARY_WP_ID
+
+    def test_query_current_state_uses_primary_tasks_and_coord_status(
+        self,
+        coord_topology_mission: CoordTopologyContext,
+    ) -> None:
+        """Full production path: query mode reaches implement/WP01 under coord topology.
+
+        This guards the pre-builder leg too. A helper-only test can pass while
+        ``query_current_state`` still computes finalized progress from the STATUS-only
+        coord husk (no ``tasks/``) and returns ``not_started``.
+        """
+        ctx = coord_topology_mission
+        _mark_primary_task_board_finalized(ctx)
+        _seed_coord_planned_event(ctx)
+
+        decision = query_current_state("claude", ctx.slug, ctx.repo)
+
+        assert decision.kind is DecisionKind.query
+        assert decision.mission_state == "implement"
+        assert decision.wp_id == _EXPECTED_PRIMARY_WP_ID
+        assert decision.progress is not None
+        assert decision.progress["total_wps"] == 1
+        assert decision.progress["planned_wps"] == 1

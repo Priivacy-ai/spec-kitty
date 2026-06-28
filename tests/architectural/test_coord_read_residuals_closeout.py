@@ -69,6 +69,7 @@ from tests.architectural.test_gate_read_literal_ban import (
     _call_func_name,
     _find_function,
     _names_bound_from,
+    _read_call_first_arg,
     callshape_violations,
 )
 from tests.architectural.test_resolution_authority_gates import (
@@ -277,7 +278,7 @@ def _count_read_call_sites(
             if (
                 isinstance(node, ast.Call)
                 and _call_func_name(node) in read_funcs
-                and node.args
+                and _read_call_first_arg(node) is not None
             ):
                 total += 1
     return total

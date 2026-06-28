@@ -213,6 +213,11 @@ _LANES_READ_FUNCS: frozenset[str] = frozenset(
 # coord-bearing attribute (e.g. ``run.feature_dir``) is flagged (SC-006).
 _SANCTIONED_PRIMARY_ATTRS: frozenset[str] = frozenset({"target_feature_dir"})
 
+# All read funcs fenced by the call-shape arm expose their first path argument as
+# ``feature_dir``. Treat ``read_func(feature_dir=...)`` as equivalent to the first
+# positional arg so the gate cannot be bypassed by keyword-call style.
+_READ_FIRST_ARG_KEYWORDS: frozenset[str] = frozenset({"feature_dir"})
+
 
 # ---------------------------------------------------------------------------
 # Pinned enumerated surfaces. Adding a NEW gate command (read) or write-branch
@@ -605,6 +610,18 @@ def _param_position(
     return None
 
 
+def _is_parameter(func: ast.FunctionDef | ast.AsyncFunctionDef, name: str) -> bool:
+    """True when *name* is any explicit parameter of *func*."""
+    return any(
+        arg.arg == name
+        for arg in (
+            *func.args.posonlyargs,
+            *func.args.args,
+            *func.args.kwonlyargs,
+        )
+    )
+
+
 def _iter_module_functions(
     module: ast.Module,
 ) -> list[ast.FunctionDef | ast.AsyncFunctionDef]:
@@ -617,25 +634,32 @@ def _iter_module_functions(
 
 
 def _caller_binds_arg_coord_aware(
-    caller: ast.FunctionDef | ast.AsyncFunctionDef, callee_name: str, pos: int
+    caller: ast.FunctionDef | ast.AsyncFunctionDef,
+    callee_name: str,
+    pos: int | None,
+    param_name: str,
 ) -> bool:
-    """True iff *caller* calls *callee_name* passing a coord-aware-without-fold dir
-    at positional index *pos*.
+    """True iff *caller* passes a coord-aware-without-fold dir to *callee_name*.
 
-    The one-hop hop: the arg at *pos* must be a Name bound (in the caller) from a
-    coord-aware resolver and NOT also bound from a primary fold — the same
-    coord-vs-primary divergence the two-hop shape catches, observed one frame up.
+    The one-hop hop: the arg at positional index *pos* OR keyword *param_name* must
+    be a Name bound (in the caller) from a coord-aware resolver and NOT also bound
+    from a primary fold — the same coord-vs-primary divergence the two-hop shape
+    catches, observed one frame up.
     """
     coord = _names_bound_from(caller, _COORD_AWARE_CALLSHAPE_RESOLVERS)
     primary = _names_bound_from(caller, _PRIMARY_FOLD_CALLSHAPE_FUNCS)
     for node in ast.walk(caller):
         if not isinstance(node, ast.Call) or _call_func_name(node) != callee_name:
             continue
-        if pos >= len(node.args):
-            continue
-        arg = node.args[pos]
-        if isinstance(arg, ast.Name) and arg.id in coord and arg.id not in primary:
-            return True
+        candidate_args: list[ast.expr] = []
+        if pos is not None and pos < len(node.args):
+            candidate_args.append(node.args[pos])
+        candidate_args.extend(
+            kw.value for kw in node.keywords if kw.arg == param_name
+        )
+        for arg in candidate_args:
+            if isinstance(arg, ast.Name) and arg.id in coord and arg.id not in primary:
+                return True
     return False
 
 
@@ -644,19 +668,20 @@ def _one_hop_caller_is_coord_aware(
 ) -> bool:
     """FR-001 one-hop: does any caller of *callee_func* bind *param_name* coord-aware?
 
-    Exactly ONE hop — no transitive/multi-hop walk (C-006 defers that). Returns
-    ``False`` when *param_name* is not a positional parameter of *callee_func*.
+    Exactly ONE hop — no transitive/multi-hop walk (C-006 defers that). Handles
+    positional and keyword caller bindings; returns ``False`` when *param_name* is
+    not an explicit parameter of *callee_func*.
     """
     if not isinstance(callee_func, (ast.FunctionDef, ast.AsyncFunctionDef)):
         return False
-    pos = _param_position(callee_func, param_name)
-    if pos is None:
+    if not _is_parameter(callee_func, param_name):
         return False
+    pos = _param_position(callee_func, param_name)
     callee_name = callee_func.name
     for caller in _iter_module_functions(module):
         if caller is callee_func:
             continue
-        if _caller_binds_arg_coord_aware(caller, callee_name, pos):
+        if _caller_binds_arg_coord_aware(caller, callee_name, pos, param_name):
             return True
     return False
 
@@ -714,6 +739,16 @@ def _flagged_first_arg(
     return None
 
 
+def _read_call_first_arg(node: ast.Call) -> ast.expr | None:
+    """Return a fenced read call's first path arg, positional or keyword."""
+    if node.args:
+        return node.args[0]
+    for keyword in node.keywords:
+        if keyword.arg in _READ_FIRST_ARG_KEYWORDS:
+            return keyword.value
+    return None
+
+
 def callshape_violations(
     func: ast.AST,
     *,
@@ -733,7 +768,8 @@ def callshape_violations(
     WITHOUT a primary fold. When ``None`` (the legacy per-function call) the one-hop
     check is skipped; the two-hop, inline-call, and attribute shapes still apply.
 
-    A call is flagged iff its first positional arg is one of:
+    A call is flagged iff its first path arg (positional, or ``feature_dir=``) is
+    one of:
 
     * a ``Name`` bound (same function) from a coord-aware resolver and NOT also
       bound from a primary-fold seam (two-hop); or
@@ -755,11 +791,14 @@ def callshape_violations(
         if not isinstance(node, ast.Call):
             continue
         callee = _call_func_name(node)
-        if callee is None or callee not in read_funcs or not node.args:
+        if callee is None or callee not in read_funcs:
+            continue
+        first = _read_call_first_arg(node)
+        if first is None:
             continue
         descriptor = _flagged_first_arg(
             callee,
-            node.args[0],
+            first,
             func=func,
             coord_bound=coord_bound,
             primary_bound=primary_bound,
@@ -1485,6 +1524,20 @@ def test_callshape_arm_identity_flags_two_hop() -> None:
     assert hits == ["resolve_mission_identity(feature_dir)"], hits
 
 
+def test_callshape_arm_identity_flags_keyword_two_hop() -> None:
+    """IDENTITY two-hop cannot be bypassed by ``feature_dir=`` keyword style."""
+    source = '''
+def f(repo_root, mission_slug):
+    feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
+    identity = resolve_mission_identity(feature_dir=feature_dir)
+    return identity.mission_id
+'''
+    hits = callshape_violations(
+        _func_from_source(source), read_funcs=_IDENTITY_READ_FUNCS
+    )
+    assert hits == ["resolve_mission_identity(feature_dir)"], hits
+
+
 def test_callshape_arm_identity_flags_inline_call() -> None:
     """IDENTITY inline-call: ``resolve_mission_identity(resolve_feature_dir_for_mission(...))``
     is FLAGGED (the pre-fix ``workflow.py:2739`` shape)."""
@@ -1641,6 +1694,16 @@ def _run_documentation_wiring(feature_dir, repo_root):
     return mission_type
 '''
 
+_VIOLATION_CROSS_FUNCTION_KEYWORD = '''
+def setup_plan(repo_root, feature):
+    feature_dir = _resolve_setup_plan_feature_dir(repo_root, feature, json_output=False)
+    return _run_documentation_wiring(feature_dir=feature_dir, repo_root=repo_root)
+
+def _run_documentation_wiring(feature_dir, repo_root):
+    mission_type = get_mission_type(feature_dir=feature_dir)
+    return mission_type
+'''
+
 # Clean counterpart: the caller binds the dir from a PRIMARY fold seam, so the
 # one-hop check clears the flag (the routed shape).
 _CLEAN_CROSS_FUNCTION_PRIMARY_FOLD = '''
@@ -1682,6 +1745,20 @@ def test_callshape_arm_flags_one_hop_cross_function_param() -> None:
     )
     assert qn == "_run_documentation_wiring", qn
     assert "get_mission_type" in token_line, token_line
+
+
+def test_callshape_arm_flags_one_hop_keyword_binding() -> None:
+    """FR-001 boundary: keyword-call style is the same one-hop violation.
+
+    Without this, ``caller(... feature_dir=feature_dir)`` and
+    ``get_mission_type(feature_dir=feature_dir)`` bypass the arm while preserving
+    the same runtime wrong-leg read.
+    """
+    module, func = _module_and_func(
+        _VIOLATION_CROSS_FUNCTION_KEYWORD, "_run_documentation_wiring"
+    )
+    hits = callshape_violations(func, read_funcs=_IDENTITY_READ_FUNCS, module=module)
+    assert hits == ["get_mission_type(feature_dir)"], hits
 
 
 def test_callshape_arm_passes_one_hop_caller_primary_fold() -> None:

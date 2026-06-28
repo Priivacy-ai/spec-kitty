@@ -964,6 +964,8 @@ def _is_wp_iteration_step(step_id: str) -> bool:
 def _finalized_task_board_override_step(
     feature_dir: Path,
     progress: dict[str, int | float] | None,
+    *,
+    status_dir: Path | None = None,
 ) -> str | None:
     """Return the next step implied by finalized WP state, if available.
 
@@ -979,15 +981,15 @@ def _finalized_task_board_override_step(
     if not (feature_dir / "tasks.md").is_file() or not (feature_dir / "tasks").is_dir():
         return None
 
-    if _find_first_wp_by_lane(feature_dir, "planned") is not None:
+    if _find_first_wp_by_lane(feature_dir, "planned", status_dir=status_dir) is not None:
         return "implement"
-    if _find_first_wp_by_lane(feature_dir, "claimed") is not None:
+    if _find_first_wp_by_lane(feature_dir, "claimed", status_dir=status_dir) is not None:
         return "implement"
-    if _find_first_wp_by_lane(feature_dir, "in_progress") is not None:
+    if _find_first_wp_by_lane(feature_dir, "in_progress", status_dir=status_dir) is not None:
         return "implement"
-    if _find_first_wp_by_lane(feature_dir, "for_review") is not None:
+    if _find_first_wp_by_lane(feature_dir, "for_review", status_dir=status_dir) is not None:
         return "review"
-    if _find_first_wp_by_lane(feature_dir, "in_review") is not None:
+    if _find_first_wp_by_lane(feature_dir, "in_review", status_dir=status_dir) is not None:
         return "blocked:review_in_progress"
 
     done = int(progress.get("done_wps", 0) or 0)
@@ -3201,6 +3203,31 @@ def _build_runtime_query_decision(
     )
 
 
+def _query_task_board_read_dirs(
+    repo_root: Path,
+    mission_slug: str,
+    fallback_status_dir: Path,
+) -> tuple[Path, Path]:
+    """Return ``(planning_dir, status_dir)`` for query-mode finalized WP previews."""
+    from mission_runtime import MissionArtifactKind
+    from specify_cli.core.paths import get_main_repo_root
+    from specify_cli.missions._read_path_resolver import (
+        candidate_feature_dir_for_mission,
+        resolve_planning_read_dir,
+    )
+
+    main_root = get_main_repo_root(repo_root)
+    planning_dir = resolve_planning_read_dir(
+        main_root,
+        mission_slug,
+        kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+    )
+    status_dir = candidate_feature_dir_for_mission(main_root, mission_slug)
+    if not status_dir.exists():
+        status_dir = fallback_status_dir
+    return planning_dir, status_dir
+
+
 def query_current_state(
     agent: str | None,
     mission_slug: str,
@@ -3225,6 +3252,7 @@ def query_current_state(
             action="tasks",
             feature=mission_slug,
         )
+        mission_slug = str(_ctx.mission_slug)
         feature_dir = Path(_ctx.feature_dir)
     except ActionContextError as exc:
         # FR-001 / C-IC02: pass a typed *read-path* error through VERBATIM. The
@@ -3252,8 +3280,13 @@ def query_current_state(
         # deliberately-kept classification here (NOT a read-path collapse).
         raise MissionNotFoundError(mission_slug)
 
-    mission_type = get_mission_type(feature_dir)
-    progress = _compute_wp_progress(feature_dir)
+    planning_feature_dir, status_feature_dir = _query_task_board_read_dirs(
+        repo_root,
+        mission_slug,
+        feature_dir,
+    )
+    mission_type = get_mission_type(planning_feature_dir)
+    progress = _compute_wp_progress(planning_feature_dir, status_dir=status_feature_dir)
 
     run_ref = _existing_run_ref(mission_slug, repo_root, mission_type)
     ephemeral_run_store: Path | None = None
@@ -3301,7 +3334,11 @@ def query_current_state(
         if ephemeral_run_store is None:
             emitted_run_id = getattr(run_ref, "run_id", None)
 
-        finalized_override = _finalized_task_board_override_step(feature_dir, progress)
+        finalized_override = _finalized_task_board_override_step(
+            planning_feature_dir,
+            progress,
+            status_dir=status_feature_dir,
+        )
         if finalized_override is not None:
             return _build_finalized_override_query_decision(
                 agent=agent,
