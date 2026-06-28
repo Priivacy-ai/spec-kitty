@@ -14,10 +14,10 @@
 
 ### Included Subtasks
 
-- [x] T001 Update version callback in `src/specify_cli/__init__.py`
-- [x] T002 Add version output tests in `tests/specify_cli/cli/commands/test_version_output.py`
-- [x] T003 Verify `--version` and `-v` output starts with the copyable version line
-- [x] T004 Run targeted version output tests
+- [ ] T001 Update version callback in `src/specify_cli/__init__.py`
+- [ ] T002 Add version output tests in `tests/specify_cli/cli/commands/test_version_output.py`
+- [ ] T003 Verify `--version` and `-v` output starts with the copyable version line
+- [ ] T004 Run targeted version output tests
 
 ### Dependencies
 

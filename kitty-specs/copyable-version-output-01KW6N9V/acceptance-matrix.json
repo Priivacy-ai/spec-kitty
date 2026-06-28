@@ -2,47 +2,47 @@
   "mission_slug": "copyable-version-output-01KW6N9V",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pass",
+  "overall_verdict": "pending",
   "criteria": [
     {
       "criterion_id": "FR-001",
-      "description": "Version output starts with copyable version information",
+      "description": "Verify FR-001 is satisfied",
       "proof_type": "automated_test",
-      "evidence": "PYENV_VERSION=3.12.7 python -m venv .venv && .venv/bin/python -m pip install -e \".[test]\" && .venv/bin/python -m pytest tests/specify_cli/cli/commands/test_version_output.py -q -> 4 passed",
-      "pass_fail": "pass",
-      "verified_by": "cursor",
-      "verified_at": "2026-06-28T08:54:18Z",
-      "notes": "test_version_output_starts_with_copyable_version_line covers --version and -v"
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "TODO: replace with a real acceptance criterion"
     },
     {
       "criterion_id": "FR-002",
-      "description": "Large banner does not block copyable version output",
+      "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": "PYENV_VERSION=3.12.7 python -m venv .venv && .venv/bin/python -m pip install -e \".[test]\" && .venv/bin/python -m pytest tests/specify_cli/cli/commands/test_version_output.py -q -> 4 passed",
-      "pass_fail": "pass",
-      "verified_by": "cursor",
-      "verified_at": "2026-06-28T08:54:18Z",
-      "notes": "test_version_output_does_not_render_large_banner asserts title text and block-art characters are absent"
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "TODO: replace with a real acceptance criterion"
     },
     {
       "criterion_id": "FR-003",
-      "description": "Version output preserves the product/version value",
+      "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": "PYENV_VERSION=3.12.7 python -m venv .venv && .venv/bin/python -m pip install -e \".[test]\" && .venv/bin/python -m pytest tests/specify_cli/cli/commands/test_version_output.py -q -> 4 passed",
-      "pass_fail": "pass",
-      "verified_by": "cursor",
-      "verified_at": "2026-06-28T08:54:18Z",
-      "notes": "The callback still prints `spec-kitty-cli version {__version__}` and exits through Typer"
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "TODO: replace with a real acceptance criterion"
     },
     {
       "criterion_id": "FR-004",
-      "description": "Decorative art is secondary to the version value",
+      "description": "Verify FR-004 is satisfied",
       "proof_type": "automated_test",
-      "evidence": "PYENV_VERSION=3.12.7 python -m venv .venv && .venv/bin/python -m pip install -e \".[test]\" && .venv/bin/python -m pytest tests/specify_cli/cli/commands/test_version_output.py -q -> 4 passed",
-      "pass_fail": "pass",
-      "verified_by": "cursor",
-      "verified_at": "2026-06-28T08:54:18Z",
-      "notes": "No decorative art is rendered in version output, satisfying the allowed removal path"
+      "evidence": null,
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "TODO: replace with a real acceptance criterion"
     }
   ],
   "negative_invariants": []
