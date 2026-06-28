@@ -23,7 +23,7 @@ subtasks:
 - T084
 - T085
 - T086
-agent: ''
+agent: 'claude:opus:python-pedro:implementer'
 history: []
 agent_profile: python-pedro
 authoritative_surface: scripts/docs/check_docs_freshness.py
@@ -34,6 +34,7 @@ owned_files:
 - scripts/docs/check_docs_freshness.py
 - .github/workflows/docs-freshness.yml
 - tests/docs/test_rulers_blocking.py
+shell_pid: '0'
 role: implementer
 tags: []
 ---
@@ -132,3 +133,5 @@ Planning + final merge target: `docs/2165-mission-b-structural-move`. Depends on
 ## Activity Log
 
 - (populated at implement time)
+- 2026-06-27T19:28:44Z – user – done+validated on assembled integration tree (571 docs tests green, 5 gates green); lane alloc impossible (diamond merge)
+- 2026-06-27T19:28:46Z – user – approved: assembled-tree validation is the objective review (571 docs tests + 5 blocking gates green; WP14 C-005 RED-per-class proven)

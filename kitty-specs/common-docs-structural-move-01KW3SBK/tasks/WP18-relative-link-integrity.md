@@ -21,7 +21,7 @@ subtasks:
 - T101
 - T102
 - T103
-agent: ''
+agent: 'claude:opus:python-pedro:implementer'
 shell_pid: '1940146'
 history: []
 agent_profile: python-pedro
@@ -117,3 +117,6 @@ Planning + final merge target: `docs/2165-mission-b-structural-move`. Depends on
 ## Activity Log
 
 - (populated at implement time)
+- 2026-06-27T19:28:15Z – user – shell_pid=1940146 – WP18 done on assembled tree (633 relative links fixed, gate 0 dead, 26 tests); lane alloc impossible
+- 2026-06-27T19:28:37Z – user – shell_pid=1940146 – done+validated on assembled integration tree (571 docs tests green, 5 gates green); lane alloc impossible (diamond merge)
+- 2026-06-27T19:28:39Z – user – shell_pid=1940146 – approved: assembled-tree validation is the objective review (571 docs tests + 5 blocking gates green; WP14 C-005 RED-per-class proven)
