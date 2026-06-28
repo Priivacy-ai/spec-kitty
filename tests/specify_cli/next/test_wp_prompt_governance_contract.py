@@ -895,7 +895,12 @@ class TestPromptSelfSufficiency:
         required_surfaces = {
             "profile_directive_id": re.compile(r"\bDIRECTIVE_\d{3}\b"),
             "glossary_pointer": re.compile(r"glossary/?", re.IGNORECASE),
-            "adr_pointer": re.compile(r"architecture/([23]\.x/)?adr", re.IGNORECASE),
+            # Post common-docs move ADRs live at docs/adr/<era>/; the pre-move
+            # architecture/<era>/adr path is still accepted for robustness (mirrors
+            # test_implement_prompt_references_adr_path above).
+            "adr_pointer": re.compile(
+                r"docs/adr/|architecture/([23]\.x/)?adr", re.IGNORECASE
+            ),
             "terminology_canon_body_or_fetch": re.compile(
                 r"canonical term|spec-kitty\s+charter\s+context", re.IGNORECASE
             ),
