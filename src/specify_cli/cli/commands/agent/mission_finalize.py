@@ -85,6 +85,7 @@ logger = logging.getLogger(__name__)
 console = Console()
 
 TASKS_MD_FILENAME = "tasks.md"
+ISSUE_MATRIX_FILENAME = "issue-matrix.md"
 FINALIZE_TASKS_COMMAND_NAME = "spec-kitty agent mission finalize-tasks"
 INVALID_WP_OWNED_FILES_KITTY_SPECS = "INVALID_WP_OWNED_FILES_KITTY_SPECS"
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
@@ -190,7 +191,7 @@ def _collect_finalize_artifacts(
         feature_dir / "status.json",
         feature_dir / TASKS_MD_FILENAME,
         feature_dir / "acceptance-matrix.json",
-        feature_dir / "issue-matrix.md",
+        feature_dir / ISSUE_MATRIX_FILENAME,
         feature_dir / ".kittify" / "dossiers" / mission_slug / "snapshot-latest.json",
     ]
     candidates.extend(sorted(path for path in tasks_dir.iterdir() if path.is_file()))
@@ -364,6 +365,44 @@ def _scaffold_issue_matrix_if_present(
         except ValueError:
             rel = issue_matrix_path
         console.print(f"[info] Scaffolded {rel}")
+
+
+def _advisory_issue_matrix_lint(planning_dir: Path, *, json_output: bool) -> None:
+    """Phase: FR-009 advisory (never-blocking) ``issue-matrix.md`` lint (#2223).
+
+    Reuses the SAME exported ``validate_issue_matrix`` rule engine the approve
+    gate calls (NFR-002 — one engine, two callers). Findings are surfaced as
+    warnings only; a malformed matrix NEVER blocks ``finalize-tasks``. The
+    completeness "row-for-every-#ref" scan in
+    ``agent/tasks_parsing_validation.py::_issue_matrix_evaluation`` is OUT of
+    scope here and intentionally not cross-imported (it would invert the
+    command-module dependency direction; factor a shared pure helper first).
+
+    The engine is imported at call time from the ``review`` package so the
+    symbol resolves to the exact callable the approve gate uses (and stays
+    monkeypatchable for call-identity tests) without an import cycle.
+    """
+    issue_matrix_path = planning_dir / ISSUE_MATRIX_FILENAME
+    if not issue_matrix_path.exists():
+        return
+    try:
+        from specify_cli.cli.commands.review import validate_issue_matrix
+
+        result = validate_issue_matrix(issue_matrix_path)
+    except Exception as lint_exc:  # noqa: BLE001 — advisory lint never blocks finalize
+        if not json_output:
+            console.print(
+                f"[yellow]Warning:[/yellow] could not lint {ISSUE_MATRIX_FILENAME}: {lint_exc}"
+            )
+        return
+    if result.passed or json_output:
+        return
+    console.print(
+        f"[yellow]Advisory:[/yellow] {ISSUE_MATRIX_FILENAME} has lint finding(s) "
+        "(non-blocking — does not affect finalize):"
+    )
+    for diagnostic in result.diagnostics:
+        console.print(f"  - {diagnostic['diagnostic_code']}: {diagnostic['message']}")
 
 
 def _load_manifest(planning_dir: Path, *, json_output: bool) -> WpsManifest | None:
@@ -1534,6 +1573,7 @@ def finalize_tasks(
         _scaffold_issue_matrix_if_present(
             planning_dir, repo_root, validate_only=validate_only, json_output=json_output
         )
+        _advisory_issue_matrix_lint(planning_dir, json_output=json_output)
 
         wps_manifest = _load_manifest(planning_dir, json_output=json_output)
         concern_coverage_warnings = check_concern_refs_coverage(wps_manifest) if wps_manifest is not None else []

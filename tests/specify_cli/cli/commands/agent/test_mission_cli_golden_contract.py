@@ -105,6 +105,7 @@ _EXPECTED_FLAGS: dict[str, frozenset[str]] = {
             "--branch-strategy",
             "--start-branch",
             "--force-recreate-coordination-branch",
+            "--topology",
         }
     ),
     "check-prerequisites": frozenset(

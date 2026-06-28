@@ -33,3 +33,9 @@ The system shall support multi-tenancy.
 ## Assumptions
 - FR-007 and FR-008 will be addressed in a follow-up mission.
 - Redis is available in the deployment environment.
+
+## Key Entities
+
+- **User**: an authenticated principal with roles and tenant membership.
+- **Tenant**: an isolation boundary owning users, audit records, and cached state.
+- **AuditRecord**: an append-only log entry capturing a security-relevant action.

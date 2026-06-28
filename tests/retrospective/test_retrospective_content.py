@@ -92,7 +92,7 @@ class TestWorkflowFailuresIngestor:
         """None text → ingestor is a no-op."""
         counters: dict = {}
         ev_reg = _EvidenceRegistry()
-        helped, not_helpful = _build_ingestor_findings(
+        helped, not_helpful, _gaps = _build_ingestor_findings(
             workflow_failures_text=None,
             analysis_report_text=None,
             review_report_text=None,
@@ -109,7 +109,7 @@ class TestWorkflowFailuresIngestor:
         """Empty file (no failure entries) → helped finding noting no failures."""
         counters: dict = {}
         ev_reg = _EvidenceRegistry()
-        helped, not_helpful = _build_ingestor_findings(
+        helped, not_helpful, _gaps = _build_ingestor_findings(
             workflow_failures_text="# Workflow Failures\n\nNo failures recorded.\n",
             analysis_report_text=None,
             review_report_text=None,
@@ -133,7 +133,7 @@ class TestWorkflowFailuresIngestor:
             "- [ ] FAIL: CI gate timed out on WP03\n"
             "- [ ] FAIL: lint check failed on main\n"
         )
-        helped, not_helpful = _build_ingestor_findings(
+        helped, not_helpful, _gaps = _build_ingestor_findings(
             workflow_failures_text=text,
             analysis_report_text=None,
             review_report_text=None,
@@ -155,7 +155,7 @@ class TestWorkflowFailuresIngestor:
         counters: dict = {}
         ev_reg = _EvidenceRegistry()
         text = "### FAIL: deploy job crashed\n"
-        helped, not_helpful = _build_ingestor_findings(
+        helped, not_helpful, _gaps = _build_ingestor_findings(
             workflow_failures_text=text,
             analysis_report_text=None,
             review_report_text=None,
@@ -199,7 +199,7 @@ class TestAnalysisAndReviewIngestors:
         """None analysis text → no finding."""
         counters: dict = {}
         ev_reg = _EvidenceRegistry()
-        helped, not_helpful = _build_ingestor_findings(
+        helped, not_helpful, _gaps = _build_ingestor_findings(
             workflow_failures_text=None,
             analysis_report_text=None,
             review_report_text=None,
@@ -216,7 +216,7 @@ class TestAnalysisAndReviewIngestors:
         """Non-None analysis text → not_helpful finding with category 'doc'."""
         counters: dict = {}
         ev_reg = _EvidenceRegistry()
-        helped, not_helpful = _build_ingestor_findings(
+        helped, not_helpful, _gaps = _build_ingestor_findings(
             workflow_failures_text=None,
             analysis_report_text="# Analysis Report\n\n## Findings\n\n- C1: Something\n",
             review_report_text=None,
@@ -236,7 +236,7 @@ class TestAnalysisAndReviewIngestors:
         """None review text → no finding."""
         counters: dict = {}
         ev_reg = _EvidenceRegistry()
-        helped, not_helpful = _build_ingestor_findings(
+        helped, not_helpful, _gaps = _build_ingestor_findings(
             workflow_failures_text=None,
             analysis_report_text=None,
             review_report_text=None,
@@ -252,7 +252,7 @@ class TestAnalysisAndReviewIngestors:
         """Non-None review text → not_helpful finding with category 'review_loop'."""
         counters: dict = {}
         ev_reg = _EvidenceRegistry()
-        helped, not_helpful = _build_ingestor_findings(
+        helped, not_helpful, _gaps = _build_ingestor_findings(
             workflow_failures_text=None,
             analysis_report_text=None,
             review_report_text="# Mission Review Report\n\n## Findings\n\n- R1: Something\n",
@@ -272,7 +272,7 @@ class TestAnalysisAndReviewIngestors:
         """All three ingestors active → combined findings emitted."""
         counters: dict = {}
         ev_reg = _EvidenceRegistry()
-        helped, not_helpful = _build_ingestor_findings(
+        helped, not_helpful, _gaps = _build_ingestor_findings(
             workflow_failures_text="- [ ] FAIL: something broke\n",
             analysis_report_text="# Analysis\n",
             review_report_text="# Review\n",

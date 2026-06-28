@@ -104,11 +104,13 @@ def test_specify_command_delegates_to_agent_lifecycle(monkeypatch) -> None:
         mission=None,
         mission_type=None,
         json_output: bool = False,
+        topology=None,
     ):
         captured["mission_slug"] = mission_slug
         captured["mission"] = mission
         captured["mission_type"] = mission_type
         captured["json_output"] = json_output
+        captured["topology"] = topology
 
     monkeypatch.setattr(lifecycle_module.agent_feature, "create_mission", fake_create_mission)
     monkeypatch.setattr(lifecycle_module, "assert_initialized", lambda **_kwargs: None)
