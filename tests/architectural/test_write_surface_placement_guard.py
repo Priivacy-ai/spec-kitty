@@ -34,6 +34,7 @@ import json
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import pytest
 from ulid import ULID
@@ -331,24 +332,36 @@ def test_full_partition_resolves_per_membership(coord_mission: _CoordMission) ->
 # ---------------------------------------------------------------------------
 
 
+def _patch_partition(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    primary: frozenset[MissionArtifactKind],
+    placement: frozenset[MissionArtifactKind],
+) -> None:
+    """Patch the live partition frozensets to ``(primary, placement)``.
+
+    ``resolution.py`` imports ``_PRIMARY_ARTIFACT_KINDS`` by reference, so the
+    ``artifacts`` AND ``resolution`` module-level bindings are patched together
+    (via ``monkeypatch`` so they auto-restore) to keep the write-side projection
+    (``resolve_placement_only``) consistent with the mutated partition. The single
+    seam every partition-mutation test drives — so the all-kinds anti-mutant
+    reuses this machinery rather than re-implementing the three-binding patch.
+    """
+    monkeypatch.setattr(artifacts_mod, "_PRIMARY_ARTIFACT_KINDS", primary)
+    monkeypatch.setattr(artifacts_mod, "_PLACEMENT_ARTIFACT_KINDS", placement)
+    monkeypatch.setattr(resolution_mod, "_PRIMARY_ARTIFACT_KINDS", primary)
+
+
 @pytest.fixture
 def _forced_pre_fix_partition(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Force the PRE-fix partition: move ``SPEC`` into ``_PLACEMENT_ARTIFACT_KINDS``.
-
-    ``resolution.py`` imports ``_PRIMARY_ARTIFACT_KINDS`` by reference, so both the
-    ``artifacts`` and ``resolution`` module-level bindings are patched (via
-    ``monkeypatch`` so they auto-restore) to keep the write-side projection
-    consistent with the mutated partition.
-    """
+    """Force the PRE-fix partition: move ``SPEC`` into ``_PLACEMENT_ARTIFACT_KINDS``."""
     orig_primary = artifacts_mod._PRIMARY_ARTIFACT_KINDS
     orig_placement = artifacts_mod._PLACEMENT_ARTIFACT_KINDS
-
-    mutated_primary = orig_primary - {MissionArtifactKind.SPEC}
-    mutated_placement = orig_placement | {MissionArtifactKind.SPEC}
-
-    monkeypatch.setattr(artifacts_mod, "_PRIMARY_ARTIFACT_KINDS", mutated_primary)
-    monkeypatch.setattr(artifacts_mod, "_PLACEMENT_ARTIFACT_KINDS", mutated_placement)
-    monkeypatch.setattr(resolution_mod, "_PRIMARY_ARTIFACT_KINDS", mutated_primary)
+    _patch_partition(
+        monkeypatch,
+        primary=orig_primary - {MissionArtifactKind.SPEC},
+        placement=orig_placement | {MissionArtifactKind.SPEC},
+    )
 
 
 def test_anti_mutant_pre_fix_partition_makes_planning_ref_go_red(
@@ -373,4 +386,226 @@ def test_anti_mutant_pre_fix_partition_makes_planning_ref_go_red(
     assert spec_ref != coord_mission.target_branch, (
         "Anti-mutant test is vacuous: forcing SPEC into the placement partition "
         "did not change its resolved ref — the two-ref guard could pass vacuously."
+    )
+
+
+# ---------------------------------------------------------------------------
+# FR-006 (#2198): the machine-read partition-stability rationale map.
+#
+# A per-kind annotation that pins WHY each artifact kind sits on its partition,
+# cross-checked against the LIVE ``_PRIMARY_ARTIFACT_KINDS`` /
+# ``_PLACEMENT_ARTIFACT_KINDS`` frozensets so re-homing a kind is a conscious
+# CI-red decision (SC-003). NET-NEW only (NFR-005): no ``file:line`` line-pins —
+# the map keys on enum MEMBERS (content-anchored, CT7-clean) and reuses the
+# ``resolve_placement_only`` machinery the existing tests already drive.
+# ---------------------------------------------------------------------------
+
+_Partition = Literal["PRIMARY", "COORD"]
+
+# Each entry: kind → (partition, rationale, load_bearing_consumer). ``partition``
+# is the human-facing PRIMARY/COORD label whose membership MUST match the live
+# frozenset split (asserted below); ``rationale`` records why the kind sits there;
+# ``load_bearing_consumer`` names the surface that breaks if it is re-homed.
+PARTITION_RATIONALE: dict[MissionArtifactKind, tuple[_Partition, str, str]] = {
+    MissionArtifactKind.SPEC: (
+        "PRIMARY",
+        "Planning SOURCE doc — lives with its mission on target_branch for every "
+        "topology; a stale primary copy is REAL dirt, never coord residue.",
+        "/spec-kitty.specify writer + safe-commit planning seam",
+    ),
+    MissionArtifactKind.DATA_MODEL: (
+        "PRIMARY",
+        "Planning SOURCE doc (/spec-kitty.plan) — primary-home, never transits "
+        "coordination.",
+        "/spec-kitty.plan writer",
+    ),
+    MissionArtifactKind.RESEARCH: (
+        "PRIMARY",
+        "Planning SOURCE doc (research.md) — primary-home for every topology.",
+        "/spec-kitty.research writer",
+    ),
+    MissionArtifactKind.CHECKLIST: (
+        "PRIMARY",
+        "Planning SOURCE doc (checklists/) — primary-home; not coordination-owned.",
+        "/spec-kitty.checklist writer",
+    ),
+    MissionArtifactKind.FINALIZED_EXECUTION_PLAN: (
+        "PRIMARY",
+        "Finalized plan.md travels with its mission on the primary surface.",
+        "finalize-tasks / _planning_commit_worktree",
+    ),
+    MissionArtifactKind.TASKS_INDEX: (
+        "PRIMARY",
+        "tasks.md index is a planning artifact pinned to the primary surface.",
+        "/spec-kitty.tasks writer",
+    ),
+    MissionArtifactKind.WORK_PACKAGE_TASK: (
+        "PRIMARY",
+        "tasks/WP*.md are planning artifacts — primary-home, read by implementers.",
+        "implement/review WP read-side",
+    ),
+    MissionArtifactKind.LANE_STATE: (
+        "PRIMARY",
+        "lanes.json (finalize output) travels with tasks.md → primary-home.",
+        "lane allocator / finalize-tasks",
+    ),
+    MissionArtifactKind.PRIMARY_METADATA: (
+        "PRIMARY",
+        "meta.json mission identity lives ONLY on the primary checkout for every "
+        "topology (the never-committed-through-a-ref metadata home).",
+        "identity resolver (mission_id / mid8 reads)",
+    ),
+    MissionArtifactKind.RETROSPECTIVE: (
+        "PRIMARY",
+        "FR-002 terminal artifact (retrospective.yaml) resolves to the durable "
+        "mission home for every topology; never transits coordination.",
+        "post-merge retrospective writer",
+    ),
+    MissionArtifactKind.ACCEPTANCE_MATRIX: (
+        "COORD",
+        "accept-time verification artifact — coordination-owned; stale primary "
+        "copies are coordination residue under coord topology.",
+        "accept gate (acceptance-matrix.json)",
+    ),
+    MissionArtifactKind.ISSUE_MATRIX: (
+        "COORD",
+        "issue-matrix.md is coordination-owned; routes to the coordination branch "
+        "under coord topology.",
+        "coordination issue-matrix writer",
+    ),
+    MissionArtifactKind.STATUS_STATE: (
+        "COORD",
+        "Append-only status.events.jsonl is the coordination-branch authority; its "
+        "stale primary copy is residue, not real dirt.",
+        "status reducer / dashboard (coord worktree)",
+    ),
+    MissionArtifactKind.ANALYSIS_REPORT: (
+        "COORD",
+        "record-analysis output (analysis-report.md) stays COORD per data-model.md.",
+        "record-analysis writer",
+    ),
+}
+
+
+def _placement_ref(mission: _CoordMission, kind: MissionArtifactKind) -> str:
+    """Drive the REAL resolver for ``kind`` and return its resolved placement ref.
+
+    The single resolver-driving seam reused by the all-kinds anti-mutant — it does
+    NOT clone ``test_full_partition_resolves_per_membership``'s body; it factors the
+    one ``resolve_placement_only(...).ref`` call that test already makes.
+    """
+    return resolve_placement_only(
+        mission.repo_root, mission.mission_slug, kind=kind
+    ).ref
+
+
+def _derived_partition_split() -> tuple[
+    set[MissionArtifactKind], set[MissionArtifactKind]
+]:
+    """Project the (PRIMARY, COORD) kind sets out of :data:`PARTITION_RATIONALE`."""
+    primary = {k for k, (p, _r, _c) in PARTITION_RATIONALE.items() if p == "PRIMARY"}
+    coord = {k for k, (p, _r, _c) in PARTITION_RATIONALE.items() if p == "COORD"}
+    return primary, coord
+
+
+def test_partition_rationale_is_exhaustive() -> None:
+    """(a) Every ``MissionArtifactKind`` member has a rationale entry (SC-003).
+
+    A newly-added kind without an entry — or a removed kind — fails here, so the
+    map can never silently drift behind the enum.
+    """
+    assert set(PARTITION_RATIONALE) == set(MissionArtifactKind), (
+        "PARTITION_RATIONALE must have exactly one entry per MissionArtifactKind. "
+        f"Missing: {set(MissionArtifactKind) - set(PARTITION_RATIONALE)}; "
+        f"Extra: {set(PARTITION_RATIONALE) - set(MissionArtifactKind)}"
+    )
+    for kind, (partition, rationale, consumer) in PARTITION_RATIONALE.items():
+        assert partition in ("PRIMARY", "COORD"), (kind, partition)
+        assert rationale.strip(), f"{kind.name} has an empty rationale"
+        assert consumer.strip(), f"{kind.name} has an empty load_bearing_consumer"
+
+
+def test_partition_rationale_split_matches_live_frozensets() -> None:
+    """(b) The map's derived split EQUALS the live partition frozensets (SC-003).
+
+    Re-homing a kind in ``_PRIMARY_ARTIFACT_KINDS`` / ``_PLACEMENT_ARTIFACT_KINDS``
+    without updating its ``PARTITION_RATIONALE`` partition label makes this go RED —
+    so a partition move is forced to also restate (and re-justify) the rationale.
+    """
+    derived_primary, derived_coord = _derived_partition_split()
+    assert derived_primary == set(artifacts_mod._PRIMARY_ARTIFACT_KINDS), (
+        "PARTITION_RATIONALE PRIMARY split diverged from the live "
+        "_PRIMARY_ARTIFACT_KINDS frozenset — a kind was re-homed without updating "
+        "its rationale."
+    )
+    assert derived_coord == set(artifacts_mod._PLACEMENT_ARTIFACT_KINDS), (
+        "PARTITION_RATIONALE COORD split diverged from the live "
+        "_PLACEMENT_ARTIFACT_KINDS frozenset — a kind was re-homed without updating "
+        "its rationale."
+    )
+
+
+def _force_kind_into_opposite_partition(
+    monkeypatch: pytest.MonkeyPatch, kind: MissionArtifactKind
+) -> None:
+    """Move ``kind`` to the OPPOSITE partition (PRIMARY↔COORD) on the live sets."""
+    orig_primary = artifacts_mod._PRIMARY_ARTIFACT_KINDS
+    orig_placement = artifacts_mod._PLACEMENT_ARTIFACT_KINDS
+    if kind in orig_primary:
+        _patch_partition(
+            monkeypatch,
+            primary=orig_primary - {kind},
+            placement=orig_placement | {kind},
+        )
+    else:
+        _patch_partition(
+            monkeypatch,
+            primary=orig_primary | {kind},
+            placement=orig_placement - {kind},
+        )
+
+
+_ALL_KINDS_SORTED = sorted(MissionArtifactKind, key=lambda k: k.name)
+
+
+@pytest.mark.parametrize(
+    "kind", _ALL_KINDS_SORTED, ids=[k.name for k in _ALL_KINDS_SORTED]
+)
+def test_rehome_any_load_bearing_kind_flips_resolved_ref(
+    coord_mission: _CoordMission,
+    monkeypatch: pytest.MonkeyPatch,
+    kind: MissionArtifactKind,
+) -> None:
+    """(c) All-kinds anti-mutant: re-homing ANY kind flips its resolved ref (SC-003).
+
+    Broadens the single-SPEC ``test_anti_mutant_pre_fix_partition...`` to EVERY
+    load-bearing kind. For each kind it drives the REAL resolver
+    (``resolve_placement_only`` via ``_placement_ref``) twice — once on the live
+    partition, once with the kind forced into the opposite partition — and asserts
+    the resolved placement ref FLIPS to the opposite surface. A kind whose ref does
+    NOT change on re-home would let the partition guard pass vacuously for it.
+    """
+    is_primary = kind in artifacts_mod._PRIMARY_ARTIFACT_KINDS
+    true_ref = _placement_ref(coord_mission, kind)
+    expected_true = (
+        coord_mission.target_branch if is_primary else coord_mission.coordination_branch
+    )
+    assert true_ref == expected_true, (
+        f"precondition: live-partition {kind.name} should resolve to "
+        f"{expected_true!r}, got {true_ref!r}"
+    )
+
+    _force_kind_into_opposite_partition(monkeypatch, kind)
+
+    mutated_ref = _placement_ref(coord_mission, kind)
+    expected_opposite = (
+        coord_mission.coordination_branch if is_primary else coord_mission.target_branch
+    )
+    assert mutated_ref == expected_opposite, (
+        f"re-homing {kind.name} did not route it to the opposite surface "
+        f"{expected_opposite!r}; got {mutated_ref!r}"
+    )
+    assert mutated_ref != true_ref, (
+        f"re-homing {kind.name} left its resolved ref unchanged ({mutated_ref!r}) — "
+        "the partition guard would pass vacuously for this kind."
     )
