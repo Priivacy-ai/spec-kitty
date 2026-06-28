@@ -58,7 +58,7 @@ not_helpful:
   summary: analysis-report.md present with findings
   evidence_refs:
   - e-008
-  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented
     issues and decisions.
 - id: n-001
   category: process
@@ -79,7 +79,7 @@ gaps:
   summary: research.md absent
   evidence_refs:
   - e-002
-  details: spec.md is present but research.md is missing. Research artifacts help future maintainers understand design 
+  details: spec.md is present but research.md is missing. Research artifacts help future maintainers understand design
     decisions.
 proposals: []
 evidence_refs:
