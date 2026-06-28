@@ -54,7 +54,11 @@ from specify_cli.ownership.frontmatter_source import (
     resolve_wp_manifests,
 )
 from specify_cli.ownership.models import OwnershipManifest
-from specify_cli.ownership.validation import ValidationResult, validate_glob_matches
+from specify_cli.ownership.validation import (
+    GlobValidationResult,
+    ValidationResult,
+    validate_glob_matches,
+)
 from specify_cli.status import BootstrapResult, WPMetadata, _Builder
 from specify_cli.core.wps_manifest import (
     WpsManifest,
@@ -765,6 +769,7 @@ def _run_bootstrap_loop(
     concern_coverage_warnings: list[str],
     *,
     validate_only: bool,
+    json_output: bool,
 ) -> _BootstrapState:
     """Phase: the 8-field bootstrap-mutation loop (INV-6 write-guarded).
 
@@ -788,7 +793,8 @@ def _run_bootstrap_loop(
         try:
             wp_meta, body = _read_wp_frontmatter(wp_file)
         except Exception as e:  # noqa: BLE001 — surface but skip unreadable WPs
-            console.print(f"[yellow]Warning:[/yellow] Could not read {wp_file.name}: {e}")
+            if not json_output:
+                console.print(f"[yellow]Warning:[/yellow] Could not read {wp_file.name}: {e}")
             continue
 
         _enforce_charter_activation_gate(wp_meta, wp_id, repo_root)
@@ -932,15 +938,8 @@ def _validate_ownership_manifests(
 
     create_intent = {wp_id: list(fm.create_intent) for wp_id, fm in wp_frontmatters.items() if fm.create_intent}
     glob_result = validate_glob_matches(wp_manifests, repo_root, create_intent=create_intent)
-    stderr_console = Console(stderr=True)
-    for note in glob_result.info:
-        stderr_console.print(f"[blue]INFO:[/blue] {note}")
-    for warning in glob_result.warnings:
-        stderr_console.print(f"[yellow]WARNING:[/yellow] Ownership: {warning}")
-        state.ownership_warnings.append(warning)
+    _record_ownership_glob_diagnostics(glob_result, state, json_output=json_output)
     if not glob_result.passed:
-        for err in glob_result.errors:
-            stderr_console.print(f"[red]ERROR:[/red] Ownership: {err}")
         error_msg = "Ownership validation failed: literal-path owned_files entries match zero files. Fix the paths or add them to 'create_intent'."
         if json_output:
             _emit_json({"error": error_msg, "ownership_literal_path_errors": glob_result.errors})
@@ -954,6 +953,26 @@ def _validate_ownership_manifests(
     if not json_output:
         for warning in audit_warnings:
             console.print(f"[yellow]Audit coverage warning:[/yellow] {warning}")
+
+
+def _record_ownership_glob_diagnostics(
+    glob_result: GlobValidationResult,
+    state: _BootstrapState,
+    *,
+    json_output: bool,
+) -> None:
+    """Record glob diagnostics, rendering them only for human output."""
+    state.ownership_warnings.extend(glob_result.warnings)
+    if json_output:
+        return
+    stderr_console = Console(stderr=True)
+    for note in glob_result.info:
+        stderr_console.print(f"[blue]INFO:[/blue] {note}")
+    for warning in glob_result.warnings:
+        stderr_console.print(f"[yellow]WARNING:[/yellow] Ownership: {warning}")
+    if not glob_result.passed:
+        for err in glob_result.errors:
+            stderr_console.print(f"[red]ERROR:[/red] Ownership: {err}")
 
 
 def _emit_validate_only_report(
@@ -1040,7 +1059,12 @@ def _emit_validate_only_report(
 
 
 def _emit_local_canonical_events(
-    planning_dir: Path, mission_slug: str, repo_root: Path, work_packages: list[dict[str, object]]
+    planning_dir: Path,
+    mission_slug: str,
+    repo_root: Path,
+    work_packages: list[dict[str, object]],
+    *,
+    json_output: bool,
 ) -> None:
     """Phase: persist local WPCreated + TasksCompleted before bootstrap seeding."""
     try:
@@ -1081,7 +1105,8 @@ def _emit_local_canonical_events(
             wp_count=len(work_packages),
         )
     except Exception as local_wp_exc:  # noqa: BLE001 — non-blocking emission
-        console.print(f"[yellow]Warning:[/yellow] Local canonical WPCreated/TasksCompleted persistence failed: {local_wp_exc}")
+        if not json_output:
+            console.print(f"[yellow]Warning:[/yellow] Local canonical WPCreated/TasksCompleted persistence failed: {local_wp_exc}")
 
 
 def _compute_and_write_lanes(
@@ -1106,9 +1131,10 @@ def _compute_and_write_lanes(
     create_intent = {wp_id: list(fm.create_intent) for wp_id, fm in wp_frontmatters.items() if fm.create_intent}
     glob_result = validate_glob_matches(wp_manifests, repo_root, create_intent=create_intent)
     if not glob_result.passed:
-        lane_stderr = Console(stderr=True)
-        for err in glob_result.errors:
-            lane_stderr.print(f"[red]ERROR:[/red] Lane-compute re-validation: {err}")
+        if not json_output:
+            lane_stderr = Console(stderr=True)
+            for err in glob_result.errors:
+                lane_stderr.print(f"[red]ERROR:[/red] Lane-compute re-validation: {err}")
         error_msg = "Lane computation aborted: literal-path owned_files entries match zero files. Fix the paths before lanes.json is written."
         if json_output:
             _emit_json({"error": error_msg, "ownership_literal_path_errors": glob_result.errors})
@@ -1306,7 +1332,9 @@ def _commit_finalize_artifacts(
     return outcome
 
 
-def _emit_saas_wp_created(work_packages: list[dict[str, object]], mission_slug: str) -> None:
+def _emit_saas_wp_created(
+    work_packages: list[dict[str, object]], mission_slug: str, *, json_output: bool
+) -> None:
     """Phase: emit WPCreated events to SaaS (non-blocking).
 
     Routes ``get_emitter`` + ``emit_wp_created`` through the ``mission`` module
@@ -1326,7 +1354,8 @@ def _emit_saas_wp_created(work_packages: list[dict[str, object]], mission_slug: 
                 actor="spec-kitty agent mission finalize-tasks",
             )
         except Exception as exc:  # noqa: BLE001 — non-blocking SaaS emission
-            console.print(f"[yellow]Warning:[/yellow] WPCreated emission failed for {wp['id']}: {exc}")
+            if not json_output:
+                console.print(f"[yellow]Warning:[/yellow] WPCreated emission failed for {wp['id']}: {exc}")
 
 
 def _emit_success_report(
@@ -1373,9 +1402,11 @@ def _emit_success_report(
     )
 
 
-def _warn_missing_meta(planning_dir: Path, meta: dict[str, object] | None) -> None:
+def _warn_missing_meta(
+    planning_dir: Path, meta: dict[str, object] | None, *, json_output: bool
+) -> None:
     """Phase: warn (non-blocking) when meta.json is missing/malformed."""
-    if meta is not None:
+    if meta is not None or json_output:
         return
     if (planning_dir / "meta.json").exists():
         console.print(
@@ -1430,7 +1461,9 @@ def _run_commit_pipeline(
     dossier, commits artifacts, emits SaaS WPCreated, and reports success. Only
     ever reached when ``not validate_only`` (INV-6).
     """
-    _emit_local_canonical_events(planning_dir, mission_slug, repo_root, state.work_packages)
+    _emit_local_canonical_events(
+        planning_dir, mission_slug, repo_root, state.work_packages, json_output=json_output
+    )
 
     bootstrap_result = _bootstrap_canonical_state_via_mission(
         planning_dir, mission_slug, dry_run=False, capability=GuardCapability.STANDARD
@@ -1478,7 +1511,7 @@ def _run_commit_pipeline(
         updated_count=state.updated_count,
     )
 
-    _emit_saas_wp_created(state.work_packages, mission_slug)
+    _emit_saas_wp_created(state.work_packages, mission_slug, json_output=json_output)
 
     if json_output:
         _emit_success_report(tasks_dir, state, commit_outcome, dep_resolution, bootstrap_result, lanes_manifest)
@@ -1609,6 +1642,7 @@ def finalize_tasks(
             target_branch,
             concern_coverage_warnings,
             validate_only=validate_only,
+            json_output=json_output,
         )
         _assert_no_write_in_validate_only(state, validate_only=validate_only)
 
@@ -1633,7 +1667,7 @@ def finalize_tasks(
 
         mission_slug = planning_dir.name
         meta = _read_meta_for_emission(planning_dir)
-        _warn_missing_meta(planning_dir, meta)
+        _warn_missing_meta(planning_dir, meta, json_output=json_output)
         _emit_tasks_started(planning_dir, mission_slug, state, validate_only=validate_only)
 
         if validate_only:

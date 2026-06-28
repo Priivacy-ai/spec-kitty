@@ -78,6 +78,11 @@ def _is_global_runtime_configured() -> bool:
 _migrate_nudge_shown = False
 
 
+def _is_json_mode_invocation() -> bool:
+    """Return True when the active CLI invocation requested machine JSON."""
+    return "--json" in sys.argv[1:]
+
+
 def _warn_legacy_asset(path: Path) -> None:
     """Emit a deprecation warning for a legacy-tier asset hit.
 
@@ -114,6 +119,8 @@ def _emit_migrate_nudge() -> None:
     """
     global _migrate_nudge_shown  # noqa: PLW0603
     if _migrate_nudge_shown:
+        return
+    if _is_json_mode_invocation():
         return
     _migrate_nudge_shown = True
     runtime_display = render_runtime_path(get_kittify_home())

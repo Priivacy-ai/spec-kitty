@@ -308,3 +308,36 @@ class TestInstallCliLoggingBootstrap:
         logging.getLogger("test.default.probe").warning("should-appear")
 
         assert "should-appear" in buf.getvalue()
+
+    def test_default_mode_after_json_mode_restores_existing_handler(self) -> None:
+        """A long-lived process can run a later human-mode bootstrap after json_mode."""
+        root = logging.getLogger()
+        _clear_root_handlers()
+        buf = io.StringIO()
+        pre_handler = logging.StreamHandler(buf)
+        pre_handler.setLevel(logging.WARNING)
+        root.addHandler(pre_handler)
+        root.setLevel(logging.WARNING)
+
+        install_cli_logging_bootstrap(json_mode=True)
+        logging.getLogger("test.restore.probe").warning("hidden-in-json")
+        assert buf.getvalue() == ""
+
+        install_cli_logging_bootstrap(json_mode=False)
+        logging.getLogger("test.restore.probe").warning("visible-after-restore")
+
+        assert "visible-after-restore" in buf.getvalue()
+        assert pre_handler.level == logging.WARNING
+
+    def test_default_mode_after_json_null_handler_installs_visible_handler(self) -> None:
+        """A JSON-only NullHandler must not block later human-mode bootstrap."""
+        _clear_root_handlers()
+        root = logging.getLogger()
+
+        install_cli_logging_bootstrap(json_mode=True)
+        assert any(isinstance(handler, logging.NullHandler) for handler in root.handlers)
+
+        install_cli_logging_bootstrap(json_mode=False)
+
+        assert root.handlers
+        assert not any(isinstance(handler, logging.NullHandler) for handler in root.handlers)

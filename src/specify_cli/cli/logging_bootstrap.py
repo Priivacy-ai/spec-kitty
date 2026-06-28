@@ -70,6 +70,8 @@ __all__ = ["install_cli_logging_bootstrap"]
 # the idempotency guard can recognise them.  Do NOT use this as a public API
 # beyond test inspection.
 _HANDLER_SENTINEL = "_spec_kitty_bootstrap_handler"
+_JSON_NULL_HANDLER_SENTINEL = "_spec_kitty_json_null_handler"
+_SILENCED_HANDLER_LEVELS: dict[int, int] = {}
 
 
 def _build_handler() -> logging.Handler:
@@ -149,12 +151,31 @@ def install_cli_logging_bootstrap(*, json_mode: bool = False) -> None:
         # (WARNING→stderr) cannot fire. captureWarnings(True) above means routed
         # warnings flow through these same now-silent handlers.
         for handler in root.handlers:
+            _SILENCED_HANDLER_LEVELS.setdefault(id(handler), handler.level)
             handler.setLevel(logging.CRITICAL + 1)
         if not root.handlers:
             null_handler: logging.Handler = logging.NullHandler()
             setattr(null_handler, _HANDLER_SENTINEL, True)
+            setattr(null_handler, _JSON_NULL_HANDLER_SENTINEL, True)
             root.addHandler(null_handler)
         return
+
+    # A long-lived process may call the bootstrap first for a JSON-mode CLI
+    # invocation and later for a human invocation. Restore any handler levels
+    # that json_mode raised, and remove the JSON-only NullHandler so normal
+    # bootstrap can install a visible stderr handler again.
+    if _SILENCED_HANDLER_LEVELS:
+        for handler in root.handlers:
+            handler_id = id(handler)
+            if handler_id in _SILENCED_HANDLER_LEVELS:
+                handler.setLevel(_SILENCED_HANDLER_LEVELS[handler_id])
+        for handler_id in list(_SILENCED_HANDLER_LEVELS):
+            del _SILENCED_HANDLER_LEVELS[handler_id]
+    root.handlers[:] = [
+        handler
+        for handler in root.handlers
+        if not getattr(handler, _JSON_NULL_HANDLER_SENTINEL, False)
+    ]
 
     # If the root logger already has handlers, adding another would cause
     # double-printing.  Respect existing configuration.
