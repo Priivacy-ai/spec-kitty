@@ -148,6 +148,7 @@ def _patched_implement(tmp_path: Path, feature_dir: Path):
         patch("specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git"),
         patch("specify_cli.cli.commands.implement._ensure_vcs_in_meta", return_value=MagicMock(value="git")),
         patch("specify_cli.cli.commands.implement.create_lane_workspace", return_value=_workspace(feature_dir)) as create_workspace,
+        patch("specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort", return_value=MagicMock(passed=True)),
     ):
         yield create_workspace
 
