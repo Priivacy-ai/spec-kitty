@@ -24,7 +24,8 @@ subtasks:
 - T004
 phase: Phase 1 - CLI usability
 assignee: ''
-agent: cursor
+agent: "cursor"
+shell_pid: "79394"
 history:
 - at: '2026-06-28T08:45:00Z'
   actor: system
@@ -111,3 +112,7 @@ task_type: implement
 ## Activity Log
 
 - 2026-06-28T08:45:00Z - system - Prompt created.
+- 2026-06-28T08:45:58Z – cursor – shell_pid=77236 – Assigned agent via action command
+- 2026-06-28T08:50:02Z – cursor – shell_pid=77236 – Ready for review: implementation committed; targeted tests passed (2 passed).
+- 2026-06-28T08:50:12Z – cursor – shell_pid=79394 – Started review via action command
+- 2026-06-28T08:50:49Z – user – shell_pid=79394 – Review passed: diff matches WP scope; targeted root command order tests passed (2 passed).
