@@ -67,6 +67,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.architectural._ratchet_keys import composite_key
+
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -161,11 +163,24 @@ _META_JSON_LITERAL = "meta.json"
 
 # The coord-aware read resolvers whose result, passed to an identity / lanes.json
 # read, is the divergence shape (they select the coord husk under coord topology).
-_COORD_AWARE_CALLSHAPE_RESOLVERS: frozenset[str] = frozenset(
+#
+# FR-001 widening (root cause of the FR-001 hollowness — WP01 T001). The legacy
+# 3-name set ({resolve_feature_dir_for_mission, candidate_feature_dir_for_mission,
+# resolve_feature_dir_for_slug}) was NARROWER than the read-arm's
+# ``_TOPOLOGY_ROUTED_READ_RESOLVERS`` (5 names: the 3 + ``_find_feature_directory`` +
+# ``resolve_handle_to_read_path``). The one real one-hop residual —
+# ``mission_setup_plan::_run_documentation_wiring`` ← ``setup_plan`` — binds
+# ``feature_dir`` from ``_resolve_setup_plan_feature_dir`` (which delegates to
+# ``_find_feature_directory``). With the 3-name set that caller binding was NOT
+# recognized as coord-aware, so the one-hop check (T003) fired on no live caller and
+# FR-001/SC-001/SC-006 were hollow. We therefore align with the read-arm set (so the
+# two cannot silently re-diverge — guarded by
+# ``test_callshape_coord_aware_set_aligns_with_read_arm``) AND additionally catalog
+# the setup-plan wrapper ``_resolve_setup_plan_feature_dir`` — the exact binding name
+# the residual's caller uses one hop up.
+_COORD_AWARE_CALLSHAPE_RESOLVERS: frozenset[str] = _TOPOLOGY_ROUTED_READ_RESOLVERS | frozenset(
     {
-        "resolve_feature_dir_for_mission",
-        "candidate_feature_dir_for_mission",
-        "resolve_feature_dir_for_slug",
+        "_resolve_setup_plan_feature_dir",
     }
 )
 
@@ -189,6 +204,14 @@ _IDENTITY_READ_FUNCS: frozenset[str] = frozenset(
 _LANES_READ_FUNCS: frozenset[str] = frozenset(
     {"read_lanes_json", "require_lanes_json"}
 )
+
+# FR-008 (WP01 T002): the SANCTIONED primary attributes. When a kind-read's first
+# arg is an ``ast.Attribute`` it is the executor-shape escape (``read_func(run.X)``)
+# that the Name/Call branches never saw. Such an attribute is flagged UNLESS its
+# member is a sanctioned primary attribute — ``.target_feature_dir`` is the
+# primary-surface field on the run/context object (data-model §4). Any other
+# coord-bearing attribute (e.g. ``run.feature_dir``) is flagged (SC-006).
+_SANCTIONED_PRIMARY_ATTRS: frozenset[str] = frozenset({"target_feature_dir"})
 
 
 # ---------------------------------------------------------------------------
@@ -531,41 +554,198 @@ def write_arm_anchors(func: ast.AST) -> tuple[bool, bool]:
 
 
 # ===========================================================================
-# CALL-SHAPE arm scanner (coord-read-residuals FR-007).
+# CALL-SHAPE arm scanner (coord-read-residuals FR-007 + gate-hardening FR-001/FR-008).
 # ===========================================================================
 #
-# Flag a call ``read_func(dir, ...)`` (identity or lanes.json) whose first arg is
-# a coord-aware ``dir`` WITHOUT a primary fold. Two binding shapes are detected,
-# mirroring the existing read-arm scanner's two-hop + inline-call coverage:
+# Flag a call ``read_func(dir, ...)`` (identity or lanes.json) whose first arg is a
+# coord-aware ``dir`` WITHOUT a primary fold. FOUR first-arg shapes are detected:
 #
-#   * two-hop: ``d = resolve_feature_dir_for_mission(...); read_func(d)`` — ``d``
-#     is a Name bound from a coord-aware resolver and NOT (re)bound from a primary
-#     fold in the same function.
-#   * inline-call: ``read_func(resolve_feature_dir_for_mission(...))`` — the
+#   * two-hop (FR-007): ``d = resolve_feature_dir_for_mission(...); read_func(d)`` —
+#     ``d`` is a Name bound from a coord-aware resolver and NOT (re)bound from a
+#     primary fold in the same function.
+#   * inline-call (FR-007): ``read_func(resolve_feature_dir_for_mission(...))`` — the
 #     coord-aware resolver call is the DIRECT first argument.
+#   * one-hop parameter (FR-001, WP01 T003): the first arg is a function PARAMETER of
+#     *func*; following exactly ONE hop to *func*'s caller(s) in the module, the
+#     caller binds that arg from a coord-aware resolver WITHOUT a primary fold. This
+#     is the ``_run_documentation_wiring`` ← ``setup_plan`` residual shape. Requires
+#     the module-scoped ``module`` context AND the FR-001 widening of
+#     ``_COORD_AWARE_CALLSHAPE_RESOLVERS``.
+#   * attribute (FR-008, WP01 T002): the first arg is an ``ast.Attribute`` (e.g.
+#     ``run.feature_dir``) whose member is NOT a sanctioned primary attribute. The
+#     executor-shape escape (``read_func(run.feature_dir)``) the Name/Call branches
+#     never saw (SC-006).
 #
-# The SANCTIONED shape — ``read_func(primary_feature_dir_for_mission(repo, _canonicalize_primary_read_handle(repo, slug)))``
-# (or the two-hop binding off a primary-fold seam) — is NEVER flagged.
+# The SANCTIONED shapes — a primary-fold-bound dir, a plain parameter whose caller
+# binding is primary/seam-bound or non-coord-aware, and a sanctioned primary
+# attribute (``.target_feature_dir``) — are NEVER flagged.
 
 
-def callshape_violations(func: ast.AST, *, read_funcs: frozenset[str]) -> list[str]:
+def _attr_repr(node: ast.Attribute) -> str:
+    """Render ``<base>.<attr>`` for a simple attribute access (else just ``attr``)."""
+    base = node.value
+    if isinstance(base, ast.Name):
+        return f"{base.id}.{node.attr}"
+    return node.attr
+
+
+def _param_position(
+    func: ast.FunctionDef | ast.AsyncFunctionDef, name: str
+) -> int | None:
+    """Positional index of parameter *name* in *func*'s signature, or ``None``.
+
+    Covers positional-only + ordinary positional params (the residual passes the
+    dir positionally); keyword-only params have no positional index and return
+    ``None`` — the one-hop check then conservatively does not fire.
+    """
+    ordered = [*func.args.posonlyargs, *func.args.args]
+    for index, arg in enumerate(ordered):
+        if arg.arg == name:
+            return index
+    return None
+
+
+def _iter_module_functions(
+    module: ast.Module,
+) -> list[ast.FunctionDef | ast.AsyncFunctionDef]:
+    """Every function defined in *module* (module-scoped caller index source)."""
+    return [
+        node
+        for node in ast.walk(module)
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+    ]
+
+
+def _caller_binds_arg_coord_aware(
+    caller: ast.FunctionDef | ast.AsyncFunctionDef, callee_name: str, pos: int
+) -> bool:
+    """True iff *caller* calls *callee_name* passing a coord-aware-without-fold dir
+    at positional index *pos*.
+
+    The one-hop hop: the arg at *pos* must be a Name bound (in the caller) from a
+    coord-aware resolver and NOT also bound from a primary fold — the same
+    coord-vs-primary divergence the two-hop shape catches, observed one frame up.
+    """
+    coord = _names_bound_from(caller, _COORD_AWARE_CALLSHAPE_RESOLVERS)
+    primary = _names_bound_from(caller, _PRIMARY_FOLD_CALLSHAPE_FUNCS)
+    for node in ast.walk(caller):
+        if not isinstance(node, ast.Call) or _call_func_name(node) != callee_name:
+            continue
+        if pos >= len(node.args):
+            continue
+        arg = node.args[pos]
+        if isinstance(arg, ast.Name) and arg.id in coord and arg.id not in primary:
+            return True
+    return False
+
+
+def _one_hop_caller_is_coord_aware(
+    callee_func: ast.AST, param_name: str, module: ast.Module
+) -> bool:
+    """FR-001 one-hop: does any caller of *callee_func* bind *param_name* coord-aware?
+
+    Exactly ONE hop — no transitive/multi-hop walk (C-006 defers that). Returns
+    ``False`` when *param_name* is not a positional parameter of *callee_func*.
+    """
+    if not isinstance(callee_func, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        return False
+    pos = _param_position(callee_func, param_name)
+    if pos is None:
+        return False
+    callee_name = callee_func.name
+    for caller in _iter_module_functions(module):
+        if caller is callee_func:
+            continue
+        if _caller_binds_arg_coord_aware(caller, callee_name, pos):
+            return True
+    return False
+
+
+def _flag_name_arg(
+    callee: str,
+    name: str,
+    *,
+    func: ast.AST,
+    coord_bound: set[str],
+    primary_bound: set[str],
+    module: ast.Module | None,
+) -> str | None:
+    """Flag a Name first arg via the two-hop (local) OR one-hop (caller) shape."""
+    # Two-hop: a locally coord-bound Name, not re-folded onto PRIMARY.
+    if name in coord_bound and name not in primary_bound:
+        return f"{callee}({name})"
+    # One-hop (FR-001): a parameter whose caller binds it coord-aware-without-fold.
+    # The existing same-function PARAM-exemption is retained for every other case.
+    if module is not None and _one_hop_caller_is_coord_aware(func, name, module):
+        return f"{callee}({name})"
+    return None
+
+
+def _flagged_first_arg(
+    callee: str,
+    first: ast.expr,
+    *,
+    func: ast.AST,
+    coord_bound: set[str],
+    primary_bound: set[str],
+    module: ast.Module | None,
+) -> str | None:
+    """Descriptor for a flagged first arg, or ``None`` if it is sanctioned."""
+    if isinstance(first, ast.Name):
+        return _flag_name_arg(
+            callee,
+            first.id,
+            func=func,
+            coord_bound=coord_bound,
+            primary_bound=primary_bound,
+            module=module,
+        )
+    if isinstance(first, ast.Call):
+        inner = _call_func_name(first)
+        if inner is not None and inner in _COORD_AWARE_CALLSHAPE_RESOLVERS:
+            return f"{callee}({inner}(...))"
+        return None
+    if isinstance(first, ast.Attribute):
+        # FR-008: a coord-bearing attribute (the first arg of an identity/lanes read
+        # IS a feature_dir by position) unless it is a sanctioned primary attribute.
+        if first.attr not in _SANCTIONED_PRIMARY_ATTRS:
+            return f"{callee}({_attr_repr(first)})"
+        return None
+    return None
+
+
+def callshape_violations(
+    func: ast.AST,
+    *,
+    read_funcs: frozenset[str],
+    module: ast.Module | None = None,
+) -> list[str]:
     """Coord-aware identity/lanes.json reads inside *func* without a primary fold.
 
     ``read_funcs`` selects the shape: :data:`_IDENTITY_READ_FUNCS` (identity) or
     :data:`_LANES_READ_FUNCS` (lanes.json). Returns ``"<read_func>(<arg>)"``
     descriptors — one per flagged call.
 
-    A call is flagged iff its first positional arg is EITHER:
+    ``module`` is the OPTIONAL module-scoped caller index (FR-001, WP01 T003): the
+    enclosing :class:`ast.Module` of *func*. When supplied, a kind-read whose first
+    arg is a function PARAMETER of *func* is followed exactly ONE hop to its
+    caller(s) — flagged iff a caller binds that arg from a coord-aware resolver
+    WITHOUT a primary fold. When ``None`` (the legacy per-function call) the one-hop
+    check is skipped; the two-hop, inline-call, and attribute shapes still apply.
+
+    A call is flagged iff its first positional arg is one of:
 
     * a ``Name`` bound (same function) from a coord-aware resolver and NOT also
-      bound from a primary-fold seam (the two-hop shape — a benign rebinding off a
-      primary fold clears the flag); or
-    * a direct ``Call`` to a coord-aware resolver (the inline-call shape).
+      bound from a primary-fold seam (two-hop); or
+    * a direct ``Call`` to a coord-aware resolver (inline-call); or
+    * a ``Name`` PARAMETER whose one-hop caller binds it coord-aware-without-fold
+      (FR-001, only when ``module`` is supplied); or
+    * an ``ast.Attribute`` whose member is not a sanctioned primary attribute
+      (FR-008 — e.g. ``run.feature_dir``).
 
-    A first arg bound from / built by a primary-fold seam is the sanctioned shape
-    and is never flagged. A first arg that is a plain function PARAMETER (not bound
-    from any resolver in this function) is likewise not flagged — the divergence is
-    a *local* coord-aware binding, not a caller-supplied dir.
+    NEVER flagged: a primary-fold-bound first arg; a plain parameter whose caller
+    binding is primary/seam-bound or non-coord-aware; the sanctioned primary
+    attribute ``.target_feature_dir``.
     """
     coord_bound = _names_bound_from(func, _COORD_AWARE_CALLSHAPE_RESOLVERS)
     primary_bound = _names_bound_from(func, _PRIMARY_FOLD_CALLSHAPE_FUNCS)
@@ -577,16 +757,16 @@ def callshape_violations(func: ast.AST, *, read_funcs: frozenset[str]) -> list[s
         callee = _call_func_name(node)
         if callee is None or callee not in read_funcs or not node.args:
             continue
-        first = node.args[0]
-        # Two-hop: a locally coord-bound Name, not re-folded onto PRIMARY.
-        if isinstance(first, ast.Name):
-            if first.id in coord_bound and first.id not in primary_bound:
-                violations.append(f"{callee}({first.id})")
-        # Inline-call: the coord-aware resolver call is the direct first argument.
-        elif isinstance(first, ast.Call):
-            inner = _call_func_name(first)
-            if inner is not None and inner in _COORD_AWARE_CALLSHAPE_RESOLVERS:
-                violations.append(f"{callee}({inner}(...))")
+        descriptor = _flagged_first_arg(
+            callee,
+            node.args[0],
+            func=func,
+            coord_bound=coord_bound,
+            primary_bound=primary_bound,
+            module=module,
+        )
+        if descriptor is not None:
+            violations.append(descriptor)
     return violations
 
 
@@ -972,6 +1152,31 @@ def _func_from_source(src: str, name: str = "f") -> ast.AST:
     return func
 
 
+def _module_and_func(src: str, name: str) -> tuple[ast.Module, ast.AST]:
+    """Parse *src* and return ``(module, function)`` for the module-scoped harness.
+
+    The one-hop FR-001 check needs the enclosing :class:`ast.Module` as the caller
+    index, so the cross-function self-tests parse the whole module and hand both the
+    callee function and its module to :func:`callshape_violations`.
+    """
+    module = ast.parse(src)
+    func = _find_function(module, name)
+    assert func is not None
+    return module, func
+
+
+def _offending_call_lineno(func: ast.AST, callee_name: str) -> int:
+    """1-based lineno of the first call to *callee_name* inside *func*.
+
+    Used to CONTENT-ANCHOR a self-mutation test via ``composite_key`` (CT7 / NFR-001)
+    instead of a brittle ``file.py:NNN`` key.
+    """
+    for node in ast.walk(func):
+        if isinstance(node, ast.Call) and _call_func_name(node) == callee_name:
+            return node.lineno
+    raise AssertionError(f"no call to {callee_name!r} found in the snippet")
+
+
 # ---- READ arm self-test: violating snippets FLAGGED, clean snippet PASSES ----
 
 _READ_VIOLATION_DIRECT_JOIN = '''
@@ -1252,12 +1457,20 @@ def f(repo_root, mission_slug):
     return mission_type
 '''
 
-# Precision guard: a plain parameter ``feature_dir`` (caller-supplied, not bound
-# from a coord-aware resolver in this function) is NOT the divergence shape — the
-# caller already resolved it. Must NOT be flagged (else every helper that ACCEPTS
-# a feature_dir would red-CI).
+# Precision guard (re-pinned for FR-001 — WP01 T004): a plain parameter
+# ``feature_dir`` whose ONE-HOP caller has NO coord-aware binding (it forwards a dir
+# it itself received as a parameter) is NOT the divergence shape — the caller did
+# not resolve it coord-aware. Must NOT be flagged EVEN under the module-scoped
+# one-hop harness (else every helper that ACCEPTS a feature_dir would red-CI). This
+# stays consistent with FR-001 (which flags ONLY a param whose caller binding IS
+# coord-aware-without-fold — see ``_VIOLATION_CROSS_FUNCTION``), not contradictory.
 _IDENTITY_CLEAN_PARAMETER_DIR = '''
-def f(feature_dir):
+def caller(feature_dir, repo_root):
+    # No coord-aware binding here: the caller forwards a dir it received as a
+    # parameter, so the one-hop check must NOT flag the callee's parameter read.
+    return _read_identity(feature_dir, repo_root)
+
+def _read_identity(feature_dir, repo_root):
     identity = resolve_mission_identity(feature_dir)
     return identity.mission_id
 '''
@@ -1291,11 +1504,16 @@ def test_callshape_arm_identity_passes_primary_fold() -> None:
 
 
 def test_callshape_arm_identity_passes_parameter_dir() -> None:
-    """Precision: an identity read of a caller-supplied parameter ``feature_dir``
-    (not locally bound from a coord-aware resolver) is NOT flagged."""
-    hits = callshape_violations(
-        _func_from_source(_IDENTITY_CLEAN_PARAMETER_DIR), read_funcs=_IDENTITY_READ_FUNCS
-    )
+    """Precision (FR-001-consistent): an identity read of a parameter ``feature_dir``
+    whose one-hop caller has NO coord-aware binding is NOT flagged — even under the
+    module-scoped harness that DOES supply caller context.
+
+    This is the FR-001 boundary: the one-hop check fires ONLY when the caller binding
+    is coord-aware-without-fold. Re-pinned (WP01 T004) to pass ``module=`` so it
+    cannot drift into a vacuous "no caller context" pass.
+    """
+    module, func = _module_and_func(_IDENTITY_CLEAN_PARAMETER_DIR, "_read_identity")
+    hits = callshape_violations(func, read_funcs=_IDENTITY_READ_FUNCS, module=module)
     assert hits == [], hits
 
 
@@ -1367,3 +1585,157 @@ def test_callshape_arm_shape_isolation() -> None:
     # The lanes vocabulary sees the lanes violation but not the identity one.
     assert callshape_violations(lanes_func, read_funcs=_LANES_READ_FUNCS)
     assert callshape_violations(identity_func, read_funcs=_LANES_READ_FUNCS) == []
+
+
+# ===========================================================================
+# (5a) FR-001 alignment guard — the call-shape coord-aware set cannot 3-vs-5 drift.
+# ===========================================================================
+
+
+def test_callshape_coord_aware_set_aligns_with_read_arm() -> None:
+    """The call-shape coord-aware set is a SUPERSET of the read-arm's topology-routed
+    resolvers, AND catalogs the setup-plan wrapper (FR-001 widening, WP01 T001).
+
+    Root cause of the old FR-001 hollowness was a 3-vs-5 asymmetry: the call-shape
+    set held 3 names while the read arm's ``_TOPOLOGY_ROUTED_READ_RESOLVERS`` held 5,
+    so the one-hop residual's caller binding (``_resolve_setup_plan_feature_dir`` →
+    ``_find_feature_directory``) was not recognized as coord-aware and the one-hop
+    check fired on no live caller. Guarding the superset relationship here means a
+    future widening of the read arm that forgets the call-shape arm FAILS loudly
+    rather than silently re-opening the gap.
+    """
+    missing = _TOPOLOGY_ROUTED_READ_RESOLVERS - _COORD_AWARE_CALLSHAPE_RESOLVERS
+    assert not missing, (
+        "Call-shape coord-aware set drifted NARROWER than the read arm's "
+        f"topology-routed resolvers: {sorted(missing)} are read-arm coord-aware but "
+        "not call-shape coord-aware. Re-align _COORD_AWARE_CALLSHAPE_RESOLVERS with "
+        "_TOPOLOGY_ROUTED_READ_RESOLVERS (FR-001) so the one-hop check stays reachable."
+    )
+    assert "_resolve_setup_plan_feature_dir" in _COORD_AWARE_CALLSHAPE_RESOLVERS, (
+        "The setup-plan wrapper _resolve_setup_plan_feature_dir is the exact binding "
+        "name the _run_documentation_wiring <- setup_plan one-hop residual uses; it "
+        "MUST be cataloged as coord-aware or FR-001 is hollow."
+    )
+
+
+# ===========================================================================
+# (5b) FR-001 one-hop cross-function self-mutation (NFR-002 / SC-001 / SC-006).
+# ===========================================================================
+#
+# Synthetic offender → RED; clean counterpart → GREEN. The callee has ZERO
+# same-function coord-aware binding (its ``feature_dir`` is a pure parameter), so the
+# flag can come ONLY from the one-hop caller index — proving the NEW FR-001 machinery
+# (T001 widening + T003 caller index), not the pre-existing two-hop-local branch.
+
+# Caller binds the dir from a coord-aware resolver (the setup-plan wrapper) WITHOUT a
+# primary fold, then passes it one hop down. This is the real
+# ``mission_setup_plan::_run_documentation_wiring`` ← ``setup_plan`` residual shape.
+_VIOLATION_CROSS_FUNCTION = '''
+def setup_plan(repo_root, feature):
+    feature_dir = _resolve_setup_plan_feature_dir(repo_root, feature, json_output=False)
+    return _run_documentation_wiring(feature_dir, repo_root)
+
+def _run_documentation_wiring(feature_dir, repo_root):
+    # Proves FR-001: flags only via one-hop caller binding (no same-function binding present)
+    mission_type = get_mission_type(feature_dir)
+    return mission_type
+'''
+
+# Clean counterpart: the caller binds the dir from a PRIMARY fold seam, so the
+# one-hop check clears the flag (the routed shape).
+_CLEAN_CROSS_FUNCTION_PRIMARY_FOLD = '''
+def setup_plan(repo_root, mission_slug):
+    feature_dir = primary_feature_dir_for_mission(
+        repo_root, _canonicalize_primary_read_handle(repo_root, mission_slug)
+    )
+    return _run_documentation_wiring(feature_dir, repo_root)
+
+def _run_documentation_wiring(feature_dir, repo_root):
+    mission_type = get_mission_type(feature_dir)
+    return mission_type
+'''
+
+
+def test_callshape_arm_flags_one_hop_cross_function_param() -> None:
+    """FR-001 non-vacuity: a parameter dir bound ONE HOP UP from a coord-aware
+    resolver (no same-function binding present) is FLAGGED.
+
+    The callee ``_run_documentation_wiring`` has no local coord-aware binding — its
+    ``feature_dir`` is a pure parameter — so this snippet would NOT flag on the
+    pre-existing two-hop-local branch. It flags ONLY because the module-scoped caller
+    index (T003) follows one hop to ``setup_plan``'s coord-aware
+    ``_resolve_setup_plan_feature_dir`` binding (recognized via the T001 widening).
+    """
+    module, func = _module_and_func(_VIOLATION_CROSS_FUNCTION, "_run_documentation_wiring")
+    # Sanity: the callee has ZERO same-function coord-aware binding — the flag must
+    # come solely from the one-hop caller, so without ``module`` there is NO flag.
+    assert (
+        callshape_violations(func, read_funcs=_IDENTITY_READ_FUNCS) == []
+    ), "snippet must not flag without the module-scoped caller index (proves one-hop)"
+    hits = callshape_violations(func, read_funcs=_IDENTITY_READ_FUNCS, module=module)
+    assert hits == ["get_mission_type(feature_dir)"], hits
+    # CT7 (NFR-001): content-anchor the offending site via composite_key — a
+    # (qualname, token_line) pair that survives +1 line drift; NO file.py:NNN key.
+    qn, token_line = composite_key(
+        _VIOLATION_CROSS_FUNCTION,
+        _offending_call_lineno(func, "get_mission_type"),
+    )
+    assert qn == "_run_documentation_wiring", qn
+    assert "get_mission_type" in token_line, token_line
+
+
+def test_callshape_arm_passes_one_hop_caller_primary_fold() -> None:
+    """FR-001 boundary: the SAME parameter shape is NOT flagged when the one-hop
+    caller binds the dir from a PRIMARY fold seam (the routed/clean counterpart)."""
+    module, func = _module_and_func(
+        _CLEAN_CROSS_FUNCTION_PRIMARY_FOLD, "_run_documentation_wiring"
+    )
+    hits = callshape_violations(func, read_funcs=_IDENTITY_READ_FUNCS, module=module)
+    assert hits == [], hits
+
+
+# ===========================================================================
+# (5c) FR-008 attribute-discipline self-mutation (NFR-002 / SC-006).
+# ===========================================================================
+#
+# The executor-shape escape: an identity read reaches through a coord-bearing
+# attribute (``run.feature_dir``) the Name/Call branches never saw. Synthetic
+# offender → RED; the sanctioned ``.target_feature_dir`` counterpart → GREEN.
+
+_VIOLATION_ATTRIBUTE = '''
+def merge_executor_step(run):
+    # Executor-shape: reaches through a coord-bearing attribute (NOT a sanctioned
+    # primary attribute) — flagged (SC-006 / FR-008).
+    identity = resolve_mission_identity(run.feature_dir)
+    return identity.mission_id
+'''
+
+_CLEAN_ATTRIBUTE_PRIMARY = '''
+def merge_executor_step(run):
+    identity = resolve_mission_identity(run.target_feature_dir)
+    return identity.mission_id
+'''
+
+
+def test_callshape_arm_flags_coord_bearing_attribute() -> None:
+    """FR-008 non-vacuity: ``resolve_mission_identity(run.feature_dir)`` in an
+    executor-shape function is FLAGGED — the attribute escape the Name/Call branches
+    were structurally blind to (SC-006)."""
+    func = _func_from_source(_VIOLATION_ATTRIBUTE, name="merge_executor_step")
+    hits = callshape_violations(func, read_funcs=_IDENTITY_READ_FUNCS)
+    assert hits == ["resolve_mission_identity(run.feature_dir)"], hits
+    # CT7 (NFR-001): content-anchor the offending site via composite_key (no :NNN key).
+    qn, token_line = composite_key(
+        _VIOLATION_ATTRIBUTE,
+        _offending_call_lineno(func, "resolve_mission_identity"),
+    )
+    assert qn == "merge_executor_step", qn
+    assert "run . feature_dir" in token_line, token_line
+
+
+def test_callshape_arm_passes_sanctioned_primary_attribute() -> None:
+    """FR-008 boundary: ``resolve_mission_identity(run.target_feature_dir)`` — the
+    sanctioned primary attribute — is NOT flagged."""
+    func = _func_from_source(_CLEAN_ATTRIBUTE_PRIMARY, name="merge_executor_step")
+    hits = callshape_violations(func, read_funcs=_IDENTITY_READ_FUNCS)
+    assert hits == [], hits
