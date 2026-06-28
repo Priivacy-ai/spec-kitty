@@ -26,7 +26,8 @@ subtasks:
 - T004
 phase: Phase 1 - CLI usability
 assignee: ''
-agent: cursor
+agent: "cursor"
+shell_pid: "67567"
 history:
 - at: '2026-06-28T08:30:00Z'
   actor: system
@@ -119,3 +120,7 @@ task_type: implement
 ## Activity Log
 
 - 2026-06-28T08:30:00Z - system - Prompt created.
+- 2026-06-28T08:31:35Z – cursor – shell_pid=65255 – Assigned agent via action command
+- 2026-06-28T08:34:45Z – cursor – shell_pid=65255 – Ready for review: implementation committed; local validation blocked by pyenv dependency mismatch for spec_kitty_events.
+- 2026-06-28T08:34:51Z – cursor – shell_pid=67567 – Started review via action command
+- 2026-06-28T08:35:12Z – user – shell_pid=67567 – Review passed: diff matches WP scope. Local validation attempted but blocked by pyenv dependency mismatch: spec_kitty_events lacks DecisionPointOpenedInterviewPayload.
