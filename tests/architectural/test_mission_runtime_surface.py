@@ -53,8 +53,10 @@ _PUBLIC_SURFACE = sorted(
         "ExecutionContext",
         "ExecutionMode",
         "IdentityFragment",
+        "MissionArtifactContext",
         "MissionArtifactHome",
         "MissionArtifactKind",
+        "MissionContext",
         "MissionTopology",
         "StatusSurfaceFragment",
         "WorkspaceFragment",
@@ -67,6 +69,7 @@ _PUBLIC_SURFACE = sorted(
         # dirty-tree preflight (DISJOINT from the coord-residue partition, G-5).
         "is_self_bookkeeping_path",
         "kind_for_mission_file",
+        "mission_context_for",
         "resolve_action_context",
         "resolve_placement_only",
         "resolve_topology",

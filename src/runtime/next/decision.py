@@ -300,7 +300,11 @@ def _get_wp_lanes(feature_dir: Path) -> dict[str, str]:
         return {}
 
 
-def _compute_wp_progress(feature_dir: Path) -> dict[str, int | float] | None:
+def _compute_wp_progress(
+    feature_dir: Path,
+    *,
+    status_dir: Path | None = None,
+) -> dict[str, int | float] | None:
     """Compute WP lane counts and weighted progress for the progress field from the event log."""
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.is_dir():
@@ -310,7 +314,8 @@ def _compute_wp_progress(feature_dir: Path) -> dict[str, int | float] | None:
     if not wp_files:
         return None
 
-    wp_lanes = _get_wp_lanes(feature_dir)
+    lane_read_dir = status_dir if status_dir is not None else feature_dir
+    wp_lanes = _get_wp_lanes(lane_read_dir)
 
     counts: dict[str, int | float] = {
         "total_wps": 0,
@@ -348,7 +353,7 @@ def _compute_wp_progress(feature_dir: Path) -> dict[str, int | float] | None:
         from specify_cli.status import compute_weighted_progress
         from specify_cli.status import materialize
 
-        snapshot = materialize(feature_dir)
+        snapshot = materialize(lane_read_dir)
         progress = compute_weighted_progress(snapshot)
         counts["weighted_percentage"] = round(progress.percentage, 1)
     except Exception:
@@ -357,7 +362,12 @@ def _compute_wp_progress(feature_dir: Path) -> dict[str, int | float] | None:
     return counts
 
 
-def _find_first_wp_by_lane(feature_dir: Path, lane: str) -> str | None:
+def _find_first_wp_by_lane(
+    feature_dir: Path,
+    lane: str,
+    *,
+    status_dir: Path | None = None,
+) -> str | None:
     """Find the first WP file with the given lane value (from event log).
 
     Accepts canonical lane strings (e.g. ``"planned"``) or legacy aliases
@@ -370,7 +380,8 @@ def _find_first_wp_by_lane(feature_dir: Path, lane: str) -> str | None:
 
     target_lane = wp_state_for(lane).lane
 
-    wp_lanes = _get_wp_lanes(feature_dir)
+    lane_read_dir = status_dir if status_dir is not None else feature_dir
+    wp_lanes = _get_wp_lanes(lane_read_dir)
     wp_files = sorted(tasks_dir.glob("WP*.md"))
     for wp_file in wp_files:
         wp_match = re.match(r"(WP\d+)", wp_file.stem)

@@ -273,13 +273,22 @@ def _status_event_line(slug: str, wp_id: str, *, marker: str) -> str:
 
 
 def _build_coord_topology(
-    tmp_path: Path, *, write_husk_meta: bool
+    tmp_path: Path, *, write_husk_meta: bool, write_husk_tasks: bool = False
 ) -> CoordTopologyContext:
-    """Materialise a post-#2106 coordination-topology mission (FR-014 / FR-009).
+    """Materialise a post-#2106 coordination-topology mission (FR-014 / FR-009 / FR-007).
 
-    ONE divergence definition shared by both the base (STATUS-only husk) fixture
-    and the FR-009 sentinel-husk-meta variant — every consumer imports this single
-    shape (T001: define divergence in ONE place).
+    ONE divergence definition shared by the base (STATUS-only husk) fixture, the
+    FR-009 sentinel-husk-meta variant, and the FR-007 ``tasks/``-present-non-legacy
+    husk variant — every consumer imports this single shape (T001: define
+    divergence in ONE place).
+
+    FR-007 variant (``write_husk_tasks=True``): the coord husk additionally carries
+    a post-3.0 ``tasks/`` dir with a real ``WP01.md`` (and NO legacy
+    ``planned``/``doing``/``for_review``/``done`` lane subdirs) alongside a
+    correct-identity husk ``meta.json`` and the real ``status.events.jsonl``. This
+    exercises the ``LEGACY_LANE_DIRS``/``.md`` branch of ``is_legacy_format`` (a
+    coord husk that IS post-3.0 must classify NON-legacy), distinct from the base
+    husk which short-circuits on the absent ``tasks/`` dir.
 
     Shape on disk after this builder runs:
 
@@ -313,7 +322,12 @@ def _build_coord_topology(
     #    requests flat_topology_mission does not collide on tmp_path/repo.
     #    The sentinel variant uses a distinct subdir so a single test may request
     #    both the base and sentinel fixtures without a worktree-path collision.
-    repo_subdir = "coord-sentinel" if write_husk_meta else "coord"
+    if write_husk_tasks:
+        repo_subdir = "coord-tasks-husk"
+    elif write_husk_meta:
+        repo_subdir = "coord-sentinel"
+    else:
+        repo_subdir = "coord"
     repo = _make_git_repo(tmp_path / repo_subdir)
 
     # 2. Create the coord branch pointing at the initial commit (no mission
@@ -369,9 +383,9 @@ def _build_coord_topology(
         encoding="utf-8",
     )
 
-    # 7. FR-009 sentinel husk meta (the present-but-wrong identity), or the base
-    #    STATUS-only invariant. The husk NEVER carries tasks/ or lanes.json under
-    #    either variant — only the meta.json presence differs.
+    # 7. Husk meta variant select: the FR-009 sentinel (present-but-WRONG identity),
+    #    the FR-007 tasks-husk correct-identity meta, or the base STATUS-only
+    #    invariant (no husk meta). ``lanes.json`` is NEVER written to the husk.
     coord_husk_meta_path: Path | None = None
     if write_husk_meta:
         _write_meta(
@@ -383,14 +397,47 @@ def _build_coord_topology(
             mission_type=SENTINEL_HUSK_MISSION_TYPE,
         )
         coord_husk_meta_path = coord_mission_dir / "meta.json"
+    elif write_husk_tasks:
+        # FR-007: a production-shaped post-3.0 husk carries a correct-identity
+        # meta.json (matching the PRIMARY id — NOT the sentinel divergence) so the
+        # no-op proof runs against a realistic coord husk, not an empty dir.
+        _write_meta(
+            coord_mission_dir,
+            slug=slug,
+            mission_id=mission_id,
+            topology="coord",
+            coordination_branch=coord_branch,
+        )
+        coord_husk_meta_path = coord_mission_dir / "meta.json"
 
-    # 8. Structural self-checks. The husk must always carry STATUS only — the
-    #    base invariant (no tasks/, no lanes.json) holds for BOTH variants. The
-    #    sentinel variant OVERRIDES the base ``no meta.json`` invariant with the
-    #    HARD divergence triad (FR-009 / T001).
-    assert not (coord_mission_dir / "tasks").exists(), (
-        "Fixture invariant violated: coord husk must not carry tasks/"
-    )
+    # FR-007: the post-3.0 ``tasks/`` dir (WP .md, NO legacy lane subdirs).
+    if write_husk_tasks:
+        husk_tasks_dir = coord_mission_dir / "tasks"
+        husk_tasks_dir.mkdir()
+        _write_wp_task(husk_tasks_dir, "WP01")
+
+    # 8. Structural self-checks. ``lanes.json`` is absent on the husk for EVERY
+    #    variant. ``tasks/`` is absent for base + sentinel (STATUS-only) and
+    #    present-but-non-legacy for the FR-007 variant. The sentinel variant
+    #    OVERRIDES the base ``no meta.json`` invariant with the HARD divergence
+    #    triad (FR-009 / T001).
+    if write_husk_tasks:
+        husk_tasks_dir = coord_mission_dir / "tasks"
+        assert husk_tasks_dir.is_dir(), (
+            "FR-007 variant invariant violated: coord husk must carry tasks/"
+        )
+        assert list(husk_tasks_dir.glob("WP*.md")), (
+            "FR-007 variant invariant violated: husk tasks/ must carry a WP .md file"
+        )
+        assert not any(child.is_dir() for child in husk_tasks_dir.iterdir()), (
+            "FR-007 variant invariant violated: husk tasks/ must carry NO legacy "
+            "lane subdirs (planned/doing/for_review/done) — it must classify "
+            "NON-legacy via is_legacy_format"
+        )
+    else:
+        assert not (coord_mission_dir / "tasks").exists(), (
+            "Fixture invariant violated: coord husk must not carry tasks/"
+        )
     assert not (coord_mission_dir / "lanes.json").exists(), (
         "Fixture invariant violated: coord husk must not carry lanes.json"
     )
@@ -410,7 +457,7 @@ def _build_coord_topology(
             f"resolved PRIMARY id {mission_id!r} (else the identity proof is "
             "non-falsifiable)."
         )
-    else:
+    elif not write_husk_tasks:
         assert not (coord_mission_dir / "meta.json").exists(), (
             "Fixture invariant violated: base coord husk must not carry meta.json"
         )
@@ -454,6 +501,23 @@ def coord_topology_mission_sentinel_meta(tmp_path: Path) -> CoordTopologyContext
     HARD divergence triad, asserted in the builder before return).
     """
     return _build_coord_topology(tmp_path, write_husk_meta=True)
+
+
+@pytest.fixture()
+def coord_topology_mission_tasks_husk(tmp_path: Path) -> CoordTopologyContext:
+    """FR-007 ``tasks/``-present-non-legacy husk variant (WP04 / T016).
+
+    Same topology as :func:`coord_topology_mission` BUT the coord husk additionally
+    carries a post-3.0 ``tasks/WP01.md`` (NO ``planned``/``doing``/``for_review``/
+    ``done`` lane subdirs) and a correct-identity husk ``meta.json`` alongside the
+    authoritative ``status.events.jsonl``. This exercises the ``LEGACY_LANE_DIRS``/
+    ``.md`` branch of ``is_legacy_format`` — a coord husk that IS post-3.0 must
+    classify NON-legacy, so :func:`check_pre30_layout` is a clean no-op against it
+    (FR-007(b) / SC-004). WP04 is the SOLE consumer of this variant.
+    """
+    return _build_coord_topology(
+        tmp_path, write_husk_meta=False, write_husk_tasks=True
+    )
 
 
 @pytest.fixture()
@@ -614,5 +678,6 @@ __all__ = [
     "assert_status_from_coord",
     "coord_topology_mission",
     "coord_topology_mission_sentinel_meta",
+    "coord_topology_mission_tasks_husk",
     "flat_topology_mission",
 ]

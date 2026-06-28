@@ -964,6 +964,8 @@ def _is_wp_iteration_step(step_id: str) -> bool:
 def _finalized_task_board_override_step(
     feature_dir: Path,
     progress: dict[str, int | float] | None,
+    *,
+    status_dir: Path | None = None,
 ) -> str | None:
     """Return the next step implied by finalized WP state, if available.
 
@@ -979,15 +981,15 @@ def _finalized_task_board_override_step(
     if not (feature_dir / "tasks.md").is_file() or not (feature_dir / "tasks").is_dir():
         return None
 
-    if _find_first_wp_by_lane(feature_dir, "planned") is not None:
+    if _find_first_wp_by_lane(feature_dir, "planned", status_dir=status_dir) is not None:
         return "implement"
-    if _find_first_wp_by_lane(feature_dir, "claimed") is not None:
+    if _find_first_wp_by_lane(feature_dir, "claimed", status_dir=status_dir) is not None:
         return "implement"
-    if _find_first_wp_by_lane(feature_dir, "in_progress") is not None:
+    if _find_first_wp_by_lane(feature_dir, "in_progress", status_dir=status_dir) is not None:
         return "implement"
-    if _find_first_wp_by_lane(feature_dir, "for_review") is not None:
+    if _find_first_wp_by_lane(feature_dir, "for_review", status_dir=status_dir) is not None:
         return "review"
-    if _find_first_wp_by_lane(feature_dir, "in_review") is not None:
+    if _find_first_wp_by_lane(feature_dir, "in_review", status_dir=status_dir) is not None:
         return "blocked:review_in_progress"
 
     done = int(progress.get("done_wps", 0) or 0)
@@ -3056,7 +3058,7 @@ def _build_finalized_override_query_decision(
     now: str,
     progress: dict | None,
     emitted_run_id: str | None,
-    feature_dir: Path,
+    repo_root: Path,
     finalized_override: str,
 ) -> Decision:
     override_wp_id: str | None = None
@@ -3073,9 +3075,14 @@ def _build_finalized_override_query_decision(
         preview_step = finalized_override
         reason = None
         if finalized_override == "implement":
+            from mission_runtime import MissionArtifactKind, mission_context_for
             from runtime.next.discovery import preview_claimable_wp
 
-            preview = preview_claimable_wp(feature_dir)
+            mission_context = mission_context_for(repo_root, mission_slug)
+            preview = preview_claimable_wp(
+                mission_context.artifact(MissionArtifactKind.WORK_PACKAGE_TASK).read_dir,
+                status_dir=mission_context.artifact(MissionArtifactKind.STATUS_STATE).read_dir,
+            )
             override_wp_id = preview.wp_id
             if preview.wp_id is None and preview.selection_reason is not None:
                 reason = preview.selection_reason
@@ -3198,16 +3205,12 @@ def query_current_state(
         mission_slug: Mission slug (e.g. '069-planning-pipeline-integrity').
         repo_root: Repository root path.
     """
-    from mission_runtime import ActionContextError, resolve_action_context
+    from mission_runtime import ActionContextError, MissionArtifactKind, mission_context_for
 
     now = datetime.now(UTC).isoformat()
     try:
-        _ctx = resolve_action_context(
-            repo_root,
-            action="tasks",
-            feature=mission_slug,
-        )
-        feature_dir = Path(_ctx.feature_dir)
+        mission_context = mission_context_for(repo_root, mission_slug)
+        mission_slug = mission_context.mission_slug
     except ActionContextError as exc:
         # FR-001 / C-IC02: pass a typed *read-path* error through VERBATIM. The
         # resolver already produced the precise code (e.g.
@@ -3225,7 +3228,10 @@ def query_current_state(
         # directory at all) is legitimately MISSION_NOT_FOUND (FR-004 / WP03).
         raise MissionNotFoundError(mission_slug) from exc
 
-    if not feature_dir.is_dir():
+    task_board = mission_context.artifact(MissionArtifactKind.WORK_PACKAGE_TASK)
+    status_state = mission_context.artifact(MissionArtifactKind.STATUS_STATE)
+
+    if not task_board.read_dir.is_dir():
         # Conscious decision (C-IC02): reaching here means the resolver RESOLVED
         # a directory and verified it ``exists()`` (see resolution.py), yet it is
         # not a directory on disk — i.e. the canonical mission dir name resolved
@@ -3234,8 +3240,8 @@ def query_current_state(
         # deliberately-kept classification here (NOT a read-path collapse).
         raise MissionNotFoundError(mission_slug)
 
-    mission_type = get_mission_type(feature_dir)
-    progress = _compute_wp_progress(feature_dir)
+    mission_type = mission_context.mission_type
+    progress = _compute_wp_progress(task_board.read_dir, status_dir=status_state.read_dir)
 
     run_ref = _existing_run_ref(mission_slug, repo_root, mission_type)
     ephemeral_run_store: Path | None = None
@@ -3283,7 +3289,11 @@ def query_current_state(
         if ephemeral_run_store is None:
             emitted_run_id = getattr(run_ref, "run_id", None)
 
-        finalized_override = _finalized_task_board_override_step(feature_dir, progress)
+        finalized_override = _finalized_task_board_override_step(
+            task_board.read_dir,
+            progress,
+            status_dir=status_state.read_dir,
+        )
         if finalized_override is not None:
             return _build_finalized_override_query_decision(
                 agent=agent,
@@ -3292,7 +3302,7 @@ def query_current_state(
                 now=now,
                 progress=progress,
                 emitted_run_id=emitted_run_id,
-                feature_dir=feature_dir,
+                repo_root=repo_root,
                 finalized_override=finalized_override,
             )
 

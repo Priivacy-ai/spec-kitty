@@ -798,13 +798,13 @@ class TestMapRuntimeDecision:
 class TestAnswerDecision:
     pytestmark = pytest.mark.git_repo
 
-    def test_query_and_answer_paths_use_resolve_action_context(self) -> None:
-        """FR-032: runtime query/answer surfaces stay on canonical ExecutionContext."""
+    def test_query_and_answer_paths_use_canonical_context_surfaces(self) -> None:
+        """FR-032: runtime query/answer surfaces stay on canonical context APIs."""
         import inspect
 
         from specify_cli.next import runtime_bridge
 
-        assert "resolve_action_context" in inspect.getsource(runtime_bridge.query_current_state)
+        assert "mission_context_for" in inspect.getsource(runtime_bridge.query_current_state)
         assert "resolve_action_context" in inspect.getsource(runtime_bridge.answer_decision_via_runtime)
 
     def test_answer_missing_mission_raises(self, tmp_path: Path) -> None:
@@ -1456,7 +1456,7 @@ class TestQueryCurrentStateTypedErrorPassthrough:
                 "coordination branch deleted; checked .worktrees/<slug>-coord and primary",
             )
 
-        monkeypatch.setattr(mission_runtime, "resolve_action_context", _raise_read_path)
+        monkeypatch.setattr(mission_runtime, "mission_context_for", _raise_read_path)
 
         with pytest.raises(ActionContextError) as exc_info:
             query_current_state(
@@ -1477,7 +1477,7 @@ class TestQueryCurrentStateTypedErrorPassthrough:
         def _raise_unresolved(*_a: object, **_k: object) -> None:
             raise ActionContextError("FEATURE_CONTEXT_UNRESOLVED", "no mission directory at all")
 
-        monkeypatch.setattr(mission_runtime, "resolve_action_context", _raise_unresolved)
+        monkeypatch.setattr(mission_runtime, "mission_context_for", _raise_unresolved)
 
         with pytest.raises(MissionNotFoundError):
             query_current_state(agent="claude", mission_slug="no-such-mission", repo_root=tmp_path)

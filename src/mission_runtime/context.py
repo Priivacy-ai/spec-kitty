@@ -30,9 +30,13 @@ Single-derivation invariants (T009 / FR-012 / C-CTX-3): ``mid8`` is derived
 from __future__ import annotations
 
 import enum
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
+
+if TYPE_CHECKING:
+    from mission_runtime.artifacts import MissionArtifactKind
 
 
 class ExecutionMode(enum.Enum):
@@ -224,6 +228,37 @@ class ArtifactPlacementFragment:
 
 
 @dataclass(frozen=True)
+class MissionArtifactContext:
+    """Resolved context for one mission artifact kind."""
+
+    kind: MissionArtifactKind
+    read_dir: Path
+    write_dir: Path
+    commit_target: CommitTarget | None
+
+
+@dataclass(frozen=True)
+class MissionContext:
+    """Mission-level artifact read context.
+
+    Callers ask for an artifact kind; the context returns a value object with
+    read/write/commit placement and hides worktree/naming details.
+    """
+
+    mission_slug: str
+    mission_type: str
+    topology: MissionTopology
+    artifacts: Sequence[MissionArtifactContext]
+
+    def artifact(self, kind: MissionArtifactKind) -> MissionArtifactContext:
+        """Return resolved context for ``kind``."""
+        for artifact in self.artifacts:
+            if artifact.kind is kind:
+                return artifact
+        raise ValueError(f"Unhandled mission artifact kind: {kind!r}")
+
+
+@dataclass(frozen=True)
 class ExecutionContext:
     """Fully-resolved context for a single action — a doc-09 op-composite.
 
@@ -324,6 +359,8 @@ __all__ = [
     "ExecutionContext",
     "ExecutionMode",
     "IdentityFragment",
+    "MissionArtifactContext",
+    "MissionContext",
     "MissionTopology",
     "StatusSurfaceFragment",
     "WorkspaceFragment",
