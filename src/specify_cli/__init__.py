@@ -146,6 +146,7 @@ def _build_app() -> typer.Typer:
             "Set SPEC_KITTY_NO_UPGRADE_CHECK=1 to disable the upgrade-check notice."
         ),
         add_completion=False,
+        context_settings={"help_option_names": ["--help", "-h"]},
         invoke_without_command=True,
         cls=BannerGroup,
     )
