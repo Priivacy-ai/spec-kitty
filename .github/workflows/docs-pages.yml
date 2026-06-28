@@ -13,7 +13,6 @@ on:
       - 'scripts/docs/redirect_map.yaml'
       - 'scripts/docs/redirect_baseline_urls.json'
       - 'src/specify_cli/dashboard/templates/glossary.html'
-      - 'architecture/**'
       - '.github/workflows/docs-pages.yml'
   workflow_dispatch:
 
