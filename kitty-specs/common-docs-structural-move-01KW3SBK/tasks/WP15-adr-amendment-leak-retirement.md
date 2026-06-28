@@ -16,7 +16,7 @@ subtasks:
 - T089
 - T090
 - T091
-agent: ""
+agent: "claude:opus:python-pedro:implementer"
 history: []
 agent_profile: python-pedro
 authoritative_surface: scripts/docs/version_leakage_check.py
@@ -24,6 +24,7 @@ create_intent: []
 execution_mode: code_change
 owned_files:
 - scripts/docs/version_leakage_check.py
+shell_pid: '0'
 role: implementer
 tags: []
 ---
@@ -100,3 +101,5 @@ Planning + final merge target: `docs/2165-mission-b-structural-move`. Depends on
 ## Activity Log
 
 - (populated at implement time)
+- 2026-06-27T19:28:48Z – user – done+validated on assembled integration tree (571 docs tests green, 5 gates green); lane alloc impossible (diamond merge)
+- 2026-06-27T19:28:50Z – user – approved: assembled-tree validation is the objective review (571 docs tests + 5 blocking gates green; WP14 C-005 RED-per-class proven)
