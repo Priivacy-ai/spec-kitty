@@ -142,11 +142,13 @@ _LANES_READ_SITE_FLOOR = 8
 # ``src/runtime/next/`` ONLY — NOT baseline + new — so removing ``src/runtime/next/``
 # from the scan dirs makes this floor FAIL (a baseline-inclusive count would stay
 # green and the scope extension would be vacuous; this is the gate-unmask-cannot-
-# self-validate trap). The current tree carries exactly 3 ``get_mission_type(feature_dir)``
-# reads in ``runtime_bridge.py`` (~:2547 / ~:3237 / ~:3392); each is a CLEAN read
-# (the ``feature_dir`` param is not bound coord-aware by any one-hop caller), so all
-# three are absent from the census and are accounted for solely by this floor.
-_RUNTIME_NEXT_IDENTITY_READ_FLOOR = 3
+# self-validate trap). The current tree carries exactly 2
+# ``get_mission_type(feature_dir)`` reads in ``runtime_bridge.py`` (~:2547 / ~:3392);
+# each is a CLEAN read (the ``feature_dir`` param is not bound coord-aware by any
+# one-hop caller), so both are absent from the census and are accounted for solely
+# by this floor. Query-mode mission-type resolution moved into
+# ``mission_context_for`` so runtime/next no longer owns that identity read.
+_RUNTIME_NEXT_IDENTITY_READ_FLOOR = 2
 
 # -- FR-003 named shrink-only census (PER-ARM stale-pin split) --------------------
 #
@@ -431,8 +433,8 @@ def test_fr005_runtime_next_identity_read_floor_is_non_vacuous() -> None:
     reads — it is NOT green merely because the scan matches nothing.
 
     The floor counts ``get_mission_type(feature_dir)`` reads WITHIN
-    ``src/runtime/next/`` ONLY (not baseline + new): ``runtime_bridge.py`` carries 3
-    (~:2547 / ~:3237 / ~:3392). The count is derived from the LIVE
+    ``src/runtime/next/`` ONLY (not baseline + new): ``runtime_bridge.py`` carries 2
+    (~:2547 / ~:3392). The count is derived from the LIVE
     ``_IDENTITY_SCAN_DIRS`` so reverting the scope extension breaks it (proven in
     ``test_fr005_runtime_next_floor_fails_if_scope_reverted``).
     """

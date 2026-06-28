@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -410,13 +409,38 @@ class TestQueryCurrentStateErrorPaths:
 
     def test_resolved_missing_feature_dir_raises_mission_not_found(self, tmp_path: Path) -> None:
         """Resolved-but-absent paths also fail closed."""
+        from mission_runtime import MissionArtifactContext, MissionArtifactKind, MissionContext, MissionTopology
         from specify_cli.next.runtime_bridge import MissionNotFoundError, query_current_state
 
         missing = tmp_path / "kitty-specs" / "069-missing"
 
         with patch(
-            "mission_runtime.resolve_action_context",
-            return_value=SimpleNamespace(feature_dir=str(missing)),
+            "mission_runtime.mission_context_for",
+            return_value=MissionContext(
+                mission_slug="069-missing",
+                mission_type="software-dev",
+                topology=MissionTopology.SINGLE_BRANCH,
+                artifacts=(
+                    MissionArtifactContext(
+                        kind=MissionArtifactKind.PRIMARY_METADATA,
+                        read_dir=missing,
+                        write_dir=missing,
+                        commit_target=None,
+                    ),
+                    MissionArtifactContext(
+                        kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+                        read_dir=missing,
+                        write_dir=missing,
+                        commit_target=None,
+                    ),
+                    MissionArtifactContext(
+                        kind=MissionArtifactKind.STATUS_STATE,
+                        read_dir=missing,
+                        write_dir=missing,
+                        commit_target=None,
+                    ),
+                ),
+            ),
         ):
             with pytest.raises(MissionNotFoundError, match="069-missing"):
                 query_current_state("claude", "069-missing", tmp_path)

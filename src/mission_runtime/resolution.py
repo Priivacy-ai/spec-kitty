@@ -25,6 +25,8 @@ from typing import Any, Literal, cast, get_args
 from mission_runtime.artifacts import (
     MissionArtifactKind,
     _PRIMARY_ARTIFACT_KINDS,
+    artifact_home_for,
+    is_primary_artifact_kind,
 )
 from mission_runtime.context import (
     ArtifactPlacementFragment,
@@ -32,6 +34,8 @@ from mission_runtime.context import (
     CommitTarget,
     ExecutionContext,
     IdentityFragment,
+    MissionArtifactContext,
+    MissionContext,
     MissionTopology,
     StatusSurfaceFragment,
     WorkspaceFragment,
@@ -58,6 +62,7 @@ __all__ = [
     "ACTION_NAMES",
     "ActionContextError",
     "ActionName",
+    "mission_context_for",
     "resolve_action_context",
     # resolve_context_for_mission: demoted — no cross-module src/ from-import
     # callers (WP01 harden-dead-symbol-gate-01KW0RJR).
@@ -804,6 +809,92 @@ def resolve_topology(repo_root: Path, mission_handle: str) -> MissionTopology:
     if candidate_dir is not None and candidate_dir.exists():
         mission_slug = candidate_dir.name
     return _resolve_topology(primary_root, mission_slug)
+
+
+def mission_context_for(
+    repo_root: Path,
+    mission_handle: str,
+    topology: MissionTopology | None = None,
+) -> MissionContext:
+    """Resolve mission artifact context by mission + topology.
+
+    This is the mission-level SSOT facade for callers that need artifact
+    placement but should not know whether that means primary checkout,
+    coordination worktree, or a flattened single dir. Callers pass mission
+    identity and, when already known, stored topology; they then ask the returned
+    context for ``artifact(MissionArtifactKind.X)``.
+    """
+    from specify_cli.core.paths import get_feature_target_branch
+    from specify_cli.core.paths import get_main_repo_root
+    from specify_cli.mission import get_mission_type
+    from specify_cli.missions._read_path_resolver import (
+        MissionSelectorAmbiguous,
+        StatusReadPathNotFound,
+        candidate_feature_dir_for_mission,
+        resolve_planning_read_dir,
+    )
+
+    if not mission_handle or not mission_handle.strip():
+        raise ActionContextError(
+            "FEATURE_CONTEXT_UNRESOLVED",
+            "mission_context_for requires an explicit mission handle.",
+        )
+
+    primary_root = get_main_repo_root(repo_root)
+    try:
+        candidate_dir = candidate_feature_dir_for_mission(primary_root, mission_handle)
+    except StatusReadPathNotFound as exc:
+        raise ActionContextError(exc.error_code, str(exc)) from exc
+    except MissionSelectorAmbiguous as exc:
+        raise ActionContextError(exc.error_code, str(exc)) from exc
+
+    mission_slug = candidate_dir.name if candidate_dir.exists() else mission_handle
+    resolved_topology = topology or _resolve_topology(primary_root, mission_slug)
+    target_branch = get_feature_target_branch(primary_root, mission_slug)
+    _identity, branch_ref, status_surface, _workspace = _assemble_core_fragments(
+        primary_root,
+        mission_slug=mission_slug,
+        target_branch=target_branch,
+        topology=resolved_topology,
+        cwd=None,
+    )
+    primary_read_dir = resolve_planning_read_dir(
+        primary_root,
+        mission_slug,
+        kind=MissionArtifactKind.PRIMARY_METADATA,
+    )
+    artifacts: list[MissionArtifactContext] = []
+    for kind in MissionArtifactKind:
+        placement_ref = (
+            CommitTarget(ref=target_branch)
+            if is_primary_artifact_kind(kind)
+            else branch_ref.destination_ref
+        )
+        home = artifact_home_for(kind, placement_ref)
+        read_dir = (
+            primary_read_dir
+            if home.read_surface == "primary"
+            else status_surface.status_read_dir
+        )
+        write_dir = (
+            primary_read_dir
+            if home.write_surface == "primary"
+            else status_surface.status_write_dir
+        )
+        artifacts.append(
+            MissionArtifactContext(
+                kind=kind,
+                read_dir=read_dir,
+                write_dir=write_dir,
+                commit_target=home.commit_target,
+            )
+        )
+    return MissionContext(
+        mission_slug=mission_slug,
+        mission_type=get_mission_type(primary_read_dir),
+        topology=resolved_topology,
+        artifacts=tuple(artifacts),
+    )
 
 
 def _resolve_mission_id(primary_root: Path, mission_slug: str) -> str:

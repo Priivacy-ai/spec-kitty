@@ -11,10 +11,11 @@ under coordination topology — is the STATUS-only coord husk.  The husk carries
 (``wp_id=None``, ``selection_reason="no_tasks_dir"``) preview and the loop reported
 the mission as having no claimable WP even though PRIMARY held ``tasks/WP01.md``.
 
-After WP03 the WP-selection leg routes to the authoritative PRIMARY surface via
-``resolve_planning_read_dir(kind=WORK_PACKAGE_TASK)`` while the status-event leg
-stays coord-aware (``candidate_feature_dir_for_mission``).  A coord-topology
-mission then previews ``WP01`` from PRIMARY.
+After WP03 the WP-selection leg asks the mission context for
+``WORK_PACKAGE_TASK`` while the status-event leg asks for ``STATUS_STATE``.  A
+coord-topology mission then previews ``WP01`` from the artifact context selected
+by the resolver, without the control surface knowing PRIMARY/coord filesystem
+details.
 
 This is the ONLY gate on FR-004 — the static call-shape arm cannot see a
 parameter-fed ``tasks/``-dir read.  The proof is therefore VALUE-EXACT and
@@ -38,6 +39,7 @@ import json
 
 import pytest
 
+from mission_runtime import MissionArtifactKind, mission_context_for
 from runtime.next.decision import Decision, DecisionKind
 from runtime.next.discovery import preview_claimable_wp
 from runtime.next.runtime_bridge import (
@@ -121,6 +123,27 @@ def _mark_primary_task_board_finalized(ctx: CoordTopologyContext) -> None:
 class TestNextPreviewRoutesToPrimary:
     """FR-004 / SC-002: claimable-preview previews from PRIMARY under coord topology."""
 
+    def test_mission_context_routes_by_artifact_kind(
+        self,
+        coord_topology_mission: CoordTopologyContext,
+    ) -> None:
+        """Mission context hides primary/status filesystem concerns from callers."""
+        ctx = coord_topology_mission
+
+        mission_context = mission_context_for(ctx.repo, ctx.slug)
+        task_artifact = mission_context.artifact(MissionArtifactKind.WORK_PACKAGE_TASK)
+        status_artifact = mission_context.artifact(MissionArtifactKind.STATUS_STATE)
+
+        assert mission_context.mission_slug == ctx.slug
+        assert mission_context.mission_type == "software-dev"
+        assert task_artifact.read_dir.resolve() == ctx.primary_feature_dir.resolve()
+        assert task_artifact.write_dir.resolve() == ctx.primary_feature_dir.resolve()
+        assert task_artifact.commit_target is not None
+        assert status_artifact.read_dir.resolve() == ctx.coord_feature_dir.resolve()
+        assert status_artifact.write_dir.resolve() == ctx.coord_feature_dir.resolve()
+        assert status_artifact.commit_target is not None
+        assert task_artifact.commit_target.ref != status_artifact.commit_target.ref
+
     def test_routed_decision_previews_primary_wp_id(
         self,
         coord_topology_mission: CoordTopologyContext,
@@ -128,10 +151,10 @@ class TestNextPreviewRoutesToPrimary:
         """Routed Decision.wp_id equals the PRIMARY-seeded WP id (value-exact).
 
         Post-fix: the WP-selection leg reads PRIMARY via
-        ``resolve_planning_read_dir(kind=WORK_PACKAGE_TASK)`` where ``tasks/WP01.md``
-        lives, so the override Decision previews ``WP01``.  Reverting T011 routes
-        this read back onto the caller's coord husk (STATUS-only) → empty preview
-        → ``wp_id`` becomes ``None`` → this assertion goes RED.
+        ``WORK_PACKAGE_TASK`` artifact context where ``tasks/WP01.md`` lives, so
+        the override Decision previews ``WP01``.  Reverting T011 routes this read
+        back onto the caller's coord husk (STATUS-only) → empty preview → ``wp_id``
+        becomes ``None`` → this assertion goes RED.
         """
         ctx = coord_topology_mission
         _mark_primary_task_board_finalized(ctx)
@@ -146,7 +169,7 @@ class TestNextPreviewRoutesToPrimary:
             "Routed claimable preview must select the PRIMARY-surface WP id "
             f"{_EXPECTED_PRIMARY_WP_ID!r}; got {decision.wp_id!r}. "
             "If None, the WP-selection leg is reading the STATUS-only coord husk "
-            "(the #2197 regression) instead of resolve_planning_read_dir(PRIMARY)."
+            "(the #2197 regression) instead of the WORK_PACKAGE_TASK artifact context."
         )
 
     def test_revert_leg_executes_and_differs_from_routed(
