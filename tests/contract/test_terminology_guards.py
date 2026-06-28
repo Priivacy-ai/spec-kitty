@@ -60,7 +60,27 @@ CLI_COMMAND_GLOBS = ("src/specify_cli/cli/commands/**/*.py",)
 DOCTRINE_SKILL_GLOBS = ("src/doctrine/skills/**/*.md",)
 AGENT_DOC_GLOBS = ("docs/**/*.md",)
 TOP_LEVEL_DOCS = ("README.md", "CONTRIBUTING.md")
-FORBIDDEN_SCAN_ROOTS = ("kitty-specs/", "architecture/", ".kittify/", "tests/", "docs/migration/")
+FORBIDDEN_SCAN_ROOTS = (
+    "kitty-specs/",
+    "architecture/",
+    ".kittify/",
+    "tests/",
+    "docs/migration/",
+    # docs/adr/ holds immutable historical decision records (the common-docs move
+    # relocated them from the unscanned architecture/ tree). Their bodies are
+    # byte-invariant under C-002/C-006 and legitimately reference era-correct
+    # wording (--feature, main-centric workflow). Mirrors the narrow docs/adr/
+    # exemption in tests/architectural/test_no_legacy_terminology.py.
+    "docs/adr/",
+    # Historical/archival sub-areas relocated under docs/plans/ by the common-docs
+    # move (the old, unscanned engineering_notes/initiatives world): completed
+    # initiative records, retained 1.x deep-dive notes, and engineering notes.
+    # These are archival records of era-correct decisions, not live first-party
+    # docs — the active planning pages at docs/plans/*.md stay scanned.
+    "docs/plans/engineering-notes/",
+    "docs/plans/initiatives/",
+    "docs/plans/notes/",
+)
 
 
 def _glob(pattern: str) -> list[Path]:
@@ -102,16 +122,33 @@ def _live_doc_scan_targets() -> list[tuple[Path, str]]:
     for path_pattern in AGENT_DOC_GLOBS:
         for path in _glob(path_pattern):
             relative_path = path.relative_to(REPO_ROOT).as_posix()
-            if relative_path.startswith("docs/migration/"):
+            # docs/migration/, docs/adr/, and the relocated archival sub-areas of
+            # docs/plans/ are historical/immutable surfaces, not live first-party
+            # docs (docs/adr/ holds byte-invariant ADR records).
+            if relative_path.startswith(
+                (
+                    "docs/migration/",
+                    "docs/adr/",
+                    "docs/plans/engineering-notes/",
+                    "docs/plans/initiatives/",
+                    "docs/plans/notes/",
+                )
+            ):
+                continue
+            # The relocated canonical CHANGELOG is handled like root CHANGELOG.md
+            # below (only the Unreleased section is scanned; historical version
+            # sections legitimately carry era-correct terminology). Its sibling
+            # docs/changelog/index.md stays a normally-scanned live doc.
+            if relative_path == "docs/changelog/CHANGELOG.md":
                 continue
             scan_targets.append((path, _read(path)))
     for top_level in TOP_LEVEL_DOCS:
         path = REPO_ROOT / top_level
         if path.exists():
             scan_targets.append((path, _read(path)))
-    changelog_path = REPO_ROOT / "CHANGELOG.md"
-    if changelog_path.exists():
-        scan_targets.append((changelog_path, _extract_changelog_unreleased(changelog_path)))
+    for changelog_path in (REPO_ROOT / "CHANGELOG.md", REPO_ROOT / "docs" / "changelog" / "CHANGELOG.md"):
+        if changelog_path.exists():
+            scan_targets.append((changelog_path, _extract_changelog_unreleased(changelog_path)))
     return scan_targets
 
 
@@ -446,6 +483,27 @@ def test_grep_guards_do_not_scan_historical_artifacts():
         "CHANGELOG.md must be handled through _extract_changelog_unreleased(), not a raw glob. "
         "Authority: spec.md FR-022."
     )
+
+
+def test_docs_adr_exemption_is_narrow() -> None:
+    """docs/adr/ is exempt (immutable historical ADRs), but the rest of docs/ is not.
+
+    The common-docs move relocated ADRs from the unscanned architecture/ tree into
+    docs/adr/. Their byte-invariant bodies legitimately carry era-correct wording,
+    so they must not be scanned — but the exemption must stay narrow: every other
+    docs/ page is still a live first-party surface. This pins both halves so a future
+    glob change cannot silently widen the carve-out to all of docs/.
+    """
+    scanned = {p.relative_to(REPO_ROOT).as_posix() for p, _ in _live_doc_scan_targets()}
+    assert not any(p.startswith("docs/adr/") for p in scanned), (
+        "docs/adr/ ADR records must be excluded from the live-docs terminology scan"
+    )
+    # Non-vacuity / narrowness: live docs/ pages outside the exempt roots ARE scanned.
+    assert any(
+        p.startswith("docs/")
+        and not p.startswith(("docs/adr/", "docs/migration/"))
+        for p in scanned
+    ), "the exemption widened too far — no live docs/ page is being scanned"
 
 
 def test_no_feature_alias_in_internal_command_cluster() -> None:
