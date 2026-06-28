@@ -45,6 +45,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from scripts.docs._inventory import parse_frontmatter  # noqa: E402
 from scripts.docs.adr_converter import (  # noqa: E402
+    AdrParseError,
     MADR_STATUSES,
     convert,
     invariant,
@@ -65,7 +66,16 @@ _EXPECTED_INVARIANT: Final[int] = _EXPECTED_CENSUS - 1
 #: Planning base refs that still hold the pre-move ``architecture/.../adr``
 #: originals. The merge-base of HEAD with the first that resolves is the
 #: pre-image source. ``SPEC_KITTY_ADR_BASE`` overrides for unusual CI layouts.
+#: Ordered so a base that still holds the pre-move originals is found whether
+#: the mission branch is unrebased (its own tip straddles the old base) or has
+#: been rebased onto a ``main`` that predates the move (the branch self-ref then
+#: degenerates to HEAD — a *post-move* tree — and must be rejected, not used).
+#: Every candidate is validated by :func:`_tree_has_premove_originals` before
+#: use, so ordering is a preference, not a correctness dependency.
 _BASE_REF_CANDIDATES: Final[tuple[str, ...]] = (
+    "main",
+    "upstream/main",
+    "origin/main",
     "docs/2165-mission-b-structural-move",
     "origin/docs/2165-mission-b-structural-move",
 )
@@ -94,24 +104,60 @@ def _adr_files_on_disk() -> list[Path]:
     return found
 
 
+def _tree_has_premove_originals(sha: str) -> bool:
+    """True iff the tree at *sha* still holds the legacy ADR originals.
+
+    A valid pre-image base predates WP06's move: its tree carries
+    ``architecture/<era>/adr`` (or flat ``architecture/adrs``) originals and has
+    **not** yet grown the post-move ``docs/adr/<era>`` tree. A post-move tree —
+    e.g. HEAD after the mission branch is rebased onto a moved ``main``, or the
+    branch self-ref degenerating to HEAD — yields converted MADR files the
+    legacy converter cannot parse; selecting it would make the proof error
+    spuriously, so it is rejected here rather than silently mis-read downstream.
+    """
+    paths = _git("ls-tree", "-r", "--name-only", sha).splitlines()
+    has_legacy = any(
+        p.startswith("architecture/adrs/")
+        or any(p.startswith(f"architecture/{era}/adr/") for era in _ERAS)
+        for p in paths
+    )
+    has_postmove = any(
+        p.startswith("docs/adr/") and _DATE_PREFIX.match(p.rsplit("/", 1)[-1])
+        for p in paths
+    )
+    return has_legacy and not has_postmove
+
+
 def _resolve_base_sha() -> str:
     """Merge-base SHA whose tree still has the pre-move ADR originals.
 
-    Fails loudly when unresolvable: a missing base would make the invariance
-    proof vacuous, the exact false-green this gate guards against.
+    Rebase-robust: each candidate's merge-base is validated to actually hold
+    pre-move originals (see :func:`_tree_has_premove_originals`); a post-move
+    merge-base (the self-branch ref after a rebase, or HEAD itself) is rejected.
+    Fails loudly when none resolve — a missing/post-move base would make the
+    invariance proof vacuous or spuriously error, the false-green this guards.
     """
     override = os.environ.get("SPEC_KITTY_ADR_BASE")
     refs = (override, *_BASE_REF_CANDIDATES) if override else _BASE_REF_CANDIDATES
+    rejected: list[str] = []
     for ref in refs:
         try:
             sha = _git("merge-base", "HEAD", ref).strip()
         except subprocess.CalledProcessError:
+            rejected.append(f"{ref}: ref unresolved")
             continue
-        if sha:
-            return sha
+        if not sha:
+            rejected.append(f"{ref}: empty merge-base")
+            continue
+        if not _tree_has_premove_originals(sha):
+            rejected.append(f"{ref}: merge-base {sha[:9]} is a post-move tree")
+            continue
+        return sha
     pytest.fail(
-        "cannot resolve a pre-move base ref "
-        f"({', '.join(refs)}) — invariance proof would be vacuous"
+        "cannot resolve a pre-move ADR base — invariance proof would be "
+        "vacuous. Candidates tried:\n  " + "\n  ".join(rejected)
+        + "\nSet SPEC_KITTY_ADR_BASE to a commit/ref whose tree still holds "
+        "the architecture/<era>/adr originals."
     )
 
 
@@ -198,26 +244,76 @@ class TestContentInvariance:
         compared = 0
         mismatches: list[str] = []
         missing_post: list[str] = []
+        convert_errors: list[str] = []
+        divergences: list[str] = []
+        # Collect every per-file failure instead of raising on the first, so a
+        # red run names all offending ADRs at once (no manual bisect needed).
         for post_path, pre_text in originals.items():
             if not post_path.is_file():
                 missing_post.append(post_path.name)
                 continue
             post_text = post_path.read_text(encoding="utf-8")
             # Sanity: the committed post must be the converter's own output.
-            assert post_text == convert(pre_text, filename=post_path.name), (
-                f"{post_path.name}: committed output diverges from converter"
-            )
+            try:
+                rendered = convert(pre_text, filename=post_path.name)
+            except AdrParseError as exc:
+                convert_errors.append(f"{post_path.name}: {exc}")
+                continue
+            if post_text != rendered:
+                divergences.append(post_path.name)
+                continue
             if invariant(pre_text, post_text, filename=post_path.name):
                 compared += 1
             else:
                 mismatches.append(post_path.name)
 
-        assert missing_post == [], f"pre-image had no post file: {missing_post}"
-        assert mismatches == [], f"decision-body mutated (C-002): {mismatches}"
+        report: list[str] = []
+        if missing_post:
+            report.append(
+                f"pre-image had no post file ({len(missing_post)}): {missing_post}"
+            )
+        if convert_errors:
+            report.append(
+                f"converter could not parse pre-image ({len(convert_errors)}): "
+                f"{convert_errors}"
+            )
+        if divergences:
+            report.append(
+                f"committed output diverges from converter ({len(divergences)}): "
+                f"{divergences}"
+            )
+        if mismatches:
+            report.append(
+                f"decision-body mutated, C-002 ({len(mismatches)}): {mismatches}"
+            )
+        assert not report, "ADR content-invariance failures:\n- " + "\n- ".join(report)
+
         # _EXPECTED_CENSUS - 1: the one FR-013 sanctioned self-amendment is
         # excluded from byte-identity (it is intentionally mutated), so a
         # non-vacuous run compares every *other* ADR.
         assert compared == _EXPECTED_INVARIANT, (
             f"non-vacuous invariance: compared {compared}, expected "
             f"{_EXPECTED_INVARIANT} — a 0/partial run is a false-green"
+        )
+
+
+class TestBaseResolutionIsRebaseRobust:
+    """The pre-image base must resolve to a real pre-move tree regardless of
+    whether the mission branch has been rebased onto a moved ``main`` (which
+    makes the branch self-ref degenerate to a post-move HEAD)."""
+
+    def test_resolved_base_is_a_premove_tree(self) -> None:
+        base = _resolve_base_sha()
+        assert _tree_has_premove_originals(base), (
+            f"resolved base {base[:9]} is not a pre-move tree — the invariance "
+            "proof would read already-converted MADR files as pre-images"
+        )
+
+    def test_head_is_rejected_as_a_postmove_tree(self) -> None:
+        # HEAD on this branch is post-move; selecting it (the exact regression a
+        # rebase introduces via the self-branch ref) must be rejected.
+        head = _git("rev-parse", "HEAD").strip()
+        assert not _tree_has_premove_originals(head), (
+            "HEAD still carries legacy architecture/ ADR originals — the move "
+            "has not happened, so this guard cannot detect the post-move case"
         )
