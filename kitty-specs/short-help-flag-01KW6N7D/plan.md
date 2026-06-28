@@ -66,6 +66,6 @@ tests/
 
 - **Purpose**: Make `-h` behave like `--help` at root, command group, and nested subcommand levels.
 - **Relevant requirements**: FR-001, FR-002, FR-003, FR-004, FR-005, NFR-001, NFR-002, NFR-003, NFR-004, C-001, C-002, C-003
-- **Affected surfaces**: `src/specify_cli/__init__.py`, `src/specify_cli/cli/commands/__init__.py`, `tests/specify_cli/cli/commands/test_short_help_flag.py`, `docs/reference/cli-commands.md`, `docs/reference/agent-subcommands.md`
+- **Affected surfaces**: `src/specify_cli/__init__.py`, `src/specify_cli/cli/commands/__init__.py`, `tests/specify_cli/cli/commands/test_short_help_flag.py`, `docs/api/cli-commands.md`, `docs/api/agent-subcommands.md`
 - **Sequencing/depends-on**: none
 - **Risks**: Typer command and group objects may need explicit propagation so nested commands do not retain Click's default `--help` only behavior.

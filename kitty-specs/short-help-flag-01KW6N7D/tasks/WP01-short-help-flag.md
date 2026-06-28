@@ -39,8 +39,8 @@ create_intent:
 execution_mode: code_change
 model: ''
 owned_files:
-- docs/reference/agent-subcommands.md
-- docs/reference/cli-commands.md
+- docs/api/agent-subcommands.md
+- docs/api/cli-commands.md
 - src/specify_cli/__init__.py
 - src/specify_cli/cli/commands/__init__.py
 - tests/specify_cli/cli/commands/test_short_help_flag.py
