@@ -20,7 +20,7 @@ CHANGELOG entries, test snapshots, etc.) continue to resolve.
 
 ## Template
 
-Use the shared template at [`../../adr-template.md`](../../adr-template.md).
+Use the shared template at [`docs/architecture/adr-template.md`](../../architecture/adr-template.md).
 
 ## Index
 
