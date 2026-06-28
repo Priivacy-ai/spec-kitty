@@ -21,7 +21,7 @@ subtasks:
 - T020
 phase: Phase 2 - Routing
 assignee: ''
-shell_pid: flat-exec
+shell_pid: ''
 agent: claude
 history:
 - at: '2026-06-26T18:29:45Z'
