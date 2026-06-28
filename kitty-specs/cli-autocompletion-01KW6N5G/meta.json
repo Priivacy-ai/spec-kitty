@@ -12,5 +12,7 @@
   "purpose_tldr": "Make Spec Kitty commands discoverable through shell tab completion.",
   "slug": "cli-autocompletion-01KW6N5G",
   "target_branch": "feat/cli-autocompletion",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-28T08:31:30.018683+00:00"
 }
