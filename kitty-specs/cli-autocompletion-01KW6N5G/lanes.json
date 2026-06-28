@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "mission_slug": "cli-autocompletion-01KW6N5G",
+  "mission_id": "01KW6N5G722JFC1HZSA6X22S2W",
+  "mission_branch": "kitty/mission-cli-autocompletion-01KW6N5G",
+  "target_branch": "feat/cli-autocompletion",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/__init__.py",
+        "tests/specify_cli/cli/commands/test_root_completion.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-06-28T08:30:52.294616+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
