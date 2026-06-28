@@ -12,5 +12,7 @@
   "purpose_tldr": "Show root command listings in alphabetical order.",
   "slug": "alphabetical-command-listing-01KW6N8W",
   "target_branch": "feat/alphabetical-command-listing",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-28T08:45:54.007082+00:00"
 }
