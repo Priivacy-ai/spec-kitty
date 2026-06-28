@@ -7,6 +7,7 @@
   "mission_number": null,
   "mission_slug": "cli-autocompletion-01KW6N5G",
   "mission_type": "software-dev",
+  "pr_bound": true,
   "purpose_context": "This mission helps CLI users discover and invoke Spec Kitty commands faster by enabling tab completion for top-level commands and available subcommands, reducing reliance on documentation lookup and command memorization.",
   "purpose_tldr": "Make Spec Kitty commands discoverable through shell tab completion.",
   "slug": "cli-autocompletion-01KW6N5G",
