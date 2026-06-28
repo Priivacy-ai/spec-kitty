@@ -61,6 +61,7 @@ _META_JSON_FILENAME = "meta.json"
 # field-name constant and this WP must not edit that module (upstream gap: a
 # ``VCS_LOCK_FIELDS`` export there would let this be imported instead).
 _VCS_LOCK_META_FIELDS: frozenset[str] = frozenset({"vcs", "vcs_locked_at"})
+_MISSING_META_VALUE = object()
 
 
 def _protected_branch_status_commit_error(branch: str, repo_root: Path) -> str | None:
@@ -602,7 +603,10 @@ def _is_vcs_lock_only_meta_diff(
     """
     base: Mapping[str, Any] = committed or {}
     changed_keys = {
-        key for key in set(base) | set(working) if base.get(key) != working.get(key)
+        key
+        for key in set(base) | set(working)
+        if base.get(key, _MISSING_META_VALUE)
+        != working.get(key, _MISSING_META_VALUE)
     }
     return bool(changed_keys) and changed_keys <= _VCS_LOCK_META_FIELDS
 

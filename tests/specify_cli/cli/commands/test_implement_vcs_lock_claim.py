@@ -385,6 +385,18 @@ def test_drop_helper_keeps_non_lock_dirty_meta_under_auto_commit_false(
         ({"vcs": "git"}, {"vcs": "git"}, False),
         # Only a non-lock change -> NOT lock-only.
         ({"slug": "m"}, {"slug": "m", "purpose_tldr": "x"}, False),
+        # Removing a non-lock null-valued key is still a dirty meta change.
+        (
+            {"mission_number": None},
+            {"vcs": "git", "vcs_locked_at": _LOCKED_AT},
+            False,
+        ),
+        # Adding a non-lock null-valued key is still a dirty meta change.
+        (
+            {"vcs": "git", "vcs_locked_at": _LOCKED_AT},
+            {"vcs": "git", "vcs_locked_at": _LOCKED_AT, "mission_number": None},
+            False,
+        ),
     ],
 )
 def test_is_vcs_lock_only_meta_diff_truth_table(
