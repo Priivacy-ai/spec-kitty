@@ -316,6 +316,42 @@ def _run_doctor_restart_daemon_process_fast_path(argv: list[str]) -> None:
     os._exit(result.exit_code)
 
 
+_JSON_VALUE_OPTIONS = {
+    "--agent",
+    "--answer",
+    "--decision-id",
+    "--feature",
+    "--kind",
+    "--mission",
+    "--mode",
+    "--provider",
+    "--query",
+    "--result",
+    "--status",
+    "--target",
+    "--target-branch",
+    "--tool",
+}
+
+
+def _argv_requests_json_mode(argv: list[str]) -> bool:
+    """Return True when raw argv contains ``--json`` as a flag, not a value."""
+    skip_next = False
+    for arg in argv[1:]:
+        if skip_next:
+            skip_next = False
+            continue
+        if arg == "--":
+            return False
+        if arg == "--json":
+            return True
+        if arg.startswith("--") and "=" not in arg:
+            skip_next = arg in _JSON_VALUE_OPTIONS
+            continue
+        skip_next = False
+    return False
+
+
 def main() -> None:
     # FR-130 / FR-131: Install the CLI logging bootstrap early — before the
     # Typer app runs — so that warnings.warn(...) calls (including
@@ -325,7 +361,12 @@ def main() -> None:
     # handler is installed (no double-printing).
     from specify_cli.cli.logging_bootstrap import install_cli_logging_bootstrap
 
-    install_cli_logging_bootstrap()
+    # Machine mode: when invoked with ``--json``, agents commonly capture the
+    # merged ``2>&1`` stream and parse it — so diagnostic warnings/logs on stderr
+    # would corrupt the JSON. Run the bootstrap in silent mode so a successful
+    # ``--json`` run emits only the JSON object (errors are still emitted as JSON
+    # on stdout by the commands themselves).
+    install_cli_logging_bootstrap(json_mode=_argv_requests_json_mode(sys.argv))
 
     # Ensure UTF-8 encoding on Windows to handle Unicode characters in git output
     # Fixes: https://github.com/Priivacy-ai/spec-kitty/issues/66

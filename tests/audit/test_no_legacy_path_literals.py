@@ -77,7 +77,12 @@ def test_no_legacy_path_literals_in_cli_commands() -> None:
     )
 
 
-def _capture_nudge(module_name: str, runtime_home: pathlib.Path) -> str:
+def _capture_nudge(
+    module_name: str,
+    runtime_home: pathlib.Path,
+    *,
+    argv: list[str] | None = None,
+) -> str:
     """Import the named module, reset its nudge flag, and capture stderr on call.
 
     Uses ``SPEC_KITTY_HOME`` to pin the runtime home to a tmp path so the
@@ -85,7 +90,10 @@ def _capture_nudge(module_name: str, runtime_home: pathlib.Path) -> str:
     home directory.  Returns whatever the nudge printed to stderr.
     """
     old_env = os.environ.get("SPEC_KITTY_HOME")
+    old_argv = sys.argv[:]
     os.environ["SPEC_KITTY_HOME"] = str(runtime_home)
+    if argv is not None:
+        sys.argv = argv[:]
     try:
         # Fresh import so module-level state is clean
         if module_name in sys.modules:
@@ -97,6 +105,7 @@ def _capture_nudge(module_name: str, runtime_home: pathlib.Path) -> str:
             module._emit_migrate_nudge()
         return buf.getvalue()
     finally:
+        sys.argv = old_argv
         if old_env is None:
             os.environ.pop("SPEC_KITTY_HOME", None)
         else:
@@ -137,6 +146,26 @@ def test_doctrine_resolver_nudge_renders_real_runtime_path(tmp_path: pathlib.Pat
     assert "~/.kittify/" not in output, (
         f"Doctrine resolver nudge still contains a legacy tilde literal:\n{output!r}"
     )
+
+
+@pytest.mark.parametrize(
+    "module_name",
+    ["specify_cli.runtime.resolver", "doctrine.resolver"],
+)
+def test_resolver_nudge_is_suppressed_for_json_invocations(
+    tmp_path: pathlib.Path,
+    module_name: str,
+) -> None:
+    """Legacy migration nudges must not corrupt a merged ``--json 2>&1`` stream."""
+    fake_home = tmp_path / "runtime-home"
+
+    output = _capture_nudge(
+        module_name,
+        fake_home,
+        argv=["spec-kitty", "agent", "mission", "finalize-tasks", "--json"],
+    )
+
+    assert output == ""
 
 
 # --- T021 / FR-010: no hand-rolled global-state home recompute ---------------

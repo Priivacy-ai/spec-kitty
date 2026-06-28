@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -358,6 +359,25 @@ def test_emit_migrate_nudge_message_starts_with_note(
     assert "Note:" in stderr
 
 
+def test_emit_migrate_nudge_suppressed_for_json_invocation(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """JSON invocations must keep merged stdout/stderr streams parseable."""
+    monkeypatch.setattr(resolver_module, "get_kittify_home", lambda: Path("/tmp/fake-home"))
+    monkeypatch.setattr(sys, "argv", ["spec-kitty", "status", "--json"])
+    resolver_module._reset_migrate_nudge()
+
+    resolver_module._emit_migrate_nudge()
+
+    assert capsys.readouterr().err == ""
+
+    monkeypatch.setattr(sys, "argv", ["spec-kitty", "status"])
+    resolver_module._emit_migrate_nudge()
+
+    assert "spec-kitty migrate" in capsys.readouterr().err
+
+
 # ---------------------------------------------------------------------------
 # T019 – resolve_template / resolve_command default mission and passthrough
 # ---------------------------------------------------------------------------
@@ -440,4 +460,3 @@ def test_resolve_template_and_command_package_tier_assert_path_and_mission(
     assert command.tier.name == ResolutionTier.PACKAGE_DEFAULT.name
     assert command.path is not None
     assert command.mission == "software-dev"
-
