@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-28T08:44:22.112529+00:00",
+      "accepted_by": "cursor",
+      "accepted_from_commit": "381e5dae788480d52bee6dcc0c0c4fbcc30ba9e1"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-28T08:44:22.112529+00:00",
+  "accepted_by": "cursor",
+  "accepted_from_commit": "381e5dae788480d52bee6dcc0c0c4fbcc30ba9e1",
   "coordination_branch": "kitty/mission-short-help-flag-01KW6N7D",
   "created_at": "2026-06-28T08:23:37.787831+00:00",
   "flattened": false,
