@@ -1,8 +1,8 @@
 # Mission Specification: Copyable Version Output
 
-**Mission Branch**: `copyable-version-output-01KW6N9V`  
-**Created**: 2026-06-28  
-**Status**: Draft  
+**Mission Branch**: `copyable-version-output-01KW6N9V`
+**Created**: 2026-06-28
+**Status**: Draft
 **Input**: User description: "remove cat ascii art from `--version` because it makes it hard to copy/paste on GH issues (alternatively, move the cat below the version number and make the cat smaller)"
 
 ## User Scenarios & Testing *(mandatory)*
