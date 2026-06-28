@@ -39,6 +39,8 @@ create_intent:
 execution_mode: code_change
 model: ''
 owned_files:
+- docs/reference/agent-subcommands.md
+- docs/reference/cli-commands.md
 - src/specify_cli/__init__.py
 - src/specify_cli/cli/commands/__init__.py
 - tests/specify_cli/cli/commands/test_short_help_flag.py
@@ -120,3 +122,4 @@ task_type: implement
 - 2026-06-28T08:39:37Z – cursor – shell_pid=71807 – Assigned agent via action command
 - 2026-06-28T08:43:13Z – cursor – shell_pid=71807 – Ready for review: implementation committed; targeted tests passed (4 passed).
 - 2026-06-28T08:43:19Z – cursor – shell_pid=74081 – Started review via action command
+- 2026-06-28T14:28:35Z – codex – Reroll: expanded short-help coverage to two groups and two nested groups; regenerated CLI reference docs for `-h` help rows.

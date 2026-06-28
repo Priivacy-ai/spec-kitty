@@ -26,7 +26,9 @@ def _bypass_startup_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
     [
         ([], ["Usage:", "Options", "Commands"]),
         (["agent"], ["Usage:", "mission", "tasks"]),
+        (["auth"], ["Usage:", "login", "status"]),
         (["agent", "mission"], ["Usage:", "create", "finalize-tasks"]),
+        (["agent", "tasks"], ["Usage:", "list-tasks", "mark-status"]),
     ],
 )
 def test_short_help_flag_matches_long_help(path: list[str], markers: list[str]) -> None:
@@ -35,6 +37,7 @@ def test_short_help_flag_matches_long_help(path: list[str], markers: list[str]) 
 
     assert short_result.exit_code == 0
     assert long_result.exit_code == 0
+    assert "-h" in long_result.output
 
     for marker in markers:
         assert marker in short_result.output
