@@ -12,5 +12,7 @@
   "purpose_tldr": "Make version output easy to copy into issue reports.",
   "slug": "copyable-version-output-01KW6N9V",
   "target_branch": "feat/copyable-version-output",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-28T08:52:38.715102+00:00"
 }
