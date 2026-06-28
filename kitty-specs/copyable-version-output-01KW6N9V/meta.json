@@ -1,24 +1,10 @@
 {
-  "accept_commit": "3a25fedd5e2810fa8680cbf0eb5ce6d0536dec67",
-  "acceptance_history": [
-    {
-      "accept_commit": "3a25fedd5e2810fa8680cbf0eb5ce6d0536dec67",
-      "acceptance_mode": "pr",
-      "accepted_at": "2026-06-28T08:55:47.760263+00:00",
-      "accepted_by": "zohar",
-      "accepted_from_commit": "a15d77178752f92c0fa038c79b0f0a494ded3c5d"
-    }
-  ],
-  "acceptance_mode": "pr",
-  "accepted_at": "2026-06-28T08:55:47.760263+00:00",
-  "accepted_by": "zohar",
-  "accepted_from_commit": "a15d77178752f92c0fa038c79b0f0a494ded3c5d",
   "coordination_branch": "kitty/mission-copyable-version-output-01KW6N9V",
   "created_at": "2026-06-28T08:24:57.463672+00:00",
   "flattened": false,
   "friendly_name": "Copyable Version Output",
   "mission_id": "01KW6N9VBP46T024MXT8C368JE",
-  "mission_number": null,
+  "mission_number": 153,
   "mission_slug": "copyable-version-output-01KW6N9V",
   "mission_type": "software-dev",
   "pr_bound": true,
@@ -26,7 +12,5 @@
   "purpose_tldr": "Make version output easy to copy into issue reports.",
   "slug": "copyable-version-output-01KW6N9V",
   "target_branch": "feat/copyable-version-output",
-  "topology": "coord",
-  "vcs": "git",
-  "vcs_locked_at": "2026-06-28T08:52:38.715102+00:00"
+  "topology": "coord"
 }

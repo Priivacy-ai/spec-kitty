@@ -97,10 +97,8 @@ def version_callback(value: bool) -> None:
     """Display version and exit."""
     if value:
         from specify_cli.cli.console import console
-        from specify_cli.cli.helpers import show_banner
         from specify_cli.distribution import resolve_distribution_profile
 
-        show_banner(force=True)
         # Identity flows through the DistributionProfile (the aggregated seam):
         # a fork's version_label wins, else its package_name.
         profile = resolve_distribution_profile()
