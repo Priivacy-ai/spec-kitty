@@ -7,9 +7,19 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 3.2.3
+## [Unreleased] - 3.2.4
 
 ### ✨ Added
+
+- **Shell tab-completion for commands and subcommands (#2233).** Pressing TAB
+  after `spec-kitty ` (or any command group such as `spec-kitty agent `) now
+  completes the available commands. Completion is served by a latency-safe fast
+  path (`specify_cli.completion`) that generates candidates from a pre-built
+  command manifest instead of importing the full CLI, keeping suggestions well
+  under the 500 ms responsiveness budget. Option completion transparently falls
+  back to the full application. A drift-guard test fails if the manifest and the
+  real command surface diverge; regenerate it with
+  `SPEC_KITTY_ENABLE_SAAS_SYNC=1 python -m specify_cli.completion --regenerate`.
 
 - **Retrospectives now have a durable home and survive coordination teardown (#2119).**
   A new `RETROSPECTIVE` primary-artifact kind routes `retrospective.yaml` to the

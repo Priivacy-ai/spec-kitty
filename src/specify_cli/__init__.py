@@ -337,6 +337,20 @@ def main() -> None:
             # Python < 3.7 or reconfigure not available
             pass
 
+    # Shell completion is latency-critical: every TAB press spawns this process
+    # with a ``_SPEC_KITTY_COMPLETE`` instruction.  Serve command/subcommand-name
+    # candidates from a small manifest instead of importing the whole command
+    # tree (NFR-001 / SC-003, ~500 ms budget).  Returns ``None`` — falling
+    # through to the full app — when completion is not requested or when an
+    # option token is present (options are out of the manifest's scope).
+    from specify_cli.completion import maybe_run_completion
+
+    completion_exit = maybe_run_completion(sys.argv, os.environ)
+    if completion_exit is not None:
+        sys.stdout.flush()
+        sys.stderr.flush()
+        raise SystemExit(completion_exit)
+
     if _is_doctor_restart_daemon_process_fast_path(sys.argv):
         _run_doctor_restart_daemon_process_fast_path(sys.argv)
 
