@@ -1,0 +1,15 @@
+{
+  "coordination_branch": "kitty/mission-alphabetical-command-listing-01KW6N8W",
+  "created_at": "2026-06-28T08:24:25.738982+00:00",
+  "flattened": false,
+  "friendly_name": "Alphabetical Command Listing",
+  "mission_id": "01KW6N8WCAAYSHWXT47BD3J1PW",
+  "mission_number": null,
+  "mission_slug": "alphabetical-command-listing-01KW6N8W",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission improves command discovery when users run Spec Kitty without parameters or subcommands by presenting the available command list in a predictable alphabetical order.",
+  "purpose_tldr": "Show root command listings in alphabetical order.",
+  "slug": "alphabetical-command-listing-01KW6N8W",
+  "target_branch": "feat/alphabetical-command-listing",
+  "topology": "coord"
+}
