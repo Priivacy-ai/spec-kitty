@@ -72,6 +72,9 @@ def _should_suppress_nag(argv: list[str] | None = None) -> bool:
 class BannerGroup(TyperGroup):
     """Custom Typer group that renders the banner before help output."""
 
+    def list_commands(self, ctx: click.Context) -> list[str]:
+        return sorted(super().list_commands(ctx))
+
     def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
         if _should_use_simple_help():
             _format_simple_help(self, ctx, formatter)

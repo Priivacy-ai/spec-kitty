@@ -50,6 +50,22 @@ def _top_level_group_name(group_info: TyperInfo) -> str | None:
     return None
 
 
+def _command_name(command_info: object) -> str:
+    name = getattr(command_info, "name", None)
+    if _is_explicit_typer_setting(name) and name is not None:
+        return str(name)
+
+    callback = getattr(command_info, "callback", None)
+    callback_name = getattr(callback, "__name__", "")
+    return str(callback_name).replace("_", "-")
+
+
+def _sort_root_command_metadata(app: typer.Typer) -> None:
+    """Sort root commands and groups by their displayed names."""
+    app.registered_commands.sort(key=_command_name)
+    app.registered_groups.sort(key=lambda group_info: _top_level_group_name(group_info) or "")
+
+
 def _top_level_group_invokes_without_command(group_info: TyperInfo) -> bool:
     values = (
         group_info.invoke_without_command,
@@ -245,6 +261,7 @@ def register_commands(app: typer.Typer) -> None:
     from specify_cli.cli.commands.retrospect import app as retrospect_app  # WP05 (replaces WP09 single-command registration)
 
     app.add_typer(retrospect_app, name="retrospect", help="Retrospective authoring and summary (create / backfill / summary)")
+    _sort_root_command_metadata(app)
     _enforce_top_level_empty_group_help(app)
 
 

@@ -14,10 +14,10 @@
 
 ### Included Subtasks
 
-- [x] T001 Sort root command metadata in `src/specify_cli/cli/commands/__init__.py`
-- [x] T002 Add regression tests in `tests/specify_cli/cli/commands/test_root_command_order.py`
-- [x] T003 Verify sorted order and representative command preservation
-- [x] T004 Run targeted root command order tests
+- [ ] T001 Sort root command metadata in `src/specify_cli/cli/commands/__init__.py`
+- [ ] T002 Add regression tests in `tests/specify_cli/cli/commands/test_root_command_order.py`
+- [ ] T003 Verify sorted order and representative command preservation
+- [ ] T004 Run targeted root command order tests
 
 ### Dependencies
 
