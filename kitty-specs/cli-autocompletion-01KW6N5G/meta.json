@@ -1,4 +1,16 @@
 {
+  "acceptance_history": [
+    {
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-28T08:37:46.291246+00:00",
+      "accepted_by": "cursor",
+      "accepted_from_commit": "dd5eeae38b7e292b4a2cd354f5114a00d6060691"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-28T08:37:46.291246+00:00",
+  "accepted_by": "cursor",
+  "accepted_from_commit": "dd5eeae38b7e292b4a2cd354f5114a00d6060691",
   "coordination_branch": "kitty/mission-cli-autocompletion-01KW6N5G",
   "created_at": "2026-06-28T08:22:34.979748+00:00",
   "flattened": false,
