@@ -49,6 +49,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   normalized onto the platformdirs app-data base. No automatic migration of
   existing `~/.spec-kitty` data is performed — setting the variable selects a
   (possibly fresh) separate root and leaves existing default-home data in place.
+- **`--json` output is now safe to capture with `2>&1`.** The CLI correctly puts
+  the JSON object on stdout and diagnostics on stderr, but agents commonly invoke
+  `spec-kitty … --json 2>&1` and parse the *merged* stream — so any warning/log line
+  on stderr (e.g. `CharterCatalogMissWarning`, deprecation notices) corrupted the
+  JSON. In `--json` mode the logging bootstrap now runs in a silent mode: every root
+  log handler is raised above real records and a `NullHandler` is installed when none
+  exist, so Python's `lastResort` WARNING→stderr fallback never fires and
+  `captureWarnings`-routed warnings are dropped too. A successful `--json` run emits
+  only the JSON object on both stdout and the merged `2>&1` stream; genuine command
+  errors are still emitted as JSON on stdout by the commands themselves. (Typer
+  *usage* errors for genuinely malformed invocations still print to stderr — a
+  separate, pre-dispatch surface.)
 - **`spec-kitty accept` no longer false-positives on a mission's `contracts/` path
   convention.** The accept gate's path-convention check (`validate_mission_paths`)
   resolved every mission-declared path against the repo root, so a mission-artifact
