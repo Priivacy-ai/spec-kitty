@@ -145,7 +145,7 @@ def _build_app() -> typer.Typer:
             "Setup tool for Spec Kitty spec-driven development projects.\n\n"
             "Set SPEC_KITTY_NO_UPGRADE_CHECK=1 to disable the upgrade-check notice."
         ),
-        add_completion=False,
+        add_completion=True,
         invoke_without_command=True,
         cls=BannerGroup,
     )

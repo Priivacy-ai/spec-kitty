@@ -1,24 +1,10 @@
 {
-  "accept_commit": "e7f164e2ec0f5a5b85d3760e86332a5b9c8b0415",
-  "acceptance_history": [
-    {
-      "accept_commit": "e7f164e2ec0f5a5b85d3760e86332a5b9c8b0415",
-      "acceptance_mode": "pr",
-      "accepted_at": "2026-06-28T08:37:46.291246+00:00",
-      "accepted_by": "cursor",
-      "accepted_from_commit": "dd5eeae38b7e292b4a2cd354f5114a00d6060691"
-    }
-  ],
-  "acceptance_mode": "pr",
-  "accepted_at": "2026-06-28T08:37:46.291246+00:00",
-  "accepted_by": "cursor",
-  "accepted_from_commit": "dd5eeae38b7e292b4a2cd354f5114a00d6060691",
   "coordination_branch": "kitty/mission-cli-autocompletion-01KW6N5G",
   "created_at": "2026-06-28T08:22:34.979748+00:00",
   "flattened": false,
   "friendly_name": "CLI Autocompletion",
   "mission_id": "01KW6N5G722JFC1HZSA6X22S2W",
-  "mission_number": null,
+  "mission_number": 153,
   "mission_slug": "cli-autocompletion-01KW6N5G",
   "mission_type": "software-dev",
   "pr_bound": true,
@@ -26,7 +12,5 @@
   "purpose_tldr": "Make Spec Kitty commands discoverable through shell tab completion.",
   "slug": "cli-autocompletion-01KW6N5G",
   "target_branch": "feat/cli-autocompletion",
-  "topology": "coord",
-  "vcs": "git",
-  "vcs_locked_at": "2026-06-28T08:31:30.018683+00:00"
+  "topology": "coord"
 }
