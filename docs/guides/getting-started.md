@@ -1,0 +1,136 @@
+---
+title: Getting Started with Spec Kitty
+description: Install Spec Kitty 3.2, initialize a project, and create your first mission with a guided beginner workflow.
+doc_status: active
+updated: '2026-06-03'
+related:
+- docs/guides/your-first-feature.md
+---
+# Getting Started with Spec Kitty
+
+**Divio type**: Tutorial
+
+In this tutorial, you'll install Spec Kitty and create your first feature specification.
+
+**Time**: ~30 minutes
+**Prerequisites**: Python 3.11+, Git, an AI coding agent (Claude Code, Cursor, Gemini CLI, etc.)
+
+## Step 1: Install Spec Kitty
+
+Install the CLI with `pipx`:
+
+```bash
+pipx install spec-kitty-cli
+```
+
+`pipx` is preferred for command-line tools because it creates an isolated
+virtual environment for Spec Kitty and avoids the
+`externally-managed-environment` errors that modern Linux distributions can
+raise for direct `pip install` commands.
+
+Other supported install methods:
+
+```bash
+uv tool install spec-kitty-cli
+```
+
+```bash
+# Inside an activated virtual environment
+python -m pip install spec-kitty-cli
+```
+
+Verify the CLI is available:
+
+```bash
+spec-kitty --version
+```
+
+Expected output (abridged):
+
+```
+spec-kitty-cli version 3.1.5
+```
+
+## Step 2: Initialize a Project
+
+Create a new project directory with the agent you plan to use:
+
+```bash
+spec-kitty init my-spec-project --ai claude
+cd my-spec-project
+```
+
+Expected output (abridged):
+
+```
+OK Initialized Spec Kitty project
+OK Created .kittify/ scaffold
+```
+
+Tip: Use `spec-kitty init . --ai claude` to initialize the current folder.
+
+## Step 3: Create Your First Specification
+
+Open your AI agent in this repository and run the `specify` command.
+
+In your agent:
+
+```text
+/spec-kitty.specify Build a tiny command-line task list app.
+```
+
+You'll be asked a discovery interview. Answer each question until the command completes.
+
+Expected results:
+
+- `kitty-specs/###-task-list/spec.md` (mission spec)
+- A new mission directory under `kitty-specs/`
+- No Git commit is created automatically; `init` and planning commands leave commit control to you
+
+## Step 4: Verify Your Work
+
+Confirm the feature directory exists:
+
+```bash
+ls kitty-specs
+```
+
+Example output:
+
+```
+###-task-list
+```
+
+If the command created a new worktree later in the workflow, it will appear here:
+
+```bash
+ls .worktrees
+```
+
+## Troubleshooting
+
+- **`spec-kitty: command not found`**: Reopen your shell, run `pipx ensurepath` if you installed with `pipx`, or reinstall via `pipx` or `uv`. Then rerun `spec-kitty --version`.
+- **`pip install` fails with `externally-managed-environment`**: Use `pipx install spec-kitty-cli`, or create and activate a virtual environment before using `python -m pip install spec-kitty-cli`.
+- **No `/spec-kitty.specify` command available**: Re-run `spec-kitty init . --ai <your-agent>` from the project root, then verify the setup with `spec-kitty verify-setup --diagnostics`.
+- **`WAITING_FOR_DISCOVERY_INPUT`**: The command is paused for your answers; provide the requested details and continue.
+
+## What's Next?
+
+Continue with [Your First Feature](your-first-feature.md) for the complete workflow from specification to merge.
+
+### Related How-To Guides
+
+- [Install and Upgrade](install-and-upgrade.md) - Additional installation options
+- [Create a Specification](create-specification.md) - Deep dive into `/spec-kitty.specify`
+- [Non-Interactive Init](non-interactive-init.md) - Scripted project setup
+
+### Reference Documentation
+
+- [CLI Commands](../api/cli-commands.md) - Full command reference
+- [Slash Commands](../api/slash-commands.md) - AI agent slash commands
+- [Supported Agents](../api/supported-agents.md) - Slash-command agents supported by the CLI
+
+### Learn More
+
+- [Spec-Driven Development](../architecture/spec-driven-development.md) - Why specs matter
+- [Mission System](../architecture/mission-system.md) - How missions shape workflows

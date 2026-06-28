@@ -12,10 +12,9 @@ Design notes
 
 * **Default authority paths** are hard-coded here so every project gets the
   same convention without having to declare them in the charter
-  (``glossary/contexts/`` for terminology canon, ``architecture/3.x/adr/``
-  for architectural intent — the canonical track since the 3.x era; the
-  back-compat symlinks at ``architecture/2.x/adr/`` resolve into this
-  directory).  Each default carries a project-agnostic "When you ..., ..."
+  (``docs/context/`` for terminology canon, ``docs/adr/3.x/`` for
+  architectural intent — the canonical homes after the Common Docs structural
+  fold).  Each default carries a project-agnostic "When you ..., ..."
   conditional.
 * **Charter-declared paths** come from
   :attr:`charter.schemas.DoctrineSelectionConfig.authority_paths` and are
@@ -47,26 +46,32 @@ AUTHORITY_PATHS_HEADER: str = "Project authority paths:"
 """The literal section header anchored by the ATDD self-sufficiency test."""
 
 
+_TERMINOLOGY_WHEN: str = (
+    "canonical terminology — when you encounter a domain term in the "
+    "diff, grep this directory"
+)
+_ADR_WHEN: str = (
+    "architectural intent — when you change a structural boundary, "
+    "read the relevant ADR"
+)
+
+
 DEFAULT_AUTHORITY_PATHS: dict[str, str] = {
-    "glossary/contexts/": (
-        "canonical terminology — when you encounter a domain term in the "
-        "diff, grep this directory"
-    ),
-    "architecture/3.x/adr/": (
-        "architectural intent — when you change a structural boundary, "
-        "read the relevant ADR"
-    ),
+    "docs/context/": _TERMINOLOGY_WHEN,
+    "docs/adr/3.x/": _ADR_WHEN,
 }
 """Mapping of default authority directory to its when-doing copy.
 
-Both defaults are rendered with a trailing slash so callers that grep for
-``glossary/contexts/`` (the ATDD assertion form) match unambiguously.
+Each home is rendered with a trailing slash so callers that grep for
+``docs/context/`` (the ATDD assertion form) match unambiguously.
 
-The ADR default was updated from ``architecture/2.x/adr/`` to
-``architecture/3.x/adr/`` (FR-011 / WP07 — authority-path flip).
-Back-compat symlinks at ``architecture/2.x/adr/`` continue to resolve into
-the 3.x directory, so existing projects with the old path in their charter
-are unaffected by the renderer change.
+**Mission B (C-003 / NFR-005):** the doc-tree fold relocated the terminology
+canon to ``docs/context/`` and the architectural-intent ADRs to
+``docs/adr/3.x/``.  The WP01 dual-read staged both the pre-fold homes and the
+new homes while the move was in flight; now that the tree has landed
+(WP03/WP06) the legacy branches are dropped — only the canonical new homes
+remain.  Rendering stays existence-gated, so a home surfaces only when its
+directory is present.
 """
 
 
@@ -120,7 +125,7 @@ def render_authority_paths(
         The charter-resolved doctrine selection.  Its
         :attr:`authority_paths` list contributes additional pointers
         beyond the built-in defaults; entries that duplicate a default
-        path (e.g. ``glossary/contexts/``) are deduplicated.
+        path (e.g. ``docs/context/``) are deduplicated.
 
     Returns
     -------

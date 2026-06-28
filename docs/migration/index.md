@@ -1,13 +1,30 @@
 ---
-title: "Migration to Spec Kitty 3.2"
-description: "Migration hub for upgrading existing Spec Kitty projects to the current 3.2 Charter-era runtime and archive boundary."
+title: Migration to Spec Kitty 3.2
+description: Migration hub for upgrading existing Spec Kitty projects to the current 3.2 Charter-era runtime and archive boundary.
+doc_status: active
+updated: '2026-06-03'
+related:
+- docs/context/index.md
+- docs/archive/index.md
+- docs/migration/2-1-main-cutover-checklist.md
+- docs/migration/charter-ownership-consolidation.md
+- docs/migration/cross-repo-e2e-gate.md
+- docs/migration/doctrine-local-overlay-to-org-layer.md
+- docs/migration/feature-flag-deprecation.md
+- docs/migration/from-charter-2x.md
+- docs/migration/mission-id-canonical-identity.md
+- docs/migration/mission-type-flag-deprecation.md
+- docs/migration/retrospective-events-upstream.md
+- docs/migration/shared-package-boundary-cutover.md
+- docs/migration/teamspace-mission-state-920-closeout.md
+- docs/migration/teamspace-mission-state-repair.md
+- docs/migration/upgrade-to-0-12-0.md
 ---
-
-> Migration note: This page collects migration paths and historical cutover notes. For new projects, start with [Getting Started](../tutorials/getting-started.md).
+> Migration note: This page collects migration paths and historical cutover notes. For new projects, start with [Getting Started](../guides/getting-started.md).
 
 # Migration to Spec Kitty 3.2
 
-Use these pages when an existing project, script, or operator habit predates the current 3.2 documentation set. New projects should start with [Getting Started](../tutorials/getting-started.md) and the [3.2 current overview](../3x/index.md).
+Use these pages when an existing project, script, or operator habit predates the current 3.2 documentation set. New projects should start with [Getting Started](../guides/getting-started.md) and the [3.2 current overview](../context/index.md).
 
 ## Answer summary
 

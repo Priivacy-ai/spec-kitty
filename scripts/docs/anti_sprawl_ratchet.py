@@ -2,7 +2,7 @@
 
 This is the third and final *ruler* of the Common Docs consolidation: a
 **report-only** structural guard that detects the four sprawl regressions the
-reconciliation ADR (``architecture/3.x/adr/2026-06-27-1-common-docs-reconciliation.md``)
+reconciliation ADR (``docs/adr/3.x/2026-06-27-1-common-docs-reconciliation.md``)
 and ``DIRECTIVE_042`` are meant to cure. Mission B flips it to **blocking**
 against the cleaned tree (paired with a full-gate dry-run per C-004); here it
 only *reports* — it always exits ``0`` unless ``--strict`` is passed.
@@ -138,6 +138,12 @@ DOCS_ROOT_NAME: Final[str] = "docs"
 #: Common Docs root marker: a directory carrying this file at its top is a root.
 ROOT_MARKER: Final[str] = "index.md"
 
+#: Navigational files that are *not* decision records and so are excluded from
+#: the ADR-frontmatter detector — the section/era landing pages. ``index.md`` is
+#: the Common Docs section index; ``README.md`` is the era landing page. Both are
+#: governed by the missing-section-index detector, not the ADR schema check.
+_ADR_NON_RECORD_NAMES: Final[frozenset[str]] = frozenset({ROOT_MARKER, "README.md"})
+
 #: A re-introduced per-version shadow tree under ``docs/`` (``1x``, ``2.x`` …).
 _VERSION_SHADOW_RE: Final[re.Pattern[str]] = re.compile(r"^\d+\.?x$")
 
@@ -209,16 +215,23 @@ def _has_adr_frontmatter(text: str) -> bool:
 
 
 def _iter_adr_files(root: Path) -> list[Path]:
-    """Return sorted ``*.md`` files living under any ``adr/`` directory.
+    """Return sorted ``*.md`` decision records living under any ``adr/`` directory.
 
-    The section landing page (``index.md``) is *not* a decision record — it is
-    the Common Docs section index (covered by the missing-index detector) — so
-    it is excluded from the ADR frontmatter check.
+    Navigational landing pages (``index.md`` section index, ``README.md`` era
+    landing) are *not* decision records — they are covered by the missing-index
+    detector — so they are excluded from the ADR frontmatter check.
+
+    Hidden directories (``.worktrees``, ``.git``, ``.venv`` …) are skipped: they
+    are never part of the published docs tree and, in a developer checkout with
+    sibling lane worktrees under ``.worktrees/``, would otherwise pull thousands
+    of unrelated ADR copies into the scan (and are absent in CI's clean
+    checkout anyway).
     """
     return sorted(
         path
         for path in root.rglob("*.md")
-        if path.name != ROOT_MARKER
+        if path.name not in _ADR_NON_RECORD_NAMES
+        and not any(part.startswith(".") for part in path.relative_to(root).parts)
         and "adr" in {part.lower() for part in path.parent.parts}
     )
 

@@ -174,7 +174,7 @@ kitty-specs/      # Mission specs (dogfooding)
 docs/             # User documentation
 ```
 
-New architectural designs → `architecture/` following `architecture/README.md` template.
+New architectural designs → `architecture/` following `docs/architecture/README.md` template.
 
 ## Commands
 
@@ -286,7 +286,7 @@ Full docs: [CONTRIBUTING.md](CONTRIBUTING.md#release-process)
 
 **Status source of truth:** Feature metadata on main branch, not the open worktree.
 
-**References:** [execution-lanes.md](docs/explanation/execution-lanes.md), [git-worktrees.md](docs/explanation/git-worktrees.md)
+**References:** [execution-lanes.md](docs/architecture/execution-lanes.md), [git-worktrees.md](docs/architecture/git-worktrees.md)
 
 ---
 
@@ -412,13 +412,13 @@ Full runbook: [docs/migration/mission-id-canonical-identity.md](docs/migration/m
 
 Enforced by `tests/architectural/test_shared_package_boundary.py`, `test_pyproject_shape.py`, and the `clean-install-verification` CI job.
 
-ADR: [`architecture/3.x/adr/2026-04-25-1-shared-package-boundary.md`](architecture/3.x/adr/2026-04-25-1-shared-package-boundary.md). Runbook: [`docs/migration/shared-package-boundary-cutover.md`](docs/migration/shared-package-boundary-cutover.md).
+ADR: [`docs/adr/3.x/2026-04-25-1-shared-package-boundary.md`](docs/adr/3.x/2026-04-25-1-shared-package-boundary.md). Runbook: [`docs/migration/shared-package-boundary-cutover.md`](docs/migration/shared-package-boundary-cutover.md).
 
 ---
 
 ## Charter Activation and Doctrine Integrity Model
 
-Governing ADR: [`architecture/3.x/adr/2026-05-16-1-doctrine-layer-merge-semantics.md`](architecture/3.x/adr/2026-05-16-1-doctrine-layer-merge-semantics.md)
+Governing ADR: [`docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md`](docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md)
 
 ### Activation Engine (`charter.activation_engine`)
 
@@ -528,7 +528,7 @@ npm install --save-dev jsdoc docdash   # JavaScript generator
 ```
 Low-confidence classification: add `---\ntype: tutorial\n---` frontmatter. Unpopulated templates: replace all `[TODO: ...]` placeholders.
 
-**Implementation:** `src/specify_cli/missions/documentation/mission.yaml`, `doc_generators.py`, `gap_analysis.py`, `doc_state.py`. User guide: [docs/explanation/documentation-mission.md](docs/explanation/documentation-mission.md).
+**Implementation:** `src/specify_cli/missions/documentation/mission.yaml`, `doc_generators.py`, `gap_analysis.py`, `doc_state.py`. User guide: [docs/architecture/documentation-mission.md](docs/architecture/documentation-mission.md).
 
 ---
 

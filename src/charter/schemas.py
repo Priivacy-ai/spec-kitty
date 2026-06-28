@@ -110,7 +110,7 @@ class DoctrineSelectionConfig(BaseModel):
     template_set: str | None = None
     authority_paths: list[str] = Field(default_factory=list)
     """Repository-relative directories surfaced as authority pointers
-    (e.g. ``glossary/contexts/``). Populated by WP02 (charter sync) from the
+    (e.g. ``docs/context/``). Populated by WP02 (charter sync) from the
     charter's fenced YAML block; consumed by WP04 renderer when building the
     ``Project authority paths:`` section. Default empty preserves backwards
     compatibility (NFR-005): existing YAML without this key parses unchanged."""

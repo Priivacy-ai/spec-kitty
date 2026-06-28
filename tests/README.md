@@ -290,7 +290,7 @@ There is no requirement to make legacy tests pass on 2.x. They encode the
 ## Architecture Decision
 
 The structural design is recorded in:
-`architecture/2.x/adr/2026-03-15-1-vertical-slice-test-organisation.md`
+`docs/adr/2.x/2026-03-15-1-vertical-slice-test-organisation.md`
 
 ---
 

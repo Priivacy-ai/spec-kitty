@@ -23,5 +23,5 @@ Shipped paradigms live under:
 
 ## Glossary Reference
 
-See [Paradigm](../../../glossary/contexts/doctrine.md#paradigm) in the doctrine
+See [Paradigm](../../../docs/context/doctrine.md#paradigm) in the doctrine
 glossary context.

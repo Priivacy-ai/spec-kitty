@@ -1,15 +1,16 @@
 ---
-title: "Cross-Repo E2E Gate — Operator Migration Guide"
-description: "Migration guidance for Cross-Repo E2E Gate — Operator Migration Guide in Spec Kitty 3.2, including upgrade context and historical behavior boundaries."
+title: Cross-Repo E2E Gate — Operator Migration Guide
+description: 'Operator migration guide for the cross-repo E2E gate, active since the stability-and-hygiene-hardening mission (2026-04-26): how the gate works and what operators do.'
+doc_status: active
+updated: '2026-06-03'
 ---
-
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 
 # Cross-Repo E2E Gate — Operator Migration Guide
 
 **Status**: Active as of mission
 `stability-and-hygiene-hardening-2026-04-01KQ4ARB` (2026-04-26).
-**ADR**: [`architecture/2.x/adr/2026-04-26-3-e2e-hard-gate.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/architecture/2.x/adr/2026-04-26-3-e2e-hard-gate.md)
+**ADR**: [`docs/adr/3.x/2026-04-26-3-e2e-hard-gate.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-04-26-3-e2e-hard-gate.md)
 **Skill**: [`src/doctrine/skills/spec-kitty-mission-review/SKILL.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/skills/spec-kitty-mission-review/SKILL.md)
 
 This guide tells operators how to run the cross-repo end-to-end gate
@@ -168,7 +169,7 @@ blockers*, not for deferred bugs.
 ## Cross-references
 
 - ADR (the gate rationale, full alternatives table):
-  [`architecture/2.x/adr/2026-04-26-3-e2e-hard-gate.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/architecture/2.x/adr/2026-04-26-3-e2e-hard-gate.md)
+  [`docs/adr/3.x/2026-04-26-3-e2e-hard-gate.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-04-26-3-e2e-hard-gate.md)
 - Skill source (the enforcement code path):
   [`src/doctrine/skills/spec-kitty-mission-review/SKILL.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/src/doctrine/skills/spec-kitty-mission-review/SKILL.md)
 - Mission spec (FR-038, FR-039, FR-040, FR-041, NFR-006, C-010):

@@ -55,6 +55,16 @@ def _build_feature(tmp_path: Path, *, owned_file: str) -> Path:
     return feature_dir
 
 
+def _add_create_intent(feature_dir: Path, path: str) -> None:
+    wp_file = feature_dir / "tasks" / "WP01-invalid.md"
+    content = wp_file.read_text(encoding="utf-8")
+    content = content.replace(
+        "authoritative_surface: src/example/\n",
+        f"authoritative_surface: src/example/\ncreate_intent:\n  - {path}\n",
+    )
+    wp_file.write_text(content, encoding="utf-8")
+
+
 def _run_command(cmd: list[str], **_kwargs: object) -> tuple[int, str, str]:
     if "status" in cmd and "--porcelain" in cmd:
         return (0, "M tasks.md", "")
@@ -90,6 +100,10 @@ def _json_payload(stdout: str) -> dict[str, object]:
     lines = [line for line in stdout.splitlines() if line.strip().startswith("{")]
     assert lines, stdout
     return json.loads(lines[-1])
+
+
+def _strict_json_payload(stdout: str) -> dict[str, object]:
+    return json.loads(stdout)
 
 
 def test_validate_only_rejects_kitty_specs_owned_files(tmp_path: Path) -> None:
@@ -130,3 +144,32 @@ def test_full_finalize_rejects_before_commit(tmp_path: Path) -> None:
             "path": "./kitty-specs/077-invalid-owned-files/plan.md",
         }
     ]
+
+
+def test_validate_only_json_suppresses_create_intent_info_note(tmp_path: Path) -> None:
+    feature_dir = _build_feature(tmp_path, owned_file="src/example/new_module.py")
+    _add_create_intent(feature_dir, "src/example/new_module.py")
+
+    result, _commit_for_mission = _invoke_finalize(tmp_path, feature_dir, ["--validate-only"])
+
+    assert result.exit_code == 0
+    payload = _strict_json_payload(result.stdout)
+    assert payload["result"] == "validation_passed"
+    assert "create_intent" not in result.stdout
+    assert "create_intent" not in result.stderr
+
+
+def test_validate_only_json_suppresses_ownership_stderr_on_error(tmp_path: Path) -> None:
+    feature_dir = _build_feature(tmp_path, owned_file="src/example/missing_module.py")
+
+    result, commit_for_mission = _invoke_finalize(tmp_path, feature_dir, ["--validate-only"])
+
+    assert result.exit_code == 1
+    commit_for_mission.assert_not_called()
+    payload = _strict_json_payload(result.stdout)
+    assert payload["error"] == (
+        "Ownership validation failed: literal-path owned_files entries match zero files. "
+        "Fix the paths or add them to 'create_intent'."
+    )
+    assert payload["ownership_literal_path_errors"]
+    assert result.stderr == ""

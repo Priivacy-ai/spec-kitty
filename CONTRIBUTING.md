@@ -79,6 +79,64 @@ These are one time installations required to be able to test your changes locall
 1. Install [Git](https://git-scm.com/downloads)
 1. Have an [AI coding agent available](README.md#-supported-ai-agents)
 
+### Global CLI Install on macOS
+
+Contributor tests run from a source checkout, not from a globally installed
+`spec-kitty` binary. Use a global install when you want to run Spec Kitty outside
+this repository or when you are explicitly testing install/update behavior.
+Use one tool manager for a normal global install; installing with both can put
+two `spec-kitty` binaries on your `PATH`.
+
+To install the latest `main` branch from GitHub with `uv`:
+
+```bash
+uv tool install "spec-kitty-cli @ git+https://github.com/Priivacy-ai/spec-kitty.git@main"
+uv tool update-shell
+# Open a new shell if uv changed your PATH, then verify:
+spec-kitty --version
+```
+
+To install the latest `main` branch from GitHub with `pipx`:
+
+```bash
+pipx install "git+https://github.com/Priivacy-ai/spec-kitty.git@main"
+pipx ensurepath
+# Open a new shell if pipx changed your PATH, then verify:
+spec-kitty --version
+```
+
+To update an existing GitHub-based global install to the latest `main` branch,
+force a reinstall through the same tool manager:
+
+```bash
+uv tool install --force --upgrade "spec-kitty-cli @ git+https://github.com/Priivacy-ai/spec-kitty.git@main"
+```
+
+```bash
+pipx install --force "git+https://github.com/Priivacy-ai/spec-kitty.git@main"
+```
+
+For the latest PyPI release instead of GitHub `main`, install or upgrade by
+package name:
+
+```bash
+uv tool install spec-kitty-cli
+uv tool upgrade spec-kitty-cli
+```
+
+```bash
+pipx install spec-kitty-cli
+pipx upgrade spec-kitty-cli
+```
+
+After a new PyPI release, CDN caching can make upgrades lag briefly. If that
+happens, reinstall the exact version instead:
+
+```bash
+uv tool install --force spec-kitty-cli==X.Y.Z
+pipx install --force spec-kitty-cli==X.Y.Z
+```
+
 ### Shared Dependencies
 
 Spec-kitty's shared libraries are published to PyPI and resolved automatically by
@@ -271,7 +329,7 @@ If the broken package lives in a global or Homebrew Python environment, remove
 the stale `spec_kitty_events/` directory and matching `.dist-info/` metadata
 from that interpreter's `site-packages`, then reinstall
 `spec-kitty-events`. See
-[Diagnose Installation Problems](docs/how-to/diagnose-installation.md#9-shared-package-imports-resolve-as-a-namespace-package)
+[Diagnose Installation Problems](docs/guides/diagnose-installation.md#9-shared-package-imports-resolve-as-a-namespace-package)
 for the full recovery procedure.
 
 ### How Test Isolation Works

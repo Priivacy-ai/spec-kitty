@@ -28,7 +28,6 @@ from scripts.docs._render import (
 from scripts.docs.version_leakage_check import (
     DEFAULT_BANNER_REGEX,
     _has_banner,
-    _parse_frontmatter_version_tag,
     _resolve_link_target,
     _to_repo_relative,
     build_parser,
@@ -265,7 +264,7 @@ def test_main_clean_exits_zero(
 
 
 @pytest.mark.parametrize("ci_flag", [False, True])
-def test_main_dirty_exits_one_with_five_findings(
+def test_main_dirty_exits_one_with_four_findings(
     dirty_workspace: Path,
     capsys: pytest.CaptureFixture[str],
     ci_flag: bool,
@@ -285,17 +284,16 @@ def test_main_dirty_exits_one_with_five_findings(
         exit_code = main(argv)
     assert exit_code == 1
 
-    # The JSON report is the deterministic surface; assert exactly 5
-    # findings, one per rule_id.
+    # The JSON report is the deterministic surface; assert exactly 4
+    # findings, one per (live) rule_id. LEAK-FRONTMATTER-MISMATCH is retired.
     payload = json.loads(report_path.read_text(encoding="utf-8"))
     assert payload["exit_code"] == 1
-    assert payload["inventory_rows_count"] == 5
+    assert payload["inventory_rows_count"] == 4
     counts = Counter(f["rule_id"] for f in payload["findings"])
     assert counts == Counter(
         {
             "LEAK-CURRENT-LINKS-ARCHIVAL": 1,
             "LEAK-MISSING-BANNER": 1,
-            "LEAK-FRONTMATTER-MISMATCH": 1,
             "LEAK-MISSING-INVENTORY": 1,
             "LEAK-MISSING-FILE": 1,
         }
@@ -438,7 +436,7 @@ def test_run_checks_returns_no_findings_on_clean(clean_workspace: Path) -> None:
     assert findings == []
 
 
-def test_run_checks_detects_all_five_rules(dirty_workspace: Path) -> None:
+def test_run_checks_detects_all_four_rules(dirty_workspace: Path) -> None:
     with chdir(dirty_workspace):
         inventory = load_inventory(Path("inventory.yaml"))
         findings = run_checks(
@@ -451,7 +449,6 @@ def test_run_checks_detects_all_five_rules(dirty_workspace: Path) -> None:
         {
             "LEAK-CURRENT-LINKS-ARCHIVAL": 1,
             "LEAK-MISSING-BANNER": 1,
-            "LEAK-FRONTMATTER-MISMATCH": 1,
             "LEAK-MISSING-INVENTORY": 1,
             "LEAK-MISSING-FILE": 1,
         }
@@ -550,27 +547,6 @@ def test_run_checks_skips_external_and_anchor_links(tmp_path: Path) -> None:
 # --- private helper unit tests --------------------------------------------
 
 
-def test_parse_frontmatter_empty_text() -> None:
-    assert _parse_frontmatter_version_tag("") is None
-
-
-def test_parse_frontmatter_closes_without_tag() -> None:
-    text = "---\nother: 1\n---\nbody\n"
-    assert _parse_frontmatter_version_tag(text) is None
-
-
-def test_parse_frontmatter_quoted_value() -> None:
-    text = '---\nversion_tag: "current"\n---\n'
-    assert _parse_frontmatter_version_tag(text) == "current"
-
-
-def test_parse_frontmatter_runs_off_end() -> None:
-    # Open fence but no close fence and no tag line -> walks the loop and
-    # falls through to the final ``return None``.
-    text = "---\nother_key: value\n"
-    assert _parse_frontmatter_version_tag(text) is None
-
-
 def test_has_banner_caps_at_twenty_nonempty_lines() -> None:
     pattern = re.compile(DEFAULT_BANNER_REGEX, re.MULTILINE)
     # 25 filler non-empty lines, then a banner — should NOT be found.
@@ -628,15 +604,15 @@ def test_to_repo_relative_outside_cwd(tmp_path: Path) -> None:
     assert "sibling" in result
 
 
-def test_run_checks_pages_without_frontmatter_dont_mismatch(
-    tmp_path: Path,
-) -> None:
-    """A page with no frontmatter must not raise LEAK-FRONTMATTER-MISMATCH."""
+def test_run_checks_frontmatter_drift_is_not_a_leak_rule(tmp_path: Path) -> None:
+    """LEAK-FRONTMATTER-MISMATCH is retired (Mission B): a page whose
+    frontmatter disagrees with the inventory tag yields no LEAK finding here —
+    that drift is now caught by the blocking INVENTORY-LOCKFILE-DRIFT gate."""
     workspace = tmp_path / "ws"
     (workspace / "docs").mkdir(parents=True)
     page = workspace / "docs/p.md"
-    # No leading "---" fence at all.
-    page.write_text("# bare page\n\nsome body\n", encoding="utf-8")
+    # Frontmatter version_tag deliberately disagrees with the inventory row.
+    page.write_text("---\nversion_tag: archival\n---\n# body\n", encoding="utf-8")
     inventory_yaml = workspace / "inventory.yaml"
     inventory_yaml.write_text(
         "- path: docs/p.md\n"
@@ -656,33 +632,4 @@ def test_run_checks_pages_without_frontmatter_dont_mismatch(
             banner_regex=re.compile(DEFAULT_BANNER_REGEX, re.MULTILINE),
         )
     assert not any(f.rule_id == "LEAK-FRONTMATTER-MISMATCH" for f in findings)
-
-
-def test_run_checks_frontmatter_close_fence_without_tag(tmp_path: Path) -> None:
-    """A frontmatter block that closes before a tag line emits no tag."""
-    workspace = tmp_path / "ws"
-    (workspace / "docs").mkdir(parents=True)
-    page = workspace / "docs/p.md"
-    page.write_text(
-        "---\nother_key: value\n---\n# body\n",
-        encoding="utf-8",
-    )
-    inventory_yaml = workspace / "inventory.yaml"
-    inventory_yaml.write_text(
-        "- path: docs/p.md\n"
-        "  tag: current\n"
-        "  divio_type: how-to\n"
-        "  owning_workstream: E\n"
-        "  current_target: true\n"
-        "  citation_refs: []\n"
-        "  notes: null\n",
-        encoding="utf-8",
-    )
-    with chdir(workspace):
-        inventory = load_inventory(Path("inventory.yaml"))
-        findings = run_checks(
-            inventory=inventory,
-            docs_root=Path("docs"),
-            banner_regex=re.compile(DEFAULT_BANNER_REGEX, re.MULTILINE),
-        )
-    assert not any(f.rule_id == "LEAK-FRONTMATTER-MISMATCH" for f in findings)
+    assert findings == []

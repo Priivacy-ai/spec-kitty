@@ -19,7 +19,7 @@ subtasks:
 - T034
 phase: Phase 3 - Gate
 assignee: ''
-shell_pid: flat-exec
+shell_pid: ''
 agent: claude
 history:
 - at: '2026-06-26T18:29:45Z'

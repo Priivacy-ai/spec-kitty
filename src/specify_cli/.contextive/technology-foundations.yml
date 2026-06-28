@@ -1,7 +1,7 @@
 # GENERATED FILE — do not edit manually.
 # Run: python scripts/generate_contextive_glossaries.py generate
 #
-# Source: glossary/contexts/technology-foundations.md
+# Source: docs/context/technology-foundations.md
 
 contexts:
   - name: "Technology Foundations"

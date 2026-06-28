@@ -306,7 +306,7 @@ class TestNonSubstitutable:
     def test_authority_paths_never_substituted(self) -> None:
         # The authority-paths block is small but marked non-substitutable;
         # the long substitutable section is the only swap candidate.
-        authority_block = "Project authority paths:\n  - glossary/contexts/    (canonical terminology)"
+        authority_block = "Project authority paths:\n  - docs/context/    (canonical terminology)"
         long_body = "L" * 30_000
         sections = [
             _make_section(

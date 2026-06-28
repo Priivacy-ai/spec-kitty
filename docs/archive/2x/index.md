@@ -1,15 +1,25 @@
 ---
-title: "2.x Documentation (Archive)"
-description: "Historical Spec Kitty 2.x archive page for 2.x Documentation (Archive); use Spec Kitty 3.2 docs for current Charter-era workflows."
+title: 2.x Documentation (Archive)
+description: Historical Spec Kitty 2.x archive page for 2.x Documentation (Archive); use Spec Kitty 3.2 docs for current Charter-era workflows.
+doc_status: deprecated
+updated: '2026-06-03'
+related:
+- docs/context/index.md
+- docs/archive/2x/adr-coverage.md
+- docs/archive/2x/doctrine-and-charter.md
+- docs/archive/2x/glossary-system.md
+- docs/archive/2x/orchestration-and-api.md
+- docs/archive/2x/runtime-and-missions.md
+- docs/index.md
+- docs/migration/index.md
 ---
-
-> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../3x/index.md) for current docs.
+> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../context/index.md) for current docs.
 
 # 2.x Documentation (Archive)
 
 > **Archive Notice**: This section documents Spec Kitty 2.x behavior. It is preserved
 > for historical reference only. For current 3.2 documentation, see
-> [Spec Kitty 3.2 current overview](../../3x/index.md).
+> [Spec Kitty 3.2 current overview](../../context/index.md).
 
 `2.x` was the architecture track centered on doctrine-backed governance, living glossary
 semantics, and runtime-owned mission execution. These pages are archived so existing projects and
@@ -19,7 +29,7 @@ contributors can understand older behavior; current projects should use the 3.2 
 
 1. Doctrine artifacts are typed and schema-validated under `src/doctrine/`.
 2. Charter generation uses interview answers plus doctrine catalog selection.
-3. Glossary is context-owned (`glossary/contexts/*.md`) and integrated into mission execution through glossary hooks.
+3. Glossary is context-owned (`docs/context/*.md`) and integrated into mission execution through glossary hooks.
 4. Runtime loop and mission discovery are driven by canonical `next` and runtime precedence rules.
 
 ## Start Here
@@ -38,8 +48,8 @@ contributors can understand older behavior; current projects should use the 3.2 
 
 ## Architecture Repository Layout
 
-- 2.x domain map: `architecture/2.x/README.md#domain-breakdown`
-- 2.x C4 docs: `architecture/2.x/01_context/`, `architecture/2.x/02_containers/`, `architecture/2.x/03_components/`
-- 2.x ADRs: `architecture/2.x/adr/`
-- 2.x user journeys: `architecture/2.x/user_journey/`
-- architecture personas: `architecture/audience/`
+- 2.x domain map: `docs/architecture/README-2.x.md#domain-breakdown`
+- 2.x C4 docs: `docs/architecture/01_context/`, `docs/architecture/02_containers/`, `docs/architecture/03_components/`
+- 2.x ADRs: `docs/adr/2.x/`
+- 2.x user journeys: `docs/plans/user_journey/`
+- architecture personas: `docs/context/audience/`

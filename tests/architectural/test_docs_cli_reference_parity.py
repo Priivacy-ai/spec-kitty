@@ -2,7 +2,7 @@
 
 Asserts the set of non-hidden command paths discovered by the
 ``scripts.docs._typer_walker`` matches exactly the set named in
-``docs/reference/cli-commands.md`` and ``docs/reference/agent-subcommands.md``.
+``docs/api/cli-commands.md`` and ``docs/api/agent-subcommands.md``.
 
 If the reference files are not yet present (e.g., a branch where WP07
 hasn't run), the test :func:`pytest.skip` s with an explicit reason so

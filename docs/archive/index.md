@@ -1,8 +1,15 @@
 ---
-title: "Historical Archive"
-description: "Historical Spec Kitty 1.x and 2.x documentation archive, preserved for audits and older project behavior lookup."
+title: Historical Archive
+description: Historical Spec Kitty 1.x and 2.x documentation archive, preserved for audits and older project behavior lookup.
+doc_status: deprecated
+updated: '2026-06-03'
+related:
+- docs/context/index.md
+- docs/archive/1x/index.md
+- docs/archive/2x/index.md
+- docs/index.md
+- docs/migration/index.md
 ---
-
 > Archive notice: This page collects historical Spec Kitty documentation. For current 3.2 workflows, start with [Spec Kitty 3.2](../index.md) or [Migration to Spec Kitty 3.2](../migration/index.md).
 
 # Historical Archive
@@ -17,11 +24,11 @@ This section preserves previous Spec Kitty release documentation for historical 
 ## Current Guidance
 
 - [Start with Spec Kitty 3.2](../index.md)
-- [3.2 current overview](../3x/index.md)
+- [3.2 current overview](../context/index.md)
 - [Migration to 3.2](../migration/index.md)
 
 ## Current replacement
 
-- For new projects: start with [Getting Started](../tutorials/getting-started.md).
+- For new projects: start with [Getting Started](../guides/getting-started.md).
 - For upgrades: use [Migration to Spec Kitty 3.2](../migration/index.md).
 - For old behavior lookup: stay in this archive and treat claims as version-scoped.

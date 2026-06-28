@@ -5,7 +5,7 @@ counter-example. The fail-safe default (R-DEFAULT-MANUAL) is exercised
 on a path no other rule covers.
 
 Reference ADR:
-    architecture/2.x/adr/2026-05-14-1-stale-lane-auto-rebase-classifier-policy.md
+    docs/adr/3.x/2026-05-14-1-stale-lane-auto-rebase-classifier-policy.md
 """
 
 from __future__ import annotations

@@ -4,7 +4,7 @@ Pattern D: orientation injected via a skills preamble or AGENTS.md fallback.
 
 Defaults to AGENTS.md injection (same behaviour as ``AgentsMdWriter``) while
 harness-specific research is open.  See
-``architecture/3.x/research/session-presence-harness-gaps.md``.
+``docs/plans/research/session-presence-harness-gaps.md``.
 
 When a harness-specific preamble path is confirmed, subclass and override
 ``rules_path`` and ``can_write()`` accordingly.

@@ -5,29 +5,22 @@
         "files": [
           "index.md",
           "toc.yml",
-          "tutorials/*.md",
-          "tutorials/toc.yml",
-          "how-to/*.md",
-          "how-to/harnesses/*.md",
-          "how-to/harnesses/toc.yml",
-          "how-to/toc.yml",
-          "reference/*.md",
-          "reference/toc.yml",
-          "explanation/*.md",
-          "explanation/toc.yml",
-          "recovery/*.md"
+          "context/**.md",
+          "architecture/**.md",
+          "adr/**.md",
+          "plans/**.md",
+          "api/**.md",
+          "configuration/**.md",
+          "integrations/**.md",
+          "security/**.md",
+          "guides/**.md",
+          "operations/**.md",
+          "migrations/**.md",
+          "changelog/**.md"
         ],
         "exclude": [
           "**/_*.md"
         ]
-      },
-      {
-        "files": [
-          "**.md",
-          "toc.yml"
-        ],
-        "src": "3x",
-        "dest": "3x"
       },
       {
         "files": [
@@ -37,14 +30,6 @@
         ],
         "src": "archive",
         "dest": "archive"
-      },
-      {
-        "files": [
-          "**.md",
-          "toc.yml"
-        ],
-        "src": "migration",
-        "dest": "migration"
       }
     ],
     "resource": [
@@ -56,9 +41,7 @@
           ".nojekyll",
           "llms.txt",
           "kitty-specs/**/*.html",
-          "kitty-specs/toc.yml",
-          "1x/*.html",
-          "2x/*.html"
+          "kitty-specs/toc.yml"
         ]
       }
     ],
@@ -91,7 +74,7 @@
       "_appTitle": "Spec Kitty Documentation",
       "_appName": "Spec Kitty",
       "_siteUrl": "https://docs.spec-kitty.ai/",
-      "_appFooter": "Spec Kitty documentation — current 3.2 tutorials, how-to guides, reference, and explanations · <a href=\"https://docs.spec-kitty.ai/archive/1x/\">1.x historical archive</a> · <a href=\"https://docs.spec-kitty.ai/archive/2x/\">2.x historical archive</a>",
+      "_appFooter": "Spec Kitty documentation — context, architecture, ADRs, plans, API, configuration, integrations, security, guides, operations, migrations, and changelog · <a href=\"https://docs.spec-kitty.ai/archive/1x/\">1.x historical archive</a> · <a href=\"https://docs.spec-kitty.ai/archive/2x/\">2.x historical archive</a>",
       "_enableSearch": true,
       "_disableContribution": false,
       "_gitContribute": {

@@ -350,7 +350,7 @@ class TestFetchSelectorRecovery:
         (charter_dir / "charter.md").write_text(
             "# Project Charter\n\n"
             "## Regression Vigilance\n\n"
-            "Consult glossary/contexts before approving a terminology cutover.\n",
+            "Consult docs/context before approving a terminology cutover.\n",
             encoding="utf-8",
         )
 
@@ -360,7 +360,7 @@ class TestFetchSelectorRecovery:
         )
 
         assert "### Regression Vigilance" in text
-        assert "Consult glossary/contexts" in text
+        assert "Consult docs/context" in text
 
     def test_section_selector_fails_closed_without_charter(
         self,

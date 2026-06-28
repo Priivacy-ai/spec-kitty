@@ -249,3 +249,95 @@ class TestInstallCliLoggingBootstrap:
             "second call to install_cli_logging_bootstrap() must not add handlers; "
             f"first={count_after_first}, second={count_after_second}"
         )
+
+    def test_json_mode_silences_logs_and_warnings(self) -> None:
+        """json_mode silences diagnostics so a ``--json 2>&1`` capture stays pure JSON.
+
+        Non-vacuous: a real WARNING handler is pre-installed, then json_mode must
+        silence it so neither ``logger.warning()`` nor a captured ``warnings.warn()``
+        produces output.
+        """
+        root = logging.getLogger()
+        _clear_root_handlers()
+        buf = io.StringIO()
+        pre_handler = logging.StreamHandler(buf)
+        pre_handler.setLevel(logging.WARNING)
+        root.addHandler(pre_handler)
+        root.setLevel(logging.WARNING)
+
+        install_cli_logging_bootstrap(json_mode=True)
+
+        logging.getLogger("test.json.probe").warning("must-not-appear")
+        logging.getLogger("test.json.probe").error("error-must-not-appear")
+        with warnings.catch_warnings():
+            warnings.simplefilter("always")
+            warnings.warn("warn-must-not-appear", UserWarning, stacklevel=1)
+
+        assert buf.getvalue() == "", (
+            f"json_mode must silence diagnostics on stderr; got: {buf.getvalue()!r}"
+        )
+
+    def test_json_mode_installs_handler_to_suppress_lastresort(self) -> None:
+        """With no pre-existing handler, json_mode installs one so Python's
+        ``lastResort`` (WARNING→stderr) never fires for an otherwise-handlerless root.
+        """
+        _clear_root_handlers()
+        root = logging.getLogger()
+        assert not root.handlers, "pre-condition: no handlers"
+
+        install_cli_logging_bootstrap(json_mode=True)
+
+        assert root.handlers, "json_mode must install a handler to suppress lastResort"
+        assert all(
+            getattr(h, _HANDLER_SENTINEL, False) for h in root.handlers
+        ), "the installed json-mode handler should be bootstrap-tagged"
+
+    def test_default_mode_still_emits_warnings(self) -> None:
+        """Sanity/non-vacuity: default (non-json) mode still surfaces WARNINGs —
+        proving the json_mode silence is the *difference*, not a global suppression.
+        """
+        _clear_root_handlers()
+        install_cli_logging_bootstrap()  # json_mode defaults to False
+        root = logging.getLogger()
+        buf = io.StringIO()
+        capture = logging.StreamHandler(buf)
+        capture.setLevel(logging.WARNING)
+        root.handlers.clear()
+        root.addHandler(capture)
+
+        logging.getLogger("test.default.probe").warning("should-appear")
+
+        assert "should-appear" in buf.getvalue()
+
+    def test_default_mode_after_json_mode_restores_existing_handler(self) -> None:
+        """A long-lived process can run a later human-mode bootstrap after json_mode."""
+        root = logging.getLogger()
+        _clear_root_handlers()
+        buf = io.StringIO()
+        pre_handler = logging.StreamHandler(buf)
+        pre_handler.setLevel(logging.WARNING)
+        root.addHandler(pre_handler)
+        root.setLevel(logging.WARNING)
+
+        install_cli_logging_bootstrap(json_mode=True)
+        logging.getLogger("test.restore.probe").warning("hidden-in-json")
+        assert buf.getvalue() == ""
+
+        install_cli_logging_bootstrap(json_mode=False)
+        logging.getLogger("test.restore.probe").warning("visible-after-restore")
+
+        assert "visible-after-restore" in buf.getvalue()
+        assert pre_handler.level == logging.WARNING
+
+    def test_default_mode_after_json_null_handler_installs_visible_handler(self) -> None:
+        """A JSON-only NullHandler must not block later human-mode bootstrap."""
+        _clear_root_handlers()
+        root = logging.getLogger()
+
+        install_cli_logging_bootstrap(json_mode=True)
+        assert any(isinstance(handler, logging.NullHandler) for handler in root.handlers)
+
+        install_cli_logging_bootstrap(json_mode=False)
+
+        assert root.handlers
+        assert not any(isinstance(handler, logging.NullHandler) for handler in root.handlers)

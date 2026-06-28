@@ -1,8 +1,9 @@
 ---
-title: "Cutover Runbook: Retrospective Events — Local to Upstream"
-description: "Migration guidance for Cutover Runbook: Retrospective Events — Local to Upstream in Spec Kitty 3.2, including upgrade context and historical behavior."
+title: 'Cutover Runbook: Retrospective Events — Local to Upstream'
+description: 'Cutover runbook for moving retrospective events from local emission to the upstream spec_kitty_events package, pending its release: the steps and the relevant ADR.'
+doc_status: active
+updated: '2026-06-03'
 ---
-
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 
 # Cutover Runbook: Retrospective Events — Local to Upstream
@@ -222,6 +223,6 @@ tranche's acceptance does not require the upstream release to land (AD-004).
 ## See also
 
 - Events contract: [`kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contracts/retrospective_events_v1.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contracts/retrospective_events_v1.md)
-- Shared package boundary ADR: [`architecture/2.x/adr/2026-04-25-1-shared-package-boundary.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/architecture/2.x/adr/2026-04-25-1-shared-package-boundary.md)
+- Shared package boundary ADR: [`docs/adr/3.x/2026-04-25-1-shared-package-boundary.md`](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-04-25-1-shared-package-boundary.md)
 - Boundary test: `tests/architectural/test_retrospective_events_boundary.py`
-- Operator overview: [`docs/explanation/retrospective-learning-loop.md`](../explanation/retrospective-learning-loop.md)
+- Operator overview: [`docs/architecture/retrospective-learning-loop.md`](../architecture/retrospective-learning-loop.md)

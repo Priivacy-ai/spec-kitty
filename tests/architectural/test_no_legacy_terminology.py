@@ -39,6 +39,13 @@ _EXTENSIONS: tuple[str, ...] = ("*.py", "*.md", "*.yaml", "*.yml")
 # vendor directories are operational state.
 _EXCLUDED_PATH_FRAGMENTS: tuple[str, ...] = (
     "kitty-specs/",
+    # docs/adr/ holds immutable historical decision records whose bodies are
+    # preserved byte-for-byte (NFR-001/C-002). Legacy terms in those snapshots
+    # are quoted history, not active prose — same historical-artifact rationale
+    # as the kitty-specs/ exemption above. The narrowness of this exemption
+    # (docs/adr/ only, not the rest of docs/) is pinned by
+    # test_docs_adr_exemption_is_narrow below.
+    "docs/adr/",
     ".worktrees/",
     ".venv/",
     "node_modules/",
@@ -47,6 +54,17 @@ _EXCLUDED_PATH_FRAGMENTS: tuple[str, ...] = (
     # the string-fragment construction above is the primary self-flag defense.
     "tests/architectural/test_no_legacy_terminology.py",
 )
+
+
+def _line_is_excluded(line: str) -> bool:
+    """True when a ``git grep`` hit line falls under an excluded path fragment.
+
+    A hit line has the form ``<path>:<line-number>:<content>``; a match is
+    excluded when any excluded fragment appears anywhere in it. Extracted as a
+    pure seam so the exclusion policy (including the narrow docs/adr/ exemption)
+    is testable without shelling out to git.
+    """
+    return any(fragment in line for fragment in _EXCLUDED_PATH_FRAGMENTS)
 
 
 def _repo_root() -> Path:
@@ -87,11 +105,7 @@ def _grep_for(term: str) -> list[str]:
             f"git grep failed for term {term!r}: exit={result.returncode} "
             f"stderr={result.stderr!r}"
         )
-    return [
-        line
-        for line in result.stdout.splitlines()
-        if not any(fragment in line for fragment in _EXCLUDED_PATH_FRAGMENTS)
-    ]
+    return [line for line in result.stdout.splitlines() if not _line_is_excluded(line)]
 
 
 @pytest.mark.parametrize("term", _FORBIDDEN_TERMS)
@@ -110,4 +124,40 @@ def test_forbidden_term_does_not_appear(term: str) -> None:
             f"Canonical term is 'status commit' (see "
             f".kittify/glossaries/spec_kitty_core.yaml).\n"
             f"Hits ({len(hits)}):\n  {formatted}"
+        )
+
+
+def test_docs_adr_exemption_is_narrow() -> None:
+    """docs/adr/ is exempt as historical snapshots, but the rest of docs/ is not.
+
+    Regression for WP06 (mission 01KW3SBK): 117 historical ADRs moved from the
+    unscanned ``architecture/`` tree into the scanned ``docs/adr/`` tree. Their
+    bodies are immutable, byte-for-byte snapshots (NFR-001/C-002), so quoted
+    legacy terms inside them must not trip the guard — mirroring the existing
+    kitty-specs/ historical-artifact exemption.
+
+    This test pins the exemption as *narrow*: only ``docs/adr/`` is excluded.
+    Any other docs/ path (guides, architecture, a top-level docs page) must
+    still be scanned, so a real regression there is caught.
+    """
+    forbidden = _FORBIDDEN_TERMS[0]
+
+    # A hit inside docs/adr/ is treated as an immutable historical snapshot.
+    adr_hit = f"docs/adr/3.x/2026-04-17-1-some-decision.md:103:No inheritance {forbidden}."
+    assert _line_is_excluded(adr_hit), (
+        "docs/adr/ hits must be exempt — historical decision records are "
+        "immutable snapshots (NFR-001/C-002)."
+    )
+
+    # The rest of docs/ must remain in scope: an exemption here would be a
+    # blanket docs/ carve-out and a regression.
+    still_scanned = (
+        f"docs/guides/onboarding.md:7:Run the {forbidden} before merging.",
+        f"docs/architecture/overview.md:12:The {forbidden} step is required.",
+        f"docs/status-model.md:3:Avoid the legacy {forbidden} wording.",
+    )
+    for hit in still_scanned:
+        assert not _line_is_excluded(hit), (
+            f"Non-ADR docs path must still be scanned for legacy terms: {hit!r}. "
+            "The docs/adr/ exemption must not blanket-exempt all of docs/."
         )

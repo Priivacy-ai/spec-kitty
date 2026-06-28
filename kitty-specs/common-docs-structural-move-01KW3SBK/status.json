@@ -1,0 +1,140 @@
+{
+  "event_count": 116,
+  "last_event_id": "01KW58WPWV8HZPRWWX3V4GVA5A",
+  "materialized_at": "2026-06-27T19:28:49.563655+00:00",
+  "mission_number": "",
+  "mission_slug": "common-docs-structural-move-01KW3SBK",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 17,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KW4HDNXXXFCH2SZ3T59QC218",
+      "last_transition_at": "2026-06-27T12:38:39.805720+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KW4JP3XMWEB32CWBFGDGFTZY",
+      "last_transition_at": "2026-06-27T13:00:44.852826+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KW4M5MWK7B4BWX8W91N3THN4",
+      "last_transition_at": "2026-06-27T13:26:42.323749+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KW4QDDRCKCWMZP0KE8FX3FZ1",
+      "last_transition_at": "2026-06-27T14:23:22.892217+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KW4TMC2VCX5J6S7F6EW0DZAP",
+      "last_transition_at": "2026-06-27T15:19:36.283660+00:00"
+    },
+    "WP06": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KW4WDC4SR5Z0BAA18AYAV7K7",
+      "last_transition_at": "2026-06-27T15:50:44.121955+00:00"
+    },
+    "WP07": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KW4QRCMP277EX94KJ13EV7AZ",
+      "last_transition_at": "2026-06-27T14:29:22.198372+00:00"
+    },
+    "WP08": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KW52WVEQKJBNA2WHQX01W7F6",
+      "last_transition_at": "2026-06-27T17:44:02.775490+00:00"
+    },
+    "WP09": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KW4PCT8QV0ABQW0QVHQTNE7N",
+      "last_transition_at": "2026-06-27T14:05:34.359474+00:00"
+    },
+    "WP10": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KW4V2FVQ5S8PDB95Y1N3J37N",
+      "last_transition_at": "2026-06-27T15:27:18.903991+00:00"
+    },
+    "WP11": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KW4SRB6MR06J2AH2Q7N1KFWX",
+      "last_transition_at": "2026-06-27T15:04:17.876152+00:00"
+    },
+    "WP12": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "approved",
+      "last_event_id": "01KW4XHKFD1EAFR8YDHTGQYE0K",
+      "last_transition_at": "2026-06-27T16:10:31.277236+00:00"
+    },
+    "WP13": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KW58WG4HVBDDEBK84PJRGSXD",
+      "last_transition_at": "2026-06-27T19:28:42.641879+00:00"
+    },
+    "WP14": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KW58WKJG2FQ4BCFGTHPAYB12",
+      "last_transition_at": "2026-06-27T19:28:46.160934+00:00"
+    },
+    "WP15": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KW58WPWV8HZPRWWX3V4GVA5A",
+      "last_transition_at": "2026-06-27T19:28:49.563655+00:00"
+    },
+    "WP16": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KW4T8G1XQJ19C58PTT740478",
+      "last_transition_at": "2026-06-27T15:13:07.133543+00:00"
+    },
+    "WP18": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KW58WCQNH33QB3MQP19F5NHH",
+      "last_transition_at": "2026-06-27T19:28:39.157768+00:00"
+    }
+  }
+}

@@ -1,1 +1,0 @@
-../../3.x/adr/2026-04-03-2-review-approval-and-integration-completion-are-distinct.md

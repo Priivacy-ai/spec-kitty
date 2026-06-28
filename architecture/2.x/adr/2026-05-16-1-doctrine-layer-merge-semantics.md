@@ -1,1 +1,0 @@
-../../3.x/adr/2026-05-16-1-doctrine-layer-merge-semantics.md

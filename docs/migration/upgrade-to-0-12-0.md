@@ -1,9 +1,10 @@
 ---
-title: "Upgrading to Spec Kitty 0.12.0"
-description: "Migration guidance for Upgrading to Spec Kitty 0.12.0 in Spec Kitty 3.2, including upgrade context and historical behavior boundaries."
+title: Upgrading to Spec Kitty 0.12.0
+description: Historical upgrade path to Spec Kitty 0.12.0, where agent management became config-driven so migrations respect configuration instead of recreating deleted agent dirs.
+doc_status: active
+updated: '2026-06-03'
 ---
-
-> Migration note: This page documents a historical upgrade path to Spec Kitty 0.12.0. For current 3.2 upgrades, use [Upgrade the Spec Kitty CLI](../how-to/upgrade-cli.md) and [Upgrade project files](../how-to/upgrade-project.md).
+> Migration note: This page documents a historical upgrade path to Spec Kitty 0.12.0. For current 3.2 upgrades, use [Upgrade the Spec Kitty CLI](../guides/upgrade-cli.md) and [Upgrade project files](../guides/upgrade-project.md).
 
 # Upgrading to Spec Kitty 0.12.0
 
@@ -29,7 +30,7 @@ This change gives you **explicit control** over your agent configuration:
 - **Cleaner projects**: Remove agents you don't use without them reappearing
 - **Multi-agent workflows**: Configure exactly which agents are available
 
-See [ADR #6: Config-Driven Agent Management](https://github.com/Priivacy-ai/spec-kitty/blob/main/architecture/1.x/adr/2026-01-23-6-config-driven-agent-management.md) for technical details.
+See [ADR #6: Config-Driven Agent Management](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/1.x/2026-01-23-6-config-driven-agent-management.md) for technical details.
 
 ## Migration Steps
 
@@ -89,4 +90,4 @@ spec-kitty agent config add claude codex
 **Q: How do I ensure an agent doesn't come back after upgrade?**
 - A: Use `spec-kitty agent config remove <agent>` before upgrading. This removes it from `config.yaml`.
 
-For command details, see [Managing AI Agents](../how-to/manage-agents.md).
+For command details, see [Managing AI Agents](../guides/manage-agents.md).

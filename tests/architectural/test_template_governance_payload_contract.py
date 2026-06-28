@@ -83,7 +83,7 @@ emits no fallback diagnostics.
 ## Regression Vigilance (2026-04-06)
 
 When renaming identifier-bearing terms, the reviewer MUST grep the diff for
-the old term and MUST consult the project glossary at ``glossary/contexts/``.
+the old term and MUST consult the project glossary at ``docs/context/``.
 
 ## Charter Resolution Hints
 
@@ -128,11 +128,11 @@ def fixture_project(tmp_path: Path) -> Path:
     charter_dir.mkdir(parents=True, exist_ok=True)
     (charter_dir / "charter.md").write_text(_FIXTURE_CHARTER_MD, encoding="utf-8")
     # The authority-paths renderer is existence-gated: it only emits
-    # ``glossary/contexts/`` and ``architecture/3.x/adr/`` when those
+    # ``docs/context/`` and ``docs/adr/3.x/`` when those
     # directories exist on disk. The template promises both unconditionally,
     # so the fixture stages both so the resolver can deliver them.
-    (tmp_path / "glossary" / "contexts").mkdir(parents=True, exist_ok=True)
-    (tmp_path / "architecture" / "3.x" / "adr").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "docs" / "context").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "docs" / "adr" / "3.x").mkdir(parents=True, exist_ok=True)
     return tmp_path
 
 
@@ -197,7 +197,7 @@ class TestImplementTemplateGovernancePayloadContract:
         resolver_text = _resolver_text(
             fixture_project, profile="python-pedro", action="implement"
         )
-        for path in ("glossary/contexts/", "architecture/3.x/adr/"):
+        for path in ("docs/context/", "docs/adr/3.x/"):
             assert path in template_section, (
                 f"Template's Governance Payload Contract is missing authority pointer '{path}'."
             )
@@ -266,7 +266,7 @@ class TestReviewTemplateGovernancePayloadContract:
         resolver_text = _resolver_text(
             fixture_project, profile="reviewer-renata", action="review"
         )
-        for path in ("glossary/contexts/", "architecture/3.x/adr/"):
+        for path in ("docs/context/", "docs/adr/3.x/"):
             assert path in template_section, (
                 f"Review template Governance Payload Contract is missing authority pointer '{path}'."
             )

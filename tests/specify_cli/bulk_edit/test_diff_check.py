@@ -80,7 +80,7 @@ class TestClassifyPath:
             ("src/specify_cli/cli/commands/implement.py", "cli_commands"),
             # user_facing_strings
             ("README.md", "user_facing_strings"),
-            ("docs/explanation/foo.md", "user_facing_strings"),
+            ("docs/architecture/foo.md", "user_facing_strings"),
             ("CHANGELOG.md", "user_facing_strings"),
             # serialized_keys
             ("pkg/config.yaml", "serialized_keys"),

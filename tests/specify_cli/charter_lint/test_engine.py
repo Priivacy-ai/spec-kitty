@@ -231,7 +231,7 @@ class TestGraphStateTriState:
     tri-state graph identity and is wired through to the JSON payload.
 
     These tests pin the contract from
-    ``architecture/3.x/adr/2026-05-24-1-charter-freshness-ux-contract.md``.
+    ``docs/adr/3.x/2026-05-24-1-charter-freshness-ux-contract.md``.
     """
 
     def test_lint_merged_state_unchanged(self, tmp_path: Path) -> None:

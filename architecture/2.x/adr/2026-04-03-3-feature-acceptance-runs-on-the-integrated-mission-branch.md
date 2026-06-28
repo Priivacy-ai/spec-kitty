@@ -1,1 +1,0 @@
-../../3.x/adr/2026-04-03-3-feature-acceptance-runs-on-the-integrated-mission-branch.md

@@ -19,7 +19,7 @@ def _write_project(tmp_path: Path, registry_content: str, version: str = "3.2.0"
     (tmp_path / "pyproject.toml").write_text(
         f'[project]\nname = "spec-kitty-cli"\nversion = "{version}"\n'
     )
-    arch = tmp_path / "architecture" / "2.x"
+    arch = tmp_path / "docs" / "migrations"
     arch.mkdir(parents=True)
     (arch / "shim-registry.yaml").write_text(registry_content)
 
@@ -201,7 +201,7 @@ class TestConfigErrors:
     def test_missing_pyproject_exits_2(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        arch = tmp_path / "architecture" / "2.x"
+        arch = tmp_path / "docs" / "migrations"
         arch.mkdir(parents=True)
         (arch / "shim-registry.yaml").write_text("shims: []\n")
         monkeypatch.setattr(doctor_mod, "locate_project_root", lambda: tmp_path)

@@ -1,1 +1,0 @@
-../2.x/adr/2026-02-09-2-wp-lifecycle-state-machine.md

@@ -58,7 +58,7 @@ Gates are ordered alphabetically within each axis group.
 
 ### Axis 5 — Dependency Hygiene
 
-- **`test_auth_transport_singleton.py`** — Confirms `auth.transport.AuthTransport` is used only from files in `_ALLOWED_DIRECT_HTTPX_FILES`. Guards the HTTP mediation boundary. **Note:** as of Slice F (2026-05-18), this module has zero live callers; see ADR 2026-05-18-2 and `architecture/adrs/2026-05-18-2-delete-specify-cli-auth-transport.md`.
+- **`test_auth_transport_singleton.py`** — Confirms `auth.transport.AuthTransport` is used only from files in `_ALLOWED_DIRECT_HTTPX_FILES`. Guards the HTTP mediation boundary. **Note:** as of Slice F (2026-05-18), this module has zero live callers; see ADR 2026-05-18-2 and `docs/adr/3.x/2026-05-18-2-delete-specify-cli-auth-transport.md`.
 - **`test_compat_shims.py`** — Confirms every compat shim under `src/specify_cli/` is registered, follows the naming convention, and has a target removal version declared.
 - **`test_events_tracker_public_imports.py`** — Confirms `spec-kitty-events` and `spec-kitty-tracker` are consumed only via their public `spec_kitty_events.*` / `spec_kitty_tracker.*` import surfaces. No private-module access.
 - **`test_no_runtime_pypi_dep.py`** — Confirms the CLI does not depend on `spec-kitty-runtime` at runtime. The standalone runtime package is retired.
