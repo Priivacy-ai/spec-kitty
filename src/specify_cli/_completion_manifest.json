@@ -1,0 +1,1275 @@
+{
+ "help": "Setup tool for Spec Kitty spec-driven development projects.\n\nSet SPEC_KITTY_NO_UPGRADE_CHECK=1 to disable the upgrade-check notice.",
+ "hidden": false,
+ "deprecated": false,
+ "commands": {
+  "__force_multi_command_mode__": {
+   "help": "",
+   "hidden": true,
+   "deprecated": false
+  },
+  "init": {
+   "help": "Initialize a new Spec Kitty project.\n\nCreates project files only. Does not initialize a git repository.\nDoes not create any commits.\n\nIf PROJECT_NAME is omitted, init runs in the current directory.\nRe-running init in an already-initialized directory exits cleanly (idempotent).\n\nNote: The --no-git flag from previous versions has been removed.\n      init never touches git state regardless of flags.\n\nInteractive Mode (default):\n- Prompts you to select AI assistants\n\nNon-Interactive Mode:\n- Enabled with --non-interactive/--yes, SPEC_KITTY_NON_INTERACTIVE=1, or non-TTY\n- Skips all prompts; --ai is required\n- Perfect for CI/CD and automation\n\nWhat Gets Created:\n- .kittify/ - Project scaffold (memory, config)\n- Agent command and skill surfaces (.claude/commands/, .agents/skills/, etc.)\n- .gitignore and .claudeignore\n\nSpecifying AI Assistants (--ai flag):\nUse comma-separated agent keys (no spaces). Valid keys include:\ncodex, claude, gemini, cursor, qwen, opencode, windsurf, kilocode,\nauggie, copilot, q, kiro, antigravity, vibe, pi, letta.\n\nTemplate Discovery (Development Mode):\nSet SPEC_KITTY_TEMPLATE_ROOT to override bundled templates for local development.\n\nExamples:\n  spec-kitty init --ai codex                    # Current directory (default)\n  spec-kitty init my-project                    # Interactive mode\n  spec-kitty init my-project --ai codex         # With Codex\n  spec-kitty init my-project --ai codex,claude  # Multiple agents\n  spec-kitty init --ai claude --non-interactive # Non-interactive\n\nCanonical Next Steps (after init):\n  spec-kitty next --agent <agent> --mission <slug>         # Enter mission loop\n  spec-kitty agent action implement <WP> --agent <name>   # Implement a work package\n  spec-kitty agent action review    <WP> --agent <name>   # Review a work package\n\nMissions:\n- Missions are selected per-feature during /spec-kitty.specify",
+   "hidden": false,
+   "deprecated": false
+  },
+  "accept": {
+   "help": "Validate mission readiness before merging to main.",
+   "hidden": false,
+   "deprecated": false
+  },
+  "config": {
+   "help": "Display project configuration and asset resolution information.",
+   "hidden": false,
+   "deprecated": false
+  },
+  "dashboard": {
+   "help": "Open or stop the Spec Kitty dashboard.",
+   "hidden": false,
+   "deprecated": false
+  },
+  "implement": {
+   "help": "Internal — allocate or reuse the lane worktree for a work package.\n\nThis command is internal infrastructure, used by ``spec-kitty agent action implement``\nfor workspace creation. It is not the canonical user-facing implementation path for\nspec-kitty 3.1.1.\n\nCanonical user workflow::\n\n  spec-kitty next --agent <name> --mission <slug>   (loop entry)\n  spec-kitty agent action implement <WP> --agent <name>  (per-WP verb)\n\nThis command remains available as a compatibility surface for direct callers.\nSee FR-503 and D-4 in the 3.1.1 spec.",
+   "hidden": false,
+   "deprecated": false
+  },
+  "intake": {
+   "help": "Ingest a plan document as a mission brief for /spec-kitty.specify.",
+   "hidden": false,
+   "deprecated": false
+  },
+  "specify": {
+   "help": "Create a feature scaffold in kitty-specs/.",
+   "hidden": false,
+   "deprecated": false
+  },
+  "plan": {
+   "help": "Scaffold plan.md for a feature.",
+   "hidden": false,
+   "deprecated": false
+  },
+  "tasks": {
+   "help": "Finalize tasks metadata after task generation.",
+   "hidden": false,
+   "deprecated": false
+  },
+  "lint": {
+   "help": "Run ruff and mypy on a file and report errors.\n\nThis command is designed to be used as a post-edit hook for AI agents,\nproviding immediate feedback on linting and type-checking violations.\nWhen invoked without a path (the wired hook form), the target file is read\nfrom the harness JSON payload on stdin.",
+   "hidden": false,
+   "deprecated": false
+  },
+  "materialize": {
+   "help": "Regenerate all derived views from the canonical event log.\n\nFor each feature (or a single feature when --mission is given),\nwrites the following files to ``.kittify/derived/<slug>/``:\n\n- ``status.json`` — full StatusSnapshot\n- ``board-summary.json`` — lane counts and WP lists\n- ``progress.json`` — lane-weighted progress percentage\n- ``lifecycle.json`` — canonical active/recent/stale/abandoned mission state\n\nExamples::\n\n    spec-kitty materialize\n    spec-kitty materialize --mission 034-my-feature\n    spec-kitty materialize --json",
+   "hidden": false,
+   "deprecated": false
+  },
+  "merge": {
+   "help": "Merge a lane-based feature into its target branch.",
+   "hidden": false,
+   "deprecated": false
+  },
+  "merge-driver-event-log": {
+   "help": "Merge ``status.events.jsonl`` conflict inputs using event-log semantics.",
+   "hidden": true,
+   "deprecated": false
+  },
+  "next": {
+   "help": "Decide and emit the next agent action for the current mission.\n\nAgents call this command repeatedly in a loop.  The system inspects the\nmission state machine, evaluates guards, and returns a deterministic\ndecision with an action and prompt file.\n\nExamples:\n    spec-kitty next --mission 034-my-feature --json                            # query mode\n    spec-kitty next --agent claude --mission 034-my-feature --result success --json\n    spec-kitty next --agent codex --mission 034-my-feature\n    spec-kitty next --agent gemini --mission 034-my-feature --result failed --json\n    spec-kitty next --agent claude --mission 034-my-feature --answer \"yes\" --result success --json\n    spec-kitty next --agent claude --mission 034-my-feature --answer \"approve\" --decision-id \"input:review\" --result success --json",
+   "hidden": false,
+   "deprecated": false
+  },
+  "research": {
+   "help": "Execute Phase 0 research workflow to scaffold artifacts.",
+   "hidden": false,
+   "deprecated": false
+  },
+  "review": {
+   "help": "Validate a merged mission: WP lane check, dead-code scan, BLE001 audit.\n\nWrites kitty-specs/<slug>/mission-review-report.md with a machine-readable\nverdict.  See module docstring for known false-positive scenarios in the\ndead-code scan step.",
+   "hidden": false,
+   "deprecated": false
+  },
+  "safe-commit": {
+   "help": "Commit only the requested files via Spec Kitty's safe-commit path.",
+   "hidden": false,
+   "deprecated": false
+  },
+  "spec-commit": {
+   "help": "Commit spec artifacts to the mission's resolved placement.\n\nOn a protected primary the coordination worktree is materialised on demand\nso the commit lands on the coordination branch (materialize-then-retry).\nOn an unprotected or flattened primary the commit is direct.",
+   "hidden": false,
+   "deprecated": false
+  },
+  "session-start": {
+   "help": "Emit spec-kitty orientation for the Claude Code SessionStart hook.",
+   "hidden": false,
+   "deprecated": false
+  },
+  "session-stop": {
+   "help": "Emit the open-Ops reminder for the Claude Code Stop hook.",
+   "hidden": false,
+   "deprecated": false
+  },
+  "issue-search": {
+   "help": "Search tracker issues via the hosted read path",
+   "hidden": false,
+   "deprecated": false
+  },
+  "upgrade": {
+   "help": "Upgrade a Spec Kitty project to the current version.\n\nDetects the project's current version and applies all necessary migrations\nto bring it up to date with the installed CLI version.\n\n**New flags (WP09)**:\n  ``--cli``     Emit CLI upgrade guidance only.  No project detection;\n                succeeds outside any project (FR-014).\n  ``--project`` Run project migrations only; suppresses CLI nag.\n                Errors outside a project.\n  ``--yes``/``-y``  Non-interactive confirmation (alias for ``--force``).\n                    Does NOT bypass schema-incompatibility blocks (CHK037/A-006).\n  ``--no-nag``  Suppress upgrade-nag banner even when a CLI update exists.\n\nMutual exclusion: ``--cli`` and ``--project`` together exit 2.\n\n**Exit codes** (R-08):\n  0  Success / ALLOW / ALLOW_WITH_NAG / any ``--dry-run``\n  2  ``--cli --project`` flag conflict\n  4  Project migration required (BLOCK_PROJECT_MIGRATION)\n  5  Project is too new for this CLI (BLOCK_CLI_UPGRADE) — not bypassable\n  6  Project metadata corrupt (BLOCK_PROJECT_CORRUPT)\n  1  General error\n\nSee also: ``docs/how-to/install-and-upgrade.md``\n\nExamples:\n    spec-kitty upgrade              # Upgrade to current version\n    spec-kitty upgrade --dry-run    # Preview changes\n    spec-kitty upgrade --target 0.6.5  # Upgrade to specific version\n    spec-kitty upgrade --cli        # Show CLI upgrade hint, no project needed\n    spec-kitty upgrade --project    # Project migrations only\n    spec-kitty upgrade --yes        # Non-interactive (same as --force)\n    spec-kitty upgrade --dry-run --json  # Machine-readable plan",
+   "hidden": false,
+   "deprecated": false
+  },
+  "validate-encoding": {
+   "help": "Validate and optionally fix file encoding in feature artifacts.\n\nScans markdown files for Windows-1252 smart quotes and other problematic\ncharacters that cause UTF-8 encoding errors. Can automatically fix issues\nby replacing problematic characters with safe alternatives.",
+   "hidden": false,
+   "deprecated": false
+  },
+  "validate-tasks": {
+   "help": "LEGACY: Validate and repair directory/frontmatter lane mismatches.\n\nThis command is for legacy projects that used directory-based lanes\n(tasks/planned/, tasks/doing/, etc.). Modern projects (3.0+) use\nflat tasks/ directories with canonical status in status.events.jsonl.\n\nFor modern projects, use `spec-kitty agent mission finalize-tasks`\nto ensure canonical status state exists.",
+   "hidden": false,
+   "deprecated": false
+  },
+  "verify-setup": {
+   "help": "Verify that the current environment matches Spec Kitty expectations.",
+   "hidden": false,
+   "deprecated": false
+  },
+  "dispatch": {
+   "help": "Dispatch a request to a governed Op (canonical surface).",
+   "hidden": false,
+   "deprecated": false
+  },
+  "agent": {
+   "help": "Commands for AI agents to execute spec-kitty mission actions programmatically",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "check-prerequisites": {
+     "help": "Deprecated compatibility alias forwarding to agent mission check-prerequisites.",
+     "hidden": true,
+     "deprecated": false
+    },
+    "config": {
+     "help": "Manage project AI agent configuration (add, remove, list agents)",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "list": {
+       "help": "List configured agents and their status.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "add": {
+       "help": "Add agents to the project.\n\nCreates agent directories and updates config.yaml.\n\nExample:\n    spec-kitty agent config add claude codex",
+       "hidden": false,
+       "deprecated": false
+      },
+      "remove": {
+       "help": "Remove agents from the project.\n\nDeletes agent directories and updates config.yaml.\n\nExample:\n    spec-kitty agent config remove codex gemini",
+       "hidden": false,
+       "deprecated": false
+      },
+      "status": {
+       "help": "Show which agents are configured vs present on filesystem.\n\nIdentifies:\n- Configured and present (✓)\n- Configured but missing (⚠)\n- Not configured but present (orphaned) (✗)",
+       "hidden": false,
+       "deprecated": false
+      },
+      "sync": {
+       "help": "Sync filesystem with config.yaml.\n\nBy default, removes orphaned directories (present but not configured).\nUse --create-missing to also create directories for configured agents.\nUse --sync-hooks to update harness-specific post-edit hooks.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "set": {
+       "help": "Set a project-level agent configuration value.\n\nCurrently supported keys:\n    auto_commit  - Enable/disable automatic commits by agents (true/false)\n    lint_on_edit - Enable/disable auto-linting feedback loop (true/false)\n\nExamples:\n    spec-kitty agent config set auto_commit false\n    spec-kitty agent config set lint_on_edit true",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
+    },
+    "mission": {
+     "help": "Mission lifecycle commands for AI agents",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "record-analysis": {
+       "help": "Persist `/spec-kitty.analyze` output as `analysis-report.md`.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "branch-context": {
+       "help": "Return deterministic branch contract for planning-stage prompts.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "create": {
+       "help": "Create new mission directory structure in the project root checkout.\n\nThis command is designed for AI agents to call programmatically.\nCreates mission directory in kitty-specs/ and commits to the current branch.\n\nExamples:\n    spec-kitty agent mission create \"new-dashboard\" --json",
+       "hidden": false,
+       "deprecated": false
+      },
+      "check-prerequisites": {
+       "help": "Validate mission structure and prerequisites.\n\nThis command is designed for AI agents to call programmatically.\n\nExamples:\n    spec-kitty agent mission check-prerequisites --json\n    spec-kitty agent mission check-prerequisites --mission 020-my-feature --paths-only --json",
+       "hidden": false,
+       "deprecated": false
+      },
+      "setup-plan": {
+       "help": "Scaffold implementation plan template in the project root checkout.\n\nThis command is designed for AI agents to call programmatically.\nCreates plan.md and commits to target branch.\n\nExamples:\n    spec-kitty agent mission setup-plan --json\n    spec-kitty agent mission setup-plan --mission 020-my-feature --json\n\n------------------------------------------------------------------\nWP04 / FR-011 + FR-012 audit (2026-05-17)\n------------------------------------------------------------------\nThis command's full call graph was audited to confirm every body\nupload / queue write goes through ``default_queue_db_path()`` and\nthat no setup-plan path opens the legacy home-scoped queue database\ndirectly. The audit covered:\n\n  * ``trigger_feature_dossier_sync_if_enabled()`` (this function\n    constructs ``OfflineBodyUploadQueue()`` which delegates to\n    ``default_queue_db_path()`` — FR-012 lock).\n  * ``OfflineBodyUploadQueue.__init__`` (``sync.body_queue``) —\n    falls back to ``default_queue_db_path()`` when ``db_path`` is\n    ``None``.\n  * ``emit_artifact_phase()`` / ``SPECIFY_COMPLETED`` /\n    ``PLAN_STARTED`` / ``PLAN_COMPLETED`` — writes to local\n    lifecycle JSONL only, no queue DB.\n  * ``commit_for_mission()`` / underlying safe-commit — local git only, no queue DB.\n\nNo direct ``_legacy_queue_db_path()`` call sites exist in the\nsetup-plan call graph as of 2026-05-17. The FR-011 refuse-loudly\nguard (now in :func:`_enforce_saas_sync_auth_refusal`) is the\nload-bearing gate that ensures we never silently fall back to the\nlegacy queue when SaaS sync is enabled but the foreground is\nunauthenticated.\n\n------------------------------------------------------------------\nWP04 (mission ``mvp-cli-sync-boundary-completion-01KRX11M``)\nboundary preflight integration — 2026-05-18\n------------------------------------------------------------------\nImmediately after the FR-011 hosted-auth refusal above (and only\nwhen ``SPEC_KITTY_ENABLE_SAAS_SYNC=1``, matching the existing FR-011\ngate), setup-plan invokes\n:func:`specify_cli.sync.preflight.run_preflight` with\n``require_auth=True`` to enforce FR-002 / FR-009 (now in\n:func:`_enforce_saas_sync_boundary_preflight`). The boundary preflight\nrefuses (``typer.Exit(2)``) on:\n\n  * any of the six canonical daemon-owner / foreground mismatch\n    fields (D-3 canon);\n  * any orphan daemon owner record on disk;\n  * any legacy queue rows belonging to the active scope; or\n  * missing hosted auth when SaaS sync is required.\n\nThe preflight is read-only — no DB writes, no SaaS round-trip — so\nplacing it AFTER the FR-011 auth guard and BEFORE any\n``emit_artifact_phase`` / ``trigger_feature_dossier_sync`` /\n``emit_wp_created`` call ensures every SaaS-producing code path\ndownstream of this function has passed the gate. The same gate is\napplied in ``sync now`` (WP03); the two surfaces share\n:func:`specify_cli.sync.preflight.build_boundary_failure_set` as\ntheir single source of truth.\n\nCross-reference: WP04 of mission\n``mvp-sync-boundary-cli-01KRVCQS``; regression tests in\n``tests/runtime/test_setup_plan_sync_evidence.py``.\n------------------------------------------------------------------",
+       "hidden": false,
+       "deprecated": false
+      },
+      "accept": {
+       "help": "Perform mission acceptance workflow.\n\nThis command:\n1. Validates all tasks are in 'done' lane\n2. Runs acceptance checks from checklist files\n3. Creates acceptance report\n4. Marks mission as ready for merge\n\nWrapper for top-level accept command with agent-specific defaults.\n\nExamples:\n    # Run acceptance workflow\n    spec-kitty agent mission accept --mission 077-my-mission\n\n    # With JSON output for agents\n    spec-kitty agent mission accept --mission 077-my-mission --json\n\n    # Lenient mode (skip strict validation)\n    spec-kitty agent mission accept --mission 077-my-mission --lenient --json",
+       "hidden": false,
+       "deprecated": false
+      },
+      "merge": {
+       "help": "Merge mission branch into target branch.\n\nThis command:\n1. Validates the mission is accepted\n2. Merges the mission branch into target (usually 'main')\n3. Cleans up worktree\n4. Deletes the mission branch\n\nAuto-retry logic:\nIf current branch doesn't match feature pattern and auto-retry is enabled,\nit retries only when --mission is provided so worktree selection is deterministic.\n\nDelegates to existing tasks_cli.py merge implementation.\n\nExamples:\n    # Merge into main branch\n    spec-kitty agent mission merge --mission 077-my-mission\n\n    # Merge into specific branch with push\n    spec-kitty agent mission merge --mission 077-my-mission --target develop --push\n\n    # Dry-run mode\n    spec-kitty agent mission merge --mission 077-my-mission --dry-run\n\n    # Keep worktree and branch after merge\n    spec-kitty agent mission merge --mission 077-my-mission --keep-worktree --keep-branch",
+       "hidden": false,
+       "deprecated": false
+      },
+      "finalize-tasks": {
+       "help": "Parse dependencies from tasks.md and update WP frontmatter, then commit to target branch.\n\nThis command is designed to be called after LLM generates WP files via /spec-kitty.tasks.\nIt post-processes the generated files to add dependency information and commits everything.\n\nUse --validate-only to check for issues (missing requirement mappings, ownership overlaps,\ndependency cycles) without making any changes or committing.\n\nBootstrap Mutation Surface (FR-003 / SC-002)\n=============================================\nThe 8 frontmatter fields below may be written or overwritten by this command.\nWhen ``--validate-only`` is active, ALL writes are skipped — the\n``frontmatter_changed and not validate_only`` guard ensures zero bytes of\nmutation on disk (INV-6). In validate-only mode the bootstrap loop still\ninfers all 8 fields in memory so downstream validation operates against the\npost-bootstrap state — not the stale on-disk frontmatter.\n\nSee also: ``tasks.py:finalize-tasks()`` which writes ``dependencies`` via\n``build_document() + write_text()`` — guarded the same way (T002).\n\nExamples:\n    spec-kitty agent mission finalize-tasks --mission 020-my-feature --json\n    spec-kitty agent mission finalize-tasks --mission 020-my-feature --validate-only --json",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
+    },
+    "tasks": {
+     "help": "Task workflow commands for AI agents",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "move-task": {
+       "help": "Move task between lanes (planned → doing → for_review → approved → done).\n\nExamples:\n    spec-kitty agent tasks move-task WP01 --to doing --assignee claude --json\n    spec-kitty agent tasks move-task WP02 --to for_review --agent claude --shell-pid $$\n    spec-kitty agent tasks move-task WP03 --to approved --note \"Review passed\"\n    spec-kitty agent tasks move-task WP03 --to done --done-override-reason \"Branch deleted after hotfix merge\"\n    spec-kitty agent tasks move-task WP03 --to planned --review-feedback-file feedback.md",
+       "hidden": false,
+       "deprecated": false
+      },
+      "mark-status": {
+       "help": "Update task checkbox status in tasks.md for one or more tasks.\n\nAccepts MULTIPLE task IDs separated by spaces. All tasks are updated\nin a single operation with one commit.\n\nExamples:\n    # Single task:\n    spec-kitty agent tasks mark-status T001 --status done\n\n    # Multiple tasks (space-separated):\n    spec-kitty agent tasks mark-status T001 T002 T003 --status done\n\n    # Many tasks at once:\n    spec-kitty agent tasks mark-status T040 T041 T042 T043 T044 T045 --status done --mission 001-my-feature\n\n    # With JSON output:\n    spec-kitty agent tasks mark-status T001 T002 --status done --json",
+       "hidden": false,
+       "deprecated": false
+      },
+      "list-tasks": {
+       "help": "List tasks with optional lane filtering.\n\nExamples:\n    spec-kitty agent tasks list-tasks --json\n    spec-kitty agent tasks list-tasks --lane doing --json",
+       "hidden": false,
+       "deprecated": false
+      },
+      "add-history": {
+       "help": "Append history entry to task activity log.\n\nExamples:\n    spec-kitty agent tasks add-history WP01 --note \"Completed implementation\" --json",
+       "hidden": false,
+       "deprecated": false
+      },
+      "finalize-tasks": {
+       "help": "Parse tasks.md and inject dependencies into WP frontmatter.\n\nScans tasks.md for \"Depends on: WP##\" patterns or phase groupings,\nbuilds dependency graph, validates for cycles, and writes dependencies\nfield to each WP file's frontmatter.\n\nExamples:\n    spec-kitty agent tasks finalize-tasks --mission 001-my-feature --json\n    spec-kitty agent tasks finalize-tasks --mission 021-my-feature --json",
+       "hidden": false,
+       "deprecated": false
+      },
+      "map-requirements": {
+       "help": "Register requirement-to-WP mappings with immediate validation.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "validate-workflow": {
+       "help": "Validate task metadata structure and workflow consistency.\n\nExamples:\n    spec-kitty agent tasks validate-workflow WP01 --json",
+       "hidden": false,
+       "deprecated": false
+      },
+      "status": {
+       "help": "Display kanban status board for all work packages in a feature.\n\nShows a beautiful overview of work package statuses, progress metrics,\nand next steps based on dependencies.\n\nWPs in \"doing\" with no commits for --stale-threshold minutes are flagged\nas potentially stale (agent may have stopped).\n\nExample:\n    spec-kitty agent tasks status\n    spec-kitty agent tasks status --mission 012-documentation-mission\n    spec-kitty agent tasks status --json\n    spec-kitty agent tasks status --stale-threshold 15",
+       "hidden": false,
+       "deprecated": false
+      },
+      "list-dependents": {
+       "help": "Find all WPs that depend on a given WP (downstream dependents).\n\nThis answers \"who depends on me?\" - useful when reviewing a WP to understand\nthe impact of requested changes on downstream work packages.\n\nAlso shows what the WP itself depends on (upstream dependencies).\n\nExamples:\n    spec-kitty agent tasks list-dependents WP13\n    spec-kitty agent tasks list-dependents WP01 --mission 001-my-feature --json",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
+    },
+    "context": {
+     "help": "Agent context management commands",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "resolve": {
+       "help": "Resolve canonical feature/work-package/action context for prompt execution.",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
+    },
+    "release": {
+     "help": "Release packaging commands for AI agents",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "prep": {
+       "help": "Prepare release artifacts (changelog draft, version bump, structured inputs).\n\nReads kitty-specs/ artifacts and local git tags. No network calls.",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
+    },
+    "action": {
+     "help": "Mission action commands that display prompts and instructions for agents",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "implement": {
+       "help": "Display work package prompt with implementation instructions.\n\nThis command outputs the full work package prompt content so agents can\nimmediately see what to implement, without navigating the file system.\n\nAutomatically moves WP from planned to in_progress (requires --agent to track who is working).\n\nExamples:\n    spec-kitty agent action implement WP01 --agent claude\n    spec-kitty agent action implement WP02 --agent claude\n    spec-kitty agent action implement wp01 --agent codex\n    spec-kitty agent action implement --agent gemini  # auto-detects first planned WP",
+       "hidden": false,
+       "deprecated": false
+      },
+      "review": {
+       "help": "Display work package prompt with review instructions.\n\nThis command outputs the full work package prompt (including any review\nfeedback from previous reviews) so agents can review the implementation.\n\nAutomatically moves WP from for_review to in_review (requires --agent to track who is reviewing).\n\nExamples:\n    spec-kitty agent action review WP01 --agent claude\n    spec-kitty agent action review wp02 --agent codex\n    spec-kitty agent action review --agent gemini  # auto-detects first for_review WP",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
+    },
+    "status": {
+     "help": "Canonical status management commands",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "emit": {
+       "help": "Emit a status transition event for a work package.\n\nRecords a lane transition in the canonical event log, validates the\ntransition against the state machine, materializes a snapshot, and\nupdates legacy compatibility views.\n\nExamples:\n    spec-kitty agent status emit WP01 --to claimed --actor claude\n    spec-kitty agent status emit WP01 --to done --actor claude --evidence-json '{\"review\": {\"reviewer\": \"alice\", \"verdict\": \"approved\", \"reference\": \"PR#1\"}}'\n    spec-kitty agent status emit WP01 --to in_progress --actor claude --force --reason \"resuming after crash\"",
+       "hidden": false,
+       "deprecated": false
+      },
+      "materialize": {
+       "help": "Rebuild status.json from the canonical event log.\n\nReads all events from status.events.jsonl, applies the deterministic\nreducer to produce a snapshot, writes status.json, and updates legacy\ncompatibility views.\n\nExamples:\n    spec-kitty agent status materialize\n    spec-kitty agent status materialize --mission 034-my-feature\n    spec-kitty agent status materialize --json",
+       "hidden": false,
+       "deprecated": false
+      },
+      "doctor": {
+       "help": "Run health checks for status hygiene and global runtime.\n\nDetects global runtime issues (missing runtime directory, version mismatch,\ncorrupted missions) and project-level issues (stale claims, orphan\nworkspaces, drift).\nExit code 0 = healthy, 1 = issues found.\n\nExamples:\n    spec-kitty agent status doctor\n    spec-kitty agent status doctor --mission 034-my-feature\n    spec-kitty agent status doctor --stale-claimed-days 3 --json",
+       "hidden": false,
+       "deprecated": false
+      },
+      "lifecycle": {
+       "help": "Show the canonical lifecycle state for one mission.\n\nThis is the product-facing state layer above raw WP lanes. It answers\nwhether a mission is active, recently completed, stale, abandoned, or\nnow just recoverable/archive history.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "migrate": {
+       "help": "[REMOVED] Frontmatter-to-event-log bootstrap migration has been removed.\n\nThe canonical status model uses the event log as sole authority.\nOne-shot bootstrap migration from frontmatter is handled by the\nupgrade migration system (``spec-kitty upgrade``), not this command.\n\nExamples:\n    spec-kitty upgrade  # applies all pending migrations",
+       "hidden": false,
+       "deprecated": false
+      },
+      "validate": {
+       "help": "Validate canonical status model integrity.\n\nRuns all validation checks: event schema, transition legality,\ndone-evidence completeness, materialization drift, and derived-view drift.\n\nExit code 0 for pass (no errors), exit code 1 for fail (any errors).\nWarnings do not cause failure.\n\nExamples:\n    spec-kitty agent status validate\n    spec-kitty agent status validate --mission 034-my-feature\n    spec-kitty agent status validate --json",
+       "hidden": false,
+       "deprecated": false
+      },
+      "reconcile": {
+       "help": "[REMOVED] Cross-repo reconciliation has been removed.\n\nThe canonical status model uses the event log as sole authority.\nCross-repo drift detection via frontmatter scanning is no longer\nsupported. Use ``spec-kitty agent status validate`` to check\nevent log integrity.\n\nExamples:\n    spec-kitty agent status validate --mission 034-feature-name",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
+    },
+    "tests": {
+     "help": "Test-related commands for AI agents",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "stale-check": {
+       "help": "Detect test assertions likely invalidated by source changes between two refs.\n\nCompares BASE..HEAD and reports assertions in the test suite that reference\nsymbols (functions, classes, string literals) that were renamed or removed in\nthe source diff.  Uses AST analysis only — no regex on test text, no test\nexecution.\n\nConfidence levels:\n  high   — identifier referenced directly inside Assert or assert* call\n  medium — identifier appears anywhere in an assertion node\n  low    — string literal matches a Constant in an assertion-bearing position",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
+    },
+    "decision": {
+     "help": "Decision Moment ledger for interview questions.",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "open": {
+       "help": "Open a new Decision Moment or return idempotently if one already exists.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "resolve": {
+       "help": "Resolve a decision with a concrete final answer.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "defer": {
+       "help": "Defer a decision for later resolution.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "cancel": {
+       "help": "Cancel a decision (deemed no longer relevant).",
+       "hidden": false,
+       "deprecated": false
+      },
+      "verify": {
+       "help": "Cross-check deferred decisions against inline sentinel markers.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "widen": {
+       "help": "[internal] Call the widen endpoint for a decision. Not for end users.",
+       "hidden": true,
+       "deprecated": false
+      }
+     }
+    },
+    "retrospect": {
+     "help": "Retrospective synthesis commands",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "synthesize": {
+       "help": "Apply staged proposals from a mission's retrospective record.\n\n--dry-run is the default; pass --apply to mutate project state.\nflag_not_helpful is the only auto-applied kind (Q2-A).\nConflict detection is fail-closed: any conflict blocks the whole batch.\n\nWhen no retrospective.yaml exists, the command errors with RETROSPECTIVE_RECORD_MISSING (exit 1) and points to 'spec-kitty retrospect create'.\nPass --fabricate-empty to use the legacy auto-fabrication path instead.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "summary": {
+       "help": "Cross-mission retrospective summary.\n\nBack-compat alias: equivalent to `spec-kitty retrospect summary`.\n\nDistinguishes four record states: has_findings / ran_no_findings / missing / failed.\n\nNo mutation is performed.",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
+    },
+    "profile": {
+     "help": "Compatibility alias for listing agent profiles",
+     "hidden": true,
+     "deprecated": false,
+     "commands": {
+      "list": {
+       "help": "List agent profiles (activated-only by default; --all for the full catalog).",
+       "hidden": false,
+       "deprecated": false
+      },
+      "get": {
+       "help": "Show the full resolved definition of an agent profile (FR-013/014/015).",
+       "hidden": true,
+       "deprecated": false
+      },
+      "show": {
+       "help": "Show the full resolved definition of an agent profile (FR-013/014/015).",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
+    }
+   }
+  },
+  "auth": {
+   "help": "Authentication commands",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "login": {
+     "help": "Log in to spec-kitty SaaS via browser OAuth (or device flow with --headless).",
+     "hidden": false,
+     "deprecated": false
+    },
+    "logout": {
+     "help": "Log out and revoke the current session.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "status": {
+     "help": "Show current authentication status.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "whoami": {
+     "help": "Print the authenticated user's email and exit 0, or exit 1 if not authenticated.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "doctor": {
+     "help": "Diagnose CLI auth and sync-daemon state. Default invocation is read-only.",
+     "hidden": false,
+     "deprecated": false
+    }
+   }
+  },
+  "charter": {
+   "help": "Charter management commands",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "activate": {
+     "help": "Activate a doctrine artifact by kind and ID (FR-004), with optional cascade.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "deactivate": {
+     "help": "Deactivate a doctrine artifact by kind and ID (FR-005), with optional cascade.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "interview": {
+     "help": "Capture charter interview answers for later generation.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "generate": {
+     "help": "Generate charter bundle from interview answers + doctrine references.\n\nBehavior contract (issue #841 / WP06 T029-T030):\n\n- On success in a git working tree, the produced ``.kittify/charter/charter.md``\n  is auto-staged via ``git add`` so a subsequent ``charter bundle validate``\n  finds it tracked without any operator ``git add`` between the two\n  commands. Staging (not committing) matches the parity contract — the\n  ``bundle validate`` tracked-files check keys on ``git ls-files``.\n- When the cwd is not inside a git working tree, ``generate`` exits\n  non-zero before any side effect with an actionable error message that\n  names the remediation (``git init``).\n- When ``.kittify/charter/charter.md`` is a symlink, ``generate`` exits\n  non-zero before interview/default loading, compilation, sync,\n  gitignore updates, or staging. Update the symlink target directly or\n  replace it with a regular runtime charter.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "context": {
+     "help": "Render charter context for a specific workflow action.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "sync": {
+     "help": "Sync charter.md to structured YAML config files.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "status": {
+     "help": "Display charter sync status plus synthesis/operator state.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "synthesize": {
+     "help": "Validate and promote agent-generated project-local doctrine artifacts.\n\nReads the charter interview answers, resolves synthesis targets from the\nDRG + doctrine, and writes all artifacts to ``.kittify/doctrine/``.\n\nDoctrine generation is performed by the LLM harness (Claude Code, Codex,\nCursor, etc.) via the spec-kitty-charter-doctrine skill. This command\nvalidates and promotes the artifacts the agent has written.\n\nFresh-project behavior (issue #839 / WP06 T031-T033)\n----------------------------------------------------\nOn a fresh project where ``.kittify/charter/generated/`` is missing or\nempty (i.e. the LLM harness has not yet written agent artifacts), this\ncommand short-circuits the adapter pipeline and materializes the\n**minimal artifact set** the runtime requires:\n\n1. ``.kittify/doctrine/`` — directory marker. ``DoctrineService``'s\n   project-root resolver (``src/charter/_doctrine_paths.py``) is a\n   presence-only check; an empty directory is a valid project layer.\n2. ``.kittify/doctrine/PROVENANCE.md`` — human-readable record of the\n   fresh-project seed path, citing #839.\n\nThe runtime falls back to the built-in doctrine (``src/doctrine/``) for\nall artifact lookups until the harness writes per-target YAML and the\noperator re-runs ``synthesize`` (which then takes the normal adapter\npath). The fresh-project path is **idempotent**: re-running produces\nbytewise-identical output (T033). Charter prerequisites are still\nenforced — ``charter.md`` must exist (else ``TaskCliError`` is raised\nvia ``_build_synthesis_request``).\n\nExamples\n--------\nValidate + promote generated artifacts written by the harness::\n\n    spec-kitty charter synthesize\n\nValidate + promote with fixture adapter (offline/testing)::\n\n    spec-kitty charter synthesize --adapter fixture\n\nDry-run (stage + validate, no promote)::\n\n    spec-kitty charter synthesize --dry-run",
+     "hidden": false,
+     "deprecated": false
+    },
+    "resynthesize": {
+     "help": "Regenerate a bounded set of project-local doctrine artifacts (partial resynthesis).\n\nUses a structured selector to identify the target set:\n\n- ``directive:PROJECT_001`` — regenerate a specific project directive.\n- ``tactic:how-we-apply-directive-003`` — regenerate one tactic.\n- ``directive:DIRECTIVE_003`` — regenerate every artifact whose provenance\n  references the built-in DIRECTIVE_003 URN.\n- ``testing-philosophy`` — regenerate all artifacts from that interview section.\n\nUnrelated artifacts are never touched (FR-017).\n\nExamples\n--------\nResynthesize a single tactic::\n\n    spec-kitty charter resynthesize --topic tactic:how-we-apply-directive-003\n\nResynthesize all artifacts referencing a built-in directive::\n\n    spec-kitty charter resynthesize --topic directive:DIRECTIVE_003",
+     "hidden": false,
+     "deprecated": false
+    },
+    "lint": {
+     "help": "Detect decay in charter artifacts via graph-native checks.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "preflight": {
+     "help": "Verify charter-derived state before a governed session begins.\n\nPipeline:\n\n1. Resolve the repo root (same logic as the rest of the ``charter``\n   subcommand group).\n2. Invoke :func:`run_charter_preflight`.\n3. Render JSON or a Rich summary, then exit per the contract.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "bundle": {
+     "help": "Charter bundle validation commands.",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "validate": {
+       "help": "Validate the charter bundle against CharterBundleManifest v1.0.0.",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
+    },
+    "mission-type": {
+     "help": "Mission type commands (activated types only).",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "list": {
+       "help": "List activated mission types for the current project (FR-016).\n\nReturns only mission types that are explicitly activated in this\nproject's charter.  To see all doctrine-layer types regardless of\nactivation state, use ``spec-kitty doctrine mission-type list``.\n\nOutput columns (table): ID, SOURCE, DISPLAY NAME, ACTION SEQUENCE.",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
+    },
+    "list": {
+     "help": "List activated doctrine artifacts by kind.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "pack": {
+     "help": "Charter pack management commands.",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "consistency-check": {
+       "help": "Run consistency check against activated doctrine artifacts (FR-011).",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
+    }
+   }
+  },
+  "context": {
+   "help": "Query workspace context information",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "info": {
+     "help": "Show context information for current or specified workspace.\n\nExamples:\n    # Auto-detect from current directory (if inside worktree)\n    spec-kitty context info\n\n    # Explicit workspace\n    spec-kitty context info --workspace 010-feature-lane-a\n\n    # JSON output\n    spec-kitty context info --json",
+     "hidden": false,
+     "deprecated": false
+    },
+    "list": {
+     "help": "List all workspace contexts.\n\nExamples:\n    # List all contexts\n    spec-kitty context list\n\n    # List only orphaned contexts (worktree deleted)\n    spec-kitty context list --orphaned\n\n    # JSON output\n    spec-kitty context list --json",
+     "hidden": false,
+     "deprecated": false
+    },
+    "cleanup": {
+     "help": "Clean up orphaned workspace contexts.\n\nRemoves context files for workspaces that no longer exist.\n\nExamples:\n    # Preview cleanup\n    spec-kitty context cleanup --dry-run\n\n    # Clean up orphaned contexts\n    spec-kitty context cleanup",
+     "hidden": false,
+     "deprecated": false
+    },
+    "mission-resolve": {
+     "help": "Resolve and persist a MissionContext token.\n\nCreates a new bound context for the given work package and feature,\nwrites it to .kittify/runtime/contexts/, and prints the token.\n\nThe token can be passed to other commands via --context <token>.\n\nExamples:\n    # Resolve and print token for piping\n    TOKEN=$(spec-kitty context mission-resolve --wp WP01 --mission 057-my-feature)\n\n    # Resolve and print full JSON\n    spec-kitty context mission-resolve --wp WP01 --mission 057-my-feature --json",
+     "hidden": false,
+     "deprecated": false
+    },
+    "mission-show": {
+     "help": "Show all fields of a persisted MissionContext token.\n\nLoads the context file and pretty-prints its bound fields.\n\nExamples:\n    spec-kitty context mission-show --context ctx-01HVXYZ...\n    spec-kitty context mission-show --context ctx-01HVXYZ... --json",
+     "hidden": false,
+     "deprecated": false
+    }
+   }
+  },
+  "doctor": {
+   "help": "Project health diagnostics",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "command-files": {
+     "help": "Check all agent command files for correctness.\n\nVerifies that every configured agent has the correct command files:\n- Full rendered prompts for prompt-driven commands (specify, plan, tasks, ...)\n- Thin shims for CLI-driven commands (implement, review, merge, ...)\n- Current version markers on all files\n\nExamples:\n    spec-kitty doctor command-files\n    spec-kitty doctor command-files --json",
+     "hidden": false,
+     "deprecated": false
+    },
+    "skills": {
+     "help": "Check command-skill manifest drift for Codex, Vibe, Pi, and Letta.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "tool-surfaces": {
+     "help": "Audit (and optionally repair) every configured tool surface.\n\nExamples:\n    spec-kitty doctor tool-surfaces --json\n    spec-kitty doctor tool-surfaces --kind command-skill --json\n    spec-kitty doctor tool-surfaces --tool codex --fix",
+     "hidden": false,
+     "deprecated": false
+    },
+    "state-roots": {
+     "help": "Show state roots, surface classification, and safety warnings.\n\nDisplays the three state roots with resolved paths, all registered\nstate surfaces grouped by root with authority and Git classification,\nand warnings for any runtime surfaces not covered by .gitignore.\n\nExamples:\n    spec-kitty doctor state-roots\n    spec-kitty doctor state-roots --json",
+     "hidden": false,
+     "deprecated": false
+    },
+    "workspaces": {
+     "help": "Report .worktrees/ husk directories (entries lacking a .git entry).\n\nA husk is not a usable git worktree: git commands run inside it fall\nthrough to the primary repository (#1833). Workspace resolution refuses\nhusks with a structured error; this check is the recovery path.\n\nExamples:\n    spec-kitty doctor workspaces\n    spec-kitty doctor workspaces --fix\n    spec-kitty doctor workspaces --json",
+     "hidden": false,
+     "deprecated": false
+    },
+    "identity": {
+     "help": "Report mission-identity health across kitty-specs/.\n\nClassifies every mission into one of four states (FR-045):\n\n\\b\n- assigned: mission_id present AND mission_number non-null (fully migrated)\n- pending:  mission_id present AND mission_number null (pre-merge)\n- legacy:   mission_id missing AND mission_number present (needs backfill)\n- orphan:   both fields missing or meta.json unreadable (needs triage)\n\nAlso reports duplicate numeric prefixes (FR-011) and ambiguous selectors\nthat would resolve to multiple missions (FR-012).\n\nExamples:\n    spec-kitty doctor identity\n    spec-kitty doctor identity --json\n    spec-kitty doctor identity --mission 083-foo\n    spec-kitty doctor identity --fail-on legacy,orphan",
+     "hidden": false,
+     "deprecated": false
+    },
+    "topology": {
+     "help": "Report each mission's STORED topology across kitty-specs/.\n\nReads the authoritative ``topology`` value persisted in ``meta.json`` WITHOUT\nre-inferring from disk/git. Missions not yet backfilled surface\n``topology: null`` — run ``spec-kitty migrate backfill-topology`` to persist\nthe computed value.\n\nExamples:\n    spec-kitty doctor topology\n    spec-kitty doctor topology --json\n    spec-kitty doctor topology --mission 083-foo",
+     "hidden": false,
+     "deprecated": false
+    },
+    "sparse-checkout": {
+     "help": "Detect and optionally remediate legacy sparse-checkout state.\n\nWithout ``--fix``: scans the repo and prints a warning finding\ndescribing any active sparse-checkout state (primary + lane\nworktrees). Exits 0 when clean, 1 when state is present.\n\nWith ``--fix``: in an interactive TTY, prints a step-by-step plan,\nprompts once for consent, and calls WP03's ``remediate()``. In\nnon-interactive / CI environments, prints a remediation pointer and\nexits non-zero without mutating state (FR-023).\n\nExamples:\n    spec-kitty doctor sparse-checkout\n    spec-kitty doctor sparse-checkout --fix",
+     "hidden": false,
+     "deprecated": false
+    },
+    "shim-registry": {
+     "help": "Check for overdue compatibility shims in the shim registry.\n\nReads architecture/2.x/shim-registry.yaml and compares each entry's\nremoval_target_release against the current project version. Fails with\nexit code 1 if any shim is overdue (removal release has shipped but\nshim file still exists on disk).\n\nExit codes:\n  0  All entries are pending, removed, or grandfathered.\n  1  At least one entry is overdue — shim must be deleted or window extended.\n  2  Configuration error (registry file or pyproject.toml missing/invalid).\n\nExamples:\n    spec-kitty doctor shim-registry\n    spec-kitty doctor shim-registry --json",
+     "hidden": false,
+     "deprecated": false
+    },
+    "invocation-pairing": {
+     "help": "List orphan profile-invocation lifecycle records.\n\nWP05 (#843) wiring: scans\n``.kittify/events/profile-invocation-lifecycle.jsonl`` for ``started``\nrecords with no paired ``completed`` or ``failed`` partner. Mid-cycle\nagent crashes show up here. The check observes; it does not remediate.\n\nExit codes:\n  0  No orphans observed.\n  1  At least one orphan found.\n\nExamples:\n    spec-kitty doctor invocation-pairing\n    spec-kitty doctor invocation-pairing --json",
+     "hidden": false,
+     "deprecated": false
+    },
+    "ops": {
+     "help": "List orphan Op records; --close-stale sweeps stale ones closed as abandoned.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "orphan-daemons": {
+     "help": "List orphan daemon owner records and emit retirement hints.\n\nImplements FR-010 of the identity-boundary mission: an orphan\ndaemon owner record is one whose recorded PID is dead OR whose\nrecorded executable path no longer exists on disk. Each orphan\nis printed with a copy-pasteable retirement command that removes\nthe on-disk ``owner.json`` so the next ``sync status --check``\nreturns clean.\n\nExit codes:\n  0  No orphan records.\n  1  At least one orphan record found.\n\nExamples:\n    spec-kitty doctor orphan-daemons\n    spec-kitty doctor orphan-daemons --json",
+     "hidden": false,
+     "deprecated": false
+    },
+    "restart-daemon": {
+     "help": "Stop the registered sync daemon and respawn it at the foreground.\n\nComposes the existing daemon stop + launch primitives so the operator\nhas a one-shot remedy when the foreground process and the registered\ndaemon disagree on any of the six canonical D-3 fields (version,\nexecutable, source, server URL, team/user, or queue DB path).\n\nExit codes:\n  0  Daemon restarted (or stale owner record cleaned and respawned).\n  1  No registered daemon — run ``spec-kitty sync now`` to launch one.\n  2  Daemon stop succeeded but respawn failed; system is stopped.\n  3  Daemon stop failed (unresponsive); owner record left intact.\n\nExamples:\n    spec-kitty doctor restart-daemon\n    spec-kitty doctor restart-daemon --json",
+     "hidden": false,
+     "deprecated": false
+    },
+    "mission-state": {
+     "help": "Audit, repair, or TeamSpace-validate mission-state shapes.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "doctrine": {
+     "help": "Check org doctrine snapshot status and list installed pack artifacts.\n\nExit code reflects health (WP01, operator directive: loud over hidden): the\ncommand exits **1 when the report is unhealthy** and 0 only when healthy\n(``report.healthy`` drives the code on every output path). A clear RC=1 with\na surfaced error is preferred over an RC=0 that hides a defect.  It\nenumerates each configured org pack (from ``.kittify/config.yaml``), prints\nits on-disk version (``git describe`` for git-managed packs, otherwise the\n``pack-manifest.yaml`` ``pack_version``), per-artifact YAML counts, and\n``org-charter.yaml`` policy status when present.\n\nOverride governance (FR-010 / FR-012): when org packs are configured, any\n``org:``-provenance override of a built-in DRG node that is NOT sanctioned\nby ``.kittify/doctrine/replaceable-builtins.yaml`` is reported as an\n``unsanctioned_overrides`` finding and flips the report unhealthy (RC=1).\nProject-tier (``.kittify/doctrine/``) overrides of built-ins are\nintentionally **ungoverned** — project doctrine is the trusted operator tier\nand is not gated by the consumer-facing allowlist; only org-tier overrides\nare adjudicated.\n\nExamples:\n    spec-kitty doctor doctrine\n    spec-kitty doctor doctrine --json",
+     "hidden": false,
+     "deprecated": false
+    },
+    "coordination": {
+     "help": "Run the WP04 #1348 coordination + sparse-checkout health checks.\n\nIterates over every mission under ``kitty-specs/`` whose ``meta.json``\ndeclares a ``coordination_branch`` field, runs the coord-worktree\nand lane-sparse-checkout health checks, and prints findings.\n\nAlso runs the minimum git-version (RR-01) check.\n\nExits with code 1 if any ``error`` finding is emitted; ``warning``\nfindings exit 0 but are still printed.",
+     "hidden": false,
+     "deprecated": false
+    }
+   }
+  },
+  "doctrine": {
+   "help": "Manage org-layer doctrine packs",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "fetch": {
+     "help": "Fetch org doctrine pack(s) from their configured remote sources.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "regenerate-graph": {
+     "help": "Regenerate the shipped DRG ``graph.yaml`` deterministically (FR-009).\n\nComposes the DRG extractor + calibrator into ``src/doctrine/graph.yaml``.\nRunning twice on unchanged inputs yields byte-identical output. With\n``--check`` the command never writes: it regenerates into a temp file and\ncompares against the committed graph, exiting non-zero when stale — the\noperator-facing twin of the ``test_shipped_graph_yaml_is_fresh`` gate.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "new": {
+     "help": "Scaffold a stub doctrine artifact YAML (FR-016).\n\nThe scaffolder pre-fills the canonical schema's required fields with\n``TODO …`` placeholders so the file passes ``doctrine validate`` on\nfirst emit.  Refuses to overwrite an existing file.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "validate": {
+     "help": "Validate project-layer doctrine artifacts against their schemas (FR-017).\n\nWhen *path* is a single file, validates that file.  When *path* is a\ndirectory, walks the tree for ``*.yaml`` files whose filename suffix\nmatches a canonical artifact kind and validates each one.\n\nExit code: ``0`` if every artifact validates; ``1`` if any artifact\nfails.  A per-file error report is printed for failures.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "pack": {
+     "help": "Validate or assemble doctrine packs.",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "validate": {
+       "help": "Validate a doctrine pack against schema and DRG constraints.\n\nExits 0 when the pack passes validation (advisories do not affect the\nexit code) and 1 when at least one error is reported.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "assemble": {
+       "help": "Assemble multiple doctrine packs into a single distributable.\n\nExits 0 on success and 1 when conflicts block the merge or when the\nassembled output fails validation.",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
+    },
+    "org": {
+     "help": "Manage org-layer doctrine pack authoring (init, validate).",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "init": {
+       "help": "Scaffold a minimal org doctrine pack skeleton (FR-006).\n\nCreates three files under *pack-path*::\n\n    org-charter.yaml   — governance policy stub\n    drg/fragment.yaml  — DRG extension stub (with pydantic_model: frontmatter)\n    README.md          — authoring quickstart\n\nRefuses to overwrite an existing directory unless ``--force`` is passed.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "validate": {
+       "help": "Validate an org doctrine pack using schema and DRG checks (FR-006).\n\nCalls the WP06 :func:`specify_cli.doctrine.pack_validator.validate_pack`\nloader.  Prints per-file findings with file paths.  Exits non-zero when\nat least one error is found.",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
+    },
+    "mission-type": {
+     "help": "Mission type commands.",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "list": {
+       "help": "List all mission types in the doctrine layer (FR-013).\n\nEnumerates built-in, org, and project mission types regardless of\nactivation state.  The DRG resolution chain applies: built-in →\norg → project.  An org type with the same id shadows the built-in\ntype; a project type shadows the org type.\n\nUse ``spec-kitty charter mission-type list`` to see only types that\nare currently activated for this project.",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
+    }
+   }
+  },
+  "glossary": {
+   "help": "Glossary management commands",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "list": {
+     "help": "List all terms in glossary.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "conflicts": {
+     "help": "Display conflict history from event log.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "resolve": {
+     "help": "Resolve a conflict asynchronously.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "show": {
+     "help": "Render the entity page for a glossary term.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "validate": {
+     "help": "Validate glossary seed file(s) against the schema.",
+     "hidden": false,
+     "deprecated": false
+    }
+   }
+  },
+  "migrate": {
+   "help": "Migration commands: update .kittify/ layout and backfill identity fields in legacy missions.",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "backfill-identity": {
+     "help": "Write a ULID mission_id into any meta.json that lacks one.\n\nThis command is **idempotent** — running it twice produces identical\nstate.  Existing ``mission_id`` values are never overwritten.  The\ncommand also coerces legacy string-typed ``mission_number`` values\n(e.g. ``\"042\"`` → ``42``) while walking each mission.\n\nAfter writing, the dossier parity hash is recomputed for every mission\nthat was modified.  Individual dossier failures are logged as warnings\nand do not abort the run.\n\n**When to run:**\n\n- After upgrading from a spec-kitty version that predates ``mission_id``\n- After pulling a clone that has legacy missions (no ``mission_id``)\n- As part of CI checks on legacy repositories\n\nExit codes:\n\n- ``0`` — all results are ``wrote`` or ``skip``\n- ``1`` — one or more ``error`` results (corrupt JSON, sentinel strings, …)\n\nExamples:\n\n    spec-kitty migrate backfill-identity --dry-run --json\n\n    spec-kitty migrate backfill-identity --mission 083-foo-bar\n\n    spec-kitty migrate backfill-identity",
+     "hidden": false,
+     "deprecated": false
+    },
+    "backfill-topology": {
+     "help": "Persist each legacy mission's MissionTopology into its meta.json.\n\nComputes every mission's topology (the coordination × lanes grid cell) from\nits current on-disk signals via the single WP01 classifier and writes it to\n``meta.json`` as the authoritative ``topology`` value. This command is\n**idempotent** — a mission that already has a valid ``topology`` is skipped\nand its value is never overwritten.\n\nExit codes:\n\n- ``0`` — all results are ``wrote`` or ``skip``\n- ``1`` — one or more ``error`` results (corrupt / unreadable meta.json)\n\nExamples:\n\n    spec-kitty migrate backfill-topology --dry-run --json\n\n    spec-kitty migrate backfill-topology --mission 083-foo-bar\n\n    spec-kitty migrate backfill-topology",
+     "hidden": false,
+     "deprecated": false
+    },
+    "charter-encoding": {
+     "help": "Scan charter content for non-UTF-8 encodings; normalize-or-fail-loud.\n\nWalks every existing mission's charter content\n(``kitty-specs/*/charter/*.{yaml,md,txt}``) and the global charter store\n(``.kittify/charter/*.{yaml,md,txt}``), detects the encoding of each file\nvia the WP06 chokepoint, and either:\n\n\\b\n* **skips** the file (already pure UTF-8; idempotency pre-check passes)\n* **normalizes** the file to UTF-8 in-place with a provenance record\n* **surfaces** the file as ambiguous (exits non-zero; manual repair required)\n\nThis migration is **idempotent** (NFR-006): running it twice on an\nalready-normalized corpus is a near-instant no-op — no new provenance\nrecords are written for already-UTF-8 files.\n\nImplements FR-026, FR-027, NFR-006.\n\nExit codes:\n\n- ``0`` — corpus is fully UTF-8 compliant (all files already-UTF-8 or\n  successfully normalized)\n- ``1`` — one or more files are ambiguous (manual repair required)\n\nExamples:\n\n    spec-kitty migrate charter-encoding --dry-run\n\n    spec-kitty migrate charter-encoding --yes --json\n\n    spec-kitty migrate charter-encoding",
+     "hidden": false,
+     "deprecated": false
+    },
+    "normalize-lifecycle": {
+     "help": "Normalize legacy ``kitty-specs`` missions for the MVP lifecycle model.\n\nThis command repairs enough historical mission state to make the canonical\nlifecycle model reliable across old repositories. It backfills identity\nwhere needed, rebuilds missing event logs from legacy state, and regenerates\nstatus/progress/lifecycle projections used by the CLI and Teamspace.\n\nExit codes:\n\n- ``0`` — all targeted missions normalized or skipped cleanly\n- ``1`` — one or more missions hit an unrecoverable error",
+     "hidden": false,
+     "deprecated": false
+    }
+   }
+  },
+  "mission": {
+   "help": "Inspect mission types for this project.\n\nUse 'list' to see activated types (charter-filtered) and 'show <id>' for a full resolved definition.\n\nMission types are selected per mission run during /spec-kitty.specify.",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "list": {
+     "help": "List activated mission types for the current project (FR-016).\n\nAlias for ``spec-kitty charter mission-type list``.\n\nReturns only mission types that are explicitly activated in this\nproject's charter (activation-filtered).  For all doctrine-layer\ntypes regardless of activation, use ``spec-kitty doctrine mission-type list``.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "current": {
+     "help": "Show currently active mission for a mission (auto-detects mission from cwd).",
+     "hidden": false,
+     "deprecated": false
+    },
+    "info": {
+     "help": "Show details for a specific mission without switching.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "create": {
+     "help": "Fetch a tracker ticket and prepare it as a mission brief.\n\nWrites the ticket content to .kittify/ticket-context.md so the LLM can\nread it and run /spec-kitty.specify. Records a pending origin so the\nmission-to-ticket link is established automatically when specify completes.\n\nExample:\n    spec-kitty mission create --from-ticket linear:PRI-42",
+     "hidden": false,
+     "deprecated": false
+    },
+    "run": {
+     "help": "Start (or attach to) a runtime for a project-authored custom mission definition.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "close": {
+     "help": "Close a mission. Wraps FR-016 lifecycle teardown.\n\nWithout ``--discard``: tear down the coordination worktree only.\nThis is a safe no-op after a successful ``spec-kitty merge`` (the\nmerge command already runs the same teardown); useful when the\nteardown was skipped (e.g. legacy merge path) or interrupted.\n\nWith ``--discard``: abandon the mission mid-flight. Deletes the\ncoordination branch and every lane branch named in\n``lanes.json``, then tears down the coordination worktree and the\noperator-visible lane worktrees. Requires confirmation unless\n``--force`` is also passed. The coordination + lane branches are\ndeleted with ``git branch -D`` (force-delete) because mid-flight\nabandonment by definition leaves uncommitted or unmerged work.\n\nImplements FR-016 from\n``kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW``.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "reopen": {
+     "help": "Re-open a merged/closed mission, returning it to an actionable state (FR-002).\n\nAppends a ``MissionReopened`` lifecycle event (the authority for\nactionability — ``derive_mission_lifecycle`` reports the ``reopened``\nsurface_state) and clears the ``merged_*`` markers from ``meta.json``. Does\nNOT mutate WP lanes — the operator repositions WPs explicitly afterwards.\n\nFail-closed (NFR-004): the mission is unrecoverable when ``meta.json`` is\nabsent/corrupt OR the mission branch resolves in neither the local repo nor\nany configured remote. A missing worktree directory alone is recoverable. On\nunrecoverable input the command exits non-zero with a remediation hint and\nwrites no event / no metadata change.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "follow-up": {
+     "help": "Record a follow-up commit or PR against a mission (FR-001).\n\nExactly one of ``--commit <40-hex>`` / ``--pr <int>`` must be supplied.\nAppends a ``FollowUpRecorded`` lifecycle event attributed to ``mission_id``.\nFail-closed (#1926): only valid once the mission has reached completion\n(merged, or all WPs terminal) — a follow-up against a not-yet-completed\nmission exits non-zero with a structured error and writes no event.\nIdempotent on its dedup key ``(mission_id, commit_sha | pr_number)`` —\nre-recording the same reference is a successful no-op.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "switch": {
+     "help": "[REMOVED] Switch active mission - this command was removed in v0.8.0.",
+     "hidden": false,
+     "deprecated": true
+    },
+    "show": {
+     "help": "Show the fully resolved MissionType definition for this project (FR-017).\n\nDisplays all fields of the activated mission type:\nid, display_name, action_sequence, governance_refs, template_set,\nsource_layer, extends.\n\nExits with code 1 and lists registered IDs when ``mission_type_id``\nis not an activated type.",
+     "hidden": false,
+     "deprecated": false
+    }
+   }
+  },
+  "mission-type": {
+   "help": "Inspect mission types for this project.\n\nUse 'list' to see activated types (charter-filtered) and 'show <id>' for a full resolved definition.\n\nMission types are selected per mission run during /spec-kitty.specify.",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "list": {
+     "help": "List activated mission types for the current project (FR-016).\n\nAlias for ``spec-kitty charter mission-type list``.\n\nReturns only mission types that are explicitly activated in this\nproject's charter (activation-filtered).  For all doctrine-layer\ntypes regardless of activation, use ``spec-kitty doctrine mission-type list``.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "current": {
+     "help": "Show currently active mission for a mission (auto-detects mission from cwd).",
+     "hidden": false,
+     "deprecated": false
+    },
+    "info": {
+     "help": "Show details for a specific mission without switching.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "create": {
+     "help": "Fetch a tracker ticket and prepare it as a mission brief.\n\nWrites the ticket content to .kittify/ticket-context.md so the LLM can\nread it and run /spec-kitty.specify. Records a pending origin so the\nmission-to-ticket link is established automatically when specify completes.\n\nExample:\n    spec-kitty mission create --from-ticket linear:PRI-42",
+     "hidden": false,
+     "deprecated": false
+    },
+    "run": {
+     "help": "Start (or attach to) a runtime for a project-authored custom mission definition.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "close": {
+     "help": "Close a mission. Wraps FR-016 lifecycle teardown.\n\nWithout ``--discard``: tear down the coordination worktree only.\nThis is a safe no-op after a successful ``spec-kitty merge`` (the\nmerge command already runs the same teardown); useful when the\nteardown was skipped (e.g. legacy merge path) or interrupted.\n\nWith ``--discard``: abandon the mission mid-flight. Deletes the\ncoordination branch and every lane branch named in\n``lanes.json``, then tears down the coordination worktree and the\noperator-visible lane worktrees. Requires confirmation unless\n``--force`` is also passed. The coordination + lane branches are\ndeleted with ``git branch -D`` (force-delete) because mid-flight\nabandonment by definition leaves uncommitted or unmerged work.\n\nImplements FR-016 from\n``kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW``.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "reopen": {
+     "help": "Re-open a merged/closed mission, returning it to an actionable state (FR-002).\n\nAppends a ``MissionReopened`` lifecycle event (the authority for\nactionability — ``derive_mission_lifecycle`` reports the ``reopened``\nsurface_state) and clears the ``merged_*`` markers from ``meta.json``. Does\nNOT mutate WP lanes — the operator repositions WPs explicitly afterwards.\n\nFail-closed (NFR-004): the mission is unrecoverable when ``meta.json`` is\nabsent/corrupt OR the mission branch resolves in neither the local repo nor\nany configured remote. A missing worktree directory alone is recoverable. On\nunrecoverable input the command exits non-zero with a remediation hint and\nwrites no event / no metadata change.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "follow-up": {
+     "help": "Record a follow-up commit or PR against a mission (FR-001).\n\nExactly one of ``--commit <40-hex>`` / ``--pr <int>`` must be supplied.\nAppends a ``FollowUpRecorded`` lifecycle event attributed to ``mission_id``.\nFail-closed (#1926): only valid once the mission has reached completion\n(merged, or all WPs terminal) — a follow-up against a not-yet-completed\nmission exits non-zero with a structured error and writes no event.\nIdempotent on its dedup key ``(mission_id, commit_sha | pr_number)`` —\nre-recording the same reference is a successful no-op.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "switch": {
+     "help": "[REMOVED] Switch active mission - this command was removed in v0.8.0.",
+     "hidden": false,
+     "deprecated": true
+    },
+    "show": {
+     "help": "Show the fully resolved MissionType definition for this project (FR-017).\n\nDisplays all fields of the activated mission type:\nid, display_name, action_sequence, governance_refs, template_set,\nsource_layer, extends.\n\nExits with code 1 and lists registered IDs when ``mission_type_id``\nis not an activated type.",
+     "hidden": false,
+     "deprecated": false
+    }
+   }
+  },
+  "ops": {
+   "help": "Operation history (git reflog)",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "log": {
+     "help": "Show operation history.\n\nShows the git reflog (read-only history).\n\nExamples:\n    # Show recent operations\n    spec-kitty ops log\n\n    # Show last 5 operations\n    spec-kitty ops log --limit 5\n\n    # Show with full details\n    spec-kitty ops log --verbose",
+     "hidden": false,
+     "deprecated": false
+    },
+    "undo": {
+     "help": "Undo is not supported for git.\n\nGit does not have reversible operation history.\nConsider using these alternatives manually:\n  - git reset --soft HEAD~1  (undo last commit, keep changes)\n  - git reset --hard HEAD~1  (undo last commit, discard changes)\n  - git revert <commit>      (create reverting commit)\n  - git reflog               (find previous states)",
+     "hidden": false,
+     "deprecated": false
+    }
+   }
+  },
+  "plugin": {
+   "help": "Plugin bundle commands",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "build": {
+     "help": "Build a Spec Kitty plugin bundle for a specific target harness.\n\nThe bundle is written to ``<output-dir>/<target>/`` and includes a\n``plugin.json`` manifest, rendered command skills, and agent profiles.\n\nExample::\n\n    spec-kitty plugin build --target claude-code\n    spec-kitty plugin build --target claude-code --output-dir /tmp/out\n    spec-kitty plugin build --target claude-code --skip-validate",
+     "hidden": false,
+     "deprecated": false
+    }
+   }
+  },
+  "orchestrator-api": {
+   "help": "Machine-contract API for external orchestrators (JSON-first)",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "contract-version": {
+     "help": "Return the current API contract version.\n\nPass --provider-version to check compatibility before running state-mutating commands.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "mission-state": {
+     "help": "Return the full state of a mission (all WPs, lanes, dependencies).",
+     "hidden": false,
+     "deprecated": false
+    },
+    "list-ready": {
+     "help": "List WPs that are ready to start (planned and all deps approved or done).",
+     "hidden": false,
+     "deprecated": false
+    },
+    "start-implementation": {
+     "help": "Composite transition: planned->claimed->in_progress (idempotent).",
+     "hidden": false,
+     "deprecated": false
+    },
+    "start-review": {
+     "help": "Transition a WP from for_review to in_review (reviewer claims review).",
+     "hidden": false,
+     "deprecated": false
+    },
+    "transition": {
+     "help": "Emit a single lane transition for a WP.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "append-history": {
+     "help": "Append a history entry to a WP prompt file.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "accept-mission": {
+     "help": "Accept a mission after all WPs are approved or done.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "merge-mission": {
+     "help": "Merge a lane-based mission into target.",
+     "hidden": false,
+     "deprecated": false
+    }
+   }
+  },
+  "sync": {
+   "help": "Synchronization commands",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "routes": {
+     "help": "Show where the current checkout sends data and which teams it is shared with.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "share": {
+     "help": "Share the current repository from Private Teamspace into a team.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "unshare": {
+     "help": "Stop sharing the current repository from this developer to one team.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "opt-out": {
+     "help": "Disable SaaS sync for this checkout and purge its pending uploads.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "opt-in": {
+     "help": "Enable SaaS sync for this checkout.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "workspace": {
+     "help": "Synchronize workspace with upstream changes.\n\nUpdates the current workspace with changes from its base branch or parent.\nThis is equivalent to `git rebase <base-branch>`.\n\nSync may FAIL on conflicts (must resolve before continuing).\n\nExamples:\n    # Sync current workspace\n    spec-kitty sync workspace\n\n    # Sync with verbose output\n    spec-kitty sync workspace --verbose\n\n    # Attempt recovery from broken state\n    spec-kitty sync workspace --repair",
+     "hidden": false,
+     "deprecated": false
+    },
+    "server": {
+     "help": "Show or set sync server URL.\n\nExamples:\n    spec-kitty sync server\n    spec-kitty sync server https://spec-kitty-dev.fly.dev",
+     "hidden": false,
+     "deprecated": false
+    },
+    "now": {
+     "help": "Trigger immediate sync of all queued events.\n\nDrains the offline queue completely, uploading events to the server\nin batches of 1000 until the queue is empty or all remaining events\nhave exceeded their retry limit.\n\nExamples:\n    spec-kitty sync now\n    spec-kitty sync now --report failures.json\n    spec-kitty sync now --no-strict",
+     "hidden": false,
+     "deprecated": false
+    },
+    "status": {
+     "help": "Show sync queue status, connection state, and auth info.\n\nDisplays:\n- Offline queue size\n- Connection / emitter status\n- Last sync timestamp\n- Auth status\n- Server URL configuration\n\nUse --check to test actual connectivity (adds 3s timeout if server unreachable).\n\nExamples:\n    # Show status (fast)\n    spec-kitty sync status\n\n    # Test connection to server\n    spec-kitty sync status --check",
+     "hidden": false,
+     "deprecated": false
+    },
+    "diagnose": {
+     "help": "Validate queued events locally against the event schema.\n\nReads all pending events from the offline queue and validates each one\nagainst the Pydantic Event model and per-event-type payload rules.\n\nValid events are reported as passing; malformed events show specific\nfield errors grouped by error category.\n\nExamples:\n    spec-kitty sync diagnose\n    spec-kitty sync diagnose --json",
+     "hidden": false,
+     "deprecated": false
+    },
+    "doctor": {
+     "help": "Diagnose sync health: queue, auth, and server connectivity.\n\nRuns a comprehensive check of offline queue state, authentication\nvalidity, and server reachability, printing actionable remediation\nsteps for any issues found.\n\nExamples:\n    spec-kitty sync doctor",
+     "hidden": false,
+     "deprecated": false
+    }
+   }
+  },
+  "tracker": {
+   "help": "Task tracker commands",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "providers": {
+     "help": "List supported tracker providers, categorized by backend type.\n\nSaaS-backed providers authenticate through ``spec-kitty auth login`` and\nroute sync operations through the Spec Kitty SaaS control plane.\n\nLocal providers use direct connectors with locally stored credentials.\n\nThis command is purely informational and prints the hard-coded provider\ncategories.  It does **not** consult hosted readiness — the rollout gate\nitself is enforced by ``tracker_callback`` (and by the conditional\nregistration in ``cli/commands/__init__.py``), which is all the gating\nthis static output needs.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "discover": {
+     "help": "Discover bindable tracker resources under your installation.\n\nLists all resources (projects, teams, boards) available for binding\nwith the specified provider.  Each row is numbered 1-indexed to align\nwith ``tracker bind --select N``.\n\n``discover`` is explicitly the *pre-binding* command — it is how users\nfind something to bind to — so it MUST NOT require an existing mission\nbinding.  Requiring a binding here would make fresh bind flows\nimpossible.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "bind": {
+     "help": "Bind the current project to an issue tracker.\n\nFor SaaS-backed providers (linear, jira, github, gitlab):\n  Uses discovery to find bindable resources automatically.\n  Use --bind-ref for CI/automation, --select N for non-interactive.\n  Authentication via ``spec-kitty auth login``.\n\nFor local providers (beads, fp):\n  Requires --provider, --workspace, and --credential flags.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "status": {
+     "help": "Show tracker binding and sync status.\n\nFor SaaS-backed providers: displays identity path, sync state, and\nprovider info from the SaaS control plane.\n\nFor local providers: displays local cache statistics and configuration.\n\nWith --all: shows installation-wide summary across all bindings\n(SaaS providers only).",
+     "hidden": false,
+     "deprecated": false
+    },
+    "list-tickets": {
+     "help": "Browse visible tickets for the resolved provider resource.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "unbind": {
+     "help": "Remove tracker binding for this project.\n\nFor SaaS-backed providers this clears only local project configuration.\nProvider unlinking remains a SaaS dashboard action.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "map": {
+     "help": "Work-package mapping commands",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "add": {
+       "help": "Add or update a WP-to-external issue mapping.\n\nFor local providers: stores the mapping in the local SQLite database.\n\nFor SaaS-backed providers: this command is not available.  Manage\nmappings in the Spec Kitty dashboard instead.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "list": {
+       "help": "List tracker mappings.\n\nFor local providers: shows mappings from the local SQLite database.\n\nFor SaaS-backed providers: shows SaaS-authoritative mappings from the\ncontrol plane.",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
+    },
+    "sync": {
+     "help": "Tracker synchronization commands",
+     "hidden": false,
+     "deprecated": false,
+     "commands": {
+      "pull": {
+       "help": "Pull tracker updates into the local cache.\n\nFor SaaS-backed providers: pulls items via the SaaS control plane.\nThe response includes an identity_path and summary envelope.\n\nFor local providers: pulls directly from the tracker API.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "push": {
+       "help": "Push explicit mutations to the upstream provider.\n\nFor SaaS-backed providers: requires --items-json with a JSON array of\nPushItem objects per the PRI-12 TrackerPushRequest contract.  Each item\nmust have ``ref``, ``action``, and optionally ``patch`` / ``target_status``.\n\nFor full bidirectional sync, use ``tracker sync run`` instead.\n\nFor local providers: pushes directly to the tracker API using --limit.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "run": {
+       "help": "Run pull+push synchronization in one operation.\n\nFor SaaS-backed providers: executes a full sync cycle via the SaaS\ncontrol plane.\n\nFor local providers: runs pull then push using direct connectors.",
+       "hidden": false,
+       "deprecated": false
+      },
+      "publish": {
+       "help": "Publish local tracker snapshot.\n\nThis command is not supported for SaaS-backed providers.  Use\n``spec-kitty tracker sync push`` instead.\n\nFor local providers: the facade will raise an error if this operation\nis not supported by the bound provider.",
+       "hidden": false,
+       "deprecated": false
+      }
+     }
+    }
+   }
+  },
+  "workflow": {
+   "help": "Manage mission workflow definitions",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "list": {
+     "help": "List workflow ids available to a project.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "export": {
+     "help": "Export a resolvable workflow YAML file.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "import": {
+     "help": "Import a workflow YAML into `.kittify/overrides/workflows`.",
+     "hidden": false,
+     "deprecated": false
+    }
+   }
+  },
+  "profiles": {
+   "help": "Manage and list agent profiles.",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "list": {
+     "help": "List agent profiles (activated-only by default; --all for the full catalog).",
+     "hidden": false,
+     "deprecated": false
+    },
+    "get": {
+     "help": "Show the full resolved definition of an agent profile (FR-013/014/015).",
+     "hidden": true,
+     "deprecated": false
+    },
+    "show": {
+     "help": "Show the full resolved definition of an agent profile (FR-013/014/015).",
+     "hidden": false,
+     "deprecated": false
+    }
+   }
+  },
+  "profile-invocation": {
+   "help": "Manage invocation records.",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "complete": {
+     "help": "Close an open invocation record. --invocation-id and --outcome are required.\n\nUse --artifact (repeatable) to link output artifacts to this invocation.\nUse --commit (singular) to link the primary git commit produced.\nUse --evidence to promote a file to a Tier 2 evidence artifact.\nNote: --evidence is rejected for records that are not execution records.",
+     "hidden": false,
+     "deprecated": false
+    }
+   }
+  },
+  "invocations": {
+   "help": "Query local invocation records.",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "list": {
+     "help": "List recent invocation records from the local audit log.\n\n# FR-008 / T031: This command does not open an InvocationRecord at baseline.\n# If a future version of `invocations list` opens an invocation, it should use:\n#   derive_mode(\"invocations.list\")  -> ModeOfWork.QUERY\n# The mapping is reserved in _ENTRY_COMMAND_MODE (modes.py) for enforcement\n# consistency (QUERY mode disallows Tier 2 evidence promotion per FR-009).\n# TODO(future): wire derive_mode(\"invocations.list\") when InvocationRecord is opened here.\n\nRecords are returned newest-first, sorted by ``started_at`` from file\ncontent.  Use ``--profile`` to narrow to one agent profile.  Use\n``--json`` for machine-readable output.",
+     "hidden": false,
+     "deprecated": false
+    }
+   }
+  },
+  "retrospect": {
+   "help": "Retrospective authoring and summary (create / backfill / summary)",
+   "hidden": false,
+   "deprecated": false,
+   "commands": {
+    "create": {
+     "help": "Author a retrospective for one completed mission.\n\nValidates mission completion, resolves policy, runs the generator,\nand writes the record. Use --overwrite or --update to handle existing records.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "backfill": {
+     "help": "Author retrospective records for historical missions in bulk.\n\nIterates completed missions in the given time window and authors\nretrospective.yaml records for those that don't already have one.\n\nPer-mission failures are NOT fatal; aggregate report shows them.",
+     "hidden": false,
+     "deprecated": false
+    },
+    "summary": {
+     "help": "Cross-mission retrospective summary.\n\nReads kitty-specs/*/retrospective.yaml and kitty-specs/*/status.events.jsonl to produce a cross-mission view.\n\nDistinguishes four record states: has_findings / ran_no_findings / missing / failed.\n\nNo mutation is performed.",
+     "hidden": false,
+     "deprecated": false
+    }
+   }
+  }
+ }
+}
