@@ -1,11 +1,35 @@
 # Research Notes: Event sync — separating retention from delivery
 
-**Status:** Draft synthesis — converging toward an ADR; one open decision below
+**Status:** Design input for `/spec-kitty.tasks`; decisions settled for this mission below
 **Owner:** Lynn Cole (design), with Robert Douglass (proposal) and Stijn (feedback)
-**Last updated:** 2026-06-25
-**Related issue:** https://github.com/Priivacy-ai/spec-kitty/issues/2124
+**Last updated:** 2026-06-28
+**Primary issue:** https://github.com/Priivacy-ai/spec-kitty/issues/2124
+**Related issues:** https://github.com/Priivacy-ai/spec-kitty/issues/2146, https://github.com/Priivacy-ai/spec-kitty/issues/2144, https://github.com/Priivacy-ai/spec-kitty/issues/1800, https://github.com/Priivacy-ai/spec-kitty/issues/1666, https://github.com/Priivacy-ai/spec-kitty/issues/1619, https://github.com/Priivacy-ai/spec-kitty/issues/2165
 
 ---
+
+## Issue topology and sequencing
+
+This note now feeds the #2131 mission package, not a standalone build spec. It
+sits in the SaaS sync durability cluster:
+
+- **#2146 — sync target authority**: folded into #2131 as the first concern.
+  It decides which value owns runtime target selection and proves queue scope,
+  auth/readiness, WebSocket, tracker, status, and network calls cannot diverge.
+- **#2124 — retained event journal + per-target ledger**: this note's primary
+  design spike.
+- **#2144 — Teamspace durability registry + git/SaaS replay**: sibling/follow-on,
+  but its capture-before-drain invariant applies here: feature flags, auth/team
+  gaps, and network gates must block drain eligibility only, not silently drop
+  Teamspace-bound facts.
+- **#1800 / #1666 / #1619**: parent sync/event-envelope hardening and execution
+  context/domain-boundary architecture.
+- **#2165**: docs-layout reorganization context only. This mission keeps its
+  artifacts in the current `architecture/3.x/research/` and `kitty-specs/`
+  locations; no docs tree reshuffle is part of the work.
+
+Planning order inside #2131: **target authority (#2146) -> journal/ledger
+(#2124) -> capture/replay compatibility with #2144**.
 
 ## Why this exists
 
@@ -59,6 +83,26 @@ The four named modes are the useful presets over those axes:
 Modeling it as two axes (not a flat enum) keeps Robert's separation honest and
 leaves room for presets to grow without reshaping the core.
 
+### Target-authority prerequisite (#2146)
+
+`EventSyncConfig` must sit behind one target-authority rule, not become another
+source of truth. Before event migration or delivery implementation, #2131 must
+settle this matrix:
+
+| Surface | Required decision before implementation |
+|---|---|
+| `EventSyncConfig` | Selects retention/delivery policy only; does not independently choose a network target. |
+| `SyncConfig.server_url` / `config.toml` | Canonical runtime target unless an explicit whole-process override is active. |
+| `SPEC_KITTY_SAAS_URL` | Either setup/dev-only, or a deliberate override that affects auth, sync, tracker, queue scope, WebSocket, readiness, and diagnostics consistently. |
+| `SPEC_KITTY_ENABLE_SAAS_SYNC` | Affects drain eligibility only; Teamspace-bound capture still lands in SQLite or git. |
+| Auth session + team scope | Supplies identity for delivery target and ledger rows when known; not required for initial local capture. |
+| Queue scope | Derived isolation key, not an independent target selector. |
+| Network calls | Must use the same resolved target as queue scope and status diagnostics. |
+
+Acceptance for this prerequisite: env/config disagreement cannot create a queue
+scope for one target while network calls go to another, and stale
+`active_queue_scope` is reported as stale/non-authoritative.
+
 ### The testing stub falls out for free
 
 Stijn wants a stub receiver so fork CI stops depending on a real Teamspace and
@@ -74,20 +118,27 @@ spaghetti trap from 2.x. The current `queue.py` is 1,861 lines; an honest
 append-only journal and safe coalescing are not achievable inside it. Proposed
 boundary, mapping 1:1 to Robert's components:
 
-- `events/` — the journal (append-only payload store).
+- `event_journal/` — the journal (append-only payload store).
 - `delivery/` — target registry + ledger + dispatcher.
 - `EventSyncConfig` — the policy layer that selects retention × delivery target.
 
+Do not name the new journal package `events/`. `src/specify_cli/events/` already
+owns event-log integration, sanitizer, and decision-log surfaces; reusing that
+package for the journal would collapse two bounded contexts.
+
 ## Code-level sharpening points (from the #2124 review)
 
-1. **The migration *is* the scope collapse.** The queue DB is keyed
+1. **The migration depends on #2146's target-authority decision.** The queue DB is keyed
    `server|user|team` (`build_queue_scope`, `queue.py:391`), so events produced
    against env A live only in A's DB. The journal must become
    **target-independent** — scoped to producer (`user|team` / repo-local) — with
    the server URL moving out to the target registry. Migration consolidates
    possibly-several per-server DBs into one journal and backfills ledger rows.
    Honest limit: events already delivered-and-deleted are gone; migration can
-   only preserve *currently-queued* payloads.
+   only preserve *currently-queued* payloads. Same `event_id` with identical
+   payload imports once with source provenance; same `event_id` with divergent
+   payload is a migration conflict/quarantine, not overwrite, ignore, or ID
+   rewrite.
 
 2. **Coalescing vs append-only is the correctness trap.** Coalescing today
    *mutates* the existing row (`UPDATE event_type, data …`, `queue.py:1267`).
@@ -119,16 +170,24 @@ matches the proposal (`queue.py:1666-1678`); only `success` / `duplicate` /
 `failed_permanent` need to stop deleting and become ledger writes. The heavy
 lifting is the journal/ledger split + the migration, not the dispatch logic.
 
-## Open decision
+## Settled decisions before `/spec-kitty.tasks`
 
-**Single active delivery target, or journal-once-deliver-to-many fan-out?**
-Robert's non-goals lean single (operator-selected target is sufficient; no
-automatic fan-out). Recommendation: build single-active-target, but shape the
-ledger (per-event/per-target rows) so it can grow into many without a schema
-break. This is the one fork to settle at the table before the mission runs.
+1. **MVP delivery mode**: one operator-selected active target. Robert's
+   fan-out lean on #2124 was considered, but the #2131 package chooses
+   single-target for MVP because it matches the original non-goal and avoids
+   partial-failure/ordering semantics. The ledger remains per-event/per-target
+   so fan-out can be added later without a schema break.
+2. **Target reset under stable URL**: advisory follow-on. URL+scope identity is
+   enough for the immediate transient-env replay use case; consuming SaaS
+   `/api/v1/sync/health/` deployment metadata waits for the SaaS-side change.
+3. **Teamspace durability**: #2144 full registry/replay is follow-on, but
+   #2131 must not introduce any silent discard of Teamspace-bound facts. Capture
+   comes before drain gates.
+4. **Docs structure**: #2165 is not folded into this mission. No docs-root move
+   or frontmatter normalization is part of #2131.
 
 ## Next step
 
-Once the thread agrees, run this as a spec-kitty mission. This note becomes the
-design input; the mission produces the spec, plan, and the ADR in
-`architecture/3.x/adr/`.
+Run `/spec-kitty.tasks` from the revised #2131 spec/plan. Task generation must
+preserve the concern order above and use the mission contract in
+`kitty-specs/event-sync-retention-delivery-01KVYWRG/contracts/`.

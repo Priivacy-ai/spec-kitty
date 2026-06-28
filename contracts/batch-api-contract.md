@@ -232,6 +232,14 @@ compressed = gzip.compress(payload)
 | `duplicate` | Event with this `event_id` already exists | Remove from offline queue (treated as success) |
 | `rejected` | Event failed server-side validation | Retain in queue, increment `retry_count` |
 
+**Event journal extension (#2124/#2131)**: the CLI behavior above describes the
+current destructive offline event queue. After
+`event-sync-retention-delivery-01KVYWRG` lands, event payload rows MUST NOT be
+deleted on `success` or `duplicate`; those outcomes update the delivery ledger
+for the resolved target. This extension applies to event payload delivery only.
+`body_upload_queue` / `body_upload_failure_log` remain separate non-event queue
+surfaces and are not converted into event-journal rows by that mission.
+
 **Per-event result fields**:
 
 | Field | Type | Present When | Description |

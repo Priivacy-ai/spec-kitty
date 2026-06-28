@@ -129,3 +129,21 @@ Test files: `tests/sync/test_sync_status_boundary_check.py` (existing — extend
 
 - The current `sync status` (without `--check`) output is unchanged outside the identity-boundary subsection.
 - Previously detected non-zero conditions remain non-zero; this contract only *adds* fields and refusal conditions.
+
+## Event Journal Extension (#2124/#2131)
+
+The `event-sync-retention-delivery-01KVYWRG` mission extends this contract
+additively. Existing top-level fields remain available for old consumers.
+
+Required new JSON sections:
+
+- `target_authority`: configured target, env target, override mode, resolved target, derived queue scope, queue DB path, stale `active_queue_scope` status.
+- `event_journal`: retained event count, archived event count, oldest retained event, journal size bytes.
+- `delivery_targets`: current target identity and previous target delivery summaries.
+- `delivery_ledger`: delivered/current-target count, delivered/previous-target count, pending/rejected/transient counts.
+- `terminal_failures`: selector-excluded permanent failures that remain inspectable.
+- `migration_conflicts`: unresolved duplicate/divergent event conflicts.
+- `body_upload_compatibility`: current `body_upload_queue` / `body_upload_failure_log` counts, explicitly separate from event journal counts.
+
+The extension MUST NOT remove or rename existing fields. It MUST make env/config
+target disagreement observable and non-silent before hosted network calls.
