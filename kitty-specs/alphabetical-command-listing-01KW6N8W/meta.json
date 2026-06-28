@@ -7,6 +7,7 @@
   "mission_number": null,
   "mission_slug": "alphabetical-command-listing-01KW6N8W",
   "mission_type": "software-dev",
+  "pr_bound": true,
   "purpose_context": "This mission improves command discovery when users run Spec Kitty without parameters or subcommands by presenting the available command list in a predictable alphabetical order.",
   "purpose_tldr": "Show root command listings in alphabetical order.",
   "slug": "alphabetical-command-listing-01KW6N8W",
