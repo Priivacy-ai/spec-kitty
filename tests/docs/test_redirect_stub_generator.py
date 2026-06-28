@@ -38,6 +38,9 @@ from scripts.docs.redirect_stub_generator import (
     render_redirect_map,
 )
 
+# Pure generator unit tests (no git/subprocess) — fast developer-loop shard.
+pytestmark = pytest.mark.fast
+
 # The docs-published move that relocates a baseline URL: WP10 distils the
 # ``docs/3x`` charter shadow tree into ``docs/context`` (so ``3x/*.html`` ->
 # ``context/*.html``). Source != dest, so it produces real redirect entries.

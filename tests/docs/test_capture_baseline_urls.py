@@ -17,6 +17,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from scripts.docs.capture_baseline_urls import (
     METHOD_DERIVED,
     METHOD_SITE_WALK,
@@ -26,6 +28,9 @@ from scripts.docs.capture_baseline_urls import (
     urls_from_site,
     write_manifest,
 )
+
+# Pure manifest unit tests (no git/subprocess) — fast developer-loop shard.
+pytestmark = pytest.mark.fast
 
 _SITE = "https://example.test/"
 

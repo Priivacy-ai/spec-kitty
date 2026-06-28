@@ -39,6 +39,9 @@ from scripts.docs.adr_converter import (  # noqa: E402
 )
 from scripts.docs.adr_converter import _status_root  # noqa: E402
 
+# Pure converter unit tests (no git/subprocess) — fast developer-loop shard.
+pytestmark = pytest.mark.fast
+
 # ---------------------------------------------------------------------------
 # Realistic ADR-shaped fixtures — one per dialect.
 # ---------------------------------------------------------------------------
