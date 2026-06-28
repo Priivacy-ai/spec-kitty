@@ -2,57 +2,57 @@
   "mission_slug": "short-help-flag-01KW6N7D",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
       "description": "Verify FR-001 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": ".venv/bin/python -m pytest tests/specify_cli/cli/commands/test_short_help_flag.py -q (4 passed)",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-06-28T08:42:00Z",
+      "notes": "Root `-h` help exits successfully and exposes root help markers."
     },
     {
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": ".venv/bin/python -m pytest tests/specify_cli/cli/commands/test_short_help_flag.py -q (4 passed)",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-06-28T08:42:00Z",
+      "notes": "Command group `-h` help exits successfully and exposes command group markers."
     },
     {
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": ".venv/bin/python -m pytest tests/specify_cli/cli/commands/test_short_help_flag.py -q (4 passed)",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-06-28T08:42:00Z",
+      "notes": "Nested command group `-h` help exits successfully and exposes nested command markers."
     },
     {
       "criterion_id": "FR-004",
       "description": "Verify FR-004 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": ".venv/bin/python -m pytest tests/specify_cli/cli/commands/test_short_help_flag.py -q (4 passed)",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-06-28T08:42:00Z",
+      "notes": "`-h` and `--help` both exit successfully for tested paths."
     },
     {
       "criterion_id": "FR-005",
       "description": "Verify FR-005 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": ".venv/bin/python -m pytest tests/specify_cli/cli/commands/test_short_help_flag.py -q (4 passed)",
+      "pass_fail": "pass",
+      "verified_by": "cursor",
+      "verified_at": "2026-06-28T08:42:00Z",
+      "notes": "Tests bypass command startup side effects and verify help rendering does not execute target actions."
     }
   ],
   "negative_invariants": []

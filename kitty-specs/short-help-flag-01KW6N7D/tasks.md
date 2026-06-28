@@ -27,10 +27,10 @@
 
 ### Included Subtasks
 
-- [ ] T001 Add centralized short-help option configuration for root app and registered commands
-- [ ] T002 Add regression tests in `tests/specify_cli/cli/commands/test_short_help_flag.py`
-- [ ] T003 Verify `-h` parity for root, command group, and nested subcommand paths
-- [ ] T004 Run targeted short-help tests
+- [x] T001 Add centralized short-help option configuration for root app and registered commands
+- [x] T002 Add regression tests in `tests/specify_cli/cli/commands/test_short_help_flag.py`
+- [x] T003 Verify `-h` parity for root, command group, and nested subcommand paths
+- [x] T004 Run targeted short-help tests
 
 ### Implementation Notes
 
