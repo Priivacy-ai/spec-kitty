@@ -3056,7 +3056,7 @@ def _build_finalized_override_query_decision(
     now: str,
     progress: dict | None,
     emitted_run_id: str | None,
-    feature_dir: Path,
+    repo_root: Path,
     finalized_override: str,
 ) -> Decision:
     override_wp_id: str | None = None
@@ -3073,9 +3073,27 @@ def _build_finalized_override_query_decision(
         preview_step = finalized_override
         reason = None
         if finalized_override == "implement":
+            from mission_runtime import MissionArtifactKind
             from runtime.next.discovery import preview_claimable_wp
+            from specify_cli.core.paths import get_main_repo_root
+            from specify_cli.missions._read_path_resolver import (
+                candidate_feature_dir_for_mission,
+                resolve_planning_read_dir,
+            )
 
-            preview = preview_claimable_wp(feature_dir)
+            # FR-004 (#2197): the claimable-preview WP-selection leg (tasks/ +
+            # dependency graph) reads the authoritative PRIMARY surface so a
+            # coord-topology mission previews from its planning artifacts, not the
+            # STATUS-only coord husk (which carries no tasks/ → empty preview).
+            # The status-event leg stays coord-aware via
+            # candidate_feature_dir_for_mission so lanes come from the coord husk
+            # (C-001 per-leg split; mirrors workflow._preview_claimable_wp_for_mission).
+            main_root = get_main_repo_root(repo_root)
+            planning_dir = resolve_planning_read_dir(
+                main_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+            )
+            status_dir = candidate_feature_dir_for_mission(main_root, mission_slug)
+            preview = preview_claimable_wp(planning_dir, status_dir=status_dir)
             override_wp_id = preview.wp_id
             if preview.wp_id is None and preview.selection_reason is not None:
                 reason = preview.selection_reason
@@ -3292,7 +3310,7 @@ def query_current_state(
                 now=now,
                 progress=progress,
                 emitted_run_id=emitted_run_id,
-                feature_dir=feature_dir,
+                repo_root=repo_root,
                 finalized_override=finalized_override,
             )
 
