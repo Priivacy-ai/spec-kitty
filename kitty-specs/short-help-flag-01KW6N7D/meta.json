@@ -12,5 +12,7 @@
   "purpose_tldr": "Make -h work consistently anywhere --help works.",
   "slug": "short-help-flag-01KW6N7D",
   "target_branch": "feat/short-help-flag",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-28T08:39:31.748126+00:00"
 }
