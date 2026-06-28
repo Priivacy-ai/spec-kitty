@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "mission_slug": "copyable-version-output-01KW6N9V",
+  "mission_id": "01KW6N9VBP46T024MXT8C368JE",
+  "mission_branch": "kitty/mission-copyable-version-output-01KW6N9V",
+  "target_branch": "feat/copyable-version-output",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/__init__.py",
+        "tests/specify_cli/cli/commands/test_version_output.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-06-28T08:52:28.193565+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
