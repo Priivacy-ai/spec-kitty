@@ -25,7 +25,8 @@ subtasks:
 - T004
 phase: Phase 1 - CLI usability
 assignee: ''
-agent: cursor
+agent: "cursor"
+shell_pid: "83448"
 history:
 - at: '2026-06-28T08:52:00Z'
   actor: system
@@ -111,3 +112,7 @@ task_type: implement
 ## Activity Log
 
 - 2026-06-28T08:52:00Z - system - Prompt created.
+- 2026-06-28T08:52:43Z – cursor – shell_pid=81971 – Assigned agent via action command
+- 2026-06-28T08:54:18Z – cursor – shell_pid=81971 – Ready for review: implementation committed; targeted tests passed (4 passed).
+- 2026-06-28T08:54:24Z – cursor – shell_pid=83448 – Started review via action command
+- 2026-06-28T08:54:50Z – user – shell_pid=83448 – Review passed: version output now starts with a copyable version line, banner removed from version callback, and targeted tests passed (4 passed).
