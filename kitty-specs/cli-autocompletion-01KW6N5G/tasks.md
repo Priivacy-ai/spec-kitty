@@ -27,10 +27,10 @@
 
 ### Included Subtasks
 
-- [x] T001 Enable root CLI completion support in `src/specify_cli/__init__.py`
-- [x] T002 Add focused completion regression tests in `tests/specify_cli/cli/commands/test_root_completion.py`
-- [x] T003 Verify completion output includes representative top-level commands and nested command groups
-- [x] T004 Run targeted tests for the completion behavior
+- [ ] T001 Enable root CLI completion support in `src/specify_cli/__init__.py`
+- [ ] T002 Add focused completion regression tests in `tests/specify_cli/cli/commands/test_root_completion.py`
+- [ ] T003 Verify completion output includes representative top-level commands and nested command groups
+- [ ] T004 Run targeted tests for the completion behavior
 
 ### Implementation Notes
 
