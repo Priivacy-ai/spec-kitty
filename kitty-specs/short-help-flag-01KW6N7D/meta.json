@@ -7,8 +7,9 @@
   "mission_number": null,
   "mission_slug": "short-help-flag-01KW6N7D",
   "mission_type": "software-dev",
+  "pr_bound": true,
   "purpose_context": "This mission improves CLI ergonomics by supporting the expected short help flag across the full Spec Kitty command surface, so users can request help consistently at the root, command, and subcommand levels.",
-  "purpose_tldr": "Make work consistently anywhere works.",
+  "purpose_tldr": "Make -h work consistently anywhere --help works.",
   "slug": "short-help-flag-01KW6N7D",
   "target_branch": "feat/short-help-flag",
   "topology": "coord"
