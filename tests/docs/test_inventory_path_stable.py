@@ -37,7 +37,9 @@ from scripts.docs import (  # noqa: E402
     version_leakage_check,
 )
 
-pytestmark = [pytest.mark.unit]
+# ``fast`` (gate-selected), not ``unit`` (authoring-only) — a unit-only marker
+# leaves a new file selected by zero CI gates (orphan surface).
+pytestmark = [pytest.mark.fast]
 
 CANONICAL_INVENTORY_PATH = "docs/development/3-2-page-inventory.yaml"
 

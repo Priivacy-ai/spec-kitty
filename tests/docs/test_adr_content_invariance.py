@@ -51,6 +51,12 @@ from scripts.docs.adr_converter import (  # noqa: E402
     invariant,
 )
 
+# Heavyweight merge-blocker gate that shells out to ``git`` (subprocess) to
+# recover pre-move ADR originals: ``architectural`` puts it in the dedicated
+# shard (not the fast dev loop); ``git_repo`` is required so CI's ``-m git_repo``
+# filter selects it instead of silently skipping it.
+pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
+
 _DOCS_ADR: Final[Path] = _REPO_ROOT / "docs" / "adr"
 _ERAS: Final[tuple[str, ...]] = ("1.x", "2.x", "3.x")
 _DATE_PREFIX: Final[re.Pattern[str]] = re.compile(r"^\d{4}-\d{2}-\d{2}-")
