@@ -9,14 +9,14 @@ Make `spec-kitty --version` easy to copy into issue reports by printing the vers
 
 ## Technical Context
 
-**Language/Version**: Python 3.11+  
-**Primary Dependencies**: Typer, Rich, pytest  
-**Storage**: N/A; no persisted data changes  
-**Testing**: Focused CLI callback/unit test for version output order and banner absence  
-**Target Platform**: Cross-platform command-line interface on macOS, Linux, and Windows  
-**Project Type**: Single Python CLI package  
-**Performance Goals**: Version output remains immediate, under 200 ms for callback rendering  
-**Constraints**: First output line must contain `spec-kitty-cli version`; large ASCII banner must not precede it  
+**Language/Version**: Python 3.11+
+**Primary Dependencies**: Typer, Rich, pytest
+**Storage**: N/A; no persisted data changes
+**Testing**: Focused CLI callback/unit test for version output order and banner absence
+**Target Platform**: Cross-platform command-line interface on macOS, Linux, and Windows
+**Project Type**: Single Python CLI package
+**Performance Goals**: Version output remains immediate, under 200 ms for callback rendering
+**Constraints**: First output line must contain `spec-kitty-cli version`; large ASCII banner must not precede it
 **Scale/Scope**: `--version` and `-v` root option output only
 
 ## Charter Check
