@@ -18,7 +18,8 @@ subtasks:
 - T050
 phase: Phase 4 - Dispatch
 assignee: ''
-agent: claude
+agent: "claude:opus:python-pedro:implementer"
+shell_pid: "55131"
 history:
 - at: '2026-06-29T06:21:37Z'
   actor: system
@@ -317,3 +318,4 @@ The reviewer verifies **red→green**: the ATDD test was RED on `mission/event-s
 ## Activity Log
 > Entries chronological, appended at END. Format: `- YYYY-MM-DDTHH:MM:SSZ – <agent_id> – <action>`
 - 2026-06-29T06:21:37Z – system – Prompt created.
+- 2026-06-29T08:52:20Z – claude:opus:python-pedro:implementer – shell_pid=55131 – Assigned agent via action command
