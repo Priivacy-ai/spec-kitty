@@ -269,17 +269,23 @@ def _enforce_sync_now_exit_from_dispatch(
 
     The journal-based dispatcher is now the sole event-delivery path, so the
     legacy ``_enforce_sync_now_exit`` semantics are mapped onto its
-    :class:`DispatchSummary` plus the pending-work signal:
+    :class:`DispatchSummary` plus the pending-work signal. The base code drew a
+    deliberate line between two unauthenticated shapes and this mapping keeps it:
 
-    * "there is pending event work (queued events and/or selected journal
-      events) but zero delivery/duplicate/pending progress" is the
-      unauthenticated / sync-blocked signal (the dispatch analogue of the legacy
-      "queue non-empty but all-zero result"). It is routed through the
+    * The dispatcher *selected* events and attempted delivery but none
+      progressed (every selected event came back rejected / transient /
+      terminal-failed — a logged-out 401 maps the whole batch to ``transient``;
+      see :mod:`specify_cli.delivery.receivers`). This is the dispatch analogue
+      of the legacy per-event ``unauthenticated`` result (the old
+      ``error_count > 0`` shape) → the *graceful* "unauthenticated / sync-blocked"
+      report with exit 1 (Issue #829). It must NOT be reclassified as the
+      "nothing attempted / blocked" teamspace-recovery case below.
+    * There is pending work (a non-empty legacy queue, or events selected) but
+      the dispatcher attempted *nothing* — the dispatch analogue of the legacy
+      "queue non-empty but all-zero result". This is routed through the
       teamspace-aware recovery so the unauthenticated UX (interactive login,
       structured exit 4, legacy exit 1) is preserved regardless of ``--strict``.
-    * ``error_count > 0`` → ``summary.terminal_failed > 0`` (a delivery that
-      exhausted its retries is the dispatch analogue of a hard error) → exit 1
-      under ``--strict``.
+    * Partial progress with a hard terminal failure → exit 1 under ``--strict``.
 
     A ``None`` summary means the additive dispatch was unavailable (its degraded
     notice already printed); it never escalates to a non-zero exit on its own.
@@ -288,6 +294,16 @@ def _enforce_sync_now_exit_from_dispatch(
     progressed = (
         summary.delivered + summary.duplicate + summary.pending if summary is not None else 0
     )
+
+    # Events were attempted but none were delivered → graceful unauthenticated
+    # report, exit 1 (Issue #829). Distinct from the teamspace-recovery case.
+    if selected > 0 and progressed == 0:
+        console.print(f"[yellow]{_UNAUTHENTICATED_SYNC_NOW_MESSAGE}[/yellow]")
+        if strict:
+            raise typer.Exit(1)
+        return
+
+    # Pending work but nothing was even attempted → teamspace-aware recovery.
     work_present = queue_size > 0 or selected > 0
     if work_present and progressed == 0:
         _handle_sync_now_unauthenticated(strict)
