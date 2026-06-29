@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: event-sync-retention-delivery-01KVYWRG
 mission_id: 01KVYWRGF148VXAXDJ90MECYRR
-generated_at: '2026-06-29T09:45:50.660243+00:00'
+generated_at: '2026-06-29T09:46:35.433962+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
@@ -21,9 +21,9 @@ input_artifacts:
     sha256: d393b068f20eab1bb918c2f53e669d01048f049e8b0f948ff6001fc280517c08
 verdict: ready
 issue_counts:
-  low: 0
-  critical: 0
   medium: 0
+  critical: 0
+  low: 0
   high: 0
   info: 0
 findings: []
