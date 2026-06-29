@@ -3056,6 +3056,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/research/2026-06-25-event-sync-retention-delivery-synthesis.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/research/README-1.x.md
   tag: current
   divio_type: none

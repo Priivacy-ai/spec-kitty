@@ -3513,6 +3513,27 @@ _Synchronization commands_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty sync migrate
+
+```
+ Usage: spec-kitty sync migrate [OPTIONS]
+
+ Migrate legacy hash-scoped queue DBs into the append-only event journal.
+
+ Lifts every currently-queued payload from the legacy queue.db and each scoped
+ queues/queue-<digest>.db into the event journal, recording per-source
+ provenance and quarantining divergent-duplicate collisions into the
+ migration-audit store. Source DBs are opened read-only and never modified.
+ Exits non-zero when an unresolved conflict blocks cleanup (SC-011).
+
+ Examples:
+     spec-kitty sync migrate
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty sync mode
 
 ```
