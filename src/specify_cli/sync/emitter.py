@@ -1914,7 +1914,7 @@ class EventEmitter:
         *,
         event_id: str,
         event_type: str,
-        payload: dict[str, Any],
+        event: dict[str, Any],
         occurred_at: str,
         team_slug: str | None,
     ) -> None:
@@ -1924,9 +1924,17 @@ class EventEmitter:
         when all gates block (FR-017, contract §2; SC-009). Producer-scoped,
         never server-scoped (FR-003). A journal I/O error is warned but never
         propagated — capture-first must not make emission fail.
+
+        The journal payload BLOB stores the **full wire envelope** (``event``),
+        not just the inner ``payload`` field. The dispatcher decodes this BLOB
+        verbatim and the receiver POSTs it as a per-event object, so every
+        contract-required envelope field (``event_id``, ``event_type``,
+        ``aggregate_id``, ``payload``, ``timestamp``, ``node_id``,
+        ``lamport_clock``, ``schema_version``) survives the capture→drain path.
+        The ``event_id``/``event_type`` journal columns still index the envelope.
         """
         try:
-            payload_bytes = json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
+            payload_bytes = json.dumps(event, sort_keys=True, default=str).encode("utf-8")
             capture_teamspace_bound(
                 journal=get_journal(team_slug=team_slug),
                 event_id=event_id,
@@ -2026,7 +2034,7 @@ class EventEmitter:
             self._capture_to_journal(
                 event_id=event_id,
                 event_type=event_type,
-                payload=payload,
+                event=event,
                 occurred_at=str(event["timestamp"]),
                 team_slug=team_slug,
             )
