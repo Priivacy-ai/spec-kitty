@@ -236,3 +236,4 @@ A reviewer running `/spec-kitty.review` must verify:
 - 2026-06-29T07:49:22Z – claude:opus:python-pedro:implementer – shell_pid=31738 – Assigned agent via action command
 - 2026-06-29T08:15:59Z – claude:opus:python-pedro:implementer – shell_pid=31738 – Ready: target registry (url+scope identity, metadata provenance, advisory reset); ATDD + identifier-safety + gates green
 - 2026-06-29T08:17:48Z – claude:opus:reviewer-renata:reviewer – shell_pid=42340 – Started review via action command
+- 2026-06-29T08:24:21Z – user – shell_pid=42340 – Review passed: C-002 identity=(url_hash,team_slug,user_email) with real UNIQUE constraint, deployment metadata recorded as provenance only; canonicalize_url pure+deterministic; detect_reset advisory/read-only, dep_id-only churn non-resetting, no /health (C-004); C-001 boundary clean; ATDD red->green valid; mypy --strict + ruff clean, C901<=15, 100% coverage, identifier-safety ASCII test present.

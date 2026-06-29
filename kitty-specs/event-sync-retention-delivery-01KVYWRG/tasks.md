@@ -34,12 +34,12 @@
 | T004 | `active_queue_scope_status` = absent/matches/stale_non_authoritative | WP01 | | [D] |
 | T005 | Split-brain guard: env vs config → whole-process override or fail/warn pre-network | WP01 | | [D] |
 | T006 | Resolver unit tests (fields, disagreement, stale) | WP01 | | [D] |
-| T007 | Rewire `sync/config.py` + `sync/runtime.py` onto resolver | WP02 | |
-| T008 | Rewire `auth/config.py` + `saas/readiness.py` | WP02 | |
-| T009 | Rewire `sync/preflight.py` + `sync/owner.py` (scope derived) | WP02 | |
-| T010 | Rewire `sync/tracker_client_glue.py` to the resolved URL | WP02 | |
-| T011 | One resolved target across WebSocket/tracker/scope/status | WP02 | |
-| T012 | Wiring tests (no split-brain; stale scope ignored) | WP02 | |
+| T007 | Rewire `sync/config.py` + `sync/runtime.py` onto resolver | WP02 | | [D] |
+| T008 | Rewire `auth/config.py` + `saas/readiness.py` | WP02 | | [D] |
+| T009 | Rewire `sync/preflight.py` + `sync/owner.py` (scope derived) | WP02 | | [D] |
+| T010 | Rewire `sync/tracker_client_glue.py` to the resolved URL | WP02 | | [D] |
+| T011 | One resolved target across WebSocket/tracker/scope/status | WP02 | | [D] |
+| T012 | Wiring tests (no split-brain; stale scope ignored) | WP02 | | [D] |
 | T013 | Journal schema + Event record model | WP03 | [D] |
 | T014 | Append-only journal store (producer-scoped, never deletes) | WP03 | | [D] |
 | T015 | Coalescing **seam** (default no-op; filled by WP08) | WP03 | | [D] |

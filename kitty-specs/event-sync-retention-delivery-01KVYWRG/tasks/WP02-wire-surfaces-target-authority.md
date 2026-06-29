@@ -376,3 +376,5 @@ For `/spec-kitty.review`, verify:
 > Entries chronological, appended at END. Format: `- YYYY-MM-DDTHH:MM:SSZ – <agent_id> – <action>`
 - 2026-06-29T06:21:37Z – system – Prompt created.
 - 2026-06-29T07:49:09Z – claude:opus:python-pedro:implementer – shell_pid=31738 – Assigned agent via action command
+- 2026-06-29T08:21:13Z – user – shell_pid=31738 – WP02 implementation: ResolvedSyncTarget wiring
+- 2026-06-29T08:21:16Z – user – shell_pid=31738 – WP02 implementation: ResolvedSyncTarget wiring
