@@ -164,6 +164,24 @@ class TestReadForExecutableHappyPath:
         assert result.requirements[1].name == "pytest"
         assert result.requirements[1].specifier == ">=7"
         assert result.package_source == PackageSource.PYPI_SPECIFIER
+        # All entries use modelled keys → is_supported True (nothing discarded).
+        assert all(req.is_supported for req in result.requirements)
+
+    def test_unknown_requirement_key_marks_entry_unsupported(self, tmp_path: Path) -> None:
+        """A receipt key the domain does not model flags is_supported=False.
+
+        Load-bearing for FR-019 / SC-003 / issue #1358 "nothing discarded": the
+        remediation planner refuses to reconstruct a command from an unsupported
+        entry rather than silently collapsing it to a PyPI name.
+        """
+        receipt = (
+            "[tool]\n"
+            'requirements = [{ name = "spec-kitty-cli", unknown-source = "opaque" }]\n'
+        )
+        executable, _ = _make_uv_tool_env(tmp_path, receipt)
+        result = UvReceiptReader.read_for_executable(str(executable))
+        assert len(result.requirements) == 1
+        assert result.requirements[0].is_supported is False
 
     def test_tool_dir_from_path_derivation(self, tmp_path: Path) -> None:
         executable, _ = _make_uv_tool_env(tmp_path, _FULL_RECEIPT_TOML)

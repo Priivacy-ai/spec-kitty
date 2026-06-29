@@ -133,6 +133,10 @@ def _make_uv_runtime(
     is_default_tool_dir: bool = True,
     python: str | None = None,
     platform: str = "posix",
+    *,
+    requirements: tuple[object, ...] | None = None,
+    bin_dir: Path | None = None,
+    is_default_bin_dir: bool = True,
 ) -> object:
     """Return a UV_TOOL InstalledCliRuntime for use in detect_runtime() mocks.
 
@@ -142,29 +146,49 @@ def _make_uv_runtime(
         is_default_tool_dir: Whether tool_dir is the default uv tool dir.
         python: Optional python version override from the receipt.
         platform: "posix" or "windows".
+        requirements: uv receipt requirement entries (provenance). Defaults to a
+            single bare ``spec-kitty-cli`` entry so the reinstall path preserves
+            provenance instead of conservatively refusing.
+        bin_dir / is_default_bin_dir: uv tool bin dir provenance.
     """
     from typing import Literal
 
     from specify_cli.compat._detect.install_method import InstallMethod
-    from specify_cli.compat._detect.runtime import InstalledCliRuntime, PackageSource
+    from specify_cli.compat._detect.runtime import (
+        InstalledCliRuntime,
+        PackageSource,
+        UvRequirement,
+    )
 
     resolved_tool_dir = tool_dir if tool_dir is not None else Path("/home/user/.local/share/uv/tools")
     resolved_platform: Literal["posix", "windows"] = "windows" if platform == "windows" else "posix"
+    resolved_reqs: tuple[object, ...] = (
+        requirements
+        if requirements is not None
+        else (UvRequirement(name="spec-kitty-cli"),)
+    )
 
     return InstalledCliRuntime(
         install_method=InstallMethod.UV_TOOL,
         executable="/home/user/.local/share/uv/tools/spec-kitty-cli/bin/python",
         receipt_path=resolved_tool_dir / "spec-kitty-cli" / "uv-receipt.toml",
         tool_dir=resolved_tool_dir,
-        bin_dir=Path("/home/user/.local/share/uv/bin"),
+        bin_dir=bin_dir if bin_dir is not None else Path("/home/user/.local/share/uv/bin"),
         is_default_tool_dir=is_default_tool_dir,
-        is_default_bin_dir=True,
+        is_default_bin_dir=is_default_bin_dir,
         python=python,
-        requirements=(),
+        requirements=resolved_reqs,  # type: ignore[arg-type]
         package_source=PackageSource.PYPI_SPECIFIER,
         platform=resolved_platform,
         safe_for_auto_upgrade=True,
     )
+
+
+def _uv_req(**kwargs: object) -> object:
+    """A spec-kitty-cli uv requirement entry (provenance)."""
+    from specify_cli.compat._detect.runtime import UvRequirement
+
+    return UvRequirement(name="spec-kitty-cli", **kwargs)  # type: ignore[arg-type]
 
 
 # ---------------------------------------------------------------------------
@@ -674,8 +698,8 @@ def test_review_emits_uv_tool_remediation_when_pytest_missing_in_uv_tool(
 
     assert result.exit_code == 1, result.output
     assert '"diagnostic_code": "MISSION_REVIEW_TEST_EXTRA_MISSING"' in result.output
-    assert "uv tool install --force spec-kitty-cli --extra test" in result.output
-    assert '"remediation": "uv tool install --force spec-kitty-cli --extra test"' in result.output
+    assert "uv tool install --force --with pytest spec-kitty-cli" in result.output
+    assert '"remediation": "uv tool install --force --with pytest spec-kitty-cli"' in result.output
 
 
 def test_uv_tool_remediation_non_default_tool_dir_adds_env_prefix(
@@ -687,8 +711,7 @@ def test_uv_tool_remediation_non_default_tool_dir_adds_env_prefix(
     """
     import specify_cli.cli.commands.review as review_mod
 
-    # Short path: "UV_TOOL_DIR=/opt/uv-tools uv tool install --force spec-kitty-cli --extra test"
-    # is 78 chars — well within CHK028's 128-char ceiling.
+    # Short path keeps the composed command within CHK028's 128-char ceiling.
     tool_dir = Path("/opt/uv-tools")
     monkeypatch.setattr(
         "specify_cli.cli.commands.review.detect_runtime",
@@ -696,7 +719,7 @@ def test_uv_tool_remediation_non_default_tool_dir_adds_env_prefix(
     )
 
     assert review_mod._missing_test_extra_remediation() == (  # noqa: SLF001
-        f"UV_TOOL_DIR={tool_dir!s} uv tool install --force spec-kitty-cli --extra test"
+        f"UV_TOOL_DIR={tool_dir!s} uv tool install --force --with pytest spec-kitty-cli"
     )
 
 
@@ -731,12 +754,13 @@ def test_uv_tool_remediation_source_install_falls_back_to_uv_sync(
     assert review_mod._missing_test_extra_remediation() == "uv sync --extra test"  # noqa: SLF001
 
 
-def test_uv_tool_remediation_extra_test_replaces_with_pytest(
+def test_uv_tool_remediation_uses_with_pytest_not_extra_test(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """UV_TOOL REINSTALL_WITH_TEST uses --extra test (not --with pytest).
+    """UV_TOOL REINSTALL_WITH_TEST injects pytest via --with pytest, preserving source.
 
-    Uses a short fixed path so the composed command stays within CHK028's 128-char limit.
+    FR-019 / SC-003 / issue #1358: ``--extra test`` would re-pin to PyPI and
+    clobber the user's real source; the reinstall path must use ``--with pytest``.
     """
     import specify_cli.cli.commands.review as review_mod
 
@@ -747,27 +771,24 @@ def test_uv_tool_remediation_extra_test_replaces_with_pytest(
     )
 
     remediation = review_mod._missing_test_extra_remediation()  # noqa: SLF001
-    assert "--extra test" in remediation
-    assert "--with pytest" not in remediation
+    assert "--with pytest" in remediation
+    assert "--extra test" not in remediation
     assert "spec-kitty-cli" in remediation
 
 
-def test_uv_tool_remediation_no_version_pin_in_reinstall(
-    tmp_path: Path,
+def test_uv_tool_remediation_preserves_receipt_specifier(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """REINSTALL_WITH_TEST intent does not pin a version (uses bare package name)."""
+    """A receipt version specifier is preserved (not dropped) in the reinstall."""
     import specify_cli.cli.commands.review as review_mod
 
     monkeypatch.setattr(
         "specify_cli.cli.commands.review.detect_runtime",
-        lambda: _make_uv_runtime(),
+        lambda: _make_uv_runtime(requirements=(_uv_req(specifier="==3.2.0rc25"),)),
     )
 
     remediation = review_mod._missing_test_extra_remediation()  # noqa: SLF001
-    # No version pin in REINSTALL_WITH_TEST output
-    assert "==" not in remediation
-    assert "spec-kitty-cli" in remediation
+    assert remediation == "uv tool install --force --with pytest spec-kitty-cli==3.2.0rc25"
 
 
 def test_uv_tool_remediation_with_no_receipt_falls_back_to_uv_sync(
@@ -804,25 +825,30 @@ def test_uv_tool_remediation_with_no_receipt_falls_back_to_uv_sync(
 def test_uv_tool_remediation_preserves_custom_bin_dir(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """UV_TOOL with non-default tool_dir emits UV_TOOL_DIR prefix (no UV_TOOL_BIN_DIR).
+    """UV_TOOL with a non-default bin_dir emits a UV_TOOL_BIN_DIR env prefix.
 
-    Uses a short fixed path so the composed command stays within CHK028's 128-char limit.
+    The reinstall must not relocate the shim out of the user's custom bin dir
+    (legacy parity); short fixed paths keep the command within CHK028's limit.
     """
     import specify_cli.cli.commands.review as review_mod
 
-    # plan_remediation() emits only UV_TOOL_DIR, not UV_TOOL_BIN_DIR.
-    # Custom bin_dir info is carried in InstalledCliRuntime but not forwarded
-    # to the argv/env by plan_remediation() for REINSTALL_WITH_TEST.
-    tool_dir = Path("/opt/uv-tools")
+    tool_dir = Path("/opt/uv-t")
+    bin_dir = Path("/opt/bin")
     monkeypatch.setattr(
         "specify_cli.cli.commands.review.detect_runtime",
-        lambda: _make_uv_runtime(tool_dir=tool_dir, is_default_tool_dir=False),
+        lambda: _make_uv_runtime(
+            tool_dir=tool_dir,
+            is_default_tool_dir=False,
+            bin_dir=bin_dir,
+            is_default_bin_dir=False,
+        ),
     )
 
     result = review_mod._missing_test_extra_remediation()  # noqa: SLF001
-    assert f"UV_TOOL_DIR={tool_dir!s}" in result
-    assert "UV_TOOL_BIN_DIR" not in result
-    assert "--extra test" in result
+    assert result == (
+        "UV_TOOL_DIR=/opt/uv-t UV_TOOL_BIN_DIR=/opt/bin uv tool install --force "
+        "--with pytest spec-kitty-cli"
+    )
 
 
 def test_uv_tool_remediation_preserves_receipt_python(
@@ -834,9 +860,7 @@ def test_uv_tool_remediation_preserves_receipt_python(
     """
     import specify_cli.cli.commands.review as review_mod
 
-    # Short path: total command length must be ≤128 chars (CHK028).
-    # "UV_TOOL_DIR=/opt/uv uv tool install --force --python 3.13 spec-kitty-cli --extra test"
-    # = 12 + 7 + 1 + 65 = 85 chars ← within limit.
+    # Short path keeps the composed command within CHK028's 128-char ceiling.
     tool_dir = Path("/opt/uv")
     monkeypatch.setattr(
         "specify_cli.cli.commands.review.detect_runtime",
@@ -846,7 +870,8 @@ def test_uv_tool_remediation_preserves_receipt_python(
     )
 
     assert review_mod._missing_test_extra_remediation() == (  # noqa: SLF001
-        f"UV_TOOL_DIR={tool_dir!s} uv tool install --force --python 3.13 spec-kitty-cli --extra test"
+        f"UV_TOOL_DIR={tool_dir!s} uv tool install --force --python 3.13 "
+        "--with pytest spec-kitty-cli"
     )
 
 
@@ -867,9 +892,10 @@ def test_uv_tool_remediation_uses_powershell_env_prefix_on_windows(
         ),
     )
 
-    # render("windows") raises ValueError (CHK028) → note fallback
+    # render("windows") raises ValueError (CHK028) → note fallback carrying the
+    # safe provenance guidance (not a clobbering command).
     result = review_mod._missing_test_extra_remediation()  # noqa: SLF001
-    assert result == "see spec-kitty docs"
+    assert "could not preserve uv receipt provenance" in result
 
 
 def test_uv_tool_remediation_windows_default_tool_dir_no_env(
@@ -886,30 +912,32 @@ def test_uv_tool_remediation_windows_default_tool_dir_no_env(
     )
 
     result = review_mod._missing_test_extra_remediation()  # noqa: SLF001
-    assert result == "uv tool install --force spec-kitty-cli --extra test"
+    assert result == "uv tool install --force --with pytest spec-kitty-cli"
 
 
 def test_uv_tool_remediation_quotes_specifier_receipt(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """UV_TOOL REINSTALL_WITH_TEST produces a CHK028-safe command (no specifier).
+    """A CHK028-safe receipt specifier (==) is preserved in the reinstall command.
 
     Uses a short fixed path so the composed command stays within CHK028's 128-char limit.
     """
     import specify_cli.cli.commands.review as review_mod
 
-    # REINSTALL_WITH_TEST never pins a version → no quoting issues
     tool_dir = Path("/opt/uv-t")
     monkeypatch.setattr(
         "specify_cli.cli.commands.review.detect_runtime",
-        lambda: _make_uv_runtime(tool_dir=tool_dir, is_default_tool_dir=False),
+        lambda: _make_uv_runtime(
+            tool_dir=tool_dir,
+            is_default_tool_dir=False,
+            requirements=(_uv_req(specifier="==3.2.0rc25"),),
+        ),
     )
 
     remediation = review_mod._missing_test_extra_remediation()  # noqa: SLF001
-    # CHK028 allows =, >, etc. only in the set; specifier (>=3.0 with special chars) is absent
-    assert "--extra test" in remediation
-    assert "spec-kitty-cli" in remediation
-    assert ">=" not in remediation
+    assert remediation == (
+        "UV_TOOL_DIR=/opt/uv-t uv tool install --force --with pytest spec-kitty-cli==3.2.0rc25"
+    )
 
 
 def test_uv_tool_remediation_omits_uv_tool_dir_for_default_tool_dir(
@@ -925,7 +953,7 @@ def test_uv_tool_remediation_omits_uv_tool_dir_for_default_tool_dir(
     )
 
     assert review_mod._missing_test_extra_remediation() == (  # noqa: SLF001
-        "uv tool install --force spec-kitty-cli --extra test"
+        "uv tool install --force --with pytest spec-kitty-cli"
     )
 
 

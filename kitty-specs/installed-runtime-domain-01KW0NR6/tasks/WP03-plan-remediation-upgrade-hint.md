@@ -115,8 +115,8 @@ Implementation logic per install method and intent:
 
 | Install method | UPGRADE argv | REINSTALL_WITH_TEST argv |
 |---------------|-------------|------------------------|
-| `UV_TOOL` (default tool dir, no python) | `("uv", "tool", "install", "--force", "spec-kitty-cli")` | Same + `("--extra", "test")` |
-| `UV_TOOL` (custom tool dir) | same argv; env = `{"UV_TOOL_DIR": str(runtime.tool_dir)}` | same |
+| `UV_TOOL` (default tool dir, no python) | `("uv", "tool", "install", "--force", "spec-kitty-cli")` | **Provenance-preserving** (see below) |
+| `UV_TOOL` (custom tool dir) | same argv; env = `{"UV_TOOL_DIR": str(runtime.tool_dir)}` | same env, plus `UV_TOOL_BIN_DIR` when `is_default_bin_dir is False` |
 | `UV_TOOL` (python override) | argv includes `"--python", runtime.python` | same |
 | `PIPX` | `("pipx", "upgrade", "spec-kitty-cli")` | `("pipx", "install", "--include-deps", "spec-kitty-cli[test]")` |
 | `BREW` | `("brew", "upgrade", "spec-kitty-cli")` | MANUAL_GUIDANCE (no standard brew test extra) |
@@ -126,6 +126,23 @@ Implementation logic per install method and intent:
 | `UNKNOWN` | MANUAL_GUIDANCE | MANUAL_GUIDANCE |
 
 `env` defaults to empty `{}` for most methods.
+
+> **UV_TOOL `REINSTALL_WITH_TEST` provenance contract (FR-019 / SC-003 / issue #1358).**
+> An earlier revision of this table specified `spec-kitty-cli --extra test` for
+> every uv-tool install. That is a **regression**: it re-pins a directory /
+> editable / path / git / url install to the PyPI release, clobbering the user's
+> real source. The issue's acceptance criteria require provenance modelled
+> "with nothing discarded", so the planner MUST reconstruct from
+> `runtime.requirements`, byte-for-byte with the pre-migration `review` command:
+> `uv tool install --force [--python V] [--with <dep>… | --with-editable <dep>] --with pytest <package-args>`,
+> where `<package-args>` is `<directory>` / `--editable <dir>` / `<path>` /
+> `spec-kitty-cli --from git+<src>` / `<url>` / `spec-kitty-cli==<specifier>` /
+> `spec-kitty-cli`. Injected deps are carried as `--with`/`--with-editable`;
+> pytest is added via `--with pytest` (deduped if already present). A receipt
+> entry whose shape is unsupported (`UvRequirement.is_supported is False`), or a
+> present receipt with no spec-kitty entry, yields MANUAL_GUIDANCE (conservative
+> — never re-pin to PyPI). Only the receipt-absent case (`receipt_path is None`)
+> falls back to a PyPI reinstall, pinned to the running version when known.
 
 `MANUAL_GUIDANCE` result: `RemediationCommand(intent=MANUAL_GUIDANCE, argv=None, env={}, note=<human description>)`.
 

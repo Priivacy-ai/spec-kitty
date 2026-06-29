@@ -34,6 +34,7 @@ from specify_cli.compat._detect.runtime import InstalledCliRuntime, detect_runti
 from specify_cli.compat.remediation import RemediationCommand, plan_remediation, RemediationIntent
 from specify_cli.cli.selector_resolution import resolve_mission_handle  # noqa: F401
 from specify_cli.task_utils import TaskCliError, find_repo_root  # noqa: F401
+from specify_cli.version_utils import get_version  # noqa: F401
 
 from ._ble001_audit import (  # noqa: F401
     Ble001SuppressionFinding,
@@ -73,17 +74,21 @@ def _missing_test_extra_remediation() -> str:
 
     Uses detect_runtime() (CHK032: never raises) and plan_remediation()
     to produce a platform-appropriate reinstall command.  For UV_TOOL
-    installs the command uses ``--extra test`` (SC-001: single receipt
-    read per invocation via detect_runtime()).  If render() raises
-    ValueError (e.g. CHK028 path-safety violation), returns cmd.note or
-    a safe guidance fallback.  For all other install methods returns
-    ``uv sync --extra test``.
+    installs the command preserves install provenance (directory / editable
+    / path / git / url / injected deps) and adds pytest via ``--with pytest``
+    — never silently re-pinning a source install to the PyPI release
+    (FR-019 / SC-003 / issue #1358; SC-001: single receipt read per
+    invocation via detect_runtime()).  ``target_version`` only pins the
+    receipt-absent PyPI fallback; receipt-derived provenance is authoritative.
+    If render() raises ValueError (e.g. CHK028 path-safety violation),
+    returns cmd.note or a safe guidance fallback.  For all other install
+    methods returns ``uv sync --extra test``.
     """
     runtime: InstalledCliRuntime = detect_runtime()
     if runtime.install_method != InstallMethod.UV_TOOL:
         return "uv sync --extra test"
     cmd: RemediationCommand = plan_remediation(
-        runtime, RemediationIntent.REINSTALL_WITH_TEST, target_version=None
+        runtime, RemediationIntent.REINSTALL_WITH_TEST, target_version=get_version()
     )
     try:
         rendered: str = cmd.render(runtime.platform)

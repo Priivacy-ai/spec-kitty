@@ -180,3 +180,26 @@ def build_upgrade_hint(
         return UpgradeHint(install_method=install_method, command=command, note=note)
 
     return UpgradeHint(install_method=install_method, command=rendered, note=None)
+
+
+def current_upgrade_command(fallback: str = "pipx upgrade spec-kitty-cli") -> str:
+    """Return the rendered upgrade command for the running install, or *fallback*.
+
+    Convenience wrapper (does I/O via ``detect_runtime``) for callers that only
+    need a copy-pasteable upgrade string. Routes through the single planner so
+    every remediation surface shares one source of truth (issue #1358 "use one
+    planner"); collapses the previously duplicated detect→plan→render→fallback
+    block in ``core/version_checker.py`` and ``migration/schema_version.py``.
+    """
+    from specify_cli.compat._detect.runtime import detect_runtime  # deferred
+    from specify_cli.compat.remediation import (  # deferred
+        RemediationIntent,
+        plan_remediation,
+    )
+
+    runtime = detect_runtime()
+    cmd = plan_remediation(runtime, RemediationIntent.UPGRADE, target_version=None)
+    try:
+        return cmd.render(runtime.platform)
+    except ValueError:
+        return fallback

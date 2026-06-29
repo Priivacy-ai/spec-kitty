@@ -1,7 +1,6 @@
 {
-  "coordination_branch": "kitty/mission-installed-runtime-domain-01KW0NR6",
   "created_at": "2026-06-26T00:37:20.970056+00:00",
-  "flattened": false,
+  "flattened": true,
   "friendly_name": "Centralize installed CLI runtime + remediation planning",
   "mission_id": "01KW0NR6E9XCH0QAREQWQ5ZDPB",
   "mission_number": null,
