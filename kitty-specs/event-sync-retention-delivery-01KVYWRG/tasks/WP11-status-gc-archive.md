@@ -23,8 +23,8 @@ subtasks:
 - T070
 phase: Phase 5 - Policy, migration, status, CLI
 assignee: ''
-agent: "claude:opus:python-pedro:implementer"
-shell_pid: "80045"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "82987"
 history:
 - at: '2026-06-29T06:21:37Z'
   actor: system
@@ -390,3 +390,5 @@ A reviewer for `/spec-kitty.review` must verify, tying to contract §6 "Required
 > Entries chronological, appended at END. Format: `- YYYY-MM-DDTHH:MM:SSZ – <agent_id> – <action>`
 - 2026-06-29T06:21:37Z – system – Prompt created.
 - 2026-06-29T09:46:42Z – claude:opus:python-pedro:implementer – shell_pid=80045 – Assigned agent via action command
+- 2026-06-29T10:10:23Z – claude:opus:python-pedro:implementer – shell_pid=80045 – for_review (propagate; lane pristine at 1450fda17, T069 doc on lane)
+- 2026-06-29T10:10:25Z – claude:opus:reviewer-renata:reviewer – shell_pid=82987 – Started review via action command
