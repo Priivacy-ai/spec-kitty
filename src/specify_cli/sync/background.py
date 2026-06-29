@@ -51,6 +51,9 @@ _STOP_SYNC_TIMEOUT_SECONDS = 5
 _UNAUTHENTICATED_SYNC_ERROR = (
     "Not authenticated: no valid access token. Run `spec-kitty auth login`."
 )
+_DIRECT_INGRESS_SKIPPED_ERROR = (
+    "direct_ingress_missing_private_team: direct ingress skipped before final sync auth"
+)
 
 
 def _emit_nonfatal_final_sync_diagnostic(
@@ -76,6 +79,19 @@ def _safe_optional_queue_size(queue_obj: object | None) -> int:
         return 0
 
 
+def _emit_direct_ingress_skip_diagnostic() -> None:
+    """Emit the shared private-team ingress-skip warning best-effort."""
+    try:
+        from specify_cli.sync._team import resolve_private_team_id_for_ingress
+
+        resolve_private_team_id_for_ingress(
+            get_token_manager(),
+            endpoint="/api/v1/events/batch/",
+        )
+    except Exception as exc:
+        logger.debug("direct-ingress skip diagnostic unavailable: %s", exc)
+
+
 def _unauthenticated_sync_result(
     queue: OfflineQueue,
     *,
@@ -88,11 +104,13 @@ def _unauthenticated_sync_result(
         result.error_messages.append(_UNAUTHENTICATED_SYNC_ERROR)
         return result
 
+    _emit_direct_ingress_skip_diagnostic()
     read_limit = queue_size if limit is None else min(queue_size, limit)
     events = queue.drain_queue(limit=read_limit)
     result.total_events = len(events)
     result.error_count = len(events)
     result.error_messages.append(_UNAUTHENTICATED_SYNC_ERROR)
+    result.error_messages.append(_DIRECT_INGRESS_SKIPPED_ERROR)
 
     for event in events:
         event_id = str(event.get("event_id") or "unknown")

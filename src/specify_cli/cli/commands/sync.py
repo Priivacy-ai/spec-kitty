@@ -476,7 +476,7 @@ def _current_event_sync_scope() -> _EventSyncScope:
     try:
         from specify_cli.sync.emitter import EventEmitter
 
-        team_slug = EventEmitter._get_cached_private_team_slug()
+        team_slug = EventEmitter._current_team_slug()
     except Exception as exc:
         _LOG.debug("event-sync team scope unavailable: %s", exc)
         team_slug = None
