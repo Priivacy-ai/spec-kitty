@@ -289,6 +289,30 @@ class BackgroundSyncService:
         """
         return self._perform_full_sync(show_progress=show_progress)
 
+    def drain_body_uploads_only(self) -> None:
+        """Drain ONLY the auth-gated body-upload queue; skip event sync entirely.
+
+        Unlike :meth:`sync_now` / :meth:`_sync_once`, this entry point never
+        invokes the event ``batch_sync`` / ``queue.process_batch_results`` path.
+        It runs solely the existing body-upload drain
+        (:meth:`_drain_body_queue`), which fetches its own access token and is a
+        no-op when unauthenticated. The event offline queue is left completely
+        untouched, preserving the body-upload / event-queue separation (C-006).
+
+        Used by the ``sync now`` CLI command so a body-only flush cannot perturb
+        the durable event queue or its batch-result bookkeeping.
+
+        Thread-safe: holds ``_lock`` so background timer ticks cannot overlap.
+        """
+        if not is_saas_sync_enabled():
+            logger.info("%s Body-upload drain skipped.", saas_sync_disabled_message())
+            return
+
+        with self._lock:
+            if self._body_queue is None:
+                return
+            self._drain_body_queue()
+
     # ── Internal ──────────────────────────────────────────────────
 
     def _schedule_next_sync(self, delay_seconds: float | None = None) -> None:

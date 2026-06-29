@@ -67,15 +67,55 @@ MIGRATION_CONFLICTS_KEY = "migration_conflicts"
 TERMINAL_FAILURES_KEY = "terminal_failures"
 BODY_UPLOAD_COMPAT_KEY = "body_upload_compatibility"
 
-ADDITIVE_SECTION_KEYS: tuple[str, ...] = (
-    TARGET_AUTHORITY_KEY,
-    EVENT_JOURNAL_KEY,
-    DELIVERY_TARGETS_KEY,
-    DELIVERY_LEDGER_KEY,
-    MIGRATION_CONFLICTS_KEY,
-    TERMINAL_FAILURES_KEY,
-    BODY_UPLOAD_COMPAT_KEY,
-)
+
+def default_status_sections() -> dict[str, Any]:
+    """Return all seven additive sections in their empty/default shape.
+
+    This is the canonical, side-effect-free *zero state* of the additive
+    status surface (contract §6): every section key is present with a fully
+    populated empty value (no missing keys, no ``None`` sections), so the WP12
+    CLI can seed a status payload — or fall back when a domain surface is
+    unavailable — without ever emitting a partial section. The same shape is
+    what :func:`build_status_report` converges to when handed empty journal /
+    ledger / registry inputs (e.g. zero retained events, zero ledger rows).
+
+    The key set is **single-sourced** here: :data:`ADDITIVE_SECTION_KEYS` is
+    derived from this dict (``tuple(default_status_sections())``) so
+    :func:`build_status_report` and this helper cannot drift to different key
+    sets — adding or removing a section in one place updates the exported key
+    tuple automatically.
+    """
+    return {
+        TARGET_AUTHORITY_KEY: {},
+        EVENT_JOURNAL_KEY: {
+            "retained_event_count": 0,
+            "archived_event_count": 0,
+            "oldest_retained_event_at": None,
+            "journal_size_bytes": 0,
+            "gc_suggested": False,
+            "gc_suggestion": None,
+        },
+        DELIVERY_TARGETS_KEY: {"current": None, "previous": []},
+        DELIVERY_LEDGER_KEY: {
+            "delivered_current_target": 0,
+            "delivered_previous_target": 0,
+            "pending": 0,
+            "rejected": 0,
+            "transient": 0,
+        },
+        MIGRATION_CONFLICTS_KEY: {"count": 0, "cleanup_blocked": False, "conflicts": []},
+        TERMINAL_FAILURES_KEY: {"count": 0, "events": []},
+        BODY_UPLOAD_COMPAT_KEY: {
+            "body_upload_queue_count": 0,
+            "body_upload_failure_log_count": 0,
+        },
+    }
+
+
+# The exported key tuple is derived from the default-section factory so the two
+# surfaces share one source of truth and cannot diverge (S1192-safe: the keys
+# are the named ``*_KEY`` constants above, referenced once each).
+ADDITIVE_SECTION_KEYS: tuple[str, ...] = tuple(default_status_sections())
 
 # "Large journal" threshold for the GC *suggestion* (NFR-004). A single named
 # constant (Sonar S1192); callers may pass ``large_threshold_bytes`` to override
@@ -411,5 +451,6 @@ __all__ = [
     "TARGET_AUTHORITY_KEY",
     "TERMINAL_FAILURES_KEY",
     "build_status_report",
+    "default_status_sections",
     "evaluate_gc_suggestion",
 ]

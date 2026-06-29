@@ -43,6 +43,7 @@ from specify_cli.delivery.status_report import (
     TARGET_AUTHORITY_KEY,
     TERMINAL_FAILURES_KEY,
     build_status_report,
+    default_status_sections,
     evaluate_gc_suggestion,
 )
 from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
@@ -146,6 +147,54 @@ def _insert_body_upload_row(db_path: Path) -> None:
         conn.commit()
     finally:
         conn.close()
+
+
+# ---------------------------------------------------------------------------
+# default_status_sections — zero-state with all seven keys (single-sourced)
+# ---------------------------------------------------------------------------
+
+
+def test_default_status_sections_has_all_seven_keys() -> None:
+    sections = default_status_sections()
+
+    # Key set is single-sourced: exactly the exported additive keys, no drift.
+    assert set(sections) == set(ADDITIVE_SECTION_KEYS)
+
+    # Each section carries its empty/default shape (no missing keys, no None
+    # sections) so a CLI fallback never emits a partial section.
+    assert sections[TARGET_AUTHORITY_KEY] == {}
+    assert sections[EVENT_JOURNAL_KEY] == {
+        "retained_event_count": 0,
+        "archived_event_count": 0,
+        "oldest_retained_event_at": None,
+        "journal_size_bytes": 0,
+        "gc_suggested": False,
+        "gc_suggestion": None,
+    }
+    assert sections[DELIVERY_TARGETS_KEY] == {"current": None, "previous": []}
+    assert sections[DELIVERY_LEDGER_KEY] == {
+        "delivered_current_target": 0,
+        "delivered_previous_target": 0,
+        "pending": 0,
+        "rejected": 0,
+        "transient": 0,
+    }
+    assert sections[MIGRATION_CONFLICTS_KEY] == {
+        "count": 0,
+        "cleanup_blocked": False,
+        "conflicts": [],
+    }
+    assert sections[TERMINAL_FAILURES_KEY] == {"count": 0, "events": []}
+    assert sections[BODY_UPLOAD_COMPAT_KEY] == {
+        "body_upload_queue_count": 0,
+        "body_upload_failure_log_count": 0,
+    }
+
+    # The zero-state is JSON-serializable (FR-019 round-trip) and a fresh dict
+    # each call (no shared mutable default that a caller could mutate).
+    assert json.loads(json.dumps(sections)) == sections
+    default_status_sections()[TERMINAL_FAILURES_KEY]["events"].append("x")
+    assert default_status_sections()[TERMINAL_FAILURES_KEY]["events"] == []
 
 
 # ---------------------------------------------------------------------------
