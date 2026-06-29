@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from specify_cli.delivery.retention import RetentionResult
     from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
     from specify_cli.event_journal.journal import EventJournal
+    from specify_cli.sync.migrate_journal import MigrationAudit, MigrationResult
     from specify_cli.sync.target_authority import ResolvedSyncTarget
 
 from specify_cli.cli.commands._auth_recovery import (
@@ -103,29 +104,6 @@ def _add_boundary_identity_row(
 ) -> None:
     """Render a single key/value row into the boundary table."""
     table.add_row(label, _string_or(value, fallback))
-
-
-def _sync_result_looks_unauthenticated(queue_size: int, result: object) -> bool:
-    """Detect the legacy auth-missing result shape from ``sync_now``."""
-    if queue_size <= 0:
-        return False
-
-    def _int_attr(name: str) -> int:
-        value = getattr(result, name, 0)
-        return value if isinstance(value, int) and not isinstance(value, bool) else 0
-
-    total_events = _int_attr("total_events")
-    synced_count = _int_attr("synced_count")
-    duplicate_count = _int_attr("duplicate_count")
-    error_count = _int_attr("error_count")
-    failed_results = getattr(result, "failed_results", ())
-    return (
-        total_events == 0
-        and synced_count == 0
-        and duplicate_count == 0
-        and error_count == 0
-        and len(failed_results) == 0
-    )
 
 
 def humanize_timedelta(td: timedelta) -> str:
@@ -258,75 +236,92 @@ def _render_top_event_types(stats: QueueStats, target_console: Console) -> None:
     target_console.print(type_table)
 
 
-def _print_sync_summary(result: object) -> None:
-    """Render the sync summary with highlighted failure details.
+def _handle_sync_now_unauthenticated(strict: bool) -> None:
+    """Route the unauthenticated/blocked ``sync now`` case through recovery.
 
-    The ``Pending`` segment surfaces when the server returned per-event
-    ``queued`` / ``pending`` rows (durably accepted but not yet
-    materialised). Without it the previous summary would have classified
-    those rows as ``Errors``; see issue Priivacy-ai/spec-kitty#1182.
+    Teamspace-aware recovery: TTY operators get an interactive prompt, CI gets a
+    structured stderr line + exit code 4. When no teamspace is detected
+    (NO_TEAMSPACE / SKIPPED / QUIT) the behaviour is byte-identical to the legacy
+    path — the operator message naming ``spec-kitty auth login`` is printed and
+    the command exits 1 under ``--strict``.
     """
-    from specify_cli.sync.batch import format_sync_summary
-
-    summary = format_sync_summary(result)
-    pending_count = getattr(result, "pending_count", 0)
-    header_parts = [
-        f"[green]Synced:[/green] {getattr(result, 'synced_count', 0)}",
-        f"[dim]Duplicates:[/dim] {getattr(result, 'duplicate_count', 0)}",
-    ]
-    if isinstance(pending_count, int) and not isinstance(pending_count, bool) and pending_count > 0:
-        header_parts.append(f"[yellow]Pending:[/yellow] {pending_count}")
-    header_parts.append(f"[red]Errors:[/red] {getattr(result, 'error_count', 0)}")
-    header = "  ".join(header_parts)
-    for line in summary.splitlines():
-        if line.startswith("  "):
-            console.print(f"  [yellow]{line.strip()}[/yellow]")
-            continue
-        console.print(header)
+    outcome = handle_unauthenticated_with_teamspace(
+        command_name="sync now",
+        console=console,
+    )
+    if outcome is RecoveryOutcome.EXIT_4:
+        raise typer.Exit(EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE)
+    if outcome is RecoveryOutcome.LOGGED_IN:
+        console.print(
+            "[green]Logged in.[/green] Re-run "
+            "[bold]spec-kitty sync now[/bold] to continue."
+        )
+        return
+    console.print(f"[yellow]{_UNAUTHENTICATED_SYNC_NOW_MESSAGE}[/yellow]")
+    if strict:
+        raise typer.Exit(1)
 
 
-def _maybe_write_sync_report(report: Path | None, result: object) -> None:
-    """Persist the per-event failure report when requested."""
+def _enforce_sync_now_exit_from_dispatch(
+    strict: bool, queue_size: int, summary: DispatchSummary | None
+) -> None:
+    """Apply the strict ``spec-kitty sync now`` exit contract to the dispatch outcome.
+
+    The journal-based dispatcher is now the sole event-delivery path, so the
+    legacy ``_enforce_sync_now_exit`` semantics are mapped onto its
+    :class:`DispatchSummary` plus the pending-work signal:
+
+    * "there is pending event work (queued events and/or selected journal
+      events) but zero delivery/duplicate/pending progress" is the
+      unauthenticated / sync-blocked signal (the dispatch analogue of the legacy
+      "queue non-empty but all-zero result"). It is routed through the
+      teamspace-aware recovery so the unauthenticated UX (interactive login,
+      structured exit 4, legacy exit 1) is preserved regardless of ``--strict``.
+    * ``error_count > 0`` → ``summary.terminal_failed > 0`` (a delivery that
+      exhausted its retries is the dispatch analogue of a hard error) → exit 1
+      under ``--strict``.
+
+    A ``None`` summary means the additive dispatch was unavailable (its degraded
+    notice already printed); it never escalates to a non-zero exit on its own.
+    """
+    selected = summary.selected if summary is not None else 0
+    progressed = (
+        summary.delivered + summary.duplicate + summary.pending if summary is not None else 0
+    )
+    work_present = queue_size > 0 or selected > 0
+    if work_present and progressed == 0:
+        _handle_sync_now_unauthenticated(strict)
+        return
+    if strict and summary is not None and summary.terminal_failed > 0:
+        raise typer.Exit(1)
+
+
+def _maybe_write_dispatch_report(report: Path | None, summary: DispatchSummary | None) -> None:
+    """Persist a compact per-outcome event-sync report when ``--report`` is given.
+
+    The destructive legacy offline-queue drain (which produced a per-event
+    failure report) is gone, so ``--report`` now serialises the dispatcher's
+    per-outcome counts — the observable surface of the single delivery path.
+    """
     if report is None:
         return
+    import json as _json
 
-    failed_results = getattr(result, "failed_results", ())
-    if failed_results:
-        from specify_cli.sync.batch import write_failure_report
-
-        write_failure_report(report, result)
-        console.print(f"\n[cyan]Failure report written to {report}[/cyan]")
-        return
-
-    console.print("\n[dim]No failures to report.[/dim]")
-
-
-def _sync_result_activity(result: object) -> int:
-    """Return the total number of acknowledged sync outcomes.
-
-    ``pending_count`` is included so a sync that drained only
-    ``queued`` / ``pending`` rows (server-acknowledged but not yet
-    materialised; see Priivacy-ai/spec-kitty#1182) is correctly treated
-    as progress and does not trigger the "no progress" guard below.
-    """
-    counts = (
-        getattr(result, "synced_count", 0),
-        getattr(result, "duplicate_count", 0),
-        getattr(result, "pending_count", 0),
-        getattr(result, "error_count", 0),
-    )
-    return sum(value for value in counts if isinstance(value, int) and not isinstance(value, bool))
-
-
-def _enforce_sync_now_exit(strict: bool, queue_size: int, result: object) -> None:
-    """Apply the strict exit contract for ``spec-kitty sync now``."""
-    error_count = getattr(result, "error_count", 0)
-    if strict and isinstance(error_count, int) and error_count > 0:
-        raise typer.Exit(1)
-
-    if strict and queue_size > 0 and _sync_result_activity(result) == 0:
-        console.print("[red]Error:[/red] Sync made no progress; not authenticated or sync is blocked.")
-        raise typer.Exit(1)
+    if summary is None:
+        data: dict[str, Any] = {"dispatched": False}
+    else:
+        data = {
+            "dispatched": True,
+            "selected": summary.selected,
+            "delivered": summary.delivered,
+            "duplicate": summary.duplicate,
+            "pending": summary.pending,
+            "rejected": summary.rejected,
+            "transient": summary.transient,
+            "terminal_failed": summary.terminal_failed,
+        }
+    report.write_text(_json.dumps(data), encoding="utf-8")
+    console.print(f"\n[cyan]Dispatch report written to {report}[/cyan]")
 
 
 def format_queue_health(stats: QueueStats, target_console: Console) -> None:
@@ -560,18 +555,51 @@ def _open_active_body_queue() -> Any:
         return None
 
 
+def _open_migration_audit_readonly() -> MigrationAudit | None:
+    """Open the WP10 migration-audit store best-effort (or ``None``).
+
+    Only opens when the audit DB already exists on disk so that a status read
+    never *creates* the migration store as a side effect. Any failure degrades
+    to ``None`` (debug-logged) so the ``migration_conflicts`` section falls back
+    to its empty default instead of breaking the status surface.
+    """
+    from specify_cli.paths import get_runtime_root
+    from specify_cli.sync.migrate_journal import AUDIT_DB_NAME, MigrationAudit
+
+    audit_path = get_runtime_root().base / AUDIT_DB_NAME
+    if not audit_path.exists():
+        return None
+    try:
+        return MigrationAudit(audit_path)
+    except Exception as exc:  # read-only diagnostic; never fail status on it
+        _LOG.debug("migration audit unavailable for status report: %s", exc)
+        return None
+
+
 def _event_sync_report(base: dict[str, Any], runtime: _EventSyncRuntime) -> dict[str, Any]:
-    """Merge the seven WP11 additive sections onto *base* (CLI serialises only)."""
+    """Merge the seven WP11 additive sections onto *base* (CLI serialises only).
+
+    Opens the WP10 migration-audit store (read-only, best-effort) so the
+    ``migration_conflicts`` section surfaces real divergent-duplicate conflicts
+    that block cleanup (SC-011) rather than always reporting an empty set.
+    """
     from specify_cli.delivery.status_report import build_status_report
 
-    return build_status_report(
-        resolved_target=runtime.target,
-        journal=runtime.journal,
-        ledger=runtime.ledger,
-        target_registry=runtime.registry,
-        body_upload_queue=_open_active_body_queue(),
-        base=base,
-    )
+    audit = _open_migration_audit_readonly()
+    try:
+        return build_status_report(
+            resolved_target=runtime.target,
+            journal=runtime.journal,
+            ledger=runtime.ledger,
+            target_registry=runtime.registry,
+            migration_audit=audit,
+            body_upload_queue=_open_active_body_queue(),
+            base=base,
+        )
+    finally:
+        if audit is not None:
+            with contextlib.suppress(Exception):
+                audit.close()
 
 
 def _print_dispatch_summary(summary: DispatchSummary, mode_name: str) -> None:
@@ -598,15 +626,36 @@ def _print_retention_result(result: RetentionResult) -> None:
     )
 
 
-def _run_event_sync_dispatch() -> None:
-    """Drive the WP07 dispatcher over the resolved active target (additive).
+def _print_migration_result(result: MigrationResult) -> None:
+    """Render a WP10 queue→journal migration result (counts owned by the result)."""
+    console.print(
+        "Queue migration: "
+        f"[green]imported {len(result.imported_event_ids)}[/green]  "
+        f"[dim]deduped {len(result.deduped)}[/dim]  "
+        f"[red]conflicts {len(result.conflicts)}[/red]  "
+        f"(exit_code {result.exit_code})"
+    )
+    if result.cleanup_blocked:
+        console.print(
+            "[yellow]Cleanup blocked[/yellow]: unresolved divergent-duplicate "
+            "migration conflicts remain — resolve them before deleting source queues."
+        )
+    console.print(f"[dim]{result.note}[/dim]")
 
-    Wired into ``sync now``. Any infrastructure failure degrades to a dim
-    notice rather than regressing the legacy ``sync now`` exit contract
-    (NFR-006); delivery outcomes themselves surface via the printed summary.
+
+def _run_event_sync_dispatch() -> DispatchSummary | None:
+    """Drive the WP07 dispatcher over the resolved active target.
+
+    This is the SOLE event-delivery path for ``sync now`` (the destructive
+    legacy offline-queue event drain is retired). Returns the
+    :class:`DispatchSummary` so the caller can derive the strict exit code; any
+    infrastructure failure (or a non-delivering mode) degrades to a dim notice
+    and ``None`` rather than crashing the command (NFR-006). Delivery outcomes
+    surface via the printed summary; the journal is never deleted on success
+    (FR-001).
     """
     if not is_saas_sync_enabled():
-        return
+        return None
     from specify_cli.delivery.dispatcher import dispatch
 
     runtime: _EventSyncRuntime | None = None
@@ -619,7 +668,7 @@ def _run_event_sync_dispatch() -> None:
                 f"[dim]Event sync mode {config.mode.name}: retention only; "
                 f"no delivery attempted.[/dim]"
             )
-            return
+            return None
         delivery_target = runtime.registry.register_from_resolved(runtime.target)
         summary = dispatch(
             journal=runtime.journal,
@@ -628,9 +677,11 @@ def _run_event_sync_dispatch() -> None:
             target=delivery_target,
         )
         _print_dispatch_summary(summary, config.mode.name)
-    except Exception as exc:  # additive drain must never break the legacy command
+        return summary
+    except Exception as exc:  # additive drain must never break the command
         _LOG.debug("event-sync dispatch skipped: %s", exc)
         console.print(f"[dim]Event sync unavailable: {str(exc)[:80]}[/dim]")
+        return None
     finally:
         if runtime is not None:
             runtime.close()
@@ -1616,57 +1667,35 @@ def now(
     )
 
     service = get_sync_service()
+    # Pending-work signal for the strict/unauthenticated exit contract (the
+    # queued-but-undelivered event count). Read before delivery so a successful
+    # drain does not erase the "there was work" signal.
     queue_size = service.queue.size()
 
-    if queue_size == 0:
-        console.print("[dim]Queue is empty, nothing to sync.[/dim]")
-        # Drain the event journal even when the legacy offline queue is empty:
-        # captured-but-undelivered events still need delivery (FR-005, WP07).
-        _run_event_sync_dispatch()
-        return
+    # Single, non-destructive event-delivery path. The journal-based dispatcher
+    # is now the SOLE event drain (FR-001): the retired legacy
+    # ``service.sync_now()`` offline-queue drain deleted journal-owned events AND
+    # double-POSTed every event the dispatcher also delivers (the dual-drain
+    # defect). Body uploads still flush via the body-ONLY entry point so
+    # attachments keep working without ever touching the durable event journal
+    # (C-006).
+    summary = _run_event_sync_dispatch()
+    service.drain_body_uploads_only()
 
-    console.print(f"Syncing {queue_size} queued event(s)...")
-    result = service.sync_now(show_progress=True)
-
-    if _sync_result_looks_unauthenticated(queue_size, result):
-        # Teamspace-aware recovery: TTY operators get an interactive prompt,
-        # CI gets a structured stderr line + exit code 4. When no teamspace is
-        # detected (NO_TEAMSPACE), behavior is byte-identical to the legacy
-        # path below.
-        outcome = handle_unauthenticated_with_teamspace(
-            command_name="sync now",
-            console=console,
-        )
-        if outcome is RecoveryOutcome.EXIT_4:
-            raise typer.Exit(EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE)
-        if outcome is RecoveryOutcome.LOGGED_IN:
-            console.print(
-                "[green]Logged in.[/green] Re-run "
-                "[bold]spec-kitty sync now[/bold] to continue."
-            )
-            return
-        console.print(f"[yellow]{_UNAUTHENTICATED_SYNC_NOW_MESSAGE}[/yellow]")
-        if strict:
-            raise typer.Exit(1)
-        return
-
-    _print_sync_summary(result)
-    _maybe_write_sync_report(report, result)
-    _enforce_sync_now_exit(strict, queue_size, result)
-
-    # Additive: drive the WP07 dispatcher (journal -> ledger) against the
-    # resolved active target. Non-destructive — the journal is never deleted
-    # on success (FR-001); the legacy exit contract above is the last word.
-    _run_event_sync_dispatch()
+    # Persist the per-outcome report (if requested) and map the dispatch outcome
+    # onto the strict exit contract — preserving the unauthenticated/blocked UX.
+    _maybe_write_dispatch_report(report, summary)
+    _enforce_sync_now_exit_from_dispatch(strict, queue_size, summary)
 
 
 @app.command()
 def gc() -> None:
-    """Purge already-delivered event payloads (explicit, destructive).
+    """Purge event payloads delivered to all known targets (explicit, destructive).
 
-    Deletes journal payload rows only for events delivered to some target;
-    undelivered payloads are kept so the durable copy is never lost. The
-    delivery ledger is never touched, so delivery history survives (FR-010).
+    Deletes journal payload rows only for events with a terminal-success
+    delivery to **every** registered target; payloads still owed to any known
+    target are kept so the durable, re-drainable copy is never lost (FR-005).
+    The delivery ledger is never touched, so delivery history survives (FR-010).
     Runs only on this explicit invocation — never from ``sync now``.
 
     Examples:
@@ -1676,7 +1705,10 @@ def gc() -> None:
 
     runtime = _open_event_sync_runtime()
     try:
-        result = gc_payloads(runtime.journal, runtime.ledger)
+        known_target_ids = [target.target_id for target in runtime.registry.list_targets()]
+        result = gc_payloads(
+            runtime.journal, runtime.ledger, known_target_ids=known_target_ids
+        )
     finally:
         runtime.close()
     _print_retention_result(result)
@@ -1701,6 +1733,45 @@ def archive() -> None:
     finally:
         runtime.close()
     _print_retention_result(result)
+
+
+@app.command()
+def migrate() -> None:
+    """Migrate legacy hash-scoped queue DBs into the append-only event journal.
+
+    Lifts every currently-queued payload from the legacy ``queue.db`` and each
+    scoped ``queues/queue-<digest>.db`` into the WP03 event journal, recording
+    per-source provenance and quarantining divergent-duplicate collisions into
+    the migration-audit store. Source DBs are opened read-only and are never
+    modified. Exits non-zero when an unresolved conflict blocks cleanup (SC-011).
+
+    Examples:
+        spec-kitty sync migrate
+    """
+    from specify_cli.paths import get_runtime_root
+    from specify_cli.sync.migrate_journal import (
+        AUDIT_DB_NAME,
+        MigrationAudit,
+        migrate_queues_to_journal,
+    )
+
+    spec_kitty_dir = get_runtime_root().base
+    runtime = _open_event_sync_runtime()
+    audit = MigrationAudit(spec_kitty_dir / AUDIT_DB_NAME)
+    try:
+        result = migrate_queues_to_journal(
+            spec_kitty_dir,
+            journal=runtime.journal,
+            audit=audit,
+            resolved_target=runtime.target,
+        )
+    finally:
+        with contextlib.suppress(Exception):
+            audit.close()
+        runtime.close()
+    _print_migration_result(result)
+    if result.exit_code != 0:
+        raise typer.Exit(result.exit_code)
 
 
 @app.command()
@@ -2131,14 +2202,20 @@ def _emit_status_check_json() -> None:
     # Additive WP11 sections (FR-019, SC-010): merge the seven event-sync
     # sections onto the legacy payload — every pre-existing top-level field is
     # preserved. Best-effort: the additive sections must never break the legacy
-    # ``--check --json`` gate (NFR-006), so a build failure falls back to the
-    # legacy payload unchanged.
+    # ``--check --json`` gate (NFR-006). On any failure we still merge the seven
+    # sections in their empty/default shape so the additive surface is ALWAYS
+    # present (every consumer can read all seven keys regardless of runtime
+    # health), and stamp an ``event_sync_status_error`` marker for diagnosis.
     runtime: _EventSyncRuntime | None = None
     try:
         runtime = _open_event_sync_runtime()
         payload = _event_sync_report(payload, runtime)
     except Exception as exc:  # legacy --check contract must survive any failure
+        from specify_cli.delivery.status_report import default_status_sections
+
         _LOG.debug("event-sync status sections unavailable: %s", exc)
+        payload = {**payload, **default_status_sections()}
+        payload["event_sync_status_error"] = str(exc)[:200]
     finally:
         if runtime is not None:
             runtime.close()

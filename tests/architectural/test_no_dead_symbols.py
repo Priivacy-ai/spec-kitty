@@ -924,18 +924,19 @@ _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[str] = frozenset(
         # event_journal.journal / models — append-only journal contract surface
         "specify_cli.event_journal.journal::JOURNAL_SUBDIR",
         "specify_cli.event_journal.models::ORDERED_COLUMNS",
-        # sync.migrate_journal — WP10 migration entry points + audit surface
-        "specify_cli.sync.migrate_journal::AUDIT_DB_NAME",
+        # sync.migrate_journal — WP10 migration entry points + audit surface.
+        # ``AUDIT_DB_NAME``, ``MigrationResult`` and ``migrate_queues_to_journal``
+        # gained live callers in WP12 (``spec-kitty sync migrate`` + the status
+        # migration-audit read path in ``cli/commands/sync.py``); they are no
+        # longer dead and were removed from this ratchet.
         "specify_cli.sync.migrate_journal::KNOWN_PREFIX",
         "specify_cli.sync.migrate_journal::LEGACY_DIGEST",
         "specify_cli.sync.migrate_journal::MIGRATION_NOTE",
         "specify_cli.sync.migrate_journal::MigrationConflict",
-        "specify_cli.sync.migrate_journal::MigrationResult",
         "specify_cli.sync.migrate_journal::SourceDb",
         "specify_cli.sync.migrate_journal::SourceOutcome",
         "specify_cli.sync.migrate_journal::UNKNOWN_PREFIX",
         "specify_cli.sync.migrate_journal::discover_source_dbs",
-        "specify_cli.sync.migrate_journal::migrate_queues_to_journal",
         "specify_cli.sync.migrate_journal::migration_target_token",
     }
 )

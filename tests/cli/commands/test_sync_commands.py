@@ -26,6 +26,7 @@ from specify_cli.cli.commands.sync import app
 from specify_cli.delivery.ledger import SqliteDeliveryLedger
 from specify_cli.delivery.receivers import StubReceiver
 from specify_cli.delivery.status_report import ADDITIVE_SECTION_KEYS
+from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
 from specify_cli.event_journal.journal import EventJournal, resolve_journal_path
 from specify_cli.event_journal.models import Event
 from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR
@@ -99,7 +100,9 @@ def _enable_now_machinery(monkeypatch: pytest.MonkeyPatch) -> None:
     class _Service:
         queue = _EmptyQueue()
 
-        def sync_now(self, *_, **__):  # pragma: no cover - empty queue short-circuits
+        def drain_body_uploads_only(self) -> None:
+            # Body-ONLY drain: the new ``sync now`` flushes attachments via this
+            # entry point and never runs the destructive legacy event drain.
             return None
 
     monkeypatch.setattr(
@@ -125,6 +128,12 @@ def _open_ledger() -> SqliteDeliveryLedger:
     ledger_path = sync_command._ledger_db_path()
     ledger_path.parent.mkdir(parents=True, exist_ok=True)
     return SqliteDeliveryLedger(str(ledger_path))
+
+
+def _open_registry() -> SqliteDeliveryTargetRegistry:
+    registry_path = sync_command._registry_db_path()
+    registry_path.parent.mkdir(parents=True, exist_ok=True)
+    return SqliteDeliveryTargetRegistry(str(registry_path))
 
 
 def _set_server_url(url: str) -> None:
@@ -169,9 +178,13 @@ def test_sync_now_empty_journal_is_noop(monkeypatch: pytest.MonkeyPatch) -> None
     assert "delivered 0" in result.output
 
 
-def test_sync_now_success_path_also_runs_event_sync(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The legacy offline-queue drain AND the additive event-sync dispatch both
-    run on the success path (the dispatcher is wired into the live command)."""
+def test_sync_now_success_path_runs_dispatch_and_body_drain(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``sync now`` delivers via the dispatcher ALONE and flushes body uploads.
+
+    The destructive legacy offline-queue event drain is retired: the command
+    must NOT call ``service.sync_now()`` (which double-POSTed every event the
+    dispatcher also delivers — the dual-drain P1 defect), and instead drains
+    body uploads via the body-ONLY entry point."""
     monkeypatch.setenv(SAAS_SYNC_ENV_VAR, "1")
     monkeypatch.setattr(sync_command, "is_saas_sync_enabled", lambda: True)
     monkeypatch.setattr(
@@ -180,27 +193,21 @@ def test_sync_now_success_path_also_runs_event_sync(monkeypatch: pytest.MonkeyPa
     monkeypatch.setattr(
         "specify_cli.sync.preflight.run_preflight", lambda **_: _OkPreflight()
     )
-    monkeypatch.setattr(
-        "specify_cli.sync.batch.format_sync_summary", lambda _: "summary"
-    )
 
-    class _Result:
-        synced_count = 2
-        duplicate_count = 0
-        pending_count = 0
-        error_count = 0
-        failed_results: tuple[object, ...] = ()
-        total_events = 2
+    drained = {"body": False}
 
     class _Queue:
         def size(self) -> int:
-            return 2
+            return 0
 
     class _Service:
         queue = _Queue()
 
-        def sync_now(self, *_, **__) -> _Result:
-            return _Result()
+        def sync_now(self, *_, **__):  # pragma: no cover - must never be called
+            raise AssertionError("legacy destructive event drain must not run")
+
+        def drain_body_uploads_only(self) -> None:
+            drained["body"] = True
 
     monkeypatch.setattr(
         "specify_cli.sync.background.get_sync_service", lambda: _Service()
@@ -210,9 +217,11 @@ def test_sync_now_success_path_also_runs_event_sync(monkeypatch: pytest.MonkeyPa
 
     result = runner.invoke(app, ["now"])
     assert result.exit_code == 0, result.output
-    # Both surfaces present: legacy "summary" and the additive event-sync line.
+    # The single event-delivery path (dispatcher) ran.
     assert "Event sync" in result.output
     assert "delivered 2" in result.output
+    # Body uploads still drained (the body-ONLY entry point).
+    assert drained["body"] is True
     # Event journal delivered + retained (non-destructive).
     assert journal.count() == 2
     assert set(stubs[-1].received_event_ids()) == {"evt-0", "evt-1"}
@@ -297,13 +306,23 @@ def test_status_human_view_shows_mode() -> None:
 
 
 def test_sync_gc_purges_only_delivered(monkeypatch: pytest.MonkeyPatch) -> None:
-    """``sync gc`` purges delivered payloads, skips undelivered, keeps the
-    ledger (FR-010)."""
+    """``sync gc`` purges payloads delivered to ALL known targets, skips those
+    still owed to a known target, and keeps the ledger (FR-005 / FR-010).
+
+    ``gc`` now derives its target universe from the registry
+    (``known_target_ids``): a payload is reclaimable only once it has a
+    terminal-success delivery to every registered target."""
     journal = _populate_journal(3)
-    # Mark evt-0 and evt-1 delivered somewhere; evt-2 stays undelivered.
+    # Register the single known target so gc has a non-empty target universe.
+    registry = _open_registry()
+    target = registry.register(
+        url="https://gc-target.example", team_slug=None, user_email=None
+    )
+    registry.close()
+    # Mark evt-0 and evt-1 delivered to that known target; evt-2 stays undelivered.
     ledger = _open_ledger()
-    ledger.record_success("evt-0", "tgt-x")
-    ledger.record_success("evt-1", "tgt-x")
+    ledger.record_success("evt-0", target.target_id)
+    ledger.record_success("evt-1", target.target_id)
     ledger.close()
 
     result = runner.invoke(app, ["gc"])
@@ -318,6 +337,22 @@ def test_sync_gc_purges_only_delivered(monkeypatch: pytest.MonkeyPatch) -> None:
     # Ledger history survives the purge.
     reopened = _open_ledger()
     assert reopened.delivered_anywhere("evt-0") is True
+
+
+def test_sync_gc_purges_nothing_without_known_targets() -> None:
+    """With no registered targets the universe is empty, so gc reclaims nothing
+    (the safe purge-nothing default — it cannot establish full delivery)."""
+    journal = _populate_journal(2)
+    ledger = _open_ledger()
+    ledger.record_success("evt-0", "phantom-target")
+    ledger.close()
+
+    result = runner.invoke(app, ["gc"])
+    assert result.exit_code == 0, result.output
+    assert "purged 0" in result.output
+    # Nothing was deleted because no known target universe exists.
+    assert journal.read_by_id("evt-0") is not None
+    assert journal.read_by_id("evt-1") is not None
 
 
 def test_sync_archive_is_nondestructive() -> None:
@@ -576,3 +611,198 @@ def test_render_event_sync_status_shows_gc_suggestion(monkeypatch: pytest.Monkey
     )
     sync_command._render_event_sync_status(test_console)
     assert "GC suggested" in buf.getvalue()
+
+
+# ---------------------------------------------------------------------------
+# WP12 P1 — status sections are ALWAYS present + migration conflicts surface
+# ---------------------------------------------------------------------------
+
+
+def test_status_check_json_keeps_sections_on_runtime_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """When the event-sync runtime cannot open, ``--check --json`` still emits all
+    seven additive sections (in their empty/default shape) plus an error marker —
+    a partial section set must never reach a consumer (FR-019, SC-010)."""
+
+    def _boom() -> object:
+        raise RuntimeError("runtime down")
+
+    # Either seam raising must converge on the same fallback.
+    monkeypatch.setattr(sync_command, "_open_event_sync_runtime", _boom)
+
+    result = runner.invoke(app, ["status", "--check", "--json"])
+    assert result.exit_code in (0, 2), result.output
+    payload = json.loads(result.output.strip())
+
+    for section in ADDITIVE_SECTION_KEYS:
+        assert section in payload, section
+    # The fallback marks itself so the partial-data cause is diagnosable.
+    assert "event_sync_status_error" in payload
+    # Default shapes are present (not None / not missing keys).
+    assert payload["migration_conflicts"] == {
+        "count": 0,
+        "cleanup_blocked": False,
+        "conflicts": [],
+    }
+
+
+def test_status_check_json_surfaces_migration_conflicts() -> None:
+    """A recorded migration conflict surfaces in ``migration_conflicts`` with the
+    cleanup-blocked flag set, sourced from the on-disk audit store (SC-011)."""
+    from specify_cli.paths import get_runtime_root
+    from specify_cli.sync.migrate_journal import (
+        AUDIT_DB_NAME,
+        MigrationAudit,
+        MigrationConflict,
+    )
+
+    _populate_journal(1)  # ensure the runtime opens cleanly (happy path)
+
+    audit_path = get_runtime_root().base / AUDIT_DB_NAME
+    audit = MigrationAudit(audit_path)
+    audit.record_conflict(
+        MigrationConflict(
+            event_id="evt-x",
+            source_digest="legacy",
+            existing_sha="aaa",
+            incoming_sha="bbb",
+            detail="divergent canonical payload for an existing event_id",
+        )
+    )
+    audit.commit()
+    audit.close()
+
+    result = runner.invoke(app, ["status", "--check", "--json"])
+    assert result.exit_code in (0, 2), result.output
+    payload = json.loads(result.output.strip())
+
+    conflicts = payload["migration_conflicts"]
+    assert conflicts["count"] == 1
+    assert conflicts["cleanup_blocked"] is True
+    assert conflicts["conflicts"][0]["event_id"] == "evt-x"
+
+
+# ---------------------------------------------------------------------------
+# WP12 P1 — sync now is a SINGLE non-destructive event POST + body drain
+# ---------------------------------------------------------------------------
+
+
+def test_sync_now_posts_exactly_once_and_drains_body(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``sync now`` POSTs the batch endpoint exactly ONCE (no dual-drain) and
+    still flushes body uploads via the body-ONLY entry point."""
+    import gzip as _gzip
+
+    from specify_cli.delivery.receivers import BATCH_ENDPOINT_PATH, TeamspaceReceiver
+
+    monkeypatch.setenv(SAAS_SYNC_ENV_VAR, "1")
+    monkeypatch.setattr(sync_command, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setattr(
+        sync_command, "enforce_teamspace_mission_state_ready", lambda **_: None
+    )
+    monkeypatch.setattr(
+        "specify_cli.sync.preflight.run_preflight", lambda **_: _OkPreflight()
+    )
+
+    posts: list[str] = []
+
+    class _Resp:
+        status_code = 200
+
+        def __init__(self, ids: list[str]) -> None:
+            self._ids = ids
+
+        def json(self) -> dict[str, object]:
+            return {"results": [{"event_id": i, "status": "success"} for i in self._ids]}
+
+    def _poster(url: str, *, data: bytes, headers: object, timeout: float) -> _Resp:
+        posts.append(url)
+        body = json.loads(_gzip.decompress(data).decode("utf-8"))
+        return _Resp([event["event_id"] for event in body["events"]])
+
+    receiver = TeamspaceReceiver(
+        resolved_server_url="https://t.example", auth_token="tok", poster=_poster
+    )
+    monkeypatch.setattr(sync_command, "_resolve_active_receiver", lambda *_: receiver)
+
+    drained = {"body": False}
+
+    class _Queue:
+        def size(self) -> int:
+            return 0
+
+    class _Service:
+        queue = _Queue()
+
+        def drain_body_uploads_only(self) -> None:
+            drained["body"] = True
+
+    monkeypatch.setattr(
+        "specify_cli.sync.background.get_sync_service", lambda: _Service()
+    )
+
+    # The wire envelope is the event's own JSON payload (``event_id`` is carried
+    # on the OutboundEvent, not the body), so embed it in the payload here so the
+    # fake server can echo a per-event success result keyed on it.
+    journal = EventJournal(resolve_journal_path())
+    journal.append(
+        Event(
+            event_id="evt-solo",
+            event_type="mission.updated",
+            payload=json.dumps({"event_id": "evt-solo", "n": 1}).encode("utf-8"),
+            occurred_at="2026-06-29T00:00:00+00:00",
+            created_at="2026-06-29T00:00:00+00:00",
+        )
+    )
+
+    result = runner.invoke(app, ["now"])
+    assert result.exit_code == 0, result.output
+
+    # Exactly ONE POST, to the batch endpoint (no legacy + dispatch double-POST).
+    assert len(posts) == 1, posts
+    assert posts[0].endswith(BATCH_ENDPOINT_PATH)
+    # Body uploads still drained.
+    assert drained["body"] is True
+    assert "delivered 1" in result.output
+
+
+# ---------------------------------------------------------------------------
+# WP12 P1 — sync migrate has a production caller (queue.db -> journal)
+# ---------------------------------------------------------------------------
+
+
+def test_sync_migrate_imports_queue_db_into_journal() -> None:
+    """``sync migrate`` lifts currently-queued legacy ``queue.db`` rows into the
+    event journal and renders the migration result (the otherwise-dead WP10
+    migration now has a production CLI caller)."""
+    import sqlite3
+
+    from specify_cli.paths import get_runtime_root
+
+    base = get_runtime_root().base
+    base.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(base / "queue.db"))
+    conn.execute(
+        "CREATE TABLE queue (id INTEGER PRIMARY KEY, event_id TEXT, "
+        "event_type TEXT, data TEXT, timestamp INTEGER)"
+    )
+    conn.executemany(
+        "INSERT INTO queue (event_id, event_type, data, timestamp) VALUES (?, ?, ?, ?)",
+        [
+            ("evt-m0", "mission.updated", json.dumps({"a": 1}), 1700000000),
+            ("evt-m1", "mission.updated", json.dumps({"a": 2}), 1700000001),
+        ],
+    )
+    conn.commit()
+    conn.close()
+
+    result = runner.invoke(app, ["migrate"])
+    assert result.exit_code == 0, result.output
+    assert "imported 2" in result.output
+
+    # Rows actually landed in the CLI-resolved journal.
+    journal = EventJournal(resolve_journal_path())
+    assert journal.read_by_id("evt-m0") is not None
+    assert journal.read_by_id("evt-m1") is not None
