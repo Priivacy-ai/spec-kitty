@@ -41,6 +41,7 @@ Per **C-001** nothing here imports ``sync/queue.py`` or ``specify_cli.events``.
 """
 from __future__ import annotations
 
+import contextlib
 import sqlite3
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
@@ -280,6 +281,7 @@ class SqliteDeliveryLedger:
     def __init__(self, db_path: str = ":memory:") -> None:
         self._conn = sqlite3.connect(db_path)
         self._conn.row_factory = sqlite3.Row
+        self._transaction_depth = 0
         init_ledger(self._conn)
 
     # -- lifecycle ---------------------------------------------------------
@@ -290,6 +292,25 @@ class SqliteDeliveryLedger:
 
     def close(self) -> None:
         self._conn.close()
+
+    @contextlib.contextmanager
+    def transaction(self) -> Any:
+        """Group multiple ledger writes into one SQLite transaction."""
+        outermost = self._transaction_depth == 0
+        if outermost:
+            self._conn.execute("BEGIN")
+        self._transaction_depth += 1
+        try:
+            yield self
+        except Exception:
+            self._transaction_depth -= 1
+            if outermost:
+                self._conn.rollback()
+            raise
+        else:
+            self._transaction_depth -= 1
+            if outermost:
+                self._conn.commit()
 
     def __enter__(self) -> SqliteDeliveryLedger:
         return self
@@ -336,7 +357,8 @@ class SqliteDeliveryLedger:
                 response_json,
             ),
         )
-        self._conn.commit()
+        if self._transaction_depth == 0:
+            self._conn.commit()
         return status
 
     def _is_terminal_success(self, event_id: str, target_id: str) -> bool:

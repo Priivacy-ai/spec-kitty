@@ -73,6 +73,7 @@ _JSON = "application/json"
 
 _NON_BATCH_BODY_ERROR = "non-batch response shape (no 'results' list)"
 _OVERSIZED_ERROR = "payload too large (oversized, permanent)"
+_BATCH_OVERSIZED_ERROR = "batch payload too large; retry with a smaller batch"
 _TRANSPORT_ERROR_PREFIX = "transport failure"
 
 
@@ -400,9 +401,17 @@ def _map_batch_failure(
     batch (do **not** poison per-event retry counts — spec "content rejection vs
     transient failure").
     """
-    if _is_oversized(http_status, body):
+    if _is_oversized(http_status, body) and len(events) == 1:
         return _all_outcome(
             events, DeliveryOutcome.TERMINAL_FAILED, http_status=http_status, error=_OVERSIZED_ERROR, body=body
+        )
+    if _is_oversized(http_status, body):
+        return _all_outcome(
+            events,
+            DeliveryOutcome.TRANSIENT,
+            http_status=http_status,
+            error=_BATCH_OVERSIZED_ERROR,
+            body=body,
         )
     if http_status == 400:
         return _map_400(events, body)

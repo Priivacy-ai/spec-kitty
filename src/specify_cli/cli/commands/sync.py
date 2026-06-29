@@ -263,7 +263,11 @@ def _handle_sync_now_unauthenticated(strict: bool) -> None:
 
 
 def _enforce_sync_now_exit_from_dispatch(
-    strict: bool, queue_size: int, summary: DispatchSummary | None
+    strict: bool,
+    queue_size: int,
+    summary: DispatchSummary | None,
+    *,
+    retained_work_present: bool = False,
 ) -> None:
     """Apply the strict ``spec-kitty sync now`` exit contract to the dispatch outcome.
 
@@ -287,17 +291,26 @@ def _enforce_sync_now_exit_from_dispatch(
       structured exit 4, legacy exit 1) is preserved regardless of ``--strict``.
     * Partial progress with a hard terminal failure → exit 1 under ``--strict``.
 
-    A ``None`` summary means the additive dispatch was unavailable (its degraded
-    notice already printed); it never escalates to a non-zero exit on its own.
+    A ``None`` summary means dispatch infrastructure was unavailable. Under
+    ``--strict`` that is a failure only when retained or legacy work exists.
     """
+    if summary is None:
+        if strict and (queue_size > 0 or retained_work_present):
+            raise typer.Exit(1)
+        return
+
     selected = summary.selected if summary is not None else 0
     progressed = (
         summary.delivered + summary.duplicate + summary.pending if summary is not None else 0
     )
 
-    # Events were attempted but none were delivered → graceful unauthenticated
-    # report, exit 1 (Issue #829). Distinct from the teamspace-recovery case.
-    if selected > 0 and progressed == 0:
+    # Selected work made no durable progress. A pure gate/auth block records no
+    # rows, so route it through teamspace-aware recovery; transport/content
+    # failures still use the legacy strict exit.
+    if selected > 0 and progressed == 0 and summary.recorded == 0:
+        _handle_sync_now_unauthenticated(strict)
+        return
+    if selected > 0 and progressed == 0 and summary.transient > 0:
         console.print(f"[yellow]{_UNAUTHENTICATED_SYNC_NOW_MESSAGE}[/yellow]")
         if strict:
             raise typer.Exit(1)
@@ -323,10 +336,17 @@ def _maybe_write_dispatch_report(report: Path | None, summary: DispatchSummary |
         return
     import json as _json
 
+    now = datetime.now(UTC).isoformat()
     if summary is None:
-        data: dict[str, Any] = {"dispatched": False}
+        data: dict[str, Any] = {
+            "generated_at": now,
+            "dispatched": False,
+            "summary": {"total_events": 0, "synced": 0, "failed": 0},
+            "failures": [],
+        }
     else:
         data = {
+            "generated_at": now,
             "dispatched": True,
             "selected": summary.selected,
             "delivered": summary.delivered,
@@ -335,6 +355,27 @@ def _maybe_write_dispatch_report(report: Path | None, summary: DispatchSummary |
             "rejected": summary.rejected,
             "transient": summary.transient,
             "terminal_failed": summary.terminal_failed,
+            "summary": {
+                "total_events": summary.selected,
+                "synced": summary.delivered + summary.duplicate,
+                "failed": summary.rejected + summary.transient + summary.terminal_failed,
+                "selected": summary.selected,
+                "delivered": summary.delivered,
+                "duplicate": summary.duplicate,
+                "pending": summary.pending,
+                "rejected": summary.rejected,
+                "transient": summary.transient,
+                "terminal_failed": summary.terminal_failed,
+            },
+            "failures": [
+                {
+                    "event_id": failure.event_id,
+                    "outcome": failure.outcome,
+                    "http_status": failure.http_status,
+                    "error": failure.error,
+                }
+                for failure in summary.failures
+            ],
         }
     report.write_text(_json.dumps(data), encoding="utf-8")
     console.print(f"\n[cyan]Dispatch report written to {report}[/cyan]")
@@ -383,6 +424,7 @@ _REGISTRY_DB_NAME = "targets.db"
 _EVENT_SYNC_TABLE = "event_sync"
 _EVENT_SYNC_MODE_KEY = "mode"
 _EVENT_SYNC_ENDPOINT_KEY = "external_endpoint"
+_EVENT_SYNC_DISPATCH_BATCH_LIMIT = 1000
 
 
 def _delivery_dir() -> Path:
@@ -423,26 +465,65 @@ class _EventSyncRuntime:
             self.registry.close()
 
 
-def _open_event_sync_runtime() -> _EventSyncRuntime:
+@dataclass(frozen=True)
+class _EventSyncScope:
+    user_id: str | None = None
+    team_slug: str | None = None
+
+
+def _current_event_sync_scope() -> _EventSyncScope:
+    """Resolve the producer scope used by live event capture."""
+    try:
+        from specify_cli.sync.emitter import EventEmitter
+
+        team_slug = EventEmitter._get_cached_private_team_slug()
+    except Exception as exc:
+        _LOG.debug("event-sync team scope unavailable: %s", exc)
+        team_slug = None
+    return _EventSyncScope(team_slug=team_slug)
+
+
+def _open_event_sync_runtime(*, create: bool = True) -> _EventSyncRuntime:
     """Resolve the WP01 target and open the journal/ledger/registry handles.
 
-    Identity is left unauthenticated here (``None``): the capture→journal emit
-    path that would scope it is not yet live, so resolving with no identity
-    yields the stable, deterministic producer scope every surface shares.
+    Uses the same producer scope as live capture so ``sync now`` drains the
+    journal that emitters actually write. ``create=False`` is for read-only
+    diagnostics: it refuses absent DB files instead of creating schemas.
     """
     from specify_cli.delivery.ledger import SqliteDeliveryLedger
     from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
     from specify_cli.event_journal.journal import EventJournal, resolve_journal_path
     from specify_cli.sync.target_authority import resolve_sync_target
 
-    target = resolve_sync_target()
-    journal = EventJournal(
-        resolve_journal_path(user_id=target.user_id, team_slug=target.team_slug)
+    scope = _current_event_sync_scope()
+    target = resolve_sync_target(user_id=scope.user_id, team_slug=scope.team_slug)
+    journal_path = resolve_journal_path(
+        user_id=scope.user_id, team_slug=scope.team_slug
     )
-    _delivery_dir().mkdir(parents=True, exist_ok=True)
-    ledger = SqliteDeliveryLedger(str(_ledger_db_path()))
-    registry = SqliteDeliveryTargetRegistry(str(_registry_db_path()))
+    ledger_path = _ledger_db_path()
+    registry_path = _registry_db_path()
+    if create:
+        _delivery_dir().mkdir(parents=True, exist_ok=True)
+    else:
+        if not journal_path.exists():
+            raise FileNotFoundError(f"event-sync journal DB absent: {journal_path}")
+    journal = EventJournal(journal_path)
+    ledger = SqliteDeliveryLedger(
+        str(ledger_path) if create or ledger_path.exists() else ":memory:"
+    )
+    registry = SqliteDeliveryTargetRegistry(
+        str(registry_path) if create or registry_path.exists() else ":memory:"
+    )
     return _EventSyncRuntime(target=target, journal=journal, ledger=ledger, registry=registry)
+
+
+def _open_event_sync_runtime_readonly() -> _EventSyncRuntime:
+    """Open runtime handles only when DBs already exist."""
+    try:
+        return _open_event_sync_runtime(create=False)
+    except TypeError:
+        # Compatibility for tests that monkeypatch the opener with a no-arg callable.
+        return _open_event_sync_runtime()
 
 
 def _event_sync_config_path() -> Path:
@@ -544,7 +625,7 @@ def _event_sync_access_token() -> str:
 
 
 def _resolve_active_receiver(
-    target: ResolvedSyncTarget, config: EventSyncConfig
+    target: ResolvedSyncTarget, config: EventSyncConfig, *, auth_token: str | None = None
 ) -> DeliveryReceiver | None:
     """Resolve the WP06 receiver for the active mode via WP09 (or ``None``).
 
@@ -553,9 +634,97 @@ def _resolve_active_receiver(
     """
     from specify_cli.delivery.config import DefaultReceiverFactory
 
-    factory = DefaultReceiverFactory(teamspace_auth_token=_event_sync_access_token())
+    token = _event_sync_access_token() if auth_token is None else auth_token
+    factory = DefaultReceiverFactory(teamspace_auth_token=token)
     policy = config.resolve(resolved_target=target, receiver_factory=factory)
     return policy.receiver
+
+
+def _event_sync_gate_context(
+    receiver: DeliveryReceiver, target: ResolvedSyncTarget, *, auth_token: str
+) -> Any:
+    """Build the explicit receiver-gate context for the active target."""
+    from specify_cli.delivery.receivers import GateContext
+
+    return GateContext(
+        saas_enabled=is_saas_sync_enabled(),
+        private_teamspace=bool(target.team_slug),
+        auth_present=bool(auth_token),
+        endpoint_configured=bool(getattr(receiver, "endpoint_url", "")),
+    )
+
+
+def _count_retained_events(runtime: _EventSyncRuntime) -> int:
+    with contextlib.suppress(Exception):
+        return len(runtime.journal.read_all())
+    return 0
+
+
+def _event_sync_retained_work_present() -> bool:
+    """Best-effort retained-work probe for strict infrastructure failures."""
+    runtime: _EventSyncRuntime | None = None
+    try:
+        runtime = _open_event_sync_runtime_readonly()
+        return _count_retained_events(runtime) > 0
+    except Exception:
+        from specify_cli.event_journal.journal import resolve_journal_path
+
+        scope = _current_event_sync_scope()
+        path = resolve_journal_path(
+            user_id=scope.user_id,
+            team_slug=scope.team_slug,
+        )
+        return path.exists() and path.stat().st_size > 0
+    finally:
+        if runtime is not None:
+            runtime.close()
+
+
+def _combine_dispatch_summaries(
+    left: DispatchSummary, right: DispatchSummary
+) -> DispatchSummary:
+    from specify_cli.delivery.dispatcher import DispatchSummary
+
+    return DispatchSummary(
+        target_id=left.target_id or right.target_id,
+        selected=left.selected + right.selected,
+        delivered=left.delivered + right.delivered,
+        duplicate=left.duplicate + right.duplicate,
+        pending=left.pending + right.pending,
+        rejected=left.rejected + right.rejected,
+        transient=left.transient + right.transient,
+        terminal_failed=left.terminal_failed + right.terminal_failed,
+        failures=(*left.failures, *right.failures),
+    )
+
+
+def _batch_left_selection_set(summary: DispatchSummary) -> bool:
+    terminal = summary.delivered + summary.duplicate + summary.terminal_failed
+    return summary.selected > terminal
+
+
+def _run_dispatch_batches(
+    runtime: _EventSyncRuntime,
+    receiver: DeliveryReceiver,
+    delivery_target: Any,
+) -> DispatchSummary:
+    from specify_cli.delivery.dispatcher import DispatchSummary, dispatch
+
+    combined = DispatchSummary.empty()
+    while True:
+        batch = dispatch(
+            journal=runtime.journal,
+            ledger=runtime.ledger,
+            receiver=receiver,
+            target=delivery_target,
+            limit=_EVENT_SYNC_DISPATCH_BATCH_LIMIT,
+        )
+        combined = _combine_dispatch_summaries(combined, batch)
+        if batch.selected < _EVENT_SYNC_DISPATCH_BATCH_LIMIT:
+            break
+        if _batch_left_selection_set(batch):
+            break
+    return combined
 
 
 def _open_active_body_queue() -> Any:
@@ -649,13 +818,19 @@ def _print_migration_result(result: MigrationResult) -> None:
         f"[green]imported {len(result.imported_event_ids)}[/green]  "
         f"[dim]deduped {len(result.deduped)}[/dim]  "
         f"[red]conflicts {len(result.conflicts)}[/red]  "
+        f"[red]source_errors {sum(1 for source in result.sources if source.error)}[/red]  "
         f"(exit_code {result.exit_code})"
     )
     if result.cleanup_blocked:
         console.print(
-            "[yellow]Cleanup blocked[/yellow]: unresolved divergent-duplicate "
-            "migration conflicts remain — resolve them before deleting source queues."
+            "[yellow]Cleanup blocked[/yellow]: unresolved migration conflicts or "
+            "source read/import errors remain — resolve them before deleting source queues."
         )
+    for source in result.sources:
+        if source.error:
+            console.print(
+                f"[red]Source {source.digest} failed[/red]: {source.error}"
+            )
     console.print(f"[dim]{result.note}[/dim]")
 
 
@@ -665,33 +840,49 @@ def _run_event_sync_dispatch() -> DispatchSummary | None:
     This is the SOLE event-delivery path for ``sync now`` (the destructive
     legacy offline-queue event drain is retired). Returns the
     :class:`DispatchSummary` so the caller can derive the strict exit code; any
-    infrastructure failure (or a non-delivering mode) degrades to a dim notice
-    and ``None`` rather than crashing the command (NFR-006). Delivery outcomes
-    surface via the printed summary; the journal is never deleted on success
-    (FR-001).
+    infrastructure failure degrades to a dim notice and ``None`` rather than
+    crashing the command (NFR-006). Non-delivering modes return an empty summary.
+    Delivery outcomes surface via the printed summary; the journal is never
+    deleted on success (FR-001).
     """
     if not is_saas_sync_enabled():
-        return None
-    from specify_cli.delivery.dispatcher import dispatch
+        from specify_cli.delivery.dispatcher import DispatchSummary
+
+        return DispatchSummary.empty()
+    from specify_cli.delivery.dispatcher import DispatchSummary
+    from specify_cli.delivery.receivers import evaluate_gates
 
     runtime: _EventSyncRuntime | None = None
     try:
         runtime = _open_event_sync_runtime()
         config = _load_event_sync_config()
-        receiver = _resolve_active_receiver(runtime.target, config)
+        auth_token = _event_sync_access_token()
+        receiver = _resolve_active_receiver(runtime.target, config, auth_token=auth_token)
         if receiver is None:
             console.print(
                 f"[dim]Event sync mode {config.mode.name}: retention only; "
                 f"no delivery attempted.[/dim]"
             )
-            return None
-        delivery_target = runtime.registry.register_from_resolved(runtime.target)
-        summary = dispatch(
-            journal=runtime.journal,
-            ledger=runtime.ledger,
-            receiver=receiver,
-            target=delivery_target,
+            return DispatchSummary.empty()
+        gate_decision = evaluate_gates(
+            receiver,
+            _event_sync_gate_context(receiver, runtime.target, auth_token=auth_token),
         )
+        if gate_decision.blocked:
+            names = ", ".join(gate.name for gate in gate_decision.unsatisfied)
+            console.print(f"[dim]Event sync gated: {names}[/dim]")
+            return DispatchSummary(
+                target_id=None,
+                selected=_count_retained_events(runtime),
+                delivered=0,
+                duplicate=0,
+                pending=0,
+                rejected=0,
+                transient=0,
+                terminal_failed=0,
+            )
+        delivery_target = runtime.registry.register_from_resolved(runtime.target)
+        summary = _run_dispatch_batches(runtime, receiver, delivery_target)
         _print_dispatch_summary(summary, config.mode.name)
         return summary
     except Exception as exc:  # additive drain must never break the command
@@ -713,7 +904,7 @@ def _render_event_sync_status(target_console: Console) -> None:
     target_console.print(f"  Mode                      {config.mode.name}")
     runtime: _EventSyncRuntime | None = None
     try:
-        runtime = _open_event_sync_runtime()
+        runtime = _open_event_sync_runtime_readonly()
         report = _event_sync_report({}, runtime)
     except Exception as exc:  # read-only summary; never fail status rendering
         _LOG.debug("event-sync status summary unavailable: %s", exc)
@@ -1687,6 +1878,7 @@ def now(
     # queued-but-undelivered event count). Read before delivery so a successful
     # drain does not erase the "there was work" signal.
     queue_size = service.queue.size()
+    retained_work_present = _event_sync_retained_work_present()
 
     # Single, non-destructive event-delivery path. The journal-based dispatcher
     # is now the SOLE event drain (FR-001): the retired legacy
@@ -1701,7 +1893,12 @@ def now(
     # Persist the per-outcome report (if requested) and map the dispatch outcome
     # onto the strict exit contract — preserving the unauthenticated/blocked UX.
     _maybe_write_dispatch_report(report, summary)
-    _enforce_sync_now_exit_from_dispatch(strict, queue_size, summary)
+    _enforce_sync_now_exit_from_dispatch(
+        strict,
+        queue_size,
+        summary,
+        retained_work_present=retained_work_present,
+    )
 
 
 @app.command()
@@ -2224,7 +2421,7 @@ def _emit_status_check_json() -> None:
     # health), and stamp an ``event_sync_status_error`` marker for diagnosis.
     runtime: _EventSyncRuntime | None = None
     try:
-        runtime = _open_event_sync_runtime()
+        runtime = _open_event_sync_runtime_readonly()
         payload = _event_sync_report(payload, runtime)
     except Exception as exc:  # legacy --check contract must survive any failure
         from specify_cli.delivery.status_report import default_status_sections

@@ -14,6 +14,7 @@ needs no Teamspace credentials (SC-005).
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from io import StringIO
 from pathlib import Path
 
@@ -24,7 +25,13 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands import sync as sync_command
 from specify_cli.cli.commands.sync import app
 from specify_cli.delivery.ledger import SqliteDeliveryLedger
-from specify_cli.delivery.receivers import StubReceiver
+from specify_cli.delivery.receivers import (
+    DeliveryResult,
+    GateKind,
+    OutboundEvent,
+    ReceiverGate,
+    StubReceiver,
+)
 from specify_cli.delivery.status_report import ADDITIVE_SECTION_KEYS
 from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
 from specify_cli.event_journal.journal import EventJournal, resolve_journal_path
@@ -115,7 +122,7 @@ def _patch_stub_receiver(monkeypatch: pytest.MonkeyPatch) -> list[StubReceiver]:
     the list of stubs created (so a test can inspect what each received)."""
     created: list[StubReceiver] = []
 
-    def _factory(_target: object, _config: object) -> StubReceiver:
+    def _factory(_target: object, _config: object, **_: object) -> StubReceiver:
         stub = StubReceiver()
         created.append(stub)
         return stub
@@ -168,6 +175,36 @@ def test_sync_now_dispatches_and_retains_journal(monkeypatch: pytest.MonkeyPatch
         assert ledger.delivered_anywhere(f"evt-{index}") is True
 
 
+def test_sync_now_posts_retained_events_in_1000_event_batches(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Large retained sets are chunked before POSTing to a receiver."""
+    _enable_now_machinery(monkeypatch)
+
+    class _BatchSpyReceiver(StubReceiver):
+        def __init__(self) -> None:
+            super().__init__()
+            self.batch_sizes: list[int] = []
+
+        def deliver(self, batch: Sequence[OutboundEvent]) -> Sequence[DeliveryResult]:
+            events = list(batch)
+            self.batch_sizes.append(len(events))
+            return super().deliver(events)
+
+    receiver = _BatchSpyReceiver()
+    monkeypatch.setattr(
+        sync_command,
+        "_resolve_active_receiver",
+        lambda *_args, **_kwargs: receiver,
+    )
+    journal = _populate_journal(1001)
+
+    result = runner.invoke(app, ["now"])
+    assert result.exit_code == 0, result.output
+    assert receiver.batch_sizes == [1000, 1]
+    assert journal.count() == 1001
+
+
 def test_sync_now_empty_journal_is_noop(monkeypatch: pytest.MonkeyPatch) -> None:
     """``sync now`` with nothing captured prints a zero summary and exits 0."""
     _enable_now_machinery(monkeypatch)
@@ -176,6 +213,49 @@ def test_sync_now_empty_journal_is_noop(monkeypatch: pytest.MonkeyPatch) -> None
     result = runner.invoke(app, ["now"])
     assert result.exit_code == 0, result.output
     assert "delivered 0" in result.output
+
+
+def test_sync_now_gate_block_does_not_call_receiver(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unsatisfied receiver gates block before any POST/deliver call."""
+    _enable_now_machinery(monkeypatch)
+    _populate_journal(1)
+
+    class _AuthGatedReceiver(StubReceiver):
+        delivered = False
+
+        def gates(self) -> tuple[ReceiverGate, ...]:
+            return (ReceiverGate(GateKind.AUTH),)
+
+        def deliver(self, batch: Sequence[OutboundEvent]) -> Sequence[DeliveryResult]:
+            self.delivered = True
+            return super().deliver(batch)
+
+    receiver = _AuthGatedReceiver()
+    monkeypatch.setattr(sync_command, "_event_sync_access_token", lambda: "")
+    monkeypatch.setattr(
+        sync_command,
+        "_resolve_active_receiver",
+        lambda *_args, **_kwargs: receiver,
+    )
+
+    result = runner.invoke(app, ["now"])
+    assert result.exit_code in (1, 4), result.output
+    assert "Event sync gated" in result.output
+    assert receiver.delivered is False
+
+
+def test_sync_now_strict_fails_when_retained_work_dispatch_is_unavailable(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Retained journal work cannot disappear into a strict success on infra failure."""
+    _enable_now_machinery(monkeypatch)
+    _populate_journal(1)
+    monkeypatch.setattr(sync_command, "_run_event_sync_dispatch", lambda: None)
+
+    result = runner.invoke(app, ["now"])
+    assert result.exit_code == 1, result.output
 
 
 def test_sync_now_success_path_runs_dispatch_and_body_drain(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -290,6 +370,17 @@ def test_status_check_json_is_additive(monkeypatch: pytest.MonkeyPatch) -> None:
     assert payload["event_journal"]["retained_event_count"] == 2
     # Terminology Canon: no feature* keys anywhere.
     assert "feature" not in json.dumps(payload).lower().replace("feature_flags", "")
+
+
+def test_status_check_json_does_not_create_event_sync_databases() -> None:
+    """Read-only status keeps absent event-sync stores absent."""
+    from specify_cli.paths import get_runtime_root
+
+    base = get_runtime_root().base
+    result = runner.invoke(app, ["status", "--check", "--json"])
+    assert result.exit_code in (0, 2), result.output
+    assert not (base / "event_journal").exists()
+    assert not (base / "delivery").exists()
 
 
 def test_status_human_view_shows_mode() -> None:
@@ -725,7 +816,13 @@ def test_sync_now_posts_exactly_once_and_drains_body(
     receiver = TeamspaceReceiver(
         resolved_server_url="https://t.example", auth_token="tok", poster=_poster
     )
-    monkeypatch.setattr(sync_command, "_resolve_active_receiver", lambda *_: receiver)
+    monkeypatch.setattr(sync_command, "_event_sync_access_token", lambda: "tok")
+    monkeypatch.setattr(
+        sync_command,
+        "_current_event_sync_scope",
+        lambda: sync_command._EventSyncScope(team_slug="team"),
+    )
+    monkeypatch.setattr(sync_command, "_resolve_active_receiver", lambda *_, **__: receiver)
 
     drained = {"body": False}
 
@@ -746,7 +843,7 @@ def test_sync_now_posts_exactly_once_and_drains_body(
     # The wire envelope is the event's own JSON payload (``event_id`` is carried
     # on the OutboundEvent, not the body), so embed it in the payload here so the
     # fake server can echo a per-event success result keyed on it.
-    journal = EventJournal(resolve_journal_path())
+    journal = EventJournal(resolve_journal_path(team_slug="team"))
     journal.append(
         Event(
             event_id="evt-solo",

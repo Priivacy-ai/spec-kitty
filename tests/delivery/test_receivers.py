@@ -369,6 +369,18 @@ def test_oversized_413_maps_terminal_failed() -> None:
     assert results[0].outcome is DeliveryOutcome.TERMINAL_FAILED
 
 
+def test_multi_event_413_maps_transient_not_terminal_failed() -> None:
+    batch = [
+        _event("01JMBY0000000000000000000W"),
+        _event("01JMBY0000000000000000000X"),
+    ]
+    results = map_batch_response(batch, http_status=413, body={"error": "payload too large"})
+    assert [result.outcome for result in results] == [
+        DeliveryOutcome.TRANSIENT,
+        DeliveryOutcome.TRANSIENT,
+    ]
+
+
 def test_http_400_maps_per_event_rejected_with_details() -> None:
     batch = [_event("01JMBY0000000000000000000O")]
     body = {

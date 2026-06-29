@@ -296,8 +296,8 @@ class MigrationResult:
     """Observable outcome of one migration run (NFR-001 assertions key off this).
 
     ``exit_code``/``blocked`` are non-zero/True iff any divergent-duplicate
-    conflict exists, in which case cleanup is blocked until an operator resolves
-    the conflict (FR-018, SC-011).
+    conflict exists or any source DB could not be read/imported. Cleanup is
+    blocked until an operator resolves the conflict or source error.
     """
 
     imported_event_ids: list[str] = field(default_factory=list)
@@ -309,7 +309,7 @@ class MigrationResult:
 
     @property
     def cleanup_blocked(self) -> bool:
-        return bool(self.conflicts)
+        return bool(self.conflicts) or any(source.error for source in self.sources)
 
     @property
     def blocked(self) -> bool:
@@ -317,7 +317,7 @@ class MigrationResult:
 
     @property
     def exit_code(self) -> int:
-        return 1 if self.conflicts else 0
+        return 1 if self.cleanup_blocked else 0
 
 
 # --- canonical payload + source row reading -------------------------------

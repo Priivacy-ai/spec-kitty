@@ -62,6 +62,16 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True)
+class DispatchFailure:
+    """Per-event non-success result captured for ``sync now --report``."""
+
+    event_id: str
+    outcome: str
+    http_status: int | None = None
+    error: str | None = None
+
+
+@dataclass(frozen=True)
 class DispatchSummary:
     """Per-outcome counts a single drain produced (the CLI/status observable surface).
 
@@ -78,6 +88,7 @@ class DispatchSummary:
     rejected: int
     transient: int
     terminal_failed: int
+    failures: tuple[DispatchFailure, ...] = ()
 
     @property
     def recorded(self) -> int:
@@ -107,7 +118,12 @@ class DispatchSummary:
 
     @classmethod
     def from_counts(
-        cls, target_id: str, *, selected: int, counts: Mapping[DeliveryOutcome, int]
+        cls,
+        target_id: str,
+        *,
+        selected: int,
+        counts: Mapping[DeliveryOutcome, int],
+        failures: Sequence[DispatchFailure] = (),
     ) -> DispatchSummary:
         """Build a summary from a :class:`DeliveryOutcome` -> count mapping."""
         return cls(
@@ -119,6 +135,7 @@ class DispatchSummary:
             rejected=counts[DeliveryOutcome.REJECTED],
             transient=counts[DeliveryOutcome.TRANSIENT],
             terminal_failed=counts[DeliveryOutcome.TERMINAL_FAILED],
+            failures=tuple(failures),
         )
 
 
@@ -290,10 +307,27 @@ def _record(
 ) -> DispatchSummary:
     """Record every *result* and tally per-outcome counts into a :class:`DispatchSummary`."""
     counts: dict[DeliveryOutcome, int] = dict.fromkeys(DeliveryOutcome, 0)
-    for result in results:
-        _record_one(ledger, target_id, result)
-        counts[result.outcome] += 1
-    return DispatchSummary.from_counts(target_id, selected=selected, counts=counts)
+    failures: list[DispatchFailure] = []
+    with ledger.transaction():
+        for result in results:
+            _record_one(ledger, target_id, result)
+            counts[result.outcome] += 1
+            if result.outcome in {
+                DeliveryOutcome.REJECTED,
+                DeliveryOutcome.TRANSIENT,
+                DeliveryOutcome.TERMINAL_FAILED,
+            }:
+                failures.append(
+                    DispatchFailure(
+                        event_id=result.event_id,
+                        outcome=result.outcome.value,
+                        http_status=result.http_status,
+                        error=result.error,
+                    )
+                )
+    return DispatchSummary.from_counts(
+        target_id, selected=selected, counts=counts, failures=failures
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -332,5 +366,6 @@ def dispatch(
 
 __all__ = [
     "DispatchSummary",
+    "DispatchFailure",
     "dispatch",
 ]

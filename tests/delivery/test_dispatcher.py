@@ -18,6 +18,7 @@ coalescing carry so each helper is exercised directly (T044 / coverage).
 from __future__ import annotations
 
 import json
+import sqlite3
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any
 
@@ -325,6 +326,33 @@ def test_idempotent_redelivery_yields_duplicate(
         row = ledger.get(f"evt-{index}", target_a.target_id)
         assert row is not None and row.status == STATUS_DUPLICATE
         assert row.attempt_count == 2  # merged onto one row, not duplicated
+
+
+def test_record_rolls_back_batch_on_mid_record_failure(
+    target_a: DeliveryTarget,
+) -> None:
+    """A ledger failure while recording a remote batch leaves no partial rows."""
+
+    class _FailAfterFirstLedger(SqliteDeliveryLedger):
+        calls = 0
+
+        def record_result(self, *, event_id: str, target_id: str, result: object) -> None:
+            self.calls += 1
+            super().record_result(event_id=event_id, target_id=target_id, result=result)
+            if self.calls == 1:
+                raise sqlite3.OperationalError("synthetic ledger failure")
+
+    ledger = _FailAfterFirstLedger(":memory:")
+    results = [
+        DeliveryResult(event_id="evt-a", outcome=DeliveryOutcome.SUCCESS),
+        DeliveryResult(event_id="evt-b", outcome=DeliveryOutcome.SUCCESS),
+    ]
+
+    with pytest.raises(sqlite3.OperationalError):
+        _record(ledger, target_a.target_id, results, selected=2)
+
+    assert ledger.get("evt-a", target_a.target_id) is None
+    assert ledger.get("evt-b", target_a.target_id) is None
 
 
 # --------------------------------------------------------------------------- #

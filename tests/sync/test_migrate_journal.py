@@ -383,6 +383,9 @@ def test_corrupt_source_is_reported_without_aborting_others(tmp_path: Path) -> N
 
     assert {e.event_id for e in journal.read_all()} == {"e_ok"}  # healthy source migrated
     assert any(s.error is not None for s in result.sources)  # corrupt source reported
+    assert result.cleanup_blocked is True
+    assert result.blocked is True
+    assert result.exit_code == 1
     assert audit.connection is not None
 
 
