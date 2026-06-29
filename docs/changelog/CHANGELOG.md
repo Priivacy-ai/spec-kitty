@@ -2109,7 +2109,7 @@ command and no new top-level runtime dependencies.
   - `code-documentation-analysis` — brownfield boundary discovery by extracting and clustering domain terminology from code and documentation artifacts. Contributes foundational analysis tactics toward the brownfield investigation skill described in [#666](https://github.com/Priivacy-ai/spec-kitty/issues/666).
   - `terminology-extraction-mapping` — systematic extraction and relationship mapping of domain terms across multiple sources to produce a maintainable glossary. Complementary artifact to the bounded-context linguistic discovery approach targeted by [#666](https://github.com/Priivacy-ai/spec-kitty/issues/666).
 - **Tactic directory normalization** — shipped tactics reorganised into four category subdirectories: `testing/` (15 tactics), `analysis/` (14), `communication/` (7), `architecture/` (14). Cross-cutting tactics remain in the `shipped/` root. The existing `rglob` loader requires no changes.
-- **`tasks-finalize` command skill** — added to `CANONICAL_COMMANDS` in the agent skills pipeline and deployed to `.agents/skills/spec-kitty.tasks-finalize/`. Closes the gap where this command was missing from Codex/Vibe skill packages.
+- **`tasks-finalize` command skill** — added to `CANONICAL_COMMANDS` in the agent skills pipeline and deployed to `.agents/skills/spec-kitty.tasks-finalize/`. Closes the gap where this command was missing from Codex/Vibe skill packages. <!-- tool-surface: ignore -->
 
 ### Changed
 
@@ -2223,7 +2223,7 @@ command and no new top-level runtime dependencies.
 - `docs/trail-model.md`: Formal operator documentation for the Phase 4 trail contract,
   mode-of-work taxonomy, tier promotion rules, SaaS projection policy, intake positioning,
   and explain deferral (WP04).
-- "Governance context injection" section in `.agents/skills/spec-kitty/SKILL.md`
+- "Governance context injection" section in `.agents/skills/spec-kitty/SKILL.md` <!-- tool-surface: ignore -->
   for Codex/Vibe hosts, enabling Tier 1 trail recording without host-side SaaS auth (WP03).
 - "Standalone invocations (outside missions)" section in
   `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` for Claude Code and gstack hosts,
