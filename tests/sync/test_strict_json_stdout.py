@@ -237,13 +237,20 @@ async def test_websocket_client_connect_failure_routes_diagnostics_to_stderr(
 # ---------------------------------------------------------------------------
 
 
-def _seed_shared_only_session(fake_home: pathlib.Path) -> None:
-    """Write a real encrypted ``StoredSession`` (shared team only) under ``fake_home``.
+def _seed_shared_only_session(auth_dir: pathlib.Path) -> None:
+    """Write a real encrypted ``StoredSession`` (shared team only) into ``auth_dir``.
 
-    The session lands at ``fake_home/.spec-kitty/auth/session.json``,
-    which is exactly where the production ``FileFallbackStorage``
-    resolves via ``Path.home() / ".spec-kitty" / "auth"`` when
-    ``HOME=fake_home`` is set in the subprocess.
+    ``auth_dir`` MUST be the directory the production auth store reads in
+    the subprocess, i.e. the value returned by
+    ``specify_cli.auth.secure_storage.file_fallback.default_store_dir``
+    (``get_runtime_root().base / "auth"``) evaluated with the subprocess's
+    ``SPEC_KITTY_HOME``. Since #2182 (commit ``a75174917``) the auth store
+    is resolved via ``SPEC_KITTY_HOME`` -- ``$SPEC_KITTY_HOME/auth`` -- and
+    is no longer derived from ``Path.home() / ".spec-kitty" / "auth"``.
+    The caller (:func:`_build_isolated_home`) derives ``auth_dir`` from the
+    production resolver so a future change there surfaces as a RED
+    seed-vs-read mismatch rather than silently re-breaking this test (the
+    #2254 drift class).
 
     The session deliberately has only a non-Private team so the
     ingress-resolver path inside the CLI:
@@ -264,7 +271,6 @@ def _seed_shared_only_session(fake_home: pathlib.Path) -> None:
     from specify_cli.auth.secure_storage.file_fallback import FileFallbackStorage
     from specify_cli.auth.session import StoredSession, Team
 
-    auth_dir = fake_home / ".spec-kitty" / "auth"
     auth_dir.mkdir(parents=True, exist_ok=True)
 
     now = datetime.now(UTC)
@@ -301,11 +307,14 @@ def _build_isolated_home(tmp_path: pathlib.Path) -> dict[str, str]:
     """Construct env overrides that wall the subprocess off from real auth state.
 
     Sets ``HOME``, ``XDG_CONFIG_HOME``, and ``SPEC_KITTY_HOME`` to fresh
-    tmp directories so the CLI's auth lookups (``~/.spec-kitty/auth``)
-    and runtime cache (``~/.kittify/``) cannot touch the developer's
-    real files. Enables the sync gate so the sync layer attempts its
-    work. Pins ``SPEC_KITTY_SAAS_URL`` to an unreachable host so the
-    rehydrate path fails fast and emits the structured diagnostic
+    tmp directories so the CLI's auth lookups and runtime cache cannot
+    touch the developer's real files. Since #2182 the auth store is
+    resolved via ``SPEC_KITTY_HOME`` (``$SPEC_KITTY_HOME/auth``), so the
+    encrypted session is seeded into the directory the production resolver
+    returns under that ``SPEC_KITTY_HOME`` -- not the legacy
+    ``HOME/.spec-kitty/auth`` path. Enables the sync gate so the sync layer
+    attempts its work. Pins ``SPEC_KITTY_SAAS_URL`` to an unreachable host
+    so the rehydrate path fails fast and emits the structured diagnostic
     rather than hanging on a real network call.
     """
     fake_home = tmp_path / "fake-home"
@@ -315,7 +324,19 @@ def _build_isolated_home(tmp_path: pathlib.Path) -> dict[str, str]:
     fake_kittify = fake_home / ".kittify"
     fake_kittify.mkdir(parents=True, exist_ok=True)
 
-    _seed_shared_only_session(fake_home)
+    # Seed the encrypted session where production will actually read it.
+    # Anchor to the production resolver (default_store_dir ->
+    # get_runtime_root().base / "auth") evaluated under the subprocess's
+    # SPEC_KITTY_HOME, rather than reconstructing the path by hand -- so any
+    # future change to the resolver surfaces here as a RED seed-vs-read
+    # mismatch instead of silently re-introducing the #2254 drift.
+    from unittest.mock import patch
+
+    from specify_cli.auth.secure_storage.file_fallback import default_store_dir
+
+    with patch.dict(os.environ, {"SPEC_KITTY_HOME": str(fake_kittify)}):
+        auth_dir = default_store_dir()
+    _seed_shared_only_session(auth_dir)
 
     return {
         "HOME": str(fake_home),
@@ -810,6 +831,23 @@ def test_mission_create_json_strict_when_sync_skips_ingress(
         "from a no-op early-exit.\n"
         f"stderr={result.stderr!r}"
     )
+
+    # Non-vacuous proof the seeded session actually LOADED (the #2254 drift
+    # class): the genuine ingress-skip path above fires only when an
+    # authenticated session is present. If the session were invisible again
+    # (seed dir drifting from the production read path), sync would instead
+    # fall through to the unauthenticated final_sync gate, whose diagnostic
+    # carries 'Not authenticated: no valid access token'. Assert that gate
+    # did NOT fire, so this test fails loudly on a recurrence rather than
+    # passing for the wrong reason.
+    assert "no valid access token" not in result.stderr, (
+        "sync fell through to the unauthenticated final_sync gate -- the "
+        "seeded session did not load (the #2254 drift class). The "
+        "ingress-skip diagnostic above is not proof of a working contract "
+        "if auth silently failed.\n"
+        f"stderr={result.stderr!r}"
+    )
+    assert "Not authenticated" not in result.stderr
 
 
 # ---------------------------------------------------------------------------

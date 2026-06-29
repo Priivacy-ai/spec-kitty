@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "mission_slug": "sync-strict-json-auth-01KWA6KN",
+  "mission_id": "01KWA6KNJZSYQ764MC086QPFS1",
+  "mission_branch": "kitty/mission-sync-strict-json-auth-01KWA6KN",
+  "target_branch": "fix/sync-strict-json-auth",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/sync/test_strict_json_stdout.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-06-29T17:58:32.135390+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
