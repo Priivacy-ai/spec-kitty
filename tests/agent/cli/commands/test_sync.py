@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -26,6 +27,7 @@ from specify_cli.core.vcs import (
     SyncStatus,
     VCSBackend,
 )
+from specify_cli.delivery.dispatcher import DispatchSummary
 from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR
 
 pytestmark = pytest.mark.fast
@@ -412,19 +414,67 @@ class TestSyncNowExitCodes:
         r.failed_results = [MagicMock()] * errors if errors else []
         return r
 
+    def _make_dispatch_service(self, queue_size: int) -> MagicMock:
+        """Build a mock sync service for the WP12 dispatcher delivery path.
+
+        WP12 retired the destructive ``service.sync_now()`` event drain; the
+        journal dispatcher (``_run_event_sync_dispatch``) is now the sole event
+        path and ``sync now`` only reads ``queue.size()`` (the pending-work
+        signal) and flushes body uploads via ``drain_body_uploads_only`` off the
+        service. The strict/non-strict exit code derives entirely from the
+        :class:`DispatchSummary` returned by the patched dispatcher.
+        """
+        svc = MagicMock()
+        svc.queue.size.return_value = queue_size
+        svc.drain_body_uploads_only.return_value = None
+        return svc
+
+    @staticmethod
+    def _dispatch_summary(
+        *,
+        selected: int,
+        delivered: int = 0,
+        duplicate: int = 0,
+        pending: int = 0,
+        rejected: int = 0,
+        transient: int = 0,
+        terminal_failed: int = 0,
+    ) -> DispatchSummary:
+        """Craft a :class:`DispatchSummary` for a single drain outcome."""
+        return DispatchSummary(
+            target_id="t-1",
+            selected=selected,
+            delivered=delivered,
+            duplicate=duplicate,
+            pending=pending,
+            rejected=rejected,
+            transient=transient,
+            terminal_failed=terminal_failed,
+        )
+
     def test_strict_exits_1_on_errors(self):
-        """Default strict mode exits 1 when error_count > 0."""
-        result = self._make_result(synced=2, errors=1)
-        svc = self._make_service(queue_size=3, result=result)
+        """Default strict mode exits 1 on a hard terminal delivery failure.
+
+        WP12 dispatcher mapping: the legacy ``error_count > 0`` (partial
+        progress + hard error) shape becomes a dispatch that made progress
+        (some delivered) but parked a terminal failure. With progress made,
+        ``_enforce_sync_now_exit_from_dispatch`` falls through to the
+        ``strict and terminal_failed > 0`` branch and exits 1.
+        """
+        summary = self._dispatch_summary(selected=3, delivered=2, terminal_failed=1)
+        svc = self._make_dispatch_service(queue_size=3)
 
         runner = CliRunner()
         with (
             patch("specify_cli.sync.background.get_sync_service", return_value=svc),
-            patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"),
-            patch("specify_cli.sync.batch.write_failure_report"),
+            patch("specify_cli.cli.commands.sync.is_saas_sync_enabled", return_value=True),
+            patch(
+                "specify_cli.cli.commands.sync._run_event_sync_dispatch",
+                return_value=summary,
+            ),
         ):
             res = runner.invoke(sync_app, ["now"])
-        assert res.exit_code == 1
+        assert res.exit_code == 1, res.output
 
     def test_now_returns_0_when_saas_feature_disabled(self, monkeypatch):
         """sync now should no-op safely when SaaS flag is disabled."""
@@ -438,52 +488,53 @@ class TestSyncNowExitCodes:
         assert "saas sync is not enabled" in res.output.lower()
         get_service.assert_not_called()
 
-    def test_strict_exits_0_on_success(self, monkeypatch):
-        """Strict mode exits 0 when all events sync successfully.
+    def test_strict_exits_0_on_success(self):
+        """Strict mode exits 0 when the dispatch delivers every selected event.
 
-        M7's ``enforce_teamspace_mission_state_ready`` gate runs an audit
-        against the local project root. In the test environment the spec-kitty
-        checkout's own ``.kittify/`` is visible to the gate, which may surface
-        TeamSpace blockers and raise ``typer.Exit(1)`` before the sync result
-        can be evaluated. Patch the gate to a no-op at the call-site in
-        ``sync.py`` to isolate the success-path contract.
-
-        Mirrors the pattern introduced for ``test_strict_exits_1_on_auth_missing``
-        in PR #1035 (commit bfcaf2043), which patches ``_auth_recovery`` at the
-        import-site in ``sync.py``.
+        WP12 dispatcher mapping: an all-success drain (everything selected was
+        delivered, no terminal failure) makes progress and parks no failure, so
+        ``_enforce_sync_now_exit_from_dispatch`` raises nothing and the command
+        exits 0 even under ``--strict``. The autouse ``_stub_teamspace_gate``
+        fixture neutralises the teamspace/preflight gates so the post-gate exit
+        contract is what is observed.
         """
-        import specify_cli.cli.commands.sync as sync_mod
-
-        monkeypatch.setattr(
-            sync_mod,
-            "enforce_teamspace_mission_state_ready",
-            lambda **kwargs: None,
-        )
-
-        result = self._make_result(synced=3)
-        svc = self._make_service(queue_size=3, result=result)
+        summary = self._dispatch_summary(selected=3, delivered=3)
+        svc = self._make_dispatch_service(queue_size=3)
 
         runner = CliRunner()
         with (
             patch("specify_cli.sync.background.get_sync_service", return_value=svc),
-            patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"),
+            patch("specify_cli.cli.commands.sync.is_saas_sync_enabled", return_value=True),
+            patch(
+                "specify_cli.cli.commands.sync._run_event_sync_dispatch",
+                return_value=summary,
+            ),
         ):
             res = runner.invoke(sync_app, ["now"])
-        assert res.exit_code == 0
+        assert res.exit_code == 0, res.output
 
     def test_no_strict_exits_0_even_with_errors(self):
-        """--no-strict exits 0 regardless of errors."""
-        result = self._make_result(synced=1, errors=2)
-        svc = self._make_service(queue_size=3, result=result)
+        """``--no-strict`` exits 0 even when the dispatch parks terminal failures.
+
+        WP12 dispatcher mapping: a drain that made partial progress (one
+        delivered) but parked terminal failures only escalates to exit 1 under
+        ``--strict``. With ``--no-strict`` the ``terminal_failed`` branch is
+        gated off and the command exits 0.
+        """
+        summary = self._dispatch_summary(selected=3, delivered=1, terminal_failed=2)
+        svc = self._make_dispatch_service(queue_size=3)
 
         runner = CliRunner()
         with (
             patch("specify_cli.sync.background.get_sync_service", return_value=svc),
-            patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"),
-            patch("specify_cli.sync.batch.write_failure_report"),
+            patch("specify_cli.cli.commands.sync.is_saas_sync_enabled", return_value=True),
+            patch(
+                "specify_cli.cli.commands.sync._run_event_sync_dispatch",
+                return_value=summary,
+            ),
         ):
             res = runner.invoke(sync_app, ["now", "--no-strict"])
-        assert res.exit_code == 0
+        assert res.exit_code == 0, res.output
 
     def test_empty_queue_exits_0(self):
         """Empty queue always exits 0 (nothing to do)."""
@@ -495,20 +546,35 @@ class TestSyncNowExitCodes:
         assert res.exit_code == 0
 
     def test_strict_with_report_still_exits_1(self, tmp_path):
-        """Strict exits 1 and still writes report when errors present."""
-        result = self._make_result(synced=1, errors=1)
-        svc = self._make_service(queue_size=2, result=result)
+        """Strict exits 1 and still writes the dispatch report on terminal failure.
+
+        WP12 retired the per-event failure report; ``--report`` now serialises
+        the dispatcher's per-outcome :class:`DispatchSummary` counts (the single
+        delivery path's observable surface). ``_maybe_write_dispatch_report``
+        runs before the exit enforcement, so the report file lands even though
+        the command then exits 1 under ``--strict``.
+        """
+        summary = self._dispatch_summary(selected=2, delivered=1, terminal_failed=1)
+        svc = self._make_dispatch_service(queue_size=2)
 
         runner = CliRunner()
-        report_path = tmp_path / "failures.json"
+        report_path = tmp_path / "dispatch-report.json"
         with (
             patch("specify_cli.sync.background.get_sync_service", return_value=svc),
-            patch("specify_cli.sync.batch.format_sync_summary", return_value="summary"),
-            patch("specify_cli.sync.batch.write_failure_report") as write_mock,
+            patch("specify_cli.cli.commands.sync.is_saas_sync_enabled", return_value=True),
+            patch(
+                "specify_cli.cli.commands.sync._run_event_sync_dispatch",
+                return_value=summary,
+            ),
         ):
             res = runner.invoke(sync_app, ["now", "--report", str(report_path)])
-        assert res.exit_code == 1
-        write_mock.assert_called_once()
+        assert res.exit_code == 1, res.output
+        assert report_path.exists()
+        report = json.loads(report_path.read_text())
+        assert report["dispatched"] is True
+        assert report["selected"] == 2
+        assert report["delivered"] == 1
+        assert report["terminal_failed"] == 1
 
     def test_strict_exits_1_on_auth_missing(self, monkeypatch):
         """Strict exits 1 when queue non-empty but all-zero result (auth missing).
