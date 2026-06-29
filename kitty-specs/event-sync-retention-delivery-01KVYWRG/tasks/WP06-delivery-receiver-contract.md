@@ -139,6 +139,20 @@ and keeps it backward-compatible. Flag this edit in the PR description.
 - **Merge target branch**: mission/event-sync-retention-delivery
 > Populated by `spec-kitty agent mission tasks`. Do not change manually.
 
+## 🔴 ATDD-First (binding — charter C-011)
+
+**You cannot start implementation until a failing-first ATDD test exists.** Per the charter's *ATDD-First Discipline* (binding, C-011), this WP follows red→green→refactor:
+
+1. **RED first** — before any implementation commit, write at least one acceptance test that pins the user-observable behaviour this WP delivers (see the Subtasks/Acceptance below) and commit it **as the lane's first, separate commit while it FAILS**.
+2. **GREEN** — implement until that test (and the rest) pass.
+3. **Refactor** with the tests green.
+
+The reviewer verifies **red→green**: the ATDD test was RED on `mission/event-sync-retention-delivery` and GREEN on this WP's final commit. A WP without a failing-first ATDD commit is **rejected at review** even if the code works.
+
+## 🔗 CLI↔SaaS contract (charter — A3)
+
+Per contract §4 the batch **wire** protocol to Teamspace is unchanged — only the *local* event-row behaviour shifts from delete-on-success to ledger-on-success, so **no SaaS-side contract change is expected**. **However**, if your implementation alters any hosted route, request/response body, auth header, websocket behaviour, or sync payload, you MUST update `../spec-kitty-saas/contracts/cli-saas-current-api.yaml` in the **same** change (charter: *Central CLI-SaaS API Contract*). State which case applies in your review notes.
+
 ## Subtasks & Detailed Guidance
 
 ### Subtask T033 – Define the `DeliveryReceiver` protocol

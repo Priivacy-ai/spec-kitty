@@ -234,3 +234,32 @@
 - **Parallelism after WP01**: WP02, WP03, WP04 run in parallel. After WP05: WP06 and (with WP03) WP08, WP10. WP12 is the join point.
 - **Tests**: observable CLI + on-disk/ledger state, not call order (NFR-001). Stub receiver removes the `teamspace_key` fork-CI dependency (SC-005). Real-port/daemon sync tests run serially (`-n0`).
 - **Out of scope**: IC-09 SaaS `/health` deployment metadata (cross-repo follow-on, C-004).
+
+---
+
+## Analysis remediation addenda (findings A1–A7)
+
+> From `/spec-kitty.analyze` (initial verdict *blocked*). **A1** (ATDD-First) and **A2** (Identifier Safety) are encoded directly in the affected WP prompts; **A3** is a charter note in WP06. These addenda close **A4–A7**.
+
+### NFR → WP coverage (A4)
+
+| NFR | Covered by | Notes |
+|-----|-----------|-------|
+| NFR-001 observable-state tests | WP12 + every WP's Test Strategy | assert CLI output + on-disk/ledger state, not call order |
+| NFR-002 outcome coverage incl. immutability + multi-DB | WP08 (immutability DB test), WP10 (multi-DB migration) | |
+| NFR-003 idempotent re-delivery | WP05 (T032) | `duplicate` handling, unchanged event IDs |
+| NFR-004 bounded growth visibility | WP11 (T067) | journal size + GC-suggestion gating |
+| NFR-005 migration safety/atomicity | WP10 (T058) | transactional per-DB, idempotent |
+| NFR-006 additive contracts | WP06 (T037), WP11 (T068/T069), WP12 (T075) | back-compat preserved |
+
+### FR-012 status (A5)
+
+FR-012 (target-reset detection) is **Partial (advisory) in this mission**: WP04 records deployment metadata + advisory change-detection only. Full reset-detection consumes SaaS `/api/v1/sync/health/` metadata, deferred to the IC-09 follow-on (C-004) — out of scope. SC-004's deployment-identity clause is likewise deferred.
+
+### Module refinement beyond plan.md (A6)
+
+tasks introduces three modules not named in plan.md's Project Structure, to keep the CLI thin and the domain seam explicit: `delivery/status_report.py` (additive JSON assembly, WP11), `delivery/retention.py` (gc/archive logic, WP11), `delivery/interfaces.py` (domain protocols, WP04).
+
+### Operator CLI surface (A7)
+
+EventSyncConfig mode selection is pinned to `spec-kitty sync mode <TEAMSPACE|EXTERNAL_RECEIVER|LOCAL_RETENTION|OPT_OUT>` (`sync mode` with no argument prints the current mode); wired in WP12, policy resolved in WP09. Terminology Canon: no `feature*` aliases.
