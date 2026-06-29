@@ -21,8 +21,8 @@ subtasks:
 - T032
 phase: Phase 3 - Delivery domain
 assignee: ''
-agent: "claude:opus:python-pedro:implementer"
-shell_pid: "50697"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "54541"
 history:
 - at: '2026-06-29T06:21:37Z'
   actor: system
@@ -250,3 +250,5 @@ A reviewer running `/spec-kitty.review` must verify (tie to contract §3 "Requir
 > Entries chronological, appended at END. Format: `- YYYY-MM-DDTHH:MM:SSZ – <agent_id> – <action>`
 - 2026-06-29T06:21:37Z – system – Prompt created.
 - 2026-06-29T08:26:52Z – claude:opus:python-pedro:implementer – shell_pid=50697 – Assigned agent via action command
+- 2026-06-29T08:47:06Z – claude:opus:python-pedro:implementer – shell_pid=50697 – Ready: delivery ledger (selection excludes terminal-failed; delivered-anywhere query); ATDD + gates green
+- 2026-06-29T08:48:16Z – claude:opus:reviewer-renata:reviewer – shell_pid=54541 – Started review via action command

@@ -53,13 +53,13 @@
 | T023 | Record (not key on) deployment metadata as provenance | WP04 | | [D] |
 | T024 | Advisory reset-detection on metadata change (no identity fork) | WP04 | | [D] |
 | T025 | Tests: identity uniqueness; deployment_id churn; reset-detection | WP04 | | [D] |
-| T026 | Ledger schema (event×target; grow-to-many-targets, no schema break) | WP05 | [P] |
-| T027 | success/duplicate → terminal-success rows (never delete journal) | WP05 | |
-| T028 | pending/rejected/failed_transient ledger states | WP05 | |
-| T029 | Terminal-failed state (FR-015 storage; payload retained) | WP05 | |
-| T030 | Selection query: undelivered-for-target, excluding terminal-failed | WP05 | |
-| T031 | Delivered-anywhere query (consumed by WP08) | WP05 | |
-| T032 | Index design + state-transition + idempotent-redelivery tests | WP05 | |
+| T026 | Ledger schema (event×target; grow-to-many-targets, no schema break) | WP05 | [D] |
+| T027 | success/duplicate → terminal-success rows (never delete journal) | WP05 | | [D] |
+| T028 | pending/rejected/failed_transient ledger states | WP05 | | [D] |
+| T029 | Terminal-failed state (FR-015 storage; payload retained) | WP05 | | [D] |
+| T030 | Selection query: undelivered-for-target, excluding terminal-failed | WP05 | | [D] |
+| T031 | Delivered-anywhere query (consumed by WP08) | WP05 | | [D] |
+| T032 | Index design + state-transition + idempotent-redelivery tests | WP05 | | [D] |
 | T033 | `DeliveryReceiver` protocol (endpoint/auth/result-map/retry/gates) | WP06 | [P] |
 | T034 | TeamspaceReceiver (`/api/v1/events/batch/`, Bearer, SaaS+PrivateTeamspace gates) | WP06 | |
 | T035 | ExternalReceiver (operator URL/auth, no Teamspace gating) | WP06 | |
