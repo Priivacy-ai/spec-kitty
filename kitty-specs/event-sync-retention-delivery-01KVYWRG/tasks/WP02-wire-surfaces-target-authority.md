@@ -18,8 +18,8 @@ subtasks:
 - T012
 phase: Phase 1 - Target Authority
 assignee: ''
-agent: "claude:opus:python-pedro:implementer"
-shell_pid: "31738"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "52065"
 history:
 - at: '2026-06-29T06:21:37Z'
   actor: system
@@ -378,3 +378,8 @@ For `/spec-kitty.review`, verify:
 - 2026-06-29T07:49:09Z – claude:opus:python-pedro:implementer – shell_pid=31738 – Assigned agent via action command
 - 2026-06-29T08:21:13Z – user – shell_pid=31738 – WP02 implementation: ResolvedSyncTarget wiring
 - 2026-06-29T08:21:16Z – user – shell_pid=31738 – WP02 implementation: ResolvedSyncTarget wiring
+- 2026-06-29T08:27:53Z – user – shell_pid=31738 – re-advance after lane status sync
+- 2026-06-29T08:27:55Z – user – shell_pid=31738 – re-advance after lane status sync
+- 2026-06-29T08:28:25Z – claude:opus:python-pedro:implementer – shell_pid=31738 – Ready: surfaces consume ResolvedSyncTarget; scope derived; ATDD + gates green
+- 2026-06-29T08:32:25Z – claude:opus:python-pedro:implementer – shell_pid=31738 – for_review (lane recorded; force-propagate to planning log)
+- 2026-06-29T08:32:41Z – claude:opus:reviewer-renata:reviewer – shell_pid=52065 – Started review via action command
