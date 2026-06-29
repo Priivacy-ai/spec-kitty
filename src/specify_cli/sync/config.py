@@ -1,4 +1,6 @@
 """Sync configuration management"""
+
+import os
 import sys
 from enum import StrEnum
 from pathlib import Path
@@ -28,8 +30,8 @@ class SyncConfig:
     """Manage sync configuration"""
 
     def __init__(self) -> None:
-        self.config_dir = Path.home() / '.spec-kitty'
-        self.config_file = self.config_dir / 'config.toml'
+        self.config_dir = Path.home() / ".spec-kitty"
+        self.config_file = self.config_dir / "config.toml"
 
     def _load(self) -> dict[str, Any]:
         """Load config.toml, returning empty dict when missing or invalid."""
@@ -47,17 +49,35 @@ class SyncConfig:
         atomic_write(self.config_file, content, mkdir=True)
 
     def get_server_url(self) -> str:
-        """Get server URL from config"""
+        """Resolve the sync server URL.
+
+        Honors decision D-5 (no hardcoded SaaS domain — see
+        ``specify_cli.auth.config``): ``SPEC_KITTY_SAAS_URL`` is the source of
+        truth and takes precedence over config, so auth and sync can never
+        resolve different targets (#2146). Falls back to the ``[sync]
+        server_url`` config key, then to the D-5 env resolver — which raises a
+        clear error when nothing is configured — rather than a hardcoded (and
+        now unreachable) default domain that fails silently.
+        """
+        env_url = os.environ.get("SPEC_KITTY_SAAS_URL", "").strip()
+        if env_url:
+            return env_url.rstrip("/")
         config = self._load()
-        url = config.get('sync', {}).get('server_url', 'https://spec-kitty-dev.fly.dev')
-        return str(url)
+        url = config.get("sync", {}).get("server_url")
+        if url:
+            return str(url).rstrip("/")
+        # D-5: no hardcoded SaaS domain. Defer to the auth resolver, which
+        # raises ConfigurationError when SPEC_KITTY_SAAS_URL is unset.
+        from specify_cli.auth.config import get_saas_base_url
+
+        return str(get_saas_base_url())
 
     def set_server_url(self, url: str) -> None:
         """Set server URL in config"""
         config = self._load()
-        if 'sync' not in config:
-            config['sync'] = {}
-        config['sync']['server_url'] = url
+        if "sync" not in config:
+            config["sync"] = {}
+        config["sync"]["server_url"] = url
         self._save(config)
 
     def get_max_queue_size(self) -> int:
@@ -106,9 +126,7 @@ class SyncConfig:
         stripped = raw.strip()
 
         if stripped == "":
-            raise ValueError(
-                "[sync].background_daemon must be 'auto' or 'manual', not an empty string"
-            )
+            raise ValueError("[sync].background_daemon must be 'auto' or 'manual', not an empty string")
 
         folded = stripped.casefold()
         policy = _BACKGROUND_DAEMON_VALUES.get(folded)
