@@ -83,14 +83,14 @@
 | T053 | Mode → (receiver, retention) resolution wired to WP06 | WP09 | |
 | T054 | OPT_OUT discards only local-only/discardable; refuse/audit Teamspace-bound (C-008) | WP09 | |
 | T055 | Tests: per-mode observable on-disk + network behavior | WP09 | |
-| T056 | Discover ALL `queue-<digest>.db` + legacy `queue.db` | WP10 | [P] |
-| T057 | Best-effort or `unknown` target; never fabricate identity from a one-way digest | WP10 | |
-| T058 | Transactional per source DB + idempotent re-run (NFR-005) | WP10 | |
-| T059 | Identical dup `event_id` imports once with all provenance | WP10 | |
-| T060 | Divergent dup → conflict/audit row; source untouched; cleanup blocked; non-zero | WP10 | |
-| T061 | Never rewrite event IDs; only currently-queued payloads survive | WP10 | |
-| T062 | Retire event-queueing from `queue.py`; keep body-upload tables (C-006) | WP10 | |
-| T063 | Tests: multi-DB; unknown digest; identical dup; divergent dup | WP10 | |
+| T056 | Discover ALL `queue-<digest>.db` + legacy `queue.db` | WP10 | [D] |
+| T057 | Best-effort or `unknown` target; never fabricate identity from a one-way digest | WP10 | | [D] |
+| T058 | Transactional per source DB + idempotent re-run (NFR-005) | WP10 | | [D] |
+| T059 | Identical dup `event_id` imports once with all provenance | WP10 | | [D] |
+| T060 | Divergent dup → conflict/audit row; source untouched; cleanup blocked; non-zero | WP10 | | [D] |
+| T061 | Never rewrite event IDs; only currently-queued payloads survive | WP10 | | [D] |
+| T062 | Retire event-queueing from `queue.py`; keep body-upload tables (C-006) | WP10 | | [D] |
+| T063 | Tests: multi-DB; unknown digest; identical dup; divergent dup | WP10 | | [D] |
 | T064 | Assemble additive JSON sections (7 sections) | WP11 | [P] |
 | T065 | Distinct counts: retained / current-target / previous-target / terminal-failed / body-upload + oldest ts | WP11 | |
 | T066 | gc/archive logic (explicit-only; preserve ledger history) | WP11 | |
