@@ -1,13 +1,14 @@
-"""Post-move census gate for the 118 unique ADRs (WP06).
+"""Post-move census gate for the unique ADRs under ``docs/adr/<era>/`` (WP06).
 
 WP06 ran WP05's extended converter over the live tree, moving the **117
 realpath-unique** ADRs to ``docs/adr/<era>/`` with bare-``status`` frontmatter and
 dropping the 71 back-compat symlinks. This module is the surviving **merge-blocker**
 CI gate for that move (C-002 / NFR-001):
 
-* :class:`TestCensus` — exactly **118** ADR files live under ``docs/adr/<era>/``
-  (a count ``< 118`` is a *lost* ADR; ``> 118`` is a leaked duplicate or an
-  undropped mirror), no dangling back-compat symlink survives, and every ADR
+* :class:`TestCensus` — exactly ``_EXPECTED_CENSUS`` ADR files live under
+  ``docs/adr/<era>/`` (a lower count is a *lost* ADR; a higher count is a leaked
+  duplicate or an undropped mirror — bump the constant for a net-new ADR), no
+  dangling back-compat symlink survives, and every ADR
   carries bare-``status`` MADR frontmatter. These are permanent on-disk
   invariants — they read only the assembled tree.
 
@@ -54,7 +55,11 @@ pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 _DOCS_ADR: Final[Path] = _REPO_ROOT / "docs" / "adr"
 _ERAS: Final[tuple[str, ...]] = ("1.x", "2.x", "3.x")
 _DATE_PREFIX: Final[re.Pattern[str]] = re.compile(r"^\d{4}-\d{2}-\d{2}-")
-_EXPECTED_CENSUS: Final[int] = 118
+# Census baseline = the WP06 post-move count (117) + the sync-daemon-orphan-cleanup
+# ADR (#2266) + the integration-boundary ADR
+# (docs/adr/3.x/2026-06-26-1-core-integration-boundary.md, mission #614) = 119. Bump
+# this by one for every net-new ADR that legitimately lands under docs/adr/<era>/.
+_EXPECTED_CENSUS: Final[int] = 119
 
 
 def _adr_files_on_disk() -> list[Path]:
@@ -71,7 +76,7 @@ def _adr_files_on_disk() -> list[Path]:
 
 
 class TestCensus:
-    def test_exactly_118_unique_adrs(self) -> None:
+    def test_adr_census_matches_expected(self) -> None:
         files = _adr_files_on_disk()
         realpaths = {os.path.realpath(p) for p in files}
         assert len(files) == _EXPECTED_CENSUS, (
@@ -79,7 +84,7 @@ class TestCensus:
             f"found {len(files)}"
         )
         assert len(realpaths) == _EXPECTED_CENSUS, (
-            "realpath-unique ADR count drifted from 118 — a duplicate leaked"
+            f"realpath-unique ADR count drifted from {_EXPECTED_CENSUS} — a duplicate leaked"
         )
 
     def test_no_dangling_back_compat_symlinks(self) -> None:

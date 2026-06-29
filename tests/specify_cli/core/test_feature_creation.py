@@ -5,10 +5,15 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
 
+from specify_cli.core.adapters import (
+    register_pending_origin_consumer,
+    reset_origin_consumer,
+)
 from specify_cli.core.mission_creation import (
     MissionCreationError,
     MissionCreationResult,
@@ -82,7 +87,7 @@ def test_happy_path_creates_directory_and_returns_result(tmp_path: Path) -> None
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}.emit_mission_created"),
+        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(tmp_path, "test-feature", **_mission_summary("test-feature"))
@@ -134,7 +139,7 @@ def test_result_created_files_populated(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}.emit_mission_created"),
+        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(tmp_path, "my-feature", **_mission_summary("my-feature"))
@@ -144,6 +149,62 @@ def test_result_created_files_populated(tmp_path: Path) -> None:
     assert "spec.md" in names
     assert "meta.json" in names
     assert "README.md" in names
+
+
+def _tracker_origin_consumer(
+    repo_root: Path,
+    feature_dir: Path,
+    meta: dict[str, Any],
+) -> tuple[bool, bool, str | None, dict[str, Any]]:
+    """Test-only PendingOriginConsumer that routes through the tracker's binding logic.
+
+    This consumer mirrors what ``tracker/origin_consumer.py`` (WP03) will implement.
+    It is used in tests that verify the pending-origin registry dispatch chain,
+    replacing the old approach of patching ``mission_creation.py`` internals directly.
+
+    Imports are lazy so that the test's ``patch("specify_cli.tracker.origin.bind_mission_origin")``
+    mock is active when the consumer runs.
+    """
+    from specify_cli.tracker.origin import OriginBindingError, bind_mission_origin
+    from specify_cli.tracker.origin_models import OriginCandidate
+    from specify_cli.tracker.ticket_context import clear_pending_origin, read_pending_origin
+
+    pending = read_pending_origin(repo_root)
+    if not pending:
+        return False, False, None, meta
+
+    provider = str(pending.get("provider") or "").strip().lower()
+    issue_id = str(pending.get("issue_id") or "").strip()
+    issue_key = str(pending.get("issue_key") or "").strip()
+
+    if not provider or not issue_id or not issue_key:
+        return True, False, "Pending origin is missing required provider/issue identifiers.", meta
+
+    candidate = OriginCandidate(
+        external_issue_id=issue_id,
+        external_issue_key=issue_key,
+        title=str(pending.get("title") or "").strip(),
+        status=str(pending.get("status") or "").strip(),
+        url=str(pending.get("url") or "").strip(),
+        match_type="pending_origin",
+        body=str(pending.get("body") or "").strip() or None,
+    )
+
+    try:
+        updated_meta, _ = bind_mission_origin(
+            feature_dir=feature_dir,
+            candidate=candidate,
+            provider=provider,
+            resource_type=None,
+            resource_id=None,
+        )
+    except OriginBindingError as exc:
+        return True, False, str(exc), meta
+    except Exception as exc:  # noqa: BLE001
+        return True, False, str(exc), meta
+
+    clear_pending_origin(repo_root)
+    return True, True, None, updated_meta
 
 
 def test_consumes_pending_origin_after_creation(tmp_path: Path) -> None:
@@ -165,30 +226,38 @@ def test_consumes_pending_origin_after_creation(tmp_path: Path) -> None:
         encoding="utf-8",
     )
 
-    with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}.emit_mission_created"),
-        patch(f"{_CORE_MODULE}._commit_feature_file"),
-        patch("specify_cli.tracker.origin.bind_mission_origin") as mock_bind_origin,
-    ):
-        mock_bind_origin.return_value = (
-            {
-                "mission_id": "01KTESTMISSIONID00000000003",
-                "mission_number": None,
-                "slug": "ticket-feature-01KTESTM",
-                "mission_slug": "ticket-feature-01KTESTM",
-                "friendly_name": "ticket feature",
-                "mission_type": "software-dev",
-                "target_branch": "main",
-                "created_at": "2026-04-01T00:00:00+00:00",
-                "origin_ticket": {"provider": "linear"},
-            },
-            True,
-        )
-        result = create_mission_core(tmp_path, "ticket-feature", **_mission_summary("ticket-feature"))
+    # Register the test consumer that exercises the tracker binding path via
+    # the core/adapters.py registry (WP02 boundary fix). WP03 will register the
+    # real tracker consumer at startup; here we use the identical logic as a
+    # test-only consumer so the binding assertions remain meaningful.
+    register_pending_origin_consumer(_tracker_origin_consumer)
+    try:
+        with (
+            patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+            patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+            patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+            patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+            patch("specify_cli.status.fire_dossier_sync"),
+            patch(f"{_CORE_MODULE}._commit_feature_file"),
+            patch("specify_cli.tracker.origin.bind_mission_origin") as mock_bind_origin,
+        ):
+            mock_bind_origin.return_value = (
+                {
+                    "mission_id": "01KTESTMISSIONID00000000003",
+                    "mission_number": None,
+                    "slug": "ticket-feature-01KTESTM",
+                    "mission_slug": "ticket-feature-01KTESTM",
+                    "friendly_name": "ticket feature",
+                    "mission_type": "software-dev",
+                    "target_branch": "main",
+                    "created_at": "2026-04-01T00:00:00+00:00",
+                    "origin_ticket": {"provider": "linear"},
+                },
+                True,
+            )
+            result = create_mission_core(tmp_path, "ticket-feature", **_mission_summary("ticket-feature"))
+    finally:
+        reset_origin_consumer()
 
     assert result.origin_binding_attempted is True
     assert result.origin_binding_succeeded is True
@@ -216,16 +285,20 @@ def test_pending_origin_failure_is_reported_and_retained(tmp_path: Path) -> None
         encoding="utf-8",
     )
 
-    with (
-        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}.emit_mission_created"),
-        patch(f"{_CORE_MODULE}._commit_feature_file"),
-        patch("specify_cli.tracker.origin.bind_mission_origin", side_effect=RuntimeError("bind failed")),
-    ):
-        result = create_mission_core(tmp_path, "ticket-feature", **_mission_summary("ticket-feature"))
+    register_pending_origin_consumer(_tracker_origin_consumer)
+    try:
+        with (
+            patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+            patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+            patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+            patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+            patch("specify_cli.status.fire_dossier_sync"),
+            patch(f"{_CORE_MODULE}._commit_feature_file"),
+            patch("specify_cli.tracker.origin.bind_mission_origin", side_effect=RuntimeError("bind failed")),
+        ):
+            result = create_mission_core(tmp_path, "ticket-feature", **_mission_summary("ticket-feature"))
+    finally:
+        reset_origin_consumer()
 
     assert result.origin_binding_attempted is True
     assert result.origin_binding_succeeded is False
@@ -324,7 +397,7 @@ def test_explicit_target_branch(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}.emit_mission_created"),
+        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(
@@ -355,7 +428,7 @@ def test_target_branch_defaults_to_current(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="develop"),
-        patch(f"{_CORE_MODULE}.emit_mission_created"),
+        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(tmp_path, "my-feature", **_mission_summary("my-feature"))
@@ -385,7 +458,7 @@ def test_documentation_mission_sets_doc_state(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}.emit_mission_created"),
+        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(
@@ -410,7 +483,7 @@ def test_default_mission_is_software_dev(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}.emit_mission_created"),
+        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(tmp_path, "basic-feature", **_mission_summary("basic-feature"))
@@ -437,7 +510,7 @@ def test_slug_uses_mid8_suffix_not_numeric_prefix(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}.emit_mission_created"),
+        patch("specify_cli.status.fire_dossier_sync"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(tmp_path, "padded-test", **_mission_summary("padded-test"))

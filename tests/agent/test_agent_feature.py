@@ -244,7 +244,7 @@ class TestInjectBranchContractRecommendation:
 class TestCreateFeatureCommand:
     """Tests for create command."""
 
-    @patch("specify_cli.core.mission_creation.emit_mission_created")
+    @patch("specify_cli.status.fire_dossier_sync")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
@@ -312,7 +312,7 @@ class TestCreateFeatureCommand:
             "track the work from mission creation onward."
         )
 
-    @patch("specify_cli.core.mission_creation.emit_mission_created")
+    @patch("specify_cli.status.fire_dossier_sync")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
@@ -451,7 +451,7 @@ class TestCreateFeatureCommand:
         assert "error" in output
         assert "git" in output["error"].lower()
 
-    @patch("specify_cli.core.mission_creation.emit_mission_created")
+    @patch("specify_cli.status.fire_dossier_sync")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
@@ -482,7 +482,7 @@ class TestCreateFeatureCommand:
         output = json.loads(first_line)
         assert output["result"] == "success"
 
-    @patch("specify_cli.core.mission_creation.emit_mission_created")
+    @patch("specify_cli.status.fire_dossier_sync")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")

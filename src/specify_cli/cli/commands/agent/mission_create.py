@@ -463,6 +463,15 @@ def create_mission(
         json_output=json_output,
     )
 
+    # Import the tracker package here (NOT at module scope) so ``tracker/__init__.py``
+    # registers ``consume_pending_origin_impl`` with ``core.adapters`` BEFORE
+    # ``create_mission_core`` runs ``consume_pending_origin`` (register-before-use,
+    # T012). Keeping this import inside the command body — rather than at module
+    # scope — keeps the whole tracker/sync/SaaS stack off the CLI cold-start path
+    # (NFR-003), while preserving the CLI-layer placement so no CORE→INTEGRATION
+    # import edge is introduced in ``core/mission_creation.py`` (#614 leak fix).
+    import specify_cli.tracker  # noqa: F401  (import side-effect: origin-consumer registration)
+
     result = _run_create_core_phase(
         repo_root=repo_root,
         mission_slug=mission_slug,

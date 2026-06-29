@@ -171,21 +171,10 @@ def test_sweep_sync_disabled_closes_locally_without_propagation(tmp_path: Path) 
     from unittest.mock import MagicMock, patch
 
     from specify_cli.invocation import propagator as propagator_mod
-    from specify_cli.sync.routing import CheckoutSyncRouting
 
     ops_dir = _ops_dir(tmp_path)
     stale = ops_dir / "01KTBE0RQY9XKTV0PE49PJD031.jsonl"
     _write_op(stale, completed=False, started_at=_iso(_NOW - timedelta(hours=48)))
-    routing = CheckoutSyncRouting(
-        repo_root=tmp_path,
-        project_uuid="test-uuid",
-        project_slug="test-slug",
-        build_id=None,
-        repo_slug="test-repo",
-        local_sync_enabled=False,
-        repo_default_sync_enabled=None,
-        effective_sync_enabled=False,
-    )
 
     # Run propagation synchronously so the sync-gate is exercised in-test.
     def _sync_submit(
@@ -197,7 +186,7 @@ def test_sweep_sync_disabled_closes_locally_without_propagation(tmp_path: Path) 
     with (
         patch.object(propagator_mod.InvocationSaaSPropagator, "submit", _sync_submit),
         patch.object(
-            propagator_mod, "resolve_checkout_sync_routing", return_value=routing
+            propagator_mod, "resolve_sync_routing", return_value=False  # sync explicitly disabled
         ),
         patch.object(propagator_mod, "_get_saas_client", client_spy),
     ):

@@ -5,19 +5,23 @@ Verifies:
 2. Policy correctly gates projection per (mode, event).
 3. Envelope fields respect include_request_text / include_evidence_ref.
 4. NFR-007 / SC-008: propagation-errors.jsonl stays empty under sync-disabled.
+
+Updated for Leak #3 fix (WP01 integration-boundary mission): propagator now
+routes through ``resolve_sync_routing`` from the invocation adapter seam rather
+than importing ``resolve_checkout_sync_routing`` directly from the sync package.
+The resolver now returns ``bool | None`` (True=enabled, False=disabled, None=
+unregistered/safe-degrade); tests patch the seam directly.
 """
 from __future__ import annotations
 
-import asyncio
 import json
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from specify_cli.invocation.propagator import PROPAGATION_ERRORS_PATH, _propagate_one
 from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent
-from specify_cli.sync.routing import CheckoutSyncRouting
 
 
 # ---------------------------------------------------------------------------
@@ -26,18 +30,6 @@ from specify_cli.sync.routing import CheckoutSyncRouting
 
 
 pytestmark = [pytest.mark.unit]
-
-def _make_routing(*, effective_sync_enabled: bool, repo_root: Path) -> CheckoutSyncRouting:
-    return CheckoutSyncRouting(
-        repo_root=repo_root,
-        project_uuid="test-uuid",
-        project_slug="test-slug",
-        build_id=None,
-        repo_slug="test-repo",
-        local_sync_enabled=effective_sync_enabled,
-        repo_default_sync_enabled=None,
-        effective_sync_enabled=effective_sync_enabled,
-    )
 
 
 def _make_started_record(mode: str | None, invocation_id: str = "01KPQRX2EVGMRVB4Q1JQBAZJV3") -> OpStartedEvent:
@@ -93,16 +85,14 @@ def _make_mock_client() -> MagicMock:
 @pytest.mark.parametrize("event_name", ["started", "completed"])
 def test_sync_disabled_never_calls_send(tmp_path: Path, mode: str, event_name: str) -> None:
     """Sync-disabled checkout never calls send_event regardless of (mode, event)."""
-    routing = _make_routing(effective_sync_enabled=False, repo_root=tmp_path)
-
     if event_name == "started":
         record = _make_started_record(mode)
     else:
         record = _make_completed_record(mode)
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-        return_value=routing,
+        "specify_cli.invocation.propagator.resolve_sync_routing",
+        return_value=False,  # sync explicitly disabled
     ):
         with patch(
             "specify_cli.invocation.propagator._get_saas_client",
@@ -118,13 +108,12 @@ def test_sync_disabled_never_calls_send(tmp_path: Path, mode: str, event_name: s
 
 def test_task_execution_started_includes_request_text(tmp_path: Path) -> None:
     """TASK_EXECUTION/started sends envelope with request_text included."""
-    routing = _make_routing(effective_sync_enabled=True, repo_root=tmp_path)
     record = _make_started_record("task_execution")
     mock_client = _make_mock_client()
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-        return_value=routing,
+        "specify_cli.invocation.propagator.resolve_sync_routing",
+        return_value=True,  # sync explicitly enabled
     ):
         with patch(
             "specify_cli.invocation.propagator._get_saas_client",
@@ -142,13 +131,12 @@ def test_task_execution_started_includes_request_text(tmp_path: Path) -> None:
 
 def test_advisory_started_omits_request_text(tmp_path: Path) -> None:
     """ADVISORY/started projects but without request_text key in envelope."""
-    routing = _make_routing(effective_sync_enabled=True, repo_root=tmp_path)
     record = _make_started_record("advisory")
     mock_client = _make_mock_client()
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-        return_value=routing,
+        "specify_cli.invocation.propagator.resolve_sync_routing",
+        return_value=True,  # sync explicitly enabled
     ):
         with patch(
             "specify_cli.invocation.propagator._get_saas_client",
@@ -166,13 +154,12 @@ def test_advisory_started_omits_request_text(tmp_path: Path) -> None:
 
 def test_query_started_does_not_project(tmp_path: Path) -> None:
     """QUERY/started produces no send_event call (policy.project=False)."""
-    routing = _make_routing(effective_sync_enabled=True, repo_root=tmp_path)
     record = _make_started_record("query")
     mock_client = _make_mock_client()
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-        return_value=routing,
+        "specify_cli.invocation.propagator.resolve_sync_routing",
+        return_value=True,  # sync explicitly enabled
     ):
         with patch(
             "specify_cli.invocation.propagator._get_saas_client",
@@ -185,13 +172,12 @@ def test_query_started_does_not_project(tmp_path: Path) -> None:
 
 def test_task_execution_completed_includes_evidence_ref(tmp_path: Path) -> None:
     """TASK_EXECUTION/completed envelope includes evidence_ref."""
-    routing = _make_routing(effective_sync_enabled=True, repo_root=tmp_path)
     record = _make_completed_record("task_execution")
     mock_client = _make_mock_client()
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-        return_value=routing,
+        "specify_cli.invocation.propagator.resolve_sync_routing",
+        return_value=True,  # sync explicitly enabled
     ):
         with patch(
             "specify_cli.invocation.propagator._get_saas_client",
@@ -213,13 +199,12 @@ def test_completed_event_resolves_policy_without_mode(tmp_path: Path) -> None:
     InvalidModeForEvidenceError before any completed event exists), so
     advisory completed events can never carry an evidence_ref in v2.
     """
-    routing = _make_routing(effective_sync_enabled=True, repo_root=tmp_path)
     record = _make_completed_record(None)
     mock_client = _make_mock_client()
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-        return_value=routing,
+        "specify_cli.invocation.propagator.resolve_sync_routing",
+        return_value=True,  # sync explicitly enabled
     ):
         with patch(
             "specify_cli.invocation.propagator._get_saas_client",
@@ -235,13 +220,12 @@ def test_completed_event_resolves_policy_without_mode(tmp_path: Path) -> None:
 
 def test_mission_step_started_includes_request_text(tmp_path: Path) -> None:
     """MISSION_STEP/started behaves same as TASK_EXECUTION/started."""
-    routing = _make_routing(effective_sync_enabled=True, repo_root=tmp_path)
     record = _make_started_record("mission_step")
     mock_client = _make_mock_client()
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-        return_value=routing,
+        "specify_cli.invocation.propagator.resolve_sync_routing",
+        return_value=True,  # sync explicitly enabled
     ):
         with patch(
             "specify_cli.invocation.propagator._get_saas_client",
@@ -257,13 +241,12 @@ def test_mission_step_started_includes_request_text(tmp_path: Path) -> None:
 
 def test_null_mode_projects_like_task_execution(tmp_path: Path) -> None:
     """Pre-WP06 records (mode_of_work=None) project as TASK_EXECUTION (backward compat)."""
-    routing = _make_routing(effective_sync_enabled=True, repo_root=tmp_path)
     record_null = _make_started_record(None)
     mock_client_null = _make_mock_client()
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-        return_value=routing,
+        "specify_cli.invocation.propagator.resolve_sync_routing",
+        return_value=True,  # sync explicitly enabled
     ):
         with patch(
             "specify_cli.invocation.propagator._get_saas_client",
@@ -289,13 +272,12 @@ def test_no_propagation_errors_under_sync_disabled(tmp_path: Path, mode: str) ->
     Runs a full started + completed pair with sync disabled. Verifies that no
     propagation-errors file is created (or is empty if pre-existing).
     """
-    routing = _make_routing(effective_sync_enabled=False, repo_root=tmp_path)
     started = _make_started_record(mode)
     completed = _make_completed_record(mode)
 
     with patch(
-        "specify_cli.invocation.propagator.resolve_checkout_sync_routing",
-        return_value=routing,
+        "specify_cli.invocation.propagator.resolve_sync_routing",
+        return_value=False,  # sync explicitly disabled
     ):
         # _get_saas_client must never be called; but even if it were, no errors should result.
         with patch(
