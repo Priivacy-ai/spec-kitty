@@ -1,3 +1,10 @@
+---
+title: Event sync — separating retention from delivery (research synthesis)
+description: Design synthesis for the event-sync mission (#2124): separating local event retention from per-target delivery state across the journal, ledger, and dispatcher.
+doc_status: draft
+updated: '2026-06-28'
+---
+
 # Research Notes: Event sync — separating retention from delivery
 
 **Status:** Design input for `/spec-kitty.tasks`; decisions settled for this mission below
