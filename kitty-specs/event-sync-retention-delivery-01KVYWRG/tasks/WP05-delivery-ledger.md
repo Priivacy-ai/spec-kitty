@@ -21,8 +21,8 @@ subtasks:
 - T032
 phase: Phase 3 - Delivery domain
 assignee: ''
-agent: "claude:opus:reviewer-renata:reviewer"
-shell_pid: "54541"
+agent: "claude:opus:python-pedro:implementer"
+shell_pid: "50697"
 history:
 - at: '2026-06-29T06:21:37Z'
   actor: system
@@ -250,6 +250,3 @@ A reviewer running `/spec-kitty.review` must verify (tie to contract §3 "Requir
 > Entries chronological, appended at END. Format: `- YYYY-MM-DDTHH:MM:SSZ – <agent_id> – <action>`
 - 2026-06-29T06:21:37Z – system – Prompt created.
 - 2026-06-29T08:26:52Z – claude:opus:python-pedro:implementer – shell_pid=50697 – Assigned agent via action command
-- 2026-06-29T08:47:06Z – claude:opus:python-pedro:implementer – shell_pid=50697 – Ready: delivery ledger (selection excludes terminal-failed; delivered-anywhere query); ATDD + gates green
-- 2026-06-29T08:48:16Z – claude:opus:reviewer-renata:reviewer – shell_pid=54541 – Started review via action command
-- 2026-06-29T08:51:18Z – user – shell_pid=54541 – Review passed: PK(event_id,target_id) + idx(target_id,status) present; full outcome matrix (success/duplicate terminal-success, pending/rejected/failed_transient, terminal_failed) with no journal-delete path (test asserts absence of delete_event/delete_journal/remove_event surface); terminal_failed excluded from selection but retained (drain progresses, FR-015); delivered_anywhere scoped to terminal-SUCCESS only (terminal_failed does NOT freeze, WP08 immutability gate correct); idempotent re-delivery -> duplicate, one row, unchanged event IDs (NFR-003); TYPE_CHECKING Protocol conformance assertion present; ATDD red->green verified (56b5efe9b test-only precedes 1642400e0 impl); pytest 30 passed, mypy/ruff/C901<=15 clean; C-001 honoured (no sync.queue/events imports); edits within owned_files only. NOTE: implementer added concrete universe-aware select_undelivered(target_id,event_universe,limit) for true FR-004 selection (journal supplies universe) WITHOUT editing interfaces.py — sound resolution; Protocol select_pending and select_undelivered share _TERMINAL_STATUS_PARAMS so predicate is consistent; WP07 has the universe-aware method it needs. FOLLOW-UP for mission-review: consider widening WP04 DeliveryLedger Protocol to include the universe-aware selection method.

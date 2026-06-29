@@ -38,6 +38,11 @@ import ulid
 from rich.console import Console
 
 from specify_cli.core.contract_gate import validate_outbound_payload
+from specify_cli.event_journal import (
+    CaptureGateState,
+    capture_teamspace_bound,
+    get_journal,
+)
 from specify_cli.mission_metadata import mission_number_from_slug
 from specify_cli.proof.events import (
     PROOF_EVENT_REQUIRED_FIELDS,
@@ -1878,6 +1883,61 @@ class EventEmitter:
 
         return None
 
+    def _capture_gate_state(self, team_slug: str | None) -> CaptureGateState:
+        """Snapshot the drain gates for the journal's blocked-reason audit (T017).
+
+        Defensive: any gate-read failure is treated as "blocked" so capture
+        still records a durable, audit-tagged row — it never raises and never
+        drops the fact (contract §2 bullet 3).
+        """
+        try:
+            saas_enabled = is_saas_sync_enabled()
+        except Exception:
+            saas_enabled = False
+        try:
+            checkout_enabled = is_sync_enabled_for_checkout()
+        except Exception:
+            checkout_enabled = False
+        try:
+            authenticated = self._is_authenticated()
+        except Exception:
+            authenticated = False
+        return CaptureGateState(
+            saas_enabled=saas_enabled,
+            checkout_enabled=checkout_enabled,
+            authenticated=authenticated,
+            team_slug=team_slug,
+        )
+
+    def _capture_to_journal(
+        self,
+        *,
+        event_id: str,
+        event_type: str,
+        payload: dict[str, Any],
+        occurred_at: str,
+        team_slug: str | None,
+    ) -> None:
+        """Capture-first durable write to the producer-scoped event journal.
+
+        Runs before every delivery gate so a Teamspace-bound fact survives even
+        when all gates block (FR-017, contract §2; SC-009). Producer-scoped,
+        never server-scoped (FR-003). A journal I/O error is warned but never
+        propagated — capture-first must not make emission fail.
+        """
+        try:
+            payload_bytes = json.dumps(payload, sort_keys=True, default=str).encode("utf-8")
+            capture_teamspace_bound(
+                journal=get_journal(team_slug=team_slug),
+                event_id=event_id,
+                event_type=event_type,
+                payload=payload_bytes,
+                occurred_at=occurred_at,
+                gate=self._capture_gate_state(team_slug),
+            )
+        except Exception as exc:
+            _console.print(f"[yellow]Warning: event journal capture failed: {exc}[/yellow]")
+
     def _emit(
         self,
         event_type: str,
@@ -1956,6 +2016,20 @@ class EventEmitter:
             }
             if envelope_fields:
                 event.update(envelope_fields)
+
+            # Capture-first (FR-017, contract §2; SC-009): durably record the
+            # Teamspace-bound fact in the producer-scoped event journal BEFORE
+            # any delivery gate (validation, contract gate, project routing,
+            # WebSocket, drain) can decide whether to ship it. The journal write
+            # is unconditional; the gates only set the recorded
+            # drain_blocked_reason, never whether the durable write happens.
+            self._capture_to_journal(
+                event_id=event_id,
+                event_type=event_type,
+                payload=payload,
+                occurred_at=str(event["timestamp"]),
+                team_slug=team_slug,
+            )
 
             # Validate event structure and payload. Validation tolerates
             # team_slug=None for pending-routing events (issue #1072).

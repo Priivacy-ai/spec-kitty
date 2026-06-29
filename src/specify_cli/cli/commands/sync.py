@@ -8,17 +8,29 @@ This module provides two groups of sync functionality:
 from __future__ import annotations
 
 import contextlib
+import logging
 import re
 import subprocess
+from dataclasses import dataclass
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlparse
 
 import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+
+if TYPE_CHECKING:
+    from specify_cli.delivery.config import EventSyncConfig, Mode
+    from specify_cli.delivery.dispatcher import DispatchSummary
+    from specify_cli.delivery.ledger import SqliteDeliveryLedger
+    from specify_cli.delivery.receivers import DeliveryReceiver
+    from specify_cli.delivery.retention import RetentionResult
+    from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
+    from specify_cli.event_journal.journal import EventJournal
+    from specify_cli.sync.target_authority import ResolvedSyncTarget
 
 from specify_cli.cli.commands._auth_recovery import (
     EXIT_LOGGED_OUT_ON_CONNECTED_TEAMSPACE,
@@ -44,6 +56,8 @@ from specify_cli.sync.feature_flags import (
 )
 
 console = Console()
+
+_LOG = logging.getLogger(__name__)
 
 _STATUS_ACCESS_TOKEN_LABEL = "Access token"  # noqa: S105
 _STATUS_REFRESH_TOKEN_LABEL = "Refresh token"  # noqa: S105
@@ -341,6 +355,323 @@ def format_queue_health(stats: QueueStats, target_console: Console) -> None:
     _render_drain_blockers(stats, target_console)
     _render_retry_distribution(stats, target_console)
     _render_top_event_types(stats, target_console)
+
+
+# --------------------------------------------------------------------------- #
+# Event-sync wiring (WP12) — THIN glue over WP01/WP07/WP09/WP11 domain modules. #
+# Every count/decision is owned by a domain module; this layer only resolves    #
+# already-canonical handles and prints/serialises their results (plan IC-08).   #
+# --------------------------------------------------------------------------- #
+
+_DELIVERY_SUBDIR = "delivery"
+_LEDGER_DB_NAME = "ledger.db"
+_REGISTRY_DB_NAME = "targets.db"
+
+# Operator event-sync mode is persisted under a dedicated config.toml table so
+# it never collides with the [sync] target-authority keys (FR-016 / C-007).
+_EVENT_SYNC_TABLE = "event_sync"
+_EVENT_SYNC_MODE_KEY = "mode"
+_EVENT_SYNC_ENDPOINT_KEY = "external_endpoint"
+
+
+def _delivery_dir() -> Path:
+    """The spec-kitty-home directory that holds the ledger + target registry."""
+    from specify_cli.paths import get_runtime_root
+
+    base: Path = get_runtime_root().base
+    return base / _DELIVERY_SUBDIR
+
+
+def _ledger_db_path() -> Path:
+    """Canonical on-disk path of the WP05 delivery ledger."""
+    return _delivery_dir() / _LEDGER_DB_NAME
+
+
+def _registry_db_path() -> Path:
+    """Canonical on-disk path of the WP04 delivery-target registry."""
+    return _delivery_dir() / _REGISTRY_DB_NAME
+
+
+@dataclass
+class _EventSyncRuntime:
+    """The already-resolved domain handles the thin CLI hands to the dispatcher
+    / status-report / retention modules. The CLI never derives scope or URLs
+    itself — it only opens these and passes them through (contract §1)."""
+
+    target: ResolvedSyncTarget
+    journal: EventJournal
+    ledger: SqliteDeliveryLedger
+    registry: SqliteDeliveryTargetRegistry
+
+    def close(self) -> None:
+        # Closing the diagnostic SQLite handles must never mask the primary
+        # result, so a close failure is intentionally swallowed.
+        with contextlib.suppress(Exception):
+            self.ledger.close()
+        with contextlib.suppress(Exception):
+            self.registry.close()
+
+
+def _open_event_sync_runtime() -> _EventSyncRuntime:
+    """Resolve the WP01 target and open the journal/ledger/registry handles.
+
+    Identity is left unauthenticated here (``None``): the capture→journal emit
+    path that would scope it is not yet live, so resolving with no identity
+    yields the stable, deterministic producer scope every surface shares.
+    """
+    from specify_cli.delivery.ledger import SqliteDeliveryLedger
+    from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
+    from specify_cli.event_journal.journal import EventJournal, resolve_journal_path
+    from specify_cli.sync.target_authority import resolve_sync_target
+
+    target = resolve_sync_target()
+    journal = EventJournal(
+        resolve_journal_path(user_id=target.user_id, team_slug=target.team_slug)
+    )
+    _delivery_dir().mkdir(parents=True, exist_ok=True)
+    ledger = SqliteDeliveryLedger(str(_ledger_db_path()))
+    registry = SqliteDeliveryTargetRegistry(str(_registry_db_path()))
+    return _EventSyncRuntime(target=target, journal=journal, ledger=ledger, registry=registry)
+
+
+def _event_sync_config_path() -> Path:
+    from specify_cli.sync.config import SyncConfig
+
+    return SyncConfig().config_file
+
+
+def _read_event_sync_table() -> dict[str, Any]:
+    """Best-effort read of the ``[event_sync]`` config table (empty when absent)."""
+    import toml
+
+    path = _event_sync_config_path()
+    if not path.exists():
+        return {}
+    try:
+        data = toml.load(path)
+    except (toml.TomlDecodeError, OSError):
+        return {}
+    table = data.get(_EVENT_SYNC_TABLE)
+    return table if isinstance(table, dict) else {}
+
+
+def _load_event_sync_config() -> EventSyncConfig:
+    """Reconstruct the persisted :class:`EventSyncConfig` (defaults to TEAMSPACE).
+
+    Mode semantics are owned by WP09 — the CLI only stores/reads the token and
+    rebuilds the config through ``EventSyncConfig.from_mode``.
+    """
+    from specify_cli.delivery.config import EventSyncConfig, EventSyncConfigError, Mode
+
+    table = _read_event_sync_table()
+    token = table.get(_EVENT_SYNC_MODE_KEY)
+    if not token:
+        return EventSyncConfig.from_mode(Mode.TEAMSPACE)
+    endpoint = table.get(_EVENT_SYNC_ENDPOINT_KEY)
+    try:
+        return EventSyncConfig.from_mode(
+            Mode.from_token(str(token)),
+            external_endpoint=str(endpoint) if endpoint else None,
+        )
+    except EventSyncConfigError as exc:
+        # A corrupt persisted token must not break read paths (status/now).
+        _LOG.debug("event-sync mode %r unusable, defaulting to TEAMSPACE: %s", token, exc)
+        return EventSyncConfig.from_mode(Mode.TEAMSPACE)
+
+
+def _write_event_sync_config(mode: Mode, external_endpoint: str | None) -> None:
+    """Persist the operator's event-sync mode token (and optional endpoint)."""
+    import toml
+
+    from specify_cli.core.atomic import atomic_write
+
+    path = _event_sync_config_path()
+    data: dict[str, Any] = {}
+    if path.exists():
+        try:
+            data = toml.load(path)
+        except (toml.TomlDecodeError, OSError):
+            data = {}
+    table = data.get(_EVENT_SYNC_TABLE)
+    if not isinstance(table, dict):
+        table = {}
+        data[_EVENT_SYNC_TABLE] = table
+    table[_EVENT_SYNC_MODE_KEY] = mode.value
+    if external_endpoint:
+        table[_EVENT_SYNC_ENDPOINT_KEY] = external_endpoint
+    else:
+        table.pop(_EVENT_SYNC_ENDPOINT_KEY, None)
+    atomic_write(path, toml.dumps(data), mkdir=True)
+
+
+def _event_sync_access_token() -> str:
+    """Best-effort Bearer token for the Teamspace receiver (empty when absent).
+
+    The dispatcher never POSTs an empty selection, so an absent token degrades
+    safely to no delivery rather than an error.
+    """
+    import asyncio
+
+    from specify_cli.auth import get_token_manager
+
+    try:
+        token_manager = get_token_manager()
+        if not token_manager.is_authenticated:
+            return ""
+        loop = asyncio.new_event_loop()
+        try:
+            asyncio.set_event_loop(loop)
+            token = loop.run_until_complete(token_manager.get_access_token())
+        finally:
+            with contextlib.suppress(Exception):
+                asyncio.set_event_loop(None)
+            loop.close()
+        return token or ""
+    except Exception as exc:  # best-effort credential read; never block a drain
+        _LOG.debug("event-sync access token unavailable: %s", exc)
+        return ""
+
+
+def _resolve_active_receiver(
+    target: ResolvedSyncTarget, config: EventSyncConfig
+) -> DeliveryReceiver | None:
+    """Resolve the WP06 receiver for the active mode via WP09 (or ``None``).
+
+    Mode→receiver resolution is owned by ``EventSyncConfig.resolve``; the CLI
+    only supplies the Teamspace Bearer token to the default factory.
+    """
+    from specify_cli.delivery.config import DefaultReceiverFactory
+
+    factory = DefaultReceiverFactory(teamspace_auth_token=_event_sync_access_token())
+    policy = config.resolve(resolved_target=target, receiver_factory=factory)
+    return policy.receiver
+
+
+def _open_active_body_queue() -> Any:
+    """Open the body-upload queue for the WP11 ``body_upload_compatibility``
+    section, or ``None`` when it cannot be read (the section then reports zeros)."""
+    try:
+        from specify_cli.sync.body_queue import OfflineBodyUploadQueue
+        from specify_cli.sync.queue import OfflineQueue
+
+        return OfflineBodyUploadQueue(db_path=OfflineQueue().db_path)
+    except Exception as exc:  # read-only diagnostic; never fail status on it
+        _LOG.debug("body-upload queue unavailable for status report: %s", exc)
+        return None
+
+
+def _event_sync_report(base: dict[str, Any], runtime: _EventSyncRuntime) -> dict[str, Any]:
+    """Merge the seven WP11 additive sections onto *base* (CLI serialises only)."""
+    from specify_cli.delivery.status_report import build_status_report
+
+    return build_status_report(
+        resolved_target=runtime.target,
+        journal=runtime.journal,
+        ledger=runtime.ledger,
+        target_registry=runtime.registry,
+        body_upload_queue=_open_active_body_queue(),
+        base=base,
+    )
+
+
+def _print_dispatch_summary(summary: DispatchSummary, mode_name: str) -> None:
+    """Render the dispatcher's per-outcome counts (sourced, never recomputed)."""
+    console.print(
+        f"Event sync ([cyan]{mode_name}[/cyan]): "
+        f"[green]delivered {summary.delivered}[/green]  "
+        f"[dim]duplicate {summary.duplicate}[/dim]  "
+        f"[yellow]pending {summary.pending}[/yellow]  "
+        f"rejected {summary.rejected}  transient {summary.transient}  "
+        f"[red]terminal-failed {summary.terminal_failed}[/red]  "
+        f"(selected {summary.selected})"
+    )
+
+
+def _print_retention_result(result: RetentionResult) -> None:
+    """Render a WP11 retention result (counts owned by ``RetentionResult``)."""
+    console.print(
+        f"{result.operation}: "
+        f"archived {result.archived_count}  purged {result.purged_count}  "
+        f"skipped {result.skipped_count}  "
+        f"(journal {result.journal_size_bytes_before} -> "
+        f"{result.journal_size_bytes_after} bytes)"
+    )
+
+
+def _run_event_sync_dispatch() -> None:
+    """Drive the WP07 dispatcher over the resolved active target (additive).
+
+    Wired into ``sync now``. Any infrastructure failure degrades to a dim
+    notice rather than regressing the legacy ``sync now`` exit contract
+    (NFR-006); delivery outcomes themselves surface via the printed summary.
+    """
+    if not is_saas_sync_enabled():
+        return
+    from specify_cli.delivery.dispatcher import dispatch
+
+    runtime: _EventSyncRuntime | None = None
+    try:
+        runtime = _open_event_sync_runtime()
+        config = _load_event_sync_config()
+        receiver = _resolve_active_receiver(runtime.target, config)
+        if receiver is None:
+            console.print(
+                f"[dim]Event sync mode {config.mode.name}: retention only; "
+                f"no delivery attempted.[/dim]"
+            )
+            return
+        delivery_target = runtime.registry.register_from_resolved(runtime.target)
+        summary = dispatch(
+            journal=runtime.journal,
+            ledger=runtime.ledger,
+            receiver=receiver,
+            target=delivery_target,
+        )
+        _print_dispatch_summary(summary, config.mode.name)
+    except Exception as exc:  # additive drain must never break the legacy command
+        _LOG.debug("event-sync dispatch skipped: %s", exc)
+        console.print(f"[dim]Event sync unavailable: {str(exc)[:80]}[/dim]")
+    finally:
+        if runtime is not None:
+            runtime.close()
+
+
+def _render_event_sync_status(target_console: Console) -> None:
+    """Surface the active mode + a compact event-sync summary in ``sync status``.
+
+    Read-only and best-effort: a failure here must never break ``sync status``.
+    """
+    config = _load_event_sync_config()
+    target_console.print("[bold]Event Sync[/bold]")
+    target_console.print(f"  Mode                      {config.mode.name}")
+    runtime: _EventSyncRuntime | None = None
+    try:
+        runtime = _open_event_sync_runtime()
+        report = _event_sync_report({}, runtime)
+    except Exception as exc:  # read-only summary; never fail status rendering
+        _LOG.debug("event-sync status summary unavailable: %s", exc)
+        return
+    finally:
+        if runtime is not None:
+            runtime.close()
+    journal_section = report["event_journal"]
+    ledger_section = report["delivery_ledger"]
+    failures_section = report["terminal_failures"]
+    target_console.print(
+        f"  Retained events           {journal_section['retained_event_count']}"
+    )
+    target_console.print(
+        "  Delivered (cur/prev)      "
+        f"{ledger_section['delivered_current_target']}/"
+        f"{ledger_section['delivered_previous_target']}"
+    )
+    target_console.print(
+        f"  Terminal failures         {failures_section['count']}"
+    )
+    if journal_section.get("gc_suggested"):
+        target_console.print(
+            "  [yellow]GC suggested[/yellow]: run `spec-kitty sync gc`"
+        )
 
 
 # Create a Typer app for sync subcommands
@@ -1289,6 +1620,9 @@ def now(
 
     if queue_size == 0:
         console.print("[dim]Queue is empty, nothing to sync.[/dim]")
+        # Drain the event journal even when the legacy offline queue is empty:
+        # captured-but-undelivered events still need delivery (FR-005, WP07).
+        _run_event_sync_dispatch()
         return
 
     console.print(f"Syncing {queue_size} queued event(s)...")
@@ -1319,6 +1653,103 @@ def now(
     _print_sync_summary(result)
     _maybe_write_sync_report(report, result)
     _enforce_sync_now_exit(strict, queue_size, result)
+
+    # Additive: drive the WP07 dispatcher (journal -> ledger) against the
+    # resolved active target. Non-destructive — the journal is never deleted
+    # on success (FR-001); the legacy exit contract above is the last word.
+    _run_event_sync_dispatch()
+
+
+@app.command()
+def gc() -> None:
+    """Purge already-delivered event payloads (explicit, destructive).
+
+    Deletes journal payload rows only for events delivered to some target;
+    undelivered payloads are kept so the durable copy is never lost. The
+    delivery ledger is never touched, so delivery history survives (FR-010).
+    Runs only on this explicit invocation — never from ``sync now``.
+
+    Examples:
+        spec-kitty sync gc
+    """
+    from specify_cli.delivery.retention import gc_payloads
+
+    runtime = _open_event_sync_runtime()
+    try:
+        result = gc_payloads(runtime.journal, runtime.ledger)
+    finally:
+        runtime.close()
+    _print_retention_result(result)
+
+
+@app.command()
+def archive() -> None:
+    """Archive retained event payloads (explicit, non-destructive).
+
+    Stamps the journal's archive marker so events move off the live retained
+    surface without deleting bytes. Idempotent and never touches the delivery
+    ledger (FR-010). Runs only on this explicit invocation.
+
+    Examples:
+        spec-kitty sync archive
+    """
+    from specify_cli.delivery.retention import archive_payloads
+
+    runtime = _open_event_sync_runtime()
+    try:
+        result = archive_payloads(runtime.journal)
+    finally:
+        runtime.close()
+    _print_retention_result(result)
+
+
+@app.command()
+def mode(
+    name: str | None = typer.Argument(
+        None,
+        help="Mode to set: TEAMSPACE | EXTERNAL_RECEIVER | LOCAL_RETENTION | OPT_OUT",
+    ),
+    endpoint: str | None = typer.Option(
+        None,
+        "--endpoint",
+        help="External receiver endpoint URL (required for EXTERNAL_RECEIVER)",
+    ),
+) -> None:
+    """Show or set the event-sync retention x delivery mode.
+
+    With no argument, prints the current mode. Mode semantics (which receiver,
+    whether the journal retains) are owned by the policy layer; the CLI only
+    routes the operator token through it (FR-006).
+
+    Examples:
+        spec-kitty sync mode
+        spec-kitty sync mode LOCAL_RETENTION
+        spec-kitty sync mode EXTERNAL_RECEIVER --endpoint https://receiver.example/events
+    """
+    from specify_cli.delivery.config import EventSyncConfig, EventSyncConfigError, Mode
+
+    if name is None:
+        current = _load_event_sync_config()
+        console.print(f"Event sync mode: [cyan]{current.mode.name}[/cyan]")
+        return
+
+    try:
+        resolved_mode = Mode.from_token(name)
+        config = EventSyncConfig.from_mode(resolved_mode, external_endpoint=endpoint)
+    except EventSyncConfigError as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+
+    _write_event_sync_config(config.mode, config.external_endpoint)
+    console.print(
+        f"[green]✓[/green] Event sync mode set to [cyan]{config.mode.name}[/cyan]"
+    )
+    if config.mode is Mode.OPT_OUT:
+        console.print(
+            "[yellow]Note:[/yellow] OPT_OUT never silently drops Teamspace-bound "
+            "events (C-008 fail-closed); such families are refused or audited at "
+            "capture time."
+        )
 
 
 def _count_legacy_body_uploads_for_mission(mission_slug: str | None) -> int:
@@ -1696,6 +2127,21 @@ def _emit_status_check_json() -> None:
             for r in failure_set.orphan_records
         ],
     }
+
+    # Additive WP11 sections (FR-019, SC-010): merge the seven event-sync
+    # sections onto the legacy payload — every pre-existing top-level field is
+    # preserved. Best-effort: the additive sections must never break the legacy
+    # ``--check --json`` gate (NFR-006), so a build failure falls back to the
+    # legacy payload unchanged.
+    runtime: _EventSyncRuntime | None = None
+    try:
+        runtime = _open_event_sync_runtime()
+        payload = _event_sync_report(payload, runtime)
+    except Exception as exc:  # legacy --check contract must survive any failure
+        _LOG.debug("event-sync status sections unavailable: %s", exc)
+    finally:
+        if runtime is not None:
+            runtime.close()
 
     # Write directly to ``sys.stdout`` (not Rich) so the output is one
     # JSON object with no markup, panels, or wrapping.
@@ -2166,6 +2612,11 @@ def status(  # noqa: C901
     if failure_set.mismatches:
         console.print(mismatch_detail)
         console.print()
+
+    # Event-sync observability (WP12): the active retention x delivery mode
+    # plus a compact, read-only summary of the journal/ledger state.
+    _render_event_sync_status(console)
+    console.print()
 
     if not check_connection:
         console.print("[dim]Use 'spec-kitty sync status --check' to test connectivity.[/dim]")

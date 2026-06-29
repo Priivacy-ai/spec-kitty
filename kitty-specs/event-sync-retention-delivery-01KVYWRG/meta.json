@@ -17,7 +17,7 @@
   "flattened": false,
   "friendly_name": "event sync retention delivery",
   "mission_id": "01KVYWRGF148VXAXDJ90MECYRR",
-  "mission_number": null,
+  "mission_number": 153,
   "mission_slug": "event-sync-retention-delivery-01KVYWRG",
   "mission_type": "software-dev",
   "purpose_context": "This mission advances event sync retention delivery on mission/event-sync-retention-delivery so stakeholders can track the work from mission creation onward.",

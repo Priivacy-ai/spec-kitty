@@ -1,8 +1,18 @@
-"""Sync configuration management"""
+"""Sync configuration management.
+
+Target authority (WP02, contract §1): ``get_server_url`` / ``set_server_url``
+are the **config-file accessors** the canonical resolver consumes — they read
+and write ``[sync].server_url`` only and never apply env precedence. Callers
+that need the *live runtime target* must obtain a
+:class:`~specify_cli.sync.target_authority.ResolvedSyncTarget` via
+:meth:`SyncConfig.resolve_runtime_target` (which folds in ``SPEC_KITTY_SAAS_URL``
+precedence and derives the queue scope) rather than treating the raw
+``get_server_url`` value as the target.
+"""
 import sys
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import toml
 
@@ -10,6 +20,9 @@ from specify_cli.core.atomic import atomic_write
 from specify_cli.paths import get_runtime_root
 
 from .queue import DEFAULT_MAX_QUEUE_SIZE
+
+if TYPE_CHECKING:
+    from .target_authority import ResolvedSyncTarget
 
 
 class BackgroundDaemonPolicy(StrEnum):
@@ -66,6 +79,30 @@ class SyncConfig:
             config['sync'] = {}
         config['sync']['server_url'] = url
         self._save(config)
+
+    def resolve_runtime_target(
+        self,
+        *,
+        user_id: str | None = None,
+        team_slug: str | None = None,
+    ) -> "ResolvedSyncTarget":
+        """Resolve the single canonical runtime sync target (contract §1, FR-016).
+
+        This is the resolver-backed entry point every runtime surface should use
+        to learn "what target are we actually hitting?" — as opposed to
+        :meth:`get_server_url`, which is the low-level ``config.toml`` accessor
+        the resolver itself consumes. The resolver folds in the
+        ``SPEC_KITTY_SAAS_URL`` env precedence, fails-closed on an ambiguous
+        split-brain before any network call, and *derives* the queue scope from
+        the resolved URL (never an independent selector).
+
+        Imported lazily because
+        :mod:`specify_cli.sync.target_authority` imports :class:`SyncConfig`;
+        a module-level import would create a cycle.
+        """
+        from .target_authority import resolve_sync_target
+
+        return resolve_sync_target(user_id=user_id, team_slug=team_slug)
 
     def get_max_queue_size(self) -> int:
         """Get maximum offline queue size from config.

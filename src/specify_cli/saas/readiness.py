@@ -151,24 +151,43 @@ def _probe_auth(repo_root: Path) -> bool:
 
 
 def _probe_host_config() -> str | None:
-    """Return the configured SaaS base URL, or ``None`` if not configured.
+    """Return the resolved SaaS base URL, or ``None`` if no host is configured.
 
-    Calls ``specify_cli.auth.config.get_saas_base_url()`` which reads the
-    ``SPEC_KITTY_SAAS_URL`` environment variable.  Returns ``None`` when that
-    function raises ``ConfigurationError`` (env var unset or empty).
+    Two invariants are reconciled here:
 
-    Per decision D-5 this is the authoritative host URL surface — do NOT fall
-    back to ``SyncConfig.get_server_url()``.
+    * **D-5 opt-in gate** (unchanged): hosted SaaS sync requires
+      ``SPEC_KITTY_SAAS_URL``. When that env var is unset this returns ``None``
+      so the evaluator yields ``MISSING_HOST_CONFIG`` — config-file
+      ``[sync].server_url`` alone never opts a machine into hosted readiness.
+    * **Target authority** (WP02, contract §1): when the env var *is* set, the
+      URL returned is the canonical ``resolved_server_url`` from
+      :func:`~specify_cli.sync.target_authority.resolve_sync_target`, i.e. the
+      **same** target sync/WebSocket/tracker/queue-scope key off. So readiness
+      can never green-light a different URL than sync uses, even when the env
+      var overrides ``config.toml`` (SC-008).
+
+    No-raise contract: any failure degrades to ``None`` (treated as an absent
+    host) rather than propagating.
     """
     try:
         from specify_cli.auth.config import get_saas_base_url
         from specify_cli.auth.errors import ConfigurationError
 
         try:
-            url: str = get_saas_base_url()
-            return url
+            # D-5 opt-in gate: ``SPEC_KITTY_SAAS_URL`` must be set for hosted
+            # readiness. ``ConfigurationError`` here means "no host configured".
+            get_saas_base_url()
         except ConfigurationError:
             return None
+
+        # Opted in → report the canonical resolved target. When the env var
+        # overrides ``config.toml`` the resolver picks the env URL (process
+        # override), so readiness probes the **same** URL sync uses (SC-008).
+        # ``specify_cli.*`` cross-package imports are ``Any`` to mypy
+        # (follow_imports=skip); coerce ``resolved_server_url`` (a ``str``).
+        from specify_cli.sync.target_authority import resolve_sync_target
+
+        return str(resolve_sync_target().resolved_server_url)
     except Exception:  # noqa: BLE001
         return None
 

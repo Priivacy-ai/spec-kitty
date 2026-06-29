@@ -332,13 +332,24 @@ def compute_foreground_identity(*, allow_network: bool = True) -> dict[str, Any]
     When ``allow_network`` is false, auth scope resolution must use only
     local session/credential state. This keeps daemon control-plane startup
     responsive; any SaaS membership rehydrate can run after health is live.
+
+    Target authority (WP02, contract §1): when an authenticated identity is
+    available, the canonical
+    :func:`~specify_cli.sync.target_authority.resolve_sync_target` resolver
+    supplies the one ``resolved_server_url`` *and* the queue scope **derived**
+    from it (folding in ``SPEC_KITTY_SAAS_URL`` precedence). The owner record's
+    ``server_url``/``auth_scope``/``queue_db_path`` therefore always describe a
+    single coherent target — the daemon can never scope its queue to one target
+    while sync posts to another (SC-008, C-002). Unauthenticated identity keeps
+    the legacy ``queue.db`` path and the raw configured URL.
     """
     from specify_cli.sync.queue import (  # local import: cycle-safe
+        _legacy_queue_db_path,
         _read_server_url_for_scope,
-        default_queue_db_path,
         read_queue_scope_from_credentials,
         read_queue_scope_from_session,
     )
+    from specify_cli.sync.target_authority import resolve_sync_target
 
     scope = read_queue_scope_from_session(allow_rehydrate=allow_network)
     if scope is None:
@@ -353,15 +364,25 @@ def compute_foreground_identity(*, allow_network: bool = True) -> dict[str, Any]
             auth_principal = parts[1] or None
             auth_team = parts[2] or None
 
+    if auth_principal is not None:
+        target = resolve_sync_target(user_id=auth_principal, team_slug=auth_team)
+        server_url = target.resolved_server_url
+        auth_scope: str | None = target.derived_queue_scope
+        queue_db_path = str(target.queue_db_path)
+    else:
+        server_url = _read_server_url_for_scope()
+        auth_scope = None
+        queue_db_path = str(_legacy_queue_db_path())
+
     return {
         "package_version": _get_package_version(),
         "executable_path": _canonical_executable_path(sys.executable),
         "source_checkout_path": _resolve_source_checkout_path(),
-        "server_url": _read_server_url_for_scope(),
+        "server_url": server_url,
         "auth_principal": auth_principal,
         "auth_team": auth_team,
-        "auth_scope": scope,
-        "queue_db_path": str(default_queue_db_path(allow_rehydrate=allow_network)),
+        "auth_scope": auth_scope,
+        "queue_db_path": queue_db_path,
     }
 
 

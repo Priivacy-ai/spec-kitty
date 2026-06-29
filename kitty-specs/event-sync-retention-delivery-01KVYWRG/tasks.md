@@ -53,58 +53,58 @@
 | T023 | Record (not key on) deployment metadata as provenance | WP04 | | [D] |
 | T024 | Advisory reset-detection on metadata change (no identity fork) | WP04 | | [D] |
 | T025 | Tests: identity uniqueness; deployment_id churn; reset-detection | WP04 | | [D] |
-| T026 | Ledger schema (event×target; grow-to-many-targets, no schema break) | WP05 | [D] |
-| T027 | success/duplicate → terminal-success rows (never delete journal) | WP05 | | [D] |
-| T028 | pending/rejected/failed_transient ledger states | WP05 | | [D] |
-| T029 | Terminal-failed state (FR-015 storage; payload retained) | WP05 | | [D] |
-| T030 | Selection query: undelivered-for-target, excluding terminal-failed | WP05 | | [D] |
-| T031 | Delivered-anywhere query (consumed by WP08) | WP05 | | [D] |
-| T032 | Index design + state-transition + idempotent-redelivery tests | WP05 | | [D] |
-| T033 | `DeliveryReceiver` protocol (endpoint/auth/result-map/retry/gates) | WP06 | [D] |
-| T034 | TeamspaceReceiver (`/api/v1/events/batch/`, Bearer, SaaS+PrivateTeamspace gates) | WP06 | | [D] |
-| T035 | ExternalReceiver (operator URL/auth, no Teamspace gating) | WP06 | | [D] |
-| T036 | StubReceiver (localhost, no creds — a real receiver, not a test fork) | WP06 | | [D] |
-| T037 | Additive `batch-api-contract.md` update (ledger-on-success; body-upload untouched) | WP06 | | [D] |
-| T038 | Tests: fork-CI on stub (no creds); stub≡Teamspace ledger state | WP06 | | [D] |
-| T039 | Dispatcher select phase (active target; exclude terminal-failed) | WP07 | [D] |
-| T040 | Post phase via the active target's DeliveryReceiver | WP07 | | [D] |
-| T041 | Record phase → ledger (success/dup terminal; pending/rejected/transient state); never delete | WP07 | | [D] |
-| T042 | `failed_permanent` → terminal-failed (excluded from future selection) | WP07 | | [D] |
-| T043 | Re-drain to a new target (FR-005) | WP07 | | [D] |
-| T044 | Complexity discipline: select/post/record each ≤15 | WP07 | | [D] |
-| T045 | Tests: A→B replay; re-sync skips; oversized progresses + inspectable | WP07 | | [D] |
-| T046 | Coalesce only events with no terminal delivery (uses T031) | WP08 | [D] |
-| T047 | Delivered → immutable; new event = new row + mark prior superseded | WP08 | | [D] |
-| T048 | Register coalesce strategy into the WP03 journal seam | WP08 | | [D] |
-| T049 | **REQUIRED DB test**: coalesce vs delivered event → bytes unchanged (NFR-002) | WP08 | | [D] |
-| T050 | Tests: undelivered collapse; superseded marker; no mutation of delivered | WP08 | | [D] |
-| T051 | `EventSyncConfig`: retention × delivery axes | WP09 | [D] |
-| T052 | Four presets (TEAMSPACE / EXTERNAL_RECEIVER / LOCAL_RETENTION / OPT_OUT) | WP09 | | [D] |
-| T053 | Mode → (receiver, retention) resolution wired to WP06 | WP09 | | [D] |
-| T054 | OPT_OUT discards only local-only/discardable; refuse/audit Teamspace-bound (C-008) | WP09 | | [D] |
-| T055 | Tests: per-mode observable on-disk + network behavior | WP09 | | [D] |
-| T056 | Discover ALL `queue-<digest>.db` + legacy `queue.db` | WP10 | [D] |
-| T057 | Best-effort or `unknown` target; never fabricate identity from a one-way digest | WP10 | | [D] |
-| T058 | Transactional per source DB + idempotent re-run (NFR-005) | WP10 | | [D] |
-| T059 | Identical dup `event_id` imports once with all provenance | WP10 | | [D] |
-| T060 | Divergent dup → conflict/audit row; source untouched; cleanup blocked; non-zero | WP10 | | [D] |
-| T061 | Never rewrite event IDs; only currently-queued payloads survive | WP10 | | [D] |
-| T062 | Retire event-queueing from `queue.py`; keep body-upload tables (C-006) | WP10 | | [D] |
-| T063 | Tests: multi-DB; unknown digest; identical dup; divergent dup | WP10 | | [D] |
-| T064 | Assemble additive JSON sections (7 sections) | WP11 | [D] |
-| T065 | Distinct counts: retained / current-target / previous-target / terminal-failed / body-upload + oldest ts | WP11 | | [D] |
-| T066 | gc/archive logic (explicit-only; preserve ledger history) | WP11 | | [D] |
-| T067 | GC suggestion only when large AND fully delivered (NFR-004) | WP11 | | [D] |
-| T068 | Preserve existing counts; no field implies body-upload == journal (NFR-006) | WP11 | | [D] |
-| T069 | Additive `sync-status-output.md` contract update (old fields preserved) | WP11 | | [D] |
-| T070 | Tests: JSON has new sections + old fields; counts distinguished; GC gating | WP11 | | [D] |
-| T071 | Wire `sync now` → dispatcher; `sync server` → target authority | WP12 | [D] |
-| T072 | Wire `sync status` + `--check --json` → status_report | WP12 | | [D] |
-| T073 | Wire `sync gc` / `sync archive` → retention (explicit destructive only) | WP12 | | [D] |
-| T074 | Wire EventSyncConfig mode selection → WP09 | WP12 | | [D] |
-| T075 | Preserve backward-compatible behavior of existing flags (NFR-006) | WP12 | | [D] |
-| T076 | Terminology Canon: no `feature*` aliases in new flags/commands | WP12 | | [D] |
-| T077 | Tests: observable CLI output (not call order, NFR-001) | WP12 | | [D] |
+| T026 | Ledger schema (event×target; grow-to-many-targets, no schema break) | WP05 | [P] |
+| T027 | success/duplicate → terminal-success rows (never delete journal) | WP05 | |
+| T028 | pending/rejected/failed_transient ledger states | WP05 | |
+| T029 | Terminal-failed state (FR-015 storage; payload retained) | WP05 | |
+| T030 | Selection query: undelivered-for-target, excluding terminal-failed | WP05 | |
+| T031 | Delivered-anywhere query (consumed by WP08) | WP05 | |
+| T032 | Index design + state-transition + idempotent-redelivery tests | WP05 | |
+| T033 | `DeliveryReceiver` protocol (endpoint/auth/result-map/retry/gates) | WP06 | [P] |
+| T034 | TeamspaceReceiver (`/api/v1/events/batch/`, Bearer, SaaS+PrivateTeamspace gates) | WP06 | |
+| T035 | ExternalReceiver (operator URL/auth, no Teamspace gating) | WP06 | |
+| T036 | StubReceiver (localhost, no creds — a real receiver, not a test fork) | WP06 | |
+| T037 | Additive `batch-api-contract.md` update (ledger-on-success; body-upload untouched) | WP06 | |
+| T038 | Tests: fork-CI on stub (no creds); stub≡Teamspace ledger state | WP06 | |
+| T039 | Dispatcher select phase (active target; exclude terminal-failed) | WP07 | [P] |
+| T040 | Post phase via the active target's DeliveryReceiver | WP07 | |
+| T041 | Record phase → ledger (success/dup terminal; pending/rejected/transient state); never delete | WP07 | |
+| T042 | `failed_permanent` → terminal-failed (excluded from future selection) | WP07 | |
+| T043 | Re-drain to a new target (FR-005) | WP07 | |
+| T044 | Complexity discipline: select/post/record each ≤15 | WP07 | |
+| T045 | Tests: A→B replay; re-sync skips; oversized progresses + inspectable | WP07 | |
+| T046 | Coalesce only events with no terminal delivery (uses T031) | WP08 | [P] |
+| T047 | Delivered → immutable; new event = new row + mark prior superseded | WP08 | |
+| T048 | Register coalesce strategy into the WP03 journal seam | WP08 | |
+| T049 | **REQUIRED DB test**: coalesce vs delivered event → bytes unchanged (NFR-002) | WP08 | |
+| T050 | Tests: undelivered collapse; superseded marker; no mutation of delivered | WP08 | |
+| T051 | `EventSyncConfig`: retention × delivery axes | WP09 | [P] |
+| T052 | Four presets (TEAMSPACE / EXTERNAL_RECEIVER / LOCAL_RETENTION / OPT_OUT) | WP09 | |
+| T053 | Mode → (receiver, retention) resolution wired to WP06 | WP09 | |
+| T054 | OPT_OUT discards only local-only/discardable; refuse/audit Teamspace-bound (C-008) | WP09 | |
+| T055 | Tests: per-mode observable on-disk + network behavior | WP09 | |
+| T056 | Discover ALL `queue-<digest>.db` + legacy `queue.db` | WP10 | [P] |
+| T057 | Best-effort or `unknown` target; never fabricate identity from a one-way digest | WP10 | |
+| T058 | Transactional per source DB + idempotent re-run (NFR-005) | WP10 | |
+| T059 | Identical dup `event_id` imports once with all provenance | WP10 | |
+| T060 | Divergent dup → conflict/audit row; source untouched; cleanup blocked; non-zero | WP10 | |
+| T061 | Never rewrite event IDs; only currently-queued payloads survive | WP10 | |
+| T062 | Retire event-queueing from `queue.py`; keep body-upload tables (C-006) | WP10 | |
+| T063 | Tests: multi-DB; unknown digest; identical dup; divergent dup | WP10 | |
+| T064 | Assemble additive JSON sections (7 sections) | WP11 | [P] |
+| T065 | Distinct counts: retained / current-target / previous-target / terminal-failed / body-upload + oldest ts | WP11 | |
+| T066 | gc/archive logic (explicit-only; preserve ledger history) | WP11 | |
+| T067 | GC suggestion only when large AND fully delivered (NFR-004) | WP11 | |
+| T068 | Preserve existing counts; no field implies body-upload == journal (NFR-006) | WP11 | |
+| T069 | Additive `sync-status-output.md` contract update (old fields preserved) | WP11 | |
+| T070 | Tests: JSON has new sections + old fields; counts distinguished; GC gating | WP11 | |
+| T071 | Wire `sync now` → dispatcher; `sync server` → target authority | WP12 | [P] |
+| T072 | Wire `sync status` + `--check --json` → status_report | WP12 | |
+| T073 | Wire `sync gc` / `sync archive` → retention (explicit destructive only) | WP12 | |
+| T074 | Wire EventSyncConfig mode selection → WP09 | WP12 | |
+| T075 | Preserve backward-compatible behavior of existing flags (NFR-006) | WP12 | |
+| T076 | Terminology Canon: no `feature*` aliases in new flags/commands | WP12 | |
+| T077 | Tests: observable CLI output (not call order, NFR-001) | WP12 | |
 
 ---
 

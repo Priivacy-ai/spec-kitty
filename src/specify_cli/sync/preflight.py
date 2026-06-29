@@ -381,16 +381,42 @@ def _read_queue_scope_local_only() -> str | None:
 
     Never calls ``resolve_private_team_id_for_ingress`` and never reaches
     ``rehydrate_membership_if_needed``.
+
+    Target authority (WP02, contract §1): the scope is **derived** from
+    :func:`~specify_cli.sync.target_authority.resolve_sync_target`
+    (``derived_queue_scope`` = resolved URL + identity), never re-derived here
+    from a self-read URL. So preflight, the owner record, and sync all key off
+    the same resolved target even when ``SPEC_KITTY_SAAS_URL`` overrides
+    ``config.toml`` (SC-008). The resolver is purely descriptive — it opens no
+    connection, so the read-only/no-SaaS contract is preserved.
+    """
+    identity = _read_scope_identity_local_only()
+    if identity is None:
+        return None
+    email, team_id = identity
+
+    from specify_cli.sync.target_authority import resolve_sync_target
+
+    # ``specify_cli.*`` cross-package imports are ``Any`` to mypy
+    # (follow_imports=skip); coerce ``derived_queue_scope`` (a ``str``) at the
+    # typed boundary.
+    return str(resolve_sync_target(user_id=email, team_slug=team_id).derived_queue_scope)
+
+
+def _read_scope_identity_local_only() -> tuple[str, str] | None:
+    """Return ``(email, team_id)`` from local session/credentials only — no SaaS.
+
+    Strictly on-disk / in-memory reads: the in-memory ``TokenManager`` session
+    is inspected via the **pure** :func:`require_private_team_id` (never the
+    rehydrating ``resolve_private_team_id_for_ingress``), then the on-disk
+    ``credentials`` TOML. Returns ``None`` when no authenticated identity can be
+    resolved locally, which the preflight treats as unauthenticated.
     """
     # Local imports keep module import-time cheap and avoid top-level
     # cycles with sync.queue / auth.
     from specify_cli.auth.manager import get_token_manager
     from specify_cli.auth.session import StoredSession, require_private_team_id
-    from specify_cli.sync.queue import (
-        _read_server_url_for_scope,
-        build_queue_scope,
-        read_queue_scope_from_credentials,
-    )
+    from specify_cli.sync.queue import read_queue_scope_from_credentials
 
     # Step 1: try the in-memory session via PURE helpers only.
     session: StoredSession | None
@@ -408,17 +434,16 @@ def _read_queue_scope_local_only() -> str | None:
         # behaviour the preflight contract requires.
         team_id = require_private_team_id(session)
         if team_id is not None:
-            scope: str = build_queue_scope(
-                server_url=_read_server_url_for_scope(),
-                username=session.email,
-                team_slug=team_id,
-            )
-            return scope
+            return session.email, team_id
 
     # Step 2: fall back to the on-disk credentials file (TOML read,
-    # no SaaS round-trip).
+    # no SaaS round-trip). Canonical scope is ``server|user|team``.
     credentials_scope: str | None = read_queue_scope_from_credentials()
-    return credentials_scope
+    if credentials_scope:
+        parts = credentials_scope.split("|")
+        if len(parts) == 3 and parts[1]:
+            return parts[1], parts[2] or "no-team"
+    return None
 
 
 def _resolve_queue_db_path_readonly() -> Path:
@@ -487,33 +512,29 @@ def collect_foreground_identity(repo_root: Path) -> ForegroundIdentity:
     # round-trip. We use :func:`_read_queue_scope_local_only` instead —
     # strictly on-disk + pure-function reads.
     from specify_cli.sync.daemon import _get_package_version
-    from specify_cli.sync.queue import _read_server_url_for_scope
+    from specify_cli.sync.target_authority import resolve_sync_target
 
-    scope = _read_queue_scope_local_only()
+    # Target authority (WP02, contract §1): resolve the one canonical target
+    # ONCE from the local identity. ``server_url`` and the queue db path then
+    # both describe that single resolved target (env-or-config), so the
+    # foreground can never compare against the daemon on a split target
+    # (SC-008). ``server_url``/``team_or_user`` stay ``None`` exactly when no
+    # authenticated identity is present (data-model invariant).
+    identity = _read_scope_identity_local_only()
 
-    auth_principal: str | None = None
-    auth_team: str | None = None
-    if scope is not None:
-        # Canonical scope is ``server|user|team`` (see build_queue_scope).
-        parts = scope.split("|")
-        if len(parts) == 3:
-            auth_principal = parts[1] or None
-            auth_team = parts[2] or None
-
-    server_url_raw = _read_server_url_for_scope() if scope is not None else None
-
-    # team_or_user is set iff server_url is set (invariant). Treat empty
-    # strings as None for robustness against credential-file edge cases.
-    has_auth = bool(auth_principal) and bool(server_url_raw)
-    server_url: str | None = str(server_url_raw) if has_auth else None
-    principal_display = (
-        f"{auth_principal}/{auth_team}" if auth_team else str(auth_principal)
-    )
-    team_or_user = principal_display if has_auth else None
+    server_url: str | None = None
+    team_or_user: str | None = None
+    if identity is not None:
+        email, team_id = identity
+        target = resolve_sync_target(user_id=email, team_slug=team_id)
+        server_url = target.resolved_server_url
+        team_or_user = f"{email}/{team_id}" if team_id else str(email)
+        queue_db_path = target.queue_db_path
+    else:
+        queue_db_path = _resolve_queue_db_path_readonly()
 
     executable_path = Path(_canonical_executable_path(sys.executable))
     source_path = _resolve_source_path()
-    queue_db_path = _resolve_queue_db_path_readonly()
 
     return ForegroundIdentity(
         package_version=str(_get_package_version()),
