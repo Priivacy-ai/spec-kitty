@@ -10,5 +10,7 @@
   "purpose_tldr": "event sync retention delivery",
   "slug": "event-sync-retention-delivery-01KVYWRG",
   "target_branch": "mission/event-sync-retention-delivery",
-  "topology": "single_branch"
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-29T07:20:05.409867+00:00"
 }
