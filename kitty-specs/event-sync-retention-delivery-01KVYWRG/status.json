@@ -1,16 +1,16 @@
 {
-  "event_count": 83,
-  "last_event_id": "01KW9GQC8AESQ2X62W4N3G4A3Y",
-  "materialized_at": "2026-06-29T11:02:41.162181+00:00",
+  "event_count": 84,
+  "last_event_id": "01KW9GQD8R949FYNCZKS158ST8",
+  "materialized_at": "2026-06-29T11:02:42.200907+00:00",
   "mission_number": "153",
   "mission_slug": "event-sync-retention-delivery-01KVYWRG",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 6,
+    "approved": 5,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 6,
+    "done": 7,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
@@ -67,11 +67,11 @@
       "last_transition_at": "2026-06-29T09:44:35.899865+00:00"
     },
     "WP08": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 0,
-      "lane": "approved",
-      "last_event_id": "01KW9AXY7B9ZQZN3P6GY97YGYG",
-      "last_transition_at": "2026-06-29T09:21:24.715102+00:00"
+      "lane": "done",
+      "last_event_id": "01KW9GQD8R949FYNCZKS158ST8",
+      "last_transition_at": "2026-06-29T11:02:42.200907+00:00"
     },
     "WP09": {
       "actor": "user",
