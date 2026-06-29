@@ -24,8 +24,8 @@ subtasks:
 - T045
 phase: Phase 4 - Dispatch
 assignee: ''
-agent: "claude:opus:python-pedro:implementer"
-shell_pid: "74373"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "77949"
 history:
 - at: '2026-06-29T06:21:37Z'
   actor: system
@@ -262,3 +262,5 @@ For `/spec-kitty.review`, verify against the contract's §3 "Required tests" and
 > Entries chronological, appended at END. Format: `- YYYY-MM-DDTHH:MM:SSZ – <agent_id> – <action>`
 - 2026-06-29T06:21:37Z – system – Prompt created.
 - 2026-06-29T09:25:03Z – claude:opus:python-pedro:implementer – shell_pid=74373 – Assigned agent via action command
+- 2026-06-29T09:39:18Z – claude:opus:python-pedro:implementer – shell_pid=74373 – for_review (propagate; lane pristine at befc1f36a)
+- 2026-06-29T09:39:34Z – claude:opus:reviewer-renata:reviewer – shell_pid=77949 – Started review via action command
