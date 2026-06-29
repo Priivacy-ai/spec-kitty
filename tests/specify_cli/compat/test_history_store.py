@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import sqlite3
 import threading
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
@@ -227,18 +227,23 @@ class TestConsecutiveFailureCount:
 
     def test_stops_counting_at_success(self, tmp_path: Path) -> None:
         store = _make_store(tmp_path)
-        # Insert: success, then 2 failures
+        # Timestamps are relative to *now* so the rows always fall inside the
+        # 300s recency window of consecutive_failure_count() — otherwise the
+        # test silently starts returning 0 once wall-clock advances past any
+        # fixed seed date (the window is now - window_seconds).
+        now = datetime.now(UTC)
+        # Insert: success (oldest), then 2 more-recent failures.
         store.append(_make_record(
             attempt_id="01HSUCC0000000000000001",
             outcome=UpgradeAttemptOutcome.SUCCESS,
-            timestamp=datetime(2026, 6, 26, 10, 0, 0, tzinfo=UTC),
+            timestamp=now - timedelta(seconds=60),
         ))
         for i in range(2):
             store.append(_make_record(
                 attempt_id=f"01HFAILAFTER{str(i).zfill(14)}",
                 outcome=UpgradeAttemptOutcome.FAILURE,
                 exit_code=1,
-                timestamp=datetime(2026, 6, 26, 11, i, 0, tzinfo=UTC),
+                timestamp=now - timedelta(seconds=40 - i * 10),
             ))
         assert store.consecutive_failure_count(InstallMethod.UV_TOOL) == 2
 
@@ -487,4 +492,19 @@ class TestNoFdLeakOnErrorPath:
         monkeypatch.setattr(store, "_connect", lambda: mock_conn)
         result = store.last_success_timestamp(InstallMethod.UV_TOOL)
         assert result is None  # fail-open contract preserved
+        mock_conn.close.assert_called_once()
+
+    def test_connect_closes_conn_when_schema_init_raises(
+        self, tmp_path: Path, monkeypatch: Any
+    ) -> None:
+        """A failure during PRAGMA/CREATE must close the fd before propagating.
+
+        Otherwise the just-opened connection leaks (the caller's
+        contextlib.closing only engages once _connect returns).
+        """
+        store = _make_store(tmp_path)
+        mock_conn = self._make_erroring_conn()
+        monkeypatch.setattr(sqlite3, "connect", lambda *a, **k: mock_conn)
+        with pytest.raises(sqlite3.OperationalError):
+            store._connect()  # noqa: SLF001
         mock_conn.close.assert_called_once()

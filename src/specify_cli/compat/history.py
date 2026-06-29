@@ -171,13 +171,23 @@ class UpgradeAttemptStore:
         self._db_path: Path = db_path if db_path is not None else default_history_db_path()
 
     def _connect(self) -> sqlite3.Connection:
-        """Open (or create) the SQLite database with WAL mode and the schema."""
+        """Open (or create) the SQLite database with WAL mode and the schema.
+
+        If schema initialisation raises (e.g. PRAGMA/CREATE on a locked or
+        corrupt DB) the just-opened connection is closed before the error
+        propagates — otherwise the fd leaks, since the caller's
+        ``contextlib.closing`` only engages once this method returns.
+        """
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute(_CREATE_TABLE_SQL)
-        conn.execute(_CREATE_INDEX_METHOD_SQL)
-        conn.commit()
+        try:
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute(_CREATE_TABLE_SQL)
+            conn.execute(_CREATE_INDEX_METHOD_SQL)
+            conn.commit()
+        except Exception:
+            conn.close()
+            raise
         return conn
 
     def append(self, record: UpgradeAttemptRecord) -> None:

@@ -48,6 +48,13 @@ class UvRequirement:
 
     Fields mirror the uv receipt TOML schema. Only ``name`` is required;
     all others are optional depending on the requirement source type.
+
+    ``is_supported`` is ``False`` when the source entry carried a key the
+    domain does not model (e.g. a future/unknown uv receipt source kind).
+    It is load-bearing for provenance preservation (FR-019 / SC-003,
+    issue #1358 "nothing discarded"): a remediation planner MUST refuse to
+    reconstruct a command from an unsupported entry rather than silently
+    collapse it to a PyPI name — which would clobber the user's real source.
     """
 
     name: str
@@ -57,6 +64,7 @@ class UvRequirement:
     path: str | None = None
     git: str | None = None
     url: str | None = None
+    is_supported: bool = True
 
 
 # ---------------------------------------------------------------------------

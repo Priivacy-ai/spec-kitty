@@ -29,7 +29,6 @@ import os
 import site
 import subprocess
 import sys
-import tomllib
 from collections.abc import Callable
 from enum import StrEnum
 from pathlib import Path
@@ -110,28 +109,16 @@ def _is_uv_tool_install(executable: str) -> bool:
 
 
 def _has_uv_tool_receipt(exe_path: Path) -> bool:
-    """Return True when *exe_path* belongs to a uv tool environment."""
-    try:
-        executable_parent = exe_path.parent
-        if executable_parent.name.lower() not in {"bin", "scripts"}:
-            return False
+    """Return True when *exe_path* belongs to a uv tool environment.
 
-        tool_env = executable_parent.parent
-        receipt_path = tool_env / "uv-receipt.toml"
-        if not receipt_path.exists():
-            return False
+    Delegates to the single authoritative receipt probe (``UvReceiptReader``,
+    FR-007 / issue #1358 "uv receipt parsing lives in one adapter"). Imported
+    inside the body to preserve this module's deferred import choreography
+    (runtime.py imports install_method only via deferred bodies).
+    """
+    from specify_cli.compat._adapters.uv_receipt import UvReceiptReader
 
-        receipt = tomllib.loads(receipt_path.read_text(encoding="utf-8"))
-        requirements = receipt.get("tool", {}).get("requirements", [])
-        if isinstance(requirements, list):
-            for requirement in requirements:
-                if isinstance(requirement, dict) and requirement.get("name") == _PACKAGE_NAME:
-                    return True
-
-        return False
-    except Exception:  # noqa: BLE001
-        pass
-    return False
+    return UvReceiptReader.exists_for(exe_path)
 
 
 def _is_pipx_install(executable: str) -> bool:

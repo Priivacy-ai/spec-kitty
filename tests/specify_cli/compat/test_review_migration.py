@@ -35,6 +35,7 @@ def _make_runtime(
     python: str | None = None,
     platform: str = "posix",
     receipt_path: Path | None = None,
+    requirements: tuple[object, ...] = (),
 ) -> object:
     """Construct an InstalledCliRuntime for monkeypatching detect_runtime().
 
@@ -45,6 +46,7 @@ def _make_runtime(
         python: Python version override from receipt (UV_TOOL only).
         platform: "posix" or "windows".
         receipt_path: Path to the receipt file, or None.
+        requirements: uv receipt requirement entries (provenance).
     """
     from specify_cli.compat._detect.install_method import (
         InstallMethod,
@@ -66,7 +68,7 @@ def _make_runtime(
         is_default_tool_dir=is_default_tool_dir,
         is_default_bin_dir=None,
         python=python,
-        requirements=(),
+        requirements=requirements,  # type: ignore[arg-type]
         package_source=(
             PackageSource.PYPI_SPECIFIER
             if method == InstallMethod.UV_TOOL
@@ -77,6 +79,13 @@ def _make_runtime(
     )
 
 
+def _spec_kitty_req(**kwargs: object) -> object:
+    """A spec-kitty-cli uv requirement entry (provenance)."""
+    from specify_cli.compat._detect.runtime import UvRequirement
+
+    return UvRequirement(name="spec-kitty-cli", **kwargs)  # type: ignore[arg-type]
+
+
 # ---------------------------------------------------------------------------
 # T021-A  Byte-for-byte parity: UV_TOOL custom tool_dir + python override
 # ---------------------------------------------------------------------------
@@ -85,15 +94,13 @@ def _make_runtime(
 def test_uv_tool_custom_tool_dir_and_python_snapshot(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """UV_TOOL with non-default tool_dir + python override produces a pinned command.
+    """UV_TOOL with non-default tool_dir + python override preserves provenance.
 
-    Snapshot: UV_TOOL_DIR=/opt/uv uv tool install --force --python 3.13 spec-kitty-cli --extra test
-    (85 chars, well within CHK028's 128-char ceiling)
+    Snapshot: UV_TOOL_DIR=/opt/uv uv tool install --force --python 3.13 --with pytest spec-kitty-cli==3.2.0rc25
 
-    A short fixed path is used so the composed command never exceeds CHK028's
-    128-char limit regardless of the machine's tmp directory depth.
-    This is the byte-for-byte regression guard for the REINSTALL_WITH_TEST path
-    after the Set A helpers were deleted.
+    Byte-for-byte regression guard for the REINSTALL_WITH_TEST path: the
+    receipt specifier is preserved (never re-pinned), pytest is injected via
+    ``--with pytest`` (FR-019 / SC-003 / issue #1358).
     """
     import specify_cli.cli.commands.review as review_mod
 
@@ -103,6 +110,8 @@ def test_uv_tool_custom_tool_dir_and_python_snapshot(
         tool_dir=tool_dir,
         is_default_tool_dir=False,
         python="3.13",
+        receipt_path=tool_dir / "uv-receipt.toml",
+        requirements=(_spec_kitty_req(specifier="==3.2.0rc25"),),
     )
     monkeypatch.setattr(
         "specify_cli.cli.commands.review.detect_runtime",
@@ -111,33 +120,42 @@ def test_uv_tool_custom_tool_dir_and_python_snapshot(
 
     result = review_mod._missing_test_extra_remediation()  # noqa: SLF001
     expected = (
-        "UV_TOOL_DIR=/opt/uv uv tool install --force --python 3.13 spec-kitty-cli --extra test"
+        "UV_TOOL_DIR=/opt/uv uv tool install --force --python 3.13 "
+        "--with pytest spec-kitty-cli==3.2.0rc25"
     )
     assert result == expected, f"Snapshot mismatch: {result!r}"
 
 
 # ---------------------------------------------------------------------------
-# T021-B  UV_TOOL default tool_dir: no env prefix in output
+# T021-B  UV_TOOL directory install: provenance preserved, NOT re-pinned to PyPI
 # ---------------------------------------------------------------------------
 
 
-def test_uv_tool_default_tool_dir_no_env_prefix(
+def test_uv_tool_directory_source_not_clobbered(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """UV_TOOL with the default tool_dir emits a short, env-prefix-free command.
+    """A local directory uv-tool install must reinstall from that directory.
 
-    Snapshot: uv tool install --force spec-kitty-cli --extra test
+    Regression guard for the clobber bug: re-pinning a source install to the
+    PyPI release destroys the user's working checkout linkage.
+    Snapshot: uv tool install --force --with pytest /src
     """
     import specify_cli.cli.commands.review as review_mod
 
-    runtime = _make_runtime("UV_TOOL", is_default_tool_dir=True)
+    runtime = _make_runtime(
+        "UV_TOOL",
+        is_default_tool_dir=True,
+        receipt_path=Path("/t/uv-receipt.toml"),
+        requirements=(_spec_kitty_req(directory="/src"),),
+    )
     monkeypatch.setattr(
         "specify_cli.cli.commands.review.detect_runtime",
         lambda: runtime,
     )
 
     result = review_mod._missing_test_extra_remediation()  # noqa: SLF001
-    assert result == "uv tool install --force spec-kitty-cli --extra test"
+    assert result == "uv tool install --force --with pytest /src"
+    assert "spec-kitty-cli" not in result  # never re-pinned to PyPI
 
 
 # ---------------------------------------------------------------------------
@@ -216,6 +234,8 @@ def test_windows_non_default_tool_dir_chk028_fallback(
         tool_dir=tool_dir,
         is_default_tool_dir=False,
         platform="windows",
+        receipt_path=tool_dir / "uv-receipt.toml",
+        requirements=(_spec_kitty_req(specifier="==3.2.0rc25"),),
     )
     monkeypatch.setattr(
         "specify_cli.cli.commands.review.detect_runtime",
@@ -225,8 +245,8 @@ def test_windows_non_default_tool_dir_chk028_fallback(
     result = review_mod._missing_test_extra_remediation()  # noqa: SLF001
     # render("windows") raises ValueError (CHK028): $env:UV_TOOL_DIR='/opt/uv';
     # contains $, ', ; which are outside the CHK028 character class.
-    # -> fallback to cmd.note (None) -> hardcoded "see spec-kitty docs"
-    assert result == "see spec-kitty docs"
+    # -> fallback to cmd.note, which carries the safe provenance guidance.
+    assert "could not preserve uv receipt provenance" in result
 
 
 # ---------------------------------------------------------------------------
@@ -248,6 +268,8 @@ def test_windows_default_tool_dir_renders_successfully(
         "UV_TOOL",
         is_default_tool_dir=True,
         platform="windows",
+        receipt_path=Path("/t/uv-receipt.toml"),
+        requirements=(_spec_kitty_req(specifier="==3.2.0rc25"),),
     )
     monkeypatch.setattr(
         "specify_cli.cli.commands.review.detect_runtime",
@@ -255,4 +277,4 @@ def test_windows_default_tool_dir_renders_successfully(
     )
 
     result = review_mod._missing_test_extra_remediation()  # noqa: SLF001
-    assert result == "uv tool install --force spec-kitty-cli --extra test"
+    assert result == "uv tool install --force --with pytest spec-kitty-cli==3.2.0rc25"

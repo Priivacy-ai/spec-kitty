@@ -25,7 +25,11 @@ from unittest import mock
 import pytest
 
 from specify_cli.compat._detect.install_method import InstallMethod
-from specify_cli.compat._detect.runtime import InstalledCliRuntime, PackageSource
+from specify_cli.compat._detect.runtime import (
+    InstalledCliRuntime,
+    PackageSource,
+    UvRequirement,
+)
 from specify_cli.compat.remediation import (
     RemediationCommand,
     RemediationIntent,
@@ -99,6 +103,202 @@ def _uv_custom_runtime(
         python=python,
         platform=platform,
     )
+
+
+# ---------------------------------------------------------------------------
+# Provenance fixtures (FR-019 / SC-003 / issue #1358)
+# ---------------------------------------------------------------------------
+
+
+def _req(
+    name: str = "spec-kitty-cli",
+    *,
+    specifier: str | None = None,
+    directory: str | None = None,
+    editable: str | None = None,
+    path: str | None = None,
+    git: str | None = None,
+    url: str | None = None,
+    is_supported: bool = True,
+) -> UvRequirement:
+    return UvRequirement(
+        name=name,
+        specifier=specifier,
+        directory=directory,
+        editable=editable,
+        path=path,
+        git=git,
+        url=url,
+        is_supported=is_supported,
+    )
+
+
+def _uv_runtime_with_reqs(
+    requirements: tuple[UvRequirement, ...],
+    *,
+    tool_dir: Path | None = None,
+    is_default_tool_dir: bool | None = True,
+    bin_dir: Path | None = None,
+    is_default_bin_dir: bool | None = None,
+    python: str | None = None,
+    receipt_path: Path | None = None,
+    platform: Literal["posix", "windows"] = "posix",
+) -> InstalledCliRuntime:
+    """A UV_TOOL runtime carrying a provenance-rich requirements tuple."""
+    return InstalledCliRuntime(
+        install_method=InstallMethod.UV_TOOL,
+        executable="/usr/local/bin/python3",
+        receipt_path=receipt_path,
+        tool_dir=tool_dir,
+        bin_dir=bin_dir,
+        is_default_tool_dir=is_default_tool_dir,
+        is_default_bin_dir=is_default_bin_dir,
+        python=python,
+        requirements=requirements,
+        package_source=PackageSource.PYPI_SPECIFIER,
+        platform=platform,
+        safe_for_auto_upgrade=True,
+    )
+
+
+_RECEIPT = Path("/t/uv-receipt.toml")
+
+
+def _reinstall(runtime: InstalledCliRuntime) -> RemediationCommand:
+    return plan_remediation(runtime, RemediationIntent.REINSTALL_WITH_TEST, None)
+
+
+class TestUvToolReinstallProvenance:
+    """REINSTALL_WITH_TEST must preserve install provenance, never re-pin to PyPI.
+
+    Byte-for-byte ports of the pre-migration ``review`` provenance guards
+    (issue #1358 acceptance criterion: provenance modeled for PyPI pins,
+    directory, editable, path, git, url, and injected deps — nothing discarded).
+    A regression here silently clobbers a source/editable/git install with the
+    PyPI release.
+    """
+
+    def test_directory_source_preserved(self) -> None:
+        cmd = _reinstall(_uv_runtime_with_reqs((_req(directory="/src"),), receipt_path=_RECEIPT))
+        assert cmd.render("posix") == "uv tool install --force --with pytest /src"
+
+    def test_editable_source_preserved(self) -> None:
+        cmd = _reinstall(_uv_runtime_with_reqs((_req(editable="/src"),), receipt_path=_RECEIPT))
+        assert cmd.render("posix") == (
+            "uv tool install --force --with pytest --editable /src"
+        )
+
+    def test_path_source_preserved(self) -> None:
+        cmd = _reinstall(_uv_runtime_with_reqs((_req(path="/src"),), receipt_path=_RECEIPT))
+        assert cmd.render("posix") == "uv tool install --force --with pytest /src"
+
+    def test_git_source_preserved(self) -> None:
+        cmd = _reinstall(
+            _uv_runtime_with_reqs((_req(git="file:///tmp/spec-kitty"),), receipt_path=_RECEIPT)
+        )
+        assert cmd.render("posix") == (
+            "uv tool install --force --with pytest spec-kitty-cli --from git+file:///tmp/spec-kitty"
+        )
+
+    def test_url_source_preserved(self) -> None:
+        cmd = _reinstall(
+            _uv_runtime_with_reqs(
+                (_req(url="https://example.test/pkg.whl"),), receipt_path=_RECEIPT
+            )
+        )
+        assert cmd.render("posix") == (
+            "uv tool install --force --with pytest https://example.test/pkg.whl"
+        )
+
+    def test_specifier_preserved(self) -> None:
+        cmd = _reinstall(
+            _uv_runtime_with_reqs((_req(specifier="==3.2.0rc25"),), receipt_path=_RECEIPT)
+        )
+        assert cmd.render("posix") == (
+            "uv tool install --force --with pytest spec-kitty-cli==3.2.0rc25"
+        )
+
+    def test_bare_name_maps_to_pypi(self) -> None:
+        cmd = _reinstall(_uv_runtime_with_reqs((_req(),), receipt_path=_RECEIPT))
+        assert cmd.render("posix") == (
+            "uv tool install --force --with pytest spec-kitty-cli"
+        )
+
+    def test_injected_dep_carried_through(self) -> None:
+        cmd = _reinstall(
+            _uv_runtime_with_reqs(
+                (_req(git="file:///tmp/spec-kitty"), _req(name="click")),
+                receipt_path=_RECEIPT,
+            )
+        )
+        assert cmd.render("posix") == (
+            "uv tool install --force --with click --with pytest "
+            "spec-kitty-cli --from git+file:///tmp/spec-kitty"
+        )
+
+    def test_injected_editable_dep_stays_editable(self) -> None:
+        cmd = _reinstall(
+            _uv_runtime_with_reqs(
+                (_req(specifier="==3.2.0rc25"), _req(name="extra-dep", editable="/extra")),
+                receipt_path=_RECEIPT,
+            )
+        )
+        assert cmd.render("posix") == (
+            "uv tool install --force --with-editable /extra --with pytest "
+            "spec-kitty-cli==3.2.0rc25"
+        )
+
+    def test_existing_pytest_not_duplicated(self) -> None:
+        cmd = _reinstall(
+            _uv_runtime_with_reqs(
+                (_req(specifier="==3.2.0rc25"), _req(name="pytest")),
+                receipt_path=_RECEIPT,
+            )
+        )
+        assert cmd.render("posix") == (
+            "uv tool install --force --with pytest spec-kitty-cli==3.2.0rc25"
+        )
+
+    def test_env_prefix_tool_and_bin_dir(self) -> None:
+        cmd = _reinstall(
+            _uv_runtime_with_reqs(
+                (_req(specifier="==3.2.0rc25"),),
+                tool_dir=Path("/opt/uv"),
+                is_default_tool_dir=False,
+                bin_dir=Path("/opt/bin"),
+                is_default_bin_dir=False,
+                receipt_path=_RECEIPT,
+            )
+        )
+        assert cmd.render("posix") == (
+            "UV_TOOL_DIR=/opt/uv UV_TOOL_BIN_DIR=/opt/bin uv tool install --force "
+            "--with pytest spec-kitty-cli==3.2.0rc25"
+        )
+
+    def test_unsupported_main_requirement_is_conservative(self) -> None:
+        cmd = _reinstall(
+            _uv_runtime_with_reqs((_req(is_supported=False),), receipt_path=_RECEIPT)
+        )
+        assert cmd.intent == RemediationIntent.MANUAL_GUIDANCE
+        assert cmd.argv is None
+        assert "same uv tool source" in (cmd.note or "")
+
+    def test_unsupported_injected_dep_is_conservative(self) -> None:
+        cmd = _reinstall(
+            _uv_runtime_with_reqs(
+                (_req(specifier="==3.2.0rc25"), _req(name="extra-dep", is_supported=False)),
+                receipt_path=_RECEIPT,
+            )
+        )
+        assert cmd.intent == RemediationIntent.MANUAL_GUIDANCE
+        assert "same uv tool source" in (cmd.note or "")
+
+    def test_receipt_present_without_spec_kitty_entry_is_conservative(self) -> None:
+        cmd = _reinstall(
+            _uv_runtime_with_reqs((_req(name="other-tool"),), receipt_path=_RECEIPT)
+        )
+        assert cmd.intent == RemediationIntent.MANUAL_GUIDANCE
+        assert "same uv tool source" in (cmd.note or "")
 
 
 # ---------------------------------------------------------------------------
@@ -497,21 +697,27 @@ class TestPlanRemediationEdgeCases:
         assert "spec-kitty-cli==3.2.2;rm" not in str(cmd.argv)
         assert cmd.render("posix") == "uv tool install --force spec-kitty-cli"
 
-    def test_uv_tool_target_version_not_applied_to_reinstall(self) -> None:
-        """target_version is ignored for REINSTALL_WITH_TEST intent."""
-        runtime = _uv_default_runtime()
-        cmd = plan_remediation(runtime, RemediationIntent.REINSTALL_WITH_TEST, "3.2.2")
-        assert cmd.argv is not None
-        # version pin must NOT appear in REINSTALL_WITH_TEST argv
-        assert "spec-kitty-cli==3.2.2" not in cmd.argv
+    def test_uv_tool_reinstall_receipt_specifier_wins_over_target_version(self) -> None:
+        """REINSTALL: a receipt specifier is authoritative; target_version is ignored.
 
-    def test_uv_tool_reinstall_appends_extra_test(self) -> None:
-        """UV_TOOL REINSTALL_WITH_TEST → argv contains --extra test."""
-        runtime = _uv_default_runtime()
-        cmd = plan_remediation(runtime, RemediationIntent.REINSTALL_WITH_TEST, None)
-        assert cmd.argv is not None
-        assert "--extra" in cmd.argv
-        assert "test" in cmd.argv
+        Provenance from the receipt must win — target_version only pins the
+        receipt-absent PyPI fallback (FR-019 / SC-003).
+        """
+        runtime = _uv_runtime_with_reqs(
+            (_req(specifier="==3.2.0rc25"),), receipt_path=Path("/t/uv-receipt.toml")
+        )
+        cmd = plan_remediation(runtime, RemediationIntent.REINSTALL_WITH_TEST, "9.9.9")
+        assert cmd.render("posix") == (
+            "uv tool install --force --with pytest spec-kitty-cli==3.2.0rc25"
+        )
+
+    def test_uv_tool_reinstall_receipt_absent_pins_target_version(self) -> None:
+        """REINSTALL with no receipt → PyPI fallback pinned to the known version."""
+        runtime = _uv_default_runtime()  # requirements=(), receipt_path=None
+        cmd = plan_remediation(runtime, RemediationIntent.REINSTALL_WITH_TEST, "3.2.2")
+        assert cmd.render("posix") == (
+            "uv tool install --force --with pytest spec-kitty-cli==3.2.2"
+        )
 
     def test_plan_remediation_is_pure(self) -> None:
         """plan_remediation() is pure: identical inputs → equal RemediationCommand."""
@@ -585,3 +791,33 @@ class TestPowershellQuote:
         value = "C:\\tools"
         entry = f"$env:{key}={psq(value)}; "
         assert entry == "$env:UV_TOOL_DIR='C:\\tools'; "
+
+
+class TestCurrentUpgradeCommand:
+    """current_upgrade_command(): the single detect→plan→render→fallback seam."""
+
+    def test_renders_planner_upgrade_command(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from specify_cli.compat import upgrade_hint
+
+        monkeypatch.setattr(
+            "specify_cli.compat._detect.runtime.detect_runtime",
+            _uv_default_runtime,
+        )
+        assert upgrade_hint.current_upgrade_command() == (
+            "uv tool install --force spec-kitty-cli"
+        )
+
+    def test_falls_back_when_render_raises(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from specify_cli.compat import upgrade_hint
+
+        # SOURCE → UPGRADE is MANUAL_GUIDANCE → render() raises → fallback.
+        monkeypatch.setattr(
+            "specify_cli.compat._detect.runtime.detect_runtime",
+            lambda: _make_runtime(InstallMethod.SOURCE),
+        )
+        assert upgrade_hint.current_upgrade_command() == "pipx upgrade spec-kitty-cli"
+        assert upgrade_hint.current_upgrade_command("custom fallback") == "custom fallback"

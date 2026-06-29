@@ -30,6 +30,14 @@ from pathlib import Path
 # circular import at import time.
 from specify_cli.compat._detect.runtime import PackageSource, UvRequirement
 
+# Receipt requirement keys the domain models. An entry carrying any key
+# outside this set is flagged ``is_supported=False`` so the remediation
+# planner refuses to reconstruct a (lossy) command from it — preserving
+# provenance instead of clobbering the user's real source (issue #1358).
+_SUPPORTED_REQUIREMENT_KEYS = frozenset(
+    {"name", "specifier", "directory", "editable", "path", "git", "url"}
+)
+
 
 # ---------------------------------------------------------------------------
 # UvReceiptResult frozen dataclass
@@ -182,6 +190,7 @@ def _parse_requirements(raw: object) -> tuple[UvRequirement, ...]:
                 path=path if isinstance(path, str) else None,
                 git=git if isinstance(git, str) else None,
                 url=url if isinstance(url, str) else None,
+                is_supported=set(entry.keys()).issubset(_SUPPORTED_REQUIREMENT_KEYS),
             )
         )
     return tuple(result)
