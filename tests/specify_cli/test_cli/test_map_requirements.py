@@ -510,6 +510,48 @@ class TestMapRequirementsValidation:
         payload = json.loads(result.stdout.strip())
         assert payload["error"] == "Stale or invalid refs in WP frontmatter"
         assert "WP02" in payload["stale_refs"]
+        # #2066: payload now surfaces the parsed spec FR set, per-WP offender
+        # classification, and a hint naming the FR-NNN format rule.
+        assert payload["parsed_spec_ids"] == ["FR-001", "FR-002", "FR-003", "NFR-001"]
+        assert payload["stale_ref_reasons"]["WP02"]["malformed"] == ["BOGUS"]
+        assert payload["stale_ref_reasons"]["WP02"]["unknown_spec_id"] == []
+        assert "FR-NNN" in payload["hint"]
+
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    def test_stale_refs_classify_format_vs_unknown(
+        self,
+        mock_branch: Mock,
+        mock_slug: Mock,
+        mock_locate: Mock,
+        tmp_path: Path,
+    ):
+        """#2066 Repro A: a letter-suffixed FR-003a reads as malformed, while a
+        well-formed-but-undeclared FR-999 reads as unknown_spec_id — so the
+        operator can tell a format typo from an orphaned ref."""
+        mock_locate.return_value = tmp_path
+        mock_slug.return_value = "001-test"
+        mock_branch.return_value = (tmp_path, "main")
+        feature_dir = _setup_feature(tmp_path)
+        tasks_dir = feature_dir / "tasks"
+        wp_file = next(tasks_dir.glob("WP02*.md"))
+        frontmatter, body = read_frontmatter(wp_file)
+        frontmatter["requirement_refs"] = ["FR-003a", "FR-999"]
+        from specify_cli.frontmatter import write_frontmatter
+
+        write_frontmatter(wp_file, frontmatter, body)
+
+        result = runner.invoke(
+            tasks_app,
+            ["map-requirements", "--wp", "WP01", "--refs", "FR-001", "--json"],
+        )
+
+        assert result.exit_code == 1
+        payload = json.loads(result.stdout.strip())
+        reasons = payload["stale_ref_reasons"]["WP02"]
+        assert reasons["malformed"] == ["FR-003a"]
+        assert reasons["unknown_spec_id"] == ["FR-999"]
 
 
 class TestFinalizeTasksWithFrontmatterRefs:
