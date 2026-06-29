@@ -91,13 +91,13 @@
 | T061 | Never rewrite event IDs; only currently-queued payloads survive | WP10 | | [D] |
 | T062 | Retire event-queueing from `queue.py`; keep body-upload tables (C-006) | WP10 | | [D] |
 | T063 | Tests: multi-DB; unknown digest; identical dup; divergent dup | WP10 | | [D] |
-| T064 | Assemble additive JSON sections (7 sections) | WP11 | [P] |
-| T065 | Distinct counts: retained / current-target / previous-target / terminal-failed / body-upload + oldest ts | WP11 | |
-| T066 | gc/archive logic (explicit-only; preserve ledger history) | WP11 | |
-| T067 | GC suggestion only when large AND fully delivered (NFR-004) | WP11 | |
-| T068 | Preserve existing counts; no field implies body-upload == journal (NFR-006) | WP11 | |
-| T069 | Additive `sync-status-output.md` contract update (old fields preserved) | WP11 | |
-| T070 | Tests: JSON has new sections + old fields; counts distinguished; GC gating | WP11 | |
+| T064 | Assemble additive JSON sections (7 sections) | WP11 | [D] |
+| T065 | Distinct counts: retained / current-target / previous-target / terminal-failed / body-upload + oldest ts | WP11 | | [D] |
+| T066 | gc/archive logic (explicit-only; preserve ledger history) | WP11 | | [D] |
+| T067 | GC suggestion only when large AND fully delivered (NFR-004) | WP11 | | [D] |
+| T068 | Preserve existing counts; no field implies body-upload == journal (NFR-006) | WP11 | | [D] |
+| T069 | Additive `sync-status-output.md` contract update (old fields preserved) | WP11 | | [D] |
+| T070 | Tests: JSON has new sections + old fields; counts distinguished; GC gating | WP11 | | [D] |
 | T071 | Wire `sync now` → dispatcher; `sync server` → target authority | WP12 | [P] |
 | T072 | Wire `sync status` + `--check --json` → status_report | WP12 | |
 | T073 | Wire `sync gc` / `sync archive` → retention (explicit destructive only) | WP12 | |
