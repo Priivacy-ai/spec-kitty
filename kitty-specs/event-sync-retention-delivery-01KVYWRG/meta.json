@@ -1,0 +1,66 @@
+{
+  "accept_commit": "90b248297016dddb736705997b1ea98f2f707668",
+  "acceptance_history": [
+    {
+      "accept_commit": "34b9c581672849ce72ea32799ac68a1fbac0f1d4",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-29T11:00:38.402708+00:00",
+      "accepted_by": "robert",
+      "accepted_from_commit": "6d4771a2da367e4fcd0f9c356c166bb361c61259"
+    },
+    {
+      "accept_commit": "d334a100cb601b6e1ea1c5cd27bb631a8eb7b484",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-29T17:56:17.658876+00:00",
+      "accepted_by": "robert",
+      "accepted_from_commit": "6a4a2ce83390bdfb0cf2751ad8fa3cd1b2c23074"
+    },
+    {
+      "accept_commit": "73058fbbbba77c43888165afc794cc203cd451b3",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-29T19:35:01.549877+00:00",
+      "accepted_by": "robert",
+      "accepted_from_commit": "de2a938efb42a7e26ba8961154347f8a03570a60"
+    },
+    {
+      "accept_commit": "16c70f307d1b8bce211dd66e7da8e7af133752b2",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-29T19:56:06.305444+00:00",
+      "accepted_by": "robert",
+      "accepted_from_commit": "5091f0cacb88eba4ca2a64bebfb96bda528a19a5"
+    },
+    {
+      "accept_commit": "c0eb6437b423183e4b0eb05c9eaceada368a0961",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-29T20:15:15.297353+00:00",
+      "accepted_by": "robert",
+      "accepted_from_commit": "09dfcca78f8c4f296957c7bfacd34659dcba568e"
+    },
+    {
+      "accept_commit": "90b248297016dddb736705997b1ea98f2f707668",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-29T20:44:08.844303+00:00",
+      "accepted_by": "robert",
+      "accepted_from_commit": "f8111cbb6aae834b49406b4294bd1bcade590b30"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-29T20:44:08.844303+00:00",
+  "accepted_by": "robert",
+  "accepted_from_commit": "f8111cbb6aae834b49406b4294bd1bcade590b30",
+  "baseline_merge_commit": "81dfa05158e3e7a41efe6134d002b62935ca7be4",
+  "created_at": "2026-06-25T08:01:22.402301+00:00",
+  "flattened": false,
+  "friendly_name": "event sync retention delivery",
+  "mission_id": "01KVYWRGF148VXAXDJ90MECYRR",
+  "mission_number": 153,
+  "mission_slug": "event-sync-retention-delivery-01KVYWRG",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances event sync retention delivery on mission/event-sync-retention-delivery so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "event sync retention delivery",
+  "slug": "event-sync-retention-delivery-01KVYWRG",
+  "target_branch": "mission/event-sync-retention-delivery",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-29T07:20:05.409867+00:00"
+}

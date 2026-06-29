@@ -844,6 +844,102 @@ _CATEGORY_C_COMMON_DOCS_RATCHET_CONSTANT: frozenset[str] = frozenset(
 )
 
 
+# ---------- C. event-sync retention/delivery mission public surface ----------
+# Mission ``event-sync-retention-delivery-01KVYWRG`` (#2124) shipped two new
+# domains (``specify_cli.delivery.*`` + ``specify_cli.event_journal.*``) plus a
+# ``sync.migrate_journal`` migration. Their ACTIVE runtime callers are the CLI
+# event-sync surface (``cli/commands/sync.py`` imports EventSyncConfig, Mode,
+# DefaultReceiverFactory, dispatch, build_status_report, gc_payloads,
+# archive_payloads, SqliteDeliveryLedger, SqliteDeliveryTargetRegistry,
+# EventJournal/resolve_journal_path) and the capture path (``sync/emitter.py`` +
+# ``sync/migrate_journal.py``). The names below are the remaining mission public
+# surface: the locked per-WP test-contract (constants/dataclasses/protocols/
+# helpers exercised directly by tests under tests/delivery + tests/event_journal)
+# plus the C-008 OPT_OUT discard-safety machinery (FamilyClassification,
+# DiscardDecision[Kind], DiscardAuditRecord, AuditSink, JsonlAuditSink,
+# discard_decision). The discard machinery is implemented and unit-tested but its
+# LIVE runtime enforcement on the capture path is DEFERRED to the legacy-queue
+# retirement follow-up (mission-review-report DRIFT-1 / RISK-1): until the legacy
+# destructive ``queue.py`` drain is retired there is no single live capture-time
+# discard site to guard, and no production family-classification source exists
+# yet (the only honest classification is fail-closed UNKNOWN). Wiring it into the
+# per-event emit hot path now would be net-new design, not remediation. Tracked
+# as a deferred follow-up in
+# ``kitty-specs/event-sync-retention-delivery-01KVYWRG/issue-matrix.md``.
+# Burn-down (FR-303): the follow-up that retires the legacy drain wires the
+# discard guard + migration CLI + status/gc evaluators, shrinking this set.
+_CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[str] = frozenset(
+    {
+        # delivery.config — policy axes + C-008 discard-safety machinery
+        "specify_cli.delivery.config::AuditSink",
+        "specify_cli.delivery.config::Delivery",
+        "specify_cli.delivery.config::DiscardAuditRecord",
+        "specify_cli.delivery.config::DiscardDecision",
+        "specify_cli.delivery.config::DiscardDecisionKind",
+        "specify_cli.delivery.config::FamilyClassification",
+        "specify_cli.delivery.config::JsonlAuditSink",
+        "specify_cli.delivery.config::MissingExternalEndpointError",
+        "specify_cli.delivery.config::PolicyResolutionError",
+        "specify_cli.delivery.config::ReceiverFactory",
+        "specify_cli.delivery.config::ResolvedPolicy",
+        "specify_cli.delivery.config::ResolvedTarget",
+        "specify_cli.delivery.config::Retention",
+        "specify_cli.delivery.config::UnknownModeError",
+        "specify_cli.delivery.config::discard_decision",
+        # delivery.ledger — per-target ledger contract surface
+        "specify_cli.delivery.ledger::LEDGER_INDEX_NAME",
+        "specify_cli.delivery.ledger::LedgerRow",
+        "specify_cli.delivery.ledger::TERMINAL_STATUSES",
+        "specify_cli.delivery.ledger::init_ledger",
+        # delivery.receivers — DeliveryReceiver contract + gate vocabulary
+        "specify_cli.delivery.receivers::BATCH_ENDPOINT_PATH",
+        "specify_cli.delivery.receivers::BATCH_TIMEOUT_SECONDS",
+        "specify_cli.delivery.receivers::GateDecision",
+        "specify_cli.delivery.receivers::GateKind",
+        "specify_cli.delivery.receivers::HttpResponse",
+        "specify_cli.delivery.receivers::ReceiverGate",
+        "specify_cli.delivery.receivers::STUB_ENDPOINT_URL",
+        "specify_cli.delivery.receivers::StubReceiver",
+        "specify_cli.delivery.receivers::map_batch_response",
+        # delivery.status_report — additive status JSON section keys + helpers
+        "specify_cli.delivery.status_report::ADDITIVE_SECTION_KEYS",
+        "specify_cli.delivery.status_report::BODY_UPLOAD_COMPAT_KEY",
+        "specify_cli.delivery.status_report::DELIVERY_LEDGER_KEY",
+        "specify_cli.delivery.status_report::DELIVERY_TARGETS_KEY",
+        "specify_cli.delivery.status_report::EVENT_JOURNAL_KEY",
+        "specify_cli.delivery.status_report::GC_LARGE_JOURNAL_THRESHOLD_BYTES",
+        "specify_cli.delivery.status_report::MIGRATION_CONFLICTS_KEY",
+        "specify_cli.delivery.status_report::TARGET_AUTHORITY_KEY",
+        "specify_cli.delivery.status_report::TERMINAL_FAILURES_KEY",
+        "specify_cli.delivery.status_report::evaluate_gc_suggestion",
+        # event_journal.coalesce — WP08 coalescing contract surface
+        "specify_cli.event_journal.coalesce::CoalescingStrategy",
+        "specify_cli.event_journal.coalesce::DeliveredAnywhereQuery",
+        "specify_cli.event_journal.coalesce::SUPERSEDED_TABLE",
+        "specify_cli.event_journal.coalesce::SupersedeMarker",
+        "specify_cli.event_journal.coalesce::install",
+        "specify_cli.event_journal.coalesce::read_supersede_markers",
+        # event_journal.journal / models — append-only journal contract surface
+        "specify_cli.event_journal.journal::JOURNAL_SUBDIR",
+        "specify_cli.event_journal.models::ORDERED_COLUMNS",
+        # sync.migrate_journal — WP10 migration entry points + audit surface.
+        # ``AUDIT_DB_NAME``, ``MigrationResult`` and ``migrate_queues_to_journal``
+        # gained live callers in WP12 (``spec-kitty sync migrate`` + the status
+        # migration-audit read path in ``cli/commands/sync.py``); they are no
+        # longer dead and were removed from this ratchet.
+        "specify_cli.sync.migrate_journal::KNOWN_PREFIX",
+        "specify_cli.sync.migrate_journal::LEGACY_DIGEST",
+        "specify_cli.sync.migrate_journal::MIGRATION_NOTE",
+        "specify_cli.sync.migrate_journal::MigrationConflict",
+        "specify_cli.sync.migrate_journal::SourceDb",
+        "specify_cli.sync.migrate_journal::SourceOutcome",
+        "specify_cli.sync.migrate_journal::UNKNOWN_PREFIX",
+        "specify_cli.sync.migrate_journal::discover_source_dbs",
+        "specify_cli.sync.migrate_journal::migration_target_token",
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``).
@@ -865,6 +961,7 @@ _SYMBOL_ALLOWLIST: frozenset[str] = (
     | _CATEGORY_C_BRANCH_NAMING_FAILOVER_SEAM
     | _CATEGORY_C_BACKCOMPAT_SHIM_REEXPORT
     | _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057
+    | _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY
 )
 
 

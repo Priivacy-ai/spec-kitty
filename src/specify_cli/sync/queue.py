@@ -1,3 +1,23 @@
+"""Offline event queue + non-event body-upload tables (single-owner, WP10).
+
+Event-queueing authority has been **retired** from this module: the durable
+event store is now the WP03 append-only journal
+(:mod:`specify_cli.event_journal`), and capture-first writes happen at the emit
+layer (``sync/emitter.py::_capture_to_journal``) *before* any delivery gate.
+``sync/migrate_journal.py`` lifts the events still sitting in legacy
+``queue-<digest>.db`` files into that journal. The ``queue`` table here is kept
+only as the *legacy batch-transport bridge* the existing dispatcher still drains;
+removing it is deferred until the WP07 journal-based dispatcher is the active
+drain path (an upstream coordination seam — not this WP's to rip out, since doing
+so before WP07 lands would strand in-flight events).
+
+**C-006 (binding):** ``body_upload_queue`` / ``body_upload_failure_log`` (the
+setup-plan / dossier *body* uploads — **not** event queueing) and every method
+and flow that drives them remain owned by and operational in this module. No
+event-queueing retirement step may touch the body-upload tables.
+"""
+from __future__ import annotations
+
 import contextlib
 import hashlib
 import json
@@ -7,11 +27,14 @@ import threading
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
-from typing import Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol
 
 import toml
 
 from specify_cli.paths import get_runtime_root
+
+if TYPE_CHECKING:  # pragma: no cover - typing-only; avoids the queue<->authority cycle
+    from specify_cli.sync.target_authority import ResolvedSyncTarget
 
 
 class _BatchEventResultLike(Protocol):
@@ -929,16 +952,40 @@ def detect_legacy_rows_for_scope(scope: str) -> LegacyRowCounts:
     )
 
 
+def resolved_scope_db_path(resolved_target: ResolvedSyncTarget) -> Path:
+    """Consume WP01's derived queue path for *resolved_target* (FR-016, contract §1).
+
+    The queue scope is a **derived isolation key** for these local offline /
+    body-upload tables — never an input target selector. WP01's
+    :class:`~specify_cli.sync.target_authority.ResolvedSyncTarget` already derives
+    ``queue_db_path`` from ``resolved_server_url`` + identity, so callers holding a
+    resolved target must consume that path directly rather than re-deriving a
+    selector here (``active_queue_scope is never an input selector``). This also
+    folds in the legacy ``queue.db`` rows for the same scope.
+    """
+    scoped_path: Path = resolved_target.queue_db_path
+    _migrate_legacy_queue_to_scope(scoped_path)
+    return scoped_path
+
+
 def default_queue_db_path(
     credentials_path: Path | None = None,
     *,
     allow_rehydrate: bool = True,
+    resolved_target: ResolvedSyncTarget | None = None,
 ) -> Path:
     """Resolve default queue DB path.
 
-    Unauthenticated sessions use legacy ~/.spec-kitty/queue.db.
-    Authenticated sessions use scoped queues under ~/.spec-kitty/queues/.
+    When a WP01 ``resolved_target`` is supplied its **derived** queue scope is
+    consumed verbatim (FR-016: the scope is a derived isolation key, never a
+    target selector). Otherwise the path is keyed off the cached session /
+    credentials scope: unauthenticated sessions use legacy
+    ``~/.spec-kitty/queue.db``; authenticated sessions use scoped queues under
+    ``~/.spec-kitty/queues/`` (the same ``scope_db_path`` derivation WP01 mirrors,
+    so the two never drift).
     """
+    if resolved_target is not None:
+        return resolved_scope_db_path(resolved_target)
     scope = read_queue_scope_from_session(allow_rehydrate=allow_rehydrate)
     if scope is None:
         scope = read_queue_scope_from_credentials(credentials_path=credentials_path)

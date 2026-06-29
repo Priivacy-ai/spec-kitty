@@ -41,6 +41,7 @@ if TYPE_CHECKING:
     from .body_queue import OfflineBodyUploadQueue
     from .client import WebSocketClient
     from .emitter import EventEmitter
+    from .target_authority import ResolvedSyncTarget
 
 logger = logging.getLogger(__name__)
 
@@ -118,6 +119,10 @@ class SyncRuntime:
     ws_client: WebSocketClient | None = field(default=None, repr=False)
     emitter: EventEmitter | None = field(default=None, repr=False)
     body_queue: OfflineBodyUploadQueue | None = field(default=None, repr=False)
+    # Target authority (WP02, contract §1): the one resolved sync target this
+    # runtime keys off, populated before the WebSocket connect. WebSocket,
+    # tracker, queue scope and status all trace back to this single target.
+    resolved_target: ResolvedSyncTarget | None = field(default=None, repr=False)
     _async_loop: asyncio.AbstractEventLoop | None = field(default=None, repr=False)
     _async_loop_thread: threading.Thread | None = field(default=None, repr=False)
     _build_registered: bool = False
@@ -174,8 +179,18 @@ class SyncRuntime:
                 from .client import WebSocketClient
 
                 project_identity = self._attached_project_identity()
-                # Server URL comes from SPEC_KITTY_SAAS_URL via WebSocketClient internals;
-                # runtime does not hardcode host/scheme (see decision D-5).
+                # Target authority (WP02, contract §1): resolve the one canonical
+                # target ONCE before opening the WebSocket so every surface keys
+                # off the same ``resolved_server_url`` (and the split-brain guard
+                # runs before any network call). The WebSocket transport reads
+                # the same env/config the resolver consumed.
+                self.resolved_target = self._resolve_runtime_target()
+                if self.resolved_target is not None:
+                    logger.debug(
+                        "Sync runtime target resolved: %s (override_mode=%s)",
+                        self.resolved_target.resolved_server_url,
+                        self.resolved_target.override_mode.value,
+                    )
                 self.ws_client = WebSocketClient(project_identity=project_identity)
                 self._ensure_async_loop()
                 if self._async_loop is None:
@@ -212,6 +227,24 @@ class SyncRuntime:
         if not isinstance(build_id, str) or not build_id:
             return None
         return identity
+
+    def _resolve_runtime_target(self) -> ResolvedSyncTarget | None:
+        """Resolve the canonical sync target via the config-backed resolver.
+
+        Target authority (WP02, contract §1): the runtime obtains its one
+        ``ResolvedSyncTarget`` through :meth:`SyncConfig.resolve_runtime_target`
+        (the resolver-backed entry point) rather than reading config/env
+        directly. Resolution is purely descriptive and must never break the
+        runtime, so any failure degrades to ``None`` (the WebSocket transport
+        still resolves its own URL from the same env/config).
+        """
+        try:
+            from .config import SyncConfig
+
+            return SyncConfig().resolve_runtime_target()
+        except Exception as exc:  # noqa: BLE001 — never fail runtime on resolution
+            logger.debug("Could not resolve canonical sync target: %s", exc)
+            return None
 
     def _attached_repo_slug(self) -> str | None:
         """Return the repo slug from the attached emitter, if available."""

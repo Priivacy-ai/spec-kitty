@@ -18,6 +18,16 @@ is hit. This keeps the module decoupled from the upstream
 ``spec_kitty_tracker`` import surface (which lives behind a dependency
 boundary documented in
 ``contracts/tracker-public-imports.md``).
+
+Target authority (WP02, contract §1): this module is **target-agnostic** —
+it derives no server URL and constructs no tracker client, so there is no
+independent target to redirect here. The tracker network target is the one
+canonical ``ResolvedSyncTarget.resolved_server_url`` (the same URL sync,
+WebSocket, the queue scope and batch posts use); it is bound where the tracker
+client is constructed (``SaaSTrackerClient``), and the caller passes the
+already-targeted ``sync_call`` into :func:`run_bidirectional_sync_with_retry`.
+This wrapper only owns the bounded-retry policy around that call, so it can
+never bind the tracker to a different target than sync.
 """
 
 from __future__ import annotations

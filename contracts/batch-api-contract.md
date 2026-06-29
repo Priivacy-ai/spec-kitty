@@ -232,6 +232,36 @@ compressed = gzip.compress(payload)
 | `duplicate` | Event with this `event_id` already exists | Remove from offline queue (treated as success) |
 | `rejected` | Event failed server-side validation | Retain in queue, increment `retry_count` |
 
+**Event journal extension (#2124/#2131)**: the CLI behavior above describes the
+current destructive offline event queue. After
+`event-sync-retention-delivery-01KVYWRG` lands, event payload rows MUST NOT be
+deleted on `success` or `duplicate`; those outcomes update the delivery ledger
+for the resolved target. This extension applies to event payload delivery only.
+`body_upload_queue` / `body_upload_failure_log` remain separate non-event queue
+surfaces and are not converted into event-journal rows by that mission.
+
+> **Additive note (`event-sync-retention-delivery-01KVYWRG`, #2124/#2146 — strictly
+> additive, NFR-006/C-006).** The **wire** protocol in this section is unchanged:
+> the request body, the per-event `status` vocabulary (`success` / `duplicate` /
+> `rejected`), and every fixture below stay exactly as specified. What changes is
+> only the **local CLI behavior** for *event payload* rows once a `DeliveryReceiver`
+> drives delivery (the canonical source of this mapping is
+> `src/specify_cli/delivery/receivers.py`):
+>
+> | Per-event / batch outcome | Local event-row effect after this mission |
+> |---|---|
+> | `success` | Delivery **ledger UPDATE** for the resolved target (records delivered); the local event-journal row is **retained**, never deleted. |
+> | `duplicate` | Same as `success` — ledger UPDATE, row retained (idempotent re-delivery, NFR-003). |
+> | `rejected` | Ledger **rejection** state for the target; payload retained and inspectable; eligible for a later attempt. |
+> | oversized / permanent per-event failure | Ledger **terminal-failed** state; excluded from future automatic selection but never deleted (FR-015). |
+> | batch-level transient failure (401 / 403 / 408 / 429 / 5xx / timeout) | Updates **attempt metadata only** (no per-event content verdict); never poisons per-event retry counts. |
+>
+> Row deletion now happens only via explicit `sync gc` / `sync archive`, which
+> preserve delivery history/provenance. This extension covers **event payload
+> delivery only**. `body_upload_queue` and `body_upload_failure_log` remain owned by
+> `sync/queue.py`, are **not** event-journal rows, and no status field in this
+> contract may imply otherwise (event-sync-delivery contract §6).
+
 **Per-event result fields**:
 
 | Field | Type | Present When | Description |

@@ -17,6 +17,14 @@ _ENV_VAR = "SPEC_KITTY_SAAS_URL"
 def get_saas_base_url() -> str:
     """Return the SaaS base URL from the ``SPEC_KITTY_SAAS_URL`` environment variable.
 
+    Target authority (WP02, contract §1): this is a **low-level env accessor**
+    that the canonical resolver
+    (:func:`specify_cli.sync.target_authority.resolve_sync_target`) consumes for
+    its ``env_server_url`` field. It is intentionally *not* the live-target
+    surface — higher-level callers asking "what target are we hitting?" must read
+    ``ResolvedSyncTarget.resolved_server_url`` (which folds in ``config.toml``
+    precedence and derives the queue scope) rather than calling this directly.
+
     Raises:
         ConfigurationError: If the env var is not set or is empty. There is NO
             fallback to a hardcoded domain — fly.io deployments use generated

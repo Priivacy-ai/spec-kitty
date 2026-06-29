@@ -1,0 +1,201 @@
+{
+  "mission_slug": "event-sync-retention-delivery-01KVYWRG",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Successful upload updates delivery state, never deletes the event payload",
+      "proof_type": "automated_test",
+      "evidence": "WP05 ledger (no delete surface) + WP07 dispatcher (never deletes); tests: test_record_success_is_terminal_and_does_not_delete_journal, test_success_is_non_destructive",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (independent per-WP review)",
+      "verified_at": "2026-06-29T08:35:00+00:00",
+      "notes": "Verified by independent per-WP review + unit tests; integration confirmation at mission-review."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Per-event/per-target delivery ledger answers 'was X delivered to Y'",
+      "proof_type": "automated_test",
+      "evidence": "WP04 targets + WP05 ledger (PK event_id,target_id); tests: tests/delivery/test_ledger.py, test_targets.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (independent per-WP review)",
+      "verified_at": "2026-06-29T08:35:00+00:00",
+      "notes": "Verified by independent per-WP review + unit tests; integration confirmation at mission-review."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Event journal is target-independent (no target/server/delivery field)",
+      "proof_type": "automated_test",
+      "evidence": "WP03 event_journal; test: tests/event_journal/test_journal.py (Event carries no delivery state)",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (independent per-WP review)",
+      "verified_at": "2026-06-29T08:35:00+00:00",
+      "notes": "Verified by independent per-WP review + unit tests; integration confirmation at mission-review."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "sync now selects only events lacking terminal successful delivery for the active target",
+      "proof_type": "automated_test",
+      "evidence": "WP05 select_undelivered + WP07 dispatcher; test: test_select_undelivered_uses_universe_and_excludes_terminal",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (independent per-WP review)",
+      "verified_at": "2026-06-29T08:35:00+00:00",
+      "notes": "Verified by independent per-WP review + unit tests; integration confirmation at mission-review."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Changing sync server re-delivers the same retained events to the new target",
+      "proof_type": "automated_test",
+      "evidence": "WP07 + WP12; tests: test_replay_to_new_target_redelivers_and_retains, test_server_switch_replays_retained_events",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (independent per-WP review)",
+      "verified_at": "2026-06-29T08:35:00+00:00",
+      "notes": "Verified by independent per-WP review + unit tests; integration confirmation at mission-review."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "EventSyncConfig selects TEAMSPACE/EXTERNAL_RECEIVER/LOCAL_RETENTION/OPT_OUT",
+      "proof_type": "automated_test",
+      "evidence": "WP09 config; test: tests/delivery/test_config.py (4 modes)",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (independent per-WP review)",
+      "verified_at": "2026-06-29T08:35:00+00:00",
+      "notes": "Verified by independent per-WP review + unit tests; integration confirmation at mission-review."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Delivery to an operator's own endpoint via the same ledger machinery",
+      "proof_type": "automated_test",
+      "evidence": "WP06 ExternalReceiver + WP09; test: tests/delivery/test_receivers.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (independent per-WP review)",
+      "verified_at": "2026-06-29T08:35:00+00:00",
+      "notes": "Verified by independent per-WP review + unit tests; integration confirmation at mission-review."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Local stub receiver lets tests/fork-CI run with no Teamspace credentials",
+      "proof_type": "automated_test",
+      "evidence": "WP06 StubReceiver; test: test_stub_records_events_with_no_teamspace_credentials",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (independent per-WP review)",
+      "verified_at": "2026-06-29T08:35:00+00:00",
+      "notes": "Verified by independent per-WP review + unit tests; integration confirmation at mission-review."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "sync status reports retained count and per-target delivery counts separately",
+      "proof_type": "automated_test",
+      "evidence": "WP11 status_report + WP12 CLI; test: test_distinct_counts_retained_previous_current",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (independent per-WP review)",
+      "verified_at": "2026-06-29T08:35:00+00:00",
+      "notes": "Verified by independent per-WP review + unit tests; integration confirmation at mission-review."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Destructive cleanup only via explicit sync gc/sync archive, preserving ledger history",
+      "proof_type": "automated_test",
+      "evidence": "WP11 retention + WP12 CLI; tests: gc_payloads/archive_payloads (delivered-only purge, ledger preserved)",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (independent per-WP review)",
+      "verified_at": "2026-06-29T08:35:00+00:00",
+      "notes": "Verified by independent per-WP review + unit tests; integration confirmation at mission-review."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Coalescing never mutates an already-delivered event",
+      "proof_type": "automated_test",
+      "evidence": "WP08 coalesce; test: test_coalesce_against_delivered_event_leaves_bytes_unchanged (mutation-tested)",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (independent per-WP review)",
+      "verified_at": "2026-06-29T08:35:00+00:00",
+      "notes": "Verified by independent per-WP review + unit tests; integration confirmation at mission-review."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Notice/offer to re-drain when a stable URL's deployment identity changes",
+      "proof_type": "automated_test",
+      "evidence": "WP04 advisory reset-detection; test: test_deployment_id_only_change_is_not_a_reset",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (independent per-WP review)",
+      "verified_at": "2026-06-29T08:35:00+00:00",
+      "notes": "MVP scope: advisory scaffolding only. Full reset-detection consumes SaaS /health metadata, deferred to IC-09 follow-on (C-004). Spec defers this by design."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Existing hash-scoped queue DBs migrate into the journal without losing queued payloads",
+      "proof_type": "automated_test",
+      "evidence": "WP10 migrate_journal; test: tests/sync/test_migrate_journal.py (multi-DB, unknown digest)",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (independent per-WP review)",
+      "verified_at": "2026-06-29T08:35:00+00:00",
+      "notes": "Verified by independent per-WP review + unit tests; integration confirmation at mission-review."
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Each target type implements one explicit DeliveryReceiver contract",
+      "proof_type": "automated_test",
+      "evidence": "WP06; test: test_all_three_receivers_implement_the_one_protocol (gates-as-data, no target-type if)",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (independent per-WP review)",
+      "verified_at": "2026-06-29T08:35:00+00:00",
+      "notes": "Verified by independent per-WP review + unit tests; integration confirmation at mission-review."
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "Permanently-failed events recorded terminal-failed, excluded from drains, retained/inspectable",
+      "proof_type": "automated_test",
+      "evidence": "WP05 record_terminal_failed + WP07; test: test_terminal_failed_parks_event_and_drain_progresses",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (independent per-WP review)",
+      "verified_at": "2026-06-29T08:35:00+00:00",
+      "notes": "Verified by independent per-WP review + unit tests; integration confirmation at mission-review."
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "config/env/auth/network/status resolve one sync target",
+      "proof_type": "automated_test",
+      "evidence": "WP01 ResolvedSyncTarget + WP02 wiring; tests: test_target_authority.py, test_target_authority_wiring.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (independent per-WP review)",
+      "verified_at": "2026-06-29T08:35:00+00:00",
+      "notes": "MVP: 7 surfaces wired. tracker base-URL (tracker/saas_client.py) + WebSocket URL (sync/client.py) bindings are not in any WP's owned_files; follow-up to thread the resolver there (D-019)."
+    },
+    {
+      "criterion_id": "FR-017",
+      "description": "Teamspace-bound facts captured in SQLite/git before auth/team/sync/network gates",
+      "proof_type": "automated_test",
+      "evidence": "WP03 capture-first; test: test_emit_writes_journal_before_delivery_gates_when_disabled (SC-009)",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (independent per-WP review)",
+      "verified_at": "2026-06-29T08:35:00+00:00",
+      "notes": "Verified by independent per-WP review + unit tests; integration confirmation at mission-review."
+    },
+    {
+      "criterion_id": "FR-018",
+      "description": "Divergent duplicate event_id rows quarantined/audited, never overwritten/merged",
+      "proof_type": "automated_test",
+      "evidence": "WP10; test: divergent-dup conflict (audit row, source DB read-only, exit_code=1)",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (independent per-WP review)",
+      "verified_at": "2026-06-29T08:35:00+00:00",
+      "notes": "Verified by independent per-WP review + unit tests; integration confirmation at mission-review."
+    },
+    {
+      "criterion_id": "FR-019",
+      "description": "sync status --check --json exposes target authority, journal, delivery, terminal, migration, body-upload sections",
+      "proof_type": "automated_test",
+      "evidence": "WP11 build_status_report + WP12; test: test_status_check_json_is_additive (7 sections + legacy fields preserved)",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (independent per-WP review)",
+      "verified_at": "2026-06-29T08:35:00+00:00",
+      "notes": "Verified by independent per-WP review + unit tests; integration confirmation at mission-review."
+    }
+  ],
+  "negative_invariants": [],
+  "verified_by": "claude:opus:reviewer-renata (independent per-WP review)",
+  "verified_at": "2026-06-29T08:35:00+00:00"
+}
