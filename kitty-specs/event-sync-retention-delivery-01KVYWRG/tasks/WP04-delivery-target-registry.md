@@ -19,8 +19,8 @@ subtasks:
 - T025
 phase: Phase 3 - Delivery domain
 assignee: ''
-agent: "claude:opus:python-pedro:implementer"
-shell_pid: "31738"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "42340"
 history:
 - at: '2026-06-29T06:21:37Z'
   actor: system
@@ -235,3 +235,4 @@ A reviewer running `/spec-kitty.review` must verify:
 - 2026-06-29T06:21:37Z – system – Prompt created.
 - 2026-06-29T07:49:22Z – claude:opus:python-pedro:implementer – shell_pid=31738 – Assigned agent via action command
 - 2026-06-29T08:15:59Z – claude:opus:python-pedro:implementer – shell_pid=31738 – Ready: target registry (url+scope identity, metadata provenance, advisory reset); ATDD + identifier-safety + gates green
+- 2026-06-29T08:17:48Z – claude:opus:reviewer-renata:reviewer – shell_pid=42340 – Started review via action command
