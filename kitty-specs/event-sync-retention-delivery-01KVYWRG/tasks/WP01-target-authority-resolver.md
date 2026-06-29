@@ -17,7 +17,8 @@ subtasks:
 - T006
 phase: Phase 1 - Target Authority
 assignee: ''
-agent: claude
+agent: "claude:opus:python-pedro:implementer"
+shell_pid: "27690"
 history:
 - at: '2026-06-29T06:21:37Z'
   actor: system
@@ -384,3 +385,4 @@ For `/spec-kitty.review`, verify:
 ## Activity Log
 > Entries chronological, appended at END. Format: `- YYYY-MM-DDTHH:MM:SSZ – <agent_id> – <action>`
 - 2026-06-29T06:21:37Z – system – Prompt created.
+- 2026-06-29T07:20:08Z – claude:opus:python-pedro:implementer – shell_pid=27690 – Assigned agent via action command
