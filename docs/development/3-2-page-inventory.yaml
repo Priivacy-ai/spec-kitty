@@ -722,6 +722,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-06-26-1-core-integration-boundary.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/2026-06-26-1-single-authority-seam-and-call-site-gate.md
   tag: current
   divio_type: none

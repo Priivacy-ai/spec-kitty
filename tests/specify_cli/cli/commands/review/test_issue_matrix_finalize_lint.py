@@ -40,7 +40,6 @@ from specify_cli.status.bootstrap import BootstrapResult
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 MODULE = "specify_cli.cli.commands.agent.mission"
-CORE_MODULE = "specify_cli.core.mission_creation"
 REVIEW_ENGINE = "specify_cli.cli.commands.review.validate_issue_matrix"
 
 _MISSION_SLUG = "060-issue-matrix-finalize-lint"
@@ -138,7 +137,12 @@ def _common_patches(tmp_path: Path) -> dict[str, MagicMock]:
             return_value=fake_commit
         ),
         f"{MODULE}.run_command": MagicMock(return_value=(0, "abc1234", "")),
-        f"{CORE_MODULE}.emit_mission_created": MagicMock(),
+        # Leak #1 (mission integration-boundary-01KW0PBE) removed the module-level
+        # ``emit_mission_created`` import from core.mission_creation; the MissionCreated
+        # projection now flows through the canonical status facade
+        # ``emit_mission_created_local`` -> registered observers. Patch the facade entry
+        # so the finalize path stays hermetic (no network) regardless of whether it emits.
+        "specify_cli.status.emit_mission_created_local": MagicMock(),
         f"{MODULE}.emit_wp_created": MagicMock(),
         f"{MODULE}.get_emitter": MagicMock(
             return_value=MagicMock(

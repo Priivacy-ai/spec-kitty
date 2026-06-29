@@ -1,0 +1,17 @@
+{
+  "coordination_branch": "kitty/mission-integration-boundary-01KW0PBE",
+  "created_at": "2026-06-26T00:47:51.625771+00:00",
+  "flattened": false,
+  "friendly_name": "Enforce the integration/core boundary inside specify_cli",
+  "mission_id": "01KW0PBEA9RK5HDWZQSBSCT2JR",
+  "mission_number": null,
+  "mission_slug": "integration-boundary-01KW0PBE",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances Enforce the integration/core boundary inside specify_cli on feat/integration-boundary so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "Add a generalized architectural boundary rule (core must not import integration) and invert the 3 verified core->integration leaks via the existing status/adapters.py registry; enforce-in-place, no physical extraction.",
+  "slug": "integration-boundary-01KW0PBE",
+  "target_branch": "feat/integration-boundary",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-26T01:26:42.618906+00:00"
+}

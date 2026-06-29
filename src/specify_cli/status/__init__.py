@@ -97,6 +97,7 @@ from .progress import (
     generate_progress_json,
 )
 from .adapters import (
+    fire_dossier_sync,
     fire_saas_fanout,
     register_dossier_sync_handler,
     register_lifecycle_saas_fanout_handler,
@@ -317,6 +318,7 @@ __all__ = [
     "is_terminal",
     "materialize",
     "materialize_to_json",
+    "fire_dossier_sync",
     "fire_saas_fanout",
     "read_events",
     "read_events_from_text",

@@ -323,14 +323,17 @@ _RAW_JOIN_SITES: tuple[tuple[str, int, str], ...] = (
     # join token line anchor survives that edit.
     (
         "specify_cli/core/mission_creation.py",
-        337,
+        336,
         "TBYD — join uses ``mission_slug_formatted``, the OUTPUT of the canonical "
         "mission_dir_name(mission_slug, mid8=...) grammar seam (not raw operator input); "
         "seam is defined in lanes/branch_naming.py (FR-032/FR-044). Create-time-canonical: "
         "the mission dir is being created here (feature_dir.mkdir follows immediately), so "
-        "there is no prior surface to resolve through. (Re-keyed :323 -> :328 -> :337: "
+        "there is no prior surface to resolve through. (Re-keyed :323 -> :328 -> :337 -> :336: "
         "lifecycle-tooling-friction WP03 edited create_mission_core, drifting the seam-output "
-        "join down 9 lines. The composite key is anchored on the create_mission_core qualname "
+        "join down 9 lines; then mission integration-boundary-01KW0PBE (#614) removed the "
+        "module-level ``from specify_cli.sync.events import emit_mission_created`` import above "
+        "(Leak #1 / FR-004), shifting the seam-output join UP 1 line (337 -> 336). The "
+        "composite key is anchored on the create_mission_core qualname "
         "+ join token line, so only the seed line drifted — NOT a raw file.py:NNN line bump "
         "and NOT a new bypass; same seam-composed join.)",
     ),

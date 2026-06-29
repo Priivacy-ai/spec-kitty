@@ -1,5 +1,11 @@
 """Core utilities and configuration exports."""
 
+from .adapters import (
+    PendingOriginConsumer,
+    consume_pending_origin,
+    register_pending_origin_consumer,
+    reset_origin_consumer,
+)
 from .atomic import atomic_write
 from .config import (
     AGENT_COMMAND_CONFIG,
@@ -29,6 +35,10 @@ from .tool_checker import (
 )
 
 __all__ = [
+    "PendingOriginConsumer",
+    "consume_pending_origin",
+    "register_pending_origin_consumer",
+    "reset_origin_consumer",
     "atomic_write",
     "AGENT_COMMAND_CONFIG",
     "AGENT_SKILL_CONFIG",
