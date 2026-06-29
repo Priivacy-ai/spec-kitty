@@ -40,19 +40,19 @@
 | T010 | Rewire `sync/tracker_client_glue.py` to the resolved URL | WP02 | |
 | T011 | One resolved target across WebSocket/tracker/scope/status | WP02 | |
 | T012 | Wiring tests (no split-brain; stale scope ignored) | WP02 | |
-| T013 | Journal schema + Event record model | WP03 | [P] |
-| T014 | Append-only journal store (producer-scoped, never deletes) | WP03 | |
-| T015 | Coalescing **seam** (default no-op; filled by WP08) | WP03 | |
-| T016 | Capture-first gating at emit layer (write before gates) | WP03 | |
-| T017 | Record `drain_blocked_reason`/audit when a gate blocks delivery | WP03 | |
-| T018 | Never silently drop Teamspace-bound facts (journal-side guard) | WP03 | |
-| T019 | Tests: durable under disabled-sync/missing-auth; no-coalescing invariant | WP03 | |
-| T020 | Stand up `delivery/` package + `interfaces.py` protocols | WP04 | [P] |
-| T021 | Target identity: canonical URL + `UNIQUE(url_hash, team_slug, user_email)` | WP04 | |
-| T022 | Canonicalize endpoint URL deterministically | WP04 | |
-| T023 | Record (not key on) deployment metadata as provenance | WP04 | |
-| T024 | Advisory reset-detection on metadata change (no identity fork) | WP04 | |
-| T025 | Tests: identity uniqueness; deployment_id churn; reset-detection | WP04 | |
+| T013 | Journal schema + Event record model | WP03 | [D] |
+| T014 | Append-only journal store (producer-scoped, never deletes) | WP03 | | [D] |
+| T015 | Coalescing **seam** (default no-op; filled by WP08) | WP03 | | [D] |
+| T016 | Capture-first gating at emit layer (write before gates) | WP03 | | [D] |
+| T017 | Record `drain_blocked_reason`/audit when a gate blocks delivery | WP03 | | [D] |
+| T018 | Never silently drop Teamspace-bound facts (journal-side guard) | WP03 | | [D] |
+| T019 | Tests: durable under disabled-sync/missing-auth; no-coalescing invariant | WP03 | | [D] |
+| T020 | Stand up `delivery/` package + `interfaces.py` protocols | WP04 | [D] |
+| T021 | Target identity: canonical URL + `UNIQUE(url_hash, team_slug, user_email)` | WP04 | | [D] |
+| T022 | Canonicalize endpoint URL deterministically | WP04 | | [D] |
+| T023 | Record (not key on) deployment metadata as provenance | WP04 | | [D] |
+| T024 | Advisory reset-detection on metadata change (no identity fork) | WP04 | | [D] |
+| T025 | Tests: identity uniqueness; deployment_id churn; reset-detection | WP04 | | [D] |
 | T026 | Ledger schema (event×target; grow-to-many-targets, no schema break) | WP05 | [P] |
 | T027 | success/duplicate → terminal-success rows (never delete journal) | WP05 | |
 | T028 | pending/rejected/failed_transient ledger states | WP05 | |

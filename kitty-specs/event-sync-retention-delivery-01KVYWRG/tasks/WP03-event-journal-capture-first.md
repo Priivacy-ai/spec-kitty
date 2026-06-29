@@ -21,8 +21,8 @@ subtasks:
 - T019
 phase: Phase 2 - Event Journal
 assignee: ''
-agent: "claude:opus:python-pedro:implementer"
-shell_pid: "31738"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "38483"
 history:
 - at: '2026-06-29T06:21:37Z'
   actor: system
@@ -394,3 +394,5 @@ The reviewer verifies **red→green**: the ATDD test was RED on `mission/event-s
 > Entries chronological, appended at END. Format: `- YYYY-MM-DDTHH:MM:SSZ – <agent_id> – <action>`
 - 2026-06-29T06:21:37Z – system – Prompt created.
 - 2026-06-29T07:49:16Z – claude:opus:python-pedro:implementer – shell_pid=31738 – Assigned agent via action command
+- 2026-06-29T08:14:11Z – claude:opus:python-pedro:implementer – shell_pid=31738 – Ready: event_journal + capture-first + no-op coalesce seam; ATDD red->green; 27 tests + ruff + mypy + 100% pkg coverage green
+- 2026-06-29T08:15:02Z – claude:opus:reviewer-renata:reviewer – shell_pid=38483 – Started review via action command
