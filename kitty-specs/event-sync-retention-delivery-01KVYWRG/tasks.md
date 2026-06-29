@@ -98,13 +98,13 @@
 | T068 | Preserve existing counts; no field implies body-upload == journal (NFR-006) | WP11 | | [D] |
 | T069 | Additive `sync-status-output.md` contract update (old fields preserved) | WP11 | | [D] |
 | T070 | Tests: JSON has new sections + old fields; counts distinguished; GC gating | WP11 | | [D] |
-| T071 | Wire `sync now` → dispatcher; `sync server` → target authority | WP12 | [P] |
-| T072 | Wire `sync status` + `--check --json` → status_report | WP12 | |
-| T073 | Wire `sync gc` / `sync archive` → retention (explicit destructive only) | WP12 | |
-| T074 | Wire EventSyncConfig mode selection → WP09 | WP12 | |
-| T075 | Preserve backward-compatible behavior of existing flags (NFR-006) | WP12 | |
-| T076 | Terminology Canon: no `feature*` aliases in new flags/commands | WP12 | |
-| T077 | Tests: observable CLI output (not call order, NFR-001) | WP12 | |
+| T071 | Wire `sync now` → dispatcher; `sync server` → target authority | WP12 | [D] |
+| T072 | Wire `sync status` + `--check --json` → status_report | WP12 | | [D] |
+| T073 | Wire `sync gc` / `sync archive` → retention (explicit destructive only) | WP12 | | [D] |
+| T074 | Wire EventSyncConfig mode selection → WP09 | WP12 | | [D] |
+| T075 | Preserve backward-compatible behavior of existing flags (NFR-006) | WP12 | | [D] |
+| T076 | Terminology Canon: no `feature*` aliases in new flags/commands | WP12 | | [D] |
+| T077 | Tests: observable CLI output (not call order, NFR-001) | WP12 | | [D] |
 
 ---
 
