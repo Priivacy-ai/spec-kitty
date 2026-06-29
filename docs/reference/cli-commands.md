@@ -3428,6 +3428,25 @@ _Synchronization commands_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty sync archive
+
+```
+ Usage: spec-kitty sync archive [OPTIONS]
+
+ Archive retained event payloads (explicit, non-destructive).
+
+ Stamps the journal's archive marker so events move off the live retained
+ surface without deleting bytes. Idempotent and never touches the delivery
+ ledger (FR-010). Runs only on this explicit invocation.
+
+ Examples:
+     spec-kitty sync archive
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty sync diagnose
 
 ```
@@ -3467,6 +3486,54 @@ _Synchronization commands_
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty sync gc
+
+```
+ Usage: spec-kitty sync gc [OPTIONS]
+
+ Purge already-delivered event payloads (explicit, destructive).
+
+ Deletes journal payload rows only for events delivered to some target;
+ undelivered payloads are kept so the durable copy is never lost. The
+ delivery ledger is never touched, so delivery history survives (FR-010).
+ Runs only on this explicit invocation — never from ``sync now``.
+
+ Examples:
+     spec-kitty sync gc
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty sync mode
+
+```
+ Usage: spec-kitty sync mode [OPTIONS] [NAME]
+
+ Show or set the event-sync retention x delivery mode.
+
+ With no argument, prints the current mode. Mode semantics (which receiver,
+ whether the journal retains) are owned by the policy layer; the CLI only
+ routes the operator token through it (FR-006).
+
+ Examples:
+     spec-kitty sync mode
+     spec-kitty sync mode LOCAL_RETENTION
+     spec-kitty sync mode EXTERNAL_RECEIVER --endpoint
+ https://receiver.example/events
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│   name      [NAME]  Mode to set: TEAMSPACE | EXTERNAL_RECEIVER |             │
+│                     LOCAL_RETENTION | OPT_OUT                                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --endpoint        TEXT  External receiver endpoint URL (required for         │
+│                         EXTERNAL_RECEIVER)                                   │
+│ --help                  Show this message and exit.                          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
