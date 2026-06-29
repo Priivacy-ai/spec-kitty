@@ -25,7 +25,8 @@ subtasks:
 - T077
 phase: Phase 5 - Policy, migration, status, CLI
 assignee: ''
-agent: claude
+agent: "claude:opus:python-pedro:implementer"
+shell_pid: "84575"
 history:
 - at: '2026-06-29T06:21:37Z'
   actor: system
@@ -338,3 +339,4 @@ A reviewer for `/spec-kitty.review` must verify:
 ## Activity Log
 > Entries chronological, appended at END. Format: `- YYYY-MM-DDTHH:MM:SSZ – <agent_id> – <action>`
 - 2026-06-29T06:21:37Z – system – Prompt created.
+- 2026-06-29T10:17:43Z – claude:opus:python-pedro:implementer – shell_pid=84575 – Assigned agent via action command
