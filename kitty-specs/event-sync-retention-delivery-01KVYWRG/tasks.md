@@ -28,12 +28,12 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|----|
-| T001 | `ResolvedSyncTarget` model (8 contract fields) | WP01 | [P] |
-| T002 | Resolve config.toml + `SPEC_KITTY_SAAS_URL`; compute `override_mode` | WP01 | |
-| T003 | Derive `derived_queue_scope` + `queue_db_path` (derived, never a selector) | WP01 | |
-| T004 | `active_queue_scope_status` = absent/matches/stale_non_authoritative | WP01 | |
-| T005 | Split-brain guard: env vs config → whole-process override or fail/warn pre-network | WP01 | |
-| T006 | Resolver unit tests (fields, disagreement, stale) | WP01 | |
+| T001 | `ResolvedSyncTarget` model (8 contract fields) | WP01 | [P] | [D] |
+| T002 | Resolve config.toml + `SPEC_KITTY_SAAS_URL`; compute `override_mode` | WP01 | | [D] |
+| T003 | Derive `derived_queue_scope` + `queue_db_path` (derived, never a selector) | WP01 | | [D] |
+| T004 | `active_queue_scope_status` = absent/matches/stale_non_authoritative | WP01 | | [D] |
+| T005 | Split-brain guard: env vs config → whole-process override or fail/warn pre-network | WP01 | | [D] |
+| T006 | Resolver unit tests (fields, disagreement, stale) | WP01 | | [D] |
 | T007 | Rewire `sync/config.py` + `sync/runtime.py` onto resolver | WP02 | |
 | T008 | Rewire `auth/config.py` + `saas/readiness.py` | WP02 | |
 | T009 | Rewire `sync/preflight.py` + `sync/owner.py` (scope derived) | WP02 | |

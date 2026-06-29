@@ -17,8 +17,8 @@ subtasks:
 - T006
 phase: Phase 1 - Target Authority
 assignee: ''
-agent: "claude:opus:python-pedro:implementer"
-shell_pid: "27690"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "30246"
 history:
 - at: '2026-06-29T06:21:37Z'
   actor: system
@@ -386,3 +386,7 @@ For `/spec-kitty.review`, verify:
 > Entries chronological, appended at END. Format: `- YYYY-MM-DDTHH:MM:SSZ – <agent_id> – <action>`
 - 2026-06-29T06:21:37Z – system – Prompt created.
 - 2026-06-29T07:20:08Z – claude:opus:python-pedro:implementer – shell_pid=27690 – Assigned agent via action command
+- 2026-06-29T07:35:44Z – claude:opus:python-pedro:implementer – shell_pid=27690 – WP01 claimed: ResolvedSyncTarget resolver + ATDD; ruff/mypy/pytest green
+- 2026-06-29T07:35:46Z – claude:opus:python-pedro:implementer – shell_pid=27690 – WP01 in_progress: ResolvedSyncTarget resolver + ATDD; ruff/mypy/pytest green
+- 2026-06-29T07:37:39Z – claude:opus:python-pedro:implementer – shell_pid=27690 – Ready: ResolvedSyncTarget resolver + ATDD; ruff/mypy/pytest green
+- 2026-06-29T07:39:22Z – claude:opus:reviewer-renata:reviewer – shell_pid=30246 – Started review via action command
