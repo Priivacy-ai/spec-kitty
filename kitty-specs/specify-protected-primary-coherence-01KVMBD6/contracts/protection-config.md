@@ -6,6 +6,7 @@ A new top-level `protection:` block in `.kittify/config.yaml`. Backward compatib
 current default behavior.
 
 ```yaml
+# round-trip: skip: operator-config shape sketch — resolved by the frozen ProtectionPolicy dataclass + raw-YAML protection_policy.resolve (fail-closes via ProtectionConfigError), no Pydantic model_validate payload (#2255)
 # .kittify/config.yaml
 protection:
   # Branches the safe-commit guard refuses direct commits to.

@@ -18,17 +18,34 @@ Optionally::
 
     # expect_message: <substring>   (only meaningful with ``expect: invalid``)
 
-Codeblocks without ``# pydantic_model:`` are silently skipped (they are
-documentation prose or shape sketches).
+Block-level discovery (non-legacy contracts)
+--------------------------------------------
+For a contract NOT in the legacy allowlist, discovery is **block-level**: EVERY
+parseable YAML codeblock must be either tagged with ``# pydantic_model:``
+frontmatter (executed against the model) OR carry an explicit non-executable
+marker::
+
+    # round-trip: skip: <reason>
+
+A block carrying neither is a gate failure for that specific block — a tagged
+sibling no longer masks a forgotten tag. The ``# round-trip: skip:`` marker is
+the explicit home for illustrations, shape sketches, CI-wiring snippets, and
+non-Pydantic operator config (e.g. a ``.kittify/config.yaml`` block whose
+resolver reads raw YAML rather than a Pydantic model). The reason is mandatory.
+This is a permanent, per-block exemption taxonomy — distinct from the legacy
+burn-down allowlist below.
 
 Legacy allowlist (FR-141)
 -------------------------
-Contracts from missions predating this convention are tracked in
-``_LEGACY_CONTRACT_ALLOWLIST``.  Files in the allowlist emit a
-``warnings.warn`` instead of failing when their YAML codeblocks lack
-frontmatter.  The allowlist count is pinned in
+Contracts from missions **predating** this convention are tracked file-level in
+``_LEGACY_CONTRACT_ALLOWLIST``.  Files in the allowlist emit a ``warnings.warn``
+instead of failing when their YAML codeblocks lack frontmatter, and keep
+file-level leniency (a tagged block does not force the rest to be tagged). The
+allowlist count is pinned in
 ``tests/architectural/_baselines.yaml::test_example_round_trip.legacy_contract_allowlist``
-so it can shrink over time as legacy contracts are backfilled.
+and MUST shrink over time as legacy contracts are backfilled (C-004 burn-down).
+Post-convention files that are simply non-executable belong in a
+``# round-trip: skip:`` marker, NOT this allowlist.
 
 ATDD anchors
 ------------
@@ -227,14 +244,11 @@ _LEGACY_CONTRACT_ALLOWLIST: frozenset[str] = frozenset(
         "kitty-specs/wp-prompt-governance-payload-01KRR8HS/contracts/charter-context-resolver.md",
         "kitty-specs/wp-prompt-governance-payload-01KRR8HS/contracts/charter-sync-cross-link.md",
         "kitty-specs/wp-prompt-governance-payload-01KRR8HS/contracts/runtime-template-governance-payload-contract.md",
-        # CI-wiring YAML snippet (not a Pydantic model payload); added per T031 (#1301)
-        "kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/contracts/check_docs_freshness.md",
-        # `.kittify/config.yaml` ``protection:`` operator-config shape sketch
-        # (not a Pydantic model payload); the resolved artefact is the frozen
-        # ``ProtectionPolicy`` dataclass + ``protection_policy.resolve`` raw-YAML
-        # resolver, which fail-closes via ``ProtectionConfigError`` rather than
-        # ``model_validate`` — so the FR-140 round-trip does not apply. Added per #2255.
-        "kitty-specs/specify-protected-primary-coherence-01KVMBD6/contracts/protection-config.md",
+        # NOTE: post-Slice-F files that are simply non-executable (CI-wiring
+        # snippets, ``.kittify/config.yaml`` shape sketches, non-Pydantic config)
+        # do NOT belong here — they carry a per-block ``# round-trip: skip: <reason>``
+        # marker instead. This allowlist is *only* for pre-Slice-F legacy contracts
+        # that still need backfilling (C-004 burn-down). See #2255.
     }
 )
 
@@ -269,6 +283,21 @@ _FRONTMATTER_RE: re.Pattern[str] = re.compile(
 )
 _EXPECT_MESSAGE_RE: re.Pattern[str] = re.compile(
     r"^# expect_message: (?P<msg>.+)$", re.MULTILINE
+)
+
+# Explicit per-block "this YAML block is intentionally non-executable" marker.
+# In a NON-legacy contract every YAML codeblock must be either tagged with
+# ``# pydantic_model:`` frontmatter (executed against that model) OR carry this
+# marker with a mandatory reason. A block with neither fails the gate per-block
+# (FR-140 block-level discovery). The marker is the explicit home for shape
+# sketches, illustrations, CI-wiring snippets, and non-Pydantic operator config
+# — distinct from the legacy burn-down allowlist (which is file-level and
+# tracked in ``_baselines.yaml``). The reason is required: ``# round-trip: skip:``
+# with no text does not match and the block is treated as missing frontmatter.
+_SKIP_MARKER_RE: re.Pattern[str] = re.compile(
+    # ``[ \t]*`` (not ``\s*``) so the reason cannot run onto the next line and a
+    # bare ``# round-trip: skip:`` with no reason fails to match (forcing a reason).
+    r"^# round-trip: skip:[ \t]*(?P<reason>\S.*)$", re.MULTILINE
 )
 
 # Fenced yaml codeblock (triple backtick, NOT preceded on the same line by a
@@ -346,16 +375,126 @@ def _parse_expect_message(raw: str) -> str:
     return stripped
 
 
+def _classify_yaml_block(block_body: str) -> tuple[str, dict[str, Any]]:
+    """Classify a single YAML codeblock for the round-trip gate.
+
+    Returns ``(kind, info)`` where *kind* is one of:
+
+    * ``"execute"`` — the block carries ``# pydantic_model:`` frontmatter; *info*
+      holds ``model`` / ``expect`` / ``expect_message`` / ``payload``.
+    * ``"skip"`` — the block carries a ``# round-trip: skip: <reason>`` marker;
+      *info* holds ``reason``. The block is intentionally non-executable.
+    * ``"missing"`` — the block carries neither; *info* is empty. For a
+      non-legacy contract this is a gate failure (a forgotten tag).
+
+    Frontmatter takes precedence over a skip marker when both are present, so a
+    real example can never be silently disabled by a stray marker.
+    """
+    fm = _FRONTMATTER_RE.search(block_body)
+    if fm is not None:
+        msg_match = _EXPECT_MESSAGE_RE.search(block_body)
+        return "execute", {
+            "model": fm.group("model"),
+            "expect": fm.group("expect"),
+            "expect_message": (
+                _parse_expect_message(msg_match.group("msg")) if msg_match else None
+            ),
+            "payload": _strip_frontmatter_comments(block_body),
+        }
+    skip = _SKIP_MARKER_RE.search(block_body)
+    if skip is not None:
+        return "skip", {"reason": skip.group("reason").strip()}
+    return "missing", {}
+
+
+def _collect_legacy_blocks(
+    rel: str,
+    yaml_blocks: list[str],
+    examples: list[tuple[str, str, str, str, str | None]],
+) -> None:
+    """Collect executable cases from a legacy (pre-Slice-F) contract.
+
+    Legacy contracts keep file-level burn-down leniency: tagged blocks still
+    execute, but untagged blocks are tolerated. A warning fires only when the
+    file carries NO frontmatter at all, nudging backfill. Block-level strictness
+    is deferred until the file is backfilled out of ``_LEGACY_CONTRACT_ALLOWLIST``.
+    """
+    found_any_frontmatter = False
+    for block_idx, block_body in enumerate(yaml_blocks, start=1):
+        kind, info = _classify_yaml_block(block_body)
+        if kind != "execute":
+            continue
+        found_any_frontmatter = True
+        examples.append(
+            (
+                f"{rel}::block-{block_idx}",
+                info["model"],
+                info["expect"],
+                info["payload"],
+                info["expect_message"],
+            )
+        )
+    if not found_any_frontmatter:
+        warnings.warn(
+            f"Legacy contract '{rel}' has {len(yaml_blocks)} YAML codeblock(s) "
+            f"but none carry ``# pydantic_model:`` frontmatter. "
+            f"Consider backfilling the convention to shrink the legacy allowlist "
+            f"(tests/architectural/_baselines.yaml::test_example_round_trip"
+            f".legacy_contract_allowlist).",
+            UserWarning,
+            stacklevel=2,
+        )
+
+
+def _collect_strict_blocks(
+    rel: str,
+    yaml_blocks: list[str],
+    examples: list[tuple[str, str, str, str, str | None]],
+) -> None:
+    """Collect cases from a non-legacy contract under block-level strictness (FR-140).
+
+    Every YAML block must be either tagged (executed against its model) or carry
+    an explicit ``# round-trip: skip: <reason>`` marker. A block with neither is
+    emitted as ``<MISSING_FRONTMATTER>`` so the parametrised gate fails on that
+    specific block — a tagged sibling can no longer mask a forgotten tag.
+    """
+    for block_idx, block_body in enumerate(yaml_blocks, start=1):
+        kind, info = _classify_yaml_block(block_body)
+        if kind == "execute":
+            examples.append(
+                (
+                    f"{rel}::block-{block_idx}",
+                    info["model"],
+                    info["expect"],
+                    info["payload"],
+                    info["expect_message"],
+                )
+            )
+        elif kind == "missing":
+            examples.append(
+                (
+                    f"{rel}::block-{block_idx}-MISSING_FRONTMATTER",
+                    "<MISSING_FRONTMATTER>",
+                    "valid",
+                    "{}",
+                    None,
+                )
+            )
+        # kind == "skip": intentionally non-executable; nothing to add.
+
+
 def _discover_examples() -> list[tuple[str, str, str, str, str | None]]:
-    """Walk every ``kitty-specs/*/contracts/*.md`` and yield tagged examples.
+    """Walk every ``kitty-specs/*/contracts/*.md`` and yield round-trip cases.
 
     Yields tuples of:
         (contract_label, model_dotted_path, expect, yaml_payload, expect_message_or_None)
 
-    Codeblocks without ``# pydantic_model:`` are silently skipped.
-    Legacy contracts with YAML codeblocks but no frontmatter emit a warning.
-    Non-legacy contracts with YAML codeblocks but no frontmatter -> included
-    with model_path="<MISSING_FRONTMATTER>" so the parametrised test fails.
+    Discovery is **block-level** for non-legacy contracts: each YAML block must
+    be tagged with ``# pydantic_model:`` frontmatter (executed) or carry a
+    ``# round-trip: skip: <reason>`` marker (intentionally non-executable);
+    otherwise the block is emitted as ``<MISSING_FRONTMATTER>`` and the gate
+    fails on it. Legacy contracts (``_LEGACY_CONTRACT_ALLOWLIST``) keep
+    file-level burn-down leniency and warn instead of failing.
     """
     examples: list[tuple[str, str, str, str, str | None]] = []
 
@@ -365,54 +504,16 @@ def _discover_examples() -> list[tuple[str, str, str, str, str | None]]:
     for contract_md in sorted(_KITTY_SPECS_ROOT.glob("*/contracts/*.md")):
         text = contract_md.read_text(encoding="utf-8")
         rel = _relative_path(contract_md)
-        is_legacy = _is_legacy(contract_md)
 
         yaml_blocks = _extract_yaml_blocks(text)
         if not yaml_blocks:
             # No YAML codeblocks at all — just a prose contract. Skip quietly.
             continue
 
-        found_any_frontmatter = False
-        for block_idx, block_body in enumerate(yaml_blocks, start=1):
-            fm = _FRONTMATTER_RE.search(block_body)
-            if fm is None:
-                continue
-            found_any_frontmatter = True
-            model_path = fm.group("model")
-            expect = fm.group("expect")
-            msg_match = _EXPECT_MESSAGE_RE.search(block_body)
-            expect_message: str | None = (
-                _parse_expect_message(msg_match.group("msg")) if msg_match else None
-            )
-
-            payload = _strip_frontmatter_comments(block_body)
-
-            label = f"{rel}::block-{block_idx}"
-            examples.append((label, model_path, expect, payload, expect_message))
-
-        # Warn if a legacy contract has YAML blocks but none had frontmatter.
-        if not found_any_frontmatter and is_legacy:
-            warnings.warn(
-                f"Legacy contract '{rel}' has {len(yaml_blocks)} YAML codeblock(s) "
-                f"but none carry ``# pydantic_model:`` frontmatter. "
-                f"Consider backfilling the convention to shrink the legacy allowlist "
-                f"(tests/architectural/_baselines.yaml::test_example_round_trip"
-                f".legacy_contract_allowlist).",
-                UserWarning,
-                stacklevel=2,
-            )
-        elif not found_any_frontmatter and not is_legacy:
-            # Non-legacy contract with YAML blocks but no frontmatter -> gate failure.
-            label = f"{rel}::block-MISSING_FRONTMATTER"
-            examples.append(
-                (
-                    label,
-                    "<MISSING_FRONTMATTER>",
-                    "valid",
-                    "{}",
-                    None,
-                )
-            )
+        if _is_legacy(contract_md):
+            _collect_legacy_blocks(rel, yaml_blocks, examples)
+        else:
+            _collect_strict_blocks(rel, yaml_blocks, examples)
 
     return examples
 
@@ -450,13 +551,16 @@ def test_contract_example_round_trip(
     ``kitty-specs/slice-f-multi-context-extensibility-01KRX5C8/contracts/
     contract-round-trip-frontmatter.md``.
     """
-    # --- Guard: missing frontmatter on a non-legacy contract ---
+    # --- Guard: a non-legacy YAML block carries neither frontmatter nor a skip marker ---
     if model_path == "<MISSING_FRONTMATTER>":
         pytest.fail(
-            f"Contract '{contract_label}' has YAML codeblock(s) but none carry "
-            f"``# pydantic_model:`` frontmatter. Add frontmatter per the Slice F "
-            f"convention OR move the file to ``_LEGACY_CONTRACT_ALLOWLIST`` in "
-            f"``tests/contract/test_example_round_trip.py`` and update "
+            f"Contract block '{contract_label}' carries neither "
+            f"``# pydantic_model:`` frontmatter nor a ``# round-trip: skip: <reason>`` "
+            f"marker. Pick one: (1) add frontmatter to round-trip the block against "
+            f"a Pydantic model; (2) add ``# round-trip: skip: <reason>`` if the block "
+            f"is an illustration / shape sketch / non-Pydantic config or CI snippet; "
+            f"or (3) for a pre-Slice-F file, add it to ``_LEGACY_CONTRACT_ALLOWLIST`` "
+            f"in ``tests/contract/test_example_round_trip.py`` and bump "
             f"``tests/architectural/_baselines.yaml``."
         )
 
@@ -523,3 +627,100 @@ def test_contract_example_round_trip(
                 f"but the ValidationError text does not contain it.\n"
                 f"Actual error:\n{error_text}"
             )
+
+
+# ---------------------------------------------------------------------------
+# Unit coverage for block-level discovery (FR-140 block-level + skip marker, #2255)
+# ---------------------------------------------------------------------------
+
+
+def test_classify_block_executes_on_frontmatter() -> None:
+    kind, info = _classify_yaml_block(
+        "# pydantic_model: a.b.C\n# expect: invalid\n"
+        "# expect_message: boom\nkey: value\n"
+    )
+    assert kind == "execute"
+    assert info["model"] == "a.b.C"
+    assert info["expect"] == "invalid"
+    assert info["expect_message"] == "boom"
+    # Frontmatter comment lines are stripped from the executable payload.
+    assert info["payload"] == "key: value\n"
+
+
+def test_classify_block_skips_on_marker_with_reason() -> None:
+    kind, info = _classify_yaml_block(
+        "# round-trip: skip: illustration only\nkey: value\n"
+    )
+    assert kind == "skip"
+    assert info["reason"] == "illustration only"
+
+
+def test_classify_block_missing_when_neither_present() -> None:
+    kind, info = _classify_yaml_block("key: value\nother: 1\n")
+    assert kind == "missing"
+    assert info == {}
+
+
+def test_classify_block_skip_marker_requires_a_reason() -> None:
+    # An empty reason must NOT count as a skip — the block falls through to
+    # ``missing`` so the gate forces an explicit rationale.
+    kind, _ = _classify_yaml_block("# round-trip: skip:\nkey: value\n")
+    assert kind == "missing"
+
+
+def test_classify_block_frontmatter_wins_over_skip_marker() -> None:
+    # A real example can never be silently disabled by a stray skip marker.
+    kind, info = _classify_yaml_block(
+        "# pydantic_model: a.b.C\n# expect: valid\n# round-trip: skip: nope\nk: v\n"
+    )
+    assert kind == "execute"
+    assert info["model"] == "a.b.C"
+
+
+def test_strict_collection_fails_untagged_block_per_block() -> None:
+    out: list[tuple[str, str, str, str, str | None]] = []
+    _collect_strict_blocks("x/contracts/y.md", ["a: 1\n", "b: 2\n"], out)
+    # Both untagged blocks fail, each labelled with its own block index.
+    assert [c[1] for c in out] == ["<MISSING_FRONTMATTER>", "<MISSING_FRONTMATTER>"]
+    assert out[0][0] == "x/contracts/y.md::block-1-MISSING_FRONTMATTER"
+    assert out[1][0] == "x/contracts/y.md::block-2-MISSING_FRONTMATTER"
+
+
+def test_strict_collection_skips_marked_block() -> None:
+    out: list[tuple[str, str, str, str, str | None]] = []
+    _collect_strict_blocks(
+        "x/contracts/y.md", ["# round-trip: skip: shape sketch\na: 1\n"], out
+    )
+    assert out == []
+
+
+def test_strict_collection_executes_tagged_block() -> None:
+    out: list[tuple[str, str, str, str, str | None]] = []
+    _collect_strict_blocks(
+        "x/contracts/y.md", ["# pydantic_model: a.b.C\n# expect: valid\nk: v\n"], out
+    )
+    assert len(out) == 1
+    assert out[0][0] == "x/contracts/y.md::block-1"
+    assert out[0][1] == "a.b.C"
+
+
+def test_strict_collection_tagged_sibling_does_not_mask_untagged() -> None:
+    # The core P1 regression (#2255): a tagged block in the same file must NOT
+    # absorb an untagged sibling. The untagged block still fails.
+    out: list[tuple[str, str, str, str, str | None]] = []
+    _collect_strict_blocks(
+        "x/contracts/y.md",
+        ["# pydantic_model: a.b.C\n# expect: valid\nk: v\n", "untagged: true\n"],
+        out,
+    )
+    kinds = {c[1] for c in out}
+    assert "<MISSING_FRONTMATTER>" in kinds
+    assert "a.b.C" in kinds
+
+
+def test_legacy_collection_warns_and_does_not_fail_when_untagged() -> None:
+    out: list[tuple[str, str, str, str, str | None]] = []
+    with pytest.warns(UserWarning, match="Legacy contract"):
+        _collect_legacy_blocks("x/contracts/y.md", ["a: 1\n"], out)
+    # Legacy files never emit a MISSING_FRONTMATTER failure case.
+    assert out == []

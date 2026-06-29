@@ -6,6 +6,7 @@ Target contract file (FR-008): `kitty-specs/layered-doctrine-org-layer-01KRNPEE/
 ## `.kittify/config.yaml` — canonical shape (`doctrine.org.packs[]`)
 
 ```yaml
+# round-trip: skip: canonical .kittify/config.yaml shape sketch — executable single-pack OrgPackConfig round-trip examples are in the "Round-trip example" section below
 doctrine:
   org:
     packs:

@@ -109,19 +109,19 @@ test_compat_shims:
 # sweep. WP01 pins this at 0 so the meta-test can run; WP03 edits
 # upward only if the sweep finds legitimately-excluded contracts.
 test_example_round_trip:
-  # justification: WP03 discovery sweep found 151 contracts from missions
-  # predating the Slice F frontmatter convention. These are allowlisted
-  # per FR-141 so they warn instead of failing. +1 for T031 (#1301):
-  # spec-kitty-3-2-docs-01KS4KSZ/contracts/check_docs_freshness.md carries a
-  # CI-wiring YAML snippet (not a Pydantic model payload). +1 for #2255:
-  # specify-protected-primary-coherence-01KVMBD6/contracts/protection-config.md
-  # carries the ``.kittify/config.yaml`` ``protection:`` operator-config shape
-  # sketch, whose resolved artefact is the frozen ``ProtectionPolicy`` dataclass
-  # + ``protection_policy.resolve`` raw-YAML resolver (no Pydantic ``model_validate``
-  # target), so the FR-140 round-trip does not apply. The baseline participates in
-  # the burn-down policy (C-004): it MUST shrink as legacy missions backfill the
+  # justification: 151 contracts from missions PREDATING the Slice F frontmatter
+  # convention. These are allowlisted file-level per FR-141 so they warn instead
+  # of failing. This set is *only* pre-Slice-F legacy debt and participates in the
+  # burn-down policy (C-004): it MUST shrink as legacy missions backfill the
   # ``# pydantic_model:`` / ``# expect:`` frontmatter.
-  legacy_contract_allowlist: 153
+  #
+  # Post-Slice-F files that are simply non-executable (CI-wiring snippets,
+  # ``.kittify/config.yaml`` shape sketches, non-Pydantic operator config) do NOT
+  # belong here. Per #2255 they carry a per-block ``# round-trip: skip: <reason>``
+  # marker instead (block-level discovery in test_example_round_trip.py). That
+  # migration moved check_docs_freshness.md (the former T031 +1) out of this set,
+  # so the count drops 152 -> 151.
+  legacy_contract_allowlist: 151
 
 # tests/architectural/test_all_declarations_required.py
 # Populated by WP02 after the charter/kernel __all__ sweep. WP01

@@ -46,6 +46,7 @@
 Tasks-phase WP F3 wires this into `.github/workflows/ci-quality.yml` (or the current equivalent) as:
 
 ```yaml
+# round-trip: skip: GitHub Actions CI step (not a Pydantic model payload) — migrated from the legacy allowlist to an explicit non-executable marker (#2255)
 - name: Docs freshness
   run: |
     SPEC_KITTY_ENABLE_SAAS_SYNC=1 SPEC_KITTY_NO_UPGRADE_CHECK=1 \

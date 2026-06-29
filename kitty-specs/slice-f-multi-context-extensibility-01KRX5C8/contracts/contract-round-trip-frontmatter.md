@@ -42,13 +42,16 @@ source_kind: local_path
 
 ### Codeblocks NOT subject to round-trip
 
-YAML codeblocks WITHOUT the `pydantic_model:` frontmatter line are skipped — they are documentation prose or shape sketches, not contract examples. The walker counts them in a `skipped:` summary but does not fail.
+In a **non-legacy** contract, discovery is block-level: every YAML codeblock must either carry the `pydantic_model:` frontmatter (executed) OR carry an explicit non-executable marker as a comment line — `# round-trip: skip: <reason>` — with a mandatory reason. A block carrying neither fails the gate on that specific block, so a tagged sibling can never silently mask a forgotten tag. The skip marker is the home for documentation prose, shape sketches, CI-wiring snippets, and non-Pydantic operator config.
+
+In a **legacy** contract (tracked in the allowlist below), the gate keeps file-level leniency: untagged codeblocks are skipped with a warning rather than failing, pending backfill.
 
 ### Legacy contract allowlist (FR-141)
 
 Contracts from missions predating this convention live under an allowlist tracked in `tests/architectural/_baselines.yaml`:
 
 ```yaml
+# round-trip: skip: baseline-format illustration with an <N> placeholder, not a Pydantic payload
 test_example_round_trip:
   legacy_contract_allowlist: <N>
 ```
