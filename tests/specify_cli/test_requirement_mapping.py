@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from specify_cli.requirement_mapping import (
+    classify_stale_refs,
     compute_coverage,
     normalize_requirement_refs_value,
     parse_requirement_ids_from_spec_md,
@@ -52,6 +53,35 @@ class TestValidateRefFormat:
         well_formed, malformed = validate_ref_format(["FR-001", "INVALID", "REQ-001"])
         assert well_formed == ["FR-001"]
         assert malformed == ["INVALID", "REQ-001"]
+
+
+class TestClassifyStaleRefs:
+    """Test #2066 stale-ref diagnostics classification."""
+
+    def test_splits_malformed_and_unknown(self):
+        # FR-003a is malformed (letter suffix); FR-999 is well-formed but absent
+        # from spec → unknown_spec_id.
+        reasons = classify_stale_refs(
+            {"WP02": ["FR-003a", "FR-999"]},
+            malformed=["FR-003A"],
+        )
+        assert reasons == {
+            "WP02": {"malformed": ["FR-003a"], "unknown_spec_id": ["FR-999"]}
+        }
+
+    def test_unfilled_placeholder_is_malformed(self):
+        # An unfilled <FR-XXX> template placeholder is classified malformed, not unknown.
+        reasons = classify_stale_refs({"WP01": ["<FR-XXX>"]}, malformed=[])
+        assert reasons["WP01"] == {"malformed": ["<FR-XXX>"], "unknown_spec_id": []}
+
+    def test_preserves_raw_case_and_sorts(self):
+        reasons = classify_stale_refs(
+            {"WP03": ["fr-002", "FR-001"]},
+            malformed=[],
+        )
+        # Both well-formed-but-unknown here; raw case preserved, sorted.
+        assert reasons["WP03"]["unknown_spec_id"] == ["FR-001", "fr-002"]
+        assert reasons["WP03"]["malformed"] == []
 
 
 class TestComputeCoverage:

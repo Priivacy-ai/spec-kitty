@@ -58,6 +58,35 @@ def validate_ref_format(refs: list[str]) -> tuple[list[str], list[str]]:
     return well_formed, malformed
 
 
+def classify_stale_refs(
+    stale_refs: dict[str, list[str]],
+    malformed: list[str],
+) -> dict[str, dict[str, list[str]]]:
+    """Split each WP's offending refs into format-malformed vs unknown-spec-id buckets.
+
+    Lets diagnostics explain *why* a ref is stale: a ``malformed`` ref violates the
+    ``FR-NNN`` / ``NFR-NNN`` / ``C-NNN`` shape (e.g. ``FR-003a`` or an unfilled
+    ``<FR-XXX>`` placeholder), whereas an ``unknown_spec_id`` ref is well-formed but
+    not declared in ``spec.md``.
+
+    Args:
+        stale_refs: per-WP offending raw tokens (case preserved).
+        malformed: uppercased tokens that fail the format check (from
+            :func:`validate_ref_format`).
+
+    Returns:
+        ``{wp_id: {"malformed": [...], "unknown_spec_id": [...]}}`` — raw tokens,
+        sorted, each offending token in exactly one bucket.
+    """
+    malformed_set = set(malformed)
+    reasons: dict[str, dict[str, list[str]]] = {}
+    for wp_id, bad_refs in stale_refs.items():
+        wp_malformed = sorted(r for r in bad_refs if r.startswith("<") or r.upper() in malformed_set)
+        wp_unknown = sorted(r for r in bad_refs if not r.startswith("<") and r.upper() not in malformed_set)
+        reasons[wp_id] = {"malformed": wp_malformed, "unknown_spec_id": wp_unknown}
+    return reasons
+
+
 def compute_coverage(mappings: dict[str, list[str]], functional_ids: set[str]) -> CoverageSummary:
     """Compute coverage summary: total, mapped, unmapped FRs."""
     mapped: set[str] = set()

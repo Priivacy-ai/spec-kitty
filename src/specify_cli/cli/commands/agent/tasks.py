@@ -2489,6 +2489,7 @@ def map_requirements(
     from specify_cli.frontmatter import write_frontmatter
     from specify_cli.status import read_wp_frontmatter
     from specify_cli.requirement_mapping import (
+        classify_stale_refs,
         compute_coverage,
         normalize_requirement_refs_value,
         parse_requirement_ids_from_spec_md,
@@ -2762,17 +2763,32 @@ def map_requirements(
                     stale_refs[wp_id] = wp_bad
 
         if stale_refs:
+            # Surface the parsed spec FR set and classify each offender so a simple
+            # format mismatch (e.g. FR-003a) is obvious rather than looking like
+            # invented/orphaned IDs (#2066).
+            stale_ref_reasons = classify_stale_refs(stale_refs, post_merge_malformed)
+            parsed_spec_ids = sorted(all_spec_ids)
             payload = {
                 "error": "Stale or invalid refs in WP frontmatter",
                 "stale_refs": stale_refs,
-                "hint": ("Re-run with --replace to correct, e.g.: map-requirements --wp WP01 --refs FR-001 --replace"),
+                "stale_ref_reasons": stale_ref_reasons,
+                "parsed_spec_ids": parsed_spec_ids,
+                "hint": (
+                    "Requirement IDs must match FR-NNN, NFR-NNN, or C-NNN "
+                    "(e.g. FR-003, not FR-003a). 'malformed' refs violate that format; "
+                    "'unknown_spec_id' refs are well-formed but not declared in spec.md "
+                    "(see parsed_spec_ids). Re-run with --replace to correct, "
+                    "e.g.: map-requirements --wp WP01 --refs FR-001 --replace"
+                ),
             }
             if json_output:
                 print(json.dumps(payload))
             else:
                 console.print("[red]Error:[/red] Stale or invalid refs in WP frontmatter:")
+                console.print("  IDs must match FR-NNN, NFR-NNN, or C-NNN (e.g. FR-003, not FR-003a).")
                 for wp_id, bad_refs in sorted(stale_refs.items()):
                     console.print(f"  {wp_id}: {', '.join(bad_refs)}")
+                console.print(f"  Parsed spec IDs: {', '.join(parsed_spec_ids) or '(none)'}")
                 console.print("  Use --replace to correct mappings")
             raise typer.Exit(1)
 

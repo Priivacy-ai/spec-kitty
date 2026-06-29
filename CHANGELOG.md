@@ -9,7 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - 3.2.4
 
-_No changes yet — entries land here as missions merge._
+### 🐛 Fixed
+
+- **`map-requirements` now explains *why* a WP `requirement_refs` entry is stale
+  instead of looking like data corruption (#2066).** When the stale/invalid-refs
+  gate trips, the `--json` payload (and console output) now surface the FR-ID set
+  parsed from `spec.md` (`parsed_spec_ids`), classify each offending ref per WP into
+  `malformed` (violates the `FR-NNN` / `NFR-NNN` / `C-NNN` format — e.g. a
+  letter-suffixed `FR-003a` or an unfilled `<FR-XXX>` placeholder) vs
+  `unknown_spec_id` (well-formed but not declared in the spec), and the hint names
+  the format rule. A one-character ID-format mismatch is now obvious rather than
+  reading like invented/orphaned IDs.
 
 ## [3.2.3] - 2026-06-29
 
