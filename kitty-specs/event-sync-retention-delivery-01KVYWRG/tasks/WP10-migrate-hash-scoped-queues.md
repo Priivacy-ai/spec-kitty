@@ -23,8 +23,8 @@ subtasks:
 - T063
 phase: Phase 5 - Policy, migration, status, CLI
 assignee: ''
-agent: "claude:opus:python-pedro:implementer"
-shell_pid: "55131"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "76850"
 history:
 - at: '2026-06-29T06:21:37Z'
   actor: system
@@ -286,3 +286,5 @@ For `/spec-kitty.review`, verify against the contract's §5 "Required tests" and
 - 2026-06-29T09:20:42Z – user – shell_pid=55131 – WP10 implementation complete; advancing lane state for handoff
 - 2026-06-29T09:25:06Z – claude:opus:python-pedro:implementer – shell_pid=55131 – Ready: multi-DB migration (unknown provenance, dup quarantine); queue.py event-queueing retired, body-upload intact (C-006); ATDD + gates green. Lane status-file drift is a coordination artifact (forced past kitty-specs guard).
 - 2026-06-29T09:32:23Z – claude:opus:python-pedro:implementer – shell_pid=55131 – Ready: WP10 multi-DB migration; queue.py event-queueing retired, body-upload intact (C-006); ATDD + gates green
+- 2026-06-29T09:36:03Z – claude:opus:python-pedro:implementer – shell_pid=55131 – for_review (propagated from primary; lane pristine at 9110fcb3c)
+- 2026-06-29T09:36:05Z – claude:opus:reviewer-renata:reviewer – shell_pid=76850 – Started review via action command
