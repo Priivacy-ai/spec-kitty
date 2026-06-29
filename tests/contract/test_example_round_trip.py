@@ -229,6 +229,12 @@ _LEGACY_CONTRACT_ALLOWLIST: frozenset[str] = frozenset(
         "kitty-specs/wp-prompt-governance-payload-01KRR8HS/contracts/runtime-template-governance-payload-contract.md",
         # CI-wiring YAML snippet (not a Pydantic model payload); added per T031 (#1301)
         "kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/contracts/check_docs_freshness.md",
+        # `.kittify/config.yaml` ``protection:`` operator-config shape sketch
+        # (not a Pydantic model payload); the resolved artefact is the frozen
+        # ``ProtectionPolicy`` dataclass + ``protection_policy.resolve`` raw-YAML
+        # resolver, which fail-closes via ``ProtectionConfigError`` rather than
+        # ``model_validate`` — so the FR-140 round-trip does not apply. Added per #2255.
+        "kitty-specs/specify-protected-primary-coherence-01KVMBD6/contracts/protection-config.md",
     }
 )
 

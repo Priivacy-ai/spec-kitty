@@ -113,10 +113,15 @@ test_example_round_trip:
   # predating the Slice F frontmatter convention. These are allowlisted
   # per FR-141 so they warn instead of failing. +1 for T031 (#1301):
   # spec-kitty-3-2-docs-01KS4KSZ/contracts/check_docs_freshness.md carries a
-  # CI-wiring YAML snippet (not a Pydantic model payload). The baseline
-  # participates in the burn-down policy (C-004): it MUST shrink as legacy
-  # missions backfill the ``# pydantic_model:`` / ``# expect:`` frontmatter.
-  legacy_contract_allowlist: 152
+  # CI-wiring YAML snippet (not a Pydantic model payload). +1 for #2255:
+  # specify-protected-primary-coherence-01KVMBD6/contracts/protection-config.md
+  # carries the ``.kittify/config.yaml`` ``protection:`` operator-config shape
+  # sketch, whose resolved artefact is the frozen ``ProtectionPolicy`` dataclass
+  # + ``protection_policy.resolve`` raw-YAML resolver (no Pydantic ``model_validate``
+  # target), so the FR-140 round-trip does not apply. The baseline participates in
+  # the burn-down policy (C-004): it MUST shrink as legacy missions backfill the
+  # ``# pydantic_model:`` / ``# expect:`` frontmatter.
+  legacy_contract_allowlist: 153
 
 # tests/architectural/test_all_declarations_required.py
 # Populated by WP02 after the charter/kernel __all__ sweep. WP01
