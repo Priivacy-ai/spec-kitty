@@ -24,7 +24,8 @@ subtasks:
 - T045
 phase: Phase 4 - Dispatch
 assignee: ''
-agent: claude
+agent: "claude:opus:python-pedro:implementer"
+shell_pid: "74373"
 history:
 - at: '2026-06-29T06:21:37Z'
   actor: system
@@ -260,3 +261,4 @@ For `/spec-kitty.review`, verify against the contract's §3 "Required tests" and
 ## Activity Log
 > Entries chronological, appended at END. Format: `- YYYY-MM-DDTHH:MM:SSZ – <agent_id> – <action>`
 - 2026-06-29T06:21:37Z – system – Prompt created.
+- 2026-06-29T09:25:03Z – claude:opus:python-pedro:implementer – shell_pid=74373 – Assigned agent via action command
