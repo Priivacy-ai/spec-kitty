@@ -19,7 +19,8 @@ subtasks:
 - T025
 phase: Phase 3 - Delivery domain
 assignee: ''
-agent: claude
+agent: "claude:opus:python-pedro:implementer"
+shell_pid: "31738"
 history:
 - at: '2026-06-29T06:21:37Z'
   actor: system
@@ -232,3 +233,4 @@ A reviewer running `/spec-kitty.review` must verify:
 ## Activity Log
 > Entries chronological, appended at END. Format: `- YYYY-MM-DDTHH:MM:SSZ – <agent_id> – <action>`
 - 2026-06-29T06:21:37Z – system – Prompt created.
+- 2026-06-29T07:49:22Z – claude:opus:python-pedro:implementer – shell_pid=31738 – Assigned agent via action command
