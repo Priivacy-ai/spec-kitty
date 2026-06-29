@@ -25,7 +25,7 @@ from specify_cli.compat.history import UpgradeAttemptStore
 from specify_cli.compat.install_events import UvToolInstallationVerified, VerificationConfidence
 from specify_cli.compat.remediation import RemediationCommand, RemediationIntent
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

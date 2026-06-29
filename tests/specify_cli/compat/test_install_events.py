@@ -18,7 +18,7 @@ from specify_cli.compat.install_events import (
 )
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

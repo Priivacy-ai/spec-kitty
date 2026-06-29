@@ -20,7 +20,7 @@ import pytest
 from specify_cli.core.version_checker import format_version_error
 from specify_cli.migration.schema_version import check_compatibility, CompatibilityStatus
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.fast]
 
 _PIPX_CMD = "pipx upgrade spec-kitty-cli"
 _FALLBACK_CMD = "pipx upgrade spec-kitty-cli"

@@ -23,7 +23,7 @@ from specify_cli.compat.history import (
     default_history_db_path,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.fast]
 
 # ---------------------------------------------------------------------------
 # Helpers
