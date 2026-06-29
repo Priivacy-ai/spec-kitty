@@ -4,7 +4,7 @@ artifact_type: spec-kitty.analysis-report
 command: /spec-kitty.analyze
 mission_slug: event-sync-retention-delivery-01KVYWRG
 mission_id: 01KVYWRGF148VXAXDJ90MECYRR
-generated_at: '2026-06-29T07:18:23.779536+00:00'
+generated_at: '2026-06-29T07:48:55.716340+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
@@ -15,14 +15,14 @@ input_artifacts:
     sha256: 81b4a84382953afde49bf4ee3477980c7aa8236642a4eab07171a209d7efd902
   tasks.md:
     path: /Users/robert/spec-kitty-dev/spec-kitty-20260629-075047-zE1EDZ/spec-kitty/kitty-specs/event-sync-retention-delivery-01KVYWRG/tasks.md
-    sha256: f67a5cc3ec3607c8dd8499c20970130dccfcd811f3d00f51f114f59d1113fc82
+    sha256: fa5106670b405889e1e166e20f12aca16d636893338331b621703e248658297d
   charter:
     path: /Users/robert/spec-kitty-dev/spec-kitty-20260629-075047-zE1EDZ/spec-kitty/.kittify/charter/charter.md
     sha256: d393b068f20eab1bb918c2f53e669d01048f049e8b0f948ff6001fc280517c08
 verdict: ready
 issue_counts:
-  medium: 0
   critical: 0
+  medium: 0
   low: 0
   high: 0
   info: 0
