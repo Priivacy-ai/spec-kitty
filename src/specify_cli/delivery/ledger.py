@@ -160,6 +160,10 @@ _TERMINAL_EVENT_IDS_SQL = (
 _DELIVERED_ANYWHERE_SQL = (
     "SELECT 1 FROM delivery_ledger WHERE event_id = ? AND status IN (?, ?) LIMIT 1"
 )
+_DELIVERED_TO_TARGET_SQL = (
+    "SELECT 1 FROM delivery_ledger "
+    "WHERE event_id = ? AND target_id = ? AND status IN (?, ?) LIMIT 1"
+)
 
 
 @dataclass(frozen=True)
@@ -563,6 +567,20 @@ class SqliteDeliveryLedger:
         """
         row = self._conn.execute(
             _DELIVERED_ANYWHERE_SQL, (event_id, *_TERMINAL_SUCCESS_PARAMS)
+        ).fetchone()
+        return row is not None
+
+    def delivered_to_target(self, event_id: str, target_id: str) -> bool:
+        """Whether *(event_id, target_id)* holds a terminal-success delivery.
+
+        The target-scoped sibling of :meth:`delivered_anywhere`: it answers
+        "was this exact event delivered to *this* target?" (``success`` /
+        ``duplicate`` only). WP11's :func:`~specify_cli.delivery.retention.gc_payloads`
+        uses it to purge a payload **only** once every known target has received
+        it, preserving re-drainability to a not-yet-delivered target (FR-005).
+        """
+        row = self._conn.execute(
+            _DELIVERED_TO_TARGET_SQL, (event_id, target_id, *_TERMINAL_SUCCESS_PARAMS)
         ).fetchone()
         return row is not None
 

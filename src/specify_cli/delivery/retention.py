@@ -16,10 +16,13 @@ destructive payload operations and preserve delivery history/provenance").
   events off the live "retained" growth surface without deleting bytes. It is
   idempotent — an already-archived event is skipped.
 * :func:`gc_payloads` is destructive: it purges (deletes) journal payload rows,
-  but **only** for events already delivered somewhere
-  (:meth:`SqliteDeliveryLedger.delivered_anywhere`). An undelivered event is
-  skipped so the durability the spec requires (e.g. a not-yet-delivered
-  Teamspace-bound payload) is never silently erased. The ledger rows survive.
+  but **only** for events already delivered to **all known targets**
+  (:meth:`SqliteDeliveryLedger.delivered_to_target` for every known target id).
+  An event still owed to any not-yet-delivered target is skipped so its payload
+  — the only durable copy re-drainable to that target (FR-005) — is never
+  silently erased. When no known targets are supplied the operation purges
+  nothing (it cannot establish full delivery), and the ledger rows always
+  survive.
 
 Per **C-001** this module consumes the WP03 journal + WP05 ledger public
 surfaces. The destructive purge writes the journal store directly using the
@@ -130,22 +133,50 @@ def archive_payloads(journal: EventJournal, *, event_ids: Sequence[str] | None =
     )
 
 
-def gc_payloads(journal: EventJournal, ledger: SqliteDeliveryLedger, *, event_ids: Sequence[str] | None = None) -> RetentionResult:
-    """Purge delivered payloads, preserve undelivered durability + ledger (FR-010).
+def _delivered_to_all_known_targets(
+    ledger: SqliteDeliveryLedger,
+    event_id: str,
+    known_target_ids: Sequence[str] | None,
+) -> bool:
+    """Whether *event_id* reached **every** known target (the purge predicate).
 
-    Deletes the journal payload row for each candidate event that has been
-    delivered somewhere (:meth:`SqliteDeliveryLedger.delivered_anywhere`). An
-    undelivered or missing event is skipped — its payload is the only durable
-    copy and must not be erased silently. The delivery ledger is never touched,
-    so history/provenance survives the purge. When *event_ids* is omitted, every
-    stored event (live or archived) is a candidate.
+    Returns ``False`` (purge-nothing safe default) when *known_target_ids* is
+    falsy/empty: with no target universe the operation cannot establish full
+    delivery, so it must not erase a payload that may still be owed to an
+    unknown target. Otherwise the event must have a terminal-success delivery to
+    every known target before its payload can be reclaimed (FR-005).
+    """
+    if not known_target_ids:
+        return False
+    return all(ledger.delivered_to_target(event_id, target_id) for target_id in known_target_ids)
+
+
+def gc_payloads(
+    journal: EventJournal,
+    ledger: SqliteDeliveryLedger,
+    *,
+    event_ids: Sequence[str] | None = None,
+    known_target_ids: Sequence[str] | None = None,
+) -> RetentionResult:
+    """Purge fully-delivered payloads, preserve re-drainable durability + ledger (FR-010).
+
+    Deletes the journal payload row for each candidate event **only** once it has
+    a terminal-success delivery to every id in *known_target_ids*
+    (:meth:`SqliteDeliveryLedger.delivered_to_target`). An event still owed to any
+    not-yet-delivered known target is skipped — its payload is the only durable
+    copy re-drainable to that target and must not be erased silently (FR-005). A
+    missing event is likewise skipped. When *known_target_ids* is falsy/empty the
+    operation purges nothing (it cannot establish full delivery — a safe default
+    so existing callers degrade to purge-nothing). The delivery ledger is never
+    touched, so history/provenance survives the purge. When *event_ids* is
+    omitted, every stored event (live or archived) is a candidate.
     """
     before = _total_payload_bytes(journal)
     purged: list[str] = []
     skipped: list[str] = []
     for event_id in _candidate_ids(journal, event_ids, live_only=False):
         stored = journal.read_by_id(event_id)
-        if stored is None or not ledger.delivered_anywhere(event_id):
+        if stored is None or not _delivered_to_all_known_targets(ledger, event_id, known_target_ids):
             skipped.append(event_id)
             continue
         purged.append(event_id)

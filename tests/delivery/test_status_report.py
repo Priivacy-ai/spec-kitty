@@ -555,7 +555,10 @@ def test_gc_purges_delivered_preserves_undelivered_and_ledger(
     journal.append(_event("evt-undelivered"))
     ledger.record_success("evt-delivered", target.target_id)
 
-    result = gc_payloads(journal, ledger)
+    # P1-gc fix: gc reclaims only events delivered to ALL known targets, so the
+    # target universe must be supplied (the prior delivered_anywhere purge would
+    # have destroyed re-drainability to a not-yet-delivered target — FR-005).
+    result = gc_payloads(journal, ledger, known_target_ids=[target.target_id])
     assert "evt-delivered" in result.purged
     assert "evt-undelivered" in result.skipped
 
