@@ -234,3 +234,4 @@ A reviewer running `/spec-kitty.review` must verify:
 > Entries chronological, appended at END. Format: `- YYYY-MM-DDTHH:MM:SSZ – <agent_id> – <action>`
 - 2026-06-29T06:21:37Z – system – Prompt created.
 - 2026-06-29T07:49:22Z – claude:opus:python-pedro:implementer – shell_pid=31738 – Assigned agent via action command
+- 2026-06-29T08:15:59Z – claude:opus:python-pedro:implementer – shell_pid=31738 – Ready: target registry (url+scope identity, metadata provenance, advisory reset); ATDD + identifier-safety + gates green
