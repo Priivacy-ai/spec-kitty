@@ -334,11 +334,30 @@ def test_check_mode_fails_when_file_stale(tmp_path: Path, monkeypatch: pytest.Mo
 
 
 def test_real_glossary_contexts_parse() -> None:
-    """Ensure all real context files parse without error."""
-    contexts_dir = Path(__file__).resolve().parent.parent.parent.parent / "docs" / "context"
-    assert contexts_dir.exists(), f"Glossary contexts dir not found: {contexts_dir}"
+    """Every *registered* glossary context parses with at least one term.
 
-    for md_file in sorted(contexts_dir.glob("*.md")):
+    Discovery is map-driven — the registered context slugs in
+    ``contextive-map.yaml`` — the same authoritative source the generator
+    (:func:`gen.cmd_generate`) and :func:`test_real_check_mode_passes` use. This
+    deliberately does **not** blind-glob ``docs/context/*.md``: that directory is
+    a mixed documentation section that also holds prose Explanation pages (e.g.
+    ``charter-overview.md``) which are not glossary contexts and carry no terms.
+    A blind glob would assert the directory layout rather than the glossary
+    contract, and would break whenever a non-context doc lands there.
+    """
+    repo_root = Path(__file__).resolve().parent.parent.parent.parent
+    contexts_dir = repo_root / "docs" / "context"
+    map_file = repo_root / ".kittify" / "traceability" / "contextive-map.yaml"
+    assert contexts_dir.exists(), f"Glossary contexts dir not found: {contexts_dir}"
+    assert map_file.exists(), f"Traceability map not found: {map_file}"
+
+    tmap = gen.load_map(map_file)
+    registered = sorted({slug for scope in tmap.scopes for slug in scope.contexts})
+    assert registered, "no glossary contexts registered in contextive-map.yaml"
+
+    for slug in registered:
+        md_file = contexts_dir / f"{slug}.md"
+        assert md_file.is_file(), f"registered context '{slug}' has no {md_file.name}"
         ctx = gen.parse_context_file(md_file)
         assert ctx.name, f"No context name parsed from {md_file.name}"
         assert ctx.terms, f"No terms parsed from {md_file.name}"
