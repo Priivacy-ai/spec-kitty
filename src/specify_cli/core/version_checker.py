@@ -299,5 +299,11 @@ __all__ = [
     "format_version_error",
     "should_check_version",
     "maybe_emit_no_upgrade_notice",
-    "MismatchType",
+    # MismatchType (a Literal type alias) is intentionally NOT exported: it is
+    # used only as an internal annotation on compare_versions/format_version_error
+    # and has no cross-file importer. Its sole former re-exporter, the deleted
+    # compat/_adapters/version_checker.py shim, is gone (shrink-ratchet-allowlists
+    # WP01 FR-004). Demoted from __all__ rather than grandfathered into the
+    # dead-symbol allowlist — the gate scans only __all__ names, so this closes
+    # the orphan at the root with zero functional change (the alias stays defined).
 ]

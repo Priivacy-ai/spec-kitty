@@ -160,15 +160,11 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         # _render_nag_if_needed and _should_suppress_nag removed from
         # allowlist: both now have live callers in the CLI startup readiness
         # coordinator path (Priivacy-ai/spec-kitty#1093).
-        "specify_cli.compat._adapters.detector::VersionDetector",
-        "specify_cli.compat._adapters.gate::_EXEMPT_COMMANDS",
-        "specify_cli.compat._adapters.gate::check_schema_version",
-        "specify_cli.compat._adapters.version_checker::MismatchType",
-        "specify_cli.compat._adapters.version_checker::compare_versions",
-        "specify_cli.compat._adapters.version_checker::format_version_error",
-        "specify_cli.compat._adapters.version_checker::get_cli_version",
-        "specify_cli.compat._adapters.version_checker::get_project_version",
-        "specify_cli.compat._adapters.version_checker::should_check_version",
+        #
+        # The nine compat._adapters.{detector,gate,version_checker}::* entries
+        # were removed here when the three pure-shim adapter files were deleted
+        # (shrink-ratchet-allowlists WP01 FR-004): the modules no longer exist,
+        # so the symbols are gone from every __all__ the gate scans.
         "specify_cli.core.context_validation::CurrentContext",
         "specify_cli.core.context_validation::ExecutionContext",
         "specify_cli.core.context_validation::detect_execution_context",
@@ -189,6 +185,12 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.core.paths::resolve_with_context",
         "specify_cli.core.upgrade_probe::DEFAULT_TIMEOUT_S",
         "specify_cli.core.upgrade_probe::PYPI_JSON_URL",
+        # NOTE: core.version_checker::MismatchType was orphaned when the
+        # compat/_adapters/version_checker.py shim (its sole cross-file importer)
+        # was deleted. Rather than grandfather it here, it was demoted from
+        # core.version_checker.__all__ (shrink-ratchet-allowlists WP01 FR-004) —
+        # the gate scans only __all__ names, so the orphan is closed at the root
+        # with no allowlist entry and no follow-up debt.
         "specify_cli.core.worktree_topology::FeatureTopology",
         "specify_cli.core.worktree_topology::WPTopologyEntry",
         "specify_cli.core.worktree_topology::render_topology_text",

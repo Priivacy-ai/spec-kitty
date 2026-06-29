@@ -79,7 +79,9 @@ _LEGACY_CONTRACT_ALLOWLIST: frozenset[str] = frozenset(
         "kitty-specs/002-lightweight-pypi-release/contracts/release-validation-cli.md",
         "kitty-specs/003-auto-protect-agent/contracts/test-contract.md",
         "kitty-specs/032-identity-aware-cli-event-sync/contracts/event-envelope.md",
-        "kitty-specs/033-github-observability-event-metadata/contracts/event-envelope.md",
+        # 033-github-observability-event-metadata/contracts/event-envelope.md
+        # removed (shrink-ratchet-allowlists WP01 FR-003): the mission
+        # directory no longer exists on main, so the allowlisted path is dead.
         "kitty-specs/039-cli-2x-readiness/contracts/lane-mapping.md",
         "kitty-specs/041-enable-plan-mission-runtime-support/contracts/command-template.md",
         "kitty-specs/041-mission-glossary-semantic-integrity/contracts/events.md",

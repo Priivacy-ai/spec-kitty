@@ -28,11 +28,17 @@ _REPO_ROOT = Path(__file__).parent.parent.parent
 _ADAPTERS_DIR = _REPO_ROOT / "src" / "specify_cli" / "compat" / "_adapters"
 _FIXTURES_DIR = Path(__file__).parent / "_fixtures"
 
-_ADAPTER_FILES = [
-    _ADAPTERS_DIR / "version_checker.py",
-    _ADAPTERS_DIR / "gate.py",
-    _ADAPTERS_DIR / "detector.py",
-]
+# Adapter files are DISCOVERED, never hardcoded: any *.py under
+# compat/_adapters/ (excluding __init__.py) is automatically guarded by the
+# no-logic / marker checks below. The shrink-ratchet-allowlists WP01 (FR-004)
+# deletion removed all three pure-shim adapters AND the now-empty package, so
+# this glob yields nothing today (the parametrized checks skip) and
+# `pure_shim_files` ratchets to 0 — but if any adapter is reintroduced the
+# guard re-arms itself with zero edits. ``glob`` on a missing directory yields
+# an empty iterator, so the deleted-package case is handled without a guard.
+_ADAPTER_FILES: list[Path] = sorted(
+    p for p in _ADAPTERS_DIR.glob("*.py") if p.name != "__init__.py"
+)
 
 _DISALLOWED_NODE_TYPES = (
     ast.FunctionDef,

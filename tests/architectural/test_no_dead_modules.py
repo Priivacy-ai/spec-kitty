@@ -306,9 +306,12 @@ _CATEGORY_4_BACKCOMPAT_SHIMS: frozenset[str] = frozenset(
 # mission-review-report.md.
 _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
     {
-        "specify_cli.compat._adapters.detector",
-        "specify_cli.compat._adapters.gate",
-        "specify_cli.compat._adapters.version_checker",
+        # compat/_adapters/{detector,gate,version_checker}.py deleted
+        # (shrink-ratchet-allowlists WP01 FR-004): all three were pure
+        # slot-holder shims with zero functional src/ callers (empty
+        # __init__.py, no re-exports). Category emptied; the C-006 target
+        # of 0 by 4.0 is reached early.
+        #
         # runtime.next._internal_runtime.workflow_registry removed:
         # WP11 wired get_workflow() into planner.py (planner imports it
         # via workflow_registry at module scope), so the module now has a
