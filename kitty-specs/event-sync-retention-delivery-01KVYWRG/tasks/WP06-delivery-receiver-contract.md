@@ -21,8 +21,8 @@ subtasks:
 - T038
 phase: Phase 3 - Delivery domain
 assignee: ''
-agent: "claude:opus:python-pedro:implementer"
-shell_pid: "55131"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "72632"
 history:
 - at: '2026-06-29T06:21:37Z'
   actor: system
@@ -382,3 +382,7 @@ For `/spec-kitty.review`, a reviewer must verify (tie to contract §4 "Required 
 > Entries chronological, appended at END. Format: `- YYYY-MM-DDTHH:MM:SSZ – <agent_id> – <action>`
 - 2026-06-29T06:21:37Z – system – Prompt created.
 - 2026-06-29T08:52:13Z – claude:opus:python-pedro:implementer – shell_pid=55131 – Assigned agent via action command
+- 2026-06-29T09:09:43Z – user – shell_pid=55131 – WP06: DeliveryReceiver + 3 receivers; stub no-creds; ATDD red->green; gates green
+- 2026-06-29T09:09:45Z – user – shell_pid=55131 – WP06: DeliveryReceiver + 3 receivers; stub no-creds; ATDD red->green; gates green
+- 2026-06-29T09:18:45Z – claude:opus:python-pedro:implementer – shell_pid=55131 – for_review (propagated from primary; lane pristine at 03d5b6e39)
+- 2026-06-29T09:19:04Z – claude:opus:reviewer-renata:reviewer – shell_pid=72632 – Started review via action command
