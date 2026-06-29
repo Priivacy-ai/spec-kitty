@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-06-29T17:27:05.270309Z",
+      "decision_id": "01KWA6Q7SPH9ZN20CH6EW68QDM",
+      "final_answer": null,
+      "input_key": "ci_trigger_blindspot_scope",
+      "mission_id": "01KWA6KNJZSYQ764MC086QPFS1",
+      "mission_slug": "sync-strict-json-auth-01KWA6KN",
+      "opened_by": "cli",
+      "options": [
+        "In scope this mission",
+        "Defer to #2034",
+        "Decide after research"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Should broadening path-filtered integration gates (so committed-failing tests can't hide) be in this mission's scope, or deferred to #2034?",
+      "rationale": "User chose to decide CI-trigger blind-spot scope after the research phase confirms root cause and blast radius.",
+      "resolved_at": "2026-06-29T17:27:09.875988Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.ci-trigger-blindspot",
+      "status": "deferred",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KWA6KNJZSYQ764MC086QPFS1",
+  "version": 1
+}

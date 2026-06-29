@@ -22,6 +22,7 @@ class SyncDiagnosticCode(enum.StrEnum):
     WEBSOCKET_OFFLINE = "sync.websocket_offline"
     EVENT_LOOP_UNAVAILABLE = "sync.event_loop_unavailable"
     SERVER_AUTH_FAILURE = "sync.server_auth_failure"
+    DIRECT_INGRESS_MISSING_PRIVATE_TEAM = "sync.direct_ingress_missing_private_team"
 
 
 @dataclass(frozen=True)
@@ -72,6 +73,15 @@ def classify_sync_error(error_text: str) -> SyncDiagnosticCode:
     Fallback to SERVER_AUTH_FAILURE for unrecognized signals.
     """
     lower = error_text.lower()
+    # A shared-only session that reaches ingress with no Private Teamspace is a
+    # benign skip (events stay durable and retry), NOT an auth failure. Classify
+    # it before the auth/catch-all so the canonical
+    # ``direct_ingress_missing_private_team`` category surfaces on the diagnostic
+    # instead of a misleading ``server_auth_failure`` (which would wrongly tell
+    # the operator to run ``spec-kitty auth login``). See sync/_team.py and the
+    # batch skip at sync/batch.py.
+    if "private teamspace" in lower or "direct ingress" in lower:
+        return SyncDiagnosticCode.DIRECT_INGRESS_MISSING_PRIVATE_TEAM
     if "lock" in lower and (
         "unavailable" in lower or "timeout" in lower or "held" in lower
     ):

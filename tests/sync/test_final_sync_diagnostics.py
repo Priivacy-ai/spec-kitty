@@ -53,13 +53,14 @@ def _queued_service(tmp_path: Path) -> Any:
     return BackgroundSyncService(queue=queue, config=cfg, sync_interval_seconds=300)
 
 
-def test_sync_diagnostic_code_contract_has_five_members() -> None:
+def test_sync_diagnostic_code_contract_has_six_members() -> None:
     assert list(SyncDiagnosticCode) == [
         SyncDiagnosticCode.LOCK_UNAVAILABLE,
         SyncDiagnosticCode.AUTH_REFRESH_IN_PROGRESS,
         SyncDiagnosticCode.WEBSOCKET_OFFLINE,
         SyncDiagnosticCode.EVENT_LOOP_UNAVAILABLE,
         SyncDiagnosticCode.SERVER_AUTH_FAILURE,
+        SyncDiagnosticCode.DIRECT_INGRESS_MISSING_PRIVATE_TEAM,
     ]
 
 
@@ -71,6 +72,10 @@ def test_sync_diagnostic_code_contract_has_five_members() -> None:
         (SyncDiagnosticCode.WEBSOCKET_OFFLINE, "sync.websocket_offline"),
         (SyncDiagnosticCode.EVENT_LOOP_UNAVAILABLE, "sync.event_loop_unavailable"),
         (SyncDiagnosticCode.SERVER_AUTH_FAILURE, "sync.server_auth_failure"),
+        (
+            SyncDiagnosticCode.DIRECT_INGRESS_MISSING_PRIVATE_TEAM,
+            "sync.direct_ingress_missing_private_team",
+        ),
     ],
 )
 def test_diagnostic_codes_emit_to_stderr_only(
@@ -136,6 +141,29 @@ def test_classify_event_loop_unavailable() -> None:
 def test_classify_server_auth_failure() -> None:
     assert classify_sync_error("401 from server") == SyncDiagnosticCode.SERVER_AUTH_FAILURE
     assert classify_sync_error("token expired") == SyncDiagnosticCode.SERVER_AUTH_FAILURE
+
+
+def test_classify_direct_ingress_missing_private_team() -> None:
+    """A benign 'no Private Teamspace' ingress skip is NOT a server auth failure.
+
+    Regression for #2254: the catch-all previously misclassified this skip as
+    ``sync.server_auth_failure``, which wrongly tells the operator to re-auth.
+    The skip MUST surface the canonical ``direct_ingress_missing_private_team``
+    category, and must be classified before the auth/catch-all branches.
+    """
+    assert (
+        classify_sync_error("skipped: no Private Teamspace available for direct ingress")
+        == SyncDiagnosticCode.DIRECT_INGRESS_MISSING_PRIVATE_TEAM
+    )
+    # Matches on the canonical signals regardless of surrounding prose.
+    assert (
+        classify_sync_error("no private teamspace")
+        == SyncDiagnosticCode.DIRECT_INGRESS_MISSING_PRIVATE_TEAM
+    )
+    assert (
+        classify_sync_error("direct ingress skipped")
+        == SyncDiagnosticCode.DIRECT_INGRESS_MISSING_PRIVATE_TEAM
+    )
 
 
 def test_final_sync_retry_backoff_exhaustion_emits_once(
