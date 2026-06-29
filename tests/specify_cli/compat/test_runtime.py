@@ -20,7 +20,7 @@ from specify_cli.compat._detect.runtime import (
 )
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

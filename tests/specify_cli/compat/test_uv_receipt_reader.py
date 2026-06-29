@@ -14,7 +14,7 @@ import pytest
 from specify_cli.compat._adapters.uv_receipt import UvReceiptReader, UvReceiptResult
 from specify_cli.compat._detect.runtime import PackageSource
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.fast]
 
 # ---------------------------------------------------------------------------
 # Helpers

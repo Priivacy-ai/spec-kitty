@@ -38,7 +38,7 @@ from specify_cli.compat.remediation import (
 )
 from specify_cli.compat.upgrade_hint import build_upgrade_hint
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.fast]
 
 # ---------------------------------------------------------------------------
 # Runtime factories
@@ -194,10 +194,10 @@ class TestUvToolReinstallProvenance:
 
     def test_git_source_preserved(self) -> None:
         cmd = _reinstall(
-            _uv_runtime_with_reqs((_req(git="file:///tmp/spec-kitty"),), receipt_path=_RECEIPT)
+            _uv_runtime_with_reqs((_req(git="file:///srv/spec-kitty"),), receipt_path=_RECEIPT)
         )
         assert cmd.render("posix") == (
-            "uv tool install --force --with pytest spec-kitty-cli --from git+file:///tmp/spec-kitty"
+            "uv tool install --force --with pytest spec-kitty-cli --from git+file:///srv/spec-kitty"
         )
 
     def test_url_source_preserved(self) -> None:
@@ -227,13 +227,13 @@ class TestUvToolReinstallProvenance:
     def test_injected_dep_carried_through(self) -> None:
         cmd = _reinstall(
             _uv_runtime_with_reqs(
-                (_req(git="file:///tmp/spec-kitty"), _req(name="click")),
+                (_req(git="file:///srv/spec-kitty"), _req(name="click")),
                 receipt_path=_RECEIPT,
             )
         )
         assert cmd.render("posix") == (
             "uv tool install --force --with click --with pytest "
-            "spec-kitty-cli --from git+file:///tmp/spec-kitty"
+            "spec-kitty-cli --from git+file:///srv/spec-kitty"
         )
 
     def test_injected_editable_dep_stays_editable(self) -> None:
