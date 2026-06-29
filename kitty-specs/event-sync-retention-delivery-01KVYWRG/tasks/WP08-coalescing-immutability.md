@@ -18,8 +18,8 @@ subtasks:
 - T050
 phase: Phase 4 - Dispatch
 assignee: ''
-agent: "claude:opus:python-pedro:implementer"
-shell_pid: "55131"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "65867"
 history:
 - at: '2026-06-29T06:21:37Z'
   actor: system
@@ -319,3 +319,7 @@ The reviewer verifies **red→green**: the ATDD test was RED on `mission/event-s
 > Entries chronological, appended at END. Format: `- YYYY-MM-DDTHH:MM:SSZ – <agent_id> – <action>`
 - 2026-06-29T06:21:37Z – system – Prompt created.
 - 2026-06-29T08:52:20Z – claude:opus:python-pedro:implementer – shell_pid=55131 – Assigned agent via action command
+- 2026-06-29T09:08:53Z – user – shell_pid=55131 – WP08 lane progression
+- 2026-06-29T09:08:55Z – user – shell_pid=55131 – WP08 lane progression
+- 2026-06-29T09:14:22Z – claude:opus:python-pedro:implementer – shell_pid=55131 – Ready: coalesce-only-undelivered + immutability DB test; registered via WP03 seam; gates green
+- 2026-06-29T09:15:48Z – claude:opus:reviewer-renata:reviewer – shell_pid=65867 – Started review via action command

@@ -60,12 +60,12 @@
 | T030 | Selection query: undelivered-for-target, excluding terminal-failed | WP05 | | [D] |
 | T031 | Delivered-anywhere query (consumed by WP08) | WP05 | | [D] |
 | T032 | Index design + state-transition + idempotent-redelivery tests | WP05 | | [D] |
-| T033 | `DeliveryReceiver` protocol (endpoint/auth/result-map/retry/gates) | WP06 | [P] |
-| T034 | TeamspaceReceiver (`/api/v1/events/batch/`, Bearer, SaaS+PrivateTeamspace gates) | WP06 | |
-| T035 | ExternalReceiver (operator URL/auth, no Teamspace gating) | WP06 | |
-| T036 | StubReceiver (localhost, no creds — a real receiver, not a test fork) | WP06 | |
-| T037 | Additive `batch-api-contract.md` update (ledger-on-success; body-upload untouched) | WP06 | |
-| T038 | Tests: fork-CI on stub (no creds); stub≡Teamspace ledger state | WP06 | |
+| T033 | `DeliveryReceiver` protocol (endpoint/auth/result-map/retry/gates) | WP06 | [D] |
+| T034 | TeamspaceReceiver (`/api/v1/events/batch/`, Bearer, SaaS+PrivateTeamspace gates) | WP06 | | [D] |
+| T035 | ExternalReceiver (operator URL/auth, no Teamspace gating) | WP06 | | [D] |
+| T036 | StubReceiver (localhost, no creds — a real receiver, not a test fork) | WP06 | | [D] |
+| T037 | Additive `batch-api-contract.md` update (ledger-on-success; body-upload untouched) | WP06 | | [D] |
+| T038 | Tests: fork-CI on stub (no creds); stub≡Teamspace ledger state | WP06 | | [D] |
 | T039 | Dispatcher select phase (active target; exclude terminal-failed) | WP07 | [P] |
 | T040 | Post phase via the active target's DeliveryReceiver | WP07 | |
 | T041 | Record phase → ledger (success/dup terminal; pending/rejected/transient state); never delete | WP07 | |
@@ -73,11 +73,11 @@
 | T043 | Re-drain to a new target (FR-005) | WP07 | |
 | T044 | Complexity discipline: select/post/record each ≤15 | WP07 | |
 | T045 | Tests: A→B replay; re-sync skips; oversized progresses + inspectable | WP07 | |
-| T046 | Coalesce only events with no terminal delivery (uses T031) | WP08 | [P] |
-| T047 | Delivered → immutable; new event = new row + mark prior superseded | WP08 | |
-| T048 | Register coalesce strategy into the WP03 journal seam | WP08 | |
-| T049 | **REQUIRED DB test**: coalesce vs delivered event → bytes unchanged (NFR-002) | WP08 | |
-| T050 | Tests: undelivered collapse; superseded marker; no mutation of delivered | WP08 | |
+| T046 | Coalesce only events with no terminal delivery (uses T031) | WP08 | [D] |
+| T047 | Delivered → immutable; new event = new row + mark prior superseded | WP08 | | [D] |
+| T048 | Register coalesce strategy into the WP03 journal seam | WP08 | | [D] |
+| T049 | **REQUIRED DB test**: coalesce vs delivered event → bytes unchanged (NFR-002) | WP08 | | [D] |
+| T050 | Tests: undelivered collapse; superseded marker; no mutation of delivered | WP08 | | [D] |
 | T051 | `EventSyncConfig`: retention × delivery axes | WP09 | [P] |
 | T052 | Four presets (TEAMSPACE / EXTERNAL_RECEIVER / LOCAL_RETENTION / OPT_OUT) | WP09 | |
 | T053 | Mode → (receiver, retention) resolution wired to WP06 | WP09 | |
