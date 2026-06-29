@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import contextlib
 import sqlite3
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -134,6 +135,53 @@ def reset_coalesce_strategy() -> None:
     _active_coalesce_strategy = _no_op_coalesce
 
 
+# --- deferred (transactional) append seam ---------------------------------
+
+
+class JournalTransaction:
+    """A deferred, single-transaction view over the journal.
+
+    Unlike :meth:`EventJournal.append` (which autocommits each row), appends
+    here are **staged** on one open connection and are *not* committed per row;
+    the caller commits the whole batch exactly once via :meth:`commit` (or
+    discards it via :meth:`rollback`). This lets a multi-step writer keep a
+    journal batch and an *external* store (e.g. the migration provenance audit)
+    all-or-nothing: stage everything, then commit both — or roll both back so a
+    downstream failure can never leave an orphan committed journal row.
+
+    :meth:`read_by_id` reads through the *same* connection, so within-batch
+    dedupe sees staged-but-uncommitted rows. The coalescing seam is intentionally
+    bypassed: callers of the deferred path own their own dedupe semantics.
+    """
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._conn = conn
+        self._committed = False
+
+    @property
+    def committed(self) -> bool:
+        return self._committed
+
+    def append(self, event: Event) -> None:
+        """Stage one append (``INSERT OR IGNORE``) without committing."""
+        self._conn.execute(INSERT_SQL, event_to_params(event))
+
+    def read_by_id(self, event_id: str) -> Event | None:
+        """Read an event, seeing this transaction's staged-but-uncommitted rows."""
+        rows = self._conn.execute(SELECT_BY_ID_SQL, (event_id,)).fetchall()
+        return row_to_event(rows[0]) if rows else None
+
+    def commit(self) -> None:
+        """Durably commit every staged append as a single transaction."""
+        self._conn.commit()
+        self._committed = True
+
+    def rollback(self) -> None:
+        """Discard every staged (uncommitted) append in this transaction."""
+        self._conn.rollback()
+        self._committed = False
+
+
 # --- the append-only store ------------------------------------------------
 
 
@@ -184,6 +232,28 @@ class EventJournal:
     def record(self, event: Event) -> None:
         """Alias of :meth:`append` (capture-first ergonomics)."""
         self.append(event)
+
+    @contextlib.contextmanager
+    def transaction(self) -> Iterator[JournalTransaction]:
+        """Open a deferred, commit-once append batch over the journal.
+
+        Yields a :class:`JournalTransaction` whose appends are staged on a single
+        open connection. The caller must call :meth:`JournalTransaction.commit`
+        to persist the batch; if the block exits (normally or via an exception)
+        without an explicit commit, every staged append is rolled back. This is
+        the only path that does *not* autocommit per row, so a multi-store writer
+        can keep the journal batch all-or-nothing with an external store and never
+        leave an orphan committed journal row on a downstream failure.
+        """
+        conn = self._connect()
+        txn = JournalTransaction(conn)
+        try:
+            yield txn
+        finally:
+            if not txn.committed:
+                with contextlib.suppress(sqlite3.Error):
+                    conn.rollback()
+            conn.close()
 
     def read_all(self) -> list[Event]:
         with contextlib.closing(self._connect()) as conn:
@@ -344,6 +414,7 @@ __all__ = [
     "CoalesceStrategy",
     "EventJournal",
     "JOURNAL_SUBDIR",
+    "JournalTransaction",
     "TeamspaceBoundDropError",
     "capture_teamspace_bound",
     "classify_drain_blocked_reason",

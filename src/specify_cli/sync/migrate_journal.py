@@ -46,7 +46,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from specify_cli.event_journal import Event, EventJournal
+from specify_cli.event_journal import Event, EventJournal, JournalTransaction
 
 if TYPE_CHECKING:  # pragma: no cover - typing-only (avoid the queue<->authority cycle)
     from specify_cli.sync.target_authority import ResolvedSyncTarget
@@ -444,20 +444,52 @@ class _RowImport:
     conflict: MigrationConflict | None = None
 
 
-def _classify_and_apply(
-    row: _QueuedRow, journal: EventJournal, source_digest: str
-) -> _RowImport:
-    """Append/dedupe/quarantine one row against the journal (no audit writes).
+@dataclass
+class _SourceStaging:
+    """In-memory result deltas for one source, merged only after a clean commit.
 
-    * unseen ``event_id`` → append the canonical payload (``imported``);
+    The journal batch + provenance are committed all-or-nothing per source, so
+    the observable :class:`MigrationResult`/`SourceOutcome` counters must follow
+    the same fate: they are accumulated here during the source loop and folded
+    into the shared result *only* once both stores have committed. On any
+    rollback they are simply discarded, so a half-applied source never leaks
+    imported/deduped/conflict counts for rows whose journal+provenance writes
+    were rolled back.
+    """
+
+    imported: list[str] = field(default_factory=list)
+    deduped: list[str] = field(default_factory=list)
+    unknown: list[str] = field(default_factory=list)
+    conflicts: list[MigrationConflict] = field(default_factory=list)
+
+    def merge_into(self, result: MigrationResult, outcome: SourceOutcome) -> None:
+        result.imported_event_ids.extend(self.imported)
+        result.deduped.extend(self.deduped)
+        result.unknown_event_ids.extend(self.unknown)
+        result.conflicts.extend(self.conflicts)
+        outcome.imported += len(self.imported)
+        outcome.deduped += len(self.deduped)
+        outcome.conflicts += len(self.conflicts)
+
+
+def _classify_and_apply(
+    row: _QueuedRow, txn: JournalTransaction, source_digest: str
+) -> _RowImport:
+    """Append/dedupe/quarantine one row against the staged journal batch.
+
+    * unseen ``event_id`` → stage the canonical payload (``imported``);
     * identical canonical payload → no second row (``deduped``);
     * divergent canonical payload → never overwrite; emit a conflict so the
       existing journal payload stays immutable (FR-018, C-005).
+
+    The append is *staged* on *txn* (not committed); the source loop commits the
+    whole batch alongside provenance, so a later provenance failure rolls the
+    staged row back rather than orphaning it (atomicity).
     """
     payload = _canonical_payload(row.data)
-    existing = journal.read_by_id(row.event_id)
+    existing = txn.read_by_id(row.event_id)
     if existing is None:
-        journal.append(_build_event(row, payload))
+        txn.append(_build_event(row, payload))
         return _RowImport(action="imported", event_id=row.event_id)
     if existing.payload == payload:
         return _RowImport(action="deduped", event_id=row.event_id)
@@ -480,12 +512,22 @@ def _import_source(
     result: MigrationResult,
     is_known: bool,
 ) -> SourceOutcome:
-    """Migrate one source DB transactionally (T058); collect per-row outcomes.
+    """Migrate one source DB **atomically** (T058); collect per-row outcomes.
 
-    The journal append is idempotent (``INSERT OR IGNORE`` on ``event_id``) and
-    every audit write is keyed on ``(event_id, source_digest)``, so an interrupted
-    source re-runs cleanly with no duplication (NFR-005). The source DB is opened
-    read-only, so it is left untouched regardless of outcome.
+    The journal rows and their provenance are written as one all-or-nothing unit
+    per source: every append is *staged* on a deferred journal transaction and
+    every provenance/conflict row is staged on the audit store, then **both** are
+    committed only after the whole source loop succeeds. On any
+    :class:`sqlite3.Error` (e.g. a provenance write failing) **both** are rolled
+    back — the staged journal batch is dropped and ``audit.rollback()`` discards
+    the provenance — so a provenance failure can never leave an orphan committed
+    journal row with no matching provenance (atomicity guarantee).
+
+    Provenance is committed *before* the journal batch so that a committed
+    journal row always implies its provenance is already durable. Both writes are
+    idempotent (journal ``INSERT OR IGNORE`` on ``event_id``; audit keyed on
+    ``(event_id, source_digest)``), so an interrupted source re-runs cleanly with
+    no duplication (NFR-005). The source DB is opened read-only and is untouched.
     """
     outcome = SourceOutcome(digest=source.digest, is_legacy=source.is_legacy)
     try:
@@ -493,32 +535,40 @@ def _import_source(
     except sqlite3.Error as exc:  # locked/corrupt source — report, do not abort run
         outcome.error = str(exc)
         return outcome
-    try:
-        for row in rows:
-            _apply_row(row, source, journal, audit, target_id, result, outcome, is_known)
-        audit.commit()
-    except sqlite3.Error as exc:  # roll back this source's audit writes only
-        audit.rollback()
-        outcome.error = str(exc)
+    staging = _SourceStaging()
+    with journal.transaction() as txn:
+        try:
+            for row in rows:
+                _apply_row(row, source, txn, audit, target_id, staging, is_known)
+            audit.commit()  # provenance durable first …
+            txn.commit()  # … then the journal batch (no orphan journal row)
+        except sqlite3.Error as exc:  # roll BOTH back: drop staged journal + provenance
+            txn.rollback()
+            audit.rollback()
+            outcome.error = str(exc)
+            return outcome  # discard staging — nothing was committed for this source
+    staging.merge_into(result, outcome)
     return outcome
 
 
 def _apply_row(
     row: _QueuedRow,
     source: SourceDb,
-    journal: EventJournal,
+    txn: JournalTransaction,
     audit: MigrationAudit,
     target_id: str,
-    result: MigrationResult,
-    outcome: SourceOutcome,
+    staging: _SourceStaging,
     is_known: bool,
 ) -> None:
-    """Apply one classified row to the journal/audit + accumulate result state."""
-    imported = _classify_and_apply(row, journal, source.digest)
+    """Stage one classified row onto the journal batch/audit + buffer result deltas.
+
+    Result deltas are buffered in *staging* (not the shared result) so they are
+    only published once the source's journal+provenance commit succeeds.
+    """
+    imported = _classify_and_apply(row, txn, source.digest)
     if imported.conflict is not None:
         audit.record_conflict(imported.conflict)
-        result.conflicts.append(imported.conflict)
-        outcome.conflicts += 1
+        staging.conflicts.append(imported.conflict)
         return
     audit.record_provenance(
         event_id=imported.event_id,
@@ -527,13 +577,11 @@ def _apply_row(
         payload_sha=_payload_sha(_canonical_payload(row.data)),
     )
     if imported.action == "imported":
-        result.imported_event_ids.append(imported.event_id)
-        outcome.imported += 1
+        staging.imported.append(imported.event_id)
     else:  # deduped
-        result.deduped.append(imported.event_id)
-        outcome.deduped += 1
+        staging.deduped.append(imported.event_id)
     if not is_known:
-        result.unknown_event_ids.append(imported.event_id)
+        staging.unknown.append(imported.event_id)
 
 
 def migrate_queues_to_journal(

@@ -387,6 +387,43 @@ def test_corrupt_source_is_reported_without_aborting_others(tmp_path: Path) -> N
 
 
 # ----------------------------------------------------------------------
+# P1 atomicity — a provenance failure leaves NO orphan journal row
+# ----------------------------------------------------------------------
+
+
+def test_provenance_failure_leaves_no_orphan_journal_row(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A failed provenance write must roll back the staged journal row too.
+
+    Regression for the WP10 P1 defect: the journal append used to autocommit per
+    row *before* provenance was recorded, so a ``record_provenance`` failure left
+    an orphan committed journal row with no matching provenance. The per-source
+    import is now all-or-nothing — on a ``sqlite3.Error`` from provenance, BOTH
+    the staged journal batch and the provenance are rolled back.
+    """
+    home = tmp_path
+    digest = "1111111111111111"
+    _seed_queue(_scoped_path(home, digest), [_event("e_orphan")])
+    journal = _journal(home)
+    audit = MigrationAudit(home / "migration_audit.db")
+
+    def _boom(self: MigrationAudit, **_kwargs: Any) -> None:
+        raise sqlite3.Error("provenance write failed")
+
+    monkeypatch.setattr(MigrationAudit, "record_provenance", _boom)
+
+    result = migrate_queues_to_journal(home, journal=journal, audit=audit)
+
+    # No orphan: the staged journal row was rolled back with the provenance.
+    assert journal.read_all() == []
+    assert audit.provenance_for("e_orphan") == []
+    # The failing source is reported (not imported) without aborting the run.
+    assert result.imported_event_ids == []
+    assert any(s.error is not None for s in result.sources)
+
+
+# ----------------------------------------------------------------------
 # T058 edge case — a body-only legacy DB has no queue table → zero events
 # ----------------------------------------------------------------------
 
