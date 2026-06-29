@@ -66,23 +66,23 @@
 | T036 | StubReceiver (localhost, no creds — a real receiver, not a test fork) | WP06 | | [D] |
 | T037 | Additive `batch-api-contract.md` update (ledger-on-success; body-upload untouched) | WP06 | | [D] |
 | T038 | Tests: fork-CI on stub (no creds); stub≡Teamspace ledger state | WP06 | | [D] |
-| T039 | Dispatcher select phase (active target; exclude terminal-failed) | WP07 | [P] |
-| T040 | Post phase via the active target's DeliveryReceiver | WP07 | |
-| T041 | Record phase → ledger (success/dup terminal; pending/rejected/transient state); never delete | WP07 | |
-| T042 | `failed_permanent` → terminal-failed (excluded from future selection) | WP07 | |
-| T043 | Re-drain to a new target (FR-005) | WP07 | |
-| T044 | Complexity discipline: select/post/record each ≤15 | WP07 | |
-| T045 | Tests: A→B replay; re-sync skips; oversized progresses + inspectable | WP07 | |
+| T039 | Dispatcher select phase (active target; exclude terminal-failed) | WP07 | [D] |
+| T040 | Post phase via the active target's DeliveryReceiver | WP07 | | [D] |
+| T041 | Record phase → ledger (success/dup terminal; pending/rejected/transient state); never delete | WP07 | | [D] |
+| T042 | `failed_permanent` → terminal-failed (excluded from future selection) | WP07 | | [D] |
+| T043 | Re-drain to a new target (FR-005) | WP07 | | [D] |
+| T044 | Complexity discipline: select/post/record each ≤15 | WP07 | | [D] |
+| T045 | Tests: A→B replay; re-sync skips; oversized progresses + inspectable | WP07 | | [D] |
 | T046 | Coalesce only events with no terminal delivery (uses T031) | WP08 | [D] |
 | T047 | Delivered → immutable; new event = new row + mark prior superseded | WP08 | | [D] |
 | T048 | Register coalesce strategy into the WP03 journal seam | WP08 | | [D] |
 | T049 | **REQUIRED DB test**: coalesce vs delivered event → bytes unchanged (NFR-002) | WP08 | | [D] |
 | T050 | Tests: undelivered collapse; superseded marker; no mutation of delivered | WP08 | | [D] |
-| T051 | `EventSyncConfig`: retention × delivery axes | WP09 | [P] |
-| T052 | Four presets (TEAMSPACE / EXTERNAL_RECEIVER / LOCAL_RETENTION / OPT_OUT) | WP09 | |
-| T053 | Mode → (receiver, retention) resolution wired to WP06 | WP09 | |
-| T054 | OPT_OUT discards only local-only/discardable; refuse/audit Teamspace-bound (C-008) | WP09 | |
-| T055 | Tests: per-mode observable on-disk + network behavior | WP09 | |
+| T051 | `EventSyncConfig`: retention × delivery axes | WP09 | [D] |
+| T052 | Four presets (TEAMSPACE / EXTERNAL_RECEIVER / LOCAL_RETENTION / OPT_OUT) | WP09 | | [D] |
+| T053 | Mode → (receiver, retention) resolution wired to WP06 | WP09 | | [D] |
+| T054 | OPT_OUT discards only local-only/discardable; refuse/audit Teamspace-bound (C-008) | WP09 | | [D] |
+| T055 | Tests: per-mode observable on-disk + network behavior | WP09 | | [D] |
 | T056 | Discover ALL `queue-<digest>.db` + legacy `queue.db` | WP10 | [D] |
 | T057 | Best-effort or `unknown` target; never fabricate identity from a one-way digest | WP10 | | [D] |
 | T058 | Transactional per source DB + idempotent re-run (NFR-005) | WP10 | | [D] |
