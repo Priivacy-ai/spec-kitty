@@ -529,7 +529,7 @@ def _open_event_sync_runtime_readonly() -> _EventSyncRuntime:
 def _event_sync_config_path() -> Path:
     from specify_cli.sync.config import SyncConfig
 
-    return SyncConfig().config_file
+    return Path(SyncConfig().config_file)
 
 
 def _read_event_sync_table() -> dict[str, Any]:
