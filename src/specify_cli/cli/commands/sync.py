@@ -1818,10 +1818,17 @@ def sync_server(
 
     normalized_url = url.strip().rstrip("/")
     parsed = urlparse(normalized_url)
-    if parsed.scheme != "https" or not parsed.netloc:
+    # HTTPS is required for remote targets, but loopback HTTP is a deliberate
+    # local-development special case (e.g. http://localhost:8000 against a local
+    # Docker SaaS) — don't force HTTPS on loopback.
+    host = (parsed.hostname or "").lower()
+    is_loopback = host in {"localhost", "127.0.0.1", "::1"}
+    scheme_ok = parsed.scheme == "https" or (parsed.scheme == "http" and is_loopback)
+    if not scheme_ok or not parsed.netloc:
         console.print(
-            "[red]Error:[/red] Invalid server URL. Use a full HTTPS URL, "
-            "for example: https://spec-kitty-dev.fly.dev"
+            "[red]Error:[/red] Invalid server URL. Use a full HTTPS URL "
+            "(or http://localhost[:port] for local development), "
+            "for example: https://your-teamspace.example.com"
         )
         raise typer.Exit(1)
 
