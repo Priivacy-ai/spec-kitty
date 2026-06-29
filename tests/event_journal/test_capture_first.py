@@ -28,6 +28,8 @@ from specify_cli.event_journal import (
     resolve_journal_path,
 )
 
+pytestmark = pytest.mark.fast
+
 
 @pytest.fixture(autouse=True)
 def _isolated_home(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

@@ -39,6 +39,8 @@ from specify_cli.delivery.receivers import (
     map_batch_response,
 )
 
+pytestmark = pytest.mark.fast
+
 # -- Fixtures / helpers --------------------------------------------------------
 
 SERVER_URL = "https://spec-kitty-dev.fly.dev"

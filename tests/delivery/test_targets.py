@@ -35,6 +35,8 @@ from specify_cli.sync.target_authority import (
     ResolvedSyncTarget,
 )
 
+pytestmark = pytest.mark.fast
+
 URL_A = "https://target-a.example"
 URL_B = "https://target-b.example"
 TEAM = "acme"
@@ -50,7 +52,13 @@ def registry() -> Iterator[SqliteDeliveryTargetRegistry]:
         reg.close()
 
 
-def _resolved(url: str, *, team: str | None = TEAM, user: str | None = EMAIL) -> ResolvedSyncTarget:
+def _resolved(
+    url: str,
+    *,
+    team: str | None = TEAM,
+    user: str | None = EMAIL,
+    queue_db_path: Path,
+) -> ResolvedSyncTarget:
     """Build a real WP01 ``ResolvedSyncTarget`` without invoking the resolver."""
     return ResolvedSyncTarget(
         configured_server_url=url,
@@ -60,7 +68,7 @@ def _resolved(url: str, *, team: str | None = TEAM, user: str | None = EMAIL) ->
         user_id=user,
         team_slug=team,
         derived_queue_scope=f"{url}|{user or ''}|{team or ''}",
-        queue_db_path=Path("/tmp/queue.db"),
+        queue_db_path=queue_db_path,
         active_queue_scope_status=QueueScopeStatus.ABSENT,
     )
 
@@ -330,15 +338,23 @@ def test_reset_lists_multiple_changed_stable_fields(registry: SqliteDeliveryTarg
 # --------------------------------------------------------------------------
 
 
-def test_register_from_resolved_derives_identity(registry: SqliteDeliveryTargetRegistry) -> None:
-    target = registry.register_from_resolved(_resolved(URL_A))
+def test_register_from_resolved_derives_identity(
+    registry: SqliteDeliveryTargetRegistry, tmp_path: Path
+) -> None:
+    target = registry.register_from_resolved(
+        _resolved(URL_A, queue_db_path=tmp_path / "queue.db")
+    )
     assert target.url_hash == compute_url_hash(canonicalize_url(URL_A))
     assert target.team_slug == TEAM
     assert target.user_email == EMAIL
 
 
-def test_register_from_resolved_anonymous(registry: SqliteDeliveryTargetRegistry) -> None:
-    target = registry.register_from_resolved(_resolved(URL_A, team=None, user=None))
+def test_register_from_resolved_anonymous(
+    registry: SqliteDeliveryTargetRegistry, tmp_path: Path
+) -> None:
+    target = registry.register_from_resolved(
+        _resolved(URL_A, team=None, user=None, queue_db_path=tmp_path / "queue.db")
+    )
     assert target.team_slug == ""
     assert target.user_email == ""
     assert len(registry.list_targets()) == 1

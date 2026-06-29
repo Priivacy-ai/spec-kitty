@@ -21,6 +21,8 @@ from specify_cli.event_journal import (
     row_to_event,
 )
 
+pytestmark = pytest.mark.fast
+
 
 @pytest.fixture(autouse=True)
 def _reset_seam() -> None:

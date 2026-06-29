@@ -23,6 +23,8 @@ from specify_cli.event_journal.coalesce import (
     read_supersede_markers,
 )
 
+pytestmark = pytest.mark.fast
+
 TARGET = "target-A"
 T1 = "2026-06-29T00:00:01+00:00"
 T2 = "2026-06-29T00:00:02+00:00"

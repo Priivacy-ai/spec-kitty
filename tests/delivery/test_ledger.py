@@ -38,6 +38,8 @@ from specify_cli.delivery.ledger import (
     init_ledger,
 )
 
+pytestmark = pytest.mark.fast
+
 TARGET_A = "tgt-a"
 TARGET_B = "tgt-b"
 EVT_1 = "evt-1"

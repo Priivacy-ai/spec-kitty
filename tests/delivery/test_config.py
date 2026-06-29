@@ -48,6 +48,8 @@ from specify_cli.delivery.receivers import (
     TeamspaceReceiver,
 )
 
+pytestmark = pytest.mark.fast
+
 _TARGET_ID = "target-1"
 _BATCH_PATH = "/api/v1/events/batch/"
 

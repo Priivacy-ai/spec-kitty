@@ -54,6 +54,8 @@ from specify_cli.sync.target_authority import (
     ResolvedSyncTarget,
 )
 
+pytestmark = pytest.mark.fast
+
 CURRENT_URL = "https://current.example"
 PREVIOUS_URL = "https://previous.example"
 TEAM = "team-x"

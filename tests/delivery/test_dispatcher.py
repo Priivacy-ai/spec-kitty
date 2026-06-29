@@ -53,6 +53,8 @@ from specify_cli.event_journal.models import Event
 if TYPE_CHECKING:
     from specify_cli.delivery.interfaces import DeliveryTarget
 
+pytestmark = pytest.mark.fast
+
 _OCCURRED_AT = "2026-06-29T00:00:00+00:00"
 
 
