@@ -263,3 +263,7 @@ tasks introduces three modules not named in plan.md's Project Structure, to keep
 ### Operator CLI surface (A7)
 
 EventSyncConfig mode selection is pinned to `spec-kitty sync mode <TEAMSPACE|EXTERNAL_RECEIVER|LOCAL_RETENTION|OPT_OUT>` (`sync mode` with no argument prints the current mode); wired in WP12, policy resolved in WP09. Terminology Canon: no `feature*` aliases.
+
+### C-008 runtime enforcement deferred (A8, post-merge mission review)
+
+T054's discard-safety machinery (`discard_decision`/`FamilyClassification`/`JsonlAuditSink`, WP09) is implemented + unit-tested but its **live capture-time wiring is deferred** to the legacy-`queue.py`-drain retirement follow-up (DRIFT-1/RISK-1); see `issue-matrix.md` → Deferred follow-ups.
