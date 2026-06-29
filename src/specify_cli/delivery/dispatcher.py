@@ -37,7 +37,6 @@ receiver public surfaces.
 """
 from __future__ import annotations
 
-import importlib
 import json
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -55,11 +54,6 @@ from specify_cli.event_journal.models import Event
 if TYPE_CHECKING:
     from specify_cli.delivery.interfaces import DeliveryTarget
     from specify_cli.delivery.receivers import DeliveryReceiver
-
-# WP08's coalescing module (a merge-time sibling dependency). Resolved by string so
-# this lane — where ``coalesce`` may not yet be merged — neither hard-fails an import
-# nor trips a static missing-module error; :func:`_install_coalescing` guards it.
-_COALESCE_MODULE = "specify_cli.event_journal.coalesce"
 
 
 # --------------------------------------------------------------------------- #
@@ -136,10 +130,17 @@ class DispatchSummary:
 def _load_coalesce() -> Any:
     """Import WP08's ``event_journal.coalesce`` module (an isolated, patchable seam).
 
-    Kept a one-line indirection so the optional dependency can be substituted in
-    tests and so :func:`_install_coalescing` owns the single ``ImportError`` guard.
+    Now that the sibling lane is merged this is a direct import, which the static
+    no-dead-modules gate can see as a real caller (the prior string-based
+    ``importlib.import_module`` indirection was a lane-staging device for when
+    ``coalesce`` might not yet exist). The import stays a one-line indirection so
+    tests can substitute the module and so :func:`_install_coalescing` owns the
+    single ``ImportError`` guard that keeps the drain alive if the module is ever
+    absent.
     """
-    return importlib.import_module(_COALESCE_MODULE)
+    from specify_cli.event_journal import coalesce
+
+    return coalesce
 
 
 def _install_coalescing(ledger: SqliteDeliveryLedger) -> bool:
