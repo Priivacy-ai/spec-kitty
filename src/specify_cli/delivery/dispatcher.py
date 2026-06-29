@@ -366,6 +366,5 @@ def dispatch(
 
 __all__ = [
     "DispatchSummary",
-    "DispatchFailure",
     "dispatch",
 ]

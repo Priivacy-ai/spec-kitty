@@ -894,14 +894,12 @@ _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[str] = frozenset(
         # delivery.receivers — DeliveryReceiver contract + gate vocabulary
         "specify_cli.delivery.receivers::BATCH_ENDPOINT_PATH",
         "specify_cli.delivery.receivers::BATCH_TIMEOUT_SECONDS",
-        "specify_cli.delivery.receivers::GateContext",
         "specify_cli.delivery.receivers::GateDecision",
         "specify_cli.delivery.receivers::GateKind",
         "specify_cli.delivery.receivers::HttpResponse",
         "specify_cli.delivery.receivers::ReceiverGate",
         "specify_cli.delivery.receivers::STUB_ENDPOINT_URL",
         "specify_cli.delivery.receivers::StubReceiver",
-        "specify_cli.delivery.receivers::evaluate_gates",
         "specify_cli.delivery.receivers::map_batch_response",
         # delivery.status_report — additive status JSON section keys + helpers
         "specify_cli.delivery.status_report::ADDITIVE_SECTION_KEYS",
