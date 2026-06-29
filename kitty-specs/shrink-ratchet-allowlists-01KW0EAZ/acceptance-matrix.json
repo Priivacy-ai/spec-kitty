@@ -1,0 +1,59 @@
+{
+  "mission_slug": "shrink-ratchet-allowlists-01KW0EAZ",
+  "mission_number": null,
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Remove category_a write_pipeline::StagedArtifact/::promote entries",
+      "proof_type": "not_applicable",
+      "evidence": "OVERTAKEN by main's harden-dead-symbol-gate: new caller-detectors rescued promote; StagedArtifact remains legitimately allowlisted on main. This PR touches no category_a entry.",
+      "pass_fail": "n/a",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-29T00:00:00.000000+00:00",
+      "notes": "Out of delivered scope after refresh onto current origin/main."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Remove category_b charter_activate_app/charter_deactivate_app entries",
+      "proof_type": "not_applicable",
+      "evidence": "OVERTAKEN by main's harden-dead-symbol-gate: those symbols no longer exist in src/ on main. This PR touches no category_b charter_*_app entry.",
+      "pass_fail": "n/a",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-29T00:00:00.000000+00:00",
+      "notes": "Out of delivered scope after refresh onto current origin/main."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "legacy_contract_allowlist 152->151 (removed dangling 033-.../event-envelope.md from _LEGACY_CONTRACT_ALLOWLIST); enforced baseline, live==151.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-29T00:00:00.000000+00:00",
+      "notes": "Delivered scope after refresh onto current origin/main."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Deleted compat/_adapters/ package (detector, gate, version_checker + empty __init__); pure_shim_files 3->0, category_5_wp_in_flight_adapters 3->0; removed 9 dead adapter symbols from category_b; MismatchType DEMOTED out of core/version_checker __all__ (NOT grandfathered). Zero functional importers.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-29T00:00:00.000000+00:00",
+      "notes": "Delivered scope after refresh onto current origin/main."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "manual_inspection",
+      "evidence": "Accuracy sync of two UNENFORCED informational baselines: category_a_slice_f_deferred 12->10 (main rescued promote + one more; PR removes no category_a entry), category_b_grandfathered_legacy 286->264 (273 live on main - 9 dead adapter symbols; no +1, MismatchType demoted not added). Doc corrections: legacy_contract lives in tests/contract/; parser fix landed on main via harden-dead-symbol-gate.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-06-29T00:00:00.000000+00:00",
+      "notes": "Delivered scope after refresh onto current origin/main."
+    }
+  ],
+  "negative_invariants": []
+}
