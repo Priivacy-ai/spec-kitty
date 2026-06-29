@@ -12,7 +12,7 @@ import pytest
 pytestmark = [pytest.mark.doctrine]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-GLOSSARY_CONTEXTS_DIR = REPO_ROOT / "glossary" / "contexts"
+GLOSSARY_CONTEXTS_DIR = REPO_ROOT / "docs" / "context"
 
 HEADING_RE = re.compile(r"^\s{0,3}#{1,6}\s+(.*?)\s*$")
 LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")

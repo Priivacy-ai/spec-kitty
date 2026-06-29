@@ -22,7 +22,7 @@ stale-surface risk AND both operator recovery paths — flatten (drop
 ``spec-kitty doctor workspaces --fix``. It NEVER silently degrades: the warning makes the
 fallback observable so an operator or orchestrating agent can intervene. The
 decision is recorded in
-``architecture/3.x/adr/2026-06-19-1-coord-empty-surface-fallback.md`` and bound
+``docs/adr/3.x/2026-06-19-1-coord-empty-surface-fallback.md`` and bound
 to this single resolver. (The sibling coord-*deleted* case stays a hard-fail —
 :class:`CoordinationBranchDeleted`, #1848 — because a deleted branch carrying
 unmerged status is data loss, not a degraded read.)

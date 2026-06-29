@@ -30,7 +30,7 @@ Public surface
     Exception surface for the two malformed-config paths called out in
     the contract.
 
-See ADR-8 (``architecture/adrs/2026-05-18-1-monorepo-charter-scope.md``)
+See ADR-8 (``docs/adr/3.x/2026-05-18-1-monorepo-charter-scope.md``)
 for the design rationale.
 """
 

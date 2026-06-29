@@ -412,10 +412,10 @@ jobs:
             exit 0
           fi
 
-          mapfile -d '' CHANGED_ARCH_DOC_MD < <(git diff --name-only -z --diff-filter=ACM "$FROM_SHA" "$TO_SHA" -- 'docs/*.md' 'docs/**/*.md' 'architecture/*.md' 'architecture/**/*.md')
+          mapfile -d '' CHANGED_ARCH_DOC_MD < <(git diff --name-only -z --diff-filter=ACM "$FROM_SHA" "$TO_SHA" -- 'docs/*.md' 'docs/**/*.md')
 
           if [ "${#CHANGED_ARCH_DOC_MD[@]}" -eq 0 ]; then
-            echo "No changed markdown files under docs/ or architecture/. Skipping docs consistency tests."
+            echo "No changed markdown files under docs/. Skipping docs consistency tests."
             exit 0
           fi
 
@@ -493,7 +493,7 @@ jobs:
         id: tid251
         if: always()
         run: |
-          # ADR architecture/adrs/2026-05-28-1-... (Gap 3 / Gap 5): tests must not
+          # ADR docs/adr/3.x/2026-05-28-1-... (Gap 3 / Gap 5): tests must not
           # reimplement the charter hash algorithm (hashlib.sha256) or catch
           # click.exceptions.* directly. Unlike the advisory full-ruff report above, this
           # banned-API check is ENFORCED — an unannotated banned call FAILS the build (no

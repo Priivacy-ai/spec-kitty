@@ -9,8 +9,10 @@ on:
       - '.kittify/glossaries/**'
       - 'scripts/docs/generate_kitty_specs_docs.py'
       - 'scripts/docs/seo_postprocess.py'
+      - 'scripts/docs/redirect_stub_generator.py'
+      - 'scripts/docs/redirect_map.yaml'
+      - 'scripts/docs/redirect_baseline_urls.json'
       - 'src/specify_cli/dashboard/templates/glossary.html'
-      - 'architecture/**'
       - '.github/workflows/docs-pages.yml'
   workflow_dispatch:
 
@@ -47,6 +49,21 @@ jobs:
           docfx docfx.json
           cd ..
           python3 scripts/docs/seo_postprocess.py
+
+      # DocFX/GitHub Pages has no native redirect (FR-006). Inject a
+      # <meta http-equiv="refresh"> stub at every moved old URL into the built
+      # _site BEFORE upload, so no bookmarked URL 404s post-fold. The redirect
+      # map is single-writer (WP07-owned), derived from occurrence_map.yaml
+      # `moves:`. Runs after `Build documentation` (which emits docs/_site) and
+      # before `Upload artifact`. Fails the job if any stub would point at a 404.
+      - name: Inject redirect stubs into _site (FR-006)
+        run: python3 scripts/docs/redirect_stub_generator.py generate --site-dir docs/_site
+
+      # NFR-002 gate: assert every URL in WP02's committed pre-move baseline
+      # resolves directly or via a live-target stub (uncovered == []). The check
+      # is non-vacuous — it refuses to pass against an empty baseline.
+      - name: Verify redirect coverage (NFR-002)
+        run: python3 scripts/docs/redirect_stub_generator.py coverage --site-dir docs/_site
 
       - name: Setup Pages
         uses: actions/configure-pages@v5

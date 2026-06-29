@@ -1,0 +1,108 @@
+---
+title: Understanding Spec Kitty Missions
+description: 'Tutorial for Understanding Spec Kitty Missions in Spec Kitty 3.2: Spec Kitty supports four mission types that tailor the workflow and artifacts to your goal.'
+doc_status: active
+updated: '2026-06-03'
+related:
+- docs/guides/getting-started.md
+- docs/guides/your-first-feature.md
+---
+# Understanding Spec Kitty Missions
+
+**Divio type**: Tutorial
+
+Spec Kitty supports four mission types that tailor the workflow and artifacts to your goal.
+
+**Time**: ~45 minutes
+**Prerequisites**: Completed [Getting Started](getting-started.md)
+
+## What Is a Mission?
+
+A mission selects the default templates, prompts, and outputs for your feature. You choose it during `spec-kitty init` or when running `/spec-kitty.specify`.
+
+## The Three Missions
+
+### Software Dev Kitty
+
+Best for building software features and products.
+
+Example use cases:
+
+- New API endpoint
+- UI feature development
+- Performance improvements
+
+### Deep Research Kitty
+
+Best for structured research deliverables.
+
+Example use cases:
+
+- Competitive analysis
+- Architecture decision research
+- Technology evaluation
+
+### Documentation Kitty
+
+Best for creating or updating documentation sets.
+
+Example use cases:
+
+- End-user docs refresh
+- API reference overhaul
+- Internal playbooks
+
+## Try It: Create a Research Feature
+
+Create a project and select the research mission when specifying a feature:
+
+```bash
+spec-kitty init my-research-project --ai claude
+cd my-research-project
+```
+
+Use `/spec-kitty.specify` with the research mission to start a research workflow.
+
+In your agent:
+
+```text
+/spec-kitty.research Compare three task queue options for a Python service.
+```
+
+Expected results (abridged):
+
+- `kitty-specs/###-task-queue-research/` directory
+- Research artifacts defined by the mission templates
+
+## How Missions Affect Your Workflow
+
+- **Templates**: Each mission uses its own spec/plan/templates.
+- **Artifacts**: Research missions create research notes; documentation missions generate Divio-oriented sections.
+- **Validation**: Review criteria differ based on mission expectations.
+
+## Troubleshooting
+
+- **"Unknown mission"**: Use `spec-kitty mission list` to list available missions.
+- **Missing `/spec-kitty.research`**: Re-run `spec-kitty init --mission research` or refresh agent context with `spec-kitty agent context update-context`.
+
+## What's Next?
+
+Explore the full workflow in [Your First Feature](your-first-feature.md) or dive deeper into specific missions.
+
+### Related How-To Guides
+
+- [Switch Missions](switch-missions.md) - Change mission types
+- [Create a Specification](create-specification.md) - Start with any mission
+- [Install and Upgrade](install-and-upgrade.md) - Initial setup options
+
+### Reference Documentation
+
+- [Missions](../api/missions.md) - All mission types reference
+- [CLI Commands](../api/cli-commands.md) - Full command reference
+- [Configuration](../api/configuration.md) - Project settings
+
+### Learn More
+
+- [Mission System](../architecture/mission-system.md) - How missions work internally
+- [Documentation Mission](../architecture/documentation-mission.md) - Divio-based docs workflow
+- [Spec-Driven Development](../architecture/spec-driven-development.md) - The underlying philosophy

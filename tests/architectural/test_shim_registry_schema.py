@@ -1,4 +1,4 @@
-"""Schema validation tests for architecture/2.x/shim-registry.yaml (FR-011)."""
+"""Schema validation tests for docs/migrations/shim-registry.yaml (FR-011)."""
 from __future__ import annotations
 
 from pathlib import Path
@@ -10,7 +10,7 @@ from specify_cli.compat.registry import RegistrySchemaError, validate_registry
 pytestmark = [pytest.mark.architectural]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_REGISTRY_PATH = _REPO_ROOT / "architecture" / "2.x" / "shim-registry.yaml"
+_REGISTRY_PATH = _REPO_ROOT / "docs" / "migrations" / "shim-registry.yaml"
 
 _VALID_ENTRY: dict[str, object] = {
     "legacy_path": "specify_cli.old_module",

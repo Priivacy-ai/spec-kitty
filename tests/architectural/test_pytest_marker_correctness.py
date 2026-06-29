@@ -18,7 +18,7 @@ git binary; CI uses ``-m git_repo`` to isolate git-plumbing breakage.
 ``check_output``, ``call``) MUST NOT carry the ``fast`` marker. The
 ``fast`` marker promises sub-second pure-logic execution with no
 subprocess fan-out; a subprocess-spawning test in the ``fast`` lane
-poisons the inner developer loop. See ``glossary/contexts/testing-taxonomy.md``
+poisons the inner developer loop. See ``docs/context/testing-taxonomy.md``
 under "Fast" for the canonical definition.
 
 What this file does NOT enforce
@@ -191,7 +191,7 @@ def test_subprocess_git_users_must_carry_git_repo_marker() -> None:
         violators,
         "add `git_repo` to the file's `pytestmark` list (alongside the existing "
         "category marker), e.g. `pytestmark = [pytest.mark.integration, pytest.mark.git_repo]`. "
-        "See glossary/contexts/testing-taxonomy.md → 'Git Repo'.",
+        "See docs/context/testing-taxonomy.md → 'Git Repo'.",
     )
 
 
@@ -222,5 +222,5 @@ def test_fast_marker_must_not_apply_to_subprocess_users() -> None:
         "remove `pytest.mark.fast` from the file's `pytestmark` list. If the test "
         "is genuinely fast despite using subprocess (e.g. it spawns a trivial process "
         "once), prove it with a wall-clock measurement and split the file so the "
-        "fast portion lives alone. See glossary/contexts/testing-taxonomy.md → 'Fast'.",
+        "fast portion lives alone. See docs/context/testing-taxonomy.md → 'Fast'.",
     )

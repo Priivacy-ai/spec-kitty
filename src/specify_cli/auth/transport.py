@@ -41,7 +41,7 @@ sole exception.
 
 ADR
 ---
-See ``architecture/2.x/adr/2026-04-26-2-auth-transport-boundary.md``
+See ``docs/adr/3.x/2026-04-26-2-auth-transport-boundary.md``
 (DIRECTIVE_003).
 """
 

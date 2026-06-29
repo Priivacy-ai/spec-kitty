@@ -1,1 +1,0 @@
-../../3.x/adr/2026-04-07-1-global-slash-command-installation.md

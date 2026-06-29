@@ -4,17 +4,21 @@ Read-only tool that compares a docs page inventory (``PageInventoryEntry``
 rows) against the on-disk markdown tree and emits structured findings when
 version-tier discipline is violated.
 
-Five rule IDs:
+Four rule IDs:
 
 - ``LEAK-CURRENT-LINKS-ARCHIVAL`` – a ``current`` page links to an
   ``archival`` path without a migration banner.
 - ``LEAK-MISSING-BANNER`` – an ``archival`` or ``migration`` page is
   missing its required banner.
-- ``LEAK-FRONTMATTER-MISMATCH`` – the page's frontmatter ``version_tag``
-  disagrees with the inventory row.
 - ``LEAK-MISSING-INVENTORY`` – a markdown file under ``docs/`` is not in
   the manifest.
 - ``LEAK-MISSING-FILE`` – an inventory row points at a non-existent file.
+
+The former ``LEAK-FRONTMATTER-MISMATCH`` rule (frontmatter ``version_tag``
+disagreeing with the inventory row) was **retired** in Mission B: under the
+in-file-frontmatter SSOT (ADR ``2026-06-27-1`` D1) the datum lives in exactly
+one place, and the now-blocking ``INVENTORY-LOCKFILE-DRIFT`` gate in
+``check_docs_freshness.py`` subsumes frontmatter/inventory drift enforcement.
 
 Exit codes (per contract):
 
@@ -66,12 +70,8 @@ DEFAULT_INVENTORY_PATH: Final[str] = "docs/development/3-2-page-inventory.yaml"
 DEFAULT_DOCS_ROOT: Final[str] = "docs/"
 DEFAULT_BANNER_REGEX: Final[str] = r"^>\s*(?:Archive notice|Migration note)\b"
 
-_FRONTMATTER_FENCE: Final[str] = "---"
 _MARKDOWN_LINK_RE: Final[re.Pattern[str]] = re.compile(
     r"\[([^\]]+)\]\(([^)]+)\)"
-)
-_VERSION_TAG_LINE_RE: Final[re.Pattern[str]] = re.compile(
-    r"^version_tag\s*:\s*(\S+)\s*$"
 )
 
 # Banner-tier tags whose pages must carry an archive/migration banner.
@@ -218,24 +218,6 @@ def run_checks(
             )
             continue
 
-        frontmatter_tag = _parse_frontmatter_version_tag(text)
-        if frontmatter_tag is not None and frontmatter_tag != entry.tag.value:
-            findings.append(
-                FreshnessFinding(
-                    rule_id="LEAK-FRONTMATTER-MISMATCH",
-                    severity="error",
-                    location=entry.path,
-                    message=(
-                        f"frontmatter says version_tag={frontmatter_tag}, "
-                        f"inventory says version_tag={entry.tag.value}"
-                    ),
-                    suggested_action=(
-                        "reconcile by updating frontmatter or by editing "
-                        "the page inventory YAML"
-                    ),
-                )
-            )
-
         if entry.tag in _BANNER_REQUIRED and not _has_banner(text, banner_regex):
             findings.append(
                 FreshnessFinding(
@@ -334,25 +316,6 @@ def _write_report(
         json.dumps(payload, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
     )
-
-
-def _parse_frontmatter_version_tag(text: str) -> str | None:
-    """Return ``version_tag`` value from YAML frontmatter, or ``None``.
-
-    Recognizes the leading ``---`` fence convention and reads simple
-    ``key: value`` lines until the closing fence. Returns ``None`` if there
-    is no frontmatter or the key is absent.
-    """
-    lines = text.splitlines()
-    if not lines or lines[0].strip() != _FRONTMATTER_FENCE:
-        return None
-    for line in lines[1:]:
-        if line.strip() == _FRONTMATTER_FENCE:
-            return None
-        match = _VERSION_TAG_LINE_RE.match(line)
-        if match is not None:
-            return match.group(1).strip('"').strip("'")
-    return None
 
 
 def _has_banner(text: str, banner_regex: re.Pattern[str]) -> bool:

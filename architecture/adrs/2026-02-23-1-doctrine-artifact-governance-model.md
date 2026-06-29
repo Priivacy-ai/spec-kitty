@@ -1,1 +1,0 @@
-../2.x/adr/2026-02-23-1-doctrine-artifact-governance-model.md

@@ -150,13 +150,13 @@ class TestResolvePathRefMissPatterns:
     def test_architecture_adr_returns_none(self) -> None:
         assert (
             _resolve_path_ref(
-                "architecture/adrs/2026-04-14-2-agent-skills-renderer.md"
+                "docs/adr/3.x/2026-04-14-2-agent-skills-renderer.md"
             )
             is None
         )
 
     def test_glossary_context_dir_returns_none(self) -> None:
-        assert _resolve_path_ref("glossary/contexts/") is None
+        assert _resolve_path_ref("docs/context/") is None
 
     def test_empty_string_returns_none(self) -> None:
         assert _resolve_path_ref("") is None

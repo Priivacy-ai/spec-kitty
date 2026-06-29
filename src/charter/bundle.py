@@ -3,7 +3,7 @@
 Declares the files ``src/charter/sync.py :: sync()`` materializes as the
 project's governance bundle. v1.0.0 scope is limited to the three
 sync-produced derivatives. See
-``architecture/2.x/06_unified_charter_bundle.md`` for the full contract and
+``docs/architecture/06_unified_charter_bundle.md`` for the full contract and
 ``kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/contracts/bundle-manifest.schema.yaml``
 for the JSON Schema.
 

@@ -1,8 +1,9 @@
 ---
 title: SPDD and the REASONS Canvas
 description: Optional Spec Kitty doctrine pack that records change-intent and change-boundary as a structured artifact alongside the spec and plan.
+doc_status: active
+updated: '2026-05-26'
 ---
-
 # SPDD and the REASONS Canvas (opt-in doctrine pack)
 
 This is an **optional** doctrine pack. Projects that do not select it see no
@@ -102,7 +103,7 @@ the skill renders for new missions.
 ## Activation
 
 Activation is a charter-time decision and is fully opt-in. Run the
-[charter interview](../how-to/setup-governance.md) and select **any one** of
+[charter interview](../guides/setup-governance.md) and select **any one** of
 the following library items:
 
 - paradigm `structured-prompt-driven-development`
@@ -270,7 +271,7 @@ be brief.
   a deprecation shim that delegates to `foo` and emits a warning.
 - Rejected: hard rename without a shim (breaks downstream).
 
-**Structure** — *brief*. Files: `src/foo/api.py`, `docs/reference/foo.md`,
+**Structure** — *brief*. Files: `src/foo/api.py`, `docs/api/foo.md`,
 the shim module.
 
 **Operations**
@@ -386,7 +387,7 @@ Mission seed material:
 
 Related Spec Kitty docs:
 
-- [How to set up project governance](../how-to/setup-governance.md) — the
+- [How to set up project governance](../guides/setup-governance.md) — the
   charter interview is where you opt into this pack.
-- [Spec-driven development explained](../explanation/spec-driven-development.md) —
+- [Spec-driven development explained](../architecture/spec-driven-development.md) —
   the broader workflow that the canvas slots into.

@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "3.2.3"
+version = "3.2.4"
 description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -231,7 +231,7 @@ ignore = [
 "scripts/tasks/acceptance_support.py" = ["F822"]
 ".kittify/overrides/scripts/tasks/acceptance_support.py" = ["F822"]
 # TID251 (banned-api) is ENFORCED across the ENTIRE tests/ tree — see ADR
-# architecture/adrs/2026-05-28-1-... (Gap 3 / Gap 5) and the dedicated
+# docs/adr/3.x/2026-05-28-1-... (Gap 3 / Gap 5) and the dedicated
 # "[ENFORCED] banned-API (TID251)" gate in .github/workflows/ci-quality.yml.
 #
 # There are intentionally NO whole-directory TID251 exemptions for tests/. A directory
@@ -440,8 +440,7 @@ also_copy = [
     "src/specify_cli/compat/",  # compat package under test
     "README.md",
     "contracts/",  # JSON fixture files for contract tests
-    "docs/",  # Markdown files referenced by contract/terminology tests
-    "architecture/",  # Architecture docs referenced by tests/docs/ consistency checks
+    "docs/",  # Markdown files referenced by contract/terminology tests (incl. folded docs/architecture/)
 
     ".pytest_cache/spec-kitty-test-venv/",  # Pre-seeded venv so test_venv fixture skips rebuild
     "src/specify_cli/*.py",  # Copy all top-level modules (frontmatter, etc.)

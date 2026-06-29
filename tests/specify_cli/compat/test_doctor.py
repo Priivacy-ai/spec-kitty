@@ -53,7 +53,7 @@ def _setup_repo(tmp_path: Path, version: str = "3.2.0", shims: list[dict] | None
     pyproject.write_text(f'[project]\nname = "spec-kitty-cli"\nversion = "{version}"\n')
 
     # shim registry
-    registry_dir = tmp_path / "architecture" / "2.x"
+    registry_dir = tmp_path / "docs" / "migrations"
     registry_dir.mkdir(parents=True)
     yaml = YAML()
     with (registry_dir / "shim-registry.yaml").open("w") as fp:
@@ -173,7 +173,7 @@ class TestShimRegistryReport:
         report = ShimRegistryReport(
             entries=[self._make_status_entry(ShimStatus.PENDING)],
             project_version="3.2.0",
-            registry_path=Path("architecture/2.x/shim-registry.yaml"),
+            registry_path=Path("docs/migrations/shim-registry.yaml"),
         )
         assert report.has_overdue is False
 
@@ -184,7 +184,7 @@ class TestShimRegistryReport:
                 self._make_status_entry(ShimStatus.OVERDUE),
             ],
             project_version="3.2.0",
-            registry_path=Path("architecture/2.x/shim-registry.yaml"),
+            registry_path=Path("docs/migrations/shim-registry.yaml"),
         )
         assert report.has_overdue is True
 
@@ -192,7 +192,7 @@ class TestShimRegistryReport:
         report = ShimRegistryReport(
             entries=[self._make_status_entry(ShimStatus.PENDING)],
             project_version="3.2.0",
-            registry_path=Path("architecture/2.x/shim-registry.yaml"),
+            registry_path=Path("docs/migrations/shim-registry.yaml"),
         )
         assert report.recommended_exit_code == 0
 
@@ -200,7 +200,7 @@ class TestShimRegistryReport:
         report = ShimRegistryReport(
             entries=[self._make_status_entry(ShimStatus.OVERDUE)],
             project_version="3.2.0",
-            registry_path=Path("architecture/2.x/shim-registry.yaml"),
+            registry_path=Path("docs/migrations/shim-registry.yaml"),
         )
         assert report.recommended_exit_code == 1
 
@@ -208,7 +208,7 @@ class TestShimRegistryReport:
         report = ShimRegistryReport(
             entries=[],
             project_version="3.2.0",
-            registry_path=Path("architecture/2.x/shim-registry.yaml"),
+            registry_path=Path("docs/migrations/shim-registry.yaml"),
         )
         assert report.has_overdue is False
         assert report.recommended_exit_code == 0
@@ -227,7 +227,7 @@ class TestCheckShimRegistry:
         assert report.has_overdue is False
 
     def test_missing_pyproject_raises_file_not_found(self, tmp_path: Path) -> None:
-        registry_dir = tmp_path / "architecture" / "2.x"
+        registry_dir = tmp_path / "docs" / "migrations"
         registry_dir.mkdir(parents=True)
         yaml = YAML()
         with (registry_dir / "shim-registry.yaml").open("w") as fp:
@@ -307,7 +307,7 @@ class TestCheckShimRegistry:
     def test_registry_path_reflected_in_report(self, tmp_path: Path) -> None:
         root = _setup_repo(tmp_path)
         report = check_shim_registry(root)
-        assert report.registry_path == root / "architecture" / "2.x" / "shim-registry.yaml"
+        assert report.registry_path == root / "docs" / "migrations" / "shim-registry.yaml"
 
     def test_mixed_statuses_all_classified(self, tmp_path: Path) -> None:
         shims = [

@@ -1,8 +1,9 @@
 ---
-title: "Migration: Shared Package Boundary Cutover"
-description: "Migration guidance for Migration: Shared Package Boundary Cutover in Spec Kitty 3.2, including upgrade context and historical behavior boundaries."
+title: 'Migration: Shared Package Boundary Cutover'
+description: 'Migration for the shared-package-boundary cutover (mission 01KQ22DS, released in 3.2.0): how vendored copies were removed in favor of the external PyPI packages.'
+doc_status: active
+updated: '2026-06-03'
 ---
-
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 
 # Migration: Shared Package Boundary Cutover
@@ -89,7 +90,7 @@ for editable-install patterns that don't pollute committed config.
 
 ## Why this happened
 
-See [ADR 2026-04-25-1: Shared Package Boundary](https://github.com/Priivacy-ai/spec-kitty/blob/main/architecture/2.x/adr/2026-04-25-1-shared-package-boundary.md)
+See [ADR 2026-04-25-1: Shared Package Boundary](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-04-25-1-shared-package-boundary.md)
 for the full decision rationale and the alternatives considered.
 
 ## Supersedes

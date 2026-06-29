@@ -1,15 +1,18 @@
 ---
-title: "2.x ADR Coverage"
-description: "Historical Spec Kitty 2.x archive page for 2.x ADR Coverage; use Spec Kitty 3.2 docs for current Charter-era workflows."
+title: 2.x ADR Coverage
+description: Historical Spec Kitty 2.x archive page for 2.x ADR Coverage; use Spec Kitty 3.2 docs for current Charter-era workflows.
+doc_status: deprecated
+updated: '2026-06-03'
+related:
+- docs/context/index.md
 ---
-
-> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../3x/index.md) for current docs.
+> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../context/index.md) for current docs.
 
 # 2.x ADR Coverage
 
 ## Audit Summary
 
-A fresh-clone audit compared `architecture/2.x/adr/` against current 2.x code surfaces.
+A fresh-clone audit compared `docs/adr/2.x/` against current 2.x code surfaces.
 
 Result:
 
@@ -29,6 +32,6 @@ Result:
 
 ## New ADR Files Added in This Update
 
-1. `architecture/2.x/adr/2026-02-23-1-doctrine-artifact-governance-model.md`
-2. `architecture/2.x/adr/2026-02-23-2-living-glossary-context-and-curation-model.md`
-3. `architecture/2.x/adr/2026-02-23-3-versioned-1x-2x-docs-site-without-hosted-platform-scope.md`
+1. `docs/adr/2.x/2026-02-23-1-doctrine-artifact-governance-model.md`
+2. `docs/adr/2.x/2026-02-23-2-living-glossary-context-and-curation-model.md`
+3. `docs/adr/2.x/2026-02-23-3-versioned-1x-2x-docs-site-without-hosted-platform-scope.md`

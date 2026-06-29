@@ -1,1 +1,0 @@
-../2.x/adr/2026-02-17-1-canonical-next-command-runtime-loop.md

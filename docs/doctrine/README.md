@@ -1,8 +1,11 @@
 ---
 title: Doctrine Packs
 description: Index of optional Spec Kitty doctrine packs that activate through charter selection.
+doc_status: active
+updated: '2026-05-26'
+related:
+- docs/doctrine/spdd-reasons.md
 ---
-
 # Doctrine Packs
 
 A **doctrine pack** is a bundle of related built-in doctrine artifacts
@@ -14,7 +17,7 @@ behavior change. Projects that do select a pack receive guidance scoped to
 the workflow action they are running.
 
 Charter selection happens during the
-[governance setup workflow](../how-to/setup-governance.md). To verify which
+[governance setup workflow](../guides/setup-governance.md). To verify which
 doctrine is active for the current project, run:
 
 ```bash
@@ -29,5 +32,5 @@ spec-kitty charter context --action specify --json
 
 ## See also
 
-- [How to set up project governance](../how-to/setup-governance.md)
-- [Spec-driven development explained](../explanation/spec-driven-development.md)
+- [How to set up project governance](../guides/setup-governance.md)
+- [Spec-driven development explained](../architecture/spec-driven-development.md)

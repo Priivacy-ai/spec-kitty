@@ -7,7 +7,40 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 3.2.3
+## [Unreleased] - 3.2.4
+
+_No changes yet — entries land here as missions merge._
+
+## [3.2.3] - 2026-06-29
+
+Spec Kitty 3.2.3 is a stabilization-and-foundations release. It hardens how the
+toolkit behaves under non-trivial branch topologies, smooths the day-to-day
+planning and implementation loop, and lands a governed documentation and doctrine
+foundation for the upcoming 3.3.x developer-experience focus.
+
+- **Improved branch topology support.** Coordination-topology missions now read
+  and write every artifact from the correct surface — planning artifacts
+  (`lanes.json`, work-package `tasks/`, `meta.json` identity) on the primary
+  branch, status on the coordination worktree — through a single kind-aware
+  resolution seam, backed by single-authority resolution gates. The orchestrator,
+  the accept gate, merge/lane logic, and `spec-kitty next` no longer stall,
+  mis-route, or report phantom early state on coordination missions.
+- **Usability upgrades.** A batch of mission-lifecycle tooling-loop friction
+  fixes, clearer global-install guidance, and safer everyday operation:
+  `SPEC_KITTY_HOME` now isolates *all* local state, `--json` output is safe to
+  capture with `2>&1`, worktree discard can no longer delete a sibling mission,
+  and a stale tool environment can no longer brick the CLI.
+- **Doctrine additions.** The Common Docs consolidation lands a governed
+  documentation foundation — a documentation directive, a styleguide, and
+  curation / scaffold / write / find tactics wired into the doctrine graph —
+  alongside the structural move to a 13-section Divio `docs/` tree: 117
+  architecture decision records converted to metadata-in-file records under
+  `docs/adr/`, redirect coverage for every moved page, and documentation rulers
+  promoted to blocking gates.
+- **Doctrine/charter extension improvements.** Charter activation now gates
+  org-pack agent availability across dispatch, context, and projection; the
+  generated charter interpolates the project documentation policy; and
+  `spec-kitty doctor` reports unsanctioned built-in doctrine-graph overrides.
 
 ### ✨ Added
 
@@ -15,6 +48,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A new `RETROSPECTIVE` primary-artifact kind routes `retrospective.yaml` to the
   tracked `kitty-specs/<slug>/` mission folder for every topology, instead of the
   ephemeral coordination worktree that is deleted on teardown.
+- **Governed documentation foundation — the Common Docs doctrine (#2210, #2165).**
+  A built-in documentation directive (`DIRECTIVE_042`), a documentation styleguide,
+  and `curation` / `scaffold` / `write` / `find` tactics are now wired into the
+  doctrine graph, plus three documentation rulers (a `related:` link validator, a
+  page-inventory lockfile generator, and an anti-sprawl ratchet), each shipped with
+  its own self-test.
+- **Common Docs structural move — a 13-section Divio `docs/` tree (#2165, #2054).**
+  The split-brain `architecture/` + `docs/` trees are consolidated into one Divio
+  layout. 117 unique architecture decision records are converted from the legacy
+  table/bold/dash formats into metadata-in-file (MADR) records under
+  `docs/adr/<era>/` with byte-invariant decision bodies; redirect stubs preserve
+  every moved published URL; page frontmatter is the single source of truth for the
+  page-inventory lockfile; and the documentation rulers are promoted to blocking
+  gates. The canonical changelog now lives at `docs/changelog/CHANGELOG.md` with
+  root `CHANGELOG.md` retained for release tooling.
+- **Charter-activation-gated org-pack agents (#2211, #2156, #2166).** Agents
+  contributed by an organization doctrine pack are surfaced in dispatch, context,
+  and projection only when their charter artifact is active — org overlays are
+  applied through the charter, never raw `org_dirs`.
+- **Single-Authority Resolution Gates — Phase 1 (#2181, #2173).** New architectural
+  gates enforce a single resolution authority for surface placement, preventing
+  kind-blind or primary-anchored resolvers from re-introducing split-brain reads.
 
 ### 💥 Breaking Changes
 
@@ -86,6 +141,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Phantom `spec-kitty agent worktree repair` recovery guidance replaced with the
   real `spec-kitty doctor workspaces --fix` (#1890)**, enforced by a `src/`-scoped,
   count-agnostic grep-guard.
+- **Coordination-topology missions read and write every artifact from the correct
+  surface (#2160, #2226, #2212, #2194).** Identity reads (`meta.json`), merge/lane
+  reads (`lanes.json`, work-package `tasks/`), and the implement / review / merge
+  loop now resolve coordination-topology planning artifacts on the primary surface
+  through the kind-aware resolution seam, while status stays on the coordination
+  worktree (closes #2185, #2186, #2187, #2115, #2140, #2183). Gate-authority
+  hardening stops a coordination mission from reading early/empty state and routing
+  an agent to the wrong next step (closes #2197, #2198, #2199, #2214).
+- **`mission close --discard` now actually tears down coordination-topology
+  missions (#2121)** instead of leaving the coordination worktree and branch behind.
+- **`mission close --discard` targets worktrees by exact name, not a `<slug>-*`
+  prefix (#2129)** — a sibling mission whose slug shared a prefix could previously be
+  discarded too (data loss).
+- **The accept gate resolves `mid8` / ULID mission handles for its primary-partition
+  reads (#2126)** instead of only the fully-qualified `<slug>-<mid8>` form.
+- **The generated charter now interpolates the project documentation policy into its
+  directive (#2153)** rather than emitting an unresolved placeholder.
+- **`spec-kitty doctor` reports unsanctioned built-in doctrine-graph overrides
+  (#2082)** and the dead override-policy symbol debt is retired.
+- **Tooling robustness:** `uv tool upgrade` is no longer pinned to a stale rc release
+  (#2143); `tomli_w` is imported lazily so a stale environment can no longer brick the
+  CLI (#2132); `run_tests` detects the host Python interpreter (#2137); and lane
+  auto-rebase restores managed-artifact (`lanes.json` / `tasks/` / `WP*`) take-theirs
+  classification (#2147).
 
 ### ♻️ Changed
 
@@ -108,6 +187,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `materialize`) stay on the coordination worktree. Related: #2115 (the
   implement/review/merge read-surface twin), #1716 / #1878 (coordination-topology
   coherence).
+
+- **Mission-lifecycle tooling friction batch (#2224, #2217–#2223).** A set of
+  fixes to the planning and implementation loop's tooling surfaces, sliced from the
+  Doctrine-Fidelity retrospective follow-ups.
+- **Clearer global CLI install guidance (#2231)** for installing `spec-kitty` as a
+  global tool.
+- **Internal maintainability.** Several god-modules were decomposed into focused
+  seams — `cli/commands/doctor.py` (#2059), `agent/mission.py` (#2056),
+  `cli/commands/merge.py` (#2057), and `agent/tasks.py` (#2058); the dead-symbol
+  architectural gate was hardened with a parser fix, detectors, and a teeth
+  self-test (#2158); and the pre-3.0 read-path shims were retired (#1057, #2048).
 
 ## [3.2.2] - 2026-06-24
 
@@ -2013,7 +2103,7 @@ command and no new top-level runtime dependencies.
   - `code-documentation-analysis` — brownfield boundary discovery by extracting and clustering domain terminology from code and documentation artifacts. Contributes foundational analysis tactics toward the brownfield investigation skill described in [#666](https://github.com/Priivacy-ai/spec-kitty/issues/666).
   - `terminology-extraction-mapping` — systematic extraction and relationship mapping of domain terms across multiple sources to produce a maintainable glossary. Complementary artifact to the bounded-context linguistic discovery approach targeted by [#666](https://github.com/Priivacy-ai/spec-kitty/issues/666).
 - **Tactic directory normalization** — shipped tactics reorganised into four category subdirectories: `testing/` (15 tactics), `analysis/` (14), `communication/` (7), `architecture/` (14). Cross-cutting tactics remain in the `shipped/` root. The existing `rglob` loader requires no changes.
-- **`tasks-finalize` command skill** — added to `CANONICAL_COMMANDS` in the agent skills pipeline and deployed to `.agents/skills/spec-kitty.tasks-finalize/`. Closes the gap where this command was missing from Codex/Vibe skill packages.
+- **`tasks-finalize` command skill** — added to `CANONICAL_COMMANDS` in the agent skills pipeline and deployed to `.agents/skills/spec-kitty.tasks-finalize/`. Closes the gap where this command was missing from Codex/Vibe skill packages. <!-- tool-surface: ignore -->
 
 ### Changed
 
@@ -2127,7 +2217,7 @@ command and no new top-level runtime dependencies.
 - `docs/trail-model.md`: Formal operator documentation for the Phase 4 trail contract,
   mode-of-work taxonomy, tier promotion rules, SaaS projection policy, intake positioning,
   and explain deferral (WP04).
-- "Governance context injection" section in `.agents/skills/spec-kitty/SKILL.md`
+- "Governance context injection" section in `.agents/skills/spec-kitty/SKILL.md` <!-- tool-surface: ignore -->
   for Codex/Vibe hosts, enabling Tier 1 trail recording without host-side SaaS auth (WP03).
 - "Standalone invocations (outside missions)" section in
   `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` for Claude Code and gstack hosts,

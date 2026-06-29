@@ -107,7 +107,7 @@ _HINT_TABLE: dict[InstallMethod, tuple[str | None, str | None]] = {
         (
             "Your install method could not be detected automatically. "
             "Upgrade Spec Kitty using the same method you used to install it. "
-            "See https://spec-kitty.dev/docs/how-to/install-and-upgrade for guidance."
+            "See https://spec-kitty.dev/docs/guides/install-and-upgrade for guidance."
         ),
     ),
 }

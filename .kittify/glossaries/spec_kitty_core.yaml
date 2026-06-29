@@ -372,7 +372,7 @@ terms:
       for the `chain-of-responsibility-rule-pipeline` tactic. The shape marker is "3+ independent
       decisions over a common input" — not "function is long". Distinct from deliberate linearity,
       where the sequential structure is intentional and documented. See
-      `architecture/2.x/04_implementation_mapping/code-patterns.md` entry 1.
+      `docs/architecture/04_implementation_mapping/code-patterns.md` entry 1.
     confidence: 0.9
     status: active
 
@@ -479,7 +479,7 @@ terms:
       in `src/specify_cli/migration/canonicalization.py::CanonicalRule` and consumed by
       `mission_state.py::_canonicalize_status_row` and `rebuild_state.py`. See the
       `chain-of-responsibility-rule-pipeline` tactic and the code-patterns catalog at
-      `architecture/2.x/04_implementation_mapping/code-patterns.md` entry 1.
+      `docs/architecture/04_implementation_mapping/code-patterns.md` entry 1.
     confidence: 0.95
     status: active
 

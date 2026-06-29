@@ -2,7 +2,7 @@
 """
 Generate Contextive-compatible YAML glossary files from canonical glossary markdown.
 
-Reads glossary/contexts/*.md and a traceability map to produce:
+Reads docs/context/*.md and a traceability map to produce:
   - src/specify_cli/.contextive/<slug>.yml  (one per referenced context)
   - <scope-path>/.contextive.yml            (imports relevant contexts)
 
@@ -27,7 +27,20 @@ import yaml
 # ---------------------------------------------------------------------------
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-GLOSSARY_CONTEXTS_DIR = REPO_ROOT / "glossary" / "contexts"
+
+
+def resolve_glossary_contexts_dir(repo_root: Path) -> Path:
+    """Return the canonical ``docs/context`` glossary-contexts dir.
+
+    Mission B (FR-009 / C-006) relocated the glossary from ``glossary/contexts/``
+    to ``docs/context/``. WP01 staged a dual-read against the legacy home while
+    the move was in flight; now that the tree has landed (WP03) the legacy
+    branch is dropped — ``docs/context`` is the sole doctrine-extraction source.
+    """
+    return repo_root / "docs" / "context"
+
+
+GLOSSARY_CONTEXTS_DIR = resolve_glossary_contexts_dir(REPO_ROOT)
 MAP_FILE = REPO_ROOT / ".kittify" / "traceability" / "contextive-map.yaml"
 
 GENERATED_HEADER_LINES = [

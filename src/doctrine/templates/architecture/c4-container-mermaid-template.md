@@ -5,7 +5,7 @@
 | Status | Draft |
 | Date | YYYY-MM-DD |
 | Scope | Deployable/runtime containers and major subsystems |
-| Related ADRs | `architecture/2.x/adr/...` |
+| Related ADRs | `docs/adr/2.x/...` |
 
 ## Purpose
 

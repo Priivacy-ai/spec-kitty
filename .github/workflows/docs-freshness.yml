@@ -16,7 +16,26 @@ jobs:
         run: uv python install 3.11
       - name: Install project
         run: uv sync
-      - name: Docs freshness
+      # --- Blocking docs rulers (Mission B / WP14, FR-011) -------------------
+      # Mission A landed these report-only; WP14 flips them to blocking on the
+      # cleaned tree. Each runs --strict so a re-introduced violation reds CI.
+      - name: Anti-sprawl structure ratchet (R1, --strict)
+        env:
+          PYTHONPATH: .
+        run: uv run python scripts/docs/anti_sprawl_ratchet.py --strict
+      - name: Related-edge validator (R2, --strict)
+        env:
+          PYTHONPATH: .
+        run: uv run python scripts/docs/related_validator.py --strict --repo-root .
+      - name: Description-length gate (NFR-003, --strict)
+        env:
+          PYTHONPATH: .
+        run: uv run python scripts/docs/description_length_check.py --strict --repo-root .
+      - name: Relative body-link gate (WP18, --check)
+        env:
+          PYTHONPATH: .
+        run: uv run python scripts/docs/relative_link_fixer.py --check --repo-root .
+      - name: Docs freshness (R3 lockfile drift default-on + sub-checks)
         env:
           SPEC_KITTY_ENABLE_SAAS_SYNC: "1"
           SPEC_KITTY_NO_UPGRADE_CHECK: "1"

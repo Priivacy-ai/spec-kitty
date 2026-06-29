@@ -1,9 +1,13 @@
 ---
-title: "2.x Runtime, Mission Types, and Missions"
-description: "Historical Spec Kitty 2.x archive page for 2.x Runtime, Mission Types, and Missions; use Spec Kitty 3.2 docs for current Charter-era workflows."
+title: 2.x Runtime, Mission Types, and Missions
+description: Historical Spec Kitty 2.x archive page for 2.x Runtime, Mission Types, and Missions; use Spec Kitty 3.2 docs for current Charter-era workflows.
+doc_status: deprecated
+updated: '2026-06-03'
+related:
+- docs/context/index.md
+- docs/archive/2x/orchestration-and-api.md
 ---
-
-> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../3x/index.md) for current docs.
+> Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../context/index.md) for current docs.
 
 # 2.x Runtime, Mission Types, and Missions
 
@@ -74,7 +78,7 @@ Together they determine the next action. For example: "We are in the implement p
 
 Agents call `spec-kitty next` in a loop, executing whatever it returns until the mission is complete. This keeps agent behavior deterministic and auditable -- the runtime decides what happens next, not the agent.
 
-ADR reference: `architecture/2.x/adr/2026-02-17-1-canonical-next-command-runtime-loop.md`
+ADR reference: `docs/adr/2.x/2026-02-17-1-canonical-next-command-runtime-loop.md`
 
 ## Mission Discovery and Loading
 
@@ -88,7 +92,7 @@ The resolution order is:
 4. User-global location (`~/.spec-kitty/`)
 5. Packaged doctrine mission defaults
 
-ADR reference: `architecture/2.x/adr/2026-02-17-2-runtime-owned-mission-discovery-loading.md`
+ADR reference: `docs/adr/2.x/2026-02-17-2-runtime-owned-mission-discovery-loading.md`
 
 Implementation references:
 
@@ -109,10 +113,10 @@ Plus `blocked` (reachable from planned/claimed/in_progress/for_review/in_review/
 
 ADR references:
 
-1. `architecture/2.x/adr/2026-02-09-1-canonical-wp-status-model.md`
-2. `architecture/2.x/adr/2026-02-09-2-wp-lifecycle-state-machine.md`
-3. `architecture/2.x/adr/2026-02-09-3-event-log-merge-semantics.md`
-4. `architecture/2.x/adr/2026-02-09-4-cross-repo-evidence-completion.md`
+1. `docs/adr/2.x/2026-02-09-1-canonical-wp-status-model.md`
+2. `docs/adr/2.x/2026-02-09-2-wp-lifecycle-state-machine.md`
+3. `docs/adr/2.x/2026-02-09-3-event-log-merge-semantics.md`
+4. `docs/adr/2.x/2026-02-09-4-cross-repo-evidence-completion.md`
 
 ## External Orchestration Boundary
 
@@ -128,7 +132,7 @@ See [Orchestration and API Boundary](orchestration-and-api.md) for operator and 
 
 ## Learn More
 
-- **Deep dive on missions**: [The Mission System Explained](../../explanation/mission-system.md) -- why missions exist, how they shape your experience, detailed comparison of all four built-in missions
-- **Kanban workflow**: [Kanban Workflow Explained](../../explanation/kanban-workflow.md) -- how lanes work and what happens when work moves between them
-- **Workspace model**: [Execution Workspace Model](../../explanation/execution-lanes.md) -- lane-based worktrees only
-- **CLI reference**: [CLI Commands Reference](../../reference/cli-commands.md) -- complete `next`, `mission`, and `status` subcommand details
+- **Deep dive on missions**: [The Mission System Explained](../../architecture/mission-system.md) -- why missions exist, how they shape your experience, detailed comparison of all four built-in missions
+- **Kanban workflow**: [Kanban Workflow Explained](../../architecture/kanban-workflow.md) -- how lanes work and what happens when work moves between them
+- **Workspace model**: [Execution Workspace Model](../../architecture/execution-lanes.md) -- lane-based worktrees only
+- **CLI reference**: [CLI Commands Reference](../../api/cli-commands.md) -- complete `next`, `mission`, and `status` subcommand details

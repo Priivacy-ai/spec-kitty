@@ -27,6 +27,23 @@ _OPTIONAL_KEYS = {"extension_rationale", "notes"}
 _ALL_KNOWN_KEYS = _REQUIRED_KEYS | _OPTIONAL_KEYS
 
 
+# Shim-registry relocation (Mission B, FR-001): the registry now lives at
+# ``docs/migrations/shim-registry.yaml``. WP01 staged a dual-read against the
+# pre-fold home while the move was in flight; now that the tree has landed
+# (WP03) the legacy branch is dropped — the canonical home is the sole
+# resolution target.
+_SHIM_REGISTRY_NEW: tuple[str, ...] = ("docs", "migrations", "shim-registry.yaml")
+
+
+def resolve_shim_registry_path(repo_root: Path) -> Path:
+    """Return the canonical ``docs/migrations/shim-registry.yaml`` path.
+
+    The path is returned whether or not it exists so callers raise a
+    forward-correct :class:`FileNotFoundError` naming the canonical home.
+    """
+    return repo_root.joinpath(*_SHIM_REGISTRY_NEW)
+
+
 @dataclasses.dataclass(frozen=True)
 class ShimEntry:
     legacy_path: str
@@ -48,7 +65,7 @@ class RegistrySchemaError(Exception):
 
 
 def load_registry(repo_root: Path) -> list[ShimEntry]:
-    registry_path = repo_root / "architecture" / "2.x" / "shim-registry.yaml"
+    registry_path = resolve_shim_registry_path(repo_root)
     if not registry_path.exists():
         raise FileNotFoundError(f"Shim registry not found at {registry_path}")
     yaml = YAML(typ="safe")

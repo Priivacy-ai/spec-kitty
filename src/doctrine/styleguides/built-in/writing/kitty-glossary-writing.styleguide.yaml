@@ -42,4 +42,4 @@ quality_test: "Read the definition to someone unfamiliar with the project. If th
 
 references:
   - "glossary/README.md"
-  - "glossary/contexts/"
+  - "docs/context/"

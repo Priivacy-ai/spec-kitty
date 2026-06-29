@@ -1,7 +1,7 @@
 """Conflict classifier for stale-lane auto-rebase.
 
 Encodes the rule set defined in
-``architecture/2.x/adr/2026-05-14-1-stale-lane-auto-rebase-classifier-policy.md``
+``docs/adr/3.x/2026-05-14-1-stale-lane-auto-rebase-classifier-policy.md``
 as pure functions returning :class:`ConflictClassification`.
 
 Rules (in evaluation order):

@@ -237,7 +237,7 @@ def test_validate_map_no_errors_when_files_present(tmp_path: Path, sample_map_ya
 def _make_integration_tree(tmp_path: Path) -> tuple[Path, Path]:
     """Build a minimal repo tree for integration tests."""
     # Glossary source
-    contexts_dir = tmp_path / "glossary" / "contexts"
+    contexts_dir = tmp_path / "docs" / "context"
     contexts_dir.mkdir(parents=True)
     (contexts_dir / "testdomain.md").write_text(SAMPLE_CONTEXT_MD, encoding="utf-8")
 
@@ -264,7 +264,7 @@ def _make_integration_tree(tmp_path: Path) -> tuple[Path, Path]:
 
 def test_generate_creates_context_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo_root, map_file = _make_integration_tree(tmp_path)
-    monkeypatch.setattr(gen, "GLOSSARY_CONTEXTS_DIR", repo_root / "glossary" / "contexts")
+    monkeypatch.setattr(gen, "GLOSSARY_CONTEXTS_DIR", repo_root / "docs" / "context")
     monkeypatch.setattr(gen, "REPO_ROOT", repo_root)
 
     tmap = gen.load_map(map_file)
@@ -277,7 +277,7 @@ def test_generate_creates_context_file(tmp_path: Path, monkeypatch: pytest.Monke
 
 def test_generate_creates_scope_file(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo_root, map_file = _make_integration_tree(tmp_path)
-    monkeypatch.setattr(gen, "GLOSSARY_CONTEXTS_DIR", repo_root / "glossary" / "contexts")
+    monkeypatch.setattr(gen, "GLOSSARY_CONTEXTS_DIR", repo_root / "docs" / "context")
     monkeypatch.setattr(gen, "REPO_ROOT", repo_root)
 
     tmap = gen.load_map(map_file)
@@ -290,7 +290,7 @@ def test_generate_creates_scope_file(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
 def test_check_mode_passes_after_generate(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo_root, map_file = _make_integration_tree(tmp_path)
-    monkeypatch.setattr(gen, "GLOSSARY_CONTEXTS_DIR", repo_root / "glossary" / "contexts")
+    monkeypatch.setattr(gen, "GLOSSARY_CONTEXTS_DIR", repo_root / "docs" / "context")
     monkeypatch.setattr(gen, "REPO_ROOT", repo_root)
     monkeypatch.setattr(gen, "MAP_FILE", map_file)
 
@@ -303,7 +303,7 @@ def test_check_mode_passes_after_generate(tmp_path: Path, monkeypatch: pytest.Mo
 
 def test_check_mode_fails_when_file_missing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo_root, map_file = _make_integration_tree(tmp_path)
-    monkeypatch.setattr(gen, "GLOSSARY_CONTEXTS_DIR", repo_root / "glossary" / "contexts")
+    monkeypatch.setattr(gen, "GLOSSARY_CONTEXTS_DIR", repo_root / "docs" / "context")
     monkeypatch.setattr(gen, "REPO_ROOT", repo_root)
     monkeypatch.setattr(gen, "MAP_FILE", map_file)
 
@@ -314,7 +314,7 @@ def test_check_mode_fails_when_file_missing(tmp_path: Path, monkeypatch: pytest.
 
 def test_check_mode_fails_when_file_stale(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     repo_root, map_file = _make_integration_tree(tmp_path)
-    monkeypatch.setattr(gen, "GLOSSARY_CONTEXTS_DIR", repo_root / "glossary" / "contexts")
+    monkeypatch.setattr(gen, "GLOSSARY_CONTEXTS_DIR", repo_root / "docs" / "context")
     monkeypatch.setattr(gen, "REPO_ROOT", repo_root)
     monkeypatch.setattr(gen, "MAP_FILE", map_file)
 
@@ -334,11 +334,30 @@ def test_check_mode_fails_when_file_stale(tmp_path: Path, monkeypatch: pytest.Mo
 
 
 def test_real_glossary_contexts_parse() -> None:
-    """Ensure all real context files parse without error."""
-    contexts_dir = Path(__file__).resolve().parent.parent.parent.parent / "glossary" / "contexts"
-    assert contexts_dir.exists(), f"Glossary contexts dir not found: {contexts_dir}"
+    """Every *registered* glossary context parses with at least one term.
 
-    for md_file in sorted(contexts_dir.glob("*.md")):
+    Discovery is map-driven — the registered context slugs in
+    ``contextive-map.yaml`` — the same authoritative source the generator
+    (:func:`gen.cmd_generate`) and :func:`test_real_check_mode_passes` use. This
+    deliberately does **not** blind-glob ``docs/context/*.md``: that directory is
+    a mixed documentation section that also holds prose Explanation pages (e.g.
+    ``charter-overview.md``) which are not glossary contexts and carry no terms.
+    A blind glob would assert the directory layout rather than the glossary
+    contract, and would break whenever a non-context doc lands there.
+    """
+    repo_root = Path(__file__).resolve().parent.parent.parent.parent
+    contexts_dir = repo_root / "docs" / "context"
+    map_file = repo_root / ".kittify" / "traceability" / "contextive-map.yaml"
+    assert contexts_dir.exists(), f"Glossary contexts dir not found: {contexts_dir}"
+    assert map_file.exists(), f"Traceability map not found: {map_file}"
+
+    tmap = gen.load_map(map_file)
+    registered = sorted({slug for scope in tmap.scopes for slug in scope.contexts})
+    assert registered, "no glossary contexts registered in contextive-map.yaml"
+
+    for slug in registered:
+        md_file = contexts_dir / f"{slug}.md"
+        assert md_file.is_file(), f"registered context '{slug}' has no {md_file.name}"
         ctx = gen.parse_context_file(md_file)
         assert ctx.name, f"No context name parsed from {md_file.name}"
         assert ctx.terms, f"No terms parsed from {md_file.name}"

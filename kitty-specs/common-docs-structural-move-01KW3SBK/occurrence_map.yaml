@@ -1,0 +1,625 @@
+# Occurrence map — Common Docs Structural Move (Mission B, 01KW3SBK)
+#
+# STRUCTURAL MULTI-PATH RESTRUCTURE, not a single-term rename (#1815 folded).
+# The 8 single-term-rename categories cannot express a path-to-path relocation,
+# so the spine of this mission lives in the `moves:` block below: an explicit
+# old-path -> new-path pair mapping. The 8 categories then classify the
+# in-file *references* to those paths across the tree.
+#
+# Counts regenerated from the LIVE tree at plan time (2026-06-27) — see the
+# `status:` block. The spec's ~571 files / ~2,190 refs is a confirmed LOW floor.
+#
+# Schema: src/doctrine/schemas/occurrence-map.schema.yaml
+
+target:
+  # The dominant rename is the fold of the `architecture/` root into `docs/`.
+  # This is the representative single-term anchor; the full multi-path spine
+  # is enumerated in `moves:` (one anchor cannot express N path pairs — #1815).
+  term: "architecture/"
+  replacement: "docs/"
+  operation: rename
+
+categories:
+
+  # ---------------------------------------------------------------------------
+  # DOMINANT category. Two populations:
+  #   (a) the path-pair relocations themselves (enumerated in `moves:`)
+  #   (b) every in-tree reference to a moved doc path (the bulk of the rewrite).
+  # The RUNTIME-CRITICAL reads (see status.runtime_critical_reads) are carved
+  # out via exceptions for land-FIRST, resolution-tested treatment (C-003):
+  # re-point FIRST, prove the new path resolves with a test, THEN move the tree.
+  # SIX such reads land first: the 4 src/ reads + 2 NON-src reads that are NOT
+  # moved but whose target literals must be re-pointed in lock-step — the
+  # `scripts/generate_contextive_glossaries.py` glossary-extraction read
+  # (`glossary/contexts/`, the C-006 doctrine-extraction source) and the
+  # `.kittify/charter/governance.yaml` `authority_paths` block.
+  #
+  # OUT-OF-RELOCATE-SCOPE (operator directive): `.github/`, `.kittify/`,
+  # `scripts/`, `pyproject.toml` are NOT moved (tooling/CI/config). Their
+  # *functional* references to moved content get TARGETED IN-PLACE updates only
+  # (see `targeted_ref_updates:` below), never move-pairs.
+  filesystem_paths:
+    action: manual_review
+    rationale: >-
+      Doc-path literals are referenced from src/ runtime reads, doctrine YAML,
+      mission artifacts, tests, and docs prose. Most are safe mechanical
+      rewrites, but the runtime reads and the redirect-baseline paths need
+      case-by-case judgement, so the category default is manual_review with
+      per-population exceptions below.
+    live_occurrences: 2920
+    live_files: 751
+
+  # User-visible doc paths embedded in prose: READMEs, guides, llms.txt, TOC
+  # link text, mission notes. Rewrite where the path is shown to a reader.
+  user_facing_strings:
+    action: rename_if_user_visible
+    rationale: >-
+      Doc-path mentions in prose/links/llms.txt/error-remediation messages are
+      rewritten to the new location; internal-only labels preserved. Includes
+      events/adapter.py "docs/development/ssh-deploy-keys.md" and the
+      doctor.py shim-registry remediation string (kept in lock-step with the
+      compat readers — see runtime_critical_reads).
+
+  # No public Python symbol encodes these doc paths; only docstrings mention
+  # ADR paths (base.py, wp_state.py, conflict_classifier.py, etc.). Those are
+  # documentation references inside code -> treated as user_facing prose, not
+  # renamed symbols. No code identifier changes.
+  code_symbols:
+    action: do_not_change
+    rationale: >-
+      No code symbol is named after a doc path. ADR-path mentions in module
+      docstrings are prose references (handled under user_facing_strings),
+      not renamable identifiers. Renaming symbols here would be spurious.
+
+  # No Python import path tracks a doc location (docs are not importable
+  # modules). authority_paths.py holds DATA literals, not import statements.
+  import_paths:
+    action: do_not_change
+    rationale: >-
+      Documentation directories are not Python packages; no `from ... import`
+      references a doc path. The runtime path literals live in
+      filesystem_paths, not the import graph.
+
+  # docfx.json content globs + toc.yml entries are serialized config keys whose
+  # VALUES are doc paths. They MUST be rewritten for the build to stay green
+  # (FR-007) — so this is a deliberate, reviewed rewrite, not the usual
+  # do_not_change contract posture.
+  serialized_keys:
+    action: manual_review
+    rationale: >-
+      docfx.json content/exclude globs and every toc.yml `href` are serialized
+      values pointing at doc paths; FR-007 requires rewriting them to the
+      13-section structure. Reviewed case-by-case so the DocFX manifest stays
+      buildable. The shim-registry.yaml *keys* are NOT touched (only its file
+      location is a runtime concern — see exceptions).
+
+  # No CLI subcommand or flag encodes a moving doc path. `spec-kitty doctor
+  # shim-registry` is a command NAME, unaffected by the file's location.
+  cli_commands:
+    action: do_not_change
+    rationale: >-
+      No subcommand/flag string contains a doc path. The `doctor shim-registry`
+      command name is stable; only the file it reads may relocate (handled as a
+      runtime-critical filesystem_paths read, not a CLI rename).
+
+  # Test fixtures/assertions that hard-code doc paths (architecture/*/adr,
+  # docs/development) are updated to the new layout so they reflect reality;
+  # the runtime-read resolution tests (NFR-005, C-003) are ADDED here.
+  tests_fixtures:
+    action: rename
+    rationale: >-
+      ~125 occurrences across ~81 test files reference old doc paths; update to
+      the new layout. NEW resolution tests proving the runtime-critical reads
+      resolve post-move are added in the SAME slice as the src/ rewrite (C-003).
+
+  # No metric name, log key, or analytics event encodes a doc path. Doc-path
+  # strings that appear in log/console output are user-facing guidance, not
+  # telemetry label contracts.
+  logs_telemetry:
+    action: do_not_change
+    rationale: >-
+      No dashboard/alert depends on a doc-path string. Console guidance that
+      mentions a doc path is user_facing_strings, not a telemetry label.
+
+exceptions:
+
+  # --- RUNTIME-CRITICAL src/ READS (C-003): src-first, resolution-tested. ---
+  # These resolve a doc/config path at RUNTIME. They land FIRST, each with a
+  # test proving the new path resolves, BEFORE any tree move.
+
+  - path: "src/charter/context_renderers/authority_paths.py"
+    action: manual_review
+    reason: >-
+      DEFAULT_AUTHORITY_PATHS holds the live literals "architecture/3.x/adr/"
+      and "glossary/contexts/". The ADR default ALREADY flipped to 3.x via
+      #2160/#2115 (back-compat symlink at 2.x) — verify it still resolves
+      after architecture/ folds into docs/adr/3.x. The "glossary/contexts/"
+      literal becomes runtime-critical IF the glossary moves to docs/context/
+      (FR-009) — re-point + resolution-test (this is a 4th runtime read the
+      spec's "~3" snapshot did not enumerate).
+
+  - path: "src/specify_cli/compat/doctor.py"
+    action: manual_review
+    reason: >-
+      check_shim_registry() reads `repo_root / "architecture" / "2.x" /
+      "shim-registry.yaml"` (line ~69) — a genuine runtime path-resolution
+      read. If architecture/ folds, this literal must be re-pointed to the
+      shim-registry's stable new home with a resolution test, FIRST.
+
+  - path: "src/specify_cli/compat/registry.py"
+    action: manual_review
+    reason: >-
+      Second runtime reader of `architecture/2.x/shim-registry.yaml`
+      (line ~51). Must move in lock-step with compat/doctor.py and the
+      doctor.py user-facing remediation string (cli/commands/doctor.py:509).
+      DESTINATION DECLARED: shim-registry.yaml relocates to
+      `docs/migrations/shim-registry.yaml` (stable home in the 13-section
+      structure; pairs with 06_migration_and_shim_rules.md). The 3 readers
+      (compat/doctor.py:69, compat/registry.py:51, the remediation string at
+      cli/commands/doctor.py:509) re-point in IC-02 PRE-move, dual-read
+      (old `architecture/2.x/` UNION new `docs/migrations/`), resolution-tested.
+
+  - path: "src/specify_cli/cli/commands/**/*.md"
+    action: manual_review
+    reason: >-
+      README/doc files under cli/commands/ are force-classified `cli_commands` by
+      their path, but WP08's edits are doc-path STRING references (the moved-path
+      rewrite), not command-surface changes. manual_review (reviewer confirms only
+      doc-path strings changed).
+
+  - path: "src/specify_cli/cli/commands/upgrade.py"
+    action: manual_review
+    reason: >-
+      FILE-LEVEL CARVE-OUT from the `cli_commands: do_not_change` blanket (same as
+      doctor.py below). WP08's edit is a doc-path STRING in a docstring/help
+      reference (`docs/how-to/install-and-upgrade.md` -> `docs/guides/...` per the
+      Divio re-section), NOT a subcommand/flag/command-surface change. Reviewer:
+      confirm the diff is only the doc-path string.
+
+  - path: "src/specify_cli/cli/commands/doctor.py"
+    action: manual_review
+    reason: >-
+      FILE-LEVEL CARVE-OUT from the `cli_commands: do_not_change` blanket. This
+      file is a CLI command module (hence the category), but the WP01 edit is the
+      single user-facing REMEDIATION STRING (~line 509) naming the shim-registry
+      path — a `user_facing_strings`/`filesystem_paths` reference re-pointed in
+      lock-step with the two compat readers (T005, C-003), NOT a subcommand/flag
+      rename. The `doctor shim-registry` command name is untouched. Reviewer:
+      confirm the diff is ONLY the path string (dual-read old∪new). Without this
+      exception the diff-compliance gate blocks the lock-step re-point
+      (cli_commands→do_not_change at file granularity).
+
+  # --- NON-src LAND-FIRST reads (NOT moved; re-pointed in lock-step, C-003). ---
+  # These two are out-of-relocate-scope surfaces (a script + a config) that
+  # RESOLVE a moved path at runtime. They are not `moves:` entries — their
+  # *target literal* is re-pointed in-place and resolution-tested BEFORE the
+  # tree move, exactly like the src/ reads (the 5th + 6th runtime reads).
+
+  - path: "scripts/generate_contextive_glossaries.py"
+    action: manual_review
+    reason: >-
+      5th runtime read (the spec/earlier map under-counted). Line ~30:
+      `GLOSSARY_CONTEXTS_DIR = REPO_ROOT / "glossary" / "contexts"` — the
+      C-006 DOCTRINE-EXTRACTION SOURCE. When glossary/contexts/ moves to
+      docs/context/ (FR-009), re-point this literal + resolution-test FIRST.
+      `scripts/` is out-of-relocate-scope (the file is NOT moved); only its
+      target literal is updated in place.
+
+  - path: ".kittify/charter/charter.md"
+    action: manual_review
+    reason: >-
+      6th runtime read — the TRACKED SOURCE for the authority_paths block.
+      IC-01 CORRECTION (WP01): the earlier map named `.kittify/charter/governance.yaml`,
+      but that file is **gitignored (.gitignore:112) and GENERATED** from charter.md
+      via `spec-kitty charter sync` — a direct edit there is non-durable (won't
+      commit; overwritten on next sync). Edit the canonical tracked source
+      `.kittify/charter/charter.md` instead: its authority_paths block (~line 315)
+      lists `glossary/contexts/`, `architecture/3.x/adr/`, `architecture/adrs/` —
+      all moving targets. Re-point to the new homes (docs/context/, docs/adr/3.x/)
+      land-first, resolution-tested, dual-read (old∪new). `.kittify/` is
+      out-of-relocate-scope (config not moved); only these authority-path VALUES
+      change. The generated governance.yaml picks up the new values on next sync.
+
+  # --- src/ doc-path STRING refs (WP08 T047) + the WP01 dual-read drop (T046). ---
+  - path: "src/**/*.py"
+    action: manual_review
+    reason: >-
+      WP08's T047 rewrites doc-path STRING references inside docstrings/comments
+      (e.g. ``architecture/2.x/06_unified_charter_bundle.md`` ->
+      ``docs/architecture/06_unified_charter_bundle.md``), and T046 drops the WP01
+      dual-read old-path branches in the runtime readers. These are
+      `filesystem_paths`/`user_facing_strings` edits + a runtime-read cleanup, NOT
+      code-symbol or import renames — the `bulk_ref_rewrite.py` tool's OWN
+      `do_not_change` filter already skips the `code_symbols`/`import_paths`
+      categories. The diff-compliance gate's file-level `code_symbols`
+      classification of any edited `.py` over-blocks these legitimate doc-path-string
+      edits; route to `manual_review` so the reviewer confirms no symbol/import
+      actually changed (verified on the WP08 diff: changed lines are doc-path
+      strings only, except the T046 dual-read drop in authority_paths/compat).
+
+  # --- Redirect-baseline paths: do not blind-rewrite. ---
+  - path: "docs/1x/**"
+    action: do_not_change
+    reason: >-
+      True HTML snapshots — delete + redirect (FR-008), NOT path-rewritten in
+      place. The captured baseline URL inventory anchors the redirect coverage
+      check (NFR-002).
+  - path: "docs/2x/**"
+    action: do_not_change
+    reason: "True HTML snapshots — delete + redirect (FR-008); baseline-anchored."
+
+  # --- Historical ADR decision content is immutable (C-002). ---
+  - path: "architecture/**/adr/**"
+    action: manual_review
+    reason: >-
+      ADR *decision content* must not mutate (C-002) — only location
+      (adr/<era>/) and header format (YAML frontmatter, FR-003). These paths
+      are reviewer-approved relocations declared in `moves:`; the body bytes
+      are content-invariance-checked, not rewritten.
+
+  # --- Historical mission artifacts are immutable snapshots (do NOT rewrite). ---
+  - path: "kitty-specs/**"
+    action: do_not_change
+    reason: >-
+      kitty-specs/ holds COMPLETED-mission planning artifacts (spec/plan/tasks/
+      WP notes/research). Per the Terminology Canon, historical archived
+      artifacts are IMMUTABLE SNAPSHOTS — the doc-path references they contain
+      (e.g. prose mentioning `architecture/3.x/adr/...`) record the tree as it
+      stood at that mission's close and MUST NOT be rewritten. Rewriting the
+      1621 in-tree refs (453 files) would mutate the historical record for zero
+      runtime/link benefit: kitty-specs/ is NOT published to the DocFX site, and
+      the WP07 redirect stubs already preserve URL continuity for any external
+      consumer. This strikes 1621 occ / 453 files from the blast radius
+      (regenerated: 2920 -> 1299 occ, 751 -> 298 files). The CURRENT in-flight
+      mission's own artifacts live under the planning branch, not rewritten by
+      this bulk sweep either (the move happens in-tree, not via ref-rewrite).
+
+# ---------------------------------------------------------------------------
+# TARGETED REF UPDATES (operator directive): out-of-relocate-scope surfaces
+# (.github / .kittify / scripts / pyproject) are NOT moved, but their FUNCTIONAL
+# references that point at MOVED content get targeted in-place edits so gates
+# and tooling do not silently break. These are NOT `moves:` and NOT path-rewrite
+# heuristic targets — each is a reviewed, surgical edit.
+# ---------------------------------------------------------------------------
+targeted_ref_updates:
+  - path: ".github/workflows/ci-quality.yml"
+    locus: "line ~411 (changed-markdown consistency-test glob)"
+    change: >-
+      The git-diff glob `'architecture/*.md' 'architecture/**/*.md'` points at a
+      tree that folds away; once architecture/ is gone the consistency gate
+      SILENTLY STOPS FIRING. Re-point the architecture/ globs onto `docs/**`
+      (the docs/*.md + docs/**/*.md globs already present cover the landed
+      content). CRITICAL — gate-silent-death risk. The consistency TEST itself
+      (tests/docs/test_architecture_docs_consistency.py) is rewritten under
+      tests_fixtures.
+    severity: critical
+  - path: ".kittify/glossaries/spec_kitty_core.yaml"
+    locus: "lines ~375, ~482"
+    change: >-
+      Two functional refs to
+      `architecture/2.x/04_implementation_mapping/code-patterns.md` -> the new
+      living-design home `docs/architecture/code-patterns.md`.
+    severity: functional
+  - path: ".kittify/charter/charter.md"
+    locus: "authority_paths block, ~line 315 (TRACKED SOURCE; governance.yaml is generated + gitignored)"
+    change: >-
+      Re-point `glossary/contexts/` -> `docs/context/`, `architecture/3.x/adr/`
+      -> `docs/adr/3.x/`, `architecture/adrs/` -> `docs/adr/3.x/`. Edit charter.md
+      (the tracked source), NOT the generated `.kittify/charter/governance.yaml`
+      (gitignored, regenerated via `charter sync`). ALSO a land-first runtime read
+      (see exceptions) — same edit, resolution-tested.
+    severity: critical
+  - path: "pyproject.toml"
+    locus: "ADR path mention in a comment"
+    change: "Cosmetic docstring/comment path mention -> low-priority/optional."
+    severity: cosmetic
+  - path: "scripts/docs/anti_sprawl_ratchet.py"
+    locus: "docstring path mention"
+    change: "Cosmetic path mention in a docstring -> low-priority/optional."
+    severity: cosmetic
+
+# ---------------------------------------------------------------------------
+# MOVE-KIND vocabulary (operator directive):
+#   relocate              (default) — file moves to `to:`; old path removed.
+#   relocate-with-alias   — canonical copy at `to:`; old path PERSISTS as an
+#                           alias/copy so out-of-scope tooling keeps reading it.
+# A `kind:` field appears only where it is not the default `relocate`.
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+# STRUCTURAL MOVE SPINE (#1815 workaround): explicit old-path -> new-path pairs.
+# Directory-prefix / glob granularity. A path participating in a move is a
+# reviewer-approved relocation, EXEMPT from the do_not_change path heuristic.
+# 23 path-pair mappings (enumeration completed against the live tree: all loose
+# architecture/ files, 2.x design artifacts, per-era READMEs, shim-registry).
+# ---------------------------------------------------------------------------
+moves:
+
+  # --- ADRs -> docs/adr/<era>/ (FR-002, 117 unique preserved) ---
+  - from: ["architecture/1.x/adr"]
+    to: docs/adr/1.x
+    reason: "Era ADRs (1.x) -> canonical docs/adr/1.x; content-invariant, frontmatter added (FR-003)."
+  - from: ["architecture/2.x/adr"]
+    to: docs/adr/2.x
+    reason: "Era ADRs (2.x) -> docs/adr/2.x; back-compat symlink target for authority_paths."
+  - from: ["architecture/3.x/adr"]
+    to: docs/adr/3.x
+    reason: "Era ADRs (3.x) -> docs/adr/3.x; current authority_paths default (already flipped #2160/#2115)."
+  - from: ["architecture/adrs"]
+    to: docs/adr/3.x
+    reason: >-
+      20 era-LESS unique ADRs -> docs/adr/3.x assigned by date (per A's plan).
+      The 47 byte-identical flat mirrors are DROPPED with the flat shim (no
+      information loss — exact duplicates). README dropped.
+
+  # --- Living architectural design -> single unversioned docs/architecture/ (FR-004) ---
+  - from:
+      - architecture/2.x/00_landscape
+      - architecture/2.x/01_context
+      - architecture/2.x/02_containers
+      - architecture/2.x/03_components
+      - architecture/2.x/04_implementation_mapping
+    to: docs/architecture
+    reason: "C4 landscape/context/container/component layers -> unified living design."
+  - from: ["architecture/diagrams"]
+    to: docs/architecture
+    reason: "C4 mermaid diagrams (context/containers/components) -> docs/architecture."
+  - from: ["architecture/3.x/vision", "architecture/2.x/vision", "architecture/1.x/vision", "architecture/vision"]
+    to: docs/architecture
+    reason: "Vision narratives -> living architecture root (de-versioned)."
+  - from: ["architecture/assessments", "architecture/audits", "architecture/calibration"]
+    to: docs/architecture
+    reason: "Architectural assessments/audits/calibration -> docs/architecture."
+  - from:
+      - architecture/2.x/05_ownership_manifest.yaml
+      - architecture/2.x/05_ownership_map.md
+      - architecture/2.x/06_unified_charter_bundle.md
+      - architecture/2.x/README.md
+      - architecture/1.x/README.md
+      - architecture/3.x/README.md
+      - architecture/README.md
+      - architecture/ARCHITECTURE_DOCS_GUIDE.md
+      - architecture/NAVIGATION_GUIDE.md
+      - architecture/adr-template.md
+    to: docs/architecture
+    reason: >-
+      2.x ownership/charter design artifacts + per-era + root READMEs + the
+      navigation/guide docs + ADR template -> the unified living design root.
+      (adr-template.md is an authoring template, not a decision record — C-002
+      does not apply.) NOTE: 05_ownership_manifest.yaml is a one-off design
+      artifact; the runtime `OwnershipManifest` concept in src/ is per-WP
+      frontmatter, NOT a reader of this file (verified — not runtime-critical).
+
+  # --- Migration/shim artifacts -> docs/migrations/ (FR-001) ---
+  - from:
+      - architecture/2.x/06_migration_and_shim_rules.md
+      - architecture/2.x/shim-registry.yaml
+    to: docs/migrations
+    reason: >-
+      Migration rules + the shim-registry -> docs/migrations (stable home).
+      shim-registry.yaml is a RUNTIME-READ target (compat/doctor.py:69,
+      compat/registry.py:51, remediation string cli/commands/doctor.py:509):
+      those 3 readers re-point PRE-move, dual-read, resolution-tested (IC-02).
+
+  # --- Research / initiatives / user-journeys / investigations -> docs/plans/ (FR-009) ---
+  - from: ["architecture/3.x/research", "architecture/2.x/research", "architecture/1.x/research"]
+    to: docs/plans
+    reason: "Research deliverables -> plans (distil-then-retire lifecycle)."
+  - from: ["architecture/2.x/initiatives"]
+    to: docs/plans
+    reason: "Initiative planning docs -> plans."
+  - from: ["architecture/2.x/user_journey"]
+    to: docs/plans
+    reason: "User journeys -> plans (FR-009 mapping)."
+  - from: ["architecture/1.x/notes"]
+    to: docs/plans
+    reason: "1.x design notes -> plans (distil-then-retire)."
+  - from:
+      - architecture/2026-04-14-windows-compatibility-hardening-mission-review.md
+      - architecture/test-suite-acceleration-plan.md
+    to: docs/plans
+    reason: >-
+      Loose mission-review + acceleration-plan docs at architecture/ root ->
+      plans (investigations/traces, distil-then-retire)."
+  - from: ["docs/engineering_notes"]
+    to: docs/plans
+    reason: >-
+      Investigations/traces/engineering notes -> plans with distil-then-retire
+      lifecycle (FR-009). Already a docs/ subdir since January (re-section, not
+      cross-root move).
+
+  # --- Glossary + audiences -> docs/context/ (FR-009, C-006 read-path safeguard) ---
+  - from: ["architecture/audience"]
+    to: docs/context
+    reason: "Audience personas -> context section."
+  - from: ["glossary/contexts"]
+    to: docs/context
+    reason: >-
+      Glossary -> context (FR-009). C-006: preserve the dashboard
+      .kittify/glossaries/*.yaml read-path AND the doctrine-extraction source;
+      re-point authority_paths.py "glossary/contexts/" literal with a
+      resolution test (runtime-critical — see exceptions).
+
+  # --- docs/development re-section (FR-001) — already a docs/ subdir ---
+  - from: ["docs/development"]
+    to: docs/operations
+    reason: >-
+      Durable dev/ops docs -> operations/guides/configuration per A's ADR;
+      ephemeral tracking docs -> plans. Re-section within docs/, not a
+      cross-root move (durable-vs-ephemeral split resolves #2054).
+
+  # --- Shadow trees (FR-008) ---
+  - from: ["docs/3x"]
+    to: docs/context
+    reason: >-
+      LIVE charter content (charter-overview.md, governance-files.md,
+      index.md) — DISTIL + MOVE + REDIRECT, never blind-delete (C-004). Fix
+      the 3 nav refs in toc.yml/llms.txt/index.md. Record landing zone for
+      #2053 (coordinate only).
+
+  # --- docs/architecture orphans: verify-before-delete (FR-008, C-004) ---
+  - from:
+      - docs/architecture/adr-connector-auth-binding-separation.md
+      - docs/architecture/adr-github-app-installation-authority.md
+    to: docs/adr/3.x
+    reason: >-
+      2 connector-auth ADRs among the 4 orphans — promote to canonical adr/3.x
+      (verify-before-delete). The other 2 orphans (feature-detection.md,
+      gap-analysis-connector-installation-model.md) verified then promoted or
+      confirmed canonical home before deletion.
+
+  # --- CHANGELOG -> changelog/ (FR-009) — RELOCATE-WITH-ALIAS ---
+  - from: ["CHANGELOG.md"]
+    to: docs/changelog
+    kind: relocate-with-alias
+    reason: >-
+      CANONICAL copy lands in docs/changelog (13-section structure); the repo
+      root CHANGELOG.md PERSISTS as an alias/copy so release tooling keeps
+      reading it at root — scripts/release/, pyproject.toml, and
+      .github/release-readiness.yml all read root CHANGELOG.md and are
+      out-of-relocate-scope (not re-pointed). The two copies are kept in sync;
+      root is the alias, docs/changelog is canonical.
+
+  # --- DocFX manifest + TOC rewrite (FR-007) — config, rewritten in place ---
+  - from: ["docs/docfx.json", "docs/llms.txt"]
+    to: docs
+    reason: >-
+      Not relocated — content globs + llms.txt entries REWRITTEN in place to
+      the 13-section layout (serialized_keys: manual_review). Listed here to
+      mark them as reviewer-approved touch points of the restructure.
+
+  # --- Divio → 13-section re-section (FR-009) — IC-01 CORRECTION (was MISSING) ---
+  # The existing docs/ Divio dirs (how-to/reference/explanation/tutorials/recovery)
+  # are PUBLISHED (120 of WP02's 168 baseline URLs) but the original moves: spine
+  # had NO entries for them, so they would orphan and guides/api would stay empty.
+  # FR-009 mandates the mapping. Executed by WP16; redirect_map regenerates to cover
+  # these (published → redirect stubs required, NFR-002).
+  - from: ["docs/how-to", "docs/tutorials"]
+    to: docs/guides
+    reason: >-
+      Divio how-to + tutorials (task- and learning-oriented) -> docs/guides
+      (FR-009). Published URLs -> redirect stubs required (WP16 regenerates the
+      WP07 redirect_map). N->1 merge: disambiguate any filename collision
+      data-preservingly (do not overwrite).
+  - from: ["docs/reference"]
+    to: docs/api
+    reason: "Divio reference -> docs/api (FR-009). Published -> redirect required."
+  - from: ["docs/explanation"]
+    to: docs/architecture
+    reason: >-
+      Divio explanation (the why / architecture rationale) -> the unified living
+      docs/architecture (FR-009, merges with WP03's C4 design). Published ->
+      redirect required; watch for name collisions with WP03-landed files.
+  - from: ["docs/recovery"]
+    to: docs/operations
+    reason: >-
+      Divio recovery runbooks -> docs/operations (FR-009, joins WP04's ops
+      content). Published -> redirect required.
+
+  # --- Shadow-tree HTML snapshots → archive (WP10, FR-008) — IC-01: redirect basis ---
+  # docs/1x + docs/2x are true HTML snapshots whose live twins already exist under
+  # docs/archive/{1x,2x}. WP10 deletes the snapshots; these moves: give WP07's
+  # generator the basis to emit the 13 shadow→archive redirect stubs (NFR-002).
+  - from: ["docs/1x"]
+    to: docs/archive/1x
+    reason: "Shadow HTML snapshot deleted; old URLs redirect to the live archive twin (WP10/FR-008)."
+  - from: ["docs/2x"]
+    to: docs/archive/2x
+    reason: "Shadow HTML snapshot deleted; old URLs redirect to the live archive twin (WP10/FR-008)."
+
+# ---------------------------------------------------------------------------
+# Regenerated census + runtime metadata (status block — additionalProperties).
+# ---------------------------------------------------------------------------
+status:
+  regenerated_at: "2026-06-27"
+  structural_move: true            # #1815 — multi-path restructure, not single-term rename
+  spec_floor:
+    files: 571
+    occurrences: 2190
+    note: "Confirmed LOW floor — live regeneration exceeds it on both axes."
+  live_census:
+    total_occurrences: 2920        # lines, repo-wide (md/py/yaml/yml/json/txt), excl .git/.venv/.worktrees
+    total_files: 751
+    # REWRITE blast radius EXCLUDES kitty-specs/ (immutable historical snapshots,
+    # do_not_change — see exceptions). Net rewrite target: 2920-1621 = 1299 occ /
+    # 751-453 = 298 files. The 2920/751 figures remain the raw repo-wide census.
+    rewrite_target_occurrences: 1299
+    rewrite_target_files: 298
+    independent_bracket: "452 <-> 7614 (sweep-dependent); 2920/751 sits within bracket, above floor"
+    per_area:
+      src:           { occurrences: 84,   files: 49 }
+      tests:         { occurrences: 125,  files: 81 }
+      kitty-specs:   { occurrences: 1621, files: 453, action: do_not_change }  # immutable snapshots — see exceptions
+      docs:          { occurrences: 743,  files: 75 }
+      architecture:  { occurrences: 284,  files: 69 }
+      root_md:       { occurrences: 35,   files: 4 }
+  adr_census:
+    unique_adrs: 117
+    era_under_era_adr: 97
+    era_less_flat: 20              # architecture/adrs/ -> docs/adr/3.x by date
+    byte_identical_mirrors_dropped: 47
+    adr_files_total: 192          # 188 ADR md + 4 README
+    using_yaml_frontmatter: 0
+    # DETERMINISTIC PIN (decouples IC-04 conversion from IC-05 ref-rewrite):
+    # the 20 era-less ADRs land at docs/adr/3.x/<same-dated-filename>. Pinning
+    # the destination filenames lets IC-05's ADR-reference rewrites + redirect
+    # stubs proceed WITHOUT waiting for IC-04 to finish converting them.
+    era_less_pinned:
+      to_dir: "docs/adr/3.x"
+      filenames:
+        - 2026-03-09-1-prompts-do-not-discover-context-commands-do.md
+        - 2026-04-08-1-global-kittify-machine-level-runtime.md
+        - 2026-04-08-2-package-bundled-templates-sole-source.md
+        - 2026-04-08-3-global-skill-installation-per-project-symlinks.md
+        - 2026-04-08-4-charter-doctrine-not-init-time.md
+        - 2026-04-08-5-shim-generation-supersedes-script-dispatch.md
+        - 2026-04-08-6-global-agent-commands-supersede-project-copies.md
+        - 2026-04-08-7-preferred-agent-roles-removed-unused.md
+        - 2026-04-14-1-bulk-edit-occurrence-classification-guardrail.md
+        - 2026-04-14-2-agent-skills-renderer-for-codex-and-vibe.md
+        - 2026-04-17-1-charter-synthesizer-adapter-seam.md
+        - 2026-04-17-2-charter-synthesizer-atomicity.md
+        - 2026-04-19-6-harness-owned-generated-artifact-charter-handoff.md
+        - 2026-04-22-5-glossary-chokepoint-p95-measurement.md
+        - 2026-05-11-1-defer-391-structural-extraction-from-3-2-x.md
+        - 2026-05-12-1-wp03-review-mode-contract-PROPOSED.md
+        - 2026-05-12-2-wp06-charter-encoding-chokepoint-PROPOSED.md
+        - 2026-05-18-1-monorepo-charter-scope.md
+        - 2026-05-18-2-delete-specify-cli-auth-transport.md
+        - 2026-05-28-1-ci-dependency-resolution-and-test-surface-consistency.md
+      note: "20 files (architecture/adrs/README.md is the 21st, dropped not converted)."
+  inventory_stays_put:
+    file: "docs/development/3-2-page-inventory.yaml"
+    rule: >-
+      OPERATOR DIRECTIVE: the page-inventory lockfile STAYS PUT (tooling
+      artifact). The docs/development -> docs/operations re-section moves the
+      doc PAGES but NOT this inventory file. The 4 constants in
+      inventory_lockfile.py / check_docs_freshness.py / version_leakage_check.py
+      / _inventory.py are UNCHANGED. Resolves the freshness-gate self-block.
+  path_pair_mappings: 23          # entries in moves: (20 original + 3 enumeration-completion)
+  runtime_critical_reads:
+    # Re-derived live (C-003): genuine runtime path-RESOLUTION reads, not
+    # docstring/prose mentions. Land FIRST with resolution tests (NFR-005).
+    - file: "src/charter/context_renderers/authority_paths.py"
+      literal: "architecture/3.x/adr/"
+      note: "ALREADY 3.x-default via #2160/#2115 (back-compat 2.x symlink); verify resolves post-fold."
+    - file: "src/charter/context_renderers/authority_paths.py"
+      literal: "glossary/contexts/"
+      note: "4th read NOT in spec's '~3' — becomes critical when glossary moves to docs/context/ (FR-009/C-006)."
+    - file: "src/specify_cli/compat/doctor.py"
+      literal: "architecture/2.x/shim-registry.yaml"
+      note: "check_shim_registry() runtime read (~line 69)."
+    - file: "src/specify_cli/compat/registry.py"
+      literal: "architecture/2.x/shim-registry.yaml"
+      note: "Second runtime reader (~line 51); paired user-facing string at cli/commands/doctor.py:509. Re-point to docs/migrations/shim-registry.yaml."
+    - file: "scripts/generate_contextive_glossaries.py"
+      literal: "glossary/contexts/"
+      note: "5th read (~line 30 GLOSSARY_CONTEXTS_DIR) — C-006 doctrine-extraction source; out-of-relocate-scope script, re-point literal in place to docs/context/."
+    - file: ".kittify/charter/governance.yaml"
+      literal: "glossary/contexts/ , architecture/3.x/adr/ , architecture/adrs/"
+      note: "6th read (authority_paths block ~lines 33-36) — out-of-relocate-scope config, re-point values to docs/context/ + docs/adr/3.x/."
+  notes_1815: >-
+    The occurrence-map model assumes single-term renames; a structural
+    multi-path move is expressed via the `moves:` spine (20 pairs) with the 8
+    categories governing in-file references. Field-tested workaround for #1815
+    (folded into this mission). Add to the issue-matrix.
