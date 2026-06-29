@@ -1,7 +1,7 @@
 {
-  "event_count": 38,
-  "last_event_id": "01KW998E5BFMYP74WWCAVC42GP",
-  "materialized_at": "2026-06-29T08:52:11.563426+00:00",
+  "event_count": 40,
+  "last_event_id": "01KW998N6Y10AWD10FPD0CA1KM",
+  "materialized_at": "2026-06-29T08:52:18.781831+00:00",
   "mission_number": "",
   "mission_slug": "event-sync-retention-delivery-01KVYWRG",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 2,
     "in_review": 1,
-    "planned": 6
+    "planned": 5
   },
   "work_packages": {
     "WP01": {
@@ -67,11 +67,11 @@
       "last_transition_at": "2026-06-29T06:41:25.254999+00:00"
     },
     "WP08": {
-      "actor": "finalize-tasks",
+      "actor": "claude:opus:python-pedro:implementer",
       "force_count": 0,
-      "lane": "planned",
-      "last_event_id": "01KW91S078BX6PQYXDMGKV96QB",
-      "last_transition_at": "2026-06-29T06:41:25.736995+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KW998N6Y10AWD10FPD0CA1KM",
+      "last_transition_at": "2026-06-29T08:52:18.781831+00:00"
     },
     "WP09": {
       "actor": "finalize-tasks",
