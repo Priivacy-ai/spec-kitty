@@ -199,7 +199,14 @@ def _pair_previous_lifecycle_record(
         identity = resolve_mission_identity(feature_dir)
     except (FileNotFoundError, ValueError, TypeError):
         return
-    mission_id = identity.mission_id or identity.mission_slug
+    # #2278: the lifecycle pairing key is a ``mission_id`` field — it MUST be a
+    # canonical ULID, never a slug (same fail-closed contract as #2138/FR-004).
+    # A legacy mission without a minted ``mission_id`` skips the observability
+    # pairing rather than persisting a slug into a ULID-typed field. The
+    # ``started`` write fails closed identically, so the two stay symmetric.
+    mission_id = identity.mission_id
+    if mission_id is None:
+        return
 
     records = read_lifecycle_records(repo_root_path)
     started = find_latest_unpaired_started(
@@ -271,7 +278,13 @@ def _write_issuance_lifecycle_record(
         identity = resolve_mission_identity(feature_dir)
     except (FileNotFoundError, ValueError, TypeError):
         return
-    mission_id = identity.mission_id or identity.mission_slug
+    # #2278: symmetric with the completion-pairing site above — the ``started``
+    # record's ``mission_id`` field MUST be a canonical ULID, never a slug
+    # (#2138/FR-004 fail-closed contract). Skip the observability record for a
+    # legacy mission with no minted ``mission_id`` rather than persisting a slug.
+    mission_id = identity.mission_id
+    if mission_id is None:
+        return
 
     try:
         canonical_id = make_canonical_action_id(mission_state, action)
