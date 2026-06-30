@@ -97,6 +97,6 @@ the same `GateDecision` (NFR-008).
 
 ## References
 
-- AD-001 in mission plan: [`kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/plan.md`](../../../kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/plan.md) (§Architecture Decisions, AD-001)
-- Gate API contract: [`kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contracts/gate_api.md`](../../../kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contracts/gate_api.md)
-- Mission spec FR-011–FR-016, NFR-007, NFR-008, C-013: [`kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/spec.md`](../../../kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/spec.md)
+- AD-001 in mission plan: `kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/plan.md` (§Architecture Decisions, AD-001)
+- Gate API contract: `kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/contracts/gate_api.md`
+- Mission spec FR-011–FR-016, NFR-007, NFR-008, C-013: `kitty-specs/mission-retrospective-learning-loop-01KQ6YEG/spec.md`

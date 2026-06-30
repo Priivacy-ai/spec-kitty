@@ -12,7 +12,7 @@ date: '2026-05-12'
 **Deciders:** Architect Alphonso (proposer), HiC (final decision)
 
 **Technical Story:**
-- Mission [`review-merge-gate-hardening-3-2-x-01KRC57C`](../../kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md) WP06
+- Mission `review-merge-gate-hardening-3-2-x-01KRC57C` WP06
 - Source bug: [Priivacy-ai/spec-kitty#644](https://github.com/Priivacy-ai/spec-kitty/issues/644)
 - Parent epic: [#822](https://github.com/Priivacy-ai/spec-kitty/issues/822) (Broad Cleanup Only After Narrowing), [#992](https://github.com/Priivacy-ai/spec-kitty/issues/992) (WS-6)
 - Hard constraint: mission spec NFR-004 — do not modify >5 unrelated modules; broader audit explicitly deferred.
@@ -263,5 +263,5 @@ This reframes the security/SBOM question significantly:
   - `src/charter/language_scope.py:46` (re-read — deferred)
   - `src/charter/compact.py:135` (re-read — deferred)
   - `src/charter/neutrality/lint.py:258` (special — `errors="replace"`, deferred)
-- Mission spec FR-016 through FR-019 and NFR-004 in [`kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md`](../../kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md).
+- Mission spec FR-016 through FR-019 and NFR-004 in `kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md`.
 - `charset-normalizer` package: [`https://pypi.org/project/charset-normalizer/`](https://pypi.org/project/charset-normalizer/)

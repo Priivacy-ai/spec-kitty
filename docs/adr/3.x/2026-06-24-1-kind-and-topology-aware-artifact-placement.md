@@ -172,8 +172,8 @@ as a regression.
 - Read-side predecessor: [#2099](https://github.com/Priivacy-ai/spec-kitty/pull/2099) / mission `single-authority-topology-cleanup` ([#147](https://github.com/Priivacy-ai/spec-kitty/issues/147)) — the `MissionArtifactKind` read model
 - Desync class closed structurally by the read+write pair: [#2062](https://github.com/Priivacy-ai/spec-kitty/issues/2062), [#2063](https://github.com/Priivacy-ai/spec-kitty/issues/2063), [#2064](https://github.com/Priivacy-ai/spec-kitty/issues/2064)
 - Epics: [#1716](https://github.com/Priivacy-ai/spec-kitty/issues/1716) (single surface authority), [#2007](https://github.com/Priivacy-ai/spec-kitty/issues/2007), [#1619](https://github.com/Priivacy-ai/spec-kitty/issues/1619) (execution-context)
-- Mission spec: [`kitty-specs/write-surface-coherence-01KVTVZS/spec.md`](../../../kitty-specs/write-surface-coherence-01KVTVZS/spec.md)
-- Placement contract: [`kitty-specs/write-surface-coherence-01KVTVZS/contracts/placement-bifurcation.md`](../../../kitty-specs/write-surface-coherence-01KVTVZS/contracts/placement-bifurcation.md)
-- Data model (INV-5 read/write symmetry, the swappable locus): [`kitty-specs/write-surface-coherence-01KVTVZS/data-model.md`](../../../kitty-specs/write-surface-coherence-01KVTVZS/data-model.md)
-- Phase-0 decisions (D-1..D-8): [`kitty-specs/write-surface-coherence-01KVTVZS/research.md`](../../../kitty-specs/write-surface-coherence-01KVTVZS/research.md)
+- Mission spec: `kitty-specs/write-surface-coherence-01KVTVZS/spec.md`
+- Placement contract: `kitty-specs/write-surface-coherence-01KVTVZS/contracts/placement-bifurcation.md`
+- Data model (INV-5 read/write symmetry, the swappable locus): `kitty-specs/write-surface-coherence-01KVTVZS/data-model.md`
+- Phase-0 decisions (D-1..D-8): `kitty-specs/write-surface-coherence-01KVTVZS/research.md`
 - Canonical seams: [`src/mission_runtime/artifacts.py`](../../../src/mission_runtime/artifacts.py) (partition + `artifact_home_for` + `kind_for_mission_file`), [`src/mission_runtime/resolution.py`](../../../src/mission_runtime/resolution.py) (`resolve_placement_only`, kind-aware), [`src/specify_cli/coordination/commit_router.py`](../../../src/specify_cli/coordination/commit_router.py) (`commit_for_mission`, FR-008 protected-primary refusal), [`src/specify_cli/cli/commands/agent/mission.py`](../../../src/specify_cli/cli/commands/agent/mission.py) (`_planning_commit_worktree`, second routing authority)

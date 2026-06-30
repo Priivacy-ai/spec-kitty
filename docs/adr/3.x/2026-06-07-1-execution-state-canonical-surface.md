@@ -22,7 +22,7 @@ nothing prevents new surfaces from re-deriving their own context rather than
 importing the canonical one.
 
 The design analysis in
-[`docs/engineering_notes/runtime_and_state_overhaul/06-proposed-domains-and-splits.md`](../../../docs/engineering_notes/runtime_and_state_overhaul/06-proposed-domains-and-splits.md)
+[`docs/plans/engineering-notes/runtime_and_state_overhaul/06-proposed-domains-and-splits.md`](../../../docs/plans/engineering-notes/runtime_and_state_overhaul/06-proposed-domains-and-splits.md)
 §4/§5 resolves this. §4 records the operator decision (Stijn, 2026-06-03) to
 create a net-new top-level `mission_runtime/` umbrella package, and §5 fixes the
 owner shape (Strangler façade → operation service; value-object resolver as
@@ -146,9 +146,9 @@ later work, not a safety gate this surface must provide.
 
 ## References
 
-- Mission spec: [`kitty-specs/execution-state-canonical-surface-01KTG6P9/spec.md`](../../../kitty-specs/execution-state-canonical-surface-01KTG6P9/spec.md)
-- Contract: [`kitty-specs/execution-state-canonical-surface-01KTG6P9/contracts/mission_runtime_api.md`](../../../kitty-specs/execution-state-canonical-surface-01KTG6P9/contracts/mission_runtime_api.md)
-- Design basis: [`docs/engineering_notes/runtime_and_state_overhaul/06-proposed-domains-and-splits.md`](../../../docs/engineering_notes/runtime_and_state_overhaul/06-proposed-domains-and-splits.md) §4/§5 (and §6 sequencing); doc 17 (consolidated domain model)
+- Mission spec: `kitty-specs/execution-state-canonical-surface-01KTG6P9/spec.md`
+- Contract: `kitty-specs/execution-state-canonical-surface-01KTG6P9/contracts/mission_runtime_api.md`
+- Design basis: [`docs/plans/engineering-notes/runtime_and_state_overhaul/06-proposed-domains-and-splits.md`](../../../docs/plans/engineering-notes/runtime_and_state_overhaul/06-proposed-domains-and-splits.md) §4/§5 (and §6 sequencing); doc 17 (consolidated domain model)
 - Prior ADR: [`2026-06-03-1-execution-state-domain-model.md`](2026-06-03-1-execution-state-domain-model.md) — bounded-module decomposition
 - Prior ADR: [`2026-06-03-2-executioncontext-owner-and-committarget.md`](2026-06-03-2-executioncontext-owner-and-committarget.md) — ExecutionContext owner / CommitTarget rationale
 - Tactic: `src/doctrine/tactics/built-in/refactoring/refactoring-strangler-fig.tactic.yaml`

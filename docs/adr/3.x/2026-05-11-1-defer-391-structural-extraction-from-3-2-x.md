@@ -121,6 +121,6 @@ Add #612/#613/#614 as additional WPs on the current branch.
 
 ## More Information
 
-- Canonical mission this ADR is attached to: [`kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md`](../../kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md)
-- Precedent for discrete module-boundary missions: [`architecture/2.x/adr/2026-04-25-1-shared-package-boundary.md`](../2.x/adr/2026-04-25-1-shared-package-boundary.md)
+- Canonical mission this ADR is attached to: `kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md`
+- Precedent for discrete module-boundary missions: [`docs/adr/3.x/2026-04-25-1-shared-package-boundary.md`](2026-04-25-1-shared-package-boundary.md)
 - Architectural enforcement tests that partially supersede #612: `tests/architectural/test_shared_package_boundary.py`
