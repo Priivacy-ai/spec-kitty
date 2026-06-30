@@ -18,7 +18,7 @@ import httpx
 import pytest
 
 from specify_cli.core.contract_gate import ContractViolationError, validate_outbound_payload
-from specify_cli.sync.project_identity import ProjectIdentity, ensure_identity
+from specify_cli.identity.project import ProjectIdentity, ensure_identity
 from specify_cli.tracker.saas_client import SaaSTrackerClient
 
 pytestmark = pytest.mark.fast

@@ -111,7 +111,8 @@ def test_resolve_identity_legacy_missing_build_id_is_stable_no_write(tmp_path: P
     assert first.project_uuid == second.project_uuid
     assert first.build_id == second.build_id
     # build_id was derived, not random.
-    assert first.build_id == derive_build_id(legacy.project_uuid, _NODE_ID)  # type: ignore[arg-type]
+    assert legacy.project_uuid is not None  # set by the legacy fixture above; narrows UUID|None -> UUID
+    assert first.build_id == derive_build_id(legacy.project_uuid, _NODE_ID)
     # No write occurred (file content byte-identical).
     assert config_path.read_text(encoding="utf-8") == before
 

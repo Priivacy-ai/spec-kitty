@@ -37,5 +37,5 @@ Guarantee: for fixed `(project_uuid, node_id)`, `build_id` is identical across c
 
 ## Call-site policy (verifiable by grep)
 
-- `ensure_identity(` appears ONLY at: `init.py:99`, `init.py:863`.
-- Every other former call site resolves via `resolve_identity(`: `emitter.py:100`, `emitter.py:115`, `sync/routing.py:47`, `sync/events.py:180`, `sync/__init__.py:253`, `sync/dossier_pipeline.py:233`, `tracker/origin.py:452`, `tracker.py:676`.
+- `ensure_identity(` is retained ONLY at write-authorized boundaries: `init.py` (×2) and `cli/commands/tracker.py` — the explicit `tracker bind` path (`_bind_saas`), which is a user-initiated write boundary per AS-5 / C-IR-3.
+- Every read/emit/background former call site resolves via `resolve_identity(`: `emitter.py` (`_get_project_identity`, `_create_git_resolver`), `sync/routing.py`, `sync/events.py`, `sync/__init__.py`, `sync/dossier_pipeline.py`, `tracker/origin.py`.
