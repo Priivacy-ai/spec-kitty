@@ -1,3 +1,11 @@
+---
+title: Terminology Guard Exemption Policy
+description: "Policy for the four surfaces exempted from spec-kitty terminology guards (docs/adr, docs/migration, archival docs/plans sub-areas, and the Unreleased-only CHANGELOG scan)."
+doc_status: active
+updated: '2026-06-30'
+related: []
+---
+
 # Terminology Guard Exemption Policy
 
 This document describes the surfaces deliberately excluded from the two active
