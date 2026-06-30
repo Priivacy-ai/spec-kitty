@@ -10,4 +10,6 @@ Architectural Decision Records for the legacy 1.x track.
 
 This folder is canonical for 1.x decisions.
 
-Legacy links through `architecture/adrs/` are compatibility aliases.
+The `architecture/` tree was removed by the Common Docs structural move (PR #2225).
+Existing references using the old `architecture/adrs/` paths will need updating to
+the new `docs/adr/` paths.
