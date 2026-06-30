@@ -104,11 +104,11 @@ Change `_maybe_upgrade_binding_ref` to return the pending ref instead of persist
 - **Estimated prompt size**: ~360 lines.
 
 ### Included subtasks
-- [ ] T015 Invariant test harness: SaaS-enabled fixture + porcelain/config snapshot (WP04)
-- [ ] T016 Parametrized no-dirty-tree assertion over the full command surface (WP04)
-- [ ] T017 Disabled/unauth variant — commands side-effect-free (WP04)
-- [ ] T018 record-analysis guard regression: real dirt caught; allowlist not grown (WP04)
-- [ ] T019 Extensibility guard + serial daemon/real-port handling + flake check (WP04)
+- [x] T015 Invariant test harness: SaaS-enabled fixture + porcelain/config snapshot (WP04)
+- [x] T016 Parametrized no-dirty-tree assertion over the full command surface (WP04)
+- [x] T017 Disabled/unauth variant — commands side-effect-free (WP04)
+- [x] T018 record-analysis guard regression: real dirt caught; allowlist not grown (WP04)
+- [x] T019 Extensibility guard + serial daemon/real-port handling + flake check (WP04)
 
 ### Implementation sketch
 Build a fixture for a clean SaaS-enabled checkout; snapshot porcelain + config; parametrize over the command surface; add disabled/unauth and guard-regression cases; mark daemon/real-port variants serial.

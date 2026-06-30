@@ -22,7 +22,8 @@ subtasks:
 - T019
 phase: Phase 3 - Enforcement
 assignee: ''
-agent: claude
+agent: "claude:opus:debugger-debbie:implementer"
+shell_pid: "48342"
 history:
 - at: '2026-06-30T13:20:00Z'
   actor: system
@@ -161,3 +162,5 @@ for i in $(seq 1 20); do PWHEADLESS=1 .venv/bin/pytest tests/specify_cli/sync/te
 ## Activity Log
 
 - 2026-06-30 — Prompt generated via /spec-kitty.tasks.
+- 2026-06-30T15:48:52Z – claude:opus:debugger-debbie:implementer – shell_pid=48342 – Assigned agent via action command
+- 2026-06-30T16:17:38Z – claude:opus:debugger-debbie:implementer – shell_pid=48342 – Parametrized no-dirty-tree over covered surface + guard regression + C-002 + disabled/unauth; 19/19 pass; mypy --strict+ruff green
