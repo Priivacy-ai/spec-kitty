@@ -23,6 +23,31 @@
       "status": "resolved",
       "step_id": null,
       "summary_json": null
+    },
+    {
+      "created_at": "2026-06-30T13:15:41.940844Z",
+      "decision_id": "01KWCAQMZMNZW3N8VZ7WQ23V2H",
+      "final_answer": "Option C \u2014 Deterministic build_id. Keep project_uuid generation unchanged; when build_id is the missing field, derive it deterministically as uuid5(namespace, project_uuid + ':' + node_id) so resolve_identity returns a stable identity with NO config.yaml write. Migrate the 8 read-path ensure_identity call sites to resolve_identity; keep ensure_identity only at init/write-authorized boundaries. SaaS research confirms server-safety: Project keyed on (team,project_uuid); Build keyed on (team,project,build_id) with no global uniqueness and idempotent race-guarded find-or-create; missions/WPs never join on Build, so deterministic build_id is constraint-safe and drift cannot strand work. Rejected A (changes project_uuid semantics \u2014 clones collapse into one project, a deliberate product decision not to bundle into a P1 bug) and B (does not guarantee NFR-001 without a user-run backfill).",
+      "input_key": "identity_stability_approach",
+      "mission_id": "01KWC9Y0YJN6PZE7D4X8VN9PDS",
+      "mission_slug": "sync-worktree-clean-invariant-01KWC9Y0",
+      "opened_by": "cli",
+      "options": [
+        "Hybrid deterministic build_id (C)",
+        "Deterministic minting (A)",
+        "Persist-at-write-boundary (B)",
+        "Other"
+      ],
+      "origin_flow": "plan",
+      "other_answer": false,
+      "question": "How should read/emit paths keep project identity stable (NFR-001) without writing config.yaml, given with_defaults mints random uuid4 for project_uuid and build_id?",
+      "rationale": null,
+      "resolved_at": "2026-06-30T13:56:20.184919Z",
+      "resolved_by": null,
+      "slot_key": "plan.identity.stability-approach",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
     }
   ],
   "mission_id": "01KWC9Y0YJN6PZE7D4X8VN9PDS",
