@@ -37,7 +37,7 @@ from __future__ import annotations
 import importlib
 import warnings
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 import yaml
@@ -64,7 +64,7 @@ class _PerCategorySection(BaseModel):
     model_config = {"extra": "allow"}
 
     @classmethod
-    def model_validate(cls, obj: Any, **kwargs: Any) -> _PerCategorySection:  # type: ignore[override]
+    def model_validate(cls, obj: Any, **kwargs: Any) -> _PerCategorySection:
         if isinstance(obj, dict):
             for k, v in obj.items():
                 if not isinstance(v, int) or v < 0:
@@ -161,7 +161,7 @@ def _import_module_attr(module_dotted: str, attr_name: str) -> frozenset[Any]:
             f"module scope so the ratchet baseline meta-test can introspect "
             f"its size."
         )
-    return getattr(module, attr_name)
+    return cast("frozenset[Any]", getattr(module, attr_name))
 
 
 def test_baseline_file_exists_with_required_keys() -> None:
