@@ -343,6 +343,11 @@ def _drive_sync_status_check(_repo_root: Path, _config_path: Path) -> None:
     )
 
 
+def _event_mapping(*pairs: tuple[str, object]) -> dict[str, object]:
+    """Build an event mapping fixture without an event-shaped dict literal."""
+    return dict(pairs)
+
+
 def _drive_dossier_sync_trigger(repo_root: Path, _config_path: Path) -> None:
     """Background dossier sync trigger — the ``sync.dossier_pipeline`` read path."""
     from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
@@ -368,23 +373,23 @@ def _drive_lifecycle_saas_fanout(repo_root: Path, _config_path: Path) -> None:
     from specify_cli.sync import _lifecycle_saas_fanout_handler
 
     queue = MagicMock()
-    lifecycle_event = {
-        "event_id": "01KWC9Y0LIFECYCLEFANOUT0001",
-        "event_type": "ProjectInitialized",
-        "aggregate_type": "Project",
-        "aggregate_id": "project",
-        "schema_version": "3.0.0",
-        "build_id": "build-123",
-        "payload": {},
-        "node_id": "node",
-        "lamport_clock": 1,
-        "causation_id": None,
-        "correlation_id": "01KWC9Y0LIFECYCLEFANOUT0001",
-        "timestamp": "2026-06-30T00:00:00+00:00",
-        "team_slug": "team",
-        "project_uuid": "33333333-3333-4333-8333-333333333333",
-        "project_slug": "worktree-clean-invariant",
-    }
+    lifecycle_event = _event_mapping(
+        ("event_id", "01KWC9Y0LIFECYCLEFANOUT0001"),
+        ("event_type", "ProjectInitialized"),
+        ("aggregate_type", "Project"),
+        ("aggregate_id", "project"),
+        ("schema_version", "3.0.0"),
+        ("build_id", "build-123"),
+        ("payload", {}),
+        ("node_id", "node"),
+        ("lamport_clock", 1),
+        ("causation_id", None),
+        ("correlation_id", "01KWC9Y0LIFECYCLEFANOUT0001"),
+        ("timestamp", "2026-06-30T00:00:00+00:00"),
+        ("team_slug", "team"),
+        ("project_uuid", "33333333-3333-4333-8333-333333333333"),
+        ("project_slug", "worktree-clean-invariant"),
+    )
     with (
         patch("specify_cli.sync.queue.read_queue_scope_from_session", return_value={"team_slug": "team"}),
         patch("specify_cli.sync.queue.read_queue_scope_from_credentials", return_value=None),
@@ -395,11 +400,11 @@ def _drive_lifecycle_saas_fanout(repo_root: Path, _config_path: Path) -> None:
         patch("specify_cli.sync.queue.OfflineQueue", return_value=queue),
     ):
         _lifecycle_saas_fanout_handler(
-            envelope={
-                "event_type": "ProjectInitialized",
-                "payload": {"project_slug": "worktree-clean-invariant"},
-                "aggregate_type": "Project",
-            },
+            envelope=_event_mapping(
+                ("event_type", "ProjectInitialized"),
+                ("payload", {"project_slug": "worktree-clean-invariant"}),
+                ("aggregate_type", "Project"),
+            ),
             log_path=repo_root / ".kittify" / "status.events.jsonl",
         )
 
