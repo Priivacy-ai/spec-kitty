@@ -126,7 +126,7 @@ def default_history_db_path() -> Path:
         return Path(env_override)
 
     try:
-        from platformdirs import user_cache_dir  # type: ignore[import-not-found]
+        from platformdirs import user_cache_dir
 
         return Path(user_cache_dir("spec-kitty")) / "upgrade-history.db"
     except ImportError:
@@ -196,7 +196,7 @@ class UpgradeAttemptStore:
         Uses INSERT OR IGNORE — duplicate ``attempt_id`` is a silent no-op.
         Runs retention trim after each successful write (both in one transaction).
         """
-        try:  # noqa: BLE001
+        try:
             ts = record.timestamp
             if ts.tzinfo is None:
                 ts = ts.replace(tzinfo=UTC)
@@ -224,7 +224,7 @@ class UpgradeAttemptStore:
                     ),
                 )
                 conn.execute(_RETENTION_SQL, (install_method_str, install_method_str))
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
     def is_idempotent(self, attempt: UpgradeAttemptRecord) -> bool:
@@ -237,7 +237,7 @@ class UpgradeAttemptStore:
         """
         if attempt.target_version is None:
             return False
-        try:  # noqa: BLE001
+        try:
             with contextlib.closing(self._connect()) as conn:
                 cursor = conn.execute(
                     """\
@@ -251,7 +251,7 @@ class UpgradeAttemptStore:
                 )
                 row = cursor.fetchone()
             return row is not None
-        except Exception:  # noqa: BLE001
+        except Exception:
             return False
 
     def consecutive_failure_count(
@@ -268,7 +268,7 @@ class UpgradeAttemptStore:
         for ``install_method`` within ``window_seconds`` of now, counting from the
         tail until the first non-failure record (contracts/history-store-query.md).
         """
-        try:  # noqa: BLE001
+        try:
             import time
 
             cutoff = time.time() - window_seconds
@@ -292,7 +292,7 @@ class UpgradeAttemptStore:
                 else:
                     break
             return count
-        except Exception:  # noqa: BLE001
+        except Exception:
             return 0
 
     def last_success_timestamp(
@@ -303,7 +303,7 @@ class UpgradeAttemptStore:
 
         Fail-open: returns None on any store error.
         """
-        try:  # noqa: BLE001
+        try:
             with contextlib.closing(self._connect()) as conn:
                 cursor = conn.execute(
                     """\
@@ -323,5 +323,5 @@ class UpgradeAttemptStore:
             if dt.tzinfo is None:
                 dt = dt.replace(tzinfo=UTC)
             return dt.astimezone(UTC)
-        except Exception:  # noqa: BLE001
+        except Exception:
             return None

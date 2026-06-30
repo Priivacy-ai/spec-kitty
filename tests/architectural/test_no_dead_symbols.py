@@ -307,8 +307,8 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.scripts.tasks.acceptance_support::perform_acceptance",
         # ``task_helpers`` is a script-style sibling of ``acceptance_support``:
         # its sole runtime caller (``scripts/tasks/tasks_cli.py``) imports it via
-        # a bare ``from task_helpers import ...`` (sys.path-relative, ``# noqa:
-        # E402``), which the qualified-import AST scanner cannot resolve — the
+        # a bare ``from task_helpers import ...`` (sys.path-relative E402
+        # suppression), which the qualified-import AST scanner cannot resolve — the
         # same blind-spot already grandfathered for ``acceptance_support`` above.
         # Pre-existing on upstream/main (predates this mission; ``task_helpers``
         # ``__all__`` and this gate were both byte-identical at the merge base).

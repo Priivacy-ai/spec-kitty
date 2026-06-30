@@ -110,7 +110,7 @@ def _receipt_path_for_executable(executable: str) -> Path | None:
 def _default_uv_tool_dir() -> Path:
     """Return the default uv tool directory for the current platform."""
     try:
-        from platformdirs import user_data_dir  # type: ignore[import-not-found]
+        from platformdirs import user_data_dir
 
         return Path(user_data_dir("uv")) / "tools"
     except ImportError:
@@ -122,7 +122,7 @@ def _default_uv_tool_dir() -> Path:
 def _default_uv_bin_dir() -> Path:
     """Return the default uv tool bin directory for the current platform."""
     try:
-        from platformdirs import user_data_dir  # noqa: PLC0415  (same import, ignore comment omitted)
+        from platformdirs import user_data_dir
 
         return Path(user_data_dir("uv")) / "bin"
     except ImportError:
@@ -243,7 +243,7 @@ class UvReceiptReader:
         Never raises (NFR-003 / CHK032). Returns a result with all fields
         None/empty on any error.
         """
-        try:  # noqa: BLE001
+        try:
             receipt_path = _receipt_path_for_executable(executable)
             if receipt_path is None:
                 return _empty_result()
@@ -251,7 +251,7 @@ class UvReceiptReader:
             try:
                 content = receipt_path.read_text(encoding="utf-8")
                 receipt = tomllib.loads(content)
-            except Exception:  # noqa: BLE001
+            except Exception:
                 return _empty_result()
 
             if not isinstance(receipt, dict):
@@ -264,7 +264,7 @@ class UvReceiptReader:
             default_tool_dir = _default_uv_tool_dir()
             try:
                 is_default_tool_dir: bool | None = tool_dir.resolve() == default_tool_dir.resolve()
-            except Exception:  # noqa: BLE001
+            except Exception:
                 is_default_tool_dir = tool_dir == default_tool_dir
 
             bin_dir = _parse_bin_dir(receipt)
@@ -272,7 +272,7 @@ class UvReceiptReader:
                 default_bin_dir = _default_uv_bin_dir()
                 try:
                     is_default_bin_dir: bool | None = bin_dir.resolve() == default_bin_dir.resolve()
-                except Exception:  # noqa: BLE001
+                except Exception:
                     is_default_bin_dir = bin_dir == default_bin_dir
             else:
                 is_default_bin_dir = None
@@ -297,7 +297,7 @@ class UvReceiptReader:
                 requirements=requirements,
                 package_source=package_source,
             )
-        except Exception:  # noqa: BLE001
+        except Exception:
             return _empty_result()
 
     @staticmethod
@@ -307,7 +307,7 @@ class UvReceiptReader:
         Used by the detect_runtime() detection chain as a light probe
         (does not parse the full receipt). Never raises (CHK032).
         """
-        try:  # noqa: BLE001
+        try:
             executable_parent = exe_path.parent
             if executable_parent.name.lower() not in {"bin", "scripts"}:
                 return False
@@ -324,5 +324,5 @@ class UvReceiptReader:
                     if isinstance(req, dict) and req.get("name") == _PACKAGE_NAME:
                         return True
             return False
-        except Exception:  # noqa: BLE001
+        except Exception:
             return False

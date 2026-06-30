@@ -242,7 +242,7 @@ class SyncRuntime:
             from .config import SyncConfig
 
             return SyncConfig().resolve_runtime_target()
-        except Exception as exc:  # noqa: BLE001 — never fail runtime on resolution
+        except Exception as exc:
             logger.debug("Could not resolve canonical sync target: %s", exc)
             return None
 
