@@ -41,8 +41,12 @@ from specify_cli.cli.commands._auth_doctor import (
 
 pytestmark = pytest.mark.fast
 from specify_cli.core.file_lock import LockRecord
+from specify_cli.sync.classification import (
+    CleanupClass,
+    DaemonIdentityRecord,
+    IdentitySource,
+)
 from specify_cli.sync.daemon import SyncDaemonStatus
-from specify_cli.sync.orphan_sweep import OrphanDaemon
 
 
 # ---------------------------------------------------------------------------
@@ -96,6 +100,30 @@ class _FakeTokenManager:
         return self._session
 
 
+def _make_identity_record(port: int) -> DaemonIdentityRecord:
+    """Return a minimal DaemonIdentityRecord for a given port (safe_auto class)."""
+    return DaemonIdentityRecord(
+        daemon_family="sync",
+        pid=12345,
+        port=port,
+        protocol_version=1,
+        package_version="3.2.0a4",
+        singleton_scope_id=None,
+        daemon_root=None,
+        queue_db_path=None,
+        auth_scope=None,
+        server_url=None,
+        owner_present=False,
+        identity_source=IdentitySource.health_self_report,
+        executable_summary=None,
+        spawn_shape_ok=True,
+        self_report_matches_listener=True,
+        is_recorded_singleton=False,
+        cleanup_class=CleanupClass.SAFE_AUTO,
+        skip_reason=None,
+    )
+
+
 def _patch_state(
     monkeypatch: pytest.MonkeyPatch,
     *,
@@ -103,7 +131,10 @@ def _patch_state(
     lock_record: LockRecord | None = None,
     daemon_status: SyncDaemonStatus | None = None,
     daemon_state_exists: bool = False,
-    orphans: list[OrphanDaemon] | None = None,
+    # WP05 repoint: _auth_doctor now calls enumerate_identity_records (not
+    # enumerate_orphans); accept DaemonIdentityRecord instances here. The
+    # OrphanDaemon-based tests below are converted to use _make_identity_record.
+    orphans: list[DaemonIdentityRecord] | None = None,
     auth_root: Path | None = None,
     rollout_enabled: bool = False,
 ) -> None:
@@ -133,8 +164,10 @@ def _patch_state(
     monkeypatch.setattr(
         _auth_doctor, "get_sync_daemon_status", lambda: daemon_status
     )
+    # WP05 repoint: enumerate_orphans removed from _auth_doctor; mock the new
+    # enumerate_identity_records symbol that assemble_report() now calls.
     monkeypatch.setattr(
-        _auth_doctor, "enumerate_orphans", lambda: list(orphans or [])
+        _auth_doctor, "enumerate_identity_records", lambda: list(orphans or [])
     )
     # Disable rollout-enabled finding F-005 unless the test asks for it.
     import sys
@@ -205,10 +238,10 @@ def test_renders_orphan_finding(monkeypatch: pytest.MonkeyPatch) -> None:
     session = _make_session(
         refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
     )
-    orphan = OrphanDaemon(
-        port=9401, pid=12345, package_version="3.2.0a4", protocol_version=1
-    )
-    _patch_state(monkeypatch, session=session, orphans=[orphan])
+    # WP05 repoint: _auth_doctor.assemble_report() now receives DaemonIdentityRecord
+    # objects from enumerate_identity_records; OrphanDaemon is no longer consumed here.
+    orphan_record = _make_identity_record(9401)
+    _patch_state(monkeypatch, session=session, orphans=[orphan_record])
 
     report = assemble_report()
 
@@ -270,7 +303,7 @@ def test_runs_under_three_seconds(monkeypatch: pytest.MonkeyPatch) -> None:
     """Healthy state + simulated 50-port scan ⇒ wall-clock < 3 s.
 
     NFR-006 verifies ``assemble_report`` returns within 3 seconds. Real
-    ``enumerate_orphans`` is fast (50 ms TCP connect-check pre-filter)
+    ``enumerate_identity_records`` is fast (50 ms TCP connect-check pre-filter)
     but for this unit test we patch it with a tiny synthetic delay so
     we exercise the *whole* pipeline rather than the network layer.
     """
@@ -278,13 +311,15 @@ def test_runs_under_three_seconds(monkeypatch: pytest.MonkeyPatch) -> None:
         refresh_token_expires_at=datetime.now(UTC) + timedelta(days=30)
     )
 
-    def fake_enumerate() -> list[OrphanDaemon]:
+    # WP05 repoint: assemble_report() calls enumerate_identity_records now;
+    # patch the new symbol to simulate the worst-case 50-port scan delay.
+    def fake_enumerate() -> list[DaemonIdentityRecord]:
         # Simulate the worst-case 50-port scan completing very quickly.
         time.sleep(0.05)
         return []
 
     _patch_state(monkeypatch, session=session)
-    monkeypatch.setattr(_auth_doctor, "enumerate_orphans", fake_enumerate)
+    monkeypatch.setattr(_auth_doctor, "enumerate_identity_records", fake_enumerate)
 
     started = time.monotonic()
     report = assemble_report()
@@ -439,7 +474,9 @@ def test_json_output_schema(monkeypatch: pytest.MonkeyPatch) -> None:
     ):
         assert key in payload
 
-    assert payload["schema_version"] == 1
+    # WP05 repoint: schema_version was bumped to 2 when orphans[] changed from
+    # OrphanDaemon dicts to full DaemonIdentityRecord.to_dict() entries (FR-004).
+    assert payload["schema_version"] == 2
     # ISO-8601 datetime
     datetime.fromisoformat(payload["generated_at"])
     # auth_root is a string path
@@ -501,7 +538,7 @@ def test_server_session_status_frozen() -> None:
 
     s = ServerSessionStatus(active=True, session_id="abc")
     with pytest.raises(dataclasses.FrozenInstanceError):
-        s.active = False  # type: ignore[misc]
+        s.active = False  # type: ignore[misc]  # frozen dataclass: deliberate mutation asserts FrozenInstanceError
 
 
 # ---------------------------------------------------------------------------

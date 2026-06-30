@@ -215,6 +215,17 @@ DAEMON_SERVE_FOREVER_POLL_SECONDS: float = 0.05
 # live process, the daemon retires itself.  See FR-008 / FR-010.
 DAEMON_TICK_SECONDS: int = 30
 
+# Idle self-retirement window (FR-011 / DD-03).  A daemon with no authenticated
+# requests and no sync work in flight retires after this many seconds.  The
+# constant is module-level so tests can patch it to a low value without
+# introducing wall-clock sleeps.
+SYNC_DAEMON_IDLE_RETIREMENT_SECONDS: float = 900.0
+
+# Tracks the monotonic time of the last authenticated request received by this
+# daemon process.  Initialised to the process start time so a freshly-spawned
+# daemon does not immediately retire before its first client connects.
+_daemon_last_activity_time: float = time.monotonic()
+
 _RUNTIME_BACKGROUND_START_DELAY_SECONDS: float = 1.0
 _STARTUP_HEALTH_TIMEOUT_SECONDS: float = 0.1
 
@@ -502,6 +513,13 @@ class SyncDaemonHandler(BaseHTTPRequestHandler):
         payload: dict[str, Any] = {
             "status": "ok",
             "token": getattr(self, "daemon_token", None),
+            # FR-001 / C-001: hard family tag lets a scanner confirm identity
+            # from the self-report (defense-in-depth on top of port-range isolation).
+            "daemon_family": "sync",
+            # Surface the resolved daemon-root scope so scanners can verify
+            # singleton_scope_id matches the foreground scope without needing
+            # to inspect the process cmdline separately.
+            "singleton_scope_id": _daemon_scope_root(),
             "protocol_version": DAEMON_PROTOCOL_VERSION,
             "package_version": _get_package_version(),
             "sync": {
@@ -523,6 +541,7 @@ class SyncDaemonHandler(BaseHTTPRequestHandler):
         if self._require_token() is None:
             return
 
+        _touch_last_activity()
         from specify_cli.sync.runtime import get_runtime
 
         runtime = get_runtime()
@@ -537,6 +556,7 @@ class SyncDaemonHandler(BaseHTTPRequestHandler):
         if payload is None:
             return
 
+        _touch_last_activity()
         raw_event = payload.get("event")
         if not isinstance(raw_event, dict):
             self._send_json(400, {"error": "invalid_event"})
@@ -557,6 +577,7 @@ class SyncDaemonHandler(BaseHTTPRequestHandler):
         if self._require_token() is None:
             return
 
+        _touch_last_activity()
         self._send_json(200, {"status": "stopping"})
 
         def shutdown_server(server: HTTPServer) -> None:
@@ -566,46 +587,101 @@ class SyncDaemonHandler(BaseHTTPRequestHandler):
         threading.Thread(target=shutdown_server, args=(self.server,), daemon=True).start()
 
 
+def _touch_last_activity() -> None:
+    """Record that an authenticated request was just received.
+
+    Called from authenticated handler endpoints so the idle-retirement clock
+    resets on each real client interaction.  Not called for unauthenticated
+    probes (e.g. ``/api/health``), which do not constitute "work".
+    """
+    global _daemon_last_activity_time
+    _daemon_last_activity_time = time.monotonic()
+
+
+def _should_self_retire(
+    *,
+    my_port: int,
+    parsed_port: int | None,
+    parsed_pid: int | None,
+    sync_is_running: bool,
+    idle_seconds: float,
+) -> tuple[bool, str]:
+    """Pure retirement predicate — all decisions made here, not in the tick.
+
+    Returns ``(should_retire, reason)`` so callers can log the reason and tests
+    can assert on it without mocking ``server.shutdown()``.
+
+    Rules (FR-010 / FR-011):
+    - Never retire while sync work is in flight (``sync_is_running``).
+    - Retire promptly when superseded: the state file records a different port
+      whose PID is still alive, meaning a newer daemon took over.
+    - Retire after ``SYNC_DAEMON_IDLE_RETIREMENT_SECONDS`` when no auth/work
+      for the full idle window.
+    """
+    if sync_is_running:
+        return False, "sync_in_flight"
+
+    # Superseded check (prompt retirement — no idle wait).
+    if parsed_port is not None and parsed_port != my_port and parsed_pid is not None:
+        if _is_process_alive(parsed_pid):
+            return True, "superseded"
+
+    # General idle timeout (FR-011).
+    if idle_seconds >= SYNC_DAEMON_IDLE_RETIREMENT_SECONDS:
+        return True, "idle_timeout"
+
+    return False, "active"
+
+
 def _decide_self_retire(server: HTTPServer, my_port: int) -> None:
-    """Inspect ``DAEMON_STATE_FILE`` and retire the running daemon if it is no
-    longer the recorded singleton.
+    """Inspect ``DAEMON_STATE_FILE`` and retire the running daemon if warranted.
 
     State-file ownership belongs exclusively to
     ``_ensure_sync_daemon_running_locked``: this function MUST NOT call
     ``_write_daemon_file`` or ``DAEMON_STATE_FILE.unlink``.  When the recorded
-    record is missing, malformed, or matches our own port we simply continue.
-    When the recorded port differs and the recorded PID is still alive we are
-    by definition the orphan and call ``server.shutdown()``.  When the
-    recorded PID is dead, the file is stale; the next ``ensure_running`` call
-    will reconcile it, so we keep running.
+    record is missing or malformed we check only the idle timeout.  When the
+    recorded port matches our own port we are the singleton and check only the
+    idle timeout (we will never be superseded).
+
+    Retirement conditions (delegated to ``_should_self_retire``):
+    - **Superseded**: state file records a different port whose PID is alive.
+    - **General idle**: no authenticated request for
+      ``SYNC_DAEMON_IDLE_RETIREMENT_SECONDS`` and no sync work in flight.
+    - **Guard**: never retire while ``sync.is_running`` is True (FR-010).
     """
     try:
         _url, parsed_port, _token, parsed_pid = _parse_daemon_file(_daemon_state_file())
     except Exception:
-        logger.debug("self-check tick: parse error, skipping")
-        return
+        logger.debug("self-check tick: parse error, skipping singleton check")
+        parsed_port = None
+        parsed_pid = None
 
-    if parsed_port is None:
-        logger.debug("self-check tick: no recorded port, skipping")
-        return
+    # Gather sync-in-flight state without importing the full runtime on the
+    # hot path; failure to probe is safe (treated as "not running").
+    sync_is_running = False
+    try:
+        from specify_cli.sync import runtime as _rt_mod
 
-    if parsed_port == my_port:
-        logger.debug("self-check tick: port matches (%d), continuing", my_port)
-        return
+        _rt = getattr(_rt_mod, "_runtime", None)
+        if _rt is not None and _rt.background_service is not None:
+            sync_is_running = bool(_rt.background_service.is_running)
+    except Exception:
+        logger.debug("self-check tick: could not probe sync state", exc_info=True)
 
-    if parsed_pid is None or not _is_process_alive(parsed_pid):
-        logger.debug(
-            "self-check tick: recorded port=%d but pid=%s not alive; not retiring",
-            parsed_port,
-            parsed_pid,
-        )
-        return
-
-    logger.info(
-        "self-retiring (state file points at port=%d, our port=%d)",
-        parsed_port,
-        my_port,
+    idle_seconds = time.monotonic() - _daemon_last_activity_time
+    should_retire, reason = _should_self_retire(
+        my_port=my_port,
+        parsed_port=parsed_port,
+        parsed_pid=parsed_pid,
+        sync_is_running=sync_is_running,
+        idle_seconds=idle_seconds,
     )
+
+    if not should_retire:
+        logger.debug("self-check tick: continuing (reason=%s)", reason)
+        return
+
+    logger.info("self-retiring (reason=%s, port=%d)", reason, my_port)
     server.shutdown()
 
 

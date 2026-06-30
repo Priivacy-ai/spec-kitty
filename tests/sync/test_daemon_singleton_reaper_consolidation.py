@@ -5,12 +5,12 @@ These tests lock the two acceptance criteria for the daemon half of #1789:
 * **SC-6b** — across multiple interpreters on one host, exactly one
   ``run_sync_daemon`` runs per daemon-root scope and stale same-scope orphans
   are reaped at the ``ensure_sync_daemon_running`` spawn path. The reap scope
-  has TWO dimensions: the candidate's interpreter must resolve to this
-  process's canonical executable AND its cmdline must carry the daemon-root
-  scope marker for this process's daemon state root. A daemon launched from a
-  different interpreter, a different ``$HOME``/state root, or one carrying no
-  marker at all (pre-marker spawns) is never killed (reaper-over-kill guard,
-  #1071).
+  authority is the daemon-root scope marker (FR-008): a candidate whose cmdline
+  carries the marker for THIS process's daemon state root is in-scope and will
+  be reaped regardless of interpreter/executable identity. Executable identity is
+  stale-version evidence only, not a skip gate. A daemon carrying a marker for a
+  different ``$HOME``/state root (cross-root) or one carrying NO marker at all
+  (pre-marker spawns) is never killed (reaper-over-kill guard, #1071).
 * **SC-7** — exactly ONE daemon-lifecycle reaper and ONE liveness probe remain
   after the three-reaper collapse. Verified by source inspection (``rg``-style
   scan): the canonical kill path, the canonical reaper entry point, and
@@ -201,10 +201,15 @@ def test_reaper_skips_same_executable_daemon_from_other_home(
     assert mine.terminated is True
 
 
-def test_reaper_skips_other_interpreter_daemons(
+def test_reaper_reaps_other_interpreter_same_scope_daemon(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """A daemon from a different interpreter is skipped even with a matching root marker."""
+    """A same-scope daemon from a different interpreter is reaped (FR-008).
+
+    # FR-008: scope-marker is the kill authority; exe mismatch is stale-version
+    # evidence only, not a skip gate.  A different interpreter with a MATCHING
+    # daemon-root marker is still in-scope and must be reaped.
+    """
     my_root = tmp_path / "home" / ".spec-kitty"
     foreign = _FakeProc(
         2101,
@@ -215,10 +220,9 @@ def test_reaper_skips_other_interpreter_daemons(
 
     result = reap_orphan_daemons()
 
-    assert result.reaped == []
-    assert result.skipped_out_of_scope == [2101]
-    assert foreign.terminated is False
-    assert foreign.killed is False
+    assert result.reaped == [2101]           # FR-008: same-scope, stale exe → reaped
+    assert result.skipped_out_of_scope == []
+    assert foreign.terminated is True
 
 
 def test_reaper_skips_unmarked_pre_marker_daemons(
@@ -315,14 +319,15 @@ def test_reaper_matches_macos_framework_rewritten_exe_and_argv0(
     assert orphan.terminated is True
 
 
-def test_reaper_skips_fully_rewritten_daemon_without_exec_marker(
+def test_reaper_reaps_rewritten_same_scope_daemon_without_exec_marker(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Rewritten exe()+argv[0] with no exec marker → conservatively skipped.
+    """Same-scope daemon with rewritten exe()+argv[0] and no exec marker is reaped (FR-008).
 
-    A marker-bearing daemon spawned without the exec-identity token (or whose
-    token was lost) cannot be positively attributed to any interpreter once
-    macOS has rewritten both live identity sources, so it is never killed.
+    # FR-008: scope-marker is the kill authority.  Once the daemon-root marker
+    # matches and the spawn shape is present, an unprovable interpreter (macOS
+    # framework stub with no exec-identity token) no longer skips the candidate
+    # — the root marker is sufficient kill authority.
     """
     my_root = tmp_path / "home" / ".spec-kitty"
     framework_stub = (
@@ -338,10 +343,9 @@ def test_reaper_skips_fully_rewritten_daemon_without_exec_marker(
 
     result = reap_orphan_daemons()
 
-    assert result.reaped == []
-    assert result.skipped_out_of_scope == [2501]
-    assert orphan.terminated is False
-    assert orphan.killed is False
+    assert result.reaped == [2501]           # FR-008: same-scope marker is the kill authority
+    assert result.skipped_out_of_scope == []
+    assert orphan.terminated is True
 
 
 def test_reaper_skips_non_spawn_shaped_cmdline(

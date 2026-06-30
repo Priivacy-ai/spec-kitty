@@ -940,6 +940,22 @@ _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY: frozenset[str] = frozenset(
 )
 
 
+# sync-daemon-orphan-cleanup-01KWC2A3 (#2261): the ``ResetResult`` per-entry
+# dataclasses are the public structured-reporting surface for
+# ``auth doctor --reset`` (FR-005). They are constructed/asserted directly by the
+# auth-doctor + orphan-sweep test suites (``tests/auth/test_auth_doctor_*`` and
+# ``tests/sync/test_orphan_sweep_classification.py``) but, like their sibling
+# ``SweepReport`` already on this allowlist, have no in-``src/`` importer because
+# production code consumes them only through the ``ResetResult`` container.
+_CATEGORY_C_SYNC_RESET_RESULT_ENTRIES: frozenset[str] = frozenset(
+    {
+        "specify_cli.sync.orphan_sweep::FailedEntry",
+        "specify_cli.sync.orphan_sweep::SkippedEntry",
+        "specify_cli.sync.orphan_sweep::SweptEntry",
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``).
@@ -962,6 +978,7 @@ _SYMBOL_ALLOWLIST: frozenset[str] = (
     | _CATEGORY_C_BACKCOMPAT_SHIM_REEXPORT
     | _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057
     | _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY
+    | _CATEGORY_C_SYNC_RESET_RESULT_ENTRIES
 )
 
 

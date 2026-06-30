@@ -35,6 +35,7 @@ import contextlib
 import json
 import logging
 import os
+import re
 import sys
 import tempfile
 from collections.abc import Sequence
@@ -45,13 +46,23 @@ from typing import Any
 
 import psutil
 
+from specify_cli.core.loopback_http import build_loopback_url
 from specify_cli.sync.daemon import (
     DAEMON_EXEC_ARG_PREFIX,
     DAEMON_SCOPE_ARG_PREFIX,
     _daemon_scope_root,
+    _fetch_health_payload,
     _get_package_version,
     _is_process_alive,
     _sync_root,
+)
+from specify_cli.sync.classification import (
+    CandidateProbe,
+    DaemonIdentityRecord,
+    ForegroundScope,
+    HealthProbe,
+    SingletonRef,
+    classify_candidate,
 )
 
 logger = logging.getLogger(__name__)
@@ -518,21 +529,21 @@ def list_orphan_records() -> list[DaemonOwnerRecord]:
 # kill logic to it, and :func:`reap_orphan_daemons` is the single reaper wired
 # into the daemon spawn hot path (``ensure_sync_daemon_running``).
 #
-# Scope safety (reaper-over-kill risk, #1071): reaping is scoped on THREE
-# dimensions — a host-wide ``run_sync_daemon`` process is only reaped when
-# (a) its cmdline carries the daemon-root scope marker
+# Scope safety (reaper-over-kill risk, #1071, FR-008): the kill gate is scoped on
+# exactly TWO dimensions — a host-wide ``run_sync_daemon`` process is only reaped
+# when (a) its cmdline carries the daemon-root scope marker
 # (``daemon.DAEMON_SCOPE_ARG_PREFIX``, embedded at spawn) for THIS process's
-# daemon state root, AND (b) its cmdline has the production spawn shape (a
-# ``-c`` flag whose script payload references ``run_sync_daemon``), AND
-# (c) its interpreter identity resolves to the SAME canonical executable as
-# the foreground that is spawning — where identity is taken from
-# ``Process.exe()``, ``argv[0]``, or the spawn-recorded exec marker
-# (``daemon.DAEMON_EXEC_ARG_PREFIX``). The exec marker is load-bearing on
-# macOS framework Python, whose re-exec rewrites BOTH ``exe()`` AND
-# ``argv[0]`` to the ``Python.app`` stub. A daemon belonging to a different
-# daemon root (different ``$HOME`` / container) — or one carrying no
-# recognizable marker at all (spawned before the marker existed) — is left
-# untouched: never kill what cannot be positively attributed to this scope.
+# daemon state root, AND (b) its cmdline has the production spawn shape (a ``-c``
+# flag whose script payload references ``run_sync_daemon``). Interpreter identity
+# is deliberately NOT a third gate: under FR-008 a version/executable mismatch is
+# *stale-version evidence* (an older daemon is still safe to reap when the two
+# gates above match — that is the #2261 fix), never a reason to spare or kill on
+# its own. The exec marker (``daemon.DAEMON_EXEC_ARG_PREFIX``) and ``Process.exe()``
+# are still recorded for diagnostics/classification, but they no longer gate the
+# kill — see the gate at the top of ``reap_orphan_daemons`` below. A daemon
+# belonging to a different daemon root (different ``$HOME`` / container) — or one
+# carrying no recognizable marker at all (spawned before the marker existed) — is
+# left untouched: never kill what cannot be positively attributed to this scope.
 
 
 # Per-step escalation waits (seconds). Mirror the previous ``orphan_sweep``
@@ -541,7 +552,7 @@ _TERMINATE_WAIT_S: float = 1.0
 _KILL_WAIT_S: float = 1.0
 
 
-@dataclass(frozen=True)
+@dataclass
 class ReapResult:
     """Outcome of a canonical reap pass over scoped orphan daemons.
 
@@ -549,14 +560,17 @@ class ReapResult:
     ``failed`` lists ``(pid, reason)`` pairs for orphans that survived every
     escalation step. ``skipped_out_of_scope`` lists PIDs of live
     ``run_sync_daemon`` processes that were left alone because their
-    interpreter does not match the foreground executable identity, or their
     cmdline daemon-root scope marker is missing or names a different daemon
-    state root.
+    state root.  Version / executable mismatch is no longer a skip gate
+    (FR-008): same-scope daemons from prior versions are now reaped.
+    ``skipped_details`` carries structured ``DaemonIdentityRecord`` entries
+    for every skipped candidate (``cleanup_class`` + ``skip_reason``).
     """
 
     reaped: list[int] = dataclass_field(default_factory=list)
     failed: list[tuple[int, str]] = dataclass_field(default_factory=list)
     skipped_out_of_scope: list[int] = dataclass_field(default_factory=list)
+    skipped_details: list[DaemonIdentityRecord] = dataclass_field(default_factory=list)
 
 
 def canonical_executable_scope() -> str:
@@ -704,6 +718,109 @@ def _wait_for_exit(proc: psutil.Process, timeout_s: float) -> bool:
     return not _is_process_alive(proc.pid)
 
 
+_HEALTH_ENDPOINT_PATH: str = "/api/health"
+_PORT_IN_SCRIPT_RE: re.Pattern[str] = re.compile(r"run_sync_daemon\(\s*(\d+)")
+
+
+def _extract_port_from_cmdline(cmdline: Sequence[str]) -> int | None:
+    """Parse the daemon port from the ``-c`` script token in a spawn cmdline.
+
+    The spawn script is ``run_sync_daemon({port}, {repr(token)})``, so the port
+    is the first integer argument to ``run_sync_daemon``.  Returns ``None`` when
+    no matching token is found.
+    """
+    for part in cmdline:
+        m = _PORT_IN_SCRIPT_RE.search(str(part))
+        if m:
+            return int(m.group(1))
+    return None
+
+
+def _probe_health(port: int) -> HealthProbe:
+    """Fetch ``/api/health`` for *port* and return a populated ``HealthProbe``.
+
+    All network failures result in ``HealthProbe(responded=False, ...)``.
+    ``owner_pid`` / ``owner_port`` are taken from the ``owner`` sub-dict in
+    the health payload (the redacted record the daemon self-reports).
+    """
+    url = build_loopback_url(port, _HEALTH_ENDPOINT_PATH)
+    data = _fetch_health_payload(url)
+    if not data:
+        return HealthProbe(
+            responded=False,
+            status=None,
+            protocol_version=None,
+            package_version=None,
+            daemon_family=None,
+            owner_pid=None,
+            owner_port=None,
+            queue_db_path=None,
+            auth_scope=None,
+            server_url=None,
+        )
+    owner_block: dict[str, Any] = data.get("owner") or {}
+    return HealthProbe(
+        responded=True,
+        status=data.get("status"),
+        protocol_version=data.get("protocol_version"),
+        package_version=data.get("package_version"),
+        daemon_family=data.get("daemon_family"),
+        owner_pid=owner_block.get("pid"),
+        owner_port=owner_block.get("port"),
+        queue_db_path=owner_block.get("queue_db_path"),
+        auth_scope=owner_block.get("auth_scope"),
+        server_url=owner_block.get("server_url"),
+    )
+
+
+def _classify_orphan(
+    orphan_pid: int,
+    orphan_cmdline: Sequence[str],
+    foreground: ForegroundScope,
+    *,
+    health: HealthProbe | None = None,
+) -> DaemonIdentityRecord:
+    """Classify one orphan candidate via ``classify_candidate``.
+
+    Extracts the daemon-root marker, spawn-shape flag, and executable summary
+    from the cmdline using existing helpers.  Passes the caller-supplied
+    *health* probe (or ``None`` for cmdline-only startup classification; callers
+    that have port access may supply a live probe to get a fully-populated
+    record per the normative decision table).
+
+    ``health=None`` means the daemon's responsiveness was not checked; the
+    classifier returns ``operator_required/unresponsive`` for any candidate
+    that passes rows 1–6 but lacks a health self-report (D-01).  The startup
+    reaper's kill gate is the scope marker + spawn shape (see
+    ``reap_orphan_daemons``), so the classifier result is used for structured
+    reporting / ``skipped_details`` in that context.
+
+    This is the testable unit extracted to keep ``reap_orphan_daemons``
+    complexity ≤ 15 (Sonar S3776 / ruff C901).
+    """
+    singleton_scope_id = _cmdline_daemon_root_marker(orphan_cmdline)
+    spawn_shape_ok = _cmdline_has_daemon_spawn_signature(orphan_cmdline)
+
+    exe_summary: str | None = None
+    with contextlib.suppress(psutil.Error, OSError):
+        proc = psutil.Process(orphan_pid)
+        scopes = _process_executable_scopes(proc, orphan_cmdline)
+        exe_summary = ", ".join(sorted(scopes)) if scopes else None
+
+    port = _extract_port_from_cmdline(orphan_cmdline)
+
+    probe = CandidateProbe(
+        port=port if port is not None else 0,
+        listener_pid=orphan_pid,
+        health=health,
+        singleton_scope_id=singleton_scope_id,
+        spawn_shape_ok=spawn_shape_ok,
+        executable_summary=exe_summary,
+        owner_present=False,
+    )
+    return classify_candidate(probe, foreground)
+
+
 def reap_orphan_daemons(
     *,
     executable_scope: str | None = None,
@@ -716,64 +833,70 @@ def reap_orphan_daemons(
     scope first (FR-014b / #1071).
 
     Discovery reuses the host-wide cmdline-scan (``scan_sync_daemons``); the
-    recorded-singleton PID is already excluded by it. A candidate orphan is in
-    scope ONLY when ALL THREE hold:
+    recorded-singleton PID is already excluded by it.
 
-    * its cmdline carries the daemon-root scope marker
-      (``daemon.DAEMON_SCOPE_ARG_PREFIX``, embedded at spawn by
-      ``_spawn_sync_daemon_process``) naming THIS process's resolved daemon
-      state root, and
-    * its cmdline has the production spawn shape — a ``-c`` flag whose script
-      payload references ``run_sync_daemon`` — so a process that merely
-      mentions the daemon elsewhere in its argv is never a kill candidate,
-      and
-    * its interpreter identity matches *executable_scope* (defaults to this
-      process's canonical interpreter); ``Process.exe()``, the first cmdline
-      token, and the spawn-recorded exec marker
-      (``daemon.DAEMON_EXEC_ARG_PREFIX``) are each accepted after symlink
-      resolution. The exec marker is the only identity that survives macOS
-      framework Python's re-exec, which rewrites BOTH ``exe()`` AND
-      ``argv[0]`` to the ``Python.app`` stub.
+    **Kill authority — daemon-root scope marker is primary (FR-008).**
+    A candidate is in scope when BOTH of the following hold:
 
-    Anything else — different daemon root, missing/unrecognized marker
-    (daemons spawned before the marker existed), non-spawn-shaped cmdline,
-    unresolvable identity — is conservatively skipped: never kill what cannot
-    be positively attributed to this scope. Pre-marker orphans are therefore
-    no longer auto-reaped; ``sync status`` / ``sync doctor`` surface them to
-    the operator (via ``scan_sync_daemons``), and clearing them is a manual
-    step — no production surface invokes ``cleanup_orphan_sync_daemons``
-    automatically.
+    * its cmdline carries the daemon-root scope marker naming THIS process's
+      resolved daemon state root, AND
+    * its cmdline has the production spawn shape (``-c`` flag referencing
+      ``run_sync_daemon``).
 
-    With ``dry_run=True`` no signals are sent; the report still classifies each
-    orphan as in-scope (would-reap) or out-of-scope (skipped).
+    Executable / version identity (the old third condition) is **stale-version
+    evidence only and is NOT a kill gate (FR-008)**.  Same-scope daemons from
+    a prior installed version therefore flip from skipped → reaped — this is
+    the direct fix for the 18-orphan accumulation reported in #2261.
+
+    Conservative protections preserved (T009):
+    * Pre-marker daemons (no scope arg) → ``operator_required/pre_marker``:
+      not reaped; surfaced by ``sync status`` / ``sync doctor``.
+    * Cross-root daemons (marker ≠ this root) → ``operator_required/cross_root``:
+      not reaped; requires ``auth doctor --reset --force`` (WP05).
+    * The recorded singleton is never in ``orphan_processes`` (already excluded
+      by ``scan_sync_daemons``), so it is never a kill candidate.
+    * ``owner.json`` (``read_owner_record``) is never consulted for kill
+      decisions (FR-003); ``skipped_details`` carries classification records
+      for observability only.
+
+    ``executable_scope`` is accepted for backward compatibility but is no longer
+    used in the kill decision (FR-008); it is carried in ``ForegroundScope``
+    for diagnostic / skip-details enrichment only.
+
+    With ``dry_run=True`` no signals are sent; in-scope candidates still appear
+    in ``result.reaped`` to indicate they *would* be reaped.
     """
     from specify_cli.sync.daemon import scan_sync_daemons
 
-    scope = executable_scope or canonical_executable_scope()
     root_scope = _daemon_scope_root()
+    foreground = ForegroundScope(
+        scope_id=root_scope,
+        # FR-008: executable_scope is evidence only, not a kill gate.
+        executable_scope=executable_scope or canonical_executable_scope(),
+        singleton=SingletonRef(pid=None, port=None),
+    )
     result = ReapResult()
 
     report = scan_sync_daemons()
     for orphan in report.orphan_processes:
+        # Classify for structured output / skip_details (health=None: no
+        # network I/O on the spawn hot path; wedged daemons surface as
+        # operator_required/unresponsive and are reported but not killed here).
+        record = _classify_orphan(orphan.pid, orphan.cmdline, foreground)
+
+        # Kill gate: scope marker + spawn shape (exe identity removed per FR-008).
+        # Uses the marker helpers directly so the gate is independent of the
+        # health-probe result carried in ``record``.
         marker = _cmdline_daemon_root_marker(orphan.cmdline)
-        if marker is None or marker != root_scope:
-            result.skipped_out_of_scope.append(orphan.pid)
-            continue
+        in_scope = (
+            marker is not None
+            and marker == root_scope
+            and _cmdline_has_daemon_spawn_signature(orphan.cmdline)
+        )
 
-        if not _cmdline_has_daemon_spawn_signature(orphan.cmdline):
+        if not in_scope:
             result.skipped_out_of_scope.append(orphan.pid)
-            continue
-
-        try:
-            proc = psutil.Process(orphan.pid)
-        except psutil.NoSuchProcess:
-            continue
-        except psutil.AccessDenied:
-            result.skipped_out_of_scope.append(orphan.pid)
-            continue
-
-        if scope not in _process_executable_scopes(proc, orphan.cmdline):
-            result.skipped_out_of_scope.append(orphan.pid)
+            result.skipped_details.append(record)
             continue
 
         if dry_run:

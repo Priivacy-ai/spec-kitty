@@ -1,0 +1,178 @@
+{
+  "version": 1,
+  "mission_slug": "sync-daemon-orphan-cleanup-01KWC2A3",
+  "mission_id": "01KWC2A3W1WQSNPR79D1N9MTF1",
+  "mission_branch": "kitty/mission-sync-daemon-orphan-cleanup-01KWC2A3",
+  "target_branch": "fix/sync-daemon-orphan-cleanup",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/sync/classification.py",
+        "tests/sync/test_daemon_classification_unit.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/sync/daemon.py",
+        "tests/sync/test_daemon_health_identity.py",
+        "tests/sync/test_daemon_self_retirement.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/sync/owner.py",
+        "tests/sync/test_daemon_reaper_scope_authority.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/sync/orphan_sweep.py",
+        "tests/sync/test_orphan_sweep_classification.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/_auth_doctor.py",
+        "src/specify_cli/cli/commands/auth.py",
+        "tests/auth/test_auth_doctor_classification.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "tests/sync/_daemon_harness.py",
+        "tests/sync/test_daemon_orphan_classification.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "tests/sync/test_daemon_cleanup_boundary.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-c",
+        "lane-d",
+        "lane-f"
+      ],
+      "parallel_group": 4
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md",
+        "docs/development/sync-daemon-orphan-cleanup.md",
+        "tests/sync/test_issue_1071_singleton_reconfirmation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-e",
+        "lane-f",
+        "lane-g"
+      ],
+      "parallel_group": 5
+    }
+  ],
+  "computed_at": "2026-06-30T11:29:48.899484+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

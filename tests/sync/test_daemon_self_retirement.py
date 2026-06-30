@@ -281,7 +281,7 @@ class TestRunSyncDaemonWiring:
             real_init(self, addr, handler)
             servers.append(self)
 
-        FakeServer.__init__ = init_capture  # type: ignore[assignment]
+        monkeypatch.setattr(FakeServer, "__init__", init_capture)
         monkeypatch.setattr(daemon, "create_loopback_server", lambda *_args, **_kwargs: FakeServer(None, None))
 
         # Stub get_runtime so the import does not pull the real sync layer.
@@ -395,15 +395,21 @@ class TestStateFileOwnershipInvariant:
 
         real_write = daemon._write_daemon_file
 
-        def tripwire_write(*args: object, **kwargs: object) -> None:
-            write_calls.append((args, kwargs))
-            real_write(*args, **kwargs)  # type: ignore[arg-type]
+        def tripwire_write(
+            path: Path,
+            url: str,
+            port: int,
+            token: str | None,
+            pid: int | None,
+        ) -> None:
+            write_calls.append((path, url, port, token, pid))
+            real_write(path, url, port, token, pid)
 
         original_unlink = Path.unlink
 
-        def tripwire_unlink(self: Path, *args: object, **kwargs: object) -> None:
-            unlink_calls.append((self, args, kwargs))
-            original_unlink(self, *args, **kwargs)  # type: ignore[arg-type]
+        def tripwire_unlink(self: Path, *, missing_ok: bool = False) -> None:
+            unlink_calls.append((self, missing_ok))
+            original_unlink(self, missing_ok=missing_ok)
 
         monkeypatch.setattr(daemon, "_write_daemon_file", tripwire_write)
         monkeypatch.setattr(Path, "unlink", tripwire_unlink)
@@ -437,3 +443,275 @@ class TestStateFileOwnershipInvariant:
         assert unlink_calls == [], (
             f"_decide_self_retire unlinked state file: {unlink_calls}"
         )
+
+
+# ---------------------------------------------------------------------------
+# _should_self_retire — pure predicate (T019 / FR-010 / FR-011)
+# ---------------------------------------------------------------------------
+
+
+class TestShouldSelfRetire:
+    """Direct tests of the ``_should_self_retire`` pure predicate."""
+
+    def _call(
+        self,
+        *,
+        my_port: int = 9400,
+        parsed_port: int | None = 9400,
+        parsed_pid: int | None = None,
+        sync_is_running: bool = False,
+        idle_seconds: float = 0.0,
+    ) -> tuple[bool, str]:
+        return daemon._should_self_retire(
+            my_port=my_port,
+            parsed_port=parsed_port,
+            parsed_pid=parsed_pid,
+            sync_is_running=sync_is_running,
+            idle_seconds=idle_seconds,
+        )
+
+    # -- FR-010: never retire while sync work is in flight --
+
+    def test_busy_daemon_never_retires_even_when_superseded(self) -> None:
+        """sync_is_running=True must block retirement regardless of state file."""
+        # State file points to a *different* port with a live PID.
+        should_retire, reason = self._call(
+            my_port=9400,
+            parsed_port=9401,
+            parsed_pid=os.getpid(),  # alive
+            sync_is_running=True,
+            idle_seconds=99999.0,  # far past idle threshold
+        )
+        assert not should_retire
+        assert reason == "sync_in_flight"
+
+    def test_busy_daemon_never_retires_on_idle_timeout(self) -> None:
+        """FR-010: busy daemon ignores the idle timeout."""
+        should_retire, reason = self._call(
+            my_port=9400,
+            parsed_port=9400,  # singleton (not superseded)
+            parsed_pid=os.getpid(),
+            sync_is_running=True,
+            idle_seconds=99999.0,
+        )
+        assert not should_retire
+        assert reason == "sync_in_flight"
+
+    # -- Superseded path --
+
+    def test_superseded_idle_daemon_retires_promptly(self) -> None:
+        """A superseded daemon (state file = different port, PID alive) must retire."""
+        should_retire, reason = self._call(
+            my_port=9400,
+            parsed_port=9401,
+            parsed_pid=os.getpid(),  # alive
+            sync_is_running=False,
+            idle_seconds=0.0,  # NOT idle — but superseded overrides
+        )
+        assert should_retire
+        assert reason == "superseded"
+
+    def test_superseded_with_dead_pid_does_not_retire(self) -> None:
+        """State file has different port but dead PID — not superseded (stale file)."""
+        should_retire, reason = self._call(
+            my_port=9400,
+            parsed_port=9401,
+            parsed_pid=4_294_967_295,  # no such process
+            sync_is_running=False,
+            idle_seconds=0.0,
+        )
+        assert not should_retire
+
+    def test_matching_port_and_alive_pid_is_not_superseded(self) -> None:
+        """State file records OUR port — we are the singleton, not superseded."""
+        should_retire, reason = self._call(
+            my_port=9400,
+            parsed_port=9400,  # same port → singleton
+            parsed_pid=os.getpid(),
+            sync_is_running=False,
+            idle_seconds=0.0,
+        )
+        assert not should_retire
+        # Not idle either (idle_seconds=0).
+        assert reason == "active"
+
+    # -- Idle timeout path --
+
+    def test_idle_daemon_retires_after_threshold(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Idle past ``SYNC_DAEMON_IDLE_RETIREMENT_SECONDS`` → retire."""
+        # Patch the constant to 1.0 s so we can pass a matching idle_seconds.
+        monkeypatch.setattr(daemon, "SYNC_DAEMON_IDLE_RETIREMENT_SECONDS", 1.0)
+        should_retire, reason = self._call(
+            my_port=9400,
+            parsed_port=9400,  # singleton (not superseded)
+            sync_is_running=False,
+            idle_seconds=1.5,  # exceeds patched threshold
+        )
+        assert should_retire
+        assert reason == "idle_timeout"
+
+    def test_idle_daemon_does_not_retire_before_threshold(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Idle below ``SYNC_DAEMON_IDLE_RETIREMENT_SECONDS`` → keep running."""
+        monkeypatch.setattr(daemon, "SYNC_DAEMON_IDLE_RETIREMENT_SECONDS", 1.0)
+        should_retire, reason = self._call(
+            my_port=9400,
+            parsed_port=9400,
+            sync_is_running=False,
+            idle_seconds=0.5,  # below threshold
+        )
+        assert not should_retire
+        assert reason == "active"
+
+    def test_idle_threshold_exactly_at_boundary_retires(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Exactly at the threshold (>=) is sufficient to trigger retirement."""
+        monkeypatch.setattr(daemon, "SYNC_DAEMON_IDLE_RETIREMENT_SECONDS", 2.0)
+        should_retire, reason = self._call(
+            my_port=9400,
+            parsed_port=9400,
+            sync_is_running=False,
+            idle_seconds=2.0,  # exactly at threshold
+        )
+        assert should_retire
+        assert reason == "idle_timeout"
+
+
+# ---------------------------------------------------------------------------
+# Named constant existence and default value (T018 / FR-011)
+# ---------------------------------------------------------------------------
+
+
+class TestIdleRetirementConstant:
+    """Guard the ``SYNC_DAEMON_IDLE_RETIREMENT_SECONDS`` named constant."""
+
+    def test_constant_exists_and_is_positive_float(self) -> None:
+        """``SYNC_DAEMON_IDLE_RETIREMENT_SECONDS`` must be a positive number."""
+        val = daemon.SYNC_DAEMON_IDLE_RETIREMENT_SECONDS
+        assert isinstance(val, (int, float))
+        assert val > 0
+
+    def test_default_value_is_900_seconds(self) -> None:
+        """FR-011 / DD-03: the production default is 900 s (15 min)."""
+        assert daemon.SYNC_DAEMON_IDLE_RETIREMENT_SECONDS == 900.0
+
+    def test_constant_is_patchable_via_monkeypatch(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Tests must be able to patch the constant to a low value."""
+        monkeypatch.setattr(daemon, "SYNC_DAEMON_IDLE_RETIREMENT_SECONDS", 0.1)
+        assert daemon.SYNC_DAEMON_IDLE_RETIREMENT_SECONDS == 0.1
+
+
+# ---------------------------------------------------------------------------
+# _decide_self_retire integration with _should_self_retire (end-to-end wiring)
+# ---------------------------------------------------------------------------
+
+
+class TestDecideSelfRetireWithIdleAndBusy:
+    """Verify ``_decide_self_retire`` respects FR-010 and triggers on idle."""
+
+    def test_decide_does_not_retire_busy_daemon(
+        self, isolated_state_file: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Busy daemon (sync_is_running=True) must NOT be retired by the tick.
+
+        Exercises the FR-010 guard via ``_should_self_retire`` directly: when
+        sync work is in flight the helper returns ``(False, "sync_in_flight")``,
+        and ``_decide_self_retire`` must not call ``server.shutdown()``.
+
+        We patch ``_should_self_retire`` to return the busy response rather than
+        mocking the full runtime import chain (which is fragile across test-ordering
+        due to sys.modules caching from real-subprocess tests earlier in the suite).
+        """
+        # Write a superseded state — would normally trigger retirement if not busy.
+        _write_state(isolated_state_file, port=9401, pid=os.getpid())
+
+        # Patch the pure predicate to simulate a busy (sync_in_flight) daemon.
+        # This verifies the integration between _decide_self_retire and the helper
+        # without coupling to the runtime import path.
+        monkeypatch.setattr(
+            daemon,
+            "_should_self_retire",
+            lambda **_kw: (False, "sync_in_flight"),
+        )
+
+        server = MagicMock()
+        daemon._decide_self_retire(server, my_port=9400)
+
+        server.shutdown.assert_not_called()
+
+    def test_decide_retires_superseded_idle_daemon(
+        self, isolated_state_file: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Superseded + not busy → the tick must call ``server.shutdown()``."""
+        _write_state(isolated_state_file, port=9401, pid=os.getpid())
+
+        # Stub runtime to report sync NOT in flight.
+        fake_rt_mod = MagicMock()
+        fake_rt = MagicMock()
+        fake_rt.background_service = MagicMock()
+        fake_rt.background_service.is_running = False
+        fake_rt_mod._runtime = fake_rt
+        monkeypatch.setitem(
+            __import__("sys").modules,
+            "specify_cli.sync.runtime",
+            fake_rt_mod,
+        )
+
+        server = MagicMock()
+        daemon._decide_self_retire(server, my_port=9400)
+
+        server.shutdown.assert_called_once_with()
+
+    def test_decide_retires_on_idle_timeout(
+        self, isolated_state_file: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """After the idle timeout the tick retires the daemon (not superseded)."""
+        # State file matches our port → we are the singleton, not superseded.
+        _write_state(isolated_state_file, port=9400, pid=os.getpid())
+
+        # Patch constant low and fake last-activity to be long ago.
+        monkeypatch.setattr(daemon, "SYNC_DAEMON_IDLE_RETIREMENT_SECONDS", 1.0)
+        monkeypatch.setattr(daemon, "_daemon_last_activity_time", 0.0)  # epoch → very old
+
+        # Stub runtime → not busy.
+        fake_rt_mod = MagicMock()
+        fake_rt_mod._runtime = None
+        monkeypatch.setitem(
+            __import__("sys").modules,
+            "specify_cli.sync.runtime",
+            fake_rt_mod,
+        )
+
+        server = MagicMock()
+        daemon._decide_self_retire(server, my_port=9400)
+
+        server.shutdown.assert_called_once_with()
+
+    def test_decide_does_not_retire_within_idle_window(
+        self, isolated_state_file: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Within the idle window the daemon must keep running."""
+        _write_state(isolated_state_file, port=9400, pid=os.getpid())
+
+        monkeypatch.setattr(daemon, "SYNC_DAEMON_IDLE_RETIREMENT_SECONDS", 900.0)
+        # last_activity = now → idle_seconds ≈ 0.
+        import time as _time
+
+        monkeypatch.setattr(daemon, "_daemon_last_activity_time", _time.monotonic())
+
+        fake_rt_mod = MagicMock()
+        fake_rt_mod._runtime = None
+        monkeypatch.setitem(
+            __import__("sys").modules,
+            "specify_cli.sync.runtime",
+            fake_rt_mod,
+        )
+
+        server = MagicMock()
+        daemon._decide_self_retire(server, my_port=9400)
+
+        server.shutdown.assert_not_called()

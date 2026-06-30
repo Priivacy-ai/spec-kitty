@@ -66,10 +66,11 @@ from specify_cli.sync.daemon import (
     get_sync_daemon_status,
     stop_sync_daemon,
 )
+from specify_cli.sync.classification import DaemonIdentityRecord
 from specify_cli.sync.orphan_sweep import (
-    OrphanDaemon,
-    enumerate_orphans,
-    sweep_orphans,
+    ResetResult,
+    enumerate_identity_records,
+    reset_orphans,
 )
 
 __all__ = [
@@ -88,9 +89,10 @@ __all__ = [
 
 console = Console()
 
-# Schema version for the JSON payload. Bump this only on a breaking schema
-# change so consumers can pin their parsers.
-_SCHEMA_VERSION: int = 1
+# Schema version for the JSON payload. Bump on breaking schema changes.
+# v2: orphans[] entries are full DaemonIdentityRecord dicts (FR-004);
+#     --reset --json adds reset_result with swept/skipped/failed (FR-005).
+_SCHEMA_VERSION: int = 2
 
 # Severity literal used by :class:`Finding`.
 Severity = Literal["info", "warn", "critical"]
@@ -165,7 +167,7 @@ class DoctorReport:
     session: SessionSummary | None
     refresh_lock: LockSummary
     daemon: DaemonSummary | None
-    orphans: list[OrphanDaemon] = field(default_factory=list)
+    orphans: list[DaemonIdentityRecord] = field(default_factory=list)
     findings: list[Finding] = field(default_factory=list)
 
 
@@ -277,7 +279,9 @@ def __getattr__(name: str) -> Path:
     ``_auth_doctor.DAEMON_STATE_FILE`` instead of an import-time-frozen binding.
     """
     if name == "DAEMON_STATE_FILE":
-        return _daemon.DAEMON_STATE_FILE
+        # cast: daemon.py is partially typed (follow_imports=skip); the
+        # attribute is a Path resolved via get_runtime_root().
+        return cast("Path", _daemon.DAEMON_STATE_FILE)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -288,7 +292,8 @@ def _daemon_state_file() -> Path:
     override = globals().get("DAEMON_STATE_FILE")
     if override is not None:
         return cast("Path", override)
-    return _daemon.DAEMON_STATE_FILE
+    # cast: daemon.py is partially typed (follow_imports=skip).
+    return cast("Path", _daemon.DAEMON_STATE_FILE)
 
 
 def _read_daemon_summary() -> DaemonSummary | None:
@@ -339,7 +344,7 @@ def _compute_findings(
     session: SessionSummary | None,
     refresh_lock: LockSummary,
     daemon: DaemonSummary | None,
-    orphans: list[OrphanDaemon],
+    orphans: list[DaemonIdentityRecord],
 ) -> list[Finding]:
     """Compute :class:`Finding` list from the read-only state snapshots.
 
@@ -586,7 +591,7 @@ def assemble_report(*, stuck_threshold_s: float = 60.0) -> DoctorReport:
     session_summary, _raw_session = _read_session_summary()
     refresh_lock = _read_lock_summary(stuck_threshold_s)
     daemon = _read_daemon_summary()
-    orphans = enumerate_orphans()
+    orphans = enumerate_identity_records()
 
     findings = _compute_findings(
         session=session_summary,
@@ -703,11 +708,15 @@ def render_report(report: DoctorReport, console: Console, *, show_server_hint: b
         table.add_column("PID")
         table.add_column("Port")
         table.add_column("Package version")
+        table.add_column("Class")
+        table.add_column("Reason")
         for orphan in report.orphans:
             table.add_row(
                 str(orphan.pid) if orphan.pid is not None else UNKNOWN_DISPLAY,
                 str(orphan.port),
                 orphan.package_version or UNKNOWN_DISPLAY,
+                orphan.cleanup_class.value,
+                orphan.skip_reason.value if orphan.skip_reason is not None else "",
             )
         console.print(table)
     console.print()
@@ -765,7 +774,7 @@ def render_report_json(report: DoctorReport) -> str:
         "daemon": (
             None if report.daemon is None else dataclasses.asdict(report.daemon)
         ),
-        "orphans": [dataclasses.asdict(o) for o in report.orphans],
+        "orphans": [o.to_dict() for o in report.orphans],
         "findings": [_finding_to_dict(f) for f in report.findings],
     }
     return json.dumps(payload, indent=2, sort_keys=True)
@@ -806,6 +815,147 @@ def _finding_to_dict(finding: Finding) -> dict[str, Any]:
 UNKNOWN_DISPLAY = "(unknown)"
 
 
+def _reset_result_to_dict(result: ResetResult) -> dict[str, Any]:
+    """Serialise a :class:`ResetResult` to the ``reset_result`` shape per the contract.
+
+    Matches ``contracts/auth-doctor-json.md`` §``--reset --json`` (FR-005).
+    """
+    return {
+        "swept": [
+            {
+                "pid": e.pid,
+                "port": e.port,
+                "package_version": e.package_version,
+                "protocol_version": e.protocol_version,
+                "cleanup_path": e.cleanup_path,
+                "reason": e.reason,
+            }
+            for e in result.swept
+        ],
+        "skipped": [
+            {
+                "pid": e.pid,
+                "port": e.port,
+                "cleanup_class": e.cleanup_class,
+                "skip_reason": e.skip_reason,
+            }
+            for e in result.skipped
+        ],
+        "failed": [
+            {
+                "pid": e.pid,
+                "port": e.port,
+                "failure_reason": e.failure_reason,
+            }
+            for e in result.failed
+        ],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Repair helpers (extracted to keep doctor_impl within C901 complexity budget)
+# ---------------------------------------------------------------------------
+
+
+def _run_orphan_reset(
+    report: DoctorReport,
+    *,
+    force: bool,
+    stuck_threshold: float,
+    messages: list[str],
+) -> tuple[ResetResult | None, DoctorReport]:
+    """Run orphan sweep when F-002 is present; return (reset_result, refreshed_report).
+
+    ``reset_result`` is ``None`` when no F-002 finding was active.
+    """
+    if not any(f.id == "F-002" for f in report.findings):
+        return None, report
+
+    result = reset_orphans(list(report.orphans), include_operator_required=force)
+    messages.append(
+        f"--reset: {len(result.swept)} orphan(s) swept, "
+        f"{len(result.skipped)} skipped, "
+        f"{len(result.failed)} failed."
+    )
+    if result.skipped and not force:
+        n_op = len(result.skipped)
+        messages.append(
+            f"  Hint: run with --force to clean {n_op} operator_required daemon(s)."
+        )
+    return result, assemble_report(stuck_threshold_s=stuck_threshold)
+
+
+def _run_reset(
+    report: DoctorReport,
+    *,
+    force: bool,
+    stuck_threshold: float,
+    messages: list[str],
+) -> tuple[ResetResult | None, DoctorReport]:
+    """Orchestrate the ``--reset`` phase.
+
+    Sweeps orphans (respecting ``--force``) and stops an unhealthy daemon.
+    Returns the accumulated (reset_result, refreshed_report).
+    """
+    repaired = False
+
+    reset_result, report = _run_orphan_reset(
+        report, force=force, stuck_threshold=stuck_threshold, messages=messages
+    )
+    if reset_result is not None:
+        repaired = True
+
+    if report.daemon is not None and not report.daemon.active:
+        _stopped, message = stop_sync_daemon()
+        messages.append(f"--reset: {message}")
+        repaired = True
+        report = assemble_report(stuck_threshold_s=stuck_threshold)
+
+    if not repaired:
+        messages.append("--reset: no orphans detected; no-op.")
+
+    return reset_result, report
+
+
+def _run_unstick_lock(
+    report: DoctorReport,
+    *,
+    stuck_threshold: float,
+    messages: list[str],
+) -> DoctorReport:
+    """Orchestrate the ``--unstick-lock`` phase. Returns a refreshed report."""
+    if not any(f.id == "F-003" for f in report.findings):
+        messages.append("--unstick-lock: lock not stuck; no-op.")
+        return report
+
+    removed = force_release(_refresh_lock_path(), only_if_age_s=stuck_threshold)
+    if removed:
+        messages.append("--unstick-lock: stuck lock released.")
+    else:
+        messages.append(
+            "--unstick-lock: lock not removed (fresh, missing, or unreadable)."
+        )
+    return assemble_report(stuck_threshold_s=stuck_threshold)
+
+
+def _render_server_status(status: ServerSessionStatus) -> None:
+    """Render the optional server-session block in human output."""
+    console.print("[bold]Server Session[/bold]")
+    if status.active:
+        sid = status.session_id or UNKNOWN_DISPLAY
+        console.print(f"  Status:  [green]active[/green] (session: {sid})")
+    else:
+        reason = status.error or "unknown"
+        if reason == "re-authenticate":
+            console.print(
+                "  Status:  [red]invalid[/red] — "
+                "Run [bold]spec-kitty auth login[/bold] to re-authenticate."
+            )
+        else:
+            console.print(f"  Status:  [yellow]check failed[/yellow] — {reason}")
+    console.print()
+
+
 # ---------------------------------------------------------------------------
 # Orchestration entry point (T027)
 # ---------------------------------------------------------------------------
@@ -815,6 +965,7 @@ def doctor_impl(
     *,
     json_output: bool,
     reset: bool,
+    force: bool = False,
     unstick_lock: bool,
     stuck_threshold: float,
     server: bool = False,
@@ -828,57 +979,39 @@ def doctor_impl(
     present. After any repair we re-run :func:`assemble_report` so the
     rendered output reflects the post-repair state.
 
+    ``--force`` gates ``operator_required`` daemon kills behind explicit
+    consent (D-02). Without ``--force`` those daemons appear in ``skipped[]``
+    and a one-step remediation hint is printed (FR-009). ``--force`` is a
+    no-op without ``--reset``.
+
     ``--server`` is an explicit opt-in that refreshes the access token and
     calls ``GET /api/v1/session-status``. The default path (server=False)
     makes ZERO outbound network calls (C-007).
     """
     report = assemble_report(stuck_threshold_s=stuck_threshold)
-
     repair_messages: list[str] = []
+    reset_result: ResetResult | None = None
 
     if reset:
-        repaired = False
-        if any(f.id == "F-002" for f in report.findings):
-            sweep = sweep_orphans(list(report.orphans))
-            repair_messages.append(
-                f"--reset: {len(sweep.swept)} orphan(s) swept, "
-                f"{len(sweep.failed)} failed."
-            )
-            repaired = True
-            report = assemble_report(stuck_threshold_s=stuck_threshold)
-
-        if report.daemon is not None and not report.daemon.active:
-            _stopped, message = stop_sync_daemon()
-            repair_messages.append(f"--reset: {message}")
-            repaired = True
-            report = assemble_report(stuck_threshold_s=stuck_threshold)
-
-        if not repaired:
-            repair_messages.append("--reset: no orphans detected; no-op.")
+        reset_result, report = _run_reset(
+            report, force=force, stuck_threshold=stuck_threshold, messages=repair_messages
+        )
 
     if unstick_lock:
-        if any(f.id == "F-003" for f in report.findings):
-            removed = force_release(
-                _refresh_lock_path(), only_if_age_s=stuck_threshold
-            )
-            if removed:
-                repair_messages.append("--unstick-lock: stuck lock released.")
-            else:
-                repair_messages.append(
-                    "--unstick-lock: lock not removed (fresh, missing, or unreadable)."
-                )
-            report = assemble_report(stuck_threshold_s=stuck_threshold)
-        else:
-            repair_messages.append("--unstick-lock: lock not stuck; no-op.")
+        report = _run_unstick_lock(
+            report, stuck_threshold=stuck_threshold, messages=repair_messages
+        )
 
     server_status: ServerSessionStatus | None = None
     if server:
         server_status = asyncio.run(_check_server_session())
 
     if json_output:
-        # Repair messages are not part of the JSON schema (`schema_version: 1`);
-        # JSON consumers consume the post-repair report state directly.
+        # JSON consumers read the post-repair report state directly.
+        # reset_result is added at the top level when --reset was used (FR-005).
         payload = json.loads(render_report_json(report))
+        if reset_result is not None:
+            payload["reset_result"] = _reset_result_to_dict(reset_result)
         if server_status is not None:
             payload["server_session"] = {
                 "active": server_status.active,
@@ -893,19 +1026,6 @@ def doctor_impl(
         console.print(message)
 
     if server and server_status is not None:
-        console.print("[bold]Server Session[/bold]")
-        if server_status.active:
-            sid = server_status.session_id or UNKNOWN_DISPLAY
-            console.print(f"  Status:  [green]active[/green] (session: {sid})")
-        else:
-            reason = server_status.error or "unknown"
-            if reason == "re-authenticate":
-                console.print(
-                    "  Status:  [red]invalid[/red] — "
-                    "Run [bold]spec-kitty auth login[/bold] to re-authenticate."
-                )
-            else:
-                console.print(f"  Status:  [yellow]check failed[/yellow] — {reason}")
-        console.print()
+        _render_server_status(server_status)
 
     return compute_exit_code(report.findings)
