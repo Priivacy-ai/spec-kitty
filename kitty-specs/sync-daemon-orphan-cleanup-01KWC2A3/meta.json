@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "574cf5a1d5f079d2b1a79c398b90a0507cc062ab",
+  "coordination_branch": "kitty/mission-sync-daemon-orphan-cleanup-01KWC2A3",
+  "created_at": "2026-06-30T10:48:29.825887+00:00",
+  "flattened": false,
+  "friendly_name": "Safe Sync Daemon Orphan Cleanup",
+  "mission_id": "01KWC2A3W1WQSNPR79D1N9MTF1",
+  "mission_number": 154,
+  "mission_slug": "sync-daemon-orphan-cleanup-01KWC2A3",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Over time, normal CLI use and upgrades leave old sync-daemon processes resident on reserved ports, wasting resources and making auth/sync behavior hard to reason about (one machine showed 18 orphaned daemons across three versions). This mission makes the sync daemon clean up after itself safely: only provably-orphaned daemons are auto-removed or self-retire, genuinely ambiguous ones are surfaced to the operator with a one-step fix instead of being killed silently, and cleanup is strictly walled off from the dashboard daemon lifecycle and ports.",
+  "purpose_tldr": "Prevent stale Spec Kitty sync daemons from piling up across upgrades by safely auto-retiring provably-orphaned ones and clearly reporting the rest.",
+  "slug": "sync-daemon-orphan-cleanup-01KWC2A3",
+  "source_description": "GitHub issue #2261: Implement safe sync daemon orphan cleanup across upgrades (https://github.com/Priivacy-ai/spec-kitty/issues/2261)",
+  "target_branch": "fix/sync-daemon-orphan-cleanup",
+  "topology": "coord",
+  "vcs": "git"
+}

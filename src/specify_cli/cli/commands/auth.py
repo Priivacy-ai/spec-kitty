@@ -105,6 +105,14 @@ def doctor(
     reset: bool = typer.Option(
         False, "--reset", help="Sweep orphan sync daemons."
     ),
+    force: bool = typer.Option(
+        False,
+        "--force",
+        help=(
+            "With --reset, also clean operator_required daemons. "
+            "No-op without --reset."
+        ),
+    ),
     unstick_lock: bool = typer.Option(
         False,
         "--unstick-lock",
@@ -130,6 +138,7 @@ def doctor(
         exit_code = doctor_impl(
             json_output=json_output,
             reset=reset,
+            force=force,
             unstick_lock=unstick_lock,
             stuck_threshold=stuck_threshold,
             server=server,

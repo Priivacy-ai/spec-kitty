@@ -734,6 +734,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-06-30-1-sync-daemon-identity-and-cleanup-classification.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/README.md
   tag: current
   divio_type: none
@@ -1563,6 +1569,12 @@
   current_target: true
   notes: null
 - path: docs/development/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/development/sync-daemon-orphan-cleanup.md
   tag: current
   divio_type: none
   owning_workstream: none

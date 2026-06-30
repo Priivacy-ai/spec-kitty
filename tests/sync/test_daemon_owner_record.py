@@ -198,15 +198,14 @@ def test_health_endpoint_excludes_token(_scoped_home: Path) -> None:
     """
 
     from specify_cli.sync import daemon as daemon_mod
-    from specify_cli.sync.owner import write_owner_record
 
-    # Persist an owner record so the handler picks it up.
+    # Attach an owner record to the daemon handler instance.
     owner = _build_record(token="leaked-secret-token")
-    write_owner_record(owner)
 
     # Build a barebones handler instance that bypasses the network stack.
     handler = daemon_mod.SyncDaemonHandler.__new__(daemon_mod.SyncDaemonHandler)
     handler.daemon_token = "handler-token"
+    handler.daemon_owner_record = owner
     captured: dict[str, Any] = {}
 
     def fake_send_json(status_code: int, payload: dict[str, Any]) -> None:
@@ -237,6 +236,44 @@ def test_health_endpoint_excludes_token(_scoped_home: Path) -> None:
     rendered = json.dumps(payload["owner"])
     assert "leaked-secret-token" not in rendered
     assert payload["owner"]["token"] != "leaked-secret-token"
+
+
+def test_health_endpoint_uses_daemon_local_owner_not_shared_file(_scoped_home: Path) -> None:
+    """Health self-report must identify this daemon, not whatever owner.json holds."""
+
+    from specify_cli.sync import daemon as daemon_mod
+    from specify_cli.sync.owner import write_owner_record
+
+    local_owner = _build_record(pid=1111, port=9401, token="local-secret")
+    shared_owner = _build_record(pid=2222, port=9402, token="shared-secret")
+    write_owner_record(shared_owner)
+
+    handler = daemon_mod.SyncDaemonHandler.__new__(daemon_mod.SyncDaemonHandler)
+    handler.daemon_token = "handler-token"
+    handler.daemon_owner_record = local_owner
+    captured: dict[str, Any] = {}
+
+    def fake_send_json(status_code: int, payload: dict[str, Any]) -> None:
+        captured["status"] = status_code
+        captured["payload"] = payload
+
+    handler._send_json = fake_send_json  # type: ignore[method-assign]
+
+    fake_runtime = MagicMock()
+    fake_runtime.background_service = None
+    fake_runtime.get_websocket_status.return_value = "Offline"
+    import specify_cli.sync.runtime as runtime_mod
+
+    original_runtime: Any = runtime_mod._runtime
+    runtime_mod._runtime = fake_runtime
+    try:
+        handler.handle_health()
+    finally:
+        runtime_mod._runtime = original_runtime
+
+    owner_payload = captured["payload"]["owner"]
+    assert owner_payload["pid"] == 1111
+    assert owner_payload["port"] == 9401
 
 
 def test_health_endpoint_does_not_start_runtime(_scoped_home: Path) -> None:
@@ -557,6 +594,34 @@ def test_remove_owner_record_removes_when_present(_scoped_home: Path) -> None:
     write_owner_record(_build_record())
     assert owner_record_path().exists()
     assert remove_owner_record() is True
+    assert not owner_record_path().exists()
+
+
+def test_remove_owner_record_if_matches_preserves_newer_owner(_scoped_home: Path) -> None:
+    from specify_cli.sync.owner import (
+        owner_record_path,
+        read_owner_record,
+        remove_owner_record_if_matches,
+        write_owner_record,
+    )
+
+    newer = _build_record(pid=2222, port=9402)
+    write_owner_record(newer)
+
+    assert remove_owner_record_if_matches(1111, 9401) is False
+    assert owner_record_path().exists()
+    assert read_owner_record() == newer
+
+
+def test_remove_owner_record_if_matches_removes_matching_owner(_scoped_home: Path) -> None:
+    from specify_cli.sync.owner import (
+        owner_record_path,
+        remove_owner_record_if_matches,
+        write_owner_record,
+    )
+
+    write_owner_record(_build_record(pid=1111, port=9401))
+    assert remove_owner_record_if_matches(1111, 9401) is True
     assert not owner_record_path().exists()
 
 

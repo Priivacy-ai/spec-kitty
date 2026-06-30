@@ -1,0 +1,129 @@
+{
+  "mission_slug": "sync-daemon-orphan-cleanup-01KWC2A3",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Sync-daemon scan produces a structured DaemonIdentityRecord per inspected listener (daemon_family, pid, port, singleton_scope_id, cleanup_class, skip_reason, ...).",
+      "proof_type": "automated_test",
+      "evidence": "WP01 classification.py (DaemonIdentityRecord + to_dict, 25 unit tests in test_daemon_classification_unit.py); WP03 enumerate_identity_records builds one record per in-range listener; WP06 live version matrix exercises it end-to-end.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus",
+      "verified_at": "2026-06-30T14:27:49+00:00",
+      "notes": "Verified via WP01 + WP03 review approvals."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Each candidate is assigned exactly one cleanup_class (safe_auto / operator_required / never_touch) per the decision rules.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 classify_candidate implements the 9-row decision table (first-match-wins); test_daemon_classification_unit.py covers every row.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus",
+      "verified_at": "2026-06-30T14:27:49+00:00",
+      "notes": "Verified via WP01 review approval."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Auto-kill authority is the daemon-local scope marker, not the shared owner.json (owner_present is reporting-only).",
+      "proof_type": "automated_test",
+      "evidence": "WP01 (owner_present appears in no classification predicate; pre-marker+owner_present -> operator_required test) + WP02 reaper never consults owner.json for a kill decision.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus",
+      "verified_at": "2026-06-30T14:27:49+00:00",
+      "notes": "Verified via WP01 + WP02 review approvals."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "auth doctor and auth doctor --json expose the scan classification (identity record + cleanup_class + skip_reason).",
+      "proof_type": "automated_test",
+      "evidence": "WP05 bumps schema_version 1->2, renders orphans[] as full to_dict records with Class/Reason columns; tests/auth/test_auth_doctor_classification.py.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus",
+      "verified_at": "2026-06-30T14:27:49+00:00",
+      "notes": "Verified via WP05 review approval."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "auth doctor --reset / --reset --json report exact swept / skipped / failed results.",
+      "proof_type": "automated_test",
+      "evidence": "WP03 ResetResult(swept/skipped/failed + cleanup_path) + WP05 reset_result JSON object; proven in test_orphan_sweep_classification.py and test_auth_doctor_classification.py.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus",
+      "verified_at": "2026-06-30T14:27:49+00:00",
+      "notes": "Verified via WP03 + WP05 review approvals."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Sync startup auto-cleans only safe_auto daemons; never operator_required or never_touch.",
+      "proof_type": "automated_test",
+      "evidence": "WP02 reaper reaps only safe_auto (test_daemon_reaper_scope_authority.py); WP06 live matrix confirms operator_required candidates survive startup auto-clean.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus",
+      "verified_at": "2026-06-30T14:27:49+00:00",
+      "notes": "Verified via WP02 + WP06 review approvals."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "When same-scope stale daemons exist and are safely cleanable, startup cleans them and spawns no additional daemon.",
+      "proof_type": "automated_test",
+      "evidence": "WP04 reuse-or-spawn yields exactly one daemon after cleanup; WP06 test_daemon_orphan_classification.py asserts stale reaped + exactly one listening port remains (no redundant spawn).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus",
+      "verified_at": "2026-06-30T14:27:49+00:00",
+      "notes": "Verified via WP04 + WP06 review approvals."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Package/executable version mismatch is stale-version evidence (eligible for cleanup) once singleton scope is proven; mismatch alone never causes a skip.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 older-version->safe_auto test; WP02 removes the executable-identity skip gate (same-scope different-exe now reaped); WP06 version matrix 3.2.2/3.2.3/3.2.4 reaps same-scope stale daemons. The actual #2261 fix.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus",
+      "verified_at": "2026-06-30T14:27:49+00:00",
+      "notes": "Verified via WP01 + WP02 + WP06 review approvals (core fix)."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "auth doctor --reset is the explicit operator path for operator_required daemons; surfaced with one-step remediation, never silently killed.",
+      "proof_type": "automated_test",
+      "evidence": "WP05 --force gate + one-step remediation hint when operator_required were skipped; test_auth_doctor_classification.py asserts force vs non-force behavior.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus",
+      "verified_at": "2026-06-30T14:27:49+00:00",
+      "notes": "Verified via WP05 review approval."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "A new sync daemon self-retires when it is no longer the recorded singleton for its proven scope AND no active sync work is in flight.",
+      "proof_type": "automated_test",
+      "evidence": "WP04 _should_self_retire checks sync_is_running first (busy -> never retire), then superseded/idle; test_daemon_self_retirement.py covers busy/superseded/idle paths.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus",
+      "verified_at": "2026-06-30T14:27:49+00:00",
+      "notes": "Verified via WP04 review approval."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Idle / no-auth / no-work retirement delay is governed by a named, test-patchable constant.",
+      "proof_type": "automated_test",
+      "evidence": "WP04 SYNC_DAEMON_IDLE_RETIREMENT_SECONDS = 900.0 named module constant; TestIdleRetirementConstant patches it to a low value to drive retirement deterministically.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus",
+      "verified_at": "2026-06-30T14:27:49+00:00",
+      "notes": "Verified via WP04 review approval."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Issue #1071 (same-$HOME singleton leak) is live-reconfirmed against this implementation, then closed or explicitly re-scoped.",
+      "proof_type": "automated_test",
+      "evidence": "WP08 tests/sync/test_issue_1071_singleton_reconfirmation.py reproduces the same-$HOME multi-daemon scenario with real subprocesses: stale same-scope daemons reaped, exactly one singleton survives, cross-$HOME untouched, PID-level no-leak. Runbook recommends closing #1071 citing this test.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata:opus",
+      "verified_at": "2026-06-30T14:27:49+00:00",
+      "notes": "Verified via WP08 review approval."
+    }
+  ],
+  "negative_invariants": []
+}

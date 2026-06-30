@@ -96,7 +96,7 @@ def _patch_doctor_state(
         _auth_doctor, "get_sync_daemon_status", lambda: SyncDaemonStatus(healthy=False)
     )
     # Empty orphan list — no need to scan ports for this offline test.
-    monkeypatch.setattr(_auth_doctor, "enumerate_orphans", lambda: [])
+    monkeypatch.setattr(_auth_doctor, "enumerate_identity_records", lambda: [])
     import sys
 
     fake_rollout = type(sys)("specify_cli.saas.rollout")
@@ -117,7 +117,7 @@ def test_no_outbound_http(
     Patches ``httpx.AsyncClient`` and ``urllib.request.urlopen`` to fail
     the test on any non-localhost call. Local 127.0.0.1 probes (orphan
     health check, daemon status) are explicitly allowed by C-007 and
-    deliberately disabled by the fixtures above (``enumerate_orphans``
+    deliberately disabled by the fixtures above (``enumerate_identity_records``
     returns ``[]``; daemon state file does not exist).
     """
     lock_path = tmp_path / "auth" / "refresh.lock"
@@ -191,9 +191,9 @@ def test_no_state_mutation_default(
             "force_release called on default doctor path — FR-015 violation"
         )
 
-    def _fail_sweep_orphans(*args, **kwargs):  # type: ignore[no-untyped-def]
+    def _fail_reset_orphans(*args: object, **kwargs: object) -> None:
         raise AssertionError(
-            "sweep_orphans called on default doctor path — FR-015 violation"
+            "reset_orphans called on default doctor path — FR-015 violation"
         )
 
     # psutil terminate/kill on the default path would be FR-015 violations.
@@ -216,7 +216,7 @@ def test_no_state_mutation_default(
             )
 
     monkeypatch.setattr(_auth_doctor, "force_release", _fail_force_release)
-    monkeypatch.setattr(_auth_doctor, "sweep_orphans", _fail_sweep_orphans)
+    monkeypatch.setattr(_auth_doctor, "reset_orphans", _fail_reset_orphans)
     monkeypatch.setattr(psutil, "Process", _FailingProcess)
     # Patch Path.unlink at the class level so any descendant call fails.
     monkeypatch.setattr(Path, "unlink", _fail_unlink)
