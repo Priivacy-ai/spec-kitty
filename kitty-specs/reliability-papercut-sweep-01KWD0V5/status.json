@@ -1,0 +1,70 @@
+{
+  "event_count": 59,
+  "last_event_id": "01KWDD6TF38MEBYEJ7VTYPMT04",
+  "materialized_at": "2026-06-30T23:18:10.659443+00:00",
+  "mission_number": "155",
+  "mission_slug": "reliability-papercut-sweep-01KWD0V5",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 7,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KWDD6QAC3YK2XRMSREQQ7FME",
+      "last_transition_at": "2026-06-30T23:18:07.436464+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KWDD6QY1KP0PQXTDS7T3P65S",
+      "last_transition_at": "2026-06-30T23:18:08.065845+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KWDD6SZ4WBTSKT86XXVATS73",
+      "last_transition_at": "2026-06-30T23:18:10.148312+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KWDD6RE219FRTNX0965JT61M",
+      "last_transition_at": "2026-06-30T23:18:08.578773+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KWDD6RYHST3YWF0ZPV7NN1SF",
+      "last_transition_at": "2026-06-30T23:18:09.105930+00:00"
+    },
+    "WP06": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KWDD6SEPEZQ8CR2Q9SYS4GBD",
+      "last_transition_at": "2026-06-30T23:18:09.622323+00:00"
+    },
+    "WP07": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KWDD6TF38MEBYEJ7VTYPMT04",
+      "last_transition_at": "2026-06-30T23:18:10.659443+00:00"
+    }
+  }
+}
