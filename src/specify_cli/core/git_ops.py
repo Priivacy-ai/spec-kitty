@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import os
 import subprocess
 from dataclasses import dataclass
@@ -336,6 +335,8 @@ def resolve_target_branch(
 ) -> BranchResolution:
     """Resolve target branch for feature operations without auto-checkout.
 
+    Thin adapter over :func:`specify_cli.core.paths.read_target_branch_from_meta`.
+
     This function unifies branch resolution logic across all CLI commands.
     It respects the user's current branch and never performs auto-checkout
     to main/master without explicit permission.
@@ -348,10 +349,14 @@ def resolve_target_branch(
 
     Returns:
         BranchResolution with:
-        - target: Target branch from meta.json (or "main" fallback)
+        - target: Target branch from meta.json (or primary-branch fallback)
         - current: User's current branch
         - should_notify: True if current != target (show informational message)
         - action: "proceed" if branches match, "stay_on_current" otherwise
+
+    Raises:
+        specify_cli.core.paths.MissionMetaReadError: When meta.json exists but
+            is corrupt or unreadable (fail-closed; propagated from the primitive).
 
     Example:
         >>> resolution = resolve_target_branch("038-bugfix", repo_root, "develop")
@@ -365,30 +370,25 @@ def resolve_target_branch(
         if current_branch is None:
             raise RuntimeError("Could not determine current branch")
 
-    # Read target branch from meta.json on the PRIMARY surface — NOT the
-    # topology-aware candidate, which under coordination topology resolves to the
-    # coordination worktree (no meta.json) and silently falls back to the protected
-    # repo primary ``main`` (WP00 / FR-004 — the implement-loop refusal-to-main bug).
-    # ``primary_feature_dir_for_mission`` resolves repo_path → main root internally,
-    # mirroring ``resolve_merge_target_branch`` / ``get_feature_target_branch``.
+    # Delegate the meta read to the canonical primitive so the absent-vs-failed
+    # decision lives in exactly one place (FR-005 / #2139).
+    # Read from the PRIMARY surface — NOT the topology-aware candidate, which
+    # under coordination topology resolves to the coordination worktree (no
+    # meta.json) and silently fell back to the protected repo primary ``main``
+    # (WP00 / FR-004 — the implement-loop refusal-to-main bug).
+    from specify_cli.core.paths import read_target_branch_from_meta
     from specify_cli.missions._read_path_resolver import (
         _canonicalize_primary_read_handle,
         primary_feature_dir_for_mission,
     )
 
-    meta_file = primary_feature_dir_for_mission(
+    feature_dir = primary_feature_dir_for_mission(
         repo_path,
         _canonicalize_primary_read_handle(repo_path, mission_slug),
-    ) / "meta.json"
+    )
     fallback = resolve_primary_branch(repo_path)
-    target = fallback
-    if meta_file.exists():
-        try:
-            meta = json.loads(meta_file.read_text(encoding="utf-8"))
-            target = meta.get("target_branch", fallback)
-        except (json.JSONDecodeError, OSError):
-            # Fallback to detected primary branch if meta.json is invalid
-            target = fallback
+    branch = read_target_branch_from_meta(feature_dir)
+    target = branch if branch is not None else fallback
 
     # Check if branches match
     if current_branch == target:

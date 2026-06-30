@@ -15,6 +15,7 @@ from specify_cli.core.git_ops import (
     resolve_target_branch,
     run_command,
 )
+from specify_cli.core.paths import MissionMetaReadError
 
 pytestmark = pytest.mark.git_repo
 
@@ -386,8 +387,8 @@ def test_resolve_target_branch_auto_detect_current(tmp_path):
 
 
 @pytest.mark.usefixtures("_git_identity")
-def test_resolve_target_branch_invalid_meta_json(tmp_path):
-    """Test T036: resolve_target_branch handles invalid meta.json gracefully."""
+def test_resolve_target_branch_invalid_meta_json_fails_closed(tmp_path):
+    """Test T036: resolve_target_branch raises MissionMetaReadError on corrupt meta.json (FR-005)."""
     # Setup repo with explicit main branch (CI may default to master)
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -402,13 +403,9 @@ def test_resolve_target_branch_invalid_meta_json(tmp_path):
     feature_dir.mkdir(parents=True)
     (feature_dir / "meta.json").write_text("{ invalid json }", encoding="utf-8")
 
-    # Resolve should fallback to "main" (not crash)
-    resolution = resolve_target_branch("005-test", repo, "main", respect_current=True)
-
-    assert resolution.target == "main"  # Fallback on invalid JSON
-    assert resolution.current == "main"
-    assert resolution.should_notify is False
-    assert resolution.action == "proceed"
+    # Corrupt meta.json must fail closed — not silently fall back
+    with pytest.raises(MissionMetaReadError):
+        resolve_target_branch("005-test", repo, "main", respect_current=True)
 
 
 # ============================================================================

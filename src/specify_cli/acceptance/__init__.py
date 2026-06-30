@@ -139,7 +139,7 @@ def _accept_dirty_gate(
 ) -> list[str]:
     """Compute the accept dirty set: accept-owned exclusion + FR-008 coord residue.
 
-    Two filters compose:
+    Three filters compose:
 
     1. **Accept-owned convergence (#1883):** the accept gate's own writes
        (``acceptance-matrix.json`` + ``status.json``) are scoped to this
@@ -147,7 +147,12 @@ def _accept_dirty_gate(
        status-read dir. Excluding all three absorbs accept-owned residue left
        dirty by a prior ``--no-commit`` / diagnose run, so ``accept ∘ accept``
        converges in every mode.
-    2. **FR-008 topology-aware residue:** under coordination topology the
+    2. **Self-bookkeeping exclusion (#2251):** spec-kitty's own bookkeeping
+       files (``meta.json``, encoding-provenance JSONL, and ``kitty-ops/<ULID>.jsonl``
+       Op-record orphans) are excluded via the SINGLE shared
+       :func:`mission_runtime.is_self_bookkeeping_path` authority — no independent
+       literal carried here (G-5 invariant / #1914 framing).
+    3. **FR-008 topology-aware residue:** under coordination topology the
        recognized coordination residue (stale primary copies of artifacts owned
        by the coordination branch) is excluded via the SAME per-ref pattern the
        record-analysis preflight uses (:func:`routes_through_coordination` + the
@@ -155,9 +160,11 @@ def _accept_dirty_gate(
        mission routes through PRIMARY, so its real primary artifacts STILL block.
        ``ACCEPT_OWNED_PATHS`` is NOT widened.
 
-    Non-accept-owned, non-residue dirt is preserved verbatim (fail-closed,
-    NFR-003).
+    Non-accept-owned, non-self-bookkeeping, non-residue dirt is preserved verbatim
+    (fail-closed, NFR-003).
     """
+    from mission_runtime import is_self_bookkeeping_path
+
     accept_owned_dirty_paths = _accept_owned_dirty_paths(
         repo_root,
         feature_dir,
@@ -168,6 +175,7 @@ def _accept_dirty_gate(
         line
         for line in git_dirty_raw
         if _porcelain_dirty_path(line) not in accept_owned_dirty_paths
+        and not is_self_bookkeeping_path(_porcelain_dirty_path(line))
     ]
     return _filter_coordination_residue(git_dirty, repo_root=repo_root, feature=feature)
 

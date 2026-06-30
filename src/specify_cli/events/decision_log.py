@@ -79,7 +79,7 @@ class DecisionGitLog:
         mission_slug: str,
         *,
         inner: RuntimeEventEmitter,
-        mission_id: str = "",
+        mission_id: str | None = None,
         target: CommitTarget | None = None,
     ) -> None:
         self._repo_root = repo_root
@@ -94,8 +94,9 @@ class DecisionGitLog:
         # reads only ``target.ref`` (the vestigial ``.kind`` carrier is dropped,
         # WP04 drain; the VO field defaults transitionally until WP16 removes it).
         self._target = target or CommitTarget(ref=destination_ref)
-        # Prefer the canonical ULID; fall back to slug for legacy callers.
-        self._mission_id = mission_id or mission_slug
+        # WP04/FR-004: mission_id must be a ULID or None (fail-closed). Never
+        # substitute the slug — a slug in a mission_id field is a contract violation.
+        self._mission_id = mission_id
         self._inner = inner
         # FR-001: validate mission_slug before joining into a FS path (traversal guard).
         _safe_slug = assert_safe_path_segment(mission_slug)

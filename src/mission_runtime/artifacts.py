@@ -7,6 +7,7 @@ symbols from the package root.
 from __future__ import annotations
 
 import enum
+import re
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Literal
@@ -156,6 +157,17 @@ _SELF_BOOKKEEPING_SUFFIXES: tuple[str, ...] = (
     ".kittify/encoding-provenance/global.jsonl",
 )
 
+# FR-001 (#2251): ``kitty-ops/<ULID>.jsonl`` Op-record orphans are spec-kitty's
+# own invocation audit trail — NOT mission planning artifacts.  A stale record
+# left from a previous ``spec-kitty dispatch`` session must not block dirty-tree
+# gates.  The match is TIGHT: exactly ``kitty-ops/`` segment + 26-char Crockford
+# base32 ULID + ``.jsonl``.  A non-ULID basename (e.g. ``notes.txt``,
+# ``ops-index.jsonl``) is NOT matched — they remain real dirt (G-5 invariant).
+# Crockford base32 alphabet: digits 0–9 plus uppercase A–Z MINUS I, L, O, U.
+_KITTY_OPS_OP_RECORD_RE: re.Pattern[str] = re.compile(
+    r"(?:^|/)kitty-ops/[0-9A-HJKMNP-TV-Z]{26}\.jsonl$"
+)
+
 
 def artifact_home_for(
     kind: MissionArtifactKind,
@@ -294,20 +306,28 @@ def is_self_bookkeeping_path(path: str | Path) -> bool:
     """Return True for spec-kitty's OWN bookkeeping files (FR-003 allowlist).
 
     The self-bookkeeping allowlist authority (#2102 / data-model.md / contract
-    G-5): ``meta.json`` (mission identity metadata) and the encoding-provenance
-    ``.kittify/encoding-provenance/global.jsonl`` are spec-kitty's own bookkeeping,
-    not mission planning artifacts. The record-analysis dirty-tree preflight
-    consults this predicate to drop their churn from the dirty set so it stops
-    falsely blocking — regardless of topology (these are not coord residue).
+    G-5): ``meta.json`` (mission identity metadata), the encoding-provenance
+    ``.kittify/encoding-provenance/global.jsonl``, and ``kitty-ops/<ULID>.jsonl``
+    Op-record orphans (#2251) are spec-kitty's own bookkeeping, not mission
+    planning artifacts. The record-analysis dirty-tree preflight consults this
+    predicate to drop their churn from the dirty set so it stops falsely blocking
+    — regardless of topology (these are not coord residue).
 
     This allowlist is DISJOINT from the coord-residue partition and from the
     planning kinds: a stale primary ``spec.md`` is a PRIMARY-partition planning
     artifact, is NOT a member here, and therefore remains "real dirt" that blocks
     (the G-5 invariant). ``meta.json`` matches by bare filename; ``global.jsonl``
-    matches by full relative-path SUFFIX so an unrelated ``global.jsonl`` elsewhere
-    is not over-allowlisted.
+    matches by full relative-path SUFFIX; ``kitty-ops/<ULID>.jsonl`` matches by
+    the tight ``_KITTY_OPS_OP_RECORD_RE`` pattern (26-char Crockford ULID only —
+    a non-ULID ``kitty-ops/notes.txt`` is NOT matched and therefore still blocks).
+
+    This is the SINGLE authority for all four dirty-tree gates (accept, merge,
+    review, record-analysis).  See #1914 (no-op-stable gates) for the umbrella
+    framing — the full no-op-stable rework is out of scope here.
     """
     normalized = str(path).replace("\\", "/").rstrip("/")
     if PurePosixPath(normalized).name in _SELF_BOOKKEEPING_FILENAMES:
         return True
-    return any(normalized.endswith(suffix) for suffix in _SELF_BOOKKEEPING_SUFFIXES)
+    if any(normalized.endswith(suffix) for suffix in _SELF_BOOKKEEPING_SUFFIXES):
+        return True
+    return bool(_KITTY_OPS_OP_RECORD_RE.search(normalized))

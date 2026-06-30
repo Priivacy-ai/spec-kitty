@@ -124,6 +124,7 @@ from specify_cli.cli.commands.agent.tasks_materialization import (
     _materialize_inline_subtask_status as _materialize_inline_subtask_status,
     _persist_inline_subtask_status,
     _persist_review_artifact_override,
+    _persist_review_artifact_override_in_coord as _persist_review_artifact_override_in_coord,
     _persist_review_feedback as _persist_review_feedback,
     _resolve_checkbox,
     _resolve_pipe_table,
@@ -873,8 +874,60 @@ def _wp_branch_merged_into_target(
     )
 
 
+def _filter_by_planning_tip_content(
+    worktree_path: Path, candidates: list[str], base_branch: str
+) -> list[str]:
+    """Drop candidates byte-identical to the planning-branch tip (FR-007 / #2274).
+
+    Runs ``git diff <planning_tip> HEAD -- <path>`` for each candidate.  An
+    empty diff means the file is byte-identical to the planning tip (e.g. after
+    a planning-branch rebase that brought no content change) and must not be
+    flagged as a lane-hygiene violation.  On any git failure the candidate is
+    kept conservatively so the guard never silently loses signal.
+    """
+    planning_tip_result = subprocess.run(
+        ["git", "rev-parse", base_branch],
+        cwd=worktree_path,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if planning_tip_result.returncode != 0 or not planning_tip_result.stdout.strip():
+        return candidates
+
+    planning_tip = planning_tip_result.stdout.strip()
+    files: list[str] = []
+    for path in candidates:
+        content_diff = subprocess.run(
+            ["git", "diff", planning_tip, "HEAD", "--", path],
+            cwd=worktree_path,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+        # Non-empty diff or git error → genuinely diverges from planning tip; keep.
+        if content_diff.returncode != 0 or content_diff.stdout.strip():
+            files.append(path)
+    return files
+
+
 def _list_wp_branch_mission_specs_changes(worktree_path: Path, base_branch: str) -> list[str]:
-    """Return kitty-specs/ files changed on the lane branch compared to its base."""
+    """Return kitty-specs/ files genuinely diverged from the planning-branch tip.
+
+    Uses a two-pass strategy (FR-007 / #2274):
+
+    1. Merge-base history diff: ``git diff --name-only <merge_base>..HEAD``
+       identifies candidate paths touched on the lane branch.
+    2. Content re-check: ``git diff <planning_tip> HEAD -- <path>`` filters out
+       any candidate whose content is byte-identical to the planning-branch tip.
+
+    This prevents false positives after a planning-branch rebase where the lane
+    branch shares only an ancient merge-base but the file content matches.
+    """
     merge_base_result = subprocess.run(
         ["git", "merge-base", "HEAD", base_branch],
         cwd=worktree_path,
@@ -904,7 +957,7 @@ def _list_wp_branch_mission_specs_changes(worktree_path: Path, base_branch: str)
         return []
 
     seen: set[str] = set()
-    files: list[str] = []
+    candidates: list[str] = []
     for raw in diff_result.stdout.splitlines():
         path = raw.strip()
         if not path or not path.startswith(f"{KITTY_SPECS_DIR}/"):
@@ -912,8 +965,12 @@ def _list_wp_branch_mission_specs_changes(worktree_path: Path, base_branch: str)
         if path in seen:
             continue
         seen.add(path)
-        files.append(path)
-    return files
+        candidates.append(path)
+
+    if not candidates:
+        return []
+
+    return _filter_by_planning_tip_content(worktree_path, candidates, base_branch)
 
 
 globals()["_list_wp_branch_" + KITTY_SPECS_DIR.replace("-", "_") + "_changes"] = (
@@ -1145,6 +1202,18 @@ def move_task(
                 _persist_review_artifact_override(
                     _artifact_path,
                     repo_root=main_repo_root,
+                    wp_id=task_id,
+                    actor=agent or "operator",
+                    reason=override_reason,
+                )
+                # Out-of-map edit (#2275 / WP07): persist the same override in the
+                # coord feature_dir where the merge gate reads artifacts.  Under coord
+                # topology ``_mt_feature_dir`` resolves to the coord worktree's feature
+                # dir; the helper is a no-op when ``_artifact_path`` has no matching
+                # sibling there (primary and coord already share the same root).
+                _persist_review_artifact_override_in_coord(
+                    _artifact_path,
+                    coord_feature_dir=_mt_feature_dir,
                     wp_id=task_id,
                     actor=agent or "operator",
                     reason=override_reason,

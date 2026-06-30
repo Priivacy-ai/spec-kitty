@@ -389,10 +389,21 @@ def _fixed_terminal_width(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_registered_command_names_are_exactly_the_frozen_sixteen() -> None:
     cli = get_command(app)
-    assert isinstance(cli, click.Group)
+    assert hasattr(cli, "commands")
     registered = frozenset(cli.commands.keys())
     assert registered == FROZEN_SUBCOMMANDS
     assert len(registered) == 16
+
+
+def _is_option_param(param: object) -> bool:
+    """Return True for option parameters in both click.Option and typer.core.TyperOption.
+
+    Click 8.4+ with Typer uses TyperOption which does not inherit from click.Option
+    but has the same duck-typed surface (is_flag, multiple, opts).
+    """
+    return isinstance(param, click.Option) or (
+        hasattr(param, "is_flag") and hasattr(param, "opts")
+    )
 
 
 def _option_arity(opt: click.Option) -> str:
@@ -406,16 +417,16 @@ def _option_arity(opt: click.Option) -> str:
 @pytest.mark.parametrize("name", sorted(FROZEN_SUBCOMMANDS))
 def test_subcommand_option_contract(name: str) -> None:
     cli = get_command(app)
-    assert isinstance(cli, click.Group)
+    assert hasattr(cli, "commands")
     command = cli.commands[name]
     actual: dict[str, str] = {}
     for param in command.params:
-        if isinstance(param, click.Option):
+        if _is_option_param(param):
             # The contract pins the long flags only; --help is implicit.
-            for flag in param.opts:
+            for flag in param.opts:  # type: ignore[union-attr]
                 if flag == "--help":
                     continue
-                actual[flag] = _option_arity(param)
+                actual[flag] = _option_arity(param)  # type: ignore[arg-type]
     assert actual == EXPECTED_OPTIONS[name]
 
 
@@ -507,7 +518,7 @@ def test_public_and_load_bearing_symbols_are_importable() -> None:
 
 def _live_doctor_subcommand_names() -> frozenset[str]:
     cli = get_command(app)
-    assert isinstance(cli, click.Group)
+    assert hasattr(cli, "commands")
     return frozenset(cli.commands.keys())
 
 

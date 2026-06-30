@@ -64,6 +64,15 @@ _LANE_DRIFT_CODE = "LANE_SPARSE_CHECKOUT_DRIFT"
 #: recovery surface is ``doctor workspaces --fix``.
 _WORKSPACE_RECOVERY_CMD = "spec-kitty doctor workspaces --fix"
 
+#: Hint for the never-created coordination branch case (FR-003 / #2240).
+#: The coord branch was never created (or was deleted). The correct recovery is
+#: to flatten the mission by removing the `coordination_branch` key from meta.json.
+_COORD_BRANCH_ABSENT_HINT = (
+    "Flatten the mission: remove the `coordination_branch` key from meta.json "
+    "(the coordination topology was never activated). Then run "
+    "`spec-kitty migrate backfill-topology` to re-derive and persist the topology."
+)
+
 
 def _detect_git_version() -> tuple[int, int] | None:
     """Return ``(major, minor)`` of the local git binary, or ``None`` on failure."""
@@ -251,6 +260,56 @@ def _coord_worktree_dirty_finding(worktree: Path) -> DoctorFinding | None:
     )
 
 
+def _coord_worktree_stale_finding(
+    worktree: Path, repo_root: Path, coord_branch: str,
+) -> DoctorFinding | None:
+    """Return a finding if the coord worktree HEAD is behind the coord branch tip.
+
+    Compares the worktree HEAD SHA with the coord branch tip via merge-base
+    --is-ancestor.  Returns None when SHAs match, when the worktree has diverged
+    (not a clean fast-forward candidate), or when git is unreadable.
+    """
+    import subprocess as _subprocess
+
+    try:
+        worktree_head = _subprocess.check_output(
+            ["git", "-C", str(worktree), "rev-parse", "HEAD"],
+            text=True, stderr=_subprocess.DEVNULL,
+        ).strip()
+        branch_tip = _subprocess.check_output(
+            ["git", "-C", str(repo_root), "rev-parse",
+             f"refs/heads/{coord_branch}"],
+            text=True, stderr=_subprocess.DEVNULL,
+        ).strip()
+    except _subprocess.CalledProcessError:
+        return None
+    if not worktree_head or not branch_tip or worktree_head == branch_tip:
+        return None
+    # Only report stale when HEAD is a strict ancestor of tip (fast-forward candidate).
+    try:
+        ancestor = _subprocess.run(
+            ["git", "-C", str(repo_root), "merge-base", "--is-ancestor",
+             worktree_head, branch_tip],
+            capture_output=True,
+        )
+    except OSError:
+        return None
+    if ancestor.returncode != 0:
+        return None  # diverged — not a clean stale case
+    return DoctorFinding(
+        severity="warning",
+        message=(
+            f"Coordination worktree {worktree} is behind the coord branch "
+            f"{coord_branch!r} tip (fast-forward available)."
+        ),
+        next_step=(
+            f"Run `{_WORKSPACE_RECOVERY_CMD}` to refresh it "
+            "(fast-forwards stale coord worktrees)."
+        ),
+        error_code="COORDINATION_WORKTREE_STALE",
+    )
+
+
 def _check_coordination_worktree_health(
     repo_root: Path, mission_meta: dict[str, object],
 ) -> list[DoctorFinding]:
@@ -287,16 +346,44 @@ def _check_coordination_worktree_health(
     worktree = CoordinationWorkspace.worktree_path(repo_root, mission_slug, short)
 
     if not worktree.exists():
+        # Reuse the canonical branch-existence probe (WP02 seam: _coord_branch_exists
+        # in surface_resolver) to distinguish never-created from merely missing.
+        # Function-local import keeps the one-way I-2 discipline intact.
+        from specify_cli.coordination.surface_resolver import _coord_branch_exists
+
+        if not _coord_branch_exists(repo_root, coord_branch):
+            # Branch was never created or has been deleted.  Flatten is the
+            # correct recovery, consistent with WP02 / CoordinationBranchDeleted.
+            return [DoctorFinding(
+                severity="warning",
+                message=(
+                    f"Coordination worktree {worktree} is missing for mission "
+                    f"{mission_slug!r} and the declared coordination branch "
+                    f"{coord_branch!r} does not exist in git "
+                    "(never created or deleted)."
+                ),
+                next_step=_COORD_BRANCH_ABSENT_HINT,
+                error_code="COORDINATION_WORKTREE_NEVER_CREATED",
+            )]
+
+        # Branch exists but the worktree has not been materialised yet.
+        # Provide a real `git worktree add` command — NOT `doctor workspaces --fix`
+        # which only removes husks and cannot CREATE a worktree (#2240).
+        _recovery_args = [
+            "git", "-C", str(repo_root), "worktree", "add",
+            str(worktree), coord_branch,
+        ]
         return [DoctorFinding(
             severity="warning",
             message=(
-                f"Coordination worktree {worktree} is missing for "
-                f"mission {mission_slug!r}."
+                f"Coordination worktree {worktree} is missing for mission "
+                f"{mission_slug!r} (the branch {coord_branch!r} exists)."
             ),
             next_step=(
-                f"Run `{_WORKSPACE_RECOVERY_CMD}` to recreate it."
+                f"Run: `git -C {repo_root} worktree add {worktree} {coord_branch}`"
             ),
             error_code="COORDINATION_WORKTREE_MISSING",
+            extra={"recovery_args": _recovery_args},
         )]
 
     findings: list[DoctorFinding] = []
@@ -306,6 +393,9 @@ def _check_coordination_worktree_health(
     dirty_finding = _coord_worktree_dirty_finding(worktree)
     if dirty_finding is not None:
         findings.append(dirty_finding)
+    stale_finding = _coord_worktree_stale_finding(worktree, repo_root, coord_branch)
+    if stale_finding is not None:
+        findings.append(stale_finding)
 
     if not findings:
         findings.append(DoctorFinding(

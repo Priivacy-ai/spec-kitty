@@ -98,6 +98,41 @@ class TestSelfBookkeepingPredicate:
         # elsewhere must NOT be over-allowlisted.
         assert not is_self_bookkeeping_path("some/other/dir/global.jsonl")
 
+    # ------------------------------------------------------------------
+    # FR-001 / #2251 — kitty-ops Op-record arm
+    # ------------------------------------------------------------------
+
+    def test_kitty_ops_ulid_jsonl_is_self_bookkeeping(self) -> None:
+        """A ``kitty-ops/<26-char-ULID>.jsonl`` Op-record is bookkeeping (#2251)."""
+        # Production-shaped: 26-char Crockford base32 ULID, no I/L/O/U.
+        assert is_self_bookkeeping_path("kitty-ops/01KWD0V5ABCDEFGHJKMNPQRSTV.jsonl")
+
+    def test_kitty_ops_ulid_jsonl_with_leading_prefix_is_self_bookkeeping(
+        self,
+    ) -> None:
+        """Repo-relative prefix before ``kitty-ops/`` is handled (path component)."""
+        assert is_self_bookkeeping_path(
+            "some/prefix/kitty-ops/01KWD0V5ABCDEFGHJKMNPQRSTV.jsonl"
+        )
+
+    def test_kitty_ops_non_ulid_basename_is_not_self_bookkeeping(self) -> None:
+        """G-5: ``kitty-ops/notes.txt`` (non-ULID) is NOT self-bookkeeping."""
+        assert not is_self_bookkeeping_path("kitty-ops/notes.txt")
+
+    def test_kitty_ops_ops_index_is_not_self_bookkeeping(self) -> None:
+        """G-5: ``kitty-ops/ops-index.jsonl`` is NOT a ULID Op-record — must block."""
+        assert not is_self_bookkeeping_path("kitty-ops/ops-index.jsonl")
+
+    def test_kitty_ops_short_ulid_is_not_self_bookkeeping(self) -> None:
+        """G-5: a filename shorter than 26 chars + .jsonl is NOT matched."""
+        # 8-char mid8 only — too short.
+        assert not is_self_bookkeeping_path("kitty-ops/01KWD0V5.jsonl")
+
+    def test_kitty_ops_long_ulid_is_not_self_bookkeeping(self) -> None:
+        """G-5: a filename longer than 26 chars + .jsonl is NOT matched."""
+        # 27 chars.
+        assert not is_self_bookkeeping_path("kitty-ops/01KWD0V5ABCDEFGHJKMNPQRSTVX.jsonl")
+
 
 # ---------------------------------------------------------------------------
 # The real dirty-tree preflight — FR-003 false-block fix + G-5 invariant.

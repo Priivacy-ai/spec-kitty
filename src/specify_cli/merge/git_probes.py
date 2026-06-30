@@ -142,9 +142,17 @@ def _classify_porcelain_lines(
     (:func:`mission_runtime.is_coordination_artifact_residue_path`) — no second
     residue literal is carried here.
 
+    Lines whose path is recognized by :func:`mission_runtime.is_self_bookkeeping_path`
+    are also dropped: these are spec-kitty's own bookkeeping files (``meta.json``,
+    encoding-provenance JSONL, ``kitty-ops/<ULID>.jsonl`` Op-record orphans) that
+    must not block dirty-tree gates (#2251 / FR-001 / G-5 invariant).  The
+    delegation mirrors the ``residue_predicate`` pattern — no second literal here.
+
     Lines that do not match porcelain v1 shape (two status chars + space + path)
     are silently ignored to avoid false positives from mocked test output.
     """
+    from mission_runtime import is_self_bookkeeping_path
+
     offending: list[str] = []
     skipped_untracked = 0
     for line in lines:
@@ -161,6 +169,8 @@ def _classify_porcelain_lines(
         if path_part in expected_paths:
             continue
         if residue_predicate is not None and residue_predicate(path_part):
+            continue
+        if is_self_bookkeeping_path(path_part):
             continue
         offending.append(line)
     return offending, skipped_untracked

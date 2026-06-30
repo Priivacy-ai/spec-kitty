@@ -116,12 +116,15 @@ _GLOBAL_MERGE_LOCK_ID = "__global_merge__"
 def _emit_merge_diff_summary(
     *,
     repo_root: Path,
-    mission_id: str,
+    mission_id: str | None,  # WP04/FR-004: ULID or None; legacy missions skip diff emit
     base_ref: str,
     head_ref: str = "HEAD",
     phase_name: str = "accept",
 ) -> None:
     """Emit one mission-level diff summary for the merged mission."""
+    if mission_id is None:
+        # Legacy mission without canonical ULID: skip diff summary emission.
+        return
     ret, output, _ = run_command(
         ["git", "diff", "--numstat", f"{base_ref}..{head_ref}"],
         capture=True,
@@ -171,7 +174,8 @@ class _MergeRunState:
     # Inputs / identity
     main_repo: Path
     mission_slug: str
-    canonical_id: str
+    canonical_id: str  # for path-based workspace management; slug for legacy missions
+    canonical_mission_id: str | None  # WP04/FR-004: ULID or None; for mission_id event fields only
     feature_dir: Path
     target_feature_dir: Path
     lanes_manifest: LanesManifest
@@ -830,16 +834,18 @@ def _phase_finalize_and_summary(run: _MergeRunState) -> None:
     cleanup_merge_workspace(run.canonical_id, run.main_repo)
     clear_state(run.main_repo, run.canonical_id)
 
+    # WP04/FR-004: use canonical_mission_id (ULID or None) for mission_id event
+    # fields — never canonical_id which may be the slug for legacy missions.
     _emit_merge_diff_summary(
         repo_root=run.main_repo,
-        mission_id=run.canonical_id,
+        mission_id=run.canonical_mission_id,
         base_ref=run.target_baseline_sha,
     )
 
     emit_mission_closed(
         mission_slug=run.mission_slug,
         total_wps=len(run.all_wp_ids),
-        mission_id=run.canonical_id,
+        mission_id=run.canonical_mission_id,
     )
 
     _render_stale_findings(run.stale_report)
@@ -878,6 +884,7 @@ def _run_lane_based_merge_locked(
     main_repo: Path,
     mission_slug: str,
     canonical_id: str,
+    canonical_mission_id: str | None,
     feature_dir: Path,
     lanes_manifest: LanesManifest,
     *,
@@ -926,6 +933,7 @@ def _run_lane_based_merge_locked(
         main_repo=main_repo,
         mission_slug=mission_slug,
         canonical_id=canonical_id,
+        canonical_mission_id=canonical_mission_id,
         feature_dir=feature_dir,
         target_feature_dir=target_feature_dir,
         lanes_manifest=lanes_manifest,
@@ -1017,7 +1025,7 @@ def _run_lane_based_merge(
         override_flag=allow_sparse_checkout,
         actor=_resolve_merge_actor(main_repo),
         mission_slug=mission_slug,
-        mission_id=_preflight_mission_id or mission_slug,
+        mission_id=_preflight_mission_id,  # WP04: str | None; slug fallback removed
     )
 
     from specify_cli.lanes.compute import is_planning_artifact_only
@@ -1027,9 +1035,13 @@ def _run_lane_based_merge(
         lanes_manifest.target_branch = target_override
     planning_artifact_only = is_planning_artifact_only(lanes_manifest)
 
-    # -- Resolve canonical mission_id from meta.json (use ULID, not slug) --
+    # -- Resolve canonical mission_id from meta.json (WP04/FR-004) --
     identity = resolve_mission_identity(primary_meta_dir)
-    canonical_id = identity.mission_id or mission_slug  # fallback for legacy missions without ULID
+    # canonical_mission_id: ULID or None (for mission_id event fields; slug never written here).
+    # canonical_id: for path-based workspace management — explicit slug fallback for
+    # legacy missions without a backfilled ULID (NOT a mission_id field value).
+    canonical_mission_id = identity.mission_id
+    canonical_id = identity.mission_id if identity.mission_id is not None else mission_slug
 
     effective_push = _effective_push_requested(main_repo, canonical_id, push)
     if effective_push:
@@ -1074,6 +1086,7 @@ def _run_lane_based_merge(
             main_repo=main_repo,
             mission_slug=mission_slug,
             canonical_id=canonical_id,
+            canonical_mission_id=canonical_mission_id,
             feature_dir=feature_dir,
             lanes_manifest=lanes_manifest,
             push=effective_push,

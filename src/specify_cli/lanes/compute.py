@@ -310,7 +310,7 @@ def compute_lanes(
     Returns:
         A LanesManifest ready for persistence.
     """
-    resolved_mission_id = mission_id or mission_slug
+    resolved_mission_id = mission_id  # WP04/FR-004: None for legacy; never substitute slug
 
     # Collect all WP IDs from the graph.
     all_wp_ids = sorted(dependency_graph.keys())
@@ -662,20 +662,18 @@ def _compute_lane_depths(
 def _empty_manifest(
     mission_slug: str,
     target_branch: str,
-    mission_id: str,
+    mission_id: str | None,
     planning_artifact_wps: list[str] | None = None,
 ) -> LanesManifest:
     """Return an empty LanesManifest (no code WPs to lane)."""
-    # ``mission_id`` is the resolved value (real ULID for modern missions, or the
-    # slug itself for legacy missions whose caller had no id). Thread ``None`` in
-    # the latter case so the branch composer applies the legacy naming form
-    # rather than treating the slug as a ULID.
-    branch_mission_id = mission_id if mission_id != mission_slug else None
+    # WP04/FR-004: mission_id is now str | None from the caller. When it is None
+    # (legacy mission without a backfilled ULID) the branch composer uses the
+    # legacy naming form (no mid8 suffix). The slug-as-sentinel idiom is removed.
     return LanesManifest(
         version=1,
         mission_slug=mission_slug,
         mission_id=mission_id,
-        mission_branch=mission_branch_name(mission_slug, mission_id=branch_mission_id),
+        mission_branch=mission_branch_name(mission_slug, mission_id=mission_id),
         target_branch=target_branch,
         lanes=[],
         computed_at=datetime.now(UTC).isoformat(),

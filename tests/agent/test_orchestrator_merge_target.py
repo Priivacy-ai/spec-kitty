@@ -6,6 +6,10 @@ dir) has no meta.json, so the old resolver fell back to the repo default (main)
 and merged into the wrong branch. The resolver must read the primary meta and
 honor ``target_branch`` (and ``merge_target_branch`` if present).
 
+Also covers the fail-closed contract (FR-005 / #2139): a corrupt meta.json
+must surface a MissionMetaReadError rather than silently falling back to the
+repo default.
+
 Uses git (a real coordination worktree is needed to reproduce the bug).
 """
 
@@ -18,6 +22,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.coordination.workspace import CoordinationWorkspace
+from specify_cli.core.paths import MissionMetaReadError
 from specify_cli.orchestrator_api.commands import _resolve_merge_target_branch
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -101,3 +106,18 @@ def test_merge_target_prefers_merge_target_branch_when_set(coord_repo: Path) -> 
 
     resolved = _resolve_merge_target_branch(coord_repo, MISSION_DIRNAME, None)
     assert resolved == "feat/explicit-merge-target"
+
+
+def test_merge_target_corrupt_meta_raises_structured_error(coord_repo: Path) -> None:
+    """Corrupt primary meta.json raises MissionMetaReadError (fail-closed, FR-005 / #2139).
+
+    Pre-fix the corrupt meta silently fell back to the repo default; post-fix
+    the structured error surfaces so the operator knows there is a corrupt file.
+    """
+    primary_meta = coord_repo / "kitty-specs" / MISSION_DIRNAME / "meta.json"
+    primary_meta.write_text("{not valid json at all", encoding="utf-8")
+
+    with pytest.raises(MissionMetaReadError) as exc_info:
+        _resolve_merge_target_branch(coord_repo, MISSION_DIRNAME, None)
+
+    assert "meta.json" in str(exc_info.value)

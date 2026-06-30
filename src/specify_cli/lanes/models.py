@@ -117,8 +117,9 @@ class LanesManifest:
     Attributes:
         version: Schema version (currently 1).
         mission_slug: Human-readable slug used in branch names.
-        mission_id: Immutable ULID from meta.json. Used for merge locks and
-            runtime identity. May equal mission_slug if backfill hasn't run.
+        mission_id: Canonical ULID from meta.json. Used for merge locks and
+            runtime identity. None for legacy missions whose backfill hasn't run
+            (WP04/FR-004: never the mission_slug).
         mission_branch: Integration branch name (kitty/mission-{mission_slug}).
         target_branch: Branch the mission merges into (e.g. "main").
         lanes: Ordered list of execution lanes.
@@ -134,7 +135,7 @@ class LanesManifest:
 
     version: int
     mission_slug: str
-    mission_id: str
+    mission_id: str | None  # WP04/FR-004: ULID or None; never a slug
     mission_branch: str
     target_branch: str
     lanes: list[ExecutionLane]
@@ -194,7 +195,7 @@ class LanesManifest:
         return cls(
             version=data["version"],
             mission_slug=mission_slug,
-            mission_id=data.get("mission_id", mission_slug),
+            mission_id=data.get("mission_id"),  # WP04: None when absent (no slug fallback)
             mission_branch=data["mission_branch"],
             target_branch=data["target_branch"],
             lanes=[ExecutionLane.from_dict(lane) for lane in data["lanes"]],
