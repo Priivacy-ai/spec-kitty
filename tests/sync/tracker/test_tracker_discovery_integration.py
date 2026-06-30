@@ -303,10 +303,14 @@ def test_scenario_5_select_n_one_picks_first_ranked_candidate(
     assert load_tracker_config(repo_root).binding_ref == "bind-candidate-first"
 
 
-def test_scenario_6_legacy_project_slug_status_opportunistically_upgrades_binding_ref(
+def test_scenario_6_legacy_project_slug_status_reports_binding_upgrade_without_persisting(
     repo_root: Path,
     mock_client: MagicMock,
 ) -> None:
+    """A legacy-slug status read reports the server binding_ref as pending but
+    must not persist it (report-only contract, WP03 tracker-binding-report
+    C-TB-1..3). Reads no longer opportunistically write config.yaml.
+    """
     save_tracker_config(
         repo_root,
         TrackerProjectConfig(provider="linear", project_slug="legacy-proj"),
@@ -323,14 +327,16 @@ def test_scenario_6_legacy_project_slug_status_opportunistically_upgrades_bindin
     with patch("specify_cli.tracker.saas_service.SaaSTrackerClient", return_value=mock_client):
         result = TrackerService(repo_root).status()
 
-    assert result["binding_ref"] == "bind-upgraded"
+    # The read reports the upgrade as pending; it does not write it.
+    assert result["pending_binding_upgrade"] == "bind-upgraded"
     mock_client.status.assert_called_once_with("linear", project_slug="legacy-proj")
 
+    # Config on disk is unchanged: the legacy slug stays, no binding is persisted.
     config = load_tracker_config(repo_root)
     assert config.project_slug == "legacy-proj"
-    assert config.binding_ref == "bind-upgraded"
-    assert config.display_label == "Legacy Project"
-    assert config.provider_context == {"team_name": "Engineering"}
+    assert config.binding_ref is None
+    assert config.display_label is None
+    assert config.provider_context is None
 
 
 def test_scenario_7a_legacy_project_slug_status_without_upgrade_metadata_leaves_config_unchanged(
@@ -672,6 +678,31 @@ def test_cli_status_json_returns_valid_json(
     data = json.loads(result.output)
     assert data["provider"] == "linear"
     assert data["binding_ref"] == "bind-eng"
+
+
+def test_cli_map_list_json_surfaces_pending_binding_upgrade(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """CLI ``tracker map list --json`` reports pending binding upgrades."""
+    from specify_cli.tracker.saas_service import TrackerMappingList
+
+    app = _make_tracker_app(monkeypatch)
+    mock_svc = MagicMock()
+    mock_svc.map_list.return_value = TrackerMappingList(
+        [{"wp_id": "WP01", "system": "linear", "external_key": "LIN-1"}],
+        pending_binding_upgrade="bind-upgraded",
+    )
+
+    with (
+        patch("specify_cli.cli.commands.tracker._check_binding_readiness"),
+        patch("specify_cli.cli.commands.tracker._service", return_value=mock_svc),
+    ):
+        result = cli_runner.invoke(app, ["map", "list", "--json"])
+
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["mappings"][0]["wp_id"] == "WP01"
+    assert data["pending_binding_upgrade"] == "bind-upgraded"
 
 
 def test_cli_bind_saas_with_project_slug_persists_and_renders(

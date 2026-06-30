@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "3ffd8392a1963504e7e1ac6a2d59647586107ac5",
+  "coordination_branch": "kitty/mission-sync-worktree-clean-invariant-01KWC9Y0",
+  "created_at": "2026-06-30T13:01:42.227508+00:00",
+  "flattened": false,
+  "friendly_name": "Worktree-Clean Sync Invariant",
+  "mission_id": "01KWC9Y0YJN6PZE7D4X8VN9PDS",
+  "mission_number": 154,
+  "mission_slug": "sync-worktree-clean-invariant-01KWC9Y0",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "When SaaS sync is enabled, background and read-like commands write .kittify/config.yaml as a side effect (identity completion and tracker binding-ref upgrades), leaving the working tree dirty. Clean-tree-gated commands like record-analysis then refuse to run, blocking legitimate mission work. This mission makes those read paths side-effect-free and enforces a worktree-clean invariant so operators can trust that reading sync state never mutates their repo.",
+  "purpose_tldr": "Stop read-only sync, tracker, and status commands from silently dirtying the worktree and blocking mission commands.",
+  "slug": "sync-worktree-clean-invariant-01KWC9Y0",
+  "source_description": "GitHub issue #2263 — read/sync/status paths must not dirty .kittify/config.yaml (worktree-clean invariant). Split from #2262; verified by adversarial-squad code-trace at HEAD 4f457d6.",
+  "target_branch": "fix/sync-worktree-clean-invariant",
+  "topology": "coord",
+  "vcs": "git"
+}

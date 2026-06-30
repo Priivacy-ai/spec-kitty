@@ -672,7 +672,11 @@ def _bind_saas(
             if confirm.strip().lower() != "y":
                 return True
 
-    # Derive project identity
+    # Derive project identity.
+    # WRITE-AUTHORIZED BOUNDARY (#2263, FR-003 / AS-5): `tracker bind` is an explicit,
+    # user-initiated bind command, so persisting a completed identity to
+    # .kittify/config.yaml here is allowed. Do NOT swap to resolve_identity — that
+    # would silently turn an intentional persist into a no-op.
     identity = ensure_identity(repo_root)
     project_identity = {
         "uuid": str(identity.project_uuid),
@@ -962,19 +966,36 @@ def map_list_command(
         _check_readiness(require_mission_binding=False, probe_reachability=False)
 
     def _run() -> None:
-        mappings = _service(allow_unbound=provider is not None).map_list(provider=provider)
+        mappings_result = _service(allow_unbound=provider is not None).map_list(provider=provider)
+        pending_binding_upgrade = getattr(mappings_result, "pending_binding_upgrade", None)
+        mappings = list(mappings_result)
         if as_json:
-            _print_json({"mappings": mappings})
+            _print_json(
+                {
+                    "mappings": mappings,
+                    "pending_binding_upgrade": pending_binding_upgrade,
+                }
+            )
             return
 
         if not mappings:
             typer.echo("No mappings found")
+            if pending_binding_upgrade:
+                typer.echo(
+                    "Tracker binding upgrade available: "
+                    f"{pending_binding_upgrade}. Run `spec-kitty tracker bind` to apply."
+                )
             return
 
         typer.echo("Mappings")
         for row in mappings:
             key = row.get("external_key") or row.get("external_id")
             typer.echo(f"- {row.get('wp_id')}: {row.get('system')}:{key}")
+        if pending_binding_upgrade:
+            typer.echo(
+                "Tracker binding upgrade available: "
+                f"{pending_binding_upgrade}. Run `spec-kitty tracker bind` to apply."
+            )
 
     _run_or_exit(_run)
 

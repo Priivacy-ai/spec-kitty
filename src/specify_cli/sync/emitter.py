@@ -88,7 +88,8 @@ def _get_project_identity() -> ProjectIdentity:
     Uses lazy import to prevent circular dependency issues.
     Returns empty ProjectIdentity in non-project contexts.
     """
-    from .project_identity import ensure_identity, ProjectIdentity
+    from .project_identity import ProjectIdentity
+    from specify_cli.identity.project import resolve_identity
     from specify_cli.task_utils import find_repo_root, TaskCliError
 
     try:
@@ -97,13 +98,14 @@ def _get_project_identity() -> ProjectIdentity:
         # Non-project context; return empty identity to trigger queue-only
         return ProjectIdentity()
 
-    return ensure_identity(repo_root)
+    # Read/emit path: resolve identity WITHOUT persisting (#2263, FR-002/FR-003).
+    return resolve_identity(repo_root)
 
 
 def _create_git_resolver() -> GitMetadataResolver:
     """Lazily create GitMetadataResolver with repo root and config override."""
     from .git_metadata import GitMetadataResolver
-    from .project_identity import ensure_identity
+    from specify_cli.identity.project import resolve_identity
     from specify_cli.task_utils import find_repo_root, TaskCliError
 
     try:
@@ -112,7 +114,8 @@ def _create_git_resolver() -> GitMetadataResolver:
         # Non-project context; return resolver that will produce None values
         return GitMetadataResolver(repo_root=Path.cwd())
 
-    identity = ensure_identity(repo_root)
+    # Read/emit path: resolve identity WITHOUT persisting (#2263, FR-002/FR-003).
+    identity = resolve_identity(repo_root)
     return GitMetadataResolver(
         repo_root=repo_root,
         repo_slug_override=identity.repo_slug,

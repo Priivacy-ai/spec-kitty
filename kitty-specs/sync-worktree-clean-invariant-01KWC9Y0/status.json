@@ -1,0 +1,49 @@
+{
+  "event_count": 33,
+  "last_event_id": "01KWCP9NZ1XEXXHF9JPAQE9DGR",
+  "materialized_at": "2026-06-30T16:37:47.105520+00:00",
+  "mission_number": "154",
+  "mission_slug": "sync-worktree-clean-invariant-01KWC9Y0",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KWCP9GEAW94MY7VAPSC90E9W",
+      "last_transition_at": "2026-06-30T16:37:41.450812+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KWCP9M7439M7GSB9AGB4ZGPW",
+      "last_transition_at": "2026-06-30T16:37:45.316283+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KWCP9JFNES67DB6B1CVTZ5P3",
+      "last_transition_at": "2026-06-30T16:37:43.541949+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KWCP9NZ1XEXXHF9JPAQE9DGR",
+      "last_transition_at": "2026-06-30T16:37:47.105520+00:00"
+    }
+  }
+}

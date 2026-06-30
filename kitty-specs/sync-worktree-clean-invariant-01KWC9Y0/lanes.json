@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "mission_slug": "sync-worktree-clean-invariant-01KWC9Y0",
+  "mission_id": "01KWC9Y0YJN6PZE7D4X8VN9PDS",
+  "mission_branch": "kitty/mission-sync-worktree-clean-invariant-01KWC9Y0",
+  "target_branch": "fix/sync-worktree-clean-invariant",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/identity/project.py",
+        "tests/specify_cli/identity/test_identity_build_id_determinism.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/tracker/config.py",
+        "src/specify_cli/tracker/saas_service.py",
+        "tests/specify_cli/tracker/test_binding_report_only.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/tracker.py",
+        "src/specify_cli/sync/__init__.py",
+        "src/specify_cli/sync/dossier_pipeline.py",
+        "src/specify_cli/sync/emitter.py",
+        "src/specify_cli/sync/events.py",
+        "src/specify_cli/sync/routing.py",
+        "src/specify_cli/tracker/origin.py",
+        "tests/specify_cli/sync/test_emit_readonly_identity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/specify_cli/sync/test_worktree_clean_invariant.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-06-30T14:13:59.202234+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

@@ -96,6 +96,8 @@ def _emit_project_init_event(project_path: Path) -> None:
     try:
         from specify_cli.identity.project import ensure_identity
 
+        # WRITE-AUTHORIZED BOUNDARY (#2263, FR-003): project init may persist identity
+        # to .kittify/config.yaml. Do NOT swap to resolve_identity (read-path only).
         ensure_identity(project_path)
     except Exception as exc:
         _logger.debug("Could not ensure project identity for init event: %s", exc)
@@ -860,6 +862,8 @@ def init(  # noqa: C901
                 from specify_cli.status import emit_project_initialized
                 from specify_cli import __version__ as _sk_runtime_version
 
+                # WRITE-AUTHORIZED BOUNDARY (#2263, FR-003): project init may persist
+                # identity to .kittify/config.yaml. Do NOT swap to resolve_identity.
                 _identity = ensure_identity(project_path)
                 if _identity.project_uuid is not None:
                     emit_project_initialized(

@@ -25,12 +25,19 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import NAMESPACE_URL, UUID, uuid4, uuid5
 
 from rich.console import Console
 from ruamel.yaml import YAML
 
 logger = logging.getLogger(__name__)
+
+# Fixed namespace for deterministic build_id derivation (Decision C, FR-002).
+# Derived once from NAMESPACE_URL so a *minted* build_id is stable across
+# repeated read-only resolutions of the same (project_uuid, node_id) pair.
+_BUILD_ID_NAMESPACE = uuid5(NAMESPACE_URL, "spec-kitty:identity:build_id")
+# Separator between the two derivation inputs in the uuid5 name string.
+_BUILD_ID_INPUT_SEPARATOR = ":"
 
 
 @dataclass
@@ -70,12 +77,16 @@ class ProjectIdentity:
         Returns:
             New ProjectIdentity with all fields populated
         """
+        # Resolve the identity inputs first so a *missing* build_id is derived from
+        # their final values, not the possibly-None originals (Decision C / FR-002).
+        resolved_project_uuid = self.project_uuid or generate_project_uuid()
+        resolved_node_id = self.node_id or generate_node_id()
         return ProjectIdentity(
-            project_uuid=self.project_uuid or generate_project_uuid(),
+            project_uuid=resolved_project_uuid,
             project_slug=self.project_slug or derive_project_slug(repo_root),
-            node_id=self.node_id or generate_node_id(),
+            node_id=resolved_node_id,
             repo_slug=self.repo_slug,
-            build_id=self.build_id or generate_build_id(),
+            build_id=self.build_id or derive_build_id(resolved_project_uuid, resolved_node_id),
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -131,6 +142,26 @@ def generate_build_id() -> str:
         UUID4 string for use as build_id in upstream contracts
     """
     return str(uuid4())
+
+
+def derive_build_id(project_uuid: UUID, node_id: str) -> str:
+    """Derive a deterministic build_id from project_uuid + node_id (Decision C, FR-002).
+
+    Pure function: same ``(project_uuid, node_id)`` inputs always produce the same
+    output, with no randomness or I/O. This lets the read-only resolver
+    (:func:`resolve_identity`) mint a *stable* build_id for an incomplete-identity
+    checkout without persisting it — the value no longer drifts between calls the way
+    :func:`generate_build_id` (random uuid4) would.
+
+    Args:
+        project_uuid: Resolved project UUID (the stable per-project identifier)
+        node_id: Resolved stable machine identifier
+
+    Returns:
+        Deterministic UUID5 string derived from the two inputs.
+    """
+    name = f"{project_uuid}{_BUILD_ID_INPUT_SEPARATOR}{node_id}"
+    return str(uuid5(_BUILD_ID_NAMESPACE, name))
 
 
 def derive_project_slug(repo_root: Path) -> str:
@@ -337,12 +368,21 @@ def resolve_identity(repo_root: Path) -> ProjectIdentity:
     """Resolve a complete project identity WITHOUT persisting it (#1916).
 
     Read-only counterpart of :func:`ensure_identity`. Loads the on-disk identity and
-    fills any missing fields with generated values *in memory only* — it never writes
+    fills deterministic missing fields *in memory only* — it never writes
     ``.kittify/config.yaml``. Use this on side-effect-free paths (e.g. accept
     readiness / the sync emitter init) where identity must be *available* but the
-    minting must not dirty the working tree. Persisting the minted identity is the
+    minting must not dirty the working tree. Persisting a new project UUID is the
     job of :func:`ensure_identity` at a write-authorized boundary (``init``,
     commit-authorized accept).
+
+    Determinism note (C-IR-4): the realistic stable case is a *legacy* checkout that
+    already persisted ``project_uuid``/``project_slug``/``node_id`` but is missing
+    ``build_id``. Because :func:`ProjectIdentity.with_defaults` now derives a missing
+    ``build_id`` deterministically from the resolved ``project_uuid``/``node_id``
+    (see :func:`derive_build_id`), repeated calls return an identical identity with no
+    drift and no write. The truly-uninitialized case (no ``project_uuid`` on disk)
+    returns a side-effect-free not-initialized identity; callers that require a
+    project UUID must no-op or tell the operator to run ``init``.
 
     Args:
         repo_root: Path to repository root
@@ -355,6 +395,15 @@ def resolve_identity(repo_root: Path) -> ProjectIdentity:
     identity = load_identity(config_path)
     if identity.is_complete:
         return identity
+
+    if identity.project_uuid is None:
+        return ProjectIdentity(
+            project_uuid=None,
+            project_slug=identity.project_slug or derive_project_slug(repo_root),
+            node_id=identity.node_id or generate_node_id(),
+            repo_slug=identity.repo_slug,
+            build_id=identity.build_id,
+        )
 
     return identity.with_defaults(repo_root)
 

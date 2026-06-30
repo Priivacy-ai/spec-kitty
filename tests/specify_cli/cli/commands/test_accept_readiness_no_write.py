@@ -137,11 +137,19 @@ def test_get_emitter_read_only_identity_does_not_persist_identity(
     assert not on_disk.is_complete, "readiness must not complete identity on disk"
 
 
-def test_get_emitter_default_persists_identity_for_sync_provenance(
+def test_get_emitter_default_is_side_effect_free_with_stable_identity(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Default sync emitter init persists identity so event provenance is stable."""
+    """Default sync emitter init is side-effect-free yet carries a complete identity.
+
+    Updated for #2263 (worktree-clean sync invariant): status-event emission is a
+    read/emit path, so even the DEFAULT ``get_emitter()`` (no ``read_only_identity``
+    arg, env unset) must NOT persist identity to ``.kittify/config.yaml`` (FR-001 /
+    FR-003 / AS-2). It must still resolve a *complete, stable* in-memory identity so
+    event provenance (project_uuid / build_id) stays usable and drift-free. WP01's
+    deterministic ``build_id`` derivation guarantees stability across calls.
+    """
     repo_root = (tmp_path / "repo").resolve()
     repo_root.mkdir()
     _git(repo_root, "init")
@@ -150,14 +158,25 @@ def test_get_emitter_default_persists_identity_for_sync_provenance(
     monkeypatch.delenv("SPEC_KITTY_SYNC_READONLY_IDENTITY", raising=False)
     monkeypatch.chdir(repo_root)
 
+    bytes_before = config_path.read_bytes()
+
     reset_emitter()
     with patch("specify_cli.sync.runtime.get_runtime", return_value=MagicMock()):
         emitter = get_emitter()
 
-    persisted = load_identity(config_path)
-    assert persisted.is_complete, "normal sync emitter init must persist identity"
-    assert emitter._get_identity().project_uuid == persisted.project_uuid
-    assert emitter._get_identity().build_id == persisted.build_id
+    # No write: config.yaml is byte-identical and on-disk identity stays incomplete.
+    assert config_path.read_bytes() == bytes_before, (
+        "default get_emitter() mutated .kittify/config.yaml — emit path must not "
+        "persist identity (#2263, FR-001/FR-003)"
+    )
+    on_disk = load_identity(config_path)
+    assert not on_disk.is_complete, "default emit path must not complete identity on disk"
+
+    # Identity is still complete *in memory* so emitted events carry full provenance.
+    in_memory = emitter._get_identity()
+    assert in_memory.is_complete, "emitter must carry a complete in-memory identity"
+    assert in_memory.project_uuid is not None
+    assert in_memory.build_id is not None
 
 
 def test_write_authorized_ensure_identity_still_persists(tmp_path: Path) -> None:

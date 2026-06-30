@@ -448,6 +448,20 @@ class TestProviderScopedReads:
         mock_map_list.assert_called_once_with(provider="linear")
         assert result == [{"wp_id": "WP01"}]
 
+    def test_map_list_preserves_pending_binding_upgrade(self, tmp_path: Path) -> None:
+        from specify_cli.tracker.saas_service import SaaSTrackerService, TrackerMappingList
+
+        service = TrackerService(tmp_path)
+        mappings = TrackerMappingList(
+            [{"wp_id": "WP01"}],
+            pending_binding_upgrade="bind-upgraded",
+        )
+        with patch.object(SaaSTrackerService, "map_list", return_value=mappings):
+            result = service.map_list(provider="linear")
+
+        assert result == [{"wp_id": "WP01"}]
+        assert result.pending_binding_upgrade == "bind-upgraded"
+
     def test_issue_search_with_provider_uses_saas_backend(self, tmp_path: Path) -> None:
         from specify_cli.tracker.saas_service import SaaSTrackerService
 

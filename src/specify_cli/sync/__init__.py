@@ -209,7 +209,7 @@ def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
     from spec_kitty_events import Event as EventModel
 
     from specify_cli.core.contract_gate import validate_outbound_payload
-    from specify_cli.identity.project import ensure_identity
+    from specify_cli.identity.project import resolve_identity
     from specify_cli.status import (
         build_saas_lifecycle_queue_event,
         repo_root_for_lifecycle_log,
@@ -250,7 +250,9 @@ def _lifecycle_saas_fanout_handler(**kwargs):  # type: ignore[no-untyped-def]
     if repo_root is None:
         return
 
-    identity = ensure_identity(repo_root)
+    # Background SaaS fan-out: resolve identity WITHOUT persisting (#2263,
+    # FR-001/FR-003) so the lifecycle handler never dirties .kittify/config.yaml.
+    identity = resolve_identity(repo_root)
     if not identity.project_uuid or not identity.build_id:
         return
 

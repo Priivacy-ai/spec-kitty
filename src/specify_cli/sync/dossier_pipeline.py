@@ -226,11 +226,12 @@ def trigger_feature_dossier_sync_if_enabled(
         from specify_cli.core.paths import get_feature_target_branch
         from specify_cli.mission import get_mission_type
         from specify_cli.sync.namespace import NamespaceRef, resolve_manifest_version
-        from specify_cli.identity.project import ensure_identity
+        from specify_cli.identity.project import resolve_identity
         from specify_cli.sync.body_queue import OfflineBodyUploadQueue
 
-        # Resolve namespace components
-        identity = ensure_identity(repo_root)
+        # Background dossier sync: resolve identity WITHOUT persisting (#2263,
+        # FR-001/FR-003) — a fire-and-forget read path must not dirty config.yaml.
+        identity = resolve_identity(repo_root)
         if identity.project_uuid is None:
             logger.warning("No project UUID; skipping dossier sync")
             return None

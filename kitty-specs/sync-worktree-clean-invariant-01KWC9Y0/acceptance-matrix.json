@@ -1,0 +1,89 @@
+{
+  "mission_slug": "sync-worktree-clean-invariant-01KWC9Y0",
+  "mission_number": "154",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Read/background commands (emit, sync status/pull/push/run, tracker status/map list, daemon tick) leave git status --porcelain + config.yaml byte-identical",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/sync/test_worktree_clean_invariant.py::test_covered_command_leaves_worktree_clean \u2014 19 passed (parallel + -n0 serial); independent reviewer sabotage proved non-fakeable",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata:reviewer",
+      "verified_at": "2026-06-30T16:27:57.075861+00:00",
+      "notes": "Verified by approved WP tests (mypy --strict + ruff clean; reviewer-renata independent re-run)."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Identity resolved on read/emit paths without persisting; stable across invocations",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/identity/test_identity_build_id_determinism.py (11 passed) + tests/specify_cli/sync/test_emit_readonly_identity.py (4 passed)",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata:reviewer",
+      "verified_at": "2026-06-30T16:27:57.075861+00:00",
+      "notes": "Verified by approved WP tests (mypy --strict + ruff clean; reviewer-renata independent re-run)."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Identity/binding persistence only at write-authorized boundaries (init, tracker bind)",
+      "proof_type": "automated_test",
+      "evidence": "grep ensure_identity \u2192 only init.py + cli/commands/tracker.py:680 bind; test_accept_readiness_no_write.py::test_write_authorized_ensure_identity_still_persists",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata:reviewer",
+      "verified_at": "2026-06-30T16:27:57.075861+00:00",
+      "notes": "Verified by approved WP tests (mypy --strict + ruff clean; reviewer-renata independent re-run)."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Tracker binding_ref report-only on read paths; persists only on explicit bind/apply",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/tracker/test_binding_report_only.py (12 passed) + retargeted test_tracker_discovery_integration; pytest -k tracker 609 passed/0 failed",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata:reviewer",
+      "verified_at": "2026-06-30T16:27:57.075861+00:00",
+      "notes": "Verified by approved WP tests (mypy --strict + ruff clean; reviewer-renata independent re-run)."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Automated regression test enforces INV-1 across the covered surface",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/sync/test_worktree_clean_invariant.py (WP04)",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata:reviewer",
+      "verified_at": "2026-06-30T16:27:57.075861+00:00",
+      "notes": "Verified by approved WP tests (mypy --strict + ruff clean; reviewer-renata independent re-run)."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Test parametrized over the surface; new covered command must satisfy INV-1 or fail",
+      "proof_type": "automated_test",
+      "evidence": "test_worktree_clean_invariant.py::test_covered_surface_matches_spec_exactly",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata:reviewer",
+      "verified_at": "2026-06-30T16:27:57.075861+00:00",
+      "notes": "Verified by approved WP tests (mypy --strict + ruff clean; reviewer-renata independent re-run)."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "record-analysis still refuses genuine uncommitted changes (DIRTY_WORKTREE)",
+      "proof_type": "automated_test",
+      "evidence": "test_worktree_clean_invariant.py::test_record_analysis_still_blocks_on_genuine_dirt",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata:reviewer",
+      "verified_at": "2026-06-30T16:27:57.075861+00:00",
+      "notes": "Verified by approved WP tests (mypy --strict + ruff clean; reviewer-renata independent re-run)."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Read/background commands side-effect-free when SaaS sync disabled/unauthenticated",
+      "proof_type": "automated_test",
+      "evidence": "test_worktree_clean_invariant.py disabled/unauth variant + test_emit_readonly_identity.py",
+      "pass_fail": "pass",
+      "verified_by": "claude:reviewer-renata:reviewer",
+      "verified_at": "2026-06-30T16:27:57.075861+00:00",
+      "notes": "Verified by approved WP tests (mypy --strict + ruff clean; reviewer-renata independent re-run)."
+    }
+  ],
+  "negative_invariants": []
+}

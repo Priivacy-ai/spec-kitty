@@ -446,10 +446,26 @@ def _resolve_repo_root(feature_dir: Path) -> Path:
 
 
 def _project_identity_payload(repo_root: Path) -> dict[str, Any]:
-    """Build the SaaS project-identity payload for bind resolution calls."""
-    from specify_cli.identity.project import ensure_identity
+    """Build the SaaS project-identity payload for bind resolution calls.
 
-    identity = ensure_identity(repo_root)
+    Resolves identity WITHOUT persisting (#2263, FR-002/FR-003): this payload is sent
+    to the SaaS bind-resolve/bind-validate endpoint to *look up* hosted routing, not to
+    locally persist identity. Origin binding persists its result to ``meta.json``
+    (``set_origin_ticket``), never to ``.kittify/config.yaml`` via this call, so the
+    identity read here must not dirty the working tree.
+    """
+    from specify_cli.identity.project import resolve_identity
+
+    identity = resolve_identity(repo_root)
+    if (
+        identity.project_uuid is None
+        or not identity.project_slug
+        or not identity.node_id
+        or not identity.build_id
+    ):
+        raise OriginBindingError(
+            "Current checkout has no complete project identity. Run `spec-kitty init` first."
+        )
     return {
         "uuid": str(identity.project_uuid),
         "slug": identity.project_slug,
