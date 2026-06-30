@@ -34,14 +34,18 @@ location it heals the target deterministically:
 **Scope discipline.**  Only *bare-relative* body link **targets** are touched —
 never frontmatter (WP12's ``related:``), never prose, never anchored refs
 (WP08).  External ``http(s)``/``mailto``/anchor-only/absolute links are skipped.
-Two content-invariant records are excluded entirely: the ``docs/adr/`` decision
-bodies (C-002 byte-for-byte content-invariance, enforced by
-``test_adr_content_invariance``) and the ``docs/changelog/`` historical mirror
-of the root ``CHANGELOG.md`` (whose entries reference repo-root doc paths, not
-``../``-relative links).  The archived ``docs/archive/`` ``1x``/``2x`` tracks are
-**in scope**: their bodies are re-authored at the new depth (so the spine
-resolves them as unmoved) and ``test_versioned_docs_integrity`` actively guards
-their link integrity.
+Reference-style links (``[text][ref]``) and raw-HTML ``<a href="…">`` links are
+**intentionally out of scope** — the spec constrains this tool to inline
+``](…)`` markdown body links only.  All ``docs/**/*.md`` files are in scope;
+:data:`EXCLUDE_PREFIXES` is empty (WP02/T026 gate-flip, FR-002/C-007).
+Intentional cross-tree references (``docs/`` → ``src/``, ``tests/``,
+``kitty-specs/``, etc.) that resolve on disk and stay within the repository root
+are **not** flagged by the D-1 escape guard — only genuine repo-root escapes
+(normalised path starts with ``..``) and non-resolving targets are dead.  This
+restores the F5 invariant of the retired ``test_architecture_relative_links_resolve``
+checker (``destination.relative_to(REPO_ROOT)`` raising ``ValueError``).  The
+archived ``docs/archive/`` ``1x``/``2x`` tracks are fully in scope: their bodies
+are re-authored at the new depth (so the spine resolves them as unmoved).
 
 ``occurrence_map.yaml`` is **read-only** here (the orchestrator owns it).  The
 ``--check`` mode is the report-only body-link-resolution gate WP14 can flip
@@ -85,23 +89,23 @@ from scripts.docs.bulk_ref_rewrite import (  # noqa: E402  (sys.path bootstrap a
 
 DOCS_ROOT = "docs"
 
-#: Content-invariant doc subtrees — never rewritten and excluded from the gate.
-#: ADR bodies are byte-identical to their pre-move originals (C-002, enforced by
-#: ``test_adr_content_invariance``); the changelog mirror replays the historical
-#: root ``CHANGELOG.md`` whose entries cite repo-root doc paths, not ``../``
-#: links.  The ``docs/archive/`` tracks are *not* here — their links are live.
-EXCLUDE_PREFIXES: tuple[str, ...] = (
-    "docs/adr/",
-    "docs/changelog/",
-)
+#: Subtrees excluded from rewriting and the gate.  Empty after the WP02/T026
+#: gate-flip (FR-002/C-007): all ``docs/**/*.md`` files are in scope.
+#: Cross-tree references (``docs/`` → ``src/``, ``tests/``, ``kitty-specs/``,
+#: etc.) that resolve on disk and stay within the repository root are accepted
+#: by the D-1 escape guard — only genuine repo-root escapes (normalised path
+#: starting with ``..``) and non-resolving targets are reported as dead.
+EXCLUDE_PREFIXES: tuple[str, ...] = ()
 
 #: Era tokens (``1.x``/``2.x``/``3.x``) used to disambiguate which era-specific
 #: source directory a per-era landing (``README-2.x.md``) came from.
 _ERA = re.compile(r"(?<![\w.])([123]\.x)(?![\w])")
 
 #: A markdown inline link's ``](target)`` payload — the parenthesised content
-#: between the ``](`` and the closing ``)``.  Reference-style and HTML ``href``
-#: links are intentionally out of scope (the spec says *body markdown links*).
+#: between the ``](`` and the closing ``)``.  Reference-style links
+#: (``[text][ref]``) and raw-HTML ``<a href="…">`` attributes are **intentionally
+#: out of scope** (the spec constrains coverage to inline ``](…)`` body links
+#: only; C-006 narrowness is pinned by ``TestLinkShapeCoverage``).
 _LINK = re.compile(r"\]\(([^)]*)\)")
 
 
@@ -159,6 +163,8 @@ def is_bare_relative(path: str) -> bool:
 
     Skips external (``http(s)``/``mailto``), anchor-only (``#…``), and
     root-absolute (``/…``) targets — none are bare-relative intra-doc links.
+    Reference-style links and raw-HTML ``href`` attributes are never passed to
+    this function because :data:`_LINK` does not match those shapes (C-006).
     """
 
     if not path:
@@ -339,17 +345,48 @@ class LinkRewrite:
 class Unresolvable:
     file: str
     link: str
+    #: Absolute editor line number (1-based, accounting for frontmatter).
+    #: Sentinel ``0`` is used by :func:`rewrite_body` (the fix path, not the
+    #: gate path) where frontmatter offset is unavailable in the sub-callback.
+    line: int
 
 
-def iter_doc_files(repo_root: Path) -> Iterator[Path]:
-    """Yield rewritable ``docs/**/*.md`` files (immutable subtrees excluded)."""
+def _escapes_repo_root(normalized_target: str) -> bool:
+    """True when *normalized_target* escapes the repository root.
 
+    D-1 escape guard: a POSIX-normalised path that starts with ``..`` has
+    traversed above the repository root.  This preserves the F5 invariant of
+    the retired ``test_architecture_relative_links_resolve`` checker, which
+    detected escapes via ``destination.relative_to(REPO_ROOT)`` raising
+    ``ValueError``.
+
+    In-repo cross-tree references (``docs/`` → ``src/``, ``tests/``,
+    ``kitty-specs/``, etc.) that stay within the repository root and resolve
+    on disk are **not** considered escapes — only genuine repo-root escapes
+    and non-resolving targets are dead.
+    """
+
+    return normalized_target.startswith("..")
+
+
+def iter_doc_files(
+    repo_root: Path,
+    exclude_prefixes: tuple[str, ...] | None = None,
+) -> Iterator[Path]:
+    """Yield rewritable ``docs/**/*.md`` files (immutable subtrees excluded).
+
+    *exclude_prefixes* overrides :data:`EXCLUDE_PREFIXES` for this call.
+    Pass ``()`` to iterate the full ``docs/`` tree without any exclusions
+    (used by ``--no-exclude`` for the C-007 gate-unmask dry-run, D-3).
+    """
+
+    effective = EXCLUDE_PREFIXES if exclude_prefixes is None else exclude_prefixes
     docs = repo_root / DOCS_ROOT
     if not docs.is_dir():
         return
     for path in sorted(docs.rglob("*.md")):
         rel = path.relative_to(repo_root).as_posix()
-        if not rel.startswith(EXCLUDE_PREFIXES):
+        if not rel.startswith(effective):
             yield path
 
 
@@ -360,6 +397,12 @@ def rewrite_body(
 
     Already-resolving links are left untouched (idempotency); unresolvable ones
     are recorded, never rewritten.
+
+    Note: :class:`Unresolvable` records emitted here carry ``line=0`` as a
+    sentinel — this is the *fix path*, not the *gate path*.  The rewrite
+    sub-callback operates on an already-stripped body, and the frontmatter line
+    offset is not threaded into the closure.  Use :func:`check_dead_body_links`
+    (the gate path) to obtain absolute line numbers.
     """
 
     rewrites: list[LinkRewrite] = []
@@ -375,7 +418,8 @@ def rewrite_body(
             return match.group(0)
         new_link, tier = resolver.resolve(rel_path, parsed.path)
         if new_link is None:
-            unresolved.append(Unresolvable(file=rel_path, link=parsed.path))
+            # line=0 sentinel: fix path, frontmatter offset unavailable here.
+            unresolved.append(Unresolvable(file=rel_path, link=parsed.path, line=0))
             return match.group(0)
         rewrites.append(
             LinkRewrite(
@@ -420,7 +464,13 @@ def run(
     return report
 
 
-def check_dead_body_links(repo_root: Path) -> list[Unresolvable]:
+def check_dead_body_links(
+    repo_root: Path,
+    *,
+    exclude_prefixes: tuple[str, ...] | None = None,
+    min_files: int = 1,
+    min_links: int = 1,
+) -> list[Unresolvable]:
     """Report every bare-relative body link in ``docs/`` that fails to resolve.
 
     The body-link-resolution gate (T101): report-only here, WP14 flips it
@@ -428,21 +478,65 @@ def check_dead_body_links(repo_root: Path) -> list[Unresolvable]:
     by covering the bare-relative link class.  Pure on-disk resolution — it asks
     only "does this link resolve from where it now lives", independent of how the
     fixer healed it.
+
+    *exclude_prefixes* overrides :data:`EXCLUDE_PREFIXES` for the scope of this
+    call.  Pass ``()`` to examine the full ``docs/`` tree without any exclusions
+    (C-007 gate-unmask dry-run, D-3).  ``None`` (the default) uses
+    :data:`EXCLUDE_PREFIXES`.
+
+    *min_files* and *min_links* are non-vacuity floor thresholds (FR-004):
+    the gate raises :exc:`RuntimeError` if fewer files or fewer bare-relative
+    inline links than the respective minimum were examined.  A scope-narrowing
+    regression — broken :func:`iter_doc_files`, over-broad *exclude_prefixes*, or
+    a regex change that stops matching links — goes **red** immediately rather
+    than passing vacuously with an empty dead list.
+
+    Line numbers in returned :class:`Unresolvable` records are **file-absolute**
+    (1-based), accounting for the frontmatter offset so the number matches what
+    an editor displays.
+
+    Output is sorted by ``(file, line, link)`` for deterministic reporting
+    (NFR-002).
     """
 
     dead: list[Unresolvable] = []
-    for path in iter_doc_files(repo_root):
+    files_visited = 0
+    links_examined = 0
+    for path in iter_doc_files(repo_root, exclude_prefixes):
+        files_visited += 1
         rel = path.relative_to(repo_root).as_posix()
-        _, body = split_frontmatter(path.read_text(encoding="utf-8"))
+        frontmatter, body = split_frontmatter(path.read_text(encoding="utf-8"))
+        # Frontmatter line offset: number of newlines in the frontmatter block
+        # (including its closing ``---`` delimiter) so that line_num below is
+        # the absolute editor line (1-based from the top of the file).
+        fm_lines = frontmatter.count("\n")
         file_dir = posixpath.dirname(rel)
         for match in _LINK.finditer(body):
             parsed = parse_link_payload(match.group(1))
             if parsed is None or not is_bare_relative(parsed.path):
                 continue
+            links_examined += 1
+            line_num = fm_lines + body.count("\n", 0, match.start()) + 1
             current = posixpath.normpath(posixpath.join(file_dir, parsed.path))
-            if not (repo_root / current).exists():
-                dead.append(Unresolvable(file=rel, link=parsed.path))
-    return dead
+            # D-1: report links that escape the repo root (normalised path
+            # starts with "..") OR do not resolve on disk.  In-repo cross-tree
+            # refs (docs/ → src/, tests/, kitty-specs/, etc.) that stay within
+            # the repo root and resolve on disk are intentional and accepted.
+            if _escapes_repo_root(current) or not (repo_root / current).exists():
+                dead.append(Unresolvable(file=rel, link=parsed.path, line=line_num))
+    if files_visited < min_files:
+        raise RuntimeError(
+            f"check_dead_body_links: only {files_visited} doc file(s) found under"
+            f" {DOCS_ROOT}/ — expected at least {min_files}"
+            " (FR-004 non-vacuity guard)"
+        )
+    if links_examined < min_links:
+        raise RuntimeError(
+            f"check_dead_body_links: only {links_examined} bare-relative inline"
+            f" link(s) examined — expected at least {min_links}"
+            " (FR-004 non-vacuity guard, possible misconfiguration)"
+        )
+    return sorted(dead, key=lambda u: (u.file, u.line, u.link))
 
 
 # --------------------------------------------------------------------------- #
@@ -462,6 +556,14 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         action="store_true",
         help="Body-link-resolution gate: report dead bare-relative links (report-only).",
     )
+    parser.add_argument(
+        "--no-exclude",
+        action="store_true",
+        help=(
+            "Run with EXCLUDE_PREFIXES=() — covers the full docs/ tree. "
+            "Use for the C-007 gate-unmask dry-run (D-3)."
+        ),
+    )
     return parser.parse_args(argv)
 
 
@@ -474,7 +576,7 @@ def _print_report(report: FixReport, mode: str) -> None:
         print(f"[relative_link_fixer] UNRESOLVABLE ({len(report.unresolvable)}) "
               "— reported, never guessed:")
         for un in report.unresolvable:
-            print(f"  {un.file}: {un.link}")
+            print(f"  {un.file}:{un.line} -> {un.link}")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -483,10 +585,11 @@ def main(argv: list[str] | None = None) -> int:
     occ = args.occurrence_map or (repo_root / DEFAULT_OCCURRENCE_MAP)
 
     if args.check:
-        dead = check_dead_body_links(repo_root)
+        exclude = () if args.no_exclude else None
+        dead = check_dead_body_links(repo_root, exclude_prefixes=exclude)
         print(f"[relative_link_fixer] CHECK: {len(dead)} dead bare-relative body links")
         for un in dead:
-            print(f"  {un.file}: {un.link}")
+            print(f"  {un.file}:{un.line} -> {un.link}")
         # Mission B / WP14 flips this body-link-resolution gate to blocking: any
         # dead bare-relative body link reds CI (was report-only in WP18).
         return 1 if dead else 0
