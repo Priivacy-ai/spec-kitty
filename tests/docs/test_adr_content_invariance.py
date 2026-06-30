@@ -1,12 +1,12 @@
-"""Post-move census gate for the 117 unique ADRs (WP06).
+"""Post-move census gate for the 118 unique ADRs (WP06).
 
 WP06 ran WP05's extended converter over the live tree, moving the **117
 realpath-unique** ADRs to ``docs/adr/<era>/`` with bare-``status`` frontmatter and
 dropping the 71 back-compat symlinks. This module is the surviving **merge-blocker**
 CI gate for that move (C-002 / NFR-001):
 
-* :class:`TestCensus` — exactly **117** ADR files live under ``docs/adr/<era>/``
-  (a count ``< 117`` is a *lost* ADR; ``> 117`` is a leaked duplicate or an
+* :class:`TestCensus` — exactly **118** ADR files live under ``docs/adr/<era>/``
+  (a count ``< 118`` is a *lost* ADR; ``> 118`` is a leaked duplicate or an
   undropped mirror), no dangling back-compat symlink survives, and every ADR
   carries bare-``status`` MADR frontmatter. These are permanent on-disk
   invariants — they read only the assembled tree.
@@ -54,7 +54,7 @@ pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 _DOCS_ADR: Final[Path] = _REPO_ROOT / "docs" / "adr"
 _ERAS: Final[tuple[str, ...]] = ("1.x", "2.x", "3.x")
 _DATE_PREFIX: Final[re.Pattern[str]] = re.compile(r"^\d{4}-\d{2}-\d{2}-")
-_EXPECTED_CENSUS: Final[int] = 117
+_EXPECTED_CENSUS: Final[int] = 118
 
 
 def _adr_files_on_disk() -> list[Path]:
@@ -71,7 +71,7 @@ def _adr_files_on_disk() -> list[Path]:
 
 
 class TestCensus:
-    def test_exactly_117_unique_adrs(self) -> None:
+    def test_exactly_118_unique_adrs(self) -> None:
         files = _adr_files_on_disk()
         realpaths = {os.path.realpath(p) for p in files}
         assert len(files) == _EXPECTED_CENSUS, (
@@ -79,7 +79,7 @@ class TestCensus:
             f"found {len(files)}"
         )
         assert len(realpaths) == _EXPECTED_CENSUS, (
-            "realpath-unique ADR count drifted from 117 — a duplicate leaked"
+            "realpath-unique ADR count drifted from 118 — a duplicate leaked"
         )
 
     def test_no_dangling_back_compat_symlinks(self) -> None:

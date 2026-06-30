@@ -19,6 +19,7 @@ before clearing the state file (see ``_kill_and_cleanup``).
 from __future__ import annotations
 
 import errno
+import importlib
 import json
 import logging
 import os
@@ -661,9 +662,8 @@ def _decide_self_retire(server: HTTPServer, my_port: int) -> None:
     # hot path; failure to probe is safe (treated as "not running").
     sync_is_running = False
     try:
-        from specify_cli.sync import runtime as _rt_mod
-
-        _rt = getattr(_rt_mod, "_runtime", None)
+        runtime_module = importlib.import_module("specify_cli.sync.runtime")
+        _rt = getattr(runtime_module, "_runtime", None)
         if _rt is not None and _rt.background_service is not None:
             sync_is_running = bool(_rt.background_service.is_running)
     except Exception:
