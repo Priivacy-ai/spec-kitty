@@ -67,6 +67,7 @@ persist only on an explicit `tracker bind`/apply.
   - `_maybe_upgrade_binding_ref` (≈:141) calls `save_tracker_config(...)` (≈:174); it early-returns when the response has no `binding_ref` or it already matches.
   - Callers: `status` (≈:475), `sync_pull` (≈:484), `sync_push` (≈:498), `sync_run` (≈:507), `map_list` (≈:518).
 - File: `src/specify_cli/tracker/config.py` — `save_tracker_config` (≈:155) writes **`.kittify/config.yaml`** ("Persist tracker config into .kittify/config.yaml, preserving other sections").
+- **LEAVE these — write-authorized `bind`/rebind boundaries that MUST keep persisting** (do NOT make them report-only): `saas_service.py:224` (`bind`), `saas_service.py:272` (rebind/connect), `tracker/local_service.py:63` (local `bind`). The **only** read-path writer to convert is `_maybe_upgrade_binding_ref` (`:174`). `local_service.py` is intentionally not in this WP's `owned_files` because it has no read-path writer.
 - **Constraints**: FR-004; C-003 (config.yaml stays canonical store — we only move *when* it's written); do not break an intentional `tracker bind`; no lint/type suppressions.
 - Contract reference: `contracts/tracker-binding-report.md` (C-TB-1..3).
 - **Do not touch** identity call sites (WP02) — `tracker/origin.py` and `cli/commands/tracker.py` belong to WP02.

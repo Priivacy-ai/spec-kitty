@@ -18,7 +18,7 @@ Read-like and background commands (status-event emission; `sync status/pull/push
 **Testing**: pytest with a parametrized no-dirty-tree contract test; `mypy --strict`; `ruff`; ≥90% coverage on new/changed lines; daemon/real-port variants run serially (`-n0`) per the repo parallel-test rules
 **Target Platform**: cross-platform CLI (Linux, macOS, Windows)
 **Project Type**: single (CLI library — `src/specify_cli/`)
-**Performance Goals**: ≤ 50 ms added wall-clock per read command (NFR-002; expected ≤ 0 since a write is removed)
+**Performance Goals**: ≤ 50 ms added wall-clock per read command (NFR-002; expected ≤ 0 since a write is removed). **Verified by construction**, not by a wall-clock test: WP04's "no added write" assertion is the NFR-002 proxy (removing the write is the only latency change; a timing test would be flaky and violate NFR-004).
 **Constraints**: do NOT allowlist `config.yaml`/`kitty-specs/**` (C-001); no auto `doctor --fix` (C-002); `config.yaml` stays the canonical store, only the persistence *boundary* moves (C-003); no on-the-wire/server changes (C-004); backward-compatible for complete-identity checkouts (C-005)
 **Scale/Scope**: ~8 read-path call-site swaps + a deterministic `build_id` helper + tracker report-only change + 1 parametrized contract test; ≈ 6–10 files touched
 

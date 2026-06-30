@@ -133,4 +133,4 @@ WP01 + WP02 deliver the core dirty-tree fix for the identity path (the most comm
 
 ## Requirement coverage
 
-FR-001 → WP02, WP03 · FR-002 → WP01, WP02 · FR-003 → WP02 · FR-004 → WP03 · FR-005 → WP04 · FR-006 → WP04 · FR-007 → WP04 · FR-008 → WP02. (NFR-001 → WP01; NFR-002/003/004 → cross-cutting.)
+FR-001 → WP02, WP03 · FR-002 → WP01, WP02 · FR-003 → WP02 · FR-004 → WP03 · FR-005 → WP04 · FR-006 → WP04 · FR-007 → WP04 · FR-008 → WP02, WP04. (NFR-001 → WP01; NFR-002 verified by construction via WP04's no-write proxy; NFR-003/004 → cross-cutting.)

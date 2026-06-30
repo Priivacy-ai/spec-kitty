@@ -9,6 +9,7 @@ requirement_refs:
 - FR-005
 - FR-006
 - FR-007
+- FR-008
 tracker_refs: []
 planning_base_branch: fix/sync-worktree-clean-invariant
 merge_target_branch: fix/sync-worktree-clean-invariant
@@ -106,6 +107,8 @@ covered command — now or in future — dirties a clean checkout.
 
 **Validation**: passes against the WP01–WP03 implementation; fails if any command writes.
 
+> **NFR-002 (latency) coverage**: this no-write assertion **is** the NFR-002 verification. Removing the side-effect write is the only latency change, so "≤50 ms added latency" is satisfied by construction. Do **not** add a wall-clock timing assertion — it would be flaky and violate NFR-004. Asserting "no added write" is the stable proxy for "no added latency".
+
 ### T017 — Disabled / unauthenticated variant
 
 **Steps**:
@@ -119,8 +122,9 @@ covered command — now or in future — dirties a clean checkout.
 **Steps**:
 1. Make a genuine uncommitted source edit; run `record-analysis`; assert it still exits non-zero with `DIRTY_WORKTREE` (FR-007, AS-4).
 2. Assert the guard's allowlist does **not** include `.kittify/config.yaml` (introspect the allowlist constant in `mission_runtime/artifacts.py`) — proving C-001 was honored (the fix removed the write, did not allowlist it).
+3. **C-002 negative assertion**: assert that running a read/sync command (e.g. `sync status --check`) does **not** invoke `doctor mission-state --fix` or any auto-repair/normalization as a side effect (patch/spy the doctor entry point and assert it is never called). This locks the "no auto-fix on sync" constraint.
 
-**Validation**: real dirt is still caught; allowlist unchanged.
+**Validation**: real dirt is still caught; allowlist unchanged; no auto `doctor --fix` is triggered by a read/sync command.
 
 ### T019 — Extensibility guard + serial handling + flake check
 
