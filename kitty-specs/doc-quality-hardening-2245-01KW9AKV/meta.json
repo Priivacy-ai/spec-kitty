@@ -1,0 +1,33 @@
+{
+  "accept_commit": "4986668c72b8134a1fc81c9e9891292759e9afb1",
+  "acceptance_history": [
+    {
+      "accept_commit": "4986668c72b8134a1fc81c9e9891292759e9afb1",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-06-30T19:03:28.096016+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "43a923fbea7dce92fbeaaf26b0338e51b1da449e"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-06-30T19:03:28.096016+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "43a923fbea7dce92fbeaaf26b0338e51b1da449e",
+  "baseline_merge_commit": "936c12826619297d2d343a64b67ce77e5822efc7",
+  "coordination_branch": "kitty/mission-doc-quality-hardening-2245-01KW9AKV",
+  "created_at": "2026-06-29T09:15:53.780306+00:00",
+  "flattened": false,
+  "friendly_name": "Documentation Quality Hardening Gate",
+  "mission_id": "01KW9AKV1KNKYVHSHVP30K6TQW",
+  "mission_number": 154,
+  "mission_slug": "doc-quality-hardening-2245-01KW9AKV",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The Common Docs restructure (#2165) relocated hundreds of files; today nothing stops a contributor from shipping a doc whose inline links silently dangle, and several such breakages already slipped through. This mission installs a standing CI gate that fails on any broken in-doc link, repairs the residual broken links left by the move (including inside immutable decision records, under a sanctioned waiver), automates the changelog synchronization that is currently hand-maintained, and corrects stale post-move prose — so the documentation stays trustworthy and navigable for both humans and AI agents without manual vigilance.",
+  "purpose_tldr": "Make broken documentation links and post-move doc drift fail CI instead of shipping silently.",
+  "slug": "doc-quality-hardening-2245-01KW9AKV",
+  "target_branch": "design/doc-quality-hardening-2245",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-30T17:39:38.386147+00:00"
+}

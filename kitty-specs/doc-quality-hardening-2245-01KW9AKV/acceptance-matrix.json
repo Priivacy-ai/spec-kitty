@@ -1,0 +1,139 @@
+{
+  "mission_slug": "doc-quality-hardening-2245-01KW9AKV",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 approved: check_dead_body_links is the sole authoritative gate, wired blocking at docs-freshness.yml:37 + TestLiveTreeGate.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-30T19:02:27Z",
+      "notes": "Verified via per-WP opus review approval + gate evidence."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved: EXCLUDE_PREFIXES=(); plain `--check` exits 0 over full docs/ (incl. adr/ + changelog/).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-30T19:02:27Z",
+      "notes": "Verified via per-WP opus review approval + gate evidence."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 approved: link-shape coverage + C-006 narrowness test (reference-style/raw-HTML pinned).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-30T19:02:27Z",
+      "notes": "Verified via per-WP opus review approval + gate evidence."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 approved: non-vacuity guard raises on zero files/links; live-tree floor (>=1000 links) asserted.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-30T19:02:27Z",
+      "notes": "Verified via per-WP opus review approval + gate evidence."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved: 3 hidden hand-rolled resolvers retired (6 non-link tests preserved, machine-asserted); SC-005 sentinel; escape-guard re-scoped to repo-root+on-disk; _KNOWN_GAPS empty.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-30T19:02:27Z",
+      "notes": "Verified via per-WP opus review approval + gate evidence."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved: 5 broken canonical-CHANGELOG body links repaired to ../-relative, all resolve.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-30T19:02:27Z",
+      "notes": "Verified via per-WP opus review approval + gate evidence."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP04 approved: sync_changelog.py canonical->root (utf-8-sig) + red-first divergence test + CI --check step; extract_changelog smoke OK.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-30T19:02:27Z",
+      "notes": "Verified via per-WP opus review approval + gate evidence."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP05 approved: 27 ADR body links repaired/delinked; full docs/adr scan = 0 dead links across 123 files/151 links.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-30T19:02:27Z",
+      "notes": "Verified via per-WP opus review approval + gate evidence."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "WITHDRAWN as moot \u2014 byte-invariance gate retired upstream (ccd278061, 3.2.4 cycle); no comparator/waiver applies. See spec.md Scope Change.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-30T19:02:27Z",
+      "notes": "Verified via per-WP opus review approval + gate evidence."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "WITHDRAWN as moot \u2014 same as FR-009; comparator transform retired. See spec.md Scope Change.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-30T19:02:27Z",
+      "notes": "Verified via per-WP opus review approval + gate evidence."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP06 approved: ADR census widened to 119 (2 non-dated promoted ADRs admitted, no README leak); TestCensus green.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-30T19:02:27Z",
+      "notes": "Verified via per-WP opus review approval + gate evidence."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "WP07 approved: stale post-move symlink/architecture prose corrected in 3 ADR READMEs; regression test pins absence; disposition table recorded.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-30T19:02:27Z",
+      "notes": "Verified via per-WP opus review approval + gate evidence."
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "Verify FR-013 is satisfied",
+      "proof_type": "manual_review",
+      "evidence": "WP08 approved: terminology-exemption policy documented (docs/development/terminology-exemptions.md) + linked from guard test; fast verification test.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata (per-WP review) + orchestrator acceptance",
+      "verified_at": "2026-06-30T19:02:27Z",
+      "notes": "Verified via per-WP opus review approval + gate evidence."
+    }
+  ],
+  "negative_invariants": []
+}
