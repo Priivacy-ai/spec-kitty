@@ -171,3 +171,4 @@ grep -rn "ensure_identity(" src/specify_cli/ | grep -v "init.py"   # expect: emp
 
 - 2026-06-30 — Prompt generated via /spec-kitty.tasks.
 - 2026-06-30T15:01:52Z – claude:opus:python-pedro:implementer – shell_pid=6034 – Assigned agent via action command
+- 2026-06-30T15:31:13Z – claude:opus:python-pedro:implementer – shell_pid=6034 – 8 read-path sites -> resolve_identity; init+tracker-bind write boundaries kept (AS-5); grep shows only init.py + tracker.py bind; mypy --strict (1 pre-existing origin.py:441 error)+ruff+tests green

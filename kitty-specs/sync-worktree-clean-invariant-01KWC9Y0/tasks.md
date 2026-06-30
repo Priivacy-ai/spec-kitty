@@ -63,11 +63,11 @@ Add a pure helper deriving `build_id = uuid5(NAMESPACE, f"{project_uuid}:{node_i
 - **Estimated prompt size**: ~360 lines.
 
 ### Included subtasks
-- [ ] T006 Swap emitter.py:100,115 ensure_identity → resolve_identity (WP02)
-- [ ] T007 Swap sync routing/events/__init__/dossier_pipeline call sites (WP02)
-- [ ] T008 Swap tracker/origin.py:452, cli/commands/tracker.py:676 (read-context only) (WP02)
-- [ ] T009 Confirm init.py:99,863 stay on ensure_identity (write boundary) (WP02)
-- [ ] T010 Integration test: emit on incomplete-identity checkout — no write + stable identity (WP02)
+- [x] T006 Swap emitter.py:100,115 ensure_identity → resolve_identity (WP02)
+- [x] T007 Swap sync routing/events/__init__/dossier_pipeline call sites (WP02)
+- [x] T008 Swap tracker/origin.py:452, cli/commands/tracker.py:676 (read-context only) (WP02)
+- [x] T009 Confirm init.py:99,863 stay on ensure_identity (write boundary) (WP02)
+- [x] T010 Integration test: emit on incomplete-identity checkout — no write + stable identity (WP02)
 
 ### Implementation sketch
 Mechanical swaps with per-site read-context verification; explicitly leave `init` untouched; one integration test proving the emit path is side-effect-free and stable.
