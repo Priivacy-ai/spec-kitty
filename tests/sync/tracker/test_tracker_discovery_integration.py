@@ -680,6 +680,31 @@ def test_cli_status_json_returns_valid_json(
     assert data["binding_ref"] == "bind-eng"
 
 
+def test_cli_map_list_json_surfaces_pending_binding_upgrade(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """CLI ``tracker map list --json`` reports pending binding upgrades."""
+    from specify_cli.tracker.saas_service import TrackerMappingList
+
+    app = _make_tracker_app(monkeypatch)
+    mock_svc = MagicMock()
+    mock_svc.map_list.return_value = TrackerMappingList(
+        [{"wp_id": "WP01", "system": "linear", "external_key": "LIN-1"}],
+        pending_binding_upgrade="bind-upgraded",
+    )
+
+    with (
+        patch("specify_cli.cli.commands.tracker._check_binding_readiness"),
+        patch("specify_cli.cli.commands.tracker._service", return_value=mock_svc),
+    ):
+        result = cli_runner.invoke(app, ["map", "list", "--json"])
+
+    assert result.exit_code == 0, result.output
+    data = json.loads(result.output)
+    assert data["mappings"][0]["wp_id"] == "WP01"
+    assert data["pending_binding_upgrade"] == "bind-upgraded"
+
+
 def test_cli_bind_saas_with_project_slug_persists_and_renders(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

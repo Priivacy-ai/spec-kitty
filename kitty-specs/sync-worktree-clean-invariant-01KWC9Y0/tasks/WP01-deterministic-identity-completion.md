@@ -124,8 +124,8 @@ This implements **Decision C** (see `research.md`). Do **not** change how
 
 **Steps**:
 1. Confirm `resolve_identity` performs **no write** under any input (it must not call `atomic_write_config`). Add a regression test in T004.
-2. Decide the truly-uninitialized case (no `project_uuid` on disk): `with_defaults` will still mint a fresh random `project_uuid` in memory. Per C-IR-4 this is acceptable **only** because such a checkout is expected to pass through `init` (write-authorized) first; `resolve_identity` must still not persist it.
-3. Add a short docstring note on `resolve_identity` clarifying the realistic stable case (legacy missing `build_id`) vs the uninitialized case, referencing C-IR-4.
+2. Decide the truly-uninitialized case (no `project_uuid` on disk): `resolve_identity` returns a not-initialized, side-effect-free identity and does not mint `project_uuid`; commands that require a UUID must no-op or tell the operator to run `init` first.
+3. Add a short docstring note on `resolve_identity` clarifying the stable legacy case (existing `project_uuid`, missing `build_id`) vs the uninitialized case, referencing C-IR-4.
 
 **Validation**: calling `resolve_identity` on an empty config writes nothing (assert file unchanged/absent).
 

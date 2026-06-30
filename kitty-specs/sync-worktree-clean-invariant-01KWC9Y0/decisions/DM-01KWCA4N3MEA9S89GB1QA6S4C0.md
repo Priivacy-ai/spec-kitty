@@ -26,7 +26,11 @@ Comprehensive, test-driven: fix every read/background path that can dirty the wo
 
 ## Rationale
 
-_(none)_
+The bug was not isolated to one writer: identity resolution, tracker binding upgrades,
+and background fan-out all had read-like entrypoints that could mutate
+`.kittify/config.yaml`. A narrow fix would leave adjacent read paths free to reintroduce
+`DIRTY_WORKTREE`, so the mission chose a contract test over the full covered surface and
+kept write authority only at explicit init/bind boundaries.
 
 ## Change log
 

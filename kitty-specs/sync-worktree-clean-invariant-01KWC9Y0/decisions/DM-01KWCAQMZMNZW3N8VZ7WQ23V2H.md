@@ -27,7 +27,12 @@ Option C — Deterministic build_id. Keep project_uuid generation unchanged; whe
 
 ## Rationale
 
-_(none)_
+`project_uuid` is the project identity anchor and must only be minted at a
+write-authorized boundary. Persisting on read would dirty the worktree, while
+deterministically minting `project_uuid` would change clone/project semantics. The
+safe compromise is to require an existing `project_uuid` on read paths, derive only
+the missing `build_id` from stable `(project_uuid, node_id)` inputs, and make
+uninitialized reads no-op or ask the operator to run `init`.
 
 ## Change log
 

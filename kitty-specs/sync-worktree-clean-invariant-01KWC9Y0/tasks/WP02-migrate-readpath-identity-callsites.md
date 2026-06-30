@@ -81,7 +81,7 @@ swaps would introduce identity drift.
     - `sync/__init__.py:253`
     - `sync/dossier_pipeline.py:233`
     - `tracker/origin.py:452`
-    - `cli/commands/tracker.py:676`
+    - `cli/commands/tracker.py:680`
   - **KEEP (write-authorized, do NOT change)**: `cli/commands/init.py:99`, `cli/commands/init.py:863`.
 - **Tracker `saas_service.py` / `config.py` are NOT in this WP** (WP03 owns the binding-ref change).
 - **Constraints**: FR-003 (persistence only at write boundary), C-005 (complete identities unchanged), no lint/type suppressions.
@@ -119,8 +119,8 @@ swaps would introduce identity drift.
 ### T008 — Swap tracker read-context identity call sites
 
 **Steps**:
-1. `tracker/origin.py:452` and `cli/commands/tracker.py:676`: swap to `resolve_identity` **only if** read-context.
-2. `cli/commands/tracker.py:676` — verify whether this is part of an explicit `tracker bind`/connect (a write boundary). If it is genuinely a write-authorized action, **leave `ensure_identity`** and document it. Otherwise swap.
+1. `tracker/origin.py:452` and `cli/commands/tracker.py:680`: swap to `resolve_identity` **only if** read-context.
+2. `cli/commands/tracker.py:680` — verify whether this is part of an explicit `tracker bind`/connect (a write boundary). If it is genuinely a write-authorized action, **leave `ensure_identity`** and document it. Otherwise swap.
 3. Do not touch `tracker/saas_service.py` or `tracker/config.py` (WP03).
 
 **Validation**: any remaining `ensure_identity` in tracker read paths is justified in the Activity Log.
@@ -149,7 +149,7 @@ swaps would introduce identity drift.
 
 ```bash
 PWHEADLESS=1 .venv/bin/pytest tests/specify_cli/sync/test_emit_readonly_identity.py -q
-grep -rn "ensure_identity(" src/specify_cli/ | grep -v "init.py"   # expect: empty
+grep -rn "ensure_identity(" src/specify_cli/ | grep -v -e "init.py" -e "cli/commands/tracker.py"   # expect: empty
 .venv/bin/mypy --strict src/specify_cli/sync/ src/specify_cli/tracker/origin.py src/specify_cli/cli/commands/tracker.py
 .venv/bin/ruff check src/specify_cli/sync/
 ```
@@ -157,12 +157,12 @@ grep -rn "ensure_identity(" src/specify_cli/ | grep -v "init.py"   # expect: emp
 ## Risks & Mitigations
 
 - **Risk**: a "read" call site is actually a write boundary. **Mitigation**: read each enclosing function; when in doubt, leave `ensure_identity` and document — never silently turn a persist into a no-op for an intentional write.
-- **Risk**: `cli/commands/tracker.py:676` is an explicit bind. **Mitigation**: T008 explicitly checks this; coordinate with WP03's explicit-bind path.
+- **Risk**: `cli/commands/tracker.py:680` is an explicit bind. **Mitigation**: T008 explicitly checks this; coordinate with WP03's explicit-bind path.
 - **Risk**: drift if WP01 not merged first. **Mitigation**: hard dependency on WP01.
 
 ## Review Guidance
 
-- `grep ensure_identity(` shows only `init.py`.
+- `grep ensure_identity(` shows only `init.py` and the `tracker bind` write boundary.
 - Emit/sync/tracker-read paths import and use `resolve_identity`.
 - Integration test proves no `config.yaml` write + stable identity.
 - No allowlist changes anywhere.

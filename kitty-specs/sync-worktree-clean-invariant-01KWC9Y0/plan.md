@@ -67,9 +67,9 @@ src/specify_cli/
 ├── tracker/
 │   ├── saas_service.py       # _maybe_upgrade_binding_ref -> report-only pending_binding_upgrade
 │   ├── origin.py             # :452 ensure_identity -> resolve_identity (read context)
-│   ├── tracker.py            # :676 ensure_identity -> resolve_identity (read context)
 │   └── config.py             # save_tracker_config stays; called only on explicit bind/apply
 └── cli/commands/
+    ├── tracker.py            # :680 keep ensure_identity (tracker bind write boundary)
     ├── init.py               # :99,:863 ensure_identity — KEEP (write-authorized boundary)
     └── agent/mission_record_analysis.py  # clean-tree guard — unchanged; regression-tested
 
@@ -77,7 +77,7 @@ tests/specify_cli/sync/
 └── test_worktree_clean_invariant.py   # NEW parametrized no-dirty-tree contract test
 ```
 
-**Structure Decision**: Single-project CLI layout (existing). No new top-level directories. One new test module; all production changes are localized edits inside `identity/`, `sync/`, and `tracker/`.
+**Structure Decision**: Single-project CLI layout (existing). No new top-level directories. One new test module; all production changes are localized edits inside `identity/`, `sync/`, `tracker/`, and `cli/commands/`.
 
 ## Implementation Concern Map
 
@@ -87,7 +87,7 @@ tests/specify_cli/sync/
 
 - **Purpose**: Make read/emit identity resolution non-persisting while keeping identity stable across invocations (the core of the bug + NFR-001).
 - **Relevant requirements**: FR-002, FR-003, NFR-001, NFR-002, C-003, C-005; scenarios AS-1, AS-2, AS-5, AS-6.
-- **Affected surfaces**: `identity/project.py` (deterministic `build_id` derivation when missing; keep `ensure_identity` for write boundaries), `sync/emitter.py:100,115`, `sync/routing.py:47`, `sync/events.py:180`, `sync/__init__.py:253`, `sync/dossier_pipeline.py:233`, `tracker/origin.py:452`, `tracker.py:676`.
+- **Affected surfaces**: `identity/project.py` (deterministic `build_id` derivation when missing; keep `ensure_identity` for write boundaries), `sync/emitter.py:100,115`, `sync/routing.py:47`, `sync/events.py:180`, `sync/__init__.py:253`, `sync/dossier_pipeline.py:233`, `tracker/origin.py:452`, `cli/commands/tracker.py:680`.
 - **Sequencing/depends-on**: none (foundational).
 - **Risks**: must NOT change `project_uuid` generation (Decision C); must keep `ensure_identity` at `init.py:99,863`; verify each migrated call site is genuinely read-context (not a hidden write boundary).
 

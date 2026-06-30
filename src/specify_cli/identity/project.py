@@ -368,10 +368,10 @@ def resolve_identity(repo_root: Path) -> ProjectIdentity:
     """Resolve a complete project identity WITHOUT persisting it (#1916).
 
     Read-only counterpart of :func:`ensure_identity`. Loads the on-disk identity and
-    fills any missing fields with generated values *in memory only* — it never writes
+    fills deterministic missing fields *in memory only* — it never writes
     ``.kittify/config.yaml``. Use this on side-effect-free paths (e.g. accept
     readiness / the sync emitter init) where identity must be *available* but the
-    minting must not dirty the working tree. Persisting the minted identity is the
+    minting must not dirty the working tree. Persisting a new project UUID is the
     job of :func:`ensure_identity` at a write-authorized boundary (``init``,
     commit-authorized accept).
 
@@ -381,9 +381,8 @@ def resolve_identity(repo_root: Path) -> ProjectIdentity:
     ``build_id`` deterministically from the resolved ``project_uuid``/``node_id``
     (see :func:`derive_build_id`), repeated calls return an identical identity with no
     drift and no write. The truly-uninitialized case (no ``project_uuid`` on disk)
-    still mints a fresh random ``project_uuid`` in memory each call; this is acceptable
-    only because such a checkout is expected to pass through ``init``
-    (write-authorized) first — and even then this function persists nothing.
+    returns a side-effect-free not-initialized identity; callers that require a
+    project UUID must no-op or tell the operator to run ``init``.
 
     Args:
         repo_root: Path to repository root
@@ -396,6 +395,15 @@ def resolve_identity(repo_root: Path) -> ProjectIdentity:
     identity = load_identity(config_path)
     if identity.is_complete:
         return identity
+
+    if identity.project_uuid is None:
+        return ProjectIdentity(
+            project_uuid=None,
+            project_slug=identity.project_slug or derive_project_slug(repo_root),
+            node_id=identity.node_id or generate_node_id(),
+            repo_slug=identity.repo_slug,
+            build_id=identity.build_id,
+        )
 
     return identity.with_defaults(repo_root)
 

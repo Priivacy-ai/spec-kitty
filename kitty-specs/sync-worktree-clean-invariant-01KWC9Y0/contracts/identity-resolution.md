@@ -4,10 +4,11 @@ This mission has no HTTP API; its "contracts" are the behavioral guarantees of t
 
 ## C-IR-1 — `resolve_identity(repo_root)` is side-effect-free
 
-- MUST return a `ProjectIdentity` with `is_complete == True`.
+- MUST return a `ProjectIdentity` with `is_complete == True` when an on-disk `project_uuid` exists.
+- MUST return a not-initialized, side-effect-free identity when `project_uuid` is absent (see C-IR-4); read paths MUST NOT mint `project_uuid`.
 - MUST NOT write `.kittify/config.yaml` (or any tracked file) under any input.
 - For an already-complete on-disk identity: returns it unchanged.
-- For an incomplete on-disk identity: fills missing fields in memory only, using the **deterministic** rules below.
+- For an incomplete on-disk identity with `project_uuid`: fills missing fields in memory only, using the **deterministic** rules below.
 
 ## C-IR-2 — Deterministic completion (Decision C)
 

@@ -158,6 +158,77 @@ def test_share_command_retries_after_materializing_private_source(monkeypatch: p
     assert "Waiting for a team admin" in result.stdout
 
 
+def test_share_command_requires_persisted_project_uuid(monkeypatch: pytest.MonkeyPatch) -> None:
+    fake_tm = Mock()
+    fake_tm.get_current_session.return_value = _session()
+    request_share = Mock()
+    monkeypatch.setattr(sync_module, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
+    monkeypatch.setattr(
+        "specify_cli.sync.routing.resolve_checkout_sync_routing",
+        lambda start=None: type(
+            "Routing",
+            (),
+            {
+                "repo_root": None,
+                "repo_slug": "acme/spec-kitty",
+                "project_uuid": None,
+                "project_slug": "spec-kitty-local",
+                "build_id": None,
+                "effective_sync_enabled": True,
+            },
+        )(),
+    )
+    monkeypatch.setattr(
+        "specify_cli.sync.sharing_client.request_repository_share_sync",
+        request_share,
+    )
+
+    with patch.object(sync_module, "_materialize_private_source_project") as mock_materialize:
+        result = runner.invoke(sync_module.app, ["share", "product-team"])
+
+    assert result.exit_code == 1
+    assert "Run `spec-kitty init` first" in result.stdout
+    request_share.assert_not_called()
+    mock_materialize.assert_not_called()
+
+
+def test_routes_command_skips_share_lookup_without_project_uuid(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    fake_tm = Mock()
+    fake_tm.get_current_session.return_value = _session()
+    list_shares = Mock()
+    monkeypatch.setattr(sync_module, "is_saas_sync_enabled", lambda: True)
+    monkeypatch.setattr("specify_cli.auth.get_token_manager", lambda: fake_tm)
+    monkeypatch.setattr(
+        "specify_cli.sync.routing.resolve_checkout_sync_routing",
+        lambda start=None: type(
+            "Routing",
+            (),
+            {
+                "repo_slug": "acme/spec-kitty",
+                "project_uuid": None,
+                "project_slug": "spec-kitty-local",
+                "build_id": None,
+                "effective_sync_enabled": True,
+                "local_sync_enabled": None,
+                "repo_default_sync_enabled": None,
+            },
+        )(),
+    )
+    monkeypatch.setattr(
+        "specify_cli.sync.sharing_client.list_repository_shares_sync",
+        list_shares,
+    )
+
+    result = runner.invoke(sync_module.app, ["routes"])
+
+    assert result.exit_code == 0, result.stdout
+    assert "Run `spec-kitty init` first" in result.stdout
+    list_shares.assert_not_called()
+
+
 def test_share_command_blocks_when_teamspace_mission_state_migration_pending(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

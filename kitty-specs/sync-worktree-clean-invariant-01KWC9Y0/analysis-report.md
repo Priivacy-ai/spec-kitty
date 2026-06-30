@@ -8,16 +8,16 @@ generated_at: '2026-06-30T14:36:26.744388+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
-    path: /Users/robert/spec-kitty-dev/spec-kitty-20260630-142657-r9b21K/spec-kitty/kitty-specs/sync-worktree-clean-invariant-01KWC9Y0/spec.md
+    path: kitty-specs/sync-worktree-clean-invariant-01KWC9Y0/spec.md
     sha256: ddbc97d1260826962a57e17c34715a75603d361aa17758f5101eb30d9f7131eb
   plan.md:
-    path: /Users/robert/spec-kitty-dev/spec-kitty-20260630-142657-r9b21K/spec-kitty/kitty-specs/sync-worktree-clean-invariant-01KWC9Y0/plan.md
+    path: kitty-specs/sync-worktree-clean-invariant-01KWC9Y0/plan.md
     sha256: 5d656f2c6aacfb6de6f32a38890c28f9d0ce40fa23a95d1b8f594b8d98c11287
   tasks.md:
-    path: /Users/robert/spec-kitty-dev/spec-kitty-20260630-142657-r9b21K/spec-kitty/kitty-specs/sync-worktree-clean-invariant-01KWC9Y0/tasks.md
+    path: kitty-specs/sync-worktree-clean-invariant-01KWC9Y0/tasks.md
     sha256: 03ccfb47897723375faa8bbebc34cf251e83febb2cab87cf276d5bbb136fa4ec
   charter:
-    path: /Users/robert/spec-kitty-dev/spec-kitty-20260630-142657-r9b21K/spec-kitty/.kittify/charter/charter.md
+    path: .kittify/charter/charter.md
     sha256: b36aa70a988eec1ec0da7715e6e27dc3c1d48400c29647463cbbd81ffbcabdb4
 verdict: ready
 issue_counts:

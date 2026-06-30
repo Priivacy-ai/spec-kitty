@@ -132,10 +132,10 @@ class TestReadPathsReportPendingUpgrade:
         assert result["pending_binding_upgrade"] == "bind-run"
         _no_binding_persisted(repo_root)
 
-    def test_map_list_changed_binding_ref_reports_via_attribute_without_writing(
+    def test_map_list_changed_binding_ref_reports_on_result_without_writing(
         self, repo_root: Path, mock_client: MagicMock
     ) -> None:
-        """map_list returns a list -> pending surfaced via instance attribute."""
+        """map_list keeps list behavior and reports pending upgrade on result."""
         svc = _service(repo_root, mock_client)
         mock_client.mappings.return_value = {
             "mappings": [{"wp_id": "WP01"}],
@@ -144,8 +144,9 @@ class TestReadPathsReportPendingUpgrade:
 
         result = svc.map_list()
 
-        # List return shape preserved; upgrade surfaced on the instance.
+        # List return behavior preserved; upgrade surfaced on result + instance.
         assert result == [{"wp_id": "WP01"}]
+        assert result.pending_binding_upgrade == "bind-map"
         assert svc.pending_binding_upgrade == "bind-map"
         assert svc._config.binding_ref is None
         _no_binding_persisted(repo_root)
@@ -207,8 +208,9 @@ class TestReadPathsNoOp:
         svc = _service(repo_root, mock_client)
         mock_client.mappings.return_value = {"mappings": []}
 
-        svc.map_list()
+        result = svc.map_list()
 
+        assert result.pending_binding_upgrade is None
         assert svc.pending_binding_upgrade is None
         _no_binding_persisted(repo_root)
 

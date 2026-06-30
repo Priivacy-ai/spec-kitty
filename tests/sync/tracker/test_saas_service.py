@@ -438,10 +438,10 @@ class TestReportBindingUpgrade:
         assert result["pending_binding_upgrade"] == "bind-from-run"
         assert svc._config.binding_ref is None
 
-    def test_reported_after_map_list_via_attribute(
+    def test_reported_after_map_list_on_result(
         self, repo_root: Path, mock_client: MagicMock
     ) -> None:
-        """map_list (list return) surfaces the pending upgrade via the instance."""
+        """map_list keeps list behavior and surfaces pending upgrade on result."""
         cfg = TrackerProjectConfig(provider="linear", project_slug="my-proj")
         svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
 
@@ -449,8 +449,9 @@ class TestReportBindingUpgrade:
             "mappings": [],
             "binding_ref": "bind-from-mappings",
         }
-        svc.map_list()
+        result = svc.map_list()
 
+        assert result.pending_binding_upgrade == "bind-from-mappings"
         assert svc.pending_binding_upgrade == "bind-from-mappings"
         assert svc._config.binding_ref is None
 
@@ -492,9 +493,8 @@ class TestApplyBindingUpgrade:
         with patch(
             "specify_cli.tracker.saas_service.save_tracker_config",
             side_effect=OSError("disk full"),
-        ):
-            with pytest.raises(OSError):
-                svc.apply_binding_upgrade("new-bind-ref", display_label="New Label")
+        ), pytest.raises(OSError):
+            svc.apply_binding_upgrade("new-bind-ref", display_label="New Label")
 
         # In-memory config still has the OLD values.
         assert svc._config.binding_ref == "old-bind-ref"

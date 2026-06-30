@@ -23,8 +23,9 @@ This module asserts the *combined* fix delivered by:
 
 Covered command surface (parametrized over this exact set — see
 ``_COVERED_COMMANDS``): status-event emission, ``sync status --check``,
-``tracker sync pull``, ``tracker sync push``, ``tracker sync run``,
-``tracker status``, ``tracker map list``, and the background sync-daemon tick.
+background dossier sync, lifecycle SaaS fan-out, ``tracker sync pull``,
+``tracker sync push``, ``tracker sync run``, ``tracker status``, ``tracker map
+list``, and the background sync-daemon tick.
 
 Two RED preconditions (without BOTH the assertions are green-from-start; this
 mirrors ``test_accept_readiness_no_write`` / ``test_emit_readonly_identity``):
@@ -342,6 +343,67 @@ def _drive_sync_status_check(_repo_root: Path, _config_path: Path) -> None:
     )
 
 
+def _drive_dossier_sync_trigger(repo_root: Path, _config_path: Path) -> None:
+    """Background dossier sync trigger — the ``sync.dossier_pipeline`` read path."""
+    from specify_cli.sync.dossier_pipeline import trigger_feature_dossier_sync_if_enabled
+
+    with (
+        patch("specify_cli.core.paths.get_feature_target_branch", return_value="main"),
+        patch("specify_cli.mission.get_mission_type", return_value="software-dev"),
+        patch("specify_cli.sync.namespace.resolve_manifest_version", return_value="v1"),
+        patch("specify_cli.sync.body_queue.OfflineBodyUploadQueue", return_value=MagicMock()),
+        patch("specify_cli.sync.dossier_pipeline.sync_feature_dossier", return_value=None),
+    ):
+        trigger_feature_dossier_sync_if_enabled(
+            repo_root / "kitty-specs" / _MISSION_SLUG,
+            _MISSION_SLUG,
+            repo_root,
+        )
+
+
+def _drive_lifecycle_saas_fanout(repo_root: Path, _config_path: Path) -> None:
+    """Lifecycle SaaS fan-out — the ``sync.__init__`` background read path."""
+    import spec_kitty_events
+
+    from specify_cli.sync import _lifecycle_saas_fanout_handler
+
+    queue = MagicMock()
+    lifecycle_event = {
+        "event_id": "01KWC9Y0LIFECYCLEFANOUT0001",
+        "event_type": "ProjectInitialized",
+        "aggregate_type": "Project",
+        "aggregate_id": "project",
+        "schema_version": "3.0.0",
+        "build_id": "build-123",
+        "payload": {},
+        "node_id": "node",
+        "lamport_clock": 1,
+        "causation_id": None,
+        "correlation_id": "01KWC9Y0LIFECYCLEFANOUT0001",
+        "timestamp": "2026-06-30T00:00:00+00:00",
+        "team_slug": "team",
+        "project_uuid": "33333333-3333-4333-8333-333333333333",
+        "project_slug": "worktree-clean-invariant",
+    }
+    with (
+        patch("specify_cli.sync.queue.read_queue_scope_from_session", return_value={"team_slug": "team"}),
+        patch("specify_cli.sync.queue.read_queue_scope_from_credentials", return_value=None),
+        patch("specify_cli.sync.clock.LamportClock.load", return_value=MagicMock(node_id="node", tick=lambda: 1)),
+        patch("specify_cli.status.build_saas_lifecycle_queue_event", return_value=lifecycle_event),
+        patch("specify_cli.core.contract_gate.validate_outbound_payload", return_value=None),
+        patch.object(spec_kitty_events, "Event", lambda **_kwargs: None),
+        patch("specify_cli.sync.queue.OfflineQueue", return_value=queue),
+    ):
+        _lifecycle_saas_fanout_handler(
+            envelope={
+                "event_type": "ProjectInitialized",
+                "payload": {"project_slug": "worktree-clean-invariant"},
+                "aggregate_type": "Project",
+            },
+            log_path=repo_root / ".kittify" / "status.events.jsonl",
+        )
+
+
 def _drive_tracker_status(repo_root: Path, _config_path: Path) -> None:
     """``tracker status`` — the read path drives ``SaaSTrackerService.status``.
 
@@ -383,11 +445,12 @@ def _drive_tracker_map_list(repo_root: Path, _config_path: Path) -> None:
     same: a changed binding_ref must not be persisted.
     """
     svc = _make_tracker_service(repo_root)
-    svc.map_list()
-    assert svc.pending_binding_upgrade == "bind-CHANGED", (
-        "tracker map list must surface the changed binding_ref via the instance "
-        "attribute (pending), not persist it"
+    result = svc.map_list()
+    assert result.pending_binding_upgrade == "bind-CHANGED", (
+        "tracker map list must surface the changed binding_ref on its result "
+        "(pending), not persist it"
     )
+    assert svc.pending_binding_upgrade == "bind-CHANGED"
 
 
 def _drive_daemon_tick(_repo_root: Path, _config_path: Path) -> None:
@@ -426,6 +489,8 @@ def _drive_daemon_tick(_repo_root: Path, _config_path: Path) -> None:
 _COVERED_COMMANDS: tuple[tuple[str, Callable[[Path, Path], None]], ...] = (
     ("status-event-emission", _drive_status_event_emission),
     ("sync-status-check", _drive_sync_status_check),
+    ("dossier-sync-trigger", _drive_dossier_sync_trigger),
+    ("lifecycle-saas-fanout", _drive_lifecycle_saas_fanout),
     ("tracker-status", _drive_tracker_status),
     ("tracker-sync-pull", _drive_tracker_sync_pull),
     ("tracker-sync-push", _drive_tracker_sync_push),
@@ -478,6 +543,8 @@ def test_covered_command_leaves_worktree_clean(
 # on the disabled flag and must likewise leave the tree clean.
 _DISABLED_VARIANT_COMMANDS: tuple[tuple[str, Callable[[Path, Path], None]], ...] = (
     ("status-event-emission", _drive_status_event_emission),
+    ("dossier-sync-trigger", _drive_dossier_sync_trigger),
+    ("lifecycle-saas-fanout", _drive_lifecycle_saas_fanout),
     ("tracker-status", _drive_tracker_status),
     ("tracker-sync-pull", _drive_tracker_sync_pull),
     ("tracker-map-list", _drive_tracker_map_list),
@@ -649,6 +716,8 @@ def test_covered_surface_matches_spec_exactly() -> None:
     expected = {
         "status-event-emission",
         "sync-status-check",
+        "dossier-sync-trigger",
+        "lifecycle-saas-fanout",
         "tracker-status",
         "tracker-sync-pull",
         "tracker-sync-push",

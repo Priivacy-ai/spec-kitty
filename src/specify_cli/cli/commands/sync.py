@@ -1094,6 +1094,10 @@ def routes() -> None:
         console.print(f"[yellow]{saas_sync_disabled_message()}[/yellow]")
         console.print()
         return
+    if routing.project_uuid is None:
+        console.print("[dim]No project UUID for this checkout. Run `spec-kitty init` first.[/dim]")
+        console.print()
+        return
 
     enforce_teamspace_mission_state_ready(
         console=console,
@@ -1157,7 +1161,10 @@ def share(
     _require_authenticated_session(command_name="sync share")
 
     if routing.project_uuid is None:
-        console.print("[red]Error:[/red] Current checkout has no project UUID.")
+        console.print(
+            "[red]Error:[/red] Current checkout has no project UUID. "
+            "Run `spec-kitty init` first."
+        )
         raise typer.Exit(1)
 
     try:

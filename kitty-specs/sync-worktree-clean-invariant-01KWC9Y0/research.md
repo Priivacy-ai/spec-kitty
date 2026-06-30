@@ -42,7 +42,7 @@ All findings grounded in code-trace of `spec-kitty` + `spec-kitty-saas` at HEAD 
 
 **Rationale:** Its docstring states it is the side-effect-free counterpart "for … the sync emitter init" — exactly this use case. The bug is that the emitter never adopted it. Reusing it keeps the change minimal and honors DIRECTIVE_024 (locality).
 
-**Call-site inventory** (`grep ensure_identity(`): **keep** `init.py:99,863` (write-authorized); **migrate** `emitter.py:100,115`, `sync/routing.py:47`, `sync/events.py:180`, `sync/__init__.py:253`, `sync/dossier_pipeline.py:233`, `tracker/origin.py:452`, `tracker.py:676`. Each must be confirmed read-context during implementation.
+**Call-site inventory** (`grep ensure_identity(`): **keep** `init.py:99,863` (write-authorized); **migrate** `emitter.py:100,115`, `sync/routing.py:47`, `sync/events.py:180`, `sync/__init__.py:253`, `sync/dossier_pipeline.py:233`, `tracker/origin.py:452`; confirm `cli/commands/tracker.py:680` remains a write-authorized `tracker bind` boundary. Each read-context site must be confirmed during implementation.
 
 ## Decision 4 — Tracker dirt source and fix shape
 

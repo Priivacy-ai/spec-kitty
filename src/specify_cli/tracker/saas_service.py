@@ -35,6 +35,19 @@ _STALE_BINDING_CODES: frozenset[str] = frozenset(
 )
 
 
+class TrackerMappingList(list[dict[str, Any]]):
+    """List-shaped map result that also reports a pending binding upgrade."""
+
+    def __init__(
+        self,
+        mappings: list[dict[str, Any]],
+        *,
+        pending_binding_upgrade: str | None = None,
+    ) -> None:
+        super().__init__(mappings)
+        self.pending_binding_upgrade = pending_binding_upgrade
+
+
 def _normalize_ticket_item(item: dict[str, Any]) -> dict[str, Any]:
     state = item.get("state")
     if not isinstance(state, dict):
@@ -536,21 +549,24 @@ class SaaSTrackerService:
         result["pending_binding_upgrade"] = self._report_binding_upgrade(result)
         return result
 
-    def map_list(self, *, provider: str | None = None) -> list[dict[str, Any]]:
+    def map_list(self, *, provider: str | None = None) -> TrackerMappingList:
         """List field mappings from the SaaS control plane."""
         resolved_provider = provider or self.provider
+        pending_binding_upgrade: str | None = None
         if provider is None:
             routing = self._resolve_routing_params()
             result = self._call_with_stale_detection(
                 self._client.mappings, resolved_provider, **routing,
             )
-            # map_list returns a list, so the reported upgrade is surfaced via
-            # ``self.pending_binding_upgrade`` rather than a result key.
-            self._report_binding_upgrade(result)
+            pending_binding_upgrade = self._report_binding_upgrade(result)
         else:
+            self.pending_binding_upgrade = None
             result = self._client.mappings(resolved_provider)
         mappings: list[dict[str, Any]] = result.get("mappings", [])
-        return mappings
+        return TrackerMappingList(
+            mappings,
+            pending_binding_upgrade=pending_binding_upgrade,
+        )
 
     def issue_search(self, *, provider: str, query: str, limit: int = 20) -> list[dict[str, Any]]:
         """Search issues and return the normalized CLI ticket shape."""

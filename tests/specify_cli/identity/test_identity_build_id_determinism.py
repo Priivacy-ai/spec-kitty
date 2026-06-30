@@ -138,14 +138,18 @@ def test_resolve_identity_complete_on_disk_returned_unchanged(tmp_path: Path) ->
     assert config_path.read_text(encoding="utf-8") == before
 
 
-def test_resolve_identity_empty_config_performs_no_write(tmp_path: Path) -> None:
-    """resolve_identity on a missing config writes nothing (C-IR-4)."""
+def test_resolve_identity_empty_config_reports_uninitialized_no_write(tmp_path: Path) -> None:
+    """resolve_identity on a missing config never mints project_uuid (C-IR-4)."""
     config_path = _config_path(tmp_path)
     assert not config_path.exists()
 
     resolved = resolve_identity(tmp_path)
 
-    assert resolved.is_complete
+    assert not resolved.is_complete
+    assert resolved.project_uuid is None
+    assert resolved.build_id is None
+    assert resolved.project_slug is not None
+    assert resolved.node_id is not None
     assert not config_path.exists()
 
 
@@ -153,6 +157,18 @@ def test_resolve_identity_empty_config_does_not_create_kittify_dir(tmp_path: Pat
     """No side-effect directory creation on the read path for an uninitialized checkout."""
     resolve_identity(tmp_path)
     assert not (tmp_path / ".kittify").exists()
+
+
+def test_resolve_identity_empty_config_has_no_uuid_drift(tmp_path: Path) -> None:
+    """Repeated uninitialized reads stay not-initialized instead of minting UUIDs."""
+    first = resolve_identity(tmp_path)
+    second = resolve_identity(tmp_path)
+
+    assert first.project_uuid is None
+    assert second.project_uuid is None
+    assert first.build_id is None
+    assert second.build_id is None
+    assert first.node_id == second.node_id
 
 
 def test_stored_legacy_build_id_survives_a_persisting_roundtrip(tmp_path: Path) -> None:

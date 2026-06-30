@@ -660,6 +660,52 @@ class TestBindMissionOrigin:
         assert result["origin_ticket"]["resource_type"] == "linear_team"
         assert result["origin_ticket"]["resource_id"] == "team-remote-uuid"
 
+    def test_remote_mapping_requires_complete_readonly_identity(self, tmp_path: Path) -> None:
+        """Uninitialized checkouts must not send ``uuid=None`` to hosted bind lookup."""
+        repo_root = tmp_path
+        (repo_root / ".kittify").mkdir(parents=True, exist_ok=True)
+        feature_dir = repo_root / "kitty-specs" / "061-add-clerk-auth"
+        feature_dir.mkdir(parents=True, exist_ok=True)
+        meta = {
+            "mission_number": "061",
+            "slug": "061-add-clerk-auth",
+            "mission_slug": "061-add-clerk-auth",
+            "mission_id": "01KTESTMISSIONID00000000001",
+            "friendly_name": "add clerk auth",
+            "mission_type": "software-dev",
+            "target_branch": "main",
+            "created_at": "2026-04-01T00:00:00+00:00",
+        }
+        (feature_dir / "meta.json").write_text(
+            json.dumps(meta, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
+        candidate = _make_candidate()
+        client = MagicMock()
+        identity = SimpleNamespace(
+            project_uuid=None,
+            project_slug="spec-kitty",
+            node_id="node-123",
+            repo_slug="Priivacy-ai/spec-kitty",
+            build_id=None,
+        )
+
+        with (
+            patch("specify_cli.identity.project.resolve_identity", return_value=identity),
+            pytest.raises(OriginBindingError, match="Run `spec-kitty init` first"),
+        ):
+            bind_mission_origin(
+                feature_dir,
+                candidate,
+                "linear",
+                client=client,
+            )
+
+        client.bind_resolve.assert_not_called()
+        client.bind_validate.assert_not_called()
+        client.bind_mission_origin.assert_not_called()
+
     def test_resolve_repo_root_ignores_feature_local_kittify(self, tmp_path: Path) -> None:
         """Feature-local .kittify must not mask the actual project root."""
         repo_root = tmp_path

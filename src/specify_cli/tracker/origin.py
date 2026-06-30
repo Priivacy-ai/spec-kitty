@@ -457,6 +457,15 @@ def _project_identity_payload(repo_root: Path) -> dict[str, Any]:
     from specify_cli.identity.project import resolve_identity
 
     identity = resolve_identity(repo_root)
+    if (
+        identity.project_uuid is None
+        or not identity.project_slug
+        or not identity.node_id
+        or not identity.build_id
+    ):
+        raise OriginBindingError(
+            "Current checkout has no complete project identity. Run `spec-kitty init` first."
+        )
     return {
         "uuid": str(identity.project_uuid),
         "slug": identity.project_slug,

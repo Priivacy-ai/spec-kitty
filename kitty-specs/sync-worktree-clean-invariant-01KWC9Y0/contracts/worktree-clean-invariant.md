@@ -6,6 +6,8 @@ The invariant applies to every command in this set (the parametrized test enumer
 
 - status-event emission (the `EventEmitter` emit path)
 - `sync status` (incl. `--check`), `sync pull`, `sync push`, `sync run`
+- background dossier sync trigger
+- lifecycle SaaS fan-out handler
 - `tracker status`, `tracker map list`
 - dashboard daemon tick
 

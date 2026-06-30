@@ -26,8 +26,8 @@ When SaaS sync is enabled, background and read-like commands persist to `.kittif
 
 ### Acceptance scenarios
 
-- **AS-1 (clean stays clean):** *Given* a clean SaaS-enabled checkout, *when* the operator runs any of { emit a status event, `sync status`, `sync pull`, `sync push`, `sync run`, `tracker status`, `tracker map list`, dashboard daemon tick }, *then* `git status --porcelain` is byte-identical before and after, and `.kittify/config.yaml` is unmodified.
-- **AS-2 (incomplete identity, first emit):** *Given* a checkout whose stored project identity is incomplete (legacy / first run), *when* the operator emits a status event, *then* `.kittify/config.yaml` is not written, **and** the emitted event still carries a complete, stable project identity.
+- **AS-1 (clean stays clean):** *Given* a clean SaaS-enabled checkout, *when* the operator runs any of { emit a status event, `sync status`, `sync pull`, `sync push`, `sync run`, background dossier sync trigger, lifecycle SaaS fan-out, `tracker status`, `tracker map list`, dashboard daemon tick }, *then* `git status --porcelain` is byte-identical before and after, and `.kittify/config.yaml` is unmodified.
+- **AS-2 (legacy incomplete identity, first emit):** *Given* a checkout whose stored project identity has a persisted `project_uuid` but is missing deterministic fields such as `build_id`, *when* the operator emits a status event, *then* `.kittify/config.yaml` is not written, **and** the emitted event still carries a complete, stable project identity. If `project_uuid` itself is absent, the read path remains side-effect-free and must no-op or tell the operator to run `init`.
 - **AS-3 (binding-ref upgrade available):** *Given* the tracker server returns a new/changed `binding_ref` during a read-like operation, *when* the operator runs `sync pull` / `sync status` / `map list`, *then* no file is written and the available upgrade is surfaced as a reported pending state.
 - **AS-4 (real dirt still caught):** *Given* a genuinely uncommitted source edit, *when* the operator runs `record-analysis`, *then* it still refuses with `DIRTY_WORKTREE` (the guard is not weakened).
 - **AS-5 (write-authorized boundary still persists):** *Given* an explicit, user-initiated write command (project init, explicit tracker bind, explicit apply-style command), *when* it runs, *then* persisting identity / binding-ref to `.kittify/config.yaml` is allowed and occurs.
@@ -46,8 +46,8 @@ When SaaS sync is enabled, background and read-like commands persist to `.kittif
 
 | ID | Requirement | Status |
 |----|-------------|--------|
-| FR-001 | Read-like and background commands — status-event emission; `sync status`, `sync pull`, `sync push`, `sync run`; `tracker status`, `tracker map list`; and the dashboard daemon tick — MUST NOT modify any tracked repository file (notably `.kittify/config.yaml`) as a side effect. | Required |
-| FR-002 | Identity required by read/emit paths MUST be resolved **without persisting** to the repository, while still yielding a complete, usable identity for event emission. | Required |
+| FR-001 | Read-like and background commands — status-event emission; `sync status`, `sync pull`, `sync push`, `sync run`; background dossier sync trigger; lifecycle SaaS fan-out; `tracker status`, `tracker map list`; and the dashboard daemon tick — MUST NOT modify any tracked repository file (notably `.kittify/config.yaml`) as a side effect. | Required |
+| FR-002 | Identity required by read/emit paths MUST be resolved **without persisting** to the repository, yielding a complete, usable identity when a persisted `project_uuid` exists. If `project_uuid` is absent, the read path MUST remain side-effect-free and surface a not-initialized/no-op result instead of minting identity. | Required |
 | FR-003 | Persistence of project identity to `.kittify/config.yaml` MUST occur only at explicit write-authorized boundaries (project init and explicit apply-style commands), never as a side effect of a read/background command. | Required |
 | FR-004 | Tracker `binding_ref` upgrades discovered during read-like operations MUST be surfaced as a **reported pending state** (e.g. a `pending_binding_upgrade` field on the result) rather than written; persistence happens only during an explicit bind/apply operation. | Required |
 | FR-005 | An automated regression test MUST enforce the worktree-clean invariant (INV-1) across the full command surface in FR-001, failing if any covered command changes `git status --porcelain` on a clean checkout. | Required |
@@ -95,7 +95,7 @@ When SaaS sync is enabled, background and read-like commands persist to `.kittif
 
 - **Worktree-clean invariant (INV-1):** the guarantee that read-like and background commands never change `git status --porcelain`.
 - **Write-authorized boundary:** a command explicitly permitted to persist identity / binding config to `config.yaml`.
-- **Read-like / background command:** status-event emission, `sync status/pull/push/run`, `tracker status` / `map list`, dashboard daemon tick.
+- **Read-like / background command:** status-event emission, `sync status/pull/push/run`, background dossier sync trigger, lifecycle SaaS fan-out, `tracker status` / `map list`, dashboard daemon tick.
 - **Clean-tree gate:** the `DIRTY_WORKTREE` refusal in `record-analysis` (and any structurally similar gate).
 - *Out-of-vocabulary for this mission:* treating local "dashboard health" as proof of SaaS sync — that belongs to companion issue #2264, not here.
 
