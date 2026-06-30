@@ -20,8 +20,8 @@ subtasks:
 - T010
 phase: Phase 2 - Call-site migration
 assignee: ''
-agent: "claude:opus:python-pedro:implementer"
-shell_pid: "6034"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "30010"
 history:
 - at: '2026-06-30T13:20:00Z'
   actor: system
@@ -172,3 +172,5 @@ grep -rn "ensure_identity(" src/specify_cli/ | grep -v "init.py"   # expect: emp
 - 2026-06-30 — Prompt generated via /spec-kitty.tasks.
 - 2026-06-30T15:01:52Z – claude:opus:python-pedro:implementer – shell_pid=6034 – Assigned agent via action command
 - 2026-06-30T15:31:13Z – claude:opus:python-pedro:implementer – shell_pid=6034 – 8 read-path sites -> resolve_identity; init+tracker-bind write boundaries kept (AS-5); grep shows only init.py + tracker.py bind; mypy --strict (1 pre-existing origin.py:441 error)+ruff+tests green
+- 2026-06-30T15:33:18Z – claude:opus:reviewer-renata:reviewer – shell_pid=30010 – Started review via action command
+- 2026-06-30T15:46:57Z – user – shell_pid=30010 – APPROVED (renata A-E adjudication). (A) KEEP@tracker.py:680 CORRECT: _bind_saas reached ONLY from @app.command('bind') write boundary (AS-5); swapping would no-op an intentional persist. (B) 7 swaps all read/emit/background: emitter/routing/events/__init__/dossier confirmed read-context; events.py _seed_emitter_identity dead read_only_identity param removed cleanly, both branches now read-only via resolve_identity; origin.py _project_identity_payload feeds bind_resolve/bind_validate SERVER lookup, local persist still to meta.json not config.yaml. (C) 5 coupled test edits all minimal: 4 are pure mock-target swaps ensure->resolve_identity to track the production call; test_accept_readiness_no_write.py flip is CORRECT DIRECTION (default emit now must NOT write config.yaml per FR-001/FR-003/AS-2) and STRENGTHENS coverage (adds byte-identity + in-memory-completeness), positive-contrast test_write_authorized_ensure_identity_still_persists preserved. (D) mypy --strict: sole error origin.py:441 [no-any-return] PROVEN pre-existing (reproduced on merge-base origin.py, in _resolve_repo_root which WP02 never touched); WP02 changed lines strict-clean. (E) routing failures PROVEN pre-existing: identical queue.size()==265 shared-queue + missing config.toml leak reproduce on BASE routing.py; all 33 tests/sync master-process failures are shared-HOME/daemon env coupling unrelated to diff. Headline test test_emit_readonly_identity.py 4/4 PASS, genuinely asserts byte-identical config.yaml + clean git porcelain + stable uuid/build_id (not synthetic). 5 coupled files 125/125 PASS. ruff clean. grep end-state: ensure_identity only at project.py def + init.py(2) + tracker.py:680 bind. No --feature regressions, no dead code, no scope violations (init.py comment-only per T009).
