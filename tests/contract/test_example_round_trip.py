@@ -518,11 +518,44 @@ def _discover_examples() -> list[tuple[str, str, str, str, str | None]]:
     return examples
 
 
+def _discover_skip_marked_blocks() -> frozenset[str]:
+    """Return the ``rel::block-N`` labels of every ``# round-trip: skip:`` block.
+
+    Restricted to NON-legacy contracts, where the skip marker is load-bearing
+    (legacy contracts keep file-level leniency and do not need markers). The set
+    is ratcheted in ``tests/architectural/_baselines.yaml`` so that adding a new
+    permanently-non-executable block is an explicit, reviewable event — a new
+    skip grows the count above its baseline and fails the ratchet until the
+    baseline is bumped with a justification. Unlike the legacy allowlist, skip
+    markers are permanent legitimate exemptions (no shrink mandate); the ratchet
+    exists purely for growth VISIBILITY, not burn-down.
+    """
+    labels: set[str] = set()
+    if not _KITTY_SPECS_ROOT.exists():
+        return frozenset(labels)
+    for contract_md in sorted(_KITTY_SPECS_ROOT.glob("*/contracts/*.md")):
+        if _is_legacy(contract_md):
+            continue
+        rel = _relative_path(contract_md)
+        blocks = _extract_yaml_blocks(contract_md.read_text(encoding="utf-8"))
+        for block_idx, block_body in enumerate(blocks, start=1):
+            kind, _ = _classify_yaml_block(block_body)
+            if kind == "skip":
+                labels.add(f"{rel}::block-{block_idx}")
+    return frozenset(labels)
+
+
 # ---------------------------------------------------------------------------
 # Collect parametrize cases at module-import time (pytest requires this)
 # ---------------------------------------------------------------------------
 _DISCOVERED: list[tuple[str, str, str, str, str | None]] = _discover_examples()
 _ALL_CASES: list[tuple[str, str, str, str, str | None]] = _DISCOVERED + _INLINE_NEGATIVE_FIXTURES
+
+# Ratcheted set of permanently-non-executable (``# round-trip: skip:``) blocks in
+# non-legacy contracts. Introspected by ``tests.architectural.test_ratchet_baselines``
+# against ``_baselines.yaml::test_example_round_trip.skip_marker_blocks`` so skip
+# growth is explicit (see ``_discover_skip_marked_blocks``).
+_SKIP_MARKED_BLOCKS: frozenset[str] = _discover_skip_marked_blocks()
 
 # ---------------------------------------------------------------------------
 # The parametrised gate (AC-10)
@@ -724,3 +757,26 @@ def test_legacy_collection_warns_and_does_not_fail_when_untagged() -> None:
         _collect_legacy_blocks("x/contracts/y.md", ["a: 1\n"], out)
     # Legacy files never emit a MISSING_FRONTMATTER failure case.
     assert out == []
+
+
+def test_skip_marked_blocks_invariants() -> None:
+    """The ratcheted skip set holds only non-legacy, genuinely skip-marked blocks.
+
+    Guards the two promises of ``_discover_skip_marked_blocks`` without pinning a
+    hardcoded count (the baseline in ``_baselines.yaml`` owns the count). It stays
+    green when a future PR legitimately adds a marker and bumps the baseline.
+    """
+    assert isinstance(_SKIP_MARKED_BLOCKS, frozenset)
+    for label in _SKIP_MARKED_BLOCKS:
+        rel, _, suffix = label.partition("::block-")
+        assert suffix, f"malformed skip label: {label!r}"
+        # Invariant 1: skip markers are only ratcheted for NON-legacy contracts.
+        assert rel not in _LEGACY_CONTRACT_ALLOWLIST, (
+            f"{rel} is legacy-allowlisted; its blocks must not be counted as skips"
+        )
+        # Invariant 2: the referenced block actually classifies as a skip.
+        block_idx = int(suffix)
+        blocks = _extract_yaml_blocks((_REPO_ROOT / rel).read_text(encoding="utf-8"))
+        kind, info = _classify_yaml_block(blocks[block_idx - 1])
+        assert kind == "skip"
+        assert info["reason"], f"skip marker in {label} must carry a reason"

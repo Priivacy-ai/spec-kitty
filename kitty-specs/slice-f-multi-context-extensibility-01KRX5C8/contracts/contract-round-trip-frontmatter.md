@@ -64,41 +64,56 @@ Files in this allowlist warn rather than fail when their codeblocks lack frontma
 
 ### Walker behaviour — `tests/contract/test_example_round_trip.py`
 
-```python
-from pathlib import Path
-import importlib
-import yaml
-import re
+Discovery is **block-level** for non-legacy contracts. Each YAML block is
+classified independently — tagged (executed), skip-marked (intentionally
+non-executable), or neither (a per-block gate failure). A tagged sibling can no
+longer mask an untagged block.
 
+```python
 FRONTMATTER_RE = re.compile(r"^# pydantic_model: (?P<model>[\w\.]+)\s*\n# expect: (?P<expect>valid|invalid)", re.MULTILINE)
+SKIP_MARKER_RE = re.compile(r"^# round-trip: skip:[ \t]*(?P<reason>\S.*)$", re.MULTILINE)
+
+def _classify_yaml_block(block):
+    """Return ('execute', info) | ('skip', {'reason': ...}) | ('missing', {})."""
+    fm = FRONTMATTER_RE.search(block)
+    if fm:                                  # frontmatter wins over a stray skip marker
+        return "execute", {"model": fm.group("model"), "expect": fm.group("expect"),
+                           "payload": _strip_frontmatter(block)}
+    skip = SKIP_MARKER_RE.search(block)
+    if skip:                                # mandatory reason; empty reason does NOT match
+        return "skip", {"reason": skip.group("reason").strip()}
+    return "missing", {}
 
 def _discover_examples():
-    """Walk kitty-specs/*/contracts/*.md and yield (file, model, expect, payload)."""
+    """Walk kitty-specs/*/contracts/*.md and yield executable round-trip cases."""
     for contract_md in Path("kitty-specs").glob("*/contracts/*.md"):
-        text = contract_md.read_text()
-        # Extract every fenced ```yaml ...``` block; for each, look at the first two non-blank lines for frontmatter
-        for codeblock in _iter_yaml_codeblocks(text):
-            frontmatter = FRONTMATTER_RE.search(codeblock)
-            if not frontmatter:
-                continue
-            model_path = frontmatter.group("model")
-            expect = frontmatter.group("expect")
-            payload = _strip_frontmatter(codeblock)
-            yield contract_md, model_path, expect, payload
+        blocks = list(_iter_yaml_codeblocks(contract_md.read_text()))
+        for idx, block in enumerate(blocks, start=1):
+            kind, info = _classify_yaml_block(block)
+            if kind == "execute":
+                yield f"{contract_md}::block-{idx}", info["model"], info["expect"], info["payload"]
+            elif kind == "missing" and not _is_legacy(contract_md):
+                # Non-legacy + neither tagged nor skip-marked -> this block FAILS.
+                yield f"{contract_md}::block-{idx}-MISSING_FRONTMATTER", "<MISSING_FRONTMATTER>", "valid", "{}"
+            # kind == "skip", or a legacy file's untagged block -> not executed.
 
-@pytest.mark.parametrize("contract_md,model_path,expect,payload", list(_discover_examples()))
-def test_contract_example_round_trip(contract_md, model_path, expect, payload):
+@pytest.mark.parametrize("label,model_path,expect,payload", list(_discover_examples()))
+def test_contract_example_round_trip(label, model_path, expect, payload):
+    if model_path == "<MISSING_FRONTMATTER>":
+        pytest.fail(f"{label}: add '# pydantic_model:' frontmatter OR '# round-trip: skip: <reason>'.")
     module_name, _, class_name = model_path.rpartition(".")
-    module = importlib.import_module(module_name)
-    model = getattr(module, class_name)
+    model = getattr(importlib.import_module(module_name), class_name)
     parsed = yaml.safe_load(payload)
-
     if expect == "valid":
         model.model_validate(parsed)  # MUST succeed
     else:
         with pytest.raises(pydantic.ValidationError):
             model.model_validate(parsed)
 ```
+
+The ``# round-trip: skip:`` set in non-legacy contracts is itself ratcheted in
+`tests/architectural/_baselines.yaml::test_example_round_trip.skip_marker_blocks`,
+so adding a new permanently-non-executable block is an explicit, reviewable event.
 
 ### Failure shape
 
@@ -114,9 +129,13 @@ When a `pydantic_model:` references a non-importable model:
 
 > **FAIL**: `kitty-specs/<mission>/contracts/<file>.md` (codeblock #N) declared `pydantic_model: <bad.path.Model>` but the module is not importable: `<ImportError text>`.
 
+When a non-legacy codeblock carries neither frontmatter nor a skip marker (the per-block strictness, `block-N-MISSING_FRONTMATTER`):
+
+> **FAIL**: Contract block `<file>.md::block-N` carries neither `# pydantic_model:` frontmatter nor a `# round-trip: skip: <reason>` marker. Add frontmatter to round-trip the block, add a skip marker if it is non-executable, or (pre-Slice-F only) add the file to the legacy allowlist.
+
 ### Legacy allowlist behaviour
 
-For files in the legacy allowlist, FAIL conditions become WARN conditions and the test passes — but the legacy file's path is reported in a pytest warning so the operator sees the unwound work.
+For files in the legacy allowlist, FAIL conditions become WARN conditions and the test passes — but the legacy file's path is reported in a pytest warning so the operator sees the unwound work. Legacy files keep **file-level** leniency (untagged blocks are tolerated); the per-block strictness above applies only to non-legacy contracts.
 
 ---
 
@@ -126,7 +145,8 @@ For files in the legacy allowlist, FAIL conditions become WARN conditions and th
 |---|---|---|
 | A new contract's `expect: valid` example doesn't actually parse | `test_example_round_trip` FAIL | "Contract `<file>` codeblock #N declares `expect: valid` but `model_validate` raised: `<exc>`. Fix the example OR the model" |
 | A new contract's `expect: invalid` example DOES parse | `test_example_round_trip` FAIL | "Contract `<file>` codeblock #N declares `expect: invalid` but `model_validate` succeeded. Either the example was meant to be valid OR the model lost a validator" |
-| A contract file in `kitty-specs/<mission>/contracts/` has YAML codeblocks but none carry frontmatter | If the contract is post-Slice-F (not in legacy allowlist) — `test_example_round_trip` FAIL | "Contract `<file>` has unfronted YAML codeblocks. Add `# pydantic_model:` and `# expect:` frontmatter or move the file to the legacy allowlist (`_baselines.yaml:test_example_round_trip.legacy_contract_allowlist`)" |
+| A non-legacy contract has a YAML codeblock with neither `# pydantic_model:` frontmatter nor a `# round-trip: skip: <reason>` marker | `test_example_round_trip` FAIL (per block, `block-N-MISSING_FRONTMATTER`) | "Block `<file>::block-N` carries neither frontmatter nor a skip marker. Tag it, skip-mark it, or (pre-Slice-F only) add the file to the legacy allowlist" |
+| A new `# round-trip: skip:` marker is added in a non-legacy contract without bumping the baseline | `test_ratchet_baselines` FAIL (growth) | "skip_marker_blocks grew above baseline. Bump `_baselines.yaml:test_example_round_trip.skip_marker_blocks` with a one-line rationale naming the new block" |
 | A contract is in the legacy allowlist but no longer exists | `test_ratchet_baselines` FAIL with stale-allowlist message | "Stale legacy contract `<file>` in allowlist. Remove from `_baselines.yaml`" |
 
 ---

@@ -265,6 +265,15 @@ def test_growing_an_allowlist_above_baseline_fails() -> None:
             "_LEGACY_CONTRACT_ALLOWLIST",
             data["test_example_round_trip"]["legacy_contract_allowlist"],
         ),
+        # #2255: permanently-non-executable ``# round-trip: skip:`` blocks. Growth
+        # is visible (a new skip fails the ratchet until the baseline is bumped);
+        # unlike the legacy allowlist these are permanent (no shrink mandate).
+        (
+            "test_example_round_trip",
+            "tests.contract.test_example_round_trip",
+            "_SKIP_MARKED_BLOCKS",
+            data["test_example_round_trip"]["skip_marker_blocks"],
+        ),
     ]
     for label, module_dotted, attr_name, baseline in single_baselines:
         current = len(_import_module_attr(module_dotted, attr_name))
@@ -350,6 +359,15 @@ def test_growth_fails_shrinkage_warns() -> None:
             "tests.contract.test_example_round_trip",
             "_LEGACY_CONTRACT_ALLOWLIST",
             data["test_example_round_trip"]["legacy_contract_allowlist"],
+        ),
+        # #2255: permanently-non-executable ``# round-trip: skip:`` blocks. Growth
+        # is visible (a new skip fails the ratchet until the baseline is bumped);
+        # unlike the legacy allowlist these are permanent (no shrink mandate).
+        (
+            "test_example_round_trip",
+            "tests.contract.test_example_round_trip",
+            "_SKIP_MARKED_BLOCKS",
+            data["test_example_round_trip"]["skip_marker_blocks"],
         ),
     ]
     for label, module_dotted, attr_name, baseline in single_baselines:
