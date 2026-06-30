@@ -810,3 +810,52 @@ def test_lenient_downgrades_path_conventions_to_warning(
     # Lenient: not blocking; surfaced as a warning instead.
     assert lenient.path_violations == []
     assert any("expects" in warning for warning in lenient.warnings)
+
+
+# --- Direct canonical-surface unit coverage (restored from #2167 review) -----
+# These three exercise the canonical ``specify_cli.acceptance`` / ``task_utils``
+# functions directly — they were never coupled to the retired standalone tasks
+# CLI surface (they already used the ``acc`` / ``support`` imports). They were
+# dropped when the surface's test files were reconciled; restored here so the
+# canonical functions keep a direct unit pin rather than only transitive CLI
+# coverage (normalize_feature_encoding return value, the offending-path message,
+# and detect_conflicting_wp_status' conflict detection).
+
+
+def test_collect_feature_summary_encoding_error(feature_repo: Path, mission_slug: str) -> None:
+    plan_path = feature_repo / "kitty-specs" / mission_slug / "plan.md"
+    data = plan_path.read_bytes() + b"\x92"
+    plan_path.write_bytes(data)
+
+    with pytest.raises(acc.ArtifactEncodingError) as excinfo:
+        acc.collect_feature_summary(feature_repo, mission_slug)
+
+    assert str(plan_path) in str(excinfo.value)
+
+
+def test_normalize_feature_encoding(feature_repo: Path, mission_slug: str) -> None:
+    plan_path = feature_repo / "kitty-specs" / mission_slug / "plan.md"
+    data = plan_path.read_bytes() + b"\x92"
+    plan_path.write_bytes(data)
+
+    cleaned = acc.normalize_feature_encoding(feature_repo, mission_slug)
+    assert plan_path in cleaned
+    # Should now be readable as UTF-8 without errors.
+    plan_path.read_text(encoding="utf-8")
+    summary = acc.collect_feature_summary(feature_repo, mission_slug)
+    assert summary.feature == mission_slug
+
+
+def test_detect_conflicting_wp_status() -> None:
+    status_lines = [
+        " M kitty-specs/001-demo/tasks/planned/WP01.md",
+        " M kitty-specs/001-demo/tasks/doing/WP02.md",
+        "?? README.md",
+    ]
+    conflicts = th.detect_conflicting_wp_status(
+        status_lines,
+        "001-demo",
+        Path("kitty-specs/001-demo/tasks/planned/WP01.md"),
+        Path("kitty-specs/001-demo/tasks/doing/WP01.md"),
+    )
+    assert conflicts == [" M kitty-specs/001-demo/tasks/doing/WP02.md"]
