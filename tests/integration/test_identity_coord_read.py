@@ -197,6 +197,78 @@ def test_pairing_lifecycle_completion_uses_primary_mission_id(
 
 
 # ---------------------------------------------------------------------------
+# #2278 — the lifecycle ``mission_id`` field is a ULID, never a slug. A legacy
+# mission whose identity resolves NO ``mission_id`` must fail closed (skip the
+# observability record) rather than persist the slug — the #2138/FR-004 contract
+# applied to the next_cmd invocation-lifecycle pairing key (both write sites).
+# ---------------------------------------------------------------------------
+
+
+def test_issuance_lifecycle_record_fails_closed_without_mission_id(
+    coord_topology_mission_sentinel_meta: CoordTopologyContext,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No ``started`` record is written keyed on the slug when no ULID is minted.
+
+    RED-first: the pre-fix code did ``identity.mission_id or identity.mission_slug``
+    and wrote a ``started`` record stamping the slug into the ULID-typed
+    ``mission_id`` field. Fail-closed → zero records (the lifecycle log is
+    observability, not a hard dependency).
+    """
+    import specify_cli.mission_metadata as mm
+    from specify_cli.cli.commands.next_cmd import _write_issuance_lifecycle_record
+
+    ctx = coord_topology_mission_sentinel_meta
+    legacy_identity = types.SimpleNamespace(mission_id=None, mission_slug=ctx.slug)
+    monkeypatch.setattr(mm, "resolve_mission_identity", lambda _dir: legacy_identity)
+
+    _write_issuance_lifecycle_record(_AGENT, ctx.slug, ctx.repo, _make_decision())
+
+    records = read_lifecycle_records(ctx.repo)
+    assert [r for r in records if r.phase == "started"] == [], (
+        "fail-closed: no started lifecycle record may be written when the mission "
+        "has no canonical mission_id (the pre-fix code wrote one keyed on the slug)."
+    )
+    assert all(r.mission_id != ctx.slug for r in records), (
+        "the mission slug must never land in the ULID-typed mission_id field (#2278)."
+    )
+
+
+def test_pairing_lifecycle_completion_fails_closed_without_mission_id(
+    coord_topology_mission_sentinel_meta: CoordTopologyContext,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No completion is paired/stamped against a slug-keyed started when no ULID.
+
+    RED-first: pre-fix resolved ``mission_id = slug``, paired the seeded slug-keyed
+    started, and wrote a completion stamping the slug. Fail-closed → it returns
+    before pairing, so no completion is written.
+    """
+    import specify_cli.mission_metadata as mm
+    from specify_cli.cli.commands.next_cmd import _pair_previous_lifecycle_record
+
+    ctx = coord_topology_mission_sentinel_meta
+    # Seed a slug-keyed unpaired started — what the buggy issuance path would leave.
+    write_started(
+        ctx.repo,
+        canonical_action_id="implementing::implement_wp",
+        agent=_AGENT,
+        mission_id=ctx.slug,
+        wp_id="WP01",
+    )
+    legacy_identity = types.SimpleNamespace(mission_id=None, mission_slug=ctx.slug)
+    monkeypatch.setattr(mm, "resolve_mission_identity", lambda _dir: legacy_identity)
+
+    _pair_previous_lifecycle_record(_AGENT, ctx.slug, "success", ctx.repo)
+
+    records = read_lifecycle_records(ctx.repo)
+    assert [r for r in records if r.phase == "completed"] == [], (
+        "fail-closed: no completion may be written when the mission has no canonical "
+        "mission_id (the pre-fix code paired the slug-keyed started and stamped it)."
+    )
+
+
+# ---------------------------------------------------------------------------
 # next_cmd `_handle_answer` get_mission_type (ROUTE — :619)
 # ---------------------------------------------------------------------------
 
