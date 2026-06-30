@@ -312,7 +312,7 @@ Per `function-over-form-testing`:
 
 ## References
 
-- Predecessor draft: [`kitty-specs/quality-devex-hardening-3-2-01KRJGKH/contracts/stale-lane-auto-rebase-classifier-policy.md`](../../../kitty-specs/quality-devex-hardening-3-2-01KRJGKH/contracts/stale-lane-auto-rebase-classifier-policy.md)
-- Data model: [`kitty-specs/quality-devex-hardening-3-2-01KRJGKH/data-model.md`](../../../kitty-specs/quality-devex-hardening-3-2-01KRJGKH/data-model.md) §3
-- WP08: [`kitty-specs/quality-devex-hardening-3-2-01KRJGKH/tasks/WP08-auto-rebase-classifier.md`](../../../kitty-specs/quality-devex-hardening-3-2-01KRJGKH/tasks/WP08-auto-rebase-classifier.md)
+- Predecessor draft: `kitty-specs/quality-devex-hardening-3-2-01KRJGKH/contracts/stale-lane-auto-rebase-classifier-policy.md`
+- Data model: `kitty-specs/quality-devex-hardening-3-2-01KRJGKH/data-model.md` §3
+- WP08: `kitty-specs/quality-devex-hardening-3-2-01KRJGKH/tasks/WP08-auto-rebase-classifier.md`
 - Issue: [Priivacy-ai/spec-kitty#771](https://github.com/Priivacy-ai/spec-kitty/issues/771)

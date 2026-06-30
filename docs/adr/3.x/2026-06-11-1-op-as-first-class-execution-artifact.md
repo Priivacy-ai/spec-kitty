@@ -325,7 +325,7 @@ residual action is editorial: the stale 2.x link in
 
 ## More Information
 
-- Mission spec (FR-007): [`kitty-specs/doctrine-glossary-architecture-consolidation-01KTNWFC/spec.md`](../../../kitty-specs/doctrine-glossary-architecture-consolidation-01KTNWFC/spec.md)
+- Mission spec (FR-007): `kitty-specs/doctrine-glossary-architecture-consolidation-01KTNWFC/spec.md`
 - Proposal (superseded into this ADR): [#1688](https://github.com/Priivacy-ai/spec-kitty/issues/1688)
 - Consuming epics: [#1804](https://github.com/Priivacy-ai/spec-kitty/issues/1804) (Ops), [#1802](https://github.com/Priivacy-ai/spec-kitty/issues/1802) (lifecycle), [#1810](https://github.com/Priivacy-ai/spec-kitty/issues/1810) (dispatch collapse)
 - Current Op surface in code: `src/specify_cli/invocation/` (`OpStartedEvent` / `OpCompletedEvent`, `ModeOfWork`), `src/specify_cli/cli/commands/{dispatch,profile_invocation,invocations_cmd}.py`

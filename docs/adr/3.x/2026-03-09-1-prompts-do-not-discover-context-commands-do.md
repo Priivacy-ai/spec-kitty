@@ -167,8 +167,8 @@ This ADR will be considered implemented when all of the following are true:
 
 ## Related ADRs
 
-* [2026-02-17-1-canonical-next-command-runtime-loop.md](2026-02-17-1-canonical-next-command-runtime-loop.md)
-* [2026-02-17-2-runtime-owned-mission-discovery-loading.md](2026-02-17-2-runtime-owned-mission-discovery-loading.md)
+* [2026-02-17-1-canonical-next-command-runtime-loop.md](../2.x/2026-02-17-1-canonical-next-command-runtime-loop.md)
+* [2026-02-17-2-runtime-owned-mission-discovery-loading.md](../2.x/2026-02-17-2-runtime-owned-mission-discovery-loading.md)
 
 ## More Information
 

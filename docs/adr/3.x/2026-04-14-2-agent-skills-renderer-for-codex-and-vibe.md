@@ -39,7 +39,7 @@ and (worst case) on Vibe, and would degrade TUI autocomplete UX on
 opencode (whose skills are model-loaded, not user-invoked slash entries).
 
 Full per-agent research is recorded in
-[research.md](../../kitty-specs/083-agent-skills-codex-vibe/research.md).
+`kitty-specs/083-agent-skills-codex-vibe/research.md`.
 
 ## Decision
 
@@ -177,9 +177,9 @@ construct filesystem paths. Command names come from a hardcoded
 
 ## Implementation references
 
-- Mission spec: [kitty-specs/083-agent-skills-codex-vibe/spec.md](../../kitty-specs/083-agent-skills-codex-vibe/spec.md)
-- Plan + research: [plan.md](../../kitty-specs/083-agent-skills-codex-vibe/plan.md), [research.md](../../kitty-specs/083-agent-skills-codex-vibe/research.md)
-- Contracts: [contracts/skill-renderer.contract.md](../../kitty-specs/083-agent-skills-codex-vibe/contracts/skill-renderer.contract.md), [contracts/skills-manifest.schema.json](../../kitty-specs/083-agent-skills-codex-vibe/contracts/skills-manifest.schema.json)
-- Post-merge review: [mission-review.md](../../kitty-specs/083-agent-skills-codex-vibe/mission-review.md)
+- Mission spec: kitty-specs/083-agent-skills-codex-vibe/spec.md
+- Plan + research: plan.md, research.md
+- Contracts: contracts/skill-renderer.contract.md, contracts/skills-manifest.schema.json
+- Post-merge review: mission-review.md
 - Core modules: `src/specify_cli/skills/command_renderer.py`, `src/specify_cli/skills/command_installer.py`, `src/specify_cli/skills/manifest_store.py`
 - Codex migration: `src/specify_cli/upgrade/migrations/m_3_2_0_codex_to_skills.py`

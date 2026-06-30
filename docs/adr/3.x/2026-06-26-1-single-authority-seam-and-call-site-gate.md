@@ -175,7 +175,7 @@ unblock). It is the layer the operator's original resolver-port thesis pointed a
 into the **shell / builder**, never onto the frozen `MissionExecutionContext` value object. It is recorded
 here as the next strategic move, not part of this decision.
 
-- Synthesis / investigation record: [`docs/engineering_notes/2173-infra-logic-separation/00-SYNTHESIS.md`](../../../docs/engineering_notes/2173-infra-logic-separation/00-SYNTHESIS.md)
+- Synthesis / investigation record: [`docs/plans/engineering-notes/2173-infra-logic-separation/00-SYNTHESIS.md`](../../../docs/plans/engineering-notes/2173-infra-logic-separation/00-SYNTHESIS.md)
 - Cross-references: [#2173](https://github.com/Priivacy-ai/spec-kitty/issues/2173), [#1619](https://github.com/Priivacy-ai/spec-kitty/issues/1619), [#2164](https://github.com/Priivacy-ai/spec-kitty/issues/2164), [#2160](https://github.com/Priivacy-ai/spec-kitty/issues/2160)
 - Predecessor ADRs: [2026-06-24-1 — Kind- and Topology-Aware Artifact Placement](2026-06-24-1-kind-and-topology-aware-artifact-placement.md) · [2026-06-22-1 — MissionTopology SSOT](2026-06-22-1-mission-topology-ssot.md) · [2026-06-24-2 — Write-Branch Resolution PRIMARY Anchor](2026-06-24-2-write-branch-resolution-primary-anchor.md)
 - Gate precedent to copy: [`tests/architectural/test_protection_resolver_call_sites.py`](../../../tests/architectural/test_protection_resolver_call_sites.py)

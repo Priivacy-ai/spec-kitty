@@ -12,7 +12,7 @@ date: '2026-05-12'
 **Deciders:** Architect Alphonso (proposer), HiC (final decision)
 
 **Technical Story:**
-- Mission [`review-merge-gate-hardening-3-2-x-01KRC57C`](../../kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md) WP03
+- Mission `review-merge-gate-hardening-3-2-x-01KRC57C` WP03
 - Source bug: [Priivacy-ai/spec-kitty#985](https://github.com/Priivacy-ai/spec-kitty/issues/985)
 - Parent epic: [#822](https://github.com/Priivacy-ai/spec-kitty/issues/822), [#992](https://github.com/Priivacy-ai/spec-kitty/issues/992) (WS-5)
 
@@ -257,4 +257,4 @@ This (i) stabilizes the canonical contract that downstream consumers depend on, 
 
 - Source bug body: [#985](https://github.com/Priivacy-ai/spec-kitty/issues/985)
 - Code reference: `src/specify_cli/cli/commands/review.py:235` (`review_mission` entry point); `src/specify_cli/cli/commands/review.py:284–285` (`baseline_merge_commit` check); `src/specify_cli/cli/commands/review.py:465–470` (current YAML frontmatter writer).
-- Mission spec FR-005 through FR-009 and NFR-001 through NFR-003 in [`kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md`](../../kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md).
+- Mission spec FR-005 through FR-009 and NFR-001 through NFR-003 in `kitty-specs/review-merge-gate-hardening-3-2-x-01KRC57C/spec.md`.

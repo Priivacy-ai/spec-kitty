@@ -185,8 +185,8 @@ band-aid.
 
 ## References
 
-- Mission spec: [`kitty-specs/single-planning-surface-authority-01KVPR00/spec.md`](../../../kitty-specs/single-planning-surface-authority-01KVPR00/spec.md)
-- Phase-0 decisions (D-1..D-8): [`kitty-specs/single-planning-surface-authority-01KVPR00/research.md`](../../../kitty-specs/single-planning-surface-authority-01KVPR00/research.md)
+- Mission spec: `kitty-specs/single-planning-surface-authority-01KVPR00/spec.md`
+- Phase-0 decisions (D-1..D-8): `kitty-specs/single-planning-surface-authority-01KVPR00/research.md`
 - Design driver: [#2069](https://github.com/Priivacy-ai/spec-kitty/issues/2069) (MissionTopology SSOT seam)
 - Closed structurally: [#2062](https://github.com/Priivacy-ai/spec-kitty/issues/2062), [#2063](https://github.com/Priivacy-ai/spec-kitty/issues/2063), [#2064](https://github.com/Priivacy-ai/spec-kitty/issues/2064)
 - Mission B (behavior-neutral follow-on, blocked-by this mission): [#2070](https://github.com/Priivacy-ai/spec-kitty/issues/2070) — `CommitTargetKind` type eradication + richer-API adoption at the 14 `resolve_placement_only`/`resolve_action_context` call sites

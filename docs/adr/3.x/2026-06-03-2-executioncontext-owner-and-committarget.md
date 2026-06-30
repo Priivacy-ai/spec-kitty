@@ -105,7 +105,7 @@ complete.
 
 ## References
 
-- Mission spec: [`kitty-specs/execution-state-domain-remediation-01KT6HVH/spec.md`](../../../kitty-specs/execution-state-domain-remediation-01KT6HVH/spec.md)
+- Mission spec: `kitty-specs/execution-state-domain-remediation-01KT6HVH/spec.md`
 - Issue #1619: Strangler Fig sequence
 - Issue #1673: ExecutionContext hardening implementation
 - Issue #1666 doc-06: ExecutionContext resolver options A/B/C analysis
@@ -172,7 +172,7 @@ remaining call site so it cannot regrow a userbase before retirement.
 
 ### Addendum references
 
-- Mission spec: [`kitty-specs/tooling-stability-guard-coherence-01KTRC04/spec.md`](../../../kitty-specs/tooling-stability-guard-coherence-01KTRC04/spec.md) (FR-008, FR-009, NFR-004)
+- Mission spec: `kitty-specs/tooling-stability-guard-coherence-01KTRC04/spec.md` (FR-008, FR-009, NFR-004)
 - Contracts: `kitty-specs/tooling-stability-guard-coherence-01KTRC04/contracts/` (C-GUARD-1, C-GUARD-2)
 - ADR [`2026-04-25-1-shared-package-boundary.md`](2026-04-25-1-shared-package-boundary.md): the boundary that retired the `specify_cli/core/execution_context.py` path
 - Issue #1355: import-boundary ratchet

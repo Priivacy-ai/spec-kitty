@@ -75,7 +75,7 @@ other.
 ## References
 
 - Issue: [#1730](https://github.com/Priivacy-ai/spec-kitty/issues/1730)
-- User guide: [`docs/how-to/use-wps-yaml-manifest.md`](../../../docs/how-to/use-wps-yaml-manifest.md)
-- Plan guide: [`docs/how-to/create-plan.md`](../../../docs/how-to/create-plan.md)
-- Task guide: [`docs/how-to/generate-tasks.md`](../../../docs/how-to/generate-tasks.md)
+- User guide: [`docs/guides/use-wps-yaml-manifest.md`](../../../docs/guides/use-wps-yaml-manifest.md)
+- Plan guide: [`docs/guides/create-plan.md`](../../../docs/guides/create-plan.md)
+- Task guide: [`docs/guides/generate-tasks.md`](../../../docs/guides/generate-tasks.md)
 - Manifest model: [`src/specify_cli/core/wps_manifest.py`](../../../src/specify_cli/core/wps_manifest.py)

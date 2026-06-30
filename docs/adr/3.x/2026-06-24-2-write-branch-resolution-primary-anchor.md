@@ -130,7 +130,7 @@ ratchet so the recurring N+1 cannot return silently.
 - Predecessor (write-placement): [ADR 2026-06-24-1 — Kind- and Topology-Aware Artifact Placement](2026-06-24-1-kind-and-topology-aware-artifact-placement.md) / mission `write-surface-coherence-01KVTVZS` ([#2106](https://github.com/Priivacy-ai/spec-kitty/pull/2106))
 - Predecessor (topology SSOT): [ADR 2026-06-22-1 — MissionTopology SSOT](2026-06-22-1-mission-topology-ssot.md)
 - Epics: [#1716](https://github.com/Priivacy-ai/spec-kitty/issues/1716) (single surface authority), [#1868](https://github.com/Priivacy-ai/spec-kitty/issues/1868), [#1878](https://github.com/Priivacy-ai/spec-kitty/issues/1878)
-- Mission spec: [`kitty-specs/gate-read-surface-completion-01KVW9B0/spec.md`](../../../kitty-specs/gate-read-surface-completion-01KVW9B0/spec.md)
-- Seam + ratchet contract: [`kitty-specs/gate-read-surface-completion-01KVW9B0/contracts/gate-read-seam.md`](../../../kitty-specs/gate-read-surface-completion-01KVW9B0/contracts/gate-read-seam.md)
+- Mission spec: `kitty-specs/gate-read-surface-completion-01KVW9B0/spec.md`
+- Seam + ratchet contract: `kitty-specs/gate-read-surface-completion-01KVW9B0/contracts/gate-read-seam.md`
 - Canonical seams: [`src/specify_cli/missions/_read_path_resolver.py`](../../../src/specify_cli/missions/_read_path_resolver.py) (`primary_feature_dir_for_mission`, `resolve_planning_read_dir`), [`src/specify_cli/core/paths.py`](../../../src/specify_cli/core/paths.py) (`get_feature_target_branch`, `resolve_merge_target_branch`), [`src/specify_cli/core/git_ops.py`](../../../src/specify_cli/core/git_ops.py) (`resolve_target_branch`)
 - Ratchet (default-deny enforcement): [`tests/architectural/test_gate_read_literal_ban.py`](../../../tests/architectural/test_gate_read_literal_ban.py)

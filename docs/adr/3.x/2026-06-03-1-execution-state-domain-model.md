@@ -114,7 +114,7 @@ This ADR introduces the following terms (full entries in project glossary):
 
 ## References
 
-- Mission spec: [`kitty-specs/execution-state-domain-remediation-01KT6HVH/spec.md`](../../../kitty-specs/execution-state-domain-remediation-01KT6HVH/spec.md)
+- Mission spec: `kitty-specs/execution-state-domain-remediation-01KT6HVH/spec.md`
 - Issue #1619: root-cause analysis and Strangler Fig sequence
 - Issue #1674: ADR gate requirement
 - Issue #1666: doc-01–doc-17 design analysis (authoritative design basis)
