@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 
 from tests.lane_test_utils import write_single_lane_manifest
 from specify_cli.cli.commands.context import app
+from specify_cli.core.paths import MissionMetaReadError
 
 
 # ---------------------------------------------------------------------------
@@ -292,12 +293,12 @@ class TestGetFeatureTargetBranch:
         assert isinstance(branch, str)
         assert len(branch) > 0
 
-    def test_falls_back_on_malformed_meta(self, tmp_path: Path) -> None:
+    def test_malformed_meta_raises(self, tmp_path: Path) -> None:
         from specify_cli.core.paths import get_feature_target_branch
         feature_dir = tmp_path / "kitty-specs" / "057-test"
         feature_dir.mkdir(parents=True)
         (feature_dir / "meta.json").write_text("INVALID JSON {{", encoding="utf-8")
         (tmp_path / ".git").mkdir()
-        branch = get_feature_target_branch(tmp_path, "057-test")
-        assert isinstance(branch, str)
-        assert len(branch) > 0
+        # Corrupt meta.json must fail closed — not silently fall back (FR-005)
+        with pytest.raises(MissionMetaReadError):
+            get_feature_target_branch(tmp_path, "057-test")

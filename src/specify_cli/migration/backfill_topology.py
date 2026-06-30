@@ -27,7 +27,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
-from mission_runtime import MissionTopology, classify_topology
+from mission_runtime import MissionTopology, classify_topology, routes_through_coordination
 
 from specify_cli.lanes import CorruptLanesError, read_lanes_json
 
@@ -189,6 +189,40 @@ def backfill_mission_topology(
         )
 
     topology = _derive_topology(meta, feature_dir)
+
+    # T007 (#2250 / FR-002): a declared ``coordination_branch`` that was never
+    # created in git must NOT be backfilled as healthy coord. The probe lives at
+    # the WRITE path ONLY — ``read_topology`` / ``_derive_topology`` /
+    # ``classify_topology`` stay byte-for-byte pure (C-001: no I/O added there).
+    # Reuse the canonical ``_coord_branch_exists`` seam (lazy import — avoids the
+    # coordination ↔ migration layer cycle; same pattern as
+    # ``_read_path_resolver.py:315``). The seam already fails closed: a non-git
+    # directory or an unreadable git state returns ``True`` (branch treated as
+    # present), so the normal write path is taken in tests without a git repo and
+    # in degraded environments — no false-skip on git unavailability. #2219 cites
+    # the analogous repo-global probe precedent.
+    if routes_through_coordination(topology):
+        coord_branch: str | None = meta.get(_COORDINATION_BRANCH_KEY) or None
+        if coord_branch is not None:
+            from specify_cli.coordination.surface_resolver import _coord_branch_exists
+
+            _repo_root = feature_dir.parent.parent  # kitty-specs/<slug> → repo root
+            if not _coord_branch_exists(_repo_root, coord_branch):
+                logger.warning(
+                    "Skipping topology backfill for %s: coordination_branch %r is "
+                    "absent from git (never created or deleted). Flatten the mission "
+                    "(remove coordination_branch from meta.json) or create the branch "
+                    "before backfilling. #2250",
+                    slug,
+                    coord_branch,
+                )
+                return TopologyBackfillResult(
+                    feature_dir=feature_dir,
+                    slug=slug,
+                    action="skip",
+                    reason="coordination_branch absent from git",
+                )
+
     if not dry_run:
         meta[_TOPOLOGY_KEY] = topology.value
         meta.setdefault(_FLATTENED_KEY, False)

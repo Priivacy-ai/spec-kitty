@@ -188,6 +188,53 @@ def test_run_workspaces_report_branch(monkeypatch: pytest.MonkeyPatch, tmp_path:
     assert called["report"] == (tmp_path, False)
 
 
+# --- _coord_worktree_needs_refresh (stale ancestor path) --------------------
+
+
+def test_coord_worktree_needs_refresh_stale_ancestor(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """_coord_worktree_needs_refresh returns (True, branch) when HEAD is a strict
+    ancestor of the branch tip.
+
+    Covers lines 153-177: symbolic-ref OK, rev-parse HEAD returns SHA1, rev-parse
+    branch tip returns SHA2 (SHA1 != SHA2), merge-base --is-ancestor exits 0 →
+    (True, branch).  Subprocess calls are patched because the single-repo linked-
+    worktree model makes HEAD and refs/heads/<branch> resolve identically in a real
+    checkout (symbolic HEAD always tracks the current branch tip through the shared
+    ref store).
+    """
+    import subprocess as real_subprocess
+    from dataclasses import dataclass
+
+    SHA1 = "aabbccddeeff001122334455667788990011aabb"
+    SHA2 = "1122334455667788990011aabbccddeeff112233"
+    BRANCH = "kitty/mission-test-0000000A"
+
+    @dataclass
+    class _FakeResult:
+        returncode: int
+        stdout: str = ""
+
+    def _mock_run(args: list[str], **kwargs: object) -> _FakeResult:
+        if "symbolic-ref" in args:
+            return _FakeResult(returncode=0, stdout=BRANCH + "\n")
+        if "rev-parse" in args and "HEAD" in args:
+            return _FakeResult(returncode=0, stdout=SHA1 + "\n")
+        if "rev-parse" in args and f"refs/heads/{BRANCH}" in args:
+            return _FakeResult(returncode=0, stdout=SHA2 + "\n")
+        if "merge-base" in args and "--is-ancestor" in args:
+            # SHA1 is a strict ancestor of SHA2.
+            return _FakeResult(returncode=0)
+        return _FakeResult(returncode=1)  # unknown call → fail-safe
+
+    monkeypatch.setattr(real_subprocess, "run", _mock_run)
+
+    stale, branch = wh._coord_worktree_needs_refresh(tmp_path, tmp_path)
+    assert stale is True
+    assert branch == BRANCH
+
+
 def test_workspace_husk_doctor_does_not_import_doctor() -> None:
     import ast
 

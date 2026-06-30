@@ -23,6 +23,8 @@ from __future__ import annotations
 
 import re
 
+from mission_runtime import is_self_bookkeeping_path
+
 # ---------------------------------------------------------------------------
 # Benign filename / suffix patterns
 # ---------------------------------------------------------------------------
@@ -64,6 +66,11 @@ def _is_benign(path: str, wp_id: str) -> bool:
     2. It lives under ``.kittify/``.
     3. It matches the pattern for *another* WP's task file.
     4. It matches the root-level ``tasks.md`` summary file.
+    5. It is spec-kitty's own bookkeeping (``meta.json``,
+       encoding-provenance JSONL, or a ``kitty-ops/<ULID>.jsonl``
+       Op-record orphan) — delegated to the SINGLE shared
+       :func:`mission_runtime.is_self_bookkeeping_path` authority (#2251 /
+       FR-001 / G-5 invariant — no independent literal here).
     """
     # Normalise separators for cross-platform safety
     normalised = path.replace("\\", "/").strip()
@@ -87,6 +94,10 @@ def _is_benign(path: str, wp_id: str) -> bool:
 
     # 4. Root-level tasks.md (auto-updated by mark-status)
     if _ROOT_TASKS_MD_PATTERN.search(normalised):
+        return True
+
+    # 5. Self-bookkeeping files (meta.json, provenance JSONL, kitty-ops Op-records).
+    if is_self_bookkeeping_path(normalised):
         return True
 
     return False

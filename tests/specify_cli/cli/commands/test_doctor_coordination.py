@@ -129,8 +129,10 @@ def test_coord_health_warns_when_missing(fresh_mission_repo: Path) -> None:
     f = findings[0]
     assert f.severity == "warning"
     assert f.error_code == "COORDINATION_WORKTREE_MISSING"
-    # WP05 (#1890): phantom `agent worktree repair` repointed to the real command.
-    assert "doctor workspaces --fix" in (f.next_step or "")
+    # WP03 (#2240): next_step carries a real `git worktree add` command; no longer
+    # the husk-remove-only `doctor workspaces --fix` (#1890 recurrence guard).
+    assert "worktree add" in (f.next_step or "")
+    assert "recovery_args" in f.extra
 
 
 def test_coord_health_warns_on_branch_mismatch(fresh_mission_repo: Path) -> None:
@@ -207,3 +209,228 @@ def test_lane_drift_warns_when_pattern_edited(
     drift = [f for f in findings if f.error_code == "LANE_SPARSE_CHECKOUT_DRIFT"]
     assert drift, "expected drift warning when exclusions are stripped"
     assert any("missing_patterns" in f.extra for f in drift)
+
+
+def test_coord_health_recovery_efficacy_missing_worktree(fresh_mission_repo: Path) -> None:
+    """T010 efficacy: the COORDINATION_WORKTREE_MISSING recovery hint must ACTUALLY
+    recreate the worktree — not merely exist.
+
+    Pre-fix: `next_step` says `doctor workspaces --fix` (only removes husks);
+    `extra` has no ``recovery_args`` key → assertion below fails → RED (#2240).
+    Post-fix: `extra["recovery_args"]` carries the real `git worktree add` command
+    → executing it creates the worktree → GREEN.
+    """
+    # coord branch created by fixture, but worktree NOT materialised.
+    findings = _check_coordination_worktree_health(fresh_mission_repo, _meta())
+    assert len(findings) == 1
+    f = findings[0]
+    assert f.error_code == "COORDINATION_WORKTREE_MISSING"
+
+    # ── efficacy anchor ──────────────────────────────────────────────────────
+    # The finding MUST carry a machine-readable `recovery_args` list so that
+    # following the hint actually resolves the state.  On pre-fix code this key
+    # is absent (extra == {}) → RED.  The failure message explains the #2240
+    # phantom-hint recurrence.
+    recovery_args: list[str] | None = f.extra.get("recovery_args")
+    assert recovery_args is not None, (
+        "COORDINATION_WORKTREE_MISSING finding must carry extra['recovery_args'] "
+        "with a real `git worktree add` command so that following the hint "
+        "actually recreates the coordination worktree. "
+        "Recommending `doctor workspaces --fix` (which only removes husks) "
+        "is the #2240 phantom-hint recurrence of the #1890 dead-command class."
+    )
+
+    # Execute the recovery command and verify state is resolved.
+    subprocess.run(list(recovery_args), check=True, capture_output=True)
+    worktree = CoordinationWorkspace.worktree_path(fresh_mission_repo, MISSION_SLUG, MID8)
+    assert worktree.exists(), (
+        "recovery_args must recreate the coordination worktree; it is still missing"
+    )
+
+    # Doctor must now report OK for this mission.
+    after = _check_coordination_worktree_health(fresh_mission_repo, _meta())
+    assert all(f2.severity == "ok" for f2 in after), (
+        f"doctor still reports issues after recovery: {after}"
+    )
+
+
+def test_coord_health_never_created_branch_routes_to_flatten(
+    fresh_mission_repo: Path,
+) -> None:
+    """T010 secondary: a declared coord_branch that does NOT exist in git must
+    produce COORDINATION_WORKTREE_NEVER_CREATED (not the generic MISSING code)
+    and its hint must lead with flattening.
+
+    Pre-fix: both absent-branch and missing-worktree cases return the same
+    COORDINATION_WORKTREE_MISSING code → assert on NEVER_CREATED fails → RED.
+    """
+    nonexistent_meta = {
+        **_meta(),
+        "coordination_branch": "kitty/mission-nonexistent-00000000",
+    }
+    findings = _check_coordination_worktree_health(fresh_mission_repo, nonexistent_meta)
+    assert len(findings) == 1
+    f = findings[0]
+    assert f.error_code == "COORDINATION_WORKTREE_NEVER_CREATED", (
+        f"a declared-but-absent coord branch must produce "
+        f"COORDINATION_WORKTREE_NEVER_CREATED, got {f.error_code!r}"
+    )
+    # Flatten must be the first action recommended (consistent with WP02 / #2250).
+    hint = (f.next_step or "").lower()
+    assert "meta.json" in hint or "flatten" in hint, (
+        "never-created hint must mention meta.json (flatten by removing coordination_branch)"
+    )
+    # No recovery_args: the fix is editing meta.json, not a git command.
+    assert "recovery_args" not in f.extra
+
+
+def test_coord_health_warns_stale_coord_worktree(fresh_mission_repo: Path) -> None:
+    """T012: a coord worktree whose HEAD is behind the coord branch tip must
+    produce a COORDINATION_WORKTREE_STALE warning.
+
+    Pre-fix: no stale detection → no STALE finding → assertion fails → RED.
+    """
+    # Materialise the coord worktree (at the branch tip).
+    path = CoordinationWorkspace.resolve(fresh_mission_repo, MISSION_SLUG, MID8)
+
+    # Advance the coord branch by committing in the worktree…
+    (path / "_stale_marker.txt").write_text("advance\n")
+    _git(path, "add", ".")
+    _git(path, "commit", "-m", "advance coord branch for stale test")
+
+    # …then roll the worktree HEAD back one commit.  The coord branch tip stays
+    # at the new commit, so the worktree is now 1 commit behind.
+    #
+    # NOTE: `git reset --hard HEAD~1` in a worktree moves BOTH the branch tip
+    # and the worktree HEAD (shared ref).  To leave the branch tip at commit2
+    # while moving the worktree HEAD to commit1, we first detach HEAD from the
+    # branch (branch stays at commit2) and then reset the detached HEAD back.
+    _git(path, "checkout", "--detach")
+    _git(path, "reset", "--hard", "HEAD~1")
+
+    findings = _check_coordination_worktree_health(fresh_mission_repo, _meta())
+    stale = [fi for fi in findings if fi.error_code == "COORDINATION_WORKTREE_STALE"]
+    assert stale, (
+        "expected COORDINATION_WORKTREE_STALE warning when the coord worktree "
+        "HEAD is 1 commit behind the coord branch tip"
+    )
+    assert stale[0].severity == "warning"
+    assert stale[0].next_step is not None
+
+
+def test_stale_coord_worktree_refresh_efficacy(
+    fresh_mission_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """T013 efficacy: _refresh_stale_coord_worktrees must fast-forward a stale
+    coord worktree — outcome 'refreshed', HEAD==tip after, STALE not re-emitted.
+
+    This proves ``doctor workspaces --fix`` performs what it claims (the exact
+    phantom-efficacy class #2240 targets).  The stale signal is injected via
+    monkeypatch of ``_coord_worktree_needs_refresh`` (returning stale=True with
+    the coord branch name) because the git linked-worktree model makes HEAD and
+    refs/heads/<branch> resolve identically in a single-repo checkout — a
+    symbolic-HEAD worktree that lags behind its own branch tip cannot arise
+    without fetch/push from an external clone.  The remainder of the execution
+    path — registered-worktree discovery, real git merge --ff-only, and outcome
+    classification — runs against genuine git objects, closing the lines 193-205
+    (and 153-177 via the already_current + detached unit tests below) coverage
+    gap flagged at 77% module coverage.
+
+    Pre-fix (before _refresh_stale_coord_worktrees existed in WP03): import of
+    the attribute itself would fail → RED.  Post-fix: the merge exits 0 → GREEN.
+    """
+    from specify_cli.cli.commands import _workspace_husk_doctor as wh
+
+    # Materialise a coord worktree registered in git (name ends with -coord so
+    # _registered_coord_worktrees picks it up).
+    wt = CoordinationWorkspace.resolve(fresh_mission_repo, MISSION_SLUG, MID8)
+    assert wt.exists(), "coord worktree must exist for the refresh efficacy test"
+
+    # Inject staleness: _coord_worktree_needs_refresh returns (True, COORD_BRANCH)
+    # to drive the function past the 'already_current' early-return and into the
+    # git merge --ff-only branch.  The monkeypatch is scoped to this test.
+    monkeypatch.setattr(
+        wh,
+        "_coord_worktree_needs_refresh",
+        lambda _wt, _root: (True, COORD_BRANCH),
+    )
+
+    # Execute the recovery path — this is the real _refresh_stale_coord_worktrees,
+    # not a mock.  It calls real git commands against the worktree on disk.
+    outcomes = wh._refresh_stale_coord_worktrees(fresh_mission_repo)
+
+    # Must yield exactly one outcome for the registered coord worktree.
+    assert len(outcomes) == 1, f"expected 1 outcome from refresh, got {outcomes!r}"
+    _path_str, outcome = outcomes[0]
+    assert outcome == "refreshed", (
+        f"expected 'refreshed' from git merge --ff-only; got {outcome!r}. "
+        "'failed' means the merge exited non-zero. "
+        "'skip_detached' means _registered_coord_worktrees did not find the worktree. "
+        "'already_current' means the stale-injection monkeypatch was not applied."
+    )
+
+    # Efficacy: coord worktree HEAD must equal the coord branch tip.
+    worktree_head = subprocess.check_output(
+        ["git", "-C", str(wt), "rev-parse", "HEAD"], text=True,
+    ).strip()
+    branch_tip = subprocess.check_output(
+        ["git", "-C", str(fresh_mission_repo), "rev-parse",
+         f"refs/heads/{COORD_BRANCH}"], text=True,
+    ).strip()
+    assert worktree_head == branch_tip, (
+        "after refresh, coord worktree HEAD must equal the coord branch tip"
+    )
+
+    # State resolution: re-running _check_coordination_worktree_health uses
+    # _coord_worktree_stale_finding (a separate function in _coordination_doctor.py,
+    # not the monkeypatched _coord_worktree_needs_refresh) and must not emit
+    # COORDINATION_WORKTREE_STALE for a worktree that is already at the tip.
+    findings_after = _check_coordination_worktree_health(fresh_mission_repo, _meta())
+    stale_after = [
+        f for f in findings_after
+        if f.error_code == "COORDINATION_WORKTREE_STALE"
+    ]
+    assert not stale_after, (
+        f"COORDINATION_WORKTREE_STALE must not be present after refresh; "
+        f"still emitted: {stale_after}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# _coord_worktree_needs_refresh unit coverage (lines 153-177)
+# ---------------------------------------------------------------------------
+
+
+def test_coord_worktree_needs_refresh_already_current(
+    fresh_mission_repo: Path,
+) -> None:
+    """_coord_worktree_needs_refresh returns (False, branch) when HEAD==tip.
+
+    Covers lines 153-170: symbolic-ref succeeds, both rev-parse calls succeed,
+    head_sha == tip_sha → (False, branch) early return.
+    """
+    from specify_cli.cli.commands import _workspace_husk_doctor as wh
+
+    wt = CoordinationWorkspace.resolve(fresh_mission_repo, MISSION_SLUG, MID8)
+    stale, branch = wh._coord_worktree_needs_refresh(wt, fresh_mission_repo)
+    assert stale is False
+    assert branch == COORD_BRANCH
+
+
+def test_coord_worktree_needs_refresh_detached_head(
+    fresh_mission_repo: Path,
+) -> None:
+    """_coord_worktree_needs_refresh returns (False, '') when HEAD is detached.
+
+    Covers lines 153-160: symbolic-ref exits non-zero → branch == '' →
+    early return (False, ''), which _refresh_stale_coord_worktrees maps to
+    'skip_detached'.
+    """
+    from specify_cli.cli.commands import _workspace_husk_doctor as wh
+
+    wt = CoordinationWorkspace.resolve(fresh_mission_repo, MISSION_SLUG, MID8)
+    _git(wt, "checkout", "--detach")
+    stale, branch = wh._coord_worktree_needs_refresh(wt, fresh_mission_repo)
+    assert stale is False
+    assert branch == ""

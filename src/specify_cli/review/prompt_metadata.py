@@ -44,7 +44,7 @@ class ReviewPromptMetadata:
 
     invocation_id: str
     repo_root: Path
-    mission_id: str
+    mission_id: str | None  # WP04/FR-004: ULID or None; never a slug
     mission_slug: str
     work_package_id: str
     lane_worktree: Path
@@ -57,7 +57,9 @@ class ReviewPromptMetadata:
     def to_frontmatter(self) -> dict[str, str]:
         """Serialize metadata as prompt YAML frontmatter."""
         data = asdict(self)
-        return {key: str(value) for key, value in data.items()}
+        # WP04: mission_id is str | None; serialize None as "" so frontmatter
+        # stays a clean string map (never "None" string).
+        return {key: str(value) if value is not None else "" for key, value in data.items()}
 
 
 class ReviewPromptMetadataError(RuntimeError):
@@ -146,7 +148,7 @@ def build_review_prompt_metadata(
     return ReviewPromptMetadata(
         invocation_id=resolved_invocation_id,
         repo_root=resolved_repo_root,
-        mission_id=str(mission_id or mission_slug),
+        mission_id=mission_id,  # WP04/FR-004: ULID or None; slug fallback removed
         mission_slug=mission_slug,
         work_package_id=work_package_id,
         lane_worktree=lane_worktree.expanduser().resolve(),

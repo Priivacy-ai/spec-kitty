@@ -14,11 +14,16 @@ Import discipline (one-way, I-2): imports shared infra from
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 
 from ._doctor_shared import console
+
+if TYPE_CHECKING:
+    from specify_cli.status.doctor_husks import _RegisteredWorktreePaths
 
 # ``__all__`` lists this sibling's single cross-module entrypoint. The render
 # helpers are intra-module (used here + by this module's own unit tests) and are
@@ -81,6 +86,12 @@ def _emit_workspace_husk_fix(repo_root: Path, json_output: bool) -> None:
         )
     if not report.husks:
         console.print("[green]No workspace husks found.[/green]")
+    stale_results = _refresh_stale_coord_worktrees(repo_root)
+    for wt_path, outcome in stale_results:
+        if outcome == "refreshed":
+            console.print(f"[green]Refreshed stale coord worktree:[/green] {wt_path}")
+        elif outcome == "failed":
+            console.print(f"[yellow]Could not refresh coord worktree:[/yellow] {wt_path}")
     raise typer.Exit(0 if not remaining else 1)
 
 
@@ -108,6 +119,91 @@ def _emit_workspace_husk_report(repo_root: Path, json_output: bool) -> None:
         console.print(f"[red]Error:[/red] {report.registration_error}")
     console.print("Remove unregistered husks with: spec-kitty doctor workspaces --fix")
     raise typer.Exit(1)
+
+
+_COORD_SUFFIX = "-coord"
+
+
+def _registered_coord_worktrees(
+    repo_root: Path, registered: _RegisteredWorktreePaths,
+) -> list[Path]:
+    """Return registered coord worktrees under ``.worktrees/``.
+
+    A coord worktree ends with ``-coord`` and is present in the git registry.
+    Skips the ``.worktrees/`` directory when it does not exist.
+    """
+    from specify_cli.status.doctor_husks import WORKTREES_DIRNAME
+
+    worktrees_dir = repo_root / WORKTREES_DIRNAME
+    if not worktrees_dir.is_dir() or registered.error:
+        return []
+    return [
+        entry
+        for entry in sorted(worktrees_dir.iterdir(), key=lambda p: p.name)
+        if (
+            entry.is_dir()
+            and entry.name.endswith(_COORD_SUFFIX)
+            and entry.resolve() in registered.paths
+        )
+    ]
+
+
+def _coord_worktree_needs_refresh(worktree: Path, repo_root: Path) -> tuple[bool, str]:
+    """Return (is_stale, branch_name).  is_stale=False when up-to-date or unreadable."""
+    branch_result = subprocess.run(
+        ["git", "-C", str(worktree), "symbolic-ref", "--short", "HEAD"],
+        capture_output=True, text=True, check=False,
+    )
+    branch = branch_result.stdout.strip() if branch_result.returncode == 0 else ""
+    if not branch:
+        return False, ""
+    head_result = subprocess.run(
+        ["git", "-C", str(worktree), "rev-parse", "HEAD"],
+        capture_output=True, text=True, check=False,
+    )
+    tip_result = subprocess.run(
+        ["git", "-C", str(repo_root), "rev-parse", f"refs/heads/{branch}"],
+        capture_output=True, text=True, check=False,
+    )
+    head_sha = head_result.stdout.strip() if head_result.returncode == 0 else ""
+    tip_sha = tip_result.stdout.strip() if tip_result.returncode == 0 else ""
+    if not head_sha or not tip_sha or head_sha == tip_sha:
+        return False, branch
+    ancestor = subprocess.run(
+        ["git", "-C", str(repo_root), "merge-base", "--is-ancestor",
+         head_sha, tip_sha],
+        capture_output=True, check=False,
+    )
+    return ancestor.returncode == 0, branch
+
+
+def _refresh_stale_coord_worktrees(
+    repo_root: Path,
+) -> list[tuple[str, str]]:
+    """Fast-forward each stale registered coord worktree to its branch tip.
+
+    Returns a list of ``(path_str, outcome)`` tuples where *outcome* is one of
+    ``"refreshed"``, ``"failed"``, ``"already_current"``, or ``"skip_detached"``.
+    """
+    from specify_cli.status.doctor_husks import _registered_worktree_paths
+
+    registered = _registered_worktree_paths(repo_root)
+    outcomes: list[tuple[str, str]] = []
+    for worktree in _registered_coord_worktrees(repo_root, registered):
+        stale, branch = _coord_worktree_needs_refresh(worktree, repo_root)
+        if not branch:
+            outcomes.append((str(worktree), "skip_detached"))
+            continue
+        if not stale:
+            outcomes.append((str(worktree), "already_current"))
+            continue
+        merge = subprocess.run(
+            ["git", "-C", str(worktree), "merge", "--ff-only",
+             f"refs/heads/{branch}"],
+            capture_output=True, check=False,
+        )
+        outcomes.append((str(worktree), "refreshed" if merge.returncode == 0 else "failed"))
+    return outcomes
 
 
 def run_workspaces(repo_root: Path, fix: bool, json_output: bool) -> None:

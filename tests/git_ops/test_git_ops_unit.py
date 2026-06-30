@@ -33,6 +33,7 @@ from specify_cli.core.git_ops import (
     resolve_target_branch,
     run_command,
 )
+from specify_cli.core.paths import MissionMetaReadError
 
 pytestmark = pytest.mark.fast
 
@@ -165,17 +166,14 @@ def test_resolve_target_branch_no_meta_falls_back_to_primary(tmp_path: Path) -> 
     assert resolution.action == "proceed"
 
 
-def test_resolve_target_branch_invalid_meta_falls_back(tmp_path: Path) -> None:
-    """When meta.json is malformed JSON, target falls back to primary branch."""
+def test_resolve_target_branch_invalid_meta_raises(tmp_path: Path) -> None:
+    """When meta.json is malformed JSON, MissionMetaReadError is raised (FR-005)."""
     feature_dir = tmp_path / "kitty-specs" / "005-test"
     feature_dir.mkdir(parents=True)
     (feature_dir / "meta.json").write_text("{ invalid json }", encoding="utf-8")
 
-    with patch(_PATCH_PRIMARY, return_value="main"):
-        resolution = resolve_target_branch("005-test", tmp_path, "main", respect_current=True)
-
-    assert resolution.target == "main"
-    assert resolution.action == "proceed"
+    with patch(_PATCH_PRIMARY, return_value="main"), pytest.raises(MissionMetaReadError):
+        resolve_target_branch("005-test", tmp_path, "main", respect_current=True)
 
 
 def test_resolve_target_branch_meta_missing_field_falls_back(tmp_path: Path) -> None:

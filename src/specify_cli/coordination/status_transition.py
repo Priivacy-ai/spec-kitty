@@ -38,7 +38,7 @@ from specify_cli.workspace import canonicalize_feature_dir
 class _TransactionIdentity:
     repo_root: Path
     feature_dir: Path
-    mission_id: str
+    mission_id: str | None  # WP04/FR-004: ULID or None; never a slug-derived fallback
     mid8: str
     destination_ref: str
     meta_exists: bool
@@ -386,7 +386,11 @@ def _identity_for_request(request: TransitionRequest) -> _TransactionIdentity:
         # and is the last external caller of the demoted ``mid8`` primitive
         # (mission 01KV7SFD / WP01).
 
-    effective_mission_id = mission_id or f"legacy-{mission_slug}"
+    # WP04/FR-004: mission_id is the canonical ULID or None — never a slug-derived
+    # fallback. The f"legacy-{slug}" sentinel is removed from the stored field;
+    # BookkeepingTransaction.acquire receives it ONLY as an explicit worktree-lock
+    # identifier for legacy missions (not persisted to any mission_id event field).
+    effective_mission_id = mission_id
     # FR-007: the mid8 names the ON-DISK transaction dir. Route through the
     # canonical fail-closed authority instead of fabricating a zero-padded mid8
     # from the slug — that idiom invented a wrong-but-plausible dir name and
@@ -728,16 +732,23 @@ def emit_status_transition_transactional(
             sync_dossier=sync_dossier,
         )
 
+    # WP04/FR-004: BookkeepingTransaction.acquire requires str for its lock/path
+    # management. For legacy missions (identity.mission_id is None), use the
+    # explicit f"legacy-{slug}" string ONLY for the transaction lock — this is
+    # documented and NOT written into any mission_id event field.
+    _txn_mission_id = identity.mission_id or f"legacy-{mission_slug}"
     with BookkeepingTransaction.acquire(
         repo_root=identity.repo_root,
-        mission_id=identity.mission_id,
+        mission_id=_txn_mission_id,
         mission_slug=mission_slug,
         mid8=identity.mid8,
         destination_ref=identity.destination_ref,
         operation=operation or f"status transition {request.wp_id}",
         capability=capability,
     ) as txn:
-        mission_id_for_event = None if identity.mission_id.startswith("legacy-") else identity.mission_id
+        # WP04: identity.mission_id is now str | None; None means no ULID (legacy).
+        # The old .startswith("legacy-") sentinel is replaced by the None check.
+        mission_id_for_event = identity.mission_id
         from_lane = str(_emit._derive_from_lane(txn.feature_dir, request.wp_id))
         event, _resolved_lane = _prepare_event(
             feature_dir=txn.feature_dir,
@@ -806,16 +817,19 @@ def emit_status_transition_batch_transactional(
             sync_dossier=sync_dossier,
         )
 
+    # WP04/FR-004: explicit legacy fallback for transaction lock only (not event field).
+    _txn_mission_id_batch = identity.mission_id or f"legacy-{mission_slug}"
     with BookkeepingTransaction.acquire(
         repo_root=identity.repo_root,
-        mission_id=identity.mission_id,
+        mission_id=_txn_mission_id_batch,
         mission_slug=mission_slug,
         mid8=identity.mid8,
         destination_ref=identity.destination_ref,
         operation=operation or f"status transition batch {first.wp_id}",
         capability=capability,
     ) as txn:
-        mission_id_for_event = None if identity.mission_id.startswith("legacy-") else identity.mission_id
+        # WP04: identity.mission_id is str | None; None replaces the old "legacy-" sentinel.
+        mission_id_for_event = identity.mission_id
         from_lane = str(_emit._derive_from_lane(txn.feature_dir, first.wp_id))
         built: list[tuple[StatusEvent, TransitionRequest]] = []
         started_at = datetime.now(UTC)

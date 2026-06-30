@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-import json
 import logging
 import os
 import re
 from pathlib import Path
+from typing import Any, cast
 
 from .constants import KITTIFY_DIR, WORKTREES_DIR
 
@@ -492,6 +492,34 @@ class StatusReadUnsupported(RuntimeError):
     """
 
 
+class MissionMetaReadError(RuntimeError):
+    """Raised when meta.json exists but cannot be decoded.
+
+    Distinguishes a *read failure* (corrupt JSON or I/O error) from a
+    *field-absent* read (meta.json present and valid but the requested key is
+    absent — callers handle that case via the documented default branch).
+
+    Never raised when meta.json is simply missing; a missing file is the
+    field-absent case and callers receive ``None`` from
+    :func:`read_target_branch_from_meta`.
+
+    (FR-005 / #2139 — fail-closed doctrine; precedent: #2065)
+
+    Attributes:
+        meta_path: The path of the file that could not be decoded.
+        cause: The underlying exception (``ValueError`` wrapping
+               ``JSONDecodeError`` or ``OSError``).
+    """
+
+    def __init__(self, meta_path: Path, cause: Exception) -> None:
+        self.meta_path = meta_path
+        self.cause = cause
+        super().__init__(
+            f"Cannot read {meta_path}: {cause}"
+            " — fail-closed (meta.json exists but is corrupt or unreadable)"
+        )
+
+
 def _is_detached_worktree(start: Path | None = None) -> bool:
     """Return True when the current working directory is inside a git worktree.
 
@@ -596,12 +624,76 @@ def assert_worktree_supported(command_name: str, start: Path | None = None) -> N
         )
 
 
+def _load_meta_fail_closed(feature_dir: Path) -> dict[str, Any] | None:
+    """Load meta.json fail-closed on corruption.
+
+    This is the single place that owns the field-absent vs read-failure
+    decision.  Every target-branch reader delegates here.
+
+    Returns:
+        ``None`` when meta.json is absent (caller treats as field-absent).
+        The parsed mapping when meta.json is present and valid.
+
+    Raises:
+        MissionMetaReadError: When meta.json exists but is corrupt or
+            unreadable.  Never raised for a missing file.
+    """
+    # Deferred import: core.paths is loaded very early; mission_metadata imports
+    # back from core (e.g. safe_mission_slug), so a module-level import would
+    # create a circular import.
+    from specify_cli.mission_metadata import load_meta  # noqa: PLC0415
+
+    meta_path = feature_dir / "meta.json"
+    try:
+        # allow_missing=True  → None when file is absent (field-absent case)
+        # on_malformed="raise" → ValueError when file exists but is corrupt
+        # cast: load_meta is typed dict[str, Any] | None; cast silences the
+        # "Returning Any" mypy inference that occurs because load_meta's body
+        # absorbs the Any from json.loads without a narrow annotation.
+        return cast("dict[str, Any] | None", load_meta(feature_dir, allow_missing=True, on_malformed="raise"))
+    except ValueError as exc:
+        raise MissionMetaReadError(meta_path, exc) from exc
+
+
+def read_target_branch_from_meta(feature_dir: Path) -> str | None:
+    """Read ``target_branch`` from ``feature_dir/meta.json``.
+
+    The single authority for the field-absent vs read-failure distinction
+    (FR-005 / #2139 — fail-closed doctrine; precedent: #2065).  All
+    ``target_branch`` readers in this codebase are thin adapters over this
+    function.
+
+    Args:
+        feature_dir: Mission directory containing (or expected to contain)
+            ``meta.json``.
+
+    Returns:
+        The ``target_branch`` value as a string, or ``None`` when the field
+        is absent or meta.json does not exist.  Callers MUST apply the
+        documented default (usually the primary branch) when ``None`` is
+        returned.
+
+    Raises:
+        MissionMetaReadError: When meta.json exists but is corrupt or
+            unreadable.  Callers MUST NOT silently swallow this — the error
+            must propagate so corruption is visible (fail-closed doctrine).
+    """
+    data = _load_meta_fail_closed(feature_dir)
+    if not data:
+        return None
+    value = data.get("target_branch")
+    return str(value) if value else None
+
+
 def get_feature_target_branch(repo_root: Path, mission_slug: str) -> str:
     """Get target branch for a feature by reading meta.json directly.
 
-    Reads the ``target_branch`` field from ``kitty-specs/<slug>/meta.json``.
-    Falls back to the primary branch (usually ``main``) if the file is missing
-    or malformed.
+    Thin adapter over :func:`read_target_branch_from_meta`.
+
+    Reads the ``target_branch`` field from the primary meta.json.  Returns the
+    documented default (primary branch) when the field is absent or meta.json
+    does not exist.  Raises :class:`MissionMetaReadError` when meta.json
+    exists but is corrupt or unreadable (fail-closed).
 
     Args:
         repo_root: Repository root path (may be worktree — resolved to main).
@@ -624,26 +716,21 @@ def get_feature_target_branch(repo_root: Path, mission_slug: str) -> str:
     )
 
     main_root = get_main_repo_root(repo_root)
-    meta_file = primary_feature_dir_for_mission(
+    feature_dir = primary_feature_dir_for_mission(
         main_root,
         _canonicalize_primary_read_handle(main_root, mission_slug),
-    ) / "meta.json"
+    )
     fallback = str(resolve_primary_branch(main_root))
-
-    if not meta_file.exists():
-        return fallback
-
-    try:
-        data = json.loads(meta_file.read_text(encoding="utf-8"))
-        return str(data.get("target_branch", fallback))
-    except (json.JSONDecodeError, KeyError, OSError):
-        return fallback
+    branch = read_target_branch_from_meta(feature_dir)
+    return branch if branch is not None else fallback
 
 
 def resolve_merge_target_branch(
     repo_root: Path, mission_slug: str | None, explicit_target: str | None
 ) -> tuple[str, str]:
     """Resolve the branch a mission merges into, with provenance.
+
+    Thin adapter over :func:`_load_meta_fail_closed`.
 
     The single source of truth shared by ``spec-kitty merge`` and
     ``orchestrator-api merge-mission`` so the two never disagree.
@@ -660,13 +747,17 @@ def resolve_merge_target_branch(
 
     Returns ``(branch, source)`` where ``source`` is ``"flag"``, ``"meta.json"``,
     or ``"primary_branch"``.
+
+    Raises:
+        MissionMetaReadError: When meta.json exists but is corrupt or
+            unreadable (fail-closed).
     """
     if explicit_target is not None:
         return explicit_target, "flag"
 
-    # Deferred imports (as in get_feature_target_branch above): core.paths is
-    # imported very early, while these pull in the missions/git layers that import
-    # back into core — module-level imports here would form a circular import.
+    # Deferred imports: core.paths is imported very early; these pull in the
+    # missions/git layers that import back into core — module-level imports would
+    # form a circular import.
     from specify_cli.core.git_ops import resolve_primary_branch
     from specify_cli.missions._read_path_resolver import (
         _canonicalize_primary_read_handle,
@@ -678,15 +769,12 @@ def resolve_merge_target_branch(
     if not mission_slug:
         return fallback, "primary_branch"
 
-    meta_file = primary_feature_dir_for_mission(
+    feature_dir = primary_feature_dir_for_mission(
         main_root,
         _canonicalize_primary_read_handle(main_root, mission_slug),
-    ) / "meta.json"
-    if meta_file.exists():
-        try:
-            data = json.loads(meta_file.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            data = {}
+    )
+    data = _load_meta_fail_closed(feature_dir)
+    if data:
         for key in ("merge_target_branch", "target_branch"):
             value = data.get(key)
             if value:  # non-null, non-empty
@@ -778,6 +866,9 @@ __all__ = [
     "get_status_read_root",
     "StatusReadUnsupported",
     "assert_worktree_supported",
+    "MissionMetaReadError",
+    "read_target_branch_from_meta",
     "get_feature_target_branch",
+    "resolve_merge_target_branch",
     "require_explicit_feature",
 ]

@@ -461,8 +461,13 @@ class TestMissionIdInEnvelope:
         )
         assert lines[0]["mission_id"] != slug, "slug must not be used as mission_id"
 
-    def test_slug_fallback_when_no_mission_id(self, tmp_path: Path) -> None:
-        """When mission_id is not provided, mission_slug is used as fallback."""
+    def test_no_slug_fallback_when_no_mission_id(self, tmp_path: Path) -> None:
+        """When mission_id is not provided, the envelope must NOT contain the slug.
+
+        WP04 / T015: inverted from the stale contract that certified slug-as-mission_id.
+        The corrected contract is fail-closed: an absent ULID yields mission_id=None
+        in the event envelope (null in JSON), never the slug (FR-004).
+        """
         slug = "fallback-slug-mission"
         log = DecisionGitLog(
             repo_root=tmp_path,
@@ -477,7 +482,11 @@ class TestMissionIdInEnvelope:
 
         decisions_file = tmp_path / "kitty-specs" / slug / "decisions.events.jsonl"
         lines = _read_lines(decisions_file)
-        assert lines[0]["mission_id"] == slug
+        assert lines[0]["mission_id"] is None, (
+            f"mission_id must be None (null), not the slug {slug!r}; "
+            f"got {lines[0]['mission_id']!r}"
+        )
+        assert lines[0]["mission_id"] != slug, "slug must never be persisted as mission_id"
 
 
 # ---------------------------------------------------------------------------

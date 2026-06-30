@@ -135,22 +135,18 @@ def _resolve_coordination_branch(mission_slug: str, repo_root: Path) -> str:
     return mission_branch_name_required(mission_slug, resolved_id)
 
 
-def _resolve_mission_ulid(mission_slug: str, repo_root: Path) -> str:
-    """Read the canonical ULID mission_id from meta.json.
+def _resolve_mission_ulid(mission_slug: str, repo_root: Path) -> str | None:
+    """Read the canonical ULID mission_id from meta.json via the identity SSOT.
 
-    Returns the ULID string when present, or the slug as a fallback so that
-    callers always receive a non-empty identifier.
+    WP04/FR-004: Routes through ``mission_metadata.resolve_mission_identity``
+    (the single source of truth) instead of hand-rolling a json.loads read.
+    Returns the ULID string when present, or ``None`` when absent — fail-closed:
+    callers must NOT substitute the slug for the absent ULID.
     """
-    meta_path = _primary_runtime_feature_dir(repo_root, mission_slug) / META_JSON
-    if meta_path.exists():
-        try:
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            meta = {}
-        mission_id = meta.get("mission_id") if isinstance(meta, dict) else None
-        if isinstance(mission_id, str) and mission_id.strip():
-            return mission_id.strip()
-    return mission_slug
+    from specify_cli.mission_metadata import resolve_mission_identity  # noqa: PLC0415
+
+    feature_dir = _primary_runtime_feature_dir(repo_root, mission_slug)
+    return resolve_mission_identity(feature_dir).mission_id
 
 
 def _mission_routes_through_coordination(mission_slug: str, repo_root: Path) -> bool:
@@ -212,17 +208,17 @@ def _wrap_with_decision_git_log(
         from specify_cli.events.decision_log import DecisionGitLog
 
         coordination_branch = _resolve_coordination_branch(mission_slug, repo_root)
-        mission_id = _resolve_mission_ulid(mission_slug, repo_root)
+        mission_id = _resolve_mission_ulid(mission_slug, repo_root)  # str | None
 
         # Resolve coord worktree path (pure static method, no side effects).
         # Derive the mid8 authoritatively from the declared mission_id via the
         # WP01 seam (FR-004): the heuristic mid8_from_slug trusts a coincidental
         # 8-char tail with no identity to confirm against, so it must not sit on
         # this correctness path (#1918). resolve_mid8 returns mission_id[:8] when
-        # a ULID is declared, and declines (``""``) on a bare slug with no id.
+        # a ULID is declared, and declines (``""``) on a bare slug or None.
+        # WP04: slug-as-sentinel removed — mission_id is now str | None from SSOT.
         from specify_cli.lanes.branch_naming import resolve_mid8 as _resolve_mid8
-        _declared_id = mission_id if mission_id != mission_slug else None
-        _mid8 = _resolve_mid8(mission_slug, mission_id=_declared_id)
+        _mid8 = _resolve_mid8(mission_slug, mission_id=mission_id)
 
         # Fail loud, never compose a malformed ``kitty/mission-<slug>-`` branch
         # (#2091): an empty mid8 on a coord-routing mission means identity was
