@@ -10,12 +10,9 @@ Each test targets exactly one of the 4 regressions fixed in WP01-WP03:
 
 from __future__ import annotations
 
-import inspect
 import json
-import os
 import re
 import subprocess
-import sys
 from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Tuple
@@ -1067,36 +1064,10 @@ class TestIntegrationBranchGuard:
         assert "git branch -d master" not in merged
 
 
-# ---------------------------------------------------------------------------
-# T014: standalone tasks_cli.py --help works
-# ---------------------------------------------------------------------------
-
-
-def test_standalone_tasks_cli_help() -> None:
-    """Regression: tasks_cli.py must work via subprocess without pip install.
-
-    The sys.path bootstrap must add the repo src/ root so that
-    specify_cli.* imports resolve from a checkout.
-    """
-    # Find the script relative to the repo src layout
-    src_dir = Path(__file__).resolve().parents[2] / "src"
-    script_path = src_dir / "specify_cli" / "scripts" / "tasks" / "tasks_cli.py"
-    assert script_path.exists(), f"tasks_cli.py not found at {script_path}"
-
-    result = subprocess.run(
-        [sys.executable, str(script_path), "--help"],
-        capture_output=True,
-        text=True,
-        timeout=30,
-        env={**os.environ, "PYTHONPATH": ""},
-    )
-
-    assert result.returncode == 0, f"tasks_cli.py --help failed (rc={result.returncode}):\n{result.stderr}"
-    assert "ModuleNotFoundError" not in result.stderr, f"ModuleNotFoundError in stderr:\n{result.stderr}"
-    # Confirm help text actually rendered
-    assert "usage" in result.stdout.lower() or "--help" in result.stdout, (
-        f"Help text not found in stdout:\n{result.stdout}"
-    )
+# NOTE: T014 ``test_standalone_tasks_cli_help`` was retired with the standalone
+# tasks surface (WP03/FR-004) — it subprocess-ran the standalone tasks CLI's
+# ``--help``, which no longer exists. The canonical ``spec-kitty`` CLI help is
+# covered by the CLI command test suites.
 
 
 # ---------------------------------------------------------------------------
@@ -1164,46 +1135,8 @@ class TestMalformedJsonlRaisesAcceptanceError:
         assert any("finalize-tasks" in issue for issue in summary.activity_issues)
 
 
-# ---------------------------------------------------------------------------
-# T016: Copy-parity assertions
-# ---------------------------------------------------------------------------
-
-
-def test_copy_parity_between_acceptance_modules() -> None:
-    """Verify acceptance_support.py re-exports match acceptance.py exactly.
-
-    After deduplication, acceptance_support.py is a thin re-export wrapper.
-    The __all__ sets must be equal, and every re-exported name must be the
-    exact same object (not a copy).
-    """
-    from specify_cli import acceptance
-    from specify_cli.scripts.tasks import acceptance_support
-
-    # __all__ parity: sets must be equal
-    core_exports = set(acceptance.__all__)
-    standalone_exports = set(acceptance_support.__all__)
-    assert core_exports == standalone_exports, (
-        f"Wrapper must re-export all canonical names. "
-        f"Missing: {core_exports - standalone_exports}, "
-        f"Extra: {standalone_exports - core_exports}"
-    )
-
-    # Object identity: re-exports must be the same objects, not copies
-    for name in acceptance.__all__:
-        assert getattr(acceptance, name) is getattr(acceptance_support, name), (
-            f"{name} in acceptance_support is not the same object as in acceptance"
-        )
-
-    # Function signature parity for key functions (validates re-exports match)
-    parity_functions = [
-        "collect_feature_summary",
-        "detect_mission_slug",
-        "perform_acceptance",
-        "choose_mode",
-    ]
-    for fn_name in parity_functions:
-        sig_core = inspect.signature(getattr(acceptance, fn_name))
-        sig_standalone = inspect.signature(getattr(acceptance_support, fn_name))
-        assert sig_core == sig_standalone, (
-            f"{fn_name} signature mismatch:\n  acceptance:         {sig_core}\n  acceptance_support: {sig_standalone}"
-        )
+# NOTE: T016 ``test_copy_parity_between_acceptance_modules`` was retired with the
+# standalone tasks surface (WP03/FR-004). It asserted that the standalone
+# acceptance re-export shim mirrored ``specify_cli.acceptance`` object-for-object;
+# once that shim is gone (WP04) the parity check is moot. The canonical surface is
+# ``specify_cli.acceptance`` directly.

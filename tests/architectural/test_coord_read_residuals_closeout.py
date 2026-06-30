@@ -26,8 +26,7 @@ Three guards:
    site onto a PRIMARY fold, so the live scan is clean. If ANY in-scope site
    flags, a routing was missed — this test (correctly) goes RED. An anti-vacuity
    floor proves the scan actually SAW the in-scope read call sites (it is not
-   green merely because it matched nothing). The ``#2167`` ``scripts/tasks/``
-   legacy reader is OUTSIDE these families and is deliberately not scanned.
+   green merely because it matched nothing).
 
 2. **Floor honesty (FR-010 / SC-004).** ``ROUTED_CANONICALIZER_FLOOR`` matches the
    recorded census. The honest history: **seam-routing did NOT move the

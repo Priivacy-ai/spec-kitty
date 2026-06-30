@@ -42,9 +42,11 @@ test_no_dead_modules:
   # scripts/docs/anti_sprawl_ratchet.py -- wired from scripts/, not src/, the
   # same "build-script-consumed" pattern as the schema generators.
   category_2_build_schema_generators: 4  # justification: doctrine.directives.common_docs consumed from scripts/docs, not src/
-  # justification: 4 external/CLI entry points invoked outside the
-  # spec-kitty import graph (commit_guard_hook + 3 task helpers).
-  category_3_external_cli_entrypoints: 4
+  # justification: 1 external/CLI entry point invoked outside the
+  # spec-kitty import graph (commit_guard_hook). Shrunk from 4 by
+  # retire-standalone-tasks-cli WP04 (FR-007): the 3 standalone-tasks-surface
+  # module entries dropped with the deleted surface (shrink — burn-down ok).
+  category_3_external_cli_entrypoints: 1
   # justification: 8 documented backward-compat shim modules whose
   # absence of static src/ callers is the point. (#2048 retired dead shim
   # specify_cli.mission_read_path: zero src callers after 01KVJPEQ re-pointed the
@@ -167,18 +169,16 @@ test_no_dead_symbols:
   # status.lifecycle_events::{mission_event_log_path,read_lifecycle_events},
   # and the two events.py re-exports SignificanceEvaluatedPayload /
   # TimeoutExpiredPayload dropped from __all__ while keeping imports).
-  # 271->286 (write-surface-coherence post-merge arch-gate adjudication):
-  # added the 22 ``scripts.tasks.task_helpers::*`` symbols (15-entry net rise
-  # over the 264 pre-existing frozenset members; cap raised to leave the same
-  # headroom). These are NOT new orphans — they are a pre-existing scanner
-  # blind-spot on upstream/main: ``task_helpers`` is imported by
-  # ``scripts/tasks/tasks_cli.py`` via a bare sys.path-relative
-  # ``from task_helpers import ...`` that the qualified-import AST scanner
-  # cannot resolve, identical to the already-grandfathered ``acceptance_support``
-  # sibling. The failure reproduces byte-identically at the merge base; this
-  # mission neither introduced nor worsened it. Burn-down (FR-303): qualify the
-  # import or teach the scanner script-style sys.path imports, then shrink.
-  category_b_grandfathered_legacy: 286
+  # 286->237 (retire-standalone-tasks-cli WP04, FR-007 + Boy Scout): the
+  # standalone tasks surface was deleted, dropping the 13
+  # ``scripts.tasks.acceptance_support::*`` and 21 ``scripts.tasks.task_helpers::*``
+  # grandfathered entries. The same touch also sheds two now-LIVE entries that
+  # WP03's reconciliation left stale — ``specify_cli.acceptance::ArtifactEncodingError``
+  # and ``::normalize_feature_encoding`` gained callers via the canonical-home
+  # move, so the dead-symbol gate correctly demanded their removal. Recomputed to
+  # the live ``len(_CATEGORY_B_GRANDFATHERED_LEGACY)``; a shrink (burn-down policy:
+  # a shrink needs no extra workflow).
+  category_b_grandfathered_legacy: 237
   # 6->4 (org-doctrine close-out WP04): removed the now-wired
   # charter.invocation_context::{OperationalContext,build_operational_context}
   # (WP14 added live src/ callers). Remaining 4: the two require_active_*

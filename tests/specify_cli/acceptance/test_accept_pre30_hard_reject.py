@@ -16,16 +16,16 @@ commands. The engine-level test pins the same hard reject at
 
 from __future__ import annotations
 
-import argparse
 import json
 import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from typer.testing import CliRunner
 
+from specify_cli import app as cli_app
 from specify_cli.acceptance import collect_feature_summary
-from specify_cli.scripts.tasks import tasks_cli
 from specify_cli.status import Lane
 from specify_cli.status.models import StatusEvent
 from specify_cli.status.store import append_event
@@ -134,106 +134,37 @@ def test_collect_feature_summary_rejects_pre30(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# accept: exit 1 + migration message + NO acceptance commit
+# accept (real CLI): exit 1 + migration message + NO acceptance commit
 # ---------------------------------------------------------------------------
+#
+# FR-009: the standalone ``tasks_cli.accept_command`` / ``verify_command`` /
+# ``merge_command`` guard tests were retired with the standalone tasks surface
+# (WP03/FR-004). The hard-reject contract is now pinned on the real
+# ``spec-kitty accept`` surface below; verify/merge inherit the same reject from
+# the shared engine guard that ``test_collect_feature_summary_rejects_pre30``
+# covers at the source.
 
 
-def _accept_args() -> argparse.Namespace:
-    return argparse.Namespace(
-        feature=_SLUG,
-        mode="local",
-        actor=None,
-        test=None,
-        json=False,
-        lenient=False,
-        no_commit=False,
-        allow_fail=False,
-        normalize_encoding=False,
-    )
-
-
-def test_accept_command_hard_rejects_pre30_and_commits_nothing(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+def test_accept_cli_hard_rejects_pre30_and_commits_nothing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    repo, fd = _pre30_repo(tmp_path)
-    head_before = _head(repo)
+    """``spec-kitty accept`` on a pre-3.0 mission exits 1 and writes nothing.
 
-    with (
-        patch.object(tasks_cli, "find_repo_root", return_value=repo),
-        patch.object(tasks_cli, "resolve_feature_dir_for_mission", return_value=fd),
-        pytest.raises(SystemExit) as exc_info,
-    ):
-        tasks_cli.accept_command(_accept_args())
-
-    assert exc_info.value.code == 1
-    err = capsys.readouterr().err
-    assert _GUARD_MARKER in err
-    assert _UPGRADE_HINT in err
-
-    # No acceptance commit was created and no acceptance metadata was recorded.
-    assert _head(repo) == head_before
-    meta = json.loads((fd / "meta.json").read_text(encoding="utf-8"))
-    assert "accepted_at" not in meta
-    assert "acceptance_history" not in meta
-
-
-# ---------------------------------------------------------------------------
-# verify: exit 1 + migration message
-# ---------------------------------------------------------------------------
-
-
-def test_verify_command_hard_rejects_pre30(
-    tmp_path: Path, capsys: pytest.CaptureFixture[str]
-) -> None:
-    repo, fd = _pre30_repo(tmp_path)
-    args = argparse.Namespace(
-        feature=_SLUG, json=False, lenient=False, normalize_encoding=False
-    )
-    with (
-        patch.object(tasks_cli, "find_repo_root", return_value=repo),
-        patch.object(tasks_cli, "resolve_feature_dir_for_mission", return_value=fd),
-        pytest.raises(SystemExit) as exc_info,
-    ):
-        tasks_cli.verify_command(args)
-    assert exc_info.value.code == 1
-    err = capsys.readouterr().err
-    assert _GUARD_MARKER in err
-    assert _UPGRADE_HINT in err
-
-
-# ---------------------------------------------------------------------------
-# merge: exit 1 + migration message + NO merge commit
-# ---------------------------------------------------------------------------
-
-
-def test_merge_command_hard_rejects_pre30(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
-) -> None:
-    repo, fd = _pre30_repo(tmp_path)
-    # merge_command requires HEAD on the feature branch (!= target).
-    _run_git(repo, "branch", "-m", "main")
-    _run_git(repo, "checkout", "-q", "-b", _SLUG)
+    Pins ``accept.py``'s ``except Pre30LayoutError`` branch directly: the engine
+    raises, accept emits the ``spec-kitty upgrade`` instruction and exits 1
+    WITHOUT creating an acceptance commit. Removing that handler (letting the
+    vacuous all-done summary fall through and auto-commit) makes this fail.
+    """
+    repo, _fd = _pre30_repo(tmp_path)
     head_before = _head(repo)
     monkeypatch.chdir(repo)
 
-    args = argparse.Namespace(
-        feature=_SLUG,
-        strategy="merge",
-        target="main",
-        push=False,
-        delete_branch=False,
-        remove_worktree=False,
-        dry_run=False,
+    result = CliRunner().invoke(
+        cli_app,
+        ["accept", "--mission", _SLUG, "--mode", "local", "--actor", "tester", "--json"],
     )
-    with (
-        patch.object(tasks_cli, "find_repo_root", return_value=repo),
-        patch.object(tasks_cli, "resolve_feature_dir_for_mission", return_value=fd),
-        pytest.raises(SystemExit) as exc_info,
-    ):
-        tasks_cli.merge_command(args)
-    assert exc_info.value.code == 1
-    err = capsys.readouterr().err
-    assert _GUARD_MARKER in err
-    assert _UPGRADE_HINT in err
-    # Still on the feature branch with no merge performed.
+
+    assert result.exit_code == 1, result.output
+    assert _UPGRADE_HINT in result.output
+    # No acceptance commit was created.
     assert _head(repo) == head_before

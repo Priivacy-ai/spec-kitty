@@ -735,13 +735,6 @@ def mission_slug() -> str:
 
 
 @pytest.fixture()
-def ensure_imports() -> None:
-    # Import helper modules so tests can reference them directly.
-    import task_helpers  # noqa: F401
-    import acceptance_support  # noqa: F401
-
-
-@pytest.fixture()
 def merge_repo(temp_repo: Path) -> tuple[Path, Path, str]:
     repo = temp_repo
     (repo / "README.md").write_text("main", encoding="utf-8")

@@ -263,15 +263,9 @@ _CATEGORY_2_BUILD_SCHEMA_GENERATORS: frozenset[str] = frozenset(
 # from the git pre-commit hook script installed by
 # src/specify_cli/policy/hook_installer.py. The module path
 # appears only as the string literal MODULE in hook_installer.
-# Stand-alone task helper scripts are invoked outside the spec-kitty
-# import graph (legacy /scripts/tasks/ entry points kept for the
-# acceptance_support compatibility wrapper).
 _CATEGORY_3_EXTERNAL_CLI_ENTRYPOINTS: frozenset[str] = frozenset(
     {
         "specify_cli.policy.commit_guard_hook",
-        "specify_cli.scripts.tasks.acceptance_support",
-        "specify_cli.scripts.tasks.task_helpers",
-        "specify_cli.scripts.tasks.tasks_cli",
     }
 )
 

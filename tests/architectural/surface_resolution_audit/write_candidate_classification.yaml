@@ -106,12 +106,6 @@ sites:
     verdict: read
   - site: src/specify_cli/missions/plan/specify_interview.py:_get_mission_id:56
     verdict: read
-  - site: src/specify_cli/scripts/tasks/tasks_cli.py:_check_legacy_format:215
-    verdict: read
-  - site: src/specify_cli/scripts/tasks/tasks_cli.py:list_command:319
-    verdict: read
-  - site: src/specify_cli/scripts/tasks/tasks_cli.py:_prepare_merge_metadata:624
-    verdict: write
   - site: src/specify_cli/verify_enhanced.py:run_enhanced_verify:89
     verdict: read
   - site: src/specify_cli/verify_enhanced.py:run_enhanced_verify:206

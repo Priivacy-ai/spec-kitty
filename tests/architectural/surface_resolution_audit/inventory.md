@@ -177,8 +177,6 @@ delegate to a blessed resolver without inline path composition.
 | specify_cli/retrospective/lifecycle_events.py | resolve_feature_dir_for_mission | 3 |
 | specify_cli/retrospective/summary.py | candidate_feature_dir_for_mission | 1 |
 | specify_cli/retrospective/writer.py | resolve_feature_dir_for_slug | 1 |
-| specify_cli/scripts/tasks/task_helpers.py | resolve_feature_dir_for_mission | 1 |
-| specify_cli/scripts/tasks/tasks_cli.py | resolve_feature_dir_for_mission | 3 |
 | specify_cli/sync/events.py | candidate_feature_dir_for_mission | 1 |
 | specify_cli/task_utils/support.py | resolve_feature_dir_for_slug | 1 |
 | specify_cli/verify_enhanced.py | resolve_feature_dir_for_mission | 2 |
