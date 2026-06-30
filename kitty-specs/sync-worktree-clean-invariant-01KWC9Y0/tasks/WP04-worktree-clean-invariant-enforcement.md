@@ -22,8 +22,8 @@ subtasks:
 - T019
 phase: Phase 3 - Enforcement
 assignee: ''
-agent: "claude:opus:debugger-debbie:implementer"
-shell_pid: "48342"
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "64333"
 history:
 - at: '2026-06-30T13:20:00Z'
   actor: system
@@ -164,3 +164,5 @@ for i in $(seq 1 20); do PWHEADLESS=1 .venv/bin/pytest tests/specify_cli/sync/te
 - 2026-06-30 — Prompt generated via /spec-kitty.tasks.
 - 2026-06-30T15:48:52Z – claude:opus:debugger-debbie:implementer – shell_pid=48342 – Assigned agent via action command
 - 2026-06-30T16:17:38Z – claude:opus:debugger-debbie:implementer – shell_pid=48342 – Parametrized no-dirty-tree over covered surface + guard regression + C-002 + disabled/unauth; 19/19 pass; mypy --strict+ruff green
+- 2026-06-30T16:18:58Z – claude:opus:reviewer-renata:reviewer – shell_pid=64333 – Started review via action command
+- 2026-06-30T16:24:39Z – user – shell_pid=64333 – APPROVED by reviewer-renata. INDEPENDENT NON-FAKEABILITY PROOF: copied the test to a scratch file, injected the exact pre-WP03 regression (persist changed binding_ref to .kittify/config.yaml on the tracker-status READ driver), ran test_covered_command_leaves_worktree_clean[tracker-status] -> it FAILED with 'INV-1 violated ... after: b" M .kittify/config.yaml"'. Oracle is real, not a tautology; scratch deleted, committed file & tree untouched. NEGATIVE CONTROL test_snapshot_helper_detects_a_real_write does a real write + asserts _assert_unchanged RAISES (genuine). SURFACE: all 8 spec commands exercised, none skipped/assert-True; test_covered_surface_matches_spec_exactly pins the exact set (7 parallel + daemon-tick serial). Drivers hit real per-command code paths (SaaSTrackerService.status/sync_pull/push/run/map_list, emit_wp_status_changed, real sync-status CliRunner, _perform_sync per-tick) with only network client stubbed. C-002: spies the REAL mutating engine migration.mission_state.repair_repo AND read-only status.doctor.run_doctor, asserts neither called by sync status --check (source confirms sync.py invokes neither). ALLOWLIST: introspects real _SELF_BOOKKEEPING_FILENAMES={meta.json}/_SELF_BOOKKEEPING_SUFFIXES + is_self_bookkeeping_path; config.yaml provably excluded, meta.json/global.jsonl still match (C-001). GUARD: real uncommitted src edit -> _enforce_analysis_report_write_preflight raises typer.Exit DIRTY_WORKTREE (verified preflight body filters allowlist, not config.yaml). GATES: pytest -q 19/19 pass; -n0 19/19 pass; mypy --strict clean; ruff clean. SCOPE: git show --stat 931428dcc = only the one test file (693 lines). No suppressions.
