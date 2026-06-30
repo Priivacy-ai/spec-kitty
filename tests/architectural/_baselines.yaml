@@ -109,14 +109,30 @@ test_compat_shims:
 # sweep. WP01 pins this at 0 so the meta-test can run; WP03 edits
 # upward only if the sweep finds legitimately-excluded contracts.
 test_example_round_trip:
-  # justification: WP03 discovery sweep found 151 contracts from missions
-  # predating the Slice F frontmatter convention. These are allowlisted
-  # per FR-141 so they warn instead of failing. +1 for T031 (#1301):
-  # spec-kitty-3-2-docs-01KS4KSZ/contracts/check_docs_freshness.md carries a
-  # CI-wiring YAML snippet (not a Pydantic model payload). The baseline
-  # participates in the burn-down policy (C-004): it MUST shrink as legacy
-  # missions backfill the ``# pydantic_model:`` / ``# expect:`` frontmatter.
-  legacy_contract_allowlist: 152
+  # justification: 151 contracts from missions PREDATING the Slice F frontmatter
+  # convention. These are allowlisted file-level per FR-141 so they warn instead
+  # of failing. This set is *only* pre-Slice-F legacy debt and participates in the
+  # burn-down policy (C-004): it MUST shrink as legacy missions backfill the
+  # ``# pydantic_model:`` / ``# expect:`` frontmatter.
+  #
+  # Post-Slice-F files that are simply non-executable (CI-wiring snippets,
+  # ``.kittify/config.yaml`` shape sketches, non-Pydantic operator config) do NOT
+  # belong here. Per #2255 they carry a per-block ``# round-trip: skip: <reason>``
+  # marker instead (block-level discovery in test_example_round_trip.py). That
+  # migration moved check_docs_freshness.md (the former T031 +1) out of this set,
+  # so the count drops 152 -> 151.
+  legacy_contract_allowlist: 151
+  # justification: count of permanently-non-executable ``# round-trip: skip:``
+  # blocks in NON-legacy contracts (#2255). Unlike the legacy allowlist above,
+  # these are legitimate permanent exemptions (shape sketches, CI snippets,
+  # non-Pydantic operator config) with NO shrink mandate — this baseline exists
+  # so that ADDING a new skip is explicit and reviewable: a new marker grows the
+  # count above this baseline and fails test_ratchet_baselines until the value is
+  # bumped here with a one-line rationale naming the new block. The 5 seed entries
+  # are config-schema-delta.md, protection-config.md, check_docs_freshness.md, and
+  # the two Slice F convention contracts (contract-round-trip-frontmatter.md,
+  # org-drg-schema.md).
+  skip_marker_blocks: 5
 
 # tests/architectural/test_all_declarations_required.py
 # Populated by WP02 after the charter/kernel __all__ sweep. WP01

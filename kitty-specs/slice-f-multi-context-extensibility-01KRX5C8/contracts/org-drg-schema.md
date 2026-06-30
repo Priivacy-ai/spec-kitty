@@ -15,6 +15,7 @@ The organisation-tier DRG fragment is one configured layer of doctrine-reference
 The operator configures one or more org packs:
 
 ```yaml
+# round-trip: skip: operator .kittify/config.yaml shape sketch (organisation_packs list), not a single Pydantic payload — the executable OrgDRGFragment examples are below
 organisation_packs:
   - name: acme-compliance
     source: local_path
