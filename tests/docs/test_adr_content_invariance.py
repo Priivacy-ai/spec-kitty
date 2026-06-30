@@ -1,37 +1,36 @@
-"""Post-move census gate for the unique ADRs under ``docs/adr/<era>/`` (WP06).
+"""Post-move census-hygiene gate for ADRs under ``docs/adr/<era>/`` (WP06).
 
-WP06 ran WP05's extended converter over the live tree, moving the **117
-realpath-unique** ADRs to ``docs/adr/<era>/`` with bare-``status`` frontmatter and
-dropping the 71 back-compat symlinks. This module is the surviving **merge-blocker**
-CI gate for that move (C-002 / NFR-001):
+WP06 ran WP05's extended converter over the live tree, moving the realpath-unique
+ADRs to ``docs/adr/<era>/`` with bare-``status`` frontmatter and dropping the 71
+back-compat symlinks. This module is the surviving on-disk hygiene gate for that
+move (NFR-001):
 
-* :class:`TestCensus` — exactly ``_EXPECTED_CENSUS`` ADR files live under
-  ``docs/adr/<era>/`` (a lower count is a *lost* ADR; a higher count is a leaked
-  duplicate or an undropped mirror — bump the constant for a net-new ADR), no
-  dangling back-compat symlink survives, and every ADR
-  carries bare-``status`` MADR frontmatter. These are permanent on-disk
-  invariants — they read only the assembled tree.
+* :class:`TestCensus` — no dangling back-compat symlink survives, and **every**
+  census ADR (dated ``YYYY-MM-DD-*`` files **and** non-dated promoted ``adr-*``
+  files) carries bare-``status`` MADR frontmatter. These are permanent on-disk
+  invariants that read only the assembled tree.
 
-Retired (2026-06-29): the byte-identity content-invariance proof
-(``TestContentInvariance`` + its ``TestBaseResolutionIsRebaseRobust`` support)
-was a **transitional** gate for the move itself. It recovered each ADR's
-pre-move original by resolving the merge-base of HEAD with a planning-base ref
-that still held the ``architecture/<era>/adr`` originals. That premise is
-**unreachable once the move is merged to main**: a branch cut from post-move
-main has no candidate whose merge-base predates the move, and the only ref that
-still resolved (the ``docs/2165-mission-b-structural-move`` mission branch) does
-not exist on a fresh CI checkout — so the gate failed loudly on every PR after
-the move landed (a self-invalidating gate). It also conflicted by construction
-with WP08's ``bulk_ref_rewrite.py``, which deliberately rewrote moved cross-ADR
-links *after* conversion, so the committed ADRs no longer match a fresh
-converter run on the pre-move original. The move was proven byte-identical at
-the time it was made; that proof is in mission B's history. The permanent census
-invariants below continue to guard the result.
+**Census predicate (WP06 / FR-011):** ``_is_census_adr`` admits both the dated
+ADRs and the non-dated *promoted* ADRs (``adr-<slug>.md``). Before WP06 the
+predicate was ``_DATE_PREFIX``-only, so the two promoted ADRs
+(``adr-connector-auth-binding-separation.md``,
+``adr-github-app-installation-authority.md``) were invisible to these checks —
+FR-011 closes that blind-spot so they too are validated for MADR frontmatter.
+
+**Dropped (2026-06-30, doc-quality-hardening review):** the exact-count assertion
+(``test_adr_census_matches_expected`` + the hardcoded ``_EXPECTED_CENSUS``
+constant). With byte-invariance retired upstream (``ccd278061``), a hardcoded
+total guards little and merely fails on every legitimate ADR add/remove — pure
+future friction. The durable value is the per-ADR hygiene below (frontmatter +
+symlink), which does not need a magic number.
+
+Retired earlier (2026-06-29): the byte-identity content-invariance proof
+(``TestContentInvariance`` + ``TestBaseResolutionIsRebaseRobust``) was a
+transitional gate for the move itself, self-invalidating once merged to main.
 """
 
 from __future__ import annotations
 
-import os
 import re
 import sys
 from pathlib import Path
@@ -47,7 +46,7 @@ if str(_REPO_ROOT) not in sys.path:
 from scripts.docs._inventory import parse_frontmatter  # noqa: E402
 from scripts.docs.adr_converter import MADR_STATUSES  # noqa: E402
 
-# On-disk census invariants over the assembled tree. ``architectural`` puts this
+# On-disk hygiene invariants over the assembled tree. ``architectural`` puts this
 # in the dedicated arch shard; ``git_repo`` is retained so CI's ``-m git_repo``
 # filter keeps selecting it in the shard it has always run in.
 pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
@@ -55,38 +54,30 @@ pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 _DOCS_ADR: Final[Path] = _REPO_ROOT / "docs" / "adr"
 _ERAS: Final[tuple[str, ...]] = ("1.x", "2.x", "3.x")
 _DATE_PREFIX: Final[re.Pattern[str]] = re.compile(r"^\d{4}-\d{2}-\d{2}-")
-# Census baseline = the WP06 post-move count (117) + the sync-daemon-orphan-cleanup
-# ADR (#2266) + the integration-boundary ADR
-# (docs/adr/3.x/2026-06-26-1-core-integration-boundary.md, mission #614) = 119. Bump
-# this by one for every net-new ADR that legitimately lands under docs/adr/<era>/.
-_EXPECTED_CENSUS: Final[int] = 119
+# Non-dated *promoted* ADRs: ``adr-<slug>.md`` (no date prefix). READMEs and other
+# ``.md`` files are excluded — only ``adr-`` carries the promoted-ADR contract.
+_PROMOTED_ADR: Final[re.Pattern[str]] = re.compile(r"^adr-.+\.md$")
+
+
+def _is_census_adr(name: str) -> bool:
+    """True for a census ADR file: a dated ``YYYY-MM-DD-*`` or a promoted ``adr-*``."""
+    return bool(_DATE_PREFIX.match(name) or _PROMOTED_ADR.match(name))
 
 
 def _adr_files_on_disk() -> list[Path]:
-    """Every dated ADR file under ``docs/adr/<era>/`` (READMEs excluded)."""
+    """Every census ADR file under ``docs/adr/<era>/`` (READMEs excluded)."""
     found: list[Path] = []
     for era in _ERAS:
         era_dir = _DOCS_ADR / era
         if not era_dir.is_dir():
             continue
         for path in era_dir.glob("*.md"):
-            if path.is_file() and _DATE_PREFIX.match(path.name):
+            if path.is_file() and _is_census_adr(path.name):
                 found.append(path)
     return found
 
 
 class TestCensus:
-    def test_adr_census_matches_expected(self) -> None:
-        files = _adr_files_on_disk()
-        realpaths = {os.path.realpath(p) for p in files}
-        assert len(files) == _EXPECTED_CENSUS, (
-            f"expected {_EXPECTED_CENSUS} ADRs under docs/adr/<era>/, "
-            f"found {len(files)}"
-        )
-        assert len(realpaths) == _EXPECTED_CENSUS, (
-            f"realpath-unique ADR count drifted from {_EXPECTED_CENSUS} — a duplicate leaked"
-        )
-
     def test_no_dangling_back_compat_symlinks(self) -> None:
         dangling = [
             p
@@ -96,6 +87,8 @@ class TestCensus:
         assert dangling == [], f"dangling symlinks under docs/adr: {dangling}"
 
     def test_every_adr_has_bare_madr_status_frontmatter(self) -> None:
+        # FR-011: the promoted (non-dated) ADRs flow through ``_adr_files_on_disk``
+        # via ``_is_census_adr`` and are validated here alongside the dated ones.
         canonical = set(MADR_STATUSES.values())
         offenders: list[str] = []
         for path in _adr_files_on_disk():
