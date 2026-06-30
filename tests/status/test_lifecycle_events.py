@@ -696,7 +696,8 @@ def test_lifecycle_saas_builder_skips_non_materializable_inputs(
     from specify_cli.identity.project import ProjectIdentity
 
     monkeypatch.setattr(
-        "specify_cli.identity.project.ensure_identity",
+        # #2263 WP02: lifecycle SaaS fan-out resolves identity read-only.
+        "specify_cli.identity.project.resolve_identity",
         lambda _repo_root: ProjectIdentity(),
     )
     assert (

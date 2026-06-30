@@ -10,7 +10,7 @@ from specify_cli.core.paths import locate_project_root
 from .body_queue import OfflineBodyUploadQueue
 from .config import SyncConfig
 from .git_metadata import GitMetadataResolver
-from specify_cli.identity.project import ProjectIdentity, ensure_identity, load_identity
+from specify_cli.identity.project import ProjectIdentity, load_identity, resolve_identity
 from .queue import OfflineQueue
 
 
@@ -39,12 +39,19 @@ class SyncOptOutResult:
 
 
 def resolve_checkout_sync_routing(start: Path | None = None) -> CheckoutSyncRouting | None:
-    """Resolve the active checkout's effective sync policy."""
+    """Resolve the active checkout's effective sync policy.
+
+    Identity is resolved WITHOUT persisting (#2263, FR-002/FR-003): routing is a
+    read of the checkout's effective sync policy and must never dirty
+    ``.kittify/config.yaml``. The read-only twin
+    ``resolve_checkout_sync_routing_readonly`` (which uses ``load_identity``) remains
+    available for callers that must not even mint an in-memory identity.
+    """
     repo_root = locate_project_root((start or Path.cwd()).resolve())
     if repo_root is None:
         return None
 
-    identity = ensure_identity(repo_root)
+    identity = resolve_identity(repo_root)
     return _build_checkout_sync_routing(repo_root, identity)
 
 
@@ -98,10 +105,11 @@ def is_sync_enabled_for_checkout(start: Path | None = None) -> bool:
     to mint or persist project identity. It is reached from the accept-readiness
     path (``sync.emitter`` emit-time gate, batch/body-upload gates), so it MUST be
     side-effect-free: route through the read-only twin
-    (``resolve_checkout_sync_routing_readonly``) instead of the writing
-    ``resolve_checkout_sync_routing`` (which calls ``ensure_identity`` and
-    persists ``.kittify/config.yaml``). This is the third readiness writer closed
-    for #1916 (WP08).
+    (``resolve_checkout_sync_routing_readonly``), which uses ``load_identity`` and
+    never mints an identity at all. (As of #2263, ``resolve_checkout_sync_routing``
+    is also side-effect-free — it resolves identity in-memory via
+    ``resolve_identity`` — but the read-only twin remains the canonical choice for
+    pure policy reads.) This is the third readiness writer closed for #1916 (WP08).
     """
     routing = resolve_checkout_sync_routing_readonly(start=start)
     if routing is None:

@@ -612,7 +612,9 @@ class TestBindMissionOrigin:
         )
 
         with (
-            patch("specify_cli.identity.project.ensure_identity", return_value=identity),
+            # #2263 WP02: origin bind-resolve now reads identity via the
+            # side-effect-free resolve_identity (was ensure_identity).
+            patch("specify_cli.identity.project.resolve_identity", return_value=identity),
             patch("specify_cli.sync.events.get_emitter"),
         ):
             result, _ = bind_mission_origin(

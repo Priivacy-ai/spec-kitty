@@ -279,15 +279,17 @@ class TestDelegatedMethodsUseRouting:
 
 
 # ---------------------------------------------------------------------------
-# Opportunistic upgrade (T032, T033)
+# Binding upgrade: report-only on read paths; persist only on explicit apply.
+# Reads no longer write config.yaml as a side effect (WP03, contract
+# tracker-binding-report C-TB-1..3).
 # ---------------------------------------------------------------------------
 
 
-class TestMaybeUpgradeBindingRef:
-    def test_upgrade_writes_binding_ref(
+class TestReportBindingUpgrade:
+    def test_changed_binding_ref_reports_without_writing(
         self, repo_root: Path, mock_client: MagicMock
     ) -> None:
-        """Response with binding_ref persists to config."""
+        """A changed server binding_ref is reported, never persisted on read."""
         cfg = TrackerProjectConfig(
             provider="linear",
             project_slug="my-proj",
@@ -300,32 +302,35 @@ class TestMaybeUpgradeBindingRef:
             "display_label": "My Project (Linear)",
             "provider_context": {"org": "acme"},
         }
-        svc.status()
+        result = svc.status()
 
-        # Verify config updated in memory (atomic: svc._config is a NEW object)
-        assert svc._config.binding_ref == "bind-new-abc"
-        assert svc._config.display_label == "My Project (Linear)"
-        assert svc._config.provider_context == {"org": "acme"}
+        # Surfaced as pending (result key + instance attribute).
+        assert result["pending_binding_upgrade"] == "bind-new-abc"
+        assert svc.pending_binding_upgrade == "bind-new-abc"
 
-        # Verify persisted to disk
-        loaded = load_tracker_config(repo_root)
-        assert loaded.binding_ref == "bind-new-abc"
-        assert loaded.display_label == "My Project (Linear)"
+        # In-memory config is NOT opportunistically mutated.
+        assert svc._config.binding_ref is None
 
-    def test_upgrade_no_binding_ref_noop(
-        self, service: SaaSTrackerService, repo_root: Path, mock_client: MagicMock
-    ) -> None:
-        """Response without binding_ref does not modify config."""
-        mock_client.status.return_value = {"connected": True}
-        service.status()
-
+        # Nothing was written to disk.
         loaded = load_tracker_config(repo_root)
         assert loaded.binding_ref is None
 
-    def test_upgrade_already_current_noop(
+    def test_no_binding_ref_noop(
+        self, service: SaaSTrackerService, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """Response without binding_ref reports nothing pending and writes nothing."""
+        mock_client.status.return_value = {"connected": True}
+        result = service.status()
+
+        assert result["pending_binding_upgrade"] is None
+        assert service.pending_binding_upgrade is None
+        loaded = load_tracker_config(repo_root)
+        assert loaded.binding_ref is None
+
+    def test_already_current_is_noop(
         self, repo_root: Path, mock_client: MagicMock
     ) -> None:
-        """Same binding_ref in response does not trigger save."""
+        """Same binding_ref in response reports nothing pending and never saves."""
         cfg = TrackerProjectConfig(
             provider="linear",
             binding_ref="bind-abc",
@@ -341,13 +346,14 @@ class TestMaybeUpgradeBindingRef:
         with patch(
             "specify_cli.tracker.saas_service.save_tracker_config"
         ) as mock_save:
-            svc.status()
+            result = svc.status()
             mock_save.assert_not_called()
+        assert result["pending_binding_upgrade"] is None
 
-    def test_upgrade_failure_silent(
+    def test_read_path_never_calls_save(
         self, repo_root: Path, mock_client: MagicMock
     ) -> None:
-        """Save failure does not propagate; call still returns normally."""
+        """A read op with a changed binding_ref performs no config write."""
         cfg = TrackerProjectConfig(
             provider="linear",
             project_slug="my-proj",
@@ -360,48 +366,18 @@ class TestMaybeUpgradeBindingRef:
         }
 
         with patch(
-            "specify_cli.tracker.saas_service.save_tracker_config",
-            side_effect=OSError("disk full"),
-        ):
-            # Should NOT raise
+            "specify_cli.tracker.saas_service.save_tracker_config"
+        ) as mock_save:
             result = svc.status()
-            assert result["connected"] is True
+            mock_save.assert_not_called()
 
-    def test_maybe_upgrade_save_failure_preserves_config(
+        assert result["connected"] is True
+        assert result["pending_binding_upgrade"] == "bind-new"
+
+    def test_partial_response_display_label_only_does_not_persist(
         self, repo_root: Path, mock_client: MagicMock
     ) -> None:
-        """When save_tracker_config raises, self._config must NOT be mutated."""
-        cfg = TrackerProjectConfig(
-            provider="linear",
-            binding_ref="old-bind-ref",
-            project_slug="my-proj",
-            display_label="Old Label",
-        )
-        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
-
-        mock_client.status.return_value = {
-            "connected": True,
-            "binding_ref": "new-bind-ref",
-            "display_label": "New Label",
-            "provider_context": {"org": "acme"},
-        }
-
-        with patch(
-            "specify_cli.tracker.saas_service.save_tracker_config",
-            side_effect=OSError("disk full"),
-        ):
-            result = svc.status()
-            assert result["connected"] is True
-
-        # The critical assertion: in-memory config must still have the OLD values
-        assert svc._config.binding_ref == "old-bind-ref"
-        assert svc._config.display_label == "Old Label"
-        assert svc._config.provider_context is None
-
-    def test_upgrade_partial_response_display_label_only(
-        self, repo_root: Path, mock_client: MagicMock
-    ) -> None:
-        """Response with binding_ref and display_label but no provider_context."""
+        """A partial response still only reports; config is untouched."""
         cfg = TrackerProjectConfig(
             provider="linear",
             project_slug="my-proj",
@@ -413,56 +389,43 @@ class TestMaybeUpgradeBindingRef:
             "binding_ref": "bind-new",
             "display_label": "Label Only",
         }
-        svc.status()
+        result = svc.status()
 
-        assert svc._config.binding_ref == "bind-new"
-        assert svc._config.display_label == "Label Only"
-        assert svc._config.provider_context is None
+        assert result["pending_binding_upgrade"] == "bind-new"
+        assert svc._config.binding_ref is None
+        assert svc._config.display_label is None
 
-    def test_upgrade_called_after_sync_pull(
+    def test_reported_after_sync_pull(
         self, repo_root: Path, mock_client: MagicMock
     ) -> None:
-        """sync_pull also triggers opportunistic upgrade."""
-        cfg = TrackerProjectConfig(
-            provider="linear",
-            project_slug="my-proj",
-        )
+        """sync_pull reports a pending upgrade without writing."""
+        cfg = TrackerProjectConfig(provider="linear", project_slug="my-proj")
         svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
 
-        mock_client.pull.return_value = {
-            "items": [],
-            "binding_ref": "bind-from-pull",
-        }
-        svc.sync_pull()
+        mock_client.pull.return_value = {"items": [], "binding_ref": "bind-from-pull"}
+        result = svc.sync_pull()
 
-        assert svc._config.binding_ref == "bind-from-pull"
+        assert result["pending_binding_upgrade"] == "bind-from-pull"
+        assert svc._config.binding_ref is None
 
-    def test_upgrade_called_after_sync_push(
+    def test_reported_after_sync_push(
         self, repo_root: Path, mock_client: MagicMock
     ) -> None:
-        """sync_push also triggers opportunistic upgrade."""
-        cfg = TrackerProjectConfig(
-            provider="linear",
-            project_slug="my-proj",
-        )
+        """sync_push reports a pending upgrade without writing."""
+        cfg = TrackerProjectConfig(provider="linear", project_slug="my-proj")
         svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
 
-        mock_client.push.return_value = {
-            "pushed": 0,
-            "binding_ref": "bind-from-push",
-        }
-        svc.sync_push()
+        mock_client.push.return_value = {"pushed": 0, "binding_ref": "bind-from-push"}
+        result = svc.sync_push()
 
-        assert svc._config.binding_ref == "bind-from-push"
+        assert result["pending_binding_upgrade"] == "bind-from-push"
+        assert svc._config.binding_ref is None
 
-    def test_upgrade_called_after_sync_run(
+    def test_reported_after_sync_run(
         self, repo_root: Path, mock_client: MagicMock
     ) -> None:
-        """sync_run also triggers opportunistic upgrade."""
-        cfg = TrackerProjectConfig(
-            provider="linear",
-            project_slug="my-proj",
-        )
+        """sync_run reports a pending upgrade without writing."""
+        cfg = TrackerProjectConfig(provider="linear", project_slug="my-proj")
         svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
 
         mock_client.run.return_value = {
@@ -470,18 +433,16 @@ class TestMaybeUpgradeBindingRef:
             "pushed": 0,
             "binding_ref": "bind-from-run",
         }
-        svc.sync_run()
+        result = svc.sync_run()
 
-        assert svc._config.binding_ref == "bind-from-run"
+        assert result["pending_binding_upgrade"] == "bind-from-run"
+        assert svc._config.binding_ref is None
 
-    def test_upgrade_called_after_map_list(
+    def test_reported_after_map_list_via_attribute(
         self, repo_root: Path, mock_client: MagicMock
     ) -> None:
-        """map_list also triggers opportunistic upgrade."""
-        cfg = TrackerProjectConfig(
-            provider="linear",
-            project_slug="my-proj",
-        )
+        """map_list (list return) surfaces the pending upgrade via the instance."""
+        cfg = TrackerProjectConfig(provider="linear", project_slug="my-proj")
         svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
 
         mock_client.mappings.return_value = {
@@ -490,12 +451,15 @@ class TestMaybeUpgradeBindingRef:
         }
         svc.map_list()
 
-        assert svc._config.binding_ref == "bind-from-mappings"
+        assert svc.pending_binding_upgrade == "bind-from-mappings"
+        assert svc._config.binding_ref is None
 
-    def test_maybe_upgrade_preserves_extra_fields(
+
+class TestApplyBindingUpgrade:
+    def test_apply_persists_and_preserves_extra_fields(
         self, repo_root: Path, mock_client: MagicMock
     ) -> None:
-        """Unknown config fields survive opportunistic upgrade (forward-compat)."""
+        """Explicit apply persists binding_ref and preserves unknown fields."""
         cfg = TrackerProjectConfig(
             provider="linear",
             project_slug="my-proj",
@@ -503,15 +467,38 @@ class TestMaybeUpgradeBindingRef:
         )
         svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
 
-        mock_client.status.return_value = {
-            "connected": True,
-            "binding_ref": "bind-new-abc",
-        }
-        svc.status()
+        updated = svc.apply_binding_upgrade("bind-new-abc")
 
-        # Core assertion: _extra must survive the upgrade rebuild
-        assert svc._config._extra == {"future_flag": True, "beta_feature": "enabled"}
+        assert updated.binding_ref == "bind-new-abc"
         assert svc._config.binding_ref == "bind-new-abc"
+        # _extra must survive the rebuild.
+        assert svc._config._extra == {"future_flag": True, "beta_feature": "enabled"}
+        # Persisted to disk.
+        loaded = load_tracker_config(repo_root)
+        assert loaded.binding_ref == "bind-new-abc"
+
+    def test_apply_failure_preserves_in_memory_config(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """When save raises, self._config must NOT be mutated (atomicity)."""
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            binding_ref="old-bind-ref",
+            project_slug="my-proj",
+            display_label="Old Label",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+
+        with patch(
+            "specify_cli.tracker.saas_service.save_tracker_config",
+            side_effect=OSError("disk full"),
+        ):
+            with pytest.raises(OSError):
+                svc.apply_binding_upgrade("new-bind-ref", display_label="New Label")
+
+        # In-memory config still has the OLD values.
+        assert svc._config.binding_ref == "old-bind-ref"
+        assert svc._config.display_label == "Old Label"
 
 
 # ---------------------------------------------------------------------------

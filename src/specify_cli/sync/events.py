@@ -165,22 +165,20 @@ def _read_only_identity_requested(value: bool | None) -> bool:
 def _seed_emitter_identity(
     emitter: EventEmitter,
     repo_root: Path,
-    *,
-    read_only_identity: bool,
 ) -> None:
-    """Seed emitter identity and git resolver for either read-only or writing mode."""
+    """Seed emitter identity and git resolver.
+
+    Identity is always resolved WITHOUT persisting (#2263, FR-001/FR-002/FR-003):
+    status-event emission is a read/emit path and must never dirty
+    ``.kittify/config.yaml``. Identity is resolved in-memory via ``resolve_identity``;
+    persisting a minted identity is the job of write-authorized boundaries (``init``).
+    """
     try:
-        if read_only_identity:
-            from specify_cli.identity.project import resolve_identity
+        from specify_cli.identity.project import resolve_identity
 
-            identity = resolve_identity(repo_root)
-        else:
-            from specify_cli.identity.project import ensure_identity
-
-            identity = ensure_identity(repo_root)
+        identity = resolve_identity(repo_root)
     except Exception as exc:
-        action = "resolve" if read_only_identity else "ensure"
-        logger.warning("Could not %s identity: %s", action, exc)
+        logger.warning("Could not resolve identity: %s", exc)
         return
 
     emitter._identity = identity
@@ -201,11 +199,15 @@ def get_emitter(*, read_only_identity: bool | None = None) -> EventEmitter:
     Thread-safe via double-checked locking pattern.
     Lazily initializes on first access.
 
-    By default this is a sync write boundary: incomplete project identity is
-    persisted via ``ensure_identity`` before events can be queued or uploaded, so
-    project_uuid/build_id provenance stays stable. Readiness-only paths may pass
-    ``read_only_identity=True`` (or set ``SPEC_KITTY_SYNC_READONLY_IDENTITY=1``)
-    to make initialization side-effect-free.
+    Emitter initialization is side-effect-free (#2263, FR-001/FR-003): incomplete
+    project identity is resolved in-memory via ``resolve_identity`` — never persisted
+    to ``.kittify/config.yaml`` — so status-event emission, a read/emit path, leaves
+    the working tree clean. WP01's deterministic ``build_id`` derivation keeps the
+    resolved project_uuid/build_id provenance stable across calls. The
+    ``read_only_identity`` flag / ``SPEC_KITTY_SYNC_READONLY_IDENTITY`` env still
+    gates whether an already-initialized emitter is re-seeded on subsequent calls,
+    but no longer selects a writing branch. Persisting a minted identity is the job
+    of write-authorized boundaries (``init``).
     """
     global _emitter
     use_read_only_identity = _read_only_identity_requested(read_only_identity)
@@ -217,11 +219,7 @@ def get_emitter(*, read_only_identity: bool | None = None) -> EventEmitter:
 
                 _emitter = EventEmitter()
                 if repo_root is not None:
-                    _seed_emitter_identity(
-                        _emitter,
-                        repo_root,
-                        read_only_identity=use_read_only_identity,
-                    )
+                    _seed_emitter_identity(_emitter, repo_root)
                 else:
                     logger.debug("Non-project context; identity will be empty")
                 try:
@@ -231,11 +229,7 @@ def get_emitter(*, read_only_identity: bool | None = None) -> EventEmitter:
                 except Exception as exc:
                     logger.warning("Could not attach emitter to sync runtime: %s", exc)
     elif not use_read_only_identity and repo_root is not None:
-        _seed_emitter_identity(
-            _emitter,
-            repo_root,
-            read_only_identity=False,
-        )
+        _seed_emitter_identity(_emitter, repo_root)
     return _emitter
 
 

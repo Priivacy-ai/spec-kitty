@@ -29,7 +29,8 @@ class TestTriggerDisabled:
             "specify_cli.sync.feature_flags.is_saas_sync_enabled",
             return_value=True,
         ), patch(
-            "specify_cli.identity.project.ensure_identity",
+            # #2263 WP02: dossier sync resolves identity read-only (was ensure_identity).
+            "specify_cli.identity.project.resolve_identity",
             side_effect=RuntimeError("boom"),
         ):
             result = trigger_feature_dossier_sync_if_enabled(
@@ -40,7 +41,7 @@ class TestTriggerDisabled:
 
 class TestTriggerEnabled:
     @patch("specify_cli.sync.feature_flags.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.identity.project.ensure_identity")
+    @patch("specify_cli.identity.project.resolve_identity")
     @patch("specify_cli.core.paths.get_feature_target_branch", return_value="main")
     @patch("specify_cli.mission.get_mission_type", return_value="software-dev")
     @patch("specify_cli.sync.namespace.resolve_manifest_version", return_value="1")
@@ -83,7 +84,7 @@ class TestTriggerEnabled:
         assert result is not None
 
     @patch("specify_cli.sync.feature_flags.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.identity.project.ensure_identity")
+    @patch("specify_cli.identity.project.resolve_identity")
     def test_returns_none_when_no_project_uuid(
         self,
         mock_identity: MagicMock,
@@ -104,7 +105,7 @@ class TestTriggerEnabled:
         assert result is None
 
     @patch("specify_cli.sync.feature_flags.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.identity.project.ensure_identity")
+    @patch("specify_cli.identity.project.resolve_identity")
     @patch("specify_cli.core.paths.get_feature_target_branch", return_value="main")
     @patch("specify_cli.mission.get_mission_type", return_value="software-dev")
     @patch("specify_cli.sync.namespace.resolve_manifest_version", return_value="1")
@@ -141,7 +142,7 @@ class TestTriggerEnabled:
         assert result is None
 
     @patch("specify_cli.sync.feature_flags.is_saas_sync_enabled", return_value=True)
-    @patch("specify_cli.identity.project.ensure_identity", side_effect=RuntimeError("boom"))
+    @patch("specify_cli.identity.project.resolve_identity", side_effect=RuntimeError("boom"))
     def test_never_raises_on_internal_error(
         self,
         mock_identity: MagicMock,

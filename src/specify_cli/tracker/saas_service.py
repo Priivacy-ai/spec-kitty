@@ -90,6 +90,10 @@ class SaaSTrackerService:
         self._repo_root = repo_root
         self._config = config
         self._client = client or SaaSTrackerClient()
+        # Last binding_ref upgrade *reported* by a read-like op (status/sync_*/
+        # map_list).  Read paths never persist; this records what an explicit
+        # ``apply_binding_upgrade`` would write.  ``None`` means nothing pending.
+        self.pending_binding_upgrade: str | None = None
 
     # ------------------------------------------------------------------
     # Properties
@@ -135,48 +139,73 @@ class SaaSTrackerService:
         return {}
 
     # ------------------------------------------------------------------
-    # Opportunistic upgrade
+    # Binding upgrade: report on reads, persist only on explicit apply
     # ------------------------------------------------------------------
 
-    def _maybe_upgrade_binding_ref(self, response: dict[str, Any]) -> None:
-        """Opportunistically persist binding_ref from response if available.
+    def _report_binding_upgrade(self, response: dict[str, Any]) -> str | None:
+        """Report (do NOT persist) a changed binding_ref carried by *response*.
 
-        Silent on failure (debug log only).  Never modifies config if
-        response doesn't contain binding_ref.
+        Read-like ops (status/sync_*/map_list) call this on every response.
+        It performs **no file I/O**: a read must never write
+        ``.kittify/config.yaml`` (see contract C-TB-1).  When the server
+        advertises a new/changed ``binding_ref``, it is recorded on
+        ``self.pending_binding_upgrade`` and returned so callers can surface
+        ``pending_binding_upgrade`` on their result.  Persistence happens only
+        through the explicit, write-authorized :meth:`apply_binding_upgrade`.
 
-        Atomicity: builds a *new* config object and persists it before
-        updating ``self._config``.  If the save fails, the in-memory
-        state remains unchanged.
+        Returns the pending ref, or ``None`` when there is nothing to upgrade
+        (response has no ``binding_ref``, or it already matches the stored one).
         """
         binding_ref = response.get("binding_ref")
         if not binding_ref:
-            return
+            self.pending_binding_upgrade = None
+            return None
         if self._config.binding_ref == binding_ref:
-            return  # Already up to date
+            self.pending_binding_upgrade = None
+            return None  # Already up to date
 
-        try:
-            # Build updated config WITHOUT mutating self._config yet
-            updated = TrackerProjectConfig(
-                provider=self._config.provider,
-                binding_ref=binding_ref,
-                project_slug=self._config.project_slug,
-                display_label=response.get("display_label") or self._config.display_label,
-                provider_context=(
-                    response.get("provider_context")
-                    if isinstance(response.get("provider_context"), dict)
-                    else self._config.provider_context
-                ),
-                workspace=self._config.workspace,
-                doctrine_mode=self._config.doctrine_mode,
-                doctrine_field_owners=self._config.doctrine_field_owners,
-                _extra=self._config._extra,
-            )
-            save_tracker_config(self._repo_root, updated)
-            # Only update in-memory state AFTER successful save
-            self._config = updated
-            logger.debug("Opportunistically upgraded binding_ref to %s", binding_ref)
-        except Exception:
-            logger.debug("Failed to upgrade binding_ref", exc_info=True)
+        if not isinstance(binding_ref, str):
+            self.pending_binding_upgrade = None
+            return None
+        self.pending_binding_upgrade = binding_ref
+        logger.debug("Binding upgrade available (pending): %s", binding_ref)
+        return binding_ref
+
+    def apply_binding_upgrade(
+        self,
+        binding_ref: str,
+        *,
+        display_label: str | None = None,
+        provider_context: dict[str, str] | None = None,
+    ) -> TrackerProjectConfig:
+        """Explicitly persist a pending ``binding_ref`` upgrade to config.
+
+        WRITE BOUNDARY: this is the *only* sanctioned write of a read-derived
+        ``binding_ref`` (contract C-TB-2).  Read-like ops never call it; an
+        operator opts in (e.g. via ``tracker bind`` / an apply flow) to persist
+        the upgrade that a read merely reported.  Builds a new config object,
+        persists it, then updates in-memory state only on success.
+        """
+        updated = TrackerProjectConfig(
+            provider=self._config.provider,
+            binding_ref=binding_ref,
+            project_slug=self._config.project_slug,
+            display_label=display_label or self._config.display_label,
+            provider_context=(
+                provider_context
+                if isinstance(provider_context, dict)
+                else self._config.provider_context
+            ),
+            workspace=self._config.workspace,
+            doctrine_mode=self._config.doctrine_mode,
+            doctrine_field_owners=self._config.doctrine_field_owners,
+            _extra=self._config._extra,
+        )
+        save_tracker_config(self._repo_root, updated)
+        # Only update in-memory state AFTER a successful save.
+        self._config = updated
+        self.pending_binding_upgrade = None
+        return updated
 
     # ------------------------------------------------------------------
     # Stale-binding detection
@@ -472,7 +501,7 @@ class SaaSTrackerService:
         result = self._call_with_stale_detection(
             self._client.status, self.provider, **routing,
         )
-        self._maybe_upgrade_binding_ref(result)
+        result["pending_binding_upgrade"] = self._report_binding_upgrade(result)
         return result
 
     def sync_pull(self, *, limit: int = 100) -> dict[str, Any]:
@@ -481,7 +510,7 @@ class SaaSTrackerService:
         result = self._call_with_stale_detection(
             self._client.pull, self.provider, limit=limit, **routing,
         )
-        self._maybe_upgrade_binding_ref(result)
+        result["pending_binding_upgrade"] = self._report_binding_upgrade(result)
         return result
 
     def sync_push(self, *, items: list[dict[str, Any]] | None = None) -> dict[str, Any]:
@@ -495,7 +524,7 @@ class SaaSTrackerService:
         result = self._call_with_stale_detection(
             self._client.push, self.provider, items=items or [], **routing,
         )
-        self._maybe_upgrade_binding_ref(result)
+        result["pending_binding_upgrade"] = self._report_binding_upgrade(result)
         return result
 
     def sync_run(self, *, limit: int = 100) -> dict[str, Any]:
@@ -504,7 +533,7 @@ class SaaSTrackerService:
         result = self._call_with_stale_detection(
             self._client.run, self.provider, limit=limit, **routing,
         )
-        self._maybe_upgrade_binding_ref(result)
+        result["pending_binding_upgrade"] = self._report_binding_upgrade(result)
         return result
 
     def map_list(self, *, provider: str | None = None) -> list[dict[str, Any]]:
@@ -515,7 +544,9 @@ class SaaSTrackerService:
             result = self._call_with_stale_detection(
                 self._client.mappings, resolved_provider, **routing,
             )
-            self._maybe_upgrade_binding_ref(result)
+            # map_list returns a list, so the reported upgrade is surfaced via
+            # ``self.pending_binding_upgrade`` rather than a result key.
+            self._report_binding_upgrade(result)
         else:
             result = self._client.mappings(resolved_provider)
         mappings: list[dict[str, Any]] = result.get("mappings", [])
