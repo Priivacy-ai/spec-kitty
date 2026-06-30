@@ -42,11 +42,11 @@
 - **Estimated prompt size**: ~330 lines.
 
 ### Included subtasks
-- [ ] T001 Add deterministic `derive_build_id(project_uuid, node_id)` helper + NAMESPACE constant (WP01)
-- [ ] T002 Wire deterministic `build_id` into `with_defaults` only when missing (WP01)
-- [ ] T003 Honor uninitialized-checkout edge (C-IR-4): never persist on read paths (WP01)
-- [ ] T004 Unit tests: determinism, legacy stability, complete-identity unchanged, no-write (WP01)
-- [ ] T005 Module constants + mypy/ruff clean (WP01)
+- [x] T001 Add deterministic `derive_build_id(project_uuid, node_id)` helper + NAMESPACE constant (WP01)
+- [x] T002 Wire deterministic `build_id` into `with_defaults` only when missing (WP01)
+- [x] T003 Honor uninitialized-checkout edge (C-IR-4): never persist on read paths (WP01)
+- [x] T004 Unit tests: determinism, legacy stability, complete-identity unchanged, no-write (WP01)
+- [x] T005 Module constants + mypy/ruff clean (WP01)
 
 ### Implementation sketch
 Add a pure helper deriving `build_id = uuid5(NAMESPACE, f"{project_uuid}:{node_id}")`; call it from `with_defaults` in place of `generate_build_id()` **only when `build_id` is None**; leave `project_uuid` minting unchanged; ensure `resolve_identity` never writes; cover with focused unit tests.
@@ -84,10 +84,10 @@ Mechanical swaps with per-site read-context verification; explicitly leave `init
 - **Estimated prompt size**: ~300 lines.
 
 ### Included subtasks
-- [ ] T011 _maybe_upgrade_binding_ref report-only (no save_tracker_config on reads) (WP03)
-- [ ] T012 Read callers surface pending_binding_upgrade (+ optional notice) (WP03)
-- [ ] T013 Explicit tracker bind/apply still persists binding_ref (WP03)
-- [ ] T014 Tracker tests: read = no write + reports; explicit bind = persists (WP03)
+- [x] T011 _maybe_upgrade_binding_ref report-only (no save_tracker_config on reads) (WP03)
+- [x] T012 Read callers surface pending_binding_upgrade (+ optional notice) (WP03)
+- [x] T013 Explicit tracker bind/apply still persists binding_ref (WP03)
+- [x] T014 Tracker tests: read = no write + reports; explicit bind = persists (WP03)
 
 ### Implementation sketch
 Change `_maybe_upgrade_binding_ref` to return the pending ref instead of persisting; thread it onto read results; ensure an explicit bind path calls `save_tracker_config`; cover both directions with tests.

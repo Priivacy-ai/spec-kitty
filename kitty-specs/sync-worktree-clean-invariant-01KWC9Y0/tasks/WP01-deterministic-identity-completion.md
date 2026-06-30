@@ -16,7 +16,8 @@ subtasks:
 - T005
 phase: Phase 1 - Foundation
 assignee: ''
-agent: claude
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "96096"
 history:
 - at: '2026-06-30T13:20:00Z'
   actor: system
@@ -177,3 +178,7 @@ PWHEADLESS=1 .venv/bin/pytest tests/specify_cli/identity/test_identity_build_id_
 ## Activity Log
 
 - 2026-06-30 — Prompt generated via /spec-kitty.tasks.
+- 2026-06-30T14:43:49Z – claude:opus:python-pedro:implementer – shell_pid=75172 – Assigned agent via action command
+- 2026-06-30T14:51:28Z – claude:opus:python-pedro:implementer – shell_pid=75172 – Deterministic build_id wired into with_defaults; resolve_identity no-write; tests+mypy+ruff green. Note: added empty tests/specify_cli/identity/__init__.py as the package marker required to collect the owned test file under pythonpath=src (matches sibling test-dir convention).
+- 2026-06-30T14:53:12Z – claude:opus:reviewer-renata:reviewer – shell_pid=96096 – Started review via action command
+- 2026-06-30T14:59:56Z – user – shell_pid=96096 – Review passed: derive_build_id is pure/deterministic (module-level uuid5 namespace constant), wired into with_defaults from resolved (non-None) project_uuid+node_id; project_uuid still uuid4 and present build_id preserved (C-005); resolve_identity performs no write/no dir creation under any input; 11 determinism+no-write tests pass (byte-identical config, set-collapse N=6, derivation pinned), 92 identity tests green, mypy --strict + ruff clean; scope limited to project.py + new test file + __init__.py.

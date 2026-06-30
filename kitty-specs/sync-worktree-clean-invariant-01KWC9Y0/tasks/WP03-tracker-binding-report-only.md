@@ -16,7 +16,8 @@ subtasks:
 - T014
 phase: Phase 2 - Tracker reads
 assignee: ''
-agent: claude
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "2639"
 history:
 - at: '2026-06-30T13:20:00Z'
   actor: system
@@ -145,3 +146,6 @@ PWHEADLESS=1 .venv/bin/pytest tests/specify_cli/tracker/test_binding_report_only
 ## Activity Log
 
 - 2026-06-30 — Prompt generated via /spec-kitty.tasks.
+- 2026-06-30T14:44:32Z – claude:opus:python-pedro:implementer – shell_pid=75172 – Assigned agent via action command
+- 2026-06-30T14:55:33Z – claude:opus:python-pedro:implementer – shell_pid=75172 – binding_ref report-only on reads; binds still persist; tests+mypy+ruff green
+- 2026-06-30T14:56:58Z – claude:opus:reviewer-renata:reviewer – shell_pid=2639 – Started review via action command
