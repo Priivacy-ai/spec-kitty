@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-06-30T13:05:19.476595Z",
+      "decision_id": "01KWCA4N3MEA9S89GB1QA6S4C0",
+      "final_answer": "Comprehensive, test-driven: fix every read/background path that can dirty the worktree, enforced by a parametrized no-dirty-tree test across the full command surface {emit, sync pull/push/run/status, tracker status/map list, dashboard daemon tick}.",
+      "input_key": "scope_breadth",
+      "mission_id": "01KWC9Y0YJN6PZE7D4X8VN9PDS",
+      "mission_slug": "sync-worktree-clean-invariant-01KWC9Y0",
+      "opened_by": "cli",
+      "options": [
+        "Comprehensive test-driven",
+        "Narrow two-source only",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How broad should the worktree-clean fix scope be?",
+      "rationale": null,
+      "resolved_at": "2026-06-30T13:05:20.763868Z",
+      "resolved_by": null,
+      "slot_key": "specify.scope.breadth",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KWC9Y0YJN6PZE7D4X8VN9PDS",
+  "version": 1
+}
