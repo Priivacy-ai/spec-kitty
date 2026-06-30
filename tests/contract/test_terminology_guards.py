@@ -16,6 +16,7 @@ Explicitly does not scan:
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -60,6 +61,8 @@ CLI_COMMAND_GLOBS = ("src/specify_cli/cli/commands/**/*.py",)
 DOCTRINE_SKILL_GLOBS = ("src/doctrine/skills/**/*.md",)
 AGENT_DOC_GLOBS = ("docs/**/*.md",)
 TOP_LEVEL_DOCS = ("README.md", "CONTRIBUTING.md")
+# Exemption policy and rationale for each exempt surface:
+# docs/development/terminology-exemptions.md
 FORBIDDEN_SCAN_ROOTS = (
     "kitty-specs/",
     "architecture/",
@@ -91,7 +94,7 @@ def _read(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def _iter_typer_option_blocks(content: str):
+def _iter_typer_option_blocks(content: str) -> Iterator[tuple[int, str]]:
     """Yield `(offset, block)` tuples for each `typer.Option(...)` call."""
     pattern = re.compile(r"typer\.Option\((?:[^()]|\([^()]*\))*\)", re.DOTALL)
     for match in pattern.finditer(content):
@@ -171,7 +174,7 @@ def _line_number(content: str, offset: int) -> int:
     return content.count("\n", 0, offset) + 1
 
 
-def test_no_mission_run_alias_in_tracked_mission_selectors():
+def test_no_mission_run_alias_in_tracked_mission_selectors() -> None:
     """Live CLI command files must not declare --mission-run for mission selection.
 
     Authority: spec.md FR-002, FR-003.
@@ -191,7 +194,7 @@ def test_no_mission_run_alias_in_tracked_mission_selectors():
                 )
 
 
-def test_no_mission_run_slug_help_text_in_cli_commands():
+def test_no_mission_run_slug_help_text_in_cli_commands() -> None:
     """Tracked-mission CLI help text must not say 'Mission run slug'.
 
     Authority: spec.md FR-008.
@@ -208,7 +211,7 @@ def test_no_mission_run_slug_help_text_in_cli_commands():
             )
 
 
-def test_no_visible_feature_alias_in_cli_commands():
+def test_no_visible_feature_alias_in_cli_commands() -> None:
     """--feature must not appear at all in CLI-command Typer option blocks.
 
     The alias was fully removed (#1060); it is no longer permitted even as a
@@ -231,7 +234,7 @@ def test_no_visible_feature_alias_in_cli_commands():
                 )
 
 
-def test_no_mission_run_instructions_in_doctrine_skills():
+def test_no_mission_run_instructions_in_doctrine_skills() -> None:
     """Doctrine skills must teach --mission for tracked-mission selection.
 
     Authority: spec.md FR-009.
@@ -253,7 +256,7 @@ def test_no_mission_run_instructions_in_doctrine_skills():
                     )
 
 
-def test_no_mission_run_instructions_in_agent_facing_docs():
+def test_no_mission_run_instructions_in_agent_facing_docs() -> None:
     """Live docs must teach --mission for tracked-mission selection.
 
     Authority: spec.md FR-010 and FR-022.
@@ -274,7 +277,7 @@ def test_no_mission_run_instructions_in_agent_facing_docs():
                 )
 
 
-def test_no_feature_flag_in_live_first_party_docs():
+def test_no_feature_flag_in_live_first_party_docs() -> None:
     """Live docs must not document --feature as a live CLI option.
 
     Authority: spec.md FR-005, FR-022, and the charter terminology canon.
@@ -298,7 +301,7 @@ def test_no_feature_flag_in_live_first_party_docs():
                 )
 
 
-def test_no_removed_orchestrator_api_command_names_in_live_docs():
+def test_no_removed_orchestrator_api_command_names_in_live_docs() -> None:
     """Live docs must not teach removed host orchestrator-api subcommands.
 
     Authority: spec.md FR-010, FR-022.
@@ -318,7 +321,7 @@ def test_no_removed_orchestrator_api_command_names_in_live_docs():
                 )
 
 
-def test_orchestrator_api_docs_do_not_teach_removed_json_flag_or_unpinned_provider_source():
+def test_orchestrator_api_docs_do_not_teach_removed_json_flag_or_unpinned_provider_source() -> None:
     """Live docs must not teach host/provider patterns known to fail today.
 
     Authority: orchestrator-api JSON-default contract and host/provider
@@ -339,7 +342,7 @@ def test_orchestrator_api_docs_do_not_teach_removed_json_flag_or_unpinned_provid
                 )
 
 
-def test_no_mission_used_to_mean_mission_type_in_cli_commands():
+def test_no_mission_used_to_mean_mission_type_in_cli_commands() -> None:
     """CLI command files must not declare --mission with mission-type semantics.
 
     Authority: spec.md FR-021.
@@ -362,7 +365,7 @@ def test_no_mission_used_to_mean_mission_type_in_cli_commands():
                 )
 
 
-def test_reference_examples_match_runtime_requirements():
+def test_reference_examples_match_runtime_requirements() -> None:
     """Reference docs must not teach invocation patterns that now hard-fail.
 
     Authority: spec.md FR-010, FR-013, FR-022.
@@ -406,7 +409,7 @@ def test_reference_examples_match_runtime_requirements():
         assert re.search(pattern, agent_reference, flags=re.MULTILINE) is None
 
 
-def test_no_main_branch_workflow_language_in_live_docs_and_skills():
+def test_no_main_branch_workflow_language_in_live_docs_and_skills() -> None:
     """Live docs and doctrine skills must not teach generic main-branch workflow rules.
 
     Authority: charter branch-intent terminology governance and spec.md FR-022.
@@ -438,7 +441,7 @@ def test_no_main_branch_workflow_language_in_live_docs_and_skills():
                 )
 
 
-def test_orchestrator_api_envelope_width_unchanged():
+def test_orchestrator_api_envelope_width_unchanged() -> None:
     """The orchestrator-api envelope must remain the canonical 7-key shape.
 
     Authority: spec.md C-010.
@@ -465,7 +468,7 @@ def test_orchestrator_api_envelope_width_unchanged():
     )
 
 
-def test_grep_guards_do_not_scan_historical_artifacts():
+def test_grep_guards_do_not_scan_historical_artifacts() -> None:
     """Verify the grep guard scope excludes historical artifacts.
 
     Authority: spec.md FR-022 and C-011.
@@ -539,3 +542,44 @@ def test_no_feature_alias_in_internal_command_cluster() -> None:
         "(INSCOPE_FEATURE_FREE_FILES).  Remove the alias entirely — do not hide it.\n  "
         + "\n  ".join(offenders)
     )
+
+
+@pytest.mark.fast
+def test_terminology_exemption_policy_doc_is_present_and_consistent() -> None:
+    """The exemption policy doc exists, is referenced from this file, and covers all three exemptions.
+
+    Confirms that the policy rationale captured in the comment above
+    FORBIDDEN_SCAN_ROOTS is also reflected in a human-readable policy document,
+    and that both the document and this test agree on the three exempt surfaces.
+
+    Authority: FR-013 (policy doc linked from the guard test).
+    """
+    policy_doc = REPO_ROOT / "docs" / "development" / "terminology-exemptions.md"
+    assert policy_doc.exists(), (
+        "docs/development/terminology-exemptions.md must exist. "
+        "Authority: FR-013. The exemption policy must be documented in a human-readable form."
+    )
+
+    # This guard test must reference the policy doc by its canonical path so
+    # a reader can navigate from the exemption comment to the full rationale.
+    guard_source = Path(__file__).read_text(encoding="utf-8")
+    assert "docs/development/terminology-exemptions.md" in guard_source, (
+        "test_terminology_guards.py must reference docs/development/terminology-exemptions.md. "
+        "Authority: FR-013. The link must appear in the guard test itself."
+    )
+
+    # The policy doc must cover ALL four exempt surfaces in FORBIDDEN_SCAN_ROOTS.
+    # Each token is a substring that must appear in the document to confirm
+    # coverage — keeps the doc honest if a future exemption is added/dropped.
+    policy_content = policy_doc.read_text(encoding="utf-8")
+    required_tokens = (
+        "docs/adr/",
+        "docs/migration/",
+        "docs/plans/engineering-notes/",
+        "Unreleased",
+    )
+    for token in required_tokens:
+        assert token in policy_content, (
+            f"docs/development/terminology-exemptions.md must contain exemption token {token!r}. "
+            "Authority: FR-013. All four exempt surfaces must be documented."
+        )

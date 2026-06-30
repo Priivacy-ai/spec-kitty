@@ -8,9 +8,9 @@ Architectural Decision Records for the 3.x track (starting 3.0.0, released 2026-
 
 ## Source of Truth
 
-This folder is canonical for 3.x decisions. Back-compat symlinks at the old
-`architecture/2.x/adr/<filename>` paths point here so legacy references (in
-CHANGELOG entries, test snapshots, etc.) continue to resolve.
+This folder is canonical for 3.x decisions. The `architecture/` tree was removed
+by the Common Docs structural move (PR #2225); existing references using the old
+`architecture/2.x/adr/<filename>` paths will need updating to `docs/adr/3.x/`.
 
 ## Status Conventions
 
