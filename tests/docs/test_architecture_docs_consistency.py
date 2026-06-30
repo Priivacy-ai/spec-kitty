@@ -4,15 +4,20 @@ Verifies structural integrity of the architecture corpus:
 - Required directories and files are present.
 - ADR files follow the naming convention.
 - ADR files contain required sections.
-- Local links within architecture markdown files resolve.
-- User-journey actor-table persona links point to existing audience files.
+
+Note: bare-relative link resolution is now owned by the unified gate in
+:mod:`tests.docs.test_relative_link_fixer` (WP02/T027, FR-005).  The
+hand-rolled link-resolution tests that previously lived here
+(``test_architecture_relative_links_resolve`` and
+``test_user_journey_persona_links_resolve``) have been retired — they
+are superseded by ``check_dead_body_links`` operating across the full
+``docs/`` tree.
 """
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
-from urllib.parse import unquote, urlparse
 
 import pytest
 
@@ -34,8 +39,6 @@ ADR_TRACKS = {
 }
 
 ADR_FILENAME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}-\d+-.+\.md$")
-
-LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 
 REQUIRED_ARCH_PATHS: list[Path] = [
     ARCH_DIR / "README.md",
@@ -63,11 +66,6 @@ REQUIRED_ADR_SECTION_CHECKS: tuple[tuple[str, re.Pattern[str]], ...] = (
 )
 
 
-def _collect_arch_md_files() -> list[Path]:
-    """Return all markdown files under architecture/, resolving symlinks."""
-    return sorted(ARCH_DIR.rglob("*.md"))
-
-
 def _collect_adr_files() -> list[tuple[str, Path]]:
     """Return (track_label, path) for every ADR file in both tracks.
 
@@ -83,33 +81,8 @@ def _collect_adr_files() -> list[tuple[str, Path]]:
     return result
 
 
-ARCH_MD_FILES = _collect_arch_md_files()
-ARCH_MD_IDS = [str(path.relative_to(REPO_ROOT)) for path in ARCH_MD_FILES]
-
 ADR_FILES = _collect_adr_files()
 ADR_IDS = [f"{track}::{path.name}" for track, path in ADR_FILES]
-
-
-def _iter_local_links(path: Path) -> list[tuple[str, int]]:
-    text = path.read_text(encoding="utf-8")
-    links: list[tuple[str, int]] = []
-    for match in LINK_RE.finditer(text):
-        target = match.group(1).strip().strip("<>")
-        if not target:
-            continue
-        if target.startswith(("http://", "https://", "mailto:", "tel:")):
-            continue
-        if "://" in target:
-            continue
-        # Skip absolute filesystem paths (e.g. /Users/... references to local machine
-        # files found in some notes/drafts).  All paths of this kind found in the
-        # architecture corpus point to off-repo locations and cannot be validated here.
-        # Repo-root-relative links do not appear in these files.
-        if target.startswith("/"):
-            continue
-        line_number = text.count("\n", 0, match.start()) + 1
-        links.append((target, line_number))
-    return links
 
 
 # ---------------------------------------------------------------------------
@@ -165,76 +138,3 @@ def test_adr_contains_required_sections(track: str, adr_path: Path) -> None:
     )
 
 
-# ---------------------------------------------------------------------------
-# Link resolution
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("source_path", ARCH_MD_FILES, ids=ARCH_MD_IDS)
-def test_architecture_relative_links_resolve(source_path: Path) -> None:
-    failures: list[str] = []
-    for target, line_number in _iter_local_links(source_path):
-        parsed = urlparse(unquote(target))
-        link_path = parsed.path
-
-        if not link_path:
-            continue
-
-        destination = (source_path.parent / link_path).resolve()
-        try:
-            destination.relative_to(REPO_ROOT.resolve())
-        except ValueError:
-            failures.append(
-                f"{source_path.relative_to(REPO_ROOT)}:{line_number} link escapes repo: {target}"
-            )
-            continue
-
-        if not destination.exists():
-            failures.append(
-                f"{source_path.relative_to(REPO_ROOT)}:{line_number} missing file target: {target}"
-            )
-
-    assert not failures, "\n".join(failures)
-
-
-# ---------------------------------------------------------------------------
-# User-journey actor persona links
-# ---------------------------------------------------------------------------
-
-ACTOR_LINK_RE = re.compile(r"\[([^\]]+)\]\((\.\.\/\.\.\/audience[^)]+)\)")
-
-
-def _collect_user_journey_files() -> list[Path]:
-    if not USER_JOURNEY_DIR.is_dir():
-        return []
-    return sorted(USER_JOURNEY_DIR.glob("*.md"))
-
-
-USER_JOURNEY_FILES = _collect_user_journey_files()
-USER_JOURNEY_IDS = [str(p.relative_to(REPO_ROOT)) for p in USER_JOURNEY_FILES]
-
-
-@pytest.mark.parametrize("source_path", USER_JOURNEY_FILES, ids=USER_JOURNEY_IDS)
-def test_user_journey_persona_links_resolve(source_path: Path) -> None:
-    text = source_path.read_text(encoding="utf-8")
-    failures: list[str] = []
-    for match in ACTOR_LINK_RE.finditer(text):
-        raw_target = match.group(2).strip()
-        parsed = urlparse(unquote(raw_target))
-        link_path = parsed.path
-        destination = (source_path.parent / link_path).resolve()
-        try:
-            destination.relative_to(REPO_ROOT.resolve())
-        except ValueError:
-            line_number = text.count("\n", 0, match.start()) + 1
-            failures.append(
-                f"{source_path.relative_to(REPO_ROOT)}:{line_number} persona link escapes repo: {raw_target}"
-            )
-            continue
-        if not destination.exists():
-            line_number = text.count("\n", 0, match.start()) + 1
-            failures.append(
-                f"{source_path.relative_to(REPO_ROOT)}:{line_number} missing persona file: {raw_target}"
-            )
-
-    assert not failures, "\n".join(failures)
