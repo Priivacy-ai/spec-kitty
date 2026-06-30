@@ -79,28 +79,28 @@ not_helpful:
   summary: analysis-report.md present with findings
   evidence_refs:
   - e-023
-  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented
     issues and decisions.
 - id: n-007
   category: implementation
   summary: WP02 needed 2 implementation cycles
   evidence_refs:
   - e-020
-  details: WP WP02 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a 
+  details: WP WP02 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
     documented review rejection; the WP scope or contract may need refinement.
 - id: n-008
   category: implementation
   summary: WP04 needed 2 implementation cycles
   evidence_refs:
   - e-021
-  details: WP WP04 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a 
+  details: WP WP04 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a
     documented review rejection; the WP scope or contract may need refinement.
 - id: n-009
   category: implementation
   summary: WP05 needed 3 implementation cycles
   evidence_refs:
   - e-022
-  details: WP WP05 entered in_progress 3 times. Multiple implementation cycles suggest rework not captured as a 
+  details: WP WP05 entered in_progress 3 times. Multiple implementation cycles suggest rework not captured as a
     documented review rejection; the WP scope or contract may need refinement.
 - id: n-004
   category: process

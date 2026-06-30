@@ -35,7 +35,8 @@ import subprocess
 import time
 import urllib.request
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, cast
+from pathlib import Path
+from typing import Any
 
 import psutil
 
@@ -55,9 +56,6 @@ from specify_cli.sync.daemon import (
     _fetch_health_payload,
     _parse_daemon_file,
 )
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -89,9 +87,7 @@ def __getattr__(name: str) -> Path:
     get the current value.
     """
     if name == "DAEMON_STATE_FILE":
-        # cast: daemon.py is partially typed (follow_imports=skip); the
-        # attribute is a Path resolved via get_runtime_root().
-        return cast("Path", _daemon.DAEMON_STATE_FILE)
+        return _daemon.DAEMON_STATE_FILE
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -103,11 +99,10 @@ def _daemon_state_file() -> Path:
     ``monkeypatch.setattr``; that override is honored verbatim. Otherwise the
     value flows through from :mod:`specify_cli.sync.daemon`.
     """
-    override = globals().get("DAEMON_STATE_FILE")
+    override: Path | None = globals().get("DAEMON_STATE_FILE")
     if override is not None:
-        return cast("Path", override)
-    # cast: daemon.py is partially typed (follow_imports=skip).
-    return cast("Path", _daemon.DAEMON_STATE_FILE)
+        return override
+    return _daemon.DAEMON_STATE_FILE
 
 
 # Per-port budgets. The 50 ms TCP connect-check is the dominant filter for
@@ -349,12 +344,15 @@ def _read_singleton_ref() -> SingletonRef:
     )
 
 
-def _build_health_probe(payload: dict[str, Any] | None, port: int, pid: int | None) -> HealthProbe:
+def _build_health_probe(
+    payload: dict[str, Any] | None, port: int, pid: int | None
+) -> HealthProbe:
     """Build a ``HealthProbe`` from a raw ``/api/health`` payload dict.
 
     Sets ``responded=False`` when ``payload is None`` (no response / timeout),
     which the classifier maps to ``operator_required / unresponsive`` (D-01).
     """
+    del port, pid
     if payload is None:
         return HealthProbe(
             responded=False,
@@ -385,8 +383,8 @@ def _build_health_probe(payload: dict[str, Any] | None, port: int, pid: int | No
         protocol_version=int(protocol_version_raw) if isinstance(protocol_version_raw, int) else None,
         package_version=str(package_version_raw) if isinstance(package_version_raw, str) else None,
         daemon_family=str(daemon_family_raw) if isinstance(daemon_family_raw, str) else None,
-        owner_pid=int(raw_owner_pid) if isinstance(raw_owner_pid, int) else pid,
-        owner_port=int(raw_owner_port) if isinstance(raw_owner_port, int) else port,
+        owner_pid=int(raw_owner_pid) if isinstance(raw_owner_pid, int) else None,
+        owner_port=int(raw_owner_port) if isinstance(raw_owner_port, int) else None,
         queue_db_path=str(payload["queue_db_path"]) if isinstance(payload.get("queue_db_path"), str) else None,
         auth_scope=str(payload["auth_scope"]) if isinstance(payload.get("auth_scope"), str) else None,
         server_url=str(payload["server_url"]) if isinstance(payload.get("server_url"), str) else None,
@@ -408,16 +406,14 @@ def _derive_singleton_scope_id(cmdline: list[str]) -> str | None:
     """Extract the daemon-root scope marker from ``cmdline``, or ``None``."""
     from specify_cli.sync.owner import _cmdline_daemon_root_marker
 
-    # cast: owner.py is follow_imports=skip; the helper returns str | None.
-    return cast("str | None", _cmdline_daemon_root_marker(cmdline))
+    return _cmdline_daemon_root_marker(cmdline)
 
 
 def _derive_spawn_shape_ok(cmdline: list[str]) -> bool:
     """Return True when ``cmdline`` has the production daemon spawn shape."""
     from specify_cli.sync.owner import _cmdline_has_daemon_spawn_signature
 
-    # cast: owner.py is follow_imports=skip; the helper returns bool.
-    return cast(bool, _cmdline_has_daemon_spawn_signature(cmdline))
+    return _cmdline_has_daemon_spawn_signature(cmdline)
 
 
 def _derive_executable_summary(pid: int | None, cmdline: list[str]) -> str | None:
@@ -428,8 +424,7 @@ def _derive_executable_summary(pid: int | None, cmdline: list[str]) -> str | Non
         proc = psutil.Process(pid)
         from specify_cli.sync.owner import _process_executable_scopes
 
-        # cast: owner.py is follow_imports=skip; the helper returns set[str].
-        scopes = cast("set[str]", _process_executable_scopes(proc, cmdline))
+        scopes = _process_executable_scopes(proc, cmdline)
         if scopes:
             return next(iter(sorted(scopes)))
     except (psutil.Error, OSError):
@@ -653,6 +648,11 @@ def _assert_safe_to_sweep(record: DaemonIdentityRecord) -> None:
             f"BUG: attempted sweep of never_touch record on port {record.port} "
             f"(skip_reason={record.skip_reason!r})"
         )
+    if not record.spawn_shape_ok:
+        raise RuntimeError(
+            f"BUG: attempted sweep of record without production spawn shape "
+            f"on port {record.port}"
+        )
 
 
 def _sweep_one_with_path(record: DaemonIdentityRecord) -> tuple[bool, str, str | None]:
@@ -682,7 +682,7 @@ def _sweep_one_with_path(record: DaemonIdentityRecord) -> tuple[bool, str, str |
         return False, "http_shutdown", "no_pid_after_http_shutdown_failed"
 
     # Signal escalation via the canonical single kill path.
-    reaped, reason = _sweep_daemon_process(
+    reaped, signal_path, reason = _sweep_daemon_process(
         pid,
         terminate_wait_s=_TERMINATE_WAIT_S,
         kill_wait_s=_KILL_WAIT_S,
@@ -694,16 +694,9 @@ def _sweep_one_with_path(record: DaemonIdentityRecord) -> tuple[bool, str, str |
             return True, "kill", None
         return False, "kill", reason or "port_still_listening_after_kill"
 
-    # Determine which signal step succeeded (terminate or kill).
-    # ``_sweep_daemon_process`` tries terminate first, then kill; if it
-    # succeeded we cannot distinguish post-hoc, but the absence of a failure
-    # reason from the terminate step implies terminate succeeded.
-    cleanup_path = "terminate"
-    if reason is not None and "kill" in reason:
-        cleanup_path = "kill"
-
     # Process is gone per the canonical sweep; confirm the listening socket
     # has been released (preserves the port-close success contract).
+    cleanup_path = signal_path or "terminate"
     if _wait_for_port_close(port, timeout_s=_KILL_WAIT_S):
         return True, cleanup_path, None
     return False, cleanup_path, "process_gone_but_port_still_listening"
@@ -822,7 +815,7 @@ def _sweep_one(orphan: OrphanDaemon) -> tuple[bool, str | None]:
         return False, "no_pid_after_http_shutdown_failed"
 
     # Signal escalation via the canonical single kill path.
-    reaped, reason = _sweep_daemon_process(
+    reaped, _signal_path, reason = _sweep_daemon_process(
         orphan.pid,
         terminate_wait_s=_TERMINATE_WAIT_S,
         kill_wait_s=_KILL_WAIT_S,

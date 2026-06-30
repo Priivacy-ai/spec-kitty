@@ -415,6 +415,20 @@ def classify_candidate(
             is_singleton,
         )
 
+    # Row 2b — no production spawn shape → never_touch / third_party
+    #
+    # A Spec Kitty health-shaped response alone is not kill authority. The
+    # spawn signature is required before any reset/force/startup path may send
+    # a signal, even when argv carries a spoofable-looking scope marker.
+    if not probe.spawn_shape_ok:
+        return _build_record(
+            probe,
+            CleanupClass.NEVER_TOUCH,
+            SkipReason.third_party,
+            IdentitySource.none,
+            is_singleton,
+        )
+
     # Row 3 — is the recorded singleton → excluded from cleanup
     if is_singleton:
         return _build_record(

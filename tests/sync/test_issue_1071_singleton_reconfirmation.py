@@ -21,9 +21,7 @@ Run this suite serially (real ports, OS-global resources)::
     PWHEADLESS=1 .venv/bin/pytest tests/sync/test_issue_1071_singleton_reconfirmation.py -n0 -q
 
 Port range convention:
-    WP08 / #1071 reconfirmation: ``[9350, 9365)``
-    WP06:  ``[9400, 9425)``
-    WP07:  ``[9375, 9399)``
+    WP08 / #1071 reconfirmation: ``[9401, 9425)``
     test_orphan_sweep: ``[9425, 9450)``
 """
 
@@ -59,8 +57,8 @@ if sys.platform == "win32":  # pragma: no cover
     pytest.skip("live-subprocess harness is not supported on win32", allow_module_level=True)
 
 # Isolated port sub-range for this suite — must not overlap with other suites.
-_PORT_START = 9350
-_PORT_END = 9365  # exclusive → [9350, 9365)
+_PORT_START = 9401
+_PORT_END = 9425  # exclusive -> [9401, 9425)
 
 # Version strings that simulate the stale-upgrade scenario (#2261 field data).
 _VERSION_STALE_A = "3.2.2"

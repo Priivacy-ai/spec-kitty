@@ -172,6 +172,19 @@ def test_row2_third_party_foreign_health() -> None:
     assert result.skip_reason == SkipReason.third_party
 
 
+@pytest.mark.unit
+def test_row2b_health_and_marker_without_spawn_shape_never_touch() -> None:
+    """Health-shaped response plus scope marker is not signalable without spawn shape."""
+    p = _probe(
+        spawn_shape_ok=False,
+        singleton_scope_id=_SCOPE,
+        health=_health(owner_pid=_ORPHAN_PID, owner_port=_ORPHAN_PORT),
+    )
+    result = classify_candidate(p, _foreground())
+    assert result.cleanup_class == CleanupClass.NEVER_TOUCH
+    assert result.skip_reason == SkipReason.third_party
+
+
 # ---------------------------------------------------------------------------
 # Row 3 — is the recorded singleton → excluded from cleanup
 # ---------------------------------------------------------------------------

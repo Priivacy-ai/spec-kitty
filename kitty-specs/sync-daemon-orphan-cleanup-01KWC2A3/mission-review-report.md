@@ -13,9 +13,14 @@
 
 The **production code faithfully and completely realizes the spec.** All 12 FRs are adequately tested against real production code paths, the core #2261 fix (FR-008) is verified in the merged reaper, there is **zero dead runtime code**, **no drift**, and **no security findings**. The mission's behavior is sound and the #2261/#1071 defects are genuinely fixed.
 
-**However, the mission FAILS the hard gates** on five **mission-caused** hygiene/CI issues that per-WP reviews missed (because the per-WP reviewers ran their own test files, never the repo-wide `tests/architectural/` gates), plus one **HIGH test-isolation flake** found by the post-merge integration run. None is a production behavior defect; all are fixable in a focused follow-up.
+**Post-review remediation (2026-06-30): PASS.** The hard-gate findings below
+were remediated before PR merge: pure unit tests are gate-visible, dead
+`__all__` exports were narrowed, `/tmp` ratchet issues were removed, #1868 is
+named as the concrete deferred follow-up, the live-port range avoids production
+port `9400`, and the daemon cleanup contract was tightened so startup kills
+only `safe_auto` records with live daemon-local identity.
 
-**Verdict: FAIL** (Gate 2 + Gate 4 fail with mission-caused issues). Remediation is a small, well-scoped follow-up — see Open Items.
+**Verdict: PASS after remediation.**
 
 ---
 
@@ -123,9 +128,15 @@ The block comment still describes the *old* "THREE dimensions" reaper including 
 
 ## Final Verdict
 
-### **FAIL** (production behavior sound; mission-caused hard-gate + test-isolation issues block a clean release)
+### **PASS** (post-review remediation complete)
 
-**Rationale**: The merged code **completely and faithfully realizes the spec** — all 12 FRs are adequately covered against real code paths, the core FR-008 scope-marker authority is verified in the reaper, there is no drift, no dead runtime code, and no security finding. The defect that motivated the mission (#2261) is genuinely fixed and #1071 is reconfirmed. **But** the mission ships with five mission-caused gate issues (two new unit-test files invisible to CI, six dead `__all__` symbols, new `/tmp` test literals, and an under-specified issue-matrix #1868 row) plus a HIGH test-isolation flake (WP06's `[9400,9425)` range), and per the hard-gate rule a Gate-2/Gate-4 failure forces FAIL. None is a production behavior defect; all are addressable in one focused follow-up. After remediation the verdict converts to PASS.
+**Rationale**: The production behavior realizes the spec and the post-review
+remediation closes the hard-gate/test-isolation findings. Additional
+adversarial review found and fixed three cleanup-contract bugs before merge:
+startup no longer kills `operator_required/unresponsive`, health self-report
+uses daemon-local owner identity instead of shared `owner.json`, and reset
+cleanup paths report the actual terminal step (`http_shutdown`, `terminate`,
+or `kill`). The PR is safe to release once current CI is green.
 
 ### Open items (all fixable in one follow-up; ordered by priority)
 

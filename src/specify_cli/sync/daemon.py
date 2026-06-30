@@ -46,6 +46,7 @@ else:  # pragma: no cover - platform-specific
 
 if TYPE_CHECKING:
     from specify_cli.sync.config import SyncConfig
+    from specify_cli.sync.owner import DaemonOwnerRecord
 
 import psutil
 
@@ -415,6 +416,7 @@ class SyncDaemonHandler(BaseHTTPRequestHandler):
     """Localhost-only HTTP control plane for the machine-global sync daemon."""
 
     daemon_token: str | None = None
+    daemon_owner_record: DaemonOwnerRecord | None = None
 
     def log_message(self, format: str, *args: Any) -> None:  # noqa: A003
         del format, args
@@ -496,7 +498,7 @@ class SyncDaemonHandler(BaseHTTPRequestHandler):
         self.end_headers()
 
     def handle_health(self) -> None:
-        from specify_cli.sync.owner import read_owner_record, redact_token
+        from specify_cli.sync.owner import redact_token
 
         sync: Any | None = None
         websocket_status = "Offline"
@@ -529,10 +531,9 @@ class SyncDaemonHandler(BaseHTTPRequestHandler):
             },
             "websocket_status": websocket_status,
         }
-        # Surface the redacted owner record (FR-006). The redactor returns
-        # ``None`` when no record exists; we drop the key in that case so
-        # the wire shape stays clean.
-        owner_view = redact_token(read_owner_record())
+        # Surface this daemon instance's own owner record, not the shared
+        # owner.json file that another same-scope daemon may have overwritten.
+        owner_view = redact_token(getattr(self, "daemon_owner_record", None))
         if owner_view is not None:
             payload["owner"] = owner_view
         self._send_json(200, payload)
@@ -748,14 +749,20 @@ def _start_self_check_tick(
     return timer
 
 
-def _start_runtime_bootstrap_thread(port: int, daemon_token: str | None) -> None:
+def _start_runtime_bootstrap_thread(
+    port: int,
+    daemon_token: str | None,
+    handler_class: type[SyncDaemonHandler],
+) -> None:
     def _start_runtime_in_background() -> None:
         try:
             time.sleep(_RUNTIME_BACKGROUND_START_DELAY_SECONDS)
             from specify_cli.sync.runtime import get_runtime
 
             get_runtime()
-            _write_daemon_owner_record(port, daemon_token, allow_network=True)
+            owner_record = _write_daemon_owner_record(port, daemon_token, allow_network=True)
+            if owner_record is not None:
+                handler_class.daemon_owner_record = owner_record
         except Exception:  # noqa: BLE001 — health endpoint stays available
             logger.exception("Failed to start sync runtime")
 
@@ -766,7 +773,9 @@ def _start_runtime_bootstrap_thread(port: int, daemon_token: str | None) -> None
     ).start()
 
 
-def _write_daemon_owner_record(port: int, daemon_token: str | None, *, allow_network: bool) -> None:
+def _write_daemon_owner_record(
+    port: int, daemon_token: str | None, *, allow_network: bool
+) -> DaemonOwnerRecord | None:
     from specify_cli.sync.owner import (
         build_record_for_current_process,
         write_owner_record,
@@ -786,16 +795,18 @@ def _write_daemon_owner_record(port: int, daemon_token: str | None, *, allow_net
         if not allow_network:
             raise
         logger.debug("Failed to enrich daemon owner record", exc_info=True)
+        return None
+    return record
 
 
-def _register_daemon_owner_cleanup() -> Callable[[], None]:
+def _register_daemon_owner_cleanup(pid: int, port: int) -> Callable[[], None]:
     import atexit
 
-    from specify_cli.sync.owner import remove_owner_record
+    from specify_cli.sync.owner import remove_owner_record_if_matches
 
     def _cleanup_owner_record() -> None:
         try:
-            remove_owner_record()
+            remove_owner_record_if_matches(pid, port)
         except Exception:  # noqa: BLE001
             logger.debug("Owner record cleanup raised; continuing")
 
@@ -841,16 +852,18 @@ def run_sync_daemon(port: int, daemon_token: str | None) -> None:
     handler_class = type(
         "SyncDaemonRouter",
         (SyncDaemonHandler,),
-        {"daemon_token": daemon_token},
+        {"daemon_token": daemon_token, "daemon_owner_record": None},
     )
+    handler_type = cast("type[SyncDaemonHandler]", handler_class)
     server = create_loopback_server(port, handler_class)
 
     # Bind succeeded — record ownership BEFORE accepting traffic so any
     # health probe that arrives in the first scheduling slice already sees
     # a coherent owner field.
-    _write_daemon_owner_record(port, daemon_token, allow_network=False)
-    _start_runtime_bootstrap_thread(port, daemon_token)
-    cleanup_owner_record = _register_daemon_owner_cleanup()
+    owner_record = _write_daemon_owner_record(port, daemon_token, allow_network=False)
+    handler_type.daemon_owner_record = owner_record
+    _start_runtime_bootstrap_thread(port, daemon_token, handler_type)
+    cleanup_owner_record = _register_daemon_owner_cleanup(os.getpid(), port)
     _install_daemon_signal_handlers(server, cleanup_owner_record)
 
     tick = _start_self_check_tick(server, my_port=port)
@@ -1477,7 +1490,7 @@ def cleanup_orphan_sync_daemons(
         return report, killed
 
     for orphan in report.orphan_processes:
-        reaped, _reason = _sweep_daemon_process(
+        reaped, _signal_path, _reason = _sweep_daemon_process(
             orphan.pid,
             terminate_wait_s=timeout,
             kill_wait_s=timeout,

@@ -356,17 +356,9 @@ class TestT028AmbiguousSurvives:
         harness: DaemonHarness,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """A plain TCP listener (no SK identity) is never killed by the startup reaper.
-
-        ``spawn_plain`` starts a minimal HTTP server that accepts connections but
-        returns ``{"ok": true}`` — no SK health keys.  The reaper operates on
-        psutil cmdline scan, not port scan, so it never even sees this listener.
-
-        This test confirms the wedged-listener contract: a non-SK process on a
-        reserved port is ``never_touch`` and invisible to ``reap_orphan_daemons``.
-        """
+        """A scope-marked daemon-shaped listener that hangs health is not auto-killed."""
         port = find_free_port_in_range(_PORT_START, _PORT_END)
-        harness.spawn_plain(port)
+        proc = harness.spawn_wedged_daemon_shape(port)
 
         from specify_cli.sync import daemon as _daemon_mod
 
@@ -380,12 +372,36 @@ class TestT028AmbiguousSurvives:
         assert _port_listening(port), (
             f"wedged listener on port {port} was killed by the startup reaper"
         )
+        assert proc.pid not in result.reaped
+        assert any(
+            detail.pid == proc.pid
+            and detail.cleanup_class.value == "operator_required"
+            and detail.skip_reason is not None
+            and detail.skip_reason.value == "unresponsive"
+            for detail in result.skipped_details
+        ), f"wedged daemon-shaped PID {proc.pid} missing from skipped_details"
 
-        # The reaper operates on cmdline scan — the plain server has no
-        # ``run_sync_daemon`` signature so it never even appears in result.reaped.
-        assert len(result.reaped) == 0, (
-            f"reaper reaped something unexpectedly: {result.reaped!r}"
+    def test_plain_listener_survives_startup_reaper(
+        self,
+        harness: DaemonHarness,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A plain TCP listener (no SK cmdline identity) remains invisible."""
+        port = find_free_port_in_range(_PORT_START, _PORT_END)
+        harness.spawn_plain(port)
+
+        from specify_cli.sync import daemon as _daemon_mod
+
+        monkeypatch.setattr(_daemon_mod, "DAEMON_STATE_FILE", harness.state_file)
+
+        from specify_cli.sync.owner import reap_orphan_daemons
+
+        result = reap_orphan_daemons()
+
+        assert _port_listening(port), (
+            f"plain listener on port {port} was killed by the startup reaper"
         )
+        assert result.reaped == []
 
     def test_wedged_listener_classifies_never_touch_via_port_scan(
         self,
@@ -604,13 +620,7 @@ class TestT029AuthDoctor:
         captured = capsys.readouterr()
         payload = json.loads(captured.out)
 
-        if "reset_result" not in payload:
-            # No F-002 finding → no orphans detected; test is vacuously satisfied
-            # only if the port scan correctly skipped the cross-root daemon at
-            # enumerate_identity_records() level.  We still verify port is alive.
-            assert _port_listening(port_cross) or not _port_listening(port_cross), True
-            return
-
+        assert "reset_result" in payload, f"reset_result missing from payload: {payload!r}"
         rr = payload["reset_result"]
 
         # With --force, nothing should be in skipped (for operator_required).
@@ -620,21 +630,13 @@ class TestT029AuthDoctor:
         swept_ports = {e["port"] for e in rr["swept"]}
         failed_ports = {e["port"] for e in rr["failed"]}
 
-        if port_cross in skipped_ports:
-            # Only acceptable if the port-scan classify step classified it
-            # as never_touch (no SK identity at all) — should not happen here.
-            # Any other reason is a bug.
-            matching_skipped = [e for e in rr["skipped"] if e["port"] == port_cross]
-            for skipped_entry in matching_skipped:
-                assert skipped_entry.get("cleanup_class") == "never_touch", (
-                    f"port {port_cross} was skipped as {skipped_entry!r} with --force active"
-                )
-        else:
-            # Must be in swept or failed — was attempted.
-            assert port_cross in swept_ports or port_cross in failed_ports, (
-                f"port {port_cross} not found in swept={swept_ports!r} or "
-                f"failed={failed_ports!r} with --force; skipped={skipped_ports!r}"
-            )
+        assert port_cross not in skipped_ports, (
+            f"port {port_cross} was skipped with --force active: {rr['skipped']!r}"
+        )
+        assert port_cross in swept_ports or port_cross in failed_ports, (
+            f"port {port_cross} not found in swept={swept_ports!r} or "
+            f"failed={failed_ports!r} with --force; skipped={skipped_ports!r}"
+        )
 
     # ------------------------------------------------------------------
     # Private helpers

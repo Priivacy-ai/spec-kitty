@@ -250,15 +250,15 @@ class TestBuildHealthProbe:
         assert probe.owner_pid == 9001
         assert probe.owner_port == 9401
 
-    def test_missing_owner_block_falls_back_to_caller_pid_port(self) -> None:
-        """When health payload has no ``owner`` block, caller pid/port are used."""
+    def test_missing_owner_block_preserves_unknown_pid_port(self) -> None:
+        """Missing daemon-local owner identity stays unknown; callers do not fabricate it."""
         payload: dict[str, Any] = {
             "protocol_version": 1,
             "package_version": "3.2.2",
         }
         probe = _build_health_probe(payload, port=9401, pid=5001)
-        assert probe.owner_pid == 5001
-        assert probe.owner_port == 9401
+        assert probe.owner_pid is None
+        assert probe.owner_port is None
 
 
 # ---------------------------------------------------------------------------

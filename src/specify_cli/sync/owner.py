@@ -58,10 +58,12 @@ from specify_cli.sync.daemon import (
 )
 from specify_cli.sync.classification import (
     CandidateProbe,
+    CleanupClass,
     DaemonIdentityRecord,
     ForegroundScope,
     HealthProbe,
     SingletonRef,
+    SkipReason,
     classify_candidate,
 )
 
@@ -288,6 +290,21 @@ def remove_owner_record() -> bool:
         return True
     except FileNotFoundError:
         return False
+
+
+def remove_owner_record_if_matches(pid: int, port: int) -> bool:
+    """Remove the owner record only when it still names ``pid``/``port``.
+
+    Multiple same-scope daemons share the historical ``owner.json`` path while
+    orphans are being cleaned up. A stale daemon must not delete a newer
+    singleton's owner record during its own shutdown.
+    """
+    record = read_owner_record()
+    if record is None:
+        return False
+    if record.pid != pid or record.port != port:
+        return False
+    return remove_owner_record()
 
 
 # ---------------------------------------------------------------------------
@@ -660,11 +677,13 @@ def _sweep_daemon_process(
     *,
     terminate_wait_s: float = _TERMINATE_WAIT_S,
     kill_wait_s: float = _KILL_WAIT_S,
-) -> tuple[bool, str | None]:
+) -> tuple[bool, str | None, str | None]:
     """Canonical kill escalation for a single daemon PID.
 
     Escalation: ``terminate()`` (wait up to ``terminate_wait_s``) → ``kill()``
-    (wait up to ``kill_wait_s``). Returns ``(reaped, failure_reason)``.
+    (wait up to ``kill_wait_s``). Returns
+    ``(reaped, cleanup_path, failure_reason)`` where ``cleanup_path`` is
+    ``terminate`` or ``kill`` when a signal step actually closed the process.
     ``reaped`` is True when the process is gone after escalation (including the
     race where it vanished before we acted). This is the SINGLE kill path
     consumed by the canonical reaper and by the legacy ``orphan_sweep`` /
@@ -673,30 +692,30 @@ def _sweep_daemon_process(
     try:
         proc = psutil.Process(pid)
     except psutil.NoSuchProcess:
-        return True, None
+        return True, None, None
     except psutil.AccessDenied:
-        return False, "access_denied_opening_process"
+        return False, None, "access_denied_opening_process"
 
     try:
         proc.terminate()
     except psutil.NoSuchProcess:
-        return True, None
+        return True, None, None
     except psutil.AccessDenied:
-        return False, "access_denied_on_terminate"
+        return False, None, "access_denied_on_terminate"
 
     if _wait_for_exit(proc, terminate_wait_s):
-        return True, None
+        return True, "terminate", None
 
     try:
         proc.kill()
     except psutil.NoSuchProcess:
-        return True, None
+        return True, None, None
     except psutil.AccessDenied:
-        return False, "access_denied_on_kill"
+        return False, None, "access_denied_on_kill"
 
     if _wait_for_exit(proc, kill_wait_s):
-        return True, None
-    return False, "still_alive_after_kill"
+        return True, "kill", None
+    return False, None, "still_alive_after_kill"
 
 
 def _wait_for_exit(proc: psutil.Process, timeout_s: float) -> bool:
@@ -879,22 +898,21 @@ def reap_orphan_daemons(
 
     report = scan_sync_daemons()
     for orphan in report.orphan_processes:
-        # Classify for structured output / skip_details (health=None: no
-        # network I/O on the spawn hot path; wedged daemons surface as
-        # operator_required/unresponsive and are reported but not killed here).
-        record = _classify_orphan(orphan.pid, orphan.cmdline, foreground)
+        port = _extract_port_from_cmdline(orphan.cmdline)
+        health = _probe_health(port) if port is not None else None
+        record = _classify_orphan(orphan.pid, orphan.cmdline, foreground, health=health)
 
-        # Kill gate: scope marker + spawn shape (exe identity removed per FR-008).
-        # Uses the marker helpers directly so the gate is independent of the
-        # health-probe result carried in ``record``.
-        marker = _cmdline_daemon_root_marker(orphan.cmdline)
-        in_scope = (
-            marker is not None
-            and marker == root_scope
-            and _cmdline_has_daemon_spawn_signature(orphan.cmdline)
-        )
+        if record.cleanup_class != CleanupClass.SAFE_AUTO:
+            if record.skip_reason in {
+                SkipReason.cross_root,
+                SkipReason.pre_marker,
+                SkipReason.missing_pid,
+            }:
+                result.skipped_out_of_scope.append(orphan.pid)
+            result.skipped_details.append(record)
+            continue
 
-        if not in_scope:
+        if not record.spawn_shape_ok:
             result.skipped_out_of_scope.append(orphan.pid)
             result.skipped_details.append(record)
             continue
@@ -903,7 +921,7 @@ def reap_orphan_daemons(
             result.reaped.append(orphan.pid)
             continue
 
-        reaped, reason = _sweep_daemon_process(orphan.pid)
+        reaped, _cleanup_path, reason = _sweep_daemon_process(orphan.pid)
         if reaped:
             result.reaped.append(orphan.pid)
         else:
@@ -974,7 +992,9 @@ __all__ = [
     "read_owner_record",
     "reap_orphan_daemons",
     "redact_token",
-    "remove_owner_record",
+    # remove_owner_record: internal primitive; runtime callers use the
+    # pid/port-guarded remove_owner_record_if_matches wrapper.
+    "remove_owner_record_if_matches",
     "write_owner_record",
     # _daemon_root: private symbol re-exported from daemon — removed from
     # __all__ (WP01 harden-dead-symbol-gate-01KW0RJR). Remains importable

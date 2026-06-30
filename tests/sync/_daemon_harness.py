@@ -107,6 +107,33 @@ def _build_spawn_script(port: int, token: str) -> str:
     )
 
 
+def _build_wedged_daemon_shape_script(port: int) -> str:
+    """Return a spawn-shaped script that listens but never answers health."""
+    return textwrap.dedent(
+        f"""\
+        _spawn_shape_marker = "run_sync_daemon({port!r})"
+        import socket
+        import threading
+        import time
+
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(("127.0.0.1", {port!r}))
+        sock.listen()
+
+        def hold(conn):
+            try:
+                time.sleep(30)
+            finally:
+                conn.close()
+
+        while True:
+            conn, _addr = sock.accept()
+            threading.Thread(target=hold, args=(conn,), daemon=True).start()
+        """
+    )
+
+
 def _terminate_proc(proc: subprocess.Popen[bytes]) -> None:
     """Best-effort terminate a ``Popen``, escalating to SIGKILL on timeout."""
     if proc.poll() is not None:
@@ -281,6 +308,44 @@ class DaemonHarness:
             raise RuntimeError(f"plain server on port {port} never started listening")
         self._servers.append((server, thread))
         return server, thread
+
+    def spawn_wedged_daemon_shape(
+        self,
+        port: int,
+        *,
+        scope_root: str | None = None,
+    ) -> subprocess.Popen[bytes]:
+        """Spawn a scope-marked process that looks like daemon argv but hangs health."""
+        from specify_cli.sync.daemon import (
+            DAEMON_EXEC_ARG_PREFIX,
+            DAEMON_SCOPE_ARG_PREFIX,
+            _daemon_scope_root,
+            _spawn_interpreter_identity,
+        )
+
+        if scope_root is None:
+            scope_root = _daemon_scope_root()
+        scope_marker = DAEMON_SCOPE_ARG_PREFIX + scope_root
+        exec_marker = DAEMON_EXEC_ARG_PREFIX + _spawn_interpreter_identity()
+
+        proc: subprocess.Popen[bytes] = subprocess.Popen(
+            [sys.executable, "-c", _build_wedged_daemon_shape_script(port), scope_marker, exec_marker],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+            env={**os.environ, "SPEC_KITTY_SYNC_MINIMAL_IMPORT": "1"},
+        )
+
+        if not wait_until_listening(port, timeout_s=10.0):
+            proc.terminate()
+            with contextlib.suppress(subprocess.TimeoutExpired):
+                proc.wait(timeout=2.0)
+            raise RuntimeError(f"wedged daemon-shaped process on port {port} never listened")
+
+        self._procs.append(proc)
+        self.port_pids[port] = proc.pid
+        return proc
 
     def write_state_file(
         self,

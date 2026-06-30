@@ -90,10 +90,10 @@ Structured outcome of `auth doctor --reset`. Satisfies **FR-005**.
    └─────────────┘        ┌───────────────┐  no sync work in flight
           │ idle ≥        │  SUPERSEDED   │──────────────────────► RETIRED (exit)
           │ SYNC_DAEMON_  └───────────────┘
-          │ IDLE_RETIRE-          
-          │ MENT_SECONDS          
-          ▼ (no auth / no work)   
-       RETIRED (exit)             
+          │ IDLE_RETIRE-
+          │ MENT_SECONDS
+          ▼ (no auth / no work)
+       RETIRED (exit)
 ```
 
 - **SUPERSEDED → RETIRED** is prompt (no full idle wait) once `sync.is_running` is false and the queue is drained.

@@ -180,6 +180,15 @@ def _install_fake_host(
 
     monkeypatch.setattr(daemon_module, "DAEMON_STATE_FILE", _FakeStateFile())
 
+    def fake_probe_health(port: int) -> HealthProbe:
+        for proc in procs:
+            parsed_port = owner_module._extract_port_from_cmdline(proc.cmdline)
+            if parsed_port == port:
+                return _healthy_probe(proc.pid, port, package_version="3.2.2")
+        return _no_response_probe()
+
+    monkeypatch.setattr(owner_module, "_probe_health", fake_probe_health)
+
 
 # ---------------------------------------------------------------------------
 # T006 / T007 / T008 — FR-008: exe-identity gate is removed; same-scope
@@ -240,6 +249,32 @@ def test_same_scope_older_version_dry_run(
 
     assert result.reaped == [orphan_pid]
     assert orphan.terminated is False, "dry_run must not send signals"
+
+
+def test_same_scope_unresponsive_is_not_reaped(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """D-01 / FR-006: same-scope spawn-shaped daemon without health is not auto-killed."""
+    my_root = tmp_path / "home" / ".spec-kitty"
+    stale_exe = "/opt/old-venv/bin/python"
+    orphan_pid = 5004
+    orphan_port = 9441
+
+    orphan = _FakeProc(
+        orphan_pid,
+        [stale_exe, "-c", f"run_sync_daemon({orphan_port})", _scope_marker(my_root)],
+        stale_exe,
+    )
+    _install_fake_host(monkeypatch, [orphan], state_pid=None, daemon_root=my_root)
+    monkeypatch.setattr(owner_module, "_probe_health", lambda _port: _no_response_probe())
+
+    result = reap_orphan_daemons()
+
+    assert result.reaped == []
+    assert orphan.terminated is False
+    assert len(result.skipped_details) == 1
+    assert result.skipped_details[0].cleanup_class == CleanupClass.OPERATOR_REQUIRED
+    assert result.skipped_details[0].skip_reason == SkipReason.unresponsive
 
 
 def test_skipped_out_of_scope_is_backward_compatible(
