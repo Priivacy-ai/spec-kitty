@@ -20,7 +20,8 @@ subtasks:
 - T010
 phase: Phase 2 - Call-site migration
 assignee: ''
-agent: claude
+agent: "claude:opus:python-pedro:implementer"
+shell_pid: "6034"
 history:
 - at: '2026-06-30T13:20:00Z'
   actor: system
@@ -169,3 +170,4 @@ grep -rn "ensure_identity(" src/specify_cli/ | grep -v "init.py"   # expect: emp
 ## Activity Log
 
 - 2026-06-30 — Prompt generated via /spec-kitty.tasks.
+- 2026-06-30T15:01:52Z – claude:opus:python-pedro:implementer – shell_pid=6034 – Assigned agent via action command
