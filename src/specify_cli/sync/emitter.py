@@ -856,7 +856,7 @@ class EventEmitter:
                 get_token_manager(),
                 endpoint="/api/v1/events/batch/",
             )
-        except Exception as exc:  # noqa: BLE001 — explicit "log and skip" boundary
+        except Exception as exc:
             import logging
 
             logging.getLogger(__name__).warning("emitter._get_team_slug: ingress resolver raised: %s", exc)
@@ -1638,7 +1638,7 @@ class EventEmitter:
                 event_type,
                 self._enrich_proof_subject(payload),
             )
-        except Exception as exc:  # noqa: BLE001 - producer contract preserves None-on-invalid
+        except Exception as exc:
             _console.print(f"[yellow]Warning: {event_type} payload validation failed: {exc}[/yellow]")
             return None
 

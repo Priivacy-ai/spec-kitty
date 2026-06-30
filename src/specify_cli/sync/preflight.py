@@ -423,7 +423,7 @@ def _read_scope_identity_local_only() -> tuple[str, str] | None:
     try:
         token_manager = get_token_manager()
         session = token_manager.get_current_session()
-    except Exception:  # noqa: BLE001 — never fail preflight on auth storage errors
+    except Exception:
         session = None
 
     if session is not None and session.email:
@@ -650,7 +650,7 @@ def _count_legacy_rows_for_scope(
     try:
         counts = detect_legacy_rows_for_scope(scope)
     # Defensive: never block preflight on a legacy-row query error.
-    except Exception:  # noqa: BLE001
+    except Exception:
         return (0, 0)
 
     # Preferred path: the structured ``LegacyRowCounts`` exposes the

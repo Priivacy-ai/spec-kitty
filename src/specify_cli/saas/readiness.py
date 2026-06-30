@@ -126,7 +126,7 @@ def _probe_rollout() -> bool:
 
     try:
         return bool(is_saas_sync_enabled())
-    except Exception:  # noqa: BLE001
+    except Exception:
         return False
 
 
@@ -146,7 +146,7 @@ def _probe_auth(repo_root: Path) -> bool:
         from specify_cli.auth import get_token_manager  # local import — auth may not be in path
 
         return bool(get_token_manager().is_authenticated)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return False
 
 
@@ -188,7 +188,7 @@ def _probe_host_config() -> str | None:
         from specify_cli.sync.target_authority import resolve_sync_target
 
         return str(resolve_sync_target().resolved_server_url)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return None
 
 
@@ -201,9 +201,9 @@ def _probe_reachability(server_url: str, timeout_s: float = 2.0) -> bool:
     """
     try:
         req = urllib.request.Request(server_url, method="HEAD")
-        with urllib.request.urlopen(req, timeout=timeout_s):  # noqa: S310  # nosec B310
+        with urllib.request.urlopen(req, timeout=timeout_s):  # nosec B310
             return True
-    except Exception:  # noqa: BLE001
+    except Exception:
         return False
 
 
@@ -219,7 +219,7 @@ def _probe_mission_binding(repo_root: Path) -> bool:
 
         config = load_tracker_config(repo_root)
         return bool(config.is_configured)
-    except Exception:  # noqa: BLE001
+    except Exception:
         return False
 
 
@@ -295,7 +295,7 @@ def evaluate_readiness(
         # All applicable checks passed.
         return _build_result(ReadinessState.READY)
 
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return ReadinessResult(
             state=ReadinessState.HOST_UNREACHABLE,
             message=_WORDING[ReadinessState.HOST_UNREACHABLE][0],

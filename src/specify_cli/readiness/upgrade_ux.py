@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import os
 import re
-import subprocess  # noqa: S404 — required to invoke the existing `spec-kitty upgrade` binary
+import subprocess
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -240,7 +240,7 @@ def _derive_confidence(exit_code: int | None, entrypoint_match: bool) -> Verific
     - MEDIUM: exit_code == 0 AND entrypoint_match == False
     - LOW:    exit_code != 0
     """
-    from specify_cli.compat.install_events import VerificationConfidence as _VC  # noqa: PLC0415
+    from specify_cli.compat.install_events import VerificationConfidence as _VC
 
     if exit_code == 0 and entrypoint_match:
         return _VC.HIGH
@@ -264,7 +264,7 @@ def _emit_install_verified_event(event: UvToolInstallationVerified) -> None:
 
     NFR-007: swallows all errors; never logs or transmits receipt_path.
     """
-    import contextlib  # noqa: PLC0415
+    import contextlib
 
     with contextlib.suppress(Exception):
         _emitted_install_events.append(event)
@@ -282,9 +282,9 @@ def _append_upgrade_attempt_record(
     target_version: str | None,
 ) -> None:
     """Best-effort append to UpgradeAttemptStore.  Swallows all errors (NFR-008)."""
-    try:  # noqa: BLE001
-        import ulid  # type: ignore[import-not-found]  # python-ulid has no stubs  # noqa: PLC0415
-        from specify_cli.compat.history import (  # noqa: PLC0415
+    try:
+        import ulid
+        from specify_cli.compat.history import (
             UpgradeAttemptOutcome,
             UpgradeAttemptRecord,
             UpgradeAttemptStore,
@@ -305,7 +305,7 @@ def _append_upgrade_attempt_record(
             target_version=target_version,
         )
         UpgradeAttemptStore().append(record)
-    except Exception:  # noqa: BLE001
+    except Exception:
         pass
 
 
@@ -339,7 +339,7 @@ def _default_upgrade_runner(
     - UV_TOOL installs: emits ``UvToolInstallationVerified`` event (FR-014).
     - All install methods: appends ``UpgradeAttemptRecord`` to history store (FR-012).
     """
-    from specify_cli.compat._detect.install_method import InstallMethod  # noqa: PLC0415
+    from specify_cli.compat._detect.install_method import InstallMethod
 
     if cmd.argv is None:
         return subprocess.CompletedProcess(args=[], returncode=1)
@@ -348,7 +348,7 @@ def _default_upgrade_runner(
     merged_env: dict[str, str] | None = {**os.environ, **cmd.env} if cmd.env else None
 
     try:
-        completed: subprocess.CompletedProcess[bytes] = subprocess.run(  # noqa: S603,S607 — fixed argv; PATH lookup is intentional
+        completed: subprocess.CompletedProcess[bytes] = subprocess.run(
             argv,
             check=False,
             env=merged_env,
@@ -359,9 +359,9 @@ def _default_upgrade_runner(
 
     # T025: Emit UvToolInstallationVerified (UV_TOOL only, best-effort, NFR-007)
     if runtime.install_method == InstallMethod.UV_TOOL:
-        try:  # noqa: BLE001
-            from specify_cli.compat._adapters.uv_receipt import UvReceiptReader  # noqa: PLC0415
-            from specify_cli.compat.install_events import UvToolInstallationVerified  # noqa: PLC0415
+        try:
+            from specify_cli.compat._adapters.uv_receipt import UvReceiptReader
+            from specify_cli.compat.install_events import UvToolInstallationVerified
 
             post_receipt = UvReceiptReader.read_for_executable(sys.executable)
             entrypoint_match = _check_entrypoint_present(post_receipt)
@@ -373,7 +373,7 @@ def _default_upgrade_runner(
                 confidence=confidence,
             )
             _emit_install_verified_event(event)
-        except Exception:  # noqa: BLE001
+        except Exception:
             pass
 
     # T026: Append UpgradeAttemptRecord (all install methods, best-effort)
@@ -454,7 +454,7 @@ def _default_prompt() -> UpgradeChoice:
     response as "Upgrade now".
     """
     # Local imports to keep module-load cost low.
-    from rich.console import Console  # noqa: PLC0415
+    from rich.console import Console
 
     out = Console(stderr=True)
     out.print()
@@ -479,7 +479,7 @@ def _default_prompt() -> UpgradeChoice:
 
 def _print_unsafe_installer_guidance(method_name: str) -> None:
     """Emit guidance for installers that are not auto-upgrade-safe."""
-    from rich.console import Console  # noqa: PLC0415
+    from rich.console import Console
 
     out = Console(stderr=True)
     out.print(
@@ -572,11 +572,11 @@ def _run_auto_upgrade_if_safe(
 ) -> tuple[bool, int | None, bool]:
     if safe:
         if upgrade_runner is None:
-            from dataclasses import replace as _replace  # noqa: PLC0415
+            from dataclasses import replace as _replace
 
-            from specify_cli.compat._detect.install_method import InstallMethod  # noqa: PLC0415
-            from specify_cli.compat._detect.runtime import detect_runtime as _detect_runtime  # noqa: PLC0415
-            from specify_cli.compat.remediation import RemediationIntent, plan_remediation  # noqa: PLC0415
+            from specify_cli.compat._detect.install_method import InstallMethod
+            from specify_cli.compat._detect.runtime import detect_runtime as _detect_runtime
+            from specify_cli.compat.remediation import RemediationIntent, plan_remediation
 
             raw_runtime = _detect_runtime()
             # Override install_method with what installer_detector() returned —
@@ -651,7 +651,7 @@ def _handle_prompt_choice(
     )
 
 
-def run_upgrade_ux(  # noqa: C901,PLR0911,PLR0912,PLR0913,PLR0915 — orchestrator with many short-circuit branches
+def run_upgrade_ux(
     ctx: typer.Context | None,
     *,
     suppressed: bool,
@@ -697,17 +697,17 @@ def run_upgrade_ux(  # noqa: C901,PLR0911,PLR0912,PLR0913,PLR0915 — orchestrat
         prompt = _default_prompt
     try:
         # Deferred imports.
-        from specify_cli.compat import (  # noqa: PLC0415
+        from specify_cli.compat import (
             Decision,
             Invocation,
             NagCache,
         )
-        from specify_cli.compat import plan as compat_plan  # noqa: PLC0415
-        from specify_cli.compat._detect.install_method import (  # noqa: PLC0415
+        from specify_cli.compat import plan as compat_plan
+        from specify_cli.compat._detect.install_method import (
             InstallMethod,
             is_safe_for_auto_upgrade,
         )
-        from specify_cli.compat._detect.runtime import detect_runtime  # noqa: PLC0415
+        from specify_cli.compat._detect.runtime import detect_runtime
 
         if installer_detector is None:
             def _default_installer_detector() -> object:
@@ -785,7 +785,7 @@ def run_upgrade_ux(  # noqa: C901,PLR0911,PLR0912,PLR0913,PLR0915 — orchestrat
             method=method,
             upgrade_runner=upgrade_runner,
         )
-    except Exception:  # noqa: BLE001 — UX path must never raise out of the CLI.
+    except Exception:
         return _inactive_outcome()
 
 
@@ -795,7 +795,7 @@ def _persist(cache: _NagCacheLike, kwargs: dict[str, object]) -> None:
     Swallows any exception — cache mutation failure must not block the CLI.
     """
     try:
-        from specify_cli.compat import NagCacheRecord  # noqa: PLC0415
+        from specify_cli.compat import NagCacheRecord
 
         cli_version_key = kwargs["cli_version_key"]
         latest_source = kwargs["latest_source"]
@@ -830,7 +830,7 @@ def _persist(cache: _NagCacheLike, kwargs: dict[str, object]) -> None:
             never_ask=bool(kwargs.get("never_ask", False)),
         )
         cache.write(record)
-    except Exception:  # noqa: BLE001
+    except Exception:
         pass
 
 

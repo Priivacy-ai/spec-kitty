@@ -2077,7 +2077,7 @@ def _count_legacy_body_uploads_for_mission(mission_slug: str | None) -> int:
         conn.close()
 
 
-def _build_boundary_check_failures(  # noqa: C901
+def _build_boundary_check_failures(
     *,
     failure_set: Any = None,
     daemon_mismatched_fields: list[str] | None = None,
@@ -2302,7 +2302,7 @@ def _emit_status_check_json() -> None:
     # the singleton fails ``--check`` even when on-disk state is clean.
     try:
         live_orphan_report = scan_sync_daemons()
-    except Exception:  # noqa: BLE001
+    except Exception:
         live_orphan_report = None
     live_orphan_count = (
         int(live_orphan_report.orphan_count) if live_orphan_report is not None else 0
@@ -2321,7 +2321,7 @@ def _emit_status_check_json() -> None:
     active_event_count = 0
     try:
         active_event_count = int(queue.size())
-    except Exception:  # noqa: BLE001
+    except Exception:
         active_event_count = 0
     active_body_count = 0
     try:
@@ -2338,7 +2338,7 @@ def _emit_status_check_json() -> None:
             )
         finally:
             _conn.close()
-    except Exception:  # noqa: BLE001
+    except Exception:
         active_body_count = 0
 
     ok = (
@@ -2595,7 +2595,7 @@ def status(  # noqa: C901
         # having to grep ``ps`` themselves.
         try:
             orphan_report = scan_sync_daemons()
-        except Exception:  # noqa: BLE001
+        except Exception:
             orphan_report = None
         if orphan_report is not None:
             if orphan_report.orphan_count == 0:
@@ -2703,7 +2703,7 @@ def status(  # noqa: C901
         finally:
             _conn.close()
     # Read-only diagnostic: never let status rendering fail on queue inspection.
-    except Exception:  # noqa: BLE001
+    except Exception:
         body_queue_count = 0
 
     # Legacy body-upload count (read-only).
@@ -3221,7 +3221,7 @@ def doctor() -> None:  # noqa: C901
 
     try:
         singleton_report = scan_sync_daemons()
-    except Exception:  # noqa: BLE001
+    except Exception:
         singleton_report = None
 
     if singleton_report is not None:

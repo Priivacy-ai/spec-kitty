@@ -487,7 +487,7 @@ def read_queue_scope_from_session(*, allow_rehydrate: bool = True) -> str | None
     try:
         from specify_cli.auth import get_token_manager
         from specify_cli.auth.session import require_private_team_id
-    except Exception as exc:  # noqa: BLE001 — explicit "log and skip" boundary
+    except Exception as exc:
         import logging
 
         logging.getLogger(__name__).warning(
