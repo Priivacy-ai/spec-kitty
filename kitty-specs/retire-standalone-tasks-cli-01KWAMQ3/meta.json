@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "b751c690560617fac654c59cd08ad0cb42c145b9",
+  "coordination_branch": "kitty/mission-retire-standalone-tasks-cli-01KWAMQ3",
+  "created_at": "2026-06-29T21:31:41.260685+00:00",
+  "flattened": false,
+  "friendly_name": "Retire Standalone Tasks CLI",
+  "mission_id": "01KWAMQ3TCTPEXT9B1E9A3GR59",
+  "mission_number": 154,
+  "mission_slug": "retire-standalone-tasks-cli-01KWAMQ3",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Issue #2167 (follow-up to #1057) flags that a non-shipped, test-only copy of the pre-3.0 tasks CLI still reads the legacy lane-directory layout and stays alive only through tests, shielding stale code from the dead-code ratchet. This mission retires that standalone surface across all three copies so the pre-3.0 reader retirement is codebase-wide, preserves its one genuinely useful capability (opt-in acceptance-artifact encoding normalization) on the supported spec-kitty accept command, and sheds the related grandfathered architectural-ratchet debt — with no change to how contributors run task, status, accept, and merge operations.",
+  "purpose_tldr": "Retire the dead pre-3.0 standalone tasks CLI codebase-wide and preserve its one real capability on the supported commands.",
+  "slug": "retire-standalone-tasks-cli-01KWAMQ3",
+  "target_branch": "mission/retire-standalone-tasks-cli",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-29T23:50:21.432465+00:00"
+}
