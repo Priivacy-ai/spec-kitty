@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "3a0796c2c44c0e022e4161e4ec2de9e252490f3b",
+  "coordination_branch": "kitty/mission-reliability-papercut-sweep-01KWD0V5",
+  "created_at": "2026-06-30T19:42:05.505226+00:00",
+  "flattened": false,
+  "friendly_name": "Reliability Papercut Sweep",
+  "mission_id": "01KWD0V560PCDYFGXYY8WNNJH0",
+  "mission_number": 155,
+  "mission_slug": "reliability-papercut-sweep-01KWD0V5",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Catfooding and review surfaced a cluster of small but real reliability defects: a dirty-tree gate that blocks on unrelated kitty-ops debris, coordination tooling that misclassifies a never-created branch and recommends recovery that cannot run, and identity/branch resolvers that silently fall back to a slug or the default branch instead of failing closed. Individually minor, together they erode operator trust in the workflow. The mission fixes them in two cohesive lanes — operator coord/gate papercuts and identity/surface-resolution residuals — each with standing regression tests, while preserving the canonical-surface invariants the stranglers established.",
+  "purpose_tldr": "Fix six operator-facing reliability papercuts — silent failures and misleading recovery guidance — across the mission, coordination, and decision surfaces.",
+  "slug": "reliability-papercut-sweep-01KWD0V5",
+  "target_branch": "fix/reliability-papercut-sweep",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-06-30T21:21:47.855679+00:00"
+}
