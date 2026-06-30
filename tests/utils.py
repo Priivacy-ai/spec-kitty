@@ -7,10 +7,6 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-TASKS_DIR = REPO_ROOT / "scripts" / "tasks"
-
-if str(TASKS_DIR) not in sys.path:
-    sys.path.insert(0, str(TASKS_DIR))
 
 
 def run(cmd: list[str], *, cwd: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
@@ -30,10 +26,6 @@ def run_python_script(
         process_env.update(env)
     command = [sys.executable, str(script), *args]
     return subprocess.run(command, cwd=cwd, env=process_env, text=True, capture_output=True)
-
-
-def run_tasks_cli(args: list[str], *, cwd: Path, env: dict[str, str] | None = None) -> subprocess.CompletedProcess:
-    return run_python_script(TASKS_DIR / "tasks_cli.py", args, cwd=cwd, env=env)
 
 
 def _canonical_lane(lane: str) -> str:
@@ -106,7 +98,12 @@ def write_wp(
         legacy: If True, create in subdirectory (tasks/planned/WP01.md).
                 If False (default), create in flat structure (tasks/WP01.md).
     """
-    from task_helpers import append_activity_log, build_document, set_scalar, split_frontmatter
+    from specify_cli.task_utils.support import (
+        append_activity_log,
+        build_document,
+        set_scalar,
+        split_frontmatter,
+    )
 
     if legacy:
         # Legacy format: tasks/<lane>/WP01.md

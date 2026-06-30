@@ -1,6 +1,6 @@
 """T025: Codebase sweep -- verify no direct meta.json writes outside mission_metadata.py.
 
-This test greps ``src/specify_cli/`` and ``scripts/tasks/`` for code patterns
+This test greps ``src/specify_cli/`` for code patterns
 that write meta.json directly (e.g. ``json.dump(meta, ...)``,
 ``meta_path.write_text(...)``) instead of going through the canonical
 single-writer API in ``mission_metadata.py``.
@@ -68,11 +68,6 @@ def _src_dir() -> Path:
     return _repo_root() / "src" / "specify_cli"
 
 
-def _scripts_dir() -> Path:
-    """Return the ``scripts/tasks`` directory relative to the repo root."""
-    return _repo_root() / "scripts" / "tasks"
-
-
 def _scan_directory(directory: Path) -> list[str]:
     """Scan a directory for direct meta.json write violations."""
     violations: list[str] = []
@@ -114,21 +109,9 @@ def test_no_direct_meta_json_writes_outside_feature_metadata() -> None:
     )
 
 
-def test_no_direct_meta_json_writes_in_standalone_scripts() -> None:
-    """Standalone scripts under scripts/tasks/ also use the canonical writer.
-
-    The standalone scripts add src/ to sys.path and can import
-    mission_metadata.  This test ensures they don't bypass it.
-    """
-    scripts_dir = _scripts_dir()
-    if not scripts_dir.is_dir():
-        return  # scripts/tasks/ may not exist in all checkouts
-
-    violations = _scan_directory(scripts_dir)
-
-    assert not violations, (
-        "Direct meta.json writes found in scripts/tasks/:\n"
-        + "\n".join(f"  - {v}" for v in violations)
-        + "\n\nStandalone scripts must use mission_metadata.write_meta() "
-        "via the src/ sys.path import."
-    )
+# NOTE: ``test_no_direct_meta_json_writes_in_standalone_scripts`` was retired with
+# the standalone tasks surface (WP03/FR-004). It scanned the standalone task
+# scripts directory (now being removed) and early-returned when that directory was
+# absent, becoming vacuous. The canonical guard
+# ``test_no_direct_meta_json_writes_outside_feature_metadata`` (over
+# ``src/specify_cli/``) remains the real single-writer enforcement.

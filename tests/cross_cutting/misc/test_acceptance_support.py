@@ -9,9 +9,9 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-import acceptance_support as acc
-import task_helpers as th
+from specify_cli import acceptance as acc
 from specify_cli import app as cli_app
+from specify_cli.task_utils import support as th
 
 pytestmark = [pytest.mark.integration]
 
@@ -81,6 +81,31 @@ def _approve_wp(feature_repo: Path, mission_slug: str, wp_id: str) -> None:
     )
 
 
+def _force_lane(feature_repo: Path, mission_slug: str, wp_id: str, to_lane: str) -> None:
+    """Force ``wp_id`` into ``to_lane`` via the canonical status engine.
+
+    Replaces the retired standalone ``tasks update --force`` seed path. A forced
+    transition (actor + reason) bypasses edge/guard checks exactly as the
+    standalone CLI's ``--force`` flag did, so the lane outcome is identical while
+    the engine — not the standalone surface — does the writing.
+    """
+    from specify_cli.status.emit import emit_status_transition
+
+    feature_dir = feature_repo / "kitty-specs" / mission_slug
+    emit_status_transition(
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        to_lane=to_lane,
+        actor="test-agent",
+        force=True,
+        reason="test fixture seed",
+        repo_root=feature_repo,
+        ensure_sync_daemon=False,
+        sync_dossier=False,
+    )
+
+
 def test_collect_feature_summary_reports_metadata_issue(feature_repo: Path, mission_slug: str) -> None:
     # WP files now live in flat tasks/ directory
     wp_path = feature_repo / "kitty-specs" / mission_slug / "tasks" / "WP01.md"
@@ -88,10 +113,8 @@ def test_collect_feature_summary_reports_metadata_issue(feature_repo: Path, miss
     lines = [line for line in front.splitlines() if not line.startswith("assignee:")]
     wp_path.write_text(th.build_document("\n".join(lines), body, padding), encoding="utf-8")
 
-    from tests.utils import run_tasks_cli
-
-    # Use 'update' command (renamed from 'move')
-    run_tasks_cli(["update", mission_slug, "WP01", "doing", "--force"], cwd=feature_repo)
+    # Move WP01 into an active lane (in_progress) via the canonical engine.
+    _force_lane(feature_repo, mission_slug, "WP01", "in_progress")
 
     summary = acc.collect_feature_summary(feature_repo, mission_slug)
     assert any("missing assignee" in issue for issue in summary.metadata_issues)
@@ -111,14 +134,11 @@ def test_detect_mission_slug_raises_without_explicit(feature_repo: Path, mission
 
 
 def test_perform_acceptance_without_commit(feature_repo: Path, mission_slug: str) -> None:
-    from tests.utils import run_tasks_cli
-
     from tests.utils import run
 
-    # Use 'update' command (renamed from 'move')
-    run_tasks_cli(["update", mission_slug, "WP01", "doing", "--force"], cwd=feature_repo)
+    _force_lane(feature_repo, mission_slug, "WP01", "in_progress")
     run(["git", "commit", "-am", "Update to doing"], cwd=feature_repo)
-    run_tasks_cli(["update", mission_slug, "WP01", "done", "--force"], cwd=feature_repo)
+    _force_lane(feature_repo, mission_slug, "WP01", "done")
 
     summary = acc.collect_feature_summary(feature_repo, mission_slug, strict_metadata=True)
     assert summary.lanes["planned"] == []
@@ -663,34 +683,17 @@ def test_accept_protected_branch_materialize_then_retry(
     assert commit_created is True, "commit_created must be True on a successful commit"
 
 
-def test_collect_feature_summary_encoding_error(feature_repo: Path, mission_slug: str) -> None:
-    plan_path = feature_repo / "kitty-specs" / mission_slug / "plan.md"
-    data = plan_path.read_bytes() + b"\x92"
-    plan_path.write_bytes(data)
-
-    with pytest.raises(acc.ArtifactEncodingError) as excinfo:
-        acc.collect_feature_summary(feature_repo, mission_slug)
-
-    assert str(plan_path) in str(excinfo.value)
-
-
-def test_normalize_feature_encoding(feature_repo: Path, mission_slug: str) -> None:
-    plan_path = feature_repo / "kitty-specs" / mission_slug / "plan.md"
-    data = plan_path.read_bytes() + b"\x92"
-    plan_path.write_bytes(data)
-
-    cleaned = acc.normalize_feature_encoding(feature_repo, mission_slug)
-    assert plan_path in cleaned
-    # Should now be readable as UTF-8 without errors.
-    plan_path.read_text(encoding="utf-8")
-    summary = acc.collect_feature_summary(feature_repo, mission_slug)
-    assert summary.feature == mission_slug
+# NOTE: the standalone-encoding tests (``test_collect_feature_summary_encoding_error``
+# and ``test_normalize_feature_encoding``) were retired with the standalone tasks
+# surface (WP03/FR-004). The canonical ``ArtifactEncodingError`` /
+# ``normalize_feature_encoding`` behavior is now covered on the real ``spec-kitty
+# accept`` surface by tests/specify_cli/cli/commands/test_accept_normalize_encoding.py.
 
 
 # T039: Test that done WPs don't require assignee (Bug #119)
 def test_acceptance_succeeds_for_done_wp_without_assignee(feature_repo: Path, mission_slug: str) -> None:
     """Done WPs should not require assignee."""
-    from tests.utils import run_tasks_cli, run
+    from tests.utils import run
 
     # Move WP01 to done without assignee
     wp_path = feature_repo / "kitty-specs" / mission_slug / "tasks" / "WP01.md"
@@ -698,7 +701,7 @@ def test_acceptance_succeeds_for_done_wp_without_assignee(feature_repo: Path, mi
     lines = [line for line in front.splitlines() if not line.startswith("assignee:")]
     wp_path.write_text(th.build_document("\n".join(lines), body, padding), encoding="utf-8")
 
-    run_tasks_cli(["update", mission_slug, "WP01", "done", "--force"], cwd=feature_repo)
+    _force_lane(feature_repo, mission_slug, "WP01", "done")
     run(["git", "commit", "-am", "Move to done without assignee"], cwd=feature_repo)
 
     # Strict validation should NOT complain about missing assignee for done lane
@@ -711,7 +714,7 @@ def test_acceptance_succeeds_for_done_wp_without_assignee(feature_repo: Path, mi
 # T040: Test that doing/for_review WPs still require assignee (Bug #119)
 def test_assignee_still_required_for_active_lanes(feature_repo: Path, mission_slug: str) -> None:
     """Doing and for_review WPs should still require assignee."""
-    from tests.utils import run_tasks_cli, run
+    from tests.utils import run
 
     wp_path = feature_repo / "kitty-specs" / mission_slug / "tasks" / "WP01.md"
 
@@ -720,7 +723,7 @@ def test_assignee_still_required_for_active_lanes(feature_repo: Path, mission_sl
     lines = [line for line in front.splitlines() if not line.startswith("assignee:")]
     wp_path.write_text(th.build_document("\n".join(lines), body, padding), encoding="utf-8")
 
-    run_tasks_cli(["update", mission_slug, "WP01", "doing", "--force"], cwd=feature_repo)
+    _force_lane(feature_repo, mission_slug, "WP01", "in_progress")
     run(["git", "commit", "-am", "Move to doing without assignee"], cwd=feature_repo)
 
     summary = acc.collect_feature_summary(feature_repo, mission_slug, strict_metadata=True)
@@ -729,7 +732,7 @@ def test_assignee_still_required_for_active_lanes(feature_repo: Path, mission_sl
     )
 
     # Test for_review lane
-    run_tasks_cli(["update", mission_slug, "WP01", "for_review", "--force"], cwd=feature_repo)
+    _force_lane(feature_repo, mission_slug, "WP01", "for_review")
     run(["git", "commit", "-am", "Move to for_review without assignee"], cwd=feature_repo)
 
     summary = acc.collect_feature_summary(feature_repo, mission_slug, strict_metadata=True)
@@ -745,12 +748,12 @@ def test_required_fields_still_enforced(feature_repo: Path, mission_slug: str) -
     Note: lane is now tracked via the event log (not frontmatter), so removing
     lane: from frontmatter no longer produces a metadata_issue.
     """
-    from tests.utils import run_tasks_cli, run
+    from tests.utils import run
 
     wp_path = feature_repo / "kitty-specs" / mission_slug / "tasks" / "WP01.md"
 
     # Test missing agent - move to doing first, then remove agent field manually
-    run_tasks_cli(["update", mission_slug, "WP01", "doing", "--force"], cwd=feature_repo)
+    _force_lane(feature_repo, mission_slug, "WP01", "in_progress")
     run(["git", "commit", "-am", "Move to doing"], cwd=feature_repo)
 
     front, body, padding = th.split_frontmatter(wp_path.read_text(encoding="utf-8"))

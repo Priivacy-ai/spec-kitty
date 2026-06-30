@@ -224,12 +224,6 @@ ignore = [
 "src/specify_cli/cli/commands/agent/config.py" = ["B904"]
 "src/specify_cli/cli/commands/agent/status.py" = ["B904"]
 "src/specify_cli/cli/commands/agent/workflow.py" = ["B904"]
-# F822 false positives: these acceptance-support shims populate their namespace
-# at runtime via ``globals().update(_load_acceptance_api())``; the names in
-# ``__all__`` are real but resolved dynamically and not visible to static
-# analysis. The runtime guarantee is enforced by _load_acceptance_api itself.
-"scripts/tasks/acceptance_support.py" = ["F822"]
-".kittify/overrides/scripts/tasks/acceptance_support.py" = ["F822"]
 # TID251 (banned-api) is ENFORCED across the ENTIRE tests/ tree — see ADR
 # docs/adr/3.x/2026-05-28-1-... (Gap 3 / Gap 5) and the dedicated
 # "[ENFORCED] banned-API (TID251)" gate in .github/workflows/ci-quality.yml.
@@ -338,9 +332,6 @@ module = [
     "runtime.next.decision",
     "runtime.next.runtime_bridge",
     "specify_cli.orchestrator_api.commands",
-    "specify_cli.scripts.tasks.acceptance_support",
-    "specify_cli.scripts.tasks.task_helpers",
-    "specify_cli.scripts.tasks.tasks_cli",
     "specify_cli.scripts.validate_encoding",
     "specify_cli.status.validate",
     "specify_cli.sync.auth",

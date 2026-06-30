@@ -112,9 +112,6 @@ coord_authority:
   - qualname: _mission_dir
     line: 71
     rationale: "legitimate coord-owned write that bypasses commit_for_mission by design - coord status authority is at the caller level, not the commit level; PERMANENT fixture"
-  - qualname: _prepare_merge_metadata
-    line: 595
-    rationale: "pre-sweep baseline write (src/specify_cli/scripts/tasks/tasks_cli.py) - will be routed in WP02-WP05; line drift 624->595 from #1057 _check_legacy_format removal"
   - qualname: WidenPendingStore.__init__
     line: 63
     rationale: "legitimate coord-owned write that bypasses commit_for_mission by design - coord status authority is at the caller level, not the commit level; PERMANENT fixture"

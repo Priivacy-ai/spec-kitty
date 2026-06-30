@@ -102,7 +102,11 @@ CANONICALIZER_FLOOR = 45
 # coord-aware resolve_feature_dir_for_mission write-census sites (workflow.py preflight
 # `implement` + `review` review-prompt) to the PRIMARY anchor, shrinking the live write
 # census 15 -> 13 (a genuine routing shrink, not a re-pin).
-COORD_AUTHORITY_WRITE_FLOOR = 13
+# retire-standalone-tasks-cli WP04 (FR-001/FR-007): deleting the standalone
+# scripts/tasks surface removed its sole write-census site (tasks_cli.py
+# `_prepare_merge_metadata`) and its allowlist entry, shrinking the live write
+# census 13 -> 12 (a deletion-driven shrink, not a re-pin).
+COORD_AUTHORITY_WRITE_FLOOR = 12
 
 # WP07 / SC-004 — routed-count floor (the anti-mass-allowlist machine guard).
 # The number of canonicalizer call sites that are *routed* (def-use-canonical,
@@ -1136,9 +1140,9 @@ def test_routed_count_floor() -> None:
 
 
 def test_coord_authority_gate_floor() -> None:
-    """Concrete floor: >= 13 WRITE-classified coord call sites (NFR-002).
+    """Concrete floor: >= 12 WRITE-classified coord call sites (NFR-002).
 
-    13 is the hard-coded live write-candidate census (NOT ``>= len(scanned)`` —
+    12 is the hard-coded live write-candidate census (NOT ``>= len(scanned)`` —
     that is tautological). Sites that sit in a function carrying a write indicator
     (this count INCLUDES the 2 by-design coord-owned writes — ``decisions/emit.py``
     and ``widen/state.py`` — which are write-classified by design and sanctioned in
@@ -1150,9 +1154,12 @@ def test_coord_authority_gate_floor() -> None:
     guard into ``list_dependents`` — re-introducing a kind-blind resolve probe there —
     raising the honest live census 14 → 15. This mission's WP routing then moved a
     further 2 write-classified sites onto the kind-aware seam, shrinking the live
-    census 15 → 13. The ``coord_authority_baseline`` scalar (now 13) caps the
-    allowlist *entry count*, a different quantity from the write *site* census
-    (which they happen to equal here).
+    census 15 → 13. retire-standalone-tasks-cli WP04 then deleted the standalone
+    scripts/tasks surface, removing its sole write-census site
+    (``tasks_cli.py::_prepare_merge_metadata``) and shrinking the live census
+    13 → 12. The ``coord_authority_baseline`` scalar caps the allowlist *entry
+    count*, a different quantity from the write *site* census (which they happen
+    to equal here).
     """
     writes = [s for s in scan_coord_authority_call_sites(SRC_ROOT) if s.is_write]
     assert len(writes) >= COORD_AUTHORITY_WRITE_FLOOR, (

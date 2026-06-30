@@ -12,9 +12,11 @@ from specify_cli.acceptance import (
     AcceptanceError,
     AcceptanceResult,
     AcceptanceSummary,
+    ArtifactEncodingError,
     acceptance_lane_derivations,
     choose_mode,
     collect_feature_summary,
+    normalize_feature_encoding,
     perform_acceptance,
     resolve_acceptance_actor,
 )
@@ -223,6 +225,67 @@ def _summary_payload(summary: AcceptanceSummary) -> dict[str, object]:
     return payload
 
 
+def _report_encoding_repair(repo_root: Path, repaired: list[Path]) -> None:
+    """Surface which acceptance artifacts the encoding repair rewrote.
+
+    Mirrors the command's existing ``console`` reporting idiom. Paths are shown
+    relative to ``repo_root`` when possible so the operator sees mission-relative
+    artifact names rather than absolute temp paths.
+    """
+    if not repaired:
+        console.print(
+            "[yellow]--normalize-encoding enabled but no artifacts required updates.[/yellow]"
+        )
+        return
+    console.print("[yellow]Normalized acceptance-artifact encoding for:[/yellow]")
+    for path in repaired:
+        try:
+            display = path.relative_to(repo_root)
+        except ValueError:
+            display = path
+        console.print(f"  - {display}")
+
+
+def _collect_summary_with_optional_repair(
+    repo_root: Path,
+    mission_slug: str,
+    *,
+    strict_metadata: bool,
+    mutate_matrix: bool,
+    normalize_encoding: bool,
+) -> AcceptanceSummary:
+    """Collect the acceptance summary, optionally repairing artifact encoding.
+
+    FR-005 / C-003: when ``normalize_encoding`` is True and the strict UTF-8 read
+    raises ``ArtifactEncodingError``, delegate to the **canonical**
+    ``acceptance.normalize_feature_encoding`` (no standalone logic is copied),
+    report the repaired paths, and re-collect exactly once. Any second failure
+    propagates to the caller's ``except AcceptanceError`` handler (exit 1). When
+    the flag is off, the error propagates unchanged so the pre-existing default
+    error path is preserved untouched.
+    """
+    try:
+        return collect_feature_summary(
+            repo_root,
+            mission_slug,
+            strict_metadata=strict_metadata,
+            mutate_matrix=mutate_matrix,
+        )
+    except ArtifactEncodingError:
+        if not normalize_encoding:
+            raise
+        repaired = normalize_feature_encoding(repo_root, mission_slug)
+        _report_encoding_repair(repo_root, repaired)
+        # Re-collect exactly once; a second encoding (or other acceptance)
+        # failure propagates rather than looping.
+        return collect_feature_summary(
+            repo_root,
+            mission_slug,
+            strict_metadata=strict_metadata,
+            mutate_matrix=mutate_matrix,
+        )
+
+
 def accept(
     mission: str | None = typer.Option(
         None,
@@ -237,6 +300,11 @@ def accept(
     no_commit: bool = typer.Option(False, "--no-commit", help="Report acceptance readiness without writing metadata or status changes"),
     diagnose: bool = typer.Option(False, "--diagnose", help="Diagnose acceptance blockers without writing metadata or matrix artifacts"),
     allow_fail: bool = typer.Option(False, "--allow-fail", help="Return checklist even when issues remain"),
+    normalize_encoding: bool = typer.Option(
+        False,
+        "--normalize-encoding/--no-normalize-encoding",
+        help="Repair acceptance-artifact encoding (Windows-1252/Latin-1 -> UTF-8) before validating.",
+    ),
 ) -> None:
     """Validate mission readiness before merging to main."""
 
@@ -290,7 +358,7 @@ def accept(
     if not json_output:
         tracker.start("verify")
     try:
-        summary = collect_feature_summary(
+        summary = _collect_summary_with_optional_repair(
             repo_root,
             mission_slug,
             strict_metadata=not lenient,
@@ -301,6 +369,9 @@ def accept(
             # mutating without committing is safe and converges. Only diagnose
             # (read-only) leaves the matrix untouched.
             mutate_matrix=not diagnose,
+            # FR-005: opt-in repair of mojibake acceptance artifacts via the
+            # canonical normalize_feature_encoding before validating (default off).
+            normalize_encoding=normalize_encoding,
         )
     except Pre30LayoutError as exc:
         # #1057 / squad Blocker 1: a pre-3.0 lane-directory mission must hard-reject

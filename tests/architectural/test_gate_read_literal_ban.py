@@ -1121,9 +1121,6 @@ _DIR_READ_KNOWN_RESIDUALS: frozenset[str] = frozenset(
         # its ``tasks/`` glob through the kind-aware seam (kind=WORK_PACKAGE_TASK),
         # reading off PRIMARY — so the read-arm no longer flags it. Removed from the
         # set per FR-008 (the sole ratchet-visible Lane A drain; set shrinks by one).
-        "src/specify_cli/scripts/tasks/tasks_cli.py::list_command",
-        # Two-hop: feature_path / "tasks" — legacy pre-3.0 task CLI script.
-        # Cite #2167 (retire pre-3.0 scripts/tasks/ legacy reader).
         # -------------------------------------------------------------------
         # Category (c): C-008 PERMANENT-COORD — none.
         # T006 sub-path exclusion fully suppresses workflow.py::implement /
