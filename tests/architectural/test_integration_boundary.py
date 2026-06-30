@@ -134,8 +134,16 @@ def _imports_in_tree(tree: ast.AST) -> list[str]:
 
 
 def _is_allowlisted(rel: str, mod: str) -> bool:
-    """True if (rel, mod) is covered by an ALLOWLIST entry."""
-    return any(rel == entry[0] and mod.startswith(entry[1]) for entry in ALLOWLIST)
+    """True if (rel, mod) is covered by an ALLOWLIST entry.
+
+    The module match is dot-bounded (exact, or a true sub-module) so an entry for
+    ``specify_cli.saas.rollout`` cannot silently exempt a sibling like a future
+    ``specify_cli.saas.rollout_v2`` — mirrors the prefix match in :func:`_scan_trees`.
+    """
+    return any(
+        rel == entry[0] and (mod == entry[1] or mod.startswith(entry[1] + "."))
+        for entry in ALLOWLIST
+    )
 
 
 def _scan_trees(items: Iterable[tuple[str, ast.AST]]) -> list[str]:

@@ -16,8 +16,8 @@ date: '2026-06-26'
 
 **Technical Story:**
 - Mission `integration-boundary-01KW0PBE` — fix and enforce the CORE/INTEGRATION boundary
-- ADR `architecture/adrs/2026-05-11-1-defer-391-structural-extraction-from-3-2-x.md` — context for deferred physical extraction
-- `architecture/2.x/05_ownership_manifest.yaml` — package ownership map
+- ADR `docs/adr/3.x/2026-05-11-1-defer-391-structural-extraction-from-3-2-x.md` — context for deferred physical extraction
+- `docs/architecture/05_ownership_manifest.yaml` — package ownership map
 
 ---
 
@@ -209,8 +209,8 @@ All registries follow the idempotent, non-raising contract established by
 The following items are **out of scope** for this mission and are explicitly deferred:
 
 - **Physical extraction to `src/orchestrator/`** — deferred per ADR
-  `architecture/adrs/2026-05-11-1-defer-391-structural-extraction-from-3-2-x.md` and the
-  ownership manifest `architecture/2.x/05_ownership_manifest.yaml`. The boundary is
+  `docs/adr/3.x/2026-05-11-1-defer-391-structural-extraction-from-3-2-x.md` and the
+  ownership manifest `docs/architecture/05_ownership_manifest.yaml`. The boundary is
   enforced in-place first; the physical move to a separate top-level package is a
   follow-up mission.
 - **Bidirectional enforcement** (preventing INTEGRATION from importing CORE in ways that
@@ -260,6 +260,6 @@ This decision is correct when:
 - Data model (set definitions and allowlist): [`kitty-specs/integration-boundary-01KW0PBE/data-model.md`](../../../kitty-specs/integration-boundary-01KW0PBE/data-model.md)
 - Contract: [`kitty-specs/integration-boundary-01KW0PBE/contracts/integration-boundary-rule.md`](../../../kitty-specs/integration-boundary-01KW0PBE/contracts/integration-boundary-rule.md)
 - Enforcement test: `tests/architectural/test_integration_boundary.py`
-- Physical extraction deferral: [`architecture/adrs/2026-05-11-1-defer-391-structural-extraction-from-3-2-x.md`](../../adrs/2026-05-11-1-defer-391-structural-extraction-from-3-2-x.md)
-- Ownership manifest: [`architecture/2.x/05_ownership_manifest.yaml`](../../2.x/05_ownership_manifest.yaml)
+- Physical extraction deferral: [`docs/adr/3.x/2026-05-11-1-defer-391-structural-extraction-from-3-2-x.md`](./2026-05-11-1-defer-391-structural-extraction-from-3-2-x.md)
+- Ownership manifest: [`docs/architecture/05_ownership_manifest.yaml`](../../architecture/05_ownership_manifest.yaml)
 - Shared-package-boundary precedent: [`architecture/3.x/adr/2026-04-25-1-shared-package-boundary.md`](2026-04-25-1-shared-package-boundary.md)

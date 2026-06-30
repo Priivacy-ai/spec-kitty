@@ -33,9 +33,12 @@ __all__ = [
 # (the registry de-duplicates by qualified name) so re-importing the
 # tracker package in test processes is safe.
 #
-# Startup ordering: ``mission_create.py`` imports ``specify_cli.tracker``
-# at module scope so this registration happens before ``create_mission_core``
-# is first called.
+# Startup ordering: the ``mission_create`` CLI command body imports
+# ``specify_cli.tracker`` (inside ``create_mission()``, immediately before the
+# core phase) so this registration happens before ``create_mission_core`` is
+# first called. That in-function import is load-bearing — do NOT remove it as
+# "redundant": it is the sole trigger that registers the pending-origin consumer
+# for the CLI path.
 # ---------------------------------------------------------------------------
 from specify_cli.core.adapters import register_pending_origin_consumer
 from specify_cli.tracker.origin_consumer import consume_pending_origin_impl

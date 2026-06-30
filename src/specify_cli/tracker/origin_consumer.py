@@ -16,8 +16,10 @@ at tracker package startup so that ``core.adapters.consume_pending_origin``
 can dispatch here without any direct CORE→INTEGRATION import.
 
 Registration site: ``src/specify_cli/tracker/__init__.py``.
-Startup ordering: ``mission_create.py`` imports ``specify_cli.tracker`` at
-module scope so registration runs before ``create_mission_core`` is called.
+Startup ordering: the ``mission_create`` CLI command body imports
+``specify_cli.tracker`` (inside ``create_mission()``, before the core phase) so
+registration runs before ``create_mission_core`` is called. That in-function
+import is the sole registration trigger for the CLI path — do not remove it.
 """
 
 from __future__ import annotations
