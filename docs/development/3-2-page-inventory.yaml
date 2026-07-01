@@ -1586,6 +1586,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/development/quality-and-tech-debt-standing-orders.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/development/sync-daemon-orphan-cleanup.md
   tag: current
   divio_type: none
