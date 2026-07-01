@@ -453,7 +453,7 @@ def test_phase_commit_skips_when_no_bookkeeping_changes(tmp_path: Path) -> None:
     run.target_status_path = tmp_path / "s.json"
     with (
         patch.object(ex, "_paths_have_status_changes", return_value=False),
-        patch.object(ex, "safe_commit") as commit_mock,
+        patch.object(ex, "commit_merge_bookkeeping") as commit_mock,
         patch.object(ex, "_assert_merged_wps_done_on_target"),
         patch.object(ex, "_assert_baseline_merge_commit_on_target"),
     ):
@@ -488,7 +488,7 @@ def test_phase_commit_recovered_safe_commit_does_not_restore(tmp_path: Path) -> 
     recovered.commit_sha = "abc123"
     with (
         patch.object(ex, "_paths_have_status_changes", return_value=True),
-        patch.object(ex, "safe_commit", side_effect=recovered),
+        patch.object(ex, "commit_merge_bookkeeping", side_effect=recovered),
         patch.object(ex, "_restore_final_bookkeeping_snapshots") as restore_mock,
         pytest.raises(ex.SafeCommitRecoveryFailed),
     ):

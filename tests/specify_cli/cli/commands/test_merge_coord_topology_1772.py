@@ -233,7 +233,7 @@ def _real_merge_external_mocks(*, real_baseline_recording: bool = False):
     baseline_recording_targets = {
         "specify_cli.merge.executor._record_baseline_merge_commit",
         "specify_cli.merge.executor._assert_baseline_merge_commit_on_target",
-        "specify_cli.merge.executor.safe_commit",
+        "specify_cli.merge.executor.commit_merge_bookkeeping",
     }
     patch_specs: list[tuple[str, dict[str, object]]] = [
         ("specify_cli.merge.done_bookkeeping._mark_wp_merged_done", {}),
@@ -242,7 +242,7 @@ def _real_merge_external_mocks(*, real_baseline_recording: bool = False):
         ("specify_cli.merge.executor._assert_merged_wps_done_on_target", {}),
         ("specify_cli.merge.executor._record_baseline_merge_commit", {"return_value": None}),
         ("specify_cli.merge.executor._assert_baseline_merge_commit_on_target", {}),
-        ("specify_cli.merge.executor.safe_commit", {}),
+        ("specify_cli.merge.executor.commit_merge_bookkeeping", {}),
         ("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled", {}),
         ("specify_cli.merge.executor.emit_mission_closed", {}),
         ("specify_cli.merge.executor._emit_merge_diff_summary", {}),

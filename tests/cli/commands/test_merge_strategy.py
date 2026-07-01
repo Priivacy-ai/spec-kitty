@@ -197,7 +197,7 @@ def _patched_lane_based_merge_dependencies(
             patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result)
         )
         stack.enter_context(patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"))
-        stack.enter_context(patch("specify_cli.merge.executor.safe_commit", return_value=True))
+        stack.enter_context(patch("specify_cli.merge.executor.commit_merge_bookkeeping", return_value=True))
         mock_run_check = stack.enter_context(patch("specify_cli.post_merge.stale_assertions.run_check"))
         mock_gates = stack.enter_context(patch("specify_cli.policy.merge_gates.evaluate_merge_gates"))
         mock_policy = stack.enter_context(patch("specify_cli.policy.config.load_policy_config"))

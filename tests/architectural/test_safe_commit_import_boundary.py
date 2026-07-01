@@ -89,13 +89,13 @@ _DELETED_CHANNEL_SYMBOLS: tuple[str, ...] = (
 # ``BookkeepingTransaction.acquire(...)``, NOT to ``safe_commit``. The transaction
 # layer's ``destination_ref=`` is its canonical parameter and is out of scope
 # here; this ratchet only inspects direct ``safe_commit`` calls.
-_ALLOWLISTED_DESTINATION_REF_SAFE_COMMIT_SITES: frozenset[str] = frozenset(
-    {
-        # Relocated from cli/commands/merge.py to the merge/executor.py seam in
-        # mission #2057's behavior-preserving god-module decomposition.
-        "src/specify_cli/merge/executor.py",
-    }
-)
+_ALLOWLISTED_DESTINATION_REF_SAFE_COMMIT_SITES: frozenset[str] = frozenset()
+# Previously held cli/commands/merge.py → merge/executor.py. The last production
+# `safe_commit(destination_ref=...)` caller (the merge done-transitions
+# bookkeeping) was migrated to `target=CommitTarget(...)` when it was factored
+# into the shared `git/bookkeeping_commit.py` seam (#2280 / PR #2281). No
+# production caller uses the two-arg shim anymore; the empty allowlist means ANY
+# new `destination_ref=` caller now fails this ratchet.
 
 
 def _iter_src_python_files() -> list[Path]:

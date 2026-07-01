@@ -246,7 +246,7 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
             patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
             patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
             patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"),
-            patch("specify_cli.merge.executor.safe_commit", return_value=True) as mock_safe_commit,
+            patch("specify_cli.merge.executor.commit_merge_bookkeeping", return_value=True) as mock_safe_commit,
             patch("specify_cli.post_merge.stale_assertions.run_check") as mock_run_check,
             patch("specify_cli.policy.merge_gates.evaluate_merge_gates") as mock_gates,
             patch("specify_cli.policy.config.load_policy_config") as mock_policy,
@@ -285,7 +285,7 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
         kwargs = mock_safe_commit.call_args.kwargs
         assert kwargs["repo_root"] == tmp_path
         assert kwargs["worktree_root"] == tmp_path
-        assert kwargs["destination_ref"] == "main"
+        assert kwargs["branch"] == "main"
         assert mission_slug in kwargs["message"]
         # Verify both status files are in the payload
         files = kwargs["paths"]
@@ -327,7 +327,7 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
             stack.enter_context(patch("specify_cli.merge.done_bookkeeping._assert_merged_wps_reached_done"))
             stack.enter_context(patch("specify_cli.merge.executor._bake_mission_number_into_mission_branch"))
             stack.enter_context(patch("specify_cli.merge.executor._assert_merged_wps_done_on_target"))
-            stack.enter_context(patch("specify_cli.merge.executor.safe_commit", return_value=True))
+            stack.enter_context(patch("specify_cli.merge.executor.commit_merge_bookkeeping", return_value=True))
             mock_run_check = stack.enter_context(patch("specify_cli.post_merge.stale_assertions.run_check"))
             mock_gates = stack.enter_context(patch("specify_cli.policy.merge_gates.evaluate_merge_gates"))
             mock_policy = stack.enter_context(patch("specify_cli.policy.config.load_policy_config"))
@@ -397,7 +397,7 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
             stack.enter_context(patch("specify_cli.merge.executor._bake_mission_number_into_mission_branch"))
             stack.enter_context(patch("specify_cli.merge.executor._assert_merged_wps_done_on_target"))
             mock_safe_commit = stack.enter_context(
-                patch("specify_cli.merge.executor.safe_commit", return_value=True)
+                patch("specify_cli.merge.executor.commit_merge_bookkeeping", return_value=True)
             )
             mock_run_check = stack.enter_context(patch("specify_cli.post_merge.stale_assertions.run_check"))
             mock_gates = stack.enter_context(patch("specify_cli.policy.merge_gates.evaluate_merge_gates"))
@@ -533,7 +533,7 @@ class TestMergeDoneTransitions:
             patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
             patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
             patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"),
-            patch("specify_cli.merge.executor.safe_commit", side_effect=record_safe_commit),
+            patch("specify_cli.merge.executor.commit_merge_bookkeeping", side_effect=record_safe_commit),
             patch("specify_cli.post_merge.stale_assertions.run_check") as mock_run_check,
             patch("specify_cli.policy.merge_gates.evaluate_merge_gates") as mock_gates,
             patch("specify_cli.policy.config.load_policy_config") as mock_policy,
@@ -863,7 +863,7 @@ class TestDoneEventsCommittedToGit:
             stack.enter_context(patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result))
             stack.enter_context(patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result))
             stack.enter_context(patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"))
-            stack.enter_context(patch("specify_cli.merge.executor.safe_commit", return_value=True))
+            stack.enter_context(patch("specify_cli.merge.executor.commit_merge_bookkeeping", return_value=True))
             mock_run_check = stack.enter_context(patch("specify_cli.post_merge.stale_assertions.run_check"))
             mock_gates = stack.enter_context(patch("specify_cli.policy.merge_gates.evaluate_merge_gates"))
             mock_policy = stack.enter_context(patch("specify_cli.policy.config.load_policy_config"))

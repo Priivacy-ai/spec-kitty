@@ -98,7 +98,7 @@ def _drive_merge(tmp_path: Path, slug: str, *, refresh_returncode: int = 0):
         patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
         patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
         patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"),
-        patch("specify_cli.merge.executor.safe_commit"),
+        patch("specify_cli.merge.executor.commit_merge_bookkeeping"),
         patch("specify_cli.merge.done_bookkeeping._assert_merged_wps_reached_done"),
         patch("specify_cli.post_merge.stale_assertions.run_check"),
         patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
