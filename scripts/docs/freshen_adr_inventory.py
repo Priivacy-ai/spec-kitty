@@ -1,0 +1,481 @@
+"""One-command ADR index + inventory-lockfile freshener.
+
+Adding an ADR under ``docs/adr/<era>/`` (era = ``1.x`` | ``2.x`` | ``3.x``)
+requires two index updates the ``docs-freshness`` CI gate enforces:
+
+1. A :class:`~scripts.docs._inventory.PageInventoryEntry` row in
+   ``docs/development/3-2-page-inventory.yaml`` — a **generated lockfile**,
+   regenerated from every page's frontmatter.
+2. A table row ``| YYYY-MM-DD | [Title](filename.md) |`` in the era's
+   ``docs/adr/<era>/README.md`` index.
+
+Agents repeatedly trip the gate (``LEAK-MISSING-INVENTORY``,
+``INVENTORY-INCOMPLETE``, ``INVENTORY-LOCKFILE-DRIFT``) by forgetting one of
+these. This tool freshens **both** in one command, reusing the canonical
+machinery in :mod:`scripts.docs.inventory_lockfile` and
+:mod:`scripts.docs._inventory` — it never forks the inventory schema.
+
+Usage::
+
+    python scripts/docs/freshen_adr_inventory.py docs/adr/3.x/my-adr.md
+    python scripts/docs/freshen_adr_inventory.py --all
+    python scripts/docs/freshen_adr_inventory.py --check docs/adr/3.x/my-adr.md
+
+* **Inventory:** the page inventory is regenerated wholesale from frontmatter
+  (``render_lockfile(generate_inventory(...))``), so it auto-picks up every new
+  doc — including new ADRs. On a clean tree this is a no-op.
+* **ADR README rows:** for each target ADR the era README's index table gets a
+  new row, inserted date-ascending, idempotently (a basename already linked is
+  skipped).
+"""
+
+from __future__ import annotations
+
+import argparse
+import re
+import sys
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Final
+
+from scripts.docs._inventory import parse_frontmatter
+from scripts.docs.inventory_lockfile import (
+    DEFAULT_INVENTORY_PATH,
+    generate_inventory,
+    render_lockfile,
+)
+
+__all__ = [
+    "AdrMeta",
+    "FreshenResult",
+    "build_parser",
+    "detect_missing_adrs",
+    "freshen",
+    "main",
+]
+
+
+# --------------------------------------------------------------------------- #
+# Constants
+# --------------------------------------------------------------------------- #
+
+_ADR_SUBDIR: Final[str] = "adr"
+_README_NAME: Final[str] = "README.md"
+_ERA_RE: Final[re.Pattern[str]] = re.compile(r"^\d+\.x$")
+_TITLE_PREFIX: Final[str] = "ADR: "
+_WHITESPACE_RE: Final[re.Pattern[str]] = re.compile(r"\s+")
+
+# ADR index table detection. The header carries both "Date" and "Title"; the
+# next line is the markdown separator; data rows follow until the first
+# non-pipe line.
+_TABLE_HEADER_RE: Final[re.Pattern[str]] = re.compile(
+    r"^\s*\|.*\bdate\b.*\|.*\btitle\b.*\|\s*$", re.IGNORECASE
+)
+_TABLE_SEP_RE: Final[re.Pattern[str]] = re.compile(r"^\s*\|[\s:|-]*-[\s:|-]*\|\s*$")
+_TABLE_ROW_RE: Final[re.Pattern[str]] = re.compile(r"^\s*\|.*\|\s*$")
+
+
+class FreshenError(Exception):
+    """Raised for an unrecoverable target/era-README problem."""
+
+
+@dataclass(slots=True, frozen=True)
+class AdrMeta:
+    """Frontmatter-derived facts about one ADR needed for its README row."""
+
+    basename: str
+    title: str
+    date: str
+
+    def row(self) -> str:
+        """Render the canonical era-README index row for this ADR."""
+        return f"| {self.date} | [{self.title}]({self.basename}) |"
+
+
+@dataclass(slots=True, frozen=True)
+class FreshenResult:
+    """Outcome of a freshen/check run (what changed, what's still stale)."""
+
+    inventory_written: bool
+    readme_rows_added: tuple[str, ...]
+    missing_rows: tuple[str, ...]
+    inventory_stale: bool
+
+    @property
+    def is_clean(self) -> bool:
+        """True iff nothing is stale (safe ``--check`` exit)."""
+        return not self.missing_rows and not self.inventory_stale
+
+
+# --------------------------------------------------------------------------- #
+# Era README resolution
+# --------------------------------------------------------------------------- #
+
+
+def _era_readme_for(adr_path: Path, docs_root: Path) -> Path:
+    """Resolve the era ``README.md`` for an ADR at ``docs/adr/<era>/<name>.md``.
+
+    Validates the ADR lives directly under ``<docs_root>/adr/<era>/`` where
+    ``<era>`` matches ``N.x`` — a mislocated path is a hard error, not a silent
+    guess.
+    """
+    era_dir = adr_path.parent
+    if era_dir.parent.name != _ADR_SUBDIR or not _ERA_RE.match(era_dir.name):
+        raise FreshenError(
+            f"{adr_path} is not under {docs_root.name}/{_ADR_SUBDIR}/<era>/ "
+            f"(era must match N.x)"
+        )
+    return era_dir / _README_NAME
+
+
+# --------------------------------------------------------------------------- #
+# ADR frontmatter -> row facts
+# --------------------------------------------------------------------------- #
+
+
+def _clean_title(raw: object) -> str:
+    """Collapse whitespace and strip a leading ``ADR: `` prefix from a title."""
+    text = str(raw) if raw is not None else ""
+    text = _WHITESPACE_RE.sub(" ", text).strip()
+    if text.startswith(_TITLE_PREFIX):
+        text = text[len(_TITLE_PREFIX) :].strip()
+    return text
+
+
+def _read_adr_meta(adr_path: Path) -> AdrMeta:
+    """Parse an ADR's frontmatter into the facts its README row needs."""
+    try:
+        text = adr_path.read_text(encoding="utf-8")
+    except OSError as exc:  # unreadable target — surface, don't guess
+        raise FreshenError(f"cannot read ADR {adr_path}: {exc}") from exc
+    frontmatter = parse_frontmatter(text)
+    title = _clean_title(frontmatter.get("title"))
+    date = str(frontmatter.get("date", "")).strip()
+    if not title or not date:
+        raise FreshenError(
+            f"{adr_path} frontmatter is missing a title and/or date "
+            f"(title={title!r}, date={date!r})"
+        )
+    return AdrMeta(basename=adr_path.name, title=title, date=date)
+
+
+# --------------------------------------------------------------------------- #
+# README table editing
+# --------------------------------------------------------------------------- #
+
+
+def _find_adr_table(lines: list[str]) -> tuple[int, int]:
+    """Return ``(data_start, data_end)`` for the ADR index table's data rows.
+
+    ``data_start`` is the first data-row index (after the header + separator);
+    ``data_end`` is one past the last contiguous data row. Raises if no
+    ``| Date | Title |`` table exists.
+    """
+    for index in range(len(lines) - 1):
+        if _TABLE_HEADER_RE.match(lines[index]) and _TABLE_SEP_RE.match(
+            lines[index + 1]
+        ):
+            data_start = index + 2
+            data_end = data_start
+            while data_end < len(lines) and _TABLE_ROW_RE.match(lines[data_end]):
+                data_end += 1
+            return data_start, data_end
+    raise FreshenError("no ADR index table (`| Date | Title |`) found")
+
+
+def _row_date(row: str) -> str:
+    """Extract the first (date) cell from a markdown table row."""
+    cells = [cell.strip() for cell in row.strip().strip("|").split("|")]
+    return cells[0] if cells else ""
+
+
+def _insertion_index(rows: list[str], date: str) -> int:
+    """Index at which a new row for ``date`` keeps the table date-ascending.
+
+    Inserts after every existing row whose date is ``<= date`` (so a new row
+    lands after same-date neighbours), preserving ascending order.
+    """
+    position = len(rows)
+    for offset, row in enumerate(rows):
+        if _row_date(row) > date:
+            position = offset
+            break
+    return position
+
+
+def _insert_readme_row(readme_text: str, meta: AdrMeta) -> tuple[str, bool]:
+    """Insert ``meta``'s row into the ADR table, idempotent + date-ordered.
+
+    Returns ``(new_text, changed)``. ``changed`` is ``False`` when the ADR's
+    basename is already linked in the table (no duplicate row).
+    """
+    if f"]({meta.basename})" in readme_text:
+        return readme_text, False
+
+    trailing_newline = readme_text.endswith("\n")
+    lines = readme_text.splitlines()
+    data_start, data_end = _find_adr_table(lines)
+    rows = lines[data_start:data_end]
+
+    offset = _insertion_index(rows, meta.date)
+    lines.insert(data_start + offset, meta.row())
+
+    new_text = "\n".join(lines)
+    if trailing_newline:
+        new_text += "\n"
+    return new_text, True
+
+
+def _freshen_readme_row(adr_path: Path, docs_root: Path) -> str | None:
+    """Add ``adr_path``'s row to its era README. Return basename if changed."""
+    meta = _read_adr_meta(adr_path)
+    readme = _era_readme_for(adr_path, docs_root)
+    if not readme.exists():
+        raise FreshenError(f"era README not found: {readme}")
+    original = readme.read_text(encoding="utf-8")
+    updated, changed = _insert_readme_row(original, meta)
+    if changed:
+        readme.write_text(updated, encoding="utf-8")
+        return meta.basename
+    return None
+
+
+def _readme_has_row(adr_path: Path, docs_root: Path) -> bool:
+    """True iff ``adr_path``'s basename is already linked in its era README."""
+    readme = _era_readme_for(adr_path, docs_root)
+    if not readme.exists():
+        return False
+    return f"]({adr_path.name})" in readme.read_text(encoding="utf-8")
+
+
+# --------------------------------------------------------------------------- #
+# Inventory regeneration
+# --------------------------------------------------------------------------- #
+
+
+def _inventory_path(repo_root: Path) -> Path:
+    """Resolve the committed inventory lockfile under ``repo_root``."""
+    return repo_root / DEFAULT_INVENTORY_PATH
+
+
+def _rendered_inventory(docs_root: Path, repo_root: Path) -> str:
+    """Render the fresh inventory lockfile string from frontmatter."""
+    entries = generate_inventory(docs_root, repo_root=repo_root)
+    return render_lockfile(entries)
+
+
+def _regenerate_inventory(docs_root: Path, repo_root: Path) -> bool:
+    """Rewrite the committed inventory from frontmatter. Return True if changed."""
+    target = _inventory_path(repo_root)
+    fresh = _rendered_inventory(docs_root, repo_root)
+    current = target.read_text(encoding="utf-8") if target.exists() else None
+    if current == fresh:
+        return False
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(fresh, encoding="utf-8")
+    return True
+
+
+def _inventory_is_stale(docs_root: Path, repo_root: Path) -> bool:
+    """True iff the committed inventory diverges from a fresh generation."""
+    target = _inventory_path(repo_root)
+    if not target.exists():
+        return True
+    return target.read_text(encoding="utf-8") != _rendered_inventory(
+        docs_root, repo_root
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Target discovery
+# --------------------------------------------------------------------------- #
+
+
+def _era_has_table(readme: Path) -> bool:
+    """True iff ``readme`` exists and contains an ADR index table."""
+    if not readme.exists():
+        return False
+    try:
+        _find_adr_table(readme.read_text(encoding="utf-8").splitlines())
+    except FreshenError:
+        return False
+    return True
+
+
+def detect_missing_adrs(docs_root: Path) -> list[Path]:
+    """Every ADR under ``docs/adr/<era>/`` missing from its era README table.
+
+    Only eras whose README actually maintains an index table are considered —
+    legacy eras without a table (e.g. 1.x/2.x) are intentionally skipped rather
+    than back-filled with a table they never carried.
+    """
+    adr_root = docs_root / _ADR_SUBDIR
+    if not adr_root.is_dir():
+        return []
+    missing: list[Path] = []
+    for era_dir in sorted(p for p in adr_root.iterdir() if p.is_dir()):
+        if not _ERA_RE.match(era_dir.name):
+            continue
+        if not _era_has_table(era_dir / _README_NAME):
+            continue
+        for adr_path in sorted(era_dir.glob("*.md")):
+            if adr_path.name == _README_NAME:
+                continue
+            if not _readme_has_row(adr_path, docs_root):
+                missing.append(adr_path)
+    return missing
+
+
+def _targets_missing_rows(adr_paths: list[Path], docs_root: Path) -> list[str]:
+    """Basenames of ``adr_paths`` that lack their era README row."""
+    return [p.name for p in adr_paths if not _readme_has_row(p, docs_root)]
+
+
+# --------------------------------------------------------------------------- #
+# Orchestration
+# --------------------------------------------------------------------------- #
+
+
+def freshen(
+    adr_paths: list[Path],
+    *,
+    docs_root: Path,
+    repo_root: Path,
+    check: bool,
+) -> FreshenResult:
+    """Freshen (or, in ``check`` mode, verify) both indexes.
+
+    In write mode: add each ADR's README row, then regenerate the inventory.
+    In check mode: never write — report which targeted ADRs miss their row and
+    whether the committed inventory is stale.
+    """
+    if check:
+        return FreshenResult(
+            inventory_written=False,
+            readme_rows_added=(),
+            missing_rows=tuple(_targets_missing_rows(adr_paths, docs_root)),
+            inventory_stale=_inventory_is_stale(docs_root, repo_root),
+        )
+
+    added: list[str] = []
+    for adr_path in adr_paths:
+        basename = _freshen_readme_row(adr_path, docs_root)
+        if basename is not None:
+            added.append(basename)
+    inventory_written = _regenerate_inventory(docs_root, repo_root)
+    return FreshenResult(
+        inventory_written=inventory_written,
+        readme_rows_added=tuple(added),
+        missing_rows=(),
+        inventory_stale=False,
+    )
+
+
+# --------------------------------------------------------------------------- #
+# CLI
+# --------------------------------------------------------------------------- #
+
+
+def build_parser() -> argparse.ArgumentParser:
+    """Build the ``freshen_adr_inventory`` CLI parser."""
+    parser = argparse.ArgumentParser(
+        prog="freshen_adr_inventory",
+        description=(
+            "Freshen BOTH ADR indexes in one command: regenerate the "
+            "page-inventory lockfile from frontmatter AND add each ADR's row "
+            "to its era README table. Idempotent and date-ordered."
+        ),
+    )
+    parser.add_argument(
+        "adr_paths",
+        nargs="*",
+        type=Path,
+        help="Explicit ADR .md paths under docs/adr/<era>/.",
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Auto-detect every ADR missing from its era README table.",
+    )
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help=(
+            "Verify only (no writes): exit non-zero if the inventory is stale "
+            "or any targeted ADR is missing its README row."
+        ),
+    )
+    parser.add_argument(
+        "--repo-root",
+        type=Path,
+        default=Path.cwd(),
+        help="Repo root (default: current working directory).",
+    )
+    parser.add_argument(
+        "--docs-root",
+        type=Path,
+        default=None,
+        help="Docs root (default: <repo-root>/docs).",
+    )
+    return parser
+
+
+def _resolve_targets(args: argparse.Namespace, docs_root: Path) -> list[Path]:
+    """Resolve the ADR targets from explicit paths and/or ``--all``."""
+    targets: list[Path] = list(args.adr_paths)
+    if args.all:
+        known = {p.resolve() for p in targets}
+        for detected in detect_missing_adrs(docs_root):
+            if detected.resolve() not in known:
+                targets.append(detected)
+    return targets
+
+
+def _emit_check(result: FreshenResult) -> int:
+    """Print the check-mode summary and return the exit code."""
+    for basename in result.missing_rows:
+        sys.stdout.write(f"ADR-README-ROW-MISSING {basename}\n")
+    if result.inventory_stale:
+        sys.stdout.write("INVENTORY-LOCKFILE-DRIFT (committed inventory is stale)\n")
+    status = "clean" if result.is_clean else "STALE"
+    sys.stdout.write(
+        f"freshen_adr_inventory --check: {status} "
+        f"(missing_rows={len(result.missing_rows)} "
+        f"inventory_stale={result.inventory_stale})\n"
+    )
+    return 0 if result.is_clean else 1
+
+
+def _emit_write(result: FreshenResult) -> int:
+    """Print the write-mode summary and return the exit code."""
+    for basename in result.readme_rows_added:
+        sys.stdout.write(f"README-ROW-ADDED {basename}\n")
+    inv = "regenerated" if result.inventory_written else "unchanged"
+    sys.stdout.write(
+        f"freshen_adr_inventory: rows_added={len(result.readme_rows_added)} "
+        f"inventory={inv}\n"
+    )
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI entry point. Returns the process exit code."""
+    args = build_parser().parse_args(argv)
+    repo_root: Path = args.repo_root
+    docs_root: Path = args.docs_root if args.docs_root is not None else repo_root / "docs"
+
+    targets = _resolve_targets(args, docs_root)
+
+    try:
+        result = freshen(
+            targets, docs_root=docs_root, repo_root=repo_root, check=args.check
+        )
+    except FreshenError as exc:
+        sys.stderr.write(f"error: {exc}\n")
+        return 2
+
+    return _emit_check(result) if args.check else _emit_write(result)
+
+
+if __name__ == "__main__":  # pragma: no cover - module-level CLI guard
+    raise SystemExit(main())
