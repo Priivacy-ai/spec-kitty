@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.doctrine]
+pytestmark = [pytest.mark.doctrine, pytest.mark.integration]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 

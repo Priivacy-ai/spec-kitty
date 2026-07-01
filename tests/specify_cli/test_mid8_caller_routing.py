@@ -28,7 +28,7 @@ from pathlib import Path
 from specify_cli.lanes.branch_naming import mid8_from_slug, resolve_mid8
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # ---------------------------------------------------------------------------
 # Fixtures

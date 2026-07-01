@@ -17,7 +17,7 @@ from specify_cli.core.paths import (
 )
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def test_locate_project_root_from_main(mock_main_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """Test path resolution from main repository."""

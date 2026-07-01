@@ -22,7 +22,7 @@ from specify_cli.tracker.local_service import LocalTrackerService, LocalTrackerS
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 @pytest.fixture()
 def repo(tmp_path: Path) -> Path:

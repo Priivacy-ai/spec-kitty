@@ -22,7 +22,7 @@ from specify_cli.dossier.manifest import (
 )
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 class TestArtifactClassEnum:
     """Test ArtifactClassEnum values and usage."""

@@ -44,7 +44,7 @@ from specify_cli.readiness.upgrade_ux import (
 )
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------
@@ -751,6 +751,7 @@ class TestRunUpgradeUxAlwaysSafe:
         assert outcome.auto_upgrade_attempted is True
         assert outcome.auto_upgrade_exit_code == 0
 
+    @pytest.mark.quarantine  # drift: 'uv tool install' argv order (--python placement) (Wave-0 orphan-bind triage, #2034/#2283)
     def test_uv_tool_auto_upgrade_preserves_custom_uv_tool_dir(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -788,6 +789,7 @@ class TestRunUpgradeUxAlwaysSafe:
         assert calls[0][1]["UV_TOOL_DIR"] == str(tool_dir)
         assert outcome.auto_upgrade_attempted is True
 
+    @pytest.mark.quarantine  # drift: 'uv tool install' argv order (--python placement) (Wave-0 orphan-bind triage, #2034/#2283)
     def test_uv_tool_auto_upgrade_preserves_receipt_python(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:

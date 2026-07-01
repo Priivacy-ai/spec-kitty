@@ -25,7 +25,7 @@ import specify_cli.cli.commands.accept as accept_cmd
 from specify_cli.acceptance import AcceptanceSummary
 from specify_cli.task_utils import LANES
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _summary(*, warnings: list[str]) -> AcceptanceSummary:

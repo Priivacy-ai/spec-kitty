@@ -32,7 +32,7 @@ from specify_cli.widen.state import WidenPendingStore
 # Helpers
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 MISSION_SLUG = "test-widen-eoi-mission"
 MISSION_ID = "01KWIDENOITEST000000000001"

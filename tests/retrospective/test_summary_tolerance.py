@@ -32,7 +32,7 @@ from specify_cli.retrospective.summary import (
 # ULID helpers and shared YAML templates
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 MISSION_ID_1 = "01KQ6YEGT4YBZ3GZF7X680KQ3V"
 MISSION_ID_2 = "01KQ6YEGT4YBZ3GZF7X680KQAA"

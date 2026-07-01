@@ -11,7 +11,7 @@ import pytest
 from specify_cli.invocation.executor import ProfileInvocationExecutor
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures" / "profiles"
 

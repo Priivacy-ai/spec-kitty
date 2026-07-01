@@ -8,7 +8,7 @@ import sys
 import pytest
 
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def test_runtime_next_is_canonical_decision_home() -> None:

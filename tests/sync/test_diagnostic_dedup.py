@@ -18,7 +18,7 @@ from specify_cli.diagnostics import (
 )
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 @pytest.fixture(autouse=True)
 def _isolate_diagnostic_state() -> Iterator[None]:

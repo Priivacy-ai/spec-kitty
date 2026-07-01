@@ -23,7 +23,7 @@ from specify_cli.state.contract import (
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def test_surface_names_unique():
     """Every surface must have a unique name."""

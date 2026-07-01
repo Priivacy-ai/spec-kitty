@@ -11,7 +11,7 @@ from specify_cli.policy.config import (
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 class TestDefaults:
     def test_all_defaults(self):

@@ -27,7 +27,7 @@ from specify_cli.context.mission_resolver import (
 # Mission IDs with distinct mid8 prefixes so each resolves unambiguously.
 # All are valid 26-char Crockford base32 strings (ULID format).
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 MISSION_ID_A = "01AAAAAAAAAAAAAAAAAAAAAAAB"  # mid8: 01AAAAAA
 MISSION_ID_B = "01BBBBBBAAAAAAAAAAAAAAAAAC"  # mid8: 01BBBBBB

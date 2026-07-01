@@ -28,7 +28,7 @@ from specify_cli.status.wp_state import (
 from specify_cli.status.transition_context import TransitionContext
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 class TestInReviewDisplayCategory:
     """Layer 1: State-pattern display_category returns 'In Progress'."""

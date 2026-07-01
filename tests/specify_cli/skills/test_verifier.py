@@ -18,7 +18,7 @@ from specify_cli.skills.verifier import VerifyResult, repair_skills, verify_inst
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _make_entry(

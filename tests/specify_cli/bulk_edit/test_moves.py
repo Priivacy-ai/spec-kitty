@@ -24,7 +24,7 @@ from specify_cli.bulk_edit.occurrence_map import (
     validate_occurrence_map,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 ALL_EIGHT_CATEGORIES = {

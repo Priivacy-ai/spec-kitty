@@ -40,7 +40,7 @@ from specify_cli.cli.commands.doctor import (
     _render_selection_block_lines,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 SNAPSHOT_PATH: Path = (

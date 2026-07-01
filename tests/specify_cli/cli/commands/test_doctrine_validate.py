@@ -20,7 +20,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.doctrine import app as doctrine_app
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 runner = CliRunner()
 

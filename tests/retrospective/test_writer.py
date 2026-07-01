@@ -34,7 +34,7 @@ from specify_cli.retrospective.writer import (
     write_gen_record,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # ---------------------------------------------------------------------------
 # Test fixture helpers

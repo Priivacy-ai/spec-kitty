@@ -38,7 +38,7 @@ import specify_cli.tool_surface.providers.plugin_bundle as provider_mod
 
 from ..bundles._support import full_plans, skills_only_plans
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def test_provider_satisfies_reporting_protocol() -> None:

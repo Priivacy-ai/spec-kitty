@@ -32,7 +32,7 @@ from specify_cli.doctrine.sources import (
 # Protocol contract
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 class TestOrgDoctrineSourceProtocol:
     """The runtime_checkable protocol must accept all three concrete sources."""

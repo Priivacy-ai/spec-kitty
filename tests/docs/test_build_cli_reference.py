@@ -27,7 +27,7 @@ os.environ.setdefault("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
 from scripts.docs import build_cli_reference as build
 from scripts.docs._typer_walker import CommandPathEntry, walk
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

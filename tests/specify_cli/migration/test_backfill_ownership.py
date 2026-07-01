@@ -22,7 +22,7 @@ from specify_cli.migration.backfill_ownership import backfill_ownership
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _make_wp(tasks_dir: Path, wp_name: str, body: str) -> Path:
     """Write a WP markdown file with the given body."""

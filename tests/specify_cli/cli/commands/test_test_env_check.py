@@ -19,7 +19,7 @@ from specify_cli.cli.commands._test_env_check import (
 )
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.integration]
 
 def test_assert_pytest_available_succeeds_when_pytest_importable(
     tmp_path: Path,

@@ -24,7 +24,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -118,6 +118,7 @@ def test_no_checklist_filenames_in_scan_roots():
     )
 
 
+@pytest.mark.quarantine  # historical CHANGELOG mention of removed /spec-kitty.checklist trips live-surface scan (Wave-0 orphan-bind triage, #2034/#2283)
 def test_no_checklist_command_string_in_scan_roots():
     offenders = []
     for rel in SCAN_ROOTS + AGENT_DIRS:

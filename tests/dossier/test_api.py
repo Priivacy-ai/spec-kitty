@@ -26,7 +26,7 @@ from specify_cli.dossier.models import ArtifactRef, MissionDossier, MissionDossi
 # ============================================================================
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 @pytest.fixture
 def repo_root(tmp_path):

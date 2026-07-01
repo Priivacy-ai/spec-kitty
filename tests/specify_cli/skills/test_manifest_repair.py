@@ -28,7 +28,7 @@ from specify_cli.skills.manifest_store import (
     save,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # ---------------------------------------------------------------------------
 # Constants

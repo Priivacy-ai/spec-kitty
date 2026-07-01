@@ -26,7 +26,7 @@ from specify_cli.coordination.types import (
     Refused,
 )
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _change_set() -> GitChangeSet:

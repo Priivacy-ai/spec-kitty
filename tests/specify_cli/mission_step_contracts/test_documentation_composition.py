@@ -22,7 +22,7 @@ from typing import Any
 import pytest
 import yaml
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _DOC_ACTIONS: tuple[str, ...] = (
     "discover",

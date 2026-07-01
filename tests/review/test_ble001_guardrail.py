@@ -10,7 +10,7 @@ from specify_cli.cli.commands.review import (
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def test_scoped_ble001_with_specific_safety_reason_passes(tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"

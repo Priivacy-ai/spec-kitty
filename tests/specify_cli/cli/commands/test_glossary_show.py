@@ -11,7 +11,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.glossary import app
 from glossary.entity_pages import TermNotFoundError
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 runner = CliRunner()
 

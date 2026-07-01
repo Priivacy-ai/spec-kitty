@@ -15,7 +15,7 @@ from pathlib import Path
 from specify_cli.dossier.hasher import hash_file, hash_file_with_validation, Hasher
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 class TestHashFile:
     """Test hash_file() function for deterministic SHA256 hashing."""

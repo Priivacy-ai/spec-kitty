@@ -12,7 +12,7 @@ from typer.testing import CliRunner
 from specify_cli import app as cli_app
 from specify_cli.invocation.writer import EVENTS_DIR
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 runner = CliRunner()
 

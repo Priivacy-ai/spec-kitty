@@ -18,7 +18,7 @@ import pytest
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.query import walk_edges
 
-pytestmark = [pytest.mark.doctrine]
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

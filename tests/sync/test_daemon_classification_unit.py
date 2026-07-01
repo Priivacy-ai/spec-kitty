@@ -29,7 +29,7 @@ from specify_cli.sync.classification import (
 
 # Module-level marker so the CI gate-coverage selector picks these pure unit
 # tests up (every test file must declare a module-level ``pytestmark``).
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # ---------------------------------------------------------------------------
 # Test fixtures / builders

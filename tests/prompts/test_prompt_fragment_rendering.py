@@ -18,7 +18,7 @@ from doctrine.spdd_reasons.template_renderer import (
     process_spdd_blocks,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 

@@ -15,7 +15,7 @@ import pytest
 from specify_cli.sync.project_identity import ProjectIdentity
 
 
-pytestmark = [pytest.mark.contract]
+pytestmark = [pytest.mark.contract, pytest.mark.fast]
 
 
 def _make_project_identity() -> ProjectIdentity:

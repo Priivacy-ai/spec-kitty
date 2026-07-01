@@ -13,7 +13,7 @@ import pytest
 from specify_cli.next._internal_runtime.schema import PromptStep
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def test_default_fields_are_none() -> None:
     step = PromptStep(id="x", title="X")

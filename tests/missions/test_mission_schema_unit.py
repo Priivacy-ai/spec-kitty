@@ -20,7 +20,7 @@ from specify_cli.mission import (
 )
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 MISSIONS_ROOT = REPO_ROOT / "src" / "specify_cli" / "missions"

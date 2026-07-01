@@ -20,7 +20,7 @@ from specify_cli.session_presence.writers.null_writer import NullWriter
 from specify_cli.session_presence.writers.registry import WRITER_REGISTRY, get_writer
 from specify_cli.session_presence.writers.skills_preamble import SkillsPreambleWriter
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

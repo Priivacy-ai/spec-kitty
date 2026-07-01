@@ -30,7 +30,7 @@ from specify_cli.tool_surface.bundles._builder import (
 )
 from specify_cli.tool_surface.bundles.claude import ClaudeBundleProjector
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

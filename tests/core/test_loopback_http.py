@@ -29,7 +29,7 @@ from specify_cli.core.loopback_http import (
     serve_loopback_server,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 class _RecordingServer(HTTPServer):

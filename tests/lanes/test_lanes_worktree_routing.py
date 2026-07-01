@@ -19,7 +19,7 @@ import pytest
 from specify_cli.lanes.branch_naming import worktree_dir_name, worktree_path
 from tests.lanes.test_branch_naming_seam import GOLDEN_ROWS, GoldenRow
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

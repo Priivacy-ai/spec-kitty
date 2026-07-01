@@ -16,7 +16,7 @@ from specify_cli.tool_surface.bundles.model import (
 )
 from specify_cli.tool_surface.findings import make_finding
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _entry(kind: SurfaceKind, rel: str) -> BundleEntry:

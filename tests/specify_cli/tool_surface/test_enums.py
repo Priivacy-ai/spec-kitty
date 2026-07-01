@@ -16,7 +16,7 @@ from specify_cli.tool_surface.enums import (
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 ALL_ENUMS = [
     SurfaceKind,

@@ -26,7 +26,7 @@ import pytest
 from rich.console import Console
 from typer.testing import CliRunner
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _REPO_ROOT: Path = Path(__file__).resolve().parents[4]
 _FIXTURE_ORG_PACK: Path = (

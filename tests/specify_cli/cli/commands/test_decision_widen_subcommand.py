@@ -38,7 +38,7 @@ from specify_cli.saas_client.errors import SaasClientError
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 DECISION_ID = "01KWIDETEST00000000001"
 MISSION_SLUG = "test-widen-mission"

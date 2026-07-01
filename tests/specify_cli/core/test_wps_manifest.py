@@ -29,7 +29,7 @@ from specify_cli.core.wps_manifest import (
 # Marker
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # ===========================================================================

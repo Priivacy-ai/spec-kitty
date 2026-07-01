@@ -29,7 +29,7 @@ from specify_cli.next._internal_runtime import (
 from specify_cli.next._internal_runtime.engine import MissionRunRef
 from specify_cli.next._internal_runtime.schema import MissionRunSnapshot
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

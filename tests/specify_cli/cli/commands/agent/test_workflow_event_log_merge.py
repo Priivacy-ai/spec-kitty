@@ -20,7 +20,7 @@ import pytest
 
 from specify_cli.cli.commands.agent.workflow import _merge_event_log_bytes
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _lane_event(event_id: str, at: str, from_lane: str, to_lane: str) -> str:

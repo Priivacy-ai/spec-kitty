@@ -12,7 +12,7 @@ from specify_cli.workspace.assert_initialized import SpecKittyNotInitialized
 from mission_runtime import MissionTopology
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _app = typer.Typer()
 _app.command()(specify)

@@ -29,7 +29,7 @@ from glossary.observation import InlineNotice, ObservationSurface
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _EVENT_LOG_RELPATH = Path(".kittify") / "events" / "glossary" / "mission-001.events.jsonl"
 

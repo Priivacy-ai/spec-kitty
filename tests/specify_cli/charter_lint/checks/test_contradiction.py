@@ -18,7 +18,7 @@ from specify_cli.charter_lint.checks.contradiction import ContradictionChecker
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _make_node(urn: str, kind: str, label: str | None = None, **kwargs) -> SimpleNamespace:
     return SimpleNamespace(urn=urn, kind=kind, label=label, **kwargs)

@@ -24,7 +24,7 @@ from .test_renderers import make_test_profile
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _builtin_repo() -> AgentProfileRepository:

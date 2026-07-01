@@ -12,7 +12,7 @@ from specify_cli.template.renderer import (
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def test_parse_frontmatter_returns_metadata_body_and_raw() -> None:
     content = """---

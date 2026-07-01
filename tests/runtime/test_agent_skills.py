@@ -11,7 +11,7 @@ from specify_cli.skills.retired import RETIRED_STANDALONE_SKILL_NAMES
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _create_skill(root: Path, name: str, content: str | None = None) -> None:

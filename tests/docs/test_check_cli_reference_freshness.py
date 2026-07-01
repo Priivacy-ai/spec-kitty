@@ -20,7 +20,7 @@ os.environ.setdefault("SPEC_KITTY_NO_UPGRADE_CHECK", "1")
 from scripts.docs import check_cli_reference_freshness as freshness
 from scripts.docs._typer_walker import CommandPathEntry
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"

@@ -9,7 +9,7 @@ from specify_cli.sync import feature_flags
 from specify_cli.sync import events
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def test_lazy_feature_flag_exports_resolve_to_canonical_symbols() -> None:

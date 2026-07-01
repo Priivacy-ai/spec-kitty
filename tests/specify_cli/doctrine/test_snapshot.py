@@ -14,7 +14,7 @@ from specify_cli.doctrine.sources.protocol import FetchResult
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 @dataclass
 class _ScriptedSource:

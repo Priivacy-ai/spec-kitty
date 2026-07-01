@@ -16,7 +16,7 @@ from specify_cli.mission_v1.guards import GUARD_REGISTRY
 # Helpers
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 VALID_OCCURRENCE_MAP = """\
 target:

@@ -13,7 +13,7 @@ from typer.testing import CliRunner
 from specify_cli import app as cli_app
 
 # Marked for mutmut sandbox skip — subprocess CLI invocation.
-pytestmark = pytest.mark.non_sandbox
+pytestmark = [pytest.mark.non_sandbox, pytest.mark.fast]
 
 runner = CliRunner()
 

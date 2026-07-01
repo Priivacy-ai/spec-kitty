@@ -28,7 +28,7 @@ from specify_cli import app
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def test_doctrine_curate_is_unknown_command() -> None:

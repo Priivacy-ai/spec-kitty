@@ -18,7 +18,7 @@ from specify_cli.compat.upgrade_hint import UpgradeHint, build_upgrade_hint
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 class TestInvariant:
     @pytest.mark.parametrize("method", list(InstallMethod))

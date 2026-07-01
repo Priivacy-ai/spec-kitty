@@ -20,7 +20,7 @@ from specify_cli.tool_surface.status import SurfaceStatus
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _definition(kind: SurfaceKind, provider_key: str) -> SurfaceDefinition:

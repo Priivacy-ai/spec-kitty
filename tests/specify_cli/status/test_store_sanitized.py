@@ -16,7 +16,7 @@ import pytest
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event, append_events_atomic
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # ---------------------------------------------------------------------------
 # Helpers

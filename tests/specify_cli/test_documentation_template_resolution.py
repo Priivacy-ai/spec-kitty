@@ -14,7 +14,7 @@ from specify_cli.next.runtime_bridge import _resolve_runtime_template_in_root
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def test_documentation_runtime_sidecar_wins_over_legacy_mission_yaml() -> None:
     """The package-level loader resolves mission-runtime.yaml for mission_type='documentation'."""

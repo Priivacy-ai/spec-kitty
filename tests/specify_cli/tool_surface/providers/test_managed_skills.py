@@ -41,7 +41,7 @@ from specify_cli.tool_surface.status import (
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _write_skill_file(project: Path, rel: str, body: str = "doctrine body") -> str:

@@ -13,7 +13,7 @@ from specify_cli.tool_surface.profiles.augment_renderer import (
 )
 from specify_cli.tool_surface.profiles.renderers import ProfileRenderer
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def make_test_profile(slug: str = "implementer-ivan") -> AgentProfile:

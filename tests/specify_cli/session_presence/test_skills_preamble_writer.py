@@ -19,7 +19,7 @@ from specify_cli.session_presence.writers.markdown_rules import MarkdownRulesWri
 from specify_cli.session_presence.writers.registry import get_writer
 from specify_cli.session_presence.writers.skills_preamble import SkillsPreambleWriter
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

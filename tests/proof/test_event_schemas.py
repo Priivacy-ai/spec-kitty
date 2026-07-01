@@ -12,7 +12,7 @@ from specify_cli.proof.events import (
     proof_idempotency_key,
 )
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _base_payload(**overrides: object) -> dict[str, object]:

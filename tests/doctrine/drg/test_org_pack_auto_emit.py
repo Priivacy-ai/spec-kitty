@@ -15,7 +15,7 @@ import pytest
 from doctrine.drg.models import Relation
 from doctrine.drg.org_pack_loader import load_org_pack
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _write_tactic_yaml(

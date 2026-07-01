@@ -26,7 +26,7 @@ from specify_cli.retrospective.schema import Mode, ModeSourceSignal
 # Helpers
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _CHARTER_DIR = Path(".kittify") / "charter"
 

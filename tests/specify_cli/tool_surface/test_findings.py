@@ -9,7 +9,7 @@ from specify_cli.tool_surface.findings import SurfaceFinding, make_finding
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # Every published code constant -> its expected kebab-case wire value.
 _EXPECTED_CODES = {

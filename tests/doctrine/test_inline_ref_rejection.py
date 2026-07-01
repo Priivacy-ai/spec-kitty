@@ -38,7 +38,7 @@ from doctrine.toolguides.validation import reject_toolguide_inline_refs
 
 #: Matches ``migration_hint`` per the JSON schema.
 
-pytestmark = [pytest.mark.doctrine]
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
 HINT_PATTERN = re.compile(
     r"^Remove .+ from YAML; add edge "

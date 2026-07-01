@@ -17,7 +17,7 @@ from specify_cli.readiness.auth import probe_auth_status
 from specify_cli.readiness.coordinator import AuthStatus
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 class _FakeTokenManager:

@@ -19,7 +19,7 @@ import typer
 from specify_cli.readiness import ReadinessResult, evaluate_readiness
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _make_ctx() -> typer.Context:

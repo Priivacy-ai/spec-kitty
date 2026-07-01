@@ -9,7 +9,7 @@ from urllib.parse import unquote, urlparse
 
 import pytest
 
-pytestmark = [pytest.mark.doctrine]
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GLOSSARY_CONTEXTS_DIR = REPO_ROOT / "docs" / "context"

@@ -25,7 +25,7 @@ from specify_cli.invocation.modes import ModeOfWork
 from specify_cli.invocation.writer import EVENTS_DIR
 
 # Marked for mutmut sandbox skip — subprocess CLI invocation.
-pytestmark = pytest.mark.non_sandbox
+pytestmark = [pytest.mark.non_sandbox, pytest.mark.fast]
 
 
 class ArgvCliRunner(CliRunner):

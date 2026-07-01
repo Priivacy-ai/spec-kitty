@@ -38,7 +38,7 @@ from specify_cli.doctrine.org_charter_loader import load_org_charter_json_block
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _write_org_charter(pack_dir: Path, body: str) -> Path:
     """Write a YAML org-charter file at ``pack_dir/org-charter.yaml``."""

@@ -20,7 +20,7 @@ from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import (
 )
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 @pytest.fixture
 def migration_0_9_0():

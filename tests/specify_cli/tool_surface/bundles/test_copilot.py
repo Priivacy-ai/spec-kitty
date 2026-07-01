@@ -12,7 +12,7 @@ from ._support import full_plans, skills_only_plans
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def test_copilot_bundle_plugin_json_at_root(tmp_path: Path) -> None:

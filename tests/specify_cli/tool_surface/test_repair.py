@@ -18,7 +18,7 @@ from specify_cli.tool_surface.status import STATE_MISSING, SurfaceStatus, _surfa
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _definition(kind: SurfaceKind) -> SurfaceDefinition:

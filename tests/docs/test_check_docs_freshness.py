@@ -26,7 +26,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from scripts.docs import check_docs_freshness as orchestrator  # noqa: E402
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"

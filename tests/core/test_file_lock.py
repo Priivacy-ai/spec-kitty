@@ -28,7 +28,7 @@ from specify_cli.core.file_lock import (
 )
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 @pytest.fixture()
 def lock_path(tmp_path: Path) -> Path:

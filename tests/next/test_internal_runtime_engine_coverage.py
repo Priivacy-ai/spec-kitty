@@ -46,7 +46,7 @@ from specify_cli.next._internal_runtime.schema import (
 # Use a hard-trigger that's known to exist; fall back gracefully if not.
 from specify_cli.next._internal_runtime.significance import HARD_TRIGGER_REGISTRY  # noqa: E402
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _VALID_DIMS_LOW = {
     "user_customer_impact": 0,

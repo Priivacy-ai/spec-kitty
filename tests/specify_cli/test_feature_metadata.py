@@ -30,7 +30,7 @@ from specify_cli.mission_metadata import (
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _minimal_meta() -> dict[str, Any]:
     """Return a minimal valid meta dict with all required fields."""

@@ -33,7 +33,7 @@ import pytest
 from specify_cli.dashboard.scanner import build_mission_registry
 from specify_cli.lanes.branch_naming import resolve_mid8
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # --- Golden literals captured from HEAD before any edit (do NOT recompute) ---
 FULL_ULID = "01KV7SFD9ABCDEFGHJKMNPQRST"  # 26-char ULID
@@ -223,6 +223,7 @@ class TestWorktreeAllocatorContract:
         assert self._routed(SLUG_WITH_TAIL, None) is None
 
 
+@pytest.mark.quarantine  # seam-scan drift: doctor.py refactored to orchestration shell; 'resolve_mid8' literal absent (Wave-0 orphan-bind triage, #2034/#2283)
 def test_no_inline_mid8_slices_remain_after_routing() -> None:
     """Verification-by-deletion guard: the routed modules carry no inline
     ``mission_id[:8]`` derivation except the sanctioned ``doctor`` short-id

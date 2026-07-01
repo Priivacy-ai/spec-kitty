@@ -32,7 +32,7 @@ from specify_cli.ownership.models import (
 )
 from specify_cli.status.wp_metadata import WPMetadata
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _read_frontmatter(wp_file: Path) -> dict:

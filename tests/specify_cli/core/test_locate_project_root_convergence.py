@@ -37,7 +37,7 @@ import specify_cli.core as core_init_module
 import specify_cli.core.paths as paths_module
 import specify_cli.core.project_resolver as resolver_module
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

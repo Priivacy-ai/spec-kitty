@@ -23,7 +23,7 @@ from specify_cli.doctrine.pack_validator import (
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _write_directive(
     pack_dir: Path,

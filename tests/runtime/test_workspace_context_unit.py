@@ -27,7 +27,7 @@ from specify_cli.workspace.context import (
 )
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 @pytest.fixture
 def kittify_project(tmp_path: Path) -> Path:

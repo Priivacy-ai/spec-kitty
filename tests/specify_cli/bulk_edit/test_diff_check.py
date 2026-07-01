@@ -17,7 +17,7 @@ from specify_cli.bulk_edit.occurrence_map import OccurrenceMap
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _make_map(
     categories: dict[str, dict[str, str]],

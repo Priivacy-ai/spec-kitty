@@ -37,7 +37,7 @@ from specify_cli.retrospective.writer import write_record
 # Shared ULID-like test identifiers (valid Crockford base32, 26 chars)
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 MISSION_ID = "01KQ6YEGT4YBZ3GZF7X680KQ3V"
 MISSION_ID_2 = "01KQ6YEGT4YBZ3GZF7X680KQ3W"

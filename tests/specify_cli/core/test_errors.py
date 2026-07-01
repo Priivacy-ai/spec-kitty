@@ -6,7 +6,7 @@ import pytest
 
 from specify_cli.core.errors import StructuredError
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 class TestStructuredErrorBase:

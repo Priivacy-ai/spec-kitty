@@ -21,7 +21,7 @@ from specify_cli.skills.command_installer import CANONICAL_COMMANDS
 from specify_cli.tool_surface.bundles._builder import MIN_SKILL_COUNT, BuildError
 from specify_cli.tool_surface.bundles.codex import CodexBundleProjector
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

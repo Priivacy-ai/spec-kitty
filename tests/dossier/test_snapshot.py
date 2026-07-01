@@ -25,7 +25,7 @@ from specify_cli.dossier.snapshot import (
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 class TestComputeSnapshotDeterministic:
     """T023: Deterministic snapshot computation"""

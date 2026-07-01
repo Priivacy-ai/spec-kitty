@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 from specify_cli.post_merge.stale_assertions import (
     _SourceSymbol,

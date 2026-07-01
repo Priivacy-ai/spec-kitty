@@ -31,7 +31,7 @@ import pytest
 from mission_runtime import MissionArtifactKind
 from specify_cli.git.protection_policy import ProtectionPolicy
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # A coordination ref vs the primary target branch the router compares against.
 _PRIMARY_BRANCH = "main"

@@ -19,7 +19,7 @@ from specify_cli.doctrine_service_factory import (
     build_activation_aware_doctrine_service,
 )
 
-pytestmark = [pytest.mark.doctrine]
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
 
 def _write_config(repo_root: Path, body: str) -> None:

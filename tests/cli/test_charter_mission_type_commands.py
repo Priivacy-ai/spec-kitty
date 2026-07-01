@@ -21,7 +21,7 @@ from specify_cli.cli.commands.mission_type import app as mission_type_app
 
 runner = CliRunner()
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

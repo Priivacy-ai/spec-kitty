@@ -21,7 +21,7 @@ import yaml
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def test_role_hint_in_mission_template() -> None:
     """software-dev mission.yaml must have at least one task_type with agent_role."""

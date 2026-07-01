@@ -12,7 +12,7 @@ from ._support import full_plans, skills_only_plans
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def test_claude_code_bundle_layout_is_correct(tmp_path: Path) -> None:

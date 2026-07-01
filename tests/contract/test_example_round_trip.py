@@ -67,7 +67,7 @@ import pydantic
 import pytest
 import yaml
 
-pytestmark = [pytest.mark.contract]
+pytestmark = [pytest.mark.contract, pytest.mark.fast]
 
 # ---------------------------------------------------------------------------
 # Repo root (resolve relative to this file: tests/contract/ -> tests/ -> root)

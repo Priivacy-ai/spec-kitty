@@ -10,7 +10,7 @@ import pytest
 from specify_cli.context.models import ContextToken, MissionContext
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _make_context(**overrides: object) -> MissionContext:
     """Helper to build a MissionContext with sensible defaults."""

@@ -30,7 +30,7 @@ from specify_cli.saas_client import (
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def test_public_api_imports() -> None:
     """All public names are importable from the package root."""

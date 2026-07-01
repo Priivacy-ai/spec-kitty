@@ -34,7 +34,7 @@ from specify_cli.migration.rebuild_state import (
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _write_metadata(tmp_path: Path) -> None:
     """Create a minimal .kittify/metadata.yaml."""

@@ -7,7 +7,7 @@ from specify_cli.policy.risk_scorer import compute_risk_report
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _lane(lane_id, wp_ids, write_scope, parallel_group=0):
     return ExecutionLane(

@@ -12,7 +12,7 @@ import pytest
 
 from specify_cli.session_presence.manager import InstallResult, SessionPresenceManager
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _make_agent_config(available: list[str] | None = None) -> MagicMock:

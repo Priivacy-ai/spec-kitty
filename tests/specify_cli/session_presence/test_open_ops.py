@@ -20,7 +20,7 @@ from specify_cli.session_presence.open_ops import (
     render_open_ops_section,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _NOW = datetime(2026, 6, 11, 12, 0, 0, tzinfo=UTC)
 

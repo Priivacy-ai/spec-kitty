@@ -8,7 +8,7 @@ import sys
 import pytest
 
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def test_legacy_glossary_package_import_warns_and_points_to_canonical() -> None:

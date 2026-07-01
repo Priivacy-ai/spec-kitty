@@ -15,7 +15,7 @@ from tests.lane_test_utils import write_single_lane_manifest
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 runner = CliRunner()
 

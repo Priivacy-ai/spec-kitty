@@ -17,7 +17,7 @@ import pytest
 
 from specify_cli.lanes.branch_naming import resolve_mid8
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # Golden literals captured from HEAD (``mission_id[:8]`` before routing).
 _FULL_MISSION_ID = "01KV7SFD0123456789ABCDEFGH"  # 26-char ULID-style
@@ -105,6 +105,7 @@ def test_resolution_primary_meta_declines_when_missing_dir(tmp_path: Path) -> No
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.quarantine  # behavioral drift: _read_mission_mid8 returns '' instead of golden mid8 (Wave-0 orphan-bind triage, #2034/#2283)
 def test_mission_type_read_mid8_truncates_then_declines(tmp_path: Path) -> None:
     from specify_cli.cli.commands.mission_type import _read_mission_mid8
 

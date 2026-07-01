@@ -28,7 +28,7 @@ from specify_cli.status.store import EVENTS_FILENAME, append_event
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _make_feature_dir(tmp_path: Path, slug: str = "099-test-feature") -> Path:
     """Create a minimal feature directory with a WP file."""

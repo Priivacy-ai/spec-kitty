@@ -26,7 +26,7 @@ import pytest
 
 from specify_cli.acceptance import _status_read_feature_dir
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 FULL_ULID = "01KVJPEQ7M3K8N2QXR4VBZ9HCD"
 MID8 = FULL_ULID[:8]  # "01KVJPEQ"

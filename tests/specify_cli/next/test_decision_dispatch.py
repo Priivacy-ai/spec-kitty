@@ -20,7 +20,7 @@ import pytest
 from specify_cli.next.decision import _build_prompt_or_error
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

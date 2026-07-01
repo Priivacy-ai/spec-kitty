@@ -36,7 +36,7 @@ from specify_cli.tool_surface.status import (
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _DEF = SurfaceDefinition(
     kind=SurfaceKind.COMMAND_SKILL,

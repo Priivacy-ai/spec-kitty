@@ -14,7 +14,7 @@ from specify_cli.review.prompt_metadata import (
 )
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _metadata(
     repo_root: Path,

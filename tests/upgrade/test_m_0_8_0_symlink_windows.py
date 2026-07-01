@@ -30,7 +30,7 @@ from specify_cli.upgrade.migrations.m_0_8_0_worktree_agents_symlink import (
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 @pytest.fixture
 def migration() -> WorktreeAgentsSymlinkMigration:

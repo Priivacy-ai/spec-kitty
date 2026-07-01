@@ -19,7 +19,7 @@ from specify_cli.cli.commands.doctrine import app
 
 runner = CliRunner()
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

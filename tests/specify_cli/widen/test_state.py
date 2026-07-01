@@ -30,7 +30,7 @@ from specify_cli.widen.state import WidenPendingStore, validate_entry_schema
 # Helpers
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _NOW = datetime(2026, 4, 23, 16, 0, 0, tzinfo=UTC)
 
