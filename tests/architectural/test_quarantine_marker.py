@@ -13,7 +13,7 @@ rot:
 3. CI runs ``-m quarantine`` in a job that is **non-blocking** (absent from the
    ``quality-gate`` aggregation) and tolerates an empty quarantine set.
 
-See ``docs/development/testing-flakiness.md``.
+See ``docs/guides/testing-flakiness.md``.
 """
 
 from __future__ import annotations
@@ -54,7 +54,7 @@ def test_quarantine_marker_is_registered() -> None:
     assert QUARANTINE_MARKER in names, (
         "The `quarantine` marker must be registered in pytest.ini's `markers` "
         "block (the single source of truth, #2034) — see "
-        "docs/development/testing-flakiness.md"
+        "docs/guides/testing-flakiness.md"
     )
 
 

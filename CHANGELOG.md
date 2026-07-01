@@ -242,7 +242,7 @@ CI test coverage, and decomposes the `agent/tasks.py` god-module.
   one-way-import seam modules with a byte-identical CLI surface; the three planning-commit tails
   are centralized through `commit_for_mission` (#2058 / #2114; follow-up body-thinning + FR-007
   consolidation tracked in #2116).
-- **Test-flakiness handling policy (#2038):** a suite-wide policy (`docs/development/testing-flakiness.md`)
+- **Test-flakiness handling policy (#2038):** a suite-wide policy (`docs/guides/testing-flakiness.md`)
   — never retry-to-green; three tiers (budget / correctness / environmental), each with one sanctioned
   response — plus an env-gated, **non-blocking** `quarantine` pytest marker (held out of every normal/
   blocking run unless `SPEC_KITTY_RUN_QUARANTINE=1`), distinct from the mutmut-deselection `flaky` marker.
