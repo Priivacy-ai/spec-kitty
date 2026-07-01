@@ -3742,11 +3742,13 @@ _Synchronization commands_
  Show or set sync server URL.
 
  Examples:
- spec-kitty sync server
- spec-kitty sync server https://spec-kitty-dev.fly.dev
+spec-kitty sync server
+spec-kitty sync server https://spec-kitty-dev.fly.dev
+spec-kitty sync server http://localhost:8000
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│   url      [URL]  Sync server URL to set (must be https://...)               │
+│   url      [URL]  Sync server URL to set (HTTPS, or loopback HTTP for local  │
+│                   development)                                              │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --help          Show this message and exit.                                  │
