@@ -304,5 +304,7 @@ __all__ = [
     "format_version_error",
     "should_check_version",
     "maybe_emit_no_upgrade_notice",
-    "MismatchType",
+    # MismatchType intentionally NOT exported: its only cross-file importer was the
+    # deleted compat._adapters.version_checker shim; the alias stays defined for
+    # internal signature annotations (compare_versions/format_version_error).
 ]
