@@ -16,13 +16,17 @@ fast, hermetic, and free of git-subprocess overhead.
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
 import pytest
 
-from specify_cli.post_merge.retrospective_terminus import run_retrospective_postcondition
+from specify_cli.post_merge.retrospective_terminus import (
+    _commit_captured_retrospective,
+    run_retrospective_postcondition,
+)
 
 pytestmark = [pytest.mark.unit]
 
@@ -216,3 +220,134 @@ class TestRunRetrospectivePostcondition:
 
         assert _classify_exc(ValueError("bad value")) == "generator_exception"
         assert _classify_exc(RuntimeError("boom")) == "generator_exception"
+
+
+# ---------------------------------------------------------------------------
+# #2119 follow-up — the auto-captured retrospective must be COMMITTED, so a
+# merged/closed mission is never left with an uncommitted event-log append.
+# ---------------------------------------------------------------------------
+
+
+def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", "-C", str(root), *args],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+
+
+def _init_repo(root: Path) -> None:
+    """Init a git repo on ``main`` with one seed commit so HEAD is on a branch."""
+    _git(root, "init", "-b", "main")
+    _git(root, "config", "user.email", "test@example.com")
+    _git(root, "config", "user.name", "Test")
+    (root / ".gitkeep").write_text("", encoding="utf-8")
+    _git(root, "add", ".gitkeep")
+    _git(root, "commit", "-m", "seed")
+
+
+def _porcelain(root: Path) -> str:
+    return subprocess.run(
+        ["git", "-C", str(root), "status", "--porcelain"],
+        capture_output=True,
+        text=True,
+        check=False,
+    ).stdout.strip()
+
+
+class TestRetrospectiveCommit:
+    """The captured retrospective + its event-log append are committed (FR-016)."""
+
+    def test_captured_retrospective_is_committed(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Success path: retrospective.yaml + status.events.jsonl are committed →
+        the working tree is clean after the postcondition (no dirty append)."""
+        monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
+        _init_repo(tmp_path)
+        feature_dir = _make_feature_dir(tmp_path)
+        _git(tmp_path, "add", "-A")
+        _git(tmp_path, "commit", "-m", "seed mission dir")
+        assert _porcelain(tmp_path) == ""  # pre-condition: clean
+
+        def _fake_capture(**_kwargs: Any) -> None:
+            (feature_dir / "retrospective.yaml").write_text("schema_version: 1\n", encoding="utf-8")
+            (feature_dir / "status.events.jsonl").write_text(
+                '{"event": "RetrospectiveCaptured"}\n', encoding="utf-8"
+            )
+
+        with _patch_resolver(feature_dir), _patch_invoke(side_effect=_fake_capture):
+            run_retrospective_postcondition(mission_slug=MISSION_SLUG, repo_root=tmp_path)
+
+        assert (feature_dir / "retrospective.yaml").exists()
+        # The retrospective artifacts specifically must be committed (absent from
+        # porcelain) — unrelated runtime scratch (e.g. .kittify/) is not our concern.
+        dirty = _porcelain(tmp_path)
+        assert "retrospective.yaml" not in dirty, dirty
+        assert "status.events.jsonl" not in dirty, dirty
+        last_msg = _git(tmp_path, "log", "-1", "--format=%s").stdout.strip()
+        assert "capture mission retrospective" in last_msg
+
+    def test_capture_failed_event_is_committed(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Failure path: the capture_failed event append is also committed — the
+        durable event log is never left dirty even when capture fails."""
+        monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
+        _init_repo(tmp_path)
+        feature_dir = _make_feature_dir(tmp_path)
+        _git(tmp_path, "add", "-A")
+        _git(tmp_path, "commit", "-m", "seed mission dir")
+
+        def _emit(**_kwargs: Any) -> None:
+            (feature_dir / "status.events.jsonl").write_text(
+                '{"event": "retrospective.capture_failed"}\n', encoding="utf-8"
+            )
+
+        with (
+            _patch_resolver(feature_dir),
+            _patch_invoke(side_effect=RuntimeError("boom")),
+            patch(
+                "specify_cli.post_merge.retrospective_terminus._emit_capture_failed",
+                side_effect=_emit,
+            ),
+        ):
+            run_retrospective_postcondition(mission_slug=MISSION_SLUG, repo_root=tmp_path)
+
+        assert "status.events.jsonl" not in _porcelain(tmp_path), "capture_failed append must be committed"
+
+    def test_noop_when_not_a_git_repo(self, tmp_path: Path) -> None:
+        """Fail-open: a non-git tree does not raise; the file is left in place."""
+        feature_dir = _make_feature_dir(tmp_path)
+        (feature_dir / "retrospective.yaml").write_text("schema_version: 1\n", encoding="utf-8")
+
+        # Must not raise even though tmp_path is not a git worktree.
+        _commit_captured_retrospective(
+            mission_slug=MISSION_SLUG, feature_dir=feature_dir, repo_root=tmp_path
+        )
+        assert (feature_dir / "retrospective.yaml").exists()
+
+    def test_detached_head_reports_and_skips(
+        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Detached HEAD: cannot resolve a destination → warn + skip (leave dirty),
+        never raise. The warning surfaces the uncommitted append to the operator."""
+        _init_repo(tmp_path)
+        feature_dir = _make_feature_dir(tmp_path)
+        _git(tmp_path, "add", "-A")
+        _git(tmp_path, "commit", "-m", "seed mission dir")
+        head_sha = _git(tmp_path, "rev-parse", "HEAD").stdout.strip()
+        _git(tmp_path, "checkout", head_sha)  # detach HEAD
+        (feature_dir / "retrospective.yaml").write_text("schema_version: 1\n", encoding="utf-8")
+
+        import logging
+
+        with caplog.at_level(logging.WARNING):
+            _commit_captured_retrospective(
+                mission_slug=MISSION_SLUG, feature_dir=feature_dir, repo_root=tmp_path
+            )
+
+        assert any("NOT committed" in rec.message for rec in caplog.records)
+        # File remains uncommitted (skipped), but the operator was told.
+        assert "retrospective.yaml" in _porcelain(tmp_path)

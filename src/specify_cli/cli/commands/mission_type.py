@@ -525,10 +525,14 @@ def close_cmd(
 ) -> None:
     """Close a mission. Wraps FR-016 lifecycle teardown.
 
-    Without ``--discard``: tear down the coordination worktree only.
-    This is a safe no-op after a successful ``spec-kitty merge`` (the
-    merge command already runs the same teardown); useful when the
-    teardown was skipped (e.g. legacy merge path) or interrupted.
+    Without ``--discard``: run the merge-completion teardown — persist the
+    mission retrospective to its durable home and tear down the coordination
+    worktree. Idempotent after a successful ``spec-kitty merge`` (which already
+    ran the same teardown); useful when the teardown was skipped (e.g. the legacy
+    plain-git/GitHub merge path) or interrupted. NOTE: on a mission that was
+    merged without a retrospective, this generates one
+    (``kitty-specs/<slug>/retrospective.yaml``) plus a ``RetrospectiveCaptured``
+    event and commits both — it is not a pure no-op in that case.
 
     With ``--discard``: abandon the mission mid-flight. Deletes the
     coordination branch and every lane branch named in

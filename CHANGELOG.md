@@ -11,6 +11,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
+- **`mission close` / `spec-kitty merge` now commit the retrospective they
+  auto-generate, instead of leaving the durable event log dirty.** Closing a
+  mission that was merged via the legacy plain-git/GitHub path (so merge-time
+  teardown never ran) auto-captured `retrospective.yaml` and appended a
+  `RetrospectiveCaptured` event to `status.events.jsonl`, but left both
+  uncommitted with no notice — violating the atomic-event-log discipline
+  (FR-016), since an uncommitted append can be lost. The shared post-merge
+  retrospective postcondition now commits the captured record + its event-log
+  append via the merge-bookkeeping commit path, so `merge` and `mission close`
+  behave identically and the working tree is left clean. If the commit cannot be
+  made (detached HEAD / not a worktree), it fails open but reports the
+  uncommitted artifacts and the exact command to commit them. `mission close
+  --help` no longer describes the non-`--discard` path as a pure "no-op".
 - **`map-requirements` now explains *why* a WP `requirement_refs` entry is stale
   instead of looking like data corruption (#2066).** When the stale/invalid-refs
   gate trips, the `--json` payload (and console output) now surface the FR-ID set
