@@ -137,3 +137,4 @@ references:
   - "src/doctrine/tactics/built-in/testing/test-pyramid-progression.tactic.yaml"
   - "src/doctrine/directives/built-in/030-test-and-typecheck-quality-gate.directive.yaml"
   - "src/doctrine/directives/built-in/034-test-first-development.directive.yaml"
+  - "src/doctrine/directives/built-in/041-tests-as-scaffold-not-friction.directive.yaml"

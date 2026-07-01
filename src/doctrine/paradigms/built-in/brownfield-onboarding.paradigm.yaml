@@ -39,6 +39,8 @@ references:
     id: delete-the-assertion-not-the-test
   - type: procedure
     id: adversarial-squad-deployment
+  - type: styleguide
+    id: adversarial-squad-cadence
 
 opposed_by:
   - type: paradigm

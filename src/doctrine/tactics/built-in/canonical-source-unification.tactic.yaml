@@ -1,0 +1,67 @@
+schema_version: "1.0"
+id: canonical-source-unification
+name: Canonical Source Unification
+purpose: >
+  How to resolve a split-brain surface — when the same concept is implemented or stored in
+  more than one location — by consolidating to a single canonical authority. The key
+  distinction: consolidation routes all traffic through one surface (unification); adding
+  the same behavior to every copy (parity) preserves the split-brain and must be refused.
+steps:
+  - title: Identify the canonical surface
+    description: >
+      Determine which of the duplicated locations is recognized as authoritative by the
+      resolver, the CLI, or the doctrine system. The canonical surface is the one the
+      framework routes through — not the oldest, the largest, or the most recently edited
+      copy.
+    examples:
+      - "The CLI's resolve_planning_read_dir() return value is the canonical read surface;
+        a parallel path used by a gate command is the non-canonical copy."
+      - "src/doctrine/missions/<type>/templates/ is the canonical template surface; a copy
+        inside kitty-specs/ is a historical snapshot, not the authority."
+  - title: Map all non-canonical call sites
+    description: >
+      Find every place in the codebase — imports, direct path references, agent commands,
+      test fixtures, documentation — that routes to a non-canonical copy instead of the
+      canonical surface.
+    examples:
+      - "grep -r 'planning_read_dir' src/ tests/ to find all readers; compare to the
+        canonical resolver output to identify divergent paths."
+  - title: Route all traffic through the canonical surface
+    description: >
+      Update every non-canonical call site to go through the canonical surface. Remove or
+      retire the non-canonical copy once it has no remaining references. Do NOT add the same
+      behavior to both canonical and non-canonical surfaces as a transitional step — that
+      grows the split-brain during the transition.
+    examples:
+      - "Replace a direct path reference with a call to the canonical resolver function."
+      - "Update agent command templates to reference the correct CLI surface."
+  - title: Add or extend a gate to enforce the canonical route
+    description: >
+      After routing is corrected, add or extend an architectural gate (an executable architectural
+      assertion, an import-linter rule, or an equivalent ratchet) that rejects future
+      non-canonical routing. A missing gate means the split-brain can reappear silently in a
+      later change.
+    examples:
+      - "Add a test asserting that all gate-command reads go through the canonical resolver,
+        not a hardcoded path."
+  - title: Confirm the non-canonical copy is retired
+    description: >
+      Verify the non-canonical surface is removed or clearly marked deprecated with a
+      redirect to the canonical surface. Do not leave a non-canonical copy as a fallback
+      — fallbacks revive the split-brain silently on the next opportunistic use.
+failure_modes:
+  - "Parity instead of unification: applying the same fix to both canonical and non-canonical
+    surfaces. This grows the split-brain instead of resolving it."
+  - "Fallback preservation: keeping the non-canonical copy as a fallback 'in case'. The
+    fallback hides split-brain regressions and will be rediscovered as a bug."
+  - "Gate omission: consolidating without adding a ratchet, so the split-brain can reappear
+    in a future change without a CI failure."
+  - "Wrong canonical surface: choosing the surface based on recency or size rather than
+    what the framework resolver actually routes through."
+references:
+  - name: Canonical Sources and Unification
+    type: directive
+    id: DIRECTIVE_044
+    when: >
+      Consult to understand the binding rules this tactic operationalizes, including the
+      unification-not-parity rule and the missing-command-is-a-gap rule.
