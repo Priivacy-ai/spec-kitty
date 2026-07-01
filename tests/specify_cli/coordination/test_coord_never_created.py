@@ -36,7 +36,7 @@ from specify_cli.migration.backfill_topology import (
     read_topology,
 )
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------

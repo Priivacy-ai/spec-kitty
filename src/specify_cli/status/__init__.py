@@ -185,8 +185,11 @@ from .doctor import (
     run_doctor,
 )
 from .doctor_husks import (
+    WORKTREES_DIRNAME,
+    RegisteredWorktreePaths,
     WorkspaceHuskRegistrationError,
     fix_workspace_husks,
+    registered_worktree_paths,
     scan_workspace_husks,
 )
 
@@ -285,6 +288,8 @@ __all__ = [
     "ULID_PATTERN",
     "ValidationResult",
     "VerificationResult",
+    "WORKTREES_DIRNAME",
+    "RegisteredWorktreePaths",
     "WorkspaceHuskRegistrationError",
     "WPMetadata",
     "_Builder",
@@ -333,6 +338,7 @@ __all__ = [
     "validate_transition",
     "validate_transition_legality",
     "wp_state_for",
+    "registered_worktree_paths",
     "scan_workspace_husks",
     "write_derived_views",
 ]
