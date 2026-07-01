@@ -367,6 +367,7 @@ def _generate_synthetic_ops(ops_dir: Path, count: int, started_at: str) -> None:
         (ops_dir / f"{invocation_id}.jsonl").write_text(line + "\n", encoding="utf-8")
 
 
+@pytest.mark.quarantine  # perf budget CI-machine-dependent (2.96s vs 0.5s) (Wave-0 orphan-bind triage #2295, #2034/#2283)
 def test_sweep_enumeration_perf_1k_files(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

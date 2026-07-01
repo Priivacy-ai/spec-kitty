@@ -1,6 +1,6 @@
 ---
 title: Degod / Unshim Program — Roadmap
-description: 'Sequenced roadmap for degodding (god-command decomposition, #2173) and unshimming (dead-code/shim removal, #1797) the codebase — the structural cure for the measured test-friction. Wave 0 binds the CI suite map (#2034), Wave 1 is the tasks.py degod (#2116).'
+description: 'Sequenced roadmap for degodding and unshimming the codebase — the structural cure for the measured test-friction: the waves, the epic frame, and the invariants.'
 doc_status: active
 updated: '2026-07-01'
 ---

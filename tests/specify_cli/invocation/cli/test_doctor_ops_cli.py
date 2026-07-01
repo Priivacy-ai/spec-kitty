@@ -47,6 +47,7 @@ def _fresh_ts() -> str:
     return (datetime.now(UTC) - timedelta(minutes=5)).isoformat()
 
 
+@pytest.mark.quarantine  # Typer/click usage-render skew (local != CI) (Wave-0 orphan-bind triage #2295, #2034/#2283)
 def test_threshold_without_close_stale_is_usage_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

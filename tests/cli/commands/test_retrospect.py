@@ -917,6 +917,7 @@ class TestSynthesizeFabricateEmpty:
         data = json.loads(result.output)
         assert data["code"] == "RETROSPECTIVE_RECORD_MISSING"
 
+    @pytest.mark.quarantine  # Typer/click help-render skew (local != CI) (Wave-0 orphan-bind triage #2295, #2034/#2283)
     def test_help_shows_fabricate_empty_flag(self) -> None:
         """--fabricate-empty flag appears in help text."""
         result = RUNNER.invoke(agent_retrospect_app, ["synthesize", "--help"])
