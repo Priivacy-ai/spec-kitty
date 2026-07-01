@@ -483,6 +483,7 @@ class TestRunUpgradeUxFourChoices:
         _patch_planner(monkeypatch, "ALLOW_WITH_NAG", latest="2.0")
         return _patch_cache_noop(monkeypatch)
 
+    @pytest.mark.quarantine  # uv-tool/installer env-dependent (local passes, CI fails) (Wave-0 orphan-bind triage #2295, #2034/#2283)
     def test_choice_upgrade_now_safe_installer(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -512,6 +513,7 @@ class TestRunUpgradeUxFourChoices:
         assert written.remote_version_seen == "2.0"
         assert written.snooze_step is None
 
+    @pytest.mark.quarantine  # uv-tool/installer env-dependent (local passes, CI fails) (Wave-0 orphan-bind triage #2295, #2034/#2283)
     def test_choice_always_persists(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -528,6 +530,7 @@ class TestRunUpgradeUxFourChoices:
         written = cache_state["writes"][0]
         assert written.always_upgrade is True
 
+    @pytest.mark.quarantine  # uv-tool/installer env-dependent (local passes, CI fails) (Wave-0 orphan-bind triage #2295, #2034/#2283)
     def test_choice_not_now_advances_cadence(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -545,6 +548,7 @@ class TestRunUpgradeUxFourChoices:
         written = cache_state["writes"][0]
         assert written.snooze_step == "24h"
 
+    @pytest.mark.quarantine  # uv-tool/installer env-dependent (local passes, CI fails) (Wave-0 orphan-bind triage #2295, #2034/#2283)
     def test_choice_never_ask_persists(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -565,6 +569,7 @@ class TestRunUpgradeUxFourChoices:
 class TestRunUpgradeUxUnknownInstaller:
     """Acceptance criterion 5 + 8 — UNKNOWN installer never auto-upgrades."""
 
+    @pytest.mark.quarantine  # uv-tool/installer env-dependent (local passes, CI fails) (Wave-0 orphan-bind triage #2295, #2034/#2283)
     def test_upgrade_now_unknown_installer_is_guidance_only(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -587,6 +592,7 @@ class TestRunUpgradeUxUnknownInstaller:
         assert outcome.guidance_only is True
         assert outcome.auto_upgrade_attempted is False
 
+    @pytest.mark.quarantine  # uv-tool/installer env-dependent (local passes, CI fails) (Wave-0 orphan-bind triage #2295, #2034/#2283)
     def test_always_unknown_installer_is_guidance_only(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -610,6 +616,7 @@ class TestRunUpgradeUxUnknownInstaller:
 class TestRunUpgradeUxNeverAskPersists:
     """Acceptance criterion 8 — Never ask again persists across invocations."""
 
+    @pytest.mark.quarantine  # uv-tool/installer env-dependent (local passes, CI fails) (Wave-0 orphan-bind triage #2295, #2034/#2283)
     def test_persisted_never_ask_suppresses_prompt(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -646,6 +653,7 @@ class TestRunUpgradeUxNeverAskPersists:
 class TestRunUpgradeUxNewVersionResetsCadence:
     """Acceptance criterion 1 + 8 — new remote version resets cadence + never_ask."""
 
+    @pytest.mark.quarantine  # uv-tool/installer env-dependent (local passes, CI fails) (Wave-0 orphan-bind triage #2295, #2034/#2283)
     def test_new_version_resets_never_ask_and_snooze(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -695,6 +703,7 @@ class TestRunUpgradeUxNewVersionResetsCadence:
 class TestRunUpgradeUxAlwaysSafe:
     """Acceptance criterion 3 + 5 — always_upgrade + safe installer auto-runs."""
 
+    @pytest.mark.quarantine  # uv-tool/installer env-dependent (local passes, CI fails) (Wave-0 orphan-bind triage #2295, #2034/#2283)
     def test_always_upgrade_safe_installer_subprocess_fires(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -721,6 +730,7 @@ class TestRunUpgradeUxAlwaysSafe:
         assert outcome.auto_upgrade_attempted is True
         assert outcome.prompted is False
 
+    @pytest.mark.quarantine  # uv-tool/installer env-dependent (local passes, CI fails) (Wave-0 orphan-bind triage #2295, #2034/#2283)
     def test_uv_tool_auto_upgrade_reinstalls_target_version(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -830,6 +840,7 @@ class TestRunUpgradeUxAlwaysSafe:
 
 
 class TestRunUpgradeUxActiveSnooze:
+    @pytest.mark.quarantine  # uv-tool/installer env-dependent (local passes, CI fails) (Wave-0 orphan-bind triage #2295, #2034/#2283)
     def test_active_snooze_suppresses_prompt(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

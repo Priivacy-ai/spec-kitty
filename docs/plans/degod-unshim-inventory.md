@@ -1,6 +1,6 @@
 ---
 title: Degod / Unshim — 3-Lens Inventory
-description: 'The detailed research catalogs behind the degod/unshim roadmap: the shim/dead-code inventory, the god-object decomposition map, and the #1868 seams-in-name-only catalog. The durable evidence base for the sanitization program.'
+description: 'The detailed research catalogs behind the degod/unshim roadmap: the shim/dead-code inventory, the god-object decomposition map, and the #1868 seams-in-name-only catalog.'
 doc_status: active
 updated: '2026-07-01'
 ---
