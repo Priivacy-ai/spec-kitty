@@ -80,6 +80,16 @@ def _scaffold_project(
     kittify = repo_root / ".kittify"
     kittify.mkdir()
 
+    # Mint + persist a real project identity, exactly as ``spec-kitty init``
+    # does. Post-#2263 the read/sync/status paths resolve identity WITHOUT
+    # persisting, so a scaffold that omits the project UUID makes the sync
+    # emitter warn "Event missing project_uuid; queued locally only" to stderr,
+    # which CliRunner folds into ``result.output`` and corrupts ``--json``
+    # parsing. A real project always carries a minted identity.
+    from specify_cli.identity.project import ensure_identity
+
+    ensure_identity(repo_root)
+
     # Feature directory
     feature_dir = repo_root / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)

@@ -43,6 +43,7 @@ def _make_run(tmp_path: Path, *, done_marked_before_target: bool = False) -> ex.
         main_repo=tmp_path,
         mission_slug="m",
         canonical_id="01ID",
+        canonical_mission_id="01JQANARZAP70V8DVJZ8XN0M3T",
         feature_dir=tmp_path / "kitty-specs" / "m",
         target_feature_dir=tmp_path / "kitty-specs" / "m",
         lanes_manifest=lanes_manifest,

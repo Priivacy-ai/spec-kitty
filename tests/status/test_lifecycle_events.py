@@ -745,6 +745,16 @@ def test_lifecycle_saas_outbox_queues_when_scoped(
     monkeypatch.setenv("HOME", str(tmp_path / "home"))
     queued: list[dict[str, object]] = []
 
+    # Mint + persist a real project identity (as ``spec-kitty init`` does).
+    # Post-#2263 the SaaS lifecycle fan-out resolves identity WITHOUT
+    # persisting, so an uninitialized repo yields ``project_uuid=None`` and the
+    # handler early-returns before queuing. A real project always carries a
+    # minted identity, which is what the outbox path requires to enqueue.
+    from specify_cli.identity.project import ensure_identity
+
+    (tmp_path / ".kittify").mkdir(exist_ok=True)
+    ensure_identity(tmp_path)
+
     class _Queue:
         def queue_event(self, event: dict[str, object]) -> bool:
             queued.append(event)
