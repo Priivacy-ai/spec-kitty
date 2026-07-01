@@ -69,8 +69,15 @@ def test_lanes_manifest_round_trip():
     assert restored.lanes[1] == manifest.lanes[1]
 
 
-def test_lanes_manifest_from_dict_missing_mission_id_falls_back():
-    """If lanes.json was written before mission_id was added, fall back to mission_slug."""
+def test_lanes_manifest_from_dict_missing_mission_id_fails_closed():
+    """A legacy lanes.json without mission_id yields mission_id=None — never the slug.
+
+    #2138/FR-004: the ``mission_id`` field is a canonical ULID or None; a pre-083
+    manifest that predates the field must NOT have its slug substituted into the
+    ULID-typed field (the retired slug-fallback — the exact defect this mission
+    removed). Real legacy missions mint an id via ``spec-kitty migrate
+    backfill-identity``; there is no runtime slug fallback.
+    """
     data = {
         "version": 1,
         "mission_slug": "old-feature",
@@ -81,7 +88,8 @@ def test_lanes_manifest_from_dict_missing_mission_id_falls_back():
         "computed_from": "test",
     }
     manifest = LanesManifest.from_dict(data)
-    assert manifest.mission_id == "old-feature"
+    assert manifest.mission_id is None
+    assert manifest.mission_id != data["mission_slug"]
 
 
 def test_lane_for_wp():
