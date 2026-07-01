@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "bd2cd8003baa2afc1ffc829a3070dbfef061316b",
+  "coordination_branch": "kitty/mission-doctrine-catfooding-2196-01KWE16N",
+  "created_at": "2026-07-01T05:07:36.643254+00:00",
+  "flattened": false,
+  "friendly_name": "Doctrine Catfooding",
+  "mission_id": "01KWE16N220EGF1Z5FPZ6V4SC0",
+  "mission_number": 156,
+  "mission_slug": "doctrine-catfooding-2196-01KWE16N",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The Quality & Tech-Debt Standing Orders that keep spec-driven missions honest (adversarial squads, campsite debt paydown, tracer files, test-remediation discipline, non-vacuous architectural gates, canonical-source unification, git/workflow discipline, mission hygiene) currently live outside the doctrine system as operator standing orders and session-memory notes — so the tooling cannot activate, enforce, or compile them. This mission converts those 8 sections into first-class doctrine artifacts, reconciling with the doctrine that already partially covers them rather than duplicating, then compiles the Spec Kitty Charter from the activated set. The result: Spec Kitty dogfoods its own governance, and consumers inherit the same hardened practices.",
+  "purpose_tldr": "Turn Spec Kitty's battle-tested quality standing orders into activatable doctrine and have Spec Kitty govern its own development with the doctrine it ships.",
+  "slug": "doctrine-catfooding-2196-01KWE16N",
+  "target_branch": "design/doctrine-catfooding-2196",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-01T10:05:26.392218+00:00"
+}
