@@ -42,10 +42,12 @@ _ENUM_HOME = "src/specify_cli/core/commit_guard.py"
 _PROTECTED_FLOW_ALLOWLISTS: dict[str, frozenset[str]] = {
     # Test-fixture-only: no production caller, ever.
     "TEST_MODE": frozenset({_ENUM_HOME}),
-    # The bona-fide merge done-transitions bookkeeping flow. The safe_commit call
-    # site relocated from cli/commands/merge.py to the merge/executor.py seam in
-    # mission #2057's god-module decomposition (behavior-preserving move).
-    "MERGE_BOOKKEEPING": frozenset({_ENUM_HOME, "src/specify_cli/merge/executor.py"}),
+    # The bona-fide merge/close done-transitions bookkeeping flow. Both the merge
+    # executor AND the post-merge retrospective terminus (which also runs from the
+    # `mission close` path) land their bookkeeping commit through the ONE shared
+    # seam `git/bookkeeping_commit.py` (#2280 / PR #2281) — a single sanctioned
+    # protected-flow commit surface, not a second guard-capability call site.
+    "MERGE_BOOKKEEPING": frozenset({_ENUM_HOME, "src/specify_cli/git/bookkeeping_commit.py"}),
     # The bona-fide upgrade bookkeeping flow.
     "UPGRADE_BOOKKEEPING": frozenset({_ENUM_HOME, "src/specify_cli/cli/commands/upgrade.py"}),
     # No reachable caller today (S6 debt: wire or delete).

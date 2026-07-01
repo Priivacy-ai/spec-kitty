@@ -28,7 +28,7 @@ from specify_cli.post_merge.retrospective_terminus import (
     run_retrospective_postcondition,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -47,9 +47,17 @@ def _make_feature_dir(tmp_path: Path, *, mission_id: str = "01HXYZ00000000000000
 
 
 def _patch_resolver(feature_dir: Path) -> Any:
-    """Patch resolve_feature_dir_for_slug at its source module to return feature_dir."""
+    """Patch the retrospective-home resolver the terminus ACTUALLY calls.
+
+    The live path is ``resolve_retrospective_home`` (writer.py) →
+    ``primary_feature_dir_for_mission``; the old patch targeted
+    ``resolve_feature_dir_for_slug``, which this path never calls, so it was a
+    dead no-op that only "worked" because the real primitive happened to return
+    the same tmp path. Patch the real seam so the test genuinely controls
+    resolution.
+    """
     return patch(
-        "specify_cli.missions._read_path_resolver.resolve_feature_dir_for_slug",
+        "specify_cli.retrospective.writer.resolve_retrospective_home",
         return_value=feature_dir,
     )
 
@@ -351,3 +359,130 @@ class TestRetrospectiveCommit:
         assert any("NOT committed" in rec.message for rec in caplog.records)
         # File remains uncommitted (skipped), but the operator was told.
         assert "retrospective.yaml" in _porcelain(tmp_path)
+
+    def test_commit_failure_is_fail_open_with_remediation(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """safe_commit RAISES → fail-open: no re-raise, the WARNING carries the
+        manual ``git add && git commit`` remediation, and the artifacts are left
+        dirty (never lost). Guards the terminus's 'must never abort merge/close'
+        contract at the commit boundary."""
+        import logging
+
+        monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
+        _init_repo(tmp_path)
+        feature_dir = _make_feature_dir(tmp_path)
+        _git(tmp_path, "add", "-A")
+        _git(tmp_path, "commit", "-m", "seed mission dir")
+
+        def _fake_capture(**_kwargs: Any) -> None:
+            (feature_dir / "retrospective.yaml").write_text("schema_version: 1\n", encoding="utf-8")
+            (feature_dir / "status.events.jsonl").write_text(
+                '{"event": "RetrospectiveCaptured"}\n', encoding="utf-8"
+            )
+
+        with (
+            _patch_resolver(feature_dir),
+            _patch_invoke(side_effect=_fake_capture),
+            patch(
+                "specify_cli.git.bookkeeping_commit.commit_merge_bookkeeping",
+                side_effect=RuntimeError("boom: git index locked"),
+            ),
+            caplog.at_level(logging.WARNING),
+        ):
+            # Fail-open: must NOT raise even though the commit blew up.
+            run_retrospective_postcondition(mission_slug=MISSION_SLUG, repo_root=tmp_path)
+
+        # Artifacts are left dirty (never silently dropped).
+        dirty = _porcelain(tmp_path)
+        assert "retrospective.yaml" in dirty, dirty
+        # The WARNING surfaces the exact manual remediation command.
+        joined = " ".join(rec.getMessage() for rec in caplog.records)
+        assert "could NOT be committed" in joined, joined
+        assert "git -C" in joined and " add " in joined and "commit -m" in joined, joined
+
+    def test_idempotency_heals_a_previously_failed_commit(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Re-running after a FAILED commit re-commits the leftover dirt (#2280).
+
+        First run: capture writes the artifacts but the commit fails (fail-open →
+        left dirty). Second run: retrospective.yaml already exists so capture is
+        skipped, yet the postcondition HEALS the leftover append. Exactly ONE
+        retrospective commit lands and the tree ends clean."""
+        monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
+        _init_repo(tmp_path)
+        feature_dir = _make_feature_dir(tmp_path)
+        _git(tmp_path, "add", "-A")
+        _git(tmp_path, "commit", "-m", "seed mission dir")
+        base_count = int(_git(tmp_path, "rev-list", "--count", "HEAD").stdout.strip())
+
+        def _fake_capture(**_kwargs: Any) -> None:
+            (feature_dir / "retrospective.yaml").write_text("schema_version: 1\n", encoding="utf-8")
+            (feature_dir / "status.events.jsonl").write_text(
+                '{"event": "RetrospectiveCaptured"}\n', encoding="utf-8"
+            )
+
+        from specify_cli.git.bookkeeping_commit import commit_merge_bookkeeping as _real_commit
+
+        calls = {"n": 0}
+
+        def _flaky_commit(**kwargs: Any) -> Any:
+            calls["n"] += 1
+            if calls["n"] == 1:
+                raise RuntimeError("transient commit failure")
+            return _real_commit(**kwargs)
+
+        with (
+            _patch_resolver(feature_dir),
+            _patch_invoke(side_effect=_fake_capture),
+            patch(
+                "specify_cli.git.bookkeeping_commit.commit_merge_bookkeeping",
+                side_effect=_flaky_commit,
+            ),
+        ):
+            # Run 1 — capture succeeds, commit fails → artifacts left dirty.
+            run_retrospective_postcondition(mission_slug=MISSION_SLUG, repo_root=tmp_path)
+            assert "retrospective.yaml" in _porcelain(tmp_path), "run 1 commit should have failed"
+            # Run 2 — capture skipped (yaml exists) but the leftover dirt is healed.
+            run_retrospective_postcondition(mission_slug=MISSION_SLUG, repo_root=tmp_path)
+
+        assert "retrospective.yaml" not in _porcelain(tmp_path), "run 2 should have healed the append"
+        assert "status.events.jsonl" not in _porcelain(tmp_path)
+        final_count = int(_git(tmp_path, "rev-list", "--count", "HEAD").stdout.strip())
+        assert final_count - base_count == 1, "exactly one retrospective commit must land"
+
+    def test_symlinked_repo_root_does_not_raise(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """F1: a symlinked repo_root must not raise out of the fail-open boundary.
+
+        When the resolved feature_dir sits outside the LEXICAL symlink repo_root,
+        the pre-fix ``path.relative_to(repo_root)`` raised ``ValueError`` and
+        aborted the merge/close. Resolving both sides keeps it fail-open."""
+        monkeypatch.setenv("SPEC_KITTY_ALLOW_PROTECTED_BRANCH_COMMITS", "1")
+        real = tmp_path / "real"
+        real.mkdir()
+        _init_repo(real)
+        link = tmp_path / "link"
+        link.symlink_to(real, target_is_directory=True)
+
+        # feature_dir on the REAL path; repo_root passed as the SYMLINK → the
+        # naive lexical relative_to() would raise.
+        feature_dir = real / "kitty-specs" / MISSION_SLUG
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text(
+            json.dumps({"mission_id": "01HXYZ0000000000000000000A", "mission_slug": MISSION_SLUG}),
+            encoding="utf-8",
+        )
+        (feature_dir / "retrospective.yaml").write_text("schema_version: 1\n", encoding="utf-8")
+        (feature_dir / "status.events.jsonl").write_text(
+            '{"event": "RetrospectiveCaptured"}\n', encoding="utf-8"
+        )
+
+        # Must NOT raise (ValueError would abort merge/close). The artifacts are
+        # never lost regardless of whether the commit lands.
+        _commit_captured_retrospective(
+            mission_slug=MISSION_SLUG, feature_dir=feature_dir, repo_root=link
+        )
+        assert (feature_dir / "retrospective.yaml").exists()

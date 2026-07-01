@@ -33,7 +33,6 @@ if TYPE_CHECKING:
     from specify_cli.lanes.models import LanesManifest
 
 from specify_cli.cli.helpers import console
-from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTIFY_DIR
 from specify_cli.coordination.surface_resolver import (
     is_under_worktrees_segment,
@@ -41,7 +40,7 @@ from specify_cli.coordination.surface_resolver import (
 )
 from specify_cli.core.git_ops import has_remote, run_command
 from specify_cli.core.paths import get_main_repo_root
-from specify_cli.git import safe_commit
+from specify_cli.git.bookkeeping_commit import commit_merge_bookkeeping
 from specify_cli.git.commit_helpers import SafeCommitRecoveryFailed
 from specify_cli.git.sparse_checkout import require_no_sparse_checkout
 from specify_cli.lanes.persistence import require_lanes_json
@@ -651,13 +650,12 @@ def _phase_commit_and_assert(run: _MergeRunState) -> None:
     has_bookkeeping_changes = _paths_have_status_changes(run.main_repo, files_to_commit)
     if has_bookkeeping_changes:
         try:
-            safe_commit(
+            commit_merge_bookkeeping(
                 repo_root=run.main_repo,
                 worktree_root=run.main_repo,
-                destination_ref=lanes_manifest.target_branch,
+                branch=lanes_manifest.target_branch,
                 message=f"chore({run.mission_slug}): record done transitions for merged WPs",
                 paths=tuple(files_to_commit),
-                capability=GuardCapability.MERGE_BOOKKEEPING,
             )
         except Exception as exc:
             if not (isinstance(exc, SafeCommitRecoveryFailed) and exc.commit_sha is not None):

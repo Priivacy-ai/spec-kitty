@@ -440,7 +440,7 @@ def _real_merge_external_mocks(repo: Path) -> Iterator[None]:
     and the real ``_mark_wp_merged_done`` (event log reaches done) run."""
     with ExitStack() as stack:
         for target in (
-            "specify_cli.merge.executor.safe_commit",
+            "specify_cli.merge.executor.commit_merge_bookkeeping",
             "specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled",
             "specify_cli.merge.executor.emit_mission_closed",
             "specify_cli.merge.executor._emit_merge_diff_summary",

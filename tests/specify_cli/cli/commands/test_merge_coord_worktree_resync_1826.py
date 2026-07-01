@@ -305,7 +305,7 @@ def _merge_external_mocks():
         "done_on_target": patch(
             "specify_cli.merge.executor._assert_merged_wps_done_on_target"
         ),
-        "safe_commit": patch("specify_cli.merge.executor.safe_commit"),
+        "safe_commit": patch("specify_cli.merge.executor.commit_merge_bookkeeping"),
         "dossier": patch(
             "specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"
         ),

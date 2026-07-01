@@ -346,8 +346,8 @@ def test_midrange_date_inserts_between_neighbours(tmp_path: Path) -> None:
 def test_out_of_tree_adr_is_rejected_and_edits_nothing(tmp_path: Path) -> None:
     repo_root = tmp_path
     docs_root = _write_docs_tree(repo_root)
-    # A decoy `adr/3.x/` tree OUTSIDE docs_root — the `/tmp/adr/3.x/foo.md` shape
-    # the review flagged as destructively editable.
+    # A decoy `adr/3.x/` tree OUTSIDE docs_root — the `<tmpdir>/adr/3.x/foo.md`
+    # shape the review flagged as destructively editable.
     outside = repo_root / "outside" / "adr" / "3.x"
     outside.mkdir(parents=True)
     outside_readme = outside / "README.md"

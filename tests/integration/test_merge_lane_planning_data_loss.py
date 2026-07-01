@@ -142,7 +142,7 @@ class TestMergeIncludesPlanningLane:
             patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
             patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
             patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done", side_effect=fake_mark_wp_merged_done),
-            patch("specify_cli.merge.executor.safe_commit"),
+            patch("specify_cli.merge.executor.commit_merge_bookkeeping"),
             patch("specify_cli.merge.done_bookkeeping._assert_merged_wps_reached_done"),
             patch("specify_cli.post_merge.stale_assertions.run_check"),
             patch("specify_cli.policy.merge_gates.evaluate_merge_gates"),
@@ -335,7 +335,7 @@ def _real_merge_external_mocks(repo_root: Path):
         # External side effects (status emit, dossier, SaaS, stale-assertion check)
         patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"),
         patch("specify_cli.merge.done_bookkeeping._assert_merged_wps_reached_done"),
-        patch("specify_cli.merge.executor.safe_commit"),
+        patch("specify_cli.merge.executor.commit_merge_bookkeeping"),
         patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
         patch("specify_cli.merge.executor.emit_mission_closed"),
         patch("specify_cli.merge.executor._emit_merge_diff_summary"),
@@ -406,7 +406,7 @@ def _real_invariant_external_mocks(repo_root: Path):
     patches = [
         patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"),
         patch("specify_cli.merge.done_bookkeeping._assert_merged_wps_reached_done"),
-        patch("specify_cli.merge.executor.safe_commit"),
+        patch("specify_cli.merge.executor.commit_merge_bookkeeping"),
         patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
         patch("specify_cli.merge.executor.emit_mission_closed"),
         patch("specify_cli.merge.executor._emit_merge_diff_summary"),
@@ -768,7 +768,7 @@ def _real_persistence_external_mocks(repo_root: Path):
     ``TestLegacyPlanningOnlyMetaInvariant`` (F2).
     """
     patches = [
-        patch("specify_cli.merge.executor.safe_commit"),
+        patch("specify_cli.merge.executor.commit_merge_bookkeeping"),
         patch("specify_cli.merge.executor.trigger_feature_dossier_sync_if_enabled"),
         patch("specify_cli.merge.executor.emit_mission_closed"),
         patch("specify_cli.merge.executor._emit_merge_diff_summary"),

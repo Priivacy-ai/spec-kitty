@@ -134,7 +134,7 @@ def test_record_then_commit_then_assert_ordering(tmp_path: Path) -> None:
         ),
         patch.object(ex, "_record_baseline_merge_commit", side_effect=_record_baseline),
         patch.object(ex, "_paths_have_status_changes", lambda *_a, **_k: True),
-        patch.object(ex, "safe_commit", side_effect=lambda **_k: events.append("commit")),
+        patch.object(ex, "commit_merge_bookkeeping", side_effect=lambda **_k: events.append("commit")),
         patch.object(ex, "_assert_merged_wps_done_on_target", lambda *_a, **_k: None),
         patch.object(
             ex, "_assert_baseline_merge_commit_on_target",
@@ -192,7 +192,7 @@ def test_commit_failure_restores_then_reraises(tmp_path: Path) -> None:
     boom = RuntimeError("commit failed")
     with (
         patch.object(ex, "_paths_have_status_changes", lambda *_a, **_k: True),
-        patch.object(ex, "safe_commit", side_effect=boom),
+        patch.object(ex, "commit_merge_bookkeeping", side_effect=boom),
         patch.object(
             ex, "_restore_final_bookkeeping_snapshots",
             side_effect=lambda snaps: restored.append(snaps),
