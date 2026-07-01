@@ -21,6 +21,7 @@ class HelpOnEmptyTopLevelGroup(TyperGroup):
 
 
 _HELP_ON_EMPTY_GROUP_CLASS_CACHE: dict[type[TyperGroup], type[TyperGroup]] = {}
+HELP_OPTION_NAMES = ["--help", "-h"]
 
 _TOP_LEVEL_GROUP_EMPTY_INVOCATION_EXCEPTIONS = frozenset(
     {
@@ -37,6 +38,28 @@ _TOP_LEVEL_GROUP_EMPTY_INVOCATION_EXCEPTIONS = frozenset(
 
 def _is_explicit_typer_setting(value: object) -> bool:
     return not isinstance(value, DefaultPlaceholder)
+
+
+def _with_short_help(context_settings: dict[str, object] | None | DefaultPlaceholder) -> dict[str, object]:
+    settings = (
+        {}
+        if isinstance(context_settings, DefaultPlaceholder) or context_settings is None
+        else dict(context_settings)
+    )
+    settings["help_option_names"] = HELP_OPTION_NAMES
+    return settings
+
+
+def _apply_short_help_options(app: typer.Typer) -> None:
+    """Make ``-h`` an alias for ``--help`` across registered commands."""
+    app.info.context_settings = _with_short_help(app.info.context_settings)
+
+    for command_info in app.registered_commands:
+        command_info.context_settings = _with_short_help(command_info.context_settings)
+
+    for group_info in app.registered_groups:
+        group_info.context_settings = _with_short_help(group_info.context_settings)
+        _apply_short_help_options(group_info.typer_instance)
 
 
 def _top_level_group_name(group_info: TyperInfo) -> str | None:
@@ -140,6 +163,7 @@ def register_commands(app: typer.Typer) -> None:
         from . import next_cmd as next_cmd_module
 
         app.command(name="next")(next_cmd_module.next_step)
+        _apply_short_help_options(app)
         return
 
     if _is_doctor_restart_daemon_fast_path(sys.argv):
@@ -147,6 +171,7 @@ def register_commands(app: typer.Typer) -> None:
 
         app.add_typer(doctor_module.app, name="doctor", help="Project health diagnostics")
         _enforce_top_level_empty_group_help(app)
+        _apply_short_help_options(app)
         return
 
     from . import accept as accept_module
@@ -246,6 +271,7 @@ def register_commands(app: typer.Typer) -> None:
 
     app.add_typer(retrospect_app, name="retrospect", help="Retrospective authoring and summary (create / backfill / summary)")
     _enforce_top_level_empty_group_help(app)
+    _apply_short_help_options(app)
 
 
 __all__ = ["register_commands"]
