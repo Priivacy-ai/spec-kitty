@@ -1,11 +1,62 @@
 # Spec Kitty Charter
 
 > Created: 2026-01-27
-> Version: 1.1.5
+> Version: 1.2.0
+> Reconciled: 2026-07-01 — doctrine-catfooding-2196-01KWE16N WP13 cycle 1
+>
+> **Reconciliation note (WP13 cycle 1):** v1.2.0 retains the full v1.1.5 substance and
+> adds the activated catfooding doctrine set. `config.yaml` `activated_*` keys were
+> produced by the canonical `spec-kitty charter activate --cascade all` CLI
+> (DIRECTIVE_044 compliant). The `charter generate` CLI renders only the
+> **directive-reachable closure** into `references.yaml` (8 of 14 catfooding artifacts
+> resolve). The remaining 6 are governed-but-not-charter-referenced and are explicitly
+> noted in the Catfooding Governance Status section below. Deferred to a later
+> interactive charter intake (narrowed NFR-003, operator-accepted).
 
 ## Purpose
 
 This charter captures the technical standards, architectural principles, and development practices for Spec Kitty. All features and pull requests should align with these principles.
+
+---
+
+## Catfooding Governance Status (mission doctrine-catfooding-2196)
+
+Mission `doctrine-catfooding-2196-01KWE16N` (WP13 capstone) activated 13 catfooding
+doctrine artifacts via `spec-kitty charter activate --cascade all`. The `charter generate`
+CLI renders only the **directive-reachable closure** into `references.yaml`.
+
+### Charter-Referenced (directive-reachable, 8 of 14)
+
+These artifacts resolve in `references.yaml` because they are reachable from DIRECTIVE_043
+or DIRECTIVE_044 via `requires`/`suggests` DRG edges:
+
+| Kind | ID |
+|------|----|
+| directive | DIRECTIVE_043 — Close Defect Class by Construction |
+| directive | DIRECTIVE_044 — Canonical Sources and Unification |
+| directive | DIRECTIVE_045 — PRs Only and Read Intent |
+| tactic | `architectural-gate-non-vacuity` (via DIRECTIVE_043) |
+| tactic | `frozen-baseline-shrink-only-ratchet` (via DIRECTIVE_043) |
+| tactic | `canonical-source-unification` (via DIRECTIVE_044) |
+| toolguide | `terminology-guard` (via DIRECTIVE_044 cascade) |
+| styleguide | `adversarial-squad-cadence` (via `DIRECTIVE_025` → `brownfield-onboarding` paradigm) |
+
+### Governed-but-Not-Charter-Referenced (6 of 14 — deferred to interactive intake)
+
+These artifacts are activated in `config.yaml` and authored in the DRG (WP02-WP12 work
+complete), but the CLI generator does not route them into `references.yaml` because they
+are not directive-reachable in the current charter structure. This is accepted per narrowed
+NFR-003. Resolution: run a full interactive charter intake (`/spec-kitty.charter`) to
+explicitly wire these into answers.yaml sections the generator renders.
+
+| Kind | ID |
+|------|----|
+| tactic | `pr-agent-worktree-isolation` |
+| tactic | `ownership-map-leeway` |
+| tactic | `reviewer-implementer-role-separation` |
+| styleguide | `planning-and-tracking` |
+| procedure | `mission-tracer-files` |
+| procedure | `post-merge-arch-gate-adjudication` |
 
 ---
 
