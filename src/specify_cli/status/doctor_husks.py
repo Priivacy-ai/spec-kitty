@@ -23,8 +23,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 __all__ = [
+    "WORKTREES_DIRNAME",
+    "RegisteredWorktreePaths",
     "WorkspaceHuskRegistrationError",
     "fix_workspace_husks",
+    "registered_worktree_paths",
     "scan_workspace_husks",
 ]
 
@@ -82,7 +85,7 @@ class HuskFixResult:
 
 
 @dataclass(frozen=True)
-class _RegisteredWorktreePaths:
+class RegisteredWorktreePaths:
     paths: set[Path] = field(default_factory=set)
     error: str | None = None
 
@@ -91,7 +94,7 @@ class WorkspaceHuskRegistrationError(RuntimeError):
     """Raised when husk registration state cannot be read safely."""
 
 
-def _registered_worktree_paths(repo_root: Path) -> _RegisteredWorktreePaths:
+def registered_worktree_paths(repo_root: Path) -> RegisteredWorktreePaths:
     """Return resolved paths registered in ``git worktree list --porcelain``."""
     result = subprocess.run(
         ["git", "worktree", "list", "--porcelain"],
@@ -109,7 +112,7 @@ def _registered_worktree_paths(repo_root: Path) -> _RegisteredWorktreePaths:
             or result.stdout.strip()
             or f"exit {result.returncode}"
         )
-        return _RegisteredWorktreePaths(
+        return RegisteredWorktreePaths(
             error=f"git worktree list --porcelain failed: {detail}"
         )
     for line in result.stdout.splitlines():
@@ -119,7 +122,7 @@ def _registered_worktree_paths(repo_root: Path) -> _RegisteredWorktreePaths:
                 registered.add(Path(raw).resolve())
             except OSError:
                 continue
-    return _RegisteredWorktreePaths(paths=registered)
+    return RegisteredWorktreePaths(paths=registered)
 
 
 def scan_workspace_husks(repo_root: Path) -> HuskReport:
@@ -133,7 +136,7 @@ def scan_workspace_husks(repo_root: Path) -> HuskReport:
     if not worktrees_dir.is_dir():
         return report
 
-    registered = _registered_worktree_paths(repo_root)
+    registered = registered_worktree_paths(repo_root)
     husks: list[HuskEntry] = []
     for entry in sorted(worktrees_dir.iterdir(), key=lambda path: path.name):
         if not entry.is_dir():

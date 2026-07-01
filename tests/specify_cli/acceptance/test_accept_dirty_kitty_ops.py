@@ -36,7 +36,7 @@ from specify_cli.acceptance import _accept_dirty_gate
 from specify_cli.merge.git_probes import _classify_porcelain_lines
 from specify_cli.review.dirty_classifier import _is_benign, classify_dirty_paths
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # Production-shaped 26-char Crockford base32 ULID — valid against the
 # invocation-record ULID regex ``[0-9A-HJKMNP-TV-Z]{26}`` (no I, L, O, U).

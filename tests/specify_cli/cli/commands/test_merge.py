@@ -1002,3 +1002,55 @@ def test_status_surface_rejects_symlink_indirection_into_trusted_root(
             repo_root=tmp_path,
             status_feature_dir=surface,
         )
+
+
+# ---------------------------------------------------------------------------
+# PR #2277: merge fails closed on a corrupt meta.json target-branch read
+# (FR-005 / #2139). The merge command must convert MissionMetaReadError into a
+# clean, visible error + non-zero exit — never a raw traceback, never a silent
+# fall-through to the repo default branch.
+# ---------------------------------------------------------------------------
+
+
+def _invoke_merge_with_corrupt_target(tmp_path: Path, *extra_args: str) -> Any:
+    """Drive the merge command up to the target-branch read, which raises.
+
+    Patches the pre-resolution setup steps to no-ops so the test isolates the
+    new fail-closed catch around ``_resolve_target_branch``.
+    """
+    from specify_cli.core.paths import MissionMetaReadError
+
+    app = typer.Typer()
+    app.command()(merge)
+    runner = CliRunner()
+
+    boom = MissionMetaReadError(tmp_path / "meta.json", ValueError("Expecting value"))
+    with (
+        patch("specify_cli.cli.commands.merge.find_repo_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.merge._enforce_git_preflight"),
+        patch("specify_cli.cli.commands.merge.load_merge_config", return_value=Mock(strategy=None)),
+        patch("specify_cli.cli.commands.merge._resolve_slug_or_exit", return_value="corrupt-mission"),
+        patch("specify_cli.cli.commands.merge.load_state", return_value=None),
+        patch("specify_cli.cli.commands.merge._resolve_target_branch", side_effect=boom),
+    ):
+        return runner.invoke(app, ["--mission", "corrupt-mission", *extra_args])
+
+
+def test_merge_fails_closed_on_corrupt_meta_text(tmp_path: Path) -> None:
+    """Corrupt meta.json → clean error + exit 1 (text mode), not a traceback."""
+    result = _invoke_merge_with_corrupt_target(tmp_path)
+
+    assert result.exit_code == 1, f"expected fail-closed exit 1, got {result.exit_code}\n{result.output}"
+    assert "Cannot resolve the merge target branch" in result.output
+    assert "corrupt or unreadable" in result.output
+    # Fail-closed, not a crash: the raw exception class name must not leak as a traceback.
+    assert "Traceback (most recent call last)" not in result.output
+
+
+def test_merge_fails_closed_on_corrupt_meta_json(tmp_path: Path) -> None:
+    """Corrupt meta.json → structured JSON error + exit 1 (--json mode)."""
+    result = _invoke_merge_with_corrupt_target(tmp_path, "--json", "--dry-run")
+
+    assert result.exit_code == 1, f"expected fail-closed exit 1, got {result.exit_code}\n{result.output}"
+    payload = json.loads(result.output.strip().splitlines()[-1])
+    assert "Cannot resolve the merge target branch" in payload["error"]

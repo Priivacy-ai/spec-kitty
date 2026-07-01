@@ -63,7 +63,7 @@ import typer
 from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.cli.helpers import console, show_banner
 from specify_cli.core.context_validation import require_main_repo
-from specify_cli.core.paths import get_main_repo_root
+from specify_cli.core.paths import MissionMetaReadError, get_main_repo_root
 from specify_cli.git.sparse_checkout import (
     SparseCheckoutPreflightError,
 )
@@ -477,7 +477,22 @@ def merge(
                 "Auto-resuming."
             )
 
-    resolved_target_branch, target_source = _resolve_target_branch(repo_root, resolved_mission, target_branch)
+    try:
+        resolved_target_branch, target_source = _resolve_target_branch(repo_root, resolved_mission, target_branch)
+    except MissionMetaReadError as exc:
+        # FR-005 fail-closed: a corrupt/unreadable meta.json must abort the merge
+        # with a clean, visible error and non-zero exit — never a raw traceback,
+        # and never a silent fall-through to the repo default branch. The error
+        # is surfaced (corruption visible), not swallowed.
+        error_msg = (
+            f"Cannot resolve the merge target branch: {exc}. "
+            "meta.json exists but is corrupt or unreadable; fix it before merging."
+        )
+        if json_output:
+            print(json.dumps({"spec_kitty_version": SPEC_KITTY_VERSION, "error": error_msg}))
+        else:
+            console.print(f"[red]Error:[/red] {error_msg}")
+        raise typer.Exit(1) from exc
     _validate_target_branch(
         repo_root,
         resolved_mission,

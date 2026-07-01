@@ -23,7 +23,7 @@ import typer
 from ._doctor_shared import console
 
 if TYPE_CHECKING:
-    from specify_cli.status.doctor_husks import _RegisteredWorktreePaths
+    from specify_cli.status import RegisteredWorktreePaths
 
 # ``__all__`` lists this sibling's single cross-module entrypoint. The render
 # helpers are intra-module (used here + by this module's own unit tests) and are
@@ -125,14 +125,14 @@ _COORD_SUFFIX = "-coord"
 
 
 def _registered_coord_worktrees(
-    repo_root: Path, registered: _RegisteredWorktreePaths,
+    repo_root: Path, registered: RegisteredWorktreePaths,
 ) -> list[Path]:
     """Return registered coord worktrees under ``.worktrees/``.
 
     A coord worktree ends with ``-coord`` and is present in the git registry.
     Skips the ``.worktrees/`` directory when it does not exist.
     """
-    from specify_cli.status.doctor_husks import WORKTREES_DIRNAME
+    from specify_cli.status import WORKTREES_DIRNAME
 
     worktrees_dir = repo_root / WORKTREES_DIRNAME
     if not worktrees_dir.is_dir() or registered.error:
@@ -185,9 +185,9 @@ def _refresh_stale_coord_worktrees(
     Returns a list of ``(path_str, outcome)`` tuples where *outcome* is one of
     ``"refreshed"``, ``"failed"``, ``"already_current"``, or ``"skip_detached"``.
     """
-    from specify_cli.status.doctor_husks import _registered_worktree_paths
+    from specify_cli.status import registered_worktree_paths
 
-    registered = _registered_worktree_paths(repo_root)
+    registered = registered_worktree_paths(repo_root)
     outcomes: list[tuple[str, str]] = []
     for worktree in _registered_coord_worktrees(repo_root, registered):
         stale, branch = _coord_worktree_needs_refresh(worktree, repo_root)
