@@ -335,3 +335,108 @@ def test_midrange_date_inserts_between_neighbours(tmp_path: Path) -> None:
     idx = dates.index("2026-05-20")
     assert dates[idx - 1] == "2026-05-16"
     assert dates[idx + 1] == "2026-06-26"
+
+
+# --------------------------------------------------------------------------- #
+# 7. Path-escape safety (Copilot review: _era_readme_for must validate that the
+#    ADR lives INSIDE docs_root, not merely that dir names read `adr/<era>`).
+# --------------------------------------------------------------------------- #
+
+
+def test_out_of_tree_adr_is_rejected_and_edits_nothing(tmp_path: Path) -> None:
+    repo_root = tmp_path
+    docs_root = _write_docs_tree(repo_root)
+    # A decoy `adr/3.x/` tree OUTSIDE docs_root — the `/tmp/adr/3.x/foo.md` shape
+    # the review flagged as destructively editable.
+    outside = repo_root / "outside" / "adr" / "3.x"
+    outside.mkdir(parents=True)
+    outside_readme = outside / "README.md"
+    outside_readme.write_text(_README_TEMPLATE, encoding="utf-8")
+    decoy = outside / "2026-06-30-1-decoy.md"
+    decoy.write_text(_adr("Decoy", "2026-06-30"), encoding="utf-8")
+    before = outside_readme.read_text(encoding="utf-8")
+
+    exit_code = main(
+        [str(decoy), "--repo-root", str(repo_root), "--docs-root", str(docs_root)]
+    )
+
+    assert exit_code == 2  # FreshenError: path escapes docs_root
+    assert outside_readme.read_text(encoding="utf-8") == before  # untouched
+
+
+# --------------------------------------------------------------------------- #
+# 8. Prose-link false-positive (Copilot review: the idempotency check must be
+#    table-scoped — a link in README prose must not count as "already in the
+#    table" for either write-mode or --check).
+# --------------------------------------------------------------------------- #
+
+
+def _readme_prose_links(basename: str) -> str:
+    """The full index table, plus a prose link to ``basename`` ABOVE it.
+
+    The table itself does NOT contain a row for ``basename`` — only prose links
+    it. A basename-anywhere check would wrongly treat it as already present.
+    """
+    return dedent(
+        f"""\
+        # 3.x ADRs
+
+        Architectural Decision Records for the 3.x track. Background for the new
+        work lives in [the brand new thing]({basename}).
+
+        ## Index
+
+        | Date | Title |
+        |---|---|
+        | 2026-04-03 | [Execution lanes own worktrees](2026-04-03-1-execution-lanes.md) |
+        | 2026-05-16 | [Doctrine layer merge semantics](2026-05-16-1-doctrine-merge.md) |
+        | 2026-06-26 | [Single-authority seam](2026-06-26-1-single-authority-seam.md) |
+        """
+    )
+
+
+def test_prose_link_does_not_block_table_row_insert(tmp_path: Path) -> None:
+    repo_root = tmp_path
+    docs_root = _write_docs_tree(repo_root)
+    basename = "2026-06-30-1-new-thing.md"
+    (docs_root / "adr" / "3.x" / "README.md").write_text(
+        _readme_prose_links(basename), encoding="utf-8"
+    )
+    new_adr = docs_root / "adr" / "3.x" / basename
+    new_adr.write_text(_adr("A Brand New Thing", "2026-06-30"), encoding="utf-8")
+
+    result = freshen(
+        [new_adr], docs_root=docs_root, repo_root=repo_root, check=False
+    )
+
+    # The prose link must NOT suppress the table-row insert.
+    assert basename in result.readme_rows_added
+    rows = _table_rows(_read_readme(docs_root))
+    assert any(f"]({basename})" in row for row in rows)
+
+
+def test_check_reports_missing_when_only_prose_links_adr(tmp_path: Path) -> None:
+    repo_root = tmp_path
+    docs_root = _write_docs_tree(repo_root)
+    basename = "2026-06-30-1-new-thing.md"
+    (docs_root / "adr" / "3.x" / "README.md").write_text(
+        _readme_prose_links(basename), encoding="utf-8"
+    )
+    new_adr = docs_root / "adr" / "3.x" / basename
+    new_adr.write_text(_adr("A Brand New Thing", "2026-06-30"), encoding="utf-8")
+    _write_inventory(repo_root, docs_root)  # isolate: only the README row is at issue
+
+    # Table-aware detection must still see it as missing (not prose-fooled) — and
+    # --check must agree with write-mode.
+    assert new_adr in detect_missing_adrs(docs_root)
+    exit_code = main(
+        [
+            str(new_adr),
+            "--check",
+            "--repo-root",
+            str(repo_root),
+            "--docs-root",
+            str(docs_root),
+        ]
+    )
+    assert exit_code == 1

@@ -25,8 +25,8 @@ Usage::
   (``render_lockfile(generate_inventory(...))``), so it auto-picks up every new
   doc — including new ADRs. On a clean tree this is a no-op.
 * **ADR README rows:** for each target ADR the era README's index table gets a
-  new row, inserted date-ascending, idempotently (a basename already linked is
-  skipped).
+  new row, inserted date-ascending, idempotently (a basename already linked
+  **within the index table** is skipped; a prose link elsewhere does not count).
 """
 
 from __future__ import annotations
@@ -115,17 +115,27 @@ class FreshenResult:
 def _era_readme_for(adr_path: Path, docs_root: Path) -> Path:
     """Resolve the era ``README.md`` for an ADR at ``docs/adr/<era>/<name>.md``.
 
-    Validates the ADR lives directly under ``<docs_root>/adr/<era>/`` where
-    ``<era>`` matches ``N.x`` — a mislocated path is a hard error, not a silent
-    guess.
+    Validates the ADR lives **inside** ``docs_root`` at exactly
+    ``adr/<era>/<file>.md`` (``<era>`` matching ``N.x``). Checking the directory
+    *names* alone is not enough — an out-of-tree path like ``/tmp/adr/3.x/foo.md``
+    would otherwise be accepted and the tool would edit ``/tmp/adr/3.x/README.md``.
+    A path that escapes the docs root, or does not match the exact shape, is a
+    hard error rather than a destructive guess.
     """
-    era_dir = adr_path.parent
-    if era_dir.parent.name != _ADR_SUBDIR or not _ERA_RE.match(era_dir.name):
+    try:
+        rel_parts = adr_path.resolve().relative_to(docs_root.resolve()).parts
+    except ValueError:  # adr_path is not inside docs_root
+        rel_parts = ()
+    if (
+        len(rel_parts) != 3
+        or rel_parts[0] != _ADR_SUBDIR
+        or not _ERA_RE.match(rel_parts[1])
+    ):
         raise FreshenError(
-            f"{adr_path} is not under {docs_root.name}/{_ADR_SUBDIR}/<era>/ "
-            f"(era must match N.x)"
+            f"{adr_path} is not under {docs_root.name}/{_ADR_SUBDIR}/<era>/<file>.md "
+            f"(era must match N.x and the path must live inside the docs root)"
         )
-    return era_dir / _README_NAME
+    return adr_path.parent / _README_NAME
 
 
 # --------------------------------------------------------------------------- #
@@ -203,19 +213,32 @@ def _insertion_index(rows: list[str], date: str) -> int:
     return position
 
 
+def _rows_link_basename(rows: list[str], basename: str) -> bool:
+    """True iff any ADR-table *data row* links ``basename``.
+
+    Table-scoped on purpose: a link to the ADR in README prose (outside the
+    index table) must NOT count as "already in the table", or the index row
+    would be wrongly skipped. Shared by write-mode (:func:`_insert_readme_row`)
+    and check-mode (:func:`_readme_has_row`) so both agree.
+    """
+    needle = f"]({basename})"
+    return any(needle in row for row in rows)
+
+
 def _insert_readme_row(readme_text: str, meta: AdrMeta) -> tuple[str, bool]:
     """Insert ``meta``'s row into the ADR table, idempotent + date-ordered.
 
-    Returns ``(new_text, changed)``. ``changed`` is ``False`` when the ADR's
-    basename is already linked in the table (no duplicate row).
+    Returns ``(new_text, changed)``. ``changed`` is ``False`` only when the
+    ADR's basename is already linked **within the index table** (a prose link
+    elsewhere does not count — see :func:`_rows_link_basename`).
     """
-    if f"]({meta.basename})" in readme_text:
-        return readme_text, False
-
     trailing_newline = readme_text.endswith("\n")
     lines = readme_text.splitlines()
     data_start, data_end = _find_adr_table(lines)
     rows = lines[data_start:data_end]
+
+    if _rows_link_basename(rows, meta.basename):
+        return readme_text, False
 
     offset = _insertion_index(rows, meta.date)
     lines.insert(data_start + offset, meta.row())
@@ -241,11 +264,21 @@ def _freshen_readme_row(adr_path: Path, docs_root: Path) -> str | None:
 
 
 def _readme_has_row(adr_path: Path, docs_root: Path) -> bool:
-    """True iff ``adr_path``'s basename is already linked in its era README."""
+    """True iff ``adr_path``'s basename is linked in its era README index table.
+
+    Table-aware (reuses :func:`_find_adr_table` + :func:`_rows_link_basename`) so
+    ``--check`` agrees with write-mode: a prose link outside the table is not a
+    row, and a README without a table has no row.
+    """
     readme = _era_readme_for(adr_path, docs_root)
     if not readme.exists():
         return False
-    return f"]({adr_path.name})" in readme.read_text(encoding="utf-8")
+    lines = readme.read_text(encoding="utf-8").splitlines()
+    try:
+        data_start, data_end = _find_adr_table(lines)
+    except FreshenError:
+        return False
+    return _rows_link_basename(lines[data_start:data_end], adr_path.name)
 
 
 # --------------------------------------------------------------------------- #
