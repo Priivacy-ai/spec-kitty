@@ -6,6 +6,9 @@ Architectural Decision Records for the 3.x track (starting 3.0.0, released 2026-
 
 - `YYYY-MM-DD-N-descriptive-title-with-dashes.md` where `N` is `1, 2, 3, …` per ADR landed on a given date.
 
+After adding an ADR file, run `python scripts/docs/freshen_adr_inventory.py docs/adr/3.x/<your-adr>.md`
+to update the page-inventory lockfile and add the row to the index table below.
+
 ## Source of Truth
 
 This folder is canonical for 3.x decisions. The `architecture/` tree was removed
