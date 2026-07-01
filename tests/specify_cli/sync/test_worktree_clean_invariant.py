@@ -70,6 +70,10 @@ from mission_runtime.artifacts import (
 from specify_cli.identity.project import load_identity
 from specify_cli.sync.events import emit_wp_status_changed, reset_emitter
 
+# Gate-selected markers so this file is actually run in CI (was a zero-gate #2034
+# orphan): it drives real git via ``subprocess`` (git_repo) and is integration-level.
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
 _CONFIG_RELPATH = ".kittify/config.yaml"
 _MISSION_SLUG = "worktree-clean-invariant-01KWC9Y0"
 

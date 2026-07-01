@@ -25,7 +25,7 @@ from specify_cli.tracker.config import (
 )
 from specify_cli.tracker.saas_service import SaaSTrackerService
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 @pytest.fixture()
