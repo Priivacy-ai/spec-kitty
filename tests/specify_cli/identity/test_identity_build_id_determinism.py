@@ -22,7 +22,7 @@ from specify_cli.identity.project import (
     resolve_identity,
 )
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _NODE_ID = "abc123def456"
 _OTHER_NODE_ID = "ffffffffffff"
