@@ -36,7 +36,7 @@ import pytest
 
 from specify_cli.mission_metadata import META_FILENAME, write_meta
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # Production-shaped identity (testing-principles — never a short placeholder)
 _MISSION_ID = "01KVRJ6PQ7XB2M9K4D8N3FZ0YT"

@@ -15,7 +15,7 @@ from specify_cli.cli.commands import (
 )
 
 # In-process Typer/CliRunner assertions; no subprocess, no filesystem.
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _registered_root() -> typer.Typer:

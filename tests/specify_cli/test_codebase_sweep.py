@@ -27,7 +27,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _WRITE_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
     # json.dump(meta, fh) -- writing a meta dict directly to a file handle

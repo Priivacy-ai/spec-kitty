@@ -21,7 +21,7 @@ import pytest
 
 from specify_cli.lanes import branch_naming as bn
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # ULID whose first 8 chars form this mission's own mid8.
 MISSION_ID = "01KV6510ATWWFXS3K5ZJ9E5008"

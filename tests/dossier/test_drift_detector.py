@@ -32,7 +32,7 @@ from specify_cli.dossier.models import MissionDossierSnapshot
 from specify_cli.sync.project_identity import ProjectIdentity
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 class TestBaselineKey:
     """Test BaselineKey dataclass and methods."""

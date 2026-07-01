@@ -18,7 +18,7 @@ from specify_cli.upgrade.migrations.m_3_2_0rc35_kittify_profile_handoff import (
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _IMPLEMENT_WITHOUT_HANDOFF = """\
 ---

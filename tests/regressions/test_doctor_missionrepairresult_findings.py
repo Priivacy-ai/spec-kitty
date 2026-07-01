@@ -42,7 +42,7 @@ from specify_cli.cli.commands.doctor import _print_overdue_details
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 class TestPrintOverdueDetailsSignature:
     """Verify the type annotation fix for _print_overdue_details.

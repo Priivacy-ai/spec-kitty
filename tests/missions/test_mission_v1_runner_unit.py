@@ -29,7 +29,7 @@ from specify_cli.mission_v1.schema import MissionValidationError
 # Test configs
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 MINIMAL_V1_CONFIG: dict = {
     "mission": {

@@ -22,7 +22,7 @@ from specify_cli.migration.rewrite_shims import RewriteResult, rewrite_agent_shi
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _setup_project(tmp_path: Path, agents: list[str] | None = None) -> None:
     """Create a minimal project with .kittify/config.yaml and agent directories."""

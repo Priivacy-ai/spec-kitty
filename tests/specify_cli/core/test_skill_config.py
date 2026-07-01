@@ -12,7 +12,7 @@ from specify_cli.core.config import (
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 VALID_CLASSES = {SKILL_CLASS_SHARED, SKILL_CLASS_NATIVE, SKILL_CLASS_WRAPPER}
 

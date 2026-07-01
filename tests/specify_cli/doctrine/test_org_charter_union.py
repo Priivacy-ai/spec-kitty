@@ -22,7 +22,7 @@ from specify_cli.doctrine.org_charter import (
 )
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _write_kittify_config(repo_root: Path, packs: list[tuple[str, Path]]) -> None:

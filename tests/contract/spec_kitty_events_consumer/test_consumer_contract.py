@@ -31,7 +31,7 @@ import inspect
 
 import pytest
 
-pytestmark = [pytest.mark.contract]
+pytestmark = [pytest.mark.contract, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

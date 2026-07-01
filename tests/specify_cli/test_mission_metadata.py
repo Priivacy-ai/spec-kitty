@@ -27,7 +27,7 @@ from specify_cli.mission_metadata import (
     write_meta,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # Production-shaped identity: a real 26-char ULID + its 8-char mid8 prefix
 # (testing-principles -- never a short placeholder slug).

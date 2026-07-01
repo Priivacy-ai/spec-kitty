@@ -27,7 +27,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.retrospect import app as retrospect_app
 from specify_cli.cli.commands.agent_retrospect import app as agent_retrospect_app
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 RUNNER = CliRunner()
 

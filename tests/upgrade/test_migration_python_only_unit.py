@@ -7,7 +7,7 @@ from pathlib import Path
 from specify_cli.upgrade.migrations.m_0_10_0_python_only import PythonOnlyMigration
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 @pytest.fixture
 def migration():

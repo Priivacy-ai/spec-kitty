@@ -26,7 +26,7 @@ from specify_cli.tool_surface.bundles.claude_wrapper import (
     wrapper_cmd_content,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # ---------------------------------------------------------------------------
 # write_wrappers — filesystem tests

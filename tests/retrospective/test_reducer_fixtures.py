@@ -34,7 +34,7 @@ FIXTURE_B_SNAPSHOT = FIXTURES_DIR / "historical-with-retrospective.snapshot.json
 
 MISSION_SLUG = "test-mission-reducer-01KS049J"
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

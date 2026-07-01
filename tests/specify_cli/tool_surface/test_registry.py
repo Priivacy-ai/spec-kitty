@@ -17,7 +17,7 @@ from specify_cli.tool_surface.model import SurfaceDefinition, SurfaceInstance
 from specify_cli.tool_surface.providers.protocol import ReportingSurfaceProvider
 from specify_cli.tool_surface.registry import ToolSurfaceRegistry
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _definition(provider_key: str = "command-skill") -> SurfaceDefinition:

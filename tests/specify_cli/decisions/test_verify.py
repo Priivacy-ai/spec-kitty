@@ -28,7 +28,7 @@ from specify_cli.decisions.verify import (
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 ULID_A = "01AAAAAAAAAAAAAAAAAAAAAAAA"
 ULID_B = "01BBBBBBBBBBBBBBBBBBBBBBBB"

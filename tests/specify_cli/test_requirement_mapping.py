@@ -18,7 +18,7 @@ from specify_cli.requirement_mapping import (
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 class TestValidateRefs:
     """Test ref validation against spec IDs."""

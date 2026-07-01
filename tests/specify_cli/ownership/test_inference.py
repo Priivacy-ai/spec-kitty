@@ -20,7 +20,7 @@ from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 class TestInferExecutionMode:
     def test_code_change_default_no_signals(self) -> None:

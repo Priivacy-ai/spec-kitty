@@ -19,7 +19,7 @@ from specify_cli.upgrade.skill_update import (
     write_skill_text,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

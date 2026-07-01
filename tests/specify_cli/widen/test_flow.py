@@ -38,7 +38,7 @@ from specify_cli.widen.models import AudienceSelection, WidenAction, WidenFlowRe
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _DECISION_ID = "01KPXFGJ0000000000000000D1"
 _MISSION_ID = "01KPXFGJ0000000000000000M1"

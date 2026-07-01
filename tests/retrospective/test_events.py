@@ -34,7 +34,7 @@ from specify_cli.retrospective.schema import (
 )
 from specify_cli.retrospective.summary import classify_mission_record
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # ---------------------------------------------------------------------------
 # Test fixture helpers

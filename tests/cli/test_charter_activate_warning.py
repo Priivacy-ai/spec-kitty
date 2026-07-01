@@ -41,7 +41,7 @@ from specify_cli.status.store import append_event
 
 runner = CliRunner()
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

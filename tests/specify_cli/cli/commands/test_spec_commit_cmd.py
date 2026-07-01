@@ -9,7 +9,7 @@ import pytest
 import typer
 from typer.testing import CliRunner
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _make_app() -> typer.Typer:

@@ -20,7 +20,7 @@ from specify_cli.retrospective.reader import SchemaError, YAMLParseError, read_r
 # Minimal valid YAML for a completed record
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 MISSION_ID = "01KQ6YEGT4YBZ3GZF7X680KQ3V"
 

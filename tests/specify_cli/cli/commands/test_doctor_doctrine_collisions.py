@@ -20,7 +20,7 @@ from specify_cli.cli.commands.doctor import app as doctor_app
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 runner = CliRunner()
 

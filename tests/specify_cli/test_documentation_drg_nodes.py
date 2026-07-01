@@ -31,7 +31,7 @@ from doctrine.drg.query import resolve_context
 
 # The 6 advancing documentation actions covered by the mission-runtime sidecar.
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _DOC_ACTIONS: tuple[str, ...] = (
     "discover",

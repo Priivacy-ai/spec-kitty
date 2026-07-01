@@ -39,7 +39,7 @@ from specify_cli import app as _typer_app
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 cli: click.Group = get_command(_typer_app)  # type: ignore[assignment]
 

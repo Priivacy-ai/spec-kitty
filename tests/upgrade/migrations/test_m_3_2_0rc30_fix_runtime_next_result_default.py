@@ -7,7 +7,7 @@ from specify_cli.upgrade.migrations.m_3_2_0rc30_fix_runtime_next_result_default 
 )
 from specify_cli.upgrade.registry import MigrationRegistry
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _write_runtime_next_skill(project: Path, content: str) -> Path:

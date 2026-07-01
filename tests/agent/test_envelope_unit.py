@@ -16,7 +16,7 @@ from specify_cli.orchestrator_api.envelope import (
 )
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 class TestMakeEnvelope:
     def test_make_envelope_shape(self):

@@ -29,7 +29,7 @@ from specify_cli.migration.strip_frontmatter import (
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _make_wp(tasks_dir: Path, wp_name: str, extra_fields: str = "", body: str = "# Body") -> Path:
     """Write a WP file with standard mutable fields + optional extras."""

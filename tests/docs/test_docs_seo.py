@@ -14,7 +14,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from scripts.docs import seo_postprocess  # noqa: E402
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 FRONTMATTER_RE = re.compile(r"\A---\n(?P<body>.*?)\n---\n", re.DOTALL)

@@ -24,7 +24,7 @@ from specify_cli.bulk_edit.occurrence_map import (
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 class TestSchemaResource:
     def test_schema_loads_and_has_metadata(self) -> None:

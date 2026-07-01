@@ -41,7 +41,7 @@ from specify_cli.tool_surface.status import (
     _surface_id,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

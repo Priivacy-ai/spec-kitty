@@ -6,7 +6,7 @@ from pathlib import Path
 from specify_cli.cli.commands.intake import MAX_BRIEF_FILE_SIZE_BYTES
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def test_max_brief_file_size_bytes_is_importable():
     assert isinstance(MAX_BRIEF_FILE_SIZE_BYTES, int)

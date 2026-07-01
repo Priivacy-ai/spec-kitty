@@ -31,7 +31,7 @@ from specify_cli.missions import _read_path_resolver as rpr
 # source of truth (NFR-003).
 from tests.lanes.test_branch_naming_seam import GOLDEN_ROWS, MID8, MISSION_ID
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

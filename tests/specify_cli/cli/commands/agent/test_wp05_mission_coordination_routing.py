@@ -38,7 +38,7 @@ from specify_cli.cli.commands.agent import mission_record_analysis as record_sea
 # patch + call the router (the former mission_mod patch site is retired).
 from specify_cli.coordination import commit_router as commit_router_mod
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _MISSION_PY = Path(mission_mod.__file__)
 

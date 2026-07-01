@@ -26,7 +26,7 @@ from doctrine.drg.migration.extractor import (
 from doctrine.drg.models import Relation
 from doctrine.drg.validator import validate_graph
 
-pytestmark = [pytest.mark.doctrine]
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
 DOCTRINE_ROOT = Path(__file__).resolve().parents[4] / "src" / "doctrine"
 

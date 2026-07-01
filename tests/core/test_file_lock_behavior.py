@@ -36,7 +36,7 @@ from specify_cli.core.file_lock import (
 # Helpers
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _write_synthetic_record(path: Path, *, age_s: float = 0.0, pid: int = 12345) -> None:
     """Write a synthetic lock record at ``path``."""

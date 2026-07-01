@@ -26,7 +26,7 @@ from specify_cli.validators.paths import (
 )
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 @pytest.fixture
 def valid_evidence_log(tmp_path: Path) -> Path:

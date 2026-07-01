@@ -27,7 +27,7 @@ from specify_cli.lanes.branch_naming import (
     strip_numeric_prefix,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # ---------------------------------------------------------------------------
 # Frozen literals captured from HEAD before any edit (T017 anti-gaming).

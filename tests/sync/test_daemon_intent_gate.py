@@ -24,7 +24,7 @@ from specify_cli.sync.daemon import DaemonIntent, DaemonStartOutcome, ensure_syn
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 @pytest.fixture()
 def rollout_disabled(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:

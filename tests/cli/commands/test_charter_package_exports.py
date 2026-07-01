@@ -8,7 +8,7 @@ import pytest
 
 import specify_cli.cli.commands.charter as charter_module
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.integration]
 
 
 def test_charter_all_exports_are_defined() -> None:

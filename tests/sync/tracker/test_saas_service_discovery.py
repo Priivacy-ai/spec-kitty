@@ -30,7 +30,7 @@ from specify_cli.tracker.service import TrackerServiceError
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 @pytest.fixture()
 def repo_root(tmp_path: Path) -> Path:

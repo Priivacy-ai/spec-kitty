@@ -12,7 +12,7 @@ from specify_cli.readiness.coordinator import AuthStatus, OutputPolicy
 from specify_cli.readiness.render import render_auth_guidance
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def test_interactive_logged_out_renders_multiline_panel_on_stderr(

@@ -33,7 +33,7 @@ _MISSION_ID = "01KVRJ6PWPTENONTRACTTEST00"  # 26 chars
 _MID8 = "01KVRJ6P"  # first 8 chars of mission_id
 _MISSION_SLUG = f"topology-cleanup-{_MID8}"
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

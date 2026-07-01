@@ -14,7 +14,7 @@ from specify_cli.tool_surface.profiles.amazon_q_renderer import (
 )
 from specify_cli.tool_surface.profiles.renderers import ProfileRenderer
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def make_test_profile(slug: str = "analyst-alex") -> AgentProfile:

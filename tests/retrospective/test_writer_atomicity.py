@@ -28,7 +28,7 @@ from specify_cli.retrospective.writer import WriterError, _atomic_write_yaml, wr
 # Helpers
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 MISSION_ID = "01KQ6YEGT4YBZ3GZF7X680KQ3V"
 MISSION_ID_2 = "01KQ6YEGT4YBZ3GZF7X680KQ4C"

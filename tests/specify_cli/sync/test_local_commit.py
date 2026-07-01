@@ -31,7 +31,7 @@ from specify_cli.sync.local_commit import (
     save_sync_state,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # ---------------------------------------------------------------------------
 # Helpers

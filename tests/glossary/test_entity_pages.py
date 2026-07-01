@@ -29,7 +29,7 @@ from glossary.entity_pages import (
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _make_drg_fixture(
     *,

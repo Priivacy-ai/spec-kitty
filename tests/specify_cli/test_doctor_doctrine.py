@@ -29,7 +29,7 @@ from specify_cli.cli.commands._doctrine_health import (
     build_pack_health_by_layer,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 runner = CliRunner()
 

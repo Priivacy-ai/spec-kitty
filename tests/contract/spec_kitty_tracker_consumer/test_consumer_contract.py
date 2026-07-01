@@ -27,7 +27,7 @@ import importlib
 
 import pytest
 
-pytestmark = [pytest.mark.contract]
+pytestmark = [pytest.mark.contract, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

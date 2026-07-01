@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from specify_cli.tool_surface.repair import RepairResult
     from specify_cli.tool_surface.status import SurfaceStatus
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

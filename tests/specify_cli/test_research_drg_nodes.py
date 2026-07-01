@@ -24,7 +24,7 @@ from doctrine.drg.query import resolve_context
 
 # The 5 advancing research actions covered by the mission-runtime sidecar.
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 RESEARCH_ACTIONS: tuple[str, ...] = (
     "scoping",

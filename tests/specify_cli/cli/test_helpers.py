@@ -14,7 +14,7 @@ import pytest
 
 from specify_cli.cli.helpers import get_project_root_or_exit
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def test_get_project_root_or_exit_succeeds_in_worktree(tmp_path: Path) -> None:

@@ -44,7 +44,7 @@ from specify_cli.widen.state import WidenPendingStore
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 MISSION_SLUG = "test-charter-widen-mission"
 MISSION_ID = "01KWIDENCHARTERTESTMISSION01"

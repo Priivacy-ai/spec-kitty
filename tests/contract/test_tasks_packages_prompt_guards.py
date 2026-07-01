@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.contract]
+pytestmark = [pytest.mark.contract, pytest.mark.fast]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 TASKS_PACKAGES_PROMPT = (

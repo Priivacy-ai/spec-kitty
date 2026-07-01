@@ -27,7 +27,7 @@ from specify_cli.cli.commands.agent_retrospect import (
 from specify_cli.retrospective.gate import is_completion_allowed
 from specify_cli.retrospective.schema import Mode, ModeSourceSignal
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _MISSION_SLUG = "coord-read-mission"
 _MISSION_ID = "01KTXRVRTESTGATE0000000001"  # 26-char ULID (test fixture)

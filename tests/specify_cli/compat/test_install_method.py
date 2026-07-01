@@ -20,7 +20,7 @@ from specify_cli.compat._detect.install_method import InstallMethod, detect_inst
 
 # Module path prefix for patching helpers inside install_method.py
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _MOD = "specify_cli.compat._detect.install_method"
 

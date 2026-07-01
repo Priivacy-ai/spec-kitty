@@ -36,7 +36,7 @@ from specify_cli.lanes.branch_naming import (
     worktree_dir_name,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # A full 26-char ULID and a *different* full ULID, used to prove the declared
 # identity governs over a divergent embedded slug tail.

@@ -31,7 +31,7 @@ from specify_cli.widen.models import PrereqState
 # Constants / helpers
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 MISSION_SLUG = "test-prereq-suppression-wp10"
 MISSION_ID = "01KWP10PREREQSUPPRESSION001"

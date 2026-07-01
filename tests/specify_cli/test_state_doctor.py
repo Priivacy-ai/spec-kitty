@@ -10,7 +10,7 @@ from specify_cli.state.doctor import check_state_roots
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def test_roots_resolved(tmp_path):
     """check_state_roots resolves three roots with correct names."""

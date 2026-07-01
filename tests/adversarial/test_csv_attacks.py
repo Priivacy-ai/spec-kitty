@@ -18,7 +18,7 @@ import pytest
 
 from specify_cli.validators.csv_schema import validate_csv_schema
 
-pytestmark = [pytest.mark.adversarial]
+pytestmark = [pytest.mark.adversarial, pytest.mark.fast]
 
 # Expected columns for evidence-log.csv (from ADR 8)
 EVIDENCE_COLUMNS = ["timestamp", "source_type", "citation", "key_finding", "confidence", "notes"]

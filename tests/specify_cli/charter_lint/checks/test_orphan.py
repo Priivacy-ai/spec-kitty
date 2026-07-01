@@ -18,7 +18,7 @@ from specify_cli.charter_lint.checks.orphan import OrphanChecker
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _make_node(urn: str, kind: str, label: str | None = None) -> SimpleNamespace:
     return SimpleNamespace(urn=urn, kind=kind, label=label)

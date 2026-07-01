@@ -7,7 +7,7 @@ import pytest
 import specify_cli.runtime as runtime_pkg
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def test_runtime_lazy_exports_resolve_symbols() -> None:
     assert runtime_pkg.resolve_template is not None

@@ -29,7 +29,7 @@ from specify_cli.migration.backfill_topology import (
     read_topology,
 )
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _write_meta(feature_dir: Path, meta: dict[str, object]) -> Path:

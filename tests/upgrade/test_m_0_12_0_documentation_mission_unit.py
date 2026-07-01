@@ -13,7 +13,7 @@ from specify_cli.upgrade.migrations.m_0_12_0_documentation_mission import (
 )
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 @pytest.fixture
 def migration() -> InstallDocumentationMission:

@@ -12,7 +12,7 @@ from doctrine.directives.repository import DirectiveRepository
 from doctrine.directives.validation import validate_directive
 
 
-pytestmark = [pytest.mark.doctrine]
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 BUILT_IN_DIRECTIVES_DIR = REPO_ROOT / "src" / "doctrine" / "directives" / "built-in"

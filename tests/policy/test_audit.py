@@ -10,7 +10,7 @@ from specify_cli.policy.audit import (
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 class TestPolicyAuditEvent:
     def test_create_event(self):

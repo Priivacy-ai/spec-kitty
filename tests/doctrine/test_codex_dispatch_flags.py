@@ -8,7 +8,7 @@ import pytest
 
 from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT, REPO_ROOT
 
-pytestmark = pytest.mark.doctrine
+pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
 
 def _skill_markdown_files() -> list[Path]:

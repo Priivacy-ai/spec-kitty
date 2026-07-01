@@ -20,7 +20,7 @@ from specify_cli.charter_lint._drg import load_merged_drg
 from specify_cli.charter_lint.findings import GraphState
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _stub_graph(label: str) -> SimpleNamespace:

@@ -24,7 +24,7 @@ import pytest
 from doctrine.base import DoctrineLayerCollisionWarning
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _write(path: Path, body: str) -> None:

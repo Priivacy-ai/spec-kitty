@@ -12,7 +12,7 @@ from specify_cli.upgrade.migrations.m_2_0_11_remove_clarify_command import (
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _make_project(tmp_path: Path) -> Path:
     project = tmp_path / "project"

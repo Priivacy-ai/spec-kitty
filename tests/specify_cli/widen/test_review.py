@@ -53,7 +53,7 @@ from specify_cli.widen.review import (
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def make_discussion(
     participants: list[str] | None = None,

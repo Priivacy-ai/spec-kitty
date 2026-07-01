@@ -17,7 +17,7 @@ from specify_cli.dossier.emitter_adapter import (
 )
 from specify_cli.dossier.events import emit_artifact_indexed
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 VALID_HASH = "a" * 64
 

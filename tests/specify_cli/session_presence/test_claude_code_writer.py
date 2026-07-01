@@ -18,7 +18,7 @@ from specify_cli.session_presence.writers.claude_code import (
     ClaudeCodeWriter,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _content() -> SessionPresenceContent:

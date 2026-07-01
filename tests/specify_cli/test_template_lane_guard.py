@@ -20,7 +20,7 @@ import pytest
 
 # Root of the source tree relative to repo root
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 

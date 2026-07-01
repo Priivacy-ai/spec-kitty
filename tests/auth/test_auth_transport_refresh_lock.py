@@ -15,7 +15,7 @@ from specify_cli.auth.transport import (
 )
 
 # Pure-logic transport tests (httpx mocks, asyncio); no subprocess/filesystem.
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 LOCK_MESSAGE = (

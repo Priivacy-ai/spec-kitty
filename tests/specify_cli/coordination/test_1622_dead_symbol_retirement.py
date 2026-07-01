@@ -43,7 +43,7 @@ from specify_cli.coordination.status_service import (
     read_event_log,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

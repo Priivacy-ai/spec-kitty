@@ -32,7 +32,7 @@ from specify_cli.skills.verifier import repair_skills, verify_installed_skills
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _create_skill_on_disk(
     skills_root: Path,

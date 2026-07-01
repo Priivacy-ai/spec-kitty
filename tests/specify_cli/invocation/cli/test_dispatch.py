@@ -21,7 +21,7 @@ from specify_cli import app as cli_app
 from specify_cli.invocation.modes import ModeOfWork, derive_mode
 from specify_cli.invocation.writer import EVENTS_DIR, InvocationWriter
 
-pytestmark = pytest.mark.non_sandbox
+pytestmark = [pytest.mark.non_sandbox, pytest.mark.fast]
 
 FIXTURES_DIR = Path(__file__).parent.parent / "fixtures" / "profiles"
 

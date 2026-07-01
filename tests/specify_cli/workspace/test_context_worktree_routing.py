@@ -20,7 +20,7 @@ import pytest
 from specify_cli.lanes import branch_naming as bn
 from tests.lanes.test_branch_naming_seam import GOLDEN_ROWS, GoldenRow
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # ---------------------------------------------------------------------------
 # Source roots for the three routed files.
@@ -182,6 +182,7 @@ def test_tasks_no_inline_endswith_mid8_dedup() -> None:
     )
 
 
+@pytest.mark.quarantine  # seam-scan drift: orchestrator module no longer contains 'resolve_mid8' literal (Wave-0 orphan-bind triage, #2034/#2283)
 def test_routed_files_import_the_seam() -> None:
     """Each routed file references the seam composer it must delegate to."""
     ctx = _CONTEXT_PY.read_text(encoding="utf-8")

@@ -9,7 +9,7 @@ from specify_cli.cli.commands import mission_type
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def test_render_human_success_includes_warning(monkeypatch) -> None:
     captured: list[Panel] = []

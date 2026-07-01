@@ -33,7 +33,7 @@ import specify_cli.tool_surface.service as service_module
 from specify_cli.tool_surface.providers import _discovery  # noqa: F401
 from specify_cli.tool_surface.providers._registry import SurfaceProviderRegistry
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 EXPECTED_PROVIDER_COUNT = 7
 

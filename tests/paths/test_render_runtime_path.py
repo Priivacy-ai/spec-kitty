@@ -9,7 +9,7 @@ import pytest
 from specify_cli.paths import render_runtime_path
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def test_windows_returns_absolute(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(sys, "platform", "win32")

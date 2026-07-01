@@ -15,7 +15,7 @@ from specify_cli.policy.hook_installer import HOOK_MODE, HookInstallRecord, inst
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def test_hook_rendering_shape(tmp_path: Path) -> None:
     """Install into a fake repo .git dir and assert the rendered hook shape."""

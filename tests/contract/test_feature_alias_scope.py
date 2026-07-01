@@ -35,7 +35,7 @@ from typer.testing import CliRunner
 
 from specify_cli import app
 
-pytestmark = [pytest.mark.contract]
+pytestmark = [pytest.mark.contract, pytest.mark.fast]
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 

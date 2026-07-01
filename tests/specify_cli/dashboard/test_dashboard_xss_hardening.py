@@ -5,7 +5,7 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 DASHBOARD_JS = REPO_ROOT / "src/specify_cli/dashboard/static/dashboard/dashboard.js"

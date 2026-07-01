@@ -17,7 +17,7 @@ from tests._support.coverage_safety.collection_equivalence import (
     collect_nodeids,
 )
 
-pytestmark = [pytest.mark.integration]
+pytestmark = [pytest.mark.integration, pytest.mark.fast]
 
 # A minimal, self-contained test module the helper can collect in a subprocess.
 _FIXTURE_TESTS = """\

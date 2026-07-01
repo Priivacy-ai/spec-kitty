@@ -19,7 +19,7 @@ import pytest
 
 from specify_cli.mission import validate_deliverables_path
 
-pytestmark = [pytest.mark.adversarial]
+pytestmark = [pytest.mark.adversarial, pytest.mark.fast]
 
 
 class TestDirectoryTraversal:

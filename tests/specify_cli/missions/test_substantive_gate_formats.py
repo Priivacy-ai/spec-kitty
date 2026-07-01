@@ -21,7 +21,7 @@ from specify_cli.missions._substantive import (
     describe_technical_context_gap,
 )
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # Canonical bulleted Technical Context (real values) — the plan-template shape.

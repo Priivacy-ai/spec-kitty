@@ -19,7 +19,7 @@ from specify_cli.doctrine.config import assert_pack_local_paths_exist
 from specify_cli.doctrine.org_charter import MissingDoctrinePackError
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def _write_kittify_config(repo_root: Path, packs: list[tuple[str, Path]]) -> None:

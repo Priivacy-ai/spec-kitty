@@ -28,7 +28,7 @@ from specify_cli.migration.backfill_identity import (
 
 # ULID pattern: 26 chars, Crockford base32 (0-9A-HJKMNP-TV-Z), case-insensitive at read
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _ULID_RE = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$", re.IGNORECASE)
 

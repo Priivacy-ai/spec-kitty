@@ -13,7 +13,7 @@ from specify_cli.tool_surface.profiles.capability_matrix import (
     is_research_gap,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 # ---------------------------------------------------------------------------

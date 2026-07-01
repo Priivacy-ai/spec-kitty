@@ -18,7 +18,7 @@ from specify_cli.core.paths import MissionMetaReadError
 # ---------------------------------------------------------------------------
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _make_project(tmp_path: Path, *, mission_slug: str = "057-test-feature", wp_code: str = "WP01") -> Path:
     """Create a minimal spec-kitty project tree for CLI tests."""

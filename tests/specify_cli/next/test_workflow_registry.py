@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def test_get_workflow_loads_software_dev_default():
     from specify_cli.next._internal_runtime.workflow_registry import get_workflow

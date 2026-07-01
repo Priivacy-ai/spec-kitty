@@ -21,7 +21,7 @@ from specify_cli.bulk_edit.occurrence_map import (
 # Helpers
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 ALL_EIGHT_CATEGORIES = {
     "code_symbols": {"action": "rename"},

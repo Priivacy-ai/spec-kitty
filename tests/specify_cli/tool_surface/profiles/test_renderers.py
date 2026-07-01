@@ -21,7 +21,7 @@ from specify_cli.tool_surface.profiles.renderers import (
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 def make_test_profile(slug: str = "architect-alphonso") -> AgentProfile:

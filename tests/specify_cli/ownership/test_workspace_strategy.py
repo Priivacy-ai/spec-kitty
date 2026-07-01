@@ -13,7 +13,7 @@ import pytest
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 class TestCreatePlanningWorkspace:
     def test_returns_repo_root(self, tmp_path: Path) -> None:

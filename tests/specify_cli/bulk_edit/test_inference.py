@@ -17,7 +17,7 @@ from specify_cli.bulk_edit.inference import (
 
 import pytest
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 class TestScoreSpecForBulkEdit:
     def test_empty_content_scores_zero(self) -> None:

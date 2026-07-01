@@ -20,7 +20,7 @@ from specify_cli.compat.cache import NagCache, NagCacheRecord, _dt_to_iso, _iso_
 # Helpers
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 _NOW = datetime(2026, 4, 27, 12, 0, 0, tzinfo=UTC)
 _VERSION = "2.0.11"

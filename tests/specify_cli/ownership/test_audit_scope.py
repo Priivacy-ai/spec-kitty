@@ -32,7 +32,7 @@ from specify_cli.ownership.validation import (
 )
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _manifest(
     mode: ExecutionMode = ExecutionMode.CODE_CHANGE,

@@ -36,7 +36,7 @@ from specify_cli.doctrine.org_charter import (
     load_org_charter_policies,
 )
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # ---------------------------------------------------------------------------
 # Test helpers

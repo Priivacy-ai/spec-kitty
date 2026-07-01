@@ -23,7 +23,7 @@ from specify_cli.readiness import (
 from specify_cli.readiness import coordinator as coord_module
 
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 @dataclass(frozen=True)

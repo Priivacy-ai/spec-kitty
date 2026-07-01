@@ -33,7 +33,7 @@ from specify_cli.runtime.bootstrap import (
 # Helpers
 # ---------------------------------------------------------------------------
 
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.integration]
 
 FAKE_VERSION = "99.0.0-test"
 

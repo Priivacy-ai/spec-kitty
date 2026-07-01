@@ -43,7 +43,7 @@ from specify_cli.sync.orphan_sweep import (
 
 # Module-level marker so the CI gate-coverage selector picks these pure unit
 # tests up (every test file must declare a module-level ``pytestmark``).
-pytestmark = [pytest.mark.unit]
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 # ---------------------------------------------------------------------------
 # Shared constants and builder helpers

@@ -24,7 +24,7 @@ import contextlib
 # Get migrations directory path
 MIGRATIONS_DIR = Path(__file__).parents[2] / "src" / "specify_cli" / "upgrade" / "migrations"
 
-pytestmark = [pytest.mark.adversarial]
+pytestmark = [pytest.mark.adversarial, pytest.mark.fast]
 
 LOCK_FILENAME = ".upgrade.lock"
 FLAKY_MARKER = ".kittify/.flaky-migration"
