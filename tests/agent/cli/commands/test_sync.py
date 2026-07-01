@@ -360,12 +360,20 @@ class TestSyncServerCommand:
         assert exc.value.exit_code == 1
         mock_config.set_server_url.assert_not_called()
 
-    def test_set_server_url_accepts_loopback_http(self):
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "http://localhost:8000",
+            "http://127.0.0.1:8000",
+            "http://[::1]:8000",
+        ],
+    )
+    def test_set_server_url_accepts_loopback_http(self, url):
         """Loopback HTTP is allowed for local development (e.g. local Docker SaaS)."""
         mock_config = MagicMock()
         with patch("specify_cli.sync.config.SyncConfig", return_value=mock_config):
-            sync_server(url="http://localhost:8000")
-        mock_config.set_server_url.assert_called_once_with("http://localhost:8000")
+            sync_server(url=url)
+        mock_config.set_server_url.assert_called_once_with(url)
 
     def test_set_server_url_rejects_non_loopback_http(self):
         """Non-loopback HTTP is still rejected (HTTPS required for remote)."""
