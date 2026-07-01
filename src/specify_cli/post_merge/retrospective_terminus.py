@@ -24,6 +24,10 @@ from specify_cli.core.constants import RETROSPECTIVE_FILENAME
 
 logger = logging.getLogger(__name__)
 
+# The durable mission event log. Kept local (not imported from the migration-only
+# module) so the post-merge terminus owns its own literal.
+_STATUS_EVENTS_FILENAME = "status.events.jsonl"
+
 FailureCategory = Literal[
     "missing_artifacts",
     "generator_exception",
@@ -106,6 +110,19 @@ def run_retrospective_postcondition(
             exc=exc,
         )
 
+    # #2119 follow-up: commit whatever the capture wrote — the RetrospectiveCaptured
+    # event + retrospective.yaml on success, or the capture_failed event append on
+    # failure. Both merge and `mission close` funnel through here, so committing at
+    # this single seam keeps the two paths consistent and honours the atomic
+    # event-log discipline (FR-016): a merged/closed mission must never be left with
+    # an uncommitted append in its durable status.events.jsonl. Fail-open-but-loud —
+    # a commit failure is reported, never raised (must not abort merge/close).
+    _commit_captured_retrospective(
+        mission_slug=mission_slug,
+        feature_dir=feature_dir,
+        repo_root=repo_root,
+    )
+
 
 # ---------------------------------------------------------------------------
 # Internal helpers
@@ -152,6 +169,117 @@ def _invoke_capture(
         repo_root=repo_root,
         block_on_failure=False,
     )
+
+
+def _resolve_commit_branch(repo_root: Path) -> str | None:
+    """Return the short branch name at ``repo_root`` HEAD, or ``None``.
+
+    Matches ``safe_commit``'s HEAD assertion (which reads ``symbolic-ref HEAD``),
+    so the resolved name is a valid ``destination_ref``. Returns ``None`` when the
+    path is not a git worktree or HEAD is detached — the caller then skips the
+    commit rather than guessing a destination.
+    """
+    from specify_cli.core.git_ops import run_command  # noqa: PLC0415
+
+    inside_ret, inside_out, _ = run_command(
+        ["git", "rev-parse", "--is-inside-work-tree"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if inside_ret != 0 or inside_out.strip() != "true":
+        return None
+    branch_ret, branch_out, _ = run_command(
+        ["git", "symbolic-ref", "--short", "HEAD"],
+        capture=True,
+        check_return=False,
+        cwd=repo_root,
+    )
+    if branch_ret != 0:
+        return None
+    return branch_out.strip() or None
+
+
+def _paths_with_uncommitted_changes(repo_root: Path, paths: list[Path]) -> tuple[Path, ...]:
+    """Return the subset of ``paths`` that differ from HEAD or are untracked."""
+    from specify_cli.core.git_ops import run_command  # noqa: PLC0415
+
+    dirty: list[Path] = []
+    for path in paths:
+        if not path.exists():
+            continue
+        rel = str(path.relative_to(repo_root)) if path.is_absolute() else str(path)
+        ret, out, _ = run_command(
+            ["git", "status", "--porcelain", "--", rel],
+            capture=True,
+            check_return=False,
+            cwd=repo_root,
+        )
+        if ret == 0 and out.strip():
+            dirty.append(path)
+    return tuple(dirty)
+
+
+def _commit_captured_retrospective(
+    *,
+    mission_slug: str,
+    feature_dir: Path,
+    repo_root: Path,
+) -> None:
+    """Commit the just-captured retrospective + its event-log append.
+
+    Mirrors ``spec-kitty merge``'s bookkeeping commit so the auto-capture path
+    (merge OR ``mission close``) never leaves the durable event log with an
+    uncommitted append. Uses ``MERGE_BOOKKEEPING`` — this IS the post-merge /
+    close bookkeeping flow (FR-007 retrospective postcondition) — so the guard
+    authorizes landing it on a protected target branch.
+
+    Fail-open-but-loud: any failure is reported via a WARNING (surfaced by the CLI
+    logging bootstrap) with the exact remediation command, and NEVER raised — the
+    caller must not abort the merge/close.
+    """
+    candidates = [feature_dir / RETROSPECTIVE_FILENAME, feature_dir / _STATUS_EVENTS_FILENAME]
+    paths = _paths_with_uncommitted_changes(repo_root, candidates)
+    if not paths:
+        return  # nothing the capture wrote is dirty — already committed or absent
+
+    branch = _resolve_commit_branch(repo_root)
+    if branch is None:
+        logger.warning(
+            "retrospective for mission %s was captured but NOT committed: %s is not on a "
+            "branch (detached HEAD or not a git worktree). Commit it manually so the "
+            "durable event log is not left with an uncommitted append.",
+            mission_slug,
+            repo_root,
+        )
+        return
+
+    from specify_cli.core.commit_guard import GuardCapability  # noqa: PLC0415
+    from specify_cli.git import safe_commit  # noqa: PLC0415
+
+    try:
+        safe_commit(
+            repo_root=repo_root,
+            worktree_root=repo_root,
+            destination_ref=branch,
+            message=f"chore({mission_slug}): capture mission retrospective",
+            paths=paths,
+            capability=GuardCapability.MERGE_BOOKKEEPING,
+        )
+        logger.debug("committed retrospective bookkeeping for mission %s onto %s", mission_slug, branch)
+    except Exception as exc:  # noqa: BLE001 — fail-open: report but never abort merge/close
+        joined = " ".join(str(p) for p in paths)
+        logger.warning(
+            "retrospective for mission %s was captured but could NOT be committed: %s. "
+            "The durable event log has an uncommitted append. Commit it manually: "
+            "git -C %s add %s && git -C %s commit -m 'chore(%s): capture mission retrospective'",
+            mission_slug,
+            exc,
+            repo_root,
+            joined,
+            repo_root,
+            mission_slug,
+        )
 
 
 def _emit_capture_failed(
