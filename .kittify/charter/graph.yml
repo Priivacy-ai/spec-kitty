@@ -1,0 +1,888 @@
+schema_version: '1.0'
+generated_at: STATIC
+generated_by: charter-activation (interview-driven; induced subgraph of src/doctrine/graph.yaml)
+nodes:
+- urn: directive:DIRECTIVE_001
+  kind: directive
+  label: Architectural Integrity Standard
+- urn: directive:DIRECTIVE_003
+  kind: directive
+  label: Decision Documentation Requirement
+- urn: directive:DIRECTIVE_010
+  kind: directive
+  label: Specification Fidelity Requirement
+- urn: directive:DIRECTIVE_018
+  kind: directive
+  label: Doctrine Versioning Requirement
+- urn: directive:DIRECTIVE_024
+  kind: directive
+  label: Locality of Change
+- urn: directive:DIRECTIVE_025
+  kind: directive
+  label: Boy Scout Rule
+- urn: directive:DIRECTIVE_028
+  kind: directive
+  label: Efficient Local Tooling
+- urn: directive:DIRECTIVE_029
+  kind: directive
+  label: Agent Commit Signing Policy
+- urn: directive:DIRECTIVE_030
+  kind: directive
+  label: Test and Typecheck Quality Gate
+- urn: directive:DIRECTIVE_031
+  kind: directive
+  label: Context-Aware Design
+- urn: directive:DIRECTIVE_032
+  kind: directive
+  label: Conceptual Alignment
+- urn: directive:DIRECTIVE_033
+  kind: directive
+  label: Targeted Staging Policy
+- urn: directive:DIRECTIVE_034
+  kind: directive
+  label: Test-First Development
+- urn: directive:DIRECTIVE_035
+  kind: directive
+  label: Bulk Edit Occurrence Classification
+- urn: directive:DIRECTIVE_036
+  kind: directive
+  label: Black-Box Integration Testing
+- urn: directive:DIRECTIVE_037
+  kind: directive
+  label: Living Documentation Sync
+- urn: directive:DIRECTIVE_038
+  kind: directive
+  label: Structured Prompt Change-Boundary
+- urn: directive:DIRECTIVE_039
+  kind: directive
+  label: Lynn Cole Engineering Culture
+- urn: directive:DIRECTIVE_040
+  kind: directive
+  label: Recurring-Bug Structural-Intervention Discipline
+- urn: directive:DIRECTIVE_041
+  kind: directive
+  label: Tests as Scaffold, Not Friction
+- urn: directive:DIRECTIVE_042
+  kind: directive
+  label: Common Docs Documentation Standard
+- urn: directive:DIRECTIVE_043
+  kind: directive
+  label: Close Defect Classes by Construction
+- urn: directive:DIRECTIVE_044
+  kind: directive
+  label: Canonical Sources and Unification
+- urn: directive:DIRECTIVE_045
+  kind: directive
+  label: PRs-Only and Read-Intent Before High-Risk Operations
+- urn: procedure:adversarial-squad-deployment
+  kind: procedure
+  label: Adversarial Squad Deployment
+- urn: procedure:legacy-codebase-triage
+  kind: procedure
+  label: Legacy Codebase Triage
+- urn: procedure:mission-tracer-files
+  kind: procedure
+  label: Mission Tracer Files
+- urn: procedure:post-merge-arch-gate-adjudication
+  kind: procedure
+  label: Post-Merge Arch-Gate Adjudication
+- urn: procedure:situational-assessment
+  kind: procedure
+  label: Situational Assessment
+- urn: styleguide:adversarial-squad-cadence
+  kind: styleguide
+  label: Adversarial Squad Cadence
+- urn: styleguide:common-docs
+  kind: styleguide
+  label: Common Docs Styleguide
+- urn: styleguide:kitty-glossary-writing
+  kind: styleguide
+  label: Kitty Glossary Writing Styleguide
+- urn: styleguide:planning-and-tracking
+  kind: styleguide
+  label: Planning & Tracking Styleguide
+- urn: styleguide:testing-principles
+  kind: styleguide
+  label: Testing Principles Styleguide
+- urn: styleguide:tiered-standards
+  kind: styleguide
+  label: Tiered Coding Standards
+- urn: tactic:acceptance-test-first
+  kind: tactic
+  label: Acceptance Test Driven Development (ATDD)
+- urn: tactic:adversarial-qa-handoff
+  kind: tactic
+  label: Adversarial QA Handoff
+- urn: tactic:ammerse-impact-analysis
+  kind: tactic
+  label: AMMERSE Impact Analysis
+- urn: tactic:anti-corruption-layer
+  kind: tactic
+  label: Anti-Corruption Layer
+- urn: tactic:architectural-gate-non-vacuity
+  kind: tactic
+  label: Architectural Gate Non-Vacuity
+- urn: tactic:avoid-gold-plating
+  kind: tactic
+  label: Avoid Gold Plating
+- urn: tactic:boring-code-review
+  kind: tactic
+  label: Boring Code Review
+- urn: tactic:bounded-context-identification
+  kind: tactic
+  label: Bounded Context Identification
+- urn: tactic:canonical-source-unification
+  kind: tactic
+  label: Canonical Source Unification
+- urn: tactic:change-apply-smallest-viable-diff
+  kind: tactic
+  label: Change Apply Smallest Viable Diff
+- urn: tactic:clean-linear-commit-history
+  kind: tactic
+  label: Clean Linear Commit History via Snapshot Chain
+- urn: tactic:code-review-incremental
+  kind: tactic
+  label: Incremental Code Review
+- urn: tactic:common-docs-curation
+  kind: tactic
+  label: Common Docs Curation
+- urn: tactic:common-docs-find
+  kind: tactic
+  label: Common Docs Find
+- urn: tactic:common-docs-scaffold
+  kind: tactic
+  label: Common Docs Scaffold
+- urn: tactic:common-docs-write
+  kind: tactic
+  label: Common Docs Write
+- urn: tactic:connascence-analysis
+  kind: tactic
+  label: Connascence Analysis
+- urn: tactic:context-mapping-classification
+  kind: tactic
+  label: Context Mapping Classification
+- urn: tactic:delete-the-assertion-not-the-test
+  kind: tactic
+  label: Delete the Assertion, Not the Test
+- urn: tactic:domain-event-capture
+  kind: tactic
+  label: Domain Event Capture
+- urn: tactic:easy-to-change
+  kind: tactic
+  label: Easy-to-Change Design Review
+- urn: tactic:eisenhower-prioritisation
+  kind: tactic
+  label: Eisenhower Prioritisation
+- urn: tactic:five-paradigm-parallel-debugging
+  kind: tactic
+  label: Five-Paradigm Parallel Debugging
+- urn: tactic:focused-function-complexity-check
+  kind: tactic
+  label: Focused Function Complexity Check
+- urn: tactic:forensic-repository-audit
+  kind: tactic
+  label: Forensic Repository Audit
+- urn: tactic:frozen-baseline-shrink-only-ratchet
+  kind: tactic
+  label: Frozen-Baseline Shrink-Only Ratchet
+- urn: tactic:generated-code-stewardship
+  kind: tactic
+  label: Generated Code Stewardship
+- urn: tactic:glossary-curation-interview
+  kind: tactic
+  label: Glossary Curation Interview
+- urn: tactic:language-driven-design
+  kind: tactic
+  label: Language-Driven Design
+- urn: tactic:ownership-map-leeway
+  kind: tactic
+  label: Ownership Map Leeway
+- urn: tactic:paula-patterns-architecture-scout-review
+  kind: tactic
+  label: Paula Patterns Architecture Scout Review
+- urn: tactic:pr-agent-worktree-isolation
+  kind: tactic
+  label: PR Agent Worktree Isolation and No-Version Prescription
+- urn: tactic:premortem-risk-identification
+  kind: tactic
+  label: Premortem Risk Identification
+- urn: tactic:problem-decomposition
+  kind: tactic
+  label: Problem Decomposition
+- urn: tactic:quality-gate-verification
+  kind: tactic
+  label: Quality Gate Verification
+- urn: tactic:reasons-canvas-fill
+  kind: tactic
+  label: REASONS Canvas Fill
+- urn: tactic:reasons-canvas-review
+  kind: tactic
+  label: REASONS Canvas Review
+- urn: tactic:refactoring-conditional-to-strategy
+  kind: tactic
+  label: Refactoring Conditional to Strategy
+- urn: tactic:refactoring-guard-clauses-before-polymorphism
+  kind: tactic
+  label: Refactoring Guard Clauses Before Polymorphism
+- urn: tactic:refactoring-strangler-fig
+  kind: tactic
+  label: Refactoring Strangler Fig
+- urn: tactic:review-intent-and-risk-first
+  kind: tactic
+  label: Review Intent and Risk First
+- urn: tactic:reviewer-implementer-role-separation
+  kind: tactic
+  label: Reviewer/Implementer Role Separation
+- urn: tactic:safe-to-fail-experiment
+  kind: tactic
+  label: Safe-to-Fail Experiment
+- urn: tactic:stakeholder-alignment
+  kind: tactic
+  label: Stakeholder Alignment
+- urn: tactic:strategic-domain-classification
+  kind: tactic
+  label: Strategic Domain Classification
+- urn: tactic:tdd-red-green-refactor
+  kind: tactic
+  label: Test Driven Development (TDD)
+- urn: tactic:test-boundaries-by-responsibility
+  kind: tactic
+  label: Test Boundaries by Functional Responsibility
+- urn: tactic:test-minimisation
+  kind: tactic
+  label: Test Minimisation
+- urn: tactic:test-pyramid-progression
+  kind: tactic
+  label: Test Pyramid Progression
+- urn: tactic:traceable-decisions
+  kind: tactic
+  label: Traceable Decisions
+- urn: tactic:usage-examples-sync
+  kind: tactic
+  label: Usage Examples Sync
+- urn: tactic:zombies-tdd
+  kind: tactic
+  label: ZOMBIES TDD
+- urn: toolguide:efficient-local-tooling
+  kind: toolguide
+  label: Efficient Local Tooling
+- urn: toolguide:git-agent-commit-signing
+  kind: toolguide
+  label: Git Agent Commit Signing
+- urn: toolguide:github-tracker
+  kind: toolguide
+  label: GitHub Issue-Tracker Operations (gh CLI + GraphQL)
+- urn: toolguide:terminology-guard
+  kind: toolguide
+  label: Terminology Guard
+edges:
+- source: directive:DIRECTIVE_001
+  target: tactic:paula-patterns-architecture-scout-review
+  relation: requires
+- source: directive:DIRECTIVE_003
+  target: tactic:traceable-decisions
+  relation: requires
+- source: directive:DIRECTIVE_024
+  target: directive:DIRECTIVE_025
+  relation: replaces
+  reason: The Boy Scout Rule endorses opportunistic improvement of touched areas,
+    which can justify expanding a change beyond the strict locality boundary this
+    directive enforces.
+- source: directive:DIRECTIVE_025
+  target: directive:DIRECTIVE_024
+  relation: replaces
+  reason: Locality of Change constrains the SCOPE of new work to the minimum the goal
+    requires; it does NOT license leaving adjacent breakage in already-touched code.
+    Campsite cleaning of touched-area failures is within locality; broad refactors
+    are not. The two reconcile by fixing adjacent breakage by default while deferring
+    genuinely broad refactors with a rationale.
+- source: directive:DIRECTIVE_025
+  target: directive:DIRECTIVE_024
+  relation: requires
+- source: directive:DIRECTIVE_025
+  target: directive:DIRECTIVE_040
+  relation: requires
+- source: directive:DIRECTIVE_025
+  target: tactic:frozen-baseline-shrink-only-ratchet
+  relation: suggests
+- source: directive:DIRECTIVE_028
+  target: toolguide:efficient-local-tooling
+  relation: suggests
+- source: directive:DIRECTIVE_029
+  target: toolguide:git-agent-commit-signing
+  relation: suggests
+- source: directive:DIRECTIVE_030
+  target: styleguide:tiered-standards
+  relation: suggests
+- source: directive:DIRECTIVE_031
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: directive:DIRECTIVE_032
+  target: directive:DIRECTIVE_031
+  relation: requires
+- source: directive:DIRECTIVE_032
+  target: styleguide:kitty-glossary-writing
+  relation: suggests
+- source: directive:DIRECTIVE_032
+  target: tactic:glossary-curation-interview
+  relation: suggests
+- source: directive:DIRECTIVE_032
+  target: tactic:language-driven-design
+  relation: suggests
+- source: directive:DIRECTIVE_036
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: directive:DIRECTIVE_036
+  target: directive:DIRECTIVE_034
+  relation: requires
+- source: directive:DIRECTIVE_037
+  target: tactic:usage-examples-sync
+  relation: requires
+- source: directive:DIRECTIVE_038
+  target: tactic:reasons-canvas-fill
+  relation: suggests
+- source: directive:DIRECTIVE_038
+  target: tactic:reasons-canvas-review
+  relation: suggests
+- source: directive:DIRECTIVE_039
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: directive:DIRECTIVE_039
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: directive:DIRECTIVE_039
+  target: directive:DIRECTIVE_034
+  relation: requires
+- source: directive:DIRECTIVE_039
+  target: tactic:adversarial-qa-handoff
+  relation: suggests
+- source: directive:DIRECTIVE_039
+  target: tactic:boring-code-review
+  relation: suggests
+- source: directive:DIRECTIVE_039
+  target: tactic:focused-function-complexity-check
+  relation: suggests
+- source: directive:DIRECTIVE_039
+  target: tactic:generated-code-stewardship
+  relation: suggests
+- source: directive:DIRECTIVE_040
+  target: tactic:five-paradigm-parallel-debugging
+  relation: requires
+- source: directive:DIRECTIVE_041
+  target: directive:DIRECTIVE_034
+  relation: requires
+- source: directive:DIRECTIVE_041
+  target: styleguide:testing-principles
+  relation: suggests
+- source: directive:DIRECTIVE_041
+  target: tactic:acceptance-test-first
+  relation: suggests
+- source: directive:DIRECTIVE_041
+  target: tactic:delete-the-assertion-not-the-test
+  relation: suggests
+- source: directive:DIRECTIVE_041
+  target: tactic:tdd-red-green-refactor
+  relation: suggests
+- source: directive:DIRECTIVE_042
+  target: styleguide:common-docs
+  relation: suggests
+- source: directive:DIRECTIVE_042
+  target: tactic:common-docs-curation
+  relation: suggests
+- source: directive:DIRECTIVE_042
+  target: tactic:common-docs-find
+  relation: suggests
+- source: directive:DIRECTIVE_042
+  target: tactic:common-docs-scaffold
+  relation: suggests
+- source: directive:DIRECTIVE_042
+  target: tactic:common-docs-write
+  relation: suggests
+- source: directive:DIRECTIVE_043
+  target: styleguide:adversarial-squad-cadence
+  relation: suggests
+- source: directive:DIRECTIVE_043
+  target: tactic:architectural-gate-non-vacuity
+  relation: suggests
+- source: directive:DIRECTIVE_043
+  target: tactic:frozen-baseline-shrink-only-ratchet
+  relation: suggests
+- source: directive:DIRECTIVE_043
+  target: tactic:pr-agent-worktree-isolation
+  relation: suggests
+- source: directive:DIRECTIVE_044
+  target: styleguide:planning-and-tracking
+  relation: suggests
+- source: directive:DIRECTIVE_044
+  target: tactic:canonical-source-unification
+  relation: suggests
+- source: directive:DIRECTIVE_044
+  target: tactic:ownership-map-leeway
+  relation: suggests
+- source: directive:DIRECTIVE_044
+  target: tactic:reviewer-implementer-role-separation
+  relation: suggests
+- source: directive:DIRECTIVE_044
+  target: toolguide:terminology-guard
+  relation: suggests
+- source: directive:DIRECTIVE_045
+  target: procedure:mission-tracer-files
+  relation: suggests
+- source: directive:DIRECTIVE_045
+  target: procedure:post-merge-arch-gate-adjudication
+  relation: suggests
+- source: procedure:adversarial-squad-deployment
+  target: tactic:code-review-incremental
+  relation: requires
+- source: procedure:adversarial-squad-deployment
+  target: tactic:five-paradigm-parallel-debugging
+  relation: requires
+- source: procedure:legacy-codebase-triage
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: procedure:legacy-codebase-triage
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: procedure:legacy-codebase-triage
+  target: directive:DIRECTIVE_028
+  relation: requires
+- source: procedure:legacy-codebase-triage
+  target: procedure:situational-assessment
+  relation: requires
+- source: procedure:legacy-codebase-triage
+  target: tactic:connascence-analysis
+  relation: requires
+- source: procedure:legacy-codebase-triage
+  target: tactic:eisenhower-prioritisation
+  relation: requires
+- source: procedure:legacy-codebase-triage
+  target: tactic:forensic-repository-audit
+  relation: requires
+- source: procedure:legacy-codebase-triage
+  target: tactic:premortem-risk-identification
+  relation: requires
+- source: procedure:legacy-codebase-triage
+  target: tactic:strategic-domain-classification
+  relation: requires
+- source: procedure:mission-tracer-files
+  target: styleguide:adversarial-squad-cadence
+  relation: suggests
+- source: procedure:post-merge-arch-gate-adjudication
+  target: directive:DIRECTIVE_043
+  relation: requires
+- source: procedure:post-merge-arch-gate-adjudication
+  target: tactic:architectural-gate-non-vacuity
+  relation: requires
+- source: procedure:situational-assessment
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: procedure:situational-assessment
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: procedure:situational-assessment
+  target: tactic:ammerse-impact-analysis
+  relation: requires
+- source: procedure:situational-assessment
+  target: tactic:eisenhower-prioritisation
+  relation: requires
+- source: procedure:situational-assessment
+  target: tactic:premortem-risk-identification
+  relation: requires
+- source: procedure:situational-assessment
+  target: tactic:problem-decomposition
+  relation: requires
+- source: procedure:situational-assessment
+  target: tactic:safe-to-fail-experiment
+  relation: requires
+- source: procedure:situational-assessment
+  target: tactic:stakeholder-alignment
+  relation: requires
+- source: styleguide:adversarial-squad-cadence
+  target: procedure:adversarial-squad-deployment
+  relation: suggests
+- source: styleguide:common-docs
+  target: directive:DIRECTIVE_042
+  relation: suggests
+- source: styleguide:common-docs
+  target: tactic:common-docs-curation
+  relation: suggests
+- source: styleguide:common-docs
+  target: tactic:common-docs-find
+  relation: suggests
+- source: styleguide:common-docs
+  target: tactic:common-docs-scaffold
+  relation: suggests
+- source: styleguide:common-docs
+  target: tactic:common-docs-write
+  relation: suggests
+- source: styleguide:planning-and-tracking
+  target: styleguide:tiered-standards
+  relation: suggests
+- source: styleguide:planning-and-tracking
+  target: tactic:ownership-map-leeway
+  relation: suggests
+- source: styleguide:planning-and-tracking
+  target: tactic:reviewer-implementer-role-separation
+  relation: suggests
+- source: styleguide:planning-and-tracking
+  target: toolguide:github-tracker
+  relation: suggests
+- source: styleguide:testing-principles
+  target: directive:DIRECTIVE_030
+  relation: suggests
+- source: styleguide:testing-principles
+  target: directive:DIRECTIVE_034
+  relation: suggests
+- source: styleguide:testing-principles
+  target: directive:DIRECTIVE_041
+  relation: suggests
+- source: styleguide:testing-principles
+  target: tactic:acceptance-test-first
+  relation: suggests
+- source: styleguide:testing-principles
+  target: tactic:tdd-red-green-refactor
+  relation: suggests
+- source: styleguide:testing-principles
+  target: tactic:test-boundaries-by-responsibility
+  relation: suggests
+- source: styleguide:testing-principles
+  target: tactic:test-minimisation
+  relation: suggests
+- source: styleguide:testing-principles
+  target: tactic:test-pyramid-progression
+  relation: suggests
+- source: styleguide:tiered-standards
+  target: directive:DIRECTIVE_001
+  relation: suggests
+- source: styleguide:tiered-standards
+  target: directive:DIRECTIVE_025
+  relation: suggests
+- source: styleguide:tiered-standards
+  target: directive:DIRECTIVE_030
+  relation: suggests
+- source: tactic:acceptance-test-first
+  target: tactic:tdd-red-green-refactor
+  relation: suggests
+  when: After the acceptance test fails for the right reason, drive implementation
+    detail with Red-Green-Refactor cycles.
+- source: tactic:adversarial-qa-handoff
+  target: tactic:quality-gate-verification
+  relation: suggests
+  when: Use to verify the automated gates before handoff.
+- source: tactic:adversarial-qa-handoff
+  target: tactic:review-intent-and-risk-first
+  relation: suggests
+  when: Use during review to compare the stated behavior contract with the diff.
+- source: tactic:anti-corruption-layer
+  target: tactic:bounded-context-identification
+  relation: suggests
+  when: The ACL sits at the boundary between bounded contexts — identify the contexts
+    first.
+- source: tactic:anti-corruption-layer
+  target: tactic:refactoring-strangler-fig
+  relation: suggests
+  when: Using ACL as part of an incremental migration strategy.
+- source: tactic:architectural-gate-non-vacuity
+  target: directive:DIRECTIVE_043
+  relation: suggests
+  when: Required governing directive for all architectural enforcement gates authored
+    under this tactic.
+- source: tactic:architectural-gate-non-vacuity
+  target: tactic:frozen-baseline-shrink-only-ratchet
+  relation: suggests
+  when: Use alongside this tactic to maintain numeric allowlist-size baselines over
+    time.
+- source: tactic:avoid-gold-plating
+  target: tactic:easy-to-change
+  relation: suggests
+  when: After confirming the design is not gold-plated, use easy-to-change to verify
+    that the simpler design still supports anticipated future change.
+- source: tactic:boring-code-review
+  target: tactic:avoid-gold-plating
+  relation: suggests
+  when: Use when a proposed abstraction is speculative rather than justified by current
+    complexity.
+- source: tactic:boring-code-review
+  target: tactic:easy-to-change
+  relation: suggests
+  when: Use after simplifying a design to verify that the simpler form still supports
+    expected change.
+- source: tactic:bounded-context-identification
+  target: tactic:language-driven-design
+  relation: suggests
+  when: Detecting linguistic conflicts that signal a bounded context boundary.
+- source: tactic:canonical-source-unification
+  target: directive:DIRECTIVE_044
+  relation: suggests
+  when: Consult to understand the binding rules this tactic operationalizes, including
+    the unification-not-parity rule and the missing-command-is-a-gap rule.
+- source: tactic:code-review-incremental
+  target: tactic:change-apply-smallest-viable-diff
+  relation: suggests
+  when: Verifying the diff is the smallest viable change for the stated goal
+- source: tactic:code-review-incremental
+  target: tactic:review-intent-and-risk-first
+  relation: suggests
+  when: Applying the intent-first review philosophy that this tactic adds incremental
+    discipline to
+- source: tactic:common-docs-curation
+  target: directive:DIRECTIVE_042
+  relation: suggests
+  when: Consult throughout placement, frontmatter authoring, and ADR migration to
+    apply the binding documentation rules.
+- source: tactic:common-docs-curation
+  target: styleguide:common-docs
+  relation: suggests
+  when: Consult while authoring frontmatter, naming files, and writing cross-references
+    to apply the rule-to-check conventions.
+- source: tactic:common-docs-find
+  target: directive:DIRECTIVE_042
+  relation: suggests
+  when: Consult to apply the frontmatter-SSOT and generated-lockfile rules that make
+    the DRG and page-inventory the authorities to search.
+- source: tactic:common-docs-find
+  target: styleguide:common-docs
+  relation: suggests
+  when: Consult to read the frontmatter fields (section, doc_status, related:) the
+    lockfile and DRG expose for resolution.
+- source: tactic:common-docs-scaffold
+  target: directive:DIRECTIVE_042
+  relation: suggests
+  when: Consult while choosing the section and path to apply the single-root, 13-section,
+    doc_status placement rules.
+- source: tactic:common-docs-scaffold
+  target: styleguide:common-docs
+  relation: suggests
+  when: Consult while seeding frontmatter and naming the file to apply the schema,
+    kebab-case naming, and section-index conventions.
+- source: tactic:common-docs-write
+  target: directive:DIRECTIVE_042
+  relation: suggests
+  when: Consult to apply the binding frontmatter-SSOT and doc_status rules the styleguide
+    conventions enforce.
+- source: tactic:common-docs-write
+  target: styleguide:common-docs
+  relation: suggests
+  when: 'Consult throughout authoring to apply the frontmatter schema, the 50-180
+    description band, related: paths, Divio type, and naming.'
+- source: tactic:context-mapping-classification
+  target: tactic:anti-corruption-layer
+  relation: suggests
+  when: Implementing the ACL pattern identified during context mapping classification.
+- source: tactic:context-mapping-classification
+  target: tactic:bounded-context-identification
+  relation: suggests
+  when: Identify bounded contexts before classifying the relationships between them.
+- source: tactic:context-mapping-classification
+  target: tactic:language-driven-design
+  relation: suggests
+  when: Verifying that each context's ubiquitous language is internally consistent.
+- source: tactic:context-mapping-classification
+  target: tactic:refactoring-strangler-fig
+  relation: suggests
+  when: Remediating Big Ball of Mud boundaries discovered in the context map.
+- source: tactic:delete-the-assertion-not-the-test
+  target: tactic:acceptance-test-first
+  relation: suggests
+  when: writing the replacement assertion against externally observable behavior
+- source: tactic:delete-the-assertion-not-the-test
+  target: tactic:tdd-red-green-refactor
+  relation: suggests
+  when: observing the replacement assertion RED before it is made GREEN
+- source: tactic:delete-the-assertion-not-the-test
+  target: tactic:zombies-tdd
+  relation: suggests
+  when: enumerating the boundary and exceptional behaviors the original test encoded
+- source: tactic:five-paradigm-parallel-debugging
+  target: directive:DIRECTIVE_040
+  relation: suggests
+  when: When a bug class has recurred and reactive PRs have not stopped the chain,
+    this directive REQUIRES a structural intervention rather than another point fix
+- source: tactic:five-paradigm-parallel-debugging
+  target: tactic:code-review-incremental
+  relation: suggests
+  when: Apply during convergence synthesis to each sub-agent's output before authoring
+    the fix plan
+- source: tactic:five-paradigm-parallel-debugging
+  target: tactic:review-intent-and-risk-first
+  relation: suggests
+  when: Evaluate the structural-fix plan for intent (does it close the class?) and
+    risk (blast radius of structural change) before handoff
+- source: tactic:focused-function-complexity-check
+  target: directive:DIRECTIVE_034
+  relation: suggests
+  when: Use test-first cycles before reshaping behavior.
+- source: tactic:focused-function-complexity-check
+  target: tactic:refactoring-guard-clauses-before-polymorphism
+  relation: suggests
+  when: Use when nested conditionals can be flattened without inventing a strategy
+    hierarchy.
+- source: tactic:forensic-repository-audit
+  target: directive:DIRECTIVE_001
+  relation: suggests
+  when: Audit findings that surface load-bearing complexity or single-author critical
+    modules feed back into architectural-integrity decisions and ADRs.
+- source: tactic:forensic-repository-audit
+  target: directive:DIRECTIVE_028
+  relation: suggests
+  when: The recipes rely on local `git`, `cloc`, and language-specific complexity
+    tools; the directive governs how those tools are configured and invoked.
+- source: tactic:forensic-repository-audit
+  target: procedure:legacy-codebase-triage
+  relation: suggests
+  when: This tactic is the evidence-gathering core of the legacy-codebase triage procedure;
+    run it there to feed prioritisation and bucketing.
+- source: tactic:forensic-repository-audit
+  target: tactic:connascence-analysis
+  relation: suggests
+  when: After hotspots are identified, use connascence analysis on the highest-priority
+    files to classify the coupling that drives the churn.
+- source: tactic:forensic-repository-audit
+  target: tactic:eisenhower-prioritisation
+  relation: suggests
+  when: Hotspot tables, bug overlaps, and bus-factor concentrations populate the urgency-and-importance
+    grid that drives the triage buckets.
+- source: tactic:forensic-repository-audit
+  target: tactic:premortem-risk-identification
+  relation: suggests
+  when: Use the audit findings as input to a premortem on the planned remediation
+    path; high-firefighting projects warrant a premortem before any large refactor
+    is scheduled.
+- source: tactic:frozen-baseline-shrink-only-ratchet
+  target: directive:DIRECTIVE_043
+  relation: suggests
+  when: Required governing directive for all structural enforcement mechanisms including
+    ratchets.
+- source: tactic:generated-code-stewardship
+  target: directive:DIRECTIVE_030
+  relation: suggests
+  when: Generated code must pass the same gates as handwritten code.
+- source: tactic:generated-code-stewardship
+  target: tactic:boring-code-review
+  relation: suggests
+  when: Use to remove clever or over-abstracted generated output.
+- source: tactic:glossary-curation-interview
+  target: styleguide:kitty-glossary-writing
+  relation: suggests
+  when: Consult throughout all definition-writing and rewriting steps to enforce clarity,
+    anti-pattern avoidance, and HiC terminology standards.
+- source: tactic:ownership-map-leeway
+  target: styleguide:planning-and-tracking
+  relation: suggests
+  when: Use when setting up or reviewing task decomposition to understand the ownership-map
+    constraints and leeway principles that govern WP isolation.
+- source: tactic:paula-patterns-architecture-scout-review
+  target: directive:DIRECTIVE_001
+  relation: suggests
+  when: Paula Patterns is triggered by missing or violated architecture boundaries.
+- source: tactic:paula-patterns-architecture-scout-review
+  target: directive:DIRECTIVE_032
+  relation: suggests
+  when: Scout findings reveal language drift or confused ownership concepts.
+- source: tactic:paula-patterns-architecture-scout-review
+  target: tactic:anti-corruption-layer
+  relation: suggests
+  when: External system details leak into domain or application decisions.
+- source: tactic:paula-patterns-architecture-scout-review
+  target: tactic:domain-event-capture
+  relation: suggests
+  when: Durable state transitions, replay, or provenance are missing.
+- source: tactic:paula-patterns-architecture-scout-review
+  target: tactic:review-intent-and-risk-first
+  relation: suggests
+  when: Evaluate whether the release fix closes the observed issue and what blast
+    radius it carries.
+- source: tactic:pr-agent-worktree-isolation
+  target: directive:DIRECTIVE_045
+  relation: suggests
+  when: This tactic operationalizes the §7 worktree-isolation and no-version rules
+    that DIRECTIVE_045 makes binding. Consult the directive for the enforcement context
+    and scope; consult this tactic for the procedural how-to. The `requires` edge
+    from this tactic to DIRECTIVE_045 is a forward reference until WP06 lands; the
+    DRG generator validates the edge at WP12 graph regeneration time.
+- source: tactic:pr-agent-worktree-isolation
+  target: tactic:clean-linear-commit-history
+  relation: suggests
+  when: 'Sibling discipline with a `refines`-type scope boundary: history compression
+    after landing is governed by clean-linear-commit-history; worktree isolation and
+    version-prescription restraint are governed here. Refer to that tactic for compress-history
+    steps; refer to this tactic for PR-agent discipline.'
+- source: tactic:problem-decomposition
+  target: tactic:eisenhower-prioritisation
+  relation: suggests
+  when: When deciding which sub-problems must be solved now versus deferred.
+- source: tactic:problem-decomposition
+  target: tactic:review-intent-and-risk-first
+  relation: suggests
+  when: When validating the decomposition — confirm that the stated intent of the
+    initiative is faithfully reflected in the sub-problem set, and that the highest-risk
+    sub-problems are explicitly identified before prioritisation begins.
+- source: tactic:problem-decomposition
+  target: tactic:stakeholder-alignment
+  relation: suggests
+  when: When enumeration of contributing factors reveals that stakeholder concerns
+    or organisational dynamics are a significant source of the problem. Run stakeholder
+    alignment before clustering so that social and political factors are visible in
+    the decomposition.
+- source: tactic:refactoring-guard-clauses-before-polymorphism
+  target: tactic:refactoring-conditional-to-strategy
+  relation: suggests
+  when: Follow when the flattened variation points represent stable algorithm variants.
+- source: tactic:reviewer-implementer-role-separation
+  target: styleguide:planning-and-tracking
+  relation: suggests
+  when: Use when planning task decomposition to understand the role-separation discipline
+    that governs who reviews each work package.
+- source: tactic:strategic-domain-classification
+  target: tactic:bounded-context-identification
+  relation: suggests
+  when: Contexts must be identified before they can be classified.
+- source: tactic:strategic-domain-classification
+  target: tactic:context-mapping-classification
+  relation: suggests
+  when: Understanding relationships between contexts informs classification decisions.
+- source: tactic:test-boundaries-by-responsibility
+  target: tactic:acceptance-test-first
+  relation: suggests
+  when: Acceptance tests define the outer behavioral boundary that this tactic refines
+    at the inner unit level
+- source: tactic:test-boundaries-by-responsibility
+  target: tactic:tdd-red-green-refactor
+  relation: suggests
+  when: Driving implementation inside the boundaries defined by this tactic
+- source: tactic:test-minimisation
+  target: directive:DIRECTIVE_030
+  relation: suggests
+  when: Coverage must meet the quality gate after removals
+- source: tactic:test-minimisation
+  target: directive:DIRECTIVE_034
+  relation: suggests
+  when: Test minimisation applies after a test-first cycle has produced coverage —
+    never use it to avoid writing tests
+- source: tactic:traceable-decisions
+  target: directive:DIRECTIVE_001
+  relation: suggests
+  when: Decisions that affect architectural integrity must be traced before implementation
+    begins
+- source: tactic:traceable-decisions
+  target: directive:DIRECTIVE_003
+  relation: suggests
+  when: This tactic is the practical implementation protocol for Directive 003; use
+    the directive for policy, this tactic for execution
+- source: tactic:traceable-decisions
+  target: directive:DIRECTIVE_037
+  relation: suggests
+  when: Decision records are living documentation; apply the sync discipline when
+    updating superseded decisions
+- source: tactic:usage-examples-sync
+  target: directive:DIRECTIVE_010
+  relation: suggests
+  when: Use this directive to reject documentation and behavior drift during review
+- source: tactic:usage-examples-sync
+  target: tactic:acceptance-test-first
+  relation: suggests
+  when: Use this tactic when a canonical example should be represented by an executable
+    acceptance check
+- source: toolguide:terminology-guard
+  target: directive:DIRECTIVE_044
+  relation: suggests
