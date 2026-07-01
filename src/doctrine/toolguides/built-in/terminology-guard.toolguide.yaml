@@ -1,0 +1,13 @@
+schema_version: "1.0"
+id: terminology-guard
+tool: pytest
+title: Terminology Guard
+guide_path: src/doctrine/toolguides/built-in/TERMINOLOGY_GUARD.md
+summary: >
+  Describes when and how to invoke the legacy-terminology guard before pushing changes to
+  src/doctrine/ or user-facing prose. The guard catches superseded terms that have
+  reappeared in active source and fails CI if any are found.
+commands:
+  - pytest
+references:
+  - src/doctrine/directives/built-in/044-canonical-sources-and-unification.directive.yaml

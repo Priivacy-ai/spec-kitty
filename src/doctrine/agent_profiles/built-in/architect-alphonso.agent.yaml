@@ -23,6 +23,8 @@ context-sources:
     - "031"
     - "032"
     - "041"
+    - "043"
+    - "044"
   additional:
     - architecture-decision-records
     - design-pattern-catalog
@@ -134,6 +136,12 @@ directive-references:
   - code: "041"
     name: Tests as Scaffold, Not Friction
     rationale: Architectural changes must not be blocked by file:line-pinned ratchets or defect-masking xfails; tests assert contracts so correct structural change stays green
+  - code: "043"
+    name: Close Defect Classes by Construction
+    rationale: Architecture must expose structural mechanisms (gates, type invariants, ratchets) that close recurrent defect classes; a design that requires discipline reminders to enforce a constraint is structurally incomplete
+  - code: "044"
+    name: Canonical Sources and Unification
+    rationale: System designs must converge on single canonical surfaces; parallel copies or parity fixes to non-canonical surfaces are architectural violations that must be consolidated
 
 tactic-references:
   - id: development-bdd

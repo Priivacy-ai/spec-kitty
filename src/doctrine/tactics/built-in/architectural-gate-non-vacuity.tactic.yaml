@@ -1,0 +1,123 @@
+schema_version: "1.0"
+id: architectural-gate-non-vacuity
+name: Architectural Gate Non-Vacuity
+purpose: >
+  Concrete recipe for building an AST call-site gate that cannot silently pass
+  because the codebase happens to have zero relevant calls, and cannot be
+  defeated by allowlisting every violation. The four elements — concrete floor,
+  self-mutation test, shrink-only allowlist, and routed-count floor — together
+  ensure the gate remains meaningful as the codebase evolves.
+steps:
+  - title: Establish a concrete floor
+    description: >
+      Choose a non-zero minimum count of expected compliant call sites and assert
+      it in the gate. The gate must fail if the live count drops below this floor.
+      This prevents the gate from trivially passing on a codebase that has lost
+      all relevant calls (for example, because a refactor replaced them without
+      updating the gate). The floor value must be a real integer derived from the
+      current codebase state, not self-referential or computed from the gate
+      module itself.
+
+      The current live exemplar (tests/architectural/test_protection_resolver_call_sites.py)
+      checks only that non-allowlisted violations are zero but does NOT assert a
+      minimum compliant-call count. Authoring a concrete floor as described here
+      is the complete target; it is aspirational relative to the current exemplar.
+    examples:
+      - "assert len(_ALLOWLIST) >= 2, 'Allowlist must have at least 2 sanctioned call sites'"
+      - "assert routed_count >= MIN_ROUTED_CALLS, f'Expected >= {MIN_ROUTED_CALLS} routed calls; found {routed_count}'"
+  - title: Write the self-mutation test
+    description: >
+      Verify that the gate can detect a violation introduced in the gate module
+      itself. The scan scope should include every file that could receive a
+      disallowed construct, including the gate module if it lives in a scanned
+      path. Confirm the self-mutation check holds red-first: introduce a synthetic
+      violation, observe that the gate fails, then revert.
+
+      In the live exemplar (tests/architectural/test_protection_resolver_call_sites.py),
+      the scan covers src/ only. The gate module lives in tests/architectural/
+      which is outside the scan boundary; a bare protected_branches() call added
+      to the gate file would not be caught by the gate. Placing the gate or
+      including tests/ in the scan scope resolves this. This element is aspirational
+      relative to the current exemplar.
+    examples:
+      - "Expand _SRC_ROOT to include tests/architectural/ so the gate scans itself"
+      - "Red-first: add a bare prohibited_call() to the gate file; assert the test fails; revert"
+  - title: Maintain a shrink-only allowlist
+    description: >
+      Record the set of permitted call sites as a frozenset constant (for named
+      allowlists) or as a numeric entry in a shared baseline file (for count-based
+      ratchets). The gate fails if any call appears outside the named set, or if
+      the live count exceeds the numeric baseline. The allowlist/baseline update and burn-down discipline is owned by the
+      `frozen-baseline-shrink-only-ratchet` tactic (referenced below) — follow it
+      rather than restating it here.
+
+      Live exemplar: _ALLOWLIST frozenset in test_protection_resolver_call_sites.py
+      (module-level constant). The comparison at "if rel in _ALLOWLIST: continue"
+      skips sanctioned files and flags all others. The numeric companion lives in
+      tests/architectural/_baselines.yaml (#2159).
+    examples:
+      - "_ALLOWLIST: frozenset[str] = frozenset({'src/specify_cli/git/protection_policy.py', 'src/specify_cli/git/commit_helpers.py'})"
+      - "if rel in _ALLOWLIST: continue  # sanctioned call site — skip"
+  - title: Enforce a routed-count floor
+    description: >
+      A route-or-allowlist gate is vacuously satisfiable if all existing calls
+      are allowlisted and the count through the sanctioned surface drops to zero.
+      Assert separately that the count of calls through the canonical (routed)
+      surface is above a minimum. This ensures the gate cannot be defeated by
+      moving all call sites into the allowlist while removing all usage of the
+      approved path.
+
+      The current live exemplar does not assert a minimum routed-call count; this
+      element is aspirational relative to the current exemplar.
+    examples:
+      - "assert canonical_call_count >= 1, 'At least one call must go through the canonical resolver'"
+      - "assert len([f for f in allowlisted if has_calls(f)]) >= MIN_ROUTED_FILES"
+failure_modes:
+  - "Vacuous gate: all relevant calls are removed; gate trivially passes with zero violations and zero compliant calls."
+  - "Self-blind gate: the gate module lives outside the scan scope; a violation introduced in the gate file is not detected."
+  - "Allowlist growth without rationale: a new permitted call site is silently added, expanding rather than shrinking the allowlist."
+  - "Routed-count absent: all existing calls are allowlisted; the canonical path has zero callers; gate still passes."
+notes: >
+  Live exemplar: tests/architectural/test_protection_resolver_call_sites.py
+  (FR-010 / #1868). Shrink-only numeric ratchet companion:
+  tests/architectural/_baselines.yaml (#2159).
+
+  Four-element exemplar mapping (T007 audit — each element mapped to the live
+  exemplar or marked aspirational where not yet demonstrated):
+
+  1. Concrete floor — ASPIRATIONAL. The exemplar asserts only that
+     non-allowlisted violations are zero (violations dict is empty). It does
+     not assert that the allowlisted modules collectively contain a minimum
+     number of compliant calls. The complete pattern requires an explicit
+     minimum-count assertion.
+
+  2. Self-mutation test — ASPIRATIONAL. The exemplar scans _SRC_ROOT
+     (src/ subtree only). The gate module itself lives in
+     tests/architectural/, which is outside the scan boundary. A bare
+     protected_branches() call added to the gate file would not be caught.
+     Resolving this requires either including tests/ in the scan scope or
+     structuring the gate so its own module is scanned.
+
+  3. Shrink-only allowlist — DEMONSTRATED. _ALLOWLIST (frozenset, defined
+     at module level) names exactly the two sanctioned files. The gate
+     loop at "if rel in _ALLOWLIST: continue" skips sanctioned files and
+     flags all others. Adding a new call site in a non-allowlisted file
+     triggers a failure; extending the allowlist is a deliberate code
+     change requiring review. For numeric ratchets, tests/architectural/
+     _baselines.yaml (#2159) is the frozen baseline; test_ratchet_baselines.py
+     compares live allowlist sizes to it and fails on growth.
+
+  4. Routed-count floor — ASPIRATIONAL. The exemplar does not assert that
+     the allowlisted modules (protection_policy.py, commit_helpers.py)
+     contain any calls to protected_branches(). An allowlist could in
+     principle reference modules that no longer call the function; the gate
+     would still pass.
+references:
+  - name: Close Defect Classes by Construction
+    type: directive
+    id: DIRECTIVE_043
+    when: Required governing directive for all architectural enforcement gates authored under this tactic.
+  - name: Frozen-Baseline Shrink-Only Ratchet
+    type: tactic
+    id: frozen-baseline-shrink-only-ratchet
+    when: Use alongside this tactic to maintain numeric allowlist-size baselines over time.

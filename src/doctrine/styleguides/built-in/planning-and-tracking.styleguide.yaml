@@ -15,6 +15,7 @@ principles:
   - "Create a bucket when a coherent orphan cluster appears. Roughly four or more orphan tickets sharing a concern with no owning epic justify a new functional epic. Name it for the user value it delivers, not internal jargon."
   - "An epic body carries Purpose, Scope, and Out-of-scope — never a list of child ticket numbers. The native sub-issue graph is the single source of truth for parent/child membership; a hand-maintained checklist of numbers drifts and is invisible to tooling."
   - "Hygiene invariants for every open ticket: it resolves to a functional epic (not an orphan, not meta-rooted, not under a closed epic); it carries an issue type; and it carries a priority label. Type is objective — derive it from the conventional-commit prefix and labels. Priority is triage — assign `priority:P2` as the canonical provisional default and add `triage:needs-revision` as the flag, rather than silently guessing. Two operators applying this rule will converge on the same labels."
+  - "Issue-matrix discipline. At spec time, for ticket-based missions, every issue the mission addresses must be listed in the issue-matrix with a verdict: in-scope, out-of-scope, or deferred. In-scope issues receive a claim — assigned to the operator — and a tracker comment naming the mission. This is the canonical location for this discipline; it is the operationalized form of the tracker-hygiene standing order: at spec time, every addressed issue → issue-matrix row + claim (assign operator) + tracker comment naming the mission."
 
 patterns:
   - name: Single canonical priority label
@@ -152,3 +153,6 @@ quality_test: >
 references:
   - ".kittify/glossaries/planning-and-tracking.yaml"
   - "src/doctrine/toolguides/built-in/github-tracker.toolguide.yaml"
+  - "src/doctrine/styleguides/built-in/tiered-standards.styleguide.yaml"
+  - "src/doctrine/tactics/built-in/ownership-map-leeway.tactic.yaml"
+  - "src/doctrine/tactics/built-in/reviewer-implementer-role-separation.tactic.yaml"

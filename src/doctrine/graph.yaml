@@ -179,6 +179,15 @@ nodes:
 - urn: directive:DIRECTIVE_042
   kind: directive
   label: Common Docs Documentation Standard
+- urn: directive:DIRECTIVE_043
+  kind: directive
+  label: Close Defect Classes by Construction
+- urn: directive:DIRECTIVE_044
+  kind: directive
+  label: Canonical Sources and Unification
+- urn: directive:DIRECTIVE_045
+  kind: directive
+  label: PRs-Only and Read-Intent Before High-Risk Operations
 - urn: paradigm:anemic-domain-model
   kind: paradigm
 - urn: paradigm:atomic-design
@@ -259,9 +268,15 @@ nodes:
 - urn: procedure:migrate-project-guidance-to-spec-kitty-charter
   kind: procedure
   label: Migrate Project Guidance to Spec Kitty Charter
+- urn: procedure:mission-tracer-files
+  kind: procedure
+  label: Mission Tracer Files
 - urn: procedure:onboard-external-agent-to-pack
   kind: procedure
   label: Onboard an External Agent into the Pack
+- urn: procedure:post-merge-arch-gate-adjudication
+  kind: procedure
+  label: Post-Merge Arch-Gate Adjudication
 - urn: procedure:refactoring
   kind: procedure
   label: Refactoring
@@ -274,6 +289,9 @@ nodes:
 - urn: procedure:tracker-organisation-workflow
   kind: procedure
   label: Tracker Organisation Workflow
+- urn: styleguide:adversarial-squad-cadence
+  kind: styleguide
+  label: Adversarial Squad Cadence
 - urn: styleguide:aggregate-design-rules
   kind: styleguide
   label: Aggregate Design Rules
@@ -331,6 +349,9 @@ nodes:
 - urn: tactic:anti-corruption-layer
   kind: tactic
   label: Anti-Corruption Layer
+- urn: tactic:architectural-gate-non-vacuity
+  kind: tactic
+  label: Architectural Gate Non-Vacuity
 - urn: tactic:architecture-diagram-review-checklist
   kind: tactic
   label: Architecture Diagram Review Checklist
@@ -372,6 +393,9 @@ nodes:
 - urn: tactic:c4-zoom-in-architecture-documentation
   kind: tactic
   label: C4 Zoom-In Architecture Documentation
+- urn: tactic:canonical-source-unification
+  kind: tactic
+  label: Canonical Source Unification
 - urn: tactic:chain-of-responsibility-rule-pipeline
   kind: tactic
   label: Chain of Responsibility — Rule-Based Pipeline
@@ -461,6 +485,9 @@ nodes:
 - urn: tactic:formalized-constraint-testing
   kind: tactic
   label: Formalized Constraint Testing
+- urn: tactic:frozen-baseline-shrink-only-ratchet
+  kind: tactic
+  label: Frozen-Baseline Shrink-Only Ratchet
 - urn: tactic:function-over-form-testing
   kind: tactic
   label: Function Over Form Testing
@@ -497,9 +524,15 @@ nodes:
 - urn: tactic:occurrence-classification-workflow
   kind: tactic
   label: Occurrence Classification Workflow
+- urn: tactic:ownership-map-leeway
+  kind: tactic
+  label: Ownership Map Leeway
 - urn: tactic:paula-patterns-architecture-scout-review
   kind: tactic
   label: Paula Patterns Architecture Scout Review
+- urn: tactic:pr-agent-worktree-isolation
+  kind: tactic
+  label: PR Agent Worktree Isolation and No-Version Prescription
 - urn: tactic:premortem-risk-identification
   kind: tactic
   label: Premortem Risk Identification
@@ -581,6 +614,9 @@ nodes:
 - urn: tactic:review-intent-and-risk-first
   kind: tactic
   label: Review Intent and Risk First
+- urn: tactic:reviewer-implementer-role-separation
+  kind: tactic
+  label: Reviewer/Implementer Role Separation
 - urn: tactic:safe-to-fail-experiment
   kind: tactic
   label: Safe-to-Fail Experiment
@@ -723,6 +759,9 @@ nodes:
 - urn: toolguide:rtk-search-tooling
   kind: toolguide
   label: RTK Interception and Search Tooling
+- urn: toolguide:terminology-guard
+  kind: toolguide
+  label: Terminology Guard
 - urn: toolguide:typescript-mutation-tools
   kind: toolguide
   label: TypeScript Mutation Testing with Stryker
@@ -1199,6 +1238,12 @@ edges:
   target: directive:DIRECTIVE_041
   relation: requires
 - source: agent_profile:architect-alphonso
+  target: directive:DIRECTIVE_043
+  relation: requires
+- source: agent_profile:architect-alphonso
+  target: directive:DIRECTIVE_044
+  relation: requires
+- source: agent_profile:architect-alphonso
   target: tactic:development-bdd
   relation: requires
   reason: Use BDD behavioral contract definition during architecture design to express observable system boundaries in stakeholder-readable terms. Behavioral contracts precede implementation and shape system component boundaries.
@@ -1242,6 +1287,12 @@ edges:
   target: directive:DIRECTIVE_032
   relation: requires
 - source: agent_profile:doctrine-daphne
+  target: directive:DIRECTIVE_043
+  relation: requires
+- source: agent_profile:doctrine-daphne
+  target: directive:DIRECTIVE_044
+  relation: requires
+- source: agent_profile:doctrine-daphne
   target: procedure:onboard-external-agent-to-pack
   relation: applies
 - source: agent_profile:frontend-freddy
@@ -1279,6 +1330,15 @@ edges:
   relation: requires
 - source: agent_profile:implementer-ivan
   target: directive:DIRECTIVE_010
+  relation: requires
+- source: agent_profile:implementer-ivan
+  target: directive:DIRECTIVE_043
+  relation: requires
+- source: agent_profile:implementer-ivan
+  target: directive:DIRECTIVE_044
+  relation: requires
+- source: agent_profile:implementer-ivan
+  target: directive:DIRECTIVE_045
   relation: requires
 - source: agent_profile:implementer-ivan
   target: tactic:bug-fixing-checklist
@@ -1387,6 +1447,15 @@ edges:
   relation: requires
 - source: agent_profile:python-pedro
   target: directive:DIRECTIVE_041
+  relation: requires
+- source: agent_profile:python-pedro
+  target: directive:DIRECTIVE_043
+  relation: requires
+- source: agent_profile:python-pedro
+  target: directive:DIRECTIVE_044
+  relation: requires
+- source: agent_profile:python-pedro
+  target: directive:DIRECTIVE_045
   relation: requires
 - source: agent_profile:python-pedro
   target: tactic:delete-the-assertion-not-the-test
@@ -1511,6 +1580,18 @@ edges:
   target: directive:DIRECTIVE_024
   relation: replaces
   reason: Locality of Change constrains the SCOPE of new work to the minimum the goal requires; it does NOT license leaving adjacent breakage in already-touched code. Campsite cleaning of touched-area failures is within locality; broad refactors are not. The two reconcile by fixing adjacent breakage by default while deferring genuinely broad refactors with a rationale.
+- source: directive:DIRECTIVE_025
+  target: directive:DIRECTIVE_024
+  relation: requires
+- source: directive:DIRECTIVE_025
+  target: directive:DIRECTIVE_040
+  relation: requires
+- source: directive:DIRECTIVE_025
+  target: paradigm:brownfield-onboarding
+  relation: suggests
+- source: directive:DIRECTIVE_025
+  target: tactic:frozen-baseline-shrink-only-ratchet
+  relation: suggests
 - source: directive:DIRECTIVE_028
   target: toolguide:efficient-local-tooling
   relation: suggests
@@ -1578,6 +1659,12 @@ edges:
   target: tactic:five-paradigm-parallel-debugging
   relation: requires
 - source: directive:DIRECTIVE_041
+  target: directive:DIRECTIVE_034
+  relation: requires
+- source: directive:DIRECTIVE_041
+  target: styleguide:testing-principles
+  relation: suggests
+- source: directive:DIRECTIVE_041
   target: tactic:acceptance-test-first
   relation: suggests
 - source: directive:DIRECTIVE_041
@@ -1600,6 +1687,18 @@ edges:
   relation: suggests
 - source: directive:DIRECTIVE_042
   target: tactic:common-docs-write
+  relation: suggests
+- source: directive:DIRECTIVE_043
+  target: tactic:architectural-gate-non-vacuity
+  relation: suggests
+- source: directive:DIRECTIVE_043
+  target: tactic:frozen-baseline-shrink-only-ratchet
+  relation: suggests
+- source: directive:DIRECTIVE_044
+  target: tactic:canonical-source-unification
+  relation: suggests
+- source: directive:DIRECTIVE_044
+  target: toolguide:terminology-guard
   relation: suggests
 - source: paradigm:behaviour-driven-development
   target: directive:DIRECTIVE_034
@@ -1630,6 +1729,9 @@ edges:
 - source: paradigm:brownfield-onboarding
   target: procedure:legacy-codebase-triage
   relation: requires
+- source: paradigm:brownfield-onboarding
+  target: styleguide:adversarial-squad-cadence
+  relation: suggests
 - source: paradigm:brownfield-onboarding
   target: tactic:delete-the-assertion-not-the-test
   relation: requires
@@ -1885,6 +1987,12 @@ edges:
 - source: procedure:migrate-project-guidance-to-spec-kitty-charter
   target: directive:DIRECTIVE_018
   relation: requires
+- source: procedure:mission-tracer-files
+  target: paradigm:brownfield-onboarding
+  relation: suggests
+- source: procedure:mission-tracer-files
+  target: styleguide:adversarial-squad-cadence
+  relation: suggests
 - source: procedure:onboard-external-agent-to-pack
   target: directive:DIRECTIVE_003
   relation: requires
@@ -1903,6 +2011,12 @@ edges:
 - source: procedure:onboard-external-agent-to-pack
   target: template:source-agent-dossier-template
   relation: suggests
+- source: procedure:post-merge-arch-gate-adjudication
+  target: directive:DIRECTIVE_043
+  relation: requires
+- source: procedure:post-merge-arch-gate-adjudication
+  target: tactic:architectural-gate-non-vacuity
+  relation: requires
 - source: procedure:refactoring
   target: tactic:change-apply-smallest-viable-diff
   relation: requires
@@ -1993,6 +2107,12 @@ edges:
 - source: procedure:tracker-organisation-workflow
   target: toolguide:github-tracker
   relation: suggests
+- source: styleguide:adversarial-squad-cadence
+  target: paradigm:brownfield-onboarding
+  relation: suggests
+- source: styleguide:adversarial-squad-cadence
+  target: procedure:adversarial-squad-deployment
+  relation: suggests
 - source: styleguide:aggregate-design-rules
   target: paradigm:domain-driven-design
   relation: suggests
@@ -2033,6 +2153,15 @@ edges:
   target: toolguide:maven-review-checks
   relation: suggests
 - source: styleguide:planning-and-tracking
+  target: styleguide:tiered-standards
+  relation: suggests
+- source: styleguide:planning-and-tracking
+  target: tactic:ownership-map-leeway
+  relation: suggests
+- source: styleguide:planning-and-tracking
+  target: tactic:reviewer-implementer-role-separation
+  relation: suggests
+- source: styleguide:planning-and-tracking
   target: toolguide:github-tracker
   relation: suggests
 - source: styleguide:python-conventions
@@ -2064,6 +2193,9 @@ edges:
   relation: suggests
 - source: styleguide:testing-principles
   target: directive:DIRECTIVE_034
+  relation: suggests
+- source: styleguide:testing-principles
+  target: directive:DIRECTIVE_041
   relation: suggests
 - source: styleguide:testing-principles
   target: tactic:acceptance-test-first
@@ -2141,6 +2273,14 @@ edges:
   target: tactic:refactoring-strangler-fig
   relation: suggests
   when: Using ACL as part of an incremental migration strategy.
+- source: tactic:architectural-gate-non-vacuity
+  target: directive:DIRECTIVE_043
+  relation: suggests
+  when: Required governing directive for all architectural enforcement gates authored under this tactic.
+- source: tactic:architectural-gate-non-vacuity
+  target: tactic:frozen-baseline-shrink-only-ratchet
+  relation: suggests
+  when: Use alongside this tactic to maintain numeric allowlist-size baselines over time.
 - source: tactic:architecture-diagram-review-checklist
   target: directive:DIRECTIVE_001
   relation: suggests
@@ -2305,6 +2445,10 @@ edges:
   target: template:c4-context-mermaid-template
   relation: suggests
   when: Starting a new system context diagram from scratch.
+- source: tactic:canonical-source-unification
+  target: directive:DIRECTIVE_044
+  relation: suggests
+  when: Consult to understand the binding rules this tactic operationalizes, including the unification-not-parity rule and the missing-command-is-a-gap rule.
 - source: tactic:chain-of-responsibility-rule-pipeline
   target: directive:DIRECTIVE_034
   relation: suggests
@@ -2529,6 +2673,10 @@ edges:
   target: tactic:test-minimisation
   relation: suggests
   when: Once contract tests cover a behavior class, use minimisation to identify which spot-checks are now redundant
+- source: tactic:frozen-baseline-shrink-only-ratchet
+  target: directive:DIRECTIVE_043
+  relation: suggests
+  when: Required governing directive for all structural enforcement mechanisms including ratchets.
 - source: tactic:function-over-form-testing
   target: directive:DIRECTIVE_034
   relation: suggests
@@ -2609,6 +2757,10 @@ edges:
   target: toolguide:typescript-mutation-tools
   relation: suggests
   when: Use when applying the mutation testing workflow to TypeScript projects.
+- source: tactic:ownership-map-leeway
+  target: styleguide:planning-and-tracking
+  relation: suggests
+  when: Use when setting up or reviewing task decomposition to understand the ownership-map constraints and leeway principles that govern WP isolation.
 - source: tactic:paula-patterns-architecture-scout-review
   target: directive:DIRECTIVE_001
   relation: suggests
@@ -2629,6 +2781,14 @@ edges:
   target: tactic:review-intent-and-risk-first
   relation: suggests
   when: Evaluate whether the release fix closes the observed issue and what blast radius it carries.
+- source: tactic:pr-agent-worktree-isolation
+  target: directive:DIRECTIVE_045
+  relation: suggests
+  when: This tactic operationalizes the §7 worktree-isolation and no-version rules that DIRECTIVE_045 makes binding. Consult the directive for the enforcement context and scope; consult this tactic for the procedural how-to. The `requires` edge from this tactic to DIRECTIVE_045 is a forward reference until WP06 lands; the DRG generator validates the edge at WP12 graph regeneration time.
+- source: tactic:pr-agent-worktree-isolation
+  target: tactic:clean-linear-commit-history
+  relation: suggests
+  when: 'Sibling discipline with a `refines`-type scope boundary: history compression after landing is governed by clean-linear-commit-history; worktree isolation and version-prescription restraint are governed here. Refer to that tactic for compress-history steps; refer to this tactic for PR-agent discipline.'
 - source: tactic:premortem-risk-identification
   target: template:risk-identification-assessment-template
   relation: suggests
@@ -2701,6 +2861,10 @@ edges:
   target: tactic:test-boundaries-by-responsibility
   relation: suggests
   when: Well-defined test boundaries make reconstruction clearer
+- source: tactic:reviewer-implementer-role-separation
+  target: styleguide:planning-and-tracking
+  relation: suggests
+  when: Use when planning task decomposition to understand the role-separation discipline that governs who reviews each work package.
 - source: tactic:secure-design-checklist
   target: directive:DIRECTIVE_001
   relation: suggests
@@ -2925,3 +3089,6 @@ edges:
   target: tactic:test-minimisation
   relation: suggests
   when: Redundant test removal is only safe after the completion validation confirms coverage is intact
+- source: toolguide:terminology-guard
+  target: directive:DIRECTIVE_044
+  relation: suggests
