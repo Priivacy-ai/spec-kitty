@@ -417,7 +417,8 @@ def test_real_merge_schema_preflight_does_not_write_merge_state(
         _run_lane_based_merge_locked(
             mission.repo_root,
             mission.mission_slug,
-            mission.mission_id,
+            mission.mission_id,  # canonical_id (path handle)
+            mission.mission_id,  # canonical_mission_id (ULID for event fields)
             mission.mission_dir,
             lanes_manifest,
             push=False,
