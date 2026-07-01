@@ -552,18 +552,24 @@ class TestLegacyPlanningOnlyMetaInvariant:
         )
 
     def test_meta_json_membership_is_load_bearing(self, tmp_path: Path) -> None:
-        """Prove the F2 fix is load-bearing: if ``meta.json`` were NOT in
-        ``expected_paths``, the real invariant (reading RAW porcelain) flags the
-        dirtied ``meta.json`` first line and fails the merge with ``typer.Exit``.
+        """Prove meta.json tolerance in the merge invariant is load-bearing.
 
-        We simulate the pre-fix state by patching ``_classify_porcelain_lines``
-        to receive an ``expected_paths`` set with the mission_number meta.json
-        path stripped out — i.e. exactly the membership the F2 fix adds. The
-        real raw-porcelain read still runs, so this proves that meta.json's
-        intact ``" M ..."`` line genuinely reaches classification.
+        Post-WP01 (#2251) the merge dirty-tree classifier ``_classify_porcelain_lines``
+        converged onto the single ``mission_runtime.is_self_bookkeeping_path`` authority,
+        which independently recognizes ``meta.json``. meta.json is therefore now tolerated
+        by TWO mechanisms: the F2 ``expected_paths`` membership AND that unified
+        self-bookkeeping check (the F2 membership is now redundant belt-and-suspenders).
+
+        To prove the invariant genuinely exercises meta.json — and would flag it absent
+        ALL tolerance — this strips BOTH: it drops the F2 membership from
+        ``expected_paths`` AND neutralizes the self-bookkeeping recognition for this
+        meta.json only. With both stripped, the real invariant (reading RAW porcelain)
+        flags the dirtied ``meta.json`` first line and fails the merge with ``typer.Exit``,
+        confirming its intact ``" M ..."`` line reaches classification and is caught.
         """
         # WP10 (#2057): the post-merge porcelain invariant runs in the executor
         # seam, reading _classify_porcelain_lines from its own module binding.
+        import mission_runtime
         import specify_cli.merge.executor as merge_mod
 
         slug = "legacy-planning-only-meta-loadbearing"
@@ -572,6 +578,7 @@ class TestLegacyPlanningOnlyMetaInvariant:
         meta_rel = f"kitty-specs/{slug}/meta.json"
 
         real_classify = merge_mod._classify_porcelain_lines
+        real_is_self_bookkeeping = mission_runtime.is_self_bookkeeping_path
         classified_lines: list[str] = []
 
         def classify_without_meta_membership(
@@ -583,12 +590,26 @@ class TestLegacyPlanningOnlyMetaInvariant:
             classified_lines.extend(lines)
             return real_classify(lines, expected_paths - {meta_rel}, **kwargs)
 
+        def is_self_bookkeeping_without_meta(path: object) -> bool:
+            # WP01 (#2251) folded is_self_bookkeeping_path into the classifier;
+            # neutralize it for THIS meta.json only so the tolerance is fully
+            # stripped and the invariant must fall back to catching the dirtied
+            # meta.json (the load-bearing behavior this test proves).
+            if str(path).endswith("meta.json"):
+                return False
+            return real_is_self_bookkeeping(path)
+
         with (
             _real_invariant_external_mocks(tmp_path),
             patch.object(
                 merge_mod,
                 "_classify_porcelain_lines",
                 side_effect=classify_without_meta_membership,
+            ),
+            patch.object(
+                mission_runtime,
+                "is_self_bookkeeping_path",
+                side_effect=is_self_bookkeeping_without_meta,
             ),
             pytest.raises(typer.Exit),
         ):
