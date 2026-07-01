@@ -158,15 +158,8 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         # _render_nag_if_needed and _should_suppress_nag removed from
         # allowlist: both now have live callers in the CLI startup readiness
         # coordinator path (Priivacy-ai/spec-kitty#1093).
-        "specify_cli.compat._adapters.detector::VersionDetector",
-        "specify_cli.compat._adapters.gate::_EXEMPT_COMMANDS",
-        "specify_cli.compat._adapters.gate::check_schema_version",
-        "specify_cli.compat._adapters.version_checker::MismatchType",
-        "specify_cli.compat._adapters.version_checker::compare_versions",
-        "specify_cli.compat._adapters.version_checker::format_version_error",
-        "specify_cli.compat._adapters.version_checker::get_cli_version",
-        "specify_cli.compat._adapters.version_checker::get_project_version",
-        "specify_cli.compat._adapters.version_checker::should_check_version",
+        # compat._adapters.{detector,gate,version_checker}::* removed: dead pure-shim
+        # files deleted (salvaged from closed #2159/#2049).
         "specify_cli.core.context_validation::CurrentContext",
         "specify_cli.core.context_validation::ExecutionContext",
         "specify_cli.core.context_validation::detect_execution_context",

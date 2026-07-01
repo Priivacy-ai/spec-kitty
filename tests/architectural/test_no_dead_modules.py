@@ -300,9 +300,8 @@ _CATEGORY_4_BACKCOMPAT_SHIMS: frozenset[str] = frozenset(
 # mission-review-report.md.
 _CATEGORY_5_WP_IN_FLIGHT_ADAPTERS: frozenset[str] = frozenset(
     {
-        "specify_cli.compat._adapters.detector",
-        "specify_cli.compat._adapters.gate",
-        "specify_cli.compat._adapters.version_checker",
+        # compat._adapters.{detector,gate,version_checker} removed: dead pure-shim
+        # files deleted (zero functional callers; salvaged from closed #2159/#2049).
         # runtime.next._internal_runtime.workflow_registry removed:
         # WP11 wired get_workflow() into planner.py (planner imports it
         # via workflow_registry at module scope), so the module now has a

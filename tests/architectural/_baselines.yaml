@@ -55,7 +55,7 @@ test_no_dead_modules:
   # _CATEGORY_4_BACKCOMPAT_SHIMS size is now 8.)
   category_4_backcompat_shims: 8
   # justification: 3 compat-shim WP-in-flight adapters.
-  category_5_wp_in_flight_adapters: 3  # justification: specify_cli.compat._adapters.{detector,gate,version_checker}; doctrine.missions.mission_step_repository wired in charter-pack-activation-layer-01KSYE4V (removed)
+  category_5_wp_in_flight_adapters: 0  # emptied: the 3 dead compat._adapters shim modules deleted (salvaged from closed #2159/#2049)
   # justification: 3 frozen-contract internal re-exports under
   # next/_internal_runtime/ frozen by shared-package-boundary-cutover.
   category_6_frozen_runtime_reexports: 3
@@ -104,7 +104,7 @@ test_compat_shims:
   # justification: 3 pure-shim adapter files under
   # src/specify_cli/compat/_adapters/. Per C-006 this MUST shrink to
   # 0 by 4.0 (the compat-planner mission is the burn-down owner).
-  pure_shim_files: 3
+  pure_shim_files: 0  # the 3 pure-shim adapter files deleted (closed #2159/#2049)
 
 # tests/contract/test_example_round_trip.py
 # Populated by WP03 after the legacy-contract-allowlist discovery

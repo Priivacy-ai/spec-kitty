@@ -28,11 +28,10 @@ _REPO_ROOT = Path(__file__).parent.parent.parent
 _ADAPTERS_DIR = _REPO_ROOT / "src" / "specify_cli" / "compat" / "_adapters"
 _FIXTURES_DIR = Path(__file__).parent / "_fixtures"
 
-_ADAPTER_FILES = [
-    _ADAPTERS_DIR / "version_checker.py",
-    _ADAPTERS_DIR / "gate.py",
-    _ADAPTERS_DIR / "detector.py",
-]
+# The pure-shim adapter files (detector/gate/version_checker) were dead and are
+# deleted (salvaged from closed #2159/#2049). uv_receipt.py is a real reader with
+# logic, so it is intentionally NOT a pure-shim under this gate.
+_ADAPTER_FILES: list[Path] = []
 
 _DISALLOWED_NODE_TYPES = (
     ast.FunctionDef,
