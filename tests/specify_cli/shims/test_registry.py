@@ -6,7 +6,7 @@ order is randomised per process by ``PYTHONHASHSEED``. Parametrising over a bare
 ``pytest-xdist`` worker process, which trips xdist's collection-equivalence guard
 ("Different tests were collected between gw0 and gwN"). Always wrap the set in
 ``sorted(...)`` so the parametrised case order is deterministic across workers.
-See docs/development/testing-flakiness.md (Tier: parallel-collection nondeterminism).
+See docs/guides/testing-flakiness.md (Tier: parallel-collection nondeterminism).
 """
 
 from __future__ import annotations

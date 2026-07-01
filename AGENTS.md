@@ -208,11 +208,11 @@ Rules:
   protected by per-worker HOME isolation, so run them in their own `-n0` pass.
 
 Full rationale, the volume env gates, and the stability ratchet:
-[docs/development/testing-parallel.md](docs/development/testing-parallel.md).
+[docs/guides/testing-parallel.md](docs/guides/testing-parallel.md).
 
 When a test goes red on CI unrelated to your diff, follow the flakiness policy —
 **tune budget gates, fix correctness flakes at the root, never retry-to-green:**
-[docs/development/testing-flakiness.md](docs/development/testing-flakiness.md).
+[docs/guides/testing-flakiness.md](docs/guides/testing-flakiness.md).
 
 ## Code Style
 

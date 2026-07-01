@@ -2055,7 +2055,7 @@ jobs:
   # ---------------------------------------------------------------------------
   # quarantine-visibility: runs `-m quarantine` for real (SPEC_KITTY_RUN_QUARANTINE=1)
   # so irreducible environmental flakes stay VISIBLE — never silently retried to
-  # green. Per docs/development/testing-flakiness.md this job is intentionally
+  # green. Per docs/guides/testing-flakiness.md this job is intentionally
   # NON-BLOCKING: it MUST NOT be added to the `quality-gate` aggregation below
   # or to branch-protection required checks, so a quarantined flake can never turn
   # main red or block an unrelated PR. Tolerates pytest exit code 5 (no tests
