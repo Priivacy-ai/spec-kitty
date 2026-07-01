@@ -267,16 +267,23 @@ _RAW_JOIN_SITES: tuple[tuple[str, int, str], ...] = (
     # byte-identical inside the immediate ``raise`` — only their seed line drifted;
     # the composite key (qualname ``_coord_mid8`` + join token line) is re-pointed
     # at the identical joins, NOT a raw ``file.py:NNN`` line bump (CT1 / no new bypass).
+    # NOTE (PR #2277 re-key, reliability-papercut-sweep-01KWD0V5): drifted 494→495
+    # and 499→500 when WP02 (#2250) added the ``CoordinationBranchDeleted``
+    # StatusReadPathNotFound subclass (~:175) above ``_coord_mid8``, pushing both
+    # fail-closed raise payloads down one line. Same two ``_coord_mid8`` DIAG joins —
+    # byte-identical inside the immediate ``raise`` — only their seed line drifted;
+    # the composite key is re-pointed at the identical joins, NOT a raw
+    # ``file.py:NNN`` line bump (CT1 / no new bypass).
     (
         "specify_cli/coordination/surface_resolver.py",
-        494,
+        495,
         "DIAG — _coord_mid8 fail-closed raise payload: "
         "CoordinationWorkspace.worktree_path(...) / KITTY_SPECS_DIR / mission_slug "
         "inside StatusReadPathNotFound constructor; no FS sink (raise is immediate).",
     ),
     (
         "specify_cli/coordination/surface_resolver.py",
-        499,
+        500,
         "DIAG — _coord_mid8 fail-closed raise payload: "
         "repo_root / KITTY_SPECS_DIR / mission_slug for primary_candidate field; "
         "no FS sink (raise is immediate).",
