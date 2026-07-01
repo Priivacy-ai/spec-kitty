@@ -1791,7 +1791,7 @@ def _check_server_connection(server_url: str) -> tuple[str, str]:
 def sync_server(
     url: str | None = typer.Argument(
         None,
-        help="Sync server URL to set (must be https://...)",
+        help="Sync server URL to set (HTTPS, or loopback HTTP for local development)",
     ),
 ) -> None:
     """Show or set sync server URL.
@@ -1799,6 +1799,7 @@ def sync_server(
     Examples:
         spec-kitty sync server
         spec-kitty sync server https://spec-kitty-dev.fly.dev
+        spec-kitty sync server http://localhost:8000
     """
     from specify_cli.sync.config import SyncConfig
 
