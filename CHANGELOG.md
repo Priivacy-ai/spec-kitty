@@ -1,4 +1,4 @@
-﻿# Changelog
+# Changelog
 
 <!-- markdownlint-disable MD024 -->
 
@@ -8,6 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased] - 3.2.4
+
+### ♻️ Changed
+
+- **Internal: the `agent tasks` god-command is decomposed into pure decision cores behind injected ports (mission `tasks-py-degod-01KWF08S`, #2116 under #2173).** Behavior-preserving — the full `agent tasks` CLI contract (all subcommands, flags, exit codes, `--json` envelopes, including the coord skip-exit-0 arm and the refuse-exit-1 arms) is **byte-identical**, frozen by a golden characterization harness. The decision/aggregation logic of the five fat command bodies (`move_task`, `map_requirements`, `status`, `mark_status`, `finalize_tasks`) now lives in pure, independently-tested sibling modules (`tasks_transition_core`, `tasks_mapping_core`, `tasks_status_view`) behind an injected `TasksPorts` seam (`FsReader` coord-READ authority + a two-capability `CoordCommitRouter` coord-WRITE authority); each command body is a ≤150-LOC thin orchestrator. Also folds the pre-3.0 coord read-authority split-brain onto the kind-aware authority (guard-only sites) and drains the resolution-authority census (shrink-only). **No user-facing behavior change.** The Render-seam unification and the whole-file `tasks.py` shim relocation are deferred to a follow-up mission (see `docs/plans/tasks-py-degod-followup-mission-debrief.md`).
 
 ### 🐛 Fixed
 

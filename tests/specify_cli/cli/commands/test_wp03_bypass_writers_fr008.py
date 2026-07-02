@@ -15,6 +15,7 @@ Covers the three converged write authorities and the FR-008 message rewrite
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -398,4 +399,36 @@ class TestTasksTailsProtectedPrimaryByteIdentical:
         assert result.exit_code == 1, result.output
         self._assert_json_error_byte_identical(
             result.output, "spec-kitty agent tasks move-task"
+        )
+
+    def test_move_task_self_review_guard_precedes_protected_branch(
+        self, _protected_main: object
+    ) -> None:
+        from typer.testing import CliRunner
+
+        from specify_cli.cli.commands.agent.tasks import app
+
+        result = CliRunner().invoke(
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "for_review",
+                "--mission",
+                _SLUG,
+                "--self-review-fallback",
+                "--intended-reviewer",
+                "reviewer-renata",
+                "--reviewer-failure-reason",
+                "unavailable",
+                "--auto-commit",
+                "--json",
+            ],
+        )
+        assert result.exit_code == 1, result.output
+        payload = json.loads(result.output.strip().splitlines()[-1])
+        assert (
+            payload["error"]
+            == "--self-review-fallback is only valid when approving or marking done."
         )

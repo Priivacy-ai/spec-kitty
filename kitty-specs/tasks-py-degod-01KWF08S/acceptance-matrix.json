@@ -1,0 +1,109 @@
+{
+  "mission_slug": "tasks-py-degod-01KWF08S",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "FR-001 satisfied (behavior-preserving decomposition).",
+      "proof_type": "automated_test",
+      "evidence": "WP01 golden characterization harness \u2014 42 byte-identical cases incl. coord skip-exit-0 + all move_task decision branches + from-harness branch-cov gate (test_tasks_cli_contract.py).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP lane reviews) + orchestrator close-out",
+      "verified_at": "2026-07-02",
+      "notes": "Per-WP approved + golden byte-identical throughout; arch-gate closeout green."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "FR-002 satisfied (behavior-preserving decomposition).",
+      "proof_type": "automated_test",
+      "evidence": "WP03/04/05 pure cores (decide_transition/plan_mapping/build_status_view) \u2014 no I/O, per-core --cov-branch tests; sentinel tests prove they drive behavior.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP lane reviews) + orchestrator close-out",
+      "verified_at": "2026-07-02",
+      "notes": "Per-WP approved + golden byte-identical throughout; arch-gate closeout green."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "FR-003 satisfied (behavior-preserving decomposition).",
+      "proof_type": "automated_test",
+      "evidence": "WP02 TasksPorts \u2014 FsReader + two-capability CoordCommitRouter + GitOps/Render, Real+Fake, injected at _do_<cmd>(*, ports=None); test_tasks_ports.py.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP lane reviews) + orchestrator close-out",
+      "verified_at": "2026-07-02",
+      "notes": "Per-WP approved + golden byte-identical throughout; arch-gate closeout green."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "FR-004 satisfied (behavior-preserving decomposition).",
+      "proof_type": "automated_test",
+      "evidence": "WP03 decide_transition reproduces move_task exact behavior incl. skip arm + partial-write-on-refusal timing (regression-pinned).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP lane reviews) + orchestrator close-out",
+      "verified_at": "2026-07-02",
+      "notes": "Per-WP approved + golden byte-identical throughout; arch-gate closeout green."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "FR-005 satisfied (behavior-preserving decomposition).",
+      "proof_type": "automated_test",
+      "evidence": "WP04 plan_mapping pure; partial-write-then-refuse timing + coverage byte-identical.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP lane reviews) + orchestrator close-out",
+      "verified_at": "2026-07-02",
+      "notes": "Per-WP approved + golden byte-identical throughout; arch-gate closeout green."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "FR-006 satisfied (behavior-preserving decomposition).",
+      "proof_type": "automated_test",
+      "evidence": "WP05 build_status_view pure aggregation; ordering/0-vs-0.0/dependency_readiness byte-identical.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP lane reviews) + orchestrator close-out",
+      "verified_at": "2026-07-02",
+      "notes": "Per-WP approved + golden byte-identical throughout; arch-gate closeout green."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "FR-007 satisfied (behavior-preserving decomposition).",
+      "proof_type": "automated_test",
+      "evidence": "WP06/07/08 thin orchestrators \u2014 move_task 88, map_requirements 56, status 24, mark_status 39, finalize_tasks 25 LOC; non-import AST gate (coreless).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP lane reviews) + orchestrator close-out",
+      "verified_at": "2026-07-02",
+      "notes": "Per-WP approved + golden byte-identical throughout; arch-gate closeout green."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "FR-009 satisfied (behavior-preserving decomposition).",
+      "proof_type": "automated_test",
+      "evidence": "WP02 CoordRead(FsReader) != CoordWrite(CoordCommitRouter), disjoint methods; INV-1 test.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP lane reviews) + orchestrator close-out",
+      "verified_at": "2026-07-02",
+      "notes": "Per-WP approved + golden byte-identical throughout; arch-gate closeout green."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "FR-010 satisfied (behavior-preserving decomposition).",
+      "proof_type": "automated_test",
+      "evidence": "WP02 dir-equivalence proof + per-site pin table; WP06 move_task:1138 stays coord-husk (hazard test), WP08 finalize/list_dependents guard-only folds to primary (pre30_guard_wiring 14/14).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP lane reviews) + orchestrator close-out",
+      "verified_at": "2026-07-02",
+      "notes": "Per-WP approved + golden byte-identical throughout; arch-gate closeout green."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "FR-011 satisfied (behavior-preserving decomposition).",
+      "proof_type": "automated_test",
+      "evidence": "WP09 census drain shrink-only (floor 12->9, 3 drained/2 re-pinned/0 added) + margin gate; resolution-authority gates green.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP lane reviews) + orchestrator close-out",
+      "verified_at": "2026-07-02",
+      "notes": "Per-WP approved + golden byte-identical throughout; arch-gate closeout green."
+    }
+  ],
+  "negative_invariants": []
+}

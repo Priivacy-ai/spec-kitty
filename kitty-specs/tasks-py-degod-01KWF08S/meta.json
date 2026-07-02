@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "60a71d6fc45106fda887b54a9fc1bb6cf74890db",
+  "coordination_branch": "kitty/mission-tasks-py-degod-01KWF08S",
+  "created_at": "2026-07-01T14:10:32.471440+00:00",
+  "flattened": false,
+  "friendly_name": "Degod tasks.py — thin CLI over pure cores (Wave 1)",
+  "mission_id": "01KWF08SCQPF8NT288EPNQBCRH",
+  "mission_number": 157,
+  "mission_slug": "tasks-py-degod-01KWF08S",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The 'agent tasks' command has never stabilized: 79% of its commits are fixes across ~100 distinct issues, because decision logic, filesystem/git I/O, status emission, and output rendering are interleaved line-by-line, so every contract change edits the whole 3,600-line file. This mission thins it into a thin CLI shell over pure decision cores behind injected ports (the proven pattern from the completed mission.py decomposition), turning a change-magnet into stable, testable units — the first structural cure (Wave 1, #2116/#2173) for the measured test-friction.",
+  "purpose_tldr": "Break up the 3,600-line 'agent tasks' command — the codebase's #1 change-magnet — into a thin shell over small, independently-testable pieces, so a coordination change stops rippling into every mission.",
+  "slug": "tasks-py-degod-01KWF08S",
+  "target_branch": "design/degod-tasks-2116",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-01T18:46:18.852737+00:00"
+}

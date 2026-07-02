@@ -25,12 +25,18 @@ Capture mechanism: ``typer.testing.CliRunner`` invoking the ``app`` object
 directly (never the installed CLI). Expected output is stored as committed
 fixtures under ``fixtures/tasks_cli/`` and compared in-test -- no snapshot
 dependency is added.
+
+This file holds only the PURE in-process contract tests (help fixtures,
+command/flag structure, and ``--json`` envelope shapes). The subprocess /
+real-git coord-topology fixtures, the mutating-command characterization
+(T003-T007), and the from-harness branch-coverage ratchet live in the sibling
+``test_tasks_cli_contract_coord.py`` — split out so these pure tests can stay in
+the ``fast`` lane (marker-correctness Rules 1 & 2).
 """
 
 from __future__ import annotations
 
 import json
-import re
 import textwrap
 from pathlib import Path
 from types import SimpleNamespace
@@ -46,6 +52,9 @@ from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 from tests.mocked_env import setup_mocked_env
 
+# Every test in this file drives the ``app`` object in-process via
+# ``CliRunner`` — no subprocess, no git — so it is a sub-second ``fast`` test
+# (marker-correctness Rules 1 & 2).
 pytestmark = pytest.mark.fast
 
 runner = CliRunner()
@@ -113,53 +122,8 @@ CONTRACT_FLAGS: dict[str, tuple[str, ...]] = {
 
 
 # ---------------------------------------------------------------------------
-# T004 -- volatile-substring normalizer
-# ---------------------------------------------------------------------------
-#
-# Captured output contains values that vary by machine, clock, and per-worker
-# HOME isolation (WP04 parallel tests). Each substitution below is applied
-# before comparison so fixtures stay deterministic. Order matters: ULIDs are
-# normalized before generic alphanumerics, and timestamps before paths.
-
-# 26-char Crockford base32 ULID (no I, L, O, U).
-_ULID_RE = re.compile(r"\b[0-9A-HJKMNP-TV-Z]{26}\b")
-# ISO-8601 timestamp, optional fractional seconds and timezone.
-_TS_RE = re.compile(
-    r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?"
-)
-# Absolute POSIX or Windows-style paths. Greedy up to whitespace/quote.
-_PATH_RE = re.compile(r"(?:/[^\s\"']+|[A-Za-z]:\\[^\s\"']+)")
-
-
-def normalize(text: str) -> str:
-    """Replace volatile substrings with stable placeholders.
-
-    Substitutions (documented for the reviewer -- a normalizer must never be
-    able to mask a real contract change such as a renamed flag):
-
-    * ULIDs (mission ids, event ids) -> ``<ULID>``
-    * ISO-8601 timestamps            -> ``<TS>``
-    * absolute paths                 -> ``<PATH>``
-
-    Crucially this does *not* touch flag names, command names, exit codes, or
-    JSON keys, so a renamed/removed flag or command still breaks the golden
-    comparison.
-    """
-    text = _ULID_RE.sub("<ULID>", text)
-    text = _TS_RE.sub("<TS>", text)
-    text = _PATH_RE.sub("<PATH>", text)
-    return text
-
-
-# ---------------------------------------------------------------------------
 # T001 -- capture harness
 # ---------------------------------------------------------------------------
-
-
-def invoke(args: list[str], **kwargs: Any) -> tuple[int, str]:
-    """Invoke ``app`` via ``CliRunner`` and return ``(exit_code, normalized_stdout)``."""
-    result = runner.invoke(app, args, **kwargs)
-    return result.exit_code, normalize(result.stdout or "")
 
 
 def _click_group() -> click.Group:

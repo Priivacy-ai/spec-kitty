@@ -24,7 +24,7 @@ Shared machinery (IC-01, NFR-001/002/003):
 * Composite key ``(enclosing_qualname, token_line)`` computed **live** from
   source — survives benign line drift, unlike a raw ``file:line`` key.
 * Concrete integer floors (canonicalizer ``>= 45``; coord-authority a hard-coded
-  literal ``>= 13``) so a broken scanner returning zero rows cannot pass
+  literal ``>= 9``) so a broken scanner returning zero rows cannot pass
   vacuously (NFR-002 rejects ``> 0`` / ``>= 1``).
 * Shrink-only governance: a staleness twin-guard fails the build on any
   allowlist entry that no longer matches a live call site, and a baseline scalar
@@ -106,7 +106,21 @@ CANONICALIZER_FLOOR = 45
 # scripts/tasks surface removed its sole write-census site (tasks_cli.py
 # `_prepare_merge_metadata`) and its allowlist entry, shrinking the live write
 # census 13 -> 12 (a deletion-driven shrink, not a re-pin).
-COORD_AUTHORITY_WRITE_FLOOR = 12
+# tasks-py-degod WP09 (FR-011, SHRINK-ONLY): the WP01-WP08 tasks.py de-god rewires
+# drained THREE write-census sites — move_task's two coord-aware resolves (WP06
+# thin-orchestrator rewrite) and list_dependents' probe (WP08 fold-to-primary) —
+# shrinking the honest live write census 12 -> 9. Two surviving sites (list_tasks,
+# validate_workflow) were re-pinned for line drift, not drained. Floor lowered
+# 12 -> 9 to the re-measured live count.
+COORD_AUTHORITY_WRITE_FLOOR = 9
+
+# tasks-py-degod WP09 — coord-authority write-floor margin gate (anti-masking).
+# The floor must track the honest live write census: setting it materially BELOW
+# the live count would let a body of un-routed kind-blind writes pass unseen. The
+# margin bounds the permitted gap ``live - floor`` — a small headroom absorbs
+# benign upstream growth of by-design coord writes without needing a re-pin, while
+# a floor dropped far below live (masking un-routed writes) fails the gate.
+COORD_AUTHORITY_WRITE_FLOOR_MARGIN = 2
 
 # WP07 / SC-004 — routed-count floor (the anti-mass-allowlist machine guard).
 # The number of canonicalizer call sites that are *routed* (def-use-canonical,
@@ -126,7 +140,12 @@ ROUTED_CANONICALIZER_FLOOR_MARGIN = 4
 # recomputed 42 − MARGIN(4) = 38. This is a REAL gain (not a re-pinned integer):
 # 7 identity reads that previously resolved off coord-aware resolvers now provably
 # anchor on PRIMARY via the canonical fold, and the gate counts them.
-ROUTED_CANONICALIZER_FLOOR = 38
+# tasks-py-degod WP02 (C-002): the TasksPorts co-design adds ONE new DIRECT
+# primitive anchor — ``RealFsReader.primary_anchor_dir`` co-locates
+# ``primary_feature_dir_for_mission(_canonicalize_primary_read_handle(...))`` inside
+# the adapter (the intra-function fold C-002 mandates). Live routed census 42 → 43;
+# floor recomputed 43 − MARGIN(4) = 39. Honest before/after, not a re-pin.
+ROUTED_CANONICALIZER_FLOOR = 39
 
 
 # --------------------------------------------------------------------------- #
@@ -1140,31 +1159,45 @@ def test_routed_count_floor() -> None:
 
 
 def test_coord_authority_gate_floor() -> None:
-    """Concrete floor: >= 12 WRITE-classified coord call sites (NFR-002).
+    """Concrete floor: >= 9 WRITE-classified coord call sites (NFR-002), floor tight.
 
-    12 is the hard-coded live write-candidate census (NOT ``>= len(scanned)`` —
+    9 is the hard-coded live write-candidate census (NOT ``>= len(scanned)`` —
     that is tautological). Sites that sit in a function carrying a write indicator
     (this count INCLUDES the 2 by-design coord-owned writes — ``decisions/emit.py``
     and ``widen/state.py`` — which are write-classified by design and sanctioned in
-    the allowlist). History: WP08 set this to the then-honest census of 17; this
-    mission's WP06 routing then moved 3 write-classified sites onto the kind-aware
-    seam (``list_dependents``/``review`` dependents-warning reads → primary), so
-    WP07 tightened the floor 17 → 14. The 2026-06-27 rebase onto upstream/main then
-    carried concurrent mission #1057, which inserted a ``check_pre30_layout`` boundary
-    guard into ``list_dependents`` — re-introducing a kind-blind resolve probe there —
-    raising the honest live census 14 → 15. This mission's WP routing then moved a
-    further 2 write-classified sites onto the kind-aware seam, shrinking the live
-    census 15 → 13. retire-standalone-tasks-cli WP04 then deleted the standalone
-    scripts/tasks surface, removing its sole write-census site
-    (``tasks_cli.py::_prepare_merge_metadata``) and shrinking the live census
-    13 → 12. The ``coord_authority_baseline`` scalar caps the allowlist *entry
-    count*, a different quantity from the write *site* census (which they happen
-    to equal here).
+    the allowlist). History: WP08 set this to the then-honest census of 17; the
+    single-authority mission's WP06 routing moved 3 write-classified sites onto the
+    kind-aware seam, so WP07 tightened the floor 17 → 14. The 2026-06-27 rebase onto
+    upstream/main carried concurrent mission #1057, which inserted a
+    ``check_pre30_layout`` boundary guard into ``list_dependents`` — re-introducing a
+    kind-blind resolve probe — raising the honest census 14 → 15. Further routing
+    then shrank it 15 → 13, and retire-standalone-tasks-cli WP04's deletion of the
+    standalone scripts/tasks surface shrank it 13 → 12. Finally, tasks-py-degod
+    WP01-WP08's de-god rewires of ``tasks.py`` drained THREE write-census sites
+    (``move_task`` ×2 via the WP06 thin-orchestrator rewrite; ``list_dependents``
+    via the WP08 fold-to-primary), shrinking the live census 12 → 9; WP09 lowered
+    this floor accordingly (SHRINK-ONLY). The ``coord_authority_baseline`` scalar
+    caps the allowlist *entry count*, a different quantity from the write *site*
+    census (which they happen to equal here).
+
+    Two bounds are asserted (mirroring ``test_routed_count_floor``):
+    * lower — ``live >= floor``: the census may not silently drop below the floor;
+    * margin — ``live - floor <= MARGIN``: the floor may not sit materially BELOW
+      the live count. A floor dropped far below live would let a body of un-routed
+      kind-blind writes pass unseen (masking); the margin makes that CI-red.
     """
     writes = [s for s in scan_coord_authority_call_sites(SRC_ROOT) if s.is_write]
     assert len(writes) >= COORD_AUTHORITY_WRITE_FLOOR, (
         f"write-candidate census dropped to {len(writes)}; expected "
         f">= {COORD_AUTHORITY_WRITE_FLOOR}."
+    )
+    # Margin gate (anti-masking): the floor must track the honest live count. A
+    # floor set materially below live would hide un-routed writes — fail it.
+    assert len(writes) - COORD_AUTHORITY_WRITE_FLOOR <= COORD_AUTHORITY_WRITE_FLOOR_MARGIN, (
+        f"COORD_AUTHORITY_WRITE_FLOOR ({COORD_AUTHORITY_WRITE_FLOOR}) is more than "
+        f"COORD_AUTHORITY_WRITE_FLOOR_MARGIN ({COORD_AUTHORITY_WRITE_FLOOR_MARGIN}) "
+        f"below the live write census ({len(writes)}); raise the floor to the honest "
+        "live count so it cannot mask un-routed kind-blind writes."
     )
 
 
