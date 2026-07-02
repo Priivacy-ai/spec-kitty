@@ -27,3 +27,7 @@ Golden-CLI-characterization-first → stratified ports → 3 pure decision/aggre
 ## Net outcome
 
 Core value delivered at 8 WPs: the change-magnet decision logic is in four pure tested cores behind injected ports; all fat bodies are ≤150 LOC thin orchestrators; behavior byte-identical. The "make tasks.py a pretty shim + unify rendering" work is a clean, well-scoped follow-up (see `docs/plans/tasks-py-degod-followup-mission-debrief.md`).
+
+## Close assessment (2026-07-02) — outcome vs plan
+
+Landed **9/9** on `design/degod-tasks-2116` (squash-merge, mission #157). Core value delivered: the change-magnet decision logic is in 4 pure tested cores behind injected ports; all fat bodies ≤150 LOC; behavior byte-identical (golden 42 throughout). Descoped (→ follow-up mission): the Render seam (FR-008) + the ≤1400 whole-file shim relocation (SC-005) — `tasks.py` is 4547 LOC (glue-heavy) pending that relocation. The cumulative arch-gate debt the rewires introduced (untrusted-path, status-boundary, tmp, marker, orphan-surface) was remediated pre-PR (the `post-merge-arch-gate-adjudication` procedure); the status-boundary import was routed through the `specify_cli.status` facade (not allowlisted). Merged branch is fully green (arch + agent 917 + git 46 + golden). Two campsite ops closed in-branch: CHANGELOG BOM/drift + test_tasks.py mypy debt.

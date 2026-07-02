@@ -36,3 +36,15 @@ Traps, gotchas, and tooling friction hit during this mission. **Read this before
 ## worktree / editable-install
 
 - The lane worktrees have **no own `.venv`** — use the primary clone's venv (`export PATH="…/spec-kitty-doctrine-fidelity/.venv/bin:$PATH"`). The editable install points at the primary checkout (mission base, WITHOUT the lane's new modules), so bare `python -c "import <new_module>"` fails; **pytest resolves the worktree code correctly** — verify via pytest, not bare imports.
+
+## Close assessment (2026-07-02) — merge-time frictions
+
+Frictions hit during accept/merge/closeout (add to the follow-up's watch-list):
+
+- **Merge review-artifact gate**: `terminal_wp_latest_review_artifact_must_not_be_rejected` blocks merge when a WP's LATEST `review-cycle-N.md` is `rejected` — because **approvals are recorded as status transitions, not artifacts**, so a WP that went reject→fix→approve keeps a stale rejected artifact as its latest. Remedy: write an approved `review-cycle-<next>.md` (verdict: approved) per affected WP. Scan ALL WPs up front (`grep -m1 '^verdict:' <latest cycle>`), don't discover one-at-a-time via merge failures. (WP02/03/05 needed this.)
+- **Acceptance-matrix was auto-stubbed, never populated** — 11 one-per-FR placeholder criteria (`pass_fail: pending`, "TODO: replace"). `spec-kitty accept` blocks on it. Populate honestly (pass + evidence + verified_by), drop descoped-FR criteria, `overall_verdict: pass`.
+- **Coord-authority write path**: for `topology: coord` missions the acceptance-matrix / issue-matrix / review artifacts the gate reads live in the **coord worktree** (`.worktrees/<mission>-coord/...`) on the coordination branch — editing the primary-checkout copy has NO effect. Commit to the coord worktree.
+- **Merge halts on a dirty coord `meta.json`** (its own mission-number assignment) — commit it in the coord worktree, `spec-kitty merge --resume`.
+- **Post-merge stale-assertion analyzer** (#068) flags tests asserting on string literals the rewire removed from `tasks.py` (info-grade, non-blocking) — verify those tests still pass (ours did; the flag was informational).
+- **`spec-kitty dispatch` op** didn't always persist an op-record on this branch — the cleanup is what matters; a dangling open op auto-sweeps to abandoned.
+- **strict-mypy narrowing cascades**: adding `isinstance(x, click.Group)` to fix one `attr-defined` tightened the type enough to surface `param.help` (Option-only) then `str | None` `in` errors — expect a 2-3 step cascade, each fixed by the next narrow/assert.

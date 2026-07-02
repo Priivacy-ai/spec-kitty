@@ -11,11 +11,15 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import cast
 from unittest.mock import MagicMock, patch
 
+import click
 import pytest
+from click.testing import Result
 from typer.main import get_command
 from typer.testing import CliRunner
 
@@ -46,12 +50,15 @@ def test_move_task_help_surfaces_review_artifact_override_audit_path() -> None:
 
     assert result.exit_code == 0, result.output
     help_text = " ".join(result.output.split())
-    click_command = get_command(app).commands["move-task"]
+    group = get_command(app)
+    assert isinstance(group, click.Group)
+    click_command = group.commands["move-task"]
     skip_review_help = next(
         param.help
         for param in click_command.params
-        if param.name == "skip_review_artifact_check"
+        if isinstance(param, click.Option) and param.name == "skip_review_artifact_check"
     )
+    assert skip_review_help is not None
 
     assert "rejected" in help_text
     assert "review artifact" in help_text
@@ -892,7 +899,7 @@ class TestSkipReviewArtifactCheck:
 class TestTasksStatusReviewWarnings:
     """`spec-kitty agent tasks status` surfaces review artifact problems."""
 
-    def _invoke_status(self, tmp_path: Path, mission_slug: str):
+    def _invoke_status(self, tmp_path: Path, mission_slug: str) -> Result:
         with setup_mocked_env(
             tmp_path,
             mission_slug=mission_slug,
@@ -954,7 +961,7 @@ class TestLaneGuardErrorMessage:
         tmp_path: Path,
         mission_slug: str,
         feature_dir: Path,
-        meta: dict | None,
+        meta: Mapping[str, object] | None,
         contamination: list[str],
     ) -> tuple[bool, list[str]]:
         """Helper: invoke _validate_ready_for_review with contamination mocked."""
@@ -1018,12 +1025,15 @@ class TestLaneGuardErrorMessage:
             mock_workspace.context.base_branch = f"kitty/mission-{mission_slug}"
             mock_ws.return_value = mock_workspace
 
-            return _validate_ready_for_review(
-                repo_root=tmp_path,
-                mission_slug=mission_slug,
-                wp_id="WP01",
-                force=False,
-                target_lane="for_review",
+            return cast(
+                "tuple[bool, list[str]]",
+                _validate_ready_for_review(
+                    repo_root=tmp_path,
+                    mission_slug=mission_slug,
+                    wp_id="WP01",
+                    force=False,
+                    target_lane="for_review",
+                ),
             )
 
     def test_lane_guard_names_planning_branch(self, tmp_path: Path) -> None:
