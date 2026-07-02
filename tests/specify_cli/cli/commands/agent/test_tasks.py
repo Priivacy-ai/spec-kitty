@@ -711,6 +711,110 @@ class TestSkipReviewArtifactCheck:
     @patch("specify_cli.cli.commands.agent.tasks.locate_work_package")
     @patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning")
     @patch("specify_cli.cli.commands.agent.tasks.get_auto_commit_default", return_value=False)
+    def test_override_persist_survives_later_guard_refusal(
+        self,
+        _mock_auto_commit: MagicMock,
+        _mock_sparse: MagicMock,
+        mock_locate_wp: MagicMock,
+        mock_slug: MagicMock,
+        mock_root: MagicMock,
+        mock_branch: MagicMock,
+        mock_unchecked: MagicMock,
+        mock_review_valid: MagicMock,
+        mock_lock: MagicMock,
+        mock_read_events: MagicMock,
+        mock_emit: MagicMock,
+        mock_safe_commit: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        """FR-004 partial-write-on-refusal: the review-artifact override is stamped
+        at its OLD guard position (rejected-verdict proceed arm), so a LATER guard
+        (here review-currency) refusing with exit 1 STILL leaves the override
+        frontmatter on disk — matching the un-refactored ``move_task`` timing.
+
+        RED against the cycle-1 wiring (which deferred the persist to ``Emit``,
+        after all guards clear, so a refusal wrote nothing); GREEN once the persist
+        fires ahead of the guard sequence.
+        """
+        mission_slug = "test-mission-partial-write"
+        wp_id = "WP01"
+        feature_dir, wp_file = _build_wp_file(tmp_path, mission_slug, wp_id)
+        _seed_wp_event(feature_dir, wp_id, "in_review")
+
+        wp_dir = wp_file.parent / wp_file.stem
+        artifact = _write_review_cycle(wp_dir, 1, "rejected")
+
+        from specify_cli.tasks_support import WorkPackage
+
+        mock_wp = WorkPackage(
+            feature=mission_slug,
+            path=wp_file,
+            current_lane="in_review",
+            relative_subpath=Path(f"tasks/{wp_file.name}"),
+            frontmatter=f"work_package_id: {wp_id}\ntitle: Test\nagent: testbot\n",
+            body="\n## Activity Log\n",
+            padding="\n",
+        )
+        mock_root.return_value = tmp_path
+        mock_slug.return_value = mission_slug
+        mock_branch.return_value = (tmp_path, "main")
+        mock_unchecked.return_value = []
+        # A LATER guard (review-currency, guard position 9) refuses AFTER the
+        # rejected-verdict override arm (guard position 5) would have persisted.
+        mock_review_valid.return_value = (False, ["Uncommitted changes present in workspace."])
+        mock_lock.return_value.__enter__ = MagicMock(return_value=None)
+        mock_lock.return_value.__exit__ = MagicMock(return_value=False)
+        mock_locate_wp.return_value = mock_wp
+
+        from specify_cli.status.store import read_events as _real_re
+        mock_read_events.return_value = _real_re(feature_dir)
+        mock_emit.return_value = MagicMock()
+
+        result = runner.invoke(
+            app,
+            [
+                "move-task",
+                wp_id,
+                "--to",
+                "approved",
+                "--force",
+                "--skip-review-artifact-check",
+                "--note",
+                "Arbiter override: rejection superseded by manual release review",
+                "--mission",
+                mission_slug,
+                "--no-auto-commit",
+            ],
+        )
+
+        # The LATER guard refuses the operation (exit 1) and nothing is emitted.
+        assert result.exit_code == 1, f"Expected review-currency refusal. Output:\n{result.output}"
+        assert "Uncommitted changes present in workspace." in result.output
+        # It must be the review-currency guard, NOT the rejected-verdict guard.
+        assert "rejected review artifact" not in result.output
+        mock_emit.assert_not_called()
+        # Partial write preserved: the override frontmatter is on disk despite the
+        # exit-1 refusal (OLD timing reproduced).
+        artifact_text = artifact.read_text(encoding="utf-8")
+        assert "review_artifact_override_at:" in artifact_text, (
+            "Override evidence was NOT persisted before the later guard refused — "
+            f"partial-write-on-refusal timing broken.\nArtifact:\n{artifact_text}"
+        )
+        assert "review_artifact_override_actor:" in artifact_text
+        assert "review_artifact_override_reason:" in artifact_text
+
+    @patch("specify_cli.cli.commands.agent.tasks.commit_for_mission")
+    @patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional")
+    @patch("specify_cli.cli.commands.agent.tasks.read_events_transactional")
+    @patch("specify_cli.cli.commands.agent.tasks.feature_status_lock")
+    @patch("specify_cli.cli.commands.agent.tasks._validate_ready_for_review")
+    @patch("specify_cli.cli.commands.agent.tasks._check_unchecked_subtasks")
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_work_package")
+    @patch("specify_cli.cli.commands.agent.tasks._emit_sparse_session_warning")
+    @patch("specify_cli.cli.commands.agent.tasks.get_auto_commit_default", return_value=False)
     def test_skip_flag_requires_note(
         self,
         _mock_auto_commit: MagicMock,

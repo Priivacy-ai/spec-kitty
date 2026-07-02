@@ -608,9 +608,14 @@ Test content.
         recorded_targets: list[str] = []
         real_emit = tasks_cli.emit_status_transition_transactional
 
-        def tracking_emit(request):
+        def tracking_emit(request, **kwargs):
+            # WP06 (#2116): move_task now routes the emit through the coord WRITE
+            # ``commit_status`` capability, which forwards a ``capability=`` kwarg
+            # (default STANDARD — semantically identical to the pre-rewire bare
+            # call). Accept + forward kwargs so this double matches the canonical
+            # port call instead of the stale positional-only signature.
             recorded_targets.append(str(request.to_lane))
-            return real_emit(request)
+            return real_emit(request, **kwargs)
 
         with (
             patch("specify_cli.cli.commands.agent.tasks.emit_status_transition_transactional", side_effect=tracking_emit),

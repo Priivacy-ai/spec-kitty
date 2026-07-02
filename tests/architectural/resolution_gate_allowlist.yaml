@@ -56,9 +56,39 @@
 #     implement 1395->1403, 1590->1598; review 2617->2633, 2654->2670.
 #   coord_authority_baseline 15->13 and COORD_AUTHORITY_WRITE_FLOOR 15->13 tightened
 #   to the honest live write census (13) — a genuine shrink from routing, not a re-pin.
+# tasks-py-degod WP09 (2026-07-02, FR-011 census cleanup, SHRINK-ONLY): the
+#   WP01-WP08 tasks.py de-god rewires drained the coord-authority WRITE census
+#   from 12 to the honest live count of 9. Cross-base drain artifact (design base
+#   design/degod-tasks-2116 vs the merged mission tree) for reviewer (not-author)
+#   sign-off — each removed entry cites the mission hunk that removed its write
+#   indicator:
+#     - DRAIN move_task:1138 — WP06 (03be8db6e "move_task thin orchestrator over
+#       WP03 core + WP02 ports") rewrote move_task; the ``_mt_feature_dir =
+#       resolve_feature_dir_for_mission(...)`` #1057 boundary-guard probe was
+#       removed. Merged move_task contains ZERO resolve_feature_dir_for_mission
+#       calls (verified by AST scan + grep). No live match -> drain.
+#     - DRAIN move_task:1396 — same WP06 commit removed the STATUS-partition
+#       ``feature_dir = resolve_feature_dir_for_mission(...)`` event-store resolve
+#       from move_task. Merged move_task has no resolve site -> drain.
+#     - DRAIN list_dependents:3568 — WP08 (2dda443d5 "thin mark_status +
+#       finalize_tasks ... FR-010 guard-only folds to primary") removed the
+#       ``feature_dir = resolve_feature_dir_for_mission(...)`` probe from
+#       list_dependents (folded to primary). Merged list_dependents contains ZERO
+#       resolve_feature_dir_for_mission calls -> drain.
+#   RE-PINS (site persists, write-classified, moved only by upstream/lane line
+#   drift — NOT drained, still counted):
+#     - list_tasks:2198 -> 2746 (STATUS-partition ``_lt_feature_dir`` write probe
+#       still live at the new line).
+#     - validate_workflow:2995 -> 3814 (STATUS-partition ``_vw_feature_dir`` write
+#       probe still live at the new line).
+#   coord_authority_baseline 13->9 and COORD_AUTHORITY_WRITE_FLOOR 12->9 lowered to
+#   the honest re-measured live write census (9). Shrink-only: three entries
+#   drained, two re-pinned, zero added; the floor never rises. A margin gate in
+#   test_coord_authority_gate_floor now fails if the floor is set materially below
+#   the live count (masking un-routed writes).
 
 canonicalizer_baseline: 3
-coord_authority_baseline: 13
+coord_authority_baseline: 9
 
 canonicalizer:
   - qualname: _canonicalize_bare_modern_handle
@@ -79,21 +109,17 @@ coord_authority:
   # The remaining tasks.py / implement.py coord-authority entries below are
   # line-drift RE-PINS only (same kind-blind write site, new line after WP edits
   # shifted the file) -- NOT routed, still pre-sweep baseline for WP02-WP07.
-  - qualname: move_task
-    line: 1138
-    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - #1057 boundary-guard probe (_mt_feature_dir feeds check_pre30_layout); PR #2277 re-pin 1081->1138 (7-WP coexistence line drift)"
-  - qualname: move_task
-    line: 1396
-    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - STATUS-partition coord-aware event-store read; PR #2277 re-pin 1327->1396 (7-WP coexistence line drift)"
+  # tasks-py-degod WP09 DRAIN: move_task:1138 & move_task:1396 removed — WP06
+  # (03be8db6e) rewrote move_task as a thin orchestrator; merged move_task has zero
+  # resolve_feature_dir_for_mission calls (cross-base artifact in header). list_dependents:3568
+  # removed — WP08 (2dda443d5) folded its probe to primary; merged list_dependents
+  # has zero resolve calls.
   - qualname: list_tasks
-    line: 2198
-    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - STATUS-partition coord-aware event-log read; PR #2277 re-pin 2129->2198 (7-WP coexistence line drift)"
+    line: 2757
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - STATUS-partition coord-aware event-log read (_lt_feature_dir); tasks-py-degod WP09 re-pin 2198->2746, then +11 to 2757 (move_task #1386 protected-branch guard-order early-exit added lines above; same site, not drained)"
   - qualname: validate_workflow
-    line: 2995
-    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - STATUS-partition coord-aware event-log read; PR #2277 re-pin 2926->2995 (7-WP coexistence line drift)"
-  - qualname: list_dependents
-    line: 3568
-    rationale: "#1057-INTRODUCED boundary-guard probe (src/specify_cli/cli/commands/agent/tasks.py): the kind-blind resolve at 3568 feeds check_pre30_layout(feature_dir) (the #1057 pre-3.0 layout hard-reject), then the real dependents READ re-routes through resolve_planning_read_dir(kind=WORK_PACKAGE_TASK). Same by-design pattern as move_task:1138. The function is WRITE-classified by the conservative function-granularity predicate (json.dumps in the body), but the kind-blind probe is not the write target. Added during the upstream/main rebase: our WP06 had routed list_dependents away (removed list_dependents:3415), but concurrent mission #1057 independently inserted a check_pre30_layout boundary guard here that requires a raw kind-blind resolve — a genuine new by-design coord-owned probe. PR #2277 re-pin 3499->3568 (7-WP coexistence line drift)."
+    line: 3825
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - STATUS-partition coord-aware event-log read (_vw_feature_dir); tasks-py-degod WP09 re-pin 2995->3814, then +11 to 3825 (move_task #1386 protected-branch guard-order early-exit added lines above; same site, not drained)"
   - qualname: implement
     line: 1403
     rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - coord-read-residuals WP01 line-drift re-pin 1395->1403 (identity routing added lines above)"

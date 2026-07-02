@@ -26,6 +26,8 @@ from specify_cli.cli.commands.agent.tasks import (
     _parse_pipe_table_header,
     _resolve_git_common_dir,
     _resolve_wp_slug,
+)
+from specify_cli.cli.commands.agent.tasks_parsing_validation import (
     _self_review_fallback_option_error,
 )
 
