@@ -47,9 +47,11 @@ steps:
       Record the set of permitted call sites as a frozenset constant (for named
       allowlists) or as a numeric entry in a shared baseline file (for count-based
       ratchets). The gate fails if any call appears outside the named set, or if
-      the live count exceeds the numeric baseline. The allowlist/baseline update and burn-down discipline is owned by the
-      `frozen-baseline-shrink-only-ratchet` tactic (referenced below) — follow it
-      rather than restating it here.
+      the live count exceeds the numeric baseline. The allowlist or baseline is
+      updated only by deliberate human action in a PR; CI must never auto-update
+      it. Entries are removed as the codebase cleans up (shrinkage is encouraged);
+      growth requires an explicit justification comment and, for grandfathered
+      exceptions, a follow-up tracker ticket.
 
       Live exemplar: _ALLOWLIST frozenset in test_protection_resolver_call_sites.py
       (module-level constant). The comparison at "if rel in _ALLOWLIST: continue"

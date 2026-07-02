@@ -49,9 +49,3 @@ references:
     id: canonical-source-unification
   - type: toolguide
     id: terminology-guard
-  - type: styleguide
-    id: planning-and-tracking
-  - type: tactic
-    id: ownership-map-leeway
-  - type: tactic
-    id: reviewer-implementer-role-separation

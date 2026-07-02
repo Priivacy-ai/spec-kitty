@@ -72,11 +72,15 @@ def _iter_candidate_test_files() -> list[Path]:
     for path in _TESTS_ROOT.rglob("test_*.py"):
         if path.resolve() == _SELF:
             continue
-        # Skip files inside __pycache__/.pytest_cache and similar
-        if any(part.startswith((".", "__")) for part in path.parts):
+        # Only the parts *below* the tests root matter — the absolute prefix may
+        # legitimately contain dot-dirs (e.g. a ``.worktrees/`` checkout), which
+        # must NOT exempt every file and blind the gate. Skip files inside
+        # __pycache__/.pytest_cache and similar under tests/.
+        rel_parts = path.relative_to(_TESTS_ROOT).parts
+        if any(part.startswith((".", "__")) for part in rel_parts):
             continue
         # Skip the test-support/helper tree (tests/_support/**).
-        if "_support" in path.parts:
+        if "_support" in rel_parts:
             continue
         paths.append(path)
     return sorted(paths)

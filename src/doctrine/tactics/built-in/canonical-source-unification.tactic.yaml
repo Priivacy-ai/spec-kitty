@@ -37,8 +37,8 @@ steps:
       - "Update agent command templates to reference the correct CLI surface."
   - title: Add or extend a gate to enforce the canonical route
     description: >
-      After routing is corrected, add or extend an architectural gate (an executable architectural
-      assertion, an import-linter rule, or an equivalent ratchet) that rejects future
+      After routing is corrected, add or extend an architectural gate (a pytest architectural
+      test, an import-linter rule, or an equivalent ratchet) that rejects future
       non-canonical routing. A missing gate means the split-brain can reappear silently in a
       later change.
     examples:

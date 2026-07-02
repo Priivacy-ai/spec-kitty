@@ -225,9 +225,9 @@ description: "Work packages — Degod tasks.py (Wave 1): thin CLI over pure core
 
 ### Included Subtasks
 
-- [x] T037 Census drain + floor-lower + baseline + margin gate: re-measure live WRITE census (9); re-pin moved entries / drain removed ones (`list_dependents:3568`, `list_tasks:2198`, `move_task:1138/1396`, `validate_workflow:2995`); lower `COORD_AUTHORITY_WRITE_FLOOR` 12→9 shrink-only; fix stale `coord_authority_baseline`; enumerated cross-base drain artifact for reviewer sign-off (WP09)
-- [x] T038 Assert the C-002 canonicalizer gate stays non-vacuous; 0 new arch-ratchet entries (shrink-only holds) (WP09)
-- [x] T039 Run the full `tests/architectural/` sweep + mission-base-vs-lane-base cross-diff; the 4 named gate tests green; report (do NOT fix) any identical-on-base pre-existing failures for a DIR-013 follow-up (WP09)
+- [ ] T037 Census drain + floor-lower + baseline + margin gate: re-measure live WRITE census (9); re-pin moved entries / drain removed ones (`list_dependents:3568`, `list_tasks:2198`, `move_task:1138/1396`, `validate_workflow:2995`); lower `COORD_AUTHORITY_WRITE_FLOOR` 12→9 shrink-only; fix stale `coord_authority_baseline`; enumerated cross-base drain artifact for reviewer sign-off (WP09)
+- [ ] T038 Assert the C-002 canonicalizer gate stays non-vacuous; 0 new arch-ratchet entries (shrink-only holds) (WP09)
+- [ ] T039 Run the full `tests/architectural/` sweep + mission-base-vs-lane-base cross-diff; the 4 named gate tests green; report (do NOT fix) any identical-on-base pre-existing failures for a DIR-013 follow-up (WP09)
 
 ### Dependencies
 

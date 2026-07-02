@@ -57,8 +57,5 @@ validation_criteria:
     without explicit operator-authorization language.
   - Escalation path (to the operator) is documented for cases where intent
     is unclear.
-references:
-  - type: procedure
-    id: mission-tracer-files
-  - type: procedure
-    id: post-merge-arch-gate-adjudication
+suggests:
+  - urn:tactic:pr-agent-worktree-isolation
