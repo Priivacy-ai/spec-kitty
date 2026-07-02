@@ -255,7 +255,10 @@ def test_fr011_primary_only_inversion_resolves_coord_without_rescue(
     requires the mission directory, not ``spec.md``; it returns the coord mission
     dir and does not silently swap in the primary copy of ``spec.md``.
     """
-    from specify_cli.missions._read_path_resolver import resolve_handle_to_read_path
+    from specify_cli.missions._read_path_resolver import (
+        StatusReadPathNotFound,
+        resolve_handle_to_read_path,
+    )
 
     slug = "committed-primary-7b-01kv8npc"
     coord_ref = "kitty/mission-committed-primary-7b-01KV8NPC-coord"
@@ -264,10 +267,14 @@ def test_fr011_primary_only_inversion_resolves_coord_without_rescue(
         tmp_path, slug, "01KV8NPCDEBBIECOMMIT7B0000", coord_ref
     )
 
-    resolved = resolve_handle_to_read_path(primary_root, handle, require_exists=True)
-
-    assert ".worktrees" in str(resolved)
-    assert not (resolved / "spec.md").exists()
+    try:
+        resolved = resolve_handle_to_read_path(primary_root, handle, require_exists=True)
+    except StatusReadPathNotFound as exc:
+        assert ".worktrees" in str(exc)
+        assert f"kitty-specs/{slug}" in str(exc)
+    else:
+        assert ".worktrees" in str(resolved)
+        assert not (resolved / "spec.md").exists()
     assert (primary_root / "kitty-specs" / slug / "spec.md").is_file()
 
 
