@@ -1,6 +1,6 @@
 ---
 title: "Follow-up mission preparation debrief — tasks.py render-seam + shim relocation"
-description: "Scope, current state, inventory, approach, and risks for the follow-up mission that finishes the tasks.py degod (render seam + ≤1400 shim relocation), deferred from mission tasks-py-degod-01KWF08S."
+description: "Scope, inventory, approach, and risks for the follow-up mission finishing the tasks.py degod (render seam + shim relocation), deferred from tasks-py-degod-01KWF08S."
 doc_status: active
 updated: '2026-07-02'
 ---
