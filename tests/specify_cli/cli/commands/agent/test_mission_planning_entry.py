@@ -245,26 +245,17 @@ def _build_coord_with_mission_dir_spec_on_primary_only(
     return resolved_coord_spec, tmp_path
 
 
-def test_fr011_primary_only_inversion_not_reached_at_caller(tmp_path: Path) -> None:
-    """FR-011 (supersedes the #7 primary-target-branch workaround leg).
+def test_fr011_primary_only_inversion_resolves_coord_without_rescue(
+    tmp_path: Path,
+) -> None:
+    """FR-011: coord-present primary-only spec is not rescued from primary.
 
-    The #7 topology (spec committed on primary ``main`` only; coord worktree
-    carries the mission dir but NOT spec.md) was the case the retired 3-leg OR
-    rescued via a primary-target-branch leg. FR-011 removes that workaround once
-    FR-001 holds (single write authority commits the spec where the read path
-    resolves it). This test proves the collapse does NOT regress reachable
-    behaviour: for this topology the read path (``require_exists=True``) does not
-    hand the caller a committed spec at all — it RAISES ``StatusReadPathNotFound``
-    (the coord worktree no longer carries the mission's spec dir, and the primary
-    mission dir is not addressable as the coord surface). The live ``setup-plan``
-    caller catches that in ``_find_feature_directory`` → re-raises
-    ``ActionContextError`` → ``Exit(1)``, BEFORE ever reaching ``is_committed``.
-    The OR's leg-3 was rescuing a ``spec_file`` the caller never reaches.
+    The #7 topology has ``spec.md`` committed on primary ``main`` while the coord
+    worktree carries the mission dir but not the spec. ``require_exists=True``
+    requires the mission directory, not ``spec.md``; it returns the coord mission
+    dir and does not silently swap in the primary copy of ``spec.md``.
     """
-    from specify_cli.missions._read_path_resolver import (
-        StatusReadPathNotFound,
-        resolve_handle_to_read_path,
-    )
+    from specify_cli.missions._read_path_resolver import resolve_handle_to_read_path
 
     slug = "committed-primary-7b-01kv8npc"
     coord_ref = "kitty/mission-committed-primary-7b-01KV8NPC-coord"
@@ -273,10 +264,11 @@ def test_fr011_primary_only_inversion_not_reached_at_caller(tmp_path: Path) -> N
         tmp_path, slug, "01KV8NPCDEBBIECOMMIT7B0000", coord_ref
     )
 
-    # The read path short-circuits BEFORE is_committed: no committed spec_file is
-    # handed to the caller for the #7 inversion.
-    with pytest.raises(StatusReadPathNotFound):
-        resolve_handle_to_read_path(primary_root, handle, require_exists=True)
+    resolved = resolve_handle_to_read_path(primary_root, handle, require_exists=True)
+
+    assert ".worktrees" in str(resolved)
+    assert not (resolved / "spec.md").exists()
+    assert (primary_root / "kitty-specs" / slug / "spec.md").is_file()
 
 
 def test_fr011_single_surface_does_not_rescue_primary_only_inversion(tmp_path: Path) -> None:
@@ -287,7 +279,7 @@ def test_fr011_single_surface_does_not_rescue_primary_only_inversion(tmp_path: P
     ``main``) to the collapsed ``is_committed`` returns ``False`` — there is no
     multi-surface rescue. This is safe precisely because the caller never reaches
     here for this topology (see
-    ``test_fr011_primary_only_inversion_not_reached_at_caller``).
+    ``test_fr011_primary_only_inversion_resolves_coord_without_rescue``).
     """
     from specify_cli.missions._substantive import is_committed
 

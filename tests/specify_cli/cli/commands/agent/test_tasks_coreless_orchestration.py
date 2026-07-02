@@ -56,7 +56,7 @@ from specify_cli.cli.commands.agent.tasks import (
     _do_finalize_tasks,
     _do_mark_status,
 )
-from specify_cli.cli.commands.agent.tasks_ports import MissionHandle, TasksPorts
+from specify_cli.agent_tasks_ports import MissionHandle, TasksPorts
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.status import BootstrapResult
 from tests.mocked_env import setup_mocked_env

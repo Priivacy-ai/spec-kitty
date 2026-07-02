@@ -350,6 +350,15 @@ def _run_all_scenarios(mkdir: Any) -> dict[str, Scenario]:
         code, text, _ = _invoke(["map-requirements", "--wp", "WP01", "--refs", "FR-001", "--mission", ctx_mr.slug, "--json"])
     out["refuse_map_requirements"] = Scenario(code, text)
 
+    fd = _simple_mission(mkdir(), f"protectedself-{_MID8}")
+    with setup_mocked_env(fd.parent.parent, mission_slug=fd.name, auto_commit_default=True):
+        code, text, payload = _invoke([
+            "move-task", "WP01", "--to", "for_review", "--mission", fd.name,
+            "--self-review-fallback", "--intended-reviewer", "reviewer-renata",
+            "--reviewer-failure-reason", "unavailable", "--json",
+        ])
+    out["protected_self_review_precedence"] = Scenario(code, text, payload)
+
     # --- T006: every other named move_task decision branch ---
 
     # arbiter-override: --force forward from planned after a for_review->planned rejection.
@@ -669,6 +678,13 @@ class TestMoveTaskDecisionBranchesFrozen:
         sc = scenarios["review_currency_refuse"]
         assert sc.exit_code == 1, sc.output
         assert "stale" in sc.output
+
+    def test_self_review_guard_precedes_protected_branch(self, scenarios: dict[str, Scenario]) -> None:
+        """Protected auto-commit keeps the pure guard order's first refusal."""
+        sc = scenarios["protected_self_review_precedence"]
+        assert sc.exit_code == 1, sc.output
+        assert sc.payload is not None
+        assert sc.payload["error"] == "--self-review-fallback is only valid when approving or marking done."
 
     def test_for_review_to_in_progress_force(self, scenarios: dict[str, Scenario]) -> None:
         """for_review -> in_progress with --force rewinds (exit 0, lane flips back)."""

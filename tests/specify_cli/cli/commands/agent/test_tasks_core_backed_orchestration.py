@@ -42,7 +42,7 @@ from specify_cli.cli.commands.agent.tasks import (
     _do_map_requirements,
     _do_status,
 )
-from specify_cli.cli.commands.agent.tasks_ports import MissionHandle, TasksPorts
+from specify_cli.agent_tasks_ports import MissionHandle, TasksPorts
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
