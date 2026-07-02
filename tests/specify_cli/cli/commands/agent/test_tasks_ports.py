@@ -35,7 +35,7 @@ from typer.main import get_command
 
 from mission_runtime import MissionArtifactKind
 from specify_cli.cli.commands.agent.tasks import app
-from specify_cli.cli.commands.agent.tasks_ports import (
+from specify_cli.agent_tasks_ports import (
     CommitArtifactResult,
     CommitStatusResult,
     CoordCommitRouter,

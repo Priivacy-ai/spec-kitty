@@ -40,6 +40,7 @@ activated_directives:
 - 044-canonical-sources-and-unification
 - 045-prs-only-and-read-intent
 - 041-tests-as-scaffold-not-friction
+- 042-common-docs
 activated_tactics:
 - acceptance-test-first
 - adr-drafting-workflow
@@ -147,6 +148,10 @@ activated_tactics:
 - clean-linear-commit-history
 - ownership-map-leeway
 - reviewer-implementer-role-separation
+- common-docs-curation
+- common-docs-find
+- common-docs-scaffold
+- common-docs-write
 activated_toolguides:
 - contextive
 - efficient-local-tooling
@@ -198,3 +203,4 @@ activated_styleguides:
 - adversarial-squad-cadence
 - tiered-standards
 - planning-and-tracking
+- common-docs

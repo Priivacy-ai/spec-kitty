@@ -77,9 +77,9 @@
 #       resolve_feature_dir_for_mission calls -> drain.
 #   RE-PINS (site persists, write-classified, moved only by upstream/lane line
 #   drift — NOT drained, still counted):
-#     - list_tasks:2198 -> 2746 (STATUS-partition ``_lt_feature_dir`` write probe
+#     - list_tasks:2198 -> 2764 (STATUS-partition ``_lt_feature_dir`` write probe
 #       still live at the new line).
-#     - validate_workflow:2995 -> 3814 (STATUS-partition ``_vw_feature_dir`` write
+#     - validate_workflow:2995 -> 3832 (STATUS-partition ``_vw_feature_dir`` write
 #       probe still live at the new line).
 #   coord_authority_baseline 13->9 and COORD_AUTHORITY_WRITE_FLOOR 12->9 lowered to
 #   the honest re-measured live write census (9). Shrink-only: three entries
@@ -115,11 +115,11 @@ coord_authority:
   # removed — WP08 (2dda443d5) folded its probe to primary; merged list_dependents
   # has zero resolve calls.
   - qualname: list_tasks
-    line: 2746
-    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - STATUS-partition coord-aware event-log read (_lt_feature_dir); tasks-py-degod WP09 re-pin 2198->2746 (WP01-WP08 de-god line drift; site persists write-classified, not drained)"
+    line: 2764
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - STATUS-partition coord-aware event-log read (_lt_feature_dir); tasks-py-degod WP09 re-pin 2198->2764 (WP01-WP08 de-god line drift; site persists write-classified, not drained)"
   - qualname: validate_workflow
-    line: 3814
-    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - STATUS-partition coord-aware event-log read (_vw_feature_dir); tasks-py-degod WP09 re-pin 2995->3814 (WP01-WP08 de-god line drift; site persists write-classified, not drained)"
+    line: 3832
+    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - STATUS-partition coord-aware event-log read (_vw_feature_dir); tasks-py-degod WP09 re-pin 2995->3832 (WP01-WP08 de-god line drift; site persists write-classified, not drained)"
   - qualname: implement
     line: 1403
     rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - coord-read-residuals WP01 line-drift re-pin 1395->1403 (identity routing added lines above)"

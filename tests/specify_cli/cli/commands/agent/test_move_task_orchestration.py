@@ -31,7 +31,7 @@ import pytest
 from mission_runtime import MissionArtifactKind
 
 from specify_cli.cli.commands.agent.tasks import _MoveTaskCoordRouter, _do_move_task
-from specify_cli.cli.commands.agent.tasks_ports import (
+from specify_cli.agent_tasks_ports import (
     CommitStatusResult,
     MissionHandle,
     TasksPorts,

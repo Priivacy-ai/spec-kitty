@@ -62,7 +62,6 @@ import ast
 import json
 import re
 import subprocess
-import sys
 import textwrap
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -75,6 +74,9 @@ from typer.main import get_command
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent import tasks as tasks_module
+from specify_cli.cli.commands.agent import tasks_mapping_core as mapping_core_module
+from specify_cli.cli.commands.agent import tasks_status_view as status_view_module
+from specify_cli.cli.commands.agent import tasks_transition_core as transition_core_module
 from specify_cli.cli.commands.agent.tasks import (
     _coord_topology_active,
     _skip_target_branch_commit,
@@ -88,7 +90,7 @@ from tests.integration.coord_topology_fixture import (
 )
 from tests.mocked_env import setup_mocked_env
 
-pytestmark = pytest.mark.fast
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 
@@ -236,7 +238,7 @@ def test_top_level_help_lists_exactly_the_nine_commands() -> None:
 
 
 def test_group_help_matches_golden_fixture() -> None:
-    result = runner.invoke(app, ["--help"], env=HELP_ENV)
+    result = runner.invoke(app, ["--help"], env=HELP_ENV, terminal_width=100)
     assert result.exit_code == 0
     fixture = (HELP_FIXTURES / "_group.txt").read_text(encoding="utf-8")
     assert result.stdout == fixture
@@ -245,7 +247,7 @@ def test_group_help_matches_golden_fixture() -> None:
 @pytest.mark.parametrize("command", COMMANDS)
 def test_command_help_matches_golden_fixture(command: str) -> None:
     """CONTRACT-2 (text): each command's rendered help is byte-frozen."""
-    result = runner.invoke(app, [command, "--help"], env=HELP_ENV)
+    result = runner.invoke(app, [command, "--help"], env=HELP_ENV, terminal_width=100)
     assert result.exit_code == 0, result.stdout
     fixture = (HELP_FIXTURES / f"{command}.txt").read_text(encoding="utf-8")
     assert result.stdout == fixture
@@ -701,6 +703,15 @@ def _run_all_scenarios(mkdir: Any) -> dict[str, Scenario]:
         code, text, _ = _invoke(["map-requirements", "--wp", "WP01", "--refs", "FR-001", "--mission", ctx_mr.slug, "--json"])
     out["refuse_map_requirements"] = Scenario(code, text)
 
+    fd = _simple_mission(mkdir(), f"protectedself-{_MID8}")
+    with setup_mocked_env(fd.parent.parent, mission_slug=fd.name, auto_commit_default=True):
+        code, text, payload = _invoke([
+            "move-task", "WP01", "--to", "for_review", "--mission", fd.name,
+            "--self-review-fallback", "--intended-reviewer", "reviewer-renata",
+            "--reviewer-failure-reason", "unavailable", "--json",
+        ])
+    out["protected_self_review_precedence"] = Scenario(code, text, payload)
+
     # --- T006: every other named move_task decision branch ---
 
     # arbiter-override: --force forward from planned after a for_review->planned rejection.
@@ -1021,6 +1032,13 @@ class TestMoveTaskDecisionBranchesFrozen:
         assert sc.exit_code == 1, sc.output
         assert "stale" in sc.output
 
+    def test_self_review_guard_precedes_protected_branch(self, scenarios: dict[str, Scenario]) -> None:
+        """Protected auto-commit keeps the pure guard order's first refusal."""
+        sc = scenarios["protected_self_review_precedence"]
+        assert sc.exit_code == 1, sc.output
+        assert sc.payload is not None
+        assert sc.payload["error"] == "--self-review-fallback is only valid when approving or marking done."
+
     def test_for_review_to_in_progress_force(self, scenarios: dict[str, Scenario]) -> None:
         """for_review -> in_progress with --force rewinds (exit 0, lane flips back)."""
         sc = scenarios["for_review_to_in_progress_force"]
@@ -1060,37 +1078,41 @@ class TestMoveTaskSideEffects:
         assert "#1298" in body and "JIRA-7" in body, "tracker refs must persist to WP frontmatter"
 
 
-# Per-function branch-coverage floors, MEASURED from this harness's drives on the
-# current base (see the mission's WP01 handoff): move_task 67.8% (118/174),
-# map_requirements 51.9% (54/104), status 49.0% (50/102). The thresholds sit a
-# few points BELOW the measured values to absorb non-deterministic side arms
-# (sync-daemon timing, dict ordering) while still ratcheting: WP03+ must NOT drop
-# a mutating command below its floor without the drop being visible here. The
-# uncovered arms are predominantly defensive IO / exception handlers and the
-# real-git auto-commit SUCCESS path (not reachable in-process without a full lane
-# repo); every NAMED decision branch WP03 extracts is ADDITIONALLY pinned by an
-# explicit T006 case above, which is the primary anti-unguarded-extraction guard.
-_BRANCH_COVERAGE_FLOORS = {
-    "move_task": 65.0,
-    "map_requirements": 48.0,
-    "status": 46.0,
+# Per-function branch-coverage floors, measured from this harness after the
+# WP03+ extraction. The ratchet intentionally targets the extracted decision
+# cores plus branch-bearing orchestration helpers, not the Typer wrappers.
+_BRANCH_COVERAGE_TARGETS = {
+    tasks_module: {
+        "_mt_resolve_targets": 30.0,
+        "_mt_gather_review_facts": 80.0,
+        "_mt_run_decision": 80.0,
+        "_mt_execute": 95.0,
+        "_mt_output": 80.0,
+        "_do_move_task": 45.0,
+        "_do_status": 95.0,
+    },
+    transition_core_module: {"decide_transition": 95.0},
+    mapping_core_module: {"plan_mapping": 70.0},
+    status_view_module: {"build_status_view": 80.0},
 }
 
 
-def _mutating_function_line_ranges() -> dict[str, tuple[int, int]]:
-    """Return ``{name: (start_line, end_line)}`` for the three mutating commands."""
-    source_path = Path(tasks_module.__file__)
+def _function_line_ranges(source_path: Path, wanted: set[str]) -> dict[str, tuple[int, int]]:
+    """Return ``{name: (start_line, end_line)}`` for ``wanted`` functions."""
     tree = ast.parse(source_path.read_text(encoding="utf-8"))
-    wanted = set(_BRANCH_COVERAGE_FLOORS)
     ranges: dict[str, tuple[int, int]] = {}
     for node in ast.walk(tree):
         if isinstance(node, ast.FunctionDef) and node.name in wanted:
             assert node.end_lineno is not None
             ranges[node.name] = (node.lineno, node.end_lineno)
+    missing = wanted - set(ranges)
+    assert not missing, f"branch ratchet target functions not found in {source_path}: {sorted(missing)}"
     return ranges
 
 
-def _branch_coverage_by_function(cov: Any, source_path: str, ranges: dict[str, tuple[int, int]]) -> dict[str, float]:
+def _branch_coverage_by_function(
+    cov: Any, source_path: str, ranges: dict[str, tuple[int, int]]
+) -> tuple[dict[str, float], dict[str, int]]:
     """Compute per-function branch-coverage % from a stopped coverage session.
 
     A *branch arc* is a possible ``(source_line, target)`` transition whose source
@@ -1109,6 +1131,7 @@ def _branch_coverage_by_function(cov: Any, source_path: str, ranges: dict[str, t
     branch_sources = {src for src, dsts in targets_by_source.items() if src > 0 and len(dsts) > 1}
 
     result: dict[str, float] = {}
+    totals: dict[str, int] = {}
     for name, (lo, hi) in ranges.items():
         total = covered = 0
         for src, dst in possible:
@@ -1116,31 +1139,36 @@ def _branch_coverage_by_function(cov: Any, source_path: str, ranges: dict[str, t
                 total += 1
                 if (src, dst) in executed:
                     covered += 1
+        totals[name] = total
         result[name] = (covered / total * 100.0) if total else 100.0
-    return result
+    return result, totals
 
 
 def test_from_harness_branch_coverage_ratchet(tmp_path_factory: pytest.TempPathFactory) -> None:
-    """T007: measure per-function branch coverage FROM this harness and gate it.
+    """T007: measure extracted decision branch coverage FROM this harness and gate it.
 
     Re-runs every mutating-command scenario under a fresh ``coverage`` tracer and
-    asserts the branch coverage of ``move_task`` / ``status`` / ``map_requirements``
-    stays at or above the measured floor. This is the ratchet that ensures no
-    decision branch is silently left unfrozen before WP03's extraction.
-
-    When the whole suite already runs under a coverage tracer (CI's ``--cov``
-    pass), a nested tracer cannot measure, so the gate skips there and runs in the
-    standard ``pytest -q`` pass (the CLAUDE.md dual-run model).
+    asserts the branch coverage of extracted cores plus branch-bearing
+    orchestration helpers stays at or above the measured floor. This is the
+    ratchet that ensures no decision branch is silently left unfrozen.
     """
-    if sys.gettrace() is not None:
-        pytest.skip("a tracer is already active (suite under --cov); ratchet runs in the no-cov pass")
-
     import coverage
 
-    source_path = str(Path(tasks_module.__file__).resolve())
-    ranges = _mutating_function_line_ranges()
+    source_paths = {
+        module: str(Path(module.__file__).resolve())
+        for module in _BRANCH_COVERAGE_TARGETS
+    }
+    ranges_by_module = {
+        module: _function_line_ranges(Path(source_paths[module]), set(floors))
+        for module, floors in _BRANCH_COVERAGE_TARGETS.items()
+    }
 
-    cov = coverage.Coverage(branch=True, include=[source_path])
+    cov_data_file = tmp_path_factory.mktemp("tasks_cli_branch_cov_data") / "ratchet_cov"
+    cov = coverage.Coverage(
+        branch=True,
+        include=list(source_paths.values()),
+        data_file=str(cov_data_file),
+    )
     counter = {"n": 0}
 
     def mkdir() -> Path:
@@ -1153,10 +1181,28 @@ def test_from_harness_branch_coverage_ratchet(tmp_path_factory: pytest.TempPathF
     finally:
         cov.stop()
 
-    measured = _branch_coverage_by_function(cov, source_path, ranges)
+    measured: dict[str, float] = {}
+    branch_totals: dict[str, int] = {}
+    floors: dict[str, float] = {}
+    for module, module_floors in _BRANCH_COVERAGE_TARGETS.items():
+        module_measured, module_totals = _branch_coverage_by_function(
+            cov, source_paths[module], ranges_by_module[module]
+        )
+        for name, value in module_measured.items():
+            key = f"{module.__name__}.{name}"
+            measured[key] = value
+            branch_totals[key] = module_totals[name]
+            floors[key] = module_floors[name]
+
+    vacuous = {name: count for name, count in branch_totals.items() if count == 0}
+    assert not vacuous, (
+        "branch ratchet target has zero branch arcs; this would make the gate "
+        f"vacuous: {vacuous}"
+    )
+
     shortfalls = {
         name: (round(measured[name], 1), floor)
-        for name, floor in _BRANCH_COVERAGE_FLOORS.items()
+        for name, floor in floors.items()
         if measured[name] + 1e-6 < floor
     }
     assert not shortfalls, (
@@ -1164,3 +1210,27 @@ def test_from_harness_branch_coverage_ratchet(tmp_path_factory: pytest.TempPathF
         f"(measured%, floor%): {shortfalls}. A decision branch is now unfrozen — "
         "add a driven case before extracting it."
     )
+
+
+def test_do_orchestrators_stay_thin() -> None:
+    """The five Typer command orchestrators stay thin and discoverable."""
+    ceilings = {
+        "_do_move_task": 150,
+        "_do_mark_status": 150,
+        "_do_finalize_tasks": 150,
+        "_do_map_requirements": 150,
+        "_do_status": 150,
+    }
+    source_path = Path(tasks_module.__file__)
+    tree = ast.parse(source_path.read_text(encoding="utf-8"))
+    ranges = _function_line_ranges(source_path, set(ceilings))
+    offenders: dict[str, tuple[int, int]] = {}
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef) or node.name not in ceilings:
+            continue
+        assert node.end_lineno is not None
+        loc = node.end_lineno - node.lineno + 1
+        if loc > ceilings[node.name]:
+            offenders[node.name] = (loc, ceilings[node.name])
+    assert not offenders, f"_do_* orchestrators exceeded LOC ceiling (loc, ceiling): {offenders}"
+    assert set(ranges) == set(ceilings)

@@ -1,17 +1,17 @@
 # Spec Kitty Charter
 
 > Created: 2026-01-27
-> Version: 1.2.0
-> Reconciled: 2026-07-01 — doctrine-catfooding-2196-01KWE16N WP13 cycle 1
+> Version: 1.3.0
+> Updated: 2026-07-01 — interactive charter intake (doctrine-catfooding-2196-01KWE16N)
 >
-> **Reconciliation note (WP13 cycle 1):** v1.2.0 retains the full v1.1.5 substance and
-> adds the activated catfooding doctrine set. `config.yaml` `activated_*` keys were
+> **v1.3.0 note:** retains the full v1.1.5 substance; adds the activated catfooding
+> doctrine set and an interactive-intake pass that foregrounds actionable governance. `config.yaml` `activated_*` keys were
 > produced by the canonical `spec-kitty charter activate --cascade all` CLI
-> (DIRECTIVE_044 compliant). The `charter generate` CLI renders only the
-> **directive-reachable closure** into `references.yaml` (8 of 14 catfooding artifacts
-> resolve). The remaining 6 are governed-but-not-charter-referenced and are explicitly
-> noted in the Catfooding Governance Status section below. Deferred to a later
-> interactive charter intake (narrowed NFR-003, operator-accepted).
+> (DIRECTIVE_044 compliant). The interactive charter intake (2026-07-01)
+> foregrounded activated catfooding doctrine in actionable governance:
+> directive-reachable artifacts and activated supporting artifacts resolve in
+> `references.yaml`, and the eight standing orders below bind their operational
+> use (superseding the earlier deferral-and-status framing).
 
 ## Purpose
 
@@ -19,46 +19,128 @@ This charter captures the technical standards, architectural principles, and dev
 
 ---
 
-## Catfooding Governance Status (mission doctrine-catfooding-2196)
+## Governing Principles
 
-Mission `doctrine-catfooding-2196-01KWE16N` (WP13 capstone) activated 13 catfooding
-doctrine artifacts via `spec-kitty charter activate --cascade all`. The `charter generate`
-CLI renders only the **directive-reachable closure** into `references.yaml`.
+These bind every action; detail lives in the referenced doctrine and the sections below.
 
-### Charter-Referenced (directive-reachable, 8 of 14)
+- **Single canonical authority.** Every rule, surface, and identity has ONE owning
+  source. Reconcile (extend/reference) existing doctrine rather than add a second
+  authority; prefer require-canonical + migration over no-canonical-field fallback
+  branches; chase unification, not parity with a dead quirk. (Principle — reviewers
+  weigh it; not an automated rejection.) → `DIRECTIVE_044`, `canonical-source-unification`.
+- **Architectural alignment.** Respect the declared architecture — shared-package
+  boundaries (external contract packages vs the internal runtime) and the integrity of
+  module seams. New surfaces align to the existing structure, not around it.
+  → `DIRECTIVE_001` (architectural-integrity), the Architecture sections below.
+- **Domain-driven splits + tiered rigour.** Model bounded contexts; keep aggregates
+  well-formed; apply MORE rigour to core domain logic than to glue/IO.
+  → `domain-driven-design` paradigm, `tiered-standards` + `aggregate-design-rules` styleguides.
+- **ATDD-first.** Drive features outside-in from acceptance criteria; the acceptance
+  test is the contract. → `acceptance-test-first`, the ATDD-First Discipline section below.
+- **Glossary & terminology adherence.** Use the canonical terms; keep domain language
+  precise across specs, code, and docs; the terminology canon (Mission, not Feature) is
+  enforced. → the Terminology Canon section below, `contextive` toolguide.
 
-These artifacts resolve in `references.yaml` because they are reachable from DIRECTIVE_043
-or DIRECTIVE_044 via `requires`/`suggests` DRG edges:
+## Quality & Tech-Debt Standing Orders
 
-| Kind | ID |
-|------|----|
-| directive | DIRECTIVE_043 — Close Defect Class by Construction |
-| directive | DIRECTIVE_044 — Canonical Sources and Unification |
-| directive | DIRECTIVE_045 — PRs Only and Read Intent |
-| tactic | `architectural-gate-non-vacuity` (via DIRECTIVE_043) |
-| tactic | `frozen-baseline-shrink-only-ratchet` (via DIRECTIVE_043) |
-| tactic | `canonical-source-unification` (via DIRECTIVE_044) |
-| toolguide | `terminology-guard` (via DIRECTIVE_044 cascade) |
-| styleguide | `adversarial-squad-cadence` (via cascade) |
+Eight standing practices that keep spec-driven missions honest, now activated
+doctrine (14 artifacts) and compiled into this charter. Each rule below is
+binding actionable guidance; the full how-to lives in the referenced doctrine
+artifact. **Throughline:** never trust a green check, a clean diff, or a confident
+summary — verify against live code, witness the bug in a real run, and let
+independent adversarial perspectives try to break the work *before* it lands, at
+the cheapest point in the lifecycle.
 
-### Governed-but-Not-Charter-Referenced (6 of 14 — deferred to interactive intake)
+1. **Adversarial squad cadence.** Run a bounded, profile-loaded adversarial squad
+   at every planning point-cut (pre-spec / post-spec / post-plan / post-tasks)
+   before proceeding — one lens per agent, strongest model for the hard lenses.
+   Optional and advisory, never a hard gate. → `adversarial-squad-cadence` styleguide.
+2. **Campsite cleaning & incremental debt paydown.** Fold only *domain-matched*
+   debt at each point-cut; freeze current offenders as a baseline when a litter
+   class cannot be cleared in-mission (debt stops growing while you chip at it).
+   → `DIRECTIVE_025`.
+3. **Mission tracer files.** Seed three tracer files (tooling-friction, approach,
+   design-decisions) at planning, append during implementation, assess at close —
+   friction and rationale feed the next mission. → `mission-tracer-files` procedure.
+4. **Test remediation & bug-fix discipline.** Judge the test, not git-blame
+   (stale → re-pin, stub → delete, valid → fix the product); reproduce RED-FIRST
+   through the pre-existing entry point; require live evidence over "looks fixed";
+   use realistic data; never retry-to-green. → `DIRECTIVE_041`, `DIRECTIVE_034`.
+5. **Architectural gate discipline.** Close defect classes by construction with a
+   NON-VACUOUS call-site gate (concrete floor + self-mutation test + shrink-only
+   allowlist); a gate-unmask cannot self-validate. After merge, run the full
+   arch-gate sweep with a cross-base pre-existing check. → `DIRECTIVE_043`,
+   `architectural-gate-non-vacuity`, `frozen-baseline-shrink-only-ratchet`,
+   `post-merge-arch-gate-adjudication`.
+6. **Canonical sources & unification.** Use canonical templates/skills/CLI, never
+   improvise or copy an older mission; chase unification, not parity; a missing
+   command is a gap to file upstream; guard the terminology canon. → `DIRECTIVE_044`,
+   `canonical-source-unification`, `terminology-guard`.
+7. **Git & workflow discipline.** PRs only, the operator merges; read intent before
+   any high-risk op; isolate PR-touching agents in a worktree; no version numbers
+   in scope. → `DIRECTIVE_045`, `pr-agent-worktree-isolation`.
+8. **Mission hygiene.** Reviewer and implementer are distinct roles; every addressed
+   issue gets an issue-matrix row + claim + tracker comment naming the mission;
+   give implementers ownership-map leeway (no-overlap is the real guard); apply
+   tiered rigour. → `planning-and-tracking` styleguide,
+   `reviewer-implementer-role-separation`, `ownership-map-leeway`.
 
-These artifacts are activated in `config.yaml` and authored in the DRG (WP02-WP12 work
-complete), but the CLI generator does not route them into `references.yaml` because they
-are not directive-reachable in the current charter structure. This is accepted per narrowed
-NFR-003. Resolution: run a full interactive charter intake (`/spec-kitty.charter`) to
-explicitly wire these into answers.yaml sections the generator renders.
+Activated catfooding artifacts are listed in `.kittify/config.yaml`; the
+directive-reachable artifacts and activated supporting artifacts resolve in the
+compiled reference set (`references.yaml`). This section states the rules; the
+referenced artifacts carry the detailed procedures, examples, and anti-patterns.
 
-| Kind | ID |
-|------|----|
-| tactic | `pr-agent-worktree-isolation` |
-| tactic | `ownership-map-leeway` |
-| tactic | `reviewer-implementer-role-separation` |
-| styleguide | `planning-and-tracking` |
-| procedure | `mission-tracer-files` |
-| procedure | `post-merge-arch-gate-adjudication` |
+## Agent Operating Discipline
 
----
+How agents and orchestrators should work so quality and context survive long missions.
+
+- **Model discipline.** Match model strength to the task: the strongest model for hard
+  judgment — sizing, fakeability, code-truth, review, architecture — and a cheaper model
+  for grounded or mechanical passes. Never run high-stakes review or design on a light
+  model. → `model_task_routing`.
+- **Delegate to preserve context.** Use subagents for work that can run in an isolated
+  context — a work package in its own worktree, a review against a fixed diff, a focused
+  investigation — so the orchestrator's context stays clean. Each delegation LOADS the
+  relevant doctrine profile (not merely a persona name). Compact after task pivots; do not
+  combine architecture, debugging, and implementation in one long context.
+  → `autonomous-operation-protocol`.
+
+## Collaboration Strategy
+
+How missions are executed between the operator (human-in-command) and the agent fleet.
+
+- **Dispatch a governed profile to run the mission.** The operator delegates mission
+  execution to a governed orchestrator; planning and tracker work runs under
+  `planner-priti` (profile LOADED, not a persona name). The orchestrator **claims** the
+  mission's tickets (assign the operator + a comment naming the mission), **plans**
+  (spec → plan → tasks, with an adversarial squad at each planning point-cut), and
+  **runs** the implement→review loop to completion.
+- **Draft PR first.** Completed mission work is opened as a DRAFT pull request to the
+  protected branch, with history compressed (admin bunched, code by slice).
+- **Ready-for-review only when green.** The agent marks the PR ready-for-review **only
+  after** self-review (an adversarial review pass, findings folded) AND CI pass — i.e.
+  it prepares the PR merge-ready (green, un-drafted, issues linked) and hands off.
+- **The operator merges.** Agents never merge to protected main; the human-in-command
+  performs the merge. → git/workflow discipline (`DIRECTIVE_045`), Agent Operating
+  Discipline above.
+
+## Governance by Workflow Action
+
+Quick map from workflow action to the rules that bind it (load the action's doctrine
+context for the detail).
+
+- **Specify / Plan** — reconcile-don't-duplicate (check for an existing authority before
+  adding one); run an adversarial squad at each planning point-cut (advisory, never a
+  gate); fold only domain-matched debt; model bounded contexts with tiered rigour; assign
+  no version numbers in scope.
+- **Implement** — ATDD / red-first through the pre-existing entry point; close defect
+  classes with non-vacuous gates; use canonical sources (no improvise); keep the
+  terminology canon; append the mission tracer files.
+- **Review** — reviewer ≠ implementer; run the FULL compliance suite (not a subset);
+  verify no duplicate authority, no dead code, and live evidence; apply tiered rigour;
+  grant ownership-map leeway (no-overlap is the real guard).
+- **Merge** — PRs only, the operator merges; isolated PR-review agents; post-merge full
+  arch-gate sweep with a cross-base pre-existing check; issue-matrix + tracker hygiene.
 
 ## Technical Standards
 

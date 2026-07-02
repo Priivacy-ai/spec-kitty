@@ -57,5 +57,6 @@ validation_criteria:
     without explicit operator-authorization language.
   - Escalation path (to the operator) is documented for cases where intent
     is unclear.
-suggests:
-  - urn:tactic:pr-agent-worktree-isolation
+references:
+  - type: tactic
+    id: pr-agent-worktree-isolation

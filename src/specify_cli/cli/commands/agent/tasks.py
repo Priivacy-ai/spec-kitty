@@ -147,6 +147,7 @@ from specify_cli.cli.commands.agent.tasks_parsing_validation import (
     _apply_review_status_flags as _apply_review_status_flags,
     _get_latest_review_cycle_verdict,
     _issue_matrix_approval_blocker,
+    _self_review_fallback_option_error,
     _validate_ready_for_review as _seam_validate_ready_for_review,
 )
 
@@ -226,9 +227,9 @@ from specify_cli.cli.commands.agent.tasks_dependency_graph import (
 # the coord READ authority (``FsReader``) and the coord WRITE authority's two
 # disjoint capabilities (``commit_status`` over the transactional emitter /
 # ``commit_artifact`` over the mission commit router). ``GuardCapability`` keys
-# the status commit. See ``tasks_ports`` for the stratification rationale.
+# the status commit. See ``agent_tasks_ports`` for the stratification rationale.
 from specify_cli.core.commit_guard import GuardCapability
-from specify_cli.cli.commands.agent.tasks_ports import (
+from specify_cli.agent_tasks_ports import (
     CommitArtifactResult,
     CommitStatusResult,
     MissionHandle,
@@ -1124,7 +1125,7 @@ class _MoveTaskCoordRouter(RealCoordCommitRouter):
     ``tasks`` module namespace so the established
     ``@patch("...agent.tasks.<symbol>")`` seams the move_task test-suite relies on
     keep intercepting after the WP06 port rewire (the Real adapter binds the
-    ``tasks_ports`` copies, which those module-scoped patches do not reach).
+    ``agent_tasks_ports`` copies, which those module-scoped patches do not reach).
     """
 
     def commit_status(
@@ -1353,6 +1354,23 @@ def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
         if st.resolved_auto_commit
         else False
     )
+    if st.resolved_auto_commit and not st.skip_target_branch_commit:
+        protected_error = _protected_branch_status_commit_error(
+            st.target_branch, st.main_repo_root, "spec-kitty agent tasks move-task"
+        )
+        if protected_error is not None:
+            self_review_error = _self_review_fallback_option_error(
+                enabled=st.self_review_fallback,
+                target_lane=str(st.target_lane),
+                force=st.force,
+                intended_reviewer=st.intended_reviewer,
+                failure_reason=st.reviewer_failure_reason,
+            )
+            if self_review_error is not None:
+                _output_error(st.json_output, self_review_error)
+                raise typer.Exit(1)
+            _output_error(st.json_output, protected_error)
+            raise typer.Exit(1)
     st.tracker_ref_values = tuple(
         t.strip() for t in (st.tracker_ref or []) if t and t.strip()
     )

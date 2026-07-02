@@ -34,7 +34,7 @@ steps:
     examples:
       - |
         if live_count > baseline:
-            pytest.fail(
+            fail(
                 f"Allowlist grew from {baseline} to {live_count}. "
                 "Either remove the new entry or update _baselines.yaml "
                 "in the same PR with a '# justification:' comment."
