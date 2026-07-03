@@ -412,7 +412,7 @@ def test_accept_command_no_repo_root(mock_locate: MagicMock, mock_accept: MagicM
     mock_locate.return_value = None
 
     # Make top-level accept raise TaskCliError (what find_repo_root does)
-    from specify_cli.tasks_support import TaskCliError
+    from specify_cli.task_utils import TaskCliError
 
     mock_accept.side_effect = TaskCliError("Not in a git repository")
 
@@ -436,7 +436,7 @@ def test_merge_command_no_repo_root(mock_locate: MagicMock, mock_get_branch: Mag
     mock_get_branch.return_value = "001-test-feature"
 
     # Make top-level merge raise TaskCliError (what find_repo_root does)
-    from specify_cli.tasks_support import TaskCliError
+    from specify_cli.task_utils import TaskCliError
 
     mock_merge.side_effect = TaskCliError("Not in a git repository")
 

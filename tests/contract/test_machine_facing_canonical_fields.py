@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 from typer.testing import CliRunner
 
 from specify_cli.acceptance import AcceptanceSummary
-from specify_cli.acceptance_matrix import AcceptanceMatrix, write_acceptance_matrix
+from specify_cli.acceptance.matrix import AcceptanceMatrix, write_acceptance_matrix
 from specify_cli.agent_utils.status import show_kanban_status
 from specify_cli.core.worktree_topology import FeatureTopology, WPTopologyEntry, render_topology_json
 from specify_cli.context.models import MissionContext

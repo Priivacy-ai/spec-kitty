@@ -6,7 +6,7 @@ import sys
 import pytest
 
 from specify_cli.acceptance import matrix as acceptance_matrix_module
-from specify_cli.acceptance_matrix import (
+from specify_cli.acceptance.matrix import (
     AcceptanceCriterion,
     AcceptanceMatrix,
     MATRIX_FILENAME,

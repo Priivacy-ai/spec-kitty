@@ -4,7 +4,7 @@ import pytest
 from datetime import datetime
 from pathlib import Path
 
-from specify_cli.gap_analysis import (
+from specify_cli.doc_analysis.gap_analysis import (
     DocFramework,
     DivioType,
     GapPriority,

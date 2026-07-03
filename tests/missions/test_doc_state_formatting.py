@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.doc_state import (
+from specify_cli.doc_analysis.doc_state import (
     ensure_documentation_state,
     initialize_documentation_state,
     set_audit_metadata,
@@ -358,7 +358,7 @@ class TestNoDirectJsonDumpRemains:
         intentional.  This WP only migrates the *write* path.
         """
         import inspect
-        import specify_cli.doc_state as mod
+        import specify_cli.doc_analysis.doc_state as mod
 
         source = inspect.getsource(mod)
         # Write calls should go through write_meta(validate=False), not json.dump
@@ -367,7 +367,7 @@ class TestNoDirectJsonDumpRemains:
     def test_no_private_atomic_write_import(self) -> None:
         """doc_state.py must not import private _atomic_write from feature_metadata."""
         import inspect
-        import specify_cli.doc_state as mod
+        import specify_cli.doc_analysis.doc_state as mod
 
         source = inspect.getsource(mod)
         assert "_atomic_write" not in source, (

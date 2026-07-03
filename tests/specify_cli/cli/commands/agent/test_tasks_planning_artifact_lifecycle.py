@@ -12,7 +12,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.agent.tasks import app
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
-from specify_cli.tasks_support import WorkPackage
+from specify_cli.task_utils import WorkPackage
 
 pytestmark = pytest.mark.fast
 

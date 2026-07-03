@@ -437,7 +437,7 @@ class TestVerdictGuardInMoveTask:
         wp_dir = wp_file.parent / wp_file.stem  # tasks/WP01-test/
         _write_review_cycle(wp_dir, 1, "rejected")
 
-        from specify_cli.tasks_support import WorkPackage
+        from specify_cli.task_utils import WorkPackage
 
         mock_wp = WorkPackage(
             feature=mission_slug,
@@ -510,7 +510,7 @@ class TestVerdictGuardInMoveTask:
         wp_dir.mkdir(parents=True)
         (wp_dir / "review-cycle-1.md").write_text("not frontmatter", encoding="utf-8")
 
-        from specify_cli.tasks_support import WorkPackage
+        from specify_cli.task_utils import WorkPackage
 
         mock_wp = WorkPackage(
             feature=mission_slug,
@@ -580,7 +580,7 @@ class TestVerdictGuardInMoveTask:
         wp_dir = wp_file.parent / wp_file.stem
         _write_review_cycle(wp_dir, 1, "rejected")
 
-        from specify_cli.tasks_support import WorkPackage
+        from specify_cli.task_utils import WorkPackage
 
         mock_wp = WorkPackage(
             feature=mission_slug,
@@ -653,7 +653,7 @@ class TestSkipReviewArtifactCheck:
         wp_dir = wp_file.parent / wp_file.stem
         artifact = _write_review_cycle(wp_dir, 1, "rejected")
 
-        from specify_cli.tasks_support import WorkPackage
+        from specify_cli.task_utils import WorkPackage
 
         mock_wp = WorkPackage(
             feature=mission_slug,
@@ -750,7 +750,7 @@ class TestSkipReviewArtifactCheck:
         wp_dir = wp_file.parent / wp_file.stem
         artifact = _write_review_cycle(wp_dir, 1, "rejected")
 
-        from specify_cli.tasks_support import WorkPackage
+        from specify_cli.task_utils import WorkPackage
 
         mock_wp = WorkPackage(
             feature=mission_slug,
@@ -846,7 +846,7 @@ class TestSkipReviewArtifactCheck:
         wp_dir = wp_file.parent / wp_file.stem
         _write_review_cycle(wp_dir, 1, "rejected")
 
-        from specify_cli.tasks_support import WorkPackage
+        from specify_cli.task_utils import WorkPackage
 
         mock_wp = WorkPackage(
             feature=mission_slug,
