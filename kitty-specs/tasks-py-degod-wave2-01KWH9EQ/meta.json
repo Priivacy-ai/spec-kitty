@@ -1,0 +1,16 @@
+{
+  "coordination_branch": "kitty/mission-tasks-py-degod-wave2-01KWH9EQ",
+  "created_at": "2026-07-02T11:29:32.706322+00:00",
+  "flattened": false,
+  "friendly_name": "Tasks Degod Wave 2: Render Seam + Relocation",
+  "mission_id": "01KWH9EQ11VNZHMYA1W9PWSRXF",
+  "mission_number": null,
+  "mission_slug": "tasks-py-degod-wave2-01KWH9EQ",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Wave 1 (PR #2303) extracted the agent tasks command's decision logic into pure tested cores but deliberately deferred two goals: unifying output rendering behind the Render seam and relocating the accumulated orchestration glue out of tasks.py, which grew to ~4569 lines. This mission executes that deferred Wave 2 (issue #2305, parent epic #2173) as a strictly behavior-preserving refactor guarded by the golden CLI characterization harness, and folds in domain-matched test-visibility boyscouting from issue #2034.",
+  "purpose_tldr": "Finish turning the agent-tasks god-command into a thin registration shim: unified JSON rendering plus relocation of orchestration into tested sibling modules, with zero behavior change.",
+  "slug": "tasks-py-degod-wave2-01KWH9EQ",
+  "target_branch": "degod-follow-ups",
+  "topology": "coord"
+}

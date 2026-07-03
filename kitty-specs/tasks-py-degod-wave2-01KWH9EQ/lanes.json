@@ -1,0 +1,189 @@
+{
+  "version": 1,
+  "mission_slug": "tasks-py-degod-wave2-01KWH9EQ",
+  "mission_id": "01KWH9EQ11VNZHMYA1W9PWSRXF",
+  "mission_branch": "kitty/mission-tasks-py-degod-wave2-01KWH9EQ",
+  "target_branch": "degod-follow-ups",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/architectural/test_tasks_command_surface.py",
+        "tests/specify_cli/cli/commands/agent/fixtures/tasks_cli/json/byte_contracts.json",
+        "tests/specify_cli/cli/commands/agent/test_tasks_json_bytes.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_shared.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_shared_seam.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_command_adapters.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/agent_tasks_ports.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_ports.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "tests/architectural/untrusted_path_audit/inventory.md"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 4
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_map_requirements.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-e"
+      ],
+      "parallel_group": 5
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_status_cmd.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-f"
+      ],
+      "parallel_group": 6
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_finalize.py",
+        "src/specify_cli/cli/commands/agent/tasks_mark_status.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-g"
+      ],
+      "parallel_group": 7
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/cli/commands/agent/tasks_ports.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-h"
+      ],
+      "parallel_group": 8
+    },
+    {
+      "lane_id": "lane-j",
+      "wp_ids": [
+        "WP10"
+      ],
+      "write_scope": [
+        "tests/architectural/test_tasks_domain_gate_visibility.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-i"
+      ],
+      "parallel_group": 9
+    }
+  ],
+  "computed_at": "2026-07-02T13:03:46.483949+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
