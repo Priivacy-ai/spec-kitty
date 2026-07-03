@@ -43,6 +43,7 @@ from __future__ import annotations
 import ast
 import json
 from pathlib import Path
+from types import ModuleType
 from unittest.mock import patch
 
 import pytest
@@ -325,8 +326,10 @@ def test_finalize_tasks_validate_only_skips_frontmatter_write(
 # ===========================================================================
 
 
-def _module_tree() -> ast.Module:
-    return ast.parse(Path(tasks_mod.__file__).read_text(encoding="utf-8"))
+def _module_tree(module: ModuleType = tasks_mod) -> ast.Module:
+    module_file = module.__file__
+    assert isinstance(module_file, str)
+    return ast.parse(Path(module_file).read_text(encoding="utf-8"))
 
 
 def _transition_core_symbols(tree: ast.Module) -> set[str]:
@@ -384,9 +387,11 @@ def _has_local_core_import(fn: ast.FunctionDef) -> bool:
     )
 
 
-def _path_reaches_core(entry_names: list[str]) -> tuple[set[str], bool]:
+def _path_reaches_core(
+    entry_names: list[str], module: ModuleType = tasks_mod
+) -> tuple[set[str], bool]:
     """Return ``(leaked_symbols, has_local_import)`` for a command's code path."""
-    tree = _module_tree()
+    tree = _module_tree(module)
     funcs = _module_functions(tree)
     core_syms = _transition_core_symbols(tree)
     assert core_syms, "the tasks_transition_core import must exist (gate would be vacuous)"
@@ -426,8 +431,23 @@ def test_ast_gate_is_not_vacuous_move_task_control() -> None:
     Without this control, a broken scanner that never resolves edges would pass the
     two coreless assertions vacuously. ``move_task`` is core-BACKED (WP03), so its
     closure MUST reference a ``tasks_transition_core`` symbol (e.g. ``decide_transition``).
+
+    WP05 re-pin (tasks-py-degod-wave2-01KWH9EQ): the core-backed path
+    (``_do_move_task`` + the ``_mt_*`` phase helpers) relocated VERBATIM to
+    ``tasks_move_task.py``, so the closure is resolved over THAT module — the
+    ``tasks.py`` wrapper is a thin delegate whose callee is a re-import (not a
+    module-level ``FunctionDef``), invisible to this scanner by design. The
+    relocated ``_mt_run_decision`` reaches the core via the ``_tasks.<attr>``
+    seam bridge, so ``decide_transition`` shows up as a routed reference on the
+    ``tasks`` namespace; the module's own ``tasks_transition_core`` imports
+    (``MoveTaskRequest``, ``RefuseExit1``, ``build_transition_plan``, …) keep
+    the leak detectable.
     """
-    leaked, _local = _path_reaches_core(["move_task", "_do_move_task"])
+    from specify_cli.cli.commands.agent import tasks_move_task as tasks_move_task_mod
+
+    leaked, _local = _path_reaches_core(
+        ["_do_move_task"], module=tasks_move_task_mod
+    )
     assert leaked, (
         "gate is vacuous — it cannot detect the real transition-core reference in "
         "move_task's core-backed path; the coreless assertions would pass falsely"

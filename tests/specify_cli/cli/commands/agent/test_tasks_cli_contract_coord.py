@@ -45,13 +45,18 @@ import subprocess
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from types import SimpleNamespace
+from types import ModuleType, SimpleNamespace
 from typing import Any
 
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands.agent import tasks as tasks_module
+from specify_cli.cli.commands.agent import tasks_map_requirements as tasks_map_requirements_module
+from specify_cli.cli.commands.agent import tasks_mapping_core as tasks_mapping_core_module
+from specify_cli.cli.commands.agent import tasks_move_task as tasks_move_task_module
+from specify_cli.cli.commands.agent import tasks_status_cmd as tasks_status_cmd_module
+from specify_cli.cli.commands.agent import tasks_status_view as tasks_status_view_module
+from specify_cli.cli.commands.agent import tasks_transition_core as tasks_transition_core_module
 from specify_cli.cli.commands.agent.tasks import (
     _coord_topology_active,
     _skip_target_branch_commit,
@@ -741,47 +746,172 @@ _BRANCH_COVERAGE_FLOORS = {
     "status": 46.0,
 }
 
+# WP05 (tasks-py-degod-wave2-01KWH9EQ / FR-012): the coverage plumbing resolves
+# each floored command from the module(s) its body ACTUALLY lives in. The
+# single-file form (``tasks_module.__file__`` + ``include=[tasks.py]``, keyed on
+# the command ``FunctionDef`` name) went vacuous the moment wave-1 thinned the
+# wrappers: a thin wrapper has zero branch arcs and the old
+# ``… if total else 100.0`` fallback reported 100.0 — every floor "passed" while
+# measuring NOTHING.
+#
+# Each command maps to its ENTRY home plus the PURE-CORE home(s) wave-1
+# extracted from the calibrated single body — the floors (WP01 handoff:
+# move_task 118/174, map_requirements 54/104, status 50/102) were measured over
+# those single bodies, so the calibration-faithful basis is the entry's
+# same-module helper closure PLUS the extracted decision core (the
+# map_requirements re-point reproduces the calibrated arc universe almost
+# exactly: 106 measured possible arcs vs 104 calibrated). This map is the one
+# place a family-relocation WP re-points; WP06/WP07 re-point the ENTRY home
+# here when ``status``/``map_requirements`` move (the core homes stay). The
+# floor VALUES above are frozen — re-pointing is expressly NOT floor-adjustment
+# (parity-contract Layer 3).
+_FLOORED_FUNCTION_HOMES: dict[str, tuple[tuple[ModuleType, str], ...]] = {
+    "move_task": (
+        (tasks_move_task_module, "_do_move_task"),
+        (tasks_transition_core_module, "decide_transition"),
+        (tasks_transition_core_module, "build_transition_plan"),
+    ),
+    # WP06 (tasks-py-degod-wave2-01KWH9EQ): ENTRY home re-pointed to
+    # ``tasks_map_requirements`` (family relocation); the wave-1 pure-core home
+    # (``plan_mapping``) stays — multi-home semantics per the WP05 map above.
+    "map_requirements": (
+        (tasks_map_requirements_module, "_do_map_requirements"),
+        (tasks_mapping_core_module, "plan_mapping"),
+    ),
+    # WP07 (tasks-py-degod-wave2-01KWH9EQ): ENTRY home re-pointed to
+    # ``tasks_status_cmd`` (family relocation); the wave-1 pure-core homes
+    # (``build_status_view`` / ``build_stale_fallback_results``) stay —
+    # multi-home semantics per the WP05 map above.
+    "status": (
+        (tasks_status_cmd_module, "_do_status"),
+        (tasks_status_view_module, "build_status_view"),
+        (tasks_status_view_module, "build_stale_fallback_results"),
+    ),
+}
 
-def _mutating_function_line_ranges() -> dict[str, tuple[int, int]]:
-    """Return ``{name: (start_line, end_line)}`` for the three mutating commands."""
-    source_path = Path(tasks_module.__file__)
-    tree = ast.parse(source_path.read_text(encoding="utf-8"))
-    wanted = set(_BRANCH_COVERAGE_FLOORS)
-    ranges: dict[str, tuple[int, int]] = {}
-    for node in ast.walk(tree):
-        if isinstance(node, ast.FunctionDef) and node.name in wanted:
-            assert node.end_lineno is not None
-            ranges[node.name] = (node.lineno, node.end_lineno)
+
+def _module_source_path(module: ModuleType) -> str:
+    """Resolved source path of *module* (asserting it is file-backed)."""
+    module_file = module.__file__
+    assert module_file is not None
+    return str(Path(module_file).resolve())
+
+
+def _same_module_closure(
+    funcs: dict[str, ast.FunctionDef], entry: str
+) -> list[ast.FunctionDef]:
+    """Module-level ``FunctionDef``s reachable from *entry* by bare-``Name`` reference.
+
+    The floors were calibrated on the SINGLE-BODY commands (wave-1 WP01); the
+    wave-1 phase split moved the measured branches into same-module ``_mt_*`` /
+    ``_mr_*`` / ``_st_*`` helpers the entry calls by bare name, so the honest
+    measurement is the entry PLUS that closure — never the entry alone (a linear
+    phase-call orchestrator has ~zero branch arcs of its own). Cross-module seam
+    calls go through the ``_tasks.<attr>`` bridge (attribute access, not a bare
+    ``Name``), so the closure stays within the entry's module by construction.
+    """
+    seen: set[str] = set()
+    stack = [entry]
+    while stack:
+        fn_name = stack.pop()
+        if fn_name in seen or fn_name not in funcs:
+            continue
+        seen.add(fn_name)
+        stack.extend(
+            n.id
+            for n in ast.walk(funcs[fn_name])
+            if isinstance(n, ast.Name) and n.id in funcs and n.id not in seen
+        )
+    return [funcs[fn_name] for fn_name in seen]
+
+
+def _mutating_function_line_ranges() -> dict[str, list[tuple[str, tuple[int, int]]]]:
+    """Return ``{floored_name: [(source_path, (start_line, end_line)), …]}``.
+
+    Each command's AST is resolved from the module file(s) its
+    ``_FLOORED_FUNCTION_HOMES`` entries name, so a relocated body keeps being
+    measured where it actually lives; the measured span per home is the entry
+    function plus its same-module helper closure (see ``_same_module_closure``).
+    A missing entry qualname is a hard failure — a silent drop would un-gate
+    that command's branches.
+    """
+    ranges: dict[str, list[tuple[str, tuple[int, int]]]] = {}
+    for name, homes in _FLOORED_FUNCTION_HOMES.items():
+        spans: list[tuple[str, tuple[int, int]]] = []
+        for module, qualname in homes:
+            source_path = _module_source_path(module)
+            tree = ast.parse(Path(source_path).read_text(encoding="utf-8"))
+            funcs = {
+                node.name: node
+                for node in tree.body
+                if isinstance(node, ast.FunctionDef)
+            }
+            if qualname not in funcs:
+                pytest.fail(
+                    f"{name}: floored function {qualname!r} not found in "
+                    f"{source_path} — the ratchet re-point is broken"
+                )
+            for node in _same_module_closure(funcs, qualname):
+                assert node.end_lineno is not None
+                spans.append((source_path, (node.lineno, node.end_lineno)))
+        ranges[name] = sorted(spans)
     return ranges
 
 
-def _branch_coverage_by_function(cov: Any, source_path: str, ranges: dict[str, tuple[int, int]]) -> dict[str, float]:
-    """Compute per-function branch-coverage % from a stopped coverage session.
+def _analyze_branch_arcs(
+    cov: Any, source_path: str
+) -> tuple[list[tuple[int, int]], set[tuple[int, int]], set[int]]:
+    """Arc-analyze ONE source file: (possible, executed, branch_sources).
 
     A *branch arc* is a possible ``(source_line, target)`` transition whose source
-    line has more than one possible target (a real fork). Coverage % is the
-    fraction of a function's branch arcs that were executed. Uses coverage's
-    stable arc-analysis surface via ``Any`` so the private ``_analyze`` accessor
-    stays out of the type checker's way.
+    line has more than one possible target (a real fork). Uses coverage's stable
+    arc-analysis surface via ``Any`` so the private ``_analyze`` accessor stays
+    out of the type checker's way.
     """
     analysis = cov._analyze(source_path)
     possible = list(analysis.arc_possibilities)
     executed = set(analysis.arcs_executed)
-
     targets_by_source: dict[int, set[int]] = {}
     for src, dst in possible:
         targets_by_source.setdefault(src, set()).add(dst)
     branch_sources = {src for src, dsts in targets_by_source.items() if src > 0 and len(dsts) > 1}
+    return possible, executed, branch_sources
 
+
+def _branch_coverage_by_function(
+    cov: Any, ranges: dict[str, list[tuple[str, tuple[int, int]]]]
+) -> dict[str, float]:
+    """Compute per-command branch-coverage % from a stopped coverage session.
+
+    Multi-file (WP05 / FR-012): each floored command is analyzed against the
+    module file(s) its body lives in (``cov._analyze`` per file, results merged
+    per command over the entry-plus-closure spans). Coverage % is the fraction
+    of the command's branch arcs that were executed.
+
+    ZERO measured arcs on a floored command is a HARD FAILURE, never 100.0: a
+    mutating command body has decision branches by construction, so an empty
+    measurement means the plumbing points at the wrong file/function (the exact
+    vacuous-green trap the old single-file ``… if total else 100.0`` arm hid).
+    """
+    analyses: dict[str, tuple[list[tuple[int, int]], set[tuple[int, int]], set[int]]] = {}
     result: dict[str, float] = {}
-    for name, (lo, hi) in ranges.items():
+    for name, spans in ranges.items():
         total = covered = 0
-        for src, dst in possible:
-            if src in branch_sources and lo <= src <= hi:
-                total += 1
-                if (src, dst) in executed:
-                    covered += 1
-        result[name] = (covered / total * 100.0) if total else 100.0
+        for source_path, (lo, hi) in spans:
+            if source_path not in analyses:
+                analyses[source_path] = _analyze_branch_arcs(cov, source_path)
+            possible, executed, branch_sources = analyses[source_path]
+            for src, dst in possible:
+                if src in branch_sources and lo <= src <= hi:
+                    total += 1
+                    if (src, dst) in executed:
+                        covered += 1
+        if not total:
+            pytest.fail(
+                f"{name}: 0 branch arcs measured — the ratchet re-point is "
+                f"vacuous (nothing of the mapped spans {spans} was analyzed)"
+            )
+        result[name] = covered / total * 100.0
     return result
 
 
@@ -802,10 +932,12 @@ def test_from_harness_branch_coverage_ratchet(tmp_path_factory: pytest.TempPathF
 
     import coverage
 
-    source_path = str(Path(tasks_module.__file__).resolve())
     ranges = _mutating_function_line_ranges()
+    include_paths = sorted(
+        {source_path for spans in ranges.values() for source_path, _ in spans}
+    )
 
-    cov = coverage.Coverage(branch=True, include=[source_path])
+    cov = coverage.Coverage(branch=True, include=include_paths)
     counter = {"n": 0}
 
     def mkdir() -> Path:
@@ -818,7 +950,7 @@ def test_from_harness_branch_coverage_ratchet(tmp_path_factory: pytest.TempPathF
     finally:
         cov.stop()
 
-    measured = _branch_coverage_by_function(cov, source_path, ranges)
+    measured = _branch_coverage_by_function(cov, ranges)
     shortfalls = {
         name: (round(measured[name], 1), floor)
         for name, floor in _BRANCH_COVERAGE_FLOORS.items()

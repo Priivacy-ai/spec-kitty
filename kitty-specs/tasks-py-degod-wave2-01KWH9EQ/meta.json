@@ -1,24 +1,10 @@
 {
-  "accept_commit": "72116b99c2b5e3024be46e655afc49e4b4248d7d",
-  "acceptance_history": [
-    {
-      "accept_commit": "72116b99c2b5e3024be46e655afc49e4b4248d7d",
-      "acceptance_mode": "pr",
-      "accepted_at": "2026-07-02T20:36:30.096114+00:00",
-      "accepted_by": "stijn",
-      "accepted_from_commit": "3f507aa4ae29ad63be4bb7334e6cdfe7de6a7f46"
-    }
-  ],
-  "acceptance_mode": "pr",
-  "accepted_at": "2026-07-02T20:36:30.096114+00:00",
-  "accepted_by": "stijn",
-  "accepted_from_commit": "3f507aa4ae29ad63be4bb7334e6cdfe7de6a7f46",
   "coordination_branch": "kitty/mission-tasks-py-degod-wave2-01KWH9EQ",
   "created_at": "2026-07-02T11:29:32.706322+00:00",
   "flattened": false,
   "friendly_name": "Tasks Degod Wave 2: Render Seam + Relocation",
   "mission_id": "01KWH9EQ11VNZHMYA1W9PWSRXF",
-  "mission_number": null,
+  "mission_number": 158,
   "mission_slug": "tasks-py-degod-wave2-01KWH9EQ",
   "mission_type": "software-dev",
   "pr_bound": true,
@@ -28,5 +14,5 @@
   "target_branch": "degod-follow-ups",
   "topology": "coord",
   "vcs": "git",
-  "vcs_locked_at": "2026-07-02T13:38:02.238694+00:00"
+  "vcs_locked_at": "2026-07-02T14:04:27.626376+00:00"
 }

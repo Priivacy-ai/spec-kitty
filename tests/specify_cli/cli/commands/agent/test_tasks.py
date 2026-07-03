@@ -14,7 +14,6 @@ import logging
 from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import cast
 from unittest.mock import MagicMock, patch
 
 import click
@@ -1025,15 +1024,12 @@ class TestLaneGuardErrorMessage:
             mock_workspace.context.base_branch = f"kitty/mission-{mission_slug}"
             mock_ws.return_value = mock_workspace
 
-            return cast(
-                "tuple[bool, list[str]]",
-                _validate_ready_for_review(
-                    repo_root=tmp_path,
-                    mission_slug=mission_slug,
-                    wp_id="WP01",
-                    force=False,
-                    target_lane="for_review",
-                ),
+            return _validate_ready_for_review(
+                repo_root=tmp_path,
+                mission_slug=mission_slug,
+                wp_id="WP01",
+                force=False,
+                target_lane="for_review",
             )
 
     def test_lane_guard_names_planning_branch(self, tmp_path: Path) -> None:
