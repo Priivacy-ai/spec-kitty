@@ -21,8 +21,12 @@ architectural resolution boundaries structural (CI-red on regression):
 
 Shared machinery (IC-01, NFR-001/002/003):
 
-* Composite key ``(enclosing_qualname, token_line)`` computed **live** from
-  source — survives benign line drift, unlike a raw ``file:line`` key.
+* Composite key ``(rel_path, enclosing_qualname, token)`` computed **live** from
+  source (Design-P) — the stored comparand is the frozen tool-derived ``token``
+  (a ``code_tokens_by_line`` string), never a raw AST line number. It survives
+  benign line drift, unlike a raw ``file:line`` key: inserting a blank line above
+  a pinned site changes neither the enclosing qualname nor the guarded code
+  token, so the ratchet stays GREEN; only a genuine content edit reds it.
 * Concrete integer floors (canonicalizer ``>= 45``; coord-authority a hard-coded
   literal ``>= 9``) so a broken scanner returning zero rows cannot pass
   vacuously (NFR-002 rejects ``> 0`` / ``>= 1``).
@@ -39,19 +43,26 @@ many tests that re-scan the real tree share one parse pass; a single cold scan i
 Reference precedents (structural shape only — keys are NET-NEW here):
 ``tests/architectural/surface_resolution_audit/audit.py`` (raw ``rel:line`` key)
 and ``test_protection_resolver_call_sites.py`` (bare-module frozenset). The
-``(enclosing_qualname, token_line)`` composite key required by NFR-001 is absent
-from both and is implemented here from scratch (AST ancestor traversal).
+``(rel_path, enclosing_qualname, token)`` composite key required by NFR-001 is
+absent from both and is implemented here from scratch (AST ancestor traversal +
+the shared ``code_tokens_by_line`` tokenizer). The Design-P reference is
+``tests/architectural/test_no_worktree_name_guess.py`` (frozen composite keys +
+line-drift theater); its keys are NOT modified by this mission.
 """
 
 from __future__ import annotations
 
 import ast
 import time
+from collections import Counter
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 import yaml
+
+from tests.architectural._ratchet_keys import code_tokens_by_line
 
 pytestmark = pytest.mark.architectural
 
@@ -162,16 +173,23 @@ ROUTED_CANONICALIZER_FLOOR = 39
 # --------------------------------------------------------------------------- #
 @dataclass(frozen=True)
 class GateAllowlistKey:
-    """Composite allowlist key surviving benign line drift (NFR-001).
+    """Composite Design-P allowlist key surviving benign line drift (NFR-001).
 
-    ``enclosing_qualname`` is the dotted chain of enclosing ``def`` / ``class``
-    names (e.g. ``MissionStatus._find_meta_path``), or ``"<module>"`` for a call
-    at file scope. ``token_line`` is the 1-based line of the call token. The pair
-    is hashable and equality-comparable, so it doubles as the serialization key.
+    ``rel_path`` is the repo-relative source path (disambiguates qualname
+    collisions such as the two ``implement`` / two ``review`` write sites in
+    ``workflow.py``). ``enclosing_qualname`` is the dotted chain of enclosing
+    ``def`` / ``class`` names (e.g. ``MissionStatus._find_meta_path``), or
+    ``"<module>"`` for a call at file scope. ``token`` is the FROZEN
+    tool-derived ``code_tokens_by_line`` string of the call's line — the
+    authoritative content comparand, NOT a raw AST line number. The triple is
+    hashable and equality-comparable, so it doubles as the serialization key. No
+    line number ever enters the key (SC-001): a raw ``file:line`` key reds on
+    benign drift; this content-addressed key does not.
     """
 
+    rel_path: str
     enclosing_qualname: str
-    token_line: int
+    token: str
 
 
 class AllowlistEntryError(ValueError):
@@ -191,9 +209,12 @@ def _require_str(mapping: dict[str, object], key: str, context: str) -> str:
 def load_allowlist(path: Path) -> dict[str, list[GateAllowlistKey]]:
     """Load the governance YAML into ``{gate_name: [GateAllowlistKey, ...]}``.
 
-    The YAML groups entries by gate name (``"canonicalizer"`` / ``"coord_authority"``);
-    each entry carries ``qualname:``, ``line:`` and a **mandatory** ``rationale:``.
-    An entry missing or carrying an empty ``rationale`` raises
+    Design-P: each entry carries ``file:``, ``qualname:``, ``token:`` (the FROZEN
+    tool-derived comparand — read verbatim, NEVER re-derived at load) plus a
+    non-authoritative ``line:`` locator and a **mandatory** ``rationale:``. The
+    key is the ``(file, qualname, token)`` triple; ``line:`` is NOT part of it and
+    is loaded separately by :func:`load_allowlist_locators` for messages only. An
+    entry missing/empty ``rationale`` or missing ``file``/``token`` raises
     :class:`AllowlistEntryError` — the loader refuses to silently accept drift.
     """
     raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
@@ -207,16 +228,76 @@ def load_allowlist(path: Path) -> dict[str, list[GateAllowlistKey]]:
                     f"{gate_name}[{idx}] is not a mapping (got {entry!r})"
                 )
             context = f"{gate_name}[{idx}]"
+            rel_path = _require_str(entry, "file", context)
             qualname = _require_str(entry, "qualname", context)
+            token = _require_str(entry, "token", context)
             _require_str(entry, "rationale", context)
+            # ``line:`` is a non-authoritative locator: it must be an int when
+            # present (diagnostics), but it never enters the key.
             line = entry.get("line")
-            if not isinstance(line, int):
+            if line is not None and not isinstance(line, int):
                 raise AllowlistEntryError(
-                    f"{context} ({qualname!r}) has a non-integer line {line!r}"
+                    f"{context} ({qualname!r}) has a non-integer line locator {line!r}"
                 )
-            keys.append(GateAllowlistKey(qualname, line))
+            keys.append(GateAllowlistKey(rel_path, qualname, token))
         out[gate_name] = keys
     return out
+
+
+def load_allowlist_locators(path: Path) -> dict[GateAllowlistKey, int]:
+    """Return ``{key: line}`` for entries carrying a ``line:`` locator.
+
+    The locator is diagnostics-only (jump-to / staleness message ergonomics); it
+    is NEVER compared, set-membership-tested, or counted (Design-P line demotion,
+    contract rule 3).
+    """
+    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    locators: dict[GateAllowlistKey, int] = {}
+    for gate_name in ("canonicalizer", "coord_authority"):
+        for entry in raw.get(gate_name) or []:
+            if not isinstance(entry, dict):
+                continue
+            line = entry.get("line")
+            file = entry.get("file")
+            qualname = entry.get("qualname")
+            token = entry.get("token")
+            if (
+                isinstance(line, int)
+                and isinstance(file, str)
+                and isinstance(qualname, str)
+                and isinstance(token, str)
+            ):
+                locators[GateAllowlistKey(file, qualname, token)] = line
+    return locators
+
+
+def load_occurrence_counts(path: Path) -> dict[GateAllowlistKey, int]:
+    """Return ``{key: count}`` for entries carrying an explicit ``count:``.
+
+    Speculative surface (zero real users today — recorded deliberately for a
+    future within-function collision drain): an entry MAY declare ``count: N`` to
+    require exactly ``N`` live occurrences of an identical token in one function.
+    Entries WITHOUT ``count:`` default to 1-covers-any (set membership), so this
+    map is empty for the current allowlist.
+    """
+    raw = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    counts: dict[GateAllowlistKey, int] = {}
+    for gate_name in ("canonicalizer", "coord_authority"):
+        for entry in raw.get(gate_name) or []:
+            if not isinstance(entry, dict):
+                continue
+            count = entry.get("count")
+            file = entry.get("file")
+            qualname = entry.get("qualname")
+            token = entry.get("token")
+            if (
+                isinstance(count, int)
+                and isinstance(file, str)
+                and isinstance(qualname, str)
+                and isinstance(token, str)
+            ):
+                counts[GateAllowlistKey(file, qualname, token)] = count
+    return counts
 
 
 def load_baseline(path: Path, gate_name: str) -> int:
@@ -259,15 +340,24 @@ def _qualname_from_parents(parents: dict[int, ast.AST], target: ast.AST) -> str:
     return ".".join(reversed(chain)) if chain else "<module>"
 
 
-def derive_live_key(node: ast.expr | ast.stmt, tree: ast.Module) -> GateAllowlistKey:
-    """Composite ``(enclosing_qualname, token_line)`` for *node* within *tree*.
+def derive_live_key(
+    node: ast.expr | ast.stmt,
+    tree: ast.Module,
+    source: str,
+    rel_path: str = "<derived>",
+) -> GateAllowlistKey:
+    """Composite ``(rel_path, enclosing_qualname, token)`` for *node* within *tree*.
 
     Convenience wrapper that rebuilds the parent map per call. The bulk scanners
-    build the map once and call :func:`_qualname_from_parents` directly. *node*
-    must be a positioned node (``ast.expr`` / ``ast.stmt`` carry ``lineno``).
+    build the map + token map once and call :func:`_qualname_from_parents`
+    directly. *node* must be a positioned node (``ast.expr`` / ``ast.stmt`` carry
+    ``lineno``). ``node.lineno`` is used ONLY to index the token map — it never
+    enters the returned key (SC-001). *rel_path* defaults to a synthetic sentinel
+    for unit tests that parse an in-memory source with no real file.
     """
     parents = _parent_map(tree)
-    return GateAllowlistKey(_qualname_from_parents(parents, node), node.lineno)
+    token = code_tokens_by_line(source).get(node.lineno, "")
+    return GateAllowlistKey(rel_path, _qualname_from_parents(parents, node), token)
 
 
 def _enclosing_function(
@@ -288,11 +378,64 @@ def staleness_twin_guard(
     """Return allowlist keys with no matching live call site (NFR-003).
 
     A non-empty result is a stale-entry failure: the allowlist sanctions a site
-    that no longer exists, so it must be removed (shrink-only governance).
+    whose frozen token no longer matches any live call site, so the entry must be
+    evicted or re-approved (shrink-only governance, contract rule 6).
     """
     return sorted(
-        allowlist_keys - live_keys, key=lambda k: (k.enclosing_qualname, k.token_line)
+        allowlist_keys - live_keys,
+        key=lambda k: (k.rel_path, k.enclosing_qualname, k.token),
     )
+
+
+def format_staleness_failure(
+    stale: list[GateAllowlistKey], live_keys: set[GateAllowlistKey]
+) -> str:
+    """Build the evict-or-re-approve message with the nearest live token (NFR-003).
+
+    For each stale key the message lists the live tokens for the SAME
+    ``(rel_path, qualname)`` so a legitimate site edit is a copy-paste freshen,
+    not archaeology (contract rule 6 / token-churn ergonomics). If no live site
+    shares the qualname, the site was removed and the entry must be evicted.
+    """
+    lines: list[str] = []
+    for key in stale:
+        siblings = sorted(
+            lk.token
+            for lk in live_keys
+            if lk.rel_path == key.rel_path and lk.enclosing_qualname == key.enclosing_qualname
+        )
+        if siblings:
+            hint = "nearest live token(s) for this qualname — re-approve with one:\n      " + (
+                "\n      ".join(repr(t) for t in siblings)
+            )
+        else:
+            hint = "no live site shares this qualname — the site was removed; EVICT the entry"
+        lines.append(
+            f"  STALE {key.rel_path}:{key.enclosing_qualname} token={key.token!r}\n    {hint}"
+        )
+    return "\n".join(lines)
+
+
+def occurrence_count_violations(
+    site_keys: list[GateAllowlistKey], count_map: dict[GateAllowlistKey, int]
+) -> list[str]:
+    """Return violations where a ``count:``-qualified entry's live count is wrong.
+
+    Speculative within-function collision surface (zero real users today): only
+    entries carrying an explicit ``count: N`` are checked, and only against the
+    number of live sites producing that exact key. An entry without ``count:``
+    imposes no occurrence constraint (default 1-covers-any via set membership).
+    """
+    counts = Counter(site_keys)
+    violations: list[str] = []
+    for key, required in count_map.items():
+        actual = counts.get(key, 0)
+        if actual != required:
+            violations.append(
+                f"{key.rel_path}:{key.enclosing_qualname} token={key.token!r} "
+                f"declares count {required} but {actual} live occurrence(s) exist"
+            )
+    return sorted(violations)
 
 
 # --------------------------------------------------------------------------- #
@@ -306,26 +449,30 @@ def _iter_source_files(src_root: Path) -> list[Path]:
     ]
 
 
-# Module-wide cache of parsed (tree, parent_map) per file, keyed by resolved
-# src root. The many tests that re-scan the real tree share one parse pass
-# (NFR-004). Scratch ``tmp_path`` trees get distinct keys and are not retained
-# across test functions in any way that affects the real-tree gates.
-_parsed_trees: dict[str, list[tuple[str, ast.Module, dict[int, ast.AST]]]] = {}
+# Module-wide cache of parsed (tree, parent_map, token_map) per file, keyed by
+# resolved src root. The many tests that re-scan the real tree share one parse
+# pass (NFR-004). Scratch ``tmp_path`` trees get distinct keys and are not
+# retained across test functions in any way that affects the real-tree gates.
+# ``token_map`` (``code_tokens_by_line``) supplies the Design-P frozen comparand
+# so scanners never re-read source per site.
+_ParsedFile = tuple[str, ast.Module, dict[int, ast.AST], dict[int, str]]
+_parsed_trees: dict[str, list[_ParsedFile]] = {}
 
 
-def _parsed_source(src_root: Path) -> list[tuple[str, ast.Module, dict[int, ast.AST]]]:
-    """Return ``[(rel_path, tree, parent_map), ...]`` for *src_root*, cached."""
+def _parsed_source(src_root: Path) -> list[_ParsedFile]:
+    """Return ``[(rel_path, tree, parent_map, token_map), ...]``, cached."""
     cache_key = str(src_root.resolve())
     cached = _parsed_trees.get(cache_key)
     if cached is not None:
         return cached
-    parsed: list[tuple[str, ast.Module, dict[int, ast.AST]]] = []
+    parsed: list[_ParsedFile] = []
     for path in _iter_source_files(src_root):
+        source = path.read_text(encoding="utf-8")
         try:
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            tree = ast.parse(source, filename=str(path))
         except SyntaxError:
             continue
-        parsed.append((_rel(path), tree, _parent_map(tree)))
+        parsed.append((_rel(path), tree, _parent_map(tree), code_tokens_by_line(source)))
     _parsed_trees[cache_key] = parsed
     return parsed
 
@@ -423,10 +570,15 @@ def is_def_use_canonical(
 
 @dataclass(frozen=True)
 class CanonicalizerSite:
-    """One discovered ``primary_feature_dir_for_mission`` call site."""
+    """One discovered ``primary_feature_dir_for_mission`` call site.
+
+    ``lineno`` is the LIVE scan line — a diagnostics locator for violation
+    messages ONLY; it is deliberately NOT part of ``key`` (SC-001).
+    """
 
     rel_path: str
     key: GateAllowlistKey
+    lineno: int
     is_canonical: bool
 
 
@@ -437,10 +589,11 @@ def scan_canonicalizer_call_sites(src_root: Path) -> list[CanonicalizerSite]:
     def-use. Method calls whose callee is a dotted attribute of a *different*
     object (``self.resolver.primary_feature_dir_for_mission(...)``) still match by
     attribute name — that is intentional: the primitive is the call target
-    regardless of how it is reached.
+    regardless of how it is reached. The composite key's ``token`` is the frozen
+    ``code_tokens_by_line`` string; ``node.lineno`` indexes the token map only.
     """
     sites: list[CanonicalizerSite] = []
-    for rel, tree, parents in _parsed_source(src_root):
+    for rel, tree, parents, token_map in _parsed_source(src_root):
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call):
                 continue
@@ -452,7 +605,8 @@ def scan_canonicalizer_call_sites(src_root: Path) -> list[CanonicalizerSite]:
             sites.append(
                 CanonicalizerSite(
                     rel_path=rel,
-                    key=GateAllowlistKey(qualname, node.lineno),
+                    key=GateAllowlistKey(rel, qualname, token_map.get(node.lineno, "")),
+                    lineno=node.lineno,
                     is_canonical=is_def_use_canonical(arg, fn),
                 )
             )
@@ -464,7 +618,8 @@ def check_canonicalizer_gate(
 ) -> list[str]:
     """Return violation strings for non-canonical, non-allowlisted call sites.
 
-    Each violation names ``file:qualname:line`` and the sanctioned seam
+    Each violation names ``file:line (qualname)`` (the live line locator + the
+    frozen token excerpt) and the sanctioned seam
     (``_canonicalize_primary_read_handle``) the developer must route through.
     """
     violations: list[str] = []
@@ -472,10 +627,11 @@ def check_canonicalizer_gate(
         if site.is_canonical or site.key in allowlist:
             continue
         violations.append(
-            f"{site.rel_path}:{site.key.enclosing_qualname}:{site.key.token_line} "
-            f"passes a non-canonical handle to {CANONICALIZER_PRIMITIVE} — route it "
-            f"through {CANONICAL_FOLD_SEAM} (the canonical read fold) or allowlist "
-            f"it with an already-canonical rationale"
+            f"{site.rel_path}:{site.lineno} ({site.key.enclosing_qualname}) "
+            f"token={site.key.token!r} passes a non-canonical handle to "
+            f"{CANONICALIZER_PRIMITIVE} — route it through {CANONICAL_FOLD_SEAM} "
+            f"(the canonical read fold) or allowlist it with an already-canonical "
+            f"rationale"
         )
     return sorted(violations)
 
@@ -566,10 +722,15 @@ def _function_has_write_indicator(
 
 @dataclass(frozen=True)
 class CoordAuthoritySite:
-    """One discovered ``resolve_feature_dir_for_mission`` call site."""
+    """One discovered ``resolve_feature_dir_for_mission`` call site.
+
+    ``lineno`` is the LIVE scan line — a diagnostics locator for violation
+    messages ONLY; it is deliberately NOT part of ``key`` (SC-001).
+    """
 
     rel_path: str
     key: GateAllowlistKey
+    lineno: int
     is_write: bool
 
 
@@ -579,9 +740,11 @@ def scan_coord_authority_call_sites(src_root: Path) -> list[CoordAuthoritySite]:
     The ``is_write`` flag applies the documented write predicate: the enclosing
     function contains a write indicator, OR the call site lives in a
     coord-owned-write-by-design module (``decisions/emit.py`` / ``widen/state.py``).
+    The composite key's ``token`` is the frozen ``code_tokens_by_line`` string;
+    ``node.lineno`` indexes the token map only.
     """
     sites: list[CoordAuthoritySite] = []
-    for rel, tree, parents in _parsed_source(src_root):
+    for rel, tree, parents, token_map in _parsed_source(src_root):
         by_design = rel in _COORD_WRITE_BY_DESIGN
         for node in ast.walk(tree):
             if not isinstance(node, ast.Call):
@@ -594,7 +757,8 @@ def scan_coord_authority_call_sites(src_root: Path) -> list[CoordAuthoritySite]:
             sites.append(
                 CoordAuthoritySite(
                     rel_path=rel,
-                    key=GateAllowlistKey(qualname, node.lineno),
+                    key=GateAllowlistKey(rel, qualname, token_map.get(node.lineno, "")),
+                    lineno=node.lineno,
                     is_write=is_write,
                 )
             )
@@ -607,18 +771,20 @@ def check_coord_authority_gate(
     """Return violation strings for unsanctioned mission-artifact write sites.
 
     A write-classified call to the kind-blind ``resolve_feature_dir_for_mission``
-    that is not allowlisted is a violation; each names ``file:qualname:line`` and
-    the kind-aware authority to use instead.
+    that is not allowlisted is a violation; each names ``file:line (qualname)``
+    (the live line locator + the frozen token excerpt) and the kind-aware
+    authority to use instead.
     """
     violations: list[str] = []
     for site in scan_coord_authority_call_sites(src_root):
         if not site.is_write or site.key in allowlist:
             continue
         violations.append(
-            f"{site.rel_path}:{site.key.enclosing_qualname}:{site.key.token_line} "
-            f"resolves a mission-artifact WRITE target via the kind-blind "
-            f"{COORD_BLIND_RESOLVER} — route it through {COORD_KIND_AWARE_AUTHORITY} "
-            f"or allowlist it as a legitimate coord-owned write"
+            f"{site.rel_path}:{site.lineno} ({site.key.enclosing_qualname}) "
+            f"token={site.key.token!r} resolves a mission-artifact WRITE target via "
+            f"the kind-blind {COORD_BLIND_RESOLVER} — route it through "
+            f"{COORD_KIND_AWARE_AUTHORITY} or allowlist it as a legitimate "
+            f"coord-owned write"
         )
     return sorted(violations)
 
@@ -641,10 +807,15 @@ def _live_coord_authority_keys(src_root: Path) -> set[GateAllowlistKey]:
 
 # --- T001: composite-key machinery -----------------------------------------
 def test_allowlist_key_is_hashable_and_value_keyed() -> None:
-    """``GateAllowlistKey`` compares/hashes by the ``(qualname, line)`` pair."""
-    a = GateAllowlistKey("MarkStatusCmd.run", 100)
-    b = GateAllowlistKey("MarkStatusCmd.run", 100)
-    c = GateAllowlistKey("MarkStatusCmd.run", 101)
+    """``GateAllowlistKey`` compares/hashes by the ``(file, qualname, token)`` triple.
+
+    Design-P: the third component is the frozen ``token`` (synthetic here — this
+    is a unit test OF the mechanism, not an allowlist entry), NOT a line number.
+    Changing only the token yields a distinct key.
+    """
+    a = GateAllowlistKey("f.py", "MarkStatusCmd.run", "x = 1")
+    b = GateAllowlistKey("f.py", "MarkStatusCmd.run", "x = 1")
+    c = GateAllowlistKey("f.py", "MarkStatusCmd.run", "x = 2")
     assert a == b
     assert hash(a) == hash(b)
     assert a != c
@@ -655,27 +826,44 @@ def test_loader_rejects_entry_without_rationale(tmp_path: Path) -> None:
     """The loader fails closed on a missing/empty ``rationale`` (no silent drift)."""
     bad = tmp_path / "bad.yaml"
     bad.write_text(
-        "canonicalizer:\n  - qualname: foo.bar\n    line: 10\n", encoding="utf-8"
+        "canonicalizer:\n"
+        "  - file: f.py\n    qualname: foo.bar\n    token: x = 1\n    line: 10\n",
+        encoding="utf-8",
     )
     with pytest.raises(AllowlistEntryError, match="rationale"):
         load_allowlist(bad)
 
     empty_rationale = tmp_path / "empty.yaml"
     empty_rationale.write_text(
-        "canonicalizer:\n  - qualname: foo.bar\n    line: 10\n    rationale: '  '\n",
+        "canonicalizer:\n"
+        "  - file: f.py\n    qualname: foo.bar\n    token: x = 1\n"
+        "    line: 10\n    rationale: '  '\n",
         encoding="utf-8",
     )
     with pytest.raises(AllowlistEntryError, match="rationale"):
         load_allowlist(empty_rationale)
 
 
+def test_loader_rejects_entry_without_token(tmp_path: Path) -> None:
+    """The loader fails closed on a missing/empty ``token`` (Design-P comparand)."""
+    bad = tmp_path / "no_token.yaml"
+    bad.write_text(
+        "canonicalizer:\n"
+        "  - file: f.py\n    qualname: foo.bar\n    line: 10\n    rationale: r\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(AllowlistEntryError, match="token"):
+        load_allowlist(bad)
+
+
 def test_derive_live_key_module_scope() -> None:
-    """A call at file scope derives ``"<module>"`` as the enclosing qualname."""
-    tree = ast.parse("primary_feature_dir_for_mission(repo, slug)\n")
+    """A call at file scope derives ``"<module>"`` and the frozen token."""
+    src = "primary_feature_dir_for_mission(repo, slug)\n"
+    tree = ast.parse(src)
     call = next(n for n in ast.walk(tree) if isinstance(n, ast.Call))
-    key = derive_live_key(call, tree)
+    key = derive_live_key(call, tree, src)
     assert key.enclosing_qualname == "<module>"
-    assert key.token_line == 1
+    assert key.token == "primary_feature_dir_for_mission ( repo , slug )"
 
 
 def test_derive_live_key_nested_function_chain() -> None:
@@ -689,8 +877,9 @@ def test_derive_live_key_nested_function_chain() -> None:
     )
     tree = ast.parse(src)
     call = next(n for n in ast.walk(tree) if isinstance(n, ast.Call))
-    key = derive_live_key(call, tree)
+    key = derive_live_key(call, tree, src)
     assert key.enclosing_qualname == "A.run.inner"
+    assert key.token == "primary_feature_dir_for_mission ( r , s )"
 
 
 def test_derive_live_key_distinguishes_same_method_name_in_two_classes() -> None:
@@ -705,21 +894,41 @@ def test_derive_live_key_distinguishes_same_method_name_in_two_classes() -> None
     )
     tree = ast.parse(src)
     calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call)]
-    keys = {derive_live_key(c, tree).enclosing_qualname for c in calls}
+    keys = {derive_live_key(c, tree, src).enclosing_qualname for c in calls}
     assert keys == {"A.run", "B.run"}
 
 
 def test_staleness_twin_guard_empty_when_all_live() -> None:
     """The twin-guard returns ``[]`` when every allowlist key is live."""
-    live = {GateAllowlistKey("a.b", 1), GateAllowlistKey("c.d", 2)}
-    assert staleness_twin_guard({GateAllowlistKey("a.b", 1)}, live) == []
+    live = {
+        GateAllowlistKey("f.py", "a.b", "t1"),
+        GateAllowlistKey("f.py", "c.d", "t2"),
+    }
+    assert staleness_twin_guard({GateAllowlistKey("f.py", "a.b", "t1")}, live) == []
 
 
 def test_staleness_twin_guard_flags_stale_entry() -> None:
     """The twin-guard returns the allowlist keys with no live match."""
-    live = {GateAllowlistKey("a.b", 1)}
-    stale = staleness_twin_guard({GateAllowlistKey("nonexistent", 99999)}, live)
-    assert stale == [GateAllowlistKey("nonexistent", 99999)]
+    live = {GateAllowlistKey("f.py", "a.b", "t1")}
+    stale = staleness_twin_guard(
+        {GateAllowlistKey("f.py", "nonexistent", "gone")}, live
+    )
+    assert stale == [GateAllowlistKey("f.py", "nonexistent", "gone")]
+
+
+def test_staleness_failure_message_prints_nearest_live_token() -> None:
+    """The evict-or-re-approve message lists live tokens for the same qualname."""
+    live = {
+        GateAllowlistKey("f.py", "a.b", "live_token = call ( )"),
+        GateAllowlistKey("g.py", "other", "unrelated"),
+    }
+    stale = [GateAllowlistKey("f.py", "a.b", "old_token = call ( )")]
+    msg = format_staleness_failure(stale, live)
+    assert "old_token = call ( )" in msg
+    assert "live_token = call ( )" in msg  # freshen hint = copy-paste the live token
+    # A stale key whose qualname vanished entirely tells the reader to EVICT.
+    gone = [GateAllowlistKey("f.py", "removed_fn", "x = 1")]
+    assert "EVICT" in format_staleness_failure(gone, live)
 
 
 # --- T002: canonicalizer discriminator (unit) ------------------------------
@@ -934,7 +1143,8 @@ def test_c001_bare_probe_is_pinned_in_allowlist() -> None:
     )
     pinned = next(iter(c001_matches))
     assert pinned in live, (
-        f"the C-001 pin ({pinned}) must match a live call site — re-pin the line number"
+        f"the C-001 pin ({pinned}) must match a live call site — re-approve the "
+        "frozen token (re-run freeze_converter.py or copy the live token)"
     )
 
 
@@ -1030,8 +1240,14 @@ def test_canonicalizer_self_mutation_injects_violation(tmp_path: Path) -> None:
     violations = check_canonicalizer_gate(scratch_src, set())
     assert violations, "self-mutation: injected raw call must be flagged"
 
-    # Sanctioned → gate PASSES.
-    site_key = GateAllowlistKey("ScratchHandler.run", 3)
+    # Sanctioned → gate PASSES. The sanction key is TOOL-DERIVED from the live
+    # scan (contract rule 2 — no hand-typed token); ``rel_path`` is the tmp path,
+    # so it cannot be hard-coded.
+    site_key = next(
+        s.key
+        for s in scan_canonicalizer_call_sites(scratch_src)
+        if s.key.enclosing_qualname == "ScratchHandler.run"
+    )
     assert check_canonicalizer_gate(scratch_src, {site_key}) == []
 
 
@@ -1066,7 +1282,12 @@ def test_coord_authority_self_mutation_injects_violation(tmp_path: Path) -> None
     violations = check_coord_authority_gate(scratch_src, set())
     assert violations, "self-mutation: injected write must be flagged"
 
-    site_key = GateAllowlistKey("ScratchWriter.persist", 3)
+    # Tool-derived sanction key (contract rule 2 — no hand-typed token).
+    site_key = next(
+        s.key
+        for s in scan_coord_authority_call_sites(scratch_src)
+        if s.key.enclosing_qualname == "ScratchWriter.persist"
+    )
     assert check_coord_authority_gate(scratch_src, {site_key}) == []
 
 
@@ -1101,6 +1322,234 @@ def test_canonicalizer_bare_modern_fold_auto_routes(tmp_path: Path) -> None:
     assert violations == [], (
         f"T031/T034: bare-modern fold should auto-classify as canonical; "
         f"got violations: {violations}"
+    )
+
+
+# --- T005 theater TRIAD: drift-green / content-red / new-offender-red -------
+# Every leg drives the TOP-LEVEL CI entry point (``check_canonicalizer_gate`` /
+# ``check_coord_authority_gate``) against a synthetic source + a loaded allowlist
+# (contract rule 4). The allowlisted synthetic site is deliberately
+# VIOLATION-CLASS (a raw-handle canonicalizer call / a write-classified coord
+# call — the same class the T005 self-mutation tests inject), so the content leg
+# reds the ENTRY POINT itself when the token drifts (the frozen key no longer
+# matches the live site → the site reports as a violation), never a helper.
+
+
+@dataclass(frozen=True)
+class _TheaterCase:
+    """One gate's synthetic-source variants for the drift/content/offender legs."""
+
+    gate: str
+    scan: Callable[[Path], Sequence[CanonicalizerSite]] | Callable[[Path], Sequence[CoordAuthoritySite]]
+    check: Callable[[Path, set[GateAllowlistKey]], list[str]]
+    offender_qual: str  # the allowlisted (violation-class) site
+    second_qual: str  # the NEW un-allowlisted offender
+    base: str  # violation-class site, unsanctioned → reds
+    drift: str  # base + a REAL blank line above the call (same token/qualname)
+    edited: str  # base with the call's token content changed
+    two_offenders: str  # base + a second, distinct offending call
+
+
+_CANON_CASE = _TheaterCase(
+    gate="canonicalizer",
+    scan=scan_canonicalizer_call_sites,
+    check=check_canonicalizer_gate,
+    offender_qual="R.run",
+    second_qual="R.run2",
+    base=(
+        "class R:\n"
+        "    def run(self, repo_root, raw_slug):\n"
+        "        return primary_feature_dir_for_mission(repo_root, raw_slug)\n"
+    ),
+    drift=(
+        "class R:\n"
+        "    def run(self, repo_root, raw_slug):\n"
+        "\n"  # a REAL inserted blank line ABOVE the call → +1 drift
+        "        return primary_feature_dir_for_mission(repo_root, raw_slug)\n"
+    ),
+    edited=(
+        "class R:\n"
+        "    def run(self, repo_root, raw_slug):\n"
+        "        renamed = raw_slug\n"  # still a raw (never-folded) handle → violation-class
+        "        return primary_feature_dir_for_mission(repo_root, renamed)\n"
+    ),
+    two_offenders=(
+        "class R:\n"
+        "    def run(self, repo_root, raw_slug):\n"
+        "        return primary_feature_dir_for_mission(repo_root, raw_slug)\n"
+        "    def run2(self, repo_root, other):\n"
+        "        return primary_feature_dir_for_mission(repo_root, other)\n"
+    ),
+)
+
+_COORD_CASE = _TheaterCase(
+    gate="coord_authority",
+    scan=scan_coord_authority_call_sites,
+    check=check_coord_authority_gate,
+    offender_qual="W.persist",
+    second_qual="W.persist2",
+    base=(
+        "class W:\n"
+        "    def persist(self, ctx, slug):\n"
+        "        d = resolve_feature_dir_for_mission(ctx, slug)\n"
+        "        (d / 'x.txt').write_text('y')\n"
+    ),
+    drift=(
+        "class W:\n"
+        "    def persist(self, ctx, slug):\n"
+        "\n"  # a REAL inserted blank line ABOVE the resolve → +1 drift
+        "        d = resolve_feature_dir_for_mission(ctx, slug)\n"
+        "        (d / 'x.txt').write_text('y')\n"
+    ),
+    edited=(
+        "class W:\n"
+        "    def persist(self, ctx, slug, other):\n"
+        "        d = resolve_feature_dir_for_mission(ctx, other)\n"  # token changed, still a write
+        "        (d / 'x.txt').write_text('y')\n"
+    ),
+    two_offenders=(
+        "class W:\n"
+        "    def persist(self, ctx, slug):\n"
+        "        d = resolve_feature_dir_for_mission(ctx, slug)\n"
+        "        (d / 'x.txt').write_text('y')\n"
+        "    def persist2(self, ctx, other):\n"
+        "        e = resolve_feature_dir_for_mission(ctx, other)\n"
+        "        (e / 'z.txt').write_text('q')\n"
+    ),
+)
+
+_THEATER_CASES = [
+    pytest.param(_CANON_CASE, id="canonicalizer"),
+    pytest.param(_COORD_CASE, id="coord_authority"),
+]
+
+
+def _write_theater_scratch(tmp_path: Path, body: str) -> Path:
+    """Write *body* to a scratch package and INVALIDATE the parse cache.
+
+    The drift/content/offender legs rewrite the SAME file path across versions so
+    the frozen key's ``rel_path`` component matches; the module-wide parse cache
+    is keyed by src root, so it must be popped or the second scan returns the
+    stale first version (masking the drift).
+    """
+    pkg = tmp_path / "src" / "scratch_pkg"
+    pkg.mkdir(parents=True, exist_ok=True)
+    (tmp_path / "src" / "__init__.py").write_text("", encoding="utf-8")
+    (pkg / "__init__.py").write_text("", encoding="utf-8")
+    (pkg / "site.py").write_text(body, encoding="utf-8")
+    src = tmp_path / "src"
+    _parsed_trees.pop(str(src.resolve()), None)
+    return src
+
+
+def _theater_key(case: _TheaterCase, src: Path, qualname: str) -> GateAllowlistKey:
+    """Tool-derive (never hand-type) the composite key for *qualname* under *src*."""
+    return next(s.key for s in case.scan(src) if s.key.enclosing_qualname == qualname)
+
+
+@pytest.mark.parametrize("case", _THEATER_CASES)
+def test_theater_drift_leg_stays_green(case: _TheaterCase, tmp_path: Path) -> None:
+    """Drift leg: +1 line drift over an allowlisted violation-class site → GREEN.
+
+    Freezes the composite key of a violation-class synthetic site, inserts a REAL
+    blank line ABOVE the call, and re-drives the CI entry point. The composite key
+    is content-addressed (qualname + frozen token), so the pure line shift leaves
+    it unchanged and the site stays sanctioned — zero violations.
+    """
+    base_src = _write_theater_scratch(tmp_path, case.base)
+    frozen = _theater_key(case, base_src, case.offender_qual)
+    # Sanity: the base site is genuinely violation-class (reds when unsanctioned).
+    assert case.check(base_src, set()), f"{case.gate}: base site must be a violation"
+    drift_src = _write_theater_scratch(tmp_path, case.drift)
+    assert case.check(drift_src, {frozen}) == [], (
+        f"{case.gate}: a +1 line drift red the gate — the key is NOT drift-proof "
+        "(a stringified-line token would fail here)"
+    )
+
+
+@pytest.mark.parametrize("case", _THEATER_CASES)
+def test_theater_content_leg_reds_entry_point(case: _TheaterCase, tmp_path: Path) -> None:
+    """Content leg: editing the allowlisted site's token reds the ENTRY POINT.
+
+    The frozen key sanctions the base token. After a genuine content edit the live
+    site's token differs, so the frozen key no longer matches → the still
+    violation-class site is reported by ``check_*_gate`` itself (assertion target
+    is the entry point, never a helper).
+    """
+    base_src = _write_theater_scratch(tmp_path, case.base)
+    frozen = _theater_key(case, base_src, case.offender_qual)
+    edited_src = _write_theater_scratch(tmp_path, case.edited)
+    violations = case.check(edited_src, {frozen})
+    assert violations, f"{case.gate}: token edit must red the gate (staleness)"
+    leaf = case.offender_qual.rsplit(".", 1)[-1]
+    assert any(leaf in v for v in violations), (
+        f"{case.gate}: the reported violation must name the edited site {leaf!r}: {violations}"
+    )
+
+
+@pytest.mark.parametrize("case", _THEATER_CASES)
+def test_theater_new_offender_leg_reds(case: _TheaterCase, tmp_path: Path) -> None:
+    """New-offender leg: a second un-allowlisted offending call reds the gate.
+
+    With the first site allowlisted (frozen), a distinct second offender in the
+    same module produces a different composite key that is NOT sanctioned → the
+    entry point reports it by name, while the allowlisted first site stays green.
+    """
+    base_src = _write_theater_scratch(tmp_path, case.base)
+    frozen = _theater_key(case, base_src, case.offender_qual)
+    two_src = _write_theater_scratch(tmp_path, case.two_offenders)
+    violations = case.check(two_src, {frozen})
+    assert violations, f"{case.gate}: a new un-allowlisted offender must red the gate"
+    new_leaf = case.second_qual.rsplit(".", 1)[-1]
+    first_leaf = case.offender_qual.rsplit(".", 1)[-1]
+    assert any(new_leaf in v for v in violations), (
+        f"{case.gate}: violation must name the NEW offender {new_leaf!r}: {violations}"
+    )
+    # The allowlisted first site is NOT re-reported (non-vacuity of the sanction).
+    assert not any(
+        f"({case.offender_qual})" in v and new_leaf not in v for v in violations
+    ), f"{case.gate}: the allowlisted first site {first_leaf!r} must stay green"
+
+
+# --- T005 within-function collision (speculative ``count:`` surface) --------
+def test_within_function_collision_count_is_bidirectional(tmp_path: Path) -> None:
+    """``count:`` occurrence semantics are checked BOTH directions (non-vacuous).
+
+    Two byte-identical ``primary_feature_dir_for_mission`` calls in one function
+    collapse to a SINGLE composite key (identical rel_path/qualname/token). A
+    ``count: N`` qualifier requires exactly ``N`` live occurrences:
+
+      * ``count: 2`` with 2 live sites  → GREEN;
+      * ``count: 1`` with 2 live sites  → RED (a green-only assertion is vacuous);
+      * ``count: 2`` with 1 live site   → RED.
+
+    NOTE (design tracer): ``count:`` has ZERO real users in the shipped allowlist
+    today — it is a deliberate speculative surface for a future within-function
+    collision drain. ``test_real_allowlist_declares_no_count_qualifiers`` pins that.
+    """
+    body = (
+        "class R:\n"
+        "    def run(self, repo_root, raw_slug):\n"
+        "        x = primary_feature_dir_for_mission(repo_root, raw_slug)\n"
+        "        x = primary_feature_dir_for_mission(repo_root, raw_slug)\n"
+        "        return x\n"
+    )
+    src = _write_theater_scratch(tmp_path, body)
+    site_keys = [s.key for s in scan_canonicalizer_call_sites(src)]
+    assert len(site_keys) == 2, "fixture must produce two identical-token sites"
+    assert len(set(site_keys)) == 1, "identical token+qualname+file must collapse to one key"
+    key = site_keys[0]
+
+    assert occurrence_count_violations(site_keys, {key: 2}) == []  # 2 required, 2 live → green
+    assert occurrence_count_violations(site_keys, {key: 1})  # 1 required, 2 live → red
+    assert occurrence_count_violations(site_keys[:1], {key: 2})  # 2 required, 1 live → red
+
+
+def test_real_allowlist_declares_no_count_qualifiers() -> None:
+    """Design tracer pin: the shipped allowlist declares no ``count:`` (zero users)."""
+    assert load_occurrence_counts(ALLOWLIST_PATH) == {}, (
+        "``count:`` is a speculative surface — a real user appeared; wire "
+        "occurrence_count_violations into the gate proper before relying on it"
     )
 
 
@@ -1221,8 +1670,8 @@ def test_allowlist_no_stale_entries() -> None:
     all_allowlist = set(keys["canonicalizer"]) | set(keys["coord_authority"])
     stale = staleness_twin_guard(all_allowlist, live)
     assert stale == [], (
-        "stale allowlist entries (no live call site) — remove them (shrink-only):\n"
-        + "\n".join(f"  {k.enclosing_qualname}:{k.token_line}" for k in stale)
+        "stale allowlist entries (frozen token no longer matches a live call site) "
+        "— evict or re-approve (shrink-only):\n" + format_staleness_failure(stale, live)
     )
 
 

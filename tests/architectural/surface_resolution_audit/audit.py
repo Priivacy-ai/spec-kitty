@@ -64,9 +64,50 @@ from pathlib import Path
 # --------------------------------------------------------------------------- #
 _THIS = Path(__file__).resolve()
 _REPO_ROOT = _THIS.parents[3]
-SRC_SPECIFY_CLI = _REPO_ROOT / "src" / "specify_cli"
-SRC_MISSION_RUNTIME = _REPO_ROOT / "src" / "mission_runtime"
+_SRC_ROOT = _REPO_ROOT / "src"
+SRC_SPECIFY_CLI = _SRC_ROOT / "specify_cli"
+SRC_MISSION_RUNTIME = _SRC_ROOT / "mission_runtime"
 INVENTORY_PATH = _THIS.parent / "inventory.md"
+
+# --------------------------------------------------------------------------- #
+# Drift-proof composite identity (FR-004 / IC-03). Row identity is the
+# ``(rel_path, enclosing_qualname, token)`` composite derived by
+# ``composite_key_from_file`` — NOT the raw ``rel:line`` locator, which drifts on
+# every blank/comment-line insertion above a callsite (the #2306 failure class).
+# The audit is loaded two ways: (1) directly (``python audit.py``) and (2) as a
+# standalone module by ``test_single_mission_surface_resolver.py`` via
+# ``importlib`` (after that test has already imported ``_ratchet_keys``, so the
+# import below is a cache hit). For the standalone-run case we ensure the repo
+# root is importable so the canonical ``_ratchet_keys`` primitive resolves.
+# --------------------------------------------------------------------------- #
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from tests.architectural._ratchet_keys import (  # noqa: E402 — after sys.path bootstrap
+    composite_key_from_file,
+)
+
+#: ``(rel_path, enclosing_qualname, token)`` — the frozen-comparand row identity.
+CompositeKey = tuple[str, str, str]
+
+
+def _normalize_token(token: str) -> str:
+    """Render a composite token safe for a markdown table cell.
+
+    ``composite_key_from_file`` already collapses whitespace to single spaces;
+    the only remaining table hazard is a literal ``|`` (a Python union/bitwise
+    operator can appear on a guarded line). Replacing it with ``¦`` keeps the
+    inventory table parseable. The SAME normalization runs on both the
+    live-discovered side and the recorded converter, so the composite comparison
+    stays symmetric.
+    """
+    return token.replace("|", "¦")
+
+
+def _composite_from_file(rel_path: str, line: int) -> CompositeKey:
+    """Live ``(rel_path, qualname, normalized_token)`` for a discovered row."""
+    qualname, token = composite_key_from_file(_SRC_ROOT / rel_path, line)
+    return (rel_path, qualname, _normalize_token(token))
 
 # --------------------------------------------------------------------------- #
 # Canonical resolver / seam source files. Callsites WITHIN these files are
@@ -196,7 +237,18 @@ class ResolutionRow:
     handle_source: str  # what slug/handle the call uses
 
     def key(self) -> str:
+        """Live ``rel:line`` LOCATOR (public shape — NOT the comparand).
+
+        Frozen: ``test_single_mission_surface_resolver.py`` consumes this string
+        (``row.key().startswith(...)``). It is a diagnostics locator only, never
+        the identity used for inventory comparison — that is
+        :meth:`composite_key`.
+        """
         return f"{self.rel_path}:{self.line}"
+
+    def composite_key(self) -> CompositeKey:
+        """Drift-proof ``(rel_path, qualname, token)`` identity (the comparand)."""
+        return _composite_from_file(self.rel_path, self.line)
 
 
 def _rel(path: Path) -> str:
@@ -356,7 +408,17 @@ class SelectionRow:
     in_seam_file: bool  # True when the callsite is inside a RESOLVER_SOURCE_STEMS file
 
     def key(self) -> str:
+        """Live ``rel:line`` LOCATOR (public shape — NOT the comparand).
+
+        Frozen: ``test_single_mission_surface_resolver.py`` consumes this string
+        (``sel.key()`` membership + ``.startswith(...)``). Identity comparison
+        uses :meth:`composite_key`.
+        """
         return f"{self.rel_path}:{self.line}"
+
+    def composite_key(self) -> CompositeKey:
+        """Drift-proof ``(rel_path, qualname, token)`` identity (the comparand)."""
+        return _composite_from_file(self.rel_path, self.line)
 
 
 def _find_selection_calls(tree: ast.AST, rel_path: str) -> list[SelectionRow]:
@@ -462,17 +524,24 @@ VALID_DISPOSITIONS: frozenset[str] = frozenset(
 )
 
 
-def _parse_inventory_rows(text: str) -> list[dict[str, str]]:
-    """Parse the markdown table in ``inventory.md`` into row dicts.
+def _unwrap(cell: str) -> str:
+    """Strip the display backticks a converter wraps around identity cells."""
+    return cell.strip().strip("`")
 
-    The table has the header:
-    ``| file:line | handle source | sink | disposition | rationale |``
+
+def _collect_table(text: str, header_needle: str) -> list[list[str]]:
+    """Return the cell lists of the markdown table whose header contains *needle*.
+
+    Both the sink table and the read-SELECTION table start with ``| file:line ``;
+    they are disambiguated by a distinctive header column (``handle source`` vs
+    ``in seam file``). The disposition/summary/routed-caller tables use different
+    leading columns and never trigger.
     """
-    rows: list[dict[str, str]] = []
+    rows: list[list[str]] = []
     in_table = False
     for raw in text.splitlines():
         line = raw.strip()
-        if line.startswith("| file:line "):
+        if line.startswith("| file:line ") and header_needle in line:
             in_table = True
             continue
         if in_table and line.replace(" ", "").startswith("|---"):
@@ -481,19 +550,142 @@ def _parse_inventory_rows(text: str) -> list[dict[str, str]]:
             if not line.startswith("|"):
                 in_table = False
                 continue
-            cells = [c.strip() for c in line.strip("|").split("|")]
-            if len(cells) < 5:
-                continue
-            rows.append(
-                {
-                    "locator": cells[0],
-                    "handle_source": cells[1],
-                    "sink": cells[2],
-                    "disposition": cells[3],
-                    "rationale": cells[4],
-                }
-            )
+            rows.append([c.strip() for c in line.strip("|").split("|")])
     return rows
+
+
+def _parse_inventory_rows(text: str) -> list[dict[str, str]]:
+    """Parse the sink table into row dicts (drift-proof identity columns).
+
+    Header (IC-03 re-key):
+    ``| file:line | qualname | token | handle source | sink | disposition | rationale |``
+
+    ``file:line`` is a NON-authoritative locator; the ``qualname`` + ``token``
+    columns carry the frozen ``composite_key_from_file`` comparand (the ``line``
+    is never compared — that is the #2306 fix).
+    """
+    rows: list[dict[str, str]] = []
+    for cells in _collect_table(text, "handle source"):
+        if len(cells) < 7:
+            continue
+        rows.append(
+            {
+                "locator": cells[0],
+                "qualname": _unwrap(cells[1]),
+                "token": _unwrap(cells[2]),
+                "handle_source": cells[3],
+                "sink": cells[4],
+                "disposition": cells[5],
+                "rationale": cells[6],
+            }
+        )
+    return rows
+
+
+def _parse_selection_rows(text: str) -> list[dict[str, str]]:
+    """Parse the read-SELECTION table into row dicts (same identity columns).
+
+    Header:
+    ``| file:line | qualname | token | in seam file | disposition | notes |``
+    """
+    rows: list[dict[str, str]] = []
+    for cells in _collect_table(text, "in seam file"):
+        if len(cells) < 6:
+            continue
+        rows.append(
+            {
+                "locator": cells[0],
+                "qualname": _unwrap(cells[1]),
+                "token": _unwrap(cells[2]),
+                "in_seam": cells[3],
+                "disposition": cells[4],
+                "rationale": cells[5],
+            }
+        )
+    return rows
+
+
+def _composite_from_locator(locator: str) -> CompositeKey:
+    """Derive a live composite key from a ``rel:line`` allowlist locator."""
+    rel, _, line_s = locator.rpartition(":")
+    return _composite_from_file(rel, int(line_s))
+
+
+def _inventory_composites(
+    rows: list[dict[str, str]], table_name: str
+) -> tuple[dict[CompositeKey, str], set[CompositeKey], list[str]]:
+    """Build composite identities from stored inventory columns (fail-closed).
+
+    Returns ``(active, all_keys, parse_errors)`` where:
+
+    * ``active`` maps each NON-``[inventory-only]`` composite key to its stored
+      ``file:line`` locator (the overcount comparand set).
+    * ``all_keys`` includes ``[inventory-only]``-tagged rows too, so a documented
+      but intentionally-removed sink still satisfies the undercount membership.
+    * ``parse_errors`` names any row whose stored qualname/token identity is
+      missing — the audit aborts rather than silently under-identifying a row.
+    """
+    active: dict[CompositeKey, str] = {}
+    all_keys: set[CompositeKey] = set()
+    errors: list[str] = []
+    for row in rows:
+        loc = row["locator"]
+        qualname = row["qualname"]
+        token = row["token"]
+        if not qualname or not token:
+            errors.append(
+                f"{table_name} inventory row {loc!r} is missing its stored "
+                f"qualname/token identity — cannot build a composite key "
+                f"(fail-closed parse abort)"
+            )
+            continue
+        rel = loc.rsplit(":", 1)[0] if ":" in loc else loc
+        key: CompositeKey = (rel, qualname, token)
+        all_keys.add(key)
+        if "[inventory-only]" not in row["rationale"]:
+            active[key] = loc
+    return active, all_keys, errors
+
+
+def check_undercount(
+    discovered: dict[CompositeKey, str], inventory_keys: set[CompositeKey]
+) -> list[str]:
+    """Discovered composite keys absent from the inventory (undercount tripwire).
+
+    Pure over its inputs (``main()`` calls it — no duplicated inline diff).
+    ``discovered`` maps each live composite key to its fresh ``rel:line`` locator,
+    kept in the message for the reviewer even though the key itself is drift-proof.
+    """
+    errors: list[str] = []
+    for key, locator in sorted(discovered.items()):
+        if key not in inventory_keys:
+            _rel, qualname, token = key
+            errors.append(
+                f"discovered callsite {locator} ({qualname}) [token=`{token}`] "
+                f"is MISSING from inventory.md (undercount tripwire)"
+            )
+    return errors
+
+
+def check_overcount(
+    inventory: dict[CompositeKey, str], discovered_keys: set[CompositeKey]
+) -> list[str]:
+    """Inventory composite keys with no live discovered sink (overcount/ghost).
+
+    Pure over its inputs. ``inventory`` maps each NON-``[inventory-only]``
+    composite key to its stored ``file:line`` locator. A ghost row means the sink
+    was deleted/moved but its inventory row lingers — RED with removal guidance.
+    """
+    errors: list[str] = []
+    for key, locator in sorted(inventory.items()):
+        if key not in discovered_keys:
+            _rel, qualname, token = key
+            errors.append(
+                f"inventory row {locator} ({qualname}) [token=`{token}`] has NO "
+                f"live discovered callsite (overcount/ghost tripwire) — remove the "
+                f"row or tag it [inventory-only] citing the change that removed it"
+            )
+    return errors
 
 
 def _fail(messages: list[str]) -> int:
@@ -503,7 +695,60 @@ def _fail(messages: list[str]) -> int:
     return 1
 
 
-def main() -> int:  # noqa: C901 — linear validation block; each check is flat
+def _resolution_checks(
+    discovered: list[ResolutionRow], inventory_rows: list[dict[str, str]]
+) -> list[str]:
+    """Check-2: ResolutionRow undercount + overcount by COMPOSITE identity.
+
+    Drives the pure ``check_undercount`` / ``check_overcount`` seams over
+    composite keys — a ``+1`` line drift of a documented sink stays GREEN, while
+    a truly-new undocumented sink (undercount) or a deleted-but-documented ghost
+    row (overcount) goes RED. The stale ``rel:line`` locator is never compared.
+    """
+    errors: list[str] = []
+    discovered_keys = {row.composite_key(): row.key() for row in discovered}
+    active, all_keys, parse_errors = _inventory_composites(inventory_rows, "sink")
+    errors.extend(parse_errors)
+    errors.extend(check_undercount(discovered_keys, all_keys))
+    errors.extend(check_overcount(active, set(discovered_keys)))
+    return errors
+
+
+def _selection_checks(
+    selection_rows: list[SelectionRow], selection_inventory_rows: list[dict[str, str]]
+) -> list[str]:
+    """Check 4: SelectionRow FR-006a bypass + undercount/overcount by COMPOSITE.
+
+    The read-SELECTION authority (``resolve_mission_read_path``) is reached ONLY
+    through the seam: every non-seam discovered callsite must be allowlisted (the
+    allowlist is empty on the collapsed tree, so any external call is RED). The
+    comparand is now the composite key, not the raw ``rel:line`` locator. The same
+    pure seams cross-check the read-SELECTION inventory table for drift/ghosts.
+    """
+    errors: list[str] = []
+    allow_composite = {
+        _composite_from_locator(loc) for loc in ALLOWLISTED_SELECTION_CALLSITES
+    }
+    for sel in selection_rows:
+        if sel.in_seam_file:
+            continue
+        if sel.composite_key() not in allow_composite:
+            errors.append(
+                f"direct read-SELECTION call {sel.key()} ({sel.call_name}) "
+                "outside the resolve_handle_to_read_path seam and not in "
+                "ALLOWLISTED_SELECTION_CALLSITES (FR-006a bypass)"
+            )
+    discovered_keys = {sel.composite_key(): sel.key() for sel in selection_rows}
+    active, all_keys, parse_errors = _inventory_composites(
+        selection_inventory_rows, "read-SELECTION"
+    )
+    errors.extend(parse_errors)
+    errors.extend(check_undercount(discovered_keys, all_keys))
+    errors.extend(check_overcount(active, set(discovered_keys)))
+    return errors
+
+
+def main() -> int:
     errors: list[str] = []
 
     discovered = discover_rows()
@@ -512,9 +757,11 @@ def main() -> int:  # noqa: C901 — linear validation block; each check is flat
     if not INVENTORY_PATH.exists():
         return _fail([f"inventory.md missing at {INVENTORY_PATH}"])
 
-    inventory_rows = _parse_inventory_rows(INVENTORY_PATH.read_text(encoding="utf-8"))
+    text = INVENTORY_PATH.read_text(encoding="utf-8")
+    inventory_rows = _parse_inventory_rows(text)
+    selection_inventory_rows = _parse_selection_rows(text)
 
-    # ---- Check 1: every row carries exactly one valid disposition. -----------
+    # ---- Check 1: every sink row carries exactly one valid disposition. ------
     for row in inventory_rows:
         disp = row["disposition"]
         if disp not in VALID_DISPOSITIONS:
@@ -523,18 +770,10 @@ def main() -> int:  # noqa: C901 — linear validation block; each check is flat
                 f"(must be one of: {', '.join(sorted(VALID_DISPOSITIONS))})"
             )
 
-    # ---- Check 2: every AST-discovered row appears in the inventory. ---------
-    inventory_keys = {r["locator"] for r in inventory_rows}
-    for sink in discovered:
-        locator = f"{sink.rel_path}:{sink.line}"
-        if not any(locator == k or k.startswith(locator) for k in inventory_keys):
-            errors.append(
-                f"discovered callsite {locator} "
-                f"({sink.call_name}, handle={sink.handle_source}) "
-                f"is MISSING from inventory.md (undercount tripwire)"
-            )
+    # ---- Check 2: ResolutionRow undercount + overcount (composite identity). -
+    errors.extend(_resolution_checks(discovered, inventory_rows))
 
-    # ---- Check 3: known-candidate presence (self-asserting tripwire). --------
+    # ---- Check 3: known-candidate presence (path-level, drift-immune). -------
     for cand in KNOWN_CANDIDATE_FILES:
         in_discovered = cand in discovered_files
         in_inventory = any(r["locator"].startswith(cand) for r in inventory_rows)
@@ -543,18 +782,10 @@ def main() -> int:  # noqa: C901 — linear validation block; each check is flat
                 f"known candidate {cand!r} absent from BOTH discovered rows and inventory"
             )
 
-    # ---- Check 4: read-SELECTION authority outside the seam (FR-006a). -------
-    # Every direct ``resolve_mission_read_path`` call outside the seam files
-    # must be allowlisted; seam-internal calls are auto-blessed.
-    for sel in discover_selection_callsites():
-        if sel.in_seam_file:
-            continue
-        if sel.key() not in ALLOWLISTED_SELECTION_CALLSITES:
-            errors.append(
-                f"direct read-SELECTION call {sel.key()} ({sel.call_name}) "
-                "outside the resolve_handle_to_read_path seam and not in "
-                "ALLOWLISTED_SELECTION_CALLSITES (FR-006a bypass)"
-            )
+    # ---- Check 4: SelectionRow FR-006a bypass + undercount/overcount. --------
+    errors.extend(
+        _selection_checks(discover_selection_callsites(), selection_inventory_rows)
+    )
 
     if errors:
         return _fail(errors)
@@ -565,6 +796,7 @@ def main() -> int:  # noqa: C901 — linear validation block; each check is flat
     print(
         f"AUDIT OK: {len(inventory_rows)} inventory rows "
         f"({len(discovered)} AST-discovered); "
+        f"{len(selection_inventory_rows)} read-SELECTION rows; "
         f"routed-through-resolver={routed} "
         f"topology-blind-by-design={blind} "
         f"raw-bypass={bypass}"
