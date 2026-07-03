@@ -64,12 +64,19 @@ import pytest
 _THIS = Path(__file__).resolve()
 _REPO_ROOT = _THIS.parents[2]
 
+from tests.architectural._ratchet_keys import composite_key
 from tests.architectural.untrusted_path_audit.audit import (
+    INVENTORY_ONLY_TAG,
     INVENTORY_PATH,
     SRC_ROOT,
     _parse_inventory_rows,
+    build_discovered_key_map,
+    build_inventory_key_map,
+    check_overcount,
+    check_undercount,
     discover_rows,
     main as _audit_main,
+    truncate_token,
 )
 
 pytestmark = pytest.mark.architectural
@@ -315,30 +322,182 @@ def test_discovered_rows_non_empty() -> None:
 def test_all_discovered_rows_appear_in_inventory() -> None:
     """Every AST-discovered sink row is present in inventory.md (T018/T020).
 
-    This is the same check as ``audit.py`` check 2, surfaced as a pytest
-    assertion with a structured failure message so CI output is readable
-    without inspecting audit.py stderr.
+    This is the same check as ``audit.py`` check 2 (undercount), surfaced as a
+    pytest assertion. It consumes the audit's OWN composite identity
+    (``SinkRow.key()`` via :func:`build_discovered_key_map`) and its OWN pure
+    seam (:func:`check_undercount`) — the raw ``f"{rel_path}:{line}"`` compare
+    that used to live here (T008 / the #2306 fragility) is gone. There is now a
+    single identity implementation shared by the audit and this guard.
     """
     inventory_rows = _load_inventory()
-    inventory_keys = {row["locator"] for row in inventory_rows}
+    parse_errors, inventory_keys = build_inventory_key_map(inventory_rows)
+    assert not parse_errors, (
+        "inventory.md has rows with an unparseable composite identity "
+        "(missing qualname/token column):\n" + "\n".join(parse_errors)
+    )
 
-    discovered = discover_rows()
-    missing: list[str] = []
-    for sink in discovered:
-        locator = f"{sink.rel_path}:{sink.line}"
-        if not any(locator == k or k.startswith(locator) for k in inventory_keys):
-            missing.append(
-                f"  {locator} ({sink.sink_op}, src={sink.untrusted_source!r})"
-            )
+    discovered_keys = build_discovered_key_map(discover_rows())
+    missing = check_undercount(discovered_keys, inventory_keys)
 
     assert not missing, (
         "The following untrusted-segment → FS-sink rows were discovered by the "
-        "AST audit but are NOT in inventory.md:\n"
-        + "\n".join(missing)
-        + "\n\nEach new undispositioned row must be reviewed and added to "
-        "inventory.md with an appropriate disposition "
-        "('routed-through-seam', 'unreachable', 'trusted-source', or "
-        "'routed-through-seam (TODO)' pending a fix).  "
-        "Run `python tests/architectural/untrusted_path_audit/audit.py` "
-        "for the full audit output."
+        "AST audit but are NOT in inventory.md (by composite identity):\n"
+        + "\n".join(f"  {m}" for m in missing)
     )
+
+
+# ---------------------------------------------------------------------------
+# T011 — theater triad (drift / undercount / overcount) + the #2306 case.
+#
+# These drive the audit's REAL comparison seams (``check_undercount`` /
+# ``check_overcount``) and identity (``composite_row_key`` / truncation) — the
+# same functions ``audit.main()`` itself calls. Helper-only theater is a review
+# reject, so two of the tests below invoke ``main()`` end-to-end with a
+# monkeypatched discovery to prove the seams are wired into the real path.
+# ---------------------------------------------------------------------------
+
+
+def _key_from_source(rel_path: str, source: str, lineno: int) -> tuple[str, str, str]:
+    """Composite row key from a source *string* — mirrors ``composite_row_key``.
+
+    ``composite_row_key`` reads a file under ``SRC_ROOT``; this variant lets the
+    theater build synthetic / shifted sources in memory while reusing the audit's
+    exact identity (``composite_key`` + ``truncate_token``).
+    """
+    qualname, token = composite_key(source, lineno)
+    return (rel_path, qualname, truncate_token(token))
+
+
+def test_theater_line_only_drift_stays_green() -> None:
+    """Leg (a): a documented sink whose line shifts +1 leaves the audit GREEN.
+
+    Same qualname + token → same composite key despite the different line; both
+    tripwire seams return no error.
+    """
+    src_before = "def f(mission_slug):\n    p = root / mission_slug\n"
+    src_after = "def f(mission_slug):\n    # a freshly inserted comment\n    p = root / mission_slug\n"
+    key_before = _key_from_source("m.py", src_before, 2)  # sink at line 2
+    key_after = _key_from_source("m.py", src_after, 3)  # same sink, now line 3
+
+    assert key_before == key_after, "line-only drift must NOT change composite identity"
+
+    discovered = {key_after: "m.py:3"}  # live scan sees the shifted line
+    inventory = {key_before: "m.py:2"}  # inventory frozen at the old locator
+    assert check_undercount(discovered, inventory) == []
+    assert check_overcount(discovered, inventory) == []
+
+
+def test_theater_undocumented_sink_goes_red() -> None:
+    """Leg (b): a discovered sink absent from the inventory trips undercount RED."""
+    src = "def f(mission_slug):\n    p = root / mission_slug\n"
+    key = _key_from_source("m.py", src, 2)
+
+    errors = check_undercount({key: "m.py:2"}, {})
+    assert errors, "an undocumented discovered sink must trip the undercount tripwire"
+    assert "m.py:2" in errors[0]
+    assert "undercount" in errors[0]
+
+
+def test_theater_ghost_row_goes_red() -> None:
+    """Leg (c): an inventory row with no live sink trips overcount/ghost RED."""
+    src = "def f(mission_slug):\n    p = root / mission_slug\n"
+    key = _key_from_source("m.py", src, 2)
+
+    errors = check_overcount({}, {key: "m.py:5"})
+    assert errors, "a ghost inventory row must trip the NEW overcount tripwire"
+    assert "m.py:5" in errors[0]
+    assert "overcount/ghost" in errors[0]
+
+
+def test_2306_documented_sink_shifted_one_line_stays_green() -> None:
+    """The #2306 case by name: a documented sink shifted exactly one line is GREEN.
+
+    #2306 reddened CI when the ``_mt_warn_worktree_kitty_specs`` probe in
+    ``tasks_move_task.py`` shifted a single line under the old raw ``rel:line``
+    compare. Reproduce that exact historical shape against the LIVE sink and
+    assert the composite identity keeps it green.
+    """
+    rel = "cli/commands/agent/tasks_move_task.py"
+    src = (SRC_ROOT / rel).read_text(encoding="utf-8")
+    lines = src.splitlines(keepends=True)
+
+    sink_idx = next(
+        i for i, line in enumerate(lines) if "worktree_kitty / st.mission_slug" in line
+    )
+    sink_lineno = sink_idx + 1  # 1-based
+    key_before = _key_from_source(rel, src, sink_lineno)
+
+    # #2306 shape: insert one blank line above the sink (the off-by-one shift).
+    shifted_src = "".join(lines[:sink_idx] + ["\n"] + lines[sink_idx:])
+    key_after = _key_from_source(rel, shifted_src, sink_lineno + 1)
+
+    assert key_before == key_after, (
+        "#2306 regression: a one-line shift of _mt_warn_worktree_kitty_specs must "
+        "NOT change the composite identity"
+    )
+
+    discovered = {key_after: f"{rel}:{sink_lineno + 1}"}
+    inventory = {key_before: f"{rel}:{sink_lineno}"}
+    assert check_undercount(discovered, inventory) == []
+    assert check_overcount(discovered, inventory) == []
+
+
+def test_main_flags_injected_undocumented_sink(monkeypatch: pytest.MonkeyPatch) -> None:
+    """``main()`` returns non-zero when a NEW undocumented sink is discovered.
+
+    Drives the REAL ``main()`` path (not a helper): monkeypatch discovery to add
+    a synthetic sink whose composite key is absent from inventory.md → the
+    undercount seam ``main()`` calls trips and ``main()`` exits 1.
+    """
+    from tests.architectural.untrusted_path_audit import audit as audit_mod
+
+    real_discover = audit_mod.discover_rows
+
+    def _fake() -> list[audit_mod.SinkRow]:
+        rows = list(real_discover())
+        # A real source line (mission_metadata.py:30) whose composite key is not
+        # documented in inventory.md — a genuine new offending site.
+        rows.append(audit_mod.SinkRow("mission_metadata.py", 30, "mission_slug", "Path-join (/)"))
+        return rows
+
+    monkeypatch.setattr(audit_mod, "discover_rows", _fake)
+    assert audit_mod.main() == 1
+
+
+def test_main_flags_ghost_when_discovered_sink_disappears(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``main()`` returns non-zero when a documented sink vanishes (overcount).
+
+    Drives the REAL ``main()`` path: monkeypatch discovery to drop a live
+    non-tagged sink → its inventory row becomes a ghost → the overcount seam
+    ``main()`` calls trips and ``main()`` exits 1.
+    """
+    from tests.architectural.untrusted_path_audit import audit as audit_mod
+
+    real_discover = audit_mod.discover_rows
+
+    def _fake() -> list[audit_mod.SinkRow]:
+        # Drop the audit/engine.py sink (a discovered, non-inventory-only row).
+        return [r for r in real_discover() if r.rel_path != "audit/engine.py"]
+
+    monkeypatch.setattr(audit_mod, "discover_rows", _fake)
+    assert audit_mod.main() == 1
+
+
+def test_inventory_only_rows_carry_a_documented_reason() -> None:
+    """Every ``[inventory-only]`` row names WHY it is exempt from overcount.
+
+    The tag is the ONLY overcount escape hatch; an untagged reason (a bare tag)
+    would let a genuinely-deleted sink hide. Each tagged row must carry prose
+    beyond the tag itself.
+    """
+    inventory_rows = _load_inventory()
+    tagged = [r for r in inventory_rows if INVENTORY_ONLY_TAG in r["rationale"]]
+    assert tagged, "expected the known-false-negative rows to carry the tag"
+    for row in tagged:
+        remainder = row["rationale"].replace(INVENTORY_ONLY_TAG, "").strip()
+        assert len(remainder) > 20, (
+            f"[inventory-only] row {row['locator']!r} must document WHY it is "
+            "exempt (removed-sink change or known-FN class), not just the bare tag."
+        )

@@ -37,6 +37,32 @@ PARSER). Each carve-out is a drift-proof ``(enclosing_qualname, token_line)``
 composite key — inserting a blank or comment line above a pinned site does NOT
 flip the ratchet RED (FR-008 / WP06 re-key).
 
+Design-P REFERENCE implementation (do NOT convert)
+--------------------------------------------------
+This module is the canonical **reference implementation** of the *Design-P
+content-pinned gate-key* pattern, named as such by the refactor-stable doctrine
+(the ``testing-principles`` styleguide) and mission
+``refactor-stable-gate-substrate-01KWK3FY``. Design-P freezes a tool-derived
+``(enclosing_qualname, token)`` comparand (see ``_ALLOWED_SITES_FILES`` above)
+and scans live source for set membership, so a gate key is pinned to CONTENT,
+never to a raw line number. The pattern's two proof legs live here as the
+template every other converted gate mirrors:
+
+* ``test_name_compose_offenders_match_pinned_baseline`` — the staleness guard: a
+  frozen allow-list entry with no live offender (or an extra unjustified entry)
+  drifts the pinned baseline count and trips RED.
+* ``test_composite_key_survives_line_drift`` — the drift theater: shifting a
+  pinned site down by blank/comment lines leaves its composite key unchanged, so
+  the ratchet stays GREEN on pure line drift.
+
+**These key semantics MUST NOT be converted to seed-derivation** (the
+``_RAW_JOIN_SITES`` load-time-seed style). Seed-derivation is content-FOLLOWING:
+a fixed line seed still breaks on drift and a content edit is invisible — it
+fails both halves of NFR-001 and would REGRESS this file's content-detection.
+The mission's research D1 proves this empirically; FR-005's earlier
+"convert Family E" plan was CANCELLED for exactly this reason. This file is the
+destination pattern, not a conversion target.
+
 WP09 / Issue #1899 / FR-001 / FR-005 / FR-009.
 """
 

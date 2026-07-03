@@ -19,15 +19,50 @@ What this does
        ``mkdir`` / ``unlink`` / ``shutil.copy|move|rmtree`` / ...) invoked on a
        path that was built from an untrusted segment, including **one hop of
        local-variable aliasing** (``slug = meta.get("mission_slug"); root / slug``).
-3. Cross-checks the machine-discovered candidate *files* against the
-   hand-curated dispositions in ``inventory.md`` and fails closed if either the
-   row count drifts or a known candidate disappears.
+3. Cross-checks the machine-discovered sinks against the hand-curated
+   dispositions in ``inventory.md`` using a **drift-proof composite row
+   identity** (FR-004) and fails closed in BOTH directions.
 
-The disposition of each row (``routed-through-seam`` / ``routed-through-seam
-(TODO)`` / ``trusted-source`` / ``unreachable``) is a human judgement that was
-verified against the real source; it lives in ``inventory.md`` and in
-``DISPOSITIONS`` below, NOT inferred by the matcher. The matcher's job is to
-make undercounting (a thin/circular audit) impossible, not to classify intent.
+Row identity (FR-004, IC-02)
+----------------------------
+The old raw ``rel_path:line`` comparand was a #2306 false-failure machine: a
+blank line inserted above a documented sink shifted the line and reddened CI
+even though nothing security-relevant changed. The comparison identity is now
+the drift-proof composite::
+
+    (rel_path, enclosing_qualname, token)
+
+derived from ``tests.architectural._ratchet_keys.composite_key_from_file`` -- the
+same primitive the write-side ratchets use. ``token`` is the space-joined code
+tokens of the sink line (strings/comments stripped, f-string interior dropped
+for 3.11/3.12 parity), truncated compactly at ``TOKEN_MAX_LEN`` chars with a
+``…`` marker for inventory readability. A blank/comment insertion changes
+neither the enclosing qualname nor the token, so the audit stays GREEN; a real
+edit to the sink line (or a rename) changes the token/qualname and the audit
+goes RED, forcing a review. The ``line`` column in ``inventory.md`` is now a
+NON-authoritative jump-to locator -- it is never compared.
+
+Both tripwire directions (FR-004, IC-02)
+----------------------------------------
+* **Undercount** (:func:`check_undercount`): every AST-discovered sink must map
+  to an inventory row by composite identity, else RED (a new undocumented sink).
+* **Overcount / ghost** (:func:`check_overcount`, NEW): every inventory row --
+  minus rows explicitly tagged ``[inventory-only]`` -- must map to a live
+  discovered sink, else RED (a deleted sink left silently documented). Both are
+  PURE seams that :func:`main` itself calls, so the acceptance theater drives the
+  real path.
+
+``[inventory-only]`` rows (freshen path)
+----------------------------------------
+A row carries the ``[inventory-only]`` tag in its rationale column when the
+matcher intentionally cannot AST-discover it -- a RULESET known-false-negative
+class (the FR-009 ``meta.json`` write-path; a cross-function diagnostic whose
+join lives behind a boundary seam). Such a row is exempt from the overcount
+guard and its notes name WHY. To freshen after a genuine sink change, run the
+audit: :func:`check_undercount` prints the exact ``| file:line | qualname |
+token | ... |`` row to paste. The disposition of each row (``routed-through-seam``
+/ ``routed-through-seam (TODO)`` / ``trusted-source`` / ``unreachable``) is a
+human judgement recorded in ``inventory.md``, NOT inferred by the matcher.
 
 See ``RULESET.md`` for the seed-set, the sink predicate, and -- importantly --
 the *known false-negative classes* (what this matcher does NOT trace).
@@ -37,6 +72,7 @@ from __future__ import annotations
 
 import ast
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -48,6 +84,49 @@ _THIS = Path(__file__).resolve()
 _REPO_ROOT = _THIS.parents[3]
 SRC_ROOT = _REPO_ROOT / "src" / "specify_cli"
 INVENTORY_PATH = _THIS.parent / "inventory.md"
+
+# The composite-identity primitive lives in the sibling ``tests.architectural``
+# package. Ensure the repo root is importable so ``python audit.py`` script-mode
+# resolves it (E402 is relaxed for ``tests/**`` -- the import must follow this
+# bootstrap). pytest already has the repo root on the path.
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from tests.architectural._ratchet_keys import composite_key_from_file
+
+# --------------------------------------------------------------------------- #
+# Composite row identity (FR-004, IC-02).
+# --------------------------------------------------------------------------- #
+#: Composite row identity: ``(rel_path, enclosing_qualname, truncated token)``.
+RowKey = tuple[str, str, str]
+
+#: Tokens longer than this are stored truncated (readability); the stored prefix
+#: is verified unique per ``(rel_path, qualname)`` by the conversion tooling.
+TOKEN_MAX_LEN = 60
+#: Non-ASCII marker appended to a truncated token. It can never appear in a real
+#: Python code token (source tokens are ASCII), so it is an unambiguous sentinel.
+TOKEN_ELLIPSIS = "…"
+#: Rationale-column tag exempting a row from the overcount guard (RULESET known-FN
+#: / intentionally-removed sink). Each tagged row names WHY in its notes.
+INVENTORY_ONLY_TAG = "[inventory-only]"
+
+
+def truncate_token(token: str) -> str:
+    """Return *token* compacted to ``TOKEN_MAX_LEN`` chars with a ``…`` marker."""
+    if len(token) <= TOKEN_MAX_LEN:
+        return token
+    return token[:TOKEN_MAX_LEN] + TOKEN_ELLIPSIS
+
+
+def composite_row_key(rel_path: str, line: int) -> RowKey:
+    """Drift-proof identity for the sink at ``rel_path:line``.
+
+    Returns ``(rel_path, enclosing_qualname, truncated token)`` -- stable across
+    blank/comment-line insertions, changing only on a genuine edit/rename.
+    """
+    qualname, token = composite_key_from_file(SRC_ROOT / rel_path, line)
+    return (rel_path, qualname, truncate_token(token))
+
 
 # --------------------------------------------------------------------------- #
 # Seed-set: untrusted source symbols (RULESET.md section "Seed-set").
@@ -118,8 +197,18 @@ class SinkRow:
     untrusted_source: str
     sink_op: str
 
-    def key(self) -> str:
-        return f"{self.rel_path}:{self.line}:{self.sink_op}"
+    def key(self) -> RowKey:
+        """Composite comparison identity (FR-004): ``(rel_path, qualname, token)``.
+
+        Derived live from the current source line, so a line shift produces the
+        SAME key (drift-immunity); ``sink_op`` is deliberately excluded -- it is
+        diagnostic, not identity.
+        """
+        return composite_row_key(self.rel_path, self.line)
+
+    def locator(self) -> str:
+        """Non-authoritative jump-to locator ``rel_path:line`` (never compared)."""
+        return f"{self.rel_path}:{self.line}"
 
 
 def _segment_name(node: ast.expr) -> str | None:
@@ -209,17 +298,20 @@ def _sink_func_name(call: ast.Call) -> str | None:
 def _audit_file(path: Path) -> list[SinkRow]:
     rel = path.relative_to(SRC_ROOT).as_posix()
     rows: list[SinkRow] = []
-    seen: set[str] = set()
+    # Local de-dup key: (line, sink_op) -- collapse identical repeated call
+    # sites on one line. NOT the composite ``key()`` (which drops sink_op and is
+    # the cross-inventory comparison identity).
+    seen: set[tuple[int, str]] = set()
     source = path.read_text(encoding="utf-8")
     tree = ast.parse(source, filename=str(path))
     tainted = _collect_tainted_locals(tree)
     tainted_locals = set(tainted)
 
     def _record(line: int, untrusted: str, sink_op: str) -> None:
-        row = SinkRow(rel, line, untrusted, sink_op)
-        if row.key() not in seen:
-            seen.add(row.key())
-            rows.append(row)
+        dedup = (line, sink_op)
+        if dedup not in seen:
+            seen.add(dedup)
+            rows.append(SinkRow(rel, line, untrusted, sink_op))
 
     for node in ast.walk(tree):
         # (a) ``path / untrusted-segment`` join expressions (the path-build sink).
@@ -294,11 +386,18 @@ KNOWN_CANDIDATE_FILES: tuple[str, ...] = (
 # inventory presence and required to carry the routed-through-seam (TODO) tag.
 FR009_META_FILE = "mission_metadata.py"
 
+# Number of markdown cells a well-formed inventory sink row carries after the
+# FR-004 re-key (locator, qualname, token, source, sink_op, disposition, notes).
+_INVENTORY_ROW_CELLS = 7
+
 
 def _parse_inventory_rows(text: str) -> list[dict[str, str]]:
     """Parse the markdown sink table in inventory.md into row dicts.
 
-    The table has the header ``| file:line | untrusted source | sink op | disposition | rationale |``.
+    The table header is ``| file:line | qualname | token | untrusted source |
+    sink op | disposition | rationale |`` (FR-004 re-key). ``qualname`` + ``token``
+    are the composite comparison identity; ``file:line`` is a non-authoritative
+    locator.
     """
     rows: list[dict[str, str]] = []
     in_table = False
@@ -314,15 +413,17 @@ def _parse_inventory_rows(text: str) -> list[dict[str, str]]:
                 in_table = False
                 continue
             cells = [c.strip() for c in line.strip("|").split("|")]
-            if len(cells) < 5:
+            if len(cells) < _INVENTORY_ROW_CELLS:
                 continue
             rows.append(
                 {
                     "locator": cells[0],
-                    "source": cells[1],
-                    "sink_op": cells[2],
-                    "disposition": cells[3],
-                    "rationale": cells[4],
+                    "qualname": cells[1],
+                    "token": cells[2],
+                    "source": cells[3],
+                    "sink_op": cells[4],
+                    "disposition": cells[5],
+                    "rationale": cells[6],
                 }
             )
     return rows
@@ -338,6 +439,106 @@ VALID_DISPOSITIONS = {
 NAMED_UNTRUSTED = {"mission_slug", "feature_slug", "wp_id"}
 
 
+def _inventory_row_key(row: dict[str, str]) -> RowKey | None:
+    """Composite identity of an inventory row from its stored columns, or None.
+
+    None signals a fail-closed parse error (missing rel_path/qualname/token) --
+    :func:`build_inventory_key_map` turns that into a named audit error.
+    """
+    rel = row["locator"].rpartition(":")[0]
+    qualname = row["qualname"].strip()
+    token = row["token"].strip()
+    if not rel or not qualname or not token:
+        return None
+    return (rel, qualname, token)
+
+
+def build_discovered_key_map(discovered: list[SinkRow]) -> dict[RowKey, str]:
+    """Map each discovered composite key to a live ``rel:line`` locator.
+
+    Identical repeated sinks (e.g. the two ``done_bookkeeping`` branches that
+    emit the byte-identical relative path) collapse to one key; the first live
+    locator wins for the diagnostic message.
+    """
+    out: dict[RowKey, str] = {}
+    for row in discovered:
+        out.setdefault(row.key(), row.locator())
+    return out
+
+
+def build_inventory_key_map(
+    rows: list[dict[str, str]],
+) -> tuple[list[str], dict[RowKey, str]]:
+    """Map non-``[inventory-only]`` inventory keys to their locator (fail-closed).
+
+    Returns ``(errors, key_map)``. ``errors`` names any row whose stored identity
+    cannot be parsed (T007 fail-closed). ``[inventory-only]``-tagged rows are
+    excluded (exempt from both tripwires).
+    """
+    errors: list[str] = []
+    out: dict[RowKey, str] = {}
+    for row in rows:
+        if INVENTORY_ONLY_TAG in row["rationale"]:
+            continue
+        key = _inventory_row_key(row)
+        if key is None:
+            errors.append(
+                f"inventory row {row['locator']!r} has an unparseable stored "
+                f"identity (missing qualname/token column) -- fail-closed"
+            )
+            continue
+        out[key] = row["locator"]
+    return errors, out
+
+
+def check_undercount(
+    discovered_keys: Mapping[RowKey, str],
+    inventory_keys: Mapping[RowKey, str],
+) -> list[str]:
+    """Every discovered sink must be documented (PURE seam that ``main`` calls).
+
+    Returns an error per discovered composite key absent from the inventory,
+    naming the live ``rel:line`` locator (fresh from the scan) and printing the
+    exact row to paste (the freshen path).
+    """
+    errors: list[str] = []
+    for key in sorted(set(discovered_keys) - set(inventory_keys)):
+        rel_path, qualname, token = key
+        locator = discovered_keys[key]
+        errors.append(
+            f"discovered sink {locator} (qualname={qualname!r}, token={token!r}) "
+            f"is MISSING from inventory.md (undercount tripwire); add a row: "
+            f"| {locator} | {qualname} | {token} | <source> | <sink_op> | "
+            f"<disposition> | <rationale> |"
+        )
+    return errors
+
+
+def check_overcount(
+    discovered_keys: Mapping[RowKey, str],
+    inventory_keys: Mapping[RowKey, str],
+) -> list[str]:
+    """Every inventory row must map to a live sink (PURE seam, NEW FR-004 guard).
+
+    Returns an error per inventory composite key with no live discovered sink --
+    a ghost row whose sink was deleted or whose content changed. ``inventory_keys``
+    already excludes ``[inventory-only]``-tagged rows.
+    """
+    errors: list[str] = []
+    for key in sorted(set(inventory_keys) - set(discovered_keys)):
+        rel_path, qualname, token = key
+        locator = inventory_keys[key]
+        errors.append(
+            f"inventory row {locator} (qualname={qualname!r}, token={token!r}) "
+            f"has NO live discovered sink (overcount/ghost tripwire): the sink "
+            f"was removed or its content changed. Delete the stale row, or -- if "
+            f"it documents an intentionally-removed / known-false-negative sink -- "
+            f"tag it '{INVENTORY_ONLY_TAG}' in the rationale column, naming the "
+            f"change that removed it."
+        )
+    return errors
+
+
 def _fail(messages: list[str]) -> int:
     print("AUDIT FAILED", file=sys.stderr)
     for msg in messages:
@@ -345,18 +546,9 @@ def _fail(messages: list[str]) -> int:
     return 1
 
 
-def main() -> int:  # noqa: C901 - linear validation block, each check is flat
+def _check_dispositions(inventory_rows: list[dict[str, str]]) -> list[str]:
+    """Check 1: each row carries exactly one valid disposition (SC-003)."""
     errors: list[str] = []
-
-    discovered = discover_rows()
-    discovered_files = {r.rel_path for r in discovered}
-
-    if not INVENTORY_PATH.exists():
-        return _fail([f"inventory.md missing at {INVENTORY_PATH}"])
-
-    inventory_rows = _parse_inventory_rows(INVENTORY_PATH.read_text(encoding="utf-8"))
-
-    # ---- Check 1: every row carries exactly one valid disposition (SC-003). ----
     for row in inventory_rows:
         disp = row["disposition"]
         if disp not in VALID_DISPOSITIONS:
@@ -375,20 +567,14 @@ def main() -> int:  # noqa: C901 - linear validation block, each check is flat
                     f"row {row['locator']!r} classifies named-untrusted "
                     f"{sorted(bare_named)} as trusted-source (SC-003 violation)"
                 )
+    return errors
 
-    # ---- Check 2: count consistency (no silently dropped discovered rows). ----
-    # Every AST-discovered row MUST appear in the inventory by locator key.
-    inventory_keys = {r["locator"] for r in inventory_rows}
-    for sink in discovered:
-        locator = f"{sink.rel_path}:{sink.line}"
-        # Allow either exact line or the documented "see note" composed forms.
-        if not any(locator == k or k.startswith(locator) for k in inventory_keys):
-            errors.append(
-                f"discovered sink {locator} ({sink.sink_op}, src={sink.untrusted_source}) "
-                f"is MISSING from inventory.md (undercount tripwire)"
-            )
 
-    # ---- Check 3: known-candidate presence (anti-undercount tripwire). ----
+def _check_known_candidates(
+    discovered_files: set[str], inventory_rows: list[dict[str, str]]
+) -> list[str]:
+    """Check 3: known-candidate presence (path-level anti-undercount tripwire)."""
+    errors: list[str] = []
     for cand in KNOWN_CANDIDATE_FILES:
         in_discovered = cand in discovered_files
         in_inventory = any(r["locator"].startswith(cand) for r in inventory_rows)
@@ -396,8 +582,12 @@ def main() -> int:  # noqa: C901 - linear validation block, each check is flat
             errors.append(
                 f"known candidate {cand!r} absent from BOTH discovered rows and inventory"
             )
+    return errors
 
-    # ---- Check 4: FR-009 meta.json source present + tagged routed-through-seam (TODO). ----
+
+def _check_fr009(inventory_rows: list[dict[str, str]]) -> list[str]:
+    """Check 4: FR-009 meta.json source present + tagged routed-through-seam (TODO)."""
+    errors: list[str] = []
     fr009_rows = [r for r in inventory_rows if r["locator"].startswith(FR009_META_FILE)]
     if not fr009_rows:
         errors.append(
@@ -409,19 +599,55 @@ def main() -> int:  # noqa: C901 - linear validation block, each check is flat
             f"FR-009 {FR009_META_FILE!r} row(s) must be tagged "
             f"'routed-through-seam (TODO)' (the write-path bypass WP02 fixes)"
         )
+    return errors
 
-    if errors:
-        return _fail(errors)
 
+def _summary(inventory_rows: list[dict[str, str]], discovered_count: int) -> str:
     todo = sum(1 for r in inventory_rows if r["disposition"] == "routed-through-seam (TODO)")
     safe = sum(1 for r in inventory_rows if r["disposition"] == "routed-through-seam")
     trusted = sum(1 for r in inventory_rows if r["disposition"] == "trusted-source")
     unreachable = sum(1 for r in inventory_rows if r["disposition"] == "unreachable")
-    print(
+    inv_only = sum(1 for r in inventory_rows if INVENTORY_ONLY_TAG in r["rationale"])
+    return (
         f"AUDIT OK: {len(inventory_rows)} inventory rows "
-        f"({len(discovered)} AST-discovered); "
+        f"({discovered_count} AST-discovered, {inv_only} inventory-only); "
         f"TODO(fix)={todo} safe={safe} trusted={trusted} unreachable={unreachable}"
     )
+
+
+def main() -> int:
+    errors: list[str] = []
+
+    discovered = discover_rows()
+    discovered_files = {r.rel_path for r in discovered}
+
+    if not INVENTORY_PATH.exists():
+        return _fail([f"inventory.md missing at {INVENTORY_PATH}"])
+
+    inventory_rows = _parse_inventory_rows(INVENTORY_PATH.read_text(encoding="utf-8"))
+
+    # ---- Check 1: valid dispositions + Named-untrusted rule (SC-003). ----
+    errors.extend(_check_dispositions(inventory_rows))
+
+    # ---- Build composite comparison maps (fail-closed on unparseable rows). ----
+    parse_errors, inventory_keys = build_inventory_key_map(inventory_rows)
+    errors.extend(parse_errors)
+    discovered_keys = build_discovered_key_map(discovered)
+
+    # ---- Check 2 (undercount) + Check 2b (overcount/ghost) via PURE seams. ----
+    errors.extend(check_undercount(discovered_keys, inventory_keys))
+    errors.extend(check_overcount(discovered_keys, inventory_keys))
+
+    # ---- Check 3: known-candidate presence (path-level tripwire). ----
+    errors.extend(_check_known_candidates(discovered_files, inventory_rows))
+
+    # ---- Check 4: FR-009 meta.json source present + tagged. ----
+    errors.extend(_check_fr009(inventory_rows))
+
+    if errors:
+        return _fail(errors)
+
+    print(_summary(inventory_rows, len(discovered)))
     return 0
 
 
