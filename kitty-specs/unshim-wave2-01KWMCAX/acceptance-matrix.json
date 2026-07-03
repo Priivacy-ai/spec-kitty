@@ -126,9 +126,9 @@
     },
     {
       "invariant_id": "NI-002",
-      "description": "All five deleted modules are gone: specify_cli.{next,glossary,charter_lint,charter_freshness,charter_preflight} raise ModuleNotFoundError; canonical replacements import.",
+      "description": "All five deleted shim namespaces are gone (find_spec-based: also catches namespace-package resurrection via leftover empty dirs/__pycache__, which a bare import check under-detects).",
       "verification_method": "custom_command",
-      "verification_command": "for m in next glossary charter_lint charter_freshness charter_preflight; do python -c \"import specify_cli.$m\" 2>&1 | grep -q ModuleNotFoundError && echo $m-GONE; done",
+      "verification_command": ".venv/bin/python -c \"import importlib.util as u, sys; missing=[m for m in ['specify_cli.next','specify_cli.glossary','specify_cli.charter_lint','specify_cli.charter_freshness','specify_cli.charter_preflight'] if u.find_spec(m) is not None]; sys.exit('STILL IMPORTABLE: '+','.join(missing) if missing else 0)\"",
       "result": "still_present",
       "evidence": "Command exited 1: "
     },
