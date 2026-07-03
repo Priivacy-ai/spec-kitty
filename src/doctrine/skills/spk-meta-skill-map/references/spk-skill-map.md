@@ -48,7 +48,6 @@ detailed workflows or aliases while new public operating skills use `spk-*`.
 - `spk-team-sync`: hosted/team sync.
 - `spk-team-tracker`: tracker workflows.
 - `spk-team-connectors`: connector integrations.
-- `spk-team-upsun-cli-sync`: point the local CLI at Spec Kitty SaaS on Upsun.
 
 ## Doctrine
 
