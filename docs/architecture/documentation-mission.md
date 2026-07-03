@@ -896,9 +896,9 @@ Mission-specific commands customize behavior:
 For contributors interested in the implementation:
 
 - **Mission configuration**: `src/specify_cli/missions/documentation/mission.yaml`
-- **Gap analysis**: `src/specify_cli/gap_analysis.py`
-- **Generator implementations**: `src/specify_cli/doc_generators.py`
-- **State management**: `src/specify_cli/doc_state.py`
+- **Gap analysis**: `src/specify_cli/doc_analysis/gap_analysis.py`
+- **Generator implementations**: `src/specify_cli/doc_analysis/doc_generators.py`
+- **State management**: `src/specify_cli/doc_analysis/doc_state.py`
 
 These files are in the Spec Kitty source repository.
 

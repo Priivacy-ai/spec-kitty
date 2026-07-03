@@ -273,18 +273,12 @@ _CATEGORY_3_EXTERNAL_CLI_ENTRYPOINTS: frozenset[str] = frozenset(
 # Re-export modules whose docstring starts with
 # ``Backward-compat shim -- canonical home is ...``. Tests pin
 # the re-export contract; the lack of src/ callers is the point.
-_CATEGORY_4_BACKCOMPAT_SHIMS: frozenset[str] = frozenset(
-    {
-        "specify_cli.acceptance_matrix",
-        "specify_cli.core.identity_aliases",
-        "specify_cli.doc_generators",
-        "specify_cli.doc_state",
-        "specify_cli.gap_analysis",
-        "specify_cli.state_contract",
-        "specify_cli.tasks_support",
-        "specify_cli.workspace_context",
-    }
-)
+#
+# Fully drained by unshim-wave1 WP02 (#2289): ``specify_cli.tasks_support``
+# was the last documented back-compat shim; its ~35 test sites were re-anchored
+# onto ``specify_cli.task_utils`` and the module deleted, so this category is now
+# empty (baseline category_4_backcompat_shims: 0).
+_CATEGORY_4_BACKCOMPAT_SHIMS: frozenset[str] = frozenset()
 
 # ---------- 5. WP-in-flight slot-holder adapters ----------
 # Carry the `# adapter:no-logic` marker; reserved for the WP07
@@ -342,24 +336,18 @@ _CATEGORY_6_FROZEN_RUNTIME_REEXPORTS: frozenset[str] = frozenset(
 # glossary.rendering) per DM-01KRX6N0YAFBY7MTJC0CN3D3E4.
 _CATEGORY_7_GRANDFATHERED_ORPHANS: frozenset[str] = frozenset(
     {
-        # TODO(triage): TaskProfile suggestion engine has unit tests
-        # but no integration with `spec-kitty agent tasks`.
-        "specify_cli.task_profile",
-        # TODO(triage): centralized auth transport module covered only
-        # by integration tests; production code paths still construct
-        # transports inline.
+        # unshim-wave1-01KWKVHB (#2292) drained this set 6 -> 2 by deleting
+        # task_profile, sync.replay, sync.tracker_client_glue and
+        # retrospective.lifecycle outright (WP01 T005 executed + WP03 T008).
+        # The two survivors carry documented deferral verdicts:
+        # - auth.transport: DELETE approved by ADR
+        #   docs/adr/3.x/2026-05-18-2-delete-specify-cli-auth-transport.md,
+        #   execution deferred to Robert (HiC C-001 no-touch boundary).
         "specify_cli.auth.transport",
-        # TODO(triage): replay / tracker-glue surfaces exercised only
-        # by their dedicated integration tests; not invoked from any
-        # runtime entry point.
-        "specify_cli.sync.replay",
-        "specify_cli.sync.tracker_client_glue",
-        # TODO(triage): policy.audit append-only log is written by tests
-        # only -- no runtime emission of PolicyAuditEvent objects yet.
+        # - policy.audit: KEEP -> adopt-as-follow-up. Real designed
+        #   governance-evidence seam (append-only policy-audit.jsonl);
+        #   wiring is design work tracked in a follow-up issue, not deleted.
         "specify_cli.policy.audit",
-        # TODO(triage): documented stub awaiting the retrospective
-        # lifecycle terminus runner (WP06 of a future mission).
-        "specify_cli.retrospective.lifecycle",
     }
 )
 

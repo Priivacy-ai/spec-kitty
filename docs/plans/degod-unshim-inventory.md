@@ -2,7 +2,7 @@
 title: Degod / Unshim — 3-Lens Inventory
 description: 'The detailed research catalogs behind the degod/unshim roadmap: the shim/dead-code inventory, the god-object decomposition map, and the #1868 seams-in-name-only catalog.'
 doc_status: active
-updated: '2026-07-01'
+updated: '2026-07-03'
 ---
 # Degod / Unshim — 3-Lens Inventory (research findings)
 
@@ -15,20 +15,22 @@ updated: '2026-07-01'
 Method: caller-tracing rigor (the #2159/`uv_receipt` lesson — a registered shim is NOT necessarily caller-free). Live caller counts via exact-module `git grep`, excluding docstring/`:func:` refs and dead-importing-dead.
 
 ### Removable-now batch (first sweep — zero src callers)
+> ✅ **EXECUTED — mission `unshim-wave1-01KWKVHB` (2026-07-03), #2289.** All 8 `category_4` shims below deleted (7 in WP01, `tasks_support` in WP02) with the ~35 test-import re-anchors; `_CATEGORY_4_BACKCOMPAT_SHIMS` + `_baselines.yaml:category_4_backcompat_shims` drained 8→0. Category fully drained.
+
 The 8 `category_4` backcompat re-export shims, ~135 LOC, deletable today (re-point ~15 test imports; drain `_CATEGORY_4_BACKCOMPAT_SHIMS` + `_baselines.yaml:category_4_backcompat_shims` 8→0):
 
 | shim | LOC | canonical home |
 |---|---|---|
-| `specify_cli.acceptance_matrix` | 13 | `acceptance.matrix` |
-| `specify_cli.core.identity_aliases` | 5 | `identity.aliases` |
-| `specify_cli.doc_generators` | 11 | `doc_analysis.doc_generators` |
-| `specify_cli.doc_state` | 16 | `doc_analysis.doc_state` |
-| `specify_cli.gap_analysis` | 24 | `doc_analysis.gap_analysis` |
-| `specify_cli.state_contract` | 14 | `state.contract` |
-| `specify_cli.tasks_support` | 30 | `task_utils.support` |
-| `specify_cli.workspace_context` | 22 | `workspace.context` |
+| ~~`specify_cli.acceptance_matrix`~~ ✅ | 13 | `acceptance.matrix` |
+| ~~`specify_cli.core.identity_aliases`~~ ✅ | 5 | `identity.aliases` |
+| ~~`specify_cli.doc_generators`~~ ✅ | 11 | `doc_analysis.doc_generators` |
+| ~~`specify_cli.doc_state`~~ ✅ | 16 | `doc_analysis.doc_state` |
+| ~~`specify_cli.gap_analysis`~~ ✅ | 24 | `doc_analysis.gap_analysis` |
+| ~~`specify_cli.state_contract`~~ ✅ | 14 | `state.contract` |
+| ~~`specify_cli.tasks_support`~~ ✅ | 30 | `task_utils.support` |
+| ~~`specify_cli.workspace_context`~~ ✅ | 22 | `workspace.context` |
 
-→ tracked: **#2289**.
+→ tracked: **#2289** — ✅ executed by `unshim-wave1-01KWKVHB`.
 
 ### Version-gated / blocked batch
 | item | LOC | waits on |
@@ -36,8 +38,8 @@ The 8 `category_4` backcompat re-export shims, ~135 LOC, deletable today (re-poi
 | `specify_cli.next` (deprecation shim) | 75 | **3.3.0 (#612)** + re-point **3 LIVE callers** (`workflow.py:1518`, `implement.py:1285`, `next_cmd.py:56` via `.runtime_bridge`) + 49 test files → `runtime.next.runtime_bridge`. **#2291** |
 | `charter_lint` / `charter_freshness` / `charter_preflight` | 107 | C-008 one-cycle + re-point live CLI callers; **no `__deprecated__` marker → invisible to the shim-registry scanner (governance blind spot)**. **#2290** |
 | `specify_cli.glossary` | 55 | 3.3.0 (#613); zero callers. **#2291** |
-| category_7 orphans: `policy.audit`(88), `task_profile`(155), `sync.replay`(357), `sync.tracker_client_glue`(285), `auth.transport`(532), `retrospective.lifecycle`(36) | ~1450 | triage wire/delete/adopt; `auth.transport` gated on #614/#391; `retrospective.lifecycle` imminent post-#2280. **#2292** |
-| `category_b_grandfathered_legacy` dead-symbols | 237 entries | AFTER #2072 CT1 re-key. **#2293** |
+| category_7 orphans (adjudicated by `unshim-wave1-01KWKVHB`, 2026-07-03, #2292): ~~`task_profile`(155)~~ ✅ deleted, ~~`sync.replay`(357)~~ ✅ deleted, ~~`sync.tracker_client_glue`(285)~~ ✅ deleted, ~~`retrospective.lifecycle`(36)~~ ✅ deleted; `policy.audit`(88) KEEP→adopt-as-follow-up; `auth.transport`(532) DOCUMENTED-DELETE deferred to Robert per ADR 2026-05-18-2 (NOT #614/#391 — that attribution was corrected on the issue) | ~1450 | 4 executed → `_CATEGORY_7` 6→2; the 12 category_b symbol rows for the deleted modules drained. **#2292** |
+| `category_b_grandfathered_legacy` dead-symbols | ~~237~~ → 216 entries | Partially drained by `unshim-wave1-01KWKVHB` (#2292): the 12 `sync.replay::*`/`tracker_client_glue::*` rows removed with the module deletions, +1 `frontmatter::update_field` cascade-orphan adopted-as-follow-up. Remaining bulk deferred AFTER #2072 CT1 re-key. **#2293** |
 | `category_6` frozen runtime reexports (emitter/lifecycle/models) | — | **NEVER — permanent frozen public surface, not debt** |
 
 ### "Looks-dead-but-live" traps found
@@ -46,6 +48,8 @@ The 8 `category_4` backcompat re-export shims, ~135 LOC, deletable today (re-poi
 3. **`sync.replay`** — lone "caller" is a Sphinx `:func:` docstring ref, not an import.
 4. **`auth.transport`** — its 1 caller is `sync.tracker_client_glue`, itself a dead orphan (dead-importing-dead).
 5. **`charter_lint`/`charter_freshness`** — real shims with live callers but no `__deprecated__` marker → invisible to registry governance.
+
+> **Wave 1 closeout (`unshim-wave1-01KWKVHB`, 2026-07-03).** Executed #2289 (8 category_4 shims) + #2292 (4 of 6 category_7 orphans deleted; `policy.audit` adopt-as-follow-up; `auth.transport` documented-delete deferred to Robert per ADR 2026-05-18-2). Also folded #2258 (pre-mission governed op: `record_merge`/`finalize_merge` prune, −248 LOC — not catalogued in this Lens-1 table, tracked separately). **New cascade found (falsifies D8's "strands no sibling"):** deleting `task_profile` orphaned `frontmatter::update_field` (its sole src/ caller) — adopted-as-follow-up per C-002. Wave 2 remainder: **#2290** (charter_lint/freshness re-point), **#2291** (`specify_cli.next`/glossary), **#2293** (category_b bulk).
 
 ---
 

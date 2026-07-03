@@ -1349,7 +1349,7 @@ class OfflineQueue:
         :meth:`append` raises :class:`OfflineQueueFull`, the operator
         confirms (or passes ``--auto-drain``) and the entire queue is
         copied to ``.kittify/sync/overflow-<utc-iso>.jsonl`` for later
-        replay via :func:`specify_cli.sync.replay.replay_events`.
+        replay by the offline-queue recovery path.
 
         The drained file is a strict JSONL stream — one JSON event per
         line, sorted by ``(timestamp, id)`` to match the FIFO order
