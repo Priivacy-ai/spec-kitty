@@ -16,7 +16,8 @@ subtasks:
 - T046
 phase: Phase 4 - Closure
 assignee: ''
-agent: claude
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "991308"
 history:
 - at: '2026-07-02T12:53:55Z'
   actor: system
@@ -147,3 +148,11 @@ python -m mypy --strict tests/architectural/test_tasks_domain_gate_visibility.py
 > Append at the END, chronological. Format: `- YYYY-MM-DDTHH:MM:SSZ – agent_id – <action>`
 
 - 2026-07-02T12:53:55Z – system – Prompt created.
+- 2026-07-02T20:13:48Z – claude:fable:python-pedro:implementer – shell_pid=974282 – Assigned agent via action command
+- 2026-07-02T21:05:00Z – claude:fable:python-pedro:implementer – T044: FR-009 marker census generated via the canonical selection model (_gate_coverage): 43 files / 754 tests / ZERO unselected; no marker fixes needed (conftest adds skip-markers only, no selection interference). Artifact: marker-census.md (commit e133615c8).
+- 2026-07-02T21:05:30Z – claude:fable:python-pedro:implementer – T045: tests/architectural/test_tasks_domain_gate_visibility.py added in lane-j (commit 09c4d1d36): baseline-growth assertion (FR-009 glob hardcoded) + synthetic theater test driving the same check function; architectural+fast markers; mypy --strict + ruff clean; 2 passed.
+- 2026-07-02T21:06:00Z – claude:fable:python-pedro:implementer – T046: 2034-refresh-draft.md drafted (NOT posted — orchestrator posts at mission review); issue-matrix.md updated: #2306→fixed (WP05 evidence), #2116 final shim state (1206 LOC, 5 families relocated), #2034 evidence→FR-009 delivered + FR-010 draft ready.
+- 2026-07-02T21:07:00Z – claude:fable:python-pedro:implementer – Validation: architectural trio (gate_visibility + gate_coverage + tasks_command_surface) 32 passed; parity sanity (byte suite + CLI contract + 6 seam suites) 236 passed. WP10 → for_review.
+- 2026-07-02T20:25:18Z – claude:fable:python-pedro:implementer – shell_pid=974282 – T044 census: 43 files/754 tests, ZERO unselected, no marker fixes (marker-census.md, e133615c8). T045 standing assertion tests/architectural/test_tasks_domain_gate_visibility.py (lane 09c4d1d36): baseline-growth prohibition + theater test, mypy --strict + ruff clean. T046 draft 2034-refresh-draft.md (not posted) + issue-matrix: #2306 fixed, #2116/#2034 evidence finalized (4b6fce57a). Validation: architectural trio 32 passed; parity byte+contract+seams 236 passed.
+- 2026-07-02T20:26:23Z – claude:opus:reviewer-renata:reviewer – shell_pid=991308 – Started review via action command
+- 2026-07-02T20:33:30Z – user – shell_pid=991308 – Review passed: census reproduces byte-for-byte via embedded _gate_coverage script (43 files/754 tests/0 unselected, table identical); glob==FR-009 exactly (15 tests-tasks + 26 agent/test_tasks* + 2 architectural, all 9 mission-added files inside); 3 gate exprs verified vs ci-quality.yml; baseline-growth test drives the REAL tasks_domain_orphans fn (real+theater), FR-009 glob hardcoded w/ anti-shrink comment, architectural+fast, in census; baseline 4 orphans none tasks-domain, _gate_coverage_baseline.json untouched by all mission commits (no --update-baseline); draft carries numbers + #2283 3-cause + cause(a) domain-only + #2296/#2297, NOT posted; #2306 fixed (untrusted_path_containment 5 passed), #2116 tasks.py==1206 LOC exact; mypy --strict + ruff clean; lane commit = 1 test file only.

@@ -19,7 +19,8 @@ subtasks:
 - T043
 phase: Phase 4 - Closure
 assignee: ''
-agent: claude
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "953772"
 history:
 - at: '2026-07-02T12:53:55Z'
   actor: system
@@ -158,3 +159,7 @@ python -m mypy --strict src/specify_cli/cli/commands/agent/tasks.py src/specify_
 > Append at the END, chronological. Format: `- YYYY-MM-DDTHH:MM:SSZ – agent_id – <action>`
 
 - 2026-07-02T12:53:55Z – system – Prompt created.
+- 2026-07-02T19:03:13Z – claude:fable:python-pedro:implementer – shell_pid=856859 – Assigned agent via action command
+- 2026-07-02T19:58:22Z – claude:fable:python-pedro:implementer – shell_pid=856859 – Ready for review: T039 sweep tasks.py 1470->1206 (def census = exactly the 9 @app.command wrappers; 12 stragglers relocated to family modules as explicit-as re-export seams); T040 AST 0-inline-dumps gate (4 evasion forms + 4 per-form theater tests + string-immunity; shrink-only 9-file allowlist of pre-existing non-tasks siblings, tasks*.py asserted at 0); T041 shim DELETED (zero-importer census, 8514ee77c); T042 _CEILING=min(1206,1400)=1206 + standing assert _CEILING<=1400; T043 arch suite 610 passed/4 skipped after adjudicating 4 mission-introduced gate drifts (dead-symbol burn-down x2, coord-authority census 9->7 render-seam drain, cross-base green on degod-follow-ups); parity 3014 passed, only known pre-existing REDs (#2307 fr011, sphinx e2e); mypy --strict + ruff clean; tracers appended (a323b68da)
+- 2026-07-02T19:59:40Z – claude:opus:reviewer-renata:reviewer – shell_pid=953772 – Started review via action command
+- 2026-07-02T20:12:45Z – user – shell_pid=953772 – Review passed (reviewer-renata). tasks.py=1206 LOC, def-census EXACTLY the 9 @app.command wrappers; 12 stragglers relocated verbatim-modulo-strict-typing as 'as' re-export seams; seam batteries 230 green; arch suite 610 passed/4 skipped(env); mypy --strict + ruff clean. JUDGMENT A (AST allowlist deviation): HONEST use of gate-contracts.md's own shrink-only exception mechanism, NOT weakening — the 9 allowlisted siblings are genuinely pre-existing (0 mission commits each; dumps sites blame Feb/Jun 2026, pre-mission) and belong to the #2289-#2293 unshim fence; tasks-family surface ships at 0 dumps (verified all 16 tasks*.py); hard tasks*-exclusion assert + shrink-only count ratchet(<=9) + stale-entry eviction ALL adversarially verified to FIRE; theater tests drive the REAL _json_dumps_offenders detector across 4 forms + string-immunity. JUDGMENT B (4 arch-drift adjudications): all ROOT fixes in the shrink direction — 2 dead-symbol burn-downs have genuine live callers via _tasks.<attr> seam (grep-verified); coord-authority baseline 9->7 + WRITE_FLOOR 9->7 are DECREASES (no floor/baseline increase anywhere) matching WP04 render-seam drain, anti-masking margin gate PASSES. FR-008 shim DELETED with reproduced zero-importer census; tracers #12-#15 on canonical degod-follow-ups. FLAG for orchestrator: at mission-accept, FR-007/SC-002 acceptance-matrix evidence should note the whole-glob '0 sites' holds for tasks-family+no-new-sites MODULO 9 quarantined pre-existing non-tasks siblings (#2289-#2293).

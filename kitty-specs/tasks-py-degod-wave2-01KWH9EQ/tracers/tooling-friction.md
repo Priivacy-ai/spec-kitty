@@ -18,4 +18,15 @@
 
 ## New friction (append during implement)
 
-_(none yet)_
+- **WP09**: mypy's transitional-quarantine override list (pyproject) makes
+  verbatim moves OUT of `agent.tasks` fail `--strict` in the destination —
+  the quarantine is per-module, so relocated legacy bodies need typing
+  tightening in the same WP. Budget it in every degod move.
+- **WP09**: the write-indicator token list of the coord-authority census
+  includes `dumps` — routing inline emission through the Render port silently
+  re-classifies write sites as reads, so a render-seam WP drains the census
+  without touching a resolver; the drift only surfaces on the full arch sweep.
+- **WP09**: gate-contract predictions written from the mission's own surface
+  ("empty allowlist") should be validated against the FULL gate scope
+  (directory glob) at plan time — a 2-minute grep would have caught the 9
+  pre-existing sibling offenders before the contract froze the wording.
