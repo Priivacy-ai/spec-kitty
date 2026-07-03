@@ -21,7 +21,8 @@ subtasks:
 - T018
 phase: Phase 1 - Sequential DAG
 assignee: ''
-agent: ''
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "2849766"
 history:
 - at: '2026-07-03T17:18:34Z'
   actor: system
@@ -98,3 +99,7 @@ python -c "import specify_cli.charter_lint" 2>&1 | grep -q ModuleNotFoundError &
 > Append at the END, chronological. Format: `- YYYY-MM-DDTHH:MM:SSZ – agent_id – <action>`
 
 - 2026-07-03T17:18:34Z – system – Prompt created.
+- 2026-07-03T18:08:11Z – claude:opus:python-pedro:implementer – shell_pid=2813357 – Assigned agent via action command
+- 2026-07-03T18:21:32Z – claude:opus:python-pedro:implementer – shell_pid=2813357 – Bug #2324: move-task cited T019-T021 which belong to another WP (not WP06). WP06's own subtasks T016-T018 are all done. Deleted 3 charter shim packages; pre-check clean (only functional residue = WP03-owned test_next_no_implicit_success.py:38/46/49, lands via DAG). Retired lock-gate; 6-row disposition table + re-homed test_canonical_paths_import in tests/architectural/test_charter_runtime_canonical_paths.py. C-005: no charter rows in shim-registry.yaml. charter_activate.py NO-TOUCH (C-002). Gates: arch 637 passed, mypy Success, ruff clean, 3x ModuleNotFoundError confirmed.
+- 2026-07-03T18:22:17Z – claude:opus:reviewer-renata:reviewer – shell_pid=2849766 – Started review via action command
+- 2026-07-03T18:35:22Z – user – shell_pid=2849766 – Review passed (--force solely for bug #2324: gate cited T019-T021 which belong to another WP; WP06's own subtasks T016-T018 are done). Evidence: 3 charter shim packages deleted (ModuleNotFoundError verified for all 3 with worktree PYTHONPATH); 6-row disposition table verified against reality (row 3: test_next_preflight.py/test_implement_preflight.py patch charter_runtime.preflight.hook confirmed; row 4: test_engine.py imports charter_runtime.lint.engine confirmed); test_legacy_charter_paths_are_gone flip-checked RED with stub charter_lint, GREEN after removal; charter_activate.py + test_no_dead_symbols.py:517-518 untouched (git log empty over lane range); no charter rows in shim-registry.yaml; only functional residual = WP03-owned test_next_no_implicit_success.py (exactly 4 errors, all ModuleNotFoundError charter_preflight); arch suite 637 passed/4 skipped; ruff+mypy clean; charter lint/status --help OK

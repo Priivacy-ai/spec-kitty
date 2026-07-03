@@ -2,118 +2,159 @@
   "mission_slug": "unshim-wave2-01KWMCAX",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
       "description": "Verify FR-001 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "WP01 e2ad484ef: 2 plain src imports re-pointed; next_cmd.py seam re-keyed WITH both injectors; consumption proven via captured-dict side-effect; red-first flip run independently by implementer AND reviewer (bogus key -> FAIL, restore -> green); test_selector_resolution.py 29 passed.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:orchestrator (per-WP verification by reviewer-renata, cycle-1 approvals)",
+      "verified_at": "2026-07-03T19:55:00+00:00",
+      "notes": "Seam + injectors moved atomically; fake completed with real MissionNotFoundError (fixture-completeness, test-only)."
     },
     {
       "criterion_id": "FR-002",
       "description": "Verify FR-002 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "WP02 1c51f6733 (tests/next: 18 files, 373 refs, 125 ledgered proofs, 26/26 per-class bogus-attribute flips red) + WP03 5e7ddaab1 (53 files, 218 refs, 38 ledgered proofs + dual-namespace special case). occurrence_map.yaml interception_proof fields 100% populated (0 empty rows). Reviewers ran independent flips at unsampled sites (3 per WP) - all red/green correct.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:orchestrator (per-WP verification by reviewer-renata, cycle-1 approvals)",
+      "verified_at": "2026-07-03T19:55:00+00:00",
+      "notes": "Aliasing verified (shim IS the canonical module object) so bogus-attribute flips are the valid proof form; per-class extrapolation validated at non-first sites."
     },
     {
       "criterion_id": "FR-003",
       "description": "Verify FR-003 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "WP04 6cf0d4e99 (atomic, C-005): src/specify_cli/next/ deleted; import specify_cli.next -> ModuleNotFoundError; spec-kitty next --help exit 0; tests/next+specify_cli/next+runtime/next 717 passed post-deletion (proves re-points real); census-gap straggler (test_import_paths.py importlib sub-test) converted to absence pin in same commit.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:orchestrator (per-WP verification by reviewer-renata, cycle-1 approvals)",
+      "verified_at": "2026-07-03T19:55:00+00:00",
+      "notes": "Reviewer flip-checked the absence pin with a stub shim resurrection (RED) and removal (green)."
     },
     {
       "criterion_id": "FR-004",
       "description": "Verify FR-004 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "Same atomic commit 6cf0d4e99: src/specify_cli/glossary/ deleted + tests/glossary/test_legacy_import_shim.py removed; import specify_cli.glossary -> ModuleNotFoundError; shim-registry.yaml drained to shims:[]; test_shim_registry_schema.py presence-asserts converted to absence pins - reviewer flip-checked by re-adding a registry row (RED) and reverting (38 passed).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:orchestrator (per-WP verification by reviewer-renata, cycle-1 approvals)",
+      "verified_at": "2026-07-03T19:55:00+00:00",
+      "notes": "Registry empty-state still schema-validates."
     },
     {
       "criterion_id": "FR-005",
       "description": "Verify FR-005 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "WP05 76799e749: charter/lint.py:45,93 + charter/status.py:55 + the runner.py:36+:41 canonical->legacy DEFECT re-pointed to charter_runtime.*; object-identity of all 5 symbol classes verified (zero behavior change); 5 CI-only shards run locally: 32 passed.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:orchestrator (per-WP verification by reviewer-renata, cycle-1 approvals)",
+      "verified_at": "2026-07-03T19:55:00+00:00",
+      "notes": "Reviewer ran 3 independent red-first flips at sites outside the implementer's 7 samples; all resolved from canonical charter_runtime modules."
     },
     {
       "criterion_id": "FR-006",
       "description": "Verify FR-006 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "WP05 (20 test files, 32 ledgered proofs) + WP06 d435ad6a1 (charter_lint/charter_freshness/charter_preflight deleted; all 3 ModuleNotFoundError; lock-gate test_charter_runtime_shim_paths.py retired with 6-row per-test disposition table; test_canonical_paths_import re-homed to test_charter_runtime_canonical_paths.py + new test_legacy_charter_paths_are_gone negative lock, stub-flip-checked RED/green).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:orchestrator (per-WP verification by reviewer-renata, cycle-1 approvals)",
+      "verified_at": "2026-07-03T19:55:00+00:00",
+      "notes": "Every disposition row's claimed surviving coverage verified to exist by the reviewer."
     },
     {
       "criterion_id": "FR-007",
       "description": "Verify FR-007 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "charter_activate.py settled CANONICAL (246-LOC substantive module; adjudication recorded in WP06 commit body per C-002 no-live-code-edits); git log confirms zero edits to charter_activate.py and zero edits to test_no_dead_symbols.py:517-518 rows (reviewer-verified both).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:orchestrator (per-WP verification by reviewer-renata, cycle-1 approvals)",
+      "verified_at": "2026-07-03T19:55:00+00:00",
+      "notes": "Document-and-exclude disposition per research D5."
     },
     {
       "criterion_id": "FR-008",
       "description": "Verify FR-008 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "WP07 0e3d64e60: update_field triad deleted with zero-external-caller evidence (git grep pre-deletion state empty outside frontmatter.py); :235 allowlist row drained; category_b re-derived HONEST 216->215 (reviewer independently imported the frozenset and confirmed len=215 == baseline); live plural update_fields intact (8 refs).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:orchestrator (per-WP verification by reviewer-renata, cycle-1 approvals)",
+      "verified_at": "2026-07-03T19:55:00+00:00",
+      "notes": "NFR-004 honest-live-count discipline; delta fully explained (exactly the drained row)."
     },
     {
       "criterion_id": "FR-009",
       "description": "Verify FR-009 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "WP08 0f3a16877: mission_runtime outbound LayerRule with 9-subpackage allowed-exception ledger (AST-derived from live source; reviewer re-derived and matched exactly - no padding, no gaps) + committed CI-selected negative test + shrink-only stale-entry guard. Reviewer ran 3 flips: matcher-neutralize (RED), real out-of-ledger edge injection (RED), padding entry (RED).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:orchestrator (per-WP verification by reviewer-renata, cycle-1 approvals)",
+      "verified_at": "2026-07-03T19:55:00+00:00",
+      "notes": "#2327 WS1; markers CI-selected per pytest.ini:45 + ci-quality.yml architectural shard (NFR-005/#2034)."
     },
     {
       "criterion_id": "FR-010",
       "description": "Verify FR-010 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "WP09 2e0289e60: roadmap Wave-2 rows struck (EXECUTED + WS1 DONE); schema.py:22 comment repointed; tracker closeout comments posted and reviewer-verified to exist: #1797 (issuecomment-4878911446), #2293 prerequisite note (4878911511), #2327 evidence (4878911580); no issue hand-closed (all verified OPEN; PR body closes #2291/#2290/#2326).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:orchestrator (per-WP verification by reviewer-renata, cycle-1 approvals)",
+      "verified_at": "2026-07-03T19:55:00+00:00",
+      "notes": "#612/#613 referenced only, never re-closed."
     },
     {
       "criterion_id": "FR-011",
       "description": "Verify FR-011 is satisfied",
       "proof_type": "automated_test",
-      "evidence": null,
-      "pass_fail": "pending",
-      "verified_by": null,
-      "verified_at": null,
-      "notes": "TODO: replace with a real acceptance criterion"
+      "evidence": "WP09: 05_ownership_manifest.yaml + 05_ownership_map.md scrubbed (shims:[] with deletion provenance; manifest-map consistency test 9 passed); CHANGELOG breaking-removal entry in canonical docs/changelog/CHANGELOG.md + regenerated root mirror (sync test 8 passed); NO version bump - git log of src/specify_cli/__init__.py across the mission empty, pyproject 3.2.4 unchanged (reviewer-verified).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:orchestrator (per-WP verification by reviewer-renata, cycle-1 approvals)",
+      "verified_at": "2026-07-03T19:55:00+00:00",
+      "notes": "Terminology guard 3 passed on the prose edits."
     }
   ],
-  "negative_invariants": []
+  "negative_invariants": [
+    {
+      "invariant_id": "NI-001",
+      "description": "No import of any deleted shim namespace remains anywhere in src/ or tests/ (NFR-002).",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -rnE \"(from|import)\\\\s+specify_cli\\\\.(next|glossary|charter_lint|charter_freshness|charter_preflight)\\\\b\" src/ tests/",
+      "result": "confirmed_absent",
+      "evidence": "expected: empty (exit 1) | observed: empty (exit 1) \u2014 verified by WP09 implementer and reviewer independently | verified_by: claude:opus:orchestrator (per-WP verification by reviewer-renata, cycle-1 approvals) at 2026-07-03T19:55:00+00:00"
+    },
+    {
+      "invariant_id": "NI-002",
+      "description": "All five deleted modules are gone: specify_cli.{next,glossary,charter_lint,charter_freshness,charter_preflight} raise ModuleNotFoundError; canonical replacements import.",
+      "verification_method": "custom_command",
+      "verification_command": "for m in next glossary charter_lint charter_freshness charter_preflight; do python -c \"import specify_cli.$m\" 2>&1 | grep -q ModuleNotFoundError && echo $m-GONE; done",
+      "result": "confirmed_absent",
+      "evidence": "expected: 5x GONE | observed: 5x GONE (WP09 closing sweep + reviewer re-run) | verified_by: claude:opus:orchestrator (per-WP verification by reviewer-renata, cycle-1 approvals) at 2026-07-03T19:55:00+00:00"
+    },
+    {
+      "invariant_id": "NI-003",
+      "description": "Registry stays drained: absence pins red if a specify_cli.next or specify_cli.glossary row reappears in docs/migrations/shim-registry.yaml.",
+      "verification_method": "custom_command",
+      "verification_command": "PWHEADLESS=1 pytest tests/architectural/test_shim_registry_schema.py -q",
+      "result": "confirmed_absent",
+      "evidence": "expected: green; flip-verified non-vacuous | observed: 38 passed; reviewer re-added a row -> RED, reverted -> green | verified_by: claude:opus:orchestrator (per-WP verification by reviewer-renata, cycle-1 approvals) at 2026-07-03T19:55:00+00:00"
+    },
+    {
+      "invariant_id": "NI-004",
+      "description": "mission_runtime outbound boundary holds: out-of-ledger upward imports red; ledger is shrink-only non-stale.",
+      "verification_method": "custom_command",
+      "verification_command": "PWHEADLESS=1 pytest tests/architectural/test_layer_rules.py -q",
+      "result": "confirmed_absent",
+      "evidence": "expected: green incl. committed negative test | observed: 16 passed; 3 reviewer flips all RED correctly | verified_by: claude:opus:orchestrator (per-WP verification by reviewer-renata, cycle-1 approvals) at 2026-07-03T19:55:00+00:00"
+    },
+    {
+      "invariant_id": "NI-005",
+      "description": "No version bump rides the mission: src/specify_cli/__init__.py untouched relative to the mission base.",
+      "verification_method": "custom_command",
+      "verification_command": "git log $(git merge-base upstream/main HEAD)..HEAD --oneline -- src/specify_cli/__init__.py",
+      "result": "confirmed_absent",
+      "evidence": "expected: empty | observed: empty (reviewer-verified; pyproject 3.2.4 unchanged) | verified_by: claude:opus:orchestrator (per-WP verification by reviewer-renata, cycle-1 approvals) at 2026-07-03T19:55:00+00:00"
+    }
+  ]
 }

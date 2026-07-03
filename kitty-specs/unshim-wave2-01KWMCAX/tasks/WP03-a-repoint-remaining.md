@@ -20,7 +20,8 @@ subtasks:
 - T009
 phase: Phase 1 - Sequential DAG
 assignee: ''
-agent: ''
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "2855505"
 history:
 - at: '2026-07-03T17:18:34Z'
   actor: system
@@ -155,3 +156,7 @@ grep -rln "specify_cli.next" tests/ | grep -v tests/next/ || echo CLEAN
 > Append at the END, chronological. Format: `- YYYY-MM-DDTHH:MM:SSZ – agent_id – <action>`
 
 - 2026-07-03T17:18:34Z – system – Prompt created.
+- 2026-07-03T18:04:54Z – claude:opus:python-pedro:implementer – shell_pid=2802116 – Assigned agent via action command
+- 2026-07-03T18:22:55Z – claude:opus:python-pedro:implementer – shell_pid=2802116 – [--force per bug #2324: rejection cited T010-T012 which belong to OTHER WPs, not WP03; WP03's own subtasks T007-T009 are all done] Re-pointed 53 files (173 plain refs) specify_cli.next->runtime.next + special-case dual-namespace file test_next_no_implicit_success.py (charter :38 import + :46/:49 setattr -> specify_cli.charter_runtime.preflight). 41 proof rows (36 next patch + 2 next setattr + 2 charter setattr + 1 charter import) in /tmp/wave2-proofs-WP03.yaml. 4 red-first flips across all target modules (runtime_bridge.query_current_state, prompt_builder.build_charter_context, _internal_runtime.planner.plan_next, charter hook.run_preflight_or_abort): each bogus->AttributeError->FAIL/ERROR->restored->green. Special-case in-file literal grep = 0 CLEAN. Residual specify_cli.next across 53 files = CLEAN. Gates: all owned suites green incl CI-only special file; arch shim gates 44 passed; diff-scoped ruff exit 0; mypy Success (1058 files).
+- 2026-07-03T18:23:39Z – claude:opus:reviewer-renata:reviewer – shell_pid=2855505 – Started review via action command
+- 2026-07-03T18:32:18Z – user – shell_pid=2855505 – Review passed (reviewer-renata); --force per bug #2324: gate cited T010-T012 which are NOT WP03's subtasks (WP03 owns T007-T009 per frontmatter). Pure specify_cli.next->runtime.next repoint, 53 files, 221ins==221del all module-path tokens (word-diff clean, zero assertion changes DIR-041). Special-case dual-namespace file test_next_no_implicit_success.py: in-file fixed-grep for specify_cli.charter_preflight/lint/freshness/next all EMPTY; :38/:46/:49 target specify_cli.charter_runtime.preflight.* and all 3 attrs exist on canonical module. Own red-first flips: :49 run_preflight_for_dashboard(impl did NOT flip)->4 ERRORs; test_runtime_bridge_composition.py:997 _advance_run_state_after_composition(outside impl's 4 classes)->5 FAILs; both restored green. Residual sweep zero across all 53 (multi-line -z); 3 ledger spot-checks match file+live symbol. Cross-lane clean: no src/, no kitty-specs/, no test_selector_resolution.py, no tests/next/. Gates: special 4 passed, arch pair 44 passed, sample batch 73 passed, ruff clean.
