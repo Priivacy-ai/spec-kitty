@@ -67,12 +67,12 @@ missions linearize shared surfaces; parallel lanes would collide on the god-file
 **Independent test**: byte-freeze suite green against the untouched tree; LOC gate red on a synthetic over-ceiling source.
 **Dependencies**: none.
 
-- [ ] T001 Pin venv to uv.lock; verify typer version (WP01)
-- [ ] T002 Identify/prepare production-shaped fixture scenarios per emission site (WP01)
-- [ ] T003 Author byte_contracts.json — 12 compact cases (WP01)
-- [ ] T004 Add status indent=2 byte case (WP01)
-- [ ] T005 Write test_tasks_json_bytes.py (WP01)
-- [ ] T006 Land LOC ceiling gate @4569 + self-mutation proof (WP01)
+- [x] T001 Pin venv to uv.lock; verify typer version (WP01)
+- [x] T002 Identify/prepare production-shaped fixture scenarios per emission site (WP01)
+- [x] T003 Author byte_contracts.json — 12 compact cases (WP01)
+- [x] T004 Add status indent=2 byte case (WP01)
+- [x] T005 Write test_tasks_json_bytes.py (WP01)
+- [x] T006 Land LOC ceiling gate @4569 + self-mutation proof (WP01)
 
 ## Phase 2 — Foundations (seam bridge + adapters + render seam)
 
@@ -82,12 +82,12 @@ missions linearize shared surfaces; parallel lanes would collide on the god-file
 **Independent test**: parity guard green; interception tests prove patches still bite; mypy strict clean on src+tests together.
 **Dependencies**: WP01.
 
-- [ ] T007 Enumerate definitive shared-helper move-set (WP02)
-- [ ] T008 Create tasks_shared.py with lazy routing (WP02)
-- [ ] T009 tasks.py module bindings (WP02)
-- [ ] T010 Seam interception tests (WP02)
-- [ ] T011 mypy strict folds in test_tasks.py (WP02)
-- [ ] T012 Parity guard + ceiling ratchet (WP02)
+- [x] T007 Enumerate definitive shared-helper move-set (WP02)
+- [x] T008 Create tasks_shared.py with lazy routing (WP02)
+- [x] T009 tasks.py module bindings (WP02)
+- [x] T010 Seam interception tests (WP02)
+- [x] T011 mypy strict folds in test_tasks.py (WP02)
+- [x] T012 Parity guard + ceiling ratchet (WP02)
 
 ### WP03 — Adapters module
 
@@ -95,9 +95,9 @@ missions linearize shared surfaces; parallel lanes would collide on the god-file
 **Independent test**: coord harness green; no import cycle (module imports cleanly in isolation).
 **Dependencies**: WP02.
 
-- [ ] T013 Create tasks_command_adapters.py (WP03)
-- [ ] T014 tasks.py bindings + adapter seam checklist (WP03)
-- [ ] T015 Parity guard + coord harness + ceiling ratchet (WP03)
+- [x] T013 Create tasks_command_adapters.py (WP03)
+- [x] T014 tasks.py bindings + adapter seam checklist (WP03)
+- [x] T015 Parity guard + coord harness + ceiling ratchet (WP03)
 
 ### WP04 — Render seam unification
 
@@ -105,11 +105,11 @@ missions linearize shared surfaces; parallel lanes would collide on the god-file
 **Independent test**: 13/13 byte-freeze cases green through the swap; `_StatusRender` gone.
 **Dependencies**: WP03.
 
-- [ ] T016 RealRender constructor indent param (WP04)
-- [ ] T017 Delete _StatusRender (WP04)
-- [ ] T018 Route the 3 shared-helper emission sites (WP04)
-- [ ] T019 Route the remaining 9 compact sites (WP04)
-- [ ] T020 Parity guard + ceiling ratchet (WP04)
+- [x] T016 RealRender constructor indent param (WP04)
+- [x] T017 Delete _StatusRender (WP04)
+- [x] T018 Route the 3 shared-helper emission sites (WP04)
+- [x] T019 Route the remaining 9 compact sites (WP04)
+- [x] T020 Parity guard + ceiling ratchet (WP04)
 
 ## Phase 3 — Family relocations (one family per WP, ratchet re-point in the same WP)
 
@@ -119,12 +119,12 @@ missions linearize shared surfaces; parallel lanes would collide on the god-file
 **Independent test**: coord-harness skip-arm case (harness label T004: skip-exit-0 + wrong-leg detector) green; inventory gate green; parity green.
 **Dependencies**: WP04.
 
-- [ ] T021 #2306 pre-fix: inventory.md 1325→1326 (WP05)
-- [ ] T022 Create tasks_move_task.py (WP05)
-- [ ] T023 Thin wrapper; update inventory.md row (WP05)
-- [ ] T024 Ratchet re-point: move_task (WP05)
-- [ ] T025 Seam checklist + interception; coord skip-arm case green (WP05)
-- [ ] T026 Parity guard + targeted surface + ceiling ratchet (WP05)
+- [x] T021 #2306 pre-fix: inventory.md 1325→1326 (WP05)
+- [x] T022 Create tasks_move_task.py (WP05)
+- [x] T023 Thin wrapper; update inventory.md row (WP05)
+- [x] T024 Ratchet re-point: move_task (WP05)
+- [x] T025 Seam checklist + interception; coord skip-arm case green (WP05)
+- [x] T026 Parity guard + targeted surface + ceiling ratchet (WP05)
 
 ### WP06 — map_requirements family relocation
 
@@ -132,10 +132,10 @@ missions linearize shared surfaces; parallel lanes would collide on the god-file
 **Independent test**: coord-harness refuse-arm case (harness label T005: refuse-exit-1) green; parity green.
 **Dependencies**: WP05.
 
-- [ ] T027 Create tasks_map_requirements.py (WP06)
-- [ ] T028 Thin wrapper + bindings (WP06)
-- [ ] T029 Ratchet re-point + coord refuse-arm case green (WP06)
-- [ ] T030 Parity guard + seam checklist + ceiling ratchet (WP06)
+- [x] T027 Create tasks_map_requirements.py (WP06)
+- [x] T028 Thin wrapper + bindings (WP06)
+- [x] T029 Ratchet re-point + coord refuse-arm case green (WP06)
+- [x] T030 Parity guard + seam checklist + ceiling ratchet (WP06)
 
 ### WP07 — status family relocation
 
@@ -143,10 +143,10 @@ missions linearize shared surfaces; parallel lanes would collide on the god-file
 **Independent test**: status byte case (indent=2) green; ratchet re-pointed; parity green.
 **Dependencies**: WP06.
 
-- [ ] T031 Create tasks_status_cmd.py (WP07)
-- [ ] T032 Thin wrapper + bindings (WP07)
-- [ ] T033 Ratchet re-point: status (WP07)
-- [ ] T034 Parity guard + ceiling ratchet (WP07)
+- [x] T031 Create tasks_status_cmd.py (WP07)
+- [x] T032 Thin wrapper + bindings (WP07)
+- [x] T033 Ratchet re-point: status (WP07)
+- [x] T034 Parity guard + ceiling ratchet (WP07)
 
 ### WP08 — mark_status + finalize families relocation
 
@@ -154,10 +154,10 @@ missions linearize shared surfaces; parallel lanes would collide on the god-file
 **Independent test**: coord refuse-arm case green for mark_status; parity green.
 **Dependencies**: WP07.
 
-- [ ] T035 Create tasks_mark_status.py (WP08)
-- [ ] T036 Create tasks_finalize.py (WP08)
-- [ ] T037 Thin both wrappers + bindings (WP08)
-- [ ] T038 Parity guard + seam checklists + ceiling ratchet (WP08)
+- [x] T035 Create tasks_mark_status.py (WP08)
+- [x] T036 Create tasks_finalize.py (WP08)
+- [x] T037 Thin both wrappers + bindings (WP08)
+- [x] T038 Parity guard + seam checklists + ceiling ratchet (WP08)
 
 ## Phase 4 — Closure
 
@@ -167,11 +167,11 @@ missions linearize shared surfaces; parallel lanes would collide on the god-file
 **Independent test**: both gates green AND each red on synthetic violations; final LOC recorded with delta rationale.
 **Dependencies**: WP08.
 
-- [ ] T039 Final tasks.py registration-shim sweep (WP09)
-- [ ] T040 AST 0-inline-dumps gate + theater tests (WP09)
-- [ ] T041 tasks_ports.py shim disposition (WP09)
-- [ ] T042 Final LOC ceiling + delta rationale (WP09)
-- [ ] T043 Full parity + arch gates + tracer close-out (WP09)
+- [x] T039 Final tasks.py registration-shim sweep (WP09)
+- [x] T040 AST 0-inline-dumps gate + theater tests (WP09)
+- [x] T041 tasks_ports.py shim disposition (WP09)
+- [x] T042 Final LOC ceiling + delta rationale (WP09)
+- [x] T043 Full parity + arch gates + tracer close-out (WP09)
 
 ### WP10 — Boyscout: marker census + #2034 refresh
 
@@ -179,9 +179,9 @@ missions linearize shared surfaces; parallel lanes would collide on the god-file
 **Independent test**: census artifact lists every glob-matching file with its gate; orphan baseline contains no tasks-domain path.
 **Dependencies**: WP09.
 
-- [ ] T044 Marker-census artifact (WP10)
-- [ ] T045 Baseline-growth assertion (WP10)
-- [ ] T046 Draft final #2034 comment + issue-matrix verdicts (WP10)
+- [x] T044 Marker-census artifact (WP10)
+- [x] T045 Baseline-growth assertion (WP10)
+- [x] T046 Draft final #2034 comment + issue-matrix verdicts (WP10)
 
 ## Dependency graph (linear — shared-surface refactor)
 

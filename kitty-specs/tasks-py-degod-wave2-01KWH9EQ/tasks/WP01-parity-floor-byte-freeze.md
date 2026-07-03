@@ -18,7 +18,8 @@ subtasks:
 - T006
 phase: Phase 1 - Foundation (parity floor)
 assignee: ''
-agent: claude
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "297729"
 history:
 - at: '2026-07-02T12:53:55Z'
   actor: system
@@ -176,3 +177,10 @@ ruff check tests/specify_cli/cli/commands/agent/test_tasks_json_bytes.py tests/a
 > **CRITICAL**: Activity log entries MUST be in chronological order (oldest first, newest last). Append at the END. Format: `- YYYY-MM-DDTHH:MM:SSZ – agent_id – <action>`
 
 - 2026-07-02T12:53:55Z – system – Prompt created.
+- 2026-07-02T13:38:05Z – claude:fable:python-pedro:implementer – shell_pid=268505 – Assigned agent via action command
+- 2026-07-02T13:54:38Z – claude:fable:python-pedro:implementer – shell_pid=268505 – Ready for review: 13/13 byte cases (coverage-verified site execution, 2-pass deterministic freeze) + LOC gate @4569 w/ self-mutation proof + live red-fire demo; mypy --strict clean (new tests + tasks.py), ruff clean (diff-scoped sweep exit 0); git diff src/ empty
+- 2026-07-02T13:57:00Z – claude:fable:python-pedro:implementer – shell_pid=268505 – T001: venv verified against uv.lock, NO drift — typer 0.24.2, rich 15.0.0, click 8.3.3 (installed == uv.lock); safe to freeze fixtures. `uv sync --frozen` not run (primary-checkout venv not this WP's to mutate); versions verified via importlib.metadata instead.
+- 2026-07-02T13:58:00Z – claude:fable:python-pedro:implementer – shell_pid=268505 – T002–T004: all 13 D3 sites reached via the PUBLIC CLI (in-process CliRunner + tests/mocked_env.setup_mocked_env; ZERO helper-level capsys deviations needed). Fixture mission production-shaped: slug checkout-latency-audit-01KWG4RZ, mission_id 01KWG4RZ8Q3TCEH2M5N7P9RSTV (valid 26-char Crockford ULID), WP01/WP02 with real spec/tasks content. Freeze script ran each case under coverage.py (include=tasks.py) asserting the target emission line executed, ran the WHOLE freeze twice and diffed (byte-identical) before writing byte_contracts.json. Determinism deviation (documented in-suite): list-tasks embeds str(task_file) absolute paths — tmp root normalized to `<TMP>` placeholder at freeze AND assert time (the only stdout transformation). Parity notes frozen as-is: list-dependents emits "depends_on": ["[]"] (extract_scalar quirk on empty YAML list) and status by_lane shows `genesis` for event-less WPs — current-tree behavior, pinned not fixed (parity floor).
+- 2026-07-02T13:59:00Z – claude:fable:python-pedro:implementer – shell_pid=268505 – T005–T006: test_tasks_json_bytes.py (pytestmark = pytest.mark.fast, matching sibling contract test exactly) asserts full-stdout byte equality + exit codes for all 13 cases plus a 13-count/keying completeness test; zero len()==N patterns (CT5). tests/architectural/test_tasks_command_surface.py (pytestmark = [architectural, fast]) lands Gate 2: _loc_of extracted check, _CEILING=4569, ratchet-down protocol comment citing FR-011 (min(achieved,1400); >1400 = blocked + operator escalation), WP09 Gate-1 placeholder comment, self-mutation theater test (_CEILING+1 synthetic source fires) + exact-boundary test + target-exists sanity. Live red-fire demo: ceiling temporarily 4568 → gate FAILED with the gate-contracts remediation message (4569 <= 4568), restored. Validation: 45/45 targeted suite green (14 byte + 4 gate + 27 sibling contract, unmodified fixtures); marker gates green (convention+correctness+census, 9 passed); mypy --strict on both new files + src tasks.py together: Success, 0 issues; ruff diff-scoped sweep exit 0. Commit 3f89130bf on lane-a (tests-only; git diff src/ empty).
+- 2026-07-02T13:57:12Z – claude:opus:reviewer-renata:reviewer – shell_pid=297729 – Started review via action command
+- 2026-07-02T14:04:10Z – user – shell_pid=297729 – Review passed (reviewer-renata, opus): 8/8 criteria; 45 tests + live red-fire of the LOC gate verified by the reviewer; approval recorded by orchestrator after fixing the unrelated issue-matrix Gate-4 hygiene gap

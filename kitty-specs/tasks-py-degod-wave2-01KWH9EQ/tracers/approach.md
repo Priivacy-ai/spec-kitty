@@ -20,4 +20,18 @@
 
 ## Deviations / discoveries (append during implement)
 
-_(none yet)_
+- **WP09 (2026-07-02)**: the "empty allowlist at ship time" prediction in
+  gate-contracts.md Gate 1 did not survive contact with the whole-directory
+  glob — 9 pre-existing non-tasks siblings carry inline dumps (out-of-scope,
+  #2289–#2293 surface). Shipped the gate with the contract's shrink-only
+  exception mechanism instead of narrowing the glob or rewriting out-of-scope
+  files; `tasks*.py` at 0 sites is asserted directly (SC-002 for the mission's
+  remit). Relocation cost of the final sweep: ~300 body lines moved, +~45
+  re-export/rationale lines; 4 seam-census move-sets re-pinned; 3 relocated
+  bodies needed strict-typing tightening (their old homes were on the mypy
+  transitional quarantine list — the family modules are not).
+- **WP09**: per-WP targeted suites let 4 mission-introduced arch-gate REDs
+  accumulate silently (dead-symbol burn-down obligations + coord-authority
+  write-census drift from WP04's render-seam change). The closure WP's full
+  `tests/architectural/` sweep caught them; adjudicated at root (drain/re-pin,
+  shrink-only) with cross-base green proof on degod-follow-ups.
