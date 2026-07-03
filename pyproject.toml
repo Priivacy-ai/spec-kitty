@@ -437,13 +437,11 @@ also_copy = [
     "src/charter/",          # Copy charter package
     "src/specify_cli/status/",  # Copy status module for status transitions
     "src/glossary/",          # Copy canonical glossary package
-    "src/specify_cli/glossary/",  # Copy deprecated glossary shim
     "src/specify_cli/cli/",   # Copy CLI commands
     "src/specify_cli/agent_utils/",  # Copy agent utilities
     "src/specify_cli/git/",  # Copy git utilities
     "src/specify_cli/sync/",  # Copy sync module
     "src/runtime/next/",  # Copy canonical next runtime module
-    "src/specify_cli/next/",  # Copy deprecated next shim
     "src/specify_cli/validators/",  # Copy validators
     "src/specify_cli/template/",  # Copy template utilities
     "src/specify_cli/charter/",       # Copy charter

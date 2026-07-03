@@ -20,7 +20,7 @@ purpose: >
   This is the codebase's accepted way of dealing with stacks of related but
   independent rules — validators, classifiers, canonicalizers, scorers, audit
   detectors. The shape recurs in `src/specify_cli/audit/`,
-  `src/specify_cli/charter_lint/checks/`, `src/specify_cli/migration/`, and
+  `src/specify_cli/charter_runtime/lint/checks/`, `src/specify_cli/migration/`, and
   `src/doctrine/agent_profiles/repository.py` (DDR-011 scoring). New code that
   composes 4+ independent decisions over the same input should reach for this
   pattern by default.
@@ -144,7 +144,7 @@ notes: >
   accumulates with `findings.extend(rule(...))`; order is usually free; no
   short-circuit on first failure (the goal is to surface every issue).
   Examples in tree: `src/specify_cli/audit/detectors.py`,
-  `src/specify_cli/audit/classifiers/*`, `src/specify_cli/charter_lint/checks/*`.
+  `src/specify_cli/audit/classifiers/*`, `src/specify_cli/charter_runtime/lint/checks/*`.
   Reuse `MissionFinding` / `LintFinding`; do not introduce a third finding
   type unless it carries genuinely new fields.
 

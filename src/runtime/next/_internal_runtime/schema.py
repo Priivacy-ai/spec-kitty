@@ -19,9 +19,10 @@ from spec_kitty_events.mission_next import RuntimeActorIdentity
 # specify_cli), so importing ``specify_cli.core.*`` here is allowed and
 # matches sibling modules (e.g. ``planner.py`` imports
 # ``specify_cli.core.constants``). The runtime/CLI-presentation boundary
-# only forbids ``specify_cli.cli`` imports. (The former ``specify_cli.next``
-# re-export shim was deleted by mission unshim-wave2-01KWMCAX; its canonical
-# home is ``runtime.next``.)
+# forbids ``specify_cli.cli`` imports and retains ``specify_cli.next`` in its
+# forbidden prefixes as a belt-and-suspenders guard: that re-export shim was
+# deleted by mission unshim-wave2-01KWMCAX (canonical home ``runtime.next``),
+# so the prefix also blocks any re-created package.
 from specify_cli.core.errors import StructuredError
 
 

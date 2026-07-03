@@ -42,12 +42,17 @@ related:
 
 **Worked example — Glossary extraction (mission #613)**:
 
+> **Historical snapshot** — this example describes the glossary extraction as mission #613
+> shipped it. The shim it mentions was since REMOVED by mission unshim-wave2-01KWMCAX
+> (2026-07-03); the live state is the slice table below (`shims: []`). The example stays as
+> a walkthrough of filling the fields, not as a description of the current tree.
+
 - `current_state`: `src/glossary/`.
 - `canonical_package`: `src/glossary/`.
 - `adapter_responsibilities`: CLI argument parsing and Rich rendering for `spec-kitty glossary *` commands stays in `src/specify_cli/cli/commands/glossary.py`.
-- `shims`: one registered shim at `src/specify_cli/glossary/__init__.py` with `canonical_import: glossary`, `removal_release: 3.3.0`.
+- `shims`: one registered shim at `src/specify_cli/glossary/__init__.py` with `canonical_import: glossary`, `removal_release: 3.3.0` *(historical; shim since removed — see slice table)*.
 - `seams`: doctrine registers a glossary runner via `kernel.glossary_runner.register()`; mission execution reads via `get_runner()` (resolved by ADR `2026-03-25-1`).
-- `extraction_sequencing_notes`: extracted by mission #613; keep the shim registered until its removal target.
+- `extraction_sequencing_notes`: extracted by mission #613; keep the shim registered until its removal target *(executed: removed by unshim-wave2-01KWMCAX)*.
 - PR moved canonical modules to `src/glossary/`, added the shim, and ticked every field off in the PR description.
 
 ---
