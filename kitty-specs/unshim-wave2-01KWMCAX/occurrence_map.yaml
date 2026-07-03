@@ -1,0 +1,1638 @@
+target:
+  term: specify_cli.next
+  replacement: runtime.next
+  operation: rename
+categories:
+  code_symbols:
+    action: do_not_change
+    note: No runtime symbol is renamed. specify_cli.next/glossary/charter_* re-export the SAME objects as their canonical modules (shared object
+      identity); the change is purely the import path. Renaming any symbol is out of scope.
+  import_paths:
+    action: rename
+    note: Plain `from <legacy> import X` / `import <legacy>` statements re-point 1:1 to the canonical namespace. Mechanical + loud-on-error (a
+      wrong re-point fails at collection). Patch-STRING targets are classified under tests_fixtures (they carry per-site interception proofs);
+      this category covers real import stmts.
+    plain_import_totals:
+      specify_cli_next:
+        statements: 416
+        import_module_string: 1
+        total_refs: 417
+        test_files: 70
+      specify_cli_glossary:
+        test_statements: 0
+        src_callers: 0
+        note: husk husk-only; sole importer is the shim self-test which is DELETED, not re-pointed
+      charter_legacy:
+        test_statements: 37
+        test_files: 19
+    src_callers:
+      specify_cli_next:
+      - file: src/specify_cli/cli/commands/implement.py
+        line: 1285
+        kind: plain_import
+        new_target: runtime.next.runtime_bridge
+      - file: src/specify_cli/cli/commands/agent/workflow.py
+        line: 1518
+        kind: plain_import
+        new_target: runtime.next.runtime_bridge
+      - file: src/specify_cli/cli/commands/next_cmd.py
+        line: 56
+        kind: sys_modules_injection_seam
+        new_target: runtime.next.runtime_bridge
+        note: "sys.modules.get('specify_cli.next.runtime_bridge') or importlib.import_module('runtime.next.runtime_bridge') \u2014 seam key MUST\
+          \ move with the 2 injector patch.dict sites (test_selector_resolution.py:502,548) or injection silently no-ops post-deletion (FR-001)"
+      - file: src/specify_cli/cli/commands/next_cmd.py
+        line: 557
+        kind: comment
+        action: leave_or_update
+        note: prose comment naming the legacy shim key; update to canonical for clarity
+      - file: src/runtime/next/_internal_runtime/schema.py
+        line: 22
+        kind: comment
+        action: leave_or_update
+        note: layer-rule comment mentioning specify_cli.next; not an import
+      charter_legacy:
+      - file: src/specify_cli/cli/commands/charter/lint.py
+        line: 45
+        kind: plain_import
+        new_target: specify_cli.charter_runtime.lint
+      - file: src/specify_cli/cli/commands/charter/lint.py
+        line: 93
+        kind: plain_import
+        new_target: specify_cli.charter_runtime.lint
+      - file: src/specify_cli/cli/commands/charter/status.py
+        line: 55
+        kind: plain_import
+        new_target: specify_cli.charter_runtime.freshness
+      - file: src/specify_cli/charter_runtime/preflight/runner.py
+        line: 36
+        kind: plain_import_DEFECT
+        new_target: specify_cli.charter_runtime.freshness
+        note: canonical package importing its OWN legacy shim (canonical->legacy->canonical cycle); FR-005 defect fix, import-path-only
+      - file: src/specify_cli/charter_runtime/preflight/runner.py
+        line: 41
+        kind: type_checking_import
+        new_target: specify_cli.charter_runtime.freshness
+        note: TYPE_CHECKING `from specify_cli.charter_freshness import CharterFreshness`; re-point with runner.py:36
+      glossary: []
+    plain_import_files_next:
+    - file: tests/next/test_runtime_bridge_unit.py
+      count: 76
+    - file: tests/next/test_retrospective_terminus_wiring.py
+      count: 31
+    - file: tests/specify_cli/next/test_runtime_bridge_composition.py
+      count: 29
+    - file: tests/next/test_next_command_integration.py
+      count: 27
+    - file: tests/next/test_internal_runtime_coverage.py
+      count: 20
+    - file: tests/next/test_finalized_task_routing.py
+      count: 19
+    - file: tests/next/test_query_mode_unit.py
+      count: 18
+    - file: tests/specify_cli/next/test_runtime_bridge.py
+      count: 16
+    - file: tests/specify_cli/next/test_workflow_registry.py
+      count: 16
+    - file: tests/integration/retrospective/test_wp04_coverage_branches.py
+      count: 11
+    - file: tests/integration/test_custom_mission_runtime_walk.py
+      count: 10
+    - file: tests/next/test_mission_run_back_reference.py
+      count: 10
+    - file: tests/next/test_runtime_bridge_blocked_paths.py
+      count: 10
+    - file: tests/next/test_decision_unit.py
+      count: 9
+    - file: tests/unit/mission_loader/test_command.py
+      count: 8
+    - file: tests/integration/test_workflow_sequence_runtime.py
+      count: 7
+    - file: tests/next/test_prompt_file_invariant.py
+      count: 6
+    - file: tests/integration/test_mission_run_command.py
+      count: 5
+    - file: tests/next/test_internal_runtime_engine_coverage.py
+      count: 5
+    - file: tests/next/test_next_claimable_payload.py
+      count: 5
+    - file: tests/integration/test_internal_runtime_engine.py
+      count: 4
+    - file: tests/integration/retrospective/test_strict_flow_block.py
+      count: 3
+    - file: tests/integration/test_slice_f_cross_axis.py
+      count: 3
+    - file: tests/perf/test_loader_perf.py
+      count: 3
+    - file: tests/specify_cli/status/test_progress_integration.py
+      count: 3
+    - file: tests/contract/test_next_no_implicit_success.py
+      count: 2
+    - file: tests/contract/test_next_no_unknown_state.py
+      count: 2
+    - file: tests/fixtures/runtime_parity/_capture_baselines.py
+      count: 2
+    - file: tests/integration/retrospective/test_lifecycle_hook.py
+      count: 2
+    - file: tests/integration/retrospective/test_policy_source_attribution.py
+      count: 2
+    - file: tests/integration/test_coord_loop_workflow.py
+      count: 2
+    - file: tests/integration/test_documentation_runtime_walk.py
+      count: 2
+    - file: tests/integration/test_implement_review_retrospect_smoke.py
+      count: 2
+    - file: tests/integration/test_research_runtime_walk.py
+      count: 2
+    - file: tests/next/test_internal_runtime_parity.py
+      count: 2
+    - file: tests/specify_cli/events/test_decision_log.py
+      count: 2
+    - file: tests/specify_cli/missions/test_mission_template_consistency.py
+      count: 2
+    - file: tests/specify_cli/next/test_decision_dispatch.py
+      count: 2
+    - file: tests/specify_cli/next/test_runtime_bridge_dispatch.py
+      count: 2
+    - file: tests/specify_cli/next/test_wp_prompt_governance_contract.py
+      count: 2
+    - file: tests/specify_cli/test_documentation_template_resolution.py
+      count: 2
+    - file: tests/specify_cli/test_operational_context_wiring.py
+      count: 2
+    - file: tests/agent/test_workflow_charter_context.py
+      count: 1
+    - file: tests/contract/test_machine_facing_canonical_fields.py
+      count: 1
+    - file: tests/contract/test_plan_mission_yaml_validates.py
+      count: 1
+    - file: tests/integration/retrospective/test_autonomous_terminus_e2e.py
+      count: 1
+    - file: tests/integration/retrospective/test_default_flow_generator_failure.py
+      count: 1
+    - file: tests/integration/retrospective/test_default_flow_healthy.py
+      count: 1
+    - file: tests/integration/retrospective/test_hic_terminus_e2e.py
+      count: 1
+    - file: tests/integration/retrospective/test_latency_budget.py
+      count: 1
+    - file: tests/integration/retrospective/test_next_mission_sees_change.py
+      count: 1
+    - file: tests/integration/retrospective/test_opt_out.py
+      count: 1
+    - file: tests/integration/test_dashboard_counters.py
+      count: 1
+    - file: tests/integration/test_mission_type_profile_live_wiring.py
+      count: 1
+    - file: tests/integration/test_planning_artifact_wp.py
+      count: 1
+    - file: tests/next/test_composition_gate_widening.py
+      count: 1
+    - file: tests/next/test_next_package_unit.py
+      count: 1
+    - file: tests/next/test_prompt_builder_unit.py
+      count: 1
+    - file: tests/next/test_prompt_step_schema_extensions.py
+      count: 1
+    - file: tests/next/test_runtime_pkg_notice_unit.py
+      count: 1
+    - file: tests/retrospective/test_gate_decision.py
+      count: 1
+    - file: tests/specify_cli/next/test_decision_validation.py
+      count: 1
+    - file: tests/specify_cli/next/test_runtime_bridge_documentation_composition.py
+      count: 1
+    - file: tests/specify_cli/next/test_runtime_bridge_research_composition.py
+      count: 1
+    - file: tests/specify_cli/next/test_workflow_software_dev_default_is_byte_stable.py
+      count: 1
+    - file: tests/unit/mission_loader/test_contract_synthesis.py
+      count: 1
+    - file: tests/unit/mission_loader/test_loader_facade.py
+      count: 1
+    - file: tests/unit/mission_loader/test_registry.py
+      count: 1
+    - file: tests/unit/mission_loader/test_retrospective_marker.py
+      count: 1
+    - file: tests/unit/mission_loader/test_validator_errors.py
+      count: 1
+    plain_import_files_charter:
+    - file: tests/agent/cli/commands/test_next_preflight.py
+      count: 7
+    - file: tests/test_dashboard/test_dashboard_preflight.py
+      count: 6
+    - file: tests/agent/cli/commands/test_implement_preflight.py
+      count: 3
+    - file: tests/specify_cli/charter_lint/test_drg_fallback.py
+      count: 3
+    - file: tests/specify_cli/test_provenance_integration.py
+      count: 3
+    - file: tests/specify_cli/charter_lint/test_engine.py
+      count: 2
+    - file: tests/architectural/test_no_shipped_layer_label.py
+      count: 1
+    - file: tests/charter/test_org_drg_edge_source_urn_preserved.py
+      count: 1
+    - file: tests/contract/test_next_no_implicit_success.py
+      count: 1
+    - file: tests/integration/test_charter_synthesize_fresh.py
+      count: 1
+    - file: tests/specify_cli/charter_freshness/test_computer.py
+      count: 1
+    - file: tests/specify_cli/charter_lint/checks/test_contradiction.py
+      count: 1
+    - file: tests/specify_cli/charter_lint/checks/test_orphan.py
+      count: 1
+    - file: tests/specify_cli/charter_lint/checks/test_reference_integrity.py
+      count: 1
+    - file: tests/specify_cli/charter_lint/checks/test_staleness.py
+      count: 1
+    - file: tests/specify_cli/charter_preflight/test_config.py
+      count: 1
+    - file: tests/specify_cli/charter_preflight/test_performance.py
+      count: 1
+    - file: tests/specify_cli/charter_preflight/test_runner.py
+      count: 1
+    - file: tests/specify_cli/cli/commands/test_charter_lint.py
+      count: 1
+  filesystem_paths:
+    action: do_not_change
+    note: "No path-literal string is renamed. Five on-disk shim trees are DELETED (git rm) \u2014 expressed structurally in `moves:` (removal-to-null).\
+      \ No caller references these as filesystem path strings."
+    deleted_trees:
+    - src/specify_cli/next/
+    - src/specify_cli/glossary/
+    - src/specify_cli/charter_lint/
+    - src/specify_cli/charter_freshness/
+    - src/specify_cli/charter_preflight/
+  serialized_keys:
+    action: manual_review
+    note: "Not a key rename \u2014 two registry ROWS are REMOVED (atomic with the deletion, C-005). The .yaml edit is a targeted row drain, not\
+      \ a blanket rewrite; hence manual_review with the exact sites enumerated so the diff gate admits the surgical edit while flagging it for\
+      \ judgment."
+    sites:
+    - file: docs/migrations/shim-registry.yaml
+      lines: 18-23
+      action: remove_row
+      key: 'legacy_path: specify_cli.glossary'
+      note: drop the glossary shim row (FR-004)
+    - file: docs/migrations/shim-registry.yaml
+      lines: 25-30
+      action: remove_row
+      key: 'legacy_path: specify_cli.next'
+      note: drop the next shim row (FR-003)
+    - file: tests/architectural/test_shim_registry_schema.py
+      lines: 44-45
+      action: drain_assertion
+      note: "asserts BOTH rows present ('specify_cli.glossary'/'specify_cli.next' in legacy_paths) \u2014 breaks on row removal; edit in the same\
+        \ commit (also a tests_fixtures member)"
+    - file: docs/migrations/shim-registry.yaml
+      note: "NO charter rows exist/are added \u2014 full-delete, not register-and-defer (adjudicated decision 1)"
+  cli_commands:
+    action: do_not_change
+    note: "NO CLI command is renamed. The `spec-kitty next` command NAME is UNRELATED to the `specify_cli.next` MODULE path \u2014 the command\
+      \ dispatches through next_cmd.py which resolves the runtime bridge by import. The command name, its flags, and its help text stay exactly\
+      \ as-is. Do NOT rename `spec-kitty next` to `spec-kitty runtime-next` or similar \u2014 that would be a false rename."
+  user_facing_strings:
+    action: rename_if_user_visible
+    note: No UI label / --help / error message contains a legacy module path. Stale INTERNAL docstring & comment cross-references in src/ (e.g.
+      charter_runtime docstrings naming `specify_cli.charter_lint`, findings.py:17, engine.py:6, preflight/cli.py:3, charter_runtime/__init__.py,
+      charter/__init__.py:119) may be updated to the canonical name for accuracy; they are not user-visible.
+    live_doc_updates:
+    - file: docs/architecture/05_ownership_manifest.yaml
+      lines: 74,76,105,110-111
+      action: rename_or_remove
+      note: remove deleted-shim owned-path entries + the executed '3.3.0 removal_release' claims (FR-011)
+    - file: docs/architecture/05_ownership_map.md
+      lines: 185,205
+      action: rename_or_remove
+      note: remove specify_cli.next/glossary shim rows + '(remove in 3.3.0)' claims (FR-011)
+    - file: docs/plans/degod-unshim-roadmap.md
+      action: mark_executed
+      note: "mark Wave-2 + WS1 rows executed (FR-010) \u2014 live roadmap tracking doc"
+    - file: docs/changelog/CHANGELOG.md
+      action: append_only
+      note: ADD a new entry recording removal of the specify_cli.next/glossary import surfaces (breaking for external importers; NO version bump).
+        EXISTING changelog lines are immutable history -> leave_as_is (FR-010)
+    leave_as_is:
+    - glob: docs/adr/**
+      note: "4 ADRs reference legacy paths (glossary-type-ownership, retrospective-gate-shared-module, monorepo-charter-scope, execution-state-canonical-surface)\
+        \ \u2014 immutable historical records"
+    - glob: kitty-specs/**
+      note: "96 archived mission artifacts naming legacy paths \u2014 immutable snapshots"
+    - glob: docs/plans/degod-unshim-inventory.md
+      note: dated audit inventory snapshot
+    - glob: docs/plans/{code-review-2026-03-25,mutation-testing-findings,pr305-review-resolution-plan,test-suite-friction-audit,doctrine-inclusion-assessment,org-doctrine-layer-architecture-review,p0-baseline-refresh}.md
+      note: dated review/audit snapshots
+    - glob: docs/plans/engineering-notes/runtime_and_state_overhaul/**
+      note: dated engineering-notes snapshots (06-proposed-domains, 16-codebase-reassessment-fanout)
+  tests_fixtures:
+    action: rename
+    note: 'Test import statements re-point mechanically (see import_paths.plain_import_files_*). Every patch-STRING target string is re-pointed
+      with a per-site interception proof (FR-002 / Wave 1 protocol). The patch_string_sites list below is the BINDING ledger: review REJECTS any
+      row whose interception_proof stays empty; bulk sed with no per-row proof is a review reject.'
+    glossary_test_files:
+    - file: tests/glossary/test_legacy_import_shim.py
+      action: delete
+      note: tests the shim itself -> deleted WITH the shim (FR-004), not re-pointed
+    - file: tests/architectural/test_shim_registry_schema.py
+      action: drain_assertion
+      note: registry presence assertions (:44-45); shared with serialized_keys
+    retired_lock_gate:
+    - file: tests/architectural/test_charter_runtime_shim_paths.py
+      tests: 6
+      action: retire_with_surviving_coverage_proof
+      note: pins legacy-path importability + patch module-identity; retired per convert-or-delete (FR-006). test_canonical_paths_import survives
+        by re-homing (pins canonical imports). Per-test disposition table required.
+    patch_string_totals:
+      total_sites: 197
+      by_namespace:
+        specify_cli_next: 163
+        specify_cli_charter_lint: 30
+        specify_cli_charter_freshness: 1
+        specify_cli_charter_preflight: 1
+        specify_cli_glossary: 0
+      by_construct:
+        single_line_patch: 193
+        patch_dict_multiline: 2
+        monkeypatch_setitem: 0
+      physical_single_line_next: 80
+      wrapped_continuation_next: 83
+      reconciliation: renata 80 = physical-single-line; +83 wrapped continuation-line patch() + 2 patch.dict = 163 next; paula ~140 under-counted
+        wrapped lines; AST 195/163 is binding
+      seam_injectors:
+      - tests/specify_cli/cli/commands/test_selector_resolution.py:502
+      - tests/specify_cli/cli/commands/test_selector_resolution.py:548
+      errata: 'post-tasks renata pass: +2 monkeypatch.setattr charter sites (test_next_no_implicit_success.py:46,:49) the AST census missed; mission
+        total 197; charter_preflight 1->3.'
+    patch_string_sites:
+    - file: tests/agent/test_implement_command.py
+      line: 713
+      target_string: specify_cli.next.runtime_bridge.build_operational_context_for_claim
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.build_operational_context_for_claim
+      interception_proof: ''
+    - file: tests/agent/test_workflow_charter_context.py
+      line: 207
+      target_string: specify_cli.next.prompt_builder.build_charter_context
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder.build_charter_context
+      interception_proof: ''
+    - file: tests/agent/test_workflow_charter_context.py
+      line: 220
+      target_string: specify_cli.next.prompt_builder.build_with_scope
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder.build_with_scope
+      interception_proof: ''
+    - file: tests/agent/test_workflow_charter_context.py
+      line: 245
+      target_string: specify_cli.next.prompt_builder.build_charter_context
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder.build_charter_context
+      interception_proof: ''
+    - file: tests/agent/test_workflow_charter_context.py
+      line: 263
+      target_string: specify_cli.next.prompt_builder.build_charter_context
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder.build_charter_context
+      interception_proof: ''
+    - file: tests/agent/test_workflow_charter_context.py
+      line: 336
+      target_string: specify_cli.next.prompt_builder._governance_context
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder._governance_context
+      interception_proof: ''
+    - file: tests/agent/test_workflow_charter_context.py
+      line: 363
+      target_string: specify_cli.next.prompt_builder._governance_context
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder._governance_context
+      interception_proof: ''
+    - file: tests/contract/test_next_no_implicit_success.py
+      line: 85
+      target_string: specify_cli.next.runtime_bridge.query_current_state
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.query_current_state
+      interception_proof: ''
+    - file: tests/contract/test_next_no_implicit_success.py
+      line: 116
+      target_string: specify_cli.next.runtime_bridge.query_current_state
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.query_current_state
+      interception_proof: ''
+    - file: tests/contract/test_next_no_implicit_success.py
+      line: 140
+      target_string: specify_cli.next.runtime_bridge.query_current_state
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.query_current_state
+      interception_proof: ''
+    - file: tests/contract/test_next_no_implicit_success.py
+      line: 191
+      target_string: specify_cli.next.runtime_bridge.query_current_state
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.query_current_state
+      interception_proof: ''
+    - file: tests/integration/test_custom_mission_runtime_walk.py
+      line: 454
+      target_string: specify_cli.next.runtime_bridge._advance_run_state_after_composition
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._advance_run_state_after_composition
+      interception_proof: ''
+    - file: tests/integration/test_custom_mission_runtime_walk.py
+      line: 593
+      target_string: specify_cli.next.runtime_bridge._advance_run_state_after_composition
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._advance_run_state_after_composition
+      interception_proof: ''
+    - file: tests/integration/test_quickstart_end_to_end.py
+      line: 151
+      target_string: specify_cli.charter_preflight.cli.find_repo_root
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.preflight.cli.find_repo_root
+      interception_proof: ''
+    - file: tests/next/test_composition_gate_widening.py
+      line: 105
+      target_string: specify_cli.next.runtime_bridge._resolve_step_agent_profile
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._resolve_step_agent_profile
+      interception_proof: ''
+    - file: tests/next/test_decision_unit.py
+      line: 734
+      target_string: specify_cli.next.decision.resolve_workspace_for_wp
+      construct: single_line_patch
+      new_target: runtime.next.decision.resolve_workspace_for_wp
+      interception_proof: ''
+    - file: tests/next/test_decision_unit.py
+      line: 757
+      target_string: specify_cli.next.decision.resolve_workspace_for_wp
+      construct: single_line_patch
+      new_target: runtime.next.decision.resolve_workspace_for_wp
+      interception_proof: ''
+    - file: tests/next/test_mission_run_back_reference.py
+      line: 304
+      target_string: specify_cli.next.runtime_bridge._resolve_retrospective_policy_for_runtime
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._resolve_retrospective_policy_for_runtime
+      interception_proof: ''
+    - file: tests/next/test_mission_run_back_reference.py
+      line: 308
+      target_string: specify_cli.next.runtime_bridge._map_runtime_decision
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._map_runtime_decision
+      interception_proof: ''
+    - file: tests/next/test_mission_run_back_reference.py
+      line: 394
+      target_string: specify_cli.next.runtime_bridge._resolve_retrospective_policy_for_runtime
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._resolve_retrospective_policy_for_runtime
+      interception_proof: ''
+    - file: tests/next/test_mission_run_back_reference.py
+      line: 398
+      target_string: specify_cli.next.runtime_bridge._map_runtime_decision
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._map_runtime_decision
+      interception_proof: ''
+    - file: tests/next/test_next_command_integration.py
+      line: 535
+      target_string: specify_cli.next.runtime_bridge.get_or_start_run
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.get_or_start_run
+      interception_proof: ''
+    - file: tests/next/test_next_command_integration.py
+      line: 536
+      target_string: specify_cli.next.runtime_bridge._compute_wp_progress
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._compute_wp_progress
+      interception_proof: ''
+    - file: tests/next/test_next_command_integration.py
+      line: 537
+      target_string: specify_cli.next._internal_runtime.engine._read_snapshot
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.engine._read_snapshot
+      interception_proof: ''
+    - file: tests/next/test_next_command_integration.py
+      line: 539
+      target_string: specify_cli.next.runtime_bridge._should_advance_wp_step
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._should_advance_wp_step
+      interception_proof: ''
+    - file: tests/next/test_prompt_builder_unit.py
+      line: 405
+      target_string: specify_cli.next.prompt_builder.resolve_command
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder.resolve_command
+      interception_proof: ''
+    - file: tests/next/test_prompt_builder_unit.py
+      line: 406
+      target_string: specify_cli.next.prompt_builder.resolve_project_governance
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder.resolve_project_governance
+      interception_proof: ''
+    - file: tests/next/test_prompt_builder_unit.py
+      line: 440
+      target_string: specify_cli.next.prompt_builder.resolve_command
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder.resolve_command
+      interception_proof: ''
+    - file: tests/next/test_prompt_builder_unit.py
+      line: 529
+      target_string: specify_cli.next.prompt_builder.resolve_project_governance
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder.resolve_project_governance
+      interception_proof: ''
+    - file: tests/next/test_prompt_builder_unit.py
+      line: 544
+      target_string: specify_cli.next.prompt_builder.resolve_project_governance
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder.resolve_project_governance
+      interception_proof: ''
+    - file: tests/next/test_prompt_builder_unit.py
+      line: 556
+      target_string: specify_cli.next.prompt_builder.build_with_scope
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder.build_with_scope
+      interception_proof: ''
+    - file: tests/next/test_prompt_file_invariant.py
+      line: 50
+      target_string: specify_cli.next.prompt_builder.build_prompt
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder.build_prompt
+      interception_proof: ''
+    - file: tests/next/test_prompt_file_invariant.py
+      line: 77
+      target_string: specify_cli.next.prompt_builder.build_prompt
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder.build_prompt
+      interception_proof: ''
+    - file: tests/next/test_prompt_file_invariant.py
+      line: 98
+      target_string: specify_cli.next.prompt_builder.build_prompt
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder.build_prompt
+      interception_proof: ''
+    - file: tests/next/test_prompt_file_invariant.py
+      line: 119
+      target_string: specify_cli.next.prompt_builder.build_prompt
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder.build_prompt
+      interception_proof: ''
+    - file: tests/next/test_prompt_file_invariant.py
+      line: 149
+      target_string: specify_cli.next.prompt_builder.build_prompt
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder.build_prompt
+      interception_proof: ''
+    - file: tests/next/test_prompt_file_invariant.py
+      line: 227
+      target_string: specify_cli.next.runtime_bridge._state_to_action
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._state_to_action
+      interception_proof: ''
+    - file: tests/next/test_prompt_file_invariant.py
+      line: 231
+      target_string: specify_cli.next.runtime_bridge._is_wp_iteration_step
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._is_wp_iteration_step
+      interception_proof: ''
+    - file: tests/next/test_prompt_file_invariant.py
+      line: 235
+      target_string: specify_cli.next.runtime_bridge._build_prompt_or_error
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._build_prompt_or_error
+      interception_proof: ''
+    - file: tests/next/test_prompt_file_invariant.py
+      line: 269
+      target_string: specify_cli.next.runtime_bridge._state_to_action
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._state_to_action
+      interception_proof: ''
+    - file: tests/next/test_prompt_file_invariant.py
+      line: 273
+      target_string: specify_cli.next.runtime_bridge._is_wp_iteration_step
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._is_wp_iteration_step
+      interception_proof: ''
+    - file: tests/next/test_prompt_file_invariant.py
+      line: 277
+      target_string: specify_cli.next.runtime_bridge._build_prompt_or_error
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._build_prompt_or_error
+      interception_proof: ''
+    - file: tests/next/test_prompt_file_invariant.py
+      line: 311
+      target_string: specify_cli.next.runtime_bridge._state_to_action
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._state_to_action
+      interception_proof: ''
+    - file: tests/next/test_prompt_file_invariant.py
+      line: 315
+      target_string: specify_cli.next.runtime_bridge._is_wp_iteration_step
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._is_wp_iteration_step
+      interception_proof: ''
+    - file: tests/next/test_prompt_file_invariant.py
+      line: 319
+      target_string: specify_cli.next.runtime_bridge._build_prompt_or_error
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._build_prompt_or_error
+      interception_proof: ''
+    - file: tests/next/test_prompt_file_invariant.py
+      line: 347
+      target_string: specify_cli.next.runtime_bridge._state_to_action
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._state_to_action
+      interception_proof: ''
+    - file: tests/next/test_prompt_file_invariant.py
+      line: 351
+      target_string: specify_cli.next.runtime_bridge._is_wp_iteration_step
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._is_wp_iteration_step
+      interception_proof: ''
+    - file: tests/next/test_prompt_file_invariant.py
+      line: 355
+      target_string: specify_cli.next.runtime_bridge._build_prompt_or_error
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._build_prompt_or_error
+      interception_proof: ''
+    - file: tests/next/test_prompt_file_invariant.py
+      line: 392
+      target_string: specify_cli.next.runtime_bridge._state_to_action
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._state_to_action
+      interception_proof: ''
+    - file: tests/next/test_prompt_file_invariant.py
+      line: 396
+      target_string: specify_cli.next.runtime_bridge._is_wp_iteration_step
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._is_wp_iteration_step
+      interception_proof: ''
+    - file: tests/next/test_prompt_file_invariant.py
+      line: 400
+      target_string: specify_cli.next.runtime_bridge._build_prompt_or_error
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._build_prompt_or_error
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 79
+      target_string: specify_cli.next.runtime_bridge.query_current_state
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.query_current_state
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 96
+      target_string: specify_cli.next.runtime_bridge.query_current_state
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.query_current_state
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 176
+      target_string: specify_cli.next.runtime_bridge.query_current_state
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.query_current_state
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 196
+      target_string: specify_cli.next.runtime_bridge.query_current_state
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.query_current_state
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 215
+      target_string: specify_cli.next.runtime_bridge.query_current_state
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.query_current_state
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 245
+      target_string: specify_cli.next.runtime_bridge.query_current_state
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.query_current_state
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 263
+      target_string: specify_cli.next.runtime_bridge.query_current_state
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.query_current_state
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 295
+      target_string: specify_cli.next.runtime_bridge.query_current_state
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.query_current_state
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 315
+      target_string: specify_cli.next.runtime_bridge.query_current_state
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.query_current_state
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 337
+      target_string: specify_cli.next.runtime_bridge.query_current_state
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.query_current_state
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 355
+      target_string: specify_cli.next.runtime_bridge.query_current_state
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.query_current_state
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 378
+      target_string: specify_cli.next.prompt_builder.build_prompt
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder.build_prompt
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 456
+      target_string: specify_cli.next.runtime_bridge._existing_run_ref
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._existing_run_ref
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 457
+      target_string: specify_cli.next.runtime_bridge._start_ephemeral_query_run
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._start_ephemeral_query_run
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 458
+      target_string: specify_cli.next.runtime_bridge.get_mission_type
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.get_mission_type
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 459
+      target_string: specify_cli.next.runtime_bridge._compute_wp_progress
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._compute_wp_progress
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 476
+      target_string: specify_cli.next.runtime_bridge.get_or_start_run
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.get_or_start_run
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 477
+      target_string: specify_cli.next.runtime_bridge.get_mission_type
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.get_mission_type
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 478
+      target_string: specify_cli.next.runtime_bridge._compute_wp_progress
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._compute_wp_progress
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 479
+      target_string: specify_cli.next._internal_runtime.engine._read_snapshot
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.engine._read_snapshot
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 507
+      target_string: specify_cli.next.runtime_bridge._existing_run_ref
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._existing_run_ref
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 508
+      target_string: specify_cli.next.runtime_bridge.get_mission_type
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.get_mission_type
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 509
+      target_string: specify_cli.next.runtime_bridge._compute_wp_progress
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._compute_wp_progress
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 510
+      target_string: specify_cli.next._internal_runtime.engine._read_snapshot
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.engine._read_snapshot
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 511
+      target_string: specify_cli.next.runtime_bridge.load_mission_template_file
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.load_mission_template_file
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 512
+      target_string: specify_cli.next._internal_runtime.planner.plan_next
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.planner.plan_next
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 544
+      target_string: specify_cli.next.runtime_bridge._existing_run_ref
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._existing_run_ref
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 545
+      target_string: specify_cli.next.runtime_bridge.get_mission_type
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.get_mission_type
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 546
+      target_string: specify_cli.next.runtime_bridge._compute_wp_progress
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._compute_wp_progress
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 547
+      target_string: specify_cli.next._internal_runtime.engine._read_snapshot
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.engine._read_snapshot
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 548
+      target_string: specify_cli.next.runtime_bridge.load_mission_template_file
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.load_mission_template_file
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 549
+      target_string: specify_cli.next._internal_runtime.planner.plan_next
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.planner.plan_next
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 591
+      target_string: specify_cli.next.runtime_bridge._existing_run_ref
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._existing_run_ref
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 593
+      target_string: specify_cli.next.runtime_bridge._start_ephemeral_query_run
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._start_ephemeral_query_run
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 596
+      target_string: specify_cli.next.runtime_bridge.get_mission_type
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.get_mission_type
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 597
+      target_string: specify_cli.next.runtime_bridge._compute_wp_progress
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._compute_wp_progress
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 598
+      target_string: specify_cli.next._internal_runtime.engine._read_snapshot
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.engine._read_snapshot
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 599
+      target_string: specify_cli.next.runtime_bridge.load_mission_template_file
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.load_mission_template_file
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 600
+      target_string: specify_cli.next._internal_runtime.planner.plan_next
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.planner.plan_next
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 637
+      target_string: specify_cli.next.runtime_bridge._existing_run_ref
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._existing_run_ref
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 638
+      target_string: specify_cli.next.runtime_bridge.get_mission_type
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.get_mission_type
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 639
+      target_string: specify_cli.next.runtime_bridge._compute_wp_progress
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._compute_wp_progress
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 640
+      target_string: specify_cli.next._internal_runtime.engine._read_snapshot
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.engine._read_snapshot
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 641
+      target_string: specify_cli.next.runtime_bridge.load_mission_template_file
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.load_mission_template_file
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 642
+      target_string: specify_cli.next._internal_runtime.planner.plan_next
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.planner.plan_next
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 671
+      target_string: specify_cli.next.runtime_bridge._existing_run_ref
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._existing_run_ref
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 672
+      target_string: specify_cli.next.runtime_bridge.get_mission_type
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.get_mission_type
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 673
+      target_string: specify_cli.next.runtime_bridge._compute_wp_progress
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._compute_wp_progress
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 674
+      target_string: specify_cli.next._internal_runtime.engine._read_snapshot
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.engine._read_snapshot
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 675
+      target_string: specify_cli.next.runtime_bridge.load_mission_template_file
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.load_mission_template_file
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 677
+      target_string: specify_cli.next._internal_runtime.planner.plan_next
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.planner.plan_next
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 707
+      target_string: specify_cli.next.runtime_bridge._existing_run_ref
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._existing_run_ref
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 708
+      target_string: specify_cli.next.runtime_bridge.get_mission_type
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.get_mission_type
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 709
+      target_string: specify_cli.next.runtime_bridge._compute_wp_progress
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._compute_wp_progress
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 710
+      target_string: specify_cli.next._internal_runtime.engine._read_snapshot
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.engine._read_snapshot
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 711
+      target_string: specify_cli.next.runtime_bridge.load_mission_template_file
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.load_mission_template_file
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 712
+      target_string: specify_cli.next._internal_runtime.planner.plan_next
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.planner.plan_next
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 733
+      target_string: specify_cli.next.runtime_bridge._load_feature_runs
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._load_feature_runs
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 749
+      target_string: specify_cli.next.runtime_bridge.tempfile.mkdtemp
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.tempfile.mkdtemp
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 750
+      target_string: specify_cli.next.runtime_bridge._runtime_template_key
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._runtime_template_key
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 751
+      target_string: specify_cli.next.runtime_bridge._build_discovery_context
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._build_discovery_context
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 752
+      target_string: specify_cli.next.runtime_bridge.start_mission_run
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.start_mission_run
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 787
+      target_string: specify_cli.next.runtime_bridge._existing_run_ref
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._existing_run_ref
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 788
+      target_string: specify_cli.next.runtime_bridge.get_mission_type
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.get_mission_type
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 789
+      target_string: specify_cli.next.runtime_bridge._compute_wp_progress
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._compute_wp_progress
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 790
+      target_string: specify_cli.next._internal_runtime.engine._read_snapshot
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.engine._read_snapshot
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 791
+      target_string: specify_cli.next.runtime_bridge.load_mission_template_file
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.load_mission_template_file
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 792
+      target_string: specify_cli.next._internal_runtime.planner.plan_next
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.planner.plan_next
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 809
+      target_string: specify_cli.next.runtime_bridge.query_current_state
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.query_current_state
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 863
+      target_string: specify_cli.next.runtime_bridge.query_current_state
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.query_current_state
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 901
+      target_string: specify_cli.next.runtime_bridge.query_current_state
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.query_current_state
+      interception_proof: ''
+    - file: tests/next/test_query_mode_unit.py
+      line: 925
+      target_string: specify_cli.next.runtime_bridge.query_current_state
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.query_current_state
+      interception_proof: ''
+    - file: tests/next/test_runtime_bridge_blocked_paths.py
+      line: 79
+      target_string: specify_cli.next.runtime_bridge._state_to_action
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._state_to_action
+      interception_proof: ''
+    - file: tests/next/test_runtime_bridge_blocked_paths.py
+      line: 83
+      target_string: specify_cli.next.runtime_bridge._build_prompt_or_error
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._build_prompt_or_error
+      interception_proof: ''
+    - file: tests/next/test_runtime_bridge_blocked_paths.py
+      line: 132
+      target_string: specify_cli.next.runtime_bridge._state_to_action
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._state_to_action
+      interception_proof: ''
+    - file: tests/next/test_runtime_bridge_blocked_paths.py
+      line: 136
+      target_string: specify_cli.next.runtime_bridge._is_wp_iteration_step
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._is_wp_iteration_step
+      interception_proof: ''
+    - file: tests/next/test_runtime_bridge_blocked_paths.py
+      line: 217
+      target_string: specify_cli.next._internal_runtime.engine._read_snapshot
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.engine._read_snapshot
+      interception_proof: ''
+    - file: tests/next/test_runtime_bridge_blocked_paths.py
+      line: 272
+      target_string: specify_cli.next._internal_runtime.engine._read_snapshot
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.engine._read_snapshot
+      interception_proof: ''
+    - file: tests/next/test_runtime_bridge_blocked_paths.py
+      line: 324
+      target_string: specify_cli.next._internal_runtime.engine._read_snapshot
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.engine._read_snapshot
+      interception_proof: ''
+    - file: tests/next/test_runtime_bridge_blocked_paths.py
+      line: 369
+      target_string: specify_cli.next._internal_runtime.engine._read_snapshot
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.engine._read_snapshot
+      interception_proof: ''
+    - file: tests/next/test_runtime_bridge_blocked_paths.py
+      line: 404
+      target_string: specify_cli.next.runtime_bridge._state_to_action
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._state_to_action
+      interception_proof: ''
+    - file: tests/next/test_runtime_bridge_blocked_paths.py
+      line: 408
+      target_string: specify_cli.next.runtime_bridge._build_prompt_or_error
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._build_prompt_or_error
+      interception_proof: ''
+    - file: tests/next/test_runtime_bridge_blocked_paths.py
+      line: 440
+      target_string: specify_cli.next.runtime_bridge._state_to_action
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._state_to_action
+      interception_proof: ''
+    - file: tests/next/test_runtime_bridge_blocked_paths.py
+      line: 444
+      target_string: specify_cli.next.runtime_bridge._is_wp_iteration_step
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._is_wp_iteration_step
+      interception_proof: ''
+    - file: tests/next/test_runtime_bridge_blocked_paths.py
+      line: 448
+      target_string: specify_cli.next.runtime_bridge._build_prompt_or_error
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._build_prompt_or_error
+      interception_proof: ''
+    - file: tests/next/test_runtime_bridge_blocked_paths.py
+      line: 479
+      target_string: specify_cli.next.runtime_bridge._state_to_action
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._state_to_action
+      interception_proof: ''
+    - file: tests/next/test_runtime_bridge_blocked_paths.py
+      line: 483
+      target_string: specify_cli.next.runtime_bridge._is_wp_iteration_step
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._is_wp_iteration_step
+      interception_proof: ''
+    - file: tests/next/test_runtime_bridge_blocked_paths.py
+      line: 487
+      target_string: specify_cli.next.runtime_bridge._build_prompt_or_error
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._build_prompt_or_error
+      interception_proof: ''
+    - file: tests/specify_cli/charter_lint/test_drg_fallback.py
+      line: 54
+      target_string: specify_cli.charter_lint._drg._load_built_in_drg
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint._drg._load_built_in_drg
+      interception_proof: ''
+    - file: tests/specify_cli/charter_lint/test_drg_fallback.py
+      line: 71
+      target_string: specify_cli.charter_lint._drg._load_built_in_drg
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint._drg._load_built_in_drg
+      interception_proof: ''
+    - file: tests/specify_cli/charter_lint/test_drg_fallback.py
+      line: 91
+      target_string: specify_cli.charter_lint._drg._load_project_drg
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint._drg._load_project_drg
+      interception_proof: ''
+    - file: tests/specify_cli/charter_lint/test_drg_fallback.py
+      line: 95
+      target_string: specify_cli.charter_lint._drg._load_built_in_drg
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint._drg._load_built_in_drg
+      interception_proof: ''
+    - file: tests/specify_cli/charter_lint/test_drg_fallback.py
+      line: 122
+      target_string: specify_cli.charter_lint._drg._load_built_in_drg
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint._drg._load_built_in_drg
+      interception_proof: ''
+    - file: tests/specify_cli/charter_lint/test_drg_fallback.py
+      line: 135
+      target_string: specify_cli.charter_lint._drg._load_built_in_drg
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint._drg._load_built_in_drg
+      interception_proof: ''
+    - file: tests/specify_cli/charter_lint/test_engine.py
+      line: 104
+      target_string: specify_cli.charter_lint.engine.load_merged_drg
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.load_merged_drg
+      interception_proof: ''
+    - file: tests/specify_cli/charter_lint/test_engine.py
+      line: 122
+      target_string: specify_cli.charter_lint.engine.load_merged_drg
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.load_merged_drg
+      interception_proof: ''
+    - file: tests/specify_cli/charter_lint/test_engine.py
+      line: 131
+      target_string: specify_cli.charter_lint.engine.load_merged_drg
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.load_merged_drg
+      interception_proof: ''
+    - file: tests/specify_cli/charter_lint/test_engine.py
+      line: 144
+      target_string: specify_cli.charter_lint.engine.load_merged_drg
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.load_merged_drg
+      interception_proof: ''
+    - file: tests/specify_cli/charter_lint/test_engine.py
+      line: 158
+      target_string: specify_cli.charter_lint.engine.load_merged_drg
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.load_merged_drg
+      interception_proof: ''
+    - file: tests/specify_cli/charter_lint/test_engine.py
+      line: 175
+      target_string: specify_cli.charter_lint.engine.load_merged_drg
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.load_merged_drg
+      interception_proof: ''
+    - file: tests/specify_cli/charter_lint/test_engine.py
+      line: 194
+      target_string: specify_cli.charter_lint.engine.load_merged_drg
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.load_merged_drg
+      interception_proof: ''
+    - file: tests/specify_cli/charter_lint/test_engine.py
+      line: 210
+      target_string: specify_cli.charter_lint.engine.load_merged_drg
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.load_merged_drg
+      interception_proof: ''
+    - file: tests/specify_cli/charter_lint/test_engine.py
+      line: 221
+      target_string: specify_cli.charter_lint.engine.load_merged_drg
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.load_merged_drg
+      interception_proof: ''
+    - file: tests/specify_cli/charter_lint/test_engine.py
+      line: 241
+      target_string: specify_cli.charter_lint.engine.load_merged_drg
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.load_merged_drg
+      interception_proof: ''
+    - file: tests/specify_cli/charter_lint/test_engine.py
+      line: 256
+      target_string: specify_cli.charter_lint.engine.load_merged_drg
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.load_merged_drg
+      interception_proof: ''
+    - file: tests/specify_cli/charter_lint/test_engine.py
+      line: 272
+      target_string: specify_cli.charter_lint.engine.load_merged_drg
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.load_merged_drg
+      interception_proof: ''
+    - file: tests/specify_cli/charter_lint/test_engine.py
+      line: 286
+      target_string: specify_cli.charter_lint.engine.load_merged_drg
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.load_merged_drg
+      interception_proof: ''
+    - file: tests/specify_cli/charter_lint/test_engine.py
+      line: 369
+      target_string: specify_cli.charter_lint.engine.load_merged_drg
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.load_merged_drg
+      interception_proof: ''
+    - file: tests/specify_cli/cli/commands/charter/test_status_json_safe.py
+      line: 116
+      target_string: specify_cli.charter_freshness.compute_freshness
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.freshness.compute_freshness
+      interception_proof: ''
+    - file: tests/specify_cli/cli/commands/test_charter_lint.py
+      line: 87
+      target_string: specify_cli.charter_lint.engine.LintEngine.run
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.LintEngine.run
+      interception_proof: ''
+    - file: tests/specify_cli/cli/commands/test_charter_lint.py
+      line: 106
+      target_string: specify_cli.charter_lint.engine.LintEngine.run
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.LintEngine.run
+      interception_proof: ''
+    - file: tests/specify_cli/cli/commands/test_charter_lint.py
+      line: 139
+      target_string: specify_cli.charter_lint.engine.LintEngine.run
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.LintEngine.run
+      interception_proof: ''
+    - file: tests/specify_cli/cli/commands/test_charter_lint.py
+      line: 162
+      target_string: specify_cli.charter_lint.engine.LintEngine.run
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.LintEngine.run
+      interception_proof: ''
+    - file: tests/specify_cli/cli/commands/test_charter_lint.py
+      line: 178
+      target_string: specify_cli.charter_lint.engine.LintEngine.run
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.LintEngine.run
+      interception_proof: ''
+    - file: tests/specify_cli/cli/commands/test_charter_lint.py
+      line: 196
+      target_string: specify_cli.charter_lint.engine.LintEngine.run
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.LintEngine.run
+      interception_proof: ''
+    - file: tests/specify_cli/cli/commands/test_charter_lint.py
+      line: 214
+      target_string: specify_cli.charter_lint.engine.LintEngine.run
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.LintEngine.run
+      interception_proof: ''
+    - file: tests/specify_cli/cli/commands/test_charter_lint.py
+      line: 231
+      target_string: specify_cli.charter_lint.engine.LintEngine.run
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.LintEngine.run
+      interception_proof: ''
+    - file: tests/specify_cli/cli/commands/test_charter_lint.py
+      line: 243
+      target_string: specify_cli.charter_lint.engine.LintEngine.run
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.LintEngine.run
+      interception_proof: ''
+    - file: tests/specify_cli/cli/commands/test_charter_lint.py
+      line: 256
+      target_string: specify_cli.charter_lint.engine.LintEngine.run
+      construct: single_line_patch
+      new_target: specify_cli.charter_runtime.lint.engine.LintEngine.run
+      interception_proof: ''
+    - file: tests/specify_cli/cli/commands/test_selector_resolution.py
+      line: 502
+      target_string: specify_cli.next.runtime_bridge
+      construct: patch_dict_multiline
+      new_target: runtime.next.runtime_bridge
+      interception_proof: ''
+    - file: tests/specify_cli/cli/commands/test_selector_resolution.py
+      line: 548
+      target_string: specify_cli.next.runtime_bridge
+      construct: patch_dict_multiline
+      new_target: runtime.next.runtime_bridge
+      interception_proof: ''
+    - file: tests/specify_cli/next/test_runtime_bridge_composition.py
+      line: 997
+      target_string: specify_cli.next.runtime_bridge._advance_run_state_after_composition
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._advance_run_state_after_composition
+      interception_proof: ''
+    - file: tests/specify_cli/next/test_runtime_bridge_composition.py
+      line: 1001
+      target_string: specify_cli.next.runtime_bridge.runtime_next_step
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.runtime_next_step
+      interception_proof: ''
+    - file: tests/specify_cli/next/test_runtime_bridge_composition.py
+      line: 1121
+      target_string: specify_cli.next._internal_runtime.planner.plan_next
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.planner.plan_next
+      interception_proof: ''
+    - file: tests/specify_cli/next/test_runtime_bridge_composition.py
+      line: 1176
+      target_string: specify_cli.next._internal_runtime.planner.plan_next
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.planner.plan_next
+      interception_proof: ''
+    - file: tests/specify_cli/next/test_runtime_bridge_composition.py
+      line: 1184
+      target_string: specify_cli.next.runtime_bridge._run_retrospective_learning_capture
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._run_retrospective_learning_capture
+      interception_proof: ''
+    - file: tests/specify_cli/next/test_runtime_bridge_composition.py
+      line: 1241
+      target_string: specify_cli.next._internal_runtime.planner.plan_next
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.planner.plan_next
+      interception_proof: ''
+    - file: tests/specify_cli/next/test_runtime_bridge_composition.py
+      line: 1249
+      target_string: specify_cli.next.runtime_bridge._resolve_retrospective_policy_for_runtime
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._resolve_retrospective_policy_for_runtime
+      interception_proof: ''
+    - file: tests/specify_cli/next/test_runtime_bridge_composition.py
+      line: 1253
+      target_string: specify_cli.next.runtime_bridge._run_retrospective_learning_capture
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._run_retrospective_learning_capture
+      interception_proof: ''
+    - file: tests/specify_cli/next/test_runtime_bridge_composition.py
+      line: 1306
+      target_string: specify_cli.next._internal_runtime.planner.plan_next
+      construct: single_line_patch
+      new_target: runtime.next._internal_runtime.planner.plan_next
+      interception_proof: ''
+    - file: tests/specify_cli/next/test_runtime_bridge_composition.py
+      line: 1314
+      target_string: specify_cli.next.runtime_bridge._resolve_retrospective_policy_for_runtime
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._resolve_retrospective_policy_for_runtime
+      interception_proof: ''
+    - file: tests/specify_cli/next/test_runtime_bridge_composition.py
+      line: 1415
+      target_string: specify_cli.next.runtime_bridge._advance_run_state_after_composition
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._advance_run_state_after_composition
+      interception_proof: ''
+    - file: tests/specify_cli/next/test_runtime_bridge_composition.py
+      line: 1417
+      target_string: specify_cli.next.runtime_bridge.runtime_next_step
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.runtime_next_step
+      interception_proof: ''
+    - file: tests/specify_cli/next/test_runtime_bridge_composition.py
+      line: 1454
+      target_string: specify_cli.next.runtime_bridge._advance_run_state_after_composition
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._advance_run_state_after_composition
+      interception_proof: ''
+    - file: tests/specify_cli/next/test_runtime_bridge_composition.py
+      line: 1458
+      target_string: specify_cli.next.runtime_bridge.runtime_next_step
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge.runtime_next_step
+      interception_proof: ''
+    - file: tests/specify_cli/next/test_runtime_bridge_composition.py
+      line: 1558
+      target_string: specify_cli.next.runtime_bridge._advance_run_state_after_composition
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._advance_run_state_after_composition
+      interception_proof: ''
+    - file: tests/specify_cli/next/test_runtime_bridge_composition.py
+      line: 1615
+      target_string: specify_cli.next.runtime_bridge._advance_run_state_after_composition
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._advance_run_state_after_composition
+      interception_proof: ''
+    - file: tests/specify_cli/next/test_runtime_bridge_composition.py
+      line: 1711
+      target_string: specify_cli.next.runtime_bridge._advance_run_state_after_composition
+      construct: single_line_patch
+      new_target: runtime.next.runtime_bridge._advance_run_state_after_composition
+      interception_proof: ''
+    - file: tests/specify_cli/next/test_wp_prompt_governance_contract.py
+      line: 259
+      target_string: specify_cli.next.prompt_builder._governance_context
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder._governance_context
+      interception_proof: ''
+    - file: tests/specify_cli/next/test_wp_prompt_governance_contract.py
+      line: 285
+      target_string: specify_cli.next.prompt_builder._governance_context
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder._governance_context
+      interception_proof: ''
+    - file: tests/specify_cli/next/test_wp_prompt_governance_contract.py
+      line: 306
+      target_string: specify_cli.next.prompt_builder._governance_context
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder._governance_context
+      interception_proof: ''
+    - file: tests/specify_cli/next/test_wp_prompt_governance_contract.py
+      line: 1034
+      target_string: specify_cli.next.prompt_builder.build_with_scope
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder.build_with_scope
+      interception_proof: ''
+    - file: tests/specify_cli/next/test_wp_prompt_governance_contract.py
+      line: 1079
+      target_string: specify_cli.next.prompt_builder._governance_context
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder._governance_context
+      interception_proof: ''
+    - file: tests/specify_cli/next/test_wp_prompt_governance_contract.py
+      line: 1107
+      target_string: specify_cli.next.prompt_builder.build_with_scope
+      construct: single_line_patch
+      new_target: runtime.next.prompt_builder.build_with_scope
+      interception_proof: ''
+    - file: tests/contract/test_next_no_implicit_success.py
+      line: 46
+      target_string: specify_cli.charter_preflight.hook.run_preflight_or_abort
+      construct: monkeypatch_setattr_multiline
+      new_target: specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort
+      interception_proof: ''
+      note: 'post-tasks renata HIGH: setattr excluded by the original AST census; continuation-line target invisible to gates; WP03 owns'
+    - file: tests/contract/test_next_no_implicit_success.py
+      line: 49
+      target_string: specify_cli.charter_preflight.hook.run_preflight_for_dashboard
+      construct: monkeypatch_setattr_multiline
+      new_target: specify_cli.charter_runtime.preflight.hook.run_preflight_for_dashboard
+      interception_proof: ''
+      note: 'post-tasks renata HIGH: setattr excluded by the original AST census; continuation-line target invisible to gates; WP03 owns'
+  logs_telemetry:
+    action: do_not_change
+    note: 'No logger name / metric / telemetry label embeds a legacy module path. Verified: getLogger("specify_cli.(next|glossary|charter_lint|charter_freshness|charter_preflight)")
+      returns zero hits across src/ and tests/.'
+exceptions:
+- path: kitty-specs/**
+  action: do_not_change
+  reason: Archived mission artifacts are immutable snapshots (C-004); legacy paths retained as history.
+- path: docs/adr/**
+  action: do_not_change
+  reason: ADRs are immutable historical records; legacy-path references stay.
+- path: tests/glossary/test_legacy_import_shim.py
+  action: do_not_change
+  reason: "Shim self-test \u2014 DELETED with the shim (FR-004), not re-pointed. No in-place rename."
+- path: docs/architecture/05_ownership_manifest.yaml
+  action: rename
+  reason: "FR-011 live-governance-doc scrub \u2014 remove deleted-shim entries + executed 3.3.0-removal claims."
+- path: docs/architecture/05_ownership_map.md
+  action: rename
+  reason: "FR-011 live-governance-doc scrub \u2014 same as the manifest."
+moves:
+- from:
+  - src/specify_cli/next/
+  to: /dev/null
+  reason: Delete the specify_cli.next registered shim (FR-003) after all callers re-point to runtime.next. Full tree removal; canonical body lives
+    in src/runtime/next/.
+- from:
+  - src/specify_cli/glossary/
+  to: /dev/null
+  reason: Delete the specify_cli.glossary registered husk (FR-004). Canonical body lives in src/glossary/.
+- from:
+  - src/specify_cli/charter_lint/
+  - src/specify_cli/charter_freshness/
+  - src/specify_cli/charter_preflight/
+  to: /dev/null
+  reason: Delete the three unregistered charter shims (FR-006) after ~23 test files + 4 src callers re-point to specify_cli.charter_runtime.*.
+    Canonical body lives in src/specify_cli/charter_runtime/.
+status:
+  change_mode: bulk_edit
+  mission: unshim-wave2-01KWMCAX
+  namespaces:
+  - legacy: specify_cli.next
+    canonical: runtime.next
+    operation: rename
+    issue: 612
+    registered_shim: true
+    plain_import_refs: 417
+    plain_import_test_files: 70
+    patch_sites: 163
+    src_callers: 2
+    injection_seam: src/specify_cli/cli/commands/next_cmd.py:56
+  - legacy: specify_cli.glossary
+    canonical: glossary
+    operation: rename
+    issue: 613
+    registered_shim: true
+    plain_import_refs: 0
+    patch_sites: 0
+    src_callers: 0
+    self_test_deleted: tests/glossary/test_legacy_import_shim.py
+  - legacy: specify_cli.charter_lint
+    canonical: specify_cli.charter_runtime.lint
+    operation: rename
+    issue: 2290
+    registered_shim: false
+    patch_sites: 30
+  - legacy: specify_cli.charter_freshness
+    canonical: specify_cli.charter_runtime.freshness
+    operation: rename
+    issue: 2290
+    registered_shim: false
+    patch_sites: 1
+  - legacy: specify_cli.charter_preflight
+    canonical: specify_cli.charter_runtime.preflight
+    operation: rename
+    issue: 2290
+    registered_shim: false
+    patch_sites: 1
+  totals:
+    patch_family_sites: 195
+    plain_import_refs:
+      next: 417
+      charter: 37
+      glossary: 0
+    charter_test_files: 23
+    deleted_trees: 5
