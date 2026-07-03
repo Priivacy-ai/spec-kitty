@@ -8,16 +8,16 @@ generated_at: '2026-07-02T13:37:48.176101+00:00'
 analyzer_agent: unknown
 input_artifacts:
   spec.md:
-    path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/kitty-specs/tasks-py-degod-wave2-01KWH9EQ/spec.md
+    path: kitty-specs/tasks-py-degod-wave2-01KWH9EQ/spec.md
     sha256: dba069d538189c9848bafccfff33f704e039de37f919b10326f9eb8d5d3ef245
   plan.md:
-    path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/kitty-specs/tasks-py-degod-wave2-01KWH9EQ/plan.md
+    path: kitty-specs/tasks-py-degod-wave2-01KWH9EQ/plan.md
     sha256: 25dbfdff6034376ae888517fe35ff9360d097257be98a2efed016bcdc52a93b6
   tasks.md:
-    path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/kitty-specs/tasks-py-degod-wave2-01KWH9EQ/tasks.md
+    path: kitty-specs/tasks-py-degod-wave2-01KWH9EQ/tasks.md
     sha256: 3ba476480546d2beabcd95ab789b6980f11eba2ab715ed52882fd5f688d61acb
   charter:
-    path: /home/stijn/Documents/_code/SDD/fork/spec-kitty/.kittify/charter/charter.md
+    path: .kittify/charter/charter.md
     sha256: ca85e30640629d1e08d4e81988b60e15640242262f36d39d03bf947e71700c82
 verdict: unknown
 issue_counts:
