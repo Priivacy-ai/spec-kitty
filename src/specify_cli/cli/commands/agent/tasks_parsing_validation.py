@@ -409,7 +409,12 @@ def _apply_review_status_flags(
 
 
 class _ConsoleLike(Protocol):
-    def print(self, *args: object, **kwargs: object) -> object: ...
+    # Positional ``print`` only — the validators render with
+    # ``console.print(message)`` and never pass keyword options. A ``**kwargs``
+    # protocol method is structurally UNsatisfiable by ``rich.console.Console``
+    # (whose ``print`` exposes named keyword options, not ``**kwargs``), so the
+    # narrow positional shape is what lets the real ``Console`` conform.
+    def print(self, *values: object) -> None: ...
 
 
 def _validate_research_artifacts(

@@ -213,7 +213,7 @@ def _mt_warn_worktree_kitty_specs(st: _MoveTaskState) -> None:
 def _mt_resolve_targets(st: _MoveTaskState, ports: TasksPorts) -> None:
     """Resolve roots/branch/feature-dir and load the WP + its canonical lane."""
     from specify_cli.cli.commands.agent import tasks as _tasks
-    st.target_lane = ensure_lane(st.to)
+    st.target_lane = Lane(ensure_lane(st.to))
     repo_root = _tasks.locate_project_root()
     if repo_root is None:
         _tasks._output_error(st.json_output, "Could not locate project root")
@@ -927,7 +927,7 @@ def _mt_execute(st: _MoveTaskState, ports: TasksPorts) -> None:
                 st.feature_dir,
                 mission_slug=st.mission_slug,
                 wp_id=st.task_id,
-                implementing_actor=st.final_hop_actor,
+                implementing_actor=st.final_hop_actor or "",
                 intended_reviewer=(st.intended_reviewer or "").strip(),
                 failure_reason=(st.reviewer_failure_reason or "").strip(),
                 fallback_approved=True,
