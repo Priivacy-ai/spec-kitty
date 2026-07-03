@@ -87,26 +87,37 @@ def test_tasks_py_imports_from_commit_router() -> None:
     """
     import specify_cli.cli.commands.agent.tasks as tasks_mod
 
-    src = Path(tasks_mod.__file__).read_text(encoding="utf-8")
-    tree = ast.parse(src)
+    # Wave 2 degod (#2305) relocated the map-requirements body (the consumer of
+    # ``_resolve_planning_placement``) into a sibling family module with a lazy
+    # in-function import. The residue invariant is about the SOURCE, not the
+    # location: whatever module on the tasks command surface consumes the
+    # planning primitives must import them from commit_router and NOT from the
+    # ``mission`` god module — so the scan covers the whole surface (shim +
+    # ``tasks_*`` siblings); ``ast.walk`` sees in-function ImportFrom nodes.
+    surface_dir = Path(tasks_mod.__file__).parent
+    surface_files = [Path(tasks_mod.__file__), *sorted(surface_dir.glob("tasks_*.py"))]
     imported_from_router: set[str] = set()
     imported_from_mission: set[str] = set()
     candidates = {"_planning_commit_worktree", "_resolve_planning_placement"}
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.ImportFrom) or node.module is None:
-            continue
-        names = {alias.name for alias in node.names} & candidates
-        if not names:
-            continue
-        if node.module == "specify_cli.coordination.commit_router":
-            imported_from_router |= names
-        elif node.module == "specify_cli.cli.commands.agent.mission":
-            imported_from_mission |= names
-    # ``_planning_commit_worktree`` is no longer imported by tasks.py (its
-    # map-requirements path routes through ``commit_for_mission``); the live
-    # import is exactly ``_resolve_planning_placement``.
+    for src_file in surface_files:
+        tree = ast.parse(src_file.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.ImportFrom) or node.module is None:
+                continue
+            names = {alias.name for alias in node.names} & candidates
+            if not names:
+                continue
+            if node.module == "specify_cli.coordination.commit_router":
+                imported_from_router |= names
+            elif node.module == "specify_cli.cli.commands.agent.mission":
+                imported_from_mission |= names
+    # ``_planning_commit_worktree`` is no longer imported anywhere on the tasks
+    # surface (the map-requirements path routes through ``commit_for_mission``);
+    # the live import is exactly ``_resolve_planning_placement``.
     assert imported_from_router == {"_resolve_planning_placement"}
-    assert not imported_from_mission, "tasks.py must NOT import these from mission after WP08"
+    assert not imported_from_mission, (
+        "the tasks command surface must NOT import these from mission after WP08"
+    )
     # The relocated ``_planning_commit_worktree`` still LIVES in commit_router
     # even though tasks.py no longer imports it directly.
     assert hasattr(commit_router, "_planning_commit_worktree")
