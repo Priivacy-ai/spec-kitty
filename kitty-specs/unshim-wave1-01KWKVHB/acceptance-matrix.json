@@ -90,9 +90,9 @@
       "invariant_id": "C-001-auth-transport-no-touch",
       "description": "auth/transport.py, its singleton tests, and policy/audit.py are byte-identical to upstream/main across the whole mission (ADR 2026-05-18-2 deferral to Robert; FR-006 keep).",
       "verification_method": "custom_command",
-      "verification_command": "bash -c 'test -z \"$(git diff upstream/main kitty/mission-unshim-wave1-01KWKVHB-lane-c -- src/specify_cli/auth/transport.py tests/architectural/test_auth_transport_singleton.py src/specify_cli/policy/audit.py)\"'",
+      "verification_command": "bash -c 'test -z \"$(git diff $(git merge-base upstream/main HEAD) HEAD -- src/specify_cli/auth/transport.py tests/architectural/test_auth_transport_singleton.py src/specify_cli/policy/audit.py)\"'",
       "result": "confirmed_absent",
-      "evidence": "Command exited 0: "
+      "evidence": "Re-anchored to durable refs at pre-merge squad (lane-c branch was deleted post-merge, making the original command vacuously green \u2014 alphonso [MEDIUM]); re-executed on pr/unshim-wave1: exit 0, byte-identical to merge-base."
     }
   ]
 }

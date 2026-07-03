@@ -184,7 +184,7 @@ test_no_dead_symbols:
   # move, so the dead-symbol gate correctly demanded their removal. Recomputed to
   # the live ``len(_CATEGORY_B_GRANDFATHERED_LEGACY)``; a shrink (burn-down policy:
   # a shrink needs no extra workflow).
-  # 237->215 (unshim-wave1-01KWKVHB #2292, WP03 T009): recomputed to the live
+  # 237->216 (unshim-wave1-01KWKVHB #2292, WP03 T009): recomputed to the live
   # ``len(_CATEGORY_B_GRANDFATHERED_LEGACY)`` after removing sync.replay::* x8 and
   # sync.tracker_client_glue::* x4 (the deleted modules' symbol rows). NOTE on
   # arithmetic: spec FR-005 stated 237->224 (-13) on the assumption the recorded
@@ -197,7 +197,9 @@ test_no_dead_symbols:
   # Net arithmetic: 227 (pre-edit live) -12 (sync.replay/glue rows removed with
   # the module deletions) +1 (frontmatter::update_field: a cascade-orphan whose
   # sole src/ caller WAS the deleted task_profile; adopted-as-follow-up per C-002
-  # rather than editing the live frontmatter.py) = 216. Research D8's "strands no
+  # rather than editing the live frontmatter.py) = 216. (Aggregate view of the
+  # same result: base live 228 -13 rows incl. WP01's identity_aliases +1 = 216;
+  # the 227/-12 frame above is the post-WP01 slice.) Research D8's "strands no
   # sibling" claim was falsified by the live dead-symbol gate -- recorded honestly.
   # Shrink-only direction overall (237->216); the growth-above-baseline gate stays enforced.
   category_b_grandfathered_legacy: 216
