@@ -19,7 +19,8 @@ subtasks:
 - T003
 phase: Phase 1 - Sequential DAG
 assignee: ''
-agent: ''
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "2779242"
 history:
 - at: '2026-07-03T17:18:34Z'
   actor: system
@@ -101,3 +102,7 @@ python -m mypy src/ 2>&1 | tail -2; ruff check .
 > Append at the END, chronological. Format: `- YYYY-MM-DDTHH:MM:SSZ – agent_id – <action>`
 
 - 2026-07-03T17:18:34Z – system – Prompt created.
+- 2026-07-03T17:40:47Z – claude:opus:python-pedro:implementer – shell_pid=2752683 – Assigned agent via action command
+- 2026-07-03T17:49:45Z – claude:opus:python-pedro:implementer – shell_pid=2752683 – FR-001 done (--force per bug #2324: rejection cited T004-T009 which belong to WP02+, NOT WP01; WP01 subtasks T001-T003 all done). Re-pointed 2 plain src callers + re-keyed next_cmd.py seam:56/comment:557 + both injector tests to canonical runtime.next.runtime_bridge. Consumption PROVEN via red-first flip (bogus key -> real bridge -> captured empty -> test FAILS -> restore green). Fixture completeness: added real MissionNotFoundError to fakes (now shadow canonical key), C-002 behavior-preserving. Gates: selector_resolution 29 passed; arch shim 44 passed; grep specify_cli.next src/ empty outside shim+schema doc-comment; next --help exit 0; ruff diff-scoped exit 0; mypy src/ Success. Proof file: /tmp/wave2-proofs-WP01.yaml (8 rows).
+- 2026-07-03T17:53:24Z – claude:opus:reviewer-renata:reviewer – shell_pid=2779242 – Started review via action command
+- 2026-07-03T18:04:01Z – user – shell_pid=2779242 – Review passed (reviewer-renata, opus, cycle 1): seam+injectors moved together (zero residual specify_cli.next in test file); red-first flip re-run by reviewer (bogus key -> FAIL, restore -> green); MissionNotFoundError fixture-completeness verified test-only; C-002 import-path-only confirmed; gates re-run green (29+44 passed, ruff+mypy clean). --force clears the #2324 subtask false-positive (T004-T009 belong to WP02/WP03).

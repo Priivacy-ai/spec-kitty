@@ -20,7 +20,8 @@ subtasks:
 - T015
 phase: Phase 1 - Sequential DAG
 assignee: ''
-agent: ''
+agent: "claude:opus:reviewer-renata:reviewer"
+shell_pid: "2787905"
 history:
 - at: '2026-07-03T17:18:34Z'
   actor: system
@@ -119,3 +120,7 @@ python -m mypy src/ 2>&1 | tail -2; ruff check .
 > Append at the END, chronological. Format: `- YYYY-MM-DDTHH:MM:SSZ – agent_id – <action>`
 
 - 2026-07-03T17:18:34Z – system – Prompt created.
+- 2026-07-03T17:41:03Z – claude:opus:python-pedro:implementer – shell_pid=2754409 – Assigned agent via action command
+- 2026-07-03T17:56:44Z – claude:opus:python-pedro:implementer – shell_pid=2754409 – FR-005+FR-006p1: re-pointed 6 src caller lines (incl. runner.py:36/:41 canonical->legacy DEFECT fix + docstring:6) + 20 owned test files to charter_runtime.*. 32 charter patch-string sites re-pointed with per-site proofs in /tmp/wave2-proofs-WP05.yaml (all 5 target classes red-first bogus-flip proven; 7 sample flips FAILED then restored). Gates: 5 CI-only charter shards 32 passed; 153 owned tests passed; shim arch tests 44 passed; diff-scoped ruff exit 0; mypy Success. --force used: rejection cited T016-T018 which are NOT WP05 subtasks (WP05=T013-T015, all done) = known bug #2324. test_next_no_implicit_success.py untouched (WP03). Shims NOT deleted (WP06).
+- 2026-07-03T17:57:44Z – claude:opus:reviewer-renata:reviewer – shell_pid=2787905 – Started review via action command
+- 2026-07-03T18:06:29Z – user – shell_pid=2787905 – Review passed (--force: gate cited T016-T018 which are WP06's subtasks per tasks.md L26-28/85-87, NOT WP05 — known bug #2324; WP05's own T013-T015 all done). Import-path-only charter re-point (C-002 zero behavior change). 3 SRC callers clean: lint.py GraphState/LintEngine, status.py compute_freshness, runner.py:36/:41 canonical->legacy DEFECT fixed to charter_runtime.freshness. Object-identity proven (shim re-exports SAME 5 symbols). 3 INDEPENDENT red-first flips beyond implementer's 7: test_orphans_flag_passed_to_engine (charter_lint.py:196), test_duration_within_limit (test_engine.py:122), test_returns_built_in_only_when_project_missing (test_drg_fallback.py:71) — each FAILED on bogus target resolving from canonical charter_runtime.* module, PASSED on restore. Residual grep clean in 3 owned src + all owned test files (src-wide hits are docstrings/comments in non-owned shim files, WP06). startswith prefix-filter has teeth (10 real charter_runtime.lint modules). Excluded test_next_no_implicit_success.py untouched; no shim/kitty-specs edits; 23 changed==owned set. Gates: 5 CI shards 32 passed, charter suites 134 passed, shim lock-gate 52 passed (untouched), ruff clean, mypy src/ Success (1058 files).
