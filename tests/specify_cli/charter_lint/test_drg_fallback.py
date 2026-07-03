@@ -16,8 +16,8 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.charter_lint._drg import load_merged_drg
-from specify_cli.charter_lint.findings import GraphState
+from specify_cli.charter_runtime.lint._drg import load_merged_drg
+from specify_cli.charter_runtime.lint.findings import GraphState
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -51,7 +51,7 @@ class TestLoadMergedDRGResolutionOrder:
     def test_returns_missing_when_no_graph_anywhere(self, tmp_path: Path) -> None:
         """No project file and no built-in catalog → ``(None, MISSING)``."""
         with patch(
-            "specify_cli.charter_lint._drg._load_built_in_drg",
+            "specify_cli.charter_runtime.lint._drg._load_built_in_drg",
             return_value=None,
         ):
             graph, state = load_merged_drg(tmp_path)
@@ -68,7 +68,7 @@ class TestLoadMergedDRGResolutionOrder:
         """
         stub = _stub_graph("built-in")
         with patch(
-            "specify_cli.charter_lint._drg._load_built_in_drg",
+            "specify_cli.charter_runtime.lint._drg._load_built_in_drg",
             return_value=stub,
         ):
             graph, state = load_merged_drg(tmp_path)
@@ -88,11 +88,11 @@ class TestLoadMergedDRGResolutionOrder:
 
         with (
             patch(
-                "specify_cli.charter_lint._drg._load_project_drg",
+                "specify_cli.charter_runtime.lint._drg._load_project_drg",
                 return_value=project_stub,
             ),
             patch(
-                "specify_cli.charter_lint._drg._load_built_in_drg",
+                "specify_cli.charter_runtime.lint._drg._load_built_in_drg",
                 side_effect=fake_built_in,
             ),
         ):
@@ -119,7 +119,7 @@ class TestLoadMergedDRGResolutionOrder:
         # alongside the ADR.
         with (
             patch(
-                "specify_cli.charter_lint._drg._load_built_in_drg",
+                "specify_cli.charter_runtime.lint._drg._load_built_in_drg",
                 side_effect=RuntimeError("catalog blew up"),
             ),
             pytest.raises(RuntimeError),
@@ -132,7 +132,7 @@ class TestLoadMergedDRGTupleShape:
 
     def test_return_value_is_always_a_tuple(self, tmp_path: Path) -> None:
         with patch(
-            "specify_cli.charter_lint._drg._load_built_in_drg",
+            "specify_cli.charter_runtime.lint._drg._load_built_in_drg",
             return_value=None,
         ):
             result = load_merged_drg(tmp_path)
@@ -171,7 +171,7 @@ class TestProjectDRGFileFormats:
 
         # The internal helper imports lazily; patch the loader to install
         # our fake schema class.
-        import specify_cli.charter_lint._drg as drg_module
+        import specify_cli.charter_runtime.lint._drg as drg_module
 
         original = drg_module._load_graph_file
 

@@ -1515,7 +1515,7 @@ def implement(
             # guard here means a missing-context precondition failure aborts
             # before start_implementation_status, leaving zero new status events
             # and zero new worktree paths.
-            from specify_cli.next.runtime_bridge import build_operational_context_for_claim
+            from runtime.next.runtime_bridge import build_operational_context_for_claim
 
             operational_context = build_operational_context_for_claim(
                 repo_root=main_repo_root,

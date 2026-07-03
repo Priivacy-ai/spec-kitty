@@ -25,6 +25,7 @@ from specify_cli.cli.commands.lifecycle import tasks as lifecycle_tasks
 from specify_cli.cli.commands.mission import app as mission_app
 from specify_cli.cli.commands.next_cmd import next_step
 from specify_cli.cli.selector_resolution import resolve_selector
+from runtime.next.runtime_bridge import MissionNotFoundError
 
 pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]  # non_sandbox: warning assertion fails in sandbox
 runner = CliRunner()
@@ -493,13 +494,17 @@ def test_next_step_canonical_selector_passes_mission_slug(
             run_id=None,
         )
 
-    fake_runtime_bridge = ModuleType("specify_cli.next.runtime_bridge")
+    fake_runtime_bridge = ModuleType("runtime.next.runtime_bridge")
     fake_runtime_bridge.query_current_state = _fake_query
     fake_runtime_bridge.QueryModeValidationError = RuntimeError
+    # The fake now shadows the canonical key, so it must expose every attribute
+    # the command reads from ``runtime.next.runtime_bridge`` — including the real
+    # ``MissionNotFoundError`` referenced by the query error path.
+    fake_runtime_bridge.MissionNotFoundError = MissionNotFoundError
 
     with (
         patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-        patch.dict(sys.modules, {"specify_cli.next.runtime_bridge": fake_runtime_bridge}),
+        patch.dict(sys.modules, {"runtime.next.runtime_bridge": fake_runtime_bridge}),
     ):
         next_step.__wrapped__(
             agent="codex",
@@ -539,13 +544,17 @@ def test_next_step_alias_selector_warns_and_passes_mission_slug(
             run_id=None,
         )
 
-    fake_runtime_bridge = ModuleType("specify_cli.next.runtime_bridge")
+    fake_runtime_bridge = ModuleType("runtime.next.runtime_bridge")
     fake_runtime_bridge.query_current_state = _fake_query
     fake_runtime_bridge.QueryModeValidationError = RuntimeError
+    # The fake now shadows the canonical key, so it must expose every attribute
+    # the command reads from ``runtime.next.runtime_bridge`` — including the real
+    # ``MissionNotFoundError`` referenced by the query error path.
+    fake_runtime_bridge.MissionNotFoundError = MissionNotFoundError
 
     with (
         patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
-        patch.dict(sys.modules, {"specify_cli.next.runtime_bridge": fake_runtime_bridge}),
+        patch.dict(sys.modules, {"runtime.next.runtime_bridge": fake_runtime_bridge}),
     ):
         next_step.__wrapped__(
             agent="codex",

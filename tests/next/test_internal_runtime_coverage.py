@@ -21,7 +21,7 @@ import pytest
 import yaml
 from pydantic import ValidationError
 
-from specify_cli.next._internal_runtime import (
+from runtime.next._internal_runtime import (
     DiscoveryContext,
     MissionPolicySnapshot,
     MissionRunRef,
@@ -31,19 +31,19 @@ from specify_cli.next._internal_runtime import (
     provide_decision_answer,
     start_mission_run,
 )
-from specify_cli.next._internal_runtime import contracts as contracts_mod
-from specify_cli.next._internal_runtime import discovery as discovery_mod
-from specify_cli.next._internal_runtime import emitter as emitter_mod
-from specify_cli.next._internal_runtime import engine as engine_mod
-from specify_cli.next._internal_runtime import events as events_mod
-from specify_cli.next._internal_runtime import lifecycle as lifecycle_mod
-from specify_cli.next._internal_runtime import models as models_mod
-from specify_cli.next._internal_runtime import planner as planner_mod
-from specify_cli.next._internal_runtime import raci as raci_mod
-from specify_cli.next._internal_runtime import schema as schema_mod
-from specify_cli.next._internal_runtime import significance as sig_mod
-from specify_cli.next._internal_runtime.contracts import RemediationPayload
-from specify_cli.next._internal_runtime.discovery import (
+from runtime.next._internal_runtime import contracts as contracts_mod
+from runtime.next._internal_runtime import discovery as discovery_mod
+from runtime.next._internal_runtime import emitter as emitter_mod
+from runtime.next._internal_runtime import engine as engine_mod
+from runtime.next._internal_runtime import events as events_mod
+from runtime.next._internal_runtime import lifecycle as lifecycle_mod
+from runtime.next._internal_runtime import models as models_mod
+from runtime.next._internal_runtime import planner as planner_mod
+from runtime.next._internal_runtime import raci as raci_mod
+from runtime.next._internal_runtime import schema as schema_mod
+from runtime.next._internal_runtime import significance as sig_mod
+from runtime.next._internal_runtime.contracts import RemediationPayload
+from runtime.next._internal_runtime.discovery import (
     DiscoveryResult,
     DiscoveryWarning,
     ShadowEntry,
@@ -53,20 +53,20 @@ from specify_cli.next._internal_runtime.discovery import (
     discover_missions_with_warnings,
     load_mission_template,
 )
-from specify_cli.next._internal_runtime.engine import (
+from runtime.next._internal_runtime.engine import (
     TransitionGate,
     notify_decision_timeout,
     resolve_context,
     validate_binding,
 )
-from specify_cli.next._internal_runtime.events import JsonlEventLog
-from specify_cli.next._internal_runtime.planner import plan_next, serialize_decision
-from specify_cli.next._internal_runtime.raci import (
+from runtime.next._internal_runtime.events import JsonlEventLog
+from runtime.next._internal_runtime.planner import plan_next, serialize_decision
+from runtime.next._internal_runtime.raci import (
     infer_raci,
     resolve_raci,
     validate_raci_assignment,
 )
-from specify_cli.next._internal_runtime.schema import (
+from runtime.next._internal_runtime.schema import (
     ActorIdentity,
     AuditConfig,
     AuditStep,
@@ -85,7 +85,7 @@ from specify_cli.next._internal_runtime.schema import (
     StepContextContract,
     load_mission_template_file,
 )
-from specify_cli.next._internal_runtime.significance import (
+from runtime.next._internal_runtime.significance import (
     DEFAULT_BANDS,
     HARD_TRIGGER_REGISTRY,
     DimensionScoreOverride,

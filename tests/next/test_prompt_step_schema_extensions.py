@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from specify_cli.next._internal_runtime.schema import PromptStep
+from runtime.next._internal_runtime.schema import PromptStep
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]

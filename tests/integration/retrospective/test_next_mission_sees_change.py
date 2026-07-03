@@ -23,7 +23,7 @@ import pytest
 import yaml  # type: ignore[import-untyped]
 
 from specify_cli.doctrine_synthesizer.apply import apply_proposals
-from specify_cli.next._internal_runtime.retrospective_terminus import run_terminus
+from runtime.next._internal_runtime.retrospective_terminus import run_terminus
 from specify_cli.retrospective.schema import (
     ActorRef,
     AddGlossaryTermPayload,

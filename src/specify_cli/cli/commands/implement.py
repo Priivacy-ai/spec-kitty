@@ -1282,7 +1282,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         # missing-context precondition failure aborts before create_lane_workspace
         # runs, so a failed claim leaves zero new worktree paths and zero new
         # status events.
-        from specify_cli.next.runtime_bridge import build_operational_context_for_claim
+        from runtime.next.runtime_bridge import build_operational_context_for_claim
 
         operational_context = build_operational_context_for_claim(
             repo_root=repo_root,

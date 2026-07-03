@@ -39,7 +39,7 @@ def test_non_default_workflow_id_produces_extra_design_review_step(
     fixture_mission_with_workflow_id: Path,
 ) -> None:
     """Scenario 3: resolve_next_workflow_action returns commands per the new sequence."""
-    from specify_cli.next._internal_runtime.planner import resolve_next_workflow_action
+    from runtime.next._internal_runtime.planner import resolve_next_workflow_action
 
     # Assume the mission is at action=plan; expected next=design-review
     result = resolve_next_workflow_action(
@@ -53,7 +53,7 @@ def test_fixture_mission_with_workflow_id_produces_documented_step_diff(
     fixture_mission_with_workflow_id: Path,
 ) -> None:
     """AC-4: documented step diff from default."""
-    from specify_cli.next._internal_runtime.planner import resolve_next_workflow_action
+    from runtime.next._internal_runtime.planner import resolve_next_workflow_action
 
     # default would be tasks; with our-team-design-first, plan -> design-review -> tasks
     result_with_id = resolve_next_workflow_action(
@@ -73,7 +73,7 @@ def test_mission_without_workflow_id_uses_software_dev_default(tmp_path: Path) -
         "mission_slug": "legacy",
         "mission_number": None,
     }))  # no workflow_id
-    from specify_cli.next._internal_runtime.planner import resolve_next_workflow_action
+    from runtime.next._internal_runtime.planner import resolve_next_workflow_action
 
     result = resolve_next_workflow_action(mission_dir=mission_dir, current_action="plan")
     assert result.next_action == "tasks"  # byte-stable default
@@ -89,8 +89,8 @@ def test_unknown_workflow_id_in_meta_json_hard_fails(tmp_path: Path) -> None:
         "mission_number": None,
         "workflow_id": "does-not-exist",
     }))
-    from specify_cli.next._internal_runtime.planner import resolve_next_workflow_action
-    from specify_cli.next._internal_runtime.workflow_registry import UnknownWorkflowError
+    from runtime.next._internal_runtime.planner import resolve_next_workflow_action
+    from runtime.next._internal_runtime.workflow_registry import UnknownWorkflowError
 
     with pytest.raises(UnknownWorkflowError):
         resolve_next_workflow_action(mission_dir=mission_dir, current_action="plan")
@@ -131,8 +131,8 @@ actions:
         "workflow_id": "solo-fast",
     }))
 
-    from specify_cli.next._internal_runtime.planner import resolve_next_workflow_action
-    from specify_cli.next._internal_runtime.workflow_registry import get_workflow
+    from runtime.next._internal_runtime.planner import resolve_next_workflow_action
+    from runtime.next._internal_runtime.workflow_registry import get_workflow
 
     get_workflow.cache_clear()
     result = resolve_next_workflow_action(mission_dir=mission_dir, current_action="implement")

@@ -18,7 +18,7 @@ Usage (from repo root, with the upstream runtime importable):
         tests/fixtures/runtime_parity/_capture_baselines.py
 
 The script also accepts a ``--target internal`` flag to capture against the
-internalized runtime ``specify_cli.next._internal_runtime``. The parity test
+internalized runtime ``runtime.next._internal_runtime``. The parity test
 uses ``--target internal`` semantics in-process and compares the result to
 the committed ``--target upstream`` baselines.
 """
@@ -84,7 +84,7 @@ def _resolve_runtime(target: str) -> dict[str, Callable[..., Any] | type]:
         )
         from spec_kitty_runtime.schema import ActorIdentity  # type: ignore[import-not-found]
     elif target == "internal":
-        from specify_cli.next._internal_runtime import (
+        from runtime.next._internal_runtime import (
             DiscoveryContext,
             MissionPolicySnapshot,
             NullEmitter,
@@ -92,7 +92,7 @@ def _resolve_runtime(target: str) -> dict[str, Callable[..., Any] | type]:
             provide_decision_answer,
             start_mission_run,
         )
-        from specify_cli.next._internal_runtime.schema import ActorIdentity
+        from runtime.next._internal_runtime.schema import ActorIdentity
     else:  # pragma: no cover
         raise ValueError(f"Unknown target: {target}")
 

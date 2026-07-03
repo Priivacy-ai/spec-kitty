@@ -37,21 +37,21 @@ from specify_cli.mission_loader.registry import get_runtime_contract_registry
 from specify_cli.mission_step_contracts.executor import (
     StepContractExecutionContext,
 )
-from specify_cli.next._internal_runtime.discovery import DiscoveryContext
-from specify_cli.next._internal_runtime.engine import (
+from runtime.next._internal_runtime.discovery import DiscoveryContext
+from runtime.next._internal_runtime.engine import (
     MissionRunRef,
     _read_snapshot,
     next_step as engine_next_step,
     provide_decision_answer,
     start_mission_run,
 )
-from specify_cli.next._internal_runtime.events import NullEmitter
-from specify_cli.next._internal_runtime.schema import (
+from runtime.next._internal_runtime.events import NullEmitter
+from runtime.next._internal_runtime.schema import (
     ActorIdentity,
     MissionPolicySnapshot,
 )
-from specify_cli.next.decision import Decision, DecisionKind
-from specify_cli.next.runtime_bridge import _dispatch_via_composition
+from runtime.next.decision import Decision, DecisionKind
+from runtime.next.runtime_bridge import _dispatch_via_composition
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -382,7 +382,7 @@ def _advance_runtime_to_step(
     repo_root: Path, mission_slug: str, target_step: str
 ) -> None:
     """Drive the runtime engine until ``issued_step_id == target_step``."""
-    from specify_cli.next.runtime_bridge import get_or_start_run
+    from runtime.next.runtime_bridge import get_or_start_run
 
     run_ref = get_or_start_run(mission_slug, repo_root, "software-dev")
     for _ in range(20):
@@ -423,7 +423,7 @@ def test_software_dev_specify_dispatch_unchanged(tmp_path: Path) -> None:
 
     _advance_runtime_to_step(repo_root, mission_slug, "specify")
 
-    from specify_cli.next.runtime_bridge import decide_next_via_runtime
+    from runtime.next.runtime_bridge import decide_next_via_runtime
 
     fake_result = MagicMock()
     fake_result.invocation_ids = ("inv-001",)
@@ -451,7 +451,7 @@ def test_software_dev_specify_dispatch_unchanged(tmp_path: Path) -> None:
             return_value=fake_result,
         ) as mock_execute,
         patch(
-            "specify_cli.next.runtime_bridge._advance_run_state_after_composition",
+            "runtime.next.runtime_bridge._advance_run_state_after_composition",
             return_value=sentinel_decision,
         ),
     ):
@@ -507,7 +507,7 @@ def test_run_custom_mission_starts_runtime_for_erp_fixture(
             mission_key=mission_type,
         )
 
-    from specify_cli.next import runtime_bridge
+    from runtime.next import runtime_bridge
 
     monkeypatch.setattr(runtime_bridge, "get_or_start_run", _fake_get_or_start_run)
 
@@ -557,7 +557,7 @@ def test_next_dispatch_synthesizes_contract_after_registry_clear(
     (repo_root / "kitty-specs" / "erp-walk").mkdir(parents=True, exist_ok=True)
 
     # First ``next`` call issues the first step; no composition dispatch yet.
-    from specify_cli.next.runtime_bridge import decide_next_via_runtime
+    from runtime.next.runtime_bridge import decide_next_via_runtime
 
     first = decide_next_via_runtime("test", "erp-walk", "success", repo_root)
     assert first.step_id == "query-erp"
@@ -590,7 +590,7 @@ def test_next_dispatch_synthesizes_contract_after_registry_clear(
             return_value=fake_result,
         ) as mock_execute,
         patch(
-            "specify_cli.next.runtime_bridge._advance_run_state_after_composition",
+            "runtime.next.runtime_bridge._advance_run_state_after_composition",
             return_value=sentinel_decision,
         ),
     ):

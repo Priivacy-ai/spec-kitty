@@ -190,7 +190,7 @@ def test_org_pack_in_monorepo_with_custom_workflow(tmp_complex_setup: Path) -> N
     )
 
     # ---- Axis 3: composable workflow next-action -------------------------
-    from specify_cli.next._internal_runtime.planner import (  # noqa: PLC0415
+    from runtime.next._internal_runtime.planner import (  # noqa: PLC0415
         resolve_next_workflow_action,
     )
 
@@ -223,7 +223,7 @@ def test_org_pack_drg_does_not_affect_default_workflow(
     """Axis 1 × Axis 3 isolation: loading an org DRG must not alter the default
     workflow for a mission that does NOT set workflow_id."""
     from charter.drg import load_org_drg  # noqa: PLC0415
-    from specify_cli.next._internal_runtime.planner import (  # noqa: PLC0415
+    from runtime.next._internal_runtime.planner import (  # noqa: PLC0415
         resolve_next_workflow_action,
     )
 
@@ -339,7 +339,7 @@ def test_governance_context_production_path_uses_monorepo_charter(
     from unittest.mock import patch  # noqa: PLC0415
 
     from charter.context import CharterContextResult  # noqa: PLC0415
-    from specify_cli.next.prompt_builder import _governance_context  # noqa: PLC0415
+    from runtime.next.prompt_builder import _governance_context  # noqa: PLC0415
 
     repo_root = tmp_complex_setup
     deep_auth_path = repo_root / "packages" / "auth" / "some" / "deep" / "dir"

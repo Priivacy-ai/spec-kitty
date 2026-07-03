@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.next.runtime_bridge import (
+from runtime.next.runtime_bridge import (
     _check_composed_action_guard,
     _count_source_documented_events,
     _dispatch_via_composition,
@@ -241,7 +241,7 @@ def test_no_fallthrough_after_successful_composition(
         )
 
     monkeypatch.setattr(
-        "specify_cli.next.runtime_bridge.runtime_next_step", _spy
+        "runtime.next.runtime_bridge.runtime_next_step", _spy
     )
 
     # Direct guard call models "composition succeeded → guard passed".
@@ -268,7 +268,7 @@ def test_no_fallthrough_after_failed_composition(
         )
 
     monkeypatch.setattr(
-        "specify_cli.next.runtime_bridge.runtime_next_step", _spy
+        "runtime.next.runtime_bridge.runtime_next_step", _spy
     )
 
     # Bare feature_dir → research/scoping guard fails on missing spec.md.

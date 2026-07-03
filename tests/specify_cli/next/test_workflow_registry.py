@@ -15,7 +15,7 @@ import pytest
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def test_get_workflow_loads_software_dev_default():
-    from specify_cli.next._internal_runtime.workflow_registry import get_workflow
+    from runtime.next._internal_runtime.workflow_registry import get_workflow
 
     wf = get_workflow("software-dev-default")
     assert wf.workflow_id == "software-dev-default"
@@ -26,7 +26,7 @@ def test_get_workflow_loads_software_dev_default():
 
 def test_unknown_workflow_id_hard_fails_with_available_list():
     """FR-015 binding: no silent fallback to software-dev-default."""
-    from specify_cli.next._internal_runtime.workflow_registry import (
+    from runtime.next._internal_runtime.workflow_registry import (
         UnknownWorkflowError,
         get_workflow,
     )
@@ -39,7 +39,7 @@ def test_unknown_workflow_id_hard_fails_with_available_list():
 
 
 def test_get_workflow_loads_fixture_workflow():
-    from specify_cli.next._internal_runtime.workflow_registry import get_workflow
+    from runtime.next._internal_runtime.workflow_registry import get_workflow
 
     wf = get_workflow("our-team-design-first")
     action_names = [a.action_name for a in wf.actions]
@@ -47,7 +47,7 @@ def test_get_workflow_loads_fixture_workflow():
 
 
 def test_get_workflow_loads_project_override_yaml(tmp_path: Path):
-    from specify_cli.next._internal_runtime.workflow_registry import get_workflow
+    from runtime.next._internal_runtime.workflow_registry import get_workflow
 
     workflow_dir = tmp_path / ".kittify" / "overrides" / "workflows"
     workflow_dir.mkdir(parents=True)
@@ -86,7 +86,7 @@ actions:
 
 
 def test_project_override_precedes_builtin_workflow(tmp_path: Path):
-    from specify_cli.next._internal_runtime.workflow_registry import get_workflow
+    from runtime.next._internal_runtime.workflow_registry import get_workflow
 
     workflow_dir = tmp_path / ".kittify" / "overrides" / "workflows"
     workflow_dir.mkdir(parents=True)
@@ -114,7 +114,7 @@ actions:
 
 
 def test_workflow_file_id_must_match_requested_slug(tmp_path: Path):
-    from specify_cli.next._internal_runtime.workflow_registry import (
+    from runtime.next._internal_runtime.workflow_registry import (
         UnknownWorkflowError,
         get_workflow,
     )
@@ -141,7 +141,7 @@ actions:
 
 
 def test_project_workflow_reload_reflects_file_changes(tmp_path: Path):
-    from specify_cli.next._internal_runtime.workflow_registry import get_workflow
+    from runtime.next._internal_runtime.workflow_registry import get_workflow
 
     workflow_dir = tmp_path / ".kittify" / "overrides" / "workflows"
     workflow_dir.mkdir(parents=True)
@@ -187,7 +187,7 @@ actions:
 
 
 def test_list_available_workflows_omits_invalid_project_files(tmp_path: Path):
-    from specify_cli.next._internal_runtime.workflow_registry import list_available_workflows
+    from runtime.next._internal_runtime.workflow_registry import list_available_workflows
 
     workflow_dir = tmp_path / ".kittify" / "overrides" / "workflows"
     workflow_dir.mkdir(parents=True)
@@ -240,7 +240,7 @@ actions:
 
 def test_workflow_sequence_actions_form_dag():
     """Invariant: no cycles; every `next` references an existing action."""
-    from specify_cli.next._internal_runtime.workflow_registry import get_workflow
+    from runtime.next._internal_runtime.workflow_registry import get_workflow
 
     wf = get_workflow("software-dev-default")
     names = {a.action_name for a in wf.actions}
@@ -263,7 +263,7 @@ def test_invalid_workflow_id_with_path_traversal_raises_validation_error():
     The error message must say "Invalid workflow_id", not just "Unknown
     workflow_id", to distinguish validation rejection from lookup failure.
     """
-    from specify_cli.next._internal_runtime.workflow_registry import (
+    from runtime.next._internal_runtime.workflow_registry import (
         UnknownWorkflowError,
         get_workflow,
     )
@@ -285,7 +285,7 @@ def test_invalid_workflow_id_with_path_traversal_raises_validation_error():
 
 def test_invalid_workflow_id_uppercase_raises_validation_error():
     """Uppercase characters must be caught by the validator, not the file lookup."""
-    from specify_cli.next._internal_runtime.workflow_registry import (
+    from runtime.next._internal_runtime.workflow_registry import (
         UnknownWorkflowError,
         get_workflow,
     )
@@ -303,7 +303,7 @@ def test_invalid_workflow_id_uppercase_raises_validation_error():
 
 def test_invalid_workflow_id_with_spaces_raises_validation_error():
     """Spaces are not valid in a workflow_id slug; must be caught by validator."""
-    from specify_cli.next._internal_runtime.workflow_registry import (
+    from runtime.next._internal_runtime.workflow_registry import (
         UnknownWorkflowError,
         get_workflow,
     )
@@ -320,7 +320,7 @@ def test_invalid_workflow_id_with_spaces_raises_validation_error():
 
 def test_valid_workflow_id_slug_accepted():
     """Confirm valid slugs are not rejected by the validator."""
-    from specify_cli.next._internal_runtime.workflow_registry import get_workflow
+    from runtime.next._internal_runtime.workflow_registry import get_workflow
 
     get_workflow.cache_clear()
     # should not raise; falls through to the normal lookup (may raise
@@ -338,7 +338,7 @@ def test_workflow_sequence_rejects_unreachable_cycle():
     """A hidden island cycle must not validate just because initial cannot reach it."""
     import pydantic
 
-    from specify_cli.next._internal_runtime.workflow_schema import WorkflowSequence
+    from runtime.next._internal_runtime.workflow_schema import WorkflowSequence
 
     with pytest.raises(pydantic.ValidationError, match="unreachable|cycle"):
         WorkflowSequence.model_validate(
@@ -364,7 +364,7 @@ def test_workflow_sequence_rejects_unreachable_action():
     """Orphan actions are almost certainly authoring mistakes."""
     import pydantic
 
-    from specify_cli.next._internal_runtime.workflow_schema import WorkflowSequence
+    from runtime.next._internal_runtime.workflow_schema import WorkflowSequence
 
     with pytest.raises(pydantic.ValidationError, match="unreachable"):
         WorkflowSequence.model_validate(
@@ -393,7 +393,7 @@ def test_workflow_sequence_rejects_branching_next_actions():
     """Issue #682 v1 workflows stay linear: one current action has one successor."""
     import pydantic
 
-    from specify_cli.next._internal_runtime.workflow_schema import WorkflowSequence
+    from runtime.next._internal_runtime.workflow_schema import WorkflowSequence
 
     with pytest.raises(pydantic.ValidationError, match="linear"):
         WorkflowSequence.model_validate(

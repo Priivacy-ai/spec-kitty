@@ -29,7 +29,7 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.next.decision import DecisionKind
+from runtime.next.decision import DecisionKind
 
 pytestmark = pytest.mark.fast
 
@@ -70,17 +70,17 @@ class TestWPIterationDecisionBlockedBranch:
           - guard_failures forwarded (not dropped)
           - prompt_file is None
         """
-        from specify_cli.next.runtime_bridge import _build_wp_iteration_decision
+        from runtime.next.runtime_bridge import _build_wp_iteration_decision
 
         run_ref = SimpleNamespace(run_id="run-blocked-01")
 
         with (
             patch(
-                "specify_cli.next.runtime_bridge._state_to_action",
+                "runtime.next.runtime_bridge._state_to_action",
                 return_value=("implement", "WP01", str(tmp_path / ".worktrees" / "lane-a")),
             ),
             patch(
-                "specify_cli.next.runtime_bridge._build_prompt_or_error",
+                "runtime.next.runtime_bridge._build_prompt_or_error",
                 return_value=(None, "prompt resolution failed for action 'implement'"),
             ),
         ):
@@ -125,15 +125,15 @@ class TestMapRuntimeDecisionNoActionNoStepId:
         resolve a prompt (prompt_error is set inline) and must emit a
         blocked decision.
         """
-        from specify_cli.next.runtime_bridge import _map_runtime_decision
+        from runtime.next.runtime_bridge import _map_runtime_decision
 
         with (
             patch(
-                "specify_cli.next.runtime_bridge._state_to_action",
+                "runtime.next.runtime_bridge._state_to_action",
                 return_value=(None, None, None),
             ),
             patch(
-                "specify_cli.next.runtime_bridge._is_wp_iteration_step",
+                "runtime.next.runtime_bridge._is_wp_iteration_step",
                 return_value=False,
             ),
         ):
@@ -191,7 +191,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
         The decision must be ``blocked`` with the prompt error in
         ``reason``.
         """
-        from specify_cli.next import runtime_bridge as rb
+        from runtime.next import runtime_bridge as rb
 
         mission_slug = "042-test"
         self._build_minimal_feature_dir(tmp_path, mission_slug)
@@ -214,7 +214,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
                 return_value=(None, "prompt resolution failed for action 'specify'"),
             ),
             patch(
-                "specify_cli.next._internal_runtime.engine._read_snapshot",
+                "runtime.next._internal_runtime.engine._read_snapshot",
                 return_value=snapshot,
             ),
         ):
@@ -244,7 +244,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
         still blocked (because guards failed), but it MUST carry the
         resolvable ``prompt_file`` rather than a prompt-error reason.
         """
-        from specify_cli.next import runtime_bridge as rb
+        from runtime.next import runtime_bridge as rb
 
         mission_slug = "042-test"
         self._build_minimal_feature_dir(tmp_path, mission_slug)
@@ -269,7 +269,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
                 return_value=(str(prompt_path), None),
             ),
             patch(
-                "specify_cli.next._internal_runtime.engine._read_snapshot",
+                "runtime.next._internal_runtime.engine._read_snapshot",
                 return_value=snapshot,
             ),
         ):
@@ -295,7 +295,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
         self, tmp_path: Path
     ) -> None:
         """A prompt can disappear after resolution; keep the step invariant hard."""
-        from specify_cli.next import runtime_bridge as rb
+        from runtime.next import runtime_bridge as rb
 
         mission_slug = "042-test"
         self._build_minimal_feature_dir(tmp_path, mission_slug)
@@ -321,7 +321,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
             ),
             patch("pathlib.Path.is_file", return_value=False),
             patch(
-                "specify_cli.next._internal_runtime.engine._read_snapshot",
+                "runtime.next._internal_runtime.engine._read_snapshot",
                 return_value=snapshot,
             ),
         ):
@@ -349,7 +349,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
         composes the prompt-error reason inline (`no action mapped for
         step ...`) without invoking `_build_prompt_or_error`.
         """
-        from specify_cli.next import runtime_bridge as rb
+        from runtime.next import runtime_bridge as rb
 
         mission_slug = "042-test"
         self._build_minimal_feature_dir(tmp_path, mission_slug)
@@ -366,7 +366,7 @@ class TestDecideNextViaRuntimeGuardFailureBlocked:
             patch.object(rb, "_is_wp_iteration_step", return_value=False),
             patch.object(rb, "_state_to_action", return_value=(None, None, None)),
             patch(
-                "specify_cli.next._internal_runtime.engine._read_snapshot",
+                "runtime.next._internal_runtime.engine._read_snapshot",
                 return_value=snapshot,
             ),
         ):
@@ -393,7 +393,7 @@ class TestResolvedPromptRaceFallbacks:
     def test_wp_iteration_blocks_if_resolved_prompt_disappears(
         self, tmp_path: Path
     ) -> None:
-        from specify_cli.next.runtime_bridge import _build_wp_iteration_decision
+        from runtime.next.runtime_bridge import _build_wp_iteration_decision
 
         prompt_path = tmp_path / "implement-prompt.md"
         prompt_path.write_text("# implement\n", encoding="utf-8")
@@ -401,11 +401,11 @@ class TestResolvedPromptRaceFallbacks:
 
         with (
             patch(
-                "specify_cli.next.runtime_bridge._state_to_action",
+                "runtime.next.runtime_bridge._state_to_action",
                 return_value=("implement", "WP01", str(tmp_path / ".worktrees" / "lane-a")),
             ),
             patch(
-                "specify_cli.next.runtime_bridge._build_prompt_or_error",
+                "runtime.next.runtime_bridge._build_prompt_or_error",
                 return_value=(str(prompt_path), None),
             ),
             patch("pathlib.Path.is_file", return_value=False),
@@ -430,22 +430,22 @@ class TestResolvedPromptRaceFallbacks:
     def test_map_wp_step_blocks_if_resolved_prompt_disappears(
         self, tmp_path: Path
     ) -> None:
-        from specify_cli.next.runtime_bridge import _map_runtime_decision
+        from runtime.next.runtime_bridge import _map_runtime_decision
 
         prompt_path = tmp_path / "implement-prompt.md"
         prompt_path.write_text("# implement\n", encoding="utf-8")
 
         with (
             patch(
-                "specify_cli.next.runtime_bridge._state_to_action",
+                "runtime.next.runtime_bridge._state_to_action",
                 return_value=("implement", "WP01", str(tmp_path / ".worktrees" / "lane-a")),
             ),
             patch(
-                "specify_cli.next.runtime_bridge._is_wp_iteration_step",
+                "runtime.next.runtime_bridge._is_wp_iteration_step",
                 return_value=True,
             ),
             patch(
-                "specify_cli.next.runtime_bridge._build_prompt_or_error",
+                "runtime.next.runtime_bridge._build_prompt_or_error",
                 return_value=(str(prompt_path), None),
             ),
             patch("pathlib.Path.is_file", return_value=False),
@@ -469,22 +469,22 @@ class TestResolvedPromptRaceFallbacks:
     def test_map_non_wp_step_blocks_if_resolved_prompt_disappears(
         self, tmp_path: Path
     ) -> None:
-        from specify_cli.next.runtime_bridge import _map_runtime_decision
+        from runtime.next.runtime_bridge import _map_runtime_decision
 
         prompt_path = tmp_path / "specify-prompt.md"
         prompt_path.write_text("# specify\n", encoding="utf-8")
 
         with (
             patch(
-                "specify_cli.next.runtime_bridge._state_to_action",
+                "runtime.next.runtime_bridge._state_to_action",
                 return_value=("specify", None, None),
             ),
             patch(
-                "specify_cli.next.runtime_bridge._is_wp_iteration_step",
+                "runtime.next.runtime_bridge._is_wp_iteration_step",
                 return_value=False,
             ),
             patch(
-                "specify_cli.next.runtime_bridge._build_prompt_or_error",
+                "runtime.next.runtime_bridge._build_prompt_or_error",
                 return_value=(str(prompt_path), None),
             ),
             patch("pathlib.Path.is_file", return_value=False),

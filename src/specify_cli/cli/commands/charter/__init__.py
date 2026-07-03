@@ -116,8 +116,8 @@ from specify_cli.cli.commands.charter._widen import (  # noqa: F401
 from specify_cli.cli.commands.charter.lint import _print_charter_lint_banner  # noqa: F401
 
 # Register ``charter preflight`` (WP03 FR-006..FR-008) — the implementation
-# lives in its own package (``specify_cli.charter_preflight``); we plug the
-# handler into the typer app here so the subcommand appears alongside the
+# lives in its own package (``specify_cli.charter_runtime.preflight``); we plug
+# the handler into the typer app here so the subcommand appears alongside the
 # rest of the ``charter`` surface.
 from specify_cli.charter_runtime.preflight.cli import charter_preflight as _charter_preflight  # noqa: E402
 

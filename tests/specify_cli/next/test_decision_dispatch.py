@@ -17,7 +17,7 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.next.decision import _build_prompt_or_error
+from runtime.next.decision import _build_prompt_or_error
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -50,7 +50,7 @@ class TestFrozensetDeletion:
 
     def test_composed_actions_for_prompt_does_not_exist(self) -> None:
         """_COMPOSED_ACTIONS_FOR_PROMPT MUST NOT be importable from decision."""
-        import specify_cli.next.decision as decision_module
+        import runtime.next.decision as decision_module
 
         assert not hasattr(decision_module, "_COMPOSED_ACTIONS_FOR_PROMPT"), (
             "_COMPOSED_ACTIONS_FOR_PROMPT still exists in decision.py — FR-007 violated"

@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 import typer
 
-from specify_cli.charter_preflight.result import CharterPreflightResult
+from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
 
 
 pytestmark = pytest.mark.fast
@@ -48,7 +48,7 @@ def test_hook_returns_result_when_preflight_passes(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The shared helper returns the result on success without raising."""
-    from specify_cli.charter_preflight import hook as hook_mod
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
 
     monkeypatch.setattr(hook_mod, "run_charter_preflight", lambda **_: _pass_result())
 
@@ -61,7 +61,7 @@ def test_hook_disabled_by_project_config_does_not_load_runner(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Project config disables the heavy runner without an env bypass."""
-    from specify_cli.charter_preflight import hook as hook_mod
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
 
     config_path = tmp_path / ".kittify" / "config.yaml"
     config_path.parent.mkdir()
@@ -82,7 +82,7 @@ def test_null_project_config_enabled_still_runs_preflight(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Null enabled resets to the default; it must not silently skip the gate."""
-    from specify_cli.charter_preflight import hook as hook_mod
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
 
     config_path = tmp_path / ".kittify" / "config.yaml"
     config_path.parent.mkdir()
@@ -107,7 +107,7 @@ def test_hook_aborts_with_exit_1_when_preflight_fails(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Failure path exits 1 and surfaces the blocked_reason on stderr."""
-    from specify_cli.charter_preflight import hook as hook_mod
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
 
     monkeypatch.setattr(hook_mod, "run_charter_preflight", lambda **_: _fail_result())
 
@@ -142,7 +142,7 @@ def test_next_command_aborts_before_decide_next_on_failure(
     is never called — proving "no state mutation" per the caller contract.
     """
     from specify_cli.cli.commands import next_cmd
-    from specify_cli.charter_preflight import hook as hook_mod
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
 
     monkeypatch.setattr(
         hook_mod,
@@ -181,7 +181,7 @@ def test_next_command_continues_to_decide_when_preflight_passes(
 ) -> None:
     """``next_step`` reaches ``decide_next`` only when preflight passes."""
     from specify_cli.cli.commands import next_cmd
-    from specify_cli.charter_preflight import hook as hook_mod
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
 
     monkeypatch.setattr(hook_mod, "run_charter_preflight", lambda **_: _pass_result())
     monkeypatch.setattr(next_cmd, "locate_project_root", lambda: tmp_path)

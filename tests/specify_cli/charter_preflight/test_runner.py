@@ -1,4 +1,4 @@
-"""Unit tests for ``specify_cli.charter_preflight.runner`` (WP03 / FR-006..FR-008).
+"""Unit tests for ``specify_cli.charter_runtime.preflight.runner`` (WP03 / FR-006..FR-008).
 
 Test surface:
 
@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.charter_preflight import (
+from specify_cli.charter_runtime.preflight import (
     CharterPreflightCheck,
     CharterPreflightResult,
     run_charter_preflight,

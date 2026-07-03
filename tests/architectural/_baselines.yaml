@@ -201,8 +201,15 @@ test_no_dead_symbols:
   # same result: base live 228 -13 rows incl. WP01's identity_aliases +1 = 216;
   # the 227/-12 frame above is the post-WP01 slice.) Research D8's "strands no
   # sibling" claim was falsified by the live dead-symbol gate -- recorded honestly.
-  # Shrink-only direction overall (237->216); the growth-above-baseline gate stays enforced.
-  category_b_grandfathered_legacy: 216
+  # 216->215 (unshim-wave2-01KWMCAX #2326 WP07 T020): the singular
+  # frontmatter::update_field triad adopted-as-follow-up in wave1 is now DELETED
+  # (verified caller-less first; its twin update_fields stays live). Its row is
+  # drained from _CATEGORY_B_GRANDFATHERED_LEGACY, so the frozenset shrinks by
+  # exactly 1 (update_field was the sole newly-dead row this lane touched -- no
+  # other category_b entries went stale). Recomputed to the live
+  # ``len(_CATEGORY_B_GRANDFATHERED_LEGACY)`` = 215 (NFR-004, honest live count).
+  # Shrink-only direction overall (237->215); the growth-above-baseline gate stays enforced.
+  category_b_grandfathered_legacy: 215
   # 6->4 (org-doctrine close-out WP04): removed the now-wired
   # charter.invocation_context::{OperationalContext,build_operational_context}
   # (WP14 added live src/ callers). Remaining 4: the two require_active_*

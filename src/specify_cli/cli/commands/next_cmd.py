@@ -52,8 +52,8 @@ def decide_next(agent: str, mission_slug: str, result: str, repo_root):
 
 
 def _runtime_bridge_module():
-    """Return patched legacy bridge when tests/consumers installed one."""
-    return sys.modules.get("specify_cli.next.runtime_bridge") or importlib.import_module(
+    """Return the patched bridge when tests/consumers installed one."""
+    return sys.modules.get("runtime.next.runtime_bridge") or importlib.import_module(
         "runtime.next.runtime_bridge"
     )
 
@@ -554,7 +554,7 @@ def _run_query_mode(
     runtime_bridge = _runtime_bridge_module()
     QueryModeValidationError = runtime_bridge.QueryModeValidationError
     # Import MissionNotFoundError from the canonical module so tests that
-    # install a fake ``specify_cli.next.runtime_bridge`` shim still work.
+    # install a fake ``runtime.next.runtime_bridge`` shim still work.
     from mission_runtime import ActionContextError
     from runtime.next.runtime_bridge import MissionNotFoundError
 

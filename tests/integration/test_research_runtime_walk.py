@@ -29,8 +29,8 @@ from pathlib import Path
 import pytest
 
 from specify_cli.invocation.writer import EVENTS_DIR
-from specify_cli.next._internal_runtime.engine import _read_snapshot
-from specify_cli.next.runtime_bridge import (
+from runtime.next._internal_runtime.engine import _read_snapshot
+from runtime.next.runtime_bridge import (
     _check_composed_action_guard,
     decide_next_via_runtime,
     get_or_start_run,

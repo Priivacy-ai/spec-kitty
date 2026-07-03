@@ -95,7 +95,7 @@ class TestProgressCountersInDecisionJSON:
     def test_decision_progress_includes_lane_buckets(self) -> None:
         """Verify the in-decision progress dict includes the right keys."""
         # The progress structure is computed in
-        # specify_cli.next.decision._compute_wp_progress; we don't reach
+        # runtime.next.decision._compute_wp_progress; we don't reach
         # for a live runtime here — we just pin the expected keys so
         # downstream consumers (CLI, dashboard) cannot regress.
         expected_keys = {
@@ -108,7 +108,7 @@ class TestProgressCountersInDecisionJSON:
         }
         # The decision module's _compute_wp_progress writes exactly these
         # bucket keys.
-        from specify_cli.next.decision import _compute_wp_progress  # type: ignore[attr-defined]
+        from runtime.next.decision import _compute_wp_progress  # type: ignore[attr-defined]
 
         # Inspect the function body via its source for stable contract.
         import inspect

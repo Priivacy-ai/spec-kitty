@@ -139,18 +139,6 @@ class FrontmatterManager:
         # Write to file
         file_path.write_text(buffer.getvalue(), encoding="utf-8")
 
-    def update_field(self, file_path: Path, field: str, value: Any) -> None:
-        """Update a single field in frontmatter.
-
-        Args:
-            file_path: Path to markdown file
-            field: Field name to update
-            value: New value for field
-        """
-        frontmatter, body = self.read(file_path)
-        frontmatter[field] = value
-        self.write(file_path, frontmatter, body)
-
     def update_fields(self, file_path: Path, updates: dict[str, Any]) -> None:
         """Update multiple fields in frontmatter.
 
@@ -315,11 +303,6 @@ def write_frontmatter(file_path: Path, frontmatter: dict[str, Any], body: str) -
     _manager.write(file_path, frontmatter, body)
 
 
-def update_field(file_path: Path, field: str, value: Any) -> None:
-    """Update a single field in frontmatter."""
-    _manager.update_field(file_path, field, value)
-
-
 def update_fields(file_path: Path, updates: dict[str, Any]) -> None:
     """Update multiple fields in frontmatter."""
     _manager.update_fields(file_path, updates)
@@ -370,7 +353,6 @@ __all__ = [
     "FrontmatterManager",
     "read_frontmatter",
     "write_frontmatter",
-    "update_field",
     "update_fields",
     "get_field",
     "add_history_entry",

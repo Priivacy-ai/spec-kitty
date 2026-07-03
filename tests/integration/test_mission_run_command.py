@@ -33,7 +33,7 @@ from specify_cli.mission_loader.command import (
     run_custom_mission,
 )
 from specify_cli.mission_loader.registry import get_runtime_contract_registry
-from specify_cli.next._internal_runtime.discovery import DiscoveryContext
+from runtime.next._internal_runtime.discovery import DiscoveryContext
 
 
 # Path to the on-disk fixtures created by T029.
@@ -127,7 +127,7 @@ def test_run_command_starts_runtime_with_json_output(
     fake_run_dir = tmp_path / "runs" / "fake-run-id"
     fake_run_dir.mkdir(parents=True)
 
-    from specify_cli.next import runtime_bridge
+    from runtime.next import runtime_bridge
 
     monkeypatch.setattr(
         runtime_bridge,
@@ -174,7 +174,7 @@ def test_missing_retrospective_returns_error_envelope(
     repo_root = _setup_project(tmp_path, fixture="missing-retrospective")
 
     # A validation error MUST short-circuit before runtime_bridge runs.
-    from specify_cli.next import runtime_bridge
+    from runtime.next import runtime_bridge
 
     def _should_not_run(**_: object) -> _FakeRunRef:  # pragma: no cover - guard
         raise AssertionError(
@@ -206,7 +206,7 @@ def test_reserved_key_shadow_returns_error_envelope(
     """FR-011 / FR-013: a project mission keyed ``software-dev`` is rejected."""
     repo_root = _setup_project(tmp_path, fixture="reserved-shadow")
 
-    from specify_cli.next import runtime_bridge
+    from runtime.next import runtime_bridge
 
     def _should_not_run(**_: object) -> _FakeRunRef:  # pragma: no cover - guard
         raise AssertionError(
@@ -251,7 +251,7 @@ def test_unknown_mission_key_returns_error_envelope(
     """FR-013: unknown key → exit 2 + ``MISSION_KEY_UNKNOWN`` envelope."""
     repo_root = _setup_project(tmp_path, fixture="erp-integration")
 
-    from specify_cli.next import runtime_bridge
+    from runtime.next import runtime_bridge
 
     def _should_not_run(**_: object) -> _FakeRunRef:  # pragma: no cover - guard
         raise AssertionError(

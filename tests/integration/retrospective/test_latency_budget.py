@@ -112,7 +112,7 @@ def test_latency_budget_default_flow_under_2s(tmp_path: Path) -> None:
     NFR-005 assertion. Median of 3 runs used for resilience against
     transient OS scheduler delays.
     """
-    from specify_cli.next.runtime_bridge import _build_retrospective_facilitator_callback
+    from runtime.next.runtime_bridge import _build_retrospective_facilitator_callback
 
     mission_slug = "latency-budget-01KQ"
 

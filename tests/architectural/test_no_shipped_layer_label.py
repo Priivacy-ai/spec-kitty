@@ -161,13 +161,13 @@ def test_charter_preflight_has_no_shipped_layer_label(tmp_path: Path) -> None:
     must not surface ``"shipped"`` as a layer-label value.
 
     The ``charter preflight`` Typer command currently lives in
-    :mod:`specify_cli.charter_preflight.cli` but is not yet registered as a
+    :mod:`specify_cli.charter_runtime.preflight.cli` but is not yet registered as a
     subcommand of the ``charter`` group (other WPs handle wiring). To still
     exercise the surface non-skip, we invoke the underlying runner directly
     and serialise its result via the same ``to_dict()`` contract the CLI
     uses, then apply the same layer-label scan.
     """
-    from specify_cli.charter_preflight.runner import run_charter_preflight
+    from specify_cli.charter_runtime.preflight.runner import run_charter_preflight
 
     repo_root = Path(__file__).resolve().parents[2]
     result = run_charter_preflight(repo_root, auto_refresh=False, strict=False)

@@ -15,7 +15,7 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.next import _runtime_pkg_notice as notice_mod
+from runtime.next import _runtime_pkg_notice as notice_mod
 
 pytestmark = pytest.mark.fast
 

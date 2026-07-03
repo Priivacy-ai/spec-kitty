@@ -1,6 +1,6 @@
 """Unit tests for the runtime bridge module.
 
-This file imports runtime symbols only via ``specify_cli.next._internal_runtime``
+This file imports runtime symbols only via ``runtime.next._internal_runtime``
 following the WP02 cutover in mission ``shared-package-boundary-cutover-01KQ22DS``.
 No quarantined ``spec_kitty_runtime`` references are needed; tests assert against
 the internalized runtime surface, which is the authoritative production target.
@@ -17,8 +17,8 @@ from types import SimpleNamespace
 import pytest
 
 from tests.lane_test_utils import write_single_lane_manifest
-from specify_cli.next.decision import DecisionKind
-from specify_cli.next._internal_runtime import DiscoveryContext
+from runtime.next.decision import DecisionKind
+from runtime.next._internal_runtime import DiscoveryContext
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -108,7 +108,7 @@ class TestRuntimeTemplateKey:
         """Project-level mission-runtime.yaml shadows the built-in."""
         repo_root = _scaffold_project(tmp_path)
 
-        from specify_cli.next.runtime_bridge import _runtime_template_key
+        from runtime.next.runtime_bridge import _runtime_template_key
 
         # Create a project-level override at the canonical override tier
         project_dir = repo_root / ".kittify" / "overrides" / "missions" / "software-dev"
@@ -130,7 +130,7 @@ class TestRuntimeTemplateKey:
     ) -> None:
         """SPEC_KITTY_MISSION_PATHS outranks project override for runtime templates."""
         repo_root = _scaffold_project(tmp_path)
-        from specify_cli.next.runtime_bridge import _runtime_template_key
+        from runtime.next.runtime_bridge import _runtime_template_key
 
         # Project override exists
         override_dir = repo_root / ".kittify" / "overrides" / "missions" / "software-dev"
@@ -158,7 +158,7 @@ class TestRuntimeTemplateKey:
         """Without a project override, the built-in template is used."""
         repo_root = _scaffold_project(tmp_path)
 
-        import specify_cli.next.runtime_bridge as runtime_bridge
+        import runtime.next.runtime_bridge as runtime_bridge
         import specify_cli
 
         builtin_root = Path(specify_cli.__file__).resolve().parent / "missions"
@@ -196,8 +196,8 @@ class TestWorkflowRuntimeTemplate:
             encoding="utf-8",
         )
 
-        from specify_cli.next._internal_runtime.engine import _load_frozen_template
-        from specify_cli.next.runtime_bridge import get_or_start_run
+        from runtime.next._internal_runtime.engine import _load_frozen_template
+        from runtime.next.runtime_bridge import get_or_start_run
 
         run_ref = get_or_start_run("042-test-feature", repo_root, "software-dev")
         template = _load_frozen_template(Path(run_ref.run_dir))
@@ -232,8 +232,8 @@ class TestWorkflowRuntimeTemplate:
             encoding="utf-8",
         )
 
-        from specify_cli.next import runtime_bridge
-        from specify_cli.next.decision import DecisionKind
+        from runtime.next import runtime_bridge
+        from runtime.next.decision import DecisionKind
 
         monkeypatch.setattr(
             runtime_bridge.SyncRuntimeEventEmitter,
@@ -286,7 +286,7 @@ class TestWorkflowRuntimeTemplate:
         """A stale user-global software-dev runtime must not revive legacy tasks_*."""
         repo_root = _scaffold_project(tmp_path)
 
-        import specify_cli.next.runtime_bridge as runtime_bridge
+        import runtime.next.runtime_bridge as runtime_bridge
         import specify_cli
 
         builtin_root = Path(specify_cli.__file__).resolve().parent / "missions"
@@ -319,7 +319,7 @@ class TestWorkflowRuntimeTemplate:
     def test_project_legacy_used_when_override_absent(self, tmp_path: Path) -> None:
         """Legacy .kittify/missions path remains supported after override tier."""
         repo_root = _scaffold_project(tmp_path)
-        from specify_cli.next.runtime_bridge import _runtime_template_key
+        from runtime.next.runtime_bridge import _runtime_template_key
 
         legacy_dir = repo_root / ".kittify" / "missions" / "software-dev"
         legacy_dir.mkdir(parents=True)
@@ -344,7 +344,7 @@ class TestGetOrStartRun:
     def test_creates_new_run(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
 
-        from specify_cli.next.runtime_bridge import get_or_start_run
+        from runtime.next.runtime_bridge import get_or_start_run
 
         run_ref = get_or_start_run("042-test-feature", repo_root, "software-dev")
         assert run_ref.run_id is not None
@@ -356,7 +356,7 @@ class TestGetOrStartRun:
     def test_loads_existing_run(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
 
-        from specify_cli.next.runtime_bridge import get_or_start_run
+        from runtime.next.runtime_bridge import get_or_start_run
 
         run1 = get_or_start_run("042-test-feature", repo_root, "software-dev")
         run2 = get_or_start_run("042-test-feature", repo_root, "software-dev")
@@ -370,7 +370,7 @@ class TestGetOrStartRun:
         feature_dir2.mkdir(parents=True)
         (feature_dir2 / "meta.json").write_text('{"mission_type": "software-dev"}', encoding="utf-8")
 
-        from specify_cli.next.runtime_bridge import get_or_start_run
+        from runtime.next.runtime_bridge import get_or_start_run
 
         run1 = get_or_start_run("042-test-feature", repo_root, "software-dev")
         run2 = get_or_start_run("043-other-feature", repo_root, "software-dev")
@@ -379,7 +379,7 @@ class TestGetOrStartRun:
     def test_feature_runs_index_persisted(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
 
-        from specify_cli.next.runtime_bridge import get_or_start_run, _load_feature_runs
+        from runtime.next.runtime_bridge import get_or_start_run, _load_feature_runs
 
         get_or_start_run("042-test-feature", repo_root, "software-dev")
         index = _load_feature_runs(repo_root)
@@ -390,7 +390,7 @@ class TestGetOrStartRun:
         """FR-028: feature-runs.json entries must include mission_id and mission_slug (WP06)."""
         repo_root = _scaffold_project(tmp_path)
 
-        from specify_cli.next.runtime_bridge import get_or_start_run, _load_feature_runs
+        from runtime.next.runtime_bridge import get_or_start_run, _load_feature_runs
 
         get_or_start_run("042-test-feature", repo_root, "software-dev")
         index = _load_feature_runs(repo_root)
@@ -403,19 +403,19 @@ class TestGetOrStartRun:
 
 class TestRuntimeBridgeCompatibilityHelpers:
     def test_mission_key_for_run_ref_prefers_mission_type(self, tmp_path: Path) -> None:
-        from specify_cli.next.runtime_bridge import _mission_key_for_run_ref
+        from runtime.next.runtime_bridge import _mission_key_for_run_ref
 
         run_ref = SimpleNamespace(mission_type="software-dev")
         assert _mission_key_for_run_ref(run_ref, "fallback") == "software-dev"
 
     def test_mission_key_for_run_ref_falls_back_to_default(self, tmp_path: Path) -> None:
-        from specify_cli.next.runtime_bridge import _mission_key_for_run_ref
+        from runtime.next.runtime_bridge import _mission_key_for_run_ref
 
         run_ref = SimpleNamespace(mission_type="")
         assert _mission_key_for_run_ref(run_ref, "fallback") == "fallback"
 
     def test_build_run_ref_falls_back_when_runtime_uses_mission_type(self, monkeypatch) -> None:
-        import specify_cli.next.runtime_bridge as runtime_bridge
+        import runtime.next.runtime_bridge as runtime_bridge
 
         class FakeRunRef:
             def __init__(self, *, run_id: str, run_dir: str, mission_type: str | None = None, mission_key: str | None = None):
@@ -458,12 +458,12 @@ class TestWPIteration:
             },
         )
 
-        from specify_cli.next.runtime_bridge import (
+        from runtime.next.runtime_bridge import (
             get_or_start_run,
             decide_next_via_runtime,
         )
-        from specify_cli.next._internal_runtime import next_step as runtime_next_step, NullEmitter
-        from specify_cli.next._internal_runtime.engine import _read_snapshot
+        from runtime.next._internal_runtime import next_step as runtime_next_step, NullEmitter
+        from runtime.next._internal_runtime.engine import _read_snapshot
 
         # Advance runtime to implement step
         run_ref = get_or_start_run("042-test-feature", repo_root, "software-dev")
@@ -496,12 +496,12 @@ class TestWPIteration:
             },
         )
 
-        from specify_cli.next.runtime_bridge import (
+        from runtime.next.runtime_bridge import (
             get_or_start_run,
             decide_next_via_runtime,
         )
-        from specify_cli.next._internal_runtime import next_step as runtime_next_step, NullEmitter
-        from specify_cli.next._internal_runtime.engine import _read_snapshot
+        from runtime.next._internal_runtime import next_step as runtime_next_step, NullEmitter
+        from runtime.next._internal_runtime.engine import _read_snapshot
 
         # Advance runtime to implement step
         run_ref = get_or_start_run("042-test-feature", repo_root, "software-dev")
@@ -539,7 +539,7 @@ class TestRuntimeResultFlow:
     def test_failed_result_flows_through_runtime_event_log(self, tmp_path: Path) -> None:
         """A failed result must call runtime next_step and append canonical events."""
         repo_root = _scaffold_project(tmp_path)
-        from specify_cli.next.runtime_bridge import decide_next_via_runtime, get_or_start_run
+        from runtime.next.runtime_bridge import decide_next_via_runtime, get_or_start_run
 
         # Issue a first step so runtime has a prior issued_step_id to complete.
         first = decide_next_via_runtime("test", "042-test-feature", "success", repo_root)
@@ -560,7 +560,7 @@ class TestRuntimeResultFlow:
     def test_blocked_result_flows_through_runtime_event_log(self, tmp_path: Path) -> None:
         """A blocked result must call runtime next_step and append canonical events."""
         repo_root = _scaffold_project(tmp_path)
-        from specify_cli.next.runtime_bridge import decide_next_via_runtime, get_or_start_run
+        from runtime.next.runtime_bridge import decide_next_via_runtime, get_or_start_run
 
         # Issue a first step so runtime has a prior issued_step_id to complete.
         first = decide_next_via_runtime("test", "042-test-feature", "success", repo_root)
@@ -582,8 +582,8 @@ class TestRuntimeResultFlow:
 class TestAnswerDecisionViaRuntime:
     def test_snapshot_read_failure_is_tolerated(self, monkeypatch, tmp_path: Path) -> None:
         """Decision answers should continue even when snapshot hydration fails."""
-        from specify_cli.next import runtime_bridge
-        import specify_cli.next._internal_runtime.engine as runtime_engine
+        from runtime.next import runtime_bridge
+        import runtime.next._internal_runtime.engine as runtime_engine
 
         repo_root = tmp_path / "project"
         repo_root.mkdir()
@@ -645,7 +645,7 @@ class TestGuardChecks:
     def test_specify_guard_blocks_without_spec(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
 
-        from specify_cli.next.runtime_bridge import _check_cli_guards
+        from runtime.next.runtime_bridge import _check_cli_guards
 
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
         failures = _check_cli_guards("specify", feature_dir)
@@ -657,7 +657,7 @@ class TestGuardChecks:
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
         (feature_dir / "spec.md").write_text("# Spec", encoding="utf-8")
 
-        from specify_cli.next.runtime_bridge import _check_cli_guards
+        from runtime.next.runtime_bridge import _check_cli_guards
 
         failures = _check_cli_guards("specify", feature_dir)
         assert len(failures) == 0
@@ -666,7 +666,7 @@ class TestGuardChecks:
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
 
-        from specify_cli.next.runtime_bridge import _check_cli_guards
+        from runtime.next.runtime_bridge import _check_cli_guards
 
         failures = _check_cli_guards("plan", feature_dir)
         assert len(failures) == 1  # plan.md only (tasks.md moved to tasks_outline guard)
@@ -676,7 +676,7 @@ class TestGuardChecks:
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
         _add_wp_files(feature_dir, {"WP01": "planned", "WP02": "done"})
 
-        from specify_cli.next.runtime_bridge import _check_cli_guards
+        from runtime.next.runtime_bridge import _check_cli_guards
 
         failures = _check_cli_guards("implement", feature_dir)
         assert len(failures) == 1
@@ -686,7 +686,7 @@ class TestGuardChecks:
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
         _add_wp_files(feature_dir, {"WP01": "done", "WP02": "done"})
 
-        from specify_cli.next.runtime_bridge import _check_cli_guards
+        from runtime.next.runtime_bridge import _check_cli_guards
 
         failures = _check_cli_guards("implement", feature_dir)
         assert len(failures) == 0
@@ -694,7 +694,7 @@ class TestGuardChecks:
 
 class TestTasksMarkdownParsing:
     def test_parse_wp_sections_preserves_same_line_suffix(self) -> None:
-        from specify_cli.next.runtime_bridge import _parse_wp_sections_from_tasks_md
+        from runtime.next.runtime_bridge import _parse_wp_sections_from_tasks_md
 
         tasks_md = (
             "## Work Package WP01: Build parser\n"
@@ -710,7 +710,7 @@ class TestTasksMarkdownParsing:
         assert sections["WP02"] == "\nRequirements: FR-003\n"
 
     def test_parse_wp_sections_accepts_legacy_work_package_spacing(self) -> None:
-        from specify_cli.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
+        from runtime.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
 
         tasks_md = (
             "## Work Package    WP01: Build parser\n"
@@ -722,7 +722,7 @@ class TestTasksMarkdownParsing:
         }
 
     def test_parse_requirement_refs_supports_heading_bullet_format(self) -> None:
-        from specify_cli.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
+        from runtime.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
 
         tasks_md = (
             "## Work Package WP01: Build parser\n"
@@ -735,7 +735,7 @@ class TestTasksMarkdownParsing:
         }
 
     def test_parse_requirement_refs_completes_under_budget_on_adversarial_input(self) -> None:
-        from specify_cli.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
+        from runtime.next.runtime_bridge import _parse_requirement_refs_from_tasks_md
 
         filler = "".join("#### Not a work package heading\n" for _ in range(100_000))
         tasks_md = (
@@ -767,7 +767,7 @@ class TestMapRuntimeDecision:
         """Mapped decisions have all required JSON fields."""
         repo_root = _scaffold_project(tmp_path)
 
-        from specify_cli.next.runtime_bridge import decide_next_via_runtime
+        from runtime.next.runtime_bridge import decide_next_via_runtime
 
         decision = decide_next_via_runtime("test", "042-test-feature", "success", repo_root)
         d = decision.to_dict()
@@ -802,7 +802,7 @@ class TestAnswerDecision:
         """FR-032: runtime query/answer surfaces stay on canonical context APIs."""
         import inspect
 
-        from specify_cli.next import runtime_bridge
+        from runtime.next import runtime_bridge
 
         assert "mission_context_for" in inspect.getsource(runtime_bridge.query_current_state)
         assert "resolve_action_context" in inspect.getsource(runtime_bridge.answer_decision_via_runtime)
@@ -820,7 +820,7 @@ class TestAnswerDecision:
 
         from mission_runtime import ActionContextError
 
-        from specify_cli.next.runtime_bridge import answer_decision_via_runtime
+        from runtime.next.runtime_bridge import answer_decision_via_runtime
 
         with pytest.raises(ActionContextError) as excinfo:
             answer_decision_via_runtime(
@@ -838,8 +838,8 @@ class TestAnswerDecision:
         """Answering when no decisions pending raises error."""
         repo_root = _scaffold_project(tmp_path)
 
-        from specify_cli.next.runtime_bridge import answer_decision_via_runtime
-        from specify_cli.next._internal_runtime.schema import MissionRuntimeError
+        from runtime.next.runtime_bridge import answer_decision_via_runtime
+        from runtime.next._internal_runtime.schema import MissionRuntimeError
 
         with pytest.raises(MissionRuntimeError, match="not found"):
             answer_decision_via_runtime(
@@ -861,8 +861,8 @@ class TestFullLoop:
 
     @pytest.fixture(autouse=True)
     def _disable_sync_emitter(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        from specify_cli.next import runtime_bridge
-        from specify_cli.next._internal_runtime.events import NullEmitter
+        from runtime.next import runtime_bridge
+        from runtime.next._internal_runtime.events import NullEmitter
 
         class LocalOnlyEmitter(NullEmitter):
             def seed_from_snapshot(self, *_args, **_kwargs) -> None:
@@ -901,7 +901,7 @@ class TestFullLoop:
         # Seed event log so runtime bridge reads WP01 as done
         _seed_wp_lane(feature_dir, "WP01", "done")
 
-        from specify_cli.next.runtime_bridge import decide_next_via_runtime
+        from runtime.next.runtime_bridge import decide_next_via_runtime
 
         seen_steps = []
         for _i in range(40):  # 9 steps need more iterations
@@ -919,7 +919,7 @@ class TestFullLoop:
         """Polling the same state twice returns consistent results."""
         repo_root = _scaffold_project(tmp_path)
 
-        from specify_cli.next.runtime_bridge import decide_next_via_runtime
+        from runtime.next.runtime_bridge import decide_next_via_runtime
 
         decide_next_via_runtime("test", "042-test-feature", "success", repo_root)
         # Don't advance — poll again (simulating re-poll)
@@ -933,7 +933,7 @@ class TestFullLoop:
         """Verify no network calls — NullEmitter used throughout."""
         repo_root = _scaffold_project(tmp_path)
 
-        from specify_cli.next.runtime_bridge import decide_next_via_runtime
+        from runtime.next.runtime_bridge import decide_next_via_runtime
 
         # This should work without any network access
         decision = decide_next_via_runtime("test", "042-test-feature", "success", repo_root)
@@ -947,7 +947,7 @@ class TestFullLoop:
 
 class TestWPStepHelpers:
     def test_is_wp_iteration_step(self) -> None:
-        from specify_cli.next.runtime_bridge import _is_wp_iteration_step
+        from runtime.next.runtime_bridge import _is_wp_iteration_step
 
         assert _is_wp_iteration_step("implement") is True
         assert _is_wp_iteration_step("review") is True
@@ -955,7 +955,7 @@ class TestWPStepHelpers:
         assert _is_wp_iteration_step("discovery") is False
 
     def test_should_advance_no_tasks_dir(self, tmp_path: Path) -> None:
-        from specify_cli.next.runtime_bridge import _should_advance_wp_step
+        from runtime.next.runtime_bridge import _should_advance_wp_step
 
         assert _should_advance_wp_step("implement", tmp_path) is True
 
@@ -970,7 +970,7 @@ class TestWPStepHelpers:
             encoding="utf-8",
         )
 
-        from specify_cli.next.runtime_bridge import _should_advance_wp_step
+        from runtime.next.runtime_bridge import _should_advance_wp_step
         from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
 
         with pytest.raises(CanonicalStatusNotFoundError):
@@ -982,7 +982,7 @@ class TestWPStepHelpers:
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
         _add_wp_files(feature_dir, {"WP01": "done", "WP02": "done"})
 
-        from specify_cli.next.runtime_bridge import _should_advance_wp_step
+        from runtime.next.runtime_bridge import _should_advance_wp_step
 
         assert _should_advance_wp_step("implement", feature_dir) is True
         assert _should_advance_wp_step("review", feature_dir) is True
@@ -993,7 +993,7 @@ class TestWPStepHelpers:
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
         _add_wp_files(feature_dir, {"WP01": "done", "WP02": "planned"})
 
-        from specify_cli.next.runtime_bridge import _should_advance_wp_step
+        from runtime.next.runtime_bridge import _should_advance_wp_step
 
         assert _should_advance_wp_step("implement", feature_dir) is False
 
@@ -1004,7 +1004,7 @@ class TestWPStepHelpers:
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
         _add_wp_files(feature_dir, {"WP01": "done", "WP02": "for_review"})
 
-        from specify_cli.next.runtime_bridge import _should_advance_wp_step
+        from runtime.next.runtime_bridge import _should_advance_wp_step
 
         assert _should_advance_wp_step("implement", feature_dir) is True
         assert _should_advance_wp_step("review", feature_dir) is False
@@ -1015,7 +1015,7 @@ class TestWPStepHelpers:
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
         _add_wp_files(feature_dir, {"WP01": "approved", "WP02": "done"})
 
-        from specify_cli.next.runtime_bridge import _should_advance_wp_step
+        from runtime.next.runtime_bridge import _should_advance_wp_step
 
         assert _should_advance_wp_step("implement", feature_dir) is True
         assert _should_advance_wp_step("review", feature_dir) is True
@@ -1032,7 +1032,7 @@ class TestAtomicTaskSteps:
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
 
-        from specify_cli.next.runtime_bridge import _check_cli_guards
+        from runtime.next.runtime_bridge import _check_cli_guards
 
         failures = _check_cli_guards("tasks_outline", feature_dir)
         assert len(failures) == 1
@@ -1044,7 +1044,7 @@ class TestAtomicTaskSteps:
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
         (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
 
-        from specify_cli.next.runtime_bridge import _check_cli_guards
+        from runtime.next.runtime_bridge import _check_cli_guards
 
         failures = _check_cli_guards("tasks_outline", feature_dir)
         assert len(failures) == 0
@@ -1054,7 +1054,7 @@ class TestAtomicTaskSteps:
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
 
-        from specify_cli.next.runtime_bridge import _check_cli_guards
+        from runtime.next.runtime_bridge import _check_cli_guards
 
         failures = _check_cli_guards("tasks_packages", feature_dir)
         assert len(failures) == 1
@@ -1066,7 +1066,7 @@ class TestAtomicTaskSteps:
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
         _add_wp_files(feature_dir, {"WP01": "planned"})
 
-        from specify_cli.next.runtime_bridge import _check_cli_guards
+        from runtime.next.runtime_bridge import _check_cli_guards
 
         failures = _check_cli_guards("tasks_packages", feature_dir)
         assert len(failures) == 0
@@ -1097,7 +1097,7 @@ class TestAtomicTaskSteps:
             encoding="utf-8",
         )
 
-        from specify_cli.next.runtime_bridge import _check_cli_guards
+        from runtime.next.runtime_bridge import _check_cli_guards
 
         failures = _check_cli_guards("tasks_packages", feature_dir)
         assert len(failures) == 1
@@ -1126,7 +1126,7 @@ class TestAtomicTaskSteps:
             encoding="utf-8",
         )
 
-        from specify_cli.next.runtime_bridge import _check_composed_action_guard
+        from runtime.next.runtime_bridge import _check_composed_action_guard
 
         failures = _check_composed_action_guard(
             "tasks",
@@ -1161,7 +1161,7 @@ class TestAtomicTaskSteps:
             encoding="utf-8",
         )
 
-        from specify_cli.next.runtime_bridge import _check_cli_guards
+        from runtime.next.runtime_bridge import _check_cli_guards
 
         failures = _check_cli_guards("tasks_packages", feature_dir)
         assert failures == []
@@ -1189,7 +1189,7 @@ class TestAtomicTaskSteps:
             encoding="utf-8",
         )
 
-        from specify_cli.next.runtime_bridge import _check_cli_guards
+        from runtime.next.runtime_bridge import _check_cli_guards
 
         failures = _check_cli_guards("tasks_packages", feature_dir)
         assert failures == []
@@ -1217,7 +1217,7 @@ class TestAtomicTaskSteps:
             encoding="utf-8",
         )
 
-        from specify_cli.next.runtime_bridge import _check_cli_guards
+        from runtime.next.runtime_bridge import _check_cli_guards
 
         failures = _check_cli_guards("tasks_packages", feature_dir)
         assert failures
@@ -1246,7 +1246,7 @@ class TestAtomicTaskSteps:
             encoding="utf-8",
         )
 
-        from specify_cli.next.runtime_bridge import _check_cli_guards
+        from runtime.next.runtime_bridge import _check_cli_guards
 
         failures = _check_cli_guards("tasks_packages", feature_dir)
         assert failures == []
@@ -1271,7 +1271,7 @@ class TestAtomicTaskSteps:
             encoding="utf-8",
         )
 
-        from specify_cli.next.runtime_bridge import _check_cli_guards
+        from runtime.next.runtime_bridge import _check_cli_guards
 
         failures = _check_cli_guards("tasks_packages", feature_dir)
         assert len(failures) == 1
@@ -1298,7 +1298,7 @@ class TestAtomicTaskSteps:
             encoding="utf-8",
         )
 
-        from specify_cli.next.runtime_bridge import _check_cli_guards
+        from runtime.next.runtime_bridge import _check_cli_guards
 
         failures = _check_cli_guards("tasks_packages", feature_dir)
         assert len(failures) == 1
@@ -1318,7 +1318,7 @@ class TestAtomicTaskSteps:
             encoding="utf-8",
         )
 
-        from specify_cli.next.runtime_bridge import _check_requirement_mapping_ready
+        from runtime.next.runtime_bridge import _check_requirement_mapping_ready
 
         assert _check_requirement_mapping_ready(feature_dir) == []
 
@@ -1344,7 +1344,7 @@ class TestAtomicTaskSteps:
 
         monkeypatch.setattr(rm, "parse_requirement_ids_from_spec_md", _boom)
 
-        from specify_cli.next.runtime_bridge import _check_requirement_mapping_ready
+        from runtime.next.runtime_bridge import _check_requirement_mapping_ready
 
         failures = _check_requirement_mapping_ready(feature_dir)
         assert len(failures) == 1
@@ -1359,7 +1359,7 @@ class TestAtomicTaskSteps:
         # WP file WITHOUT dependencies field in raw frontmatter
         _add_wp_files(feature_dir, {"WP01": "planned"})
 
-        from specify_cli.next.runtime_bridge import _check_cli_guards
+        from runtime.next.runtime_bridge import _check_cli_guards
 
         failures = _check_cli_guards("tasks_finalize", feature_dir)
         assert len(failures) == 1
@@ -1377,7 +1377,7 @@ class TestAtomicTaskSteps:
             encoding="utf-8",
         )
 
-        from specify_cli.next.runtime_bridge import _check_cli_guards
+        from runtime.next.runtime_bridge import _check_cli_guards
 
         failures = _check_cli_guards("tasks_finalize", feature_dir)
         assert len(failures) == 0
@@ -1396,14 +1396,14 @@ class TestAtomicTaskSteps:
             encoding="utf-8",
         )
 
-        from specify_cli.next.runtime_bridge import _check_cli_guards
+        from runtime.next.runtime_bridge import _check_cli_guards
 
         failures = _check_cli_guards("tasks_finalize", feature_dir)
         assert len(failures) == 1
         assert "dependencies" in failures[0]
 
     def test_has_raw_dependencies_field_positive(self, tmp_path: Path) -> None:
-        from specify_cli.next.runtime_bridge import _has_raw_dependencies_field
+        from runtime.next.runtime_bridge import _has_raw_dependencies_field
 
         wp_file = tmp_path / "WP01.md"
         wp_file.write_text(
@@ -1413,7 +1413,7 @@ class TestAtomicTaskSteps:
         assert _has_raw_dependencies_field(wp_file) is True
 
     def test_has_raw_dependencies_field_negative(self, tmp_path: Path) -> None:
-        from specify_cli.next.runtime_bridge import _has_raw_dependencies_field
+        from runtime.next.runtime_bridge import _has_raw_dependencies_field
 
         wp_file = tmp_path / "WP01.md"
         wp_file.write_text(
@@ -1423,14 +1423,14 @@ class TestAtomicTaskSteps:
         assert _has_raw_dependencies_field(wp_file) is False
 
     def test_has_raw_dependencies_field_no_frontmatter(self, tmp_path: Path) -> None:
-        from specify_cli.next.runtime_bridge import _has_raw_dependencies_field
+        from runtime.next.runtime_bridge import _has_raw_dependencies_field
 
         wp_file = tmp_path / "WP01.md"
         wp_file.write_text("# WP01\nNo frontmatter here.\n", encoding="utf-8")
         assert _has_raw_dependencies_field(wp_file) is False
 
     def test_has_raw_dependencies_field_with_values(self, tmp_path: Path) -> None:
-        from specify_cli.next.runtime_bridge import _has_raw_dependencies_field
+        from runtime.next.runtime_bridge import _has_raw_dependencies_field
 
         wp_file = tmp_path / "WP01.md"
         wp_file.write_text(

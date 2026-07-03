@@ -1,6 +1,6 @@
 """Integration tests for ``spec-kitty next`` CLI command.
 
-This file imports runtime symbols only via ``specify_cli.next._internal_runtime``
+This file imports runtime symbols only via ``runtime.next._internal_runtime``
 following the WP02 cutover in mission ``shared-package-boundary-cutover-01KQ22DS``.
 No quarantined ``spec_kitty_runtime`` references are needed.
 """
@@ -16,7 +16,7 @@ from unittest.mock import patch
 from typer.testing import CliRunner
 
 from specify_cli import app as cli_app
-from specify_cli.next.decision import DecisionKind
+from runtime.next.decision import DecisionKind
 
 import pytest
 
@@ -217,10 +217,10 @@ def _advance_runtime_to_step(
     agent: str = "test-agent",
 ) -> None:
     """Advance the runtime run past steps until target_step_id is issued."""
-    from specify_cli.next.runtime_bridge import get_or_start_run
+    from runtime.next.runtime_bridge import get_or_start_run
     from specify_cli.mission import get_mission_type
-    from specify_cli.next._internal_runtime import next_step as runtime_next_step, NullEmitter
-    from specify_cli.next._internal_runtime.engine import _read_snapshot
+    from runtime.next._internal_runtime import next_step as runtime_next_step, NullEmitter
+    from runtime.next._internal_runtime.engine import _read_snapshot
 
     feature_dir = repo_root / "kitty-specs" / mission_slug
     mission_type = get_mission_type(feature_dir)
@@ -253,9 +253,9 @@ def _complete_all_steps(
     agent: str = "test-agent",
 ) -> None:
     """Complete all runtime steps to reach terminal state."""
-    from specify_cli.next.runtime_bridge import get_or_start_run
+    from runtime.next.runtime_bridge import get_or_start_run
     from specify_cli.mission import get_mission_type
-    from specify_cli.next._internal_runtime import next_step as runtime_next_step, NullEmitter
+    from runtime.next._internal_runtime import next_step as runtime_next_step, NullEmitter
 
     feature_dir = repo_root / "kitty-specs" / mission_slug
     mission_type = get_mission_type(feature_dir)
@@ -279,7 +279,7 @@ class TestNextCommandJSON:
         """Fresh feature with no events should be in discovery/initial state."""
         repo_root = _scaffold_project(tmp_path)
 
-        from specify_cli.next.decision import decide_next
+        from runtime.next.decision import decide_next
 
         decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
         d = decision.to_dict()
@@ -293,7 +293,7 @@ class TestNextCommandJSON:
         # Complete all steps via runtime to reach terminal
         _complete_all_steps(repo_root, "042-test-feature")
 
-        from specify_cli.next.decision import decide_next
+        from runtime.next.decision import decide_next
 
         decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
         assert decision.kind == DecisionKind.terminal
@@ -301,7 +301,7 @@ class TestNextCommandJSON:
     def test_failed_result_flows_through_runtime_as_blocked(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
 
-        from specify_cli.next.decision import decide_next
+        from runtime.next.decision import decide_next
 
         # Issue first step so runtime has an issued step to complete as failed.
         first = decide_next("test-agent", "042-test-feature", "success", repo_root)
@@ -315,7 +315,7 @@ class TestNextCommandJSON:
     def test_blocked_result_returns_blocked(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
 
-        from specify_cli.next.decision import decide_next
+        from runtime.next.decision import decide_next
 
         first = decide_next("test-agent", "042-test-feature", "success", repo_root)
         assert first.step_id is not None
@@ -326,7 +326,7 @@ class TestNextCommandJSON:
     def test_nonexistent_feature_returns_blocked(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
 
-        from specify_cli.next.decision import decide_next
+        from runtime.next.decision import decide_next
 
         decision = decide_next("test-agent", "999-nonexistent", "success", repo_root)
         assert decision.kind == DecisionKind.blocked
@@ -350,7 +350,7 @@ class TestNextCommandImplementState:
         # Advance runtime to implement step
         _advance_runtime_to_step(repo_root, "042-test-feature", "implement")
 
-        from specify_cli.next.decision import decide_next
+        from runtime.next.decision import decide_next
 
         decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
         assert decision.kind == DecisionKind.step
@@ -371,7 +371,7 @@ class TestNextCommandImplementState:
         # Advance runtime to implement step
         _advance_runtime_to_step(repo_root, "042-test-feature", "implement")
 
-        from specify_cli.next.decision import decide_next
+        from runtime.next.decision import decide_next
 
         decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
         assert decision.kind == DecisionKind.step
@@ -391,7 +391,7 @@ class TestNextCommandImplementState:
         # Advance runtime to implement step
         _advance_runtime_to_step(repo_root, "042-test-feature", "implement")
 
-        from specify_cli.next.decision import decide_next
+        from runtime.next.decision import decide_next
 
         decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
         # All WPs done => should advance past implement
@@ -413,7 +413,7 @@ class TestNextCommandProgress:
             },
         )
 
-        from specify_cli.next.decision import decide_next
+        from runtime.next.decision import decide_next
 
         decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
         assert decision.progress is not None
@@ -429,7 +429,7 @@ class TestNextCommandOrigin:
     def test_origin_in_decision(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
 
-        from specify_cli.next.decision import decide_next
+        from runtime.next.decision import decide_next
 
         decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
         if decision.origin:
@@ -442,7 +442,7 @@ class TestNextCommandRuntimeFields:
     def test_run_id_in_decision(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
 
-        from specify_cli.next.decision import decide_next
+        from runtime.next.decision import decide_next
 
         decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
         assert decision.run_id is not None
@@ -451,7 +451,7 @@ class TestNextCommandRuntimeFields:
     def test_step_id_in_decision(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
 
-        from specify_cli.next.decision import decide_next
+        from runtime.next.decision import decide_next
 
         decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
         assert decision.step_id is not None
@@ -459,7 +459,7 @@ class TestNextCommandRuntimeFields:
     def test_json_output_has_runtime_fields(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
 
-        from specify_cli.next.decision import decide_next
+        from runtime.next.decision import decide_next
 
         decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
         d = decision.to_dict()
@@ -489,7 +489,7 @@ class TestNextCommandKnownBlockedMissions:
         )
         _write_command_templates(repo_root, ["specify"])
 
-        from specify_cli.next.decision import decide_next
+        from runtime.next.decision import decide_next
 
         decision = decide_next("test-agent", "043-plan-feature", "success", repo_root)
         assert decision.kind in (DecisionKind.step, DecisionKind.blocked)
@@ -508,7 +508,7 @@ class TestNextCommandKnownBlockedMissions:
         )
         _write_command_templates(repo_root, ["discover"])
 
-        from specify_cli.next.decision import decide_next
+        from runtime.next.decision import decide_next
 
         decision = decide_next("test-agent", "044-docs-feature", "success", repo_root)
         assert decision.kind in (DecisionKind.step, DecisionKind.blocked)
@@ -521,7 +521,7 @@ class TestNextCommandKnownBlockedMissions:
     def test_missing_canonical_status_during_wp_iteration_returns_structured_decision(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
 
-        from specify_cli.next.runtime_bridge import decide_next_via_runtime
+        from runtime.next.runtime_bridge import decide_next_via_runtime
         from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
 
         class RunRef:
@@ -532,11 +532,11 @@ class TestNextCommandKnownBlockedMissions:
             issued_step_id = "implement"
 
         with (
-            patch("specify_cli.next.runtime_bridge.get_or_start_run", return_value=RunRef()),
-            patch("specify_cli.next.runtime_bridge._compute_wp_progress", return_value=None),
-            patch("specify_cli.next._internal_runtime.engine._read_snapshot", return_value=Snapshot()),
+            patch("runtime.next.runtime_bridge.get_or_start_run", return_value=RunRef()),
+            patch("runtime.next.runtime_bridge._compute_wp_progress", return_value=None),
+            patch("runtime.next._internal_runtime.engine._read_snapshot", return_value=Snapshot()),
             patch(
-                "specify_cli.next.runtime_bridge._should_advance_wp_step",
+                "runtime.next.runtime_bridge._should_advance_wp_step",
                 side_effect=CanonicalStatusNotFoundError(
                     "Canonical status not found for feature '042-test-feature'. "
                     "Run 'spec-kitty agent mission finalize-tasks --mission "
@@ -679,8 +679,8 @@ class TestNextCommandCLI:
         monkeypatch.chdir(repo_root)
 
         from specify_cli.mission import get_mission_type
-        from specify_cli.next.runtime_bridge import get_or_start_run
-        from specify_cli.next._internal_runtime.engine import _read_snapshot
+        from runtime.next.runtime_bridge import get_or_start_run
+        from runtime.next._internal_runtime.engine import _read_snapshot
 
         mission_type = get_mission_type(repo_root / "kitty-specs" / "042-test-feature")
         run_ref = get_or_start_run("042-test-feature", repo_root, mission_type)
@@ -908,7 +908,7 @@ class TestNextCommandDecisionRequired:
         repo_root = _scaffold_project(tmp_path, mission_type="input-mission")
         _write_runtime_input_mission(repo_root, mission_type="input-mission")
 
-        from specify_cli.next.decision import decide_next
+        from runtime.next.decision import decide_next
 
         decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
         d = decision.to_dict()
@@ -922,7 +922,7 @@ class TestNextCommandDecisionRequired:
         repo_root = _scaffold_project(tmp_path, mission_type="input-mission")
         _write_runtime_input_mission(repo_root, mission_type="input-mission")
 
-        from specify_cli.next.decision import decide_next
+        from runtime.next.decision import decide_next
 
         decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
         d = decision.to_dict()
@@ -964,7 +964,7 @@ class TestAtomicTaskTransitions:
         # Seed event log so runtime bridge reads WP01 as done
         _seed_wp_lane(feature_dir, "WP01", "done")
 
-        from specify_cli.next.decision import decide_next
+        from runtime.next.decision import decide_next
 
         seen_steps = []
         for _i in range(40):

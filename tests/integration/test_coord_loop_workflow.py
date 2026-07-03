@@ -583,7 +583,7 @@ class TestDiscoveryBackwardCompatibleSplit:
         ``tests/next/test_next_claimable_payload.py``.  Adding ``status_dir``
         as keyword-only with default ``None`` preserves positional compatibility.
         """
-        from specify_cli.next.discovery import ClaimablePreview, preview_claimable_wp
+        from runtime.next.discovery import ClaimablePreview, preview_claimable_wp
 
         # Minimal scaffold: tasks/ exists but no WP files → no_wp_files.
         feature_dir = tmp_path / "kitty-specs" / "compat-test"
@@ -618,7 +618,7 @@ class TestDiscoveryBackwardCompatibleSplit:
         checks for the ORIGINAL fixture marker which was replaced; instead we
         assert the result directly proves the COORD leg was used (wp_id="WP01").
         """
-        from specify_cli.next.discovery import preview_claimable_wp
+        from runtime.next.discovery import preview_claimable_wp
 
         ctx = coord_topology_mission
 

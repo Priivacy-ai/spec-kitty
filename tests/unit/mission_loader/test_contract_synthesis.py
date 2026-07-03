@@ -11,7 +11,7 @@ from __future__ import annotations
 from doctrine.missions.step_contracts import MissionStepContract
 
 from specify_cli.mission_loader.contract_synthesis import synthesize_contracts
-from specify_cli.next._internal_runtime.schema import (
+from runtime.next._internal_runtime.schema import (
     MissionMeta,
     MissionTemplate,
     PromptStep,

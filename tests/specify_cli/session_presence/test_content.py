@@ -120,7 +120,7 @@ class TestNoNextImports:
                 continue
             # The module's __spec__.origin points to the file — check no .next. in the path
             origin = getattr(getattr(mod, "__spec__", None), "origin", "") or ""
-            assert "specify_cli/next" not in origin.replace("\\", "/"), f"Module {name} originates from specify_cli.next shim: {origin}"
+            assert "specify_cli/next" not in origin.replace("\\", "/"), f"Module {name} originates from the specify_cli/next shim: {origin}"
             # Also verify __file__ doesn't reference the next shim
             mod_file = getattr(mod, "__file__", "") or ""
             assert "specify_cli/next" not in mod_file.replace("\\", "/"), f"Module {name} file is in specify_cli.next: {mod_file}"

@@ -10,7 +10,7 @@ implement-prompt pipeline avoids the ``software-dev-default`` leak.
 That gap is what this test closes.  It stages a fixture mission whose
 ``meta.json`` declares ``mission_type: documentation`` (no
 project-level ``selected_*`` overrides) and invokes the production
-prompt-build entry point — :func:`specify_cli.next.prompt_builder._build_wp_prompt` —
+prompt-build entry point — :func:`runtime.next.prompt_builder._build_wp_prompt` —
 with ``action="implement"``.  The resulting prompt text MUST NOT contain
 ``software-dev-default``, proving the mission-type resolver fires inline
 during prompt assembly rather than the implementer-agent silently
@@ -36,7 +36,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.next.prompt_builder import _build_wp_prompt
+from runtime.next.prompt_builder import _build_wp_prompt
 from tests.lane_test_utils import write_single_lane_manifest
 
 

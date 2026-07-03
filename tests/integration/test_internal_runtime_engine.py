@@ -1,4 +1,4 @@
-"""Integration coverage for ``specify_cli.next._internal_runtime.engine`` hot paths.
+"""Integration coverage for ``runtime.next._internal_runtime.engine`` hot paths.
 
 These tests focus on:
 - Mission discovery (discover_missions, load_mission_template)
@@ -18,23 +18,23 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.next._internal_runtime.discovery import (
+from runtime.next._internal_runtime.discovery import (
     DiscoveryContext,
     discover_missions,
     discover_missions_with_warnings,
     load_mission_template,
 )
-from specify_cli.next._internal_runtime.engine import (
+from runtime.next._internal_runtime.engine import (
     MissionRunRef,
     start_mission_run,
     next_step,
 )
-from specify_cli.next._internal_runtime.schema import (
+from runtime.next._internal_runtime.schema import (
     MissionPolicySnapshot,
     MissionRuntimeError,
     MissionTemplate,
 )
-from specify_cli.next._internal_runtime.events import NullEmitter
+from runtime.next._internal_runtime.events import NullEmitter
 
 pytestmark = pytest.mark.integration
 

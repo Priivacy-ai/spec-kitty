@@ -1,6 +1,6 @@
 """Unit tests for the ``spec-kitty next`` decision engine.
 
-This file imports runtime symbols only via ``specify_cli.next._internal_runtime``
+This file imports runtime symbols only via ``runtime.next._internal_runtime``
 following the WP02 cutover in mission ``shared-package-boundary-cutover-01KQ22DS``.
 No quarantined ``spec_kitty_runtime`` references are needed.
 """
@@ -18,7 +18,7 @@ from specify_cli.status.store import append_event
 from specify_cli.status.models import StatusEvent, Lane
 from runtime.next._internal_runtime.schema import NextDecision
 
-from specify_cli.next.decision import (
+from runtime.next.decision import (
     Decision,
     DecisionKind,
     _compute_wp_progress,
@@ -120,7 +120,7 @@ def _advance_runtime_to_step(
     Calls decide_next repeatedly to advance through the DAG steps
     (discovery -> specify -> plan -> tasks -> implement -> review -> accept).
     """
-    from specify_cli.next.runtime_bridge import get_or_start_run
+    from runtime.next.runtime_bridge import get_or_start_run
 
     from specify_cli.mission import get_mission_type
 
@@ -128,8 +128,8 @@ def _advance_runtime_to_step(
     mission_type = get_mission_type(feature_dir)
     run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
 
-    from specify_cli.next._internal_runtime import next_step as runtime_next_step, NullEmitter
-    from specify_cli.next._internal_runtime.engine import _read_snapshot
+    from runtime.next._internal_runtime import next_step as runtime_next_step, NullEmitter
+    from runtime.next._internal_runtime.engine import _read_snapshot
 
     # Keep advancing until the target step is issued
     step_order = [
@@ -163,7 +163,7 @@ def _complete_all_steps(
     agent: str = "test-agent",
 ) -> None:
     """Complete all runtime steps to reach terminal state."""
-    from specify_cli.next.runtime_bridge import get_or_start_run
+    from runtime.next.runtime_bridge import get_or_start_run
 
     from specify_cli.mission import get_mission_type
 
@@ -171,7 +171,7 @@ def _complete_all_steps(
     mission_type = get_mission_type(feature_dir)
     run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
 
-    from specify_cli.next._internal_runtime import next_step as runtime_next_step, NullEmitter
+    from runtime.next._internal_runtime import next_step as runtime_next_step, NullEmitter
 
     # There are 9 steps: each needs to be issued + completed
     for _ in range(20):  # generous upper bound
@@ -567,7 +567,7 @@ class TestDecideNext:
 class TestTaskStepAliases:
     def test_tasks_outline_maps_to_tasks_outline_action(self, feature_dir: Path) -> None:
         """Verify _state_to_action maps tasks_outline → tasks-outline via alias."""
-        from specify_cli.next.decision import _state_to_action
+        from runtime.next.decision import _state_to_action
 
         repo_root = feature_dir.parent.parent
         action, wp_id, workspace_path = _state_to_action(
@@ -583,7 +583,7 @@ class TestTaskStepAliases:
 
     def test_tasks_packages_maps_to_tasks_packages_action(self, feature_dir: Path) -> None:
         """Verify _state_to_action maps tasks_packages → tasks-packages via alias."""
-        from specify_cli.next.decision import _state_to_action
+        from runtime.next.decision import _state_to_action
 
         repo_root = feature_dir.parent.parent
         action, wp_id, workspace_path = _state_to_action(
@@ -599,7 +599,7 @@ class TestTaskStepAliases:
 
     def test_tasks_finalize_maps_to_tasks_finalize_action(self, feature_dir: Path) -> None:
         """Verify _state_to_action maps tasks_finalize → tasks-finalize via alias."""
-        from specify_cli.next.decision import _state_to_action
+        from runtime.next.decision import _state_to_action
 
         repo_root = feature_dir.parent.parent
         action, wp_id, workspace_path = _state_to_action(
@@ -731,7 +731,7 @@ class TestInReviewLaneDecision:
         fake_ws = SimpleNamespace(worktree_path=Path("/tmp/fake-worktree"))
 
         with patch(
-            "specify_cli.next.decision.resolve_workspace_for_wp",
+            "runtime.next.decision.resolve_workspace_for_wp",
             return_value=fake_ws,
         ):
             action, wp_id, ws = _state_to_action(
@@ -754,7 +754,7 @@ class TestInReviewLaneDecision:
         fake_ws = SimpleNamespace(worktree_path=Path("/tmp/fake-worktree"))
 
         with patch(
-            "specify_cli.next.decision.resolve_workspace_for_wp",
+            "runtime.next.decision.resolve_workspace_for_wp",
             return_value=fake_ws,
         ):
             action, wp_id, ws = _state_to_action(

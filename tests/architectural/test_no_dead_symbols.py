@@ -224,15 +224,11 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.dossier.api::SnapshotExportResponse",
         "specify_cli.frontmatter::add_history_entry",
         "specify_cli.frontmatter::get_field",
-        # unshim-wave1-01KWKVHB (#2292) WP03: cascade-orphaned by the task_profile
-        # deletion (T008) -- task_profile was the sole src/ caller of the singular
-        # update_field wrapper (its twin update_fields stays live via
-        # implement.py / lanes.implement_support). Per C-002 (deletion/triage
-        # only; adopt verdicts become follow-up issues) the live frontmatter.py
-        # module is NOT edited in-mission; the orphan is adopted-as-follow-up and
-        # recorded here. Follow-up: see the mission issue-matrix (frontmatter
-        # update_field orphan) filed against epic #1797.
-        "specify_cli.frontmatter::update_field",
+        # unshim-wave2-01KWMCAX (#2326) WP07: the singular update_field triad
+        # (module wrapper, __all__ entry, orphaned instance method) is DELETED —
+        # verified caller-less first (its twin update_fields stays live via
+        # implement.py / lanes.implement_support). Row drained here; category_b
+        # re-derived to the honest live count (NFR-004).
         "specify_cli.frontmatter::validate_frontmatter",
         "specify_cli.git.sparse_checkout::_reset_session_warning_state",
         "specify_cli.git.sparse_checkout::SparseCheckoutKind",

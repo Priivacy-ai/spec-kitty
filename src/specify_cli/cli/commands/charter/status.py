@@ -52,7 +52,7 @@ def status(  # noqa: C901
         charter_dir = repo_root / ".kittify" / "charter"
         if (charter_dir / METADATA_FILENAME).exists():
             _charter_pkg._assert_bundle_compatible(charter_dir)
-        from specify_cli.charter_freshness import compute_freshness
+        from specify_cli.charter_runtime.freshness import compute_freshness
 
         payload: dict[str, Any] = {
             "result": "success",

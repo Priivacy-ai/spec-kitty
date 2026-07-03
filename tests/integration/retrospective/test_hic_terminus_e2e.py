@@ -21,7 +21,7 @@ from typing import Any
 
 import pytest
 
-from specify_cli.next._internal_runtime.retrospective_terminus import run_terminus
+from runtime.next._internal_runtime.retrospective_terminus import run_terminus
 from specify_cli.retrospective.reader import read_record
 
 from tests.integration.retrospective.conftest import (

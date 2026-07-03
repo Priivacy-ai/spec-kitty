@@ -148,7 +148,7 @@ def _invoke_charter(repo: Path, *args: str) -> Any:
             return_value=None,
         ),
         patch(
-            "specify_cli.charter_preflight.cli.find_repo_root",
+            "specify_cli.charter_runtime.preflight.cli.find_repo_root",
             return_value=repo,
         ),
     ):

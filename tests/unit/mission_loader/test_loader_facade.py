@@ -15,7 +15,7 @@ from specify_cli.mission_loader import (
     LoaderWarningCode,
     validate_custom_mission,
 )
-from specify_cli.next._internal_runtime.discovery import DiscoveryContext
+from runtime.next._internal_runtime.discovery import DiscoveryContext
 
 # A minimal valid custom mission body. Every step has a profile binding and
 # the last step is the retrospective marker, so structural checks pass.

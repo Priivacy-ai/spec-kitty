@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.charter_lint.findings import DecayReport, GraphState, LintFinding
+from specify_cli.charter_runtime.lint.findings import DecayReport, GraphState, LintFinding
 from specify_cli.cli.commands.charter import app
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -84,7 +84,7 @@ class TestCharterlintJsonOutput:
         mock_report = _make_report(findings)
 
         with (
-            patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=mock_report),
+            patch("specify_cli.charter_runtime.lint.engine.LintEngine.run", return_value=mock_report),
             patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path) as mock_frr,
         ):
             result = runner.invoke(app, ["lint", "--json"])
@@ -103,7 +103,7 @@ class TestCharterlintJsonOutput:
         mock_report = _make_report([_make_finding()])
 
         with (
-            patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=mock_report),
+            patch("specify_cli.charter_runtime.lint.engine.LintEngine.run", return_value=mock_report),
             patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path) as mock_frr,
         ):
             result = runner.invoke(app, ["lint", "--json"])
@@ -136,7 +136,7 @@ class TestCharterlintSeverityFilter:
         )
 
         with (
-            patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=high_only),
+            patch("specify_cli.charter_runtime.lint.engine.LintEngine.run", return_value=high_only),
             patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path) as mock_frr,
         ):
             result = runner.invoke(app, ["lint", "--json", "--severity", "high"])
@@ -159,7 +159,7 @@ class TestCharterlintMissionScope:
         ])
 
         with (
-            patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=mock_report) as mock_run,
+            patch("specify_cli.charter_runtime.lint.engine.LintEngine.run", return_value=mock_report) as mock_run,
             patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path) as mock_frr,
         ):
             result = runner.invoke(app, ["lint", "--mission", "042-my-feature", "--json"])
@@ -175,7 +175,7 @@ class TestCharterlintMissionScope:
         mock_report = _make_report([])
 
         with (
-            patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=mock_report),
+            patch("specify_cli.charter_runtime.lint.engine.LintEngine.run", return_value=mock_report),
             patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path) as mock_frr,
         ):
             result = runner.invoke(app, ["lint", "--mission", "042", "--json"])
@@ -193,7 +193,7 @@ class TestCharterlintOrphansOnly:
         mock_report = _make_report([_make_finding(category="orphan")])
 
         with (
-            patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=mock_report) as mock_run,
+            patch("specify_cli.charter_runtime.lint.engine.LintEngine.run", return_value=mock_report) as mock_run,
             patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path) as mock_frr,
         ):
             result = runner.invoke(app, ["lint", "--orphans", "--json"])
@@ -211,7 +211,7 @@ class TestCharterlintOrphansOnly:
         ])
 
         with (
-            patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=mock_report),
+            patch("specify_cli.charter_runtime.lint.engine.LintEngine.run", return_value=mock_report),
             patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path) as mock_frr,
         ):
             result = runner.invoke(app, ["lint", "--orphans"])
@@ -228,7 +228,7 @@ class TestCharterlintNoDRG:
         empty_report = _make_report([])
 
         with (
-            patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=empty_report),
+            patch("specify_cli.charter_runtime.lint.engine.LintEngine.run", return_value=empty_report),
             patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path) as mock_frr,
         ):
             result = runner.invoke(app, ["lint"])
@@ -240,7 +240,7 @@ class TestCharterlintNoDRG:
         empty_report = _make_report([])
 
         with (
-            patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=empty_report),
+            patch("specify_cli.charter_runtime.lint.engine.LintEngine.run", return_value=empty_report),
             patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path) as mock_frr,
         ):
             result = runner.invoke(app, ["lint"])
@@ -253,7 +253,7 @@ class TestCharterlintNoDRG:
         empty_report = _make_report([])
 
         with (
-            patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=empty_report),
+            patch("specify_cli.charter_runtime.lint.engine.LintEngine.run", return_value=empty_report),
             patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path) as mock_frr,
         ):
             result = runner.invoke(app, ["lint", "--json"])

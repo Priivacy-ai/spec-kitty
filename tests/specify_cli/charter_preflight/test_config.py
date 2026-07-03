@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.charter_preflight.config import load_preflight_config
+from specify_cli.charter_runtime.preflight.config import load_preflight_config
 
 
 pytestmark = [pytest.mark.fast]

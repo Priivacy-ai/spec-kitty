@@ -113,7 +113,7 @@ def _invoke_status_json(repo_root: Path) -> object:
             "_collect_governance_reference_status",
             return_value={"available": True, "references": [], "warnings": []},
         ),
-        patch("specify_cli.charter_freshness.compute_freshness") as compute_freshness,
+        patch("specify_cli.charter_runtime.freshness.compute_freshness") as compute_freshness,
     ):
         compute_freshness.return_value.to_dict.return_value = {}
         return runner.invoke(charter_app, ["status", "--json"], catch_exceptions=False)

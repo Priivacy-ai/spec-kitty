@@ -42,7 +42,7 @@ def _print_charter_lint_banner(
     Returns ``True`` when the caller should not print the per-finding
     list (i.e., the banner already conveyed the full result).
     """
-    from specify_cli.charter_lint import GraphState as _GraphState  # local alias
+    from specify_cli.charter_runtime.lint import GraphState as _GraphState  # local alias
 
     if report.graph_state is _GraphState.MISSING:
         console.print(
@@ -90,7 +90,7 @@ def charter_lint(
     """Detect decay in charter artifacts via graph-native checks."""
     import sys
 
-    from specify_cli.charter_lint import LintEngine
+    from specify_cli.charter_runtime.lint import LintEngine
 
     try:
         repo_root = _charter_pkg.find_repo_root()

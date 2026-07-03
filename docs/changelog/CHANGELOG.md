@@ -15,6 +15,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - 3.2.4
 
+### 💥 Breaking Changes
+
+- **Deprecated compatibility shim packages removed (mission `unshim-wave2-01KWMCAX`, #2291 / #2290 / #2326 under #1797).** The following re-export shim import paths are **deleted** — code that imported them must switch to the canonical path:
+  - `specify_cli.next` → **`runtime.next`** (the canonical `spec-kitty next` runtime/control-loop package; antecedent #612)
+  - `specify_cli.glossary` → **`glossary`** (antecedent #613)
+  - `specify_cli.charter_lint` → **`specify_cli.charter_runtime.lint`**
+  - `specify_cli.charter_freshness` → **`specify_cli.charter_runtime.freshness`**
+  - `specify_cli.charter_preflight` → **`specify_cli.charter_runtime.preflight`**
+
+  All in-tree callers were re-pointed to the canonical modules before deletion, and the shim registry in `docs/architecture/05_ownership_manifest.yaml` is drained to `shims: []` for these slices. The user-facing CLI surface is unchanged — `spec-kitty next` and `spec-kitty charter lint/preflight/freshness` behave identically. **No version bump accompanies this entry:** `src/specify_cli/__init__.py` is untouched by the mission (verified against the mission lane history), so the public CLI package version is unaffected; only internal deprecated import paths are removed.
+
 ### ♻️ Changed
 
 - **Internal: the `agent tasks` god-command is decomposed into pure decision cores behind injected ports (mission `tasks-py-degod-01KWF08S`, #2116 under #2173).** Behavior-preserving — the full `agent tasks` CLI contract (all subcommands, flags, exit codes, `--json` envelopes, including the coord skip-exit-0 arm and the refuse-exit-1 arms) is **byte-identical**, frozen by a golden characterization harness. The decision/aggregation logic of the five fat command bodies (`move_task`, `map_requirements`, `status`, `mark_status`, `finalize_tasks`) now lives in pure, independently-tested sibling modules (`tasks_transition_core`, `tasks_mapping_core`, `tasks_status_view`) behind an injected `TasksPorts` seam (`FsReader` coord-READ authority + a two-capability `CoordCommitRouter` coord-WRITE authority); each command body is a ≤150-LOC thin orchestrator. Also folds the pre-3.0 coord read-authority split-brain onto the kind-aware authority (guard-only sites) and drains the resolution-authority census (shrink-only). **No user-facing behavior change.** The Render-seam unification and the whole-file `tasks.py` shim relocation are deferred to a follow-up mission (see `docs/plans/tasks-py-degod-followup-mission-debrief.md`).

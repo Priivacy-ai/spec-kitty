@@ -25,7 +25,7 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.next.decision import (
+from runtime.next.decision import (
     Decision,
     DecisionKind,
     _build_prompt_or_error,
@@ -47,7 +47,7 @@ class TestBuildPromptOrError:
         prompt_path.write_text("# prompt\n", encoding="utf-8")
 
         with patch(
-            "specify_cli.next.prompt_builder.build_prompt",
+            "runtime.next.prompt_builder.build_prompt",
             return_value=(None, prompt_path),
         ):
             path, error = _build_prompt_or_error(
@@ -74,7 +74,7 @@ class TestBuildPromptOrError:
         fallback writes a lightweight marker so ``kind=step`` is satisfied.
         """
         with patch(
-            "specify_cli.next.prompt_builder.build_prompt",
+            "runtime.next.prompt_builder.build_prompt",
             side_effect=FileNotFoundError("no template for 'discovery'"),
         ):
             path, error = _build_prompt_or_error(
@@ -95,7 +95,7 @@ class TestBuildPromptOrError:
     def test_wp_step_returns_error_when_build_raises(self, tmp_path: Path) -> None:
         """WP-scoped steps that fail template resolution return an error (no marker)."""
         with patch(
-            "specify_cli.next.prompt_builder.build_prompt",
+            "runtime.next.prompt_builder.build_prompt",
             side_effect=FileNotFoundError("no template for 'implement'"),
         ):
             path, error = _build_prompt_or_error(
@@ -116,7 +116,7 @@ class TestBuildPromptOrError:
         # build_prompt returns a path but the file does not exist.
         ghost = tmp_path / "ghost.md"
         with patch(
-            "specify_cli.next.prompt_builder.build_prompt",
+            "runtime.next.prompt_builder.build_prompt",
             return_value=(None, ghost),
         ):
             path, error = _build_prompt_or_error(
@@ -146,7 +146,7 @@ class TestBuildPromptOrError:
         ghost = tmp_path / "ghost.md"
         with (
             patch(
-                "specify_cli.next.prompt_builder.build_prompt",
+                "runtime.next.prompt_builder.build_prompt",
                 return_value=(None, ghost),
             ),
             # Cover the `except OSError` branch in
@@ -217,22 +217,22 @@ def _runtime_decision(
 )
 def test_issued_step_always_has_resolvable_prompt(tmp_path: Path, step_id: str) -> None:
     """For every public step kind, an issued decision must satisfy the contract."""
-    from specify_cli.next.runtime_bridge import _map_runtime_decision
+    from runtime.next.runtime_bridge import _map_runtime_decision
 
     prompt_path = tmp_path / f"{step_id}-prompt.md"
     prompt_path.write_text(f"# prompt for {step_id}\n", encoding="utf-8")
 
     with (
         patch(
-            "specify_cli.next.runtime_bridge._state_to_action",
+            "runtime.next.runtime_bridge._state_to_action",
             return_value=(step_id, None, None),
         ),
         patch(
-            "specify_cli.next.runtime_bridge._is_wp_iteration_step",
+            "runtime.next.runtime_bridge._is_wp_iteration_step",
             return_value=False,
         ),
         patch(
-            "specify_cli.next.runtime_bridge._build_prompt_or_error",
+            "runtime.next.runtime_bridge._build_prompt_or_error",
             return_value=(str(prompt_path), None),
         ),
     ):
@@ -258,7 +258,7 @@ def test_issued_step_always_has_resolvable_prompt(tmp_path: Path, step_id: str) 
 @pytest.mark.parametrize("step_id", ["discovery", "research", "documentation"])
 def test_unresolvable_prompt_yields_structured_blocked(tmp_path: Path, step_id: str) -> None:
     """When prompt resolution fails, the response MUST be `blocked` with a non-empty `reason`."""
-    from specify_cli.next.runtime_bridge import _map_runtime_decision
+    from runtime.next.runtime_bridge import _map_runtime_decision
 
     error_msg = (
         f"prompt resolution failed for action '{step_id}': "
@@ -266,15 +266,15 @@ def test_unresolvable_prompt_yields_structured_blocked(tmp_path: Path, step_id: 
     )
     with (
         patch(
-            "specify_cli.next.runtime_bridge._state_to_action",
+            "runtime.next.runtime_bridge._state_to_action",
             return_value=(step_id, None, None),
         ),
         patch(
-            "specify_cli.next.runtime_bridge._is_wp_iteration_step",
+            "runtime.next.runtime_bridge._is_wp_iteration_step",
             return_value=False,
         ),
         patch(
-            "specify_cli.next.runtime_bridge._build_prompt_or_error",
+            "runtime.next.runtime_bridge._build_prompt_or_error",
             return_value=(None, error_msg),
         ),
     ):
@@ -301,22 +301,22 @@ def test_unresolvable_prompt_yields_structured_blocked(tmp_path: Path, step_id: 
 @pytest.mark.parametrize("step_id", ["implement", "review"])
 def test_wp_iteration_step_invariant_holds(tmp_path: Path, step_id: str) -> None:
     """Composed WP-iteration steps (implement/review) must satisfy the invariant too."""
-    from specify_cli.next.runtime_bridge import _map_runtime_decision
+    from runtime.next.runtime_bridge import _map_runtime_decision
 
     prompt_path = tmp_path / f"{step_id}-prompt.md"
     prompt_path.write_text(f"# prompt for {step_id}\n", encoding="utf-8")
 
     with (
         patch(
-            "specify_cli.next.runtime_bridge._state_to_action",
+            "runtime.next.runtime_bridge._state_to_action",
             return_value=(step_id, "WP01", str(tmp_path / ".worktrees" / "lane-a")),
         ),
         patch(
-            "specify_cli.next.runtime_bridge._is_wp_iteration_step",
+            "runtime.next.runtime_bridge._is_wp_iteration_step",
             return_value=True,
         ),
         patch(
-            "specify_cli.next.runtime_bridge._build_prompt_or_error",
+            "runtime.next.runtime_bridge._build_prompt_or_error",
             return_value=(str(prompt_path), None),
         ),
     ):
@@ -340,19 +340,19 @@ def test_wp_iteration_step_invariant_holds(tmp_path: Path, step_id: str) -> None
 @pytest.mark.parametrize("step_id", ["implement", "review"])
 def test_wp_iteration_step_blocked_when_prompt_unresolvable(tmp_path: Path, step_id: str) -> None:
     """WP-iteration steps must also fall through to blocked when prompts fail."""
-    from specify_cli.next.runtime_bridge import _map_runtime_decision
+    from runtime.next.runtime_bridge import _map_runtime_decision
 
     with (
         patch(
-            "specify_cli.next.runtime_bridge._state_to_action",
+            "runtime.next.runtime_bridge._state_to_action",
             return_value=(step_id, "WP01", str(tmp_path / ".worktrees" / "lane-a")),
         ),
         patch(
-            "specify_cli.next.runtime_bridge._is_wp_iteration_step",
+            "runtime.next.runtime_bridge._is_wp_iteration_step",
             return_value=True,
         ),
         patch(
-            "specify_cli.next.runtime_bridge._build_prompt_or_error",
+            "runtime.next.runtime_bridge._build_prompt_or_error",
             return_value=(None, f"prompt resolution failed for action '{step_id}'"),
         ),
     ):
@@ -382,22 +382,22 @@ def test_third_state_does_not_exist(tmp_path: Path) -> None:
     of `_map_runtime_decision`'s step handler, the only outcomes are
     (issued + resolvable prompt) or (blocked + non-empty reason).
     """
-    from specify_cli.next.runtime_bridge import _map_runtime_decision
+    from runtime.next.runtime_bridge import _map_runtime_decision
 
     for prompt_outcome in [
         (None, "prompt resolution failed for action 'discovery': FileNotFoundError: x"),
     ]:
         with (
             patch(
-                "specify_cli.next.runtime_bridge._state_to_action",
+                "runtime.next.runtime_bridge._state_to_action",
                 return_value=("discovery", None, None),
             ),
             patch(
-                "specify_cli.next.runtime_bridge._is_wp_iteration_step",
+                "runtime.next.runtime_bridge._is_wp_iteration_step",
                 return_value=False,
             ),
             patch(
-                "specify_cli.next.runtime_bridge._build_prompt_or_error",
+                "runtime.next.runtime_bridge._build_prompt_or_error",
                 return_value=prompt_outcome,
             ),
         ):
