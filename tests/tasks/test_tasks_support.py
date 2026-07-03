@@ -1,10 +1,10 @@
-"""Tests for tasks_support module, particularly git worktree handling."""
+"""Tests for the task_utils.support surface, particularly git worktree handling."""
 
 import json
 import pytest
 from pathlib import Path
 from specify_cli.task_utils.support import load_meta, TaskCliError
-from specify_cli.tasks_support import find_repo_root, activity_entries
+from specify_cli.task_utils import find_repo_root, activity_entries
 
 pytestmark = [pytest.mark.fast, pytest.mark.non_sandbox]
 

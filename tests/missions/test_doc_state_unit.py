@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.doc_state import set_divio_types_selected, set_iteration_mode
+from specify_cli.doc_analysis.doc_state import set_divio_types_selected, set_iteration_mode
 
 pytestmark = pytest.mark.fast
 

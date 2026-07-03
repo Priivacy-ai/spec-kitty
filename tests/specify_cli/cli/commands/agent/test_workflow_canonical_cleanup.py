@@ -24,7 +24,7 @@ from specify_cli.analysis_report import write_analysis_report
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.status.models import StatusEvent, Lane
 from specify_cli.status.store import append_event, read_events
-from specify_cli.tasks_support import split_frontmatter
+from specify_cli.task_utils import split_frontmatter
 
 pytestmark = pytest.mark.fast
 

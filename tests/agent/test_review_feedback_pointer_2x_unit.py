@@ -21,7 +21,7 @@ from specify_cli.cli.commands.agent.tasks import (
 from specify_cli.cli.commands.agent.workflow import _resolve_review_feedback_pointer
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.status.models import Lane, StatusEvent
-from specify_cli.tasks_support import extract_scalar, split_frontmatter
+from specify_cli.task_utils import extract_scalar, split_frontmatter
 
 pytestmark = [
     pytest.mark.skipif(not IS_2X_BRANCH, reason="2.x-only review feedback pointer contract"),

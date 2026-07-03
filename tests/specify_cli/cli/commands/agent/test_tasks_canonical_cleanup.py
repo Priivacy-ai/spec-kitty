@@ -269,7 +269,7 @@ class TestBodyNotesNoLane:
 
         # Build a mock WP
         wp_file = feature_dir / "tasks" / "WP01-test.md"
-        from specify_cli.tasks_support import WorkPackage
+        from specify_cli.task_utils import WorkPackage
 
         mock_wp = WorkPackage(
             feature=mission_slug,
@@ -341,7 +341,7 @@ class TestBodyNotesNoLane:
         _seed_wp_lane(feature_dir, "WP01", "in_progress")
 
         wp_file = feature_dir / "tasks" / "WP01-test.md"
-        from specify_cli.tasks_support import WorkPackage
+        from specify_cli.task_utils import WorkPackage
 
         mock_wp = WorkPackage(
             feature=mission_slug,
@@ -422,7 +422,7 @@ class TestMoveTaskHardFail:
         mock_read_events_transactional.return_value = []
 
         wp_file = feature_dir / "tasks" / "WP01-test.md"
-        from specify_cli.tasks_support import WorkPackage
+        from specify_cli.task_utils import WorkPackage
 
         mock_wp = WorkPackage(
             feature=mission_slug,
@@ -505,7 +505,7 @@ class TestMoveTaskHardFail:
         mock_read_events_transactional.return_value = list(real_read_events(feature_dir))
 
         wp_file = feature_dir / "tasks" / "WP01-test.md"
-        from specify_cli.tasks_support import WorkPackage
+        from specify_cli.task_utils import WorkPackage
 
         mock_wp = WorkPackage(
             feature=mission_slug,

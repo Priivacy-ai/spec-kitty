@@ -12,7 +12,7 @@ from typer.testing import CliRunner
 
 from specify_cli.cli.commands.charter import app
 from specify_cli.cli.commands.charter._status_collectors import _collect_governance_reference_status
-from specify_cli.tasks_support import TaskCliError
+from specify_cli.task_utils import TaskCliError
 
 pytestmark = pytest.mark.fast
 

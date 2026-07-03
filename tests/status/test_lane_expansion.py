@@ -1,7 +1,7 @@
 """Scope: lane expansion unit tests — no real git or subprocesses."""
 
 import pytest
-from specify_cli.tasks_support import LANES, LANE_ALIASES, ensure_lane, TaskCliError
+from specify_cli.task_utils import LANES, LANE_ALIASES, ensure_lane, TaskCliError
 
 pytestmark = pytest.mark.fast
 

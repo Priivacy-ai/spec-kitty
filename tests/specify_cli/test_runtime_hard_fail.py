@@ -96,7 +96,7 @@ class TestEventLogAbsent:
 
     def test_work_package_lane_property_raises(self, tmp_path: Path) -> None:
         """WorkPackage.lane should propagate CanonicalStatusNotFoundError."""
-        from specify_cli.tasks_support import WorkPackage, split_frontmatter
+        from specify_cli.task_utils import WorkPackage, split_frontmatter
 
         feature_dir = _make_feature_dir(tmp_path)
         wp_path = feature_dir / "tasks" / "WP01.md"
@@ -117,7 +117,7 @@ class TestEventLogAbsent:
 
     def test_get_lane_from_frontmatter_raises(self, tmp_path: Path) -> None:
         """get_lane_from_frontmatter should propagate CanonicalStatusNotFoundError."""
-        from specify_cli.tasks_support import get_lane_from_frontmatter
+        from specify_cli.task_utils import get_lane_from_frontmatter
 
         feature_dir = _make_feature_dir(tmp_path)
         wp_path = feature_dir / "tasks" / "WP01.md"
@@ -166,7 +166,7 @@ class TestEventLogExistsWPMissing:
 
     def test_work_package_lane_returns_uninitialized(self, tmp_path: Path) -> None:
         """WorkPackage.lane for a WP not in the event log returns 'uninitialized'."""
-        from specify_cli.tasks_support import WorkPackage, split_frontmatter
+        from specify_cli.task_utils import WorkPackage, split_frontmatter
 
         feature_dir = _make_feature_dir(tmp_path)
         # Only WP01 has an event
@@ -281,7 +281,7 @@ class TestEventLogExistsWPHasState:
 
     def test_get_lane_from_frontmatter_uses_event_log(self, tmp_path: Path) -> None:
         """get_lane_from_frontmatter reads from event log, not frontmatter."""
-        from specify_cli.tasks_support import get_lane_from_frontmatter
+        from specify_cli.task_utils import get_lane_from_frontmatter
 
         feature_dir = _make_feature_dir(tmp_path)
         wp_path = feature_dir / "tasks" / "WP01.md"

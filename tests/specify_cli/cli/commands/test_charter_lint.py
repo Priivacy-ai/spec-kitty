@@ -85,9 +85,13 @@ class TestCharterlintJsonOutput:
 
         with (
             patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=mock_report),
-            patch("specify_cli.tasks_support.find_repo_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path) as mock_frr,
         ):
             result = runner.invoke(app, ["lint", "--json"])
+            # Interception proof: charter/lint.py resolves find_repo_root via
+            # ``_charter_pkg.find_repo_root()`` at call time, so the re-anchored
+            # patch on the charter package re-export must actually be called.
+            mock_frr.assert_called_once()
 
         assert result.exit_code == 0, f"exit_code={result.exit_code}, output={result.output!r}"
         # Output must be parseable as JSON
@@ -100,9 +104,10 @@ class TestCharterlintJsonOutput:
 
         with (
             patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=mock_report),
-            patch("specify_cli.tasks_support.find_repo_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path) as mock_frr,
         ):
             result = runner.invoke(app, ["lint", "--json"])
+            mock_frr.assert_called_once()  # interception proof (see test_json_output_valid)
 
         assert result.exit_code == 0
         # The entire output must be valid JSON (no leading/trailing non-JSON text)
@@ -132,9 +137,10 @@ class TestCharterlintSeverityFilter:
 
         with (
             patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=high_only),
-            patch("specify_cli.tasks_support.find_repo_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path) as mock_frr,
         ):
             result = runner.invoke(app, ["lint", "--json", "--severity", "high"])
+            mock_frr.assert_called_once()  # interception proof
 
         assert result.exit_code == 0
         parsed = json.loads(result.output)
@@ -154,9 +160,10 @@ class TestCharterlintMissionScope:
 
         with (
             patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=mock_report) as mock_run,
-            patch("specify_cli.tasks_support.find_repo_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path) as mock_frr,
         ):
             result = runner.invoke(app, ["lint", "--mission", "042-my-feature", "--json"])
+            mock_frr.assert_called_once()  # interception proof
 
         assert result.exit_code == 0
         # Verify the mission was passed through
@@ -169,9 +176,10 @@ class TestCharterlintMissionScope:
 
         with (
             patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=mock_report),
-            patch("specify_cli.tasks_support.find_repo_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path) as mock_frr,
         ):
             result = runner.invoke(app, ["lint", "--mission", "042", "--json"])
+            mock_frr.assert_called_once()  # interception proof
 
         assert result.exit_code == 0
         parsed = json.loads(result.output)
@@ -186,9 +194,10 @@ class TestCharterlintOrphansOnly:
 
         with (
             patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=mock_report) as mock_run,
-            patch("specify_cli.tasks_support.find_repo_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path) as mock_frr,
         ):
             result = runner.invoke(app, ["lint", "--orphans", "--json"])
+            mock_frr.assert_called_once()  # interception proof
 
         assert result.exit_code == 0
         # Engine must have been called with checks={"orphans"}
@@ -203,9 +212,10 @@ class TestCharterlintOrphansOnly:
 
         with (
             patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=mock_report),
-            patch("specify_cli.tasks_support.find_repo_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path) as mock_frr,
         ):
             result = runner.invoke(app, ["lint", "--orphans"])
+            mock_frr.assert_called_once()  # interception proof
 
         assert result.exit_code == 0
         assert "orphan" in result.output
@@ -219,9 +229,10 @@ class TestCharterlintNoDRG:
 
         with (
             patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=empty_report),
-            patch("specify_cli.tasks_support.find_repo_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path) as mock_frr,
         ):
             result = runner.invoke(app, ["lint"])
+            mock_frr.assert_called_once()  # interception proof
 
         assert result.exit_code == 0
 
@@ -230,9 +241,10 @@ class TestCharterlintNoDRG:
 
         with (
             patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=empty_report),
-            patch("specify_cli.tasks_support.find_repo_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path) as mock_frr,
         ):
             result = runner.invoke(app, ["lint"])
+            mock_frr.assert_called_once()  # interception proof
 
         assert result.exit_code == 0
         assert "No decay detected" in result.output or "no decay" in result.output.lower()
@@ -242,9 +254,10 @@ class TestCharterlintNoDRG:
 
         with (
             patch("specify_cli.charter_lint.engine.LintEngine.run", return_value=empty_report),
-            patch("specify_cli.tasks_support.find_repo_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.charter.find_repo_root", return_value=tmp_path) as mock_frr,
         ):
             result = runner.invoke(app, ["lint", "--json"])
+            mock_frr.assert_called_once()  # interception proof
 
         assert result.exit_code == 0
         parsed = json.loads(result.output)

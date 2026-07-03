@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from specify_cli.doc_generators import (
+from specify_cli.doc_analysis.doc_generators import (
     GeneratorResult,
     GeneratorError,
     JSDocGenerator,

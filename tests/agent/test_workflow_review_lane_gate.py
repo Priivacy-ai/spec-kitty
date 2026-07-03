@@ -22,7 +22,7 @@ from specify_cli.frontmatter import write_frontmatter
 from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.store import append_event
 from specify_cli.status.models import StatusEvent, Lane, TransitionRequest
-from specify_cli.tasks_support import extract_scalar, split_frontmatter
+from specify_cli.task_utils import extract_scalar, split_frontmatter
 
 pytestmark = pytest.mark.fast
 

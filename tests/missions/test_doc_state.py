@@ -5,7 +5,7 @@ from datetime import datetime
 
 import pytest
 
-from specify_cli.doc_state import (
+from specify_cli.doc_analysis.doc_state import (
     set_iteration_mode,
     set_divio_types_selected,
     set_generators_configured,

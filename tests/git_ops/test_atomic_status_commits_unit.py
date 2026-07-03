@@ -46,7 +46,7 @@ from specify_cli.status.locking import (
 )
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
-from specify_cli.tasks_support import extract_scalar, split_frontmatter
+from specify_cli.task_utils import extract_scalar, split_frontmatter
 
 from typer.testing import CliRunner
 
