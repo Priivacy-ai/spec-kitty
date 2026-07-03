@@ -636,8 +636,11 @@ _CATEGORY_C_BACKCOMPAT_SHIM_REEXPORT: frozenset[str] = frozenset(
         # the seam's Typer sub-app, registered (not src-imported), mirroring the
         # already-grandfathered ``specify_cli.cli.commands.agent::app`` entry.
         # Burns down if/when the re-export is collapsed into the seam modules.
-        "specify_cli.cli.commands.agent.tasks::_behind_commits_touch_only_planning_artifacts",
-        "specify_cli.cli.commands.agent.tasks::_check_dependent_warnings",
+        # WP09 (tasks-py-degod-wave2-01KWH9EQ) burn-down:
+        # ``_behind_commits_touch_only_planning_artifacts`` and
+        # ``_check_dependent_warnings`` left this set — the wave-2 relocations
+        # gave both live src/ callers via the ``_tasks.<attr>`` seam bridge
+        # (tasks_shared.py / tasks_move_task.py), so the gate now sees them.
         "specify_cli.cli.commands.agent.tasks::_lane_targets_for_emit",
         "specify_cli.cli.commands.agent.tasks::_wp_lane_from_status_events",
         # agent.tasks::app: rescued by detector (a) (WP01 harden-dead-symbol-gate).

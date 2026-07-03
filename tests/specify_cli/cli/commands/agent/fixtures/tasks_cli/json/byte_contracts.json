@@ -1,0 +1,179 @@
+{
+  "missing_mission_flag_error": {
+    "site": "tasks.py:508 _find_mission_slug/error-missing-mission",
+    "argv": [
+      "list-tasks",
+      "--json"
+    ],
+    "exit_code": 1,
+    "expected_stdout": "{\"error\": \"--mission <slug> is required\"}\n"
+  },
+  "add_history_success": {
+    "site": "tasks.py:546 add-history/success (_output_result)",
+    "argv": [
+      "add-history",
+      "WP01",
+      "--note",
+      "Latency probes wired into the checkout pipeline",
+      "--mission",
+      "checkout-latency-audit-01KWG4RZ",
+      "--json"
+    ],
+    "exit_code": 0,
+    "expected_stdout": "{\"result\": \"success\", \"task_id\": \"WP01\", \"note\": \"Latency probes wired into the checkout pipeline\"}\n"
+  },
+  "generic_error_invalid_mark_status": {
+    "site": "tasks.py:559 mark-status/error-invalid-status (_output_error)",
+    "argv": [
+      "mark-status",
+      "T001",
+      "--status",
+      "shipped",
+      "--mission",
+      "checkout-latency-audit-01KWG4RZ",
+      "--json"
+    ],
+    "exit_code": 1,
+    "expected_stdout": "{\"error\": \"Invalid status 'shipped'. Must be 'done' or 'pending'.\"}\n"
+  },
+  "status_success_indent2": {
+    "site": "tasks.py:1235 status/success (indent=2 _StatusRender, printed at :4117)",
+    "argv": [
+      "status",
+      "--mission",
+      "checkout-latency-audit-01KWG4RZ",
+      "--json"
+    ],
+    "exit_code": 0,
+    "expected_stdout": "{\n  \"mission_slug\": \"checkout-latency-audit-01KWG4RZ\",\n  \"mission_number\": 112,\n  \"mission_type\": \"software-dev\",\n  \"total_wps\": 2,\n  \"by_lane\": {\n    \"approved\": 1,\n    \"genesis\": 1\n  },\n  \"work_packages\": [\n    {\n      \"id\": \"WP01\",\n      \"title\": \"Baseline latency probe instrumentation\",\n      \"lane\": \"approved\",\n      \"phase\": \"Phase 1 - Instrumentation\",\n      \"file\": \"WP01-baseline-latency-probe-instrumentation.md\",\n      \"agent\": \"claude:fable:python-pedro:implementer\",\n      \"agent_profile\": \"python-pedro\",\n      \"shell_pid\": \"268505\",\n      \"execution_mode\": \"code_change\",\n      \"workspace_kind\": \"lane_workspace\"\n    },\n    {\n      \"id\": \"WP02\",\n      \"title\": \"Latency regression report rollup\",\n      \"lane\": \"genesis\",\n      \"phase\": \"Phase 2 - Reporting\",\n      \"file\": \"WP02-latency-regression-report-rollup.md\",\n      \"agent\": \"\",\n      \"agent_profile\": \"\",\n      \"shell_pid\": \"\",\n      \"execution_mode\": \"code_change\",\n      \"workspace_kind\": \"lane_workspace\"\n    }\n  ],\n  \"progress_percentage\": 80.0,\n  \"progress_semantics\": \"weighted_readiness\",\n  \"weighted_percentage\": 80.0,\n  \"done_count\": 0,\n  \"done_percentage\": 0.0,\n  \"stale_wps\": 0,\n  \"stale_verdicts\": [],\n  \"stalled_wps\": [],\n  \"auto_commit\": false\n}\n"
+  },
+  "mark_status_none_resolved_error": {
+    "site": "tasks.py:2477 mark-status/error-no-task-ids-resolved",
+    "argv": [
+      "mark-status",
+      "T099",
+      "--status",
+      "done",
+      "--mission",
+      "checkout-latency-audit-01KWG4RZ",
+      "--json"
+    ],
+    "exit_code": 1,
+    "expected_stdout": "{\"results\": [{\"id\": \"T099\", \"outcome\": \"not_found\", \"format\": null, \"message\": \"T099 was not found in any supported task format.\"}], \"summary\": {\"updated\": 0, \"already_satisfied\": 0, \"not_found\": 1}}\n"
+  },
+  "list_tasks_success": {
+    "site": "tasks.py:2805 list-tasks/success",
+    "argv": [
+      "list-tasks",
+      "--mission",
+      "checkout-latency-audit-01KWG4RZ",
+      "--json"
+    ],
+    "exit_code": 0,
+    "expected_stdout": "{\"tasks\": [{\"work_package_id\": \"WP01\", \"title\": \"Baseline latency probe instrumentation\", \"lane\": \"approved\", \"path\": \"<TMP>/kitty-specs/checkout-latency-audit-01KWG4RZ/tasks/WP01-baseline-latency-probe-instrumentation.md\"}, {\"work_package_id\": \"WP02\", \"title\": \"Latency regression report rollup\", \"lane\": \"planned\", \"path\": \"<TMP>/kitty-specs/checkout-latency-audit-01KWG4RZ/tasks/WP02-latency-regression-report-rollup.md\"}], \"count\": 2}\n"
+  },
+  "map_requirements_unknown_wp_error": {
+    "site": "tasks.py:3349 map-requirements/error-unknown-wp",
+    "argv": [
+      "map-requirements",
+      "--wp",
+      "WP07",
+      "--refs",
+      "FR-001",
+      "--mission",
+      "checkout-latency-audit-01KWG4RZ",
+      "--json",
+      "--no-auto-commit"
+    ],
+    "exit_code": 1,
+    "expected_stdout": "{\"error\": \"Unknown WP IDs\", \"unknown_wps\": [\"WP07\"], \"hint\": \"Available WPs: WP01, WP02\"}\n"
+  },
+  "map_requirements_malformed_ref_error": {
+    "site": "tasks.py:3474 map-requirements/error-malformed-ref",
+    "argv": [
+      "map-requirements",
+      "--wp",
+      "WP01",
+      "--refs",
+      "FR-001a",
+      "--mission",
+      "checkout-latency-audit-01KWG4RZ",
+      "--json",
+      "--no-auto-commit"
+    ],
+    "exit_code": 1,
+    "expected_stdout": "{\"error\": \"Invalid requirement ref format\", \"malformed_refs\": [\"FR-001A\"], \"hint\": \"Refs must match FR-NNN, NFR-NNN, or C-NNN format\"}\n"
+  },
+  "map_requirements_unknown_spec_ref_error": {
+    "site": "tasks.py:3488 map-requirements/error-unknown-spec-id",
+    "argv": [
+      "map-requirements",
+      "--wp",
+      "WP01",
+      "--refs",
+      "FR-014",
+      "--mission",
+      "checkout-latency-audit-01KWG4RZ",
+      "--json",
+      "--no-auto-commit"
+    ],
+    "exit_code": 1,
+    "expected_stdout": "{\"error\": \"Invalid requirement refs\", \"unknown_refs\": [\"FR-014\"], \"hint\": \"Refs not found in spec.md. Available: FR-001, FR-002\"}\n"
+  },
+  "map_requirements_stale_frontmatter_error": {
+    "site": "tasks.py:3585 map-requirements/error-stale-frontmatter-refs",
+    "argv": [
+      "map-requirements",
+      "--wp",
+      "WP01",
+      "--refs",
+      "FR-001",
+      "--mission",
+      "checkout-latency-audit-01KWG4RZ",
+      "--json",
+      "--no-auto-commit"
+    ],
+    "exit_code": 1,
+    "expected_stdout": "{\"error\": \"Stale or invalid refs in WP frontmatter\", \"stale_refs\": {\"WP02\": [\"FR-002a\"]}, \"stale_ref_reasons\": {\"WP02\": {\"malformed\": [\"FR-002a\"], \"unknown_spec_id\": []}}, \"parsed_spec_ids\": [\"FR-001\", \"FR-002\"], \"hint\": \"Requirement IDs must match FR-NNN, NFR-NNN, or C-NNN (e.g. FR-003, not FR-003a). 'malformed' refs violate that format; 'unknown_spec_id' refs are well-formed but not declared in spec.md (see parsed_spec_ids). Re-run with --replace to correct, e.g.: map-requirements --wp WP01 --refs FR-001 --replace\"}\n"
+  },
+  "map_requirements_success": {
+    "site": "tasks.py:3665 map-requirements/success",
+    "argv": [
+      "map-requirements",
+      "--wp",
+      "WP01",
+      "--refs",
+      "FR-001,FR-002",
+      "--mission",
+      "checkout-latency-audit-01KWG4RZ",
+      "--json",
+      "--no-auto-commit"
+    ],
+    "exit_code": 0,
+    "expected_stdout": "{\"result\": \"success\", \"mission_slug\": \"checkout-latency-audit-01KWG4RZ\", \"mission_number\": 112, \"mission_type\": \"software-dev\", \"mapped\": {\"WP01\": [\"FR-001\", \"FR-002\"]}, \"total_mappings\": {\"WP01\": [\"FR-001\", \"FR-002\"]}, \"coverage\": {\"total_functional\": 2, \"mapped_functional\": 2, \"unmapped_functional\": []}, \"committed\": false, \"commit_sha\": null, \"commit_result\": null}\n"
+  },
+  "validate_workflow_success": {
+    "site": "tasks.py:3863 validate-workflow/success",
+    "argv": [
+      "validate-workflow",
+      "WP01",
+      "--mission",
+      "checkout-latency-audit-01KWG4RZ",
+      "--json"
+    ],
+    "exit_code": 0,
+    "expected_stdout": "{\"valid\": true, \"errors\": [], \"warnings\": [], \"task_id\": \"WP01\", \"lane\": \"approved\"}\n"
+  },
+  "list_dependents_success": {
+    "site": "tasks.py:4557 list-dependents/success",
+    "argv": [
+      "list-dependents",
+      "WP01",
+      "--mission",
+      "checkout-latency-audit-01KWG4RZ",
+      "--json"
+    ],
+    "exit_code": 0,
+    "expected_stdout": "{\"wp_id\": \"WP01\", \"depends_on\": [\"[]\"], \"dependents\": [\"WP02\"]}\n"
+  }
+}

@@ -338,18 +338,29 @@ class RealGitOps:
 
 
 class RealRender:
-    """Real :class:`Render` over rich + ``json.dumps`` (default separators)."""
+    """Real :class:`Render` over rich + ``json.dumps`` (default separators).
 
-    def __init__(self, console: Console | None = None) -> None:
+    ``indent`` is a constructor parameter, NOT a Protocol change (Wave-2 research
+    D2 / C-004): the default ``None`` keeps the compact form byte-identical to
+    the historical inline ``json.dumps(data)`` sites, while ``indent=2`` absorbs
+    the ``status --json`` indented envelope without a second adapter class.
+    """
+
+    def __init__(
+        self, console: Console | None = None, indent: int | None = None
+    ) -> None:
         self._console = console or Console()
+        self._indent = indent
 
     def human(self, view: object) -> None:
         self._console.print(view)
 
     def json_envelope(self, payload: Mapping[str, object]) -> str:
-        # Default separators — byte-identical to the inline ``json.dumps(data)``
-        # sites in tasks.py (research D10; parity obligation for Render).
-        return json.dumps(payload)
+        # Default separators — ``json.dumps(payload, indent=None)`` is
+        # byte-identical to ``json.dumps(payload)``, so the compact sites in
+        # tasks.py stay byte-frozen (research D2/D10; parity obligation for
+        # Render). NEVER add ``separators=``.
+        return json.dumps(payload, indent=self._indent)
 
 
 # ---------------------------------------------------------------------------

@@ -112,7 +112,16 @@ CANONICALIZER_FLOOR = 45
 # shrinking the honest live write census 12 -> 9. Two surviving sites (list_tasks,
 # validate_workflow) were re-pinned for line drift, not drained. Floor lowered
 # 12 -> 9 to the re-measured live count.
-COORD_AUTHORITY_WRITE_FLOOR = 9
+# tasks-py-degod-wave2 WP09 (arch-closure sweep, SHRINK-ONLY): the wave-2 WP04
+# render-seam unification routed list_tasks' and validate_workflow's inline
+# ``print(json.dumps(...))`` emission through ``Render.json_envelope``, removing
+# the ``dumps`` write-indicator token from both bodies — their surviving
+# kind-blind STATUS-partition probes are READ-classified now, draining the live
+# write census 9 -> 7 (workflow.py implement x2 + review x2, implement.py
+# implement, and the 2 by-design coord-owned writes). Floor lowered 9 -> 7 to
+# the re-measured live count; allowlist entries drained in the same commit
+# (resolution_gate_allowlist.yaml header).
+COORD_AUTHORITY_WRITE_FLOOR = 7
 
 # tasks-py-degod WP09 — coord-authority write-floor margin gate (anti-masking).
 # The floor must track the honest live write census: setting it materially BELOW
@@ -1159,9 +1168,9 @@ def test_routed_count_floor() -> None:
 
 
 def test_coord_authority_gate_floor() -> None:
-    """Concrete floor: >= 9 WRITE-classified coord call sites (NFR-002), floor tight.
+    """Concrete floor: >= 7 WRITE-classified coord call sites (NFR-002), floor tight.
 
-    9 is the hard-coded live write-candidate census (NOT ``>= len(scanned)`` —
+    7 is the hard-coded live write-candidate census (NOT ``>= len(scanned)`` —
     that is tautological). Sites that sit in a function carrying a write indicator
     (this count INCLUDES the 2 by-design coord-owned writes — ``decisions/emit.py``
     and ``widen/state.py`` — which are write-classified by design and sanctioned in
@@ -1172,11 +1181,15 @@ def test_coord_authority_gate_floor() -> None:
     ``check_pre30_layout`` boundary guard into ``list_dependents`` — re-introducing a
     kind-blind resolve probe — raising the honest census 14 → 15. Further routing
     then shrank it 15 → 13, and retire-standalone-tasks-cli WP04's deletion of the
-    standalone scripts/tasks surface shrank it 13 → 12. Finally, tasks-py-degod
+    standalone scripts/tasks surface shrank it 13 → 12. tasks-py-degod
     WP01-WP08's de-god rewires of ``tasks.py`` drained THREE write-census sites
     (``move_task`` ×2 via the WP06 thin-orchestrator rewrite; ``list_dependents``
-    via the WP08 fold-to-primary), shrinking the live census 12 → 9; WP09 lowered
-    this floor accordingly (SHRINK-ONLY). The ``coord_authority_baseline`` scalar
+    via the WP08 fold-to-primary), shrinking the live census 12 → 9. Finally,
+    tasks-py-degod-wave2's WP04 render-seam unification removed the ``dumps``
+    write-indicator from ``list_tasks`` / ``validate_workflow`` (emission routed
+    through ``Render.json_envelope``), re-classifying their surviving
+    STATUS-partition probes as reads — census 9 → 7; wave-2 WP09 lowered this
+    floor accordingly (SHRINK-ONLY). The ``coord_authority_baseline`` scalar
     caps the allowlist *entry count*, a different quantity from the write *site*
     census (which they happen to equal here).
 

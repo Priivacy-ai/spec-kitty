@@ -237,6 +237,44 @@ def test_fakes_are_deterministic_and_record_calls() -> None:
     assert render.envelopes == [{"a": 1}]
 
 
+# ---------------------------------------------------------------------------
+# T016 (WP04) — RealRender indent seam: one adapter, constructor-configured
+# ---------------------------------------------------------------------------
+
+
+def test_real_render_default_is_compact_bytes() -> None:
+    """Default ``RealRender()`` emits ``json.dumps`` DEFAULT-separator bytes (T016).
+
+    ``indent=None`` must be byte-identical to a bare ``json.dumps(payload)``
+    (research D2) — the compact emission sites in tasks.py are byte-frozen on it.
+    """
+    import json
+
+    payload = {"result": "success", "wp_id": "WP04", "count": 2}
+    assert RealRender().json_envelope(payload) == json.dumps(payload)
+    assert (
+        RealRender().json_envelope(payload)
+        == '{"result": "success", "wp_id": "WP04", "count": 2}'
+    )
+
+
+def test_real_render_indent_two_is_indented_bytes() -> None:
+    """``RealRender(indent=2)`` emits the ``status --json`` indented form (T016).
+
+    Byte-identical to ``json.dumps(payload, indent=2)`` — the seam that replaced
+    the deleted status-specific Render subclass (one adapter per port, C-004).
+    """
+    import json
+
+    payload = {"result": "success", "wp_id": "WP04", "count": 2}
+    assert RealRender(indent=2).json_envelope(payload) == json.dumps(
+        payload, indent=2
+    )
+    assert RealRender(indent=2).json_envelope(payload) == (
+        '{\n  "result": "success",\n  "wp_id": "WP04",\n  "count": 2\n}'
+    )
+
+
 # ===========================================================================
 # T011 — Bundle + injection proof
 # ===========================================================================
@@ -258,7 +296,10 @@ def test_tasks_ports_is_frozen() -> None:
 
     ports = _fake_ports()
     with pytest.raises(dataclasses.FrozenInstanceError):
-        ports.fs = FakeFsReader()
+        # Intentionally illegal assignment: the test EXISTS to prove the frozen
+        # dataclass rejects it at runtime, so mypy's static rejection is the
+        # same contract — suppressed narrowly, not a defect.
+        ports.fs = FakeFsReader()  # type: ignore[misc]
 
 
 def _do_demo(*, ports: TasksPorts | None = None) -> str:

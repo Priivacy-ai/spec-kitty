@@ -86,9 +86,29 @@
 #   drained, two re-pinned, zero added; the floor never rises. A margin gate in
 #   test_coord_authority_gate_floor now fails if the floor is set materially below
 #   the live count (masking un-routed writes).
+# tasks-py-degod-wave2 WP09 (2026-07-02, arch-closure sweep, SHRINK-ONLY): the
+#   wave-2 WP04 render-seam unification drained the WRITE CLASSIFICATION of the
+#   two surviving tasks.py entries — ``list_tasks`` and ``validate_workflow``
+#   still call the kind-blind resolver for their STATUS-partition event-log
+#   probe (live at tasks.py:727 / :1042 after the WP09 registration-shim
+#   sweep), but WP04 routed their inline ``print(json.dumps(...))`` emission
+#   through ``Render.json_envelope``, removing the ``dumps`` write-indicator
+#   token from both function bodies. The scanner now classifies both sites
+#   is_write=False (verified by driving ``scan_coord_authority_call_sites`` on
+#   the live tree), so the coord-authority WRITE gate no longer needs their
+#   sanction:
+#     - DRAIN list_tasks:2768 — site persists as a READ-classified probe; no
+#       write indicator remains in the body -> entry removed (stale under the
+#       NFR-003 twin-guard, which covers write-classified sites only).
+#     - DRAIN validate_workflow:3836 — same render-seam drain -> entry removed.
+#   coord_authority_baseline 9->7 and COORD_AUTHORITY_WRITE_FLOOR 9->7 lowered
+#   to the honest re-measured live write census (7 = workflow.py implement x2 +
+#   review x2, implement.py implement, decisions/emit.py + widen/state.py
+#   by-design). Shrink-only: two entries drained, zero added; the floor never
+#   rises; the margin gate keeps floor within 2 of live.
 
 canonicalizer_baseline: 3
-coord_authority_baseline: 9
+coord_authority_baseline: 7
 
 canonicalizer:
   - qualname: _canonicalize_bare_modern_handle
@@ -114,12 +134,11 @@ coord_authority:
   # resolve_feature_dir_for_mission calls (cross-base artifact in header). list_dependents:3568
   # removed — WP08 (2dda443d5) folded its probe to primary; merged list_dependents
   # has zero resolve calls.
-  - qualname: list_tasks
-    line: 2768
-    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - STATUS-partition coord-aware event-log read (_lt_feature_dir); tasks-py-degod WP09 re-pin 2198->2746, then +11 to 2757 (move_task #1386 protected-branch guard-order early-exit), then +11 to 2768 (self-review precedence guard; same site, not drained)"
-  - qualname: validate_workflow
-    line: 3836
-    rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/tasks.py) - STATUS-partition coord-aware event-log read (_vw_feature_dir); tasks-py-degod WP09 re-pin 2995->3814, then +11 to 3825 (move_task #1386 protected-branch guard-order early-exit), then +11 to 3836 (self-review precedence guard; same site, not drained)"
+  # tasks-py-degod-wave2 WP09 DRAIN: list_tasks:2768 & validate_workflow:3836
+  # removed — the wave-2 WP04 render-seam unification routed both bodies' inline
+  # json.dumps emission through Render.json_envelope, removing the ``dumps``
+  # write-indicator; the surviving kind-blind STATUS-partition probes
+  # (tasks.py:727 / :1042) are READ-classified now (header block above).
   - qualname: implement
     line: 1403
     rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - coord-read-residuals WP01 line-drift re-pin 1395->1403 (identity routing added lines above)"
