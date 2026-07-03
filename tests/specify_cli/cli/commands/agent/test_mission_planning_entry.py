@@ -260,7 +260,12 @@ def test_fr011_primary_only_inversion_resolves_coord_without_rescue(
         resolve_handle_to_read_path,
     )
 
-    slug = "committed-primary-7b-01kv8npc"
+    # Canonical mid8 casing (#2307): mid8 is the uppercase Crockford ULID
+    # prefix, and on-disk mission dirs carry it verbatim. The earlier
+    # lowercase fixture slug was non-canonical test data — the resolver
+    # canonicalizes the handle's mid8, so the checked paths (and the
+    # StatusReadPathNotFound message) carry the canonical casing.
+    slug = "committed-primary-7b-01KV8NPC"
     coord_ref = "kitty/mission-committed-primary-7b-01KV8NPC-coord"
     handle = "committed-primary-7b-01KV8NPC"
     _resolved_coord_spec, primary_root = _build_coord_with_mission_dir_spec_on_primary_only(

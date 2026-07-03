@@ -30,8 +30,12 @@ _SRC = Path(bn.__file__).resolve().parents[1]  # .../src/specify_cli
 _CONTEXT_PY = _SRC / "workspace" / "context.py"
 _ORCH_PY = _SRC / "orchestrator_api" / "commands.py"
 _TASKS_PY = _SRC / "cli" / "commands" / "agent" / "tasks.py"
+# Wave 2 degod (#2305) relocated the routed tasks.py bodies into sibling
+# modules; the seam scan follows the code so its coverage is preserved.
+_TASKS_SHARED_PY = _SRC / "cli" / "commands" / "agent" / "tasks_shared.py"
+_TASKS_MOVE_TASK_PY = _SRC / "cli" / "commands" / "agent" / "tasks_move_task.py"
 
-_ALL_ROUTED = (_CONTEXT_PY, _ORCH_PY, _TASKS_PY)
+_ALL_ROUTED = (_CONTEXT_PY, _ORCH_PY, _TASKS_PY, _TASKS_SHARED_PY, _TASKS_MOVE_TASK_PY)
 
 
 def _legacy_row() -> GoldenRow:
@@ -197,7 +201,15 @@ def test_routed_files_import_the_seam() -> None:
 
 
 def test_tasks_mission_selector_code_untouched() -> None:
-    """The #1797 ``--mission`` selector surface stays intact (no ``--feature`` primary)."""
-    text = _TASKS_PY.read_text(encoding="utf-8")
+    """The #1797 ``--mission`` selector surface stays intact (no ``--feature`` primary).
+
+    Wave 2 degod (#2305) relocated ``_find_mission_slug`` (the selector caller)
+    into ``tasks_shared.py``; the canonical resolver reference lives there now.
+    The pin follows the code: the tasks command surface (shim + shared seam
+    module) still routes selection through ``resolve_mission_handle``.
+    """
+    surface = _TASKS_PY.read_text(encoding="utf-8") + _TASKS_SHARED_PY.read_text(
+        encoding="utf-8"
+    )
     # Canonical selector resolver is still imported/used.
-    assert "resolve_mission_handle" in text
+    assert "resolve_mission_handle" in surface
