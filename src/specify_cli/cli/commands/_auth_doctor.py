@@ -279,9 +279,7 @@ def __getattr__(name: str) -> Path:
     ``_auth_doctor.DAEMON_STATE_FILE`` instead of an import-time-frozen binding.
     """
     if name == "DAEMON_STATE_FILE":
-        # cast: daemon.py is partially typed (follow_imports=skip); the
-        # attribute is a Path resolved via get_runtime_root().
-        return cast("Path", _daemon.DAEMON_STATE_FILE)
+        return _daemon.DAEMON_STATE_FILE
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -292,8 +290,7 @@ def _daemon_state_file() -> Path:
     override = globals().get("DAEMON_STATE_FILE")
     if override is not None:
         return cast("Path", override)
-    # cast: daemon.py is partially typed (follow_imports=skip).
-    return cast("Path", _daemon.DAEMON_STATE_FILE)
+    return _daemon.DAEMON_STATE_FILE
 
 
 def _read_daemon_summary() -> DaemonSummary | None:
