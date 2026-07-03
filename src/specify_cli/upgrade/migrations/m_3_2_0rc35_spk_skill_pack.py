@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from specify_cli.skills.retired import RETIRED_CANONICAL_SKILL_NAMES
+
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
@@ -147,7 +149,8 @@ class SpkSkillPackMigration(BaseMigration):
             preserved = [
                 entry
                 for entry in existing.entries
-                if entry.skill_name not in canonical_names or entry.agent_key not in agents
+                if entry.skill_name not in RETIRED_CANONICAL_SKILL_NAMES
+                and (entry.skill_name not in canonical_names or entry.agent_key not in agents)
             ]
             manifest.entries.extend(preserved)
 
