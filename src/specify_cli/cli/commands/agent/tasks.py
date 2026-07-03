@@ -56,8 +56,8 @@ from specify_cli.sync.events import (
 # its direct adapter call site relocated to ``tasks_command_adapters`` in WP03
 # (tasks-py-degod-wave2-01KWH9EQ), but the module binding is a live D7 patch
 # seam (``@patch("...agent.tasks.emit_status_transition_transactional")``)
-# that the relocated ``_MoveTaskCoordRouter.commit_status`` body routes back
-# through ``_tasks.<attr>``.
+# that the move_task coord router's ``commit_status`` body routes back through
+# ``_tasks.<attr>`` (the ``seam_coord_router(route_emit=True)`` emit wrapper).
 from specify_cli.coordination.status_transition import (
     emit_status_transition_transactional as emit_status_transition_transactional,
 )
@@ -267,19 +267,18 @@ from specify_cli.agent_tasks_ports import (
 )
 
 # WP03 (tasks-py-degod-wave2-01KWH9EQ / FR-004): the three coord WRITE router
-# adapters live in ``tasks_command_adapters`` (imports downward only — never
-# ``tasks`` at module scope, breaking the ports↔commands cycle risk). Explicit
-# ``as`` re-exports keep ``tasks.<Router>`` a module attribute: the
-# ``_default_*_ports`` factories below construct the routers via these
-# bindings, so ``@patch("...agent.tasks.<Router>")`` / ``monkeypatch.setattr``
-# on the ``tasks`` namespace keeps intercepting construction. The relocated
-# method bodies route ``emit_status_transition_transactional`` /
-# ``commit_for_mission`` back through ``_tasks.<attr>`` (research.md D1), so
-# the module bindings of those two seam symbols above stay live patch targets.
+# the coord-router seam factory lives in ``tasks_command_adapters`` (imports
+# downward only — never ``tasks`` at module scope, breaking the ports↔commands
+# cycle risk). The explicit ``as`` re-export keeps ``tasks.seam_coord_router`` a
+# module attribute: the ``_default_*_ports`` factories below construct the
+# single production ``RealCoordCommitRouter`` via this binding, so
+# ``@patch("...agent.tasks.seam_coord_router")`` / ``monkeypatch.setattr`` on the
+# ``tasks`` namespace keeps intercepting construction. The factory injects seam
+# wrappers that route ``emit_status_transition_transactional`` /
+# ``commit_for_mission`` back through ``_tasks.<attr>`` (research.md D1), so the
+# module bindings of those two seam symbols above stay live patch targets.
 from specify_cli.cli.commands.agent.tasks_command_adapters import (
-    _MapReqCoordRouter as _MapReqCoordRouter,
-    _MarkStatusCoordRouter as _MarkStatusCoordRouter,
-    _MoveTaskCoordRouter as _MoveTaskCoordRouter,
+    seam_coord_router as seam_coord_router,
 )
 
 # ---------------------------------------------------------------------------

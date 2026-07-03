@@ -30,7 +30,7 @@ import pytest
 
 from mission_runtime import MissionArtifactKind
 
-from specify_cli.cli.commands.agent.tasks import _MoveTaskCoordRouter, _do_move_task
+from specify_cli.cli.commands.agent.tasks import _do_move_task, seam_coord_router
 from specify_cli.agent_tasks_ports import (
     CommitStatusResult,
     MissionHandle,
@@ -218,7 +218,10 @@ def test_fr010_move_task_coord_status_dir_stays_on_coord_husk(tmp_path: Path) ->
     handle = MissionHandle(repo_root=tmp_path, mission_slug=_MISSION)
     coord_husk = resolve_feature_dir_for_mission(tmp_path, _MISSION)
     # The production move_task router resolves the coord husk for the shared status dir.
-    assert _MoveTaskCoordRouter().feature_write_dir(handle) == coord_husk
+    # (constructor-DI collapse: the move_task coord router is now built via
+    # ``seam_coord_router(route_emit=True)`` rather than the deleted
+    # ``_MoveTaskCoordRouter`` subclass.)
+    assert seam_coord_router(route_emit=True).feature_write_dir(handle) == coord_husk
     # A PRIMARY-partition kind would resolve a DIFFERENT dir under coord topology —
     # the status read must never be collapsed onto it (guard against a wholesale
     # repoint). On this flat fixture the STATUS partition stays path-equal to the husk.

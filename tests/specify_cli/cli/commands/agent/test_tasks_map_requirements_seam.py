@@ -396,14 +396,15 @@ def test_default_ports_constructs_through_tasks_bindings() -> None:
     construction (the WP03 checklist invariant, preserved across the move) —
     and the coord router carries the resolved ``target_branch``."""
     with (
-        patch(f"{_TASKS}._MapReqCoordRouter") as router_cls,
+        patch(f"{_TASKS}.seam_coord_router") as router_factory,
         patch(f"{_TASKS}.RealFsReader") as fs_cls,
         patch(f"{_TASKS}.RealGitOps") as git_cls,
         patch(f"{_TASKS}.RealRender") as render_cls,
     ):
         ports = tasks._default_map_requirements_ports("main")
-    router_cls.assert_called_once_with("main")
-    assert ports.coord is router_cls.return_value
+    # map_requirements threads the resolved target_branch (ff-advance parity).
+    router_factory.assert_called_once_with(thread_target_branch=True, target_branch="main")
+    assert ports.coord is router_factory.return_value
     assert ports.fs is fs_cls.return_value
     assert ports.git is git_cls.return_value
     assert ports.render is render_cls.return_value

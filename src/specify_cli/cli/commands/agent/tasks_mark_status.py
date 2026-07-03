@@ -33,10 +33,10 @@ seam symbol through a lazy in-function import of the ``tasks`` module
 including the heavy ``feature_status_lock`` (D7 ×21) and ``emit_history_added``
 (×10) seams, the conftest ``console`` rebinding, ``_resolve_inline_subtasks``
 (which stays ``tasks.py``-resident per the T007 partition record) and the port
-adapters constructed by ``_default_mark_status_ports`` (incl. the
-``_MarkStatusCoordRouter``, whose ``commit_status`` body routes
-``emit_status_transition_transactional`` back through ``_tasks.<attr>``,
-WP03). ``tasks.py`` re-imports the family in the explicit ``as`` re-export
+adapters constructed by ``_default_mark_status_ports`` (the coord router built
+by ``tasks.seam_coord_router()``, whose ``commit_artifact`` body routes
+``commit_for_mission`` back through ``_tasks.<attr>``, WP03 / degod-follow-ups
+constructor-DI collapse). ``tasks.py`` re-imports the family in the explicit ``as`` re-export
 form, so ``tasks.<name>`` stays a module attribute. Symbols with ZERO patch
 sites and a canonical home outside ``tasks.py`` are imported directly at
 module scope (cycle-safe: none of those modules import ``tasks``).
@@ -112,7 +112,10 @@ def _default_mark_status_ports() -> TasksPorts:
     from specify_cli.cli.commands.agent import tasks as _tasks
     return TasksPorts(
         fs=_tasks.RealFsReader(),
-        coord=_tasks._MarkStatusCoordRouter(),
+        # mark_status routes only the commit seam through ``tasks`` and commits
+        # target-branch-less (byte-parity with the pre-rewire inline call); it
+        # inherited the base ``commit_status`` emitter binding.
+        coord=_tasks.seam_coord_router(),
         git=_tasks.RealGitOps(),
         render=_tasks.RealRender(),
     )

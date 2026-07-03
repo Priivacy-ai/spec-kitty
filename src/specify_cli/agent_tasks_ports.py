@@ -36,7 +36,7 @@ from __future__ import annotations
 
 import json
 import subprocess
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol, runtime_checkable
@@ -46,7 +46,10 @@ from rich.console import Console
 from mission_runtime import MissionArtifactKind
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.paths import locate_project_root
-from specify_cli.coordination.commit_router import commit_for_mission
+from specify_cli.coordination.commit_router import (
+    CommitRouterResult,
+    commit_for_mission,
+)
 from specify_cli.coordination.status_transition import (
     emit_status_transition_transactional,
 )
@@ -263,8 +266,57 @@ class RealFsReader:
         return anchor
 
 
+#: Seam callable that wraps ``commit_for_mission`` — injected so a caller can
+#: route the resolution through a different namespace (the coord families point
+#: it at the ``tasks`` module so ``@patch("...agent.tasks.commit_for_mission")``
+#: intercepts at CALL time, not construction time). Loosely typed on purpose:
+#: under the project's ``follow_imports = "skip"`` the callee already surfaces as
+#: ``Any`` and the family seam-wrappers use ``*args, **kwargs`` passthroughs.
+_CommitForMissionFn = Callable[..., CommitRouterResult]
+
+#: Seam callable that wraps ``emit_status_transition_transactional`` — injected
+#: for the same late-binding reason as :data:`_CommitForMissionFn`.
+_EmitTransactionalFn = Callable[..., StatusEvent]
+
+
 class RealCoordCommitRouter:
-    """Real :class:`CoordCommitRouter` over the two disjoint write seams."""
+    """Real :class:`CoordCommitRouter` over the two disjoint write seams.
+
+    The two WRITE seams (``commit_for_mission`` / ``emit_status_transition_
+    transactional``) and the optional ``target_branch`` are **constructor-
+    injected** rather than subclassed (C-004, one adapter per port). The three
+    coord families that previously subclassed this router — to (a) re-route their
+    seams through the ``tasks`` module namespace so the historical
+    ``@patch("...agent.tasks.<sym>")`` seams keep INTERCEPTING after the port
+    rewire, and (b) thread ``target_branch`` (``map_requirements`` only) — now
+    pass those behaviours in at construction via
+    :func:`~specify_cli.cli.commands.agent.tasks_command_adapters.seam_coord_router`.
+
+    The ``None`` defaults reproduce the base production behaviour byte-for-byte:
+    the module-bound ``agent_tasks_ports`` seams and NO ff-advance. Late binding
+    is preserved because the injected callables resolve their target at CALL
+    time (the family wrappers do a lazy ``from ...agent import tasks`` import),
+    so a ``@patch`` applied AFTER construction still intercepts.
+    """
+
+    def __init__(
+        self,
+        *,
+        target_branch: str | None = None,
+        thread_target_branch: bool = False,
+        commit_fn: _CommitForMissionFn | None = None,
+        emit_fn: _EmitTransactionalFn | None = None,
+    ) -> None:
+        self._target_branch = target_branch
+        # ``thread_target_branch`` is a SEPARATE flag from the value (not
+        # ``target_branch is not None``): it preserves the exact pre-collapse
+        # call shape. ``map_requirements`` ALWAYS passed ``target_branch=<value>``
+        # (even when the resolved value was ``None``); ``move_task`` /
+        # ``mark_status`` NEVER passed the kwarg at all. Deriving the flag from
+        # the value would collapse those two byte-distinct call shapes (C-001).
+        self._thread_target_branch = thread_target_branch
+        self._commit_fn = commit_fn or commit_for_mission
+        self._emit_fn = emit_fn or emit_status_transition_transactional
 
     def feature_write_dir(self, mission: MissionHandle) -> Path:
         write_dir: Path = resolve_feature_dir_for_mission(
@@ -278,9 +330,7 @@ class RealCoordCommitRouter:
         *,
         capability: GuardCapability,
     ) -> CommitStatusResult:
-        event: StatusEvent = emit_status_transition_transactional(
-            request, capability=capability
-        )
+        event: StatusEvent = self._emit_fn(request, capability=capability)
         return CommitStatusResult(event=event, skipped=False)
 
     def commit_artifact(
@@ -292,14 +342,28 @@ class RealCoordCommitRouter:
         kind: MissionArtifactKind,
         policy: ProtectionPolicy,
     ) -> CommitArtifactResult:
-        result = commit_for_mission(
-            mission.repo_root,
-            mission.mission_slug,
-            tuple(paths),
-            message,
-            policy,
-            kind=kind,
-        )
+        # C-001 byte-parity: thread ``target_branch`` ONLY when the family opted
+        # in (map_requirements). The others omit the kwarg entirely so the mock
+        # call shape stays identical to the pre-collapse inline call.
+        if self._thread_target_branch:
+            result = self._commit_fn(
+                mission.repo_root,
+                mission.mission_slug,
+                tuple(paths),
+                message,
+                policy,
+                kind=kind,
+                target_branch=self._target_branch,
+            )
+        else:
+            result = self._commit_fn(
+                mission.repo_root,
+                mission.mission_slug,
+                tuple(paths),
+                message,
+                policy,
+                kind=kind,
+            )
         return CommitArtifactResult(
             status=result.status,
             placement_ref=result.placement_ref,

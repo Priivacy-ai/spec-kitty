@@ -1,30 +1,34 @@
-"""Coord-router port adapters relocated out of ``tasks.py`` (WP03, #2058/#2305).
+"""Seam-routed coord-router construction for the ``agent tasks`` families.
 
-Mission ``tasks-py-degod-wave2-01KWH9EQ`` FR-004: the three coord WRITE router
-adapters — ``_MoveTaskCoordRouter``, ``_MapReqCoordRouter``,
-``_MarkStatusCoordRouter`` — live here, moved VERBATIM from ``tasks.py``.
+Mission ``tasks-py-degod-wave2-01KWH9EQ`` FR-004 originally relocated three
+``RealCoordCommitRouter`` **subclasses** (``_MoveTaskCoordRouter``,
+``_MapReqCoordRouter``, ``_MarkStatusCoordRouter``) out of ``tasks.py``. The
+degod-follow-ups pre-merge squad flagged those subclasses as near-triplicated
+bodies that bent the one-adapter-per-port rule (C-004) — they existed ONLY to
+re-resolve the two WRITE seams through the ``tasks`` namespace (and, for
+``map_requirements``, to thread ``target_branch``). This module replaces them
+with **constructor DI**: a single production adapter class
+(:class:`RealCoordCommitRouter`) plus the two seam-wrapper functions and the
+:func:`seam_coord_router` factory below. There is now ZERO per-family
+duplication and exactly one production coord adapter class.
 
-**Why this module exists** (import-cycle break): the adapters subclass
-:class:`RealCoordCommitRouter` from ``specify_cli.agent_tasks_ports`` — the
-top-level ports module, which imports downward only. Housing the subclasses in
-``tasks.py`` meant any future ports↔commands edge risked a cycle once the
-family relocation WPs (WP05–WP08) started importing adapter homes. This module
-imports only the ports module, stdlib, and core modules at module scope — and
-NEVER ``tasks`` itself (cycle-safe by construction).
+**Why this module still exists** (import-cycle break): the seam wrappers and the
+factory reference :class:`RealCoordCommitRouter` from
+``specify_cli.agent_tasks_ports`` — the top-level ports module, which imports
+downward only. Keeping the seam construction here (never in ``tasks.py``) means
+this module imports only the ports module, stdlib, and core modules at module
+scope, and NEVER ``tasks`` itself at import time (cycle-safe by construction).
+The tasks-namespace resolution happens LAZILY, inside the seam wrappers, at call
+time.
 
-**One adapter per port capability** (C-004): these adapters remain the ONLY
-implementations of their coord WRITE capabilities. Do not add new adapter
-variants here — extend via the port bundle factories in ``tasks.py``.
-
-**Seam bridge** (research.md D1): the method bodies reach the patched seam
-symbols (``emit_status_transition_transactional``, ``commit_for_mission``)
-through a lazy in-function import of the ``tasks`` module
+**Seam bridge / late binding** (research.md D1): the two wrappers
+:func:`_seam_commit_for_mission` / :func:`_seam_emit_status_transition_transactional`
+do a lazy in-function import of the ``tasks`` module
 (``from specify_cli.cli.commands.agent import tasks as _tasks``) and call
-``_tasks.<attr>(...)``, so every historical
-``@patch("...agent.tasks.<symbol>")`` keeps INTERCEPTING after the move.
-``tasks.py`` re-imports the three classes in the explicit ``as`` re-export
-form, so ``tasks.<Router>`` stays a module attribute and the
-``_default_*_ports`` factories keep constructing via patchable bindings.
+``_tasks.<attr>(...)``, so a ``@patch("...agent.tasks.<symbol>")`` applied AFTER
+router construction still INTERCEPTS. ``tasks.py`` re-exports
+:func:`seam_coord_router` (explicit ``as`` re-export) so the ``_default_*_ports``
+factories construct through a patchable ``tasks.seam_coord_router`` binding.
 
 Per-symbol routing/interception evidence:
 ``kitty-specs/tasks-py-degod-wave2-01KWH9EQ/seam-checklist.md`` (Layer 4 of
@@ -33,143 +37,69 @@ the parity contract).
 
 from __future__ import annotations
 
-from collections.abc import Sequence
-from pathlib import Path
-
-from mission_runtime import MissionArtifactKind
-from specify_cli.agent_tasks_ports import (
-    CommitArtifactResult,
-    CommitStatusResult,
-    MissionHandle,
-    RealCoordCommitRouter,
-)
-from specify_cli.core.commit_guard import GuardCapability
-from specify_cli.git.protection_policy import ProtectionPolicy
-from specify_cli.status import TransitionRequest
+from specify_cli.agent_tasks_ports import RealCoordCommitRouter
+from specify_cli.coordination.commit_router import CommitRouterResult
+from specify_cli.status import StatusEvent
 
 
-class _MoveTaskCoordRouter(RealCoordCommitRouter):
-    """Coord WRITE router bound to the ``tasks`` module's patchable symbols.
+def _seam_commit_for_mission(*args: object, **kwargs: object) -> CommitRouterResult:
+    """Route ``commit_for_mission`` through the ``tasks`` module at CALL time.
 
-    Behaviour-identical to :class:`RealCoordCommitRouter`, but re-resolves
-    ``emit_status_transition_transactional`` / ``commit_for_mission`` through the
-    ``tasks`` module namespace so the established
-    ``@patch("...agent.tasks.<symbol>")`` seams the move_task test-suite relies on
-    keep intercepting after the WP06 port rewire (the Real adapter binds the
-    ``agent_tasks_ports`` copies, which those module-scoped patches do not reach).
+    The lazy import + ``_tasks.<attr>`` indirection is the seam bridge: a
+    ``@patch("...agent.tasks.commit_for_mission")`` applied after the router is
+    constructed still intercepts, because the symbol is resolved here on every
+    call rather than bound once at construction (research.md D1).
     """
+    from specify_cli.cli.commands.agent import tasks as _tasks
 
-    def commit_status(
-        self, request: TransitionRequest, *, capability: GuardCapability
-    ) -> CommitStatusResult:
-        from specify_cli.cli.commands.agent import tasks as _tasks
-
-        event = _tasks.emit_status_transition_transactional(request, capability=capability)
-        return CommitStatusResult(event=event, skipped=False)
-
-    def commit_artifact(
-        self,
-        mission: MissionHandle,
-        paths: Sequence[Path],
-        message: str,
-        *,
-        kind: MissionArtifactKind,
-        policy: ProtectionPolicy,
-    ) -> CommitArtifactResult:
-        from specify_cli.cli.commands.agent import tasks as _tasks
-
-        result = _tasks.commit_for_mission(
-            mission.repo_root,
-            mission.mission_slug,
-            tuple(paths),
-            message,
-            policy,
-            kind=kind,
-        )
-        return CommitArtifactResult(
-            status=result.status,
-            placement_ref=result.placement_ref,
-            commit_hash=result.commit_hash,
-            diagnostic=result.diagnostic,
-        )
+    result: CommitRouterResult = _tasks.commit_for_mission(*args, **kwargs)
+    return result
 
 
-class _MapReqCoordRouter(RealCoordCommitRouter):
-    """Coord WRITE router for ``map_requirements``, bound to the ``tasks`` module.
+def _seam_emit_status_transition_transactional(
+    *args: object, **kwargs: object
+) -> StatusEvent:
+    """Route ``emit_status_transition_transactional`` through ``tasks`` at CALL time.
 
-    Behaviour-identical to :class:`RealCoordCommitRouter.commit_artifact`, but (a)
-    re-resolves ``commit_for_mission`` through the ``tasks`` module namespace so the
-    established ``@patch("...agent.tasks.commit_for_mission")`` seam keeps
-    intercepting after the WP07 port rewire, and (b) threads the resolved
-    ``target_branch`` so the post-commit ff-advance still fires for a coord write
-    (parity with the pre-rewire inline call at the original tasks.py:3257).
+    Same late-binding contract as :func:`_seam_commit_for_mission`: keeps the
+    ``@patch("...agent.tasks.emit_status_transition_transactional")`` seam live
+    for the ``move_task`` family (the only family whose coord router routes the
+    transactional emitter through the ``tasks`` namespace).
     """
+    from specify_cli.cli.commands.agent import tasks as _tasks
 
-    def __init__(self, target_branch: str | None) -> None:
-        self._target_branch = target_branch
-
-    def commit_artifact(
-        self,
-        mission: MissionHandle,
-        paths: Sequence[Path],
-        message: str,
-        *,
-        kind: MissionArtifactKind,
-        policy: ProtectionPolicy,
-    ) -> CommitArtifactResult:
-        from specify_cli.cli.commands.agent import tasks as _tasks
-
-        result = _tasks.commit_for_mission(
-            mission.repo_root,
-            mission.mission_slug,
-            tuple(paths),
-            message,
-            policy,
-            kind=kind,
-            target_branch=self._target_branch,
-        )
-        return CommitArtifactResult(
-            status=result.status,
-            placement_ref=result.placement_ref,
-            commit_hash=result.commit_hash,
-            diagnostic=result.diagnostic,
-        )
+    event: StatusEvent = _tasks.emit_status_transition_transactional(*args, **kwargs)
+    return event
 
 
-class _MarkStatusCoordRouter(RealCoordCommitRouter):
-    """Coord WRITE router for ``mark_status``, bound to the ``tasks`` module.
+def seam_coord_router(
+    *,
+    thread_target_branch: bool = False,
+    target_branch: str | None = None,
+    route_emit: bool = False,
+) -> RealCoordCommitRouter:
+    """Build the production coord router with its WRITE seams routed via ``tasks``.
 
-    Behaviour-identical to :meth:`RealCoordCommitRouter.commit_artifact`, but
-    re-resolves ``commit_for_mission`` through the ``tasks`` module namespace so the
-    established ``@patch("...agent.tasks.commit_for_mission")`` seam keeps
-    intercepting after the WP08 port rewire. ``mark_status`` commits the
-    ``TASKS_INDEX`` artifact WITHOUT a threaded ``target_branch`` (byte-parity with
-    the pre-rewire inline ``commit_for_mission`` call), so this override — unlike
-    ``_MapReqCoordRouter`` — does NOT thread one.
+    Single construction helper for all three coord families (C-004, one adapter
+    per port). ``commit_artifact`` always routes ``commit_for_mission`` through
+    the ``tasks`` namespace (every family relies on that seam). The two knobs
+    reproduce the exact pre-collapse per-family divergence (C-001):
+
+    * ``route_emit`` — route ``emit_status_transition_transactional`` through the
+      ``tasks`` namespace too. ONLY ``move_task`` set this (it was the only
+      subclass to override ``commit_status``); ``map_requirements`` /
+      ``mark_status`` inherited the base emitter binding, so they leave it
+      ``False``.
+    * ``thread_target_branch`` / ``target_branch`` — thread the resolved primary
+      branch into ``commit_for_mission`` for the post-commit ff-advance. ONLY
+      ``map_requirements`` set this; ``move_task`` / ``mark_status`` committed
+      target-branch-less (byte-parity with the pre-rewire inline calls).
     """
-
-    def commit_artifact(
-        self,
-        mission: MissionHandle,
-        paths: Sequence[Path],
-        message: str,
-        *,
-        kind: MissionArtifactKind,
-        policy: ProtectionPolicy,
-    ) -> CommitArtifactResult:
-        from specify_cli.cli.commands.agent import tasks as _tasks
-
-        result = _tasks.commit_for_mission(
-            mission.repo_root,
-            mission.mission_slug,
-            tuple(paths),
-            message,
-            policy,
-            kind=kind,
-        )
-        return CommitArtifactResult(
-            status=result.status,
-            placement_ref=result.placement_ref,
-            commit_hash=result.commit_hash,
-            diagnostic=result.diagnostic,
-        )
+    return RealCoordCommitRouter(
+        target_branch=target_branch,
+        thread_target_branch=thread_target_branch,
+        commit_fn=_seam_commit_for_mission,
+        emit_fn=(
+            _seam_emit_status_transition_transactional if route_emit else None
+        ),
+    )

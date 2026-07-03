@@ -116,7 +116,9 @@ def _default_move_task_ports() -> TasksPorts:
     from specify_cli.cli.commands.agent import tasks as _tasks
     return TasksPorts(
         fs=_tasks.RealFsReader(),
-        coord=_tasks._MoveTaskCoordRouter(),
+        # move_task routes BOTH seams through the ``tasks`` namespace (it was the
+        # only family to override ``commit_status``); no ``target_branch``.
+        coord=_tasks.seam_coord_router(route_emit=True),
         git=_tasks.RealGitOps(),
         render=_tasks.RealRender(),
     )

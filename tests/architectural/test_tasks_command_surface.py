@@ -112,7 +112,11 @@ _TASKS_PY = _REPO_ROOT / "src" / "specify_cli" / "cli" / "commands" / "agent" / 
 #   SAME COMMIT as the move (never a follow-up commit).
 # * FINAL (WP09, FR-011): achieved = 1206; _CEILING = min(1206, 1400) = 1206.
 #   Delta from the 4569 WP01 baseline: −3363 lines (−73.6%). Full ratchet
-#   history: 4569 → 4017 → 3927 → 3926 → 3046 → 2524 → 1979 → 1470 → 1206.
+#   history: 4569 → 4017 → 3927 → 3926 → 3046 → 2524 → 1979 → 1470 → 1206 → 1205.
+# * degod-follow-ups (constructor-DI collapse of the three coord-router
+#   subclasses into a single ``seam_coord_router`` re-export): the three-symbol
+#   ``tasks_command_adapters`` re-export block collapsed to one, achieved = 1205;
+#   ratcheted _CEILING 1206 → 1205 in the same commit (relocation-ratchet rule).
 #   What remains is exactly the IC-07 registration-shim taxonomy: the 9
 #   ``@app.command`` wrappers (4 of them the deliberately-retained small
 #   bodies: list_tasks / add_history / validate_workflow / list_dependents),
@@ -121,7 +125,7 @@ _TASKS_PY = _REPO_ROOT / "src" / "specify_cli" / "cli" / "commands" / "agent" / 
 # * If the honest final size had exceeded 1400: the WP moves to `blocked`, the
 #   delta-from-4569 analysis goes to the Activity Log + a #2305 comment, and
 #   the operator decides — never a self-certified higher ceiling.
-_CEILING = 1206
+_CEILING = 1205
 
 # Standing mission-cap backstop (FR-011, squad HIGH): a ceiling above 1400 is
 # an operator escalation, never a self-certified re-baseline — mechanically
