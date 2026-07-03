@@ -112,7 +112,7 @@
       "pass_fail": "pass",
       "verified_by": "reviewer-renata (per-WP reviews) / orchestrator (claude, mission accept)",
       "verified_at": "2026-07-02T20:30:00+00:00",
-      "notes": "Accept-time verification: WP09 review: _CEILING=1206==actual, cap assert (<=1400) present, ratchet history 4569->1206 recorded; self-mutation test green; per-WP same-commit ratchets verified in WP02-WP09 reviews."
+      "notes": "Accept-time verification: WP09 review: _CEILING=1206==actual, cap assert (<=1400) present, ratchet history 4569->1206 recorded; self-mutation test green; per-WP same-commit ratchets verified in WP02-WP09 reviews. | SUPERSEDED post-accept (operator ruling 2026-07-03): the standing LOC gate is retired on PR #2308 \u2014 size enforcement delegated to Sonar; the ratchet-down protocol fulfilled its mission-time purpose (4569->1205 verified at accept). See tracers/design-decisions.md #17."
     },
     {
       "criterion_id": "FR-012",

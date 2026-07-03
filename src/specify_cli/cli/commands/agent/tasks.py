@@ -1,9 +1,10 @@
 """Task workflow commands for AI agents."""
 
-# ⚠️ GOD-MODULE (tracked for decomposition — do NOT add new responsibilities here).
-# This file is an oversized "god module" (~4500 LOC, maxCC ~178). Extract cohesive
-# seams into dedicated modules instead of growing this one.
-# De-godding effort: https://github.com/Priivacy-ai/spec-kitty/issues/2058
+# ⚠️ REGISTRATION SHIM (de-godded 4569→~1200 LOC by #2116/#2305 — keep it thin).
+# This file owns ONLY: the @app.command wrappers, four small command bodies, and
+# the seam-surface re-export block. New behavior goes in the sibling modules
+# (tasks_shared / tasks_command_adapters / tasks_<family>), never here.
+# Size/complexity regressions are Sonar's to flag (quality gate), not pytest's.
 
 from __future__ import annotations
 

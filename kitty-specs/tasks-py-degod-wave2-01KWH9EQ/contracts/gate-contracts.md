@@ -50,3 +50,14 @@ The new gate file and the byte-freeze suite carry markers selected by existing C
 (`fast`; the architectural directory is additionally selected by the
 `git_repo or integration or architectural` shard). Both files appear in the FR-009
 marker-census artifact with their selecting gate named.
+
+---
+
+## Gate 2 — RETIRED (operator ruling, 2026-07-03)
+
+The whole-file LOC ceiling served as the mission's ratchet-down instrument
+(4569 → 1205, lowered same-commit per relocation WP, verified at accept) and
+is retired with the mission on PR #2308: raw size metrics belong to Sonar's
+quality gate, not pytest (tests-as-friction). The anti-regrowth intent lives
+on as the registration-shim header guidance in tasks.py. Gate 1 (AST dumps —
+semantic) remains suite-owned and standing.

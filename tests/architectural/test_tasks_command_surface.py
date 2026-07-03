@@ -3,21 +3,12 @@
 Mission ``tasks-py-degod-wave2-01KWH9EQ`` — contract:
 ``kitty-specs/tasks-py-degod-wave2-01KWH9EQ/contracts/gate-contracts.md``.
 
-Gate 2 — whole-file LOC ceiling (FR-011, NFR-004, SC-001)
----------------------------------------------------------
-``src/specify_cli/cli/commands/agent/tasks.py`` is the repository's worst
-god-module hotspot. This gate pins its size so the wave-2 relocation WPs can
-only shrink it — regrowth is a RED test, not a review judgment call.
-
-Form: a plain scalar ceiling over ``len(source.splitlines())``. The CT1
-``composite_key`` carry-forward is deliberately N/A here — that convention
-exists for line-keyed allowlist entries that drift with benign edits; a
-whole-file scalar ceiling has no per-line keys (research.md D5, DIRECTIVE_041).
-
-Non-vacuity (DIRECTIVE_043 / spec C-006): the self-mutation test drives the
-SAME extracted check function (``_loc_of``) with a synthetic source one line
-over the ceiling and requires the comparison to fail — proving the gate is
-wired to fire, without ever mutating the live file.
+File-size enforcement is deliberately NOT here (operator ruling,
+2026-07-03): raw LOC/size metrics are Sonar's job (S104 / the quality
+gate), and a hard-coded line ceiling turns every legitimate edit into
+test friction. The anti-regrowth guidance for the registration shim
+lives in tasks.py's header comment; the SEMANTIC gate below is what the
+suite owns.
 
 Gate 1 — AST 0-inline-dumps (FR-007, SC-002)
 --------------------------------------------
@@ -64,127 +55,6 @@ import pytest
 pytestmark = [pytest.mark.architectural, pytest.mark.fast]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_TASKS_PY = _REPO_ROOT / "src" / "specify_cli" / "cli" / "commands" / "agent" / "tasks.py"
-
-# _CEILING ratchet-down protocol (FR-011):
-# * Starts at 4569 — the exact size of tasks.py when this gate landed (WP01).
-# * WP02 (shared-helpers move to ``tasks_shared.py``) ratcheted 4569 → 4017.
-# * WP03 (coord routers move to ``tasks_command_adapters.py``) 4017 → 3927.
-# * WP04 (render-seam unification: status Render subclass deleted, compact
-#   emission sites routed through ``Render.json_envelope``) 3927 → 3926.
-# * WP05 (move_task family — ``_do_move_task`` + 23 ``_mt_*`` + ``_MoveTaskState``
-#   + ``_default_move_task_ports`` — moved to ``tasks_move_task.py``; +11 lines
-#   of strict-mypy explicit ``as`` re-export forms + rationale comments for the
-#   D7 seam symbols the relocated bodies route via ``_tasks.<attr>`` and the
-#   two helpers ``tests/agent`` imports from ``tasks``) 3926 → 3046.
-# * WP06 (map_requirements family — ``_do_map_requirements`` + 11 ``_mr_*`` +
-#   ``_MapReqState`` + ``_default_map_requirements_ports`` — moved to
-#   ``tasks_map_requirements.py``; ``plan_mapping`` kept as an explicit ``as``
-#   re-export for its sentinel seam; ``SPEC_MD_FILENAME`` stays tasks.py-owned,
-#   routed via ``_tasks.<attr>``) 3046 → 2524.
-# * WP07 (status family — ``_do_status`` + 14 ``_st_*`` + ``_StatusState`` +
-#   ``_default_status_ports`` — moved to ``tasks_status_cmd.py``;
-#   ``build_status_view`` kept as an explicit ``as`` re-export for its sentinel
-#   seam; ``get_status_read_root`` kept for its D7 patch seam) 2524 → 1979.
-# * WP08 (mark_status + finalize families — ``_do_mark_status`` + 9 ``_ms_*``
-#   + ``_MarkStatusState`` + ``_default_mark_status_ports`` moved to
-#   ``tasks_mark_status.py``; ``_do_finalize_tasks`` + 4 ``_ft_*`` +
-#   ``_FinalizeState`` + ``_default_finalize_ports`` moved to
-#   ``tasks_finalize.py`` — ALL five command families now out of tasks.py;
-#   ``bootstrap_canonical_state`` / ``_normalize_task_id_input`` kept as
-#   explicit ``as`` re-exports for their patch/import seams;
-#   ``_resolve_inline_subtasks`` stays tasks.py-resident, routed via
-#   ``_tasks.<attr>``; +12 lines of strict-mypy explicit ``as`` re-export
-#   forms + rationale for ``resolve_feature_dir_for_mission`` /
-#   ``emit_history_added`` — dual direct-use + routed-seam symbols) 1979 →
-#   1470.
-# * WP09 (final registration-shim sweep — the twelve straggler helpers moved
-#   to their family modules: 6 → ``tasks_move_task`` (arbiter override pair,
-#   #2155 bundle partition, coord event-path probe, event-field shaper,
-#   reviewer detector), 4 → ``tasks_status_cmd`` (stall threshold, HiC marker,
-#   staleness shapers), 1 → ``tasks_map_requirements`` (kind-aware tasks/ read
-#   resolver), 1 → ``tasks_mark_status`` (inline-Subtasks resolver); each kept
-#   as an explicit ``as`` re-export patch seam; dead import residue
-#   (``candidate_feature_dir_for_mission``, ``EVENTS_FILENAME``, the
-#   ``TaskIdResult`` vocabulary, ``_persist_inline_subtask_status``) dropped
-#   with zero-external-reference evidence) 1470 → 1206.
-# * Each relocation WP lowers _CEILING to the achieved tasks.py size IN THE
-#   SAME COMMIT as the move (never a follow-up commit).
-# * FINAL (WP09, FR-011): achieved = 1206; _CEILING = min(1206, 1400) = 1206.
-#   Delta from the 4569 WP01 baseline: −3363 lines (−73.6%). Full ratchet
-#   history: 4569 → 4017 → 3927 → 3926 → 3046 → 2524 → 1979 → 1470 → 1206 → 1205.
-# * degod-follow-ups (constructor-DI collapse of the three coord-router
-#   subclasses into a single ``seam_coord_router`` re-export): the three-symbol
-#   ``tasks_command_adapters`` re-export block collapsed to one, achieved = 1205;
-#   ratcheted _CEILING 1206 → 1205 in the same commit (relocation-ratchet rule).
-#   What remains is exactly the IC-07 registration-shim taxonomy: the 9
-#   ``@app.command`` wrappers (4 of them the deliberately-retained small
-#   bodies: list_tasks / add_history / validate_workflow / list_dependents),
-#   the ``app``/``console`` setup, the explicit ``as`` re-export seam surface
-#   (~40 patched symbols, research.md D7), and ``__all__``.
-# * If the honest final size had exceeded 1400: the WP moves to `blocked`, the
-#   delta-from-4569 analysis goes to the Activity Log + a #2305 comment, and
-#   the operator decides — never a self-certified higher ceiling.
-_CEILING = 1205
-
-# Standing mission-cap backstop (FR-011, squad HIGH): a ceiling above 1400 is
-# an operator escalation, never a self-certified re-baseline — mechanically
-# enforced so any future edit raising _CEILING past the cap is a RED collection
-# error in its own right. The only path past 1400 is the blocked+escalate arm.
-assert _CEILING <= 1400, (
-    "ceiling above the mission cap is an operator escalation (FR-011), "
-    "never self-certified"
-)
-
-
-def _loc_of(source: str) -> int:
-    """Return the line count the ceiling is measured against.
-
-    Extracted so the non-vacuity test can drive the exact enforcement path
-    with synthetic source instead of mutating the live file.
-    """
-    return len(source.splitlines())
-
-
-def test_tasks_py_stays_under_loc_ceiling() -> None:
-    """Gate 2: ``tasks.py`` never grows past the ratcheted ceiling."""
-    source = _TASKS_PY.read_text(encoding="utf-8")
-    loc = _loc_of(source)
-    assert loc <= _CEILING, (
-        f"src/specify_cli/cli/commands/agent/tasks.py is {loc} lines, over the "
-        f"ratcheted ceiling of {_CEILING}. Add behavior to sibling modules, not "
-        "the registration shim. Relocation WPs must LOWER _CEILING to the "
-        "achieved size in the same commit (see kitty-specs/"
-        "tasks-py-degod-wave2-01KWH9EQ/contracts/gate-contracts.md Gate 2)."
-    )
-
-
-def test_tasks_py_gate_target_exists() -> None:
-    """Sanity: the gated file exists — a rename/move cannot green the gate vacuously."""
-    assert _TASKS_PY.is_file(), (
-        f"LOC-ceiling gate target missing: {_TASKS_PY}. If tasks.py moved, "
-        "re-point _TASKS_PY in the same commit — never delete this gate."
-    )
-
-
-def test_loc_ceiling_gate_fires_on_oversized_source() -> None:
-    """DIRECTIVE_043 non-vacuity: a source of ``_CEILING + 1`` lines must fail.
-
-    Drives the extracted ``_loc_of`` check (the exact function the live gate
-    uses) with synthetic oversized source — the detector must report a LOC
-    over the ceiling, proving the comparison is not gate theater.
-    """
-    oversized = "\n".join(f"x = {n}" for n in range(_CEILING + 1))
-    assert _loc_of(oversized) == _CEILING + 1
-    assert not _loc_of(oversized) <= _CEILING
-
-
-def test_loc_ceiling_boundary_is_exact() -> None:
-    """The ceiling is inclusive: exactly ``_CEILING`` lines passes, +1 fails."""
-    at_ceiling = "\n".join("pass" for _ in range(_CEILING))
-    assert _loc_of(at_ceiling) <= _CEILING
-    assert not _loc_of(at_ceiling + "\npass") <= _CEILING
-
 
 # ---------------------------------------------------------------------------
 # Gate 1 — AST 0-inline-dumps over the command-surface directory glob
