@@ -57,10 +57,22 @@ Pass a Keychain-stored Upsun token inline (do not print it):
 Drain only when the local event queue must be sent to the target
 (`spec-kitty sync now --report sync-report.json`). Behavior:
 
-- Event rows are deleted on server `success`, `duplicate`, or `failed_permanent`,
-  so `sync now` is not replay-safe across transient Upsun environments.
-- Event queues resolve under the state root: scoped queues at
-  `<root>/queues/queue-<hash>.db`, legacy fallback `<root>/queue.db`. `<root>` is
+- Events are captured into an append-only journal at
+  `<root>/event_journal/journal-<producer>.db`; successful delivery never
+  deletes journal rows (only `sync gc`/`sync archive` remove payloads, and gc
+  refuses to purge events still owed to a known target). Delivery state lives
+  in a separate ledger keyed per `(event_id, target)`, so `sync now` IS
+  replay-safe: pointing the CLI at a different environment re-selects all
+  retained events for the new target and re-delivers them on the next drain.
+- Cross-environment replay therefore requires the SAME `SPEC_KITTY_HOME` for
+  every target — the journal lives under the home and is keyed by producer,
+  not by server. A dedicated per-environment home (next bullet) gives
+  isolation instead of replay; in spec-kitty-saas,
+  `scripts/use-upsun-env.sh --keep-home` keeps the current home when
+  switching targets.
+- Legacy queue files (`<root>/queues/queue-<hash>.db`, fallback
+  `<root>/queue.db`) are still dual-written for compatibility;
+  `spec-kitty sync migrate` lifts old queue rows into the journal. `<root>` is
   `SPEC_KITTY_HOME` when set, else `~/.spec-kitty` on POSIX.
 - `SPEC_KITTY_HOME` now isolates **all** local state — sync config, hosted-auth
   session/refresh-lock, event queues and active scope, the Lamport clock, the
