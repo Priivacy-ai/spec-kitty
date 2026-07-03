@@ -114,3 +114,12 @@ _(none yet)_
     change. **Next-degod guidance now IMPLEMENTED here:** future port families that
     only differ in seam-namespace routing or a single threaded arg should reach
     for constructor DI + a shared seam factory, never a per-family subclass.
+
+17. **LOC ceiling gate REMOVED (operator ruling, 2026-07-03)**: raw file-size
+    tests are Sonar's job (quality gate / S104); a hard-coded pytest ceiling is
+    tests-as-friction (every legitimate edit → test edit). The gate served its
+    purpose as the mission's ratchet-down instrument (4569→1205, per-WP
+    same-commit lowering) and retires WITH the mission. What remains: the
+    semantic AST dumps gate (suite-owned) + the registration-shim header
+    guidance in tasks.py + Sonar. Supersedes FR-011's standing-gate clause
+    post-accept; gate-contracts.md Gate 2 marked retired.
