@@ -18,6 +18,12 @@ principles:
   - "Specific: a failing test clearly identifies which behavior is broken, not just that something is wrong."
   - "Predictive: the test suite reliably catches regressions before they reach production."
   - "Minimal: each test contains only the code necessary to validate one behavior increment."
+  - "Invariants over shape: architecture and acceptance tests pin behavioral invariants — what must be absent, what contract must hold — not implementation shape. A test that fails on a clean refactor that preserved all observable behavior was measuring the wrong thing; the fix is in the test, not the change."
+  - "Negative and behavioral forms first: prefer forbidden-pattern-absent AST scans and behavioral contracts exercised through public surfaces over positive literal-presence scans. Literal-presence assertions break on renaming and reformatting while encoding no architectural invariant; absence assertions survive them and encode a real constraint."
+  - "Size metrics belong to static analysis: do not encode LOC ceilings, function-count limits, or complexity thresholds in pytest. These metrics belong in static-analysis tooling — Sonar, ruff C901 — configured project-wide. A per-file pytest gate ignores the rest of the codebase and fails the contributor who added a docstring while passing the one who doubled a neighboring file."
+  - "Convert or delete, never re-pin: when a test fails on a behavior-preserving refactor, either convert it to an invariant-stable form (behavioral or negative) or delete it with surviving-coverage proof. Re-pinning to the new literal shape teaches contributors that tests are friction not a safety net, and compounds the debt on every future cleanup."
+  - "Shrink-only count ratchets are sanctioned: exception-set and allowlist count ratchets are acceptable only when they can shrink — new entries require a visible human approval step in code review. A ratchet whose count increases silently is a debt accumulator; one that decreases only on cleaning is a health signal."
+  - "Transitional shape guards need a retirement plan: tests written to enforce a transitional architectural state must carry a known retirement path — a comment referencing the issue that closes them when the migration completes. Tests without a plan outlive their purpose and accumulate into a quarantine backlog requiring a formal adjudication pass to clear."
 
 patterns:
   - name: Testing Pyramid
@@ -68,6 +74,64 @@ patterns:
           assertThatThrownBy(() -> service.process(item))
                   .isInstanceOf(ExpiredException.class);
       }
+
+  - name: Frozen Composite Gate Keys
+    description: >
+      Build architectural gate allowlists from frozen tool-derived composite keys —
+      (file, enclosing_qualname, token_line) — rather than seed-derived live re-computation.
+      Frozen keys are immune to line-number drift: inserting or removing lines above an
+      allowlisted site does not change the key. Seed-derived keys re-derive the token at
+      scan time and silently pass when the content at the seed line changes to match the
+      live production state — making a real content change at an allowlisted site invisible
+      to the gate.
+    good_example: |
+      # Allowlist stores the frozen enclosing qualname + verbatim token string.
+      # Refreshed only by running the one-time derivation tool — never hand-edited.
+      _ALLOWED_SITES = frozenset({
+          GateAllowlistKey(
+              enclosing_qualname="resolve_planning_read_dir",
+              token_line="return primary_feature_dir_for_mission(root, slug)",
+          ),
+      })
+      # Staleness guard: every frozen key must still exist in the live scan.
+      def test_pinned_keys_still_live(live_keys):
+          stale = _ALLOWED_SITES - live_keys
+          assert not stale, f"Evict or re-approve: {stale}"
+    bad_example: |
+      # Allowlist stores raw line numbers; re-derives token at scan time.
+      # Inserting a blank line above the site shifts the seed line to new content —
+      # the derived token changes, the live token does not → false gate failure.
+      # If the seed-line content is edited to match the new live token,
+      # MATCH is True — a real content change passes undetected.
+      _RAW_SEEDS = [("src/module.py", 217)]  # line-number seed only
+
+  - name: Negative AST Invariant
+    description: >
+      Scan for the ABSENCE of a forbidden pattern — import, call site, attribute access —
+      via AST traversal rather than asserting the PRESENCE of a literal string. Absence
+      assertions survive renaming and reformatting; they encode a real architectural
+      constraint ("this module must never call X directly"). Positive literal-presence
+      assertions break on any reformatting and encode no constraint beyond "this exact
+      text appeared here once."
+    good_example: |
+      # AST scan: fails only when the forbidden call is introduced — survives all renaming.
+      import ast, pathlib
+      def test_no_direct_os_getcwd_in_resolver():
+          src = pathlib.Path("src/specify_cli/resolver.py").read_text()
+          tree = ast.parse(src)
+          direct_calls = [
+              node for node in ast.walk(tree)
+              if isinstance(node, ast.Call)
+              and isinstance(node.func, ast.Attribute)
+              and node.func.attr == "getcwd"
+          ]
+          assert not direct_calls, "resolver must not call os.getcwd() directly"
+    bad_example: |
+      # Literal-presence scan: breaks on reformatting, passes when a renamed-but-
+      # semantically-equivalent path is taken — encodes zero architectural invariant.
+      def test_resolver_uses_canonical_root():
+          src = pathlib.Path("src/specify_cli/resolver.py").read_text()
+          assert "canonical_root()" in src  # re-pin required on every rename
 
 anti_patterns:
   - name: Over-Mocking
@@ -126,6 +190,40 @@ anti_patterns:
       meta = {"mission_id": "01KV7SFD0123456789ABCDEFGH"}
       # Genuinely testing malformed input? Name the test for it and isolate it:
       #   def test_rejects_short_mission_id(): ...   # the short id is the subject, not setup
+
+  - name: The Literal-Scan Trap
+    description: >
+      Pinning a test to the literal text of production code — function names, class names,
+      module paths, docstring wording — couples the test to implementation shape, not behavior.
+      Every cleanup or rename forces a re-pin, teaching contributors that tests are friction to
+      work around. PR #2308 retired exactly this pattern: a literal-symbol scan (commit
+      50abe2fdc) that had been re-pinned twice on shape-only changes was deleted with
+      surviving-coverage proof from integration paths; a LOC ceiling (commit 052d465e9) that
+      counted lines in a single file was retired in favour of Sonar, which tracks the metric
+      project-wide without gating on one file's momentary line count.
+    bad_example: |
+      # Asserts a specific class name appears verbatim in the source file.
+      # Must be re-pinned every time the class is renamed or the file is reorganised —
+      # even when no behavior changed. Two re-pins = one deletion waiting to happen.
+      def test_domain_object_present():
+          src = Path("src/specify_cli/mission/domain.py").read_text()
+          assert "class MissionDomainObject" in src  # shape pin, not a behavioral contract
+
+      # LOC gate: fails for the contributor who added a docstring;
+      # passes for the one who doubled a neighboring file not under the gate.
+      def test_tasks_module_not_too_large():
+          lines = Path("src/specify_cli/cli/commands/tasks.py").read_text().splitlines()
+          assert len(lines) <= 500, f"tasks.py too large: {len(lines)} lines"
+    good_example: |
+      # Behavioral contract through the public surface — survives any internal reorganisation.
+      def test_mission_domain_object_rejects_empty_slug():
+          with pytest.raises(ValueError, match="slug"):
+              MissionDomainObject(slug="", friendly_name="Test")
+
+      # Size metric delegated to Sonar / ruff; pytest asserts the behavioral contract only.
+      def test_tasks_command_lists_all_work_packages(runner, tmp_mission):
+          result = runner.invoke(app, ["agent", "tasks", "status", "--mission", tmp_mission])
+          assert result.exit_code == 0
 
 quality_test: "Can a new contributor read one test and understand what behavior it validates, what preconditions are required, and what a failure means — without reading the production code?"
 
