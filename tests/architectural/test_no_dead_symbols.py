@@ -173,7 +173,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.core.git_ops::has_tracking_branch",
         "specify_cli.core.git_preflight::GitPreflightIssue",
         "specify_cli.core.git_preflight::GitPreflightResult",
-        "specify_cli.core.identity_aliases::with_tracked_mission_slug_aliases",
         "specify_cli.core.paths::StatusReadUnsupported",
         "specify_cli.core.paths::assert_worktree_supported",
         "specify_cli.core.paths::check_broken_symlink",
@@ -225,6 +224,15 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.dossier.api::SnapshotExportResponse",
         "specify_cli.frontmatter::add_history_entry",
         "specify_cli.frontmatter::get_field",
+        # unshim-wave1-01KWKVHB (#2292) WP03: cascade-orphaned by the task_profile
+        # deletion (T008) -- task_profile was the sole src/ caller of the singular
+        # update_field wrapper (its twin update_fields stays live via
+        # implement.py / lanes.implement_support). Per C-002 (deletion/triage
+        # only; adopt verdicts become follow-up issues) the live frontmatter.py
+        # module is NOT edited in-mission; the orphan is adopted-as-follow-up and
+        # recorded here. Follow-up: see the mission issue-matrix (frontmatter
+        # update_field orphan) filed against epic #1797.
+        "specify_cli.frontmatter::update_field",
         "specify_cli.frontmatter::validate_frontmatter",
         "specify_cli.git.sparse_checkout::_reset_session_warning_state",
         "specify_cli.git.sparse_checkout::SparseCheckoutKind",
@@ -310,18 +318,10 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.sync.project_identity::generate_project_uuid",
         "specify_cli.sync.project_identity::is_writable",
         "specify_cli.sync.project_identity::load_identity",
-        "specify_cli.sync.replay::ProjectMismatch",
-        "specify_cli.sync.replay::ReplayConflictRecord",
-        "specify_cli.sync.replay::ReplayDecision",
-        "specify_cli.sync.replay::ReplayResult",
-        "specify_cli.sync.replay::ReplayTarget",
-        "specify_cli.sync.replay::TenantMismatch",
-        "specify_cli.sync.replay::classify_event",
-        "specify_cli.sync.replay::replay_events",
-        "specify_cli.sync.tracker_client_glue::RetryHistoryEntry",
-        "specify_cli.sync.tracker_client_glue::TrackerSyncFailed",
-        "specify_cli.sync.tracker_client_glue::TrackerSyncPolicy",
-        "specify_cli.sync.tracker_client_glue::run_bidirectional_sync_with_retry",
+        # unshim-wave1-01KWKVHB (#2292) WP03: the sync.replay (8) and
+        # sync.tracker_client_glue (4) symbol rows were removed here in the
+        # same tip as the module deletions (T008) — the modules no longer
+        # exist, so these allowlist entries would be silent danglers.
         "specify_cli.task_metadata_validation::TaskMetadataError",
         "specify_cli.task_metadata_validation::detect_lane_mismatch",
         "specify_cli.task_metadata_validation::validate_task_metadata",

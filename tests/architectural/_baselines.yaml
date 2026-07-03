@@ -47,13 +47,13 @@ test_no_dead_modules:
   # retire-standalone-tasks-cli WP04 (FR-007): the 3 standalone-tasks-surface
   # module entries dropped with the deleted surface (shrink — burn-down ok).
   category_3_external_cli_entrypoints: 1
-  # justification: 8 documented backward-compat shim modules whose
-  # absence of static src/ callers is the point. (#2048 retired dead shim
-  # specify_cli.mission_read_path: zero src callers after 01KVJPEQ re-pointed the
-  # last production importer to the canonical resolve_handle_to_read_path seam.
-  # Reverses the 01KVJPEQ 8->9 bump and restores the SHRINK trend; live
-  # _CATEGORY_4_BACKCOMPAT_SHIMS size is now 8.)
-  category_4_backcompat_shims: 8
+  # justification: 0 documented backward-compat shim modules. (unshim-wave1 WP01
+  # #2289 deleted the 7 other category_4 shims — acceptance_matrix,
+  # core.identity_aliases, doc_generators, doc_state, gap_analysis,
+  # state_contract, workspace_context — 8->1 SHRINK. WP02 then re-anchored
+  # tasks_support's ~35 test sites onto specify_cli.task_utils and deleted the
+  # module, draining the last row: 1->0 SHRINK. Category fully drained.)
+  category_4_backcompat_shims: 0
   # justification: 3 compat-shim WP-in-flight adapters.
   category_5_wp_in_flight_adapters: 0  # emptied: the 3 dead compat._adapters shim modules deleted (salvaged from closed #2159/#2049)
   # justification: 3 frozen-contract internal re-exports under
@@ -71,7 +71,13 @@ test_no_dead_modules:
   # src/ caller and is no longer an orphan; WP09 narrowed its __all__ to those
   # three live functions and retired the doctrine.drg.override_policy allowlist
   # entry. Re-lowered 7 -> 6, reversing the prior deliberate bump.
-  category_7_grandfathered_orphans: 6
+  # 6 -> 2 (unshim-wave1-01KWKVHB #2292, WP01 T005 + WP03 T008): deleted
+  # task_profile, sync.replay, sync.tracker_client_glue and
+  # retrospective.lifecycle outright. The two survivors (auth.transport,
+  # policy.audit) carry documented deferral verdicts (ADR 2026-05-18-2 / Robert;
+  # adopt-as-follow-up respectively). Shrink of 4 satisfies the C-006 ">= 2 per
+  # major release" burn-down floor for this wave.
+  category_7_grandfathered_orphans: 2
 
 # tests/architectural/test_migration_chain_integrity.py
 test_migration_chain_integrity:
@@ -178,7 +184,23 @@ test_no_dead_symbols:
   # move, so the dead-symbol gate correctly demanded their removal. Recomputed to
   # the live ``len(_CATEGORY_B_GRANDFATHERED_LEGACY)``; a shrink (burn-down policy:
   # a shrink needs no extra workflow).
-  category_b_grandfathered_legacy: 237
+  # 237->215 (unshim-wave1-01KWKVHB #2292, WP03 T009): recomputed to the live
+  # ``len(_CATEGORY_B_GRANDFATHERED_LEGACY)`` after removing sync.replay::* x8 and
+  # sync.tracker_client_glue::* x4 (the deleted modules' symbol rows). NOTE on
+  # arithmetic: spec FR-005 stated 237->224 (-13) on the assumption the recorded
+  # baseline matched live. The true post-WP01/WP02 live count was 227 (the 237
+  # baseline had drifted +10 above live via prior warn-on-shrink cleanups that
+  # never lowered it). WP03 removes 12 here -> live 215. Per the mission's own
+  # "accurate baselines for Wave 2 planning" intent (#2293) and the anti-vacuous-
+  # ratchet policy, this pins the honest live value rather than the stale-
+  # baseline arithmetic (224), which would have left a silent regrowth gap.
+  # Net arithmetic: 227 (pre-edit live) -12 (sync.replay/glue rows removed with
+  # the module deletions) +1 (frontmatter::update_field: a cascade-orphan whose
+  # sole src/ caller WAS the deleted task_profile; adopted-as-follow-up per C-002
+  # rather than editing the live frontmatter.py) = 216. Research D8's "strands no
+  # sibling" claim was falsified by the live dead-symbol gate -- recorded honestly.
+  # Shrink-only direction overall (237->216); the growth-above-baseline gate stays enforced.
+  category_b_grandfathered_legacy: 216
   # 6->4 (org-doctrine close-out WP04): removed the now-wired
   # charter.invocation_context::{OperationalContext,build_operational_context}
   # (WP14 added live src/ callers). Remaining 4: the two require_active_*
