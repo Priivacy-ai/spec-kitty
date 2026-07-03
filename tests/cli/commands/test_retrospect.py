@@ -27,6 +27,8 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.retrospect import app as retrospect_app
 from specify_cli.cli.commands.agent_retrospect import app as agent_retrospect_app
 
+from tests._support.ansi import strip_ansi
+
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 RUNNER = CliRunner()
@@ -917,12 +919,13 @@ class TestSynthesizeFabricateEmpty:
         data = json.loads(result.output)
         assert data["code"] == "RETROSPECTIVE_RECORD_MISSING"
 
-    @pytest.mark.quarantine  # Typer/click help-render skew (local != CI) (Wave-0 orphan-bind triage #2295, #2034/#2283)
     def test_help_shows_fabricate_empty_flag(self) -> None:
         """--fabricate-empty flag appears in help text."""
         result = RUNNER.invoke(agent_retrospect_app, ["synthesize", "--help"])
         assert result.exit_code == 0
-        assert "--fabricate-empty" in result.output
+        # Strip ANSI: under CI, Rich force-enables terminal styling so the
+        # captured help carries colour codes that break a raw substring check.
+        assert "--fabricate-empty" in strip_ansi(result.output)
 
 
 # ---------------------------------------------------------------------------

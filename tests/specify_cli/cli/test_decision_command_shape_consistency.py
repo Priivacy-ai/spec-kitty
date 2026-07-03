@@ -30,6 +30,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import cast
 
 import click
 from click.testing import CliRunner
@@ -80,16 +81,22 @@ def _visible_subcommand_names(group: click.Group) -> set[str]:
     }
 
 
-@pytest.mark.quarantine  # stale assertion: agent group is HelpOnEmptyTopLevelGroup, not a click.Group subclass (Wave-0 orphan-bind triage, #2034/#2283)
 def test_agent_decision_subgroup_has_canonical_visible_subcommands() -> None:
+    # Duck-type the group navigation rather than ``isinstance(x, click.Group)``:
+    # under typer 0.26 / click 8.4 ``TyperGroup`` no longer subclasses
+    # ``click.Group`` (its MRO is ``TyperGroup -> Command -> ABC``), so the old
+    # isinstance guard is a version-skew false negative. A command group is what
+    # exposes ``.commands`` — that is the load-bearing property this test needs.
     agent_grp = cli.commands.get("agent")
-    assert isinstance(agent_grp, click.Group), (
+    assert agent_grp is not None and hasattr(agent_grp, "commands"), (
         "spec-kitty agent group missing from CLI"
     )
+    agent_grp = cast(click.Group, agent_grp)
     decision_grp = agent_grp.commands.get("decision")
-    assert isinstance(decision_grp, click.Group), (
+    assert decision_grp is not None and hasattr(decision_grp, "commands"), (
         "spec-kitty agent decision subgroup missing from CLI"
     )
+    decision_grp = cast(click.Group, decision_grp)
     visible = _visible_subcommand_names(decision_grp)
     assert visible == EXPECTED_SUBCOMMANDS, (
         f"FR-007 regression: visible decision subcommands drifted.\n"

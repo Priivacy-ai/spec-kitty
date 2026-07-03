@@ -223,27 +223,32 @@ class TestWorktreeAllocatorContract:
         assert self._routed(SLUG_WITH_TAIL, None) is None
 
 
-@pytest.mark.quarantine  # seam-scan drift: doctor.py refactored to orchestration shell; 'resolve_mid8' literal absent (Wave-0 orphan-bind triage, #2034/#2283)
 def test_no_inline_mid8_slices_remain_after_routing() -> None:
     """Verification-by-deletion guard: the routed modules carry no inline
-    ``mission_id[:8]`` derivation except the sanctioned ``doctor`` short-id
-    tolerance fallback (``or mission_id[:8]``).
+    ``mission_id[:8]`` derivation.
+
+    This pins the *negative* invariant (no inline slice) across the routed
+    modules — the load-bearing property. The former positive literal-presence
+    check (``"resolve_mid8" in doctor.py``) was dropped: ``doctor.py`` was
+    refactored into an orchestration shell and the mid8 logic delegated out, so
+    that assertion measured module shape, not behaviour (convert-or-delete a
+    stale positive-literal scan; never re-pin it). The negative reintroduction
+    guards below cover ``doctor.py`` too.
     """
     src_root = Path(__file__).resolve().parents[2] / "src" / "specify_cli"
-    # aggregate, scanner, implement, allocator: no bare ``mission_id[:8]`` slice.
+    # aggregate, scanner, implement, allocator, doctor: no bare ``mission_id[:8]``.
     for rel in (
         "status/aggregate.py",
         "dashboard/scanner.py",
         "cli/commands/implement.py",
         "lanes/worktree_allocator.py",
+        "cli/commands/doctor.py",
     ):
         text = (src_root / rel).read_text(encoding="utf-8")
         assert "mission_id[:8]" not in text, f"inline mid8 slice still present in {rel}"
 
-    # doctor: the only permitted slice is the short-id tolerance fallback.
+    # The dead ``try/except ValueError`` around _mid8 must not be reintroduced.
     doctor_text = (src_root / "cli/commands/doctor.py").read_text(encoding="utf-8")
-    assert "resolve_mid8" in doctor_text
-    # The dead ``try/except ValueError`` around _mid8 must be gone.
     assert "import mid8 as _mid8" not in doctor_text
 
 
