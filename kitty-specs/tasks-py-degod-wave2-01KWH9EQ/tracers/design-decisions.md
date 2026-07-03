@@ -123,3 +123,15 @@ _(none yet)_
     semantic AST dumps gate (suite-owned) + the registration-shim header
     guidance in tasks.py + Sonar. Supersedes FR-011's standing-gate clause
     post-accept; gate-contracts.md Gate 2 marked retired.
+
+18. **Refactor-stable test doctrine applied (operator ruling, 2026-07-03)**:
+    "if arch/acceptance tests need to change on every cleanup/refactor, they
+    are not good tests." The two positive literal-presence scans in
+    test_context_worktree_routing.py (routed-seam literals; selector-resolver
+    literal) were DELETED — not re-pinned again — with surviving-coverage
+    proof: the negative AST no-inline-compose invariant (extended over the
+    relocated modules), the behavioral --feature-rejection contract tests,
+    and the seam interception batteries. The negative mid8-dedup scan was
+    strengthened (parametrized over all routed files). Positive literal scans
+    red on every wave; negative/behavioral forms red only when the defect
+    class returns.

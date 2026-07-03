@@ -177,53 +177,40 @@ def test_no_worktree_name_guess_fstring(path: Path) -> None:
         )
 
 
-def test_tasks_no_inline_endswith_mid8_dedup() -> None:
-    """tasks.py:844 inline ``endswith(f"-{mid8}")`` dedup is gone (delegates to seam)."""
-    text = _TASKS_PY.read_text(encoding="utf-8")
+@pytest.mark.parametrize("path", _ALL_ROUTED, ids=lambda p: p.name)
+def test_no_inline_endswith_mid8_dedup(path: Path) -> None:
+    """The inline ``endswith(f"-{mid8}")`` dedup stays gone in every routed file.
+
+    Negative invariant (refactor-stable): fails only if the forbidden pattern
+    is reintroduced — anywhere on the routed surface, including the modules
+    the degod waves relocated code into.
+    """
+    text = path.read_text(encoding="utf-8")
     assert 'endswith(f"-{mid8}")' not in text, (
-        "inline idempotent mid8-compose still present in tasks.py — "
+        f"inline idempotent mid8-compose present in {path.name} — "
         "delegate to lanes.branch_naming.mission_dir_name"
     )
 
 
-def test_routed_files_import_the_seam() -> None:
-    """Each routed file references the seam composer it must delegate to.
+def test_positive_literal_scans_removed() -> None:
+    """Doctrine note (operator ruling, 2026-07-03; PR #2308).
 
-    Un-quarantined + re-pinned (PR #2308): the Wave-0 quarantine reason was
-    'orchestrator no longer contains the resolve_mid8 literal' — that literal
-    legitimately migrated INTO the seam (``allocate_lane_worktree`` resolves
-    mid8 internally, commit 106531095), and the Wave 2 degod (#2305) likewise
-    relocated the tasks.py call sites into ``tasks_shared.py`` /
-    ``tasks_move_task.py`` and encapsulated ``resolve_mid8`` behind the seam
-    across the whole tasks surface. The routing invariant survives; the pin
-    follows the code.
+    Two positive literal-presence scans that used to live here
+    (``test_routed_files_import_the_seam``,
+    ``test_tasks_mission_selector_code_untouched``) were DELETED, not
+    re-pinned: a scan asserting "literal X appears in file Y" reds on every
+    legitimate relocation (it red twice across degod waves) — arch tests must
+    pin refactor-stable invariants. Surviving coverage:
+
+    * no-inline-compose: ``test_no_worktree_name_guess_fstring`` (negative AST
+      invariant over ``_ALL_ROUTED``, incl. the relocated sibling modules);
+    * the #1797 ``--mission``-only selector contract:
+      ``tests/contract/test_feature_alias_scope.py`` rejects ``--feature`` at
+      the parser, behaviorally, for ``agent tasks`` among 18 commands;
+    * selector routing through the canonical resolver: the seam interception
+      batteries (``test_tasks_shared_seam.py``) prove it at call time.
+
+    This placeholder documents the deletion rationale in-tree and asserts the
+    surviving negative scan still covers every routed file.
     """
-    ctx = _CONTEXT_PY.read_text(encoding="utf-8")
-    assert "worktree_path" in ctx
-    orch = _ORCH_PY.read_text(encoding="utf-8")
-    assert "worktree_path" in orch
-    # The orchestrator routes worktree creation through the allocator seam,
-    # which owns the mid8 resolution (no raw resolve_mid8 at the call site).
-    assert "allocate_lane_worktree" in orch
-    tasks_surface = (
-        _TASKS_PY.read_text(encoding="utf-8")
-        + _TASKS_SHARED_PY.read_text(encoding="utf-8")
-        + _TASKS_MOVE_TASK_PY.read_text(encoding="utf-8")
-    )
-    assert "worktree_path" in tasks_surface
-    assert "mission_dir_name" in tasks_surface
-
-
-def test_tasks_mission_selector_code_untouched() -> None:
-    """The #1797 ``--mission`` selector surface stays intact (no ``--feature`` primary).
-
-    Wave 2 degod (#2305) relocated ``_find_mission_slug`` (the selector caller)
-    into ``tasks_shared.py``; the canonical resolver reference lives there now.
-    The pin follows the code: the tasks command surface (shim + shared seam
-    module) still routes selection through ``resolve_mission_handle``.
-    """
-    surface = _TASKS_PY.read_text(encoding="utf-8") + _TASKS_SHARED_PY.read_text(
-        encoding="utf-8"
-    )
-    # Canonical selector resolver is still imported/used.
-    assert "resolve_mission_handle" in surface
+    assert len(_ALL_ROUTED) >= 5  # context, orchestrator, tasks + relocated siblings
