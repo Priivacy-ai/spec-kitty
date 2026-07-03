@@ -1,0 +1,121 @@
+---
+work_package_id: WP05
+title: 'C-repoint: charter callers + tests'
+dependencies: []
+requirement_refs:
+- FR-005
+- FR-006
+tracker_refs:
+- '#'
+- '2'
+- '2'
+- '9'
+- '0'
+planning_base_branch: tidy/unshim-wave2
+merge_target_branch: tidy/unshim-wave2
+branch_strategy: Planning artifacts for this mission were generated on tidy/unshim-wave2. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into tidy/unshim-wave2 unless the human explicitly redirects the landing branch.
+subtasks:
+- T013
+- T014
+- T015
+phase: Phase 1 - Sequential DAG
+assignee: ''
+agent: ''
+history:
+- at: '2026-07-03T17:18:34Z'
+  actor: system
+  action: Prompt generated via /spec-kitty.tasks
+agent_profile: python-pedro
+authoritative_surface: src/specify_cli/charter_runtime/
+create_intent: []
+execution_mode: code_change
+model: ''
+owned_files:
+- src/specify_cli/cli/commands/charter/lint.py
+- src/specify_cli/cli/commands/charter/status.py
+- src/specify_cli/charter_runtime/preflight/runner.py
+- tests/agent/cli/commands/test_implement_preflight.py
+- tests/agent/cli/commands/test_next_preflight.py
+- tests/architectural/test_no_shipped_layer_label.py
+- tests/charter/test_org_drg_edge_source_urn_preserved.py
+- tests/integration/test_charter_synthesize_fresh.py
+- tests/integration/test_quickstart_end_to_end.py
+- tests/specify_cli/charter_freshness/test_computer.py
+- tests/specify_cli/charter_lint/checks/test_contradiction.py
+- tests/specify_cli/charter_lint/checks/test_orphan.py
+- tests/specify_cli/charter_lint/checks/test_reference_integrity.py
+- tests/specify_cli/charter_lint/checks/test_staleness.py
+- tests/specify_cli/charter_lint/test_drg_fallback.py
+- tests/specify_cli/charter_lint/test_engine.py
+- tests/specify_cli/charter_preflight/test_config.py
+- tests/specify_cli/charter_preflight/test_performance.py
+- tests/specify_cli/charter_preflight/test_runner.py
+- tests/specify_cli/cli/commands/charter/test_status_json_safe.py
+- tests/specify_cli/cli/commands/test_charter_lint.py
+- tests/specify_cli/test_provenance_integration.py
+- tests/test_dashboard/test_dashboard_preflight.py
+role: implementer
+tags: []
+task_type: implement
+---
+
+# Work Package Prompt: WP05 – C-repoint: charter callers + tests
+
+## ⚡ Do This First: Load Agent Profile
+
+Use the `/ad-hoc-profile-load` skill to load the agent profile specified in the frontmatter (or any user-defined profile), and behave according to its guidance before parsing the rest of this prompt.
+
+- **Profile**: `python-pedro`
+- **Role**: `implementer`
+- **Agent/tool**: `claude`
+
+---
+
+## ⚠️ IMPORTANT: Review Feedback
+
+Check the `review_ref` field in the event log before starting; address all feedback.
+
+---
+
+## Objectives & Success Criteria
+
+Spec FR-005 + FR-006 part 1 (IC-04): re-point every charter legacy-namespace consumer to
+`specify_cli.charter_runtime.*`: the 4-5 src caller lines — `charter/lint.py:45,93`,
+`charter/status.py:55`, and the DEFECT at `charter_runtime/preflight/runner.py:36`
+(canonical importing its own legacy shim; also its TYPE_CHECKING sibling at `:41`) —
+plus the 20 owned test files (32 charter patch-string sites total; the ledger lists them).
+`tests/contract/test_next_no_implicit_success.py` is WP03's (excluded here). Shims are NOT
+deleted in this WP (WP06's).
+
+## Subtasks & Detailed Guidance
+
+### Subtask T013 – Src callers (the defect fix first)
+- `runner.py:36` (+`:41` TYPE_CHECKING) → `from specify_cli.charter_runtime.freshness import compute_freshness` — import-path-only (C-002). Then lint.py (GraphState, LintEngine) and status.py (compute_freshness).
+
+### Subtask T014 – Test re-points + proofs
+- Re-point the plain imports (36 statements across your 18 owned files — the map's 19th file, `tests/contract/test_next_no_implicit_success.py`, is WP03's: its charter refs are handled there, do NOT touch it) and the 30 `charter_lint` + 1 freshness + 1 preflight patch-strings with per-site proofs. **Ledger protocol (FR-002)**: every patch-string site you rewrite gets its proof recorded TWICE: (a) a row in this WP file's Activity Log table `file:line → new target → proof form (assertion file::test | red-first flip) → outcome`, and (b) the orchestrator syncs your table into `occurrence_map.yaml`'s `interception_proof` fields on the planning branch at approval (the lane guard blocks kitty-specs edits on lanes — do NOT edit the map yourself from the lane). A site without a proof row is a review reject; bulk sed is a review reject.
+- Patch-target trap: `charter_lint.LintEngine`-style patches must target where the CONSUMER looks the symbol up post-re-point (read each consumer; package `__init__` re-exports exist in charter_runtime).
+
+### Subtask T015 – CI-only shards + gates
+- Run locally: `tests/integration/test_quickstart_end_to_end.py`, `tests/agent/cli/commands/test_next_preflight.py`, `test_implement_preflight.py`, `tests/test_dashboard/test_dashboard_preflight.py` (+ any owned contract files); then the charter suites; `grep -rnE "specify_cli\.charter_(lint|freshness|preflight)\b" src/` empty (tests may still reference until WP06 verifies; YOUR owned files must be clean — paste both greps); ruff; mypy. Commit.
+
+## Test Strategy
+```bash
+export PATH="$PWD/.venv/bin:$PATH"
+PWHEADLESS=1 pytest tests/specify_cli/charter_lint/ tests/specify_cli/charter_freshness/ tests/specify_cli/charter_preflight/ -q 2>/dev/null || true  # paths per map
+PWHEADLESS=1 pytest <owned files> -q
+python -m mypy src/ 2>&1 | tail -2; ruff check .
+```
+
+## Risks & Mitigations
+- The lock-gate `test_charter_runtime_shim_paths.py` still pins legacy importability — it stays GREEN in this WP (shims still exist); do NOT touch it (WP06 retires it).
+- CI-only shards skipped locally = missed surface (renata's finding) — T015 makes them explicit.
+
+## Review Guidance
+- runner.py:36 defect fix present and import-only; sample ≥6 charter ledger rows; the excluded special-case file untouched.
+
+## Activity Log
+
+> Append at the END, chronological. Format: `- YYYY-MM-DDTHH:MM:SSZ – agent_id – <action>`
+
+- 2026-07-03T17:18:34Z – system – Prompt created.
