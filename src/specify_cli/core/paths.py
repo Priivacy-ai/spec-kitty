@@ -7,7 +7,7 @@ import logging
 import os
 import re
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 from .constants import KITTIFY_DIR, WORKTREES_DIR
 
@@ -647,10 +647,7 @@ def _load_meta_fail_closed(feature_dir: Path) -> dict[str, Any] | None:
     try:
         # allow_missing=True  → None when file is absent (field-absent case)
         # on_malformed="raise" → ValueError when file exists but is corrupt
-        # cast: load_meta is typed dict[str, Any] | None; cast silences the
-        # "Returning Any" mypy inference that occurs because load_meta's body
-        # absorbs the Any from json.loads without a narrow annotation.
-        return cast("dict[str, Any] | None", load_meta(feature_dir, allow_missing=True, on_malformed="raise"))
+        return load_meta(feature_dir, allow_missing=True, on_malformed="raise")
     except ValueError as exc:
         raise MissionMetaReadError(meta_path, exc) from exc
 
