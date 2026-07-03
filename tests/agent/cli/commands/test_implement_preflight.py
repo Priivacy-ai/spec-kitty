@@ -12,7 +12,7 @@ from pathlib import Path
 import pytest
 import typer
 
-from specify_cli.charter_preflight.result import CharterPreflightResult
+from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
 
 
 pytestmark = pytest.mark.fast
@@ -56,7 +56,7 @@ def test_implement_aborts_before_worktree_allocation_on_failure(
 ) -> None:
     """Preflight failure exits 1 BEFORE ``create_lane_workspace`` is called."""
     from specify_cli.cli.commands import implement as implement_mod
-    from specify_cli.charter_preflight import hook as hook_mod
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
 
     monkeypatch.setattr(hook_mod, "run_charter_preflight", lambda **_: _fail_result())
     monkeypatch.setattr(implement_mod, "find_repo_root", lambda: tmp_path)
@@ -95,7 +95,7 @@ def test_implement_proceeds_past_preflight_when_passed(
 ) -> None:
     """On success the gate releases control to the downstream stages."""
     from specify_cli.cli.commands import implement as implement_mod
-    from specify_cli.charter_preflight import hook as hook_mod
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
 
     monkeypatch.setattr(hook_mod, "run_charter_preflight", lambda **_: _pass_result())
     monkeypatch.setattr(implement_mod, "find_repo_root", lambda: tmp_path)

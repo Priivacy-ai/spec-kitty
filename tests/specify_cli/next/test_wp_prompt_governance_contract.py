@@ -58,7 +58,7 @@ import pytest
 
 from charter.context import build_charter_context
 from charter.scope import CharterScopeNotFound
-from specify_cli.next.prompt_builder import _build_wp_prompt, _governance_context
+from runtime.next.prompt_builder import _build_wp_prompt, _governance_context
 from tests.lane_test_utils import write_single_lane_manifest
 
 
@@ -256,7 +256,7 @@ class TestImplementPromptInvokesCharterPipeline:
         Pin it so a refactor cannot silently drop the call.
         """
         repo_root, feature_dir, mission_slug = project_with_implement_wp
-        with patch("specify_cli.next.prompt_builder._governance_context") as gov:
+        with patch("runtime.next.prompt_builder._governance_context") as gov:
             gov.return_value = "Governance: stub for test"
             _build_wp_prompt(
                 action="implement",
@@ -282,7 +282,7 @@ class TestImplementPromptInvokesCharterPipeline:
         self, project_with_implement_wp: tuple[Path, Path, str]
     ) -> None:
         repo_root, feature_dir, mission_slug = project_with_implement_wp
-        with patch("specify_cli.next.prompt_builder._governance_context") as gov:
+        with patch("runtime.next.prompt_builder._governance_context") as gov:
             gov.return_value = "Governance: stub for test"
             _build_wp_prompt(
                 action="review",
@@ -303,7 +303,7 @@ class TestImplementPromptInvokesCharterPipeline:
         repo_root, feature_dir, mission_slug = project_with_implement_wp
         sentinel = "GOVERNANCE-INJECTION-SENTINEL-7af3b9"
         with patch(
-            "specify_cli.next.prompt_builder._governance_context", return_value=sentinel
+            "runtime.next.prompt_builder._governance_context", return_value=sentinel
         ):
             prompt = _build_wp_prompt(
                 action="implement",
@@ -1005,13 +1005,13 @@ class TestGovernanceContextUsesMonorepoAwarePath:
         build_with_scope(repo_root, feature_dir, ...) so a monorepo operator
         running from packages/auth/ gets the auth charter, not the root charter.
         """
-        import specify_cli.next.prompt_builder as _pb  # noqa: PLC0415
+        import runtime.next.prompt_builder as _pb  # noqa: PLC0415
 
         # HIGH-1 RED condition: build_with_scope is not yet imported into
         # prompt_builder, so the attribute doesn't exist. Verify that the
         # module imports build_with_scope (after the fix it will).
         assert hasattr(_pb, "build_with_scope"), (
-            "specify_cli.next.prompt_builder MUST import build_with_scope "
+            "runtime.next.prompt_builder MUST import build_with_scope "
             "from charter.scope_router to enable monorepo CharterScope "
             "resolution (HIGH-1 / FR-010). Currently build_charter_context "
             "is called directly, bypassing CharterScope.resolve. "
@@ -1031,7 +1031,7 @@ class TestGovernanceContextUsesMonorepoAwarePath:
             return build_charter_context(r, **kwargs)
 
         with patch(
-            "specify_cli.next.prompt_builder.build_with_scope",
+            "runtime.next.prompt_builder.build_with_scope",
             side_effect=_capturing_build_with_scope,
         ):
             _governance_context(repo_root, feature_dir=feature_dir, action="implement")
@@ -1060,7 +1060,7 @@ class TestGovernanceContextUsesMonorepoAwarePath:
         captured_feature_dir: list[Path] = []
 
         orig_governance_context = __import__(
-            "specify_cli.next.prompt_builder",
+            "runtime.next.prompt_builder",
             fromlist=["_governance_context"],
         )._governance_context
 
@@ -1076,7 +1076,7 @@ class TestGovernanceContextUsesMonorepoAwarePath:
             return orig_governance_context(r, feature_dir=feature_dir, action=action, profile=profile)
 
         with patch(
-            "specify_cli.next.prompt_builder._governance_context",
+            "runtime.next.prompt_builder._governance_context",
             side_effect=_spy_governance_context,
         ):
             _build_wp_prompt(
@@ -1104,7 +1104,7 @@ class TestGovernanceContextUsesMonorepoAwarePath:
 
         with (
             patch(
-                "specify_cli.next.prompt_builder.build_with_scope",
+                "runtime.next.prompt_builder.build_with_scope",
                 side_effect=CharterScopeNotFound("feature outside configured charter scopes"),
             ),
             pytest.raises(CharterScopeNotFound),

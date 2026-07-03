@@ -16,8 +16,8 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.next.decision import DecisionKind
-from specify_cli.next.discovery import ClaimablePreview, preview_claimable_wp
+from runtime.next.decision import DecisionKind
+from runtime.next.discovery import ClaimablePreview, preview_claimable_wp
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 from tests.lane_test_utils import write_single_lane_manifest
@@ -254,7 +254,7 @@ def test_next_json_payload_serializes_claimable_wp_id(tmp_path: Path) -> None:
     repo.mkdir()
     _, mission_slug = _scaffold(repo, {"WP01": Lane.PLANNED})
 
-    from specify_cli.next.runtime_bridge import query_current_state
+    from runtime.next.runtime_bridge import query_current_state
 
     decision = query_current_state("codex", mission_slug, repo)
 
@@ -277,7 +277,7 @@ def test_next_json_payload_surfaces_selection_reason_when_no_planned_wp(
     repo.mkdir()
     _, mission_slug = _scaffold(repo, {"WP01": Lane.IN_PROGRESS})
 
-    from specify_cli.next.runtime_bridge import query_current_state
+    from runtime.next.runtime_bridge import query_current_state
 
     decision = query_current_state("codex", mission_slug, repo)
 
@@ -297,7 +297,7 @@ def test_next_json_payload_wire_shape_unchanged_for_non_implement_state(
     repo.mkdir()
     _, mission_slug = _scaffold(repo, {"WP01": Lane.FOR_REVIEW})
 
-    from specify_cli.next.runtime_bridge import query_current_state
+    from runtime.next.runtime_bridge import query_current_state
 
     decision = query_current_state("codex", mission_slug, repo)
 

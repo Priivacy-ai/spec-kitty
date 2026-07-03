@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 <!-- markdownlint-disable MD024 -->
 
@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased] - 3.2.4
+
+### 💥 Breaking Changes
+
+- **Deprecated compatibility shim packages removed (mission `unshim-wave2-01KWMCAX`, #2291 / #2290 / #2326 under #1797).** The following re-export shim import paths are **deleted** — code that imported them must switch to the canonical path:
+  - `specify_cli.next` → **`runtime.next`** (the canonical `spec-kitty next` runtime/control-loop package; antecedent #612)
+  - `specify_cli.glossary` → **`glossary`** (antecedent #613)
+  - `specify_cli.charter_lint` → **`specify_cli.charter_runtime.lint`**
+  - `specify_cli.charter_freshness` → **`specify_cli.charter_runtime.freshness`**
+  - `specify_cli.charter_preflight` → **`specify_cli.charter_runtime.preflight`**
+
+  All in-tree callers were re-pointed to the canonical modules before deletion, and the shim registry in `docs/architecture/05_ownership_manifest.yaml` is drained to `shims: []` for these slices. The user-facing CLI surface is unchanged — `spec-kitty next` and `spec-kitty charter lint/preflight/freshness` behave identically. **No version bump accompanies this entry:** `src/specify_cli/__init__.py` is untouched by the mission (verified against the mission lane history), so the public CLI package version is unaffected; only internal deprecated import paths are removed.
 
 ### ♻️ Changed
 

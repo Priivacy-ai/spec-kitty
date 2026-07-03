@@ -20,7 +20,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specify_cli.next.runtime_bridge import (
+from runtime.next.runtime_bridge import (
     _normalize_action_for_composition,
     _should_dispatch_via_composition,
 )
@@ -161,7 +161,7 @@ class TestFrozensetsDeletion:
 
     def test_composed_actions_by_mission_does_not_exist(self) -> None:
         """_COMPOSED_ACTIONS_BY_MISSION MUST NOT be importable from runtime_bridge."""
-        import specify_cli.next.runtime_bridge as bridge
+        import runtime.next.runtime_bridge as bridge
 
         assert not hasattr(bridge, "_COMPOSED_ACTIONS_BY_MISSION"), (
             "_COMPOSED_ACTIONS_BY_MISSION still exists in runtime_bridge — FR-007 violated"

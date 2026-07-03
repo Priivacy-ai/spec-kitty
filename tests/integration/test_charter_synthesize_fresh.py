@@ -344,7 +344,7 @@ def test_synthesize_fresh_seed_unlinks_preexisting_graph(tmp_path: Path) -> None
     ``compute_freshness`` classifies the synthesized DRG as ``invalid`` with no
     working remediation.
     """
-    from specify_cli.charter_freshness import compute_freshness
+    from specify_cli.charter_runtime.freshness import compute_freshness
 
     _git_init(tmp_path)
     _write_minimal_interview(tmp_path)

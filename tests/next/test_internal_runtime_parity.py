@@ -3,7 +3,7 @@
 These tests load the JSON snapshots committed under
 ``tests/fixtures/runtime_parity/`` (captured from the upstream
 ``spec_kitty_runtime`` 0.4.x source) and re-run the equivalent scenarios
-through the internalized runtime ``specify_cli.next._internal_runtime``.
+through the internalized runtime ``runtime.next._internal_runtime``.
 The internalized output must match byte-for-byte modulo timestamp / path
 normalization (handled inside the capture script).
 
@@ -141,7 +141,7 @@ def test_no_rich_or_typer_imports_in_internal_package() -> None:
 
 def test_public_surface_matches_contract() -> None:
     """The package __all__ exposes exactly the symbols listed in the contract."""
-    from specify_cli.next import _internal_runtime as ir
+    from runtime.next import _internal_runtime as ir
 
     expected_surface = {
         "DiscoveryContext",
@@ -160,7 +160,7 @@ def test_public_surface_matches_contract() -> None:
 
 def test_submodule_surface_matches_contract() -> None:
     """schema/engine/planner sub-modules expose their contract symbols."""
-    from specify_cli.next._internal_runtime import engine, planner, schema
+    from runtime.next._internal_runtime import engine, planner, schema
 
     assert hasattr(schema, "ActorIdentity")
     assert hasattr(schema, "load_mission_template_file")

@@ -26,7 +26,7 @@ from specify_cli.mission_loader.registry import (
     lookup_contract,
     registered_runtime_contracts,
 )
-from specify_cli.next._internal_runtime.schema import (
+from runtime.next._internal_runtime.schema import (
     MissionMeta,
     MissionTemplate,
     PromptStep,

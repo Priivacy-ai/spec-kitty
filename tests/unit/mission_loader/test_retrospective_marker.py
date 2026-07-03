@@ -6,7 +6,7 @@ from specify_cli.mission_loader.retrospective import (
     RETROSPECTIVE_MARKER_ID,
     has_retrospective_marker,
 )
-from specify_cli.next._internal_runtime.schema import (
+from runtime.next._internal_runtime.schema import (
     MissionMeta,
     MissionTemplate,
     PromptStep,

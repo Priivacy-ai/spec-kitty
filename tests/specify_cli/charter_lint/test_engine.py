@@ -14,8 +14,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specify_cli.charter_lint.engine import LintEngine
-from specify_cli.charter_lint.findings import DecayReport, GraphState
+from specify_cli.charter_runtime.lint.engine import LintEngine
+from specify_cli.charter_runtime.lint.findings import DecayReport, GraphState
 
 
 # ---------------------------------------------------------------------------
@@ -101,7 +101,7 @@ class TestLintEngineAllChecks:
     def test_all_four_categories_detected(self, tmp_path: Path) -> None:
         drg = _build_four_decay_drg()
         with patch(
-            "specify_cli.charter_lint.engine.load_merged_drg",
+            "specify_cli.charter_runtime.lint.engine.load_merged_drg",
             return_value=(drg, GraphState.MERGED),
         ):
             report = LintEngine(tmp_path).run()
@@ -119,7 +119,7 @@ class TestLintEngineAllChecks:
     def test_duration_within_limit(self, tmp_path: Path) -> None:
         drg = _build_four_decay_drg()
         with patch(
-            "specify_cli.charter_lint.engine.load_merged_drg",
+            "specify_cli.charter_runtime.lint.engine.load_merged_drg",
             return_value=(drg, GraphState.MERGED),
         ):
             report = LintEngine(tmp_path).run()
@@ -128,7 +128,7 @@ class TestLintEngineAllChecks:
     def test_drg_node_count_nonzero(self, tmp_path: Path) -> None:
         drg = _build_four_decay_drg()
         with patch(
-            "specify_cli.charter_lint.engine.load_merged_drg",
+            "specify_cli.charter_runtime.lint.engine.load_merged_drg",
             return_value=(drg, GraphState.MERGED),
         ):
             report = LintEngine(tmp_path).run()
@@ -141,7 +141,7 @@ class TestLintReportWritten:
     def test_report_json_written(self, tmp_path: Path) -> None:
         drg = _build_four_decay_drg()
         with patch(
-            "specify_cli.charter_lint.engine.load_merged_drg",
+            "specify_cli.charter_runtime.lint.engine.load_merged_drg",
             return_value=(drg, GraphState.MERGED),
         ):
             LintEngine(tmp_path).run()
@@ -155,7 +155,7 @@ class TestLintReportWritten:
     def test_report_json_written_on_empty_drg(self, tmp_path: Path) -> None:
         """lint-report.json is written even when DRG is missing."""
         with patch(
-            "specify_cli.charter_lint.engine.load_merged_drg",
+            "specify_cli.charter_runtime.lint.engine.load_merged_drg",
             return_value=(None, GraphState.MISSING),
         ):
             LintEngine(tmp_path).run()
@@ -172,7 +172,7 @@ class TestSingleCheckFilter:
     def test_only_orphan_findings_returned(self, tmp_path: Path) -> None:
         drg = _build_four_decay_drg()
         with patch(
-            "specify_cli.charter_lint.engine.load_merged_drg",
+            "specify_cli.charter_runtime.lint.engine.load_merged_drg",
             return_value=(drg, GraphState.MERGED),
         ):
             report = LintEngine(tmp_path).run(checks={"orphans"})
@@ -191,7 +191,7 @@ class TestSeverityFilter:
     def test_low_medium_findings_excluded(self, tmp_path: Path) -> None:
         drg = _build_four_decay_drg()
         with patch(
-            "specify_cli.charter_lint.engine.load_merged_drg",
+            "specify_cli.charter_runtime.lint.engine.load_merged_drg",
             return_value=(drg, GraphState.MERGED),
         ):
             report = LintEngine(tmp_path).run(min_severity="high")
@@ -207,7 +207,7 @@ class TestMissingDRG:
 
     def test_missing_drg_returns_empty_report(self, tmp_path: Path) -> None:
         with patch(
-            "specify_cli.charter_lint.engine.load_merged_drg",
+            "specify_cli.charter_runtime.lint.engine.load_merged_drg",
             return_value=(None, GraphState.MISSING),
         ):
             report = LintEngine(tmp_path).run()
@@ -218,7 +218,7 @@ class TestMissingDRG:
 
     def test_missing_drg_does_not_raise(self, tmp_path: Path) -> None:
         with patch(
-            "specify_cli.charter_lint.engine.load_merged_drg",
+            "specify_cli.charter_runtime.lint.engine.load_merged_drg",
             return_value=(None, GraphState.MISSING),
         ):
             # Must not raise any exception
@@ -238,7 +238,7 @@ class TestGraphStateTriState:
         """FR-001: when the project DRG resolves, ``graph_state == merged``."""
         drg = _build_four_decay_drg()
         with patch(
-            "specify_cli.charter_lint.engine.load_merged_drg",
+            "specify_cli.charter_runtime.lint.engine.load_merged_drg",
             return_value=(drg, GraphState.MERGED),
         ):
             report = LintEngine(tmp_path).run()
@@ -253,7 +253,7 @@ class TestGraphStateTriState:
         """
         drg = _build_four_decay_drg()
         with patch(
-            "specify_cli.charter_lint.engine.load_merged_drg",
+            "specify_cli.charter_runtime.lint.engine.load_merged_drg",
             return_value=(drg, GraphState.BUILT_IN_ONLY),
         ):
             report = LintEngine(tmp_path).run()
@@ -269,7 +269,7 @@ class TestGraphStateTriState:
         ``graph_state == missing``.
         """
         with patch(
-            "specify_cli.charter_lint.engine.load_merged_drg",
+            "specify_cli.charter_runtime.lint.engine.load_merged_drg",
             return_value=(None, GraphState.MISSING),
         ):
             report = LintEngine(tmp_path).run()
@@ -283,7 +283,7 @@ class TestGraphStateTriState:
         """
         drg = _build_four_decay_drg()
         with patch(
-            "specify_cli.charter_lint.engine.load_merged_drg",
+            "specify_cli.charter_runtime.lint.engine.load_merged_drg",
             return_value=(drg, GraphState.BUILT_IN_ONLY),
         ):
             report = LintEngine(tmp_path).run()
@@ -317,7 +317,7 @@ class TestNoLLMCalls:
         # Check that anthropic is not imported as part of charter_lint loading
         charter_lint_modules = [
             name for name in sys.modules
-            if name.startswith("specify_cli.charter_lint")
+            if name.startswith("specify_cli.charter_runtime.lint")
         ]
         for mod_name in charter_lint_modules:
             mod = sys.modules[mod_name]
@@ -332,7 +332,7 @@ class TestNoLLMCalls:
         import sys
         charter_lint_modules = [
             name for name in sys.modules
-            if name.startswith("specify_cli.charter_lint")
+            if name.startswith("specify_cli.charter_runtime.lint")
         ]
         for mod_name in charter_lint_modules:
             mod = sys.modules[mod_name]
@@ -366,7 +366,7 @@ class TestPerformance:
     def test_large_drg_completes_in_time(self, tmp_path: Path) -> None:
         drg = self._build_large_drg(500)
         with patch(
-            "specify_cli.charter_lint.engine.load_merged_drg",
+            "specify_cli.charter_runtime.lint.engine.load_merged_drg",
             return_value=(drg, GraphState.MERGED),
         ):
             report = LintEngine(tmp_path).run()

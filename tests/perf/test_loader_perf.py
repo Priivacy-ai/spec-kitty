@@ -37,8 +37,8 @@ import pytest
 from specify_cli.mission_loader.command import run_custom_mission
 from specify_cli.mission_loader.registry import get_runtime_contract_registry
 from specify_cli.mission_loader.validator import validate_custom_mission
-from specify_cli.next._internal_runtime.discovery import DiscoveryContext
-from specify_cli.next._internal_runtime.engine import MissionRunRef
+from runtime.next._internal_runtime.discovery import DiscoveryContext
+from runtime.next._internal_runtime.engine import MissionRunRef
 
 
 pytestmark = [pytest.mark.slow]
@@ -159,7 +159,7 @@ def test_erp_load_under_2s(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
             mission_key=mission_type,
         )
 
-    from specify_cli.next import runtime_bridge
+    from runtime.next import runtime_bridge
 
     monkeypatch.setattr(runtime_bridge, "get_or_start_run", _fake_get_or_start_run)
 

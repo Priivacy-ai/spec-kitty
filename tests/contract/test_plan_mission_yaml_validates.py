@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.next._internal_runtime.schema import (
+from runtime.next._internal_runtime.schema import (
     MissionRuntimeError,
     load_mission_template_file,
 )

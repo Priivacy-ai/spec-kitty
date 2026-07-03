@@ -11,7 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from specify_cli.charter_lint.checks.staleness import StalenessChecker
+from specify_cli.charter_runtime.lint.checks.staleness import StalenessChecker
 
 
 # ---------------------------------------------------------------------------

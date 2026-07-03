@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.charter_preflight import run_charter_preflight
+from specify_cli.charter_runtime.preflight import run_charter_preflight
 
 from ._fixtures import make_fresh_repo
 

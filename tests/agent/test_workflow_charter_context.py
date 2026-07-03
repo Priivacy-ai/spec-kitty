@@ -17,7 +17,7 @@ import pytest
 
 from specify_cli.cli.commands.agent.workflow import _render_charter_context
 from charter.context import build_charter_context
-from specify_cli.next.prompt_builder import _build_wp_prompt, _governance_context
+from runtime.next.prompt_builder import _build_wp_prompt, _governance_context
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
@@ -204,7 +204,7 @@ class TestPromptBuilderGovernanceContext:
 
     def test_exception_falls_back_to_legacy_governance(self, tmp_path: Path) -> None:
         with patch(
-            "specify_cli.next.prompt_builder.build_charter_context",
+            "runtime.next.prompt_builder.build_charter_context",
             side_effect=RuntimeError("boom"),
         ):
             text = _governance_context(tmp_path, action="implement")
@@ -217,7 +217,7 @@ class TestPromptBuilderGovernanceContext:
 
         with (
             patch(
-                "specify_cli.next.prompt_builder.build_with_scope",
+                "runtime.next.prompt_builder.build_with_scope",
                 side_effect=CharterScopeNotFound("outside configured scopes"),
             ),
             pytest.raises(CharterScopeNotFound, match="outside configured scopes"),
@@ -242,7 +242,7 @@ class TestPromptBuilderGovernanceContext:
         """
         _make_charter_bundle(tmp_path)
         with patch(
-            "specify_cli.next.prompt_builder.build_charter_context"
+            "runtime.next.prompt_builder.build_charter_context"
         ) as build:
             build.return_value.mode = "bootstrap"
             build.return_value.text = "stub"
@@ -260,7 +260,7 @@ class TestPromptBuilderGovernanceContext:
         """
         _make_charter_bundle(tmp_path)
         with patch(
-            "specify_cli.next.prompt_builder.build_charter_context"
+            "runtime.next.prompt_builder.build_charter_context"
         ) as build:
             build.return_value.mode = "bootstrap"
             build.return_value.text = "stub"
@@ -333,7 +333,7 @@ class TestBuildWpPromptForwardsAgentProfile:
         feature_dir = self._make_feature(tmp_path, mission_slug, _WP_WITH_PROFILE)
         _make_charter_bundle(tmp_path)
         with patch(
-            "specify_cli.next.prompt_builder._governance_context"
+            "runtime.next.prompt_builder._governance_context"
         ) as gov:
             gov.return_value = "stub"
             _build_wp_prompt(
@@ -360,7 +360,7 @@ class TestBuildWpPromptForwardsAgentProfile:
         feature_dir = self._make_feature(tmp_path, mission_slug, _WP_WITHOUT_PROFILE)
         _make_charter_bundle(tmp_path)
         with patch(
-            "specify_cli.next.prompt_builder._governance_context"
+            "runtime.next.prompt_builder._governance_context"
         ) as gov:
             gov.return_value = "stub"
             _build_wp_prompt(

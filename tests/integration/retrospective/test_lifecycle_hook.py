@@ -31,8 +31,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from specify_cli.next._internal_runtime.retrospective_hook import MissionCompletionBlocked
-from specify_cli.next._internal_runtime.retrospective_terminus import run_terminus
+from runtime.next._internal_runtime.retrospective_hook import MissionCompletionBlocked
+from runtime.next._internal_runtime.retrospective_terminus import run_terminus
 from specify_cli.retrospective.schema import (
     ActorRef,
     MissionIdentity,

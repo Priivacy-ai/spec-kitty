@@ -157,7 +157,7 @@ class TestDanglingSourceValidatorOnMergedGraph:
         self,
     ) -> None:
         """Merged graph edges must not look dangling when their source URNs exist."""
-        from specify_cli.charter_lint.checks.reference_integrity import (  # noqa: PLC0415
+        from specify_cli.charter_runtime.lint.checks.reference_integrity import (  # noqa: PLC0415
             ReferenceIntegrityChecker,
         )
 

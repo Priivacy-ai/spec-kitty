@@ -5,7 +5,7 @@
   "flattened": false,
   "friendly_name": "Unshim Wave 2 — registered-shim removals + charter deprecation-cycle closure",
   "mission_id": "01KWMCAXDFA14T0BYWF14BWMH1",
-  "mission_number": null,
+  "mission_number": 161,
   "mission_slug": "unshim-wave2-01KWMCAX",
   "mission_type": "software-dev",
   "pr_bound": true,
@@ -13,5 +13,7 @@
   "purpose_tldr": "Execute #2291 (delete the specify_cli.next + specify_cli.glossary registered shims after re-pointing all live callers to runtime.next/glossary canonical surfaces) and #2290 as FULL charter-shim deletion (re-point + delete charter_lint/freshness/preflight + adjudicate charter_activate), with fold-ins: #2326 dead-wrapper prune and the WS1 mission_runtime layer-rule bind.",
   "slug": "unshim-wave2-01KWMCAX",
   "target_branch": "tidy/unshim-wave2",
-  "topology": "coord"
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-03T17:40:44.514399+00:00"
 }

@@ -172,7 +172,6 @@ may_call = runtime["dependency_rules"]["may_call"]
 - `src/specify_cli/runtime/` — runtime bootstrap, resolver, home-path, doctor, migration support
 - `src/specify_cli/missions/` — mission type registry and mission-level orchestration
 - `src/runtime/next/` — canonical `spec-kitty next` runtime/control-loop integration
-- `src/specify_cli/next/` — compatibility shim for legacy imports
 - `src/specify_cli/mission.py`, `src/specify_cli/mission_metadata.py` — mission model and metadata helpers
 
 **`adapter_responsibilities`**:
@@ -181,8 +180,7 @@ may_call = runtime["dependency_rules"]["may_call"]
 - `src/specify_cli/cli/commands/init.py` — `spec-kitty init` CLI entry point
 - All other `spec-kitty agent action *` CLI entry points
 
-**`shims`**:
-- `specify_cli.next` → `runtime.next` (remove in `3.3.0`)
+**`shims`**: *(none — `specify_cli.next` re-export shim deleted by mission `unshim-wave2-01KWMCAX` on 2026-07-03; canonical import is `runtime.next`)*
 
 **`seams`**:
 - CLI shell calls runtime to execute the next-step control loop (`spec-kitty next`)
@@ -202,7 +200,7 @@ may_call = runtime["dependency_rules"]["may_call"]
 | Field                        | Value                                                                                                                               |
 |------------------------------|-------------------------------------------------------------------------------------------------------------------------------------|
 | `canonical_package`          | `src/glossary/`                                                                                                                     |
-| `extraction_sequencing_notes`| Extracted by mission #613. Keep the `specify_cli.glossary` shim registered until its removal target. Import-graph tooling (AC in #612) remains nice-to-have, not blocking, for this slice. |
+| `extraction_sequencing_notes`| Extracted by mission #613. The `specify_cli.glossary` re-export shim was removed by mission `unshim-wave2-01KWMCAX` (2026-07-03); the canonical import is `glossary`. Import-graph tooling (AC in #612) remains nice-to-have, not blocking, for this slice. |
 
 **`current_state`**:
 - `src/glossary/`
@@ -210,10 +208,7 @@ may_call = runtime["dependency_rules"]["may_call"]
 **`adapter_responsibilities`**:
 - `src/specify_cli/cli/commands/glossary.py` — CLI argument parsing and Rich rendering for `spec-kitty glossary *` commands
 
-**`shims`**:
-- `path`: `src/specify_cli/glossary/__init__.py`
-- `canonical_import`: `glossary`
-- `removal_release`: `3.3.0`
+**`shims`**: *(none — `specify_cli.glossary` re-export shim deleted by mission `unshim-wave2-01KWMCAX` on 2026-07-03; canonical import is `glossary`)*
 
 **`seams`**:
 - Doctrine registers a glossary runner via `kernel.glossary_runner.register()`; runtime reads via `get_runner()` (resolved by ADR `2026-03-25-1`)

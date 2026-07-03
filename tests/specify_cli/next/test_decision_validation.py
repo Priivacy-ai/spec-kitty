@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.next.decision import (
+from runtime.next.decision import (
     Decision,
     DecisionKind,
     InvalidStepDecision,

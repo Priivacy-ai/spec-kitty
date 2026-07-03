@@ -30,7 +30,7 @@ from specify_cli.retrospective.gate import (
     is_completion_allowed,
 )
 from specify_cli.retrospective.schema import Mode, ModeSourceSignal
-from specify_cli.next._internal_runtime.retrospective_hook import (
+from runtime.next._internal_runtime.retrospective_hook import (
     MissionCompletionBlocked,
     before_mark_done,
 )

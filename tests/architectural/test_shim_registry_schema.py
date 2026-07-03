@@ -35,15 +35,22 @@ class TestLiveRegistry:
             data = yaml.load(fp)
         validate_registry(data)
 
-    def test_live_registry_contains_registered_glossary_and_runtime_shims(self) -> None:
+    def test_drained_glossary_and_runtime_shims_stay_out_of_registry(self) -> None:
+        """FR-003/FR-004 (unshim wave 2): the glossary and next shim rows are drained.
+
+        Converted from a presence-assert (the rows existed while the shims
+        lived) to an absence pin per the refactor-stable doctrine: a
+        reintroduced ``specify_cli.glossary`` / ``specify_cli.next`` registry
+        row would mean the deleted shims came back.
+        """
         from ruamel.yaml import YAML
 
         yaml = YAML(typ="safe")
         with _REGISTRY_PATH.open() as fp:
             data = yaml.load(fp)
-        legacy_paths = {entry["legacy_path"] for entry in data["shims"]}
-        assert "specify_cli.glossary" in legacy_paths
-        assert "specify_cli.next" in legacy_paths
+        legacy_paths = {entry["legacy_path"] for entry in data["shims"] or []}
+        assert "specify_cli.glossary" not in legacy_paths
+        assert "specify_cli.next" not in legacy_paths
 
 
 class TestTopLevelStructure:

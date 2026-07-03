@@ -13,19 +13,9 @@
 #
 # Baseline (2026-04-19): zero shims present at mission-615 start.
 # Every future entry must set grandfathered: false.
+#
+# Drained (unshim wave 2, #2291): specify_cli.glossary (#613) and
+# specify_cli.next (#612) shims deleted; canonical imports are
+# glossary.* and runtime.next.* respectively.
 
-shims:
-  - legacy_path: specify_cli.glossary
-    canonical_import: glossary
-    introduced_in_release: "3.2.0"
-    removal_target_release: "3.3.0"
-    tracker_issue: "#613"
-    grandfathered: false
-    notes: "Package-level shim for the glossary runtime extraction; submodule imports are aliased from glossary.*."
-  - legacy_path: specify_cli.next
-    canonical_import: runtime.next
-    introduced_in_release: "3.2.0"
-    removal_target_release: "3.3.0"
-    tracker_issue: "#612"
-    grandfathered: false
-    notes: "Package-level shim for the runtime next-step extraction; submodule imports are aliased from runtime.next.*."
+shims: []

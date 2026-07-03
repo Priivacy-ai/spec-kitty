@@ -14,7 +14,7 @@ from typing import Any
 import pytest
 import yaml
 
-from specify_cli.next._internal_runtime import (
+from runtime.next._internal_runtime import (
     DiscoveryContext,
     MissionPolicySnapshot,
     NullEmitter,
@@ -22,14 +22,14 @@ from specify_cli.next._internal_runtime import (
     provide_decision_answer,
     start_mission_run,
 )
-from specify_cli.next._internal_runtime.contracts import RemediationPayload
-from specify_cli.next._internal_runtime.engine import (
+from runtime.next._internal_runtime.contracts import RemediationPayload
+from runtime.next._internal_runtime.engine import (
     TransitionGate,
     notify_decision_timeout,
     resolve_context,
     validate_binding,
 )
-from specify_cli.next._internal_runtime.schema import (
+from runtime.next._internal_runtime.schema import (
     ActorIdentity,
     ContextType,
     ContextTypeRegistry,
@@ -44,7 +44,7 @@ from specify_cli.next._internal_runtime.schema import (
 # ---------------------------------------------------------------------------
 
 # Use a hard-trigger that's known to exist; fall back gracefully if not.
-from specify_cli.next._internal_runtime.significance import HARD_TRIGGER_REGISTRY  # noqa: E402
+from runtime.next._internal_runtime.significance import HARD_TRIGGER_REGISTRY  # noqa: E402
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 

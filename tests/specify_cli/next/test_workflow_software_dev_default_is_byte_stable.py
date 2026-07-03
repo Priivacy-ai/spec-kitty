@@ -26,7 +26,7 @@ _HARDCODED_SEQUENCE: list[tuple[str, str | None]] = [
 def test_default_workflow_produces_byte_stable_pairs() -> None:
     """For every (current, next) pair the hardcoded sequence produced,
     the loaded software-dev-default workflow MUST produce the same pair."""
-    from specify_cli.next._internal_runtime.workflow_registry import get_workflow
+    from runtime.next._internal_runtime.workflow_registry import get_workflow
 
     wf = get_workflow("software-dev-default")
     by_name = {a.action_name: a for a in wf.actions}

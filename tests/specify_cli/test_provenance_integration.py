@@ -18,8 +18,8 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
-from specify_cli.charter_lint import LintEngine
-from specify_cli.charter_lint.engine import _ALL_CHECKS, _CHECK_MAP
+from specify_cli.charter_runtime.lint import LintEngine
+from specify_cli.charter_runtime.lint.engine import _ALL_CHECKS, _CHECK_MAP
 from specify_cli.doctrine.config import OrgPackConfig, PackRegistry, save_pack_registry
 from specify_cli.doctrine.org_charter_loader import load_org_charter_json_block
 
@@ -185,7 +185,7 @@ class TestLintOrgOverridesAdvisory:
         # Patch the lazy ``DoctrineService`` builders inside the checker so
         # they consume the synthetic shipped/project roots.  We swap the
         # underlying resolver before invoking ``checker.run``.
-        from specify_cli.charter_lint.checks import org_layer
+        from specify_cli.charter_runtime.lint.checks import org_layer
 
         def _fake_resolve_doctrine_root() -> Path:
             return built_in_root

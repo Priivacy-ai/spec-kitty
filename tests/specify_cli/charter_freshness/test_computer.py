@@ -1,4 +1,4 @@
-"""Unit tests for ``specify_cli.charter_freshness.computer`` (WP02 / FR-005, FR-009).
+"""Unit tests for ``specify_cli.charter_runtime.freshness.computer`` (WP02 / FR-005, FR-009).
 
 Covers each documented sub-state:
 
@@ -25,7 +25,7 @@ from textwrap import dedent
 
 import pytest
 
-from specify_cli.charter_freshness import (
+from specify_cli.charter_runtime.freshness import (
     CharterFreshness,
     FreshnessSubState,
     compute_freshness,

@@ -710,7 +710,7 @@ class TestImplementCoordTopologyLanesJson:
                 return_value=mock_gate,
             ),
             patch(
-                "specify_cli.next.runtime_bridge.build_operational_context_for_claim",
+                "runtime.next.runtime_bridge.build_operational_context_for_claim",
                 return_value=MagicMock(),
             ),
             patch(

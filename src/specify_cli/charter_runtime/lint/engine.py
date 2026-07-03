@@ -3,7 +3,7 @@
 Usage::
 
     from pathlib import Path
-    from specify_cli.charter_lint import LintEngine
+    from specify_cli.charter_runtime.lint import LintEngine
 
     report = LintEngine(Path(".")).run()
     print(report.to_json())

@@ -30,8 +30,8 @@ import pytest
 
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.events.decision_log import DecisionGitLog
-from specify_cli.next._internal_runtime.events import NullEmitter
-from specify_cli.next._internal_runtime.significance import (
+from runtime.next._internal_runtime.events import NullEmitter
+from runtime.next._internal_runtime.significance import (
     SignificanceEvaluatedPayload,
     TimeoutExpiredPayload,
 )

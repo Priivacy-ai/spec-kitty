@@ -21,7 +21,7 @@ from specify_cli.mission_loader import (
     LoaderErrorCode,
     validate_custom_mission,
 )
-from specify_cli.next._internal_runtime.discovery import DiscoveryContext
+from runtime.next._internal_runtime.discovery import DiscoveryContext
 
 
 pytestmark = [pytest.mark.unit]

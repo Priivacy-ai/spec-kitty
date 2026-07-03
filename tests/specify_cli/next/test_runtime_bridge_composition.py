@@ -34,7 +34,7 @@ from specify_cli.mission_step_contracts.executor import (
     StepContractExecutionContext,
     StepContractExecutionError,
 )
-from specify_cli.next.runtime_bridge import (
+from runtime.next.runtime_bridge import (
     _check_composed_action_guard,
     _dispatch_via_composition,
     _normalize_action_for_composition,
@@ -48,8 +48,8 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 @pytest.fixture(autouse=True)
 def _local_only_sync_emitter(monkeypatch: pytest.MonkeyPatch) -> None:
     """Composition dispatch tests are local runtime tests, not SaaS sync tests."""
-    from specify_cli.next import runtime_bridge
-    from specify_cli.next._internal_runtime.events import NullEmitter
+    from runtime.next import runtime_bridge
+    from runtime.next._internal_runtime.events import NullEmitter
 
     class LocalOnlyEmitter(NullEmitter):
         def seed_from_snapshot(self, *_args, **_kwargs) -> None:
@@ -842,7 +842,7 @@ def test_dispatch_threads_legacy_step_id_to_guard(feature_dir: Path, tmp_path: P
 import json
 import subprocess
 
-from specify_cli.next.decision import Decision, DecisionKind
+from runtime.next.decision import Decision, DecisionKind
 
 
 def _init_git_repo_for_run(path: Path) -> None:
@@ -893,12 +893,12 @@ def _scaffold_software_dev_project(tmp_path: Path) -> tuple[Path, Path, str]:
 
 def _advance_runtime_to_step(repo_root: Path, mission_slug: str, target_step: str) -> None:
     """Drive the runtime engine until ``issued_step_id == target_step``."""
-    from specify_cli.next._internal_runtime.engine import (
+    from runtime.next._internal_runtime.engine import (
         _read_snapshot,
         next_step as engine_next_step,
     )
-    from specify_cli.next._internal_runtime.events import NullEmitter
-    from specify_cli.next.runtime_bridge import get_or_start_run
+    from runtime.next._internal_runtime.events import NullEmitter
+    from runtime.next.runtime_bridge import get_or_start_run
 
     run_ref = get_or_start_run(mission_slug, repo_root, "software-dev")
     for _ in range(20):
@@ -962,13 +962,13 @@ def test_composition_success_skips_legacy_dispatch(composed_software_dev_project
 
     Parametrized over the five composed software-dev actions. We patch the
     legacy DAG dispatch entry point as imported into the bridge module
-    (``specify_cli.next.runtime_bridge.runtime_next_step``) and assert it is
+    (``runtime.next.runtime_bridge.runtime_next_step``) and assert it is
     not entered when the composition path succeeds.
     """
     repo_root, _feature_dir, mission_slug = composed_software_dev_project
     _advance_runtime_to_step(repo_root, mission_slug, step_id)
 
-    from specify_cli.next.runtime_bridge import decide_next_via_runtime
+    from runtime.next.runtime_bridge import decide_next_via_runtime
 
     fake_result = MagicMock()
     fake_result.invocation_ids = ("inv-001",)
@@ -994,11 +994,11 @@ def test_composition_success_skips_legacy_dispatch(composed_software_dev_project
             return_value=fake_result,
         ),
         patch(
-            "specify_cli.next.runtime_bridge._advance_run_state_after_composition",
+            "runtime.next.runtime_bridge._advance_run_state_after_composition",
             return_value=sentinel_decision,
         ) as mock_advance,
         patch(
-            "specify_cli.next.runtime_bridge.runtime_next_step",
+            "runtime.next.runtime_bridge.runtime_next_step",
         ) as mock_legacy,
     ):
         decision = decide_next_via_runtime("test", mission_slug, "success", repo_root)
@@ -1025,8 +1025,8 @@ def test_composition_success_advances_run_state_and_lane_events(
     repo_root, _feature_dir, mission_slug = composed_software_dev_project
     _advance_runtime_to_step(repo_root, mission_slug, "specify")
 
-    from specify_cli.next._internal_runtime.engine import _read_snapshot
-    from specify_cli.next.runtime_bridge import (
+    from runtime.next._internal_runtime.engine import _read_snapshot
+    from runtime.next.runtime_bridge import (
         decide_next_via_runtime,
         get_or_start_run,
     )
@@ -1084,9 +1084,9 @@ def test_advancement_helper_persists_decision_required_branch(
     repo_root, _feature_dir, mission_slug = composed_software_dev_project
     _advance_runtime_to_step(repo_root, mission_slug, "specify")
 
-    from specify_cli.next._internal_runtime.engine import _read_snapshot
-    from specify_cli.next._internal_runtime.schema import NextDecision
-    from specify_cli.next.runtime_bridge import (
+    from runtime.next._internal_runtime.engine import _read_snapshot
+    from runtime.next._internal_runtime.schema import NextDecision
+    from runtime.next.runtime_bridge import (
         decide_next_via_runtime,
         get_or_start_run,
     )
@@ -1118,7 +1118,7 @@ def test_advancement_helper_persists_decision_required_branch(
             return_value=fake_result,
         ),
         patch(
-            "specify_cli.next._internal_runtime.planner.plan_next",
+            "runtime.next._internal_runtime.planner.plan_next",
             return_value=synthetic_decision,
         ),
     ):
@@ -1149,9 +1149,9 @@ def test_advancement_helper_runs_default_post_completion_retrospective(
     repo_root, feature_dir, mission_slug = composed_software_dev_project
     _advance_runtime_to_step(repo_root, mission_slug, "specify")
 
-    from specify_cli.next._internal_runtime.engine import _read_snapshot
-    from specify_cli.next._internal_runtime.schema import NextDecision
-    from specify_cli.next.runtime_bridge import (
+    from runtime.next._internal_runtime.engine import _read_snapshot
+    from runtime.next._internal_runtime.schema import NextDecision
+    from runtime.next.runtime_bridge import (
         _advance_run_state_after_composition,
         get_or_start_run,
     )
@@ -1173,7 +1173,7 @@ def test_advancement_helper_runs_default_post_completion_retrospective(
 
     with (
         patch(
-            "specify_cli.next._internal_runtime.planner.plan_next",
+            "runtime.next._internal_runtime.planner.plan_next",
             return_value=NextDecision(
                 kind="terminal",
                 run_id=snapshot_before.run_id,
@@ -1181,7 +1181,7 @@ def test_advancement_helper_runs_default_post_completion_retrospective(
             ),
         ),
         patch(
-            "specify_cli.next.runtime_bridge._run_retrospective_learning_capture",
+            "runtime.next.runtime_bridge._run_retrospective_learning_capture",
             side_effect=lambda **kwargs: captures.append(dict(kwargs)),
         ),
     ):
@@ -1209,9 +1209,9 @@ def test_advancement_helper_runs_strict_retrospective_before_completion(
     repo_root, feature_dir, mission_slug = composed_software_dev_project
     _advance_runtime_to_step(repo_root, mission_slug, "specify")
 
-    from specify_cli.next._internal_runtime.engine import _read_snapshot
-    from specify_cli.next._internal_runtime.schema import NextDecision
-    from specify_cli.next.runtime_bridge import (
+    from runtime.next._internal_runtime.engine import _read_snapshot
+    from runtime.next._internal_runtime.schema import NextDecision
+    from runtime.next.runtime_bridge import (
         _advance_run_state_after_composition,
         get_or_start_run,
     )
@@ -1238,7 +1238,7 @@ def test_advancement_helper_runs_strict_retrospective_before_completion(
 
     with (
         patch(
-            "specify_cli.next._internal_runtime.planner.plan_next",
+            "runtime.next._internal_runtime.planner.plan_next",
             return_value=NextDecision(
                 kind="terminal",
                 run_id=snapshot_before.run_id,
@@ -1246,11 +1246,11 @@ def test_advancement_helper_runs_strict_retrospective_before_completion(
             ),
         ),
         patch(
-            "specify_cli.next.runtime_bridge._resolve_retrospective_policy_for_runtime",
+            "runtime.next.runtime_bridge._resolve_retrospective_policy_for_runtime",
             return_value=(strict_policy, {"enabled": "test"}, None),
         ),
         patch(
-            "specify_cli.next.runtime_bridge._run_retrospective_learning_capture",
+            "runtime.next.runtime_bridge._run_retrospective_learning_capture",
             side_effect=lambda **kwargs: captures.append(dict(kwargs)),
         ),
     ):
@@ -1277,9 +1277,9 @@ def test_advancement_helper_raises_policy_error_for_strict_retrospective(
     repo_root, feature_dir, mission_slug = composed_software_dev_project
     _advance_runtime_to_step(repo_root, mission_slug, "specify")
 
-    from specify_cli.next._internal_runtime.engine import _read_snapshot
-    from specify_cli.next._internal_runtime.schema import NextDecision
-    from specify_cli.next.runtime_bridge import (
+    from runtime.next._internal_runtime.engine import _read_snapshot
+    from runtime.next._internal_runtime.schema import NextDecision
+    from runtime.next.runtime_bridge import (
         _advance_run_state_after_composition,
         get_or_start_run,
     )
@@ -1303,7 +1303,7 @@ def test_advancement_helper_raises_policy_error_for_strict_retrospective(
 
     with (
         patch(
-            "specify_cli.next._internal_runtime.planner.plan_next",
+            "runtime.next._internal_runtime.planner.plan_next",
             return_value=NextDecision(
                 kind="terminal",
                 run_id=snapshot_before.run_id,
@@ -1311,7 +1311,7 @@ def test_advancement_helper_raises_policy_error_for_strict_retrospective(
             ),
         ),
         patch(
-            "specify_cli.next.runtime_bridge._resolve_retrospective_policy_for_runtime",
+            "runtime.next.runtime_bridge._resolve_retrospective_policy_for_runtime",
             return_value=(strict_policy, {"enabled": "test"}, policy_error),
         ),
         pytest.raises(RuntimeError, match="bad retrospective policy"),
@@ -1343,7 +1343,7 @@ def test_decision_shape_unchanged_for_composed_action(
     repo_root, _feature_dir, mission_slug = composed_software_dev_project
     _advance_runtime_to_step(repo_root, mission_slug, "specify")
 
-    from specify_cli.next.runtime_bridge import decide_next_via_runtime
+    from runtime.next.runtime_bridge import decide_next_via_runtime
 
     fake_result = MagicMock()
     fake_result.invocation_ids = ("inv-001",)
@@ -1402,7 +1402,7 @@ def test_non_composed_action_uses_legacy_runtime_next_step(
     # (current_step_id == None), so the composition predicate is False
     # because the gating ``current_step_id and ...`` is False; the bridge
     # therefore falls through to ``runtime_next_step``.
-    from specify_cli.next.runtime_bridge import decide_next_via_runtime
+    from runtime.next.runtime_bridge import decide_next_via_runtime
 
     sentinel_runtime_decision = MagicMock()
     sentinel_runtime_decision.kind = "terminal"
@@ -1412,9 +1412,9 @@ def test_non_composed_action_uses_legacy_runtime_next_step(
 
     with (
         patch("specify_cli.mission_step_contracts.executor.StepContractExecutor.execute") as mock_execute,
-        patch("specify_cli.next.runtime_bridge._advance_run_state_after_composition") as mock_advance,
+        patch("runtime.next.runtime_bridge._advance_run_state_after_composition") as mock_advance,
         patch(
-            "specify_cli.next.runtime_bridge.runtime_next_step",
+            "runtime.next.runtime_bridge.runtime_next_step",
             return_value=sentinel_runtime_decision,
         ) as mock_legacy,
     ):
@@ -1440,7 +1440,7 @@ def test_advancement_helper_failure_propagates_no_legacy_fallback(
     repo_root, _feature_dir, mission_slug = composed_software_dev_project
     _advance_runtime_to_step(repo_root, mission_slug, "specify")
 
-    from specify_cli.next.runtime_bridge import decide_next_via_runtime
+    from runtime.next.runtime_bridge import decide_next_via_runtime
 
     fake_result = MagicMock()
     fake_result.invocation_ids = ("inv-001",)
@@ -1451,11 +1451,11 @@ def test_advancement_helper_failure_propagates_no_legacy_fallback(
             return_value=fake_result,
         ),
         patch(
-            "specify_cli.next.runtime_bridge._advance_run_state_after_composition",
+            "runtime.next.runtime_bridge._advance_run_state_after_composition",
             side_effect=RuntimeError("boom: snapshot persistence broken"),
         ) as mock_advance,
         patch(
-            "specify_cli.next.runtime_bridge.runtime_next_step",
+            "runtime.next.runtime_bridge.runtime_next_step",
         ) as mock_legacy,
     ):
         decision = decide_next_via_runtime("test", mission_slug, "success", repo_root)
@@ -1519,7 +1519,7 @@ class TestCustomMissionComposition:
         repo_root, _feature_dir, mission_slug = composed_software_dev_project
         _advance_runtime_to_step(repo_root, mission_slug, "specify")
 
-        from specify_cli.next.runtime_bridge import (
+        from runtime.next.runtime_bridge import (
             decide_next_via_runtime,
             get_or_start_run,
         )
@@ -1555,7 +1555,7 @@ class TestCustomMissionComposition:
                 return_value=fake_result,
             ) as mock_execute,
             patch(
-                "specify_cli.next.runtime_bridge._advance_run_state_after_composition",
+                "runtime.next.runtime_bridge._advance_run_state_after_composition",
                 return_value=sentinel_decision,
             ),
         ):
@@ -1584,7 +1584,7 @@ class TestCustomMissionComposition:
         repo_root, _feature_dir, mission_slug = composed_software_dev_project
         _advance_runtime_to_step(repo_root, mission_slug, "specify")
 
-        from specify_cli.next.runtime_bridge import decide_next_via_runtime
+        from runtime.next.runtime_bridge import decide_next_via_runtime
 
         fake_result = MagicMock()
         fake_result.invocation_ids = ("inv-001",)
@@ -1612,7 +1612,7 @@ class TestCustomMissionComposition:
                 return_value=fake_result,
             ) as mock_execute,
             patch(
-                "specify_cli.next.runtime_bridge._advance_run_state_after_composition",
+                "runtime.next.runtime_bridge._advance_run_state_after_composition",
                 return_value=sentinel_decision,
             ),
         ):
@@ -1649,7 +1649,7 @@ class TestCustomMissionComposition:
         from specify_cli.mission_loader.registry import (
             get_runtime_contract_registry,
         )
-        from specify_cli.next.runtime_bridge import decide_next_via_runtime
+        from runtime.next.runtime_bridge import decide_next_via_runtime
 
         repo_root, _feature_dir, mission_slug = composed_software_dev_project
         _advance_runtime_to_step(repo_root, mission_slug, "specify")
@@ -1657,7 +1657,7 @@ class TestCustomMissionComposition:
         # Pretend the active step is a custom-mission composed step:
         # widen the gate by setting ``agent_profile`` on the frozen
         # template's ``specify`` step.
-        from specify_cli.next.runtime_bridge import get_or_start_run
+        from runtime.next.runtime_bridge import get_or_start_run
 
         run_ref = get_or_start_run(mission_slug, repo_root, "software-dev")
         self._patch_frozen_template_agent_profile(Path(run_ref.run_dir), "specify", "implementer-ivan")
@@ -1708,7 +1708,7 @@ class TestCustomMissionComposition:
                     return_value=fake_result,
                 ) as mock_execute,
                 patch(
-                    "specify_cli.next.runtime_bridge._advance_run_state_after_composition",
+                    "runtime.next.runtime_bridge._advance_run_state_after_composition",
                     return_value=sentinel_decision,
                 ),
             ):

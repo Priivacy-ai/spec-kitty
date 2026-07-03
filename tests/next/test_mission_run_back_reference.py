@@ -21,13 +21,13 @@ from unittest.mock import patch
 import pytest
 import yaml
 
-from specify_cli.next._internal_runtime import (
+from runtime.next._internal_runtime import (
     MissionPolicySnapshot,
     NullEmitter,
     start_mission_run,
 )
-from specify_cli.next._internal_runtime.engine import MissionRunRef
-from specify_cli.next._internal_runtime.schema import MissionRunSnapshot
+from runtime.next._internal_runtime.engine import MissionRunRef
+from runtime.next._internal_runtime.schema import MissionRunSnapshot
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -209,7 +209,7 @@ def _make_snapshot_with_identity(
     Simulates what the engine writes after ``start_mission_run`` + an
     initial ``next_step`` call that issues a step.
     """
-    from specify_cli.next._internal_runtime.engine import _write_snapshot
+    from runtime.next._internal_runtime.engine import _write_snapshot
 
     snapshot = MissionRunSnapshot(
         run_id="test-run-id-001",
@@ -259,9 +259,9 @@ def test_advance_run_state_preserves_identity_through_autocomplete_reconstructio
     that omitted both identity fields, resetting them to None.  This test asserts
     they survive through the Step 1 reconstruction and are persisted to disk.
     """
-    from specify_cli.next._internal_runtime.engine import _read_snapshot
-    from specify_cli.next._internal_runtime.schema import NextDecision
-    from specify_cli.next.runtime_bridge import _advance_run_state_after_composition
+    from runtime.next._internal_runtime.engine import _read_snapshot
+    from runtime.next._internal_runtime.schema import NextDecision
+    from runtime.next.runtime_bridge import _advance_run_state_after_composition
 
     run_dir = tmp_path / "run"
     run_dir.mkdir()
@@ -301,11 +301,11 @@ def test_advance_run_state_preserves_identity_through_autocomplete_reconstructio
             ),
         ),
         patch(
-            "specify_cli.next.runtime_bridge._resolve_retrospective_policy_for_runtime",
+            "runtime.next.runtime_bridge._resolve_retrospective_policy_for_runtime",
             return_value=(None, {}, None),
         ),
         patch(
-            "specify_cli.next.runtime_bridge._map_runtime_decision",
+            "runtime.next.runtime_bridge._map_runtime_decision",
             return_value=None,
         ),
     ):
@@ -348,9 +348,9 @@ def test_advance_run_state_preserves_identity_through_final_persist_reconstructi
     an issued_step_id.  Before the fix, both fields were reset to None in the
     persisted state.json.
     """
-    from specify_cli.next._internal_runtime.engine import _read_snapshot
-    from specify_cli.next._internal_runtime.schema import NextDecision
-    from specify_cli.next.runtime_bridge import _advance_run_state_after_composition
+    from runtime.next._internal_runtime.engine import _read_snapshot
+    from runtime.next._internal_runtime.schema import NextDecision
+    from runtime.next.runtime_bridge import _advance_run_state_after_composition
 
     run_dir = tmp_path / "run2"
     run_dir.mkdir()
@@ -391,11 +391,11 @@ def test_advance_run_state_preserves_identity_through_final_persist_reconstructi
             ),
         ),
         patch(
-            "specify_cli.next.runtime_bridge._resolve_retrospective_policy_for_runtime",
+            "runtime.next.runtime_bridge._resolve_retrospective_policy_for_runtime",
             return_value=(None, {}, None),
         ),
         patch(
-            "specify_cli.next.runtime_bridge._map_runtime_decision",
+            "runtime.next.runtime_bridge._map_runtime_decision",
             return_value=None,
         ),
     ):

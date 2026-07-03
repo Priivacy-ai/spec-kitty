@@ -3,7 +3,7 @@
 This module exposes a single public callable :func:`run_charter_preflight`
 that:
 
-1. Asks WP02's :func:`specify_cli.charter_freshness.compute_freshness` for
+1. Asks WP02's :func:`specify_cli.charter_runtime.freshness.compute_freshness` for
    the current freshness payload.
 2. Translates each :class:`FreshnessSubState` into a
    :class:`CharterPreflightCheck`.
@@ -33,12 +33,12 @@ import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from specify_cli.charter_freshness import compute_freshness
+from specify_cli.charter_runtime.freshness import compute_freshness
 
 from .result import CharterPreflightCheck, CharterPreflightResult
 
 if TYPE_CHECKING:  # pragma: no cover — used only for type hints.
-    from specify_cli.charter_freshness import CharterFreshness
+    from specify_cli.charter_runtime.freshness import CharterFreshness
 
 __all__ = ["run_charter_preflight"]
 

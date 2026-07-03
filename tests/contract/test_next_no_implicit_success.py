@@ -35,7 +35,7 @@ def _stub_charter_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
     `result is None` query-vs-advance routing, not the preflight gate
     itself (see `tests/specify_cli/charter_preflight/` for that surface).
     """
-    from specify_cli.charter_preflight.result import (
+    from specify_cli.charter_runtime.preflight.result import (
         CharterPreflightResult,
     )
 
@@ -43,15 +43,15 @@ def _stub_charter_preflight(monkeypatch: pytest.MonkeyPatch) -> None:
         return CharterPreflightResult(passed=True, checks=(), blocked_reason=None)
 
     monkeypatch.setattr(
-        "specify_cli.charter_preflight.hook.run_preflight_or_abort", _ok
+        "specify_cli.charter_runtime.preflight.hook.run_preflight_or_abort", _ok
     )
     monkeypatch.setattr(
-        "specify_cli.charter_preflight.hook.run_preflight_for_dashboard", _ok
+        "specify_cli.charter_runtime.preflight.hook.run_preflight_for_dashboard", _ok
     )
 
 
 def _make_query_decision(mission_state: str = "specify"):
-    from specify_cli.next.decision import Decision, DecisionKind
+    from runtime.next.decision import Decision, DecisionKind
 
     return Decision(
         kind=DecisionKind.query,
@@ -82,7 +82,7 @@ class TestBareNextDoesNotAdvance:
                 return_value="fixture-mission",
             ),
             patch(
-                "specify_cli.next.runtime_bridge.query_current_state",
+                "runtime.next.runtime_bridge.query_current_state",
                 return_value=decision,
             ) as mock_query,
             patch(
@@ -113,7 +113,7 @@ class TestBareNextDoesNotAdvance:
                 return_value="fixture-mission",
             ),
             patch(
-                "specify_cli.next.runtime_bridge.query_current_state",
+                "runtime.next.runtime_bridge.query_current_state",
                 return_value=decision,
             ),
             patch(
@@ -137,7 +137,7 @@ class TestBareNextDoesNotAdvance:
                 return_value="fixture-mission",
             ),
             patch(
-                "specify_cli.next.runtime_bridge.query_current_state",
+                "runtime.next.runtime_bridge.query_current_state",
                 return_value=decision,
             ),
         ):
@@ -152,7 +152,7 @@ class TestBareNextDoesNotAdvance:
 
     def test_explicit_success_uses_decide_next(self, tmp_path: Path) -> None:
         """When --result success is provided, decide_next runs (advance path)."""
-        from specify_cli.next.decision import Decision, DecisionKind
+        from runtime.next.decision import Decision, DecisionKind
 
         # WP02 / #844: kind=step now requires a non-null, on-disk-resolvable
         # prompt_file (C1/C2). Materialize one under tmp_path.
@@ -188,7 +188,7 @@ class TestBareNextDoesNotAdvance:
                 "specify_cli.cli.commands.next_cmd._emit_mission_next_invoked"
             ),
             patch(
-                "specify_cli.next.runtime_bridge.query_current_state"
+                "runtime.next.runtime_bridge.query_current_state"
             ) as mock_query,
         ):
             runner.invoke(

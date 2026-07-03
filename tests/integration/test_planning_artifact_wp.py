@@ -98,7 +98,7 @@ class TestPlanningArtifactRuntimeDecisionShape:
         """A planning_artifact WP's decision points workspace_path at the
         repo root (resolved via the canonical resolver), and the decision
         kind is `step` (i.e. NOT blocked)."""
-        from specify_cli.next.decision import Decision, DecisionKind
+        from runtime.next.decision import Decision, DecisionKind
 
         # WP02 / #844: kind=step requires a real prompt_file at construction
         # time (C1/C2). Stage one under tmp_path so the validator passes.

@@ -2,7 +2,7 @@
   "mission_slug": "unshim-wave2-01KWMCAX",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pass",
+  "overall_verdict": "fail",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -122,15 +122,15 @@
       "verification_method": "grep_absence",
       "verification_command": "grep -rnE \"(from|import)\\\\s+specify_cli\\\\.(next|glossary|charter_lint|charter_freshness|charter_preflight)\\\\b\" src/ tests/",
       "result": "confirmed_absent",
-      "evidence": "expected: empty (exit 1) | observed: empty (exit 1) \u2014 verified by WP09 implementer and reviewer independently | verified_by: claude:opus:orchestrator (per-WP verification by reviewer-renata, cycle-1 approvals) at 2026-07-03T19:55:00+00:00"
+      "evidence": "grep found zero matches"
     },
     {
       "invariant_id": "NI-002",
       "description": "All five deleted modules are gone: specify_cli.{next,glossary,charter_lint,charter_freshness,charter_preflight} raise ModuleNotFoundError; canonical replacements import.",
       "verification_method": "custom_command",
       "verification_command": "for m in next glossary charter_lint charter_freshness charter_preflight; do python -c \"import specify_cli.$m\" 2>&1 | grep -q ModuleNotFoundError && echo $m-GONE; done",
-      "result": "confirmed_absent",
-      "evidence": "expected: 5x GONE | observed: 5x GONE (WP09 closing sweep + reviewer re-run) | verified_by: claude:opus:orchestrator (per-WP verification by reviewer-renata, cycle-1 approvals) at 2026-07-03T19:55:00+00:00"
+      "result": "still_present",
+      "evidence": "Command exited 1: "
     },
     {
       "invariant_id": "NI-003",
@@ -138,7 +138,7 @@
       "verification_method": "custom_command",
       "verification_command": "PWHEADLESS=1 pytest tests/architectural/test_shim_registry_schema.py -q",
       "result": "confirmed_absent",
-      "evidence": "expected: green; flip-verified non-vacuous | observed: 38 passed; reviewer re-added a row -> RED, reverted -> green | verified_by: claude:opus:orchestrator (per-WP verification by reviewer-renata, cycle-1 approvals) at 2026-07-03T19:55:00+00:00"
+      "evidence": "Command exited 0: ......................................                                   [100%]\n38 passed in 20.99s"
     },
     {
       "invariant_id": "NI-004",
@@ -146,7 +146,7 @@
       "verification_method": "custom_command",
       "verification_command": "PWHEADLESS=1 pytest tests/architectural/test_layer_rules.py -q",
       "result": "confirmed_absent",
-      "evidence": "expected: green incl. committed negative test | observed: 16 passed; 3 reviewer flips all RED correctly | verified_by: claude:opus:orchestrator (per-WP verification by reviewer-renata, cycle-1 approvals) at 2026-07-03T19:55:00+00:00"
+      "evidence": "Command exited 0: .............                                                            [100%]\n13 passed in 26.27s"
     },
     {
       "invariant_id": "NI-005",
@@ -154,7 +154,7 @@
       "verification_method": "custom_command",
       "verification_command": "git log $(git merge-base upstream/main HEAD)..HEAD --oneline -- src/specify_cli/__init__.py",
       "result": "confirmed_absent",
-      "evidence": "expected: empty | observed: empty (reviewer-verified; pyproject 3.2.4 unchanged) | verified_by: claude:opus:orchestrator (per-WP verification by reviewer-renata, cycle-1 approvals) at 2026-07-03T19:55:00+00:00"
+      "evidence": "Command exited 0: "
     }
   ]
 }

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from specify_cli.next.runtime_bridge import _resolve_runtime_template_in_root
+from runtime.next.runtime_bridge import _resolve_runtime_template_in_root
 
 
 import pytest
@@ -30,7 +30,7 @@ def test_documentation_runtime_sidecar_wins_over_legacy_mission_yaml() -> None:
 
 def test_documentation_runtime_template_declares_correct_mission_key() -> None:
     """The runtime sidecar's mission.key must be 'documentation' for loader gate."""
-    from specify_cli.next._internal_runtime.schema import load_mission_template_file
+    from runtime.next._internal_runtime.schema import load_mission_template_file
 
     path = (
         Path(__file__).resolve().parents[2]

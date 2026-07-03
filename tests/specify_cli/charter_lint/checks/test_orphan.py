@@ -10,7 +10,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from specify_cli.charter_lint.checks.orphan import OrphanChecker
+from specify_cli.charter_runtime.lint.checks.orphan import OrphanChecker
 
 
 # ---------------------------------------------------------------------------

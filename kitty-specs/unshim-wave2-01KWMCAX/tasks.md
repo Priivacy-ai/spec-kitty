@@ -106,9 +106,9 @@
 
 - **Goal**: IC-08/FR-010+FR-011 — governance-doc scrubs, CHANGELOG breaking-removal entry, tracker closeout, NFR-002 proof, closing sweep.
 - **Priority**: P2 · **Requirements**: FR-010, FR-011 · **Dependencies**: WP04, WP06, WP07, WP08 · **Prompt**: [tasks/WP09-closeout.md](tasks/WP09-closeout.md)
-- [x] T025 Doc scrubs + CHANGELOG (WP09)
-- [x] T026 Tracker closeout (WP09)
-- [x] T027 Closing sweep (WP09)
+- [ ] T025 Doc scrubs + CHANGELOG (WP09)
+- [ ] T026 Tracker closeout (WP09)
+- [ ] T027 Closing sweep (WP09)
 
 ## Dependency notes
 

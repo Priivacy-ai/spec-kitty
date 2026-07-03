@@ -1,10 +1,10 @@
-"""Unit tests for lazy exports in ``specify_cli.next``."""
+"""Unit tests for lazy exports in ``runtime.next``."""
 
 from __future__ import annotations
 
 import pytest
 
-import specify_cli.next as next_pkg
+import runtime.next as next_pkg
 
 pytestmark = pytest.mark.fast
 

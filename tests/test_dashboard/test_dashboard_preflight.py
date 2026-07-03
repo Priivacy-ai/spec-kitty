@@ -16,13 +16,13 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.charter_preflight.dashboard_warning import (
+from specify_cli.charter_runtime.preflight.dashboard_warning import (
     clear_preflight_warning,
     preflight_warning_path,
     read_preflight_warning,
     write_preflight_warning,
 )
-from specify_cli.charter_preflight.result import CharterPreflightResult
+from specify_cli.charter_runtime.preflight.result import CharterPreflightResult
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -97,7 +97,7 @@ def test_dashboard_hook_persists_warning_on_failure(
     We exercise the persistence directly (the CLI command's branching is
     a thin wrapper) so the test stays focused on the contract.
     """
-    from specify_cli.charter_preflight import hook as hook_mod
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
 
     monkeypatch.setattr(
         hook_mod,
@@ -119,7 +119,7 @@ def test_dashboard_hook_clears_warning_on_success(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """On success the persisted warning is cleared, even if one was stale."""
-    from specify_cli.charter_preflight import hook as hook_mod
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
 
     write_preflight_warning(tmp_path, "stale from a previous run")
     monkeypatch.setattr(hook_mod, "run_charter_preflight", lambda **_: _pass_result())
@@ -139,7 +139,7 @@ def test_dashboard_hook_does_not_warning_log_optional_missing_charter(
     """Fresh projects without charter state are advisory, not warning-level spam."""
     import subprocess
 
-    from specify_cli.charter_preflight import hook as hook_mod
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
 
     subprocess.run(["git", "init", "-q", "-b", "main"], cwd=tmp_path, check=True)
 
@@ -157,7 +157,7 @@ def test_null_project_config_enabled_still_runs_dashboard_preflight(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Null enabled must not silently skip the dashboard warning gate."""
-    from specify_cli.charter_preflight import hook as hook_mod
+    from specify_cli.charter_runtime.preflight import hook as hook_mod
 
     config_path = tmp_path / ".kittify" / "config.yaml"
     config_path.parent.mkdir()

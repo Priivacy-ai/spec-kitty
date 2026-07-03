@@ -23,7 +23,7 @@ from specify_cli.mission_loader.command import (
     run_custom_mission,
 )
 from specify_cli.mission_loader.registry import get_runtime_contract_registry
-from specify_cli.next._internal_runtime.discovery import DiscoveryContext
+from runtime.next._internal_runtime.discovery import DiscoveryContext
 
 # Minimal valid custom mission body. Last step is the retrospective marker
 # so structural checks pass; the planning step has an agent_profile binding.
@@ -160,7 +160,7 @@ def test_happy_path_returns_zero_and_success_envelope(
         captured["mission_type"] = mission_type
         return _FakeRunRef(run_id="abc", run_dir=str(fake_run_dir))
 
-    from specify_cli.next import runtime_bridge
+    from runtime.next import runtime_bridge
 
     monkeypatch.setattr(runtime_bridge, "get_or_start_run", fake_get_or_start_run)
 
@@ -208,7 +208,7 @@ def test_happy_path_with_no_meta_json_returns_null_mission_id(
     fake_run_dir = tmp_path / "runs" / "x"
     fake_run_dir.mkdir(parents=True)
 
-    from specify_cli.next import runtime_bridge
+    from runtime.next import runtime_bridge
 
     monkeypatch.setattr(
         runtime_bridge,
@@ -241,7 +241,7 @@ def test_validation_error_returns_two_with_error_envelope(
     _write_mission(repo_root, ".kittify/missions", "no-retro", _NO_RETRO_BODY)
 
     # If runtime_bridge is invoked we want the test to fail fast.
-    from specify_cli.next import runtime_bridge
+    from runtime.next import runtime_bridge
 
     def _should_not_run(**_: object) -> _FakeRunRef:  # pragma: no cover - guard
         raise AssertionError("get_or_start_run must not be called on validation error")
@@ -301,7 +301,7 @@ def test_unresolved_contract_ref_returns_two_with_MISSION_CONTRACT_REF_UNRESOLVE
 
     # If the bridge is invoked, we want the test to fail loudly: the unresolved
     # contract_ref check must short-circuit before ``get_or_start_run`` runs.
-    from specify_cli.next import runtime_bridge
+    from runtime.next import runtime_bridge
 
     def _should_not_run(**_: object) -> _FakeRunRef:  # pragma: no cover - guard
         raise AssertionError(
@@ -343,7 +343,7 @@ def test_run_start_failure_returns_one_with_RUN_START_FAILED(
     repo_root.mkdir()
     _write_mission(repo_root, ".kittify/missions", "ok-mission", _VALID_BODY)
 
-    from specify_cli.next import runtime_bridge
+    from runtime.next import runtime_bridge
 
     def _boom(**_: object) -> _FakeRunRef:
         raise RuntimeError("disk full")
@@ -388,7 +388,7 @@ def test_warnings_pass_through_on_success(
     fake_run_dir = tmp_path / "runs" / "y"
     fake_run_dir.mkdir(parents=True)
 
-    from specify_cli.next import runtime_bridge
+    from runtime.next import runtime_bridge
 
     monkeypatch.setattr(
         runtime_bridge,
@@ -485,7 +485,7 @@ def test_default_discovery_context_is_built_when_none_supplied(
     fake_run_dir = tmp_path / "runs" / "z"
     fake_run_dir.mkdir(parents=True)
 
-    from specify_cli.next import runtime_bridge
+    from runtime.next import runtime_bridge
 
     monkeypatch.setattr(
         runtime_bridge,

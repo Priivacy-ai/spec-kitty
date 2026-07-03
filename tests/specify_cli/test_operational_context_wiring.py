@@ -39,8 +39,8 @@ from charter.invocation_context import (
     ContextPreconditionError,
     OperationalContext,
 )
-from specify_cli.next import runtime_bridge
-from specify_cli.next.runtime_bridge import (
+from runtime.next import runtime_bridge
+from runtime.next.runtime_bridge import (
     _build_operational_context_for_decision,
     _resolve_run_dir_for_mission,
     _resolve_tech_stack_for_profile,

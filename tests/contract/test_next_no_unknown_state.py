@@ -58,7 +58,7 @@ class TestQueryModeDoesNotReturnUnknownForValidMission:
 
     def test_query_decision_for_valid_run_has_real_state(self, tmp_path: Path) -> None:
         """When the mission has a runtime snapshot, mission_state is real."""
-        from specify_cli.next.decision import Decision, DecisionKind
+        from runtime.next.decision import Decision, DecisionKind
 
         decision = Decision(
             kind=DecisionKind.query,
@@ -91,7 +91,7 @@ class TestQueryModeDoesNotReturnUnknownForValidMission:
         ``mission_state="unknown"``. The exception must carry the attempted
         handle so callers can emit structured JSON errors.
         """
-        from specify_cli.next.runtime_bridge import (
+        from runtime.next.runtime_bridge import (
             MissionNotFoundError,
             query_current_state,
         )

@@ -41,7 +41,7 @@ from typing import Any
 
 import pytest
 
-from specify_cli.next.decision import DecisionKind
+from runtime.next.decision import DecisionKind
 from tests.lane_test_utils import write_single_lane_manifest
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -117,7 +117,7 @@ def test_runtime_passes_non_none_callback_for_enabled_policy(
     patch ``run_terminus`` and call the wiring helper path that constructs
     + passes the callback, verifying the end-to-end argument propagation.
     """
-    from specify_cli.next.runtime_bridge import _build_retrospective_facilitator_callback
+    from runtime.next.runtime_bridge import _build_retrospective_facilitator_callback
 
     # --- Part 1: _build_retrospective_facilitator_callback returns callable ---
     callback = _build_retrospective_facilitator_callback(
@@ -130,7 +130,7 @@ def test_runtime_passes_non_none_callback_for_enabled_policy(
 
     # --- Part 2: Verify the callback is wired through run_terminus ---
     # Patch run_terminus to capture its kwargs.
-    import specify_cli.next._internal_runtime.retrospective_terminus as _t_mod
+    import runtime.next._internal_runtime.retrospective_terminus as _t_mod
 
     captured_calls: list[dict[str, Any]] = []
 
@@ -165,7 +165,7 @@ def test_runtime_passes_non_none_callback_for_enabled_policy(
 
 
 def test_facilitator_noops_when_policy_disabled(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from specify_cli.next.runtime_bridge import _build_retrospective_facilitator_callback
+    from runtime.next.runtime_bridge import _build_retrospective_facilitator_callback
     from specify_cli.retrospective import generator as generator_mod
     from specify_cli.retrospective import policy as policy_mod
 
@@ -182,7 +182,7 @@ def test_facilitator_noops_when_policy_disabled(tmp_path: Path, monkeypatch: pyt
 
 
 def test_facilitator_emits_failure_on_policy_resolution_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from specify_cli.next.runtime_bridge import _build_retrospective_facilitator_callback
+    from runtime.next.runtime_bridge import _build_retrospective_facilitator_callback
     from specify_cli.retrospective import lifecycle_events as events_mod
     from specify_cli.retrospective import policy as policy_mod
     from specify_cli.retrospective.policy import PolicyResolutionError
@@ -204,7 +204,7 @@ def test_facilitator_emits_failure_on_policy_resolution_error(tmp_path: Path, mo
 
 
 def test_facilitator_classifies_generator_missing_artifact(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from specify_cli.next.runtime_bridge import _build_retrospective_facilitator_callback
+    from runtime.next.runtime_bridge import _build_retrospective_facilitator_callback
     from specify_cli.retrospective import generator as generator_mod
     from specify_cli.retrospective import lifecycle_events as events_mod
     from specify_cli.retrospective import policy as policy_mod
@@ -230,7 +230,7 @@ def test_facilitator_classifies_generator_missing_artifact(tmp_path: Path, monke
 
 
 def test_facilitator_classifies_generic_generator_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from specify_cli.next.runtime_bridge import _build_retrospective_facilitator_callback
+    from runtime.next.runtime_bridge import _build_retrospective_facilitator_callback
     from specify_cli.retrospective import generator as generator_mod
     from specify_cli.retrospective import lifecycle_events as events_mod
     from specify_cli.retrospective import policy as policy_mod
@@ -255,7 +255,7 @@ def test_facilitator_classifies_generic_generator_error(tmp_path: Path, monkeypa
 
 
 def test_facilitator_handles_existing_record_and_emit_failure(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from specify_cli.next.runtime_bridge import _build_retrospective_facilitator_callback
+    from runtime.next.runtime_bridge import _build_retrospective_facilitator_callback
     from specify_cli.retrospective import generator as generator_mod
     from specify_cli.retrospective import lifecycle_events as events_mod
     from specify_cli.retrospective import policy as policy_mod
@@ -284,7 +284,7 @@ def test_facilitator_handles_existing_record_and_emit_failure(tmp_path: Path, mo
 
 
 def test_record_exists_failure_classification_and_hint(tmp_path: Path) -> None:
-    from specify_cli.next.runtime_bridge import _classify_and_emit_failure
+    from runtime.next.runtime_bridge import _classify_and_emit_failure
     from specify_cli.retrospective.writer import RecordExistsError
 
     failures: list[dict[str, Any]] = []
@@ -304,7 +304,7 @@ def test_record_exists_failure_classification_and_hint(tmp_path: Path) -> None:
 
 
 def test_facilitator_reraises_write_failure_after_failed_event(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from specify_cli.next.runtime_bridge import _build_retrospective_facilitator_callback
+    from runtime.next.runtime_bridge import _build_retrospective_facilitator_callback
     from specify_cli.retrospective import generator as generator_mod
     from specify_cli.retrospective import lifecycle_events as events_mod
     from specify_cli.retrospective import policy as policy_mod
@@ -326,7 +326,7 @@ def test_facilitator_reraises_write_failure_after_failed_event(tmp_path: Path, m
 
 
 def test_run_retrospective_learning_capture_failure_policy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from specify_cli.next import runtime_bridge as bridge
+    from runtime.next import runtime_bridge as bridge
 
     def _raising_callback(**_kwargs: Any) -> None:
         raise RuntimeError("capture failed")
@@ -355,7 +355,7 @@ def test_run_retrospective_learning_capture_failure_policy(tmp_path: Path, monke
 
 
 def test_runtime_policy_resolution_falls_back_to_default(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from specify_cli.next import runtime_bridge as bridge
+    from runtime.next import runtime_bridge as bridge
     from specify_cli.retrospective import policy as policy_mod
     from specify_cli.retrospective.policy import PolicyResolutionError
 
@@ -370,7 +370,7 @@ def test_runtime_policy_resolution_falls_back_to_default(tmp_path: Path, monkeyp
 
 
 def test_failure_emit_swallows_emit_failure(tmp_path: Path) -> None:
-    from specify_cli.next.runtime_bridge import _classify_and_emit_failure
+    from runtime.next.runtime_bridge import _classify_and_emit_failure
 
     def _emit_capture_failed(**_kwargs: Any) -> None:
         raise OSError("status log locked")
@@ -398,7 +398,7 @@ def test_status_reader_skips_retrospective_lifecycle_type_event() -> None:
 
 
 def test_buffering_emitter_records_calls_in_order() -> None:
-    from specify_cli.next.runtime_bridge import _BufferingRuntimeEmitter
+    from runtime.next.runtime_bridge import _BufferingRuntimeEmitter
 
     buffer = _BufferingRuntimeEmitter()
     p1, p2, p3 = object(), object(), object()
@@ -415,7 +415,7 @@ def test_buffering_emitter_records_calls_in_order() -> None:
 
 
 def test_buffering_emitter_flush_replays_in_order_then_clears() -> None:
-    from specify_cli.next.runtime_bridge import _BufferingRuntimeEmitter
+    from runtime.next.runtime_bridge import _BufferingRuntimeEmitter
 
     buffer = _BufferingRuntimeEmitter()
     p_start, p_completed = object(), object()
@@ -446,7 +446,7 @@ def test_buffering_emitter_flush_replays_in_order_then_clears() -> None:
 
 
 def test_buffering_emitter_flush_skips_missing_target_methods() -> None:
-    from specify_cli.next.runtime_bridge import _BufferingRuntimeEmitter
+    from runtime.next.runtime_bridge import _BufferingRuntimeEmitter
 
     buffer = _BufferingRuntimeEmitter()
     p_start, p_completed = object(), object()
@@ -466,7 +466,7 @@ def test_buffering_emitter_flush_skips_missing_target_methods() -> None:
 
 
 def test_buffering_emitter_discard_drops_calls_without_replaying() -> None:
-    from specify_cli.next.runtime_bridge import _BufferingRuntimeEmitter
+    from runtime.next.runtime_bridge import _BufferingRuntimeEmitter
 
     buffer = _BufferingRuntimeEmitter()
     buffer.emit_mission_run_completed(object())
@@ -486,7 +486,7 @@ def test_buffering_emitter_discard_drops_calls_without_replaying() -> None:
 
 def test_buffering_emitter_implements_full_runtime_protocol() -> None:
     """All eight RuntimeEventEmitter methods accept a payload without raising."""
-    from specify_cli.next.runtime_bridge import _BufferingRuntimeEmitter
+    from runtime.next.runtime_bridge import _BufferingRuntimeEmitter
 
     buffer = _BufferingRuntimeEmitter()
     p = object()
@@ -504,7 +504,7 @@ def test_buffering_emitter_implements_full_runtime_protocol() -> None:
 
 def test_rich_hic_prompt_returns_run_now(monkeypatch: pytest.MonkeyPatch) -> None:
     from rich.prompt import Confirm
-    from specify_cli.next.runtime_bridge import _rich_hic_prompt
+    from runtime.next.runtime_bridge import _rich_hic_prompt
 
     monkeypatch.setattr(Confirm, "ask", lambda *args, **kwargs: True)
 
@@ -515,7 +515,7 @@ def test_rich_hic_prompt_requires_non_empty_skip_reason(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     from rich.prompt import Confirm, Prompt
-    from specify_cli.next.runtime_bridge import _rich_hic_prompt
+    from runtime.next.runtime_bridge import _rich_hic_prompt
 
     answers = iter(["", "  needs operator review  "])
     monkeypatch.setattr(Confirm, "ask", lambda *args, **kwargs: False)
@@ -527,7 +527,7 @@ def test_rich_hic_prompt_requires_non_empty_skip_reason(
 def test_resolve_mission_id_for_terminus_falls_back_on_missing_or_bad_meta(
     tmp_path: Path,
 ) -> None:
-    from specify_cli.next.runtime_bridge import _resolve_mission_id_for_terminus
+    from runtime.next.runtime_bridge import _resolve_mission_id_for_terminus
 
     feature_dir = tmp_path / "mission-slug"
     feature_dir.mkdir()
@@ -678,8 +678,8 @@ def test_legacy_path_blocks_and_rolls_back_on_terminal(tmp_path: Path, monkeypat
     3. NOT leave a ``MissionRunCompleted`` line in run.events.jsonl,
     4. roll back state.json so it does not say all-completed.
     """
-    from specify_cli.next import runtime_bridge as bridge
-    from specify_cli.next._internal_runtime.events import NullEmitter
+    from runtime.next import runtime_bridge as bridge
+    from runtime.next._internal_runtime.events import NullEmitter
 
     repo_root, feature_dir = _scaffold_opt_in_project(tmp_path)
 
@@ -738,7 +738,7 @@ def test_legacy_path_blocks_and_rolls_back_on_terminal(tmp_path: Path, monkeypat
 
 
 def test_legacy_path_blocks_when_prestate_cannot_be_captured(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from specify_cli.next import runtime_bridge as bridge
+    from runtime.next import runtime_bridge as bridge
 
     repo_root, _feature_dir = _scaffold_opt_in_project(tmp_path)
     run_dir = tmp_path / "run"
@@ -763,8 +763,8 @@ def test_legacy_path_blocks_when_prestate_cannot_be_captured(tmp_path: Path, mon
 
 
 def test_legacy_path_default_policy_runs_post_completion_capture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from specify_cli.next import runtime_bridge as bridge
-    from specify_cli.next._internal_runtime.schema import NextDecision
+    from runtime.next import runtime_bridge as bridge
+    from runtime.next._internal_runtime.schema import NextDecision
 
     repo_root, _feature_dir = _scaffold_opt_in_project(tmp_path)
     (repo_root / ".kittify" / "config.yaml").write_text(
@@ -817,7 +817,7 @@ def test_legacy_path_default_policy_runs_post_completion_capture(tmp_path: Path,
 
 
 def test_legacy_path_discards_buffer_when_runtime_engine_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from specify_cli.next import runtime_bridge as bridge
+    from runtime.next import runtime_bridge as bridge
 
     repo_root, _feature_dir = _scaffold_opt_in_project(tmp_path)
     run_dir = tmp_path / "run"
@@ -850,8 +850,8 @@ def test_legacy_path_discards_buffer_when_runtime_engine_raises(tmp_path: Path, 
 
 
 def test_legacy_path_logs_rollback_failures_after_gate_block(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
-    from specify_cli.next import runtime_bridge as bridge
-    from specify_cli.next._internal_runtime.schema import NextDecision
+    from runtime.next import runtime_bridge as bridge
+    from runtime.next._internal_runtime.schema import NextDecision
 
     repo_root, _feature_dir = _scaffold_opt_in_project(tmp_path)
     run_dir = tmp_path / "run"
@@ -907,8 +907,8 @@ def test_legacy_path_logs_rollback_failures_after_gate_block(tmp_path: Path, mon
 
 
 def test_legacy_path_blocks_on_strict_policy_resolution_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from specify_cli.next import runtime_bridge as bridge
-    from specify_cli.next._internal_runtime.schema import NextDecision
+    from runtime.next import runtime_bridge as bridge
+    from runtime.next._internal_runtime.schema import NextDecision
 
     repo_root, _feature_dir = _scaffold_opt_in_project(tmp_path)
     run_dir = tmp_path / "run"
