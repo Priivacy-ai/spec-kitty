@@ -12,6 +12,8 @@ from typer.testing import CliRunner
 from specify_cli import app as cli_app
 from specify_cli.invocation.writer import EVENTS_DIR
 
+from tests._support.ansi import strip_ansi
+
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 runner = CliRunner()
@@ -47,7 +49,6 @@ def _fresh_ts() -> str:
     return (datetime.now(UTC) - timedelta(minutes=5)).isoformat()
 
 
-@pytest.mark.quarantine  # Typer/click usage-render skew (local != CI) (Wave-0 orphan-bind triage #2295, #2034/#2283)
 def test_threshold_without_close_stale_is_usage_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -56,7 +57,9 @@ def test_threshold_without_close_stale_is_usage_error(
     result = runner.invoke(cli_app, ["doctor", "ops", "--threshold", "12"])
 
     assert result.exit_code == 2
-    assert "--close-stale" in result.output
+    # Strip ANSI: under CI, Rich force-enables terminal styling so the captured
+    # usage-error text carries colour codes that break a raw substring check.
+    assert "--close-stale" in strip_ansi(result.output)
 
 
 def test_close_stale_sweeps_stale_op_json_and_exits_zero(

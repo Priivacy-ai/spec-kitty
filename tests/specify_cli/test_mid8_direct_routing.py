@@ -105,21 +105,27 @@ def test_resolution_primary_meta_declines_when_missing_dir(tmp_path: Path) -> No
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.quarantine  # behavioral drift: _read_mission_mid8 returns '' instead of golden mid8 (Wave-0 orphan-bind triage, #2034/#2283)
 def test_mission_type_read_mid8_truncates_then_declines(tmp_path: Path) -> None:
     from specify_cli.cli.commands.mission_type import _read_mission_mid8
 
-    full = tmp_path / "full.json"
-    full.write_text(json.dumps({"mission_id": _FULL_MISSION_ID}), encoding="utf-8")
-    assert _read_mission_mid8(full) == _GOLDEN_MID8
+    # ``_read_mission_mid8`` reads ``meta.json`` from the *directory* of the
+    # given path (``load_meta(meta_path.parent)``), so each case gets its own
+    # dir with a ``meta.json`` — matching how production calls it
+    # (``feature_dir / "meta.json"``). Earlier this wrote uniquely-named json
+    # files into one shared dir with no ``meta.json``, so the loader found
+    # nothing and returned ``""`` — a stale-test artifact, not a product drift.
+    def _read_meta(name: str, meta: dict[str, object]) -> str:
+        case_dir = tmp_path / name
+        case_dir.mkdir()
+        meta_path = case_dir / "meta.json"
+        meta_path.write_text(json.dumps(meta), encoding="utf-8")
+        result: str = _read_mission_mid8(meta_path)
+        return result
 
-    explicit = tmp_path / "explicit.json"
-    explicit.write_text(json.dumps({"mid8": "EXPLICIT8"}), encoding="utf-8")
-    assert _read_mission_mid8(explicit) == "EXPLICIT8"
-
-    bare = tmp_path / "bare.json"
-    bare.write_text(json.dumps({"mission_slug": "x"}), encoding="utf-8")
-    assert _read_mission_mid8(bare) == ""  # contract: empty string, never None
+    assert _read_meta("full", {"mission_id": _FULL_MISSION_ID}) == _GOLDEN_MID8
+    assert _read_meta("explicit", {"mid8": "EXPLICIT8"}) == "EXPLICIT8"
+    # contract: empty string, never None
+    assert _read_meta("bare", {"mission_slug": "x"}) == ""
 
 
 # ---------------------------------------------------------------------------

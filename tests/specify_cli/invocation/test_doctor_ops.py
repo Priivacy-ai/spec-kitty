@@ -367,11 +367,19 @@ def _generate_synthetic_ops(ops_dir: Path, count: int, started_at: str) -> None:
         (ops_dir / f"{invocation_id}.jsonl").write_text(line + "\n", encoding="utf-8")
 
 
-@pytest.mark.quarantine  # perf budget CI-machine-dependent (2.96s vs 0.5s) (Wave-0 orphan-bind triage #2295, #2034/#2283)
 def test_sweep_enumeration_perf_1k_files(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Default-suite extrapolation of NFR-002: 1,000 files in < 0.5 s (close mocked)."""
+    """Default-suite smoke that the 1k-file sweep has no order-of-magnitude regression.
+
+    Tier-1 budget gate (docs/guides/testing-flakiness.md): tune, never retry.
+    The original 0.5 s budget was a tight single-machine extrapolation that
+    tripped on shared CI runners with no code regression (observed 1.67 s on
+    GitHub Actions, 2.96 s historically). Widened to 5.0 s so runner variance is
+    absorbed while a genuine O(n^2)/order-of-magnitude regression still trips it.
+    The *authoritative* NFR-002 latency check is the ``@pytest.mark.slow``
+    ``test_sweep_nfr_002_10k_files_under_5s`` (10k files < 5 s) below.
+    """
     ops_dir = _ops_dir(tmp_path)
     _generate_synthetic_ops(ops_dir, 1000, _iso(_NOW - timedelta(hours=48)))
     monkeypatch.setattr(
@@ -385,7 +393,7 @@ def test_sweep_enumeration_perf_1k_files(
     elapsed = time.perf_counter() - start
 
     assert report.swept == 1000
-    assert elapsed < 0.5, f"1k-file sweep took {elapsed:.3f}s (budget 0.5s)"
+    assert elapsed < 5.0, f"1k-file sweep took {elapsed:.3f}s (budget 5.0s)"
 
 
 @pytest.mark.slow

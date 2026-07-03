@@ -69,6 +69,7 @@ ALLOWLIST_PREFIXES = (
     "kitty-specs/",  # mission-level checklists/ directory is canonical
     "docs/01KSMG8Y-closeout/",  # historical failure closeout, not live surface
     "docs/plans/engineering-notes/triage/",  # historical triage notes, not live surface
+    "docs/changelog/",  # immutable changelog documenting the REMOVED command, not a live surface
 )
 
 ALLOWLIST_FILENAMES = (
@@ -118,7 +119,6 @@ def test_no_checklist_filenames_in_scan_roots():
     )
 
 
-@pytest.mark.quarantine  # historical CHANGELOG mention of removed /spec-kitty.checklist trips live-surface scan (Wave-0 orphan-bind triage, #2034/#2283)
 def test_no_checklist_command_string_in_scan_roots():
     offenders = []
     for rel in SCAN_ROOTS + AGENT_DIRS:

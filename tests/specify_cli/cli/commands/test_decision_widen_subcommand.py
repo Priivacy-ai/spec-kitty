@@ -32,6 +32,8 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.agent import app as agent_app
 from specify_cli.saas_client.errors import SaasClientError
 
+from tests._support.ansi import strip_ansi
+
 # ---------------------------------------------------------------------------
 # Constants / helpers
 # ---------------------------------------------------------------------------
@@ -298,12 +300,14 @@ class TestHiddenFlag:
         result = _invoke(["decision", "--help"], cwd=tmp_path)
         assert "widen" not in result.output
 
-    @pytest.mark.quarantine  # Typer/click help-render skew (local != CI) (Wave-0 orphan-bind triage #2295, #2034/#2283)
     def test_widen_help_accessible_directly(self, tmp_path: Path) -> None:
         """``decision widen --help`` is accessible."""
         result = _invoke(["decision", "widen", "--help"], cwd=tmp_path)
         assert result.exit_code == 0
-        assert "internal" in result.output.lower() or "--invited" in result.output
+        # Strip ANSI: under CI, Rich force-enables terminal styling so the
+        # captured help carries colour codes that break a raw substring check.
+        output = strip_ansi(result.output)
+        assert "internal" in output.lower() or "--invited" in output
 
 
 # ---------------------------------------------------------------------------
