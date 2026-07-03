@@ -49,7 +49,10 @@ from __future__ import annotations
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import cast
+from typing import TYPE_CHECKING, cast
+
+if TYPE_CHECKING:
+    from specify_cli.core.stale_detection import StaleCheckResult
 
 from specify_cli.core.dependency_graph import (
     DependencyReadiness,
@@ -109,7 +112,7 @@ class StatusView:
 
 def build_stale_fallback_results(
     doing_wps: Sequence[StatusRow], error: Exception
-) -> dict[str, object]:
+) -> dict[str, StaleCheckResult]:
     """Return per-WP stale fallbacks when git-staleness detection cannot run.
 
     PURE (INV-4): reproduces the live ``_build_stale_fallback_results`` verbatim.
@@ -124,7 +127,7 @@ def build_stale_fallback_results(
         StaleState,
     )
 
-    results: dict[str, object] = {}
+    results: dict[str, StaleCheckResult] = {}
     for wp in doing_wps:
         wp_id = wp.get("id") or wp.get("work_package_id")
         if not wp_id:

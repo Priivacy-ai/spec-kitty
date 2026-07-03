@@ -37,7 +37,11 @@ the parity contract).
 
 from __future__ import annotations
 
-from specify_cli.agent_tasks_ports import RealCoordCommitRouter
+from specify_cli.agent_tasks_ports import (
+    RealCoordCommitRouter,
+    _CommitForMissionFn,
+    _EmitTransactionalFn,
+)
 from specify_cli.coordination.commit_router import CommitRouterResult
 from specify_cli.status import StatusEvent
 
@@ -52,7 +56,14 @@ def _seam_commit_for_mission(*args: object, **kwargs: object) -> CommitRouterRes
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
 
-    result: CommitRouterResult = _tasks.commit_for_mission(*args, **kwargs)
+    # The router already decided the exact positional/keyword shape (C-001
+    # byte-parity branches in ``RealCoordCommitRouter.commit_artifact``); this
+    # wrapper is a transparent passthrough. Pin the lazily-resolved namespace
+    # symbol to the declared seam-injection contract (``_CommitForMissionFn`` =
+    # ``Callable[..., CommitRouterResult]``) so whole-tree mypy checks the return
+    # precisely while honouring the open forwarded arg-list the seam requires.
+    routed: _CommitForMissionFn = _tasks.commit_for_mission
+    result: CommitRouterResult = routed(*args, **kwargs)
     return result
 
 
@@ -68,7 +79,12 @@ def _seam_emit_status_transition_transactional(
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
 
-    event: StatusEvent = _tasks.emit_status_transition_transactional(*args, **kwargs)
+    # Same transparent-passthrough contract as ``_seam_commit_for_mission``: the
+    # router keys the exact call shape, this wrapper only re-routes the symbol
+    # through the ``tasks`` namespace. Pin to ``_EmitTransactionalFn`` =
+    # ``Callable[..., StatusEvent]`` for a precise return under whole-tree mypy.
+    routed: _EmitTransactionalFn = _tasks.emit_status_transition_transactional
+    event: StatusEvent = routed(*args, **kwargs)
     return event
 
 

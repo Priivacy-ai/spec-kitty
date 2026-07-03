@@ -179,6 +179,11 @@ def _st_resolve_execution_mode(
 ) -> tuple[str, str]:
     """Resolve ``(execution_mode, workspace_kind)`` for one WP row (verbatim fallbacks)."""
     from specify_cli.cli.commands.agent import tasks as _tasks
+    if wp_id is None:
+        # No work_package_id in frontmatter — the workspace resolvers require a
+        # WP id, so classification is impossible. Take the same frontmatter →
+        # default path as the "resolver could not classify" arm below.
+        return extract_scalar(front, "execution_mode") or "code_change", "unknown"
     try:
         workspace = _tasks.resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
         return workspace.execution_mode, workspace.resolution_kind
@@ -441,7 +446,8 @@ def _st_render_arbiter(ports: TasksPorts, st: _StatusState) -> None:
 
         arbiter_lines: list[str] = []
         for wp in st.work_packages:
-            wp_id_val = wp.get("id") or ""
+            wp_id_raw = wp.get("id")
+            wp_id_val = wp_id_raw if isinstance(wp_id_raw, str) else ""
             if not wp_id_val:
                 continue
             overrides = get_arbiter_overrides_for_wp(st.feature_dir, wp_id_val)
@@ -706,13 +712,19 @@ def _review_stall_threshold_minutes(repo_root: Path) -> int:
 
 
 def _get_hic_marker(
-    agent_profile: str | None,
+    agent_profile: object,
     repo_root: Path,
     *,
     repo: AgentProfileRepository | None = None,
 ) -> str:
-    """Return a marker when the work package profile is a human-run sentinel."""
-    if not agent_profile:
+    """Return a marker when the work package profile is a human-run sentinel.
+
+    Accepts ``object`` because the callers read ``agent_profile`` out of the
+    heterogeneous ``dict[str, object]`` status rows; a non-``str`` (or falsy)
+    value yields no marker, exactly as the historical ``if not agent_profile``
+    guard did for ``None``/empty strings.
+    """
+    if not isinstance(agent_profile, str) or not agent_profile:
         return ""
 
     try:

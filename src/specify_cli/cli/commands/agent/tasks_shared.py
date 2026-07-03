@@ -389,7 +389,12 @@ def _skip_target_branch_commit(repo_root: Path, mission_slug: str, target_branch
     return skip
 
 
-def _mission_identity_payload(feature_dir: Path) -> dict[str, str]:
+def _mission_identity_payload(feature_dir: Path) -> dict[str, str | int | None]:
+    # ``mission_number`` is ``int | None`` on ``MissionIdentity`` (display-only,
+    # ``null`` pre-merge); slug/type are ``str``. The value is threaded verbatim
+    # into machine-facing JSON payloads, so the return type carries the real
+    # heterogeneity instead of coercing (byte-parity: no string-cast of the
+    # number). Consumers spread this into ``dict[str, object]`` result maps.
     identity = resolve_mission_identity(feature_dir)
     return {
         "mission_slug": identity.mission_slug,
@@ -553,6 +558,15 @@ def _wp_branch_merged_into_target(
 
     workspace = _tasks.resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
     wp_branch = workspace.branch_name
+    if wp_branch is None:
+        return (
+            False,
+            (
+                "Cannot verify merge ancestry: no branch name resolved for "
+                f"workspace of {wp_id}.\nEither merge and keep the branch ref "
+                "available, or provide --done-override-reason."
+            ),
+        )
 
     branch_exists = _tasks.subprocess.run(
         ["git", "rev-parse", "--verify", wp_branch],
