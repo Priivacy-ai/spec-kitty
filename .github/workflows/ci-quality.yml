@@ -1037,7 +1037,6 @@ jobs:
         run: |
           uv run python -m pytest tests/next/ tests/specify_cli/next/ tests/runtime/ \
             -m "fast and not windows_ci" -q --tb=short \
-            --cov=src/specify_cli/next \
             --cov=src/runtime/next \
             --cov-report=xml:out/reports/coverage/coverage-fast-next.xml
       - name: "Upload fast-next coverage"
@@ -1427,9 +1426,6 @@ jobs:
             --durations=50 \
             --cov=src/charter \
             --cov=src/specify_cli/charter_runtime \
-            --cov=src/specify_cli/charter_freshness \
-            --cov=src/specify_cli/charter_lint \
-            --cov=src/specify_cli/charter_preflight \
             --cov-fail-under=55 \
             --cov-report=xml:out/reports/coverage/coverage-fast-charter.xml
       - name: "Upload fast-charter coverage"
@@ -1574,9 +1570,6 @@ jobs:
             -q --tb=short \
             --cov=src/charter \
             --cov=src/specify_cli/charter_runtime \
-            --cov=src/specify_cli/charter_freshness \
-            --cov=src/specify_cli/charter_lint \
-            --cov=src/specify_cli/charter_preflight \
             --cov-report=xml:out/reports/coverage/coverage-integration-charter.xml
       - name: "Upload integration-charter coverage"
         if: always()
@@ -1824,7 +1817,6 @@ jobs:
           uv run python -m pytest tests/next/ tests/specify_cli/next/ tests/runtime/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
-            --cov=src/specify_cli/next \
             --cov=src/runtime/next \
             --cov-report=xml:out/reports/coverage/coverage-integration-next.xml
       - name: "Upload integration-next coverage"
