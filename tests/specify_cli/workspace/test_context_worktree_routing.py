@@ -186,18 +186,32 @@ def test_tasks_no_inline_endswith_mid8_dedup() -> None:
     )
 
 
-@pytest.mark.quarantine  # seam-scan drift: orchestrator module no longer contains 'resolve_mid8' literal (Wave-0 orphan-bind triage, #2034/#2283)
 def test_routed_files_import_the_seam() -> None:
-    """Each routed file references the seam composer it must delegate to."""
+    """Each routed file references the seam composer it must delegate to.
+
+    Un-quarantined + re-pinned (PR #2308): the Wave-0 quarantine reason was
+    'orchestrator no longer contains the resolve_mid8 literal' — that literal
+    legitimately migrated INTO the seam (``allocate_lane_worktree`` resolves
+    mid8 internally, commit 106531095), and the Wave 2 degod (#2305) likewise
+    relocated the tasks.py call sites into ``tasks_shared.py`` /
+    ``tasks_move_task.py`` and encapsulated ``resolve_mid8`` behind the seam
+    across the whole tasks surface. The routing invariant survives; the pin
+    follows the code.
+    """
     ctx = _CONTEXT_PY.read_text(encoding="utf-8")
     assert "worktree_path" in ctx
     orch = _ORCH_PY.read_text(encoding="utf-8")
     assert "worktree_path" in orch
-    assert "resolve_mid8" in orch
-    tasks = _TASKS_PY.read_text(encoding="utf-8")
-    assert "worktree_path" in tasks
-    assert "mission_dir_name" in tasks
-    assert "resolve_mid8" in tasks
+    # The orchestrator routes worktree creation through the allocator seam,
+    # which owns the mid8 resolution (no raw resolve_mid8 at the call site).
+    assert "allocate_lane_worktree" in orch
+    tasks_surface = (
+        _TASKS_PY.read_text(encoding="utf-8")
+        + _TASKS_SHARED_PY.read_text(encoding="utf-8")
+        + _TASKS_MOVE_TASK_PY.read_text(encoding="utf-8")
+    )
+    assert "worktree_path" in tasks_surface
+    assert "mission_dir_name" in tasks_surface
 
 
 def test_tasks_mission_selector_code_untouched() -> None:

@@ -30,3 +30,10 @@
   ("empty allowlist") should be validated against the FULL gate scope
   (directory glob) at plan time — a 2-minute grep would have caught the 9
   pre-existing sibling offenders before the contract froze the wording.
+- **Post-merge (quarantine sweep, 2026-07-03)**: a degod wave that relocates a
+  symbol must sweep the QUARANTINE set for stale literal-presence pins over
+  that symbol before merge — `test_routed_files_import_the_seam` (quarantined
+  by Wave 0) pinned `worktree_path`/`mission_dir_name`/`resolve_mid8` in
+  tasks.py; the relocation broke 4/6 of its assertions while it was dark.
+  Re-pinned + un-quarantined on PR #2308. Reusable point-cut for the degod
+  program (#2057 merge.py, #2059 doctor.py).
