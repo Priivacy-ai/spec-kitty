@@ -1,0 +1,98 @@
+{
+  "mission_slug": "unshim-wave1-01KWKVHB",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "All 12 shim/orphan modules deleted: 8 category_4 (WP01 commit 3d1b522cb: 7 shims; WP02 commit 37cd33f38: tasks_support) + 4 category_7 orphans (WP03 commit e3f4fd2d2). NFR-002 pinned grep empty in src/ (pasted per-WP in Activity Logs).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (per-WP reviews, cycles 1/1/1)",
+      "verified_at": "2026-07-03T14:55:00+00:00",
+      "notes": "Adjudicated at per-WP review; re-verified at accept."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "~45 test sites re-anchored to spec rev-2 verified canonical homes: WP01 9 sites/7 files incl. doc_state dynamic module-object imports; WP02 35 sites/14 files incl. 10 patch() rewrites each with assert_called_once + red-first discrimination probe (reviewer re-ran probe herself: bogus target -> RED). Old targets proven silent no-ops (mock.called=False).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (per-WP reviews, cycles 1/1/1)",
+      "verified_at": "2026-07-03T14:55:00+00:00",
+      "notes": "Adjudicated at per-WP review; re-verified at accept."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "category_4 drain atomic per C-006: _CATEGORY_4_BACKCOMPAT_SHIMS == frozenset() (WP01 8->1, WP02 1->0); identity_aliases symbol row removed (also the category_b -1); _baselines category_4: 0; all 3 pyproject mypy-override entries removed (doc_state+gap_analysis WP01, tasks_support WP02).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (per-WP reviews, cycles 1/1/1)",
+      "verified_at": "2026-07-03T14:55:00+00:00",
+      "notes": "Adjudicated at per-WP review; re-verified at accept."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "4 orphans + 3 single-purpose shields deleted (WP03 e3f4fd2d2, +85/-1421); shield-importer greps pasted pre-deletion; sync/queue.py:1352 docstring xref scrubbed; documentation-mission.md:899-901 re-pointed to doc_analysis paths.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (per-WP reviews, cycles 1/1/1)",
+      "verified_at": "2026-07-03T14:55:00+00:00",
+      "notes": "Adjudicated at per-WP review; re-verified at accept."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "_CATEGORY_7 == {auth.transport, policy.audit} (6->2), baseline category_7: 2. category_b: 12 rows drained + 1 cascade adoption (frontmatter::update_field, sole caller was task_profile) -> baseline 216 NOT the spec-derived 224: reviewer AST-counted base live 228 vs recorded 237 (+9 pre-existing drift); 228-13+1=216 pinned as the honest zero-slack value per DIRECTIVE_041 anti-vacuous-ratchet (drift rationale in _baselines.yaml, tasks.md, #1797 comment).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (per-WP reviews, cycles 1/1/1)",
+      "verified_at": "2026-07-03T14:55:00+00:00",
+      "notes": "Adjudicated at per-WP review; re-verified at accept."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "manual_verification",
+      "evidence": "policy.audit adopt-as-follow-up filed as #2321 (enhancement; emission points + schema-freeze note; cross-linked #2292); module + test_audit.py intact.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (per-WP reviews, cycles 1/1/1)",
+      "verified_at": "2026-07-03T14:55:00+00:00",
+      "notes": "Adjudicated at per-WP review; re-verified at accept."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "manual_verification",
+      "evidence": "auth.transport verdict recorded: DOCUMENTED-DELETE deferred to Robert per ADR 2026-05-18-2; #2292 comment (issuecomment-4876939459) carries the blocker-attribution correction (ADR/Robert, not #614/#391). Zero modifications to the module or singleton tests (see negative invariant C-001).",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (per-WP reviews, cycles 1/1/1)",
+      "verified_at": "2026-07-03T14:55:00+00:00",
+      "notes": "Adjudicated at per-WP review; re-verified at accept."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "manual_verification",
+      "evidence": "Tracker closeout: #1797 progress comment (issuecomment-4876944629); issue-matrix terminal verdicts (#2289/#2292/#2258 fixed-in-mission, close via PR body lines); new debt issues #2322 (pre-3.0 migrations) + #2323 (round-trip allowlist) + #2324 (move-task validator bug, witnessed twice this mission); degod-unshim-inventory.md struck-through.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (per-WP reviews, cycles 1/1/1)",
+      "verified_at": "2026-07-03T14:55:00+00:00",
+      "notes": "Adjudicated at per-WP review; re-verified at accept."
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "C-001-auth-transport-no-touch",
+      "description": "auth/transport.py, its singleton tests, and policy/audit.py are byte-identical to upstream/main across the whole mission (ADR 2026-05-18-2 deferral to Robert; FR-006 keep).",
+      "verification_method": "custom_command",
+      "verification_command": "bash -c 'test -z \"$(git diff upstream/main kitty/mission-unshim-wave1-01KWKVHB-lane-c -- src/specify_cli/auth/transport.py tests/architectural/test_auth_transport_singleton.py src/specify_cli/policy/audit.py)\"'",
+      "result": "confirmed_absent",
+      "evidence": "Command exited 0: "
+    }
+  ]
+}

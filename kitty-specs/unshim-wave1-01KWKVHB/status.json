@@ -1,0 +1,42 @@
+{
+  "event_count": 21,
+  "last_event_id": "01KWM6QBBP1042VA8NVN5XMQR4",
+  "materialized_at": "2026-07-03T14:39:33.238038+00:00",
+  "mission_number": "160",
+  "mission_slug": "unshim-wave1-01KWKVHB",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KWM6Q9ZXWJWQ0M203AEBA0GP",
+      "last_transition_at": "2026-07-03T14:39:31.837050+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KWM6QAQJ6A950VEW77XD7MKG",
+      "last_transition_at": "2026-07-03T14:39:32.594854+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KWM6QBBP1042VA8NVN5XMQR4",
+      "last_transition_at": "2026-07-03T14:39:33.238038+00:00"
+    }
+  }
+}
