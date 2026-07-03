@@ -13,10 +13,8 @@ from specify_cli.core.atomic import atomic_write
 from specify_cli.mission_metadata import (
     HISTORY_CAP,
     REQUIRED_FIELDS,
-    finalize_merge,
     load_meta,
     record_acceptance,
-    record_merge,
     set_documentation_state,
     set_target_branch,
     set_vcs_lock,
@@ -420,112 +418,6 @@ class TestRecordAcceptance:
             record_acceptance(tmp_path, accepted_by="claude", mode="auto")
 
 
-class TestRecordMerge:
-    """Tests for record_merge()."""
-
-    def test_sets_fields_and_appends_history(self, tmp_path: Path) -> None:
-        _write_meta_file(tmp_path, _minimal_meta())
-
-        result = record_merge(
-            tmp_path,
-            merged_by="claude",
-            merged_into="main",
-            strategy="merge",
-            push=True,
-        )
-
-        assert result["merged_by"] == "claude"
-        assert result["merged_into"] == "main"
-        assert result["merged_strategy"] == "merge"
-        assert result["merged_push"] is True
-        assert "merged_at" in result
-
-        history = result["merge_history"]
-        assert len(history) == 1
-        assert history[0]["merged_by"] == "claude"
-        assert history[0]["merged_commit"] is None
-
-    def test_bounded_merge_history(self, tmp_path: Path) -> None:
-        meta = _minimal_meta()
-        meta["merge_history"] = [{"merged_at": f"2026-01-{i:02d}T00:00:00+00:00", "merged_by": f"agent{i}"} for i in range(1, HISTORY_CAP + 1)]
-        _write_meta_file(tmp_path, meta)
-
-        result = record_merge(
-            tmp_path,
-            merged_by="final",
-            merged_into="main",
-            strategy="squash",
-            push=False,
-        )
-
-        assert len(result["merge_history"]) == HISTORY_CAP
-        assert result["merge_history"][-1]["merged_by"] == "final"
-
-    def test_record_merge_clears_stale_merged_commit(self, tmp_path: Path) -> None:
-        """Regression: record_merge() after finalize_merge() must clear merged_commit."""
-        _write_meta_file(tmp_path, _minimal_meta())
-
-        # First merge + finalize
-        record_merge(
-            tmp_path,
-            merged_by="agent1",
-            merged_into="main",
-            strategy="merge",
-            push=True,
-        )
-        finalize_merge(tmp_path, merged_commit="sha_first")
-        mid = load_meta(tmp_path)
-        assert mid is not None
-        assert mid["merged_commit"] == "sha_first"
-
-        # Second merge (not yet finalized) — merged_commit must be gone
-        result = record_merge(
-            tmp_path,
-            merged_by="agent2",
-            merged_into="develop",
-            strategy="squash",
-            push=False,
-        )
-        assert "merged_commit" not in result
-        assert result["merged_by"] == "agent2"
-
-        # Verify on disk
-        on_disk = load_meta(tmp_path)
-        assert on_disk is not None
-        assert "merged_commit" not in on_disk
-
-    def test_missing_meta_raises_filenotfound(self, tmp_path: Path) -> None:
-        with pytest.raises(FileNotFoundError):
-            record_merge(tmp_path, merged_by="x", merged_into="main", strategy="merge", push=False)
-
-
-class TestFinalizeMerge:
-    """Tests for finalize_merge()."""
-
-    def test_sets_commit_hash(self, tmp_path: Path) -> None:
-        meta = _minimal_meta()
-        meta["merge_history"] = [{"merged_at": "2026-01-01T00:00:00+00:00", "merged_commit": None}]
-        _write_meta_file(tmp_path, meta)
-
-        result = finalize_merge(tmp_path, merged_commit="abc123")
-
-        assert result["merged_commit"] == "abc123"
-        assert result["merge_history"][-1]["merged_commit"] == "abc123"
-
-    def test_empty_history(self, tmp_path: Path) -> None:
-        meta = _minimal_meta()
-        _write_meta_file(tmp_path, meta)
-
-        result = finalize_merge(tmp_path, merged_commit="abc123")
-
-        assert result["merged_commit"] == "abc123"
-        assert result["merge_history"] == []
-
-    def test_missing_meta_raises_filenotfound(self, tmp_path: Path) -> None:
-        with pytest.raises(FileNotFoundError):
-            finalize_merge(tmp_path, merged_commit="abc123")
-
-
 class TestSetVcsLock:
     """Tests for set_vcs_lock()."""
 
@@ -730,83 +622,6 @@ class TestVcsLockStandardFormat:
         assert data["mission_number"] == "051"
 
 
-class TestRecordMergeBoundedHistory:
-    """T018: Verify record_merge() caps merge_history at 20 entries."""
-
-    def test_record_merge_bounded_history(self, tmp_path: Path) -> None:
-        """record_merge() caps merge_history at 20 entries."""
-        _write_meta_file(tmp_path, _minimal_meta())
-
-        # Call record_merge() 25 times
-        for i in range(25):
-            record_merge(
-                tmp_path,
-                merged_by=f"agent{i}",
-                merged_into="main",
-                strategy="merge",
-                push=False,
-            )
-
-        data = load_meta(tmp_path)
-        assert data is not None
-        assert len(data["merge_history"]) == HISTORY_CAP
-        # Most recent entry is the last one we added
-        assert data["merge_history"][-1]["merged_by"] == "agent24"
-        # Oldest surviving is agent5 (agents 0-4 dropped)
-        assert data["merge_history"][0]["merged_by"] == "agent5"
-
-    def test_record_merge_standard_format(self, tmp_path: Path) -> None:
-        """record_merge() writes meta.json with standard formatting."""
-        _write_meta_file(tmp_path, _minimal_meta())
-
-        record_merge(
-            tmp_path,
-            merged_by="claude",
-            merged_into="main",
-            strategy="squash",
-            push=True,
-        )
-
-        content = (tmp_path / "meta.json").read_text(encoding="utf-8")
-        assert content.endswith("\n")
-        data = json.loads(content)
-        keys = list(data.keys())
-        assert keys == sorted(keys)
-        assert data["merged_by"] == "claude"
-        assert data["merged_into"] == "main"
-        assert data["merged_strategy"] == "squash"
-        assert data["merged_push"] is True
-
-
-class TestFinalizeMergeUpdatesHistory:
-    """T018: Verify finalize_merge() sets merged_commit on latest history entry."""
-
-    def test_finalize_merge_updates_latest_history(self, tmp_path: Path) -> None:
-        """finalize_merge() sets merged_commit on latest history entry."""
-        _write_meta_file(tmp_path, _minimal_meta())
-
-        record_merge(
-            tmp_path,
-            merged_by="agent",
-            merged_into="main",
-            strategy="merge",
-            push=False,
-        )
-
-        finalize_merge(tmp_path, merged_commit="abc123def456")
-
-        data = load_meta(tmp_path)
-        assert data is not None
-        assert data["merged_commit"] == "abc123def456"
-        assert data["merge_history"][-1]["merged_commit"] == "abc123def456"
-
-        # Standard format
-        content = (tmp_path / "meta.json").read_text(encoding="utf-8")
-        assert content.endswith("\n")
-        keys = list(json.loads(content).keys())
-        assert keys == sorted(keys)
-
-
 class TestFeatureCreationTrailingNewline:
     """T018: Verify write_meta() on fresh creation includes trailing newline."""
 
@@ -852,9 +667,9 @@ class TestFeatureCreationTrailingNewline:
 # surface (WP03/FR-004). It exercised the standalone tasks CLI's
 # ``_prepare_merge_metadata`` / ``_finalize_merge_metadata`` helpers, which have
 # zero production callers — the canonical merge path writes status events, never
-# ``meta.json`` merge_history. The canonical merge-metadata behavior is covered by
-# ``TestRecordMerge`` / ``TestFinalizeMerge`` (via ``specify_cli.mission_metadata``)
-# below.
+# ``meta.json`` merge_history. The ``record_merge`` / ``finalize_merge`` writers of
+# that legacy ``merge_history`` surface were themselves production-dead after #2167
+# and were pruned in #2258, along with the tests that exercised only them.
 
 
 # ===================================================================

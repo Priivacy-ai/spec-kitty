@@ -509,66 +509,6 @@ def record_acceptance(
     return meta
 
 
-def record_merge(
-    feature_dir: Path,
-    *,
-    merged_by: str,
-    merged_into: str,
-    strategy: str,
-    push: bool,
-) -> dict[str, Any]:
-    """Record merge metadata.  Appends to bounded history."""
-    meta = load_meta(feature_dir)
-    if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
-
-    now = _now_iso()
-    meta["merged_at"] = now
-    meta["merged_by"] = merged_by
-    meta["merged_into"] = merged_into
-    meta["merged_strategy"] = strategy
-    meta["merged_push"] = push
-    # Clear merged_commit since this is a new merge (not yet finalized)
-    meta.pop("merged_commit", None)
-
-    entry: dict[str, Any] = {
-        "merged_at": now,
-        "merged_by": merged_by,
-        "merged_into": merged_into,
-        "merged_strategy": strategy,
-        "merged_push": push,
-        "merged_commit": None,
-    }
-    history: list[dict[str, Any]] = meta.get("merge_history", [])
-    history.append(entry)
-    if len(history) > HISTORY_CAP:
-        history = history[-HISTORY_CAP:]
-    meta["merge_history"] = history
-
-    write_meta(feature_dir, meta)
-    return meta
-
-
-def finalize_merge(
-    feature_dir: Path,
-    *,
-    merged_commit: str,
-) -> dict[str, Any]:
-    """Set final merge commit hash.  Updates both top-level and latest history entry."""
-    meta = load_meta(feature_dir)
-    if meta is None:
-        raise FileNotFoundError(f"No meta.json in {feature_dir}")
-
-    meta["merged_commit"] = merged_commit
-    history: list[dict[str, Any]] = meta.get("merge_history", [])
-    if history:
-        history[-1]["merged_commit"] = merged_commit
-    meta["merge_history"] = history
-
-    write_meta(feature_dir, meta)
-    return meta
-
-
 def set_vcs_lock(
     feature_dir: Path,
     *,
