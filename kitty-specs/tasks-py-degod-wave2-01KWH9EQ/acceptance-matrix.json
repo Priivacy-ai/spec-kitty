@@ -1,0 +1,128 @@
+{
+  "mission_slug": "tasks-py-degod-wave2-01KWH9EQ",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pending",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "All five command families (orchestrator + glue + State + port factory each) relocated verbatim to per-family sibling modules; tasks.py wrappers are thin delegates.",
+      "proof_type": "automated_test",
+      "evidence": "43/43 contract-harness cases + 13/13 byte-freeze cases green unmodified on the final tree; grep census: zero _do_*/_mt_*/_mr_*/_st_*/_ms_*/_ft_* defs remain in tasks.py; new modules tasks_move_task.py / tasks_map_requirements.py / tasks_status_cmd.py / tasks_mark_status.py / tasks_finalize.py exist (WP05-WP08 diffs).",
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Verbatim-move discipline reviewed per WP; any parity delta was revert-and-redo."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Patch interception preserved across every relocation via the lazy _tasks.<attr> seam bridge; per-WP seam checklists complete.",
+      "proof_type": "automated_test",
+      "evidence": "test_tasks_shared_seam.py interception + is-identity tests green; committed seam-checklist.md covers every D7 symbol each WP moved/called; full tasks-domain suite (~370 patch sites) green.",
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Interception evidence, not mere test-pass, per parity-contract Layer 4."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "The ~28 cross-family shared helpers live in tasks_shared.py; none duplicated per family; none left in tasks.py outside the registration surface.",
+      "proof_type": "automated_test",
+      "evidence": "WP02 diff + T007 enumerated move-set in seam-checklist.md; final tasks.py def census (WP09 T039 taxonomy) shows only wrappers/small-bodies/seam surface.",
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Expected count ~28 (two symbols were already extracted to tasks_parsing_validation.py in Wave 1)."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Coord-router adapter classes live in tasks_command_adapters.py with no import cycle.",
+      "proof_type": "automated_test",
+      "evidence": "WP03 diff; import-in-isolation proof; coord harness (16 cases) green.",
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Byte-freeze suite committed BEFORE routing; all 12 compact sites routed through Render.json_envelope with byte-identical output.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/agent/test_tasks_json_bytes.py (13 cases) green with fixtures unmodified since WP01; git history shows the suite landed before WP04's routing commits.",
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Render seam indent parameterized on RealRender (constructor); _StatusRender deleted; status leg byte-identical.",
+      "proof_type": "automated_test",
+      "evidence": "grep -rn _StatusRender src/ tests/ returns empty; status indent=2 byte case green; test_tasks_ports.py RealRender indent cases green.",
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "One production Render adapter (C-004)."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "AST gate asserts 0 inline json.dumps (all evasion forms) across the command-surface directory glob, non-vacuously.",
+      "proof_type": "automated_test",
+      "evidence": "test_tasks_command_surface.py AST gate green on the final tree + one theater test per evasion form (attr call / from-import / module alias / rebinding) demonstrably red on synthetic offenders.",
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "tasks.py reduced to registration shim; tasks_ports.py 7-line shim disposition decided and executed with recorded rationale.",
+      "proof_type": "manual_review",
+      "evidence": "WP09 T039 def-census taxonomy + T041 importer-grep evidence + disposition rationale in tracers/design-decisions.md.",
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Tasks-domain test surface fully gate-visible with non-gameable evidence (committed census; no baseline absorption).",
+      "proof_type": "automated_test",
+      "evidence": "marker-census.md artifact (zero unselected files over the committed glob) + test_tasks_domain_gate_visibility.py baseline-growth assertion green with theater test.",
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "#2034 refreshed upstream with the re-census and structural options.",
+      "proof_type": "manual_review",
+      "evidence": "Spec-time refresh comment (posted 2026-07-02) + the WP10 final-census draft posted at mission review; #2283 named as structural parent.",
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Repo-wide fix stays out of scope."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Whole-file LOC gate enforces ceiling min(achieved, 1400) with non-vacuity proof and delta-from-4569 rationale; >1400 escalated, never self-certified.",
+      "proof_type": "automated_test",
+      "evidence": "test_tasks_command_surface.py: _CEILING assert green + the standing cap assertion (_CEILING <= 1400, landed at WP09) + self-mutation test + the ceiling comment block with ratchet history.",
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Branch-coverage ratchet re-pointed (never deleted/lowered) to each relocated orchestrator, non-vacuously (total>0 asserted; demonstrated red fire).",
+      "proof_type": "automated_test",
+      "evidence": "Coord-harness ratchet block diff (floors unchanged; {function: module} plumbing); the total>0 non-vacuity assertion; recorded RED-fire demonstration per re-point WP (WP05/WP06/WP07 activity logs).",
+      "pass_fail": "pending",
+      "verified_by": null,
+      "verified_at": null,
+      "notes": "Vacuous-100 fallback (total==0 -> 100.0) eliminated as part of WP05 plumbing."
+    }
+  ]
+}
