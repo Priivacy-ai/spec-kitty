@@ -132,7 +132,12 @@ def _capabilities_at_call_sites(path: Path, callee: str) -> list[GuardCapability
         # — one defaulting to STANDARD, one passing ``GuardCapability.STANDARD``
         # explicitly — exactly mirroring the upstream pre-decomposition shape.
         ("cli/commands/agent/mission_finalize.py", "_bootstrap_canonical_state_via_mission", 2),
-        ("cli/commands/agent/tasks.py", "bootstrap_canonical_state", 1),
+        # Wave 2 degod (#2305) relocated the finalize-tasks family out of the
+        # tasks.py shim; its canonical-seeding call site now lives in
+        # tasks_finalize.py (routed ``_tasks.bootstrap_canonical_state(...)`` —
+        # the AST counter matches attribute calls, so the capability parity
+        # still drives the real site).
+        ("cli/commands/agent/tasks_finalize.py", "bootstrap_canonical_state", 1),
     ],
 )
 def test_status_bookkeeping_call_sites_are_refused_on_protected_destination(
