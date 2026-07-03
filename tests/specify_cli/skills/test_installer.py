@@ -20,6 +20,10 @@ from specify_cli.skills.retired import RETIRED_CANONICAL_SKILL_NAMES
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
+RETIRED_UPSUN_SKILL = "spk-team-upsun-cli-sync"
+
+
 def _make_skill(
     root: Path,
     name: str,
@@ -253,6 +257,45 @@ class TestInstallSharedRootAgent:
                 assert not (root / retired_name).exists()
             assert (root / "custom-skill" / "SKILL.md").is_file()
             assert (root / "my-skill" / "SKILL.md").is_file()
+
+    def test_install_removes_stale_upsun_kittyfooding_skill(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """PR #2312: an existing pack still carrying spk-team-upsun-cli-sync is cleaned on install.
+
+        Regression guard for the retired internal kittyfooding skill relocated to
+        spec-kitty-saas#370. A consumer upgraded from a version that shipped the
+        skill would otherwise keep a stale customer-visible copy after upgrade.
+        """
+        monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path / "home"))
+        skills_root = tmp_path / "skills_src"
+        project = tmp_path / "project"
+        project.mkdir()
+
+        upsun_body = (
+            "---\n"
+            f"name: {RETIRED_UPSUN_SKILL}\n"
+            "description: Point a local Spec Kitty CLI at Spec Kitty SaaS on Upsun.\n"
+            "---\n"
+            "# Upsun CLI sync\n\nInternal kittyfooding helper.\n"
+        )
+        for root in [
+            tmp_path / "home" / ".claude" / "skills",
+            project / ".claude" / "skills",
+        ]:
+            stale = root / RETIRED_UPSUN_SKILL
+            (stale / "scripts").mkdir(parents=True, exist_ok=True)
+            (stale / "SKILL.md").write_text(upsun_body, encoding="utf-8")
+            (stale / "scripts" / "use-upsun-env.sh").write_text("#!/usr/bin/env bash\n", encoding="utf-8")
+
+        # The currently-shipped pack no longer contains the upsun skill.
+        shipped = _make_skill(skills_root, "spk-team-sync")
+        install_skills_for_agent(project, "claude", [shipped])
+
+        for root in [
+            tmp_path / "home" / ".claude" / "skills",
+            project / ".claude" / "skills",
+        ]:
+            assert not (root / RETIRED_UPSUN_SKILL).exists()
+            assert (root / "spk-team-sync" / "SKILL.md").is_file()
 
 
 class TestInstallWrapperOnlyAgentSkipped:
