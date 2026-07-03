@@ -387,13 +387,15 @@ def test_default_ports_constructs_through_tasks_bindings() -> None:
     ``tasks`` bindings, so ``@patch("...tasks.<Adapter>")`` intercepts
     construction (the WP03 checklist invariant, preserved across the move)."""
     with (
-        patch(f"{_TASKS}._MoveTaskCoordRouter") as router_cls,
+        patch(f"{_TASKS}.seam_coord_router") as router_factory,
         patch(f"{_TASKS}.RealFsReader") as fs_cls,
         patch(f"{_TASKS}.RealGitOps") as git_cls,
         patch(f"{_TASKS}.RealRender") as render_cls,
     ):
         ports = tasks._default_move_task_ports()
-    assert ports.coord is router_cls.return_value
+    # move_task routes BOTH seams through ``tasks`` (route_emit=True), no target_branch.
+    router_factory.assert_called_once_with(route_emit=True)
+    assert ports.coord is router_factory.return_value
     assert ports.fs is fs_cls.return_value
     assert ports.git is git_cls.return_value
     assert ports.render is render_cls.return_value

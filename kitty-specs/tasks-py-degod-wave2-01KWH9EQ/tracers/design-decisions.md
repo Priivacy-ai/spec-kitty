@@ -81,3 +81,36 @@ _(none yet)_
     write-indicator from list_tasks/validate_workflow, re-classifying their
     kind-blind probes as reads) — allowlist drained, baseline+floor lowered
     shrink-only with the margin gate satisfied.
+
+
+## degod-follow-ups close-out (PR #2308, 2026-07-03)
+
+16. **Coord-router constructor-DI collapse (pre-merge squad MEDIUM, architect
+    lens)** — the three near-triplicated `RealCoordCommitRouter` subclasses in
+    `tasks_command_adapters.py` (`_MoveTaskCoordRouter`, `_MapReqCoordRouter`,
+    `_MarkStatusCoordRouter`) existed ONLY to (a) re-resolve `commit_for_mission`
+    / `emit_status_transition_transactional` through the `tasks` namespace so the
+    legacy `@patch("...agent.tasks.<sym>")` seams intercept, and (b) thread
+    `target_branch` (MapReq only) — bending the one-adapter-per-port rule (C-004)
+    the module documents. **Fix (squad's recommendation):** collapse into the
+    base `RealCoordCommitRouter` via **constructor DI**. The base gained
+    `commit_fn` / `emit_fn` seam-callable params (default to the module-bound
+    `agent_tasks_ports` seams → base production behaviour byte-identical) and a
+    `thread_target_branch: bool` flag SEPARATE from the `target_branch` value
+    (deriving the flag from `target_branch is not None` would collapse the two
+    byte-distinct call shapes — MapReq always passed the kwarg, MoveTask/MarkStatus
+    never did). A single `tasks_command_adapters.seam_coord_router(*,
+    thread_target_branch, target_branch, route_emit)` factory injects two
+    module-level wrappers (`_seam_commit_for_mission` /
+    `_seam_emit_status_transition_transactional`) that do the lazy
+    `from ...agent import tasks as _tasks` import at CALL time — so a `@patch`
+    applied AFTER construction still intercepts (late binding preserved by
+    call-time resolution, exactly as the deleted subclass bodies did). C-001
+    divergence preserved exactly: move_task = `route_emit=True` (both seams
+    routed), map_requirements = `thread_target_branch=True` (commit-seam routed +
+    ff-advance), mark_status = plain (commit-seam routed, target-branch-less).
+    tasks.py's three-symbol re-export block collapsed to one `seam_coord_router`
+    re-export → 1206 → 1205 lines; `_CEILING` ratcheted 1206 → 1205 in the same
+    change. **Next-degod guidance now IMPLEMENTED here:** future port families that
+    only differ in seam-namespace routing or a single threaded arg should reach
+    for constructor DI + a shared seam factory, never a per-family subclass.

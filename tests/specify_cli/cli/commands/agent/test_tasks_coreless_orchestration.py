@@ -16,10 +16,11 @@ T033/T034/T035 — inject the WP02 **Fake** ports (``ports=`` on the extracted
         * an auto-commit run routes the tasks.md commit through the coord
           ``commit_artifact`` capability keyed ``TASKS_INDEX``, while a
           ``--no-auto-commit`` run leaves that seam untouched;
-        * the production ``_MarkStatusCoordRouter`` re-resolves
-          ``commit_for_mission`` through THIS module (so the ``@patch`` seam keeps
-          intercepting) and — unlike ``move_task``/``map_requirements`` — does NOT
-          thread a ``target_branch`` (byte-parity with the pre-rewire inline call);
+        * the production mark_status coord router (``seam_coord_router()``)
+          re-resolves ``commit_for_mission`` through THIS module (so the ``@patch``
+          seam keeps intercepting) and — unlike ``move_task``/``map_requirements``
+          — does NOT thread a ``target_branch`` (byte-parity with the pre-rewire
+          inline call);
         * the refuse-exit-1-on-protected divergence (T005 / deferred #2300) holds.
 
     ``finalize_tasks``
@@ -53,9 +54,9 @@ from mission_runtime import MissionArtifactKind
 
 import specify_cli.cli.commands.agent.tasks as tasks_mod
 from specify_cli.cli.commands.agent.tasks import (
-    _MarkStatusCoordRouter,
     _do_finalize_tasks,
     _do_mark_status,
+    seam_coord_router,
 )
 from specify_cli.agent_tasks_ports import MissionHandle, TasksPorts
 from specify_cli.git.protection_policy import ProtectionPolicy
@@ -201,10 +202,13 @@ def test_mark_status_auto_commit_routes_via_commit_artifact_tasks_index(
 
 
 def test_mark_status_coord_router_binds_module_commit_without_target_branch() -> None:
-    """T033: the production ``_MarkStatusCoordRouter`` re-resolves ``commit_for_mission``
+    """T033: the production mark_status coord router re-resolves ``commit_for_mission``
     through THIS module (so the ``@patch`` seam intercepts) and does NOT thread a
-    ``target_branch`` — byte-parity with the pre-rewire inline mark_status call."""
-    router = _MarkStatusCoordRouter()
+    ``target_branch`` — byte-parity with the pre-rewire inline mark_status call.
+
+    (constructor-DI collapse: built via ``seam_coord_router()`` rather than the
+    deleted ``_MarkStatusCoordRouter`` subclass.)"""
+    router = seam_coord_router()
     handle = MissionHandle(repo_root=Path("/repo"), mission_slug=_MISSION)
 
     with patch("specify_cli.cli.commands.agent.tasks.commit_for_mission") as mock_commit:

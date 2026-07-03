@@ -460,17 +460,18 @@ def test_default_ports_constructs_through_tasks_bindings() -> None:
     """The moved ``_default_mark_status_ports`` constructs its adapters via
     the ``tasks`` bindings, so ``@patch("...tasks.<Adapter>")`` intercepts
     construction (the WP03 checklist invariant, preserved across the move) —
-    incl. the ``_MarkStatusCoordRouter`` whose ``commit_status`` routes the
-    transactional emitter through ``_tasks.<attr>``."""
+    the coord router built by ``seam_coord_router()`` routes ``commit_for_mission``
+    through ``_tasks.<attr>`` and commits target-branch-less."""
     with (
-        patch(f"{_TASKS}._MarkStatusCoordRouter") as router_cls,
+        patch(f"{_TASKS}.seam_coord_router") as router_factory,
         patch(f"{_TASKS}.RealFsReader") as fs_cls,
         patch(f"{_TASKS}.RealGitOps") as git_cls,
         patch(f"{_TASKS}.RealRender") as render_cls,
     ):
         ports = tasks._default_mark_status_ports()
-    router_cls.assert_called_once_with()
-    assert ports.coord is router_cls.return_value
+    # mark_status: commit-seam-only routing, no target_branch, base emitter binding.
+    router_factory.assert_called_once_with()
+    assert ports.coord is router_factory.return_value
     assert ports.fs is fs_cls.return_value
     assert ports.git is git_cls.return_value
     assert ports.render is render_cls.return_value

@@ -65,7 +65,12 @@ def _default_map_requirements_ports(target_branch: str | None) -> TasksPorts:
     from specify_cli.cli.commands.agent import tasks as _tasks
     return TasksPorts(
         fs=_tasks.RealFsReader(),
-        coord=_tasks._MapReqCoordRouter(target_branch),
+        # map_requirements threads the resolved ``target_branch`` into
+        # ``commit_for_mission`` (ff-advance parity) and routes only the commit
+        # seam through ``tasks`` (it inherited the base ``commit_status``).
+        coord=_tasks.seam_coord_router(
+            thread_target_branch=True, target_branch=target_branch
+        ),
         git=_tasks.RealGitOps(),
         render=_tasks.RealRender(),
     )

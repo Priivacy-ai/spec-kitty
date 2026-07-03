@@ -14,7 +14,8 @@ side-effects match the pre-rewire behaviour:
     * an auto-commit run routes the WP-file commit through the coord
       ``commit_artifact`` capability keyed ``WORK_PACKAGE_TASK`` with the WP file in
       the bundle, while a ``--no-auto-commit`` run leaves that seam untouched;
-    * the production ``_MapReqCoordRouter`` threads the resolved ``target_branch``
+    * the production map_requirements coord router (``seam_coord_router(
+      thread_target_branch=True, ...)``) threads the resolved ``target_branch``
       into ``commit_for_mission`` so the post-commit ff-advance still fires.
 
 ``status``
@@ -38,9 +39,9 @@ import pytest
 from mission_runtime import MissionArtifactKind
 
 from specify_cli.cli.commands.agent.tasks import (
-    _MapReqCoordRouter,
     _do_map_requirements,
     _do_status,
+    seam_coord_router,
 )
 from specify_cli.agent_tasks_ports import MissionHandle, TasksPorts
 from specify_cli.git.protection_policy import ProtectionPolicy
@@ -183,10 +184,13 @@ def test_map_requirements_auto_commit_routes_via_commit_artifact(
 
 
 def test_map_req_coord_router_threads_target_branch() -> None:
-    """T030: the production ``_MapReqCoordRouter`` threads the resolved
+    """T030: the production map_requirements coord router threads the resolved
     ``target_branch`` into ``commit_for_mission`` (the ff-advance parity), and
-    re-resolves the symbol through THIS module so the ``@patch`` seam intercepts."""
-    router = _MapReqCoordRouter("wip-lane")
+    re-resolves the symbol through THIS module so the ``@patch`` seam intercepts.
+
+    (constructor-DI collapse: built via ``seam_coord_router(thread_target_branch=
+    True, target_branch=...)`` rather than the deleted ``_MapReqCoordRouter``.)"""
+    router = seam_coord_router(thread_target_branch=True, target_branch="wip-lane")
     handle = MissionHandle(repo_root=Path("/repo"), mission_slug=_MISSION)
 
     with patch(
