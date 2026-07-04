@@ -30,6 +30,10 @@ from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
 _DERIVED_VIEWS_ENTRY = ".kittify/derived/"
+# A hand-added entry without the trailing slash ignores the same directory, so
+# treat either form as already-present — the backfill stays idempotent and never
+# appends a duplicate ``.kittify/derived/`` beside a user's ``.kittify/derived``.
+_DERIVED_VIEWS_EQUIVALENT_ENTRIES = frozenset({".kittify/derived/", ".kittify/derived"})
 
 
 def _read_gitignore_entries(project_path: Path) -> set[str]:
@@ -52,7 +56,9 @@ class DerivedViewsGitignoreBackfillMigration(BaseMigration):  # type: ignore[mis
     target_version = "3.2.4"
 
     def detect(self, project_path: Path) -> bool:
-        return _DERIVED_VIEWS_ENTRY not in _read_gitignore_entries(project_path)
+        return _DERIVED_VIEWS_EQUIVALENT_ENTRIES.isdisjoint(
+            _read_gitignore_entries(project_path)
+        )
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         if not project_path.exists():
@@ -60,7 +66,9 @@ class DerivedViewsGitignoreBackfillMigration(BaseMigration):  # type: ignore[mis
         return True, ""
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
-        already_present = _DERIVED_VIEWS_ENTRY in _read_gitignore_entries(project_path)
+        already_present = not _DERIVED_VIEWS_EQUIVALENT_ENTRIES.isdisjoint(
+            _read_gitignore_entries(project_path)
+        )
 
         if dry_run:
             changes = (
@@ -69,6 +77,13 @@ class DerivedViewsGitignoreBackfillMigration(BaseMigration):  # type: ignore[mis
                 else [f"Would add {_DERIVED_VIEWS_ENTRY} to .gitignore"]
             )
             return MigrationResult(success=True, changes_made=changes)
+
+        if already_present:
+            # A ``.kittify/derived`` (no trailing slash) variant already ignores
+            # the dir — don't append a duplicate ``.kittify/derived/`` beside it.
+            return MigrationResult(
+                success=True, changes_made=["gitignore entry already present"]
+            )
 
         modified = GitignoreManager(project_path).ensure_entries([_DERIVED_VIEWS_ENTRY])
         changes = (

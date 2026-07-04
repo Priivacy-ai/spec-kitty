@@ -90,6 +90,23 @@ def test_detect_false_when_derived_entry_present(tmp_path: Path) -> None:
     assert DerivedViewsGitignoreBackfillMigration().detect(tmp_path) is False
 
 
+def test_detect_false_for_no_trailing_slash_variant(tmp_path: Path) -> None:
+    # A hand-added ``.kittify/derived`` (no trailing slash) ignores the same
+    # dir; the backfill must treat it as present so it never adds a duplicate.
+    _init_git_repo(tmp_path)
+    _write_gitignore(tmp_path, ".kittify/derived")
+
+    migration = DerivedViewsGitignoreBackfillMigration()
+    assert migration.detect(tmp_path) is False
+    migration.apply(tmp_path)
+    entries = [
+        line.strip()
+        for line in tmp_path.joinpath(".gitignore").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert ".kittify/derived/" not in entries  # no duplicate beside the variant
+
+
 def test_detect_ignores_commented_out_derived_entry(tmp_path: Path) -> None:
     _init_git_repo(tmp_path)
     _write_gitignore(tmp_path, f"# {_DERIVED_VIEWS_ENTRY}")
