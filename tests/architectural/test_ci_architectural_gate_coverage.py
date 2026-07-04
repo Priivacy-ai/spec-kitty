@@ -1,5 +1,8 @@
-"""Architectural gate: guarded write-side surfaces must trigger the full
-tests/architectural/** shard (integration-tests-core-misc/architectural).
+"""Guarded write-side surfaces must trigger the full architectural shard.
+
+Architectural gate keyed on ``core_misc``: a change to any guarded write-side
+surface must set ``core_misc=true`` so the full tests/architectural/** shard
+(integration-tests-core-misc/architectural) runs.
 
 FR-007 / NFR-004 — the meta-invariant: the CI fix (T020, widened core_misc
 filter) must itself be drift-proof so a future filter regression is caught.
@@ -112,10 +115,9 @@ def test_guarded_surfaces_in_core_misc_filter() -> None:
     """
     data = _load_workflow()
     globs = _core_misc_globs(data)
-    missing: list[str] = []
-    for surface in _GUARDED_SURFACES:
-        if not _glob_covers(surface, globs):
-            missing.append(surface)
+    missing: list[str] = [
+        surface for surface in _GUARDED_SURFACES if not _glob_covers(surface, globs)
+    ]
 
     assert not missing, (
         "The following guarded surfaces are NOT covered by a core_misc glob — "
@@ -159,7 +161,9 @@ def test_core_misc_filter_not_over_broad() -> None:
 
 
 def test_status_change_sets_core_misc_bypasses_short_circuit() -> None:
-    """A status/** change sets core_misc=true → the short-circuit at :1357 does
+    """A status/** change bypasses the short-circuit so the full shard runs.
+
+    A status/** change sets core_misc=true → the short-circuit at :1357 does
     NOT fire, so the full tests/architectural/** shard runs.
 
     The short-circuit condition is:
