@@ -432,12 +432,14 @@ def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
         return
 
     try:
+        from mission_runtime import CommitTarget
+
         from specify_cli.git import safe_commit
 
         safe_commit(
             repo_root=st.main_repo_root,
             worktree_root=worktree_path,
-            destination_ref=workspace.branch_name,
+            target=CommitTarget(ref=workspace.branch_name),
             message=f"chore({st.task_id}): commit lane deliverables for review",
             paths=paths,
         )
