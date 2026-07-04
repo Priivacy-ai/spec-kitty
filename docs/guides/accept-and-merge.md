@@ -2,7 +2,7 @@
 title: How to Accept and Merge a Mission
 description: "How to accept and merge a mission with Spec Kitty 3.2: Use this guide to validate mission readiness and merge to the mission's target branch."
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-07-04'
 related:
 - docs/guides/install-and-upgrade.md
 - docs/guides/keep-main-clean.md
@@ -50,6 +50,38 @@ To run a read-only checklist (in your terminal):
 ```bash
 spec-kitty accept --mode checklist
 ```
+
+### Negative Invariants That Assert the Merged Post-State
+
+The accept gate **re-runs each acceptance negative-invariant `verification_command`
+live** against the working tree at accept time — it does not trust a stored
+`result` or a hand-set `overall_verdict`. Two consequences follow:
+
+- **Hand-editing a verdict does not stick.** Setting `overall_verdict` (or a
+  negative invariant's `result`) by hand in `acceptance-matrix.json` is
+  overwritten the moment accept runs; the invariant's `verification_command` is
+  the single source of truth, and it must actually pass in the checkout accept
+  runs from.
+- **Merged-post-state invariants must be verified after merge.** If an invariant
+  asserts a state that only exists **once the mission is merged** — for example,
+  "`shell: bash` is present in `ci-quality.yml`" when that line is added by the
+  merge — it cannot pass while the mission still lives on its lane branch. For
+  such missions, run `spec-kitty merge` (into **local** `main`) **before**
+  `spec-kitty accept`, so the working tree accept inspects already carries the
+  merged post-state:
+
+  ```bash
+  spec-kitty merge          # land into LOCAL main first
+  spec-kitty accept         # now the post-state invariants can verify live
+  ```
+
+  This inverts the usual accept-then-merge order and is only needed for missions
+  whose negative invariants assert the post-merge result. Missions whose
+  invariants describe the lane's own diff verify fine in the normal order.
+
+  If you prefer not to re-order, scope the invariant to a path that exists on the
+  lane branch (see `NegativeInvariant.scope`) or express it as a `custom_command`
+  that is meaningful pre-merge.
 
 ## Merge to the Target Branch
 
