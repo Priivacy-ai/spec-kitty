@@ -276,7 +276,12 @@ def test_tighten_workflow_passes_large_pr_sample() -> None:
         "src/specify_cli/dashboard/handlers/*",
         "src/specify_cli/dashboard/scanner.py",
         "src/specify_cli/merge/*",
-        "src/specify_cli/next/*",
+        # 'src/specify_cli/next/*' removed (mission ci-suite-map-bind
+        # FR-004e): the package was deleted by unshim wave 2, leaving a
+        # vacuous critical-path entry with zero --cov emitters; the live
+        # successors below stay pinned.
+        "src/runtime/next/*",
+        "src/mission_runtime/*",
     ]
     for module in critical_path_modules:
         assert module in enforced_run, f"Critical-path module '{module}' is missing from the --include list in the enforced diff-coverage step."

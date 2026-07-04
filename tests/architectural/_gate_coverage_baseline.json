@@ -1,12 +1,7 @@
 {
   "_comment": "Gate-coverage ratchet baseline (Issue #2034 / #1933). Frozen set of test FILES that contain >=1 test selected by zero CI gates \u2014 the visible #1931 worklist. The ratchet (test_gate_coverage.py) fails on any NEW orphan file not listed here. Regenerate with: uv run python -m tests.architectural._gate_coverage --update-baseline",
-  "total_tests": 28121,
-  "orphan_test_count": 17,
-  "duplicate_test_count": 2944,
-  "orphan_files": [
-    "tests/_support/git_template/test_git_template.py",
-    "tests/coordination/test_surface_resolver_collapse.py",
-    "tests/coordination/test_surface_resolver_coord_empty_warning.py",
-    "tests/paths/test_windows_migrate.py"
-  ]
+  "total_tests": 28573,
+  "orphan_test_count": 0,
+  "duplicate_test_count": 3550,
+  "orphan_files": []
 }
