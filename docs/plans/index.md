@@ -2,7 +2,10 @@
 title: Plans
 description: 'Plans landing page: the distil-then-retire working surface for investigations, research, initiatives, user journeys, and design notes (Mission B, FR-009).'
 doc_status: draft
-updated: '2026-06-27'
+updated: '2026-07-04'
+related:
+- docs/plans/3-2-x-milestone-roadmap.md
+- docs/release-goals/index.md
 ---
 # Plans
 
@@ -19,3 +22,10 @@ home for the `architecture/`-rooted plans content:
 - **`notes/`** — legacy (1.x) design notes.
 - Loose investigation/trace docs (e.g. the Windows-compatibility mission review
   and the test-suite-acceleration plan).
+
+## Current milestone roadmap
+
+The [3.2.x milestone roadmap](3-2-x-milestone-roadmap.md) is the operator-facing
+execution roadmap for the current milestone. The durable declarations of intent
+it executes live in [release goals](../release-goals/index.md); as a plans/
+document, the roadmap itself follows the distil-then-retire lifecycle.

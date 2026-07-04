@@ -2,10 +2,11 @@
 title: Release goals
 description: Internal release-goal declarations for Spec Kitty milestones, tracking the focus and intended scope of the 3.2.x and 3.3.x release lines.
 doc_status: active
-updated: '2026-06-27'
+updated: '2026-07-04'
 related:
 - docs/development/index.md
 - docs/index.md
+- docs/plans/3-2-x-milestone-roadmap.md
 - docs/release-goals/3.2.x.md
 - docs/release-goals/3.3.x.md
 - docs/release-goals/README.md
@@ -23,5 +24,8 @@ These are planning artifacts for maintainers, not user-facing release notes.
 
 ## See also
 
+- [3.2.x milestone roadmap](../plans/3-2-x-milestone-roadmap.md) — operator-facing
+  execution roadmap for the 3.2.x goals (a plans/ working document under the
+  distil-then-retire lifecycle).
 - [Documentation home](../index.md)
 - [Development notes](../development/index.md)
