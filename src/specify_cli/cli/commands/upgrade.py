@@ -60,6 +60,7 @@ from specify_cli.cli.commands._teamspace_mission_state_gate import (
     offer_teamspace_mission_state_migration,
 )
 from specify_cli.core.commit_guard import GuardCapability
+from specify_cli.core.constants import WORKTREES_DIR
 from specify_cli.core.env import is_truthy
 from specify_cli.core.version_compare import is_version_newer
 from specify_cli.git.commit_helpers import safe_commit
@@ -232,6 +233,52 @@ def _auto_commit_upgrade_changes(
         )
 
     return True, committed_paths, None
+
+
+def _capture_worktree_baselines(project_path: Path) -> dict[Path, set[str] | None]:
+    """Capture a git-status baseline for each worktree under ``.worktrees/``.
+
+    Returned before any upgrade work runs so the per-worktree auto-commit can
+    stage only the migration changes the upgrade *introduces*, leaving any
+    pre-existing uncommitted work in a worktree untouched (#2385).
+    """
+    worktrees_dir = project_path / WORKTREES_DIR
+    baselines: dict[Path, set[str] | None] = {}
+    if not worktrees_dir.exists():
+        return baselines
+    for worktree in sorted(worktrees_dir.iterdir(), key=lambda p: p.name):
+        if worktree.is_dir() and not worktree.is_symlink():
+            baselines[worktree] = _git_status_paths(worktree)
+    return baselines
+
+
+def _auto_commit_worktree_upgrade_changes(
+    worktree_baselines: dict[Path, set[str] | None],
+    from_version: str,
+    to_version: str,
+) -> list[str]:
+    """Auto-commit upgrade churn in each worktree, mirroring the main checkout.
+
+    ``spec-kitty upgrade`` applies migrations across sibling worktrees but
+    historically committed only the main checkout, leaving worktrees dirty and
+    blocking a later ``spec-kitty merge`` (#1826/NFR-002 refuses to advance a
+    branch whose worktree has uncommitted changes) — see #2385. Commit each
+    worktree's *new* upgrade changes on its own branch; the per-worktree
+    baseline protects any pre-existing uncommitted work.
+    """
+    warnings: list[str] = []
+    for worktree, baseline in worktree_baselines.items():
+        if not worktree.exists():
+            continue
+        _committed, _paths, warning = _auto_commit_upgrade_changes(
+            project_path=worktree,
+            from_version=from_version,
+            to_version=to_version,
+            baseline_paths=baseline,
+        )
+        if warning:
+            warnings.append(f"Worktree {worktree.name}: {warning}")
+    return warnings
 
 
 # ---------------------------------------------------------------------------
@@ -806,6 +853,10 @@ def upgrade(  # noqa: C901
         show_banner()
 
     baseline_changed_paths = _git_status_paths(project_path)
+    # Per-worktree baselines captured BEFORE any upgrade work, so the upgrade
+    # commits only the migration churn it introduces in each worktree and never
+    # a worktree's pre-existing uncommitted work (#2385).
+    worktree_baselines = {} if no_worktrees else _capture_worktree_baselines(project_path)
 
     # Import upgrade system (lazy to avoid circular imports)
     from specify_cli.upgrade.detector import VersionDetector
@@ -897,6 +948,13 @@ def upgrade(  # noqa: C901
                 from_version=current_version,
                 to_version=target_version,
                 baseline_paths=baseline_changed_paths,
+            )
+            # Commit upgrade churn in each worktree too (#2385) — otherwise a
+            # later `spec-kitty merge` trips the coord/lane worktree-dirty guard.
+            worktree_warnings.extend(
+                _auto_commit_worktree_upgrade_changes(
+                    worktree_baselines, current_version, target_version
+                )
             )
 
         if not json_output:
@@ -1022,6 +1080,13 @@ def upgrade(  # noqa: C901
             )
             if auto_commit_warning:
                 result.warnings.append(auto_commit_warning)
+            # Commit upgrade churn in each worktree too (#2385) so a later
+            # `spec-kitty merge` isn't blocked by dirty coord/lane worktrees.
+            result.warnings.extend(
+                _auto_commit_worktree_upgrade_changes(
+                    worktree_baselines, result.from_version, result.to_version
+                )
+            )
 
     if result.success and not json_output:
         offer_teamspace_mission_state_migration(

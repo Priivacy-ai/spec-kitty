@@ -123,6 +123,17 @@ speed up how fast we catch one.
   `IGNORED` surfaces (fresh `spec-kitty init` gitignores them), and a sibling
   backfill migration (`3.2.4_runtime_dirs_gitignore_backfill`) adds them on
   `spec-kitty upgrade` for already-initialised projects.
+- **`spec-kitty upgrade` no longer leaves sibling worktrees dirty, which was
+  blocking coord-topology `spec-kitty merge` (#2385).** Upgrade applies migrations
+  across worktrees (coord + lane) by default, but its auto-commit ran on the main
+  checkout only — so each worktree was left with uncommitted migration churn
+  (`.gitignore`, `.kittify/metadata.yaml`, encoding-provenance untracking). A later
+  `spec-kitty merge` then tripped the #1826/NFR-002 guard (it refuses to
+  `reset --hard` a coord/lane worktree with uncommitted changes), halting the
+  merge. Upgrade now captures a per-worktree baseline up front and auto-commits
+  each worktree's *new* upgrade churn on its own branch, mirroring the main
+  checkout; the baseline ensures any pre-existing uncommitted work in a worktree
+  is never swept in.
 - **Guard/gate friction hotfixes (#2346 / #2324, #1834).**
   - **Subtask guard no longer misattributes a later WP's checkboxes (#2346, also closes #2324).** `_check_unchecked_subtasks` entered a WP's section on *any* heading that merely mentioned its id, so a dependent heading like `### WP03 — … (depends: WP01, WP02)` re-entered WP01/WP02's section and harvested WP03's unchecked `- [ ] T0xx` rows as the earlier WP's blockers — spuriously blocking that WP's lane transition. A heading now belongs to the WP named by its **first** `WPxx` token, not any mention.
   - **`grep_absence` negative invariants accept an optional path-scope (#1834).** The acceptance gate ran `grep -r <pattern> .` over the whole repo, so a negative-invariant pattern that a mission's own spec/plan/WP prose mentioned false-positived as `still_present`. `NegativeInvariant` now carries an optional `scope` (whitespace-separated repo-relative search roots); when set, the grep runs only under those paths. Default (unscoped) preserves the whole-repo search, and `scope` is omitted from serialization when unset so existing matrices are untouched.
