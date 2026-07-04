@@ -484,13 +484,13 @@ _Mission lifecycle commands for AI agents_
 │ --help          Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ record-analysis      Persist `/spec-kitty.analyze` output as                 │
+│                      `analysis-report.md`.                                   │
 │ branch-context       Return deterministic branch contract for planning-stage │
 │                      prompts.                                                │
 │ create               Create new mission directory structure in the project   │
 │                      root checkout.                                          │
 │ check-prerequisites  Validate mission structure and prerequisites.           │
-│ record-analysis      Persist `/spec-kitty.analyze` output as                 │
-│                      `analysis-report.md`.                                   │
 │ setup-plan           Scaffold implementation plan template in the project    │
 │                      root checkout.                                          │
 │ accept               Perform mission acceptance workflow.                    │
@@ -592,38 +592,68 @@ _Mission lifecycle commands for AI agents_
 │ *    mission_slug      TEXT  Mission slug (e.g., 'user-auth') [required]     │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission-type                               TEXT  Mission type (e.g.,       │
-│                                                    'documentation',          │
-│                                                    'software-dev')           │
-│ --json                                             Output JSON format        │
-│ --target-branch                              TEXT  Target branch (defaults   │
-│                                                    to current branch)        │
-│ --friendly-name                              TEXT  Human-friendly mission    │
-│                                                    title                     │
-│ --purpose-tldr                               TEXT  One-line stakeholder TLDR │
-│                                                    for the mission           │
-│ --purpose-context                            TEXT  Short stakeholder-facing  │
-│                                                    paragraph for the mission │
-│ --pr-bound                  --no-pr-bound          Mark mission as PR-bound  │
-│                                                    (gate fires on            │
-│                                                    merge_target_branch)      │
-│                                                    [default: no-pr-bound]    │
-│ --branch-strategy                            TEXT  Branch-strategy gate      │
-│                                                    control (e.g.,            │
-│                                                    'already-confirmed' to    │
-│                                                    bypass the prompt)        │
-│ --start-branch                               TEXT  Create or switch to this  │
-│                                                    branch before mission     │
-│                                                    files are written         │
-│ --force-recreate-coordi…                           Delete and recreate the   │
-│                                                    per-mission coordination  │
-│                                                    branch if it already      │
-│                                                    exists and has diverged   │
-│                                                    from the target. Operator │
-│                                                    escape hatch; never used  │
-│                                                    by automation.            │
-│ --help                                             Show this message and     │
-│                                                    exit.                     │
+│ --mission-type                         TEXT               Mission type       │
+│                                                           (e.g.,             │
+│                                                           'documentation',   │
+│                                                           'software-dev')    │
+│ --json                                                    Output JSON format │
+│ --target-branch                        TEXT               Target branch      │
+│                                                           (defaults to       │
+│                                                           current branch)    │
+│ --friendly-name                        TEXT               Human-friendly     │
+│                                                           mission title      │
+│ --purpose-tldr                         TEXT               One-line           │
+│                                                           stakeholder TLDR   │
+│                                                           for the mission    │
+│ --purpose-context                      TEXT               Short              │
+│                                                           stakeholder-facing │
+│                                                           paragraph for the  │
+│                                                           mission            │
+│ --pr-bound            --no-pr-bound                       Mark mission as    │
+│                                                           PR-bound (gate     │
+│                                                           fires on           │
+│                                                           merge_target_bran… │
+│                                                           [default:          │
+│                                                           no-pr-bound]       │
+│ --topology                             [single_branch|la  Create-time        │
+│                                        nes|coord|lanes_w  mission shape:     │
+│                                        ith_coord]         single_branch |    │
+│                                                           lanes | coord |    │
+│                                                           lanes_with_coord.  │
+│                                                           Coordination-bear… │
+│                                                           shapes (coord,     │
+│                                                           lanes_with_coord)  │
+│                                                           mint a             │
+│                                                           coordination       │
+│                                                           branch;            │
+│                                                           branch-flat shapes │
+│                                                           (single_branch,    │
+│                                                           lanes) do not.     │
+│                                                           Default: coord.    │
+│                                                           [default: coord]   │
+│ --branch-strategy                      TEXT               Branch-strategy    │
+│                                                           gate control       │
+│                                                           (e.g.,             │
+│                                                           'already-confirme… │
+│                                                           to bypass the      │
+│                                                           prompt)            │
+│ --start-branch                         TEXT               Create or switch   │
+│                                                           to this branch     │
+│                                                           before mission     │
+│                                                           files are written  │
+│ --force-recreate-…                                        Delete and         │
+│                                                           recreate the       │
+│                                                           per-mission        │
+│                                                           coordination       │
+│                                                           branch if it       │
+│                                                           already exists and │
+│                                                           has diverged from  │
+│                                                           the target.        │
+│                                                           Operator escape    │
+│                                                           hatch; never used  │
+│                                                           by automation.     │
+│ --help                                                    Show this message  │
+│                                                           and exit.          │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -646,45 +676,16 @@ _Mission lifecycle commands for AI agents_
 
  Bootstrap Mutation Surface (FR-003 / SC-002)
  =============================================
- The following 8 frontmatter fields may be written or overwritten by this
- command. When ``--validate-only`` is active, ALL writes are skipped — the
+ The 8 frontmatter fields below may be written or overwritten by this command.
+ When ``--validate-only`` is active, ALL writes are skipped — the
  ``frontmatter_changed and not validate_only`` guard ensures zero bytes of
- mutation on disk.
-
- +--------------------------+------------------------------+-------------------
- ----------+
- | Field                    | Source                       | Condition
- |
- +--------------------------+------------------------------+-------------------
- ----------+
- | dependencies             | Parsed from tasks.md         | Written if absent
- or differs|
- | planning_base_branch     | _resolve_planning_branch()   | Written if differs
- |
- | merge_target_branch      | Same as target_branch        | Written if differs
- |
- | branch_strategy          | Computed long-form string    | Written if differs
- |
- | requirement_refs         | WP frontmatter / tasks.md    | Written if absent
- or differs|
- | execution_mode           | infer_ownership()            | Written only if
- absent      |
- | owned_files              | infer_ownership()            | Written only if
- absent      |
- | authoritative_surface    | infer_ownership()            | Written only if
- absent      |
- +--------------------------+------------------------------+-------------------
- ----------+
-
- In validate-only mode, the bootstrap loop still infers all 8 fields in
- memory so that downstream validation (ownership overlap checks, lane
- preview) operates against the post-bootstrap state — not the stale
- on-disk frontmatter.  The in-memory snapshots are stored in
- ``_inmemory_frontmatter`` / ``_inmemory_bodies`` and consumed by the
- manifest-building loop that follows.
+ mutation on disk (INV-6). In validate-only mode the bootstrap loop still
+ infers all 8 fields in memory so downstream validation operates against the
+ post-bootstrap state — not the stale on-disk frontmatter.
 
  See also: ``tasks.py:finalize-tasks()`` which writes ``dependencies`` via
  ``build_document() + write_text()`` — guarded the same way (T002).
+
  Examples:
      spec-kitty agent mission finalize-tasks --mission 020-my-feature --json
      spec-kitty agent mission finalize-tasks --mission 020-my-feature
@@ -810,13 +811,15 @@ _Mission lifecycle commands for AI agents_
    * ``emit_artifact_phase()`` / ``SPECIFY_COMPLETED`` /
      ``PLAN_STARTED`` / ``PLAN_COMPLETED`` — writes to local
      lifecycle JSONL only, no queue DB.
-   * ``safe_commit()`` — local git only, no queue DB.
+   * ``commit_for_mission()`` / underlying safe-commit — local git only, no
+ queue DB.
 
  No direct ``_legacy_queue_db_path()`` call sites exist in the
  setup-plan call graph as of 2026-05-17. The FR-011 refuse-loudly
- guard immediately below this comment is the load-bearing gate that
- ensures we never silently fall back to the legacy queue when SaaS
- sync is enabled but the foreground is unauthenticated.
+ guard (now in :func:`_enforce_saas_sync_auth_refusal`) is the
+ load-bearing gate that ensures we never silently fall back to the
+ legacy queue when SaaS sync is enabled but the foreground is
+ unauthenticated.
 
  ------------------------------------------------------------------
  WP04 (mission ``mvp-cli-sync-boundary-completion-01KRX11M``)
@@ -826,8 +829,9 @@ _Mission lifecycle commands for AI agents_
  when ``SPEC_KITTY_ENABLE_SAAS_SYNC=1``, matching the existing FR-011
  gate), setup-plan invokes
  :func:`specify_cli.sync.preflight.run_preflight` with
- ``require_auth=True`` to enforce FR-002 / FR-009. The boundary
- preflight refuses (``typer.Exit(2)``) on:
+ ``require_auth=True`` to enforce FR-002 / FR-009 (now in
+ :func:`_enforce_saas_sync_boundary_preflight`). The boundary preflight
+ refuses (``typer.Exit(2)``) on:
 
    * any of the six canonical daemon-owner / foreground mismatch
      fields (D-3 canon);

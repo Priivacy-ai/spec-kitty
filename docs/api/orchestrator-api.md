@@ -29,9 +29,18 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.0.0`
+- `CONTRACT_VERSION`: `1.2.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
+
+Version history (the authoritative ledger lives at the `CONTRACT_VERSION`
+constant in `src/specify_cli/orchestrator_api/envelope.py`):
+
+- `1.1.0` — `start-implementation` allocates/reuses the lane worktree; its
+  response carries `lane_id` / `lane_branch` / `lane_base_ref`, and
+  `workspace_path` means that lane worktree. New error code
+  `LANE_ALLOCATION_FAILED`.
+- `1.2.0` — new read-only `resolve-workspace` command (#2337). Purely additive.
 
 ## Response Envelope
 
@@ -93,6 +102,7 @@ Removed at the CLI boundary:
 | `contract-version` | no | Check API compatibility. |
 | `mission-state` | no | Query mission state and WP lanes. |
 | `list-ready` | no | List WPs ready to start. |
+| `resolve-workspace` | no | Resolve a WP's existing lane workspace (contract >= 1.2.0). |
 | `start-implementation` | yes | Atomically move a WP into implementation. |
 | `start-review` | yes | Claim active review for a WP. |
 | `transition` | yes | Emit one explicit lane transition. |
@@ -215,6 +225,23 @@ Important response fields:
 | `prompt_path` | WP markdown prompt file to feed to the implementation agent. |
 | `to_lane` | Expected to be `in_progress` on a fresh start. |
 | `no_op` | `true` when the same actor already owns the compatible state. |
+
+### Resolve an existing workspace (read-only, contract >= 1.2.0)
+
+```bash
+spec-kitty orchestrator-api resolve-workspace \
+  --mission 077-mission-terminology-cleanup \
+  --wp WP12
+```
+
+Returns the WP's lane `workspace_path` / `prompt_path` (plus `lane_id` /
+`lane_branch` / `lane_base_ref` when the WP is lane-assigned) for its
+**existing** lane — without allocating, creating, validating-clean, or
+transitioning. Use it to resume a WP already past `start-implementation`
+(for example, dispatching a reviewer to a WP parked in `for_review` after an
+interrupted run, where calling `start-implementation` would wrongly
+re-transition it). No `--policy` is required: the command mutates nothing.
+The composed path is not guaranteed to exist for a WP that was never started.
 
 ### Mark implementation ready for review
 

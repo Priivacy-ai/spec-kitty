@@ -206,6 +206,26 @@ class TestAllowedCommandNames:
         for cmd_name in allowed_commands:
             assert cmd_name in registered, f"Allowed command '{cmd_name}' is not registered in orchestrator-api app"
 
+    def test_registered_commands_are_contract_allowed(self, orchestrator_api_contract):
+        """Every registered subcommand must be declared in the contract.
+
+        The inverse of test_allowed_commands_are_registered: without it, a new
+        command can register on the surface without ever entering
+        upstream_contract.json (the artifact external consumers validate
+        against) — #2338's resolve-workspace was the first live instance.
+        """
+        import typer.main
+
+        group = typer.main.get_group(app)
+        registered = set(group.commands.keys()) if hasattr(group, "commands") else set()
+
+        allowed_commands = set(orchestrator_api_contract["allowed_commands"])
+        undeclared = registered - allowed_commands
+        assert not undeclared, (
+            f"Registered orchestrator-api command(s) missing from upstream_contract.json "
+            f"allowed_commands: {sorted(undeclared)}"
+        )
+
     def test_forbidden_commands_are_not_registered(self, orchestrator_api_contract):
         """No forbidden command from the contract may be registered."""
         import typer.main

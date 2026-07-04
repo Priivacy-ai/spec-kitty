@@ -6,7 +6,7 @@ Every command returns a canonical JSON envelope:
 
 ```json
 {
-  "contract_version": "1.0.0",
+  "contract_version": "1.2.0",
   "command": "orchestrator-api.<subcommand-name>",
   "timestamp": "2026-03-21T08:00:00Z",
   "correlation_id": "uuid-v4",
@@ -377,6 +377,36 @@ spec-kitty orchestrator-api merge-mission \
 - Mission should be accepted before merging
 - The WP merge order respects the dependency graph
 - Use `--push` only when the orchestrator has confirmed the merge result
+
+---
+
+## 10. resolve-workspace (read-only, contract >= 1.2.0)
+
+Resolve a WP's **existing** lane workspace without allocating, creating,
+validating-clean, or transitioning — the read-only companion of
+`start-implementation` for a WP already past implementation (for example,
+dispatching a reviewer to a WP parked in `for_review` after an interrupted
+run, where `start-implementation` would wrongly re-transition it).
+
+```bash
+spec-kitty orchestrator-api resolve-workspace \
+  --mission <mission> \
+  --wp <WP-id>
+```
+
+No `--policy` is required: the command mutates nothing.
+
+**Response `data` fields:**
+
+| Field | Meaning |
+|---|---|
+| `mission_slug` / `mission_number` / `mission_type` | Resolved canonical mission identity |
+| `wp_id` | The requested work package |
+| `workspace_path` | The WP's lane worktree path (not guaranteed to exist for a never-started WP) |
+| `prompt_path` | WP markdown prompt file |
+| `lane_id` / `lane_branch` / `lane_base_ref` | Present when the WP is lane-assigned |
+
+**Failure codes:** `MISSION_NOT_FOUND`, `WP_NOT_FOUND`.
 
 ---
 
