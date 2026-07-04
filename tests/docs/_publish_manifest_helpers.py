@@ -8,13 +8,23 @@ WITHOUT a DocFX build?* "Resolvable" means one of:
 * **DERIVED** — the page still exists in the source tree, so
   ``capture_baseline_urls.derive_urls_from_source`` would (re-)produce it, or
 * **REDIRECT-COVERED** — the URL is a key in the committed
-  ``redirect_map.yaml``, so a ``<meta refresh>`` stub will preserve it
-  (``redirect_stub_generator.check_coverage``'s real, build-time invariant).
+  ``redirect_map.yaml`` **and** its redirect TARGET itself resolves (is
+  DERIVED or a documented build-time-generated shape). This mirrors
+  ``redirect_stub_generator.check_coverage``'s real, build-time invariant
+  exactly: a stub is only real coverage when ``target_live`` holds —
+  ``generate()`` refuses to emit a stub pointing at a 404 (the no-404
+  invariant) and reports it as a ``dead_targets`` entry instead. A redirect
+  whose target does not resolve is NOT coverage; the source path is reported
+  uncovered, same as ``check_coverage`` would (post-build) via a missing
+  stub.
 
 This is a **static-tree approximation** of ``check_coverage``: the real gate
 checks file presence inside an emitted ``_site``; DocFX/.NET is CI-only (see
 ``redirect_stub_generator`` module docstring), so PR-time cannot build one.
 The approximation trades that live-build fidelity for running in every PR.
+There is no known divergence left between this approximation's notion of
+"covered" and ``check_coverage``'s: both require the redirect target to
+resolve, not merely that the source is a mapped key.
 
 Known model limit (documented in ``derive_urls_from_source``'s own docstring):
 pages generated at build time from a non-static source — today, exactly
@@ -23,6 +33,16 @@ top-level ``kitty-specs/`` mission-spec tree, per the ``resource`` block in
 ``docs/docfx.json`` — are absent from a plain source-tree walk. Both gates
 allowlist *only* that one documented shape (:func:`is_generated_at_build`);
 anything else that is neither derived nor redirect-covered is a real gap.
+This allowlist also applies when resolving a redirect TARGET (a redirect
+could in principle point at a kitty-specs generated page), keeping the two
+checks symmetric.
+
+Separately documented known-limit (not a divergence from ``check_coverage``,
+since ``docfx.json``'s ``overwrite`` block is not a publish source at all):
+the ``overwrite`` block (``apidoc/**.md``) is not modeled by
+``derive_urls_from_source`` and therefore not by this approximation either,
+because ``docs/apidoc/`` is currently empty/inert — a future apidoc
+population would need this revisited.
 """
 
 from __future__ import annotations
@@ -73,16 +93,28 @@ def uncovered_urls(
 
     Shared by both gates: gate 1 passes the committed baseline URLs as
     ``candidate_paths``; gate 2 passes the resolved ``docs/toc.yml`` href
-    targets. ``derived_paths`` and ``redirect_map`` keys must already be
-    site-relative (no ``SITE_URL`` prefix). The one documented build-time
+    targets. ``derived_paths`` and ``redirect_map`` keys/values must already
+    be site-relative (no ``SITE_URL`` prefix). The one documented build-time
     generator shape (:func:`is_generated_at_build`) is excluded narrowly —
     every other miss is a real, reportable gap.
+
+    REDIRECT-COVERED requires the redirect's TARGET to resolve too (mirrors
+    ``redirect_stub_generator.check_coverage``'s ``target_live`` requirement):
+    a path that is merely a ``redirect_map`` key is not sufficient — if its
+    target is not itself DERIVED (or the documented generated-at-build shape),
+    the stub would point at a 404 and ``generate()`` would refuse to emit it
+    (a ``dead_targets`` entry), so the source path is reported uncovered.
     """
     uncovered: list[str] = []
     for path in candidate_paths:
         if is_generated_at_build(path):
             continue
-        if path in derived_paths or path in redirect_map:
+        if path in derived_paths:
+            continue
+        target = redirect_map.get(path)
+        if target is not None and (
+            target in derived_paths or is_generated_at_build(target)
+        ):
             continue
         uncovered.append(path)
     return sorted(uncovered)
