@@ -77,6 +77,18 @@ substitute `uv pip sync`, `uv pip install`, or any other variant -- they
 either re-resolve the graph or skip the lockfile entirely, both of which
 defeat the point.
 
+## PR draft and WIP-title conventions
+
+A `WIP` or `[WIP]` prefix on your PR title marks the PR as author-declared
+not-ready. The two draft-gated CI suites (`integration-tests-core-misc`,
+`e2e-cross-cutting`) **skip** on a WIP-titled PR, but the `quality-gate`
+aggregator's exemption is draft-*flag*-only -- not title-based -- so a
+**non-draft** PR that still carries a WIP prefix is a contradiction the gate
+rejects by design: requesting review while WIP-titled must not pass. To land,
+either drop the `WIP` / `[WIP]` prefix from the title, or keep the PR in draft
+until it is ready. (See the `DRAFT_GATED_JOBS` note in
+[`.github/workflows/ci-quality.yml`](../../.github/workflows/ci-quality.yml).)
+
 ## See also
 
 - [`local-overrides.md`](local-overrides.md) -- developer-only workflow
