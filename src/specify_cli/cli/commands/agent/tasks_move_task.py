@@ -393,12 +393,15 @@ def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
     ``_validate_ready_for_review`` guard explains the situation.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
+    from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError
 
     try:
         workspace = _tasks.resolve_workspace_for_wp(
             st.main_repo_root, st.mission_slug, st.task_id
         )
-    except (ValueError, FileNotFoundError):
+    except (ValueError, FileNotFoundError, MissingLanesError, CorruptLanesError):
+        # No resolvable lane workspace (missions without lanes.json included) —
+        # nothing to recover; the readiness guard stays authoritative.
         return
     # Only a real lane worktree carries deliverables to commit; a planning-artifact
     # / repo-root WP has no lane branch (branch_name is None) — nothing to do.

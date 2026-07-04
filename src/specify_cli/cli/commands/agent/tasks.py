@@ -392,8 +392,12 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _detect_arbiter_override as _detect_arbiter_override,
     _detect_reviewer_name as _detect_reviewer_name,
     _do_move_task as _do_move_task,
+    # #2335: the for_review deliverable-recovery pair (lane porcelain parser +
+    # pre-guard auto-commit) joins the family surface like every other def.
+    _lane_deliverable_paths as _lane_deliverable_paths,
     _mt_approval_facts as _mt_approval_facts,
     _mt_build_request as _mt_build_request,
+    _mt_commit_lane_deliverables as _mt_commit_lane_deliverables,
     _mt_commit_wp_file as _mt_commit_wp_file,
     _mt_current_event_lane as _mt_current_event_lane,
     _mt_done_ancestry_facts as _mt_done_ancestry_facts,
