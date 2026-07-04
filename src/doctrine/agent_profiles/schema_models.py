@@ -222,6 +222,12 @@ class AgentProfileSchema(BaseModel):
     routing_priority: int | None = Field(default=None, alias="routing-priority", ge=0, le=100)
     max_concurrent_tasks: int | None = Field(default=None, alias="max-concurrent-tasks", ge=1)
     applies_to_languages: list[str] = Field(default_factory=list)
+    # Optional model/effort routing hint (FR-005); mirrors ``AgentProfile``'s
+    # ``preferred_model``/``effort`` in profile.py. Use an explicit alias (not a
+    # bare ``model`` field, which fails to register on this model) so the
+    # generated JSON schema exposes ``model``/``effort`` properties.
+    preferred_model: str | None = Field(default=None, alias="model")
+    effort: str | None = Field(default=None, alias="effort")
 
     # Section 1: Context sources
     context_sources: AgentContextSources | None = Field(default=None, alias="context-sources")
