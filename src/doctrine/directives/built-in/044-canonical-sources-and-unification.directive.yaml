@@ -55,3 +55,7 @@ references:
     id: ownership-map-leeway
   - type: tactic
     id: reviewer-implementer-role-separation
+  - type: tactic
+    id: model-task-routing
+  - type: tactic
+    id: autonomous-operation-protocol

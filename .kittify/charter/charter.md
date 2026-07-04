@@ -97,7 +97,7 @@ How agents and orchestrators should work so quality and context survive long mis
 - **Model discipline.** Match model strength to the task: the strongest model for hard
   judgment — sizing, fakeability, code-truth, review, architecture — and a cheaper model
   for grounded or mechanical passes. Never run high-stakes review or design on a light
-  model. → `model_task_routing`.
+  model. → `model-task-routing`.
 - **Delegate to preserve context.** Use subagents for work that can run in an isolated
   context — a work package in its own worktree, a review against a fixed diff, a focused
   investigation — so the orchestrator's context stays clean. Each delegation LOADS the
