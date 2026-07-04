@@ -81,8 +81,13 @@ def _run_fixture(fixture: dict[str, Any]) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 
 
-def test_canonicalize_status_row_rejects_event_type_rows() -> None:
-    """A row with 'event_type' key is quarantined immediately; no further processing."""
+def test_canonicalize_status_row_rejects_generic_event_type_rows() -> None:
+    """A row with a generic 'event_type' (not a canonical lifecycle event) is
+    quarantined immediately; its canonical state, if any, lives elsewhere.
+
+    Canonical lifecycle events (whose only home is this file) are preserved
+    instead — see test_lifecycle_events_preserved.py (#2376).
+    """
     fixture = _load_fixture("01_non_status_event_type.json")
     actual = _run_fixture(fixture)
     expected = fixture["expected"]

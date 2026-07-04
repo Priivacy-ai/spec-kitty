@@ -56,6 +56,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to `.gitignore` on `spec-kitty upgrade` for already-initialised projects
   (the runtime-hygiene migrations previously only knew a hardcoded subset of
   entries). The six meaningful accept checks still gate.
+- **Mission-state repair no longer empties `status.events.jsonl` of a healthy
+  mission (#2376).** The repair (run by `spec-kitty upgrade` via the TeamSpace
+  mission-state gate, and by `doctor mission-state --fix`) quarantined *every*
+  `event_type` row except retrospective ones — including the canonical lifecycle
+  events (`MissionCreated`, `SpecifyStarted`, `WPCreated`, …) that
+  `status/lifecycle_events.py` writes and whose **only** per-mission home is
+  `status.events.jsonl`. A completed mission whose log was all lifecycle events
+  was emptied to 0 bytes. Repair now **preserves** canonical lifecycle events
+  (those in `LIFECYCLE_EVENT_TYPES`) and retrospective rows in place — matching
+  the runtime reader and the lifecycle writer's "safe target for repair tooling"
+  contract — and a backstop refuses to write a 0-byte log when the source was
+  non-empty. Decision-Moment (`DecisionPoint*`) rows are still pruned: their
+  canonical store is `decisions/index.json` / `DM-*.md`, so the copy here is a
+  mirror (unchanged, tested behavior). Rows preserved verbatim in the quarantine
+  dir remain recoverable.
 - **The Op-index performance cache is now gitignored (#2341).**
   `kitty-ops/ops-index.jsonl` — the machine-local reverse-scan cache that powers
   `spec-kitty invocations list` — was never added to `.gitignore`, so a
