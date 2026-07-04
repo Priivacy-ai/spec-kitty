@@ -48,6 +48,10 @@ _MOVE_SET: tuple[str, ...] = (
     "_mt_resolve_targets",
     "_mt_resolve_feedback",
     "_mt_build_request",
+    # #2335: for_review deliverable-recovery pair (porcelain parser + pre-guard
+    # auto-commit), re-exported through ``tasks`` like the rest of the family.
+    "_lane_deliverable_paths",
+    "_mt_commit_lane_deliverables",
     "_mt_gather_review_facts",
     "_mt_fire_override_persist",
     "_mt_done_ancestry_facts",
