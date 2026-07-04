@@ -1890,3 +1890,55 @@ class TestOldFeatureFlagFails:
             ],
         )
         assert result.exit_code != 0
+
+
+class TestResolveWorkspace:
+    """#2337: read-only resolve-workspace for resuming a WP past implementation."""
+
+    def test_resolve_workspace_returns_workspace_and_prompt(self, tmp_path):
+        repo_root, mission_dir = _make_mission(tmp_path)
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app, ["resolve-workspace", "--mission", "099-test-mission", "--wp", "WP01"]
+            )
+        assert result.exit_code == 0, result.stdout
+        data = json.loads(result.stdout)["data"]
+        assert data["mission_slug"] == "099-test-mission"
+        assert data["wp_id"] == "WP01"
+        assert data["workspace_path"]
+        assert data["prompt_path"].endswith("WP01.md")
+
+    def test_resolve_workspace_is_read_only(self, tmp_path):
+        """No lane transition, no worktree creation — unlike start-implementation."""
+        repo_root, mission_dir = _make_mission(tmp_path)
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            runner.invoke(
+                app, ["resolve-workspace", "--mission", "099-test-mission", "--wp", "WP01"]
+            )
+        from specify_cli.status import read_events, reduce
+
+        lanes = {
+            k: v.get("lane") for k, v in reduce(read_events(mission_dir)).work_packages.items()
+        }
+        # WP01 stays planned (resolve-workspace emitted no transition).
+        assert lanes.get("WP01") in ("planned", None), lanes
+        assert not (repo_root / ".worktrees").exists(), "must not create a worktree"
+
+    def test_resolve_workspace_wp_not_found(self, tmp_path):
+        repo_root, _ = _make_mission(tmp_path)
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app, ["resolve-workspace", "--mission", "099-test-mission", "--wp", "WP99"]
+            )
+        assert result.exit_code != 0
+        payload = json.loads(result.stdout.strip().split("\n")[0])
+        assert payload["error_code"] == "WP_NOT_FOUND"

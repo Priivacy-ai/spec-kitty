@@ -926,6 +926,80 @@ def _resolve_start_workspace(
     )
 
 
+def _resolve_existing_workspace(
+    main_repo_root: Path, mission: str, wp: str
+) -> _StartWorkspace:
+    """Read-only companion of :func:`_resolve_start_workspace` (#2337).
+
+    Resolves the WP's lane ``workspace_path`` + ``lane_branch`` for its EXISTING
+    lane via the canonical naming seams (``lane_branch_name`` + ``worktree_path``)
+    — WITHOUT allocating, creating, validating-clean, or merging dependency tips.
+    Lets a caller obtain the workspace for a WP already past start-implementation
+    (e.g. an external orchestrator resuming a ``for_review`` WP) without the
+    ``planned->claimed->in_progress`` composite transition start-implementation
+    performs. Mirrors start-implementation's legacy/non-lane fallback for a WP
+    with no lane.
+    """
+    from specify_cli.lanes.branch_naming import (
+        lane_branch_name,
+        worktree_path as _wt_path,
+    )
+    from specify_cli.lanes.persistence import read_lanes_json
+
+    # lanes.json is PRIMARY-partition — read from the primary surface (#2118).
+    manifest = read_lanes_json(_planning_read_dir(main_repo_root, mission))
+    lane = manifest.lane_for_wp(wp) if manifest is not None else None
+    if manifest is None or lane is None:
+        return _StartWorkspace(
+            workspace_path=str(_wt_path(main_repo_root, mission, mission_id=None, lane_id=wp))
+        )
+    return _StartWorkspace(
+        workspace_path=str(
+            _wt_path(main_repo_root, mission, mission_id=None, lane_id=lane.lane_id)
+        ),
+        lane_id=lane.lane_id,
+        lane_branch=lane_branch_name(mission, lane.lane_id),
+        lane_base_ref=_lane_base_ref(main_repo_root, mission, manifest),
+    )
+
+
+@app.command(name="resolve-workspace")
+def resolve_workspace(
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+    wp: str = typer.Option(..., "--wp", help=_HELP_WP_ID),
+) -> None:
+    """Read-only: resolve a WP's lane workspace_path + prompt_path (+ lane fields).
+
+    Does NOT allocate/create/validate-clean/transition — the read-only companion
+    of ``start-implementation`` for a WP already past implementation (e.g. a
+    ``for_review`` WP an external orchestrator wants to review on resume, where
+    calling start-implementation would wrongly re-transition it). Contract >= 1.2.0.
+    """
+    cmd = "resolve-workspace"
+    main_repo_root = _get_main_repo_root()
+    _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+
+    wp_path = _resolve_wp_file(_planning_read_dir(main_repo_root, mission) / "tasks", wp)
+    if wp_path is None:
+        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
+        return
+
+    ws = _resolve_existing_workspace(main_repo_root, mission, wp)
+    data: dict = {
+        "mission_slug": mission,
+        "wp_id": wp,
+        "workspace_path": ws.workspace_path,
+        "prompt_path": str(wp_path),
+    }
+    if ws.lane_id is not None:
+        data["lane_id"] = ws.lane_id
+        data["lane_branch"] = ws.lane_branch
+        data["lane_base_ref"] = ws.lane_base_ref
+    validate_outbound_payload(data, "orchestrator_api")
+    envelope = make_envelope(command=cmd, success=True, data=data)
+    _emit(envelope)
+
+
 @app.command(name="start-implementation")
 def start_implementation(
     mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
