@@ -1,6 +1,6 @@
 ---
 title: 'Landing Contributor PRs: The Maintainer Runbook'
-description: 'The maintainer workflow for landing contributor PRs: claim, isolated worktree, rebase, red classification, folds, red-first verification, squad review, push discipline, and hand-off.'
+description: 'The maintainer workflow for landing contributor PRs: claim, worktree isolation, rebase, red classification, folds, red-first verification, push discipline, and hand-off.'
 doc_status: active
 updated: '2026-07-04'
 related:
@@ -244,10 +244,10 @@ been fixed, the end-state is stated instead of the trap.
 - **Saturated tolerance bands trip on the next legitimate change.** The CLI
   visible-count census sat at the top of its band, so the next legitimate
   command (#2338) tripped it. A saturated band needs a re-pin with a dated
-  rationale — the band was re-pinned 2026-07-04 at 236 visible (tolerance
-  212–259) in `tests/docs/test_check_cli_reference_freshness.py`. That
-  re-pin-in-the-same-PR pattern is the model for the second bin of
-  [step 4](#4-classify-every-red-check).
+  rationale — e.g. the 2026-07-04 re-pin at 236 visible (tolerance 212–259)
+  in `tests/docs/test_check_cli_reference_freshness.py`; the current values
+  live in that test, not here. That re-pin-in-the-same-PR pattern is the
+  model for the second bin of [step 4](#4-classify-every-red-check).
 - **Seam completeness gates are invisible to contributors.** Adding a `def`
   to `src/specify_cli/cli/commands/agent/tasks_move_task.py` also requires
   joining the `_MOVE_SET` pin in

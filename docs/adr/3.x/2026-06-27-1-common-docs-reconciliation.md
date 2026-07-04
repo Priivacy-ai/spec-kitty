@@ -117,6 +117,8 @@ history only*. The **living architectural design collapses into a single unversi
 `docs/architecture/`** — era belongs to history, not to the current design. All ADRs are
 converted to YAML frontmatter (today 0 use it → invisible to DocFX).
 
+**Amendment (2026-07-04, [#2353](https://github.com/Priivacy-ai/spec-kitty/issues/2353)):** `release-goals/` is promoted to a published fourteenth section (declared release-line intent) — a further justified deviation from the standard 13-section tree.
+
 ### D4 — Redirect mechanism: generated `<meta http-equiv="refresh">` stub pages per old path
 
 **Decision:** Because DocFX on GitHub Pages has **no native redirect/alias mechanism**, every

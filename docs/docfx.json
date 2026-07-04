@@ -16,7 +16,8 @@
           "guides/**.md",
           "operations/**.md",
           "migrations/**.md",
-          "changelog/**.md"
+          "changelog/**.md",
+          "release-goals/**.md"
         ],
         "exclude": [
           "**/_*.md"
