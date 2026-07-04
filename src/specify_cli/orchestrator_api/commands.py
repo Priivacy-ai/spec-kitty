@@ -32,7 +32,10 @@ from contextlib import suppress
 from datetime import datetime, UTC
 from pathlib import Path
 from dataclasses import dataclass
-from typing import NoReturn
+from typing import TYPE_CHECKING, NoReturn
+
+if TYPE_CHECKING:
+    from specify_cli.lanes.models import ExecutionLane, LanesManifest
 
 import typer
 
@@ -234,6 +237,11 @@ def _fail(command: str, error_code: str, message: str, data: dict | None = None)
     )
     _emit(envelope)
     raise typer.Exit(1)
+
+
+def _fail_wp_not_found(cmd: str, wp: str, mission: str) -> NoReturn:
+    """The ONE ``WP_NOT_FOUND`` emission (S1192 5×; locks error-surface parity)."""
+    _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
 
 
 def _get_main_repo_root() -> Path:
@@ -856,6 +864,33 @@ def _lane_base_ref(main_repo_root: Path, mission: str, manifest: object) -> str:
         )
 
 
+def _lane_assignment_or_legacy(
+    main_repo_root: Path, mission: str, wp: str
+) -> tuple[LanesManifest, ExecutionLane] | _StartWorkspace:
+    """Shared prologue of the two workspace resolvers (ONE fallback grammar).
+
+    Returns the ``(manifest, lane)`` pair when ``wp`` is lane-assigned;
+    otherwise the legacy bare-path ``_StartWorkspace`` — the WP-based worktree
+    form ``{mission}-{wp}`` with no mid8 (the seam's ``mission_id=None``
+    grammar reproduces the historical name byte-identically) — so legacy /
+    non-lane missions keep working unchanged.
+
+    lanes.json is PRIMARY-partition — read from the primary surface (#2118).
+    SSOT: this is the ONLY place this surface decides lane-vs-legacy; a future
+    fallback-grammar change is a single edit.
+    """
+    from specify_cli.lanes.branch_naming import worktree_path as _wt_path
+    from specify_cli.lanes.persistence import read_lanes_json
+
+    manifest = read_lanes_json(_planning_read_dir(main_repo_root, mission))
+    lane = manifest.lane_for_wp(wp) if manifest is not None else None
+    if manifest is None or lane is None:
+        return _StartWorkspace(
+            workspace_path=str(_wt_path(main_repo_root, mission, mission_id=None, lane_id=wp))
+        )
+    return manifest, lane
+
+
 def _resolve_start_workspace(
     cmd: str, main_repo_root: Path, mission: str, mission_dir: Path, wp: str
 ) -> _StartWorkspace:
@@ -871,23 +906,16 @@ def _resolve_start_workspace(
 
     When there is no lanes.json (legacy / non-lane missions) or ``wp`` is not in
     any lane (planning-artifact WP), it falls back to the historical bare-path
-    behaviour so those missions keep working unchanged.
+    behaviour (via :func:`_lane_assignment_or_legacy`) so those missions keep
+    working unchanged.
 
     A genuine allocation failure for a lane WP (dirty reuse, dependency-merge
     conflict) fails closed with ``LANE_ALLOCATION_FAILED``.
     """
-    from specify_cli.lanes.branch_naming import worktree_path as _wt_path
-    from specify_cli.lanes.persistence import read_lanes_json
-
-    # lanes.json is PRIMARY-partition — read from the primary surface (#2118).
-    manifest = read_lanes_json(_planning_read_dir(main_repo_root, mission))
-    lane = manifest.lane_for_wp(wp) if manifest is not None else None
-    if manifest is None or lane is None:
-        # Legacy WP-based worktree form ({mission}-{wp}, no mid8): the seam's
-        # mission_id=None grammar reproduces the historical name byte-identically.
-        return _StartWorkspace(
-            workspace_path=str(_wt_path(main_repo_root, mission, mission_id=None, lane_id=wp))
-        )
+    assignment = _lane_assignment_or_legacy(main_repo_root, mission, wp)
+    if isinstance(assignment, _StartWorkspace):
+        return assignment
+    manifest, lane = assignment
 
     from specify_cli.lanes.worktree_allocator import (
         DependencyLaneMergeConflictError,
@@ -937,28 +965,24 @@ def _resolve_existing_workspace(
     Lets a caller obtain the workspace for a WP already past start-implementation
     (e.g. an external orchestrator resuming a ``for_review`` WP) without the
     ``planned->claimed->in_progress`` composite transition start-implementation
-    performs. Mirrors start-implementation's legacy/non-lane fallback for a WP
-    with no lane.
+    performs. Shares start-implementation's legacy/non-lane fallback via
+    :func:`_lane_assignment_or_legacy`, and takes placement from the allocator's
+    own :func:`~specify_cli.lanes.worktree_allocator.predict_lane_worktree` seam
+    so the read-only mirror can never diverge from what the write authority
+    would create.
     """
-    from specify_cli.lanes.branch_naming import (
-        lane_branch_name,
-        worktree_path as _wt_path,
-    )
-    from specify_cli.lanes.persistence import read_lanes_json
+    from specify_cli.lanes.worktree_allocator import predict_lane_worktree
 
-    # lanes.json is PRIMARY-partition — read from the primary surface (#2118).
-    manifest = read_lanes_json(_planning_read_dir(main_repo_root, mission))
-    lane = manifest.lane_for_wp(wp) if manifest is not None else None
-    if manifest is None or lane is None:
-        return _StartWorkspace(
-            workspace_path=str(_wt_path(main_repo_root, mission, mission_id=None, lane_id=wp))
-        )
+    assignment = _lane_assignment_or_legacy(main_repo_root, mission, wp)
+    if isinstance(assignment, _StartWorkspace):
+        return assignment
+    manifest, lane = assignment
+
+    worktree_path, lane_branch = predict_lane_worktree(main_repo_root, mission, lane.lane_id)
     return _StartWorkspace(
-        workspace_path=str(
-            _wt_path(main_repo_root, mission, mission_id=None, lane_id=lane.lane_id)
-        ),
+        workspace_path=str(worktree_path),
         lane_id=lane.lane_id,
-        lane_branch=lane_branch_name(mission, lane.lane_id),
+        lane_branch=lane_branch,
         lane_base_ref=_lane_base_ref(main_repo_root, mission, manifest),
     )
 
@@ -981,7 +1005,7 @@ def resolve_workspace(
 
     wp_path = _resolve_wp_file(_planning_read_dir(main_repo_root, mission) / "tasks", wp)
     if wp_path is None:
-        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
+        _fail_wp_not_found(cmd, wp, mission)
         return
 
     ws = _resolve_existing_workspace(main_repo_root, mission, wp)
@@ -1030,7 +1054,7 @@ def start_implementation(
 
     wp_path = _resolve_wp_file(_planning_read_dir(main_repo_root, mission) / "tasks", wp)
     if wp_path is None:
-        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
+        _fail_wp_not_found(cmd, wp, mission)
         return
 
     from specify_cli.core.dependency_graph import dependency_readiness_for_wp, parse_wp_dependencies
@@ -1165,7 +1189,7 @@ def start_review(
 
     wp_path = _resolve_wp_file(_planning_read_dir(main_repo_root, mission) / "tasks", wp)
     if wp_path is None:
-        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
+        _fail_wp_not_found(cmd, wp, mission)
         return
 
     from specify_cli.status import TransitionError
@@ -1239,19 +1263,16 @@ def _enforce_for_review_commit_gate(
     if force:
         return
     from specify_cli.lanes._git import lane_has_commit_beyond_base
-    from specify_cli.lanes.branch_naming import lane_branch_name
-    from specify_cli.lanes.branch_naming import worktree_path as _wt_path
-    from specify_cli.lanes.persistence import read_lanes_json
+    from specify_cli.lanes.worktree_allocator import predict_lane_worktree
 
-    # lanes.json is PRIMARY-partition — read from the primary surface (#2118).
-    manifest = read_lanes_json(_planning_read_dir(main_repo_root, mission))
-    if manifest is None:
+    # Legacy/non-lane arm ⇒ guard exempt: only lane WPs carry a lane branch to
+    # check commits on (the composed legacy workspace is discarded).
+    assignment = _lane_assignment_or_legacy(main_repo_root, mission, wp)
+    if isinstance(assignment, _StartWorkspace):
         return
-    lane = manifest.lane_for_wp(wp)
-    if lane is None:
-        return
+    manifest, lane = assignment
 
-    worktree = _wt_path(main_repo_root, mission, mission_id=None, lane_id=lane.lane_id)
+    worktree, lane_branch = predict_lane_worktree(main_repo_root, mission, lane.lane_id)
     base_ref = _lane_base_ref(main_repo_root, mission, manifest)
     if not worktree.exists() or not lane_has_commit_beyond_base(worktree, base_ref):
         _fail(
@@ -1259,7 +1280,7 @@ def _enforce_for_review_commit_gate(
             "TRANSITION_REJECTED",
             (
                 f"{wp} cannot move to for_review: no implementation commit on lane "
-                f"{lane.lane_id} ({lane_branch_name(mission, lane.lane_id)}) beyond "
+                f"{lane.lane_id} ({lane_branch}) beyond "
                 f"{base_ref}. Commit the work in the lane worktree first, or pass "
                 "--force if there is genuinely nothing to commit."
             ),
@@ -1332,7 +1353,7 @@ def transition(
 
     wp_path = _resolve_wp_file(_planning_read_dir(main_repo_root, mission) / "tasks", wp)
     if wp_path is None:
-        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
+        _fail_wp_not_found(cmd, wp, mission)
         return
 
     if to_lane == Lane.FOR_REVIEW:
@@ -1460,7 +1481,7 @@ def append_history(
     primary_mission_dir = _planning_read_dir(main_repo_root, mission)
     wp_path = _resolve_wp_file(primary_mission_dir / "tasks", wp)
     if wp_path is None:
-        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
+        _fail_wp_not_found(cmd, wp, mission)
         return
 
     from specify_cli.task_utils import (
