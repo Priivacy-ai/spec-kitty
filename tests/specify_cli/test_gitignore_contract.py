@@ -142,3 +142,14 @@ def _is_ignored(repo_root: Path, path: str) -> bool:
         check=False,
     )
     return result.returncode == 0
+
+
+def test_derived_views_dir_is_gitignored():
+    """#2369: .kittify/derived/ (regenerable materialize output) must be in the
+    runtime gitignore set so `spec-kitty materialize` never dirties the tree /
+    fails accept's git_dirty check. Registry-driven — the derived_mission_views
+    StateSurface (root=PROJECT, git_class=IGNORED) collapses to this entry."""
+    from specify_cli.state.contract import get_runtime_gitignore_entries
+
+    entries = get_runtime_gitignore_entries()
+    assert ".kittify/derived/" in entries, entries

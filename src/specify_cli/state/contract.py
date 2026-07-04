@@ -229,6 +229,22 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         creation_trigger="mission run start",
     ),
     StateSurface(
+        name="derived_mission_views",
+        path_pattern=".kittify/derived/<mission_slug>/lifecycle.json",
+        root=StateRoot.PROJECT,
+        format=StateFormat.JSON,
+        authority=AuthorityClass.DERIVED,
+        git_class=GitClass.IGNORED,
+        owner_module="status/lifecycle + status/views",
+        creation_trigger="spec-kitty materialize",
+        notes=(
+            "Regenerable machine-facing views (lifecycle.json / status.json / "
+            "board-summary.json / progress.json) under .kittify/derived/<slug>/. "
+            "Ignored: materialize output must not dirty the tree or gate accept "
+            "(#2369). Collapses to the .kittify/derived/ gitignore entry."
+        ),
+    ),
+    StateSurface(
         name="glossary_fallback_events",
         path_pattern=".kittify/events/glossary/<mission_id>.events.jsonl",
         root=StateRoot.PROJECT,
