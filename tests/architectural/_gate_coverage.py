@@ -39,18 +39,23 @@ Run directly to refresh the baseline or check drift::
 
 from __future__ import annotations
 
+import ast
+import configparser
 import json
 import os
 import re
 import subprocess
 import sys
 import tempfile
-from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
-from pytest import ExitCode
+import pytest
+import yaml
+
+if TYPE_CHECKING:
+    from collections.abc import Sequence
 
 # pytest's own marker-expression evaluator — guarantees identical semantics to a
 # real ``-m`` selection. This is a *private* pytest API and ``pytest`` is floored
@@ -86,8 +91,11 @@ _TESTS_ROOT = "tests"
 # tests — exactly the new tests the ratchet must scrutinize — so any other exit
 # code must fail loudly (Issue #2034 Codex review: P2).
 _COLLECT_OK_CODES: frozenset[int] = frozenset(
-    {int(ExitCode.OK), int(ExitCode.NO_TESTS_COLLECTED)}
+    {int(pytest.ExitCode.OK), int(pytest.ExitCode.NO_TESTS_COLLECTED)},
 )
+
+# Reported (not enforced) selection-overlap threshold: >=2 gates = duplicate.
+_DUPLICATE_GATE_THRESHOLD = 2
 
 # Quoted ``-m 'a and b'`` OR unquoted single-token ``-m windows_ci``.
 _MARKER_Q_RE = re.compile(r"-m\s+(?P<q>['\"])(?P<expr>.*?)(?P=q)")
@@ -152,7 +160,7 @@ def _matrix_includes(job: dict[str, Any]) -> list[dict[str, Any]] | None:
     return include if isinstance(include, list) else None
 
 
-def _substitute_matrix(text: str, mvars: dict[str, Any]) -> str:
+def substitute_matrix(text: str, mvars: dict[str, Any]) -> str:
     """Expand ``${{ matrix.X }}`` (blanking other ``${{ ... }}`` expressions)."""
 
     def repl(match: re.Match[str]) -> str:
@@ -164,7 +172,7 @@ def _substitute_matrix(text: str, mvars: dict[str, Any]) -> str:
     return _GHA_EXPR_RE.sub(repl, text)
 
 
-def _join_continuations(script: str) -> list[str]:
+def join_continuations(script: str) -> list[str]:
     """Join backslash-continued shell lines into single logical lines."""
     out: list[str] = []
     buf = ""
@@ -180,7 +188,7 @@ def _join_continuations(script: str) -> list[str]:
     return out
 
 
-def _strip_to_command(segment: str) -> str:
+def strip_to_command(segment: str) -> str:
     """Strip env-assignments and runner prefixes; stop at the ``pytest`` token."""
     s = segment.strip()
     while True:
@@ -214,14 +222,14 @@ def _extract_paths(tail: str) -> list[str]:
     return paths
 
 
-def _parse_pytest_invocation(
+def parse_pytest_invocation(
     logical_line: str,
 ) -> tuple[list[str], list[str], str | None] | None:
     """Return ``(paths, ignores, marker)`` for a real pytest command, else None."""
     if logical_line.lstrip().startswith("#"):
         return None
     for segment in _SEGMENT_SPLIT_RE.split(logical_line):
-        command = _strip_to_command(segment)
+        command = strip_to_command(segment)
         if not command.startswith("pytest"):
             continue
         tail = command[len("pytest") :]
@@ -231,17 +239,15 @@ def _parse_pytest_invocation(
 
 def parse_workflow(path: Path) -> list[Gate]:
     """Parse one workflow file into the gates it defines."""
-    import yaml
-
     data = yaml.safe_load(path.read_text(encoding="utf-8"))
     gates: list[Gate] = []
     for job_name, job, step in _iter_run_steps(data):
         includes = _matrix_includes(job)
-        variants: Sequence[dict[str, Any] | None] = includes if includes else [None]
+        variants: Sequence[dict[str, Any] | None] = includes or (None,)
         for mvars in variants:
-            script = _substitute_matrix(step["run"], mvars or {})
-            for logical in _join_continuations(script):
-                parsed = _parse_pytest_invocation(logical)
+            script = substitute_matrix(step["run"], mvars or {})
+            for logical in join_continuations(script):
+                parsed = parse_pytest_invocation(logical)
                 if parsed is None:
                     continue
                 paths, ignores, marker = parsed
@@ -253,7 +259,7 @@ def parse_workflow(path: Path) -> list[Gate]:
                         paths=paths,
                         ignores=ignores,
                         marker_expr=marker,
-                    )
+                    ),
                 )
     return gates
 
@@ -267,6 +273,271 @@ def load_gates() -> list[Gate]:
 
 
 # ---------------------------------------------------------------------------
+# Workflow relation model (mission ci-suite-map-bind WP01 — additive substrate
+# for the FR-001/FR-003/FR-005/FR-008/FR-010..FR-013 invariant suites).
+# Pure parsing only: the invariants over these relations live in the consumer
+# test modules, never here.
+# ---------------------------------------------------------------------------
+
+_PYTEST_INI_PATH = REPO_ROOT / "pytest.ini"
+_DORNY_FILTER_ACTION = "dorny/paths-filter"
+
+# ``needs.<job>.result`` reads inside run scripts (FR-003a / FR-003d).
+_NEEDS_RESULT_RE = re.compile(r"needs\.([A-Za-z0-9_-]+)\.result")
+# ``needs.<job>.outputs.<group>`` references inside job-level ``if:`` gates
+# (FR-003b / FR-010 / FR-011 job→group gating map).
+_FILTER_OUTPUT_RE = re.compile(r"needs\.[A-Za-z0-9_-]+\.outputs\.([A-Za-z0-9_]+)")
+# ``--cov=<target>`` emitters inside run scripts (FR-005).
+_COV_TARGET_RE = re.compile(r"--cov=([^\s\\'\"]+)")
+# The diff-coverage job's ``critical_paths=( ... )`` shell array (FR-005).
+_CRITICAL_PATHS_RE = re.compile(r"critical_paths=\((.*?)\)", re.DOTALL)
+_SHELL_QUOTED_RE = re.compile(r"'([^']*)'|\"([^\"]*)\"")
+# Leading identifier of one ``markers =`` registry line in pytest.ini.
+_MARKER_NAME_RE = re.compile(r"[A-Za-z_]\w*")
+
+
+def positive_marker_tokens(marker_expr: str | None) -> frozenset[str]:
+    """Marker names *positively* referenced by a ``-m`` expression (FR-001 (i)).
+
+    Negation-aware: ``not windows_ci`` does NOT reference ``windows_ci``
+    positively (the spec's pinned edge case — every Linux gate negates it),
+    while ``not not fast`` does reference ``fast``. A name is positive iff it
+    occurs under an even number of ``not`` operators.
+
+    The expression is first compiled with pytest's own
+    :class:`~_pytest.mark.expression.Expression` (identical grammar/semantics
+    to a real ``-m`` selection — an invalid expression fails loudly there,
+    and a breaking move of the private API fails at import time, see the
+    module-top import note). The sign walk itself uses the stdlib ``ast``
+    parse of the same text: for the identifier-and-boolean-operator
+    expressions the workflows use, pytest's expression grammar is a strict
+    subset of Python's.
+    """
+    if not marker_expr:
+        return frozenset()
+    Expression.compile(marker_expr)  # loud fail on an invalid expression
+    try:
+        tree = ast.parse(marker_expr, mode="eval")
+    except SyntaxError as exc:  # pragma: no cover — Expression accepts a superset
+        raise RuntimeError(
+            f"marker expression {marker_expr!r} compiles under pytest's grammar "
+            "but not under stdlib ast — a gate started using a marker name that "
+            "is not a Python identifier; extend positive_marker_tokens' walker.",
+        ) from exc
+    positive: set[str] = set()
+    _walk_marker_ast(tree.body, negated=False, positive=positive)
+    return frozenset(positive)
+
+
+def _walk_marker_ast(node: ast.expr, *, negated: bool, positive: set[str]) -> None:
+    """Recursive sign-tracking walk backing :func:`positive_marker_tokens`."""
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+        _walk_marker_ast(node.operand, negated=not negated, positive=positive)
+    elif isinstance(node, ast.BoolOp):
+        for value in node.values:
+            _walk_marker_ast(value, negated=negated, positive=positive)
+    elif isinstance(node, ast.Name):
+        if not negated:
+            positive.add(node.id)
+    else:
+        raise RuntimeError(
+            f"unsupported marker-expression node {ast.dump(node)} — a gate "
+            "started using pytest kwarg selection (mark(arg=...)); extend "
+            "positive_marker_tokens before trusting its output.",
+        )
+
+
+def routed_marker_names(gates: Sequence[Gate]) -> frozenset[str]:
+    """Union of positively-referenced marker names across ``gates`` (FR-001 (i)).
+
+    This is the live ROUTED-BY-MARKER set the marker-completeness invariant
+    classifies against.
+    """
+    routed: set[str] = set()
+    for gate in gates:
+        routed |= positive_marker_tokens(gate.marker_expr)
+    return frozenset(routed)
+
+
+@dataclass(frozen=True)
+class WorkflowModel:
+    """Parsed relation surfaces of one workflow file (WP01 substrate).
+
+    Every field is a *parsed source relation* (Adjudicated Decision 8: the
+    dorny filter block and the job ``if:`` gates are the only two path-topology
+    authorities; consumers assert against these, never against hand-maintained
+    copies).
+
+    - ``job_needs``: job → declared ``needs:`` list (FR-003a/d).
+    - ``needs_result_reads``: job → job names read via ``needs.<job>.result``
+      in that job's run scripts (FR-003a). The quality-gate aggregator's
+      result-loop membership (FR-003d) is ``needs_result_reads["quality-gate"]``.
+    - ``job_gating_groups``: job → dorny filter outputs referenced in the
+      job-level ``if:`` expression (FR-003b; FR-011's job→group gating map).
+    - ``filter_groups``: dorny filter group → glob list (FR-003c / FR-010).
+    - ``cov_targets``: job → ``--cov=`` targets emitted in run scripts (FR-005).
+    - ``diff_cover_critical_paths``: the diff-coverage job's shell
+      ``critical_paths`` array entries, in declaration order (FR-005).
+    - ``pull_request_types`` / ``pull_request_paths`` / ``push_paths``: outer
+      ``on:`` trigger types and paths lists (FR-013 / FR-012 two-layer reads).
+    """
+
+    path: Path
+    job_needs: dict[str, tuple[str, ...]]
+    needs_result_reads: dict[str, frozenset[str]]
+    job_gating_groups: dict[str, frozenset[str]]
+    filter_groups: dict[str, tuple[str, ...]]
+    cov_targets: dict[str, frozenset[str]]
+    diff_cover_critical_paths: tuple[str, ...]
+    pull_request_types: tuple[str, ...]
+    pull_request_paths: tuple[str, ...]
+    push_paths: tuple[str, ...]
+
+
+def _job_needs_tuple(job: dict[str, Any]) -> tuple[str, ...]:
+    """A job's declared ``needs:`` as a tuple (GitHub allows str or list)."""
+    needs = job.get("needs")
+    if needs is None:
+        return ()
+    if isinstance(needs, str):
+        return (needs,)
+    return tuple(str(entry) for entry in needs)
+
+
+def _job_run_text(job: dict[str, Any]) -> str:
+    """All raw ``run:`` script text of a job.
+
+    Un-substituted: ``${{ }}`` expressions are kept, because the relation
+    reads (``needs.<job>.result``, ...) live inside them.
+    """
+    return "\n".join(
+        str(step["run"])
+        for step in job.get("steps") or []
+        if isinstance(step, dict) and "run" in step
+    )
+
+
+def _parse_filter_groups(jobs: dict[str, Any]) -> dict[str, tuple[str, ...]]:
+    """Dorny paths-filter group → glob tuple.
+
+    Read from any ``dorny/paths-filter`` step's inline ``filters:`` YAML
+    (FR-003c / FR-010 source authority).
+    """
+    groups: dict[str, tuple[str, ...]] = {}
+    for job in jobs.values():
+        for step in job.get("steps") or []:
+            if not isinstance(step, dict):
+                continue
+            if not str(step.get("uses", "")).startswith(_DORNY_FILTER_ACTION):
+                continue
+            filters_raw = (step.get("with") or {}).get("filters")
+            if not isinstance(filters_raw, str):
+                continue
+            parsed = yaml.safe_load(filters_raw) or {}
+            for name, globs in parsed.items():
+                groups[str(name)] = tuple(str(g) for g in globs or [])
+    return groups
+
+
+def _diff_cover_critical_paths(run_text: str) -> tuple[str, ...]:
+    """Quoted entries of every ``critical_paths=( ... )`` shell array.
+
+    Declaration order preserved, de-duplicated (FR-005).
+    """
+    entries: list[str] = []
+    for block in _CRITICAL_PATHS_RE.findall(run_text):
+        for single, double in _SHELL_QUOTED_RE.findall(block):
+            entry = single or double
+            if entry and entry not in entries:
+                entries.append(entry)
+    return tuple(entries)
+
+
+def _on_section(data: dict[Any, Any]) -> dict[str, Any]:
+    """The workflow's ``on:`` mapping (``{}`` for shorthand ``on: push``).
+
+    Typed ``dict[Any, Any]`` because the key is genuinely non-str in the
+    common case: YAML 1.1 parses the bare ``on`` key as boolean ``True``.
+    """
+    section = data.get("on", data.get(True))
+    return section if isinstance(section, dict) else {}
+
+
+def _trigger_tuple(on_section: dict[str, Any], event: str, key: str) -> tuple[str, ...]:
+    """``on.<event>.<key>`` as a string tuple; ``()`` when absent."""
+    event_section = on_section.get(event)
+    if not isinstance(event_section, dict):
+        return ()
+    return tuple(str(value) for value in event_section.get(key) or [])
+
+
+def load_workflow_model(path: Path) -> WorkflowModel:
+    """Parse one workflow file into its :class:`WorkflowModel` relations."""
+    data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    jobs: dict[str, Any] = data.get("jobs") or {}
+    run_texts = {name: _job_run_text(job) for name, job in jobs.items()}
+    on_section = _on_section(data)
+    return WorkflowModel(
+        path=path,
+        job_needs={name: _job_needs_tuple(job) for name, job in jobs.items()},
+        needs_result_reads={
+            name: frozenset(_NEEDS_RESULT_RE.findall(text))
+            for name, text in run_texts.items()
+        },
+        job_gating_groups={
+            name: frozenset(_FILTER_OUTPUT_RE.findall(str(job.get("if") or "")))
+            for name, job in jobs.items()
+        },
+        filter_groups=_parse_filter_groups(jobs),
+        cov_targets={
+            name: frozenset(_COV_TARGET_RE.findall(text))
+            for name, text in run_texts.items()
+        },
+        diff_cover_critical_paths=_diff_cover_critical_paths(
+            "\n".join(run_texts.values()),
+        ),
+        pull_request_types=_trigger_tuple(on_section, "pull_request", "types"),
+        pull_request_paths=_trigger_tuple(on_section, "pull_request", "paths"),
+        push_paths=_trigger_tuple(on_section, "push", "paths"),
+    )
+
+
+def discover_pytest_workflows(workflows_dir: Path | None = None) -> frozenset[str]:
+    """Workflow file names under ``workflows_dir`` that invoke pytest (FR-008).
+
+    Content probe with the *same* detection semantics as the gate model
+    (:func:`parse_workflow`), so the probe and :data:`WORKFLOW_FILES` cannot
+    diverge in what "runs the suite" means. The consumer invariant asserts
+    this set equals the allowlist, failing closed when a fifth suite-running
+    workflow appears without entering the model.
+    """
+    directory = workflows_dir or WORKFLOWS_DIR
+    candidates = sorted(directory.glob("*.yml")) + sorted(directory.glob("*.yaml"))
+    return frozenset(path.name for path in candidates if parse_workflow(path))
+
+
+def registered_markers(pytest_ini: Path | None = None) -> tuple[str, ...]:
+    """Marker names registered in pytest.ini's ``markers =`` block.
+
+    ``pytest.ini`` is the single marker-registry authority (C-006, guarded by
+    ``test_marker_registry_single_source.py``) — this READS it, adding no
+    second surface. pytest's own ini handling is line-based (each non-empty
+    block line registers one marker, its name the leading identifier before
+    the ``:`` description), mirrored here without importing pytest's config
+    machinery.
+    """
+    path = pytest_ini or _PYTEST_INI_PATH
+    parser = configparser.ConfigParser(interpolation=None)
+    parser.read_string(path.read_text(encoding="utf-8"))
+    names: list[str] = []
+    for line in parser.get("pytest", "markers", fallback="").splitlines():
+        match = _MARKER_NAME_RE.match(line.strip())
+        if match:
+            names.append(match.group())
+    return tuple(names)
+
+
+# ---------------------------------------------------------------------------
 # Selection model
 # ---------------------------------------------------------------------------
 
@@ -275,7 +546,7 @@ def _is_file_entry(entry: str) -> bool:
     return entry.endswith(".py") or ".py::" in entry
 
 
-def _path_matches(relpath: str, nodeid: str, entry: str) -> bool:
+def path_matches(relpath: str, nodeid: str, entry: str) -> bool:
     entry = entry.replace("\\", "/")
     if "::" in entry:
         return nodeid == entry or nodeid.startswith(entry)
@@ -301,9 +572,9 @@ class CompiledGate:
         self.expr = Expression.compile(gate.marker_expr) if gate.marker_expr else None
 
     def selects(self, relpath: str, nodeid: str, markers: set[str]) -> bool:
-        if not any(_path_matches(relpath, nodeid, p) for p in self.paths):
+        if not any(path_matches(relpath, nodeid, p) for p in self.paths):
             return False
-        if any(_path_matches(relpath, nodeid, ig) for ig in self.gate.ignores):
+        if any(path_matches(relpath, nodeid, ig) for ig in self.gate.ignores):
             return False
         if self.expr is None:
             return True
@@ -338,7 +609,7 @@ def analyze(gates: list[Gate], universe: list[TestRecord]) -> CoverageReport:
         if hits == 0:
             orphan_nodeids.append(nodeid)
             orphan_files.add(relpath)
-        elif hits >= 2:
+        elif hits >= _DUPLICATE_GATE_THRESHOLD:
             duplicate_nodeids.append(nodeid)
     return CoverageReport(
         total=len(universe),
@@ -389,6 +660,7 @@ def collect_universe(repo_root: Path | None = None) -> list[TestRecord]:
             capture_output=True,
             text=True,
             timeout=900,
+            check=False,
         )
         if result.returncode not in _COLLECT_OK_CODES or not dump.exists():
             raise RuntimeError(
@@ -400,7 +672,7 @@ def collect_universe(repo_root: Path | None = None) -> list[TestRecord]:
                 f"(expected one of {sorted(_COLLECT_OK_CODES)}); "
                 f"dump_present={dump.exists()}\n"
                 f"--- stdout (tail) ---\n{result.stdout[-2000:]}\n"
-                f"--- stderr (tail) ---\n{result.stderr[-2000:]}"
+                f"--- stderr (tail) ---\n{result.stderr[-2000:]}",
             )
         universe: list[TestRecord] = json.loads(dump.read_text(encoding="utf-8"))
         return universe
@@ -435,7 +707,7 @@ def _baseline_payload(report: CoverageReport) -> dict[str, Any]:
 def update_baseline() -> CoverageReport:
     report = analyze(load_gates(), collect_universe())
     BASELINE_PATH.write_text(
-        json.dumps(_baseline_payload(report), indent=2) + "\n", encoding="utf-8"
+        json.dumps(_baseline_payload(report), indent=2) + "\n", encoding="utf-8",
     )
     return report
 

@@ -51,7 +51,7 @@ _REQUIRED_CORE_MISC_SHARDS: frozenset[str] = frozenset(
         "specify-cli-rest",
         "auth-audit-git",
         "misc",
-    }
+    },
 )
 # A representative single-token marker selector that must remain modellable.
 _REQUIRED_MARKER_TOKENS: tuple[str, ...] = ("windows_ci", "quarantine", "timing", "slow")
@@ -62,6 +62,7 @@ _MIN_EXPECTED_GATES = 40
 
 @pytest.fixture(scope="module")
 def gates() -> list[gc.Gate]:
+    """Parse the four suite-running workflows once per module."""
     return gc.load_gates()
 
 
@@ -126,7 +127,9 @@ def test_required_selection_structures_present(gates: list[gc.Gate]) -> None:
 
 
 def test_windows_gate_models_windows_ci_marker(gates: list[gc.Gate]) -> None:
-    """ci-windows.yml builds its test list dynamically (``git grep``), so its paths
+    """Every parsable ci-windows gate must narrow by ``-m windows_ci``.
+
+    ci-windows.yml builds its test list dynamically (``git grep``), so its paths
     can't be parsed and the gate falls back to the whole tree (see
     ``CompiledGate.__init__``). That fallback is coverage-SAFE only because the
     gate narrows by ``-m windows_ci``: every parsable ci-windows gate must carry
@@ -152,8 +155,10 @@ def test_windows_gate_models_windows_ci_marker(gates: list[gc.Gate]) -> None:
 
 
 def test_selection_logic_matches_marker_and_path() -> None:
-    """A unit test marked only ``unit`` in a misc-shard dir is an orphan; the same
-    path marked ``git_repo`` is covered. This is the #2034 failure mode in miniature.
+    """The #2034 failure mode in miniature: marker-only selection decides.
+
+    A unit test marked only ``unit`` in a misc-shard dir is an orphan; the same
+    path marked ``git_repo`` is covered.
 
     ``selects`` is a *pure, deterministic* function of its arguments — the marker
     expression compiles once and ``Expression.evaluate`` has no data-dependent
@@ -184,18 +189,19 @@ def test_selection_logic_matches_marker_and_path() -> None:
     )
     # Outside the gate's paths → never selected, regardless of marker.
     assert not compiled.selects(
-        "tests/other/test_z.py", "tests/other/test_z.py::t", {"git_repo"}
+        "tests/other/test_z.py", "tests/other/test_z.py::t", {"git_repo"},
     ), "test outside the gate's paths was selected — the path filter is broken."
 
 
 def test_parser_ignores_non_command_pytest_tokens() -> None:
-    """``pytest`` as an *argument* (pipx inject, git grep) is not a gate; a
-    ``"$VAR" -m pytest ... -m windows_ci`` invocation is parsed correctly.
+    """``pytest`` as an *argument* (pipx inject, git grep) is not a gate.
+
+    A ``"$VAR" -m pytest ... -m windows_ci`` invocation is parsed correctly.
     """
-    assert gc._parse_pytest_invocation("pipx inject spec-kitty-cli pytest pytest-cov") is None
-    assert gc._parse_pytest_invocation('done < <(git grep -l "@pytest.mark.x" -- tests)') is None
-    parsed = gc._parse_pytest_invocation(
-        '"$VENV_PYTHON" -m pytest -m windows_ci --maxfail=1 -v "${WINDOWS_TESTS[@]}"'
+    assert gc.parse_pytest_invocation("pipx inject spec-kitty-cli pytest pytest-cov") is None
+    assert gc.parse_pytest_invocation('done < <(git grep -l "@pytest.mark.x" -- tests)') is None
+    parsed = gc.parse_pytest_invocation(
+        '"$VENV_PYTHON" -m pytest -m windows_ci --maxfail=1 -v "${WINDOWS_TESTS[@]}"',
     )
     assert parsed is not None
     _paths, _ignores, marker = parsed
@@ -214,12 +220,12 @@ def test_collect_universe_fails_loudly_on_collection_error(
     """
 
     def fake_run(
-        *_args: object, env: dict[str, str], **_kw: object
+        *_args: object, env: dict[str, str], **_kw: object,
     ) -> subprocess.CompletedProcess[str]:
         # Simulate the plugin having already written a (partial) dump before the
         # collection error aborted the run with a failure exit code.
         Path(env["SK_GATE_DUMP"]).write_text(
-            json.dumps([{"nodeid": "x", "relpath": "x", "markers": []}])
+            json.dumps([{"nodeid": "x", "relpath": "x", "markers": []}]),
         )
         return subprocess.CompletedProcess(
             args=[],
@@ -236,10 +242,9 @@ def test_collect_universe_fails_loudly_on_collection_error(
 
 
 def test_analyze_detects_orphan_and_covered_records() -> None:
-    """Direct guard on the analyzer core: ``analyze`` must classify a zero-gate
-    test as an orphan and a gated test as covered.
+    """``analyze`` must classify a zero-gate test as orphan, a gated one as covered.
 
-    The real-universe ratchet below only checks the *delta* against the baseline,
+    This is the direct guard on the analyzer core; the real-universe ratchet below only checks the *delta* against the baseline,
     so mutating ``analyze`` to never detect orphans leaves it (and the backlog
     test) green — the exact "untested-but-green" failure this PR exists to catch,
     reproduced in the checker's own guard (Issue #2034 review, renata HIGH). This
@@ -304,16 +309,16 @@ def test_selection_respects_ignore() -> None:
 def test_path_matches_nodeid_prefix_branch() -> None:
     """A ``::``-bearing entry matches by nodeid equality or prefix, not relpath."""
     nodeid = "tests/a/test_x.py::TestK::test_m"
-    assert gc._path_matches("tests/a/test_x.py", nodeid, "tests/a/test_x.py::TestK")
-    assert gc._path_matches("tests/a/test_x.py", nodeid, nodeid)
-    assert not gc._path_matches(
-        "tests/a/test_x.py", "tests/a/test_x.py::TestZ::t", "tests/a/test_x.py::TestK"
+    assert gc.path_matches("tests/a/test_x.py", nodeid, "tests/a/test_x.py::TestK")
+    assert gc.path_matches("tests/a/test_x.py", nodeid, nodeid)
+    assert not gc.path_matches(
+        "tests/a/test_x.py", "tests/a/test_x.py::TestZ::t", "tests/a/test_x.py::TestK",
     )
 
 
 def test_substitute_matrix_expands_and_blanks() -> None:
     """``${{ matrix.X }}`` expands to the variant value; other ``${{ ... }}`` blank."""
-    out = gc._substitute_matrix(
+    out = gc.substitute_matrix(
         "pytest ${{ matrix.shard }} -m '${{ matrix.markers }}' ${{ github.sha }}",
         {"shard": "tests/misc", "markers": "fast"},
     )
@@ -324,8 +329,8 @@ def test_substitute_matrix_expands_and_blanks() -> None:
 
 def test_join_continuations_merges_backslash_lines() -> None:
     """Backslash-continued shell lines join into one logical line; others stand alone."""
-    joined = gc._join_continuations(
-        "pytest tests/a \\\n  -m fast \\\n  --maxfail=1\necho done"
+    joined = gc.join_continuations(
+        "pytest tests/a \\\n  -m fast \\\n  --maxfail=1\necho done",
     )
     assert any("pytest tests/a" in ln and "--maxfail=1" in ln for ln in joined)
     assert "echo done" in joined
@@ -333,12 +338,12 @@ def test_join_continuations_merges_backslash_lines() -> None:
 
 def test_strip_to_command_strips_env_and_runner_prefixes() -> None:
     """Env-assignments and runner prefixes reduce down to the ``pytest`` token."""
-    assert gc._strip_to_command(
-        "FOO=1 BAR='x y' uv run pytest tests -m fast"
+    assert gc.strip_to_command(
+        "FOO=1 BAR='x y' uv run pytest tests -m fast",
     ).startswith("pytest")
-    assert gc._strip_to_command('"$VENV_PYTHON" -m pytest tests').startswith("pytest")
+    assert gc.strip_to_command('"$VENV_PYTHON" -m pytest tests').startswith("pytest")
     # A command where ``pytest`` is only an argument is NOT reduced to a pytest head.
-    assert not gc._strip_to_command("git grep -l pytest -- tests").startswith("pytest")
+    assert not gc.strip_to_command("git grep -l pytest -- tests").startswith("pytest")
 
 
 def test_pytest_marker_expression_import_contract() -> None:
@@ -348,15 +353,15 @@ def test_pytest_marker_expression_import_contract() -> None:
     could move or change this surface. Fail here with a clear pointer rather than
     deep inside a ratchet run (Issue #2034 review, alphonso MED).
     """
-    from typing import Any, cast
+    from typing import Any, cast  # noqa: PLC0415  # intentional: exercises import surface
 
-    from _pytest.mark.expression import Expression
+    from _pytest.mark.expression import Expression  # noqa: PLC0415  # intentional: exercises import surface
 
     expr = Expression.compile("a and not b")
     # pytest's matcher protocol is ``callable(name, /, **kw) -> bool``; a plain
     # membership test is structurally compatible (cast silences the Protocol),
     # mirroring ``CompiledGate.selects``.
-    assert expr.evaluate(cast("Any", lambda name: name in {"a"})) is True
+    assert expr.evaluate(cast("Any", lambda name: name == "a")) is True
     assert expr.evaluate(cast("Any", lambda name: name in {"a", "b"})) is False
 
 
@@ -366,6 +371,7 @@ def test_pytest_marker_expression_import_contract() -> None:
 
 
 def test_baseline_file_is_well_formed() -> None:
+    """The ratchet baseline carries its required keys and stays sorted."""
     baseline = gc.load_baseline()
     for key in ("orphan_files", "orphan_test_count", "total_tests"):
         assert key in baseline, f"_gate_coverage_baseline.json missing key {key!r}."
@@ -383,20 +389,22 @@ def test_no_new_orphan_surfaces(coverage_report: gc.CoverageReport) -> None:
     """
     baseline_files = set(gc.load_baseline().get("orphan_files", []))
     current = set(coverage_report.orphan_files)
-    # Real-universe floor: the analyzer must still be DETECTING the recorded
-    # backlog — not silently returning an empty orphan set, which would also make
-    # ``new_files`` empty and fake a pass (renata HIGH; the synthetic
-    # ``test_analyze_detects_orphan_and_covered_records`` pins this deterministically
-    # too). Current orphans must be a non-empty subset of the frozen baseline:
-    # growth is caught below, legitimate shrinkage is warned (not failed) by
-    # ``test_orphan_backlog_does_not_grow``, so a strict ``==`` would contradict
-    # that intentional shrink-warns design.
-    assert current, (
-        "analyze() reported ZERO orphan files against the real suite — the checker "
-        "has STOPPED detecting coverage holes (expected a non-empty subset of the "
-        f"{len(baseline_files)}-file baseline). This is the checker silently going "
-        "blind, the one regression it must not allow."
-    )
+    # Real-universe floor: while the frozen backlog is non-empty the analyzer
+    # must still be DETECTING it — not silently returning an empty orphan set,
+    # which would also make ``new_files`` empty and fake a pass (renata HIGH).
+    # Since the #2296 drain (mission ci-suite-map-bind FR-006) the committed
+    # baseline is EMPTY by design: zero live orphans at a zero-file baseline is
+    # the invariant HOLDING, not the checker going blind. Checker-blindness
+    # stays pinned deterministically by the synthetic
+    # ``test_analyze_detects_orphan_and_covered_records`` (a known-orphan
+    # record must be reported), which does not depend on live orphans existing.
+    if baseline_files:
+        assert current, (
+            "analyze() reported ZERO orphan files against the real suite — the "
+            "checker has STOPPED detecting coverage holes (expected a non-empty "
+            f"subset of the {len(baseline_files)}-file baseline). This is the "
+            "checker silently going blind, the one regression it must not allow."
+        )
     new_files = sorted(current - baseline_files)
     assert not new_files, (
         f"{len(new_files)} test file(s) are selected by ZERO CI gates and are not "
