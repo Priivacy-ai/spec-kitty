@@ -276,16 +276,23 @@ jobs:
       # 7b): a src/** change that no named filter group matched must force the
       # full-run path (a LOUD ALARM, not steady state — add a named group for
       # any hot unmatched dir). The union below is computed from the filter's
-      # OWN outputs and is the ONE enumeration of every named group (the
-      # negated path mega-glob mirror is FORBIDDEN); the architectural
-      # invariant asserts this list stays identical to the parsed filter-group
-      # set (Decision 8 two-authority rule).
+      # OWN outputs and is the ONE enumeration of every SRC-BACKED named group
+      # (the negated path mega-glob mirror is FORBIDDEN); the architectural
+      # invariant asserts this list stays identical to the parsed set of
+      # src-backed filter groups (Decision 8 two-authority rule). Non-src groups
+      # (docs, e2e) are excluded so they can't mask an unmapped-src change.
       - name: Compute catch-all unmatched signal
         id: unmatched
         env:
           ANY_SRC: ${{ steps.filter.outputs.any_src }}
         run: |
           matched=false
+          # The union below is the SRC-BACKED filter groups only (every group
+          # with >=1 ``src/`` glob). The non-src groups ``docs`` and ``e2e``
+          # are DELIBERATELY excluded so a docs- or e2e-only change bundled
+          # with an UNMAPPED src/** change cannot set matched=true and mask the
+          # src hole (aggregate-squad debbie). The architectural invariant pins
+          # this union to the parsed src-backed filter groups.
           for group_hit in \
             "${{ steps.filter.outputs.sync }}" \
             "${{ steps.filter.outputs.merge }}" \
@@ -305,8 +312,6 @@ jobs:
             "${{ steps.filter.outputs.kernel }}" \
             "${{ steps.filter.outputs.doctrine }}" \
             "${{ steps.filter.outputs.execution_context }}" \
-            "${{ steps.filter.outputs.e2e }}" \
-            "${{ steps.filter.outputs.docs }}" \
             "${{ steps.filter.outputs.glossary }}"; do
             if [ "$group_hit" = "true" ]; then
               matched=true
