@@ -4,7 +4,7 @@ description: Terminology reference for Spec Kitty. Clear vocabulary definitions 
 doc_status: active
 updated: '2026-06-13'
 related:
-- docs/migration/mission-id-canonical-identity.md
+- docs/migrations/mission-id-canonical-identity.md
 ---
 # Terminology Reference
 
@@ -41,7 +41,7 @@ This document defines the **target-state** canonical terminology for Spec Kitty'
 | `build_id` | Build | Per-checkout/worktree identity, unique per working tree. | Stable per worktree | No change -- already correctly scoped |
 | `node_id` | Machine | Stable machine fingerprint (12-char hex). | Stable per host | No change -- already correctly scoped |
 
-See the [mission identity migration runbook](../migration/mission-id-canonical-identity.md) for the operator upgrade path and ADR 2026-04-09-1 for the design rationale.
+See the [mission identity migration runbook](../migrations/mission-id-canonical-identity.md) for the operator upgrade path and ADR 2026-04-09-1 for the design rationale.
 
 ---
 

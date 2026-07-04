@@ -4,7 +4,7 @@ description: Architecture of centralized feature detection (v0.14.0), partly sup
 doc_status: active
 updated: '2026-04-12'
 related:
-- docs/migration/mission-id-canonical-identity.md
+- docs/migrations/mission-id-canonical-identity.md
 ---
 # Architecture: Centralized Feature Detection
 
@@ -19,7 +19,7 @@ related:
 > accepts `mission_id`, `mid8`, or `mission_slug` and returns a structured error
 > on ambiguity. Numeric prefixes like `020-feature-a` are **display-only metadata**
 > — they are never used for identity or routing. See the
-> [mission identity migration runbook](../migration/mission-id-canonical-identity.md).
+> [mission identity migration runbook](../migrations/mission-id-canonical-identity.md).
 
 ## Problem Statement
 

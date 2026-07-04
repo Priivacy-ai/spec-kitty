@@ -5,7 +5,7 @@ doc_status: draft
 updated: '2026-06-27'
 related:
 - docs/archive/2x/index.md
-- docs/migration/from-charter-2x.md
+- docs/migrations/from-charter-2x.md
 ---
 # Spec Kitty 3.2 — Archive & Migration Plan
 
@@ -54,9 +54,9 @@ Each banner is exactly one markdown line beginning with `> `, matching the
 contract regex `^>\s*(?:Archive notice|Migration note)\b`.
 
 - **Archive notice (1.x)**:
-  `> Archive notice: This page documents Spec Kitty 1.x and is preserved for historical context. See [`docs/migration/from-charter-2x.md`](../migration/from-charter-2x.md) for current 3.2 guidance.`
+  `> Archive notice: This page documents Spec Kitty 1.x and is preserved for historical context. See [`docs/migration/from-charter-2x.md`](../migrations/from-charter-2x.md) for current 3.2 guidance.`
 - **Archive notice (2.x)**:
-  `> Archive notice: This page documents Spec Kitty 2.x and is preserved for historical context. See [`docs/migration/from-charter-2x.md`](../migration/from-charter-2x.md) for current 3.2 guidance.`
+  `> Archive notice: This page documents Spec Kitty 2.x and is preserved for historical context. See [`docs/migration/from-charter-2x.md`](../migrations/from-charter-2x.md) for current 3.2 guidance.`
 - **Migration note (2.x → 3.2)**:
   `> Migration note: This page guides users moving from Spec Kitty 2.x to 3.2.`
 - **Migration note (2.1 → 2.x)** (used for the cutover checklist):

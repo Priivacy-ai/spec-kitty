@@ -6,7 +6,7 @@ updated: '2026-06-03'
 related:
 - docs/guides/setup-governance.md
 - docs/guides/synthesize-doctrine.md
-- docs/migration/doctrine-local-overlay-to-org-layer.md
+- docs/migrations/doctrine-local-overlay-to-org-layer.md
 ---
 # How to Create an Org Doctrine Pack
 
@@ -434,6 +434,6 @@ edges or nodes instead.
 ## See also
 
 - [Understanding the Org Doctrine Layer](../architecture/org-doctrine-layer.md)
-- [Migrating shared doctrine to the org layer](../migration/doctrine-local-overlay-to-org-layer.md)
+- [Migrating shared doctrine to the org layer](../migrations/doctrine-local-overlay-to-org-layer.md)
 - [How to set up project governance](setup-governance.md)
 - [How to synthesize and maintain doctrine](synthesize-doctrine.md)

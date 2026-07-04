@@ -4,9 +4,9 @@ description: Reference for Spec Kitty event envelopes. Understand the 3.0.0 cont
 doc_status: active
 updated: '2026-06-09'
 related:
-- docs/migration/feature-flag-deprecation.md
-- docs/migration/mission-id-canonical-identity.md
-- docs/migration/mission-type-flag-deprecation.md
+- docs/migrations/feature-flag-deprecation.md
+- docs/migrations/mission-id-canonical-identity.md
+- docs/migrations/mission-type-flag-deprecation.md
 ---
 # Event Envelope Reference
 
@@ -22,7 +22,7 @@ The current contract version is `3.0.0`.
 - `Mission` is the tracked item under `kitty-specs/<mission-slug>/`. Its **canonical** machine identity is `mission_id` (a ULID). The human-readable `mission_slug` and the display-only `mission_number` are serialized alongside it for context, but **selectors and event routing use `mission_id`**.
 - `Mission Run` is the runtime/session concept. It is not serialized as tracked-mission identity.
 
-See [Mission ID Canonical Identity Migration](../migration/mission-id-canonical-identity.md) for the rationale and ADR 2026-04-09-1.
+See [Mission ID Canonical Identity Migration](../migrations/mission-id-canonical-identity.md) for the rationale and ADR 2026-04-09-1.
 
 ## Core Envelope
 
@@ -92,8 +92,8 @@ Forbidden body-sync fields:
 
 Operator-facing CLI migration guidance lives here:
 
-- [Feature Flag Deprecation](../migration/feature-flag-deprecation.md)
-- [Mission Type Flag Deprecation](../migration/mission-type-flag-deprecation.md)
+- [Feature Flag Deprecation](../migrations/feature-flag-deprecation.md)
+- [Mission Type Flag Deprecation](../migrations/mission-type-flag-deprecation.md)
 
 The migration policy is asymmetric:
 
