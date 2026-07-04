@@ -60,6 +60,7 @@ from specify_cli.cli.commands._teamspace_mission_state_gate import (
     offer_teamspace_mission_state_migration,
 )
 from specify_cli.core.commit_guard import GuardCapability
+from specify_cli.core.env import is_truthy
 from specify_cli.git.commit_helpers import safe_commit
 
 
@@ -310,12 +311,6 @@ def _version_is_newer(latest: str | None, installed: str) -> bool:
         return False
 
 
-def _is_truthy(raw: str | None) -> bool:
-    if not raw:
-        return False
-    return raw.strip().casefold() in {"1", "true", "yes", "on"}
-
-
 def _agent_check_payload() -> dict[str, object]:
     """Return machine-readable upgrade readiness for agent prompt preambles."""
     from specify_cli.compat import (
@@ -371,7 +366,7 @@ def _agent_check_payload() -> dict[str, object]:
     if not _version_is_newer(latest_version, cli_status.installed_version):
         return payload
 
-    if _is_truthy(os.environ.get(ENV_UPGRADE_DISABLED)):
+    if is_truthy(os.environ.get(ENV_UPGRADE_DISABLED)):
         payload["reason"] = "upgrade_disabled"
         return payload
 

@@ -36,6 +36,7 @@ from typing import Any
 
 from rich.console import Console
 
+from specify_cli.core.env import is_truthy
 from specify_cli.core.upgrade_probe import (
     UpgradeChannel,
     UpgradeProbeResult,
@@ -225,8 +226,7 @@ def _is_opt_out_set() -> bool:
 
     Per the contract this is **checked on every invocation** — never cached.
     """
-    raw = os.environ.get(OPT_OUT_ENV_VAR, "").strip().lower()
-    return raw in ("1", "true", "yes", "on")
+    return is_truthy(os.environ.get(OPT_OUT_ENV_VAR))
 
 
 # ---------------------------------------------------------------------------

@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from specify_cli.cli.commands import init as init_module
+from specify_cli.core.env import is_truthy
 
 pytestmark = pytest.mark.fast
 
@@ -18,9 +19,9 @@ def test_is_truthy_env():
     assert len(truthy) == 5
     # Act / Assert
     for val in truthy:
-        assert init_module._is_truthy_env(val) is True
+        assert is_truthy(val) is True
     for val in falsy:
-        assert init_module._is_truthy_env(val) is False
+        assert is_truthy(val) is False
 
 
 def test_non_interactive_env_override(monkeypatch: pytest.MonkeyPatch):
@@ -29,7 +30,7 @@ def test_non_interactive_env_override(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setenv("SPEC_KITTY_NON_INTERACTIVE", "1")
     monkeypatch.setattr(init_module.sys.stdin, "isatty", lambda: True)
     # Assumption check
-    assert init_module._is_truthy_env("1") is True
+    assert is_truthy("1") is True
     # Act
     result = init_module._is_non_interactive_mode(False)
     # Assert
@@ -42,7 +43,7 @@ def test_non_interactive_non_tty(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.delenv("SPEC_KITTY_NON_INTERACTIVE", raising=False)
     monkeypatch.setattr(init_module.sys.stdin, "isatty", lambda: False)
     # Assumption check
-    assert init_module._is_truthy_env(None) is False
+    assert is_truthy(None) is False
     # Act
     result = init_module._is_non_interactive_mode(False)
     # Assert

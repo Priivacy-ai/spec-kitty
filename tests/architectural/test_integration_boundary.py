@@ -29,10 +29,11 @@ gates that share that cache). The injection sanity-check feeds the SAME
 function a real on-disk file, so it exercises the actual enforcement path
 rather than a re-implementation of it.
 
-Allowlist: at most one exemption is permitted (``readiness/coordinator.py`` →
-``specify_cli.saas.rollout``), documented with rationale and planned resolution.
-A count-ratchet test pins ``len(ALLOWLIST) <= 1`` so the exemption set can only
-shrink (when the follow-up relocation lands) — never silently grow.
+Allowlist: the exemption set is permanently closed — no CORE→INTEGRATION
+crossing is allowed. A count-ratchet test pins ``len(ALLOWLIST) == 0`` so no
+exemption can ever be reintroduced. (The former sole exemption,
+``readiness/coordinator.py`` → ``specify_cli.saas.rollout``, was retired when the
+flag reader relocated to ``specify_cli.core.saas_sync_config``.)
 
 Tests:
   - ``test_core_package_dirs_exist``: C-008 sanity — all CORE dirs exist on disk
@@ -42,7 +43,7 @@ Tests:
   - ``test_allowlist_cannot_be_bypassed``: injection proof — a real on-disk CORE
     file with a non-allowlisted INTEGRATION import is driven through the same
     ``_scan_trees`` the gate uses and MUST be reported.
-  - ``test_allowlist_count_ratchet``: pins ``len(ALLOWLIST) <= 1``.
+  - ``test_allowlist_count_ratchet``: pins ``len(ALLOWLIST) == 0``.
 """
 
 from __future__ import annotations
@@ -85,20 +86,10 @@ INTEGRATION_PREFIXES = [
 
 # Each entry is a 2-tuple of (source_file_relative_to_repo_root, import_prefix).
 # Changes here require a written rationale comment.
-ALLOWLIST: frozenset[tuple[str, str]] = frozenset(
-    {
-        (
-            "src/specify_cli/readiness/coordinator.py",
-            "specify_cli.saas.rollout",
-            # Rationale: saas/rollout.py acts as a shared-config module (shared-config v1).
-            # is_saas_sync_enabled is a pure feature-flag read with no side effects; not a
-            # structural SaaS dependency. Will be relocated to a core/kernel config module
-            # by follow-up issue #2252 (https://github.com/Priivacy-ai/spec-kitty/issues/2252).
-            # Exempted until that relocation lands; the count-ratchet below holds the set at
-            # <= 1 so this is the only crossing that can exist.
-        ),
-    }
-)
+# The exemption set is permanently closed: no CORE→INTEGRATION crossing is allowed.
+# The former sole exemption (readiness/coordinator.py → specify_cli.saas.rollout) was
+# retired when the flag reader relocated to specify_cli.core.saas_sync_config (#2252).
+ALLOWLIST: frozenset[tuple[str, str]] = frozenset()
 
 # ---------------------------------------------------------------------------
 # Corrective action string (reused in violation messages — NFR-002)
@@ -261,33 +252,24 @@ def test_allowlist_cannot_be_bypassed(tmp_path: Path) -> None:
     assert "specify_cli.sync.events" in violations[0]
     assert fake_rel in violations[0]
 
-    # Positive control: the allowlisted edge is NOT reported, proving the
-    # exemption path is what suppresses it (not a broken scanner).
-    allow_src = "from specify_cli.saas.rollout import is_saas_sync_enabled\n"
-    allow_tree = ast.parse(allow_src)
-    allow_rel = "src/specify_cli/readiness/coordinator.py"
-    assert not _scan_trees([(allow_rel, allow_tree)]), (
-        "The allowlisted readiness/coordinator.py → saas.rollout edge must be "
-        "suppressed by the exemption, not reported."
-    )
-
 
 # ---------------------------------------------------------------------------
-# Allowlist count-ratchet (Success Criterion 3 — exactly one exemption today)
+# Allowlist count-ratchet (Success Criterion 3 — exemption set permanently closed)
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.architectural
 def test_allowlist_count_ratchet() -> None:
-    """``len(ALLOWLIST) <= 1`` — the exemption set may only shrink, never grow.
+    """``len(ALLOWLIST) == 0`` — the exemption set is permanently closed.
 
-    Exactly one exemption exists today (``readiness/coordinator.py`` →
-    ``specify_cli.saas.rollout``). The ``<= 1`` ceiling lets the planned
-    follow-up relocation drop it to zero without editing this ratchet, while
-    forbidding any new crossing from being silently allowlisted in.
+    No CORE→INTEGRATION crossing is allowed. The former sole exemption
+    (``readiness/coordinator.py`` → ``specify_cli.saas.rollout``) was retired when
+    the flag reader relocated to ``specify_cli.core.saas_sync_config``; the ``== 0``
+    floor forbids any new crossing from being silently allowlisted back in.
     """
-    assert len(ALLOWLIST) <= 1, (
-        f"ALLOWLIST grew to {len(ALLOWLIST)} entries: {sorted(ALLOWLIST)}. "
+    assert len(ALLOWLIST) == 0, (
+        "exemption set is permanently closed; no CORE→INTEGRATION crossing is "
+        f"allowed. ALLOWLIST has {len(ALLOWLIST)} entries: {sorted(ALLOWLIST)}. "
         "New CORE→INTEGRATION exemptions are not permitted — invert the "
         "dependency via the adapter registry instead."
     )
