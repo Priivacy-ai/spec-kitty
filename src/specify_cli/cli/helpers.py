@@ -16,6 +16,7 @@ from rich.text import Text
 from typer.core import TyperGroup
 
 from specify_cli.core.config import BANNER
+from specify_cli.core.env import is_truthy
 from specify_cli.core.project_resolver import locate_project_root
 
 console = Console()
@@ -83,7 +84,7 @@ class BannerGroup(TyperGroup):
 def _should_use_simple_help() -> bool:
     """Choose a plain help renderer for narrow terminals or explicit opt-in."""
     raw = os.environ.get("SPEC_KITTY_SIMPLE_HELP", "").strip().lower()
-    if raw in {"1", "true", "yes", "on"}:
+    if is_truthy(raw):
         return True
     if raw in {"0", "false", "no", "off"}:
         return False
@@ -122,7 +123,7 @@ def _should_render_banner_for_invocation(argv: list[str] | None = None) -> bool:
     """Return True only for invocations that should render ASCII art."""
     # Agent/tool contexts should never receive decorative banner output.
     # It pollutes deterministic parsing and wastes tokens.
-    if os.environ.get("SPEC_KITTY_NO_BANNER", "").strip().lower() in {"1", "true", "yes", "on"}:
+    if is_truthy(os.environ.get("SPEC_KITTY_NO_BANNER")):
         return False
 
     agent_env_markers = (

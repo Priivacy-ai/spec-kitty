@@ -21,6 +21,7 @@ from specify_cli.cli import StepTracker, multi_select_with_arrows
 from specify_cli.core import (
     AI_CHOICES,
 )
+from specify_cli.core.env import is_truthy
 from specify_cli.core.vcs import (
     is_git_available,
     VCSBackend,
@@ -377,16 +378,10 @@ class VCSNotFoundError(Exception):
     pass
 
 
-def _is_truthy_env(value: str | None) -> bool:
-    if value is None:
-        return False
-    return value.strip().lower() in {"1", "true", "yes", "y", "on"}
-
-
 def _is_non_interactive_mode(flag: bool) -> bool:
     if flag:
         return True
-    if _is_truthy_env(os.environ.get("SPEC_KITTY_NON_INTERACTIVE")):
+    if is_truthy(os.environ.get("SPEC_KITTY_NON_INTERACTIVE")):
         return True
     return not sys.stdin.isatty()
 

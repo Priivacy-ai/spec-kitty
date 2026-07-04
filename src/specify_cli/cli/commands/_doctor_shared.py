@@ -28,6 +28,8 @@ import warnings
 from collections.abc import Generator
 from contextlib import contextmanager
 
+from specify_cli.core.env import is_truthy
+
 # The single Console() instance lives in _profile_health_render; re-export it so
 # this module is the one import site for siblings while preserving one instance.
 from ._profile_health_render import console as console
@@ -70,10 +72,7 @@ def _is_interactive_environment() -> bool:
     """
     if not sys.stdin.isatty():
         return False
-    return all(
-        os.environ.get(var, "").lower() not in ("true", "1", "yes")
-        for var in _CI_ENV_VARS
-    )
+    return all(not is_truthy(os.environ.get(var)) for var in _CI_ENV_VARS)
 
 
 @contextmanager

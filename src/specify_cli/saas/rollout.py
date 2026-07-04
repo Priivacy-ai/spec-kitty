@@ -1,39 +1,18 @@
-"""Canonical rollout gate for hosted SaaS sync.
+"""Backward-compat re-export shim. Canonical home: specify_cli.core.saas_sync_config.
 
 Stability contract: ``contracts/saas_rollout.md``.
 
-This module is the single source of truth for the ``SPEC_KITTY_ENABLE_SAAS_SYNC``
-environment-variable check.  Both ``specify_cli.tracker.feature_flags`` and
-``specify_cli.sync.feature_flags`` are thin re-export shims that delegate here.
+Re-exports the same function objects so ``is``-identity holds across every shim
+(``tracker.feature_flags``, ``sync.feature_flags``) and existing importers of
+``specify_cli.saas.rollout`` keep working unchanged.
 """
 
 from __future__ import annotations
 
-import os
-
-SAAS_SYNC_ENV_VAR = "SPEC_KITTY_ENABLE_SAAS_SYNC"
-_TRUTHY_VALUES = frozenset({"1", "true", "yes", "on"})
-
-_DISABLED_MESSAGE = (
-    "Hosted SaaS sync is not enabled on this machine. "
-    "Set `SPEC_KITTY_ENABLE_SAAS_SYNC=1` to opt in."
+from specify_cli.core.saas_sync_config import (
+    SAAS_SYNC_ENV_VAR,
+    is_saas_sync_enabled,
+    saas_sync_disabled_message,
 )
 
-
-def is_saas_sync_enabled() -> bool:
-    """Return True iff SaaS sync is explicitly enabled via the environment.
-
-    Truthy values (case-insensitive, after strip): ``1``, ``true``, ``yes``, ``on``.
-    Everything else — including an unset or empty variable — returns ``False``.
-    """
-    raw = os.environ.get(SAAS_SYNC_ENV_VAR, "")
-    return raw.strip().casefold() in _TRUTHY_VALUES
-
-
-def saas_sync_disabled_message() -> str:
-    """Return the stable, byte-wise-frozen message shown when SaaS sync is off.
-
-    Wording is asserted byte-for-byte by tests; do not change without updating
-    ``contracts/saas_rollout.md`` and bumping the contract version.
-    """
-    return _DISABLED_MESSAGE
+__all__ = ["SAAS_SYNC_ENV_VAR", "is_saas_sync_enabled", "saas_sync_disabled_message"]

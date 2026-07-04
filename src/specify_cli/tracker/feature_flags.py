@@ -1,4 +1,4 @@
-"""Backwards-compatibility shim; canonical home is specify_cli.saas.rollout."""
+"""Backwards-compatibility shim; canonical home is specify_cli.core.saas_sync_config."""
 
 from specify_cli.saas.rollout import (
     SAAS_SYNC_ENV_VAR,

@@ -11,6 +11,7 @@ from rich.console import Console
 from rich.table import Table
 
 from specify_cli.core.config import AGENT_COMMAND_CONFIG
+from specify_cli.core.env import is_truthy
 from specify_cli.core.agent_config import (
     load_agent_config,
     save_agent_config,
@@ -628,10 +629,9 @@ def sync_agents(
 
 def _parse_bool_value(value: str) -> bool | None:
     """Parse a CLI boolean string; return None when it is not a valid bool."""
-    lowered = value.lower()
-    if lowered in ("true", "1", "yes", "on"):
+    if is_truthy(value):
         return True
-    if lowered in ("false", "0", "no", "off"):
+    if value.strip().casefold() in ("false", "0", "no", "off"):
         return False
     return None
 

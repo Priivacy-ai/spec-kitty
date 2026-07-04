@@ -39,13 +39,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from specify_cli.core.env import is_truthy
+
 _LOG = logging.getLogger(__name__)
 
 _DEFAULT_THROTTLE_SECONDS: int = 86_400
 _MIN_THROTTLE_SECONDS: int = 60
 _MAX_THROTTLE_SECONDS: int = 31_536_000
-
-_TRUTHY_STRINGS = frozenset({"1", "true", "yes", "on"})
 
 
 # ---------------------------------------------------------------------------
@@ -223,7 +223,7 @@ def _resolve_nag_enabled(yaml_data: dict[str, Any]) -> bool:
     """
     # 1. Environment variable: truthy → disabled.
     env_val = os.environ.get("SPEC_KITTY_NO_NAG", "")
-    if env_val.lower() in _TRUTHY_STRINGS:
+    if is_truthy(env_val):
         return False
 
     # 2. YAML file.

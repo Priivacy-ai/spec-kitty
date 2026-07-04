@@ -14,6 +14,8 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 
+from specify_cli.core.env import is_truthy
+
 __all__ = [
     "CACHE_PATH",
     "TTL_SECONDS",
@@ -27,8 +29,7 @@ OPT_OUT_ENV_VAR: str = "SPEC_KITTY_NO_UPGRADE_CHECK"
 
 def _is_opt_out_set() -> bool:
     """Return True when upgrade checks are disabled by environment."""
-    raw = os.environ.get(OPT_OUT_ENV_VAR, "").strip().lower()
-    return raw in ("1", "true", "yes", "on")
+    return is_truthy(os.environ.get(OPT_OUT_ENV_VAR))
 
 
 class UpgradeChecker:

@@ -234,7 +234,7 @@ def _evaluate_uncached(ctx: typer.Context) -> ReadinessResult:
 
     No network I/O. No SaaS DB / queue / readiness counter mutation.
     """
-    from specify_cli.saas.rollout import is_saas_sync_enabled  # noqa: PLC0415
+    from specify_cli.core.saas_sync_config import is_saas_sync_enabled  # noqa: PLC0415
 
     output_policy = _derive_output_policy(ctx=ctx)
 

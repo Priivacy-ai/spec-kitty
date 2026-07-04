@@ -35,6 +35,8 @@ from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import TYPE_CHECKING, Literal, Protocol, cast
 
+from specify_cli.core.env import is_truthy
+
 if TYPE_CHECKING:
     import typer
 
@@ -69,15 +71,7 @@ ENV_UPGRADE_AUTO = "SPEC_KITTY_UPGRADE_AUTO"
 ENV_UPGRADE_NEVER_ASK = "SPEC_KITTY_UPGRADE_NEVER_ASK"
 ENV_UPGRADE_DISABLED = "SPEC_KITTY_UPGRADE_DISABLED"
 
-_TRUTHY = frozenset({"1", "true", "yes", "on"})
 _VERSION_RE = re.compile(r"^[A-Za-z0-9.\-+]{1,64}$")
-
-
-def _truthy(raw: str | None) -> bool:
-    """Stable truthy parser shared with ``saas.rollout``."""
-    if not raw:
-        return False
-    return raw.strip().casefold() in _TRUTHY
 
 
 # ---------------------------------------------------------------------------
@@ -168,9 +162,9 @@ def resolve_effective_preference(
     if env is None:
         env = dict(os.environ)
     return EffectivePreference(
-        disabled=_truthy(env.get(ENV_UPGRADE_DISABLED)),
-        never_ask=persisted_never_ask or _truthy(env.get(ENV_UPGRADE_NEVER_ASK)),
-        always_upgrade=persisted_always_upgrade or _truthy(env.get(ENV_UPGRADE_AUTO)),
+        disabled=is_truthy(env.get(ENV_UPGRADE_DISABLED)),
+        never_ask=persisted_never_ask or is_truthy(env.get(ENV_UPGRADE_NEVER_ASK)),
+        always_upgrade=persisted_always_upgrade or is_truthy(env.get(ENV_UPGRADE_AUTO)),
     )
 
 
@@ -715,7 +709,7 @@ def run_upgrade_ux(
             installer_detector = _default_installer_detector
 
         # Kill switch (env-only; not persisted).
-        if _truthy(env.get(ENV_UPGRADE_DISABLED)):
+        if is_truthy(env.get(ENV_UPGRADE_DISABLED)):
             return _inactive_outcome()
 
         # Build invocation & planner output.
