@@ -19,7 +19,10 @@ from typing import Any
 # response carries lane_id / lane_branch / lane_base_ref; workspace_path now
 # means that lane worktree (previously a bare legacy path). Additive + a
 # bugfixed field meaning → minor bump.
-CONTRACT_VERSION = "1.1.0"
+# 1.2.0: added read-only ``resolve-workspace`` (#2337) — resolves a WP's lane
+# workspace_path / prompt_path / lane_branch WITHOUT allocating or transitioning,
+# so an external orchestrator can resume a for_review WP. Purely additive.
+CONTRACT_VERSION = "1.2.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose
