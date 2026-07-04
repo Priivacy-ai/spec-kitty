@@ -41,7 +41,7 @@ def _job_run_script(data: dict[str, Any], job_name: str, step_name: str) -> str:
     return str(step["run"])
 
 
-def _job(data: dict[str, Any], job_name: str) -> dict[str, object]:
+def _job(data: dict[str, Any], job_name: str) -> dict[str, Any]:
     return dict(data["jobs"][job_name])
 
 
@@ -231,7 +231,7 @@ def test_core_misc_integration_is_sharded_and_parallelized() -> None:
     """The slow core-misc integration bucket must stay split and parallel."""
     data = _load_workflow()
     job = _job(data, "integration-tests-core-misc")
-    matrix = job["strategy"]["matrix"]["include"]  # type: ignore[index]
+    matrix = job["strategy"]["matrix"]["include"]
     shard_names = {entry["shard"] for entry in matrix}
 
     assert shard_names == {
@@ -327,7 +327,7 @@ def test_core_misc_excludes_e2e_and_cross_cutting_suites() -> None:
     assert "--ignore=tests/cross_cutting" in fast_run
 
     job = _job(data, "integration-tests-core-misc")
-    matrix = job["strategy"]["matrix"]["include"]  # type: ignore[index]
+    matrix = job["strategy"]["matrix"]["include"]
     matrix_text = "\n".join(
         f"{entry.get('paths', '')}\n{entry.get('ignore_args', '')}" for entry in matrix
     )
