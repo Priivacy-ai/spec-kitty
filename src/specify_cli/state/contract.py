@@ -245,6 +245,40 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         ),
     ),
     StateSurface(
+        name="migration_state_ledger",
+        path_pattern=".kittify/migrations/mission-state/<run_id>.json",
+        root=StateRoot.PROJECT,
+        format=StateFormat.JSON,
+        authority=AuthorityClass.LOCAL_RUNTIME,
+        git_class=GitClass.IGNORED,
+        owner_module="migration/mission_state",
+        creation_trigger="spec-kitty doctor mission-state --fix / upgrade repair",
+        notes=(
+            "Mission-state repair manifests plus quarantined-row backups under "
+            ".kittify/migrations/. Write-only local audit/recovery output; nothing "
+            "reads it back to gate re-runs. Ignored so a repair run does not dirty "
+            "the tree or gate accept (#2384) — the same class as the #2369 "
+            "derived-views fix. Collapses to the .kittify/migrations/ gitignore entry."
+        ),
+    ),
+    StateSurface(
+        name="runtime_agent_logs",
+        path_pattern=".kittify/logs/<mission>_<wp>_<phase>.log",
+        root=StateRoot.PROJECT,
+        format=StateFormat.TEXT,
+        authority=AuthorityClass.LOCAL_RUNTIME,
+        git_class=GitClass.IGNORED,
+        owner_module="spec-kitty-orchestrator (external driver)",
+        creation_trigger="orchestrator per-WP implementation/review run",
+        notes=(
+            "Per-WP implementation/review console logs under .kittify/logs/, "
+            "written by the external orchestrator. Local runtime output; ignored "
+            "so it never dirties the tree or gates accept (#2384). spec-kitty owns "
+            ".kittify/ gitignore hygiene even though the orchestrator is the "
+            "producer. Collapses to the .kittify/logs/ gitignore entry."
+        ),
+    ),
+    StateSurface(
         name="glossary_fallback_events",
         path_pattern=".kittify/events/glossary/<mission_id>.events.jsonl",
         root=StateRoot.PROJECT,
