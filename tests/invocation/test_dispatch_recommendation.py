@@ -157,17 +157,23 @@ def _write_catalog(
 
 
 # Captured ONCE at module-import time, before any test patches
-# ``specify_cli.invocation.executor.routing_loader.load`` (which patches this
-# SAME module's ``load`` attribute, since ``routing_loader`` in executor.py is
-# the ``doctrine.model_task_routing.loader`` module itself, not a copy).
-# ``_load_from`` below must call this captured reference rather than
-# ``real_loader.load`` directly, or a patch installed via one of this file's
-# own helpers would recurse into itself instead of reaching the real loader.
+# ``doctrine.model_task_routing.loader.load``. ``_compute_recommendation``
+# imports ``doctrine.model_task_routing.loader`` FUNCTION-LOCALLY (the
+# runtime -> charter -> doctrine boundary forbids a module-level `from
+# doctrine.*` import from specify_cli/, see
+# tests/architectural/test_runtime_charter_doctrine_boundary.py), so each
+# call re-resolves the *same* live module object -- patching
+# ``doctrine.model_task_routing.loader.load`` directly (rather than an
+# attribute on ``specify_cli.invocation.executor``) is what actually takes
+# effect. ``_load_from`` below must call this captured reference rather
+# than ``real_loader.load`` directly, or a patch installed via one of this
+# file's own helpers would recurse into itself instead of reaching the
+# real loader.
 _REAL_LOAD = real_loader.load
 
 
 def _load_from(fixture_path: Path) -> Callable[..., real_loader.CatalogLoadResult | None]:
-    """Build a ``routing_loader.load`` replacement pinned at *fixture_path*.
+    """Build a ``doctrine.model_task_routing.loader.load`` replacement pinned at *fixture_path*.
 
     Uses the real, injectable ``load(catalog_path=...)`` override (WP01) --
     the point is to exercise the actual loader against a fixture file, not to
@@ -200,7 +206,7 @@ def test_recommendation_varies_with_catalog_scoring_via_invoke(tmp_path: Path) -
         executor = ProfileInvocationExecutor(tmp_path)
 
         with patch(
-            "specify_cli.invocation.executor.routing_loader.load",
+            "doctrine.model_task_routing.loader.load",
             side_effect=_load_from(catalog_alpha_wins),
         ):
             payload_alpha = executor.invoke(
@@ -208,7 +214,7 @@ def test_recommendation_varies_with_catalog_scoring_via_invoke(tmp_path: Path) -
             )
 
         with patch(
-            "specify_cli.invocation.executor.routing_loader.load",
+            "doctrine.model_task_routing.loader.load",
             side_effect=_load_from(catalog_beta_wins),
         ):
             payload_beta = executor.invoke(
@@ -235,7 +241,7 @@ def test_recommendation_absent_when_catalog_missing_dispatch_still_succeeds(tmp_
     _setup_project(tmp_path)
     with patch("specify_cli.invocation.executor.build_charter_context", return_value=_COMPACT_CTX):
         executor = ProfileInvocationExecutor(tmp_path)
-        with patch("specify_cli.invocation.executor.routing_loader.load", return_value=None):
+        with patch("doctrine.model_task_routing.loader.load", return_value=None):
             payload = executor.invoke(
                 "review the diff", profile_hint="reviewer-fixture", action_hint="review"
             )
@@ -259,7 +265,7 @@ def test_recommendation_absent_when_catalog_stale(tmp_path: Path) -> None:
     with patch("specify_cli.invocation.executor.build_charter_context", return_value=_COMPACT_CTX):
         executor = ProfileInvocationExecutor(tmp_path)
         with patch(
-            "specify_cli.invocation.executor.routing_loader.load",
+            "doctrine.model_task_routing.loader.load",
             side_effect=_load_from(stale_catalog),
         ):
             payload = executor.invoke(
@@ -284,7 +290,7 @@ def test_recommendation_absent_when_task_type_unmatched(tmp_path: Path) -> None:
     with patch("specify_cli.invocation.executor.build_charter_context", return_value=_COMPACT_CTX):
         executor = ProfileInvocationExecutor(tmp_path)
         with patch(
-            "specify_cli.invocation.executor.routing_loader.load",
+            "doctrine.model_task_routing.loader.load",
             side_effect=_load_from(unmatched_catalog),
         ):
             payload = executor.invoke(
@@ -332,11 +338,37 @@ def test_invoke_produces_recommendation_from_real_shipped_catalog_default_path(t
     assert payload.recommendation.catalog_candidate is not None
 
 
-def test_dispatch_cli_recommendation_absent_for_unmapped_task_type_real_catalog(tmp_path: Path) -> None:
-    """CLI-level non-fatal proof against the REAL catalog: reviewer-fixture's
-    default canonical verb ("audit" -> "quality-audit") is not covered by the
-    shipped catalog, so the recommendation is legitimately absent -- and
-    dispatch still succeeds end-to-end through the CLI.
+def test_invoke_produces_recommendation_for_non_review_verb_real_catalog(tmp_path: Path) -> None:
+    """Fix 2 regression guard: the real shipped catalog must cover more than
+    the single ``review`` -> ``code-review`` verb. Proves the feature fires
+    end-to-end (through ``invoke()``, the real loader default path, and the
+    real evaluator) for an "implement" -> "code-implementation" verb --
+    before Fix 2, every task_type but ``code-review`` was uncovered and this
+    would have resolved to ``None``.
+    """
+    _setup_project(tmp_path)
+    with patch("specify_cli.invocation.executor.build_charter_context", return_value=_COMPACT_CTX):
+        executor = ProfileInvocationExecutor(tmp_path)
+        payload = executor.invoke(
+            "implement the fix", profile_hint="implementer-fixture", action_hint="implement"
+        )
+
+    assert payload.recommendation is not None
+    assert payload.recommendation.task_type == "code-implementation"
+    assert payload.recommendation.catalog_candidate is not None
+
+
+def test_dispatch_cli_recommendation_present_for_audit_verb_real_catalog(tmp_path: Path) -> None:
+    """CLI-level proof against the REAL shipped catalog: reviewer-fixture's
+    default canonical verb ("audit" -> "quality-audit") IS now covered by
+    the catalog (Fix 2's hard-judgment tier expansion, mission #2364
+    aggregate-review remediation, #2369) -- the recommendation is present
+    end-to-end through the CLI dispatch, not just through ``invoke()`` with
+    an explicit ``action_hint``.
+
+    Before Fix 2, this asserted the OPPOSITE (recommendation absent) --
+    that was the exact vocabulary-drift gap the aggregate review found:
+    20 of the 21 task_class_map task_types had zero catalog coverage.
     """
     project = _setup_project(tmp_path)
     with (
@@ -351,7 +383,9 @@ def test_dispatch_cli_recommendation_absent_for_unmapped_task_type_real_catalog(
     assert result.exit_code == 0, result.output
     envelope = json.loads(result.output)
     assert envelope["action"] == "audit"
-    assert envelope["recommendation"] is None
+    assert envelope["recommendation"] is not None
+    assert envelope["recommendation"]["task_type"] == "quality-audit"
+    assert envelope["recommendation"]["candidates"]
 
 
 # ---------------------------------------------------------------------------

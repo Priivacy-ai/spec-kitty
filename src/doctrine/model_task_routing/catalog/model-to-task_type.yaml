@@ -2,6 +2,31 @@ schema_version: "1.0"
 generated_at: "2026-07-04T00:00:00Z"
 source_snapshot: model-discipline-dispatch-binding-01KWPW36-wp05-seed
 
+# Fix 2 (mission #2364 aggregate-review remediation, #2369): task_class_map.py
+# emits 21 distinct task_type ids across the maintained verb namespace, but
+# this catalog originally defined only 5 -- overlapping on exactly
+# code-review. Every other verb's recommendation was silently inert
+# (recommendation.candidates always empty -> _compute_recommendation always
+# None). Expanded here so every task_class_map task_type has task_fit
+# coverage across all three models, grouped into the three capability tiers
+# already implicit in the original 5:
+#
+# - hard-judgment (strong model favored, quality_sensitivity high,
+#   cost_sensitivity low): architecture-design, sizing-judgment, code-review
+#   (pre-existing) + analysis, design, investigation, planning,
+#   prioritization, quality-assessment, quality-audit, synthesis,
+#   task-decomposition, validation (new). task_fit mirrors
+#   architecture-design's per-model profile.
+# - implementation (balanced, quality_sensitivity medium, cost_sensitivity
+#   medium): implementation (pre-existing) + code-generation,
+#   code-implementation, code-refinement (new). task_fit mirrors
+#   implementation's per-model profile.
+# - mechanical (cheap model favored, quality_sensitivity low,
+#   cost_sensitivity high): mechanical-edit (pre-existing) + classification,
+#   drafting, summarization, curation, monitoring, coordination, delegation
+#   (new). task_fit mirrors mechanical-edit's per-model profile; each new
+#   mechanical task_type also gets the same tier_constraints cap as
+#   mechanical-edit (max_tier: medium), mirroring the existing pattern.
 task_types:
   - id: architecture-design
     title: Architecture & Design Judgment
@@ -35,6 +60,146 @@ task_types:
     description: >
       Well-specified, rote changes — formatting, boilerplate, bulk renames
       driven by an occurrence map.
+    quality_sensitivity: low
+    cost_sensitivity: high
+  # -- hard-judgment tier (new, Fix 2) --
+  - id: analysis
+    title: Analytical Reasoning
+    description: >
+      Investigating a question across a codebase or dataset and drawing a
+      supported conclusion.
+    quality_sensitivity: high
+    cost_sensitivity: low
+  - id: design
+    title: Design Judgment
+    description: >
+      Proposing and evaluating a concrete design shape ahead of
+      implementation.
+    quality_sensitivity: high
+    cost_sensitivity: low
+  - id: investigation
+    title: Investigation
+    description: >
+      Open-ended research to ground a decision before it is committed to
+      spec or plan.
+    quality_sensitivity: high
+    cost_sensitivity: low
+  - id: planning
+    title: Planning Judgment
+    description: >
+      Turning a spec into an implementation strategy, sequencing, and risk
+      accounting.
+    quality_sensitivity: high
+    cost_sensitivity: low
+  - id: prioritization
+    title: Prioritization Judgment
+    description: >
+      Ordering competing work items by risk, dependency, and value under
+      constraint.
+    quality_sensitivity: high
+    cost_sensitivity: low
+  - id: quality-assessment
+    title: Quality Assessment
+    description: >
+      Judging whether a deliverable meets its acceptance bar before it is
+      escalated to a full audit.
+    quality_sensitivity: high
+    cost_sensitivity: low
+  - id: quality-audit
+    title: Quality Audit
+    description: >
+      A structured, adversarial pass over a deliverable to catch drift,
+      fakeability, and coverage gaps.
+    quality_sensitivity: high
+    cost_sensitivity: low
+  - id: synthesis
+    title: Synthesis
+    description: >
+      Combining findings from multiple sources or reviewers into one
+      coherent, decision-ready artifact.
+    quality_sensitivity: high
+    cost_sensitivity: low
+  - id: task-decomposition
+    title: Task Decomposition
+    description: >
+      Breaking a plan into work packages with sound boundaries and
+      dependency ordering.
+    quality_sensitivity: high
+    cost_sensitivity: low
+  - id: validation
+    title: Validation Judgment
+    description: >
+      Confirming a claim, artifact, or invariant actually holds rather than
+      appears to hold.
+    quality_sensitivity: high
+    cost_sensitivity: low
+  # -- implementation tier (new, Fix 2) --
+  - id: code-generation
+    title: Code Generation
+    description: >
+      Producing new production code from an approved spec/plan.
+    quality_sensitivity: medium
+    cost_sensitivity: medium
+  - id: code-implementation
+    title: Code Implementation
+    description: >
+      Implementing a specified feature or fix end-to-end, including tests.
+    quality_sensitivity: medium
+    cost_sensitivity: medium
+  - id: code-refinement
+    title: Code Refinement
+    description: >
+      Improving already-working code (cleanup, simplification, targeted
+      fixes) without changing its approved shape.
+    quality_sensitivity: medium
+    cost_sensitivity: medium
+  # -- mechanical tier (new, Fix 2) --
+  - id: classification
+    title: Classification
+    description: >
+      Sorting items into predefined categories against a documented
+      rubric.
+    quality_sensitivity: low
+    cost_sensitivity: high
+  - id: drafting
+    title: Drafting
+    description: >
+      Producing a first-pass artifact (doc, template, scaffold) from a
+      clear brief.
+    quality_sensitivity: low
+    cost_sensitivity: high
+  - id: summarization
+    title: Summarization
+    description: >
+      Condensing a longer artifact into a shorter, faithful summary.
+    quality_sensitivity: low
+    cost_sensitivity: high
+  - id: curation
+    title: Curation
+    description: >
+      Selecting, tagging, and organizing existing artifacts against a
+      maintained taxonomy.
+    quality_sensitivity: low
+    cost_sensitivity: high
+  - id: monitoring
+    title: Monitoring
+    description: >
+      Watching a running process or pipeline for a well-specified
+      condition and reporting status.
+    quality_sensitivity: low
+    cost_sensitivity: high
+  - id: coordination
+    title: Coordination
+    description: >
+      Routing well-specified work between agents/roles against a fixed
+      handoff contract.
+    quality_sensitivity: low
+    cost_sensitivity: high
+  - id: delegation
+    title: Delegation
+    description: >
+      Assigning a well-specified unit of work to the correct
+      agent/profile.
     quality_sensitivity: low
     cost_sensitivity: high
 
@@ -71,6 +236,89 @@ models:
         score: 0.4
         confidence: medium
         rationale: Correct but wasteful for rote, well-specified edits.
+      # -- hard-judgment tier (mirrors architecture-design, Fix 2) --
+      - task_type: analysis
+        score: 0.95
+        confidence: high
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: design
+        score: 0.95
+        confidence: high
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: investigation
+        score: 0.95
+        confidence: high
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: planning
+        score: 0.95
+        confidence: high
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: prioritization
+        score: 0.95
+        confidence: high
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: quality-assessment
+        score: 0.95
+        confidence: high
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: quality-audit
+        score: 0.95
+        confidence: high
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: synthesis
+        score: 0.95
+        confidence: high
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: task-decomposition
+        score: 0.95
+        confidence: high
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: validation
+        score: 0.95
+        confidence: high
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      # -- implementation tier (mirrors implementation, Fix 2) --
+      - task_type: code-generation
+        score: 0.75
+        confidence: medium
+        rationale: Implementation tier — mirrors implementation's per-model fit (Fix 2 tier grouping).
+      - task_type: code-implementation
+        score: 0.75
+        confidence: medium
+        rationale: Implementation tier — mirrors implementation's per-model fit (Fix 2 tier grouping).
+      - task_type: code-refinement
+        score: 0.75
+        confidence: medium
+        rationale: Implementation tier — mirrors implementation's per-model fit (Fix 2 tier grouping).
+      # -- mechanical tier (mirrors mechanical-edit, Fix 2) --
+      - task_type: classification
+        score: 0.4
+        confidence: medium
+        rationale: Mechanical tier — mirrors mechanical-edit's per-model fit (Fix 2 tier grouping).
+      - task_type: drafting
+        score: 0.4
+        confidence: medium
+        rationale: Mechanical tier — mirrors mechanical-edit's per-model fit (Fix 2 tier grouping).
+      - task_type: summarization
+        score: 0.4
+        confidence: medium
+        rationale: Mechanical tier — mirrors mechanical-edit's per-model fit (Fix 2 tier grouping).
+      - task_type: curation
+        score: 0.4
+        confidence: medium
+        rationale: Mechanical tier — mirrors mechanical-edit's per-model fit (Fix 2 tier grouping).
+      - task_type: monitoring
+        score: 0.4
+        confidence: medium
+        rationale: Mechanical tier — mirrors mechanical-edit's per-model fit (Fix 2 tier grouping).
+      - task_type: coordination
+        score: 0.4
+        confidence: medium
+        rationale: Mechanical tier — mirrors mechanical-edit's per-model fit (Fix 2 tier grouping).
+      - task_type: delegation
+        score: 0.4
+        confidence: medium
+        rationale: Mechanical tier — mirrors mechanical-edit's per-model fit (Fix 2 tier grouping).
     cost:
       tier: premium
       input_per_1m_usd: 15.0
@@ -107,6 +355,89 @@ models:
         score: 0.7
         confidence: medium
         rationale: Capable but still more than a mechanical pass strictly requires.
+      # -- hard-judgment tier (mirrors architecture-design, Fix 2) --
+      - task_type: analysis
+        score: 0.75
+        confidence: medium
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: design
+        score: 0.75
+        confidence: medium
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: investigation
+        score: 0.75
+        confidence: medium
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: planning
+        score: 0.75
+        confidence: medium
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: prioritization
+        score: 0.75
+        confidence: medium
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: quality-assessment
+        score: 0.75
+        confidence: medium
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: quality-audit
+        score: 0.75
+        confidence: medium
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: synthesis
+        score: 0.75
+        confidence: medium
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: task-decomposition
+        score: 0.75
+        confidence: medium
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: validation
+        score: 0.75
+        confidence: medium
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      # -- implementation tier (mirrors implementation, Fix 2) --
+      - task_type: code-generation
+        score: 0.9
+        confidence: high
+        rationale: Implementation tier — mirrors implementation's per-model fit (Fix 2 tier grouping).
+      - task_type: code-implementation
+        score: 0.9
+        confidence: high
+        rationale: Implementation tier — mirrors implementation's per-model fit (Fix 2 tier grouping).
+      - task_type: code-refinement
+        score: 0.9
+        confidence: high
+        rationale: Implementation tier — mirrors implementation's per-model fit (Fix 2 tier grouping).
+      # -- mechanical tier (mirrors mechanical-edit, Fix 2) --
+      - task_type: classification
+        score: 0.7
+        confidence: medium
+        rationale: Mechanical tier — mirrors mechanical-edit's per-model fit (Fix 2 tier grouping).
+      - task_type: drafting
+        score: 0.7
+        confidence: medium
+        rationale: Mechanical tier — mirrors mechanical-edit's per-model fit (Fix 2 tier grouping).
+      - task_type: summarization
+        score: 0.7
+        confidence: medium
+        rationale: Mechanical tier — mirrors mechanical-edit's per-model fit (Fix 2 tier grouping).
+      - task_type: curation
+        score: 0.7
+        confidence: medium
+        rationale: Mechanical tier — mirrors mechanical-edit's per-model fit (Fix 2 tier grouping).
+      - task_type: monitoring
+        score: 0.7
+        confidence: medium
+        rationale: Mechanical tier — mirrors mechanical-edit's per-model fit (Fix 2 tier grouping).
+      - task_type: coordination
+        score: 0.7
+        confidence: medium
+        rationale: Mechanical tier — mirrors mechanical-edit's per-model fit (Fix 2 tier grouping).
+      - task_type: delegation
+        score: 0.7
+        confidence: medium
+        rationale: Mechanical tier — mirrors mechanical-edit's per-model fit (Fix 2 tier grouping).
     cost:
       tier: high
       input_per_1m_usd: 3.0
@@ -144,6 +475,89 @@ models:
         score: 0.95
         confidence: high
         rationale: Ideal for grounded, well-specified, mechanical work at low cost.
+      # -- hard-judgment tier (mirrors architecture-design, Fix 2) --
+      - task_type: analysis
+        score: 0.2
+        confidence: high
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: design
+        score: 0.2
+        confidence: high
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: investigation
+        score: 0.2
+        confidence: high
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: planning
+        score: 0.2
+        confidence: high
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: prioritization
+        score: 0.2
+        confidence: high
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: quality-assessment
+        score: 0.2
+        confidence: high
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: quality-audit
+        score: 0.2
+        confidence: high
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: synthesis
+        score: 0.2
+        confidence: high
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: task-decomposition
+        score: 0.2
+        confidence: high
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      - task_type: validation
+        score: 0.2
+        confidence: high
+        rationale: Hard-judgment tier — mirrors architecture-design's per-model fit (Fix 2 tier grouping).
+      # -- implementation tier (mirrors implementation, Fix 2) --
+      - task_type: code-generation
+        score: 0.55
+        confidence: medium
+        rationale: Implementation tier — mirrors implementation's per-model fit (Fix 2 tier grouping).
+      - task_type: code-implementation
+        score: 0.55
+        confidence: medium
+        rationale: Implementation tier — mirrors implementation's per-model fit (Fix 2 tier grouping).
+      - task_type: code-refinement
+        score: 0.55
+        confidence: medium
+        rationale: Implementation tier — mirrors implementation's per-model fit (Fix 2 tier grouping).
+      # -- mechanical tier (mirrors mechanical-edit, Fix 2) --
+      - task_type: classification
+        score: 0.95
+        confidence: high
+        rationale: Mechanical tier — mirrors mechanical-edit's per-model fit (Fix 2 tier grouping).
+      - task_type: drafting
+        score: 0.95
+        confidence: high
+        rationale: Mechanical tier — mirrors mechanical-edit's per-model fit (Fix 2 tier grouping).
+      - task_type: summarization
+        score: 0.95
+        confidence: high
+        rationale: Mechanical tier — mirrors mechanical-edit's per-model fit (Fix 2 tier grouping).
+      - task_type: curation
+        score: 0.95
+        confidence: high
+        rationale: Mechanical tier — mirrors mechanical-edit's per-model fit (Fix 2 tier grouping).
+      - task_type: monitoring
+        score: 0.95
+        confidence: high
+        rationale: Mechanical tier — mirrors mechanical-edit's per-model fit (Fix 2 tier grouping).
+      - task_type: coordination
+        score: 0.95
+        confidence: high
+        rationale: Mechanical tier — mirrors mechanical-edit's per-model fit (Fix 2 tier grouping).
+      - task_type: delegation
+        score: 0.95
+        confidence: high
+        rationale: Mechanical tier — mirrors mechanical-edit's per-model fit (Fix 2 tier grouping).
     cost:
       tier: low
       input_per_1m_usd: 0.8
@@ -161,11 +575,32 @@ routing_policy:
   tier_constraints:
     - task_type: mechanical-edit
       max_tier: medium
+    # -- mechanical tier new task_types (Fix 2): mirror mechanical-edit's cap --
+    - task_type: classification
+      max_tier: medium
+    - task_type: drafting
+      max_tier: medium
+    - task_type: summarization
+      max_tier: medium
+    - task_type: curation
+      max_tier: medium
+    - task_type: monitoring
+      max_tier: medium
+    - task_type: coordination
+      max_tier: medium
+    - task_type: delegation
+      max_tier: medium
   override_policy:
     mode: advisory
     require_reason: true
-  freshness_policy:
-    max_catalog_age_hours: 4320
+  # Fix 4 (mission #2364 aggregate-review remediation): the shipped/packaged
+  # catalog must never wall-clock-expire -- a fixed max_catalog_age_hours on
+  # package data would silently flip every recommendation to None ~180 days
+  # post-generated_at with no code change. loader._is_stale() treats an
+  # absent freshness_policy (or an absent max_catalog_age_hours within it) as
+  # "never stale" by design, so the packaged default omits the field
+  # entirely. A project-local override catalog MAY still set its own
+  # freshness_policy.max_catalog_age_hours if it wants staleness checking.
 
 sources:
   - name: Anthropic model overview

@@ -29,8 +29,6 @@ if TYPE_CHECKING:
 import ulid as _ulid_mod  # matches codebase pattern: status/emit.py, core/mission_creation.py
 
 from charter.context import build_charter_context
-from doctrine.model_task_routing import evaluator as routing_evaluator
-from doctrine.model_task_routing import loader as routing_loader
 from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git import safe_commit
@@ -66,6 +64,12 @@ def _compute_recommendation(profile: AgentProfile, action: str) -> RoutingRecomm
     ``dispatch``/``invoke()`` always succeeds regardless of which branch
     fires -- this function only ever narrows the payload, never the outcome.
     """
+    # Function-local: runtime -> charter -> doctrine boundary forbids
+    # module-level `from doctrine.*` imports outside the charter proxy
+    # (tests/architectural/test_runtime_charter_doctrine_boundary.py).
+    from doctrine.model_task_routing import evaluator as routing_evaluator
+    from doctrine.model_task_routing import loader as routing_loader
+
     task_type = task_type_for_verb(action)
     if task_type is None:
         return None
