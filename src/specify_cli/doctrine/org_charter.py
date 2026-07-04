@@ -34,14 +34,13 @@ Public API
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ruamel.yaml import YAML
 
-from charter.activations import ActivationEntry
+from charter.activations import ActivationEntry, _activation_identity_key
 
 if TYPE_CHECKING:
     from charter.pack_context import PackContext
@@ -281,23 +280,6 @@ def load_org_charter_policy(pack_path: Path) -> OrgCharterPolicy | None:
     if not isinstance(data, dict):
         return None
     return OrgCharterPolicy.model_validate(data)
-
-
-def _activation_identity_key(entry: ActivationEntry) -> tuple[str, str, str, str]:
-    """Return the dedup identity key for an :class:`ActivationEntry`.
-
-    Per data-model.md §5, the identity tuple for activation de-dup is
-    ``(activation_context, doctrine_pack_id, artifact_id, artifact_kind)``.
-    ``activation_context`` is itself a ``dict[str, str]`` — we serialise
-    it with sorted keys so structurally equal contexts produce identical
-    hash keys regardless of insertion order.
-    """
-    return (
-        json.dumps(entry.activation_context, sort_keys=True),
-        entry.doctrine_pack_id,
-        entry.artifact_id,
-        entry.artifact_kind or "",
-    )
 
 
 def _build_pack_set(

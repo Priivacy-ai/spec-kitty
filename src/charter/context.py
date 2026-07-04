@@ -12,12 +12,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 if TYPE_CHECKING:
-    from charter.activations import ActivationEntry
     from charter.pack_context import PackContext
     from charter.scope import CharterScope
     from doctrine.drg.models import DRGGraph
     import doctrine.service as _doctrine_service_module
 
+from pydantic import ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
@@ -29,6 +29,7 @@ from charter._catalog_miss import (
     format_catalog_miss_stanza,
 )
 from charter._doctrine_paths import resolve_project_root
+from charter.activations import ActivationEntry, _activation_identity_key
 from charter.context_renderers import (
     BUDGET_DEFAULT,
     RenderedSection,
@@ -693,6 +694,12 @@ def _enumerate_org_pack_paths(repo_root: Path) -> list[tuple[str, Path]]:
     try:
         registry = load_pack_registry(repo_root)
     except Exception:  # noqa: BLE001 - context rendering stays best-effort
+        _LOGGER.debug(
+            "load_pack_registry raised while enumerating org pack paths for %s; "
+            "treating as no configured packs.",
+            repo_root,
+            exc_info=True,
+        )
         return []
     return [(pack.name, pack.effective_root(repo_root)) for pack in registry.packs]
 
@@ -729,22 +736,29 @@ def _missing_pack_diagnostic(repo_root: Path) -> str | None:
     return "\n".join(lines)
 
 
-def _read_org_required_selections(repo_root: Path) -> dict[str, list[str]]:
-    """Union every org pack's ``required_<kind>`` across packs.
+def _iter_org_charter_docs(repo_root: Path) -> list[tuple[str, dict[str, Any]]]:
+    """Return ``(pack_name, raw_dict)`` for every pack's parsed ``org-charter.yaml``.
 
-    Reads each configured pack's ``org-charter.yaml`` directly and
-    returns a ``{kind: [ids...]}`` map covering the 8 kinds listed in
-    :data:`_REQUIRED_KIND_FIELDS`.  Union preserves first-seen order
-    across packs (declaration-order precedence, matching the merge
-    semantics of :func:`specify_cli.doctrine.org_charter.load_org_charter_policies`).
+    Single shared raw-rescan reader (FR-006) consumed by BOTH
+    :func:`_read_org_required_selections` (``required_<kind>``, the
+    established precedent) and :func:`_read_org_activations`
+    (``activations:``, WP01) so the fix does not leave a third
+    hand-rolled rescan copy — the exact duplication class that caused
+    #2365.
 
-    Packs whose ``local_path`` is missing are silently skipped here —
-    the loud diagnostic for that case is produced by
-    :func:`_missing_pack_diagnostic` upstream.
+    Packs whose ``org-charter.yaml`` is absent, unreadable, or does not
+    parse to a YAML mapping are silently skipped here — the loud
+    diagnostic for a missing *pack directory* is produced by
+    :func:`_missing_pack_diagnostic` upstream. This reader only decides
+    "can I hand the caller a parsed document"; whether individual
+    entries within that document are then valid is each caller's own
+    concern (e.g. :func:`_read_org_activations` raises on a malformed
+    ``activations:`` entry per FR-004 — a different failure class than
+    "the YAML file itself didn't parse").
     """
     yaml = YAML(typ="safe")
-    out: dict[str, list[str]] = {kind: [] for kind in _REQUIRED_KIND_FIELDS}
-    for _name, pack_path in _enumerate_org_pack_paths(repo_root):
+    docs: list[tuple[str, dict[str, Any]]] = []
+    for name, pack_path in _enumerate_org_pack_paths(repo_root):
         charter_path = pack_path / "org-charter.yaml"
         if not charter_path.exists():
             continue
@@ -754,6 +768,22 @@ def _read_org_required_selections(repo_root: Path) -> dict[str, list[str]]:
             continue
         if not isinstance(raw, dict):
             continue
+        docs.append((name, raw))
+    return docs
+
+
+def _read_org_required_selections(repo_root: Path) -> dict[str, list[str]]:
+    """Union every org pack's ``required_<kind>`` across packs.
+
+    Reads each configured pack's parsed ``org-charter.yaml`` (via the
+    shared :func:`_iter_org_charter_docs` reader) and returns a
+    ``{kind: [ids...]}`` map covering the 8 kinds listed in
+    :data:`_REQUIRED_KIND_FIELDS`.  Union preserves first-seen order
+    across packs (declaration-order precedence, matching the merge
+    semantics of :func:`specify_cli.doctrine.org_charter.load_org_charter_policies`).
+    """
+    out: dict[str, list[str]] = {kind: [] for kind in _REQUIRED_KIND_FIELDS}
+    for _name, raw in _iter_org_charter_docs(repo_root):
         for kind in _REQUIRED_KIND_FIELDS:
             value = raw.get(f"required_{kind}")
             if not isinstance(value, list):
@@ -2656,6 +2686,66 @@ def _load_governance_activations(repo_root: Path) -> list[ActivationEntry]:
     return list(governance.activations)
 
 
+def _read_org_activations(repo_root: Path) -> list[ActivationEntry]:
+    """Union every org pack's ``activations:`` entries (FR-001/002/004).
+
+    Mirrors :func:`_read_org_required_selections`'s union/order shape
+    (first-seen across packs in config order, via the shared
+    :func:`_iter_org_charter_docs` reader) but deliberately does NOT
+    mirror its silent-skip error handling (C-002 override): a
+    structurally malformed entry in a *present* pack's ``activations:``
+    list RAISES via ``ActivationEntry.model_validate`` (FR-004), naming
+    the offending pack so the operator can locate it (SC-003). A pack
+    whose ``org-charter.yaml`` is missing or unreadable is skipped by
+    :func:`_iter_org_charter_docs` upstream — that is a different,
+    non-raising failure class (the pack was never a parseable document
+    to begin with).
+
+    Deduplication across packs (and against the project-local list) is
+    NOT performed here — :func:`_union_activations` owns identity-key
+    dedup for the merged project+org list (SC-002).
+    """
+    entries: list[ActivationEntry] = []
+    for name, raw in _iter_org_charter_docs(repo_root):
+        value = raw.get("activations")
+        if not isinstance(value, list):
+            continue
+        for item in value:
+            try:
+                entries.append(ActivationEntry.model_validate(item))
+            except ValidationError as exc:
+                raise ValueError(
+                    f"org pack `{name}` declares a malformed activations entry "
+                    f"{item!r}: {exc}"
+                ) from exc
+    return entries
+
+
+def _union_activations(
+    project_activations: list[ActivationEntry],
+    org_activations: list[ActivationEntry],
+) -> list[ActivationEntry]:
+    """Union *project_activations* and *org_activations*, deduped by identity.
+
+    Mirrors :func:`_read_org_required_selections`'s union/order
+    semantics: first-seen wins on the shared 4-tuple identity key
+    (:func:`charter.activations._activation_identity_key`), project
+    entries are processed first so project first-seen order is
+    preserved, and org entries are appended in their own first-seen
+    order for anything not already present (SC-002). This is NOT
+    ``_fold_policies``'s extends-chain last-wins semantics.
+    """
+    seen: set[tuple[str, str, str, str]] = set()
+    merged: list[ActivationEntry] = []
+    for entry in (*project_activations, *org_activations):
+        key = _activation_identity_key(entry)
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append(entry)
+    return merged
+
+
 def _render_activation_block(
     doctrine_selection: DoctrineSelectionConfig | None,  # noqa: ARG001
     repo_root: Path | None,
@@ -2670,13 +2760,26 @@ def _render_activation_block(
     boilerplate (governance load + safe-call) so the call site in
     :func:`_render_bootstrap_text` is a single line.
 
+    WP01 (#2365) adds the org∪project resolve-time union: the org read
+    (:func:`_read_org_activations`) is a SEPARATE call from the project
+    load, not folded inside :func:`_load_governance_activations` (that
+    function has its own best-effort ``except: return []`` which would
+    swallow the FR-004 validation raise). Both calls — and the union —
+    happen BEFORE the ``if not activations`` short-circuit below (so an
+    org-only match still renders, SC-001) and before the ``try`` around
+    the renderer call (so the FR-004 raise escapes to
+    :func:`build_charter_context` instead of being caught by the
+    defensive ``except Exception`` a few lines down).
+
     Returns ``""`` when the activation list is empty, when the WP05
     renderer is still a stub, or when any error is raised by the
     renderer (defensive — the prompt build hot path must not crash).
     """
     if repo_root is None:
         return ""
-    activations = _load_governance_activations(repo_root)
+    project_activations = _load_governance_activations(repo_root)
+    org_activations = _read_org_activations(repo_root)
+    activations = _union_activations(project_activations, org_activations)
     if not activations:
         return ""
 

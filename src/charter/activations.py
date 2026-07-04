@@ -61,6 +61,8 @@ self-contained accordingly.
 
 from __future__ import annotations
 
+import json
+
 from pydantic import BaseModel, ConfigDict, field_validator
 
 __all__ = [
@@ -275,6 +277,32 @@ class ActivationEntry(BaseModel):
                 f"Accepted (singular alias): {sorted(_SINGULAR_TO_PLURAL_KIND)}."
             )
         return normalised
+
+
+def _activation_identity_key(entry: ActivationEntry) -> tuple[str, str, str, str]:
+    """Return the dedup identity key for an :class:`ActivationEntry`.
+
+    Per data-model.md §5, the identity tuple for activation de-dup is
+    ``(activation_context, doctrine_pack_id, artifact_id, artifact_kind)``.
+    ``activation_context`` is itself a ``dict[str, str]`` — we serialise
+    it with sorted keys so structurally equal contexts produce identical
+    hash keys regardless of insertion order.
+
+    Relocated here (FR-003, WP01) from
+    ``specify_cli.doctrine.org_charter`` so the org-pack fold
+    (:func:`specify_cli.doctrine.org_charter._fold_policies`) and the
+    charter-layer resolve-time union
+    (:func:`charter.context._union_activations`) share ONE identity-key
+    implementation and cannot drift. This module has no
+    ``org_charter``-local dependency (only ``ActivationEntry`` + stdlib
+    ``json``), so the move is behavior-preserving.
+    """
+    return (
+        json.dumps(entry.activation_context, sort_keys=True),
+        entry.doctrine_pack_id,
+        entry.artifact_id,
+        entry.artifact_kind or "",
+    )
 
 
 # ---------------------------------------------------------------------------
