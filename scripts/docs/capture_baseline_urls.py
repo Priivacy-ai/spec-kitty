@@ -136,8 +136,20 @@ def _join_url(site_url: str, dest: str, rel_posix: str) -> str:
     return f"{site_url}{prefix}{rel_posix}"
 
 
-def _block_urls(base_root: Path, block: GlobBlock, site_url: str) -> set[str]:
-    """Resolve one block into its published URL set."""
+def _block_urls(
+    base_root: Path,
+    block: GlobBlock,
+    site_url: str,
+    *,
+    render_markdown: bool,
+) -> set[str]:
+    """Resolve one block into its published URL set.
+
+    ``render_markdown`` is True for *content* blocks, whose ``*.md`` pages
+    DocFX renders to ``.html``, and False for *resource* blocks, whose files
+    are copied verbatim — a resource ``*.md`` keeps its literal path. Mapping
+    resource markdown to ``.html`` fabricates phantom baseline URLs (#2348).
+    """
     base = base_root / block.src if block.src else base_root
     urls: set[str] = set()
     for pattern in block.files:
@@ -148,8 +160,12 @@ def _block_urls(base_root: Path, block: GlobBlock, site_url: str) -> set[str]:
             if _is_excluded(rel_posix, path.name, block.exclude):
                 continue
             if rel_posix.endswith(MD_SUFFIX):
-                html = f"{rel_posix[: -len(MD_SUFFIX)]}{HTML_SUFFIX}"
-                urls.add(_join_url(site_url, block.dest, html))
+                published = (
+                    f"{rel_posix[: -len(MD_SUFFIX)]}{HTML_SUFFIX}"
+                    if render_markdown
+                    else rel_posix
+                )
+                urls.add(_join_url(site_url, block.dest, published))
             elif rel_posix.endswith(HTML_SUFFIX):
                 urls.add(_join_url(site_url, block.dest, rel_posix))
     return urls
@@ -162,17 +178,20 @@ def derive_urls_from_source(
 ) -> list[str]:
     """Derive the published-URL set from the ``docfx.json`` globs + source tree.
 
-    Pages are ``*.md`` (excluding ``_*.md``/non-``.md`` like ``toc.yml``) mapped
-    to ``.html``; standalone ``*.html`` resources are published as-is. Generated
-    resources (``kitty-specs/**/*.html``, produced by
-    ``generate_kitty_specs_docs.py`` at build time) are absent from a static
+    Content-block pages are ``*.md`` (excluding ``_*.md``/non-``.md`` like
+    ``toc.yml``) mapped to ``.html``. Resource-block files are copied verbatim
+    by DocFX — ``*.md`` keeps its literal path and standalone ``*.html`` is
+    published as-is. Generated resources (``kitty-specs/**/*.html``, produced
+    by ``generate_kitty_specs_docs.py`` at build time) are absent from a static
     tree and therefore not derived here — capture them via ``--site-dir`` after
     a full build if their continuity must be guaranteed.
     """
     content_blocks, resource_blocks = load_blocks(docfx_json)
     urls: set[str] = set()
-    for block in (*content_blocks, *resource_blocks):
-        urls |= _block_urls(docs_dir, block, site_url)
+    for block in content_blocks:
+        urls |= _block_urls(docs_dir, block, site_url, render_markdown=True)
+    for block in resource_blocks:
+        urls |= _block_urls(docs_dir, block, site_url, render_markdown=False)
     return sorted(urls)
 
 
