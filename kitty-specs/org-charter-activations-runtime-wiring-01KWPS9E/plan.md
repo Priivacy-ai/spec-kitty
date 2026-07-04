@@ -49,15 +49,14 @@ kitty-specs/org-charter-activations-runtime-wiring-01KWPS9E/
 ### Source Code (repository root)
 
 ```
-src/specify_cli/
-├── charter/
-│   ├── activations.py        # + shared 4-tuple identity key (relocated from org_charter); FR-003
-│   ├── context.py            # + _iter_org_charter_docs (FR-006), _read_org_activations
-│   │                         #   (FR-001/002/004), union into _render_activation_block pre-try;
-│   │                         #   refactor _read_org_required_selections onto the shared reader
-│   └── _activation_render.py # unchanged (render_activation_stanza) — confirm no edit needed
-└── doctrine/
-    └── org_charter.py        # re-import identity key from charter.activations (single caller)
+src/charter/                  # charter layer (zero specify_cli imports — verified)
+├── activations.py            # + shared 4-tuple identity key (relocated from org_charter); FR-003
+├── context.py                # + _iter_org_charter_docs (FR-006), _read_org_activations
+│                             #   (FR-001/002/004), union into _render_activation_block pre-try;
+│                             #   refactor _read_org_required_selections (context.py:732) onto reader
+└── _activation_render.py     # unchanged (render_activation_stanza) — confirm no edit needed
+src/specify_cli/doctrine/
+└── org_charter.py            # re-import identity key from charter.activations (single caller :450)
 
 tests/
 ├── charter/

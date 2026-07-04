@@ -3,7 +3,7 @@
 **Mission Branch**: `design/org-charter-activations-2365`
 **Created**: 2026-07-04
 **Status**: Draft (rev 2 — post-spec squad folds: alphonso design + paula sizing, both opus)
-**Input**: Issue [#2365](https://github.com/Priivacy-ai/spec-kitty/issues/2365) (P0, bug/doctrine) — "org-charter.yaml activations (OrgCharterPolicy.activations, FR-008/WP06) are parsed/merged but never wired into runtime charter context."
+**Input**: Issue [#2365](https://github.com/Priivacy-ai/spec-kitty/issues/2365) (P0, bug/doctrine) — "org-charter.yaml activations (OrgCharterPolicy.activations, origin requirement 008 / WP06) are parsed/merged but never wired into runtime charter context."
 
 ## Problem Statement *(context)*
 
@@ -13,7 +13,7 @@ An org/departmental doctrine pack can declare action-scoped `activations:` in it
 
 **Also bootstrap-only (verified).** `_render_activation_block` runs only in bootstrap mode (`first_load`, effective depth ≥ 2). The compact/repeat-load path (`_render_compact_governance`) renders no activation stanza for project *or* org entries. This is pre-existing behavior; the org union inherits it (zero regression) and does not add compact-mode rendering. It is why the issue repro had to clear `context-state.json`.
 
-**Root cause (traced to origin).** The origin mission `charter-mediated-doctrine-selection-01KRTZCA` specified this propagation explicitly — **FR-008: "Org-charter schema MUST allow `activations:` entries. They propagate to consumers via standard pre-fill"**, and its `contracts/activation-registry.md` lists `org-charter.yaml` as a valid activation source. But the propagation half was **dropped, not deferred**: WP02 wired only the project `charter.md` path into `GovernanceConfig.activations`; WP06 wired only the org-pack-internal fold (T028); nobody wired WP06's output into the consumption path. A cross-WP integration seam missed at tasks-finalize.
+**Root cause (traced to origin).** The origin mission `charter-mediated-doctrine-selection-01KRTZCA` specified this propagation explicitly — **its propagation requirement (numbered 008 there): "Org-charter schema MUST allow `activations:` entries. They propagate to consumers via standard pre-fill"**, and its `contracts/activation-registry.md` lists `org-charter.yaml` as a valid activation source. But the propagation half was **dropped, not deferred**: WP02 wired only the project `charter.md` path into `GovernanceConfig.activations`; WP06 wired only the org-pack-internal fold (T028); nobody wired WP06's output into the consumption path. A cross-WP integration seam missed at tasks-finalize.
 
 **This is a recurring class.** Third occurrence of "org-pack data merged internally but never reaches the render/consumption path": [#1465](https://github.com/Priivacy-ai/spec-kitty/issues/1465) (`required_<kind>` render-drop, fixed), [#1242](https://github.com/Priivacy-ai/spec-kitty/issues/1242) (org charter present-but-not-surfaced, fixed), now #2365. The remediation closes the specific gap **and** installs a durable behavioral invariant against a fourth recurrence.
 
