@@ -136,10 +136,26 @@ def load_baseline(manifest_path: Path) -> tuple[str, list[str]]:
 
     ``url_paths`` are site-relative (the ``site_url`` prefix stripped), sorted and
     de-duplicated, so they line up with paths inside ``_site``.
+
+    Fails loud on a non-``.html`` entry: the NFR-002 baseline universe is
+    restricted to *redirect-protectable* URLs, and a ``<meta refresh>`` stub is
+    an HTML mechanism — a verbatim resource URL (e.g. a resource-block ``*.md``
+    copied as-is) cannot be redirect-protected, so its presence in the baseline
+    is a capture/amendment defect, not a coverable entry (see the
+    ``capture_baseline_urls`` module docstring for the two-role split).
     """
     data: dict[str, Any] = json.loads(manifest_path.read_text(encoding="utf-8"))
     site_url = str(data.get("site_url", SITE_URL))
     paths = {_strip_site(str(u), site_url) for u in data.get("urls", [])}
+    non_html = sorted(p for p in paths if not p.endswith(HTML_SUFFIX))
+    if non_html:
+        raise ValueError(
+            f"baseline manifest {manifest_path} contains non-.html entries: "
+            f"{non_html} — the NFR-002 baseline is restricted to "
+            "redirect-protectable (.html) URLs; a <meta refresh> stub cannot "
+            "preserve a verbatim resource URL. Remove the entries (recording "
+            "the amendment in the manifest's `amendments` list)."
+        )
     return site_url, sorted(paths)
 
 

@@ -1,4 +1,54 @@
 {
+  "amendments": [
+    {
+      "added": [
+        "https://docs.spec-kitty.ai/migrations/2-1-main-cutover-checklist.html",
+        "https://docs.spec-kitty.ai/migrations/charter-ownership-consolidation.html",
+        "https://docs.spec-kitty.ai/migrations/cross-repo-e2e-gate.html",
+        "https://docs.spec-kitty.ai/migrations/doctrine-local-overlay-to-org-layer.html",
+        "https://docs.spec-kitty.ai/migrations/feature-flag-deprecation.html",
+        "https://docs.spec-kitty.ai/migrations/from-charter-2x.html",
+        "https://docs.spec-kitty.ai/migrations/index.html",
+        "https://docs.spec-kitty.ai/migrations/mission-id-canonical-identity.html",
+        "https://docs.spec-kitty.ai/migrations/mission-type-flag-deprecation.html",
+        "https://docs.spec-kitty.ai/migrations/retrospective-events-upstream.html",
+        "https://docs.spec-kitty.ai/migrations/shared-package-boundary-cutover.html",
+        "https://docs.spec-kitty.ai/migrations/teamspace-mission-state-920-closeout.html",
+        "https://docs.spec-kitty.ai/migrations/teamspace-mission-state-repair.html",
+        "https://docs.spec-kitty.ai/migrations/upgrade-to-0-12-0.html"
+      ],
+      "date": "2026-07-04",
+      "ground": "operator-ruling",
+      "pr": "#2350",
+      "removed": [
+        "https://docs.spec-kitty.ai/migration/2-1-main-cutover-checklist.html",
+        "https://docs.spec-kitty.ai/migration/charter-ownership-consolidation.html",
+        "https://docs.spec-kitty.ai/migration/cross-repo-e2e-gate.html",
+        "https://docs.spec-kitty.ai/migration/doctrine-local-overlay-to-org-layer.html",
+        "https://docs.spec-kitty.ai/migration/feature-flag-deprecation.html",
+        "https://docs.spec-kitty.ai/migration/from-charter-2x.html",
+        "https://docs.spec-kitty.ai/migration/index.html",
+        "https://docs.spec-kitty.ai/migration/mission-id-canonical-identity.html",
+        "https://docs.spec-kitty.ai/migration/mission-type-flag-deprecation.html",
+        "https://docs.spec-kitty.ai/migration/retrospective-events-upstream.html",
+        "https://docs.spec-kitty.ai/migration/shared-package-boundary-cutover.html",
+        "https://docs.spec-kitty.ai/migration/teamspace-mission-state-920-closeout.html",
+        "https://docs.spec-kitty.ai/migration/teamspace-mission-state-repair.html",
+        "https://docs.spec-kitty.ai/migration/upgrade-to-0-12-0.html"
+      ],
+      "ruling": "operator: no stubs — legacy migration/*.html URLs retired; runbooks relocated to migrations/*.html (#2313)"
+    },
+    {
+      "added": [],
+      "date": "2026-07-04",
+      "ground": "capture-defect",
+      "pr": "#2350",
+      "removed": [
+        "https://docs.spec-kitty.ai/assets/index.html"
+      ],
+      "ruling": "phantom URL never published: resource-block *.md files are copied verbatim by DocFX, never rendered to .html (capture defect #2348; assets/index.md is live but outside the redirect-protectable baseline universe)"
+    }
+  ],
   "capture_method": "derived-from-source",
   "schema_version": 1,
   "site_url": "https://docs.spec-kitty.ai/",

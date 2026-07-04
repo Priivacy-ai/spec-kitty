@@ -222,6 +222,61 @@ def test_real_baseline_is_non_empty_and_normalised() -> None:
     assert all(not p.startswith("http") for p in baseline)
 
 
+def test_load_baseline_rejects_non_html_entries(tmp_path: Path) -> None:
+    """The baseline universe is redirect-protectable (``.html``) only.
+
+    A ``<meta refresh>`` stub is an HTML mechanism — a verbatim resource URL
+    (e.g. a resource-block ``*.md`` copied as-is) cannot be redirect-protected,
+    so a non-``.html`` entry in the committed baseline is a capture/amendment
+    defect that must fail loud, not silently skew the NFR-002 denominator.
+    """
+    manifest = tmp_path / "baseline.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "site_url": SITE_URL,
+                "urls": [
+                    f"{SITE_URL}index.html",
+                    f"{SITE_URL}assets/index.md",
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match=r"assets/index\.md"):
+        load_baseline(manifest)
+
+
+def test_load_baseline_tolerates_amendments_key(tmp_path: Path) -> None:
+    """The ``amendments`` provenance list is additive-safe for all consumers."""
+    manifest = tmp_path / "baseline.json"
+    manifest.write_text(
+        json.dumps(
+            {
+                "site_url": SITE_URL,
+                "urls": [f"{SITE_URL}index.html"],
+                "amendments": [{"date": "2026-07-04", "pr": "#2350"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    site_url, baseline = load_baseline(manifest)
+    assert site_url == SITE_URL
+    assert baseline == ["index.html"]
+
+
+def test_real_baseline_amendments_are_recorded() -> None:
+    """Every post-WP03 entry-level amendment carries its provenance record."""
+    raw = json.loads(DEFAULT_BASELINE.read_text(encoding="utf-8"))
+    amendments = raw["amendments"]
+    assert isinstance(amendments, list) and amendments
+    for record in amendments:
+        assert record["date"]
+        assert record["pr"]
+        assert record["ruling"]
+        assert record["removed"] or record["added"]
+
+
 def _resolve_occurrence_map() -> Path:
     assert DEFAULT_OCCURRENCE_MAP.is_file(), DEFAULT_OCCURRENCE_MAP
     return DEFAULT_OCCURRENCE_MAP
