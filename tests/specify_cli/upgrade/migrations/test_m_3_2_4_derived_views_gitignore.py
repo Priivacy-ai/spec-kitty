@@ -1,0 +1,144 @@
+"""Regression tests for the ``.kittify/derived/`` gitignore backfill (#2369, Defect B).
+
+Covers the bug where an already-initialised project that runs
+``spec-kitty materialize`` had its regenerable ``.kittify/derived/`` views show
+up as untracked — dirtying the tree and failing ``spec-kitty accept``'s
+``git_dirty`` check — because no upgrade migration added ``.kittify/derived/``
+to ``.gitignore``.
+
+- apply() adds the derived entry and hides a generated views dir
+- detect() is True when the entry is missing (already-upgraded project)
+- detect() is False once the entry is present
+- detect() ignores a commented-out entry
+- apply() is idempotent
+- the backfill fires end-to-end via MigrationRunner on an already-current 3.2.4 project
+"""
+
+from __future__ import annotations
+
+import subprocess
+from datetime import datetime
+from pathlib import Path
+
+import pytest
+
+from specify_cli.upgrade.migrations import auto_discover_migrations
+from specify_cli.upgrade.migrations.m_3_2_4_derived_views_gitignore_backfill import (
+    DerivedViewsGitignoreBackfillMigration,
+)
+from specify_cli.upgrade.metadata import ProjectMetadata
+from specify_cli.upgrade.runner import MigrationRunner
+
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
+_DERIVED_VIEWS_ENTRY = ".kittify/derived/"
+_DERIVED_VIEW_PATH = ".kittify/derived/some-mission/lifecycle.json"
+
+
+def _init_git_repo(project_root: Path) -> None:
+    subprocess.run(["git", "-C", str(project_root), "init", "-q"], check=True)
+
+
+def _write_gitignore(project_root: Path, *entries: str) -> None:
+    project_root.joinpath(".gitignore").write_text(
+        "# Added by Spec Kitty CLI (auto-managed)\n" + "\n".join(entries) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _write_metadata(project_root: Path, version: str) -> None:
+    ProjectMetadata(version=version, initialized_at=datetime.now()).save(
+        project_root / ".kittify"
+    )
+
+
+def _is_ignored(project_root: Path, path: str) -> bool:
+    return (
+        subprocess.run(
+            ["git", "-C", str(project_root), "check-ignore", "--quiet", path],
+            check=False,
+        ).returncode
+        == 0
+    )
+
+
+def test_apply_adds_derived_entry_and_hides_generated_views(tmp_path: Path) -> None:
+    _init_git_repo(tmp_path)
+    view = tmp_path / _DERIVED_VIEW_PATH
+    view.parent.mkdir(parents=True)
+    view.write_text("{}\n", encoding="utf-8")
+
+    DerivedViewsGitignoreBackfillMigration().apply(tmp_path)
+
+    gitignore_text = tmp_path.joinpath(".gitignore").read_text(encoding="utf-8")
+    assert _DERIVED_VIEWS_ENTRY in gitignore_text
+    assert _is_ignored(tmp_path, _DERIVED_VIEW_PATH)
+
+
+def test_detect_true_when_derived_entry_missing(tmp_path: Path) -> None:
+    """Already-upgraded project: other entries present, derived missing."""
+    _init_git_repo(tmp_path)
+    _write_gitignore(tmp_path, ".kittify/sync-state.json")
+
+    assert DerivedViewsGitignoreBackfillMigration().detect(tmp_path) is True
+
+
+def test_detect_false_when_derived_entry_present(tmp_path: Path) -> None:
+    _init_git_repo(tmp_path)
+    _write_gitignore(tmp_path, _DERIVED_VIEWS_ENTRY)
+
+    assert DerivedViewsGitignoreBackfillMigration().detect(tmp_path) is False
+
+
+def test_detect_ignores_commented_out_derived_entry(tmp_path: Path) -> None:
+    _init_git_repo(tmp_path)
+    _write_gitignore(tmp_path, f"# {_DERIVED_VIEWS_ENTRY}")
+
+    assert DerivedViewsGitignoreBackfillMigration().detect(tmp_path) is True
+
+
+def test_apply_is_idempotent(tmp_path: Path) -> None:
+    _init_git_repo(tmp_path)
+    _write_gitignore(tmp_path, _DERIVED_VIEWS_ENTRY)
+
+    first = DerivedViewsGitignoreBackfillMigration().apply(tmp_path)
+    second = DerivedViewsGitignoreBackfillMigration().apply(tmp_path)
+
+    assert first.success
+    assert second.success
+    gitignore_text = tmp_path.joinpath(".gitignore").read_text(encoding="utf-8")
+    assert gitignore_text.count(_DERIVED_VIEWS_ENTRY) == 1
+
+
+def test_dry_run_reports_without_mutating(tmp_path: Path) -> None:
+    _init_git_repo(tmp_path)
+    _write_gitignore(tmp_path, ".kittify/sync-state.json")
+
+    result = DerivedViewsGitignoreBackfillMigration().apply(tmp_path, dry_run=True)
+
+    assert result.success
+    assert result.changes_made == [f"Would add {_DERIVED_VIEWS_ENTRY} to .gitignore"]
+    # Dry run must not touch the file.
+    assert _DERIVED_VIEWS_ENTRY not in tmp_path.joinpath(".gitignore").read_text(
+        encoding="utf-8"
+    )
+
+
+def test_backfill_fires_on_already_current_3_2_4_project(tmp_path: Path) -> None:
+    """The user's exact case: a 3.2.4 project whose .gitignore lacks derived/."""
+    _init_git_repo(tmp_path)
+    _write_metadata(tmp_path, "3.2.4")
+    _write_gitignore(tmp_path, ".kittify/sync-state.json")
+    view = tmp_path / _DERIVED_VIEW_PATH
+    view.parent.mkdir(parents=True)
+    view.write_text("{}\n", encoding="utf-8")
+
+    auto_discover_migrations()
+    result = MigrationRunner(tmp_path).upgrade("3.2.4", include_worktrees=False)
+
+    assert result.success
+    assert (
+        DerivedViewsGitignoreBackfillMigration.migration_id
+        in result.migrations_applied
+    )
+    assert _is_ignored(tmp_path, _DERIVED_VIEW_PATH)
