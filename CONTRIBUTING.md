@@ -366,6 +366,10 @@ Here are a few things you can do that will increase the likelihood of your pull 
 - Write a [good commit message](http://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html).
 - Test your changes with the Spec-Driven Development workflow to ensure compatibility.
 
+## Maintainer guides
+
+- [Landing contributor PRs](docs/guides/pr-landing.md) — the maintainer runbook for taking a contributor PR from "open with red CI" to "merge-ready, evidence posted, operator merges": claim, isolated worktree, rebase, red classification, folds, red-first verification, push discipline, and hand-off.
+
 ## Development workflow
 
 When working on spec-kitty:
