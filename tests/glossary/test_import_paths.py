@@ -17,6 +17,8 @@ import sys
 
 import pytest
 
+pytestmark = pytest.mark.fast
+
 
 def test_canonical_glossary_imports() -> None:
     """The canonical top-level ``glossary`` package serves the domain."""
