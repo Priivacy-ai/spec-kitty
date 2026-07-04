@@ -374,7 +374,7 @@ def _read_queued_rows(path: Path) -> list[_QueuedRow]:
             ", coalesce_key" if has_coalesce else ""
         )
         rows = conn.execute(
-            f"SELECT {projection} FROM queue ORDER BY timestamp ASC, id ASC"  # noqa: S608 - projection is built from a fixed allowlist, not user input
+            f"SELECT {projection} FROM queue ORDER BY timestamp ASC, id ASC"  # noqa: S608  # nosec B608 - projection is built from a fixed allowlist, not user input
         ).fetchall()
     finally:
         conn.close()
