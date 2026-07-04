@@ -512,6 +512,9 @@ nodes:
 - urn: tactic:locality-of-change
   kind: tactic
   label: Locality of Change Assessment
+- urn: tactic:model-task-routing
+  kind: tactic
+  label: Model Task Routing
 - urn: tactic:moscow-scoping-lens
   kind: tactic
   label: MoSCoW Scoping Lens
@@ -1704,7 +1707,13 @@ edges:
   target: styleguide:planning-and-tracking
   relation: suggests
 - source: directive:DIRECTIVE_044
+  target: tactic:autonomous-operation-protocol
+  relation: suggests
+- source: directive:DIRECTIVE_044
   target: tactic:canonical-source-unification
+  relation: suggests
+- source: directive:DIRECTIVE_044
+  target: tactic:model-task-routing
   relation: suggests
 - source: directive:DIRECTIVE_044
   target: tactic:ownership-map-leeway
@@ -2766,6 +2775,14 @@ edges:
   target: directive:DIRECTIVE_024
   relation: suggests
   when: This tactic is the practical application protocol for Directive 024; use the directive for policy, this tactic for evaluation procedure
+- source: tactic:model-task-routing
+  target: directive:DIRECTIVE_044
+  relation: suggests
+  when: 'Consult to understand the binding rule this tactic operationalizes: the catalog is the single canonical source for model/task_type routing data — do not hand-roll a substitute mapping.'
+- source: tactic:model-task-routing
+  target: tactic:autonomous-operation-protocol
+  relation: suggests
+  when: Consult alongside this tactic when delegating work to a subagent — model routing decides *which* model runs the delegated work; the autonomous operation protocol decides *how* that agent should behave once dispatched.
 - source: tactic:moscow-scoping-lens
   target: procedure:tracker-organisation-workflow
   relation: suggests

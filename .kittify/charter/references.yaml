@@ -1,5 +1,5 @@
 schema_version: 1.0.0
-generated_at: '2026-07-01T16:12:30Z'
+generated_at: '2026-07-04T17:51:16Z'
 mission: software-dev
 template_set: software-dev-default
 references:
@@ -283,6 +283,14 @@ references:
     remains meaningful as the codebase evolves.\n"
   source_path: ''
   local_path: _LIBRARY/tactic-architectural-gate-non-vacuity.md
+- id: TACTIC:autonomous-operation-protocol
+  kind: tactic
+  title: Autonomous Operation Protocol
+  summary: Enable agents to operate autonomously with clear decision boundaries,
+    commit frequency expectations, and escalation protocols for critical 
+    choices.
+  source_path: ''
+  local_path: _LIBRARY/tactic-autonomous-operation-protocol.md
 - id: TACTIC:avoid-gold-plating
   kind: tactic
   title: Avoid Gold Plating
@@ -509,6 +517,16 @@ references:
     before they manifest as bugs or coupling.\n"
   source_path: ''
   local_path: _LIBRARY/tactic-language-driven-design.md
+- id: TACTIC:model-task-routing
+  kind: tactic
+  title: Model Task Routing
+  summary: "Match model strength to task difficulty: route hard-judgment work (sizing,
+    fakeability, code-truth, review, architecture) to the strongest available model,
+    and grounded or mechanical passes to a cheaper model. Advisory — the recommendation
+    surfaces alongside the task, it never substitutes for the operator's or orchestrator's
+    own judgment about who should run a step.\n"
+  source_path: ''
+  local_path: _LIBRARY/tactic-model-task-routing.md
 - id: TACTIC:ownership-map-leeway
   kind: tactic
   title: Ownership Map Leeway
@@ -636,6 +654,13 @@ references:
     correct but organisationally rejected solutions.\n"
   source_path: ''
   local_path: _LIBRARY/tactic-stakeholder-alignment.md
+- id: TACTIC:stopping-conditions
+  kind: tactic
+  title: Define Stopping Conditions
+  summary: Establish clear, measurable thresholds that define when to stop 
+    pursuing a goal, protecting against over-investment and sunk-cost fallacy.
+  source_path: ''
+  local_path: _LIBRARY/tactic-stopping-conditions.md
 - id: TACTIC:strategic-domain-classification
   kind: tactic
   title: Strategic Domain Classification

@@ -1,0 +1,175 @@
+schema_version: "1.0"
+generated_at: "2026-07-04T00:00:00Z"
+source_snapshot: model-discipline-dispatch-binding-01KWPW36-wp05-seed
+
+task_types:
+  - id: architecture-design
+    title: Architecture & Design Judgment
+    description: >
+      Bounded-context modeling, module-boundary decisions, and evaluating
+      trade-offs between competing designs.
+    quality_sensitivity: high
+    cost_sensitivity: low
+  - id: sizing-judgment
+    title: Sizing & Fakeability Judgment
+    description: >
+      Judging whether a work-package decomposition is realistically sized
+      and whether a Definition of Done is fakeable.
+    quality_sensitivity: high
+    cost_sensitivity: low
+  - id: code-review
+    title: Adversarial Code Review
+    description: >
+      Reviewing a diff for correctness, fidelity to spec, and code-truth —
+      catching what a confident summary or a green check would hide.
+    quality_sensitivity: high
+    cost_sensitivity: medium
+  - id: implementation
+    title: Implementation
+    description: >
+      Writing production code and tests against an approved spec/plan.
+    quality_sensitivity: medium
+    cost_sensitivity: medium
+  - id: mechanical-edit
+    title: Grounded / Mechanical Edit
+    description: >
+      Well-specified, rote changes — formatting, boilerplate, bulk renames
+      driven by an occurrence map.
+    quality_sensitivity: low
+    cost_sensitivity: high
+
+models:
+  - id: claude-opus-4-6
+    provider: anthropic
+    family: claude
+    tools: [code-execution, file-edit, web-search]
+    strengths:
+      - Deep multi-step reasoning
+      - Architectural trade-off analysis
+      - Adversarial review and fakeability judgment
+    weaknesses:
+      - Highest cost per token
+      - Higher latency than lighter tiers
+    task_fit:
+      - task_type: architecture-design
+        score: 0.95
+        confidence: high
+        rationale: Strongest available judgment for bounded-context and boundary trade-offs.
+      - task_type: sizing-judgment
+        score: 0.95
+        confidence: high
+        rationale: Best at catching undersized decompositions and fakeable DoDs.
+      - task_type: code-review
+        score: 0.9
+        confidence: high
+        rationale: Strongest adversarial-review and code-truth verification.
+      - task_type: implementation
+        score: 0.75
+        confidence: medium
+        rationale: Capable but overprovisioned for routine implementation work.
+      - task_type: mechanical-edit
+        score: 0.4
+        confidence: medium
+        rationale: Correct but wasteful for rote, well-specified edits.
+    cost:
+      tier: premium
+      input_per_1m_usd: 15.0
+      output_per_1m_usd: 75.0
+      currency: USD
+    latency_tier: high
+  - id: claude-sonnet-5
+    provider: anthropic
+    family: claude
+    tools: [code-execution, file-edit, web-search]
+    strengths:
+      - Balanced reasoning and cost
+      - Strong day-to-day implementation and review
+    weaknesses:
+      - Less reliable than the top tier on the hardest judgment calls
+    task_fit:
+      - task_type: architecture-design
+        score: 0.75
+        confidence: medium
+        rationale: Solid but not the strongest tier for the hardest design trade-offs.
+      - task_type: sizing-judgment
+        score: 0.7
+        confidence: medium
+        rationale: Adequate but the strongest tier catches more undersizing.
+      - task_type: code-review
+        score: 0.8
+        confidence: high
+        rationale: Reliable day-to-day reviewer; strongest tier reserved for high-stakes review.
+      - task_type: implementation
+        score: 0.9
+        confidence: high
+        rationale: Best fit for routine implementation work — quality at reasonable cost.
+      - task_type: mechanical-edit
+        score: 0.7
+        confidence: medium
+        rationale: Capable but still more than a mechanical pass strictly requires.
+    cost:
+      tier: high
+      input_per_1m_usd: 3.0
+      output_per_1m_usd: 15.0
+      currency: USD
+    latency_tier: medium
+  - id: claude-haiku-4-5
+    provider: anthropic
+    family: claude
+    tools: [code-execution, file-edit]
+    strengths:
+      - Fast and cheap
+      - Good for grounded, well-specified mechanical work
+    weaknesses:
+      - Unreliable on hard, multi-step judgment calls
+      - Not suitable for adversarial review or architecture decisions
+    task_fit:
+      - task_type: architecture-design
+        score: 0.2
+        confidence: high
+        rationale: Not suitable for hard architectural judgment.
+      - task_type: sizing-judgment
+        score: 0.2
+        confidence: high
+        rationale: Not suitable for fakeability/sizing judgment.
+      - task_type: code-review
+        score: 0.35
+        confidence: medium
+        rationale: Can catch mechanical issues but misses subtler code-truth problems.
+      - task_type: implementation
+        score: 0.55
+        confidence: medium
+        rationale: Fine for small, well-specified implementation tasks.
+      - task_type: mechanical-edit
+        score: 0.95
+        confidence: high
+        rationale: Ideal for grounded, well-specified, mechanical work at low cost.
+    cost:
+      tier: low
+      input_per_1m_usd: 0.8
+      output_per_1m_usd: 4.0
+      currency: USD
+    latency_tier: low
+
+routing_policy:
+  objective: quality_first
+  weights:
+    quality: 0.6
+    cost: 0.15
+    risk: 0.15
+    latency: 0.1
+  tier_constraints:
+    - task_type: mechanical-edit
+      max_tier: medium
+  override_policy:
+    mode: advisory
+    require_reason: true
+  freshness_policy:
+    max_catalog_age_hours: 4320
+
+sources:
+  - name: Anthropic model overview
+    url: https://docs.anthropic.com/en/docs/about-claude/models/overview
+    access_method: manual
+    snapshot_at: "2026-07-04T00:00:00Z"
+    license_notes: Curated seed data for the model-discipline dispatch-binding mission; task_fit scores are editorial judgment, not benchmarked.
