@@ -238,3 +238,34 @@ def test_load_with_no_argument_resolves_the_shipped_catalog() -> None:
 
     result = load()
     assert result is not None
+
+
+def test_shipped_catalog_never_expires(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fix 4 (mission #2364 aggregate-review remediation): the packaged
+    catalog's ``generated_at`` is a fixed value baked in at ship time. If
+    ``routing_policy.freshness_policy.max_catalog_age_hours`` were set (as
+    it originally was, to 4320h / 180 days), the SHIPPED catalog would
+    silently flip ``is_stale`` to ``True`` ~180 days after that date with
+    no code change and no test failure -- every dispatch recommendation
+    would go inert simultaneously. The packaged default must omit
+    ``max_catalog_age_hours`` (schema-legal: it is optional) so
+    ``loader._is_stale`` always takes its "no freshness policy configured"
+    branch. Freezing the clock far in the future is the actual proof --
+    a merely-recent check would not catch a reintroduced finite
+    max_catalog_age_hours.
+    """
+    import datetime as _datetime_mod
+
+    from doctrine.model_task_routing import loader as loader_mod
+
+    class _FarFutureDatetime(_datetime_mod.datetime):
+        @classmethod
+        def now(cls, tz: _datetime_mod.tzinfo | None = None) -> _datetime_mod.datetime:
+            return _datetime_mod.datetime(2099, 1, 1, tzinfo=tz)
+
+    monkeypatch.setattr(loader_mod, "datetime", _FarFutureDatetime)
+
+    result = loader_mod.load()
+
+    assert result is not None
+    assert result.is_stale is False
