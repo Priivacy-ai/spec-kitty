@@ -219,6 +219,7 @@ def test_runtime_gitignore_entries_exact():
         ".kittify/runtime/",
         ".kittify/sync-state.json",
         ".kittify/workspaces/",
+        "kitty-ops/ops-index.jsonl",
     ]
     assert entries == expected
 

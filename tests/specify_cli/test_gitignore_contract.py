@@ -87,6 +87,30 @@ def test_gitignore_manager_protects_encoding_provenance(tmp_path: Path) -> None:
     assert _is_ignored(tmp_path, ".kittify/encoding-provenance/global.jsonl")
 
 
+def test_contract_runtime_entries_include_ops_index():
+    """The Op-index performance cache is a runtime-ignored contract entry."""
+    from specify_cli.state.contract import get_runtime_gitignore_entries
+
+    entries = get_runtime_gitignore_entries()
+    # File-level entry -- NOT collapsed to kitty-ops/, because the durable
+    # per-Op records under kitty-ops/ are tracked.
+    assert "kitty-ops/ops-index.jsonl" in entries
+    assert "kitty-ops/" not in entries
+
+
+def test_gitignore_manager_protects_ops_index(tmp_path: Path) -> None:
+    """Fresh init protection hides the Op-index cache but not durable records."""
+    from specify_cli.gitignore_manager import GitignoreManager
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    result = GitignoreManager(tmp_path).protect_all_agents()
+
+    assert result.success
+    assert _is_ignored(tmp_path, "kitty-ops/ops-index.jsonl")
+    # Durable per-Op audit records stay trackable.
+    assert not _is_ignored(tmp_path, "kitty-ops/01HXYZ.jsonl")
+
+
 def test_research_evidence_logs_are_trackable():
     """Investigation evidence logs under research/ are not masked by *.log."""
 
