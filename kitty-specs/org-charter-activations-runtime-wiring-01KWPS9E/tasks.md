@@ -15,7 +15,7 @@ description: "Work package task list — Org-Charter Activations Runtime Wiring"
 
 | WP | Title | Priority | Dependencies | Subtasks | Est. Size |
 |----|-------|----------|--------------|----------|-----------|
-| WP01 | Org activations resolve-time wiring (shared seams + union + validation + durable invariant) | P0 | none | T001–T009 | ~2 src files + 4 test modules |
+| WP01 | Org activations resolve-time wiring (shared seams + union + validation + durable invariant) | P0 | none | T001–T010 | ~2 src files + 4 test modules |
 
 ## Work Packages
 
@@ -35,25 +35,26 @@ description: "Work package task list — Org-Charter Activations Runtime Wiring"
 
 ### Included Subtasks
 
-- [ ] T001 [red-first] Author the FR-005 recurrence-class regression invariant `tests/charter/test_org_activations_reach_context.py`: org pack (`_write_org_pack`/`_write_config` harness) with an `activations:` entry + no project-local block → assert the entry surfaces in `build_charter_context(...).text` `"Selected activations:"` stanza in **bootstrap mode** (omit `context-state.json` / depth ≥ 2). Capture RED against pre-fix HEAD. Refactor-stable: assert stanza contents, not internal symbols.
-- [ ] T002 [red-first] Author `tests/charter/test_org_activations_resolution.py`: union/dedup by 4-tuple identity (SC-002, org∪project, project first-seen order); malformed present-pack entry → raise (SC-003); missing pack → skip. Capture RED.
-- [ ] T003 [FR-003] Relocate the 4-tuple identity key from `org_charter.py` (`_activation_identity_key`, ~:286-300) **down into `charter/activations.py`**; re-import at the single caller `org_charter.py` (~:450). Behavior-preserving; verify no `org_charter`-local dependency.
-- [ ] T004 [FR-006] Extract shared `_iter_org_charter_docs(repo_root)` (pack-enumerate → load → parse) in `charter/context.py`; refactor `_read_org_required_selections` onto it (behavior-preserving; existing `required_<kind>` tests are the safety net). Add `tests/charter/test_iter_org_charter_docs.py`.
-- [ ] T005 [FR-001/002/004] Add `_read_org_activations(repo_root)` consuming T004's reader: validate each entry via `ActivationEntry.model_validate` (raise on malformed present-pack; skip missing pack — NOT the precedent's silent skip, C-002 override); return validated list.
-- [ ] T006 [FR-001/002] Union org activations into the list returned by `_load_governance_activations`, deduped on the shared key (T003), project first-seen order preserved — placed **before** `_render_activation_block`'s `except Exception: return ""` (beside line ~2679) so the FR-004 raise escapes to `build_charter_context`.
-- [ ] T007 [NFR-002/003] Assert `governance.yaml` stays org-pure (org-only activation absent from written file yet present in stanza) and non-org repos resolve byte-identically. Extend `tests/charter/test_context_org_governance.py`.
-- [ ] T008 Turn T001/T002 GREEN; run full `tests/charter/` + `tests/specify_cli/doctrine/test_org_charter*.py`; confirm the `required_<kind>` refactor (T004) left those paths green.
-- [ ] T009 `ruff check` + `mypy` zero-issue on new + boy-scout-touched; complexity ≤ 15; no new literals ≥ 3× (S1192); no suppressions.
+- [ ] T001 [red-first] FR-005 durable invariant `tests/charter/test_org_activations_reach_context.py`: reuse ONLY `_write_config` (not `_write_org_pack` — it writes an agent-profile pack, no activations); write a NEW `org-charter.yaml` with an `activations:` entry, no project-local block; force **bootstrap** via `build_charter_context` (no `context-state.json`, depth ≥ 2, NOT `_governance_text`/`advise` = compact); assert stanza contents. **RECORD pre-fix RED.**
+- [ ] T002 [red-first] `tests/charter/test_org_activations_resolution.py`: union/dedup (SC-002), malformed-present-pack raise (SC-003), missing-pack skip — via the REAL rescan, no stub. **RECORD pre-fix RED.**
+- [ ] T003 [char-test/FR-006] `tests/charter/test_iter_org_charter_docs.py` + a characterization test pinning the CURRENT `_read_org_required_selections`/`_load_doctrine_selection` org-union branch (`context.py:795-813`) — it has ZERO existing coverage; this is the safety net for T005. Gate T009 on it.
+- [ ] T004 [FR-003] Relocate `_activation_identity_key` (`org_charter.py:286`, no local dep) → `charter/activations.py`; re-import at `org_charter.py:44/:450`. `_fold_policies` tests gate import integrity.
+- [ ] T005 [FR-006 REQUIRED] Extract `_iter_org_charter_docs(repo_root)`; refactor `_read_org_required_selections` **onto it** (mandatory — fixes its pre-existing ~19–20 Sonar cognitive-complexity; guarded by T003). Campsite: add `_LOGGER.debug` before `_enumerate_org_pack_paths`'s silent `except` (`context.py:693`).
+- [ ] T006 [FR-001/002/004] `_read_org_activations(repo_root)` consuming T005's reader (runtime import `ActivationEntry`): `model_validate` each entry — raise on malformed present-pack, skip missing pack (NOT silent `continue`, C-002 override).
+- [ ] T007 [FR-001/002] Call `_read_org_activations` as a **SEPARATE** call in `_render_activation_block` (NEVER inside `_load_governance_activations` — its `except: return []` at `:2652` swallows the raise); union+dedup on shared key, project order preserved; place **before** the `if not activations: return ""` short-circuit (`:2680`) AND before the `except` (`:2692`).
+- [ ] T008 [NFR-002/003] Assert `governance.yaml` org-pure + non-org byte-identity. Extend `tests/charter/test_context_org_governance.py`.
+- [ ] T009 Turn T001/T002 GREEN; run `tests/charter/` + `tests/specify_cli/doctrine/test_org_charter*.py`; confirm T003 characterization + `required_<kind>` paths stayed green through T005.
+- [ ] T010 `ruff check` + `mypy` zero-issue on new + boy-scout-touched; complexity ≤ 15; no ≥3× literals (S1192); no suppressions.
 
 ### Implementation Notes
 
-- Attach point is load-bearing: the org read+validate+union must sit pre-`except` (T006) or FR-004's raise is swallowed.
-- Text stanza only (C-004) — do NOT touch `build_charter_context_json` `directives`/`tactics` arrays or compact-mode rendering. Those are deferred (see spec Deferred Items).
+- **FR-004 double-swallow trap (load-bearing)**: the org read is a SEPARATE call in `_render_activation_block`; folding it into `_load_governance_activations` (own `except: return []`, `:2652`) OR placing it after the `except` (`:2692`) swallows the validation raise. Place the union before the `if not activations: return ""` short-circuit (`:2680`) so the org-only case renders (SC-001).
+- Text stanza only (C-004) — do NOT touch `build_charter_context_json` `directives`/`tactics` arrays or compact-mode rendering (deferred; spec Deferred Items).
 - Layer boundary (C-001): `charter` must not import `specify_cli.doctrine.org_charter`; the shared key lives in `charter.activations` (down-layer), the reader raw-scans YAML like the precedent.
 
 ### Parallel Opportunities
 
-- T001 and T002 (independent test modules) can be authored in parallel; T003 and T004 are near-independent (different files) but both precede T005/T006.
+- T001/T002/T003 (independent test modules) can be authored in parallel; T004 and T005 are near-independent (different files) but both precede T006/T007.
 
 ### Dependencies
 
@@ -61,7 +62,9 @@ description: "Work package task list — Org-Charter Activations Runtime Wiring"
 
 ### Risks & Mitigations
 
-- **`required_<kind>` regression** from the T004 extraction → keep it a pure behavior-preserving move; existing `_read_org_required_selections` tests gate it.
-- **Compact-mode false-green** → T001 forces bootstrap mode explicitly.
+- **`required_<kind>` regression** from the T005 extraction → T003's characterization test (authored first) is the real safety net (the org-union branch had NO prior coverage — post-tasks squad finding).
+- **Compact-mode false-green** → T001 forces bootstrap mode explicitly and avoids the `advise`/`_governance_text` compact harness.
+- **FR-004 raise swallowed** → T007 pins the separate-call + pre-short-circuit placement.
+- **OUT (tracked-home, NOT folded here)**: cross-module `"org-charter.yaml"` literal spread (7 files) + `f"required_{kind}"` S1192 in `org_charter.py` → follow-up ticket (see `adversarial-review.md`).
 - **Swallowed validation raise** → T006 pins pre-`except` placement; T002 asserts the raise propagates.
 - **DIRECTIVE_041 / dead-symbol ratchet** on the relocated key → single caller re-import (T003), no orphan left behind.

@@ -20,13 +20,14 @@
         "tests/charter/test_org_activations_resolution.py"
       ],
       "predicted_surfaces": [
+        "api",
         "artifact-rendering"
       ],
       "depends_on_lanes": [],
       "parallel_group": 0
     }
   ],
-  "computed_at": "2026-07-04T15:02:02.246128+00:00",
+  "computed_at": "2026-07-04T15:12:13.610380+00:00",
   "computed_from": "dependency_graph+ownership",
   "planning_artifact_wps": []
 }
