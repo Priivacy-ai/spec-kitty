@@ -2,8 +2,11 @@
 title: Spec Kitty 3.2 Documentation
 description: Current Spec Kitty 3.2 documentation for new adopters, upgrade operators, harness users, and CLI integrators.
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-07-04'
 related:
+- docs/changelog/index.md
+- docs/plans/3-2-x-milestone-roadmap.md
+- docs/release-goals/index.md
 - docs/migrations/from-charter-2x.md
 - docs/migrations/index.md
 - docs/migrations/upgrade-to-0-12-0.md
@@ -28,6 +31,12 @@ Spec Kitty documentation is organized as a single 13-section Common Docs structu
 - Current governance source: `.kittify/charter/charter.md`.
 - Current mission loop: `spec-kitty next --agent <name> --mission <slug>`.
 - Upgrade path: start at [Migrations](migrations/index.md), then follow the current guides.
+
+## What's new and roadmap
+
+- [Changelog](changelog/index.md) — release history (canonical `CHANGELOG.md`).
+- [Release goals](release-goals/index.md) — declared intent of each release line (3.2.x, 3.3.x).
+- [3.2.x milestone roadmap](plans/3-2-x-milestone-roadmap.md) — execution roadmap for the current milestone.
 
 ## Sections
 

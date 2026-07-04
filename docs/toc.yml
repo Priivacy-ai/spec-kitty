@@ -24,6 +24,8 @@
   href: migrations/index.md
 - name: Changelog
   href: changelog/index.md
+- name: Release Goals
+  href: release-goals/index.md
 - name: Mission Runs
   href: kitty-specs/index.html
 - name: Historical Archive
