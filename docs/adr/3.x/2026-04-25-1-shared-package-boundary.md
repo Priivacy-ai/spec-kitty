@@ -124,7 +124,7 @@ in 10 work packages. Concretely:
 ## References
 
 - Mission spec: `kitty-specs/shared-package-boundary-cutover-01KQ22DS/spec.md`
-- Migration runbook: [`docs/migration/shared-package-boundary-cutover.md`](../../../docs/migration/shared-package-boundary-cutover.md)
+- Migration runbook: [`docs/migration/shared-package-boundary-cutover.md`](../../migrations/shared-package-boundary-cutover.md)
 - Local-overrides dev doc: [`docs/guides/local-overrides.md`](../../../docs/guides/local-overrides.md)
 - Architectural enforcement:
   - [`tests/architectural/test_shared_package_boundary.py`](../../../tests/architectural/test_shared_package_boundary.py)

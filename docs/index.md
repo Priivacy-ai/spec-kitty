@@ -4,9 +4,9 @@ description: Current Spec Kitty 3.2 documentation for new adopters, upgrade oper
 doc_status: active
 updated: '2026-06-03'
 related:
-- docs/migration/from-charter-2x.md
-- docs/migration/index.md
-- docs/migration/upgrade-to-0-12-0.md
+- docs/migrations/from-charter-2x.md
+- docs/migrations/index.md
+- docs/migrations/upgrade-to-0-12-0.md
 ---
 
 <section class="sk-docs-hero" aria-labelledby="sk-docs-title">

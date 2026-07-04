@@ -4,7 +4,7 @@ description: 'Operator reference for the Spec Kitty status model: the append-onl
 doc_status: active
 updated: '2026-06-27'
 related:
-- docs/migration/mission-id-canonical-identity.md
+- docs/migrations/mission-id-canonical-identity.md
 ---
 # Status Model: Operator Documentation
 
@@ -18,7 +18,7 @@ related:
   legacy `--feature` alias. As of this release (#1060), the `--feature` alias
   has been hard-removed from all user-facing commands; passing `--feature` yields
   exit code 2. Use `--mission` on all commands.
-- As of mission `083-mission-id-canonical-identity-migration`, a mission's canonical machine identity is `mission_id` (a ULID). The `--mission` flag accepts `mission_id`, `mid8` (first 8 chars of the ULID), or `mission_slug`. The numeric prefix in slug examples below (e.g. `034-feature-name`) is display-only metadata — the event log's aggregate key is `mission_id`, not the prefix. See the [mission identity migration runbook](migration/mission-id-canonical-identity.md).
+- As of mission `083-mission-id-canonical-identity-migration`, a mission's canonical machine identity is `mission_id` (a ULID). The `--mission` flag accepts `mission_id`, `mid8` (first 8 chars of the ULID), or `mission_slug`. The numeric prefix in slug examples below (e.g. `034-feature-name`) is display-only metadata — the event log's aggregate key is `mission_id`, not the prefix. See the [mission identity migration runbook](migrations/mission-id-canonical-identity.md).
 
 ## Overview
 

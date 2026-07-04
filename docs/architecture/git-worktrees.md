@@ -8,7 +8,7 @@ related:
 - docs/architecture/execution-lanes.md
 - docs/architecture/kanban-workflow.md
 - docs/architecture/spec-driven-development.md
-- docs/migration/mission-id-canonical-identity.md
+- docs/migrations/mission-id-canonical-identity.md
 ---
 # Git Worktrees Explained
 
@@ -20,7 +20,7 @@ Git worktrees are the technology that enables Spec Kitty's parallel development 
 > by `spec-kitty implement`. The legacy numeric-prefix form
 > `.worktrees/001-my-feature-lane-a/` shown in some examples below still
 > resolves for pre-083 projects. See the
-> [mission identity migration runbook](../migration/mission-id-canonical-identity.md)
+> [mission identity migration runbook](../migrations/mission-id-canonical-identity.md)
 > for upgrade steps.
 
 ## What is a Git Worktree?

@@ -4,7 +4,7 @@ description: "Migration to mission_id (ULID) as a mission's canonical identity, 
 doc_status: active
 updated: '2026-06-03'
 related:
-- docs/migration/feature-flag-deprecation.md
+- docs/migrations/feature-flag-deprecation.md
 ---
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 

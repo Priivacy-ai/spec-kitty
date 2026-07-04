@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-06-17'
 related:
 - docs/architecture/branch-target-routing.md
-- docs/migration/mission-id-canonical-identity.md
+- docs/migrations/mission-id-canonical-identity.md
 ---
 # Execution Lanes
 
@@ -45,7 +45,7 @@ Example, for a mission with `mission_slug=my-feature` and
 Legacy (pre-083) forms such as `kitty/mission-001-my-feature-lane-a` and
 `.worktrees/001-my-feature-lane-a/` remain readable by current tooling but
 are no longer the form produced by `implement`. Upgrade via the
-[mission identity migration runbook](../migration/mission-id-canonical-identity.md).
+[mission identity migration runbook](../migrations/mission-id-canonical-identity.md).
 
 ## Why This Replaced Per-WP Worktrees
 

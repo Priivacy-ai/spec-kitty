@@ -5,9 +5,9 @@ doc_status: active
 updated: '2026-06-26'
 related:
 - docs/api/event-envelope.md
-- docs/migration/feature-flag-deprecation.md
-- docs/migration/mission-id-canonical-identity.md
-- docs/migration/mission-type-flag-deprecation.md
+- docs/migrations/feature-flag-deprecation.md
+- docs/migrations/mission-id-canonical-identity.md
+- docs/migrations/mission-type-flag-deprecation.md
 ---
 # Orchestrator API Reference
 
@@ -85,7 +85,7 @@ Success payloads that identify a tracked mission emit:
 The `--mission` selector accepts any of `mission_id`, `mid8` (first 8 chars of
 the ULID), or `mission_slug`. Ambiguous handles return
 `MISSION_AMBIGUOUS_SELECTOR` and list the candidates — there is no silent
-fallback. See [Mission ID Canonical Identity Migration](../migration/mission-id-canonical-identity.md).
+fallback. See [Mission ID Canonical Identity Migration](../migrations/mission-id-canonical-identity.md).
 
 Forbidden in orchestrator-api payloads:
 
@@ -366,5 +366,5 @@ Current machine-readable error codes:
 See also:
 
 - [Event Envelope Reference](event-envelope.md)
-- [Feature Flag Deprecation](../migration/feature-flag-deprecation.md)
-- [Mission Type Flag Deprecation](../migration/mission-type-flag-deprecation.md)
+- [Feature Flag Deprecation](../migrations/feature-flag-deprecation.md)
+- [Mission Type Flag Deprecation](../migrations/mission-type-flag-deprecation.md)

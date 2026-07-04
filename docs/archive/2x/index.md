@@ -11,7 +11,7 @@ related:
 - docs/archive/2x/orchestration-and-api.md
 - docs/archive/2x/runtime-and-missions.md
 - docs/index.md
-- docs/migration/index.md
+- docs/migrations/index.md
 ---
 > Archive notice: This page documents historical Spec Kitty behavior and is not the current 3.2 workflow. Start with [Spec Kitty 3.2](../../context/index.md) for current docs.
 
@@ -43,7 +43,7 @@ contributors can understand older behavior; current projects should use the 3.2 
 ## Current replacement
 
 - For new projects: start with [Spec Kitty 3.2 documentation](../../index.md).
-- For upgrades: use [Migration to Spec Kitty 3.2](../../migration/index.md).
+- For upgrades: use [Migration to Spec Kitty 3.2](../../migrations/index.md).
 - For old behavior lookup: use this 2.x archive only for historical context.
 
 ## Architecture Repository Layout

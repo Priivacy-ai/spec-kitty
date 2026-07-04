@@ -5,7 +5,7 @@ doc_status: active
 updated: '2026-06-12'
 related:
 - docs/architecture/charter-synthesis-drg.md
-- docs/migration/doctrine-local-overlay-to-org-layer.md
+- docs/migrations/doctrine-local-overlay-to-org-layer.md
 ---
 # Understanding the Org Doctrine Layer
 
@@ -17,7 +17,7 @@ output, and the architectural boundary that keeps the three layers cleanly separ
 
 For step-by-step instructions on producing a pack, see [How to create an org doctrine
 pack](../guides/create-an-org-doctrine-pack.md). For migration guidance from a local
-overlay, see [Migrating shared doctrine to the org layer](../migration/doctrine-local-overlay-to-org-layer.md).
+overlay, see [Migrating shared doctrine to the org layer](../migrations/doctrine-local-overlay-to-org-layer.md).
 
 ---
 
@@ -365,6 +365,6 @@ installed pack contents.
 ## See also
 
 - [How to create an org doctrine pack](../guides/create-an-org-doctrine-pack.md)
-- [Migrating shared doctrine to the org layer](../migration/doctrine-local-overlay-to-org-layer.md)
+- [Migrating shared doctrine to the org layer](../migrations/doctrine-local-overlay-to-org-layer.md)
 - [How to set up project governance](../guides/setup-governance.md)
 - [Understanding Charter: Synthesis, DRG, and Governed Context](charter-synthesis-drg.md)

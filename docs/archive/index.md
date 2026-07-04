@@ -8,9 +8,9 @@ related:
 - docs/archive/1x/index.md
 - docs/archive/2x/index.md
 - docs/index.md
-- docs/migration/index.md
+- docs/migrations/index.md
 ---
-> Archive notice: This page collects historical Spec Kitty documentation. For current 3.2 workflows, start with [Spec Kitty 3.2](../index.md) or [Migration to Spec Kitty 3.2](../migration/index.md).
+> Archive notice: This page collects historical Spec Kitty documentation. For current 3.2 workflows, start with [Spec Kitty 3.2](../index.md) or [Migration to Spec Kitty 3.2](../migrations/index.md).
 
 # Historical Archive
 
@@ -25,10 +25,10 @@ This section preserves previous Spec Kitty release documentation for historical 
 
 - [Start with Spec Kitty 3.2](../index.md)
 - [3.2 current overview](../context/index.md)
-- [Migration to 3.2](../migration/index.md)
+- [Migration to 3.2](../migrations/index.md)
 
 ## Current replacement
 
 - For new projects: start with [Getting Started](../guides/getting-started.md).
-- For upgrades: use [Migration to Spec Kitty 3.2](../migration/index.md).
+- For upgrades: use [Migration to Spec Kitty 3.2](../migrations/index.md).
 - For old behavior lookup: stay in this archive and treat claims as version-scoped.

@@ -2,7 +2,7 @@
 title: TeamSpace Mission-State 920 Closeout Evidence
 description: 'Closeout evidence for TeamSpace mission-state issue #920, generated from a clean workspace: the artifacts proving the mission-state repair landed correctly.'
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-07-04'
 ---
 > Migration note: This page documents a migration path or historical transition. It is not the current 3.2 happy path.
 
@@ -48,7 +48,7 @@ operational and cross-repo work outside this branch:
 | spec-kitty `#930` manifest | implemented | `RepairReport` records schema version, run id, repo head, targets, file checksums, row transformations, quarantine counts, and validation results. |
 | spec-kitty `#931` sync/import guardrail | implemented on this branch | `teamspace_dry_run` now blocks on audit blockers before envelope synthesis; batch sync rejects historical mission-state fields before network POST. |
 | spec-kitty `#932` rehearsal | closed | `tests/migration/test_teamspace_migration_rehearsal.py` passes with `spec-kitty-events` 5.0.0. |
-| spec-kitty `#933` operator runbook | implemented | `docs/migration/teamspace-mission-state-repair.md`. |
+| spec-kitty `#933` operator runbook | implemented | `docs/migrations/teamspace-mission-state-repair.md`. |
 | spec-kitty `#934` CI readiness gate | closed | `.github/workflows/teamspace-mission-state-readiness.yml`. |
 | spec-kitty `#935` release sequencing | implemented on this branch | Release sequencing section added to the runbook. |
 | spec-kitty `#978` events dependency | implemented on this branch | `pyproject.toml` now requires `spec-kitty-events>=5.0.0,<6.0.0`; `uv.lock` resolves 5.0.0 from PyPI; release metadata advanced to `3.2.0rc5`. |
@@ -65,7 +65,7 @@ Commands run in the clean checkout:
 
 ```bash
 python scripts/release/validate_release.py --mode branch --tag-pattern 'v*.*.*'
-uv run ruff check docs/adr/3.x/2026-05-10-1-deterministic-historical-mission-state-repair.md docs/migration/teamspace-mission-state-repair.md docs/migration/teamspace-mission-state-920-closeout.md src/specify_cli/migration/mission_state.py src/specify_cli/sync/batch.py tests/migration/test_mission_state_repair.py tests/migration/test_teamspace_migration_rehearsal.py tests/sync/test_batch_sync.py tests/release/test_dogfood_command_set.py tests/release/test_validate_metadata_yaml_sync.py
+uv run ruff check docs/adr/3.x/2026-05-10-1-deterministic-historical-mission-state-repair.md docs/migrations/teamspace-mission-state-repair.md docs/migrations/teamspace-mission-state-920-closeout.md src/specify_cli/migration/mission_state.py src/specify_cli/sync/batch.py tests/migration/test_mission_state_repair.py tests/migration/test_teamspace_migration_rehearsal.py tests/sync/test_batch_sync.py tests/release/test_dogfood_command_set.py tests/release/test_validate_metadata_yaml_sync.py
 SPEC_KITTY_ENABLE_SAAS_SYNC=1 uv run python -m pytest tests/contract/test_events_envelope_matches_resolved_version.py tests/migration/test_mission_state_repair.py tests/migration/test_teamspace_migration_rehearsal.py tests/sync/test_batch_sync.py::TestHistoricalMissionStateGuard tests/release/test_check_shared_package_drift.py tests/architectural/test_pyproject_shape.py tests/release/test_dogfood_command_set.py tests/release/test_validate_metadata_yaml_sync.py -q
 uv run python -m pytest tests/audit -q
 uv lock --check

@@ -47,7 +47,7 @@ projects and upgrades.
 - Current runtime model: Charter-era missions with governed context injection.
 - Current governance source: `.kittify/charter/charter.md`.
 - Current mission loop: `spec-kitty next --agent <name> --mission <slug>`.
-- Upgrade path: [Migration to Spec Kitty 3.2](../migration/index.md).
+- Upgrade path: [Migration to Spec Kitty 3.2](../migrations/index.md).
 
 ### What is Charter?
 
@@ -103,13 +103,13 @@ For the full mental model, see [How Charter Works](charter-overview.md).
 ### Migration
 
 Upgrading from an earlier version? See
-[Migrating from 2.x / Early 3.x](../migration/from-charter-2x.md) — what changed,
+[Migrating from 2.x / Early 3.x](../migrations/from-charter-2x.md) — what changed,
 migration steps, and known failure modes.
 
 ### What is archived
 
 Documentation for Spec Kitty 1.x and 2.x is preserved through the
-[migration hub](../migration/index.md) for historical context. The 2.x
+[migration hub](../migrations/index.md) for historical context. The 2.x
 governance model did not include the DRG-backed synthesis pipeline or the
 retrospective learning loop. If you are running a current project, use the 3.2
 documentation above.
