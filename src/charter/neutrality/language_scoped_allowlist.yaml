@@ -79,3 +79,23 @@ paths:
     owner: "charter team"
     reason: "Secure regex remediation tactic intentionally discusses Python test tooling and timing guards."
     added_in: "3.3.3"
+  - path: "src/doctrine/toolguides/built-in/terminology-guard.toolguide.yaml"
+    scope: python
+    owner: "charter team"
+    reason: "Toolguide documenting the pytest-based terminology guard; the pytest invocation IS the subject (mirrors python-review-checks precedent)."
+    added_in: "3.2.4"
+  - path: "src/doctrine/toolguides/built-in/TERMINOLOGY_GUARD.md"
+    scope: python
+    owner: "charter team"
+    reason: "Human-readable companion to terminology-guard.toolguide.yaml; same pytest commands are the subject."
+    added_in: "3.2.4"
+  - path: "src/doctrine/styleguides/built-in/testing-principles.styleguide.yaml"
+    scope: python
+    owner: "charter team"
+    reason: "Refactor-stable testing-principles styleguide (CT8/#2310); good/bad examples cite pytest markers, quarantine reasons, and ratchet idioms — Python test vocabulary is the subject."
+    added_in: "3.2.4"
+  - path: "src/doctrine/procedures/built-in/post-merge-arch-gate-adjudication.procedure.yaml"
+    scope: python
+    owner: "charter team"
+    reason: "Operator standing-order procedure (doctrine-catfooding #2196); its content is the concrete pytest gate commands to run post-merge — rewording to neutral phrasing would strip the actionable commands the ruling encodes."
+    added_in: "3.2.4"
