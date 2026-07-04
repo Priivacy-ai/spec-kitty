@@ -53,13 +53,13 @@ Seam state carried from the wave plan: WS1/WS2/WS3 **DONE**, WS5 (CI suite map) 
 
 ## Milestone census (2026-07-04)
 
-**231 issues milestoned: 102 open / 129 closed** (56% burn). Recent landings: PRs #2332 (dashboard identity fix), #2336 (move-task `for_review` recovery), #2338 (orchestrator-api resolve-workspace + contract 1.2.0 + changelog-symlink cutover + `predict_lane_worktree` SSOT seam); the 2026-07-04 backlog revitalization closed 24 stale issues.
+**271 issues milestoned: 141 open / 130 closed** (48% burn — the count *grew* by 40 on 2026-07-04 when the sub-issue milestone-consistency sweep pulled the spine's unmilestoned children, the critical-path P1s, and #1716 (folding the retired 3.2.1 milestone) into 3.2.x; the burn percentage dropped for honest reasons: previously-invisible scope now counts). Recent landings: PRs #2332 (dashboard identity fix), #2336 (move-task `for_review` recovery), #2338 (orchestrator-api resolve-workspace + contract 1.2.0 + changelog-symlink cutover + `predict_lane_worktree` SSOT seam); the 2026-07-04 backlog revitalization closed 24 stale issues.
 
 **Hot list:**
 
 - **P0 (5 open in milestone):** #2346 (move-task subtask-guard regex leak — launch-blocker, queued as a post-mission op), #2160 (coord artifact authority — the class the Wave 2 trio closes), #2071 (test-QA epic), #1676 (deterministic structured authoring — verified 2026-07-04: carries **zero native dependency edges**, so it sits entirely outside the spine; it needs an explicit scheduling decision, see exit criterion 7), #1619 (the program root).
 - **P1s from the 2026-07-04 sweep — pulled into 3.2.x (operator critical-path ruling, 2026-07-04):** #1239 (retrospect synthesize rejects its own create records), #1231 (stale-WP indicator: shell_pid liveness), #1734 (in_review→approved guard forces `--force` on standard review flows), #825 (restore push-time SonarCloud — CI hygiene).
-- **Clusters (open-issue labels):** reliability 44 · workflow 41 · tech-debt 37 · bug 26 · doctrine 18 — consistent with a stabilization cycle: two-thirds of the open book is reliability/workflow/debt, not new surface.
+- **Clusters (open-issue labels):** workflow 54 · reliability 50 · tech-debt 45 · bug 40 — consistent with a stabilization cycle: two-thirds of the open book is reliability/workflow/debt, not new surface.
 
 ## Exit criteria for 3.2.x
 
@@ -79,7 +79,7 @@ Derived from the epics' own done-conditions; the milestone closes when all hold:
 - **#2339 — two-authority migration-id conflict.** The upgrade dry-run JSON contract rejects dotted `migration_ids` (first live offender: `3.2.0rc45_retire_standalone_skill_surface`); this reds local runs today and is exactly the two-authority failure class Decision 8 of the in-flight suite-map mission exists to prevent. Watch for interaction with Wave 0.
 - **#2342 — quarantined perf test pending verdict.** The retrospective 200-mission 5s NFR breach on CI is unadjudicated (real regression vs CI flake); the quarantine lane must not become a permanent parking lot.
 - **#2345 / #1790 — dedup decision needed.** Both cover occurrence-map validation timing (bind at plan/tasks-finalize vs implement-claim-only); pick one canonical ticket before either is scheduled.
-- **Milestone-drift on critical-path items** — resolved for the known set on 2026-07-04 (#1239/#1231/#1734/#825 and #2034 all pulled into 3.2.x by operator ruling), but the class remains live: a critical-path issue filed without a milestone silently escapes the burn count. The sub-issue milestone sweep (below) is the standing counter-measure.
+- **Milestone-drift on critical-path items** — resolved for the known set on 2026-07-04 (#1239/#1231/#1734/#825 and #2034 all pulled into 3.2.x by operator ruling), but the class remains live: a critical-path issue filed without a milestone silently escapes the burn count. The sub-issue milestone sweep (executed 2026-07-04, see next steps) is the standing counter-measure.
 - **#2071 children are audit-fed.** The epic forbids pre-creating children; exit criterion 4 has open-ended scope until the audit's ticket set is complete. Watch for scope creep into #1931 territory (hygiene items belong in the campsite epic, not the blocker).
 - **Wave-numbering homonyms — confirmed, not hypothetical.** Mission names and the roadmap's Wave 0–4 are distinct namespaces: PR #2308 is literally titled "Wave 2 tasks.py degod" yet delivered the roadmap's **Wave 1**, and "Unshim Wave 1/2" (PRs #2325/#2328) map to roadmap Waves 1∥/2∥ (plus the Wave-3 category_7 slice in #2325). Anchor all status claims to issue/PR numbers, never wave labels.
 
@@ -88,4 +88,4 @@ Derived from the epics' own done-conditions; the milestone closes when all hold:
 1. **Finish Wave 0**: implement-review loop for `ci-suite-map-bind-01KWNPMP` (fresh session), closing #2034, #2333 (folded in-mission), and #2283 factor (a) — factors (b)/(c) remain under CT7 (#2077).
 2. **Post-mission op**: fix P0 #2346 (queued).
 3. **Then the Wave 2 degod trio** (workflow.py / implement.py / acceptance) against the now-bound suite map, closing the #2160 class.
-4. **Keep milestones consistent downward**: the spine epics' sub-issue trees get a milestone-consistency sweep (children carry 3.2.x unless a deviation carries a stated rationale, e.g. an explicit 3.3.x deferral).
+4. **Keep milestones consistent downward** — ✅ executed 2026-07-04: the spine epics' sub-issue trees were swept (33 children assigned 3.2.x, 48 already correct, zero unexplained drift); the surviving deviations are all evidenced (#1711/#1709/#1710 at 3.3.x by operator batch; the Beads epic #1168 deferred to 3.3.0). The retired 3.2.1 milestone was closed and its last resident (#1716) folded into 3.2.x. Re-run the sweep whenever the spine gains children.
