@@ -10,10 +10,14 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import typer
 from rich.console import Console
 from rich.panel import Panel
+
+if TYPE_CHECKING:
+    from doctrine.model_task_routing.evaluator import RoutingRecommendation
 
 from specify_cli.invocation.errors import (
     InvocationWriteError,
@@ -79,10 +83,38 @@ def _render_rich_payload(payload: InvocationPayload) -> None:
                 expand=False,
             )
         )
+    recommendation = payload.recommendation
+    if recommendation is not None:
+        console.print(Panel(_format_recommendation(recommendation), title="Model Routing Recommendation (advisory)", border_style="cyan", expand=False))
     if payload.governance_context_available and payload.governance_context_text:
         console.print(Panel(payload.governance_context_text, title="Governance Context", expand=False))
     else:
         console.print("[yellow]Governance context unavailable.[/yellow] Run 'spec-kitty charter synthesize'.")
+
+
+def _format_recommendation(recommendation: RoutingRecommendation) -> str:
+    """Render the FR-004 advisory recommendation as rich-panel body text.
+
+    Advisory only (C-001): both the catalog's computed pick and the
+    profile's declared preference are surfaced with provenance, neither is
+    enforced -- mirrors the ``--json`` payload's ``recommendation`` shape
+    (dataclasses.asdict) so both renders carry identical data.
+    """
+    lines = [f"Task type: {recommendation.task_type} (objective: {recommendation.objective})"]
+    catalog_candidate = recommendation.catalog_candidate
+    if catalog_candidate is not None:
+        score = f"{catalog_candidate.score:.2f}" if catalog_candidate.score is not None else "n/a"
+        line = f"Catalog pick: {catalog_candidate.model_id} (score={score})"
+        if catalog_candidate.rationale:
+            line += f" — {catalog_candidate.rationale}"
+        lines.append(line)
+    profile_candidate = recommendation.profile_candidate
+    if profile_candidate is not None:
+        line = f"Profile preference: {profile_candidate.model_id}"
+        if profile_candidate.effort:
+            line += f" (effort={profile_candidate.effort})"
+        lines.append(line)
+    return "\n".join(lines)
 
 
 def render_open_hint_task_execution(payload: InvocationPayload) -> None:

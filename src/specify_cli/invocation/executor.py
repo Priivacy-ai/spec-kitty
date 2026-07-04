@@ -9,6 +9,7 @@ The invocation executor must NEVER claim a first-load token.
 
 from __future__ import annotations
 
+import dataclasses
 import datetime
 import hashlib
 import json as _json_mod
@@ -18,6 +19,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal, Protocol
 
 if TYPE_CHECKING:
+    from doctrine.agent_profiles.profile import AgentProfile
+    from doctrine.model_task_routing.evaluator import RoutingRecommendation
     from glossary.chokepoint import (
         GlossaryChokepoint,
         GlossaryObservationBundle,
@@ -26,6 +29,8 @@ if TYPE_CHECKING:
 import ulid as _ulid_mod  # matches codebase pattern: status/emit.py, core/mission_creation.py
 
 from charter.context import build_charter_context
+from doctrine.model_task_routing import evaluator as routing_evaluator
+from doctrine.model_task_routing import loader as routing_loader
 from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.git import safe_commit
@@ -35,9 +40,45 @@ from specify_cli.invocation.propagator import InvocationSaaSPropagator
 from specify_cli.invocation.record import OpCompletedEvent, OpStartedEvent, promote_to_evidence
 from specify_cli.invocation.registry import ProfileRegistry
 from specify_cli.invocation.router import ActionRouter, RouterDecision  # WP02: router implemented
+from specify_cli.invocation.task_class_map import task_type_for_verb
 from specify_cli.invocation.writer import InvocationWriter, normalise_ref
 
 logger = logging.getLogger(__name__)
+
+
+def _compute_recommendation(profile: AgentProfile, action: str) -> RoutingRecommendation | None:
+    """Advisory model-routing recommendation for ``(profile, action)`` (FR-004).
+
+    This is the ONE seam that holds both the loader+evaluator call and the
+    non-fatal envelope required by NFR-002/C-001, so ``invoke()`` can call it
+    in a single line and stay within the complexity ceiling. Returns ``None``
+    -- never raises -- when:
+
+    - ``action`` has no ``task_class_map`` mapping (verb outside the
+      maintained namespace);
+    - the catalog is missing, whole-file-invalid, or fails schema validation
+      (a malformed entry is allowed to raise ``pydantic.ValidationError`` per
+      the loader's own contract -- caught here so dispatch never breaks);
+    - the loaded catalog is stale per its own freshness policy; or
+    - the evaluator finds no matching candidate for the resolved task_type
+      (unmatched catalog -- no catalog pick and no profile-declared model).
+
+    ``dispatch``/``invoke()`` always succeeds regardless of which branch
+    fires -- this function only ever narrows the payload, never the outcome.
+    """
+    task_type = task_type_for_verb(action)
+    if task_type is None:
+        return None
+    try:
+        catalog_result = routing_loader.load()
+    except Exception:  # noqa: BLE001 - advisory envelope: never break dispatch (NFR-002/C-001)
+        return None
+    if catalog_result is None or catalog_result.is_stale:
+        return None
+    recommendation = routing_evaluator.evaluate(catalog_result.catalog, task_type, profile)
+    if not recommendation.candidates:
+        return None
+    return recommendation
 
 
 def _new_ulid() -> str:
@@ -101,6 +142,7 @@ class InvocationPayload:
     router_confidence: str | None
     glossary_observations: GlossaryObservationBundle | None
     mode_of_work: str | None
+    recommendation: RoutingRecommendation | None
 
     __slots__ = (
         "invocation_id",
@@ -113,6 +155,7 @@ class InvocationPayload:
         "router_confidence",
         "glossary_observations",
         "mode_of_work",
+        "recommendation",
     )
 
     def __init__(self, **kwargs: object) -> None:
@@ -135,6 +178,12 @@ class InvocationPayload:
             # that happen to carry objects with a to_dict() method. RISK-3 fix.
             if s == "glossary_observations" and val is not None:
                 result[s] = val.to_dict()
+            elif s == "recommendation" and val is not None:
+                # RoutingRecommendation is a frozen dataclass (not a Pydantic
+                # model / no to_dict of its own) -- dataclasses.asdict is the
+                # explicit, non-duck-typed serialization for it (RISK-3 style
+                # fix, matching the glossary_observations branch above).
+                result[s] = dataclasses.asdict(val)
             else:
                 result[s] = val
         # FR-002 / contracts/cli-do-output.md: invoke() leaves the Op open;
@@ -207,6 +256,9 @@ class ProfileInvocationExecutor:
             router_confidence = result.confidence
         else:
             raise RuntimeError("No profile_hint and no router configured. Use 'spec-kitty dispatch \"<request>\" --profile <profile>' or supply a router.")
+
+        # FR-004: advisory model-routing recommendation, non-fatal (NFR-002/C-001).
+        recommendation = _compute_recommendation(profile, action)
 
         # 2. Assemble governance context (mark_loaded=False — critical)
         # NEVER pass mark_loaded=True here — would corrupt context-state.json
@@ -281,6 +333,7 @@ class ProfileInvocationExecutor:
             router_confidence=router_confidence,
             glossary_observations=bundle,
             mode_of_work=record.mode_of_work,
+            recommendation=recommendation,
         )
 
     def complete_invocation(
