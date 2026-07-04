@@ -63,14 +63,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   events (`MissionCreated`, `SpecifyStarted`, `WPCreated`, …) that
   `status/lifecycle_events.py` writes and whose **only** per-mission home is
   `status.events.jsonl`. A completed mission whose log was all lifecycle events
-  was emptied to 0 bytes. Repair now **preserves** canonical lifecycle events
-  (those in `LIFECYCLE_EVENT_TYPES`) and retrospective rows in place — matching
-  the runtime reader and the lifecycle writer's "safe target for repair tooling"
-  contract — and a backstop refuses to write a 0-byte log when the source was
-  non-empty. Decision-Moment (`DecisionPoint*`) rows are still pruned: their
-  canonical store is `decisions/index.json` / `DM-*.md`, so the copy here is a
-  mirror (unchanged, tested behavior). Rows preserved verbatim in the quarantine
-  dir remain recoverable.
+  was emptied to 0 bytes. Repair now **preserves every reader-canonical non-lane
+  class** in place — canonical lifecycle events (those in
+  `LIFECYCLE_EVENT_TYPES`), retrospective lifecycle rows (the `type` envelope),
+  **and the `retrospective.*` (`event_name` envelope) stream written by
+  `emit_retrospective_event`** — so the repair predicate matches the durable
+  reader (`status/store.py::is_non_lane_event`) exactly. Before this, a mixed log
+  containing a `retrospective.completed` row still silently stripped it (the same
+  #2376 data-loss class in a different event format). A backstop also refuses to
+  write a 0-byte log when the source was non-empty. Decision-Moment
+  (`DecisionPoint*`) rows are still pruned: their canonical store is
+  `decisions/index.json` / `DM-*.md`, so the copy here is a mirror (unchanged,
+  tested behavior). Rows preserved verbatim in the quarantine dir remain
+  recoverable.
   - **Repair now anchors on the primary checkout so `SNAPSHOT_DRIFT` actually
     converges and stale coordination worktrees are left untouched (#2320).**
     `doctor mission-state --fix` already re-materializes `status.json` from

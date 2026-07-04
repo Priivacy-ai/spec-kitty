@@ -32,6 +32,8 @@ from spec_kitty_events.decisionpoint import DECISION_POINT_OPENED
 from specify_cli.decisions.emit import emit_decision_opened
 from specify_cli.decisions.models import DecisionStatus, IndexEntry, OriginFlow
 from specify_cli.migration.mission_state import _repair_mission
+from specify_cli.retrospective.events import CompletedPayload, emit_retrospective_event
+from specify_cli.retrospective.schema import ActorRef
 from specify_cli.status.lifecycle_events import (
     SPECIFY_STARTED,
     emit_artifact_phase,
@@ -182,6 +184,77 @@ def test_lifecycle_preserved_decision_mirror_pruned(tmp_path: Path) -> None:
     # Only the DecisionPoint mirror is quarantined.
     assert result.quarantined_rows == 1
     surviving = _event_ids(log.read_text(encoding="utf-8"))
+    for event_id in lifecycle_ids:
+        assert event_id in surviving
+    assert decision_id not in surviving
+
+
+def _emit_retrospective_completed(mission_dir: Path) -> str:
+    """Emit a canonical ``retrospective.completed`` row; return its ``event_id``.
+
+    Retrospective rows use the ``event_name`` envelope (``retrospective.*``) —
+    a THIRD reader-preserved non-lane class (see
+    :func:`specify_cli.status.store.is_non_lane_event`). Their only per-mission
+    home is ``status.events.jsonl``; the reducer / retrospective gate + summary
+    read them back as load-bearing state.
+    """
+    event_id = emit_retrospective_event(
+        feature_dir=mission_dir,
+        mission_slug="m",
+        mission_id=_MISSION_ID,
+        mid8=_MISSION_ID[:8],
+        actor=ActorRef(kind="agent", id="claude", profile_id="reviewer-renata"),
+        event_name="retrospective.completed",
+        payload=CompletedPayload(
+            record_path="kitty-specs/m/retrospective/record.md",
+            record_hash="sha256:" + "0" * 64,
+            findings_summary={"helped": 3, "not_helpful": 0, "gaps": 1},
+            proposals_count=2,
+        ),
+    )
+    return event_id
+
+
+def test_retrospective_event_name_row_is_preserved(tmp_path: Path) -> None:
+    """#2376 residual: a ``retrospective.*`` (``event_name`` envelope) row shares
+    the log with lifecycle rows and MUST survive repair with zero quarantines.
+
+    This is the same #2376 data-loss class in a different event format: the
+    repair's ``_is_preserved_non_lane_row`` predicate must match the durable
+    reader ``is_non_lane_event``, which preserves rows whose ``event_name``
+    starts with ``"retrospective."``. Before the predicate was aligned the
+    retrospective row was silently stripped (``quarantined_rows == 1``).
+    """
+    mission_dir, log, lifecycle_ids, _ = _write_mission(tmp_path, with_decision=False)
+    retro_id = _emit_retrospective_completed(mission_dir)
+    before_ids = _event_ids(log.read_text(encoding="utf-8"))
+    assert retro_id in before_ids
+
+    result = _repair_mission(tmp_path, mission_dir, run_id="retro")
+
+    assert result.status != "error", result.validation_errors
+    assert result.quarantined_rows == 0
+    surviving = _event_ids(log.read_text(encoding="utf-8"))
+    assert retro_id in surviving, "the retrospective.* row must survive repair"
+    for event_id in lifecycle_ids:
+        assert event_id in surviving
+
+
+def test_retrospective_row_preserved_decision_mirror_pruned(tmp_path: Path) -> None:
+    """Mixed log with all three preserved classes + a prunable Decision mirror:
+    lifecycle + retrospective survive; only the DecisionPoint mirror is pruned."""
+    mission_dir, log, lifecycle_ids, decision_id = _write_mission(
+        tmp_path, with_decision=True
+    )
+    assert decision_id is not None
+    retro_id = _emit_retrospective_completed(mission_dir)
+
+    result = _repair_mission(tmp_path, mission_dir, run_id="mixed-retro")
+
+    assert result.status != "error", result.validation_errors
+    assert result.quarantined_rows == 1
+    surviving = _event_ids(log.read_text(encoding="utf-8"))
+    assert retro_id in surviving
     for event_id in lifecycle_ids:
         assert event_id in surviving
     assert decision_id not in surviving
