@@ -276,6 +276,7 @@ jobs:
               - 'src/specify_cli/state/**'
               - 'tests/specify_cli/test_canonical_acceptance.py'
               - 'tests/specify_cli/test_gitignore_contract.py'
+              - 'tests/specify_cli/test_state_contract.py'
               - 'tests/specify_cli/upgrade/migrations/test_m_3_2_4_derived_views_gitignore.py'
             # FR-010 probe group (Decision 7b): matches ANY src change. The
             # ``unmatched`` step below computes ``any_src AND NOT (any named

@@ -211,6 +211,7 @@ def test_runtime_gitignore_entries_exact():
         ".kittify/charter/governance.yaml",
         ".kittify/charter/metadata.yaml",
         ".kittify/charter/references.yaml",
+        ".kittify/derived/",
         ".kittify/dossiers/",
         ".kittify/encoding-provenance/",
         ".kittify/events/",
