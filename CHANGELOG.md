@@ -38,6 +38,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the coordination surface. `lifecycle.json` now also carries `mission_id`. No
   change for merged/idle missions.
 
+- **`move-task --to for_review` recovers a killed implementer's uncommitted lane
+  deliverables instead of dead-ending (#2335).** When an implementer finished its
+  files but was interrupted before committing, moving the work package to
+  `for_review` failed with a message demanding a manual `git add`/`git commit`
+  *inside the lane worktree* — violating the "spec-kitty drives commits" rule. On
+  the `for_review` transition, when the auto-commit policy is enabled (the
+  default), spec-kitty now commits the finished lane deliverables via the tool
+  (`safe_commit` on the lane branch) before the readiness guard runs, so recovery
+  completes without touching lane git by hand. Scoped to `for_review` only
+  (`approved`/`done` deliverables are already committed); `--force` still
+  bypasses, and `--no-auto-commit` defers to the existing guard.
+
 - **`mission close` / `spec-kitty merge` now commit the retrospective they
   auto-generate, instead of leaving the durable event log dirty.** Closing a
   mission that was merged via the legacy plain-git/GitHub path (so merge-time
