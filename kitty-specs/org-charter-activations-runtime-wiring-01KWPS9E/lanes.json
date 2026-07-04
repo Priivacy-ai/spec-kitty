@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "mission_slug": "org-charter-activations-runtime-wiring-01KWPS9E",
+  "mission_id": "01KWPS9E99YZ6QFK7PM8B6J0VY",
+  "mission_branch": "kitty/mission-org-charter-activations-runtime-wiring-01KWPS9E",
+  "target_branch": "design/org-charter-activations-2365",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/charter/activations.py",
+        "src/charter/context.py",
+        "src/specify_cli/doctrine/org_charter.py",
+        "tests/charter/test_context_org_governance.py",
+        "tests/charter/test_iter_org_charter_docs.py",
+        "tests/charter/test_org_activations_reach_context.py",
+        "tests/charter/test_org_activations_resolution.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-07-04T15:00:55.465671+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
