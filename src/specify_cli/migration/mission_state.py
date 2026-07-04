@@ -1316,7 +1316,22 @@ def _is_preserved_non_lane_row(row: Mapping[str, Any]) -> bool:
     (``decisions/index.json`` + ``DM-*.md``), so the copy in status.events.jsonl
     is a prunable mirror — quarantining it (the shipped #980 behaviour) loses
     nothing.
+
+    Kept in lock-step with the durable reader
+    :func:`specify_cli.status.store.is_non_lane_event`: a THIRD reader-preserved
+    class is the ``event_name``-envelope retrospective stream (rows whose
+    ``event_name`` starts with ``"retrospective."`` — written by
+    :func:`specify_cli.retrospective.events.emit_retrospective_event`, read back
+    as load-bearing state by the reducer / retrospective gate + summary, with no
+    other per-mission home). Omitting it re-opened the #2376 data-loss class in
+    a different event format (a mixed log with a ``retrospective.completed`` row
+    silently strips it). The reader's broader ``"event_type" in obj`` branch is
+    deliberately NOT mirrored here: the repair's ``LIFECYCLE_EVENT_TYPES``
+    narrowing is the intentional pruning divergence for Decision-Moment mirrors.
     """
+    event_name = row.get("event_name")
+    if isinstance(event_name, str) and event_name.startswith("retrospective."):
+        return True
     return (
         is_retrospective_lifecycle_event(row)
         or row.get("event_type") in LIFECYCLE_EVENT_TYPES
