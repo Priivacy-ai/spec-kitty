@@ -75,6 +75,27 @@ def compute_unmatched(any_src_hit: bool, group_hits: list[bool]) -> bool:
     return any_src_hit and not any(group_hits)
 
 
+def _group_is_src_backed(globs: tuple[str, ...]) -> bool:
+    """A filter group is SRC-BACKED iff >=1 of its globs targets ``src/``."""
+    return any(glob.startswith("src/") for glob in globs)
+
+
+def src_backed_groups(model: gc.WorkflowModel) -> set[str]:
+    """Named filter groups (minus the ``any_src`` probe) that back >=1 ``src/`` glob.
+
+    The catch-all's purpose is "a ``src/**`` change matched by no SRC-BACKED named
+    group". Non-src groups (``docs``, ``e2e``) must be excluded from the union so a
+    docs- or e2e-only change bundled with an UNMAPPED src change cannot set
+    matched=true and mask the src hole (aggregate-squad debbie). Computed from the
+    parsed per-group globs the model already exposes — never a hand-maintained list.
+    """
+    return {
+        name
+        for name, globs in model.filter_groups.items()
+        if name != _ANY_SRC and _group_is_src_backed(globs)
+    }
+
+
 def _is_whole_tree(gate: gc.Gate) -> bool:
     return not gate.paths or all(path.rstrip("/") == _TESTS_ROOT for path in gate.paths)
 
@@ -132,20 +153,28 @@ def _ci_quality_gates() -> list[gc.Gate]:
 
 
 def test_unmatched_refs_equal_parsed_filter_groups_live() -> None:
-    """FR-010c: the catch-all enumerates EXACTLY the named filter groups.
+    """FR-010c: the catch-all enumerates EXACTLY the SRC-BACKED filter groups.
 
-    A group added/removed without wiring the catch-all reds — this is the
-    parsed-relation binding that makes the fail-closed catch-all NON-vacuous
-    (paula CRITICAL: not "every package matched-or-caught").
+    A src-backed group added/removed without wiring the catch-all reds — this is
+    the parsed-relation binding that makes the fail-closed catch-all NON-vacuous
+    (paula CRITICAL: not "every package matched-or-caught"). The expected set is
+    the SRC-BACKED groups only: the catch-all fires on "a src change matched by
+    no src-backed named group", so non-src groups (``docs``, ``e2e``) are
+    excluded — otherwise a docs/e2e change bundled with an unmapped-src change
+    sets matched=true and masks the src hole (aggregate-squad debbie).
     """
     model = _ci_quality_model()
-    filter_names = set(model.filter_groups) - {_ANY_SRC}
+    expected = src_backed_groups(model)
     refs = unmatched_group_refs(_CI_QUALITY)
-    assert refs == filter_names, (
-        "catch-all unmatched enumeration drifted from the filter-group set. "
-        f"only-in-catchall={sorted(refs - filter_names)}, "
-        f"only-in-filter={sorted(filter_names - refs)}"
+    assert refs == expected, (
+        "catch-all unmatched enumeration drifted from the src-backed filter set. "
+        f"only-in-catchall={sorted(refs - expected)}, "
+        f"only-in-src-backed={sorted(expected - refs)}"
     )
+    # Regression naming the exact hole (aggregate-squad debbie): ``docs`` and
+    # ``e2e`` are non-src groups; if either re-enters the union, a docs/e2e change
+    # riding along with an unmapped-src change would mask the src hole.
+    assert "docs" not in refs and "e2e" not in refs
 
 
 def test_every_named_group_gates_a_test_running_job_live() -> None:
@@ -176,6 +205,24 @@ def test_unmatched_boolean_semantics() -> None:
     assert compute_unmatched(any_src_hit=True, group_hits=[False, True, False]) is False
     # No src change at all => never fires.
     assert compute_unmatched(any_src_hit=False, group_hits=[False]) is False
+
+
+def test_docs_e2e_do_not_mask_unmapped_src_live() -> None:
+    """aggregate-squad debbie: a docs/e2e hit must NOT mask an unmapped-src change.
+
+    Before the src-backed restriction the catch-all enumerated ``docs`` + ``e2e``,
+    so an unmapped ``src/**`` dir bundled with a docs (or e2e) change set
+    matched=true and the fail-closed catch-all never fired. Two proofs the hole
+    is closed: (1) the live enumeration excludes the two non-src groups, and
+    (2) with only src-backed group hits feeding the boolean, an unmapped src
+    change (all src-backed groups miss) fires the catch-all even when a docs/e2e
+    change rides along.
+    """
+    refs = unmatched_group_refs(_CI_QUALITY)
+    assert "docs" not in refs and "e2e" not in refs
+    # The boolean's group_hits are now the SRC-BACKED outputs only; an unmapped
+    # src change misses them all => unmatched=true regardless of any docs/e2e hit.
+    assert compute_unmatched(any_src_hit=True, group_hits=[False, False]) is True
 
 
 # ---------------------------------------------------------------------------
@@ -233,9 +280,11 @@ def test_faultinjection_group_missing_from_catchall_reds(tmp_path: Path) -> None
         ),
     )
     model = gc.load_workflow_model(wf)
-    filter_names = set(model.filter_groups) - {_ANY_SRC}
-    assert unmatched_group_refs(wf) != filter_names
-    assert (filter_names - unmatched_group_refs(wf)) == {"cli"}
+    # Fixture groups are all src-backed (``src/...`` globs), so the expected set
+    # is the same relation the live test asserts.
+    expected = src_backed_groups(model)
+    assert unmatched_group_refs(wf) != expected
+    assert (expected - unmatched_group_refs(wf)) == {"cli"}
 
 
 def test_rednegative_group_reorder_stays_green(tmp_path: Path) -> None:
@@ -255,7 +304,7 @@ def test_rednegative_group_reorder_stays_green(tmp_path: Path) -> None:
     )
     for wf in (wf_a, wf_b):
         model = gc.load_workflow_model(wf)
-        assert unmatched_group_refs(wf) == set(model.filter_groups) - {_ANY_SRC}
+        assert unmatched_group_refs(wf) == src_backed_groups(model)
 
 
 def test_faultinjection_spurious_catchall_ignore_reds(tmp_path: Path) -> None:
