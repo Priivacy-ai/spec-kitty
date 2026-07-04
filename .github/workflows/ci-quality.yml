@@ -1408,6 +1408,10 @@ jobs:
   # Triggered by core_misc or execution_context path filters. Execution-context
   # only changes run the parity gate instead of the full catch-all integration
   # suite so status/runtime edits do not inherit unrelated core-misc debt.
+  # The `if:` below SKIPS this job on a WIP-titled PR; by design (operator
+  # ruling) a for-review (non-draft) WIP-titled PR then FAILS quality-gate,
+  # because the gate's draft-exemption is draft-FLAG-only, not title-based. See
+  # the DRAFT_GATED_JOBS note in the quality-gate decision step.
   # ---------------------------------------------------------------------------
   integration-tests-core-misc:
     name: integration-tests-core-misc (${{ matrix.shard }})
@@ -3242,6 +3246,14 @@ jobs:
           # Jobs whose `if:` carries the draft/WIP exemption; safe to skip on
           # a draft PR because the ready_for_review trigger (FR-013) re-runs
           # them on the draft->ready flip and GitHub blocks draft merges.
+          #
+          # By design (operator ruling): a WIP-titled PR marked for-review
+          # (non-draft) FAILS quality-gate. These jobs' `if:` clauses SKIP on a
+          # WIP title, but the draft-exemption below is draft-FLAG-only — NOT
+          # title-based — so a for-review PR still declaring WIP in its title is
+          # a contradiction the gate correctly rejects. WIP = the author
+          # declares not-ready; to land, drop the WIP prefix or keep the PR in
+          # draft.
           DRAFT_GATED_JOBS = [
               "integration-tests-core-misc",
               "e2e-cross-cutting",
