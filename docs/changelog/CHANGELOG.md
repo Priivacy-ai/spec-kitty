@@ -32,6 +32,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
+- **The dashboard no longer orphans a valid in-flight (mid-orchestration)
+  mission (#2331).** While a coordination-topology mission had live worktrees
+  checked out, `spec-kitty dashboard` registered it under a synthetic
+  `orphan:<slug>` key — hiding it from the mission dropdown — because the
+  registry read mission identity (`meta.json`) from the coordination worktree,
+  which lacks it (`meta.json` is a PRIMARY-partition artifact that lives on the
+  primary checkout). Identity now resolves through the kind-aware
+  `resolve_planning_read_dir(..., PRIMARY_METADATA)` seam, so a mission mid-run
+  shows under its real title and canonical ULID; status/board display still uses
+  the coordination surface. `lifecycle.json` now also carries `mission_id`. No
+  change for merged/idle missions.
+
 - **`mission close` / `spec-kitty merge` now commit the retrospective they
   auto-generate, instead of leaving the durable event log dirty.** Closing a
   mission that was merged via the legacy plain-git/GitHub path (so merge-time
