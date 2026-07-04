@@ -292,7 +292,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "specify_cli.skills.manifest_store::SCHEMA_VERSION",
         "specify_cli.skills.manifest_store::load",
         "specify_cli.skills.manifest_store::save",
-        "specify_cli.status.lifecycle_events::LIFECYCLE_EVENT_TYPES",
         "specify_cli.status.lifecycle_events::MISSION_CREATED",
         "specify_cli.status.lifecycle_events::MISSION_EVENTS_FILENAME",
         "specify_cli.status.lifecycle_events::PROJECT_EVENTS_FILENAME",
