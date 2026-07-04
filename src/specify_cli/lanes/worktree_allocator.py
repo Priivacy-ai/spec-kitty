@@ -73,6 +73,29 @@ class DependencyLaneMergeConflictError(StructuredError):
         return payload
 
 
+def predict_lane_worktree(
+    repo_root: Path, mission_slug: str, lane_id: str
+) -> tuple[Path, str]:
+    """The ONE lane-worktree placement decision (path + branch), read-only.
+
+    Both the write authority (:func:`allocate_lane_worktree`) and read-only
+    mirrors (``orchestrator-api resolve-workspace``, its transition guard)
+    consume this, so the compose grammar is single-sited and a future mid8
+    cutover is one edit.
+
+    Emit-don't-guess: routes the on-disk worktree name through the canonical
+    WP01 seam instead of an ad-hoc f-string. Passes ``mission_id=None`` so the
+    seam reproduces the legacy ``f"{slug}-{lane}"`` grammar byte-identically
+    (the historical call sites carried no mid8); introducing a mission_id here
+    would append ``-{mid8}`` and rename every existing lane worktree.
+    """
+    branch = lane_branch_name(mission_slug, lane_id)
+    worktree_path = _worktree_path(
+        repo_root, mission_slug, mission_id=None, lane_id=lane_id
+    )
+    return worktree_path, branch
+
+
 def allocate_lane_worktree(
     repo_root: Path,
     mission_slug: str,
@@ -124,15 +147,9 @@ def allocate_lane_worktree(
             f"{wp_id} is not assigned to any execution lane in lanes.json"
         )
 
-    branch = lane_branch_name(mission_slug, lane.lane_id)
-    # Emit-don't-guess: route the on-disk worktree name through the canonical
-    # WP01 seam instead of an ad-hoc f-string. Pass ``mission_id=None`` so the
-    # seam reproduces the legacy ``f"{slug}-{lane}"`` grammar byte-identically
-    # (the old call site carried no mid8); introducing a mission_id here would
-    # append ``-{mid8}`` and rename every existing lane worktree.
-    worktree_path = _worktree_path(
-        repo_root, mission_slug, mission_id=None, lane_id=lane.lane_id
-    )
+    # Placement (path + branch) comes from the single predict seam — the write
+    # authority and the read-only mirrors must never diverge on this decision.
+    worktree_path, branch = predict_lane_worktree(repo_root, mission_slug, lane.lane_id)
 
     if worktree_path.exists():
         # Reuse existing lane worktree — validate it is clean first.

@@ -1942,3 +1942,70 @@ class TestResolveWorkspace:
         assert result.exit_code != 0
         payload = json.loads(result.stdout.strip().split("\n")[0])
         assert payload["error_code"] == "WP_NOT_FOUND"
+
+
+class TestLaneAssignmentOrLegacy:
+    """The shared resolver prologue: ONE lane-vs-legacy decision for the surface."""
+
+    def test_legacy_arm_without_lanes_json(self, tmp_path):
+        """No lanes.json ⇒ the legacy bare-path workspace ({mission}-{wp}, no mid8)."""
+        from specify_cli.orchestrator_api.commands import (
+            _lane_assignment_or_legacy,
+            _StartWorkspace,
+        )
+
+        repo_root, _ = _make_mission(tmp_path)
+        result = _lane_assignment_or_legacy(repo_root, "099-test-mission", "WP01")
+        assert isinstance(result, _StartWorkspace)
+        assert result.workspace_path.endswith("099-test-mission-WP01")
+        assert result.lane_id is None and result.lane_branch is None
+
+    def test_lane_arm_returns_manifest_and_lane(self, tmp_path):
+        """A lane-assigned WP ⇒ the (manifest, lane) pair, no fallback."""
+        from specify_cli.lanes.models import ExecutionLane, LanesManifest
+        from specify_cli.orchestrator_api.commands import (
+            _lane_assignment_or_legacy,
+            _StartWorkspace,
+        )
+
+        repo_root, _ = _make_mission(tmp_path)
+        lane = ExecutionLane(
+            lane_id="lane-a",
+            wp_ids=("WP01",),
+            write_scope=(),
+            predicted_surfaces=(),
+            depends_on_lanes=(),
+            parallel_group=0,
+        )
+        manifest = LanesManifest(
+            version=1,
+            mission_slug="099-test-mission",
+            mission_id=None,
+            mission_branch="kitty/mission-099-test-mission",
+            target_branch="main",
+            lanes=[lane],
+            computed_at="2026-07-04T00:00:00+00:00",
+            computed_from="test",
+        )
+        with patch(
+            "specify_cli.lanes.persistence.read_lanes_json", return_value=manifest
+        ):
+            result = _lane_assignment_or_legacy(repo_root, "099-test-mission", "WP01")
+        assert not isinstance(result, _StartWorkspace)
+        got_manifest, got_lane = result
+        assert got_manifest is manifest
+        assert got_lane is lane
+
+    def test_both_resolvers_share_the_legacy_grammar(self, tmp_path):
+        """SSOT pin: start + existing resolvers emit the SAME legacy path."""
+        from specify_cli.orchestrator_api.commands import (
+            _resolve_existing_workspace,
+            _resolve_start_workspace,
+        )
+
+        repo_root, mission_dir = _make_mission(tmp_path)
+        started = _resolve_start_workspace(
+            "start-implementation", repo_root, "099-test-mission", mission_dir, "WP01"
+        )
+        resolved = _resolve_existing_workspace(repo_root, "099-test-mission", "WP01")
+        assert started.workspace_path == resolved.workspace_path
