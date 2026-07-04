@@ -485,14 +485,18 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
         if in_code_fence:
             continue
 
-        # Check if we entered this WP's section
-        if re.search(rf"^#{{2,4}}[^#].*{wp_id}\b", line):
+        # A heading belongs to the WP named by its FIRST ``WPxx`` token (the
+        # section's own id), NOT any mention — so ``### WP03 ... (depends: WP01,
+        # WP02)`` does not re-enter WP01/WP02's section (#2346 / #2324).
+        heading_wp: str | None = None
+        if re.match(r"^#{2,4}[^#]", line):
+            wp_tokens = re.findall(r"\bWP\d{2,}\b", line)
+            heading_wp = wp_tokens[0] if wp_tokens else None
+        if heading_wp == wp_id:
             in_wp_section = True
             continue
-
-        # Check if we entered a different WP section
-        if in_wp_section and re.search(r"^#{2,4}[^#].*WP\d{2}\b", line):
-            break  # Left this WP's section
+        if in_wp_section and heading_wp is not None and heading_wp != wp_id:
+            break  # entered a different WP's section
 
         # Look for unchecked canonical task rows in this WP's section
         if in_wp_section:
