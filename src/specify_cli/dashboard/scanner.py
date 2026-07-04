@@ -13,6 +13,10 @@ from typing import Any
 
 from specify_cli.dashboard.charter_path import resolve_project_charter_path
 from specify_cli.lanes.branch_naming import resolve_mid8
+from specify_cli.missions._read_path_resolver import (
+    MissionSelectorAmbiguous,
+    resolve_planning_read_dir,
+)
 from specify_cli.upgrade.legacy_detector import is_legacy_format
 from specify_cli.status import wp_state_for
 from specify_cli.status import Lane
@@ -394,6 +398,41 @@ def _read_mission_identity(feature_dir: Path) -> tuple[str | None, int | None]:
     return mission_id, mission_number
 
 
+def _resolve_identity_primary_first(
+    project_dir: Path, feature_dir: Path
+) -> tuple[str | None, int | None]:
+    """Resolve ``(mission_id, mission_number)`` from the PRIMARY surface (#2331).
+
+    Mission identity (``meta.json``) is a PRIMARY-partition artifact: it lives on
+    the primary checkout, never the coordination worktree. But
+    :func:`gather_feature_paths` prefers the coord worktree copy (it holds live
+    *status*), and that copy has no ``meta.json`` mid-orchestration — so reading
+    identity off the scanned ``feature_dir`` orphaned a valid in-flight mission.
+
+    Read identity through the kind-aware read seam
+    (:func:`resolve_planning_read_dir` with ``PRIMARY_METADATA``, the same seam the
+    coord-read fixes use to anchor primary artifacts), and only fall back to the
+    scanned ``feature_dir`` when the primary copy is absent/identity-less (e.g.
+    lane-only or pre-3.1 layouts) so no merged/idle mission regresses.
+    """
+    from mission_runtime import MissionArtifactKind  # noqa: PLC0415 — late import, cold-start cost
+
+    slug = feature_dir.name
+    try:
+        primary_dir = resolve_planning_read_dir(
+            project_dir, slug, kind=MissionArtifactKind.PRIMARY_METADATA
+        )
+    except (ValueError, MissionSelectorAmbiguous):
+        # Unsafe slug segment (traversal guard) or an ambiguous handle — the
+        # dashboard scan must never crash, so keep the scanned dir.
+        return _read_mission_identity(feature_dir)
+
+    mission_id, mission_number = _read_mission_identity(primary_dir)
+    if mission_id is None and mission_number is None and primary_dir != feature_dir:
+        return _read_mission_identity(feature_dir)
+    return mission_id, mission_number
+
+
 def _mission_record_key(feature_dir: Path, mission_id: str | None, mission_number: int | None) -> str:
     """Compute the canonical registry key for a mission.
 
@@ -433,7 +472,9 @@ def build_mission_registry(project_dir: Path) -> dict[str, dict[str, Any]]:
     feature_paths = gather_feature_paths(project_dir)
 
     for _feature_id, feature_dir in feature_paths.items():
-        mission_id, mission_number = _read_mission_identity(feature_dir)
+        # Identity is PRIMARY-anchored (#2331); status/display keep the scanned
+        # (possibly coord) feature_dir below.
+        mission_id, mission_number = _resolve_identity_primary_first(project_dir, feature_dir)
         key = _mission_record_key(feature_dir, mission_id, mission_number)
 
         # mid8 is meaningful only when key is an actual mission_id (ULID).

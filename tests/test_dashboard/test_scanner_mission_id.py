@@ -16,6 +16,7 @@ import pytest
 
 from specify_cli.dashboard.scanner import (
     _read_mission_identity,
+    _resolve_identity_primary_first,
     build_mission_registry,
     sort_missions_for_display,
 )
@@ -161,6 +162,41 @@ class TestBuildMissionRegistry:
         (feature_dir / "meta.json").write_text("{bad json", encoding="utf-8")
 
         assert _read_mission_identity(feature_dir) == (None, None)
+
+
+class TestPrimaryFirstIdentity:
+    """#2331 — identity resolves from the PRIMARY surface, never the coord worktree.
+
+    During active orchestration the scanned ``feature_dir`` is the coordination
+    worktree copy, which has no ``meta.json`` (identity is a PRIMARY-partition
+    artifact). Reading identity there orphaned a valid live mission.
+    """
+
+    _ULID = "01KWN9D0MJ79NK1T90RWYY2Y7R"
+    _SLUG = "spec-kitty-moov-integration-01KWN9D0"
+
+    def test_resolves_from_primary_when_scanned_dir_lacks_meta(self, tmp_path: Path) -> None:
+        # Canonical identity lives on the primary surface (repo-root kitty-specs/).
+        _create_mission_dir(tmp_path / "kitty-specs", self._SLUG, mission_id=self._ULID)
+        # The scanned dir is a coord-worktree copy WITHOUT meta.json.
+        coord_dir = tmp_path / ".worktrees" / f"{self._SLUG}-coord" / "kitty-specs" / self._SLUG
+        coord_dir.mkdir(parents=True)
+        assert not (coord_dir / "meta.json").exists()
+
+        mission_id, _mission_number = _resolve_identity_primary_first(tmp_path, coord_dir)
+
+        assert mission_id == self._ULID, "identity must resolve from the primary surface, not orphan"
+
+    def test_falls_back_to_scanned_dir_when_primary_absent(self, tmp_path: Path) -> None:
+        # No primary copy at repo-root/kitty-specs/<slug>; identity only on the
+        # scanned dir. Must NOT regress (e.g. lane-only / pre-3.1 layouts).
+        scanned = tmp_path / "elsewhere" / self._SLUG
+        _write_meta(scanned, mission_id=self._ULID)
+        assert not (tmp_path / "kitty-specs" / self._SLUG / "meta.json").exists()
+
+        mission_id, _mission_number = _resolve_identity_primary_first(tmp_path, scanned)
+
+        assert mission_id == self._ULID
 
 
 # ---------------------------------------------------------------------------

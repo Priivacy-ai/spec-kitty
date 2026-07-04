@@ -515,6 +515,52 @@ def test_dashboard_scans_prefer_coord_worktree_over_root_checkout(tmp_path):
     assert lanes["approved"][0]["id"] == "WP01"
 
 
+def test_registry_resolves_canonical_id_for_inflight_coord_mission(tmp_path):
+    """#2331: a mid-orchestration mission (registered coord worktree, meta.json
+    absent from the coord tree) must resolve to its canonical ULID in the
+    registry — never ``orphan:<slug>`` — because identity is a PRIMARY artifact.
+
+    Reproduces the reported split-brain: ``gather_feature_paths`` prefers the
+    coord worktree (live status), but ``meta.json`` lives only on the primary
+    checkout, so identity resolution must read the primary surface.
+    """
+    slug = "spec-kitty-moov-integration-01KWN9D0"
+    ulid = "01KWN9D0MJ79NK1T90RWYY2Y7R"
+
+    _git(["init", "--initial-branch=main"], tmp_path)
+    _git(["config", "user.email", "scanner@example.com"], tmp_path)
+    _git(["config", "user.name", "Scanner Test"], tmp_path)
+    _git(["config", "commit.gpgsign", "false"], tmp_path)
+    (tmp_path / "README.md").write_text("seed\n", encoding="utf-8")
+    _git(["add", "README.md"], tmp_path)
+    _git(["commit", "-q", "-m", "seed"], tmp_path)
+    coord_worktree = tmp_path / ".worktrees" / f"{slug}-coord"
+    _git(
+        ["worktree", "add", "-q", "-b", f"kitty/mission-{slug}", str(coord_worktree)],
+        tmp_path,
+    )
+
+    # PRIMARY checkout: feature + canonical meta.json (the identity source).
+    primary_dir = _create_feature(tmp_path, slug, lane="in_progress")
+    (primary_dir / "meta.json").write_text(
+        json.dumps({"mission_id": ulid, "mission_slug": slug}), encoding="utf-8"
+    )
+
+    # COORD worktree: live feature artifacts but NO meta.json (mid-orchestration).
+    coord_feature_dir = coord_worktree / "kitty-specs" / slug
+    _create_feature_at(coord_feature_dir, lane="in_progress")
+    assert not (coord_feature_dir / "meta.json").exists()
+
+    registry = scanner.build_mission_registry(tmp_path)
+
+    assert ulid in registry, f"expected canonical ULID key; got {list(registry)}"
+    assert not any(k.startswith("orphan:") for k in registry), f"unexpected orphan: {list(registry)}"
+    assert registry[ulid]["mission_slug"] == slug
+    assert registry[ulid]["mid8"] == ulid[:8]
+    # And it is listed for display (not filtered as a pseudo-key).
+    assert ulid in scanner.sort_missions_for_display(registry)
+
+
 @pytest.mark.fast
 def test_dashboard_husk_coord_dir_does_not_shadow_primary(tmp_path):
     """F-005 adversarial: a ``-coord``-NAMED directory that git does NOT
