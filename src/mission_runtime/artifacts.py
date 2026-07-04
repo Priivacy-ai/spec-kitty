@@ -161,8 +161,11 @@ _SELF_BOOKKEEPING_SUFFIXES: tuple[str, ...] = (
 # own invocation audit trail — NOT mission planning artifacts.  A stale record
 # left from a previous ``spec-kitty dispatch`` session must not block dirty-tree
 # gates.  The match is TIGHT: exactly ``kitty-ops/`` segment + 26-char Crockford
-# base32 ULID + ``.jsonl``.  A non-ULID basename (e.g. ``notes.txt``,
-# ``ops-index.jsonl``) is NOT matched — they remain real dirt (G-5 invariant).
+# base32 ULID + ``.jsonl``.  A non-ULID basename (e.g. ``notes.txt``) is NOT
+# matched — it remains real dirt (G-5 invariant).  Note: ``ops-index.jsonl``
+# is a non-ULID basename too, but as of #2341 it is a gitignored LOCAL_RUNTIME
+# cache (``op_invocation_index`` surface), so it never reaches this classifier
+# in a correctly-migrated project — it is not "real dirt" here.
 # Crockford base32 alphabet: digits 0–9 plus uppercase A–Z MINUS I, L, O, U.
 _KITTY_OPS_OP_RECORD_RE: re.Pattern[str] = re.compile(
     r"(?:^|/)kitty-ops/[0-9A-HJKMNP-TV-Z]{26}\.jsonl$"

@@ -13,10 +13,14 @@ from .base import BaseMigration, MigrationResult
 _SYNC_STATE_ENTRY = ".kittify/sync-state.json"
 _PROVENANCE_GITIGNORE_ENTRY = ".kittify/encoding-provenance/"
 _PROVENANCE_TRACKED_PATH = ".kittify/encoding-provenance/global.jsonl"
-_GITIGNORE_ENTRIES = (_SYNC_STATE_ENTRY, _PROVENANCE_GITIGNORE_ENTRY)
+# Machine-local Op-index performance cache (durable Op records live in
+# kitty-ops/<op_id>.jsonl and stay tracked -- only the index is ignored).
+_OPS_INDEX_ENTRY = "kitty-ops/ops-index.jsonl"
+_GITIGNORE_ENTRIES = (_SYNC_STATE_ENTRY, _PROVENANCE_GITIGNORE_ENTRY, _OPS_INDEX_ENTRY)
 _LOCAL_RUNTIME_TRACKED_PATHS = (
     ".kittify/charter/context-state.json",
     _PROVENANCE_TRACKED_PATH,
+    _OPS_INDEX_ENTRY,
 )
 
 

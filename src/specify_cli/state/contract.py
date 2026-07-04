@@ -269,6 +269,39 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         owner_module="dossier drift detector",
         creation_trigger="dossier parity baseline accept",
     ),
+    StateSurface(
+        name="op_invocation_record",
+        path_pattern="kitty-ops/<op_id>.jsonl",
+        root=StateRoot.PROJECT,
+        format=StateFormat.JSONL,
+        authority=AuthorityClass.AUTHORITATIVE,
+        git_class=GitClass.TRACKED,
+        owner_module="invocation/writer",
+        creation_trigger="profile-invocation start/complete",
+        notes=(
+            "Durable per-Op audit record; committed for traceability. "
+            "kitty-ops/ never collapses to a fully-ignored top dir in "
+            "get_runtime_gitignore_entries() because both kitty-ops surfaces "
+            "are 2-segment paths (the collapse guard requires >=3 segments) -- "
+            "not because this TRACKED sibling exists. A future 3-segment "
+            "IGNORED surface under kitty-ops/ would rely on the mixed-git_class "
+            "exclusion instead; see test_contract_runtime_entries_include_ops_index."
+        ),
+    ),
+    StateSurface(
+        name="op_invocation_index",
+        path_pattern="kitty-ops/ops-index.jsonl",
+        root=StateRoot.PROJECT,
+        format=StateFormat.JSONL,
+        authority=AuthorityClass.LOCAL_RUNTIME,
+        git_class=GitClass.IGNORED,
+        owner_module="invocation/writer",
+        creation_trigger="profile-invocation start (index append)",
+        notes=(
+            "Machine-local reverse-scan performance cache; never commit. "
+            "Durable records live in kitty-ops/<op_id>.jsonl."
+        ),
+    ),
     # -----------------------------------------------------------------------
     # Section B -- Charter State (.kittify/charter/)
     # -----------------------------------------------------------------------

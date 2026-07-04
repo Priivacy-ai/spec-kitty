@@ -34,6 +34,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
+- **The Op-index performance cache is now gitignored (#2341).**
+  `kitty-ops/ops-index.jsonl` — the machine-local reverse-scan cache that powers
+  `spec-kitty invocations list` — was never added to `.gitignore`, so a
+  freshly-generated index showed up in `git status` indefinitely (and could be
+  accidentally committed). It is now registered as an `IGNORED` `LOCAL_RUNTIME`
+  surface in the state contract (`op_invocation_index`), which flows into fresh
+  `spec-kitty init` protection automatically. Existing projects are repaired by
+  the runtime git-hygiene migration, which also `git rm --cached`s a
+  previously-committed index. Durable per-Op audit records
+  (`kitty-ops/<op_id>.jsonl`, the new `op_invocation_record` surface) stay
+  **tracked** — only the index is ignored.
 - **The dashboard no longer orphans a valid in-flight (mid-orchestration)
   mission (#2331).** While a coordination-topology mission had live worktrees
   checked out, `spec-kitty dashboard` registered it under a synthetic
