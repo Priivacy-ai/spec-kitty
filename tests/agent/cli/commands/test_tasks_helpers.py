@@ -457,6 +457,53 @@ def test_check_unchecked_subtasks_only_target_wp(tmp_path: Path) -> None:
     assert "T002" not in result
 
 
+# A realistic mission tail: WP02 is fully CHECKED, and the NEXT section is a
+# dependent WP whose heading MENTIONS WP01/WP02 in a ``(depends: ...)`` clause.
+_TASKS_MD_DEPENDS_MENTION = """\
+## Work Packages
+
+### WP02 — Init Surgery
+
+- [x] T004 Remove flags (WP02)
+- [x] T005 Remove stages (WP02)
+
+### WP03 — Wire-up (depends: WP01, WP02)
+
+- [ ] T006 Wire the new surface (WP03)
+- [ ] T007 Backfill the regression test (WP03)
+"""
+
+
+def test_check_unchecked_subtasks_next_wp_depends_mention_not_misattributed(
+    tmp_path: Path,
+) -> None:
+    """#2346 / #2324 regression: a later ``### WP03 ... (depends: WP01, WP02)``
+    heading must NOT re-enter WP02's section and harvest WP03's unchecked rows
+    as WP02's. A heading belongs to its FIRST WPxx token, not any mention.
+
+    Pre-fix (``^#{2,4}[^#].*{wp_id}\\b`` entry regex): scanning ``WP02`` matches
+    the WP03 heading (it mentions ``WP02``), ``continue``s past the exit check,
+    and wrongly returns WP03's ``T007`` as a WP02 blocker.
+    """
+    feature_dir = tmp_path / "kitty-specs" / "010-test"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "tasks.md").write_text(
+        _TASKS_MD_DEPENDS_MENTION, encoding="utf-8"
+    )
+
+    with patch(
+        "specify_cli.cli.commands.agent.tasks.get_main_repo_root", return_value=tmp_path
+    ):
+        wp02 = _check_unchecked_subtasks(tmp_path, "010-test", "WP02", False)
+        wp03 = _check_unchecked_subtasks(tmp_path, "010-test", "WP03", False)
+
+    # WP02 is fully checked; the dependent WP03 heading must not pull T006/T007
+    # into WP02's blocker list.
+    assert wp02 == [], f"WP02's subtasks are all checked; got {wp02!r}"
+    # WP03 still reports its OWN unchecked rows correctly.
+    assert wp03 == ["T006", "T007"]
+
+
 # ---------------------------------------------------------------------------
 # _behind_commits_touch_only_planning_artifacts
 # ---------------------------------------------------------------------------
