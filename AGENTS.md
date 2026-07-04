@@ -415,7 +415,7 @@ spec-kitty migrate backfill-identity     # mint mission_id for legacy missions
 spec-kitty doctor identity --json        # confirm
 ```
 
-Full runbook: [docs/migration/mission-id-canonical-identity.md](docs/migration/mission-id-canonical-identity.md)
+Full runbook: [docs/migrations/mission-id-canonical-identity.md](docs/migrations/mission-id-canonical-identity.md)
 
 ---
 
@@ -427,7 +427,7 @@ Full runbook: [docs/migration/mission-id-canonical-identity.md](docs/migration/m
 
 Enforced by `tests/architectural/test_shared_package_boundary.py`, `test_pyproject_shape.py`, and the `clean-install-verification` CI job.
 
-ADR: [`docs/adr/3.x/2026-04-25-1-shared-package-boundary.md`](docs/adr/3.x/2026-04-25-1-shared-package-boundary.md). Runbook: [`docs/migration/shared-package-boundary-cutover.md`](docs/migration/shared-package-boundary-cutover.md).
+ADR: [`docs/adr/3.x/2026-04-25-1-shared-package-boundary.md`](docs/adr/3.x/2026-04-25-1-shared-package-boundary.md). Runbook: [`docs/migrations/shared-package-boundary-cutover.md`](docs/migrations/shared-package-boundary-cutover.md).
 
 ---
 

@@ -252,7 +252,7 @@ def test_warning_emitted_again_for_different_pair_in_same_click_invocation(
     # (--mission -> --mission-type) survives in production now, so stub the
     # doc-path lookup to exercise the generic key-composition contract with a
     # second synthetic pair instead of coupling to the production flag registry.
-    monkeypatch.setattr(selector_resolution, "_doc_path_for", lambda _flag: "docs/migration/x.md")
+    monkeypatch.setattr(selector_resolution, "_doc_path_for", lambda _flag: "docs/migrations/x.md")
     command = click.Command("dummy")
     with click.Context(command):
         resolve_selector(
@@ -278,7 +278,7 @@ def test_warning_emitted_again_for_different_pair(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     # See sibling test: two distinct (canonical, alias) pairs warn separately.
-    monkeypatch.setattr(selector_resolution, "_doc_path_for", lambda _flag: "docs/migration/x.md")
+    monkeypatch.setattr(selector_resolution, "_doc_path_for", lambda _flag: "docs/migrations/x.md")
     resolve_selector(
         canonical_value=None,
         canonical_flag="--mission-type",

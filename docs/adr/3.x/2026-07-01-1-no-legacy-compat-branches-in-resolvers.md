@@ -115,5 +115,5 @@ non-canonical identity is not.
 - `docs/adr/3.x/2026-06-26-1-single-authority-seam-and-call-site-gate.md` (resolution boundaries; AST call-site gate)
 - `docs/adr/3.x/2026-06-22-1-mission-topology-ssot.md` (topology single source of truth)
 - `docs/adr/3.x/2026-06-07-1-execution-state-canonical-surface.md`
-- Mission Identity Model (083+); runbook `docs/migration/mission-id-canonical-identity.md`
+- Mission Identity Model (083+); runbook `docs/migrations/mission-id-canonical-identity.md`
 - Incident: PR #2277 (reliability-papercut-sweep) — guardrail issued against a resolver `mission_id is None` fallback; real root was pre-existing stale fixtures (#2263 non-persisting identity), fixed canonically. Defect class #2138 (slug-in-mission_id-field).

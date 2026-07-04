@@ -35,7 +35,7 @@ _NOTICE_TEXT = (
     "still installed in this environment. As of mission "
     "shared-package-boundary-cutover-01KQ22DS the CLI no longer requires it; "
     "you can safely 'pip uninstall spec-kitty-runtime'. See "
-    "docs/migration/shared-package-boundary-cutover.md for the full "
+    "docs/migrations/shared-package-boundary-cutover.md for the full "
     "migration runbook. (This notice is shown once per environment.)"
 )
 

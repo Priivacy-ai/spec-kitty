@@ -16,7 +16,7 @@ name: Protect Main Branch
 #
 # When this workflow file is updated, a maintainer with admin access on the
 # repo MUST also add 'clean-install-verification' to the required-checks
-# list. The CLAUDE.md / docs/migration/shared-package-boundary-cutover.md
+# list. The CLAUDE.md / docs/migrations/shared-package-boundary-cutover.md
 # guide owns the runbook for that change.
 
 on:

@@ -159,12 +159,12 @@ Every harness row at tier ≥ `supported` requires at least one current public-d
 | `supported` | (1) Installed surface present on disk; (2) covered by the standard installer; (3) at least one external doc citation ≤ 12 months old. May lack first-class integration tests or have a degraded command surface (e.g., requires a config edit). |
 | `partial` | (1) Installer touches the host but coverage is incomplete (e.g., only `spec-kitty-standalone.md`, no `/spec-kitty.*` set); OR (2) no current external citation could be located. |
 | `experimental` | (1) Coverage is intentionally provisional; (2) shipping behavior may break without notice. Vibe sits here because it shares its skill installation with Codex through a config file. |
-| `archived` | (1) The harness is no longer covered by the installer; OR (2) the upstream project has been deprecated; OR (3) coverage was removed and lives in `docs/migration/` only. |
+| `archived` | (1) The harness is no longer covered by the installer; OR (2) the upstream project has been deprecated; OR (3) coverage was removed and lives in `docs/migrations/` only. |
 
 ### 5.1 Validation rules (mirror `data-model.md`)
 
 - `support_tier in {first_class, supported}` ⇒ `external_doc_citations` is non-empty.
-- `support_tier == archived` ⇒ `page_path` is under `docs/migration/` or absent.
+- `support_tier == archived` ⇒ `page_path` is under `docs/migrations/` or absent.
 - `key` is unique across the matrix.
 - Every row's `repo_directory` matches the directory in `CLAUDE.md` or is explicitly documented as a partial-tier exception.
 

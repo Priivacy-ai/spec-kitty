@@ -342,7 +342,7 @@ def _emit_legacy_warning_once(
         f"warning: mission {mission_slug!r} uses the legacy topology "
         f"(no coordination branch). New atomicity invariants apply, "
         f"but consider migrating: see "
-        f"docs/migration/legacy-to-coordination.md",
+        f"docs/migrations/legacy-to-coordination.md",
         file=sys.stderr,
     )
 
