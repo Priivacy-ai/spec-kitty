@@ -263,6 +263,11 @@ class AgentProfile(BaseModel):
     capabilities: list[str] = Field(default_factory=list)
     routing_priority: int = Field(default=50, ge=0, le=100, alias="routing-priority")
     max_concurrent_tasks: int = Field(default=5, gt=0, alias="max-concurrent-tasks")
+    # Optional model/effort routing hint (FR-005). ``preferred_model`` avoids
+    # Pydantic v2's ``model_`` protected namespace; the YAML author writes
+    # the kebab-free ``model:`` key via the alias.
+    preferred_model: str | None = Field(default=None, alias="model")
+    effort: str | None = Field(default=None, alias="effort")
 
     # 6 sections
     context_sources: ContextSources = Field(default_factory=ContextSources, alias="context-sources")
