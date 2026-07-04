@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "mission_slug": "model-discipline-dispatch-binding-01KWPW36",
+  "mission_id": "01KWPW36A1ZJAA3RG3JT8AS9RY",
+  "mission_branch": "kitty/mission-model-discipline-dispatch-binding-01KWPW36",
+  "target_branch": "design/model-discipline-dispatch-2364",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/doctrine/model_task_routing/loader.py",
+        "src/specify_cli/invocation/task_class_map.py",
+        "tests/doctrine/test_model_task_routing_loader.py",
+        "tests/doctrine/test_task_class_map.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/doctrine/agent_profiles/profile.py",
+        "src/doctrine/agent_profiles/schema_models.py",
+        "src/doctrine/schemas/agent-profile.schema.yaml",
+        "tests/doctrine/test_agent_profile_model_field.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        ".kittify/charter/charter.md",
+        "src/doctrine/graph.yaml",
+        "src/doctrine/model_task_routing/catalog/model-to-task_type.yaml",
+        "src/doctrine/tactics/built-in/model-task-routing.tactic.yaml",
+        "tests/charter/test_model_task_routing_resolves.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/doctrine/model_task_routing/evaluator.py",
+        "tests/doctrine/test_model_task_routing_evaluator.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-d"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "tests/architectural/test_charter_references_resolve.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-e"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/dispatch.py",
+        "src/specify_cli/invocation/executor.py",
+        "tests/architectural/test_no_dead_modules.py",
+        "tests/invocation/test_dispatch_recommendation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-e"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-07-04T16:57:43.343042+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
