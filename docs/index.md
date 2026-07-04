@@ -5,7 +5,6 @@ doc_status: active
 updated: '2026-07-04'
 related:
 - docs/changelog/index.md
-- docs/plans/3-2-x-milestone-roadmap.md
 - docs/release-goals/index.md
 - docs/migrations/from-charter-2x.md
 - docs/migrations/index.md
@@ -23,7 +22,7 @@ related:
   </nav>
 </section>
 
-Spec Kitty documentation is organized as a single 13-section Common Docs structure under this one entry point. Use it when you are installing Spec Kitty for the first time, upgrading an existing project, running missions through an AI harness, or checking exact CLI behavior.
+Spec Kitty documentation is organized as a single 14-section Common Docs structure (the standard 13 sections plus a published release-goals section) under this one entry point. Use it when you are installing Spec Kitty for the first time, upgrading an existing project, running missions through an AI harness, or checking exact CLI behavior.
 
 ## Answer summary
 
@@ -35,8 +34,7 @@ Spec Kitty documentation is organized as a single 13-section Common Docs structu
 ## What's new and roadmap
 
 - [Changelog](changelog/index.md) — release history (canonical `CHANGELOG.md`).
-- [Release goals](release-goals/index.md) — declared intent of each release line (3.2.x, 3.3.x).
-- [3.2.x milestone roadmap](plans/3-2-x-milestone-roadmap.md) — execution roadmap for the current milestone.
+- [Release goals](release-goals/index.md) — declared intent of each release line (3.2.x, 3.3.x); each line's execution roadmap is linked from there and from [Plans](plans/index.md).
 
 ## Sections
 
@@ -103,6 +101,11 @@ Every section has its own `index.md` landing page. This page is the single entry
     <strong>Changelog</strong>
     <span>Release history.</span>
   </a>
+  <a class="sk-doc-card" href="release-goals/index.md">
+    <span class="sk-card-kicker">Release Goals</span>
+    <strong>Release goals</strong>
+    <span>Declared intent of each release line.</span>
+  </a>
 </div>
 
 ## Section index
@@ -121,6 +124,7 @@ Every section has its own `index.md` landing page. This page is the single entry
 | Operations | [operations/index.md](operations/index.md) |
 | Migrations | [migrations/index.md](migrations/index.md) |
 | Changelog | [changelog/index.md](changelog/index.md) |
+| Release Goals | [release-goals/index.md](release-goals/index.md) |
 
 ## Migration and archive
 

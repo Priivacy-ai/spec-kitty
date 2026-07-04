@@ -3,6 +3,10 @@ title: 3.2.x Milestone — Roadmap
 description: 'Operator-facing roadmap for the 3.2.x milestone: the epic dependency spine, degod/unshim wave status, milestone census, exit criteria, and watch items.'
 doc_status: active
 updated: '2026-07-04'
+related:
+- docs/changelog/index.md
+- docs/plans/index.md
+- docs/release-goals/index.md
 ---
 # 3.2.x Milestone — Roadmap
 

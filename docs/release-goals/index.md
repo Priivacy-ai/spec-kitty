@@ -1,6 +1,6 @@
 ---
 title: Release goals
-description: Internal release-goal declarations for Spec Kitty milestones, tracking the focus and intended scope of the 3.2.x and 3.3.x release lines.
+description: Published release-goal declarations for Spec Kitty milestones, recording the focus and intended scope of the 3.2.x and 3.3.x release lines.
 doc_status: active
 updated: '2026-07-04'
 related:
@@ -13,8 +13,10 @@ related:
 ---
 # Release goals
 
-Internal release-goal declarations that record the intended focus of each release line.
-These are planning artifacts for maintainers, not user-facing release notes.
+Release-goal declarations that record the intended focus of each release line.
+They remain intent/planning documents — published so the declared direction of
+each release line is public — not release notes; for what actually shipped,
+see the [changelog](../changelog/index.md).
 
 ## In this section
 

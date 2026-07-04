@@ -31,6 +31,9 @@ pages that outlive any single mission. For effort-scoped working notes
 
 ## Maintainer guides
 
+The split rule: guides are repo-workflow how-tos regardless of audience;
+run-the-system runbooks live in [operations](../operations/index.md).
+
 - [Landing contributor PRs](pr-landing.md) — the claim → isolate → rebase → classify → fold → squad → hand-off runbook, with field-tested gotchas.
 
 ## See also
