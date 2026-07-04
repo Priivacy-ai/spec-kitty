@@ -2180,6 +2180,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/migrations/legacy-to-coordination.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/migrations/mission-id-canonical-identity.md
   tag: current
   divio_type: none

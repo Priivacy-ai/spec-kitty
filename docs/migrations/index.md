@@ -13,6 +13,7 @@ related:
 - docs/migrations/doctrine-local-overlay-to-org-layer.md
 - docs/migrations/feature-flag-deprecation.md
 - docs/migrations/from-charter-2x.md
+- docs/migrations/legacy-to-coordination.md
 - docs/migrations/mission-id-canonical-identity.md
 - docs/migrations/mission-type-flag-deprecation.md
 - docs/migrations/retrospective-events-upstream.md
@@ -40,6 +41,7 @@ Use these pages when an existing project, script, or operator habit predates the
 - [Migrating from 2.x / early 3.x](from-charter-2x.md)
 - [Doctrine local overlay to org layer](doctrine-local-overlay-to-org-layer.md)
 - [Mission ID canonical identity](mission-id-canonical-identity.md)
+- [Legacy topology to the coordination model](legacy-to-coordination.md)
 - [Mission type flag deprecation](mission-type-flag-deprecation.md)
 - [Feature flag deprecation](feature-flag-deprecation.md)
 
