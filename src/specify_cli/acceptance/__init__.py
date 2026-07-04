@@ -43,6 +43,12 @@ logger = logging.getLogger(__name__)
 
 AcceptanceMode = str  # Expected values: "pr", "local", "checklist"
 
+# The active-work lanes: a WP in one of these is still in flight, so the
+# strict-metadata gate requires the active-phase artifacts (``assignee`` and the
+# live-shell ``shell_pid``). A terminal (done/approved) WP is exempt — the
+# ``assignee`` and ``shell_pid`` gates key on exactly this set (#2369).
+_ACTIVE_METADATA_LANES = frozenset({"doing", Lane.IN_PROGRESS, Lane.FOR_REVIEW})
+
 SPEC_FILE = "spec.md"
 PLAN_FILE = "plan.md"
 TASKS_FILE = "tasks.md"
@@ -1285,7 +1291,7 @@ def collect_feature_summary(
         if strict_metadata:
             if not wp.agent:
                 metadata_issues.append(f"{wp_id}: missing agent in frontmatter")
-            if canonical_lane in {"doing", Lane.IN_PROGRESS, Lane.FOR_REVIEW} and not wp.assignee:
+            if canonical_lane in _ACTIVE_METADATA_LANES and not wp.assignee:
                 metadata_issues.append(f"{wp_id}: missing assignee in frontmatter")
             # ``shell_pid`` identifies the live interactive shell that claimed a WP
             # in ``spec-kitty next`` — an artifact of the ACTIVE-work phase, and one
@@ -1293,7 +1299,7 @@ def collect_feature_summary(
             # lanes, mirroring the ``assignee`` gate above: a terminal (done/approved)
             # WP has no live shell, so demanding it there is a false positive that
             # blocks every orchestrator-completed mission from passing accept (#2369).
-            if canonical_lane in {"doing", Lane.IN_PROGRESS, Lane.FOR_REVIEW} and not wp.shell_pid:
+            if canonical_lane in _ACTIVE_METADATA_LANES and not wp.shell_pid:
                 metadata_issues.append(f"{wp_id}: missing shell_pid in frontmatter")
 
         work_packages.append(
