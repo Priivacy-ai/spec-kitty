@@ -14,7 +14,7 @@
   current_target: false
   citation_refs: []
   notes: archived 1.x page with banner
-- path: docs/migration/from-2x.md
+- path: docs/migrations/from-2x.md
   tag: migration
   divio_type: how-to
   owning_workstream: C

@@ -20,7 +20,7 @@ This page is the canonical 5-tier support matrix for AI coding harnesses ("agent
 | **supported** | Installed by the standard installer; current external doc citation; may lack first-class integration tests or have a degraded mechanism. |
 | **partial** | Installer touches the host but coverage is incomplete, or no current external citation could be located. |
 | **experimental** | Provisional coverage that may break without notice; typically depends on another harness's installation. |
-| **archived** | No longer covered by the installer, or the upstream project is deprecated; coverage (if any) lives in `docs/migration/`. |
+| **archived** | No longer covered by the installer, or the upstream project is deprecated; coverage (if any) lives in `docs/migrations/`. |
 
 Full tier criteria and promotion rules are maintained in `docs/development/3-2-harness-research-method.md` §5 and §6.
 

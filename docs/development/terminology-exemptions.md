@@ -135,11 +135,11 @@ are fully scanned.
 
 ---
 
-## Exempt Surface 4: `docs/migration/` — Migration Runbooks
+## Exempt Surface 4: `docs/migrations/` — Migration Runbooks
 
 ### What is excluded
 
-All files under `docs/migration/` are excluded from the live-doc scan.
+All files under `docs/migrations/` are excluded from the live-doc scan.
 
 ### Why it is exempt
 
@@ -153,7 +153,7 @@ cannot be remediated without defeating the doc's purpose. Same reasoning as
 
 ### Scope boundary
 
-Only `docs/migration/` is exempt. All other live `docs/` pages remain fully
+Only `docs/migrations/` is exempt. All other live `docs/` pages remain fully
 scanned.
 
 ---

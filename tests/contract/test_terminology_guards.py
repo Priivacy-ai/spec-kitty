@@ -9,7 +9,7 @@ Explicitly does not scan:
 - `architecture/**` (historical ADRs and initiative records)
 - `.kittify/**` (runtime state)
 - `tests/**` (tests legitimately mention forbidden patterns)
-- `docs/migration/**` (migration docs must name deprecated flags)
+- `docs/migrations/**` (migration docs must name deprecated flags)
 - historical version sections of `CHANGELOG.md`
 """
 
@@ -68,7 +68,7 @@ FORBIDDEN_SCAN_ROOTS = (
     "architecture/",
     ".kittify/",
     "tests/",
-    "docs/migration/",
+    "docs/migrations/",
     # docs/adr/ holds immutable historical decision records (the common-docs move
     # relocated them from the unscanned architecture/ tree). Their bodies are
     # byte-invariant under C-002/C-006 and legitimately reference era-correct
@@ -125,12 +125,12 @@ def _live_doc_scan_targets() -> list[tuple[Path, str]]:
     for path_pattern in AGENT_DOC_GLOBS:
         for path in _glob(path_pattern):
             relative_path = path.relative_to(REPO_ROOT).as_posix()
-            # docs/migration/, docs/adr/, and the relocated archival sub-areas of
+            # docs/migrations/, docs/adr/, and the relocated archival sub-areas of
             # docs/plans/ are historical/immutable surfaces, not live first-party
             # docs (docs/adr/ holds byte-invariant ADR records).
             if relative_path.startswith(
                 (
-                    "docs/migration/",
+                    "docs/migrations/",
                     "docs/adr/",
                     "docs/plans/engineering-notes/",
                     "docs/plans/initiatives/",
@@ -297,7 +297,7 @@ def test_no_feature_flag_in_live_first_party_docs() -> None:
                 pytest.fail(
                     f"{path.relative_to(REPO_ROOT)}:{line}: documents --feature as a live CLI option: {snippet!r}. "
                     "Authority: spec.md FR-005/FR-022 and charter terminology canon. "
-                    "Fix: use --mission or link to docs/migration/feature-flag-deprecation.md."
+                    "Fix: use --mission or link to docs/migrations/feature-flag-deprecation.md."
                 )
 
 
@@ -504,7 +504,7 @@ def test_docs_adr_exemption_is_narrow() -> None:
     # Non-vacuity / narrowness: live docs/ pages outside the exempt roots ARE scanned.
     assert any(
         p.startswith("docs/")
-        and not p.startswith(("docs/adr/", "docs/migration/"))
+        and not p.startswith(("docs/adr/", "docs/migrations/"))
         for p in scanned
     ), "the exemption widened too far — no live docs/ page is being scanned"
 
@@ -574,7 +574,7 @@ def test_terminology_exemption_policy_doc_is_present_and_consistent() -> None:
     policy_content = policy_doc.read_text(encoding="utf-8")
     required_tokens = (
         "docs/adr/",
-        "docs/migration/",
+        "docs/migrations/",
         "docs/plans/engineering-notes/",
         "Unreleased",
     )
