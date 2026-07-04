@@ -400,6 +400,19 @@ def run_mission_state(
         fixture_dir, include_fixtures, repo_root
     )
 
+    # Unify audit + fix on ONE canonical-root authority (#2320 follow-up). The
+    # ``--fix`` path already re-anchors to the primary main-checkout inside
+    # ``repair_repo`` (``_anchor_repair_root`` → ``resolve_canonical_root``), but
+    # ``--audit`` read the root as-resolved by ``locate_project_root`` (a
+    # *conditional* anchor that stops at the CWD's worktree). From a non-primary
+    # cwd the two modes therefore diverged: audit could read a stale worktree
+    # while fix wrote the primary. Re-anchor the shared root through the same
+    # helper so every mode resolves identically from any cwd. Fixture-dir
+    # (``scan_root``) and non-git shapes are honored verbatim by the helper.
+    from specify_cli.migration.mission_state import _anchor_repair_root
+
+    resolved_root = _anchor_repair_root(resolved_root, scan_root=resolved_fixture_dir)
+
     if mode == _MissionStateMode.FIX:
         _run_mission_repair(
             resolved_root, resolved_fixture_dir, mission, manifest_path, allow_dirty, json_output

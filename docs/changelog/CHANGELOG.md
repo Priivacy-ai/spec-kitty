@@ -86,7 +86,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     possibly-stale coordination worktree. Repair now re-anchors to the canonical
     primary main-checkout via the single worktree-pointer parser
     (`resolve_canonical_root`), so it always targets the primary
-    `kitty-specs/<slug>` (drift converges) and never dirties `.worktrees/`.
+    `kitty-specs/<slug>` (drift converges) and never dirties `.worktrees/`. The
+    read-only `--audit` path is now anchored on the **same** authority at the
+    `run_mission_state` dispatch seam, so audit and fix resolve to the identical
+    canonical root from any cwd (a worktree-invoked `--audit` reads the primary,
+    matching `--fix`) instead of diverging onto a stale worktree.
 - **The Op-index performance cache is now gitignored (#2341).**
   `kitty-ops/ops-index.jsonl` — the machine-local reverse-scan cache that powers
   `spec-kitty invocations list` — was never added to `.gitignore`, so a

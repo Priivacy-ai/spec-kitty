@@ -25,7 +25,11 @@ from urllib.parse import urlsplit
 from packaging.version import Version
 
 from specify_cli.core.atomic import atomic_write
-from specify_cli.core.paths import assert_safe_path_segment
+from specify_cli.core.paths import (
+    WorkspaceRootNotFound,
+    assert_safe_path_segment,
+    resolve_canonical_root,
+)
 from specify_cli.mission_metadata import (
     load_meta,
     load_meta_or_empty,
@@ -504,11 +508,6 @@ def _anchor_repair_root(repo_root: Path, *, scan_root: Path | None) -> Path:
     """
     if scan_root is not None:
         return repo_root.resolve()
-    from specify_cli.core.paths import (  # noqa: PLC0415
-        WorkspaceRootNotFound,
-        resolve_canonical_root,
-    )
-
     try:
         canonical: Path = resolve_canonical_root(repo_root)
     except WorkspaceRootNotFound:
