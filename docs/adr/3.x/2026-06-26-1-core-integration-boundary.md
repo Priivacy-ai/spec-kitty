@@ -147,8 +147,11 @@ The test:
    violation through the *same* enforcement scanner the gate uses, proving the
    allowlist cannot be bypassed silently (and a regression in the enforcement loop
    itself — not just a re-implemented copy — would be caught).
-7. Pins `len(ALLOWLIST) <= 1` with a count-ratchet so the exemption set can only
-   shrink (when issue #2252 lands) and never silently grow.
+7. Pins `len(ALLOWLIST) == 0` with a count-ratchet so the exemption set can never
+   silently grow. Issue #2252 has landed: the last exemption
+   (`readiness/coordinator.py` → `specify_cli.saas.rollout`) was resolved when
+   `is_saas_sync_enabled` moved to `core/saas_sync_config.py`, so the ratchet now
+   holds the allowlist at zero.
 
 Any new `.py` file added to a CORE-set directory is automatically covered without
 any test change (FR-001, C-008).
@@ -176,11 +179,15 @@ other; there is no file-level collision.
 ## Allowlist Exemptions
 
 Each entry permits one specific `(source_module, imported_module)` pair with a written
-rationale. Exactly **one** exemption existed at the time this mission merged.
+rationale. **The allowlist is now empty.** Exactly one exemption existed when this mission
+merged (`readiness/coordinator.py` → `specify_cli.saas.rollout`); it was resolved by
+[#2252](https://github.com/Priivacy-ai/spec-kitty/issues/2252), which relocated
+`is_saas_sync_enabled` to `core/saas_sync_config.py`. The `len(ALLOWLIST) == 0`
+count-ratchet in the enforcement test now holds the exemption set at zero.
 
 | Source | Imported | Rationale | Planned resolution |
 |--------|----------|-----------|-------------------|
-| `readiness/coordinator.py` | `specify_cli.saas.rollout` | `is_saas_sync_enabled` is a pure feature-flag read (shared-config v1) with no side effects. Not a structural SaaS dependency. Exempted until `is_saas_sync_enabled` is relocated to a core/kernel config module. | Follow-up issue [#2252](https://github.com/Priivacy-ai/spec-kitty/issues/2252) — relocate `is_saas_sync_enabled` and remove this entry. A `len(ALLOWLIST) <= 1` count-ratchet in the enforcement test then holds the exemption set at zero. |
+| _(none — the single historical exemption was resolved by #2252)_ | | | |
 
 **Adding new exemptions:** Do NOT add an allowlist entry unless the crossing is a
 deliberate, time-bounded exception with a written follow-up plan. Edit
@@ -232,12 +239,21 @@ The following items are **out of scope** for this mission and are explicitly def
   (`status/adapters.py`, `core/adapters.py`, `invocation/adapters.py`).
 * Physical extraction to `src/orchestrator/` can proceed safely on top of this enforced
   boundary.
+* The allowlist is empty: #2252 relocated `is_saas_sync_enabled` to
+  `core/saas_sync_config.py`, so CORE no longer imports the INTEGRATION set even for the
+  feature-flag read. The enforcement ratchet is pinned at `len(ALLOWLIST) == 0`.
+* **Shim-depth trade-off (intentional):** the `tracker`/`sync` `feature_flags` modules
+  re-export through `saas/rollout.py` (retained as a re-export shim) rather than pointing
+  directly at `core/saas_sync_config.py`. This keeps a two-hop shim chain
+  (`feature_flags` → `saas/rollout.py` → `core/saas_sync_config.py`) but avoids churning
+  the NFR-001 function-identity tests that assert `is` identity across every shim.
 
 ### Negative
 
-* The single remaining allowlist entry (`readiness/coordinator.py` →
-  `specify_cli.saas.rollout`) leaves one structural coupling in CORE until
-  `is_saas_sync_enabled` is relocated.
+* _(Resolved)_ The historical allowlist entry (`readiness/coordinator.py` →
+  `specify_cli.saas.rollout`) that once left a structural coupling in CORE was
+  closed by #2252; the allowlist is now empty. See the Positive section for the
+  resolved state and the intentional shim-depth trade-off.
 
 ### Neutral
 
@@ -249,10 +265,11 @@ The following items are **out of scope** for this mission and are explicitly def
 This decision is correct when:
 
 1. All three original leaks are fixed (WP01–WP03 merged and approved).
-2. `pytest tests/architectural/test_integration_boundary.py` passes with exactly one
+2. ✅ `pytest tests/architectural/test_integration_boundary.py` passes with zero
+   allowlist entries.
+3. ✅ Follow-up issue [#2252](https://github.com/Priivacy-ai/spec-kitty/issues/2252)
+   relocated `is_saas_sync_enabled` to `core/saas_sync_config.py` and removed the last
    allowlist entry.
-3. Follow-up issue [#2252](https://github.com/Priivacy-ai/spec-kitty/issues/2252)
-   successfully relocates `is_saas_sync_enabled` and removes the last allowlist entry.
 
 ## More Information
 

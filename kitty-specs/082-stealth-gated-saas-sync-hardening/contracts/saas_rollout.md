@@ -1,6 +1,7 @@
 # Contract: SaaS Rollout Gate
 
-**Module**: `src/specify_cli/saas/rollout.py`
+**Version**: 2 (relocated by [#2252](https://github.com/Priivacy-ai/spec-kitty/issues/2252) — canonical home moved from `saas/rollout.py` to `core/saas_sync_config.py`; `saas/rollout.py` retained as a re-export shim)
+**Module**: `src/specify_cli/core/saas_sync_config.py` (canonical home). `src/specify_cli/saas/rollout.py` is now a re-export shim over this module.
 **Stability**: Internal CLI surface, but **public to all of `src/specify_cli/`**. Treat as a stable internal contract.
 
 ---
@@ -43,10 +44,11 @@ Returns `False` for:
 
 The following modules continue to export `is_saas_sync_enabled` and `saas_sync_disabled_message`:
 
+- `src/specify_cli/saas/rollout.py` (re-export shim over the canonical `core/saas_sync_config.py`)
 - `src/specify_cli/tracker/feature_flags.py`
 - `src/specify_cli/sync/feature_flags.py`
 
-Both shims re-export from `specify_cli.saas.rollout` and add **no behavior**. Any future change to the env-var contract is made once in `saas/rollout.py`.
+All shims re-export the same function objects (identity preserved) and add **no behavior**. Any future change to the env-var contract is made once in `core/saas_sync_config.py`, re-exported by `saas/rollout.py`. The `tracker`/`sync` `feature_flags` modules continue to re-export through `saas/rollout.py` to avoid churning the function-identity tests.
 
 ---
 
