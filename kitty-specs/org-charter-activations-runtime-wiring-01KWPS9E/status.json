@@ -1,0 +1,28 @@
+{
+  "event_count": 7,
+  "last_event_id": "01KWPXY1WM9N1VYPYMMC1G127Q",
+  "materialized_at": "2026-07-04T16:03:39.028529+00:00",
+  "mission_number": "162",
+  "mission_slug": "org-charter-activations-runtime-wiring-01KWPS9E",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KWPXY1WM9N1VYPYMMC1G127Q",
+      "last_transition_at": "2026-07-04T16:03:39.028529+00:00"
+    }
+  }
+}
