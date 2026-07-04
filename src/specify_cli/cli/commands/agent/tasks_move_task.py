@@ -366,6 +366,91 @@ def _mt_build_request(
     )
 
 
+def _lane_deliverable_paths(worktree_path: Path, porcelain: str) -> tuple[Path, ...]:
+    """Parse ``git status --porcelain`` lines into absolute deliverable paths."""
+    paths: list[Path] = []
+    for line in porcelain.splitlines():
+        if len(line) < 4:
+            continue
+        entry = line[3:]
+        if " -> " in entry:  # rename/copy — the destination is the live path
+            entry = entry.split(" -> ", 1)[1]
+        entry = entry.strip().strip('"')
+        if entry:
+            paths.append(worktree_path / entry)
+    return tuple(paths)
+
+
+def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
+    """Commit finished lane deliverables before a review transition (#2335).
+
+    A killed implementer can leave its deliverables uncommitted in the lane
+    worktree; without this, ``move-task --to for_review`` dead-ends demanding a
+    manual in-worktree ``git commit`` — violating the tool-drives-commits rule.
+    When auto-commit is enabled, stage + commit the finished deliverables via the
+    tool (``safe_commit`` on the lane branch) so the readiness guard sees a clean
+    tree. Best-effort: any failure leaves the tree untouched and the existing
+    ``_validate_ready_for_review`` guard explains the situation.
+    """
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    try:
+        workspace = _tasks.resolve_workspace_for_wp(
+            st.main_repo_root, st.mission_slug, st.task_id
+        )
+    except (ValueError, FileNotFoundError):
+        return
+    # Only a real lane worktree carries deliverables to commit; a planning-artifact
+    # / repo-root WP has no lane branch (branch_name is None) — nothing to do.
+    if workspace.resolution_kind != "lane_workspace" or workspace.branch_name is None:
+        return
+    worktree_path = workspace.worktree_path
+    if not worktree_path.exists():
+        return
+
+    status = _tasks.subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=str(worktree_path),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if status.returncode != 0:
+        return
+    # Reuse the guard's runtime-state filter so we only commit genuine deliverables
+    # (never spec-kitty's own review-lock / .kittify bookkeeping).
+    filtered = _tasks._filter_runtime_state_paths(status.stdout.strip())
+    if not filtered:
+        return
+    paths = _lane_deliverable_paths(worktree_path, filtered)
+    if not paths:
+        return
+
+    try:
+        from specify_cli.git import safe_commit
+
+        safe_commit(
+            repo_root=st.main_repo_root,
+            worktree_root=worktree_path,
+            destination_ref=workspace.branch_name,
+            message=f"chore({st.task_id}): commit lane deliverables for review",
+            paths=paths,
+        )
+        if not st.json_output:
+            _tasks.console.print(
+                f"[cyan]Committed lane deliverables for {st.task_id} on "
+                f"{workspace.branch_name} before review.[/cyan]"
+            )
+    except Exception as exc:  # noqa: BLE001 — best-effort; the guard explains on failure
+        if not st.json_output:
+            _tasks.console.print(
+                f"[yellow]Warning:[/yellow] could not auto-commit lane deliverables "
+                f"for {st.task_id}: {exc}"
+            )
+
+
 def _mt_gather_review_facts(st: _MoveTaskState) -> None:
     """Gather the early (guard-gating) facts and build the pass-1 request."""
     from specify_cli.cli.commands.agent import tasks as _tasks
@@ -393,6 +478,15 @@ def _mt_gather_review_facts(st: _MoveTaskState) -> None:
     review_ready = True
     review_guidance: tuple[str, ...] = ()
     if st.target_lane in (Lane.FOR_REVIEW, Lane.APPROVED, Lane.DONE):
+        # #2335: on the implement→review handoff, recover a killed implementer's
+        # uncommitted deliverables by committing them via the tool (auto-commit
+        # policy) BEFORE the readiness guard runs — so recovery never dead-ends
+        # demanding a manual worktree commit. Scoped to for_review ONLY:
+        # approved/done deliverables are already committed (they passed review),
+        # so a dirty tree there is a real signal the guard should still surface.
+        # --force still bypasses; auto-commit-off defers to the guard.
+        if st.target_lane == Lane.FOR_REVIEW and st.resolved_auto_commit and not st.force:
+            _mt_commit_lane_deliverables(st)
         is_valid, guidance = _tasks._validate_ready_for_review(
             st.repo_root,
             st.mission_slug,

@@ -373,7 +373,9 @@ class TestMoveTaskGitValidation:
     def test_move_to_for_review_still_validates(
         self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
     ):
-        """Should still validate when moving to for_review (existing behavior)."""
+        """With auto-commit OFF, moving to for_review still validates and blocks on
+        uncommitted work (#2335: the guard defers to the operator only when
+        auto-commit is disabled; with it on, deliverables are committed instead)."""
         repo_root, worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
         mock_slug.return_value = "017-test-feature"
@@ -381,10 +383,12 @@ class TestMoveTaskGitValidation:
         # Create uncommitted file in worktree
         (worktree / "uncommitted.txt").write_text("Uncommitted work\n")
 
-        # Try to move to for_review (should fail)
-        result = runner.invoke(app, ["move-task", "WP01", "--to", "for_review", "--json"])
+        # With --no-auto-commit, the recovery commit is skipped and the guard fires.
+        result = runner.invoke(
+            app, ["move-task", "WP01", "--to", "for_review", "--no-auto-commit", "--json"]
+        )
 
-        # Verify failure (existing behavior preserved)
+        # Verify failure (guard still validates when auto-commit is off)
         assert result.exit_code == 1
         # Parse only the first JSON object (CLI may output multiple)
         first_line = result.stdout.strip().split("\n")[0]
@@ -573,3 +577,63 @@ class TestMoveTaskGitValidation:
         worktree_events = read_events(worktree / "kitty-specs" / "017-test-feature")
         assert any(event.wp_id == "WP01" and event.to_lane == Lane.FOR_REVIEW for event in main_events)
         assert not any(event.wp_id == "WP01" and event.to_lane == Lane.FOR_REVIEW for event in worktree_events)
+
+
+class TestMoveTaskCommitsLaneDeliverables:
+    """#2335 — move-task --to for_review commits uncommitted lane deliverables
+    (killed-implementer recovery) instead of dead-ending on a manual commit."""
+
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
+    def test_for_review_auto_commits_uncommitted_deliverables(
+        self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
+    ):
+        repo_root, worktree = git_repo_with_worktree
+        mock_root.return_value = repo_root
+        mock_slug.return_value = "017-test-feature"
+
+        # A killed implementer left a finished deliverable uncommitted in the lane.
+        (worktree / "deliverable.py").write_text("print('done')\n")
+        assert (
+            subprocess.run(
+                ["git", "status", "--porcelain"], cwd=worktree, capture_output=True, text=True, check=True
+            ).stdout.strip()
+            != ""
+        )
+
+        # Recovery: move to for_review WITHOUT --force. Auto-commit is on by default.
+        result = runner.invoke(app, ["move-task", "WP01", "--to", "for_review", "--json"])
+
+        assert result.exit_code == 0, result.stdout
+        # The deliverable was committed via the tool — worktree is clean, no manual git.
+        assert (
+            subprocess.run(
+                ["git", "status", "--porcelain"], cwd=worktree, capture_output=True, text=True, check=True
+            ).stdout.strip()
+            == ""
+        )
+        # It landed on the lane branch as a real commit.
+        head_files = subprocess.run(
+            ["git", "show", "--name-only", "--format=", "HEAD"],
+            cwd=worktree, capture_output=True, text=True, check=True,
+        ).stdout
+        assert "deliverable.py" in head_files
+        # And the transition actually happened.
+        main_events = read_events(repo_root / "kitty-specs" / "017-test-feature")
+        assert any(e.wp_id == "WP01" and e.to_lane == Lane.FOR_REVIEW for e in main_events)
+
+
+def test_lane_deliverable_paths_parses_porcelain(tmp_path: Path):
+    """The porcelain parser extracts modified/untracked/renamed paths, dropping shape noise."""
+    from specify_cli.cli.commands.agent.tasks_move_task import _lane_deliverable_paths
+
+    porcelain = "\n".join([
+        " M src/app.py",       # modified
+        "?? new_file.txt",     # untracked
+        'R  old.py -> new.py',  # rename → destination
+        "x",                    # too short — ignored
+    ])
+    paths = _lane_deliverable_paths(tmp_path, porcelain)
+    names = {p.name for p in paths}
+    assert names == {"app.py", "new_file.txt", "new.py"}
+    assert all(p.parent == tmp_path or p.is_relative_to(tmp_path) for p in paths)
