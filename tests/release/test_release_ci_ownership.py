@@ -244,12 +244,36 @@ def test_quality_gate_fails_closed_for_release_required_package_jobs() -> None:
     }
     assert not release_required - needs
 
-    script = quality_gate["steps"][0]["run"]
-    assert 'failure" ] || [ "$result" = "cancelled' in script
-    assert "needs.changes.outputs.release" in script
-    assert 'if [ "$result" != "success" ]; then' in script
+    # Post-FR-011 (mission ci-suite-map-bind WP03): the verdict is computed
+    # by scripts/ci/quality_gate_decision.py over the full ``toJSON(needs)``
+    # context. The release-required set is passed to the script as DATA
+    # (RELEASE_REQUIRED_JOBS in the payload assembly); the script exits 2 if
+    # any entry is absent from ``needs`` and FAILS any release-touching PR
+    # where one did not succeed (skipped is not enough) — semantics pinned by
+    # tests/scripts/test_quality_gate_decision.py.
+    decision_step = next(
+        step
+        for step in quality_gate["steps"]
+        if step.get("name") == "Evaluate quality-gate decision"
+    )
+    assert decision_step["env"]["NEEDS_JSON"] == "${{ toJSON(needs) }}"
+    # The step pipes the script into ``tee -a "$GITHUB_STEP_SUMMARY"``. Without
+    # ``shell: bash`` GitHub runs it under ``bash -e {0}`` (no pipefail), so the
+    # pipe returns tee's always-zero exit and the script's exit 2 on an absent
+    # release-required job (or exit 1 blocking verdict) is swallowed — the gate
+    # never fails. ``shell: bash`` turns pipefail on. Pin it here too.
+    assert decision_step.get("shell") == "bash", (
+        "quality-gate decision step must set ``shell: bash`` so pipefail "
+        "propagates the script's non-zero exit through ``| tee``"
+    )
+    script = decision_step["run"]
+    assert "scripts/ci/quality_gate_decision.py" in script
+    release_block = script.split("RELEASE_REQUIRED_JOBS = [", 1)[1].split("]", 1)[0]
     for job_name in release_required - {"changes"}:
-        assert f"needs.{job_name}.result" in script
+        assert f'"{job_name}"' in release_block, (
+            f"release-required job {job_name!r} missing from the "
+            "RELEASE_REQUIRED_JOBS payload data"
+        )
 
 
 def test_release_publish_requires_downstream_consumer_evidence_before_pypi() -> None:

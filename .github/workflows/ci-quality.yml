@@ -2,6 +2,11 @@ name: CI Quality
 
 on:
   pull_request:
+    # ready_for_review is REQUIRED (mission ci-suite-map-bind FR-013, HiC
+    # ruling 7a): a draft->ready flip must re-run the draft-skipped suites,
+    # otherwise a PR could merge with them unrun. The other three restore the
+    # GitHub defaults that adding `types:` would otherwise drop.
+    types: [opened, synchronize, reopened, ready_for_review]
     branches:
       - main
       - develop
@@ -22,6 +27,12 @@ on:
       - '.github/workflows/scripts/**'
       - 'ruff.toml'
       - '.github/workflows/ci-quality.yml'
+      # The other suite-running workflows (mission ci-suite-map-bind FR-012):
+      # an edit to any of them must re-run the architectural guard suite,
+      # which asserts the parsed gate model over all four workflow files.
+      - '.github/workflows/ci-windows.yml'
+      - '.github/workflows/drift-detector.yml'
+      - '.github/workflows/release.yml'
       - '.github/workflows/release-readiness.yml'
       - '.github/workflows/check-spec-kitty-events-alignment.yml'
   push:
@@ -45,6 +56,10 @@ on:
       - '.github/workflows/scripts/**'
       - 'ruff.toml'
       - '.github/workflows/ci-quality.yml'
+      # Suite-running workflows routed to the architectural guards (FR-012).
+      - '.github/workflows/ci-windows.yml'
+      - '.github/workflows/drift-detector.yml'
+      - '.github/workflows/release.yml'
       - '.github/workflows/release-readiness.yml'
       - '.github/workflows/check-spec-kitty-events-alignment.yml'
   schedule:
@@ -78,32 +93,38 @@ jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      # ``run_all`` (workflow_dispatch input) forces every per-module job to
-      # run regardless of which paths changed. Evaluates to 'true' only when
-      # the workflow was manually dispatched with the flag enabled; for
-      # ``push`` / ``schedule`` events the expression collapses to the
-      # path-filter value because ``inputs.run_all`` is null/false there.
-      sync: ${{ inputs.run_all && 'true' || steps.filter.outputs.sync }}
-      merge: ${{ inputs.run_all && 'true' || steps.filter.outputs.merge }}
-      missions: ${{ inputs.run_all && 'true' || steps.filter.outputs.missions }}
-      post_merge: ${{ inputs.run_all && 'true' || steps.filter.outputs.post_merge }}
-      release: ${{ inputs.run_all && 'true' || steps.filter.outputs.release }}
-      status: ${{ inputs.run_all && 'true' || steps.filter.outputs.status }}
-      review: ${{ inputs.run_all && 'true' || steps.filter.outputs.review }}
-      next: ${{ inputs.run_all && 'true' || steps.filter.outputs.next }}
-      lanes: ${{ inputs.run_all && 'true' || steps.filter.outputs.lanes }}
-      dashboard: ${{ inputs.run_all && 'true' || steps.filter.outputs.dashboard }}
-      upgrade: ${{ inputs.run_all && 'true' || steps.filter.outputs.upgrade }}
-      cli: ${{ inputs.run_all && 'true' || steps.filter.outputs.cli }}
-      orchestrator_api: ${{ inputs.run_all && 'true' || steps.filter.outputs.orchestrator_api }}
-      core_misc: ${{ inputs.run_all && 'true' || steps.filter.outputs.core_misc }}
-      charter: ${{ inputs.run_all && 'true' || steps.filter.outputs.charter }}
-      agent: ${{ inputs.run_all && 'true' || steps.filter.outputs.agent }}
-      kernel: ${{ inputs.run_all && 'true' || steps.filter.outputs.kernel }}
-      doctrine: ${{ inputs.run_all && 'true' || steps.filter.outputs.doctrine }}
-      execution_context: ${{ inputs.run_all && 'true' || steps.filter.outputs.execution_context }}
-      e2e: ${{ inputs.run_all && 'true' || steps.filter.outputs.e2e }}
-      docs: ${{ inputs.run_all && 'true' || steps.filter.outputs.docs }}
+      # ``run_all`` (workflow_dispatch input) and ``unmatched`` (the FR-010
+      # fail-closed catch-all: a src/** change matched by NO named filter
+      # group — see the ``unmatched`` step below) both force every per-module
+      # job to run regardless of which paths changed (run_all semantics, HiC
+      # ruling 7b). For ``push`` / ``schedule`` events with no unmatched src
+      # change the expression collapses to the path-filter value because
+      # ``inputs.run_all`` is null/false there. Every output uses this exact
+      # shape — no variants (mission ci-suite-map-bind, Decision 7b).
+      sync: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.sync }}
+      merge: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.merge }}
+      missions: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.missions }}
+      post_merge: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.post_merge }}
+      release: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.release }}
+      status: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.status }}
+      review: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.review }}
+      next: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.next }}
+      lanes: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.lanes }}
+      dashboard: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.dashboard }}
+      upgrade: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.upgrade }}
+      cli: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.cli }}
+      core_misc: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.core_misc }}
+      charter: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.charter }}
+      agent: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.agent }}
+      kernel: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.kernel }}
+      doctrine: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.doctrine }}
+      execution_context: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.execution_context }}
+      e2e: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.e2e }}
+      docs: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.docs }}
+      glossary: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.glossary }}
+      # Raw catch-all signal for the quality-gate decision script (FR-011):
+      # true iff any_src matched but no named group did.
+      unmatched: ${{ steps.unmatched.outputs.unmatched }}
     steps:
       - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v4
@@ -151,7 +172,6 @@ jobs:
               - 'src/specify_cli/review/**'
               - 'tests/review/**'
             next:
-              - 'src/specify_cli/next/**'
               - 'src/specify_cli/runtime/**'
               - 'src/runtime/next/**'
               - 'src/mission_runtime/**'
@@ -172,10 +192,13 @@ jobs:
               - 'src/specify_cli/cli/**'
               - 'tests/cli/**'
               - 'tests/specify_cli/cli/**'
-            orchestrator_api:
-              - 'src/specify_cli/orchestrator_api/**'
             core_misc:
               - '.github/workflows/ci-quality.yml'
+              # The other suite-running workflows route to the architectural
+              # guard shard via this group (FR-012 two-layer, second layer).
+              - '.github/workflows/ci-windows.yml'
+              - '.github/workflows/drift-detector.yml'
+              - '.github/workflows/release.yml'
               - 'src/kernel/**'
               - 'src/doctrine/**'
               - 'src/specify_cli/core/**'
@@ -219,9 +242,6 @@ jobs:
             charter:
               - 'src/charter/**'
               - 'src/specify_cli/charter_runtime/**'
-              - 'src/specify_cli/charter_freshness/**'
-              - 'src/specify_cli/charter_lint/**'
-              - 'src/specify_cli/charter_preflight/**'
               - 'tests/charter/**'
               - 'tests/specify_cli/charter_freshness/**'
               - 'tests/specify_cli/charter_lint/**'
@@ -242,6 +262,62 @@ jobs:
               - 'src/runtime/next/**'
               - 'src/specify_cli/cli/commands/agent/**'
               - 'tests/architectural/test_execution_context_parity.py'
+            glossary:
+              - 'src/glossary/**'
+              - 'tests/glossary/**'
+            # FR-010 probe group (Decision 7b): matches ANY src change. The
+            # ``unmatched`` step below computes ``any_src AND NOT (any named
+            # group)`` from the filter's own outputs; a true result forces the
+            # full-run path. Never gate a job on any_src directly.
+            any_src:
+              - 'src/**'
+
+      # Fail-closed catch-all (mission ci-suite-map-bind FR-010, HiC ruling
+      # 7b): a src/** change that no named filter group matched must force the
+      # full-run path (a LOUD ALARM, not steady state — add a named group for
+      # any hot unmatched dir). The union below is computed from the filter's
+      # OWN outputs and is the ONE enumeration of every named group (the
+      # negated path mega-glob mirror is FORBIDDEN); the architectural
+      # invariant asserts this list stays identical to the parsed filter-group
+      # set (Decision 8 two-authority rule).
+      - name: Compute catch-all unmatched signal
+        id: unmatched
+        env:
+          ANY_SRC: ${{ steps.filter.outputs.any_src }}
+        run: |
+          matched=false
+          for group_hit in \
+            "${{ steps.filter.outputs.sync }}" \
+            "${{ steps.filter.outputs.merge }}" \
+            "${{ steps.filter.outputs.missions }}" \
+            "${{ steps.filter.outputs.post_merge }}" \
+            "${{ steps.filter.outputs.release }}" \
+            "${{ steps.filter.outputs.status }}" \
+            "${{ steps.filter.outputs.review }}" \
+            "${{ steps.filter.outputs.next }}" \
+            "${{ steps.filter.outputs.lanes }}" \
+            "${{ steps.filter.outputs.dashboard }}" \
+            "${{ steps.filter.outputs.upgrade }}" \
+            "${{ steps.filter.outputs.cli }}" \
+            "${{ steps.filter.outputs.core_misc }}" \
+            "${{ steps.filter.outputs.charter }}" \
+            "${{ steps.filter.outputs.agent }}" \
+            "${{ steps.filter.outputs.kernel }}" \
+            "${{ steps.filter.outputs.doctrine }}" \
+            "${{ steps.filter.outputs.execution_context }}" \
+            "${{ steps.filter.outputs.e2e }}" \
+            "${{ steps.filter.outputs.docs }}" \
+            "${{ steps.filter.outputs.glossary }}"; do
+            if [ "$group_hit" = "true" ]; then
+              matched=true
+            fi
+          done
+          if [ "$ANY_SRC" = "true" ] && [ "$matched" = "false" ]; then
+            echo "::warning::src/** change matched by NO named filter group — forcing the full-run path (FR-010 catch-all). Add a named group for this directory."
+            echo "unmatched=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "unmatched=false" >> "$GITHUB_OUTPUT"
+          fi
 
   lint:
     runs-on: ubuntu-latest
@@ -1219,7 +1295,7 @@ jobs:
     needs: [changes, kernel-tests, fast-tests-doctrine]
     if: >-
       always() &&
-      (needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.execution_context == 'true') &&
+      (needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.execution_context == 'true' || needs.changes.outputs.glossary == 'true') &&
       needs.kernel-tests.result != 'failure' &&
       needs.fast-tests-doctrine.result != 'failure'
     steps:
@@ -1229,6 +1305,11 @@ jobs:
           python-version: '3.12'
       - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
+      # The --ignore list below is this catch-all's mirror of the test roots
+      # owned by dedicated shards. It is BOUND to the filter topology by the
+      # ignore-mirror architectural invariant (mission ci-suite-map-bind
+      # FR-012 / #2333 AC-1): drift between this list and the shard-owned
+      # roots fails tests/architectural/.
       - name: "Run fast tests — core misc"
         run: |
           uv run python -m pytest \
@@ -1257,6 +1338,7 @@ jobs:
             -n auto --dist loadfile \
             --durations=50 \
             --cov=src/specify_cli \
+            --cov=src/glossary \
             --cov-report=xml:out/reports/coverage/coverage-fast-core-misc.xml
       - name: "Upload fast-core-misc coverage"
         if: always()
@@ -1381,9 +1463,11 @@ jobs:
             marker_extra: ''
           - shard: misc
             paths: >-
+              tests/_support
               tests/calibration
               tests/concurrency
               tests/contract
+              tests/coordination
               tests/core
               tests/cross_branch
               tests/docs
@@ -1437,6 +1521,7 @@ jobs:
             -n auto --dist loadfile \
             --durations=50 \
             --cov=src/specify_cli \
+            --cov=src/mission_runtime \
             --cov-report=xml:out/reports/coverage/coverage-integration-core-misc-${{ matrix.shard }}.xml
       - name: "Upload integration-core-misc coverage"
         if: always()
@@ -1997,6 +2082,39 @@ jobs:
   # slow-tests: Push-only (or manual dispatch). Runs slow-marked tests
   # outside tests/e2e/ and tests/cross_cutting/ (those run in e2e-cross-cutting).
   # ---------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # unit-contract-residual: the authoring-taxonomy residual (mission
+  # ci-suite-map-bind FR-002; closes #2034). Tests marked `unit`/`contract`
+  # (the documented authoring defaults) that carry NO routed runnable marker
+  # were previously selected by ZERO marker gates — CI-invisible unless a
+  # path-only gate happened to cover them. This small always-on job is their
+  # standing marker-selected home (~252 pure-logic tests, ~1 min).
+  #
+  # NOT draft-gated and NOT path-gated by design: a draft PR must not be able
+  # to merge-queue with the residual unrun, and the job is cheap enough to
+  # always run. The negated marker set below is the live ROUTED-BY-MARKER set
+  # (re-derive: `routed_marker_names(load_gates())` in
+  # tests/architectural/_gate_coverage.py) plus the path-routed
+  # `e2e`/`distribution` families (excluded so a dual-marked test cannot
+  # double-run its heavy variant here). The marker-completeness architectural
+  # invariant keeps this expression consistent with the routed set.
+  # ---------------------------------------------------------------------------
+  unit-contract-residual:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          python-version: '3.12'
+      - run: uv sync --frozen --all-extras
+      - name: "Run unit/contract residual (full-tree marker selection)"
+        run: |
+          uv run python -m pytest tests/ \
+            -m "(unit or contract) and not (fast or integration or git_repo or slow or e2e or architectural or distribution or windows_ci or quarantine or timing)" \
+            -q --tb=short \
+            -n auto --dist loadfile \
+            --durations=25
+
   slow-tests:
     runs-on: ubuntu-latest
     needs:
@@ -2284,7 +2402,6 @@ jobs:
             'src/specify_cli/dashboard/handlers/*'
             'src/specify_cli/dashboard/scanner.py'
             'src/specify_cli/merge/*'
-            'src/specify_cli/next/*'
             'src/runtime/next/*'
             'src/mission_runtime/*'
           )
@@ -2966,6 +3083,17 @@ jobs:
   # quality-gate: single check that aggregates all required job results.
   # Skipped jobs are OK; only failures block.
   # ---------------------------------------------------------------------------
+  # ---------------------------------------------------------------------------
+  # quality-gate: the single blocking aggregator. The pass/fail verdict is
+  # computed by scripts/ci/quality_gate_decision.py (mission ci-suite-map-bind
+  # FR-011): it consumes the FULL `needs` context via toJSON (a phantom
+  # `needs.<job>.result` read is impossible by construction), emits the
+  # run/skipped table to $GITHUB_STEP_SUMMARY, and fails on any failed job,
+  # any improperly-skipped mapped suite (filter matched, job skipped, no
+  # full-run supersede, no draft exemption), and any unmet release-required
+  # job. `quarantine-visibility` stays OUT of the blocking set (C-005 — the
+  # script trips exit 2 if it ever appears in the payload).
+  # ---------------------------------------------------------------------------
   quality-gate:
     needs:
       - changes
@@ -2989,6 +3117,8 @@ jobs:
       - fast-tests-docs
       - fast-tests-charter
       - fast-tests-agent
+      - mission-loader-coverage
+      - unit-contract-residual
       - integration-tests-doctrine
       - integration-tests-charter
       - integration-tests-sync
@@ -3014,71 +3144,123 @@ jobs:
     runs-on: ubuntu-latest
     if: always()
     steps:
-      - name: "Check all required jobs"
-        run: |
-          echo "All upstream jobs completed."
-          # Fail if any required job failed (skipped is OK)
-          for result in \
-            "${{ needs.changes.result }}" \
-            "${{ needs.lint.result }}" \
-            "${{ needs.diff-coverage.result }}" \
-            "${{ needs.kernel-tests.result }}" \
-            "${{ needs.fast-tests-doctrine.result }}" \
-            "${{ needs.fast-tests-sync.result }}" \
-            "${{ needs.fast-tests-merge.result }}" \
-            "${{ needs.fast-tests-missions.result }}" \
-            "${{ needs.fast-tests-post-merge.result }}" \
-            "${{ needs.fast-tests-release.result }}" \
-            "${{ needs.fast-tests-status.result }}" \
-            "${{ needs.fast-tests-review.result }}" \
-            "${{ needs.fast-tests-next.result }}" \
-            "${{ needs.fast-tests-lanes.result }}" \
-            "${{ needs.fast-tests-dashboard.result }}" \
-            "${{ needs.fast-tests-upgrade.result }}" \
-            "${{ needs.fast-tests-cli.result }}" \
-            "${{ needs.fast-tests-core-misc.result }}" \
-            "${{ needs.fast-tests-docs.result }}" \
-            "${{ needs.fast-tests-charter.result }}" \
-            "${{ needs.fast-tests-agent.result }}" \
-            "${{ needs.integration-tests-doctrine.result }}" \
-            "${{ needs.integration-tests-charter.result }}" \
-            "${{ needs.integration-tests-sync.result }}" \
-            "${{ needs.integration-tests-merge.result }}" \
-            "${{ needs.integration-tests-missions.result }}" \
-            "${{ needs.integration-tests-post-merge.result }}" \
-            "${{ needs.integration-tests-release.result }}" \
-            "${{ needs.integration-tests-status.result }}" \
-            "${{ needs.integration-tests-review.result }}" \
-            "${{ needs.integration-tests-next.result }}" \
-            "${{ needs.integration-tests-lanes.result }}" \
-            "${{ needs.integration-tests-dashboard.result }}" \
-            "${{ needs.integration-tests-upgrade.result }}" \
-            "${{ needs.integration-tests-cli.result }}" \
-            "${{ needs.integration-tests-agent.result }}" \
-            "${{ needs.integration-tests-core-misc.result }}" \
-            "${{ needs.e2e-cross-cutting.result }}" \
-            "${{ needs.restart-daemon-nfr-timing.result }}" \
-            "${{ needs.build-wheel.result }}" \
-            "${{ needs.clean-install-verification.result }}" \
-            "${{ needs.consumer-compatibility.result }}" \
-            "${{ needs.uv-lock-check.result }}"; do
-            if [ "$result" = "failure" ] || [ "$result" = "cancelled" ]; then
-              echo "A required job failed or was cancelled."
-              exit 1
-            fi
-          done
+      - name: "Check out repository (decision script)"
+        uses: actions/checkout@v6
 
-          if [ "${{ needs.changes.outputs.release }}" = "true" ]; then
-            for result in \
-              "${{ needs.build-wheel.result }}" \
-              "${{ needs.clean-install-verification.result }}" \
-              "${{ needs.consumer-compatibility.result }}" \
-              "${{ needs.fast-tests-release.result }}" \
-              "${{ needs.integration-tests-release.result }}" \
-              "${{ needs.uv-lock-check.result }}"; do
-              if [ "$result" != "success" ]; then
-                echo "A release-required job did not complete successfully."
-                exit 1
-              fi
-            done
-          fi
+      - name: "Evaluate quality-gate decision"
+        # ``shell: bash`` runs the step under
+        # ``bash --noprofile --norc -eo pipefail {0}``. Pipefail is REQUIRED:
+        # the final command pipes into ``tee -a "$GITHUB_STEP_SUMMARY"`` and,
+        # under GitHub's default ``bash -e {0}`` (no pipefail), the pipe would
+        # return tee's always-zero exit and SWALLOW the script's exit 1
+        # (blocking verdict) / exit 2 (contract violation / C-005 tripwire),
+        # making the gate vacuous. Pinned by the decision-step assertions in
+        # tests/architectural/test_ci_quality_path_filters.py and
+        # tests/release/test_release_ci_ownership.py.
+        shell: bash
+        env:
+          # The complete needs context — every declared blocking job with its
+          # result. Consumed wholesale (never a re-enumerated literal list) so
+          # the needs: list above is the ONLY blocking-set authority.
+          NEEDS_JSON: ${{ toJSON(needs) }}
+          CHANGES_JSON: ${{ toJSON(needs.changes.outputs) }}
+          # Full-run semantics: the operator's run_all dispatch input, plus
+          # schedule/dispatch events, where per-module jobs skip by EVENT
+          # design (e.g. e2e-cross-cutting runs only on push/PR), not because
+          # a mapped suite was improperly skipped.
+          RUN_ALL: ${{ (inputs.run_all || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'true' || 'false' }}
+          CATCHALL_UNMATCHED: ${{ needs.changes.outputs.unmatched || 'false' }}
+          PR_IS_DRAFT: ${{ github.event_name == 'pull_request' && github.event.pull_request.draft == true && 'true' || 'false' }}
+        run: |
+          python3 - > payload.json <<'PY'
+          import json
+          import os
+
+          # Job -> dorny filter group(s) referenced by that job's `if:` gate.
+          # Adjudicated Decision 8 (two-authority rule): the job `if:` gates
+          # are the source authority for this mapping; this table is the ONE
+          # in-workflow derivation of it, kept adjacent to the decision seam
+          # and ASSERTED equal to the parsed `if:` gating by the
+          # architectural invariant suite (tests/architectural/). Jobs absent
+          # here are always-run or event-gated (no filter group in their
+          # `if:`), so a skip of theirs is never an "improper" skip.
+          JOB_GROUPS = {
+              "kernel-tests": ["kernel"],
+              "fast-tests-doctrine": ["doctrine"],
+              "fast-tests-sync": ["sync"],
+              "fast-tests-merge": ["merge"],
+              "fast-tests-missions": ["missions"],
+              "fast-tests-post-merge": ["post_merge"],
+              "fast-tests-release": ["release"],
+              "fast-tests-status": ["status", "sync"],
+              "fast-tests-review": ["review", "status"],
+              "fast-tests-next": ["next", "status"],
+              "mission-loader-coverage": ["next", "core_misc"],
+              "fast-tests-lanes": ["lanes", "status", "merge"],
+              "fast-tests-dashboard": ["dashboard", "status"],
+              "fast-tests-upgrade": ["upgrade", "status"],
+              "fast-tests-cli": ["cli"],
+              "fast-tests-core-misc": ["core_misc", "execution_context", "glossary"],
+              "fast-tests-docs": ["docs"],
+              "fast-tests-charter": ["charter"],
+              "fast-tests-agent": ["agent"],
+              "integration-tests-doctrine": ["doctrine"],
+              "integration-tests-charter": ["charter"],
+              "integration-tests-sync": ["sync"],
+              "integration-tests-merge": ["merge"],
+              "integration-tests-missions": ["missions"],
+              "integration-tests-post-merge": ["post_merge"],
+              "integration-tests-release": ["release"],
+              "integration-tests-status": ["status", "sync"],
+              "integration-tests-review": ["review"],
+              "integration-tests-next": ["next"],
+              "integration-tests-lanes": ["lanes"],
+              "integration-tests-dashboard": ["dashboard"],
+              "integration-tests-upgrade": ["upgrade"],
+              "integration-tests-cli": ["cli"],
+              "integration-tests-agent": ["agent"],
+              "integration-tests-core-misc": ["core_misc", "execution_context"],
+              "e2e-cross-cutting": ["e2e", "core_misc", "execution_context"],
+              "restart-daemon-nfr-timing": ["cli"],
+              "consumer-compatibility": ["release"],
+          }
+
+          # Jobs whose `if:` carries the draft/WIP exemption; safe to skip on
+          # a draft PR because the ready_for_review trigger (FR-013) re-runs
+          # them on the draft->ready flip and GitHub blocks draft merges.
+          DRAFT_GATED_JOBS = [
+              "integration-tests-core-misc",
+              "e2e-cross-cutting",
+          ]
+
+          # Release-touching PRs must have these SUCCEED (skipped is not
+          # enough). Passed as data: the script will not invent the set
+          # (Decision 8) and exits 2 if any entry is absent from `needs`.
+          RELEASE_REQUIRED_JOBS = [
+              "build-wheel",
+              "clean-install-verification",
+              "consumer-compatibility",
+              "fast-tests-release",
+              "integration-tests-release",
+              "uv-lock-check",
+          ]
+
+          changes = json.loads(os.environ["CHANGES_JSON"])
+          # `unmatched` is the catch-all signal, not a filter group; it feeds
+          # the dedicated catchall_unmatched field instead.
+          changes.pop("unmatched", None)
+          print(json.dumps({
+              "needs": json.loads(os.environ["NEEDS_JSON"]),
+              "changes": changes,
+              "job_groups": JOB_GROUPS,
+              "run_all": os.environ["RUN_ALL"],
+              "catchall_unmatched": os.environ["CATCHALL_UNMATCHED"],
+              "pr_is_draft": os.environ["PR_IS_DRAFT"],
+              "draft_gated_jobs": DRAFT_GATED_JOBS,
+              "release_required_jobs": RELEASE_REQUIRED_JOBS,
+          }))
+          PY
+          # The step fails on ANY non-zero exit: 1 = blocking verdict,
+          # 2 = input-contract violation / C-005 tripwire (never soft).
+          python3 scripts/ci/quality_gate_decision.py --input payload.json \
+            | tee -a "$GITHUB_STEP_SUMMARY"

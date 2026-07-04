@@ -27,21 +27,26 @@ jobs:
               - 'tests/cli/test_migrate_cmd_messaging.py'
               - 'tests/core/test_worktree_symlink_fallback.py'
               - 'tests/kernel/test_paths_unified_windows_root.py'
+              - 'tests/lanes/test_acceptance_matrix.py'
               - 'tests/mission/test_active_mission_handle_windows.py'
               - 'tests/paths/test_windows_migrate.py'
               - 'tests/policy/test_hook_installer_execution.py'
               - 'tests/regressions/test_issue_101_utf8_startup.py'
               - 'tests/regressions/test_issue_105_hook_python_lookup.py'
               - 'tests/regressions/test_issue_71_dashboard_empty.py'
+              - 'tests/review/test_baseline.py'
               - 'tests/runtime/test_home_unit.py'
+              - 'tests/specify_cli/cli/commands/test_charter_generate_autotrack.py'
               - 'tests/sync/test_daemon_windows_paths.py'
               - 'tests/sync/test_issue_586_windows_import.py'
               - 'tests/tracker/test_credentials_windows_paths.py'
-              # Keep this intentionally coarse: the Windows-marked CLI tests
-              # exercise the root app import path, which can pull in modules
-              # across the full source tree.
-              - 'src/kernel/**'
-              - 'src/specify_cli/**'
+              # Full src tree (mission ci-suite-map-bind FR-007 / WS5 AC):
+              # Windows-sensitive packages outside specify_cli/kernel (e.g.
+              # src/mission_runtime, src/runtime) must also trigger this job.
+              # The Windows-marked CLI tests exercise the root app import
+              # path, which can pull in modules across the full source tree,
+              # so no per-package exclusions are carved out.
+              - 'src/**'
 
   windows-critical:
     name: Windows critical (pipx, pytest -m windows_ci)
@@ -53,7 +58,7 @@ jobs:
       PYTHONUTF8: "1"
       SPEC_KITTY_ENABLE_SAAS_SYNC: "0"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Setup Python
         uses: actions/setup-python@v6
@@ -99,7 +104,7 @@ jobs:
         shell: bash
         run: |
           if pipx runpip spec-kitty-cli show keyring >/dev/null 2>&1; then
-            echo "::error::keyring IS installed on Windows; WP03 conditional marker is not effective."
+            echo "::error::keyring IS installed on Windows; the Windows install must stay keyring-free (the conditional dependency marker in pyproject.toml is not effective)."
             exit 1
           fi
           echo "keyring absent (expected)"
