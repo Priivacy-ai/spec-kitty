@@ -71,6 +71,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   canonical store is `decisions/index.json` / `DM-*.md`, so the copy here is a
   mirror (unchanged, tested behavior). Rows preserved verbatim in the quarantine
   dir remain recoverable.
+  - **Repair now anchors on the primary checkout so `SNAPSHOT_DRIFT` actually
+    converges and stale coordination worktrees are left untouched (#2320).**
+    `doctor mission-state --fix` already re-materializes `status.json` from
+    `status.events.jsonl`, but when invoked from inside a worktree the
+    invocation root pointed at that worktree, so the materialize landed there:
+    the **primary** `status.json` stayed frozen (a re-`--audit` reported the
+    same `SNAPSHOT_DRIFT` blocker) and uncommitted repairs were written into a
+    possibly-stale coordination worktree. Repair now re-anchors to the canonical
+    primary main-checkout via the single worktree-pointer parser
+    (`resolve_canonical_root`), so it always targets the primary
+    `kitty-specs/<slug>` (drift converges) and never dirties `.worktrees/`.
 - **The Op-index performance cache is now gitignored (#2341).**
   `kitty-ops/ops-index.jsonl` — the machine-local reverse-scan cache that powers
   `spec-kitty invocations list` — was never added to `.gitignore`, so a
