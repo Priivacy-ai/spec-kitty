@@ -35,16 +35,16 @@ description: "Work package task list — Org-Charter Activations Runtime Wiring"
 
 ### Included Subtasks
 
-- [ ] T001 [red-first] FR-005 durable invariant `tests/charter/test_org_activations_reach_context.py`: reuse ONLY `_write_config` (not `_write_org_pack` — it writes an agent-profile pack, no activations); write a NEW `org-charter.yaml` with an `activations:` entry, no project-local block; force **bootstrap** via `build_charter_context` (no `context-state.json`, depth ≥ 2, NOT `_governance_text`/`advise` = compact); assert stanza contents. **RECORD pre-fix RED.**
-- [ ] T002 [red-first] `tests/charter/test_org_activations_resolution.py`: union/dedup (SC-002), malformed-present-pack raise (SC-003), missing-pack skip — via the REAL rescan, no stub. **RECORD pre-fix RED.**
-- [ ] T003 [char-test/FR-006] `tests/charter/test_iter_org_charter_docs.py` + a characterization test pinning the CURRENT `_read_org_required_selections`/`_load_doctrine_selection` org-union branch (`context.py:795-813`) — it has ZERO existing coverage; this is the safety net for T005. Gate T009 on it.
-- [ ] T004 [FR-003] Relocate `_activation_identity_key` (`org_charter.py:286`, no local dep) → `charter/activations.py`; re-import at `org_charter.py:44/:450`. `_fold_policies` tests gate import integrity.
-- [ ] T005 [FR-006 REQUIRED] Extract `_iter_org_charter_docs(repo_root)`; refactor `_read_org_required_selections` **onto it** (mandatory — fixes its pre-existing ~19–20 Sonar cognitive-complexity; guarded by T003). Campsite: add `_LOGGER.debug` before `_enumerate_org_pack_paths`'s silent `except` (`context.py:693`).
-- [ ] T006 [FR-001/002/004] `_read_org_activations(repo_root)` consuming T005's reader (runtime import `ActivationEntry`): `model_validate` each entry — raise on malformed present-pack, skip missing pack (NOT silent `continue`, C-002 override).
-- [ ] T007 [FR-001/002] Call `_read_org_activations` as a **SEPARATE** call in `_render_activation_block` (NEVER inside `_load_governance_activations` — its `except: return []` at `:2652` swallows the raise); union+dedup on shared key, project order preserved; place **before** the `if not activations: return ""` short-circuit (`:2680`) AND before the `except` (`:2692`).
-- [ ] T008 [NFR-002/003] Assert `governance.yaml` org-pure + non-org byte-identity. Extend `tests/charter/test_context_org_governance.py`.
-- [ ] T009 Turn T001/T002 GREEN; run `tests/charter/` + `tests/specify_cli/doctrine/test_org_charter*.py`; confirm T003 characterization + `required_<kind>` paths stayed green through T005.
-- [ ] T010 `ruff check` + `mypy` zero-issue on new + boy-scout-touched; complexity ≤ 15; no ≥3× literals (S1192); no suppressions.
+- [x] T001 [red-first] FR-005 durable invariant `tests/charter/test_org_activations_reach_context.py`: reuse ONLY `_write_config` (not `_write_org_pack` — it writes an agent-profile pack, no activations); write a NEW `org-charter.yaml` with an `activations:` entry, no project-local block; force **bootstrap** via `build_charter_context` (no `context-state.json`, depth ≥ 2, NOT `_governance_text`/`advise` = compact); assert stanza contents. **RECORD pre-fix RED.**
+- [x] T002 [red-first] `tests/charter/test_org_activations_resolution.py`: union/dedup (SC-002), malformed-present-pack raise (SC-003), missing-pack skip — via the REAL rescan, no stub. **RECORD pre-fix RED.**
+- [x] T003 [char-test/FR-006] `tests/charter/test_iter_org_charter_docs.py` + a characterization test pinning the CURRENT `_read_org_required_selections`/`_load_doctrine_selection` org-union branch (`context.py:795-813`) — it has ZERO existing coverage; this is the safety net for T005. Gate T009 on it.
+- [x] T004 [FR-003] Relocate `_activation_identity_key` (`org_charter.py:286`, no local dep) → `charter/activations.py`; re-import at `org_charter.py:44/:450`. `_fold_policies` tests gate import integrity.
+- [x] T005 [FR-006 REQUIRED] Extract `_iter_org_charter_docs(repo_root)`; refactor `_read_org_required_selections` **onto it** (mandatory — fixes its pre-existing ~19–20 Sonar cognitive-complexity; guarded by T003). Campsite: add `_LOGGER.debug` before `_enumerate_org_pack_paths`'s silent `except` (`context.py:693`).
+- [x] T006 [FR-001/002/004] `_read_org_activations(repo_root)` consuming T005's reader (runtime import `ActivationEntry`): `model_validate` each entry — raise on malformed present-pack, skip missing pack (NOT silent `continue`, C-002 override).
+- [x] T007 [FR-001/002] Call `_read_org_activations` as a **SEPARATE** call in `_render_activation_block` (NEVER inside `_load_governance_activations` — its `except: return []` at `:2652` swallows the raise); union+dedup on shared key, project order preserved; place **before** the `if not activations: return ""` short-circuit (`:2680`) AND before the `except` (`:2692`).
+- [x] T008 [NFR-002/003] Assert `governance.yaml` org-pure + non-org byte-identity. Extend `tests/charter/test_context_org_governance.py`.
+- [x] T009 Turn T001/T002 GREEN; run `tests/charter/` + `tests/specify_cli/doctrine/test_org_charter*.py`; confirm T003 characterization + `required_<kind>` paths stayed green through T005.
+- [x] T010 `ruff check` + `mypy` zero-issue on new + boy-scout-touched; complexity ≤ 15; no ≥3× literals (S1192); no suppressions.
 
 ### Implementation Notes
 

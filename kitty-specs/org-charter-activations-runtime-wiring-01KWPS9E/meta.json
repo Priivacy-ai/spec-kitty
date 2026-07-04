@@ -10,5 +10,7 @@
   "purpose_tldr": "org charter activations runtime wiring",
   "slug": "org-charter-activations-runtime-wiring-01KWPS9E",
   "target_branch": "design/org-charter-activations-2365",
-  "topology": "single_branch"
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-04T15:18:16.060086+00:00"
 }
