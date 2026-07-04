@@ -477,6 +477,45 @@ def deterministic_ulid(seed: bytes | str) -> str:
     return "".join(reversed(chars))
 
 
+def _anchor_repair_root(repo_root: Path, *, scan_root: Path | None) -> Path:
+    """Re-anchor the invocation root to the canonical PRIMARY main-checkout.
+
+    ``doctor mission-state --fix`` is a repo-level canonicalization whose write
+    target is the *primary* checkout's ``kitty-specs/<slug>`` — the durable
+    per-mission status home for flattened / merged missions (those carrying no
+    live ``coordination_branch``). When the CLI is invoked from inside a
+    worktree (a coordination or lane worktree), the raw invocation root points
+    at that worktree, so the repair would land there instead: it (a) leaves the
+    primary ``status.json`` stale, so an ``--audit`` re-run still reports
+    ``SNAPSHOT_DRIFT`` (the materialize step ran against the wrong checkout),
+    and (b) writes uncommitted changes into a possibly-stale coordination
+    worktree — both symptoms of issue #2320.
+
+    Route through the single canonical worktree-pointer parser
+    (:func:`specify_cli.core.paths.resolve_canonical_root`) so repair always
+    operates on the primary checkout regardless of CWD.
+
+    ``scan_root`` (``--fixture-dir`` / packaged-fixtures mode) is a deliberate
+    override that points discovery at an arbitrary directory tree; re-anchoring
+    would drag the manifest/quarantine roots onto an enclosing real repo, so in
+    that mode the resolved input is honored verbatim. When no enclosing git repo
+    is found (ad-hoc test fixtures outside a git tree) the resolved input is also
+    returned unchanged, preserving the prior no-git behavior.
+    """
+    if scan_root is not None:
+        return repo_root.resolve()
+    from specify_cli.core.paths import (  # noqa: PLC0415
+        WorkspaceRootNotFound,
+        resolve_canonical_root,
+    )
+
+    try:
+        canonical: Path = resolve_canonical_root(repo_root)
+    except WorkspaceRootNotFound:
+        return repo_root.resolve()
+    return canonical
+
+
 def repair_repo(
     repo_root: Path,
     *,
@@ -486,7 +525,7 @@ def repair_repo(
     allow_dirty: bool = False,
 ) -> RepairReport:
     """Canonicalize historical mission state on disk and write a manifest."""
-    resolved_repo_root = repo_root.resolve()
+    resolved_repo_root = _anchor_repair_root(repo_root, scan_root=scan_root)
     mission_dirs = _select_mission_dirs(resolved_repo_root, scan_root=scan_root, mission=mission)
     if not mission_dirs:
         raise MissionStateRepairError("No mission directories found to repair.")
