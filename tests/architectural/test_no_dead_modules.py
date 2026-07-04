@@ -197,12 +197,10 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         "specify_cli.upgrade.migrations.m_3_2_0rc35_activate_builtin_mission_types",
         # WP05 (charter-pack-activation-layer-01KSYE4V) migration added here.
         "specify_cli.upgrade.migrations.m_3_2_0rc35_default_charter_pack",
-        # org-doctrine-profile-integrity-closeout WP04: upstream rebase added
-        # this auto-discovered migration (loaded via pkgutil.iter_modules in
-        # migrations/__init__.py, never statically imported -> always an
-        # allowlisted Cat-1 orphan by design). Test-exercised by
-        # tests/specify_cli/test_sync_state_gitignore_migration.py.
-        "specify_cli.upgrade.migrations.m_3_2_0rc35_sync_state_gitignore",
+        # NOTE: m_3_2_0rc35_sync_state_gitignore was removed from this allowlist
+        # (2026-07-04 campsite) — it is now statically imported by
+        # m_3_2_3_encoding_provenance_gitignore_backfill (below), so it has a
+        # real src/ caller and is no longer an orphan.
         # pi-and-letta-agent-support-01KT4Q26 WP01: backfill migration for
         # .pi/ and .letta/ gitignore entries and skill-pack repair.
         # Auto-discovered via pkgutil.iter_modules; never statically imported.
@@ -233,6 +231,12 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # 3.2.0rc45 standalone governance skill retirement migration:
         # auto-discovered via pkgutil.iter_modules in migrations/__init__.py.
         "specify_cli.upgrade.migrations.m_3_2_0rc45_retire_standalone_skill_surface",
+        # 3.2.3 encoding-provenance/gitignore backfill migration: auto-discovered
+        # via pkgutil.iter_modules + @MigrationRegistry.register; never statically
+        # imported by runtime code. (It statically imports
+        # m_3_2_0rc35_sync_state_gitignore, which is why that module is no longer
+        # an orphan and was removed from this allowlist.)
+        "specify_cli.upgrade.migrations.m_3_2_3_encoding_provenance_gitignore_backfill",
     }
 )
 
