@@ -153,6 +153,7 @@ from .aggregate import (
     MissionStatus,
 )
 from .lifecycle_events import (
+    LIFECYCLE_EVENT_TYPES,
     PLAN_COMPLETED,
     PLAN_STARTED,
     REVIEWER_SELF_APPROVAL,
@@ -219,6 +220,7 @@ __all__ = [
     "IdentityState",
     "InvalidMissionSlug",
     "MissionMetadataUnavailable",
+    "LIFECYCLE_EVENT_TYPES",
     "MissionStatus",
     "PLAN_COMPLETED",
     "PLAN_STARTED",

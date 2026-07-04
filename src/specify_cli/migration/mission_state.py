@@ -42,7 +42,7 @@ from specify_cli.migration.canonicalization import (
 )
 from specify_cli.status import ULID_PATTERN, Lane, StatusEvent
 from specify_cli.status import materialize_snapshot, materialize_to_json
-from specify_cli.status import is_retrospective_lifecycle_event
+from specify_cli.status import LIFECYCLE_EVENT_TYPES, is_retrospective_lifecycle_event
 
 MIGRATION_SCHEMA_VERSION = "1.0.0"
 CANONICAL_ENVELOPE_SCHEMA_VERSION = "3.0.0"
@@ -897,6 +897,13 @@ def _scan_raw_status_rows(repo_root: Path, mission_dir: Path) -> list[dict[str, 
     errors: list[dict[str, object]] = []
     rel = _repo_relpath(repo_root, status_path)
     for row in rows:
+        # Preserved-class non-lane rows (retrospective + canonical lifecycle
+        # events, issue #2376) legitimately live in status.events.jsonl and are
+        # left in place by the repair. They are not lane events, so the
+        # lane-event scans below (typed-row + forbidden-legacy-key, which recurse
+        # into another subsystem's payload) do not apply to them.
+        if _is_preserved_non_lane_row(row.data):
+            continue
         if "event_type" in row.data or "event_name" in row.data:
             errors.append(
                 {
@@ -1039,6 +1046,20 @@ def _repair_mission(
                 )
             before_events = _file_fingerprint(status_path)
             status_text = "".join(json.dumps(row, sort_keys=True) + "\n" for row in canonical_rows)
+            # Backstop (#2376): never silently empty a previously-populated event
+            # log. Legitimate non-lane events are now preserved in
+            # ``canonical_rows``, so an empty result despite non-empty input means
+            # every row was dropped as genuinely foreign — an extraordinary
+            # outcome that fails loud (recorded as a mission error with a reason)
+            # rather than wiping the canonical log. Originals remain in the
+            # quarantine directory.
+            if raw_rows and not canonical_rows:
+                raise MissionStateRepairError(
+                    f"Refusing to empty {_repo_relpath(repo_root, status_path)}: "
+                    f"all {len(raw_rows)} row(s) were dropped by repair. This "
+                    "usually indicates a row-classification bug; the original "
+                    "rows are preserved verbatim in the quarantine directory."
+                )
             if status_path.read_text(encoding="utf-8") != status_text:
                 atomic_write(status_path, status_text)
             after_events = _file_fingerprint(status_path)
@@ -1235,30 +1256,49 @@ def _canonicalize_status_rows(
 _Row = dict[str, Any]
 
 
+def _is_preserved_non_lane_row(row: Mapping[str, Any]) -> bool:
+    """Return True for non-lane rows the repair MUST keep in status.events.jsonl.
+
+    ``status.events.jsonl`` is a *shared* append log. Lane-transition rows are
+    flat (``wp_id`` / ``from_lane`` / ``to_lane``); other subsystems co-locate
+    ``event_type`` / ``type`` rows. Two of those classes have **no other
+    per-mission home**, so quarantining them is real data loss (issue #2376):
+
+    - **Retrospective lifecycle rows** (``type`` envelope) — contracted
+      provenance read back by retrospective consumers.
+    - **Canonical lifecycle events** whose ``event_type`` is in
+      ``LIFECYCLE_EVENT_TYPES`` (``MissionCreated``, ``SpecifyStarted``,
+      ``WPCreated``, …). :mod:`specify_cli.status.lifecycle_events` is their
+      sole durable per-mission writer and declares this stream "a safe target
+      for repair / replay tooling".
+
+    Other ``event_type`` rows (e.g. Decision-Moment ``DecisionPoint*``) are NOT
+    preserved here: their canonical store is elsewhere
+    (``decisions/index.json`` + ``DM-*.md``), so the copy in status.events.jsonl
+    is a prunable mirror — quarantining it (the shipped #980 behaviour) loses
+    nothing.
+    """
+    return (
+        is_retrospective_lifecycle_event(row)
+        or row.get("event_type") in LIFECYCLE_EVENT_TYPES
+    )
+
+
 def _rule_reject_non_status_event(
     row: _Row, _ctx: MigrationContext
 ) -> CanonicalStepResult[_Row]:
     """Rule 1: route non-lane rows that share status.events.jsonl.
 
-    Two dispositions, each mirroring how the other surfaces treat the row:
-
-    - Retrospective lifecycle rows (``type`` envelope, see
-      :func:`specify_cli.status.store.is_retrospective_lifecycle_event`)
-      are PRESERVED in place: the runtime reader skips them during
-      deserialization but retrospective consumers (``retrospect``,
-      ``retrospective.summary``, the runtime bridge) read them back from
-      status.events.jsonl, so quarantining them would destroy contracted
-      provenance. ``_scan_raw_status_rows`` tolerates them for the same
-      reason.
-    - Rows carrying ``event_type`` or ``event_name`` are QUARANTINED —
-      the same presence check ``_scan_raw_status_rows`` uses to flag
-      typed side-log rows, so repair removes exactly what the dry-run
-      scan reports. The ``event_name`` clause is deliberately broader
-      than the reader's skip set (which only skips ``event_name`` values
-      starting with ``retrospective.``): repair quarantines what the
-      reader would reject loudly.
+    - Rows whose only per-mission home is this file
+      (:func:`_is_preserved_non_lane_row`: retrospective + canonical lifecycle
+      events) are PRESERVED in place — the runtime reader skips them during lane
+      reduction but they are contracted data; quarantining them (issue #2376)
+      emptied healthy mission logs.
+    - Any other ``event_type`` / ``event_name`` row is QUARANTINED (its canonical
+      state, if any, lives elsewhere). ``_scan_raw_status_rows`` flags the same
+      class before a TeamSpace dry-run.
     """
-    if is_retrospective_lifecycle_event(row):
+    if _is_preserved_non_lane_row(row):
         return CanonicalStepResult(
             state=row,
             actions=(),

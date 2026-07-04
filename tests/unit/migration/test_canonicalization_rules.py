@@ -86,9 +86,13 @@ def _base_row(**overrides: Any) -> _Row:
 @pytest.mark.parametrize(
     "row, expect_error",
     [
-        # happy case — event_type present → quarantine error
+        # generic event_type (not a canonical lifecycle event) → quarantined;
+        # its canonical state, if any, lives in another store (#2376 / #980)
         ({"event_type": "some_event", "wp_id": "WP01"}, "quarantined_non_status_event"),
-        # happy case — event_name present → quarantine error
+        # canonical lifecycle event whose only per-mission home is this file →
+        # PRESERVED in place, never quarantined (#2376)
+        ({"event_type": "MissionCreated", "wp_id": "WP01"}, "preserved_non_lane_event"),
+        # bare event_name present → quarantine error
         ({"event_name": "custom_event"}, "quarantined_non_status_event"),
         # retrospective lifecycle type events → preserved in place, never quarantined
         ({"type": "RetrospectiveCaptured", "wp_id": "WP01"}, "preserved_non_lane_event"),

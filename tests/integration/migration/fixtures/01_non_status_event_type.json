@@ -1,5 +1,5 @@
 {
-  "description": "Rule 1: non-status event rejected (event_type present) — early return quarantine",
+  "description": "Rule 1: non-status event rejected (generic event_type present) — early return quarantine",
   "input": {
     "data": {"event_type": "some_event", "wp_id": "WP01", "to_lane": "done"},
     "mission_slug": "test-mission",
