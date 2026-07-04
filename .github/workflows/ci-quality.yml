@@ -122,6 +122,7 @@ jobs:
       e2e: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.e2e }}
       docs: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.docs }}
       glossary: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.glossary }}
+      acceptance: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.acceptance }}
       # Raw catch-all signal for the quality-gate decision script (FR-011):
       # true iff any_src matched but no named group did.
       unmatched: ${{ steps.unmatched.outputs.unmatched }}
@@ -265,6 +266,17 @@ jobs:
             glossary:
               - 'src/glossary/**'
               - 'tests/glossary/**'
+            # acceptance: canonical-acceptance + gitignore/derived-views state
+            # surfaces (src/specify_cli/acceptance + src/specify_cli/state) plus
+            # the tests that exercise them, so a change to those src cones
+            # deterministically triggers the core-misc jobs that run them
+            # instead of relying on the fail-closed catch-all (#2034 / #1933).
+            acceptance:
+              - 'src/specify_cli/acceptance/**'
+              - 'src/specify_cli/state/**'
+              - 'tests/specify_cli/test_canonical_acceptance.py'
+              - 'tests/specify_cli/test_gitignore_contract.py'
+              - 'tests/specify_cli/upgrade/migrations/test_m_3_2_4_derived_views_gitignore.py'
             # FR-010 probe group (Decision 7b): matches ANY src change. The
             # ``unmatched`` step below computes ``any_src AND NOT (any named
             # group)`` from the filter's own outputs; a true result forces the
@@ -312,7 +324,8 @@ jobs:
             "${{ steps.filter.outputs.kernel }}" \
             "${{ steps.filter.outputs.doctrine }}" \
             "${{ steps.filter.outputs.execution_context }}" \
-            "${{ steps.filter.outputs.glossary }}"; do
+            "${{ steps.filter.outputs.glossary }}" \
+            "${{ steps.filter.outputs.acceptance }}"; do
             if [ "$group_hit" = "true" ]; then
               matched=true
             fi
@@ -1309,7 +1322,7 @@ jobs:
     needs: [changes, kernel-tests, fast-tests-doctrine]
     if: >-
       always() &&
-      (needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.execution_context == 'true' || needs.changes.outputs.glossary == 'true') &&
+      (needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.execution_context == 'true' || needs.changes.outputs.glossary == 'true' || needs.changes.outputs.acceptance == 'true') &&
       needs.kernel-tests.result != 'failure' &&
       needs.fast-tests-doctrine.result != 'failure'
     steps:
@@ -1419,7 +1432,7 @@ jobs:
     needs: [changes, fast-tests-core-misc]
     if: >-
       always() &&
-      (needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.execution_context == 'true') &&
+      (needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.execution_context == 'true' || needs.changes.outputs.acceptance == 'true') &&
       needs.fast-tests-core-misc.result != 'failure' &&
       (
         github.event_name != 'pull_request' ||
@@ -3218,7 +3231,7 @@ jobs:
               "fast-tests-dashboard": ["dashboard", "status"],
               "fast-tests-upgrade": ["upgrade", "status"],
               "fast-tests-cli": ["cli"],
-              "fast-tests-core-misc": ["core_misc", "execution_context", "glossary"],
+              "fast-tests-core-misc": ["core_misc", "execution_context", "glossary", "acceptance"],
               "fast-tests-docs": ["docs"],
               "fast-tests-charter": ["charter"],
               "fast-tests-agent": ["agent"],
@@ -3237,7 +3250,7 @@ jobs:
               "integration-tests-upgrade": ["upgrade"],
               "integration-tests-cli": ["cli"],
               "integration-tests-agent": ["agent"],
-              "integration-tests-core-misc": ["core_misc", "execution_context"],
+              "integration-tests-core-misc": ["core_misc", "execution_context", "acceptance"],
               "e2e-cross-cutting": ["e2e", "core_misc", "execution_context"],
               "restart-daemon-nfr-timing": ["cli"],
               "consumer-compatibility": ["release"],
