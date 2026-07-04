@@ -237,6 +237,12 @@ _CATEGORY_1_AUTO_DISCOVERED_MIGRATIONS: frozenset[str] = frozenset(
         # m_3_2_0rc35_sync_state_gitignore, which is why that module is no longer
         # an orphan and was removed from this allowlist.)
         "specify_cli.upgrade.migrations.m_3_2_3_encoding_provenance_gitignore_backfill",
+        # 3.2.4 derived-mission-views gitignore backfill migration (#2370):
+        # auto-discovered via pkgutil.iter_modules + @MigrationRegistry.register;
+        # never statically imported by runtime code. Landed in #2370 without its
+        # allowlist entry (the core-misc path filter was not triggered there);
+        # the gap surfaced here. Same sibling shape as the m_3_2_3 backfill above.
+        "specify_cli.upgrade.migrations.m_3_2_4_derived_views_gitignore_backfill",
     }
 )
 
