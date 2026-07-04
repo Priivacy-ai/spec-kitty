@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-07-04T14:42:29.290542+00:00",
+  "flattened": false,
+  "friendly_name": "org charter activations runtime wiring",
+  "mission_id": "01KWPS9E99YZ6QFK7PM8B6J0VY",
+  "mission_number": null,
+  "mission_slug": "org-charter-activations-runtime-wiring-01KWPS9E",
+  "mission_type": "software-dev",
+  "purpose_context": "This mission advances org charter activations runtime wiring on design/org-charter-activations-2365 so stakeholders can track the work from mission creation onward.",
+  "purpose_tldr": "org charter activations runtime wiring",
+  "slug": "org-charter-activations-runtime-wiring-01KWPS9E",
+  "target_branch": "design/org-charter-activations-2365",
+  "topology": "single_branch"
+}
