@@ -175,6 +175,51 @@ def test_derive_scopes_double_star_to_its_prefix(tmp_path: Path) -> None:
     assert not any("internal/" in url for url in urls)
 
 
+def test_resource_block_md_kept_verbatim_never_html(tmp_path: Path) -> None:
+    """Resource files are copied verbatim by DocFX — never rendered (#2348).
+
+    A ``*.md`` matched by a *resource* glob (e.g. ``assets/**``) is published
+    at its literal path; mapping it to ``.html`` fabricates a phantom baseline
+    URL (witnessed live: ``assets/index.html`` 404 while ``assets/index.md``
+    serves 200).
+    """
+    docs = tmp_path / "docs"
+    _write(docs / "assets" / "index.md")
+    docfx = docs / "docfx.json"
+    docfx.write_text(
+        json.dumps({"build": {"content": [], "resource": [{"files": ["assets/**"]}]}}),
+        encoding="utf-8",
+    )
+
+    urls = derive_urls_from_source(docs, docfx, site_url=_SITE)
+
+    assert urls == [f"{_SITE}assets/index.md"]
+    assert f"{_SITE}assets/index.html" not in urls
+
+
+def test_content_block_md_mapping_unchanged_beside_resource_block(tmp_path: Path) -> None:
+    """The md→html mapping still applies to content blocks — and only to them."""
+    docs = tmp_path / "docs"
+    _write(docs / "index.md")
+    _write(docs / "assets" / "index.md")
+    docfx = docs / "docfx.json"
+    docfx.write_text(
+        json.dumps(
+            {
+                "build": {
+                    "content": [{"files": ["index.md"]}],
+                    "resource": [{"files": ["assets/**"]}],
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    urls = derive_urls_from_source(docs, docfx, site_url=_SITE)
+
+    assert urls == [f"{_SITE}assets/index.md", f"{_SITE}index.html"]
+
+
 def test_build_manifest_shape_and_counts() -> None:
     urls = [f"{_SITE}b.html", f"{_SITE}a.html", f"{_SITE}b.html"]
 
