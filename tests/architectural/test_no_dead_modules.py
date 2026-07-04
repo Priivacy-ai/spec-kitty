@@ -258,7 +258,11 @@ _CATEGORY_2_BUILD_SCHEMA_GENERATORS: frozenset[str] = frozenset(
     {
         "doctrine.agent_profiles.schema_models",
         "doctrine.import_candidates.models",
-        "doctrine.model_task_routing.models",
+        # doctrine.model_task_routing.models removed (model-discipline-dispatch-binding-01KWPW36
+        # WP03): ProfileInvocationExecutor.invoke() now wires loader.py/evaluator.py into the
+        # dispatch seam, and both import this module -- it has a live src/ caller as of WP03's
+        # _compute_recommendation() wiring, so it no longer belongs in this build-script-only
+        # allowlist.
         # constant module consumed by scripts/docs/anti_sprawl_ratchet.py
         # (wired from scripts/, not src/) — same pattern as
         # scripts/generate_schemas.py. COMMON_DOCS_DIRECTIVE_ID is the
