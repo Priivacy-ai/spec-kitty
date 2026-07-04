@@ -50,9 +50,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (b) `spec-kitty materialize` writes regenerable views to `.kittify/derived/`,
   which was **not** in the runtime gitignore set (unlike sibling `.kittify/`
   paths), so it dirtied the tree and failed accept's `git_dirty` check — the
-  `derived/` views are now a registered `IGNORED` state surface, so
-  `.kittify/derived/` is emitted into `.gitignore` on init/upgrade. The six
-  meaningful accept checks still gate.
+  `derived/` views are now a registered `IGNORED` state surface (so fresh
+  `spec-kitty init` gitignores it), and a dedicated backfill migration
+  (`3.2.4_derived_mission_views_gitignore_backfill`) adds `.kittify/derived/`
+  to `.gitignore` on `spec-kitty upgrade` for already-initialised projects
+  (the runtime-hygiene migrations previously only knew a hardcoded subset of
+  entries). The six meaningful accept checks still gate.
 - **The Op-index performance cache is now gitignored (#2341).**
   `kitty-ops/ops-index.jsonl` — the machine-local reverse-scan cache that powers
   `spec-kitty invocations list` — was never added to `.gitignore`, so a
