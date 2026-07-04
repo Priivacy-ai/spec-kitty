@@ -350,6 +350,65 @@ class TestNegativeInvariants:
 
         assert results[0].result == "confirmed_absent"
 
+    def test_grep_absence_scope_excludes_prose_false_positive(self, tmp_path):
+        """#1834(c): a pattern present ONLY in a mission's own prose (docs/spec)
+        must NOT false-positive as still_present when the invariant is scoped to
+        a code dir. Whole-repo would find the prose mention; the scope excludes
+        it -> confirmed_absent.
+        """
+        pattern = "old_legacy_route"
+        # Prose path that mentions the pattern (the mission's own WP/spec text).
+        (tmp_path / "kitty-specs" / "m").mkdir(parents=True)
+        (tmp_path / "kitty-specs" / "m" / "spec.md").write_text(
+            f"We removed the {pattern} surface entirely.\n", encoding="utf-8"
+        )
+        # Code dir that is genuinely clean of the pattern.
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "app.py").write_text("def main(): pass\n")
+
+        scoped = NegativeInvariant(
+            "NI-01", "No legacy route in code",
+            "grep_absence",
+            verification_command=pattern,
+            scope="src",
+        )
+        assert enforce_negative_invariants(tmp_path, [scoped])[0].result == (
+            "confirmed_absent"
+        )
+
+        # Sanity: the SAME invariant without a scope finds the prose mention and
+        # (wrongly, for the mission's purpose) reports still_present — proving the
+        # scope is what excludes the false positive.
+        unscoped = NegativeInvariant(
+            "NI-02", "No legacy route anywhere",
+            "grep_absence",
+            verification_command=pattern,
+        )
+        assert enforce_negative_invariants(tmp_path, [unscoped])[0].result == (
+            "still_present"
+        )
+
+    def test_grep_absence_scope_still_catches_offender_in_scope(self, tmp_path):
+        """A scoped invariant still reports still_present when the pattern IS
+        present inside the scoped code path — scoping narrows, it does not
+        blind the check."""
+        pattern = "old_legacy_route"
+        (tmp_path / "src").mkdir()
+        (tmp_path / "src" / "app.py").write_text(f"{pattern} = '/old'\n")
+        (tmp_path / "docs").mkdir()
+        (tmp_path / "docs" / "guide.md").write_text("nothing here\n")
+
+        scoped = NegativeInvariant(
+            "NI-01", "No legacy route in code",
+            "grep_absence",
+            verification_command=pattern,
+            scope="src",
+        )
+        result = enforce_negative_invariants(tmp_path, [scoped])[0]
+        assert result.result == "still_present"
+        # Scope survives enforcement (round-trips on re-serialization).
+        assert result.scope == "src"
+
     def test_custom_command_pass(self, tmp_path):
         invariants = [
             NegativeInvariant(
