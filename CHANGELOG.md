@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shows under its real title and canonical ULID; status/board display still uses
   the coordination surface. `lifecycle.json` now also carries `mission_id`. No
   change for merged/idle missions.
+
 - **`mission close` / `spec-kitty merge` now commit the retrospective they
   auto-generate, instead of leaving the durable event log dirty.** Closing a
   mission that was merged via the legacy plain-git/GitHub path (so merge-time

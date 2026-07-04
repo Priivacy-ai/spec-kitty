@@ -198,6 +198,49 @@ class TestPrimaryFirstIdentity:
 
         assert mission_id == self._ULID
 
+    def test_traversal_guard_valueerror_falls_back_to_scanned_dir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # resolve_planning_read_dir raises ValueError on a traversal-unsafe
+        # segment — the dashboard scan must fall back, never crash (#2331).
+        scanned = tmp_path / "kitty-specs" / self._SLUG
+        _write_meta(scanned, mission_id=self._ULID)
+
+        def _raise(*_args: object, **_kwargs: object) -> Path:
+            raise ValueError("unsafe path segment")
+
+        monkeypatch.setattr(
+            "specify_cli.dashboard.scanner.resolve_planning_read_dir", _raise
+        )
+
+        mission_id, _mission_number = _resolve_identity_primary_first(tmp_path, scanned)
+
+        assert mission_id == self._ULID
+
+    def test_ambiguous_selector_falls_back_to_scanned_dir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # MissionSelectorAmbiguous (two same-slug missions across surfaces) must
+        # keep the scan alive on the scanned copy, not crash the dashboard.
+        from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
+
+        scanned = tmp_path / "kitty-specs" / self._SLUG
+        _write_meta(scanned, mission_id=self._ULID)
+
+        def _raise(*_args: object, **_kwargs: object) -> Path:
+            raise MissionSelectorAmbiguous(
+                handle=self._SLUG,
+                candidates=[self._SLUG, f"{self._SLUG}-copy"],
+            )
+
+        monkeypatch.setattr(
+            "specify_cli.dashboard.scanner.resolve_planning_read_dir", _raise
+        )
+
+        mission_id, _mission_number = _resolve_identity_primary_first(tmp_path, scanned)
+
+        assert mission_id == self._ULID
+
 
 # ---------------------------------------------------------------------------
 # T047 — Display ordering
