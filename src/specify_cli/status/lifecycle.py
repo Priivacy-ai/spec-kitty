@@ -65,6 +65,11 @@ class MissionLifecycleResult:
     review_wp_count: int
     terminal_wp_count: int
     has_event_log: bool
+    # Canonical mission identity (#2331). Surfaced in ``lifecycle.json`` so the
+    # derived view carries the ULID, not only the slug — letting a consumer (e.g.
+    # the dashboard registry) re-link a mission to its canonical id from a
+    # materialized view. ``None`` only for pre-3.1.1 missions without a mission_id.
+    mission_id: str | None = None
     # Post-mission lifecycle facts (WP01 / FR-002). ``post_mission_events`` holds
     # the ``MissionReopened`` + ``FollowUpRecorded`` envelopes sorted by
     # ``(timestamp, event_id)`` so ``lifecycle.json`` stays byte-stable; rendered
@@ -78,6 +83,7 @@ class MissionLifecycleResult:
     def to_dict(self) -> dict[str, Any]:
         return {
             "mission_slug": self.mission_slug,
+            "mission_id": self.mission_id,
             "mission_number": self.mission_number,
             "mission_type": self.mission_type,
             "state": self.state,
@@ -394,6 +400,7 @@ def derive_mission_lifecycle(
 
     return MissionLifecycleResult(
         mission_slug=snapshot.mission_slug or identity.mission_slug or feature_dir.name,
+        mission_id=identity.mission_id,
         mission_number=identity.mission_number,
         mission_type=identity.mission_type,
         state=mission_state,

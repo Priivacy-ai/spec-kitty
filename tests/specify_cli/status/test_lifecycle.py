@@ -243,3 +243,26 @@ def test_is_mission_completed_false_for_recoverable_no_events(tmp_path: Path) ->
     assert is_mission_completed(
         feature_dir, now=datetime(2026, 4, 22, 12, 0, tzinfo=UTC)
     ) is False
+
+
+def test_lifecycle_carries_mission_id(tmp_path: Path) -> None:
+    """#2331: the derived lifecycle + lifecycle.json expose the canonical ULID,
+    so a consumer can re-link a mission to its identity from a materialized view."""
+    ulid = "01KWN9D0MJ79NK1T90RWYY2Y7R"
+    feature_dir = tmp_path / "kitty-specs" / "054-carries-id"
+    _write_meta(feature_dir, mission_id=ulid)
+
+    result = derive_mission_lifecycle(
+        feature_dir, now=datetime(2026, 4, 22, 12, 0, tzinfo=UTC)
+    )
+    assert result.mission_id == ulid
+    assert result.to_dict()["mission_id"] == ulid
+
+    derived_dir = tmp_path / ".kittify" / "derived"
+    generate_lifecycle_json(
+        feature_dir, derived_dir, now=datetime(2026, 4, 22, 12, 0, tzinfo=UTC)
+    )
+    written = json.loads(
+        (derived_dir / "054-carries-id" / "lifecycle.json").read_text(encoding="utf-8")
+    )
+    assert written["mission_id"] == ulid
