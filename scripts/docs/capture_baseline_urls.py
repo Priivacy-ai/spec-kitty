@@ -12,20 +12,43 @@ The capture MUST run before WP03 moves the tree. Once the move lands the old
 URLs can no longer be observed, and any coverage measured against a post-move
 denominator silently reports a false 100% (see ``contracts/redirect-stub.md``,
 "Pre-move baseline capture (IC-02b)"). For the same reason the committed
-manifest MUST NOT be regenerated after WP03.
+manifest MUST NOT be regenerated after WP03 — wholesale regeneration is
+forbidden. A *targeted entry-level amendment* of the committed manifest is
+permitted ONLY on two grounds:
 
-Two capture methods, both producing the identical normalised URL shape:
+(i)  removing URLs proven never-published (a capture defect, e.g. the phantom
+     ``assets/index.html`` of #2348); or
+(ii) an explicit operator/HiC ruling that accepts URL breakage instead of
+     redirect stubs (e.g. retiring legacy URLs outright).
+
+Every amendment MUST be recorded in the manifest's ``amendments`` list
+(date, PR, ruling, removed/added entries) so the NFR-002 denominator keeps
+its provenance trail.
+
+Two capture methods with two distinct roles (their URL sets are NOT
+identical by design):
 
 ``--site-dir _site`` (method ``docfx-site-walk``)
     Walk an emitted DocFX ``_site`` tree and normalise every ``*.html`` page
-    into its published URL. This is the canonical method and the one CI uses,
-    because it observes exactly what DocFX published.
+    into its published URL. This is the canonical *baseline-capture* method
+    and the one CI uses, because it observes exactly what DocFX published.
+    The baseline universe is deliberately restricted to ``*.html``: NFR-002
+    protects URLs via ``<meta http-equiv="refresh">`` stubs, an HTML
+    mechanism — a verbatim non-HTML resource URL (e.g. a resource-block
+    ``*.md`` copied as-is, like ``assets/index.md``) cannot be
+    redirect-protected and is therefore live-but-outside the baseline, on
+    purpose. ``redirect_stub_generator.load_baseline`` fails loud if a
+    non-``.html`` entry ever reaches the committed manifest.
 
 (default) derive-from-source (method ``derived-from-source``)
     Resolve the ``docfx.json`` content/resource globs against the live source
-    tree and map each non-excluded ``*.md`` page to its ``.html`` URL (plus
-    standalone ``*.html`` resources). This is the deterministic mapping DocFX
-    applies, used when DocFX/.NET is not available locally.
+    tree and map each non-excluded content ``*.md`` page to its ``.html`` URL,
+    keeping resource-block files (including resource ``*.md``) at their
+    verbatim paths. This models the *full served URL set* — the deterministic
+    mapping DocFX applies — which the no-404/coverage simulation needs, and
+    is a superset of the ``.html``-only baseline universe. Used when
+    DocFX/.NET is not available locally; when its output feeds a baseline
+    manifest, non-``.html`` entries must not enter the committed baseline.
 
 Reproducing the canonical (site-walk) capture — DocFX is .NET, CI-only today
 (invoked by ``.github/workflows/docs-pages.yml``; not installed locally):

@@ -78,7 +78,9 @@ Two neighbouring states are *not* legacy:
 
    `null` (or a missing key) means the bookkeeping transaction treats the
    mission as legacy. A missing `meta.json` altogether is treated as
-   new-topology, not legacy.
+   new-topology, not legacy — as is a corrupt (unparseable) one, which
+   additionally surfaces as an error via `backfill-topology` (exit 1, see
+   [troubleshooting](#spec-kitty-migrate-backfill-topology-exits-1)).
 
 2. **Audit the stored topology.** The read-only audit walks `kitty-specs/`
    and reports each mission's stored shape and `flattened` flag:
