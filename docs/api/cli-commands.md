@@ -50,19 +50,40 @@ For non-obvious runtime behaviour an operator may encounter:
  Validate mission readiness before merging to main.
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission           TEXT  Mission slug to accept                             │
-│ --mode              TEXT  Acceptance mode: auto, pr, local, or checklist     │
-│                           [default: auto]                                    │
-│ --actor             TEXT  Name to record as the acceptance actor             │
-│ --test              TEXT  Validation command executed (repeatable)           │
-│ --json                    Emit JSON instead of formatted text                │
-│ --lenient                 Skip strict metadata validation                    │
-│ --no-commit               Report acceptance readiness without writing        │
-│                           metadata or status changes                         │
-│ --diagnose                Diagnose acceptance blockers without writing       │
-│                           metadata or matrix artifacts                       │
-│ --allow-fail              Return checklist even when issues remain           │
-│ --help                    Show this message and exit.                        │
+│ --mission                                        TEXT  Mission slug to       │
+│                                                        accept                │
+│ --mode                                           TEXT  Acceptance mode:      │
+│                                                        auto, pr, local, or   │
+│                                                        checklist             │
+│                                                        [default: auto]       │
+│ --actor                                          TEXT  Name to record as the │
+│                                                        acceptance actor      │
+│ --test                                           TEXT  Validation command    │
+│                                                        executed (repeatable) │
+│ --json                                                 Emit JSON instead of  │
+│                                                        formatted text        │
+│ --lenient                                              Skip strict metadata  │
+│                                                        validation            │
+│ --no-commit                                            Report acceptance     │
+│                                                        readiness without     │
+│                                                        writing metadata or   │
+│                                                        status changes        │
+│ --diagnose                                             Diagnose acceptance   │
+│                                                        blockers without      │
+│                                                        writing metadata or   │
+│                                                        matrix artifacts      │
+│ --allow-fail                                           Return checklist even │
+│                                                        when issues remain    │
+│ --normalize-encoding    --no-normalize-encod…          Repair                │
+│                                                        acceptance-artifact   │
+│                                                        encoding              │
+│                                                        (Windows-1252/Latin-1 │
+│                                                        -> UTF-8) before      │
+│                                                        validating.           │
+│                                                        [default:             │
+│                                                        no-normalize-encodin… │
+│ --help                                                 Show this message and │
+│                                                        exit.                 │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -100,6 +121,8 @@ _Authentication commands_
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json                          Emit findings as JSON.                       │
 │ --reset                         Sweep orphan sync daemons.                   │
+│ --force                         With --reset, also clean operator_required   │
+│                                 daemons. No-op without --reset.              │
 │ --unstick-lock                  Force-release a stuck refresh lock.          │
 │ --stuck-threshold        FLOAT  Age (seconds) above which the refresh lock   │
 │                                 is considered stuck.                         │
@@ -821,12 +844,12 @@ _Query workspace context information_
 
 ## spec-kitty dispatch
 
-_Dispatch a request to a governed Op._
+_Dispatch a request to a governed Op (canonical surface)._
 
 ```
  Usage: spec-kitty dispatch [OPTIONS] REQUEST
 
- Dispatch a request to a governed Op.
+ Dispatch a request to a governed Op (canonical surface).
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
 │ *    request      TEXT  Natural language request. The router picks the best  │
@@ -864,6 +887,8 @@ _Project health diagnostics_
 │ workspaces          Report .worktrees/ husk directories (entries lacking a   │
 │                     .git entry).                                             │
 │ identity            Report mission-identity health across kitty-specs/.      │
+│ topology            Report each mission's STORED topology across             │
+│                     kitty-specs/.                                            │
 │ sparse-checkout     Detect and optionally remediate legacy sparse-checkout   │
 │                     state.                                                   │
 │ shim-registry       Check for overdue compatibility shims in the shim        │
@@ -943,6 +968,15 @@ _Project health diagnostics_
  its on-disk version (``git describe`` for git-managed packs, otherwise the
  ``pack-manifest.yaml`` ``pack_version``), per-artifact YAML counts, and
  ``org-charter.yaml`` policy status when present.
+
+ Override governance (FR-010 / FR-012): when org packs are configured, any
+ ``org:``-provenance override of a built-in DRG node that is NOT sanctioned
+ by ``.kittify/doctrine/replaceable-builtins.yaml`` is reported as an
+ ``unsanctioned_overrides`` finding and flips the report unhealthy (RC=1).
+ Project-tier (``.kittify/doctrine/``) overrides of built-ins are
+ intentionally **ungoverned** — project doctrine is the trusted operator tier
+ and is not gated by the consumer-facing allowlist; only org-tier overrides
+ are adjudicated.
 
  Examples:
      spec-kitty doctor doctrine
@@ -2020,6 +2054,8 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
 │ backfill-identity    Write a ULID mission_id into any meta.json that lacks   │
 │                      one.                                                    │
+│ backfill-topology    Persist each legacy mission's MissionTopology into its  │
+│                      meta.json.                                              │
 │ charter-encoding     Scan charter content for non-UTF-8 encodings;           │
 │                      normalize-or-fail-loud.                                 │
 │ normalize-lifecycle  Normalize legacy ``kitty-specs`` missions for the MVP   │
@@ -2091,14 +2127,19 @@ _Migration commands: update .kittify/ layout and backfill identity fields in leg
  - ``1`` — one or more ``error`` results (corrupt / unreadable meta.json)
 
  Examples:
+
      spec-kitty migrate backfill-topology --dry-run --json
+
      spec-kitty migrate backfill-topology --mission 083-foo-bar
+
      spec-kitty migrate backfill-topology
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json                 Emit per-mission result list as structured JSON       │
 │ --dry-run              Report what would change without writing any files.   │
+│                        The JSON shape is identical to a live run.            │
 │ --mission        SLUG  Scope to a single mission slug (e.g. 083-foo-bar).    │
+│                        Omit to process all.                                  │
 │ --help                 Show this message and exit.                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
@@ -2230,10 +2271,14 @@ _Inspect mission types for this project._
 
  Close a mission. Wraps FR-016 lifecycle teardown.
 
- Without ``--discard``: tear down the coordination worktree only.
- This is a safe no-op after a successful ``spec-kitty merge`` (the
- merge command already runs the same teardown); useful when the
- teardown was skipped (e.g. legacy merge path) or interrupted.
+ Without ``--discard``: run the merge-completion teardown — persist the
+ mission retrospective to its durable home and tear down the coordination
+ worktree. Idempotent after a successful ``spec-kitty merge`` (which already
+ ran the same teardown); useful when the teardown was skipped (e.g. the legacy
+ plain-git/GitHub merge path) or interrupted. NOTE: on a mission that was
+ merged without a retrospective, this generates one
+ (``kitty-specs/<slug>/retrospective.yaml``) plus a ``RetrospectiveCaptured``
+ event and commits both — it is not a pure no-op in that case.
 
  With ``--discard``: abandon the mission mid-flight. Deletes the
  coordination branch and every lane branch named in
@@ -2495,10 +2540,14 @@ _Inspect mission types for this project._
 
  Close a mission. Wraps FR-016 lifecycle teardown.
 
- Without ``--discard``: tear down the coordination worktree only.
- This is a safe no-op after a successful ``spec-kitty merge`` (the
- merge command already runs the same teardown); useful when the
- teardown was skipped (e.g. legacy merge path) or interrupted.
+ Without ``--discard``: run the merge-completion teardown — persist the
+ mission retrospective to its durable home and tear down the coordination
+ worktree. Idempotent after a successful ``spec-kitty merge`` (which already
+ ran the same teardown); useful when the teardown was skipped (e.g. the legacy
+ plain-git/GitHub merge path) or interrupted. NOTE: on a mission that was
+ merged without a retrospective, this generates one
+ (``kitty-specs/<slug>/retrospective.yaml``) plus a ``RetrospectiveCaptured``
+ event and commits both — it is not a pure no-op in that case.
 
  With ``--discard``: abandon the mission mid-flight. Deletes the
  coordination branch and every lane branch named in
@@ -2831,6 +2880,8 @@ _Machine-contract API for external orchestrators (JSON-first)_
 │                       dependencies).                                         │
 │ list-ready            List WPs that are ready to start (planned and all deps │
 │                       approved or done).                                     │
+│ resolve-workspace     Read-only: resolve a WP's lane workspace_path +        │
+│                       prompt_path (+ lane fields).                           │
 │ start-implementation  Composite transition: planned->claimed->in_progress    │
 │                       (idempotent).                                          │
 │ start-review          Transition a WP from for_review to in_review (reviewer │
@@ -2933,6 +2984,26 @@ _Machine-contract API for external orchestrators (JSON-first)_
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty orchestrator-api resolve-workspace
+
+```
+ Usage: spec-kitty orchestrator-api resolve-workspace [OPTIONS]
+
+ Read-only: resolve a WP's lane workspace_path + prompt_path (+ lane fields).
+
+ Does NOT allocate/create/validate-clean/transition — the read-only companion
+ of ``start-implementation`` for a WP already past implementation (e.g. a
+ ``for_review`` WP an external orchestrator wants to review on resume, where
+ calling start-implementation would wrongly re-transition it). Contract >=
+ 1.2.0.
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --mission        TEXT  Mission slug [required]                            │
+│ *  --wp             TEXT  Work package ID [required]                         │
+│    --help                 Show this message and exit.                        │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty orchestrator-api start-implementation
 
 ```
@@ -3011,7 +3082,7 @@ _Machine-contract API for external orchestrators (JSON-first)_
 
 ## spec-kitty plugin
 
-_Plugin bundle commands._
+_Plugin bundle commands_
 
 ```
  Usage: spec-kitty plugin [OPTIONS] COMMAND [ARGS]...
@@ -3033,18 +3104,24 @@ _Plugin bundle commands._
 
  Build a Spec Kitty plugin bundle for a specific target harness.
 
- The bundle is written to <output-dir>/<target>/ and includes a plugin.json
- manifest, rendered command skills, and agent profiles.
+ The bundle is written to ``<output-dir>/<target>/`` and includes a
+ ``plugin.json`` manifest, rendered command skills, and agent profiles.
+
+ Example::
+
+     spec-kitty plugin build --target claude-code
+     spec-kitty plugin build --target claude-code --output-dir /tmp/out
+     spec-kitty plugin build --target claude-code --skip-validate
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ *  --target               TEXT  Plugin target (claude-code, codex).          │
-│                                 [required]                                    │
-│    --output-dir           PATH  Root directory under which the bundle is      │
-│                                 written.                                      │
-│                                 [default: dist/spec-kitty-plugins]            │
-│    --skip-validate              Skip the 'claude plugin validate --strict'    │
-│                                 step.                                         │
-│    --help                       Show this message and exit.                   │
+│                                 [required]                                   │
+│    --output-dir           PATH  Root directory under which the bundle is     │
+│                                 written.                                     │
+│                                 [default: dist/spec-kitty-plugins]           │
+│    --skip-validate              Skip the 'claude plugin validate --strict'   │
+│                                 step.                                        │
+│    --help                       Show this message and exit.                  │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3301,33 +3378,6 @@ _Cross-mission retrospective summary._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
-## spec-kitty spec-commit
-
-```
- Usage: spec-kitty spec-commit [OPTIONS] FILES...
-
- Commit spec artifacts to the mission's resolved placement.
-
- On a protected primary the coordination worktree is materialised on demand
- so the commit lands on the coordination branch (materialize-then-retry).
- On an unprotected or flattened primary the commit is direct.
-
-╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    files      FILES...  Spec artifacts to commit (absolute or relative     │
-│                           paths). Must belong to the mission resolved via    │
-│                           --mission or the kitty-specs/<slug>/ path.         │
-│                           [required]                                         │
-╰──────────────────────────────────────────────────────────────────────────────╯
-╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ *  --message    -m      TEXT  Commit message. [required]                     │
-│    --mission            TEXT  Mission slug (e.g. '001-my-mission'). When     │
-│                               omitted, the slug is derived from the first    │
-│                               file argument's kitty-specs/<slug>/ path.      │
-│    --json                     Output JSON                                    │
-│    --help                     Show this message and exit.                    │
-╰──────────────────────────────────────────────────────────────────────────────╯
-```
-
 ## spec-kitty safe-commit
 
 ```
@@ -3384,21 +3434,65 @@ _Emit the open-Ops reminder for the Claude Code Stop hook._
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
+## spec-kitty spec-commit
+
+```
+ Usage: spec-kitty spec-commit [OPTIONS] FILES...
+
+ Commit spec artifacts to the mission's resolved placement.
+
+ On a protected primary the coordination worktree is materialised on demand
+ so the commit lands on the coordination branch (materialize-then-retry).
+ On an unprotected or flattened primary the commit is direct.
+
+╭─ Arguments ──────────────────────────────────────────────────────────────────╮
+│ *    files      FILES...  Spec artifacts to commit (absolute or relative     │
+│                           paths). Must belong to the mission resolved via    │
+│                           --mission or the kitty-specs/<slug>/ path.         │
+│                           [required]                                         │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ *  --message        -m      TEXT  Commit message. [required]                 │
+│    --mission                TEXT  Mission slug (e.g. '001-my-mission'). When │
+│                                   omitted, the slug is derived from the      │
+│                                   first file argument's kitty-specs/<slug>/  │
+│                                   path.                                      │
+│    --target-branch          TEXT  Short primary branch name used for the     │
+│                                   post-commit ff-advance (WP09 / FR-010).    │
+│                                   Optional.                                  │
+│    --json                         Output JSON.                               │
+│    --help                         Show this message and exit.                │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
 ## spec-kitty specify
 
 ```
- Usage: spec-kitty specify [OPTIONS] FEATURE
+ Usage: spec-kitty specify [OPTIONS] MISSION
 
  Create a feature scaffold in kitty-specs/.
 
 ╭─ Arguments ──────────────────────────────────────────────────────────────────╮
-│ *    feature      TEXT  Feature name or slug (e.g., user-authentication)     │
+│ *    mission      TEXT  Mission name or slug (e.g., user-authentication)     │
 │                         [required]                                           │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
-│ --mission-type        TEXT  Mission type (e.g., software-dev, research)      │
-│ --json                      Emit JSON result                                 │
-│ --help                      Show this message and exit.                      │
+│ --mission-type        TEXT                        Mission type (e.g.,        │
+│                                                   software-dev, research)    │
+│ --topology            [single_branch|lanes|coord  Create-time mission shape: │
+│                       |lanes_with_coord]          single_branch | lanes |    │
+│                                                   coord | lanes_with_coord.  │
+│                                                   Coordination-bearing       │
+│                                                   shapes (coord,             │
+│                                                   lanes_with_coord) mint a   │
+│                                                   coordination branch;       │
+│                                                   branch-flat shapes         │
+│                                                   (single_branch, lanes) do  │
+│                                                   not. Default: coord.       │
+│                                                   [default: coord]           │
+│ --json                                            Emit JSON result           │
+│ --help                                            Show this message and      │
+│                                                   exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 
@@ -3426,6 +3520,12 @@ _Synchronization commands_
 │ workspace  Synchronize workspace with upstream changes.                      │
 │ server     Show or set sync server URL.                                      │
 │ now        Trigger immediate sync of all queued events.                      │
+│ gc         Purge event payloads delivered to all known targets (explicit,    │
+│            destructive).                                                     │
+│ archive    Archive retained event payloads (explicit, non-destructive).      │
+│ migrate    Migrate legacy hash-scoped queue DBs into the append-only event   │
+│            journal.                                                          │
+│ mode       Show or set the event-sync retention x delivery mode.             │
 │ status     Show sync queue status, connection state, and auth info.          │
 │ diagnose   Validate queued events locally against the event schema.          │
 │ doctor     Diagnose sync health: queue, auth, and server connectivity.       │
@@ -3498,11 +3598,12 @@ _Synchronization commands_
 ```
  Usage: spec-kitty sync gc [OPTIONS]
 
- Purge already-delivered event payloads (explicit, destructive).
+ Purge event payloads delivered to all known targets (explicit, destructive).
 
- Deletes journal payload rows only for events delivered to some target;
- undelivered payloads are kept so the durable copy is never lost. The
- delivery ledger is never touched, so delivery history survives (FR-010).
+ Deletes journal payload rows only for events with a terminal-success
+ delivery to **every** registered target; payloads still owed to any known
+ target are kept so the durable, re-drainable copy is never lost (FR-005).
+ The delivery ledger is never touched, so delivery history survives (FR-010).
  Runs only on this explicit invocation — never from ``sync now``.
 
  Examples:
@@ -3520,11 +3621,11 @@ _Synchronization commands_
 
  Migrate legacy hash-scoped queue DBs into the append-only event journal.
 
- Lifts every currently-queued payload from the legacy queue.db and each scoped
- queues/queue-<digest>.db into the event journal, recording per-source
- provenance and quarantining divergent-duplicate collisions into the
- migration-audit store. Source DBs are opened read-only and never modified.
- Exits non-zero when an unresolved conflict blocks cleanup (SC-011).
+ Lifts every currently-queued payload from the legacy ``queue.db`` and each
+ scoped ``queues/queue-<digest>.db`` into the WP03 event journal, recording
+ per-source provenance and quarantining divergent-duplicate collisions into
+ the migration-audit store. Source DBs are opened read-only and are never
+ modified. Exits non-zero when an unresolved conflict blocks cleanup (SC-011).
 
  Examples:
      spec-kitty sync migrate

@@ -79,6 +79,7 @@
       "contract-version",
       "mission-state",
       "list-ready",
+      "resolve-workspace",
       "start-implementation",
       "start-review",
       "transition",

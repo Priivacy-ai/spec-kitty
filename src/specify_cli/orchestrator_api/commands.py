@@ -977,7 +977,7 @@ def resolve_workspace(
     """
     cmd = "resolve-workspace"
     main_repo_root = _get_main_repo_root()
-    _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
+    mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
 
     wp_path = _resolve_wp_file(_planning_read_dir(main_repo_root, mission) / "tasks", wp)
     if wp_path is None:
@@ -985,8 +985,10 @@ def resolve_workspace(
         return
 
     ws = _resolve_existing_workspace(main_repo_root, mission, wp)
+    # --mission accepts mission_id / mid8 / slug; the payload's mission_slug is
+    # the RESOLVED identity, never the raw selector echoed back.
     data: dict = {
-        "mission_slug": mission,
+        **_mission_identity_payload(mission_dir),
         "wp_id": wp,
         "workspace_path": ws.workspace_path,
         "prompt_path": str(wp_path),
