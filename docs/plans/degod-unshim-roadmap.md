@@ -2,7 +2,7 @@
 title: Degod / Unshim Program — Roadmap
 description: 'Sequenced roadmap for degodding and unshimming the codebase — the structural cure for the measured test-friction: the waves, the epic frame, and the invariants.'
 doc_status: active
-updated: '2026-07-01'
+updated: '2026-07-04'
 ---
 # Degod / Unshim Program — Roadmap
 
@@ -71,3 +71,7 @@ Degod (D), Unshim (U), and Seam-bind (S) tracks interleave. Unshim is cheap/para
 ## Immediate next step
 
 **Wave 0 then Wave 1.** Scope the CI-suite-map bind (#2034/#2283) as a small first mission, then tasks.py = #2116 as the degod pilot. The category_4 unshim sweep can run in parallel with either from day one.
+
+## First functional pickup after the program (operator ruling 2026-07-04)
+
+**#1746 — Mission Clarity Layer (P1, milestone 3.2.x)** is the first *functional* mission queued after the degod/unshim/QA cluster completes. The 2026-07-04 backlog revitalization confirmed the whole SI chain (#1733, #1738–#1745) is intact, dependency-ordered, and unimplemented (`tasks/mission_card.py` / `tasks/emi.py` absent). Constraint carried from triage: co-design with #1666's communication-artefact contract — the MC layer's artifacts are exactly the surface #1666 wants under contract.
