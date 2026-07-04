@@ -165,6 +165,27 @@ def test_gate1_fixture_excludes_only_the_documented_generated_shape(
     assert "kitty-specs/index.html" not in uncovered
 
 
+def test_gate1_fixture_red_when_redirect_target_is_dead(tmp_path: Path) -> None:
+    """A redirect whose TARGET does not resolve is not real coverage.
+
+    Mirrors ``redirect_stub_generator.check_coverage``'s ``target_live``
+    requirement (a stub is only real coverage when ``new_path`` resolves to a
+    live page — ``generate()``'s no-404 invariant refuses to emit a stub
+    pointing at a 404 and reports it as a ``dead_targets`` entry instead).
+    Treating "path is a redirect_map key" as sufficient (the pre-fold
+    behaviour) is false confidence: a redirect to a dead page is NOT real
+    coverage, and the SOURCE must still be reported uncovered.
+    """
+    docs, docfx = _stage_docs_tree(tmp_path)
+    derived = _derived_paths(docs, docfx)
+    baseline_paths = sorted(derived | {"how-to/retired-runbook.html"})
+    redirect_map = {"how-to/retired-runbook.html": "how-to/nonexistent-target.html"}
+
+    uncovered = uncovered_urls(baseline_paths, derived, redirect_map)
+
+    assert uncovered == ["how-to/retired-runbook.html"]
+
+
 def test_gate1_live_baseline_is_fully_covered() -> None:
     """The real gate: every committed baseline URL is derived or redirect-covered.
 
