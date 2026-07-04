@@ -9,6 +9,7 @@ on:
     paths:
       - 'src/**'
       - 'docs/**'
+      - 'scripts/docs/**'
       - '.kittify/doctrine/overlays/**'
       - 'tests/**'
       - 'pyproject.toml'
@@ -31,6 +32,7 @@ on:
     paths:
       - 'src/**'
       - 'docs/**'
+      - 'scripts/docs/**'
       - '.kittify/doctrine/overlays/**'
       - 'tests/**'
       - 'pyproject.toml'
@@ -101,6 +103,7 @@ jobs:
       doctrine: ${{ inputs.run_all && 'true' || steps.filter.outputs.doctrine }}
       execution_context: ${{ inputs.run_all && 'true' || steps.filter.outputs.execution_context }}
       e2e: ${{ inputs.run_all && 'true' || steps.filter.outputs.e2e }}
+      docs: ${{ inputs.run_all && 'true' || steps.filter.outputs.docs }}
     steps:
       - uses: actions/checkout@v6
       - uses: dorny/paths-filter@v4
@@ -183,7 +186,6 @@ jobs:
               - 'src/specify_cli/saas/**'
               - 'src/specify_cli/status/**'
               - 'src/specify_cli/tool_surface/**'
-              - 'docs/**'
               - 'tests/architectural/**'
               - 'tests/specify_cli/tool_surface/**'
               - 'tests/kernel/**'
@@ -203,6 +205,17 @@ jobs:
               - '.github/workflows/ci-quality.yml'
               - 'tests/e2e/**'
               - 'tests/cross_cutting/**'
+            # docs: docs-only changes run a dedicated CHEAP job (fast-tests-docs)
+            # instead of the full core-misc code cone. Docs prose, the docs test
+            # suite, and the docs tooling under scripts/docs all map here. This
+            # class ONLY narrows the docs->code direction; every non-docs path
+            # keeps triggering exactly what it triggered before (docs/** was
+            # removed from core_misc, but tests/docs stays selected by the
+            # core-misc jobs so a src change still over-covers docs). See #2359.
+            docs:
+              - 'docs/**'
+              - 'tests/docs/**'
+              - 'scripts/docs/**'
             charter:
               - 'src/charter/**'
               - 'src/specify_cli/charter_runtime/**'
@@ -1250,6 +1263,47 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: fast-test-core-misc-reports
+          path: out/reports/
+
+  # ---------------------------------------------------------------------------
+  # fast-tests-docs: dedicated CHEAP job for docs-only changes (#2359). A
+  # docs/**, tests/docs/**, or scripts/docs/** change sets docs=true and runs
+  # ONLY this job instead of the ~17-minute core-misc code cone. It runs the
+  # full docs test surface (tests/docs) plus the two docs-scanning architectural
+  # guards that must still trigger on docs prose changes (terminology canon and
+  # CLI-reference parity). Marker is `not windows_ci` (NOT `fast`): tests/docs
+  # and both arch guards carry architectural/git_repo/unit markers, so a `fast`
+  # selector would silently deselect them. tests/docs stays ALSO selected by
+  # fast-tests-core-misc + integration-tests-core-misc, so orphan coverage is
+  # unchanged and a src change still over-covers docs (fail-safe).
+  # ---------------------------------------------------------------------------
+  fast-tests-docs:
+    runs-on: ubuntu-latest
+    needs: [changes]
+    if: always() && needs.changes.outputs.docs == 'true'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          python-version: '3.12'
+      - run: uv sync --frozen --all-extras
+      - run: mkdir -p out/reports/coverage
+      - name: "Run fast tests — docs"
+        run: |
+          uv run python -m pytest \
+            tests/docs \
+            tests/architectural/test_no_legacy_terminology.py \
+            tests/architectural/test_docs_cli_reference_parity.py \
+            -m "not windows_ci" -q --tb=short \
+            -n auto --dist loadfile \
+            --durations=50 \
+            --cov=scripts/docs \
+            --cov-report=xml:out/reports/coverage/coverage-fast-docs.xml
+      - name: "Upload fast-docs coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fast-test-docs-reports
           path: out/reports/
 
   # ---------------------------------------------------------------------------
@@ -2932,6 +2986,7 @@ jobs:
       - fast-tests-upgrade
       - fast-tests-cli
       - fast-tests-core-misc
+      - fast-tests-docs
       - fast-tests-charter
       - fast-tests-agent
       - integration-tests-doctrine
@@ -2982,6 +3037,7 @@ jobs:
             "${{ needs.fast-tests-upgrade.result }}" \
             "${{ needs.fast-tests-cli.result }}" \
             "${{ needs.fast-tests-core-misc.result }}" \
+            "${{ needs.fast-tests-docs.result }}" \
             "${{ needs.fast-tests-charter.result }}" \
             "${{ needs.fast-tests-agent.result }}" \
             "${{ needs.integration-tests-doctrine.result }}" \
