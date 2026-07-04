@@ -77,6 +77,12 @@ class NegativeInvariant:
     verification_command: str | None = None
     result: str = "pending"  # "confirmed_absent" | "still_present" | "pending" | "verification_error"
     evidence: str | None = None
+    # Optional path-scope for ``grep_absence``: whitespace-separated repo-relative
+    # search root(s). When set, the grep runs only under these paths instead of
+    # the whole repo, so a pattern that a mission's OWN spec/plan/WP prose
+    # mentions does not false-positive as "still_present" (#1834). Default
+    # (``None``) preserves the whole-repo search (unchanged behaviour).
+    scope: str | None = None
     extras: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -87,6 +93,10 @@ class NegativeInvariant:
     def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
         extras = data.pop("extras", {}) or {}
+        # Omit an unset ``scope`` so existing matrices are not rewritten with a
+        # ``scope: null`` key on their next serialization.
+        if data.get("scope") is None:
+            data.pop("scope", None)
         data.update(extras)
         return data
 
@@ -360,8 +370,13 @@ def _check_grep_absence(repo_root: Path, ni: NegativeInvariant) -> NegativeInvar
             verification_command=ni.verification_command,
             result="pending",
             evidence="No grep pattern specified in verification_command",
+            scope=ni.scope,
             extras=ni.extras,
         )
+
+    # A scoped invariant restricts the grep to its declared repo-relative
+    # search root(s); an unscoped one searches the whole repo (``.``), as before.
+    search_roots = ni.scope.split() if ni.scope else ["."]
 
     try:
         result = subprocess.run(
@@ -372,7 +387,7 @@ def _check_grep_absence(repo_root: Path, ni: NegativeInvariant) -> NegativeInvar
                 "--exclude-dir=.git",
                 "--",
                 ni.verification_command,
-                ".",
+                *search_roots,
             ],
             cwd=str(repo_root),
             capture_output=True,
@@ -386,6 +401,7 @@ def _check_grep_absence(repo_root: Path, ni: NegativeInvariant) -> NegativeInvar
             verification_command=ni.verification_command,
             result="verification_error",
             evidence=f"grep failed to start: {exc}",
+            scope=ni.scope,
             extras=ni.extras,
         )
     if result.returncode == 1:
@@ -397,6 +413,7 @@ def _check_grep_absence(repo_root: Path, ni: NegativeInvariant) -> NegativeInvar
             verification_command=ni.verification_command,
             result="confirmed_absent",
             evidence="grep found zero matches",
+            scope=ni.scope,
             extras=ni.extras,
         )
     if result.returncode == 0:
@@ -408,6 +425,7 @@ def _check_grep_absence(repo_root: Path, ni: NegativeInvariant) -> NegativeInvar
             verification_command=ni.verification_command,
             result="still_present",
             evidence=f"grep found matches: {'; '.join(matches)}",
+            scope=ni.scope,
             extras=ni.extras,
         )
     details = (result.stderr or result.stdout).strip()[:500]
@@ -418,6 +436,7 @@ def _check_grep_absence(repo_root: Path, ni: NegativeInvariant) -> NegativeInvar
         verification_command=ni.verification_command,
         result="verification_error",
         evidence=f"grep verification failed (exit {result.returncode}): {details}",
+        scope=ni.scope,
         extras=ni.extras,
     )
 
