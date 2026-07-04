@@ -38,6 +38,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Subtask guard no longer misattributes a later WP's checkboxes (#2346, also closes #2324).** `_check_unchecked_subtasks` entered a WP's section on *any* heading that merely mentioned its id, so a dependent heading like `### WP03 — … (depends: WP01, WP02)` re-entered WP01/WP02's section and harvested WP03's unchecked `- [ ] T0xx` rows as the earlier WP's blockers — spuriously blocking that WP's lane transition. A heading now belongs to the WP named by its **first** `WPxx` token, not any mention.
   - **`grep_absence` negative invariants accept an optional path-scope (#1834).** The acceptance gate ran `grep -r <pattern> .` over the whole repo, so a negative-invariant pattern that a mission's own spec/plan/WP prose mentioned false-positived as `still_present`. `NegativeInvariant` now carries an optional `scope` (whitespace-separated repo-relative search roots); when set, the grep runs only under those paths. Default (unscoped) preserves the whole-repo search, and `scope` is omitted from serialization when unset so existing matrices are untouched.
   - **Documented merge-before-accept for merged-post-state invariants (#1834).** The accept runbook (`docs/guides/accept-and-merge.md`) now records that the accept gate re-runs each negative-invariant `verification_command` **live** (so a hand-set `overall_verdict` does not stick), and that a mission whose invariants assert the *merged* post-state must run `spec-kitty merge` (local) before `spec-kitty accept`.
+- **A mission fully implemented by `spec-kitty-orchestrator` can now pass
+  `spec-kitty accept` — two mechanical false-positives removed (#2369).** The
+  accept gate is the mission-level readiness check (all-done, subtasks,
+  clarifications, artifacts, clean tree, paths), but two checks always failed on
+  orchestrator-completed missions, forcing operators to bypass accept entirely:
+  (a) the strict-metadata check required `shell_pid` on **every** WP, including
+  terminal ones — but `shell_pid` is an interactive-`spec-kitty next` artifact the
+  orchestrator never stamps; it is now **lane-gated to active lanes exactly like
+  `assignee`**, so a done/approved WP no longer needs it (an active WP still does).
+  (b) `spec-kitty materialize` writes regenerable views to `.kittify/derived/`,
+  which was **not** in the runtime gitignore set (unlike sibling `.kittify/`
+  paths), so it dirtied the tree and failed accept's `git_dirty` check — the
+  `derived/` views are now a registered `IGNORED` state surface, so
+  `.kittify/derived/` is emitted into `.gitignore` on init/upgrade. The six
+  meaningful accept checks still gate.
 - **The Op-index performance cache is now gitignored (#2341).**
   `kitty-ops/ops-index.jsonl` — the machine-local reverse-scan cache that powers
   `spec-kitty invocations list` — was never added to `.gitignore`, so a

@@ -1287,7 +1287,13 @@ def collect_feature_summary(
                 metadata_issues.append(f"{wp_id}: missing agent in frontmatter")
             if canonical_lane in {"doing", Lane.IN_PROGRESS, Lane.FOR_REVIEW} and not wp.assignee:
                 metadata_issues.append(f"{wp_id}: missing assignee in frontmatter")
-            if not wp.shell_pid:
+            # ``shell_pid`` identifies the live interactive shell that claimed a WP
+            # in ``spec-kitty next`` — an artifact of the ACTIVE-work phase, and one
+            # the orchestrator executor never stamps. Require it only for active
+            # lanes, mirroring the ``assignee`` gate above: a terminal (done/approved)
+            # WP has no live shell, so demanding it there is a false positive that
+            # blocks every orchestrator-completed mission from passing accept (#2369).
+            if canonical_lane in {"doing", Lane.IN_PROGRESS, Lane.FOR_REVIEW} and not wp.shell_pid:
                 metadata_issues.append(f"{wp_id}: missing shell_pid in frontmatter")
 
         work_packages.append(

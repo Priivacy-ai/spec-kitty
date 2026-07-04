@@ -887,3 +887,45 @@ class TestCorruptedCompatibilityViews:
         assert summary.all_done, f"all_done should be True despite all views corrupted, lanes={summary.lanes}"
         assert summary.activity_issues == []
         assert all(wp_id in summary.lanes.get("done", []) for wp_id in ["WP01", "WP02", "WP03"])
+
+
+class TestStrictShellPidGate:
+    """#2369: strict accept lane-gates shell_pid (like assignee) — terminal WPs
+    (orchestrator-executed, no live shell) no longer fail on missing shell_pid,
+    but active WPs still require it."""
+
+    def test_strict_accept_passes_for_done_wps_without_shell_pid(self, tmp_path: Path) -> None:
+        feature_dir = _setup_feature(tmp_path, all_done=True, wp_ids=["WP01", "WP02"])
+        tasks_dir = feature_dir / "tasks"
+        # Orchestrator-style: done WPs with NO shell_pid stamped.
+        for wp in ["WP01", "WP02"]:
+            _write_wp_file(tasks_dir, wp, lane="done", shell_pid="")
+
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch(
+            "specify_cli.acceptance.git_status_lines", return_value=[]
+        ):
+            mock_git.return_value.stdout = "main\n"
+            summary = collect_feature_summary(tmp_path, "099-test-feature", strict_metadata=True)
+
+        assert not any("shell_pid" in m for m in summary.metadata_issues), summary.metadata_issues
+        assert summary.all_done
+        assert summary.ok, (
+            f"orchestrated all-done mission should pass strict accept; "
+            f"metadata={summary.metadata_issues} git_dirty={summary.git_dirty}"
+        )
+
+    def test_strict_accept_still_flags_active_wp_without_shell_pid(self, tmp_path: Path) -> None:
+        # Scoped: an ACTIVE (for_review) WP with no shell_pid is still flagged —
+        # the fix is a lane-gate, not a removal.
+        feature_dir = _setup_feature(
+            tmp_path, all_done=False, wp_ids=["WP01"], wp_lanes={"WP01": "for_review"}
+        )
+        _write_wp_file(feature_dir / "tasks", "WP01", lane="for_review", shell_pid="")
+
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch(
+            "specify_cli.acceptance.git_status_lines", return_value=[]
+        ):
+            mock_git.return_value.stdout = "main\n"
+            summary = collect_feature_summary(tmp_path, "099-test-feature", strict_metadata=True)
+
+        assert any("shell_pid" in m for m in summary.metadata_issues), summary.metadata_issues
