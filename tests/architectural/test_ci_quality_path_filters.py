@@ -388,3 +388,27 @@ def test_e2e_cross_cutting_failures_are_quality_gated() -> None:
         "quality-gate decision step must set ``shell: bash`` so pipefail is "
         "enabled and the script's non-zero exit is not swallowed by ``| tee``"
     )
+
+
+@pytest.mark.parametrize("step_id", ["bandit", "pip_audit"])
+def test_security_scan_steps_set_pipefail(step_id: str) -> None:
+    """Bandit and pip-audit must ``set -o pipefail`` so the security gate isn't vacuous.
+
+    Both scans pipe into ``| tee out/reports/...``. Under GitHub's default
+    ``bash -e {0}`` (no pipefail) the pipe returns tee's always-zero exit, so
+    ``steps.<id>.outcome`` is ``success`` even when the scan finds issues — and
+    the downstream ``[ENFORCED] Fail job if security checks failed`` arm (which
+    tests ``steps.bandit.outcome != 'success'``) never fires. ``set -o pipefail``
+    makes each step's exit reflect the scan's real exit (tee still writes the
+    report). Same swallowed-exit class the mission fixed for its own
+    quality-gate decision step (aggregate-squad alphonso). Parse-only guard.
+    """
+    step = next(
+        step
+        for step in _job(_load_workflow(), "lint")["steps"]
+        if step.get("id") == step_id
+    )
+    assert "set -o pipefail" in str(step["run"]), (
+        f"security scan step '{step_id}' must ``set -o pipefail`` so its ``| tee`` "
+        "pipeline does not swallow a non-zero scan exit (vacuous security gate)"
+    )

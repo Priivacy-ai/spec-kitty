@@ -619,6 +619,11 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
+          # pipefail so the step's exit reflects bandit's real exit, not tee's
+          # 0 — otherwise the downstream security gate is vacuous (aggregate-
+          # squad alphonso; same swallowed-exit class the mission fixed for its
+          # own decision step). tee still writes the report regardless.
+          set -o pipefail
           uv run python -m bandit -r src/ \
             --severity-level medium \
             --confidence-level medium \
@@ -629,6 +634,10 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
+          # pipefail so the step's exit reflects pip-audit's real exit, not
+          # tee's 0 — otherwise the downstream security gate is vacuous
+          # (aggregate-squad alphonso). tee still writes the report regardless.
+          set -o pipefail
           uv run python -m pip_audit | tee out/reports/security/pip-audit-report.txt
 
       - name: "[ENFORCED] Validate patch() target strings (closes #394)"
