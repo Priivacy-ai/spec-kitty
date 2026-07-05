@@ -2,7 +2,7 @@
 title: 3.2.x Milestone — Roadmap
 description: 'Operator-facing roadmap for the 3.2.x milestone: the epic dependency spine, degod/unshim wave status, milestone census, exit criteria, and watch items.'
 doc_status: active
-updated: '2026-07-04'
+updated: '2026-07-05'
 related:
 - docs/changelog/index.md
 - docs/plans/index.md
@@ -31,6 +31,7 @@ The epic graph is now encoded **natively in the tracker** as blocked-by edges (2
                                           — first FUNCTIONAL pickup
 
    #1931 test hygiene — standing campsite epic, deliberately OUTSIDE the blocking graph
+   #2392 upgrade-worktree coherence — #1619 child epic, consolidation-only (see Watch items)
 ```
 
 **Reading order — enablers → delivery → functional pickup:**
@@ -40,6 +41,7 @@ The epic graph is now encoded **natively in the tracker** as blocked-by edges (2
 3. **Root closes on delivery + QA.** #1619 (unify mission execution context — the program root) is *blocked by* #1797 and #2071: the `MissionExecutionContext`/`ResolvedMission` adoption cannot complete while god-objects re-derive context per call site and while the suite's accidental-pass/duplicate-knowledge debt makes structural change hazardous.
 4. **First functional pickup.** #1746 (Mission Clarity Layer, P1) is *blocked by* #1797 and #2071 — queued as the first functional mission once the debt cluster lands, co-designed with #1666's communication-artefact contract.
 5. **#1931** (test quality & suite hygiene) runs as a standing campsite epic: folded opportunistically into missions, never a blocker.
+6. **#2392** (upgrade-worktree coherence, child of #1619) is the same kind of standing consolidation epic as #1931, not a blocking node — it exists to fold a git-state bug cluster (#2385, #1873, #2105, and the partly-fenced #2367) into **one** canonical fix seam instead of letting each land as an independent partial patch. Alphonso's design: a canonical invariant (*every write in every checkout the upgrade run touches ends in exactly one auto-commit — derived from real `git status --porcelain`, not a hardcoded list — or is intentionally reverted*), landed via a single `commit_touched_checkout` helper extracted from `_auto_commit_upgrade_changes` (`upgrade.py`) and applied symmetrically across main + every `.worktrees/*` enumerated by `runner.py`. #2367 is flagged as one-invariant-three-seams and kept OUT of this helper (see Watch items).
 
 ## Wave status board (degod/unshim roadmap)
 
@@ -64,6 +66,7 @@ Seam state carried from the wave plan: WS1/WS2/WS3 **DONE**, WS5 (CI suite map) 
 - **P0 (5 open in milestone):** #2346 (move-task subtask-guard regex leak — launch-blocker, queued as a post-mission op), #2160 (coord artifact authority — the class the Wave 2 trio closes), #2071 (test-QA epic), #1676 (deterministic structured authoring — verified 2026-07-04: carries **zero native dependency edges**, so it sits entirely outside the spine; it needs an explicit scheduling decision, see exit criterion 7), #1619 (the program root).
 - **P1s from the 2026-07-04 sweep — pulled into 3.2.x (operator critical-path ruling, 2026-07-04):** #1239 (retrospect synthesize rejects its own create records), #1231 (stale-WP indicator: shell_pid liveness), #1734 (in_review→approved guard forces `--force` on standard review flows), #825 (restore push-time SonarCloud — CI hygiene).
 - **Clusters (open-issue labels):** workflow 54 · reliability 50 · tech-debt 45 · bug 40 — consistent with a stabilization cycle: two-thirds of the open book is reliability/workflow/debt, not new surface.
+- **#2392 (new, P1, child of #1619)** — "upgrade-worktree coherence" consolidation epic: one canonical fix for state/gitignore propagation across coord/lane/main, replacing what was trending toward N single-path partial fixes. Members: #2385 (`_auto_commit_upgrade_changes` main-only scope leaves sibling worktrees dirty, tripping the merge NFR-002 guard), #1873 (`_upgrade_worktrees` skips saving synthesized metadata when detected version == target), #2105 (main-checkout commit-set completeness — largely STALE per the design, since the git-status-derived commit-set is already implemented for main; residual is scope-only). #2367 is fenced as partly separate — one invariant at three seams, not one code fix: #2367-A (vcs-lock) was a deliberate stop-gap for a race (#2222/C-003; committing it would reverse that call) and #2367-B (rollback stale status) lives in the merge-snapshot path, not the upgrade helper.
 
 ## Exit criteria for 3.2.x
 
@@ -86,6 +89,7 @@ Derived from the epics' own done-conditions; the milestone closes when all hold:
 - **Milestone-drift on critical-path items** — resolved for the known set on 2026-07-04 (#1239/#1231/#1734/#825 and #2034 all pulled into 3.2.x by operator ruling), but the class remains live: a critical-path issue filed without a milestone silently escapes the burn count. The sub-issue milestone sweep (executed 2026-07-04, see next steps) is the standing counter-measure.
 - **#2071 children are audit-fed.** The epic forbids pre-creating children; exit criterion 4 has open-ended scope until the audit's ticket set is complete. Watch for scope creep into #1931 territory (hygiene items belong in the campsite epic, not the blocker).
 - **Wave-numbering homonyms — confirmed, not hypothetical.** Mission names and the roadmap's Wave 0–4 are distinct namespaces: PR #2308 is literally titled "Wave 2 tasks.py degod" yet delivered the roadmap's **Wave 1**, and "Unshim Wave 1/2" (PRs #2325/#2328) map to roadmap Waves 1∥/2∥ (plus the Wave-3 category_7 slice in #2325). Anchor all status claims to issue/PR numbers, never wave labels.
+- **Avoid multi-path split-brain bugfix.** #2385/#1873/#2105 are the same underlying defect (upgrade-run auto-commit doesn't cover every touched checkout) surfacing at different call sites; fixing them independently risks exactly the kind of divergent-husk split-brain regression this milestone is paying down elsewhere. **#2392** is the counter-measure: one canonical `commit_touched_checkout` seam, applied symmetrically, instead of N partial patches. PR #2387 (an earlier single-path attempt) was redirected to `pr:needs-revision` for this reason — it should be re-pointed at the #2392 design rather than landed as-is. #2367's two seams (#2367-A vcs-lock stop-gap, #2367-B merge-snapshot rollback) are deliberately kept OUT of the consolidation and tracked separately.
 
 ## Immediate next steps
 
