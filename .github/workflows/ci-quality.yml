@@ -123,6 +123,14 @@ jobs:
       docs: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.docs }}
       glossary: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.glossary }}
       acceptance: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.acceptance }}
+      # Composite src-backed groups (mission ci-topology-shrink FR-002): same
+      # run_all/unmatched shape as every other src group above.
+      auth_audit_git: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.auth_audit_git }}
+      lifecycle: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.lifecycle }}
+      agent_surface: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.agent_surface }}
+      closeout: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.closeout }}
+      governance: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.governance }}
+      platform: ${{ (inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.platform }}
       # Raw catch-all signal for the quality-gate decision script (FR-011):
       # true iff any_src matched but no named group did.
       unmatched: ${{ steps.unmatched.outputs.unmatched }}
@@ -278,6 +286,58 @@ jobs:
               - 'tests/specify_cli/test_gitignore_contract.py'
               - 'tests/specify_cli/test_state_contract.py'
               - 'tests/specify_cli/upgrade/migrations/test_m_3_2_4_derived_views_gitignore.py'
+            # ---------------------------------------------------------------
+            # Composite src-backed groups (mission ci-topology-shrink
+            # FR-001/FR-002/FR-010): each maps a family of hot-but-unmapped
+            # src/specify_cli/<dir> worklist dirs (census
+            # tests/architectural/ci_topology_census.json -> target_group) to a
+            # NAMED src-backed dorny group so a change confined to one of them
+            # routes to the core-misc suites instead of tripping
+            # unmatched->run_all (SC-001). Composites (not per-dir groups) cap
+            # quality-gate.needs growth under the NFR-005 ceiling. The member
+            # globs are the authoritative worklist->group map; adding a member
+            # here + its changes.outputs row + the unmatched loop entry + a
+            # test-job if-gate + a JOB_GROUPS row is the 5-edit atomic
+            # registration (research §4.4).
+            # ---------------------------------------------------------------
+            auth_audit_git:
+              - 'src/specify_cli/auth/**'
+              - 'src/specify_cli/audit/**'
+              - 'src/specify_cli/git/**'
+            lifecycle:
+              - 'src/specify_cli/migration/**'
+              - 'src/specify_cli/invocation/**'
+              - 'src/specify_cli/compat/**'
+              - 'src/specify_cli/template/**'
+            agent_surface:
+              - 'src/specify_cli/orchestrator_api/**'
+              - 'src/specify_cli/tracker/**'
+              - 'src/specify_cli/dossier/**'
+              - 'src/specify_cli/bulk_edit/**'
+              - 'src/specify_cli/skills/**'
+            closeout:
+              - 'src/specify_cli/retrospective/**'
+              - 'src/specify_cli/readiness/**'
+              - 'src/specify_cli/decisions/**'
+              - 'src/specify_cli/doc_analysis/**'
+              - 'src/specify_cli/widen/**'
+            governance:
+              - 'src/specify_cli/doctrine/**'
+              - 'src/specify_cli/policy/**'
+              - 'src/specify_cli/ownership/**'
+              - 'src/specify_cli/validators/**'
+              - 'src/specify_cli/calibration/**'
+              - 'src/specify_cli/context/**'
+            platform:
+              - 'src/specify_cli/workspace/**'
+              - 'src/specify_cli/session_presence/**'
+              - 'src/specify_cli/mission_v1/**'
+              - 'src/specify_cli/mission_loader/**'
+              - 'src/specify_cli/events/**'
+              - 'src/specify_cli/paths/**'
+              - 'src/specify_cli/saas_client/**'
+              - 'src/specify_cli/task_utils/**'
+              - 'src/specify_cli/intake/**'
             # FR-010 probe group (Decision 7b): matches ANY src change. The
             # ``unmatched`` step below computes ``any_src AND NOT (any named
             # group)`` from the filter's own outputs; a true result forces the
@@ -326,7 +386,13 @@ jobs:
             "${{ steps.filter.outputs.doctrine }}" \
             "${{ steps.filter.outputs.execution_context }}" \
             "${{ steps.filter.outputs.glossary }}" \
-            "${{ steps.filter.outputs.acceptance }}"; do
+            "${{ steps.filter.outputs.acceptance }}" \
+            "${{ steps.filter.outputs.auth_audit_git }}" \
+            "${{ steps.filter.outputs.lifecycle }}" \
+            "${{ steps.filter.outputs.agent_surface }}" \
+            "${{ steps.filter.outputs.closeout }}" \
+            "${{ steps.filter.outputs.governance }}" \
+            "${{ steps.filter.outputs.platform }}"; do
             if [ "$group_hit" = "true" ]; then
               matched=true
             fi
@@ -1316,16 +1382,75 @@ jobs:
           if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
-  # fast-tests-core-misc: catch-all for tests not covered by per-module jobs.
+  # fast-tests-core-misc: catch-all fast suite, SPLIT into a shard matrix
+  # (mission ci-topology-shrink FR-003 / SC-003a) mirroring the
+  # integration-tests-core-misc partitioning so no single shard collects the
+  # whole ~11k-test fast catch-all universe:
+  #   - specify-cli-rest: the tests/specify_cli cone MINUS the nested roots a
+  #     dedicated fast job already owns (cli / missions / lanes / next / status
+  #     / charter_*) so those never same-tier double-run (NFR-003).
+  #   - core-misc: the whole-tree residual catch-all. Its --ignore list mirrors
+  #     the roots owned by dedicated shards (FR-012 invariant
+  #     test_catch_all_ignore_lists_mirror_owned_roots_live) — every carved root
+  #     is ignored here AND owned as a positional by a dedicated shard, together.
+  #     tests/specify_cli (specify-cli-rest above / integration specify-cli-rest)
+  #     and tests/docs (fast-tests-docs) are the two roots this split newly
+  #     carves out of the residual.
+  # The two shards are disjoint (the residual ignores tests/specify_cli), the
+  # union re-covers exactly the pre-split fast universe (removed roots stay
+  # covered by their dedicated jobs, so orphan_count stays 0, SC-004), and both
+  # shards are non-empty (SC-003a).
   # ---------------------------------------------------------------------------
   fast-tests-core-misc:
+    name: fast-tests-core-misc (${{ matrix.shard }})
     runs-on: ubuntu-latest
     needs: [changes, kernel-tests, fast-tests-doctrine]
     if: >-
       always() &&
-      (needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.execution_context == 'true' || needs.changes.outputs.glossary == 'true' || needs.changes.outputs.acceptance == 'true') &&
+      (needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.execution_context == 'true' || needs.changes.outputs.glossary == 'true' || needs.changes.outputs.acceptance == 'true' || needs.changes.outputs.auth_audit_git == 'true' || needs.changes.outputs.lifecycle == 'true' || needs.changes.outputs.agent_surface == 'true' || needs.changes.outputs.closeout == 'true' || needs.changes.outputs.governance == 'true' || needs.changes.outputs.platform == 'true') &&
       needs.kernel-tests.result != 'failure' &&
       needs.fast-tests-doctrine.result != 'failure'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: specify-cli-rest
+            paths: tests/specify_cli
+            ignore_args: >-
+              --ignore=tests/specify_cli/cli
+              --ignore=tests/specify_cli/missions
+              --ignore=tests/specify_cli/lanes
+              --ignore=tests/specify_cli/next
+              --ignore=tests/specify_cli/status
+              --ignore=tests/specify_cli/charter_freshness
+              --ignore=tests/specify_cli/charter_lint
+              --ignore=tests/specify_cli/charter_preflight
+          - shard: core-misc
+            paths: ''
+            ignore_args: >-
+              --ignore=tests/doctrine
+              --ignore=tests/kernel
+              --ignore=tests/status
+              --ignore=tests/specify_cli/status
+              --ignore=tests/specify_cli
+              --ignore=tests/docs
+              --ignore=tests/sync
+              --ignore=tests/merge
+              --ignore=tests/missions
+              --ignore=tests/post_merge
+              --ignore=tests/release
+              --ignore=tests/review
+              --ignore=tests/next
+              --ignore=tests/specify_cli/next
+              --ignore=tests/lanes
+              --ignore=tests/test_dashboard
+              --ignore=tests/upgrade
+              --ignore=tests/cli
+              --ignore=tests/runtime
+              --ignore=tests/charter
+              --ignore=tests/agent
+              --ignore=tests/e2e
+              --ignore=tests/cross_cutting
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -1333,47 +1458,29 @@ jobs:
           python-version: '3.12'
       - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
-      # The --ignore list below is this catch-all's mirror of the test roots
-      # owned by dedicated shards. It is BOUND to the filter topology by the
-      # ignore-mirror architectural invariant (mission ci-suite-map-bind
-      # FR-012 / #2333 AC-1): drift between this list and the shard-owned
-      # roots fails tests/architectural/.
+      # The core-misc shard's --ignore list is this catch-all's mirror of the
+      # test roots owned by dedicated shards. It is BOUND to the filter topology
+      # by the ignore-mirror architectural invariant (FR-012 /
+      # test_catch_all_ignore_lists_mirror_owned_roots_live): drift between this
+      # list and the shard-owned roots fails tests/architectural/.
       - name: "Run fast tests — core misc"
         run: |
           uv run python -m pytest \
-            --ignore=tests/doctrine \
-            --ignore=tests/kernel \
-            --ignore=tests/status \
-            --ignore=tests/specify_cli/status \
-            --ignore=tests/sync \
-            --ignore=tests/merge \
-            --ignore=tests/missions \
-            --ignore=tests/post_merge \
-            --ignore=tests/release \
-            --ignore=tests/review \
-            --ignore=tests/next \
-            --ignore=tests/specify_cli/next \
-            --ignore=tests/lanes \
-            --ignore=tests/test_dashboard \
-            --ignore=tests/upgrade \
-            --ignore=tests/cli \
-            --ignore=tests/runtime \
-            --ignore=tests/charter \
-            --ignore=tests/agent \
-            --ignore=tests/e2e \
-            --ignore=tests/cross_cutting \
+            ${{ matrix.paths }} \
+            ${{ matrix.ignore_args }} \
             -m "fast and not windows_ci" -q --tb=short \
             -n auto --dist loadfile \
             --durations=50 \
             --cov=src/specify_cli \
             --cov=src/glossary \
-            --cov-report=xml:out/reports/coverage/coverage-fast-core-misc.xml
+            --cov-report=xml:out/reports/coverage/coverage-fast-core-misc-${{ matrix.shard }}.xml
       - name: "Upload fast-core-misc coverage"
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: fast-test-core-misc-reports
+          name: fast-test-core-misc-${{ matrix.shard }}-reports
           path: out/reports/
+          if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
   # fast-tests-docs: dedicated CHEAP job for docs-only changes (#2359). A
@@ -1430,11 +1537,15 @@ jobs:
   integration-tests-core-misc:
     name: integration-tests-core-misc (${{ matrix.shard }})
     runs-on: ubuntu-latest
-    needs: [changes, fast-tests-core-misc]
+    # De-serialized (mission ci-topology-shrink FR-013): the ``fast-tests-core-misc``
+    # need is dropped so this matrix runs in parallel with the fast lane. The
+    # architectural/adversarial shard that used to live here (and was the pole
+    # serialized behind the fast job) now runs as the standalone always-on
+    # ``arch-adversarial`` job below.
+    needs: [changes]
     if: >-
       always() &&
-      (needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.execution_context == 'true' || needs.changes.outputs.acceptance == 'true') &&
-      needs.fast-tests-core-misc.result != 'failure' &&
+      (needs.changes.outputs.core_misc == 'true' || needs.changes.outputs.execution_context == 'true' || needs.changes.outputs.acceptance == 'true' || needs.changes.outputs.auth_audit_git == 'true' || needs.changes.outputs.lifecycle == 'true' || needs.changes.outputs.agent_surface == 'true' || needs.changes.outputs.closeout == 'true' || needs.changes.outputs.governance == 'true' || needs.changes.outputs.platform == 'true') &&
       (
         github.event_name != 'pull_request' ||
         (
@@ -1449,14 +1560,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - shard: architectural
-            paths: >-
-              tests/adversarial
-              tests/architectural
-              tests/architecture
-              tests/lint
-            ignore_args: ''
-            marker_extra: ''
+          # NOTE: the ``architectural`` shard was extracted to the standalone
+          # always-on ``arch-adversarial`` job (mission ci-topology-shrink
+          # FR-005/FR-013) — do NOT re-add it here or it re-enters the fast-lane
+          # serialization + Mode-B blindness this mission removed.
           - shard: integration
             paths: tests/integration
             ignore_args: ''
@@ -1475,6 +1582,19 @@ jobs:
               tests/specify_cli/test_charter_activate_cli.py
             ignore_args: ''
             marker_extra: ' and not slow'
+          # specify-cli-rest ignores every nested tests/specify_cli/<D> root a
+          # DEDICATED integration job already owns, so those never same-tier
+          # double-run (NFR-003; mission ci-topology-shrink FR-004 — nested
+          # roots are NOT covered by the whole-tree FR-012 mirror, so they are
+          # updated here by hand): migration/invocation -> specify-cli-heavy,
+          # cli -> integration-tests-cli, missions -> integration-tests-missions,
+          # lanes -> integration-tests-lanes, status -> integration-tests-status,
+          # next -> integration-tests-next, charter_* ->
+          # integration-tests-charter. coordination is NOT ignored: this shard
+          # is its sole integration owner (its ``architectural`` marker arm
+          # covers the arch-marked coordination boundary tests that
+          # integration-tests-status' git_repo/integration marker would drop),
+          # so tests/specify_cli/coordination was removed from that job instead.
           - shard: specify-cli-rest
             paths: tests/specify_cli
             ignore_args: >-
@@ -1483,6 +1603,12 @@ jobs:
               --ignore=tests/specify_cli/test_charter_activate_cli.py
               --ignore=tests/specify_cli/status
               --ignore=tests/specify_cli/next
+              --ignore=tests/specify_cli/cli
+              --ignore=tests/specify_cli/missions
+              --ignore=tests/specify_cli/lanes
+              --ignore=tests/specify_cli/charter_freshness
+              --ignore=tests/specify_cli/charter_lint
+              --ignore=tests/specify_cli/charter_preflight
             marker_extra: ''
           - shard: auth-audit-git
             paths: >-
@@ -1504,6 +1630,7 @@ jobs:
               tests/cross_branch
               tests/docs
               tests/doctor
+              tests/dossier
               tests/init
               tests/migration
               tests/mission_runtime
@@ -1527,24 +1654,13 @@ jobs:
           python-version: '3.12'
       - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
+      # The architectural shard's exec-context-only fast-path (which ran ONLY
+      # tests/architectural/test_execution_context_parity.py) was removed with
+      # the architectural shard: that parity gate now runs unconditionally in
+      # the always-on ``arch-adversarial`` job, so an execution-context change
+      # is covered there (mission ci-topology-shrink FR-005/FR-013).
       - name: "Run integration tests — core misc"
         run: |
-          if [ "${{ needs.changes.outputs.core_misc }}" != "true" ] && [ "${{ needs.changes.outputs.execution_context }}" = "true" ]; then
-            if [ "${{ matrix.shard }}" != "architectural" ]; then
-              echo "Skipping ${{ matrix.shard }} for execution-context-only change."
-              exit 0
-            fi
-
-            uv run python -m pytest \
-              tests/architectural/test_execution_context_parity.py \
-              -q --tb=short \
-              -n auto --dist loadfile \
-              --durations=50 \
-              --cov=src/specify_cli \
-              --cov-report=xml:out/reports/coverage/coverage-integration-core-misc-${{ matrix.shard }}.xml
-            exit $?
-          fi
-
           uv run python -m pytest \
             ${{ matrix.paths }} \
             ${{ matrix.ignore_args }} \
@@ -1560,6 +1676,71 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: integration-test-core-misc-${{ matrix.shard }}-reports
+          path: out/reports/
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # arch-adversarial: the always-on architectural + adversarial pole (mission
+  # ci-topology-shrink FR-005/FR-006/FR-013). Extracted from the
+  # integration-tests-core-misc ``architectural`` matrix shard so it:
+  #   * runs on EVERY push/PR (``if: always()``, like ``lint``) — un-blinding
+  #     the dead-module / stale-symbol / terminology / status-boundary guards on
+  #     100% of PRs (Mode-B closed for all 13 arch-blind groups at once,
+  #     NFR-002 differential matrix).
+  #   * carries NO dorny filter-group ``if:`` gate, so it does NOT enter
+  #     JOB_GROUPS / src_backed_groups / the unmatched loop (C-001 additive; a
+  #     regression re-adding a filter gate here reds the differential matrix).
+  #   * has NO ``needs: fast-tests-core-misc`` edge, so it is DE-SERIALIZED and
+  #     runs in parallel with the fast lane (FR-013 — ``always()`` alone does not
+  #     de-serialize; dropping the needs edge does).
+  # Emits coverage-arch-adversarial.xml under the aggregator's glob-consumed name
+  # (FR-006). Uses ``-n auto --dist loadfile`` (never bare ``load``); it touches
+  # no daemon/real-port suite so no dedicated ``-n0`` serial pass is needed
+  # (FR-011). The fail-closed catch-all (the ``changes`` unmatched signal) is
+  # untouched, so an unmapped/new src path still forces coverage (FR-009).
+  # ---------------------------------------------------------------------------
+  arch-adversarial:
+    name: arch-adversarial (${{ matrix.shard }})
+    runs-on: ubuntu-latest
+    if: always()
+    # Single-shard matrix: the ``architectural`` selection structure lives here
+    # now (extracted from integration-tests-core-misc). Naming the shard
+    # ``architectural`` keeps its paths modellable/evaluated for coverage under
+    # the same shard key the gate-coverage checker tracks — the arch paths are
+    # still covered, just in this always-on de-serialized job.
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: architectural
+            paths: >-
+              tests/adversarial
+              tests/architectural
+              tests/architecture
+              tests/lint
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          python-version: '3.12'
+      - run: uv sync --frozen --all-extras
+      - run: mkdir -p out/reports/coverage
+      - name: "Run architectural + adversarial suite (always-on pole)"
+        run: |
+          uv run python -m pytest \
+            ${{ matrix.paths }} \
+            -m 'not windows_ci and (git_repo or integration or architectural)' \
+            -q --tb=short \
+            -n auto --dist loadfile \
+            --durations=50 \
+            --cov=src/specify_cli \
+            --cov=src/mission_runtime \
+            --cov-report=xml:out/reports/coverage/coverage-arch-adversarial-${{ matrix.shard }}.xml
+      - name: "Upload arch-adversarial coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: arch-adversarial-${{ matrix.shard }}-reports
           path: out/reports/
           if-no-files-found: ignore
 
@@ -1924,9 +2105,16 @@ jobs:
 
       - name: "[ENFORCED] Run status integration tests with coverage"
         run: |
+          # tests/specify_cli/coordination moved to the integration-tests-core-misc
+          # specify-cli-rest shard (its sole owner) to remove the same-tier
+          # double-run AND cover the arch-marked coordination boundary tests this
+          # job's git_repo/integration marker drops (mission ci-topology-shrink
+          # NFR-003 / SC-004). --cov=src/specify_cli/coordination is retained so
+          # a sync/status change still reports coordination coverage from the
+          # union with specify-cli-rest.
           uv run python -m pytest \
             -v \
-            tests/status/ tests/specify_cli/status/ tests/specify_cli/coordination/ \
+            tests/status/ tests/specify_cli/status/ \
             -m "not windows_ci and (git_repo or integration)" \
             --cov=src/specify_cli/status \
             --cov=src/specify_cli/coordination \
@@ -2385,6 +2573,9 @@ jobs:
       - integration-tests-cli
       - integration-tests-core-misc
       - fast-tests-core-misc
+      # arch-adversarial emits coverage-arch-adversarial.xml consumed here via
+      # the coverage-*.xml glob (mission ci-topology-shrink FR-006/FR-007).
+      - arch-adversarial
     if: always() && github.event_name == 'pull_request'
 
     steps:
@@ -2499,6 +2690,7 @@ jobs:
       - fast-tests-core-misc
       - fast-tests-charter
       - fast-tests-agent
+      - arch-adversarial
       - slow-tests
       - e2e-cross-cutting
     if: false
@@ -2548,6 +2740,13 @@ jobs:
       - integration-tests-cli
       - integration-tests-agent
       - integration-tests-core-misc
+      # mission-loader-coverage emits --cov=src/specify_cli/mission_loader; it was
+      # ABSENT here, silently dropping its coverage XML from the aggregator — the
+      # C-005 defect this mission closes (mission ci-topology-shrink FR-006/C-005).
+      - mission-loader-coverage
+      # arch-adversarial emits coverage-arch-adversarial.xml (src coverage) — every
+      # src-coverage emitter must be a sonarcloud consumer (C-005 invariant).
+      - arch-adversarial
       - slow-tests
       - e2e-cross-cutting
     if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
@@ -3167,6 +3366,7 @@ jobs:
       - integration-tests-cli
       - integration-tests-agent
       - integration-tests-core-misc
+      - arch-adversarial
       - e2e-cross-cutting
       - restart-daemon-nfr-timing
       - build-wheel
@@ -3232,7 +3432,7 @@ jobs:
               "fast-tests-dashboard": ["dashboard", "status"],
               "fast-tests-upgrade": ["upgrade", "status"],
               "fast-tests-cli": ["cli"],
-              "fast-tests-core-misc": ["core_misc", "execution_context", "glossary", "acceptance"],
+              "fast-tests-core-misc": ["core_misc", "execution_context", "glossary", "acceptance", "auth_audit_git", "lifecycle", "agent_surface", "closeout", "governance", "platform"],
               "fast-tests-docs": ["docs"],
               "fast-tests-charter": ["charter"],
               "fast-tests-agent": ["agent"],
@@ -3251,7 +3451,7 @@ jobs:
               "integration-tests-upgrade": ["upgrade"],
               "integration-tests-cli": ["cli"],
               "integration-tests-agent": ["agent"],
-              "integration-tests-core-misc": ["core_misc", "execution_context", "acceptance"],
+              "integration-tests-core-misc": ["core_misc", "execution_context", "acceptance", "auth_audit_git", "lifecycle", "agent_surface", "closeout", "governance", "platform"],
               "e2e-cross-cutting": ["e2e", "core_misc", "execution_context"],
               "restart-daemon-nfr-timing": ["cli"],
               "consumer-compatibility": ["release"],
