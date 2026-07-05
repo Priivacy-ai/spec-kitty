@@ -1361,8 +1361,11 @@ def opt_in(
     _require_daemon_owner_coherence("spec-kitty sync opt-in")
 
     if not is_saas_sync_enabled():
-        console.print(f"[dim]{saas_sync_disabled_message()}[/dim]")
-        return
+        # Non-green + non-zero (#2264 item 3): opt-in cannot take effect while
+        # the rollout flag is off, so a dim exit-0 "success" is misleading.
+        # Surface the disabled state clearly and exit non-zero.
+        console.print(f"[yellow]{saas_sync_disabled_message()}[/yellow]")
+        raise typer.Exit(1)
 
     enforce_teamspace_mission_state_ready(
         console=console,

@@ -48,6 +48,24 @@ def test_opt_in_message_includes_scope_without_overclaiming() -> None:
     assert "enabled saas sync" not in msg.lower()
 
 
+def test_opt_in_exits_non_zero_when_sync_disabled(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """opt-in with the rollout flag off must be non-green + non-zero (#2264 item 3).
+
+    A dim exit-0 message read as success even though nothing was enabled.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "AppData"))
+    monkeypatch.setattr(sync_command, "is_saas_sync_enabled", lambda: False)
+
+    with patch.object(sync_command, "_require_daemon_owner_coherence", return_value=None):
+        result = runner.invoke(app, ["opt-in"])
+
+    assert result.exit_code != 0, f"opt-in must exit non-zero when disabled (output={result.output!r})"
+    assert "SPEC_KITTY_ENABLE_SAAS_SYNC" in result.output
+
+
 def _healthy_status() -> SyncDaemonStatus:
     return SyncDaemonStatus(
         healthy=True,
