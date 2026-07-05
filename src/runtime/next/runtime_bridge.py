@@ -1101,6 +1101,7 @@ def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:  # noqa: C9
                     if not _has_raw_dependencies_field(wp_file):
                         failures.append(f"WP {wp_file.stem} missing 'dependencies' in frontmatter (run 'spec-kitty agent mission finalize-tasks')")
                         break  # One failure message is enough
+        failures.extend(_occurrence_gate_failures(feature_dir))
 
     elif step_id == "implement":
         if not _should_advance_wp_step("implement", feature_dir):
@@ -1110,6 +1111,20 @@ def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:  # noqa: C9
         failures.append("Not all work packages are approved or done")
 
     return failures
+
+
+def _occurrence_gate_failures(feature_dir: Path) -> list[str]:
+    """Bulk-edit occurrence-map gate errors (empty when not bulk_edit or map is valid).
+
+    Reuses the existing ``ensure_occurrence_classification_ready`` enforcement
+    (C-001: no new validation logic). Self-conditions on stored ``change_mode``
+    (C-003), so it is safe to call unconditionally at the tasks_finalize
+    boundary — non-bulk-edit missions and valid-admissible bulk-edit missions
+    both return an empty list.
+    """
+    from specify_cli.bulk_edit.gate import ensure_occurrence_classification_ready
+
+    return list(ensure_occurrence_classification_ready(feature_dir).errors)
 
 
 def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
@@ -1656,6 +1671,7 @@ def _check_composed_action_guard(  # noqa: C901
                             "(run 'spec-kitty agent mission finalize-tasks')"
                         )
                         break  # One failure message is enough
+            failures.extend(_occurrence_gate_failures(feature_dir))
 
     elif action == "implement":
         if not _should_advance_wp_step("implement", feature_dir):
