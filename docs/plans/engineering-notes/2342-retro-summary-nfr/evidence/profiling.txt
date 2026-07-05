@@ -1,0 +1,53 @@
+-- 7 unprofiled (real wall-time) runs --
+run 1/7: 1.5589s
+run 2/7: 1.1773s
+run 3/7: 1.2002s
+run 4/7: 1.3782s
+run 5/7: 1.2314s
+run 6/7: 1.4417s
+run 7/7: 1.7158s
+
+-- 1 profiled run (cProfile instrumentation inflates elapsed time; use only for the per-phase relative breakdown) --
+profiled run elapsed (inflated): 4.8432s
+
+N runs           : 7
+median wall-time : 1.3782s
+min-max spread   : 1.1773s - 1.7158s
+all readings     : ['1.5589', '1.1773', '1.2002', '1.3782', '1.2314', '1.4417', '1.7158']
+
+Per-phase self-time breakdown (last run, cProfile tottime):
+  fs_scan         : 0.0280s (  0.6%)
+  yaml_parse      : 4.3062s ( 88.9%)
+  schema_validate : 0.0106s (  0.2%)
+  reduce_other    : 0.4983s ( 10.3%)
+
+Top 20 functions by cumulative time (last run):
+         13620823 function calls (13577423 primitive calls) in 4.843 seconds
+
+   Ordered by: cumulative time
+   List reduced from 319 to 20 due to restriction <20>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.003    0.003    4.843    4.843 /home/jeroennouws/dev/sk-missions/2342/.worktrees/retro-summary-nfr-investigation-01KWQARM-lane-a/src/specify_cli/retrospective/summary.py:346(build_summary)
+      200    0.001    0.000    4.728    0.024 /home/jeroennouws/dev/sk-missions/2342/.worktrees/retro-summary-nfr-investigation-01KWQARM-lane-a/src/specify_cli/retrospective/reader.py:333(read_record)
+      200    0.001    0.000    4.717    0.024 /home/jeroennouws/dev/sk-missions/2342/.worktrees/retro-summary-nfr-investigation-01KWQARM-lane-a/src/specify_cli/retrospective/reader.py:117(_load_yaml_mapping)
+      200    0.005    0.000    4.689    0.023 /home/jeroennouws/dev/sk-missions/2342/.venv/lib/python3.11/site-packages/ruamel/yaml/main.py:438(load)
+      200    0.000    0.000    4.676    0.023 /home/jeroennouws/dev/sk-missions/2342/.venv/lib/python3.11/site-packages/ruamel/yaml/constructor.py:115(get_single_data)
+      200    0.001    0.000    4.462    0.022 /home/jeroennouws/dev/sk-missions/2342/.venv/lib/python3.11/site-packages/ruamel/yaml/composer.py:70(get_single_node)
+      200    0.000    0.000    4.432    0.022 /home/jeroennouws/dev/sk-missions/2342/.venv/lib/python3.11/site-packages/ruamel/yaml/composer.py:94(compose_document)
+34600/200    0.128    0.000    4.429    0.022 /home/jeroennouws/dev/sk-missions/2342/.venv/lib/python3.11/site-packages/ruamel/yaml/composer.py:110(compose_node)
+ 4200/200    0.048    0.000    4.418    0.022 /home/jeroennouws/dev/sk-missions/2342/.venv/lib/python3.11/site-packages/ruamel/yaml/composer.py:203(compose_mapping_node)
+   103600    0.066    0.000    3.594    0.000 /home/jeroennouws/dev/sk-missions/2342/.venv/lib/python3.11/site-packages/ruamel/yaml/parser.py:137(check_event)
+ 1800/800    0.009    0.000    2.842    0.004 /home/jeroennouws/dev/sk-missions/2342/.venv/lib/python3.11/site-packages/ruamel/yaml/composer.py:169(compose_sequence_node)
+   309800    0.230    0.000    2.616    0.000 /home/jeroennouws/dev/sk-missions/2342/.venv/lib/python3.11/site-packages/ruamel/yaml/scanner.py:167(check_token)
+    48400    0.121    0.000    1.936    0.000 /home/jeroennouws/dev/sk-missions/2342/.venv/lib/python3.11/site-packages/ruamel/yaml/scanner.py:211(fetch_more_tokens)
+    16600    0.056    0.000    1.687    0.000 /home/jeroennouws/dev/sk-missions/2342/.venv/lib/python3.11/site-packages/ruamel/yaml/parser.py:627(parse_block_mapping_value)
+    20800    0.061    0.000    1.621    0.000 /home/jeroennouws/dev/sk-missions/2342/.venv/lib/python3.11/site-packages/ruamel/yaml/parser.py:599(parse_block_mapping_key)
+    24200    0.026    0.000    0.982    0.000 /home/jeroennouws/dev/sk-missions/2342/.venv/lib/python3.11/site-packages/ruamel/yaml/scanner.py:707(fetch_plain)
+    34600    0.187    0.000    0.861    0.000 /home/jeroennouws/dev/sk-missions/2342/.venv/lib/python3.11/site-packages/ruamel/yaml/parser.py:365(parse_node)
+    33200    0.017    0.000    0.839    0.000 /home/jeroennouws/dev/sk-missions/2342/.venv/lib/python3.11/site-packages/ruamel/yaml/parser.py:354(parse_block_node_or_indentless_sequence)
+    24200    0.297    0.000    0.837    0.000 /home/jeroennouws/dev/sk-missions/2342/.venv/lib/python3.11/site-packages/ruamel/yaml/scanner.py:1491(scan_plain)
+   478800    0.293    0.000    0.533    0.000 /home/jeroennouws/dev/sk-missions/2342/.venv/lib/python3.11/site-packages/ruamel/yaml/scanner.py:196(need_more_tokens)
+
+
+

@@ -1,0 +1,4 @@
+# bisect.log is a required committed evidence artifact for this WP (see
+# report.md and create_intent) — negate the repo-wide docs/.gitignore `*.log`
+# rule so it is tracked instead of dropped on merge.
+!bisect.log

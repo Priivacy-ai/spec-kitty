@@ -1,0 +1,80 @@
+# Bisection log — retro-summary NFR investigation (#2342)
+
+## Why this is not a literal `git bisect run` transcript
+
+`git bisect` requires at least one revision known to be BAD to seed its
+binary search. Before invoking it, this investigation first characterized
+the two natural endpoints of the candidate window — `9733727df` (#821, the
+commit that introduced `reader.py`/`schema.py`) and `254613f5e` (current
+mission tip, HEAD) — under the flippable relative-delta oracle described in
+`oracle-proof.md`. **Both endpoints read GOOD** (medians 1.1692s and ~1.20s
+respectively, against a calibrated 1.8s BAD threshold). With no BAD endpoint
+anywhere in the window, `git bisect start <bad> <good>` cannot be invoked —
+there is nothing to search for.
+
+In place of a literal bisect, this log records an **exhaustive linear sweep**
+of every commit in `git log -- src/specify_cli/retrospective/{reader,schema,summary}.py`
+(9 commits) plus both window endpoints — strictly more thorough than the
+~4 samples a `log2(9)` bisect would have taken, and it directly answers the
+same question ("is there a discrete regressing commit in this window?").
+
+Oracle: relative-delta on **unprofiled** `build_summary(<200-mission corpus>)`
+wall-time, median of 5 runs per commit. BAD threshold = 1.8s (~1.5x the
+~1.2s baseline median; see `oracle-proof.md` for the calibration that proves
+this oracle can read BAD given a real regression).
+
+## Sweep results (oldest → newest, all against the identical 200-mission corpus)
+
+| Commit | Label | Median (5 runs) | Verdict |
+|---|---|---|---|
+| `9733727df` | #821 — reader.py/schema.py introduced | 1.1692s | GOOD |
+| `16af677bf` | #1138/#1181 — default-on retrospective learning policy | 1.1667s | GOOD |
+| `675ccd677` | Sonar/idna cleanup | 1.2027s | GOOD |
+| `c6c13c73d` | #1246 — align create records with consumers | 1.5698s | GOOD (elevated — see note) |
+| `365f1bb25` | #1681 — route raw mission spec paths | **crash** (see note) | N/A |
+| `fbc7eb065` | Release spec-kitty 3.2.0rc38 | 1.2145s | GOOD |
+| `0818c7590` | **#1778 — PRIME SUSPECT** (rewrote `_load_yaml_mapping`, added per-record `_coerce_legacy_schema_versions`) | 1.1692s | GOOD |
+| `8544012fa` | #1850 — guard coherence + execution-context unification | 1.4984s | GOOD (elevated — see note) |
+| `106531095` | canonical mission-surface resolver | 1.2271s | GOOD |
+| `ecf45f52c` | #2119 — durable-home + handle-safe write/read seams | 1.3700s | GOOD |
+| `254613f5e` | HEAD (mission tip) | ~1.20-1.38s (multiple samples) | GOOD |
+
+Immediate before/after the prime suspect, isolated:
+- `0818c7590^` (`dd8b88eb0`, pre-#1778): median 1.1715s
+- `0818c7590` (#1778 itself): median 1.1692s
+- Delta: **-0.0023s** (noise; #1778 shows no measurable cost, confirming
+  the research squad's lead that `_coerce_legacy_schema_versions` and the
+  rewritten `_load_yaml_mapping` are not a discrete regression).
+
+## Notes on the two non-trivial observations
+
+1. **`365f1bb25` (#1681) crashes the profiling harness** with
+   `ActionContextError: Mission directory not found`, from
+   `_read_proposal_events` → `resolve_feature_dir_for_mission` (a *raising*
+   resolver) failing to find a `kitty-specs/<slug>` directory for the
+   synthetic corpus's proposal entries. This is a real, reproducible defect
+   window, but it is **already fixed one commit later**: `fbc7eb065`
+   (`git log -S"candidate_feature_dir_for_mission" -- src/specify_cli/retrospective/summary.py`)
+   swapped in a **non-raising** `candidate_feature_dir_for_mission` +
+   `.exists()` guard, restoring safe (0, 0, 0) fallback behavior. Both
+   commits predate the current mission's candidate window relevance (the
+   fix has been in place since `fbc7eb065`, long before the CI breach on
+   #2336) — **not actionable today**, noted for completeness only.
+
+2. **`c6c13c73d` (1.57s) and `8544012fa` (1.50s) read ~25-35% above the
+   ~1.2s floor**, but well under the 1.8s BAD threshold and far under the
+   3.6s+ calibration-proven-detectable regression size. Both are explained
+   by legitimate added functionality (`c6c13c73d` introduces proposal
+   lifecycle event reading; `8544012fa` further reworks the execution-context
+   resolution it depends on) — real cost, but **not new** as of this
+   investigation: it has been stable at this level since those commits
+   landed, many releases before the #2336 CI breach, and is unrelated to why
+   the test started reading 5.10/5.11s on CI specifically.
+
+## Conclusion
+
+No commit in the `reader.py`/`schema.py`/`summary.py` window produces a
+discrete regression detectable by a demonstrably-flippable oracle on this
+hardware. The named prime suspect `0818c7590` (#1778) shows a -0.0023s
+delta (noise) against its parent. See `report.md` for the full verdict and
+disposition.
