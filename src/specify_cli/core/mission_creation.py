@@ -23,6 +23,10 @@ from ulid import ULID
 from mission_runtime import CommitTarget, MissionTopology
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.git_ops import get_current_branch, is_git_repo
+from specify_cli.core.mission_payload import (
+    default_mission_display_name,
+    default_mission_purpose_context,
+)
 from specify_cli.core.paths import is_worktree_context, locate_project_root
 from specify_cli.git import safe_commit
 from specify_cli.lanes.branch_naming import mission_dir_name, resolve_mid8
@@ -131,22 +135,6 @@ spec-kitty agent tasks move-task WP01 --to doing
 - Format: `WP01-kebab-case-slug.md`
 - Examples: `WP01-setup-infrastructure.md`, `WP02-user-auth.md`
 """
-
-
-def _default_mission_display_name(mission_slug: str) -> str:
-    """Derive a human-readable mission title from a kebab-case slug."""
-    parts = [part for part in str(mission_slug).strip().split("-") if part]
-    if not parts:
-        return "Mission"
-    return " ".join(parts)
-
-
-def _default_mission_purpose_context(display_name: str, target_branch: str) -> str:
-    """Keep mission-create defaults aligned with MissionCreated sync payloads."""
-    return (
-        f"This mission advances {display_name} on {target_branch} so stakeholders can "
-        "track the work from mission creation onward."
-    )
 
 
 def render_tasks_readme_content(planning_branch: str) -> str:
@@ -304,13 +292,13 @@ def create_mission_core(
     # ------------------------------------------------------------------
     planning_branch = target_branch if target_branch else current_branch
     if not normalized_friendly_name:
-        normalized_friendly_name = _default_mission_display_name(mission_slug)
+        normalized_friendly_name = default_mission_display_name(mission_slug)
 
     normalized_purpose_tldr = " ".join((purpose_tldr or "").split()) if purpose_tldr is not None else normalized_friendly_name
     normalized_purpose_context = (
         " ".join((purpose_context or "").split())
         if purpose_context is not None
-        else _default_mission_purpose_context(normalized_friendly_name, planning_branch)
+        else default_mission_purpose_context(normalized_friendly_name, planning_branch)
     )
     purpose_errors = validate_purpose_summary(normalized_purpose_tldr, normalized_purpose_context)
     if purpose_errors:
