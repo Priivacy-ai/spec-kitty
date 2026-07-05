@@ -209,7 +209,7 @@ Durable config wins when both are present. Suppress the warning in CI with
 | `MISSION_AMBIGUOUS_SELECTOR` | Handle resolves to multiple missions | Use `mission_id` (ULID) or `mid8` instead of slug |
 | Mission completion blocks with `RETROSPECTIVE_GATE_BLOCKED` | Policy is `before_completion + block` and generation failed | Inspect `RetrospectiveCaptureFailed` event in `status.events.jsonl` for `remediation_hint`; address and retry |
 | Deprecation warning keeps firing | Env var set in shell or CI | Unset the env var; rely on `.kittify/config.yaml` |
-| `cannot import name 'normalize_event_id' from 'spec_kitty_events'` during pytest collection (locally only) | Local PEP 420 namespace-package corruption from a partial pip uninstall — NOT a wheel bug | `uv sync --reinstall-package spec-kitty-events` (see [CONTRIBUTING.md](https://github.com/Priivacy-ai/spec-kitty/blob/main/CONTRIBUTING.md)) |
+| `cannot import name 'normalize_event_id' from 'spec_kitty_events'` during pytest collection (locally only) | Local PEP 420 namespace-package corruption from a partial pip uninstall — NOT a wheel bug | `uv sync --reinstall-package spec-kitty-events` (see [CONTRIBUTING.md](contributing.md)) |
 
 ---
 

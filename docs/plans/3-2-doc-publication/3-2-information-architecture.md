@@ -322,4 +322,4 @@ Explanation count breakdown:
 
 ## 10. Related development docs
 
-- [`docs/development/yaml-libraries.md`](../configuration/yaml-libraries.md) — YAML library choice guide: when to use ruamel.yaml (round-trip, write-back) vs PyYAML `safe_load` (read-only). Documents current-state usage, known mixed-usage sites, and the aspirational enforcement rule (FR-009).
+- [`docs/development/yaml-libraries.md`](../../configuration/yaml-libraries.md) — YAML library choice guide: when to use ruamel.yaml (round-trip, write-back) vs PyYAML `safe_load` (read-only). Documents current-state usage, known mixed-usage sites, and the aspirational enforcement rule (FR-009).

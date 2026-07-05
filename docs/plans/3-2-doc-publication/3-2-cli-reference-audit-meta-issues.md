@@ -10,7 +10,7 @@ This file enumerates every observed mismatch between the live `spec-kitty` Typer
 
 ## Schema
 
-Each row follows the `MetaIssueEntry` shape defined in [`kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/data-model.md`](../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/data-model.md#metaissueentry).
+Each row follows the `MetaIssueEntry` shape defined in [`kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/data-model.md`](../../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/data-model.md#metaissueentry).
 
 Columns:
 

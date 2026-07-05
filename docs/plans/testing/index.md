@@ -19,4 +19,4 @@ remediation, the friction audit, and CI quality/coverage gate tuning notes.
 
 ## See also
 
-- [Plans home](../index.md)
+- [Plans home](../../index.md)
