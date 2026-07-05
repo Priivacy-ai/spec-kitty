@@ -57,7 +57,10 @@ from scripts.docs.check_cli_reference_freshness import (  # noqa: E402
     extract_referenced_paths,
 )
 
-pytestmark = [pytest.mark.architectural]
+# ``docs_scoped``: reads the ``docs/reference/*.md`` CLI-reference files and
+# shipped skill docs, so a docs-only PR could newly-red it — it MUST run on the
+# arch pole's docs-only trim.
+pytestmark = [pytest.mark.architectural, pytest.mark.docs_scoped]
 
 
 REFERENCE_PATH = _REPO_ROOT / "docs" / "reference" / "cli-commands.md"

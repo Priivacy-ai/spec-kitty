@@ -1719,23 +1719,76 @@ jobs:
               tests/architecture
               tests/lint
     steps:
+      # fetch-depth: 0 so the docs-only detection step below can ``git diff``
+      # the PR base against HEAD. This changes no job relation (no ``needs``, no
+      # filter-group ``if:``) — the arch pole stays group-less/always-on, so the
+      # NFR-002 differential matrix and FR-013 de-serialization are untouched.
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v8.1.0
         with:
           python-version: '3.12'
       - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
+      # Docs-only detection is a RUNTIME, STEP-LEVEL decision (never a job-level
+      # ``if:`` and never a dorny filter-group reference) — see the block comment
+      # above this job. Self-contained ``git diff`` (no ``needs: changes`` edge),
+      # so the pole stays standalone (FR-013 / the ``needs`` guard in
+      # test_ci_architectural_gate_coverage). STRICT rule: docs-only iff the PR's
+      # changeset is non-empty AND every changed path is under ``docs/``. Anything
+      # else (a ``src/``/``tests/``/``.github/``/root touch, a push, a
+      # workflow_dispatch, or any diff error) is NOT docs-only -> full suite.
+      - name: "Detect docs-only PR (runtime narrowing signal)"
+        id: docsonly
+        run: |
+          set -uo pipefail
+          docs_only=false
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            base_sha="${{ github.event.pull_request.base.sha }}"
+            # Ensure the base commit object is present (fork PRs / shallow edges).
+            git fetch --no-tags --depth=1 origin "$base_sha" 2>/dev/null \
+              || git fetch --no-tags origin "${{ github.base_ref }}" 2>/dev/null \
+              || true
+            changed="$(git diff --name-only "$base_sha" HEAD 2>/dev/null || true)"
+            # docs_only iff the changeset is non-empty and NO line falls outside
+            # ``docs/`` (grep -qvE '^docs/' succeeds when a non-docs path exists).
+            if [ -n "$changed" ] && ! printf '%s\n' "$changed" | grep -qvE '^docs/'; then
+              docs_only=true
+            fi
+          fi
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+          echo "arch-pole docs_only=$docs_only (event=${{ github.event_name }})"
+      # Docs-only trims to the docs-relevant guards (`-m docs_scoped`) for speed;
+      # otherwise the full always-on selection runs UNCHANGED. Both branches keep
+      # the same step name, the full-selection marker substring
+      # (`git_repo or integration or architectural`), and the same
+      # ``coverage-arch-adversarial-<shard>.xml`` emitter (FR-006), so the static
+      # workflow model sees the pole exactly as before plus a second, group-less
+      # ``docs_scoped``-selecting gate (routed-by-marker; negated in the residual).
       - name: "Run architectural + adversarial suite (always-on pole)"
         run: |
-          uv run python -m pytest \
-            ${{ matrix.paths }} \
-            -m 'not windows_ci and (git_repo or integration or architectural)' \
-            -q --tb=short \
-            -n auto --dist loadfile \
-            --durations=50 \
-            --cov=src/specify_cli \
-            --cov=src/mission_runtime \
-            --cov-report=xml:out/reports/coverage/coverage-arch-adversarial-${{ matrix.shard }}.xml
+          if [ "${{ steps.docsonly.outputs.docs_only }}" = "true" ]; then
+            uv run python -m pytest \
+              ${{ matrix.paths }} \
+              -m 'docs_scoped and not windows_ci' \
+              -q --tb=short \
+              -n auto --dist loadfile \
+              --durations=50 \
+              --cov=src/specify_cli \
+              --cov=src/mission_runtime \
+              --cov-report=xml:out/reports/coverage/coverage-arch-adversarial-${{ matrix.shard }}.xml
+          else
+            uv run python -m pytest \
+              ${{ matrix.paths }} \
+              -m 'not windows_ci and (git_repo or integration or architectural)' \
+              -q --tb=short \
+              -n auto --dist loadfile \
+              --durations=50 \
+              --cov=src/specify_cli \
+              --cov=src/mission_runtime \
+              --cov-report=xml:out/reports/coverage/coverage-arch-adversarial-${{ matrix.shard }}.xml
+          fi
       - name: "Upload arch-adversarial coverage"
         if: always()
         uses: actions/upload-artifact@v7
@@ -2330,7 +2383,7 @@ jobs:
       - name: "Run unit/contract residual (full-tree marker selection)"
         run: |
           uv run python -m pytest tests/ \
-            -m "(unit or contract) and not (fast or integration or git_repo or slow or e2e or architectural or distribution or windows_ci or quarantine or timing)" \
+            -m "(unit or contract) and not (fast or integration or git_repo or slow or e2e or architectural or distribution or windows_ci or quarantine or timing or docs_scoped)" \
             -q --tb=short \
             -n auto --dist loadfile \
             --durations=25

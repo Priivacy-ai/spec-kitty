@@ -20,7 +20,9 @@ import pytest
 # repo, so it carries both the architectural-gate marker and ``git_repo``
 # (Rule 1 of test_pytest_marker_correctness: git subprocess users must be
 # visible to CI's ``-m git_repo`` filter).
-pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
+# ``docs_scoped``: this test scans ``docs/`` content (``_SCAN_ROOTS`` below), so a
+# docs-only PR could newly-red it — it MUST run on the arch pole's docs-only trim.
+pytestmark = [pytest.mark.architectural, pytest.mark.git_repo, pytest.mark.docs_scoped]
 
 
 # Build forbidden terms from fragments so this test file does not contain
