@@ -13,7 +13,49 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 3.2.4
+## [3.2.4] - 2026-07-05
+
+Spec Kitty 3.2.4 is a reliability-and-trust release. It fixes a batch of
+everyday mission-lifecycle friction points, closes a real gap in the bulk-edit
+safety net, makes SaaS sync reporting honest, and — behind the scenes —
+reshapes the CI pipeline and decomposes a large internal command module for
+faster feedback and lower regression risk going forward.
+
+- **Smoother day-to-day mission lifecycle.** A batch of guard/gate fixes
+  removes friction from the implement-review-accept loop: a subtask guard no
+  longer misattributes a later work package's unchecked boxes to an earlier
+  one, a mission fully implemented by `spec-kitty-orchestrator` can now pass
+  `spec-kitty accept` (two false-positive blockers removed), `move-task --to
+  for_review` recovers a killed implementer's uncommitted work instead of
+  dead-ending, closing a mission now reliably commits its auto-captured
+  retrospective, the dashboard no longer hides an in-flight coordination
+  mission behind a synthetic "orphan" entry, and a stale `.kittify/derived/`
+  view or Op-index cache file can no longer dirty `git status` or block
+  `accept`. `map-requirements` also now explains exactly *why* a requirement
+  reference is stale instead of looking like data corruption.
+- **Mission-state repair no longer risks data loss.** `doctor mission-state
+  --fix` (and the automatic repair `spec-kitty upgrade` runs) previously could
+  empty a healthy mission's event log of its canonical lifecycle history; it
+  now preserves every reader-canonical event class and anchors on the primary
+  checkout so repairs actually take effect.
+- **Bulk-edit safety net closed.** The `occurrence_map.yaml` gate that blocks
+  an incomplete bulk-edit classification at finalize-tasks now covers *both*
+  finalize-tasks command surfaces, not just one — closing a path where a
+  bulk-edit mission could slip through with an inadmissible occurrence map.
+- **Honest SaaS sync reporting.** `sync opt-in` no longer implies remote
+  enablement it didn't perform, and `sync status --check --json` reports real
+  (or honestly `unknown`) remote/import state instead of staying silent.
+- **New `orchestrator-api` capability.** A read-only `resolve-workspace`
+  command lets an external orchestrator recover a work package's lane
+  workspace without accidentally re-triggering a lifecycle transition.
+
+_Behind the scenes:_ the CI pipeline was reshaped — path-filtered job groups, a
+split core-misc shard, and an always-on, de-serialized architectural-adversarial
+pole — so most PRs get faster, more targeted feedback without losing any
+coverage; and the sprawling `agent tasks` command module was decomposed into
+small, independently-tested, behavior-preserving pieces. Neither changes any
+user-visible behavior, but both reduce the odds of the next regression and
+speed up how fast we catch one.
 
 ### 💥 Breaking Changes
 
