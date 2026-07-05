@@ -35,7 +35,17 @@ pytestmark = [pytest.mark.fast]
 
 
 def _envelope(event_type: str) -> dict[str, Any]:
-    """A minimally-valid queueable lifecycle envelope for ``event_type``."""
+    """A minimally-valid queueable lifecycle envelope for ``event_type``.
+
+    _lifecycle_saas_fanout_handler's ``envelope`` parameter is documented
+    (lifecycle_events.py) as the LOCAL lifecycle-log shape, intentionally
+    kept non-canonical -- no spec_kitty_events model represents it
+    (spec_kitty_events.Event is the WIRE envelope with a disjoint, larger
+    required-field set and no aggregate_type field at all), so a raw
+    fixture is the correct unit-under-test input for this handler's real
+    parameter contract.
+    """
+    # canonical-event-exempt(exception-flow): see docstring above -- no canonical model represents this handler's actual (non-canonical-by-design) input shape.
     return {
         "event_type": event_type,
         "payload": {"mission_id": "01JEXAMPLE0000000000000000"},
