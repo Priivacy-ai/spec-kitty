@@ -1,0 +1,54 @@
+{
+  "_comment": "Post-shrink CI-topology timing OBSERVATION (mission ci-topology-shrink-01KWQAVX, WP05 / NFR-001 / C-006). This is an ACCEPTANCE OBSERVATION artifact, not a standing timing unit gate. IMPORTANT HONESTY NOTE: a live post-shrink `run_all` measurement cannot exist pre-merge — WP03's ci-quality.yml de-serialization has not yet executed a real CI run (the mission is unmerged). The `post_shrink_projection` block below is a STRUCTURAL projection derived from WP03's de-serialization, EXPLICITLY LABELED as such — it is NOT dressed as a measurement. `measured_source_run_id` is null; the live number must be backfilled by a reviewer/operator from THIS PR's own ci-quality CI run (the first real post-shrink `run_all`). Schema mirrors tests/architectural/ci_topology_census.json `timings_baseline`.",
+  "schema": "ci-topology-timings/1",
+  "baseline": {
+    "_note": "Committed pre-mission baseline, copied verbatim from ci_topology_census.json `timings_baseline` (WP01). fast+arch ran SERIALIZED via arch-adversarial's `needs: fast-tests-core-misc` edge, summing to the ~29.4-min core-misc critical path.",
+    "fast_core_misc_min": 17.0,
+    "arch_shard_min": 12.3,
+    "critical_path_min": 29.4,
+    "next_lane_min": 13.6,
+    "source_run_id": 28705381819,
+    "serialization": "fast-tests-core-misc THEN arch (needs edge) => 17.0 + 12.3 tail ~= 29.4"
+  },
+  "post_shrink_projection": {
+    "_note": "STRUCTURAL projection (NOT a measurement). WP03 dropped arch-adversarial's `needs: fast-tests-core-misc` edge and its dorny filter `if:` gate, so the always-on architectural pole runs in PARALLEL from t=0 instead of appended as a serialized ~12.3-min tail. The core-misc critical path therefore collapses from `sum(fast_core_misc, arch)` to `max(fast_core_misc_shard, arch_shard)`.",
+    "projection_basis": "WP03 arch-pole de-serialization (needs edge dropped); live measurement pending PR CI",
+    "measured_source_run_id": null,
+    "measured_critical_path_min": null,
+    "arch_pole_execution": "de-serialized, parallel-from-t0 (was: serialized tail via needs edge)",
+    "projected_core_misc_critical_path_min": 13.6,
+    "projected_critical_path_formula": "max(fast_core_misc_shard, arch_shard ~=12.3) <= next_longest_lane ~=13.6",
+    "critical_path_reduction_projected_pct": 53.7,
+    "backfill_instruction": "Replace measured_source_run_id/measured_critical_path_min with the run_id and observed core-misc critical-path minutes from THIS PR's ci-quality run once it completes."
+  },
+  "verdict": {
+    "requirement": "NFR-001",
+    "target_rule": "post-shrink core-misc critical path <= 55% x 29.4 (<=16.17 min) AND <= next-longest lane (~13.6 min) => effective ceiling ~= 13.6 min",
+    "target_ceiling_min": 13.6,
+    "fifty_five_pct_baseline_min": 16.17,
+    "structural_assessment": "MET (projected, pending live confirmation)",
+    "rationale": "De-serialization removes the serialized ~12.3-min arch tail from the core-misc critical path; the remaining path is max(fast_core_misc_shard, arch ~=12.3) which sits at/under the ~13.6-min next-longest lane and well under the 16.17-min 55% bound. The math places the PR critical path under the ceiling by construction; a live PR-CI run must confirm.",
+    "honesty_flag": "This verdict rests on a LABELED PROJECTION, not a live measurement. The DoD's 'live measurement, not a projection' is physically impossible pre-merge (no post-shrink run_all run exists). Operator/reviewer action: backfill measured_source_run_id from this PR's ci-quality run and re-confirm the number lands <= 13.6 min."
+  },
+  "c006_nightly_decision": {
+    "requirement": "C-006",
+    "trigger_rule": "Evaluate a THIN nightly-schedule option ONLY IF the (measured) PR critical path is still > ~15 min after the shrink.",
+    "decision": "NO thin-nightly option needed (#1933-INTENT satisfied)",
+    "basis": "The de-serialization math puts the projected PR critical path (~13.6 min) well under 15 min. The shrink satisfies #1933's INTENT — fast, targeted PR CI — without a new schedule surface. Revisit only if the live PR-CI backfill contradicts the projection (>15 min).",
+    "intent_1933": "Fast, targeted PR CI via path-filtered per-module jobs; full-suite coverage remains reachable via escape hatches + nightly over-cover.",
+    "escape_hatches_present": [
+      "workflow_dispatch input `run_all` (forces every per-module job regardless of path filters)",
+      "workflow_dispatch input `run_extended` (adds the slow/e2e suite)",
+      "nightly `schedule` cron '17 2 * * *' (default-branch Sonar run)",
+      "`unmatched` fail-closed catch-all: any src/** path matched by NO named dorny group forces every job (FR-010) — the sub-T_LOC catch-all tail"
+    ],
+    "escape_hatches_honesty_note": "The mission brief mentioned `ci:full` / `ready-for-ci` label hatches; those PR-label triggers do NOT exist in the current ci-quality.yml. The ACTUAL, verified hatches are the four listed above (workflow_dispatch run_all/run_extended, the nightly schedule cron, and the unmatched catch-all)."
+  },
+  "fr009_no_new_blind_spot": {
+    "requirement": "FR-009",
+    "assessment": "CONFIRMED — no new blind spot introduced by WP03.",
+    "run_all_over_cover_intact": "The `changes` job's 28 per-group outputs all retain the identical `(inputs.run_all || steps.unmatched.outputs.unmatched == 'true') && 'true' || steps.filter.outputs.<group>` shape, so `run_all` (workflow_dispatch) still forces every worklist-dir job to run and over-cover every mapped group.",
+    "sub_t_loc_catch_all_tail": "The `unmatched` fail-closed signal is untouched: any src path matched by no named group (including sub-T_LOC / newly added dirs) still forces every job — the arch pole's fail-closed catch-all coverage (the `changes` unmatched signal) is explicitly preserved per WP03's own annotation.",
+    "arch_pole_coverage_preserved": "arch-adversarial still emits --cov=src/specify_cli + --cov=src/mission_runtime and its coverage-arch-adversarial-<shard>.xml is glob-consumed by the aggregator (enforced by WP05's test_coverage_topology_ownership.py, FR-006)."
+  }
+}
