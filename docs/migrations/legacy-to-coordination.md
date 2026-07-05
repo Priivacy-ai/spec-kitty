@@ -56,16 +56,21 @@ write target is the operator's **current lane worktree and its checked-out
 branch**, resolved from your working directory. This is the pre-coordination
 behavior, preserved on purpose.
 
-Two neighbouring states are *not* legacy:
+Two neighbouring states are *not* legacy, and — since #2351 — do **not** draw
+the legacy-topology warning:
 
 - **A coordination-less topology chosen at creation.** A mission created on a
   current version with the `single_branch` or `lanes` topology also has no
-  `coordination_branch` — those shapes never mint one. The detection rule is
-  the same (the key is absent), so such a mission sees the same once-only
-  warning; it is equally safe to ignore.
+  `coordination_branch` — those shapes never mint one. Write-path routing
+  still treats them identically to a legacy mission (both write through the
+  operator's lane worktree, the key is absent either way), but the warning
+  classifier is topology-aware: it reads the mission's **stored** topology
+  and no longer warns when that topology is a coordination-less shape chosen
+  on purpose.
 - **A flattened mission.** A mission that *had* a coordination branch and had
   it deliberately removed is **flattened**, recorded as a separate
   `flattened` provenance flag in `meta.json` — never as a topology value.
+  Flattened missions do not draw the legacy-topology warning either.
   See the [MissionTopology SSOT ADR](../adr/3.x/2026-06-22-1-mission-topology-ssot.md).
 
 ## Detect the state
@@ -123,8 +128,11 @@ one mission. Exit code `1` means one or more missions had a corrupt or
 unreadable `meta.json`; repair the JSON and re-run.
 
 Note the backfill stores the *shape*; it never mints a coordination branch.
-A legacy mission stays on the legacy write path after backfill, and the
-once-per-mission warning behavior is unchanged.
+A legacy mission stays on the legacy write path after backfill — routing is
+unaffected. The warning behavior, however, changes deliberately (#2351):
+backfilling a genuinely legacy mission's stored topology **suppresses** the
+legacy-topology warning on the next invocation, since the classifier now
+sees an affirmative stored shape instead of "absent."
 
 ## Path B — Adopt the coordination model
 

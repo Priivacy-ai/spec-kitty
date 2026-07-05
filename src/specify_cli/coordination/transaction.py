@@ -251,6 +251,44 @@ def _coordination_branch_from_meta(
     return branch or None
 
 
+def _warrants_legacy_warning(repo_root: Path, mission_slug: str, mid8: str) -> bool:
+    """Return ``True`` when the once-per-mission legacy-topology warning
+    should fire (#2351).
+
+    Deliberately SEPARATE from :func:`_is_legacy_mission` (C-005): that
+    predicate keys on ``coordination_branch`` absence alone and continues to
+    drive worktree routing (below) and write-contract selection unchanged.
+    This classifier additionally reads the stored ``MissionTopology`` (via
+    the non-deriving :func:`stored_topology_from_meta`, C-001) and the
+    ``flattened`` provenance flag, so a mission whose coordination-less shape
+    was **chosen at creation** (``single_branch``/``lanes``) or that is
+    ``flattened`` does not draw a warning meant for genuinely pre-SSOT
+    missions (FR-001..FR-004).
+
+    Warn iff ``coordination_branch`` is falsy AND the stored topology is
+    ``None`` (absent or malformed — the reader's fail-closed default, so an
+    unrecognised value warns rather than silently passing) AND the mission
+    is not ``flattened``.
+    """
+    kitty_dir_name = _mission_specs_dir_name(mission_slug, mid8)
+    meta_path = repo_root / KITTY_SPECS_DIR / kitty_dir_name / "meta.json"
+    if not meta_path.exists():
+        return False
+    try:
+        meta = _json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, _json.JSONDecodeError):
+        return False
+    if not isinstance(meta, dict):
+        return False
+    if meta.get("coordination_branch"):
+        return False
+    if meta.get("flattened"):
+        return False
+    from specify_cli.missions._read_path_resolver import stored_topology_from_meta
+
+    return stored_topology_from_meta(meta) is None
+
+
 def _resolve_legacy_lane_destination(
     _repo_root: Path,
 ) -> tuple[Path, str]:
@@ -342,7 +380,9 @@ def _emit_legacy_warning_once(
         f"warning: mission {mission_slug!r} uses the legacy topology "
         f"(no coordination branch). New atomicity invariants apply, "
         f"but consider migrating: see "
-        f"docs/migrations/legacy-to-coordination.md",
+        f"docs/migrations/legacy-to-coordination.md "
+        f"or run `spec-kitty migrate backfill-topology` to persist the "
+        f"stored shape.",
         file=sys.stderr,
     )
 
@@ -727,7 +767,8 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
             # lane branch so policy + HEAD assertion both see truth.
             effective_normalized_ref = _normalize_ref(lane_branch)
             effective_destination_ref = effective_normalized_ref
-            _emit_legacy_warning_once(repo_root, mission_id, safe_mission_slug)
+            if _warrants_legacy_warning(repo_root, safe_mission_slug, safe_mid8):
+                _emit_legacy_warning_once(repo_root, mission_id, safe_mission_slug)
         else:
             coord_branch = CoordinationWorkspace.branch_name(safe_mission_slug, safe_mid8)
             caller_change_set = GitChangeSet(
