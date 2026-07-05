@@ -1,24 +1,10 @@
 {
-  "accept_commit": "e56b948b8e3a5ac65c79d55453258155d8ebc84b",
-  "acceptance_history": [
-    {
-      "accept_commit": "e56b948b8e3a5ac65c79d55453258155d8ebc84b",
-      "acceptance_mode": "pr",
-      "accepted_at": "2026-07-05T12:43:39.036236+00:00",
-      "accepted_by": "stijn",
-      "accepted_from_commit": "bb4fc34a525e5d5cc6d11cfaa02e286c3c19760d"
-    }
-  ],
-  "acceptance_mode": "pr",
-  "accepted_at": "2026-07-05T12:43:39.036236+00:00",
-  "accepted_by": "stijn",
-  "accepted_from_commit": "bb4fc34a525e5d5cc6d11cfaa02e286c3c19760d",
   "coordination_branch": "kitty/mission-ci-health-charter-path-and-arch-shard-01KWRTB2",
   "created_at": "2026-07-05T09:39:20.687967+00:00",
   "flattened": false,
   "friendly_name": "CI Health: Charter-Path Hotfix + Arch-Adversarial Shard",
   "mission_id": "01KWRTB2ZF0DJYPQ09PYRNP013",
-  "mission_number": null,
+  "mission_number": 164,
   "mission_slug": "ci-health-charter-path-and-arch-shard-01KWRTB2",
   "mission_type": "software-dev",
   "pr_bound": true,
@@ -28,5 +14,5 @@
   "target_branch": "tidy/ci-docs-charter-path-and-arch-adversarial-shard",
   "topology": "coord",
   "vcs": "git",
-  "vcs_locked_at": "2026-07-05T11:27:32.224197+00:00"
+  "vcs_locked_at": "2026-07-05T11:27:42.910890+00:00"
 }

@@ -2,7 +2,7 @@
   "mission_slug": "ci-health-charter-path-and-arch-shard-01KWRTB2",
   "mission_number": "",
   "mission_type": "software-dev",
-  "overall_verdict": "pending",
+  "overall_verdict": "pass",
   "criteria": [
     {
       "criterion_id": "FR-001",
@@ -92,7 +92,7 @@
       "verification_method": "grep_absence",
       "verification_command": "grep -rn \"memory/charter.md\" docs/context docs/guides docs/api spec-driven.md",
       "result": "confirmed_absent",
-      "evidence": "Empty grep output, verified live in WP01 review (2026-07-05).",
+      "evidence": "grep found zero matches",
       "scope": "docs/context docs/guides docs/api spec-driven.md"
     },
     {
@@ -101,8 +101,7 @@
       "verification_method": "custom_command",
       "verification_command": "pytest tests/architectural/test_arch_pole_deserialized.py -q",
       "result": "confirmed_absent",
-      "evidence": "1+ passed, confirmed live in WP03 review; if: always() unchanged, no needs: key added, no dorny filter if: reference added -- confirmed by direct diff review of the job block.",
-      "scope": null
+      "evidence": "Command exited 0: ..                                                                       [100%]\n2 passed in 27.82s"
     }
   ]
 }
