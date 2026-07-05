@@ -484,6 +484,36 @@ def _resolve_dependencies_and_refs(
     return res
 
 
+def _validate_occurrence_map_ready(planning_dir: Path, *, json_output: bool) -> None:
+    """Phase: bulk-edit occurrence-map gate (reuses the implement-time check).
+
+    Reuses ``ensure_occurrence_classification_ready`` unchanged (C-001, FR-002):
+    for non-bulk-edit missions it self-conditions to a no-op; for bulk-edit
+    missions it blocks finalize-tasks when ``occurrence_map.yaml`` is missing,
+    schema-invalid, or inadmissible, so the failure surfaces here instead of
+    at the first ``implement WP##`` (FR-001). Read-only — preserves the
+    ``--validate-only`` zero-mutation invariant (C-004).
+    """
+    from specify_cli.bulk_edit.gate import (
+        ensure_occurrence_classification_ready,
+        render_gate_failure,
+    )
+
+    result = ensure_occurrence_classification_ready(planning_dir)
+    if result.passed:
+        return
+    if json_output:
+        _emit_json(
+            {
+                "error": "Bulk edit occurrence-map gate blocked finalize-tasks.",
+                "gate_errors": list(result.errors),
+            }
+        )
+    else:
+        render_gate_failure(result, console)
+    raise typer.Exit(1)
+
+
 def _validate_tasks_md_coverage(
     tasks_md_dependencies: dict[str, list[str]], expected_wp_ids: list[str], *, json_output: bool
 ) -> None:
@@ -1578,6 +1608,13 @@ def finalize_tasks(
             _canonicalize_primary_read_handle(repo_root, mission_slug),
         )
         planning_dir = primary_dir
+
+        # Bulk edit occurrence-map gate (FR-001/002/003/004): fail-fast, before
+        # the (potentially expensive) requirement-mapping/dependency-graph
+        # validators, and before the `if validate_only:` split so it fires in
+        # both normal and --validate-only modes (C-005/IC-01).
+        _validate_occurrence_map_ready(planning_dir, json_output=json_output)
+
         target_branch = _resolve_target_branch(
             repo_root, primary_dir, target_branch_override=target_branch_override, json_output=json_output
         )
