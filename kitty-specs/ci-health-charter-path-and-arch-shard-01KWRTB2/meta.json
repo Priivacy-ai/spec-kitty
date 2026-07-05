@@ -1,0 +1,32 @@
+{
+  "accept_commit": "e56b948b8e3a5ac65c79d55453258155d8ebc84b",
+  "acceptance_history": [
+    {
+      "accept_commit": "e56b948b8e3a5ac65c79d55453258155d8ebc84b",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-05T12:43:39.036236+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "bb4fc34a525e5d5cc6d11cfaa02e286c3c19760d"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-05T12:43:39.036236+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "bb4fc34a525e5d5cc6d11cfaa02e286c3c19760d",
+  "coordination_branch": "kitty/mission-ci-health-charter-path-and-arch-shard-01KWRTB2",
+  "created_at": "2026-07-05T09:39:20.687967+00:00",
+  "flattened": false,
+  "friendly_name": "CI Health: Charter-Path Hotfix + Arch-Adversarial Shard",
+  "mission_id": "01KWRTB2ZF0DJYPQ09PYRNP013",
+  "mission_number": null,
+  "mission_slug": "ci-health-charter-path-and-arch-shard-01KWRTB2",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Main is currently red because a docs page still publishes the retired memory/charter.md path, blocking fast-tests-docs on every open PR; and the arch-adversarial CI job is now the slowest unsharded pole at 14.4 min. This mission clears both so the pipeline is green and fast, without weakening architecture-suite coverage or coverage-ownership invariants.",
+  "purpose_tldr": "Restore CI health: fix the red-main docs charter-path test and matrix-shard the arch-adversarial bottleneck (#2397).",
+  "slug": "ci-health-charter-path-and-arch-shard-01KWRTB2",
+  "target_branch": "tidy/ci-docs-charter-path-and-arch-adversarial-shard",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-05T11:27:32.224197+00:00"
+}
