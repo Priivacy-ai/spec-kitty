@@ -2400,7 +2400,7 @@ jobs:
       - name: "Run unit/contract residual (full-tree marker selection)"
         run: |
           uv run python -m pytest tests/ \
-            -m "(unit or contract) and not (fast or integration or git_repo or slow or e2e or architectural or distribution or windows_ci or quarantine or timing or docs_scoped)" \
+            -m "(unit or contract) and not (fast or integration or git_repo or slow or e2e or architectural or distribution or windows_ci or quarantine or timing or docs_scoped or arch_shard_1 or arch_shard_2 or arch_shard_3)" \
             -q --tb=short \
             -n auto --dist loadfile \
             --durations=25
