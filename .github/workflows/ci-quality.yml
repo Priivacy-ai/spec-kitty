@@ -1786,6 +1786,14 @@ jobs:
       - name: "Run architectural + adversarial suite (always-on pole)"
         run: |
           if [ "${{ steps.docsonly.outputs.docs_only }}" = "true" ]; then
+            # A shard is not guaranteed to own at least one docs_scoped test (the
+            # marker is assigned by content, not evenly distributed across the
+            # 3 shards) — a docs-only PR whose diff happens to land entirely in
+            # a shard with zero docs_scoped tests legitimately collects nothing.
+            # Tolerate pytest's exit code 5 (no tests collected) the same way
+            # the quarantine-visibility job does below, instead of reding an
+            # unrelated docs-only PR on an empty selection.
+            set +e
             uv run python -m pytest \
               ${{ matrix.paths }} \
               -m '${{ matrix.shard }} and docs_scoped and not windows_ci' \
@@ -1795,6 +1803,13 @@ jobs:
               --cov=src/specify_cli \
               --cov=src/mission_runtime \
               --cov-report=xml:out/reports/coverage/coverage-arch-adversarial-${{ matrix.shard }}.xml
+            ec=$?
+            set -e
+            if [ "$ec" -eq 5 ]; then
+              echo "::notice::${{ matrix.shard }} owns no docs_scoped tests (collected nothing) on this docs-only PR."
+              exit 0
+            fi
+            exit "$ec"
           else
             uv run python -m pytest \
               ${{ matrix.paths }} \
