@@ -1,0 +1,28 @@
+{
+  "event_count": 22,
+  "last_event_id": "01KWQTG1C0GVNV5SPPDT59PGX5",
+  "materialized_at": "2026-07-05T00:22:48.448969+00:00",
+  "mission_number": "163",
+  "mission_slug": "retro-summary-nfr-investigation-01KWQARM",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KWQTG1C0GVNV5SPPDT59PGX5",
+      "last_transition_at": "2026-07-05T00:22:48.448969+00:00"
+    }
+  }
+}
