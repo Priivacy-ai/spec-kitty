@@ -17,8 +17,10 @@ This guard closes that drift by construction (DIR-043):
   content are asserted to carry the module-level marker. If one loses the marker
   (or the arch pole's docs-only trim would stop selecting it) this reds.
 
-* **(b) Best-effort static detector** — every ``.py`` under ``tests/architectural``
-  and ``tests/adversarial`` is AST-scanned for a *docs-read signal*:
+* **(b) Best-effort static detector** — every ``.py`` under the pole's live
+  ``matrix.paths`` roots (derived from the workflow, today ``tests/adversarial``,
+  ``tests/architectural``, ``tests/architecture`` (singular), ``tests/lint``) is
+  AST-scanned for a *docs-read signal*:
   a ``_SCAN_ROOTS``-style tuple/list literal containing ``"docs"`` (alongside
   ``"src"``/``"tests"``), or a repo-rooted ``... / "docs"`` :class:`pathlib.Path`
   division chain (``tmp_path``-rooted chains are excluded — those stage a
@@ -40,17 +42,42 @@ import ast
 from pathlib import Path
 
 import pytest
+import yaml
 
 pytestmark = [pytest.mark.architectural]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_SCAN_DIRS: tuple[Path, ...] = (
-    _REPO_ROOT / "tests" / "architectural",
-    _REPO_ROOT / "tests" / "adversarial",
-)
 
 # The docs marker's canonical name (single source: pytest.ini registry).
 _DOCS_MARKER = "docs_scoped"
+
+# The pole whose docs-only trim this guard protects, and the workflow that owns
+# it. ``_SCAN_DIRS`` is DERIVED from the pole's ``matrix.paths`` (not hardcoded)
+# so the guard can never again go blind to a root the pole actually runs.
+_CI_WORKFLOW = _REPO_ROOT / ".github" / "workflows" / "ci-quality.yml"
+_ARCH_POLE_JOB = "arch-adversarial"
+_ARCH_POLE_SHARD = "architectural"
+
+
+def _pole_matrix_path_roots() -> tuple[Path, ...]:
+    """The ``arch-adversarial`` pole's ``matrix.paths`` roots, as repo paths.
+
+    Parsed live from ``ci-quality.yml`` so the scan set the guard walks is
+    exactly the set of directories the pole selects tests from (today
+    ``tests/adversarial tests/architectural tests/architecture tests/lint``). A
+    root added to / removed from the pole flows through here automatically, and
+    :func:`test_scan_dirs_equal_pole_matrix_paths` reds if the two ever diverge.
+    """
+    data = yaml.safe_load(_CI_WORKFLOW.read_text(encoding="utf-8"))
+    job = data["jobs"][_ARCH_POLE_JOB]
+    include = job["strategy"]["matrix"]["include"]
+    shard = next(e for e in include if e.get("shard") == _ARCH_POLE_SHARD)
+    return tuple(
+        _REPO_ROOT / token for token in str(shard["paths"]).split()
+    )
+
+
+_SCAN_DIRS: tuple[Path, ...] = _pole_matrix_path_roots()
 
 # Path-chain roots that denote a *fixture-staged* docs tree (not the real repo
 # ``docs/``); a ``"docs"`` segment under one of these is NOT a docs-read signal.
@@ -62,12 +89,14 @@ _FIXTURE_ROOTS: frozenset[str] = frozenset({"tmp_path", "tmpdir", "tmp"})
 _SCAN_ROOT_SIBLINGS: frozenset[str] = frozenset({"src", "tests"})
 
 # Known docs-content scanners (pinned so a heuristic miss can never silently
-# drop the canonical prose scanners). Kept in sync with the marked modules.
+# drop the canonical prose scanners). Repo-relative paths — these span more than
+# one pole root (``tests/architectural`` AND ``tests/architecture`` singular).
 _KNOWN_DOCS_SCANNERS: tuple[str, ...] = (
-    "test_no_legacy_terminology.py",
-    "test_docs_cli_reference_parity.py",
-    "test_unregistered_shim_scanner.py",
-    "test_shim_registry_schema.py",
+    "tests/architectural/test_no_legacy_terminology.py",
+    "tests/architectural/test_docs_cli_reference_parity.py",
+    "tests/architectural/test_unregistered_shim_scanner.py",
+    "tests/architectural/test_shim_registry_schema.py",
+    "tests/architecture/test_ownership_manifest_schema.py",
 )
 
 
@@ -110,16 +139,20 @@ def _has_scan_roots_docs(tree: ast.AST) -> bool:
 def _has_repo_docs_path(tree: ast.AST) -> bool:
     """A ``<root> / "docs"`` Path division whose root is not a tmp fixture.
 
-    Catches ``_REPO_ROOT / "docs" / "reference" / ...`` (real-tree read) while
-    excluding ``tmp_path / "docs" / ...`` (fixture staging).
+    Catches both ``_REPO_ROOT / "docs" / "reference" / ...`` (Name root) and
+    ``Path(__file__).parents[2] / "docs" / ...`` (non-Name root — an expression
+    with no leading identifier) — real-tree reads. Excludes only
+    ``tmp_path / "docs" / ...`` (fixture staging): a chain whose leftmost
+    identifier is a known tmp fixture. A non-Name root (``_leftmost_name`` ->
+    ``None``) is NOT a fixture root, so it is flagged (the ownership-manifest
+    scanner's ``Path(__file__).parents[2]`` idiom).
     """
     for node in ast.walk(tree):
         if not (isinstance(node, ast.BinOp) and isinstance(node.op, ast.Div)):
             continue
         if not (_is_docs_constant(node.left) or _is_docs_constant(node.right)):
             continue
-        base = _leftmost_name(node)
-        if base is not None and base not in _FIXTURE_ROOTS:
+        if _leftmost_name(node) not in _FIXTURE_ROOTS:
             return True
     return False
 
@@ -174,17 +207,37 @@ def _iter_test_files() -> list[Path]:
     return files
 
 
+def test_scan_dirs_equal_pole_matrix_paths() -> None:
+    """The guard's scan set EQUALS the pole's live ``matrix.paths`` roots.
+
+    Closes the drift class that this guard was rejected for: if the guard walked
+    fewer roots than the pole runs, a docs-scanning test under an unwatched root
+    could go unmarked and be silently trimmed away. Deriving ``_SCAN_DIRS`` from
+    the pole plus this equality assertion means adding/removing a pole root reds
+    here instead of silently narrowing the guard's coverage.
+    """
+    scan = {p.relative_to(_REPO_ROOT).as_posix() for p in _SCAN_DIRS}
+    pole = {p.relative_to(_REPO_ROOT).as_posix() for p in _pole_matrix_path_roots()}
+    assert scan == pole, (
+        f"guard scan roots {sorted(scan)} != pole matrix.paths {sorted(pole)} — "
+        "the guard would be blind to a root the pole actually runs"
+    )
+    # And every pole root must exist on disk (a typo'd root would silently drop).
+    for root in _SCAN_DIRS:
+        assert root.is_dir(), f"pole matrix.paths root {root} is not a directory"
+
+
 def test_known_docs_scanners_are_docs_scoped() -> None:
     """(a) Every pinned known docs-content scanner carries the module marker."""
     missing: list[str] = []
-    for name in _KNOWN_DOCS_SCANNERS:
-        path = _REPO_ROOT / "tests" / "architectural" / name
+    for relpath in _KNOWN_DOCS_SCANNERS:
+        path = _REPO_ROOT / relpath
         assert path.is_file(), (
-            f"pinned docs scanner {name!r} moved/renamed — update "
+            f"pinned docs scanner {relpath!r} moved/renamed — update "
             "_KNOWN_DOCS_SCANNERS so the arch pole's docs-only trim still runs it"
         )
         if not module_marks_docs_scoped(path.read_text(encoding="utf-8")):
-            missing.append(name)
+            missing.append(relpath)
     assert not missing, (
         "known docs-content scanners missing @pytest.mark.docs_scoped (the "
         "arch-adversarial docs-only trim would silently skip them): "
@@ -226,6 +279,13 @@ def test_detector_flags_scan_roots_docs() -> None:
 
 def test_detector_flags_repo_rooted_docs_path() -> None:
     assert reads_repo_docs('P = _REPO_ROOT / "docs" / "reference" / "x.md"') is True
+
+
+def test_detector_flags_dunder_file_rooted_docs_path() -> None:
+    # The ownership-manifest scanner's idiom: a non-Name root (Path(__file__)…).
+    assert reads_repo_docs(
+        'M = Path(__file__).parents[2] / "docs" / "architecture" / "x.yaml"'
+    ) is True
 
 
 def test_detector_ignores_tmp_path_docs() -> None:
