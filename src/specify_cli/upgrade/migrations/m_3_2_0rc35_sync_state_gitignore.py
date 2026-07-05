@@ -68,7 +68,7 @@ def _read_gitignore_entries(project_path: Path) -> set[str]:
 
 
 @MigrationRegistry.register
-class KittifyRuntimeGitHygieneMigration(BaseMigration):  # type: ignore[misc]
+class KittifyRuntimeGitHygieneMigration(BaseMigration):
     """Ignore sync state and untrack known local-runtime files."""
 
     migration_id = "3.2.0rc35_kittify_runtime_git_hygiene"

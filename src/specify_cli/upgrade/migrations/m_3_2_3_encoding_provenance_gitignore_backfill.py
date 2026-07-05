@@ -9,7 +9,7 @@ from .base import BaseMigration, MigrationResult
 
 
 @MigrationRegistry.register
-class EncodingProvenanceGitignoreBackfillMigration(BaseMigration):  # type: ignore[misc]
+class EncodingProvenanceGitignoreBackfillMigration(BaseMigration):
     """Re-run the runtime git hygiene repair for already-shipped 3.2.x installs."""
 
     migration_id = "3.2.3_encoding_provenance_gitignore_backfill"

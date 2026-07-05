@@ -48,7 +48,7 @@ def _read_gitignore_entries(project_path: Path) -> set[str]:
 
 
 @MigrationRegistry.register
-class DerivedViewsGitignoreBackfillMigration(BaseMigration):  # type: ignore[misc]
+class DerivedViewsGitignoreBackfillMigration(BaseMigration):
     """Ensure the regenerable ``.kittify/derived/`` views dir is gitignored."""
 
     migration_id = "3.2.4_derived_mission_views_gitignore_backfill"
