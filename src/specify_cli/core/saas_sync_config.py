@@ -24,7 +24,14 @@ _DISABLED_MESSAGE = (
     "Set `SPEC_KITTY_ENABLE_SAAS_SYNC=1` to opt in."
 )
 
-__all__ = ["SAAS_SYNC_ENV_VAR", "is_saas_sync_enabled", "saas_sync_disabled_message"]
+_OPT_IN_RECORDED_BASE = "Local sync preference recorded for this checkout"
+
+__all__ = [
+    "SAAS_SYNC_ENV_VAR",
+    "is_saas_sync_enabled",
+    "saas_sync_disabled_message",
+    "saas_sync_opt_in_recorded_message",
+]
 
 
 def is_saas_sync_enabled() -> bool:
@@ -44,3 +51,17 @@ def saas_sync_disabled_message() -> str:
     ``contracts/saas_rollout.md`` and bumping the contract version.
     """
     return _DISABLED_MESSAGE
+
+
+def saas_sync_opt_in_recorded_message(scope_label: str | None = None) -> str:
+    """Return the honest confirmation for ``spec-kitty sync opt-in`` (#2264).
+
+    ``opt-in`` writes LOCAL routing flags only — no auth, no remote round-trip,
+    no history import. This message must therefore NOT imply remote
+    materialization or history: it states only that a local preference was
+    recorded. The prior wording ("Enabled SaaS sync for this checkout") was the
+    false-green that escalated #2264 to P1. Wording is asserted by tests.
+    """
+    if scope_label:
+        return f"{_OPT_IN_RECORDED_BASE} ({scope_label})."
+    return f"{_OPT_IN_RECORDED_BASE}."
