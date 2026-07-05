@@ -11,7 +11,11 @@ from typing import Any, cast
 import pytest
 import yaml
 
-pytestmark = [pytest.mark.architectural]
+# ``docs_scoped``: validates the live ``docs/architecture/05_ownership_manifest.yaml``
+# (slice keys, required fields, dependency_rules, charter_governance.shims,
+# shim-path existence), so a docs-only PR editing that manifest could newly-red
+# it — it MUST run on the arch pole's docs-only trim.
+pytestmark = [pytest.mark.architectural, pytest.mark.docs_scoped]
 
 MANIFEST_PATH = Path(__file__).parents[2] / "docs" / "architecture" / "05_ownership_manifest.yaml"
 
