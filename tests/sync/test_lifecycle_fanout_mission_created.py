@@ -26,6 +26,13 @@ import pytest
 
 from specify_cli.sync import _lifecycle_saas_fanout_handler
 
+# Pure-logic, fully mock-patched (no real subprocess/git/port I/O beyond
+# tmp_path) — matches this repo's `fast` marker definition and is what
+# fast-tests-sync (tests/sync/, `-m "fast and not windows_ci"`) selects.
+# Without this marker the file is invisible to every CI gate (landing fold,
+# PR #2393 — same defect class caught on PR #2398's new test file).
+pytestmark = [pytest.mark.fast]
+
 
 def _envelope(event_type: str) -> dict[str, Any]:
     """A minimally-valid queueable lifecycle envelope for ``event_type``."""
