@@ -50,6 +50,7 @@ from specify_cli.core.vcs import (
 )
 
 from specify_cli.sync.queue import QueueStats
+from specify_cli.core.saas_sync_config import saas_sync_opt_in_recorded_message
 from specify_cli.sync.feature_flags import (
     SAAS_SYNC_ENV_VAR,
     is_saas_sync_enabled,
@@ -1374,12 +1375,16 @@ def opt_in(
         remember_repo_default=not checkout_only,
     )
 
-    console.print(
-        f"[green]✓[/green] Enabled SaaS sync for this checkout "
-        f"([cyan]{refreshed.repo_slug or refreshed.project_slug or refreshed.project_uuid}[/cyan])."
-    )
+    # Honest confirmation (#2264): opt-in writes LOCAL routing flags only — no
+    # auth, no remote round-trip, no history import. The message must not imply
+    # remote materialization (the prior "Enabled SaaS sync" wording was the
+    # false-green that escalated #2264 to P1).
+    scope_label = refreshed.repo_slug or refreshed.project_slug or refreshed.project_uuid
+    console.print(f"[green]✓[/green] {saas_sync_opt_in_recorded_message(scope_label)}")
     if not checkout_only and refreshed.repo_slug:
-        console.print("[dim]Future checkouts of this repository will also default to sync enabled.[/dim]")
+        console.print(
+            "[dim]Future checkouts of this repository will also default to this local preference.[/dim]"
+        )
 
 
 def _detect_workspace_context() -> tuple[Path, str | None]:
@@ -2358,6 +2363,17 @@ def _emit_status_check_json() -> None:
         "exit_code": 0 if ok else 2,
         "auth_required": auth_required,
         "auth_present": auth_present,
+        # Remote/import honesty (#2264). ``ok`` stays boundary/transport
+        # coherence ONLY — it never reflects remote materialization. These typed
+        # fields carry remote-project + historical-import state so a consumer
+        # asserting SaaS population reads THESE, not ``ok``. Honest ``unknown``
+        # until the import engine (#2262) populates them.
+        "remote_sync": {
+            "remote_project_state": "unknown",
+            "materialized_at": None,
+            "historical_import_state": "unknown",
+            "last_blocker_sample": None,
+        },
         "live_orphan_daemon_count": live_orphan_count,
         "foreground": {
             "package_version": fg.package_version,
