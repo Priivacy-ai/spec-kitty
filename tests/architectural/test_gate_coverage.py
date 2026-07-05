@@ -43,9 +43,16 @@ pytestmark = [pytest.mark.architectural]
 # Selection structures the orphan analysis depends on. If a workflow refactor
 # removes one of these, the checker's model is stale and must be updated — these
 # names are matched against the parsed gates so the failure is explicit.
+#
+# The single "architectural" shard was retired by mission
+# ci-health-charter-path-and-arch-shard-01KWRTB2 (#2397): arch-adversarial is
+# now a 3-shard matrix (arch_shard_1/2/3), so the canary requires all three
+# shard names to stay modellable instead of the one retired name.
 _REQUIRED_CORE_MISC_SHARDS: frozenset[str] = frozenset(
     {
-        "architectural",
+        "arch_shard_1",
+        "arch_shard_2",
+        "arch_shard_3",
         "integration",
         "specify-cli-heavy",
         "specify-cli-rest",
