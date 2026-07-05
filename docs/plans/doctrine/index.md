@@ -25,4 +25,4 @@ related mission scope notes.
 
 ## See also
 
-- [Plans home](../index.md)
+- [Plans home](../../index.md)

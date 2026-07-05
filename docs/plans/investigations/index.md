@@ -20,4 +20,4 @@ reports.
 
 ## See also
 
-- [Plans home](../index.md)
+- [Plans home](../../index.md)

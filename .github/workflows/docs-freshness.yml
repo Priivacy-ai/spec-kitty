@@ -37,6 +37,8 @@ jobs:
         run: uv run python scripts/docs/relative_link_fixer.py --check --repo-root .
       - name: Check CHANGELOG sync (canonical → root)
         run: uv run python scripts/docs/sync_changelog.py --check
+      - name: Check CONTRIBUTING sync (canonical → root)
+        run: uv run python scripts/docs/sync_contributing.py --check
       - name: Docs freshness (R3 lockfile drift default-on + sub-checks)
         env:
           SPEC_KITTY_ENABLE_SAAS_SYNC: "1"

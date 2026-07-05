@@ -768,7 +768,7 @@ drafted for WP07 reference and WP08 IA cross-linking.
 ### Group 2 — **3.1 (supported)** *(conditional)*
 
 **Conditional on deferred decision
-[`01KS4KTGTN4DBE60JFWKEA2FJB`](../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/spec.md).**
+[`01KS4KTGTN4DBE60JFWKEA2FJB`](../../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/spec.md).**
 
 **Plan default (this WP).** **This group is absent.** All would-be
 "3.1-supported" pages are folded into the **Migration** group as 3.1 →

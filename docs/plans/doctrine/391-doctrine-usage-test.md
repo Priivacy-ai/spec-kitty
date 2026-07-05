@@ -10,11 +10,11 @@ Mission: `doctrine-glossary-architecture-consolidation-01KTNWFC` — FR-012, SC-
 Date: 2026-06-11. Operator: curator-carla. Tracker: `Priivacy-ai/spec-kitty`.
 
 This record is the usage-test of the doctrine authored in WP04/WP05 — the
-[tracker-organisation-workflow procedure](../../src/doctrine/procedures/built-in/tracker-organisation-workflow.procedure.yaml),
-the [planning-and-tracking styleguide](../../src/doctrine/styleguides/built-in/planning-and-tracking.styleguide.yaml),
-the [github-tracker toolguide](../../src/doctrine/toolguides/built-in/GITHUB_TRACKER.md),
-the [iterative-deepening-review](../../src/doctrine/tactics/built-in/iterative-deepening-review.tactic.yaml)
-and [moscow-scoping-lens](../../src/doctrine/tactics/built-in/moscow-scoping-lens.tactic.yaml) tactics,
+[tracker-organisation-workflow procedure](../../../src/doctrine/procedures/built-in/tracker-organisation-workflow.procedure.yaml),
+the [planning-and-tracking styleguide](../../../src/doctrine/styleguides/built-in/planning-and-tracking.styleguide.yaml),
+the [github-tracker toolguide](../../../src/doctrine/toolguides/built-in/GITHUB_TRACKER.md),
+the [iterative-deepening-review](../../../src/doctrine/tactics/built-in/iterative-deepening-review.tactic.yaml)
+and [moscow-scoping-lens](../../../src/doctrine/tactics/built-in/moscow-scoping-lens.tactic.yaml) tactics,
 and the planning-and-tracking glossary subset — applied to the real #391 epic
 using **only** that doctrine as the method.
 

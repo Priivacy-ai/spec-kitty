@@ -47,7 +47,7 @@ claude --plugin-dir dist/spec-kitty-plugins/claude-code "<your prompt>"
 claude plugin install dist/spec-kitty-plugins/claude-code
 ```
 
-For build system details, see [CONTRIBUTING.md](../../CONTRIBUTING.md).
+For build system details, see [CONTRIBUTING.md](contributing.md).
 
 ---
 

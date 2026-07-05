@@ -24,4 +24,4 @@ publication checklist that ties them together.
 
 ## See also
 
-- [Plans home](../index.md)
+- [Plans home](../../index.md)

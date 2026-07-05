@@ -15,7 +15,7 @@ related:
 **Post-merge remediations:** `e1d58d2f` (HIGH-1 multi-pack iteration), `86c103e2` (HIGH-2 interview pre-fill wiring), `b0f69231` (MEDIUM-1 collision warnings + spec/code reconciliation), `76c9f3b4` (quality sweep on touched modules)
 **Related ADRs:** `2026-03-27-1-pytestarch-architectural-dependency-testing.md`, `2026-05-16-1-doctrine-layer-merge-semantics.md`
 **Related design predecessor:** [layered-doctrine-resolution-design.md](./layered-doctrine-resolution-design.md) (the *intent* blueprint, written 2026-05-15)
-**Related mission review:** [mission-review-report.md](../../kitty-specs/layered-doctrine-org-layer-01KRNPEE/mission-review-report.md)
+**Related mission review:** [mission-review-report.md](../../../kitty-specs/layered-doctrine-org-layer-01KRNPEE/mission-review-report.md)
 
 ---
 

@@ -9,7 +9,7 @@ updated: '2026-04-25'
 > **HISTORICAL** — describes the pre-cutover compatibility matrix between
 > `spec-kitty-cli` and the (retired) `spec-kitty-runtime` PyPI package.
 > Superseded by mission `shared-package-boundary-cutover-01KQ22DS`
-> (ADR [2026-04-25-1](../../docs/adr/3.x/2026-04-25-1-shared-package-boundary.md)).
+> (ADR [2026-04-25-1](../../../docs/adr/3.x/2026-04-25-1-shared-package-boundary.md)).
 > The CLI now owns its runtime internally under
 > `src/specify_cli/next/_internal_runtime/`; there is no longer a
 > compatibility matrix to maintain. Retained for historical reference;

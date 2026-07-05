@@ -23,6 +23,7 @@ pages that outlive any single mission. For effort-scoped working notes
 
 ## Contributor guides
 
+- [Contributing to Spec Kitty](contributing.md) — developer setup, running tests, submitting PRs, AI disclosure, and the release process.
 - [Test-flakiness handling policy](testing-flakiness.md) — detection tiers and the never-retry-to-green rule.
 - [Running the test suite in parallel](testing-parallel.md) — the parallel-run workflow and volume gates.
 - [Contract pinning workflow](contract-pinning.md) — pinning observable contracts in tests.

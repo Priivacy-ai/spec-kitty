@@ -34,7 +34,7 @@ description of that enum.
 ## The five tags
 
 The terms below are reproduced verbatim from
-[`spec.md`](../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/spec.md) §"Domain
+[`spec.md`](../../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/spec.md) §"Domain
 Language" so that this document and the spec stay in lock-step.
 
 ### `current`
@@ -101,7 +101,7 @@ link to a `supported`-tagged page without triggering the leakage check.
 **Banner requirement.** **Mandatory.** Each `archival` page must include an
 archive banner within the first 20 non-empty lines that matches the regex
 defined in
-[`contracts/version_leakage_check.md`](../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/contracts/version_leakage_check.md):
+[`contracts/version_leakage_check.md`](../../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/contracts/version_leakage_check.md):
 
 ```
 ^>\s*(?:Archive notice|Migration note)\b
@@ -172,7 +172,7 @@ page may link anywhere.
 ## Reference: `VersionTag` enum
 
 The canonical Python enum lives in
-[`data-model.md`](../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/data-model.md)
+[`data-model.md`](../../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/data-model.md)
 §"VersionTag (enum)":
 
 ```python
@@ -191,7 +191,7 @@ in page frontmatter and in `docs/development/3-2-page-inventory.yaml`.
 
 Each page's tag is recorded in `docs/development/3-2-page-inventory.yaml` as
 a `PageInventoryEntry` row — see
-[`data-model.md`](../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/data-model.md)
+[`data-model.md`](../../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/data-model.md)
 §"PageInventoryEntry". Key invariants relevant to this taxonomy:
 
 - Every inventoried page maps to **exactly one** `VersionTag`.
@@ -211,7 +211,7 @@ FR-005 / NFR-002).
 ## How filtering works
 
 Adapted from research note **R-006 — Version-tag mechanism** in
-[`research.md`](../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/research.md).
+[`research.md`](../../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/research.md).
 
 The 3.2 docs apply version filtering through a **two-source cross-check**,
 not a single mechanism:
@@ -329,13 +329,13 @@ git status   # working tree clean before survey + after survey
 
 ## See also
 
-- [`spec.md`](../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/spec.md)
+- [`spec.md`](../../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/spec.md)
   §"Domain Language" — verbatim definitions reproduced in this document.
-- [`data-model.md`](../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/data-model.md)
+- [`data-model.md`](../../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/data-model.md)
   §"VersionTag (enum)" and §"PageInventoryEntry" — canonical schema.
-- [`research.md`](../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/research.md)
+- [`research.md`](../../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/research.md)
   R-006 (version-tag mechanism) and R-008 (bulk-edit blast radius).
-- [`contracts/version_leakage_check.md`](../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/contracts/version_leakage_check.md)
+- [`contracts/version_leakage_check.md`](../../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/contracts/version_leakage_check.md)
   — banner regex and leakage rule definitions.
-- [`occurrence_map.yaml`](../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/occurrence_map.yaml)
+- [`occurrence_map.yaml`](../../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/occurrence_map.yaml)
   — bulk-edit guardrail for the frontmatter rollout and the archive moves.

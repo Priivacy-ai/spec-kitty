@@ -10,7 +10,7 @@ updated: '2026-06-27'
 **Authority**: Spec FR-006 (recover prior CLI reference methodology from git history).
 **Companion artifacts**:
 - Workspace audit: `cli-audit-3-2.md` (192 visible / 5 hidden / 2 deprecated paths; 113 of 192 visible covered today).
-- Builder contract: [`contracts/build_cli_reference.md`](../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/contracts/build_cli_reference.md).
+- Builder contract: [`contracts/build_cli_reference.md`](../../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/contracts/build_cli_reference.md).
 - Deferred decision: `01KS4KTM69EG2KVX5MQ54FQ939` (hand vs hybrid vs generated mode).
 
 This note is a curator's evidence record. It does not pick the builder mode. It documents how the existing reference was produced so WP06 (builder) and WP07 (rebuilt reference) can proceed with traceable rationale.
@@ -143,7 +143,7 @@ The builder does not eliminate prose: the deferred decision `01KS4KTM69EG2KVX5MQ
 
 ## Builder design summary
 
-The builder design is fully specified in [`contracts/build_cli_reference.md`](../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/contracts/build_cli_reference.md). Key points for this methodology note (no re-documentation of the contract):
+The builder design is fully specified in [`contracts/build_cli_reference.md`](../../../kitty-specs/spec-kitty-3-2-docs-01KS4KSZ/contracts/build_cli_reference.md). Key points for this methodology note (no re-documentation of the contract):
 
 - Entry point: `scripts/docs/build_cli_reference.py`.
 - Walks `specify_cli.app` (Typer) read-only with `SPEC_KITTY_ENABLE_SAAS_SYNC=1` and `SPEC_KITTY_NO_UPGRADE_CHECK=1` set before import.

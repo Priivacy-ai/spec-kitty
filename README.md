@@ -202,7 +202,7 @@ export SPEC_KITTY_TEMPLATE_ROOT="$(pwd)"
 spec-kitty init my-project --ai claude
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
+See the [Contributing guide](docs/guides/contributing.md) for contribution guidelines.
 
 ## Identity-Boundary CI Gate
 
@@ -213,7 +213,7 @@ contract across Spec Kitty repos. Contributor and admin details live in
 ## Support
 
 - Open a [GitHub issue](https://github.com/Priivacy-ai/spec-kitty/issues/new) for bugs, feature requests, or questions.
-- See [CHANGELOG.md](CHANGELOG.md) for release notes.
+- See the [changelog](docs/changelog/CHANGELOG.md) for release notes.
 - See [CONTRIBUTORS.md](CONTRIBUTORS.md) and the [GitHub contributors graph](https://github.com/Priivacy-ai/spec-kitty/graphs/contributors) for contributor credits.
 
 ## License

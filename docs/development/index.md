@@ -42,4 +42,4 @@ mix durable references with one-off tracking notes.
 ## See also
 
 - [Documentation home](../index.md)
-- [Contributing guide](../../CONTRIBUTING.md)
+- [Contributing guide](../guides/contributing.md)
