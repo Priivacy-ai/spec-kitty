@@ -17,6 +17,7 @@ from rich.console import Console
 from specify_cli.core.constants import KITTIFY_DIR, WORKTREES_DIR
 from specify_cli.migration.schema_version import REQUIRED_SCHEMA_VERSION
 
+from . import autocommit
 from .detector import VersionDetector
 from .metadata import ProjectMetadata
 from .migrations.base import BaseMigration, MigrationResult
@@ -78,6 +79,7 @@ class MigrationRunner:
         dry_run: bool = False,
         force: bool = False,  # noqa: ARG002
         include_worktrees: bool = True,
+        auto_commit: bool = False,
     ) -> UpgradeResult:
         """Run all needed migrations to reach target version.
 
@@ -86,6 +88,9 @@ class MigrationRunner:
             dry_run: If True, simulate but don't apply
             force: If True, skip confirmation prompts
             include_worktrees: If True, also upgrade worktrees
+            auto_commit: If True, auto-commit each worktree's upgrade churn on
+                its own branch (#2385). The main checkout's commit stays with
+                the CLI caller, which owns the main baseline.
 
         Returns:
             UpgradeResult with details of the upgrade
@@ -130,7 +135,7 @@ class MigrationRunner:
                 self._stamp_schema_version(self.kittify_dir, REQUIRED_SCHEMA_VERSION)
 
             if include_worktrees and from_version == target_version:
-                worktrees_result = self._upgrade_worktrees(target_version, migrations, dry_run)
+                worktrees_result = self._upgrade_worktrees(target_version, migrations, dry_run, auto_commit=auto_commit)
                 result.warnings.extend(worktrees_result.get("warnings", []))
                 if worktrees_result.get("errors"):
                     result.errors.extend(worktrees_result["errors"])
@@ -186,7 +191,7 @@ class MigrationRunner:
 
         # Handle worktrees
         if include_worktrees:
-            worktrees_result = self._upgrade_worktrees(target_version, migrations, dry_run)
+            worktrees_result = self._upgrade_worktrees(target_version, migrations, dry_run, auto_commit=auto_commit)
             result.warnings.extend(worktrees_result.get("warnings", []))
             if worktrees_result.get("errors"):
                 result.errors.extend(worktrees_result["errors"])
@@ -270,6 +275,7 @@ class MigrationRunner:
         target_version: str,
         migrations: list[BaseMigration],
         dry_run: bool,
+        auto_commit: bool = False,
     ) -> dict[str, Any]:
         """Upgrade all worktrees in .worktrees/ directory.
 
@@ -277,6 +283,11 @@ class MigrationRunner:
             target_version: Target version
             migrations: List of migrations to apply
             dry_run: Whether to simulate only
+            auto_commit: If True, commit each worktree's upgrade churn on its
+                own branch after that worktree's writes (#2385). The commit-set
+                is the porcelain diff against a baseline captured before this
+                worktree's writes, so pre-existing uncommitted work in a live
+                lane worktree is never swept in.
 
         Returns:
             Dict with warnings and errors lists
@@ -304,14 +315,25 @@ class MigrationRunner:
             if not has_upgradeable_state:
                 continue
 
+            # Baseline BEFORE any write to this worktree, so the auto-commit
+            # below stages only the churn this upgrade run introduces (#2385).
+            wt_baseline = autocommit.git_status_paths(worktree) if auto_commit and not dry_run else None
+
             # Load or create worktree metadata
             wt_metadata = ProjectMetadata.load(wt_kittify)
+            wt_metadata_synthesized = wt_metadata is None
             if wt_metadata is None:
                 wt_detector = VersionDetector(worktree)
                 wt_version = wt_detector.detect_version()
                 wt_metadata = self._create_initial_metadata(wt_version)
+            wt_from_version = wt_metadata.version
 
-            worktree_metadata_dirty = False
+            # Freshly synthesized metadata must be persisted even when the
+            # detected version already equals the target — otherwise the
+            # version-bump below never fires, the save is skipped, and the
+            # self-healing path silently regresses (#1873, regression of #1857).
+            worktree_metadata_dirty = wt_metadata_synthesized
+            worktree_manual_review = False
 
             # Apply migrations to worktree
             for migration in worktree_migrations:
@@ -340,6 +362,8 @@ class MigrationRunner:
                     continue
 
                 migration_result = migration.apply(worktree, dry_run=dry_run)
+                if migration_result.manual_review_required:
+                    worktree_manual_review = True
 
                 if migration_result.success:
                     if not dry_run and self._record_migration_result(
@@ -367,8 +391,9 @@ class MigrationRunner:
                     result["errors"].extend([f"Worktree {worktree.name}: {e}" for e in migration_result.errors])
 
             # Save worktree metadata only when something material changed
-            # (a migration record was written or the version advanced); a
-            # no-op upgrade must not rewrite last_upgraded_at (issue #1838).
+            # (a migration record was written, metadata was synthesized fresh,
+            # or the version advanced); a no-op upgrade must not rewrite
+            # last_upgraded_at (issue #1838).
             if not dry_run:
                 if wt_metadata.version != target_version:
                     wt_metadata.version = target_version
@@ -381,6 +406,24 @@ class MigrationRunner:
                 # model, so stamp after save just like the main project path.
                 if REQUIRED_SCHEMA_VERSION is not None:
                     self._stamp_schema_version(wt_kittify, REQUIRED_SCHEMA_VERSION)
+
+                # Commit this worktree's upgrade churn on its own branch
+                # (#2385); the baseline diff keeps pre-existing uncommitted
+                # work (e.g. in-flight WP edits) out of the commit.
+                if auto_commit:
+                    if worktree_manual_review:
+                        result["warnings"].append(
+                            f"Worktree {worktree.name}: Skipped auto-commit because the upgrade preserved customized files that require manual review."
+                        )
+                    else:
+                        _committed, _paths, wt_commit_warning = autocommit.commit_touched_checkout(
+                            worktree,
+                            wt_baseline,
+                            wt_from_version,
+                            target_version,
+                        )
+                        if wt_commit_warning:
+                            result["warnings"].append(f"Worktree {worktree.name}: {wt_commit_warning}")
 
         return result
 

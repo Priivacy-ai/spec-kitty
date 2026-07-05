@@ -48,8 +48,11 @@ _PROTECTED_FLOW_ALLOWLISTS: dict[str, frozenset[str]] = {
     # seam `git/bookkeeping_commit.py` (#2280 / PR #2281) — a single sanctioned
     # protected-flow commit surface, not a second guard-capability call site.
     "MERGE_BOOKKEEPING": frozenset({_ENUM_HOME, "src/specify_cli/git/bookkeeping_commit.py"}),
-    # The bona-fide upgrade bookkeeping flow.
-    "UPGRADE_BOOKKEEPING": frozenset({_ENUM_HOME, "src/specify_cli/cli/commands/upgrade.py"}),
+    # The bona-fide upgrade bookkeeping flow. Main checkout AND every sibling
+    # worktree (#2385 / epic #2392) land their upgrade commit through the ONE
+    # shared seam `upgrade/autocommit.py` — a single sanctioned protected-flow
+    # commit surface, mirroring the MERGE_BOOKKEEPING consolidation above.
+    "UPGRADE_BOOKKEEPING": frozenset({_ENUM_HOME, "src/specify_cli/upgrade/autocommit.py"}),
     # No reachable caller today (S6 debt: wire or delete).
     "RELEASE_FLOW": frozenset({_ENUM_HOME}),
 }
