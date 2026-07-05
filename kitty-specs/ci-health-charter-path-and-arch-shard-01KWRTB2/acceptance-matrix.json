@@ -1,0 +1,108 @@
+{
+  "mission_slug": "ci-health-charter-path-and-arch-shard-01KWRTB2",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pending",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Contributing guide references the canonical charter path and no longer contains the retired memory/charter.md substrings.",
+      "proof_type": "automated_test",
+      "evidence": "docs/guides/contributing.md:394 now reads '.kittify/charter/charter.md' (commit 599c949f3); grep -rn \"memory/charter.md\" docs/context docs/guides docs/api spec-driven.md returns empty.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (WP01 review)",
+      "verified_at": "2026-07-05T12:38:42Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "test_current_docs_do_not_publish_memory_charter_path passes with zero offenders across all guarded doc roots.",
+      "proof_type": "automated_test",
+      "evidence": "pytest tests/docs/test_current_charter_paths.py -q -> 1 passed (verified live by reviewer, not by inspection).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (WP01 review)",
+      "verified_at": "2026-07-05T12:38:42Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "arch-adversarial CI job split into a matrix of N>=2 parallel shards, following the fast-tests-core-misc sharding pattern.",
+      "proof_type": "automated_test",
+      "evidence": ".github/workflows/ci-quality.yml arch-adversarial job strategy.matrix.include expanded from 1 shard (architectural) to 3 (arch_shard_1/2/3); confirmed via live diff review in WP03 review (if: always() unchanged, no needs: edge, no dorny filter if: added).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (WP03 review)",
+      "verified_at": "2026-07-05T12:38:42Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Shard-to-test assignment is deterministic and marker-driven; re-runs and local reproduction route each test to exactly one shard.",
+      "proof_type": "automated_test",
+      "evidence": "arch_shard_1/2/3 markers registered in pytest.ini; tests/_arch_shard_map.py single-source table + tests/conftest.py collection hook; pytest tests/architectural/test_arch_shard_marker_completeness.py -q -> 3 passed. Local reproduction (--collect-only -m arch_shard_N) reproduced identical counts (248/241/317) in both WP02 and WP03 reviews.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (WP02 + WP03 reviews)",
+      "verified_at": "2026-07-05T12:38:42Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Union of all shards executes the entire pre-split arch-adversarial test set; no test dropped, no test double-run (true partition).",
+      "proof_type": "automated_test",
+      "evidence": "pytest tests/architectural/test_shard_universe_bounded.py -q -> 2 passed (generalized to explicitly name arch-adversarial, RED proven against pre-split single-shard topology, GREEN after the 3-shard split). Live collection counts: 248+241+317=806, matching the full pre-split selection's 806 tests, zero overlap confirmed via pairwise node-ID diff.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (WP03 review)",
+      "verified_at": "2026-07-05T12:38:42Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Coverage ownership for the arch pole re-partitioned across shards such that test_coverage_topology_ownership.py passes with the new layout.",
+      "proof_type": "automated_test",
+      "evidence": "pytest tests/release/test_coverage_topology_ownership.py -q -> 7 passed, unmodified (confirmed shard-label-agnostic per research.md R4 -- no code change needed).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (WP03 review)",
+      "verified_at": "2026-07-05T12:38:42Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Committed CI-topology timings fixture updated so the sharded shape is the asserted-canonical shape.",
+      "proof_type": "automated_test",
+      "evidence": "tests/release/ci_topology_timings_postshrink.json gained an arch_shard_split block (measured_source_run_id: null, explicitly labeled a structural projection, not a measurement); historical 29.4->14.4min/51% figures preserved. Not test-asserted (narrative artifact); reviewed live in WP03 review for honesty-discipline compliance.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (WP03 review)",
+      "verified_at": "2026-07-05T12:38:42Z",
+      "notes": null
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Issue #2397 closed; its acceptance criteria (1-5 in the invariant-safety note) each explicitly re-verified and recorded.",
+      "proof_type": "automated_test",
+      "evidence": "kitty-specs/ci-health-charter-path-and-arch-shard-01KWRTB2/acceptance-record.md records all 5 criteria against T012's real guard-suite results; content cross-checked line-by-line against live results by reviewer. Issue #2397 assigned to HiC (stijn-dejongh) per DIR-012 pre-implementation check; to be closed on merge.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (WP03 review)",
+      "verified_at": "2026-07-05T12:38:42Z",
+      "notes": null
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "no-legacy-charter-path-reintroduced",
+      "description": "The retired memory/charter.md path must not reappear in any of the four guarded doc roots.",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -rn \"memory/charter.md\" docs/context docs/guides docs/api spec-driven.md",
+      "result": "confirmed_absent",
+      "evidence": "Empty grep output, verified live in WP01 review (2026-07-05).",
+      "scope": "docs/context docs/guides docs/api spec-driven.md"
+    },
+    {
+      "invariant_id": "arch-pole-stays-deserialized-and-groupless",
+      "description": "arch-adversarial must not regain a needs: edge to fast-tests-core-misc or a dorny filter-group if: gate (would re-serialize/re-blind the pole).",
+      "verification_method": "custom_command",
+      "verification_command": "pytest tests/architectural/test_arch_pole_deserialized.py -q",
+      "result": "confirmed_absent",
+      "evidence": "1+ passed, confirmed live in WP03 review; if: always() unchanged, no needs: key added, no dorny filter if: reference added -- confirmed by direct diff review of the job block.",
+      "scope": null
+    }
+  ]
+}
