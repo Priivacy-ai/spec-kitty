@@ -558,40 +558,26 @@ def emit_mission_created_local(
     See Priivacy-ai/spec-kitty#1199 for the full required-field surface.
 
     The payload is constructed via the canonical
-    :class:`spec_kitty_events.lifecycle.MissionCreatedPayload` so
-    producer-time validation rejects extras / missing required fields
-    (issues Priivacy-ai/spec-kitty#1198 / #1200).
+    :func:`specify_cli.core.mission_payload.build_mission_created_payload`
+    (#2270), shared with the sync emitter so the local + wire paths cannot
+    drift. Producer-time validation still rejects extras / missing required
+    fields (issues Priivacy-ai/spec-kitty#1198 / #1200).
     """
-    from spec_kitty_events.lifecycle import MissionCreatedPayload
+    from specify_cli.core.mission_payload import build_mission_created_payload
 
     log_path = mission_event_log_path(feature_dir)
 
-    # MissionCreatedPayload requires friendly_name / purpose_tldr /
-    # purpose_context (min_length=1). Fall back to mission_slug-derived
-    # defaults so this helper never raises on legitimate callers that
-    # omit them — see the local-first semantics in
-    # ``spec-kitty agent mission create``.
-    effective_friendly_name = (friendly_name or "").strip() or mission_slug
-    effective_purpose_tldr = (purpose_tldr or "").strip() or effective_friendly_name
-    effective_purpose_context = (
-        (purpose_context or "").strip()
-        or f"Local mission for {effective_friendly_name} (target branch: {target_branch})."
-    )
-
-    payload_model = MissionCreatedPayload(
-        mission_id=mission_id,
+    payload = build_mission_created_payload(
         mission_slug=mission_slug,
-        mission_number=mission_number,
-        mission_type=mission_type,
         target_branch=target_branch,
+        mission_type=mission_type,
         wp_count=wp_count,
-        friendly_name=effective_friendly_name,
-        purpose_tldr=effective_purpose_tldr,
-        purpose_context=effective_purpose_context,
-        created_at=created_at or _now_iso(),
-    )
-    payload: dict[str, Any] = payload_model.model_dump(
-        mode="json", exclude_none=False
+        mission_id=mission_id,
+        mission_number=mission_number,
+        friendly_name=friendly_name,
+        purpose_tldr=purpose_tldr,
+        purpose_context=purpose_context,
+        created_at=created_at,
     )
 
     return append_lifecycle_event(

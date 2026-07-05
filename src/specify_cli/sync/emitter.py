@@ -382,17 +382,6 @@ def _proof_validators_for(event_type: str) -> dict[str, Any]:
     return validators
 
 
-def _default_mission_display_name(mission_slug: str) -> str:
-    parts = [part for part in str(mission_slug).strip().split("-") if part]
-    if not parts:
-        return "Mission"
-    return " ".join(parts)
-
-
-def _default_mission_purpose_context(display_name: str, target_branch: str) -> str:
-    return f"This mission advances {display_name} on {target_branch} so stakeholders can track the work from mission creation onward."
-
-
 _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
     "BuildRegistered": {
         # Local-first registration (issue #1074): build_id + project_uuid scope
@@ -1220,29 +1209,31 @@ class EventEmitter:
           - ``mission_slug``   — human display string (never used as join key)
           - ``mission_number`` — int | None (None for pre-merge, int for post-merge)
         """
-        from spec_kitty_events.lifecycle import MissionCreatedPayload
+        # Canonical payload construction (#2270): one CORE builder shared with
+        # the local lifecycle path so the two cannot drift. The builder raises
+        # on invalid input; preserve this producer's historical
+        # "invalid -> skip emission" contract by catching and returning None.
+        from pydantic import ValidationError
 
-        display_name = (friendly_name or "").strip() or _default_mission_display_name(mission_slug)
-        summary_tldr = (purpose_tldr or "").strip() or display_name
-        summary_context = (purpose_context or "").strip() or _default_mission_purpose_context(display_name, target_branch)
-        payload = _build_payload_via_model(
-            MissionCreatedPayload,
-            # mission_number is wire-required (FR-024) but logically
-            # nullable for pre-merge missions; preserve the explicit
-            # ``null`` rather than dropping the field.
-            keep_none_fields=("mission_number",),
-            mission_id=mission_id,
-            mission_slug=mission_slug,
-            mission_number=mission_number,
-            mission_type=mission_type,
-            target_branch=target_branch,
-            wp_count=wp_count,
-            friendly_name=display_name,
-            purpose_tldr=summary_tldr,
-            purpose_context=summary_context,
-            created_at=created_at,
-        )
-        if payload is None:
+        from specify_cli.core.mission_payload import build_mission_created_payload
+
+        try:
+            payload = build_mission_created_payload(
+                mission_slug=mission_slug,
+                target_branch=target_branch,
+                mission_type=mission_type,
+                wp_count=wp_count,
+                mission_id=mission_id,
+                mission_number=mission_number,
+                friendly_name=friendly_name,
+                purpose_tldr=purpose_tldr,
+                purpose_context=purpose_context,
+                created_at=created_at,
+            )
+        except ValidationError as exc:
+            _console.print(
+                f"[yellow]Warning: MissionCreatedPayload validation failed: {exc}[/yellow]"
+            )
             return None
         effective_aggregate_id = mission_slug
         if mission_id is not None:
