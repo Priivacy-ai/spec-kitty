@@ -213,35 +213,85 @@ def test_diff_coverage_critical_paths_include_canonical_runtime() -> None:
     assert "'src/mission_runtime/*'" in run_script
 
 
-def test_execution_context_only_core_misc_runs_focused_parity_gate() -> None:
-    """Execution-context-only changes must still run the CWD parity ratchet."""
-    run_script = _job_run_script(
-        _load_workflow(),
-        "integration-tests-core-misc",
-        "Run integration tests — core misc",
+def test_execution_context_parity_ratchet_runs_unconditionally() -> None:
+    """The CWD parity ratchet must still run — now unconditionally, in the pole.
+
+    Re-pinned for mission ci-topology-shrink (FR-005/FR-013). WP03 removed the
+    exec-context special-path block that used to run ``test_execution_context_
+    parity.py`` inside ``integration-tests-core-misc`` only when
+    ``core_misc != 'true' AND execution_context == 'true'``. The parity gate now
+    lives in the standalone, always-on ``arch-adversarial`` pole: its
+    ``architectural`` shard collects ``tests/architectural`` (where the parity
+    file lives) under the ``git_repo``/``architectural`` marker the parity tests
+    carry, and the job is ``if: always()`` with no filter gate — so an
+    execution-context change (indeed ANY change) still runs the ratchet, more
+    strongly than the old conditional path. Behavioral intent preserved: the
+    parity ratchet is never skippable.
+    """
+    data = _load_workflow()
+    arch_job = _job(data, "arch-adversarial")
+
+    # Always-on: no result-gated or filter-gated skip can drop the ratchet.
+    assert str(arch_job["if"]).strip() == "always()"
+
+    # The architectural shard collects the tests/architectural tree, which owns
+    # test_execution_context_parity.py — so the parity ratchet is in-scope.
+    arch_shard = next(
+        entry
+        for entry in arch_job["strategy"]["matrix"]["include"]
+        if entry["shard"] == "architectural"
+    )
+    assert "tests/architectural" in str(arch_shard["paths"])
+    parity_file = (
+        _REPO_ROOT
+        / "tests"
+        / "architectural"
+        / "test_execution_context_parity.py"
+    )
+    assert parity_file.exists(), (
+        "the CWD parity ratchet file moved out of tests/architectural — update "
+        "this guard so the arch-adversarial pole still collects it"
     )
 
-    assert 'needs.changes.outputs.core_misc }}" != "true"' in run_script
-    assert 'needs.changes.outputs.execution_context }}" = "true"' in run_script
-    assert "tests/architectural/test_execution_context_parity.py" in run_script
-    assert "coverage-integration-core-misc-${{ matrix.shard }}.xml" in run_script
+    # The pole runs under a marker that positively selects the parity tests'
+    # architectural/git_repo markers, so collection is not silently empty.
+    run_script = _job_run_script(
+        data,
+        "arch-adversarial",
+        "Run architectural + adversarial suite (always-on pole)",
+    )
+    assert "git_repo or integration or architectural" in run_script
 
 
 def test_core_misc_integration_is_sharded_and_parallelized() -> None:
-    """The slow core-misc integration bucket must stay split and parallel."""
+    """The slow core-misc integration bucket must stay split and parallel.
+
+    Re-pinned for mission ci-topology-shrink (FR-005/FR-013): the
+    ``architectural`` shard was EXTRACTED from this matrix into the standalone
+    always-on ``arch-adversarial`` pole (de-serialized), so it is no longer an
+    ``integration-tests-core-misc`` shard. The remaining five shards must stay
+    split and parallel, and the extracted arch shard must still run in the pole.
+    """
     data = _load_workflow()
     job = _job(data, "integration-tests-core-misc")
     matrix = job["strategy"]["matrix"]["include"]
     shard_names = {entry["shard"] for entry in matrix}
 
     assert shard_names == {
-        "architectural",
         "integration",
         "specify-cli-heavy",
         "specify-cli-rest",
         "auth-audit-git",
         "misc",
     }
+    # The extracted architectural shard must not have vanished — it lives in the
+    # always-on pole now (its de-serialization is pinned by
+    # test_arch_pole_deserialized.py; here we pin that the shard still exists).
+    arch_shards = {
+        entry["shard"]
+        for entry in _job(data, "arch-adversarial")["strategy"]["matrix"]["include"]
+    }
+    assert "architectural" in arch_shards
 
     run_script = _job_run_script(
         data,
@@ -322,9 +372,23 @@ def test_core_misc_excludes_e2e_and_cross_cutting_suites() -> None:
     assert "tests/e2e/**" in path_filters["e2e"]
     assert "tests/cross_cutting/**" in path_filters["e2e"]
 
+    # Re-pinned for mission ci-topology-shrink (FR-003): the fast core-misc job
+    # was split into a shard matrix and its per-run ``--ignore`` list moved from
+    # a literal in the run step into each shard's ``matrix.ignore_args``. The
+    # behavioral intent is unchanged — the whole-tree residual ``core-misc``
+    # shard must still exclude e2e/cross_cutting — just asserted at the new
+    # structural location. The run step now interpolates ``${{ matrix.ignore_args }}``.
     fast_run = _job_run_script(data, "fast-tests-core-misc", "Run fast tests — core misc")
-    assert "--ignore=tests/e2e" in fast_run
-    assert "--ignore=tests/cross_cutting" in fast_run
+    assert "${{ matrix.ignore_args }}" in fast_run
+    fast_job = _job(data, "fast-tests-core-misc")
+    fast_core_misc_shard = next(
+        entry
+        for entry in fast_job["strategy"]["matrix"]["include"]
+        if entry["shard"] == "core-misc"
+    )
+    fast_ignores = str(fast_core_misc_shard["ignore_args"])
+    assert "--ignore=tests/e2e" in fast_ignores
+    assert "--ignore=tests/cross_cutting" in fast_ignores
 
     job = _job(data, "integration-tests-core-misc")
     matrix = job["strategy"]["matrix"]["include"]
