@@ -1,8 +1,10 @@
 """Guarded write-side surfaces must trigger the full architectural shard.
 
 Architectural gate keyed on ``core_misc``: a change to any guarded write-side
-surface must set ``core_misc=true`` so the full tests/architectural/** shard
-(integration-tests-core-misc/architectural) runs.
+surface must set ``core_misc=true`` so the sharded integration core-misc suites
+run over it. The full tests/architectural/** suite ALSO runs unconditionally in
+the standalone always-on ``arch-adversarial`` pole (mission ci-topology-shrink
+FR-005/FR-013), so it can never be masked by a filter output.
 
 FR-007 / NFR-004 — the meta-invariant: the CI fix (T020, widened core_misc
 filter) must itself be drift-proof so a future filter regression is caught.
@@ -160,51 +162,68 @@ def test_core_misc_filter_not_over_broad() -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_status_change_sets_core_misc_bypasses_short_circuit() -> None:
-    """A status/** change bypasses the short-circuit so the full shard runs.
+def test_arch_suite_runs_unconditionally_cannot_be_masked() -> None:
+    """No status/path change can mask the architectural suite — it runs always-on.
 
-    A status/** change sets core_misc=true → the short-circuit at :1357 does
-    NOT fire, so the full tests/architectural/** shard runs.
+    Re-pinned for mission ci-topology-shrink (FR-005/FR-013). The OLD mechanism
+    this guarded (a ``core_misc != 'true' AND execution_context == 'true'``
+    shell short-circuit inside ``integration-tests-core-misc``, which relied on
+    a status/** change flipping ``core_misc=true`` to *avoid* being masked) is
+    SUPERSEDED. WP03 extracted the architectural shard into the standalone
+    ``arch-adversarial`` pole, made it ``if: always()`` with NO dorny
+    filter-group gate, and dropped the fast-lane ``needs`` edge. The
+    "architectural shard masked by a short-circuit / filter output" failure mode
+    is now structurally impossible: the pole runs on every push/PR regardless of
+    which filter outputs fire.
 
-    The short-circuit condition is:
-        core_misc != 'true' AND execution_context == 'true'
-
-    When core_misc=true the LHS is false → the whole condition is false →
-    the short-circuit body is skipped → the full shard runs.
-
-    This test parses the shell guard condition from the workflow YAML and asserts
-    that the status/** surface being in core_misc means that guard cannot mask
-    the architectural shard.
+    This pins the stronger guarantee at the raw-YAML level (a distinct lens from
+    the parse-model differential matrix in
+    ``test_arch_unblind_matrix.py::test_no_src_dir_is_architecturally_blind``,
+    which asserts 0 arch-blind src dirs, and the de-serialization pinned by
+    ``test_arch_pole_deserialized.py``): the ``arch-adversarial`` job's gate is
+    literally ``always()`` and is NOT conditioned on any ``needs.changes.outputs``
+    filter output. Re-introducing a filter gate here reds this test.
     """
     data = _load_workflow()
+    arch_job = data["jobs"]["arch-adversarial"]
+
+    # Gate is exactly always() — not a filter-conditioned expression.
+    gate = str(arch_job["if"]).strip()
+    assert gate == "always()", (
+        f"arch-adversarial gate must be exactly 'always()', got {gate!r}. A "
+        "filter-conditioned gate would let a status/path change mask the "
+        "architectural suite (the pre-WP03 mask this mission removed)."
+    )
+    assert "needs.changes.outputs" not in gate, (
+        "arch-adversarial gained a dorny filter-output gate — that re-opens the "
+        "mask. The pole must stay unconditional (mission ci-topology-shrink "
+        "FR-005/FR-013)."
+    )
+
+    # No fast-lane serialization or filter-gated needs edge either: the pole
+    # depends on nothing (de-serialized). Full de-serialization proof lives in
+    # test_arch_pole_deserialized.py; here we assert the pole carries no needs.
+    assert "needs" not in arch_job or not arch_job.get("needs"), (
+        "arch-adversarial declared a needs edge — it must run standalone so no "
+        "upstream skip/failure can mask the architectural suite."
+    )
+
+    # The pole positively selects the architectural marker over tests/architectural,
+    # so a guard edit still runs its own self-test loop (behavioral intent kept).
     run_script = _run_script_for_step(
         data,
-        "integration-tests-core-misc",
-        "Run integration tests — core misc",
+        "arch-adversarial",
+        "Run architectural + adversarial suite (always-on pole)",
     )
+    assert "git_repo or integration or architectural" in run_script
 
-    # The short-circuit condition must key on core_misc != 'true'
-    assert 'needs.changes.outputs.core_misc }}" != "true"' in run_script, (
-        "Expected the short-circuit guard to check core_misc != 'true'. "
-        "If the guard condition changed, verify the new logic still cannot "
-        "mask the architectural shard for core_misc=true changes."
-    )
-
-    # When core_misc=true the short-circuit LHS is false → no masking.
-    # Assert the logic is: (core_misc != true) AND (execution_context == true).
-    # Both conditions must be present so the AND logic is clear.
-    assert 'needs.changes.outputs.execution_context }}" = "true"' in run_script, (
-        "Expected the short-circuit to also require execution_context=true. "
-        "Without the AND, the guard might fire for unrelated reasons."
-    )
-
-    # Confirm: the status/** surface IS now in core_misc (this is T020's effect).
-    # A status/** file change → core_misc=true → short-circuit LHS false → full run.
+    # Status/** surfaces remain in core_misc (T020) — that still routes them to
+    # the sharded integration suites; the pole's always-on run is the extra,
+    # unmaskable safety net on top.
     globs = _core_misc_globs(data)
     assert _glob_covers("src/specify_cli/status/some_module.py", globs), (
-        "src/specify_cli/status/** is not in core_misc. "
-        "A status-surface change will NOT set core_misc=true, "
-        "so the short-circuit can still mask the architectural shard."
+        "src/specify_cli/status/** dropped from core_misc — a status change "
+        "would stop routing to the integration core-misc shards."
     )
 
 
