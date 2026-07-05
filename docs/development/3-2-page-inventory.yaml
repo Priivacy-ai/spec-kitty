@@ -2414,6 +2414,18 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/engineering-notes/2342-retro-summary-nfr/evidence/oracle-proof.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/engineering-notes/2342-retro-summary-nfr/report.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/engineering-notes/3-2-0-training-bugs-2007/SYNTHESIS-2007.md
   tag: current
   divio_type: none
