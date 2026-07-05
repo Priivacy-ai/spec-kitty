@@ -902,6 +902,7 @@ from specify_cli.cli.commands.agent.tasks_finalize import (
     _ft_output as _ft_output,
     _ft_resolve_context as _ft_resolve_context,
     _ft_validate as _ft_validate,
+    _ft_validate_occurrence_map_ready as _ft_validate_occurrence_map_ready,
 )
 
 
