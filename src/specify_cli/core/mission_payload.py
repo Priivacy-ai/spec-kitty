@@ -4,7 +4,12 @@ Before this module, three code paths derived the ``MissionCreated`` defaults
 independently — ``core/mission_creation.py``, ``sync/emitter.py`` (a verbatim
 duplicate), and ``status/lifecycle_events.py`` (a third, divergent inline
 fallback). They could drift on the default ``friendly_name`` (raw slug vs
-titleized), ``created_at`` (now vs absent), and None-field wire shape.
+space-joined slug segments — see :func:`default_mission_display_name`;
+NOT title-cased), the default ``purpose_context`` text (the old
+``lifecycle_events.py`` fallback read "Local mission for {name} (target
+branch: {branch})."; this module's :func:`default_mission_purpose_context`
+is the new shared text — also a silent behavioral default change, same as
+``friendly_name``), ``created_at`` (now vs absent), and None-field wire shape.
 
 This is the single canonical builder both surfaces consume so they cannot drift.
 It lives in the CORE set and imports nothing from INTEGRATION (``sync`` /
@@ -24,6 +29,8 @@ from typing import Any
 # spec_kitty_events is an external contract package, consumed via its public
 # import surface — CORE-safe (shared-package boundary).
 from spec_kitty_events.lifecycle import MissionCreatedPayload
+
+from specify_cli.core.payload_shaping import apply_keep_none_fields
 
 # ``mission_number`` is wire-required (FR-024) yet logically nullable for
 # pre-merge missions; its explicit ``null`` must survive to the wire.
@@ -62,7 +69,8 @@ def build_mission_created_payload(
     """Build the canonical ``MissionCreated`` wire payload from source facts.
 
     Pure: no I/O, no INTEGRATION imports. Applies the shared default derivation
-    (titleized display name, tldr/context fallbacks, ``created_at`` -> now) and
+    (space-joined slug display name, tldr/context fallbacks, ``created_at`` ->
+    now) and
     returns the canonical wire dict. Raises ``pydantic.ValidationError`` on
     invalid input; callers that need the historical "invalid -> skip emission"
     contract catch it at their boundary.
@@ -84,9 +92,4 @@ def build_mission_created_payload(
         created_at=created_at or datetime.now(UTC).isoformat(),
     )
 
-    payload: dict[str, Any] = model.model_dump(mode="json", exclude_none=True)
-    full = model.model_dump(mode="json", exclude_none=False)
-    for name in _KEEP_NONE_FIELDS:
-        if name in full and name not in payload:
-            payload[name] = full[name]
-    return payload
+    return apply_keep_none_fields(model, keep_none_fields=_KEEP_NONE_FIELDS)
