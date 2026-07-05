@@ -40,7 +40,6 @@ from __future__ import annotations
 
 import json
 import os
-import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
@@ -54,125 +53,16 @@ if TYPE_CHECKING:
 from rich.panel import Panel
 from rich.table import Table
 
-from mission_runtime import CommitTarget
 from specify_cli.cli.helpers import console, show_banner
 from specify_cli.cli.commands._teamspace_mission_state_gate import (
     offer_teamspace_mission_state_migration,
 )
-from specify_cli.core.commit_guard import GuardCapability
-from specify_cli.core.constants import WORKTREES_DIR
 from specify_cli.core.env import is_truthy
 from specify_cli.core.version_compare import is_version_newer
-from specify_cli.git.commit_helpers import safe_commit
+from specify_cli.upgrade import autocommit
 
 
 _PROJECT_COMPAT_CHECK_COMMAND = ("__project_compat_check__",)
-
-
-def _git_status_paths(repo_path: Path) -> set[str] | None:
-    """Return git status paths for *repo_path* using porcelain -z output.
-
-    Returns ``None`` when ``git status`` fails (e.g. not a git repo) so
-    callers can distinguish "no dirty files" from "unable to determine".
-    """
-    result = subprocess.run(
-        ["git", "status", "--porcelain", "-z"],
-        cwd=repo_path,
-        capture_output=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        return None
-
-    entries = result.stdout.decode("utf-8", errors="replace").split("\0")
-    paths: set[str] = set()
-
-    i = 0
-    while i < len(entries):
-        entry = entries[i]
-        i += 1
-        if not entry or len(entry) < 4:
-            continue
-
-        status = entry[:2]
-        path = entry[3:]
-
-        # With -z format, renames/copies include a second NUL-separated
-        # path.  We take the *destination* (new name); the source (old name)
-        # is intentionally discarded because we care about "what exists now".
-        if ("R" in status or "C" in status) and i < len(entries) and entries[i]:
-            path = entries[i]
-            i += 1
-
-        normalized = path.strip().replace("\\", "/")
-        if normalized.startswith("./"):
-            normalized = normalized[2:]
-
-        if normalized:
-            paths.add(normalized)
-
-    return paths
-
-
-def _is_upgrade_commit_eligible(path: str, project_path: Path) -> bool:
-    """Return True when a changed file should be included in upgrade auto-commit."""
-    normalized = path.strip().replace("\\", "/")
-    if not normalized:
-        return False
-
-    # Ignore paths that are outside the repo and root-level files.
-    if normalized.startswith("../") or "/" not in normalized:
-        return False
-
-    # Never auto-commit ~/.kittify when users run inside their home directory.
-    return not (project_path.resolve() == Path.home().resolve() and normalized.startswith(".kittify/"))
-
-
-def _expand_upgrade_commit_path(project_path: Path, relative_path: str) -> list[Path]:
-    """Expand a changed path into the concrete file paths git will stage.
-
-    ``git status --porcelain -z`` may report untracked directories as a single
-    path (for example ``.agents/skills/new-skill``). ``git add <dir>`` stages
-    the files inside that directory, but ``safe_commit``'s backstop compares the
-    staged file paths against the requested path list. Expand directories here
-    so the expected set matches what git will actually stage.
-    """
-    normalized = relative_path.strip().replace("\\", "/")
-    absolute_path = project_path / normalized
-
-    if absolute_path.exists() and absolute_path.is_dir() and not absolute_path.is_symlink():
-        return sorted(child.relative_to(project_path) for child in absolute_path.rglob("*") if not child.is_dir())
-
-    return [Path(normalized)]
-
-
-def _prepare_upgrade_commit_files(
-    project_path: Path,
-    baseline_paths: set[str] | None,
-) -> list[Path]:
-    """Collect newly changed project-directory files after an upgrade run.
-
-    Returns an empty list when *baseline_paths* is ``None`` (git status
-    failed at baseline time) to avoid accidentally committing unrelated work.
-    """
-    if baseline_paths is None:
-        return []
-
-    current_paths = _git_status_paths(project_path)
-    if current_paths is None:
-        return []
-
-    new_paths = sorted(path for path in current_paths if path not in baseline_paths and _is_upgrade_commit_eligible(path, project_path))
-    files_to_commit: list[Path] = []
-    seen_paths: set[str] = set()
-    for path in new_paths:
-        for expanded_path in _expand_upgrade_commit_path(project_path, path):
-            normalized = str(expanded_path).replace("\\", "/")
-            if normalized in seen_paths:
-                continue
-            seen_paths.add(normalized)
-            files_to_commit.append(Path(normalized))
-    return files_to_commit
 
 
 def _collect_manual_review_paths(migration_results: dict[str, object]) -> list[str]:
@@ -183,102 +73,6 @@ def _collect_manual_review_paths(migration_results: dict[str, object]) -> list[s
             continue
         manual_review_paths.update(getattr(result, "preserved_paths", []))
     return sorted(manual_review_paths)
-
-
-def _auto_commit_upgrade_changes(
-    project_path: Path,
-    from_version: str,
-    to_version: str,
-    baseline_paths: set[str] | None,
-) -> tuple[bool, list[str], str | None]:
-    """Auto-commit newly introduced project-directory upgrade changes."""
-    files_to_commit = _prepare_upgrade_commit_files(project_path, baseline_paths)
-    if not files_to_commit:
-        return False, [], None
-
-    commit_message = f"chore: apply spec-kitty upgrade changes ({from_version} -> {to_version})"
-    committed_paths = [str(path).replace("\\", "/") for path in files_to_commit]
-    try:
-        destination_ref = subprocess.check_output(
-            ["git", "-C", str(project_path), "branch", "--show-current"],
-            text=True,
-            stderr=subprocess.DEVNULL,
-        ).strip() or "main"
-    except Exception:
-        destination_ref = "main"
-
-    # The upgrade flow runs outside any mission, so there is no coordination
-    # split to reconcile: the current branch is landing == coordination ==
-    # target. Construct a ref-only CommitTarget (C-007) for it and assert the
-    # upgrade bookkeeping capability explicitly (T009 / FR-008). The old reliance
-    # on the "chore: apply spec-kitty upgrade changes" message-prefix exception is
-    # now irrelevant — the message is just a message; the capability carries the
-    # authorization to land on a protected branch (e.g. the operator's main).
-    upgrade_target = CommitTarget(ref=destination_ref)
-
-    try:
-        safe_commit(
-            repo_root=project_path,
-            worktree_root=project_path,
-            target=upgrade_target,
-            message=commit_message,
-            paths=tuple(files_to_commit),
-            capability=GuardCapability.UPGRADE_BOOKKEEPING,
-        )
-    except Exception:
-        return (
-            False,
-            committed_paths,
-            "Could not auto-commit upgrade changes; please review and commit manually.",
-        )
-
-    return True, committed_paths, None
-
-
-def _capture_worktree_baselines(project_path: Path) -> dict[Path, set[str] | None]:
-    """Capture a git-status baseline for each worktree under ``.worktrees/``.
-
-    Returned before any upgrade work runs so the per-worktree auto-commit can
-    stage only the migration changes the upgrade *introduces*, leaving any
-    pre-existing uncommitted work in a worktree untouched (#2385).
-    """
-    worktrees_dir = project_path / WORKTREES_DIR
-    baselines: dict[Path, set[str] | None] = {}
-    if not worktrees_dir.exists():
-        return baselines
-    for worktree in sorted(worktrees_dir.iterdir(), key=lambda p: p.name):
-        if worktree.is_dir() and not worktree.is_symlink():
-            baselines[worktree] = _git_status_paths(worktree)
-    return baselines
-
-
-def _auto_commit_worktree_upgrade_changes(
-    worktree_baselines: dict[Path, set[str] | None],
-    from_version: str,
-    to_version: str,
-) -> list[str]:
-    """Auto-commit upgrade churn in each worktree, mirroring the main checkout.
-
-    ``spec-kitty upgrade`` applies migrations across sibling worktrees but
-    historically committed only the main checkout, leaving worktrees dirty and
-    blocking a later ``spec-kitty merge`` (#1826/NFR-002 refuses to advance a
-    branch whose worktree has uncommitted changes) — see #2385. Commit each
-    worktree's *new* upgrade changes on its own branch; the per-worktree
-    baseline protects any pre-existing uncommitted work.
-    """
-    warnings: list[str] = []
-    for worktree, baseline in worktree_baselines.items():
-        if not worktree.exists():
-            continue
-        _committed, _paths, warning = _auto_commit_upgrade_changes(
-            project_path=worktree,
-            from_version=from_version,
-            to_version=to_version,
-            baseline_paths=baseline,
-        )
-        if warning:
-            warnings.append(f"Worktree {worktree.name}: {warning}")
-    return warnings
 
 
 # ---------------------------------------------------------------------------
@@ -852,11 +646,7 @@ def upgrade(  # noqa: C901
     if not json_output:
         show_banner()
 
-    baseline_changed_paths = _git_status_paths(project_path)
-    # Per-worktree baselines captured BEFORE any upgrade work, so the upgrade
-    # commits only the migration churn it introduces in each worktree and never
-    # a worktree's pre-existing uncommitted work (#2385).
-    worktree_baselines = {} if no_worktrees else _capture_worktree_baselines(project_path)
+    baseline_changed_paths = autocommit.git_status_paths(project_path)
 
     # Import upgrade system (lazy to avoid circular imports)
     from specify_cli.upgrade.detector import VersionDetector
@@ -932,10 +722,14 @@ def upgrade(  # noqa: C901
                 MigrationRunner._stamp_schema_version(kittify_dir, REQUIRED_SCHEMA_VERSION)
 
         if not no_worktrees and current_version == target_version:
+            # auto_commit: each worktree's upgrade churn lands on its own
+            # branch (#2385) so a later `spec-kitty merge` isn't blocked by
+            # dirty coord/lane worktrees.
             worktrees_result = MigrationRunner(project_path, console)._upgrade_worktrees(
                 target_version,
                 [],
                 dry_run,
+                auto_commit=not dry_run,
             )
             worktree_warnings.extend(worktrees_result.get("warnings", []))
             if worktrees_result.get("errors"):
@@ -943,18 +737,11 @@ def upgrade(  # noqa: C901
                 worktree_warnings.append("Some worktrees had issues - check errors above")
 
         if not dry_run:
-            auto_committed, auto_commit_paths, auto_commit_warning = _auto_commit_upgrade_changes(
-                project_path=project_path,
-                from_version=current_version,
-                to_version=target_version,
-                baseline_paths=baseline_changed_paths,
-            )
-            # Commit upgrade churn in each worktree too (#2385) — otherwise a
-            # later `spec-kitty merge` trips the coord/lane worktree-dirty guard.
-            worktree_warnings.extend(
-                _auto_commit_worktree_upgrade_changes(
-                    worktree_baselines, current_version, target_version
-                )
+            auto_committed, auto_commit_paths, auto_commit_warning = autocommit.commit_touched_checkout(
+                project_path,
+                baseline_changed_paths,
+                current_version,
+                target_version,
             )
 
         if not json_output:
@@ -1056,11 +843,15 @@ def upgrade(  # noqa: C901
 
     # Run migrations
     runner = MigrationRunner(project_path, console)
+    # auto_commit: the runner commits each worktree's upgrade churn on its own
+    # branch (#2385) so a later `spec-kitty merge` isn't blocked by dirty
+    # coord/lane worktrees. The main checkout is committed below by the CLI.
     result = runner.upgrade(
         target_version,
         dry_run=dry_run,
         force=confirm,  # pass the unified confirm flag
         include_worktrees=not no_worktrees,
+        auto_commit=not dry_run,
     )
 
     auto_committed = False
@@ -1072,21 +863,14 @@ def upgrade(  # noqa: C901
             auto_commit_warning = "Skipped auto-commit because the upgrade preserved customized files that require manual review."
             result.warnings.append(auto_commit_warning)
         else:
-            auto_committed, auto_commit_paths_list, auto_commit_warning = _auto_commit_upgrade_changes(
-                project_path=project_path,
-                from_version=result.from_version,
-                to_version=result.to_version,
-                baseline_paths=baseline_changed_paths,
+            auto_committed, auto_commit_paths_list, auto_commit_warning = autocommit.commit_touched_checkout(
+                project_path,
+                baseline_changed_paths,
+                result.from_version,
+                result.to_version,
             )
             if auto_commit_warning:
                 result.warnings.append(auto_commit_warning)
-            # Commit upgrade churn in each worktree too (#2385) so a later
-            # `spec-kitty merge` isn't blocked by dirty coord/lane worktrees.
-            result.warnings.extend(
-                _auto_commit_worktree_upgrade_changes(
-                    worktree_baselines, result.from_version, result.to_version
-                )
-            )
 
     if result.success and not json_output:
         offer_teamspace_mission_state_migration(
