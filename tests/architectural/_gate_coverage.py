@@ -679,6 +679,601 @@ def collect_universe(repo_root: Path | None = None) -> list[TestRecord]:
 
 
 # ---------------------------------------------------------------------------
+# CI-topology census + architectural-completeness relations
+# (mission ci-topology-shrink-01KWQAVX WP01 — additive substrate for the
+# NFR-002/NFR-003/NFR-006 invariant suites authored in WP02/WP03. PURE
+# parsing/derivation only: the invariants over these relations live in the
+# consumer test modules, never here. C-001 additive; NFR-007 — no existing
+# surface's behavior is changed.)
+# ---------------------------------------------------------------------------
+
+# Single-literal census path (Sonar S1192): the committed construction-derived
+# worklist authority WP02's SC-001 test iterates.
+CENSUS_PATH = Path(__file__).with_name("ci_topology_census.json")
+
+# Committed LOC floor for worklist membership (NFR-006). This is the plan-time
+# constant; it lives in the census artifact and is NEVER inlined into a test —
+# the SC-001 test reads it from the census so the metric measures coverage, not
+# the implementer's constant.
+T_LOC = 500
+
+_SRC_PACKAGE_PREFIX = "src/specify_cli/"
+_WHOLE_DIR_SUFFIX = "/**"
+# The catch-all group (``src/**``) is src-backed but maps no *specific* dir: a
+# touch matching only it still trips ``unmatched`` (data-model: "Src-backed
+# groups (minus any_src)"), so it never removes a dir from the worklist.
+_ANY_SRC_GROUP = "any_src"
+# Marker name whose positive presence identifies an architectural-suite gate.
+_ARCH_MARKER = "architectural"
+# Gate-tier prefixes for the same-tier uniqueness relation (NFR-003).
+_FAST_TIER_PREFIX = "fast-tests"
+_INTEGRATION_TIER_PREFIX = "integration-tests"
+
+# NFR-001 wallclock baseline (live CI run 28705381819, research §2.2). Probe
+# measurements, not tree-derivable — committed so the SC-003/NFR-001 ceiling is
+# anchored to a cited run rather than re-measured per invocation.
+_TIMINGS_BASELINE: dict[str, float] = {
+    "fast_core_misc_min": 17.0,
+    "arch_shard_min": 12.3,
+    "critical_path_min": 29.4,
+    "next_lane_min": 13.6,
+    "source_run_id": 28705381819,
+}
+
+_WORKLIST_RULE = (
+    "D in worklist iff D is a direct child directory of src/specify_cli/ AND "
+    "sum(LOC of *.py under D) >= t_loc AND no src-backed dorny filter group "
+    "(excluding any_src) globs src/specify_cli/<D>/."
+)
+
+# Frozen pre-mission mapped baseline (NFR-006; review cycle 1). The FR-001
+# worklist is the set of hot dirs the mission is chartered to *shrink to zero*
+# by mapping them into src-backed dorny groups. Deriving the worklist against
+# the LIVE ``mapped_src_dirs`` would make the mission's own success empty the
+# worklist (worklist would shrink to nothing the moment WP03 globs the dirs),
+# making WP02's routing / non-empty / freshness assertions mutually
+# unsatisfiable. So membership subtracts this *committed snapshot* of the dirs
+# already mapped before the mission began — identical to the census
+# ``mapped_dirs`` field, disjoint from the 32-dir worklist. It is frozen: it
+# does NOT re-read the live model (nor the census JSON it validates), so
+# post-WP03 mapping leaves it at these 23 dirs, keeping the worklist stable at
+# 32. Teeth are preserved and strengthened — a hand-trim of the census still
+# reds, a dir crossing the LOC floor changes membership, and a *new* hot dir
+# (>= t_loc, not in this baseline) grows the live derivation beyond the
+# committed census and reds.
+_PRE_MISSION_MAPPED_SRC_DIRS: frozenset[str] = frozenset(
+    {
+        "acceptance",
+        "agent_utils",
+        "charter_runtime",
+        "cli",
+        "coordination",
+        "core",
+        "dashboard",
+        "delivery",
+        "doctrine_synthesizer",
+        "event_journal",
+        "lanes",
+        "merge",
+        "missions",
+        "post_merge",
+        "release",
+        "review",
+        "runtime",
+        "saas",
+        "state",
+        "status",
+        "sync",
+        "tool_surface",
+        "upgrade",
+    },
+)
+
+# One committed composite-routing plan entry: (target_group, target_shard,
+# cone_roots). ``target_shard`` is the existing integration shard family the dir
+# already lands in (research §1.4A/§3), the stable anchor SC-001 checks.
+_CompositeRoute = tuple[str | None, str | None, tuple[str, ...]]
+_EMPTY_ROUTING: _CompositeRoute = (None, None, ())
+
+# Committed composite-routing plan (FR-001 / FR-010, research §3): the named
+# group + focused integration shard family each worklist dir must map to, plus
+# its test cone roots. This is the *design overlay* joined onto the tree-derived
+# ``{dir, loc}`` membership — tree membership + LOC are re-derived live
+# (:func:`live_derived_worklist`); this table is the committed plan authority
+# SC-001 (WP03) asserts the live workflow conforms to, not a derived fact.
+_COMPOSITE_ROUTING: dict[str, _CompositeRoute] = {
+    # auth_audit_git -> existing ``auth-audit-git`` integration shard.
+    "auth": ("auth_audit_git", "auth-audit-git", ("tests/auth",)),
+    "audit": (
+        "auth_audit_git", "auth-audit-git",
+        ("tests/audit", "tests/specify_cli/audit"),
+    ),
+    "git": (
+        "auth_audit_git", "auth-audit-git",
+        ("tests/git", "tests/git_ops", "tests/specify_cli/git"),
+    ),
+    # lifecycle -> ``specify-cli-heavy`` (heavy marker adds ``and not slow``).
+    "migration": (
+        "lifecycle", "specify-cli-heavy",
+        ("tests/migration", "tests/specify_cli/migration"),
+    ),
+    "invocation": (
+        "lifecycle", "specify-cli-heavy",
+        ("tests/invocation", "tests/specify_cli/invocation"),
+    ),
+    "compat": ("lifecycle", "specify-cli-heavy", ("tests/specify_cli/compat",)),
+    "template": ("lifecycle", "specify-cli-heavy", ("tests/test_template",)),
+    # agent_surface -> ``specify-cli-rest``.
+    "orchestrator_api": (
+        "agent_surface", "specify-cli-rest", ("tests/specify_cli/orchestrator_api",),
+    ),
+    "tracker": ("agent_surface", "specify-cli-rest", ("tests/tracker",)),
+    "dossier": (
+        "agent_surface", "specify-cli-rest",
+        ("tests/dossier", "tests/specify_cli/dossier"),
+    ),
+    "bulk_edit": ("agent_surface", "specify-cli-rest", ("tests/specify_cli/bulk_edit",)),
+    "skills": ("agent_surface", "specify-cli-rest", ("tests/specify_cli/skills",)),
+    # closeout -> ``misc``.
+    "retrospective": (
+        "closeout", "misc",
+        (
+            "tests/retrospective",
+            "tests/specify_cli/retrospect",
+            "tests/specify_cli/retrospective",
+        ),
+    ),
+    "readiness": (
+        "closeout", "misc", ("tests/readiness", "tests/specify_cli/readiness"),
+    ),
+    "decisions": ("closeout", "misc", ("tests/specify_cli/decisions",)),
+    "doc_analysis": ("closeout", "misc", ()),
+    "widen": ("closeout", "misc", ("tests/specify_cli/widen",)),
+    # governance -> ``misc``.
+    "doctrine": ("governance", "misc", ("tests/specify_cli/doctrine",)),
+    "policy": ("governance", "misc", ("tests/policy",)),
+    "ownership": ("governance", "misc", ("tests/specify_cli/ownership",)),
+    "validators": ("governance", "misc", ()),
+    "calibration": ("governance", "misc", ("tests/calibration",)),
+    "context": ("governance", "misc", ("tests/context", "tests/specify_cli/context")),
+    # platform -> ``specify-cli-rest``.
+    "workspace": ("platform", "specify-cli-rest", ("tests/specify_cli/workspace",)),
+    "session_presence": (
+        "platform", "specify-cli-rest", ("tests/specify_cli/session_presence",),
+    ),
+    "mission_v1": ("platform", "specify-cli-rest", ("tests/specify_cli/mission_v1",)),
+    "mission_loader": ("platform", "specify-cli-rest", ("tests/unit/mission_loader",)),
+    "events": ("platform", "specify-cli-rest", ("tests/specify_cli/events",)),
+    "paths": ("platform", "specify-cli-rest", ("tests/paths",)),
+    "saas_client": ("platform", "specify-cli-rest", ("tests/specify_cli/saas_client",)),
+    "task_utils": ("platform", "specify-cli-rest", ()),
+    "intake": ("platform", "specify-cli-rest", ()),
+}
+
+
+def load_workflow_models() -> dict[str, WorkflowModel]:
+    """Parse all four suite-running workflows into ``name -> WorkflowModel``."""
+    return {
+        name: load_workflow_model(WORKFLOWS_DIR / name) for name in WORKFLOW_FILES
+    }
+
+
+def _group_is_src_backed(globs: Sequence[str]) -> bool:
+    """A filter group is src-backed iff >=1 glob targets ``src/`` (data-model)."""
+    return any(str(g).startswith("src/") for g in globs)
+
+
+def aggregate_filter_groups(
+    models: dict[str, WorkflowModel],
+) -> dict[str, tuple[str, ...]]:
+    """Union of every workflow's dorny filter groups: ``group -> sorted globs``."""
+    merged: dict[str, set[str]] = {}
+    for model in models.values():
+        for name, globs in model.filter_groups.items():
+            merged.setdefault(name, set()).update(globs)
+    return {name: tuple(sorted(globs)) for name, globs in merged.items()}
+
+
+def _src_dir_of_glob(glob: str) -> str | None:
+    """First ``src/specify_cli/<dir>`` segment a glob targets, else ``None``.
+
+    ``src/**`` (the ``any_src`` catch-all), non-package globs, and top-level
+    ``src/specify_cli/<file>.py`` globs return ``None`` — they map no *specific*
+    package dir.
+    """
+    normalized = glob.replace("\\", "/")
+    if not normalized.startswith(_SRC_PACKAGE_PREFIX):
+        return None
+    segment = normalized[len(_SRC_PACKAGE_PREFIX) :].split("/", 1)[0].split("*", 1)[0]
+    if not segment or segment.endswith(".py"):
+        return None
+    return segment
+
+
+def mapped_src_dirs(models: dict[str, WorkflowModel]) -> frozenset[str]:
+    """``src/specify_cli`` dirs claimed by >=1 src-backed named group != any_src.
+
+    A dir here does NOT fall to ``unmatched->run_all`` on a confined touch
+    (research §1.2 mapping oracle); the FR-001 worklist is exactly the
+    complement (``>= t_loc`` LOC, unmapped).
+    """
+    mapped: set[str] = set()
+    for name, globs in aggregate_filter_groups(models).items():
+        if name == _ANY_SRC_GROUP or not _group_is_src_backed(globs):
+            continue
+        for glob in globs:
+            dir_name = _src_dir_of_glob(glob)
+            if dir_name is not None:
+                mapped.add(dir_name)
+    return frozenset(mapped)
+
+
+def _newline_count(path: Path) -> int:
+    """``wc -l`` semantics: the number of newline bytes in a file."""
+    return path.read_bytes().count(b"\n")
+
+
+def src_package_loc(repo_root: Path = REPO_ROOT) -> dict[str, int]:
+    """Direct-child dir of ``src/specify_cli/`` -> recursive ``*.py`` line count.
+
+    Mirrors the research §1.1 shell census (``find <d> -name '*.py' | xargs
+    wc -l``): the count is the total number of newline characters across every
+    ``*.py`` file under the dir, so a construction-derived worklist matches a
+    hand-run census exactly.
+    """
+    package_dir = repo_root / "src" / "specify_cli"
+    loc_by_dir: dict[str, int] = {}
+    for child in sorted(package_dir.iterdir()):
+        if not child.is_dir():
+            continue
+        loc_by_dir[child.name] = sum(_newline_count(py) for py in child.rglob("*.py"))
+    return loc_by_dir
+
+
+def live_derived_worklist(
+    t_loc: int = T_LOC,
+    repo_root: Path = REPO_ROOT,
+) -> list[dict[str, Any]]:
+    """Re-derive the FR-001 worklist from the LIVE tree (NFR-006 freshness guard).
+
+    Pure and side-effect-free: reads only the source tree, never writes. A dir
+    qualifies iff it is a direct child of ``src/specify_cli/``, its recursive
+    ``*.py`` LOC ``>= t_loc``, and it is NOT in the frozen pre-mission mapped
+    baseline :data:`_PRE_MISSION_MAPPED_SRC_DIRS` — the committed
+    :data:`_WORKLIST_RULE`. The subtraction is against the *frozen* baseline,
+    not the live ``mapped_src_dirs``, so the mission's own success (WP03 mapping
+    the worklist dirs) does not empty the worklist: the derivation stays at the
+    32 hot-but-unmapped-at-mission-start dirs (review cycle 1 fix). Each
+    qualifying dir is annotated with its committed :data:`_COMPOSITE_ROUTING`
+    plan (group / focused shard / cone roots); tree membership + LOC are the
+    *derived* facts, the annotation is the committed plan overlay (an unrouted
+    qualifying dir carries ``None`` group/shard).
+
+    WP02's ``test_ci_topology_worklist.py`` asserts
+    ``census.worklist == live_derived_worklist()`` — so a stale or hand-trimmed
+    census reds in CI (NFR-006). Entries are sorted by descending LOC then dir
+    name for a stable, diff-friendly order.
+    """
+    worklist: list[dict[str, Any]] = []
+    for dir_name, loc in src_package_loc(repo_root).items():
+        if loc < t_loc or dir_name in _PRE_MISSION_MAPPED_SRC_DIRS:
+            continue
+        group, shard, cones = _COMPOSITE_ROUTING.get(dir_name, _EMPTY_ROUTING)
+        worklist.append(
+            {
+                "dir": dir_name,
+                "loc": loc,
+                "cone_roots": list(cones),
+                "target_group": group,
+                "target_shard": shard,
+            },
+        )
+    worklist.sort(key=lambda entry: (-int(entry["loc"]), str(entry["dir"])))
+    return worklist
+
+
+# --- Differential arch-completeness matrix (NFR-002) -----------------------
+
+
+def _gate_is_arch(gate: Gate) -> bool:
+    """True iff the gate positively selects the ``architectural`` marker family."""
+    return _ARCH_MARKER in positive_marker_tokens(gate.marker_expr)
+
+
+def _job_gating_index(models: dict[str, WorkflowModel]) -> dict[str, frozenset[str]]:
+    """Merged ``job -> filter groups referenced in its ``if:`` across workflows."""
+    gating: dict[str, frozenset[str]] = {}
+    for model in models.values():
+        gating.update(model.job_gating_groups)
+    return gating
+
+
+def group_less_suite_jobs(
+    gates: Sequence[Gate],
+    models: dict[str, WorkflowModel],
+) -> frozenset[str]:
+    """Suite-running jobs with NO dorny filter-group ``if:`` gate (always-on).
+
+    Such a job (``lint``, ``slow-tests``, ``unit-contract-residual`` today; the
+    future always-on ``arch-adversarial``) references no filter output, so it is
+    legitimately absent from ``JOB_GROUPS`` / ``src_backed_groups`` and does not
+    perturb the FR-010/FR-011 relations (research §4.2). Recognizing it lets the
+    differential matrix credit an always-on arch pole that carries no filter
+    gate.
+    """
+    gating = _job_gating_index(models)
+    return frozenset(gate.job for gate in gates if not gating.get(gate.job))
+
+
+def always_on_arch_present(
+    gates: Sequence[Gate],
+    models: dict[str, WorkflowModel],
+) -> bool:
+    """True iff an always-on (group-less) job runs the architectural suite.
+
+    When present, the arch suite fires on every PR regardless of which src dir
+    changed, so every dir is arch-selected by construction (NFR-002 target
+    state). Today no group-less job runs arch -> ``False`` -> 13 arch-blind dirs.
+    """
+    group_less = group_less_suite_jobs(gates, models)
+    return any(_gate_is_arch(gate) and gate.job in group_less for gate in gates)
+
+
+def arch_trigger_groups(
+    gates: Sequence[Gate],
+    models: dict[str, WorkflowModel],
+) -> frozenset[str]:
+    """Filter groups whose touch fires the (group-gated) architectural suite.
+
+    Union of the ``if:`` filter outputs of every group-gated arch-running job
+    (today ``integration-tests-core-misc`` -> ``{acceptance, core_misc,
+    execution_context}``). A dir whole-dir covered by one of these is
+    arch-covered even without an always-on pole.
+    """
+    group_less = group_less_suite_jobs(gates, models)
+    gating = _job_gating_index(models)
+    triggers: set[str] = set()
+    for gate in gates:
+        if _gate_is_arch(gate) and gate.job not in group_less:
+            triggers |= set(gating.get(gate.job, frozenset()))
+    return frozenset(triggers)
+
+
+def _whole_dir_glob(dir_name: str) -> str:
+    """The dorny glob that covers the whole of ``src/specify_cli/<dir_name>``."""
+    return f"{_SRC_PACKAGE_PREFIX}{dir_name}{_WHOLE_DIR_SUFFIX}"
+
+
+def _arch_covered_src_dirs(
+    gates: Sequence[Gate],
+    models: dict[str, WorkflowModel],
+) -> frozenset[str]:
+    """Dirs whole-dir covered by an arch-trigger group (every touch fires arch).
+
+    Only a whole-dir glob (``src/specify_cli/<D>/**``) counts: a deeper glob
+    like ``execution_context``'s ``src/specify_cli/cli/commands/agent/**`` leaves
+    a confined ``cli`` touch arch-blind, so ``cli`` is NOT arch-covered.
+    """
+    triggers = arch_trigger_groups(gates, models)
+    groups = aggregate_filter_groups(models)
+    covered: set[str] = set()
+    for group in triggers:
+        for glob in groups.get(group, ()):
+            dir_name = _src_dir_of_glob(glob)
+            if dir_name is not None and _whole_dir_glob(dir_name) == glob:
+                covered.add(dir_name)
+    return frozenset(covered)
+
+
+def arch_selected_for_dir(
+    dir_name: str,
+    *,
+    mapped: frozenset[str],
+    arch_covered: frozenset[str],
+    always_on_arch: bool,
+) -> bool:
+    """Pure predicate: does a touch confined to ``dir_name`` run the arch suite?
+
+    ``True`` iff (a) an always-on arch job exists (fires unconditionally), or
+    (b) the dir is unmapped (a confined touch trips ``unmatched->run_all``,
+    which runs everything incl. arch), or (c) the dir is whole-dir covered by an
+    arch-trigger filter group. ``False`` (arch-blind) only for a mapped dir no
+    arch-trigger group covers (Mode B) — the un-blind target.
+    """
+    if always_on_arch:
+        return True
+    if dir_name not in mapped:
+        return True
+    return dir_name in arch_covered
+
+
+def differential_arch_matrix(
+    gates: Sequence[Gate] | None = None,
+    models: dict[str, WorkflowModel] | None = None,
+    repo_root: Path = REPO_ROOT,
+) -> dict[str, bool]:
+    """``src/specify_cli/*`` dir -> arch-selected bool (NFR-002 differential matrix).
+
+    The mechanized proof that the architectural + adversarial guards execute on
+    100% of src dirs. Today 13 dirs are arch-blind (the pre-WP03 red baseline);
+    WP03's always-on arch job flips every dir to ``True`` by construction, and a
+    regression re-adding a filter-group gate to that job reds this relation.
+    """
+    resolved_models = models if models is not None else load_workflow_models()
+    resolved_gates = list(gates) if gates is not None else load_gates()
+    mapped = mapped_src_dirs(resolved_models)
+    arch_covered = _arch_covered_src_dirs(resolved_gates, resolved_models)
+    always_on = always_on_arch_present(resolved_gates, resolved_models)
+    return {
+        dir_name: arch_selected_for_dir(
+            dir_name,
+            mapped=mapped,
+            arch_covered=arch_covered,
+            always_on_arch=always_on,
+        )
+        for dir_name in src_package_loc(repo_root)
+    }
+
+
+def arch_blind_src_dirs(
+    gates: Sequence[Gate] | None = None,
+    models: dict[str, WorkflowModel] | None = None,
+    repo_root: Path = REPO_ROOT,
+) -> tuple[str, ...]:
+    """Sorted ``src/specify_cli/*`` dirs the arch suite never fires on (Mode B)."""
+    matrix = differential_arch_matrix(gates, models, repo_root)
+    return tuple(sorted(d for d, selected in matrix.items() if not selected))
+
+
+# --- Same-tier shard-uniqueness relation (NFR-003) -------------------------
+
+
+def _gate_tier(gate: Gate) -> str | None:
+    """Tier of a gate for same-tier uniqueness: ``fast`` / ``integration`` / None."""
+    if gate.job.startswith(_FAST_TIER_PREFIX):
+        return "fast"
+    if gate.job.startswith(_INTEGRATION_TIER_PREFIX):
+        return "integration"
+    return None
+
+
+def shard_counts_for_test(
+    test: TestRecord,
+    tiered_gates: Sequence[tuple[CompiledGate, str]],
+) -> dict[str, int]:
+    """Count fast-tier / integration-tier shards that select one test (NFR-003).
+
+    ``tiered_gates`` is a pre-built ``[(CompiledGate, tier), ...]``. Same-tier
+    uniqueness means each count should be ``<= 1``; a test selected by two fast
+    shards (or two integration shards) is a same-tier double-run.
+    """
+    relpath, nodeid, markers = test["relpath"], test["nodeid"], set(test["markers"])
+    fast = integration = 0
+    for compiled, tier in tiered_gates:
+        if not compiled.selects(relpath, nodeid, markers):
+            continue
+        if tier == "fast":
+            fast += 1
+        else:
+            integration += 1
+    return {"count_fast_shards": fast, "count_integration_shards": integration}
+
+
+def same_tier_shard_counts(
+    gates: Sequence[Gate],
+    universe: Sequence[TestRecord],
+) -> dict[str, dict[str, int]]:
+    """``nodeid -> {count_fast_shards, count_integration_shards}`` (NFR-003).
+
+    Pure over its inputs (the caller supplies the collected ``universe`` via
+    :func:`collect_universe`), so this module performs no collection side effect.
+    Distinct from the report-only cross-tier duplicate count in :func:`analyze`:
+    this counts *within* a tier, where the invariant is uniqueness (``<= 1``),
+    not intentional overlap.
+    """
+    tiered_gates: list[tuple[CompiledGate, str]] = [
+        (CompiledGate(gate), tier)
+        for gate in gates
+        if (tier := _gate_tier(gate)) is not None
+    ]
+    return {
+        test["nodeid"]: shard_counts_for_test(test, tiered_gates)
+        for test in universe
+    }
+
+
+# --- Census assembly + regeneration CLI (NFR-006) --------------------------
+
+
+def _primary_group_for_dir(
+    dir_name: str,
+    groups: dict[str, tuple[str, ...]],
+) -> str | None:
+    """The named group whose whole-dir glob claims ``dir_name`` (skip any_src)."""
+    whole = _whole_dir_glob(dir_name)
+    for name, globs in sorted(groups.items()):
+        if name != _ANY_SRC_GROUP and whole in globs:
+            return name
+    return None
+
+
+def _arch_blind_group_rows(
+    gates: Sequence[Gate],
+    models: dict[str, WorkflowModel],
+    loc_by_dir: dict[str, int],
+) -> list[dict[str, Any]]:
+    """The 13 Mode-B arch-blind groups as ``{group, dir, loc}`` rows (data-model)."""
+    groups = aggregate_filter_groups(models)
+    rows: list[dict[str, Any]] = [
+        {
+            "group": _primary_group_for_dir(dir_name, groups),
+            "dir": dir_name,
+            "loc": loc_by_dir.get(dir_name, 0),
+        }
+        for dir_name in arch_blind_src_dirs(gates, models)
+    ]
+    rows.sort(key=lambda row: (-int(row["loc"]), str(row["dir"])))
+    return rows
+
+
+_CENSUS_COMMENT = (
+    "Construction-derived CI-topology census (mission ci-topology-shrink, "
+    "NFR-006). 'worklist' is the FR-001 authority: every src/specify_cli/* dir "
+    "with >= t_loc LOC that no src-backed dorny filter group claims. Re-derived "
+    "live by tests.architectural._gate_coverage.live_derived_worklist(); WP02's "
+    "test_ci_topology_worklist.py asserts census.worklist == "
+    "live_derived_worklist(), so a stale/hand-trimmed census reds. Regenerate "
+    "with: uv run python -m tests.architectural._gate_coverage --emit-census"
+)
+
+
+def build_census(t_loc: int = T_LOC, repo_root: Path = REPO_ROOT) -> dict[str, Any]:
+    """Assemble the full census dict from the LIVE tree + parsed model (NFR-006)."""
+    models = load_workflow_models()
+    gates = load_gates()
+    loc_by_dir = src_package_loc(repo_root)
+    return {
+        "_comment": _CENSUS_COMMENT,
+        "t_loc": t_loc,
+        "rule": _WORKLIST_RULE,
+        "worklist": live_derived_worklist(t_loc, repo_root),
+        "mapped_dirs": sorted(mapped_src_dirs(models)),
+        "arch_blind_groups": _arch_blind_group_rows(gates, models, loc_by_dir),
+        "timings_baseline": dict(_TIMINGS_BASELINE),
+    }
+
+
+def _emit_census() -> int:
+    census = build_census()
+    CENSUS_PATH.write_text(
+        json.dumps(census, indent=2) + "\n", encoding="utf-8",
+    )
+    print(
+        f"census written: {len(census['worklist'])} worklist dirs, "
+        f"{len(census['arch_blind_groups'])} arch-blind groups -> {CENSUS_PATH}",
+    )
+    return 0
+
+
+_CENSUS_DERIVED_FIELDS = ("worklist", "mapped_dirs", "arch_blind_groups")
+
+
+def _verify_census() -> int:
+    census: dict[str, Any] = json.loads(CENSUS_PATH.read_text(encoding="utf-8"))
+    live = build_census()
+    stale = [f for f in _CENSUS_DERIVED_FIELDS if census.get(f) != live[f]]
+    if stale:
+        print(f"census is STALE in {stale} — re-run --emit-census")
+        return 1
+    print(
+        f"census fresh: {len(live['worklist'])} worklist dirs, "
+        f"{len(live['mapped_dirs'])} mapped dirs, "
+        f"{len(live['arch_blind_groups'])} arch-blind groups",
+    )
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # Baseline I/O + CLI
 # ---------------------------------------------------------------------------
 
@@ -735,6 +1330,10 @@ def check() -> int:
 
 def main(argv: list[str] | None = None) -> int:
     args = argv if argv is not None else sys.argv[1:]
+    if "--emit-census" in args:
+        return _emit_census()
+    if "--verify-census" in args:
+        return _verify_census()
     if "--update-baseline" in args:
         report = update_baseline()
         print(f"baseline updated: {report.orphan_count} orphans across "
