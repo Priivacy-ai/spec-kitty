@@ -38,6 +38,7 @@ import ulid
 from rich.console import Console
 
 from specify_cli.core.contract_gate import validate_outbound_payload
+from specify_cli.core.payload_shaping import apply_keep_none_fields
 from specify_cli.event_journal import (
     CaptureGateState,
     capture_teamspace_bound,
@@ -145,7 +146,11 @@ def _build_payload_via_model(
     must remain in the wire payload (e.g. ``MissionCreated.mission_number``
     where the canonical contract distinguishes pre-merge nullity from
     field absence). All other ``None``-valued optionals are dropped to
-    preserve the historical "field absent when not set" shape.
+    preserve the historical "field absent when not set" shape. The
+    exclude_none/keep-none shaping itself is the shared CORE-tier
+    primitive :func:`specify_cli.core.payload_shaping.apply_keep_none_fields`
+    (#2407) — only this function's validation-failure policy (catch and
+    warn, return ``None``) is INTEGRATION-specific and stays here.
     """
     from pydantic import ValidationError
 
@@ -156,14 +161,7 @@ def _build_payload_via_model(
             f"[yellow]Warning: {model_cls.__name__} payload validation failed: {exc}[/yellow]"
         )
         return None
-    payload = instance.model_dump(mode="json", exclude_none=True)
-    if keep_none_fields:
-        # Re-emit Optional-but-required-in-wire fields whose value is None.
-        full = instance.model_dump(mode="json", exclude_none=False)
-        for name in keep_none_fields:
-            if name in full and name not in payload:
-                payload[name] = full[name]
-    return payload
+    return apply_keep_none_fields(instance, keep_none_fields=keep_none_fields)
 
 
 # Load the contract schema once for payload-level validation
