@@ -1,0 +1,63 @@
+{
+  "event_count": 51,
+  "last_event_id": "01KWRAPVZJZ3AVYP4FQ7CMB37T",
+  "materialized_at": "2026-07-05T05:06:09.522619+00:00",
+  "mission_number": "",
+  "mission_slug": "ci-topology-shrink-01KWQAVX",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KWRAPRC1D0NMAMC14ZPW80Q3",
+      "last_transition_at": "2026-07-05T05:06:05.825889+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KWRAPS6TEJHBMRZNSFRWP367",
+      "last_transition_at": "2026-07-05T05:06:06.682461+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KWRAPSX7RR0MTMDACCSPV83Q",
+      "last_transition_at": "2026-07-05T05:06:07.399078+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KWRAPTKZ9AJB3XN4BY26EDTW",
+      "last_transition_at": "2026-07-05T05:06:08.127234+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KWRAPV9XVQG3DQMZ7G8GPVRV",
+      "last_transition_at": "2026-07-05T05:06:08.829741+00:00"
+    },
+    "WP06": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KWRAPVZJZ3AVYP4FQ7CMB37T",
+      "last_transition_at": "2026-07-05T05:06:09.522619+00:00"
+    }
+  }
+}
