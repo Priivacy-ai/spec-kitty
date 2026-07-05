@@ -1,0 +1,49 @@
+{
+  "mission_slug": "bind-occurrence-map-guard-finalize-01KWQ4WC",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "A bulk-edit mission fails at the finalize-tasks command (WP01) and the live next-loop tasks_finalize guard (WP02) when occurrence_map.yaml is missing/schema-invalid/inadmissible, before implement.",
+      "proof_type": "automated_test",
+      "evidence": "tests/tasks/test_finalize_tasks_occurrence_gate.py (8 tests, green) via _validate_occurrence_map_ready in mission_finalize.py; tests/next/test_occurrence_gate_next_loop.py (19 tests, green) via _occurrence_gate_failures in runtime_bridge.py at both tasks_finalize enumerators.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-04T19:45:00+00:00",
+      "notes": "Independent review approved WP01 (round 1) and WP02 (round 2)."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "The gate reuses the existing ensure_occurrence_classification_ready enforcement and surfaces its canonical error output; no new validation logic.",
+      "proof_type": "automated_test",
+      "evidence": "Both WPs call ensure_occurrence_classification_ready unchanged; fail-case tests assert the canonical gate error is PRESENT (JSON gate_errors / render_gate_failure panel), pass cases assert ABSENT. bulk_edit/gate.py untouched.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-04T19:45:00+00:00",
+      "notes": "C-001 (no new validation logic) honored."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Non-bulk-edit missions are unaffected by the gate (no-op on the non-bulk path).",
+      "proof_type": "automated_test",
+      "evidence": "Non-bulk / change_mode=standard test cases assert the gate error is ABSENT and finalize proceeds unchanged, in both WP01 (finalize command) and WP02 (next-loop) suites.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-04T19:45:00+00:00",
+      "notes": "Gate self-conditions on change_mode == bulk_edit."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "The existing implement-time preflight and review-time backstops remain unchanged.",
+      "proof_type": "code_review",
+      "evidence": "implement.py:1241, agent/workflow.py:2371, bulk_edit/gate.py, occurrence_map.py are untouched (diff stays within each WP's owned_files); confirmed in independent review.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-04T19:45:00+00:00",
+      "notes": "Defense-in-depth preserved."
+    }
+  ],
+  "negative_invariants": []
+}

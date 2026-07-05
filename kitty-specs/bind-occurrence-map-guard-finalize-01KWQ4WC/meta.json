@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "59b16c8fc98529733eeb4340c0b6e8299dc82de1",
+  "coordination_branch": "kitty/mission-bind-occurrence-map-guard-finalize-01KWQ4WC",
+  "created_at": "2026-07-04T18:05:04.520894+00:00",
+  "flattened": false,
+  "friendly_name": "Bind Occurrence-Map Guard at Finalize",
+  "mission_id": "01KWQ4WCM8AB4XD3ARYMQ5X99C",
+  "mission_number": 163,
+  "mission_slug": "bind-occurrence-map-guard-finalize-01KWQ4WC",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Issue #2345 (residual of #1347, overlaps #1790): the occurrence_map_complete guard exists and is tested but no mission step contract binds it, so a malformed or missing occurrence_map.yaml is only caught at implement preflight. This mission binds the existing guard at the plan/tasks-finalize transition so bulk-edit schema errors surface earlier, while keeping the implement-time gate as a backstop. No new validation logic.",
+  "purpose_tldr": "Bulk-edit occurrence-map schema errors fail at task finalization, not at the first implement step.",
+  "slug": "bind-occurrence-map-guard-finalize-01KWQ4WC",
+  "target_branch": "feat/bind-occurrence-map-guard-finalize",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-04T19:15:59.980269+00:00"
+}
