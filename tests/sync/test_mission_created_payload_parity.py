@@ -14,9 +14,18 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock
 
+import pytest
+
 from specify_cli.core.mission_payload import build_mission_created_payload
 from specify_cli.status.lifecycle_events import emit_mission_created_local
 from specify_cli.sync.emitter import EventEmitter
+
+# Pure-logic comparison of the shared payload builder against both call sites
+# (MagicMock-based, no subprocess/git/filesystem I/O) — matches this repo's
+# `fast` marker definition and is what `fast-tests-sync` (tests/sync/, `-m
+# "fast and not windows_ci"`) selects. Without this marker the file is
+# invisible to every CI gate (landing fold, PR #2398).
+pytestmark = [pytest.mark.fast]
 
 # Fixed created_at so the ``created_at -> now`` default does not vary between
 # the two call sites; friendly_name/purpose left None to exercise the shared
