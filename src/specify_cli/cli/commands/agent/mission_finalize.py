@@ -496,6 +496,7 @@ def _validate_occurrence_map_ready(planning_dir: Path, *, json_output: bool) -> 
     """
     from specify_cli.bulk_edit.gate import (
         ensure_occurrence_classification_ready,
+        finalize_tasks_gate_error_payload,
         render_gate_failure,
     )
 
@@ -503,12 +504,7 @@ def _validate_occurrence_map_ready(planning_dir: Path, *, json_output: bool) -> 
     if result.passed:
         return
     if json_output:
-        _emit_json(
-            {
-                "error": "Bulk edit occurrence-map gate blocked finalize-tasks.",
-                "gate_errors": list(result.errors),
-            }
-        )
+        _emit_json(finalize_tasks_gate_error_payload(result))
     else:
         render_gate_failure(result, console)
     raise typer.Exit(1)

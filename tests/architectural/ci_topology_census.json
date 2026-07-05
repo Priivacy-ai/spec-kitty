@@ -183,7 +183,7 @@
     },
     {
       "dir": "bulk_edit",
-      "loc": 1262,
+      "loc": 1276,
       "cone_roots": [
         "tests/specify_cli/bulk_edit"
       ],

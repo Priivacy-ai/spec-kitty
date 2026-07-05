@@ -150,16 +150,58 @@ def _ft_resolve_context(st: _FinalizeState, ports: TasksPorts) -> None:
         raise typer.Exit(1)
 
 
+def _ft_validate_occurrence_map_ready(st: _FinalizeState) -> None:
+    """Bulk-edit occurrence-map gate (mirrors ``mission_finalize._validate_occurrence_map_ready``).
+
+    ``spec-kitty agent tasks finalize-tasks`` (this legacy command family) and
+    ``spec-kitty agent mission finalize-tasks`` are two independently-dispatched
+    commands that both advance a mission past the tasks-finalize boundary.
+    Gating only the ``mission`` variant left this one able to complete
+    finalize-tasks for a bulk-edit mission with a missing / schema-invalid /
+    inadmissible ``occurrence_map.yaml`` with zero gate friction — the exact
+    late-failure timing the occurrence-map gate exists to eliminate (found by
+    the pre-hand-off adversarial squad, architect-alphonso lens, during
+    landing). Reuses ``ensure_occurrence_classification_ready`` unchanged (no
+    new validation logic) and self-conditions on stored ``change_mode``, so
+    non-bulk-edit missions are unaffected — same contract as the other
+    enforcement points.
+    """
+    from specify_cli.bulk_edit.gate import (
+        FINALIZE_TASKS_GATE_BLOCKED_MESSAGE,
+        ensure_occurrence_classification_ready,
+        finalize_tasks_gate_error_payload,
+        render_gate_failure,
+    )
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    result = ensure_occurrence_classification_ready(st.primary_feature_dir)
+    if result.passed:
+        return
+    if st.json_output:
+        _tasks._output_error(
+            st.json_output,
+            FINALIZE_TASKS_GATE_BLOCKED_MESSAGE,
+            finalize_tasks_gate_error_payload(result),
+        )
+    else:
+        render_gate_failure(result, _tasks.console)
+    raise typer.Exit(1)
+
+
 def _ft_validate(st: _FinalizeState) -> None:
-    """Phase B: parse deps + WP04 coverage/cycle/disagree-loud conflict gates.
+    """Phase B: occurrence-map gate + parse deps + WP04 coverage/cycle/disagree-loud conflict gates.
 
     Each gate is a PRE-write refusal — the frontmatter writes in phase C fire only
-    after every gate below passes.
+    after every gate below passes. The occurrence-map gate runs FIRST (fail-fast,
+    before the more expensive dependency-graph validators), mirroring the
+    placement in ``mission_finalize.finalize_tasks``.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
     from specify_cli.core.dependency_parser import (
         parse_dependencies_from_tasks_md as _shared_parse_deps,
     )
+
+    _ft_validate_occurrence_map_ready(st)
 
     tasks_content = st.tasks_md.read_text(encoding="utf-8")
     st.dependencies_map = _shared_parse_deps(tasks_content)

@@ -50,6 +50,7 @@ _MOVE_SET: tuple[str, ...] = (
     "_default_finalize_ports",
     "_ft_resolve_context",
     "_ft_validate",
+    "_ft_validate_occurrence_map_ready",
     "_ft_apply_writes",
     "_ft_output",
     "_do_finalize_tasks",

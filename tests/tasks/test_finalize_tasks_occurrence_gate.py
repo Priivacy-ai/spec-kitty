@@ -16,6 +16,19 @@ satisfy those, so:
   - Pass cases assert the gate's error string is ABSENT — NOT exit_code == 0
     (that would false-red on unrelated downstream validators the minimal
     fixture doesn't satisfy).
+
+Landing-pass addendum (found by the pre-hand-off adversarial squad,
+architect-alphonso lens): ``spec-kitty agent mission finalize-tasks``
+(tested above, via ``mission.app``) is NOT the only command that advances a
+mission past the tasks-finalize boundary — the legacy
+``spec-kitty agent tasks finalize-tasks`` command (a separate Typer app,
+``tasks.app``, delegating to ``tasks_finalize._do_finalize_tasks``) is a
+second, independently-dispatched entry point that originally had zero
+occurrence-map awareness. ``TestLegacyTasksFinalizeGate`` below locks the
+gate at THAT command's boundary too, using the same direct-``_FinalizeState``
+unit-call idiom already established in
+``tests/specify_cli/cli/commands/agent/test_tasks_finalize_seam.py`` (driving
+the real phase function against a real filesystem fixture, not mocks).
 """
 
 from __future__ import annotations
@@ -25,6 +38,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+import typer
 from click.testing import Result
 from typer.testing import CliRunner
 
@@ -243,3 +257,87 @@ class TestFinalizeGateBlocksInValidateOnlyMode:
         result = _invoke(tmp_path, feature_dir, extra_args=["--validate-only"])
         assert result.exit_code == 1, result.stdout
         assert GATE_ERROR_SNIPPET in result.stdout
+
+
+class TestLegacyTasksFinalizeGate:
+    """The SAME gate contract, at the second command boundary (``agent tasks finalize-tasks``).
+
+    Drives ``_ft_validate_occurrence_map_ready`` directly against a real
+    ``_FinalizeState`` + filesystem fixture — the same idiom
+    ``test_tasks_finalize_seam.py`` uses for this module, since standing up
+    the full ports/CLI harness is unrelated to what this gate needs to prove.
+    """
+
+    @staticmethod
+    def _state_for(feature_dir: Path):
+        from specify_cli.cli.commands.agent.tasks_finalize import _FinalizeState
+
+        return _FinalizeState(
+            mission="001-test",
+            json_output=True,
+            validate_only=False,
+            primary_feature_dir=feature_dir,
+        )
+
+    def test_blocks_missing_map(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands.agent.tasks_finalize import (
+            _ft_validate_occurrence_map_ready,
+        )
+
+        feature_dir = _build_feature_dir(tmp_path, change_mode="bulk_edit")
+        st = self._state_for(feature_dir)
+        with pytest.raises(typer.Exit) as exc_info:
+            _ft_validate_occurrence_map_ready(st)
+        assert exc_info.value.exit_code == 1
+
+    def test_blocks_schema_invalid_map(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands.agent.tasks_finalize import (
+            _ft_validate_occurrence_map_ready,
+        )
+
+        feature_dir = _build_feature_dir(tmp_path, change_mode="bulk_edit")
+        _write_occurrence_map(feature_dir, INVALID_OCCURRENCE_MAP_MISSING_TARGET)
+        st = self._state_for(feature_dir)
+        with pytest.raises(typer.Exit):
+            _ft_validate_occurrence_map_ready(st)
+
+    def test_passes_valid_admissible_map(self, tmp_path: Path) -> None:
+        """Genuinely no-op: the gate must not raise, not merely 'raises something else'."""
+        from specify_cli.cli.commands.agent.tasks_finalize import (
+            _ft_validate_occurrence_map_ready,
+        )
+
+        feature_dir = _build_feature_dir(tmp_path, change_mode="bulk_edit")
+        _write_occurrence_map(feature_dir, VALID_ADMISSIBLE_OCCURRENCE_MAP)
+        st = self._state_for(feature_dir)
+        _ft_validate_occurrence_map_ready(st)  # must not raise
+
+    def test_noop_for_non_bulk_edit(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands.agent.tasks_finalize import (
+            _ft_validate_occurrence_map_ready,
+        )
+
+        feature_dir = _build_feature_dir(tmp_path, change_mode=None)
+        st = self._state_for(feature_dir)
+        _ft_validate_occurrence_map_ready(st)  # must not raise
+
+    def test_gate_runs_before_dependency_parsing_in_ft_validate(self, tmp_path: Path) -> None:
+        """The gate fires from within `_ft_validate` itself, first, before tasks.md is read.
+
+        Regression guard for the actual landing-fold defect: prove the wiring
+        into `_ft_validate` (not just the standalone helper) blocks — using a
+        fixture with NO tasks.md, so if the gate did not run first, the
+        dependency-parsing phase would raise FileNotFoundError instead of the
+        occurrence-map SystemExit(1), and this test would fail for the wrong
+        reason (proving the ordering, not just the helper's existence).
+        """
+        from specify_cli.cli.commands.agent.tasks_finalize import _ft_validate
+
+        feature_dir = _build_feature_dir(tmp_path, change_mode="bulk_edit")
+        assert not (feature_dir / "tasks.md").exists()
+        st = self._state_for(feature_dir)
+        st.tasks_md = feature_dir / "tasks.md"
+        st.tasks_dir = feature_dir / "tasks"
+        with pytest.raises(typer.Exit) as exc_info:
+            _ft_validate(st)
+        assert exc_info.value.exit_code == 1

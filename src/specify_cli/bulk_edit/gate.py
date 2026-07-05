@@ -107,6 +107,20 @@ def render_gate_failure(result: GateResult, console: Console) -> None:
     console.print(panel)
 
 
+FINALIZE_TASKS_GATE_BLOCKED_MESSAGE = "Bulk edit occurrence-map gate blocked finalize-tasks."
+
+
+def finalize_tasks_gate_error_payload(result: GateResult) -> dict[str, object]:
+    """Build the standard JSON error payload for a failed finalize-tasks occurrence gate.
+
+    Shared by every ``finalize-tasks`` call site (``mission_finalize`` and the
+    legacy ``tasks_finalize``) so the error message and payload shape cannot
+    drift between the two independently-dispatched commands that both enforce
+    this gate at the same point in the finalize-tasks flow.
+    """
+    return {"error": FINALIZE_TASKS_GATE_BLOCKED_MESSAGE, "gate_errors": list(result.errors)}
+
+
 # ---------------------------------------------------------------------------
 # Review-time diff compliance (FR-007 + FR-008)
 # ---------------------------------------------------------------------------
