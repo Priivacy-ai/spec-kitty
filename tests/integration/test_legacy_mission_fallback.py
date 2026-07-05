@@ -33,11 +33,17 @@ import pytest
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
+from specify_cli.coordination import transaction as transaction_module
+from specify_cli.coordination.status_service import (
+    EventLogWriteContract,
+    EventLogWriteTarget,
+)
 from specify_cli.coordination.transaction import (
     BookkeepingCommitFailed,
     BookkeepingPolicyRefused,
     BookkeepingTransaction,
 )
+from specify_cli.status import StatusEvent
 from specify_cli.status.emit import build_status_event
 
 
@@ -72,6 +78,8 @@ def _make_legacy_mission(
     *,
     mission_slug: str = "wp08-legacy-mission",
     mission_id: str = "01KLEGACYZZZZZZZZZZZZZZZZZ",
+    topology: str | None = None,
+    flattened: bool = False,
 ) -> dict[str, Any]:
     """Create a mission emulating the pre-PR2 (pre-coord) topology.
 
@@ -80,26 +88,35 @@ def _make_legacy_mission(
       * No coord branch / worktree exists; only a lane branch off main
       * ``kitty-specs/<slug>/`` lives in the primary checkout (no
         sparse-checkout exclusion).
+
+    ``topology=`` / ``flattened=`` let callers emulate the two
+    coordination-less-but-not-legacy shapes (#2351): a mission with a
+    **stored** ``MissionTopology`` (``single_branch``/``lanes``) and a
+    ``flattened`` mission. Both still lack ``coordination_branch`` (the
+    write-path routing signal, C-002/C-005) but must not warrant the
+    legacy-topology warning (FR-002/FR-003).
     """
     mid8 = mission_id[:8]
     feature_dir = repo_root / "kitty-specs" / f"{mission_slug}-{mid8}"
     feature_dir.mkdir(parents=True, exist_ok=True)
 
     # Legacy meta.json — no coordination_branch field.
+    meta: dict[str, Any] = {
+        "mission_id": mission_id,
+        "mission_slug": mission_slug,
+        "mid8": mid8,
+        "mission_type": "software-dev",
+        "target_branch": "main",
+        "created_at": "2026-05-28T00:00:00+00:00",
+        "friendly_name": "WP08 legacy mission",
+        # NOTE: coordination_branch deliberately absent
+    }
+    if topology is not None:
+        meta["topology"] = topology
+    if flattened:
+        meta["flattened"] = True
     (feature_dir / "meta.json").write_text(
-        json.dumps(
-            {
-                "mission_id": mission_id,
-                "mission_slug": mission_slug,
-                "mid8": mid8,
-                "mission_type": "software-dev",
-                "target_branch": "main",
-                "created_at": "2026-05-28T00:00:00+00:00",
-                "friendly_name": "WP08 legacy mission",
-                # NOTE: coordination_branch deliberately absent
-            },
-            indent=2,
-        ),
+        json.dumps(meta, indent=2),
         encoding="utf-8",
     )
     # Commit the meta + scaffold so the lane worktree sees them.
@@ -200,6 +217,10 @@ def test_legacy_mission_warning_emitted_once(
     first_capture = capsys.readouterr()
     assert "legacy topology" in first_capture.err
     assert "migrating" in first_capture.err
+    # FR-004/SC-002: the genuine-legacy message must cite BOTH the runbook
+    # AND the backfill command, so an operator can actually act on it.
+    assert "docs/migrations/legacy-to-coordination.md" in first_capture.err
+    assert "spec-kitty migrate backfill-topology" in first_capture.err
 
     # Marker file exists.
     marker = repo_root / ".kittify" / f"legacy-warning-shown-{legacy_mission['mission_id']}"
@@ -325,3 +346,190 @@ def test_legacy_mission_protected_lane_branch_refused(
             destination_ref="kitty/x",
             operation="legacy_protected_refusal",
         )
+
+
+# ---------------------------------------------------------------------------
+# #2351: topology-aware warning classification matrix
+# ---------------------------------------------------------------------------
+#
+# Coverage note: the ``coord`` / ``lanes_with_coord`` shapes carry a
+# ``coordination_branch`` so ``_is_legacy_mission()`` is False and the whole
+# legacy branch (including the warning gate) is never entered — those two
+# shapes are covered directly against ``_warrants_legacy_warning`` in
+# ``tests/specify_cli/coordination/test_legacy_warning_classifier.py``. This
+# matrix exercises the five coordination-*less* shapes that DO enter the
+# legacy branch and therefore reach the warning gate at the transaction level.
+
+
+@pytest.mark.parametrize(
+    ("topology", "flattened", "expect_warning"),
+    [
+        pytest.param(None, False, True, id="genuine-legacy"),
+        pytest.param("single_branch", False, False, id="single_branch"),
+        pytest.param("lanes", False, False, id="lanes"),
+        pytest.param(None, True, False, id="flattened"),
+        pytest.param("not-a-real-shape", False, True, id="malformed-topology"),
+    ],
+)
+def test_legacy_warning_classification_matrix(
+    repo_root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    topology: str | None,
+    flattened: bool,
+    expect_warning: bool,
+) -> None:
+    """FR-001..FR-004: the warning fires iff the stored topology + flattened
+    flag say "genuinely legacy" — not merely "no coordination_branch".
+    """
+    mission = _make_legacy_mission(
+        repo_root,
+        mission_slug="matrix-mission",
+        mission_id="01KMATRIXZZZZZZZZZZZZZZZZZ",
+        topology=topology,
+        flattened=flattened,
+    )
+    monkeypatch.chdir(mission["lane_worktree"])
+
+    with BookkeepingTransaction.acquire(
+        repo_root=repo_root,
+        mission_id=mission["mission_id"],
+        mission_slug=mission["mission_slug"],
+        mid8=mission["mid8"],
+        destination_ref="kitty/x",
+        operation="warning_matrix",
+    ):
+        pass
+
+    captured = capsys.readouterr()
+    marker = repo_root / ".kittify" / f"legacy-warning-shown-{mission['mission_id']}"
+    if expect_warning:
+        assert "legacy topology" in captured.err
+        assert "docs/migrations/legacy-to-coordination.md" in captured.err
+        assert "spec-kitty migrate backfill-topology" in captured.err
+        assert marker.exists()
+    else:
+        assert "legacy topology" not in captured.err
+        # Suppressed missions must never write the once-only marker (the
+        # gate sits before the marker write) — otherwise a later genuine
+        # backfill-then-revert could accidentally suppress a real warning.
+        assert not marker.exists()
+
+
+def test_legacy_routing_and_write_contract_unaffected_by_topology(
+    repo_root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """FR-005/C-002/C-005: the shared routing + write-contract selection is
+    provably unaffected by the topology-aware warning classifier.
+
+    ``single_branch``/``lanes`` missions must still resolve the legacy
+    lane-worktree destination and select the identical event-log
+    write-contract a genuine-legacy mission selects — only the warning
+    emission trigger changed, never routing or write-contract selection.
+    """
+    captured_targets: list[EventLogWriteTarget] = []
+    real_append_event_log = transaction_module.append_event_log
+
+    def _spy_append_event_log(contract: EventLogWriteContract, event: StatusEvent) -> None:
+        captured_targets.append(contract.target)
+        real_append_event_log(contract, event)
+
+    monkeypatch.setattr(transaction_module, "append_event_log", _spy_append_event_log)
+
+    scenarios = [
+        ("routing-genuine-legacy", "01KROUTE1ZZZZZZZZZZZZZZZZ", None),
+        ("routing-single-branch", "01KROUTE2ZZZZZZZZZZZZZZZZ", "single_branch"),
+        ("routing-lanes", "01KROUTE3ZZZZZZZZZZZZZZZZ", "lanes"),
+    ]
+    for mission_slug, mission_id, topology in scenarios:
+        mission = _make_legacy_mission(
+            repo_root,
+            mission_slug=mission_slug,
+            mission_id=mission_id,
+            topology=topology,
+        )
+        monkeypatch.chdir(mission["lane_worktree"])
+        with BookkeepingTransaction.acquire(
+            repo_root=repo_root,
+            mission_id=mission["mission_id"],
+            mission_slug=mission["mission_slug"],
+            mid8=mission["mid8"],
+            destination_ref="kitty/x",
+            operation="routing_invariance",
+        ) as txn:
+            # Routing (C-002): still the legacy lane-worktree destination.
+            assert txn.worktree_root == mission["lane_worktree"]
+            assert txn.destination_ref == mission["lane_branch"]
+            assert txn._legacy_mode is True
+            event = build_status_event(
+                mission_slug=mission["mission_slug"],
+                mission_id=mission["mission_id"],
+                wp_id="WP01",
+                from_lane="planned",
+                to_lane="claimed",
+                actor="routing-invariance",
+            )
+            txn.append_event(event)
+
+    # Write-contract selection (C-005): identical across all three shapes —
+    # topology has zero effect on which EventLogWriteTarget is chosen.
+    assert len(captured_targets) == len(scenarios)
+    assert len(set(captured_targets)) == 1
+
+
+def test_backfill_suppresses_future_legacy_warning(
+    repo_root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """Plan residual #3: backfilling a genuine-legacy mission's stored
+    topology is a deliberate contract change — it suppresses the warning
+    on the next invocation (not just the once-per-mission marker).
+    """
+    mission = _make_legacy_mission(
+        repo_root,
+        mission_slug="backfill-mission",
+        mission_id="01KBACKFILLZZZZZZZZZZZZZZ",
+    )
+    monkeypatch.chdir(mission["lane_worktree"])
+
+    # Pre-backfill: genuinely legacy, warning fires.
+    with BookkeepingTransaction.acquire(
+        repo_root=repo_root,
+        mission_id=mission["mission_id"],
+        mission_slug=mission["mission_slug"],
+        mid8=mission["mid8"],
+        destination_ref="kitty/x",
+        operation="pre_backfill",
+    ):
+        pass
+    pre_capture = capsys.readouterr()
+    assert "legacy topology" in pre_capture.err
+
+    marker = repo_root / ".kittify" / f"legacy-warning-shown-{mission['mission_id']}"
+    assert marker.exists()
+    # Clear the once-per-mission marker so the *next* assertion proves the
+    # classifier itself suppresses the warning post-backfill — not merely
+    # the pre-existing idempotency marker from the first call.
+    marker.unlink()
+
+    # Simulate `spec-kitty migrate backfill-topology`: persist the stored
+    # shape into meta.json.
+    meta_path = mission["feature_dir"] / "meta.json"
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
+    meta["topology"] = "single_branch"
+    meta_path.write_text(json.dumps(meta, indent=2), encoding="utf-8")
+
+    with BookkeepingTransaction.acquire(
+        repo_root=repo_root,
+        mission_id=mission["mission_id"],
+        mission_slug=mission["mission_slug"],
+        mid8=mission["mid8"],
+        destination_ref="kitty/x",
+        operation="post_backfill",
+    ):
+        pass
+    post_capture = capsys.readouterr()
+    assert "legacy topology" not in post_capture.err
+    assert not marker.exists()
