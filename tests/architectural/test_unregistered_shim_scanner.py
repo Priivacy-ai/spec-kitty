@@ -8,7 +8,10 @@ from ruamel.yaml import YAML
 
 import pytest
 
-pytestmark = [pytest.mark.architectural]
+# ``docs_scoped``: reads ``docs/migrations/shim-registry.yaml`` as its expected
+# set, so a docs-only PR editing that registry could newly-red it — it MUST run
+# on the arch pole's docs-only trim.
+pytestmark = [pytest.mark.architectural, pytest.mark.docs_scoped]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _SRC_ROOT = _REPO_ROOT / "src" / "specify_cli"

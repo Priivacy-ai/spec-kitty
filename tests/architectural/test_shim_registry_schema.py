@@ -7,7 +7,10 @@ import pytest
 
 from specify_cli.compat.registry import RegistrySchemaError, validate_registry
 
-pytestmark = [pytest.mark.architectural]
+# ``docs_scoped``: ``TestLiveRegistry`` reads/validates the live
+# ``docs/migrations/shim-registry.yaml``, so a docs-only PR editing that registry
+# could newly-red it — it MUST run on the arch pole's docs-only trim.
+pytestmark = [pytest.mark.architectural, pytest.mark.docs_scoped]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _REGISTRY_PATH = _REPO_ROOT / "docs" / "migrations" / "shim-registry.yaml"
