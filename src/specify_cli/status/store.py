@@ -21,6 +21,7 @@ import json
 import logging
 import os
 import re
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -445,7 +446,7 @@ _RETROSPECTIVE_LIFECYCLE_EVENT_TYPES: frozenset[str] = frozenset({
 })
 
 
-def is_retrospective_lifecycle_event(obj: dict[str, Any]) -> bool:
+def is_retrospective_lifecycle_event(obj: Mapping[str, Any]) -> bool:
     """Return True for retrospective lifecycle rows using the ``type`` envelope.
 
     These rows are written to status.events.jsonl by design (see
