@@ -4,7 +4,7 @@ description: "Architect Alphonso's post-merge architecture review (2026-05-16) o
 doc_status: draft
 updated: '2026-06-01'
 related:
-- docs/plans/layered-doctrine-resolution-design.md
+- docs/plans/doctrine/layered-doctrine-resolution-design.md
 ---
 # Org Doctrine Layer — Post-Implementation Architecture Review
 

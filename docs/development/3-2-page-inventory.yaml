@@ -2270,61 +2270,61 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/2026-04-14-windows-compatibility-hardening-mission-review.md
+- path: docs/plans/3-2-doc-publication/3-2-archive-migration-plan.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/3-2-archive-migration-plan.md
+- path: docs/plans/3-2-doc-publication/3-2-cli-reference-audit-meta-issues.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/3-2-cli-reference-audit-meta-issues.md
+- path: docs/plans/3-2-doc-publication/3-2-cli-reference-methodology.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/3-2-cli-reference-methodology.md
+- path: docs/plans/3-2-doc-publication/3-2-coord-merge-issue-hygiene-log.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/3-2-coord-merge-issue-hygiene-log.md
+- path: docs/plans/3-2-doc-publication/3-2-harness-research-method.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/3-2-harness-research-method.md
+- path: docs/plans/3-2-doc-publication/3-2-information-architecture.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/3-2-information-architecture.md
+- path: docs/plans/3-2-doc-publication/3-2-navigation-plan.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/3-2-navigation-plan.md
+- path: docs/plans/3-2-doc-publication/3-2-publication-checklist.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/3-2-publication-checklist.md
+- path: docs/plans/3-2-doc-publication/3-2-version-taxonomy.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/3-2-version-taxonomy.md
+- path: docs/plans/3-2-doc-publication/index.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -2336,55 +2336,67 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/391-doctrine-usage-test.md
+- path: docs/plans/doctrine/391-doctrine-usage-test.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/charter-path-resolution-gaps.md
+- path: docs/plans/doctrine/charter-path-resolution-gaps.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/ci-coverage-gate-tuning.md
+- path: docs/plans/doctrine/doctrine-artifact-selection-preflight.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/code-review-2026-03-25.md
+- path: docs/plans/doctrine/doctrine-inclusion-assessment.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/degod-unshim-inventory.md
+- path: docs/plans/doctrine/doctrine-migration-architecture-review.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/degod-unshim-roadmap.md
+- path: docs/plans/doctrine/index.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/doctrine-artifact-selection-preflight.md
+- path: docs/plans/doctrine/layered-doctrine-resolution-design.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/doctrine-inclusion-assessment.md
+- path: docs/plans/doctrine/mission-b-proposed-scope.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/doctrine-migration-architecture-review.md
+- path: docs/plans/doctrine/org-doctrine-layer-architecture-review.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/runtime-charter-doctrine-boundary.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/doctrine/wp-prompt-governance-atdd-findings.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -2840,12 +2852,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/epic-1111-slice-landing-plan.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/plans/index.md
   tag: current
   divio_type: none
@@ -3014,43 +3020,37 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/issue-1040-scope-assessment.md
+- path: docs/plans/investigations/2026-04-14-windows-compatibility-hardening-mission-review.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/issue-1111-analysis.md
+- path: docs/plans/investigations/index.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/layered-doctrine-resolution-design.md
+- path: docs/plans/investigations/issue-1040-scope-assessment.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/mission-b-proposed-scope.md
+- path: docs/plans/investigations/issue-1111-analysis.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/mission-next-compatibility.md
+- path: docs/plans/investigations/mission-next-compatibility.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/model-first-schema-generation.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/plans/mutation-testing-findings.md
+- path: docs/plans/investigations/model-first-schema-generation.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -3098,19 +3098,49 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/org-doctrine-layer-architecture-review.md
+- path: docs/plans/refactor/degod-unshim-inventory.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/pr305-review-resolution-plan.md
+- path: docs/plans/refactor/degod-unshim-roadmap.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/quality_check_structure.md
+- path: docs/plans/refactor/epic-1111-slice-landing-plan.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/refactor/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/refactor/slice-f-gap-analysis.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/refactor/slice-f-mission-debrief.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/refactor/tasks-py-degod-followup-mission-debrief.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/refactor/wp04-resection-classification-audit.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -3140,49 +3170,67 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/runtime-charter-doctrine-boundary.md
+- path: docs/plans/reviews/code-review-2026-03-25.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/slice-f-gap-analysis.md
+- path: docs/plans/reviews/index.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/slice-f-mission-debrief.md
+- path: docs/plans/reviews/pr305-review-resolution-plan.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/tasks-py-degod-followup-mission-debrief.md
+- path: docs/plans/reviews/test-execution-report-pr305.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/test-execution-report-pr305.md
+- path: docs/plans/reviews/test-plan-pr305.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/test-plan-pr305.md
+- path: docs/plans/testing/ci-coverage-gate-tuning.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/test-suite-acceleration-plan.md
+- path: docs/plans/testing/index.md
   tag: current
   divio_type: none
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/plans/test-suite-friction-audit.md
+- path: docs/plans/testing/mutation-testing-findings.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/testing/quality_check_structure.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/testing/test-suite-acceleration-plan.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/testing/test-suite-friction-audit.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -3231,18 +3279,6 @@
   current_target: true
   notes: null
 - path: docs/plans/user_journey/init-doctrine-flow.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/plans/wp-prompt-governance-atdd-findings.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
-- path: docs/plans/wp04-resection-classification-audit.md
   tag: current
   divio_type: none
   owning_workstream: none

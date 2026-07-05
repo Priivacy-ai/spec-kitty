@@ -4,7 +4,7 @@ description: 'Pre-mission investigation by Architect Alphonso into user-authored
 doc_status: draft
 updated: '2026-06-15'
 related:
-- docs/plans/runtime-charter-doctrine-boundary.md
+- docs/plans/doctrine/runtime-charter-doctrine-boundary.md
 ---
 # Pre-flight investigation — user-authored doctrine artifact selection
 

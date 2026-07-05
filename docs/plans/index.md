@@ -2,7 +2,7 @@
 title: Plans
 description: 'Plans landing page: the distil-then-retire working surface for investigations, research, initiatives, user journeys, and design notes (Mission B, FR-009).'
 doc_status: draft
-updated: '2026-07-04'
+updated: '2026-07-05'
 related:
 - docs/plans/3-2-x-milestone-roadmap.md
 - docs/release-goals/index.md
@@ -13,15 +13,7 @@ Investigations, research deliverables, initiatives, user journeys, and design
 notes — the **distil-then-retire** working surface (Mission B, FR-009).
 
 Content here carries a `doc_status` of `draft` or `active`; once distilled into
-durable architecture/reference docs it is retired. This section is the unified
-home for the `architecture/`-rooted plans content:
-
-- **`research/`** — research deliverables (era spikes/explorations).
-- **`initiatives/`** — active architecture initiatives.
-- **`user_journey/`** — end-to-end user-journey docs.
-- **`notes/`** — legacy (1.x) design notes.
-- Loose investigation/trace docs (e.g. the Windows-compatibility mission review
-  and the test-suite-acceleration plan).
+durable architecture/reference docs it is retired.
 
 ## Current milestone roadmap
 
@@ -29,3 +21,30 @@ The [3.2.x milestone roadmap](3-2-x-milestone-roadmap.md) is the operator-facing
 execution roadmap for the current milestone. The durable declarations of intent
 it executes live in [release goals](../release-goals/index.md); as a plans/
 document, the roadmap itself follows the distil-then-retire lifecycle.
+
+## Themed clusters
+
+- **[3.2 doc publication](3-2-doc-publication/index.md)** — IA, navigation,
+  methodology, and the publication checklist for the 3.2 docs cut.
+- **[Doctrine](doctrine/index.md)** — doctrine layering, charter boundary, and
+  artifact-selection planning.
+- **[Refactor](refactor/index.md)** — degod/unshim program and slice-landing
+  planning.
+- **[Testing](testing/index.md)** — mutation testing, acceleration, friction
+  audit, and CI gate tuning.
+- **[Reviews](reviews/index.md)** — PR review resolution plans, test plans,
+  and execution reports.
+- **[Investigations](investigations/index.md)** — scope assessments,
+  compatibility matrices, and schema-generation research.
+
+## Standing collections
+
+- **[Engineering notes](engineering-notes/index.md)** — runtime/state
+  overhaul, surface-resolution clusters, triage logs, architectural reviews.
+- **[Initiatives](initiatives/README.md)** — active architecture initiatives.
+- **[User journeys](user_journey/README.md)** — end-to-end user-journey docs.
+- **Research** — research deliverables (era spikes/explorations):
+  [1.x](research/README-1.x.md), [2.x](research/README-2.x.md).
+- **[Notes](notes/README.md)** — legacy (1.x) design notes.
+- **[Next-mission mappings](next-mission-mappings/README.md)** — mapping
+  notes for the mission-next compatibility surface.

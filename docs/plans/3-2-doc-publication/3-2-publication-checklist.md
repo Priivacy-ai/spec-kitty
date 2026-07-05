@@ -5,13 +5,13 @@ doc_status: draft
 updated: '2026-06-12'
 related:
 - docs/context/index.md
-- docs/plans/3-2-archive-migration-plan.md
-- docs/plans/3-2-cli-reference-audit-meta-issues.md
-- docs/plans/3-2-cli-reference-methodology.md
-- docs/plans/3-2-harness-research-method.md
-- docs/plans/3-2-information-architecture.md
-- docs/plans/3-2-navigation-plan.md
-- docs/plans/3-2-version-taxonomy.md
+- docs/plans/3-2-doc-publication/3-2-archive-migration-plan.md
+- docs/plans/3-2-doc-publication/3-2-cli-reference-audit-meta-issues.md
+- docs/plans/3-2-doc-publication/3-2-cli-reference-methodology.md
+- docs/plans/3-2-doc-publication/3-2-harness-research-method.md
+- docs/plans/3-2-doc-publication/3-2-information-architecture.md
+- docs/plans/3-2-doc-publication/3-2-navigation-plan.md
+- docs/plans/3-2-doc-publication/3-2-version-taxonomy.md
 ---
 # Spec Kitty 3.2 Documentation Publication Checklist
 
