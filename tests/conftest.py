@@ -13,6 +13,7 @@ import pytest
 import yaml
 from filelock import FileLock, Timeout
 
+from tests._arch_shard_map import shard_for as arch_shard_for
 from tests._support.quarantine import (
     QUARANTINE_MARKER,
     quarantine_opted_in,
@@ -208,7 +209,27 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
             item.add_marker(skip_windows)
         if apply_quarantine_skip and item.get_closest_marker(QUARANTINE_MARKER):
             item.add_marker(skip_quarantine)
+        _apply_arch_shard_marker(item)
     _fail_on_wall_clock_assertions(items)
+
+
+def _apply_arch_shard_marker(item: pytest.Item) -> None:
+    """WP02 (mission ci-health-charter-path-and-arch-shard-01KWRTB2, #2397).
+
+    Applies the ``arch_shard_1``/``arch_shard_2``/``arch_shard_3`` mark to
+    every collected test whose file falls under one of the 4 arch-adversarial
+    pole roots, looked up via the single-source table in
+    ``tests/_arch_shard_map.py``. ``shard_for()`` returns ``None`` for
+    anything outside those roots, so this never marks unrelated tests — no
+    fallback default shard is applied.
+    """
+    try:
+        relpath = Path(str(item.path)).resolve().relative_to(REPO_ROOT).as_posix()
+    except (ValueError, OSError):
+        return
+    shard = arch_shard_for(relpath)
+    if shard is not None:
+        item.add_marker(getattr(pytest.mark, f"arch_shard_{shard}"))
 
 
 def _fail_on_wall_clock_assertions(items: list[pytest.Item]) -> None:

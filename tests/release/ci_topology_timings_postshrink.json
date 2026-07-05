@@ -18,7 +18,7 @@
     "measured_note": "BACKFILLED from PR #2391 ci-quality run 28731385584 (green). Measured core-misc critical path = 14.4 min = the de-serialized arch-adversarial pole (now the single longest core-misc job; fast_core_misc shards max 12.0, integration max 7.6, pipeline wall-clock 16.3). Reduction 29.4 -> 14.4 = 51.0%. The de-serialization worked (arch runs parallel-from-t0, no serialized tail); the pole came in HEAVIER than the ~12.3 projection, so 14.4 sits just OVER the ~13.6 next-lane sub-target while staying UNDER the 16.17-min 55% bound.",
     "measured_critical_path_reduction_pct": 51.0,
     "arch_pole_execution": "de-serialized, parallel-from-t0 (was: serialized tail via needs edge)",
-    "arch_pole_is_bottleneck": "arch-adversarial (14.4 min) is now the single un-sharded critical-path job; matrix-sharding it (like fast-tests-core-misc) is tracked as the P1 follow-up #2397 to bring the path under the ~13.6-min sub-target.",
+    "arch_pole_is_bottleneck": "HISTORICAL (true prior to mission ci-health-charter-path-and-arch-shard-01KWRTB2): arch-adversarial (14.4 min) was the single un-sharded critical-path job; matrix-sharding it (like fast-tests-core-misc) was tracked as the P1 follow-up #2397. #2397 is now closed by that mission's 3-shard split — see `arch_shard_split` below for the current (post-split) state; the 14.4-min figure remains accurate as the pre-split measurement.",
     "docs_only_trim": "On a docs-only PR the always-on pole runs only docs-relevant guards (-m docs_scoped), cutting docs-PR arch cost from ~14.4 min to seconds while preserving doc-terminology/doc-scanning coverage; code PRs run the full pole (14.4 min).",
     "projected_core_misc_critical_path_min": 13.6,
     "projected_critical_path_formula": "max(fast_core_misc_shard, arch_shard ~=12.3) <= next_longest_lane ~=13.6"
@@ -28,16 +28,16 @@
     "target_rule": "post-shrink core-misc critical path <= 55% x 29.4 (<=16.17 min) AND <= next-longest lane (~13.6 min) => effective ceiling ~= 13.6 min",
     "target_ceiling_min": 13.6,
     "fifty_five_pct_baseline_min": 16.17,
-    "structural_assessment": "MET on the binding 55% bound (measured 14.4 <= 16.17, a 51.0% reduction from 29.4); the aspirational ~13.6-min next-lane sub-target is NARROWLY EXCEEDED (14.4 > 13.6).",
-    "measured_verdict": "The BINDING NFR-001 gate (<=55% x 29.4 = 16.17 min) is MET at 14.4 min. The ~13.6 next-lane sub-target is narrowly missed because the arch-adversarial pole itself measured 14.4 min (heavier than the ~12.3 projection) and is now the single un-sharded bottleneck. Closing the remaining ~0.8 min to the sub-target is the P1 follow-up #2397 (matrix-shard the pole).",
-    "rationale": "De-serialization removed the serialized arch tail from the core-misc critical path (29.4 -> 14.4, 51%). The pole now runs parallel-from-t0 as the longest single job. Under the 55% bound; over the next-lane sub-target only because the pole is un-sharded (#2397).",
-    "honesty_flag": "BACKFILLED with a live measurement (PR #2391 run 28731385584), superseding the earlier labeled projection. The binding gate is met; the aspirational sub-target is tracked to #2397."
+    "structural_assessment": "MET on the binding 55% bound (measured 14.4 <= 16.17, a 51.0% reduction from 29.4); the aspirational ~13.6-min next-lane sub-target was NARROWLY EXCEEDED (14.4 > 13.6) prior to the #2397 shard split — see `arch_shard_split` for the current state.",
+    "measured_verdict": "The BINDING NFR-001 gate (<=55% x 29.4 = 16.17 min) is MET at 14.4 min. HISTORICAL: the ~13.6 next-lane sub-target was narrowly missed because the arch-adversarial pole itself measured 14.4 min (heavier than the ~12.3 projection) and was the single un-sharded bottleneck. That gap is closed by the P1 follow-up #2397 (matrix-shard the pole, mission ci-health-charter-path-and-arch-shard-01KWRTB2) — see `arch_shard_split` for the post-split structural state; live per-shard measurement is still pending that mission's own first post-merge CI run.",
+    "rationale": "De-serialization removed the serialized arch tail from the core-misc critical path (29.4 -> 14.4, 51%). The pole now runs parallel-from-t0 as the longest single job. Under the 55% bound; the (now closed) #2397 gap over the next-lane sub-target existed only because the pole was un-sharded — see `arch_shard_split`.",
+    "honesty_flag": "BACKFILLED with a live measurement (PR #2391 run 28731385584), superseding the earlier labeled projection. The binding gate is met; the aspirational sub-target's remaining gap is addressed structurally by `arch_shard_split` (#2397), pending that mission's own live-measurement backfill."
   },
   "c006_nightly_decision": {
     "requirement": "C-006",
     "trigger_rule": "Evaluate a THIN nightly-schedule option ONLY IF the (measured) PR critical path is still > ~15 min after the shrink.",
     "decision": "NO thin-nightly option needed (#1933-INTENT satisfied)",
-    "basis": "MEASURED PR critical path 14.4 min (run 28731385584) is under the 15-min trigger, so NO thin-nightly is needed. The shrink satisfies #1933's INTENT — fast, targeted PR CI — without a new schedule surface. (14.4 is close to the 15-min line; the #2397 arch-pole sharding will lower it further.)",
+    "basis": "MEASURED PR critical path 14.4 min (run 28731385584) is under the 15-min trigger, so NO thin-nightly is needed. The shrink satisfies #1933's INTENT — fast, targeted PR CI — without a new schedule surface. (14.4 was close to the 15-min line; the #2397 arch-pole sharding, now landed as a 3-shard split — see `arch_shard_split` — lowers it further, pending live confirmation from that mission's own CI run.)",
     "intent_1933": "Fast, targeted PR CI via path-filtered per-module jobs; full-suite coverage remains reachable via escape hatches + nightly over-cover.",
     "escape_hatches_present": [
       "workflow_dispatch input `run_all` (forces every per-module job regardless of path filters)",
@@ -46,6 +46,19 @@
       "`unmatched` fail-closed catch-all: any src/** path matched by NO named dorny group forces every job (FR-010) — the sub-T_LOC catch-all tail"
     ],
     "escape_hatches_honesty_note": "Correction: `ci:full` / `ready-for-ci` DO exist in ci-quality.yml, but as draft/WIP-suppression overrides (they gate whether draft-PR suites run), NOT as `run_all` full-coverage hatches. The full-coverage escape hatches are the four listed above (workflow_dispatch run_all/run_extended, the nightly schedule cron, and the unmatched fail-closed catch-all)."
+  },
+  "arch_shard_split": {
+    "_note": "STRUCTURAL projection (NOT a measurement) — mission ci-health-charter-path-and-arch-shard-01KWRTB2 (#2397) is the P1 follow-up `post_shrink_projection.arch_pole_is_bottleneck` and `verdict` referenced above. It matrix-splits the single un-sharded arch-adversarial pole (measured 14.4 min, PR #2391 run 28731385584) into 3 marker-routed shards (`arch_shard_1/2/3`, assignment table `tests/_arch_shard_map.py`), keeping the same always-on/group-less/de-serialized job shape. This mission has not yet run its own CI, so the real per-shard duration is NOT measured here — same honesty discipline as `post_shrink_projection` above (projection now, live backfill later).",
+    "requirement_refs": ["FR-003", "FR-004", "FR-005", "FR-006", "FR-007", "FR-008"],
+    "issue": "#2397",
+    "mission": "ci-health-charter-path-and-arch-shard-01KWRTB2",
+    "shard_count": 3,
+    "shard_names": ["arch_shard_1", "arch_shard_2", "arch_shard_3"],
+    "partition_basis": "def-test-count proxy bin-packing over the 4 pole roots (tests/adversarial, tests/architectural, tests/architecture, tests/lint) at whole-file granularity, target split 216/215/215 (data-model.md) — NOT a live-duration measurement (research.md R2's honesty caveat: real per-test durations are not available pre-merge).",
+    "locally_observed_collection_split": "Local --collect-only against each shard's full-selection marker expression ('arch_shard_N and not windows_ci and (git_repo or integration or architectural)') on the implementation branch collected 248/241/317 = 806 total node IDs. Node-ID counts diverge from the 216/215/215 def-count proxy because parametrized tests expand to multiple node IDs per def; this is a collection-count sanity check, not a duration measurement. Partition completeness (union = full universe, no gaps, no double-assignment) is enforced independently by test_arch_shard_marker_completeness.py and test_shard_universe_bounded.py, not by this observation.",
+    "measured_source_run_id": null,
+    "measured_note": "Not yet measured — this mission has not run its own CI. The real per-shard duration must be backfilled from the first post-merge ci-quality run of this mission's PR, mirroring how post_shrink_projection.measured_source_run_id was backfilled from PR #2391's run 28731385584.",
+    "expected_outcome": "Projected: the slowest of the 3 shards replaces the single 14.4-min arch-adversarial pole as the core-misc critical path's longest parallel-from-t0 job, landing under the ~13.6-min next-lane sub-target (down from 14.4 min) — pending live confirmation from this mission's first post-merge CI run."
   },
   "fr009_no_new_blind_spot": {
     "requirement": "FR-009",

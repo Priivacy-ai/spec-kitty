@@ -1703,16 +1703,33 @@ jobs:
     name: arch-adversarial (${{ matrix.shard }})
     runs-on: ubuntu-latest
     if: always()
-    # Single-shard matrix: the ``architectural`` selection structure lives here
-    # now (extracted from integration-tests-core-misc). Naming the shard
-    # ``architectural`` keeps its paths modellable/evaluated for coverage under
-    # the same shard key the gate-coverage checker tracks — the arch paths are
-    # still covered, just in this always-on de-serialized job.
+    # 3-shard matrix (mission ci-health-charter-path-and-arch-shard-01KWRTB2,
+    # #2397): the arch-pole selection is now routed by dedicated pytest
+    # markers (``arch_shard_1/2/3``, assignment table in
+    # ``tests/_arch_shard_map.py``) rather than a single named shard. ``paths``
+    # stays identical across all three legs — the marker (combined via ``and``
+    # in the run step below), not ``paths``, does the partitioning. The
+    # ``coverage-arch-adversarial-${{ matrix.shard }}.xml`` /
+    # ``arch-adversarial-${{ matrix.shard }}-reports`` naming is unchanged and
+    # already shard-label-agnostic (R4/FR-006) — only the values ``matrix.shard``
+    # takes have changed.
     strategy:
       fail-fast: false
       matrix:
         include:
-          - shard: architectural
+          - shard: arch_shard_1
+            paths: >-
+              tests/adversarial
+              tests/architectural
+              tests/architecture
+              tests/lint
+          - shard: arch_shard_2
+            paths: >-
+              tests/adversarial
+              tests/architectural
+              tests/architecture
+              tests/lint
+          - shard: arch_shard_3
             paths: >-
               tests/adversarial
               tests/architectural
@@ -1771,7 +1788,7 @@ jobs:
           if [ "${{ steps.docsonly.outputs.docs_only }}" = "true" ]; then
             uv run python -m pytest \
               ${{ matrix.paths }} \
-              -m 'docs_scoped and not windows_ci' \
+              -m '${{ matrix.shard }} and docs_scoped and not windows_ci' \
               -q --tb=short \
               -n auto --dist loadfile \
               --durations=50 \
@@ -1781,7 +1798,7 @@ jobs:
           else
             uv run python -m pytest \
               ${{ matrix.paths }} \
-              -m 'not windows_ci and (git_repo or integration or architectural)' \
+              -m '${{ matrix.shard }} and not windows_ci and (git_repo or integration or architectural)' \
               -q --tb=short \
               -n auto --dist loadfile \
               --durations=50 \

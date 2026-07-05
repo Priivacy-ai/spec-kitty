@@ -98,13 +98,13 @@ description: "Work package task list template for mission implementation"
 
 ### Included Subtasks
 
-- [x] T008 Expand `.github/workflows/ci-quality.yml`'s `arch-adversarial` job `strategy.matrix.include` from the single `architectural` shard to `arch_shard_1`/`arch_shard_2`/`arch_shard_3`, updating both the full-selection and docs-only-trim `-m` expressions to AND with the shard marker, while preserving `if: always()`, no `needs:` edge, and no dorny filter `if:`
-- [x] T009 Generalize `tests/architectural/test_shard_universe_bounded.py` (extend `_CATCH_ALL_SUBSTR` or add a sibling assertion) so the union/no-double-count invariant also covers `arch-adversarial` — author/adjust **RED-first** against the pre-T008 single-shard topology
-- [x] T010 [P] Update the two literal-shard-name pins in `tests/architectural/test_ci_quality_path_filters.py` (~line 239 `entry["shard"] == "architectural"`, ~line 291 `"architectural" in arch_shards`) to check for `{"arch_shard_1","arch_shard_2","arch_shard_3"}` instead, re-pinning the same behavioral invariants (parity ratchet in-scope of the always-on pole; extracted arch shard still exists)
-- [x] T011 [P] Run `tests/release/test_coverage_topology_ownership.py` against the updated workflow and confirm it passes unmodified (per R4, it is shard-label-agnostic); fix the minimal gap only if it does not
-- [x] T012 Full local verification: every command in `quickstart.md`, plus `test_arch_pole_deserialized.py` and `test_docs_scoped_arch_coverage.py`, all green
-- [x] T013 [P] Update `tests/release/ci_topology_timings_postshrink.json` (FR-007) to record the 3-shard split as the new canonical shape, retiring the "#2397 still open" framing while keeping historical numbers intact
-- [x] T014 Write `kitty-specs/ci-health-charter-path-and-arch-shard-01KWRTB2/acceptance-record.md` (FR-008/SC-005) — re-verify and record each of issue #2397's 5 invariant-safety criteria against T012's real results
+- [ ] T008 Expand `.github/workflows/ci-quality.yml`'s `arch-adversarial` job `strategy.matrix.include` from the single `architectural` shard to `arch_shard_1`/`arch_shard_2`/`arch_shard_3`, updating both the full-selection and docs-only-trim `-m` expressions to AND with the shard marker, while preserving `if: always()`, no `needs:` edge, and no dorny filter `if:`
+- [ ] T009 Generalize `tests/architectural/test_shard_universe_bounded.py` (extend `_CATCH_ALL_SUBSTR` or add a sibling assertion) so the union/no-double-count invariant also covers `arch-adversarial` — author/adjust **RED-first** against the pre-T008 single-shard topology
+- [ ] T010 [P] Update the two literal-shard-name pins in `tests/architectural/test_ci_quality_path_filters.py` (~line 239 `entry["shard"] == "architectural"`, ~line 291 `"architectural" in arch_shards`) to check for `{"arch_shard_1","arch_shard_2","arch_shard_3"}` instead, re-pinning the same behavioral invariants (parity ratchet in-scope of the always-on pole; extracted arch shard still exists)
+- [ ] T011 [P] Run `tests/release/test_coverage_topology_ownership.py` against the updated workflow and confirm it passes unmodified (per R4, it is shard-label-agnostic); fix the minimal gap only if it does not
+- [ ] T012 Full local verification: every command in `quickstart.md`, plus `test_arch_pole_deserialized.py` and `test_docs_scoped_arch_coverage.py`, all green
+- [ ] T013 [P] Update `tests/release/ci_topology_timings_postshrink.json` (FR-007) to record the 3-shard split as the new canonical shape, retiring the "#2397 still open" framing while keeping historical numbers intact
+- [ ] T014 Write `kitty-specs/ci-health-charter-path-and-arch-shard-01KWRTB2/acceptance-record.md` (FR-008/SC-005) — re-verify and record each of issue #2397's 5 invariant-safety criteria against T012's real results
 
 ### Implementation Notes
 

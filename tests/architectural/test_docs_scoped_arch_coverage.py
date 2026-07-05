@@ -56,7 +56,6 @@ _DOCS_MARKER = "docs_scoped"
 # so the guard can never again go blind to a root the pole actually runs.
 _CI_WORKFLOW = _REPO_ROOT / ".github" / "workflows" / "ci-quality.yml"
 _ARCH_POLE_JOB = "arch-adversarial"
-_ARCH_POLE_SHARD = "architectural"
 
 
 def _pole_matrix_path_roots() -> tuple[Path, ...]:
@@ -67,14 +66,23 @@ def _pole_matrix_path_roots() -> tuple[Path, ...]:
     ``tests/adversarial tests/architectural tests/architecture tests/lint``). A
     root added to / removed from the pole flows through here automatically, and
     :func:`test_scan_dirs_equal_pole_matrix_paths` reds if the two ever diverge.
+
+    Mission ci-health-charter-path-and-arch-shard-01KWRTB2 (#2397) split the
+    pole into a 3-shard matrix (``arch_shard_1/2/3``) with ``paths`` kept
+    IDENTICAL across every leg by construction — the ``arch_shard_N`` pytest
+    marker, not ``paths``, does the partitioning (see T008). This no longer
+    hardcodes a single shard label (the old ``architectural`` name is retired);
+    it reads the first matrix leg's ``paths`` as representative, and
+    :func:`test_scan_dirs_equal_pole_matrix_paths` additionally asserts every
+    leg's ``paths`` is identical, so a future leg that drifts from the others
+    reds here instead of silently narrowing/widening the guard's scan set.
     """
     data = yaml.safe_load(_CI_WORKFLOW.read_text(encoding="utf-8"))
     job = data["jobs"][_ARCH_POLE_JOB]
     include = job["strategy"]["matrix"]["include"]
-    shard = next(e for e in include if e.get("shard") == _ARCH_POLE_SHARD)
-    return tuple(
-        _REPO_ROOT / token for token in str(shard["paths"]).split()
-    )
+    if not include:
+        raise ValueError(f"{_ARCH_POLE_JOB!r} matrix has no legs to derive scan roots from")
+    return tuple(_REPO_ROOT / token for token in str(include[0]["paths"]).split())
 
 
 _SCAN_DIRS: tuple[Path, ...] = _pole_matrix_path_roots()
@@ -225,6 +233,29 @@ def test_scan_dirs_equal_pole_matrix_paths() -> None:
     # And every pole root must exist on disk (a typo'd root would silently drop).
     for root in _SCAN_DIRS:
         assert root.is_dir(), f"pole matrix.paths root {root} is not a directory"
+
+
+def test_all_arch_shard_legs_share_identical_paths() -> None:
+    """Every ``arch-adversarial`` matrix leg's ``paths`` must be identical.
+
+    ``_pole_matrix_path_roots()`` reads only the FIRST matrix leg's ``paths``
+    as representative of the whole pole (mission
+    ci-health-charter-path-and-arch-shard-01KWRTB2 / #2397 — the
+    ``arch_shard_N`` marker, not ``paths``, does the partitioning across the 3
+    legs). If a future edit ever narrows one leg's ``paths`` while leaving the
+    others untouched, this guard's scan set would silently diverge from what a
+    specific shard actually runs — this reds that drift immediately instead of
+    relying on the representative-leg assumption silently.
+    """
+    data = yaml.safe_load(_CI_WORKFLOW.read_text(encoding="utf-8"))
+    include = data["jobs"][_ARCH_POLE_JOB]["strategy"]["matrix"]["include"]
+    assert include, f"{_ARCH_POLE_JOB!r} matrix has no legs"
+    path_sets = {frozenset(str(entry["paths"]).split()) for entry in include}
+    assert len(path_sets) == 1, (
+        "arch-adversarial matrix legs have diverging 'paths' "
+        f"({path_sets}) — the representative-leg assumption in "
+        "_pole_matrix_path_roots() no longer holds"
+    )
 
 
 def test_known_docs_scanners_are_docs_scoped() -> None:
