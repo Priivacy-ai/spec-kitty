@@ -1,0 +1,17 @@
+{
+  "baseline_merge_commit": "bda12e24b9c561d0114d7f8a0623a172aec60472",
+  "coordination_branch": "kitty/mission-retro-summary-nfr-investigation-01KWQARM",
+  "created_at": "2026-07-04T19:47:52.547269+00:00",
+  "flattened": false,
+  "friendly_name": "Retrospective Summary NFR Investigation",
+  "mission_id": "01KWQARM328C0ZK43W4ZSCDRAZ",
+  "mission_number": 163,
+  "mission_slug": "retro-summary-nfr-investigation-01KWQARM",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Issue #2342: the retrospective 200-mission summary test (NFR-003, build_summary under 5s) breached its budget twice on CI (5.10/5.11s), was quarantined pending investigation. This mission profiles build_summary over the 200-mission corpus and bisects for a real regression (candidate windows: retrospective terminus wiring #1888/#2119, tolerance-category additions, YAML load paths), then delivers a verdict + recommended disposition (fix+restore 5.0s, or a non-blocking perf pipeline, or local_only). Scoped to investigate+recommend: the week-long CI-variance collection is a maintainer recommendation, not done in-mission. Code ships only if a clean regression fix falls out.",
+  "purpose_tldr": "Deliver a definitive verdict on whether test_200_missions_under_5s is a real build_summary regression or CI variance, with a recommended disposition.",
+  "slug": "retro-summary-nfr-investigation-01KWQARM",
+  "target_branch": "fix/retro-summary-nfr-investigation",
+  "topology": "coord"
+}
