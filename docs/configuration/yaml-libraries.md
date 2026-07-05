@@ -132,4 +132,4 @@ Unsure?
 
 ---
 
-*See also:* [`docs/development/3-2-information-architecture.md`](../plans/3-2-information-architecture.md) — documentation IA index for the `docs/development/` tree.
+*See also:* [`docs/development/3-2-information-architecture.md`](../plans/3-2-doc-publication/3-2-information-architecture.md) — documentation IA index for the `docs/development/` tree.
