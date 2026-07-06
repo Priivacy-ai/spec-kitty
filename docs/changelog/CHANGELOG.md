@@ -25,6 +25,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   3.2.4. Both health branches now use `packaging.Version` ordering
   (`avail > current`); unparseable versions are treated as no-upgrade so
   session start never breaks on a weird cache value.
+- **The shared Agent-Skills projection root and the per-machine skill install
+  ledger are now gitignored (#2412).** The skills installer projects global
+  canonical skills into `.agents/skills/` (codex/vibe/pi/letta) preferring
+  **absolute symlinks** into the user-global root — machine-local content by
+  construction — but unlike `.claude/` and the other agent dirs (gitignored
+  wholesale at init), bare `.agents/` was never covered by any init path,
+  registry entry, or migration, so the `/Users/<name>/...` symlink blobs were
+  committable (and the upgrade auto-commit would land them automatically).
+  `.kittify/skills-manifest.json` (per-machine timestamps/hashes/delivery
+  modes) had the same gap. Both are now registered `IGNORED` state surfaces
+  (fresh `spec-kitty init` gitignores them, and `spec-kitty doctor`'s
+  present-but-not-gitignored warning covers them), and a sibling backfill
+  migration (`3.2.5_agents_skills_gitignore_backfill`) adds the entries on
+  `spec-kitty upgrade` for already-initialised projects. The symlink-vs-copy
+  delivery question (ask 3 of #2412) is tracked separately on the issue.
 
 ### ♻️ Changed
 

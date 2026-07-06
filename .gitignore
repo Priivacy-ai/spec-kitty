@@ -73,6 +73,8 @@ pyproject.local.toml
 .kittify/encoding-provenance/
 .kittify/migrations/
 .kittify/logs/
+# Per-machine skill install ledger (timestamps, hashes, delivery_mode) — #2412.
+.kittify/skills-manifest.json
 
 # Local performance cache; durable Op records live in kitty-ops/<op-id>.jsonl.
 kitty-ops/ops-index.jsonl
