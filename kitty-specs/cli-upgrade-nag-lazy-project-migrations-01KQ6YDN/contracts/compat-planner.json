@@ -193,7 +193,7 @@
         "required": ["migration_id", "target_schema_version", "description"],
         "additionalProperties": false,
         "properties": {
-          "migration_id": { "type": "string", "pattern": "^[a-z0-9_]{1,128}$" },
+          "migration_id": { "type": "string", "pattern": "^[a-z0-9_.]{1,128}$" },
           "target_schema_version": { "type": "integer", "minimum": 0, "maximum": 1000 },
           "description": { "type": "string", "maxLength": 256 },
           "files_modified": {
