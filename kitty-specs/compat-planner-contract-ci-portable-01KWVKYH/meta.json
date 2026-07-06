@@ -1,0 +1,17 @@
+{
+  "baseline_merge_commit": "58a8f4781fd066d9ce65e5112bb205f5d74929f7",
+  "coordination_branch": "kitty/mission-compat-planner-contract-ci-portable-01KWVKYH",
+  "created_at": "2026-07-06T11:45:21.159757+00:00",
+  "flattened": false,
+  "friendly_name": "Make the compat-planner.json contract test CI-portable so it actually runs",
+  "mission_id": "01KWVKYH87W1QV1S374ECQD25D",
+  "mission_number": 165,
+  "mission_slug": "compat-planner-contract-ci-portable-01KWVKYH",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The test test_project_migration_needed_project_dry_run_json_contract computes the contract path by hopping up above the repo root into a sibling checkout named spec-kitty; that only resolves in a maintainer landing-worktree layout, never in GitHub Actions. So _CONTRACT stays None, validation is skipped, and a stable external JSON contract has had zero CI enforcement since 2026-04-27 — which is why #2339 (an 83/89-migration contract bug) slipped through. Resolve the path from the real repo root and make a missing/unreadable contract fail loudly.",
+  "purpose_tldr": "Fix #2419: the compat-planner.json contract-conformance test resolves its contract via a worktree-relative path that never resolves in real CI, so jsonschema.validate is silently skipped and the check is dead.",
+  "slug": "compat-planner-contract-ci-portable-01KWVKYH",
+  "target_branch": "fix/compat-planner-contract-ci-portable",
+  "topology": "coord"
+}
