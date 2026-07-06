@@ -111,6 +111,13 @@ class TestAutoDiscovery:
             assert migration.description
             assert migration.target_version
 
+            # Contract gate: compat-planner.json caps description at maxLength: 256
+            # (#2419 / WP01 — guards future migrations from drifting over the limit)
+            assert len(migration.description) <= 256, (
+                f"{migration.migration_id!r}: description is {len(migration.description)} chars "
+                f"(contract maxLength is 256): {migration.description!r}"
+            )
+
     def test_discovered_migrations_are_sorted_by_version(self):
         """Migrations are returned in version order."""
         MigrationRegistry.clear()
