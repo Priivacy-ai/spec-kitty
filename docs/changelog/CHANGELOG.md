@@ -15,7 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - 3.2.5
 
-_No changes yet — entries land here as missions merge._
+### 🐛 Fixed
+
+- **Session banner no longer recommends a downgrade (#2413).** The
+  session-presence health check decided "upgrade-available" with a bare
+  inequality (`avail != current`), so any machine whose installed CLI was
+  *newer* than the cached PyPI latest — a fresh release not yet in the 1-hour
+  cache, or an rc/dev install — got "⚠ Upgrade available: 3.2.2" while running
+  3.2.4. Both health branches now use `packaging.Version` ordering
+  (`avail > current`); unparseable versions are treated as no-upgrade so
+  session start never breaks on a weird cache value.
 
 ## [3.2.4] - 2026-07-05
 
