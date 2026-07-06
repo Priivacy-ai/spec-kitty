@@ -179,8 +179,10 @@ class SaaSTrackerClient:
     Parameters
     ----------
     sync_config:
-        Provides the server base URL.  Falls back to a default
-        ``SyncConfig()`` when *None*.
+        Provides the resolved runtime target URL (``SPEC_KITTY_SAAS_URL``
+        precedence folded in via ``resolve_runtime_target()``).  Falls back
+        to a default ``SyncConfig()`` when *None*.  The URL is resolved at
+        construction time and cached for the object lifetime.
     timeout:
         Per-request HTTP timeout in seconds (default 30).
 
