@@ -189,6 +189,8 @@ def _stub_sync_deps():
     # SyncConfig stub
     mock_config = MagicMock()
     mock_config.get_server_url.return_value = "https://saas.test"
+    # status/doctor now read the resolved runtime target (#2146).
+    mock_config.resolve_runtime_target.return_value.resolved_server_url = "https://saas.test"
     mock_config.config_file = "/tmp/test-sync-config.toml"
 
     # OfflineQueue stub
