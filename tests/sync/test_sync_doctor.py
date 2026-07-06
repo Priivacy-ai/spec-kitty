@@ -120,6 +120,10 @@ class TestDoctorCommand:
 
         mock_config = MagicMock()
         mock_config.get_server_url.return_value = "https://test.example.com"
+        # Doctor now reads the resolved runtime target for the Server URL row (#2146).
+        mock_config.resolve_runtime_target.return_value.resolved_server_url = (
+            "https://test.example.com"
+        )
         mock_config_cls.return_value = mock_config
 
         now = datetime.now(UTC)
@@ -197,6 +201,10 @@ class TestDoctorCommand:
 
         mock_config = MagicMock()
         mock_config.get_server_url.return_value = "https://test.example.com"
+        # Doctor now reads the resolved runtime target for the Server URL row (#2146).
+        mock_config.resolve_runtime_target.return_value.resolved_server_url = (
+            "https://test.example.com"
+        )
         mock_config_cls.return_value = mock_config
 
         past = datetime(2020, 1, 1, tzinfo=UTC)
