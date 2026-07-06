@@ -40,6 +40,11 @@ _ARCH_SHARD_3_DIRS: tuple[str, ...] = ("tests/architecture",)
 # Individual `tests/architectural/*.py` file assignments — copied verbatim from
 # data-model.md's committed 216 / 215 / 215 split.
 _ARCH_SHARD_1_FILES: tuple[str, ...] = (
+    # Added post-data-model.md (new file at implementation time, mission
+    # cmd-output-file-leak-guard-01KWVZX7 #2169 WP01). All three shards were
+    # tied at 30 files each when this guard landed; shard_1 was picked
+    # arbitrarily to keep the table's insertion order alphabetical-ish and
+    # the pick auditable.
     "tests/architectural/test_arch_unblind_matrix.py",
     "tests/architectural/test_charter_facades_reexport_doctrine.py",
     "tests/architectural/test_charter_references_resolve.py",
@@ -51,6 +56,7 @@ _ARCH_SHARD_1_FILES: tuple[str, ...] = (
     "tests/architectural/test_marker_job_completeness.py",
     "tests/architectural/test_marker_registry_single_source.py",
     "tests/architectural/test_no_dead_symbols.py",
+    "tests/architectural/test_no_invalid_windows_filenames.py",
     "tests/architectural/test_no_legacy_status_emit_callers.py",
     "tests/architectural/test_no_legacy_terminology.py",
     "tests/architectural/test_no_raw_mission_spec_paths.py",
