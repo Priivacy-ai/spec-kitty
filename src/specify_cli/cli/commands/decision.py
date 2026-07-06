@@ -539,7 +539,7 @@ def cmd_widen(
         raise typer.Exit(0)
 
     try:
-        client = SaasClient.from_env()
+        client = SaasClient.from_env(repo_root=locate_project_root() or Path.cwd())
         response = client.post_widen(decision_id=decision_id, invited=invited_list)
         typer.echo(json.dumps(
             {

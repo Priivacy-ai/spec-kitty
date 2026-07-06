@@ -250,6 +250,32 @@ class TestLivePath:
         assert result.exit_code == 1
         assert "server error" in result.output
 
+    def test_live_path_passes_repo_root_to_from_env(self, tmp_path: Path) -> None:
+        """cmd_widen passes repo_root to SaasClient.from_env.
+
+        D-5: file-auth path (.kittify/saas-auth.json) must be reachable from the
+        widen command — requires from_env(repo_root=<path>), not from_env() (#2248).
+        """
+        mock_client = MagicMock()
+        mock_client.post_widen.return_value = _make_widen_response()
+        captured: list[object] = []
+
+        def _capture_from_env(repo_root: object = None) -> object:
+            captured.append(repo_root)
+            return mock_client
+
+        with patch("specify_cli.saas_client.client.SaasClient.from_env", side_effect=_capture_from_env):
+            result = _invoke(
+                ["decision", "widen", DECISION_ID, "--invited", "101"],
+                cwd=tmp_path,
+            )
+        assert result.exit_code == 0, f"exit {result.exit_code}\n{result.output}"
+        assert len(captured) == 1
+        assert captured[0] is not None, (
+            "from_env must receive a repo_root so .kittify/saas-auth.json is reachable (D-5 / #2248)"
+        )
+        assert isinstance(captured[0], Path)
+
 
 # ---------------------------------------------------------------------------
 # Error paths
