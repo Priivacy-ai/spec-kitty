@@ -17,6 +17,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
+- **Dashboard: PR-bound missions planned on a feature branch are visible again
+  (#2430).** The dashboard scanner resolved ONE directory per mission,
+  coord-worktree-first — but under coordination topology the two partitions
+  live on different surfaces: `spec-commit` lands planning artifacts
+  (`spec.md`/`plan.md`/`tasks.md`/`tasks/`/`meta.json`) on the **primary**
+  surface, while the live event log lives on the **coordination** branch. The
+  scanned `-coord` copy therefore held only status writes, so the legacy
+  existence filter (numeric prefix or `tasks/` present) silently dropped any
+  in-flight post-083 mission from `/api/features`, and artifact viewers/kanban
+  read the wrong surface. The scanner now splits the read per partition —
+  planning artifacts primary-first through the same kind-aware read seam the
+  #2331 identity fix uses (`resolve_planning_read_dir`), live lane state from
+  the gather-resolved coord surface — so an in-flight coordination mission
+  lists with its real spec/plan/tasks AND live kanban lanes. Same
+  coord-shadows-primary class as #2331; the accept-side sibling is #2404.
 - **Session banner no longer recommends a downgrade (#2413).** The
   session-presence health check decided "upgrade-available" with a bare
   inequality (`avail != current`), so any machine whose installed CLI was
