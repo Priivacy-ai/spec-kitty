@@ -192,7 +192,7 @@
     },
     {
       "dir": "session_presence",
-      "loc": 1246,
+      "loc": 1229,
       "cone_roots": [
         "tests/specify_cli/session_presence"
       ],
