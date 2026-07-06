@@ -61,6 +61,7 @@ from specify_cli.cli.commands._teamspace_mission_state_gate import (
 )
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.env import is_truthy
+from specify_cli.core.version_compare import is_version_newer
 from specify_cli.git.commit_helpers import safe_commit
 
 
@@ -300,17 +301,6 @@ def _run_cli_mode(
 # ---------------------------------------------------------------------------
 
 
-def _version_is_newer(latest: str | None, installed: str) -> bool:
-    if latest is None:
-        return False
-    try:
-        from packaging.version import Version
-
-        return Version(latest) > Version(installed)
-    except Exception:  # noqa: BLE001
-        return False
-
-
 def _agent_check_payload() -> dict[str, object]:
     """Return machine-readable upgrade readiness for agent prompt preambles."""
     from specify_cli.compat import (
@@ -363,7 +353,7 @@ def _agent_check_payload() -> dict[str, object]:
         payload["reason"] = "nag_disabled"
         return payload
 
-    if not _version_is_newer(latest_version, cli_status.installed_version):
+    if not is_version_newer(latest_version, cli_status.installed_version):
         return payload
 
     if is_truthy(os.environ.get(ENV_UPGRADE_DISABLED)):

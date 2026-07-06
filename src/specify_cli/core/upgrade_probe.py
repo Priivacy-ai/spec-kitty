@@ -29,7 +29,8 @@ from enum import StrEnum
 from typing import Any
 
 import httpx
-from packaging.version import InvalidVersion, Version
+
+from specify_cli.core.version_compare import is_version_newer, try_parse_version
 
 PYPI_JSON_URL = "https://pypi.org/pypi/spec-kitty-cli/json"
 """PyPI's standard JSON metadata endpoint for the ``spec-kitty-cli`` package."""
@@ -190,21 +191,18 @@ def _classify(
     PEP 440 version. Network/parse failures are handled upstream in
     :func:`probe_pypi`.
     """
-    try:
-        installed_ver = Version(installed)
-    except InvalidVersion:
+    installed_ver = try_parse_version(installed)
+    if installed_ver is None:
         return UpgradeChannel.UNKNOWN
 
-    latest_ver: Version | None
-    try:
-        latest_ver = Version(latest)
-    except InvalidVersion:
-        # Latest is malformed — fall through to releases-membership check.
-        latest_ver = None
+    # ``latest`` may be malformed — try_parse_version falls through to the
+    # releases-membership check below (via is_version_newer returning False)
+    # rather than raising.
+    latest_ver = try_parse_version(latest)
 
     if latest_ver is not None and installed_ver == latest_ver:
         return UpgradeChannel.ALREADY_CURRENT
-    if latest_ver is not None and installed_ver > latest_ver:
+    if is_version_newer(installed, latest):
         return UpgradeChannel.AHEAD_OF_PYPI
 
     # installed != latest (or latest unparseable). Check releases membership.

@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal, NamedTuple
 
-from packaging.version import InvalidVersion, Version
+from specify_cli.core.version_compare import is_version_newer
 
 from .content import SessionPresenceContent
 from .upgrade_check import UpgradeChecker
@@ -26,23 +26,6 @@ if TYPE_CHECKING:
     from specify_cli.core.agent_config import AgentConfig
 
 _logger = logging.getLogger(__name__)
-
-
-def _upgrade_is_available(avail: str | None, current: str) -> bool:
-    """Return True only when *avail* is strictly newer than *current* (#2413).
-
-    A bare inequality reported "Upgrade available: 3.2.2" to a machine running
-    3.2.4 whenever the cached PyPI latest lagged the installed version (fresh
-    release not yet in the cache, rc/dev installs). Unparseable versions are
-    treated as no-upgrade so the banner never recommends a downgrade or blows
-    up session start.
-    """
-    if not avail:
-        return False
-    try:
-        return Version(avail) > Version(current)
-    except InvalidVersion:
-        return False
 
 
 class InstallResult(NamedTuple):
@@ -101,13 +84,13 @@ class SessionPresenceManager:
             result = compat_plan(inv, project_root_resolver=_resolver)
             if result.decision == Decision.BLOCK_PROJECT_MIGRATION:
                 health = "migration-required"
-            elif _upgrade_is_available(avail, current):
+            elif is_version_newer(avail, current):
                 health = "upgrade-available"
             else:
                 health = "healthy"
         except Exception:
             # Best-effort health check — never block session start
-            health = "upgrade-available" if _upgrade_is_available(avail, current) else "healthy"
+            health = "upgrade-available" if is_version_newer(avail, current) else "healthy"
 
         return SessionPresenceContent(current, slug, health, avail)
 

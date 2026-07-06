@@ -370,40 +370,9 @@ class TestBuildContent:
         assert content.health == "healthy"
 
 
-class TestUpgradeIsAvailable:
-    """Matrix for the #2413 ordering helper."""
-
-    def test_newer_available(self) -> None:
-        from specify_cli.session_presence.manager import _upgrade_is_available
-
-        assert _upgrade_is_available("3.3.0", "3.2.4") is True
-
-    def test_equal_versions(self) -> None:
-        from specify_cli.session_presence.manager import _upgrade_is_available
-
-        assert _upgrade_is_available("3.2.4", "3.2.4") is False
-
-    def test_older_available_the_2413_bug(self) -> None:
-        from specify_cli.session_presence.manager import _upgrade_is_available
-
-        assert _upgrade_is_available("3.2.2", "3.2.4") is False
-
-    def test_prerelease_ordering(self) -> None:
-        from specify_cli.session_presence.manager import _upgrade_is_available
-
-        # An installed rc ahead of the published release is NOT upgradable to it.
-        assert _upgrade_is_available("3.2.4", "3.2.5rc1") is False
-        # A published release IS an upgrade over its own rc.
-        assert _upgrade_is_available("3.2.4", "3.2.4rc39") is True
-
-    def test_none_and_empty(self) -> None:
-        from specify_cli.session_presence.manager import _upgrade_is_available
-
-        assert _upgrade_is_available(None, "3.2.4") is False
-        assert _upgrade_is_available("", "3.2.4") is False
-
-    def test_unparseable_versions(self) -> None:
-        from specify_cli.session_presence.manager import _upgrade_is_available
-
-        assert _upgrade_is_available("not-a-version", "3.2.4") is False
-        assert _upgrade_is_available("3.3.0", "not-a-version") is False
+# NOTE: the #2413 ordering-helper matrix (TestUpgradeIsAvailable) moved to
+# tests/specify_cli/core/test_version_compare.py::TestIsVersionNewer as part
+# of #2417's consolidation of the three independent "is version newer"
+# implementations into specify_cli.core.version_compare.is_version_newer.
+# manager.py now imports that canonical helper directly (see _build_content
+# above) rather than defining its own private comparison function.
