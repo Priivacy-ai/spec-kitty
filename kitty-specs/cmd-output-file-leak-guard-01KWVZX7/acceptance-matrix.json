@@ -1,0 +1,49 @@
+{
+  "mission_slug": "cmd-output-file-leak-guard-01KWVZX7",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Both --output= parsers write to the real target",
+      "proof_type": "automated_test",
+      "evidence": "Both --output= parsers in test_capture_baseline_custom_test_runner_label remediated: wired fake writes to kwargs['env']['SPEC_KITTY_CMD_OUTPUT_FILE']; dead twin fake_run deleted (confirmed unreferenced). No Path(m.group) residue.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (Opus) + implement-time red-first",
+      "verified_at": "2026-07-06T17:06:57.253146+00:00",
+      "notes": "37 passed / 1 skipped; ruff clean; one fewer mypy error (twin deleted); reviewer's caf\u00e9.txt false-positive fixed + regression-tested."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Zero working-tree residue (env-independent)",
+      "proof_type": "automated_test",
+      "evidence": "Scratch-cwd run leaks nothing with the var unset AND set; reviewer-renata reproduced the literal leak at HEAD~1 then confirmed it gone (env-independent).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (Opus) + implement-time red-first",
+      "verified_at": "2026-07-06T17:06:57.253146+00:00",
+      "notes": "37 passed / 1 skipped; ruff clean; one fewer mypy error (twin deleted); reviewer's caf\u00e9.txt false-positive fixed + regression-tested."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Forbidden-filename guard (two named sets)",
+      "proof_type": "automated_test",
+      "evidence": "tests/architectural/test_no_invalid_windows_filenames.py checks two distinct named sets (WINDOWS_ILLEGAL_CHARS + SHELL_EXPANSION_TELLTALE_CHARS); reads git ls-files -z to avoid C-quote false-positives (caf\u00e9.txt regression test added).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (Opus) + implement-time red-first",
+      "verified_at": "2026-07-06T17:06:57.253146+00:00",
+      "notes": "37 passed / 1 skipped; ruff clean; one fewer mypy error (twin deleted); reviewer's caf\u00e9.txt false-positive fixed + regression-tested."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Non-vacuous guard pins the Windows-illegal contract",
+      "proof_type": "automated_test",
+      "evidence": "Mutation-verified: a\"b.txt (genuinely Windows-illegal) reds the illegal test; ${} name reds the telltale test; removed -> green. Pins the real contract.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (Opus) + implement-time red-first",
+      "verified_at": "2026-07-06T17:06:57.253146+00:00",
+      "notes": "37 passed / 1 skipped; ruff clean; one fewer mypy error (twin deleted); reviewer's caf\u00e9.txt false-positive fixed + regression-tested."
+    }
+  ],
+  "negative_invariants": []
+}
