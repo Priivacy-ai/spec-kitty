@@ -360,6 +360,7 @@ class TestSyncServerCommand:
         assert exc.value.exit_code == 1
         mock_config.set_server_url.assert_not_called()
 
+    @pytest.mark.unit
     @pytest.mark.parametrize(
         "url",
         [
@@ -375,6 +376,7 @@ class TestSyncServerCommand:
             sync_server(url=url)
         mock_config.set_server_url.assert_called_once_with(url)
 
+    @pytest.mark.unit
     def test_set_server_url_rejects_non_loopback_http(self):
         """Non-loopback HTTP is still rejected (HTTPS required for remote)."""
         mock_config = MagicMock()
