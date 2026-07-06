@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.upgrade.migrations import auto_discover_migrations
+from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.migrations.m_3_2_4_runtime_dirs_gitignore_backfill import (
     RuntimeDirsGitignoreBackfillMigration,
     _RUNTIME_DIR_ENTRIES,
@@ -123,6 +124,7 @@ def test_backfill_fires_on_already_current_3_2_4_project(tmp_path: Path) -> None
     _write_metadata(tmp_path, "3.2.4")
     _write_gitignore(tmp_path, ".kittify/derived/")  # derived present, new dirs absent
 
+    MigrationRegistry.clear()
     auto_discover_migrations()
     result = MigrationRunner(tmp_path).upgrade("3.2.4", include_worktrees=False)
 

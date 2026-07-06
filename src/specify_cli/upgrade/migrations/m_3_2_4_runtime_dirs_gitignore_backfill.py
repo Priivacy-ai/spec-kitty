@@ -58,7 +58,7 @@ def _missing_entries(present: set[str]) -> list[str]:
 
 
 @MigrationRegistry.register
-class RuntimeDirsGitignoreBackfillMigration(BaseMigration):  # type: ignore[misc]
+class RuntimeDirsGitignoreBackfillMigration(BaseMigration):
     """Ensure ``.kittify/migrations/`` and ``.kittify/logs/`` are gitignored."""
 
     migration_id = "3.2.4_runtime_dirs_gitignore_backfill"

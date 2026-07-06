@@ -71,7 +71,7 @@ pyproject.local.toml
 .kittify/preflight-warning.json
 .kittify/.migration-backup/
 .kittify/encoding-provenance/
-.kittify/migrations/mission-state/
+.kittify/migrations/
 .kittify/logs/
 
 # Local performance cache; durable Op records live in kitty-ops/<op-id>.jsonl.
