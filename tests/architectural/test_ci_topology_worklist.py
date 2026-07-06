@@ -10,9 +10,10 @@ implementer's constant (NFR-006).
 
 Authored FAILING against today's topology: every worklist dir is unmapped by
 construction (that is *why* it is on the worklist), so the routing assertions
-RED until WP03 adds the composite groups. The freshness assertion
-``census.worklist == live_derived_worklist()`` is GREEN today and closes the
-SC-001 vacuous-pass gap: a stale or hand-trimmed census reds in CI (NFR-006).
+RED until WP03 adds the composite groups. The freshness assertion compares
+membership + routing via ``worklist_routing_index`` (order/LOC-insensitive,
+issue #2416) and closes the SC-001 vacuous-pass gap: a stale or hand-trimmed
+census reds in CI (NFR-006).
 
 Consumes only the additive WP01 relations in
 :mod:`tests.architectural._gate_coverage`; it does not re-derive the model.
@@ -48,19 +49,43 @@ def models() -> dict[str, gc.WorkflowModel]:
 
 @pytest.fixture(scope="module")
 def worklist(census: dict[str, Any]) -> list[dict[str, Any]]:
-    """The census ``worklist`` entries (dir + LOC + routing plan)."""
+    """The census ``worklist`` entries (dir + routing plan; no exact LOC, #2416)."""
     entries: list[dict[str, Any]] = census["worklist"]
     return entries
 
 
 def test_census_worklist_matches_live_derivation(census: dict[str, Any]) -> None:
-    """NFR-006 freshness guard (GREEN today): census == live re-derivation.
+    """NFR-006 freshness guard: census matches live re-derivation on membership +
+    committed routing plan (order/LOC-insensitive, issue #2416).
 
-    The committed worklist must equal :func:`_gate_coverage.live_derived_worklist`
-    re-derived from the live source tree + parsed filter groups. A stale or
-    hand-trimmed census then REDS in CI, so the SC-001 iteration below cannot be
-    gamed by editing the artifact.
+    Compared via :func:`_gate_coverage.worklist_routing_index`, so a pure line-count
+    change on a worklist dir (or a LOC rank-swap between two members) no longer reds
+    this gate. A stale or hand-trimmed census still REDS: dropping a dir, a
+    floor-crossing, a new hot dir, or a routing hand-edit all change this index. The
+    absence of exact ``loc`` is guarded by :func:`test_committed_census_carries_no_loc`.
     """
+    assert gc.worklist_routing_index(census["worklist"]) == gc.worklist_routing_index(
+        gc.live_derived_worklist(),
+    )
+
+
+def test_rank_altering_loc_churn_keeps_gate_green(
+    monkeypatch: pytest.MonkeyPatch,
+    census: dict[str, Any],
+) -> None:
+    """FR-001 + FR-007 (red-first, issue #2416): a LOC churn that flips the relative
+    LOC rank of two worklist members — pure churn, no membership/routing change — must
+    keep the freshness gate green. RED on the base branch (ordered list-equality compares
+    exact loc + order); GREEN after the loc-drop + dir-keyed index compare.
+    """
+    real = gc.src_package_loc()
+    a, b = "tracker", "doctrine"  # two worklist members; swapping flips their -loc rank
+    live_dirs = {e["dir"] for e in gc.live_derived_worklist()}
+    assert {a, b} <= live_dirs, "chosen pair must both be worklist members"
+    assert a in real and b in real and real[a] != real[b]
+    swapped = {**real, a: real[b], b: real[a]}
+    monkeypatch.setattr(gc, "src_package_loc", lambda *args, **kwargs: swapped)
+    # On the fixed code this compares membership + routing only (order/LOC-insensitive).
     assert census["worklist"] == gc.live_derived_worklist()
 
 
@@ -103,12 +128,15 @@ def test_every_worklist_dir_meets_loc_floor(
     census: dict[str, Any],
     worklist: list[dict[str, Any]],
 ) -> None:
-    """Each worklist dir clears the committed ``t_loc`` floor (read from artifact)."""
+    """Each committed worklist dir clears the committed ``t_loc`` floor, checked
+    against the LIVE source tree rather than a stored snapshot (FR-006, #2416)."""
     t_loc = census["t_loc"]
     assert isinstance(t_loc, int)
+    loc_by_dir = gc.src_package_loc()
     for entry in worklist:
-        assert entry["loc"] >= t_loc, (
-            f"{entry['dir']} LOC {entry['loc']} < committed floor {t_loc}"
+        live_loc = loc_by_dir.get(entry["dir"], 0)
+        assert live_loc >= t_loc, (
+            f"{entry['dir']} live LOC {live_loc} < committed floor {t_loc}"
         )
 
 
@@ -162,3 +190,59 @@ def test_every_worklist_dir_declares_a_focused_shard(
     """Each worklist dir carries a focused integration shard in its routing plan."""
     missing = [entry["dir"] for entry in worklist if not entry["target_shard"]]
     assert not missing, f"worklist dirs with no focused shard in the plan: {missing}"
+
+
+# --- Non-vacuous freshness teeth (NFR-004 / C-004, issue #2416) -------------
+# Each tooth mutates a copy of the LIVE derivation and asserts the real
+# ``worklist_routing_index`` compare reds, proving the narrowed gate still bites
+# after exact LOC was dropped from the comparison surface.
+
+
+def test_freshness_index_reds_on_hand_trim() -> None:
+    """FR-002: dropping a still-qualifying dir from the census reds the gate."""
+    live = gc.live_derived_worklist()
+    assert live, "worklist unexpectedly empty"
+    trimmed = live[1:]
+    assert gc.worklist_routing_index(trimmed) != gc.worklist_routing_index(live)
+
+
+def test_freshness_index_reds_on_phantom_dir() -> None:
+    """FR-004: a new hot dir absent from the census reds the gate."""
+    live = gc.live_derived_worklist()
+    phantom = [
+        *live,
+        {"dir": "zzz_phantom", "cone_roots": [], "target_group": "x", "target_shard": "y"},
+    ]
+    assert gc.worklist_routing_index(phantom) != gc.worklist_routing_index(live)
+
+
+def test_freshness_index_reds_on_routing_edit() -> None:
+    """FR-005: a hand-edited routing target reds the gate."""
+    live = gc.live_derived_worklist()
+    assert live, "worklist unexpectedly empty"
+    tampered = [dict(entry) for entry in live]
+    tampered[0] = {**tampered[0], "target_group": "WRONG_GROUP"}
+    assert gc.worklist_routing_index(tampered) != gc.worklist_routing_index(live)
+
+
+def test_freshness_index_reds_on_floor_crossing() -> None:
+    """FR-003: a dir dropping below the floor leaves the live worklist; a census
+    that still lists it reds. The raised floor ``t_high = min(member loc) + 1`` is
+    derived dynamically so at least one member always leaves — non-vacuous and
+    drift-proof even if today's sub-600 dirs grow later.
+    """
+    members = gc.live_derived_worklist()
+    loc_by_dir = gc.src_package_loc()
+    t_high = min(loc_by_dir[entry["dir"]] for entry in members) + 1
+    fewer = gc.live_derived_worklist(t_loc=t_high)
+    assert gc.worklist_routing_index(fewer) != gc.worklist_routing_index(members)
+
+
+def test_committed_census_carries_no_loc(census: dict[str, Any]) -> None:
+    """C-001 (durable, shape-independent): the committed census worklist stores NO
+    exact ``loc``. Enforced directly here — NOT incidentally via a freshness test that
+    is loc-blind after the #2416 fix — so a skipped/forgotten regen or a future
+    reintroduction of the field reds regardless of the freshness test's shape.
+    """
+    stale = [entry["dir"] for entry in census["worklist"] if "loc" in entry]
+    assert not stale, f"committed census entries still carry exact loc: {stale}"

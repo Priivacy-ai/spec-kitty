@@ -949,10 +949,16 @@ def live_derived_worklist(
     *derived* facts, the annotation is the committed plan overlay (an unrouted
     qualifying dir carries ``None`` group/shard).
 
-    WP02's ``test_ci_topology_worklist.py`` asserts
-    ``census.worklist == live_derived_worklist()`` — so a stale or hand-trimmed
-    census reds in CI (NFR-006). Entries are sorted by descending LOC then dir
-    name for a stable, diff-friendly order.
+    WP02's ``test_ci_topology_worklist.py`` asserts census/live agreement on
+    membership + routing via :func:`worklist_routing_index` — so a stale or
+    hand-trimmed census still reds in CI (NFR-006). Exact per-dir ``loc`` is NOT
+    emitted (issue #2416): it was a noisy freshness proxy that red unrelated PRs on
+    any line-count churn, while every anti-tamper tooth (hand-trim, floor-crossing,
+    new hot dir) is a *membership* change the routing index already captures.
+    ``loc`` is still read internally to gate membership on the floor. The drop is
+    applied here at the single shared derivation, so the ``--verify-census`` CLI
+    (which consumes this function) is LOC-insensitive by construction too. Entries
+    are sorted by ``dir`` name (LOC-independent) for a stable, diff-friendly order.
     """
     worklist: list[dict[str, Any]] = []
     for dir_name, loc in src_package_loc(repo_root).items():
@@ -962,14 +968,34 @@ def live_derived_worklist(
         worklist.append(
             {
                 "dir": dir_name,
-                "loc": loc,
                 "cone_roots": list(cones),
                 "target_group": group,
                 "target_shard": shard,
             },
         )
-    worklist.sort(key=lambda entry: (-int(entry["loc"]), str(entry["dir"])))
+    worklist.sort(key=lambda entry: str(entry["dir"]))
     return worklist
+
+
+def worklist_routing_index(
+    entries: Sequence[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    """Dir-keyed routing index for the freshness guard (order/LOC-insensitive, #2416).
+
+    Only membership (the dir keys) and the committed routing plan (cone roots /
+    target group / target shard) participate, so a pure line-count change or a LOC
+    rank-swap between two members does not red the freshness gate. Exact LOC and list
+    order are deliberately excluded — every anti-tamper tooth is a membership or
+    routing change, which this index still captures.
+    """
+    return {
+        str(entry["dir"]): {
+            "cone_roots": list(entry.get("cone_roots", [])),
+            "target_group": entry.get("target_group"),
+            "target_shard": entry.get("target_shard"),
+        }
+        for entry in entries
+    }
 
 
 # --- Differential arch-completeness matrix (NFR-002) -----------------------

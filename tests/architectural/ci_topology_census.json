@@ -4,29 +4,16 @@
   "rule": "D in worklist iff D is a direct child directory of src/specify_cli/ AND sum(LOC of *.py under D) >= t_loc AND no src-backed dorny filter group (excluding any_src) globs src/specify_cli/<D>/.",
   "worklist": [
     {
-      "dir": "retrospective",
-      "loc": 6805,
+      "dir": "audit",
       "cone_roots": [
-        "tests/retrospective",
-        "tests/specify_cli/retrospect",
-        "tests/specify_cli/retrospective"
+        "tests/audit",
+        "tests/specify_cli/audit"
       ],
-      "target_group": "closeout",
-      "target_shard": "misc"
-    },
-    {
-      "dir": "migration",
-      "loc": 5607,
-      "cone_roots": [
-        "tests/migration",
-        "tests/specify_cli/migration"
-      ],
-      "target_group": "lifecycle",
-      "target_shard": "specify-cli-heavy"
+      "target_group": "auth_audit_git",
+      "target_shard": "auth-audit-git"
     },
     {
       "dir": "auth",
-      "loc": 5140,
       "cone_roots": [
         "tests/auth"
       ],
@@ -34,8 +21,23 @@
       "target_shard": "auth-audit-git"
     },
     {
+      "dir": "bulk_edit",
+      "cone_roots": [
+        "tests/specify_cli/bulk_edit"
+      ],
+      "target_group": "agent_surface",
+      "target_shard": "specify-cli-rest"
+    },
+    {
+      "dir": "calibration",
+      "cone_roots": [
+        "tests/calibration"
+      ],
+      "target_group": "governance",
+      "target_shard": "misc"
+    },
+    {
       "dir": "compat",
-      "loc": 5072,
       "cone_roots": [
         "tests/specify_cli/compat"
       ],
@@ -43,17 +45,30 @@
       "target_shard": "specify-cli-heavy"
     },
     {
-      "dir": "tracker",
-      "loc": 3966,
+      "dir": "context",
       "cone_roots": [
-        "tests/tracker"
+        "tests/context",
+        "tests/specify_cli/context"
       ],
-      "target_group": "agent_surface",
-      "target_shard": "specify-cli-rest"
+      "target_group": "governance",
+      "target_shard": "misc"
+    },
+    {
+      "dir": "decisions",
+      "cone_roots": [
+        "tests/specify_cli/decisions"
+      ],
+      "target_group": "closeout",
+      "target_shard": "misc"
+    },
+    {
+      "dir": "doc_analysis",
+      "cone_roots": [],
+      "target_group": "closeout",
+      "target_shard": "misc"
     },
     {
       "dir": "doctrine",
-      "loc": 3918,
       "cone_roots": [
         "tests/specify_cli/doctrine"
       ],
@@ -62,7 +77,6 @@
     },
     {
       "dir": "dossier",
-      "loc": 3246,
       "cone_roots": [
         "tests/dossier",
         "tests/specify_cli/dossier"
@@ -71,27 +85,15 @@
       "target_shard": "specify-cli-rest"
     },
     {
-      "dir": "invocation",
-      "loc": 2916,
+      "dir": "events",
       "cone_roots": [
-        "tests/invocation",
-        "tests/specify_cli/invocation"
+        "tests/specify_cli/events"
       ],
-      "target_group": "lifecycle",
-      "target_shard": "specify-cli-heavy"
-    },
-    {
-      "dir": "skills",
-      "loc": 2865,
-      "cone_roots": [
-        "tests/specify_cli/skills"
-      ],
-      "target_group": "agent_surface",
+      "target_group": "platform",
       "target_shard": "specify-cli-rest"
     },
     {
       "dir": "git",
-      "loc": 2770,
       "cone_roots": [
         "tests/git",
         "tests/git_ops",
@@ -101,18 +103,47 @@
       "target_shard": "auth-audit-git"
     },
     {
-      "dir": "audit",
-      "loc": 2104,
+      "dir": "intake",
+      "cone_roots": [],
+      "target_group": "platform",
+      "target_shard": "specify-cli-rest"
+    },
+    {
+      "dir": "invocation",
       "cone_roots": [
-        "tests/audit",
-        "tests/specify_cli/audit"
+        "tests/invocation",
+        "tests/specify_cli/invocation"
       ],
-      "target_group": "auth_audit_git",
-      "target_shard": "auth-audit-git"
+      "target_group": "lifecycle",
+      "target_shard": "specify-cli-heavy"
+    },
+    {
+      "dir": "migration",
+      "cone_roots": [
+        "tests/migration",
+        "tests/specify_cli/migration"
+      ],
+      "target_group": "lifecycle",
+      "target_shard": "specify-cli-heavy"
+    },
+    {
+      "dir": "mission_loader",
+      "cone_roots": [
+        "tests/unit/mission_loader"
+      ],
+      "target_group": "platform",
+      "target_shard": "specify-cli-rest"
+    },
+    {
+      "dir": "mission_v1",
+      "cone_roots": [
+        "tests/specify_cli/mission_v1"
+      ],
+      "target_group": "platform",
+      "target_shard": "specify-cli-rest"
     },
     {
       "dir": "orchestrator_api",
-      "loc": 1956,
       "cone_roots": [
         "tests/specify_cli/orchestrator_api"
       ],
@@ -120,33 +151,31 @@
       "target_shard": "specify-cli-rest"
     },
     {
-      "dir": "doc_analysis",
-      "loc": 1864,
-      "cone_roots": [],
-      "target_group": "closeout",
+      "dir": "ownership",
+      "cone_roots": [
+        "tests/specify_cli/ownership"
+      ],
+      "target_group": "governance",
       "target_shard": "misc"
     },
     {
-      "dir": "widen",
-      "loc": 1785,
+      "dir": "paths",
       "cone_roots": [
-        "tests/specify_cli/widen"
+        "tests/paths"
       ],
-      "target_group": "closeout",
-      "target_shard": "misc"
+      "target_group": "platform",
+      "target_shard": "specify-cli-rest"
     },
     {
-      "dir": "decisions",
-      "loc": 1539,
+      "dir": "policy",
       "cone_roots": [
-        "tests/specify_cli/decisions"
+        "tests/policy"
       ],
-      "target_group": "closeout",
+      "target_group": "governance",
       "target_shard": "misc"
     },
     {
       "dir": "readiness",
-      "loc": 1447,
       "cone_roots": [
         "tests/readiness",
         "tests/specify_cli/readiness"
@@ -155,131 +184,17 @@
       "target_shard": "misc"
     },
     {
-      "dir": "mission_v1",
-      "loc": 1337,
+      "dir": "retrospective",
       "cone_roots": [
-        "tests/specify_cli/mission_v1"
+        "tests/retrospective",
+        "tests/specify_cli/retrospect",
+        "tests/specify_cli/retrospective"
       ],
-      "target_group": "platform",
-      "target_shard": "specify-cli-rest"
-    },
-    {
-      "dir": "mission_loader",
-      "loc": 1297,
-      "cone_roots": [
-        "tests/unit/mission_loader"
-      ],
-      "target_group": "platform",
-      "target_shard": "specify-cli-rest"
-    },
-    {
-      "dir": "workspace",
-      "loc": 1283,
-      "cone_roots": [
-        "tests/specify_cli/workspace"
-      ],
-      "target_group": "platform",
-      "target_shard": "specify-cli-rest"
-    },
-    {
-      "dir": "bulk_edit",
-      "loc": 1276,
-      "cone_roots": [
-        "tests/specify_cli/bulk_edit"
-      ],
-      "target_group": "agent_surface",
-      "target_shard": "specify-cli-rest"
-    },
-    {
-      "dir": "session_presence",
-      "loc": 1229,
-      "cone_roots": [
-        "tests/specify_cli/session_presence"
-      ],
-      "target_group": "platform",
-      "target_shard": "specify-cli-rest"
-    },
-    {
-      "dir": "policy",
-      "loc": 1193,
-      "cone_roots": [
-        "tests/policy"
-      ],
-      "target_group": "governance",
+      "target_group": "closeout",
       "target_shard": "misc"
-    },
-    {
-      "dir": "ownership",
-      "loc": 1114,
-      "cone_roots": [
-        "tests/specify_cli/ownership"
-      ],
-      "target_group": "governance",
-      "target_shard": "misc"
-    },
-    {
-      "dir": "context",
-      "loc": 1056,
-      "cone_roots": [
-        "tests/context",
-        "tests/specify_cli/context"
-      ],
-      "target_group": "governance",
-      "target_shard": "misc"
-    },
-    {
-      "dir": "validators",
-      "loc": 770,
-      "cone_roots": [],
-      "target_group": "governance",
-      "target_shard": "misc"
-    },
-    {
-      "dir": "template",
-      "loc": 748,
-      "cone_roots": [
-        "tests/test_template"
-      ],
-      "target_group": "lifecycle",
-      "target_shard": "specify-cli-heavy"
-    },
-    {
-      "dir": "intake",
-      "loc": 728,
-      "cone_roots": [],
-      "target_group": "platform",
-      "target_shard": "specify-cli-rest"
-    },
-    {
-      "dir": "calibration",
-      "loc": 634,
-      "cone_roots": [
-        "tests/calibration"
-      ],
-      "target_group": "governance",
-      "target_shard": "misc"
-    },
-    {
-      "dir": "paths",
-      "loc": 577,
-      "cone_roots": [
-        "tests/paths"
-      ],
-      "target_group": "platform",
-      "target_shard": "specify-cli-rest"
-    },
-    {
-      "dir": "events",
-      "loc": 574,
-      "cone_roots": [
-        "tests/specify_cli/events"
-      ],
-      "target_group": "platform",
-      "target_shard": "specify-cli-rest"
     },
     {
       "dir": "saas_client",
-      "loc": 552,
       "cone_roots": [
         "tests/specify_cli/saas_client"
       ],
@@ -287,9 +202,62 @@
       "target_shard": "specify-cli-rest"
     },
     {
+      "dir": "session_presence",
+      "cone_roots": [
+        "tests/specify_cli/session_presence"
+      ],
+      "target_group": "platform",
+      "target_shard": "specify-cli-rest"
+    },
+    {
+      "dir": "skills",
+      "cone_roots": [
+        "tests/specify_cli/skills"
+      ],
+      "target_group": "agent_surface",
+      "target_shard": "specify-cli-rest"
+    },
+    {
       "dir": "task_utils",
-      "loc": 505,
       "cone_roots": [],
+      "target_group": "platform",
+      "target_shard": "specify-cli-rest"
+    },
+    {
+      "dir": "template",
+      "cone_roots": [
+        "tests/test_template"
+      ],
+      "target_group": "lifecycle",
+      "target_shard": "specify-cli-heavy"
+    },
+    {
+      "dir": "tracker",
+      "cone_roots": [
+        "tests/tracker"
+      ],
+      "target_group": "agent_surface",
+      "target_shard": "specify-cli-rest"
+    },
+    {
+      "dir": "validators",
+      "cone_roots": [],
+      "target_group": "governance",
+      "target_shard": "misc"
+    },
+    {
+      "dir": "widen",
+      "cone_roots": [
+        "tests/specify_cli/widen"
+      ],
+      "target_group": "closeout",
+      "target_shard": "misc"
+    },
+    {
+      "dir": "workspace",
+      "cone_roots": [
+        "tests/specify_cli/workspace"
+      ],
       "target_group": "platform",
       "target_shard": "specify-cli-rest"
     }
