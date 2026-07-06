@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-07-05'
+updated: '2026-07-06'
 ---
 # Changelog
 
@@ -25,6 +25,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   3.2.4. Both health branches now use `packaging.Version` ordering
   (`avail > current`); unparseable versions are treated as no-upgrade so
   session start never breaks on a weird cache value.
+
+### ♻️ Changed
+
+- **Internal: version-comparison primitives consolidated into one canonical module (#2417, landing via PR #2414).**
+  Landing the #2413 fix surfaced three independent "is version A newer than
+  version B" implementations that had drifted apart in edge-case handling:
+  `cli/commands/upgrade.py::_version_is_newer` (caught the broad `Exception`
+  instead of the specific parse failure), `core/upgrade_probe.py::_classify`'s
+  inline comparison, and the `_upgrade_is_available` helper #2413 had just
+  added to `session_presence/manager.py`. All three now delegate to a new
+  pure module, `specify_cli.core.version_compare`
+  (`try_parse_version` / `is_version_newer`), with no CLI/click/typer
+  imports so it is safe to import from any layer; the two duplicate boolean
+  helpers are deleted outright, no aliases left behind. No user-facing
+  behavior change.
 
 ## [3.2.4] - 2026-07-05
 
