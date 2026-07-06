@@ -433,6 +433,40 @@ def _resolve_identity_primary_first(
     return mission_id, mission_number
 
 
+def _resolve_planning_dir_primary_first(project_dir: Path, feature_dir: Path) -> Path:
+    """Resolve the *planning* surface for one scanned feature dir (#2430).
+
+    :func:`gather_feature_paths` returns ONE dir per feature, coord-first —
+    the right priority for live *status* (the append-only event log lives on
+    the coordination branch for coord-topology missions, C-001), but wrong for
+    *planning* artifacts: ``spec-commit`` lands ``spec.md`` / ``plan.md`` /
+    ``tasks.md`` / ``tasks/`` / ``meta.json`` on the PRIMARY surface for every
+    topology (write-surface-coherence). A scanned ``-coord`` dir therefore
+    holds only status writes mid-mission, and reading planning artifacts off
+    it made a PR-bound feature-branch mission invisible (#2430) — the same
+    coord-shadows-primary class as #2331.
+
+    Resolve the planning surface primary-first through the kind-aware read
+    seam (:func:`resolve_planning_read_dir` with ``TASKS_INDEX``, the same
+    seam #2331 uses for identity). Fall back to the scanned dir when the
+    resolver declines (unsafe segment, ambiguous handle) or the resolved dir
+    does not exist, so legacy / lane-only / test layouts keep their existing
+    behavior. The scanned ``feature_dir`` itself remains the status surface —
+    gather's registry-classified coord preference already encodes that.
+    """
+    from mission_runtime import MissionArtifactKind  # noqa: PLC0415 — late import, cold-start cost
+
+    try:
+        candidate = resolve_planning_read_dir(
+            project_dir, feature_dir.name, kind=MissionArtifactKind.TASKS_INDEX
+        )
+    except (ValueError, MissionSelectorAmbiguous):
+        return feature_dir
+    if candidate.exists():
+        return candidate
+    return feature_dir
+
+
 def _mission_record_key(feature_dir: Path, mission_id: str | None, mission_number: int | None) -> str:
     """Compute the canonical registry key for a mission.
 
@@ -544,12 +578,16 @@ def resolve_active_feature(
     return None
 
 
-def _count_wps_by_lane(tasks_dir: Path) -> dict[str, int]:
+def _count_wps_by_lane(tasks_dir: Path, status_dir: Path | None = None) -> dict[str, int]:
     """Count work packages by lane from the canonical event log.
 
     Raises ``CanonicalStatusNotFoundError`` when the event log is absent.
     WPs not present in the event log are treated as ``genesis`` and excluded
     from display counts until finalize-tasks seeds them.
+
+    ``status_dir`` names the surface holding the canonical event log; under
+    coordination topology it differs from the planning surface that holds
+    ``tasks/`` (#2430). ``None`` derives it from ``tasks_dir`` as before.
 
     Lane-to-column mapping is driven by :meth:`WPState.display_category`
     via :data:`_KANBAN_COLUMN_MAP`.
@@ -559,8 +597,8 @@ def _count_wps_by_lane(tasks_dir: Path) -> dict[str, int]:
     if not tasks_dir.exists():
         return counts
 
-    # feature_dir is the parent of tasks/
-    feature_dir = tasks_dir.parent
+    # Default: the event log lives beside tasks/ (single-surface layouts).
+    feature_dir = status_dir if status_dir is not None else tasks_dir.parent
 
     from specify_cli.status import get_all_wp_lanes
 
@@ -701,12 +739,14 @@ def _resolve_checkout_root(feature_dir: Path) -> Path | None:
 
 
 def _build_event_log_kanban_stats(feature_dir: Path, tasks_dir: Path) -> dict[str, Any]:
+    """Count WP lanes: ``tasks_dir`` lists the WPs (planning surface),
+    ``feature_dir`` holds the canonical event log (status surface, #2430)."""
     from specify_cli.status import CanonicalStatusNotFoundError
     from specify_cli.status import StoreError
 
     kanban_stats: dict[str, Any] = {"total": 0, "planned": 0, "doing": 0, "for_review": 0, "approved": 0, "done": 0}
     try:
-        lane_counts = _count_wps_by_lane(tasks_dir)
+        lane_counts = _count_wps_by_lane(tasks_dir, status_dir=feature_dir)
         for lane, count in lane_counts.items():
             kanban_stats[lane] = count
             kanban_stats["total"] += count
@@ -737,7 +777,18 @@ def _build_event_log_kanban_stats(feature_dir: Path, tasks_dir: Path) -> dict[st
     return kanban_stats
 
 
-def _build_kanban_stats(feature_dir: Path, artifacts: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def _build_kanban_stats(
+    feature_dir: Path,
+    artifacts: dict[str, dict[str, Any]],
+    status_dir: Path | None = None,
+) -> dict[str, Any]:
+    """Build kanban lane counts.
+
+    ``feature_dir`` supplies the WP task files (planning surface);
+    ``status_dir`` supplies the canonical event log — under coordination
+    topology the two live on different surfaces (#2430). ``None`` keeps the
+    single-surface behavior for legacy call sites.
+    """
     kanban_stats: dict[str, Any] = {"total": 0, "planned": 0, "doing": 0, "for_review": 0, "approved": 0, "done": 0}
     if not artifacts["kanban"]:
         return kanban_stats
@@ -745,7 +796,7 @@ def _build_kanban_stats(feature_dir: Path, artifacts: dict[str, dict[str, Any]])
     tasks_dir = feature_dir / "tasks"
     if is_legacy_format(feature_dir):
         return _build_legacy_kanban_stats(tasks_dir)
-    return _build_event_log_kanban_stats(feature_dir, tasks_dir)
+    return _build_event_log_kanban_stats(status_dir or feature_dir, tasks_dir)
 
 
 def scan_all_features(project_dir: Path) -> list[dict[str, Any]]:
@@ -754,13 +805,26 @@ def scan_all_features(project_dir: Path) -> list[dict[str, Any]]:
     feature_paths = gather_feature_paths(project_dir)
 
     for feature_id, feature_dir in feature_paths.items():
-        if not (re.match(r"^\d+", feature_dir.name) or (feature_dir / "tasks").exists()):
+        # Planning artifacts read primary-first (#2430); the scanned dir stays
+        # the live-status surface (gather is coord-first by construction).
+        planning_dir = _resolve_planning_dir_primary_first(project_dir, feature_dir)
+
+        # A coord-topology mission's scanned (coord) dir holds only status
+        # writes — its ``tasks/`` lives on the planning surface, so the
+        # existence filter must consult that surface too or a live in-flight
+        # mission with a post-083 (non-numeric) slug vanishes (#2430).
+        if not (
+            re.match(r"^\d+", feature_dir.name)
+            or (planning_dir / "tasks").exists()
+            or (feature_dir / "tasks").exists()
+        ):
             continue
 
-        friendly_name, meta_data = _read_dashboard_feature_meta(feature_dir)
-        artifacts = get_feature_artifacts(feature_dir, project_dir)
+        meta_dir = planning_dir if (planning_dir / "meta.json").exists() else feature_dir
+        friendly_name, meta_data = _read_dashboard_feature_meta(meta_dir)
+        artifacts = get_feature_artifacts(planning_dir, project_dir)
         workflow = get_workflow_status(artifacts)
-        kanban_stats = _build_kanban_stats(feature_dir, artifacts)
+        kanban_stats = _build_kanban_stats(planning_dir, artifacts, status_dir=feature_dir)
 
         worktree = _resolve_feature_worktree_info(project_dir, feature_dir)
         display_name = format_feature_display_name(feature_id, friendly_name)
@@ -770,7 +834,9 @@ def scan_all_features(project_dir: Path) -> list[dict[str, Any]]:
                 "id": feature_id,
                 "name": friendly_name,
                 "display_name": display_name,
-                "path": str(feature_dir.relative_to(project_dir)),
+                # Artifact viewers read planning content — point them at the
+                # planning surface, not a status-only coord husk (#2430).
+                "path": str(planning_dir.relative_to(project_dir)),
                 "artifacts": artifacts,
                 "workflow": workflow,
                 "kanban_stats": kanban_stats,
@@ -787,6 +853,7 @@ def _process_wp_file(
     prompt_file: Path,
     project_dir: Path,
     default_lane: str,
+    status_dir: Path | None = None,
 ) -> dict[str, Any] | None:
     """Process a single WP file and return task data or None on error."""
     content, error = read_file_resilient(prompt_file, auto_fix=True)
@@ -830,7 +897,11 @@ def _process_wp_file(
     canonical_wp_id = wp_id_match.group(1).upper() if wp_id_match else stem
 
     candidate = prompt_file.parent.parent
-    if has_event_log(candidate):
+    # The live event log may sit on the status surface (coord worktree) while
+    # the WP file being processed lives on the planning surface (#2430).
+    if status_dir is not None and has_event_log(status_dir):
+        lane = get_wp_lane(status_dir, canonical_wp_id)
+    elif has_event_log(candidate):
         lane = get_wp_lane(candidate, canonical_wp_id)
     elif has_event_log(candidate.parent):
         lane = get_wp_lane(candidate.parent, canonical_wp_id)
@@ -891,11 +962,17 @@ def scan_feature_kanban(project_dir: Path, feature_id: str) -> dict[str, list[di
     if feature_dir is None or not feature_dir.exists():
         return lanes
 
-    tasks_dir = feature_dir / "tasks"
+    # WP task files live on the planning surface, the live event log on the
+    # status surface (the gather-resolved, coord-first ``feature_dir``) —
+    # split the read per partition (#2430).
+    planning_dir = _resolve_planning_dir_primary_first(project_dir, feature_dir)
+    status_dir = feature_dir
+
+    tasks_dir = planning_dir / "tasks"
     if not tasks_dir.exists():
         return lanes
 
-    if is_legacy_format(feature_dir):
+    if is_legacy_format(planning_dir):
         # Pre-3.0 layout: the boundary guard blocks mutation commands from
         # reaching this path; the dashboard read-only scan annotates the feature
         # as legacy without iterating lane subdirectories.
@@ -906,7 +983,7 @@ def scan_feature_kanban(project_dir: Path, feature_id: str) -> dict[str, list[di
 
     for prompt_file in tasks_dir.glob("WP*.md"):
         try:
-            task_data = _process_wp_file(prompt_file, project_dir, "planned")
+            task_data = _process_wp_file(prompt_file, project_dir, "planned", status_dir=status_dir)
             if task_data is not None:
                 raw_lane = task_data.get("lane", "planned")
                 state = wp_state_for(raw_lane)

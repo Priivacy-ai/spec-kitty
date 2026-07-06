@@ -479,6 +479,13 @@ def test_dashboard_scans_prefer_coord_worktree_over_root_checkout(tmp_path):
     # disposes (C-SEAM-1). A bare ``-coord``-named directory is a husk and must
     # NOT shadow the primary surface. Register the worktree on a clean seed
     # commit so this exercises the real coord-preference path.
+    #
+    # #2430 refined WHAT the coord copy outranks for: the partitions split.
+    # Live *status* (the event log) reads coord-first — the coord "approved"
+    # lane must win over the primary's stale "planned". *Planning* artifacts
+    # (spec/plan/tasks — PRIMARY-partition for every topology per
+    # write-surface-coherence) read primary-first, so ``path`` anchors to the
+    # primary surface, never a coord copy.
     _git(["init", "--initial-branch=main"], tmp_path)
     _git(["config", "user.email", "scanner@example.com"], tmp_path)
     _git(["config", "user.name", "Scanner Test"], tmp_path)
@@ -501,11 +508,10 @@ def test_dashboard_scans_prefer_coord_worktree_over_root_checkout(tmp_path):
     assert len(features) == 1
     feature = features[0]
 
-    assert feature["path"] == f".worktrees/{slug}-coord/kitty-specs/{slug}"
+    # Planning surface anchors to primary (#2430) …
+    assert feature["path"] == f"kitty-specs/{slug}"
     assert feature["worktree"]["exists"] is True
-    assert feature["worktree"]["path"] == scanner.format_path_for_display(
-        str(coord_feature_dir.parents[1])
-    )
+    # … while live status still reads the coord worktree's event log.
     assert feature["kanban_stats"]["approved"] == 1
     assert feature["kanban_stats"]["planned"] == 0
 
@@ -513,6 +519,61 @@ def test_dashboard_scans_prefer_coord_worktree_over_root_checkout(tmp_path):
     assert len(lanes["approved"]) == 1
     assert len(lanes["planned"]) == 0
     assert lanes["approved"][0]["id"] == "WP01"
+
+
+def test_status_only_coord_copy_does_not_hide_mission(tmp_path):
+    """#2430: a PR-bound mission planned on a feature branch is scanned with a
+    coord worktree copy holding ONLY status writes (``status.events.jsonl`` /
+    ``status.json``) — no ``spec.md``, no ``tasks/``, no ``meta.json``, because
+    ``spec-commit`` lands planning artifacts on the primary surface. The
+    dashboard must still list the mission (planning from primary) with LIVE
+    lanes (status from coord)."""
+    slug = "cut-review-chunk-phase-01KWVYYG"  # post-083 slug: no numeric prefix
+
+    _git(["init", "--initial-branch=main"], tmp_path)
+    _git(["config", "user.email", "scanner@example.com"], tmp_path)
+    _git(["config", "user.name", "Scanner Test"], tmp_path)
+    _git(["config", "commit.gpgsign", "false"], tmp_path)
+    (tmp_path / "README.md").write_text("seed\n", encoding="utf-8")
+    _git(["add", "README.md"], tmp_path)
+    _git(["commit", "-q", "-m", "seed"], tmp_path)
+    coord_worktree = tmp_path / ".worktrees" / f"{slug}-coord"
+    _git(
+        ["worktree", "add", "-q", "-b", f"kitty/mission-{slug}", str(coord_worktree)],
+        tmp_path,
+    )
+
+    # PRIMARY: full planning artifacts + a STALE event log (lane: planned).
+    primary_dir = _create_feature(tmp_path, slug, lane="planned")
+    (primary_dir / "meta.json").write_text(
+        json.dumps({"mission_id": "01KWVYYG0000000000000000ZZ", "mission_slug": slug}),
+        encoding="utf-8",
+    )
+
+    # COORD copy: status partition ONLY — the live event log, nothing else.
+    coord_feature_dir = coord_worktree / "kitty-specs" / slug
+    coord_feature_dir.mkdir(parents=True)
+    _set_wp_lane(coord_feature_dir, "WP01", "in_progress")
+    assert not (coord_feature_dir / "tasks").exists()
+    assert not (coord_feature_dir / "spec.md").exists()
+
+    features = scanner.scan_all_features(tmp_path)
+    ids = [f["id"] for f in features]
+    assert slug in ids, f"mission invisible on dashboard (#2430); got {ids}"
+    feature = next(f for f in features if f["id"] == slug)
+
+    # Planning artifacts render from the primary surface …
+    assert feature["path"] == f"kitty-specs/{slug}"
+    assert feature["artifacts"]["spec"]["exists"] is True
+    assert feature["artifacts"]["tasks"]["exists"] is True
+    # … and lane counts come from the coord worktree's LIVE event log, not the
+    # primary's stale one.
+    assert feature["kanban_stats"]["doing"] == 1
+    assert feature["kanban_stats"]["planned"] == 0
+
+    lanes = scanner.scan_feature_kanban(tmp_path, slug)
+    assert [t["id"] for t in lanes["doing"]] == ["WP01"]
+    assert lanes["planned"] == []
 
 
 def test_registry_resolves_canonical_id_for_inflight_coord_mission(tmp_path):
