@@ -43,13 +43,14 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
         Resolved :class:`AuthContext`.
 
     Raises:
-        SaasAuthError: If no token can be resolved.
+        SaasAuthError: If no token can be resolved, or if no SaaS URL is
+            supplied by env var or auth file (D-5: no hardcoded domain fallback).
     """
     url = os.environ.get("SPEC_KITTY_SAAS_URL", "").strip()
     token = os.environ.get("SPEC_KITTY_SAAS_TOKEN", "").strip()
     team_slug = os.environ.get("SPEC_KITTY_TEAM_SLUG", "").strip() or None
 
-    if not token and repo_root is not None:
+    if (not token or not url) and repo_root is not None:
         auth_file = repo_root / ".kittify" / "saas-auth.json"
         if auth_file.exists():
             try:
@@ -58,7 +59,7 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
                 raise SaasAuthError(
                     f"Failed to read .kittify/saas-auth.json: {exc}"
                 ) from exc
-            token = data.get("token", "").strip()
+            token = token or data.get("token", "").strip()
             url = url or data.get("saas_url", "").strip()
             team_slug = team_slug or data.get("team_slug") or None
 

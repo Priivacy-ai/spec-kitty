@@ -123,6 +123,55 @@ def test_load_auth_context_raises_when_no_url(monkeypatch: pytest.MonkeyPatch) -
         load_auth_context()
 
 
+def test_load_auth_context_env_token_file_url(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """D-5: token from env + URL from file is a valid mixed-source resolution.
+
+    The file-read block runs whenever either the token or the URL is still
+    missing after the env pass (#2248 logic fix).  Env token + file saas_url
+    must resolve successfully without requiring SPEC_KITTY_SAAS_URL to be set.
+    """
+    monkeypatch.setenv("SPEC_KITTY_SAAS_TOKEN", "env-token")
+    monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+    auth_dir = tmp_path / ".kittify"
+    auth_dir.mkdir()
+    (auth_dir / "saas-auth.json").write_text(
+        json.dumps({"saas_url": "https://file-url.example"})
+    )
+    ctx = load_auth_context(repo_root=tmp_path)
+    assert ctx.token == "env-token"
+    assert ctx.saas_url == "https://file-url.example"
+
+
+def test_load_auth_context_raises_when_file_has_no_url(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """D-5 file branch: file token present but no saas_url key → fail closed."""
+    monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+    auth_dir = tmp_path / ".kittify"
+    auth_dir.mkdir()
+    (auth_dir / "saas-auth.json").write_text(json.dumps({"token": "file-token"}))
+    with pytest.raises(SaasAuthError, match="SaaS URL not configured"):
+        load_auth_context(repo_root=tmp_path)
+
+
+def test_load_auth_context_raises_when_file_has_empty_url(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """D-5 file branch: empty-string saas_url in file → fail closed (strip normalises it)."""
+    monkeypatch.delenv("SPEC_KITTY_SAAS_TOKEN", raising=False)
+    monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
+    auth_dir = tmp_path / ".kittify"
+    auth_dir.mkdir()
+    (auth_dir / "saas-auth.json").write_text(
+        json.dumps({"token": "file-token", "saas_url": ""})
+    )
+    with pytest.raises(SaasAuthError, match="SaaS URL not configured"):
+        load_auth_context(repo_root=tmp_path)
+
+
 def test_load_auth_context_from_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
