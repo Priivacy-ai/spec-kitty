@@ -3,7 +3,8 @@
 Reads ``SPEC_KITTY_SAAS_URL``, ``SPEC_KITTY_SAAS_TOKEN``, and optional
 ``SPEC_KITTY_TEAM_SLUG`` from the
 environment, falling back to ``.kittify/saas-auth.json`` when env vars are
-absent.  Raises ``SaasAuthError`` if no token can be resolved.
+absent.  Raises ``SaasAuthError`` if no token — or no SaaS URL — can be
+resolved. Per decision D-5 there is no hardcoded SaaS domain fallback.
 """
 
 from __future__ import annotations
@@ -14,8 +15,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from specify_cli.saas_client.errors import SaasAuthError
-
-_DEFAULT_SAAS_URL = "https://api.spec-kitty.io"
 
 
 @dataclass(frozen=True)
@@ -33,7 +32,8 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
     Resolution order:
     1. ``SPEC_KITTY_SAAS_TOKEN`` / ``SPEC_KITTY_SAAS_URL`` env vars.
     2. ``.kittify/saas-auth.json`` relative to *repo_root* (if provided).
-    3. Raises ``SaasAuthError`` if no token is found.
+    3. Raises ``SaasAuthError`` if no token is found, or if no SaaS URL is
+       supplied by either source (D-5: no hardcoded domain fallback).
 
     Args:
         repo_root: Optional path to the repository root.  Used to locate
@@ -67,7 +67,15 @@ def load_auth_context(repo_root: Path | None = None) -> AuthContext:
             "SPEC_KITTY_SAAS_TOKEN not set and .kittify/saas-auth.json not found"
         )
 
+    # D-5: there is NO hardcoded SaaS domain (see auth/config.get_saas_base_url,
+    # which raises when SPEC_KITTY_SAAS_URL is unset). The URL must come from the
+    # environment or the auth file; falling back to a baked-in domain silently
+    # points the client at the wrong server (#2248 / #2146 canonical target
+    # authority). Fail closed instead.
     if not url:
-        url = _DEFAULT_SAAS_URL
+        raise SaasAuthError(
+            "SaaS URL not configured: set SPEC_KITTY_SAAS_URL or provide "
+            '"saas_url" in .kittify/saas-auth.json (D-5: no hardcoded SaaS domain).'
+        )
 
     return AuthContext(saas_url=url, token=token, team_slug=team_slug)

@@ -114,11 +114,13 @@ def test_load_auth_context_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
     assert ctx.team_slug == "my-team"
 
 
-def test_load_auth_context_default_url(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_load_auth_context_raises_when_no_url(monkeypatch: pytest.MonkeyPatch) -> None:
+    """D-5: with a token but no SaaS URL from env or file, fail closed — no
+    hardcoded ``api.spec-kitty.io`` fallback (#2248 / #2146)."""
     monkeypatch.setenv("SPEC_KITTY_SAAS_TOKEN", "test-token")
     monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)
-    ctx = load_auth_context()
-    assert ctx.saas_url == "https://api.spec-kitty.io"
+    with pytest.raises(SaasAuthError, match="SaaS URL not configured"):
+        load_auth_context()
 
 
 def test_load_auth_context_from_file(

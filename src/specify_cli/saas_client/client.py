@@ -57,7 +57,8 @@ class SaasClient:
     """Thin HTTP client for spec-kitty SaaS endpoints.
 
     Args:
-        base_url: Root URL of the SaaS API, e.g. ``https://api.spec-kitty.io``.
+        base_url: Root URL of the SaaS API (from ``SPEC_KITTY_SAAS_URL`` /
+            auth context; D-5 — no hardcoded domain).
         token: Bearer token for authentication.
         timeout: Default request timeout in seconds.  Individual methods may
             override this for their specific use-case.
