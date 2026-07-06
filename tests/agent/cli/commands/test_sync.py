@@ -352,8 +352,8 @@ class TestSyncServerCommand:
 
         mock_config.set_server_url.assert_called_once_with("https://spec-kitty-dev.fly.dev")
 
-    def test_set_server_url_rejects_non_https(self):
-        """Non-HTTPS URL is rejected."""
+    def test_set_server_url_rejects_non_loopback_remote_http(self):
+        """Remote HTTP (non-loopback) is rejected; HTTPS is required for remote targets."""
         mock_config = MagicMock()
         with patch("specify_cli.sync.config.SyncConfig", return_value=mock_config), pytest.raises(typer.Exit) as exc:
             sync_server(url="http://spec-kitty-dev.fly.dev")
@@ -365,6 +365,7 @@ class TestSyncServerCommand:
         "url",
         [
             "http://localhost:8000",
+            "http://localhost",
             "http://127.0.0.1:8000",
             "http://[::1]:8000",
         ],
@@ -382,6 +383,15 @@ class TestSyncServerCommand:
         mock_config = MagicMock()
         with patch("specify_cli.sync.config.SyncConfig", return_value=mock_config), pytest.raises(typer.Exit) as exc:
             sync_server(url="http://example.com")
+        assert exc.value.exit_code == 1
+        mock_config.set_server_url.assert_not_called()
+
+    @pytest.mark.unit
+    def test_set_server_url_rejects_zero_addr_http(self):
+        """http://0.0.0.0 is rejected — not in the explicit loopback set."""
+        mock_config = MagicMock()
+        with patch("specify_cli.sync.config.SyncConfig", return_value=mock_config), pytest.raises(typer.Exit) as exc:
+            sync_server(url="http://0.0.0.0:8000")
         assert exc.value.exit_code == 1
         mock_config.set_server_url.assert_not_called()
 
