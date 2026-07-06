@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from rich.console import Console
@@ -34,6 +35,10 @@ def test_status_reads_dashboard_daemon_state_without_booting_local_runtime(monke
 
         def get_server_url(self) -> str:
             return "https://spec-kitty-dev.fly.dev"
+
+        def resolve_runtime_target(self, **_kwargs: object) -> SimpleNamespace:
+            # The status command now reads the resolved runtime target (#2146).
+            return SimpleNamespace(resolved_server_url="https://spec-kitty-dev.fly.dev")
 
     def fail_if_called(*_args, **_kwargs):
         raise AssertionError("status() should not start local background sync services")

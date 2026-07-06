@@ -64,6 +64,11 @@ def mock_credential_store() -> MagicMock:
 def mock_sync_config() -> MagicMock:
     config = MagicMock()
     config.get_server_url.return_value = "https://saas.example.com"
+    # The client now resolves its base URL via the canonical target authority
+    # (#2146), not the raw get_server_url accessor.
+    config.resolve_runtime_target.return_value.resolved_server_url = (
+        "https://saas.example.com"
+    )
     return config
 
 

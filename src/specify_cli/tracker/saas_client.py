@@ -197,7 +197,11 @@ class SaaSTrackerClient:
         timeout: float = 30.0,
     ) -> None:
         self._sync_config = sync_config or SyncConfig()
-        self._base_url: str = self._sync_config.get_server_url()
+        # Canonical runtime target authority (#2146): resolve the URL we will
+        # actually hit — folding in SPEC_KITTY_SAAS_URL precedence — instead of
+        # the raw config.toml accessor, which returns the hardcoded default and
+        # would silently ignore an env override.
+        self._base_url: str = self._sync_config.resolve_runtime_target().resolved_server_url
         self._timeout = timeout
 
     _STATUS_PATH = "/api/v1/tracker/status/"

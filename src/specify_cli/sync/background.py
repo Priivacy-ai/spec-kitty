@@ -395,7 +395,7 @@ class BackgroundSyncService:
                 result = sync_all_queued_events(
                     queue=self.queue,
                     auth_token=access_token,
-                    server_url=self.config.get_server_url(),
+                    server_url=self.config.resolve_runtime_target().resolved_server_url,
                     batch_size=1000,
                     show_progress=show_progress,
                 )
@@ -455,7 +455,7 @@ class BackgroundSyncService:
             result = batch_sync(
                 queue=self.queue,
                 auth_token=access_token,
-                server_url=self.config.get_server_url(),
+                server_url=self.config.resolve_runtime_target().resolved_server_url,
                 limit=1000,
                 show_progress=False,
             )
@@ -541,7 +541,7 @@ class BackgroundSyncService:
         if not tasks:
             return
 
-        server_url = self.config.get_server_url()
+        server_url = self.config.resolve_runtime_target().resolved_server_url
         for task in tasks:
             outcome = push_content(task, access_token, server_url)
             self._handle_body_outcome(task, outcome)

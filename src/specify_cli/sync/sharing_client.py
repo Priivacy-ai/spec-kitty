@@ -33,7 +33,10 @@ class RepositorySharingClientError(RuntimeError):
 
 
 def _base_url() -> str:
-    return SyncConfig().get_server_url().rstrip("/")
+    # Canonical runtime target authority (#2146): resolve the target we will
+    # actually hit (SPEC_KITTY_SAAS_URL precedence folded in), not the raw
+    # config.toml accessor. resolved_server_url is already normalized.
+    return SyncConfig().resolve_runtime_target().resolved_server_url
 
 
 def _error_from_response(response: httpx.Response) -> RepositorySharingClientError:

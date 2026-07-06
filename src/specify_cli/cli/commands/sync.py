@@ -2536,7 +2536,9 @@ def status(  # noqa: C901
 
     # Load configuration
     config = SyncConfig()
-    server_url = config.get_server_url()
+    # Show the resolved runtime target (SPEC_KITTY_SAAS_URL precedence folded
+    # in) — the URL sync actually hits — not the raw config.toml value (#2146).
+    server_url = config.resolve_runtime_target().resolved_server_url
     saas_enabled = is_saas_sync_enabled()
     queue = OfflineQueue()
     tm = get_token_manager()
@@ -3160,7 +3162,9 @@ def doctor() -> None:  # noqa: C901
 
     # --- 2. Auth status ---
     config = SyncConfig()
-    server_url = config.get_server_url()
+    # Resolved runtime target (env precedence folded in), not the raw
+    # config.toml value, so the diagnostics row matches what sync hits (#2146).
+    server_url = config.resolve_runtime_target().resolved_server_url
     table.add_row("Server URL", server_url)
 
     tm = get_token_manager()

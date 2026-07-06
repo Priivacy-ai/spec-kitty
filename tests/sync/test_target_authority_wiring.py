@@ -15,10 +15,15 @@ no real port: the resolver and every probe here are pure/in-process.
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import MagicMock
 
 import pytest
 
 from specify_cli.saas import readiness
+from specify_cli.sync import sharing_client
+from specify_cli.sync.background import BackgroundSyncService
+from specify_cli.sync.batch import BatchSyncResult
+from specify_cli.sync.config import SyncConfig
 from specify_cli.sync.owner import compute_foreground_identity
 from specify_cli.sync.preflight import collect_foreground_identity
 from specify_cli.sync.queue import write_active_scope
@@ -26,6 +31,7 @@ from specify_cli.sync.target_authority import (
     QueueScopeStatus,
     resolve_sync_target,
 )
+from specify_cli.tracker.saas_client import SaaSTrackerClient
 
 pytestmark = [pytest.mark.fast]
 
@@ -257,3 +263,80 @@ def test_single_resolved_url_across_surfaces(wiring_root: Path) -> None:
     assert readiness_url == CONFIG_URL
     assert owner_url == CONFIG_URL
     assert preflight_url == CONFIG_URL
+
+
+# ---------------------------------------------------------------------------
+# #2146 — remaining runtime clients (tracker, sharing, background sync) key off
+# the one resolved target, not the raw config.toml accessor. Robert's #2246
+# review named these three as still reading ``get_server_url()`` (hardcoded
+# default), so they could post to the config target while auth/readiness point
+# at the env override. These prove they now resolve the same URL (SC-008).
+# ---------------------------------------------------------------------------
+
+
+def test_tracker_client_base_url_follows_resolved_target(wiring_root: Path) -> None:
+    """The tracker SaaS client hits the resolved (env-override) target, not config."""
+    _write_config(wiring_root, CONFIG_URL)
+    import os
+
+    os.environ["SPEC_KITTY_SAAS_URL"] = ENV_URL
+
+    client = SaaSTrackerClient()
+    resolved = resolve_sync_target().resolved_server_url
+
+    assert client._base_url == ENV_URL
+    assert client._base_url == resolved  # same single target as auth/readiness
+
+
+def test_sharing_client_base_url_follows_resolved_target(wiring_root: Path) -> None:
+    """The repository-sharing client resolves the env-override target, not config."""
+    _write_config(wiring_root, CONFIG_URL)
+    import os
+
+    os.environ["SPEC_KITTY_SAAS_URL"] = ENV_URL
+
+    assert sharing_client._base_url() == ENV_URL
+    assert sharing_client._base_url() == resolve_sync_target().resolved_server_url
+
+
+def test_background_full_sync_posts_to_resolved_target(
+    wiring_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The background daemon posts queued events to the resolved (env) target.
+
+    Captures the ``server_url`` the daemon actually hands to the batch poster —
+    observable state, not call order (NFR-001) — under a whole-process override.
+    """
+    _write_config(wiring_root, CONFIG_URL)
+    import os
+
+    os.environ["SPEC_KITTY_SAAS_URL"] = ENV_URL
+
+    captured: dict[str, str] = {}
+
+    def _fake_sync_all(
+        *,
+        queue: object,
+        auth_token: str,
+        server_url: str,
+        batch_size: int,
+        show_progress: bool,
+    ) -> BatchSyncResult:
+        captured["server_url"] = server_url
+        return BatchSyncResult()
+
+    monkeypatch.setattr(
+        "specify_cli.sync.background.is_saas_sync_enabled", lambda: True
+    )
+    monkeypatch.setattr(
+        "specify_cli.sync.background._fetch_access_token_sync", lambda: "tok"
+    )
+    monkeypatch.setattr(
+        "specify_cli.sync.background.sync_all_queued_events", _fake_sync_all
+    )
+
+    service = BackgroundSyncService(queue=MagicMock(), config=SyncConfig())
+    service._perform_full_sync()
+
+    assert captured["server_url"] == ENV_URL
+    assert captured["server_url"] == resolve_sync_target().resolved_server_url
