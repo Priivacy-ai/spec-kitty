@@ -274,12 +274,12 @@ def test_single_resolved_url_across_surfaces(wiring_root: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_tracker_client_base_url_follows_resolved_target(wiring_root: Path) -> None:
+def test_tracker_client_base_url_follows_resolved_target(
+    wiring_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The tracker SaaS client hits the resolved (env-override) target, not config."""
     _write_config(wiring_root, CONFIG_URL)
-    import os
-
-    os.environ["SPEC_KITTY_SAAS_URL"] = ENV_URL
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", ENV_URL)
 
     client = SaaSTrackerClient()
     resolved = resolve_sync_target().resolved_server_url
@@ -288,12 +288,12 @@ def test_tracker_client_base_url_follows_resolved_target(wiring_root: Path) -> N
     assert client._base_url == resolved  # same single target as auth/readiness
 
 
-def test_sharing_client_base_url_follows_resolved_target(wiring_root: Path) -> None:
+def test_sharing_client_base_url_follows_resolved_target(
+    wiring_root: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """The repository-sharing client resolves the env-override target, not config."""
     _write_config(wiring_root, CONFIG_URL)
-    import os
-
-    os.environ["SPEC_KITTY_SAAS_URL"] = ENV_URL
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", ENV_URL)
 
     assert sharing_client._base_url() == ENV_URL
     assert sharing_client._base_url() == resolve_sync_target().resolved_server_url
@@ -308,9 +308,7 @@ def test_background_full_sync_posts_to_resolved_target(
     observable state, not call order (NFR-001) — under a whole-process override.
     """
     _write_config(wiring_root, CONFIG_URL)
-    import os
-
-    os.environ["SPEC_KITTY_SAAS_URL"] = ENV_URL
+    monkeypatch.setenv("SPEC_KITTY_SAAS_URL", ENV_URL)
 
     captured: dict[str, str] = {}
 
@@ -338,5 +336,6 @@ def test_background_full_sync_posts_to_resolved_target(
     service = BackgroundSyncService(queue=MagicMock(), config=SyncConfig())
     service._perform_full_sync()
 
+    assert "server_url" in captured, "_fake_sync_all was not called — _perform_full_sync did not reach the batch poster"
     assert captured["server_url"] == ENV_URL
     assert captured["server_url"] == resolve_sync_target().resolved_server_url
