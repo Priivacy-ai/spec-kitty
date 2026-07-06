@@ -12,7 +12,11 @@ during PR review.
 
 from __future__ import annotations
 
+import pytest
+
 from specify_cli.core.version_compare import is_version_newer, try_parse_version
+
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 
 class TestIsVersionNewer:
