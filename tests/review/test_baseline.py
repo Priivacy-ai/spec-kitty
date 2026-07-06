@@ -786,24 +786,6 @@ class TestCoverageEdgeCases:
         feature_dir = repo / "kitty-specs" / "066-test"
         (feature_dir / "tasks" / "WP04-test").mkdir(parents=True)
 
-        def fake_run(cmd, **kwargs):
-            result = MagicMock()
-            result.returncode = 0
-            result.stdout = "abc1234\n"
-            result.stderr = ""
-            cmd_text = " ".join(cmd) if isinstance(cmd, list) else cmd
-            if isinstance(cmd_text, str) and "{output_file}" not in cmd_text:
-                # Write empty JUnit XML for the test run
-                import re
-                m = re.search(r"--output=(\S+)", cmd_text)
-                if m:
-                    Path(m.group(1)).write_text(
-                        '<?xml version="1.0"?><testsuites><testsuite tests="1">'
-                        '<testcase classname="a" name="b"/></testsuite></testsuites>',
-                        encoding="utf-8",
-                    )
-            return result
-
         def fake_run_with_xml(cmd, **kwargs):
             result = MagicMock()
             result.returncode = 0
@@ -811,14 +793,15 @@ class TestCoverageEdgeCases:
             result.stderr = ""
             cmd_text = " ".join(cmd) if isinstance(cmd, list) else cmd
             if isinstance(cmd_text, str) and "myrunner" in cmd_text:
-                import re
-                m = re.search(r"--output=(\S+)", cmd_text)
-                if m:
-                    Path(m.group(1)).write_text(
-                        '<?xml version="1.0"?><testsuites><testsuite tests="1">'
-                        '<testcase classname="a" name="b"/></testsuite></testsuites>',
-                        encoding="utf-8",
-                    )
+                # Write to the real resolved target (kwargs["env"]), never a
+                # literal parsed out of the (possibly shell-quoted) command
+                # string — mirrors the safe sibling fakes at ~253/294/338.
+                output_file = kwargs["env"]["SPEC_KITTY_CMD_OUTPUT_FILE"]
+                Path(output_file).write_text(
+                    '<?xml version="1.0"?><testsuites><testsuite tests="1">'
+                    '<testcase classname="a" name="b"/></testsuite></testsuites>',
+                    encoding="utf-8",
+                )
             return result
 
         with patch("subprocess.run", side_effect=fake_run_with_xml):
@@ -833,5 +816,8 @@ class TestCoverageEdgeCases:
             )
 
         assert result is not None
-        # May be sentinel if XML not written, that's OK for this test
         assert result.wp_id == "WP04"
+        # The fake now writes the JUnit XML to the resolved output path, so the
+        # result is fully parsed (never a sentinel) — pin the documented
+        # custom-runner label (baseline.py: "custom" when the command has no "pytest").
+        assert result.test_runner == "custom"
