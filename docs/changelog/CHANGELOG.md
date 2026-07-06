@@ -49,6 +49,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
+- **A retired skill's projected files are now drained by surface repair instead
+  of orphaned forever (#2409).** When a skill was retired from the registry,
+  `spec-kitty upgrade --project` could not reconcile its leftover projections:
+  the repair path warned `Cannot repair … skill not found in registry` on every
+  subsequent upgrade and left the files in place (committed, where the repo
+  tracks skill surfaces; a dangling symlink, where the global root had dropped
+  the skill). Repair now reconciles retirements **manifest-driven**: entries in
+  `.kittify/skills-manifest.json` whose skill no longer exists in a *live*
+  registry have their projected files removed — symlinks unlinked, hash-clean
+  copies deleted, user-**modified** copies archived to
+  `.kittify/.migration-backup/agent-skills/` instead of deleted — emptied skill
+  dirs pruned, and the manifest entries dropped, silencing the repeat warning.
+  Only ledger-recorded paths are ever touched (a user-authored skill sharing
+  the projection root is never scanned), and an **empty** registry never
+  retires anything (a broken canonical source must not mass-drain the
+  manifest).
 - **Test-session state leaks closed: per-mission prompt-tmp namespace +
   workspace-context tombstone (#1842, #2032).** Runtime prompt files are now
   written under a per-repo/per-mission namespaced temp directory

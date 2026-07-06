@@ -82,6 +82,129 @@ def verify_installed_skills(project_path: Path) -> VerifyResult:
     return VerifyResult(ok=ok, missing=missing, drifted=drifted, errors=errors)
 
 
+def _retire_unregistered_skills(
+    project_path: Path,
+    manifest: ManagedSkillManifest,
+    registry: SkillRegistry,
+) -> tuple[int, set[str]]:
+    """Drain manifest entries whose skill no longer exists in the registry (#2409).
+
+    A skill retired from the registry/packs used to leave its projected files
+    orphaned forever: repair could not reconcile an entry with no canonical
+    source, warned ``skill not found in registry`` on every upgrade, and the
+    files stayed on disk (committed, where the repo tracks skill surfaces).
+
+    Manifest-driven by design: only paths the install ledger records as
+    projected by spec-kitty are touched — a user-authored skill sharing the
+    projection root is never scanned or removed. Per file:
+
+    * symlinks (delivery_mode ``symlink`` — broken or not, they point at the
+      machine-local global root) are unlinked;
+    * a regular file whose content still matches the recorded install hash is
+      removed;
+    * a user-MODIFIED file is archived to the installer's backup root
+      (``.kittify/.migration-backup/agent-skills/<ts>/``) instead of deleted.
+
+    Emptied skill directories are pruned. Returns
+    ``(retired_file_count, retired_skill_names)``.
+    """
+    # Safety valve: an EMPTY registry means the canonical source is missing or
+    # broken, not that every skill was retired — never mass-drain the manifest
+    # (and delete projected files) on that signal. Retirement requires a live
+    # registry that positively lacks the specific skill.
+    if not registry.discover_skills():
+        return 0, set()
+
+    retired_entries = [
+        entry
+        for entry in manifest.entries
+        if registry.get_skill(entry.skill_name) is None
+    ]
+    if not retired_entries:
+        return 0, set()
+
+    backup_root: Path | None = None
+    retired = 0
+    retired_names: set[str] = set()
+    kept: list[ManagedFileEntry] = []
+
+    for entry in manifest.entries:
+        if registry.get_skill(entry.skill_name) is not None:
+            kept.append(entry)
+            continue
+
+        dest = _project_managed_path(project_path, entry.installed_path)
+        if not dest.is_relative_to(project_path.resolve()):
+            logger.warning("Unsafe path %s: escapes project root", entry.installed_path)
+            kept.append(entry)
+            continue
+
+        try:
+            backup_root = _dispose_retired_file(
+                dest, entry, project_path, backup_root
+            )
+        except OSError as exc:
+            logger.warning(
+                "Could not remove retired skill file %s: %s", entry.installed_path, exc
+            )
+            kept.append(entry)
+            continue
+
+        _prune_empty_skill_dirs(dest, project_path)
+        retired += 1
+        retired_names.add(entry.skill_name)
+        logger.info(
+            "Retired skill %r: reconciled %s", entry.skill_name, entry.installed_path
+        )
+
+    manifest.entries = kept
+    return retired, retired_names
+
+
+def _dispose_retired_file(
+    dest: Path,
+    entry: ManagedFileEntry,
+    project_path: Path,
+    backup_root: Path | None,
+) -> Path | None:
+    """Remove one retired projected file, archiving user-modified content."""
+    from specify_cli.skills.installer import _archive_existing_path
+
+    if dest.is_symlink():
+        # Projection symlink into the (machine-local) global root — broken by
+        # the retirement or not, there is nothing user-authored to preserve.
+        dest.unlink(missing_ok=True)
+        return backup_root
+    if not dest.is_file():
+        return backup_root  # already gone (or a dir we do not own) — just drop the entry
+    if compute_content_hash(dest) == entry.content_hash:
+        dest.unlink()
+        return backup_root
+    # User-modified copy: archive instead of delete.
+    archived_root: Path = _archive_existing_path(dest, project_path, backup_root)
+    return archived_root
+
+
+def _prune_empty_skill_dirs(dest: Path, project_path: Path) -> None:
+    """Remove now-empty skill directories left by a retirement (max 2 levels)."""
+    current = dest.parent
+    for _ in range(2):
+        if current == project_path or not current.is_dir():
+            return
+        try:
+            next(current.iterdir())
+            return  # not empty
+        except StopIteration:
+            pass
+        except OSError:
+            return
+        try:
+            current.rmdir()
+        except OSError:
+            return
+        current = current.parent
+
+
 def repair_skills(
     project_path: Path,
     verify_result: VerifyResult,
@@ -89,19 +212,31 @@ def repair_skills(
 ) -> tuple[int, int]:
     """Repair missing and drifted skill files from the canonical registry.
 
-    Returns ``(repaired_count, failed_count)``.
+    Entries whose skill has been *retired* from the registry are reconciled by
+    removal (see ``_retire_unregistered_skills``) rather than warned about —
+    a retired skill is not repairable by construction (#2409).
+
+    Returns ``(repaired_count, failed_count)``; retirements count as repairs.
     """
     manifest = load_manifest(project_path)
     if manifest is None:
         manifest = ManagedSkillManifest()
 
-    repaired = 0
+    retired, retired_names = _retire_unregistered_skills(
+        project_path, manifest, registry
+    )
+    repaired = retired
     failed = 0
 
     entries_to_repair: list[ManagedFileEntry] = list(verify_result.missing)
     entries_to_repair.extend(entry for entry, _hash in verify_result.drifted)
 
     for entry in entries_to_repair:
+        if entry.skill_name in retired_names:
+            # Already reconciled as a retirement above — nothing to repair,
+            # and nothing to warn about (#2409).
+            continue
+
         # Guard against path traversal in installed_path
         dest = _project_managed_path(project_path, entry.installed_path)
         if not dest.is_relative_to(project_path.resolve()):
