@@ -87,6 +87,29 @@ def test_gitignore_manager_protects_encoding_provenance(tmp_path: Path) -> None:
     assert _is_ignored(tmp_path, ".kittify/encoding-provenance/global.jsonl")
 
 
+def test_contract_runtime_entries_include_skill_projection_surfaces():
+    """#2412: the shared skill projection root and the per-machine install
+    ledger are runtime-ignored contract entries, so fresh init gitignores
+    both (machine-local absolute symlinks + per-machine manifest state)."""
+    from specify_cli.state.contract import get_runtime_gitignore_entries
+
+    entries = get_runtime_gitignore_entries()
+    assert ".agents/skills/" in entries
+    assert ".kittify/skills-manifest.json" in entries
+
+
+def test_gitignore_manager_protects_skill_projection(tmp_path: Path) -> None:
+    """Fresh init protection hides a projected skill symlink and the manifest."""
+    from specify_cli.gitignore_manager import GitignoreManager
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    result = GitignoreManager(tmp_path).protect_all_agents()
+
+    assert result.success
+    assert _is_ignored(tmp_path, ".agents/skills/spec-kitty.implement/SKILL.md")
+    assert _is_ignored(tmp_path, ".kittify/skills-manifest.json")
+
+
 def test_contract_runtime_entries_include_ops_index():
     """The Op-index performance cache is a runtime-ignored contract entry."""
     from specify_cli.state.contract import get_runtime_gitignore_entries

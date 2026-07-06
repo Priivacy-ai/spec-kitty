@@ -205,6 +205,7 @@ def test_runtime_gitignore_entries_exact():
     """Gitignore entries must contain all expected canonical patterns."""
     entries = get_runtime_gitignore_entries()
     expected = [
+        ".agents/skills/",
         ".kittify/.dashboard",
         ".kittify/charter/context-state.json",
         ".kittify/charter/directives.yaml",
@@ -220,6 +221,7 @@ def test_runtime_gitignore_entries_exact():
         ".kittify/migrations/",
         ".kittify/missions/__pycache__/",
         ".kittify/runtime/",
+        ".kittify/skills-manifest.json",
         ".kittify/sync-state.json",
         ".kittify/workspaces/",
         "kitty-ops/ops-index.jsonl",
