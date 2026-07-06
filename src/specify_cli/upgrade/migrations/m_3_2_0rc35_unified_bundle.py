@@ -89,9 +89,8 @@ class UnifiedBundleMigration(BaseMigration):
     description = (
         "Advance 3.x project to the unified charter bundle (v1.0.0): validate "
         "bundle against CharterBundleManifest; invoke the chokepoint to refresh "
-        "any missing or stale derivatives; emit a structured JSON report. "
-        "Idempotent. Does NOT scan worktrees, remove symlinks, or reconcile "
-        ".gitignore."
+        "missing/stale derivatives; emit a structured JSON report. Idempotent; "
+        "no worktree/symlink/.gitignore changes."
     )
     target_version = TARGET_VERSION
     runs_on_worktrees = False

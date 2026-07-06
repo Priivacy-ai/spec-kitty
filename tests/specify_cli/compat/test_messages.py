@@ -40,9 +40,10 @@ _LATEST = "2.0.14"
 _MIN = 3
 _MAX = 3
 
-# Path to the JSON contract schema
+# Path to the JSON contract schema. This file is 3-deep
+# (tests/specify_cli/compat/test_messages.py), so parents[3] is the repo root.
 _CONTRACT_PATH = (
-    Path(__file__).parent.parent.parent.parent.parent
+    Path(__file__).parents[3]
     / "kitty-specs"
     / "cli-upgrade-nag-lazy-project-migrations-01KQ6YDN"
     / "contracts"
@@ -276,20 +277,20 @@ class TestRenderHuman:
 
 
 class TestRenderJson:
-    def _get_contract(self) -> dict | None:
-        """Load the JSON schema contract if available."""
-        if not _CONTRACT_PATH.exists():
-            return None
-        try:
-            return json.loads(_CONTRACT_PATH.read_text())
-        except Exception:
-            return None
+    def _get_contract(self, contract_path: Path | None = None) -> dict:
+        """Load the JSON schema contract from *contract_path* (default: ``_CONTRACT_PATH``).
+
+        A missing/unreadable contract must fail hard — never silently
+        degrade to a skipped check (see #2339 / WP01). *contract_path* is a
+        pure, parameterized seam so the fail-hard behaviour is directly
+        testable (T006) without monkeypatching module globals.
+        """
+        path = contract_path if contract_path is not None else _CONTRACT_PATH
+        return json.loads(path.read_text())
 
     def _validate_against_schema(self, obj: dict) -> None:
-        """Validate *obj* against the JSON contract schema (if jsonschema is available)."""
+        """Validate *obj* against the JSON contract schema."""
         contract = self._get_contract()
-        if contract is None:
-            return
         try:
             import jsonschema  # type: ignore[import-untyped]
 
@@ -431,3 +432,118 @@ class TestRenderJson:
         obj = render_json(p)
         assert obj["upgrade_hint"]["command"] is None
         assert obj["upgrade_hint"]["note"] is not None
+
+    # -----------------------------------------------------------------
+    # WP01 (#2419) — revived contract-check must be non-vacuous and fail-hard
+    # -----------------------------------------------------------------
+
+    def test_validate_against_schema_rejects_overlong_migration_description(self) -> None:
+        """T005 Check B: a schema-violating payload must raise through the helper.
+
+        Check B's happy-path tests (above) pass identically whether
+        ``_validate_against_schema`` is live or dead — ``pending_migrations``
+        defaults to ``()`` so nothing is ever actually validated by them.
+        This reject-path witness is the only proof the helper is genuinely
+        wired up. Goes RED if the ``jsonschema.validate(...)`` call is
+        deleted, or re-guarded behind a ``contract is None`` short-circuit.
+        """
+        import jsonschema
+
+        step = MigrationStep(
+            migration_id="m_bad",
+            target_schema_version=3,
+            description="x" * 300,
+            files_modified=None,
+        )
+        p = _make_plan(
+            Decision.BLOCK_PROJECT_MIGRATION,
+            Fr023Case.PROJECT_MIGRATION_NEEDED,
+            pending_migrations=(step,),
+        )
+        obj = render_json(p)
+
+        with pytest.raises(jsonschema.ValidationError, match="too long|maxLength"):
+            self._validate_against_schema(obj)
+
+    def test_validate_against_schema_rejects_wrong_typed_field(self) -> None:
+        """T005 Check B (second mutation angle): wrong-typed field is rejected.
+
+        A second, independent violation shape (wrong type rather than
+        length) so the witness isn't over-fit to a single ``maxLength``
+        branch of the schema.
+        """
+        import jsonschema
+
+        p = _make_plan(Decision.ALLOW, Fr023Case.NONE)
+        obj = render_json(p)
+        obj["exit_code"] = "not-an-int"
+
+        with pytest.raises(jsonschema.ValidationError):
+            self._validate_against_schema(obj)
+
+    def test_contract_loads_from_a_simulated_non_worktrees_layout(self, tmp_path: Path) -> None:
+        """T005: the contract path is ``__file__``-anchored, not worktree-shaped.
+
+        Build a fake checkout mirroring this file's on-disk depth
+        (``tests/specify_cli/compat/<file>.py``, repo root at
+        ``parents[3]``) under a plain directory name with no ``.worktrees``
+        segment, and confirm the same parent-hop formula still resolves to
+        a loadable contract.
+        """
+        fake_repo_root = tmp_path / "plain-checkout"
+        fake_test_file = fake_repo_root / "tests" / "specify_cli" / "compat" / "test_stub.py"
+        fake_test_file.parent.mkdir(parents=True, exist_ok=True)
+        fake_test_file.write_text("# stub\n", encoding="utf-8")
+
+        fake_contract_dir = (
+            fake_repo_root
+            / "kitty-specs"
+            / "cli-upgrade-nag-lazy-project-migrations-01KQ6YDN"
+            / "contracts"
+        )
+        fake_contract_dir.mkdir(parents=True, exist_ok=True)
+        fake_contract_path = fake_contract_dir / "compat-planner.json"
+        fake_contract_path.write_text(_CONTRACT_PATH.read_text(), encoding="utf-8")
+
+        assert ".worktrees" not in str(fake_repo_root)
+
+        resolved_root = fake_test_file.parents[3]
+        resolved_contract_path = (
+            resolved_root
+            / "kitty-specs"
+            / "cli-upgrade-nag-lazy-project-migrations-01KQ6YDN"
+            / "contracts"
+            / "compat-planner.json"
+        )
+        assert resolved_root == fake_repo_root
+        assert resolved_contract_path == fake_contract_path
+
+        loaded = self._get_contract(resolved_contract_path)
+        assert loaded["title"] == "spec-kitty upgrade --json output"
+
+    def test_contract_path_missing_fails_hard(self, tmp_path: Path) -> None:
+        """T006: a nonexistent contract file must raise, never resolve to None.
+
+        Calls ``_get_contract`` — the same helper ``_validate_against_schema``
+        uses — against a nonexistent path and asserts it raises
+        ``FileNotFoundError`` rather than being swallowed into a silent
+        ``None`` fallback. Goes RED if a ``.exists()`` guard is reintroduced
+        inside ``_get_contract``.
+        """
+        missing_path = tmp_path / "does" / "not" / "exist" / "compat-planner.json"
+
+        with pytest.raises(FileNotFoundError):
+            self._get_contract(missing_path)
+
+    def test_contract_path_malformed_fails_hard(self, tmp_path: Path) -> None:
+        """T006: a malformed/non-JSON contract file must raise, never return None.
+
+        Calls ``_get_contract`` directly. Goes RED if a silent
+        ``except Exception: return None`` fallback is reintroduced inside
+        ``_get_contract``.
+        """
+        malformed_path = tmp_path / "compat-planner.json"
+        malformed_path.write_text("{not valid json", encoding="utf-8")
+
+        with pytest.raises(json.JSONDecodeError):
+            self._get_contract(malformed_path)

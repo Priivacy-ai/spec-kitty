@@ -21,7 +21,6 @@ BLOCK_CLI_UPGRADE (project_too_new_for_cli stays exit 5).
 
 from __future__ import annotations
 
-import contextlib
 import json
 import os
 import re
@@ -60,19 +59,32 @@ def _strip_ansi(text: str) -> str:
 
 _WORKTREE_ROOT = Path(__file__).parent.parent.parent.parent.parent  # repo root
 _CONTRACT_PATH = (
-    _WORKTREE_ROOT.parent.parent.parent  # spec-kitty main repo root
-    / "spec-kitty"
+    _WORKTREE_ROOT
     / "kitty-specs"
     / "cli-upgrade-nag-lazy-project-migrations-01KQ6YDN"
     / "contracts"
     / "compat-planner.json"
 )
 
-# Try to locate the contract; fall back gracefully if not found
-_CONTRACT: dict[str, Any] | None = None
-if _CONTRACT_PATH.exists():
-    with contextlib.suppress(Exception):
-        _CONTRACT = json.loads(_CONTRACT_PATH.read_text(encoding="utf-8"))
+
+def _load_contract(contract_path: Path) -> dict[str, Any]:
+    """Load and parse the JSON contract at *contract_path*.
+
+    Fails hard (raises ``FileNotFoundError`` / ``json.JSONDecodeError``) on a
+    missing or malformed contract — no silent ``None`` fallback. Extracted
+    to a pure, parameterized seam so the fail-hard behaviour is directly
+    testable (T006) without reimporting this module or monkeypatching
+    globals.
+    """
+    raw: Any = json.loads(contract_path.read_text(encoding="utf-8"))
+    if not isinstance(raw, dict):
+        raise TypeError(f"Contract at {contract_path} must be a JSON object, got {type(raw).__name__}")
+    return raw
+
+
+# Load the contract unconditionally — a missing/unreadable contract must
+# raise, never silently degrade to a skipped check (see #2339 / WP01).
+_CONTRACT: dict[str, Any] = _load_contract(_CONTRACT_PATH)
 
 # Required top-level keys from contracts/compat-planner.json
 _REQUIRED_TOP_LEVEL_KEYS = {
@@ -113,8 +125,7 @@ def _validate_json_contract(payload: dict[str, Any]) -> None:
     try:
         import jsonschema  # type: ignore[import]
 
-        if _CONTRACT is not None:
-            jsonschema.validate(instance=payload, schema=_CONTRACT)
+        jsonschema.validate(instance=payload, schema=_CONTRACT)
         return
     except ImportError:
         pass  # Fall through to hand-check
@@ -1047,3 +1058,157 @@ def test_failed_run_exits_1_for_both_modes() -> None:
                 _make_upgrade_result(dry_run=dry_run, success=False)
             )
         assert excinfo.value.exit_code == 1
+
+
+# ---------------------------------------------------------------------------
+# WP01 (#2419) — revived contract-check must be non-vacuous and fail-hard
+# ---------------------------------------------------------------------------
+
+
+def _minimal_valid_payload() -> dict[str, Any]:
+    """A minimal payload that satisfies compat-planner.json on its own."""
+    return {
+        "schema_version": 1,
+        "case": "none",
+        "decision": "ALLOW",
+        "exit_code": 0,
+        "cli": {
+            "installed_version": "2.0.14",
+            "latest_version": None,
+            "latest_source": "none",
+            "is_outdated": False,
+            "fetched_at": None,
+        },
+        "project": {
+            "state": "compatible",
+            "project_root": None,
+            "schema_version": 3,
+            "min_supported": 3,
+            "max_supported": 3,
+            "metadata_error": None,
+        },
+        "safety": "unsafe",
+        "install_method": "pipx",
+        "upgrade_hint": {
+            "install_method": "pipx",
+            "command": "pipx upgrade spec-kitty-cli",
+            "note": None,
+        },
+        "pending_migrations": [],
+        "rendered_human": "",
+    }
+
+
+def test_validate_json_contract_rejects_overlong_migration_description() -> None:
+    """T005 Check A: a schema-violating payload must raise through the helper.
+
+    ``pending_migrations[].description`` is capped at 256 chars by the
+    contract. A payload that violates this must raise
+    ``jsonschema.ValidationError`` *through* ``_validate_json_contract`` —
+    proof the helper is genuinely live, not vacuously green. This test goes
+    RED if the ``jsonschema.validate(...)`` call inside the helper is deleted
+    or re-guarded behind a ``_CONTRACT is not None`` check.
+    """
+    import jsonschema
+
+    payload = _minimal_valid_payload()
+    payload["case"] = "project_migration_needed"
+    payload["decision"] = "BLOCK_PROJECT_MIGRATION"
+    payload["exit_code"] = 4
+    payload["project"]["state"] = "stale"
+    payload["pending_migrations"] = [
+        {
+            "migration_id": "m_bad",
+            "target_schema_version": 3,
+            "description": "x" * 300,
+        }
+    ]
+
+    with pytest.raises(jsonschema.ValidationError, match="too long|maxLength"):
+        _validate_json_contract(payload)
+
+
+def test_validate_json_contract_rejects_wrong_typed_field() -> None:
+    """T005 Check A (second mutation angle): wrong-typed field is rejected.
+
+    A second, independent violation shape (wrong type rather than length) so
+    the witness isn't over-fit to a single ``maxLength`` branch of the
+    schema.
+    """
+    import jsonschema
+
+    payload = _minimal_valid_payload()
+    payload["exit_code"] = "not-an-int"
+
+    with pytest.raises(jsonschema.ValidationError):
+        _validate_json_contract(payload)
+
+
+def test_contract_loads_from_a_simulated_non_worktrees_layout(tmp_path: Path) -> None:
+    """T005: the contract path is ``__file__``-anchored, not worktree-shaped.
+
+    Build a fake checkout that mirrors this file's on-disk depth
+    (``tests/specify_cli/cli/commands/<file>.py``, repo root at
+    ``parents[4]``) but lives under a plain directory name with no
+    ``.worktrees`` segment anywhere in the path, and confirm the same
+    parent-hop formula still resolves to a loadable contract.
+    """
+    fake_repo_root = tmp_path / "plain-checkout"
+    fake_test_file = fake_repo_root / "tests" / "specify_cli" / "cli" / "commands" / "test_stub.py"
+    fake_test_file.parent.mkdir(parents=True, exist_ok=True)
+    fake_test_file.write_text("# stub\n", encoding="utf-8")
+
+    fake_contract_dir = (
+        fake_repo_root
+        / "kitty-specs"
+        / "cli-upgrade-nag-lazy-project-migrations-01KQ6YDN"
+        / "contracts"
+    )
+    fake_contract_dir.mkdir(parents=True, exist_ok=True)
+    fake_contract_path = fake_contract_dir / "compat-planner.json"
+    fake_contract_path.write_text(_CONTRACT_PATH.read_text(encoding="utf-8"), encoding="utf-8")
+
+    assert ".worktrees" not in str(fake_repo_root)
+
+    resolved_root = fake_test_file.parent.parent.parent.parent.parent
+    resolved_contract_path = (
+        resolved_root
+        / "kitty-specs"
+        / "cli-upgrade-nag-lazy-project-migrations-01KQ6YDN"
+        / "contracts"
+        / "compat-planner.json"
+    )
+    assert resolved_root == fake_repo_root
+    assert resolved_contract_path == fake_contract_path
+
+    loaded = _load_contract(resolved_contract_path)
+    assert loaded["title"] == "spec-kitty upgrade --json output"
+
+
+def test_contract_path_missing_fails_hard(tmp_path: Path) -> None:
+    """T006: a nonexistent contract file must raise, never resolve to None.
+
+    Calls ``_load_contract`` — the same function that builds module-level
+    ``_CONTRACT`` — against a nonexistent path and asserts it raises
+    ``FileNotFoundError`` rather than being swallowed into a silent ``None``
+    fallback. Goes RED if a ``.exists()`` guard + ``suppress`` fallback is
+    reintroduced inside ``_load_contract``.
+    """
+    missing_path = tmp_path / "does" / "not" / "exist" / "compat-planner.json"
+
+    with pytest.raises(FileNotFoundError):
+        _load_contract(missing_path)
+
+
+def test_contract_path_malformed_fails_hard(tmp_path: Path) -> None:
+    """T006: a malformed/non-JSON contract file must raise, never return None.
+
+    Calls ``_load_contract`` directly. Goes RED if a silent
+    ``except Exception: return None``-shaped fallback is reintroduced inside
+    ``_load_contract``.
+    """
+    malformed_path = tmp_path / "compat-planner.json"
+    malformed_path.write_text("{not valid json", encoding="utf-8")
+
+    with pytest.raises(json.JSONDecodeError):
+        _load_contract(malformed_path)
