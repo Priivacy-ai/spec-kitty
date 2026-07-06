@@ -1,0 +1,17 @@
+{
+  "baseline_merge_commit": "a0a3075b0df2f2b47c8d1e48048b1cf56e989de4",
+  "coordination_branch": "kitty/mission-census-freshness-loc-insensitive-01KWVD6Y",
+  "created_at": "2026-07-06T09:47:36.493236+00:00",
+  "flattened": false,
+  "friendly_name": "LOC-insensitive census freshness gate",
+  "mission_id": "01KWVD6Y5CC8ARAKD3JZAJEXBX",
+  "mission_number": 165,
+  "mission_slug": "census-freshness-loc-insensitive-01KWVD6Y",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The CI-topology census gate proves every hot source directory is routed to a named CI test group so a confined change is not forced to run the whole suite. Today the same gate also pins the exact line count of each of those directories, so any PR that adds or removes a few lines in one of them fails CI and forces a hand-regenerated, functionally-empty commit. This mission narrows the gate to what it must actually protect — which directories exist on the worklist and where they route — so routine feature work stops paying a manual maintenance tax, while the anti-tampering protections that stop a stale or hand-trimmed census from slipping through stay fully intact.",
+  "purpose_tldr": "Stop the CI-topology census gate from failing unrelated PRs over trivial line-count changes.",
+  "slug": "census-freshness-loc-insensitive-01KWVD6Y",
+  "target_branch": "fix/census-freshness-loc-insensitive",
+  "topology": "coord"
+}

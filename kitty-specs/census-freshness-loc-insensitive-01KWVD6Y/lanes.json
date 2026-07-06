@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "mission_slug": "census-freshness-loc-insensitive-01KWVD6Y",
+  "mission_id": "01KWVD6Y5CC8ARAKD3JZAJEXBX",
+  "mission_branch": "kitty/mission-census-freshness-loc-insensitive-01KWVD6Y",
+  "target_branch": "fix/census-freshness-loc-insensitive",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/architectural/_gate_coverage.py",
+        "tests/architectural/ci_topology_census.json",
+        "tests/architectural/test_ci_topology_worklist.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-07-06T10:24:21.982416+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
