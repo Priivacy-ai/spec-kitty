@@ -104,6 +104,7 @@ test = [
     "pytest-cov>=4.1.0",  # Required by CI coverage flags
     "pytest-timeout>=2.2.0",  # Required by mutmut pytest_add_cli_args --timeout flag
     "pytest-xdist>=3.8.0",  # Parallelize large CI shards with --dist loadfile
+    "pytest-playwright>=0.7.0",  # Headless browser e2e driver for tests/ui/ (issue #1008); Chromium installed via `playwright install chromium`, never committed
     "respx>=0.21.1",  # HTTPX mocking for auth transport tests (feature 080)
     "diff-cover>=10.0.0",  # Enforce changed-line coverage in CI
     "chardet>=3.0.4,<6",  # Pin chardet below 6.x to avoid requests compatibility warning

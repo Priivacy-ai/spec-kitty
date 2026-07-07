@@ -15,9 +15,10 @@ This module is the *enforcement substrate* for that gap. It does not re-tier or
 re-shard CI (that is the maintainer's migration, against this guardrail). It
 statically:
 
-1. Parses every ``pytest`` invocation across the four workflow files that run
+1. Parses every ``pytest`` invocation across the five workflow files that run
    the suite (``ci-quality`` / ``ci-windows`` / ``drift-detector`` /
-   ``release``), expanding the ``integration-tests-core-misc`` shard matrix.
+   ``release`` / ``ui-e2e``), expanding the ``integration-tests-core-misc``
+   shard matrix.
 2. Models each invocation as a :class:`Gate` = ``(paths, ignores, marker_expr)``.
 3. Evaluates every collected test against every gate, using pytest's own
    marker-expression evaluator, to count how many gates select it.
@@ -71,13 +72,20 @@ TestRecord = dict[str, Any]
 REPO_ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS_DIR = REPO_ROOT / ".github" / "workflows"
 
-# The four workflows that actually run the pytest suite (the others lint, build,
-# or sync and select no tests).
+# The five workflows that actually run the pytest suite (the others lint, build,
+# or sync and select no tests). ``ui-e2e.yml`` is the scoped Playwright
+# dashboard e2e gate (issue #1008): a standalone, drift-detector-shaped
+# workflow (own trigger, single job, no dorny filter, no quality-gate
+# aggregator) whose ``pytest tests/ui/`` invocation must be MODELED here so
+# ``discover_pytest_workflows`` (FR-008 fail-closed) stays equal to this
+# allowlist and the ``tests/ui/`` e2e carrier is a covered — not orphan —
+# surface (so the ``e2e`` marker keeps its ROUTED-BY-PATH home).
 WORKFLOW_FILES: tuple[str, ...] = (
     "ci-quality.yml",
     "ci-windows.yml",
     "drift-detector.yml",
     "release.yml",
+    "ui-e2e.yml",
 )
 
 BASELINE_PATH = Path(__file__).with_name("_gate_coverage_baseline.json")
@@ -265,7 +273,7 @@ def parse_workflow(path: Path) -> list[Gate]:
 
 
 def load_gates() -> list[Gate]:
-    """Parse all four suite-running workflows into the full gate list."""
+    """Parse all five suite-running workflows into the full gate list."""
     gates: list[Gate] = []
     for name in WORKFLOW_FILES:
         gates.extend(parse_workflow(WORKFLOWS_DIR / name))
@@ -852,7 +860,7 @@ _COMPOSITE_ROUTING: dict[str, _CompositeRoute] = {
 
 
 def load_workflow_models() -> dict[str, WorkflowModel]:
-    """Parse all four suite-running workflows into ``name -> WorkflowModel``."""
+    """Parse all five suite-running workflows into ``name -> WorkflowModel``."""
     return {
         name: load_workflow_model(WORKFLOWS_DIR / name) for name in WORKFLOW_FILES
     }
