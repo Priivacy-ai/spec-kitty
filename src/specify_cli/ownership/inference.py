@@ -155,7 +155,9 @@ def infer_authoritative_surface(owned_files: list[str]) -> str:
     """Derive the authoritative_surface from a list of owned_files patterns.
 
     Returns the longest common path prefix shared by all owned_files entries.
-    Trailing ``/**`` and ``/*`` wildcards are stripped before comparison.
+    A glob-bearing final path segment (whole-wildcard tokens like ``/**``/``/*``
+    *and* filename globs like ``*.py``, ``data_?.json`` or ``[abc].py``) is
+    reduced to its containing directory before comparison.
 
     Args:
         owned_files: List of glob patterns.
@@ -167,10 +169,20 @@ def infer_authoritative_surface(owned_files: list[str]) -> str:
         return ""
 
     def _strip_glob(pattern: str) -> str:
-        for suffix in ("/**", "/*", "**", "*"):
-            if pattern.endswith(suffix):
-                return pattern[: -len(suffix)]
-        return pattern
+        """Reduce a glob pattern to its containing directory prefix.
+
+        When the *last* path segment carries a glob metacharacter (``*``,
+        ``?`` or ``[``) — covering both whole-wildcard tokens (``**``, ``*``)
+        and filename globs (``*.py``, ``data_?.json``, ``[abc].py``) — drop
+        that segment and keep its directory. A plain literal path is returned
+        unchanged. In every case the result carries no trailing ``/``: the
+        single-entry branch re-appends one and the multi-entry branch splits
+        on ``/``, so a trailing slash would create a spurious empty segment.
+        """
+        head, _, tail = pattern.rpartition("/")
+        if any(ch in tail for ch in "*?["):
+            return head
+        return pattern.rstrip("/")
 
     stripped = [_strip_glob(p) for p in owned_files]
 
