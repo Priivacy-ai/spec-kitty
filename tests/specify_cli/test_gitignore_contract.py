@@ -38,11 +38,14 @@ def test_repo_gitignore_covers_local_runtime():
     missing = []
     for surface in local_runtime_project:
         pattern = surface.path_pattern
-        # Check if pattern or a parent directory pattern is in gitignore
+        # A gitignore line covers a pattern when it is an exact match or a
+        # true parent-directory prefix (directory boundary required).
+        # Bare startswith is intentionally avoided: ".agent" is a raw string
+        # prefix of ".agents/skills/..." but NOT a parent directory of it,
+        # so it must not satisfy coverage for that surface (#2423 follow-up).
         if not any(
-            pattern.startswith(line.rstrip("/"))
-            or line.rstrip("/").startswith(pattern.rstrip("/"))
-            or pattern in line
+            line.rstrip("/") == pattern.rstrip("/")
+            or pattern.rstrip("/").startswith(line.rstrip("/") + "/")
             for line in gitignore_lines
         ):
             missing.append(f"{surface.name}: {pattern}")
