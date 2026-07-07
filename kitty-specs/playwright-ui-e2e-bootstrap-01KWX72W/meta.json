@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "c11a190437e856f0b0ced114e966e0fd40d192d8",
+  "coordination_branch": "kitty/mission-playwright-ui-e2e-bootstrap-01KWX72W",
+  "created_at": "2026-07-07T02:39:01.203857+00:00",
+  "flattened": false,
+  "friendly_name": "Bootstrap Playwright for dashboard UI regression coverage",
+  "mission_id": "01KWX72WJKV1D02RNSZWG25AVC",
+  "mission_number": 167,
+  "mission_slug": "playwright-ui-e2e-bootstrap-01KWX72W",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Playwright is not installed today; a dashboard click-through bug (PR 970: WP modal drops the agent field) shipped green because no layer exercised the flow. M6 of epic 1931. One-time framework bootstrap + ONE regression-guard e2e test + CI job (headless, synthetic-mission temp root) + docs; comprehensive UI coverage + visual regression are out of scope. Closes 1008.",
+  "purpose_tldr": "Install pytest-playwright + one representative end-to-end test (kanban WP-card click -> modal asserts agent identity + prompt) + CI wiring, so the CLAUDE.md 'Playwright proof' rule points at a runnable test instead of an aspiration",
+  "slug": "playwright-ui-e2e-bootstrap-01KWX72W",
+  "target_branch": "feat/playwright-ui-e2e-bootstrap",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-07T04:06:50.416294+00:00"
+}
