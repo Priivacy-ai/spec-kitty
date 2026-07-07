@@ -125,7 +125,39 @@ code (`--mission` is not required for this flag). The `-m` expression is
 **read live** from the `unit-contract-residual` job in
 `.github/workflows/ci-quality.yml` at run time -- it is never hand-copied
 into the CLI, so a future change to the CI selector is picked up
-automatically on the next run with no risk of drift (NFR-002).
+automatically on the next run with no risk of drift (NFR-002). The
+`_test_env_check` marker parser is pinned to `_gate_coverage`'s parser by
+`test_env_check_marker_parser_agrees_with_gate_coverage_live`, so the two
+readers of that `-m` expression cannot silently diverge.
+
+> **Note:** `--check-residual` runs the selection **serially** (plain
+> `pytest -m ...`), not with CI's parallel `-n auto --dist loadfile`. It
+> selects exactly the same tests as CI but takes longer to finish locally.
+
+## Pre-review regression gate (`move-task --to for_review`)
+
+When a work package moves to `for_review`, Spec Kitty runs an auto-scoped
+regression gate: it derives the CI shards that cover the WP's changed files
+and re-runs them, so a WP that broke a shared contract pinned by a test
+*outside* its `owned_files` is caught at review time instead of only at merge
+(#572, #1979). By default the gate is **warn-only** -- it reports a new
+failure but the move still proceeds.
+
+Configuration (`.kittify/config.yaml`, under `review:`):
+
+- `review.fail_on_pre_review_regression` (bool, default `false`) -- opt in to
+  **block** the move when the gate finds a new failure. `move-task --force`
+  records an override and proceeds anyway.
+- `review.pre_review_test_command` -- override the command the gate runs;
+  otherwise it uses the auto-derived, census-scoped `pytest` selection.
+- The block can only be *enforced* when `review.test_command` is also set;
+  opting in to the block without it yields a loud warning (the gate cannot run
+  a command it does not have).
+
+Per-WP override: set `pre_review_test_scope` in a WP prompt's frontmatter to
+pin the exact test targets for that WP. Precedence: frontmatter
+`pre_review_test_scope` > config `review.pre_review_test_command` >
+auto-derived scope.
 
 ## PR draft and WIP-title conventions
 

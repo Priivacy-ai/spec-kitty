@@ -211,3 +211,33 @@ def test_faultinjection_miskeyed_job_name_does_not_vacuously_pass(
     jobs = _load_jobs(wf)
     assert not residual_job_is_always_on(jobs, _RESIDUAL_JOB)
     assert not residual_job_is_gate_member(jobs, _AGGREGATOR_JOB, _RESIDUAL_JOB)
+
+
+def test_env_check_marker_parser_agrees_with_gate_coverage_live() -> None:
+    """Drift guard: ``_test_env_check`` and ``_gate_coverage`` must agree on the
+    live ``unit-contract-residual`` ``-m`` marker expression.
+
+    Two independent parsers read the same CI job's selection:
+    ``read_ci_residual_marker_expr`` (the narrow single-line regex behind
+    ``spec-kitty review --check-residual``) and ``_gate_coverage.load_gates``
+    (the doctrine-blessed workflow parser). If either drifts, the local
+    residual selection silently diverges from what CI actually runs. Pin them
+    to one value so a ``run:`` reformat that only one parser survives fails
+    here instead of shipping a wrong local selection.
+    """
+    from specify_cli.cli.commands._test_env_check import (
+        CI_RESIDUAL_JOB_NAME,
+        read_ci_residual_marker_expr,
+    )
+
+    assert CI_RESIDUAL_JOB_NAME == _RESIDUAL_JOB  # both modules name the same job
+    env_check_expr = read_ci_residual_marker_expr(_CI_QUALITY)
+    gate_markers = {
+        gate.marker_expr
+        for gate in gc.load_gates()
+        if gate.job == _RESIDUAL_JOB and gate.marker_expr is not None
+    }
+    assert env_check_expr in gate_markers, (
+        f"{_RESIDUAL_JOB} marker-expr drift: _test_env_check parsed "
+        f"{env_check_expr!r}, but _gate_coverage sees {gate_markers!r}"
+    )
