@@ -13,6 +13,7 @@ from specify_cli.ownership.inference import (
     infer_ownership,
 )
 from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
+from specify_cli.ownership.validation import validate_authoritative_surface
 
 
 # ---------------------------------------------------------------------------
@@ -149,6 +150,80 @@ class TestInferAuthoritativeSurface:
     def test_planning_artifact_path(self) -> None:
         surface = infer_authoritative_surface(["kitty-specs/057-feature/**"])
         assert surface == "kitty-specs/057-feature/"
+
+    # --- #2446: single-entry filename globs must resolve to their directory ---
+
+    def test_single_entry_filename_glob_py(self) -> None:
+        """`src/foo/*.py` (trailing filename glob) → its directory `src/foo/`."""
+        assert infer_authoritative_surface(["src/foo/*.py"]) == "src/foo/"
+
+    def test_single_entry_filename_glob_ts(self) -> None:
+        assert infer_authoritative_surface(["src/foo/*.ts"]) == "src/foo/"
+
+    def test_single_entry_question_glob(self) -> None:
+        assert infer_authoritative_surface(["src/foo/data_?.json"]) == "src/foo/"
+
+    def test_single_entry_charclass_glob(self) -> None:
+        assert infer_authoritative_surface(["src/foo/[abc].py"]) == "src/foo/"
+
+    # --- #2446 regression guards: existing wildcard shapes unchanged ---
+
+    def test_double_star_still_strips_to_dir(self) -> None:
+        assert infer_authoritative_surface(["src/foo/**"]) == "src/foo/"
+
+    def test_single_star_still_strips_to_dir(self) -> None:
+        assert infer_authoritative_surface(["src/foo/*"]) == "src/foo/"
+
+    def test_plain_trailing_slash_dir_unchanged(self) -> None:
+        assert infer_authoritative_surface(["src/foo/"]) == "src/foo/"
+
+    # --- #2446: multi-entry filename globs sharing a dir collapse to that dir ---
+
+    def test_two_entry_same_dir_filename_globs(self) -> None:
+        surface = infer_authoritative_surface(["src/api/*.py", "src/api/*.ts"])
+        assert surface == "src/api/"
+
+    def test_two_entry_disjoint_top_level_returns_empty(self) -> None:
+        """Two entries with no shared top-level segment have no common prefix.
+
+        Empty is correct-by-design: collapsing two disjoint top-level trees
+        (e.g. ``src/`` and ``docs/``) into one authoritative surface would
+        over-broaden the WP's blast radius. Such WPs must declare an explicit
+        ``authoritative_surface`` or ``scope``. The #2446 filename-glob fix
+        neither does nor should change this.
+        """
+        assert infer_authoritative_surface(["src/foo/*.py", "docs/bar.md"]) == ""
+
+
+# ---------------------------------------------------------------------------
+# #2446: inferred surface must satisfy authoritative-surface validation
+# (finalize-tasks calls infer_authoritative_surface then
+#  validate_authoritative_surface — the inferred value must pass the gate.)
+# ---------------------------------------------------------------------------
+
+
+class TestInferredSurfacePassesValidation:
+    @pytest.mark.parametrize(
+        "owned",
+        [
+            ["src/foo/*.py"],
+            ["src/foo/*.ts"],
+            ["src/foo/data_?.json"],
+            ["src/foo/[abc].py"],
+            ["src/foo/**"],
+            ["src/foo/*"],
+            ["src/foo/"],
+            ["src/api/*.py", "src/api/*.ts"],
+        ],
+    )
+    def test_inferred_surface_validates(self, owned: list[str]) -> None:
+        surface = infer_authoritative_surface(owned)
+        manifest = OwnershipManifest(
+            execution_mode=ExecutionMode.CODE_CHANGE,
+            owned_files=tuple(owned),
+            authoritative_surface=surface,
+        )
+        assert validate_authoritative_surface(manifest) == []
 
 
 # ---------------------------------------------------------------------------
