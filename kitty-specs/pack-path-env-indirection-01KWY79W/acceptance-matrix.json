@@ -1,0 +1,129 @@
+{
+  "mission_slug": "pack-path-env-indirection-01KWY79W",
+  "mission_number": "167",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 136d44ec8 — `_expand_path_template` applied in `effective_root()` only; stored `local_path` unchanged on save round-trip",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07T12:00:00+00:00",
+      "notes": "Verified via WP01 implement+review."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 136d44ec8 — legacy `organisation_packs[].path` and canonical `doctrine.org.packs[].local_path` share `OrgPackConfig` expansion",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07T12:00:00+00:00",
+      "notes": "Verified via WP01 implement+review."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 136d44ec8 — `OrgPackEnvVarUnsetError` fail-closed; re-raised from `pack_context.py` (no broad swallow)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07T12:00:00+00:00",
+      "notes": "Verified via WP01 implement+review."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 136d44ec8 — tilde expansion composed before `is_absolute()` classification",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07T12:00:00+00:00",
+      "notes": "Verified via WP01 implement+review."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 136d44ec8 — literal absolute paths resolve unchanged (no regression)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07T12:00:00+00:00",
+      "notes": "Verified via WP01 implement+review."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 136d44ec8 — env-var expansion scoped to `local_path`; `subdir` validation unchanged",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07T12:00:00+00:00",
+      "notes": "Verified via WP01 implement+review."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Verify FR-007 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP01 136d44ec8 — symlink containment check fences post-expansion `local_path` root",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07T12:00:00+00:00",
+      "notes": "Verified via WP01 implement+review."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Verify FR-008 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 5df51d5cf — `infer_repo_languages` reads compiled charter languages as canonical runtime source",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07T12:00:00+00:00",
+      "notes": "Verified via WP02 implement+review."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Verify FR-009 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 5df51d5cf — `CompiledCharter.active_languages` persisted to `.kittify/charter/references.yaml` under `languages`",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07T12:00:00+00:00",
+      "notes": "Verified via WP02 implement+review."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Verify FR-010 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 5df51d5cf — interview fallback only when compiled language set absent (creation-time window)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07T12:00:00+00:00",
+      "notes": "Verified via WP02 implement+review."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Verify FR-011 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 5df51d5cf — single canonical seam in `language_scope.py`; callers unchanged",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07T12:00:00+00:00",
+      "notes": "Verified via WP02 implement+review."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Verify FR-012 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "WP02 5df51d5cf — `test_infer_repo_languages_prefers_interview_answers` inverted to assert charter-authoritative precedence",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07T12:00:00+00:00",
+      "notes": "Verified via WP02 implement+review."
+    }
+  ],
+  "negative_invariants": []
+}
