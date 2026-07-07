@@ -72,6 +72,7 @@ _ARCH_SHARD_1_FILES: tuple[str, ...] = (
     "tests/architectural/test_status_module_boundary.py",
     "tests/architectural/test_topology_inference_retired.py",
     "tests/architectural/test_topology_resolution_boundary.py",
+    "tests/architectural/test_unit_contract_residual_gate.py",
     "tests/architectural/test_unregistered_shim_scanner.py",
     "tests/architectural/test_uv_lock_pin_drift.py",
     "tests/architectural/test_workflow_coherence.py",

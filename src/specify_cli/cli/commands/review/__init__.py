@@ -455,12 +455,10 @@ __all__ = [
     "ResidualSelectorNotFound",
     "TestExtraMissing",
     "assert_pytest_available",
-    "assert_typer_click_lock_parity",
     "audit_auth_storage_ble001_line",
     "collect_auth_storage_ble001_findings",
     "format_env_skew_message",
     "resolve_mode",
     "review_mission",
-    "run_local_residual_selection",
     "validate_issue_matrix",
 ]
