@@ -22,6 +22,8 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.upgrade.migrations.base import BaseMigration, MigrationResult
+from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.runner import MigrationRunner
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -153,6 +155,9 @@ def test_synthesized_worktree_metadata_is_saved_when_version_matches_target(
         "synthesized worktree metadata must be saved to disk (#1873)"
     )
     assert _dirty(wt) == [], "the healed metadata must also be committed"
+    assert "spec-kitty upgrade" in _git_out(wt, "log", "-1", "--pretty=%s"), (
+        "synthesized metadata commit must land on the worktree branch (#1873)"
+    )
 
 
 def test_dry_run_writes_and_commits_nothing_in_worktrees(tmp_path: Path) -> None:
@@ -169,7 +174,17 @@ def test_dry_run_writes_and_commits_nothing_in_worktrees(tmp_path: Path) -> None
 
 def test_upgrade_invariant_every_touched_checkout_ends_clean(tmp_path: Path) -> None:
     """Slice C invariant (#2392): after `runner.upgrade(..., auto_commit=True)`,
-    no checkout the run touched has porcelain dirt beyond what pre-existed."""
+    no checkout the run touched has porcelain dirt beyond what pre-existed.
+
+    Note: the runner deliberately leaves the main checkout's commit to the CLI
+    (`commit_touched_checkout` in upgrade.py). The invariant here covers worktrees
+    only; main's remaining dirt is the upgrade churn the CLI will commit on return.
+
+    A stub migration with `runs_on_worktrees=True` is registered so that
+    `_upgrade_worktrees` is actually invoked on the `runner.upgrade()` path.
+    Without it, the no-migration branch skips `_upgrade_worktrees` when
+    `from_version != target_version`, making the test vacuous.
+    """
     root = tmp_path / "repo"
     _init_repo(root)
     wt = _add_worktree(root, "m-lane-e", "kitty/mission-m-lane-e")
@@ -178,14 +193,37 @@ def test_upgrade_invariant_every_touched_checkout_ends_clean(tmp_path: Path) -> 
     (wt / "kitty-specs").mkdir()
     (wt / "kitty-specs" / "wip.md").write_text("wip\n", encoding="utf-8")
 
-    result = MigrationRunner(root).upgrade("3.2.9", dry_run=False, auto_commit=True)
-    assert result.success, result.errors
+    # Register a stub migration so the migrations path is taken and
+    # _upgrade_worktrees is called. Clear first to prevent order-fragility.
+    MigrationRegistry.clear()
 
-    # The worktree's only remaining dirt is the pre-existing WIP file
-    # (reported by porcelain as its untracked directory).
-    assert [ln for ln in _dirty(wt) if "kitty-specs" not in ln] == []
-    # The runner does not commit the main checkout (that is the CLI's half of
-    # the seam) — but everything it wrote there is upgrade churn the CLI's
-    # commit_touched_checkout would pick up (.kittify/* and .gitignore).
-    main_dirt = _dirty(root)
-    assert all(".kittify/" in ln or ".gitignore" in ln for ln in main_dirt), main_dirt
+    @MigrationRegistry.register
+    class _InvariantStubMigration(BaseMigration):
+        migration_id = "test_invariant_stub_3_2_9"
+        description = "Invariant-test stub — never runs outside this test"
+        target_version = "3.2.9"
+
+        def detect(self, project_path: Path) -> bool:
+            return not (project_path / ".kittify" / ".invariant-stub").exists()
+
+        def can_apply(self, project_path: Path) -> tuple[bool, str]:
+            return True, ""
+
+        def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
+            if not dry_run:
+                (project_path / ".kittify").mkdir(exist_ok=True)
+                (project_path / ".kittify" / ".invariant-stub").write_text("1", encoding="utf-8")
+            return MigrationResult(success=True, changes_made=["wrote .kittify/.invariant-stub"])
+
+    try:
+        result = MigrationRunner(root).upgrade("3.2.9", dry_run=False, auto_commit=True)
+        assert result.success, result.errors
+
+        # Worktree: only the pre-existing WIP dir survives uncommitted.
+        assert [ln for ln in _dirty(wt) if "kitty-specs" not in ln] == []
+        # Main: runner leaves it for the CLI commit seam — remaining dirt must be
+        # upgrade churn only (.kittify/* writes), never pre-existing files.
+        main_dirt = _dirty(root)
+        assert all(".kittify/" in ln or ".gitignore" in ln for ln in main_dirt), main_dirt
+    finally:
+        MigrationRegistry.clear()
