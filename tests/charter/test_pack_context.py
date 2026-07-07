@@ -451,3 +451,36 @@ def test_charter_mission_steps_exports_repository_and_model() -> None:
 
     assert MissionStepRepository is not None
     assert MissionStep is not None
+
+
+# ---------------------------------------------------------------------------
+# Fail-closed: pack-config resolution errors propagate (must not disable org packs)
+# ---------------------------------------------------------------------------
+
+
+def test_from_config_unset_pack_env_var_propagates_fail_closed(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """An org pack ``local_path`` referencing an unset env var must fail closed.
+
+    ``_read_org_packs`` resolves ``effective_root`` inside its try so a
+    resolution-time ``OrgPackEnvVarUnsetError`` re-raises (never swallowed into
+    a silent empty registry that would drop the pack's governance).
+    """
+    from doctrine.drg.org_pack_config import OrgPackEnvVarUnsetError  # noqa: PLC0415
+
+    monkeypatch.delenv("SPEC_KITTY_PACK_HOME_FIXTURE_UNSET", raising=False)
+    content = """\
+vcs:
+  type: git
+doctrine:
+  org:
+    packs:
+      - name: acme-pack
+        local_path: ${SPEC_KITTY_PACK_HOME_FIXTURE_UNSET}/acme-pack
+"""
+    _write_config(tmp_path, content)
+
+    with pytest.raises(OrgPackEnvVarUnsetError):
+        PackContext.from_config(tmp_path)
