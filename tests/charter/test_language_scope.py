@@ -132,3 +132,37 @@ def test_infer_repo_languages_falls_back_when_no_compiled_charter_exists(tmp_pat
     charter_path.write_text("This repository uses Java, Maven, and JUnit.", encoding="utf-8")
 
     assert infer_repo_languages(tmp_path) == ["java"]
+
+
+def test_infer_repo_languages_falls_back_when_references_yaml_is_malformed(tmp_path: Path) -> None:
+    """A malformed/unparseable references.yaml must degrade to the pre-existing
+    fallback rather than hard-failing language resolution."""
+    references_path = tmp_path / ".kittify" / "charter" / "references.yaml"
+    references_path.parent.mkdir(parents=True, exist_ok=True)
+    # Unterminated flow sequence — raises ruamel YAMLError on load.
+    references_path.write_text("languages: [unterminated\n", encoding="utf-8")
+
+    (tmp_path / ".kittify" / "charter" / "charter.md").write_text(
+        "This repository uses Java, Maven, and JUnit.",
+        encoding="utf-8",
+    )
+
+    assert infer_repo_languages(tmp_path) == ["java"]
+
+
+def test_infer_repo_languages_falls_back_when_languages_field_is_not_a_list(tmp_path: Path) -> None:
+    """A ``languages`` field that is present but not a list is treated as absent
+    (fall back), never coerced — a malformed compiled field must not win."""
+    references_path = tmp_path / ".kittify" / "charter" / "references.yaml"
+    references_path.parent.mkdir(parents=True, exist_ok=True)
+    references_path.write_text(
+        "schema_version: '1.0.0'\nlanguages: python\n",
+        encoding="utf-8",
+    )
+
+    (tmp_path / ".kittify" / "charter" / "charter.md").write_text(
+        "This repository uses Java, Maven, and JUnit.",
+        encoding="utf-8",
+    )
+
+    assert infer_repo_languages(tmp_path) == ["java"]
