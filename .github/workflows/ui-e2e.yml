@@ -1,0 +1,88 @@
+# .github/workflows/ui-e2e.yml
+#
+# Playwright dashboard e2e gate — spec-kitty repo.
+# Mission playwright-ui-e2e-bootstrap-01KWX72W (closes #1008).
+#
+# Runs the ONE representative kanban->modal Playwright regression test in
+# tests/ui/ headless, with the Chromium browser installed and cached, so a
+# change that reintroduces the #970 class of bug (the dashboard's WP-card
+# click-through modal silently drops the agent identity) reds this check
+# instead of shipping green under 338+ passing backend/architectural tests
+# that never exercise the browser render (FR-002/FR-006 of the mission).
+#
+# Deliberately its OWN standalone workflow file — not a job appended to
+# ci-quality.yml — so it never joins that workflow's dorny/paths-filter +
+# quality-gate aggregator machinery (tests/architectural/_gate_coverage.py,
+# ci_topology_census.json), which is keyed to src/specify_cli/* worklist
+# dirs, not to tests/ui/ or the dashboard's rendered DOM. This mirrors
+# .github/workflows/drift-detector.yml: one scoped job, one test, its own
+# browser install — bounded CI cost (NFR-001), not a dependency bloating
+# every unrelated shard.
+#
+# Required-check contract (mirrors drift-detector.yml): the single job named
+# `ui-e2e` below is what branch protection should require. It runs on every
+# PR/push to the branches listed regardless; a repo admin must add "ui-e2e"
+# to the required-status-checks list for `main` under
+# Settings -> Branches -> main -> Require status checks to pass before
+# merging for a red result to actually block merge (same one-time admin
+# step this repo already relies on for drift-detector — see that file's
+# header and kitty-specs/identity-boundary-ci-gate-rerun-01KS51YK/contracts/
+# check-names.md for precedent).
+#
+# See docs/development/ui-e2e.md for how to boot the synthetic dashboard
+# fixture locally and add another e2e test to this suite.
+
+name: ui-e2e
+
+on:
+  pull_request:
+    branches: [main, develop, 2.x]
+  push:
+    branches: [main, develop, 2.x]
+
+concurrency:
+  group: ui-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ui-e2e:
+    name: ui-e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies (frozen)
+        run: uv sync --frozen --extra test
+
+      # Browser binaries are never committed (C-003); this cache just saves
+      # re-downloading the ~150MB Chromium binary on every run so the job
+      # stays bounded (NFR-001). Keyed on uv.lock so a playwright/pytest-
+      # playwright version bump busts the cache instead of silently reusing
+      # a stale browser.
+      - name: Cache Playwright Chromium
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ runner.os }}-${{ hashFiles('uv.lock') }}
+
+      # --with-deps installs the OS packages Chromium needs via apt
+      # (ubuntu-latest has passwordless sudo). On a cache hit this only
+      # re-verifies the OS deps — it does not re-download the browser.
+      - name: Install Playwright Chromium (cached, --with-deps)
+        run: uv run playwright install --with-deps chromium
+
+      # Headless (NFR-002): tests/conftest.py hardcodes PWHEADLESS=1 for
+      # every test process already; passing it explicitly here matches the
+      # documented local-run command byte-for-byte (docs/development/ui-e2e.md).
+      - name: Run the dashboard e2e regression guard (headless)
+        run: PWHEADLESS=1 uv run pytest tests/ui/ -q

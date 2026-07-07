@@ -1610,6 +1610,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/development/ui-e2e.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/doctrine/README.md
   tag: current
   divio_type: none
