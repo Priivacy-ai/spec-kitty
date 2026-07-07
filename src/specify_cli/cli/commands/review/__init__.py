@@ -26,8 +26,16 @@ import typer
 from rich.console import Console
 
 from specify_cli.cli.commands._test_env_check import (  # noqa: F401
+    ENV_SKEW_DIAGNOSTIC_CODE,
+    ENV_SKEW_REMEDIATION,
+    EnvSkew,
+    PackageSkew,
+    ResidualSelectorNotFound,
     TestExtraMissing,
     assert_pytest_available,
+    assert_typer_click_lock_parity,
+    format_env_skew_message,
+    run_local_residual_selection,
 )
 from specify_cli.compat._detect.install_method import InstallMethod  # noqa: F401
 from specify_cli.compat._detect.runtime import InstalledCliRuntime, detect_runtime
@@ -96,6 +104,62 @@ def _missing_test_extra_remediation() -> str:
     except ValueError:
         note: str | None = cmd.note
         return note if note is not None else "see spec-kitty docs"
+
+
+def _check_env_skew(console: object, repo_root: Path) -> list[PackageSkew]:
+    """Run the typer/click lock-parity preflight (FR-001).
+
+    Warn-loud by default: divergence from ``uv.lock`` is printed as a
+    warning and review proceeds. Fail-closed is opt-in via
+    ``SPEC_KITTY_ENV_SKEW_FAIL_CLOSED`` (see
+    ``assert_typer_click_lock_parity``), in which case this exits like the
+    missing-pytest preflight does.
+    """
+    import sys
+
+    try:
+        mismatches = assert_typer_click_lock_parity(repo_root)
+    except EnvSkew as exc:
+        # EnvSkew carries the diagnostic code in args[0] and the already
+        # human-formatted message (format_env_skew_message() output) in
+        # args[1] -- NOT str(exc), which for a 2-arg exception renders the
+        # raw args tuple repr (e.g. "('MISSION_REVIEW_ENV_SKEW', '...')")
+        # instead of the clean multi-line diagnostic.
+        skew_message: str = str(exc.args[1])
+        diagnostic = {
+            "diagnostic_code": ENV_SKEW_DIAGNOSTIC_CODE,
+            "message": skew_message,
+            "remediation": ENV_SKEW_REMEDIATION,
+        }
+        console.print(f"[red]Error:[/red] {diagnostic['message']}")  # type: ignore[attr-defined]
+        sys.stdout.write(json.dumps(diagnostic) + "\n")
+        raise typer.Exit(1) from exc
+    if mismatches:
+        console.print(  # type: ignore[attr-defined]
+            f"  [yellow]![/yellow]  {format_env_skew_message(mismatches)}"
+        )
+    return mismatches
+
+
+def _run_local_residual_and_exit(console: object, repo_root: Path) -> None:
+    """Run the CI residual `(unit or contract)` selection locally, then exit.
+
+    Standalone local command (FR-002): mirrors the CI `unit-contract-residual`
+    job's marker selection, read live from the CI workflow so it can never
+    hand-copy a divergent `-m` string (NFR-002). Skips the rest of the
+    mission-scoped review gates -- this is a pre-push hygiene check, not a
+    mission review.
+    """
+    console.print(  # type: ignore[attr-defined]
+        "\nRunning the local CI-residual selection over tests/ "
+        "((unit or contract) and not (...))...\n"
+    )
+    try:
+        result = run_local_residual_selection(repo_root)
+    except ResidualSelectorNotFound as exc:
+        console.print(f"[red]Error:[/red] {exc}")  # type: ignore[attr-defined]
+        raise typer.Exit(2) from exc
+    raise typer.Exit(result.returncode)
 
 
 def _resolve_repo_root(console: object) -> Path:
@@ -292,6 +356,18 @@ def review_mission(
             show_default=False,
         ),
     ] = None,
+    check_residual: Annotated[
+        bool,
+        typer.Option(
+            "--check-residual",
+            help=(
+                "Run the CI residual (unit or contract) marker selection "
+                "locally over tests/, then exit -- skips the mission-scoped "
+                "review gates. The -m expression is read live from the CI "
+                "workflow, never hand-copied."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Validate a merged mission: WP lane check, dead-code scan, BLE001 audit.
 
@@ -307,6 +383,10 @@ def review_mission(
         assert_pytest_available(repo_root)
     except TestExtraMissing:
         _fail_missing_test_extra(console)
+    _check_env_skew(console, repo_root)
+
+    if check_residual:
+        _run_local_residual_and_exit(console, repo_root)
 
     handle = _require_mission_handle(mission, console)
     resolved = resolve_mission_handle(handle, repo_root)
@@ -366,15 +446,21 @@ def review_mission(
 
 __all__ = [
     "Ble001SuppressionFinding",
+    "EnvSkew",
     "GateRecord",
     "MissionReviewDiagnostic",
     "MissionReviewMode",
     "ModeMismatchError",
+    "PackageSkew",
+    "ResidualSelectorNotFound",
     "TestExtraMissing",
     "assert_pytest_available",
+    "assert_typer_click_lock_parity",
     "audit_auth_storage_ble001_line",
     "collect_auth_storage_ble001_findings",
+    "format_env_skew_message",
     "resolve_mode",
     "review_mission",
+    "run_local_residual_selection",
     "validate_issue_matrix",
 ]

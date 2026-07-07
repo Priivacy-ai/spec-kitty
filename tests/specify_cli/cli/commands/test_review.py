@@ -1033,3 +1033,186 @@ def test_review_passes_with_notes_when_dead_code_scan_finds_symbol(
     content = report_path.read_text(encoding="utf-8")
     assert "verdict: pass_with_notes" in content
     assert "dead_code" in content
+
+
+# ---------------------------------------------------------------------------
+# --check-residual / _check_env_skew CLI-seam coverage (#2283 Phase 3
+# pre-merge findings): these behaviors previously had zero test coverage,
+# which is how the tuple-repr bug in the fail-closed branch shipped.
+# ---------------------------------------------------------------------------
+
+
+def test_review_check_residual_runs_selection_and_propagates_exit_code(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """--check-residual runs the CI residual selection and exits with its
+    returncode, skipping the mission-scoped gates entirely -- and does not
+    require --mission (FR-002).
+    """
+    import subprocess
+
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    monkeypatch.chdir(repo_root)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.find_repo_root",
+        lambda: repo_root,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.assert_pytest_available",
+        lambda _: None,
+    )
+
+    def _fake_run_local_residual_selection(
+        project_root: Path,
+    ) -> subprocess.CompletedProcess[bytes]:
+        assert project_root == repo_root
+        return subprocess.CompletedProcess(args=["pytest"], returncode=7)
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.run_local_residual_selection",
+        _fake_run_local_residual_selection,
+    )
+
+    def _unexpected_resolve(handle: str, repo_root: Path) -> object:
+        raise AssertionError(
+            "resolve_mission_handle must not be called for --check-residual "
+            "-- --mission is not required for this flag"
+        )
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.resolve_mission_handle",
+        _unexpected_resolve,
+    )
+
+    app = _build_cli_app()
+    runner = CliRunner()
+    # No --mission passed at all -- proves the flag doesn't require it.
+    result = runner.invoke(app, ["--check-residual"])
+
+    assert result.exit_code == 7, result.output
+
+
+def test_check_env_skew_warn_branch_prints_mismatch_and_continues(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Warn-loud (default) divergence prints the mismatch message but does
+    NOT exit -- the review command must run through to completion (SC-001).
+    """
+    repo_root, feature_dir = _setup_fixture(
+        tmp_path,
+        {"WP01": "done", "WP02": "done"},
+        baseline_merge_commit="0000000000000000000000000000000000000000",
+    )
+
+    monkeypatch.chdir(repo_root)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.find_repo_root",
+        lambda: repo_root,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.assert_pytest_available",
+        lambda _: None,
+    )
+    _mock_resolved = _make_mock_resolved(feature_dir)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.resolve_mission_handle",
+        lambda handle, repo_root: _mock_resolved,
+    )
+
+    from specify_cli.cli.commands.review import PackageSkew
+
+    mismatches = [PackageSkew("typer", "0.24.2", "0.26.0")]
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.assert_typer_click_lock_parity",
+        lambda repo_root: mismatches,
+    )
+
+    app = _build_cli_app()
+    runner = CliRunner()
+    result = runner.invoke(app, ["--mission", _MISSION_SLUG, "--mode", "lightweight"])
+
+    assert result.exit_code == 0, result.output
+    assert "locked=0.24.2" in result.output
+    assert "installed=0.26.0" in result.output
+
+    # The review must have run to completion past the warn-loud preflight,
+    # not exited early.
+    report_path = feature_dir / "mission-review-report.md"
+    assert report_path.exists(), (
+        "warn-loud env-skew divergence must not stop the review from running"
+    )
+
+
+def test_check_env_skew_fail_closed_emits_clean_message_not_tuple_repr(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression (#2283 pre-merge finding): the fail-closed diagnostic must
+    carry the clean, already-formatted skew message (``exc.args[1]``) in both
+    the console line and the JSON ``message`` field -- never ``str(exc)``,
+    which for a 2-arg exception renders the raw args tuple's repr, e.g.
+    ``"('MISSION_REVIEW_ENV_SKEW', 'MISSION_REVIEW_ENV_SKEW: ...')"``.
+    """
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    monkeypatch.chdir(repo_root)
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.find_repo_root",
+        lambda: repo_root,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.assert_pytest_available",
+        lambda _: None,
+    )
+
+    from specify_cli.cli.commands.review import (
+        ENV_SKEW_DIAGNOSTIC_CODE,
+        EnvSkew,
+        PackageSkew,
+        format_env_skew_message,
+    )
+
+    mismatches = [PackageSkew("typer", "0.24.2", "0.26.0")]
+    expected_message = format_env_skew_message(mismatches)
+
+    def _raise_env_skew(repo_root: Path) -> list[PackageSkew]:
+        # Mirrors the real raise site in assert_typer_click_lock_parity():
+        # a 2-arg exception, diagnostic code + the pre-formatted message.
+        raise EnvSkew(ENV_SKEW_DIAGNOSTIC_CODE, expected_message)
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.review.assert_typer_click_lock_parity",
+        _raise_env_skew,
+    )
+
+    app = _build_cli_app()
+    runner = CliRunner()
+    # No --mission needed: the fail-closed preflight exits before mission
+    # resolution.
+    result = runner.invoke(app, [])
+
+    assert result.exit_code == 1, result.output
+
+    diagnostic_line = next(
+        line for line in result.output.splitlines() if line.startswith("{")
+    )
+    diagnostic = json.loads(diagnostic_line)
+
+    assert diagnostic["message"] == expected_message
+    # The regression this guards against: str(exc) on a 2-arg Exception
+    # renders the args tuple's repr -- wrapped in parens, quoting both
+    # elements, and duplicating the diagnostic code.
+    assert not diagnostic["message"].startswith("(")
+    assert not diagnostic["message"].startswith("('MISSION_REVIEW_")
+    # A tuple-repr also escapes the message's embedded newlines as a
+    # literal backslash-n inside the (already-decoded) string.
+    assert "\\n" not in diagnostic["message"]
+    assert diagnostic["message"].count(ENV_SKEW_DIAGNOSTIC_CODE) == 1
+
+    # The console line rendered the same clean message.
+    assert expected_message in result.output

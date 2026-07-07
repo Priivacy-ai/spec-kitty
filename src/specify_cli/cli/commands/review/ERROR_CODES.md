@@ -256,3 +256,28 @@ LIGHTWEIGHT_REVIEW_MISSING_BASELINE: dead-code scan cannot run without baseline_
 ```text
 LEGACY_MISSION_DEAD_CODE_SKIP: dead-code scan skipped on a pre-083 mission. Run `spec-kitty migrate backfill-identity` to bring the mission onto the canonical identity schema.
 ```
+
+---
+
+## ENV_SKEW
+
+**Code**: `MISSION_REVIEW_ENV_SKEW`
+
+**When it fires**: the active interpreter's installed `typer`/`click` versions diverge from the exact versions pinned in `uv.lock`. A local `.venv` built without `--frozen` can drift onto a newer `typer`/`click` than CI installs — including a `typer>=0.26` release that vendors `click` internally and stops re-exporting it — so local CLI-shard test runs can silently diverge from CI. This preflight is **warn-loud by default**: divergence prints a warning and `spec-kitty review` proceeds. Fail-closed is opt-in via the `SPEC_KITTY_ENV_SKEW_FAIL_CLOSED` environment variable (truthy: `1`/`true`/`yes`/`y`/`on`), in which case the command exits non-zero instead of proceeding — this is deliberately opt-in so a legitimately forward-compat dev loop (testing against a newer `typer`/`click` ahead of the repo's pin bump) is never bricked by default.
+
+Unlike the other codes in this file, `MISSION_REVIEW_ENV_SKEW` is emitted by the standalone environment preflight in `_test_env_check.py` (module-level constant, not a `MissionReviewDiagnostic` StrEnum member) — it guards the local dev environment itself, not a mission's verdict findings.
+
+**JSON stability**: this code string is stable across minor releases; consumers may match it as an opaque identifier.
+
+**Remediation**:
+1. Run `uv sync --frozen --all-extras` from the repository root to restore the exact `typer`/`click` versions pinned in `uv.lock`.
+2. Re-run `spec-kitty review` (or your local test command) to confirm the warning clears.
+3. If you are intentionally testing against a newer `typer`/`click` ahead of the repo's pin bump, the warning is informational only (default warn-loud mode) — no action is required unless `SPEC_KITTY_ENV_SKEW_FAIL_CLOSED` is set.
+
+**Body example**:
+
+```text
+MISSION_REVIEW_ENV_SKEW: local typer/click versions diverge from uv.lock:
+  - typer: locked=0.24.2, installed=0.26.0
+Run `uv sync --frozen --all-extras` to restore parity with CI.
+```
