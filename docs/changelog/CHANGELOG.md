@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-07-06'
+updated: '2026-07-07'
 ---
 # Changelog
 
@@ -15,8 +15,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] - 3.2.5
 
+### ✨ Added
+
+- **Doctrine/charter pack paths support environment-variable indirection
+  (#2437).** Pack-location fields (e.g. an org-pack's `local_path`) previously
+  had to be hardcoded absolute paths, so a shared, committed `.kittify` config
+  resolved only on the machine of the developer who wrote it and broke for every
+  teammate and CI runner. Pack-path templates now expand `${VAR}`/`$VAR` and `~`
+  at read time (via `os.path.expandvars` + `expanduser`), so a portable form
+  like `${SPEC_KITTY_PACK_HOME}/acme-doctrine` can be committed once and each
+  environment resolves it against its own base. Expansion is **fail-closed**: an
+  unset/empty env token raises rather than silently collapsing to a wrong path
+  (e.g. `${UNSET}/acme` → repo root). Purely additive — literal absolute paths
+  keep working.
+- **Review-time regression gate at `move-task --to for_review` (#572).** When a
+  work package moves to `for_review`, Spec Kitty now auto-scopes the CI shards
+  that cover the WP's changed files and re-runs them, so a WP that broke a
+  shared contract pinned by a test *outside* its `owned_files` is caught at
+  review time instead of only at merge. Warn-only by default; opt in to a hard
+  block with `review.fail_on_pre_review_regression` (enforced only when
+  `review.test_command` is set; `move-task --force` overrides), and override the
+  scope per-WP via frontmatter `pre_review_test_scope`. See
+  [review-gates.md](../guides/review-gates.md).
+- **`spec-kitty review --check-residual` + environment-parity preflight
+  (#2283).** The new `--check-residual` flag runs CI's always-on
+  `unit-contract-residual` `-m` selection over `tests/` locally — the `-m`
+  expression is read **live** from `.github/workflows/ci-quality.yml`, so a
+  previously CI-only marker-orphan failure can be reproduced before pushing. The
+  `spec-kitty review` preflight also detects local-vs-CI environment skew
+  (installed package versions diverging from `uv.lock`, plus typer/click
+  lock-parity), warning by default and failing closed under
+  `SPEC_KITTY_ENV_SKEW_FAIL_CLOSED`.
+
 ### 🐛 Fixed
 
+- **Test-session state leaks closed: per-mission prompt-tmp namespace +
+  workspace-context tombstone (#1842, #2032).** Runtime prompt files are now
+  written under a per-repo/per-mission namespaced temp directory
+  (`<tmp>/spec-kitty-prompts/<repo-id>/…`) instead of a shared flat `/tmp`
+  path, and a lane's workspace-context sidecar is now tombstoned when its
+  worktree is torn down at merge (or when the lane is canceled) — clearing the
+  stale-context and prompt-litter residue flagged by the #1931 `/tmp`-hygiene
+  audit. A session-scoped pytest reaper (controller-gated, run-uid-scoped, and
+  never touching the real `~/.spec-kitty`) now fails the suite if a test leaks
+  repo-root residue, so new leaks are caught at their source.
 - **Dashboard: PR-bound missions planned on a feature branch are visible again
   (#2430).** The dashboard scanner resolved ONE directory per mission,
   coord-worktree-first — but under coordination topology the two partitions
@@ -55,6 +97,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   migration (`3.2.5_agents_skills_gitignore_backfill`) adds the entries on
   `spec-kitty upgrade` for already-initialised projects. The symlink-vs-copy
   delivery question (ask 3 of #2412) is tracked separately on the issue.
+- **`spec-kitty upgrade` now commits worktree churn on every checkout, not just
+  main (#2392, closes #2385/#1873, pins #2105).** The upgrade auto-commit
+  captured a porcelain baseline for the main checkout only, so migration writes
+  it made in sibling worktrees were left uncommitted — dirtying them and
+  blocking coordination-topology merges (NFR-002). The porcelain-baseline commit
+  routine is extracted into a canonical per-checkout seam
+  (`upgrade/autocommit.py::commit_touched_checkout`); the migration runner now
+  snapshots each worktree *before* its writes and commits only that new churn on
+  the worktree's own branch (in-flight WP edits are never swept in;
+  `manual_review_required` migrations skip the commit with a warning;
+  detached-HEAD skips instead of guessing a ref; `--dry-run` stays a strict
+  no-op). #1873's self-healing path is restored (metadata synthesized from
+  `None` is marked dirty so it's saved even when detected version == target).
+- **Legacy-topology warning no longer over-fires on intentional
+  coordination-less missions (#2351).** The once-per-mission warning keyed on
+  `coordination_branch` absence, so it fired for genuinely deliberate
+  `single_branch`/`lanes` shapes (#2218) as well as truly pre-SSOT missions. A
+  new warning-only classifier gates just the emit on the canonical stored
+  `MissionTopology` + flattened flag (warn iff coordination branch absent AND
+  stored topology null AND not flattened; malformed still warns); the shared
+  `_is_legacy_mission` predicate that drives worktree routing and write-contract
+  selection is left byte-for-byte unchanged.
+- **`.kittify/migrations/` and `.kittify/logs/` are gitignored and backfilled
+  (#2384, completes the #2369 sweep).** Two more generated `.kittify/` subtrees
+  (mission-state repair manifests + quarantine backups; orchestrator per-WP
+  logs) were neither IGNORED state surfaces nor backfilled, so they dirtied the
+  tree and failed `accept`'s git-dirty check. Both are now registered IGNORED
+  local-runtime surfaces (fresh `init` gitignores them) with a sibling
+  backfill migration for already-initialised projects on upgrade.
+- **`saas_client` no longer defaults to a hardcoded `api.spec-kitty.io`; it
+  fails closed (#2248).** `load_auth_context` fell back to a baked-in SaaS URL
+  when neither `SPEC_KITTY_SAAS_URL` nor `.kittify/saas-auth.json` supplied one,
+  risking silently pointing the client at the wrong server. With the #2146
+  target-authority decision in place, the default is removed and a no-URL
+  resolution now raises `SaasAuthError` (caught where the no-token path already
+  was).
+- **Sync runtime callers route through the canonical resolved target authority
+  (#2146).** The tracker client, sharing client, and background sync read the
+  raw `SyncConfig.get_server_url()` (config-only, hardcoded default) instead of
+  `resolve_runtime_target().resolved_server_url`, so with `SPEC_KITTY_SAAS_URL`
+  set, auth/readiness hit the env target while these surfaces silently posted to
+  the config target (the SC-008 split-brain). All three now resolve the same
+  target as auth/readiness, and `sync status`/`sync doctor` report the resolved
+  URL. Separately, `sync server <url>` now accepts loopback HTTP
+  (`http://localhost`/`127.0.0.1`/`::1`) for the documented local-Docker-SaaS
+  dev workflow while still requiring HTTPS for remote hosts.
+- **compat-planner contract checks are revived (#2419).** Two test surfaces
+  validated `upgrade`/`render_json` payloads against the committed
+  `compat-planner.json` contract but silently no-op'd in CI since 2026-04-27
+  (each resolved the contract via a maintainer-worktree-only path, so it was
+  `None` and validation was skipped). Both now anchor on the repo root, load
+  unconditionally, and fail hard on a missing/unreadable contract — which caught
+  one real drift (a migration description trimmed to satisfy `maxLength`).
+- **migration_id contract pattern widened to admit the dotted convention
+  (#2339).** The `compat-planner.json` `migration_id` pattern
+  (`^[a-z0-9_]{1,128}$`) rejected 83 of 89 real dotted ids (e.g.
+  `3.2.0rc45_...`) — a contract-authoring bug that let #2339-class drift slip
+  through unnoticed. Widened to `^[a-z0-9_.]{1,128}$` (a backward-compatible
+  widening; no shipped `migration_id` renamed, so persisted per-project ledgers
+  keep validating).
 
 ### ♻️ Changed
 
@@ -70,6 +172,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   imports so it is safe to import from any layer; the two duplicate boolean
   helpers are deleted outright, no aliases left behind. No user-facing
   behavior change.
+- **Internal: CI-topology census freshness gate is now LOC-insensitive
+  (#2416).** The gate compared each worklist entry's exact line count and an
+  LOC-derived sort order, so any PR that shifted the line count of a worklist
+  directory went red regardless of touching CI routing — a maintenance tax two
+  PRs paid inside 24h. It now checks membership + committed routing plan only
+  (an order/LOC-insensitive index at the shared derivation), fixing both the
+  pytest gate and the `--verify-census` CLI by construction. Zero `src` changes.
+- **Internal: test-suite `/tmp` hygiene sweep (#1842, epic #1931).** 97
+  grandfathered test files were converted off literal `/tmp` paths to
+  `tmp_path`/sentinels, and the empty-`/tmp` ratchet was flipped to a
+  self-consistent hard gate so new literal-`/tmp` leaks fail fast. Also fixed a
+  test-only `--output=` parser leak that could write an invalid Windows filename
+  (breaking the Windows critical CI job), with a new arch guard blocking
+  Windows-illegal names and shell-expansion-leak telltales across tracked files
+  (#2169).
 
 ## [3.2.4] - 2026-07-05
 
