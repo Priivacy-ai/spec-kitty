@@ -209,3 +209,39 @@ def test_backfill_fires_on_already_current_project(tmp_path: Path) -> None:
     )
     assert _is_ignored(tmp_path, _SKILL_FILE_PATH)
     assert _is_ignored(tmp_path, _MANIFEST_ENTRY)
+
+
+def test_runs_on_worktrees_is_true() -> None:
+    """Gitignore backfills must reach lane worktrees — projected skills land there too."""
+    assert AgentsSkillsGitignoreBackfillMigration.runs_on_worktrees is True
+
+
+def test_backfill_fires_on_worktree_checkout(tmp_path: Path) -> None:
+    """Migration reaches lane worktrees when include_worktrees=True is passed to
+    MigrationRunner.upgrade(), locking the runs_on_worktrees=True default together
+    with the #2392 upgrade-runner worktree-dispatch seam.
+
+    Both the main checkout and the worktree are missing the new entries; the
+    migration must land on both.  (If the main checkout already had the entries,
+    detect() would return False, migrations would be empty, and worktree_migrations
+    would be empty too — so the worktree dispatch path would be a no-op.)
+    """
+    _init_git_repo(tmp_path)
+    _write_metadata(tmp_path, "3.2.5")
+    _write_gitignore(tmp_path, ".kittify/sync-state.json")  # missing both new entries
+
+    # Simulate a lane worktree: a subdirectory under .worktrees/ with kitty-specs/
+    # so the runner recognises it as an upgradeable checkout.
+    worktree = tmp_path / ".worktrees" / "001-test-feature-lane-1"
+    (worktree / "kitty-specs").mkdir(parents=True)
+    _write_gitignore(worktree, ".kittify/sync-state.json")  # missing both new entries
+
+    MigrationRegistry.clear()
+    auto_discover_migrations()
+    result = MigrationRunner(tmp_path).upgrade("3.2.5", include_worktrees=True)
+
+    assert result.success
+    assert AgentsSkillsGitignoreBackfillMigration.migration_id in result.migrations_applied
+    wt_gitignore = (worktree / ".gitignore").read_text(encoding="utf-8")
+    assert _SKILLS_ROOT_ENTRY in wt_gitignore
+    assert _MANIFEST_ENTRY in wt_gitignore
