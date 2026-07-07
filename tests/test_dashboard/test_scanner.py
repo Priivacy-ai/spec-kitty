@@ -841,6 +841,33 @@ def test_resolve_planning_dir_primary_first_falls_back_when_candidate_absent(
     assert not absent.exists()
 
 
+@pytest.mark.fast
+def test_resolve_planning_dir_primary_first_returns_candidate_when_present(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Resolver returns an existing primary dir → the candidate wins over feature_dir.
+
+    Covers scanner.py lines 465-466: the happy-path branch where the resolved
+    primary dir exists on disk and is returned in preference to the coord-resolved
+    scanned dir. Also kills the mutation-blind gap in the three fallback tests: a
+    stub that always returns ``feature_dir`` fails this test because
+    ``result != feature_dir`` is asserted.
+    """
+    feature_dir = tmp_path / "kitty-specs" / "001-has-primary"
+    feature_dir.mkdir(parents=True)
+    primary_dir = (
+        tmp_path / ".worktrees" / "001-has-primary-lane-1" / "kitty-specs" / "001-has-primary"
+    )
+    primary_dir.mkdir(parents=True)  # exists — resolver found a live primary checkout
+
+    monkeypatch.setattr(scanner, "resolve_planning_read_dir", lambda *_a, **_kw: primary_dir)
+
+    result = scanner._resolve_planning_dir_primary_first(tmp_path, feature_dir)
+
+    assert result == primary_dir
+    assert result != feature_dir
+
+
 # ── NFR-006: Dashboard kanban bucketing identity ───────────────────────────
 
 
