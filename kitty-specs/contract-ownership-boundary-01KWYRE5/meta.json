@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "d8ad76a04355f83173faf13897db69ee165158f5",
+  "coordination_branch": "kitty/mission-contract-ownership-boundary-01KWYRE5",
+  "created_at": "2026-07-07T17:01:31.039878+00:00",
+  "flattened": false,
+  "friendly_name": "Contract-ownership boundary: model shared contracts + their retirement as an owned artifact",
+  "mission_id": "01KWYRE5GZZJG5HY7YNKT9G0G5",
+  "mission_number": 167,
+  "mission_slug": "contract-ownership-boundary-01KWYRE5",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Durable cross-cutting architectural boundary (#2441), filed during M5/Phase-3. DESIGN-FIRST: architect-led design phase before any code, given high blast radius. Do NOT bundle with the small landing-hygiene fixes. Cross-fork draft closing #2441.",
+  "purpose_tldr": "Introduce a modeled, owned artifact for shared contracts (public signatures, fallback/compat names, retired literals a caller depended on) with a declared consumer set, so a contract's existence + retirement is verified against its consumers — unifying the slices that #2438 (dynamic review-time gate) and sibling mechanisms each catch from a different angle",
+  "slug": "contract-ownership-boundary-01KWYRE5",
+  "target_branch": "feat/contract-ownership-boundary",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-07T19:32:35.322267+00:00"
+}
