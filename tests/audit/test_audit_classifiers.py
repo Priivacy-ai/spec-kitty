@@ -88,7 +88,7 @@ def test_oserror_detail_redacts_absolute_paths_with_spaces() -> None:
 def test_oserror_detail_redacts_posix_edge_paths() -> None:
     """POSIX absolute paths may be single-segment or contain colons."""
     cases = [
-        OSError("failed reading /tmp"),
+        OSError("failed reading /tmp"),  # bare /tmp (no trailing slash): tests single-component regex; must stay literal
         OSError("failed reading /secret.txt"),
         OSError("failed reading /nonexistent/project:secret.txt"),
     ]

@@ -74,6 +74,26 @@ Verdict: **FR-008 satisfied-by-verification** — both candidate files
 shard permutation tested (no-marker, ``-m fast``, ``-m "not slow"``).
 No ``pytest.mark`` was added to either file; adding markers would be
 redundant noise and could mislead a future agent.
+
+Known limitations (follow-up: #2441)
+--------------------------------------
+This gate is a *substring* gate; it cannot police shared-temp writes that
+arrive via runtime resolution rather than source literals.  Two categories
+escape detection:
+
+* ``tempfile.gettempdir()`` and ``tempfile.mkdtemp()`` (without immediate
+  teardown or a ``with``-context) resolve to the system temp directory at
+  runtime — the exact shared, world-writable location this gate exists to
+  eliminate — but carry no ``/tmp`` + ``/`` substring in source and sail through
+  ``test_no_new_tmp_literals_in_tests``.  Pre-existing uses exist in-tree
+  (e.g. ``tests/agent/test_workflow_feedback_pointer_2x_unit.py``).
+* Evasion literals assembled via ``os.path.join`` or string concatenation
+  (not a single quoted literal) are not caught by
+  ``_line_has_evasion_root_literal``.
+
+Closing the class by construction requires AST-level detection.  Any
+addition of ``tempfile.gettempdir()`` / ``mkdtemp()`` to test code should
+route through a ``tmp_path``-backed fixture instead.
 """
 
 from __future__ import annotations
@@ -306,6 +326,29 @@ def test_no_evasion_vector_literals_in_tests() -> None:
         "ratchet while still leaking shared, world-writable path state:\n"
         + "\n".join(f"  {rel}: {literal!r} (line {lineno})" for rel, literal, lineno in violations)
     )
+
+
+def test_line_has_evasion_root_literal_positive_and_negative() -> None:
+    """FR-007 detector unit proof — pins the positive-match branch.
+
+    ``test_no_evasion_vector_literals_in_tests`` only walks the already-clean
+    repo tree, so ``_line_has_evasion_root_literal``'s TRUE branch (line 277)
+    never fires under that test.  MUT: replacing the helper with ``return None``
+    keeps every other gate test green; this test is the mutation pin (Debbie
+    MUT2).
+    """
+    # Positive: every evasion literal must be detected when quote-preceded.
+    for literal in _EVASION_LITERALS:
+        assert _line_has_evasion_root_literal(f'x = "{literal}foo"') == literal, (
+            f"Expected {literal!r} to be detected in a double-quoted path literal"
+        )
+        assert _line_has_evasion_root_literal(f"x = '{literal}foo'") == literal, (
+            f"Expected {literal!r} to be detected in a single-quoted path literal"
+        )
+    # Negative: the .worktrees/scratch/ false-positive the docstring claims to avoid.
+    assert _line_has_evasion_root_literal('x = ".worktrees/scratch/"') is None
+    # Negative: bare substring in a comment must not match (not quote-preceded).
+    assert _line_has_evasion_root_literal("# see /dev/shm/ for rationale") is None
 
 
 # ---------------------------------------------------------------------------
