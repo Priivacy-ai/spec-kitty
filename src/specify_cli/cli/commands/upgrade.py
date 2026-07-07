@@ -725,10 +725,9 @@ def upgrade(  # noqa: C901
             # auto_commit: each worktree's upgrade churn lands on its own
             # branch (#2385) so a later `spec-kitty merge` isn't blocked by
             # dirty coord/lane worktrees.
-            worktrees_result = MigrationRunner(project_path, console)._upgrade_worktrees(
+            worktrees_result = MigrationRunner(project_path, console).upgrade_worktrees_only(
                 target_version,
-                [],
-                dry_run,
+                dry_run=dry_run,
                 auto_commit=not dry_run,
             )
             worktree_warnings.extend(worktrees_result.get("warnings", []))
