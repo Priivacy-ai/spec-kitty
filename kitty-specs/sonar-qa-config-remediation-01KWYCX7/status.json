@@ -1,0 +1,42 @@
+{
+  "event_count": 26,
+  "last_event_id": "01KWYJWB44A6JHW14WKAKPTWXS",
+  "materialized_at": "2026-07-07T15:24:24.068333+00:00",
+  "mission_number": "167",
+  "mission_slug": "sonar-qa-config-remediation-01KWYCX7",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 3,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KWYJW9BEH1DFX4FDQW5PYT2F",
+      "last_transition_at": "2026-07-07T15:24:22.254250+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KWYJWA9CVD4M4DRA2PA5QMYW",
+      "last_transition_at": "2026-07-07T15:24:23.212360+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KWYJWB44A6JHW14WKAKPTWXS",
+      "last_transition_at": "2026-07-07T15:24:24.068333+00:00"
+    }
+  }
+}

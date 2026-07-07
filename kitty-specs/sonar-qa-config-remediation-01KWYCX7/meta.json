@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "c8cc0058829ade61cc4a1d58d52af2253d9591d3",
+  "coordination_branch": "kitty/mission-sonar-qa-config-remediation-01KWYCX7",
+  "created_at": "2026-07-07T13:40:01.635959+00:00",
+  "flattened": false,
+  "friendly_name": "SonarCloud QA config: projectVersion tracking + coverage-scope reconciliation + promote the review tool",
+  "mission_id": "01KWYCX7F3MB2QQS7DQK901483",
+  "mission_number": 167,
+  "mission_slug": "sonar-qa-config-remediation-01KWYCX7",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Sonar/QA hand-off from maintainer Stijn Dejongh. Reuses his prep on stijn-dejongh/spec-kitty branch design/pr-landing-followups-and-sonar-remediation, mission ci-hygiene-and-sonar-debt-remediation-01KWV531 (his Concern-B FR-006/FR-007/FR-012 + research.md decisions). Scoped to the 3-part sonar-config slice ONLY — EXCLUDES the ~900-issue backlog slicing (epic #1928) and the already-landed census/contract work (#2416/#2419/#2420). Cross-fork draft closing #2421 #2422.",
+  "purpose_tldr": "Wire sonar.projectVersion from pyproject.toml into the sonarcloud CI job so the new-code baseline resets per dev cycle (#2421); determine + document whether SonarCloud's whole-repo coverage measures a different file-set than the internal diff-coverage gate (#2422); promote the gitignored sonarcloud_branch_review.sh into scripts/ci/ as a tracked, read-only QA-enabler tool with a smoke test",
+  "slug": "sonar-qa-config-remediation-01KWYCX7",
+  "target_branch": "feat/sonar-qa-config-remediation",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-07T14:35:55.724302+00:00"
+}
