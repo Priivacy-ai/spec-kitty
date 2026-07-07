@@ -1,0 +1,3 @@
+# Contract — WP-prompt latency timing-isolation (#2032)
+- `test_wp_prompt_build_latency.py`: both tests carry `@pytest.mark.timing`; warm-up + warm wall-clock sample; budget 6.0s (~4× the ~1.5s warm baseline). Still registered in `_arch_shard_map.py`.
+- `ci-quality.yml`: both arch selectors (`:1667`,`:1816`) exclude `and not timing`; NEW job `timing-nfr-serial` (`if: always()`, `-n0 -m timing`, NOT cli-gated) runs all timing tests tree-wide (`--ignore` the restart-daemon file) and is in `quality-gate.needs`. Invariant: the NFR runs on EVERY PR (a prompt-builder regression can't skip it) — SC-003.
