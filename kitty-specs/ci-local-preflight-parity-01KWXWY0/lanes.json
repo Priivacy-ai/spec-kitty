@@ -1,0 +1,47 @@
+{
+  "version": 1,
+  "mission_slug": "ci-local-preflight-parity-01KWXWY0",
+  "mission_id": "01KWXWY0PKH9SVDS0V6JT00J3P",
+  "mission_branch": "kitty/mission-ci-local-preflight-parity-01KWXWY0",
+  "target_branch": "feat/ci-delivery-topology",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/guides/review-gates.md",
+        "src/specify_cli/cli/commands/_test_env_check.py",
+        "src/specify_cli/cli/commands/review/ERROR_CODES.md",
+        "src/specify_cli/cli/commands/review/__init__.py",
+        "tests/specify_cli/cli/commands/test_test_env_check.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/architectural/test_unit_contract_residual_gate.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-07-07T09:31:40.533042+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

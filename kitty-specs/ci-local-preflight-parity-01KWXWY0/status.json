@@ -1,0 +1,35 @@
+{
+  "event_count": 14,
+  "last_event_id": "01KWY33NBTNT75DHK6VK81NT56",
+  "materialized_at": "2026-07-07T10:48:46.714602+00:00",
+  "mission_number": "167",
+  "mission_slug": "ci-local-preflight-parity-01KWXWY0",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 2,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KWY33MF48QH2NR0VJ6C33275",
+      "last_transition_at": "2026-07-07T10:48:45.796322+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KWY33NBTNT75DHK6VK81NT56",
+      "last_transition_at": "2026-07-07T10:48:46.714602+00:00"
+    }
+  }
+}
