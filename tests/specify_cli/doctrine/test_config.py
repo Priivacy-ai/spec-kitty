@@ -121,6 +121,9 @@ class TestLoadPackRegistry:
         assert registry.packs == []
 
     def test_tilde_expansion(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        """Tilde expansion happens at ``effective_root()`` resolution time
+        (WP01 T001) — the stored ``local_path`` keeps the literal ``~`` form
+        so config.yaml round-trips it unexpanded."""
         fake_home = tmp_path / "home"
         fake_home.mkdir()
         monkeypatch.setenv("HOME", str(fake_home))
@@ -136,8 +139,12 @@ class TestLoadPackRegistry:
         )
         registry = load_pack_registry(tmp_path)
         pack = registry.packs[0]
-        assert "~" not in str(pack.local_path)
-        assert str(pack.local_path).startswith(str(fake_home))
+        # Stored value is preserved literally (not eagerly expanded).
+        assert str(pack.local_path) == "~/.kittify/org/security"
+        # Resolution-time expansion still produces the expected absolute path.
+        resolved = pack.effective_root(tmp_path)
+        assert "~" not in str(resolved)
+        assert str(resolved).startswith(str(fake_home))
 
     def test_empty_file_returns_empty_registry(self, tmp_path: Path) -> None:
         _write_config(tmp_path, "")
@@ -217,6 +224,34 @@ class TestLoadPackRegistry:
             assert [fragment.pack_name for fragment in load_org_drg(tmp_path)] == ["acme"]
         with pytest.warns(DeprecationWarning, match="organisation_packs"):
             assert [name for name, _path in _enumerate_org_pack_paths(tmp_path)] == ["acme"]
+
+    def test_legacy_organisation_packs_env_var_indirection(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """T004: legacy ``organisation_packs[].path`` inherits env-var
+        indirection through the shared ``OrgPackConfig`` constructor — no
+        parallel expansion logic."""
+        pack_dir = tmp_path / "legacy-acme"
+        pack_dir.mkdir()
+        monkeypatch.setenv("SPEC_KITTY_PACK_HOME", str(tmp_path))
+        _write_config(
+            tmp_path,
+            """
+            organisation_packs:
+              - name: acme
+                source: local_path
+                path: ${SPEC_KITTY_PACK_HOME}/legacy-acme
+            """,
+        )
+
+        with pytest.warns(DeprecationWarning, match="organisation_packs"):
+            registry = load_pack_registry(tmp_path)
+        assert len(registry.packs) == 1
+        pack = registry.packs[0]
+        # Stored value stays literal (unexpanded).
+        assert str(pack.local_path) == "${SPEC_KITTY_PACK_HOME}/legacy-acme"
+        # Resolution-time expansion matches the canonical-shape behaviour.
+        assert pack.effective_root(tmp_path) == pack_dir.resolve(strict=False)
 
 
 # ----------------------------------------------------------------------

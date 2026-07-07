@@ -329,16 +329,21 @@ def _read_org_packs(repo_root: Path, _data: dict[str, Any]) -> tuple[tuple[str, 
     names: list[str] = []
     roots: list[Path] = []
     try:
-        from doctrine.drg.org_pack_config import OrgPackSubdirEscapeError, load_pack_registry  # noqa: PLC0415
+        from doctrine.drg.org_pack_config import (  # noqa: PLC0415
+            OrgPackEnvVarUnsetError,
+            OrgPackSubdirEscapeError,
+            load_pack_registry,
+        )
 
         registry = load_pack_registry(repo_root)
         # Resolve effective roots inside the try so a resolution-time subdir
-        # escape (raised by ``effective_root``) is re-raised below rather than
-        # swallowed by the broad ``except`` into a silent empty registry.
+        # escape or unset-env-var failure (raised by ``effective_root``) is
+        # re-raised below rather than swallowed by the broad ``except`` into
+        # a silent empty registry.
         for pack in registry.packs:
             names.append(pack.name)
             roots.append(pack.effective_root(repo_root))
-    except OrgPackSubdirEscapeError:
+    except (OrgPackSubdirEscapeError, OrgPackEnvVarUnsetError):
         raise
     except Exception as exc:  # pragma: no cover – defensive
         warnings.warn(
