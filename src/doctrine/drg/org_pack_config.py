@@ -87,6 +87,16 @@ def _unresolved_env_token(expanded: str) -> str | None:
     return match.group(0) if match else None
 
 
+def _empty_expanded_env_token(raw: str) -> str | None:
+    """Return the first env-var token expanded to empty string (var set but blank)."""
+    for match in _ENV_VAR_TOKEN_RE.finditer(raw):
+        token = match.group(0)
+        var_name = token[2:-1] if token.startswith("${") else token[1:]
+        if os.environ.get(var_name) == "":
+            return token
+    return None
+
+
 def _yaml() -> YAML:
     yaml = YAML()
     yaml.preserve_quotes = True
@@ -191,6 +201,9 @@ class OrgPackConfig(BaseModel):
         unresolved_token = _unresolved_env_token(expanded_local_path)
         if unresolved_token is not None:
             raise OrgPackEnvVarUnsetError(self.name, raw_local_path, unresolved_token)
+        empty_token = _empty_expanded_env_token(raw_local_path)
+        if empty_token is not None:
+            raise OrgPackEnvVarUnsetError(self.name, raw_local_path, empty_token)
         expanded_path = Path(expanded_local_path)
         return expanded_path if expanded_path.is_absolute() else repo_root / expanded_path
 

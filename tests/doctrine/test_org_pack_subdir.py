@@ -578,3 +578,24 @@ class TestEnvVarExpansion:
         loaded = load_pack_registry(tmp_path)
         assert len(loaded.packs) == 1
         assert str(loaded.packs[0].local_path) == "${SPEC_KITTY_PACK_HOME}/org-pack"
+
+    def test_empty_env_var_raises_named_error(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """FR-004: env var set to empty string fails closed (not swallowed as a valid path).
+
+        ``os.path.expandvars`` consumes the token when the var is set to ``""``,
+        leaving no ``$``-residue.  ``_unresolved_env_token`` therefore returns ``None``
+        and the old code would silently produce ``/org-pack``.  The new
+        ``_empty_expanded_env_token`` guard catches this case and raises.
+        """
+        monkeypatch.setenv("SPEC_KITTY_PACK_HOME_EMPTY", "")
+        pack = OrgPackConfig(
+            name=_PACK_NAME,
+            local_path=Path("${SPEC_KITTY_PACK_HOME_EMPTY}/org-pack"),
+        )
+        with pytest.raises(OrgPackEnvVarUnsetError) as exc_info:
+            pack.effective_root(tmp_path)
+        message = str(exc_info.value)
+        assert "SPEC_KITTY_PACK_HOME_EMPTY" in message
+        assert _PACK_NAME in message

@@ -83,6 +83,24 @@ def test_infer_repo_languages_reads_structured_field_without_consulting_intervie
     assert infer_repo_languages(tmp_path) == ["rust", "go"]
 
 
+def test_infer_repo_languages_empty_compiled_list_is_authoritative_not_absent(tmp_path: Path) -> None:
+    """``languages: []`` in compiled charter is authoritative — must NOT fall back to interview/charter.md.
+
+    Kills the mutation: replacing ``if compiled_languages is not None:`` with
+    ``if compiled_languages:`` would cause this test to fall back to the charter.md
+    fallback and return ``["java"]`` instead of ``[]``.
+    """
+    # Write a charter.md that would produce a non-empty result via the fallback path
+    charter_path = tmp_path / ".kittify" / "charter" / "charter.md"
+    charter_path.parent.mkdir(parents=True, exist_ok=True)
+    charter_path.write_text("This repository uses Java and Maven.", encoding="utf-8")
+
+    # Compiled charter says "no languages" — this must win over the charter.md fallback
+    _write_references_yaml(tmp_path, languages=[])
+
+    assert infer_repo_languages(tmp_path) == []
+
+
 def test_infer_repo_languages_falls_back_to_charter_markdown(tmp_path: Path) -> None:
     charter_path = tmp_path / ".kittify" / "charter" / "charter.md"
     charter_path.parent.mkdir(parents=True, exist_ok=True)

@@ -484,3 +484,37 @@ doctrine:
 
     with pytest.raises(OrgPackEnvVarUnsetError):
         PackContext.from_config(tmp_path)
+
+
+def test_from_config_subdir_escape_propagates_fail_closed(tmp_path: Path) -> None:
+    """An org pack ``subdir`` that escapes outside ``local_path`` must fail closed.
+
+    A symlink-escape is an operator-actionable config error, not a missing-pack
+    condition — ``PackContext.from_config`` must propagate ``OrgPackSubdirEscapeError``
+    instead of silently returning a context with the escaping pack dropped.
+    """
+    from doctrine.drg.org_pack_config import OrgPackSubdirEscapeError  # noqa: PLC0415
+
+    # Create a pack root and an outside directory, then a symlink inside
+    # the pack root pointing outside (the same pattern as TestSymlinkEscape).
+    pack_root = tmp_path / "acme-pack"
+    pack_root.mkdir()
+    outside_dir = tmp_path / "outside"
+    outside_dir.mkdir()
+    escape_link = pack_root / "escape"
+    escape_link.symlink_to(outside_dir)
+
+    content = f"""\
+vcs:
+  type: git
+doctrine:
+  org:
+    packs:
+      - name: acme-pack
+        local_path: {pack_root}
+        subdir: escape
+"""
+    _write_config(tmp_path, content)
+
+    with pytest.raises(OrgPackSubdirEscapeError):
+        PackContext.from_config(tmp_path)
