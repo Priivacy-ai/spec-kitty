@@ -79,7 +79,7 @@ descriptions.
 - Authors receive a clear checklist (see below) instead of rediscovering the
   pattern.
 - The three existing backfill migrations
-  (`m_3_2_0rc35_provenance_gitignore`, `m_3_2_4_runtime_dirs_gitignore_backfill`,
+  (`m_3_2_3_encoding_provenance_gitignore_backfill`, `m_3_2_4_runtime_dirs_gitignore_backfill`,
   `m_3_2_5_agents_skills_gitignore_backfill`) are the reference implementations.
 - A live migration or a blanket "always re-sync everything" approach remains
   explicitly out of scope.
@@ -125,7 +125,7 @@ When adding a `GitClass.IGNORED` surface to `state/contract.py`:
 - `src/specify_cli/gitignore_manager.py` — `RUNTIME_PROTECTED_ENTRIES`,
   `GitignoreManager.protect_all_agents()`
 - Reference implementations:
-  - [`src/specify_cli/upgrade/migrations/m_3_2_0rc35_provenance_gitignore.py`](../../../src/specify_cli/upgrade/migrations/m_3_2_0rc35_provenance_gitignore.py)
+  - [`src/specify_cli/upgrade/migrations/m_3_2_3_encoding_provenance_gitignore_backfill.py`](../../../src/specify_cli/upgrade/migrations/m_3_2_3_encoding_provenance_gitignore_backfill.py)
   - [`src/specify_cli/upgrade/migrations/m_3_2_4_runtime_dirs_gitignore_backfill.py`](../../../src/specify_cli/upgrade/migrations/m_3_2_4_runtime_dirs_gitignore_backfill.py)
   - [`src/specify_cli/upgrade/migrations/m_3_2_5_agents_skills_gitignore_backfill.py`](../../../src/specify_cli/upgrade/migrations/m_3_2_5_agents_skills_gitignore_backfill.py)
 - Contract tests:
