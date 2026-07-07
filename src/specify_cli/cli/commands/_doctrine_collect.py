@@ -16,10 +16,13 @@ from :mod:`._doctor_shared` if shared infra is needed. It must NEVER import
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 from ._profile_health_render import _SELECTION_KIND_PLURALS
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from doctrine.drg.models import DRGGraph
@@ -521,6 +524,11 @@ def _read_org_required(repo_root: Path) -> dict[str, list[str]]:
     Missing or invalid org config degrades to empty lists; diagnostics must
     never crash.
     """
+    from doctrine.drg.org_pack_config import (
+        OrgPackEnvVarUnsetError,
+        OrgPackSubdirEscapeError,
+    )
+
     org_required: dict[str, list[str]] = {kind: [] for kind in _SELECTION_KIND_PLURALS}
     try:
         from charter.invocation_context import ProjectContext
@@ -530,12 +538,19 @@ def _read_org_required(repo_root: Path) -> dict[str, list[str]]:
         try:
             _ctx = ProjectContext.from_repo(repo_root)
             _pack_ctx = _ctx.require_pack_context()
+        except (OrgPackEnvVarUnsetError, OrgPackSubdirEscapeError) as exc:
+            # Diagnostics must never crash (this function's own contract), but a
+            # fail-closed pack-config error must not vanish silently either —
+            # surface it at WARNING so `doctor doctrine` output is explainable.
+            logger.warning("org pack context unavailable for selection diagnostics: %s", exc)
         except Exception:  # noqa: BLE001 — pack_context is best-effort
             pass
 
         policy = load_org_charter_policies(repo_root, pack_context=_pack_ctx)
         for kind in _SELECTION_KIND_PLURALS:
             org_required[kind] = list(getattr(policy, f"required_{kind}", []) or [])
+    except (OrgPackEnvVarUnsetError, OrgPackSubdirEscapeError) as exc:
+        logger.warning("org-charter policy load failed for selection diagnostics: %s", exc)
     except Exception:  # noqa: BLE001 — diagnostics must never crash on missing/invalid org
         pass
     return org_required

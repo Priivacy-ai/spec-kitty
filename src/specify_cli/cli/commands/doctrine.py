@@ -131,11 +131,21 @@ def fetch(
             raise typer.Exit(1)
 
     if dry_run:
+        from doctrine.drg.org_pack_config import OrgPackEnvVarUnsetError
+
         for pack in target_packs:
             origin = pack.url or str(pack.local_path)
+            try:
+                target = pack.local_path_root(repo_root)
+            except OrgPackEnvVarUnsetError as exc:
+                console.print(
+                    f"Would fetch pack '[bold]{pack.name}[/bold]' from {origin} "
+                    f"— [red]cannot resolve target: {exc}[/red]"
+                )
+                continue
             console.print(
                 f"Would fetch pack '[bold]{pack.name}[/bold]' from {origin} "
-                f"into {pack.local_path}"
+                f"into {target}"
             )
         return
 

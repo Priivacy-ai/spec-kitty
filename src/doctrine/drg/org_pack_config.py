@@ -61,8 +61,9 @@ class OrgPackEnvVarUnsetError(ValueError):
         self.unresolved_token = unresolved_token
         super().__init__(
             f"Org pack {pack_name!r} local_path {raw_local_path!r} references "
-            f"environment variable {unresolved_token!r} which is unset or empty. "
-            "Set the variable, or update local_path in .kittify/config.yaml."
+            f"environment variable {unresolved_token!r} which is unset or empty "
+            "(or is itself a nested ${VAR} token — expansion is not recursive). "
+            "Set the variable directly, or update local_path in .kittify/config.yaml."
         )
 
 
@@ -166,18 +167,42 @@ class OrgPackConfig(BaseModel):
             )
         return stripped
 
+    def local_path_root(self, repo_root: Path) -> Path:
+        """Return ``local_path`` after env-var/tilde expansion, normalised against ``repo_root``.
+
+        This is Steps 0-1 of :meth:`effective_root`, exposed separately so
+        fetch/write call sites — which target the pack's own directory,
+        before any ``subdir`` slicing — resolve through the SAME expansion
+        seam as read-side ``effective_root()`` instead of using the raw,
+        unexpanded ``self.local_path``. Using the raw value as a fetch/clone
+        target would write into a literal ``${VAR}``-named directory while
+        every subsequent read resolves the expanded path, silently diverging
+        on the very first fetch.
+
+        Raises
+        ------
+        OrgPackEnvVarUnsetError
+            When ``local_path`` references an environment variable that is
+            unset or empty (fail-closed — never silently produces a
+            literal-token path).
+        """
+        raw_local_path = str(self.local_path)
+        expanded_local_path = _expand_path_template(raw_local_path)
+        unresolved_token = _unresolved_env_token(expanded_local_path)
+        if unresolved_token is not None:
+            raise OrgPackEnvVarUnsetError(self.name, raw_local_path, unresolved_token)
+        expanded_path = Path(expanded_local_path)
+        return expanded_path if expanded_path.is_absolute() else repo_root / expanded_path
+
     def effective_root(self, repo_root: Path) -> Path:
         """Return the resolved pack root, joining ``subdir`` when set.
 
         Resolution strategy
         -------------------
-        0. Expand ``${VAR}``/``$VAR`` env-var tokens and ``~`` home-dir
-           tokens in ``local_path`` (read-side only — ``self.local_path``
-           itself is never mutated, so the stored config value round-trips
-           unexpanded).
-        1. Normalise the expanded ``local_path`` relative to ``repo_root``
-           when it is relative (so relative config values work from any
-           CWD).
+        0-1. Expand ``local_path`` and normalise it against ``repo_root``
+             via :meth:`local_path_root` (read-side only — ``self.local_path``
+             itself is never mutated, so the stored config value round-trips
+             unexpanded).
         2. Join ``subdir`` when present.
         3. Apply a **resolution-time** containment check using
            ``resolve(strict=False)`` so that a not-yet-fetched pack directory
@@ -193,16 +218,7 @@ class OrgPackConfig(BaseModel):
             When the resolved effective path escapes outside ``local_path``
             (symlink-escape detected at resolution time).
         """
-        # Step 0 — expand env-var / tilde tokens (read-side only)
-        raw_local_path = str(self.local_path)
-        expanded_local_path = _expand_path_template(raw_local_path)
-        unresolved_token = _unresolved_env_token(expanded_local_path)
-        if unresolved_token is not None:
-            raise OrgPackEnvVarUnsetError(self.name, raw_local_path, unresolved_token)
-
-        # Step 1 — normalise local_path vs repo_root
-        expanded_path = Path(expanded_local_path)
-        pack_root = expanded_path if expanded_path.is_absolute() else repo_root / expanded_path
+        pack_root = self.local_path_root(repo_root)
 
         if self.subdir is None:
             return pack_root.resolve(strict=False)

@@ -546,10 +546,21 @@ def load_org_charter_policies(
     if not registry.packs:
         return OrgCharterPolicy()
 
+    from doctrine.drg.org_pack_config import (
+        OrgPackEnvVarUnsetError,
+        OrgPackSubdirEscapeError,
+    )
+
     policies: list[OrgCharterPolicy] = []
     for pack in registry.packs:
         try:
             policy = load_org_charter_policy(pack.effective_root(repo_root))
+        except (OrgPackEnvVarUnsetError, OrgPackSubdirEscapeError):
+            # Fail closed (FR-003): an unset env var or a symlink-escape is
+            # an operator-actionable config error, not a malformed policy
+            # file — swallowing it here would silently drop this pack's
+            # required directives/tactics/activations with no signal.
+            raise
         except Exception:  # noqa: BLE001, S112 — malformed pack policy is skipped
             continue
         if policy is None:
