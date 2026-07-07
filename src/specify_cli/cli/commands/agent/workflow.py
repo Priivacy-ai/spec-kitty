@@ -49,7 +49,6 @@ import json
 import logging
 import re
 import subprocess
-import tempfile
 import contextlib
 from datetime import UTC
 from pathlib import Path
@@ -683,6 +682,8 @@ def _write_prompt_to_file(
     mission_slug: str,
     wp_id: str,
     content: str,
+    *,
+    repo_root: Path,
 ) -> Path:
     """Write full prompt content to a temp file for agents with output limits.
 
@@ -695,13 +696,17 @@ def _write_prompt_to_file(
         mission_slug: Mission slug used to scope the temp filename
         wp_id: Work package ID (e.g., "WP01")
         content: Full prompt content to write
+        repo_root: Repository root; scopes the file under the shared,
+            sweepable prompt namespace (WP02 / FR-003) instead of the flat
+            ``tempfile.gettempdir()`` root.
 
     Returns:
         Path to the written file
     """
-    # Use system temp directory (gets cleaned up automatically)
+    from runtime.next._tmp_namespace import prompt_tmp_dir
+
     prompt_file = (
-        Path(tempfile.gettempdir())
+        prompt_tmp_dir(repo_root)
         / f"spec-kitty-{command_type}-{mission_slug}-{wp_id}.md"
     )
     prompt_file.write_text(content, encoding="utf-8")
@@ -1636,7 +1641,7 @@ def implement(
                         mission_slug=mission_slug,
                         wp_id=normalized_wp_id,
                     )
-                    _fix_prompt_file = _write_prompt_to_file("implement", mission_slug, normalized_wp_id, _fix_prompt_text)
+                    _fix_prompt_file = _write_prompt_to_file("implement", mission_slug, normalized_wp_id, _fix_prompt_text, repo_root=repo_root)
                     print()
                     print(f"📍 Workspace: cd {workspace_path}")
                     print(f"🔧 Fix mode — Cycle {_latest_artifact.cycle_number}: focused prompt from review artifact")
@@ -1874,7 +1879,7 @@ def implement(
 
         # Write full prompt to file
         full_content = "\n".join(lines)
-        prompt_file = _write_prompt_to_file("implement", mission_slug, normalized_wp_id, full_content)
+        prompt_file = _write_prompt_to_file("implement", mission_slug, normalized_wp_id, full_content, repo_root=repo_root)
 
         # Output concise summary with directive to read the prompt
         print()

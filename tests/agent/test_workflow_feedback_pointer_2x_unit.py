@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import subprocess
-import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -160,7 +159,7 @@ def test_implement_prompt_uses_feedback_pointer(workflow_repo: tuple[Path, str, 
     assert result.exit_code == 0, result.stdout
     assert f"Has review feedback - read reference: {feedback_pointer}" in result.stdout
 
-    prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-001-test-feature-WP01.md"
+    prompt_file = _prompt_path_from_output(result.stdout)
     assert prompt_file.exists(), f"Prompt file not found: {prompt_file}"
     prompt_content = prompt_file.read_text(encoding="utf-8")
     assert f"Canonical feedback reference: {feedback_pointer}" in prompt_content
@@ -220,7 +219,7 @@ def test_implement_prompt_warns_when_feedback_pointer_artifact_is_missing(workfl
     result = runner.invoke(workflow.app, ["implement", "WP01", "--feature", "001-test-feature", "--agent", "test-agent"])
 
     assert result.exit_code == 0, result.stdout
-    prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-001-test-feature-WP01.md"
+    prompt_file = _prompt_path_from_output(result.stdout)
     prompt_content = prompt_file.read_text(encoding="utf-8")
     assert "WARNING: review feedback reference is set, but the artifact is missing/unreadable." in prompt_content
     assert "Ask reviewer to re-run move-task with --review-feedback-file." in prompt_content
@@ -243,7 +242,7 @@ def test_implement_prompt_warns_when_review_status_has_feedback_without_referenc
     assert result.exit_code == 0, result.stdout
     assert "Has review feedback - but no review_feedback reference is set" in result.stdout
 
-    prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-001-test-feature-WP01.md"
+    prompt_file = _prompt_path_from_output(result.stdout)
     prompt_content = prompt_file.read_text(encoding="utf-8")
     assert "WARNING: review_status=has_feedback but no review_feedback reference is set." in prompt_content
     assert "Ask reviewer to re-run move-task with --review-feedback-file." in prompt_content
@@ -296,7 +295,7 @@ def test_implement_fix_cycle_prefers_review_cycle_artifact_over_review_claim_tok
     assert result.exit_code == 0, result.stdout
     assert "Fix mode" in result.stdout
     assert "Cycle 2" in result.stdout
-    prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-001-test-feature-WP01.md"
+    prompt_file = _prompt_path_from_output(result.stdout)
     prompt_content = prompt_file.read_text(encoding="utf-8")
     assert "## Review Findings" in prompt_content
     assert "Persist the validated GET request server-side." in prompt_content
