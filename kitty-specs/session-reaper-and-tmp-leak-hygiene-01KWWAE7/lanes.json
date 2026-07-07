@@ -1,0 +1,71 @@
+{
+  "version": 1,
+  "mission_slug": "session-reaper-and-tmp-leak-hygiene-01KWWAE7",
+  "mission_id": "01KWWAE7RHX95GKW4QC1EMT1Z7",
+  "mission_branch": "kitty/mission-session-reaper-and-tmp-leak-hygiene-01KWWAE7",
+  "target_branch": "fix/session-reaper-and-tmp-leak-hygiene",
+  "lanes": [
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/runtime/next/_tmp_namespace.py",
+        "src/runtime/next/decision.py",
+        "src/runtime/next/prompt_builder.py",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "tests/runtime/test_tmp_prompt_namespace.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        ".kittify/workspaces/059-*.json",
+        ".kittify/workspaces/060-*.json",
+        "src/specify_cli/coordination/status_transition.py",
+        "src/specify_cli/merge/executor.py",
+        "src/specify_cli/status/emit.py",
+        "tests/specify_cli/test_workspace_context_tombstone.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        ".gitignore",
+        "tests/architectural/test_session_reaper.py",
+        "tests/conftest.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-07-06T19:15:08.061996+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
