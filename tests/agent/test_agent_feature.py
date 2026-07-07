@@ -393,9 +393,9 @@ class TestCreateFeatureCommand:
         mock_is_worktree: Mock,
     ) -> None:
         """Should print main repo hint when worktree context is detected."""
-        mock_cwd.return_value = Path("/tmp/external-worktree")
+        mock_cwd.return_value = Path("/nonexistent/external-worktree")
         mock_is_worktree.return_value = True
-        mock_locate.return_value = Path("/tmp/main-repo")
+        mock_locate.return_value = Path("/nonexistent/main-repo")
 
         result = runner.invoke(app, ["create", "test-feature"])
 
@@ -416,7 +416,7 @@ class TestCreateFeatureCommand:
         mock_is_worktree: Mock,
     ) -> None:
         """Should fall back to .worktrees path slicing when main repo lookup fails."""
-        mock_cwd.return_value = Path("/tmp/main-repo/.worktrees/feature-001")
+        mock_cwd.return_value = Path("/nonexistent/main-repo/.worktrees/feature-001")
         mock_is_worktree.return_value = True
         mock_locate.return_value = None
 

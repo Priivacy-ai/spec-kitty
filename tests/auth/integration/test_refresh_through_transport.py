@@ -191,12 +191,12 @@ def _stub_sync_deps():
     mock_config.get_server_url.return_value = "https://saas.test"
     # status/doctor now read the resolved runtime target (#2146).
     mock_config.resolve_runtime_target.return_value.resolved_server_url = "https://saas.test"
-    mock_config.config_file = "/tmp/test-sync-config.toml"
+    mock_config.config_file = "/nonexistent/test-sync-config.toml"
 
     # OfflineQueue stub
     mock_queue = MagicMock()
     mock_queue.size.return_value = 0
-    mock_queue.db_path = _Path("/tmp/test-queue.db")
+    mock_queue.db_path = _Path("/nonexistent/test-queue.db")
     mock_queue.get_queue_stats.return_value = MagicMock(total_queued=0)
 
     # DaemonStatus stub
@@ -213,11 +213,11 @@ def _stub_sync_deps():
     # causing exit-code 2.
     fg = ForegroundIdentity(
         package_version="0.0.0-test",
-        executable_path=_Path("/tmp/test-python"),
-        source_path=_Path("/tmp/test-source"),
+        executable_path=_Path("/nonexistent/test-python"),
+        source_path=_Path("/nonexistent/test-source"),
         server_url="https://saas.test",
         team_or_user="test-user",
-        queue_db_path=_Path("/tmp/test-queue.db"),
+        queue_db_path=_Path("/nonexistent/test-queue.db"),
         pid=99999,
     )
     clean_failure_set = BoundaryFailureSet(
@@ -294,7 +294,7 @@ def _stub_sync_deps():
     stack.enter_context(
         patch(
             "specify_cli.sync.queue._legacy_queue_db_path",
-            return_value=_Path("/tmp/test-legacy-queue.db"),
+            return_value=_Path("/nonexistent/test-legacy-queue.db"),
         )
     )
     return stack

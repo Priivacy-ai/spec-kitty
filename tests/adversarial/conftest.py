@@ -46,7 +46,7 @@ PATH_ATTACK_VECTORS = [
     AttackVector("tab_whitespace", "\t\t", "path", "reject", "Tab characters"),
     # Special paths
     AttackVector("home_tilde", "~/research/", "path", "reject", "Home directory reference"),
-    AttackVector("absolute_path", "/tmp/research/", "path", "reject", "Absolute path"),
+    AttackVector("absolute_path", "/nonexistent/research/", "path", "reject", "Absolute path"),
     AttackVector("null_byte", "docs/research/\x00evil/", "path", "reject", "Null byte injection"),
     # Unicode edge cases
     AttackVector("unicode_valid", "docs/研究/", "path", "handle", "Valid Unicode path"),

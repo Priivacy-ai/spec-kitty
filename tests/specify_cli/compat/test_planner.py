@@ -110,7 +110,7 @@ def _make_invocation(
 def _make_project_status(state: ProjectState, schema_version: int | None = 3, metadata_error: str | None = None) -> ProjectStatus:
     return ProjectStatus(
         state=state,
-        project_root=Path("/tmp/fake"),
+        project_root=Path("/nonexistent/fake"),
         schema_version=schema_version,
         min_supported=_MIN,
         max_supported=_MAX,

@@ -379,7 +379,7 @@ def test_no_steps_routes_by_typed_exception_not_substring(
     )
 
     warning = DiscoveryWarning(
-        path="/tmp/no-steps/mission.yaml",
+        path="/nonexistent/no-steps/mission.yaml",
         tier="project_config",
         origin="test",
         error="prior load failure",
@@ -403,14 +403,14 @@ def test_generic_runtime_error_still_maps_to_malformed(
     from runtime.next._internal_runtime.discovery import DiscoveryWarning
 
     def _raise_generic(_path: Path) -> None:
-        raise MissionRuntimeError("Mission template must be a mapping: /tmp/x")
+        raise MissionRuntimeError("Mission template must be a mapping: /nonexistent/x")
 
     monkeypatch.setattr(
         validator_mod, "load_mission_template_file", _raise_generic
     )
 
     warning = DiscoveryWarning(
-        path="/tmp/bad/mission.yaml",
+        path="/nonexistent/bad/mission.yaml",
         tier="project_config",
         origin="test",
         error="prior load failure",

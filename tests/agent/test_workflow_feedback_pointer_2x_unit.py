@@ -179,13 +179,13 @@ def test_implement_prompt_uses_feedback_pointer(workflow_repo: tuple[Path, str, 
 )
 def test_resolve_git_common_dir_returns_none_on_subprocess_errors(error: Exception):
     with patch("specify_cli.cli.commands.agent.workflow.subprocess.run", side_effect=error):
-        assert workflow._resolve_git_common_dir(Path("/tmp/repo")) is None
+        assert workflow._resolve_git_common_dir(Path("/nonexistent/repo")) is None
 
 
 def test_resolve_git_common_dir_returns_none_for_blank_output():
     completed = subprocess.CompletedProcess(args=["git"], returncode=0, stdout="\n", stderr="")
     with patch("specify_cli.cli.commands.agent.workflow.subprocess.run", return_value=completed):
-        assert workflow._resolve_git_common_dir(Path("/tmp/repo")) is None
+        assert workflow._resolve_git_common_dir(Path("/nonexistent/repo")) is None
 
 
 def test_resolve_feedback_pointer_handles_blank_and_legacy_missing(tmp_path: Path):

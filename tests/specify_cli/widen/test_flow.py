@@ -101,7 +101,7 @@ def _run_with_bc_input(
     """
     client = _make_client(post_widen_return=post_widen_return, post_widen_error=post_widen_error)
     console, buf = _make_console()
-    flow = WidenFlow(saas_client=client, repo_root=Path("/tmp/test-repo"), console=console)
+    flow = WidenFlow(saas_client=client, repo_root=Path("/nonexistent/test-repo"), console=console)
 
     audience_rv: AudienceSelection | None
     if audience_returns_none:
@@ -138,7 +138,7 @@ class TestCancelPath:
         """If audience review returns None, post_widen must NOT be called."""
         client = _make_client()
         console, _ = _make_console()
-        flow = WidenFlow(saas_client=client, repo_root=Path("/tmp"), console=console)
+        flow = WidenFlow(saas_client=client, repo_root=Path("/nonexistent"), console=console)
         with (
             patch("specify_cli.widen.flow.run_audience_review", return_value=None),
             patch.object(console, "input", return_value=""),
@@ -222,7 +222,7 @@ class TestBlockPath:
         """EOFError in CI/non-interactive environments must default to BLOCK."""
         client = _make_client()
         console, _ = _make_console()
-        flow = WidenFlow(saas_client=client, repo_root=Path("/tmp"), console=console)
+        flow = WidenFlow(saas_client=client, repo_root=Path("/nonexistent"), console=console)
         with (
             patch("specify_cli.widen.flow.run_audience_review", return_value=_DEFAULT_SELECTION),
             patch.object(console, "input", side_effect=EOFError),
@@ -293,7 +293,7 @@ class TestSuccessPanel:
             panel_written_before_input.append("Slack thread created" in buf.getvalue())
             return ""
 
-        flow = WidenFlow(saas_client=client, repo_root=Path("/tmp"), console=console)
+        flow = WidenFlow(saas_client=client, repo_root=Path("/nonexistent"), console=console)
         with (
             patch("specify_cli.widen.flow.run_audience_review", return_value=_DEFAULT_SELECTION),
             patch.object(console, "input", side_effect=fake_input),
@@ -344,7 +344,7 @@ class TestSuccessPanel:
         long_question = "A" * 80
         client = _make_client()
         console, buf = _make_console()
-        flow = WidenFlow(saas_client=client, repo_root=Path("/tmp"), console=console)
+        flow = WidenFlow(saas_client=client, repo_root=Path("/nonexistent"), console=console)
         with (
             patch(
                 "specify_cli.widen.flow.run_audience_review",

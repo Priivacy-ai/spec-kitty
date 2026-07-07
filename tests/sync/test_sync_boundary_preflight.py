@@ -575,7 +575,7 @@ def test_preflight_result_render_within_25_lines() -> None:
         auth_principal=None,
         auth_team=None,
         auth_scope=None,
-        queue_db_path="/tmp/queue.db",
+        queue_db_path="/nonexistent/queue.db",
         started_at="2026-05-18T08:00:00+00:00",
     )
     orphans = (orphan, orphan, orphan)
@@ -623,7 +623,7 @@ def test_preflight_result_to_dict_is_json_serializable() -> None:
         auth_principal=None,
         auth_team=None,
         auth_scope=None,
-        queue_db_path="/tmp/queue.db",
+        queue_db_path="/nonexistent/queue.db",
         started_at="2026-05-18T08:00:00+00:00",
     )
     result = PreflightResult(

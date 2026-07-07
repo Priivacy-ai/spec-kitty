@@ -85,7 +85,7 @@ def test_silent_auto_run_blocked_in_hic_mode(
         "mission_id": mission_id,
         "mission_slug": mission_slug,
         "payload": {
-            "record_path": "/tmp/fake.yaml",
+            "record_path": "/nonexistent/fake.yaml",
             "record_hash": "",
             "findings_summary": {"helped": 0, "not_helpful": 0, "gaps": 0},
             "proposals_count": 0,
@@ -164,7 +164,7 @@ def test_hic_completed_operator_driven_is_allowed(
         "mission_id": mission_id,
         "mission_slug": mission_slug,
         "payload": {
-            "record_path": "/tmp/fake.yaml",
+            "record_path": "/nonexistent/fake.yaml",
             "record_hash": "",
             "findings_summary": {"helped": 1, "not_helpful": 0, "gaps": 0},
             "proposals_count": 0,

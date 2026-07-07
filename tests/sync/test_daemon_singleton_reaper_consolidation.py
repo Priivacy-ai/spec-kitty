@@ -419,7 +419,7 @@ def test_reaper_skips_non_spawn_shaped_cmdline(
     my_root = tmp_path / "home" / ".spec-kitty"
     bystander = _FakeProc(
         2601,
-        [my_exe, "/tmp/run_sync_daemon_helper.py", _scope_marker(my_root), _exec_marker(my_exe)],
+        [my_exe, "/nonexistent/run_sync_daemon_helper.py", _scope_marker(my_root), _exec_marker(my_exe)],
         my_exe,
     )
     _install_fake_host(monkeypatch, [bystander], state_pid=None, daemon_root=my_root)

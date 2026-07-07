@@ -166,7 +166,7 @@ def test_print_slash_command_report_branches() -> None:
     # Configured + no gaps.
     assert cs._print_slash_command_report(["claude"], [], fix=False) is True
     # Configured + gaps.
-    gaps = [cs.SlashCommandGap("claude", "plan", Path("/tmp/x.md"), "missing")]
+    gaps = [cs.SlashCommandGap("claude", "plan", Path("/nonexistent/x.md"), "missing")]
     assert cs._print_slash_command_report(["claude"], gaps, fix=False) is False
 
 
@@ -179,9 +179,9 @@ def test_print_slash_command_payload_gaps_branch() -> None:
         "errors": [],
         "configured_agents": ["claude"],
         "gaps": [
-            {"agent_key": "claude", "command": "plan", "expected_path": "/tmp/x.md", "status": "missing"}
+            {"agent_key": "claude", "command": "plan", "expected_path": "/nonexistent/x.md", "status": "missing"}
         ],
-        "repaired": ["/tmp/x.md"],
+        "repaired": ["/nonexistent/x.md"],
     }
     cs._print_slash_command_payload(payload, fix=True)
 

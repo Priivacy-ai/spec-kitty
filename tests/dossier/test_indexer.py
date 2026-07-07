@@ -233,7 +233,7 @@ class TestMissingArtifactDetection:
             mission_type="software-dev",
             mission_run_id="run-001",
             mission_slug="test-feature",
-            feature_dir="/tmp/test",
+            feature_dir="/nonexistent/test",
             artifacts=[],
             manifest=manifest.model_dump(),
         )
@@ -274,7 +274,7 @@ class TestMissingArtifactDetection:
             mission_type="software-dev",
             mission_run_id="run-001",
             mission_slug="test-feature",
-            feature_dir="/tmp/test",
+            feature_dir="/nonexistent/test",
             artifacts=[],
             manifest=manifest.model_dump(),
         )
@@ -317,7 +317,7 @@ class TestMissingArtifactDetection:
             mission_type="software-dev",
             mission_run_id="run-001",
             mission_slug="test-feature",
-            feature_dir="/tmp/test",
+            feature_dir="/nonexistent/test",
             artifacts=[artifact],
             manifest=manifest.model_dump(),
         )
@@ -346,7 +346,7 @@ class TestMissingArtifactDetection:
             mission_type="software-dev",
             mission_run_id="run-001",
             mission_slug="test-feature",
-            feature_dir="/tmp/test",
+            feature_dir="/nonexistent/test",
             artifacts=[],
             manifest=manifest.model_dump(),
         )
@@ -375,7 +375,7 @@ class TestMissingArtifactDetection:
             mission_type="software-dev",
             mission_run_id="run-001",
             mission_slug="test-feature",
-            feature_dir="/tmp/test",
+            feature_dir="/nonexistent/test",
             artifacts=[],
             manifest=manifest.model_dump(),
         )
@@ -551,7 +551,7 @@ class TestCompletenessStatus:
             mission_type="software-dev",
             mission_run_id="run-001",
             mission_slug="test-feature",
-            feature_dir="/tmp/test",
+            feature_dir="/nonexistent/test",
             artifacts=[artifact],
             manifest={"required": ["spec"]},  # Has manifest
         )
@@ -573,7 +573,7 @@ class TestCompletenessStatus:
             mission_type="software-dev",
             mission_run_id="run-001",
             mission_slug="test-feature",
-            feature_dir="/tmp/test",
+            feature_dir="/nonexistent/test",
             artifacts=[artifact],
             manifest={"required": ["spec"]},
         )
@@ -594,7 +594,7 @@ class TestCompletenessStatus:
             mission_type="software-dev",
             mission_run_id="run-001",
             mission_slug="test-feature",
-            feature_dir="/tmp/test",
+            feature_dir="/nonexistent/test",
             artifacts=[artifact],
             manifest=None,  # No manifest
         )
@@ -625,7 +625,7 @@ class TestCompletenessStatus:
             mission_type="software-dev",
             mission_run_id="run-001",
             mission_slug="test-feature",
-            feature_dir="/tmp/test",
+            feature_dir="/nonexistent/test",
             artifacts=[required, optional],
             manifest={"required": ["spec"]},
         )

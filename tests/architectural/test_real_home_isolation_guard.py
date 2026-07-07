@@ -317,7 +317,7 @@ def _assert_real_sentinel_untouched(real_home: Path) -> None:  # pragma: no cove
 #     reaches the real home, PASS when isolation redirects it).
 
 _REAL_HOME = "/real/home"
-_ISOLATED_HOME = "/tmp/worker-0/home"
+_ISOLATED_HOME = "/nonexistent/worker-0/home"
 
 
 def test_probe_body_uses_file_transport_not_stdout(tmp_path: Path) -> None:

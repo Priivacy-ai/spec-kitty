@@ -705,7 +705,7 @@ class TestBuildContextV2:
 
 
 def test_render_bootstrap_uses_fallback_labels_without_summary_or_references() -> None:
-    text = _render_bootstrap(Path("/tmp/charter.md"), [], [])
+    text = _render_bootstrap(Path("/nonexistent/charter.md"), [], [])
 
     assert "Policy Summary:" in text
     assert "No explicit policy summary section found in charter.md." in text

@@ -56,7 +56,7 @@ def _make_dossier(
         mission_type="software-dev",
         mission_run_id="test-run-id",
         mission_slug="047-feat",
-        feature_dir="/tmp/feature",
+        feature_dir="/nonexistent/feature",
         artifacts=artifacts or [],
     )
 

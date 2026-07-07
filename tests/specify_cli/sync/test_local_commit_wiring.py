@@ -158,7 +158,7 @@ def test_handle_message_dispatches_local_commit_ack() -> None:
     """WebSocketClient._handle_message routes LocalCommitAck to _handle_local_commit_ack."""
     from specify_cli.sync.client import WebSocketClient
 
-    client = WebSocketClient(repo_root=Path("/tmp/fake-repo"))
+    client = WebSocketClient(repo_root=Path("/nonexistent/fake-repo"))
 
     with patch.object(client, "_handle_local_commit_ack", new_callable=AsyncMock) as mock_ack:
         asyncio.run(client._handle_message({"type": "LocalCommitAck", "git_hash": "abc123"}))

@@ -237,7 +237,7 @@ class TestExistingWorktreeValidity:
     def test_falls_back_to_git_marker_when_vcs_probe_errors(self, tmp_path: Path) -> None:
         workspace_path = tmp_path / ".worktrees" / "lane-b"
         workspace_path.mkdir(parents=True)
-        (workspace_path / ".git").write_text("gitdir: /tmp/example\n", encoding="utf-8")
+        (workspace_path / ".git").write_text("gitdir: /nonexistent/example\n", encoding="utf-8")
 
         with patch("specify_cli.core.worktree.get_vcs", side_effect=RuntimeError("boom")):
             assert _existing_worktree_is_valid(workspace_path) is True

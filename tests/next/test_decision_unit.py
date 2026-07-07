@@ -728,7 +728,7 @@ class TestInReviewLaneDecision:
         from types import SimpleNamespace
 
         repo_root = feature_for_review_and_in_review.parent.parent
-        fake_ws = SimpleNamespace(worktree_path=Path("/tmp/fake-worktree"))
+        fake_ws = SimpleNamespace(worktree_path=Path("/nonexistent/fake-worktree"))
 
         with patch(
             "runtime.next.decision.resolve_workspace_for_wp",
@@ -751,7 +751,7 @@ class TestInReviewLaneDecision:
         from types import SimpleNamespace
 
         repo_root = feature_for_review_and_in_review.parent.parent
-        fake_ws = SimpleNamespace(worktree_path=Path("/tmp/fake-worktree"))
+        fake_ws = SimpleNamespace(worktree_path=Path("/nonexistent/fake-worktree"))
 
         with patch(
             "runtime.next.decision.resolve_workspace_for_wp",

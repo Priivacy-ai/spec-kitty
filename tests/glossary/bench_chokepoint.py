@@ -70,7 +70,7 @@ def _build_synthetic_index() -> GlossaryChokepoint:
         )
         store.add_sense(sense)
 
-    cp = GlossaryChokepoint(Path("/tmp/bench_fake"))
+    cp = GlossaryChokepoint(Path("/nonexistent/bench_fake"))
     cp._index = build_index(store, [s.value for s in DEFAULT_APPLICABLE_SCOPES])
     return cp
 

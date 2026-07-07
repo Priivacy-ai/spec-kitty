@@ -142,7 +142,7 @@ class TestUvToolBranch:
         bin_dir.mkdir(parents=True)
         (tool_env / "uv-receipt.toml").write_text(
             "[tool]\n"
-            'requirements = [{ name = "spec-kitty-cli", directory = "/tmp/spec-kitty" }]\n',
+            'requirements = [{ name = "spec-kitty-cli", directory = "/nonexistent/spec-kitty" }]\n',
             encoding="utf-8",
         )
         monkeypatch.delenv("UV_TOOL_DIR", raising=False)
@@ -184,7 +184,7 @@ class TestUvToolBranch:
         assert result == InstallMethod.UV_TOOL
 
     def test_uv_tool_not_detected_from_loose_path_without_receipt(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        executable = "/tmp/uv/tools/spec-kitty-cli/bin/python"
+        executable = "/nonexistent/uv/tools/spec-kitty-cli/bin/python"
         monkeypatch.delenv("UV_TOOL_DIR", raising=False)
         with _no_source():
             result = detect_install_method(

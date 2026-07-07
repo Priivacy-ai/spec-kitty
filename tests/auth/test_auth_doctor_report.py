@@ -146,7 +146,7 @@ def _patch_state(
     )
     monkeypatch.setattr(_auth_doctor, "read_lock_record", lambda _path: lock_record)
     if auth_root is None:
-        auth_root = Path("/tmp/spec-kitty-doctor-test/auth/refresh.lock")
+        auth_root = Path("/nonexistent/spec-kitty-doctor-test/auth/refresh.lock")
     monkeypatch.setattr(_auth_doctor, "_refresh_lock_path", lambda: auth_root)
 
     class _FakeStateFile:

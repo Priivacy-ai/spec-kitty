@@ -250,10 +250,10 @@ def test_generator_result_repr():
     """Test GeneratorResult has readable string representation."""
     result = GeneratorResult(
         success=True,
-        output_dir=Path("/tmp/docs"),
+        output_dir=Path("/nonexistent/docs"),
         errors=[],
         warnings=["Minor warning"],
-        generated_files=[Path("/tmp/docs/index.html")],
+        generated_files=[Path("/nonexistent/docs/index.html")],
     )
 
     repr_str = repr(result)

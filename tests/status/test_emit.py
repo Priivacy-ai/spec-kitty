@@ -1533,7 +1533,7 @@ class TestBatchEmit:
                         wp_id="WP01",
                         to_lane="in_progress",
                         actor="agent",
-                        workspace_context="worktree:/tmp/wp01",
+                        workspace_context="worktree:/nonexistent/wp01",
                     ),
                     TransitionRequest(
                         feature_dir=feature_dir,
@@ -1567,7 +1567,7 @@ class TestBatchEmit:
                         wp_id="WP02",
                         to_lane="in_progress",
                         actor="agent",
-                        workspace_context="worktree:/tmp/wp02",
+                        workspace_context="worktree:/nonexistent/wp02",
                     ),
                     TransitionRequest(
                         feature_dir=feature_dir,

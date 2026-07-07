@@ -31,7 +31,7 @@ def _make_context(**overrides: object) -> MissionContext:
         "mission_number": "057",
         "mission_type": "software-dev",
         "target_branch": "main",
-        "authoritative_repo": "/tmp/repo",
+        "authoritative_repo": "/nonexistent/repo",
         "authoritative_ref": "kitty/mission-057-test-feature-lane-a",
         "owned_files": ("src/**",),
         "execution_mode": "code_change",

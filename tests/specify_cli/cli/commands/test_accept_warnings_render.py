@@ -30,7 +30,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 def _summary(*, warnings: list[str]) -> AcceptanceSummary:
     """Build a minimal accept-ready summary carrying the given warnings."""
-    repo_root = Path("/tmp/repo")
+    repo_root = Path("/nonexistent/repo")
     feature_dir = repo_root / "kitty-specs" / "099-demo"
     return AcceptanceSummary(
         feature="099-demo",

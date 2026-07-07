@@ -801,7 +801,7 @@ class TestVersionPinWiredIntoCallback:
         root_callback_mock = MagicMock()
         check_schema_mock = MagicMock()
         check_pin_mock = MagicMock()
-        project_root = Path("/tmp/spec-kitty-project")
+        project_root = Path("/nonexistent/spec-kitty-project")
 
         monkeypatch.setattr(
             sys,

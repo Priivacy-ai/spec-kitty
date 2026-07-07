@@ -960,7 +960,7 @@ class TestSnapshotTraversalGuard:
             mission_type="software-dev",
             mission_run_id="run-001",
             mission_slug=mission_slug,
-            feature_dir="/tmp/safe",
+            feature_dir="/nonexistent/safe",
             artifacts=[],
             manifest={},
             latest_snapshot=None,

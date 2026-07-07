@@ -170,7 +170,7 @@ def test_context_payload_emits_canonical_mission_fields() -> None:
         mission_number="064",
         mission_type="software-dev",
         target_branch="main",
-        authoritative_repo="/tmp/repo",
+        authoritative_repo="/nonexistent/repo",
         authoritative_ref="kitty/mission-064-complete-mission-identity-cutover-lane-a",
         owned_files=("src/specify_cli/**",),
         execution_mode="code_change",

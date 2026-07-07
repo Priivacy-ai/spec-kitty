@@ -99,8 +99,8 @@ def test_warn_legacy_asset_emits_single_migrate_nudge_after_runtime_bootstrap(
     monkeypatch.setattr(resolver_module, "_is_global_runtime_configured", lambda: True)
     resolver_module._reset_migrate_nudge()
 
-    _warn_legacy_asset(Path("/tmp/spec-template.md"))
-    _warn_legacy_asset(Path("/tmp/plan-template.md"))
+    _warn_legacy_asset(Path("/nonexistent/spec-template.md"))
+    _warn_legacy_asset(Path("/nonexistent/plan-template.md"))
 
     stderr = capsys.readouterr().err
     assert stderr.count("spec-kitty migrate") == 1
@@ -326,7 +326,7 @@ def test_warn_legacy_asset_message_contains_path_string(
     monkeypatch.setattr(resolver_module, "_is_global_runtime_configured", lambda: False)
 
     with pytest.warns(DeprecationWarning, match="spec-template.md"):
-        _warn_legacy_asset(Path("/tmp/spec-template.md"))
+        _warn_legacy_asset(Path("/nonexistent/spec-template.md"))
 
 
 def test_reset_migrate_nudge_allows_nudge_to_fire_again(
@@ -334,7 +334,7 @@ def test_reset_migrate_nudge_allows_nudge_to_fire_again(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """After _reset_migrate_nudge, calling _emit_migrate_nudge emits a second nudge."""
-    monkeypatch.setattr(resolver_module, "get_kittify_home", lambda: Path("/tmp/fake-home"))
+    monkeypatch.setattr(resolver_module, "get_kittify_home", lambda: Path("/nonexistent/fake-home"))
     resolver_module._emit_migrate_nudge()
     capsys.readouterr()  # consume the first nudge
     resolver_module._reset_migrate_nudge()
@@ -350,7 +350,7 @@ def test_emit_migrate_nudge_message_starts_with_note(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """Nudge message begins with 'Note:' (case-sensitive)."""
-    monkeypatch.setattr(resolver_module, "get_kittify_home", lambda: Path("/tmp/fake-home"))
+    monkeypatch.setattr(resolver_module, "get_kittify_home", lambda: Path("/nonexistent/fake-home"))
     resolver_module._reset_migrate_nudge()
 
     resolver_module._emit_migrate_nudge()
@@ -364,7 +364,7 @@ def test_emit_migrate_nudge_suppressed_for_json_invocation(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """JSON invocations must keep merged stdout/stderr streams parseable."""
-    monkeypatch.setattr(resolver_module, "get_kittify_home", lambda: Path("/tmp/fake-home"))
+    monkeypatch.setattr(resolver_module, "get_kittify_home", lambda: Path("/nonexistent/fake-home"))
     monkeypatch.setattr(sys, "argv", ["spec-kitty", "status", "--json"])
     resolver_module._reset_migrate_nudge()
 

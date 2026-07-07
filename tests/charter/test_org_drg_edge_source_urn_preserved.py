@@ -111,7 +111,7 @@ class TestOrgBridgeEdgeSourceUrnPreserved:
             {
                 "pack_name": "acme",
                 "source_kind": "local_path",
-                "source_ref": "/tmp/acme",
+                "source_ref": "/nonexistent/acme",
                 "layer_index": 1,
                 "provenance_marker": "org",
                 "nodes": [

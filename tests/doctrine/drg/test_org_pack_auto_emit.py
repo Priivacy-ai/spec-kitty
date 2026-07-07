@@ -74,7 +74,7 @@ def test_enhances_auto_emits_drg_edge(tmp_path: Path) -> None:
         body=(
             'pack_name: testpack\n'
             'source_kind: local_path\n'
-            'source_ref: "/tmp/pack"\n'
+            'source_ref: "/nonexistent/pack"\n'
             "layer_index: 1\n"
             "nodes: []\n"
             "edges: []\n"
@@ -107,7 +107,7 @@ def test_overrides_auto_emits_drg_edge(tmp_path: Path) -> None:
         body=(
             'pack_name: testpack\n'
             'source_kind: local_path\n'
-            'source_ref: "/tmp/pack"\n'
+            'source_ref: "/nonexistent/pack"\n'
             "layer_index: 1\n"
             "nodes: []\n"
             "edges: []\n"
@@ -140,7 +140,7 @@ def test_auto_emit_deduplicates_hand_authored_edge(tmp_path: Path) -> None:
         body=(
             'pack_name: testpack\n'
             'source_kind: local_path\n'
-            'source_ref: "/tmp/pack"\n'
+            'source_ref: "/nonexistent/pack"\n'
             "layer_index: 1\n"
             "nodes: []\n"
             "edges:\n"
@@ -174,7 +174,7 @@ def test_no_augmentation_fields_emits_no_extra_edges(tmp_path: Path) -> None:
         body=(
             'pack_name: testpack\n'
             'source_kind: local_path\n'
-            'source_ref: "/tmp/pack"\n'
+            'source_ref: "/nonexistent/pack"\n'
             "layer_index: 1\n"
             "nodes: []\n"
             "edges: []\n"

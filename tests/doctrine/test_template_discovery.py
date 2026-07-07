@@ -260,7 +260,7 @@ def test_template_ref_is_frozen() -> None:
         mission="software-dev",
         name="x.md",
         tier=ResolutionTier.PACKAGE_DEFAULT,
-        path=Path("/tmp/x.md"),
+        path=Path("/nonexistent/x.md"),
     )
     with pytest.raises(Exception):  # noqa: B017 -- FrozenInstanceError
         ref.mission = "other"  # type: ignore[misc]

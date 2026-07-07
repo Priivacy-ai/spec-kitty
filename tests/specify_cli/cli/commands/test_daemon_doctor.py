@@ -27,7 +27,7 @@ class _OwnerRecord:
     source_checkout_path: str = "/repo"
     server_url: str = "http://127.0.0.1:9400"
     auth_scope: str = "team"
-    queue_db_path: str = "/tmp/queue.db"
+    queue_db_path: str = "/nonexistent/queue.db"
     started_at: str = "2026-01-01T00:00:00Z"
 
 
@@ -38,7 +38,7 @@ def test_orphan_daemons_none_json(monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.sync.owner as owner_mod
 
     monkeypatch.setattr(owner_mod, "list_orphan_records", lambda: [])
-    monkeypatch.setattr(owner_mod, "owner_record_path", lambda: Path("/tmp/owner.json"))
+    monkeypatch.setattr(owner_mod, "owner_record_path", lambda: Path("/nonexistent/owner.json"))
     with pytest.raises(typer.Exit) as exc:
         dd.run_orphan_daemons(json_output=True)
     assert exc.value.exit_code == 0
@@ -48,7 +48,7 @@ def test_orphan_daemons_present_json(monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.sync.owner as owner_mod
 
     monkeypatch.setattr(owner_mod, "list_orphan_records", lambda: [_OwnerRecord()])
-    monkeypatch.setattr(owner_mod, "owner_record_path", lambda: Path("/tmp/owner.json"))
+    monkeypatch.setattr(owner_mod, "owner_record_path", lambda: Path("/nonexistent/owner.json"))
     with pytest.raises(typer.Exit) as exc:
         dd.run_orphan_daemons(json_output=True)
     assert exc.value.exit_code == 1
@@ -58,7 +58,7 @@ def test_orphan_daemons_none_human(monkeypatch: pytest.MonkeyPatch) -> None:
     import specify_cli.sync.owner as owner_mod
 
     monkeypatch.setattr(owner_mod, "list_orphan_records", lambda: [])
-    monkeypatch.setattr(owner_mod, "owner_record_path", lambda: Path("/tmp/owner.json"))
+    monkeypatch.setattr(owner_mod, "owner_record_path", lambda: Path("/nonexistent/owner.json"))
     with pytest.raises(typer.Exit) as exc:
         dd.run_orphan_daemons(json_output=False)
     assert exc.value.exit_code == 0
@@ -70,7 +70,7 @@ def test_orphan_daemons_present_human(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         owner_mod, "list_orphan_records", lambda: [_OwnerRecord(), _OwnerRecord(pid=5678)]
     )
-    monkeypatch.setattr(owner_mod, "owner_record_path", lambda: Path("/tmp/owner.json"))
+    monkeypatch.setattr(owner_mod, "owner_record_path", lambda: Path("/nonexistent/owner.json"))
     with pytest.raises(typer.Exit) as exc:
         dd.run_orphan_daemons(json_output=False)
     assert exc.value.exit_code == 1

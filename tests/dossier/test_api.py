@@ -106,7 +106,7 @@ def sample_dossier(sample_artifacts):
         mission_type="software-dev",
         mission_run_id="test-run",
         mission_slug="042-local-mission-dossier",
-        feature_dir="/tmp/kitty-specs/042-local-mission-dossier",
+        feature_dir="/nonexistent/kitty-specs/042-local-mission-dossier",
         artifacts=sample_artifacts,
         manifest={"required": ["input.spec.main", "output.tasks.per_wp", "policy.manifest"]},
         latest_snapshot=None,

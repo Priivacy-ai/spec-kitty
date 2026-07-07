@@ -96,7 +96,7 @@ def _make_stream_response(
 
 class TestSafeExtractTarPathTraversal:
     """The old ``startswith`` check could be bypassed by a sibling-prefix path
-    (e.g., ``/tmp/target-evil/x`` starts with ``/tmp/target``).
+    (e.g., ``/nonexistent/target-evil/x`` starts with ``/nonexistent/target``).
 
     The fix uses ``Path.relative_to`` which correctly rejects sibling paths.
     """
@@ -116,7 +116,7 @@ class TestSafeExtractTarPathTraversal:
             "../evil.yaml",
             "../../etc/passwd",
             "/etc/passwd",
-            "/tmp/evil",
+            "/nonexistent/evil",
         ],
     )
     def test_path_traversal_is_rejected(
@@ -130,8 +130,8 @@ class TestSafeExtractTarPathTraversal:
             _safe_extract_tar(tf, tmp_path)
 
     def test_sibling_prefix_bypass_is_rejected(self, tmp_path: Path) -> None:
-        """Sibling-prefix bypass: ``/tmp/target-evil/x`` must not escape via
-        startswith(``/tmp/target``).
+        """Sibling-prefix bypass: ``/nonexistent/target-evil/x`` must not escape via
+        startswith(``/nonexistent/target``).
 
         This is the exact attack vector fixed by the P1 patch (2026-05).
         """
@@ -259,7 +259,7 @@ class TestApiSourceFilenameTraversal:
             "../../etc/passwd",
             "../outside.yaml",
             "/etc/passwd",
-            "/tmp/evil",
+            "/nonexistent/evil",
             "foo/bar.yaml",          # path separator inside basename
             "foo\x00bar.yaml",       # null byte
         ],

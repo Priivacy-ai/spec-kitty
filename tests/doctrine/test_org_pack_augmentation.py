@@ -49,7 +49,7 @@ def _write_fragment(pack_root: Path, *, edges: str = "edges: []\n") -> Path:
     fragment.write_text(
         "pack_name: testpack\n"
         "source_kind: local_path\n"
-        'source_ref: "/tmp/pack"\n'
+        'source_ref: "/nonexistent/pack"\n'
         "layer_index: 1\n"
         "nodes: []\n" + edges,
         encoding="utf-8",
@@ -322,7 +322,7 @@ def test_mission_type_fragment_augmentation_validates(tmp_path: Path) -> None:
         {
             "pack_name": "acme",
             "source_kind": "local_path",
-            "source_ref": "/tmp/acme",
+            "source_ref": "/nonexistent/acme",
             "layer_index": 1,
             "provenance_marker": "org",
             "nodes": [
@@ -350,7 +350,7 @@ def test_mission_type_singular_alias_resolves_to_plural() -> None:
         {
             "pack_name": "acme",
             "source_kind": "local_path",
-            "source_ref": "/tmp/acme",
+            "source_ref": "/nonexistent/acme",
             "layer_index": 1,
             "nodes": [{"id": "x", "kind": "mission_type", "title": "X"}],
             "edges": [],

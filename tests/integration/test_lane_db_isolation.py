@@ -129,7 +129,7 @@ class TestLaneIsolationContract:
         # Smoke-construct a result with explicit env to confirm the dataclass
         # field is on the contract surface.
         result = LaneWorkspaceResult(
-            workspace_path=__import__("pathlib").Path("/tmp/x"),
+            workspace_path=__import__("pathlib").Path("/nonexistent/x"),
             branch_name="kitty/mission-foo-lane-a",
             workspace_name="foo-lane-a",
             lane_id="lane-a",

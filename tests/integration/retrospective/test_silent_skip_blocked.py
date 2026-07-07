@@ -66,7 +66,7 @@ def test_silent_skip_blocked_in_autonomous_mode(
         "mission_id": mission_id,
         "mission_slug": mission_slug,
         "payload": {
-            "record_path": "/tmp/fake.yaml",
+            "record_path": "/nonexistent/fake.yaml",
             "skip_reason": "agent tried to bypass",
             "skipped_by": {"kind": "agent", "id": "rogue-agent", "profile_id": None},
         },
@@ -134,7 +134,7 @@ def test_silent_skip_allowed_with_charter_clause(
         "mission_id": mission_id,
         "mission_slug": mission_slug,
         "payload": {
-            "record_path": "/tmp/fake.yaml",
+            "record_path": "/nonexistent/fake.yaml",
             "skip_reason": "authorized skip",
             "skipped_by": {"kind": "runtime", "id": "next", "profile_id": None},
         },

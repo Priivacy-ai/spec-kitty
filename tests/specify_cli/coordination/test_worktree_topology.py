@@ -351,7 +351,7 @@ def test_lock_root_degrades_to_parent_parent_when_canonical_root_not_found(
     trigger is therefore ``WorkspaceRootNotFound``, not ``WorktreeRegistryUnavailable``.
 
     The monkeypatch is necessary because pytest's ``tmp_path`` ancestor may contain
-    a real ``.git`` directory (e.g. ``/tmp/.git``), which would prevent
+    a real ``.git`` directory somewhere above the OS temp root, which would prevent
     ``WorkspaceRootNotFound`` from being raised in a bare walk. Injecting the
     exception exercises the documented fallback unconditionally (C-008: fix, not
     litigate the host-path dependency).

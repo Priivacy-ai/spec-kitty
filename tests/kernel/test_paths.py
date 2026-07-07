@@ -295,8 +295,8 @@ class TestRenderRuntimePath:
 
     def test_windows_always_returns_absolute_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr("kernel.paths._is_windows", lambda: True)
-        rendered = render_runtime_path(Path("/tmp/spec-kitty/auth"))
-        assert rendered == str(Path("/tmp/spec-kitty/auth").resolve(strict=False))
+        rendered = render_runtime_path(Path("/nonexistent/spec-kitty/auth"))
+        assert rendered == str(Path("/nonexistent/spec-kitty/auth").resolve(strict=False))
 
     def test_posix_tilde_compression_under_home(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
         monkeypatch.setattr("kernel.paths._is_windows", lambda: False)

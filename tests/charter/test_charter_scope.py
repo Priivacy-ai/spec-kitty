@@ -69,7 +69,7 @@ def tmp_monorepo(tmp_path: Path) -> Path:
 def test_default_scope_constructs_with_repo_root() -> None:
     from charter.scope import CharterScope
 
-    repo_root = Path("/tmp/some-repo")
+    repo_root = Path("/nonexistent/some-repo")
     scope = CharterScope.default(repo_root)
 
     assert scope.root == repo_root
@@ -81,7 +81,7 @@ def test_default_scope_is_frozen() -> None:
     """CharterScope is a frozen dataclass: cannot mutate after construction."""
     from charter.scope import CharterScope
 
-    scope = CharterScope.default(Path("/tmp/repo"))
+    scope = CharterScope.default(Path("/nonexistent/repo"))
     with pytest.raises(dataclasses.FrozenInstanceError):
         scope.name = "mutated"  # type: ignore[misc]
 

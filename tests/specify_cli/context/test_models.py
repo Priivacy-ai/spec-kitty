@@ -24,7 +24,7 @@ def _make_context(**overrides: object) -> MissionContext:
         "mission_number": "057",
         "mission_type": "software-dev",
         "target_branch": "main",
-        "authoritative_repo": "/tmp/repo",
+        "authoritative_repo": "/nonexistent/repo",
         "authoritative_ref": "kitty/mission-057-canonical-context-architecture-cleanup-lane-a",
         "owned_files": ("src/specify_cli/context/**",),
         "execution_mode": "code_change",
@@ -50,7 +50,7 @@ class TestMissionContextCreation:
         assert ctx.mission_number == "057"
         assert ctx.mission_type == "software-dev"
         assert ctx.target_branch == "main"
-        assert ctx.authoritative_repo == "/tmp/repo"
+        assert ctx.authoritative_repo == "/nonexistent/repo"
         assert ctx.authoritative_ref == "kitty/mission-057-canonical-context-architecture-cleanup-lane-a"
         assert ctx.owned_files == ("src/specify_cli/context/**",)
         assert ctx.execution_mode == "code_change"

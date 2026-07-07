@@ -41,7 +41,7 @@ def _fragment_overriding(urn_id: str):
         {
             "pack_name": "example-org",
             "source_kind": "local_path",
-            "source_ref": "/tmp/example-org",
+            "source_ref": "/nonexistent/example-org",
             "layer_index": 1,
             "provenance_marker": "org",
             "nodes": [
@@ -118,7 +118,7 @@ def test_org_pack_body_path_referencing_specify_cli_is_layer_rule_violation() ->
         {
             "pack_name": "bad-org",
             "source_kind": "local_path",
-            "source_ref": "/tmp/bad-org",
+            "source_ref": "/nonexistent/bad-org",
             "layer_index": 1,
             "provenance_marker": "org",
             "nodes": [
