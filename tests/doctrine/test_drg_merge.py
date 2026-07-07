@@ -71,7 +71,7 @@ def _fragment(
         {
             "pack_name": pack_name,
             "source_kind": "local_path",
-            "source_ref": f"/tmp/{pack_name}",
+            "source_ref": f"/nonexistent/{pack_name}",
             "layer_index": 1,
             "provenance_marker": "org",
             "nodes": nodes,
@@ -491,7 +491,7 @@ class TestInvariantsPreserved:
             {
                 "pack_name": "p",
                 "source_kind": "local_path",
-                "source_ref": "/tmp/p",
+                "source_ref": "/nonexistent/p",
                 "layer_index": 1,
                 "nodes": [{"id": "shared", "kind": "tactics", "title": "T"}],
                 "edges": [],

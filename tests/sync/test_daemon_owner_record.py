@@ -437,7 +437,7 @@ def test_mismatched_fields_when_one_side_fails_to_resolve(
         ("executable_path", "/no/such/python"),
         ("server_url", "https://other.example.com"),
         ("auth_scope", None),  # None vs non-None is a mismatch per D-3
-        ("queue_db_path", "/tmp/some-other-queue.db"),
+        ("queue_db_path", "/nonexistent/some-other-queue.db"),
     ],
 )
 def test_mismatched_fields_detects_each_d3_field(
@@ -643,7 +643,7 @@ def test_build_record_for_current_process_uses_identity(
         "auth_principal": "alice@example.test",
         "auth_team": "team-a",
         "auth_scope": "https://example.test|alice@example.test|team-a",
-        "queue_db_path": "/tmp/queue.db",
+        "queue_db_path": "/nonexistent/queue.db",
     }
     observed_allow_network: list[bool] = []
 
@@ -664,7 +664,7 @@ def test_build_record_for_current_process_uses_identity(
     assert record.auth_principal == "alice@example.test"
     assert record.auth_team == "team-a"
     assert record.auth_scope == "https://example.test|alice@example.test|team-a"
-    assert record.queue_db_path == "/tmp/queue.db"
+    assert record.queue_db_path == "/nonexistent/queue.db"
     assert observed_allow_network == [True]
 
 
@@ -685,7 +685,7 @@ def test_build_record_for_current_process_can_skip_network_identity(
             "auth_principal": None,
             "auth_team": None,
             "auth_scope": None,
-            "queue_db_path": "/tmp/queue.db",
+            "queue_db_path": "/nonexistent/queue.db",
         }
 
     monkeypatch.setattr(owner_mod, "compute_foreground_identity", fake_compute_identity)
@@ -761,7 +761,7 @@ def test_sync_now_refuses_on_daemon_owner_mismatch(
             source_path=Path(__file__).resolve().parents[2],
             server_url="https://spec-kitty-dev.fly.dev",
             team_or_user="tester@example.com/t-private",
-            queue_db_path=Path("/tmp/foreground-queue.db"),
+            queue_db_path=Path("/nonexistent/foreground-queue.db"),
             pid=os.getpid(),
         )
 

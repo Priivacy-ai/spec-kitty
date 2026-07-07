@@ -26,7 +26,7 @@ def _workspace(exists: bool) -> SimpleNamespace:
         exists=exists,
         # #1833 husk guard reads is_husk before the exists check.
         is_husk=False,
-        worktree_path=Path("/tmp/spec-kitty-test-worktree"),
+        worktree_path=Path("/nonexistent/spec-kitty-test-worktree"),
         resolution_kind="repo_root",
     )
 

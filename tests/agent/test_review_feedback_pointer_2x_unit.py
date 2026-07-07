@@ -176,7 +176,7 @@ def test_resolve_git_common_dir_raises_when_git_returns_empty_path():
         patch("specify_cli.cli.commands.agent.tasks.subprocess.run", return_value=completed),
         pytest.raises(RuntimeError, match="Unable to resolve git common directory"),
     ):
-        _resolve_git_common_dir(Path("/tmp/repo"))
+        _resolve_git_common_dir(Path("/nonexistent/repo"))
 
 
 def test_persist_feedback_uses_git_common_dir_and_pointer(git_repo: Path, tmp_path: Path):

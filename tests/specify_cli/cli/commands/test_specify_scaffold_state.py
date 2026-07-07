@@ -42,7 +42,7 @@ def test_specify_json_exposes_scaffold_only_state(monkeypatch) -> None:
                 {
                     "result": "success",
                     "mission_slug": mission_slug,
-                    "spec_file": "/tmp/project/kitty-specs/my-feature/spec.md",
+                    "spec_file": "/nonexistent/project/kitty-specs/my-feature/spec.md",
                     "next_step": "old agent guidance",
                 }
             )

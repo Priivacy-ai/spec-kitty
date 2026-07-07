@@ -153,7 +153,7 @@ def test_all_three_forbidden_fields_are_flagged() -> None:
         ({"id": "c", "applies_to": ["z"]}, reject_styleguide_inline_refs),
     ]:
         try:
-            reject_fn(data, file_path="/tmp/fake.yaml")
+            reject_fn(data, file_path="/nonexistent/fake.yaml")
         except InlineReferenceRejectedError as err:
             flagged.add(err.forbidden_field)
     assert flagged == {"tactic_refs", "paradigm_refs", "applies_to"}

@@ -21,8 +21,8 @@ def test_render_human_success_includes_warning(monkeypatch) -> None:
             "mission_key": "software-dev",
             "mission_slug": "123-demo",
             "mission_id": "01KV7SFD0123456789ABCDEFGH",
-            "feature_dir": "/tmp/feature",
-            "run_dir": "/tmp/run",
+            "feature_dir": "/nonexistent/feature",
+            "run_dir": "/nonexistent/run",
             "warnings": [{"code": "W1", "message": "Heads up"}],
         }
     )
@@ -43,7 +43,7 @@ def test_render_human_error_includes_details(monkeypatch) -> None:
             "result": "error",
             "error_code": "BROKEN",
             "message": "Nope",
-            "details": {"path": "/tmp/demo"},
+            "details": {"path": "/nonexistent/demo"},
         }
     )
 
@@ -51,4 +51,4 @@ def test_render_human_error_includes_details(monkeypatch) -> None:
     panel = captured[0]
     assert panel.title == "BROKEN"
     assert "Nope" in str(panel.renderable)
-    assert "path: /tmp/demo" in str(panel.renderable)
+    assert "path: /nonexistent/demo" in str(panel.renderable)

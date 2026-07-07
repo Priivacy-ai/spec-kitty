@@ -335,14 +335,14 @@ class TestSyncServerCommand:
         """Shows configured server URL and config file path."""
         mock_config = MagicMock()
         mock_config.get_server_url.return_value = "https://spec-kitty-dev.fly.dev"
-        mock_config.config_file = Path("/tmp/config.toml")
+        mock_config.config_file = Path("/nonexistent/config.toml")
 
         with patch("specify_cli.sync.config.SyncConfig", return_value=mock_config):
             sync_server(url=None)
 
         captured = capsys.readouterr()
         assert "https://spec-kitty-dev.fly.dev" in captured.out
-        assert "/tmp/config.toml" in captured.out
+        assert "/nonexistent/config.toml" in captured.out
 
     def test_set_server_url_normalizes_trailing_slash(self):
         """Setting URL strips trailing slash before persisting."""

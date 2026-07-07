@@ -297,7 +297,7 @@ def test_org_pack_loader_resolves_legacy_mission_step_contracts_alias() -> None:
         {
             "pack_name": "legacy-pack",
             "source_kind": "local_path",
-            "source_ref": "/tmp/legacy-pack",
+            "source_ref": "/nonexistent/legacy-pack",
             "layer_index": 1,
             "provenance_marker": "org",
             "nodes": [
@@ -323,7 +323,7 @@ def test_org_pack_loader_accepts_canonical_mission_steps() -> None:
         {
             "pack_name": "modern-pack",
             "source_kind": "local_path",
-            "source_ref": "/tmp/modern-pack",
+            "source_ref": "/nonexistent/modern-pack",
             "layer_index": 1,
             "provenance_marker": "org",
             "nodes": [

@@ -42,7 +42,7 @@ def _git_init(repo: Path) -> None:
 
 def _make_minimal_report() -> dict[str, Any]:
     return {
-        "canonical_root": "/tmp/repo",
+        "canonical_root": "/nonexistent/repo",
         "manifest_schema_version": "1.0.0",
         "bundle_compliant": True,
         "tracked_files": {"expected": [".kittify/charter/charter.md"], "present": [".kittify/charter/charter.md"], "missing": []},

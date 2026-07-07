@@ -80,7 +80,7 @@ def _make_plan(
     )
     project_status = ProjectStatus(
         state=project_state,
-        project_root=Path("/tmp/testproj"),
+        project_root=Path("/nonexistent/testproj"),
         schema_version=schema_version,
         min_supported=min_supported,
         max_supported=max_supported,

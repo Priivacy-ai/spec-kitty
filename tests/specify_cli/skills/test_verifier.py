@@ -364,7 +364,7 @@ def test_verify_rejects_path_traversal(tmp_path: Path) -> None:
 def test_repair_rejects_path_traversal(tmp_path: Path) -> None:
     """Repair refuses to write to paths that escape the project root."""
     registry = SkillRegistry(tmp_path / "_empty_registry")
-    entry = _make_entry(installed_path="../../../tmp/evil")
+    entry = _make_entry(installed_path="../../../escaped/evil")
     verify_result = VerifyResult(ok=False, missing=[entry])
 
     repaired, failed = repair_skills(tmp_path, verify_result, registry)

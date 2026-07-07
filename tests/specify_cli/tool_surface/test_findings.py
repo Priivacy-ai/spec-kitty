@@ -63,7 +63,7 @@ def test_make_finding_full_and_to_json() -> None:
         "drift",
         tool_key="codex",
         surface_id="codex.command_skill.SKILL.md",
-        path=Path("/tmp/x/SKILL.md"),
+        path=Path("/nonexistent/x/SKILL.md"),
         repair_command="spec-kitty doctor tool-surfaces --fix",
         docs_ref="docs/x.md",
         details={"k": "v"},
@@ -72,7 +72,7 @@ def test_make_finding_full_and_to_json() -> None:
     assert payload["code"] == "managed-file-drift"
     assert payload["severity"] == "warning"
     assert payload["tool_key"] == "codex"
-    assert payload["path"] == "/tmp/x/SKILL.md"
+    assert payload["path"] == "/nonexistent/x/SKILL.md"
     assert payload["details"] == {"k": "v"}
 
 

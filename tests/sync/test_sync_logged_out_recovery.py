@@ -203,7 +203,7 @@ def _mock_doctor_logged_out(monkeypatch):
         total_queued=0,
         max_queue_size=100_000,
     )
-    fake_queue.db_path = "/tmp/queue.db"
+    fake_queue.db_path = "/nonexistent/queue.db"
     monkeypatch.setattr(
         "specify_cli.sync.queue.OfflineQueue",
         lambda: fake_queue,

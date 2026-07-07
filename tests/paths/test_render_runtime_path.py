@@ -16,7 +16,7 @@ def test_windows_returns_absolute(monkeypatch: pytest.MonkeyPatch) -> None:
     # Simulate Windows absolute path semantics on a POSIX test runner by using
     # a concrete path that exists. The helper uses resolve(strict=False) so
     # rendering stays stable.
-    p = Path("/tmp/fake-windows-path/spec-kitty/auth")
+    p = Path("/nonexistent/fake-windows-path/spec-kitty/auth")
     rendered = render_runtime_path(p)
     assert not rendered.startswith("~/")
     assert "spec-kitty" in rendered

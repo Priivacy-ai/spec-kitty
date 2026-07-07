@@ -88,7 +88,7 @@ def _make_emitter(
         head_commit_sha=("a" * 40) if git_meta_repo_slug else None,
         repo_slug=git_meta_repo_slug,
     )
-    resolver.repo_root = Path("/tmp/teamspace-readiness-fixture")
+    resolver.repo_root = Path("/nonexistent/teamspace-readiness-fixture")
 
     return EventEmitter(
         clock=clock,

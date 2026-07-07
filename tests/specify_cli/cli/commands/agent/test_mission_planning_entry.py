@@ -392,7 +392,7 @@ def test_commit_to_branch_no_op_wrong_surface_surfaces_typed_diagnostic(
         placement_ref="feat/commit-wrongsurface",
         diagnostic=(
             "plan artifact is not present at the resolved commit placement "
-            "(feat/commit-wrongsurface, worktree=/tmp/...); the commit would no-op against "
+            "(feat/commit-wrongsurface, worktree=/nonexistent/worktree); the commit would no-op against "
             "the wrong surface and was not created."
         ),
     )

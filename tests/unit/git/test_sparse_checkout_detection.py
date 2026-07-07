@@ -89,7 +89,7 @@ def _write_pattern_file(path: Path, lines: list[str]) -> None:
 class TestIsActive:
     def test_is_active_follows_config_enabled_true(self) -> None:
         s = SparseCheckoutState(
-            path=Path("/tmp/x"),
+            path=Path("/nonexistent/x"),
             config_enabled=True,
             pattern_file_path=None,
             pattern_file_present=False,
@@ -101,9 +101,9 @@ class TestIsActive:
     def test_is_active_false_when_config_disabled_even_with_pattern(self) -> None:
         # R6: pattern-file presence must not flip is_active on its own.
         s = SparseCheckoutState(
-            path=Path("/tmp/x"),
+            path=Path("/nonexistent/x"),
             config_enabled=False,
-            pattern_file_path=Path("/tmp/x/.git/info/sparse-checkout"),
+            pattern_file_path=Path("/nonexistent/x/.git/info/sparse-checkout"),
             pattern_file_present=True,
             pattern_line_count=12,
             is_worktree=False,

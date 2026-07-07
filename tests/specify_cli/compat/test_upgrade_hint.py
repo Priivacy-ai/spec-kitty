@@ -253,7 +253,7 @@ class TestSourceHintRendersWithoutUnavailable:
         )
         project_status = ProjectStatus(
             state=ProjectState.TOO_NEW,
-            project_root=Path("/tmp/testproj"),
+            project_root=Path("/nonexistent/testproj"),
             schema_version=9,
             min_supported=3,
             max_supported=3,

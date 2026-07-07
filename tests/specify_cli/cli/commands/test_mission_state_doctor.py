@@ -281,7 +281,7 @@ def test_print_rich_audit_report_with_findings() -> None:
     finding = MissionFinding(code="X001", severity=Severity.ERROR, artifact_path="m.json")
     result = MissionAuditResult(
         mission_slug="083-a",
-        mission_dir=Path("/tmp/083-a"),
+        mission_dir=Path("/nonexistent/083-a"),
         findings=[finding],
     )
     report = RepoAuditReport(

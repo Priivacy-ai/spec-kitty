@@ -34,7 +34,7 @@ pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 runner = CliRunner()
 
 # Production-shaped identity: a real 26-char Crockford-base32 ULID and the
-# matching human slug embedding its mid8, mirroring the /tmp/debbie-coord repro.
+# matching human slug embedding its mid8, mirroring the debbie-coord repro.
 MISSION_ID = "01KV8NPCDEBBIE0REPRO0COORD"
 MID8 = MISSION_ID[:8]  # "01KV8NPC"
 SLUG = f"read-path-coord-repro-{MID8.lower()}"

@@ -69,7 +69,7 @@ def _chokepoint_with_store(store: GlossaryStore, repo_root: Path | None = None) 
     """Return a GlossaryChokepoint that has its index pre-built from *store*."""
     from glossary.drg_builder import build_index
 
-    cp = GlossaryChokepoint(repo_root or Path("/tmp/fake"))
+    cp = GlossaryChokepoint(repo_root or Path("/nonexistent/fake"))
     # Pre-build the index so no filesystem access is needed
     cp._index = build_index(store, [s.value for s in DEFAULT_APPLICABLE_SCOPES])
     return cp
@@ -87,7 +87,7 @@ def test_run_returns_error_bundle_on_exception():
         def _load_index(self) -> GlossaryTermIndex:
             raise RuntimeError("simulated index failure")
 
-    cp = BrokenChokepoint(Path("/tmp/fake"))
+    cp = BrokenChokepoint(Path("/nonexistent/fake"))
     bundle = cp.run("implement a lane transition in the workspace")
 
     # Must not raise; must return an error-bundle
@@ -107,7 +107,7 @@ def test_run_error_bundle_has_positive_duration():
         def _load_index(self) -> GlossaryTermIndex:
             raise ValueError("always fails")
 
-    cp = AlwaysFails(Path("/tmp/fake"))
+    cp = AlwaysFails(Path("/nonexistent/fake"))
     bundle = cp.run("some text")
     assert bundle.duration_ms >= 0.0
 

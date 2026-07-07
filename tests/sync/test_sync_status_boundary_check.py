@@ -333,7 +333,7 @@ def test_status_without_check_is_read_only_even_when_incoherent() -> None:
             "team_or_user",
         ),
         # Canonical: daemon_queue_db_path
-        ({"queue_db_path": "/tmp/some-other-queue.db"}, "queue_db_path"),
+        ({"queue_db_path": "/nonexistent/some-other-queue.db"}, "queue_db_path"),
     ],
 )
 def test_check_fails_per_canonical_field(overrides: dict[str, Any], token: str) -> None:

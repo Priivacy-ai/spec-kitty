@@ -55,7 +55,7 @@ def test_run_git_preflight_detects_dubious_ownership(tmp_path: Path) -> None:
     dubious = _FakeCmdResult(
         returncode=128,
         stdout="",
-        stderr="fatal: detected dubious ownership in repository at '/tmp/repo'",
+        stderr="fatal: detected dubious ownership in repository at '/nonexistent/repo'",
     )
     with patch("specify_cli.core.git_preflight._run_git", return_value=dubious):
         result = run_git_preflight(tmp_path)
@@ -89,7 +89,7 @@ def test_run_git_preflight_detects_dubious_ownership_in_worktree_listing(tmp_pat
             _FakeCmdResult(
                 returncode=128,
                 stdout="",
-                stderr="fatal: detected dubious ownership in repository at '/tmp/repo'",
+                stderr="fatal: detected dubious ownership in repository at '/nonexistent/repo'",
             ),
         ]
     )

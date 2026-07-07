@@ -54,7 +54,7 @@ def test_read_brief_source_returns_none_when_brief_marker_missing(
     """source.yaml without brief.md is the kill-mid-write window."""
     kittify = _kittify(tmp_path)
     (kittify / BRIEF_SOURCE_FILENAME).write_text(
-        "source_file: /tmp/x.md\nbrief_hash: abc\n", encoding="utf-8"
+        "source_file: /nonexistent/x.md\nbrief_hash: abc\n", encoding="utf-8"
     )
     # No brief.md on disk.
     assert read_brief_source(tmp_path) is None
@@ -69,11 +69,11 @@ def test_read_brief_source_returns_dict_when_both_files_present(
         "# brief\n", encoding="utf-8"
     )
     (kittify / BRIEF_SOURCE_FILENAME).write_text(
-        "source_file: /tmp/x.md\nbrief_hash: abc\n", encoding="utf-8"
+        "source_file: /nonexistent/x.md\nbrief_hash: abc\n", encoding="utf-8"
     )
     out = read_brief_source(tmp_path)
     assert isinstance(out, dict)
-    assert out["source_file"] == "/tmp/x.md"
+    assert out["source_file"] == "/nonexistent/x.md"
 
 
 # ---------------------------------------------------------------------------
@@ -112,7 +112,7 @@ def test_write_brief_atomic_renames_source_before_brief(tmp_path: Path) -> None:
             brief_path=brief,
             brief_text="# brief\n",
             source_path=source,
-            source_yaml="source_file: /tmp/x.md\n",
+            source_yaml="source_file: /nonexistent/x.md\n",
         )
 
     assert order == [BRIEF_SOURCE_FILENAME, MISSION_BRIEF_FILENAME], (
@@ -136,7 +136,7 @@ def test_kill_simulated_after_source_rename_leaves_invisible_state(
     source = kittify / BRIEF_SOURCE_FILENAME
 
     # Hand-stage the kill-mid-write state: source on disk, brief not.
-    source.write_text("source_file: /tmp/x.md\nbrief_hash: abc\n", encoding="utf-8")
+    source.write_text("source_file: /nonexistent/x.md\nbrief_hash: abc\n", encoding="utf-8")
     assert not brief.exists()
 
     # The reader pair must agree the brief is absent.

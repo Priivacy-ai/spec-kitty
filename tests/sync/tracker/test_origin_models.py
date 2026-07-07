@@ -147,7 +147,7 @@ class TestMissionFromTicketResult:
 
     def test_construct_with_path_and_dict(self) -> None:
         result = MissionFromTicketResult(
-            feature_dir=Path("/tmp/kitty-specs/061-feature"),
+            feature_dir=Path("/nonexistent/kitty-specs/061-feature"),
             mission_slug="061-feature",
             origin_ticket={
                 "provider": "linear",
@@ -160,14 +160,14 @@ class TestMissionFromTicketResult:
             },
             event_emitted=False,
         )
-        assert result.feature_dir == Path("/tmp/kitty-specs/061-feature")
+        assert result.feature_dir == Path("/nonexistent/kitty-specs/061-feature")
         assert result.mission_slug == "061-feature"
         assert result.origin_ticket["provider"] == "linear"
         assert result.event_emitted is False
 
     def test_mutable_attribute_assignment(self) -> None:
         result = MissionFromTicketResult(
-            feature_dir=Path("/tmp/a"),
+            feature_dir=Path("/nonexistent/a"),
             mission_slug="a",
             origin_ticket={"provider": "jira"},
             event_emitted=False,

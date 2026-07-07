@@ -102,7 +102,7 @@ class TestDoctorCommand:
         )
         mock_queue = MagicMock()
         mock_queue.get_queue_stats.return_value = QueueStats(total_queued=0)
-        mock_queue.db_path = "/tmp/test.db"
+        mock_queue.db_path = "/nonexistent/test.db"
         mock_queue_cls.return_value = mock_queue
         mock_body_queue_cls.return_value = MagicMock()
         mock_body_diag.return_value = {
@@ -174,7 +174,7 @@ class TestDoctorCommand:
             max_queue_size=DEFAULT_MAX_QUEUE_SIZE,
             top_event_types=[("MissionDossierArtifactIndexed", 79_000)],
         )
-        mock_queue.db_path = "/tmp/test.db"
+        mock_queue.db_path = "/nonexistent/test.db"
         mock_queue_cls.return_value = mock_queue
         mock_body_queue_cls.return_value = MagicMock()
         mock_body_diag.return_value = {

@@ -422,8 +422,8 @@ def test_render_envelope_json_format() -> None:
         "mission_key": "erp",
         "mission_slug": "slug",
         "mission_id": None,
-        "feature_dir": "/tmp/feature",
-        "run_dir": "/tmp/run",
+        "feature_dir": "/nonexistent/feature",
+        "run_dir": "/nonexistent/run",
         "warnings": [],
     }
     buffer = io.StringIO()
@@ -444,8 +444,8 @@ def test_render_envelope_human_format_success() -> None:
         "mission_key": "erp",
         "mission_slug": "slug",
         "mission_id": "01KV7SFD0123456789ABCDEFGH",
-        "feature_dir": "/tmp/feature",
-        "run_dir": "/tmp/run",
+        "feature_dir": "/nonexistent/feature",
+        "run_dir": "/nonexistent/run",
         "warnings": [{"code": "MISSION_KEY_SHADOWED", "message": "hi", "details": {}}],
     }
     # No stdout assertion -- just that the call completes without error.

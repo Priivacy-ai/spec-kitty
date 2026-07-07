@@ -70,8 +70,8 @@ def test_oserror_detail_preserves_non_path_message() -> None:
 def test_oserror_detail_redacts_absolute_paths_with_spaces() -> None:
     """OSError messages may carry POSIX, Windows, or UNC paths with spaces."""
     cases = [
-        OSError("failed reading /tmp/My Project/secret.txt"),
-        OSError(5, "failed reading /tmp/My Project/secret.txt"),
+        OSError("failed reading /nonexistent/My Project/secret.txt"),
+        OSError(5, "failed reading /nonexistent/My Project/secret.txt"),
         OSError(5, r"failed reading C:\Users\Rob Douglass\secret.txt"),
         OSError(5, r"failed reading \\server\My Share\secret.txt"),
     ]
@@ -90,7 +90,7 @@ def test_oserror_detail_redacts_posix_edge_paths() -> None:
     cases = [
         OSError("failed reading /tmp"),
         OSError("failed reading /secret.txt"),
-        OSError("failed reading /tmp/project:secret.txt"),
+        OSError("failed reading /nonexistent/project:secret.txt"),
     ]
 
     for exc in cases:

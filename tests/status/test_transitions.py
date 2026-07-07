@@ -100,7 +100,7 @@ class TestLegalTransitions:
         "from_lane,to_lane,kwargs",
         [
             ("planned", "claimed", {"actor": "agent-1"}),
-            ("claimed", "in_progress", {"workspace_context": "worktree:/tmp/wt1"}),
+            ("claimed", "in_progress", {"workspace_context": "worktree:/nonexistent/wt1"}),
             (
                 "in_progress",
                 "for_review",
@@ -331,7 +331,7 @@ class TestGuardConditions:
         ok, error = validate_transition(
             "claimed",
             "in_progress",
-            GuardContext(workspace_context="worktree:/tmp/wt1"),
+            GuardContext(workspace_context="worktree:/nonexistent/wt1"),
         )
         assert ok is True
 
@@ -412,7 +412,7 @@ class TestAliasInTransitions:
         ok, error = validate_transition(
             "claimed",
             "doing",
-            GuardContext(workspace_context="worktree:/tmp/wt1"),
+            GuardContext(workspace_context="worktree:/nonexistent/wt1"),
         )
         assert ok is True
 

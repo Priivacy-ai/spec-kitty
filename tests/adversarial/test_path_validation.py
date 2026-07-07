@@ -179,7 +179,7 @@ class TestSpecialPaths:
 
     def test_absolute_path_rejected(self):
         """Absolute paths should be rejected."""
-        for abs_path in ["/tmp/research/", "/etc/passwd", "/home/user/", "C:\\Users\\test\\"]:
+        for abs_path in ["/nonexistent/research/", "/etc/passwd", "/home/user/", "C:\\Users\\test\\"]:
             is_valid, error = validate_deliverables_path(abs_path)
             if is_valid:
                 pytest.xfail("Absolute paths not blocked in current implementation")

@@ -209,7 +209,7 @@ class TestBuildLifecycle:
 
     def test_build_registered_emission(self, emitter: EventEmitter, temp_queue):
         """BuildRegistered includes build/project/git identity in payload."""
-        expected_workspace_path = str(Path("/tmp/test-repo").resolve())
+        expected_workspace_path = str(Path("/nonexistent/test-repo").resolve())
         event = emitter.emit_build_registered()
         assert event is not None
         assert event["event_type"] == "BuildRegistered"
@@ -227,7 +227,7 @@ class TestBuildLifecycle:
 
     def test_build_heartbeat_emission(self, emitter: EventEmitter, temp_queue):
         """BuildHeartbeat carries remote-state deltas when provided."""
-        expected_workspace_path = str(Path("/tmp/test-repo").resolve())
+        expected_workspace_path = str(Path("/nonexistent/test-repo").resolve())
         event = emitter.emit_build_heartbeat(
             remote_head="b" * 40,
             ahead_of_remote=2,
@@ -725,15 +725,15 @@ class TestConvenienceFunctions:
         with (
             patch(
                 "specify_cli.sync.events._ensure_dashboard_sync_daemon_for_active_project",
-                return_value=Path("/tmp/project"),
+                return_value=Path("/nonexistent/project"),
             ) as mock_daemon,
             patch("specify_cli.sync.events._publish_event_via_sync_daemon") as mock_publish,
             patch("specify_cli.sync.events._request_dashboard_sync") as mock_trigger,
         ):
             emit_wp_status_changed("WP01", "planned", "in_progress")
         mock_daemon.assert_called_once_with(ensure_daemon=True)
-        mock_publish.assert_called_once_with({"event_id": "evt-1"}, Path("/tmp/project"))
-        mock_trigger.assert_called_once_with(Path("/tmp/project"))
+        mock_publish.assert_called_once_with({"event_id": "evt-1"}, Path("/nonexistent/project"))
+        mock_trigger.assert_called_once_with(Path("/nonexistent/project"))
         mock_emitter.emit_wp_status_changed.assert_called_once()
 
     @patch("specify_cli.sync.events.get_emitter")
@@ -745,7 +745,7 @@ class TestConvenienceFunctions:
         with (
             patch(
                 "specify_cli.sync.events._ensure_dashboard_sync_daemon_for_active_project",
-                return_value=Path("/tmp/project"),
+                return_value=Path("/nonexistent/project"),
             ),
             patch(
                 "specify_cli.sync.events._resolve_mission_id_for_slug",
@@ -755,7 +755,7 @@ class TestConvenienceFunctions:
             patch("specify_cli.sync.events._request_dashboard_sync"),
         ):
             emit_wp_status_changed("WP01", "planned", "in_progress", mission_slug="028-sync")
-        mock_resolve.assert_called_once_with(Path("/tmp/project"), "028-sync")
+        mock_resolve.assert_called_once_with(Path("/nonexistent/project"), "028-sync")
         mock_emitter.emit_wp_status_changed.assert_called_once_with(
             wp_id="WP01",
             from_lane="planned",
@@ -782,7 +782,7 @@ class TestConvenienceFunctions:
         with (
             patch(
                 "specify_cli.sync.events._ensure_dashboard_sync_daemon_for_active_project",
-                return_value=Path("/tmp/project"),
+                return_value=Path("/nonexistent/project"),
             ) as mock_daemon,
             patch("specify_cli.sync.events._publish_event_via_sync_daemon"),
             patch("specify_cli.sync.events._request_dashboard_sync"),
@@ -798,7 +798,7 @@ class TestConvenienceFunctions:
         with (
             patch(
                 "specify_cli.sync.events._ensure_dashboard_sync_daemon_for_active_project",
-                return_value=Path("/tmp/project"),
+                return_value=Path("/nonexistent/project"),
             ),
             patch(
                 "specify_cli.sync.events._resolve_mission_id_for_slug",
@@ -808,7 +808,7 @@ class TestConvenienceFunctions:
             patch("specify_cli.sync.events._request_dashboard_sync"),
         ):
             emit_wp_created("WP01", "Title", "028-sync")
-        mock_resolve.assert_called_once_with(Path("/tmp/project"), "028-sync")
+        mock_resolve.assert_called_once_with(Path("/nonexistent/project"), "028-sync")
         mock_emitter.emit_wp_created.assert_called_once_with(
             wp_id="WP01",
             title="Title",

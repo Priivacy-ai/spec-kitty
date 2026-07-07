@@ -456,7 +456,7 @@ def test_safe_commit_absolute_path_outside_worktree(lane_repo: Path) -> None:
     (it does NOT mean the commit succeeds — staging will fail). We assert
     that the helper raises a clear RuntimeError, not a confusing AttributeError.
     """
-    foreign = Path("/tmp/this-path-is-not-in-the-worktree.txt")
+    foreign = Path("/nonexistent/this-path-is-not-in-the-worktree.txt")
 
     # The helper either fails to stage (RuntimeError) or fails the backstop.
     # Either way, no commit lands.

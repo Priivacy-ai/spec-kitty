@@ -257,7 +257,7 @@ def test_opt_out_command_reports_purged_counts(monkeypatch: pytest.MonkeyPatch) 
             "Routing",
             (),
             {
-                "repo_root": "/tmp/repo",
+                "repo_root": "/nonexistent/repo",
                 "repo_slug": "acme/spec-kitty",
                 "project_slug": "spec-kitty-local",
                 "project_uuid": "11111111-1111-1111-1111-111111111111",
@@ -295,7 +295,7 @@ def test_unshare_command_stops_sharing_for_one_team(monkeypatch: pytest.MonkeyPa
             "Routing",
             (),
             {
-                "repo_root": "/tmp/repo",
+                "repo_root": "/nonexistent/repo",
                 "repo_slug": "acme/spec-kitty",
                 "project_slug": "spec-kitty-local",
                 "project_uuid": "11111111-1111-1111-1111-111111111111",
@@ -325,7 +325,7 @@ def test_opt_out_command_can_delete_private_remote_data(monkeypatch: pytest.Monk
             "Routing",
             (),
             {
-                "repo_root": "/tmp/repo",
+                "repo_root": "/nonexistent/repo",
                 "repo_slug": "acme/spec-kitty",
                 "project_slug": "spec-kitty-local",
                 "project_uuid": "11111111-1111-1111-1111-111111111111",

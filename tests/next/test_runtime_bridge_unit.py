@@ -429,12 +429,12 @@ class TestRuntimeBridgeCompatibilityHelpers:
 
         run_ref = runtime_bridge._build_run_ref(
             run_id="run-123",
-            run_dir="/tmp/run-123",
+            run_dir="/nonexistent/run-123",
             mission_type="software-dev",
         )
 
         assert run_ref.run_id == "run-123"
-        assert run_ref.run_dir == "/tmp/run-123"
+        assert run_ref.run_dir == "/nonexistent/run-123"
         assert run_ref.mission_type == "software-dev"
 
 

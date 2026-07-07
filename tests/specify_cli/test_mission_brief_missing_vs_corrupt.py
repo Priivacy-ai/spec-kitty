@@ -88,14 +88,14 @@ def test_read_brief_source_returns_dict_when_valid(tmp_path: Path) -> None:
         "# brief\n", encoding="utf-8"
     )
     (tmp_path / ".kittify" / BRIEF_SOURCE_FILENAME).write_text(
-        "source_file: /tmp/plan.md\n"
+        "source_file: /nonexistent/plan.md\n"
         "ingested_at: 2026-04-26T00:00:00Z\n"
         "brief_hash: abc123\n",
         encoding="utf-8",
     )
     out = read_brief_source(tmp_path)
     assert isinstance(out, dict)
-    assert out["source_file"] == "/tmp/plan.md"
+    assert out["source_file"] == "/nonexistent/plan.md"
 
 
 def test_read_brief_source_returns_none_when_yaml_is_empty(tmp_path: Path) -> None:

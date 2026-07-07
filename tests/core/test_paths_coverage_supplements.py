@@ -157,9 +157,9 @@ def test_get_status_read_root_does_not_crash_with_no_local_marker(
     to ``get_main_repo_root``'s final ``current_path.resolve()`` clause.
 
     The exact result depends on the host filesystem (e.g. dev machines may
-    have stray ``/tmp/.git``), so we only assert the contract: ``Path``
-    return, no exception. The malformed-marker test below covers the
-    semantically tighter branch.
+    have a stray ``.git`` marker somewhere under the system temp directory),
+    so we only assert the contract: ``Path`` return, no exception. The
+    malformed-marker test below covers the semantically tighter branch.
     """
     result = get_status_read_root(tmp_path)
     assert isinstance(result, Path)

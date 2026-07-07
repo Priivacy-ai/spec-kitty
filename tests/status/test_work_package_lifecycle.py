@@ -75,7 +75,7 @@ def test_genesis_unseeded_wp_is_rejected_with_actionable_message(tmp_path: Path)
             mission_slug="099-lifecycle-test",
             wp_id="WP01",
             actor="claude",
-            workspace_context="worktree:/tmp/wp01",
+            workspace_context="worktree:/nonexistent/wp01",
             execution_mode="worktree",
             repo_root=tmp_path,
         )
@@ -98,7 +98,7 @@ def test_genesis_unseeded_wp_with_other_wp_seeded_also_rejected(
             mission_slug=_SLUG,
             wp_id="WP01",
             actor="claude",
-            workspace_context="worktree:/tmp/wp01",
+            workspace_context="worktree:/nonexistent/wp01",
             execution_mode="worktree",
             repo_root=tmp_path,
         )
@@ -116,7 +116,7 @@ def test_seeded_wp_happy_path_unaffected_by_genesis_check(
         mission_slug=_SLUG,
         wp_id="WP01",
         actor="claude",
-        workspace_context="worktree:/tmp/wp01",
+        workspace_context="worktree:/nonexistent/wp01",
         execution_mode="worktree",
         repo_root=tmp_path,
     )
@@ -142,7 +142,7 @@ def test_start_implementation_batches_planned_to_in_progress(
         mission_slug=_SLUG,
         wp_id="WP01",
         actor="claude",
-        workspace_context="worktree:/tmp/wp01",
+        workspace_context="worktree:/nonexistent/wp01",
         execution_mode="worktree",
         repo_root=tmp_path,
     )
@@ -174,7 +174,7 @@ def test_backgrounded_implementation_start_does_not_strand_claimed(
         mission_slug=_SLUG,
         wp_id="WP01",
         actor="claude",
-        workspace_context="worktree:/tmp/wp01",
+        workspace_context="worktree:/nonexistent/wp01",
         execution_mode="worktree",
         repo_root=tmp_path,
     )
@@ -195,7 +195,7 @@ def test_start_implementation_resumes_claimed_same_actor(tmp_path: Path) -> None
         mission_slug="099-lifecycle-test",
         wp_id="WP01",
         actor="claude",
-        workspace_context="worktree:/tmp/wp01",
+        workspace_context="worktree:/nonexistent/wp01",
         execution_mode="worktree",
         repo_root=tmp_path,
     )
@@ -215,7 +215,7 @@ def test_interrupted_implementation_claim_recovers_with_progress_event(tmp_path:
         mission_slug="099-lifecycle-test",
         wp_id="WP01",
         actor="claude",
-        workspace_context="worktree:/tmp/wp01",
+        workspace_context="worktree:/nonexistent/wp01",
         execution_mode="worktree",
         repo_root=tmp_path,
     )
@@ -240,7 +240,7 @@ def test_start_implementation_rejects_claimed_different_actor(tmp_path: Path) ->
             mission_slug="099-lifecycle-test",
             wp_id="WP01",
             actor="claude",
-            workspace_context="worktree:/tmp/wp01",
+            workspace_context="worktree:/nonexistent/wp01",
             execution_mode="worktree",
             repo_root=tmp_path,
         )
@@ -262,7 +262,7 @@ def test_interrupted_claim_by_different_actor_returns_claim_diagnostic(tmp_path:
             mission_slug="099-lifecycle-test",
             wp_id="WP01",
             actor="claude",
-            workspace_context="worktree:/tmp/wp01",
+            workspace_context="worktree:/nonexistent/wp01",
             execution_mode="worktree",
             repo_root=tmp_path,
         )
@@ -282,7 +282,7 @@ def test_start_implementation_noops_in_progress_same_actor(tmp_path: Path) -> No
         mission_slug="099-lifecycle-test",
         wp_id="WP01",
         actor="claude",
-        workspace_context="worktree:/tmp/wp01",
+        workspace_context="worktree:/nonexistent/wp01",
         execution_mode="worktree",
         repo_root=tmp_path,
     )
@@ -305,7 +305,7 @@ def test_start_implementation_rejects_in_progress_different_actor(tmp_path: Path
             mission_slug="099-lifecycle-test",
             wp_id="WP01",
             actor="claude",
-            workspace_context="worktree:/tmp/wp01",
+            workspace_context="worktree:/nonexistent/wp01",
             execution_mode="worktree",
             repo_root=tmp_path,
         )
@@ -325,7 +325,7 @@ def test_start_implementation_allows_forced_rework_from_review_lane(tmp_path: Pa
         mission_slug="099-lifecycle-test",
         wp_id="WP01",
         actor="claude",
-        workspace_context="worktree:/tmp/wp01",
+        workspace_context="worktree:/nonexistent/wp01",
         execution_mode="worktree",
         repo_root=tmp_path,
         allow_rework=True,
@@ -347,7 +347,7 @@ def test_start_implementation_rejects_unstartable_lane(tmp_path: Path) -> None:
             mission_slug="099-lifecycle-test",
             wp_id="WP01",
             actor="claude",
-            workspace_context="worktree:/tmp/wp01",
+            workspace_context="worktree:/nonexistent/wp01",
             execution_mode="worktree",
             repo_root=tmp_path,
         )
@@ -365,7 +365,7 @@ def test_start_review_allows_reviewer_after_implementer_for_review(tmp_path: Pat
         mission_slug="099-lifecycle-test",
         wp_id="WP01",
         actor="reviewer",
-        workspace_context="review:/tmp/repo",
+        workspace_context="review:/nonexistent/repo",
         execution_mode="worktree",
         repo_root=tmp_path,
     )
@@ -387,7 +387,7 @@ def test_slow_review_claim_uses_in_review_not_claimed(tmp_path: Path) -> None:
         mission_slug="099-lifecycle-test",
         wp_id="WP01",
         actor="reviewer",
-        workspace_context="review:/tmp/repo",
+        workspace_context="review:/nonexistent/repo",
         execution_mode="worktree",
         repo_root=tmp_path,
     )
@@ -411,7 +411,7 @@ def test_start_review_noops_same_reviewer(tmp_path: Path) -> None:
         mission_slug="099-lifecycle-test",
         wp_id="WP01",
         actor="reviewer-a",
-        workspace_context="review:/tmp/repo",
+        workspace_context="review:/nonexistent/repo",
         execution_mode="worktree",
         repo_root=tmp_path,
     )
@@ -433,7 +433,7 @@ def test_start_review_rejects_second_reviewer(tmp_path: Path) -> None:
             mission_slug="099-lifecycle-test",
             wp_id="WP01",
             actor="reviewer-b",
-            workspace_context="review:/tmp/repo",
+            workspace_context="review:/nonexistent/repo",
             execution_mode="worktree",
             repo_root=tmp_path,
         )
@@ -450,7 +450,7 @@ def test_start_review_rejects_non_review_lane(tmp_path: Path) -> None:
             mission_slug="099-lifecycle-test",
             wp_id="WP01",
             actor="reviewer-a",
-            workspace_context="review:/tmp/repo",
+            workspace_context="review:/nonexistent/repo",
             execution_mode="worktree",
             repo_root=tmp_path,
         )

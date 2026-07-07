@@ -116,7 +116,7 @@ class TestOrgDRGFragmentSchema:
             {
                 "pack_name": "acme",
                 "source_kind": "local_path",
-                "source_ref": "/tmp/acme",
+                "source_ref": "/nonexistent/acme",
                 "layer_index": 1,
                 "provenance_marker": "org",
                 "nodes": [
@@ -132,7 +132,7 @@ class TestOrgDRGFragmentSchema:
                 {
                     "pack_name": "acme",
                     "source_kind": "local_path",
-                    "source_ref": "/tmp/acme",
+                    "source_ref": "/nonexistent/acme",
                     "layer_index": 1,
                     "provenance_marker": "org",
                     "nodes": [
@@ -149,7 +149,7 @@ class TestOrgDRGFragmentSchema:
                 {
                     "pack_name": "acme",
                     "source_kind": "local_path",
-                    "source_ref": "/tmp/acme",
+                    "source_ref": "/nonexistent/acme",
                     "layer_index": 1,
                     "provenance_marker": "org",
                     "nodes": [],
@@ -164,7 +164,7 @@ class TestOrgDRGFragmentSchema:
                 {
                     "pack_name": "acme",
                     "source_kind": "local_path",
-                    "source_ref": "/tmp/acme",
+                    "source_ref": "/nonexistent/acme",
                     "layer_index": 0,
                     "provenance_marker": "org",
                     "nodes": [],
@@ -372,7 +372,7 @@ class TestMergeThreeLayers:
             {
                 "pack_name": "acme",
                 "source_kind": "local_path",
-                "source_ref": "/tmp/acme",
+                "source_ref": "/nonexistent/acme",
                 "layer_index": 1,
                 "provenance_marker": "org",
                 "nodes": [
@@ -394,7 +394,7 @@ class TestMergeThreeLayers:
             {
                 "pack_name": "mission-pack",
                 "source_kind": "local_path",
-                "source_ref": "/tmp/mission-pack",
+                "source_ref": "/nonexistent/mission-pack",
                 "layer_index": 1,
                 "provenance_marker": "org",
                 "nodes": [
@@ -445,7 +445,7 @@ class TestMergeThreeLayers:
             {
                 "pack_name": "rogue",
                 "source_kind": "local_path",
-                "source_ref": "/tmp/rogue",
+                "source_ref": "/nonexistent/rogue",
                 "layer_index": 1,
                 "provenance_marker": "org",
                 "nodes": [
@@ -483,7 +483,7 @@ class TestMergeThreeLayers:
             {
                 "pack_name": "smuggler",
                 "source_kind": "local_path",
-                "source_ref": "/tmp/smuggler",
+                "source_ref": "/nonexistent/smuggler",
                 "layer_index": 1,
                 "provenance_marker": "org",
                 "nodes": [
@@ -511,7 +511,7 @@ class TestMergeThreeLayers:
             {
                 "pack_name": "edge-pack",
                 "source_kind": "local_path",
-                "source_ref": "/tmp/edge-pack",
+                "source_ref": "/nonexistent/edge-pack",
                 "layer_index": 1,
                 "provenance_marker": "org",
                 "nodes": [
@@ -540,7 +540,7 @@ class TestMergeThreeLayers:
             {
                 "pack_name": "cross-pack",
                 "source_kind": "local_path",
-                "source_ref": "/tmp/cross-pack",
+                "source_ref": "/nonexistent/cross-pack",
                 "layer_index": 1,
                 "provenance_marker": "org",
                 "nodes": [
@@ -584,7 +584,7 @@ class TestMergeThreeLayers:
             {
                 "pack_name": "rel-pack",
                 "source_kind": "local_path",
-                "source_ref": "/tmp/rel-pack",
+                "source_ref": "/nonexistent/rel-pack",
                 "layer_index": 1,
                 "provenance_marker": "org",
                 "nodes": [
@@ -612,7 +612,7 @@ class TestMergeThreeLayers:
             {
                 "pack_name": "bad-pack",
                 "source_kind": "local_path",
-                "source_ref": "/tmp/bad-pack",
+                "source_ref": "/nonexistent/bad-pack",
                 "layer_index": 1,
                 "provenance_marker": "org",
                 "nodes": [

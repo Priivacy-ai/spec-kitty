@@ -107,8 +107,8 @@ def test_doctor_skills_json_error_schema_stable(monkeypatch: pytest.MonkeyPatch)
     old approach of pointing the override at an empty dir now *succeeds* (the
     dir becomes the root) instead of reaching ``not_in_project``. Reaching the
     error path via the resolver would require a failing Tier-2 walk-up, which is
-    non-deterministic: a leaked ``/tmp/.kittify`` (E2E test pollution) above a
-    temp cwd would resolve and pass.
+    non-deterministic: a leaked ``.kittify`` in the OS temp directory (E2E test
+    pollution) above a temp cwd would resolve and pass.
 
     To freeze the *error envelope* deterministically we force the resolver's
     ``None`` outcome directly and assert doctor's formatting of it. This pins

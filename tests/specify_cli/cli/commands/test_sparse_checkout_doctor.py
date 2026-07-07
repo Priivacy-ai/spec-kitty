@@ -85,7 +85,7 @@ def test_prompt_consent_eof(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @dataclass
 class _Result:
-    path: str = "/tmp/x"
+    path: str = "/nonexistent/x"
     success: bool = True
     steps_completed: list[str] = field(default_factory=lambda: ["a", "b"])
     error_detail: str | None = None

@@ -36,7 +36,7 @@ from specify_cli.status.views import write_derived_views
 pytestmark = pytest.mark.fast
 
 # Escapes the derived_dir boundary (one level up) while staying inside the test
-# sandbox so the assertion never depends on a shared system path like /tmp/evil.
+# sandbox so the assertion never depends on a shared system tmp directory.
 # The security property under test is "does not escape derived_dir", which this
 # exercises exactly; a deeper "../../../../" slug resolves the same way through
 # the same unguarded mkdir but would write to a shared location.
@@ -146,8 +146,8 @@ def test_event_log_round_trips_through_read_with_hostile_slug(tmp_path: Path) ->
 
 # Escapes the derived_dir boundary (one level up) while staying inside the test
 # sandbox — same rationale as ``_HOSTILE_SLUG`` above. A deeper "../../../../"
-# slug resolves through the same unguarded ``mkdir`` but to a SHARED location
-# (e.g. ``/tmp/evil``) that pollutes across test runs and makes the absolute-path
+# slug resolves through the same unguarded ``mkdir`` but to a SHARED system tmp
+# location that pollutes across test runs and makes the absolute-path
 # assertion flaky; ``../evil`` exercises the identical security property
 # ("does not escape derived_dir") in a collision-free, sandbox-local way.
 _META_HOSTILE_SLUG = "../evil"

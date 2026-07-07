@@ -1181,7 +1181,7 @@ class TestMaybeAutoCommit:
         """Files not relative to repo_root still work (fallback to str)."""
         from specify_cli.cli.commands.retrospect import _maybe_auto_commit
 
-        outside_file = Path("/tmp/nonexistent_file.yaml")
+        outside_file = Path("/nonexistent/nonexistent_file.yaml")
 
         with (
             patch("specify_cli.cli.commands.retrospect.get_auto_commit_default", return_value=True),

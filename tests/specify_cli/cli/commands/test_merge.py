@@ -723,7 +723,7 @@ def test_abort_with_slash_mission_slug_emits_clean_diagnostic(tmp_path: Path) ->
 def test_assert_status_path_within_target_surface_rejects_escape(tmp_path: Path) -> None:
     """T016: candidate outside the mission surface root is rejected."""
     mission_slug = "valid-mission-01KVBBT6"
-    # candidate is outside the mission surface (under /tmp/other)
+    # candidate is outside the mission surface (under an unrelated sibling dir)
     outside_candidate = tmp_path / "other-dir" / "status.events.jsonl"
     with pytest.raises(ValueError):
         _assert_status_path_within_target_surface(

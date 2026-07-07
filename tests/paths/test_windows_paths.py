@@ -62,4 +62,4 @@ def test_runtime_root_is_frozen() -> None:
     assert dataclasses.is_dataclass(root)
     # Attempting mutation must raise FrozenInstanceError
     with pytest.raises(dataclasses.FrozenInstanceError):
-        root.base = Path("/tmp/other")  # type: ignore[misc]
+        root.base = Path("/nonexistent/other")  # type: ignore[misc]

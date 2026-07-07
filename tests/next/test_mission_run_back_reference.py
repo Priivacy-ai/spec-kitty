@@ -42,7 +42,7 @@ def test_mission_run_snapshot_loads_without_mission_id():
     legacy_data = {
         "run_id": "abc123",
         "mission_key": "software-dev",
-        "template_path": "/tmp/mission.yaml",
+        "template_path": "/nonexistent/mission.yaml",
         "template_hash": "deadbeef" * 8,
         "policy_snapshot": {"strictness": "medium", "default_route": "same_llm_context", "extras": {}},
         "completed_steps": [],
@@ -63,7 +63,7 @@ def test_mission_run_snapshot_loads_without_mission_id_model_validate():
     legacy_json = {
         "run_id": "abc456",
         "mission_key": "research",
-        "template_path": "/tmp/mission.yaml",
+        "template_path": "/nonexistent/mission.yaml",
         "template_hash": "cafebabe" * 8,
         # mission_id and mission_slug are absent
     }
@@ -74,7 +74,7 @@ def test_mission_run_snapshot_loads_without_mission_id_model_validate():
 
 def test_mission_run_ref_loads_without_mission_id():
     """MissionRunRef backward-compat: missing mission_id/mission_slug default to None."""
-    ref = MissionRunRef(run_id="x", run_dir="/tmp/run", mission_key="software-dev")
+    ref = MissionRunRef(run_id="x", run_dir="/nonexistent/run", mission_key="software-dev")
     assert ref.mission_id is None
     assert ref.mission_slug is None
 
@@ -84,7 +84,7 @@ def test_mission_run_snapshot_with_new_fields():
     snapshot = MissionRunSnapshot(
         run_id="run1",
         mission_key="software-dev",
-        template_path="/tmp/mission.yaml",
+        template_path="/nonexistent/mission.yaml",
         template_hash="a" * 64,
         mission_id="01HABCDEFGHIJKLMNOPQRSTUVWX",
         mission_slug="my-feature-01KT6HVH",
@@ -97,7 +97,7 @@ def test_mission_run_ref_with_new_fields():
     """MissionRunRef new fields round-trip correctly when provided."""
     ref = MissionRunRef(
         run_id="r1",
-        run_dir="/tmp/runs/r1",
+        run_dir="/nonexistent/runs/r1",
         mission_key="software-dev",
         mission_id="01HABCDEFGHIJKLMNOPQRSTUVWX",
         mission_slug="my-feature",

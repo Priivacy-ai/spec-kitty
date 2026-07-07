@@ -100,7 +100,7 @@ def _org_fragment(pack_name: str, nodes: list[dict[str, object]]) -> OrgDRGFragm
         {
             "pack_name": pack_name,
             "source_kind": "local_path",
-            "source_ref": f"/tmp/{pack_name}",
+            "source_ref": f"/nonexistent/{pack_name}",
             "layer_index": 1,
             "provenance_marker": "org",
             "nodes": nodes,
