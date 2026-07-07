@@ -758,11 +758,15 @@ def _phase_cleanup_worktrees_and_branches(run: _MergeRunState) -> None:
                 logger.debug("Worktree %s does not exist, skipping removal", wt_path)
 
         # FR-005/LC-6 (#1842 WP03): tombstone each lane's workspace-context
-        # JSON at merge completion. ``delete_context`` is a pure,
-        # order-independent unlink (no worktree gate) — it targets the
-        # legacy ``<slug>-<lane>`` filename ``save_context`` always writes
-        # (mission_id=None, matching the workspace/context.py grammar), and
-        # silently no-ops for a lane that never saved a context (e.g. a
+        # JSON when its worktree is removed at merge completion. The tombstone
+        # is deliberately nested under ``remove_worktree``: the context JSON
+        # *describes* the worktree, so the two are torn down together — a
+        # ``--no-remove-worktree`` merge intentionally keeps BOTH the worktree
+        # and its context (never orphaning one from the other).
+        # ``delete_context`` itself is a pure, order-independent unlink — it
+        # targets the legacy ``<slug>-<lane>`` filename ``save_context`` always
+        # writes (mission_id=None, matching the workspace/context.py grammar),
+        # and silently no-ops for a lane that never saved a context (e.g. a
         # planning-artifact lane) or one already tombstoned.
         for lane in lanes_manifest.lanes:
             workspace_name = worktree_dir_name(run.mission_slug, mission_id=None, lane_id=lane.lane_id)
