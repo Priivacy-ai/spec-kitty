@@ -2706,7 +2706,19 @@ jobs:
             'src/doctrine/*'
             'src/charter/*'
             'src/specify_cli/status/*'
-            'src/specify_cli/core/mission_detection.py'
+            # branch-based mission-slug detection #2443: the phantom entry
+            # src/specify_cli/core/mission_detection.py never existed anywhere in
+            # git history. That logic is DEFINED at
+            # src/specify_cli/lanes/branch_naming.py::parse_mission_slug_from_branch
+            # -- core/vcs/detection.py only imports/consumes it. No already-listed
+            # critical path above or below is an ancestor of it, so the entry is
+            # repointed to its real defining home rather than dropped. Cov-backed
+            # by --cov=src/specify_cli/lanes in fast-tests-lanes + integration-tests-lanes.
+            # NOTE: keep this comment free of quotes AND parens -- the canonical
+            # parser tests/architectural/_gate_coverage.py::_diff_cover_critical_paths
+            # stops the array block at the first closing paren and extracts every
+            # quoted string inside it.
+            'src/specify_cli/lanes/branch_naming.py'
             'src/specify_cli/dashboard/handlers/*'
             'src/specify_cli/dashboard/scanner.py'
             'src/specify_cli/merge/*'

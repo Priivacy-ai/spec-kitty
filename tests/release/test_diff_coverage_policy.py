@@ -272,7 +272,15 @@ def test_tighten_workflow_passes_large_pr_sample() -> None:
         "src/doctrine/*",
         "src/charter/*",
         "src/specify_cli/status/*",
-        "src/specify_cli/core/mission_detection.py",
+        # 'src/specify_cli/core/mission_detection.py' repointed (#2443): the
+        # phantom never existed in git history. Branch-based mission-slug
+        # detection is DEFINED at
+        # lanes/branch_naming.py::parse_mission_slug_from_branch
+        # (core/vcs/detection.py only imports/consumes it); no already-listed
+        # critical path is an ancestor of it, so the entry is repointed to its
+        # real defining home, not dropped. Lockstep with the ci-quality.yml
+        # --include array (both authorities change in the same commit).
+        "src/specify_cli/lanes/branch_naming.py",
         "src/specify_cli/dashboard/handlers/*",
         "src/specify_cli/dashboard/scanner.py",
         "src/specify_cli/merge/*",
