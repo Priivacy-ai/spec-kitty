@@ -43,7 +43,7 @@ See the `diff-cover` step in `.github/workflows/ci-quality.yml` for the
 authoritative list. At time of writing it covers:
 
 - `src/specify_cli/status/` — status model
-- `src/specify_cli/core/mission_detection.py` — mission detection
+- `src/specify_cli/lanes/branch_naming.py` — branch-based mission-slug detection
 - `src/specify_cli/dashboard/handlers/` — dashboard API handlers
 
 ### Related

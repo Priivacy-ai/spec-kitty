@@ -19,6 +19,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.architectural._gate_coverage import load_workflow_model
+
 # ---------------------------------------------------------------------------
 # Locate project root and report path
 # ---------------------------------------------------------------------------
@@ -49,6 +51,31 @@ REQUIRED_SECTIONS = [
 # The two mutually-exclusive decision markers (the checked-box variants)
 DECISION_CLOSE = "[x] close_with_evidence"
 DECISION_TIGHTEN = "[x] tighten_workflow"
+
+# The enforced critical-path allowlist, mirrored from the ci-quality.yml
+# ``critical_paths=( ... )`` shell array. This module and the workflow are the
+# two authorities for the allowlist; ``test_critical_path_include_set_matches_workflow``
+# asserts set-equality between them, so drift in EITHER authority fails.
+#
+# '#2443': the 'src/specify_cli/core/mission_detection.py' entry rotted when
+# that module was removed/superseded — its branch-slug logic now lives at
+# lanes/branch_naming.py::parse_mission_slug_from_branch (core/vcs/detection.py
+# only imports/consumes it). It was repointed to its real defining home, not
+# dropped, in both authorities. 'src/specify_cli/next/*' was likewise removed by
+# unshim wave 2 (mission ci-suite-map-bind FR-004e), leaving the live successors
+# below pinned.
+CRITICAL_PATH_MODULES = [
+    "src/kernel/*",
+    "src/doctrine/*",
+    "src/charter/*",
+    "src/specify_cli/status/*",
+    "src/specify_cli/lanes/branch_naming.py",
+    "src/specify_cli/dashboard/handlers/*",
+    "src/specify_cli/dashboard/scanner.py",
+    "src/specify_cli/merge/*",
+    "src/runtime/next/*",
+    "src/mission_runtime/*",
+]
 
 
 # ---------------------------------------------------------------------------
@@ -267,31 +294,7 @@ def test_tighten_workflow_passes_large_pr_sample() -> None:
     #    and NOT contain generic non-critical paths (proving large PRs that
     #    only touch non-critical files are exempt from the hard gate)
     # ------------------------------------------------------------------
-    critical_path_modules = [
-        "src/kernel/*",
-        "src/doctrine/*",
-        "src/charter/*",
-        "src/specify_cli/status/*",
-        # 'src/specify_cli/core/mission_detection.py' repointed (#2443): the
-        # phantom never existed in git history. Branch-based mission-slug
-        # detection is DEFINED at
-        # lanes/branch_naming.py::parse_mission_slug_from_branch
-        # (core/vcs/detection.py only imports/consumes it); no already-listed
-        # critical path is an ancestor of it, so the entry is repointed to its
-        # real defining home, not dropped. Lockstep with the ci-quality.yml
-        # --include array (both authorities change in the same commit).
-        "src/specify_cli/lanes/branch_naming.py",
-        "src/specify_cli/dashboard/handlers/*",
-        "src/specify_cli/dashboard/scanner.py",
-        "src/specify_cli/merge/*",
-        # 'src/specify_cli/next/*' removed (mission ci-suite-map-bind
-        # FR-004e): the package was deleted by unshim wave 2, leaving a
-        # vacuous critical-path entry with zero --cov emitters; the live
-        # successors below stay pinned.
-        "src/runtime/next/*",
-        "src/mission_runtime/*",
-    ]
-    for module in critical_path_modules:
+    for module in CRITICAL_PATH_MODULES:
         assert module in enforced_run, f"Critical-path module '{module}' is missing from the --include list in the enforced diff-coverage step."
 
     # Non-critical-path glob must NOT appear in the enforced --include list.
@@ -347,4 +350,34 @@ def test_tighten_workflow_passes_large_pr_sample() -> None:
     assert re.search(r"quality-gate:\s*\n(?:.*\n)*?\s+needs:\s*\n(?:.*\n)*?\s+- diff-coverage", workflow_text), (
         "quality-gate must depend on diff-coverage so a red coverage gate "
         "cannot be masked by a green aggregate check."
+    )
+
+
+@pytest.mark.fast
+def test_critical_path_include_set_matches_workflow() -> None:
+    """Set-equality guard (#2449 fold): the workflow's critical-path ``--include``
+    array and this module's ``CRITICAL_PATH_MODULES`` list must be the SAME set.
+
+    ``test_tighten_workflow_passes_large_pr_sample`` only checks that every
+    hardcoded module appears in the workflow (a one-directional *subset* check),
+    so a module added to the ci-quality.yml ``critical_paths=( ... )`` array but
+    never mirrored here would pass silently. Parsing the real workflow via the
+    canonical ``tests.architectural._gate_coverage`` parser and asserting
+    set-equality makes drift in EITHER authority fail.
+
+    Both authorities use identical raw glob forms (e.g. ``src/kernel/*``), so no
+    per-side glob stripping is needed — the comparison is raw-to-raw, which is
+    strictly stronger (it also catches a glob-shape divergence).
+    """
+    model = load_workflow_model(_WORKFLOW_PATH)
+    workflow_paths = frozenset(model.diff_cover_critical_paths)
+    hardcoded = frozenset(CRITICAL_PATH_MODULES)
+
+    assert workflow_paths == hardcoded, (
+        "Critical-path allowlist drift between the two authorities.\n"
+        f"  only in ci-quality.yml : {sorted(workflow_paths - hardcoded)}\n"
+        f"  only in test list      : {sorted(hardcoded - workflow_paths)}\n"
+        "Update BOTH .github/workflows/ci-quality.yml (the critical_paths array) "
+        "and this module's CRITICAL_PATH_MODULES together — they are lockstep "
+        "authorities."
     )
