@@ -15,6 +15,7 @@ on:
       - 'src/**'
       - 'docs/**'
       - 'scripts/docs/**'
+      - 'scripts/ci/**'
       - '.kittify/doctrine/overlays/**'
       - 'tests/**'
       - 'pyproject.toml'
@@ -44,6 +45,7 @@ on:
       - 'src/**'
       - 'docs/**'
       - 'scripts/docs/**'
+      - 'scripts/ci/**'
       - '.kittify/doctrine/overlays/**'
       - 'tests/**'
       - 'pyproject.toml'
@@ -218,6 +220,12 @@ jobs:
               - 'src/specify_cli/saas/**'
               - 'src/specify_cli/status/**'
               - 'src/specify_cli/tool_surface/**'
+              # The SonarCloud CI review tool + version extractor and their
+              # tests: a change to scripts/ci/** or tests/ci/** must re-run the
+              # integration-tests-core-misc `misc` shard (which now owns
+              # tests/ci) so the token-free read-only smoke test's guards run.
+              - 'scripts/ci/**'
+              - 'tests/ci/**'
               - 'tests/architectural/**'
               - 'tests/specify_cli/tool_surface/**'
               - 'tests/kernel/**'
@@ -1623,6 +1631,7 @@ jobs:
             paths: >-
               tests/_support
               tests/calibration
+              tests/ci
               tests/concurrency
               tests/contract
               tests/coordination
@@ -3102,6 +3111,23 @@ jobs:
           print(f'Normalization complete: {normalized}/{len(xml_files)} files updated.')
           PYEOF
 
+      - name: "[ENFORCED] Derive sonar.projectVersion from pyproject.toml"
+        id: sonar_version
+        if: steps.sonar_token.outputs.enabled == 'true'
+        run: |
+          # Single-source the version from pyproject.toml (FR-001/FR-002). The
+          # extraction module raises loudly + emits NOTHING on stdout on any
+          # failure, so this capture is empty and `set -e` fails the step rather
+          # than silently stamping an empty sonar.projectVersion (re-freezing the
+          # #2421 baseline). Unit-tested: tests/ci/test_sonar_project_version.py.
+          version="$(python3 scripts/ci/sonar_project_version.py)"
+          if [ -z "$version" ]; then
+            echo "::error::sonar.projectVersion could not be derived from pyproject.toml" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "Resolved sonar.projectVersion=$version (from pyproject.toml)"
+
       - name: "[ENFORCED] Materialize effective Sonar config"
         if: steps.sonar_token.outputs.enabled == 'true'
         run: |
@@ -3110,6 +3136,7 @@ jobs:
           if [ -f sonar-project.properties ]; then
             grep -v '^sonar\.organization=' sonar-project.properties \
               | grep -v '^sonar\.projectKey=' \
+              | grep -v '^sonar\.projectVersion=' \
               | grep -v '^sonar\.python\.coverage\.reportPaths=' \
               | grep -v '^sonar\.python\.xunit\.reportPath=' \
               > "$tmp_file"
@@ -3118,6 +3145,7 @@ jobs:
           {
             echo "sonar.organization=${{ steps.sonar_settings.outputs.organization }}"
             echo "sonar.projectKey=${{ steps.sonar_settings.outputs.project_key }}"
+            echo "sonar.projectVersion=${{ steps.sonar_version.outputs.version }}"
             echo "sonar.branch.name=${{ github.head_ref || github.ref_name }}"
             echo "sonar.python.coverage.reportPaths=${{ steps.coverage_paths.outputs.report_paths }}"
           } >> "$tmp_file"

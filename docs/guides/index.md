@@ -6,6 +6,7 @@ updated: '2026-07-04'
 related:
 - docs/configuration/index.md
 - docs/guides/contract-pinning.md
+- docs/guides/coverage-signals.md
 - docs/guides/local-overrides.md
 - docs/guides/pr-landing.md
 - docs/guides/review-gates.md
@@ -26,6 +27,7 @@ pages that outlive any single mission. For effort-scoped working notes
 - [Contributing to Spec Kitty](contributing.md) — developer setup, running tests, submitting PRs, AI disclosure, and the release process.
 - [Test-flakiness handling policy](testing-flakiness.md) — detection tiers and the never-retry-to-green rule.
 - [Running the test suite in parallel](testing-parallel.md) — the parallel-run workflow and volume gates.
+- [Coverage signals](coverage-signals.md) — reconciling the internal diff-coverage gate with SonarCloud coverage / new_coverage, and telling a regression from an expected scope difference.
 - [Contract pinning workflow](contract-pinning.md) — pinning observable contracts in tests.
 - [Review gates](review-gates.md) — the pre-PR / pre-review checklist.
 - [Local overrides for cross-package development](local-overrides.md) — dev-only editable installs that must never be committed.

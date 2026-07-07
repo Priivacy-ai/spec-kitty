@@ -1676,6 +1676,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/guides/coverage-signals.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/guides/create-an-org-doctrine-pack.md
   tag: current
   divio_type: none

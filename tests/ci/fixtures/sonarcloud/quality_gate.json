@@ -1,0 +1,26 @@
+{
+  "projectStatus": {
+    "status": "ERROR",
+    "ignoredConditions": false,
+    "conditions": [
+      {
+        "status": "ERROR",
+        "metricKey": "new_coverage",
+        "comparator": "LT",
+        "errorThreshold": "80",
+        "actualValue": "72.5"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_duplicated_lines_density",
+        "comparator": "GT",
+        "errorThreshold": "3",
+        "actualValue": "0.0"
+      }
+    ],
+    "period": {
+      "mode": "PREVIOUS_VERSION",
+      "date": "2026-03-21T02:17:00+0000"
+    }
+  }
+}

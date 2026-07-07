@@ -1,0 +1,40 @@
+{
+  "paging": {
+    "pageIndex": 1,
+    "pageSize": 10,
+    "total": 3
+  },
+  "analyses": [
+    {
+      "key": "AZ-2026-07-06",
+      "date": "2026-07-06T02:17:00+0000",
+      "projectVersion": "3.2.0rc39",
+      "buildString": "3.2.0rc39",
+      "events": [
+        {
+          "key": "EV-2026-07-06",
+          "category": "VERSION",
+          "name": "3.2.0rc39"
+        }
+      ]
+    },
+    {
+      "key": "AZ-2026-06-15",
+      "date": "2026-06-15T02:17:00+0000",
+      "projectVersion": "3.1.0",
+      "events": [
+        {
+          "key": "EV-2026-06-15",
+          "category": "VERSION",
+          "name": "3.1.0"
+        }
+      ]
+    },
+    {
+      "key": "AZ-2026-03-21",
+      "date": "2026-03-21T02:17:00+0000",
+      "projectVersion": "not provided",
+      "events": []
+    }
+  ]
+}

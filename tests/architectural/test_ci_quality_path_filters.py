@@ -97,6 +97,7 @@ _SHARD_COMMANDS: list[list[str]] = [
     ["tests/auth", "tests/audit", "tests/git_ops", "tests/git", "tests/cli_gate"],
     [
         "tests/calibration",
+        "tests/ci",
         "tests/concurrency",
         "tests/contract",
         "tests/core",
