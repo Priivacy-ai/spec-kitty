@@ -2,7 +2,7 @@
 title: Coverage signals — reconciling the three "coverage" numbers
 description: 'Why SonarCloud coverage, new_coverage, and the internal diff-coverage CI gate disagree — and how to tell an expected scope difference from a real coverage regression.'
 doc_status: active
-updated: '2026-07-07'
+updated: '2026-07-08'
 related:
 - docs/guides/testing-flakiness.md
 - docs/guides/testing-parallel.md
@@ -48,7 +48,7 @@ src/kernel/*
 src/doctrine/*
 src/charter/*
 src/specify_cli/status/*
-src/specify_cli/core/mission_detection.py
+src/specify_cli/lanes/branch_naming.py
 src/specify_cli/dashboard/handlers/*
 src/specify_cli/dashboard/scanner.py
 src/specify_cli/merge/*
@@ -191,9 +191,12 @@ the PR so the next reader does not re-litigate it.
   change in this same mission wires `sonar.projectVersion` from `pyproject.toml`
   so the baseline resets per release cycle; the effect lands on the **next
   nightly run after that change merges**, not on merge itself.
-- **One stale entry in the internal allowlist.** The critical-path `--include`
-  list references `src/specify_cli/core/mission_detection.py`, which no longer
-  exists at that path (the module moved). This is an incidental staleness nit in
-  the internal gate's config, **not** a SonarCloud misconfiguration, and it is
-  out of scope for this document; a small follow-up to refresh the allowlist is
-  recommended rather than fixed here.
+- **Internal allowlist entry repointed.** The critical-path `--include` list
+  references `src/specify_cli/lanes/branch_naming.py`
+  (`parse_mission_slug_from_branch`) — the real defining home of the
+  branch-based mission-slug detection. An earlier draft pointed this entry at a
+  path that had since been removed/superseded; #2443 repointed it to this
+  defining home in **both** authorities (the workflow `--include` array and
+  `tests/release/test_diff_coverage_policy.py`). This was always an incidental
+  staleness nit in the internal gate's config, **not** a SonarCloud
+  misconfiguration.

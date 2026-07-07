@@ -2771,9 +2771,9 @@ jobs:
             'src/doctrine/*'
             'src/charter/*'
             'src/specify_cli/status/*'
-            # branch-based mission-slug detection #2443: the phantom entry
-            # src/specify_cli/core/mission_detection.py never existed anywhere in
-            # git history. That logic is DEFINED at
+            # branch-based mission-slug detection #2443: the stale entry
+            # src/specify_cli/core/mission_detection.py rotted when that module
+            # was removed/superseded. Its branch-slug logic now lives at
             # src/specify_cli/lanes/branch_naming.py::parse_mission_slug_from_branch
             # -- core/vcs/detection.py only imports/consumes it. No already-listed
             # critical path above or below is an ancestor of it, so the entry is
