@@ -45,6 +45,7 @@ from __future__ import annotations
 import contextlib
 import logging
 import traceback
+from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -90,6 +91,8 @@ from specify_cli.git import SafeCommitPathPolicyError
 from specify_cli.missions._read_path_resolver import (
     _canonicalize_primary_read_handle,
 )
+from specify_cli.review import pre_review_gate
+from specify_cli.review.baseline import BaselineTestResult
 from specify_cli.status import (
     EVENTS_FILENAME,
     EventPersistenceError,
@@ -174,6 +177,8 @@ class _MoveTaskState:
     # --- phase C: decision ---
     decision: Emit | None = None
     arb_review_ref: str | None = None
+    # --- phase C.5: pre-review regression gate (WP02 T004/T005) ---
+    pre_review_gate_metadata: dict[str, Any] | None = None
     # --- phase D: emit plan ---
     emit_plan: TransitionPlan | None = None
     evidence_dict: dict[str, Any] | None = None
@@ -674,6 +679,402 @@ def _mt_run_decision(st: _MoveTaskState) -> None:
     st.decision = decision
 
 
+# --- phase C.5: pre-review regression gate (WP02 T004/T005, FR-001/FR-004) ---
+#
+# Mission review-regression-gate-01KWX6DF WP02: wires WP01's engine
+# (``review/pre_review_gate.py`` — ``evaluate_pre_review_gate`` +
+# ``derive_test_scope`` + ``run_scoped_tests_at_head`` + reused
+# ``review/baseline.py`` JUnit parser/``diff_baseline``) into the
+# ``for_review`` transition. Warn by default (NFR-001); opt-in block via
+# config ``review.fail_on_pre_review_regression``; ``--force`` bypasses the
+# block and is recorded on the transition's ``policy_metadata`` (FR-004).
+#
+# The two small composition helpers below (``_mt_pre_review_gate_verdict`` /
+# ``_mt_pre_review_gate_with_override_scope``) call ONLY WP01's already-public
+# primitives (``derive_test_scope``/``evaluate_pre_review_gate``,
+# ``run_scoped_tests_at_head``, ``diff_baseline``, the ``GateVerdict``/
+# ``ScopeResult`` dataclasses) — they live here, not in
+# ``review/pre_review_gate.py``, because that module is WP01's owned surface
+# (outside this WP's ``owned_files``): the override-scope tier needs a
+# manually-built ``ScopeResult`` that ``derive_test_scope`` has no seam for,
+# so its tail (head-run -> ``diff_baseline``) is mirrored rather than
+# threaded through a WP01 signature change.
+
+_PRE_REVIEW_CONFIG_KEY_BLOCK = "fail_on_pre_review_regression"
+_PRE_REVIEW_CONFIG_KEY_TEST_COMMAND = "pre_review_test_command"
+_PRE_REVIEW_FRONTMATTER_KEY = "pre_review_test_scope"
+
+
+def _pre_review_gate_filter_groups() -> Mapping[str, tuple[str, ...]] | None:
+    """Test seam: production always returns ``None``.
+
+    ``None`` lets ``pre_review_gate.evaluate_pre_review_gate`` derive filter
+    groups from the LIVE ``tests/architectural/_gate_coverage.py`` authority
+    under the gate's own ``repo_root`` (WP01's FR-006 single-source
+    invariant). Integration tests monkeypatch this (and its composite-routing
+    sibling below) to inject a hermetic fixture map — the SAME override seam
+    ``derive_test_scope`` already exposes for WP01's own unit tests — rather
+    than building a throwaway ``tests/architectural/_gate_coverage.py`` in a
+    fixture repo, which would silently resolve to the REAL repo's cached
+    ``sys.modules`` entry instead (the exact staleness
+    ``GateAuthoritiesUnavailable`` guards against).
+    """
+    return None
+
+
+def _pre_review_gate_composite_routing() -> Mapping[str, pre_review_gate._CompositeRoute] | None:
+    """Test seam sibling to :func:`_pre_review_gate_filter_groups` (see there)."""
+    return None
+
+
+def _mt_review_config_section(main_repo_root: Path) -> Mapping[str, Any]:
+    """Best-effort read of the ``review:`` section of ``.kittify/config.yaml``.
+
+    Mirrors ``review/baseline.py``'s ``_get_test_command`` read pattern
+    exactly: a missing file, malformed YAML, or absent section all degrade to
+    an empty mapping rather than raising — config lookup must never crash a
+    transition.
+    """
+    config_path = main_repo_root / ".kittify" / "config.yaml"
+    if not config_path.exists():
+        return {}
+    try:
+        from ruamel.yaml import YAML
+
+        yaml = YAML()
+        config = yaml.load(config_path)
+    except Exception:
+        return {}
+    if not config:
+        return {}
+    review_section = config.get("review") if hasattr(config, "get") else None
+    return dict(review_section) if review_section else {}
+
+
+def _mt_pre_review_block_enabled(main_repo_root: Path) -> bool:
+    """FR-001/NFR-001: opt-in block toggle — ``review.fail_on_pre_review_regression``."""
+    return bool(_mt_review_config_section(main_repo_root).get(_PRE_REVIEW_CONFIG_KEY_BLOCK, False))
+
+
+def _mt_pre_review_scope_override(wp_frontmatter: str, main_repo_root: Path) -> tuple[str, ...] | None:
+    """FR-004 override precedence: frontmatter > config > ``None`` (auto-scope).
+
+    Precedence is frontmatter ``pre_review_test_scope`` > config
+    ``review.pre_review_test_command`` > ``None`` (WP01's census-derived
+    auto-scope). Both override surfaces hold a whitespace-separated list of
+    pytest target arguments — the SAME shape
+    ``pre_review_gate.run_scoped_tests_at_head`` already consumes — so only
+    WHICH targets run is overridable; the runner mechanics (head-side pytest
+    + ``diff_baseline``) stay WP01's regardless of precedence tier.
+    """
+    frontmatter_value = extract_scalar(wp_frontmatter, _PRE_REVIEW_FRONTMATTER_KEY)
+    if frontmatter_value:
+        return tuple(frontmatter_value.split())
+    config_value = _mt_review_config_section(main_repo_root).get(_PRE_REVIEW_CONFIG_KEY_TEST_COMMAND)
+    if config_value:
+        return tuple(str(config_value).split())
+    return None
+
+
+def _mt_resolve_pre_review_workspace(st: _MoveTaskState) -> Path | None:
+    """Resolve the on-disk worktree the WP's code changes live in.
+
+    Returns ``None`` when no genuine workspace is resolvable (planning-lane
+    WP, missing ``lanes.json``, a worktree husk, ...) — the gate then
+    degrades cheaply to a ``no_coverage`` warn without ever diffing or
+    running tests. Mirrors ``_mt_commit_lane_deliverables``'s own resolution
+    + exception handling.
+    """
+    from specify_cli.cli.commands.agent import tasks as _tasks
+    from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError
+
+    try:
+        workspace = _tasks.resolve_workspace_for_wp(st.main_repo_root, st.mission_slug, st.task_id)
+    except (ValueError, FileNotFoundError, MissingLanesError, CorruptLanesError):
+        return None
+    if not workspace.exists:
+        return None
+    # Annotated local: mypy runs with ``follow_imports = "skip"`` on this
+    # quarantined module, so ``workspace`` (and ``ResolvedWorkspace`` itself)
+    # surface as ``Any`` here; pinning the FIELD access to the stdlib ``Path``
+    # type re-establishes the known concrete return type without a
+    # suppression (mirrors ``RealFsReader``'s own idiom in
+    # ``agent_tasks_ports.py``, which pins against a non-quarantined type).
+    resolved_worktree_path: Path = workspace.worktree_path
+    return resolved_worktree_path
+
+
+def _mt_pre_review_changed_files(worktree_path: Path, base_branch: str) -> tuple[str, ...]:
+    """Merge-base diff of the WP's worktree HEAD vs. its target branch.
+
+    Mirrors ``tasks_shared._list_wp_branch_mission_specs_changes``'s
+    merge-base pattern (``git merge-base HEAD <base>`` then
+    ``git diff --name-only``), generalized to every changed file rather than
+    a ``kitty-specs/`` subset — the gate scopes tests off the WP's FULL
+    changed-file set, not just spec docs. Any git failure degrades to an
+    empty tuple (folds into a cheap ``no_coverage`` warn), never a crash.
+    """
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    merge_base_result = _tasks.subprocess.run(
+        ["git", "merge-base", "HEAD", base_branch],
+        cwd=str(worktree_path),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if merge_base_result.returncode != 0:
+        return ()
+    merge_base = merge_base_result.stdout.strip()
+    if not merge_base:
+        return ()
+    diff_result = _tasks.subprocess.run(
+        ["git", "diff", "--name-only", f"{merge_base}..HEAD"],
+        cwd=str(worktree_path),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if diff_result.returncode != 0:
+        return ()
+    return tuple(line.strip() for line in diff_result.stdout.splitlines() if line.strip())
+
+
+def _mt_pre_review_gate_with_override_scope(
+    test_targets: tuple[str, ...],
+    *,
+    repo_root: Path,
+    baseline: BaselineTestResult | None,
+) -> pre_review_gate.GateVerdict:
+    """Compose a verdict for an EXPLICIT override scope (FR-004).
+
+    An override IS the test scope, by definition — WP01's census-derived
+    ``derive_test_scope`` never runs for this precedence tier. The non-empty
+    tail (head-run -> ``diff_baseline`` -> verdict) is NOT hand-mirrored here
+    (pre-merge finding, #572/#1979/#2283: the mirrored copy left its
+    ``NEW_FAILURES``/block/force + ``UNVERIFIED_BASELINE`` branches with zero
+    coverage) — it REUSES ``pre_review_gate.evaluate_with_scope``, the exact
+    same tested body ``evaluate_pre_review_gate`` itself drives. Only the
+    empty-scope branch stays local: an override's empty list isn't a census
+    exclusion, so ``ScopeResult.describe_empty_reason()``'s catch-all/
+    composite-dir wording would be misleading — this keeps its own literal
+    "override test scope is empty" reason instead.
+    """
+    scope = pre_review_gate.ScopeResult(
+        test_targets=test_targets,
+        matched_shard_groups=(),
+        matched_composite_dirs=(),
+        empty_cone_composite_dirs=(),
+        excluded_scope_files=(),
+    )
+    if scope.is_empty:
+        return pre_review_gate.GateVerdict(
+            outcome=pre_review_gate.GateOutcome.NO_COVERAGE,
+            scope=scope,
+            reason="override test scope is empty",
+        )
+    return pre_review_gate.evaluate_with_scope(scope, repo_root=repo_root, baseline=baseline)
+
+
+def _mt_empty_scope_verdict(reason: str, *, excluded_scope_files: tuple[str, ...] = ()) -> pre_review_gate.GateVerdict:
+    """A ``no_coverage`` verdict built without deriving/running anything."""
+    return pre_review_gate.GateVerdict(
+        outcome=pre_review_gate.GateOutcome.NO_COVERAGE,
+        scope=pre_review_gate.ScopeResult(
+            test_targets=(),
+            matched_shard_groups=(),
+            matched_composite_dirs=(),
+            empty_cone_composite_dirs=(),
+            excluded_scope_files=excluded_scope_files,
+        ),
+        reason=reason,
+    )
+
+
+def _mt_pre_review_gate_verdict(
+    *,
+    changed_files: tuple[str, ...],
+    override_targets: tuple[str, ...] | None,
+    gate_repo_root: Path,
+    baseline: BaselineTestResult | None,
+) -> pre_review_gate.GateVerdict:
+    """Resolve the FR-004 precedence tier, then evaluate the gate.
+
+    An empty ``changed_files`` set with no override short-circuits BEFORE
+    even attempting to load the live gate-coverage authorities — keeping the
+    hook cheap for the common "nothing changed / no lane workspace"
+    case (WP02 spec explicit requirement), distinct from
+    :class:`pre_review_gate.GateAuthoritiesUnavailable` (a real authority-load
+    failure, folded into the SAME ``no_coverage`` shape once a non-empty
+    changed-file set actually attempts derivation).
+    """
+    if override_targets is not None:
+        return _mt_pre_review_gate_with_override_scope(
+            override_targets, repo_root=gate_repo_root, baseline=baseline,
+        )
+    if not changed_files:
+        return _mt_empty_scope_verdict("no changed files detected for this WP — skipping the gate cheaply")
+    try:
+        return pre_review_gate.evaluate_pre_review_gate(
+            changed_files,
+            repo_root=gate_repo_root,
+            baseline=baseline,
+            filter_groups=_pre_review_gate_filter_groups(),
+            composite_routing=_pre_review_gate_composite_routing(),
+        )
+    except pre_review_gate.GateAuthoritiesUnavailable as exc:
+        return _mt_empty_scope_verdict(
+            f"gate authorities unavailable — unverified: {exc}",
+            excluded_scope_files=tuple(changed_files),
+        )
+
+
+def _mt_pre_review_gate_metadata(
+    verdict: pre_review_gate.GateVerdict,
+    *,
+    block_enabled: bool,
+    blocked: bool,
+    force_bypassed: bool,
+) -> dict[str, Any]:
+    """The FR-004 transition-evidence payload recorded via ``policy_metadata``."""
+    scope = verdict.scope
+    return {
+        "outcome": verdict.outcome.value,
+        "reason": verdict.reason,
+        "new_failure_count": len(verdict.new_failures),
+        "new_failure_nodeids": [failure.test for failure in verdict.new_failures],
+        "pre_existing_failure_count": len(verdict.pre_existing_failures),
+        "affected_shard_count": len(scope.matched_shard_groups) + len(scope.matched_composite_dirs),
+        "matched_shard_groups": list(scope.matched_shard_groups),
+        "matched_composite_dirs": list(scope.matched_composite_dirs),
+        "test_targets": list(scope.test_targets),
+        "block_enabled": block_enabled,
+        "blocked": blocked,
+        "force_bypassed": force_bypassed,
+    }
+
+
+#: Pre-merge finding (#572/#1979/#2283): the opt-in block
+#: (``review.fail_on_pre_review_regression``) can ONLY ever fire on a
+#: ``NEW_FAILURES`` verdict (see ``_mt_run_pre_review_gate``'s ``would_block``
+#: below), which itself needs a computed baseline. ``baseline.py``'s
+#: ``capture_baseline`` returns ``None`` (no artifact ever written) when
+#: ``review.test_command`` is unset — so an operator who opts in to the block
+#: WITHOUT also configuring ``review.test_command`` gets a block that can
+#: NEVER engage: every for_review move degrades to ``NO_COVERAGE`` or
+#: ``UNVERIFIED_BASELINE`` (never ``NEW_FAILURES``), silently. That silence is
+#: itself a defect, so this hint is surfaced as an EXPLICIT, non-dim warning
+#: rather than folded into the routine dim advisory line below.
+_PRE_REVIEW_BLOCK_UNENFORCEABLE_HINT = (
+    "block requested via review.fail_on_pre_review_regression but COULD NOT be enforced — "
+    "no verified new-failure verdict exists to block on. A baseline must be captured at "
+    "implement time (configure review.test_command in .kittify/config.yaml) before this "
+    "block can ever take effect."
+)
+
+
+def _mt_pre_review_gate_console_warning(verdict: pre_review_gate.GateVerdict, *, block_enabled: bool) -> str:
+    """Human-readable (non-JSON) console line surfacing the verdict.
+
+    ``block_enabled`` does not change the warn-vs-block semantics here (the
+    transition still proceeds — you cannot block on data that doesn't
+    exist) — it only decides whether the ``NO_COVERAGE``/``UNVERIFIED_BASELINE``
+    line escalates from a routine dim advisory to an explicit block-inert
+    warning naming the ``review.test_command`` prerequisite.
+    """
+    outcome = verdict.outcome
+    if outcome is pre_review_gate.GateOutcome.NEW_FAILURES:
+        shard_count = len(verdict.scope.matched_shard_groups) + len(verdict.scope.matched_composite_dirs)
+        nodeids = ", ".join(failure.test for failure in verdict.new_failures[:5])
+        more = f" (+{len(verdict.new_failures) - 5} more)" if len(verdict.new_failures) > 5 else ""
+        return (
+            f"[yellow]Pre-review regression gate:[/yellow] {len(verdict.new_failures)} new failure(s) "
+            f"across {shard_count} affected shard(s) — {nodeids}{more}"
+        )
+    if outcome in (pre_review_gate.GateOutcome.NO_COVERAGE, pre_review_gate.GateOutcome.UNVERIFIED_BASELINE):
+        if block_enabled:
+            return (
+                "[yellow]Pre-review regression gate:[/yellow] "
+                f"{_PRE_REVIEW_BLOCK_UNENFORCEABLE_HINT} "
+                f"(outcome={outcome.value}: {verdict.reason or 'unverified'})"
+            )
+        return f"[dim]Pre-review regression gate: {outcome.value} — {verdict.reason or 'unverified'}[/dim]"
+    return "[dim]Pre-review regression gate: no new failures[/dim]"
+
+
+def _mt_pre_review_gate_block_message(verdict: pre_review_gate.GateVerdict) -> str:
+    """The refusal message when the opt-in block engages (FR-001)."""
+    nodeids = ", ".join(failure.test for failure in verdict.new_failures[:5])
+    more = f" (+{len(verdict.new_failures) - 5} more)" if len(verdict.new_failures) > 5 else ""
+    return (
+        "Pre-review regression gate BLOCKED this for_review move: "
+        f"{len(verdict.new_failures)} new failure(s) introduced — {nodeids}{more}. "
+        "Fix the regression, or re-run with --force to override (recorded in the transition evidence)."
+    )
+
+
+def _mt_run_pre_review_gate(st: _MoveTaskState) -> None:
+    """T004 (FR-001/NFR-001): warn-default/opt-in-block pre-review regression gate.
+
+    Runs ONLY for ``for_review`` moves, called right after ``_mt_run_decision``
+    in ``_do_move_task`` — i.e. AFTER every pre-existing guard has cleared and
+    BEFORE the transition is emitted/committed (``_mt_finalize_plan`` /
+    ``_mt_execute``). A block raises ``typer.Exit(1)`` here, before any state
+    is committed, so existing move-task guard behavior and ordering are
+    entirely untouched — this hook is purely additive after the established
+    guard sequence.
+
+    Never crashes the transition: an unresolvable workspace, unavailable
+    gate-coverage authorities, or any other internal failure all degrade to
+    a ``no_coverage`` warn (never a hard block) — the ONLY non-local exit
+    this function can take is the deliberate opt-in block below.
+    """
+    if st.target_lane != Lane.FOR_REVIEW:
+        return
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    assert st.wp is not None
+    try:
+        worktree_path = _mt_resolve_pre_review_workspace(st)
+        changed_files = (
+            _mt_pre_review_changed_files(worktree_path, st.target_branch)
+            if worktree_path is not None
+            else ()
+        )
+        gate_repo_root = worktree_path or st.main_repo_root
+        override_targets = _mt_pre_review_scope_override(st.wp.frontmatter, st.main_repo_root)
+        wp_slug = _resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id)
+        baseline_path = st.feature_dir / "tasks" / wp_slug / "baseline-tests.json"
+        baseline = BaselineTestResult.load(baseline_path)
+        verdict = _mt_pre_review_gate_verdict(
+            changed_files=changed_files,
+            override_targets=override_targets,
+            gate_repo_root=gate_repo_root,
+            baseline=baseline,
+        )
+    except Exception as exc:  # An internal gate failure must never break move-task (FR-003 spirit).
+        verdict = _mt_empty_scope_verdict(f"pre-review gate evaluation failed — unverified: {exc}")
+
+    block_enabled = _mt_pre_review_block_enabled(st.main_repo_root)
+    would_block = block_enabled and verdict.outcome is pre_review_gate.GateOutcome.NEW_FAILURES
+    force_bypassed = would_block and st.force
+    blocked = would_block and not force_bypassed
+    st.pre_review_gate_metadata = _mt_pre_review_gate_metadata(
+        verdict, block_enabled=block_enabled, blocked=blocked, force_bypassed=force_bypassed,
+    )
+
+    if not st.json_output:
+        _tasks.console.print(_mt_pre_review_gate_console_warning(verdict, block_enabled=block_enabled))
+
+    if blocked:
+        _tasks._output_error(st.json_output, _mt_pre_review_gate_block_message(verdict))
+        raise typer.Exit(1)
+
+
 # --- phase D: finalize emit plan --------------------------------------------
 
 
@@ -816,6 +1217,11 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
                 force=emit_force,
                 reason=emit_reason,
                 evidence=st.evidence_dict if target in (Lane.APPROVED, Lane.DONE) else None,
+                policy_metadata=(
+                    {"pre_review_gate": st.pre_review_gate_metadata}
+                    if target == Lane.FOR_REVIEW and st.pre_review_gate_metadata is not None
+                    else None
+                ),
                 review_ref=emit_review_ref,
                 workspace_context=f"move-task:{st.main_repo_root}",
                 subtasks_complete=(
@@ -1068,6 +1474,8 @@ def _mt_output(st: _MoveTaskState) -> None:
             result["frontmatter_fields_skipped"] = ["agent"]
     if st.review_feedback_pointer is not None:
         result["review_feedback"] = st.review_feedback_pointer
+    if st.pre_review_gate_metadata is not None:
+        result["pre_review_gate"] = st.pre_review_gate_metadata
     _tasks._output_result(
         st.json_output,
         result,
@@ -1136,6 +1544,7 @@ def _do_move_task(
         _mt_resolve_targets(st, ports)
         _mt_gather_review_facts(st)
         _mt_run_decision(st)
+        _mt_run_pre_review_gate(st)
         _mt_finalize_plan(st)
         _mt_execute(st, ports)
         _mt_output(st)

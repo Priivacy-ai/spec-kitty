@@ -136,6 +136,10 @@ _ARCH_SHARD_3_FILES: tuple[str, ...] = (
     "tests/architectural/test_no_shipped_layer_label.py",
     "tests/architectural/test_no_tmp_paths_in_tests.py",
     "tests/architectural/test_no_worktree_name_guess.py",
+    # Added post-data-model.md (new file at implementation time, mission
+    # review-regression-gate-01KWX6DF WP01, #572/#1979/#2283). shard_3 was the
+    # lightest by file count (30 vs 31/31) when this file landed.
+    "tests/architectural/test_pre_review_scope_singlesource.py",
     "tests/architectural/test_protection_resolver_call_sites.py",
     "tests/architectural/test_pytest_marker_correctness.py",
     "tests/architectural/test_real_home_isolation_guard.py",

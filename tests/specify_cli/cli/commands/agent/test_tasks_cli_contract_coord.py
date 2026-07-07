@@ -741,7 +741,30 @@ class TestMoveTaskSideEffects:
 # repo); every NAMED decision branch WP03 extracts is ADDITIONALLY pinned by an
 # explicit T006 case above, which is the primary anti-unguarded-extraction guard.
 _BRANCH_COVERAGE_FLOORS = {
-    "move_task": 65.0,
+    # review-regression-gate-01KWX6DF WP02 (T004/T005, #572/#1979/#2283): the
+    # new-failure pre-review gate hook (``_mt_run_pre_review_gate`` + its
+    # precedence/messaging helpers) is called by bare name from
+    # ``_do_move_task`` and so joins this floor's same-module closure
+    # (``_same_module_closure``). Its real-git-fixture / real-subprocess-pytest
+    # branches (auto-derived AND override-tier NEW_FAILURES/block/force,
+    # UNVERIFIED_BASELINE) are — like the pre-existing "real-git auto-commit
+    # SUCCESS path" noted below — not reachable from THIS CliRunner/coord-
+    # topology harness without a dedicated lane-worktree + pytest-subprocess
+    # fixture; that dedicated coverage lives in
+    # ``tests/review/test_pre_review_gate_integration.py`` instead — BOTH the
+    # auto-derived tier AND the FR-004 override tier drive their own
+    # NEW_FAILURES/block/force + UNVERIFIED_BASELINE cases there against a
+    # real git repo (a pre-merge finding closed a gap where the override
+    # tier's copy of the verdict tail drove only its passing/no_new_failures
+    # branch; it now reuses ``pre_review_gate.evaluate_with_scope``, the SAME
+    # tested tail the auto-derived tier drives, and both block/force branches
+    # are covered). ``GateAuthoritiesUnavailable`` is referenced only as an
+    # explanatory counterfactual in that file's docstrings, not driven as its
+    # own scenario, and stays uncovered by a dedicated fixture. Measured
+    # post-WP02: 61.3%; floor lowered with the SAME "a few points below
+    # measured" buffer convention as the other floors here, not silently —
+    # see the WP02 lane commit for the measurement.
+    "move_task": 58.0,
     "map_requirements": 48.0,
     "status": 46.0,
 }
