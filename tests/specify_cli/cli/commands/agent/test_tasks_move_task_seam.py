@@ -81,6 +81,23 @@ _MOVE_SET: tuple[str, ...] = (
     "_detect_reviewer_name",
     "_detect_arbiter_override",
     "_run_arbiter_override",
+    # WP02 (review-regression-gate-01KWX6DF, T004/T005): the for_review
+    # pre-review regression-gate hook + its precedence/messaging helpers join
+    # the family surface like every other def in this module.
+    "_mt_run_pre_review_gate",
+    "_mt_resolve_pre_review_workspace",
+    "_mt_pre_review_changed_files",
+    "_mt_pre_review_gate_with_override_scope",
+    "_mt_empty_scope_verdict",
+    "_mt_pre_review_gate_verdict",
+    "_mt_pre_review_gate_metadata",
+    "_mt_pre_review_gate_console_warning",
+    "_mt_pre_review_gate_block_message",
+    "_mt_review_config_section",
+    "_mt_pre_review_block_enabled",
+    "_mt_pre_review_scope_override",
+    "_pre_review_gate_filter_groups",
+    "_pre_review_gate_composite_routing",
 )
 
 
