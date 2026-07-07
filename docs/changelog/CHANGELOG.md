@@ -49,6 +49,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
+- **Post-merge stale-assertion analyzer stops false-positive storms on
+  behavior-preserving refactors (#2031, #2343).** A relocation/re-export (a
+  WP05 extraction produced 180 false findings and tripped the drift ceiling)
+  and generic-literal noise both flagged as stale assertions. The analyzer now
+  (a) suppresses a removed identifier only when the origin file's **module-level
+  head** still re-exports/imports it (keyed on head-importability — not
+  bare-name-anywhere, so a genuine deletion of a common name like `run`/`main`
+  is still flagged; a nested `import parse` does not mask a real `def parse()`
+  deletion), and (b) suppresses literal-only noise by **genuineness** (a pinned
+  generic-token set / all-punctuation), never by length (a short literal like
+  `"E001"` can be assert-critical). Both paths suppress rather than
+  info-downgrade, so render surfaces and the FP ceiling are unchanged.
 - **Review-prompt files no longer accumulate unbounded; coverage-allowlist
   repointed off a removed module (#2439, #2443).**
   `write_review_prompt_with_metadata()` now prunes review-prompt files to a
