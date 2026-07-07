@@ -769,6 +769,78 @@ def test_scan_feature_kanban_generic_exception_is_logged_and_skipped(
     )
 
 
+# ── _resolve_planning_dir_primary_first fallback paths (#2430) ─────────────
+
+
+@pytest.mark.fast
+def test_resolve_planning_dir_primary_first_falls_back_on_value_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ValueError from resolve_planning_read_dir returns the scanned dir (#2430).
+
+    Covers scanner.py lines 463-464: the except branch when the resolver
+    declines because the mission slug contains an unsafe segment.
+    """
+    feature_dir = tmp_path / "kitty-specs" / "001-bad-segment"
+    feature_dir.mkdir(parents=True)
+
+    def _raise_value_error(*_a: object, **_kw: object) -> Path:
+        raise ValueError("unsafe segment in mission slug")
+
+    monkeypatch.setattr(scanner, "resolve_planning_read_dir", _raise_value_error)
+
+    result = scanner._resolve_planning_dir_primary_first(tmp_path, feature_dir)
+
+    assert result == feature_dir
+
+
+@pytest.mark.fast
+def test_resolve_planning_dir_primary_first_falls_back_on_ambiguous_handle(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """MissionSelectorAmbiguous from the resolver returns the scanned dir (#2430).
+
+    Covers scanner.py lines 463-464: the except branch when multiple missions
+    share the same slug prefix and the resolver cannot disambiguate.
+    """
+    from specify_cli.missions._read_path_resolver import MissionSelectorAmbiguous
+
+    feature_dir = tmp_path / "kitty-specs" / "01KW-ambiguous"
+    feature_dir.mkdir(parents=True)
+
+    def _raise_ambiguous(*_a: object, **_kw: object) -> Path:
+        raise MissionSelectorAmbiguous(handle="01KW", candidates=["01KWN9D0", "01KWV531"])
+
+    monkeypatch.setattr(scanner, "resolve_planning_read_dir", _raise_ambiguous)
+
+    result = scanner._resolve_planning_dir_primary_first(tmp_path, feature_dir)
+
+    assert result == feature_dir
+
+
+@pytest.mark.fast
+def test_resolve_planning_dir_primary_first_falls_back_when_candidate_absent(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A resolved primary path that does not exist on disk returns the scanned dir.
+
+    Covers scanner.py line 467: the fallback when the resolver returns a
+    candidate path that has not been checked out locally (e.g. lane-only
+    worktree where the primary feature branch exists only in the registry).
+    """
+    feature_dir = tmp_path / "kitty-specs" / "001-remote-primary"
+    feature_dir.mkdir(parents=True)
+    absent = tmp_path / ".worktrees" / "001-remote-primary-lane-1" / "kitty-specs" / "001-remote-primary"
+    # absent is never created — must not exist
+
+    monkeypatch.setattr(scanner, "resolve_planning_read_dir", lambda *_a, **_kw: absent)
+
+    result = scanner._resolve_planning_dir_primary_first(tmp_path, feature_dir)
+
+    assert result == feature_dir
+    assert not absent.exists()
+
+
 # ── NFR-006: Dashboard kanban bucketing identity ───────────────────────────
 
 
