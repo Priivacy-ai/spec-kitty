@@ -1,0 +1,209 @@
+# Contract Registry Schema Contract
+# Mission: contract-ownership-boundary-01KWYRE5 (#2441)
+# Spec refs: FR-001, FR-002, NFR-003
+#
+# This file is a human-readable JSON-Schema-style description of the
+# docs/contracts/contract-registry.yaml format. `spec-kitty doctor contracts`
+# (src/specify_cli/contracts/registry.py::validate_registry) enforces that every
+# entry in the live registry conforms to this contract.
+#
+# It generalises the shim-registry schema
+# (kitty-specs/migration-shim-ownership-rules-01KPDYDW/contracts/shim-registry-schema.yaml):
+# a ShimEntry is the `kind: fallback_name` projection of a ContractRecord — its
+# `legacy_path` is a dotted-`symbol` anchor, `canonical_import` is `replaced_by`,
+# and its release window is `retirement`. A ContractRecord additionally models
+# the `retired_literal` kind AND the declared consumer set (the missing piece).
+#
+# DIR-041 / NFR-003 — CONTENT ANCHORING ONLY. A record is anchored on a dotted
+# symbol OR a fixed literal, NEVER on a positional `file:line`. The validator
+# rejects any field named file/line/lineno/line_no/file_line/fileline anywhere
+# in a record, and any string value shaped like `path/to/file.py:42`.
+#
+# Schema version: 1
+
+$schema: "http://json-schema.org/draft-07/schema#"
+title: Contract Registry
+description: |
+  Machine-readable enumeration of shared contracts (fallback/compat names and
+  retired literals) together with their declared consumer set and retirement
+  obligations. One entry per contract.
+
+type: object
+required: [contracts]
+additionalProperties: false
+properties:
+  contracts:
+    type: array
+    description: List of contract records. Order is not significant.
+    items:
+      $ref: "#/definitions/ContractRecord"
+
+definitions:
+  ContractRecord:
+    type: object
+    required:
+      - id
+      - kind
+      - anchor
+      - status
+      - owner
+      - replaced_by
+      - retirement
+      - consumers
+      - verification
+    additionalProperties: false
+    properties:
+      id:
+        type: string
+        minLength: 1
+        description: |
+          Stable, human+machine handle for the contract. Acts as the record's
+          primary key. Unique within the registry.
+      kind:
+        type: string
+        enum: [fallback_name, retired_literal]
+        description: |
+          fallback_name — a fallback/compat name (a dotted symbol re-export);
+          the existing ShimEntry specialisation.
+          retired_literal — a retired literal a caller depended on (a term, a
+          path, a status value).
+          (`signature` is a deferred follow-up kind — not modeled in v1.)
+      anchor:
+        $ref: "#/definitions/ContractAnchor"
+      status:
+        type: string
+        enum: [active, deprecated, retired]
+        description: Lifecycle state. The retirement absence-sweep is driven by `retired`.
+      owner:
+        type: string
+        minLength: 1
+        description: Tracker issue / mission handle that owns this contract, e.g. "#2441".
+      replaced_by:
+        type: string
+        minLength: 1
+        description: |
+          The canonical replacement — a dotted symbol (for fallback_name) or the
+          canonical term/path/resolver a retired literal was migrated to.
+      retirement:
+        $ref: "#/definitions/Retirement"
+      consumers:
+        $ref: "#/definitions/Consumers"
+      verification:
+        $ref: "#/definitions/Verification"
+      notes:
+        type: string
+        description: Optional free-text annotations (e.g. carve-out / provenance notes).
+
+  ContractAnchor:
+    type: object
+    additionalProperties: false
+    description: |
+      The content-addressed identity of the contract. EXACTLY ONE arm is
+      populated per record, keyed by `kind`. NEVER a positional `file:line`.
+    properties:
+      symbol:
+        type: string
+        pattern: "^[A-Za-z_][A-Za-z0-9_]*(?:\\.[A-Za-z_][A-Za-z0-9_]*)*$"
+        description: |
+          Dotted Python name. Used for kind `fallback_name` (and the deferred
+          `signature` kind). Mutually exclusive with `literals`.
+      literals:
+        type: array
+        minItems: 1
+        description: |
+          One or more fixed strings the contract is anchored on. Used for kind
+          `retired_literal`. Mutually exclusive with `symbol`.
+        items:
+          $ref: "#/definitions/LiteralEntry"
+
+  LiteralEntry:
+    type: object
+    additionalProperties: false
+    description: |
+      A single retired literal, expressed EITHER as a plain `value` OR as a
+      `fragments` list the loader joins. The fragment form is the generalised
+      self-flag defence: a record for a forbidden term can name that term
+      without the manifest itself tripping the very sweep it models — the direct
+      generalisation of test_no_legacy_terminology.py's "cere" + "mony"
+      construction. Exactly one of `value` / `fragments` is required.
+    properties:
+      value:
+        type: string
+        minLength: 1
+        description: The retired literal, verbatim.
+      fragments:
+        type: array
+        minItems: 1
+        items:
+          type: string
+        description: Fragments joined (concatenated, no separator) to reconstruct the literal.
+
+  Retirement:
+    type: object
+    required: [introduced_in, removal_target, tracker_issue]
+    additionalProperties: false
+    properties:
+      introduced_in:
+        type: string
+        pattern: "^\\d+\\.\\d+\\.\\d+(?:[a-z]\\d+)?$"
+        description: Release in which the contract was introduced.
+      removal_target:
+        type: string
+        pattern: "^\\d+\\.\\d+\\.\\d+(?:[a-z]\\d+)?$"
+        description: Release by which the contract must be retired. Must be >= introduced_in.
+      tracker_issue:
+        type: string
+        pattern: "^(#\\d+|https?://.+)$"
+        description: GitHub issue reference. Either "#NNN" shorthand or full URL.
+
+  Consumers:
+    type: object
+    required: [scan_roots, exemptions]
+    additionalProperties: false
+    description: |
+      THE DECLARED CONSUMER SET — the piece ShimEntry never had. Seeded from a
+      discovered scope (transcribed from the authoritative sweep test's own
+      scan-root / exclusion constants) then frozen + reviewed, never hand-typed
+      blind (spec C-003).
+    properties:
+      scan_roots:
+        type: array
+        minItems: 1
+        items:
+          type: string
+        description: The static-arm sweep scope (repo-relative directory roots).
+      exemptions:
+        type: array
+        items:
+          type: string
+        description: |
+          Path fragments excluded from the sweep — generalises each sweep test's
+          hand-rolled exclusion list (e.g. docs/adr/ historical-snapshot exemption).
+      test_shards:
+        type: array
+        items:
+          type: string
+        description: |
+          Optional. The dynamic-arm consumers (the #2438 gate re-runs these).
+          Deferred follow-up — not populated by the v1 literal seeds.
+      call_sites:
+        type: array
+        items:
+          type: string
+        description: |
+          Optional. Content-anchored production call-sites (for the write-side
+          ratchet adoption). Deferred follow-up — not populated by the v1 seeds.
+
+  Verification:
+    type: object
+    required: [enforcement]
+    additionalProperties: false
+    properties:
+      enforcement:
+        type: string
+        enum: [advisory, enforcing]
+        description: |
+          Per-record enforcement mode. `advisory` (report-only) is the v1 default
+          for every retirement sweep; a record opts into `enforcing` only after
+          its consumer set is proven stable (a follow-up). Only the structural
+          validator (`doctor contracts`) enforces in v1.
