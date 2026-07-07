@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-07-07'
+updated: '2026-07-08'
 ---
 # Changelog
 
@@ -49,6 +49,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### 🐛 Fixed
 
+- **Review-prompt files no longer accumulate unbounded; coverage-allowlist
+  repointed off a removed module (#2439, #2443).**
+  `write_review_prompt_with_metadata()` now prunes review-prompt files to a
+  newest-preserving cap after each write — fail-safe, and never pruning the
+  current invocation's own file — closing the LC-7 retention residual of #1842.
+  Separately, the `diff-coverage` critical-path `--include` allowlist still
+  referenced the stale `src/specify_cli/core/mission_detection.py` (removed in a
+  rename); it is repointed to `src/specify_cli/lanes/branch_naming.py` in **both**
+  the CI workflow and its test authority in lockstep, with a glob-aware existence
+  guard so a phantom allowlist entry reds instead of silently covering nothing.
+- **`spec-kitty agent mission finalize-tasks` accepts glob-only `owned_files`
+  (#2446).** A work package whose `owned_files` used a filename glob (e.g.
+  `src/foo/*.py`) with no explicit `authoritative_surface` was rejected because
+  `infer_authoritative_surface` produced an invalid `src/foo/*.py/` path. It now
+  reduces a glob-bearing final path segment to its directory, so glob-only
+  ownership infers a valid authoritative surface. (Fix landing via PR #2454.)
 - **Test-session state leaks closed: per-mission prompt-tmp namespace +
   workspace-context tombstone (#1842, #2032).** Runtime prompt files are now
   written under a per-repo/per-mission namespaced temp directory
