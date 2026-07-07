@@ -29,6 +29,7 @@ from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.migrations.m_3_2_5_agents_skills_gitignore_backfill import (
     AgentsSkillsGitignoreBackfillMigration,
 )
+from specify_cli.upgrade.registry import MigrationRegistry
 from specify_cli.upgrade.runner import MigrationRunner
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -133,6 +134,25 @@ def test_detect_accepts_wholesale_agents_variant(tmp_path: Path) -> None:
     assert _SKILLS_ROOT_ENTRY not in entries
 
 
+def test_detect_accepts_no_trailing_slash_variants(tmp_path: Path) -> None:
+    # The no-trailing-slash forms (.agents and .agents/skills) must also count
+    # as present so the backfill never appends a redundant entry beside them.
+    _init_git_repo(tmp_path)
+    _write_gitignore(tmp_path, ".agents", _MANIFEST_ENTRY)
+
+    migration = AgentsSkillsGitignoreBackfillMigration()
+    assert migration.detect(tmp_path) is False
+
+    _write_gitignore(tmp_path, ".agents/skills", _MANIFEST_ENTRY)
+    assert migration.detect(tmp_path) is False
+
+
+def test_can_apply_rejects_nonexistent_path() -> None:
+    ok, reason = AgentsSkillsGitignoreBackfillMigration().can_apply(Path("/nonexistent/path"))
+    assert not ok
+    assert "does not exist" in reason
+
+
 def test_detect_ignores_commented_out_entry(tmp_path: Path) -> None:
     _init_git_repo(tmp_path)
     _write_gitignore(tmp_path, f"# {_SKILLS_ROOT_ENTRY}", f"# {_MANIFEST_ENTRY}")
@@ -178,6 +198,7 @@ def test_backfill_fires_on_already_current_project(tmp_path: Path) -> None:
     _write_gitignore(tmp_path, ".kittify/sync-state.json")
     _project_machine_local_skill(tmp_path)
 
+    MigrationRegistry.clear()
     auto_discover_migrations()
     result = MigrationRunner(tmp_path).upgrade("3.2.5", include_worktrees=False)
 
