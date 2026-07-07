@@ -261,10 +261,21 @@ class StepContractExecutor:
         activation filter can narrow the DRG before context resolution.
         Returns ``None`` on any error so the filter is always optional.
         """
+        from doctrine.drg.org_pack_config import (
+            OrgPackEnvVarUnsetError,
+            OrgPackSubdirEscapeError,
+        )
+
         try:
             from charter.pack_context import PackContext  # noqa: PLC0415
 
             return PackContext.from_config(repo_root)
+        except (OrgPackEnvVarUnsetError, OrgPackSubdirEscapeError):
+            # Fail closed (FR-003): an unset env var or a symlink-escape is
+            # operator-actionable, not "activation filter unavailable" —
+            # silently degrading here would run the mission-step DRG
+            # unfiltered instead of surfacing the real config problem.
+            raise
         except Exception:  # noqa: BLE001 — defensive; activation filter is optional
             return None
 

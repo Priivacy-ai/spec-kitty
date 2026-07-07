@@ -8,7 +8,7 @@ from pathlib import Path
 
 import yaml
 
-from specify_cli.doctrine.snapshot import write_pack_manifest, write_snapshot
+from specify_cli.doctrine.snapshot import fetch_pack, write_pack_manifest, write_snapshot
 from specify_cli.doctrine.sources.protocol import FetchResult
 
 
@@ -37,6 +37,56 @@ def _populate_valid_pack(target_dir: Path) -> None:
     agents = target_dir / "agent_profiles"
     agents.mkdir(parents=True, exist_ok=True)
     (agents / "eng.agent.yaml").write_text("id: eng\n")
+
+
+class TestFetchPackEnvVarExpansion:
+    """Adversarial-squad follow-up: ``fetch_pack`` must write to the SAME
+    expanded directory ``effective_root()`` reads from, not the raw
+    ``${VAR}``-templated ``local_path`` literal."""
+
+    def test_fetch_pack_writes_into_expanded_target_not_literal_template(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from specify_cli.doctrine.config import OrgPackConfig
+
+        env_var = "SPEC_KITTY_PACK_HOME"
+        monkeypatch.setenv(env_var, str(tmp_path))
+
+        pack = OrgPackConfig(
+            name="acme",
+            local_path=Path("${" + env_var + "}/acme-doctrine"),
+            source_type="https",
+            url="https://example.com/pack.tar.gz",
+        )
+        source = _ScriptedSource(
+            layout=_populate_valid_pack,
+            result=FetchResult(ok=True, artifacts_written=2, pack_version="v1.0.0"),
+        )
+        monkeypatch.setattr(
+            "specify_cli.doctrine.snapshot._build_source", lambda _pack: source
+        )
+
+        result = fetch_pack(pack, tmp_path)
+
+        assert result.ok is True
+        expanded_target = tmp_path / "acme-doctrine"
+        assert (expanded_target / "directives" / "sec-001.directive.yaml").is_file()
+        # The literal, unexpanded template must NOT exist as a directory name.
+        literal_target = tmp_path / ("${" + env_var + "}")
+        assert not literal_target.exists()
+
+    def test_fetch_pack_fails_closed_on_unset_env_var(self, tmp_path: Path) -> None:
+        from specify_cli.doctrine.config import OrgPackConfig
+
+        pack = OrgPackConfig(
+            name="acme",
+            local_path=Path("${SPEC_KITTY_DOES_NOT_EXIST}/acme-doctrine"),
+            source_type="https",
+            url="https://example.com/pack.tar.gz",
+        )
+        result = fetch_pack(pack, tmp_path)
+        assert result.ok is False
+        assert any("SPEC_KITTY_DOES_NOT_EXIST" in err for err in result.errors)
 
 
 class TestWriteSnapshot:

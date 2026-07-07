@@ -270,11 +270,16 @@ def fetch_pack(pack: OrgPackConfig, repo_root: Path) -> FetchResult:
     through :func:`write_snapshot` for atomic-replace semantics.
 
     ``repo_root`` is needed to compute :meth:`OrgPackConfig.effective_root`
-    for post-fetch artifact counting (FR-007).  The clone target is always
-    ``pack.local_path`` (C-003).
+    for post-fetch artifact counting (FR-007), and to compute
+    :meth:`OrgPackConfig.local_path_root` for the clone/write target itself
+    (adversarial-squad follow-up: the target must go through the SAME
+    env-var/tilde expansion seam as every read, or a templated ``local_path``
+    like ``${SPEC_KITTY_PACK_HOME}/acme-doctrine`` gets cloned into a literal
+    directory named that template string while reads resolve the real path).
     """
     try:
         source = _build_source(pack)
+        target = pack.local_path_root(repo_root)
     except ValueError as exc:
         return FetchResult(
             ok=False,
@@ -285,15 +290,16 @@ def fetch_pack(pack: OrgPackConfig, repo_root: Path) -> FetchResult:
 
     from .sources.git_source import GitSource
 
-    if isinstance(source, GitSource):
-        result = source.fetch(pack.local_path)
-    else:
-        result = write_snapshot(
+    result = (
+        source.fetch(target)
+        if isinstance(source, GitSource)
+        else write_snapshot(
             source,
-            pack.local_path,
+            target,
             source_url=pack.url or "",
             source_type=pack.source_type,
         )
+    )
 
     if result.ok:
         effective = pack.effective_root(repo_root)
