@@ -1,0 +1,5 @@
+# Contract — Playwright dashboard e2e regression guard (#1008)
+- `tests/ui/test_dashboard_wp_modal.py` boots the dashboard in-thread via `start_dashboard(background_process=False)` on an ephemeral port (hermetic, headless) against a synthetic project root (dict `agent:{tool,model}`+`agent_profile`+`role` frontmatter the scanner decomposes).
+- Asserts `#prompt-modal` hidden pre-click, then — SCOPED to `#prompt-modal .agent-identity-section` (never page-global / `.card .badge`) — that the modal renders `agent`/`model`/`agent_profile`/`role` + `prompt_markdown`. Non-vacuity is RENDER-path (mutating `showPromptModal` with data intact reds it), not a data-blank.
+- `.github/workflows/ui-e2e.yml` runs it headless (Chromium cached) as a merge-gate workflow; registered in `_gate_coverage.py::WORKFLOW_FILES` (drift-detector-shaped: own trigger, single job, no dorny filter → `tests/ui/` covered, `e2e` marker homed, coherence invariants untouched). Residual: an admin adds `ui-e2e` to branch-protection required checks.
+- `CLAUDE.md`(→`AGENTS.md`) "Playwright proof" rule links the real test; `docs/development/ui-e2e.md` is the copy-template.
