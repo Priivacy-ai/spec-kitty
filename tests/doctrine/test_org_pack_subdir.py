@@ -481,6 +481,28 @@ class TestEnvVarExpansion:
         # Stored value must still be the literal ~-form, unexpanded
         assert str(pack.local_path) == "~/org-pack"
 
+    def test_tilde_and_env_var_compose_in_one_local_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """FR-004: ``~`` and ``${VAR}`` in the SAME local_path both expand.
+
+        Regression coverage for the composition case (adversarial-squad
+        follow-up): each token was previously only exercised in isolation.
+        """
+        fake_home = tmp_path / "home"
+        pack_root = fake_home / "acme" / "org-pack"
+        pack_root.mkdir(parents=True)
+        monkeypatch.setenv("HOME", str(fake_home))
+        monkeypatch.setenv(_ENV_VAR_NAME, "acme")
+
+        pack = OrgPackConfig(
+            name=_PACK_NAME, local_path=Path("~/${SPEC_KITTY_PACK_HOME}/org-pack")
+        )
+        result = pack.effective_root(tmp_path)
+        assert result == pack_root.resolve(strict=False)
+        # Stored value must still be the literal unexpanded form.
+        assert str(pack.local_path) == "~/${SPEC_KITTY_PACK_HOME}/org-pack"
+
     def test_literal_absolute_path_regression(self, tmp_path: Path) -> None:
         """Literal absolute paths (no $ or ~ tokens) resolve unchanged."""
         pack_root = tmp_path / "abs-pack"

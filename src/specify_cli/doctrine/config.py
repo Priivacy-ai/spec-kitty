@@ -11,6 +11,8 @@ from pathlib import Path
 
 from doctrine.drg.org_pack_config import (
     OrgPackConfig,
+    OrgPackEnvVarUnsetError,
+    OrgPackSubdirEscapeError,
     PackRegistry,
     load_pack_registry,
     resolve_org_roots,
@@ -19,6 +21,8 @@ from doctrine.drg.org_pack_config import (
 
 __all__ = [
     "OrgPackConfig",
+    "OrgPackEnvVarUnsetError",
+    "OrgPackSubdirEscapeError",
     "PackRegistry",
     "assert_pack_local_paths_exist",
     "load_pack_registry",
