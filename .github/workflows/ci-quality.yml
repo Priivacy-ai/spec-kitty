@@ -1673,7 +1673,7 @@ jobs:
           uv run python -m pytest \
             ${{ matrix.paths }} \
             ${{ matrix.ignore_args }} \
-            -m 'not windows_ci and (git_repo or integration or architectural)${{ matrix.marker_extra }}' \
+            -m 'not windows_ci and (git_repo or integration or architectural) and not timing${{ matrix.marker_extra }}' \
             -q --tb=short \
             -n auto --dist loadfile \
             --durations=50 \
@@ -1822,7 +1822,7 @@ jobs:
           else
             uv run python -m pytest \
               ${{ matrix.paths }} \
-              -m '${{ matrix.shard }} and not windows_ci and (git_repo or integration or architectural)' \
+              -m '${{ matrix.shard }} and not windows_ci and (git_repo or integration or architectural) and not timing' \
               -q --tb=short \
               -n auto --dist loadfile \
               --durations=50 \
@@ -1837,6 +1837,62 @@ jobs:
           name: arch-adversarial-${{ matrix.shard }}-reports
           path: out/reports/
           if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # timing-nfr-serial: issue #2032 (mission
+  # wp-prompt-latency-flake-isolation-01KWWWAC). The two
+  # test_wp_prompt_build_latency.py tests were moved off the parallel
+  # arch-adversarial pole (``and not timing`` added to both its selectors
+  # above) because co-scheduled CPU contention there corrupted their
+  # single-sample wall-clock measurement (#2032: a CHANGELOG-only diff
+  # flipped PASSED->FAILED). This job is their new home: a dedicated serial
+  # (``-n0``) ``-m timing`` run where no concurrent load can corrupt the
+  # sample.
+  #
+  # Scoped to the WHOLE tree by marker (not just the WP-prompt file): the
+  # ``and not timing`` addition above is a shared expression across every
+  # shard of ``integration-tests-core-misc`` / ``arch-adversarial``, so it
+  # also newly excludes ``tests/git/test_protection_config_honoring.py``'s
+  # pre-existing ``@pytest.mark.timing`` class (whose own docstring already
+  # said "do not wall-clock in the parallel shard" — that intent was never
+  # wired into CI until now). Selecting ``-m timing`` over ``tests/`` picks up
+  # every such carrier by construction, so this fix cannot silently orphan an
+  # existing timing-marked test the same way it rescues the WP-prompt ones
+  # (Issue #2034 anti-pattern). ``--ignore`` excludes
+  # ``test_doctor_restart_daemon_timing.py``: that file's tests stay the sole
+  # responsibility of ``restart-daemon-nfr-timing`` below (OS-matrixed,
+  # cli-gated by design) — ignoring it here is what prevents a double-run.
+  #
+  # ALWAYS-ON by construction: ``if: always()``, no dorny filter-group ``if:``
+  # gate, no ``needs`` edge — mirrors the arch-adversarial pole above, NOT the
+  # ``restart-daemon-nfr-timing`` job below. That job gates on
+  # ``needs.changes.outputs.cli`` (the ``cli`` filter covers only
+  # ``src/specify_cli/cli/**``), but the code under test here
+  # (``src/runtime/next/prompt_builder.py``) is NOT under that path — gating
+  # this job the same way would silently skip the NFR on the very
+  # prompt-builder PRs it exists to guard (defeats SC-003). Emits no
+  # coverage XML (a pure timing gate), so it is absent from any
+  # ``--cov``-consumer's ``needs:`` by construction — it IS added to
+  # ``quality-gate.needs`` below so a red timing gate still blocks merge.
+  # ---------------------------------------------------------------------------
+  timing-nfr-serial:
+    name: Timing NFR gate (serial, -m timing)
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          python-version: '3.12'
+      - run: uv sync --frozen --all-extras
+      - name: "Run timing-marked NFR gates (serial, -m timing)"
+        run: |
+          uv run python -m pytest \
+            tests/ \
+            --ignore=tests/specify_cli/cli/commands/test_doctor_restart_daemon_timing.py \
+            -m timing \
+            -n0 \
+            -q --tb=short
 
   # ---------------------------------------------------------------------------
   # fast-tests-charter: charter package, depends on doctrine.
@@ -3480,6 +3536,7 @@ jobs:
       - integration-tests-agent
       - integration-tests-core-misc
       - arch-adversarial
+      - timing-nfr-serial
       - e2e-cross-cutting
       - restart-daemon-nfr-timing
       - build-wheel
