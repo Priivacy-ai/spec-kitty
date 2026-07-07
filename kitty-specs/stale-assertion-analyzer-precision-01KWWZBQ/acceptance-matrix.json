@@ -1,0 +1,59 @@
+{
+  "mission_slug": "stale-assertion-analyzer-precision-01KWWZBQ",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Head-importability suppression (origin-file-scoped, _head_still_exports_name); reviewer mutation-proved the collision guard (force True \u2192 fixtures c/d/e RED).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01 117411ca"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "All 4 re-export forms have EXECUTING tests (debbf0526 TestHeadStillExportsNameAllForms): __all__ list/tuple, import mod as X, from mod import Y as X, __init__ re-export; previously-dead branches (157,162-166,198,204) now covered.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01 117411ca"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "_is_generic_literal: 59-token pinned frozenset + all-punctuation/empty, NO length disjunct; \"E001\"/1-char still emitted.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01 117411ca"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Paired fixtures (extraction disabled\u219216.4>5.0 / enabled\u21920); collision guard (d) still-flagged; PLUS the SC-003 scope guard (debbf0526): head-importability scans module-level only, so a nested `import parse` does NOT suppress a genuine `def parse()` deletion (mutation-proven at review).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01 117411ca"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Verify FR-006 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "FP-ceiling paired on same fixture (disabled 16.4>5.0, enabled \u22645.0, explicit >0.0 guard); suppressed findings uncounted.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01 117411ca"
+    }
+  ],
+  "negative_invariants": []
+}

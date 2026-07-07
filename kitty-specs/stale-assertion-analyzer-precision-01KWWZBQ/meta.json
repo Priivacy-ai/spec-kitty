@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "abc0a300f104ed9981133f8737ddfd23082f4f6b",
+  "coordination_branch": "kitty/mission-stale-assertion-analyzer-precision-01KWWZBQ",
+  "created_at": "2026-07-07T00:24:02.572279+00:00",
+  "flattened": false,
+  "friendly_name": "Stale-assertion analyzer precision: cross-file move detection + generic-literal noise suppression",
+  "mission_id": "01KWWZBQRBKEJQW964BAS0FFM9",
+  "mission_number": 167,
+  "mission_slug": "stale-assertion-analyzer-precision-01KWWZBQ",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "src/specify_cli/post_merge/stale_assertions.py. Heuristic-by-design (never claims 'definitely stale') so this is NOISE/dev-ex, not correctness — tech-debt/P3. Witnessed: mission governed-state-surface-coherence-01KVCGQC / PR #2028 (WP05 extraction → 180 findings all false; WP02 line-shift → ~108 false). M3 of epic #1931. #2031 (cross-file move) + #2343 (generic-literal noise) fold together (same file).",
+  "purpose_tldr": "Fix the post-merge stale-assertion analyzer's two false-positive engines (#2031 + #2343): (1) it is intra-file only, so a behavior-preserving extraction that relocates a symbol A->B (re-exported/aliased) reads as 'removed from A' and flags every test on it — a false-positive storm (~280 spurious findings on one refactor, tripping the analyzer's own drift ceiling); (2) short/generic removed string literals generate noise. Teach it relocation-awareness (re-export shims, same-diff new-module qualname, line-shift-only) + down-rank short/generic removed literals.",
+  "slug": "stale-assertion-analyzer-precision-01KWWZBQ",
+  "target_branch": "fix/stale-assertion-analyzer-precision",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-07T01:13:38.954315+00:00"
+}
