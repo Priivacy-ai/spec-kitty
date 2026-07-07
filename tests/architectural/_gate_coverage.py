@@ -841,6 +841,7 @@ _COMPOSITE_ROUTING: dict[str, _CompositeRoute] = {
     "doctrine": ("governance", "misc", ("tests/specify_cli/doctrine",)),
     "policy": ("governance", "misc", ("tests/policy",)),
     "ownership": ("governance", "misc", ("tests/specify_cli/ownership",)),
+    "contracts": ("governance", "misc", ("tests/specify_cli/contracts",)),
     "validators": ("governance", "misc", ()),
     "calibration": ("governance", "misc", ("tests/calibration",)),
     "context": ("governance", "misc", ("tests/context", "tests/specify_cli/context")),

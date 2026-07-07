@@ -333,6 +333,7 @@ jobs:
               - 'src/specify_cli/doctrine/**'
               - 'src/specify_cli/policy/**'
               - 'src/specify_cli/ownership/**'
+              - 'src/specify_cli/contracts/**'
               - 'src/specify_cli/validators/**'
               - 'src/specify_cli/calibration/**'
               - 'src/specify_cli/context/**'

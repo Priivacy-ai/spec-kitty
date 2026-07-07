@@ -1592,6 +1592,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/contracts/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/development/index.md
   tag: current
   divio_type: none

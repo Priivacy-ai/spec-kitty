@@ -893,6 +893,7 @@ _Project health diagnostics_
 │                     state.                                                   │
 │ shim-registry       Check for overdue compatibility shims in the shim        │
 │                     registry.                                                │
+│ contracts           Validate the Contract Registry for well-formedness.      │
 │ invocation-pairing  List orphan profile-invocation lifecycle records.        │
 │ ops                 List orphan Op records; --close-stale sweeps stale ones  │
 │                     closed as abandoned.                                     │
@@ -924,6 +925,34 @@ _Project health diagnostics_
  Examples:
      spec-kitty doctor command-files
      spec-kitty doctor command-files --json
+
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --json          Machine-readable JSON output                                 │
+│ --help          Show this message and exit.                                  │
+╰──────────────────────────────────────────────────────────────────────────────╯
+```
+
+## spec-kitty doctor contracts
+
+```
+ Usage: spec-kitty doctor contracts [OPTIONS]
+
+ Validate the Contract Registry for well-formedness.
+
+ Reads docs/contracts/contract-registry.yaml and validates every record
+ against the schema: required fields present, kind/status/enforcement in
+ range, semver + tracker refs well-formed, anchors resolve, and — the DIR-041
+ self-consistency gate (NFR-003) — NO positional file:line anchoring anywhere.
+ Structural validation is the only enforcing gate in v1; the retirement
+ absence-sweep is advisory.
+
+ Exit codes:
+   0  Registry is well-formed (or empty).
+   2  Configuration error (registry file missing) or a schema violation.
+
+ Examples:
+     spec-kitty doctor contracts
+     spec-kitty doctor contracts --json
 
 ╭─ Options ────────────────────────────────────────────────────────────────────╮
 │ --json          Machine-readable JSON output                                 │

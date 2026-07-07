@@ -54,6 +54,14 @@
       "target_shard": "misc"
     },
     {
+      "dir": "contracts",
+      "cone_roots": [
+        "tests/specify_cli/contracts"
+      ],
+      "target_group": "governance",
+      "target_shard": "misc"
+    },
+    {
       "dir": "decisions",
       "cone_roots": [
         "tests/specify_cli/decisions"
@@ -273,6 +281,7 @@
     "cli",
     "compat",
     "context",
+    "contracts",
     "coordination",
     "core",
     "dashboard",

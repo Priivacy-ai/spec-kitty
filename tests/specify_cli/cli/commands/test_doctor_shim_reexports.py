@@ -50,13 +50,14 @@ def test_contracted_symbol_resolves_from_doctor(name: str) -> None:
     )
 
 
-def test_app_is_a_typer_group_with_sixteen_commands() -> None:
+def test_app_is_a_typer_group_with_seventeen_commands() -> None:
     from typer.main import get_command
 
     from specify_cli.cli.commands.doctor import app
 
     cli = get_command(app)
-    assert len(cli.commands) == 16  # type: ignore[attr-defined]
+    # Named for the original de-godding 16; #2441 added ``contracts`` -> 17.
+    assert len(cli.commands) == 17  # type: ignore[attr-defined]
 
 
 def test_pointer_comment_references_issue_2059() -> None:
