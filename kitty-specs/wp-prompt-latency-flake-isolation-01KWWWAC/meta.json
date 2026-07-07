@@ -1,0 +1,17 @@
+{
+  "baseline_merge_commit": "de5cfb5af1479f34a145570daefd11fefd506b63",
+  "coordination_branch": "kitty/mission-wp-prompt-latency-flake-isolation-01KWWWAC",
+  "created_at": "2026-07-06T23:30:52.361742+00:00",
+  "flattened": false,
+  "friendly_name": "Isolate the WP-prompt latency NFR tests from parallel execution (warm/median measurement)",
+  "mission_id": "01KWWWACA9585DNNJGQZ15T70Q",
+  "mission_number": 167,
+  "mission_slug": "wp-prompt-latency-flake-isolation-01KWWWAC",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Fix the flaky test_wp_prompt_build_latency.py NFR gate (#2032): the single cold wall-clock sample is corrupted by CPU contention on the parallel -n auto arch pole. Mark the 2 tests with the canonical @pytest.mark.timing marker, exclude them from the arch selectors (and not timing), and run them in a NEW always-on serial -m timing step (if: always(), -n0) — NOT the cli-gated restart-daemon-nfr-timing job (which would skip on src/runtime/next prompt-builder PRs). Keep the wall-clock oracle (build does subprocess+IO) + a warm sample. M4 of epic #1931.",
+  "purpose_tldr": "Fix the flaky test_wp_prompt_build_latency.py NFR gate (#2032): the single cold wall-clock sample is corrupted by CPU contention on the parallel -n auto arch pole. Mark the 2 tests with the canonical @pytest.mark.timing marker, exclude them from the arch selectors (and not timing), and run them in a NEW always-on serial -m timing step (if: always(), -n0) — NOT the cli-gated restart-daemon-nfr-timing job (which would skip on src/runtime/next prompt-builder PRs). Keep the wall-clock oracle (build does subprocess+IO) + a warm sample. M4 of epic #1931.",
+  "slug": "wp-prompt-latency-flake-isolation-01KWWWAC",
+  "target_branch": "fix/latency-nfr-isolation",
+  "topology": "coord"
+}

@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "mission_slug": "wp-prompt-latency-flake-isolation-01KWWWAC",
+  "mission_id": "01KWWWACA9585DNNJGQZ15T70Q",
+  "mission_branch": "kitty/mission-wp-prompt-latency-flake-isolation-01KWWWAC",
+  "target_branch": "fix/latency-nfr-isolation",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-quality.yml",
+        "tests/architectural/test_wp_prompt_build_latency.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-07-07T00:15:53.687678+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

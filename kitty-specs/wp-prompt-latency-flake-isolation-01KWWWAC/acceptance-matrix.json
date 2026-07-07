@@ -1,0 +1,59 @@
+{
+  "mission_slug": "wp-prompt-latency-flake-isolation-01KWWWAC",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "@pytest.mark.timing + NEW always-on (if:always()) serial -m timing job; not the cli-gated restart-daemon job (mutation-traced the gating chain).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01 16e9ccebd"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Wall-clock oracle kept (build does subprocess+read_text); warm-up + warm sample.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01 16e9ccebd"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "No retry plugin; budget retightened 10\u21926s (not widened); structural isolation.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01 16e9ccebd"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "and not timing on both arch selectors (:1667,:1816); tests stay in _arch_shard_map; timing-nfr-serial in quality-gate.needs; no orphan (protection_config tests rescued).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01 16e9ccebd"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "Seeded sleep(BUDGET+1) \u2192 8.61>6.0 RED, revert \u2192 green (mutation-proven).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01 16e9ccebd"
+    }
+  ],
+  "negative_invariants": []
+}
