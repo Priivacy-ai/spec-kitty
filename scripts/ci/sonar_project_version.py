@@ -49,6 +49,14 @@ def read_project_version(pyproject_path: Path | str) -> str:
     Raises ``ProjectVersionError`` (never returns empty) when the file is
     missing / unreadable, the TOML is malformed, the ``[project]`` table or
     ``version`` key is absent, or the version is not a non-empty string.
+
+    SSOT note: this intentionally duplicates the pyproject-version read in
+    ``specify_cli.release.payload._read_current_version`` (and the regex variant
+    in ``specify_cli.version_utils.read_version_from_pyproject``). It is NOT
+    consolidated because this script runs in the ``sonarcloud`` CI job, which
+    never installs the ``spec-kitty-cli`` package — so it must stay stdlib-only
+    and cannot ``import specify_cli.*``. See ``release/payload.py`` for the
+    in-process equivalent.
     """
     path = Path(pyproject_path)
     try:
