@@ -44,6 +44,11 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.ast_analysis.imports import (
+    extract_static_all as _extract_all_literal,
+    module_of_import_from as _resolve_import_from,
+)
+
 pytestmark = [pytest.mark.architectural]
 
 
@@ -957,19 +962,6 @@ def _package_of(path: Path) -> str:
     return ".".join(parts[:-1])
 
 
-def _resolve_import_from(node: ast.ImportFrom, containing_pkg: str) -> str:
-    """Resolve a ``from X import ...`` node to its absolute module name."""
-    level = node.level or 0
-    mod = node.module or ""
-    if level == 0:
-        return mod
-    pkg_parts = containing_pkg.split(".") if containing_pkg else []
-    base_parts = pkg_parts[: len(pkg_parts) - (level - 1)] if level > 1 else pkg_parts[:]
-    if mod:
-        base_parts = base_parts + mod.split(".")
-    return ".".join(base_parts)
-
-
 def _extract_str_consts_from_body(tree: ast.Module) -> dict[str, str]:
     """Extract top-level ``NAME = "string"`` constants from a module body.
 
@@ -1204,49 +1196,6 @@ def _record_facade_edges(
             resolved = _resolve_relative_module(mod_path, containing_pkg)
             if resolved in known_modules:
                 per_symbol.setdefault(resolved, set()).add(attr_name)
-
-
-def _extract_all_literal(tree: ast.Module) -> frozenset[str] | None:
-    """Return the names listed in the module's ``__all__`` if static.
-
-    Returns ``None`` if the module does not declare ``__all__`` OR
-    declares it dynamically (e.g. ``__all__ = sorted(...)``). Dynamic
-    declarations satisfy ``test_all_declarations_required`` (presence is
-    the contract there) but cannot be statically introspected for
-    membership and are therefore skipped by this gate.
-
-    Accepts both ``ast.Assign`` and ``ast.AnnAssign`` -- typed
-    declarations like ``__all__: list[str] = []`` are equivalent for
-    the purposes of this walker.
-    """
-    for node in tree.body:
-        value: ast.expr | None = None
-        if isinstance(node, ast.Assign) and any(
-            isinstance(t, ast.Name) and t.id == "__all__" for t in node.targets
-        ):
-            value = node.value
-        elif isinstance(node, ast.AnnAssign):
-            tgt = node.target
-            if isinstance(tgt, ast.Name) and tgt.id == "__all__":
-                value = node.value
-            else:
-                continue  # non-__all__ AnnAssign; skip rather than fall-through
-        else:
-            continue
-        if value is None:
-            # AnnAssign without value (``__all__: list[str]``): treat as
-            # dynamic / absent membership.
-            return frozenset()
-        if not isinstance(value, (ast.List, ast.Tuple)):
-            return None
-        names: list[str] = []
-        for elt in value.elts:
-            if isinstance(elt, ast.Constant) and isinstance(elt.value, str):
-                names.append(elt.value)
-            else:
-                return None
-        return frozenset(names)
-    return None
 
 
 def _walk_modules() -> tuple[
