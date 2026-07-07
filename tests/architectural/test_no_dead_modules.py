@@ -75,6 +75,10 @@ from pathlib import Path
 
 import pytest
 
+from specify_cli.ast_analysis.imports import (
+    module_of_import_from as _resolve_import_from,
+)
+
 
 pytestmark = [pytest.mark.architectural]
 
@@ -424,25 +428,6 @@ def _package_of(path: Path) -> str:
     # Drop the final segment (either the module name or "__init__"); both
     # cases resolve relative imports against the same parent.
     return ".".join(parts[:-1])
-
-
-def _resolve_import_from(node: ast.ImportFrom, containing_pkg: str) -> str:
-    """Return the fully-resolved dotted module for an ``ImportFrom`` node.
-
-    Handles absolute imports (level=0) and relative imports (level>=1)
-    by trimming ``level-1`` segments from the containing package.
-    """
-    level = node.level or 0
-    mod = node.module or ""
-    if level == 0:
-        return mod
-    pkg_parts = containing_pkg.split(".") if containing_pkg else []
-    # level=1 means "from this package", level=2 means "from parent",
-    # etc. We drop (level-1) trailing parts from pkg_parts.
-    base_parts = pkg_parts[: len(pkg_parts) - (level - 1)] if level > 1 else pkg_parts[:]
-    if mod:
-        base_parts = base_parts + mod.split(".")
-    return ".".join(base_parts)
 
 
 def _collect_import_targets(

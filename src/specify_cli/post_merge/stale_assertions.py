@@ -26,6 +26,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+from specify_cli.ast_analysis.imports import (
+    assignment_lists_dunder_all,
+    import_binds_name,
+)
+
 # ---------------------------------------------------------------------------
 # Public types (re-exported from __init__.py)
 # ---------------------------------------------------------------------------
@@ -152,45 +157,6 @@ def _extract_string_literals(tree: ast.AST) -> set[tuple[str, int]]:
 # ---------------------------------------------------------------------------
 
 
-def _assign_targets_dunder_all(node: ast.Assign) -> bool:
-    """Return True when *node* assigns to a module-level ``__all__`` name."""
-    return any(isinstance(target, ast.Name) and target.id == "__all__" for target in node.targets)
-
-
-def _dunder_all_contains_name(node: ast.Assign, name: str) -> bool:
-    """Return True when an ``__all__ = [...]`` assignment lists *name*."""
-    if not _assign_targets_dunder_all(node):
-        return False
-    if not isinstance(node.value, (ast.List, ast.Tuple, ast.Set)):
-        return False
-    return any(isinstance(elt, ast.Constant) and elt.value == name for elt in node.value.elts)
-
-
-def _import_binds_name(node: ast.Import | ast.ImportFrom, name: str) -> bool:
-    """Return True when an import statement re-exports/imports *name*.
-
-    ``ast.ImportFrom`` matches on the imported symbol's ORIGINAL name
-    (``alias.name``) as well as its local bound name (``alias.asname or
-    alias.name``) — this covers both a direct re-export (``from mod import
-    X``) and a shim that renames on import in either direction (``from mod
-    import X as _X`` or ``from mod import other as X``), per FR-002's
-    shim-form coverage.
-
-    ``ast.Import`` is different: a bare import only ever binds its TOP-LEVEL
-    local name (``import mod`` binds ``mod``; ``import mod as X`` binds
-    ``X``; ``import pkg.sub`` binds ``pkg`` — never ``sub`` and never the
-    dotted path). Matching on ``alias.name`` there (as ImportFrom does) would
-    be wrong in both directions: ``import mod as X`` does NOT leave ``mod``
-    importable (only ``X`` is bound), and ``import pkg.sub`` DOES leave
-    ``pkg`` importable even though ``alias.name`` is the dotted ``"pkg.sub"``.
-    """
-    if isinstance(node, ast.Import):
-        return any(
-            (alias.asname or alias.name.split(".")[0]) == name for alias in node.names
-        )
-    return any(alias.name == name or alias.asname == name for alias in node.names)
-
-
 def _head_still_exports_name(head_tree: ast.AST | None, name: str) -> bool:
     """Return True when *name* is still importable from the origin file's HEAD.
 
@@ -224,9 +190,9 @@ def _head_still_exports_name(head_tree: ast.AST | None, name: str) -> bool:
         return False
 
     for node in getattr(head_tree, "body", []):
-        if isinstance(node, (ast.Import, ast.ImportFrom)) and _import_binds_name(node, name):
+        if isinstance(node, (ast.Import, ast.ImportFrom)) and import_binds_name(node, name):
             return True
-        if isinstance(node, ast.Assign) and _dunder_all_contains_name(node, name):
+        if isinstance(node, ast.Assign) and assignment_lists_dunder_all(node, name):
             return True
     return False
 
