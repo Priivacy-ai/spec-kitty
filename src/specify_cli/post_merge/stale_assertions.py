@@ -136,6 +136,145 @@ def _extract_string_literals(tree: ast.AST) -> set[tuple[str, int]]:
     return literals
 
 
+# ---------------------------------------------------------------------------
+# T001 (#2031) — head-importability suppression for relocated/re-exported
+# identifiers.
+#
+# Keyed on HEAD-IMPORTABILITY of the ORIGIN file, not "the bare name appears
+# somewhere else in the diff": the analyzer has no qualname primitive
+# (`_extract_identifiers` captures bare `node.name`, and `ast.walk` flattens
+# nested scopes), so matching on "same name in another changed file" would
+# falsely suppress a genuine deletion of a common name (`run`/`main`/`setup`)
+# whenever an unrelated same-name def exists elsewhere in the diff — blinding
+# the analyzer (FR-001/SC-003). Head-importability only inspects the ALREADY
+# PARSED head AST of the origin file itself (no other files, no repo scan —
+# NFR-002), which is exactly where a relocate-and-re-export shim lives.
+# ---------------------------------------------------------------------------
+
+
+def _assign_targets_dunder_all(node: ast.Assign) -> bool:
+    """Return True when *node* assigns to a module-level ``__all__`` name."""
+    return any(isinstance(target, ast.Name) and target.id == "__all__" for target in node.targets)
+
+
+def _dunder_all_contains_name(node: ast.Assign, name: str) -> bool:
+    """Return True when an ``__all__ = [...]`` assignment lists *name*."""
+    if not _assign_targets_dunder_all(node):
+        return False
+    if not isinstance(node.value, (ast.List, ast.Tuple, ast.Set)):
+        return False
+    return any(isinstance(elt, ast.Constant) and elt.value == name for elt in node.value.elts)
+
+
+def _import_binds_name(node: ast.Import | ast.ImportFrom, name: str) -> bool:
+    """Return True when an import statement re-exports/imports *name*.
+
+    ``ast.ImportFrom`` matches on the imported symbol's ORIGINAL name
+    (``alias.name``) as well as its local bound name (``alias.asname or
+    alias.name``) — this covers both a direct re-export (``from mod import
+    X``) and a shim that renames on import in either direction (``from mod
+    import X as _X`` or ``from mod import other as X``), per FR-002's
+    shim-form coverage.
+
+    ``ast.Import`` is different: a bare import only ever binds its TOP-LEVEL
+    local name (``import mod`` binds ``mod``; ``import mod as X`` binds
+    ``X``; ``import pkg.sub`` binds ``pkg`` — never ``sub`` and never the
+    dotted path). Matching on ``alias.name`` there (as ImportFrom does) would
+    be wrong in both directions: ``import mod as X`` does NOT leave ``mod``
+    importable (only ``X`` is bound), and ``import pkg.sub`` DOES leave
+    ``pkg`` importable even though ``alias.name`` is the dotted ``"pkg.sub"``.
+    """
+    if isinstance(node, ast.Import):
+        return any(
+            (alias.asname or alias.name.split(".")[0]) == name for alias in node.names
+        )
+    return any(alias.name == name or alias.asname == name for alias in node.names)
+
+
+def _head_still_exports_name(head_tree: ast.AST | None, name: str) -> bool:
+    """Return True when *name* is still importable from the origin file's HEAD.
+
+    Reuses the already-parsed head AST of the SAME origin file — no other
+    file is inspected and no additional parsing occurs (NFR-002). Scans
+    MODULE-LEVEL statements only (``head_tree.body``, never ``ast.walk``):
+    an import buried inside an unrelated function or class body is NOT a
+    module-level re-export and must NOT suppress a genuine deletion
+    (SC-003) — ``ast.walk`` would wrongly descend into those nested scopes
+    and treat them as if they were exported from the module's own
+    namespace. Recognises, at module level:
+      - ``from <mod> import name`` (direct re-export)
+      - ``from <mod> import name as _name`` / ``from <mod> import other as name``
+        (aliased shims — FR-002)
+      - ``import name`` / ``import <mod> as name``
+      - ``name`` listed in a module-level ``__all__`` assignment
+      - the equivalent forms when the origin file is a package ``__init__.py``
+
+    A module-level bare ``import name`` (where ``name`` collides with an
+    unrelated importable module of the same name) is INTENTIONALLY treated
+    as suppressing — the analyzer only sees names, not qualnames, and
+    resolving that collision would require inspecting the imported module's
+    own contents (out of scope, NFR-002). This is a known, accepted
+    precision/recall trade-off distinct from the nested-scope bug above.
+
+    A relocate-**and**-rename (the origin file's head no longer imports the
+    OLD name under any form above) correctly returns False — it is a real
+    change, not a suppression (FR-002 edge case).
+    """
+    if head_tree is None:
+        return False
+
+    for node in getattr(head_tree, "body", []):
+        if isinstance(node, (ast.Import, ast.ImportFrom)) and _import_binds_name(node, name):
+            return True
+        if isinstance(node, ast.Assign) and _dunder_all_contains_name(node, name):
+            return True
+    return False
+
+
+# ---------------------------------------------------------------------------
+# T002 (#2343) — generic-literal suppression, keyed on GENUINENESS not length.
+#
+# A genuinely short literal (an error code like "E001") can be assert-
+# critical, and since every literal finding is by construction a literal
+# appearing inside an assertion, length alone cannot separate noise from
+# signal (FR-004). The pinned token set below is the explicit rule.
+# ---------------------------------------------------------------------------
+
+# Common short English words / status tokens and format fragments that show
+# up as leftover literal pieces after a reformat or refactor and are, on
+# their own, never assert-critical signal. Pinned explicitly (not "e.g.") —
+# FR-004.
+_GENERIC_LITERAL_TOKENS: frozenset[str] = frozenset({
+    "ok", "true", "false", "none", "null", "yes", "no",
+    "error", "warning", "warn", "info", "debug", "trace",
+    "test", "tests", "value", "values", "name", "names",
+    "type", "types", "data", "result", "results", "status",
+    "success", "failure", "fail", "failed", "pass", "passed",
+    "id", "key", "keys", "path", "paths", "file", "files",
+    "message", "msg", "text", "label", "title", "description",
+    "default", "unknown", "empty", "count", "total", "start", "end",
+    "{}", "{0}", "{1}", "%s", "%d", "%r", "\n", "\t",
+})
+
+
+def _is_generic_literal(value: str) -> bool:
+    """Return True iff *value* is generic noise, not assert-critical signal.
+
+    True when *value*:
+      - is empty, or
+      - consists solely of punctuation/whitespace (no alphanumeric chars), or
+      - matches (case-insensitively, after stripping surrounding whitespace)
+        a member of the pinned generic-token set above.
+
+    Deliberately NOT length-based — see module-level rationale (FR-004).
+    """
+    if value == "":
+        return True
+    if all(not char.isalnum() for char in value):
+        return True
+    return value.strip().lower() in _GENERIC_LITERAL_TOKENS
+
+
 def _extract_changed_symbols(
     base_ref: str,
     head_ref: str,
@@ -187,7 +326,11 @@ def _extract_changed_symbols(
         removed_ids = base_id_names - head_id_names
 
         for name, lineno in base_ids:
-            if name in removed_ids:
+            # FR-001/FR-002: an identifier that vanished from this file's
+            # definitions is only a genuine removal if the origin file's own
+            # HEAD no longer imports/re-exports it either. Relocated (and
+            # re-exported back) symbols are suppressed, not emitted.
+            if name in removed_ids and not _head_still_exports_name(head_tree, name):
                 symbols.append(
                     _SourceSymbol(
                         name=name,
@@ -205,7 +348,8 @@ def _extract_changed_symbols(
         removed_lits = base_lit_vals - head_lit_vals
 
         for val, lineno in base_lits:
-            if val in removed_lits:
+            # FR-004: generic/noise literals are suppressed, not emitted.
+            if val in removed_lits and not _is_generic_literal(val):
                 symbols.append(
                     _SourceSymbol(
                         name=val,
