@@ -1,0 +1,77 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-07-07T12:02:42.404868Z",
+      "decision_id": "01KWY7B134NS9KEC9SWAJ8M0CH",
+      "final_answer": "SPEC_KITTY_PACK_HOME",
+      "input_key": "env_var_name",
+      "mission_id": "01KWY79WD1J4JFECZXEF87F5BZ",
+      "mission_slug": "pack-path-env-indirection-01KWY79W",
+      "opened_by": "cli",
+      "options": [
+        "SPEC_KITTY_PACK_HOME",
+        "PACK_INSTALLATION_BASE",
+        "Other"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Env-var name for #2437 pack-path indirection",
+      "rationale": null,
+      "resolved_at": "2026-07-07T12:02:49.343816Z",
+      "resolved_by": null,
+      "slot_key": "specify.pack-paths.env-var-name",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-07-07T12:02:50.927357Z",
+      "decision_id": "01KWY7B9DFRWNM7WV0GK1XG6K1",
+      "final_answer": "fail_closed",
+      "input_key": "unset_var_behavior",
+      "mission_id": "01KWY79WD1J4JFECZXEF87F5BZ",
+      "mission_slug": "pack-path-env-indirection-01KWY79W",
+      "opened_by": "cli",
+      "options": [
+        "fail_closed",
+        "literal_passthrough",
+        "warn_and_literal"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Behavior when a referenced env var is unset at pack-path resolution time",
+      "rationale": null,
+      "resolved_at": "2026-07-07T12:02:57.950699Z",
+      "resolved_by": null,
+      "slot_key": "specify.pack-paths.unset-var-behavior",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    },
+    {
+      "created_at": "2026-07-07T12:02:59.693634Z",
+      "decision_id": "01KWY7BHZDKJ8PKZBPY2C6BXHS",
+      "final_answer": "deep_unify",
+      "input_key": "lang_fix_depth",
+      "mission_id": "01KWY79WD1J4JFECZXEF87F5BZ",
+      "mission_slug": "pack-path-env-indirection-01KWY79W",
+      "opened_by": "cli",
+      "options": [
+        "minimal_flip",
+        "deep_unify"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "Depth of the #2395 fix: minimal precedence flip vs deeper unification onto compile-time extractor",
+      "rationale": null,
+      "resolved_at": "2026-07-07T12:03:06.202282Z",
+      "resolved_by": null,
+      "slot_key": "specify.language-scope.fix-depth",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KWY79WD1J4JFECZXEF87F5BZ",
+  "version": 1
+}

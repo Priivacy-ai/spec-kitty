@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "mission_slug": "pack-path-env-indirection-01KWY79W",
+  "mission_id": "01KWY79WD1J4JFECZXEF87F5BZ",
+  "mission_branch": "kitty/mission-pack-path-env-indirection-01KWY79W",
+  "target_branch": "issue/2437-env-var-pack-paths",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/api/environment-variables.md",
+        "docs/guides/create-an-org-doctrine-pack.md",
+        "src/doctrine/drg/org_pack_config.py",
+        "tests/doctrine/test_org_pack_subdir.py",
+        "tests/integration/test_org_pack_missing_path_hard_fails.py",
+        "tests/specify_cli/doctrine/test_config.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/compact.py",
+        "src/charter/compiler.py",
+        "src/charter/context.py",
+        "src/charter/language_scope.py",
+        "tests/charter/test_language_scope.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-07-07T12:11:35.474744+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
