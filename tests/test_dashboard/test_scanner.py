@@ -565,6 +565,7 @@ def test_status_only_coord_copy_does_not_hide_mission(tmp_path):
     # Planning artifacts render from the primary surface …
     assert feature["path"] == f"kitty-specs/{slug}"
     assert feature["artifacts"]["spec"]["exists"] is True
+    assert feature["artifacts"]["plan"]["exists"] is True
     assert feature["artifacts"]["tasks"]["exists"] is True
     # … and lane counts come from the coord worktree's LIVE event log, not the
     # primary's stale one.
@@ -574,6 +575,65 @@ def test_status_only_coord_copy_does_not_hide_mission(tmp_path):
     lanes = scanner.scan_feature_kanban(tmp_path, slug)
     assert [t["id"] for t in lanes["doing"]] == ["WP01"]
     assert lanes["planned"] == []
+
+
+def test_coord_event_log_wins_when_stale_behind_primary(tmp_path):
+    """#2430: coord event log is authoritative for status even when it lags behind primary.
+
+    Scenario: primary has WP01 in ``approved`` (ahead); coord has WP01 in
+    ``planned`` (stale/behind primary).  The dashboard must surface ``planned``
+    (coord wins), not ``approved`` (primary).
+
+    This is the inverse of ``test_dashboard_scans_prefer_coord_worktree_over_root_checkout``
+    which tests coord-ahead.  Together they prove coord preference is unconditional
+    — neither direction of lag overrides it.
+    """
+    slug = "coord-stale-primary-ahead-01KWST0A"
+
+    _git(["init", "--initial-branch=main"], tmp_path)
+    _git(["config", "user.email", "scanner@example.com"], tmp_path)
+    _git(["config", "user.name", "Scanner Test"], tmp_path)
+    _git(["config", "commit.gpgsign", "false"], tmp_path)
+    (tmp_path / "README.md").write_text("seed\n", encoding="utf-8")
+    _git(["add", "README.md"], tmp_path)
+    _git(["commit", "-q", "-m", "seed"], tmp_path)
+    coord_worktree = tmp_path / ".worktrees" / f"{slug}-coord"
+    _git(
+        ["worktree", "add", "-q", "-b", f"kitty/mission-{slug}", str(coord_worktree)],
+        tmp_path,
+    )
+
+    # PRIMARY: full planning artifacts + WP01 in ``approved`` (primary is ahead).
+    primary_dir = _create_feature(tmp_path, slug, lane="approved")
+    (primary_dir / "meta.json").write_text(
+        json.dumps({"mission_id": "01KWST0A0000000000000000ZZ", "mission_slug": slug}),
+        encoding="utf-8",
+    )
+
+    # COORD copy: status partition ONLY — WP01 stale at ``planned``.
+    coord_feature_dir = coord_worktree / "kitty-specs" / slug
+    coord_feature_dir.mkdir(parents=True)
+    _set_wp_lane(coord_feature_dir, "WP01", "planned")
+    assert not (coord_feature_dir / "tasks").exists()
+
+    features = scanner.scan_all_features(tmp_path)
+    ids = [f["id"] for f in features]
+    assert slug in ids, f"mission invisible on dashboard; got {ids}"
+    feature = next(f for f in features if f["id"] == slug)
+
+    # Planning artifacts anchor to the primary surface …
+    assert feature["path"] == f"kitty-specs/{slug}"
+    assert feature["artifacts"]["spec"]["exists"] is True
+    assert feature["artifacts"]["plan"]["exists"] is True
+    assert feature["artifacts"]["tasks"]["exists"] is True
+    # … and lane counts come unconditionally from the coord event log (planned),
+    # not the primary's ahead state (approved).
+    assert feature["kanban_stats"]["planned"] == 1
+    assert feature["kanban_stats"]["approved"] == 0
+
+    lanes = scanner.scan_feature_kanban(tmp_path, slug)
+    assert [t["id"] for t in lanes["planned"]] == ["WP01"]
+    assert lanes["approved"] == []
 
 
 def test_registry_resolves_canonical_id_for_inflight_coord_mission(tmp_path):

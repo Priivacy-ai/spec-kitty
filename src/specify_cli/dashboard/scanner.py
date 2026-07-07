@@ -778,13 +778,13 @@ def _build_event_log_kanban_stats(feature_dir: Path, tasks_dir: Path) -> dict[st
 
 
 def _build_kanban_stats(
-    feature_dir: Path,
+    planning_dir: Path,
     artifacts: dict[str, dict[str, Any]],
     status_dir: Path | None = None,
 ) -> dict[str, Any]:
     """Build kanban lane counts.
 
-    ``feature_dir`` supplies the WP task files (planning surface);
+    ``planning_dir`` supplies the WP task files (planning surface);
     ``status_dir`` supplies the canonical event log — under coordination
     topology the two live on different surfaces (#2430). ``None`` keeps the
     single-surface behavior for legacy call sites.
@@ -793,10 +793,10 @@ def _build_kanban_stats(
     if not artifacts["kanban"]:
         return kanban_stats
 
-    tasks_dir = feature_dir / "tasks"
-    if is_legacy_format(feature_dir):
+    tasks_dir = planning_dir / "tasks"
+    if is_legacy_format(planning_dir):
         return _build_legacy_kanban_stats(tasks_dir)
-    return _build_event_log_kanban_stats(status_dir or feature_dir, tasks_dir)
+    return _build_event_log_kanban_stats(status_dir or planning_dir, tasks_dir)
 
 
 def scan_all_features(project_dir: Path) -> list[dict[str, Any]]:
@@ -972,6 +972,9 @@ def scan_feature_kanban(project_dir: Path, feature_id: str) -> dict[str, list[di
     if not tasks_dir.exists():
         return lanes
 
+    # Legacy detection uses the planning surface by design: legacy lane
+    # directories are a planning artifact, and coord-topology missions are
+    # never legacy (they always carry an event log).
     if is_legacy_format(planning_dir):
         # Pre-3.0 layout: the boundary guard blocks mutation commands from
         # reaching this path; the dashboard read-only scan annotates the feature
