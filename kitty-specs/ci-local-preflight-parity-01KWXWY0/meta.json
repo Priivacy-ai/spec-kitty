@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "1911a6cc3b6441cb44dc26b1c3bbcf5e9ff8b339",
+  "coordination_branch": "kitty/mission-ci-local-preflight-parity-01KWXWY0",
+  "created_at": "2026-07-07T09:00:50.259974+00:00",
+  "flattened": false,
+  "friendly_name": "Local pre-PR CI parity: venv lock-check + residual runner + contract-boundary decision",
+  "mission_id": "01KWXWY0PKH9SVDS0V6JT00J3P",
+  "mission_number": 167,
+  "mission_slug": "ci-local-preflight-parity-01KWXWY0",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Phase 3 of 2283. Architect-first design found factor (a)'s CI marker gate (unit-contract-residual) ALREADY landed (6e5453e6d / #2034) and factor (c-dynamic) delivered in #2438 (pending its merge — its pre_review_gate.py is not yet on-branch; recorded conditionally, not as closed) — so this mission is SMALL: (b) the venv skew (typer>=0.24.1/click>=8.2.1 lower-bound-only; local non-frozen .venv pulls typer>=0.26 which stops re-exporting click, diverging from CI's uv sync --frozen) + (a)-local (no local command runs the residual -m selection pre-push), both on the _test_env_check.py/review preflight seam; plus a boundary adjudication + a filed contract-ownership/CT7 issue. NO new (c) sweep mechanism (avoid a 4th detector). Closes 2283.",
+  "purpose_tldr": "Close #2283's remaining delivery-topology gap — the LOCAL pre-PR layer is blind to the CI residual + masks CLI shards via a Typer/click venv skew — with a preflight lock-parity check + a local residual-selection runner; plus adjudicate the (c) contract-conformance boundary (defer c-static to CT7)",
+  "slug": "ci-local-preflight-parity-01KWXWY0",
+  "target_branch": "feat/ci-delivery-topology",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-07T09:41:58.679494+00:00"
+}

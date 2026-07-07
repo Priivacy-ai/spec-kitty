@@ -1,0 +1,59 @@
+{
+  "mission_slug": "ci-local-preflight-parity-01KWXWY0",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Verify FR-001 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "_test_env_check.py lock-parity: reads uv.lock live (tomllib), MISSION_REVIEW_ENV_SKEW warn-loud (SPEC_KITTY_ENV_SKEW_FAIL_CLOSED opt-in); mutation-verified no hardcode. WP01 88602f99.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01 88602f99 / WP02 81d028bf"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Verify FR-002 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "read_ci_residual_marker_expr live-parses ci-quality.yml:2418 (mutation-proven single-sourced); `review --check-residual` flag covered by automated CliRunner test test_review_check_residual_runs_selection_and_propagates_exit_code (tests/specify_cli/cli/commands/test_review.py), asserting exit-code propagation from run_local_residual_selection() and that --mission is not required. A manual full run (268 tests, exit 0) also passed. NOT pre_review_gate.py (C-003).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01 88602f99 / WP02 81d028bf"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Verify FR-003 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "review-gates.md +2 sections (skew flag + local residual); --frozen section untouched; terminology green.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01 88602f99 / WP02 81d028bf"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Verify FR-004 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "test_unit_contract_residual_gate.py: 2 uncovered facts (always-on + quality-gate.needs member), references (not dup) the exactly-one assertion; fault-injection red-first mutation-verified. WP02 81d028bf.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01 88602f99 / WP02 81d028bf"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Verify FR-005 is satisfied",
+      "proof_type": "automated_test",
+      "evidence": "boundary-decision.md: (c-dynamic) conditional on #2438 merge; (c-static)\u2192CT7 #2077 sharpened; contract-ownership issue #2441 filed + URL embedded (grep-verifiable). No (c) mechanism.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "WP01 88602f99 / WP02 81d028bf"
+    }
+  ],
+  "negative_invariants": []
+}
