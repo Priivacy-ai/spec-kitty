@@ -3625,6 +3625,7 @@ def _map_runtime_decision(
                     options=decision.options,
                     decision_id=decision.decision_id or "unknown",
                     mission_slug=mission_slug,
+                    repo_root=repo_root,
                     agent=agent,
                 )
                 prompt_file = str(prompt_path)

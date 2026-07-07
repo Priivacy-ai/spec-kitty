@@ -730,8 +730,9 @@ def _phase_push(run: _MergeRunState) -> None:
 
 def _phase_cleanup_worktrees_and_branches(run: _MergeRunState) -> None:
     """Worktree removal + lane/mission branch deletion + coordination teardown."""
-    from specify_cli.lanes.branch_naming import lane_branch_name, worktree_path
+    from specify_cli.lanes.branch_naming import lane_branch_name, worktree_dir_name, worktree_path
     from specify_cli.lanes.compute import is_planning_lane
+    from specify_cli.workspace import delete_context
 
     lanes_manifest = run.lanes_manifest
     # -- T005: Worktree removal with retry tolerance and macOS FSEvents delay --
@@ -755,6 +756,17 @@ def _phase_cleanup_worktrees_and_branches(run: _MergeRunState) -> None:
                     time.sleep(delay)
             else:
                 logger.debug("Worktree %s does not exist, skipping removal", wt_path)
+
+        # FR-005/LC-6 (#1842 WP03): tombstone each lane's workspace-context
+        # JSON at merge completion. ``delete_context`` is a pure,
+        # order-independent unlink (no worktree gate) — it targets the
+        # legacy ``<slug>-<lane>`` filename ``save_context`` always writes
+        # (mission_id=None, matching the workspace/context.py grammar), and
+        # silently no-ops for a lane that never saved a context (e.g. a
+        # planning-artifact lane) or one already tombstoned.
+        for lane in lanes_manifest.lanes:
+            workspace_name = worktree_dir_name(run.mission_slug, mission_id=None, lane_id=lane.lane_id)
+            delete_context(run.main_repo, workspace_name)
 
     # -- T005: Branch deletion with retry tolerance --
     if run.delete_branch:

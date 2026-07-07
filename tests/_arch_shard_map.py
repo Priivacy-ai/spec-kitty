@@ -65,6 +65,7 @@ _ARCH_SHARD_1_FILES: tuple[str, ...] = (
     "tests/architectural/test_quarantine_marker.py",
     "tests/architectural/test_resolution_authority_gates.py",
     "tests/architectural/test_runtime_charter_doctrine_boundary.py",
+    "tests/architectural/test_session_reaper.py",
     "tests/architectural/test_shard_universe_bounded.py",
     "tests/architectural/test_shared_package_boundary.py",
     "tests/architectural/test_single_mission_surface_resolver.py",

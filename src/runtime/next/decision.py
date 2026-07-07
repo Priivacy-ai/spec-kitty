@@ -29,6 +29,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+from runtime.next._tmp_namespace import prompt_tmp_dir
 from specify_cli.mission_metadata import mission_identity_fields
 from specify_cli.status import wp_state_for
 from specify_cli.status import Lane
@@ -610,6 +611,7 @@ def _build_prompt_or_error(
         marker_fd, marker_path = tempfile.mkstemp(
             prefix=f"spec-kitty-composed-{action}-",
             suffix=".md",
+            dir=prompt_tmp_dir(repo_root),
         )
         os.write(marker_fd, composed_prompt.encode("utf-8"))
         os.close(marker_fd)
@@ -656,6 +658,7 @@ def _build_prompt_or_error(
             marker_fd, marker_path = tempfile.mkstemp(
                 prefix=f"spec-kitty-composed-{action}-",
                 suffix=".md",
+                dir=prompt_tmp_dir(repo_root),
             )
             os.write(marker_fd, composed_prompt.encode("utf-8"))
             os.close(marker_fd)

@@ -12,6 +12,7 @@ import subprocess
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 from specify_cli.coordination.outbound import queue_saas_emission
 from specify_cli.core.commit_guard import GuardCapability
@@ -25,13 +26,16 @@ from specify_cli.lanes._git import branch_exists as _branch_exists
 from specify_cli.lanes.branch_naming import (
     coord_mission_dir_name as _seam_coord_mission_dir_name,
     resolve_transaction_mid8,
+    worktree_dir_name,
 )
 from specify_cli.mission_metadata import load_meta
 from specify_cli.status import emit as _emit
 from specify_cli.status.adapters import fire_dossier_sync
 from specify_cli.status.models import DoneEvidence, GuardContext, Lane, StatusEvent, TransitionRequest
-from specify_cli.status.transitions import resolve_lane_alias, validate_transition
-from specify_cli.workspace import canonicalize_feature_dir
+from specify_cli.status.reducer import reduce as _reduce_events
+from specify_cli.status.store import read_events as _read_raw_events
+from specify_cli.status.transitions import is_terminal, resolve_lane_alias, validate_transition
+from specify_cli.workspace import canonicalize_feature_dir, delete_context
 
 
 @dataclass(frozen=True)
@@ -710,6 +714,81 @@ def has_transition_to_transactional(
     )
 
 
+# ---------------------------------------------------------------------------
+# Workspace-context tombstone on cancel (FR-005 / LC-6, #1842 WP03)
+# ---------------------------------------------------------------------------
+
+
+def _lane_wp_ids_all_terminal(
+    work_packages: dict[str, dict[str, Any]], wp_ids: tuple[str, ...]
+) -> bool:
+    """Return whether every WP in *wp_ids* has reached a terminal lane.
+
+    Mirrors ``status/doctor.py``'s ``check_orphan_workspaces`` all-terminal
+    gate (``all(wp.lane in {done, canceled})``), scoped to one lane's WPs
+    instead of every WP in the mission: the workspace-context JSON is
+    per-lane, while a ``canceled`` transition is emitted per-WP, so a lane's
+    shared context may only be tombstoned once every WP sharing that
+    worktree is done or canceled. A WP absent from *work_packages* (never
+    transitioned) is treated as non-terminal.
+    """
+    for wp_id in wp_ids:
+        wp_state = work_packages.get(wp_id)
+        lane_value = wp_state.get("lane") if wp_state else None
+        if lane_value is None or not is_terminal(lane_value):
+            return False
+    return True
+
+
+def _tombstone_lane_workspace_context_on_cancel(
+    *,
+    repo_root: Path,
+    mission_slug: str,
+    read_feature_dir: Path,
+    event: StatusEvent | None,
+) -> None:
+    """Delete a lane's ``.kittify/workspaces/<slug>-<lane>.json`` once a
+    ``canceled`` transition leaves every WP sharing that lane terminal.
+
+    FR-005 / C-004: additive only — this changes no validation, persistence,
+    or fan-out behavior for any other transition. No-ops when: *event* is
+    ``None`` (the legacy alias-collapse no-op arm — nothing actually
+    transitioned); the transition is not into ``canceled``; the mission has
+    no ``lanes.json`` (flat/legacy execution has no lane-scoped context to
+    tombstone); the WP is not lane-owned; or the lane still has a
+    non-terminal WP. ``delete_context`` is a pure, order-independent unlink
+    (no worktree gate) — safe to call even when the context file was never
+    created (planning-artifact WPs) or was already removed.
+    """
+    if event is None or event.to_lane != Lane.CANCELED:
+        return
+
+    from mission_runtime import MissionArtifactKind  # noqa: PLC0415
+    from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json  # noqa: PLC0415
+    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir  # noqa: PLC0415
+
+    lanes_read_dir = resolve_planning_read_dir(
+        repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
+    )
+    try:
+        lanes_manifest = read_lanes_json(lanes_read_dir)
+    except CorruptLanesError:
+        return  # Malformed lanes.json is not this hook's problem to repair.
+    if lanes_manifest is None:
+        return
+
+    lane = lanes_manifest.lane_for_wp(event.wp_id)
+    if lane is None or not lane.wp_ids:
+        return
+
+    snapshot = _reduce_events(_read_raw_events(read_feature_dir))
+    if not _lane_wp_ids_all_terminal(snapshot.work_packages, lane.wp_ids):
+        return
+
+    workspace_name = worktree_dir_name(mission_slug, mission_id=None, lane_id=lane.lane_id)
+    delete_context(repo_root, workspace_name)
+
+
 def emit_status_transition_transactional(
     request: TransitionRequest,
     *,
@@ -726,11 +805,18 @@ def emit_status_transition_transactional(
 
     identity = _identity_for_request(request)
     if not _transaction_topology_available(identity, mission_slug):
-        return _emit.emit_status_transition(
+        event = _emit.emit_status_transition(
             request,
             ensure_sync_daemon=ensure_sync_daemon,
             sync_dossier=sync_dossier,
         )
+        _tombstone_lane_workspace_context_on_cancel(
+            repo_root=identity.repo_root,
+            mission_slug=mission_slug,
+            read_feature_dir=identity.feature_dir,
+            event=event,
+        )
+        return event
 
     # WP04/FR-004: BookkeepingTransaction.acquire requires str for its lock/path
     # management. For legacy missions (identity.mission_id is None), use the
@@ -785,6 +871,12 @@ def emit_status_transition_transactional(
             mission_slug=mission_slug,
             repo_root=request.repo_root,
             sync_dossier=sync_dossier,
+        )
+        _tombstone_lane_workspace_context_on_cancel(
+            repo_root=identity.repo_root,
+            mission_slug=mission_slug,
+            read_feature_dir=txn.feature_dir,
+            event=event,
         )
         return event
 

@@ -72,13 +72,14 @@ class TestMissionContextHeader:
 
 
 class TestBuildDecisionPrompt:
-    def test_uses_mission_flag_in_answer_command(self) -> None:
+    def test_uses_mission_flag_in_answer_command(self, tmp_path: Path) -> None:
         text, path = build_decision_prompt(
             question="Ship it?",
             options=["yes", "no"],
             decision_id="dec-123",
             mission_slug="042-test-feature",
             agent="claude",
+            repo_root=tmp_path,
         )
         assert "Mission: 042-test-feature" in text
         assert "--mission 042-test-feature" in text
@@ -112,29 +113,29 @@ class TestReadWPContent:
 
 
 class TestWriteToTemp:
-    def test_creates_file(self) -> None:
-        path = _write_to_temp("implement", "WP01", "test content", agent="claude", mission_slug="042-feat")
+    def test_creates_file(self, tmp_path: Path) -> None:
+        path = _write_to_temp("implement", "WP01", "test content", agent="claude", mission_slug="042-feat", repo_root=tmp_path)
         assert path.exists()
         assert path.read_text(encoding="utf-8") == "test content"
         path.unlink()  # cleanup
 
-    def test_filename_includes_action_and_wp(self) -> None:
-        path = _write_to_temp("review", "WP02", "content", agent="codex", mission_slug="042-feat")
+    def test_filename_includes_action_and_wp(self, tmp_path: Path) -> None:
+        path = _write_to_temp("review", "WP02", "content", agent="codex", mission_slug="042-feat", repo_root=tmp_path)
         assert "review" in path.name
         assert "WP02" in path.name
         path.unlink()
 
-    def test_filename_without_wp(self) -> None:
-        path = _write_to_temp("specify", None, "content", agent="claude", mission_slug="042-feat")
+    def test_filename_without_wp(self, tmp_path: Path) -> None:
+        path = _write_to_temp("specify", None, "content", agent="claude", mission_slug="042-feat", repo_root=tmp_path)
         assert "specify" in path.name
         assert "WP" not in path.name
         path.unlink()
 
-    def test_filename_includes_agent_and_feature(self) -> None:
+    def test_filename_includes_agent_and_feature(self, tmp_path: Path) -> None:
         """Different agents/features produce different filenames (no collisions)."""
-        p1 = _write_to_temp("implement", "WP01", "a", agent="claude", mission_slug="042-feat")
-        p2 = _write_to_temp("implement", "WP01", "b", agent="codex", mission_slug="042-feat")
-        p3 = _write_to_temp("implement", "WP01", "c", agent="claude", mission_slug="043-other")
+        p1 = _write_to_temp("implement", "WP01", "a", agent="claude", mission_slug="042-feat", repo_root=tmp_path)
+        p2 = _write_to_temp("implement", "WP01", "b", agent="codex", mission_slug="042-feat", repo_root=tmp_path)
+        p3 = _write_to_temp("implement", "WP01", "c", agent="claude", mission_slug="043-other", repo_root=tmp_path)
         assert p1 != p2
         assert p1 != p3
         assert p2 != p3

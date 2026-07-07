@@ -1,18 +1,21 @@
 from __future__ import annotations
 
+import atexit
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
 import tomllib
+from dataclasses import dataclass
 from pathlib import Path
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterable, Iterator
 
 import pytest
 import yaml
 from filelock import FileLock, Timeout
 
+from runtime.next._tmp_namespace import prompt_tmp_dir
 from tests._arch_shard_map import shard_for as arch_shard_for
 from tests._support.quarantine import (
     QUARANTINE_MARKER,
@@ -1178,3 +1181,434 @@ def seed_to_planned() -> Callable[[Path, str, str], None]:
     from tests.status.conftest import seed_wp_to_planned
 
     return seed_wp_to_planned
+
+
+# ---------------------------------------------------------------------------
+# WP01 — Controller-gated session reaper + temp-dir sweep
+# (#1842, FR-001/FR-002/FR-004, NFR-001/NFR-002)
+#
+# No `pytest_sessionstart`/`pytest_sessionfinish` hook existed anywhere under
+# `tests/` before this WP. A test that exercises the CLI against REPO_ROOT
+# itself (rather than a `tmp_path` fixture) can leave `kitty-specs/test-
+# feature-*` dirs, `kitty/mission-test-feature-*` branches, and orphaned
+# `.worktrees/*` behind — previously masked from `git status` by two now-
+# retired `.gitignore` lines rather than actually prevented (T009).
+#
+# Design (C-001): a NARROW NAME-PATTERN snapshot-delta, not a deep per-file
+# `rglob` mtime inventory. `tests/e2e/conftest.py`'s
+# `capture_source_pollution_baseline` is the right shape for one CLI-
+# invocation-scoped E2E test, but far too slow/fragile applied across an
+# entire multi-hour REPO_ROOT session with thousands of tracked files. Every
+# helper below only ever lists a handful of *names* matching known test-
+# residue patterns — cheap enough to call twice (start + finish) without
+# adding measurable suite runtime.
+#
+# Controller-gating (NFR-001): both hooks bail out immediately when
+# `config.workerinput is not None` — mirrors `_worker_id`'s existing master
+# check above. An xdist *worker* subprocess must never snapshot or reap the
+# shared REPO_ROOT; only the controller (or a plain serial run, which also
+# presents `workerinput is None`) does.
+# ---------------------------------------------------------------------------
+
+_REAPER_MISSION_DIR_PATTERNS: tuple[str, ...] = (
+    "test-feature-*",
+    "*-123-test-feature",
+    "*golden-path-demo*",
+)
+_REAPER_BRANCH_PATTERNS: tuple[str, ...] = (
+    "kitty/mission-test-feature-*",
+    "kitty/*golden-path*",
+)
+_REAPER_SNAPSHOT_ATTR = "_spec_kitty_reaper_snapshot"
+# Config attr holding the mutable set of test-HOME dirs the atexit reaper
+# removes: seeded at sessionstart, finalized (xdist testrunuid added) at finish.
+_REAPER_ATEXIT_HOMES_ATTR = "_spec_kitty_reaper_atexit_homes"
+# Must match the literal used by `_worker_home_base` above.
+_TEST_HOMES_ROOT_NAME = "spec-kitty-test-homes"
+
+
+def _is_reaper_controller(config: pytest.Config) -> bool:
+    """True on the xdist controller / serial process, False inside a worker.
+
+    Mirrors `_worker_id`'s existing master check: `config.workerinput` is
+    only ever present (non-``None``) inside an xdist worker subprocess.
+    """
+    return getattr(config, "workerinput", None) is None
+
+
+def _reaper_mission_dir_names(repo_root: Path) -> frozenset[str]:
+    kitty_specs = repo_root / "kitty-specs"
+    if not kitty_specs.exists():
+        return frozenset()
+    names: set[str] = set()
+    for pattern in _REAPER_MISSION_DIR_PATTERNS:
+        names.update(entry.name for entry in kitty_specs.glob(pattern) if entry.is_dir())
+    return frozenset(names)
+
+
+def _reaper_branch_names(repo_root: Path) -> frozenset[str]:
+    result = subprocess.run(
+        ["git", "branch", "--list", *_REAPER_BRANCH_PATTERNS],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return frozenset(
+        line.strip().lstrip("*+").strip()
+        for line in result.stdout.splitlines()
+        if line.strip()
+    )
+
+
+def _reaper_worktree_dir_names(repo_root: Path) -> frozenset[str]:
+    worktrees_dir = repo_root / ".worktrees"
+    if not worktrees_dir.exists():
+        return frozenset()
+    return frozenset(entry.name for entry in worktrees_dir.iterdir() if entry.is_dir())
+
+
+def _registered_worktree_paths(repo_root: Path) -> frozenset[Path]:
+    """Every worktree path git currently knows about (post-``prune``)."""
+    result = subprocess.run(
+        ["git", "worktree", "list", "--porcelain"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    paths: set[Path] = set()
+    for line in result.stdout.splitlines():
+        if line.startswith("worktree "):
+            paths.add(Path(line[len("worktree ") :]).resolve())
+    return frozenset(paths)
+
+
+def _test_homes_root() -> Path:
+    return Path(tempfile.gettempdir()) / _TEST_HOMES_ROOT_NAME
+
+
+def _xdist_testrunuid(config: pytest.Config) -> str | None:
+    """Recover the xdist ``testrunuid`` shared by all workers of this run.
+
+    Returns ``None`` in a plain serial run (no xdist ``dsession`` plugin
+    registered), where no workers-shared home exists and only the controller's
+    own ``serial-<pid>`` dir needs reaping.
+
+    Under xdist the *workers* isolate their HOME under
+    ``spec-kitty-test-homes/<testrunuid>/`` while the *controller* (where the
+    reaper runs) isolates under its own ``serial-<controller-pid>/`` — so the
+    controller must recover the workers' shared ``testrunuid`` to reap their
+    home too. It is either the explicit ``--testrunuid`` option (shared with
+    the workers) or, when unset, the random hex the xdist ``NodeManager``
+    generated on the controller.
+    """
+    explicit = config.getoption("testrunuid", default=None)
+    if explicit:
+        return str(explicit)
+    dsession = config.pluginmanager.get_plugin("dsession")
+    nodemanager = getattr(dsession, "nodemanager", None)
+    if nodemanager is None:
+        return None
+    testrunuid = getattr(nodemanager, "testrunuid", None)
+    return str(testrunuid) if testrunuid is not None else None
+
+
+def _current_run_test_home_dirs(config: pytest.Config) -> frozenset[Path]:
+    """The ``spec-kitty-test-homes/<run_uid>/`` dirs THIS pytest run created.
+
+    T008 keys the N1 sweep on the run's *uid*, never on a snapshot delta:
+    ``_worker_home_base`` creates the current run's home base inside
+    ``pytest_configure`` — which fires BEFORE ``pytest_sessionstart`` takes the
+    baseline — so the dir is ALREADY present at snapshot time and a
+    ``current - baseline`` delta would always exclude it (the exact bug this
+    keys-by-name approach closes).
+
+    * Serial / controller process: ``_worker_home_base(config).parent`` is the
+      ``serial-<pid>`` (or explicit-``--testrunuid``) run-uid dir that
+      accumulated this run's isolated HOME state.
+    * Under xdist the workers share a SEPARATE ``<testrunuid>`` run-uid dir the
+      controller itself never wrote to; :func:`_xdist_testrunuid` recovers that
+      uid so the controller reaps the workers' shared home too.
+
+    Only run-uid dirs derived from *this* ``config`` are returned, so a
+    genuinely concurrent OTHER run (a different ``serial-<pid>`` /
+    ``<testrunuid>``) is never targeted — no blanket wipe of the shared root.
+    """
+    dirs: set[Path] = {_worker_home_base(config).parent}
+    testrunuid = _xdist_testrunuid(config)
+    if testrunuid is not None:
+        dirs.add(_test_homes_root() / testrunuid)
+    return frozenset(dirs)
+
+
+def _prompt_tmp_entry_names(repo_root: Path) -> frozenset[str]:
+    return frozenset(entry.name for entry in prompt_tmp_dir(repo_root).iterdir())
+
+
+@dataclass(frozen=True)
+class ReaperSnapshot:
+    """T006: the narrow name-pattern baseline captured at ``pytest_sessionstart``.
+
+    Every field is a shallow set of *names*, never a deep per-file walk
+    (C-001) — cheap enough to retake at ``pytest_sessionfinish`` for the
+    delta comparison in :func:`reap_session_delta` / :func:`sweep_tmp_residue`.
+    """
+
+    mission_dirs: frozenset[str]
+    branches: frozenset[str]
+    worktree_dirs: frozenset[str]
+    prompt_tmp_entries: frozenset[str]
+
+
+@dataclass(frozen=True)
+class ReapResult:
+    """T007/T010: exactly what one :func:`reap_session_delta` call removed."""
+
+    removed_mission_dirs: tuple[str, ...]
+    removed_branches: tuple[str, ...]
+    removed_worktree_dirs: tuple[str, ...]
+
+    @property
+    def is_empty(self) -> bool:
+        return not (
+            self.removed_mission_dirs
+            or self.removed_branches
+            or self.removed_worktree_dirs
+        )
+
+
+def capture_reaper_snapshot(repo_root: Path) -> ReaperSnapshot:
+    """T006: snapshot REPO_ROOT + temp-dir residue roots before the session runs."""
+    return ReaperSnapshot(
+        mission_dirs=_reaper_mission_dir_names(repo_root),
+        branches=_reaper_branch_names(repo_root),
+        worktree_dirs=_reaper_worktree_dir_names(repo_root),
+        prompt_tmp_entries=_prompt_tmp_entry_names(repo_root),
+    )
+
+
+def reap_session_delta(repo_root: Path, baseline: ReaperSnapshot) -> ReapResult:
+    """T007: remove only the delta (present now, absent at ``baseline``).
+
+    NFR-002: anything already present in ``baseline`` is never touched, no
+    matter what it looks like at finish — a pre-existing tracked mission,
+    branch, or worktree survives unconditionally.
+    """
+    removed_dirs: list[str] = []
+    for name in sorted(_reaper_mission_dir_names(repo_root) - baseline.mission_dirs):
+        path = repo_root / "kitty-specs" / name
+        if path.is_dir():
+            shutil.rmtree(path, ignore_errors=True)
+            removed_dirs.append(name)
+
+    # Worktree husks (FR-001): `git worktree prune` first drops any registry
+    # entry whose backing directory is already gone; then any *new* on-disk
+    # `.worktrees/*` dir that still isn't in `git worktree list --porcelain`
+    # is a git-unregistered husk `git worktree add` never created — remove it
+    # directly. A properly-registered new worktree is left alone; reaping
+    # real, in-flight worktrees is out of this hook's scope.
+    subprocess.run(
+        ["git", "worktree", "prune"],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    registered = _registered_worktree_paths(repo_root)
+    removed_worktrees: list[str] = []
+    for name in sorted(_reaper_worktree_dir_names(repo_root) - baseline.worktree_dirs):
+        path = repo_root / ".worktrees" / name
+        if path.is_dir() and path.resolve() not in registered:
+            shutil.rmtree(path, ignore_errors=True)
+            removed_worktrees.append(name)
+
+    removed_branches: list[str] = []
+    for name in sorted(_reaper_branch_names(repo_root) - baseline.branches):
+        branch_result = subprocess.run(
+            ["git", "branch", "-D", name],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if branch_result.returncode == 0:
+            removed_branches.append(name)
+
+    return ReapResult(
+        removed_mission_dirs=tuple(removed_dirs),
+        removed_branches=tuple(removed_branches),
+        removed_worktree_dirs=tuple(removed_worktrees),
+    )
+
+
+def sweep_tmp_residue(repo_root: Path, baseline: ReaperSnapshot) -> None:
+    """T008: delta-sweep this session's ``/tmp`` PROMPT residue only.
+
+    Sweeps WP02's shared prompt namespace (:func:`prompt_tmp_dir`, imported —
+    never hand-copied — so a prefix change in the three writers cannot silently
+    desync from what gets swept here): **delta-scoped**. The writers emit their
+    files DURING the session (after the baseline), so a ``current - baseline``
+    delta captures exactly this run's prompt files while a concurrent run's
+    pre-existing entries are left untouched.
+
+    The N1 test-home base (``spec-kitty-test-homes/<run_uid>/``) is the isolated
+    HOME the whole run reads from; it is deliberately NOT removed here.
+    ``pytest_sessionfinish`` runs while Python's ``atexit`` callbacks are still
+    pending — ``BackgroundSyncService.stop`` / ``_shutdown_runtime`` fire AFTER
+    it and reopen ``<HOME>/.spec-kitty/queue.db``. Removing HOME here would make
+    those callbacks raise ``sqlite3.OperationalError: unable to open database
+    file`` (swallowed by ``atexit`` but noisy on stderr). Its removal is instead
+    registered as an ``atexit`` handler at ``pytest_sessionstart`` (see
+    :func:`_register_test_home_atexit_reaper`) so LIFO ordering guarantees it
+    runs *after* the sync/runtime shutdown handlers, HOME intact until then.
+    """
+    prompt_dir = prompt_tmp_dir(repo_root)
+    for name in _prompt_tmp_entry_names(repo_root) - baseline.prompt_tmp_entries:
+        entry = prompt_dir / name
+        if entry.is_dir():
+            shutil.rmtree(entry, ignore_errors=True)
+        else:
+            entry.unlink(missing_ok=True)
+
+
+def reap_test_home_dirs(run_test_home_dirs: Iterable[Path]) -> None:
+    """N1 (FR-002/T008): remove this run's isolated test-HOME dirs BY NAME.
+
+    Called from an ``atexit`` handler (never ``pytest_sessionfinish``) so it
+    runs AFTER Python's lazily-registered sync/runtime shutdown callbacks
+    (``atexit`` is LIFO and this handler is registered first, at
+    ``pytest_sessionstart``), leaving ``<HOME>/.spec-kitty/queue.db`` reachable
+    until those callbacks complete.
+
+    Removed **BY NAME** via *run_test_home_dirs*, NOT via a snapshot delta: the
+    run's own ``<run_uid>`` dir is created in ``pytest_configure`` — BEFORE the
+    baseline snapshot — so a delta would always exclude it and leak the
+    mission's largest disk offender (144 MB / +1 per run).
+    :func:`_current_run_test_home_dirs` derives only *this* run's run-uid dirs
+    from its config, so a concurrent OTHER run's home (a different
+    ``serial-<pid>`` / ``<testrunuid>``) is preserved — never a blanket wipe of
+    the shared root. Idempotent: a dir already gone is skipped.
+    """
+    for run_home in run_test_home_dirs:
+        if run_home.is_dir():
+            shutil.rmtree(run_home, ignore_errors=True)
+
+
+def assert_no_leaked_test_residue(result: ReapResult) -> None:
+    """T009: reap-then-assert — reds when the delta was non-empty.
+
+    Replaces the retired ``kitty-specs/test-feature-*`` ``.gitignore``
+    masks: those hid this exact class of residue from ``git status``; this
+    assertion makes it a hard, visible failure instead (the checkout itself
+    is already clean by the time this runs — the reaper already removed the
+    delta).
+    """
+    if result.is_empty:
+        return
+    raise AssertionError(
+        "Session reaper removed test residue that should never have been "
+        "left behind (FR-004) — a test created one of these and left it for "
+        "the reaper to clean up instead of tearing it down itself: "
+        f"mission_dirs={list(result.removed_mission_dirs)!r}, "
+        f"branches={list(result.removed_branches)!r}, "
+        f"worktree_dirs={list(result.removed_worktree_dirs)!r}."
+    )
+
+
+def _register_test_home_atexit_reaper(config: pytest.Config) -> set[Path]:
+    """Register the N1 test-HOME removal as an ``atexit`` handler (LIFO-safe).
+
+    Registered at ``pytest_sessionstart`` — BEFORE the sync/runtime services
+    lazily register their own ``atexit`` shutdown callbacks *during* the tests.
+    ``atexit`` runs handlers LIFO, so this one (registered first) runs LAST:
+    ``BackgroundSyncService.stop`` / ``_shutdown_runtime`` complete with the
+    isolated HOME still intact, and only then is ``spec-kitty-test-homes/
+    <run_uid>/`` removed. This avoids the ``sqlite3.OperationalError: unable to
+    open database file`` stderr noise a ``pytest_sessionfinish`` deletion caused
+    (sessionfinish runs while those callbacks are still pending).
+
+    The callback closes over a **mutable** set, seeded now and finalized at
+    ``pytest_sessionfinish`` (:func:`_finalize_test_home_atexit_targets`).
+    Seeding only at sessionstart is insufficient under xdist: the workers'
+    shared ``<testrunuid>`` home cannot be resolved yet — the xdist
+    ``NodeManager`` that mints ``testrunuid`` is created in DSession's *own*
+    ``pytest_sessionstart``, whose order relative to ours is not guaranteed.
+    sessionfinish re-resolves when ``testrunuid`` is available and updates the
+    same set object the closure holds. Returned for direct testability; the
+    canonical inspection point is the ``_REAPER_ATEXIT_HOMES_ATTR`` config attr.
+    """
+    run_home_dirs: set[Path] = set(_current_run_test_home_dirs(config))
+    setattr(config, _REAPER_ATEXIT_HOMES_ATTR, run_home_dirs)
+
+    def _reap_test_homes_at_exit() -> None:
+        reap_test_home_dirs(run_home_dirs)
+
+    atexit.register(_reap_test_homes_at_exit)
+    return run_home_dirs
+
+
+def _finalize_test_home_atexit_targets(config: pytest.Config) -> None:
+    """Merge the fully-resolved run-home dirs into the atexit handler's set.
+
+    Called at ``pytest_sessionfinish``, when the xdist ``testrunuid`` is
+    available, to add the workers' shared ``<testrunuid>`` home that could not
+    be resolved at ``pytest_sessionstart``. Updates the SAME mutable set the
+    ``atexit`` closure captured (via :data:`_REAPER_ATEXIT_HOMES_ATTR`), so the
+    handler reaps the controller's own ``serial-<pid>`` home AND the workers'
+    ``<testrunuid>`` home. No-op if registration never ran.
+    """
+    homes = getattr(config, _REAPER_ATEXIT_HOMES_ATTR, None)
+    if homes is None:
+        return
+    homes.update(_current_run_test_home_dirs(config))
+
+
+def pytest_sessionstart(session: pytest.Session) -> None:
+    """T006: controller-only snapshot + N1 test-home atexit registration.
+
+    Both are controller-gated (``workerinput is None``); a worker never
+    snapshots the shared REPO_ROOT nor schedules a HOME removal.
+    """
+    config = session.config
+    if not _is_reaper_controller(config):
+        return
+    setattr(config, _REAPER_SNAPSHOT_ATTR, capture_reaper_snapshot(REPO_ROOT))
+    # Register the HOME reaper NOW (before sync/runtime services register their
+    # atexit shutdown handlers during the tests) so LIFO ordering runs it last.
+    _register_test_home_atexit_reaper(config)
+
+
+def pytest_sessionfinish(session: pytest.Session) -> None:
+    """T007-T009: controller-gated REPO_ROOT reap-then-assert + prompt sweep.
+
+    The N1 test-HOME removal is intentionally NOT done here — it runs from the
+    ``atexit`` handler registered at ``pytest_sessionstart`` so it fires after
+    the sync/runtime shutdown callbacks (LIFO), with HOME intact until then.
+    Here we only *finalize* which HOME dirs that handler will remove (adding the
+    xdist ``<testrunuid>`` home now that it is resolvable). The REPO_ROOT reap
+    and the prompt-residue sweep touch ``.worktrees`` / ``kitty-specs`` /
+    ``prompt_tmp_dir`` (under ``gettempdir()``, NOT HOME), so they stay here
+    where the exit-status signal is still actionable.
+    """
+    config = session.config
+    if not _is_reaper_controller(config):
+        return  # NFR-001: a worker must never reap the shared REPO_ROOT
+
+    baseline = getattr(config, _REAPER_SNAPSHOT_ATTR, None)
+    if baseline is None:
+        return  # pytest_sessionstart never ran against this config
+
+    result = reap_session_delta(REPO_ROOT, baseline)
+    sweep_tmp_residue(REPO_ROOT, baseline)
+    # Add the xdist workers' shared <testrunuid> home (resolvable only now) to
+    # the atexit handler's removal set; HOME itself is still removed at exit.
+    _finalize_test_home_atexit_targets(config)
+
+    try:
+        assert_no_leaked_test_residue(result)
+    except AssertionError as exc:
+        reporter = config.pluginmanager.get_plugin("terminalreporter")
+        if reporter is not None:
+            reporter.write_line(str(exc), red=True, bold=True)
+        session.exitstatus = 1

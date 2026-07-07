@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 import subprocess
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -33,6 +32,20 @@ from specify_cli.status.store import append_event
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 _EVENT_COUNTER: int = 0
+
+
+def _prompt_path_from_output(output: str) -> Path:
+    """Extract the prompt file path from the CLI's ``cat <path>`` hint.
+
+    The prompt is written under the shared, per-repo namespace (WP02 /
+    FR-003), not a hardcoded flat ``/tmp`` path — parse it from the printed
+    instruction instead of assuming the location.
+    """
+    for line in output.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("cat "):
+            return Path(stripped[4:].strip())
+    raise AssertionError(f"Prompt path not found in output: {output}")
 
 
 def _make_event(
@@ -530,7 +543,7 @@ class TestImplementReviewFeedbackHandoff:
 
         assert result.exit_code == 0, result.stdout
         assert "Fix mode" in result.stdout
-        prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-001-test-feature-WP01.md"
+        prompt_file = _prompt_path_from_output(result.stdout)
         prompt_content = prompt_file.read_text(encoding="utf-8")
         assert "## Review Findings" in prompt_content
         assert "Use the canonical review artifact instead of the claim token." in prompt_content

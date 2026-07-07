@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import tempfile
 import json
 from datetime import UTC, datetime
 from pathlib import Path
@@ -647,9 +646,6 @@ def test_implement_prompt_includes_when_youre_done_header(workflow_repo: Path) -
     # Arrange
     wp_path, mission_slug = _setup_implement_fixture(workflow_repo)
 
-    # Assumption check
-    assert not (Path(tempfile.gettempdir()) / "spec-kitty-implement-001-test-feature-WP01.md").exists() or True
-
     # Act
     result = CliRunner().invoke(
         workflow.app,
@@ -658,7 +654,7 @@ def test_implement_prompt_includes_when_youre_done_header(workflow_repo: Path) -
 
     # Assert
     assert result.exit_code == 0, result.stdout
-    prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-001-test-feature-WP01.md"
+    prompt_file = _prompt_path_from_output(result.stdout)
     assert prompt_file.exists(), f"Prompt file not written: {prompt_file}"
     content = prompt_file.read_text(encoding="utf-8")
     assert "WHEN YOU'RE DONE:" in content
@@ -685,7 +681,7 @@ def test_implement_prompt_includes_commit_message_conventions(workflow_repo: Pat
 
     # Assert
     assert result.exit_code == 0, result.stdout
-    prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-001-test-feature-WP01.md"
+    prompt_file = _prompt_path_from_output(result.stdout)
     content = prompt_file.read_text(encoding="utf-8")
     assert "feat(" in content or "fix(" in content
     assert "chore:" in content or "chore(" in content
@@ -708,7 +704,7 @@ def test_implement_prompt_has_numbered_steps(workflow_repo: Path) -> None:
 
     # Assert
     assert result.exit_code == 0, result.stdout
-    prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-001-test-feature-WP01.md"
+    prompt_file = _prompt_path_from_output(result.stdout)
     content = prompt_file.read_text(encoding="utf-8")
     assert "1. **Commit your implementation files:**" in content
     assert "2." in content
@@ -724,7 +720,7 @@ def test_implement_prompt_points_to_shared_mission_artifacts(workflow_repo: Path
     )
 
     assert result.exit_code == 0, result.stdout
-    prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-001-test-feature-WP01.md"
+    prompt_file = _prompt_path_from_output(result.stdout)
     content = prompt_file.read_text(encoding="utf-8")
     assert "📚 SHARED MISSION ARTIFACTS:" in content
     assert f"Spec, plan, and tasks are visible from the primary checkout: {workflow_repo}/kitty-specs/{feature_slug}/" in content

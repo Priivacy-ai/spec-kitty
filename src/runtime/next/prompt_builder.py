@@ -14,7 +14,6 @@ default per NEW-2 resolution).
 from __future__ import annotations
 
 import subprocess
-import tempfile
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -29,6 +28,7 @@ from charter.mission_type_profiles import (
     resolve_mission_type_governance,
 )
 from charter.resolver import GovernanceResolutionError, resolve_project_governance
+from runtime.next._tmp_namespace import prompt_tmp_dir
 from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.runtime.resolver import resolve_command
 from specify_cli.review.antipattern_checklist import render_wp_review_antipattern_checklist
@@ -78,7 +78,7 @@ def build_prompt(
     else:
         prompt_text = _build_template_prompt(action, feature_dir, mission_slug, agent, repo_root, mission_type)
 
-    prompt_file = _write_to_temp(action, wp_id, prompt_text, agent=agent, mission_slug=mission_slug)
+    prompt_file = _write_to_temp(action, wp_id, prompt_text, agent=agent, mission_slug=mission_slug, repo_root=repo_root)
     return prompt_text, prompt_file
 
 
@@ -88,6 +88,7 @@ def build_decision_prompt(
     decision_id: str,
     mission_slug: str,
     agent: str,
+    repo_root: Path,
 ) -> tuple[str, Path]:
     """Build a prompt for a decision_required response.
 
@@ -122,6 +123,7 @@ def build_decision_prompt(
         prompt_text,
         agent=agent,
         mission_slug=mission_slug,
+        repo_root=repo_root,
     )
     return prompt_text, prompt_file
 
@@ -468,14 +470,18 @@ def _write_to_temp(
     *,
     agent: str = "unknown",
     mission_slug: str = "unknown",
+    repo_root: Path,
 ) -> Path:
     """Write prompt content to a temp file.
 
     Filenames include agent and feature to avoid collisions when multiple
-    agents or features run concurrently.
+    agents or features run concurrently. The file is rooted under the
+    shared, per-repo, sweepable namespace (WP02 / FR-003) rather than the
+    flat ``tempfile.gettempdir()`` root, so WP01's session reaper can find
+    and remove it.
     """
     wp_suffix = f"-{wp_id}" if wp_id else ""
     filename = f"spec-kitty-next-{agent}-{mission_slug}-{action}{wp_suffix}.md"
-    prompt_path = Path(tempfile.gettempdir()) / filename
+    prompt_path = prompt_tmp_dir(repo_root) / filename
     prompt_path.write_text(content, encoding="utf-8")
     return prompt_path
