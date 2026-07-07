@@ -1,0 +1,22 @@
+{
+  "component": {
+    "key": "Priivacy-ai_spec-kitty",
+    "name": "spec-kitty",
+    "qualifier": "TRK",
+    "measures": [
+      {
+        "metric": "coverage",
+        "value": "68.4",
+        "bestValue": false
+      },
+      {
+        "metric": "new_coverage",
+        "period": {
+          "index": 1,
+          "value": "72.5",
+          "bestValue": false
+        }
+      }
+    ]
+  }
+}

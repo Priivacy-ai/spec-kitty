@@ -1,0 +1,24 @@
+{
+  "component": {
+    "key": "Priivacy-ai_spec-kitty:src/specify_cli/status/emit.py",
+    "name": "emit.py",
+    "qualifier": "FIL",
+    "path": "src/specify_cli/status/emit.py",
+    "language": "py",
+    "measures": [
+      {
+        "metric": "uncovered_lines",
+        "value": "12"
+      },
+      {
+        "metric": "coverage",
+        "value": "84.2",
+        "bestValue": false
+      },
+      {
+        "metric": "lines_to_cover",
+        "value": "76"
+      }
+    ]
+  }
+}
