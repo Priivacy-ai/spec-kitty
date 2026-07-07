@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
+import os
 import re
 import tempfile
 import uuid
@@ -20,8 +22,15 @@ from typing import Any
 
 from specify_cli.frontmatter import FrontmatterError, read_frontmatter, write_frontmatter
 
+logger = logging.getLogger(__name__)
+
 REVIEW_PROMPT_METADATA_MISMATCH = "REVIEW_PROMPT_METADATA_MISMATCH"
 REVIEW_PROMPT_METADATA_MISSING = "REVIEW_PROMPT_METADATA_MISSING"
+
+# FR-001/FR-002: keep at most this many newest per-invocation review-prompt
+# files per (repo, mission, WP) directory. Small enough to bound growth, large
+# enough to keep recent history for debugging a dispatch.
+DEFAULT_REVIEW_PROMPT_RETENTION = 20
 
 REQUIRED_REVIEW_PROMPT_FIELDS: tuple[str, ...] = (
     "invocation_id",
@@ -160,11 +169,58 @@ def build_review_prompt_metadata(
     )
 
 
-def write_review_prompt_with_metadata(content: str, metadata: ReviewPromptMetadata) -> Path:
-    """Write a review prompt with identity frontmatter."""
+def _prune_review_prompt_dir(wp_dir: Path, *, keep: int, current_name: str) -> None:
+    """Best-effort prune of older review-prompt files under one WP directory.
+
+    Retains at most ``keep`` newest ``*.md`` invocation files (by mtime) in
+    *wp_dir*, always keeping *current_name* (the just-written invocation) — it
+    is excluded from the deletion candidates entirely, so it survives even when
+    every other file is newer by mtime.
+
+    Scope is strictly *wp_dir*: a single, non-recursive ``scandir`` — the prune
+    never walks above the ``spec-kitty-review-prompts/<repo-id>/…`` subtree and
+    never touches the path scheme or metadata (NFR-001).
+
+    Fail-safe (NFR-002): any error (missing dir, permission, race) is swallowed
+    and logged at debug so a review can never fail on retention housekeeping.
+    """
+    try:
+        others: list[tuple[float, Path]] = []
+        with os.scandir(wp_dir) as entries:
+            for entry in entries:
+                if entry.name == current_name or not entry.name.endswith(".md"):
+                    continue
+                if not entry.is_file(follow_symlinks=False):
+                    continue
+                others.append((entry.stat().st_mtime, Path(entry.path)))
+        # Newest first; retain (keep - 1) other files so that, with the current
+        # invocation, at most ``keep`` files remain.
+        others.sort(key=lambda item: item[0], reverse=True)
+        for _mtime, stale_path in others[max(keep - 1, 0) :]:
+            stale_path.unlink()
+    except Exception as exc:  # fail-safe: housekeeping must never break a review (NFR-002)
+        logger.debug("Review-prompt retention prune skipped for %s: %s", wp_dir, exc)
+
+
+def write_review_prompt_with_metadata(
+    content: str,
+    metadata: ReviewPromptMetadata,
+    *,
+    retention: int = DEFAULT_REVIEW_PROMPT_RETENTION,
+) -> Path:
+    """Write a review prompt with identity frontmatter, then prune old invocations.
+
+    After the current ``<invocation-id>.md`` is written, the WP directory is
+    pruned to the newest ``retention`` files (best-effort, current always kept).
+    """
     metadata.prompt_path.parent.mkdir(parents=True, exist_ok=True)
     body = content if content.startswith("\n") else f"\n{content}"
     write_frontmatter(metadata.prompt_path, metadata.to_frontmatter(), body)
+    _prune_review_prompt_dir(
+        metadata.prompt_path.parent,
+        keep=retention,
+        current_name=metadata.prompt_path.name,
+    )
     return metadata.prompt_path
 
 

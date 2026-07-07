@@ -12,6 +12,8 @@ from typing import Any
 import pytest
 import yaml
 
+from tests.architectural import _gate_coverage as gc
+
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -212,6 +214,48 @@ def test_diff_coverage_critical_paths_include_canonical_runtime() -> None:
     )
     assert "'src/runtime/next/*'" in run_script
     assert "'src/mission_runtime/*'" in run_script
+
+
+def test_diff_coverage_critical_paths_all_resolve_to_existing_files() -> None:
+    """Every diff-coverage ``--include`` critical-path entry must resolve to a real file.
+
+    Guards #2443: a critical-path allowlist entry that names no existing file
+    silently contributes nothing to the enforced gate, so a moved/renamed/phantom
+    module drops coverage enforcement with no signal. ``mission_detection.py`` was
+    exactly this — a phantom that never existed in git history yet sat in the
+    allowlist looking enforced.
+
+    Reuses the canonical allowlist parser
+    (``_gate_coverage._diff_cover_critical_paths``) — deliberately NOT a second
+    hand-rolled shell-array parser (charter: single canonical authority). Per entry:
+    a **glob** (contains ``*``) is expanded with ``Path.glob`` and must match >=1
+    file (this also catches a vacuous glob that expands to zero files — the retired
+    ``src/specify_cli/next/*`` rot precedent); a **literal** must ``.exists()``.
+    """
+    run_script = _job_run_script(
+        _load_workflow(),
+        "diff-coverage",
+        "diff-coverage (critical-path, enforced)",
+    )
+    entries = gc._diff_cover_critical_paths(run_script)
+    assert entries, (
+        "no critical_paths=( ... ) entries parsed from the enforced diff-coverage "
+        "step — the canonical parser found nothing (workflow shape drifted?)"
+    )
+
+    unresolved: list[str] = []
+    for entry in entries:
+        if "*" in entry:
+            if not any(_REPO_ROOT.glob(entry)):
+                unresolved.append(entry)
+        elif not (_REPO_ROOT / entry).exists():
+            unresolved.append(entry)
+
+    assert not unresolved, (
+        "diff-coverage --include critical-path entries resolve to no file on disk "
+        "(stale/phantom allowlist -> silent coverage-enforcement rot): "
+        f"{unresolved}"
+    )
 
 
 def test_execution_context_parity_ratchet_runs_unconditionally() -> None:
