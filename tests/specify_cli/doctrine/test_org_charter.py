@@ -218,6 +218,26 @@ class TestLoadOrgCharterPolicies:
 
         assert policy.required_directives == ["dir-1", "shared", "dir-2"]
 
+    def test_load_org_charter_policies_unset_env_var_propagates(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """``OrgPackEnvVarUnsetError`` must propagate out of ``load_org_charter_policies``.
+
+        The narrowed ``except (OrgPackEnvVarUnsetError, OrgPackSubdirEscapeError): raise``
+        site in the function body guarantees this; this test kills the mutation
+        that would widen the handler back to a bare ``except Exception: continue``.
+        """
+        from doctrine.drg.org_pack_config import OrgPackEnvVarUnsetError  # noqa: PLC0415
+
+        monkeypatch.delenv("SPEC_KITTY_ORG_CHARTER_UNSET_VAR", raising=False)
+        _write_kittify_config(
+            tmp_path,
+            [{"name": "missing-env-pack", "local_path": "${SPEC_KITTY_ORG_CHARTER_UNSET_VAR}/pack"}],
+        )
+
+        with pytest.raises(OrgPackEnvVarUnsetError):
+            load_org_charter_policies(tmp_path)
+
     def test_merge_governance_policies_dedup(self, tmp_path: Path) -> None:
         """Identical (field, value) policies are deduplicated to one."""
         pack_a = tmp_path / "packs" / "a"

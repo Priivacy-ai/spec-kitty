@@ -523,6 +523,31 @@ def test_mission_step_contract_candidate_resolves_to_drg_urn(tmp_path: Path) -> 
     assert result.steps[0].unresolved_candidates == ()
 
 
+def test_resolve_pack_context_propagates_org_pack_env_var_unset_error(
+    tmp_path: Path,
+) -> None:
+    """``OrgPackEnvVarUnsetError`` must propagate out of ``_resolve_pack_context``.
+
+    The narrowed ``except (OrgPackEnvVarUnsetError, OrgPackSubdirEscapeError): raise``
+    block in ``_resolve_pack_context`` guarantees the error is never swallowed
+    into a ``None`` return.  This test kills the mutation that would widen the
+    handler back to a bare ``except Exception: return None``.
+    """
+    from doctrine.drg.org_pack_config import OrgPackEnvVarUnsetError  # noqa: PLC0415
+
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    error = OrgPackEnvVarUnsetError(
+        "test-pack", "${MISSING_VAR}/pack", "${MISSING_VAR}"
+    )
+
+    executor = StepContractExecutor(repo_root=repo_root)
+    with patch("charter.pack_context.PackContext.from_config", side_effect=error):
+        with pytest.raises(OrgPackEnvVarUnsetError):
+            executor._resolve_pack_context(repo_root)
+
+
 def test_profile_hint_required_when_no_action_default_exists(tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
