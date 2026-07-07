@@ -280,6 +280,8 @@ def _warrants_legacy_warning(repo_root: Path, mission_slug: str, mid8: str) -> b
         return False
     if not isinstance(meta, dict):
         return False
+    # belt-and-suspenders: call site sits inside `if legacy_mode:` (which requires
+    # no coordination_branch), but guard is kept for future direct callers.
     if meta.get("coordination_branch"):
         return False
     if meta.get("flattened"):

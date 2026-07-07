@@ -61,7 +61,28 @@ def _feature_dir(repo_root: Path, mission_slug: str, mid8: str) -> Path:
             id="lanes_with_coord",
         ),
         pytest.param(
-            {"topology": "not-a-real-shape"}, True, id="malformed-topology-warns"
+            # stored_topology_from_meta returns None for unknowns (fail-closed) → warns
+            {"topology": "not-a-real-shape"},
+            True,
+            id="malformed-topology-warns",
+        ),
+        pytest.param(
+            # Guard 1 isolation: non-empty coord_branch fires before topology check
+            {"coordination_branch": "kitty/mission-classifier-mission-coord"},
+            False,
+            id="coord-branch-present-no-topology",
+        ),
+        pytest.param(
+            # empty-string coord_branch is falsy → Guard 1 does not fire → topology None → warns
+            {"coordination_branch": ""},
+            True,
+            id="coord-branch-empty-string-warns",
+        ),
+        pytest.param(
+            # flattened early-exit takes precedence over malformed topology
+            {"flattened": True, "topology": "not-a-real-shape"},
+            False,
+            id="flattened-overrides-malformed-topology",
         ),
     ],
 )
