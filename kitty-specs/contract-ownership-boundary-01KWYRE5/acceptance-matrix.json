@@ -1,0 +1,88 @@
+{
+  "mission_slug": "contract-ownership-boundary-01KWYRE5",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "fail",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Contract Registry schema + manifest + typed loader (generalized from compat/registry.py)",
+      "proof_type": "automated_test",
+      "evidence": "WP01 (f2c2c92): docs/contracts/contract-registry{,-schema}.yaml + src/specify_cli/contracts/registry.py; tests/specify_cli/contracts/test_registry.py green (13)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "1:1 generalization of the shim chain confirmed"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "doctor contracts validator \u2014 enforcing well-formedness; rejects file:line (NFR-003)",
+      "proof_type": "automated_test",
+      "evidence": "WP01: spec-kitty doctor contracts; _reject_positional_anchors rejects field-name + string-value forms + (WP02 f3977c2) the fragment-join reconstruction; all red-first proven",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "file:line rejection proven load-bearing by mutation"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "_ratchet_keys anchoring promoted to a shared src lib; behavior-preserving",
+      "proof_type": "automated_test",
+      "evidence": "WP01: src/specify_cli/contracts/anchoring.py; _ratchet_keys re-exports; 27 ratchet+write_side tests + every importer green",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Both adopted-sweep records seeded with discovered-then-frozen consumer sets",
+      "proof_type": "code_review",
+      "evidence": "WP01: terminology + CLI-path-literal records, consumer sets transcribed from the sweep tests' own scope constants; terms stored as fragments (manifest doesn't self-trip)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "discovered-then-frozen, not hand-typed blind (C-003)"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Static-arm absence-sweep driver \u2014 advisory + mandatory anti-vacuity control",
+      "proof_type": "automated_test",
+      "evidence": "WP02 (3f977c2): test_retired_contracts_absent.py \u2014 advisory (green under -W error; asserts only on tmp_path/input); anti-vacuity + exemption controls bite; already flagged a real ~/.kittify residual as a warning",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "never blocks on a live find \u2014 proven structural"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Parity proof (set-equality) \u2014 WITHOUT retiring the enforcing gates (NFR-004)",
+      "proof_type": "automated_test",
+      "evidence": "WP03 (041d3f1): test_contract_registry_parity.py \u2014 real set-equality (planted + benign control, driver_set==gate_set) via a fabricated-repo subprocess (the gates' own _grep_for/regexes, not a source-grep); gates-still-block subprocess; enforcing gates git-diff EMPTY",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-07",
+      "notes": "additive \u2014 nothing retired"
+    }
+  ],
+  "negative_invariants": [
+    {
+      "invariant_id": "NFR-003",
+      "description": "No positional file:line anchor in the contract manifest (DIR-041)",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -nE '^\\s*(file|line|lineno|file_line):' docs/contracts/contract-registry.yaml",
+      "result": "confirmed_absent",
+      "evidence": "grep exits 1 — the manifest uses only symbol:/literals: anchors, never a file:/line: key; the schema validator + fragment-join guard reject actual file:line anchors (red-first proven). (The only file.py:NN strings in the contracts package are docstring/comment prose describing the guard.)",
+      "scope": "mission"
+    },
+    {
+      "invariant_id": "NFR-004",
+      "description": "No enforcing gate removed/neutered (no enforcing->advisory downgrade); the merge-blocking terminology + path gates unchanged",
+      "verification_method": "grep_absence",
+      "verification_command": "grep -rnE 'noqa|type: ignore|NOSONAR' tests/architectural/test_contract_registry_parity.py tests/architectural/test_retired_contracts_absent.py",
+      "result": "confirmed_absent",
+      "evidence": "grep exits 1 — no suppression in the new tests; `git diff upstream/main...HEAD` on test_no_legacy_terminology.py + test_no_legacy_path_literals.py is EMPTY (enforcing gates byte-for-byte unchanged, still merge-blocking — WP03's gates-still-block subprocess proves a neuter would red).",
+      "scope": "mission"
+    }
+  ]
+}
