@@ -11,18 +11,19 @@ from pathlib import Path
 
 from doctrine.drg.org_pack_config import (
     OrgPackConfig,
-    OrgPackEnvVarUnsetError,
-    OrgPackSubdirEscapeError,
     PackRegistry,
     load_pack_registry,
     resolve_org_roots,
     save_pack_registry,
 )
 
+# OrgPackEnvVarUnsetError / OrgPackSubdirEscapeError are intentionally NOT
+# re-exported here: every runtime caller imports them from the canonical
+# contract module (doctrine.drg.org_pack_config), so re-exporting them through
+# this compat facade would be a dead symbol-level export (see the C-007
+# `__all__` convention and tests/architectural/test_no_dead_symbols.py).
 __all__ = [
     "OrgPackConfig",
-    "OrgPackEnvVarUnsetError",
-    "OrgPackSubdirEscapeError",
     "PackRegistry",
     "assert_pack_local_paths_exist",
     "load_pack_registry",
