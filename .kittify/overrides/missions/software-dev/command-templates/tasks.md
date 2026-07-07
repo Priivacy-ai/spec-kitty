@@ -196,6 +196,7 @@ Prompts do not rediscover feature context. Commands do.
    - `execution_mode`: Either `"code_change"` (source code) or `"planning_artifact"` (kitty-specs docs)
    - `owned_files`: List of glob patterns for files this WP touches. Example: `["src/myapp/auth/**", "tests/myapp/test_auth.py"]`
    - `authoritative_surface`: Path prefix that must be a prefix of at least one owned_files entry. Example: `"src/myapp/auth/"`
+   - `create_intent`: List of repo-root-relative literal paths this WP will create. Use this when an `owned_files` entry names a planned-new file that does not exist yet, so finalize-tasks treats the zero-match as an intentional planned-new-file instead of a validation failure. Example: `["tests/myapp/test_new_auth.py"]`. Keep a single `create_intent` key; if a stub `create_intent: []` already exists, replace it instead of adding a duplicate block.
 
    **Ownership rules**:
    - No two WPs may have overlapping `owned_files`.
