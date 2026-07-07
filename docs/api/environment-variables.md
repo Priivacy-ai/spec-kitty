@@ -39,6 +39,36 @@ export SPEC_KITTY_TEMPLATE_ROOT=/path/to/spec-kitty
 spec-kitty init my-project --ai claude
 ```
 
+### SPEC_KITTY_PACK_HOME
+
+Not read directly by Spec Kitty — this is the conventional variable name used
+in org-pack `local_path` indirection examples (see
+[Create an Org Doctrine Pack](../guides/create-an-org-doctrine-pack.md)). Any
+environment variable name works; `${VAR}`/`$VAR` tokens in
+`doctrine.org.packs[].local_path` (and the legacy `organisation_packs[].path`)
+are expanded at pack-resolution time, not stored expanded on disk.
+
+**Purpose**: Let each operator/machine point a shared, portable
+`.kittify/config.yaml` at a machine-local org-pack checkout without editing
+the config file per machine.
+
+**Example**:
+```bash
+export SPEC_KITTY_PACK_HOME=/opt/acme-doctrine
+```
+```yaml
+# .kittify/config.yaml
+doctrine:
+  org:
+    packs:
+      - name: acme
+        local_path: "${SPEC_KITTY_PACK_HOME}/acme-doctrine"
+```
+
+If the referenced variable is unset or empty, resolution fails closed with a
+named error identifying the variable and the pack — it never silently
+produces a literal `${...}`-token path or an empty org layer.
+
 ### SPECIFY_TEMPLATE_REPO
 
 Override the remote template repository slug (`owner/name`).

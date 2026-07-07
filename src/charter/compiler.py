@@ -70,6 +70,8 @@ class CompiledCharter:
     references: list[CharterReference]
     diagnostics: list[str] = field(default_factory=list)
     selected_tactics: list[str] = field(default_factory=list)
+    languages: list[str] = field(default_factory=list)
+    active_languages: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
@@ -177,6 +179,7 @@ def compile_charter(
         references=references,
         diagnostics=diagnostics,
         selected_tactics=selected_tactics,
+        active_languages=active_languages,
     )
 
 
@@ -979,6 +982,12 @@ def _write_references_yaml(path: Path, compiled: CompiledCharter) -> None:
         "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "mission": compiled.mission,
         "template_set": compiled.template_set,
+        # Structured, compile-time-canonical language set (DIRECTIVE_044
+        # unification). Runtime resolution in charter.language_scope reads
+        # this field first; the interview transcript is consulted only when
+        # this field is absent (pre-existing charters compiled before this
+        # field was introduced).
+        "languages": list(compiled.active_languages),
         "references": ref_entries,
     }
 

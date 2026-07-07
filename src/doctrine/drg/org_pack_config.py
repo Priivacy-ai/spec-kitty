@@ -9,6 +9,8 @@ parser so it cannot drift independently.
 
 from __future__ import annotations
 
+import os
+import re
 import warnings
 from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Literal
@@ -18,6 +20,7 @@ from ruamel.yaml import YAML
 
 __all__ = [
     "OrgPackConfig",
+    "OrgPackEnvVarUnsetError",
     "OrgPackSubdirEscapeError",
     "PackRegistry",
     "load_pack_registry",
@@ -39,6 +42,48 @@ class OrgPackSubdirEscapeError(ValueError):
     ``pack_context.py``) can catch and re-raise it rather than swallowing it
     into a silent empty registry.
     """
+
+
+class OrgPackEnvVarUnsetError(ValueError):
+    """Raised when ``local_path`` references an env var that is unset/empty.
+
+    ``os.path.expandvars`` silently leaves ``${UNSET}``/``$UNSET`` tokens
+    verbatim in its output when the referenced variable is not set — this
+    would otherwise resolve to a literal-token path (or, when joined onto
+    ``repo_root``, an unrelated relative path) instead of failing loudly.
+    This structured error names both the unresolved token and the pack so
+    the operator can fix ``.kittify/config.yaml`` or their environment.
+    """
+
+    def __init__(self, pack_name: str, raw_local_path: str, unresolved_token: str) -> None:
+        self.pack_name = pack_name
+        self.raw_local_path = raw_local_path
+        self.unresolved_token = unresolved_token
+        super().__init__(
+            f"Org pack {pack_name!r} local_path {raw_local_path!r} references "
+            f"environment variable {unresolved_token!r} which is unset or empty. "
+            "Set the variable, or update local_path in .kittify/config.yaml."
+        )
+
+
+_ENV_VAR_TOKEN_RE = re.compile(r"\$\{[^}]+\}|\$[A-Za-z_][A-Za-z0-9_]*")
+
+
+def _expand_path_template(raw: str) -> str:
+    """Expand ``${VAR}``/``$VAR`` env-var tokens, then ``~`` home-dir tokens.
+
+    Pure string transform — no filesystem access, no exceptions raised here
+    for the happy path. Callers are responsible for detecting any
+    unresolved ``$``-tokens left behind by an unset variable (see
+    :class:`OrgPackEnvVarUnsetError`).
+    """
+    return os.path.expanduser(os.path.expandvars(raw))
+
+
+def _unresolved_env_token(expanded: str) -> str | None:
+    """Return the first unresolved ``${VAR}``/``$VAR`` token, if any survives."""
+    match = _ENV_VAR_TOKEN_RE.search(expanded)
+    return match.group(0) if match else None
 
 
 def _yaml() -> YAML:
@@ -63,8 +108,15 @@ class OrgPackConfig(BaseModel):
 
     @field_validator("local_path", mode="before")
     @classmethod
-    def _expand_tilde(cls, value: str | Path) -> Path:
-        return Path(str(value)).expanduser()
+    def _coerce_local_path(cls, value: str | Path) -> Path:
+        """Coerce to ``Path`` WITHOUT expanding ``~``/env-vars.
+
+        The stored value must remain exactly what the operator wrote —
+        including any ``${VAR}``/``$VAR``/``~`` tokens, unexpanded — so
+        that :func:`save_pack_registry` round-trips it verbatim. Expansion
+        happens only at resolution time, in :meth:`effective_root`.
+        """
+        return Path(str(value))
 
     @field_validator("name")
     @classmethod
@@ -119,8 +171,13 @@ class OrgPackConfig(BaseModel):
 
         Resolution strategy
         -------------------
-        1. Normalise ``local_path`` relative to ``repo_root`` when it is
-           relative (so relative config values work from any CWD).
+        0. Expand ``${VAR}``/``$VAR`` env-var tokens and ``~`` home-dir
+           tokens in ``local_path`` (read-side only — ``self.local_path``
+           itself is never mutated, so the stored config value round-trips
+           unexpanded).
+        1. Normalise the expanded ``local_path`` relative to ``repo_root``
+           when it is relative (so relative config values work from any
+           CWD).
         2. Join ``subdir`` when present.
         3. Apply a **resolution-time** containment check using
            ``resolve(strict=False)`` so that a not-yet-fetched pack directory
@@ -128,12 +185,24 @@ class OrgPackConfig(BaseModel):
 
         Raises
         ------
+        OrgPackEnvVarUnsetError
+            When ``local_path`` references an environment variable that is
+            unset or empty (fail-closed — never silently produces a
+            literal-token path).
         OrgPackSubdirEscapeError
             When the resolved effective path escapes outside ``local_path``
             (symlink-escape detected at resolution time).
         """
+        # Step 0 — expand env-var / tilde tokens (read-side only)
+        raw_local_path = str(self.local_path)
+        expanded_local_path = _expand_path_template(raw_local_path)
+        unresolved_token = _unresolved_env_token(expanded_local_path)
+        if unresolved_token is not None:
+            raise OrgPackEnvVarUnsetError(self.name, raw_local_path, unresolved_token)
+
         # Step 1 — normalise local_path vs repo_root
-        pack_root = self.local_path if self.local_path.is_absolute() else repo_root / self.local_path
+        expanded_path = Path(expanded_local_path)
+        pack_root = expanded_path if expanded_path.is_absolute() else repo_root / expanded_path
 
         if self.subdir is None:
             return pack_root.resolve(strict=False)
