@@ -1,0 +1,109 @@
+# Contract Registry
+# Mission: contract-ownership-boundary-01KWYRE5 (#2441)
+#
+# Schema: docs/contracts/contract-registry-schema.yaml
+# Enforcing gate (well-formedness only, v1): spec-kitty doctor contracts
+# Loader/validator: src/specify_cli/contracts/registry.py
+#
+# A modeled, owned artifact for shared contracts + their DECLARED consumer set +
+# retirement obligations — generalising the shim-registry chain
+# (docs/migrations/shim-registry.yaml). Anchored on CONTENT, never on file:line
+# (DIR-041 / NFR-003).
+#
+# Seed provenance (spec C-003, discovered-then-frozen): both records below are
+# `retired_literal` contracts whose scan_roots / exemptions / literals were
+# TRANSCRIBED from the authoritative, still-enforcing sweep tests they model —
+# not hand-typed blind. Each `notes` field names the exact source test + carve-out.
+# They feed WP02's static-arm absence-sweep driver and WP03's parity proof.
+#
+# NOTHING is enforced-new by seeding these: `verification.enforcement: advisory`.
+# The existing merge-blocking sweeps stay in place (NFR-004) — this is additive.
+
+contracts:
+  # ---------------------------------------------------------------------------
+  # Record 1 — the forbidden legacy terminology terms.
+  # Models: tests/architectural/test_no_legacy_terminology.py (a clean literal
+  # fold — spec US3 / FR-006). The two forbidden terms are stored as `fragments`
+  # (joined by the loader) so THIS manifest never contains either term verbatim
+  # and therefore does not trip the very sweep it models — the generalised
+  # self-flag defence, mirroring that test's own "cere" + "mony" construction.
+  # ---------------------------------------------------------------------------
+  - id: terminology.legacy-status-commit-terms
+    kind: retired_literal
+    anchor:
+      literals:
+        - fragments: ["cere", "mony"]        # -> the retired process-noun term
+        - fragments: ["status", "-writing"]  # -> the retired hyphenated term
+    status: retired
+    owner: "#2441"
+    replaced_by: "status commit"
+    retirement:
+      introduced_in: "3.0.0"
+      removal_target: "3.4.0"
+      tracker_issue: "#2077"
+    consumers:
+      # Transcribed from test_no_legacy_terminology.py::_SCAN_ROOTS.
+      scan_roots: ["src", "tests", "docs"]
+      # Transcribed from test_no_legacy_terminology.py::_EXCLUDED_PATH_FRAGMENTS
+      # (historical-artifact + operational-state exemptions, incl. the narrow
+      # docs/adr/ immutable-snapshot exemption pinned by that test).
+      exemptions:
+        - "kitty-specs/"
+        - "docs/adr/"
+        - ".worktrees/"
+        - ".venv/"
+        - "node_modules/"
+        - ".git/"
+        - "tests/architectural/test_no_legacy_terminology.py"
+    verification:
+      enforcement: advisory
+    notes: >-
+      Provenance: transcribed from tests/architectural/test_no_legacy_terminology.py
+      (_FORBIDDEN_TERMS / _SCAN_ROOTS / _EXCLUDED_PATH_FRAGMENTS). Literals stored as
+      fragments so this manifest is not self-flagged. That sweep stays merge-blocking
+      (NFR-004); this record is advisory and additive.
+
+  # ---------------------------------------------------------------------------
+  # Record 2 — the retired Windows-unsafe home path literals in the CLI tree.
+  # Models: tests/audit/test_no_legacy_path_literals.py
+  #         ::test_no_legacy_path_literals_in_cli_commands  — the CLI-tree
+  # literal-grep half ONLY (spec US3 / FR-006). The behavioral _emit_migrate_nudge
+  # tests and the global-state ".spec-kitty" recompute scan are HETEROGENEOUS and
+  # are CARVED OUT of adoption entirely (they need behavioral / AST machinery a
+  # content-anchored retired-literal sweep does not provide).
+  # ---------------------------------------------------------------------------
+  - id: paths.legacy-home-literals-cli-tree
+    kind: retired_literal
+    anchor:
+      literals:
+        - value: "~/.kittify"
+        - value: "~/.spec-kitty"
+    status: retired
+    owner: "#2441"
+    replaced_by: "specify_cli.paths.get_runtime_root"
+    retirement:
+      introduced_in: "3.0.0"
+      removal_target: "3.4.0"
+      tracker_issue: "#2077"
+    consumers:
+      # Transcribed from test_no_legacy_path_literals_in_cli_commands's scan root
+      # (src/specify_cli/cli) — the user-facing command tree where console.print /
+      # typer.echo live, so a static literal grep is sufficient there.
+      scan_roots: ["src/specify_cli/cli"]
+      # The CLI-tree grep has no PATH exemptions; it skips COMMENT lines only (a
+      # line-level carve-out captured in notes, not a path fragment).
+      exemptions: []
+    verification:
+      enforcement: advisory
+    notes: >-
+      Provenance: transcribed from tests/audit/test_no_legacy_path_literals.py
+      ::test_no_legacy_path_literals_in_cli_commands (LITERAL regex + scan root).
+      Carve-outs (spec US3): comment-line skip; the behavioral resolver-nudge tests
+      and the global-state ".spec-kitty" recompute scan are NOT modeled. Those gates
+      stay in place (NFR-004); this record is advisory and additive. Carve-out debt:
+      the advisory driver walks rglob("*") over ALL files and substring-matches EVERY
+      line, so it OVER-FLAGS comment-line / non-.py mentions the enforcing gate carves
+      out (e.g. the comment-line ~/.kittify in src/specify_cli/cli/commands/init.py)
+      — an advisory-safe SUPERSET (driver ⊋ gate), harmless while report-only. Model the
+      gate's comment-skip + .py-scoping in the driver BEFORE any enforcing flip to avoid
+      false friction (Follow-up: #2441).

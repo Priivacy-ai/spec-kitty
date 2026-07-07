@@ -633,6 +633,101 @@ def shim_registry(
     raise typer.Exit(report.recommended_exit_code)
 
 
+@app.command(name="contracts")
+def contracts(
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Machine-readable JSON output"),
+    ] = False,
+) -> None:
+    """Validate the Contract Registry for well-formedness.
+
+    Reads docs/contracts/contract-registry.yaml and validates every record
+    against the schema: required fields present, kind/status/enforcement in
+    range, semver + tracker refs well-formed, anchors resolve, and — the DIR-041
+    self-consistency gate (NFR-003) — NO positional file:line anchoring anywhere.
+    Structural validation is the only enforcing gate in v1; the retirement
+    absence-sweep is advisory.
+
+    Exit codes:
+      0  Registry is well-formed (or empty).
+      2  Configuration error (registry file missing) or a schema violation.
+
+    Examples:
+        spec-kitty doctor contracts
+        spec-kitty doctor contracts --json
+    """
+    from specify_cli.contracts.registry import (
+        ContractRegistrySchemaError,
+        check_contract_registry,
+    )
+
+    repo_root = locate_project_root()
+    if repo_root is None:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(2)
+
+    try:
+        report = check_contract_registry(repo_root)
+    except FileNotFoundError as exc:
+        console.print(f"[red]Configuration error:[/red] {exc}")
+        raise typer.Exit(2) from exc
+    except ContractRegistrySchemaError as exc:
+        console.print("[red]Contract registry schema error:[/red]")
+        for err in exc.errors:
+            console.print(f"  {err}")
+        raise typer.Exit(2) from exc
+
+    if json_output:
+        output = {
+            "registry_path": str(report.registry_path),
+            "record_count": report.record_count,
+            "advisory_count": report.advisory_count,
+            "enforcing_count": report.enforcing_count,
+            "records": [
+                {
+                    "id": r.id,
+                    "kind": r.kind,
+                    "status": r.status,
+                    "owner": r.owner,
+                    "replaced_by": r.replaced_by,
+                    "enforcement": r.verification.enforcement,
+                    "scan_roots": list(r.consumers.scan_roots),
+                }
+                for r in report.records
+            ],
+            "exit_code": 0,
+        }
+        console.print_json(json.dumps(output, indent=2))
+        raise typer.Exit(0)
+
+    if not report.records:
+        console.print(
+            "[green]Contract Registry[/green]: registry is empty — nothing to validate."
+        )
+        raise typer.Exit(0)
+
+    console.print(
+        f"\n[bold]Contract Registry[/bold] — {report.record_count} record(s)"
+        f" ({report.advisory_count} advisory, {report.enforcing_count} enforcing)\n"
+    )
+
+    table = Table(box=None, padding=(0, 2), show_edge=False)
+    table.add_column("ID", style="cyan", min_width=24)
+    table.add_column("Kind", min_width=14)
+    table.add_column("Status", min_width=10)
+    table.add_column("Enforcement", min_width=12)
+    table.add_column("Owner", min_width=8)
+    for r in report.records:
+        table.add_row(r.id, r.kind, r.status, r.verification.enforcement, r.owner)
+
+    console.print(table)
+    console.print()
+    console.print("[green]Contract Registry[/green]: all records are well-formed.")
+    console.print()
+    raise typer.Exit(0)
+
+
 @app.command(name="invocation-pairing")
 def invocation_pairing(
     json_output: Annotated[

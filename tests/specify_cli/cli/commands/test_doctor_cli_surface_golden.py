@@ -7,7 +7,9 @@ every subsequent extraction WP.
 
 It pins, independently of the implementation source:
 
-* the exact set of 16 registered subcommand names (set-equality, order-free);
+* the exact set of registered subcommand names (set-equality, order-free);
+  17 as of #2441, which added the ``contracts`` subcommand (Contract Registry
+  well-formedness validator) alongside the original 16 de-godding names;
 * each subcommand's option flags + arity (flag/value/multi);
 * each subcommand's ``--help`` body (whitespace-normalized snapshot);
 * the documented exit-code contracts, including the three load-bearing names
@@ -33,7 +35,8 @@ from specify_cli.cli.commands.doctor import app
 
 pytestmark = [pytest.mark.fast]
 
-# --- Frozen contract: the 16 subcommand names (cli-surface-contract.md) -------
+# --- Frozen contract: the 17 subcommand names (cli-surface-contract.md) -------
+# 16 de-godding names (#2059) + ``contracts`` (#2441, Contract Registry validator).
 
 FROZEN_SUBCOMMANDS: frozenset[str] = frozenset(
     {
@@ -46,6 +49,7 @@ FROZEN_SUBCOMMANDS: frozenset[str] = frozenset(
         "topology",
         "sparse-checkout",
         "shim-registry",
+        "contracts",
         "invocation-pairing",
         "ops",
         "orphan-daemons",
@@ -73,6 +77,7 @@ EXPECTED_OPTIONS: dict[str, dict[str, str]] = {
     "topology": {"--json": "flag", "--mission": "value"},
     "sparse-checkout": {"--fix": "flag"},
     "shim-registry": {"--json": "flag"},
+    "contracts": {"--json": "flag"},
     "invocation-pairing": {"--json": "flag"},
     "ops": {"--json": "flag", "--close-stale": "flag", "--threshold": "value"},
     "orphan-daemons": {"--json": "flag"},
@@ -234,6 +239,25 @@ EXPECTED_HELP: dict[str, list[str]] = {
         '--json          Machine-readable JSON output',
         '--help          Show this message and exit.',
     ],
+    'contracts': [
+        'Usage: doctor contracts [OPTIONS]',
+        'Validate the Contract Registry for well-formedness.',
+        'Reads docs/contracts/contract-registry.yaml and validates every record',
+        'against the schema: required fields present, kind/status/enforcement in',
+        'range, semver + tracker refs well-formed, anchors resolve, and — the DIR-041',
+        'self-consistency gate (NFR-003) — NO positional file:line anchoring anywhere.',
+        'Structural validation is the only enforcing gate in v1; the retirement',
+        'absence-sweep is advisory.',
+        'Exit codes:',
+        '0  Registry is well-formed (or empty).',
+        '2  Configuration error (registry file missing) or a schema violation.',
+        'Examples:',
+        'spec-kitty doctor contracts',
+        'spec-kitty doctor contracts --json',
+        'Options',
+        '--json          Machine-readable JSON output',
+        '--help          Show this message and exit.',
+    ],
     'invocation-pairing': [
         'Usage: doctor invocation-pairing [OPTIONS]',
         'List orphan profile-invocation lifecycle records.',
@@ -388,11 +412,12 @@ def _fixed_terminal_width(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_registered_command_names_are_exactly_the_frozen_sixteen() -> None:
+    # Named for the original de-godding 16; #2441 added ``contracts`` → 17.
     cli = get_command(app)
     assert hasattr(cli, "commands")
     registered = frozenset(cli.commands.keys())
     assert registered == FROZEN_SUBCOMMANDS
-    assert len(registered) == 16
+    assert len(registered) == 17
 
 
 def _is_option_param(param: object) -> bool:
