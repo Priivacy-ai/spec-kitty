@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "87ba6f01655d9f3dcb9bbe275c8c76ca28441ca1",
+  "coordination_branch": "kitty/mission-session-reaper-and-tmp-leak-hygiene-01KWWAE7",
+  "created_at": "2026-07-06T18:18:24.401738+00:00",
+  "flattened": false,
+  "friendly_name": "Session-scoped test reaper + /tmp prompt namespacing + workspace-context tombstone",
+  "mission_id": "01KWWAE7RHX95GKW4QC1EMT1Z7",
+  "mission_number": 166,
+  "mission_slug": "session-reaper-and-tmp-leak-hygiene-01KWWAE7",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "A fresh re-audit of d63ec2152 (Stijn's 2026-06-11 audit is 4 weeks stale) shows 5 of 8 leak classes already fixed. Still live: LC-3/LC-4 flat-/tmp prompt writers (prompt_builder.py, workflow.py — unbounded spec-kitty-next-* accumulation), N1 (/tmp/spec-kitty-test-homes/<run_uid>/ never cleaned, 166 dirs/144MB), and LC-6 (.kittify/workspaces/*.json never tombstoned on merge/cancel — 14 orphans for merged missions 059/060). No session reaper exists; LC-1's fix is masked by .gitignore:143-144 (hides regressions). Build on #2181's frozen /tmp ratchet; defer the 99-file ratchet burn-down.",
+  "purpose_tldr": "Fix the still-live test-suite state leaks (#1842, subsumes #1634): a controller-gated session reaper that self-heals test-created missions/branches/worktrees + /tmp prompt residue, /tmp prompt-writer namespacing (LC-3/4), the 144MB spec-kitty-test-homes leak (N1), and the workspace-context tombstone on merge/cancel (LC-6).",
+  "slug": "session-reaper-and-tmp-leak-hygiene-01KWWAE7",
+  "target_branch": "fix/session-reaper-and-tmp-leak-hygiene",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-06T19:16:25.905919+00:00"
+}
