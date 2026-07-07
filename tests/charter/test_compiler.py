@@ -143,6 +143,35 @@ def test_write_compiled_charter_writes_bundle(tmp_path: Path) -> None:
     assert not (tmp_path / "library").exists()
 
 
+def test_write_compiled_charter_persists_structured_languages_for_round_trip(tmp_path: Path) -> None:
+    """WP02/T008+T009: compiled charter's languages field survives a disk round-trip.
+
+    Compiles a charter from an interview mentioning Rust, writes the bundle,
+    then reads ``infer_repo_languages`` against the same repo root -- a fresh
+    call, not reused in-memory state -- to prove the structured field is the
+    canonical value read back from ``references.yaml`` on disk.
+    """
+    from charter.language_scope import infer_repo_languages
+
+    interview = apply_answer_overrides(
+        default_interview(mission="software-dev", profile="minimal"),
+        answers={"languages_frameworks": "Rust services with cargo and rustc tooling"},
+    )
+    compiled = compile_charter(mission="software-dev", interview=interview)
+
+    assert compiled.active_languages == ["rust"], "compile_charter must compute the structured field"
+
+    charter_dir = tmp_path / ".kittify" / "charter"
+    write_compiled_charter(charter_dir, compiled, force=True)
+
+    references_text = (charter_dir / "references.yaml").read_text(encoding="utf-8")
+    assert "languages:" in references_text, "languages field must be persisted to references.yaml on disk"
+
+    # Fresh resolution call reading only from disk -- proves the round-trip,
+    # not just the in-memory CompiledCharter value from this same call.
+    assert infer_repo_languages(tmp_path) == ["rust"]
+
+
 def test_write_compiled_charter_requires_force_when_existing(tmp_path: Path) -> None:
     """Writing to an existing bundle raises FileExistsError when force=False."""
     # Arrange

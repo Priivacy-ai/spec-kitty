@@ -12,6 +12,7 @@ from pydantic import ValidationError
 
 from doctrine.drg.org_pack_config import (
     OrgPackConfig,
+    OrgPackEnvVarUnsetError,
     OrgPackSubdirEscapeError,
     PackRegistry,
     load_pack_registry,
@@ -412,3 +413,146 @@ class TestRoundTrip:
 
         loaded = load_pack_registry(tmp_path)
         assert loaded.packs[0].subdir is None
+
+
+# ---------------------------------------------------------------------------
+# T001/T002 — env-var indirection in local_path (WP01)
+# ---------------------------------------------------------------------------
+
+_ENV_VAR_NAME = "SPEC_KITTY_PACK_HOME"
+
+
+class TestEnvVarExpansion:
+    """FR-001-007: ``${VAR}``/``$VAR`` indirection in local_path, resolved
+    read-side only at effective_root() time."""
+
+    def test_braced_env_var_expands_at_effective_root(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        pack_root = tmp_path / "org-pack"
+        pack_root.mkdir()
+        monkeypatch.setenv(_ENV_VAR_NAME, str(tmp_path))
+
+        pack = OrgPackConfig(
+            name=_PACK_NAME, local_path=Path("${SPEC_KITTY_PACK_HOME}/org-pack")
+        )
+        result = pack.effective_root(tmp_path)
+        assert result == pack_root.resolve(strict=False)
+
+    def test_bare_dollar_env_var_expands_at_effective_root(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        pack_root = tmp_path / "org-pack"
+        pack_root.mkdir()
+        monkeypatch.setenv(_ENV_VAR_NAME, str(tmp_path))
+
+        pack = OrgPackConfig(
+            name=_PACK_NAME, local_path=Path("$SPEC_KITTY_PACK_HOME/org-pack")
+        )
+        result = pack.effective_root(tmp_path)
+        assert result == pack_root.resolve(strict=False)
+
+    def test_stored_local_path_is_not_mutated_by_expansion(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """T001: effective_root() must not write the expanded value back."""
+        pack_root = tmp_path / "org-pack"
+        pack_root.mkdir()
+        monkeypatch.setenv(_ENV_VAR_NAME, str(tmp_path))
+
+        pack = OrgPackConfig(
+            name=_PACK_NAME, local_path=Path("${SPEC_KITTY_PACK_HOME}/org-pack")
+        )
+        pack.effective_root(tmp_path)
+        assert str(pack.local_path) == "${SPEC_KITTY_PACK_HOME}/org-pack"
+
+    def test_tilde_expansion_regression(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Pre-existing ``~`` expansion behaviour is unchanged (no regression)."""
+        fake_home = tmp_path / "home"
+        pack_root = fake_home / "org-pack"
+        pack_root.mkdir(parents=True)
+        monkeypatch.setenv("HOME", str(fake_home))
+
+        pack = OrgPackConfig(name=_PACK_NAME, local_path=Path("~/org-pack"))
+        result = pack.effective_root(tmp_path)
+        assert result == pack_root.resolve(strict=False)
+        # Stored value must still be the literal ~-form, unexpanded
+        assert str(pack.local_path) == "~/org-pack"
+
+    def test_literal_absolute_path_regression(self, tmp_path: Path) -> None:
+        """Literal absolute paths (no $ or ~ tokens) resolve unchanged."""
+        pack_root = tmp_path / "abs-pack"
+        pack_root.mkdir()
+        pack = OrgPackConfig(name=_PACK_NAME, local_path=pack_root)
+        result = pack.effective_root(tmp_path)
+        assert result == pack_root.resolve(strict=False)
+
+    def test_unset_braced_env_var_raises_named_error(self, tmp_path: Path) -> None:
+        """FR-004: unset ${VAR} fails closed, naming the var and the pack."""
+        pack = OrgPackConfig(
+            name=_PACK_NAME, local_path=Path("${SPEC_KITTY_DOES_NOT_EXIST}/org-pack")
+        )
+        with pytest.raises(OrgPackEnvVarUnsetError) as exc_info:
+            pack.effective_root(tmp_path)
+        message = str(exc_info.value)
+        assert "SPEC_KITTY_DOES_NOT_EXIST" in message
+        assert _PACK_NAME in message
+
+    def test_unset_bare_dollar_env_var_raises_named_error(self, tmp_path: Path) -> None:
+        """FR-004: unset $VAR (bare form) also fails closed."""
+        pack = OrgPackConfig(
+            name=_PACK_NAME, local_path=Path("$SPEC_KITTY_DOES_NOT_EXIST/org-pack")
+        )
+        with pytest.raises(OrgPackEnvVarUnsetError) as exc_info:
+            pack.effective_root(tmp_path)
+        message = str(exc_info.value)
+        assert "SPEC_KITTY_DOES_NOT_EXIST" in message
+        assert _PACK_NAME in message
+
+    def test_env_var_unset_error_is_a_value_error(self) -> None:
+        assert issubclass(OrgPackEnvVarUnsetError, ValueError)
+
+    def test_env_var_expansion_not_swallowed_by_resolve_org_roots(
+        self, tmp_path: Path
+    ) -> None:
+        """The unset-var error must propagate out of resolve_org_roots (not
+        be silently swallowed into an empty org layer)."""
+        _write_config_with_subdir(
+            tmp_path, pack_path="${SPEC_KITTY_DOES_NOT_EXIST}/org-pack"
+        )
+        with pytest.raises(OrgPackEnvVarUnsetError):
+            resolve_org_roots(tmp_path)
+
+    def test_subdir_env_var_syntax_is_not_expanded(self, tmp_path: Path) -> None:
+        """subdir keeps validating (and using) the literal string — env-var
+        syntax in subdir is neither expanded nor specially rejected; it is
+        treated as a literal relative path component."""
+        pack_root = tmp_path / "org-pack"
+        (pack_root / "${NOT_EXPANDED}").mkdir(parents=True)
+
+        pack = OrgPackConfig(
+            name=_PACK_NAME, local_path=pack_root, subdir="${NOT_EXPANDED}"
+        )
+        assert pack.subdir == "${NOT_EXPANDED}"
+        result = pack.effective_root(tmp_path)
+        assert result == (pack_root / "${NOT_EXPANDED}").resolve(strict=False)
+
+    def test_round_trip_preserves_env_var_template(self, tmp_path: Path) -> None:
+        """T003: save→load round-trip preserves the literal ${VAR} template,
+        never freezing an expanded absolute path into config.yaml."""
+        pack = OrgPackConfig(
+            name=_PACK_NAME, local_path=Path("${SPEC_KITTY_PACK_HOME}/org-pack")
+        )
+        registry = PackRegistry(packs=[pack])
+        save_pack_registry(tmp_path, registry)
+
+        config_text = (tmp_path / ".kittify" / "config.yaml").read_text(
+            encoding="utf-8"
+        )
+        assert "${SPEC_KITTY_PACK_HOME}/org-pack" in config_text
+
+        loaded = load_pack_registry(tmp_path)
+        assert len(loaded.packs) == 1
+        assert str(loaded.packs[0].local_path) == "${SPEC_KITTY_PACK_HOME}/org-pack"

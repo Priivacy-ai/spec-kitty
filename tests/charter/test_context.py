@@ -859,3 +859,64 @@ def test_build_doctrine_service_prefers_repo_src_overlay(
         "project_root": project_root,
         "active_languages": ["python", "typescript"],
     }
+
+
+def test_build_doctrine_service_uses_compiled_charter_languages_end_to_end(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """WP02/T010: the real (non-monkeypatched) infer_repo_languages resolution.
+
+    Writes a real compiled-charter fixture (references.yaml with the T008
+    structured ``languages`` field) alongside an interview transcript that
+    disagrees, then confirms ``_build_doctrine_service`` receives the
+    compiled value via ``active_languages`` — proving there is no separate
+    precedence logic duplicated in ``context.py`` itself.
+    """
+    from ruamel.yaml import YAML
+
+    from charter.interview import apply_answer_overrides, default_interview, write_interview_answers
+
+    calls: dict[str, object] = {}
+
+    class StubDoctrineService:
+        def __init__(self, *, built_in_root: Path, project_root: Path | None, active_languages: list[str]) -> None:
+            calls["active_languages"] = active_languages
+
+    built_in_root = tmp_path / "shipped-doctrine"
+    built_in_root.mkdir()
+
+    # Interview transcript says "python" — this must be ignored once the
+    # compiled charter's structured field exists and disagrees.
+    answers_path = tmp_path / ".kittify" / "charter" / "interview" / "answers.yaml"
+    answers_path.parent.mkdir(parents=True, exist_ok=True)
+    interview = apply_answer_overrides(
+        default_interview(mission="software-dev", profile="minimal"),
+        answers={"languages_frameworks": "Python backend with pytest checks"},
+    )
+    write_interview_answers(answers_path, interview)
+
+    # Compiled charter (references.yaml) says "rust" — this is the canonical
+    # answer once it exists.
+    references_path = tmp_path / ".kittify" / "charter" / "references.yaml"
+    yaml = YAML()
+    yaml.default_flow_style = False
+    with references_path.open("w", encoding="utf-8") as handle:
+        yaml.dump(
+            {
+                "schema_version": "1.0.0",
+                "generated_at": "2026-07-07T00:00:00Z",
+                "mission": "software-dev",
+                "template_set": "default",
+                "languages": ["rust"],
+                "references": [],
+            },
+            handle,
+        )
+
+    monkeypatch.setattr("charter.catalog.resolve_doctrine_root", lambda: built_in_root)
+    monkeypatch.setattr("doctrine.service.DoctrineService", StubDoctrineService)
+
+    service = _build_doctrine_service(tmp_path)
+
+    assert isinstance(service, StubDoctrineService)
+    assert calls == {"active_languages": ["rust"]}

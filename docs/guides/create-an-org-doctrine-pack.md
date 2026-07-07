@@ -358,10 +358,36 @@ Field reference:
 | Field | Required | Purpose |
 |---|---|---|
 | `name` | yes | Unique pack name (used by `--pack` flag, displayed in `doctor doctrine`) |
-| `local_path` | yes | Filesystem path where the snapshot lives (tilde expanded) |
+| `local_path` | yes | Filesystem path where the snapshot lives (`~` and `${VAR}`/`$VAR` env-var indirection expanded at resolution time — see below) |
 | `source_type` | no | One of `git`, `https`, `api`; omit if pre-provisioned |
 | `url` | required if `source_type` set | Remote URL |
 | `ref` | no | Version pin (git tag/SHA; HTTPS advisory; API query param) |
+
+### Env-var indirection in `local_path`
+
+`local_path` supports `${VAR}` and bare `$VAR` env-var tokens, composed with
+`~` tilde-expansion, so a shared `.kittify/config.yaml` can be checked in
+without hard-coding a machine-local absolute path:
+
+```yaml
+doctrine:
+  org:
+    packs:
+      - name: security
+        local_path: "${SPEC_KITTY_PACK_HOME}/security-doctrine"
+```
+
+```bash
+export SPEC_KITTY_PACK_HOME=/opt/acme-doctrine
+```
+
+Expansion happens only when the path is resolved (e.g. `doctrine fetch`,
+`doctor doctrine`) — the literal `${SPEC_KITTY_PACK_HOME}/security-doctrine`
+string is what stays written in `.kittify/config.yaml`, so the config remains
+portable across machines/CI. If the referenced variable is unset or empty,
+resolution fails closed with a named error identifying the variable and the
+pack, rather than silently falling back to a literal-token path or disabling
+the org layer.
 
 Then the consumer runs:
 

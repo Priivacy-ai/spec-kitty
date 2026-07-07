@@ -67,6 +67,18 @@ own lifecycle and ownership:
   charter generation, owned by the interview and catalog surfaces
   respectively.
 
+**Language-scope authority** (mission `pack-path-env-indirection-01KWY79W`,
+WP02): `references.yaml` also carries a structured `languages` field,
+computed once at `charter generate`/`charter sync` time from interview
+answers and persisted to disk. `charter.language_scope.infer_repo_languages()`
+treats this field as canonical once it exists — the interview transcript
+under `.kittify/charter/interview/answers.yaml` is a creation-time-only input,
+consulted only when no compiled `languages` field is present yet (e.g.
+projects whose charter predates this field). This closes the prior
+DIRECTIVE_044 split-brain where the same extraction logic ran independently
+at both compile time and runtime with runtime incorrectly preferring the raw
+transcript.
+
 The `bundle validate` CLI surfaces these as **informational warnings**
 when present, never as failures. Operators can leave them in place, remove
 them, or extend their `.gitignore` to match; the v1.0.0 manifest does not
