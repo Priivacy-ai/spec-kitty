@@ -200,6 +200,31 @@ class MigrationRunner:
 
         return result
 
+    def upgrade_worktrees_only(
+        self,
+        target_version: str,
+        dry_run: bool = False,
+        auto_commit: bool = False,
+    ) -> dict[str, Any]:
+        """Upgrade worktrees without running any migrations on the main checkout.
+
+        Public entry point for the no-migrations path in the CLI, where the
+        main checkout is already at target_version and only the sibling
+        worktrees need their metadata stamps refreshed.  Exposes the private
+        ``_upgrade_worktrees`` implementation behind a stable, named contract
+        so callers are not coupled to an internal method name.
+
+        Args:
+            target_version: Version to stamp on each worktree's metadata.
+            dry_run: If True, simulate but do not write.
+            auto_commit: If True, commit each worktree's upgrade churn on its
+                own branch after that worktree's writes (#2385).
+
+        Returns:
+            Dict with ``warnings`` and ``errors`` lists.
+        """
+        return self._upgrade_worktrees(target_version, [], dry_run, auto_commit=auto_commit)
+
     def _apply_migration(
         self,
         migration: BaseMigration,

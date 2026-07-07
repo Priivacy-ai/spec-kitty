@@ -477,6 +477,44 @@ def test_commit_skipped_on_detached_head(
     assert warning == autocommit.DETACHED_HEAD_WARNING
 
 
+def test_commit_falls_back_to_main_when_branch_detection_fails(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    """When `git branch --show-current` raises, destination_ref falls back to
+    "main" and the commit fires normally — no warning is emitted."""
+    monkeypatch.setattr(
+        autocommit,
+        "prepare_upgrade_commit_files",
+        lambda _checkout, baseline_paths: [Path(".kittify/metadata.yaml")],
+    )
+    captured: dict[str, object] = {}
+
+    def _fake_safe_commit(**kwargs: object) -> object:
+        captured.update(kwargs)
+        return object()
+
+    monkeypatch.setattr(autocommit, "safe_commit", _fake_safe_commit)
+    monkeypatch.setattr(
+        subprocess,
+        "check_output",
+        lambda *_a, **_kw: (_ for _ in ()).throw(
+            subprocess.CalledProcessError(1, "git")
+        ),
+    )
+
+    committed, _paths, warning = autocommit.commit_touched_checkout(
+        checkout=tmp_path,
+        baseline_paths=set(),
+        from_version="3.2.3",
+        to_version="3.2.4",
+    )
+
+    assert committed is True
+    assert warning is None
+    assert captured["target"].ref == "main"
+
+
 def test_collect_manual_review_paths_deduplicates() -> None:
     paths = upgrade_cmd._collect_manual_review_paths(
         {
@@ -1225,3 +1263,82 @@ def test_upgrade_auto_commits_clean_run_when_no_manual_review(
     assert data["manual_review_paths"] == []
     assert data["auto_committed"] is True
     assert data["auto_commit_paths"] == [".kittify/metadata.yaml"]
+
+
+# ---------------------------------------------------------------------------
+# upgrade_worktrees_only — public entry point (tech-debt follow-up #2387)
+# ---------------------------------------------------------------------------
+
+
+def test_upgrade_worktrees_only_delegates_to_private_impl(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """upgrade_worktrees_only() must call _upgrade_worktrees with an empty
+    migrations list, forwarding target_version, dry_run, and auto_commit.
+
+    This pins the public-method contract introduced as the #2387 follow-up:
+    the no-migrations CLI path must no longer call the private ``_upgrade_worktrees``
+    directly.
+    """
+    from specify_cli.upgrade.runner import MigrationRunner
+
+    project_path = tmp_path / "project"
+    project_path.mkdir()
+
+    calls: list[dict] = []
+
+    def _fake_upgrade_worktrees(
+        target_version: str,
+        migrations: list,
+        dry_run: bool,
+        auto_commit: bool = False,
+    ) -> dict:
+        calls.append(
+            {
+                "target_version": target_version,
+                "migrations": migrations,
+                "dry_run": dry_run,
+                "auto_commit": auto_commit,
+            }
+        )
+        return {"warnings": [], "errors": []}
+
+    runner = MigrationRunner(project_path)
+    monkeypatch.setattr(runner, "_upgrade_worktrees", _fake_upgrade_worktrees)
+
+    result = runner.upgrade_worktrees_only("3.9.0", dry_run=True, auto_commit=False)
+
+    assert result == {"warnings": [], "errors": []}
+    assert len(calls) == 1
+    assert calls[0]["target_version"] == "3.9.0"
+    assert calls[0]["migrations"] == []
+    assert calls[0]["dry_run"] is True
+    assert calls[0]["auto_commit"] is False
+
+
+def test_upgrade_worktrees_only_passes_auto_commit(
+    tmp_path: Path, monkeypatch
+) -> None:
+    """auto_commit=True is forwarded through the public entry point."""
+    from specify_cli.upgrade.runner import MigrationRunner
+
+    project_path = tmp_path / "project"
+    project_path.mkdir()
+
+    calls: list[dict] = []
+
+    def _fake_upgrade_worktrees(
+        target_version: str,
+        migrations: list,
+        dry_run: bool,
+        auto_commit: bool = False,
+    ) -> dict:
+        calls.append({"auto_commit": auto_commit})
+        return {"warnings": [], "errors": []}
+
+    runner = MigrationRunner(project_path)
+    monkeypatch.setattr(runner, "_upgrade_worktrees", _fake_upgrade_worktrees)
+
+    runner.upgrade_worktrees_only("3.9.0", dry_run=False, auto_commit=True)
+
+    assert calls[0]["auto_commit"] is True
