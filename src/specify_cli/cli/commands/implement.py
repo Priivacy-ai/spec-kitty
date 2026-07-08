@@ -21,6 +21,7 @@ from rich.panel import Panel
 from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.context_validation import require_main_repo
+from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.core.vcs import VCSBackend
 from specify_cli.mission_metadata import resolve_mission_identity, set_vcs_lock
@@ -62,6 +63,10 @@ _META_JSON_FILENAME = "meta.json"
 # ``VCS_LOCK_FIELDS`` export there would let this be imported instead).
 _VCS_LOCK_META_FIELDS: frozenset[str] = frozenset({"vcs", "vcs_locked_at"})
 _MISSING_META_VALUE = object()
+# WP03 / S1192: the rich-markup error prefix, repeated across the
+# planning-artifact commit helper this WP touches -- hoisted to one constant
+# rather than restated at each ``console.print`` call site.
+_RED_ERROR_PREFIX = "[red]Error:[/red] "
 
 
 def _protected_branch_status_commit_error(branch: str, repo_root: Path) -> str | None:
@@ -699,6 +704,31 @@ def _resolve_placement_ref(
     return placement.placement_ref if placement is not None else None
 
 
+def _resolve_claim_commit_target(placement_ref: CommitTarget | None) -> CommitTarget:
+    """Resolve the WP status claim-commit target (T012 / D11 fail-closed).
+
+    A small, pure extraction (Sonar-testable) over the single seam-resolved
+    ``placement_ref`` (the SAME :class:`CommitTarget` planning artifacts AND
+    status events resolve to, C-PLACE-1). Replaces the forbidden
+    ``_get_current_branch(repo_root) or planning_branch`` grammar: when
+    ``placement_ref`` failed to resolve, this FAILS CLOSED with
+    :class:`PlacementResolutionRequired` instead of silently committing the
+    WP claim to whatever branch happens to be checked out.
+    """
+    if placement_ref is None:
+        raise PlacementResolutionRequired(
+            "Cannot resolve the canonical write placement for this mission's "
+            "WP status claim commit -- refusing to commit to the currently "
+            "checked-out branch (D11 fail-closed). This usually means the "
+            "mission's stored topology could not be resolved (e.g. a "
+            "coordination branch declared in meta.json is missing/torn down "
+            "in git). Run `spec-kitty doctor workspaces --fix`, or flatten "
+            "the mission by removing `coordination_branch` from meta.json if "
+            "the coordination topology was never used, then retry."
+        )
+    return placement_ref
+
+
 def _placement_coord_filter(
     repo_root: Path, mission_slug: str, placement_ref: CommitTarget | None
 ) -> str | None:
@@ -758,7 +788,7 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
     structural = [e for e in entries if e.is_structural]
     if structural:
         console.print(
-            "\n[red]Error:[/red] Uncommitted structural planning-artifact changes "
+            f"\n{_RED_ERROR_PREFIX}Uncommitted structural planning-artifact changes "
             "(deletions/renames) cannot be auto-committed to the coordination branch:"
         )
         for entry in structural:
@@ -882,9 +912,23 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
     # destination_ref from HEAD, so the placeholder coord_branch value
     # below is never persisted; the routing just needs *some* shape-valid
     # ref name to satisfy the pre-flight policy gate's normalisation.
-    effective_destination_ref = (
-        str(coord_branch) if coord_branch else planning_branch
-    )
+    #
+    # WP03 / T011 / D11: no inline ``coord_branch if coord_branch else
+    # planning_branch`` grammar (the forbidden pattern named in
+    # contracts/seam-api.md's consumer table). When a ``placement_ref`` was
+    # threaded (modern, non-legacy missions), it is already the ONE
+    # seam-resolved :class:`CommitTarget` planning artifacts AND status
+    # events resolve to (C-PLACE-1) -- use its ``.ref`` directly instead of
+    # reconstructing the coord/primary choice a second time from
+    # ``coord_branch``. Genuinely-legacy missions (no ``placement_ref``) keep
+    # the existing meta-derived placeholder -- out of this WP's scope
+    # (#2453; the value is never persisted, see comment above).
+    if placement_ref is not None:
+        effective_destination_ref = placement_ref.ref
+    elif coord_branch:
+        effective_destination_ref = str(coord_branch)
+    else:
+        effective_destination_ref = planning_branch
 
     is_legacy = not (coord_branch and mission_id and mid8)
     if is_legacy:
@@ -913,7 +957,7 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
         except Exception as exc:  # noqa: BLE001 — surface as exit-1
             target = coord_branch or planning_branch
             console.print(
-                f"[red]Error:[/red] Failed to commit planning artifacts to {target}: {exc}"
+                f"{_RED_ERROR_PREFIX}Failed to commit planning artifacts to {target}: {exc}"
             )
             raise typer.Exit(1) from exc
 
@@ -1455,16 +1499,19 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
                 if config_file.exists():
                     files_to_commit.append(config_file.resolve())
 
-                # Mechanical WP06 pre-step migration: add destination_ref +
-                # worktree_root after WP01's signature change. The status
-                # claim commit lands on the feature planning branch.
-                from specify_cli.core.git_ops import get_current_branch as _get_cur_branch
-                _cur_branch = _get_cur_branch(repo_root) or planning_branch
+                # WP03 / T011 / T012 / D11: the status claim commit routes
+                # through the SAME seam-resolved ``_placement_ref`` planning
+                # artifacts resolve to (C-PLACE-1) instead of the forbidden
+                # ``_get_current_branch(repo_root) or planning_branch``
+                # checkout-derived grammar. A resolution failure now FAILS
+                # CLOSED (see ``_resolve_claim_commit_target``) rather than
+                # silently committing to whatever branch is checked out.
+                _claim_commit_target = _resolve_claim_commit_target(_placement_ref)
                 try:
                     safe_commit(
                         repo_root=repo_root,
                         worktree_root=repo_root,
-                        target=CommitTarget(ref=_cur_branch),
+                        target=_claim_commit_target,
                         message=commit_msg,
                         paths=tuple(files_to_commit),
                     )
@@ -1487,6 +1534,13 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         # #2155 (FR-002 / T011): a wrong-surface guard refusal must NOT be folded
         # into the soft "Could not update WP status" warning — let it propagate so
         # the defect surfaces (the inner handler already re-raised it on purpose).
+        raise
+    except PlacementResolutionRequired:
+        # WP03 / D11: a fail-closed placement-resolution refusal must NOT be
+        # folded into the soft "Could not update WP status" warning either —
+        # that would silently resurrect the checkout-derived fallback this
+        # error exists to forbid. Let it propagate so the operator sees and
+        # acts on the structured, actionable message.
         raise
     except Exception as exc:
         console.print(f"[yellow]Warning:[/yellow] Could not update WP status: {exc}")

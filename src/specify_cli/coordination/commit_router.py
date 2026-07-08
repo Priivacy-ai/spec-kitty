@@ -28,7 +28,7 @@ import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, Protocol, runtime_checkable
+from typing import Final, Literal, Protocol, runtime_checkable
 
 from mission_runtime import (
     CommitTarget,
@@ -72,16 +72,26 @@ logger = logging.getLogger(__name__)
 # Result type
 # ---------------------------------------------------------------------------
 
+# T021 (Sonar S1192 campsite): the router's outcome vocabulary — named once so
+# every ``CommitRouterResult`` construction site (8 across this module) shares
+# ONE spelling instead of restating the raw string. This is the "in-band
+# strangle vocabulary" the reviewer guidance calls out: the placement-outcome
+# literal is domain vocabulary, not incidental formatting, so it earns a name.
+_STATUS_COMMITTED: Final = "committed"
+_STATUS_UNCHANGED: Final = "unchanged"
+_STATUS_NO_OP_WRONG_SURFACE: Final = "no_op_wrong_surface"
+_STATUS_ERROR: Final = "error"
+
 
 @dataclass(frozen=True)
 class CommitRouterResult:
     """Typed outcome of :func:`commit_for_mission`.
 
     status values:
-    - ``"committed"``        — ``safe_commit`` landed a real commit.
-    - ``"unchanged"``        — benign no-op: artifact present + already committed.
-    - ``"no_op_wrong_surface"`` — artifact absent at resolved placement.
-    - ``"error"``            — commit failed unexpectedly.
+    - ``_STATUS_COMMITTED``        — ``safe_commit`` landed a real commit.
+    - ``_STATUS_UNCHANGED``        — benign no-op: artifact present + already committed.
+    - ``_STATUS_NO_OP_WRONG_SURFACE`` — artifact absent at resolved placement.
+    - ``_STATUS_ERROR``            — commit failed unexpectedly.
     """
 
     status: Literal["committed", "unchanged", "no_op_wrong_surface", "error"]
@@ -166,7 +176,7 @@ def commit_for_mission(
         # NOT the coordination worktree: the deadlock is removed by the
         # feature-branch invariant (research D-3), not by transiting coord.
         return CommitRouterResult(
-            status="no_op_wrong_surface",
+            status=_STATUS_NO_OP_WRONG_SURFACE,
             placement_ref=placement.ref,
             diagnostic=(
                 f"Refusing to commit planning artifacts to the protected branch "
@@ -192,7 +202,7 @@ def commit_for_mission(
 
     if not commit_paths:
         # All artifacts already committed (or none present) — genuine no-op.
-        return CommitRouterResult(status="unchanged", placement_ref=placement.ref)
+        return CommitRouterResult(status=_STATUS_UNCHANGED, placement_ref=placement.ref)
 
     # FR-006 / D-5: detect no-op against the wrong surface.
     if _any_path_absent(commit_paths):
@@ -202,7 +212,7 @@ def commit_for_mission(
             f"against the wrong surface and was not created."
         )
         return CommitRouterResult(
-            status="no_op_wrong_surface",
+            status=_STATUS_NO_OP_WRONG_SURFACE,
             placement_ref=placement.ref,
             diagnostic=diagnostic,
         )
@@ -218,17 +228,17 @@ def commit_for_mission(
     except subprocess.CalledProcessError as exc:
         stderr = getattr(exc, "stderr", "") or ""
         if "nothing to commit" in stderr or "nothing added to commit" in stderr:
-            return CommitRouterResult(status="unchanged", placement_ref=placement.ref)
+            return CommitRouterResult(status=_STATUS_UNCHANGED, placement_ref=placement.ref)
         return CommitRouterResult(
-            status="error",
+            status=_STATUS_ERROR,
             placement_ref=placement.ref,
             diagnostic=str(exc),
         )
     except RuntimeError as exc:
         if _is_empty_changeset_error(exc):
-            return CommitRouterResult(status="unchanged", placement_ref=placement.ref)
+            return CommitRouterResult(status=_STATUS_UNCHANGED, placement_ref=placement.ref)
         return CommitRouterResult(
-            status="error",
+            status=_STATUS_ERROR,
             placement_ref=placement.ref,
             diagnostic=str(exc),
         )
@@ -249,7 +259,7 @@ def commit_for_mission(
         _try_advance_ref(repo_root, target_branch, worktree_root)
 
     return CommitRouterResult(
-        status="committed",
+        status=_STATUS_COMMITTED,
         placement_ref=placement.ref,
         commit_hash=commit_hash,
     )
@@ -472,7 +482,7 @@ def _resolve_planning_placement(
     return resolve_placement_only(repo_root, mission_slug, kind=kind)
 
 
-def _planning_commit_worktree(
+def _resolve_commit_worktree_for_kind(
     repo_root: Path,
     mission_slug: str,
     paths: tuple[Path, ...],
@@ -480,7 +490,19 @@ def _planning_commit_worktree(
     kind: MissionArtifactKind = MissionArtifactKind.TASKS_INDEX,
     primary_paths_created_this_invocation: frozenset[Path] | None = None,
 ) -> tuple[Path, tuple[Path, ...]]:
-    """Resolve the worktree a planning commit lands in for ``mission_slug``.
+    """Resolve the worktree a ``kind``-aware commit lands in for ``mission_slug``.
+
+    coord-primary-partition-lock WP04 / T019: renamed from the stale
+    ``_planning_commit_worktree`` — the old name lied post-D2 (planning never
+    transits coordination since write-surface-coherence WP02/WP03), yet the
+    helper is genuinely kind-aware and reachable for COORDINATION-partition
+    kinds too (its default ``kind=TASKS_INDEX`` just happens to be the primary
+    kind every LIVE planning caller passes). The
+    ``_planning_commit_worktree`` alias below is preserved for the historical
+    ``mission.<name>`` re-export shim and the existing unit-test surface
+    (DECISION: rename-with-alias, not a hard cutover — the blast radius of the
+    old name spans ``mission.py``'s deliberate shim re-export plus several
+    test modules outside this WP's ownership).
 
     WP05: ``safe_commit`` requires ``worktree_root`` HEAD to equal the
     destination ref. When :func:`routes_through_coordination` holds for the
@@ -495,6 +517,10 @@ def _planning_commit_worktree(
     PRIMARY kind (the default — every caller here commits planning artifacts)
     resolves to the primary ``target_branch`` for every topology, so it commits
     directly from the primary checkout with NO coord transit (FR-003 / C-005).
+    This is the genuine invariant guard (T019): a PRIMARY-partition kind must
+    NEVER reach the coord-staging body below — deleting or weakening this
+    early return re-opens the planning→coord mis-route the partition exists to
+    forbid, so it is preserved verbatim across the rename.
 
     #2056 WP08 / T033: the coord-staging body reuses the router's existing
     ``_resolve_mid8`` + ``CoordinationWorkspace`` + ``_stage_artifacts_in_coord_
@@ -506,7 +532,8 @@ def _planning_commit_worktree(
     """
     # PRIMARY kinds never transit coordination — commit directly from the primary
     # checkout (write-surface-coherence WP03 / T014). The coord-staging body below
-    # is reached only by coordination-partition kinds.
+    # is reached only by coordination-partition kinds. (T019: the PRIMARY-kind
+    # invariant guard — kept verbatim, never deleted, across the rename.)
     if is_primary_artifact_kind(kind):
         return repo_root, paths
 
@@ -538,6 +565,16 @@ def _planning_commit_worktree(
         primary_paths_created_this_invocation=primary_paths_created_this_invocation,
     )
     return coord_wt, tuple(coord_paths)
+
+
+# Backwards-compatible alias (T019): the historical name. ``mission.py`` still
+# re-exports ``_planning_commit_worktree as _planning_commit_worktree`` (a
+# deliberate shim for historical ``mission.<name>`` patch targets — WP09 owns
+# the final shim sweep) and several existing unit tests call
+# ``commit_router._planning_commit_worktree`` / ``commit_router_mod.
+# _planning_commit_worktree`` directly. Aliasing here keeps every one of those
+# resolving without touching files outside this WP's ownership.
+_planning_commit_worktree = _resolve_commit_worktree_for_kind
 
 
 # Backwards-compatible alias: the former mission.py name for the staging helper.

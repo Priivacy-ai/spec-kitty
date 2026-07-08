@@ -113,6 +113,13 @@ from specify_cli.task_utils import (
 )
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError, check_pre30_layout
 
+# coord-primary-partition-lock WP05 (T026 campsite, S1192): the WP-file write
+# encoding recurs 3x across the split write/commit-recovery paths inside
+# ``_mt_write_and_commit_wp_file`` / ``_mt_commit_wp_file`` (functions this WP
+# edits) — hoisted per the standing Sonar directive rather than left
+# duplicated across the write + both exception-recovery call sites.
+_WP_FILE_WRITE_ENCODING = "utf-8"
+
 
 def _default_move_task_ports() -> TasksPorts:
     """Production port bundle for ``move_task`` (coord router bound to tasks.py)."""
@@ -1249,6 +1256,112 @@ def _mt_emit_transitions(st: _MoveTaskState, ports: TasksPorts) -> None:
 # --- phase F: persist the WP file + primary commit via commit_artifact --------
 
 
+def _mt_resolve_status_placement_ref(st: _MoveTaskState) -> str | None:
+    """Best-effort STATUS_STATE placement lookup via the ONE seam authority.
+
+    coord-primary-partition-lock WP05 (T024, FR-004/FR-005, C-001): the
+    bookkeeping write-cluster's placement question is answered by
+    ``placement_seam(...).write_target(MissionArtifactKind.STATUS_STATE)`` —
+    the single kind-aware authority (contracts/seam-api.md H-1) — rather than
+    assembled from ``st.target_branch``. ``st.target_branch`` is the
+    CURRENT-CHECKOUT branch ``_ensure_target_branch_checked_out`` resolves
+    (its own docstring: "respects user's current branch"), NOT necessarily
+    the mission's coord-routed STATUS_STATE ref — under coordination topology
+    the two genuinely diverge.
+
+    Degrades to ``None`` on any resolution failure (a pre-meta bootstrap
+    window, an ad-hoc fixture, or an unresolvable mission handle) — this is
+    observability, never a gate (mirrors ``_mt_run_pre_review_gate``'s
+    degrade-never-crash discipline, #2438); the primary WP-file commit is
+    unaffected either way.
+    """
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    try:
+        target = _tasks.placement_seam(st.main_repo_root, st.mission_slug).write_target(
+            MissionArtifactKind.STATUS_STATE
+        )
+    except Exception:
+        return None
+    return target.ref
+
+
+def _mt_wp_commit_success_message(st: _MoveTaskState, status_placement_ref: str | None) -> str:
+    """The 'committed' console line, enriched when STATUS_STATE diverges from
+    the primary ``target_branch`` (coord-topology missions).
+
+    Purely additive: a ``None`` (unresolvable) or matching ref reproduces the
+    ORIGINAL message verbatim — non-regression for the plain/flat-topology
+    path (test_patched_protection_policy_intercepts_commit_wp_file sibling).
+    """
+    message = f"[cyan]→ Committed status change to {st.target_branch} branch[/cyan]"
+    if status_placement_ref and status_placement_ref != st.target_branch:
+        message += f" [dim](status bookkeeping: {status_placement_ref})[/dim]"
+    return message
+
+
+def _mt_write_and_commit_wp_file(
+    st: _MoveTaskState,
+    ports: TasksPorts,
+    updated_doc: str,
+    commit_msg: str,
+    skip_target_commit: bool,
+) -> tuple[bool, bool, CommitArtifactResult | None, str | None]:
+    """Resolve STATUS_STATE placement, then write the WP file + route the primary commit.
+
+    coord-primary-partition-lock WP05 (T023/T024): extracted out of
+    ``_mt_commit_wp_file`` for complexity headroom (C901 was 13) BEFORE adding
+    seam routing — placement resolution (:func:`_mt_resolve_status_placement_ref`)
+    runs FIRST and unconditionally (composes with, never races, the
+    ``skip_target_commit`` pre-gate below), then the skip/write/commit branch
+    that was previously inline here runs unchanged.
+
+    #2155 (FR-002 / T010): bundle ONLY primary-partition artifacts into the
+    ``WORK_PACKAGE_TASK`` commit; the coord-owned status files are already
+    committed to the coordination branch by the transactional emitter.
+
+    Returns:
+        ``(file_written, commit_success, router_result, status_placement_ref)``.
+    """
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    assert st.wp is not None
+    wp = st.wp
+    status_placement_ref = _mt_resolve_status_placement_ref(st)
+
+    if skip_target_commit:
+        if not st.json_output:
+            _tasks.console.print(
+                f"[dim]Note: WP file update not committed to '{st.target_branch}' "
+                "(protected branch, coord topology active). "
+                "The status transition is committed to the coordination branch "
+                "and is authoritative.[/dim]"
+            )
+        return False, False, None, status_placement_ref
+
+    write_text_within_directory(
+        wp.path, updated_doc, root=st.main_repo_root, encoding=_WP_FILE_WRITE_ENCODING
+    )
+    status_artifacts = _tasks._primary_bundle_status_artifacts(
+        st.main_repo_root,
+        st.mission_slug,
+        _collect_status_artifacts(st.feature_dir),
+    )
+    # The WP file is WORK_PACKAGE_TASK (primary): route the commit through
+    # the coord WRITE ``commit_artifact`` capability (over the ONE canonical
+    # ``commit_for_mission`` entry point). The router owns placement
+    # resolution AND the protected-primary refusal.
+    router_result = ports.coord.commit_artifact(
+        MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug),
+        (wp.path.resolve(), *status_artifacts),
+        commit_msg,
+        kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+        policy=_tasks.ProtectionPolicy.resolve(st.main_repo_root),
+    )
+    commit_success = router_result.status == "committed"
+    return True, commit_success, router_result, status_placement_ref
+
+
 def _mt_commit_wp_file(
     st: _MoveTaskState,
     ports: TasksPorts,
@@ -1272,44 +1385,12 @@ def _mt_commit_wp_file(
         commit_msg += f" [{agent_name}]"
     file_written = False
     try:
-        actual_file_path = wp.path.resolve()
-        router_result: CommitArtifactResult | None = None
-        if skip_target_commit:
-            if not st.json_output:
-                _tasks.console.print(
-                    f"[dim]Note: WP file update not committed to '{st.target_branch}' "
-                    "(protected branch, coord topology active). "
-                    "The status transition is committed to the coordination branch "
-                    "and is authoritative.[/dim]"
-                )
-            commit_success = False
-        else:
-            write_text_within_directory(
-                wp.path, updated_doc, root=st.main_repo_root, encoding="utf-8"
-            )
-            file_written = True
-            status_artifacts = _tasks._primary_bundle_status_artifacts(
-                st.main_repo_root,
-                st.mission_slug,
-                _collect_status_artifacts(st.feature_dir),
-            )
-            # The WP file is WORK_PACKAGE_TASK (primary): route the commit through
-            # the coord WRITE ``commit_artifact`` capability (over the ONE canonical
-            # ``commit_for_mission`` entry point). The router owns placement
-            # resolution AND the protected-primary refusal.
-            router_result = ports.coord.commit_artifact(
-                MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug),
-                (actual_file_path, *status_artifacts),
-                commit_msg,
-                kind=MissionArtifactKind.WORK_PACKAGE_TASK,
-                policy=_tasks.ProtectionPolicy.resolve(st.main_repo_root),
-            )
-            commit_success = router_result.status == "committed"
+        file_written, commit_success, router_result, status_placement_ref = (
+            _mt_write_and_commit_wp_file(st, ports, updated_doc, commit_msg, skip_target_commit)
+        )
         if commit_success:
             if not st.json_output:
-                _tasks.console.print(
-                    f"[cyan]→ Committed status change to {st.target_branch} branch[/cyan]"
-                )
+                _tasks.console.print(_mt_wp_commit_success_message(st, status_placement_ref))
         elif not skip_target_commit and router_result is not None:
             # #2155: do NOT swallow a router error as a soft "Failed to auto-commit".
             diagnostic = router_result.diagnostic
@@ -1323,13 +1404,13 @@ def _mt_commit_wp_file(
         # #2155: a wrong-surface guard refusal is a real defect — re-raise, never hide.
         if not file_written:
             write_text_within_directory(
-                wp.path, updated_doc, root=st.main_repo_root, encoding="utf-8"
+                wp.path, updated_doc, root=st.main_repo_root, encoding=_WP_FILE_WRITE_ENCODING
             )
         raise
     except Exception as e:
         if not file_written:
             write_text_within_directory(
-                wp.path, updated_doc, root=st.main_repo_root, encoding="utf-8"
+                wp.path, updated_doc, root=st.main_repo_root, encoding=_WP_FILE_WRITE_ENCODING
             )
         if not st.json_output:
             _tasks.console.print(f"[yellow]Warning:[/yellow] Auto-commit skipped: {e}")

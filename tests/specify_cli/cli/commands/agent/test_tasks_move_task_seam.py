@@ -98,6 +98,12 @@ _MOVE_SET: tuple[str, ...] = (
     "_mt_pre_review_scope_override",
     "_pre_review_gate_filter_groups",
     "_pre_review_gate_composite_routing",
+    # coord-primary-partition-lock WP05 (T023/T024): the STATUS_STATE seam
+    # lookup + the extracted write/commit core + the enriched success message
+    # join the family surface like every other def.
+    "_mt_resolve_status_placement_ref",
+    "_mt_write_and_commit_wp_file",
+    "_mt_wp_commit_success_message",
 )
 
 

@@ -201,7 +201,15 @@ def test_command_empty_body_json(
     monkeypatch.setattr(seam, "locate_project_root", lambda: tmp_path)
     monkeypatch.setattr(seam, "get_main_repo_root", lambda _r: tmp_path)
     monkeypatch.setattr(seam, "_find_feature_directory", lambda *_a, **_k: feature_dir)
-    monkeypatch.setattr(seam, "_resolve_record_analysis_placement_ref", lambda *_a, **_k: None)
+    # WP03 / D11: placement must resolve for the command to reach the empty-body
+    # check at all -- a ``None`` placement now fails closed BEFORE this branch
+    # (see test_record_analysis_placement.py). This test is about the empty-body
+    # validation, so it supplies a resolved placement to reach that branch.
+    monkeypatch.setattr(
+        seam,
+        "_resolve_record_analysis_placement_ref",
+        lambda *_a, **_k: CommitTarget(ref="main"),
+    )
     monkeypatch.setattr(seam, "_enforce_analysis_report_write_preflight", lambda *_a, **_k: None)
     # Empty stdin → empty body.
     result = _RUNNER.invoke(
