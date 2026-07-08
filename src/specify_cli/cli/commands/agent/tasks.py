@@ -97,6 +97,12 @@ from mission_runtime import (
     resolve_placement_only as resolve_placement_only,
     resolve_topology,
     routes_through_coordination,
+    # coord-primary-partition-lock WP05 (T024): live patch seam for
+    # ``_mt_resolve_status_placement_ref`` — routed back through
+    # ``_tasks.placement_seam`` by the relocated ``tasks_move_task`` body
+    # (same D7 seam-bridge convention as the other ``mission_runtime`` names
+    # above).
+    placement_seam as placement_seam,
 )
 # ``commit_for_mission`` keeps an explicit ``as`` re-export: its direct
 # adapter call sites relocated to ``tasks_command_adapters`` in WP03
@@ -427,6 +433,12 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_pre_review_gate_with_override_scope as _mt_pre_review_gate_with_override_scope,
     _mt_pre_review_scope_override as _mt_pre_review_scope_override,
     _mt_release_review_lock as _mt_release_review_lock,
+    # coord-primary-partition-lock WP05 (T023/T024): the STATUS_STATE seam
+    # lookup + the extracted write/commit core + the enriched success message
+    # join the family surface like every other def — same seam-bridge rule.
+    _mt_resolve_status_placement_ref as _mt_resolve_status_placement_ref,
+    _mt_write_and_commit_wp_file as _mt_write_and_commit_wp_file,
+    _mt_wp_commit_success_message as _mt_wp_commit_success_message,
     _mt_resolve_feedback as _mt_resolve_feedback,
     _mt_resolve_pre_review_workspace as _mt_resolve_pre_review_workspace,
     _mt_resolve_targets as _mt_resolve_targets,

@@ -483,6 +483,27 @@ def _revert_coordination_commit(receipt: CommitReceipt) -> None:
         )
 
 
+def _resolve_workflow_placement(
+    *, repo_root: Path, mission_slug: str, kind: MissionArtifactKind
+) -> CommitTarget:
+    """Resolve the write :class:`CommitTarget` for ``kind`` via the placement seam (T017).
+
+    The SINGLE choke point every workflow.py lifecycle/status write site
+    routes through (coord-primary-partition-lock C-001 / C-005): a thin
+    wrapper over :func:`mission_runtime.placement_seam` — never re-derived
+    inline at each write site (reviewer guidance explicitly forbids 4x
+    inlining the seam call across a 2800-line module). Callers that already
+    hold identity metadata for a DIFFERENT purpose (e.g. the
+    ``coord_branch``/``mission_id``/``mid8`` triple
+    :func:`_load_coord_branch_meta` reads to select the BookkeepingTransaction
+    mechanism) keep reading that separately — this helper answers only "where
+    does a write of this kind land", the seam's one job.
+    """
+    from mission_runtime import placement_seam
+
+    return placement_seam(repo_root, mission_slug).write_target(kind)
+
+
 def _commit_via_legacy_safe_commit(
     *,
     repo_root: Path,
@@ -548,6 +569,30 @@ def _commit_workflow_change(
     coord_branch, mission_id, mid8 = _load_coord_branch_meta(feature_dir)
     events_path = feature_dir / _STATUS_EVENTS_FILENAME
     status_path = feature_dir / _STATUS_FILENAME
+    # T017: the seam-resolved STATUS_STATE placement. The MECHANISM choice
+    # below (BookkeepingTransaction vs. the legacy safe_commit fallback) still
+    # keys off ``_load_coord_branch_meta`` — it needs the concrete
+    # ``mission_id``/``mid8`` identity fields the transaction requires, which
+    # the seam's ref-only CommitTarget does not carry. But the legacy leaf's
+    # DESTINATION ref is threaded from this ONE resolution rather than the
+    # raw, un-seam-resolved ``target_branch`` parameter (C-001).
+    placement = _resolve_workflow_placement(
+        repo_root=repo_root, mission_slug=mission_slug, kind=MissionArtifactKind.STATUS_STATE
+    )
+    if placement.ref != target_branch:
+        # Diagnostic only (never authoritative): the seam is the single
+        # placement authority (C-001); ``target_branch`` is whatever ref the
+        # caller had checked out (:func:`_ensure_target_branch_checked_out`
+        # tracks the user's CURRENT branch, not necessarily the mission's
+        # canonical target). A divergence here is exactly the ad hoc-vs-seam
+        # drift this mission exists to surface.
+        logger.debug(
+            "_commit_workflow_change: seam-resolved STATUS_STATE placement %r "
+            "diverges from the caller-supplied target_branch %r for mission %r",
+            placement.ref,
+            target_branch,
+            mission_slug,
+        )
 
     if coord_branch and mission_id and mid8:
         try:
@@ -618,7 +663,7 @@ def _commit_workflow_change(
     try:
         _commit_via_legacy_safe_commit(
             repo_root=repo_root,
-            target_branch=target_branch,
+            target_branch=placement.ref,
             paths=paths,
             message=message,
             wp_id=wp_id,
@@ -633,7 +678,7 @@ def _commit_workflow_change(
                 pre_emit_status_bytes=pre_emit_status_bytes,
             )
         _record_receipt(
-            target_branch,
+            placement.ref,
             message,
             "refused",
             sha=recovery_commit_sha,
@@ -777,6 +822,22 @@ def _resolve_review_feedback_pointer(repo_root: Path, pointer: str) -> Path | No
         return None
 
 
+def _review_feedback_root(feature_dir: Path) -> Path:
+    """The tree root review-feedback pointers resolve against (READ-side only).
+
+    coord-primary-partition-lock WP07 (T034 dedup): the SOLE ``parent.parent``
+    navigation for review-feedback pointer resolution, so the write-side
+    rederivation ratchet (``test_no_write_side_rederivation.py``) has exactly
+    ONE line to allow-list here instead of two duplicate call sites. This is
+    NOT an FR-005 write-target/identity derivation -- ``feature_dir`` is
+    ``<root>/kitty-specs/<slug>/``, so ``parent.parent`` is the tree root
+    (coord worktree or main repo) that review-feedback artifacts are read
+    from, a purely structural READ-path navigation unrelated to mission_id /
+    mid8 / primary_root or the placement seam.
+    """
+    return feature_dir.parent.parent
+
+
 def _read_wp_events(feature_dir: Path, wp_id: str):
     """Return canonical status events for a single work package."""
     try:
@@ -799,8 +860,7 @@ def _latest_review_feedback_reference(
     """
     # Review feedback artifacts are committed under kitty-specs/ inside
     # whichever tree feature_dir lives in (coord worktree or main repo).
-    # feature_dir is <root>/kitty-specs/<slug>/, so parent.parent is <root>.
-    feedback_root = feature_dir.parent.parent
+    feedback_root = _review_feedback_root(feature_dir)
     wp_events = _read_wp_events(feature_dir, wp_id)
     for index in range(len(wp_events) - 1, -1, -1):
         event = wp_events[index]
@@ -827,7 +887,7 @@ def _resolve_review_feedback_context(
     fm_review_feedback = extract_scalar(wp_frontmatter, "review_feedback")
     if fm_review_status and str(fm_review_status) == "has_feedback":
         ref = str(fm_review_feedback).strip() if fm_review_feedback else None
-        feedback_root = feature_dir.parent.parent
+        feedback_root = _review_feedback_root(feature_dir)
         path = _resolve_review_feedback_pointer(feedback_root, ref) if ref else None
         return True, ref, path, "frontmatter"
 
@@ -1606,8 +1666,12 @@ def implement(
                     mission_slug,
                     repo_root,
                 )
-            except Exception:
-                pass
+            except Exception as _dossier_sync_exc:  # noqa: BLE001 — best-effort fire-and-forget
+                logger.debug(
+                    "Dossier sync trigger failed for %s (non-fatal, fire-and-forget): %s",
+                    mission_slug,
+                    _dossier_sync_exc,
+                )
 
             # Reload to get updated content
             wp = locate_work_package(repo_root, mission_slug, normalized_wp_id)
@@ -1688,15 +1752,23 @@ def implement(
                 if _baseline_artifact.exists():
                     # Mechanical WP06 pre-step migration.
                     try:
-                        # Baseline artifact lands on the mission/lane
-                        # ``target_branch`` (normally unprotected); STANDARD
-                        # asserts no protected-branch flow, so a protected
-                        # target is refused — the best-effort handler below
-                        # logs the refusal (FR-008).
+                        # Baseline artifact (tasks/<wp>/baseline-tests.json) is a
+                        # WORK_PACKAGE_TASK-kind artifact — a PRIMARY-partition
+                        # kind (T017): it lands on the mission/lane
+                        # ``target_branch`` for EVERY topology, resolved via the
+                        # seam rather than constructed inline. STANDARD asserts
+                        # no protected-branch flow, so a protected target is
+                        # refused — the best-effort handler below logs the
+                        # refusal (FR-008).
+                        _baseline_placement = _resolve_workflow_placement(
+                            repo_root=main_repo_root,
+                            mission_slug=mission_slug,
+                            kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+                        )
                         safe_commit(
                             repo_root=main_repo_root,
                             worktree_root=main_repo_root,
-                            target=CommitTarget(ref=target_branch),
+                            target=_baseline_placement,
                             message=f"chore: Capture baseline tests for {normalized_wp_id}",
                             paths=(_baseline_artifact,),
                             capability=GuardCapability.STANDARD,

@@ -33,6 +33,7 @@ from mission_runtime import (
     resolve_topology,
     routes_through_coordination,
 )
+from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.core.git_ops import is_git_repo
 from specify_cli.core.paths import (
     get_feature_target_branch,
@@ -49,6 +50,14 @@ from specify_cli.cli.commands.agent.mission_parsing import _emit_json
 console = Console()
 
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
+# WP03 / S1192: the rich-markup error prefix and the ``success``/``error``
+# JSON payload keys, each repeated >=3x in this module -- hoisted to named
+# constants rather than restated at every call site.
+_RED_ERROR_PREFIX = "[red]Error:[/red] "
+_PAYLOAD_KEY_SUCCESS = "success"
+_PAYLOAD_KEY_ERROR = "error"
+
+
 
 
 def _git_dirty_paths(repo_root: Path) -> list[str]:
@@ -85,9 +94,10 @@ def _resolve_record_analysis_placement_ref(repo_root: Path, feature_dir: Path) -
     persists a planning artifact whose placement is the same single
     :class:`CommitTarget` (C-PLACE-1). The mission slug is the resolved
     mission directory name (already CWD-invariant via the read primitive).
-    Returns ``None`` on any resolution failure so the dirty-tree preflight
-    keeps its original (conservative) behaviour (C-004 — never break the
-    lifecycle on a context-resolution edge case).
+    Returns ``None`` on any resolution failure — the low-level resolver stays
+    a plain ``Optional`` producer (unchanged contract); the caller now fails
+    closed on ``None`` (D11 — see :func:`_require_record_analysis_placement`)
+    instead of silently degrading to a conservative preflight.
     """
     from mission_runtime import ActionContextError as _ActionContextError, resolve_action_context
 
@@ -101,6 +111,33 @@ def _resolve_record_analysis_placement_ref(repo_root: Path, feature_dir: Path) -
         return None
     placement = context.artifact_placement
     return placement.placement_ref if placement is not None else None
+
+
+def _require_record_analysis_placement(
+    placement_ref: CommitTarget | None, *, mission_slug: str
+) -> CommitTarget:
+    """Fail closed when record-analysis cannot resolve canonical placement (T013 / D11).
+
+    A small, pure extraction (Sonar-testable) consumed by :func:`record_analysis`
+    right after :func:`_resolve_record_analysis_placement_ref`. Replaces the
+    silent "conservative legacy preflight" degradation the None-fallback used
+    to produce: a genuine resolution failure now raises
+    :class:`PlacementResolutionRequired` (naming the mission) instead of
+    letting the dirty-tree preflight run with an un-filtered, potentially
+    misleading dirty set.
+    """
+    if placement_ref is None:
+        raise PlacementResolutionRequired(
+            f"Could not resolve the canonical write placement for mission "
+            f"'{mission_slug}'. This usually means the mission's stored "
+            f"topology could not be resolved (e.g. a coordination branch "
+            f"declared in meta.json is missing/torn down in git). Run "
+            f"`spec-kitty doctor workspaces --fix`, or flatten the mission by "
+            f"removing `coordination_branch` from meta.json if the "
+            f"coordination topology was never used, then retry "
+            f"`record-analysis`."
+        )
+    return placement_ref
 
 
 def _enforce_analysis_report_write_preflight(
@@ -146,16 +183,16 @@ def _enforce_analysis_report_write_preflight(
         ]
     if dirty_paths:
         payload = {
-            "success": False,
+            _PAYLOAD_KEY_SUCCESS: False,
             "error_code": "DIRTY_WORKTREE",
-            "error": "Refusing to record analysis report with pre-existing dirty working tree.",
+            _PAYLOAD_KEY_ERROR: "Refusing to record analysis report with pre-existing dirty working tree.",
             "dirty_paths": dirty_paths,
             "remediation": ["Commit or stash existing changes, then rerun /spec-kitty.analyze."],
         }
         if json_output:
             _emit_json(payload)
         else:
-            console.print(f"[red]Error:[/red] {payload['error']}")
+            console.print(f"{_RED_ERROR_PREFIX}{payload[_PAYLOAD_KEY_ERROR]}")
             for path in dirty_paths:
                 console.print(f"  - {path}")
         raise typer.Exit(1)
@@ -188,9 +225,9 @@ def record_analysis(
         if repo_root is None:
             error_msg = PROJECT_ROOT_NOT_FOUND
             if json_output:
-                _emit_json({"error": error_msg, "success": False})
+                _emit_json({_PAYLOAD_KEY_ERROR: error_msg, _PAYLOAD_KEY_SUCCESS: False})
             else:
-                console.print(f"[red]Error:[/red] {error_msg}")
+                console.print(f"{_RED_ERROR_PREFIX}{error_msg}")
             raise typer.Exit(1)
         cwd_repo_root = repo_root  # preserve CWD root for branch-protection check
         repo_root = get_main_repo_root(repo_root)
@@ -217,13 +254,19 @@ def record_analysis(
             if json_output:
                 _emit_json(payload)
             else:
-                console.print(f"[red]Error:[/red] {payload['error']}")
+                console.print(f"{_RED_ERROR_PREFIX}{payload['error']}")
             raise typer.Exit(1) from None
 
         # C-PLACE-1: the placement ref is the ONE CommitTarget that planning
         # artifacts (incl. analysis-report) AND status events resolve to. The
         # dirty-tree preflight uses it to ignore coord-owned residue (#1814).
+        # T013 / D11: a genuine resolution failure fails closed here instead of
+        # silently letting the preflight run with a conservative, un-filtered
+        # dirty set (see ``_require_record_analysis_placement``).
         placement_ref = _resolve_record_analysis_placement_ref(repo_root, feature_dir)
+        placement_ref = _require_record_analysis_placement(
+            placement_ref, mission_slug=feature_dir.name
+        )
         _enforce_analysis_report_write_preflight(
             cwd_repo_root,
             json_output=json_output,
@@ -235,9 +278,9 @@ def record_analysis(
         if not body.strip():
             error_msg = "Analysis report body is empty"
             if json_output:
-                _emit_json({"error": error_msg, "success": False})
+                _emit_json({_PAYLOAD_KEY_ERROR: error_msg, _PAYLOAD_KEY_SUCCESS: False})
             else:
-                console.print(f"[red]Error:[/red] {error_msg}")
+                console.print(f"{_RED_ERROR_PREFIX}{error_msg}")
             raise typer.Exit(1)
 
         from specify_cli.analysis_report import write_analysis_report
@@ -313,7 +356,7 @@ def record_analysis(
                 repo_root,
             )
 
-        payload = {"success": True, "result": "success", **result.to_dict()}
+        payload = {_PAYLOAD_KEY_SUCCESS: True, "result": "success", **result.to_dict()}
         if json_output:
             _emit_json(payload)
         else:
@@ -324,7 +367,7 @@ def record_analysis(
         raise
     except Exception as e:
         if json_output:
-            _emit_json({"error": str(e), "success": False})
+            _emit_json({_PAYLOAD_KEY_ERROR: str(e), _PAYLOAD_KEY_SUCCESS: False})
         else:
-            console.print(f"[red]Error:[/red] {e}")
+            console.print(f"{_RED_ERROR_PREFIX}{e}")
         raise typer.Exit(1) from None

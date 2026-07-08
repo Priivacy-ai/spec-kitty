@@ -20,7 +20,7 @@ from typing import Any
 
 from ulid import ULID
 
-from mission_runtime import CommitTarget, MissionTopology
+from mission_runtime import MissionArtifactKind, MissionTopology, placement_seam
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.git_ops import get_current_branch, is_git_repo
 from specify_cli.core.mission_payload import (
@@ -33,6 +33,12 @@ from specify_cli.lanes.branch_naming import mission_dir_name, resolve_mid8
 from specify_cli.mission_metadata import validate_purpose_summary
 
 logger = logging.getLogger(__name__)
+
+# coord-primary-partition-lock WP02 (T009 / S1192): the ``meta`` field names
+# repeated across the metadata-assembly block below (default + event-emission
+# reads) hoisted to named constants rather than restated as literals.
+_META_KEY_MISSION_TYPE = "mission_type"
+_META_KEY_CREATED_AT = "created_at"
 
 
 class MissionCreationError(RuntimeError):
@@ -153,14 +159,26 @@ def _commit_feature_file(
     artifact_type: str,
     repo_root: Path,
 ) -> None:
-    """Commit a single planning artifact to the current branch.
+    """Commit a single planning artifact to its seam-resolved primary home.
 
     This is a slim, typer-free version of the ``_commit_to_branch`` helper
     in the CLI module.  It raises on hard failures and silently succeeds
     when there is nothing to commit.
+
+    coord-primary-partition-lock WP02 (T007 / C-001 / C-006): the commit
+    destination is derived from ``placement_seam(...).write_target(SPEC)``,
+    NOT from the operator's current checkout. Pre-fix this constructed
+    ``CommitTarget(ref=current_branch)`` directly, which is the create-time
+    split-brain root (research.md D5) -- under a coord-routing mission whose
+    resolved ``target_branch`` differs from the checkout, the metadata commit
+    silently landed on whatever branch the operator happened to be parked on
+    instead of the mission's actual primary home. ``SPEC`` is a
+    ``_PRIMARY_ARTIFACT_KINDS`` member (same as ``PRIMARY_METADATA``, the kind
+    the committed ``meta.json`` file itself belongs to): both resolve to the
+    identical primary ``target_branch`` for every topology, so this is a pure
+    derivation-source fix (seam vs. checkout), not a placement change.
     """
-    current_branch = get_current_branch(repo_root)
-    if current_branch is None:
+    if get_current_branch(repo_root) is None:
         raise MissionCreationError("Not in a git repository")
 
     # Mission creation runs pre-spec: the destination is the branch ``create``
@@ -170,10 +188,11 @@ def _commit_feature_file(
     # plans on a protected branch, WP05's placement projection routes the
     # commit; this caller does not duplicate that decision (T010).
     commit_msg = f"Add {artifact_type} for feature {mission_slug}"
+    seam_target = placement_seam(repo_root, mission_slug).write_target(MissionArtifactKind.SPEC)
     safe_commit(
         repo_root=repo_root,
         worktree_root=repo_root,
-        target=CommitTarget(ref=current_branch),
+        target=seam_target,
         message=commit_msg,
         paths=(file_path,),
         capability=GuardCapability.STANDARD,
@@ -386,9 +405,9 @@ def create_mission_core(
     meta.setdefault("friendly_name", normalized_friendly_name)
     meta.setdefault("purpose_tldr", normalized_purpose_tldr)
     meta.setdefault("purpose_context", normalized_purpose_context)
-    meta.setdefault("mission_type", mission or "software-dev")
+    meta.setdefault(_META_KEY_MISSION_TYPE, mission or "software-dev")
     meta.setdefault("target_branch", planning_branch)
-    meta.setdefault("created_at", datetime.now(timezone.utc).isoformat())  # noqa: UP017
+    meta.setdefault(_META_KEY_CREATED_AT, datetime.now(timezone.utc).isoformat())  # noqa: UP017
 
     # ------------------------------------------------------------------
     # 6.5 Coordination branch (WP03 / issue #1348, #2218)
@@ -454,7 +473,7 @@ def create_mission_core(
     # 7. Documentation state (if applicable)
     # ------------------------------------------------------------------
     if mission == "documentation":
-        meta.setdefault("mission_type", "documentation")
+        meta.setdefault(_META_KEY_MISSION_TYPE, "documentation")
         if "documentation_state" not in meta:
             doc_state: dict[str, Any] = {
                 "iteration_mode": "initial",
@@ -485,7 +504,7 @@ def create_mission_core(
             mission_slug=mission_slug_formatted,
             mission_id=meta.get("mission_id"),
             mission_number=None,
-            mission_type=str(meta.get("mission_type") or mission or "software-dev"),
+            mission_type=str(meta.get(_META_KEY_MISSION_TYPE) or mission or "software-dev"),
             target_branch=planning_branch,
             wp_count=0,
             project_uuid=str(_identity.project_uuid) if _identity.project_uuid else None,
@@ -493,7 +512,7 @@ def create_mission_core(
             friendly_name=normalized_friendly_name,
             purpose_tldr=normalized_purpose_tldr,
             purpose_context=normalized_purpose_context,
-            created_at=str(meta["created_at"]) if meta.get("created_at") else None,
+            created_at=str(meta[_META_KEY_CREATED_AT]) if meta.get(_META_KEY_CREATED_AT) else None,
         )
     except Exception as _local_evt_exc:  # noqa: BLE001
         logger.warning(
