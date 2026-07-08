@@ -51,7 +51,9 @@ from mission_runtime.artifacts import (
 )
 from mission_runtime.resolution import (
     ActionContextError,
+    PlacementSeam,
     mission_context_for,
+    placement_seam,
     resolve_action_context,
     resolve_placement_only,
     resolve_topology,
@@ -70,6 +72,7 @@ __all__ = [
     "MissionArtifactKind",
     "MissionContext",
     "MissionTopology",
+    "PlacementSeam",
     "StatusSurfaceFragment",
     "WorkspaceFragment",
     "artifact_home_for",
@@ -79,6 +82,7 @@ __all__ = [
     "is_self_bookkeeping_path",
     "kind_for_mission_file",
     "mission_context_for",
+    "placement_seam",
     "resolve_action_context",
     "resolve_placement_only",
     "resolve_topology",

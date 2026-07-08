@@ -19,13 +19,16 @@ work package, workspace path, and any action-specific commands to run.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal, cast, get_args
 
 from mission_runtime.artifacts import (
     MissionArtifactKind,
+    Surface,
     _PRIMARY_ARTIFACT_KINDS,
     artifact_home_for,
+    assert_partition_invariant,
     is_primary_artifact_kind,
 )
 from mission_runtime.context import (
@@ -62,7 +65,9 @@ __all__ = [
     "ACTION_NAMES",
     "ActionContextError",
     "ActionName",
+    "PlacementSeam",
     "mission_context_for",
+    "placement_seam",
     "resolve_action_context",
     # resolve_context_for_mission: demoted — no cross-module src/ from-import
     # callers (WP01 harden-dead-symbol-gate-01KW0RJR).
@@ -80,6 +85,14 @@ class ActionContextError(RuntimeError):
     def __init__(self, code: str, message: str) -> None:
         super().__init__(message)
         self.code = code
+
+
+# Placement-seam campsite (coord-primary-partition-lock WP01, S1192): the
+# ``ActionContextError`` code raised whenever a mission handle/slug fails to
+# resolve at ALL four sites in this module (``_resolve_mission_slug``,
+# ``mission_context_for``, ``resolve_placement_only``) restated the literal
+# string. Hoisted to one module constant.
+_FEATURE_CONTEXT_UNRESOLVED_CODE = "FEATURE_CONTEXT_UNRESOLVED"
 
 
 # Mission-level lifecycle actions resolve the mission context without a work
@@ -316,7 +329,7 @@ def _resolve_mission_slug(
     try:
         slug = require_explicit_feature(feature, command_hint="--mission <slug>")
     except ValueError as exc:
-        raise ActionContextError("FEATURE_CONTEXT_UNRESOLVED", str(exc)) from exc
+        raise ActionContextError(_FEATURE_CONTEXT_UNRESOLVED_CODE, str(exc)) from exc
 
     # Route through the SINGLE guarded read-side seam (WP01 reroute, IC-01 /
     # FR-001): ``resolve_handle_to_read_path`` owns the primary-meta probe AND
@@ -350,7 +363,7 @@ def _resolve_mission_slug(
         raise ActionContextError(exc.error_code, str(exc)) from exc
     if not feature_dir.exists():
         raise ActionContextError(
-            "FEATURE_CONTEXT_UNRESOLVED",
+            _FEATURE_CONTEXT_UNRESOLVED_CODE,
             f"Mission directory not found: {feature_dir}. Check that "
             f"'{slug}' is the correct mission slug.",
         )
@@ -836,7 +849,7 @@ def mission_context_for(
 
     if not mission_handle or not mission_handle.strip():
         raise ActionContextError(
-            "FEATURE_CONTEXT_UNRESOLVED",
+            _FEATURE_CONTEXT_UNRESOLVED_CODE,
             "mission_context_for requires an explicit mission handle.",
         )
 
@@ -873,12 +886,12 @@ def mission_context_for(
         home = artifact_home_for(kind, placement_ref)
         read_dir = (
             primary_read_dir
-            if home.read_surface == "primary"
+            if home.read_surface == Surface.PRIMARY
             else status_surface.status_read_dir
         )
         write_dir = (
             primary_read_dir
-            if home.write_surface == "primary"
+            if home.write_surface == Surface.PRIMARY
             else status_surface.status_write_dir
         )
         artifacts.append(
@@ -1192,7 +1205,7 @@ def resolve_placement_only(
 
     if not mission_slug or not mission_slug.strip():
         raise ActionContextError(
-            "FEATURE_CONTEXT_UNRESOLVED",
+            _FEATURE_CONTEXT_UNRESOLVED_CODE,
             "resolve_placement_only requires an explicit mission_slug.",
         )
 
@@ -1247,6 +1260,95 @@ def resolve_placement_only(
     if kind in _PRIMARY_ARTIFACT_KINDS:
         return CommitTarget(ref=target_branch)
     return branch_ref.destination_ref
+
+
+@dataclass(frozen=True)
+class PlacementSeam:
+    """The single kind-aware placement authority for one mission operation (T001).
+
+    The public face of the :func:`resolve_action_context` derivation root
+    (contracts/seam-api.md): "one authority object per mission operation,
+    exposing two kind-aware projections." Both projections are THIN — they
+    delegate to the pre-existing leaf resolvers rather than re-deriving
+    placement (C-001 / Directive-044):
+
+    - :meth:`write_target` projects :func:`resolve_placement_only` (the
+      existing write projection, `resolution.py`).
+    - :meth:`read_dir` projects :func:`~specify_cli.missions._read_path_resolver
+      .resolve_planning_read_dir` (the existing read projection) for every kind
+      EXCEPT ``RETROSPECTIVE``, which routes to the dedicated single authority
+      :func:`~specify_cli.retrospective.writer.resolve_retrospective_home`
+      (squad finding H-1) — computing a second RETROSPECTIVE home here would
+      duplicate that authority and fail its own single-authority guard test
+      (``tests/retrospective/test_home_resolution_single_authority.py``).
+
+    Both projections are CWD-invariant: they derive from ``repo_root`` +
+    ``mission_slug`` (the stored topology, read via ``meta.json``), never from
+    the current checkout (T-2). Coord-routing decisions inside the delegated
+    resolvers consult ONLY :func:`~mission_runtime.context.
+    routes_through_coordination` over the stored topology — this seam never
+    inlines its own coord-topology equality check (T-1).
+
+    Constructed via :func:`placement_seam`, which also asserts the P-1
+    partition invariant (T002) so a future kind added to
+    :class:`~mission_runtime.artifacts.MissionArtifactKind` without a
+    partition entry fails loudly at the seam boundary.
+    """
+
+    repo_root: Path
+    mission_slug: str
+
+    def write_target(self, kind: MissionArtifactKind) -> CommitTarget:
+        """Return the :class:`CommitTarget` a write of ``kind`` must commit to.
+
+        Thin projection over :func:`resolve_placement_only` — see class
+        docstring. Never constructs ``CommitTarget(ref=<current_checkout>)``
+        (the forbidden-for-callers grammar, contracts/seam-api.md).
+        """
+        return resolve_placement_only(self.repo_root, self.mission_slug, kind=kind)
+
+    def read_dir(self, kind: MissionArtifactKind) -> Path:
+        """Return the directory a read of ``kind`` resolves to.
+
+        ``RETROSPECTIVE`` routes to :func:`resolve_retrospective_home` (the
+        dedicated single authority, H-1); every other kind routes through
+        :func:`resolve_planning_read_dir` — see class docstring.
+        """
+        if kind is MissionArtifactKind.RETROSPECTIVE:
+            from specify_cli.retrospective.writer import resolve_retrospective_home
+
+            # Explicit ``Path`` annotation: under the project's
+            # ``follow_imports = "skip"`` mypy config the cross-module
+            # ``resolve_retrospective_home`` return is seen as ``Any``; the
+            # annotation re-narrows it (the function IS typed ``-> Path``) —
+            # matching the sibling ``_planning_read_dir`` chokepoint pattern.
+            retrospective_dir: Path = resolve_retrospective_home(
+                self.repo_root, self.mission_slug
+            )
+            return retrospective_dir
+
+        from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+
+        read_dir: Path = resolve_planning_read_dir(
+            self.repo_root, self.mission_slug, kind=kind
+        )
+        return read_dir
+
+
+def placement_seam(repo_root: Path, mission_slug: str) -> PlacementSeam:
+    """Construct the placement seam for one mission operation (T001 entry point).
+
+    Asserts the P-1 partition invariant (T002) before returning the seam: the
+    two :mod:`mission_runtime.artifacts` partition frozensets must stay
+    disjoint and jointly exhaustive over every
+    :class:`~mission_runtime.artifacts.MissionArtifactKind` member. The check
+    is pure in-memory set arithmetic — cheap enough to run on every
+    construction — so a future kind added without a partition entry fails
+    loudly here rather than as a deep ``ValueError`` inside
+    :func:`~mission_runtime.artifacts.artifact_home_for`.
+    """
+    assert_partition_invariant()
+    return PlacementSeam(repo_root=repo_root, mission_slug=mission_slug)
 
 
 def resolve_action_context(

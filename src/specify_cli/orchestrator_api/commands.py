@@ -343,21 +343,22 @@ def _planning_read_dir(main_repo_root: Path, mission_slug: str) -> Path:
     dependency graph comes back empty and the orchestrator stalls with every WP
     stuck at ``lane=planned`` (#2118).
 
-    This routes PRIMARY-partition reads through the canonical per-kind read seam
-    :func:`resolve_planning_read_dir`, the read-side twin of the write-side
-    partition (``mission_runtime.is_primary_artifact_kind``): a PRIMARY kind
-    resolves the topology-blind primary dir, so both ``LANE_STATE`` and
-    ``WORK_PACKAGE_TASK`` co-resolve here. STATUS reads (``read_events`` /
-    ``reduce`` / ``materialize`` / status-event writes) MUST keep the coord-aware
-    :func:`_resolve_mission_dir` — the append-only event log stays on coordination
-    for coord-topology missions. This mirrors the meta.json treatment already in
+    This routes PRIMARY-partition reads through the canonical kind-aware
+    placement seam (:func:`mission_runtime.placement_seam`, coord-primary-
+    partition-lock WP01 T004 — DRY-only repoint, out-of-map edit; this file is
+    not a WP01 owned file), the read-side twin of the write-side partition
+    (``mission_runtime.is_primary_artifact_kind``): a PRIMARY kind resolves the
+    topology-blind primary dir, so both ``LANE_STATE`` and ``WORK_PACKAGE_TASK``
+    co-resolve here. STATUS reads (``read_events`` / ``reduce`` / ``materialize``
+    / status-event writes) MUST keep the coord-aware :func:`_resolve_mission_dir`
+    — the append-only event log stays on coordination for coord-topology
+    missions. This mirrors the meta.json treatment already in
     :func:`_resolve_merge_target_branch`.
     """
-    from mission_runtime import MissionArtifactKind
-    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+    from mission_runtime import MissionArtifactKind, placement_seam
 
-    return resolve_planning_read_dir(
-        main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    return placement_seam(main_repo_root, mission_slug).read_dir(
+        MissionArtifactKind.WORK_PACKAGE_TASK
     )
 
 

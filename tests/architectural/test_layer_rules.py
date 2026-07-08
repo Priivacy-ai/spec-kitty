@@ -81,6 +81,13 @@ _MISSION_RUNTIME_ALLOWED_SPECIFY_CLI: frozenset[str] = frozenset(
         "mission",           # resolution.py: get_mission_type
         "mission_metadata",  # resolution.py: load_meta
         "missions",          # resolution.py: _read_path_resolver
+        # coord-primary-partition-lock WP01 (H-1, binding): the placement seam's
+        # RETROSPECTIVE read leg MUST delegate to the SINGLE home authority
+        # ``retrospective.writer.resolve_retrospective_home`` (#2119) — computing
+        # a second RETROSPECTIVE home in mission_runtime would duplicate that
+        # authority and fail its own single-authority guard. This is a sanctioned
+        # upward edge, same class as the ``missions`` read-path delegation above.
+        "retrospective",     # resolution.py: PlacementSeam.read_dir -> resolve_retrospective_home
         "status",            # resolution.py: Lane, get_wp_lane, read_events, ...
         "task_utils",        # resolution.py: locate_work_package, split_frontmatter
         "workspace",         # resolution.py: resolve_workspace_for_wp
