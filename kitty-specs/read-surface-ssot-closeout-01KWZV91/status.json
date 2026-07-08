@@ -1,0 +1,140 @@
+{
+  "event_count": 125,
+  "last_event_id": "01KX0Q0G4QA1J3A4N1Z0K09D3Q",
+  "materialized_at": "2026-07-08T11:15:03.447876+00:00",
+  "mission_number": "169",
+  "mission_slug": "read-surface-ssot-closeout-01KWZV91",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 17,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KX0Q05BJCQKDRB2AVMYFRM1K",
+      "last_transition_at": "2026-07-08T11:14:52.402993+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KX0Q0DEF1WV66EDN08ZVM2CG",
+      "last_transition_at": "2026-07-08T11:15:00.687432+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KX0Q0FFGBPYEH5VZ66QG1TP3",
+      "last_transition_at": "2026-07-08T11:15:02.768162+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KX0Q063HPBV5TA41HR2ME536",
+      "last_transition_at": "2026-07-08T11:14:53.169896+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KX0Q06SHM3WWYMW58QMCQ6KX",
+      "last_transition_at": "2026-07-08T11:14:53.873447+00:00"
+    },
+    "WP06": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KX0Q07EPX0BXFBNGW46D20Y8",
+      "last_transition_at": "2026-07-08T11:14:54.550241+00:00"
+    },
+    "WP07": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KX0Q084G3VCJMB5XHGG5ZCMS",
+      "last_transition_at": "2026-07-08T11:14:55.248832+00:00"
+    },
+    "WP08": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KX0Q08SFRGZ7GHNWHF54DJP3",
+      "last_transition_at": "2026-07-08T11:14:55.920023+00:00"
+    },
+    "WP09": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KX0Q09EKJBJBE9HA2YK5PTHJ",
+      "last_transition_at": "2026-07-08T11:14:56.595150+00:00"
+    },
+    "WP10": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KX0Q0A459EGJXP78J5DAH88Q",
+      "last_transition_at": "2026-07-08T11:14:57.285896+00:00"
+    },
+    "WP11": {
+      "actor": "merge",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KX0Q0E44FFSED8BKMZ88QRB3",
+      "last_transition_at": "2026-07-08T11:15:01.380699+00:00"
+    },
+    "WP12": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KX0Q0ASES84YQEPSFKQBG52S",
+      "last_transition_at": "2026-07-08T11:14:57.966155+00:00"
+    },
+    "WP13": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KX0Q0BEE0NZ3SZG6CR5P03SK",
+      "last_transition_at": "2026-07-08T11:14:58.638655+00:00"
+    },
+    "WP14": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KX0Q0C41MD7RWCH3F2JJQSFN",
+      "last_transition_at": "2026-07-08T11:14:59.329625+00:00"
+    },
+    "WP15": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KX0Q0CSG82DT87A9VY66H8BN",
+      "last_transition_at": "2026-07-08T11:15:00.016829+00:00"
+    },
+    "WP16": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KX0Q0ESN6MZF8349M8C9FPFF",
+      "last_transition_at": "2026-07-08T11:15:02.069805+00:00"
+    },
+    "WP17": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KX0Q0G4QA1J3A4N1Z0K09D3Q",
+      "last_transition_at": "2026-07-08T11:15:03.447876+00:00"
+    }
+  }
+}
