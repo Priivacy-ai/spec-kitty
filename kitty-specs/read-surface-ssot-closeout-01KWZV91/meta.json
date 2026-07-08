@@ -1,0 +1,19 @@
+{
+  "baseline_merge_commit": "1936c09ad6348f58840aa89353c674215ed19472",
+  "coordination_branch": "kitty/mission-read-surface-ssot-closeout-01KWZV91",
+  "created_at": "2026-07-08T03:10:23.272535+00:00",
+  "flattened": false,
+  "friendly_name": "Read-Surface SSOT Completion & #1716 Closeout",
+  "mission_id": "01KWZV91H88Z785KKPTC8W6DZX",
+  "mission_number": 169,
+  "mission_slug": "read-surface-ssot-closeout-01KWZV91",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "The write-side placement strangle (PR #2462) locked WHERE artifacts are written; this mission does the READ counterpart. Route the remaining kind-blind resolve_feature_dir_for_mission reads onto the placement seam and the remaining inline meta.json reads onto the canonical load_meta authority; flip ACCEPTANCE_MATRIX/ANALYSIS_REPORT to the primary surface (fixing the stale-coord accept read, #2404); and make the ownership-overlap validator dependency/lane-aware so it stops rejecting legitimate same-lane sequential WPs. Together these close the last two open children of epic #1716 (#2088, #2100).",
+  "purpose_tldr": "Finish the read side: route remaining feature_dir + meta.json reads onto their canonical authorities, flip the accept-matrix to its correct surface, and make the ownership validator lane-aware — closing epic #1716.",
+  "slug": "read-surface-ssot-closeout-01KWZV91",
+  "target_branch": "design/read-surface-ssot-closeout",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-08T07:30:54.192635+00:00"
+}

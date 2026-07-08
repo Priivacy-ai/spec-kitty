@@ -1,0 +1,109 @@
+{
+  "mission_slug": "read-surface-ssot-closeout-01KWZV91",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Route feature_dir READ sites onto read_dir(kind)",
+      "proof_type": "automated_test",
+      "evidence": "WP04/05/06/07/08/09 approved \u2014 all resolve_feature_dir_for_mission reads + 4 slug sites routed onto placement_seam.read_dir(kind) kind-correctly; 3 fail-closed-dependent sites correctly left un-routed (documented FR-001 exception)",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": "2026-07-08T10:58:35.060433+00:00",
+      "notes": "Verified via the WP's approved review (opus, on-merits) + its test suite."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Drain coord_authority to live census",
+      "proof_type": "automated_test",
+      "evidence": "WP11 approved \u2014 coord_authority floor pinned to live census 4 (FR-003 surfaced 2 by-design write helpers; spec est. 2 corrected); 59 gate tests green; allowlist = 4 by-design entries, 5 drainable routed away",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": "2026-07-08T10:58:35.060433+00:00",
+      "notes": "Verified via the WP's approved review (opus, on-merits) + its test suite."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Predicate-widen the 2 status-write false-negatives",
+      "proof_type": "automated_test",
+      "evidence": "WP11 approved \u2014 lanes/recovery.py:765 + agent_tasks_ports.py:322 added to _COORD_WRITE_BY_DESIGN as by-design writes (never routed); precedes FR-002 re-pin",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": "2026-07-08T10:58:35.060433+00:00",
+      "notes": "Verified via the WP's approved review (opus, on-merits) + its test suite."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "orchestrator_api fail-closed",
+      "proof_type": "automated_test",
+      "evidence": "WP10 approved \u2014 ActionContextError raises PlacementResolutionRequired (no CommitTarget(ref=current_branch) fallback); red-first 3 tests RED->green",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": "2026-07-08T10:58:35.060433+00:00",
+      "notes": "Verified via the WP's approved review (opus, on-merits) + its test suite."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Route inline meta.json reads onto load_meta*",
+      "proof_type": "automated_test",
+      "evidence": "WP05/06/07 collision B-edits + WP12/13/14/15 approved \u2014 ~90 inline json.loads(meta) reads routed onto load_meta/load_meta_strict/load_meta_or_empty per POST-#2091 contract; transaction.py:751-771 byte-unchanged (content-pinned regression)",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": "2026-07-08T10:58:35.060433+00:00",
+      "notes": "Verified via the WP's approved review (opus, on-merits) + its test suite."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Non-vacuous meta-read ratchet",
+      "proof_type": "automated_test",
+      "evidence": "WP16 approved \u2014 4 mechanics (floor 7 + margin + routed-count floor 113 + composite-key allow-list w/ stale-entry detection) + 3 self-tests; 7 deferred sites allowlisted (#2477-#2480); 28 tests green",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": "2026-07-08T10:58:35.060433+00:00",
+      "notes": "Verified via the WP's approved review (opus, on-merits) + its test suite."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Partition-aware commit_for_mission at the seam",
+      "proof_type": "automated_test",
+      "evidence": "WP01 approved \u2014 per-file partition-aware commit_for_mission (C-006, no per-caller patch); None-file caller-kind fallback; red-first mixed-batch + None-file; fast-path byte-identical; 279 tests",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": "2026-07-08T10:58:35.060433+00:00",
+      "notes": "Verified via the WP's approved review (opus, on-merits) + its test suite."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Accept residual routing + M2 dirty-surface",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved \u2014 accept residual routed through partition-aware seam; dirty-detection unions primary + coord-worktree scans (M2); red-first with real CoordinationWorkspace; 493 tests",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": "2026-07-08T10:58:35.060433+00:00",
+      "notes": "Verified via the WP's approved review (opus, on-merits) + its test suite."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "#2404 coord-topology characterization (SC-003)",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved \u2014 e2e regression: acceptance-matrix.json lands coord + read-back via spec-commit/finalize/accept on one lifecycle; bidirectionally-falsifiable regression proof; 14 tests",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": "2026-07-08T10:58:35.060433+00:00",
+      "notes": "Verified via the WP's approved review (opus, on-merits) + its test suite."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "#2088/#2100/#1716 closeout (SC-004)",
+      "proof_type": "automated_test",
+      "evidence": "WP17 approved \u2014 69dd1fa46 ancestor verified; regression lock on validate_no_overlap (both invariant halves); #1716 open children = exactly {#2088,#2100} (GitHub subIssues: 22 total, 20 closed, 2 open); terminal issue-matrix verdicts",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "verified_at": "2026-07-08T10:58:35.060433+00:00",
+      "notes": "Verified via the WP's approved review (opus, on-merits) + its test suite."
+    }
+  ],
+  "negative_invariants": []
+}
