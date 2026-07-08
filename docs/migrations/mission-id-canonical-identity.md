@@ -2,7 +2,7 @@
 title: 'Migration: Mission ID as Canonical Identity'
 description: "Migration to mission_id (ULID) as a mission's canonical identity, shipped with mission 083: the new identity model, the backfill, and the ADR behind it."
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-07-08'
 related:
 - docs/migrations/feature-flag-deprecation.md
 ---
@@ -44,6 +44,17 @@ machine identity, minted at creation and immutable. `mission_number` becomes
 **display-only metadata**, `null` until merge time, and assigned as
 `max(existing_numbers)+1` inside the merge-state lock — the only place where a
 global invariant can actually be enforced.
+
+> **Breaking (3.2.5+): this backfill is now mandatory for coordination.**
+> As of 3.2.5, a pre-3.2.x mission with no resolvable `mission_id`/`mid8`
+> **hard-fails** on coordination operations (status transitions, `move-task`,
+> review/merge coordination writes) instead of silently degrading — the
+> coordination-workspace seam refuses to compose a malformed
+> `kitty/mission-<slug>-` ref (#2091). If you see
+> `COORDINATION_WORKSPACE_MID8_REQUIRED`, run the backfill below
+> (`spec-kitty migrate backfill-identity`) to modernize the mission; audit
+> first with `spec-kitty doctor identity`. The dual-era legacy-bridge fallback
+> is intentionally removed (#2462).
 
 ## What Changed
 
