@@ -19,6 +19,16 @@ Spec Kitty is inspired by GitHub's [Spec Kit](https://github.com/github/spec-kit
 
 Please note that this project is released with a [Contributor Code of Conduct](../../CODE_OF_CONDUCT.md). By participating in this project you agree to abide by its terms.
 
+## Ways to contribute (no code required)
+
+You don't need to write code to help shape Spec Kitty. **Ideas, use-cases, and objections are genuinely wanted** — especially on design decisions still in flight.
+
+- **Look for the [`feedback-welcome`](https://github.com/Priivacy-ai/spec-kitty/labels/feedback-welcome) label.** Issues carrying it are open for community input; many contain an **Open decision** block calling out exactly where we'd like your perspective. Comment freely — a rough thought is more useful than silence.
+- **Filing something new?** Use the **💡 Idea / brainstorm / feedback** issue template (it auto-applies `feedback-welcome`), or the bug / enhancement templates for concrete reports. A partial sketch is fine — a maintainer will triage it and, if it's actionable, turn it into a tracked mission.
+- **No pressure to formalize.** You don't have to write a full proposal; tell us the problem you hit or the outcome you want, and we'll take it from there.
+
+Well-scoped feedback often becomes the seed of a mission, so this is one of the highest-leverage ways to contribute.
+
 ## Developer Setup
 
 After cloning, bootstrap your environment:
