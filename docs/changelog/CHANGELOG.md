@@ -34,7 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   exit-128; the `CoordinationWorkspace` composition seam fail-loud-guards it) and
   **#2250** (a never-coordinated mission no longer reports
   `COORDINATION_BRANCH_DELETED`). The read-side `resolve_feature_dir_for_mission`
-  sweep + residual checkout fallbacks are tracked in #2453.
+  sweep is tracked in #2453, together with the write-side ratchet's remaining
+  checkout-derived selectors — each is allow-list-tracked and VISIBLE (carries a
+  rationale, never silently ignored): the deferred ones are queued for the #2453
+  read-site sweep, plus one PERMANENT non-placement construction (the lane-branch
+  deliverable commit, whose branch is fixed by lane allocation, not a
+  `MissionArtifactKind` placement decision).
 - **Doctrine/charter pack paths support environment-variable indirection
   (#2437).** Pack-location fields (e.g. an org-pack's `local_path`) previously
   had to be hardcoded absolute paths, so a shared, committed `.kittify` config
@@ -249,6 +254,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (breaking the Windows critical CI job), with a new arch guard blocking
   Windows-illegal names and shell-expansion-leak telltales across tracked files
   (#2169).
+
+### 💥 Breaking Changes
+
+- **Pre-3.2.x legacy (meta-less) missions are no longer supported for
+  coordination operations (#2091 / #2462).** A mission with no resolvable
+  mission identity — no `mission_id`/`mid8` in `meta.json`, the pre-3.2.x
+  mission-identity model — can no longer drive coordination operations (status
+  transitions, `move-task`, review/merge coordination writes). Such a mission
+  now **fails loud** with a customer-actionable error instead of silently
+  composing a malformed `kitty/mission-<slug>-` ref (the old #2091 defect that
+  surfaced only as an opaque `git worktree add` exit-128). This intentionally
+  drops the dual-era legacy-bridge fallback: legacy missions are dwindling and
+  the dual-support path was a persistent source of split-brain routing bugs.
+  **Migration:** run `spec-kitty migrate backfill-identity` to mint a ULID
+  `mission_id` (and derive its `mid8`) for any affected mission — audit first
+  with `spec-kitty doctor identity`. See
+  [mission-id-canonical-identity.md](../migrations/mission-id-canonical-identity.md).
 
 ## [3.2.4] - 2026-07-05
 
