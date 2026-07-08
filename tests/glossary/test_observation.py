@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import io
 import json
+import statistics
 import time
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -341,15 +342,22 @@ def test_collect_notices_completes_within_50ms(tmp_path: Path) -> None:
     # Warm-up call to avoid import-time overhead skewing the measurement
     surface.collect_notices(tmp_path)
 
-    ITERATIONS = 5
-    total = 0.0
+    # Measure the MEDIAN of several runs, not the mean: this is a coarse
+    # regression tripwire, and a shared CI runner can stall a single call
+    # (GC / scheduler pre-emption), which skews the mean well past the budget
+    # while the operation itself is unchanged. The median ignores a minority of
+    # such outliers, so it stays robust to CI variance yet still shifts if
+    # collect_notices() genuinely regresses across the whole distribution.
+    ITERATIONS = 9
+    samples_ms = []
     for _ in range(ITERATIONS):
         t0 = time.monotonic()
         surface.collect_notices(tmp_path)
-        total += time.monotonic() - t0
-    avg_ms = (total / ITERATIONS) * 1000
+        samples_ms.append((time.monotonic() - t0) * 1000)
+    median_ms = statistics.median(samples_ms)
 
-    assert avg_ms < 50.0, (
-        f"collect_notices() averaged {avg_ms:.1f}ms over {ITERATIONS} runs "
-        f"on a 1000-event log — exceeds the 50ms NFR-001 target"
+    assert median_ms < 50.0, (
+        f"collect_notices() median was {median_ms:.1f}ms over {ITERATIONS} runs "
+        f"on a 1000-event log — exceeds the 50ms NFR-001 target "
+        f"(samples: {[round(s, 1) for s in samples_ms]})"
     )
