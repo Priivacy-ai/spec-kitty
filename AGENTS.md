@@ -279,12 +279,16 @@ Full docs: [CONTRIBUTING.md](CONTRIBUTING.md#release-process)
 
 ## Execution Workspace Strategy (2.x)
 
-- Planning happens in the main repo checkout (no worktrees created during planning).
+- **Coord/primary partition** (canonical, operator-confirmed): coord = lifecycle surfaces
+  (status, notes, trace, issue-matrix, `move-task`); primary = stable planning (spec/plan/WP
+  outlines). Missions with no coordination topology (`SINGLE_BRANCH` / `LANES`) route
+  everything to primary. Planning commands may be invoked from the repo root — no worktree is
+  required to run `/spec-kitty.specify` / `/spec-kitty.plan` / `/spec-kitty.tasks`.
 - `spec-kitty implement WP##` creates/reuses the execution workspace.
   - `lanes.json` present → `.worktrees/<feature>-lane-<id>`
   - `lanes.json` absent → legacy: `.worktrees/<feature>-WP##`
 
-**Planning artifacts** (committed to main before implementation):
+**Planning artifacts** (land on the primary partition):
 - `/spec-kitty.specify` → `kitty-specs/<mission>/`
 - `/spec-kitty.plan` → planning artifacts
 - `/spec-kitty.tasks` → `tasks.md` + `tasks/*.md`
@@ -299,7 +303,8 @@ Full docs: [CONTRIBUTING.md](CONTRIBUTING.md#release-process)
 
 **Testing:** Unit coverage for workspace resolution + integration coverage for `agent action implement/review`.
 
-**Status source of truth:** Feature metadata on main branch, not the open worktree.
+**Status source of truth:** the resolved status surface (coord branch for coord/lanes-with-coord
+topologies; primary otherwise), not the open worktree.
 
 **References:** [execution-lanes.md](docs/architecture/execution-lanes.md), [git-worktrees.md](docs/architecture/git-worktrees.md)
 
