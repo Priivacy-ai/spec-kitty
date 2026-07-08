@@ -1,0 +1,129 @@
+{
+  "mission_slug": "coord-primary-partition-lock-01KWZ46V",
+  "mission_number": 168,
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Placement seam (PlacementSeam.write_target/read_dir) formalized as thin authority over resolve_action_context; RETROSPECTIVE delegates to resolve_retrospective_home (H-1). No parallel authority (C-001).",
+      "proof_type": "automated_test",
+      "evidence": "tests/mission_runtime/test_placement_seam.py (121 tests); WP01 opus review PASS",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (orchestrated)",
+      "verified_at": "2026-07-08T01:30:00+00:00",
+      "notes": "Verified on merged branch (arch suite 795 passed / 0 failed)."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Kind->partition locked to the two frozensets in mission_runtime/artifacts.py (all 14 MissionArtifactKind members).",
+      "proof_type": "automated_test",
+      "evidence": "test_placement_seam.py 2x2x14 matrix; WP01",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (orchestrated)",
+      "verified_at": "2026-07-08T01:30:00+00:00",
+      "notes": "Verified on merged branch (arch suite 795 passed / 0 failed)."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Coord-routing bound to routes_through_coordination(stored_topology) over the 2x2 grid; non-coord -> all primary.",
+      "proof_type": "automated_test",
+      "evidence": "test_placement_seam.py; WP01",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (orchestrated)",
+      "verified_at": "2026-07-08T01:30:00+00:00",
+      "notes": "Verified on merged branch (arch suite 795 passed / 0 failed)."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "All named checkout-derived write sites (mission_creation, implement, workflow, tasks_move_task, mission_record_analysis) routed through placement_seam.write_target(kind).",
+      "proof_type": "automated_test",
+      "evidence": "WP02-05 red-first placement tests; ratchet test_no_write_side_rederivation.py green; WP02-05 opus reviews PASS",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (orchestrated)",
+      "verified_at": "2026-07-08T01:30:00+00:00",
+      "notes": "Verified on merged branch (arch suite 795 passed / 0 failed)."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Read sites on the named write surfaces route through the seam; broad resolve_feature_dir_for_mission sweep deferred to #2453 (scoped down post-squad).",
+      "proof_type": "automated_test",
+      "evidence": "WP01/03/04/05; #2453 tracked",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (orchestrated)",
+      "verified_at": "2026-07-08T01:30:00+00:00",
+      "notes": "Verified on merged branch (arch suite 795 passed / 0 failed)."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Seam CWD-independent; identical partition-correct resolution from repo root and an unrelated CWD, across coord and non-coord.",
+      "proof_type": "automated_test",
+      "evidence": "test_placement_partition_golden_path.py T040; WP08 opus review PASS",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (orchestrated)",
+      "verified_at": "2026-07-08T01:30:00+00:00",
+      "notes": "Verified on merged branch (arch suite 795 passed / 0 failed)."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Empty-mid8 guard (CoordinationWorkspaceIdentityUnresolved) added at the CoordinationWorkspace composition seam; fails loud instead of exit-128. #2091 closed.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/coordination/test_workspace_mid8_guard.py (red-first); WP06",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (orchestrated)",
+      "verified_at": "2026-07-08T01:30:00+00:00",
+      "notes": "Verified on merged branch (arch suite 795 passed / 0 failed)."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "never-created != COORDINATION_BRANCH_DELETED; three coord states distinguished. #2250 closed.",
+      "proof_type": "automated_test",
+      "evidence": "test_coord_topology_states.py; WP06",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (orchestrated)",
+      "verified_at": "2026-07-08T01:30:00+00:00",
+      "notes": "Verified on merged branch (arch suite 795 passed / 0 failed)."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "End-to-end golden-path characterization test (create->spec->setup-plan->status->decision) + lifecycle mutation write-fidelity + edge states + #2404-lite.",
+      "proof_type": "automated_test",
+      "evidence": "test_placement_partition_golden_path.py (11 tests); WP08 opus review PASS",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (orchestrated)",
+      "verified_at": "2026-07-08T01:30:00+00:00",
+      "notes": "Verified on merged branch (arch suite 795 passed / 0 failed)."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Docs truth-up: retired planning-on-main (AGENTS.md/CLAUDE.md); whole #1878 strangler -> 3.2.x; #1716 body updated.",
+      "proof_type": "automated_test",
+      "evidence": "terminology guard green; WP09 opus review PASS",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (orchestrated)",
+      "verified_at": "2026-07-08T01:30:00+00:00",
+      "notes": "Verified on merged branch (arch suite 795 passed / 0 failed)."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Ratchet extended with CommitTarget(ref=<checkout>) grammar; self-test proves it bites; write-side allow-list at floor; coord_authority stays 7 (drain #2453).",
+      "proof_type": "automated_test",
+      "evidence": "test_no_write_side_rederivation.py (self-test test_checkout_grammar_bites_on_planted_bypass); WP07 opus review PASS",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (orchestrated)",
+      "verified_at": "2026-07-08T01:30:00+00:00",
+      "notes": "Verified on merged branch (arch suite 795 passed / 0 failed)."
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Stored-topology-not-husk verified (subsumed by #2062; not re-implemented) + flatten-transition regression.",
+      "proof_type": "automated_test",
+      "evidence": "test_coord_topology_states.py flatten pin; WP06",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer (orchestrated)",
+      "verified_at": "2026-07-08T01:30:00+00:00",
+      "notes": "Verified on merged branch (arch suite 795 passed / 0 failed)."
+    }
+  ],
+  "negative_invariants": []
+}

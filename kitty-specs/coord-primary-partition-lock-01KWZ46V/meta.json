@@ -1,0 +1,33 @@
+{
+  "accept_commit": "ae53d995ce9fc42e8cad38fcf1ebc21cc8018c07",
+  "acceptance_history": [
+    {
+      "accept_commit": "ae53d995ce9fc42e8cad38fcf1ebc21cc8018c07",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-08T01:20:24.714468+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "c96a82a8061e7fc74c21d2a724b13041b4262b3b"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-08T01:20:24.714468+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "c96a82a8061e7fc74c21d2a724b13041b4262b3b",
+  "baseline_merge_commit": "af66f080e96436896464bc808a4ce3f62110b305",
+  "coordination_branch": "kitty/mission-coord-primary-partition-lock-01KWZ46V",
+  "created_at": "2026-07-07T20:27:14.428680+00:00",
+  "flattened": false,
+  "friendly_name": "Coord/Primary Partition Regression Lock",
+  "mission_id": "01KWZ46VKW8D26H9WB940FH5PS",
+  "mission_number": 168,
+  "mission_slug": "coord-primary-partition-lock-01KWZ46V",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Mission artifacts are split across a coordination branch (lifecycle/bookkeeping: status, notes, trace, issue-matrix, move-task) and the primary branch (stable planning: spec, plan, WP outlines), while no-coordination missions keep everything on primary. Today that placement logic is duplicated and sometimes bypassed, producing create-time split-brain and misleading coordination errors. This mission routes every read and write through a single topology-aware resolver seam - even when the answer is 'primary' - and locks the behaviour with an end-to-end regression test, so future work cannot reintroduce the split.",
+  "purpose_tldr": "Make one topology-aware API the single place that decides where every mission artifact is stored and read, and lock it against regression.",
+  "slug": "coord-primary-partition-lock-01KWZ46V",
+  "target_branch": "design/coord-primary-partition-lock",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-07T21:58:00.474200+00:00"
+}

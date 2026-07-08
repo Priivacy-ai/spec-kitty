@@ -1,0 +1,192 @@
+{
+  "version": 1,
+  "mission_slug": "coord-primary-partition-lock-01KWZ46V",
+  "mission_id": "01KWZ46VKW8D26H9WB940FH5PS",
+  "mission_branch": "kitty/mission-coord-primary-partition-lock-01KWZ46V",
+  "target_branch": "design/coord-primary-partition-lock",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/mission_runtime/artifacts.py",
+        "src/mission_runtime/context.py",
+        "src/mission_runtime/resolution.py",
+        "tests/mission_runtime/test_placement_seam.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/coordination/surface_resolver.py",
+        "src/specify_cli/coordination/workspace.py",
+        "src/specify_cli/missions/_read_path_resolver.py",
+        "tests/specify_cli/coordination/test_coord_topology_states.py",
+        "tests/specify_cli/coordination/test_workspace_mid8_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-i",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "AGENTS.md",
+        "CLAUDE.md",
+        "docs/release-goals/3.2.x.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/core/mission_creation.py",
+        "tests/specify_cli/core/test_mission_creation_placement.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_record_analysis.py",
+        "src/specify_cli/cli/commands/implement.py",
+        "tests/specify_cli/cli/commands/agent/test_record_analysis_placement.py",
+        "tests/specify_cli/cli/commands/test_implement_placement_routing.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/coordination/commit_router.py",
+        "tests/specify_cli/cli/commands/agent/test_workflow_placement_routing.py",
+        "tests/specify_cli/coordination/test_commit_router_placement.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_move_task_placement.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "tests/architectural/resolution_gate_allowlist.yaml",
+        "tests/architectural/test_no_write_side_rederivation.py",
+        "tests/architectural/test_resolution_authority_gates.py",
+        "tests/architectural/test_wp05_write_target_drain.py",
+        "tests/architectural/test_write_surface_placement_guard.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "tests/integration/test_placement_partition_golden_path.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-f"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-07-07T21:51:26.745398+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
