@@ -13,7 +13,7 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - 3.2.5
+## [3.2.5] - 2026-07-08
 
 ### ✨ Added
 
@@ -33,8 +33,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   malformed `kitty/mission-<slug>-` coordination branch → `git worktree add`
   exit-128; the `CoordinationWorkspace` composition seam fail-loud-guards it) and
   **#2250** (a never-coordinated mission no longer reports
-  `COORDINATION_BRANCH_DELETED`). The read-side `resolve_feature_dir_for_mission`
-  sweep + residual checkout fallbacks are tracked in #2453.
+  `COORDINATION_BRANCH_DELETED`). **The read side is now locked too (#1716
+  closeout):** every remaining coordination-surface *read* — the kind-blind
+  `resolve_feature_dir_for_mission` sweep (#2453) and the inline `meta.json`
+  reads (#2100) — routes through the same topology-aware seam kind-correctly, so
+  `spec-kitty accept` no longer reads a stale `-coord` acceptance matrix (#2404)
+  and planning artifacts always resolve to their canonical surface regardless of
+  the working directory. A non-vacuous architectural ratchet keeps the routed
+  read classes from silently regrowing. Closes epic **#1716** and #2453 / #2100
+  / #2088 / #2404.
 - **Doctrine/charter pack paths support environment-variable indirection
   (#2437).** Pack-location fields (e.g. an org-pack's `local_path`) previously
   had to be hardcoded absolute paths, so a shared, committed `.kittify` config
