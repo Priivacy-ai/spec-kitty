@@ -17,6 +17,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### ✨ Added
 
+- **Coord/primary placement-partition lock — one topology-aware seam owns where
+  every mission artifact is stored and read (#1716, #1878/G2).** Formalizes
+  `PlacementSeam.write_target(kind)` / `read_dir(kind)` as the single thin
+  authority over the existing `resolve_action_context` SSOT and routes every
+  remaining write site through it — **fail-closed** via `PlacementResolutionRequired`
+  (a real resolution failure raises rather than silently committing to the
+  operator's checkout). An architectural ratchet forbids the
+  `CommitTarget(ref=<checkout>)` grammar (a self-test proves it bites), and an
+  end-to-end characterization test locks the behaviour. Canonical partition:
+  coord branch = lifecycle (status/notes/trace/issue-matrix/move-task); primary
+  = stable planning (spec/plan/WP outlines); no-coordination topology → all
+  primary. RETROSPECTIVE delegates to the existing `resolve_retrospective_home`
+  (no second authority). Also **fixes #2091** (an empty `mid8` no longer builds a
+  malformed `kitty/mission-<slug>-` coordination branch → `git worktree add`
+  exit-128; the `CoordinationWorkspace` composition seam fail-loud-guards it) and
+  **#2250** (a never-coordinated mission no longer reports
+  `COORDINATION_BRANCH_DELETED`). The read-side `resolve_feature_dir_for_mission`
+  sweep + residual checkout fallbacks are tracked in #2453.
 - **Doctrine/charter pack paths support environment-variable indirection
   (#2437).** Pack-location fields (e.g. an org-pack's `local_path`) previously
   had to be hardcoded absolute paths, so a shared, committed `.kittify` config
