@@ -120,12 +120,20 @@ class CoordinationWorkspaceIdentityUnresolved(StructuredError):
     def __init__(self, *, mission_slug: str) -> None:
         self.mission_slug = mission_slug
         super().__init__(
-            "CoordinationWorkspace requires a non-empty mid8 to compose a "
-            f"coordination worktree/branch name for mission {mission_slug!r}; "
-            "refusing to build a malformed 'kitty/mission-<slug>-' ref "
-            "(invariant M-1, #2091). Resolve the mission's mid8 (declared "
-            "meta.mid8 -> resolve_mid8(mission_id) -> mid8_from_slug) before "
-            "calling CoordinationWorkspace."
+            f"Mission {mission_slug!r} has no resolvable mission identity "
+            "(mid8), so Spec Kitty cannot address its coordination worktree or "
+            "branch. This mission predates the 3.2.x mission-identity model and "
+            "is no longer supported for coordination operations.\n\n"
+            "To modernize it, run:\n"
+            "    spec-kitty migrate backfill-identity\n"
+            "This mints a ULID mission_id (and derives its mid8) in the "
+            "mission's meta.json. Audit identity health first with:\n"
+            "    spec-kitty doctor identity\n\n"
+            # Maintainer note: the mid8 disambiguator is required to compose a
+            # well-formed 'kitty/mission-<slug>-<mid8>' ref; an empty mid8 would
+            # build a malformed 'kitty/mission-<slug>-' name (invariant M-1,
+            # #2091). Resolution cascade: meta.mid8 -> resolve_mid8(mission_id)
+            # -> mid8_from_slug.
         )
 
 
