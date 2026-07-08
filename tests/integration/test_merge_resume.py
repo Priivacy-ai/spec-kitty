@@ -38,6 +38,7 @@ import pytest
 from specify_cli.cli.commands.merge import _run_lane_based_merge
 from specify_cli.merge.config import MergeStrategy
 from specify_cli.merge.state import MergeState, save_state
+from tests.lane_test_utils import write_mission_meta
 
 
 pytestmark = [pytest.mark.git_repo, pytest.mark.non_sandbox]
@@ -121,6 +122,12 @@ def _patches(
     def fake_run_command(cmd, *args, **kwargs):  # noqa: ANN001
         if "merge-base" in cmd:
             return (0, "abc123\n", "")
+        # Modern mission (post-083 ULID identity): the baseline-capture phase
+        # reads ``git rev-parse <target>`` to anchor ``baseline_merge_commit``.
+        # Return a realistic 40-char SHA so record_baseline_merge_commit has a
+        # non-empty baseline instead of hard-failing the modern-mission invariant.
+        if "rev-parse" in cmd:
+            return (0, "d4f8a1c2e6b09f37a5c1e8b2f4a6d0c9e3b7f1a2\n", "")
         # FR-037: model the real ``git rev-list --count <lane> ^<mission>``
         # integration check.  Return "0" (zero commits ahead = already
         # integrated) for any lane branch whose lane-id is in
@@ -192,6 +199,9 @@ class TestMergeResumeIdempotence:
         _init_git_repo(tmp_path)
         feature_dir = tmp_path / "kitty-specs" / slug
         feature_dir.mkdir(parents=True)
+        # Modernize the mission (3.2.x identity) so the mark-done coordination
+        # write resolves a non-empty mid8 instead of tripping the #2091 guard.
+        write_mission_meta(feature_dir)
 
         manifest = _make_manifest(slug, lane_count=3)
         _write_done_events(feature_dir, ["WP01", "WP02", "WP03"])
@@ -268,6 +278,9 @@ class TestMergeResumeAfterInterruption:
         _init_git_repo(tmp_path)
         feature_dir = tmp_path / "kitty-specs" / slug
         feature_dir.mkdir(parents=True)
+        # Modernize the mission (3.2.x identity) so the mark-done coordination
+        # write resolves a non-empty mid8 instead of tripping the #2091 guard.
+        write_mission_meta(feature_dir)
 
         manifest = _make_manifest(slug, lane_count=3)
         _write_done_events(feature_dir, ["WP01"])
@@ -343,6 +356,9 @@ class TestMergeResumeBounded:
         _init_git_repo(tmp_path)
         feature_dir = tmp_path / "kitty-specs" / slug
         feature_dir.mkdir(parents=True)
+        # Modernize the mission (3.2.x identity) so the mark-done coordination
+        # write resolves a non-empty mid8 instead of tripping the #2091 guard.
+        write_mission_meta(feature_dir)
 
         manifest = _make_manifest(slug, lane_count=10)
         wp_ids = [f"WP{i+1:02d}" for i in range(10)]
