@@ -27,7 +27,7 @@ from typer.testing import CliRunner
 
 from mission_runtime import ActionContextError, CommitTarget
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 
 # ---------------------------------------------------------------------------
