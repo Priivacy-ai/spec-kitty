@@ -242,10 +242,40 @@ def _path_planning_commit_worktree(mission: _CoordMission) -> tuple[str, str]:
     return primary_ref, coord_ref
 
 
+def _path_workflow_placement_wrapper(mission: _CoordMission) -> tuple[str, str]:
+    """Write path 4 (coord-primary-partition-lock WP07 / T033 / T035):
+    workflow.py's ``_resolve_workflow_placement`` thin wrapper.
+
+    T033's new checkout-grammar ratchet (``test_no_write_side_rederivation.py``)
+    trusts ``_resolve_workflow_placement`` as a sanctioned seam-fold callee
+    (a caller assigning from it is treated as seam-derived, not a checkout
+    read) WITHOUT re-deriving the placement inline at each of workflow.py's
+    write sites. This drives the REAL wrapper (not a stub) against the real
+    coord fixture for a representative PRIMARY kind (``WORK_PACKAGE_TASK`` --
+    the kind workflow.py actually calls it with for baseline-test capture) and
+    the COORD kind (``STATUS_STATE``), proving T033's static "this callee is
+    seam-derived" assumption holds behaviorally, not just by AST inspection.
+    """
+    from specify_cli.cli.commands.agent.workflow import _resolve_workflow_placement
+
+    primary = _resolve_workflow_placement(
+        repo_root=mission.repo_root,
+        mission_slug=mission.mission_slug,
+        kind=MissionArtifactKind.WORK_PACKAGE_TASK,
+    )
+    coord = _resolve_workflow_placement(
+        repo_root=mission.repo_root,
+        mission_slug=mission.mission_slug,
+        kind=_COORD_KIND,
+    )
+    return primary.ref, coord.ref
+
+
 _WRITE_PATHS = {
     "commit_for_mission": _path_commit_for_mission,
     "safe_commit_bypass": _path_safe_commit_bypass,
     "planning_commit_worktree": _path_planning_commit_worktree,
+    "workflow_placement_wrapper": _path_workflow_placement_wrapper,
 }
 
 
