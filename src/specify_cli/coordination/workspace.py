@@ -35,11 +35,16 @@ import subprocess
 import threading
 from pathlib import Path
 
+from specify_cli.core.errors import StructuredError
 from specify_cli.lanes.branch_naming import (
     coord_dir_name as _seam_coord_dir_name,
     coord_mission_dir_name as _seam_coord_mission_dir_name,
     coord_reconstruct_branch as _seam_coord_reconstruct_branch,
 )
+
+# Sonar S1192: the ``worktree`` git subcommand literal recurs across every
+# subprocess call this module makes (list/add/remove) — hoisted to one name.
+_GIT_WORKTREE = "worktree"
 
 
 # #1357: serialize concurrent ``CoordinationWorkspace.resolve`` calls so two
@@ -91,6 +96,45 @@ class CoordinationWorkspaceBranchMismatch(Exception):
         )
 
 
+class CoordinationWorkspaceIdentityUnresolved(StructuredError):
+    """Raised when composition is attempted with an empty ``mid8`` (#2091, M-1).
+
+    An empty ``mid8`` cannot be composed into a coordination worktree
+    directory or branch name without producing a malformed
+    ``kitty/mission-<slug>-`` ref (trailing hyphen, dropped disambiguator).
+    Left unguarded, that malformed name only surfaces later as an opaque
+    ``git worktree add`` exit-128 far from the actual defect — the caller
+    sees a low-level git failure instead of "mid8 is required".
+
+    Guarded at the SINGLE composition seam (``worktree_path`` /
+    ``branch_name``, and transitively ``resolve`` / ``is_present`` /
+    ``teardown`` which all route through them) so every caller gets the
+    fail-loud behavior for free (C-001) rather than each call site needing
+    to remember its own empty-``mid8`` check. The ``runtime_bridge.py``
+    guard (``coord_routing_topology and not _mid8``) remains as
+    belt-and-suspenders for that one call path.
+    """
+
+    error_code: str = "COORDINATION_WORKSPACE_MID8_REQUIRED"
+
+    def __init__(self, *, mission_slug: str) -> None:
+        self.mission_slug = mission_slug
+        super().__init__(
+            "CoordinationWorkspace requires a non-empty mid8 to compose a "
+            f"coordination worktree/branch name for mission {mission_slug!r}; "
+            "refusing to build a malformed 'kitty/mission-<slug>-' ref "
+            "(invariant M-1, #2091). Resolve the mission's mid8 (declared "
+            "meta.mid8 -> resolve_mid8(mission_id) -> mid8_from_slug) before "
+            "calling CoordinationWorkspace."
+        )
+
+
+def _require_mid8(mission_slug: str, mid8: str) -> None:
+    """Fail loudly before composing with an empty ``mid8`` (#2091, M-1)."""
+    if not mid8:
+        raise CoordinationWorkspaceIdentityUnresolved(mission_slug=mission_slug)
+
+
 def _normalize_ref(ref: str) -> str:
     """Strip ``refs/heads/`` prefix so HEAD comparisons use short names."""
     return ref.removeprefix("refs/heads/")
@@ -114,7 +158,7 @@ def _compose_mission_dir(mission_slug: str, mid8: str) -> str:
 def _has_stale_worktree_registration(repo_root: Path, path: Path) -> bool:
     """Return whether git records ``path`` as prunable/missing."""
     output = subprocess.check_output(
-        ["git", "-C", str(repo_root), "worktree", "list", "--porcelain"],
+        ["git", "-C", str(repo_root), _GIT_WORKTREE, "list", "--porcelain"],
         text=True,
     )
     expected = path.resolve(strict=False)
@@ -139,7 +183,7 @@ def _has_stale_worktree_registration(repo_root: Path, path: Path) -> bool:
 
 def _remove_worktree_registration(repo_root: Path, path: Path) -> None:
     subprocess.run(
-        ["git", "-C", str(repo_root), "worktree", "remove", "--force", str(path)],
+        ["git", "-C", str(repo_root), _GIT_WORKTREE, "remove", "--force", str(path)],
         check=True,
     )
 
@@ -162,8 +206,11 @@ class CoordinationWorkspace:
         """Return the canonical worktree path. Pure; no filesystem touch.
 
         The ``<slug>-<mid8>-coord`` directory name is composed by the seam's
-        :func:`coord_dir_name` (single grammar, FR-010).
+        :func:`coord_dir_name` (single grammar, FR-010). Requires a non-empty
+        ``mid8`` (invariant M-1, #2091) — see
+        :class:`CoordinationWorkspaceIdentityUnresolved`.
         """
+        _require_mid8(mission_slug, mid8)
         return repo_root / ".worktrees" / _seam_coord_dir_name(mission_slug, mid8=mid8)
 
     @staticmethod
@@ -175,7 +222,10 @@ class CoordinationWorkspace:
         names stay byte-identical to what was created on disk (FR-010), including
         for legacy ``NNN-`` slugs (#1589). The canonical, NNN-stripping
         ``mission_branch_name`` is reserved for the merge path, not this read path.
+        Requires a non-empty ``mid8`` (invariant M-1, #2091) — see
+        :class:`CoordinationWorkspaceIdentityUnresolved`.
         """
+        _require_mid8(mission_slug, mid8)
         return _seam_coord_reconstruct_branch(mission_slug, mid8=mid8)
 
     @classmethod
@@ -223,7 +273,7 @@ class CoordinationWorkspace:
             if _has_stale_worktree_registration(repo_root, path):
                 _remove_worktree_registration(repo_root, path)
             subprocess.run(
-                ["git", "-C", str(repo_root), "worktree", "add", str(path), branch],
+                ["git", "-C", str(repo_root), _GIT_WORKTREE, "add", str(path), branch],
                 check=True,
                 capture_output=True,
                 text=True,
@@ -246,7 +296,7 @@ class CoordinationWorkspace:
                 _remove_worktree_registration(repo_root, path)
             return
         subprocess.run(
-            ["git", "-C", str(repo_root), "worktree", "remove",
+            ["git", "-C", str(repo_root), _GIT_WORKTREE, "remove",
              str(path), "--force"],
             check=False,  # tolerate "already removed" races
         )
