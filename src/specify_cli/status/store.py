@@ -29,6 +29,7 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.core.utils import ensure_within_any
 from specify_cli.events import sanitize_event_for_log
+from specify_cli.mission_metadata import load_meta
 
 from .models import StatusEvent
 
@@ -232,8 +233,12 @@ class _SlugResolver:
                 return None
             if meta_path.exists():
                 try:
-                    data = json.loads(meta_path.read_text(encoding="utf-8"))
-                except (json.JSONDecodeError, OSError) as exc:
+                    # Canonical reader (FR-005/WP12): on_malformed="raise" folds
+                    # the JSON-syntax AND non-dict-shape checks into ONE
+                    # ValueError, replacing the two hand-rolled except/isinstance
+                    # arms this call site used to carry.
+                    data = load_meta(meta_path.parent, on_malformed="raise")
+                except (json.JSONDecodeError, OSError, ValueError) as exc:
                     logger.warning(
                         "Could not read meta.json for slug %r: %s",
                         mission_slug,
@@ -242,13 +247,6 @@ class _SlugResolver:
                 else:
                     if isinstance(data, dict):
                         mission_id = data.get("mission_id") or None
-                    else:
-                        logger.warning(
-                            "meta.json for slug %r is not an object (got %s); "
-                            "mission_id will be None",
-                            mission_slug,
-                            type(data).__name__,
-                        )
             else:
                 logger.warning(
                     "No meta.json found for mission_slug %r (orphaned event); mission_id will be None for these events",

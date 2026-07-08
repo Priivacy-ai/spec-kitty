@@ -93,12 +93,20 @@ def _base_patches(tmp_path: Path, feature_dir: Path):
                     return_value=False,
                 )
             )
-            stack.enter_context(
-                patch(
-                    "specify_cli.cli.commands.agent.tasks.resolve_feature_dir_for_mission",
-                    return_value=feature_dir,
-                )
-            )
+            # read-surface-ssot-closeout WP08 / FR-001: the kind-blind
+            # ``tasks.resolve_feature_dir_for_mission`` module export is retired —
+            # the STATUS-partition reads that used it (``validate-workflow``,
+            # ``finalize-tasks`` via ``_ft_apply_writes``) now route through
+            # ``mission_runtime.placement_seam(...).read_dir(STATUS_STATE)``, a
+            # module-scope import in BOTH ``tasks.py`` and ``tasks_finalize.py`` —
+            # two separate bindings, so a single generic stub can no longer
+            # intercept both call sites here. ``feature_dir`` is a REAL directory
+            # on ``tmp_path`` (``_post30_feature`` / ``_pre30_feature`` write it to
+            # disk), and this fixture's mission carries no ``-coord`` worktree /
+            # ``coordination_branch`` — so the real topology-aware seam resolves
+            # the SAME primary dir the retired mock used to return. No stub needed
+            # (mirrors the WP05 ``implement.py`` precedent of dropping the stub
+            # once the seam is topology-blind for the fixture under test).
             stack.enter_context(
                 patch(
                     "specify_cli.cli.commands.agent.tasks._map_requirements_feature_dir",

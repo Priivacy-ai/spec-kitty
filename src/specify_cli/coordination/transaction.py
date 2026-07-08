@@ -20,8 +20,8 @@ from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
 from specify_cli.core.paths import assert_safe_path_segment
+from specify_cli.mission_metadata import load_meta
 import errno
-import json as _json
 import logging
 import os
 import subprocess
@@ -215,17 +215,12 @@ def _is_legacy_mission(repo_root: Path, mission_slug: str, mid8: str) -> bool:
       ``meta.json`` field is consulted.
     """
     kitty_dir_name = _mission_specs_dir_name(mission_slug, mid8)
-    meta_path = repo_root / KITTY_SPECS_DIR / kitty_dir_name / "meta.json"
-    if not meta_path.exists():
-        return False
-    try:
-        data = _json.loads(meta_path.read_text(encoding="utf-8"))
-    except (OSError, _json.JSONDecodeError):
-        # A malformed meta.json is not our problem to repair here; if a
-        # caller hits this they will surface it through other validators.
-        # Treat as new-topology so we do not silently route legacy.
-        return False
-    if not isinstance(data, dict):
+    feature_dir = repo_root / KITTY_SPECS_DIR / kitty_dir_name
+    # A malformed meta.json is not our problem to repair here; if a caller
+    # hits this they will surface it through other validators. Treat as
+    # new-topology so we do not silently route legacy.
+    data = load_meta(feature_dir, on_malformed="none")
+    if data is None:
         return False
     return not data.get("coordination_branch")
 
@@ -235,14 +230,9 @@ def _coordination_branch_from_meta(
 ) -> str | None:
     """Return explicit ``coordination_branch`` from meta.json, if trustworthy."""
     kitty_dir_name = _mission_specs_dir_name(mission_slug, mid8)
-    meta_path = repo_root / KITTY_SPECS_DIR / kitty_dir_name / "meta.json"
-    if not meta_path.exists():
-        return None
-    try:
-        data = _json.loads(meta_path.read_text(encoding="utf-8"))
-    except (OSError, _json.JSONDecodeError):
-        return None
-    if not isinstance(data, dict):
+    feature_dir = repo_root / KITTY_SPECS_DIR / kitty_dir_name
+    data = load_meta(feature_dir, on_malformed="none")
+    if data is None:
         return None
     raw_branch = data.get("coordination_branch")
     if not isinstance(raw_branch, str):
@@ -271,14 +261,9 @@ def _warrants_legacy_warning(repo_root: Path, mission_slug: str, mid8: str) -> b
     is not ``flattened``.
     """
     kitty_dir_name = _mission_specs_dir_name(mission_slug, mid8)
-    meta_path = repo_root / KITTY_SPECS_DIR / kitty_dir_name / "meta.json"
-    if not meta_path.exists():
-        return False
-    try:
-        meta = _json.loads(meta_path.read_text(encoding="utf-8"))
-    except (OSError, _json.JSONDecodeError):
-        return False
-    if not isinstance(meta, dict):
+    feature_dir = repo_root / KITTY_SPECS_DIR / kitty_dir_name
+    meta = load_meta(feature_dir, on_malformed="none")
+    if meta is None:
         return False
     # belt-and-suspenders: call site sits inside `if legacy_mode:` (which requires
     # no coordination_branch), but guard is kept for future direct callers.

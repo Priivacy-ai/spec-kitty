@@ -15,6 +15,9 @@ Error codes used:
   WP_ALREADY_CLAIMED          -- WP claimed by a different actor
   MISSION_NOT_READY           -- not all WPs approved/done (for accept-mission)
   HISTORY_COMMIT_FAILED       -- append-history could not create its commit
+  PLACEMENT_RESOLUTION_REQUIRED -- append-history's write placement could not be
+                                 resolved (D11 fail-closed; FR-004 -- never a
+                                 silent current-branch fallback)
   SAFE_COMMIT_*               -- structured safe_commit refusal/failure
   WORKFLOW_EVIDENCE_REQUIRED  -- workflow files changed without runner proof
   PREFLIGHT_FAILED            -- preflight checks failed (for merge-mission)
@@ -41,6 +44,7 @@ import typer
 
 from mission_runtime import CommitTarget
 from specify_cli.core.contract_gate import validate_outbound_payload
+from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.git.commit_helpers import (
     SafeCommitBackstopError,
     SafeCommitError,
@@ -1420,8 +1424,15 @@ def _resolve_history_commit_args(
     planning→coord transit is removed (FR-003 / C-005). The WP prompt edit is
     committed directly from the primary checkout.
 
-    For flat/flattened (or unresolvable) missions the prior behaviour is kept:
-    commit from the primary checkout on its current branch.
+    FR-004 (read-surface-ssot-closeout, C-005): a placement-resolution
+    failure (:class:`ActionContextError`) is FAIL-CLOSED — it raises
+    :class:`PlacementResolutionRequired` and propagates. It must never
+    silently degrade to ``CommitTarget(ref=<current checked-out branch>)``: a
+    resolver failure is a real defect (missing mission, corrupt state, a
+    ``coordination_branch`` declared in meta.json but torn down in git, ...),
+    and committing the WP history entry to whatever branch the operator
+    happens to have checked out is a shadow write path, not a legitimate
+    fallback.
     """
     from mission_runtime import (
         ActionContextError,
@@ -1436,20 +1447,20 @@ def _resolve_history_commit_args(
         placement = resolve_placement_only(
             main_repo_root, mission, kind=MissionArtifactKind.WORK_PACKAGE_TASK
         )
-    except ActionContextError:
-        placement = None
+    except ActionContextError as exc:
+        raise PlacementResolutionRequired(
+            "Cannot resolve the canonical write placement for this mission's "
+            "WP prompt-file history commit -- refusing to commit to the "
+            "currently checked-out branch (D11 fail-closed / FR-004). This "
+            "usually means the mission's stored topology could not be "
+            "resolved (e.g. a coordination branch declared in meta.json is "
+            "missing/torn down in git). Run `spec-kitty doctor workspaces "
+            "--fix`, or flatten the mission by removing `coordination_branch` "
+            "from meta.json if the coordination topology was never used, "
+            "then retry."
+        ) from exc
 
-    if placement is not None:
-        return main_repo_root, placement
-
-    current_branch = subprocess.check_output(
-        ["git", "-C", str(main_repo_root), "branch", "--show-current"],
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        stderr=subprocess.PIPE,
-    ).strip()
-    return main_repo_root, CommitTarget(ref=current_branch)
+    return main_repo_root, placement
 
 
 @app.command(name="append-history")
@@ -1534,6 +1545,15 @@ def append_history(
             wp_path.write_text(raw, encoding="utf-8")
         message = exc.stderr.strip() if exc.stderr else str(exc)
         _fail(cmd, "HISTORY_COMMIT_FAILED", message)
+        return
+    except PlacementResolutionRequired as exc:
+        # FR-004 (C-005): a fail-closed placement-resolution refusal carries
+        # its own structured error_code -- it must NOT be flattened into the
+        # generic HISTORY_COMMIT_FAILED below, which would hide the D11
+        # fail-closed signal from the machine-contract consumer.
+        with suppress(OSError):
+            wp_path.write_text(raw, encoding="utf-8")
+        _fail(cmd, exc.error_code, str(exc), data=exc.to_dict())
         return
     except (OSError, RuntimeError) as exc:
         with suppress(OSError):

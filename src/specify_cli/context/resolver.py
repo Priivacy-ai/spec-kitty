@@ -8,7 +8,6 @@ no heuristic fallback, and no single-feature auto-detection.
 
 from __future__ import annotations
 
-import json
 from datetime import datetime, UTC
 from pathlib import Path
 
@@ -27,7 +26,7 @@ from specify_cli.context.store import load_context as _load_context
 from specify_cli.context.store import save_context
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.persistence import require_lanes_json
-from specify_cli.mission_metadata import mission_identity_fields
+from specify_cli.mission_metadata import load_meta, mission_identity_fields
 from mission_runtime import MissionArtifactKind
 from specify_cli.missions._read_path_resolver import (
     resolve_feature_dir_for_mission,
@@ -67,12 +66,17 @@ def _read_meta_json(feature_dir: Path) -> dict[str, str]:
     context-bound commands can still operate deterministically on a
     single explicit mission directory.
     """
-    meta_path = feature_dir / "meta.json"
-    if not meta_path.exists():
-        msg = f"meta.json not found at {meta_path}."
-        raise MissingIdentityError(msg)
-
-    data = json.loads(meta_path.read_text(encoding="utf-8"))
+    # FR-005 / post-#2091: this site hard-fails on a missing meta.json
+    # (MissingIdentityError) and propagates a malformed-JSON failure rather
+    # than silently tolerating it -- allow_missing=True or on_malformed="empty"
+    # would MASK that guard and silently re-introduce the removed legacy
+    # tolerance. ``allow_missing=False`` never returns None, so ``or {}`` only
+    # narrows the type for mypy (mirrors mission_metadata.load_meta_strict).
+    try:
+        data = load_meta(feature_dir, allow_missing=False, on_malformed="raise") or {}
+    except FileNotFoundError as exc:
+        msg = f"meta.json not found at {feature_dir / 'meta.json'}."
+        raise MissingIdentityError(msg) from exc
 
     mission_id = data.get("mission_id") or feature_dir.name
     target_branch = data.get("target_branch", "main")
@@ -168,6 +172,14 @@ def resolve_context(
     # (meta.json, WP frontmatter, lanes.json) are PRIMARY-partition artifacts
     # and are routed through ``resolve_planning_read_dir`` so they are
     # topology-blind (C-007: no consolidation of the coord-aware resolver).
+    # C-001 honesty note (WP06): this call stays on the kind-blind primitive
+    # by design — it exists to canonicalize the caller's HANDLE (bare mid8 /
+    # numeric prefix / full slug) to a directory NAME, not to read a
+    # PRIMARY-partition artifact off the returned dir. ``_canon_dir`` itself
+    # is never opened for content; every actual read below is separately
+    # kind-routed through ``resolve_planning_read_dir``. Re-routing this site
+    # too would over-claim a single funnel over the ``*_feature_dir_for_mission``
+    # primitives beyond what the gate enforces.
     try:
         _canon_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
     except ActionContextError as exc:

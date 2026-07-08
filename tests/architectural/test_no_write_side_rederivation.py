@@ -158,7 +158,12 @@ _ALLOW_LIST_SEED: tuple[tuple[str, int], ...] = (
     # post-merge re-anchor (coord-primary-partition-lock aggregate landing):
     # cumulative cross-lane line drift shifted this 833 -> 838 (same helper,
     # verified by re-scan).
-    ("src/specify_cli/cli/commands/agent/workflow.py", 838),
+    # post-merge re-anchor (read-surface-ssot-closeout aggregate landing): WP04's
+    # workflow.py campsite extractions (_render_isolation_banner /
+    # _render_wp_prompt_wrapper + routing) shifted _review_feedback_root's
+    # ``return feature_dir.parent.parent`` 838 -> 872 (same READ-side helper,
+    # verified by re-scan, not a new offender).
+    ("src/specify_cli/cli/commands/agent/workflow.py", 872),
     # tracked: #2453 - _status_commit_destination_branch's
     # ``get_current_branch(repo_root) or fallback_branch`` git-HEAD selector.
     # It ONLY predicts the pre-lane status-commit branch for the protected-branch
@@ -169,7 +174,12 @@ _ALLOW_LIST_SEED: tuple[tuple[str, int], ...] = (
     # through the placement seam would change which branch the guard evaluates
     # (a behavior change), so it is deferred to the #2453 read-site sweep bucket
     # (D-1/C-003) rather than routed here.
-    ("src/specify_cli/cli/commands/implement.py", 87),
+    # post-merge re-anchor (read-surface-ssot-closeout aggregate landing): the
+    # read-surface routing that merged into this test file dropped this seed entry
+    # and its staleness twin-guard while keeping the checkout_head_selector grammar
+    # + implement.py in _ADOPTED_MODULES; restored here re-anchored 87 -> 88 (same
+    # pre-existing selector, verified by re-scan, not a new offender).
+    ("src/specify_cli/cli/commands/implement.py", 88),
 )
 
 
@@ -621,18 +631,16 @@ def _scan_checkout_grammar_module(path: Path) -> list[_CheckoutGrammarFinding]:
 #: the MissionArtifactKind placement seam because it is not a placement
 #: decision at all.
 _CHECKOUT_GRAMMAR_ALLOW_LIST_SEED: tuple[tuple[str, int, str], ...] = (
-    (
-        "src/specify_cli/orchestrator_api/commands.py",
-        1452,
-        "tracked: #2453 - _resolve_history_commit_args' unresolvable-mission "
-        "fallback constructs CommitTarget(ref=current_branch) from "
-        "'git branch --show-current'; the #2453 read-site sweep routes this "
-        "through the seam (deferred #1716/D-1/C-003 ladder, out of this "
-        "mission's scope).",
-    ),
+    # NOTE: the former src/specify_cli/orchestrator_api/commands.py:1452 entry
+    # (_resolve_history_commit_args' unresolvable-mission fallback) was
+    # DELETED (shrink-only ratchet) after read-surface-ssot-closeout FR-004:
+    # the ActionContextError catch now raises PlacementResolutionRequired
+    # (fail-closed) instead of constructing a CommitTarget(ref=current_branch)
+    # via 'git branch --show-current' -- there is no longer a checkout-grammar
+    # construction at that site.
     (
         "src/specify_cli/coordination/transaction.py",
-        1085,
+        1070,
         "tracked: #2453 - BookkeepingTransaction.commit()'s legacy-mission "
         "override (_resolve_legacy_lane_destination reads the lane worktree's "
         "HEAD) constructs CommitTarget(ref=self.destination_ref) for "
@@ -649,7 +657,7 @@ _CHECKOUT_GRAMMAR_ALLOW_LIST_SEED: tuple[tuple[str, int, str], ...] = (
     ),
     (
         "src/specify_cli/cli/commands/agent/workflow.py",
-        523,
+        557,
         "tracked: #2453 - _commit_via_legacy_safe_commit's target_branch "
         "parameter is a pre-coordination-topology legacy mission's "
         "checked-out branch; same deferred bucket as the other #2453 "

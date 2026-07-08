@@ -30,6 +30,7 @@ from typing import Any, Literal
 from mission_runtime import MissionTopology, classify_topology, routes_through_coordination
 
 from specify_cli.lanes import CorruptLanesError, read_lanes_json
+from specify_cli.mission_metadata import load_meta
 
 logger = logging.getLogger(__name__)
 
@@ -90,11 +91,11 @@ def read_topology(feature_dir: Path) -> MissionTopology:
         FileNotFoundError: If ``meta.json`` does not exist.
         ValueError: If ``meta.json`` is not a JSON object.
     """
-    meta_path = feature_dir / "meta.json"
-    raw_text = meta_path.read_text(encoding="utf-8")
-    meta: dict[str, Any] = json.loads(raw_text)
-    if not isinstance(meta, dict):
-        raise ValueError(f"Expected JSON object in {meta_path}, got {type(meta).__name__}")
+    # post-#2091 canonical reader: allow_missing=False raises FileNotFoundError
+    # on a missing meta.json, on_malformed="raise" (default) raises ValueError
+    # on malformed/non-object content -- matching this function's documented
+    # Raises: contract byte-for-byte.
+    meta: dict[str, Any] = load_meta(feature_dir, allow_missing=False) or {}
 
     stored = meta.get(_TOPOLOGY_KEY)
     if isinstance(stored, str) and stored in _VALID_TOPOLOGY_VALUES:
@@ -165,11 +166,8 @@ def backfill_mission_topology(
         )
 
     try:
-        raw_text = meta_path.read_text(encoding="utf-8")
-        meta: dict[str, Any] = json.loads(raw_text)
-        if not isinstance(meta, dict):
-            raise ValueError(f"Expected JSON object, got {type(meta).__name__}")
-    except (json.JSONDecodeError, OSError, ValueError) as exc:
+        meta: dict[str, Any] = load_meta(feature_dir, allow_missing=False) or {}
+    except (FileNotFoundError, ValueError) as exc:
         logger.warning("Corrupt meta.json in %s: %s", slug, exc)
         return TopologyBackfillResult(
             feature_dir=feature_dir,

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission, resolve_feature_dir_for_mission
 import functools
 import json
 import re
@@ -34,6 +33,8 @@ from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.core.constants import WORKTREES_DIR
 from mission_runtime import (
     CommitTarget,
+    MissionArtifactKind,
+    placement_seam,
     resolve_topology,
     routes_through_coordination,
 )
@@ -973,17 +974,28 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
 
 def _ensure_vcs_in_meta(feature_dir: Path, _repo_root: Path) -> VCSBackend:
     """Ensure VCS is selected and locked in meta.json."""
-    meta_path = feature_dir / "meta.json"
-    if not meta_path.exists():
-        console.print(f"[red]Error:[/red] meta.json not found in {feature_dir}")
-        console.print("Run /spec-kitty.specify first to create feature structure")
-        raise typer.Exit(1)
+    # read-surface-ssot-closeout WP05 / FR-005: route the inline
+    # ``json.loads`` read through the canonical ``load_meta`` authority. This
+    # site HARD-FAILS on a missing or malformed meta.json (both branches below
+    # raise ``typer.Exit(1)``) -- the post-#2091 contract for a hard-failing
+    # site is ``allow_missing=False`` (never ``allow_missing=True``, which
+    # would mask the guard by silently returning ``None`` instead of raising).
+    from specify_cli.mission_metadata import load_meta
 
     try:
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
+        meta = load_meta(feature_dir, allow_missing=False, on_malformed="raise")
+    except FileNotFoundError:
+        console.print(f"[red]Error:[/red] meta.json not found in {feature_dir}")
+        console.print("Run /spec-kitty.specify first to create feature structure")
+        raise typer.Exit(1) from None
+    except ValueError as exc:
         console.print(f"[red]Error:[/red] Invalid JSON in meta.json: {exc}")
         raise typer.Exit(1) from exc
+    # ``allow_missing=False`` + ``on_malformed="raise"`` never returns ``None``
+    # (both ``None``-producing branches raise, above) -- ``or {}`` narrows the
+    # ``dict[str, Any] | None`` signature for mypy without an assert
+    # (matching ``load_meta_strict``'s own narrowing idiom).
+    meta = meta or {}
 
     if "vcs" not in meta:
         now_iso = datetime.now(UTC).isoformat()
@@ -1166,31 +1178,22 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         if auto_commit is None:
             auto_commit = get_auto_commit_default(repo_root)
         _mission_number, mission_slug = detect_feature_context(mission, repo_root=repo_root)
-        feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
-        if not (feature_dir / "meta.json").exists():
-            feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
-        # FR-003 cascade layer 1: meta.json lives ONLY on the PRIMARY checkout —
-        # the coord worktree's mission dir never carries it. Both resolvers above
-        # are topology-aware and prefer the coord worktree once materialized, so
-        # ``feature_dir`` lands on a meta-less coord dir and every downstream
-        # meta read (``_ensure_vcs_in_meta``, identity resolution) fails with
-        # "meta.json not found". When the resolved dir lacks meta, anchor on the
-        # canonical primary dir so config is readable before topology is
-        # resolved. (The coord surface stays authoritative for STATUS reads,
-        # which route through the canonical surface authority, not this dir.)
-        if not (feature_dir / "meta.json").exists():
-            from specify_cli.missions._read_path_resolver import (
-                _canonicalize_primary_read_handle,
-                primary_feature_dir_for_mission,
-            )
-
-            # FR-011 / T012: fold the handle to its canonical dir NAME first so a
-            # bare mid8 / human slug resolves the durable ``<slug>-<mid8>`` home
-            # (ambiguous handle RAISES — no silent pick).
-            _canonical_handle = _canonicalize_primary_read_handle(repo_root, mission_slug)
-            primary_candidate = primary_feature_dir_for_mission(repo_root, _canonical_handle)
-            if (primary_candidate / "meta.json").exists():
-                feature_dir = primary_candidate
+        # read-surface-ssot-closeout WP05 / FR-001 / NFR-001: route through the
+        # kind-aware placement seam instead of the kind-blind
+        # ``resolve_feature_dir_for_mission`` (which could return the
+        # coordination worktree's mission dir once materialized -- the #2453
+        # coord-husk-shadows-primary defect NFR-001 closes). ``SPEC`` is a
+        # PRIMARY-partition kind (mission_runtime.artifacts), so ``read_dir``
+        # resolves the topology-blind primary directory directly: the SAME
+        # directory every downstream read in this function needs (meta.json,
+        # spec.md, tasks.md, the occurrence-map gate). This collapses the
+        # former three-step meta.json-existence cascade (resolve -> candidate
+        # fallback -> primary fallback), which existed ONLY to paper over the
+        # kind-blind resolver's coord-husk shadowing -- the kind-correct seam
+        # never returns a meta-less coord husk in the first place.
+        feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+            MissionArtifactKind.SPEC
+        )
         wp_file = find_wp_file(repo_root, mission_slug, wp_id)
         declared_deps = parse_wp_dependencies(wp_file)
         tracker.complete("detect", f"Feature: {mission_slug}")

@@ -678,8 +678,16 @@ def test_routed_canonicalizer_floor_matches_recorded_census() -> None:
         "If it changed again, a WP moved the census; record the honest before/after "
         "rather than re-pinning the integer."
     )
-    assert CANONICALIZER_FLOOR == 45, (
-        "CANONICALIZER_FLOOR drifted from the recorded total census (45)."
+    # read-surface-ssot-closeout WP05 (FR-001/NFR-001, SHRINK-ONLY): draining
+    # implement.py's ``feature_dir`` A-site removed the fallback cascade's
+    # ``primary_feature_dir_for_mission(_canonicalize_primary_read_handle(...))``
+    # anchor (a routed canonicalizer site) along with it — the live TOTAL
+    # census dropped 45 → 44 (a genuine routing shrink, an honest before/after,
+    # not a re-pinned integer per this test's own doctrine above). The routed
+    # count moved too (42 → 41) but stays within the unchanged ROUTED_* floor's
+    # margin, so that assertion above needed no change.
+    assert CANONICALIZER_FLOOR == 44, (
+        "CANONICALIZER_FLOOR drifted from the recorded total census (44)."
     )
     sites = scan_canonicalizer_call_sites(_SRC)
     routed = [s for s in sites if s.is_canonical]

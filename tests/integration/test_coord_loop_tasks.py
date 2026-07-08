@@ -36,7 +36,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -227,12 +227,24 @@ class TestListTasksRoutesToPrimary:
         # Replace coord events with valid parseable events: WP01 → in_progress.
         _set_coord_in_progress_events(ctx)
 
+        # read-surface-ssot-closeout WP08 / FR-001: the STATUS leg now routes
+        # through the kind-aware ``placement_seam(...).read_dir(STATUS_STATE)``
+        # seam (a module-scope import in ``tasks.py``) instead of the retired
+        # kind-blind ``resolve_feature_dir_for_mission``. Stub the seam itself.
+        mock_seam = MagicMock()
+        mock_seam.read_dir.return_value = ctx.coord_feature_dir
+
         runner = CliRunner()
-        with setup_mocked_env(
-            ctx.repo,
-            mission_slug=ctx.slug,
-            workspace_resolution=None,
-            extra_patches={"resolve_feature_dir_for_mission": ctx.coord_feature_dir},
+        with (
+            setup_mocked_env(
+                ctx.repo,
+                mission_slug=ctx.slug,
+                workspace_resolution=None,
+            ),
+            patch(
+                "specify_cli.cli.commands.agent.tasks.placement_seam",
+                return_value=mock_seam,
+            ),
         ):
             result = runner.invoke(
                 app, ["list-tasks", "--mission", ctx.slug, "--json"]
@@ -306,12 +318,26 @@ class TestFinalizeTasksRoutesToPrimary:
         # a ## WP01 section.
         _write_tasks_md(ctx.primary_feature_dir)
 
+        # read-surface-ssot-closeout WP08 / FR-001: the STATUS leg
+        # (``_ft_apply_writes``'s bootstrap read) now routes through the
+        # kind-aware ``placement_seam(...).read_dir(STATUS_STATE)`` seam — a
+        # module-scope import in ``tasks_finalize.py`` (NOT ``tasks.py``, unlike
+        # the ``list_tasks`` site above) — instead of the retired kind-blind
+        # ``resolve_feature_dir_for_mission``. Stub the seam itself.
+        mock_seam = MagicMock()
+        mock_seam.read_dir.return_value = ctx.coord_feature_dir
+
         runner = CliRunner()
-        with setup_mocked_env(
-            ctx.repo,
-            mission_slug=ctx.slug,
-            workspace_resolution=None,
-            extra_patches={"resolve_feature_dir_for_mission": ctx.coord_feature_dir},
+        with (
+            setup_mocked_env(
+                ctx.repo,
+                mission_slug=ctx.slug,
+                workspace_resolution=None,
+            ),
+            patch(
+                "specify_cli.cli.commands.agent.tasks_finalize.placement_seam",
+                return_value=mock_seam,
+            ),
         ):
             result = runner.invoke(
                 app,

@@ -157,9 +157,15 @@ def test_check_dependent_warnings_emits_alert_for_incomplete_dependent(tmp_path:
     dep_ws = MagicMock()
     dep_ws.branch_name = None  # planning-lane workspace branch
     seam = "specify_cli.cli.commands.agent.tasks_dependency_graph"
+    # read-surface-ssot-closeout WP08 / FR-001: the STATUS leg now routes
+    # through the late-imported ``mission_runtime.placement_seam(...)
+    # .read_dir(STATUS_STATE)`` seam — stub the seam, not the retired
+    # ``resolve_feature_dir_for_mission`` name.
+    mock_seam = MagicMock()
+    mock_seam.read_dir.return_value = feature_dir
     with (
         patch(f"{seam}.get_main_repo_root", return_value=tmp_path),
-        patch(f"{seam}.resolve_feature_dir_for_mission", return_value=feature_dir),
+        patch("mission_runtime.placement_seam", return_value=mock_seam),
         patch(f"{seam}.build_dependency_graph", return_value={"WP01": [], "WP02": ["WP01"]}),
         patch(f"{seam}.resolve_workspace_for_wp", return_value=dep_ws),
         patch(f"{seam}.console") as console_mock,
@@ -193,9 +199,11 @@ def test_check_dependent_warnings_emits_rebase_commands_per_lane(tmp_path: Path)
         return {"WP01": current_ws, "WP02": same_lane_ws, "WP03": other_lane_ws}[wp]
 
     seam = "specify_cli.cli.commands.agent.tasks_dependency_graph"
+    mock_seam = MagicMock()
+    mock_seam.read_dir.return_value = feature_dir
     with (
         patch(f"{seam}.get_main_repo_root", return_value=tmp_path),
-        patch(f"{seam}.resolve_feature_dir_for_mission", return_value=feature_dir),
+        patch("mission_runtime.placement_seam", return_value=mock_seam),
         patch(f"{seam}.build_dependency_graph", return_value={"WP01": [], "WP02": ["WP01"], "WP03": ["WP01"]}),
         patch(f"{seam}.resolve_workspace_for_wp", side_effect=_resolve),
         patch(f"{seam}.console") as console_mock,
@@ -210,9 +218,11 @@ def test_check_dependent_warnings_emits_rebase_commands_per_lane(tmp_path: Path)
 def test_check_dependent_warnings_silent_on_graph_build_failure(tmp_path: Path) -> None:
     """A graph-build failure is swallowed and produces no alert (graceful)."""
     seam = "specify_cli.cli.commands.agent.tasks_dependency_graph"
+    mock_seam = MagicMock()
+    mock_seam.read_dir.return_value = tmp_path
     with (
         patch(f"{seam}.get_main_repo_root", return_value=tmp_path),
-        patch(f"{seam}.resolve_feature_dir_for_mission", return_value=tmp_path),
+        patch("mission_runtime.placement_seam", return_value=mock_seam),
         patch(f"{seam}.build_dependency_graph", side_effect=RuntimeError("boom")),
         patch(f"{seam}.console") as console_mock,
     ):

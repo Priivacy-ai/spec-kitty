@@ -19,7 +19,6 @@ from __future__ import annotations
 
 from mission_runtime import MissionArtifactKind
 from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
-import json
 import subprocess
 from pathlib import Path
 
@@ -28,6 +27,7 @@ from specify_cli.core.errors import StructuredError
 from specify_cli.lanes._git import branch_exists as _branch_exists
 from specify_cli.lanes.branch_naming import lane_branch_name, resolve_mid8, worktree_path as _worktree_path
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.mission_metadata import load_meta
 
 
 class DirtyWorktreeError(Exception):
@@ -382,17 +382,11 @@ def _read_coordination_branch(
     # checkout where ``meta.json`` lives post-#2106 (the coord husk has none / a
     # STATUS-only one) — never the coord-aware resolver (which would need the very
     # answer this read produces).
-    meta_path = (
-        resolve_planning_read_dir(
-            repo_root, mission_slug, kind=MissionArtifactKind.PRIMARY_METADATA
-        )
-        / "meta.json"
+    meta_dir = resolve_planning_read_dir(
+        repo_root, mission_slug, kind=MissionArtifactKind.PRIMARY_METADATA
     )
-    if not meta_path.exists():
-        return None
-    try:
-        data = json.loads(meta_path.read_text())
-    except (OSError, json.JSONDecodeError):
+    data = load_meta(meta_dir, on_malformed="none")
+    if data is None:
         return None
     value = data.get("coordination_branch")
     if isinstance(value, str) and value:

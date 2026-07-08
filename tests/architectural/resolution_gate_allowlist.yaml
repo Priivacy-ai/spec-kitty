@@ -15,8 +15,12 @@
 # COLLISION (speculative surface, zero real users today): if two live sites in one
 # function share an identical token and the gate must require an exact occurrence
 # count, add ``count: N`` to the entry (default 1 covers any number of matches).
+# read-surface-ssot-closeout WP04 (T017/T018): coord_authority allowlist
+# shrunk 7 -> 3 (the 4 workflow.py entries drained; see the coord_authority
+# header comment below for the routing detail). SHRINK-ONLY: baseline must
+# never rise back above the honest live entry count.
 canonicalizer_baseline: 3
-coord_authority_baseline: 7
+coord_authority_baseline: 4
 
 canonicalizer:
 - qualname: _canonicalize_bare_modern_handle
@@ -53,31 +57,22 @@ coord_authority:
   # json.dumps emission through Render.json_envelope, removing the ``dumps``
   # write-indicator; the surviving kind-blind STATUS-partition probes
   # (tasks.py:727 / :1042) are READ-classified now (header block above).
-- qualname: implement
-  line: 1403
-  rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - coord-read-residuals WP01 line-drift re-pin 1395->1403 (identity routing added lines above)"
-  file: src/specify_cli/cli/commands/agent/workflow.py
-  token: feature_dir = resolve_feature_dir_for_mission ( main_repo_root , mission_slug )
-- qualname: implement
-  line: 1598
-  rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - coord-read-residuals WP01 line-drift re-pin 1590->1598 (identity routing added lines above)"
-  file: src/specify_cli/cli/commands/agent/workflow.py
-  token: _impl_feature_dir = resolve_feature_dir_for_mission ( repo_root , mission_slug )
-- qualname: review
-  line: 2633
-  rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - coord-read-residuals WP01 line-drift re-pin 2617->2633 (identity routing added lines above)"
-  file: src/specify_cli/cli/commands/agent/workflow.py
-  token: _rv_feature_dir = resolve_feature_dir_for_mission ( main_repo_root , mission_slug )
-- qualname: review
-  line: 2670
-  rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/agent/workflow.py) - coord-read-residuals WP01 line-drift re-pin 2654->2670 (identity routing added lines above)"
-  file: src/specify_cli/cli/commands/agent/workflow.py
-  token: sub_artifact_dir = resolve_feature_dir_for_mission ( main_repo_root , mission_slug ) / / wp_slug
-- qualname: implement
-  line: 1125
-  rationale: "pre-sweep baseline write (src/specify_cli/cli/commands/implement.py detect-feature-context block) - same pre-existing resolve_feature_dir_for_mission(repo_root, mission_slug) call (git blame: last edited 2026-06-04, predates this mission); lifecycle-tooling-friction WP02/WP05 inserted ~99 lines above it, line-drift re-pin 1022->1121 plus null-diff sentinel patch 1121->1125 (NOT a new kind-blind write); will be routed in a future sweep WP"
-  file: src/specify_cli/cli/commands/implement.py
-  token: feature_dir = resolve_feature_dir_for_mission ( repo_root , mission_slug )
+  # read-surface-ssot-closeout WP04+WP05 COMBINED DRAIN (SHRINK-ONLY): all 5
+  # drainable coord_authority sites are removed — the 4 workflow.py entries
+  # (implement feedback-context/dossier-sync READS, review baseline READ, review
+  # sub-artifact WRITE; WP04) AND implement.py's detect-feature-context READ (WP05)
+  # are all routed onto the kind-aware placement seam.
+  # read-surface-ssot-closeout WP11 (FR-003 predicate-widen): the write-vs-read
+  # predicate was BLIND to two legitimate coord-owned write helpers whose write
+  # indicator sits one hop outside this scanner's function-granularity trace
+  # (agent_tasks_ports.py returns the dir to a caller-level commit; recovery.py
+  # threads it into a TransitionRequest consumed by a differently-named emit
+  # helper). Widening ``_COORD_WRITE_BY_DESIGN`` to file-scope for both modules
+  # makes them WRITE-classified for the first time — they were previously
+  # silently READ-classified and escaped the gate entirely, never routed by
+  # WP07/WP08 because they were never seen. This is a census GAIN (2 new
+  # legitimate write sites surfaced, not routed), raising honest write count
+  # 2 -> 4 and allowlist baseline 2 -> 4.
 - qualname: _mission_dir
   line: 71
   rationale: "legitimate coord-owned write that bypasses commit_for_mission by design - coord status authority is at the caller level, not the commit level; PERMANENT fixture"
@@ -88,3 +83,13 @@ coord_authority:
   rationale: "legitimate coord-owned write that bypasses commit_for_mission by design - coord status authority is at the caller level, not the commit level; PERMANENT fixture"
   file: src/specify_cli/widen/state.py
   token: self . _path = resolve_feature_dir_for_mission ( repo_root , mission_slug ) /
+- qualname: RealCoordCommitRouter.feature_write_dir
+  line: 322
+  rationale: "WP11 FR-003 predicate-widen SANCTION: legitimate coord-owned write helper that RETURNS the resolved dir to callers which then commit_artifact/commit_status it (same by-design shape as decisions/emit.py) - the caller-level write indicator is outside this scanner's function-granularity trace; PERMANENT fixture, never remove"
+  file: src/specify_cli/agent_tasks_ports.py
+  token: "write_dir : Path = resolve_feature_dir_for_mission ("
+- qualname: reconcile_status
+  line: 765
+  rationale: "WP11 FR-003 predicate-widen SANCTION: legitimate coord-owned write helper - the resolved feature_dir feeds a STATUS-WRITE leg (emit_status_transition_transactional via TransitionRequest) that MUST stay coord-aware (C-001/#2155 analog per the KEEP-coord-aware comment at the call site); the write indicator lives in the callee, not this function body; PERMANENT fixture, never remove"
+  file: src/specify_cli/lanes/recovery.py
+  token: "feature_dir = resolve_feature_dir_for_mission ( repo_root , mission_slug )"

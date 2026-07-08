@@ -34,12 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   exit-128; the `CoordinationWorkspace` composition seam fail-loud-guards it) and
   **#2250** (a never-coordinated mission no longer reports
   `COORDINATION_BRANCH_DELETED`). The read-side `resolve_feature_dir_for_mission`
-  sweep is tracked in #2453, together with the write-side ratchet's remaining
-  checkout-derived selectors — each is allow-list-tracked and VISIBLE (carries a
-  rationale, never silently ignored): the deferred ones are queued for the #2453
-  read-site sweep, plus one PERMANENT non-placement construction (the lane-branch
-  deliverable commit, whose branch is fixed by lane allocation, not a
-  `MissionArtifactKind` placement decision).
+  sweep + residual checkout fallbacks are tracked in #2453.
 - **Doctrine/charter pack paths support environment-variable indirection
   (#2437).** Pack-location fields (e.g. an org-pack's `local_path`) previously
   had to be hardcoded absolute paths, so a shared, committed `.kittify` config

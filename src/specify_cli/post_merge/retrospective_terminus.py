@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Literal
 
 from specify_cli.core.constants import RETROSPECTIVE_FILENAME
+from specify_cli.mission_metadata import load_meta_or_empty
 
 logger = logging.getLogger(__name__)
 
@@ -143,16 +144,10 @@ def _resolve_mission_id(feature_dir: Path) -> str:
     """Return the ULID mission_id from meta.json, or empty string for legacy missions."""
     # T034 — use the canonical feature_dir path (already resolved by the caller);
     # never reconstruct a path with a NNN- numeric prefix.
-    meta_path = feature_dir / "meta.json"
-    if not meta_path.exists():
-        return ""
-    try:
-        import json  # noqa: PLC0415
-
-        data = json.loads(meta_path.read_text(encoding="utf-8"))
-        return str(data.get("mission_id") or "")
-    except Exception:  # noqa: BLE001
-        return ""
+    # load_meta_or_empty (post-#2091 silent contract) absorbs a missing or
+    # malformed meta.json to {}, matching the prior try/except-"" absorption.
+    data = load_meta_or_empty(feature_dir)
+    return str(data.get("mission_id") or "")
 
 
 def _invoke_capture(

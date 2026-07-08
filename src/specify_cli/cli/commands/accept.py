@@ -43,23 +43,17 @@ def _safe_emit_error_logged(message: str) -> None:
         pass
 
 
-def _spec_artifact_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
-    """Return tracked-but-uncommitted spec/meta artifacts under the mission dir.
+def _dirty_paths_with_prefix(status_lines: list[str], prefix: str) -> list[str]:
+    """Filter ``git status --porcelain`` lines to tracked-modified paths under ``prefix``.
 
-    The acceptance pipeline materializes derived artifacts (e.g.
-    ``acceptance-matrix.json`` and status views) while running readiness checks
-    *before* the acceptance commit is created. Those writes happen after the
-    git-cleanliness snapshot is taken, so the acceptance commit only captures
-    ``meta.json`` and leaves the materialized artifacts modified-unstaged. This
-    helper finds exactly those leftover tracked modifications so the command can
-    fold them into the acceptance state and leave a clean working tree.
-
-    Untracked files (``??``) are deliberately excluded so the cleanup commit
-    never sweeps in unrelated, unmanaged files the operator may have created.
+    Shared by the primary and coordination-worktree scans (T008) so both
+    surfaces apply the identical filtering rule: rename entries resolve to
+    their destination path, and untracked files (``??``) are deliberately
+    excluded so the cleanup commit never sweeps in unrelated, unmanaged files
+    the operator may have created.
     """
-    prefix = f"kitty-specs/{mission_slug}/"
     dirty: list[str] = []
-    for line in git_status_lines(repo_root):
+    for line in status_lines:
         # Porcelain format: two status chars, a space, then the path.
         status_code = line[:2]
         path = line[3:].strip()
@@ -73,18 +67,104 @@ def _spec_artifact_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
     return dirty
 
 
-def _commit_residual_acceptance_artifacts(repo_root: Path, mission_slug: str) -> bool:
-    """Stage and commit any leftover acceptance artifacts so the tree is clean.
+def _primary_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
+    """Return tracked-but-uncommitted spec/meta artifacts in the PRIMARY checkout."""
+    prefix = f"kitty-specs/{mission_slug}/"
+    return _dirty_paths_with_prefix(git_status_lines(repo_root), prefix)
 
-    Returns True when a follow-up commit was created. This preserves the
-    recorded ``accept_commit`` SHA (it still points at the real acceptance
-    commit) while guaranteeing a successful ``accept`` leaves no
-    staged-but-uncommitted or modified-unstaged spec/meta artifacts behind.
+
+def _coord_worktree_root(repo_root: Path, mission_slug: str) -> Path | None:
+    """Resolve the mission's materialised coordination worktree root, if any.
+
+    Returns ``None`` when the mission's stored topology does not route
+    through coordination, or the coordination worktree has not been
+    materialised on disk yet — there is nothing to reconcile before that
+    (mirrors the leniency ``_status_read_feature_dir`` already applies).
+    Never creates the worktree (a dirty-tree scan must not have side effects).
     """
-    dirty = _spec_artifact_dirty_paths(repo_root, mission_slug)
-    if not dirty:
-        return False
+    from mission_runtime import (
+        MissionArtifactKind,
+        placement_seam,
+        resolve_topology,
+        routes_through_coordination,
+    )
 
+    topology = resolve_topology(repo_root, mission_slug)
+    if not routes_through_coordination(topology):
+        return None
+
+    coord_feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.ACCEPTANCE_MATRIX
+    )
+    if not coord_feature_dir.exists():
+        return None
+
+    try:
+        worktree_root = Path(
+            run_git(
+                ["rev-parse", "--show-toplevel"], cwd=coord_feature_dir, check=True
+            ).stdout.strip()
+        )
+    except TaskCliError:
+        return None
+
+    if worktree_root.resolve() == repo_root.resolve():
+        return None
+    return worktree_root
+
+
+def _coord_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
+    """Return tracked-but-uncommitted acceptance artifacts in the COORD worktree.
+
+    M2 (#read-surface-ssot-closeout FR-008): ``write_acceptance_matrix`` writes
+    ``acceptance-matrix.json`` (and the sibling issue-matrix/status views) to
+    the coordination worktree's ``feature_dir`` under coordination topology
+    (:func:`~specify_cli.acceptance.resolve_feature_dir_for_mission` /
+    :func:`~mission_runtime.placement_seam`). A primary-only
+    ``git_status_lines(repo_root)`` scan can never see that dirt — it lives in
+    a completely separate git worktree. This mirrors :func:`_primary_dirty_paths`
+    against that surface instead.
+    """
+    worktree_root = _coord_worktree_root(repo_root, mission_slug)
+    if worktree_root is None:
+        return []
+    prefix = f"kitty-specs/{mission_slug}/"
+    return _dirty_paths_with_prefix(git_status_lines(worktree_root), prefix)
+
+
+def _spec_artifact_dirty_paths(repo_root: Path, mission_slug: str) -> list[str]:
+    """Return tracked-but-uncommitted spec/meta artifacts under the mission dir.
+
+    The acceptance pipeline materializes derived artifacts (e.g.
+    ``acceptance-matrix.json`` and status views) while running readiness checks
+    *before* the acceptance commit is created. Those writes happen after the
+    git-cleanliness snapshot is taken, so the acceptance commit only captures
+    ``meta.json`` and leaves the materialized artifacts modified-unstaged. This
+    helper finds exactly those leftover tracked modifications so the command can
+    fold them into the acceptance state and leave a clean working tree.
+
+    M2 (T008): under coordination topology the acceptance-matrix write lands in
+    the coordination worktree, not the primary checkout, so the scan also
+    consults that surface (:func:`_coord_dirty_paths`) and unions the result —
+    a flattened/non-coord mission is unaffected (that scan returns ``[]``).
+    """
+    dirty = _primary_dirty_paths(repo_root, mission_slug)
+    for path in _coord_dirty_paths(repo_root, mission_slug):
+        if path not in dirty:
+            dirty.append(path)
+    return dirty
+
+
+def _commit_primary_residuals(repo_root: Path, mission_slug: str, dirty: list[str]) -> bool:
+    """Stage and commit leftover PRIMARY-checkout acceptance artifacts.
+
+    Byte-identical to the pre-WP02 direct-commit behaviour (DoD: "keep
+    PRIMARY-kind residuals working") — these files already live in ``repo_root``,
+    so a raw scoped commit on the current branch is safe regardless of the
+    mission's declared ``target_branch`` (unlike ``commit_for_mission``, which
+    resolves a kind-aware placement that may differ from HEAD, see
+    ``_commit_coord_residuals``).
+    """
     for path in dirty:
         run_git(["add", path], cwd=repo_root, check=True)
 
@@ -108,6 +188,75 @@ def _commit_residual_acceptance_artifacts(repo_root: Path, mission_slug: str) ->
         check=True,
     )
     return True
+
+
+def _commit_coord_residuals(repo_root: Path, mission_slug: str, dirty: list[str]) -> bool:
+    """Route coordination-partition residuals through the partition-aware seam.
+
+    T007: these files physically live in the coordination worktree (M2), which
+    a primary-rooted raw ``git commit`` structurally cannot reach. Routes
+    through :func:`~specify_cli.coordination.commit_router.commit_for_mission`
+    instead — the SAME single canonical commit entry point ``spec_commit_cmd.py``
+    / ``mission_finalize.py`` use. Files are NOT hand-classified here: the
+    router's own ``kind_for_mission_file`` classification (contracts/partition-
+    aware-commit-seam.md) resolves each file's placement and materialises the
+    coordination worktree on demand; ``ACCEPTANCE_MATRIX`` only seeds the
+    fallback for an unrecognised path and which group's outcome is reported.
+    """
+    from mission_runtime import MissionArtifactKind
+    from specify_cli.coordination.commit_router import CommitRouterResult, commit_for_mission
+    from specify_cli.git.protection_policy import ProtectionPolicy
+
+    policy = ProtectionPolicy.resolve(repo_root)
+    files = tuple(repo_root / path for path in dirty)
+    # Explicit annotation: under the project's ``follow_imports = "skip"`` mypy
+    # config the cross-module ``commit_for_mission`` return is seen as ``Any``;
+    # the annotation re-narrows it (matching the ``_planning_read_dir`` /
+    # ``spec_commit_cmd.py`` chokepoint pattern) so ``.status`` comparisons below
+    # type-check as ``bool``, not ``Any``.
+    result: CommitRouterResult = commit_for_mission(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        files=files,
+        message=f"Finalize acceptance artifacts for {mission_slug}",
+        policy=policy,
+        kind=MissionArtifactKind.ACCEPTANCE_MATRIX,
+    )
+
+    if result.status == "error":
+        raise TaskCliError(
+            f"Residual coordination artifact commit failed for {mission_slug} "
+            f"({result.placement_ref}): {result.diagnostic or 'unknown error'}"
+        )
+    return bool(result.status == "committed")
+
+
+def _commit_residual_acceptance_artifacts(repo_root: Path, mission_slug: str) -> bool:
+    """Stage and commit any leftover acceptance artifacts so the tree is clean.
+
+    Returns True when a follow-up commit was created. This preserves the
+    recorded ``accept_commit`` SHA (it still points at the real acceptance
+    commit) while guaranteeing a successful ``accept`` leaves no
+    staged-but-uncommitted or modified-unstaged spec/meta artifacts behind.
+
+    T007/T008: dirt is now detected on BOTH the primary checkout and (under
+    coordination topology) the coordination worktree, and each surface commits
+    through the mechanism that can actually reach it — coordination residuals
+    via the partition-aware ``commit_for_mission`` seam, primary residuals via
+    the historical direct commit. A batch mixing both commits to each surface
+    independently (never a single cross-worktree commit, which git cannot do).
+    """
+    coord_dirty = _coord_dirty_paths(repo_root, mission_slug)
+    primary_dirty = _primary_dirty_paths(repo_root, mission_slug)
+    if not coord_dirty and not primary_dirty:
+        return False
+
+    committed = False
+    if coord_dirty:
+        committed = _commit_coord_residuals(repo_root, mission_slug, coord_dirty) or committed
+    if primary_dirty:
+        committed = _commit_primary_residuals(repo_root, mission_slug, primary_dirty) or committed
+    return committed
 
 
 def _print_acceptance_warnings(summary: AcceptanceSummary) -> None:

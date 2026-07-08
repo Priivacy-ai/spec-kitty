@@ -23,13 +23,13 @@ Key constraints
 
 from __future__ import annotations
 
-import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal
 
 from specify_cli.core.paths import assert_safe_path_segment
+from specify_cli.mission_metadata import load_meta
 
 # Legacy sentinel emitted by older transactional readers; not a Lane enum value.
 # Canonical definition lives in lane_reader (the canonical read surface); imported
@@ -411,8 +411,15 @@ class MissionStatus:
         if not meta_path.exists():
             return None, None, primary_dir
         try:
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as exc:
+            # Canonical reader (FR-005/WP12): allow_missing=False because the
+            # ``exists()`` precondition above already resolved the tolerant-missing
+            # branch -- a FileNotFoundError here means the file vanished in a race
+            # window, which is a genuine failure, not a legacy-tolerant miss.
+            # on_malformed="raise" folds the JSON-syntax AND non-dict-shape checks
+            # into ONE ValueError, replacing the two ad-hoc except/isinstance arms
+            # this call site used to hand-roll.
+            meta = load_meta(primary_dir, allow_missing=False, on_malformed="raise") or {}
+        except (FileNotFoundError, ValueError) as exc:
             _logger.warning(
                 "_read_meta: failed to read/parse meta.json for mission %r at %s: %s",
                 mission_slug,
@@ -425,18 +432,6 @@ class MissionStatus:
                 primary_candidate=primary_dir,
                 reason=str(exc),
             ) from exc
-        if not isinstance(meta, dict):
-            _logger.warning(
-                "_read_meta: meta.json for mission %r is not a dict (got %s)",
-                mission_slug,
-                type(meta).__name__,
-            )
-            raise MissionMetadataUnavailable(
-                mission_slug=mission_slug,
-                meta_path=meta_path,
-                primary_candidate=primary_dir,
-                reason=f"expected object, got {type(meta).__name__}",
-            )
 
         mission_id_value = meta.get("mission_id")
         if mission_id_value is not None and not isinstance(mission_id_value, str):

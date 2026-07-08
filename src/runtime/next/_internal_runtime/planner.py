@@ -34,6 +34,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.mission_metadata import load_meta
 
 # Internalized from spec-kitty-runtime 0.4.3 as part of
 # `shared-package-boundary-cutover-01KQ22DS` (mission). See
@@ -179,11 +180,13 @@ def _resolve_workflow_for_mission(mission_dir: Path) -> WorkflowSequence:
         When ``workflow_id`` is present in ``meta.json`` but cannot be
         resolved by the registry.  FR-015 binding: no silent fallback.
     """
-    meta_path = mission_dir / "meta.json"
     project_root = _infer_project_root(mission_dir)
-    if not meta_path.exists():
+    # load_meta (post-#2091 canonical contract): allow_missing=True absorbs a
+    # missing meta.json to None; malformed content still raises (on_malformed
+    # defaults to "raise"), matching the prior unguarded json.loads.
+    meta = load_meta(mission_dir)
+    if meta is None:
         return get_workflow("software-dev-default", project_root=project_root)
-    meta: dict[str, Any] = json.loads(meta_path.read_text(encoding="utf-8"))
     workflow_id: str | None = meta.get("workflow_id")
     if workflow_id is None:
         return get_workflow("software-dev-default", project_root=project_root)

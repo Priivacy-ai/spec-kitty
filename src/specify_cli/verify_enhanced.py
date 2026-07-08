@@ -3,7 +3,6 @@ Enhanced verify_setup implementation for spec-kitty.
 """
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
 import logging
 import subprocess
 from collections import defaultdict
@@ -86,7 +85,14 @@ def run_enhanced_verify(
     if feature_dir is not None:
         mission_type = _resolve_mission_from_feature(feature_dir)
     elif feature:
-        candidate = resolve_feature_dir_for_mission(project_root, feature)
+        # WP09/FR-001 (kind-correct): ``_resolve_mission_from_feature`` reads
+        # ``meta.json`` — route through the seam on ``PRIMARY_METADATA`` rather
+        # than the kind-blind resolver (NFR-001).
+        from mission_runtime import MissionArtifactKind, placement_seam
+
+        candidate = placement_seam(project_root, feature).read_dir(
+            MissionArtifactKind.PRIMARY_METADATA
+        )
         if candidate.is_dir():
             mission_type = _resolve_mission_from_feature(candidate)
 
@@ -203,7 +209,14 @@ def run_enhanced_verify(
         if not feature:
             raise ValueError("No --mission provided; skipping feature analysis.")
         mission_slug = feature.strip()
-        resolved_feature_dir = feature_dir or resolve_feature_dir_for_mission(project_root, mission_slug)
+        # WP09/FR-001 (kind-correct): ``resolve_mission_identity`` reads
+        # ``meta.json`` — route through the seam on ``PRIMARY_METADATA``
+        # rather than the kind-blind resolver (NFR-001).
+        from mission_runtime import MissionArtifactKind, placement_seam
+
+        resolved_feature_dir = feature_dir or placement_seam(
+            project_root, mission_slug
+        ).read_dir(MissionArtifactKind.PRIMARY_METADATA)
         identity = resolve_mission_identity(resolved_feature_dir)
 
         output_data["feature_detection"] = {

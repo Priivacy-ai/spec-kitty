@@ -103,7 +103,14 @@ COORD_KIND_AWARE_AUTHORITY = "commit_for_mission(kind=) / resolve_planning_read_
 #   6. workflow get_mission_type leg (own anchor, was :1644)
 #   7. workflow review-prompt metadata (was :2739)
 # Census: total 38 → 45, routed 35 → 42 (measured before/after on the merged base).
-CANONICALIZER_FLOOR = 45
+# read-surface-ssot-closeout WP05 (FR-001/NFR-001, SHRINK-ONLY): routing
+# ``implement.implement``'s detect-feature-context ``feature_dir`` read onto
+# ``placement_seam(...).read_dir(SPEC)`` removed the direct
+# ``primary_feature_dir_for_mission(_canonicalize_primary_read_handle(...))``
+# fallback-cascade anchor that call site's meta.json-existence check used to
+# fall back to — draining the live census 45 → 44 (a genuine routing shrink,
+# not a re-pin; the seam's internal anchor is not scanned as a caller-site).
+CANONICALIZER_FLOOR = 44
 # WP07 re-pin: WP06 routing reduced the live write-classified coord census from 17 to 14;
 # 3 sites were removed (list_dependents, review at one former line, one list_tasks variant).
 # REBASE (2026-06-27): concurrent mission #1057 inserted a check_pre30_layout boundary
@@ -132,7 +139,20 @@ CANONICALIZER_FLOOR = 45
 # implement, and the 2 by-design coord-owned writes). Floor lowered 9 -> 7 to
 # the re-measured live count; allowlist entries drained in the same commit
 # (resolution_gate_allowlist.yaml header).
-COORD_AUTHORITY_WRITE_FLOOR = 7
+# read-surface-ssot-closeout WP04+WP05 COMBINED DRAIN (SHRINK-ONLY): all 5
+# drainable coord_authority sites routed (4 workflow.py + implement.py); only the
+# 2 by-design coord-owned writes remained afterward (live write census 2).
+# read-surface-ssot-closeout WP11 (FR-003 predicate-widen, GENUINE GAIN, not a
+# re-pin): re-measured via scan_coord_authority_call_sites AFTER widening
+# ``_COORD_WRITE_BY_DESIGN`` to cover ``agent_tasks_ports.py`` (``feature_write_dir``)
+# and ``lanes/recovery.py`` (``reconcile_status``) — two legitimate coord-owned
+# write helpers the predicate previously missed (write indicator one hop outside
+# the function-granularity trace) and that WP07/WP08 therefore never routed or
+# even saw. Both are allowlisted (resolution_gate_allowlist.yaml). Live write
+# census: 2 -> 4. Floor raised 2 -> 4 to the honest re-measured count (the two
+# new sites were UNSEEN before, not un-routed — this is a visibility fix, not a
+# regression to route away).
+COORD_AUTHORITY_WRITE_FLOOR = 4
 
 # tasks-py-degod WP09 — coord-authority write-floor margin gate (anti-masking).
 # The floor must track the honest live write census: setting it materially BELOW
@@ -676,10 +696,34 @@ _WRITE_INDICATOR_NAMES: frozenset[str] = frozenset(
 # status authority is at the CALLER level, not the commit level. They are
 # classified WRITE-by-design here so the allowlist sanction is meaningful and
 # tested, rather than silently passing as a "read".
+#
+# read-surface-ssot-closeout WP11 (FR-003 predicate-widen): the original 2-entry
+# set MASKED two legitimate coord-owned write helpers that fit the exact same
+# shape (resolve, then hand the dir to a caller-level write) but whose write
+# indicator call is one hop further away than this FUNCTION-granularity scanner
+# traces (Phase 1 does not follow the resolved dir through a return value into
+# the caller, nor through a dataclass field into a differently-named emit
+# helper):
+#   * ``agent_tasks_ports.py:RealCoordCommitRouter.feature_write_dir`` — the
+#     method literally returns ``write_dir`` to callers that commit it; WP07/
+#     WP08 left this source-unchanged (it was never a routing target).
+#   * ``lanes/recovery.py:reconcile_status`` — the resolved ``feature_dir`` is
+#     threaded into a ``TransitionRequest`` consumed by
+#     ``emit_status_transition_transactional`` (a STATUS-WRITE leg per the
+#     KEEP-coord-aware comment at the call site); the write indicator lives in
+#     the callee, not a literal ``write_text``/``commit*`` token in this
+#     function body.
+# Both were previously silently classified READ (predicate blind spot) and
+# escaped the gate entirely rather than being either routed or allowlisted.
+# Widening the by-design set to file-scope (matching the existing two entries'
+# shape) makes them WRITE-classified and forces an explicit allowlist sanction
+# (see resolution_gate_allowlist.yaml) instead of leaving them unseen.
 _COORD_WRITE_BY_DESIGN: frozenset[str] = frozenset(
     {
         "src/specify_cli/decisions/emit.py",
         "src/specify_cli/widen/state.py",
+        "src/specify_cli/agent_tasks_ports.py",
+        "src/specify_cli/lanes/recovery.py",
     }
 )
 
@@ -1617,30 +1661,44 @@ def test_routed_count_floor() -> None:
 
 
 def test_coord_authority_gate_floor() -> None:
-    """Concrete floor: >= 7 WRITE-classified coord call sites (NFR-002), floor tight.
+    """Concrete floor: >= 4 WRITE-classified coord call sites (NFR-002), floor tight.
 
-    7 is the hard-coded live write-candidate census (NOT ``>= len(scanned)`` —
-    that is tautological). Sites that sit in a function carrying a write indicator
-    (this count INCLUDES the 2 by-design coord-owned writes — ``decisions/emit.py``
-    and ``widen/state.py`` — which are write-classified by design and sanctioned in
-    the allowlist). History: WP08 set this to the then-honest census of 17; the
-    single-authority mission's WP06 routing moved 3 write-classified sites onto the
-    kind-aware seam, so WP07 tightened the floor 17 → 14. The 2026-06-27 rebase onto
-    upstream/main carried concurrent mission #1057, which inserted a
-    ``check_pre30_layout`` boundary guard into ``list_dependents`` — re-introducing a
-    kind-blind resolve probe — raising the honest census 14 → 15. Further routing
-    then shrank it 15 → 13, and retire-standalone-tasks-cli WP04's deletion of the
-    standalone scripts/tasks surface shrank it 13 → 12. tasks-py-degod
-    WP01-WP08's de-god rewires of ``tasks.py`` drained THREE write-census sites
-    (``move_task`` ×2 via the WP06 thin-orchestrator rewrite; ``list_dependents``
-    via the WP08 fold-to-primary), shrinking the live census 12 → 9. Finally,
-    tasks-py-degod-wave2's WP04 render-seam unification removed the ``dumps``
-    write-indicator from ``list_tasks`` / ``validate_workflow`` (emission routed
-    through ``Render.json_envelope``), re-classifying their surviving
-    STATUS-partition probes as reads — census 9 → 7; wave-2 WP09 lowered this
-    floor accordingly (SHRINK-ONLY). The ``coord_authority_baseline`` scalar
-    caps the allowlist *entry count*, a different quantity from the write *site*
-    census (which they happen to equal here).
+    4 is the hard-coded live write-candidate census (NOT ``>= len(scanned)`` —
+    that is tautological). Sites that sit in a function carrying a write indicator,
+    OR that live in a file listed in ``_COORD_WRITE_BY_DESIGN`` (write-classified
+    by design and sanctioned in the allowlist). History: WP08 set this to the
+    then-honest census of 17; the single-authority mission's WP06 routing moved 3
+    write-classified sites onto the kind-aware seam, so WP07 tightened the floor
+    17 → 14. The 2026-06-27 rebase onto upstream/main carried concurrent mission
+    #1057, which inserted a ``check_pre30_layout`` boundary guard into
+    ``list_dependents`` — re-introducing a kind-blind resolve probe — raising the
+    honest census 14 → 15. Further routing then shrank it 15 → 13, and
+    retire-standalone-tasks-cli WP04's deletion of the standalone scripts/tasks
+    surface shrank it 13 → 12. tasks-py-degod WP01-WP08's de-god rewires of
+    ``tasks.py`` drained THREE write-census sites (``move_task`` ×2 via the WP06
+    thin-orchestrator rewrite; ``list_dependents`` via the WP08 fold-to-primary),
+    shrinking the live census 12 → 9. Then, tasks-py-degod-wave2's WP04
+    render-seam unification removed the ``dumps`` write-indicator from
+    ``list_tasks`` / ``validate_workflow`` (emission routed through
+    ``Render.json_envelope``), re-classifying their surviving STATUS-partition
+    probes as reads — census 9 → 7; wave-2 WP09 lowered this floor accordingly
+    (SHRINK-ONLY). read-surface-ssot-closeout WP04 (T017/T018) routed all FOUR
+    workflow.py write-census sites (``implement`` ×2, ``review`` ×2) through the
+    kind-aware placement seam (``_resolve_workflow_read_dir`` /
+    ``_resolve_workflow_placement``); WP05 then routed implement.py's
+    detect-feature-context read, shrinking the live census 7 → 2 (only the 2
+    by-design coord-owned writes — ``decisions/emit.py``, ``widen/state.py`` —
+    remained). Finally, WP11 (FR-003 predicate-widen) discovered that the
+    write-vs-read predicate had been BLIND to two more legitimate coord-owned
+    write helpers (``agent_tasks_ports.py:feature_write_dir``,
+    ``lanes/recovery.py:reconcile_status`` — write indicator one hop outside the
+    function-granularity trace); widening ``_COORD_WRITE_BY_DESIGN`` surfaces
+    both as WRITE-classified for the first time. This is a GENUINE CENSUS GAIN
+    (previously-unseen legitimate writes, not un-routed regressions), raising
+    the live census 2 → 4; floor raised 2 → 4 to match, and both new sites are
+    sanctioned in the allowlist (baseline 2 → 4). The ``coord_authority_baseline``
+    scalar caps the allowlist *entry count*, a different quantity from the write
+    *site* census (which they happen to equal here).
 
     Two bounds are asserted (mirroring ``test_routed_count_floor``):
     * lower — ``live >= floor``: the census may not silently drop below the floor;
@@ -1660,6 +1718,53 @@ def test_coord_authority_gate_floor() -> None:
         f"COORD_AUTHORITY_WRITE_FLOOR_MARGIN ({COORD_AUTHORITY_WRITE_FLOOR_MARGIN}) "
         f"below the live write census ({len(writes)}); raise the floor to the honest "
         "live count so it cannot mask un-routed kind-blind writes."
+    )
+
+
+# --- T036: NFR-002 non-vacuity — the floor cannot be pinned above a
+# plausible regressed census -------------------------------------------------
+def test_coord_authority_floor_non_vacuous_against_reverted_by_design_write() -> None:
+    """NFR-002 non-vacuity: un-classifying a WP11 by-design write REDS the floor.
+
+    WP11 widened ``_COORD_WRITE_BY_DESIGN`` to surface two previously-unseen
+    coord-owned write helpers (``agent_tasks_ports.py:feature_write_dir``,
+    ``lanes/recovery.py:reconcile_status``) that the write-vs-read predicate had
+    silently classified as reads. ``COORD_AUTHORITY_WRITE_FLOOR`` was raised
+    2 -> 4 to match. This test proves that raise has teeth: it is NOT pinned so
+    high that a plausible future regression — someone reverting either site's
+    by-design classification back to an unflagged READ outside the seam (the
+    exact blind spot this WP fixed) — would silently pass CI. Using ONLY the
+    real live scan (no source mutation, no allowlist mutation), it simulates
+    that regression by re-excluding the two WP11 sites from the write set and
+    asserts the resulting count drops below the pinned floor — i.e. the primary
+    ``>= COORD_AUTHORITY_WRITE_FLOOR`` assertion in ``test_coord_authority_gate_floor``
+    would fire RED for this exact regression shape, not stay vacuously green.
+    """
+    live_sites = scan_coord_authority_call_sites(SRC_ROOT)
+    wp11_surfaced_sites = frozenset(
+        {"src/specify_cli/agent_tasks_ports.py", "src/specify_cli/lanes/recovery.py"}
+    )
+    # Sanity: the two WP11 sites are actually present and write-classified today
+    # — otherwise this "regression" simulation would be vacuous (subtracting
+    # nothing).
+    live_wp11_writes = [
+        s for s in live_sites if s.is_write and s.rel_path in wp11_surfaced_sites
+    ]
+    assert len(live_wp11_writes) == 2, (
+        "sanity check failed: expected exactly the 2 WP11-surfaced by-design "
+        f"writes live-classified as WRITE, got {len(live_wp11_writes)} "
+        f"({[s.rel_path for s in live_wp11_writes]}) — the simulation below "
+        "would be vacuous"
+    )
+    regressed_writes = [
+        s for s in live_sites if s.is_write and s.rel_path not in wp11_surfaced_sites
+    ]
+    assert len(regressed_writes) < COORD_AUTHORITY_WRITE_FLOOR, (
+        f"non-vacuity broken: reverting the 2 WP11 by-design sites to unseen "
+        f"reads leaves {len(regressed_writes)} write-classified sites, which "
+        f"must be < COORD_AUTHORITY_WRITE_FLOOR ({COORD_AUTHORITY_WRITE_FLOOR}) "
+        "for the floor test to catch this regression shape. If this fails, the "
+        "floor is pinned high enough to mask a silent by-design reversion."
     )
 
 

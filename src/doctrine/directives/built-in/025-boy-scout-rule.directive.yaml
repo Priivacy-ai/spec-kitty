@@ -24,12 +24,14 @@ scope: >
   current mission's primary domain are candidates for folding into scope; items whose
   domain does not match are filed as tracker issues and deferred.
 procedures:
+  - "Tidy-first / enabler sequencing: at the start of a mission or work package that will modify a given surface, campsite-clean that surface FIRST — resolve its Sonar findings, extract or decompose over-long functions/files/classes, and refactor the methods about to change — before implementing the functional change, whenever doing so de-risks or simplifies it. Uncluttering a surface up front makes the subsequent change smaller, safer, and easier to review; a god-module or duplicated call hierarchy fights every edit. The opening cleanup is behavior-preserving, scoped to surfaces the mission will touch, carries focused tests, and is kept as a distinct step preceding the functional change. On heavily-touched god-surfaces, dispatch a campsite scout at planning to census complexity, pull the file's Sonar findings, and list SAFE (WP-opening) / ADJACENT (boy-scout) / OUT (file as a separate issue) cleanups."
   - When a touched area has a failing test, lint finding, or type error, fix it by default rather than deferring it or attributing it to pre-existing state.
   - Apply minor cleanup that improves readability, naming, or consistency in touched areas.
   - Keep the fix proportional and local; defer a genuinely broad refactor (which belongs to a dedicated task) with a one-line rationale and, where useful, a tracker reference.
   - At each planning point-cut (post-spec, post-plan, post-tasks), identify foldable tech-debt items in the diff surface and triage them by domain match. Fold domain-matched items into the current mission scope; file and defer out-of-domain items as tracker issues rather than silently expanding or ignoring them.
   - Resolve critical or blocking tech-debt items before non-blocking or aesthetic items. Priority follows the item's impact on correctness or delivery velocity, not the ease of fixing it.
 integrity_rules:
+  - "Opening (tidy-first) campsite cleanup is proactive but bounded: it applies to surfaces the current mission will touch, stays behavior-preserving with focused tests, is kept as a distinct step preceding the functional change, and never becomes a broad refactor outside those surfaces (that belongs to a dedicated task)."
   - Adjacent-breakage fixes stay within the touched area and do not expand into broad refactors.
   - Behavioral changes beyond the failing-check fix require explicit tests.
   - Time spent proving a failure is pre-existing, rather than fixing it, is the waste this directive exists to prevent.

@@ -503,10 +503,10 @@ def test_slug_resolver_returns_none_for_non_dict_meta(
         assert resolver.resolve("034-feature-name") is None
 
     assert any(
-        "is not an object" in record.getMessage()
+        "Expected JSON object" in record.getMessage()
         and "034-feature-name" in record.getMessage()
         for record in caplog.records
-    ), "non-dict meta.json must emit the 'is not an object' WARNING"
+    ), "non-dict meta.json must emit the canonical 'Expected JSON object' WARNING"
 
 
 def test_slug_resolver_happy_path_resolves_from_meta(tmp_path: Path) -> None:

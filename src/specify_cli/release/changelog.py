@@ -7,6 +7,7 @@ Zero network calls (FR-014).
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.mission_metadata import load_meta_or_empty
 import json
 import subprocess
 from pathlib import Path
@@ -55,16 +56,8 @@ def _tag_commit_date(repo_root: Path, tag: str) -> str | None:
 
 def _read_meta_json(mission_dir: Path) -> dict[str, object]:
     """Read and return the parsed meta.json for a mission directory, or {}."""
-    meta_path = mission_dir / "meta.json"
-    if not meta_path.exists():
-        return {}
-    try:
-        result = json.loads(meta_path.read_text(encoding="utf-8"))
-        if isinstance(result, dict):
-            return result
-        return {}
-    except (json.JSONDecodeError, OSError):
-        return {}
+    result: dict[str, object] = load_meta_or_empty(mission_dir)
+    return result
 
 
 def _read_spec_title(mission_dir: Path) -> str:

@@ -157,10 +157,18 @@ def test_patched_output_error_intercepts_validate_coverage_gate(tmp_path: Path) 
 
 
 def test_patched_bootstrap_seams_intercept_apply_writes(tmp_path: Path) -> None:
-    """``tasks.resolve_feature_dir_for_mission`` (the pre30-guard-wiring patch
-    seam) and ``tasks.bootstrap_canonical_state`` (×7 patch seam) bite through
-    ``_ft_apply_writes``' ``_tasks.<attr>`` route — the bootstrap read stays on
-    the topology-aware STATUS-partition resolver."""
+    """``tasks_finalize.placement_seam`` (the read-surface-ssot-closeout WP08
+    routed seam, replacing the retired ``tasks.resolve_feature_dir_for_mission``
+    pre30-guard-wiring patch) and ``tasks.bootstrap_canonical_state`` (×7 patch
+    seam) bite through ``_ft_apply_writes`` — the bootstrap read stays on the
+    topology-aware STATUS-partition resolver (``STATUS_STATE`` kind).
+
+    ``placement_seam`` is a MODULE-SCOPE import in ``tasks_finalize`` (not a
+    lazy in-function import like the ``_tasks.<attr>`` seam-bridge symbols
+    above), so the patch target is ``tasks_finalize.placement_seam`` — not
+    ``mission_runtime.placement_seam`` — matching the module-scope import
+    convention already used for ``MissionArtifactKind`` in this module.
+    """
     tasks_dir = tmp_path / "tasks"
     tasks_dir.mkdir()
     st = _make_state(validate_only=True)
@@ -172,17 +180,21 @@ def test_patched_bootstrap_seams_intercept_apply_writes(tmp_path: Path) -> None:
     bootstrap_result = SimpleNamespace(
         total_wps=0, already_initialized=0, newly_seeded=0, skipped=0, wp_details=[]
     )
+    mock_seam = MagicMock()
+    mock_seam.read_dir.return_value = feature_dir
     with (
         patch(
-            f"{_TASKS}.resolve_feature_dir_for_mission", return_value=feature_dir
-        ) as resolve_mock,
+            "specify_cli.cli.commands.agent.tasks_finalize.placement_seam",
+            return_value=mock_seam,
+        ) as seam_mock,
         patch(
             f"{_TASKS}.bootstrap_canonical_state", return_value=bootstrap_result
         ) as bootstrap_mock,
         patch(f"{_TASKS}.console") as console_mock,
     ):
         tasks_finalize._ft_apply_writes(st)
-    resolve_mock.assert_called_once_with(tmp_path, "034-feature")
+    seam_mock.assert_called_once_with(tmp_path, "034-feature")
+    mock_seam.read_dir.assert_called_once_with(MissionArtifactKind.STATUS_STATE)
     bootstrap_mock.assert_called_once_with(feature_dir, "034-feature", dry_run=True)
     assert st.feature_dir == feature_dir
     assert st.bootstrap_result is bootstrap_result
@@ -202,8 +214,13 @@ def test_patched_console_intercepts_apply_writes_warning_leg(tmp_path: Path) -> 
     st.mission_slug = "034-feature"
     st.tasks_dir = tasks_dir
     st.dependencies_map = {"WP01": []}
+    mock_seam = MagicMock()
+    mock_seam.read_dir.return_value = tmp_path
     with (
-        patch(f"{_TASKS}.resolve_feature_dir_for_mission", return_value=tmp_path),
+        patch(
+            "specify_cli.cli.commands.agent.tasks_finalize.placement_seam",
+            return_value=mock_seam,
+        ),
         patch(
             f"{_TASKS}.bootstrap_canonical_state",
             return_value=SimpleNamespace(

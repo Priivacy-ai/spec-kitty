@@ -17,7 +17,8 @@ mission_id resolution:
 
 from __future__ import annotations
 
-from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
+from mission_runtime import MissionArtifactKind
+from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 import json
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -35,6 +36,7 @@ from specify_cli.decisions.models import (
     IndexEntry,
     OriginFlow,
 )
+from specify_cli.mission_metadata import load_meta
 from spec_kitty_events.decisionpoint import DECISION_POINT_OPENED
 
 __all__ = [
@@ -114,16 +116,33 @@ def _resolve_mission_id(repo_root: Path, mission_slug: str) -> str:
     Raises:
         DecisionError(MISSION_NOT_FOUND): if meta.json is missing or has no mission_id.
     """
-    meta_path = resolve_feature_dir_for_mission(repo_root, mission_slug) / "meta.json"
-    if not meta_path.exists():
+    # FR-001: route through the SAME kind-routed seam as ``_mission_dir`` (the
+    # decisions ledger's own directory authority) rather than a fresh
+    # PRIMARY_METADATA lookup. WP04's pre-existing single-read-path-authority
+    # regression test (test_decision_single_authority.py) pins this mission_id
+    # read as coord-aware: a materialized ``-coord`` worktree carries its own
+    # ``meta.json`` copy and IS the resolvable surface (unlike the #2453 husk
+    # class, which shadows a stale PRIMARY copy). Reusing ``_mission_dir`` keeps
+    # the mission_id lookup and the decisions-ledger location in agreement — a
+    # separate PRIMARY-only resolution here could disagree with where the
+    # ledger itself resolves under coord topology (C-001: no over-claiming a
+    # funnel beyond what each site's own contract needs).
+    feature_dir = _mission_dir(repo_root, mission_slug)
+    # FR-005 / post-#2091: this site hard-fails on a missing meta.json
+    # (DecisionError(MISSION_NOT_FOUND)) -- allow_missing=True would MASK
+    # that guard and silently re-introduce the removed legacy tolerance.
+    try:
+        meta = load_meta(feature_dir, allow_missing=False, on_malformed="raise") or {}
+    except FileNotFoundError as exc:
         raise DecisionError(
             code=DecisionErrorCode.MISSION_NOT_FOUND,
             details={"mission_slug": mission_slug},
             message=f"meta.json not found for mission {mission_slug!r}",
-        )
-    try:
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError) as exc:
+        ) from exc
+    except ValueError as exc:
+        # load_meta(on_malformed="raise") wraps both a JSON syntax error and
+        # a read/decode (OSError) failure into ValueError -- the same two
+        # failure modes the pre-#2091 local try/except caught directly.
         raise DecisionError(
             code=DecisionErrorCode.MISSION_NOT_FOUND,
             details={"mission_slug": mission_slug},
@@ -140,8 +159,20 @@ def _resolve_mission_id(repo_root: Path, mission_slug: str) -> str:
 
 
 def _mission_dir(repo_root: Path, mission_slug: str) -> Path:
-    """Return kitty-specs/<mission_slug>/."""
-    return resolve_feature_dir_for_mission(repo_root, mission_slug)
+    """Return kitty-specs/<mission_slug>/.
+
+    The decisions ledger (``decisions/index.json`` / ``DM-<id>.md``) and its
+    companion ``status.events.jsonl`` entries are coord-authority-owned
+    STATUS-partition state -- the SAME directory ``decisions/emit.py``'s
+    permanent kind-blind write target resolves to (data-model.md:31, the 2
+    permanent-by-design coord_authority writes). Routed through a
+    STATUS-partition kind (not PRIMARY_METADATA) so this read stays
+    topology-aware and agrees with where emit.py writes; splitting reads onto
+    PRIMARY here would read/write split-brain the ledger under coord topology.
+    """
+    return resolve_planning_read_dir(
+        repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE
+    )
 
 
 def _events_path(repo_root: Path, mission_slug: str) -> Path:

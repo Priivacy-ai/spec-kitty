@@ -31,10 +31,7 @@ from rich.console import Console
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.core.paths import get_main_repo_root
-from specify_cli.missions._read_path_resolver import (
-    resolve_feature_dir_for_mission,
-    resolve_planning_read_dir,
-)
+from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 from specify_cli.status import Lane, resolve_lane_alias
 from specify_cli.workspace.context import resolve_workspace_for_wp
 
@@ -118,15 +115,23 @@ def _check_dependent_warnings(repo_root: Path, mission_slug: str, wp_id: str, ta
     # Write path: keep main-repo-root resolution so canonical serialization
     # pins to the primary checkout regardless of where the operator stands.
     main_repo_root = get_main_repo_root(repo_root)
-    # STATUS leg: coord-aware resolver for read_events inside compute_incomplete_dependents.
-    feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+    # late import — keeps cold-start cost low
+    from mission_runtime import MissionArtifactKind, placement_seam
+
+    # read-surface-ssot-closeout WP08 / FR-001 / NFR-001: route the kind-blind
+    # resolve_feature_dir_for_mission STATUS leg onto the kind-aware placement
+    # seam. STATUS_STATE stays on the topology-aware (coord-aware) partition —
+    # the SAME resolution resolve_feature_dir_for_mission produced for this
+    # read — so read_events inside compute_incomplete_dependents keeps reading
+    # the coordination worktree's event log for a coord-topology mission.
+    feature_dir = placement_seam(main_repo_root, mission_slug).read_dir(
+        MissionArtifactKind.STATUS_STATE
+    )
     # WP06 / FR-004 / C-001 per-leg split: build_dependency_graph reads tasks/ from PRIMARY
     # (WORK_PACKAGE_TASK-partition); compute_incomplete_dependents reads status.events.jsonl
     # from the coord-aware feature_dir above.  Do NOT change build_dependency_graph's signature
     # — route by passing primary_dir at the CALLER only; out-of-loop callers (merge/ordering,
     # policy/merge_gates) pass their own dir and must not be re-pointed (TICKET-class, C-009).
-    from mission_runtime import MissionArtifactKind  # late import — keeps cold-start cost low
-
     primary_dir = resolve_planning_read_dir(
         main_repo_root, mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
     )

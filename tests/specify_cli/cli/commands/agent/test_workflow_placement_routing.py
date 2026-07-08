@@ -84,26 +84,44 @@ def test_workflow_has_exactly_one_placement_seam_call_site() -> None:
     ``coord_branch`` presence instead. Post-fix, the single
     ``_resolve_workflow_placement`` helper is the ONE call site; the reviewer
     guidance explicitly forbids inlining the seam call at each write site.
+
+    read-surface-ssot-closeout WP04 (T017/T018): the invariant this test pins
+    is "no per-site re-derivation of the seam construction" — NOT literally
+    "only ``_resolve_workflow_placement`` may exist". WP04 adds a sibling
+    READ-side wrapper (``_resolve_workflow_read_dir``) for IC-04's routing;
+    both wrappers now share the ONE raw construction via the new
+    ``_workflow_placement_seam(repo_root, mission_slug)`` helper, so the
+    count assertion (exactly one raw call) still holds — see the companion
+    test below for the (updated) enclosing-function check.
     """
     sites = _placement_seam_call_sites(_parse_workflow_module())
     assert len(sites) == 1, (
         f"expected exactly ONE placement_seam(...) call site in workflow.py, "
         f"found {len(sites)} at lines {[s.lineno for s in sites]} — route "
-        "every write site through a single _resolve_workflow_placement "
-        "helper instead of inlining the seam call per-site"
+        "every read/write site through the single _workflow_placement_seam "
+        "constructor instead of inlining the seam call per-site"
     )
 
 
-def test_placement_seam_call_site_lives_in_resolve_workflow_placement() -> None:
-    """The lone seam call site is lexically inside ``_resolve_workflow_placement``."""
+def test_placement_seam_call_site_lives_in_workflow_placement_seam_constructor() -> None:
+    """The lone seam call site is lexically inside ``_workflow_placement_seam``.
+
+    read-surface-ssot-closeout WP04 (T017/T018): re-pinned from the prior
+    ``_resolve_workflow_placement``-only shape. The raw ``placement_seam(...)``
+    construction moved into a new shared ``_workflow_placement_seam`` helper
+    so BOTH ``_resolve_workflow_placement`` (write) and the new
+    ``_resolve_workflow_read_dir`` (read) can reuse the ONE construction
+    without a second raw call appearing in the module (which would have
+    broken the sibling "exactly one call site" test above).
+    """
     tree = _parse_workflow_module()
     sites = _placement_seam_call_sites(tree)
     assert sites, "no placement_seam(...) call site found — helper not implemented yet"
 
     enclosing = _enclosing_function_names(tree, sites[0])
-    assert "_resolve_workflow_placement" in enclosing, (
+    assert "_workflow_placement_seam" in enclosing, (
         f"placement_seam(...) at line {sites[0].lineno} is not enclosed by a "
-        f"'_resolve_workflow_placement' function (enclosing: {enclosing}) — "
+        f"'_workflow_placement_seam' function (enclosing: {enclosing}) — "
         "the WP mandates ONE named helper as the seam choke point"
     )
 
@@ -158,6 +176,98 @@ def test_resolve_workflow_placement_delegates_to_the_seam(
 
     assert calls == [(tmp_path, "001-demo")]
     assert result == CommitTarget(ref="SEAM-ROUTED-REF")
+
+
+# ---------------------------------------------------------------------------
+# read-surface-ssot-closeout WP04 (T017) — the sibling READ-side wrapper
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_workflow_read_dir_helper_exists_and_is_callable() -> None:
+    """``workflow._resolve_workflow_read_dir`` is a real, importable callable."""
+    from specify_cli.cli.commands.agent import workflow
+
+    assert hasattr(workflow, "_resolve_workflow_read_dir"), (
+        "workflow.py must define _resolve_workflow_read_dir(repo_root, "
+        "mission_slug, kind) as the READ-side placement choke point (IC-04/T017)"
+    )
+    assert callable(workflow._resolve_workflow_read_dir)
+
+
+def test_resolve_workflow_read_dir_delegates_to_the_seam(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``_resolve_workflow_read_dir`` is a thin wrapper over ``placement_seam``.
+
+    Mirrors ``test_resolve_workflow_placement_delegates_to_the_seam`` for the
+    READ-side projection: forwards ``(repo_root, mission_slug)`` unchanged and
+    projects ``kind`` through ``.read_dir(kind)`` — never re-deriving the read
+    path itself.
+    """
+    import mission_runtime
+    from mission_runtime import MissionArtifactKind
+    from specify_cli.cli.commands.agent import workflow
+
+    calls: list[tuple[Path, str]] = []
+    read_target = tmp_path / "kitty-specs" / "001-demo"
+
+    class _StubSeam:
+        def __init__(self, repo_root: Path, mission_slug: str) -> None:
+            calls.append((repo_root, mission_slug))
+
+        def read_dir(self, kind: MissionArtifactKind) -> Path:
+            assert kind is MissionArtifactKind.WORK_PACKAGE_TASK
+            return read_target
+
+    monkeypatch.setattr(mission_runtime, "placement_seam", _StubSeam)
+
+    result = workflow._resolve_workflow_read_dir(
+        repo_root=tmp_path, mission_slug="001-demo", kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    )
+
+    assert calls == [(tmp_path, "001-demo")]
+    assert result == read_target
+
+
+def test_placement_and_read_dir_wrappers_share_the_one_constructor(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Both wrappers construct the seam via the ONE shared constructor.
+
+    Spies on ``mission_runtime.placement_seam`` and asserts exactly one
+    construction happens per call to either wrapper — proving the read/write
+    split does not silently re-introduce a second independent seam
+    construction (the invariant ``test_workflow_has_exactly_one_placement_seam_call_site``
+    pins structurally).
+    """
+    import mission_runtime
+    from mission_runtime import CommitTarget, MissionArtifactKind
+    from specify_cli.cli.commands.agent import workflow
+
+    construction_count = 0
+
+    class _StubSeam:
+        def __init__(self, repo_root: Path, mission_slug: str) -> None:
+            nonlocal construction_count
+            construction_count += 1
+
+        def write_target(self, kind: MissionArtifactKind) -> CommitTarget:
+            return CommitTarget(ref="W")
+
+        def read_dir(self, kind: MissionArtifactKind) -> Path:
+            return tmp_path
+
+    monkeypatch.setattr(mission_runtime, "placement_seam", _StubSeam)
+
+    workflow._resolve_workflow_placement(
+        repo_root=tmp_path, mission_slug="001-demo", kind=MissionArtifactKind.STATUS_STATE
+    )
+    assert construction_count == 1
+
+    workflow._resolve_workflow_read_dir(
+        repo_root=tmp_path, mission_slug="001-demo", kind=MissionArtifactKind.WORK_PACKAGE_TASK
+    )
+    assert construction_count == 2
 
 
 # ---------------------------------------------------------------------------

@@ -31,8 +31,8 @@ from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.lanes.branch_naming import resolve_mid8
+from specify_cli.mission_metadata import load_meta
 import enum
-import json
 import logging
 import subprocess
 from dataclasses import dataclass, replace
@@ -266,11 +266,8 @@ def _load_managed_lane_policies(repo_root: Path) -> tuple[_ManagedLanePolicy, ..
 
     policies: list[_ManagedLanePolicy] = []
     for meta_path in sorted(specs_dir.glob("*/meta.json")):
-        try:
-            raw = json.loads(meta_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        if not isinstance(raw, dict):
+        raw = load_meta(meta_path.parent, on_malformed="none")
+        if raw is None:
             continue
         coord_branch = raw.get("coordination_branch")
         mission_slug = raw.get("mission_slug") or raw.get("slug")

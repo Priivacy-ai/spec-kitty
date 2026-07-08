@@ -1431,6 +1431,21 @@ def resolve_feature_dir_for_slug(repo_root: Path, mission_slug: str) -> Path:
     (WP07/FR-007). The late imports keep importing this module from pulling in
     heavier modules during cold ``spec-kitty next`` startup.
 
+    read-surface-ssot-closeout-01KWZV91/WP09 (FR-001, NFR-001): the last four
+    production call sites (``materialize.py``, ``research.py``,
+    ``validate_encoding.py``, ``workspace/context.py``) were routed onto
+    ``placement_seam(...).read_dir(kind)`` — the kind-aware seam, not this
+    kind-blind primitive. This function stays a genuine, still-exercised
+    coord-aware primitive (dozens of tests call it directly to prove the
+    coord-vs-primary split — see ``tests/retrospective/``,
+    ``tests/integration/test_coord_loop_*``,
+    ``tests/architectural/test_gate_read_literal_ban.py``), so it is NOT
+    deleted — only dropped from ``__all__`` (below) since it no longer has a
+    cross-module ``src/`` importer (the symbol-level dead-code gate,
+    ``tests/architectural/test_no_dead_symbols.py``, requires one for an
+    exported name). Direct qualified imports (``from ... import
+    resolve_feature_dir_for_slug``) are unaffected by ``__all__`` membership.
+
     FR-004 (T015 boundary absorption, WP17): like
     :func:`candidate_feature_dir_for_mission`, this leg reads the WP02 stored
     topology ONCE and threads it down so the absent-``topology``-field case is
@@ -1482,6 +1497,15 @@ def resolve_feature_dir_for_mission(
 # (``coordination.surface_resolver`` imports all three) — the symbol-level
 # dead-code gate (``test_no_dead_symbols``) requires an ``__all__`` entry to have
 # a cross-module caller, which now holds.
+# ``resolve_feature_dir_for_slug`` is deliberately NOT exported here
+# (read-surface-ssot-closeout-01KWZV91/WP09): its last cross-module ``src/``
+# callers were routed onto ``placement_seam(...).read_dir(kind)`` (the
+# kind-aware seam), so it no longer has a runtime importer outside this
+# module — the symbol-level dead-code gate
+# (``tests/architectural/test_no_dead_symbols.py``) requires one for any
+# ``__all__`` member. The function itself is kept (not deleted): it remains a
+# genuine coord-aware primitive that many tests import directly by qualified
+# name (unaffected by ``__all__``) to exercise the coord-vs-primary split.
 __all__ = [
     "CoordState",
     "MissionSelectorAmbiguous",
@@ -1493,7 +1517,6 @@ __all__ = [
     "resolve_bare_modern_mission_dir_name",
     "resolve_planning_read_dir",
     "resolve_feature_dir_for_mission",
-    "resolve_feature_dir_for_slug",
     "resolve_handle_to_read_path",
     "resolve_surface_dir_or_typed_error",
 ]

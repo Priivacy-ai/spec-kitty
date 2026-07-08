@@ -42,7 +42,6 @@ from specify_cli.missions._read_path_resolver import (
     _canonicalize_primary_read_handle,
     candidate_feature_dir_for_mission,
     primary_feature_dir_for_mission,
-    resolve_feature_dir_for_mission,
     resolve_planning_read_dir,
 )
 import json
@@ -60,6 +59,7 @@ import typer
 if TYPE_CHECKING:
     from rich.console import Console
 
+    from mission_runtime import PlacementSeam
     from specify_cli.bulk_edit.gate import DiffCheckResult
 
 from charter.context import build_charter_context
@@ -483,14 +483,33 @@ def _revert_coordination_commit(receipt: CommitReceipt) -> None:
         )
 
 
+def _workflow_placement_seam(repo_root: Path, mission_slug: str) -> PlacementSeam:
+    """Construct the ONE placement-seam instance every workflow.py wrapper shares.
+
+    read-surface-ssot-closeout WP04 (T017/T018): the pre-existing
+    ``_resolve_workflow_placement`` (coord-primary-partition-lock) was the
+    lone raw ``placement_seam(...)`` construction in this module — a pinned
+    invariant (``test_workflow_has_exactly_one_placement_seam_call_site``).
+    Adding the sibling READ-side wrapper (:func:`_resolve_workflow_read_dir`)
+    for IC-04's routing without a SECOND raw construction means both wrappers
+    now share this one constructor instead of each importing/calling
+    ``placement_seam`` independently — the invariant's *intent* (no per-site
+    re-derivation) is preserved even though its enclosing-function detail
+    moves here.
+    """
+    from mission_runtime import placement_seam
+
+    return placement_seam(repo_root, mission_slug)
+
+
 def _resolve_workflow_placement(
     *, repo_root: Path, mission_slug: str, kind: MissionArtifactKind
 ) -> CommitTarget:
-    """Resolve the write :class:`CommitTarget` for ``kind`` via the placement seam (T017).
+    """Resolve the write :class:`CommitTarget` for ``kind`` via the placement seam.
 
     The SINGLE choke point every workflow.py lifecycle/status write site
     routes through (coord-primary-partition-lock C-001 / C-005): a thin
-    wrapper over :func:`mission_runtime.placement_seam` — never re-derived
+    wrapper over :func:`_workflow_placement_seam` — never re-derived
     inline at each write site (reviewer guidance explicitly forbids 4x
     inlining the seam call across a 2800-line module). Callers that already
     hold identity metadata for a DIFFERENT purpose (e.g. the
@@ -499,9 +518,24 @@ def _resolve_workflow_placement(
     mechanism) keep reading that separately — this helper answers only "where
     does a write of this kind land", the seam's one job.
     """
-    from mission_runtime import placement_seam
+    return _workflow_placement_seam(repo_root, mission_slug).write_target(kind)
 
-    return placement_seam(repo_root, mission_slug).write_target(kind)
+
+def _resolve_workflow_read_dir(
+    *, repo_root: Path, mission_slug: str, kind: MissionArtifactKind
+) -> Path:
+    """Resolve the read directory for ``kind`` via the placement seam (IC-04/T017).
+
+    The sibling READ-side choke point to :func:`_resolve_workflow_placement`:
+    every workflow.py site that read a mission directory through the
+    kind-blind ``resolve_feature_dir_for_mission`` husk (NFR-001 /
+    Directive-041 — do not pin the old kind-blind coord husk) now routes
+    through this ONE wrapper over :func:`_workflow_placement_seam`
+    ``.read_dir(kind)`` instead of re-deriving the seam call inline at each
+    read site.
+    """
+    read_dir: Path = _workflow_placement_seam(repo_root, mission_slug).read_dir(kind)
+    return read_dir
 
 
 def _commit_via_legacy_safe_commit(
@@ -911,6 +945,68 @@ def _workspace_contract_description(workspace, wp_id: str) -> str:
     return "Workspace contract: repository root planning workspace"
 
 
+def _render_isolation_banner(wp_id: str, mode: str) -> list[str]:
+    """Render the WP-isolation warning box shared by ``implement``/``review``.
+
+    Campsite SAFE item #2 (S1192, DIRECTIVE_025 tidy-first): extracts the
+    9x-duplicated blank-box banner line out of the two inline blocks
+    (``implement`` / ``review``). ``mode`` (``"implement"`` or ``"review"``)
+    selects the verb line and the two mode-specific bullets — ``implement``
+    additionally warns about subtask ownership, ``review`` additionally warns
+    about review/approval ownership. The rendered lines are byte-identical to
+    the blocks this replaces (behaviour-preserving extraction, no new text).
+    """
+    lines = [
+        "╔" + "=" * 78 + "╗",
+        "║  🚨 CRITICAL: WORK PACKAGE ISOLATION RULES                              ║",
+        "╠" + "=" * 78 + "╣",
+    ]
+    if mode == "implement":
+        lines.append(f"║  YOU ARE ASSIGNED TO: {wp_id:<55} ║")
+    else:
+        lines.append(f"║  YOU ARE REVIEWING: {wp_id:<56} ║")
+    lines.append("║                                                                          ║")
+    lines.append("║  ✅ DO:                                                                  ║")
+    lines.append(f"║     • Only modify status of {wp_id:<47} ║")
+    if mode == "implement":
+        lines.append(f"║     • Only mark subtasks belonging to {wp_id:<36} ║")
+    lines.append("║     • Ignore git commits and status changes from other agents           ║")
+    lines.append("║                                                                          ║")
+    lines.append("║  ❌ DO NOT:                                                              ║")
+    lines.append(f"║     • Change status of any WP other than {wp_id:<34} ║")
+    lines.append("║     • React to or investigate other WPs' status changes                 ║")
+    if mode == "implement":
+        lines.append(f"║     • Mark subtasks that don't belong to {wp_id:<33} ║")
+    else:
+        lines.append(f"║     • Review or approve any WP other than {wp_id:<32} ║")
+    lines.append("║                                                                          ║")
+    lines.append("║  WHY: Multiple agents work in parallel. Each owns exactly ONE WP.       ║")
+    lines.append("║       Git commits from other WPs are other agents - ignore them.        ║")
+    lines.append("╚" + "=" * 78 + "╝")
+    return lines
+
+
+def _render_wp_prompt_wrapper(wp_text: str) -> list[str]:
+    """Render the WP-prompt BEGIN/END marker wrapper shared by ``implement``/``review``.
+
+    Campsite SAFE item #3 (DIRECTIVE_025 tidy-first): extracts the
+    byte-identical 9-line block both commands use to wrap the raw WP file
+    text between banner markers. Behaviour-preserving.
+    """
+    return [
+        "╔" + "=" * 78 + "╗",
+        "║  WORK PACKAGE PROMPT BEGINS                                            ║",
+        "╚" + "=" * 78 + "╝",
+        "",
+        wp_text,
+        "",
+        "╔" + "=" * 78 + "╗",
+        "║  WORK PACKAGE PROMPT ENDS                                              ║",
+        "╚" + "=" * 78 + "╝",
+        "",
+    ]
+
+
 def _shared_artifact_guidance(workspace, repo_root: Path, mission_slug: str) -> list[str]:
     """Render workspace-specific guidance about where mission artifacts live."""
     if workspace.lane_id:
@@ -1277,7 +1373,6 @@ def _ensure_workspace_materialized(
             f"for {wp_id} was not materialized."
         )
         raise typer.Exit(1)
-    return
 
 
 @app.command(name="implement")
@@ -1465,7 +1560,15 @@ def implement(
                 )
                 raise typer.Exit(1)
 
-        feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+        # IC-04/T017: review-feedback-context READ. WORK_PACKAGE_TASK is a
+        # PRIMARY-partition kind (review-cycle artifacts + this WP's baseline
+        # artifact both live under tasks/<wp_slug>/, reused later in this
+        # function at the fix-mode and baseline-commit sites) — routes through
+        # the kind-aware seam instead of the kind-blind coord husk (NFR-001 /
+        # Directive-041).
+        feature_dir = _resolve_workflow_read_dir(
+            repo_root=main_repo_root, mission_slug=mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+        )
         has_feedback, review_feedback_ref, review_feedback_file, review_feedback_source = _resolve_review_feedback_context(
             feature_dir=feature_dir,
             wp_id=normalized_wp_id,
@@ -1660,7 +1763,15 @@ def implement(
                     trigger_feature_dossier_sync_if_enabled,
                 )
 
-                _impl_feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
+                # IC-04/T017: dossier-sync READ. The indexer walks the whole
+                # mission tree (spec.md/plan.md/tasks.md/tasks/*.md) — the
+                # same whole-planning-surface READ the dashboard scanner uses
+                # TASKS_INDEX for (mirrors the "tasks" action this call used
+                # to resolve via the kind-blind husk) — routed via the
+                # kind-aware seam (NFR-001 / Directive-041).
+                _impl_feature_dir = _resolve_workflow_read_dir(
+                    repo_root=repo_root, mission_slug=mission_slug, kind=MissionArtifactKind.TASKS_INDEX
+                )
                 trigger_feature_dossier_sync_if_enabled(
                     _impl_feature_dir,
                     mission_slug,
@@ -1804,24 +1915,7 @@ def implement(
         lines.append("")
 
         # CRITICAL: WP isolation rules
-        lines.append("╔" + "=" * 78 + "╗")
-        lines.append("║  🚨 CRITICAL: WORK PACKAGE ISOLATION RULES                              ║")
-        lines.append("╠" + "=" * 78 + "╣")
-        lines.append(f"║  YOU ARE ASSIGNED TO: {normalized_wp_id:<55} ║")
-        lines.append("║                                                                          ║")
-        lines.append("║  ✅ DO:                                                                  ║")
-        lines.append(f"║     • Only modify status of {normalized_wp_id:<47} ║")
-        lines.append(f"║     • Only mark subtasks belonging to {normalized_wp_id:<36} ║")
-        lines.append("║     • Ignore git commits and status changes from other agents           ║")
-        lines.append("║                                                                          ║")
-        lines.append("║  ❌ DO NOT:                                                              ║")
-        lines.append(f"║     • Change status of any WP other than {normalized_wp_id:<34} ║")
-        lines.append("║     • React to or investigate other WPs' status changes                 ║")
-        lines.append(f"║     • Mark subtasks that don't belong to {normalized_wp_id:<33} ║")
-        lines.append("║                                                                          ║")
-        lines.append("║  WHY: Multiple agents work in parallel. Each owns exactly ONE WP.       ║")
-        lines.append("║       Git commits from other WPs are other agents - ignore them.        ║")
-        lines.append("╚" + "=" * 78 + "╝")
+        lines.extend(_render_isolation_banner(normalized_wp_id, "implement"))
         lines.append("")
 
         # Inject worktree topology context for stacked branches
@@ -1913,16 +2007,7 @@ def implement(
             lines.append("")
 
         # WP content marker and content
-        lines.append("╔" + "=" * 78 + "╗")
-        lines.append("║  WORK PACKAGE PROMPT BEGINS                                            ║")
-        lines.append("╚" + "=" * 78 + "╝")
-        lines.append("")
-        lines.append(wp.path.read_text(encoding="utf-8"))
-        lines.append("")
-        lines.append("╔" + "=" * 78 + "╗")
-        lines.append("║  WORK PACKAGE PROMPT ENDS                                              ║")
-        lines.append("╚" + "=" * 78 + "╝")
-        lines.append("")
+        lines.extend(_render_wp_prompt_wrapper(wp.path.read_text(encoding="utf-8")))
 
         # Completion instructions at end
         lines.append("=" * 80)
@@ -2633,23 +2718,7 @@ def review(
             lines.append("")
 
         # CRITICAL: WP isolation rules
-        lines.append("╔" + "=" * 78 + "╗")
-        lines.append("║  🚨 CRITICAL: WORK PACKAGE ISOLATION RULES                              ║")
-        lines.append("╠" + "=" * 78 + "╣")
-        lines.append(f"║  YOU ARE REVIEWING: {normalized_wp_id:<56} ║")
-        lines.append("║                                                                          ║")
-        lines.append("║  ✅ DO:                                                                  ║")
-        lines.append(f"║     • Only modify status of {normalized_wp_id:<47} ║")
-        lines.append("║     • Ignore git commits and status changes from other agents           ║")
-        lines.append("║                                                                          ║")
-        lines.append("║  ❌ DO NOT:                                                              ║")
-        lines.append(f"║     • Change status of any WP other than {normalized_wp_id:<34} ║")
-        lines.append("║     • React to or investigate other WPs' status changes                 ║")
-        lines.append(f"║     • Review or approve any WP other than {normalized_wp_id:<32} ║")
-        lines.append("║                                                                          ║")
-        lines.append("║  WHY: Multiple agents work in parallel. Each owns exactly ONE WP.       ║")
-        lines.append("║       Git commits from other WPs are other agents - ignore them.        ║")
-        lines.append("╚" + "=" * 78 + "╝")
+        lines.extend(_render_isolation_banner(normalized_wp_id, "review"))
         lines.append("")
 
         # Inject worktree topology context for stacked branches
@@ -2707,7 +2776,14 @@ def review(
 
         # Baseline Test Context — load cached baseline and surface pre-existing failures
         _rv_wp_slug = wp.path.stem
-        _rv_feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+        # IC-04/T017: baseline-test READ, kept DISTINCT from the write below
+        # (they diverge intentionally — campsite note #5 — never dedupe them
+        # into one shared call/variable). WORK_PACKAGE_TASK (tasks/<wp_slug>/)
+        # is a PRIMARY-partition kind — routed via the kind-aware seam instead
+        # of the kind-blind coord husk (NFR-001 / Directive-041).
+        _rv_feature_dir = _resolve_workflow_read_dir(
+            repo_root=main_repo_root, mission_slug=mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+        )
         try:
             from specify_cli.review.baseline import BaselineTestResult as _BaselineTestResult
 
@@ -2744,7 +2820,30 @@ def review(
         # Determine the writable in-repo feedback path.
         # Derive wp_slug from the WP file stem (e.g. "WP03-external-reviewer-handoff").
         wp_slug = wp.path.stem  # e.g. "WP03-external-reviewer-handoff"
-        sub_artifact_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug) / "tasks" / wp_slug
+        # IC-04/T018: review-cycle sub-artifact WRITE (mkdir), kept DISTINCT
+        # from the baseline READ above (campsite note #5 — the two calls look
+        # redundant but diverge by design; never dedupe them into one shared
+        # call/variable). WORK_PACKAGE_TASK is a PRIMARY-partition kind: the
+        # placement seam's write and read projections resolve to the SAME
+        # on-disk directory for a PRIMARY kind (INV-5 full read/write
+        # symmetry — mission_runtime/artifacts.py). This is a genuine
+        # filesystem write (``mkdir`` below), not a git commit — no
+        # ``safe_commit``/target ref is consulted at this site (the eventual
+        # commit of the reviewer-authored file happens later, out-of-band,
+        # via ``move-task --review-feedback-file``). ``PlacementSeam`` has no
+        # Path-returning write projection — only ``write_target(kind)``
+        # (a git-ref-only ``CommitTarget``, never a filesystem ``Path``) and
+        # ``read_dir(kind)`` (a ``Path``) — so the on-disk directory this
+        # write needs is resolved via the read-side projection, which is
+        # correct precisely because of the INV-5 symmetry above, not a
+        # read-routed-for-a-write mistake.
+        sub_artifact_dir = (
+            _resolve_workflow_read_dir(
+                repo_root=main_repo_root, mission_slug=mission_slug, kind=MissionArtifactKind.WORK_PACKAGE_TASK
+            )
+            / "tasks"
+            / wp_slug
+        )
         sub_artifact_dir.mkdir(parents=True, exist_ok=True)
 
         # Determine the next review cycle number based on existing files.
@@ -2792,16 +2891,7 @@ def review(
         lines.append("")
 
         # WP content marker and content
-        lines.append("╔" + "=" * 78 + "╗")
-        lines.append("║  WORK PACKAGE PROMPT BEGINS                                            ║")
-        lines.append("╚" + "=" * 78 + "╝")
-        lines.append("")
-        lines.append(wp.path.read_text(encoding="utf-8"))
-        lines.append("")
-        lines.append("╔" + "=" * 78 + "╗")
-        lines.append("║  WORK PACKAGE PROMPT ENDS                                              ║")
-        lines.append("╚" + "=" * 78 + "╝")
-        lines.append("")
+        lines.extend(_render_wp_prompt_wrapper(wp.path.read_text(encoding="utf-8")))
 
         # Completion instructions at end
         lines.append("=" * 80)

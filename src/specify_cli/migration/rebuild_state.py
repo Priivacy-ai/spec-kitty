@@ -49,6 +49,7 @@ from specify_cli.migration.canonicalization import (
     MigrationContext,
     apply_rules,
 )
+from specify_cli.mission_metadata import load_meta_or_empty
 
 logger = logging.getLogger(__name__)
 
@@ -467,19 +468,14 @@ def _rule_collect_meta_created_at(
 ) -> CanonicalStepResult[_TimestampState]:
     """Source 4: collect 'created_at' from meta.json."""
     feature_dir, candidates = state
-    meta_path = feature_dir / "meta.json"
-    if not meta_path.exists():
-        return CanonicalStepResult.passthrough(state)
     new_candidates = list(candidates)
-    try:
-        with meta_path.open("r", encoding="utf-8") as fh:
-            meta = json.load(fh)
-        if isinstance(meta, dict):
-            ts = meta.get("created_at")
-            if isinstance(ts, str) and ts:
-                new_candidates.append(ts)
-    except (OSError, json.JSONDecodeError) as exc:  # pragma: no cover
-        logger.debug("Cannot read meta.json in %s: %s", feature_dir, exc)
+    # post-#2091 silent contract: load_meta_or_empty absorbs a missing or
+    # malformed meta.json to {}, matching the prior try/except-debug-log
+    # absorption (ts stays None -> no candidate appended).
+    meta = load_meta_or_empty(feature_dir)
+    ts = meta.get("created_at")
+    if isinstance(ts, str) and ts:
+        new_candidates.append(ts)
     if new_candidates == candidates:
         return CanonicalStepResult.passthrough(state)
     return CanonicalStepResult(state=(feature_dir, new_candidates), actions=())

@@ -258,7 +258,13 @@ class TestFindFirstForReviewWp:
 
         monkeypatch.chdir(tmp_path)
         monkeypatch.setattr("specify_cli.core.paths.is_worktree_context", lambda _path: False)
-        monkeypatch.setattr(workflow, "resolve_feature_dir_for_mission", lambda _repo, _slug: feature_dir)
+        # read-surface-ssot-closeout WP04 (T017): the vestigial monkeypatch of
+        # ``workflow.resolve_feature_dir_for_mission`` was removed — that import
+        # was dropped when the four workflow.py sites were routed onto the
+        # kind-aware placement seam, and ``_find_first_for_review_wp`` resolves
+        # its tasks/ dir via ``resolve_planning_read_dir(kind=WORK_PACKAGE_TASK)``
+        # anchored on ``get_main_repo_root(tmp_path)`` — so the real path
+        # resolves ``tmp_path/kitty-specs/test-feature`` here without any patch.
         monkeypatch.setattr(status_module, "read_events", lambda _feature_dir: [seed_event])
         monkeypatch.setattr(
             status_module,
@@ -286,7 +292,10 @@ class TestFindFirstForReviewWp:
 
         monkeypatch.chdir(tmp_path)
         monkeypatch.setattr("specify_cli.core.paths.is_worktree_context", lambda _path: False)
-        monkeypatch.setattr(workflow, "resolve_feature_dir_for_mission", lambda _repo, _slug: feature_dir)
+        # read-surface-ssot-closeout WP04 (T017): vestigial
+        # ``resolve_feature_dir_for_mission`` monkeypatch removed — see the
+        # sibling test above; ``_find_first_for_review_wp`` resolves tasks/ via
+        # the kind-aware seam anchored on ``get_main_repo_root(tmp_path)``.
         monkeypatch.setattr(status_module, "read_events", lambda _feature_dir: [claimed_event])
         monkeypatch.setattr(
             status_module,

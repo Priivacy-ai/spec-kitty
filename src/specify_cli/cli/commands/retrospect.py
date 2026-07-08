@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from specify_cli.coordination.surface_resolver import resolve_status_surface
 from specify_cli.core.constants import KITTIFY_DIR, KITTY_SPECS_DIR, RETROSPECTIVE_FILENAME
+from specify_cli.mission_metadata import load_meta_or_empty
 from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
 )
@@ -515,13 +516,9 @@ def _discover_missions_for_backfill(
             continue
 
         meta_path = entry / "meta.json"
-        if not meta_path.exists():
+        meta = load_meta_or_empty(entry)
+        if not meta:
             continue
-
-        try:  # noqa: S112
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        except Exception:  # noqa: S112
-            continue  # noqa: S112
 
         mission_id = meta.get("mission_id")
         mission_slug = meta.get("mission_slug") or meta.get("slug")
@@ -999,16 +996,9 @@ def summary_cmd(  # noqa: C901
         for mission_dir in sorted(missions_dir.iterdir()):
             if not mission_dir.is_dir():
                 continue
-            meta_path = mission_dir / "meta.json"
-            mission_id = None
-            mission_slug = None
-            if meta_path.exists():
-                try:
-                    meta = json.loads(meta_path.read_text(encoding="utf-8"))
-                    mission_id = meta.get("mission_id")
-                    mission_slug = meta.get("mission_slug") or meta.get("slug")
-                except Exception:
-                    pass
+            meta = load_meta_or_empty(mission_dir)
+            mission_id = meta.get("mission_id")
+            mission_slug = meta.get("mission_slug") or meta.get("slug")
 
             # Classify against mission dir AND kitty-specs dir (for event log)
             feature_dir_for_classify: Path | None = None

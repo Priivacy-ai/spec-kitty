@@ -30,6 +30,28 @@ def _state(slug: str, state: str, mission_id: str | None = "01ABC") -> IdentityS
     )
 
 
+class _StubSeam:
+    """Stand-in for ``mission_runtime.PlacementSeam`` -- WP05 read-routing tests.
+
+    ``_identity_audit`` now calls ``placement_seam(repo_root, mission).read_dir(kind)``
+    (routed through the kind-aware seam, FR-001/NFR-001) instead of the retired
+    kind-blind ``resolve_feature_dir_for_mission``. Tests that previously stubbed
+    the retired resolver directly now stub ``placement_seam`` to return this
+    fixed-target fake, which ignores the requested ``kind`` (these tests do not
+    exercise kind-branching -- only "does the resolved dir exist").
+    """
+
+    def __init__(self, target: Path) -> None:
+        self._target = target
+
+    def read_dir(self, kind: object) -> Path:
+        return self._target
+
+
+def _stub_placement_seam(monkeypatch: pytest.MonkeyPatch, target: Path) -> None:
+    monkeypatch.setattr(ia, "placement_seam", lambda *_a, **_kw: _StubSeam(target))
+
+
 # --- _scope_prefixes ---------------------------------------------------------
 
 
@@ -64,7 +86,7 @@ def test_scope_to_mission_unmatched_resolves_existing_dir(
     # is classified directly. Stub the resolver + classifier to the dir.
     target = tmp_path / "kitty-specs" / "084-b"
     target.mkdir(parents=True)
-    monkeypatch.setattr(ia, "resolve_feature_dir_for_mission", lambda *_a: target)
+    _stub_placement_seam(monkeypatch, target)
     import specify_cli.status as status_mod
 
     monkeypatch.setattr(status_mod, "classify_mission", lambda d: _state("084-b", "legacy"))
@@ -77,9 +99,7 @@ def test_scope_to_mission_unmatched_missing_dir(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # Resolver yields a non-existent path → no scoped states.
-    monkeypatch.setattr(
-        ia, "resolve_feature_dir_for_mission", lambda *_a: tmp_path / "nope"
-    )
+    _stub_placement_seam(monkeypatch, tmp_path / "nope")
     states = [_state("083-a", "assigned")]
     result = ia._scope_to_mission(tmp_path, states, "999-nope")
     assert result == []
@@ -218,9 +238,7 @@ def test_run_identity_audit_mission_not_found(
 
     monkeypatch.setattr(status_mod, "audit_repo", lambda *_a: [])
     # Resolver yields a non-existent dir → scoped is empty → exit(1).
-    monkeypatch.setattr(
-        ia, "resolve_feature_dir_for_mission", lambda *_a: tmp_path / "nope"
-    )
+    _stub_placement_seam(monkeypatch, tmp_path / "nope")
     with pytest.raises(typer.Exit) as exc:
         ia.run_identity_audit(tmp_path, False, "999-nope", None)
     assert exc.value.exit_code == 1
@@ -265,9 +283,7 @@ def test_run_topology_audit_not_found(
 ) -> None:
     (tmp_path / "kitty-specs").mkdir()
     # Resolver yields a non-existent dir → no rows → exit(1).
-    monkeypatch.setattr(
-        ia, "resolve_feature_dir_for_mission", lambda *_a: tmp_path / "nope"
-    )
+    _stub_placement_seam(monkeypatch, tmp_path / "nope")
     with pytest.raises(typer.Exit) as exc:
         ia.run_topology_audit(tmp_path, False, "999-nope")
     assert exc.value.exit_code == 1

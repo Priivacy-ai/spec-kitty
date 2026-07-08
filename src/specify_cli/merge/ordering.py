@@ -269,7 +269,6 @@ def _compute_next_mission_number_or_none(
         the target branch already carries an integer for this mission (the
         no-op signal — the assignment already happened on a prior merge).
     """
-    import json as _json
     import subprocess as _subprocess
     import tempfile as _tempfile
 
@@ -296,7 +295,13 @@ def _compute_next_mission_number_or_none(
 
         target_meta_path = scan_specs / mission_slug / "meta.json"
         if target_meta_path.exists():
-            target_meta = _json.loads(target_meta_path.read_text(encoding="utf-8"))
+            # Canonical reader (FR-005/WP12): on_malformed="none" absorbs BOTH a
+            # JSON-syntax error AND a non-dict top level to None -- this is a
+            # best-effort idempotency peek (not a #2091 identity guard site), so
+            # a corrupt/foreign meta.json on the target branch must not abort the
+            # merge-time numbering step; it falls through to normal assignment
+            # below, matching the pre-existing non-dict-tolerant branch.
+            target_meta = load_meta(scan_specs / mission_slug, on_malformed="none")
             existing_on_target = (
                 target_meta.get("mission_number") if isinstance(target_meta, dict) else None
             )
@@ -332,7 +337,6 @@ def _write_mission_number_to_branch(
         be created, (c) meta.json is missing or malformed, or (d) the value
         was already equal (idempotency hit — still persists the baked flag).
     """
-    import json as _json
     import subprocess as _subprocess
     import tempfile as _tempfile
 
@@ -390,7 +394,12 @@ def _write_mission_number_to_branch(
             )
             return False
 
-        meta_data = _json.loads(meta_path.read_text(encoding="utf-8"))
+        # Canonical reader (FR-005/WP12): on_malformed="none" absorbs BOTH a
+        # JSON-syntax error AND a non-dict top level to None, so a corrupt
+        # meta.json degrades to the same "cannot bake mission_number" skip as
+        # the pre-existing non-dict branch below, instead of crashing the merge
+        # with an uncaught JSONDecodeError (not a #2091 identity guard site).
+        meta_data = load_meta(meta_path.parent, on_malformed="none")
         if not isinstance(meta_data, dict):
             _merge_logger.warning(
                 "meta.json for %s is not a JSON object; cannot bake mission_number",

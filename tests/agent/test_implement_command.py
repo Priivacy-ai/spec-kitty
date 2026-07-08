@@ -684,17 +684,13 @@ class TestImplementCoordTopologyLanesJson:
                 "specify_cli.cli.commands.implement.detect_feature_context",
                 return_value=("010", mission_slug),
             ),
-            # Both coord-aware resolvers return coord_dir — triggers meta.json
-            # fallback so feature_dir lands on primary, but _lanes_feature_dir
-            # stays on coord_dir (the fix for #1991).
-            patch(
-                "specify_cli.cli.commands.implement.resolve_feature_dir_for_mission",
-                return_value=coord_dir,
-            ),
-            patch(
-                "specify_cli.cli.commands.implement.candidate_feature_dir_for_mission",
-                return_value=coord_dir,
-            ),
+            # read-surface-ssot-closeout WP05 / FR-001 / NFR-001: ``feature_dir``
+            # now routes through the kind-aware placement seam
+            # (``read_dir(SPEC)``), which is topology-blind and resolves the
+            # primary dir directly (``tmp_path/kitty-specs/010-feature``,
+            # exercised for real — no stub needed). ``_lanes_feature_dir``
+            # stays independently resolved onto ``coord_dir`` via the status
+            # surface below (the #1991 fix this test pins).
             patch(
                 "specify_cli.cli.commands.implement.resolve_feature_target_branch",
                 return_value="main",

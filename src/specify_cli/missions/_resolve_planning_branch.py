@@ -36,9 +36,10 @@ FR-012, SC-04.
 
 from __future__ import annotations
 
-import json
 from pathlib import Path
 from collections.abc import Mapping
+
+from specify_cli.mission_metadata import load_meta
 
 __all__ = [
     "PlanningBranchResolutionFailed",
@@ -97,19 +98,21 @@ def load_mission_target_branch(feature_dir: Path) -> str:
     the CLI emits a single, consistent diagnostic.
     """
     meta_path = feature_dir / "meta.json"
-    if not meta_path.exists():
+    try:
+        data = load_meta(feature_dir, allow_missing=False, on_malformed="raise")
+    except FileNotFoundError as exc:
         raise PlanningBranchResolutionFailed(
             f"meta.json not found at {meta_path}. "
             "Re-run with --target-branch <ref> to override."
-        )
-    try:
-        data = json.loads(meta_path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError) as exc:
+        ) from exc
+    except ValueError as exc:
         raise PlanningBranchResolutionFailed(
             f"meta.json at {meta_path} is unreadable: {exc}. "
             "Re-run with --target-branch <ref> to override."
         ) from exc
-    if not isinstance(data, dict):
+    if data is None:
+        # Unreachable: allow_missing=False + on_malformed="raise" never
+        # returns None. Narrows the type for mypy without an assert.
         raise PlanningBranchResolutionFailed(
             f"meta.json at {meta_path} is not a JSON object."
         )

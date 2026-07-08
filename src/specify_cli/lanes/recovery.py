@@ -11,12 +11,12 @@ All recovery transitions use actor="recovery" for auditability.
 from __future__ import annotations
 
 from mission_runtime import MissionArtifactKind
+from specify_cli.mission_metadata import load_meta
 from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
     resolve_feature_dir_for_mission,
     resolve_planning_read_dir,
 )
-import json
 import logging
 import subprocess
 from dataclasses import dataclass, field
@@ -240,12 +240,14 @@ def _mission_id_from_meta(feature_dir: Path) -> str | None:
     Feeds the fail-closed branch composer (FR-006): a modern mission carries its
     ULID here; a legacy mission has none and is resolved by slug shape instead.
     """
-    meta_path = feature_dir / "meta.json"
-    try:
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    except (OSError, ValueError):  # FileNotFoundError ⊂ OSError; json.JSONDecodeError ⊂ ValueError
-        return None
-    raw = meta.get("mission_id") if isinstance(meta, dict) else None
+    # Routed onto the canonical meta.json reader (FR-005 / post-#2091): the
+    # pre-existing try/except absorbed both a missing file (OSError) and a
+    # malformed/non-object payload to "no mission_id" -- the same silent
+    # contract ``mission_metadata.load_meta(..., on_malformed="none")``
+    # implements (see the identical idiom in
+    # ``missions._read_path_resolver._declares_coordination_branch``).
+    meta = load_meta(feature_dir, on_malformed="none")
+    raw = meta.get("mission_id") if meta else None
     return str(raw) if raw else None
 
 
@@ -262,7 +264,15 @@ def _resolve_mission_branch(feature_dir: Path, mission_slug: str) -> str:
     if mission_branch:
         return mission_branch
     try:
-        return mission_branch_name_required(mission_slug, _mission_id_from_meta(feature_dir))
+        # ``mission_branch_name_required`` is typed -> str; mypy widens it to
+        # ``Any`` through the late-import chain (``follow_imports=skip`` on
+        # ``specify_cli.*``) -- pre-existing systemic pattern (see the
+        # ``_compose_mission_dir`` cast note in ``_read_path_resolver.py``);
+        # bind explicitly so the return narrows back to ``str``.
+        composed: str = mission_branch_name_required(
+            mission_slug, _mission_id_from_meta(feature_dir)
+        )
+        return composed
     except BranchIdentityUnresolved as exc:
         # Re-raise with the feature directory in the next_step so a recovery
         # caller can locate the meta.json whose mission_id is missing.

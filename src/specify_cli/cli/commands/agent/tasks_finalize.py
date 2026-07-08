@@ -22,8 +22,7 @@ seam symbol through a lazy in-function import of the ``tasks`` module
 ``_tasks.<attr>(...)``, so every historical ``@patch("...agent.tasks.<sym>")``
 / ``monkeypatch.setattr(tasks, ...)`` keeps INTERCEPTING after the move —
 including ``bootstrap_canonical_state`` (×7, test_tasks_canonical_cleanup),
-``resolve_feature_dir_for_mission`` (the pre30-guard-wiring seam), the
-conftest ``console`` rebinding, and the port adapters constructed by
+the conftest ``console`` rebinding, and the port adapters constructed by
 ``_default_finalize_ports`` (which builds the plain ``RealCoordCommitRouter``
 — finalize commits nothing itself; the router is the bundle's inert WRITE
 authority). ``tasks.py`` re-imports the family in the explicit ``as``
@@ -31,7 +30,11 @@ re-export form, so ``tasks.<name>`` stays a module attribute. Symbols with
 ZERO patch sites and a canonical home outside ``tasks.py`` (the
 ``tasks_finalize_validation`` gates, the pre30 guard, ``TASKS_MD_FILENAME``)
 are imported directly at module scope (cycle-safe: none of those modules
-import ``tasks``).
+import ``tasks``). read-surface-ssot-closeout WP08 (FR-001/NFR-001): the
+former ``resolve_feature_dir_for_mission`` pre30-guard-wiring seam is
+RETIRED — ``_ft_apply_writes`` now calls
+``mission_runtime.placement_seam(...).read_dir(STATUS_STATE)`` directly
+(module-scope import, not the ``_tasks.<attr>`` proxy).
 
 Per-symbol routing/interception evidence:
 ``kitty-specs/tasks-py-degod-wave2-01KWH9EQ/seam-checklist.md`` (Layer 4 of
@@ -47,7 +50,7 @@ from pathlib import Path
 
 import typer
 
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.agent_tasks_ports import MissionHandle, TasksPorts
 from specify_cli.cli.commands.agent.tasks_finalize_validation import (
     FrontmatterUpdatePlan,
@@ -256,7 +259,14 @@ def _ft_apply_writes(st: _FinalizeState) -> None:
 
     # Bootstrap canonical status state for all WPs — STATUS-partition: reads the
     # event log and meta.json via the topology-aware resolver (C-001, coord-husk).
-    st.feature_dir = _tasks.resolve_feature_dir_for_mission(st.main_repo_root, st.mission_slug)
+    # read-surface-ssot-closeout WP08 / FR-001 / NFR-001: routed through the
+    # kind-aware placement seam directly (no longer proxied through
+    # ``_tasks.resolve_feature_dir_for_mission`` — the kind-blind resolver's
+    # module re-export was retired in the same WP; ``STATUS_STATE`` resolves
+    # the SAME coord-aware dir the kind-blind resolver produced for this read).
+    st.feature_dir = placement_seam(st.main_repo_root, st.mission_slug).read_dir(
+        MissionArtifactKind.STATUS_STATE
+    )
     st.bootstrap_result = _tasks.bootstrap_canonical_state(
         st.feature_dir, st.mission_slug, dry_run=st.validate_only
     )

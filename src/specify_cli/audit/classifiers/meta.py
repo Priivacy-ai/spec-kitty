@@ -6,6 +6,8 @@ import json
 import re
 from pathlib import Path
 
+from specify_cli.mission_metadata import load_meta
+
 from ..detectors import detect_legacy_keys
 from ..models import MissionFinding, Severity
 from ..shape_registry import check_unknown_keys
@@ -33,27 +35,34 @@ def classify_meta_json(mission_dir: Path) -> list[MissionFinding]:
 
     findings: list[MissionFinding] = []
 
+    # post-#2091 canonical reader: load_meta's on_malformed="raise" (default)
+    # wraps BOTH a JSON decode error and a non-object top level as ValueError,
+    # chaining the original exception via `raise ... from exc` for the decode
+    # case only (see mission_metadata._parse_meta_text) -- so `exc.__cause__`
+    # tells the two failure modes apart without re-parsing, preserving the
+    # distinct CORRUPT_JSON details this classifier has always emitted.
     try:
-        obj = json.loads(path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError as exc:
+        obj = load_meta(mission_dir)
+    except ValueError as exc:
+        if isinstance(exc.__cause__, json.JSONDecodeError):
+            detail = f"JSON decode error: {exc.__cause__.msg}"
+        elif isinstance(exc.__cause__, OSError):
+            detail = f"cannot read meta.json: {exc.__cause__}"
+        else:
+            detail = "top-level JSON value must be an object"
         return [
             MissionFinding(
                 code="CORRUPT_JSON",
                 severity=Severity.ERROR,
                 artifact_path="meta.json",
-                detail=f"JSON decode error: {exc.msg}",
+                detail=detail,
             )
         ]
 
-    if not isinstance(obj, dict):
-        return [
-            MissionFinding(
-                code="CORRUPT_JSON",
-                severity=Severity.ERROR,
-                artifact_path="meta.json",
-                detail="top-level JSON value must be an object",
-            )
-        ]
+    if obj is None:
+        # Unreachable in practice (existence already verified above); keeps
+        # mypy happy about load_meta's `dict[str, Any] | None` return type.
+        return []
 
     # Legacy key detection (work_package_id is valid in meta, so no extra_keys)
     findings.extend(detect_legacy_keys(obj, "meta.json"))

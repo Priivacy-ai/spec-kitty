@@ -24,7 +24,6 @@ from specify_cli.missions._read_path_resolver import (
     _canonicalize_primary_read_handle,
     candidate_feature_dir_for_mission,
     primary_feature_dir_for_mission,
-    resolve_feature_dir_for_mission,
 )
 import contextlib
 import io
@@ -595,8 +594,16 @@ def _run_query_mode(
 def _emit_mission_next_invoked(agent: str, result: str, mission_slug: str, repo_root: object, decision) -> None:
     from specify_cli.mission_v1.events import emit_event
 
+    # WP09/FR-001 (kind-correct): ``mission-events.jsonl`` is a legacy
+    # append-only per-mission event log, the same coord-aware STATUS-namespace
+    # shape as ``status.events.jsonl`` — route it through the seam on
+    # ``STATUS_STATE`` rather than the kind-blind resolver (NFR-001).
+    from mission_runtime import MissionArtifactKind, placement_seam
+
     try:
-        feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
+        feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+            MissionArtifactKind.STATUS_STATE
+        )
     except Exception:
         feature_dir = None
     emit_event(
