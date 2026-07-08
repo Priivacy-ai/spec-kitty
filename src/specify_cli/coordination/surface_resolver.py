@@ -52,7 +52,6 @@ from mission_runtime import (
     classify_topology,
     routes_through_coordination,
 )
-from specify_cli.coordination.workspace import CoordinationWorkspace
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.lanes.branch_naming import mid8_from_slug, resolve_mid8
 from specify_cli.mission_metadata import load_meta
@@ -488,13 +487,18 @@ def _coord_mid8(meta: dict[str, object], mission_slug: str, repo_root: Path) -> 
         return mid8
     # Cascade exhausted: no declared source carries the disambiguator. Fail
     # closed rather than fabricate a wrong-but-plausible mid8 (FR-005 / F-001).
+    # ``coord_candidate`` here is diagnostic-only (never used to touch git), so
+    # it is composed directly rather than via ``CoordinationWorkspace.worktree_path``
+    # (#2091, invariant M-1): that seam now REQUIRES a non-empty mid8 and would
+    # raise ``CoordinationWorkspaceIdentityUnresolved`` before this more specific
+    # ``StatusReadPathNotFound`` could be raised with its own diagnostic message.
     raise StatusReadPathNotFound(
         repo_root=repo_root,
         mission_slug=mission_slug,
         mid8="",
-        coord_candidate=CoordinationWorkspace.worktree_path(
-            repo_root, mission_slug, ""
-        )
+        coord_candidate=repo_root
+        / ".worktrees"
+        / f"{mission_slug}-coord"
         / KITTY_SPECS_DIR
         / mission_slug,
         primary_candidate=repo_root / KITTY_SPECS_DIR / mission_slug,
