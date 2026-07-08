@@ -2,10 +2,61 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from pathlib import Path
 
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
+
+
+def derive_mission_id(mission_slug: str) -> str:
+    """Mint a deterministic, production-shaped 26-char ULID for a test mission.
+
+    Post-083 every mission carries a ULID ``mission_id`` in ``meta.json``; the
+    coordination-write seam derives the branch/worktree ``mid8`` from it and
+    :func:`specify_cli.coordination.workspace._require_mid8` HARD-FAILS on an
+    empty ``mid8`` (#2091, invariant M-1). A pre-3.2.x, meta-less test mission
+    therefore trips that guard. Rather than a placeholder, this returns a
+    stable, ULID-shaped identity derived from the slug: ``"01"`` + 24 uppercase
+    hex chars. Every character is valid Crockford base32 (``0-9A-F`` are a subset
+    of the ULID alphabet), so the first 8 chars form a valid ``mid8`` that
+    satisfies ``_MID8_RE``. Deterministic per slug → unique, reproducible,
+    collision-free across distinct missions.
+    """
+    return "01" + hashlib.sha1(mission_slug.encode("utf-8")).hexdigest().upper()[:24]
+
+
+def write_mission_meta(feature_dir: Path, *, mission_type: str = "software-dev") -> Path:
+    """Write a modern ``meta.json`` (ULID ``mission_id`` + ``mid8``) if absent.
+
+    Modernizes a test mission to the 3.2.x mission-identity model so the
+    coordination-write seam can resolve a non-empty ``mid8`` instead of tripping
+    the #2091 empty-``mid8`` guard. No ``coordination_branch`` is written, so the
+    mission classifies as a primary/lanes-without-coord surface and status writes
+    route to the primary checkout (unchanged pre-#2091 routing). Idempotent: a
+    caller that stages its own ``meta.json`` (e.g. a coord-topology fixture with
+    an explicit ``mid8``) keeps it — this only fills the gap for the common case.
+    """
+    meta_path = feature_dir / "meta.json"
+    if meta_path.exists():
+        return meta_path
+    mission_slug = feature_dir.name
+    mission_id = derive_mission_id(mission_slug)
+    meta_path.write_text(
+        json.dumps(
+            {
+                "mission_id": mission_id,
+                "mid8": mission_id[:8],
+                "mission_slug": mission_slug,
+                "mission_type": mission_type,
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return meta_path
 
 
 def write_single_lane_manifest(
@@ -20,7 +71,14 @@ def write_single_lane_manifest(
     depends_on_lanes: tuple[str, ...] = (),
     parallel_group: int = 0,
 ) -> Path:
-    """Persist a minimal valid lanes.json for tests."""
+    """Persist a minimal valid lanes.json for tests.
+
+    Also stages a modern ``meta.json`` (ULID ``mission_id`` + ``mid8``) when the
+    caller has not written one, so the coordination-write seam resolves a
+    non-empty ``mid8`` rather than tripping the #2091 guard on a meta-less
+    (pre-3.2.x) mission.
+    """
+    write_mission_meta(feature_dir)
     return write_lanes_json(
         feature_dir,
         LanesManifest(
