@@ -159,6 +159,17 @@ _ALLOW_LIST_SEED: tuple[tuple[str, int], ...] = (
     # cumulative cross-lane line drift shifted this 833 -> 838 (same helper,
     # verified by re-scan).
     ("src/specify_cli/cli/commands/agent/workflow.py", 838),
+    # tracked: #2453 - _status_commit_destination_branch's
+    # ``get_current_branch(repo_root) or fallback_branch`` git-HEAD selector.
+    # It ONLY predicts the pre-lane status-commit branch for the protected-branch
+    # guard (_protected_branch_status_commit_error) -- it never feeds a write
+    # CommitTarget/destination_ref. Newly pulled into the ratchet's field of view
+    # by the checkout_head_selector grammar (above) so this last checkout-derived
+    # selector in an adopted module cannot silently drift; routing the prediction
+    # through the placement seam would change which branch the guard evaluates
+    # (a behavior change), so it is deferred to the #2453 read-site sweep bucket
+    # (D-1/C-003) rather than routed here.
+    ("src/specify_cli/cli/commands/implement.py", 87),
 )
 
 
@@ -178,7 +189,7 @@ _ALLOW_LIST: frozenset[tuple[str, str]] = frozenset(
 def _scan_source(source: str, path: Path) -> list[_Finding]:
     """Flag write-side re-derivation in CODE lines of ``source``.
 
-    Three re-derivation grammars (randy's write-path census / FR-005):
+    Four re-derivation grammars (randy's write-path census / FR-005):
 
     * ``feature_dir.parent.parent`` (and deeper) root walks — tokenizes to
       ``. parent . parent`` / ``parent . parent``.
@@ -186,6 +197,14 @@ def _scan_source(source: str, path: Path) -> list[_Finding]:
       ``mission_id [ : 8 ]``.
     * ``coord_branch or _current_branch`` / ``coord_branch or current_branch``
       git-HEAD write-target selectors.
+    * ``get_current_branch(...) or <fallback>`` git-HEAD branch selectors — the
+      generic checkout-derived ``current-branch-or-fallback`` shape (e.g.
+      ``implement.py``'s ``_status_commit_destination_branch``, which predicts
+      the pre-lane status-commit branch for the protected-branch guard). Making
+      this shape a first-class finding pulls the last checkout-derived selector
+      an adopted module carries into the ratchet's field of view so it cannot
+      silently drift; the one live site is tracked-VISIBLE in ``_ALLOW_LIST_SEED``
+      (tracked: #2453 deferred read-site sweep, D-1/C-003).
     """
     findings: list[_Finding] = []
     for lineno, code in code_tokens_by_line(source).items():
@@ -195,6 +214,8 @@ def _scan_source(source: str, path: Path) -> list[_Finding]:
             findings.append(_Finding(path, lineno, "mid8_recompute", code, source))
         if "coord_branch or _current_branch" in code or "coord_branch or current_branch" in code:
             findings.append(_Finding(path, lineno, "write_target_head_selector", code, source))
+        if "get_current_branch (" in code and ") or" in code:
+            findings.append(_Finding(path, lineno, "checkout_head_selector", code, source))
     return findings
 
 
@@ -244,6 +265,7 @@ def test_adopted_modules_have_no_write_side_rederivation() -> None:
         ("    root = feature_dir.parent.parent\n", "root_walk"),
         ("    mid8 = mission_id[:8]\n", "mid8_recompute"),
         ("    ref = coord_branch or _current_branch(repo_root)\n", "write_target_head_selector"),
+        ("    branch = get_current_branch(repo_root) or fallback_branch\n", "checkout_head_selector"),
     ],
 )
 def test_ratchet_bites_on_planted_rederivation(planted: str, expected_kind: str) -> None:
@@ -340,6 +362,38 @@ def test_allow_listed_line_is_the_deferred_head_selector() -> None:
     assert key in _ALLOW_LIST, (
         f"the seed {rel_path}:{lineno} composite key {key!r} is not in _ALLOW_LIST "
         "— the seed and the derived allow-list are out of sync."
+    )
+
+
+def test_checkout_head_selector_entry_is_still_a_live_finding() -> None:
+    """Staleness twin-guard for the tracked #2453 checkout-HEAD selector seed.
+
+    The ``implement.py`` seed pins ``_status_commit_destination_branch``'s
+    ``get_current_branch(repo_root) or fallback_branch`` prediction selector. If
+    that site is finally routed through the placement seam (or removed) the
+    ``checkout_head_selector`` grammar stops flagging it and this test fails
+    loudly — the fix is to DELETE the now-stale seed entry (shrink-only), never
+    to leave a vacuous allow-list rule masking nothing.
+    """
+    rel_path = "src/specify_cli/cli/commands/implement.py"
+    module = _REPO_ROOT / rel_path
+    live = {
+        f.lineno for f in _scan_module(module) if f.kind == "checkout_head_selector"
+    }
+    seed_linenos = {
+        lineno for path, lineno in _ALLOW_LIST_SEED if path == rel_path
+    }
+    assert seed_linenos and seed_linenos <= live, (
+        f"{rel_path} checkout_head_selector seed {seed_linenos} no longer matches "
+        f"a live finding {live} — the site was routed through the seam (or "
+        "removed); DELETE the now-stale allow-list entry (shrink-only)."
+    )
+    # The pinned line really IS the get_current_branch HEAD selector.
+    (lineno,) = tuple(seed_linenos)
+    _qualname, token_line = _composite_key_for_seed(rel_path, lineno)
+    assert "get_current_branch (" in token_line, (
+        f"allow-listed {rel_path}:{lineno} no longer holds the get_current_branch "
+        f"HEAD selector (got token_line {token_line!r})."
     )
 
 
