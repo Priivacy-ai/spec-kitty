@@ -262,24 +262,21 @@ _BARE_SLUG_FIELD_NAMES: frozenset[str] = frozenset(
 # an unconditional C-SEAM-2 regression. The ``stale`` assertion below keeps this
 # empty set from silently re-accumulating dead exemptions.
 #
-# post-merge addition (coord-primary-partition-lock-01KWZ46V, squash-merged
-# 007528ddf): ``coordination/workspace.py`` added
-# ``CoordinationWorkspaceIdentityUnresolved`` (#2091, invariant M-1) — a
-# fail-loud guard raised when ``mid8`` is empty, BEFORE any branch/dir name is
-# composed. Its ``__init__`` builds a human-readable exception MESSAGE that
-# describes the malformed shape using a literal placeholder
-# ``'kitty/mission-<slug>-'`` (angle brackets, not an f-string field) and
-# separately interpolates the real ``mission_slug`` elsewhere in the same
-# sentence ("for mission {mission_slug!r}") for readability. The detector's
-# literal+field heuristic does not distinguish "field appears inside the
-# kitty/mission- segment" from "field appears anywhere in the concatenated
-# string", so it flags this diagnostic prose as if it composed a ref. No git
-# ref, branch, or worktree name is ever constructed from this string — it is
-# raised and never parsed back into a ref. Verified: this is the ONLY
-# JoinedStr in the module containing "kitty/mission-".
-_ALLOWLISTED_LEGACY_COMPOSE_SITES: frozenset[str] = frozenset(
-    {"src/specify_cli/coordination/workspace.py"}
-)
+# NOTE (#2462 — customer-actionable guard rewrite, drops the last exemption):
+# ``coordination/workspace.py``'s ``CoordinationWorkspaceIdentityUnresolved``
+# (#2091, invariant M-1) used to be allowlisted here. Its ``__init__`` message
+# once carried the ``'kitty/mission-<slug>-'`` placeholder literal in the SAME
+# JoinedStr that interpolates ``mission_slug`` (diagnostic prose, never a real
+# ref), so the literal+field heuristic flagged it. Commit d8ac26e3d rewrote that
+# message to be customer-actionable and moved the ``kitty/mission-<slug>-``
+# placeholder into a maintainer COMMENT (AST-invisible); the interpolated
+# ``mission_slug`` no longer shares a JoinedStr with any ``kitty/mission-``
+# literal. The detector therefore flags ZERO sites in the module, so the
+# exemption is REMOVED — its removal IS the proof the diagnostic no longer reads
+# as a compose. The allow-list is empty again: any new bare-slug compose is now
+# an unconditional C-SEAM-2 regression, and the ``stale`` assertion below keeps
+# this empty set from silently re-accumulating dead exemptions.
+_ALLOWLISTED_LEGACY_COMPOSE_SITES: frozenset[str] = frozenset()
 
 
 def _legacy_mission_compose_sites(path: Path) -> bool:
