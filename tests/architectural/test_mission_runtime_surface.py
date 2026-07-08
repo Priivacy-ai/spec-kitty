@@ -58,6 +58,12 @@ _PUBLIC_SURFACE = sorted(
         "MissionArtifactKind",
         "MissionContext",
         "MissionTopology",
+        # coord-primary-partition-lock WP01 (T001): the kind-aware placement seam
+        # — the public face of resolve_action_context's derivation root (C-001) —
+        # exposed as one authority object + its constructor, out-of-map edit
+        # (this surface list is not a WP01 owned file, but every new
+        # mission_runtime public symbol must be pinned here).
+        "PlacementSeam",
         "StatusSurfaceFragment",
         "WorkspaceFragment",
         "artifact_home_for",
@@ -70,6 +76,7 @@ _PUBLIC_SURFACE = sorted(
         "is_self_bookkeeping_path",
         "kind_for_mission_file",
         "mission_context_for",
+        "placement_seam",
         "resolve_action_context",
         "resolve_placement_only",
         "resolve_topology",

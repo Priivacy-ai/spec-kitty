@@ -89,15 +89,20 @@ def _planning_read_dir(repo_root: Path, mission_slug: str, *, artifact_type: str
         MissionSelectorAmbiguous: When ``mission_slug`` is an ambiguous handle
             (propagated unchanged from the seam — no silent pick).
     """
-    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+    # coord-primary-partition-lock WP01 (T004): repoint through the placement
+    # seam's ``read_dir`` rather than ``resolve_planning_read_dir`` directly —
+    # DRY-only consolidation (C-001), out-of-map edit (this file is not a WP01
+    # owned file; the 4 duplicate ``_planning_read_dir`` wrapper copies collapse
+    # onto the seam's single read entry point).
+    from mission_runtime import placement_seam
 
     kind = _kind_for_artifact(artifact_type)
     # Explicit ``Path`` annotation: under the project's ``follow_imports = "skip"``
-    # mypy config the cross-module ``resolve_planning_read_dir`` return is seen as
-    # ``Any``; the annotation re-narrows it (the function IS typed ``-> Path``) so the
+    # mypy config the cross-module ``PlacementSeam.read_dir`` return is seen as
+    # ``Any``; the annotation re-narrows it (the method IS typed ``-> Path``) so the
     # chokepoint return is not an ``Any`` leak — matching the sibling ``tasks.py``
     # pattern rather than suppressing the check.
-    read_dir: Path = resolve_planning_read_dir(repo_root, mission_slug, kind=kind)
+    read_dir: Path = placement_seam(repo_root, mission_slug).read_dir(kind)
     return read_dir
 
 

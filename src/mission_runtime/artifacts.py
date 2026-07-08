@@ -10,7 +10,6 @@ import enum
 import re
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Literal
 
 from mission_runtime.context import (
     CommitTarget,
@@ -19,7 +18,27 @@ from mission_runtime.context import (
 )
 from specify_cli.core.constants import KITTY_SPECS_DIR
 
-ArtifactSurface = Literal["primary", "placement"]
+
+class Surface(enum.StrEnum):
+    """The two placement surfaces a mission artifact kind resolves to (S1192).
+
+    Placement-seam campsite (coord-primary-partition-lock WP01): the
+    ``"primary"`` / ``"placement"`` literals used to be restated at each
+    :func:`artifact_home_for` return arm; this hoists them to one named constant.
+    The ``str`` mixin keeps every pre-existing ``== "primary"`` /
+    ``== "placement"`` comparison (production and the pinned partition tests)
+    working unchanged — a literal-to-constant hoist, not a behavior or wire-shape
+    change (C-002).
+    """
+
+    PRIMARY = "primary"
+    PLACEMENT = "placement"
+
+
+# Back-compat type alias: historical name for the surface type. ``Surface`` is
+# the named constant this campsite hoists to; the alias keeps any external type
+# annotation referencing the old name valid (no behavior implication).
+ArtifactSurface = Surface
 
 
 class MissionArtifactKind(enum.Enum):
@@ -180,8 +199,8 @@ def artifact_home_for(
     if kind is MissionArtifactKind.PRIMARY_METADATA:
         return MissionArtifactHome(
             kind=kind,
-            read_surface="primary",
-            write_surface="primary",
+            read_surface=Surface.PRIMARY,
+            write_surface=Surface.PRIMARY,
             commit_target=None,
             ignores_primary_coord_residue=False,
         )
@@ -195,8 +214,8 @@ def artifact_home_for(
     if kind in _PRIMARY_ARTIFACT_KINDS:
         return MissionArtifactHome(
             kind=kind,
-            read_surface="primary",
-            write_surface="primary",
+            read_surface=Surface.PRIMARY,
+            write_surface=Surface.PRIMARY,
             commit_target=placement_ref,
             ignores_primary_coord_residue=False,
         )
@@ -204,13 +223,44 @@ def artifact_home_for(
     if kind in _PLACEMENT_ARTIFACT_KINDS:
         return MissionArtifactHome(
             kind=kind,
-            read_surface="placement",
-            write_surface="placement",
+            read_surface=Surface.PLACEMENT,
+            write_surface=Surface.PLACEMENT,
             commit_target=placement_ref,
             ignores_primary_coord_residue=True,
         )
 
     raise ValueError(f"Unhandled mission artifact kind: {kind!r}")
+
+
+def assert_partition_invariant() -> None:
+    """Guard P-1: the partition frozensets are disjoint AND jointly exhaustive.
+
+    ``_PRIMARY_ARTIFACT_KINDS`` and ``_PLACEMENT_ARTIFACT_KINDS`` must never
+    overlap (no kind double-classified) and their union must cover every
+    :class:`MissionArtifactKind` member (no kind left unclassified) —
+    data-model.md Invariant P-1. The placement seam (T002,
+    coord-primary-partition-lock WP01) asserts this at construction so a future
+    kind added to the enum without a partition entry fails LOUD at the seam
+    boundary rather than surfacing as a deep ``ValueError: Unhandled mission
+    artifact kind`` inside :func:`artifact_home_for`.
+
+    Raises:
+        AssertionError: When the partition is not disjoint-and-total.
+    """
+    overlap = _PRIMARY_ARTIFACT_KINDS & _PLACEMENT_ARTIFACT_KINDS
+    if overlap:
+        raise AssertionError(
+            "P-1 violated: kind(s) classified in BOTH partitions: "
+            f"{sorted(kind.value for kind in overlap)}"
+        )
+    covered = _PRIMARY_ARTIFACT_KINDS | _PLACEMENT_ARTIFACT_KINDS
+    all_kinds = frozenset(MissionArtifactKind)
+    if covered != all_kinds:
+        missing = all_kinds - covered
+        raise AssertionError(
+            "P-1 violated: kind(s) classified in NEITHER partition: "
+            f"{sorted(kind.value for kind in missing)}"
+        )
 
 
 def is_coordination_artifact_residue_path(
