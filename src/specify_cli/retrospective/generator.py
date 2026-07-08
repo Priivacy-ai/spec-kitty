@@ -158,22 +158,20 @@ def _resolve_mission_dir(mission_handle: str, repo_root: Path) -> Path | None:
         # Match directory name prefix
         if child_path.name == mission_handle or child_path.name.endswith(f"-{mission_handle}"):
             return child_path
-        # Match via meta.json mission_id or mission_slug
-        meta_path = child_path / "meta.json"
-        if meta_path.exists():
-            try:
-                meta = json.loads(meta_path.read_text(encoding="utf-8"))
-                mid = str(meta.get("mission_id", ""))
-                slug = str(meta.get("mission_slug", ""))
-                # SELECTOR prefix-match, not a name compose: compute the canonical
-                # mid8 via the authoritative resolver and compare it to the handle
-                # (FR-001). resolve_mid8 returns "" for an empty/short mission_id,
-                # so an identity-less meta never spuriously matches a mid8 handle.
-                candidate_mid8 = resolve_mid8(slug, mission_id=mid)
-                if mid == mission_handle or candidate_mid8 == mission_handle or slug == mission_handle:
-                    return child_path
-            except (json.JSONDecodeError, OSError):
-                continue
+        # Match via meta.json mission_id or mission_slug.
+        # load_meta_or_empty (post-#2091 silent contract) absorbs a missing or
+        # malformed meta.json to {}, matching the previous try/except-continue.
+        meta = load_meta_or_empty(child_path)
+        if meta:
+            mid = str(meta.get("mission_id", ""))
+            slug = str(meta.get("mission_slug", ""))
+            # SELECTOR prefix-match, not a name compose: compute the canonical
+            # mid8 via the authoritative resolver and compare it to the handle
+            # (FR-001). resolve_mid8 returns "" for an empty/short mission_id,
+            # so an identity-less meta never spuriously matches a mid8 handle.
+            candidate_mid8 = resolve_mid8(slug, mission_id=mid)
+            if mid == mission_handle or candidate_mid8 == mission_handle or slug == mission_handle:
+                return child_path
 
     return None
 

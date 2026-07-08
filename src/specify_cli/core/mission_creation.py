@@ -9,7 +9,6 @@ from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 import contextlib
-import json
 import logging
 import re
 import shutil
@@ -30,7 +29,7 @@ from specify_cli.core.mission_payload import (
 from specify_cli.core.paths import is_worktree_context, locate_project_root
 from specify_cli.git import safe_commit
 from specify_cli.lanes.branch_naming import mission_dir_name, resolve_mid8
-from specify_cli.mission_metadata import validate_purpose_summary
+from specify_cli.mission_metadata import load_meta_or_empty, validate_purpose_summary
 
 logger = logging.getLogger(__name__)
 
@@ -389,10 +388,7 @@ def create_mission_core(
     # 6. meta.json
     # ------------------------------------------------------------------
     meta_file = feature_dir / "meta.json"
-    meta: dict[str, Any] = {}
-    if meta_file.exists():
-        with contextlib.suppress(json.JSONDecodeError, OSError):
-            meta = json.loads(meta_file.read_text(encoding="utf-8"))
+    meta: dict[str, Any] = load_meta_or_empty(feature_dir)
 
     # Mint canonical machine-facing identity. The ULID was already generated
     # above (needed for mid8 directory naming). The ULID is immutable after creation.

@@ -19,11 +19,12 @@ import both ``charter.*`` and ``specify_cli.status.*``.  The layer rule
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
 from rich.console import Console
+
+from specify_cli.mission_metadata import load_meta_or_empty
 
 __all__ = [
     "AffectedMission",
@@ -190,15 +191,12 @@ def scan_inflight_missions(
 
 def _read_mission_slug(mission_dir: Path) -> str:
     """Extract mission_slug from meta.json, falling back to directory name."""
-    meta_path = mission_dir / "meta.json"
-    if meta_path.exists():
-        try:
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
-            slug = meta.get("mission_slug") or meta.get("feature_slug")
-            if slug:
-                return str(slug)
-        except Exception:  # noqa: BLE001 — best-effort
-            pass
+    # load_meta_or_empty (post-#2091 silent contract) absorbs a missing or
+    # malformed meta.json to {}, matching the prior try/except-pass absorption.
+    meta = load_meta_or_empty(mission_dir)
+    slug = meta.get("mission_slug") or meta.get("feature_slug")
+    if slug:
+        return str(slug)
     return mission_dir.name
 
 

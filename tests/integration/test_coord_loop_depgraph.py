@@ -145,10 +145,19 @@ class TestCheckDependentWarningsRoutesToPrimary:
         printed_args: list[str] = []
 
         module = "specify_cli.cli.commands.agent.tasks_dependency_graph"
+        # read-surface-ssot-closeout WP08 / FR-001: the STATUS leg now routes
+        # through the kind-aware ``mission_runtime.placement_seam(...)
+        # .read_dir(STATUS_STATE)`` seam (late-imported inside the function,
+        # mirroring the ``_resolve_workflow_placement`` lazy-import convention
+        # — tests/specify_cli/cli/commands/agent/test_workflow_placement_routing
+        # .py). Stub the seam itself rather than the retired
+        # ``resolve_feature_dir_for_mission`` name.
+        mock_seam = MagicMock()
+        mock_seam.read_dir.return_value = ctx.coord_feature_dir
         with (
             patch(
-                f"{module}.resolve_feature_dir_for_mission",
-                return_value=ctx.coord_feature_dir,
+                "mission_runtime.placement_seam",
+                return_value=mock_seam,
             ),
             patch(
                 f"{module}.resolve_workspace_for_wp",
@@ -172,6 +181,9 @@ class TestCheckDependentWarningsRoutesToPrimary:
             "If this is empty, build_dependency_graph ran on the coord husk (no tasks/) "
             "and returned {} — the pre-WP06 bug."
         )
+        from mission_runtime import MissionArtifactKind
+
+        mock_seam.read_dir.assert_called_once_with(MissionArtifactKind.STATUS_STATE)
 
     def test_neutrality_flat_topology(
         self, flat_topology_mission: FlatTopologyContext
@@ -184,11 +196,12 @@ class TestCheckDependentWarningsRoutesToPrimary:
         ctx = flat_topology_mission
 
         module = "specify_cli.cli.commands.agent.tasks_dependency_graph"
+        # See the routed-STATUS-leg note above: stub the seam, not the
+        # retired ``resolve_feature_dir_for_mission`` name.
+        mock_seam = MagicMock()
+        mock_seam.read_dir.return_value = ctx.primary_feature_dir
         with (
-            patch(
-                f"{module}.resolve_feature_dir_for_mission",
-                return_value=ctx.primary_feature_dir,
-            ),
+            patch("mission_runtime.placement_seam", return_value=mock_seam),
             patch(f"{module}.resolve_workspace_for_wp", return_value=_mock_workspace()),
             patch(f"{module}.console") as mock_console,
         ):

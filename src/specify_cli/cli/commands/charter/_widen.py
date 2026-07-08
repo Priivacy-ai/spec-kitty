@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 import contextlib
-import json
 import threading
 from pathlib import Path
 from typing import Any
@@ -21,6 +20,7 @@ from rich.panel import Panel
 
 from specify_cli.decisions import service as _dm_service
 from specify_cli.decisions.service import DecisionError as _DecisionError
+from specify_cli.mission_metadata import load_meta_or_empty
 
 #: Sentinel PrereqState used when widen prereqs are unavailable.
 #: Defined lazily as a module-level constant after first import of PrereqState.
@@ -49,11 +49,11 @@ def _get_mission_id(repo_root: Path, mission_slug: str) -> str | None:
 
     Returns ``None`` if the file is absent or malformed.
     """
-    meta_path = candidate_feature_dir_for_mission(repo_root, mission_slug) / "meta.json"
-    with contextlib.suppress(Exception):
-        data = json.loads(meta_path.read_text(encoding="utf-8"))
-        return data.get("mission_id") or None
-    return None
+    # load_meta_or_empty (post-#2091 silent contract) absorbs a missing or
+    # malformed meta.json to {}, matching the prior contextlib.suppress absorption.
+    feature_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+    data = load_meta_or_empty(feature_dir)
+    return data.get("mission_id") or None
 
 
 def _is_already_widened(widen_store: Any, decision_id: str) -> bool:

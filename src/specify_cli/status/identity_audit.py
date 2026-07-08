@@ -41,7 +41,6 @@ All I/O is synchronous file reads; no subprocesses are spawned.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-import json
 import logging
 import re
 from dataclasses import dataclass, field
@@ -49,7 +48,7 @@ from pathlib import Path
 from typing import Literal
 
 from specify_cli.lanes.branch_naming import strip_numeric_prefix
-from specify_cli.mission_metadata import _coerce_mission_number
+from specify_cli.mission_metadata import _coerce_mission_number, load_meta
 
 logger = logging.getLogger(__name__)
 
@@ -129,10 +128,16 @@ def classify_mission(feature_dir: Path) -> IdentityState:
         )
 
     try:
-        raw = json.loads(meta_path.read_text(encoding="utf-8"))
-        if not isinstance(raw, dict):
-            raise ValueError(f"Expected JSON object, got {type(raw).__name__}")
-    except (json.JSONDecodeError, OSError, ValueError) as exc:
+        # Canonical reader (FR-005/WP12): on_malformed="raise" folds the JSON-
+        # syntax AND non-dict-shape checks into ONE ValueError (replacing the
+        # hand-rolled isinstance guard); allow_missing=True keeps this call
+        # never-crashing (matches the never-raise contract of classify_mission,
+        # which always degrades to an "orphan" IdentityState with an error string).
+        # ``or {}`` narrows the ``dict | None`` return type for the type checker --
+        # value-preserving because the ``exists()`` guard above already ruled out
+        # the missing-file case that would otherwise yield ``None`` here.
+        raw = load_meta(feature_dir, allow_missing=True, on_malformed="raise") or {}
+    except (OSError, ValueError) as exc:
         return IdentityState(
             path=feature_dir,
             slug=slug,

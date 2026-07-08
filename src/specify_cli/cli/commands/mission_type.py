@@ -224,6 +224,16 @@ def current_cmd(
         mission_slug = mission_norm
 
     try:
+        # WP09/FR-001 (kind-correct — deliberately EXCLUDED from the
+        # `read_dir(kind)` migration, mirroring `close_cmd` below and
+        # `decision.py::_resolve_repo_root_and_slug`): the sibling `close_cmd`
+        # existence probe carries a pinned test requiring
+        # `resolve_action_context`'s structured `ActionContextError` to
+        # propagate for an unresolvable/ambiguous handle — neither
+        # `read_dir(kind)` partition leg replicates that (see the rationale at
+        # `close_cmd`). This site shares the identical existence-probe shape,
+        # so it keeps calling the richer resolver directly for the same
+        # fail-closed guarantee.
         feature_dir = resolve_feature_dir_for_mission(project_root, mission_slug)
         if not feature_dir.exists():
             console.print(f"[red]Mission not found:[/red] {mission_slug}")
@@ -557,6 +567,17 @@ def close_cmd(
         )
         raise typer.Exit(1)
 
+    # WP09/FR-001 (kind-correct — deliberately EXCLUDED from the `read_dir(kind)`
+    # migration, mirroring `decision.py::_resolve_repo_root_and_slug`):
+    # `test_mission_close_unresolvable_handle_keeps_structured_error` /
+    # `test_mission_close_ambiguous_handle_propagates_structured_error` pin
+    # that an unresolvable/ambiguous `--mission` handle here RAISES the
+    # structured `ActionContextError` from `resolve_action_context` (never a
+    # silent "Mission not found" or a wrong-mission pick). Both `read_dir(kind)`
+    # partition legs are lenient by design (`primary_feature_dir_for_mission`
+    # is deliberately topology-blind; `candidate_feature_dir_for_mission`
+    # never raises on an unresolvable directory) and would swallow that
+    # contract, so this keeps calling the richer resolver directly.
     feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
     if not feature_dir.exists():
         console.print(f"[red]Mission not found:[/red] {mission_slug}")

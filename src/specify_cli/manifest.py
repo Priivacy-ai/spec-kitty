@@ -4,7 +4,7 @@ This module generates and checks expected files based on the mission context.
 """
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission, resolve_feature_dir_for_mission
+from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 import subprocess
@@ -256,7 +256,15 @@ class WorktreeStatus:
             status["worktree_exists"] = True
             status["worktree_path"] = str(worktree_path)
 
-        main_artifacts_path = resolve_feature_dir_for_mission(self.repo_root, feature)
+        # WP09/FR-001 (kind-correct): lists top-level ``*.md`` files (spec/
+        # plan/tasks/research/data-model) — all PRIMARY-partition kinds that
+        # co-resolve to the same dir. Route through the seam on
+        # ``PRIMARY_METADATA`` rather than the kind-blind resolver (NFR-001).
+        from mission_runtime import MissionArtifactKind, placement_seam
+
+        main_artifacts_path = placement_seam(self.repo_root, feature).read_dir(
+            MissionArtifactKind.PRIMARY_METADATA
+        )
         if main_artifacts_path.exists():
             status["artifacts_in_main"] = [a.name for a in main_artifacts_path.glob("*.md")]
 

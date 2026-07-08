@@ -10,8 +10,9 @@ import typer
 from rich.panel import Panel
 from rich.table import Table
 
+from mission_runtime import MissionArtifactKind, placement_seam
+
 from specify_cli.cli.helpers import console, get_project_root_or_exit
-from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_slug
 from specify_cli.task_utils import TaskCliError, find_repo_root
 from specify_cli.text_sanitization import detect_problematic_characters, sanitize_directory
 
@@ -77,7 +78,14 @@ def validate_encoding(
         console.print("[red]Error:[/red] --mission <slug> is required (or use --all)")
         raise typer.Exit(1)
     mission_slug = mission.strip()
-    feature_dir = resolve_feature_dir_for_slug(repo_root, mission_slug)
+    # WP09/FR-001 (kind-correct): scans ``**/*.md`` recursively — the bulk of
+    # authored markdown (spec/plan/tasks/research/data-model) is PRIMARY-
+    # partition content. Route through the seam on ``PRIMARY_METADATA`` so
+    # this lands on the authored primary docs rather than the coordination
+    # husk (NFR-001 — "do not pin the old coord husk").
+    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
+    )
 
     if not feature_dir.exists():
         console.print(f"[red]Error:[/red] Feature directory not found: {feature_dir}")

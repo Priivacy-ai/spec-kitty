@@ -48,6 +48,7 @@ from runtime.next._internal_runtime.schema import ActorIdentity, MissionRuntimeE
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
 from specify_cli.mission import get_mission_type
+from specify_cli.mission_metadata import load_meta, load_meta_or_empty
 from specify_cli.status import CanonicalStatusNotFoundError
 from specify_cli.status import Lane
 from specify_cli.status import wp_state_for
@@ -67,7 +68,6 @@ from mission_runtime import routes_through_coordination
 logger = logging.getLogger(__name__)
 
 KITTIFY_DIR = ".kittify"
-META_JSON = "meta.json"
 MISSION_RUNTIME_YAML = "mission-runtime.yaml"
 MISSION_YAML = "mission.yaml"
 
@@ -115,18 +115,14 @@ def _resolve_coordination_branch(mission_slug: str, repo_root: Path) -> str:
     slug with no recoverable identity raises :class:`BranchIdentityUnresolved`,
     surfacing the lost identity rather than silently mis-composing.
     """
-    meta: dict[str, Any] = {}
-    meta_path = _primary_runtime_feature_dir(repo_root, mission_slug) / META_JSON
-    if meta_path.exists():
-        try:
-            loaded = json.loads(meta_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            loaded = {}
-        if isinstance(loaded, dict):
-            meta = loaded
-        branch = meta.get("coordination_branch")
-        if isinstance(branch, str) and branch.strip():
-            return branch.strip()
+    # load_meta_or_empty (post-#2091 silent contract) absorbs a missing or
+    # malformed meta.json to {}, matching the prior try/except-{} absorption.
+    meta: dict[str, Any] = load_meta_or_empty(
+        _primary_runtime_feature_dir(repo_root, mission_slug)
+    )
+    branch = meta.get("coordination_branch")
+    if isinstance(branch, str) and branch.strip():
+        return branch.strip()
 
     from specify_cli.lanes.branch_naming import mission_branch_name_required
 
@@ -586,13 +582,9 @@ def _resolve_mission_id_for_terminus(feature_dir: Path) -> str:
     when meta.json is missing or malformed (older missions predating the
     ULID identity rollout); the gate handles missing identities defensively.
     """
-    meta_path = feature_dir / META_JSON
-    if not meta_path.exists():
-        return feature_dir.name
-    try:
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return feature_dir.name
+    # load_meta_or_empty (post-#2091 silent contract) absorbs a missing or
+    # malformed meta.json to {}, matching the prior try/except-fallback.
+    meta = load_meta_or_empty(feature_dir)
     mission_id = meta.get("mission_id") if isinstance(meta, dict) else None
     if isinstance(mission_id, str) and mission_id.strip():
         return mission_id
@@ -2196,11 +2188,13 @@ def _workflow_runtime_template(
     """Compose a runtime template when mission meta selects a workflow."""
     del mission_type
     mission_dir = _resolve_runtime_feature_dir(repo_root, mission_slug)
-    meta_path = mission_dir / META_JSON
-    if not meta_path.exists():
+    # load_meta (post-#2091 canonical contract): allow_missing=True absorbs a
+    # missing meta.json to None; malformed content still raises (on_malformed
+    # defaults to "raise"), matching the prior unguarded json.loads.
+    meta = load_meta(mission_dir)
+    if meta is None:
         return None, None
 
-    meta = json.loads(meta_path.read_text(encoding="utf-8"))
     workflow_id = meta.get("workflow_id")
     if workflow_id is None:
         return None, None

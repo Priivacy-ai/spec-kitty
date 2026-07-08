@@ -17,6 +17,7 @@ WP03 addition (T017):
 from __future__ import annotations
 
 from specify_cli.core.constants import RETROSPECTIVE_FILENAME
+from specify_cli.mission_metadata import load_meta_or_empty
 from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
 import json
 import logging
@@ -176,30 +177,21 @@ def _mission_is_in_flight(mission_dir: Path) -> bool:
     when its status field is not a terminal value (done / canceled / failed).
     If meta.json is absent or unparseable we conservatively return False.
     """
-    meta_path = mission_dir / "meta.json"
-    if not meta_path.exists():
-        return False
-    try:
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        status = meta.get("status") or meta.get("current_lane") or ""
-        terminal = {"done", "canceled", "failed", "completed"}
-        # If status is explicitly non-terminal (planned, in_progress, claimed …)
-        return bool(status) and status not in terminal
-    except Exception:
-        return False
+    # load_meta_or_empty (post-#2091 silent contract) absorbs a missing or
+    # malformed meta.json to {}; status is then falsy, matching the prior
+    # try/except-False absorption.
+    meta = load_meta_or_empty(mission_dir)
+    status = meta.get("status") or meta.get("current_lane") or ""
+    terminal = {"done", "canceled", "failed", "completed"}
+    # If status is explicitly non-terminal (planned, in_progress, claimed …)
+    return bool(status) and status not in terminal
 
 
 def _read_slug_from_meta(mission_dir: Path) -> str | None:
     """Return mission_slug from meta.json, or None on any error."""
-    meta_path = mission_dir / "meta.json"
-    if not meta_path.exists():
-        return None
-    try:
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        slug = meta.get("mission_slug") or meta.get("feature_slug")
-        return str(slug) if slug else None
-    except Exception:
-        return None
+    meta = load_meta_or_empty(mission_dir)
+    slug = meta.get("mission_slug") or meta.get("feature_slug")
+    return str(slug) if slug else None
 
 
 # ---------------------------------------------------------------------------
@@ -319,14 +311,11 @@ def _resolve_summary_record_path(project_path: Path, mission_dir: Path) -> Path:
     ``meta.json``), but the record is read from the tracked home — falling back
     to the legacy in-registry path for pre-relocation records.
     """
-    mission_slug: str | None = None
-    meta_path = mission_dir / "meta.json"
-    if meta_path.exists():
-        try:
-            meta = json.loads(meta_path.read_text(encoding="utf-8"))
-            mission_slug = meta.get("mission_slug") or meta.get("slug")
-        except Exception:
-            mission_slug = None
+    # load_meta_or_empty (post-#2091 silent contract) absorbs a missing or
+    # malformed meta.json to {}; mission_slug stays None, matching the prior
+    # try/except-None absorption.
+    meta = load_meta_or_empty(mission_dir)
+    mission_slug = meta.get("mission_slug") or meta.get("slug")
     if mission_slug:
         from specify_cli.retrospective.writer import canonical_record_path
 
@@ -391,19 +380,15 @@ def build_summary(
         retro_path = _resolve_summary_record_path(project_path, mission_dir)
 
         if not retro_path.exists():
-            # No retrospective file — classify the mission
-            mission_started_at: str | None = None
-            try:
-                meta_path = mission_dir / "meta.json"
-                if meta_path.exists():
-                    meta = json.loads(meta_path.read_text(encoding="utf-8"))
-                    mission_started_at = (
-                        meta.get("mission_started_at")
-                        or meta.get("created_at")
-                        or meta.get("started_at")
-                    )
-            except Exception:
-                pass
+            # No retrospective file — classify the mission.
+            # load_meta_or_empty (post-#2091 silent contract) absorbs a missing
+            # or malformed meta.json to {}, matching the prior try/except-pass.
+            meta = load_meta_or_empty(mission_dir)
+            mission_started_at: str | None = (
+                meta.get("mission_started_at")
+                or meta.get("created_at")
+                or meta.get("started_at")
+            )
 
             if mission_started_at and _is_legacy(mission_started_at):
                 legacy_no_retro_count += 1

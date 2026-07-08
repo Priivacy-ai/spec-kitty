@@ -20,8 +20,8 @@ from typing import TYPE_CHECKING
 import typer
 from rich.table import Table
 
+from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.core.constants import KITTY_SPECS_DIR
-from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
 
 from ._doctor_shared import console
 
@@ -52,7 +52,17 @@ def _scope_to_mission(
     filtered = [s for s in all_states if s.slug == mission]
     if filtered:
         return filtered
-    target_dir = resolve_feature_dir_for_mission(repo_root, mission)
+    # read-surface-ssot-closeout WP05 / FR-001 / NFR-001: route through the
+    # kind-aware placement seam instead of the kind-blind
+    # ``resolve_feature_dir_for_mission`` (which could return the
+    # coordination worktree's mission dir once materialized -- the #2453
+    # coord-husk-shadows-primary defect NFR-001 closes). ``PRIMARY_METADATA``
+    # is the artifact kind for a mission's ``meta.json`` -- exactly what
+    # ``classify_mission`` reads -- and is a PRIMARY-partition kind, so
+    # ``read_dir`` resolves the topology-blind primary directory directly.
+    target_dir = placement_seam(repo_root, mission).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
+    )
     if target_dir.is_dir():
         return [classify_mission(target_dir)]
     return []
@@ -254,15 +264,24 @@ def _read_stored_topology(feature_dir: Path) -> dict[str, object | None]:
     surfaces ``topology: null`` (so the audit drives the backfill); an unreadable
     ``meta.json`` surfaces ``topology: null`` with an ``error`` reason.
     """
-    meta_path = feature_dir / "meta.json"
-    if not meta_path.exists():
-        return {"slug": feature_dir.name, "topology": None, "flattened": None, "error": "meta.json not found"}
+    # read-surface-ssot-closeout WP05 / FR-005: route the inline
+    # ``json.loads`` read through the canonical ``load_meta`` authority. This
+    # site does NOT hard-fail on a missing meta.json -- it softly degrades to
+    # an informative row (``error: "meta.json not found"``) -- so the
+    # post-#2091 contract here is ``allow_missing=True`` (the pre-existing
+    # soft-degrade, not a guard being masked: no guard exists to mask because
+    # the caller never raised on missing). Malformed JSON keeps its distinct
+    # "corrupt json" message via ``on_malformed="raise"`` + a local catch,
+    # rather than folding it into the generic on_malformed="empty" adapter
+    # (which would lose the distinct error text).
+    from specify_cli.mission_metadata import load_meta
+
     try:
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        if not isinstance(meta, dict):
-            raise ValueError(f"expected JSON object, got {type(meta).__name__}")
-    except (json.JSONDecodeError, OSError, ValueError) as exc:
+        meta = load_meta(feature_dir, allow_missing=True, on_malformed="raise")
+    except ValueError as exc:
         return {"slug": feature_dir.name, "topology": None, "flattened": None, "error": f"corrupt json: {exc}"}
+    if meta is None:
+        return {"slug": feature_dir.name, "topology": None, "flattened": None, "error": "meta.json not found"}
     return {
         "slug": feature_dir.name,
         "topology": meta.get("topology"),
@@ -277,7 +296,13 @@ def _collect_topology_rows(repo_root: Path, mission: str | None) -> list[dict[st
     if not specs_dir.is_dir():
         return []
     if mission is not None:
-        target = resolve_feature_dir_for_mission(repo_root, mission)
+        # read-surface-ssot-closeout WP05 / FR-001 / NFR-001: the kind-aware
+        # seam (see ``_scope_to_mission`` above for the full rationale) --
+        # ``PRIMARY_METADATA`` again, since this reads the mission's
+        # ``meta.json``-bearing directory.
+        target = placement_seam(repo_root, mission).read_dir(
+            MissionArtifactKind.PRIMARY_METADATA
+        )
         return [_read_stored_topology(target)] if target.is_dir() else []
     return [
         _read_stored_topology(entry)

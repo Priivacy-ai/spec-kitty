@@ -884,3 +884,63 @@ def test_nested_lock_attempt_times_out_from_other_thread(repo: Path) -> None:
         )
     finally:
         txn.__exit__(None, None, None)
+
+
+# ---------------------------------------------------------------------------
+# C-004: legacy-HEAD-override block byte-freeze regression (WP14)
+# ---------------------------------------------------------------------------
+
+# The exact source text of the "legacy mode" HEAD-override block inside
+# ``_acquire_locked`` (WP08 T035-T036 / C-004). This block resolves
+# ``effective_destination_ref`` from the worktree's actual checked-out HEAD
+# for legacy (pre-coordination-branch) missions, and every other step of
+# ``acquire()`` depends on it applying uniformly across both the legacy and
+# new-topology paths. WP14 (read-surface-ssot-closeout) intentionally left
+# this block untouched while routing the surrounding meta.json reads onto
+# the canonical ``load_meta`` reader.
+#
+# Pinned by *content*, not line numbers: the block's line span (751-771 at
+# WP14 authoring time) naturally drifts as unrelated code above it changes
+# (e.g. import routing in this same WP shifted it up ~15 lines). A
+# line-number pin would false-positive on that drift; a content pin only
+# fires on an actual edit to the frozen block itself.
+_LEGACY_HEAD_OVERRIDE_BLOCK = (
+    "        #     name resolved from the worktree's ``HEAD`` so the pre-flight\n"
+    "        #     policy gate and the ``safe_commit`` HEAD assertion see a\n"
+    "        #     consistent ref.\n"
+    "        #\n"
+    "        # Crucial invariant: **every other step of acquire() below — the\n"
+    "        # pre-flight policy gate, the feature-status lock, the surgical\n"
+    "        # truncate rollback, and the outbound deferral — applies\n"
+    "        # uniformly to both paths.**  Only ``worktree_root`` and (in\n"
+    "        # legacy mode) ``destination_ref`` differ.\n"
+    "        legacy_mode = _is_legacy_mission(repo_root, safe_mission_slug, safe_mid8)\n"
+    "        if legacy_mode:\n"
+    "            try:\n"
+    "                worktree_root, lane_branch = _resolve_legacy_lane_destination(\n"
+    "                    repo_root,\n"
+    "                )\n"
+    "            except BookkeepingLegacyResolutionFailed:\n"
+    "                raise\n"
+    "            # Override caller-supplied destination_ref with the actual\n"
+    "            # lane branch so policy + HEAD assertion both see truth.\n"
+    "            effective_normalized_ref = _normalize_ref(lane_branch)\n"
+    "            effective_destination_ref = effective_normalized_ref\n"
+)
+
+
+def test_legacy_head_override_block_is_byte_unchanged() -> None:
+    """C-004: the legacy-mode HEAD-override block must never be edited.
+
+    WP14 routed the module's other meta.json reads onto the canonical
+    ``load_meta`` reader but was required to leave this block byte-for-byte
+    identical. Guards against silent drift in a future edit.
+    """
+    source_path = Path(transaction_module.__file__)
+    source_text = source_path.read_text(encoding="utf-8")
+    assert _LEGACY_HEAD_OVERRIDE_BLOCK in source_text, (
+        "The C-004 legacy-HEAD-override block in coordination/transaction.py "
+        "has changed. This block is frozen by charter directive; any change "
+        "must go through an explicit, reviewed decision, not an incidental "
+        "refactor."
+    )

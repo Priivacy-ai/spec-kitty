@@ -322,7 +322,7 @@ class TestLoadCoordUnavailableFailsClosed:
 
         from specify_cli.status.aggregate import MissionMetadataUnavailable, MissionStatus
 
-        with pytest.raises(MissionMetadataUnavailable, match="expected object"):
+        with pytest.raises(MissionMetadataUnavailable, match="Expected JSON object"):
             MissionStatus.load(repo_root=tmp_path, mission_slug=slug)
 
     def test_non_string_mission_id_fails_closed(self, tmp_path: Path) -> None:

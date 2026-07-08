@@ -17,16 +17,14 @@ from specify_cli.core.constants import (
 # (``@patch("...agent.tasks.primary_feature_dir_for_mission")``,
 # test_pre30_guard_wiring) that the relocated ``_mt_issue_matrix_facts`` body
 # routes back through ``_tasks.<attr>``.
-# ``resolve_feature_dir_for_mission`` keeps an explicit ``as`` re-export: it
-# still has direct call sites here (``list_tasks`` / ``validate_workflow``),
-# AND the relocated ``_ft_apply_writes`` (WP08, tasks_finalize) routes it back
-# through ``_tasks.<attr>`` — a live patch seam
-# (``@patch("...agent.tasks.resolve_feature_dir_for_mission")``,
-# test_pre30_guard_wiring) that must stay an explicit module export under
-# ``mypy --strict`` no-implicit-reexport.
+# read-surface-ssot-closeout WP08 / FR-001 / NFR-001: the kind-blind
+# ``resolve_feature_dir_for_mission`` re-export is RETIRED — its last two
+# direct call sites (``list_tasks`` / ``validate_workflow``, below) now route
+# through ``mission_runtime.placement_seam(...).read_dir(STATUS_STATE)``, and
+# the relocated ``_ft_apply_writes`` (tasks_finalize.py) no longer proxies
+# through ``_tasks.<attr>`` for this symbol either (routed the same way).
 from specify_cli.missions._read_path_resolver import (
     primary_feature_dir_for_mission as primary_feature_dir_for_mission,
-    resolve_feature_dir_for_mission as resolve_feature_dir_for_mission,
     resolve_planning_read_dir,
 )
 import contextlib
@@ -756,8 +754,13 @@ def list_tasks(
             _output_error(json_output, f"Tasks directory not found: {tasks_dir}")
             raise typer.Exit(1)
 
-        # Load canonical lanes from event log (STATUS-partition — stays coord-aware, C-001)
-        _lt_feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+        # Load canonical lanes from event log (STATUS-partition — stays coord-aware, C-001).
+        # read-surface-ssot-closeout WP08 / FR-001 / NFR-001: routed through the
+        # kind-aware placement seam instead of the kind-blind
+        # resolve_feature_dir_for_mission (same coord-aware STATUS_STATE resolution).
+        _lt_feature_dir = placement_seam(main_repo_root, mission_slug).read_dir(
+            MissionArtifactKind.STATUS_STATE
+        )
         try:
             from specify_cli.status import read_events as _lt_read_events
             from specify_cli.status import reduce as _lt_reduce
@@ -914,11 +917,14 @@ def add_history(
 # relocated bodies route every patched seam symbol back through
 # ``_tasks.<attr>`` (lazy in-function import, research.md D1/D7), so
 # ``@patch("...agent.tasks.<sym>")`` / ``monkeypatch.setattr(tasks, ...)``
-# keep INTERCEPTING (incl. ``bootstrap_canonical_state``,
-# ``resolve_feature_dir_for_mission`` (the pre30-guard-wiring seam), the
-# conftest ``console`` rebinding and the port adapters constructed by the
-# moved ``_default_finalize_ports`` — the plain ``RealCoordCommitRouter``;
-# finalize has ZERO direct emission sites, research.md D3). The
+# keep INTERCEPTING (incl. ``bootstrap_canonical_state``, the conftest
+# ``console`` rebinding and the port adapters constructed by the moved
+# ``_default_finalize_ports`` — the plain ``RealCoordCommitRouter``; finalize
+# has ZERO direct emission sites, research.md D3). read-surface-ssot-closeout
+# WP08: the former ``resolve_feature_dir_for_mission`` pre30-guard-wiring seam
+# is RETIRED — ``_ft_apply_writes`` now calls
+# ``mission_runtime.placement_seam(...).read_dir(STATUS_STATE)`` directly
+# (no ``_tasks.<attr>`` proxy for this symbol). The
 # ``@app.command`` Typer wrapper below stays here: the CLI surface
 # (byte-frozen ``--help``) belongs to the registration shim. Per-symbol
 # evidence: kitty-specs/tasks-py-degod-wave2-01KWH9EQ/seam-checklist.md.
@@ -1072,8 +1078,15 @@ def validate_workflow(
             if not extract_scalar(wp.frontmatter, field):
                 errors.append(f"Missing required field: {field}")
 
-        # Get lane from event log (canonical source)
-        _vw_feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
+        # Get lane from event log (canonical source).
+        # read-surface-ssot-closeout WP08 / FR-001 / NFR-001: routed through the
+        # kind-aware placement seam instead of the kind-blind
+        # resolve_feature_dir_for_mission (same coord-aware STATUS_STATE resolution;
+        # ``repo_root`` — not ``_vw_main_repo_root`` — is preserved unchanged, matching
+        # the pre-existing call's argument).
+        _vw_feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+            MissionArtifactKind.STATUS_STATE
+        )
         try:
             from specify_cli.status import read_events as _vw_read_events
             from specify_cli.status import reduce as _vw_reduce

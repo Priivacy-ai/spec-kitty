@@ -14,13 +14,12 @@ from specify_cli.cli.helpers import console, get_project_root_or_exit, show_bann
 from specify_cli.core import MISSION_CHOICES
 from specify_cli.core.project_resolver import resolve_template_path
 from specify_cli.missions._read_path_resolver import (
-    resolve_feature_dir_for_slug,
     resolve_planning_read_dir,
 )
 from specify_cli.mission import get_mission_type
 from specify_cli.plan_validation import PlanValidationError, validate_plan_filled
 from specify_cli.task_utils import TaskCliError, find_repo_root
-from mission_runtime import MissionArtifactKind
+from mission_runtime import MissionArtifactKind, placement_seam
 
 
 def research(
@@ -61,7 +60,13 @@ def research(
         raise typer.BadParameter("--mission <slug> is required")
     mission_slug = mission_norm
 
-    feature_dir = resolve_feature_dir_for_slug(repo_root, mission_slug)
+    # WP09/FR-001 (kind-correct): route the kind-blind slug resolver onto the
+    # seam. The comment below already documents ``feature_dir`` as "its
+    # current STATUS-namespace surface" — the dossier sync consumer needs the
+    # coord-aware STATUS home, which ``STATUS_STATE`` preserves (NFR-001).
+    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.STATUS_STATE
+    )
     # F-001: re-key to the canonical directory name. `--mission` accepts
     # handles (bare mid8, numeric prefix); the resolver canonicalizes the
     # DIRECTORY only, while `trigger_feature_dossier_sync_if_enabled` keys the

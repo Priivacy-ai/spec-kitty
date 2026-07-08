@@ -89,24 +89,16 @@ def _git_dirty_paths(repo_root: Path) -> list[str]:
 def _resolve_record_analysis_placement_ref(repo_root: Path, feature_dir: Path) -> CommitTarget | None:
     """Resolve the ANALYSIS_REPORT write placement ref for ``record-analysis``.
 
-    Routes through the kind-aware placement seam
-    (``placement_seam(...).write_target(MissionArtifactKind.ANALYSIS_REPORT)``,
-    C-PLACE-1) so the artifact kind is EXPLICIT at the call site. This resolves
-    to the exact same single :class:`CommitTarget` the previous generic
-    ``resolve_action_context(action="tasks").artifact_placement.placement_ref``
-    projection produced: ANALYSIS_REPORT is a COORD (``_PLACEMENT_ARTIFACT_KINDS``)
-    kind, so :func:`resolve_placement_only` returns ``branch_ref.destination_ref`` —
-    byte-identical to the ``_assemble_artifact_placement_fragment`` projection the
-    ``tasks`` action carried, for EVERY topology (both derive that ref from the
-    single ``_assemble_core_fragments`` builder; the action never influences it).
-    Naming the kind explicitly makes the routing robust to a future partition
-    reclassification instead of relying on the incidental tasks↔analysis parity.
-    The mission slug is the resolved mission directory name (already CWD-invariant
-    via the read primitive). Returns ``None`` on any resolution failure — the
-    low-level resolver stays a plain ``Optional`` producer (unchanged contract);
-    the caller now fails closed on ``None`` (D11 — see
-    :func:`_require_record_analysis_placement`) instead of silently degrading to a
-    conservative preflight.
+    Routes through ``placement_seam(...).write_target(ANALYSIS_REPORT)`` — the
+    single kind-aware write authority (C-PLACE-1). ``ANALYSIS_REPORT`` is a
+    coordination-partition kind, so the seam resolves its canonical
+    :class:`CommitTarget` directly; ``resolve_action_context`` is NOT on this
+    path. The mission slug is the resolved mission directory name (already
+    CWD-invariant via the read primitive).
+    Returns ``None`` on any resolution failure — the low-level resolver stays
+    a plain ``Optional`` producer (unchanged contract); the caller now fails
+    closed on ``None`` (D11 — see :func:`_require_record_analysis_placement`)
+    instead of silently degrading to a conservative preflight.
     """
     from mission_runtime import ActionContextError as _ActionContextError, placement_seam
 

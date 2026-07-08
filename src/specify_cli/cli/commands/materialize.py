@@ -66,9 +66,18 @@ def materialize(
     mission_slug = mission.strip() if mission else mission
 
     if mission_slug:
-        from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_slug
+        # WP09/FR-001 (kind-correct): ``write_derived_views`` /
+        # ``generate_progress_json`` / ``generate_lifecycle_json`` all read the
+        # append-only ``status.events.jsonl`` log via ``materialize()`` — the
+        # STATUS-namespace surface. Route through the seam on ``STATUS_STATE``
+        # (coord-aware) rather than the kind-blind slug resolver (NFR-001).
+        from mission_runtime import MissionArtifactKind, placement_seam
 
-        feature_dirs = [resolve_feature_dir_for_slug(repo_root, mission_slug)]
+        feature_dirs = [
+            placement_seam(repo_root, mission_slug).read_dir(
+                MissionArtifactKind.STATUS_STATE
+            )
+        ]
         if not feature_dirs[0].exists():
             console.print(f"[red]Error:[/red] Mission not found: {mission_slug}")
             raise typer.Exit(1)

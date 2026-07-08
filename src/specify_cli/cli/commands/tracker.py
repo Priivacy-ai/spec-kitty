@@ -20,6 +20,7 @@ from rich.table import Table
 from specify_cli.cli.commands._teamspace_mission_state_gate import (
     enforce_teamspace_mission_state_ready,
 )
+from specify_cli.mission_metadata import load_meta
 from specify_cli.tracker.config import (
     LOCAL_PROVIDERS,
     REMOVED_PROVIDERS,
@@ -96,15 +97,11 @@ def _resolve_active_feature_slug(repo_root: Path) -> str | None:
     treated as "no active feature" — the readiness evaluator handles
     MISSING_MISSION_BINDING gracefully in that case.
     """
-    try:
-        meta_path = repo_root / ".kittify" / "meta.json"
-        if not meta_path.exists():
-            return None
-        data = json.loads(meta_path.read_text(encoding="utf-8"))
-        slug = data.get("feature_slug") or data.get("slug")
-        return str(slug) if slug else None
-    except Exception:  # noqa: BLE001 — meta.json may be absent or malformed; fall back to None (no active feature)
+    data = load_meta(repo_root / ".kittify", on_malformed="none")
+    if data is None:
         return None
+    slug = data.get("feature_slug") or data.get("slug")
+    return str(slug) if slug else None
 
 
 def _resolve_output_policy_for_tracker() -> str:

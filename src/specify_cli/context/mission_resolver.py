@@ -27,12 +27,12 @@ profiling shows it is needed.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-import json
 import re
 from dataclasses import dataclass
 from pathlib import Path
 
 from specify_cli.lanes.branch_naming import resolve_mid8, strip_numeric_prefix
+from specify_cli.mission_metadata import load_meta
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -147,16 +147,11 @@ def _build_index(repo_root: Path) -> list[ResolvedMission]:
     for entry in sorted(specs_dir.iterdir()):
         if not entry.is_dir():
             continue
-        meta_path = entry / "meta.json"
-        if not meta_path.exists():
-            continue
-        try:
-            data = json.loads(meta_path.read_text(encoding="utf-8"))
-        except (json.JSONDecodeError, OSError):
-            continue
-        if not isinstance(data, dict):
-            # Malformed meta.json (non-object) — not indexable by identity.
-            # The consumer validates and fails the targeted mission closed.
+        data = load_meta(entry, on_malformed="none")
+        if data is None:
+            # Missing, malformed, or a non-object meta.json (e.g. a JSON array)
+            # — not indexable by identity. The consumer validates and fails
+            # the targeted mission closed.
             continue
         mission_id: str | None = data.get("mission_id") or None
         if not mission_id:

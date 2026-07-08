@@ -24,9 +24,11 @@ Source-of-truth:
 
 from __future__ import annotations
 
+from mission_runtime import MissionArtifactKind
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.lanes.branch_naming import resolve_mid8
-from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
+from specify_cli.mission_metadata import load_meta_or_empty
+from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 import json
 import logging
 from pathlib import Path
@@ -148,8 +150,23 @@ def _load_event_ids(feature_dir: Path) -> set[str]:
 
 
 def _feature_dir(repo_root: Path, mission_slug: str) -> Path:
-    """Return the kitty-specs feature directory for *mission_slug*."""
-    return resolve_feature_dir_for_mission(repo_root, mission_slug)
+    """Return the kitty-specs feature directory for *mission_slug*.
+
+    Routed onto the kind-aware read seam (FR-001): this helper backs
+    event-log-facing callers (see :func:`_apply_one` /
+    :func:`_emit_conflict_rejections`), so it resolves the STATUS-partition
+    (``status.events.jsonl``) surface -- topology-aware / coord-consulting
+    for a coord-topology mission (C-001).
+    """
+    # ``resolve_planning_read_dir`` is typed -> Path; mypy widens it to
+    # ``Any`` through the late-import chain (``follow_imports=skip`` on
+    # ``specify_cli.*`` -- the same pre-existing systemic pattern documented
+    # via the ``_compose_mission_dir`` cast note in ``_read_path_resolver.py``);
+    # bind explicitly so the return narrows back to ``Path``.
+    resolved: Path = resolve_planning_read_dir(
+        repo_root, mission_slug, kind=MissionArtifactKind.STATUS_STATE
+    )
+    return resolved
 
 
 # ---------------------------------------------------------------------------
@@ -578,8 +595,6 @@ def _resolve_source_event_ids(mission_id: MissionId, repo_root: Path) -> set[str
     parsing error (the staleness check then rejects all proposals with
     unresolvable evidence — safe / fail-closed).
     """
-    import json as _json
-
     mission_specs = repo_root / KITTY_SPECS_DIR
     if not mission_specs.exists():
         return set()
@@ -587,13 +602,11 @@ def _resolve_source_event_ids(mission_id: MissionId, repo_root: Path) -> set[str
     for mission_dir in mission_specs.iterdir():
         if not mission_dir.is_dir():
             continue
-        meta_path = mission_dir / "meta.json"
-        if not meta_path.exists():
-            continue
-        try:
-            meta = _json.loads(meta_path.read_text(encoding="utf-8"))
-        except (OSError, _json.JSONDecodeError):
-            continue
+        # Routed onto the canonical meta.json reader (FR-005): the pre-#2091
+        # try/except silently skipped a missing OR malformed meta.json, which
+        # is exactly the ``load_meta_or_empty`` contract -- absorbing both to
+        # ``{}`` preserves the existing "unmatched, keep scanning" behavior.
+        meta = load_meta_or_empty(mission_dir)
         if meta.get("mission_id") == mission_id:
             # Found the source mission's feature directory
             return _load_event_ids(mission_dir)
@@ -734,7 +747,7 @@ def _apply_one(
     # Emit proposal.applied event
     # Derive mission_slug from kitty-specs/<slug> by probing meta.json
     mission_slug = _slug_for_mission(mission_id, repo_root)
-    feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug) if mission_slug else None
+    feature_dir = _feature_dir(repo_root, mission_slug) if mission_slug else None
 
     event_id: str | None = None
     if feature_dir is not None:
@@ -769,21 +782,16 @@ def _apply_one(
 
 def _slug_for_mission(mission_id: MissionId, repo_root: Path) -> str | None:
     """Find the mission_slug for a given mission_id by scanning kitty-specs/."""
-    import json as _json
-
     mission_specs = repo_root / KITTY_SPECS_DIR
     if not mission_specs.exists():
         return None
     for mission_dir in mission_specs.iterdir():
         if not mission_dir.is_dir():
             continue
-        meta_path = mission_dir / "meta.json"
-        if not meta_path.exists():
-            continue
-        try:
-            meta = _json.loads(meta_path.read_text(encoding="utf-8"))
-        except (OSError, _json.JSONDecodeError):
-            continue
+        # Routed onto the canonical meta.json reader (FR-005): see the
+        # matching note in ``_resolve_source_event_ids`` -- same silent
+        # missing/malformed-skip contract, now via ``load_meta_or_empty``.
+        meta = load_meta_or_empty(mission_dir)
         if meta.get("mission_id") == mission_id:
             return str(mission_dir.name)
     return None
@@ -807,7 +815,7 @@ def _emit_conflict_rejections(
     if mission_slug is None:
         return []
 
-    feature_dir = resolve_feature_dir_for_mission(repo_root, mission_slug)
+    feature_dir = _feature_dir(repo_root, mission_slug)
     emitted: list[EventId] = []
 
     # Emit one rejection event per proposal in any conflict group

@@ -9,13 +9,15 @@ It detects whether git is available and returns the appropriate implementation.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-import json
+import contextlib
 import re
 import shutil
 import subprocess
 from functools import lru_cache
 from pathlib import Path
 from typing import TYPE_CHECKING
+
+from specify_cli.mission_metadata import load_meta
 
 from .exceptions import (
     VCSBackendMismatchError,
@@ -127,14 +129,10 @@ def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
     for parent in [current, *current.parents]:
         if parent.parent and parent.parent.name == KITTY_SPECS_DIR:
             # parent is a feature directory like kitty-specs/015-feature/
-            meta_path = parent / "meta.json"
-            if meta_path.is_file():
-                try:
-                    meta = json.loads(meta_path.read_text())
-                    if "vcs" in meta:
-                        return VCSBackend(meta["vcs"])
-                except (json.JSONDecodeError, ValueError, OSError):
-                    pass
+            meta = load_meta(parent, on_malformed="none")
+            if meta is not None and "vcs" in meta:
+                with contextlib.suppress(ValueError):
+                    return VCSBackend(meta["vcs"])
             # Path is in a feature dir but no valid meta.json
             return None
 
@@ -173,14 +171,10 @@ def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
                             continue
                         name = feature_dir.name
                         if name == slug or name.endswith(f"-{slug}") or name == f"{slug}":
-                            meta_path = feature_dir / "meta.json"
-                            if meta_path.is_file():
-                                try:
-                                    meta = json.loads(meta_path.read_text())
-                                    if "vcs" in meta:
-                                        return VCSBackend(meta["vcs"])
-                                except (json.JSONDecodeError, ValueError, OSError):
-                                    pass
+                            meta = load_meta(feature_dir, on_malformed="none")
+                            if meta is not None and "vcs" in meta:
+                                with contextlib.suppress(ValueError):
+                                    return VCSBackend(meta["vcs"])
                             # Found feature dir but no valid meta.json
                             return None
 

@@ -50,6 +50,22 @@ def feature_dir(tmp_path: Path) -> Path:
     """Create a minimal feature directory with kitty-specs structure."""
     fd = tmp_path / "kitty-specs" / "034-test-feature"
     fd.mkdir(parents=True)
+    # #2091 (from #2462): the CoordinationWorkspace composition guard rejects a
+    # non-empty mid8. This fixture predates the guard and had no meta.json — the
+    # failure was latent because ``fast-tests-agent`` is skipped on main (no
+    # agent-surface changes) and only ran once the read-surface mission touched
+    # agent files. Seed a valid minted identity so the coord-name composition
+    # succeeds (mission_id -> mid8).
+    (fd / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": "01KNXQS9ATWWFXS3K5ZJ9E5008",
+                "mid8": "01KNXQS9",
+                "mission_slug": "034-test-feature",
+            }
+        ),
+        encoding="utf-8",
+    )
     # Create a tasks directory with at least one WP file (for realism)
     tasks_dir = fd / "tasks"
     tasks_dir.mkdir()

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-import json
+import contextlib
 import logging
 import os
 from datetime import UTC, datetime
@@ -13,6 +13,7 @@ from typing import Any
 
 from specify_cli.dashboard.charter_path import resolve_project_charter_path
 from specify_cli.lanes.branch_naming import resolve_mid8
+from specify_cli.mission_metadata import load_meta
 from specify_cli.missions._read_path_resolver import (
     MissionSelectorAmbiguous,
     resolve_planning_read_dir,
@@ -379,22 +380,17 @@ def _read_mission_identity(feature_dir: Path) -> tuple[str | None, int | None]:
 
     Returns empty strings coerced to None for mission_id.
     """
-    meta_path = feature_dir / "meta.json"
-    if not meta_path.exists():
+    raw = load_meta(feature_dir, on_malformed="none", encoding="utf-8-sig")
+    if raw is None:
         return None, None
-    try:
-        raw = json.loads(meta_path.read_text(encoding="utf-8-sig"))
-        if not isinstance(raw, dict):
-            return None, None
-        mission_id: str | None = raw.get("mission_id") or None  # "" -> None
-        raw_number = raw.get("mission_number")
-        mission_number: int | None = None
-        if isinstance(raw_number, int):
-            mission_number = raw_number
-        elif isinstance(raw_number, str) and raw_number.isdigit():
+    mission_id: str | None = raw.get("mission_id") or None  # "" -> None
+    raw_number = raw.get("mission_number")
+    mission_number: int | None = None
+    if isinstance(raw_number, int):
+        mission_number = raw_number
+    elif isinstance(raw_number, str) and raw_number.isdigit():
+        with contextlib.suppress(ValueError):
             mission_number = int(raw_number)
-    except (json.JSONDecodeError, OSError, ValueError):
-        return None, None
     return mission_id, mission_number
 
 
@@ -625,20 +621,10 @@ def _count_wps_by_lane(tasks_dir: Path, status_dir: Path | None = None) -> dict[
 def _read_dashboard_feature_meta(feature_dir: Path) -> tuple[str, dict[str, Any] | None]:
     """Return the display name and sanitized meta.json fields for a dashboard row."""
     friendly_name = feature_dir.name
-    meta_data: dict[str, Any] | None = None
-    meta_path = feature_dir / "meta.json"
-    if not meta_path.exists():
-        return friendly_name, meta_data
+    meta_data = load_meta(feature_dir, on_malformed="none", encoding="utf-8-sig")
+    if meta_data is None:
+        return friendly_name, None
 
-    try:
-        loaded_meta = json.loads(meta_path.read_text(encoding="utf-8-sig"))
-    except json.JSONDecodeError:
-        return friendly_name, meta_data
-
-    if not isinstance(loaded_meta, dict):
-        return friendly_name, meta_data
-
-    meta_data = loaded_meta
     potential_name = meta_data.get("friendly_name")
     if isinstance(potential_name, str) and potential_name.strip():
         friendly_name = potential_name.strip()

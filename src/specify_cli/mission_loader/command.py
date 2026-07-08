@@ -31,8 +31,6 @@ process is in the picture.
 from __future__ import annotations
 
 from specify_cli.missions._read_path_resolver import candidate_feature_dir_for_mission
-import contextlib
-import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -46,7 +44,7 @@ from specify_cli.mission_loader.errors import (
 )
 from specify_cli.mission_loader.registry import get_runtime_contract_registry
 from specify_cli.mission_loader.validator import validate_custom_mission
-from specify_cli.mission_metadata import write_meta
+from specify_cli.mission_metadata import load_meta_or_empty, write_meta
 from runtime.next import runtime_bridge
 from runtime.next._internal_runtime.discovery import DiscoveryContext
 from runtime.next._internal_runtime.schema import MissionTemplate
@@ -285,12 +283,7 @@ def _ensure_feature_metadata(feature_dir: Path, mission_key: str) -> None:
     ``mission run`` -> ``next`` flow falls back to ``software-dev``.
     """
     feature_dir.mkdir(parents=True, exist_ok=True)
-    meta_path = feature_dir / "meta.json"
-    data: dict[str, Any] = {}
-    with contextlib.suppress(Exception):
-        loaded = json.loads(meta_path.read_text(encoding="utf-8"))
-        if isinstance(loaded, dict):
-            data = loaded
+    data: dict[str, Any] = load_meta_or_empty(feature_dir)
     data["mission_type"] = mission_key
     data["mission_key"] = mission_key
     data.setdefault("mission", mission_key)
@@ -304,13 +297,10 @@ def _read_mission_id(feature_dir: Path) -> str | None:
     envelope tolerates a null ``mission_id`` for runs whose tracked
     mission has not yet been minted.
     """
-    meta_path = feature_dir / "meta.json"
-    with contextlib.suppress(Exception):
-        data = json.loads(meta_path.read_text(encoding="utf-8"))
-        if isinstance(data, dict):
-            value = data.get("mission_id")
-            if isinstance(value, str) and value:
-                return value
+    data = load_meta_or_empty(feature_dir)
+    value = data.get("mission_id")
+    if isinstance(value, str) and value:
+        return value
     return None
 
 

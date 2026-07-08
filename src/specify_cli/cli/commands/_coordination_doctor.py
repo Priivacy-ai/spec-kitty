@@ -24,6 +24,7 @@ import typer
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import locate_project_root
+from specify_cli.mission_metadata import load_meta
 
 from ._doctor_shared import console
 
@@ -534,14 +535,8 @@ def _collect_coordination_findings(repo_root: Path) -> list[DoctorFinding]:
     for mission_dir in sorted(specs_dir.iterdir()):
         if not mission_dir.is_dir():
             continue
-        meta_path = mission_dir / "meta.json"
-        if not meta_path.exists():
-            continue
-        try:
-            meta = json.loads(meta_path.read_text())
-        except (OSError, json.JSONDecodeError):
-            continue
-        if not isinstance(meta, dict):
+        meta = load_meta(mission_dir, on_malformed="none")
+        if meta is None:
             continue
         findings.extend(_check_coordination_worktree_health(repo_root, meta))
         findings.extend(_check_lane_sparse_checkout_drift(repo_root, meta))

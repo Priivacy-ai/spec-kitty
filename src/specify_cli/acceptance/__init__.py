@@ -6,7 +6,6 @@ from __future__ import annotations
 from specify_cli.missions._read_path_resolver import (
     _canonicalize_primary_read_handle,
     primary_feature_dir_for_mission,
-    resolve_feature_dir_for_mission,
 )
 import logging
 import os
@@ -1226,7 +1225,15 @@ def collect_feature_summary(
     strict_metadata: bool = True,
     mutate_matrix: bool = True,
 ) -> AcceptanceSummary:
-    read_feature_dir = resolve_feature_dir_for_mission(repo_root, feature)
+    # WP09/FR-001 (kind-correct): ``_primary_anchor_feature_dir`` only needs
+    # the coord-aware existence/identity read described in its own docstring
+    # ("identity/existence was already validated by the read resolution") —
+    # the ``PRIMARY_METADATA`` home, not a specific artifact's content.
+    from mission_runtime import MissionArtifactKind, placement_seam
+
+    read_feature_dir = placement_seam(repo_root, feature).read_dir(
+        MissionArtifactKind.PRIMARY_METADATA
+    )
     feature_dir = _primary_anchor_feature_dir(repo_root, feature, read_feature_dir)
     tasks_dir = feature_dir / "tasks"
     if not feature_dir.exists():

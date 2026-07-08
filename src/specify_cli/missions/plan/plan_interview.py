@@ -16,9 +16,10 @@ infrastructure already used by charter.py and specify_interview.py.
 
 from __future__ import annotations
 
-from specify_cli.missions._read_path_resolver import resolve_feature_dir_for_mission
+from mission_runtime import MissionArtifactKind
+from specify_cli.mission_metadata import load_meta_or_empty
+from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 import contextlib
-import json
 from pathlib import Path
 from typing import Any
 
@@ -52,10 +53,19 @@ def _resolve_actor() -> str:
 
 
 def _get_mission_id(repo_root: Path, mission_slug: str) -> str | None:
-    """Read mission_id (ULID) from kitty-specs/<slug>/meta.json."""
-    meta_path = resolve_feature_dir_for_mission(repo_root, mission_slug) / "meta.json"
+    """Read mission_id (ULID) from kitty-specs/<slug>/meta.json.
+
+    Routed onto the kind-aware read seam (FR-001) for the feature-dir leg and
+    the canonical meta.json reader (FR-005 / post-#2091) for the parse leg:
+    ``load_meta_or_empty`` absorbs a missing/malformed meta.json to ``{}``,
+    preserving the original broad ``contextlib.suppress(Exception)`` contract
+    (silent ``None`` on any read/parse failure).
+    """
+    feature_dir = resolve_planning_read_dir(
+        repo_root, mission_slug, kind=MissionArtifactKind.PRIMARY_METADATA
+    )
     with contextlib.suppress(Exception):
-        data = json.loads(meta_path.read_text(encoding="utf-8"))
+        data = load_meta_or_empty(feature_dir)
         return data.get("mission_id") or None
     return None
 
@@ -168,7 +178,7 @@ def run_plan_interview(  # noqa: C901
         if _already_widened and saas_client is not None:
             render_already_widened_prompt(
                 question_text=question_text,
-                decision_id=current_decision_id,  # type: ignore[arg-type]
+                decision_id=current_decision_id,
                 mission_slug=mission_slug,
                 repo_root=repo_root,
                 saas_client=saas_client,

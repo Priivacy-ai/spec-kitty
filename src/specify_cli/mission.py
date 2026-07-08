@@ -6,7 +6,6 @@ writing, etc.) with domain-specific templates, workflows, and validation.
 """
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
-import json
 import os
 import warnings
 from pathlib import Path
@@ -14,6 +13,8 @@ from typing import Any, Dict, List, Literal, Optional, Tuple
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
+
+from specify_cli.mission_metadata import load_meta_or_empty
 
 
 class MissionError(Exception):
@@ -542,15 +543,8 @@ def get_mission_key(mission_dir: Path) -> str:
     Returns:
         Mission key string (e.g., 'software-dev', 'research')
     """
-    meta_file = mission_dir / "meta.json"
-    if not meta_file.exists():
-        return "software-dev"
-    try:
-        with open(meta_file, encoding="utf-8") as f:
-            meta = json.load(f)
-        return meta.get("mission", "software-dev")
-    except (json.JSONDecodeError, OSError):
-        return "software-dev"
+    meta = load_meta_or_empty(mission_dir)
+    return meta.get("mission", "software-dev")
 
 
 def get_feature_mission_key(mission_dir: Path) -> str:
@@ -570,21 +564,14 @@ def get_mission_type(feature_dir: Path) -> str:
     Returns:
         Mission key string (e.g., 'software-dev', 'research')
     """
-    meta_file = feature_dir / "meta.json"
-    if not meta_file.exists():
-        return "software-dev"
-    try:
-        with open(meta_file, encoding="utf-8") as f:
-            meta = json.load(f)
-        mission_type = str(meta.get("mission_type", "")).strip()
-        if mission_type:
-            return mission_type
-        legacy_mission = str(meta.get("mission", "")).strip()
-        if legacy_mission:
-            return legacy_mission
-        return "software-dev"
-    except (json.JSONDecodeError, OSError):
-        return "software-dev"
+    meta = load_meta_or_empty(feature_dir)
+    mission_type = str(meta.get("mission_type", "")).strip()
+    if mission_type:
+        return mission_type
+    legacy_mission = str(meta.get("mission", "")).strip()
+    if legacy_mission:
+        return legacy_mission
+    return "software-dev"
 
 
 def get_deliverables_path(feature_dir: Path, mission_slug: str | None = None) -> str | None:
@@ -606,25 +593,19 @@ def get_deliverables_path(feature_dir: Path, mission_slug: str | None = None) ->
         >>> get_deliverables_path(Path("kitty-specs/001-market-research"))
         'docs/research/001-market-research/'
     """
-    meta_file = feature_dir / "meta.json"
-
     # Try to read from meta.json
-    if meta_file.exists():
-        try:
-            with open(meta_file, encoding="utf-8") as f:
-                meta = json.load(f)
-            deliverables_path = meta.get("deliverables_path")
-            if deliverables_path:
-                return deliverables_path
+    meta = load_meta_or_empty(feature_dir)
+    if meta:
+        deliverables_path = meta.get("deliverables_path")
+        if deliverables_path:
+            return deliverables_path
 
-            # Check if this is a research mission - provide default if so
-            mission = meta.get("mission_type") or meta.get("mission", "software-dev")
-            if mission == "research":
-                # Generate default path using slug from meta or directory name
-                slug = meta.get("slug") or mission_slug or feature_dir.name
-                return f"docs/research/{slug}/"
-        except (json.JSONDecodeError, OSError):
-            pass
+        # Check if this is a research mission - provide default if so
+        mission = meta.get("mission_type") or meta.get("mission", "software-dev")
+        if mission == "research":
+            # Generate default path using slug from meta or directory name
+            slug = meta.get("slug") or mission_slug or feature_dir.name
+            return f"docs/research/{slug}/"
 
     # If no meta.json but mission_slug provided, check mission from directory structure
     # and provide default for research missions

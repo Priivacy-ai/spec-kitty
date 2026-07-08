@@ -162,18 +162,23 @@ _ALLOWED_SITES_FILES: dict[tuple[str, str], str] = {
     ("_coord_mid8", "coord_candidate = repo_root"): (
         "src/specify_cli/coordination/surface_resolver.py"
     ),
-    # NOTE (#2462 — customer-actionable guard rewrite, drops this exemption):
-    # ``workspace.py``'s ``CoordinationWorkspaceIdentityUnresolved.__init__`` was
-    # allow-listed here because its exception message once carried the
-    # ``'kitty/mission-<slug>-'`` placeholder literal in the SAME JoinedStr that
-    # interpolates ``mission_slug`` (diagnostic prose, never a real ref), so the
-    # idiom-2 literal-text check flagged it. Commit d8ac26e3d rewrote the message
-    # to be customer-actionable and moved that placeholder into a maintainer
-    # COMMENT (AST-invisible); the interpolated ``mission_slug`` no longer shares
-    # a JoinedStr with any ``kitty/mission-`` literal, so the scanner flags ZERO
-    # sites in the module. The exemption is REMOVED — a stale carve-out is a
-    # false-negative window, and the baseline cross-check below (5 → 4) proves the
-    # offender is genuinely gone, not merely moved.
+    # ── workspace.py: CoordinationWorkspaceIdentityUnresolved diagnostic (idiom 2) ──
+    # post-merge addition (coord-primary-partition-lock-01KWZ46V, same commit):
+    # the exception's message is a human-readable string that names the
+    # malformed-shape placeholder ``'kitty/mission-<slug>-'`` (angle brackets,
+    # not an f-string field) and separately interpolates the real
+    # ``mission_slug`` elsewhere in the same sentence ("for mission
+    # {mission_slug!r}"). The idiom-2 literal-text check does not distinguish
+    # "field interpolated inside the kitty/mission- segment" from "field
+    # interpolated anywhere in the concatenated string", so it flags this
+    # prose. No branch/worktree/dir name is ever composed or used from this
+    # string — it is raised as a StructuredError message and never parsed back
+    # into a ref (same finding already carved out in
+    # ``test_topology_resolution_boundary.py::_ALLOWLISTED_LEGACY_COMPOSE_SITES``).
+    (
+        "CoordinationWorkspaceIdentityUnresolved.__init__",
+        "",
+    ): "src/specify_cli/coordination/workspace.py",
 }
 
 _ALLOWED_SITES: frozenset[tuple[str, str]] = frozenset(_ALLOWED_SITES_FILES)
@@ -190,15 +195,11 @@ _ALLOWED_SITES: frozenset[tuple[str, str]] = frozenset(_ALLOWED_SITES_FILES)
 #   surface_resolver.py:499            (post-merge coord-primary-partition-lock
 #                                        01KWZ46V — _coord_mid8 DIAG raise payload,
 #                                        benign carve-out)
-# => 4 raw offenders, all accounted for by the allow-list => 0 un-accounted.
-#
-# #2462 shrink (5 → 4): ``workspace.py``'s
-# ``CoordinationWorkspaceIdentityUnresolved`` diagnostic used to be the 5th raw
-# offender. Commit d8ac26e3d rewrote its message to be customer-actionable and
-# moved the ``'kitty/mission-<slug>-'`` placeholder from the JoinedStr into a
-# maintainer COMMENT (AST-invisible), so the scanner now flags ZERO sites there.
-# Its allow-list entry was dropped above; this decrement locks in the shrink.
-_NAME_COMPOSE_BASELINE_RAW_MATCHES = 4
+#   workspace.py:123                   (post-merge coord-primary-partition-lock
+#                                        01KWZ46V — CoordinationWorkspaceIdentityUnresolved
+#                                        diagnostic message, benign carve-out)
+# => 5 raw offenders, all accounted for by the allow-list => 0 un-accounted.
+_NAME_COMPOSE_BASELINE_RAW_MATCHES = 5
 
 # Helper text appended to every failure so the offender knows the fix.
 _SEAM_GUIDANCE = (

@@ -6,11 +6,8 @@ to display beautiful status boards without going through the CLI.
 
 from __future__ import annotations
 
-from mission_runtime import MissionArtifactKind
-from specify_cli.missions._read_path_resolver import (
-    resolve_feature_dir_for_mission,
-    resolve_planning_read_dir,
-)
+from mission_runtime import MissionArtifactKind, placement_seam
+from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 import re
 from collections import Counter
 from datetime import UTC, datetime
@@ -122,7 +119,12 @@ def show_kanban_status(mission_slug: str | None = None) -> dict:
 
         # STATUS leg (C-001 / NFR-001): the append-only event log stays
         # coord-aware so the kanban lanes reflect the worktree-local log.
-        feature_dir = resolve_feature_dir_for_mission(main_repo_root, mission_slug)
+        # read-surface-ssot-closeout WP08 / FR-001 / NFR-001: routed through the
+        # kind-aware placement seam instead of the kind-blind
+        # resolve_feature_dir_for_mission (same coord-aware STATUS_STATE resolution).
+        feature_dir = placement_seam(main_repo_root, mission_slug).read_dir(
+            MissionArtifactKind.STATUS_STATE
+        )
 
         if not feature_dir.exists():
             console.print(f"[red]Error:[/red] Feature directory not found: {feature_dir}")

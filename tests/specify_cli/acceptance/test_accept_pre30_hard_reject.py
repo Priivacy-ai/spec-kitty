@@ -19,7 +19,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from typer.testing import CliRunner
@@ -116,10 +116,19 @@ def test_collect_feature_summary_rejects_pre30(tmp_path: Path) -> None:
     summary (``ok``) that let ``accept`` commit an unmigrated mission.
     """
     repo, fd = _pre30_repo(tmp_path)
+    # WP09 (read-surface-ssot-closeout-01KWZV91/FR-001): ``collect_feature_summary``
+    # no longer calls ``resolve_feature_dir_for_mission`` directly — it routes
+    # through ``mission_runtime.placement_seam(...).read_dir(PRIMARY_METADATA)``
+    # (a function-local import, so patching the ``mission_runtime`` source
+    # attribute — not a ``specify_cli.acceptance`` module attribute — is what
+    # actually intercepts the call). Mock the seam object so
+    # ``placement_seam(...).read_dir(...)`` still returns ``fd``.
+    mock_seam = MagicMock()
+    mock_seam.read_dir.return_value = fd
     with (
         patch(
-            "specify_cli.acceptance.resolve_feature_dir_for_mission",
-            return_value=fd,
+            "mission_runtime.placement_seam",
+            return_value=mock_seam,
         ),
         patch(
             "specify_cli.acceptance._primary_anchor_feature_dir",

@@ -55,10 +55,14 @@ the cheapest point in the lifecycle.
    at every planning point-cut (pre-spec / post-spec / post-plan / post-tasks)
    before proceeding — one lens per agent, strongest model for the hard lenses.
    Optional and advisory, never a hard gate. → `adversarial-squad-cadence` styleguide.
-2. **Campsite cleaning & incremental debt paydown.** Fold only *domain-matched*
-   debt at each point-cut; freeze current offenders as a baseline when a litter
-   class cannot be cleared in-mission (debt stops growing while you chip at it).
-   → `DIRECTIVE_025`.
+2. **Campsite cleaning & incremental debt paydown.** *Open* a mission/WP by
+   campsite-cleaning the surfaces it will touch **first** — resolve their Sonar
+   findings, extract/decompose over-long functions/files, refactor the methods
+   about to change — *before* the functional change, as a tidy-first enabler
+   (behavior-preserving, focused tests, a distinct preceding step; dispatch a
+   campsite scout on god-surfaces). Then fold only *domain-matched* debt at each
+   point-cut; freeze current offenders as a baseline when a litter class cannot be
+   cleared in-mission (debt stops growing while you chip at it). → `DIRECTIVE_025`.
 3. **Mission tracer files.** Seed three tracer files (tooling-friction, approach,
    design-decisions) at planning, append during implementation, assess at close —
    friction and rationale feed the next mission. → `mission-tracer-files` procedure.

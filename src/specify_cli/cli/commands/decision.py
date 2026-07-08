@@ -111,6 +111,22 @@ def _resolve_repo_root_and_slug(mission_handle: str) -> tuple[Path, str]:
     # handle) is the canonical slug persisted downstream. Handles that resolve
     # to no existing mission keep their raw form so the service's
     # MISSION_NOT_FOUND behaviour is unchanged.
+    #
+    # WP09/FR-001 (kind-correct — deliberately EXCLUDED from the `read_dir(kind)`
+    # migration): this call is NOT a plain "give me kind X's home" read. It
+    # relies on `resolve_feature_dir_for_mission`'s wrapped
+    # `resolve_action_context` to fail closed with a structured
+    # `ActionContextError` (e.g. `COORDINATION_BRANCH_DELETED`) — the #8 live
+    # symptom fix pinned by
+    # `tests/specify_cli/cli/commands/test_decision_single_authority.py`.
+    # Neither `read_dir(kind)` partition leg replicates that validation:
+    # `PRIMARY_METADATA` routes through the deliberately topology-blind
+    # `primary_feature_dir_for_mission` (no coord-branch liveness check at
+    # all), and the STATUS-partition leg's `candidate_feature_dir_for_mission`
+    # never raises on an unresolvable coord topology either (it degrades to a
+    # best-known candidate for the caller to diagnose). Routing this site onto
+    # the seam would silently swallow the fail-closed diagnostic, so it keeps
+    # calling the richer resolver directly.
     resolved = resolve_feature_dir_for_mission(repo_root, mission_handle).resolve()
     if resolved.is_dir():
         return repo_root, resolved.name
