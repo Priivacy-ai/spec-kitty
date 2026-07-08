@@ -30,6 +30,7 @@ from typing import Any
 
 from specify_cli.skills._user_input_block import rewrite as _rewrite_user_input
 from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
+from specify_cli.tersify import tersify_for_llm
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -437,6 +438,12 @@ def render(
     raw_bytes = template_path.read_bytes()
     source_hash = hashlib.sha256(raw_bytes).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
     raw_text = raw_bytes.decode("utf-8")
+
+    # Research flag (SPEC_KITTY_TERSIFY): compress prose before SPDD/User-Input
+    # processing. No-op when the flag is unset. The `## User Input` heading,
+    # the $ARGUMENTS fence, SPDD markers, and frontmatter are all protected
+    # byte-for-byte, so the rewrite and stray-token guard below are unaffected.
+    raw_text = tersify_for_llm(raw_text, source_path=template_path)
 
     # Apply the SPDD/REASONS conditional prompt fragment renderer before any
     # downstream processing so block visibility is consistent across the

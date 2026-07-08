@@ -13,6 +13,7 @@ import yaml
 from specify_cli.core.config import AGENT_COMMAND_CONFIG
 from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
 from specify_cli.template.renderer import parse_frontmatter, render_template_text, rewrite_paths
+from specify_cli.tersify import tersify_for_llm
 
 
 def _get_cli_version() -> str:
@@ -134,6 +135,11 @@ def render_command_template(
     from doctrine.spdd_reasons import apply_spdd_blocks_for_project  # noqa: PLC0415
 
     template_text = template_path.read_text(encoding="utf-8-sig").replace("\r", "")
+    # Research flag (SPEC_KITTY_TERSIFY): compress prose before placeholder
+    # rendering. No-op when the flag is unset. Runs on the raw source so the
+    # hand-tersified cache can key on the source file's hash; all placeholders,
+    # frontmatter, SPDD markers, and code blocks are protected byte-for-byte.
+    template_text = tersify_for_llm(template_text, source_path=template_path)
     template_text = apply_spdd_blocks_for_project(template_text, repo_root)
     requires_script = "{SCRIPT}" in template_text
 

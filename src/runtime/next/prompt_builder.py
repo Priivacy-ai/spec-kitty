@@ -27,6 +27,7 @@ from charter.mission_type_profiles import (
 from charter.resolver import GovernanceResolutionError, resolve_project_governance
 from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.runtime.resolver import resolve_command
+from specify_cli.tersify import tersify_for_llm
 from specify_cli.review.antipattern_checklist import render_wp_review_antipattern_checklist
 from specify_cli.status.wp_metadata import read_wp_frontmatter
 from specify_cli.workspace.context import resolve_workspace_for_wp
@@ -133,6 +134,9 @@ def _build_template_prompt(
     """Build prompt from a command template file."""
     result = resolve_command(f"{action}.md", repo_root, mission=mission_type)
     template_content = result.path.read_text(encoding="utf-8")
+    # Research flag (SPEC_KITTY_TERSIFY): compress template prose in the
+    # `spec-kitty next` payload. No-op when the flag is unset.
+    template_content = tersify_for_llm(template_content, source_path=result.path)
 
     header = _mission_context_header(mission_slug, feature_dir, agent)
     governance = _governance_context(repo_root, action=action, feature_dir=feature_dir)
