@@ -18,6 +18,8 @@ resolves successfully and is unaffected).
 
 from __future__ import annotations
 
+import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -66,6 +68,91 @@ class TestRequireRecordAnalysisPlacementFailClosed:
 # ---------------------------------------------------------------------------
 
 
+def _init_mission(
+    repo_root: Path, slug: str, *, coordination_branch: str | None
+) -> Path:
+    """Create a minimal committed mission (meta.json + planning artifacts).
+
+    Returns the primary feature dir. When ``coordination_branch`` is set the
+    mission's stored topology classifies as COORDINATION; otherwise it is a
+    coord-less primary/single-branch mission.
+    """
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo_root, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.email", "t@e.com"], cwd=repo_root, check=True, capture_output=True)
+    subprocess.run(["git", "config", "user.name", "T"], cwd=repo_root, check=True, capture_output=True)
+    feature_dir = repo_root / "kitty-specs" / slug
+    feature_dir.mkdir(parents=True)
+    mission_id = "01J6XW9KABCDEFGHJKMNPQRSTV"
+    meta: dict[str, object] = {
+        "mission_id": mission_id,
+        "mid8": mission_id[:8],
+        "mission_slug": slug,
+        "mission_type": "software-dev",
+        "target_branch": "main",
+    }
+    if coordination_branch is not None:
+        meta["coordination_branch"] = coordination_branch
+    (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
+    (feature_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
+    (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
+    subprocess.run(["git", "add", "."], cwd=repo_root, check=True, capture_output=True)
+    subprocess.run(["git", "commit", "-m", "seed"], cwd=repo_root, check=True, capture_output=True)
+    if coordination_branch is not None:
+        # The stored COORDINATION topology requires the declared coord branch +
+        # worktree to actually exist in git, else placement resolution raises
+        # CoordinationBranchDeleted (identically on both paths).
+        coord_wt = repo_root / ".worktrees" / f"{slug}-{mission_id[:8]}-coord"
+        subprocess.run(
+            ["git", "worktree", "add", "-b", coordination_branch, str(coord_wt), "main"],
+            cwd=repo_root,
+            check=True,
+            capture_output=True,
+        )
+    return feature_dir
+
+
+class TestPlacementRefSeamEquivalence:
+    """paula MINOR #2 fold: ``_resolve_record_analysis_placement_ref`` routes through
+    the kind-aware placement seam (``write_target(ANALYSIS_REPORT)``) and resolves to
+    the SAME :class:`CommitTarget` the prior generic ``resolve_action_context(
+    action="tasks").artifact_placement.placement_ref`` projection produced — for
+    every topology. ANALYSIS_REPORT is a COORD kind, so both project
+    ``branch_ref.destination_ref`` from the single ``_assemble_core_fragments``
+    builder; the action never influences that ref.
+    """
+
+    @pytest.mark.parametrize(
+        "coordination_branch",
+        [None, "kitty/mission-equiv-demo-01J6XW9K"],
+        ids=["primary", "coordination"],
+    )
+    def test_seam_write_target_equals_tasks_action_placement(
+        self, tmp_path: Path, coordination_branch: str | None
+    ) -> None:
+        from mission_runtime import (
+            MissionArtifactKind,
+            placement_seam,
+            resolve_action_context,
+        )
+        from specify_cli.cli.commands.agent import mission_record_analysis as seam
+
+        slug = "equiv-demo-01J6XW9K"
+        feature_dir = _init_mission(tmp_path, slug, coordination_branch=coordination_branch)
+
+        resolver_ref = seam._resolve_record_analysis_placement_ref(tmp_path, feature_dir)
+        seam_ref = placement_seam(tmp_path, slug).write_target(
+            MissionArtifactKind.ANALYSIS_REPORT
+        )
+        legacy_ref = resolve_action_context(
+            tmp_path, action="tasks", feature=slug
+        ).artifact_placement.placement_ref
+
+        assert resolver_ref is not None
+        # The fold's core invariant: the seam projection == the retired generic
+        # tasks-action projection == what the resolver now returns.
+        assert resolver_ref == seam_ref == legacy_ref
+
+
 class TestResolverContractUnchanged:
     def test_resolver_still_returns_none_on_resolution_failure(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
@@ -77,7 +164,9 @@ class TestResolverContractUnchanged:
         def _boom(*_a: object, **_k: object) -> object:
             raise ActionContextError("X", "no context")
 
-        monkeypatch.setattr(mission_runtime, "resolve_action_context", _boom, raising=False)
+        # Post-fold the resolver routes through placement_seam(...).write_target(
+        # ANALYSIS_REPORT); a raised ActionContextError still degrades to None.
+        monkeypatch.setattr(mission_runtime, "placement_seam", _boom, raising=False)
         assert (
             seam._resolve_record_analysis_placement_ref(tmp_path, tmp_path / "001-demo")
             is None

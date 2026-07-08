@@ -74,8 +74,10 @@ def test_placement_ref_none_on_resolution_failure(
     def _boom(*_a: object, **_k: object) -> object:
         raise ActionContextError("X", "no context")
 
-    # The helper lazily imports resolve_action_context from mission_runtime.
-    monkeypatch.setattr(mission_runtime, "resolve_action_context", _boom, raising=False)
+    # The helper lazily imports placement_seam from mission_runtime and calls
+    # write_target(ANALYSIS_REPORT); a raised ActionContextError must degrade to
+    # None (unchanged Optional contract).
+    monkeypatch.setattr(mission_runtime, "placement_seam", _boom, raising=False)
     assert seam._resolve_record_analysis_placement_ref(tmp_path, tmp_path / "001-demo") is None
 
 
