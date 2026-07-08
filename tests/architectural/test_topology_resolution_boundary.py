@@ -261,7 +261,25 @@ _BARE_SLUG_FIELD_NAMES: frozenset[str] = frozenset(
 # detector skips), so the allow-list is empty: any new bare-slug compose is now
 # an unconditional C-SEAM-2 regression. The ``stale`` assertion below keeps this
 # empty set from silently re-accumulating dead exemptions.
-_ALLOWLISTED_LEGACY_COMPOSE_SITES: frozenset[str] = frozenset()
+#
+# post-merge addition (coord-primary-partition-lock-01KWZ46V, squash-merged
+# 007528ddf): ``coordination/workspace.py`` added
+# ``CoordinationWorkspaceIdentityUnresolved`` (#2091, invariant M-1) — a
+# fail-loud guard raised when ``mid8`` is empty, BEFORE any branch/dir name is
+# composed. Its ``__init__`` builds a human-readable exception MESSAGE that
+# describes the malformed shape using a literal placeholder
+# ``'kitty/mission-<slug>-'`` (angle brackets, not an f-string field) and
+# separately interpolates the real ``mission_slug`` elsewhere in the same
+# sentence ("for mission {mission_slug!r}") for readability. The detector's
+# literal+field heuristic does not distinguish "field appears inside the
+# kitty/mission- segment" from "field appears anywhere in the concatenated
+# string", so it flags this diagnostic prose as if it composed a ref. No git
+# ref, branch, or worktree name is ever constructed from this string — it is
+# raised and never parsed back into a ref. Verified: this is the ONLY
+# JoinedStr in the module containing "kitty/mission-".
+_ALLOWLISTED_LEGACY_COMPOSE_SITES: frozenset[str] = frozenset(
+    {"src/specify_cli/coordination/workspace.py"}
+)
 
 
 def _legacy_mission_compose_sites(path: Path) -> bool:

@@ -145,6 +145,40 @@ _ALLOWED_SITES_FILES: dict[tuple[str, str], str] = {
     # false-negative window). The
     # ``test_name_compose_offenders_match_pinned_baseline`` cross-check below
     # pins the offender count so a re-grown stale allow-list entry is caught.
+    # ── surface_resolver.py: _coord_mid8 fail-closed raise payload (idiom 1) ──
+    # post-merge addition (coord-primary-partition-lock-01KWZ46V, squash-merged
+    # 007528ddf): ``coord_candidate = repo_root / ".worktrees" /
+    # f"{mission_slug}-coord" / KITTY_SPECS_DIR / mission_slug`` composes a
+    # ``.worktrees``-shaped Path ONLY to populate the ``StatusReadPathNotFound``
+    # diagnostic ``raise`` payload — the same site already dispositioned DIAG
+    # (no FS sink) in ``test_single_mission_surface_resolver.py`` /
+    # ``surface_resolution_audit/inventory.md`` /
+    # ``untrusted_path_audit/inventory.md``. It replaced a
+    # ``CoordinationWorkspace.worktree_path(...)`` seam call (#2091, invariant
+    # M-1: that seam now REQUIRES a non-empty mid8 and would raise a DIFFERENT
+    # exception before this more specific fail-closed one could raise) — no git
+    # worktree is ever created/looked up from this value; it is raised
+    # immediately.
+    ("_coord_mid8", "coord_candidate = repo_root"): (
+        "src/specify_cli/coordination/surface_resolver.py"
+    ),
+    # ── workspace.py: CoordinationWorkspaceIdentityUnresolved diagnostic (idiom 2) ──
+    # post-merge addition (coord-primary-partition-lock-01KWZ46V, same commit):
+    # the exception's message is a human-readable string that names the
+    # malformed-shape placeholder ``'kitty/mission-<slug>-'`` (angle brackets,
+    # not an f-string field) and separately interpolates the real
+    # ``mission_slug`` elsewhere in the same sentence ("for mission
+    # {mission_slug!r}"). The idiom-2 literal-text check does not distinguish
+    # "field interpolated inside the kitty/mission- segment" from "field
+    # interpolated anywhere in the concatenated string", so it flags this
+    # prose. No branch/worktree/dir name is ever composed or used from this
+    # string — it is raised as a StructuredError message and never parsed back
+    # into a ref (same finding already carved out in
+    # ``test_topology_resolution_boundary.py::_ALLOWLISTED_LEGACY_COMPOSE_SITES``).
+    (
+        "CoordinationWorkspaceIdentityUnresolved.__init__",
+        "",
+    ): "src/specify_cli/coordination/workspace.py",
 }
 
 _ALLOWED_SITES: frozenset[tuple[str, str]] = frozenset(_ALLOWED_SITES_FILES)
@@ -155,11 +189,17 @@ _ALLOWED_SITES: frozenset[tuple[str, str]] = frozenset(_ALLOWED_SITES_FILES)
 # ``_SHORTID_BASELINE_RAW_MATCHES``: a stale allow-list entry (one that no longer
 # points at a live offender) or an extra unjustified entry would drift this
 # count and trip the cross-check. Composition (verified at this baseline land):
-#   recovery.py:135            (branch-list glob — benign carve-out)
-#   vcs/detection.py:161       (seam-parser round-trip — benign carve-out)
-#   lifecycle_sync.py:135      (corrupt-lanes diagnostic placeholder — benign)
-# => 3 raw offenders, all accounted for by the allow-list => 0 un-accounted.
-_NAME_COMPOSE_BASELINE_RAW_MATCHES = 3
+#   recovery.py:135                    (branch-list glob — benign carve-out)
+#   vcs/detection.py:161               (seam-parser round-trip — benign carve-out)
+#   lifecycle_sync.py:135              (corrupt-lanes diagnostic placeholder — benign)
+#   surface_resolver.py:499            (post-merge coord-primary-partition-lock
+#                                        01KWZ46V — _coord_mid8 DIAG raise payload,
+#                                        benign carve-out)
+#   workspace.py:123                   (post-merge coord-primary-partition-lock
+#                                        01KWZ46V — CoordinationWorkspaceIdentityUnresolved
+#                                        diagnostic message, benign carve-out)
+# => 5 raw offenders, all accounted for by the allow-list => 0 un-accounted.
+_NAME_COMPOSE_BASELINE_RAW_MATCHES = 5
 
 # Helper text appended to every failure so the offender knows the fix.
 _SEAM_GUIDANCE = (
