@@ -199,6 +199,27 @@ def test_agent_baseline_directory_exists(agent: str) -> None:
     )
 
 
+def test_no_orphan_baseline_directories() -> None:
+    """The baseline tree holds exactly the non-migrated agents — no more, no less.
+
+    Guards against a migrated agent (e.g. ``roo``, which moved to the Agent
+    Skills / shim delivery path and is absent from ``AGENT_COMMAND_CONFIG``)
+    leaving behind an ungated baseline directory that silently drifts because
+    no parametrized test ever renders or asserts it.
+    """
+    baseline_dirs = {
+        d.name for d in BASELINE_DIR.iterdir() if d.is_dir() and not d.name.startswith("__")
+    }
+    expected = set(NON_MIGRATED_AGENTS)
+    orphans = baseline_dirs - expected
+    missing = expected - baseline_dirs
+    assert not orphans and not missing, (
+        f"Baseline directories must match NON_MIGRATED_AGENTS exactly.\n"
+        f"  Orphan dirs (present but not a non-migrated agent — prune them): {sorted(orphans)}\n"
+        f"  Missing dirs (expected but absent — regenerate them): {sorted(missing)}"
+    )
+
+
 @pytest.mark.parametrize("agent", NON_MIGRATED_AGENTS)
 def test_agent_baseline_file_count(agent: str) -> None:
     """Each agent baseline directory must contain one file per prompt-backed command."""
