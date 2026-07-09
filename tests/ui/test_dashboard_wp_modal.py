@@ -29,7 +29,24 @@ from __future__ import annotations
 import re
 
 import pytest
-from playwright.sync_api import Page, expect
+
+# `pytest-playwright` is an optional dependency (`[project.optional-dependencies].test`
+# in pyproject.toml) — a dev who ran `uv sync` without the `test` extra won't have
+# it installed. Without this guard, `from playwright.sync_api import ...` raises
+# `ModuleNotFoundError` at COLLECTION time, which fails the full-suite
+# `pytest --collect-only` the architectural gate tests
+# (tests/architectural/test_gate_coverage.py et al.) run to build their test
+# universe — turning a missing optional dep into a hard RuntimeError across a
+# dozen unrelated gate tests. `importorskip` degrades that to a clean SKIP of
+# just this module; it is a no-op when playwright IS installed (CI's
+# `ui-e2e.yml` always installs it), so the real e2e regression guard still
+# collects and runs unchanged there.
+pytest.importorskip(
+    "playwright",
+    reason="pytest-playwright optional dep; run `uv sync --extra test` / "
+    "`playwright install chromium` to exercise tests/ui/",
+)
+from playwright.sync_api import Page, expect  # noqa: E402  (after importorskip)
 
 pytestmark = pytest.mark.e2e
 
