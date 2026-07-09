@@ -21,6 +21,19 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **orchestrator-api `transition` no longer lets WPs into `for_review` with
+  unchecked subtasks (#2510).** The command trusted a caller-asserted
+  `--subtasks-complete`; left unset, emit-time inference read `tasks.md` off
+  the STATUS feature dir — the coordination worktree husk mid-mission, where
+  the PRIMARY-partition `tasks.md` never exists — and **failed open**,
+  silently bypassing the subtask guard native `move-task` enforces (field
+  evidence: four WPs reached `done` with 0/16 rows ticked, `force=false`).
+  Mirroring the command's own commit-gate precedent, the API now derives the
+  value server-side from the PRIMARY planning surface when the caller doesn't
+  assert it; explicit assertions keep working and `--force` keeps its bypass.
+  Fifth member of the coord-shadows-primary class
+  (#2331/#2430/#2502/#2508).
+
 ### ♻️ Changed
 
 ## [3.2.5] - 2026-07-08
