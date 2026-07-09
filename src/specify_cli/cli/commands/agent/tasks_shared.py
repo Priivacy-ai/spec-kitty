@@ -468,9 +468,11 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
     in_wp_section = False
     in_code_fence = False
 
-    # Canonical subtask row: ``- [ ] T001 ...``. A ``T`` id of at least three
-    # digits is mandatory (``\d{3,}`` so ids past T999 still block).
-    canonical_unchecked = re.compile(r"^-\s*\[\s*\]\s*(T\d{3,})\b")
+    # Canonical subtask row: ``- [ ] T001 ...`` — single shared definition
+    # (core.subtask_rows, also consumed by the dashboard's progress counts).
+    from specify_cli.core.subtask_rows import UNCHECKED_SUBTASK_ROW
+
+    canonical_unchecked = UNCHECKED_SUBTASK_ROW
 
     for line in lines:
         stripped = line.strip()

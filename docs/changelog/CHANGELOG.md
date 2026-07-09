@@ -19,6 +19,17 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
 
+- **Dashboard WP cards show subtask progress (#2504).** Cards (and the WP
+  detail view) previously showed a bare frontmatter count (`4 subtasks`);
+  they now show `2/4 subtasks` (with a ✓ at n/n), counted from the canonical
+  checkbox rows in the WP body — the same rows the lane-transition guard
+  blocks on, via a new shared single definition
+  (`core/subtask_rows.py`, now consumed by both the guard and the dashboard
+  so the two can't drift). WPs that don't track completion via checkboxes
+  keep the plain count badge (no false `0/N`). The kanban task payload gains
+  additive `subtasks_done`/`subtasks_total` fields; the typed-contract
+  baseline is regenerated accordingly.
+
 ### 🐛 Fixed
 
 ### ♻️ Changed

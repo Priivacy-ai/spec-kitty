@@ -851,6 +851,8 @@ def _process_wp_file(
             "title": f"⚠️ Encoding Error: {prompt_file.name}",
             "lane": default_lane,
             "subtasks": [],
+            "subtasks_done": 0,
+            "subtasks_total": 0,
             "agent": "",
             "model": "",
             "assignee": "",
@@ -915,11 +917,22 @@ def _process_wp_file(
 
     if not model_str:
         model_str = str(wp_meta_dict.model or "") if wp_meta_dict.model else ""
+
+    # Progress from the canonical checkbox rows in the WP body (#2504) —
+    # the same rows the lane-transition guard counts, via the shared
+    # definition. (0, 0) when the WP doesn't track completion via checkboxes;
+    # the frontend then falls back to the plain frontmatter count badge.
+    from specify_cli.core.subtask_rows import count_subtask_rows
+
+    subtasks_done, subtasks_total = count_subtask_rows(prompt_body)
+
     return {
         "id": wp_id,
         "title": title,
         "lane": lane,
         "subtasks": wp_meta_dict.subtasks or [],
+        "subtasks_done": subtasks_done,
+        "subtasks_total": subtasks_total,
         "agent": agent_str,
         "model": model_str,
         "agent_profile": wp_meta_dict.agent_profile or "",

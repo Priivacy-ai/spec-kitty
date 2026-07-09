@@ -54,6 +54,47 @@ def _create_feature(tmp_path: Path, slug: str = "001-demo-feature", *, lane: str
     return _create_feature_at(tmp_path / "kitty-specs" / slug, lane=lane)
 
 
+def test_wp_cards_report_subtask_progress(tmp_path):
+    """#2504: WP cards carry done/total counted from the body's canonical
+    checkbox rows — the same rows the lane-transition guard blocks on."""
+    feature_dir = _create_feature(tmp_path)
+    (feature_dir / "tasks" / "WP01-demo.md").write_text(
+        """---
+work_package_id: WP01
+subtasks: ["T001", "T002", "T003"]
+agent: codex
+---
+# Work Package Prompt: Demo
+
+- [x] T001 Build the thing
+- [ ] T002 Verify the thing
+- [x] T003 Document the thing
+- [ ] swift test
+""",
+        encoding="utf-8",
+    )
+
+    lanes = scanner.scan_feature_kanban(tmp_path, feature_dir.name)
+    task = next(t for lane in lanes.values() for t in lane)
+
+    assert task["subtasks_done"] == 2
+    assert task["subtasks_total"] == 3  # the command row is not a subtask
+    assert task["subtasks"] == ["T001", "T002", "T003"]  # frontmatter untouched
+
+
+def test_wp_without_checkbox_rows_reports_zero_totals(tmp_path):
+    """No checkbox rows → (0, 0); the frontend falls back to the plain
+    frontmatter count badge rather than showing a false 0/N."""
+    feature_dir = _create_feature(tmp_path)  # fixture body has no checkboxes
+
+    lanes = scanner.scan_feature_kanban(tmp_path, feature_dir.name)
+    task = next(t for lane in lanes.values() for t in lane)
+
+    assert task["subtasks_total"] == 0
+    assert task["subtasks_done"] == 0
+    assert task["subtasks"] == ["T1"]
+
+
 def test_scan_all_features_detects_feature(tmp_path):
     feature_dir = _create_feature(tmp_path)
     features = scanner.scan_all_features(tmp_path)

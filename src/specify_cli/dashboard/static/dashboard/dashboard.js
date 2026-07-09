@@ -514,7 +514,9 @@ function renderKanban(lanes, weightedPercentage) {
                 ${task.agent ? `<span class="badge agent">${escapeHtml(task.agent)}</span>` : ''}
                 ${task.agent_profile ? `<span class="badge profile">${escapeHtml(task.agent_profile)}</span>` : ''}
                 ${task.role ? `<span class="badge role">${escapeHtml(task.role)}</span>` : ''}
-                ${task.subtasks?.length > 0 ?
+                ${task.subtasks_total > 0 ?
+                  `<span class="badge subtasks">${task.subtasks_done}/${task.subtasks_total} subtasks${task.subtasks_done === task.subtasks_total ? ' ✓' : ''}</span>` :
+                  task.subtasks?.length > 0 ?
                   `<span class="badge subtasks">${task.subtasks.length} subtask${task.subtasks.length !== 1 ? 's' : ''}</span>` : ''}
             </div>
         </div>
@@ -617,7 +619,9 @@ function showPromptModal(task) {
     if (metaEl) {
         const metaItems = [];
         if (task.lane) metaItems.push(`<span>Lane: ${escapeHtml(formatLaneName(task.lane))}</span>`);
-        if (task.subtasks?.length) {
+        if (task.subtasks_total > 0) {
+            metaItems.push(`<span>${task.subtasks_done}/${task.subtasks_total} subtasks complete</span>`);
+        } else if (task.subtasks?.length) {
             metaItems.push(`<span>${task.subtasks.length} subtask${task.subtasks.length !== 1 ? 's' : ''}</span>`);
         }
         if (task.phase) metaItems.push(`<span>Phase: ${escapeHtml(task.phase)}</span>`);
