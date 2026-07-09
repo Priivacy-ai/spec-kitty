@@ -1,0 +1,4 @@
+id: mismatched-mime-asset
+mime: image/png
+path: icon.txt
+title: mime/extension mismatch (must be rejected — asset_mime_invalid)

@@ -487,17 +487,21 @@ def _render_tactic_include(service: object, identifier: str, selector: str) -> s
 def _render_generic_artifact_include(service: object, identifier: str) -> str:
     """Resolve a best-effort ``artifact:<id>`` selector emitted by activations."""
 
-    from doctrine.artifact_kinds import ArtifactKind
+    from doctrine.artifact_kinds import _NON_AUGMENTATION_ELIGIBLE_KINDS, ArtifactKind
 
     # Derive the candidate kinds from the canonical ArtifactKind set rather
-    # than re-declaring a parallel tuple (R-009 / CC-4). ``TEMPLATE`` is
-    # excluded: templates are mission-qualified (``<mission>/<name>``) and are
-    # not addressable by a bare ``artifact:<id>`` probe.
+    # than re-declaring a parallel tuple (R-009 / CC-4). Members of the
+    # canonical ``_NON_AUGMENTATION_ELIGIBLE_KINDS`` set are excluded: both
+    # ``TEMPLATE`` (mission-qualified ``<mission>/<name>`` IDs) and ``ASSET``
+    # (loose-contract kind, FR-005/FR-011) are not addressable by a bare
+    # ``artifact:<id>`` probe. This is the single canonical exclusion set
+    # (WP06) — no private single-member ``is not TEMPLATE`` check may be
+    # re-declared here or elsewhere in the charter cascade.
     matches: list[tuple[str, str]] = []
     for candidate_kind in (
         member.value
         for member in ArtifactKind
-        if member is not ArtifactKind.TEMPLATE
+        if member not in _NON_AUGMENTATION_ELIGIBLE_KINDS
     ):
         selector = f"{candidate_kind}:{identifier}"
         try:

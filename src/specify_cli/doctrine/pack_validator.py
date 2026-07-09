@@ -22,15 +22,21 @@ Validation performs (in order):
    * ``same_id_collision`` ADVISORY (reworded) — same-ID collision with no declared intent.
 
 6. **Optional duplicate DRG edge advisories**.
-7. **Optional org-charter.yaml schema validation** (gracefully skipped when
+7. **ASSET sidecar manifest safety checks** when an ``assets/`` directory is
+   present: path containment (``asset_path_escape``) and mime/extension
+   consistency (``asset_mime_invalid``). This is a loose-contract kind —
+   the referenced blob is never scanned, only its ``*.asset.yaml`` sidecar
+   manifest is, and cross-pack id-uniqueness is intentionally NOT enforced
+   here (see WP03's merge scan).
+8. **Optional org-charter.yaml schema validation** (gracefully skipped when
    the ``specify_cli.doctrine.org_charter`` module is not yet shipped —
    WP09 owns that file).
 
 Issue ``category`` values surfaced via ``ValidationIssue.category``:
 ``schema_invalid``, ``duplicate_id``, ``drg_dangling_edge``, ``drg_kind_drift``,
 ``duplicate_drg_edge``, ``same_id_collision``, ``unknown_target``,
-``intent_conflict``, plus structural categories for the ``pack`` and
-``org-charter`` artifact types.
+``intent_conflict``, ``asset_path_escape``, ``asset_mime_invalid``, plus
+structural categories for the ``pack`` and ``org-charter`` artifact types.
 
 The public surface is intentionally small:
 
@@ -98,6 +104,10 @@ class ValidationIssue:
     * ``same_id_collision`` — pack ID matches a built-in with no declared intent.
     * ``unknown_target`` — declared ``enhances`` / ``overrides`` target is not a built-in.
     * ``intent_conflict`` — both ``enhances`` and ``overrides`` declared on one artifact.
+    * ``asset_path_escape`` — an ASSET manifest's ``path`` resolves outside the
+      pack's ``assets/`` root (absolute, ``..``-escape, or symlink escape).
+    * ``asset_mime_invalid`` — an ASSET manifest's ``mime`` is not a well-formed
+      ``type/subtype`` value, or disagrees with the path extension's guessed type.
     * ``not_found`` / ``parse_error`` / ``advisory`` — structural categories.
     """
 
@@ -149,6 +159,7 @@ def _artifact_schema_registry() -> dict[str, tuple[str, type[BaseModel]]]:
     import time (keeps ``--help`` snappy).
     """
     from doctrine.agent_profiles.profile import AgentProfile
+    from doctrine.assets.models import AssetManifest
     from doctrine.directives.models import Directive
     from doctrine.missions.step_contracts import MissionStepContract
     from doctrine.paradigms.models import Paradigm
@@ -166,6 +177,14 @@ def _artifact_schema_registry() -> dict[str, tuple[str, type[BaseModel]]]:
         "procedures": ("*.procedure.yaml", Procedure),
         "agent_profiles": ("*.agent.yaml", AgentProfile),
         "mission_step_contracts": ("*.step-contract.yaml", MissionStepContract),
+        # ASSET is a loose-contract kind (FR-005/FR-011): the manifest is the
+        # validated surface, the referenced blob itself is never scanned.
+        # There is deliberately no "skip the blob schema" branch — the glob
+        # only ever targets the sidecar `*.asset.yaml`, so this manifest is
+        # validated exactly like the other nine kinds' YAML. The additional
+        # containment/mime safety checks live in a separate pass
+        # (_validate_asset_manifests), not here.
+        "assets": ("*.asset.yaml", AssetManifest),
     }
 
 
@@ -370,6 +389,18 @@ def validate_pack(pack_dir: Path) -> ValidationResult:
         errors.extend(drg_errors)
         advisories.extend(drg_advisories)
 
+    # ASSET sidecar safety checks (T015): a separate pass mirroring the DRG
+    # seam above, NOT inlined in the branchy _scan_artifact_directory loop.
+    # Only manifests that already passed the generic schema scan (recorded
+    # in pack_artifacts_data) are checked here — malformed manifests were
+    # already flagged as schema_invalid by that scan. Does NOT enforce
+    # global id-uniqueness across packs (WP03's merge scan owns that).
+    asset_errors, asset_advisories = _validate_asset_manifests(
+        pack_dir, pack_artifacts_data.get("assets", {})
+    )
+    errors.extend(asset_errors)
+    advisories.extend(asset_advisories)
+
     # FR-011..FR-013 (WP06 T037): intent-aware collision messages. This replaces
     # the legacy unconditional ``_built_in_id_collision_advisories`` pass.
     # FR-028 hard cutover retired ``enhances``/``overrides`` inline fields on
@@ -563,6 +594,154 @@ def _validate_drg(
                 seen_edges[key] = fragment
 
     return errors, advisories
+
+
+# ---------------------------------------------------------------------------
+# ASSET sidecar manifest validation (T015-T017)
+# ---------------------------------------------------------------------------
+
+
+def _validate_asset_manifests(
+    pack_dir: Path,
+    asset_manifests: dict[str, tuple[dict[str, Any], Path]],
+) -> tuple[list[ValidationIssue], list[ValidationIssue]]:
+    """Validate ASSET sidecar manifests: path containment + mime consistency.
+
+    Invoked once per pack (mirrors the ``if drg_dir.is_dir(): _validate_drg(...)``
+    seam), deliberately kept separate from the branchy per-file
+    :func:`_scan_artifact_directory` loop. *asset_manifests* is the
+    ``{id: (raw_data, source_file)}`` slice already collected by the generic
+    schema scan for the ``"assets"`` plural — manifests that failed schema
+    validation (missing/blank ``id``/``mime``/``path``) never reach this
+    function; they were already flagged ``schema_invalid`` by that scan.
+
+    This does **not** enforce cross-pack global id-uniqueness — that is
+    WP03's merge-time scan. Here: manifest well-formedness (already handled
+    by the schema), path containment, and mime consistency.
+    """
+    errors: list[ValidationIssue] = []
+    advisories: list[ValidationIssue] = []
+    if not asset_manifests:
+        return errors, advisories
+
+    assets_root = (pack_dir / "assets").resolve(strict=False)
+    for artifact_id in sorted(asset_manifests):
+        data, source_file = asset_manifests[artifact_id]
+        raw_path = data.get("path")
+        if not isinstance(raw_path, str) or not raw_path:
+            continue  # defensive guard: schema already enforces non-empty path
+
+        escape_error = _check_asset_path_containment(
+            assets_root=assets_root,
+            artifact_id=artifact_id,
+            raw_path=raw_path,
+            source_file=source_file,
+        )
+        if escape_error is not None:
+            errors.append(escape_error)
+            continue
+
+        raw_mime = data.get("mime")
+        if not isinstance(raw_mime, str) or not raw_mime:
+            continue  # defensive guard: schema already enforces non-empty mime
+
+        mime_error = _check_asset_mime(
+            artifact_id=artifact_id,
+            raw_mime=raw_mime,
+            raw_path=raw_path,
+            source_file=source_file,
+        )
+        if mime_error is not None:
+            errors.append(mime_error)
+
+    return errors, advisories
+
+
+def _check_asset_path_containment(
+    *,
+    assets_root: Path,
+    artifact_id: str,
+    raw_path: str,
+    source_file: Path,
+) -> ValidationIssue | None:
+    """Reuse the shared containment primitive to enforce path safety.
+
+    Delegates to
+    :func:`doctrine.drg.org_pack_config.resolve_relative_path_within_root` —
+    the same primitive :meth:`OrgPackConfig.effective_root` uses for
+    ``subdir`` containment — rather than a sixth hand-rolled
+    resolve-then-``relative_to`` implementation.
+
+    Returns an ``asset_path_escape`` error issue when *raw_path* is absolute,
+    contains a ``..`` component, or resolves (symlink-aware) outside
+    *assets_root*; ``None`` when containment holds.
+    """
+    from doctrine.drg.org_pack_config import (
+        OrgPackSubdirEscapeError,
+        resolve_relative_path_within_root,
+    )
+
+    try:
+        resolve_relative_path_within_root(assets_root, raw_path)
+    except OrgPackSubdirEscapeError as exc:
+        return ValidationIssue(
+            severity="error",
+            artifact_type="assets",
+            artifact_id=artifact_id,
+            file=str(source_file),
+            message=(
+                f"asset path {raw_path!r} escapes the pack's assets/ root: {exc}"
+            ),
+            category="asset_path_escape",
+        )
+    return None
+
+
+def _check_asset_mime(
+    *,
+    artifact_id: str,
+    raw_mime: str,
+    raw_path: str,
+    source_file: Path,
+) -> ValidationIssue | None:
+    """Validate ``mime`` shape (``type/subtype``) and path-extension consistency.
+
+    Returns an ``asset_mime_invalid`` error issue when *raw_mime* is not a
+    well-formed ``type/subtype`` value, or when Python's
+    ``mimetypes.guess_type`` can infer a type from *raw_path*'s extension and
+    it disagrees with the declared *raw_mime*; ``None`` when both checks
+    pass (or when no type can be guessed from the extension — nothing to
+    compare against).
+    """
+    import mimetypes
+
+    mime_type, sep, mime_subtype = raw_mime.partition("/")
+    if not sep or not mime_type or not mime_subtype:
+        return ValidationIssue(
+            severity="error",
+            artifact_type="assets",
+            artifact_id=artifact_id,
+            file=str(source_file),
+            message=(
+                f"asset mime {raw_mime!r} is not a well-formed 'type/subtype' value"
+            ),
+            category="asset_mime_invalid",
+        )
+
+    guessed_mime, _ = mimetypes.guess_type(raw_path)
+    if guessed_mime is not None and guessed_mime != raw_mime:
+        return ValidationIssue(
+            severity="error",
+            artifact_type="assets",
+            artifact_id=artifact_id,
+            file=str(source_file),
+            message=(
+                f"asset mime {raw_mime!r} is inconsistent with path "
+                f"{raw_path!r} (guessed {guessed_mime!r} from its extension)"
+            ),
+            category="asset_mime_invalid",
+        )
+    return None
 
 
 # ---------------------------------------------------------------------------

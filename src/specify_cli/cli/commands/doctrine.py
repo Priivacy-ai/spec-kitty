@@ -646,6 +646,7 @@ _SUFFIX_TO_KIND: dict[str, tuple[str, str]] = {
     ".procedure.yaml": ("procedures", "procedure"),
     ".agent.yaml": ("agent_profiles", "agent_profile"),
     ".step-contract.yaml": ("mission_step_contracts", "mission_step_contract"),
+    ".asset.yaml": ("assets", "asset"),
 }
 
 

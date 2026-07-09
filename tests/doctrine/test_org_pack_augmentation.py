@@ -70,16 +70,37 @@ def test_loader_and_validator_share_one_augmentation_source() -> None:
 
 
 def test_eligible_set_is_artifactkind_minus_template_plus_mission_type() -> None:
-    """FR-030/FR-028/FR-032: one definition covering all 9 eligible kinds.
+    """FR-030/FR-028/FR-032/FR-011: one definition covering all eligible kinds.
 
-    The set is the eight ``ArtifactKind`` members (minus ``template``) plus the
+    The set is the ``ArtifactKind`` members minus
+    ``_NON_AUGMENTATION_ELIGIBLE_KINDS`` (``template``, ``asset``) plus the
     mission-type extension; adding a kind is a one-line change.
     """
+    from doctrine.artifact_kinds import _NON_AUGMENTATION_ELIGIBLE_KINDS
+
     expected_singulars = {
-        k.value for k in ArtifactKind if k is not ArtifactKind.TEMPLATE
+        k.value for k in ArtifactKind if k not in _NON_AUGMENTATION_ELIGIBLE_KINDS
     } | {"mission_type"}
     assert set(AUGMENTATION_ELIGIBLE_KINDS) == expected_singulars
     assert ArtifactKind.TEMPLATE.value not in AUGMENTATION_ELIGIBLE_KINDS
+    assert ArtifactKind.ASSET.value not in AUGMENTATION_ELIGIBLE_KINDS
+
+
+def test_template_and_asset_are_node_declarable_but_not_augmentation_eligible() -> None:
+    """FR-001/FR-007/FR-011: templates/assets are node-declarable DRG kinds.
+
+    They must resolve as valid ``kind`` values on an org-pack DRG node (i.e.
+    an org pack may declare a template/asset node and reference it in edges)
+    while remaining excluded from the augmentation vocabulary — the loader
+    must route both exclusions through the single canonical set imported from
+    ``artifact_kinds`` rather than a private ``is not TEMPLATE`` check.
+    """
+    assert "templates" in _ORG_DRG_CANONICAL_KINDS
+    assert "assets" in _ORG_DRG_CANONICAL_KINDS
+    assert "template" not in AUGMENTATION_ELIGIBLE_KINDS
+    assert "asset" not in AUGMENTATION_ELIGIBLE_KINDS
+    assert "templates" not in augmentation_plural_kinds()
+    assert "assets" not in augmentation_plural_kinds()
 
 
 def test_relations_single_source_includes_specializes_from() -> None:
@@ -357,6 +378,35 @@ def test_mission_type_singular_alias_resolves_to_plural() -> None:
         }
     )
     assert fragment.nodes[0].kind == "mission_types"
+
+
+def test_template_and_asset_fragment_nodes_validate_but_do_not_augment() -> None:
+    """FR-001/FR-007/FR-011: template/asset nodes are node-declarable.
+
+    A fragment may declare ``template``/``asset`` kind nodes (they resolve
+    through :class:`_OrgDRGNode` like every other kind) even though neither
+    kind carries augmentation vocabulary — an ``enhances``/``overrides`` edge
+    against one is not auto-emitted by the loader (only fragment-authored
+    edges reach ``fragment.edges`` for these kinds).
+    """
+    from doctrine.drg.org_pack_loader import OrgDRGFragment
+
+    fragment = OrgDRGFragment.model_validate(
+        {
+            "pack_name": "acme",
+            "source_kind": "local_path",
+            "source_ref": "/nonexistent/acme",
+            "layer_index": 1,
+            "provenance_marker": "org",
+            "nodes": [
+                {"id": "pr-template", "kind": "templates", "title": "PR template"},
+                {"id": "logo", "kind": "assets", "title": "Logo asset"},
+            ],
+            "edges": [],
+        }
+    )
+    kinds = {node.kind for node in fragment.nodes}
+    assert kinds == {"templates", "assets"}
 
 
 def test_lockstep_drift_guard_against_allowed_kinds() -> None:

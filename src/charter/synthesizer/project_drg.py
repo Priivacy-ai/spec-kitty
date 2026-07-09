@@ -48,11 +48,18 @@ _KIND_TO_NODE_KIND: dict[str, NodeKind] = {
 }
 
 
-def _node_kind_for(kind: str) -> NodeKind:
-    try:
-        return _KIND_TO_NODE_KIND[kind]
-    except KeyError:
-        raise ValueError(f"Unsupported artifact kind: {kind!r}") from None
+def _node_kind_for(kind: str) -> NodeKind | None:
+    """Return the ``NodeKind`` for a synthesis target *kind*, or ``None``.
+
+    Only ``directive``/``tactic``/``styleguide`` are synthesizable charter
+    targets today. ``.get`` (not a raising subscript, WP06) so unsupported
+    kinds — including the mission-tier ``template`` and loose-contract
+    ``asset`` :class:`~doctrine.artifact_kinds.ArtifactKind` members —
+    resolve to ``None`` instead of raising. Callers (``emit_project_layer``)
+    treat ``None`` as "skip this target's node and edges" so an unsupported
+    target kind never crashes project-DRG emission.
+    """
+    return _KIND_TO_NODE_KIND.get(kind)
 
 
 def _serialize_graph(graph: DRGGraph) -> str:
@@ -118,6 +125,12 @@ def emit_project_layer(
       ``built_in_drg.edges`` raises ``ProjectDRGValidationError`` — no
       duplicate edges allowed.
 
+    A target whose ``kind`` is not a synthesizable node kind (see
+    :func:`_node_kind_for` — only ``directive``/``tactic``/``styleguide`` are
+    synthesis targets today) is skipped: neither its node nor its edges are
+    emitted (WP06 charter-cascade exhaustiveness — an unsupported kind must
+    not crash emission).
+
     Args:
         targets: Ordered sequence of ``SynthesisTarget`` objects to emit.
         spec_kitty_version: Version string embedded in ``generated_by``.
@@ -148,6 +161,13 @@ def emit_project_layer(
     for target in targets:
         urn = target.urn
 
+        # WP06: unsupported target kinds (not directive/tactic/styleguide —
+        # including the mission-tier ``template`` and loose-contract ``asset``
+        # ArtifactKind members) are skipped rather than crashing emission.
+        node_kind = _node_kind_for(target.kind)
+        if node_kind is None:
+            continue
+
         # FR-020 / EC-6: reject URNs that collide with built-in nodes.
         if urn in built_in_node_urns:
             raise ProjectDRGValidationError(
@@ -177,7 +197,7 @@ def emit_project_layer(
 
         node = DRGNode(
             urn=urn,
-            kind=_node_kind_for(target.kind),
+            kind=node_kind,
             label=target.title,
         )
         nodes.append(node)

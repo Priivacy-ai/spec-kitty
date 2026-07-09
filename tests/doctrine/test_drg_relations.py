@@ -16,7 +16,7 @@ from __future__ import annotations
 import pytest
 
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
-from doctrine.drg.query import walk_edges
+from doctrine.drg.query import resolve_transitive_refs, walk_edges
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
@@ -176,3 +176,40 @@ def test_lineage_not_reachable_via_delegation_walk() -> None:
         relations={Relation.SPECIALIZES_FROM},
     )
     assert via_lineage == {"agent_profile:child", "agent_profile:parent"}
+
+
+# ---------------------------------------------------------------------------
+# WP07/T027 -- transitively-reached asset nodes must surface in `.assets`,
+# not be silently dropped from the ResolveTransitiveRefsResult bucket.
+# ---------------------------------------------------------------------------
+
+
+def test_resolve_transitive_refs_includes_transitively_reached_asset() -> None:
+    """A `requires`-transitive asset node must appear in `.assets`.
+
+    Regression for the dropped-node bug: `buckets` was populated for every
+    `NodeKind` (including `ASSET`) but the constructor call at the bottom of
+    `resolve_transitive_refs` never read `buckets[NodeKind.ASSET]`, so any
+    asset reached transitively was silently discarded from the result.
+    """
+    graph = _make_graph(
+        nodes=[
+            ("directive:root-directive", NodeKind.DIRECTIVE),
+            ("tactic:middle-tactic", NodeKind.TACTIC),
+            ("asset:leaf-icon", NodeKind.ASSET),
+        ],
+        edges=[
+            ("directive:root-directive", "tactic:middle-tactic", Relation.REQUIRES),
+            ("tactic:middle-tactic", "asset:leaf-icon", Relation.REQUIRES),
+        ],
+    )
+
+    result = resolve_transitive_refs(
+        graph,
+        start_urns={"directive:root-directive"},
+        relations={Relation.REQUIRES},
+    )
+
+    assert result.assets == ["leaf-icon"]
+    assert result.tactics == ["middle-tactic"]
+    assert result.unresolved == []

@@ -1,0 +1,9 @@
+pack_name: regnology-pack-b
+source_kind: local_path
+source_ref: "/nonexistent/regnology-pack-b"
+layer_index: 2
+nodes:
+  - id: company-logo
+    kind: assets
+    title: "Pack B's Regnology Company Logo"
+edges: []

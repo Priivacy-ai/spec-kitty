@@ -39,6 +39,7 @@ class NodeKind(StrEnum):
     AGENT_PROFILE = "agent_profile"
     MISSION_STEP_CONTRACT = "mission_step_contract"
     TEMPLATE = "template"
+    ASSET = "asset"
     ACTION = "action"
     GLOSSARY_SCOPE = "glossary_scope"
     GLOSSARY = "glossary"           # URN prefix: "glossary:<id>"

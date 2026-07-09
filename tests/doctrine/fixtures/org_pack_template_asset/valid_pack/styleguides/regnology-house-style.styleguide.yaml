@@ -1,0 +1,9 @@
+schema_version: "1.0"
+id: regnology-house-style
+title: Regnology House Style
+scope: docs
+principles:
+  - All internal meeting minutes use the approved company template.
+  - Company-branded documents carry the current Regnology logo asset.
+references:
+  - .kittify/charter/charter.md

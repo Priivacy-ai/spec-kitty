@@ -105,6 +105,18 @@ class TestNodeIsActivatedPerArtifactIdGate:
         """An unknown kind (not in _SINGULAR_TO_PLURAL) passes unconditionally."""
         assert _node_is_activated("unknown_kind", "some-id", _pc())
 
+    def test_template_kind_not_gated(self):
+        """WP06: the mission-tier ``template`` ArtifactKind is not in
+        ``_SINGULAR_TO_PLURAL`` (it has no charter activation set) — it must
+        pass through the kind-level gate unconditionally, same as any other
+        unregistered kind, rather than raising KeyError."""
+        assert _node_is_activated("template", "some-template-id", _pc())
+
+    def test_asset_kind_not_gated(self):
+        """WP06: the loose-contract ``asset`` ArtifactKind is likewise absent
+        from ``_SINGULAR_TO_PLURAL`` — must pass unconditionally, not raise."""
+        assert _node_is_activated("asset", "some-asset-id", _pc())
+
 
 # ---------------------------------------------------------------------------
 # TestFilterGraphByActivationPerArtifactId
@@ -139,3 +151,21 @@ class TestFilterGraphByActivationPerArtifactId:
         surviving_urns = {n.urn for n in filtered.nodes}
         assert "directive:dir-a" in surviving_urns
         assert "directive:dir-b" in surviving_urns
+
+    def test_template_and_asset_nodes_survive_filtering(self):
+        """WP06: template/asset nodes are not gated by ``activated_kinds`` (the
+        kind is absent from ``_SINGULAR_TO_PLURAL``) — they must survive
+        ``filter_graph_by_activation`` unconditionally, not be silently
+        dropped or raise."""
+        template_node = DRGNode(
+            urn="template:my-mission/onboarding", kind=NodeKind.TEMPLATE, label="Onboarding"
+        )
+        asset_node = DRGNode(urn="asset:widget-icon", kind=NodeKind.ASSET, label="Widget icon")
+        g = _graph([template_node, asset_node])
+
+        ctx = _pc()
+        filtered = filter_graph_by_activation(g, ctx)
+
+        surviving_urns = {n.urn for n in filtered.nodes}
+        assert "template:my-mission/onboarding" in surviving_urns
+        assert "asset:widget-icon" in surviving_urns

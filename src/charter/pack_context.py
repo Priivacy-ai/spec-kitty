@@ -48,9 +48,12 @@ class CharterPackConfigError(KittyInternalConsistencyError):
 #: has no ``mission_type_activations`` key (backward-compat / new project).
 _BUILTIN_MISSION_TYPE_IDS: frozenset[str] = frozenset({"software-dev", "documentation", "research", "plan"})
 
-#: All eight built-in artifact kinds (plural form used by DoctrineService).
+#: All built-in artifact kinds (plural form used by DoctrineService).
 #: Mirrors ``charter.activations._ALLOWED_KINDS`` and
-#: ``doctrine.drg.org_pack_loader._ORG_DRG_CANONICAL_KINDS``.
+#: ``doctrine.drg.org_pack_loader._ORG_DRG_CANONICAL_KINDS``. ``templates``
+#: and ``assets`` move in lockstep with those two mirrors — the drift guard in
+#: ``tests/doctrine/test_org_pack_augmentation.py`` fails if any one of the
+#: three is updated alone.
 #: Used as the default for ``activated_kinds`` when config.yaml has no
 #: ``activated_kinds`` key (backward-compat default — all kinds are active).
 _BUILTIN_ARTIFACT_KINDS: frozenset[str] = frozenset(
@@ -63,6 +66,8 @@ _BUILTIN_ARTIFACT_KINDS: frozenset[str] = frozenset(
         "procedures",
         "agent_profiles",
         "mission_step_contracts",
+        "templates",
+        "assets",
     }
 )
 

@@ -33,6 +33,8 @@ project tiers.
 from __future__ import annotations
 
 import logging
+from collections import Counter
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any, Literal, TypeVar
 
@@ -77,6 +79,13 @@ _PLURAL_TO_SINGULAR: dict[str, str] = {
     # the loader still mint a valid URN.
     "mission_steps": "mission_step_contract",
     "mission_step_contracts": "mission_step_contract",
+    # FR-001/FR-007 (asset-kind mission, #2495/#2469): TEMPLATE and ASSET are
+    # node-declarable org-pack DRG kinds (org_pack_loader._ORG_DRG_KIND_ALIASES).
+    # Bare URN minting (D-05 revised) — no ``<pack>/`` qualifier; cross-pack /
+    # cross-layer collisions are caught by the global uniqueness scan below
+    # (_check_node_urn_unique / D-04 revised), not by URN qualification.
+    "templates": "template",
+    "assets": "asset",
 }
 
 
@@ -191,6 +200,55 @@ class UnknownRelationError(Exception):
             f"Valid aliases: {self.valid_aliases}. "
             "Remediation: use one of the valid relations/aliases, or extend "
             "the Relation enum via a spec-kitty governance proposal."
+        )
+
+
+#: Structured, testable error codes (NFR-005) for the global URN-uniqueness
+#: scan (FR-008/FR-004, D-04 revised). Keyed by URN prefix so
+#: :func:`_check_node_urn_unique` stays reusable if a future kind is added to
+#: the node-declarable-but-not-augmentation-eligible set.
+_DUPLICATE_URN_ERROR_CODES: dict[str, str] = {
+    "asset:": "duplicate_asset_id",
+    "template:": "duplicate_template_id",
+}
+
+#: The node-declarable-but-not-augmentation-eligible kinds the global
+#: uniqueness scan covers (D-04 revised / research.md D-03). Expressed as
+#: :class:`NodeKind` members (built-in/project layers) and as the org-pack
+#: canonical plural strings (org layer, pre-bridge) respectively.
+_URN_UNIQUENESS_NODE_KINDS: frozenset[NodeKind] = frozenset(
+    {NodeKind.ASSET, NodeKind.TEMPLATE}
+)
+_URN_UNIQUENESS_ORG_KINDS: frozenset[str] = frozenset({"assets", "templates"})
+
+
+class DuplicateURNError(Exception):
+    """Raised when an ``asset:``/``template:`` URN occurs more than once
+    anywhere in the merged three-layer node set (FR-008/FR-004, NFR-005).
+
+    TEMPLATE and ASSET are node-declarable but NOT augmentation-eligible
+    (D-04 revised, ``research.md``): a same-URN collision for either kind
+    carries no legitimate override/augmentation meaning, so it is genuine
+    author ambiguity and fails loud with a distinct, structured, testable
+    ``code`` — ``duplicate_asset_id`` or ``duplicate_template_id`` — instead
+    of being silently resolved by the layered-override machinery the other 9
+    kinds rely on (org-vs-org first-wins in :func:`_merge_org_fragment`,
+    built-in-vs-org override in :func:`_resolve_builtin_collision`, and the
+    project-vs-any override in :func:`merge_three_layers`). That machinery is
+    untouched for the other 9 kinds — this scan is scoped strictly by URN
+    prefix (``drg/models.py`` enforces URN-prefix == kind, so an
+    ``asset:``/``template:`` URN can only ever collide with its own kind).
+    """
+
+    def __init__(self, code: str, urn: str, count: int) -> None:
+        self.code = code
+        self.urn = urn
+        self.count = count
+        super().__init__(
+            f"{code}: URN {urn!r} appears {count} times across the merged "
+            "built-in/org/project layers — asset and template ids must be "
+            "globally unique. Remediation: rename the id in one of the "
+            "colliding packs/layers."
         )
 
 
@@ -464,6 +522,76 @@ def _warn_project_override(urn: str, existing_provenance: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Global URN-uniqueness scan (FR-008, FR-004, D-04 revised)
+# ---------------------------------------------------------------------------
+
+
+def _check_node_urn_unique(prefix: str, nodes: Iterable[DRGNode]) -> None:
+    """Hard-fail if any URN starting with *prefix* occurs more than once in
+    *nodes* (FR-008/FR-004, D-04 revised).
+
+    Order-independent: duplicates are detected by counting occurrences per
+    URN rather than depending on iteration/insertion order, so the same
+    collision is caught regardless of which layer or pack declared it first.
+
+    Extracted as a standalone helper — NOT nested inside
+    :func:`_merge_org_fragment`, which is already at the ruff C901
+    complexity ceiling — and scoped strictly by *prefix*. Callers must never
+    widen this check to another kind's prefix: the other 9 kinds' layered
+    override tolerance (org-vs-org first-wins, built-in-vs-org override,
+    project-vs-any override) depends on same-URN collisions being resolved,
+    not rejected, and ``drg/models.py`` enforces URN-prefix == kind so this
+    scan can never observe a cross-kind collision.
+    """
+    counts = Counter(node.urn for node in nodes if node.urn.startswith(prefix))
+    duplicate_urn = next((urn for urn, n in counts.items() if n > 1), None)
+    if duplicate_urn is None:
+        return
+    raise DuplicateURNError(
+        code=_DUPLICATE_URN_ERROR_CODES[prefix],
+        urn=duplicate_urn,
+        count=counts[duplicate_urn],
+    )
+
+
+def _asset_template_candidates(
+    built_in: DRGGraph,
+    org_fragments: list[OrgDRGFragment],
+    project: DRGGraph | None,
+) -> list[DRGNode]:
+    """Collect every ``asset:``/``template:`` node contributed by any of the
+    three layers, WITHOUT the layered-override collapsing that
+    :func:`merge_three_layers` applies when building ``merged_nodes``.
+
+    This is deliberately a *raw* union, not a lookup against the deduplicated
+    merge output: TEMPLATE and ASSET have no legitimate override semantics
+    (D-04 revised), so a built-in-vs-org or org-vs-org same-URN collision that
+    the override machinery would otherwise silently resolve in place must
+    still be visible to :func:`_check_node_urn_unique` as a duplicate.
+
+    A fragment node that fails the layer-rule check is never reached here:
+    :func:`merge_three_layers` raises :class:`OrgDRGConflictError` for any
+    hard-fail conflict (including layer-rule violations) before this
+    function's result is consulted.
+    """
+    candidates: list[DRGNode] = [
+        node for node in built_in.nodes if node.kind in _URN_UNIQUENESS_NODE_KINDS
+    ]
+    for fragment in org_fragments:
+        source_marker = f"org:{fragment.pack_name}"
+        for node in fragment.nodes:
+            if node.kind not in _URN_UNIQUENESS_ORG_KINDS:
+                continue
+            _, drg_node = _bridge_org_node_to_drg_node(node, source_marker)
+            candidates.append(drg_node)
+    if project is not None:
+        candidates.extend(
+            node for node in project.nodes if node.kind in _URN_UNIQUENESS_NODE_KINDS
+        )
+    return candidates
+
+
+# ---------------------------------------------------------------------------
 # Canonical merge (FR-001, FR-003, FR-005)
 # ---------------------------------------------------------------------------
 
@@ -535,6 +663,12 @@ def merge_three_layers(
     UnknownRelationError:
         On an org/project fragment edge with an unrecognised relation label
         (FR-003).
+    DuplicateURNError:
+        On a duplicate ``asset:`` or ``template:`` URN anywhere across the
+        built-in, org, and project layers (FR-008/FR-004, D-04 revised). This
+        is a global, order-independent, prefix-scoped check that runs once
+        after all three layers are assembled — it does not affect any other
+        kind's layered-override tolerance.
     """
     conflicts: list[OrgDRGConflict] = []
 
@@ -564,6 +698,19 @@ def merge_three_layers(
             merged_nodes[node.urn] = _tag_source(node, "project")
         for edge in project.edges:
             merged_edges.append(_tag_source(edge, "project"))
+
+    # Global URN-uniqueness scan (FR-008/FR-004, D-04 revised): a single
+    # post-merge, order-independent, prefix-scoped check covering all three
+    # collision surfaces (built-in-vs-org, org-vs-org, project-vs-any) for the
+    # two node-declarable-but-not-augmentation-eligible kinds. Runs on the raw
+    # per-layer union (not ``merged_nodes``), since TEMPLATE/ASSET have no
+    # legitimate override semantics and the override machinery above would
+    # otherwise hide a same-URN collision by collapsing it in place.
+    asset_template_candidates = _asset_template_candidates(
+        built_in, org_fragments, project
+    )
+    _check_node_urn_unique("asset:", asset_template_candidates)
+    _check_node_urn_unique("template:", asset_template_candidates)
 
     return DRGGraph(
         schema_version=built_in.schema_version,
