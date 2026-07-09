@@ -1110,8 +1110,8 @@ def _ensure_target_branch_checked_out(repo_root: Path, mission_slug: str) -> tup
     Shows a consistent branch banner.
 
     Routes target-branch resolution through ``resolve_action_context`` (FR-033:
-    ExecutionContext hardening — route residue surfaces).  This is the canonical
-    OHS entry point; ``target_branch`` is read from its returned ActionContext
+    MissionExecutionContext hardening — route residue surfaces).  This is the canonical
+    OHS entry point; ``target_branch`` is read from its returned MissionExecutionContext
     rather than derived independently.
     """
     from mission_runtime import ActionContextError, resolve_action_context

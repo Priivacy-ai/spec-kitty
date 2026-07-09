@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.core.agent_config import get_auto_commit_default
+from specify_cli.core.paths import read_target_branch_from_meta
 from specify_cli.core.paths import require_explicit_feature as _require_explicit_feature
 from specify_cli.decisions.models import DecisionStatus
 from specify_cli.decisions.store import load_index
@@ -1071,9 +1072,13 @@ def _check_lane_gates(
 
 
 def _target_branch_for_feature(feature_dir: Path) -> str | None:
-    meta = load_meta(feature_dir) or {}
-    value = meta.get("target_branch")
-    return str(value) if value else None
+    """Thin adapter over the single ``target_branch`` read authority (FR-008 / #2139)."""
+    # str(...) narrows the cross-module Any mypy sees under this repo's
+    # `follow_imports = "skip"` override for specify_cli.* (pyproject.toml);
+    # value is already str | None here (the authority's real contract),
+    # mirroring the same cast pattern in core/paths.py:723.
+    value = read_target_branch_from_meta(feature_dir)
+    return str(value) if value is not None else None
 
 
 def _git_ref_exists(repo_root: Path, ref: str) -> bool:
@@ -1692,8 +1697,10 @@ def perform_acceptance(
         parent_commit, accept_commit, commit_created = _commit_acceptance_meta(summary, actor_name, mode)
 
     branch = summary.branch or summary.feature
-    _meta = load_meta(summary.feature_dir)
-    _target_branch = (_meta or {}).get("target_branch")
+    # FR-008 / #2139: delegate to the single target_branch read authority
+    # (via the local thin adapter) instead of re-embedding a raw
+    # ``load_meta(...).get("target_branch")`` extraction here.
+    _target_branch = _target_branch_for_feature(summary.feature_dir)
     is_integration_branch = branch == _target_branch or (_target_branch is None and branch in _WELL_KNOWN_INTEGRATION_BRANCHES)
 
     instructions, cleanup_instructions = _build_acceptance_instructions(summary, mode, branch, is_integration_branch)

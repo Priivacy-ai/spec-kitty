@@ -18,6 +18,8 @@ Design decision:
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.git_ops import resolve_primary_branch
+from specify_cli.core.paths import read_target_branch_from_meta
 from specify_cli.lanes.branch_naming import resolve_mid8
 import contextlib
 import datetime
@@ -1260,7 +1262,12 @@ def generate_retrospective(
     mission_slug = str(meta.get("mission_slug") or meta.get("slug") or feature_dir.name)
     friendly_name = str(meta.get("friendly_name") or meta.get("name") or mission_slug)
     mission_type = str(meta.get("mission_type") or "software-dev")
-    target_branch = str(meta.get("target_branch") or "main")
+    # FR-008 / #2139: delegate to the single read_target_branch_from_meta
+    # authority instead of re-embedding a local "main" default; apply the
+    # documented primary-branch fallback only when the field is genuinely
+    # absent (mirrors resolve_target_branch/get_feature_target_branch).
+    _target_branch = read_target_branch_from_meta(feature_dir)
+    target_branch = _target_branch if _target_branch is not None else resolve_primary_branch(repo_root)
     mission_number = _resolve_mission_number(meta.get("mission_number"))
 
     # ------------------------------------------------------------------

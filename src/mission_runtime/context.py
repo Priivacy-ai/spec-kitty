@@ -15,12 +15,12 @@ An *operation* assembles only the fragments it needs (the op-composite); the
 builder lives in :mod:`mission_runtime.resolution` (doc-09 §5 layer law).
 
 Strangler compatibility (C-004 / NFR-001): the historical flat
-:class:`ExecutionContext` substrate fields
+:class:`MissionExecutionContext` substrate fields
 (``feature_dir`` / ``target_branch`` / ``workspace_path`` / ``branch_name`` /
 ``execution_mode`` / ``mission_slug``) are preserved verbatim so consumers that
 have not yet been converted keep reading the same attributes. The fragments are
 *attached* to the same object; nothing is removed. ``ActionContext`` remains a
-re-exported alias of the canonical :class:`ExecutionContext` name.
+re-exported alias of the canonical :class:`MissionExecutionContext` name.
 
 Single-derivation invariants (T009 / FR-012 / C-CTX-3): ``mid8`` is derived
 **exactly once** (in :class:`IdentityFragment`, as ``mission_id[:8]``) and
@@ -44,7 +44,7 @@ class ExecutionMode(enum.Enum):
 
     ``WORKTREE`` resolves against a lane worktree; ``CODE_CHANGE`` resolves
     against an in-place checkout. The resolved string mode is surfaced on
-    :attr:`ExecutionContext.execution_mode` (which carries the raw workspace
+    :attr:`MissionExecutionContext.execution_mode` (which carries the raw workspace
     string), so this enum is the typed vocabulary callers may compare against.
     """
 
@@ -259,7 +259,7 @@ class MissionContext:
 
 
 @dataclass(frozen=True)
-class ExecutionContext:
+class MissionExecutionContext:
     """Fully-resolved context for a single action — a doc-09 op-composite.
 
     The canonical surface is expressed over **this object**, never over loose
@@ -348,7 +348,7 @@ class ExecutionContext:
 # Transitional alias: the historical name used by ``core/execution_context`` and
 # its consumers. Kept so the Stage-C shim re-exports a single relocated type
 # rather than introducing a parallel implementation (NFR-002).
-ActionContext = ExecutionContext
+ActionContext = MissionExecutionContext
 
 
 __all__ = [
@@ -356,11 +356,11 @@ __all__ = [
     "ArtifactPlacementFragment",
     "BranchRefFragment",
     "CommitTarget",
-    "ExecutionContext",
     "ExecutionMode",
     "IdentityFragment",
     "MissionArtifactContext",
     "MissionContext",
+    "MissionExecutionContext",
     "MissionTopology",
     "StatusSurfaceFragment",
     "WorkspaceFragment",

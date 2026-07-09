@@ -229,7 +229,7 @@ class TestMissingIdentityError:
         meta = {"mission_slug": "legacy-mission"}
         (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
-        data = _read_meta_json(feature_dir)
+        data = _read_meta_json(feature_dir, tmp_path)
         assert data["mission_id"] == "legacy-mission"
         assert data["mission_number"] == ""
 
@@ -242,7 +242,7 @@ class TestMissingIdentityError:
         meta = {"mission_slug": "null-id-mission", "mission_id": None}
         (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
-        data = _read_meta_json(feature_dir)
+        data = _read_meta_json(feature_dir, tmp_path)
         assert data["mission_id"] == "null-id-mission"
         assert data["mission_number"] == ""
 

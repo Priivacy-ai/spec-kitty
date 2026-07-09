@@ -28,7 +28,6 @@ from __future__ import annotations
 import contextlib
 import os
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -37,6 +36,7 @@ from specify_cli.skills.manifest_store import ManifestEntry
 from specify_cli.skills import command_renderer
 from specify_cli.skills._agent_roster import SUPPORTED_AGENTS as SUPPORTED_AGENTS
 from specify_cli.agent_upgrade_prompt import prepend_agent_upgrade_check
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.shims.registry import CONSUMER_SKILLS
 
 # ---------------------------------------------------------------------------
@@ -358,11 +358,6 @@ def _remove_empty_parent(path: Path) -> None:
         pass
 
 
-def _now_utc_iso() -> str:
-    """Return the current UTC time as an ISO-8601 string (with ``+00:00``)."""
-    return datetime.now(tz=UTC).isoformat()
-
-
 def _get_version() -> str:
     """Return the current Spec Kitty CLI version, or a dev fallback."""
     try:
@@ -480,7 +475,7 @@ def install(repo_root: Path, agent_key: str) -> InstallReport:
                         path=rel_path,
                         content_hash=would_write_hash,
                         agents=(agent_key,),
-                        installed_at=_now_utc_iso(),
+                        installed_at=now_utc_iso(),
                         spec_kitty_version=version,
                     )
                 )
@@ -494,7 +489,7 @@ def install(repo_root: Path, agent_key: str) -> InstallReport:
                     path=rel_path,
                     content_hash=would_write_hash,
                     agents=(agent_key,),
-                    installed_at=_now_utc_iso(),
+                    installed_at=now_utc_iso(),
                     spec_kitty_version=version,
                 )
             )

@@ -35,15 +35,16 @@ from mission_runtime.context import (
     ArtifactPlacementFragment,
     BranchRefFragment,
     CommitTarget,
-    ExecutionContext,
     IdentityFragment,
     MissionArtifactContext,
     MissionContext,
+    MissionExecutionContext,
     MissionTopology,
     StatusSurfaceFragment,
     WorkspaceFragment,
     routes_through_coordination,
 )
+from mission_runtime.mission_resolver_port import MissionResolver
 
 
 ActionName = Literal[
@@ -114,13 +115,13 @@ _MISSION_LEVEL_ACTIONS: frozenset[str] = frozenset(
 
 def build_execution_context(
     **fields: Any,
-) -> ExecutionContext:
-    """Construct the ONE :class:`ExecutionContext` — the sole construction door.
+) -> MissionExecutionContext:
+    """Construct the ONE :class:`MissionExecutionContext` — the sole construction door.
 
     This is the **package-private** single factory for the canonical context
     composite (D-6 / IC-01 / C-001 — no new public symbol; it is not exported
     from :mod:`mission_runtime`). :func:`resolve_action_context` delegates every
-    construction here; there is exactly one ``ExecutionContext(`` call in
+    construction here; there is exactly one ``MissionExecutionContext(`` call in
     production code (this body). The composite is frozen, so callers assemble all
     fields up front and never patch a built context.
 
@@ -139,12 +140,12 @@ def build_execution_context(
     identity/topology authority that feeds it. The deferred write-side
     (#1716 / #1878, Mission B) adopts against this frozen seam — not a rewrite.
     """
-    context = ExecutionContext(**fields)
+    context = MissionExecutionContext(**fields)
     branch_ref = context.branch_ref
     if branch_ref is not None and context.target_branch != branch_ref.target_branch:
         raise ActionContextError(
             "CONTEXT_INVARIANT_VIOLATION",
-            "ExecutionContext.target_branch "
+            "MissionExecutionContext.target_branch "
             f"({context.target_branch!r}) must equal branch_ref.target_branch "
             f"({branch_ref.target_branch!r}); the composite is internally "
             "inconsistent (FR-009 / C-IC01).",
@@ -167,13 +168,13 @@ def resolve_context_for_mission(
     coordination_branch_signal: str | None = None,
     has_lanes_signal: bool | None = None,
     **extra_fields: Any,
-) -> ExecutionContext:
-    """PURE projection of an :class:`ExecutionContext` from stored topology (FR-004).
+) -> MissionExecutionContext:
+    """PURE projection of an :class:`MissionExecutionContext` from stored topology (FR-004).
 
     The **functional core** of the single planning-surface authority. Given a
     mission identity + the WP02 **stored** :class:`MissionTopology` (read from
     ``meta.json`` by the imperative shell) and the shell-assembled fragments, it
-    projects exactly one :class:`ExecutionContext` through the PURE construction
+    projects exactly one :class:`MissionExecutionContext` through the PURE construction
     door :func:`build_execution_context` (``resolution.py`` factory). It performs
     **zero** filesystem or git I/O (NFR-005): there is no ``open`` / ``read_text``
     / ``load_meta`` / ``subprocess`` / ``git`` / ``*.exists()`` / ``*.stat()`` /
@@ -225,7 +226,7 @@ def resolve_context_for_mission(
         **extra_fields: Additional flat-substrate fields forwarded to the factory.
 
     Returns:
-        The single projected :class:`ExecutionContext`.
+        The single projected :class:`MissionExecutionContext`.
 
     Raises:
         ActionContextError: ``TOPOLOGY_INPUT_MISMATCH`` when the optional
@@ -306,6 +307,7 @@ def _resolve_mission_slug(
     feature: str | None,
     cwd: Path | None,  # noqa: ARG001 -- kept for signature compatibility
     env: Mapping[str, str] | None,  # noqa: ARG001 -- kept for signature compatibility
+    resolver: MissionResolver | None = None,
 ) -> tuple[str, Path]:
     """Resolve the CANONICAL mission slug and read-side directory.
 
@@ -323,6 +325,15 @@ def _resolve_mission_slug(
 
     Raises ActionContextError if feature is not provided or the mission
     directory cannot be located in either view.
+
+    ``resolver`` (mission-resolver-port-01KX1C05 WP03, FR-002): optional
+    :class:`MissionResolver` threaded down to :func:`resolve_handle_to_read_path`
+    and, through it, to the canonicalizer chain's single walk. This is the
+    trunk seam — every caller of :func:`resolve_action_context` that injects a
+    ``resolver`` (e.g. a ``FakeMissionResolver`` in a test) reaches the walk with
+    no bypass. ``None`` preserves historical behaviour (a fresh
+    ``FsMissionResolver`` is constructed at the free ``resolve_mission`` call
+    site in ``specify_cli.context.mission_resolver``).
     """
     from specify_cli.core.paths import require_explicit_feature
 
@@ -348,7 +359,7 @@ def _resolve_mission_slug(
     )
 
     try:
-        feature_dir = resolve_handle_to_read_path(repo_root, slug)
+        feature_dir = resolve_handle_to_read_path(repo_root, slug, resolver=resolver)
     except StatusReadPathNotFound as exc:
         # Boundary translation (PR #1850 M6): the read resolver's fail-closed
         # refusal (coord worktree root materialized without the mission dir)
@@ -698,7 +709,9 @@ def _resolve_wp_id(
     return None
 
 
-def _resolve_coordination_branch(primary_root: Path, mission_slug: str) -> str | None:
+def _resolve_coordination_branch(
+    primary_root: Path, mission_slug: str, *, resolver: MissionResolver | None = None
+) -> str | None:
     """Read the mission ``coordination_branch`` from meta (canonical anchor).
 
     Returns ``None`` under flattened topology (no separate coordination branch,
@@ -727,9 +740,12 @@ def _resolve_coordination_branch(primary_root: Path, mission_slug: str) -> str |
     )
 
     # WP05/FR-005: route through _canonicalize_primary_read_handle.
+    # WP03/FR-002: ``resolver`` is threaded to the canonicalizer so this read
+    # reaches the single injected walk (no bypass) — ``None`` is byte-identical
+    # to the pre-WP03 behaviour.
     primary_dir = primary_feature_dir_for_mission(
         primary_root,
-        _canonicalize_primary_read_handle(primary_root, mission_slug),
+        _canonicalize_primary_read_handle(primary_root, mission_slug, resolver=resolver),
     )
     # FR-006: canonical reader contract (a) — None on missing, ValueError on
     # malformed (defaults stated explicitly to document the chosen arm).
@@ -745,7 +761,9 @@ def _resolve_coordination_branch(primary_root: Path, mission_slug: str) -> str |
     return str(raw) if raw else None
 
 
-def _resolve_topology(primary_root: Path, mission_slug: str) -> MissionTopology:
+def _resolve_topology(
+    primary_root: Path, mission_slug: str, *, resolver: MissionResolver | None = None
+) -> MissionTopology:
     """Read the WP02 **stored** :class:`MissionTopology` from meta (PURE shell read).
 
     The imperative-shell topology read: anchored on the canonical PRIMARY dir
@@ -769,9 +787,11 @@ def _resolve_topology(primary_root: Path, mission_slug: str) -> MissionTopology:
     )
 
     # WP05/FR-005: route through _canonicalize_primary_read_handle.
+    # WP03/FR-002: ``resolver`` threaded through so this shell read reaches the
+    # single injected walk (no bypass).
     primary_dir = primary_feature_dir_for_mission(
         primary_root,
-        _canonicalize_primary_read_handle(primary_root, mission_slug),
+        _canonicalize_primary_read_handle(primary_root, mission_slug, resolver=resolver),
     )
     try:
         stored: MissionTopology = read_topology(primary_dir)
@@ -780,11 +800,15 @@ def _resolve_topology(primary_root: Path, mission_slug: str) -> MissionTopology:
         # No persisted meta yet (bootstrap window) or malformed: classify from the
         # coordination-branch value-read with no lanes signal. This is the same
         # degraded-but-stable shape the surface resolver reports for the window.
-        coordination_branch = _resolve_coordination_branch(primary_root, mission_slug)
+        coordination_branch = _resolve_coordination_branch(
+            primary_root, mission_slug, resolver=resolver
+        )
         return classify_topology(coordination_branch, has_lanes=False)
 
 
-def resolve_topology(repo_root: Path, mission_handle: str) -> MissionTopology:
+def resolve_topology(
+    repo_root: Path, mission_handle: str, *, resolver: MissionResolver | None = None
+) -> MissionTopology:
     """Public seam: read the WP02 **stored** :class:`MissionTopology` for a mission.
 
     The single public entry point a caller uses to obtain the stored topology so
@@ -813,7 +837,9 @@ def resolve_topology(repo_root: Path, mission_handle: str) -> MissionTopology:
     primary_root = get_main_repo_root(repo_root)
     mission_slug = mission_handle
     try:
-        candidate_dir = candidate_feature_dir_for_mission(repo_root, mission_handle)
+        candidate_dir = candidate_feature_dir_for_mission(
+            repo_root, mission_handle, resolver=resolver
+        )
     except (StatusReadPathNotFound, MissionSelectorAmbiguous):
         # Unresolvable / ambiguous handle: pass the raw handle through so the
         # topology degrades exactly as the full resolver does for a missing mission
@@ -821,13 +847,15 @@ def resolve_topology(repo_root: Path, mission_handle: str) -> MissionTopology:
         candidate_dir = None
     if candidate_dir is not None and candidate_dir.exists():
         mission_slug = candidate_dir.name
-    return _resolve_topology(primary_root, mission_slug)
+    return _resolve_topology(primary_root, mission_slug, resolver=resolver)
 
 
 def mission_context_for(
     repo_root: Path,
     mission_handle: str,
     topology: MissionTopology | None = None,
+    *,
+    resolver: MissionResolver | None = None,
 ) -> MissionContext:
     """Resolve mission artifact context by mission + topology.
 
@@ -836,6 +864,11 @@ def mission_context_for(
     coordination worktree, or a flattened single dir. Callers pass mission
     identity and, when already known, stored topology; they then ask the returned
     context for ``artifact(MissionArtifactKind.X)``.
+
+    ``resolver`` (mission-resolver-port-01KX1C05 WP03, FR-002): optional
+    :class:`MissionResolver` threaded to every downstream canonicalizer call in
+    this function's body so no read path bypasses the injected walk. ``None``
+    preserves historical behaviour.
     """
     from specify_cli.core.paths import get_feature_target_branch
     from specify_cli.core.paths import get_main_repo_root
@@ -855,14 +888,18 @@ def mission_context_for(
 
     primary_root = get_main_repo_root(repo_root)
     try:
-        candidate_dir = candidate_feature_dir_for_mission(primary_root, mission_handle)
+        candidate_dir = candidate_feature_dir_for_mission(
+            primary_root, mission_handle, resolver=resolver
+        )
     except StatusReadPathNotFound as exc:
         raise ActionContextError(exc.error_code, str(exc)) from exc
     except MissionSelectorAmbiguous as exc:
         raise ActionContextError(exc.error_code, str(exc)) from exc
 
     mission_slug = candidate_dir.name if candidate_dir.exists() else mission_handle
-    resolved_topology = topology or _resolve_topology(primary_root, mission_slug)
+    resolved_topology = topology or _resolve_topology(
+        primary_root, mission_slug, resolver=resolver
+    )
     target_branch = get_feature_target_branch(primary_root, mission_slug)
     _identity, branch_ref, status_surface, _workspace = _assemble_core_fragments(
         primary_root,
@@ -870,11 +907,13 @@ def mission_context_for(
         target_branch=target_branch,
         topology=resolved_topology,
         cwd=None,
+        resolver=resolver,
     )
     primary_read_dir = resolve_planning_read_dir(
         primary_root,
         mission_slug,
         kind=MissionArtifactKind.PRIMARY_METADATA,
+        resolver=resolver,
     )
     artifacts: list[MissionArtifactContext] = []
     for kind in MissionArtifactKind:
@@ -910,7 +949,9 @@ def mission_context_for(
     )
 
 
-def _resolve_mission_id(primary_root: Path, mission_slug: str) -> str:
+def _resolve_mission_id(
+    primary_root: Path, mission_slug: str, *, resolver: MissionResolver | None = None
+) -> str:
     """Resolve the canonical ``mission_id`` for the mission.
 
     Reads ``meta.json`` at the canonical primary dir. Falls back to a
@@ -923,6 +964,17 @@ def _resolve_mission_id(primary_root: Path, mission_slug: str) -> str:
     coord-aware resolver would return the (meta-less) coordination worktree once
     one exists and spuriously degrade to the ``legacy-`` sentinel (see
     :func:`_resolve_coordination_branch` for the full split-brain rationale).
+
+    ``resolver`` (WP03, FR-002/D-07 — the sentinel carve-out): threaded to
+    :func:`_canonicalize_primary_read_handle` ONLY, so an injected resolver
+    still governs handle canonicalization here. The ``legacy-<slug>`` bootstrap
+    branch below is a DELIBERATE, documented pre-identity carve-out and stays
+    OUTSIDE the port: it is never rewritten to call ``resolver.resolve()``
+    directly and let a fail-closed ``MissionNotFoundError`` propagate. A
+    brand-new scaffold or a legacy mission with no ``mission_id`` yet MUST keep
+    minting the stable sentinel — that is the load-bearing behaviour a
+    regression test in ``tests/mission_runtime/test_builder_fs_free_identity.py``
+    pins (T014).
     """
     from specify_cli.mission_metadata import load_meta
     from specify_cli.missions._read_path_resolver import (
@@ -933,7 +985,7 @@ def _resolve_mission_id(primary_root: Path, mission_slug: str) -> str:
     # WP05/FR-005: route through _canonicalize_primary_read_handle.
     primary_dir = primary_feature_dir_for_mission(
         primary_root,
-        _canonicalize_primary_read_handle(primary_root, mission_slug),
+        _canonicalize_primary_read_handle(primary_root, mission_slug, resolver=resolver),
     )
     # FR-006: canonical reader contract (a) — None on missing, ValueError on
     # malformed; the malformed arm degrades to the ``legacy-`` sentinel below.
@@ -949,7 +1001,11 @@ def _resolve_mission_id(primary_root: Path, mission_slug: str) -> str:
 
 
 def _resolve_status_surface_dir(
-    primary_root: Path, mission_slug: str, topology: MissionTopology
+    primary_root: Path,
+    mission_slug: str,
+    topology: MissionTopology,
+    *,
+    resolver: MissionResolver | None = None,
 ) -> Path:
     """Resolve the canonical status-surface DIRECTORY via WP02's resolver.
 
@@ -965,6 +1021,11 @@ def _resolve_status_surface_dir(
     :func:`resolve_status_surface` so the PRIMARY-vs-coordination surface SHAPE is
     decided from the WP02 stored value (FR-004 / SC-001), not from a parallel
     ``coordination_branch is None`` re-inference inside the surface resolver.
+
+    ``resolver`` (WP03, FR-002): threaded ONLY to the ``candidate_feature_dir_
+    for_mission`` fallback leg below — :func:`resolve_status_surface` itself
+    lives in ``coordination.surface_resolver``, outside this WP's owned files,
+    and is not adopted here (a separate, later port).
     """
     from specify_cli.coordination.surface_resolver import resolve_status_surface
     from specify_cli.missions._read_path_resolver import (
@@ -982,7 +1043,9 @@ def _resolve_status_surface_dir(
         # instead, preserving the refusal message (PR #1850 M6).
         raise ActionContextError(exc.error_code, str(exc)) from exc
     except (FileNotFoundError, ValueError):
-        fallback_dir: Path = candidate_feature_dir_for_mission(primary_root, mission_slug)
+        fallback_dir: Path = candidate_feature_dir_for_mission(
+            primary_root, mission_slug, resolver=resolver
+        )
         return fallback_dir
     surface_parent: Path = surface.parent
     return surface_parent
@@ -1040,6 +1103,7 @@ def _assemble_core_fragments(
     target_branch: str,
     topology: MissionTopology,
     cwd: Path | None,
+    resolver: MissionResolver | None = None,
 ) -> tuple[IdentityFragment, BranchRefFragment, StatusSurfaceFragment, WorkspaceFragment]:
     """Assemble the WP02/WP03/WP05-owned fragments of the op-composite (IC-02).
 
@@ -1070,12 +1134,20 @@ def _assemble_core_fragments(
     it once from ``meta.json`` (via :func:`_resolve_topology`) alongside the
     existing ``target_branch`` read and threads it in. It is the SSOT for the
     placement/surface coord-routing classification.
+
+    ``resolver`` (WP03, FR-002): optional :class:`MissionResolver` threaded to
+    every fragment-assembly helper below that canonicalizes a handle
+    (:func:`_resolve_mission_id`, :func:`_resolve_coordination_branch`,
+    :func:`_resolve_status_surface_dir`'s fallback leg) — the assembler itself
+    performs NO construction of a resolver (it is injected at the callers, per
+    the WP03 design ruling); it only forwards the one it was given. ``None``
+    preserves historical behaviour end-to-end.
     """
     from specify_cli.core.paths import get_main_repo_root
 
     primary_root = get_main_repo_root(repo_root)
 
-    mission_id = _resolve_mission_id(primary_root, mission_slug)
+    mission_id = _resolve_mission_id(primary_root, mission_slug, resolver=resolver)
     identity = IdentityFragment.derive(
         mission_id=mission_id, mission_slug=mission_slug
     )
@@ -1085,7 +1157,9 @@ def _assemble_core_fragments(
     # retired ``is None ⇒ FLATTENED`` *decision* is replaced by reading the stored
     # topology: the placement ``kind`` is now classified from ``topology`` (FR-004
     # / SC-001), never inferred from the branch value's presence.
-    coordination_branch = _resolve_coordination_branch(primary_root, mission_slug)
+    coordination_branch = _resolve_coordination_branch(
+        primary_root, mission_slug, resolver=resolver
+    )
     # The coord-routing DECISION reads the STORED topology via the SINGLE predicate
     # (FR-005 / WP04 drain) — never a re-derived per-ref enum. ``CommitTarget`` is a
     # ref-only carrier (C-007 / FR-001b): the destination ref is the coord branch
@@ -1103,7 +1177,9 @@ def _assemble_core_fragments(
         destination_ref=destination_ref,
     )
 
-    surface_dir = _resolve_status_surface_dir(primary_root, mission_slug, topology)
+    surface_dir = _resolve_status_surface_dir(
+        primary_root, mission_slug, topology, resolver=resolver
+    )
     status_surface = StatusSurfaceFragment(
         status_read_dir=surface_dir,
         status_write_dir=surface_dir,
@@ -1145,6 +1221,7 @@ def resolve_placement_only(
     mission_slug: str,
     *,
     kind: MissionArtifactKind,
+    resolver: MissionResolver | None = None,
 ) -> CommitTarget:
     """Resolve the placement :class:`CommitTarget` for a mission artifact ``kind``.
 
@@ -1186,6 +1263,9 @@ def resolve_placement_only(
         mission_slug: The mission directory name / slug.
         kind: The mission artifact kind being placed. REQUIRED — no default;
             its partition membership selects the primary vs topology-routed ref.
+        resolver: Optional :class:`MissionResolver` threaded through entry
+            canonicalization and the shared builder (WP03, FR-002). ``None``
+            preserves historical behaviour.
 
     Returns:
         The single :class:`CommitTarget` the artifact commits to — the primary
@@ -1217,7 +1297,9 @@ def resolve_placement_only(
     # the builder degrades exactly as before (no behaviour change for missing
     # missions).
     try:
-        candidate_dir = candidate_feature_dir_for_mission(repo_root, mission_slug)
+        candidate_dir = candidate_feature_dir_for_mission(
+            repo_root, mission_slug, resolver=resolver
+        )
     except StatusReadPathNotFound as exc:
         # Fail-closed surface refusal at entry canonicalization: translate to
         # the boundary's single error type, preserving the refusal message
@@ -1239,13 +1321,16 @@ def resolve_placement_only(
     from specify_cli.core.paths import get_main_repo_root
 
     target_branch = get_feature_target_branch(repo_root, mission_slug)
-    topology = _resolve_topology(get_main_repo_root(repo_root), mission_slug)
+    topology = _resolve_topology(
+        get_main_repo_root(repo_root), mission_slug, resolver=resolver
+    )
     _identity, branch_ref, _status_surface, _workspace = _assemble_core_fragments(
         repo_root,
         mission_slug=mission_slug,
         target_branch=target_branch,
         topology=topology,
         cwd=None,
+        resolver=resolver,
     )
     # FR-002 / FR-004 (write-surface-coherence WP01): the projection is
     # kind-aware. A ``_PRIMARY_ARTIFACT_KINDS`` member routes to the primary
@@ -1360,11 +1445,21 @@ def resolve_action_context(
     agent: str | None = None,
     cwd: Path | None = None,
     env: Mapping[str, str] | None = None,
-) -> ExecutionContext:
+    resolver: MissionResolver | None = None,
+) -> MissionExecutionContext:
     """Resolve canonical mission/work-package context for an agent action.
 
     CWD-invariant, topology-aware, mode-correct. Raises
     :class:`ActionContextError` on unresolvable context (no silent fallback).
+
+    ``resolver`` (mission-resolver-port-01KX1C05 WP03, FR-002 — the trunk):
+    optional :class:`MissionResolver` threaded through :func:`_resolve_mission_slug`,
+    :func:`_resolve_topology`, and :func:`_assemble_core_fragments`, so every
+    handle→mission walk this call performs (including the ones nested inside
+    the canonicalizer chain in ``specify_cli.missions._read_path_resolver``)
+    goes through the ONE injected resolver — never a second, uninjected
+    ``FsMissionResolver``. ``None`` (the default) is byte-identical to the
+    pre-WP03 behaviour: each walk constructs its own ``FsMissionResolver``.
     """
     if action not in ACTION_NAMES:
         raise ActionContextError(
@@ -1381,14 +1476,18 @@ def resolve_action_context(
 
     from specify_cli.core.paths import get_main_repo_root
 
-    mission_slug, feature_dir = _resolve_mission_slug(repo_root, feature=feature, cwd=cwd, env=env)
+    mission_slug, feature_dir = _resolve_mission_slug(
+        repo_root, feature=feature, cwd=cwd, env=env, resolver=resolver
+    )
     # FR-012 / C-CTX-3: ``target_branch`` is resolved exactly once here and
     # threaded onto both the flat substrate field and the BranchRefFragment; no
     # downstream surface re-derives it. The WP02 stored ``topology`` is read once
     # alongside it (shell read) and threaded in so the placement/surface ``kind``
     # is classified from the stored shape, never re-inferred (FR-004 / SC-001).
     target_branch = get_feature_target_branch(repo_root, mission_slug)
-    topology = _resolve_topology(get_main_repo_root(repo_root), mission_slug)
+    topology = _resolve_topology(
+        get_main_repo_root(repo_root), mission_slug, resolver=resolver
+    )
 
     identity, branch_ref, status_surface, workspace = _assemble_core_fragments(
         repo_root,
@@ -1396,6 +1495,7 @@ def resolve_action_context(
         target_branch=target_branch,
         topology=topology,
         cwd=cwd,
+        resolver=resolver,
     )
     # IC-05 (WP06 / T019): the artifact-placement ref is the SAME CommitTarget
     # status events resolve to (C-PLACE-1) — assembled from ``branch_ref`` so no
@@ -1433,7 +1533,7 @@ def resolve_action_context(
         )
 
     # The factory (``build_execution_context``) is the SOLE construction door for
-    # ``ExecutionContext`` (D-6 / IC-01). The WP-bearing actions assemble their
+    # ``MissionExecutionContext`` (D-6 / IC-01). The WP-bearing actions assemble their
     # fields BEFORE the single build call (no post-build mutation — the composite
     # is frozen).
     base_fields: dict[str, Any] = {

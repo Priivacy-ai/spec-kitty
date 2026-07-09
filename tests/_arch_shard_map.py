@@ -94,6 +94,10 @@ _ARCH_SHARD_2_FILES: tuple[str, ...] = (
     "tests/architectural/test_coverage_consumer_needs.py",
     "tests/architectural/test_execution_context_parity.py",
     "tests/architectural/test_gate_coverage.py",
+    # Added post-data-model.md (new file, mission mission-resolver-port-01KX1C05
+    # WP07 #2447 doctrine-phantom guard). shard_2 was tied lightest by file
+    # count (31 vs 33/31) when this file landed, so it lands here.
+    "tests/architectural/test_git_matrix_paths_resolve.py",
     # Added post-data-model.md (new file from mission
     # read-surface-ssot-closeout-01KWZV91, the inline meta-read gate). shard_2
     # was the lightest by both file count (30 vs 33/31) and test-fn count
@@ -137,6 +141,10 @@ _ARCH_SHARD_3_FILES: tuple[str, ...] = (
     "tests/architectural/test_gate_read_literal_ban.py",
     "tests/architectural/test_guard_capability_call_sites.py",
     "tests/architectural/test_layer_rules.py",
+    # Added post-data-model.md (new file at implementation time, mission
+    # mission-resolver-port-01KX1C05 WP04, #2173 FR-007). shard_3 was the
+    # lightest by def-test_ count (232 vs 287/251) when this file landed.
+    "tests/architectural/test_mission_resolver_walker_gate.py",
     "tests/architectural/test_no_dead_modules.py",
     "tests/architectural/test_no_primary_anchored_gates.py",
     "tests/architectural/test_no_prompt_filtering_added.py",

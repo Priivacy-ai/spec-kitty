@@ -45,8 +45,9 @@ import contextlib
 import sqlite3
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING, Any
+
+from specify_cli.core.time_utils import now_utc_iso
 
 # -- Public table / index identity (locked contract; asserted by tests) --------
 LEDGER_TABLE = "delivery_ledger"
@@ -187,11 +188,6 @@ class LedgerRow:
     last_http_status: int | None
     last_error: str | None
     last_response_json: str | None
-
-
-def _utc_now_iso() -> str:
-    """Return the current UTC timestamp as an ISO-8601 string."""
-    return datetime.now(UTC).isoformat()
 
 
 def init_ledger(conn: sqlite3.Connection) -> None:
@@ -338,7 +334,7 @@ class SqliteDeliveryLedger:
         Never deletes a journal event (FR-001): this is the only write path and it
         only ever touches ``delivery_ledger``.
         """
-        now = at or _utc_now_iso()
+        now = at or now_utc_iso()
         accepted_at = now if set_accepted else None
         completed_at = now if set_completed else None
         self._conn.execute(

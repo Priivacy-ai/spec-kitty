@@ -430,7 +430,7 @@ class TestByteIdenticalOutput:
         ]
 
         fixed_time = "2026-02-08T15:00:00+00:00"
-        with patch("specify_cli.status.reducer._now_utc", return_value=fixed_time):
+        with patch("specify_cli.core.time_utils.now_utc_iso", return_value=fixed_time):
             snapshot_a = reduce(events)
             snapshot_b = reduce(events)
 

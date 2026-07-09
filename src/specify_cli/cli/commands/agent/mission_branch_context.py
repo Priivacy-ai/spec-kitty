@@ -39,13 +39,11 @@ from rich.console import Console
 import typer
 
 from specify_cli.core.git_ops import get_current_branch
+from specify_cli.core.paths import read_target_branch_from_meta
 from specify_cli.missions._resolve_planning_branch import (
     load_mission_target_branch,
 )
 
-from specify_cli.cli.commands.agent.mission_feature_resolution import (
-    _read_feature_meta,
-)
 from specify_cli.cli.commands.agent.mission_parsing import (
     _emit_json,
     _utc_now_iso,
@@ -58,11 +56,21 @@ PROJECT_ROOT_NOT_FOUND_MESSAGE = f"{PROJECT_ROOT_NOT_FOUND}. Run from within spe
 
 
 def _resolve_feature_target_branch(feature_dir: Path, repo_root: Path) -> str:
-    """Resolve canonical target/base branch from metadata with branch fallback."""
-    meta = _read_feature_meta(feature_dir)
-    target = str(meta.get("target_branch", "")).strip()
+    """Resolve canonical target/base branch from metadata with branch fallback.
+
+    FR-008 / #2139: delegates the meta.json field read to the single
+    read_target_branch_from_meta authority instead of re-embedding a local
+    ``""`` default; the current-branch fallback chain below is this call
+    site's own deliberate degradation and is unrelated to the meta.json
+    field-read contract, so it is preserved as-is.
+    """
+    target = read_target_branch_from_meta(feature_dir)
     if target:
-        return target
+        # str(...) narrows the cross-module Any mypy sees under this repo's
+        # `follow_imports = "skip"` override for specify_cli.* (pyproject.toml);
+        # target is already a str here (read_target_branch_from_meta's real
+        # contract), mirroring the same cast in core/paths.py:723.
+        return str(target)
     return get_current_branch(repo_root) or "main"
 
 

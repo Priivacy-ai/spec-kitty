@@ -25,7 +25,8 @@ command agents are expected to run.
 | `git rev-list --count <base>..HEAD` | Topology analysis (read-only) | `core/worktree_topology.py` | `_count_commits_ahead()` |
 | `git worktree list` | Worktree discovery | `core/worktree_topology.py` | `discover_worktrees()` |
 | `git rev-parse --show-toplevel` | Repo root detection | Multiple files | Various |
-| `git branch --show-current` | Branch detection | `core/mission_detection.py` | `_detect_from_branch()` |
+| `git branch --show-current` | Branch detection | `core/git_ops.py` | `get_current_branch()` |
+| (branch name → mission slug) | Branch-based mission-slug detection | `lanes/branch_naming.py` | `parse_mission_slug_from_branch()` |
 
 ## Agent-Expected Git Commands
 

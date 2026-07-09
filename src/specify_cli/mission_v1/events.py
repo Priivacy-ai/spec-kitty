@@ -14,8 +14,9 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, UTC
 from pathlib import Path
+
+from specify_cli.core.time_utils import now_utc_iso
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ def emit_event(
     """
     event = {
         "type": event_type,
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": now_utc_iso(),
         "mission": mission_name,
         "payload": payload,
     }

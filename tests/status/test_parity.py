@@ -352,7 +352,7 @@ class TestReducerDeterminism:
         ]
 
         with patch(
-            "specify_cli.status.reducer._now_utc",
+            "specify_cli.core.time_utils.now_utc_iso",
             return_value="2026-02-08T15:00:00+00:00",
         ):
             snap_a = reduce(events)
@@ -392,7 +392,7 @@ class TestReducerDeterminism:
 
         # Forward order
         with patch(
-            "specify_cli.status.reducer._now_utc",
+            "specify_cli.core.time_utils.now_utc_iso",
             return_value="2026-02-08T15:00:00+00:00",
         ):
             snap_forward = reduce([event_a, event_b, event_c])
@@ -424,7 +424,7 @@ class TestReducerDeterminism:
         )
 
         with patch(
-            "specify_cli.status.reducer._now_utc",
+            "specify_cli.core.time_utils.now_utc_iso",
             return_value="2026-02-08T15:00:00+00:00",
         ):
             snap = reduce([event_original, event_duplicate])
@@ -539,7 +539,7 @@ class TestReducerDeterminism:
         ]
 
         fixed_time = "2026-02-08T15:00:00+00:00"
-        with patch("specify_cli.status.reducer._now_utc", return_value=fixed_time):
+        with patch("specify_cli.core.time_utils.now_utc_iso", return_value=fixed_time):
             snapshot = reduce(events)
 
         json_str = materialize_to_json(snapshot)
@@ -555,7 +555,7 @@ class TestReducerDeterminism:
     def test_empty_events_produce_stable_snapshot(self):
         """reduce([]) always produces the same structure."""
         fixed_time = "2026-02-08T15:00:00+00:00"
-        with patch("specify_cli.status.reducer._now_utc", return_value=fixed_time):
+        with patch("specify_cli.core.time_utils.now_utc_iso", return_value=fixed_time):
             snap_a = reduce([])
             snap_b = reduce([])
 
@@ -608,7 +608,7 @@ class TestReducerDeterminism:
         ]
 
         with patch(
-            "specify_cli.status.reducer._now_utc",
+            "specify_cli.core.time_utils.now_utc_iso",
             return_value="2026-02-08T15:00:00+00:00",
         ):
             snap = reduce(events)
@@ -640,7 +640,7 @@ class TestReducerDeterminism:
         )
 
         with patch(
-            "specify_cli.status.reducer._now_utc",
+            "specify_cli.core.time_utils.now_utc_iso",
             return_value="2026-02-08T15:00:00+00:00",
         ):
             snap = reduce([forward_event, rollback_event])
@@ -745,7 +745,7 @@ class TestFullEventLogParity:
         events = self._build_realistic_event_log()
 
         with patch(
-            "specify_cli.status.reducer._now_utc",
+            "specify_cli.core.time_utils.now_utc_iso",
             return_value="2026-02-08T18:00:00+00:00",
         ):
             snap = reduce(events)
@@ -770,7 +770,7 @@ class TestFullEventLogParity:
         events = self._build_realistic_event_log()
 
         fixed_time = "2026-02-08T18:00:00+00:00"
-        with patch("specify_cli.status.reducer._now_utc", return_value=fixed_time):
+        with patch("specify_cli.core.time_utils.now_utc_iso", return_value=fixed_time):
             snap_a = reduce(events)
             snap_b = reduce(events)
 
@@ -784,7 +784,7 @@ class TestFullEventLogParity:
         events = self._build_realistic_event_log()
 
         fixed_time = "2026-02-08T18:00:00+00:00"
-        with patch("specify_cli.status.reducer._now_utc", return_value=fixed_time):
+        with patch("specify_cli.core.time_utils.now_utc_iso", return_value=fixed_time):
             snap = reduce(events)
 
         json_1 = materialize_to_json(snap)

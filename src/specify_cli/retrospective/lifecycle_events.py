@@ -29,12 +29,12 @@ from specify_cli.retrospective.writer import resolve_retrospective_home
 import json
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any, Literal
 
 import ulid as _ulid_mod
 
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.retrospective.schema import (
     GenRetrospectiveRecord,
     ProvenanceKind,
@@ -247,10 +247,6 @@ def _generate_ulid() -> str:
     return str(_ulid_mod.ULID())
 
 
-def _now_utc() -> str:
-    return datetime.now(UTC).isoformat()
-
-
 def _append_retro_lifecycle_event(feature_dir: Path, event_dict: dict[str, Any]) -> None:
     """Append a retrospective lifecycle event line to status.events.jsonl."""
     events_path = feature_dir / "status.events.jsonl"
@@ -337,7 +333,7 @@ def emit_captured(
     feature_dir = resolve_retrospective_home(repo_root, record.mission_slug)
     lamport = _next_lamport(feature_dir)
     event_id = _generate_ulid()
-    at = _now_utc()
+    at = now_utc_iso()
 
     # FR-001/003 (#2119): the record lives in the durable PRIMARY home for every
     # topology, resolved above through the single durable-home authority — never
@@ -412,7 +408,7 @@ def emit_capture_failed(
     feature_dir = resolve_retrospective_home(repo_root, mission_slug)
     lamport = _next_lamport(feature_dir)
     event_id = _generate_ulid()
-    at = _now_utc()
+    at = now_utc_iso()
 
     event = RetrospectiveCaptureFailed(
         schema_version=1,
@@ -481,7 +477,7 @@ def emit_skipped(
     feature_dir = resolve_retrospective_home(repo_root, mission_slug)
     lamport = _next_lamport(feature_dir)
     event_id = _generate_ulid()
-    at = _now_utc()
+    at = now_utc_iso()
 
     event = RetrospectiveSkipped(
         schema_version=1,

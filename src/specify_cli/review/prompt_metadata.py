@@ -16,10 +16,10 @@ import re
 import tempfile
 import uuid
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.frontmatter import FrontmatterError, read_frontmatter, write_frontmatter
 
 logger = logging.getLogger(__name__)
@@ -98,7 +98,8 @@ def new_review_invocation_id() -> str:
 
 def utc_now_for_review_prompt() -> str:
     """Return a compact UTC timestamp for prompt metadata."""
-    return datetime.now(UTC).isoformat().replace("+00:00", "Z")
+    stamp: str = now_utc_iso().replace("+00:00", "Z")
+    return stamp
 
 
 def safe_repo_identifier(repo_root: Path) -> str:

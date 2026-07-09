@@ -2,7 +2,7 @@
 
 TDD-first (C-IC01 / FR-009 / D-2): these assert the build-time
 ``CONTEXT_INVARIANT_VIOLATION`` and the post-build immutability of
-``ExecutionContext``. They fail on HEAD (no invariant; composite still mutable)
+``MissionExecutionContext``. They fail on HEAD (no invariant; composite still mutable)
 and pass after the freeze + factory land.
 
 Topology-true (NFR-002): the fixtures use a full 26-char ULID ``mission_id`` —
@@ -19,8 +19,8 @@ from mission_runtime import (
     ActionContextError,
     BranchRefFragment,
     CommitTarget,
-    ExecutionContext,
     IdentityFragment,
+    MissionExecutionContext,
 )
 from mission_runtime.resolution import build_execution_context
 
@@ -106,7 +106,7 @@ def test_build_does_not_assert_branch_name_against_target_branch() -> None:
 
 
 # ---------------------------------------------------------------------------
-# T002 — ExecutionContext immutability (frozen composite)
+# T002 — MissionExecutionContext immutability (frozen composite)
 # ---------------------------------------------------------------------------
 
 
@@ -142,7 +142,7 @@ def test_built_context_rejects_wp_field_mutation() -> None:
 
 def test_direct_construction_is_frozen() -> None:
     """The composite itself is frozen, not just the factory product."""
-    context = ExecutionContext(
+    context = MissionExecutionContext(
         action="specify",
         mission_slug=_MISSION_SLUG,
         feature_dir=f"kitty-specs/{_MISSION_SLUG}",

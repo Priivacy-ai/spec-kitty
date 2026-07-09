@@ -7,7 +7,6 @@ import json
 import re
 import subprocess
 from collections.abc import Iterable, Mapping
-from datetime import UTC, datetime
 from io import StringIO
 from pathlib import Path
 from typing import Annotated, Any, NamedTuple
@@ -20,6 +19,7 @@ from rich.panel import Panel
 from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.context_validation import require_main_repo
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.core.vcs import VCSBackend
@@ -998,7 +998,7 @@ def _ensure_vcs_in_meta(feature_dir: Path, _repo_root: Path) -> VCSBackend:
     meta = meta or {}
 
     if "vcs" not in meta:
-        now_iso = datetime.now(UTC).isoformat()
+        now_iso = now_utc_iso()
         set_vcs_lock(feature_dir, vcs_type="git", locked_at=now_iso)
         console.print("[cyan]→ VCS locked to git in meta.json[/cyan]")
 

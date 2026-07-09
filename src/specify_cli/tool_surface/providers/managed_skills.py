@@ -30,11 +30,11 @@ or conflict with that output.
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol, cast
 
 from specify_cli.core.config import AGENT_SKILL_CONFIG, SKILL_CLASS_WRAPPER
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.skills import installer as skill_installer
 from specify_cli.skills import verifier as skill_verifier
 from specify_cli.skills.manifest import (
@@ -338,8 +338,8 @@ class ManagedSkillsProvider:
             )
         manifest = load_manifest(project_root) or ManagedSkillManifest(
             version=1,
-            created_at=datetime.now(UTC).isoformat(),
-            updated_at=datetime.now(UTC).isoformat(),
+            created_at=now_utc_iso(),
+            updated_at=now_utc_iso(),
         )
         for entry in installed.entries:
             manifest.add_entry(entry)

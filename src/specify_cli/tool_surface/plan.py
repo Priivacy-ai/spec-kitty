@@ -9,8 +9,9 @@ expands them into :class:`SurfaceInstance` objects on disk.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from datetime import UTC, datetime
 from pathlib import Path
+
+from specify_cli.core.time_utils import now_utc_iso
 
 from .enums import SurfaceKind
 from .model import SurfaceDefinition, SurfaceInstance, SurfacePlan
@@ -36,7 +37,7 @@ class SurfacePlanBuilder:
         surface_kind_filter: SurfaceKind | None = None,
     ) -> list[SurfacePlan]:
         """Build one :class:`SurfacePlan` for each configured tool key."""
-        computed_at = datetime.now(UTC).isoformat()
+        computed_at = now_utc_iso()
         return [
             self._build_one(tool_key, project_root, surface_kind_filter, computed_at)
             for tool_key in configured_tool_keys

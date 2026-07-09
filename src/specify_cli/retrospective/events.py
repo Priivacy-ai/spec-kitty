@@ -13,13 +13,13 @@ from __future__ import annotations
 import json
 import logging
 from importlib import import_module
-from datetime import datetime, UTC
 from pathlib import Path
 from typing import Literal, cast
 
 import ulid as _ulid_mod
 from pydantic import BaseModel, ConfigDict
 
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.retrospective.schema import ActorRef, Mode
 
 logger = logging.getLogger(__name__)
@@ -156,11 +156,6 @@ def _generate_ulid() -> str:
     return str(_ulid_mod.ULID())
 
 
-def _now_utc() -> str:
-    """Return the current UTC time as an ISO 8601 string."""
-    return datetime.now(UTC).isoformat()
-
-
 def emit_retrospective_event(
     *,
     feature_dir: Path,
@@ -198,7 +193,7 @@ def emit_retrospective_event(
         )
 
     event_id = _generate_ulid()
-    at = _now_utc()
+    at = now_utc_iso()
 
     envelope: dict[str, object] = {
         "actor": actor.model_dump(mode="json"),

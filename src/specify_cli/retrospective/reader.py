@@ -244,6 +244,16 @@ def _validate_gen_mapping(data: YamlMapping) -> None:
 
 
 def _gen_record_from_mapping(data: YamlMapping) -> GenRetrospectiveRecord:
+    # FR-008 / #2139 triage note (OUT): the `target_branch=data.get("target_branch", "")`
+    # below is a dataclass-hydration default for a PERSISTED retrospective
+    # RECORD field, not a meta.json reader -- it mirrors GenRetrospectiveRecord's
+    # own schema-wide "" default (schema.py) applied identically to every other
+    # legacy-optional string field on this same dataclass (mission_id,
+    # mission_slug, friendly_name, mission_type, created_at, ...). No
+    # feature_dir/repo_root is available at this deserialization boundary, and
+    # resolving it against LIVE meta.json here would silently substitute a
+    # historical record's field with the mission's CURRENT branch. Different
+    # contract by design; not routed through read_target_branch_from_meta.
     def _actor(raw: object) -> GenActor:
         if not isinstance(raw, dict):
             raw = {}

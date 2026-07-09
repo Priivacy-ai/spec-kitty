@@ -306,12 +306,13 @@ _RAW_JOIN_SITES: tuple[tuple[str, int, str], ...] = (
     # without flipping this ratchet RED (the whole point of the front-load).
     (
         "specify_cli/missions/_read_path_resolver.py",
-        1239,
+        1282,
         "TBYD — IS the primary_feature_dir_for_mission primitive definition; "
         "assert_safe_path_segment called just above (NFR-002); "
         "get_main_repo_root wraps the left operand; "
         "this function is the canonical topology-blind entry point. "
-        "(Re-keyed :869 -> :885 -> :1078 -> :1162 -> :1244 -> :1240 -> :1239: WP04 added the "
+        "(Re-keyed :869 -> :885 -> :1078 -> :1162 -> :1244 -> :1240 -> :1239 -> :1282: "
+        "WP04 added the "
         "stored-topology helpers (stored_topology_from_meta / "
         "_declares_coordination_branch / _canonicalize_bare_modern_handle) + "
         "topology threading above; 01KVRJ6P WP06 added classify_from_meta (read-path "
@@ -321,9 +322,12 @@ _RAW_JOIN_SITES: tuple[tuple[str, int, str], ...] = (
         "load_meta), shifting this definition UP by 4 lines (1244 -> 1240); then mission "
         "implement-loop-coord-authority-completion-01KW2E7A (#2160) deleted the now-unused "
         "FEATURE_CONTEXT_UNRESOLVED_CODE module constant above, shifting this definition UP "
-        "by 1 line (1240 -> 1239). The "
+        "by 1 line (1240 -> 1239); then mission mission-resolver-port-01KX1C05 WP03 threaded "
+        "the injected ``resolver: MissionResolver | None`` param through the shell +  "
+        "canonicalizer chain above this definition, shifting it DOWN by 43 lines "
+        "(1239 -> 1282). The "
         "composite key is anchored on the qualname + join token line, so only the "
-        "seed line drifted — NOT a raw file.py:NNN line bump (CT1 / WP17 test-DoD (e)).)",
+        "seed line drifted — NOT a raw file.py:NNN line bump (CT1 / WP03 census sync).)",
     ),
     # ----- mission_creation.py: seam-grammar output -----
     # ``mission_slug_formatted = mission_dir_name(mission_slug, mid8=...)`` at :323.

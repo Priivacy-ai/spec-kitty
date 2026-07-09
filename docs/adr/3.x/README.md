@@ -77,3 +77,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-06-25 | [Terminal-artifact durable home + topology-aware teardown contract](2026-06-25-1-terminal-artifact-durable-home-teardown.md) |
 | 2026-06-26 | [Single-authority seam + call-site gate for resolution boundaries (Phase 1)](2026-06-26-1-single-authority-seam-and-call-site-gate.md) |
 | 2026-07-01 | [No legacy-compat branches in resolvers — require canonical identity, migrate legacy](2026-07-01-1-no-legacy-compat-branches-in-resolvers.md) |
+| 2026-07-08 | [MissionResolver Port — One Walk Trunk, Shell-Side DI, No Shared Container](2026-07-08-1-mission-resolver-port.md) |

@@ -8,13 +8,13 @@ issue_matrix_present, mission_exception_present.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
 from rich.console import Console
 
 from specify_cli.cli.commands.review._ble001_audit import _BLE001_REMEDIATION
+from specify_cli.core.time_utils import now_utc_iso
 
 _HARD_FAILURE_FINDING_TYPES = frozenset(
     {
@@ -129,7 +129,7 @@ def write_review_report(
     else:
         verdict = "pass"
 
-    reviewed_at = datetime.now(UTC).isoformat()
+    reviewed_at = now_utc_iso()
 
     # Build gates_recorded YAML block
     gates_yaml_lines: list[str] = []

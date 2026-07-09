@@ -61,7 +61,7 @@ a single operation:
 | Context type | Owner | Resolved from |
 |---|---|---|
 | `GovernanceContext` | Governance module | Charter and Doctrine artifacts active for this project |
-| `ExecutionContext` | Execution module (`core/execution_context.py`) | Workspace root, branch, feature directory, WP identity |
+| `MissionExecutionContext` | Execution module (`core/execution_context.py`) | Workspace root, branch, feature directory, WP identity |
 | `InfraContext` | Execution module | Git remote, CI endpoints, infrastructure credentials |
 
 Context types are resolved once per operation and passed down. They are never
@@ -109,7 +109,7 @@ re-derived from CWD mid-operation.
 ## Glossary Additions
 
 This ADR introduces the following terms (full entries in project glossary):
-`GovernanceContext`, `ExecutionContext`, `InfraContext`, `Effector`,
+`GovernanceContext`, `MissionExecutionContext`, `InfraContext`, `Effector`,
 `communication artefact`.
 
 ## References

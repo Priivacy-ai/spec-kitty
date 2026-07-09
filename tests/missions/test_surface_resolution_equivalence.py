@@ -702,7 +702,7 @@ def test_pure_stored_topology_projects_surface_placement(
 
     The ADDITIVE pure cell (FR-010a): it feeds WP03's pure resolver
     ``resolve_context_for_mission`` for ALL FOUR ``MissionTopology`` values with a
-    production-shaped 26-char ULID and asserts the projected ``ExecutionContext``
+    production-shaped 26-char ULID and asserts the projected ``MissionExecutionContext``
     surface placement — ``SINGLE_BRANCH`` / ``LANES`` → PRIMARY (``FLATTENED`` ref,
     ``routes_through_coordination`` False); ``COORD`` / ``LANES_WITH_COORD`` →
     coordination placement. ZERO FS/git fixtures (no ``tmp_path`` meta, no repo

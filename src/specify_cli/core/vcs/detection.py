@@ -162,21 +162,30 @@ def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
                 # Legacy worktrees embed the full ``NNN-slug`` (dir name matches
                 # exactly); mid8 worktrees carry the human-slug (the dir name is
                 # the slug, optionally still NNN-prefixed in kitty-specs).
+                #
+                # mission-resolver-port-01KX1C05 WP03 (FR-003/T015): adopts
+                # ``FsMissionResolver.all_missions()`` (the canonical port,
+                # mission-scoped and identity-bearing) in place of the hand-rolled
+                # ``kitty-specs/`` ``iterdir()`` scan this used to run. A worktree
+                # only exists for a mission that already has a mint ``mission_id``
+                # (worktree naming requires the mid8), so every real match here is
+                # identity-bearing and the port's mission_id-less skip (C-001) does
+                # not change observable behaviour for this call site. Preserves the
+                # first-match-wins, return-immediately contract: the first mission
+                # whose slug matches wins, whether or not its meta carries "vcs".
+                from specify_cli.context.mission_resolver import FsMissionResolver
+
                 main_repo = worktree_root.parent.parent
-                mission_specs = main_repo / KITTY_SPECS_DIR
-                if mission_specs.is_dir():
-                    slug = parsed.slug
-                    for feature_dir in mission_specs.iterdir():
-                        if not feature_dir.is_dir():
-                            continue
-                        name = feature_dir.name
-                        if name == slug or name.endswith(f"-{slug}") or name == f"{slug}":
-                            meta = load_meta(feature_dir, on_malformed="none")
-                            if meta is not None and "vcs" in meta:
-                                with contextlib.suppress(ValueError):
-                                    return VCSBackend(meta["vcs"])
-                            # Found feature dir but no valid meta.json
-                            return None
+                slug = parsed.slug
+                for mission in FsMissionResolver(main_repo).all_missions():
+                    name = mission.mission_slug
+                    if name == slug or name.endswith(f"-{slug}"):
+                        meta = load_meta(mission.feature_dir, on_malformed="none")
+                        if meta is not None and "vcs" in meta:
+                            with contextlib.suppress(ValueError):
+                                return VCSBackend(meta["vcs"])
+                        # Found feature dir but no valid meta.json
+                        return None
 
     # Path is not inside any feature
     return None

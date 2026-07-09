@@ -32,7 +32,7 @@ import textwrap
 from pathlib import Path
 
 import pytest
-from pytestarch import Rule
+from pytestarch import EvaluableArchitecture, Rule
 from pytestarch.eval_structure.exceptions import ImpossibleMatch
 
 pytestmark = pytest.mark.architectural
@@ -50,13 +50,19 @@ _PUBLIC_SURFACE = sorted(
         "ArtifactPlacementFragment",
         "BranchRefFragment",
         "CommitTarget",
-        "ExecutionContext",
         "ExecutionMode",
         "IdentityFragment",
         "MissionArtifactContext",
         "MissionArtifactHome",
         "MissionArtifactKind",
         "MissionContext",
+        "MissionExecutionContext",
+        # mission-resolver-port-01KX1C05 WP02 (FR-001): the handle -> mission
+        # identity Protocol, defined here (not in specify_cli.context) so the
+        # shell references a local type with no new mission_runtime ->
+        # specify_cli.context ledger edge (D-Q2). See
+        # mission_runtime/mission_resolver_port.py for the full rationale.
+        "MissionResolver",
         "MissionTopology",
         # coord-primary-partition-lock WP01 (T001): the kind-aware placement seam
         # — the public face of resolve_action_context's derivation root (C-001) —
@@ -110,7 +116,7 @@ class TestMissionRuntimeSurface:
 
         assert mission_runtime.__all__ == _PUBLIC_SURFACE
 
-    def test_no_external_submodule_imports(self, evaluable) -> None:
+    def test_no_external_submodule_imports(self, evaluable: EvaluableArchitecture) -> None:
         """pytestarch rule: nothing imports mission_runtime internals directly.
 
         Modules *inside* ``mission_runtime`` may import their siblings (the

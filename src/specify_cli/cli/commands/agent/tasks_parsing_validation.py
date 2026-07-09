@@ -742,13 +742,18 @@ def _check_kitty_specs_contamination(
     # FR-009 / FR-010: resolve the planning branch from meta.json so
     # the error message names the branch and gives a `git show` example.
     # Falls back gracefully for legacy missions without meta.json.
+    # FR-008 / #2139: the target_branch half of this lookup routes through the
+    # single read_target_branch_from_meta authority rather than a raw
+    # `_meta.get("target_branch")` extraction; planning_base_branch keeps
+    # precedence exactly as before.
     _planning_branch: str | None = None
     try:
+        from specify_cli.core.paths import read_target_branch_from_meta as _read_target_branch_lggrd
         from specify_cli.mission_metadata import load_meta as _load_meta_lggrd
 
         _meta = _load_meta_lggrd(feature_dir)
         if _meta:
-            _planning_branch = _meta.get("planning_base_branch") or _meta.get("target_branch")
+            _planning_branch = _meta.get("planning_base_branch") or _read_target_branch_lggrd(feature_dir)
     except Exception as _lane_meta_exc:  # noqa: BLE001 - lane guard still reports contamination without optional metadata
         logger.debug(
             "Could not resolve planning_base_branch for lane guard: %s", _lane_meta_exc

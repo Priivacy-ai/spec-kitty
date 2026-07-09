@@ -25,8 +25,9 @@ import logging
 import shutil
 import subprocess
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
 from pathlib import Path
+
+from specify_cli.core.time_utils import now_utc_iso
 
 logger = logging.getLogger(__name__)
 
@@ -210,7 +211,7 @@ def _update_schema_version(repo_root: Path) -> None:
     spec_kitty = data.setdefault("spec_kitty", {})
     spec_kitty["schema_version"] = _TARGET_SCHEMA_VERSION
     spec_kitty["schema_capabilities"] = _TARGET_SCHEMA_CAPABILITIES
-    spec_kitty["last_upgraded_at"] = datetime.now(UTC).isoformat()
+    spec_kitty["last_upgraded_at"] = now_utc_iso()
 
     with metadata_path.open("w", encoding="utf-8") as fh:
         y.dump(data, fh)

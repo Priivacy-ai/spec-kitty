@@ -21,9 +21,10 @@ import json
 import logging
 import os
 from dataclasses import dataclass
-from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any
+
+from specify_cli.core.time_utils import now_utc_iso
 
 logger = logging.getLogger(__name__)
 
@@ -148,7 +149,7 @@ class ReviewLock:
             worktree_path=str(worktree),
             wp_id=wp_id,
             agent=agent,
-            started_at=datetime.now(UTC).isoformat(),
+            started_at=now_utc_iso(),
             pid=os.getpid(),
         )
         lock.save(worktree)

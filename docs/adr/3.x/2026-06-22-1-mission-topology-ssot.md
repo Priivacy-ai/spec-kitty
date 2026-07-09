@@ -79,7 +79,7 @@ door.
 
 3. **One resolver, pure.** Add
    `resolve_context_for_mission(mission_id: str, topology: MissionTopology) ->
-   ExecutionContext` as a **pure projection** over the existing single
+   MissionExecutionContext` as a **pure projection** over the existing single
    construction door `build_execution_context` (functional core / imperative
    shell). It performs **no filesystem or git I/O**; the shell parses/persists
    `meta.json` and passes `id + topology`. `topology` is an authoritative input
@@ -136,7 +136,7 @@ band-aid.
   recompute it from `coordination_branch is None`, `lanes.json` presence, or a
   worktree `stat`.
 - **The resolver is pure and isolated-testable** (NFR-005): feed
-  `(mission_id, topology)`, assert the returned `ExecutionContext` surface
+  `(mission_id, topology)`, assert the returned `MissionExecutionContext` surface
   fields — zero filesystem/git fixtures. All FS/git access lives in the
   imperative shell.
 - **Both hand-rolled derivations are dead** (SC-001): a `grep` for the
@@ -193,4 +193,4 @@ band-aid.
 - Write-side twin (kind-aware placement over the stored topology): [ADR 2026-06-24-1 — Kind- and topology-aware artifact placement](2026-06-24-1-kind-and-topology-aware-artifact-placement.md) ([#2090](https://github.com/Priivacy-ai/spec-kitty/issues/2090) / [#2101](https://github.com/Priivacy-ai/spec-kitty/issues/2101))
 - Epics: [#1716](https://github.com/Priivacy-ai/spec-kitty/issues/1716) (single surface authority), [#2007](https://github.com/Priivacy-ai/spec-kitty/issues/2007), [#1619](https://github.com/Priivacy-ai/spec-kitty/issues/1619) (execution-context)
 - Transient-state carve-outs preserved: [#1718](https://github.com/Priivacy-ai/spec-kitty/issues/1718) (create-window), [#1848](https://github.com/Priivacy-ai/spec-kitty/issues/1848) (coord-deleted)
-- Canonical seams: [`src/mission_runtime/context.py`](../../../src/mission_runtime/context.py) (`ExecutionContext`, `CommitTargetKind`), [`src/mission_runtime/resolution.py`](../../../src/mission_runtime/resolution.py) (`build_execution_context`, retired derivation), [`src/runtime/next/runtime_bridge.py`](../../../src/runtime/next/runtime_bridge.py) (retired second derivation)
+- Canonical seams: [`src/mission_runtime/context.py`](../../../src/mission_runtime/context.py) (`MissionExecutionContext`, `CommitTargetKind`), [`src/mission_runtime/resolution.py`](../../../src/mission_runtime/resolution.py) (`build_execution_context`, retired derivation), [`src/runtime/next/runtime_bridge.py`](../../../src/runtime/next/runtime_bridge.py) (retired second derivation)

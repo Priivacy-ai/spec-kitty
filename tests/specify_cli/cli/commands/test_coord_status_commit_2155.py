@@ -119,11 +119,11 @@ def _install_distinguishable_topology(monkeypatch: pytest.MonkeyPatch, *, coord:
     # The fold is a no-op for an already-composed handle; pin it so the synthetic
     # handle does not hit the filesystem.
     monkeypatch.setattr(
-        rpr, "_canonicalize_primary_read_handle", lambda _repo, handle: handle
+        rpr, "_canonicalize_primary_read_handle", lambda _repo, handle, **_kw: handle
     )
     # The kind-blind resolver and the STATUS-partition leg both route here.
     monkeypatch.setattr(
-        rpr, "candidate_feature_dir_for_mission", lambda _repo, _slug: kind_blind_dir
+        rpr, "candidate_feature_dir_for_mission", lambda _repo, _slug, **_kw: kind_blind_dir
     )
     monkeypatch.setattr(
         rpr, "resolve_feature_dir_for_mission", lambda _repo, _slug, **_kw: kind_blind_dir

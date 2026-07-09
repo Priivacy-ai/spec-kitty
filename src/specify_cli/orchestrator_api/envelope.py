@@ -12,8 +12,9 @@ import dataclasses
 import re
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, UTC
 from typing import Any
+
+from specify_cli.core.time_utils import now_utc_iso
 
 # 1.1.0: start-implementation now allocates the real lane worktree and its
 # response carries lane_id / lane_branch / lane_base_ref; workspace_path now
@@ -83,7 +84,7 @@ def make_envelope(
     return {
         "contract_version": CONTRACT_VERSION,
         "command": f"orchestrator-api.{command}",
-        "timestamp": datetime.now(UTC).isoformat(),
+        "timestamp": now_utc_iso(),
         "correlation_id": _new_correlation_id(),
         "success": success,
         "error_code": error_code,

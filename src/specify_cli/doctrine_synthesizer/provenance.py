@@ -21,7 +21,6 @@ Minimum field set required by FR-022 / synthesizer_hook.md:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 import hashlib
 from pathlib import Path
 import re
@@ -29,6 +28,7 @@ from typing import Any
 
 from ruamel.yaml import YAML
 
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.retrospective.schema import ActorRef, Proposal
 
 # ---------------------------------------------------------------------------
@@ -172,7 +172,7 @@ def write_provenance(
             "id": actor.id,
             "profile_id": actor.profile_id,
         },
-        "applied_at": datetime.now(UTC).isoformat(),
+        "applied_at": now_utc_iso(),
         "re_applied": re_applied,
     }
 

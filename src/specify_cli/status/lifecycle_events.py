@@ -44,6 +44,7 @@ from pathlib import Path
 from typing import Any
 from collections.abc import Iterable, Mapping
 
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.workspace.root_resolver import WorkspaceRootNotFound, resolve_canonical_root
 
 from .models import Lane as _Lane
@@ -134,10 +135,6 @@ def mission_event_log_path(feature_dir: Path) -> Path:
 # ---------------------------------------------------------------------------
 
 
-def _now_iso() -> str:
-    return datetime.now(UTC).isoformat()
-
-
 def _iso_str_to_datetime(iso: str | None) -> datetime | None:
     """Parse an ISO-8601 string to a timezone-aware datetime, or return None.
 
@@ -220,7 +217,7 @@ def _build_envelope(
         "aggregate_id": aggregate_id,
         "aggregate_type": aggregate_type,
         "schema_version": schema_version,
-        "timestamp": _now_iso(),
+        "timestamp": now_utc_iso(),
         "payload": dict(payload),
         "project_uuid": project_uuid,
         "project_slug": project_slug,
@@ -364,7 +361,7 @@ def build_saas_lifecycle_queue_event(
         "lamport_clock": lamport_clock,
         "causation_id": None,
         "correlation_id": event_id,
-        "timestamp": envelope.get("timestamp") or _now_iso(),
+        "timestamp": envelope.get("timestamp") or now_utc_iso(),
         "project_uuid": project_uuid,
         "project_slug": project_slug or envelope.get("project_slug"),
     }
@@ -648,7 +645,7 @@ def emit_artifact_phase(
         "mission_slug": mission_slug,
         "mission_number": mission_number,
         "actor": actor,
-        "at": at or _now_iso(),
+        "at": at or now_utc_iso(),
     }
     # Completed-only fields. Passing these on Started variants is
     # rejected by ``extra="forbid"`` on the typed model — the dormant
@@ -755,7 +752,7 @@ def emit_reviewer_self_approval(
         "intended_reviewer": intended_reviewer,
         "failure_reason": failure_reason,
         "fallback_approved": fallback_approved,
-        "timestamp": at or _now_iso(),
+        "timestamp": at or now_utc_iso(),
     }
     log_path = mission_event_log_path(feature_dir)
     return append_lifecycle_event(
@@ -829,7 +826,7 @@ def emit_mission_reopened(
         "mission_slug": mission_slug,
         "reason": reason,
         "reopened_by": reopened_by,
-        "reopened_at": reopened_at or _now_iso(),
+        "reopened_at": reopened_at or now_utc_iso(),
         "cleared_merge": dict(cleared_merge) if cleared_merge is not None else None,
     }
     log_path = mission_event_log_path(feature_dir)
@@ -901,7 +898,7 @@ def emit_follow_up_recorded(
         "commit_sha": commit_sha,
         "pr_number": pr_number,
         "recorded_by": recorded_by,
-        "recorded_at": recorded_at or _now_iso(),
+        "recorded_at": recorded_at or now_utc_iso(),
     }
     log_path = mission_event_log_path(feature_dir)
     return append_lifecycle_event(

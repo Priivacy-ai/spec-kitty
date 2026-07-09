@@ -13,10 +13,10 @@ fan-in WPs become the synchronization point.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone, UTC
 from itertools import combinations
 
 from specify_cli.core.dependency_graph import topological_sort
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.lanes.branch_naming import mission_branch_name
 from specify_cli.lanes.models import CollapseEvent, CollapseReport, ExecutionLane, LanesManifest
 from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
@@ -349,7 +349,7 @@ def compute_lanes(
             mission_branch=mission_branch_name(mission_slug, mission_id=mission_id),
             target_branch=target_branch,
             lanes=[planning_lane],
-            computed_at=datetime.now(UTC).isoformat(),
+            computed_at=now_utc_iso(),
             computed_from="dependency_graph+ownership",
             planning_artifact_wps=list(planning_lane.wp_ids),
         )
@@ -569,7 +569,7 @@ def compute_lanes(
         mission_branch=mission_branch,
         target_branch=target_branch,
         lanes=all_lanes,
-        computed_at=datetime.now(UTC).isoformat(),
+        computed_at=now_utc_iso(),
         computed_from="dependency_graph+ownership",
         planning_artifact_wps=derived_planning_artifact_wps,
         collapse_report=collapse_report,
@@ -676,7 +676,7 @@ def _empty_manifest(
         mission_branch=mission_branch_name(mission_slug, mission_id=mission_id),
         target_branch=target_branch,
         lanes=[],
-        computed_at=datetime.now(UTC).isoformat(),
+        computed_at=now_utc_iso(),
         computed_from="dependency_graph+ownership",
         planning_artifact_wps=planning_artifact_wps or [],
     )

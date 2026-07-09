@@ -3,7 +3,7 @@
 The functional-core tripwire (FR-004): :func:`resolve_context_for_mission` is a
 PURE projection over the construction door ``build_execution_context``. It takes
 ``(mission_id, topology)`` + shell-assembled fragments and returns an
-``ExecutionContext`` whose placement reflects the STORED topology — with **zero**
+``MissionExecutionContext`` whose placement reflects the STORED topology — with **zero**
 filesystem / git fixtures. If this test ever needs a ``tmp_path`` meta.json, a
 repo init, or a ``load_meta`` monkeypatch, the resolver has regressed to impurity
 — fix the RESOLVER, not the test.
@@ -27,6 +27,7 @@ from mission_runtime import (
     BranchRefFragment,
     CommitTarget,
     IdentityFragment,
+    MissionExecutionContext,
     MissionTopology,
     StatusSurfaceFragment,
     routes_through_coordination,
@@ -67,7 +68,7 @@ def _branch_ref(coordination_branch: str | None) -> BranchRefFragment:
     )
 
 
-def _resolve(topology: MissionTopology, **kwargs: object):
+def _resolve(topology: MissionTopology, **kwargs: object) -> MissionExecutionContext:
     coordination_branch = (
         _COORD_BRANCH
         if topology in (MissionTopology.COORD, MissionTopology.LANES_WITH_COORD)

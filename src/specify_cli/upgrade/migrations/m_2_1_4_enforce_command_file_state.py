@@ -27,10 +27,14 @@ from __future__ import annotations
 import logging
 import os
 from pathlib import Path
+from typing import TYPE_CHECKING, cast
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
+
+if TYPE_CHECKING:
+    from specify_cli.readiness.upgrade_ux import _CliStatusLike
 
 logger = logging.getLogger(__name__)
 
@@ -52,8 +56,26 @@ _VERSION_MARKER_HEAD_LINES = 15
 # ---------------------------------------------------------------------------
 
 
-def _get_cli_version() -> str:
-    """Return the current CLI version string."""
+def _get_cli_version(cli_status: _CliStatusLike | None = None) -> str:
+    """Return the current CLI version string.
+
+    Routed through the existing InstalledVersion seam (FR-010): callers may
+    inject any ``_CliStatusLike`` (``readiness/upgrade_ux.py``) to supply the
+    version without touching installed package metadata — the same
+    default-param dependency-injection idiom used for the Resolver/Clock
+    seams. No new port is introduced; this is a finish-the-routing job.
+
+    With no injection (the production default), behavior is byte-for-byte
+    unchanged: ``importlib.metadata`` lookup, falling back to
+    ``specify_cli.__version__``.
+    """
+    if cli_status is not None:
+        # ``specify_cli.*`` cross-module imports resolve as ``Any`` under this
+        # project's ``follow_imports = "skip"`` mypy override (pyproject.toml),
+        # so the Protocol's own ``-> str`` annotation is lost at the call site
+        # even though it is genuinely ``str`` by contract. ``cast`` documents
+        # that, matching the established idiom (e.g. ``status/emit.py``).
+        return cast(str, cli_status.installed_version)
     try:
         from importlib.metadata import version
 
@@ -64,9 +86,9 @@ def _get_cli_version() -> str:
         return __version__
 
 
-def _expected_version_marker() -> str:
+def _expected_version_marker(cli_status: _CliStatusLike | None = None) -> str:
     """Return the full version marker comment for the current CLI version."""
-    return f"{_VERSION_MARKER_PREFIX} {_get_cli_version()} -->"
+    return f"{_VERSION_MARKER_PREFIX} {_get_cli_version(cli_status)} -->"
 
 
 def _file_has_current_version_marker(file_path: Path) -> bool:

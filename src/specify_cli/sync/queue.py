@@ -31,6 +31,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 import toml
 
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.paths import get_runtime_root
 
 if TYPE_CHECKING:  # pragma: no cover - typing-only; avoids the queue<->authority cycle
@@ -170,7 +171,7 @@ def _build_legacy_artifact_indexed_payload(
             "wp_id": payload.get("wp_id"),
         },
         "content_ref": _legacy_content_ref(payload),
-        "indexed_at": str(payload.get("indexed_at") or event.get("timestamp") or datetime.now(UTC).isoformat()),
+        "indexed_at": str(payload.get("indexed_at") or event.get("timestamp") or now_utc_iso()),
         "step_id": payload.get("step_id"),
         "context_diagnostics": _string_context(
             {
@@ -197,7 +198,7 @@ def _build_legacy_artifact_missing_payload(
             "artifact_class": _normalize_legacy_artifact_class(payload.get("artifact_class")),
         },
         "manifest_step": str(payload.get("step_id") or "default"),
-        "checked_at": str(payload.get("checked_at") or event.get("timestamp") or datetime.now(UTC).isoformat()),
+        "checked_at": str(payload.get("checked_at") or event.get("timestamp") or now_utc_iso()),
         "remediation_hint": payload.get("reason_detail"),
         "context_diagnostics": _string_context(
             {
@@ -226,7 +227,7 @@ def _build_legacy_snapshot_payload(
         "snapshot_hash": str(payload.get("parity_hash_sha256") or ""),
         "artifact_count": int(counts.get("total") or 0),
         "anomaly_count": int(counts.get("required_missing") or 0),
-        "computed_at": str(payload.get("computed_at") or event.get("timestamp") or datetime.now(UTC).isoformat()),
+        "computed_at": str(payload.get("computed_at") or event.get("timestamp") or now_utc_iso()),
         "algorithm": "sha256",
         "context_diagnostics": _string_context(
             {
@@ -257,7 +258,7 @@ def _build_legacy_parity_drift_payload(
         "expected_hash": str(payload.get("baseline_parity_hash") or ""),
         "actual_hash": str(payload.get("local_parity_hash") or ""),
         "drift_kind": str(payload.get("drift_kind") or "anomaly_introduced"),
-        "detected_at": str(payload.get("detected_at") or event.get("timestamp") or datetime.now(UTC).isoformat()),
+        "detected_at": str(payload.get("detected_at") or event.get("timestamp") or now_utc_iso()),
         "artifact_ids_changed": [
             {
                 "mission_type": str(namespace.get("mission_type") or "software-dev"),
