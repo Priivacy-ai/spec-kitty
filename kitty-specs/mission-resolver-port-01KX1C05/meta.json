@@ -1,0 +1,17 @@
+{
+  "baseline_merge_commit": "80505b6ad6d0522c9d8027bc5b9e594d79ed45c9",
+  "coordination_branch": "kitty/mission-mission-resolver-port-01KX1C05",
+  "created_at": "2026-07-08T17:21:52.190148+00:00",
+  "flattened": false,
+  "friendly_name": "MissionResolver Port (2173 Phase 2)",
+  "mission_id": "01KX1C051X4JT9VZE6NA3HEPXT",
+  "mission_number": 170,
+  "mission_slug": "mission-resolver-port-01KX1C05",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Today every command re-derives which mission it is in via an uncached per-call walk of kitty-specs/ that no unit test can substitute, so the execution-context builder cannot be tested without a real filesystem. This mission introduces one injected MissionResolver seam (real + fake adapters) at the resolution shell, consolidating that single walk and two adjacent infra reads (Clock, InstalledVersion) behind the shipped default-param DI idiom, so downstream missions can build and verify mission context deterministically.",
+  "purpose_tldr": "One canonical MissionResolver port so the mission execution-context builder is FS-free-testable — the enabler that unblocks the #1619 runtime-context root and de-risks the later #2160 degod.",
+  "slug": "mission-resolver-port-01KX1C05",
+  "target_branch": "feat/mission-resolver-port-2173",
+  "topology": "coord"
+}
