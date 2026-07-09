@@ -44,6 +44,7 @@ from .models import (
     Lane,
     RepoEvidence,
     ReviewApproval,
+    ReviewResult,
     StatusEvent,
     TransitionRequest,
     VerificationResult,
@@ -139,6 +140,7 @@ def build_status_event(  # noqa: PLR0913 -- pass-through to a dataclass construc
     reason: str | None = None,
     review_ref: str | None = None,
     evidence: DoneEvidence | None = None,
+    review_result: ReviewResult | None = None,
     policy_metadata: dict[str, Any] | None = None,
 ) -> StatusEvent:
     """Construct a fresh :class:`StatusEvent` with a new ULID and timestamp.
@@ -160,6 +162,7 @@ def build_status_event(  # noqa: PLR0913 -- pass-through to a dataclass construc
         reason: Optional human reason (required for force).
         review_ref: Optional review-feedback reference.
         evidence: Optional :class:`DoneEvidence` for done transitions.
+        review_result: Optional structured review outcome for review exits.
         policy_metadata: Optional orchestrator policy metadata dict.
 
     Returns:
@@ -178,6 +181,7 @@ def build_status_event(  # noqa: PLR0913 -- pass-through to a dataclass construc
         reason=reason,
         review_ref=review_ref,
         evidence=evidence,
+        review_result=review_result,
         policy_metadata=policy_metadata,
         mission_id=mission_id,
     )
@@ -554,6 +558,7 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
                 reason=reason,
                 review_ref=review_ref,
                 evidence=None,
+                review_result=review_result,
                 policy_metadata=policy_metadata,
                 mission_id=mission_id,
             )
@@ -599,6 +604,7 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
             reason=reason,
             review_ref=review_ref,
             evidence=done_evidence,
+            review_result=review_result,
             policy_metadata=policy_metadata,
             mission_id=mission_id,
         )
@@ -724,6 +730,7 @@ def emit_status_transition_batch(  # noqa: C901 — composite transition orchest
             reason=request.reason,
             review_ref=request.review_ref,
             evidence=done_evidence,
+            review_result=request.review_result,
             policy_metadata=request.policy_metadata,
             mission_id=mission_id,
         )

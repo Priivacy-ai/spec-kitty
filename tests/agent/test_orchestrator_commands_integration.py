@@ -915,6 +915,8 @@ class TestTransition:
                     "reviewer",
                     "--review-ref",
                     "review-001",
+                    "--review-result-json",
+                    '{"reviewer":"reviewer","verdict":"approved","reference":"review-001"}',
                     "--evidence-json",
                     '{"review":{"reviewer":"reviewer","verdict":"approved","reference":"review-001"}}',
                 ],
@@ -923,6 +925,9 @@ class TestTransition:
         assert result.exit_code == 0, result.output
         req = emit_mock.call_args.args[0]
         assert req.review_ref == "review-001"
+        assert req.review_result.reviewer == "reviewer"
+        assert req.review_result.verdict == "approved"
+        assert req.review_result.reference == "review-001"
         assert req.evidence == {
             "review": {
                 "reviewer": "reviewer",
@@ -953,6 +958,43 @@ class TestTransition:
                     "reviewer",
                     "--evidence-json",
                     '{"review":',
+                ],
+            )
+
+        assert result.exit_code == 1
+        data = json.loads(result.output)
+        assert data["error_code"] == "USAGE_ERROR"
+
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            '{"reviewer":',
+            '[]',
+            '{"reviewer":"reviewer","verdict":"approved"}',
+            '{"reviewer":"reviewer","verdict":"maybe","reference":"review-001"}',
+        ],
+    )
+    def test_transition_rejects_invalid_review_result_json(self, tmp_path, payload):
+        repo_root, _ = _make_mission(tmp_path, "099-test-feature")
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "transition",
+                    "--mission",
+                    "099-test-feature",
+                    "--wp",
+                    "WP01",
+                    "--to",
+                    "done",
+                    "--actor",
+                    "reviewer",
+                    "--review-result-json",
+                    payload,
                 ],
             )
 

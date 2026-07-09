@@ -184,6 +184,25 @@ class ReviewResult:
     reference: str  # Approval ref or feedback:// URI
     feedback_path: str | None = None  # Resolved path to feedback file (rejection only)
 
+    def to_dict(self) -> dict[str, Any]:
+        data: dict[str, Any] = {
+            "reviewer": self.reviewer,
+            "verdict": self.verdict,
+            "reference": self.reference,
+        }
+        if self.feedback_path is not None:
+            data["feedback_path"] = self.feedback_path
+        return data
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> ReviewResult:
+        return cls(
+            reviewer=data["reviewer"],
+            verdict=data["verdict"],
+            reference=data["reference"],
+            feedback_path=data.get("feedback_path"),
+        )
+
 
 @dataclass(frozen=True)
 class StatusEvent:
@@ -211,6 +230,7 @@ class StatusEvent:
     reason: str | None = None
     review_ref: str | None = None
     evidence: DoneEvidence | None = None
+    review_result: ReviewResult | None = None
     policy_metadata: dict[str, Any] | None = None
     # mission_id (ULID) added in WP05; None for legacy events read from disk
     # before the migration, or for missions that pre-date mission_id minting.
@@ -232,6 +252,8 @@ class StatusEvent:
             "evidence": self.evidence.to_dict() if self.evidence else None,
             "policy_metadata": self.policy_metadata,
         }
+        if self.review_result is not None:
+            d["review_result"] = self.review_result.to_dict()
         if self.mission_id is not None:
             d["mission_id"] = self.mission_id
         return d
@@ -248,6 +270,7 @@ class StatusEvent:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> StatusEvent:
         evidence_data = data.get("evidence")
+        review_result_data = data.get("review_result")
         return cls(
             event_id=data["event_id"],
             mission_slug=data.get("mission_slug") or data.get("feature_slug", ""),
@@ -261,6 +284,11 @@ class StatusEvent:
             reason=data.get("reason"),
             review_ref=data.get("review_ref"),
             evidence=DoneEvidence.from_dict(evidence_data) if evidence_data else None,
+            review_result=(
+                ReviewResult.from_dict(review_result_data)
+                if review_result_data
+                else None
+            ),
             policy_metadata=data.get("policy_metadata"),
             mission_id=data.get("mission_id"),  # None for legacy events
         )

@@ -22,6 +22,7 @@ from specify_cli.status.transitions import (
     resolve_lane_alias,
     validate_transition,
 )
+from specify_cli.status.wp_state import _check_review_result_consistency
 from tests._support.coverage_safety import Mutation, assert_mutation_caught
 
 pytestmark = pytest.mark.fast
@@ -321,6 +322,64 @@ class TestGuardConditions:
             GuardContext(review_result=ReviewResult(reviewer="r", verdict="approved", reference="PR#42")),
         )
         assert ok is True
+
+    def test_in_review_approval_requires_approved_verdict(self) -> None:
+        ok, error = validate_transition(
+            "in_review",
+            "approved",
+            GuardContext(
+                review_result=ReviewResult(
+                    reviewer="r", verdict="changes_requested", reference="feedback://1"
+                )
+            ),
+        )
+        assert ok is False
+        assert "approval" in error.lower()
+
+    def test_in_review_done_rejects_non_approval_evidence(self) -> None:
+        result = ReviewResult(reviewer="r", verdict="changes_requested", reference="feedback://1")
+        evidence = DoneEvidence(review=ReviewApproval(
+            reviewer="r", verdict="changes_requested", reference="feedback://1"
+        ))
+        ok, error = validate_transition(
+            "in_review",
+            "done",
+            GuardContext(review_result=result, evidence=evidence),
+        )
+        assert ok is False
+        assert "approval" in error.lower()
+
+    def test_in_review_review_ref_must_match_result(self) -> None:
+        ok, error = validate_transition(
+            "in_review",
+            "planned",
+            GuardContext(
+                review_ref="feedback://other",
+                review_result=ReviewResult(
+                    reviewer="r", verdict="changes_requested", reference="feedback://1"
+                ),
+            ),
+        )
+        assert ok is False
+        assert "match" in error.lower()
+
+    def test_in_review_evidence_must_match_result(self) -> None:
+        result = ReviewResult(reviewer="r", verdict="approved", reference="PR#42")
+        evidence = DoneEvidence(review=ReviewApproval(
+            reviewer="other", verdict="approved", reference="PR#42"
+        ))
+        ok, error = validate_transition(
+            "in_review",
+            "done",
+            GuardContext(review_result=result, evidence=evidence),
+        )
+        assert ok is False
+        assert "match" in error.lower()
+
+    def test_review_result_consistency_requires_result(self) -> None:
+        ok, error = _check_review_result_consistency(GuardContext())
+        assert ok is False
+        assert "review_result" in error
 
     def test_workspace_context_required_for_claimed_to_in_progress(self) -> None:
         ok, error = validate_transition("claimed", "in_progress", GuardContext())

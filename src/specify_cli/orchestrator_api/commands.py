@@ -54,6 +54,7 @@ from specify_cli.git.commit_helpers import (
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status import wp_state_for
 from specify_cli.status import Lane
+from specify_cli.status import ReviewResult
 
 from .envelope import (
     CONTRACT_VERSION,
@@ -1293,6 +1294,40 @@ def _enforce_for_review_commit_gate(
         )
 
 
+def _parse_review_result_json(raw: str) -> ReviewResult:
+    """Parse the external review outcome accepted by the transition command."""
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Invalid JSON in --review-result-json: {exc}") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError("--review-result-json must decode to a JSON object")
+
+    reviewer = parsed.get("reviewer")
+    verdict = parsed.get("verdict")
+    reference = parsed.get("reference")
+    if not all(
+        isinstance(value, str) and value.strip()
+        for value in (reviewer, verdict, reference)
+    ):
+        raise ValueError(
+            "--review-result-json requires non-empty reviewer, verdict, and reference strings"
+        )
+    if verdict not in {"approved", "changes_requested"}:
+        raise ValueError(
+            "--review-result-json verdict must be 'approved' or 'changes_requested'"
+        )
+    feedback_path = parsed.get("feedback_path")
+    if feedback_path is not None and not isinstance(feedback_path, str):
+        raise ValueError("--review-result-json feedback_path must be a string")
+    return ReviewResult(
+        reviewer=reviewer,
+        verdict=verdict,
+        reference=reference,
+        feedback_path=feedback_path,
+    )
+
+
 @app.command(name="transition")
 def transition(
     mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
@@ -1303,6 +1338,11 @@ def transition(
     policy: str = typer.Option(None, "--policy", help="Policy metadata JSON (required for run-affecting lanes)"),
     force: bool = typer.Option(False, "--force", help="Force the transition"),
     review_ref: str = typer.Option(None, "--review-ref", help="Review reference"),
+    review_result_json: str = typer.Option(
+        None,
+        "--review-result-json",
+        help="JSON structured review outcome for transitions from in_review",
+    ),
     evidence_json: str = typer.Option(None, "--evidence-json", help="JSON string with done evidence"),
     subtasks_complete: bool = typer.Option(None, "--subtasks-complete", help="Whether required subtasks are complete for in_progress->for_review"),
     implementation_evidence_present: bool = typer.Option(
@@ -1353,6 +1393,14 @@ def transition(
             return
         evidence = parsed_evidence
 
+    review_result: ReviewResult | None = None
+    if review_result_json is not None:
+        try:
+            review_result = _parse_review_result_json(review_result_json)
+        except ValueError as exc:
+            _fail(cmd, "USAGE_ERROR", str(exc))
+            return
+
     main_repo_root = _get_main_repo_root()
     mission_dir = _resolve_mission_dir_or_fail(cmd, main_repo_root, mission)
 
@@ -1380,6 +1428,7 @@ def transition(
                 force=force,
                 evidence=evidence,
                 review_ref=review_ref,
+                review_result=review_result,
                 subtasks_complete=subtasks_complete,
                 implementation_evidence_present=implementation_evidence_present,
                 execution_mode="worktree",

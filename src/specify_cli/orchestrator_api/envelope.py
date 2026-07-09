@@ -23,7 +23,9 @@ from specify_cli.core.time_utils import now_utc_iso
 # 1.2.0: added read-only ``resolve-workspace`` (#2337) — resolves a WP's lane
 # workspace_path / prompt_path / lane_branch WITHOUT allocating or transitioning,
 # so an external orchestrator can resume a for_review WP. Purely additive.
-CONTRACT_VERSION = "1.2.0"
+# 1.3.0: ``transition`` accepts structured ``--review-result-json`` so normal
+# in_review exits satisfy host guards without using the recovery-only force flag.
+CONTRACT_VERSION = "1.3.0"
 MIN_PROVIDER_VERSION = "0.1.0"
 
 # Banned flags: enforced by parse_and_validate_policy() below (a policy whose

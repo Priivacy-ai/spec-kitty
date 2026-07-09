@@ -29,7 +29,7 @@ It is intentionally stricter than the human-facing CLI:
 
 ## Contract Version
 
-- `CONTRACT_VERSION`: `1.2.0`
+- `CONTRACT_VERSION`: `1.3.0`
 - `MIN_PROVIDER_VERSION`: `0.1.0`
 - Startup probe: `spec-kitty orchestrator-api contract-version`
 
@@ -41,6 +41,8 @@ constant in `src/specify_cli/orchestrator_api/envelope.py`):
   `workspace_path` means that lane worktree. New error code
   `LANE_ALLOCATION_FAILED`.
 - `1.2.0` — new read-only `resolve-workspace` command (#2337). Purely additive.
+- `1.3.0` — `transition` accepts structured `--review-result-json`, allowing
+  guarded `in_review` exits without recovery-only force overrides.
 
 ## Response Envelope
 
@@ -258,8 +260,8 @@ spec-kitty orchestrator-api transition \
 ```
 
 `in_progress -> for_review` requires evidence that the implementation handoff
-is ready. A provider may use `--force` with a clear `--note` when it has its own
-reviewable evidence model.
+is ready. Providers may supply the explicit guard hints shown above or omit them
+and let the host derive the facts. `--force` is reserved for recovery.
 
 ### Claim review
 
@@ -284,13 +286,13 @@ spec-kitty orchestrator-api transition \
   --actor spec-kitty-orchestrator \
   --policy '{"orchestrator_id":"spec-kitty-orchestrator","orchestrator_version":"0.1.0","agent_family":"codex","approval_mode":"full_auto","sandbox_mode":"workspace_write","network_mode":"none","dangerous_flags":[]}' \
   --review-ref review/WP12/attempt-1 \
-  --force \
+  --review-result-json '{"reviewer":"codex","verdict":"approved","reference":"review/WP12/attempt-1"}' \
+  --evidence-json '{"review":{"reviewer":"codex","verdict":"approved","reference":"review/WP12/attempt-1"}}' \
   --note "Codex review approved"
 ```
 
-Use `--force` with an audit note for the current external-review completion
-path. The provider is responsible for keeping the review artifact reference in
-`--review-ref` stable enough for later audit.
+The structured review result satisfies the `in_review` exit guard; done evidence
+keeps the terminal event independently auditable. `--force` remains recovery-only.
 
 ### Send rejected review back to rework
 
@@ -302,7 +304,7 @@ spec-kitty orchestrator-api transition \
   --actor spec-kitty-orchestrator \
   --policy '{"orchestrator_id":"spec-kitty-orchestrator","orchestrator_version":"0.1.0","agent_family":"codex","approval_mode":"full_auto","sandbox_mode":"workspace_write","network_mode":"none","dangerous_flags":[]}' \
   --review-ref review/WP12/attempt-1 \
-  --force \
+  --review-result-json '{"reviewer":"codex","verdict":"changes_requested","reference":"review/WP12/attempt-1"}' \
   --note "Review rejected; rework required"
 ```
 

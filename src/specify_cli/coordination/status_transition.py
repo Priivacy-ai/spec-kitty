@@ -486,6 +486,7 @@ def _prepare_event(
             reason=request.reason,
             review_ref=request.review_ref,
             evidence=done_evidence,
+            review_result=request.review_result,
             policy_metadata=request.policy_metadata,
         ),
         resolved_lane,
@@ -855,6 +856,7 @@ def emit_status_transition_transactional(
                 execution_mode=request.execution_mode,
                 reason=request.reason,
                 review_ref=request.review_ref,
+                review_result=request.review_result,
                 policy_metadata=request.policy_metadata,
             )
         txn.append_event(event)

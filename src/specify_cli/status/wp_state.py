@@ -403,7 +403,14 @@ class InReviewState(WPState):
 
     def guard_for(self, _target: Lane, ctx: TransitionInputs) -> tuple[bool, str | None]:
         # FR-012c: ALL outbound transitions from in_review require ReviewResult.
-        return _check_review_result(ctx)
+        ok, error = _check_review_result(ctx)
+        if not ok:
+            return ok, error
+        if _target in {Lane.APPROVED, Lane.DONE}:
+            ok, error = _check_in_review_approval(ctx)
+            if not ok:
+                return ok, error
+        return _check_review_result_consistency(ctx)
 
     def progress_bucket(self) -> str:
         return "review"
@@ -525,12 +532,29 @@ def _check_reviewer_approval(ctx: TransitionInputs) -> tuple[bool, str | None]:
         return False, _REVIEWER_APPROVAL_REQUIRED
     review = getattr(evidence, "review", None)
     reviewer = getattr(review, "reviewer", None) if review is not None else None
+    verdict = getattr(review, "verdict", None) if review is not None else None
     reference = getattr(review, "reference", None) if review is not None else None
     if not reviewer or not str(reviewer).strip():
         return False, _REVIEWER_APPROVAL_REQUIRED
     if not reference or not str(reference).strip():
         return False, _REVIEWER_APPROVAL_REQUIRED
+    if verdict != "approved":
+        return False, _REVIEWER_APPROVAL_REQUIRED
     return True, None
+
+
+def _check_in_review_approval(ctx: TransitionInputs) -> tuple[bool, str | None]:
+    """Accept review-result approval when no separate done evidence is needed."""
+    if ctx.evidence is not None:
+        return _check_reviewer_approval(ctx)
+    review_result = ctx.review_result
+    if (
+        getattr(review_result, "reviewer", None)
+        and getattr(review_result, "verdict", None) == "approved"
+        and getattr(review_result, "reference", None)
+    ):
+        return True, None
+    return False, _REVIEWER_APPROVAL_REQUIRED
 
 
 def _check_no_review_conflict(ctx: TransitionInputs) -> tuple[bool, str | None]:
@@ -565,6 +589,36 @@ def _check_review_result(ctx: TransitionInputs) -> tuple[bool, str | None]:
         return False, "Transition from in_review requires review_result with verdict"
     if not reference or not str(reference).strip():
         return False, "Transition from in_review requires review_result with reference"
+    return True, None
+
+
+def _check_review_result_consistency(
+    ctx: TransitionInputs,
+) -> tuple[bool, str | None]:
+    """Reject contradictory structured, evidence, and legacy review fields."""
+    rr = ctx.review_result
+    if rr is None:
+        return False, "Transition from in_review requires review_result"
+
+    if ctx.review_ref is not None and ctx.review_ref != getattr(rr, "reference", None):
+        return False, "review_ref must match review_result.reference"
+
+    evidence = ctx.evidence
+    if evidence is None:
+        return True, None
+    review = getattr(evidence, "review", None)
+    expected = (
+        getattr(rr, "reviewer", None),
+        getattr(rr, "verdict", None),
+        getattr(rr, "reference", None),
+    )
+    actual = (
+        getattr(review, "reviewer", None),
+        getattr(review, "verdict", None),
+        getattr(review, "reference", None),
+    )
+    if actual != expected:
+        return False, "Review evidence must match review_result"
     return True, None
 
 
