@@ -760,6 +760,24 @@ def upgrade(  # noqa: C901
             dry_run=dry_run,
             json_output=json_output,
         )
+        if not dry_run:
+            # Second pass with the SAME pre-run baseline: surface repair (and
+            # the teamspace-migration offer) write AFTER the first auto-commit,
+            # so their churn fell outside the commit-set and the run returned
+            # with self-made dirt (#2491). The first commit's files are clean
+            # by now and pre-existing operator changes stay baseline-excluded,
+            # so this captures exactly the post-commit writes (#2392 invariant).
+            repair_committed, repair_paths, repair_warning = autocommit.commit_touched_checkout(
+                project_path,
+                baseline_changed_paths,
+                current_version,
+                target_version,
+            )
+            if repair_committed:
+                auto_committed = True
+                auto_commit_paths.extend(p for p in repair_paths if p not in auto_commit_paths)
+            if repair_warning and repair_warning != auto_commit_warning:
+                worktree_warnings.append(repair_warning)
         surface_drift_failed = _surface_drift_exit_required(
             surface_repair_summary,
             confirm=confirm,
@@ -888,6 +906,22 @@ def upgrade(  # noqa: C901
             dry_run=dry_run,
             json_output=json_output,
         )
+    if result.success and not dry_run and not manual_review_paths:
+        # Second pass with the SAME pre-run baseline: capture surface-repair /
+        # teamspace-offer writes that land after the first auto-commit (#2491,
+        # #2392 invariant). Skipped under manual review — preserved customized
+        # files must never be swept into a commit.
+        repair_committed, repair_paths, repair_warning = autocommit.commit_touched_checkout(
+            project_path,
+            baseline_changed_paths,
+            result.from_version,
+            result.to_version,
+        )
+        if repair_committed:
+            auto_committed = True
+            auto_commit_paths_list.extend(p for p in repair_paths if p not in auto_commit_paths_list)
+        if repair_warning and repair_warning not in result.warnings:
+            result.warnings.append(repair_warning)
     surface_drift_failed = _surface_drift_exit_required(
         surface_repair_summary,
         confirm=confirm,
