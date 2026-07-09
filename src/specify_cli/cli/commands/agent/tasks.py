@@ -440,6 +440,7 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_resolve_feedback as _mt_resolve_feedback,
     _mt_resolve_pre_review_workspace as _mt_resolve_pre_review_workspace,
     _mt_resolve_targets as _mt_resolve_targets,
+    _mt_uncheck_rollback_subtasks as _mt_uncheck_rollback_subtasks,
     _mt_review_config_section as _mt_review_config_section,
     _mt_run_decision as _mt_run_decision,
     _mt_run_pre_review_gate as _mt_run_pre_review_gate,
