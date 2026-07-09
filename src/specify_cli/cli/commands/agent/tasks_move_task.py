@@ -106,6 +106,7 @@ from specify_cli.task_utils import (
     WorkPackage,
     append_activity_log,
     build_document,
+    delete_scalar,
     ensure_lane,
     extract_scalar,
     set_scalar,
@@ -1446,6 +1447,14 @@ def _mt_persist_wp_file(st: _MoveTaskState, ports: TasksPorts) -> None:
     wp = st.wp
     wp_content = wp.path.read_text(encoding="utf-8-sig")
     updated_front, updated_body, updated_padding = split_frontmatter(wp_content)
+    # #2512: rolling a WP back to planned releases the implementation claim —
+    # clear the agent/shell_pid markers so a stale pid cannot block the next
+    # allocator call (liveness check) or mislead the orchestrator resume path.
+    # The caller may immediately re-plant them below if --agent/--shell-pid are
+    # provided, but on a plain rollback those flags are absent.
+    if st.target_lane == Lane.PLANNED:
+        updated_front = delete_scalar(updated_front, "agent")
+        updated_front = delete_scalar(updated_front, "shell_pid")
     if st.assignee:
         updated_front = set_scalar(updated_front, "assignee", st.assignee)
     if st.agent:
