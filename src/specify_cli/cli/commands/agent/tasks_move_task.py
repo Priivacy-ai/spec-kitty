@@ -62,6 +62,7 @@ from specify_cli.agent_tasks_ports import (
 from specify_cli.cli.commands.agent.tasks_finalize_validation import (
     _read_transactional_wp_lane,
 )
+from specify_cli.cli.commands.agent.tasks_outline import TASKS_MD_FILENAME
 from specify_cli.cli.commands.agent.tasks_materialization import (
     _collect_status_artifacts,
     _persist_review_artifact_override,
@@ -86,6 +87,7 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import is_worktree_context
+from specify_cli.core.subtask_rows import uncheck_wp_section_subtask_rows
 from specify_cli.core.utils import write_text_within_directory
 from specify_cli.git import SafeCommitPathPolicyError
 from specify_cli.missions._read_path_resolver import (
@@ -1471,7 +1473,58 @@ def _mt_persist_wp_file(st: _MoveTaskState, ports: TasksPorts) -> None:
     _mt_persist_tracker_refs(st, skip_target_commit)
 
 
-# --- phase G/H: review-lock release + result output --------------------------
+# --- phase G: subtask uncheck on planned rollback (#2513) --------------------
+
+
+def _mt_uncheck_rollback_subtasks(st: _MoveTaskState, ports: TasksPorts) -> None:
+    """Uncheck ``- [x] T### …`` rows for *st.task_id*'s section on rollback to planned.
+
+    A WP rolled back to ``planned`` must be fully re-implemented.  Leaving its
+    subtask rows checked is a lie — the gate would pass immediately on the next
+    ``for_review`` transition without any work being re-done (#2513).
+
+    Read/write path: ``tasks.md`` is a TASKS_INDEX (primary-partition) artifact
+    — resolve through ``ports.fs.planning_read_dir(kind=TASKS_INDEX)`` so a
+    coord-topology mission's ``-coord`` husk cannot shadow the real primary
+    (same anchor as the subtask gate and ``mark-status``).  Auto-commit
+    follows the same ``commit_artifact`` route used by ``mark-status``.
+
+    Failures are non-fatal (logged, never ``typer.Exit``): a missing
+    ``tasks.md`` is silently skipped; commit failures are warnings.
+    """
+    from specify_cli.cli.commands.agent import tasks as _tasks
+    handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug)
+    feature_dir = ports.fs.planning_read_dir(handle, kind=MissionArtifactKind.TASKS_INDEX)
+    tasks_md = feature_dir / TASKS_MD_FILENAME
+    if not tasks_md.exists():
+        return
+    original = tasks_md.read_text(encoding="utf-8")
+    updated = uncheck_wp_section_subtask_rows(original, st.task_id)
+    if updated == original:
+        return  # nothing to uncheck — no write, no commit
+    tasks_md.write_text(updated, encoding="utf-8")
+    if not st.resolved_auto_commit:
+        return
+    spec_number = st.mission_slug.split("-")[0] if "-" in st.mission_slug else st.mission_slug
+    commit_msg = f"chore: Uncheck {st.task_id} subtasks on rollback to planned (spec {spec_number})"
+    try:
+        ports.coord.commit_artifact(
+            handle,
+            (tasks_md.resolve(),),
+            commit_msg,
+            kind=MissionArtifactKind.TASKS_INDEX,
+            policy=_tasks.ProtectionPolicy.resolve(st.main_repo_root),
+        )
+    except Exception as exc:  # pragma: no cover - defensive
+        logging.getLogger(__name__).warning(
+            "Failed to auto-commit subtask uncheck for %s in %s: %s",
+            st.task_id,
+            st.mission_slug,
+            exc,
+        )
+
+
+# --- phase H: review-lock release + result output ----------------------------
 
 
 def _mt_release_review_lock(st: _MoveTaskState) -> None:
@@ -1519,6 +1572,8 @@ def _mt_execute(st: _MoveTaskState, ports: TasksPorts) -> None:
                 fallback_approved=True,
             )
         _mt_persist_wp_file(st, ports)
+    if st.target_lane == Lane.PLANNED:
+        _mt_uncheck_rollback_subtasks(st, ports)
     _mt_release_review_lock(st)
 
 

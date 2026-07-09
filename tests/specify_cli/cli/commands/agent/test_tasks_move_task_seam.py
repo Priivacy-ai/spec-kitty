@@ -68,6 +68,7 @@ _MOVE_SET: tuple[str, ...] = (
     "_mt_commit_wp_file",
     "_mt_persist_tracker_refs",
     "_mt_persist_wp_file",
+    "_mt_uncheck_rollback_subtasks",
     "_mt_release_review_lock",
     "_mt_execute",
     "_mt_output",
