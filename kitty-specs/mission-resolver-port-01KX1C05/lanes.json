@@ -1,0 +1,164 @@
+{
+  "version": 1,
+  "mission_slug": "mission-resolver-port-01KX1C05",
+  "mission_id": "01KX1C051X4JT9VZE6NA3HEPXT",
+  "mission_branch": "kitty/mission-mission-resolver-port-01KX1C05",
+  "target_branch": "feat/mission-resolver-port-2173",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-06-03-1-execution-state-domain-model.md",
+        "docs/adr/3.x/2026-06-22-1-mission-topology-ssot.md",
+        "src/mission_runtime/__init__.py",
+        "src/mission_runtime/context.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/mission_runtime/mission_resolver_port.py",
+        "src/specify_cli/context/mission_resolver.py",
+        "tests/specify_cli/context/test_mission_resolver_port.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/acceptance/__init__.py",
+        "src/specify_cli/cli/commands/agent/mission_branch_context.py",
+        "src/specify_cli/cli/commands/agent/tasks_parsing_validation.py",
+        "src/specify_cli/context/resolver.py",
+        "src/specify_cli/missions/_resolve_planning_branch.py",
+        "src/specify_cli/retrospective/generator.py",
+        "src/specify_cli/retrospective/reader.py",
+        "src/specify_cli/retrospective/writer.py",
+        "tests/specify_cli/test_target_branch_reconcile.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission_parsing.py",
+        "src/specify_cli/core/time_utils.py",
+        "src/specify_cli/delivery/ledger.py",
+        "src/specify_cli/delivery/retention.py",
+        "src/specify_cli/delivery/targets.py",
+        "src/specify_cli/dossier/events.py",
+        "src/specify_cli/event_journal/coalesce.py",
+        "src/specify_cli/event_journal/journal.py",
+        "src/specify_cli/retrospective/events.py",
+        "src/specify_cli/retrospective/lifecycle_events.py",
+        "src/specify_cli/status/emit.py",
+        "src/specify_cli/status/lifecycle_events.py",
+        "src/specify_cli/status/reducer.py",
+        "src/specify_cli/sync/migrate_journal.py",
+        "tests/specify_cli/test_clock_consolidation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/doctrine/skills/spec-kitty-git-workflow/references/git-operations-matrix.md",
+        "src/specify_cli/upgrade/migrations/m_2_1_4_enforce_command_file_state.py",
+        "tests/architectural/test_git_matrix_paths_resolve.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/mission_runtime/resolution.py",
+        "src/specify_cli/core/vcs/detection.py",
+        "src/specify_cli/doctrine_synthesizer/apply.py",
+        "src/specify_cli/missions/_read_path_resolver.py",
+        "tests/mission_runtime/test_builder_fs_free_identity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "docs/adr/3.x/2026-07-08-1-mission-resolver-port.md",
+        "tests/architectural/test_mission_resolver_walker_gate.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-c"
+      ],
+      "parallel_group": 3
+    }
+  ],
+  "computed_at": "2026-07-08T18:31:02.776603+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
