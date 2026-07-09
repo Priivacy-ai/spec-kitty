@@ -70,7 +70,8 @@ spec-kitty orchestrator-api transition \
   --actor my-orchestrator \
   --policy '<json>' \
   --review-ref review/WP01/attempt-1 \
-  --force \
+  --review-result-json '{"reviewer":"reviewer-bot","verdict":"approved","reference":"review/WP01/attempt-1"}' \
+  --evidence-json '{"review":{"reviewer":"reviewer-bot","verdict":"approved","reference":"review/WP01/attempt-1"}}' \
   --note "Approved by reviewer-bot"
 
 # review rejected -> rework
@@ -79,7 +80,7 @@ spec-kitty orchestrator-api transition \
   --actor my-orchestrator \
   --policy '<json>' \
   --review-ref review/WP01/attempt-1 \
-  --force \
+  --review-result-json '{"reviewer":"reviewer-bot","verdict":"changes_requested","reference":"review/WP01/attempt-1"}' \
   --note "Rejected by reviewer-bot; rework required"
 ```
 
@@ -130,8 +131,8 @@ while true:
     transition(wp, for_review)
     run reviewer
     start-review(wp, review_ref)
-    if approved: transition(wp, done, force=True)
-    else: transition(wp, in_progress, force=True)
+    if approved: transition(wp, done, review_result, done_evidence)
+    else: transition(wp, in_progress, review_result)
 accept-mission(mission)
 merge-mission(mission)
 ```

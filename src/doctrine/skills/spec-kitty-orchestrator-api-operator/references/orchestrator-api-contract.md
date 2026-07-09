@@ -6,7 +6,7 @@ Every command returns a canonical JSON envelope:
 
 ```json
 {
-  "contract_version": "1.2.0",
+  "contract_version": "1.3.0",
   "command": "orchestrator-api.<subcommand-name>",
   "timestamp": "2026-03-21T08:00:00Z",
   "correlation_id": "uuid-v4",
@@ -226,7 +226,8 @@ Perform an explicit lane transition on a work package.
 ```bash
 spec-kitty orchestrator-api transition \
   --mission TEXT --wp TEXT --to TEXT --actor TEXT \
-  [--note TEXT] [--policy TEXT] [--force] [--review-ref TEXT]
+  [--note TEXT] [--policy TEXT] [--force] [--review-ref TEXT] \
+  [--review-result-json TEXT] [--evidence-json TEXT]
 ```
 
 **Flags:**
@@ -241,6 +242,8 @@ spec-kitty orchestrator-api transition \
 | `--policy` | TEXT | none | JSON policy metadata (required for run-affecting lanes) |
 | `--force` | FLAG | off | Override guard checks (recovery only) |
 | `--review-ref` | TEXT | none | Review artifact reference |
+| `--review-result-json` | TEXT | none | Structured review outcome required for transitions from `in_review` |
+| `--evidence-json` | TEXT | none | Structured evidence for `done` transitions |
 
 **Valid target lanes:**
 
@@ -466,11 +469,13 @@ spec-kitty orchestrator-api transition \
 
 # 7. (Reviewer reviews the work)
 
-# 8. Transition to done (requires --force because the transition command
-#    does not accept reviewer evidence payloads)
+# 8. Transition to done with structured review result and terminal evidence
 spec-kitty orchestrator-api transition \
   --mission 017-my-mission --wp WP01 --to done --actor "reviewer-bot" \
-  --force --note "Approved in PR #42"
+  --review-ref "PR #42" \
+  --review-result-json '{"reviewer":"reviewer-bot","verdict":"approved","reference":"PR #42"}' \
+  --evidence-json '{"review":{"reviewer":"reviewer-bot","verdict":"approved","reference":"PR #42"}}' \
+  --note "Approved in PR #42"
 
 # 9. When all WPs are approved or done, accept and merge
 spec-kitty orchestrator-api accept-mission --mission 017-my-mission --actor "ci-bot"

@@ -32,6 +32,11 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   validation** (`asset_mime_invalid`). A new totality guard asserts every
   `ArtifactKind`/`NodeKind`-keyed mapping table stays exhaustive. The 9 existing
   kinds are unchanged.
+- **External orchestrators can submit structured review outcomes without
+  forcing lane transitions.** `orchestrator-api transition` now accepts
+  `--review-result-json` with reviewer, verdict, and reference fields, allowing
+  guarded `in_review` exits to remain fully host-enforced. The additive contract
+  change bumps the orchestrator API to 1.3.0.
 
 ### 🐛 Fixed
 
