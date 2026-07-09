@@ -2432,6 +2432,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/2497-external-observability-endpoints-assessment.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/3-2-doc-publication/3-2-archive-migration-plan.md
   tag: current
   divio_type: none
