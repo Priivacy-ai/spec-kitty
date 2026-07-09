@@ -92,6 +92,10 @@ class KanbanTaskData(TypedDict, total=False):
     title: str
     lane: str
     subtasks: list[Any]
+    # Progress from the canonical checkbox rows in the WP body (#2504);
+    # (0, 0) when the WP doesn't track completion via checkboxes.
+    subtasks_done: int
+    subtasks_total: int
     agent: str
     model: str
     agent_profile: str
