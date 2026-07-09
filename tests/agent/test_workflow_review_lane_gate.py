@@ -438,6 +438,86 @@ def test_commit_workflow_change_syncs_lane_after_coord_commit(
     assert calls == ["commit", "sync"]
 
 
+def test_commit_workflow_change_reads_identity_from_primary_not_status_husk(
+    workflow_repo: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#2508: mid-mission, the action-implement path threads the topology-aware
+    STATUS dir (the coord worktree copy — which holds NO meta.json) as
+    ``feature_dir``. Mechanism selection must anchor identity on the PRIMARY
+    surface and still engage the coordination transaction — never fall into
+    the legacy safe_commit path that demands the coord branch on primary."""
+    workflow._reset_workflow_receipts()
+    mission_slug = "demo-feature-01J6XW9K"
+    mid8 = "01J6XW9K"
+    mission_id = "01J6XW9KABCDEFGHJKMNPQRSTV"
+    coord_branch = f"kitty/mission-{mission_slug}"
+
+    # PRIMARY: identity meta lives here (PRIMARY-partition artifact).
+    primary_dir = workflow_repo / "kitty-specs" / mission_slug
+    primary_dir.mkdir(parents=True)
+    (primary_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_slug": mission_slug,
+                "mission_id": mission_id,
+                "mid8": mid8,
+                "coordination_branch": coord_branch,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    # STATUS husk: the coord worktree copy — status files only, NO meta.json.
+    husk_dir = (
+        workflow_repo
+        / ".worktrees"
+        / f"{mission_slug}-coord"
+        / "kitty-specs"
+        / mission_slug
+    )
+    husk_dir.mkdir(parents=True)
+    event_path = husk_dir / "status.events.jsonl"
+    event_path.write_text("", encoding="utf-8")
+    assert not (husk_dir / "meta.json").exists()
+
+    transaction_calls: list[dict[str, object]] = []
+    legacy_calls: list[dict[str, object]] = []
+
+    monkeypatch.setattr(
+        workflow,
+        "_commit_via_coordination_transaction",
+        lambda **kwargs: transaction_calls.append(kwargs),
+    )
+    monkeypatch.setattr(
+        workflow,
+        "_commit_via_legacy_safe_commit",
+        lambda **kwargs: legacy_calls.append(kwargs),
+    )
+
+    workflow._commit_workflow_change(
+        repo_root=workflow_repo,
+        feature_dir=husk_dir,
+        mission_slug=mission_slug,
+        target_branch="feat/some-feature-branch",
+        paths=[event_path],
+        message="chore: Start WP03 implementation [claude-code]",
+        operation="planned -> claimed for WP03",
+        wp_id="WP03",
+        pre_emit_event_size=0,
+        pre_emit_status_bytes=None,
+    )
+
+    assert legacy_calls == [], (
+        "identity must come from the PRIMARY meta.json — the legacy "
+        "safe_commit fallback means the husk read lost it (#2508)"
+    )
+    assert len(transaction_calls) == 1
+    assert transaction_calls[0]["coord_branch"] == coord_branch
+    assert transaction_calls[0]["mission_id"] == mission_id
+    assert transaction_calls[0]["mid8"] == mid8
+
+
 def test_commit_workflow_change_reverts_coord_commit_on_lane_sync_refusal(
     workflow_repo: Path,
     monkeypatch: pytest.MonkeyPatch,

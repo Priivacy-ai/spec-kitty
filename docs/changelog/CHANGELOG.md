@@ -21,6 +21,21 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **`agent action implement`/`review` status commits engage the coordination
+  transaction again mid-mission (#2508).** `_commit_workflow_change` selected
+  its commit mechanism by reading `meta.json` off the passed `feature_dir` —
+  which, for an in-flight coordination mission, is the topology-aware STATUS
+  dir (the coord worktree copy) where `meta.json` never exists (identity is a
+  PRIMARY-partition artifact). The `(None, None, None)` husk read silently
+  dropped every WP status commit into the legacy `safe_commit` fallback, which
+  targets the seam-resolved coordination branch from the PRIMARY checkout and
+  refuses when the primary has the mission's feature branch checked out —
+  hard-blocking `agent action implement` on PR-bound coordination missions.
+  Mechanism selection now anchors identity on the `PRIMARY_METADATA` read
+  surface (the file's existing choke point); `feature_dir` remains
+  authoritative for status file paths and rollback truncation. Same
+  coord-shadows-primary class as #2331/#2430/#2502, on the write-mechanism
+  side.
 ### ♻️ Changed
 
 ## [3.2.5] - 2026-07-08

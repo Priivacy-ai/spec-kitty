@@ -600,7 +600,22 @@ def _commit_workflow_change(
     Raises:
         typer.Exit(1): On commit failure (after rollback).
     """
-    coord_branch, mission_id, mid8 = _load_coord_branch_meta(feature_dir)
+    # Mission identity (coordination_branch / mission_id / mid8) is a
+    # PRIMARY-partition artifact — meta.json never transits the coordination
+    # branch — while ``feature_dir`` is the topology-aware STATUS dir (the
+    # coord worktree copy for an in-flight coordination mission, which holds
+    # no meta.json). Reading identity off that husk returned (None, None,
+    # None) mid-mission and silently dropped every status commit into the
+    # legacy safe_commit path, which then demanded the coordination branch be
+    # checked out on the PRIMARY checkout (#2508). Anchor identity on the
+    # PRIMARY_METADATA read surface; ``feature_dir`` stays authoritative for
+    # the status file paths / rollback truncation below.
+    _identity_dir = _resolve_workflow_read_dir(
+        repo_root=repo_root,
+        mission_slug=mission_slug,
+        kind=MissionArtifactKind.PRIMARY_METADATA,
+    )
+    coord_branch, mission_id, mid8 = _load_coord_branch_meta(_identity_dir)
     events_path = feature_dir / _STATUS_EVENTS_FILENAME
     status_path = feature_dir / _STATUS_FILENAME
     # T017: the seam-resolved STATUS_STATE placement. The MECHANISM choice
