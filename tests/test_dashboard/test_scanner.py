@@ -636,6 +636,51 @@ def test_coord_event_log_wins_when_stale_behind_primary(tmp_path):
     assert lanes["approved"] == []
 
 
+def test_resolve_feature_planning_dir_reanchors_viewer_reads(tmp_path):
+    """#2502: the artifact-viewer endpoints (spec/plan/research/contracts/
+    checklists) resolve their feature dir coord-first, so an in-flight
+    coordination mission's viewers rendered empty off the status-only husk.
+    ``resolve_feature_planning_dir`` must re-anchor to the primary surface,
+    while the plain resolver keeps returning the coord dir (status authority
+    for the kanban's weighted-progress read)."""
+    slug = "review-context-depth-01KX2EQ9"  # post-083 slug, live coord worktree
+
+    _git(["init", "--initial-branch=main"], tmp_path)
+    _git(["config", "user.email", "scanner@example.com"], tmp_path)
+    _git(["config", "user.name", "Scanner Test"], tmp_path)
+    _git(["config", "commit.gpgsign", "false"], tmp_path)
+    (tmp_path / "README.md").write_text("seed\n", encoding="utf-8")
+    _git(["add", "README.md"], tmp_path)
+    _git(["commit", "-q", "-m", "seed"], tmp_path)
+    coord_worktree = tmp_path / ".worktrees" / f"{slug}-coord"
+    _git(
+        ["worktree", "add", "-q", "-b", f"kitty/mission-{slug}", str(coord_worktree)],
+        tmp_path,
+    )
+
+    # PRIMARY: full planning artifacts, including the viewer content.
+    primary_dir = _create_feature(tmp_path, slug, lane="in_progress")
+    (primary_dir / "research.md").write_text("# Research\n", encoding="utf-8")
+
+    # COORD copy: status partition only (the in-flight husk).
+    coord_feature_dir = coord_worktree / "kitty-specs" / slug
+    coord_feature_dir.mkdir(parents=True)
+    _set_wp_lane(coord_feature_dir, "WP01", "in_progress")
+    assert not (coord_feature_dir / "research.md").exists()
+
+    coord_dir = scanner.resolve_feature_dir(tmp_path, slug)
+    planning_dir = scanner.resolve_feature_planning_dir(tmp_path, slug)
+
+    assert coord_dir == coord_feature_dir  # status authority unchanged
+    assert planning_dir == primary_dir  # viewers re-anchored (#2502)
+    assert (planning_dir / "research.md").exists()
+    assert (planning_dir / "spec.md").exists()
+
+
+def test_resolve_feature_planning_dir_unknown_feature_is_none(tmp_path):
+    assert scanner.resolve_feature_planning_dir(tmp_path, "no-such-mission") is None
+
+
 def test_registry_resolves_canonical_id_for_inflight_coord_mission(tmp_path):
     """#2331: a mid-orchestration mission (registered coord worktree, meta.json
     absent from the coord tree) must resolve to its canonical ULID in the

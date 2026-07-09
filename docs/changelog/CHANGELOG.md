@@ -21,6 +21,20 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **Dashboard artifact viewers no longer render empty for in-flight
+  coordination missions (#2502).** #2431 re-anchored the mission *list* and
+  *kanban* to read planning artifacts primary-first, but the viewer endpoint
+  family (`/api/research`, contracts/checklists listings, the spec/plan file
+  server) still resolved the feature dir through the coord-first resolver —
+  landing on the status-only coord husk, so clicking spec/plan/research on a
+  running mission showed nothing while the board showed the work. A new
+  `resolve_feature_planning_dir()` composes the coord-first resolver with the
+  primary-first planning re-anchor; all viewer endpoints use it, and
+  `handle_kanban`'s split reads are made explicit (legacy-format check =
+  planning surface; weighted-progress read stays on the coord-first status
+  surface). Finished missions were unaffected (their coord worktrees are
+  gone), which is why the gap only showed mid-run — the same "broken precisely
+  while running" shape as #2430.
 ### ♻️ Changed
 
 ## [3.2.5] - 2026-07-08
