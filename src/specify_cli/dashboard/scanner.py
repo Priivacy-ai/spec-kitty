@@ -53,6 +53,7 @@ __all__ = [
     # (WP01 harden-dead-symbol-gate-01KW0RJR).
     "read_only_weighted_percentage",
     "resolve_feature_dir",
+    "resolve_feature_planning_dir",
     "resolve_active_feature",
     "scan_all_features",
     "scan_feature_kanban",
@@ -560,6 +561,27 @@ def resolve_feature_dir(project_dir: Path, feature_id: str) -> Path | None:
     """Resolve the on-disk directory for the requested feature."""
     feature_paths = gather_feature_paths(project_dir)
     return feature_paths.get(feature_id)
+
+
+def resolve_feature_planning_dir(project_dir: Path, feature_id: str) -> Path | None:
+    """Resolve the PLANNING surface for the requested feature (#2502).
+
+    :func:`resolve_feature_dir` is coord-first — correct for live *status*
+    (the event log lives on the coordination branch), wrong for *planning*
+    artifacts (``spec.md`` / ``plan.md`` / ``research*`` / ``contracts/`` /
+    ``checklists/`` live on the primary surface for every topology). An
+    in-flight coordination mission's coord copy is a status-only husk, so an
+    artifact viewer reading it renders empty (#2502) — the same
+    coord-shadows-primary class as #2331/#2430.
+
+    Compose the coord-first resolver with the primary-first planning
+    re-anchor so viewer endpoints read the surface that actually holds the
+    content. For non-coordination missions both resolve to the same dir.
+    """
+    feature_dir = resolve_feature_dir(project_dir, feature_id)
+    if feature_dir is None:
+        return None
+    return _resolve_planning_dir_primary_first(project_dir, feature_dir)
 
 
 def resolve_active_feature(

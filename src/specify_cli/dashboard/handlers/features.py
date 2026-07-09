@@ -23,6 +23,7 @@ from ..scanner import (
     read_only_weighted_percentage,
     resolve_active_feature,
     resolve_feature_dir,
+    resolve_feature_planning_dir,
     scan_all_features,
     scan_feature_kanban,
 )
@@ -157,9 +158,13 @@ class FeatureHandler(DashboardHandler):
             project_path = _require_project_path(self.project_dir)
             kanban_data = cast(dict[str, list[KanbanTaskData]], scan_feature_kanban(project_path, feature_id))
 
-            # Check if feature uses legacy format
+            # Legacy-format is a PLANNING-surface question — a coord husk has
+            # no tasks/ tree and would wrongly read as non-legacy (#2502). The
+            # weighted-percentage read below stays on the coord-first dir:
+            # the live event log is a STATUS-surface artifact.
+            planning_dir = resolve_feature_planning_dir(project_path, feature_id)
+            is_legacy = is_legacy_format(planning_dir) if planning_dir else False
             feature_dir = resolve_feature_dir(project_path, feature_id)
-            is_legacy = is_legacy_format(feature_dir) if feature_dir else False
 
             # Pre-compute weighted progress for the kanban panel.
             # WP11/FR-014(a): the dashboard is a read-only viewer. It MUST NOT
@@ -199,7 +204,10 @@ class FeatureHandler(DashboardHandler):
 
         feature_id = parts[3]
         project_path = _require_project_path(self.project_dir)
-        feature_dir = resolve_feature_dir(project_path, feature_id)
+        # Planning-surface read: an in-flight coordination mission's coord
+        # copy holds only status writes, so viewers must re-anchor to the
+        # primary planning surface (#2502).
+        feature_dir = resolve_feature_planning_dir(project_path, feature_id)
 
         if len(parts) == 4:
             response: ResearchResponse = {"main_file": None, "artifacts": []}
@@ -301,7 +309,10 @@ class FeatureHandler(DashboardHandler):
         if self.project_dir is None:
             raise RuntimeError("dashboard project_dir is not configured")
         project_path = Path(self.project_dir)
-        feature_dir = resolve_feature_dir(project_path, feature_id)
+        # Planning-surface read: an in-flight coordination mission's coord
+        # copy holds only status writes, so viewers must re-anchor to the
+        # primary planning surface (#2502).
+        feature_dir = resolve_feature_planning_dir(project_path, feature_id)
 
         if len(parts) == 4:
             # Return directory listing
@@ -392,7 +403,10 @@ class FeatureHandler(DashboardHandler):
         if self.project_dir is None:
             raise RuntimeError("dashboard project_dir is not configured")
         project_path = Path(self.project_dir)
-        feature_dir = resolve_feature_dir(project_path, feature_id)
+        # Planning-surface read: an in-flight coordination mission's coord
+        # copy holds only status writes, so viewers must re-anchor to the
+        # primary planning surface (#2502).
+        feature_dir = resolve_feature_planning_dir(project_path, feature_id)
 
         artifact_map = {
             "spec": "spec.md",
