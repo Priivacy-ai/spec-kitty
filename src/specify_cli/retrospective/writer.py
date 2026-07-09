@@ -346,7 +346,22 @@ def _gen_record_to_dict(record: GenRetrospectiveRecord) -> dict[str, Any]:
 
 
 def _dict_to_gen_record(data: dict[str, Any]) -> GenRetrospectiveRecord:
-    """Deserialize a plain dict (from YAML) into a GenRetrospectiveRecord."""
+    """Deserialize a plain dict (from YAML) into a GenRetrospectiveRecord.
+
+    FR-008 / #2139 triage note (OUT): the `target_branch=data.get("target_branch", "")`
+    below is a dataclass-hydration default for a PERSISTED retrospective RECORD
+    field, not a meta.json reader -- it mirrors GenRetrospectiveRecord's own
+    schema-wide "" default (schema.py) applied identically to every other
+    legacy-optional string field on this same dataclass (mission_id,
+    mission_slug, friendly_name, mission_type, created_at, ...). This function
+    only receives an already-loaded record dict (used by write_gen_record's
+    "update" merge path); no feature_dir/repo_root is available here, and
+    resolving against LIVE meta.json would silently substitute a historical
+    record's field with the mission's CURRENT branch (also moot for "update"
+    merges -- `_merge_gen_records` always takes `target_branch` from the NEW
+    record, never `existing`). Different contract by design; not routed
+    through read_target_branch_from_meta.
+    """
     def _dict_to_actor(d: dict[str, Any]) -> GenActor:
         return GenActor(kind=d["kind"], id=d["id"], display=d.get("display"))
 

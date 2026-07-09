@@ -31,7 +31,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from mission_runtime import MissionArtifactKind, MissionTopology
+    from mission_runtime import MissionArtifactKind, MissionResolver, MissionTopology
 
 
 STATUS_READ_PATH_NOT_FOUND_CODE = "STATUS_READ_PATH_NOT_FOUND"
@@ -414,7 +414,9 @@ def _resolve_existing_for_slug(
     return None
 
 
-def _canonicalize_bare_modern_handle(repo_root: Path, handle: str) -> str:
+def _canonicalize_bare_modern_handle(
+    repo_root: Path, handle: str, *, resolver: MissionResolver | None = None
+) -> str:
     """Rewrite a bare human slug to its composed ``<slug>-<mid8>`` dir name.
 
     The shared FR-004 bare-human-slug fold: when the operator typed a bare human
@@ -446,6 +448,12 @@ def _canonicalize_bare_modern_handle(repo_root: Path, handle: str) -> str:
     ``test_handle_equivalence_matrix``). Pure-path except the identity resolver's
     own lookup (no extra git here).
 
+    ``resolver`` (mission-resolver-port-01KX1C05 WP03, FR-002): optional
+    :class:`~mission_runtime.MissionResolver` threaded down to
+    :func:`_canonicalize_handle`'s identity probe. ``None`` (the default)
+    preserves the historical behaviour exactly — a fresh ``FsMissionResolver``
+    is constructed at the free ``resolve_mission`` call site.
+
     Raises:
         MissionSelectorAmbiguous: When the handle matches more than one mission
             (propagated from :func:`_canonicalize_handle` — no silent pick).
@@ -457,14 +465,14 @@ def _canonicalize_bare_modern_handle(repo_root: Path, handle: str) -> str:
     # ambiguous handle (no silent pick) and returns a tuple for a resolvable one —
     # in both cases bare-modern must not override. Only a genuinely-unresolvable
     # handle (``None``) is a candidate for the bare-human-slug fold.
-    if _canonicalize_handle(repo_root, handle) is not None:
+    if _canonicalize_handle(repo_root, handle, resolver=resolver) is not None:
         return handle
     bare_dir_name = resolve_bare_modern_mission_dir_name(repo_root, handle)
     return bare_dir_name if bare_dir_name is not None else handle
 
 
 def _canonicalize_handle(
-    repo_root: Path, handle: str
+    repo_root: Path, handle: str, *, resolver: MissionResolver | None = None
 ) -> tuple[str, str, Path] | None:
     """Resolve a mission *handle* to its canonical ``(slug, mid8, feature_dir)``.
 
@@ -486,6 +494,15 @@ def _canonicalize_handle(
     a legacy mission) so the caller falls back to literal-slug path composition
     without changing pre-existing behaviour (C-004 strangler: additive only).
 
+    ``resolver`` (mission-resolver-port-01KX1C05 WP03, FR-002/FR-003): the
+    optional :class:`~mission_runtime.MissionResolver` forwarded to the single
+    walk (:func:`~specify_cli.context.mission_resolver.resolve_mission`) — this
+    is the ONE call site the whole canonicalizer chain funnels through, so
+    threading ``resolver`` here makes every caller of this function (and its
+    own callers) injectable without a second resolution path. ``None`` (the
+    default) is byte-identical to the pre-WP03 behaviour: ``resolve_mission``
+    constructs its own ``FsMissionResolver(repo_root)``.
+
     Raises:
         MissionSelectorAmbiguous: When the handle matches more than one mission
             (C-CTX-4 / C-009 no-silent-fallback).
@@ -500,7 +517,7 @@ def _canonicalize_handle(
     )
 
     try:
-        resolved = resolve_mission(handle, repo_root)
+        resolved = resolve_mission(handle, repo_root, resolver=resolver)
     except AmbiguousHandleError as exc:
         raise MissionSelectorAmbiguous(
             handle=handle,
@@ -519,6 +536,7 @@ def _resolve_mission_read_path(
     require_exists: bool = False,
     coordination_branch: str | None = None,
     topology: MissionTopology | None = None,
+    resolver: MissionResolver | None = None,
 ) -> Path:
     """Return the directory containing this mission's status read surface.
 
@@ -551,6 +569,9 @@ def _resolve_mission_read_path(
             and threaded down (FR-006). A coord-less stored topology resolves
             PRIMARY regardless of a stale ``-coord`` husk; ``None`` falls back to
             the legacy probe-based derivation once.
+        resolver: Optional :class:`~mission_runtime.MissionResolver` forwarded to
+            the canonicalizer chain's identity probe (WP03, FR-002). ``None``
+            preserves historical behaviour (a fresh ``FsMissionResolver``).
 
     Returns:
         Absolute path to the mission directory containing
@@ -582,7 +603,9 @@ def _resolve_mission_read_path(
     # so the surface leg (via ``candidate_feature_dir_for_mission``) and the guarded
     # seam converge on the composed name. When the slug is rewritten, re-derive the
     # mid8 from the composed name so the empty bare-slug mid8 does not persist.
-    canonical_bare = _canonicalize_bare_modern_handle(repo_root, mission_slug)
+    canonical_bare = _canonicalize_bare_modern_handle(
+        repo_root, mission_slug, resolver=resolver
+    )
     if canonical_bare != mission_slug:
         mission_slug = canonical_bare
         if not mid8:
@@ -602,7 +625,7 @@ def _resolve_mission_read_path(
     # prefix, or a human slug). Resolve it canonically so ``--mission <mid8>``
     # locates the same directory as ``--mission <full-slug>`` (F-001/F-003/F-004).
     # Ambiguity raises MissionSelectorAmbiguous (no silent fallback, C-CTX-4).
-    canonical = _canonicalize_handle(repo_root, mission_slug)
+    canonical = _canonicalize_handle(repo_root, mission_slug, resolver=resolver)
     if canonical is not None:
         canonical_slug, canonical_mid8, canonical_dir = canonical
         if (canonical_slug, canonical_mid8) != (mission_slug, mid8):
@@ -844,6 +867,7 @@ def resolve_handle_to_read_path(
     handle: str,
     *,
     require_exists: bool = False,
+    resolver: MissionResolver | None = None,
 ) -> Path:
     """Resolve a mission *handle* to its topology-aware read-surface directory.
 
@@ -895,6 +919,12 @@ def resolve_handle_to_read_path(
             bare ``mid8``, or numeric prefix.
         require_exists: Forwarded to :func:`_resolve_mission_read_path`; when
             ``True``, a genuine absence raises :class:`StatusReadPathNotFound`.
+        resolver: Optional :class:`~mission_runtime.MissionResolver` threaded
+            through the bare-modern fold and the existence-gated resolver's own
+            identity probe (WP03, FR-002) — this is THE guarded read-side seam,
+            so every shell caller (``_resolve_mission_slug`` et al.) that injects
+            a resolver here reaches the single walk with no bypass. ``None``
+            preserves historical behaviour.
 
     Returns:
         Absolute path to the mission directory containing the status read surface.
@@ -926,7 +956,7 @@ def resolve_handle_to_read_path(
     #     aggregate's ``_find_meta_path`` uses — NFR-004) so every downstream leg
     #     (primary-meta probe, mid8 cascade, topology read, existence-gated
     #     resolver) operates on the composed name.
-    handle = _canonicalize_bare_modern_handle(repo_root, handle)
+    handle = _canonicalize_bare_modern_handle(repo_root, handle, resolver=resolver)
 
     # 2-3. Primary-meta probe → the ONE sanctioned mid8 cascade (returns "" on
     #      exhaustion; the raise decision is the topology gate below).
@@ -1036,6 +1066,7 @@ def resolve_handle_to_read_path(
         require_exists=require_exists,
         coordination_branch=coordination_branch,
         topology=stored_topology,
+        resolver=resolver,
     )
 
 
@@ -1111,7 +1142,9 @@ def resolve_surface_dir_or_typed_error(
     return surface.parent
 
 
-def candidate_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Path:
+def candidate_feature_dir_for_mission(
+    repo_root: Path, mission_slug: str, *, resolver: MissionResolver | None = None
+) -> Path:
     """Return the topology-aware mission-dir candidate without requiring it exist.
 
     This is the **single read primitive** (C-005 / FR-002): it delegates to
@@ -1147,6 +1180,11 @@ def candidate_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Pat
     caller can render its own diagnostic. It DOES propagate
     :class:`MissionSelectorAmbiguous` (C-CTX-4 / C-009 — an ambiguous selector is
     a structured error, never a silent wrong-but-plausible directory).
+
+    ``resolver`` (WP03, FR-002): optional :class:`~mission_runtime.MissionResolver`
+    threaded through the bare-modern fold and the existence-gated resolver's own
+    identity probe, so this 30+-caller read primitive reaches the single walk
+    the same way the guarded seam does. ``None`` preserves historical behaviour.
     """
     from specify_cli.lanes.branch_naming import mid8_from_slug
 
@@ -1160,18 +1198,21 @@ def candidate_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Pat
     # (the C-004 corrupt-meta path), preserving the historical contract that this
     # primitive never raised on a bad ``meta.json`` (the diagnostic belongs to each
     # caller, not to dir resolution).
-    stored_topology = _stored_topology_best_effort(repo_root, mission_slug)
+    stored_topology = _stored_topology_best_effort(
+        repo_root, mission_slug, resolver=resolver
+    )
 
     return _resolve_mission_read_path(
         repo_root,
         mission_slug,
         mid8_from_slug(mission_slug),
         topology=stored_topology,
+        resolver=resolver,
     )
 
 
 def _stored_topology_best_effort(
-    repo_root: Path, mission_slug: str
+    repo_root: Path, mission_slug: str, *, resolver: MissionResolver | None = None
 ) -> MissionTopology | None:
     """Read the WP02 **stored** topology from primary meta, degrading on error.
 
@@ -1200,7 +1241,9 @@ def _stored_topology_best_effort(
     (C-CTX-4 / C-009).
     """
     try:
-        canonical_handle = _canonicalize_bare_modern_handle(repo_root, mission_slug)
+        canonical_handle = _canonicalize_bare_modern_handle(
+            repo_root, mission_slug, resolver=resolver
+        )
         primary_meta, _ = read_primary_meta(repo_root, canonical_handle)
     except (ValueError, OSError):
         return None
@@ -1240,7 +1283,9 @@ def primary_feature_dir_for_mission(repo_root: Path, mission_slug: str) -> Path:
     return primary_dir
 
 
-def _canonicalize_primary_read_handle(repo_root: Path, handle: str) -> str:
+def _canonicalize_primary_read_handle(
+    repo_root: Path, handle: str, *, resolver: MissionResolver | None = None
+) -> str:
     """Fold a mission *handle* to its canonical on-disk dir NAME for a PRIMARY read.
 
     The caller-side companion that keeps :func:`primary_feature_dir_for_mission`
@@ -1268,19 +1313,28 @@ def _canonicalize_primary_read_handle(repo_root: Path, handle: str) -> str:
     bare-modern-folded handle (unchanged for an already-canonical or genuinely
     unresolvable handle — the back-compat no-op leg, NFR-005).
 
+    ``resolver`` (WP03, FR-002): optional :class:`~mission_runtime.MissionResolver`
+    threaded through both canonicalizers below. This is the seam
+    ``mission_runtime.resolution``'s ``_resolve_mission_id`` /
+    ``_resolve_coordination_branch`` / ``_resolve_topology`` inject through — a
+    PRIMARY-anchored meta.json read needs the SAME injected resolver to fold a
+    handle to its canonical dir name, or the shell's ``resolver`` would stop at
+    this boundary and the port would be a parallel path rather than the trunk.
+    ``None`` preserves historical behaviour.
+
     Raises:
         MissionSelectorAmbiguous: When the handle matches more than one mission —
             propagated unchanged from :func:`_canonicalize_handle`; NEVER a silent
             pick (C-006 / C-009 / WP07 no-silent-fallback).
     """
-    bare_folded = _canonicalize_bare_modern_handle(repo_root, handle)
+    bare_folded = _canonicalize_bare_modern_handle(repo_root, handle, resolver=resolver)
     if bare_folded != handle:
         # A bare *human slug* was folded to its composed ``<slug>-<mid8>`` dir name.
         return bare_folded
     # Identity forms (bare mid8 / ULID / numeric prefix): the resolver carries the
     # already-located dir, so its NAME is the canonical dir name (parse, don't
     # re-derive). An ambiguous handle RAISES here (no silent pick).
-    resolved = _canonicalize_handle(repo_root, handle)
+    resolved = _canonicalize_handle(repo_root, handle, resolver=resolver)
     if resolved is not None:
         _, _, canonical_dir = resolved
         return canonical_dir.name
@@ -1294,6 +1348,7 @@ def resolve_planning_read_dir(
     mission_slug: str,
     *,
     kind: MissionArtifactKind,
+    resolver: MissionResolver | None = None,
 ) -> Path:
     """Resolve a mission dir for a *read* of one artifact ``kind`` (per-kind split).
 
@@ -1331,6 +1386,9 @@ def resolve_planning_read_dir(
         repo_root: Absolute repository root (primary checkout).
         mission_slug: Mission slug or handle (resolved by the underlying primitive).
         kind: The artifact kind being READ — decides the partition.
+        resolver: Optional :class:`~mission_runtime.MissionResolver` threaded to
+            both underlying primitives (WP03, FR-002). ``None`` preserves
+            historical behaviour.
 
     Returns:
         Absolute mission directory for that kind's read surface.
@@ -1363,10 +1421,12 @@ def resolve_planning_read_dir(
         # canonicalization into ITS body recurses forever (the shared canonicalizers
         # call the primitive). An ambiguous handle propagates ``MissionSelectorAmbiguous``
         # unchanged from :func:`_canonicalize_handle` — no silent pick (C-006 / C-009).
-        canonical = _canonicalize_primary_read_handle(repo_root, mission_slug)
+        canonical = _canonicalize_primary_read_handle(
+            repo_root, mission_slug, resolver=resolver
+        )
         return primary_feature_dir_for_mission(repo_root, canonical)
     # STATUS-partition read → topology-aware seam (C-001 / C-005 transients intact).
-    return candidate_feature_dir_for_mission(repo_root, mission_slug)
+    return candidate_feature_dir_for_mission(repo_root, mission_slug, resolver=resolver)
 
 
 def resolve_bare_modern_mission_dir_name(

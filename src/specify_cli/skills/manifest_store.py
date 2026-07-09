@@ -38,11 +38,12 @@ import logging
 import os
 import warnings
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import jsonschema
+
+from specify_cli.core.time_utils import now_utc_iso
 
 from .manifest_errors import ManifestError
 
@@ -451,7 +452,7 @@ def repair_stale_manifest(
             # Schema requires agents to be non-empty; use placeholder until the
             # real installer overwrites this entry with the actual agent set.
             agents=(_REPAIR_PLACEHOLDER_AGENT,),
-            installed_at=datetime.now(tz=UTC).isoformat(),
+            installed_at=now_utc_iso(),
             spec_kitty_version=spec_kitty_version,
         )
         manifest.upsert(new_entry)

@@ -15,12 +15,12 @@ that composes them.
 from __future__ import annotations
 
 import hashlib
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import yaml
 
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.intake.brief_writer import write_brief_atomic
 from specify_cli.intake.errors import (
     IntakeFileMissingError,
@@ -74,7 +74,7 @@ def write_mission_brief(
         source_path.unlink(missing_ok=True)
 
     brief_hash = hashlib.sha256(content.encode()).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
-    ingested_at = datetime.now(tz=UTC).isoformat()
+    ingested_at = now_utc_iso()
 
     # WP02 T007: provenance strings come from operator-controlled file
     # paths and must be escaped before they land in markdown comments

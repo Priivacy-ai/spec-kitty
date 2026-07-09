@@ -13,7 +13,6 @@ from contextlib import suppress
 from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, UTC
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -33,6 +32,7 @@ from .diagnostics import (
     emit_sync_diagnostic,
 )
 from specify_cli.core.contract_gate import validate_outbound_payload
+from specify_cli.core.time_utils import now_utc_iso
 
 
 # ---------------------------------------------------------------------------
@@ -816,7 +816,7 @@ def generate_failure_report(result: BatchSyncResult) -> dict:
     """
     failed = result.failed_results
     return {
-        "generated_at": datetime.now(UTC).isoformat(),
+        "generated_at": now_utc_iso(),
         "summary": {
             "total_events": result.total_events,
             "synced": result.synced_count,

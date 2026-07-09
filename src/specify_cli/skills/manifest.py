@@ -6,10 +6,10 @@ import hashlib
 import json
 import logging
 from dataclasses import asdict, dataclass, field
-from datetime import datetime, timezone, UTC
 from pathlib import Path
 
 from specify_cli.core.atomic import atomic_write
+from specify_cli.core.time_utils import now_utc_iso
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +73,7 @@ class ManagedSkillManifest:
 
 def save_manifest(manifest: ManagedSkillManifest, project_path: Path) -> None:
     """Persist the manifest to .kittify/skills-manifest.json."""
-    manifest.updated_at = datetime.now(UTC).isoformat()
+    manifest.updated_at = now_utc_iso()
     data = asdict(manifest)
     content = json.dumps(data, indent=2) + "\n"
     target = project_path / ".kittify" / MANIFEST_FILENAME

@@ -1,6 +1,6 @@
 """WP04 — byte-parity proof that the direct + scope-review mid8 sites route through
 ``resolve_mid8`` without changing their observable output (FR-001, NFR-001), and the
-FR-002 guarantee that no ``ExecutionContext``-held identity is re-derived.
+FR-002 guarantee that no ``MissionExecutionContext``-held identity is re-derived.
 
 Golden values are **literals captured from HEAD before any edit** (anti-gaming): a
 26-char ULID-style ``mission_id`` truncates to its first 8 chars; the decline paths
@@ -196,20 +196,20 @@ def test_generator_find_mission_dir_no_false_match_on_empty_id(tmp_path: Path) -
 
 
 # ---------------------------------------------------------------------------
-# FR-002 — no ExecutionContext-held identity re-derivation (T013).
-# Construct a REAL ExecutionContext + IdentityFragment and assert the carried
+# FR-002 — no MissionExecutionContext-held identity re-derivation (T013).
+# Construct a REAL MissionExecutionContext + IdentityFragment and assert the carried
 # mid8 is consumed as-is (single-derivation invariant), never recomputed.
 # ---------------------------------------------------------------------------
 
 
 def test_execution_context_carries_single_derived_mid8() -> None:
-    """A real ExecutionContext holds ``identity.mid8`` derived once; consumers read it."""
-    from mission_runtime.context import ExecutionContext, IdentityFragment
+    """A real MissionExecutionContext holds ``identity.mid8`` derived once; consumers read it."""
+    from mission_runtime.context import IdentityFragment, MissionExecutionContext
 
     identity = IdentityFragment.derive(
         mission_id=_FULL_MISSION_ID, mission_slug="rider-mission-01KV7SFD"
     )
-    ctx = ExecutionContext(
+    ctx = MissionExecutionContext(
         action="implement",
         mission_slug="rider-mission-01KV7SFD",
         feature_dir="kitty-specs/rider-mission-01KV7SFD",

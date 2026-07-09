@@ -6,8 +6,9 @@ for future flexibility.
 """
 
 from dataclasses import dataclass
-from datetime import datetime, UTC
 from typing import Any
+
+from specify_cli.core.time_utils import now_utc_iso
 
 # Import from public spec_kitty_events PyPI package
 try:
@@ -92,13 +93,13 @@ class LamportClock:
     def tick(self) -> int:
         """Increment clock and return new value."""
         self.value += 1
-        self.last_updated = datetime.now(UTC).isoformat()
+        self.last_updated = now_utc_iso()
         return self.value
 
     def update(self, remote_clock: int) -> int:
         """Update clock to max(local, remote) + 1."""
         self.value = max(self.value, remote_clock) + 1
-        self.last_updated = datetime.now(UTC).isoformat()
+        self.last_updated = now_utc_iso()
         return self.value
 
     @classmethod
@@ -109,7 +110,7 @@ class LamportClock:
 
         return cls(
             value=lib_clock.value,
-            last_updated=lib_clock.last_updated or datetime.now(UTC).isoformat(),
+            last_updated=lib_clock.last_updated or now_utc_iso(),
         )
 
     def to_lib_clock(self) -> Any:

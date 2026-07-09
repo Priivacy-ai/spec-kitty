@@ -38,11 +38,11 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.delivery.receivers import (
     DeliveryReceiver,
     ExternalReceiver,
@@ -461,7 +461,7 @@ def discard_decision(
         event_family=event_family,
         classification=classification,
         reason="Teamspace-bound family discarded under OPT_OUT; preserved durably",
-        at=datetime.now(UTC).isoformat(),
+        at=now_utc_iso(),
     )
     ref = audit_sink.record(record)
     return DiscardDecision(

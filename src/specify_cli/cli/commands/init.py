@@ -7,7 +7,7 @@ import os
 import shutil
 import subprocess
 import sys
-from datetime import datetime, UTC
+from datetime import datetime
 from pathlib import Path
 from collections.abc import Callable
 
@@ -22,6 +22,7 @@ from specify_cli.core import (
     AI_CHOICES,
 )
 from specify_cli.core.env import is_truthy
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.core.vcs import (
     is_git_available,
     VCSBackend,
@@ -729,7 +730,7 @@ def init(  # noqa: C901
             # Skill pack installation state
             from specify_cli import __version__ as _sk_version
 
-            _now_iso = datetime.now(UTC).isoformat()
+            _now_iso = now_utc_iso()
             skill_manifest = ManagedSkillManifest(
                 created_at=_now_iso,
                 updated_at=_now_iso,

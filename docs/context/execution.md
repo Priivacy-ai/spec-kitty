@@ -193,19 +193,19 @@ Terms describing tool invocation and semantic safety gates during generation.
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
 | **Owner** | Governance module |
-| **Related terms** | [ExecutionContext](#executioncontext), [InfraContext](#infracontext), [Charter](./governance.md#charter) |
+| **Related terms** | [MissionExecutionContext](#missionexecutioncontext), [InfraContext](#infracontext), [Charter](./governance.md#charter) |
 
 ---
 
-### ExecutionContext
+### MissionExecutionContext
 
 | | |
 |---|---|
-| **Definition** | The resolved set of workspace root, branch name, feature directory, and WP identity for an operation. Owned by `core/execution_context.py` (Open Host Service facade). Resolved once per operation via `resolve_action_context`; never re-derived from CWD by individual command surfaces. |
+| **Definition** | The resolved set of workspace root, branch name, feature directory, and WP identity for an operation. Owned by `mission_runtime/context.py` (Open Host Service facade). Resolved once per operation via `resolve_action_context`; never re-derived from CWD by individual command surfaces. Renamed from `ExecutionContext` (FR-012) to match the ubiquitous language and disambiguate from the unrelated `core/context_validation.py::ExecutionContext(StrEnum)`. |
 | **Context** | Execution |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Owner** | Execution module (`src/specify_cli/core/execution_context.py`) |
+| **Owner** | Mission runtime (`src/mission_runtime/context.py`) |
 | **OHS entry point** | `resolve_action_context` |
 | **Related terms** | [GovernanceContext](#governancecontext), [InfraContext](#infracontext) |
 
@@ -220,7 +220,7 @@ Terms describing tool invocation and semantic safety gates during generation.
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
 | **Owner** | Execution module |
-| **Related terms** | [ExecutionContext](#executioncontext), [GovernanceContext](#governancecontext) |
+| **Related terms** | [MissionExecutionContext](#missionexecutioncontext), [GovernanceContext](#governancecontext) |
 
 ---
 

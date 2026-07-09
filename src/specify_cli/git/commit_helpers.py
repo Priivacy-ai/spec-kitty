@@ -74,12 +74,12 @@ import subprocess
 import uuid
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability, GuardVerdict, ProtectionState
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.core.commit_guard import evaluate as evaluate_commit_guard
 from specify_cli.git.protection_policy import ProtectionPolicy
 
@@ -1152,7 +1152,7 @@ def safe_commit(  # noqa: C901 -- sequential validation gates; splitting harms r
                 mission_id=_derive_mission_id(mission_specs_files),
                 build_id=_get_current_build_id(repo_root),
                 changed_files=mission_specs_files,
-                committed_at=datetime.now(UTC).isoformat(),
+                committed_at=now_utc_iso(),
             )
         except Exception:  # noqa: BLE001
             logger.warning("emit_local_commit failed after safe_commit; commit succeeded", exc_info=True)

@@ -14,6 +14,7 @@ from specify_cli.core.config import (
     SKILL_CLASS_SHARED,
     SKILL_CLASS_WRAPPER,
 )
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.skills.command_renderer import ensure_skill_frontmatter
 from specify_cli.skills.manifest import (
     ManagedFileEntry,
@@ -178,7 +179,7 @@ def _project_skill_files(
 ) -> list[ManagedFileEntry]:
     """Project all files for one skill into the project and return manifest entries."""
     entries: list[ManagedFileEntry] = []
-    now = datetime.now(UTC).isoformat()
+    now = now_utc_iso()
     backup_root: Path | None = None
 
     for source_file in skill.all_files:
@@ -217,7 +218,7 @@ def _make_entries_for_existing(
 ) -> list[ManagedFileEntry]:
     """Create manifest entries pointing to already-projected files."""
     entries: list[ManagedFileEntry] = []
-    now = datetime.now(UTC).isoformat()
+    now = now_utc_iso()
 
     for source_file in skill.all_files:
         rel_within_skill = source_file.relative_to(skill.skill_dir)
@@ -313,7 +314,7 @@ def install_all_skills(
 ) -> ManagedSkillManifest:
     """Install skills for all agents. Returns populated manifest."""
     skills = registry.discover_skills()
-    now = datetime.now(UTC).isoformat()
+    now = now_utc_iso()
 
     manifest = ManagedSkillManifest(
         version=1,

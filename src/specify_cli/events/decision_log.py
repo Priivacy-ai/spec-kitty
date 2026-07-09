@@ -14,11 +14,11 @@ from __future__ import annotations
 from specify_cli.core.constants import KITTY_SPECS_DIR
 import json
 import logging
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from specify_cli.core.paths import assert_safe_path_segment
+from specify_cli.core.time_utils import now_utc_iso
 
 from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability
@@ -171,7 +171,7 @@ class DecisionGitLog:
 
         # canonical-producer-exempt: #1198 -- canonical local-only decision git-log envelope.
         return {
-            "at": datetime.now(UTC).isoformat(),
+            "at": now_utc_iso(),
             "event_id": _generate_event_id(),
             "event_type": event_type,
             "mission_id": self._mission_id,

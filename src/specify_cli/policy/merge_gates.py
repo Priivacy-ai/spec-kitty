@@ -13,11 +13,11 @@ failures exist.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, UTC
 from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
 from specify_cli.policy.config import MergeGateConfig
 from specify_cli.status import Lane
@@ -104,7 +104,7 @@ def evaluate_merge_gates(
     """
     evaluation = MergeGateEvaluation(
         mission_slug=mission_slug,
-        evaluated_at=datetime.now(UTC).isoformat(),
+        evaluated_at=now_utc_iso(),
     )
     identity = resolve_mission_identity(feature_dir)
     evaluation.mission_slug = identity.mission_slug

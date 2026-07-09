@@ -72,6 +72,20 @@ def resolve_planning_branch_from_meta(meta: Mapping[str, object]) -> str:
     ``merge_target_branch`` (legacy alias seen in older fixtures).
     Whitespace-only values are treated as absent.
 
+    FR-008 / #2139 triage note: this function is a pure ``Mapping`` transform
+    (not a ``feature_dir`` reader) with a contract that deliberately diverges
+    from ``read_target_branch_from_meta`` on two axes -- the
+    ``merge_target_branch`` legacy-alias fallback, and strict
+    ``isinstance(raw, str)`` type-checking (a non-string ``target_branch``,
+    e.g. ``42``, is treated as absent here, whereas the authority coerces via
+    ``str(value)``). It already fail-closes via
+    :class:`PlanningBranchResolutionFailed` rather than a silent
+    ``"main"``/``""`` default, so it does not exhibit the divergence FR-008
+    targets; it is intentionally left as its own contract rather than routed
+    through the authority (routing would drop the legacy-alias fallback and
+    break the existing type-strict test coverage in
+    ``test_mission_finalize_tasks.py``).
+
     Raises:
         PlanningBranchResolutionFailed: When neither field carries a
             non-empty string. The caller is expected to surface this as

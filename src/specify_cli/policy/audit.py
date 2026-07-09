@@ -13,11 +13,12 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 import ulid as _ulid_mod
+
+from specify_cli.core.time_utils import now_utc_iso
 
 AUDIT_FILENAME = "policy-audit.jsonl"
 
@@ -64,7 +65,7 @@ def create_audit_event(
         actor=actor,
         reason=reason,
         details=details or {},
-        at=datetime.now(UTC).isoformat(),
+        at=now_utc_iso(),
     )
 
 

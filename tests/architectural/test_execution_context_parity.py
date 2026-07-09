@@ -1,4 +1,4 @@
-"""e2e CWD-invariance ratchet — ExecutionContext parity gate.
+"""e2e CWD-invariance ratchet — MissionExecutionContext parity gate.
 
 Coverage (FR-023)
 -----------------
@@ -97,7 +97,7 @@ status parity* (above) to **fragment-by-fragment parity of the resolved
 ``MissionExecutionContext``** — the doc-09 fragment / op-composite described in
 ``kitty-specs/execution-context-unification-01KTPKST/data-model.md``. It is
 authored **ATDD-first** (charter C-011): the fragment assertions are written
-RED now, *before* the fragments exist on ``mission_runtime.ExecutionContext``,
+RED now, *before* the fragments exist on ``mission_runtime.MissionExecutionContext``,
 and each converges to GREEN as its conversion WP lands.
 
 The harness resolves the context twice — once with ``repo_root`` derived (via
@@ -1413,7 +1413,7 @@ def test_execution_context_parity_gate_registered_in_ci() -> None:
 # ===========================================================================
 #
 # ATDD-FIRST (charter C-011): the fragment assertions below are authored RED,
-# *before* the fragments exist on ``mission_runtime.ExecutionContext``. They are
+# *before* the fragments exist on ``mission_runtime.MissionExecutionContext``. They are
 # ``xfail(strict=True)`` and converge to XPASS as each conversion WP lands; the
 # converging WP then removes its now-stale marker (strict=True forces this).
 #

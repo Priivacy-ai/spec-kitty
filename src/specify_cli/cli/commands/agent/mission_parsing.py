@@ -23,6 +23,7 @@ from rich.console import Console
 from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.status import WPMetadata
+from specify_cli.task_utils import TIMESTAMP_FORMAT
 
 console = Console()
 
@@ -255,5 +256,12 @@ def _emit_console_or_json_error(*, json_output: bool, message: str) -> None:
 
 
 def _utc_now_iso() -> str:
-    """Return deterministic UTC timestamp string for prompt/runtime variables."""
-    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    """Return deterministic UTC timestamp string for prompt/runtime variables.
+
+    Uses the shared ``TIMESTAMP_FORMAT`` stamp constant (SAFE Sonar campsite
+    fold, mission-resolver-port-01KX1C05 T026) rather than a hardcoded
+    literal. Serialized output is byte-identical to before (NFR-004): this
+    is the same ``%Y-%m-%dT%H:%M:%SZ`` format `task_utils.support.now_utc`
+    already uses.
+    """
+    return datetime.now(UTC).strftime(TIMESTAMP_FORMAT)

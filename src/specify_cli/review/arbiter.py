@@ -14,12 +14,12 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from specify_cli.core.paths import assert_safe_path_segment
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.core.utils import write_text_within_directory
 
 if TYPE_CHECKING:
@@ -223,7 +223,7 @@ def create_arbiter_decision(
         category=cat,
         explanation=explanation,
         checklist=checklist,
-        decided_at=datetime.now(UTC).isoformat(),
+        decided_at=now_utc_iso(),
     )
 
 
@@ -317,7 +317,7 @@ def prompt_arbiter_checklist(
         category=category,
         explanation=explanation,
         checklist=checklist,
-        decided_at=datetime.now(UTC).isoformat(),
+        decided_at=now_utc_iso(),
     )
 
 

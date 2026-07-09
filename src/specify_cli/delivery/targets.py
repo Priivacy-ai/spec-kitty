@@ -41,10 +41,10 @@ import hashlib
 import re
 import sqlite3
 from dataclasses import replace
-from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 from urllib.parse import urlsplit, urlunsplit
 
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.delivery.interfaces import (
     DeliveryTarget,
     DeploymentMetadata,
@@ -227,11 +227,6 @@ def _stable_changes(
     return tuple(changed)
 
 
-def _utc_now_iso() -> str:
-    """Return the current UTC timestamp as an ISO-8601 string."""
-    return datetime.now(UTC).isoformat()
-
-
 # ---------------------------------------------------------------------------
 # SQLite-backed registry (T021/T023/T024)
 # ---------------------------------------------------------------------------
@@ -320,7 +315,7 @@ class SqliteDeliveryTargetRegistry:
             team_slug=_normalize_scope(team_slug),
             user_email=_normalize_scope(user_email),
         )
-        now = _utc_now_iso()
+        now = now_utc_iso()
         provided = _select_metadata(deployment_metadata)
         existing = self.get(identity.url_hash, identity.team_slug, identity.user_email)
         if existing is None:

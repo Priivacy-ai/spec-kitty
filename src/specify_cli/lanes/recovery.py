@@ -20,9 +20,9 @@ from specify_cli.missions._read_path_resolver import (
 import logging
 import subprocess
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
 
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.lanes.branch_naming import (
     BranchIdentityUnresolved,
     mission_branch_name_required,
@@ -732,7 +732,7 @@ def recover_context(
         base_branch=mission_branch,
         base_commit=base_commit,
         dependencies=[],
-        created_at=datetime.now(UTC).isoformat(),
+        created_at=now_utc_iso(),
         created_by="recovery",
         vcs_backend="git",
         lane_id=state.lane_id,

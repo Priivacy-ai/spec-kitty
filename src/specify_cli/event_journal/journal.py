@@ -24,10 +24,10 @@ import contextlib
 import sqlite3
 from collections.abc import Iterator
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol
 
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.paths import get_runtime_root
 
 from .models import (
@@ -367,10 +367,6 @@ class TeamspaceBoundDropError(RuntimeError):
         self.event_id = event_id
 
 
-def _utc_now_iso() -> str:
-    return datetime.now(UTC).isoformat()
-
-
 def capture_teamspace_bound(
     *,
     journal: EventJournal,
@@ -398,7 +394,7 @@ def capture_teamspace_bound(
         event_type=event_type,
         payload=payload,
         occurred_at=occurred_at,
-        created_at=created_at or _utc_now_iso(),
+        created_at=created_at or now_utc_iso(),
         coalesce_key=coalesce_key,
         archived_at=None,
         drain_blocked_reason=classify_drain_blocked_reason(gate),

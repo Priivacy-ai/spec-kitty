@@ -15,8 +15,8 @@ from mission_runtime import (
     ArtifactPlacementFragment,
     BranchRefFragment,
     CommitTarget,
-    ExecutionContext,
     IdentityFragment,
+    MissionExecutionContext,
     StatusSurfaceFragment,
     WorkspaceFragment,
 )
@@ -102,7 +102,7 @@ def test_status_surface_collapses_when_flattened() -> None:
 
 def test_execution_context_default_fragments_are_none() -> None:
     """A bare substrate context (not-yet-converted consumer) has no fragments."""
-    ctx = ExecutionContext(
+    ctx = MissionExecutionContext(
         action="tasks",
         mission_slug="demo",
         feature_dir="/repo/kitty-specs/demo",
@@ -119,7 +119,7 @@ def test_execution_context_default_fragments_are_none() -> None:
 def test_to_dict_excludes_fragments_preserving_substrate_shape() -> None:
     """``to_dict`` returns the historical flat shape (NFR-001) — no fragments."""
     surface = Path("/repo/kitty-specs/demo-01KTPKST")
-    ctx = ExecutionContext(
+    ctx = MissionExecutionContext(
         action="tasks",
         mission_slug="demo",
         feature_dir="/repo/kitty-specs/demo",
@@ -165,7 +165,7 @@ def test_optional_fragments_can_be_attached() -> None:
     placement = ArtifactPlacementFragment(
         placement_ref=CommitTarget(ref="main")
     )
-    ctx = ExecutionContext(
+    ctx = MissionExecutionContext(
         action="implement",
         mission_slug="demo",
         feature_dir="/repo/kitty-specs/demo",

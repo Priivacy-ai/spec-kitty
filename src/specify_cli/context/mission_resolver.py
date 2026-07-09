@@ -22,6 +22,18 @@ Implementation note: ``kitty-specs/`` is walked once per ``resolve_mission``
 call.  The resulting in-memory index is not cached across calls because the
 resolver is used in short-lived CLI commands; caching can be added later if
 profiling shows it is needed.
+
+``MissionResolver`` port (mission-resolver-port-01KX1C05 WP02, FR-001/FR-005):
+this module hosts the two concrete adapters for the ``MissionResolver``
+Protocol defined in ``mission_runtime.mission_resolver_port`` — the real
+``FsMissionResolver`` (wrapping the walk below) and the in-memory
+``FakeMissionResolver`` stub (zero filesystem access, for FS-free tests). The
+free ``resolve_mission`` function accepts an optional ``resolver`` so the walk
+is injectable at its single call site; existing callers that omit ``resolver``
+get exactly the previous behavior via a default-constructed
+``FsMissionResolver``. No adapter is cached at module or process scope
+(C-005) — each is request-scoped and re-walks (or re-reads its in-memory list)
+on every ``resolve``/``all_missions`` call.
 """
 
 from __future__ import annotations
@@ -30,7 +42,9 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 import re
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
+from mission_runtime import MissionResolver
 from specify_cli.lanes.branch_naming import resolve_mid8, strip_numeric_prefix
 from specify_cli.mission_metadata import load_meta
 
@@ -115,13 +129,25 @@ class AmbiguousHandleError(Exception):
 class MissionNotFoundError(Exception):
     """Raised when no mission matches the supplied handle.
 
+    Fail-closed-loud (FR-005): the message always names
+    ``spec-kitty migrate backfill-identity`` as a candidate remediation,
+    since a cold-miss is indistinguishable, from the resolver's viewpoint,
+    from "the mission exists but was silently skipped during indexing because
+    its ``meta.json`` lacks a ``mission_id``" (see :func:`_build_index`). There
+    is deliberately no ``is None`` / ``or slug`` fallback here — a miss always
+    raises.
+
     Attributes:
         handle: The user-supplied handle that matched nothing.
     """
 
     def __init__(self, handle: str) -> None:
         self.handle = handle
-        super().__init__(f'No mission found for handle "{handle}".')
+        super().__init__(
+            f'No mission found for handle "{handle}". '
+            "If this is a legacy mission whose meta.json lacks a mission_id, "
+            "run `spec-kitty migrate backfill-identity` to backfill it."
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -194,8 +220,13 @@ def _is_numeric_prefix(handle: str) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def resolve_mission(handle: str, repo_root: Path) -> ResolvedMission:
-    """Resolve a user-supplied handle to a canonical mission.
+def _resolve_from_index(handle: str, missions: list[ResolvedMission]) -> ResolvedMission:
+    """Resolve ``handle`` against an already-built in-memory mission index.
+
+    This is the priority ladder shared by :class:`FsMissionResolver` (over a
+    fresh ``_build_index`` walk) and :class:`FakeMissionResolver` (over a
+    caller-supplied in-memory list) — the single fail-closed-loud resolution
+    algorithm (FR-005), independent of where ``missions`` came from.
 
     Resolution priority (see module docstring):
     1. Full mission_id (26-char ULID)
@@ -204,19 +235,10 @@ def resolve_mission(handle: str, repo_root: Path) -> ResolvedMission:
     4. Human slug without prefix
     5. Numeric prefix alone (all-digits handle)
 
-    Args:
-        handle: A mission handle in any supported form.
-        repo_root: Absolute path to the repository root.
-
-    Returns:
-        The uniquely resolved :class:`ResolvedMission`.
-
     Raises:
         AmbiguousHandleError: The handle matches more than one mission.
         MissionNotFoundError: The handle matches no mission.
     """
-    missions = _build_index(repo_root)
-
     # ------------------------------------------------------------------
     # Priority 1: Full mission_id (exact 26-char ULID)
     # ------------------------------------------------------------------
@@ -260,6 +282,114 @@ def resolve_mission(handle: str, repo_root: Path) -> ResolvedMission:
         return _resolve_or_raise(handle, prefix_matches)
 
     raise MissionNotFoundError(handle)
+
+
+# ---------------------------------------------------------------------------
+# MissionResolver port adapters (mission-resolver-port-01KX1C05 WP02)
+# ---------------------------------------------------------------------------
+
+
+class FsMissionResolver:
+    """Real :class:`~mission_runtime.MissionResolver` adapter.
+
+    Wraps the existing ``kitty-specs/`` walk (:func:`_build_index`) and the
+    priority-ladder resolution (:func:`_resolve_from_index`). Bound to a
+    single ``repo_root`` at construction so callers pass only the handle.
+
+    Request-scoped: every call to :meth:`resolve` / :meth:`all_missions`
+    re-walks ``kitty-specs/`` — there is no module or process-level cache
+    (C-005); an instance may be reused across calls within one request without
+    changing this contract, since the walk itself is not memoized.
+    """
+
+    def __init__(self, repo_root: Path) -> None:
+        self._repo_root = repo_root
+
+    def resolve(self, handle: str) -> ResolvedMission:
+        """Resolve ``handle`` via a fresh walk of ``kitty-specs/``.
+
+        Raises:
+            AmbiguousHandleError: The handle matches more than one mission.
+            MissionNotFoundError: The handle matches no mission. The error
+                message names ``spec-kitty migrate backfill-identity`` for
+                legacy missions missing ``mission_id``.
+        """
+        return _resolve_from_index(handle, _build_index(self._repo_root))
+
+    def all_missions(self) -> list[ResolvedMission]:
+        """Return every identity-bearing mission found by a fresh walk.
+
+        Missions whose ``meta.json`` lacks a ``mission_id`` are silently
+        skipped, exactly as :func:`_build_index` does today (C-001) — this
+        preserves ``status/identity_audit.py``'s separate, non-routed walk as
+        the only surface that finds them.
+        """
+        return _build_index(self._repo_root)
+
+
+class FakeMissionResolver:
+    """In-memory :class:`~mission_runtime.MissionResolver` stub.
+
+    Constructed from a caller-supplied list of canonical-shaped
+    :class:`ResolvedMission` fixtures. Performs **zero** filesystem access,
+    enabling FS-free tests of consumers built against the ``MissionResolver``
+    Protocol (NFR-001) — including with no ``kitty-specs/`` tree present at
+    all.
+
+    Applies the same fail-closed-loud priority ladder as
+    :class:`FsMissionResolver` (:func:`_resolve_from_index`): ambiguous
+    handles raise :class:`AmbiguousHandleError`; cold-misses raise
+    :class:`MissionNotFoundError`.
+    """
+
+    def __init__(self, missions: list[ResolvedMission]) -> None:
+        self._missions = list(missions)
+
+    def resolve(self, handle: str) -> ResolvedMission:
+        """Resolve ``handle`` against the in-memory fixture list."""
+        return _resolve_from_index(handle, self._missions)
+
+    def all_missions(self) -> list[ResolvedMission]:
+        """Return the in-memory fixture list, unfiltered (already canonical)."""
+        return list(self._missions)
+
+
+def resolve_mission(
+    handle: str,
+    repo_root: Path,
+    *,
+    resolver: MissionResolver | None = None,
+) -> ResolvedMission:
+    """Resolve a user-supplied handle to a canonical mission.
+
+    This is the single injection site for the ``MissionResolver`` port
+    (mission-resolver-port-01KX1C05 WP02): callers that pass no ``resolver``
+    get exactly the previous behavior (a fresh :class:`FsMissionResolver` over
+    ``repo_root``); callers threading a resolver (e.g. a
+    :class:`FakeMissionResolver` in a test) get theirs instead.
+
+    Args:
+        handle: A mission handle in any supported form (see module docstring
+            for the full priority ladder).
+        repo_root: Absolute path to the repository root. Ignored when
+            ``resolver`` is supplied (the resolver owns its own scope).
+        resolver: Optional :class:`~mission_runtime.MissionResolver` to
+            delegate to. Defaults to a fresh ``FsMissionResolver(repo_root)``.
+
+    Returns:
+        The uniquely resolved :class:`ResolvedMission`.
+
+    Raises:
+        AmbiguousHandleError: The handle matches more than one mission.
+        MissionNotFoundError: The handle matches no mission.
+    """
+    active_resolver: MissionResolver = resolver or FsMissionResolver(repo_root)
+    # The Protocol return type is the structural ResolvedMissionLike (D-Q2):
+    # mission_runtime cannot reference this module's concrete ResolvedMission.
+    # Every MissionResolver implementation in this codebase (FsMissionResolver,
+    # FakeMissionResolver — the only two that exist) is constructed here and
+    # is known, by this module's own construction, to return ResolvedMission.
+    return cast(ResolvedMission, active_resolver.resolve(handle))
 
 
 # ---------------------------------------------------------------------------

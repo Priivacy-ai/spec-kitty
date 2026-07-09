@@ -18,9 +18,10 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+from specify_cli.core.time_utils import now_utc_iso
+
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
-from datetime import UTC
 
 logger = logging.getLogger(__name__)
 
@@ -98,11 +99,9 @@ class InstallSkillsMigration(BaseMigration):
             return MigrationResult(success=True, changes_made=changes)
 
         # Install skills
-        from datetime import datetime, timezone
-
         manifest = ManagedSkillManifest(
-            created_at=datetime.now(UTC).isoformat(),
-            updated_at=datetime.now(UTC).isoformat(),
+            created_at=now_utc_iso(),
+            updated_at=now_utc_iso(),
             spec_kitty_version="2.0.11",
         )
         shared_root_installed: set[str] = set()

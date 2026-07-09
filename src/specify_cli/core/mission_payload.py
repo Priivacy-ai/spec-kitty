@@ -23,7 +23,6 @@ distinguishes pre-merge nullity from field absence (FR-024).
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from typing import Any
 
 # spec_kitty_events is an external contract package, consumed via its public
@@ -31,6 +30,7 @@ from typing import Any
 from spec_kitty_events.lifecycle import MissionCreatedPayload
 
 from specify_cli.core.payload_shaping import apply_keep_none_fields
+from specify_cli.core.time_utils import now_utc_iso
 
 # ``mission_number`` is wire-required (FR-024) yet logically nullable for
 # pre-merge missions; its explicit ``null`` must survive to the wire.
@@ -89,7 +89,7 @@ def build_mission_created_payload(
         friendly_name=display_name,
         purpose_tldr=tldr,
         purpose_context=context,
-        created_at=created_at or datetime.now(UTC).isoformat(),
+        created_at=created_at or now_utc_iso(),
     )
 
     return apply_keep_none_fields(model, keep_none_fields=_KEEP_NONE_FIELDS)

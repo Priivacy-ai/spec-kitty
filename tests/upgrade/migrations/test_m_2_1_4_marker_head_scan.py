@@ -85,6 +85,26 @@ def test_rejects_user_authored_file(tmp_path: Path) -> None:
     assert _file_has_current_version_marker(target) is False
 
 
+class _FakeCliStatus:
+    """Minimal ``_CliStatusLike`` double for exercising the FR-010 injection seam."""
+
+    installed_version = "9.9.9-test"
+    latest_version: str | None = None
+    latest_source = "none"
+
+
+def test_expected_marker_routes_injected_cli_status(expected_marker: str) -> None:
+    """Injecting a ``_CliStatusLike`` must route its version into the marker (FR-010).
+
+    Proves the injection branch in ``_get_cli_version``/``_expected_version_marker``
+    is live: deleting it would fall back to the real ``importlib.metadata`` lookup,
+    this assertion would fail, while every other test in this module stays green.
+    """
+    marker = _expected_version_marker(_FakeCliStatus())
+    assert marker == "<!-- spec-kitty-command-version: 9.9.9-test -->"
+    assert marker != expected_marker
+
+
 def test_handles_oserror_gracefully(tmp_path: Path) -> None:
     """A read failure must return False rather than raising."""
     target = tmp_path / "blocked.md"

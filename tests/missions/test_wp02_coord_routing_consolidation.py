@@ -269,7 +269,7 @@ def test_resolve_topology_relay_exception_arm(
     monkeypatch.setattr(
         resolution,
         "_resolve_coordination_branch",
-        lambda _root, _slug: coordination_branch,
+        lambda _root, _slug, **_kw: coordination_branch,
     )
 
     result = resolution._resolve_topology(primary_root, _MISSION_SLUG)

@@ -163,18 +163,21 @@ def test_resolve_planning_branch_reads_meta(monkeypatch: pytest.MonkeyPatch, tmp
 
 
 def test_resolve_feature_target_branch_prefers_meta(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(seam, "_read_feature_meta", lambda _fd: {"target_branch": "release"})
+    # FR-008 / #2139: the meta.json read now delegates to the single
+    # read_target_branch_from_meta authority (imported into this module),
+    # not a local _read_feature_meta helper.
+    monkeypatch.setattr(seam, "read_target_branch_from_meta", lambda _fd: "release")
     assert seam._resolve_feature_target_branch(tmp_path, tmp_path) == "release"
 
 
 def test_resolve_feature_target_branch_falls_back_to_current(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(seam, "_read_feature_meta", lambda _fd: {})
+    monkeypatch.setattr(seam, "read_target_branch_from_meta", lambda _fd: None)
     monkeypatch.setattr(seam, "get_current_branch", lambda _root: "feat-y")
     assert seam._resolve_feature_target_branch(tmp_path, tmp_path) == "feat-y"
 
 
 def test_resolve_feature_target_branch_defaults_to_main(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(seam, "_read_feature_meta", lambda _fd: {})
+    monkeypatch.setattr(seam, "read_target_branch_from_meta", lambda _fd: None)
     monkeypatch.setattr(seam, "get_current_branch", lambda _root: None)
     assert seam._resolve_feature_target_branch(tmp_path, tmp_path) == "main"
 

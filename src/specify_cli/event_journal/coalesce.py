@@ -47,9 +47,10 @@ from __future__ import annotations
 import contextlib
 import sqlite3
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
+
+from specify_cli.core.time_utils import now_utc_iso
 
 from .journal import CoalesceDecision, register_coalesce_strategy
 from .models import (
@@ -128,10 +129,6 @@ class SupersedeMarker:
     at: str
 
 
-def _utc_now_iso() -> str:
-    return datetime.now(UTC).isoformat()
-
-
 def _connect(db_path: Path) -> sqlite3.Connection:
     """Open a connection to the journal DB and ensure the sidecar schema exists."""
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -175,7 +172,7 @@ def _record_supersede(
     with contextlib.closing(_connect(db_path)) as conn:
         conn.execute(
             _INSERT_SUPERSEDED_SQL,
-            (superseded_event_id, superseded_by_event_id, coalesce_key, _utc_now_iso()),
+            (superseded_event_id, superseded_by_event_id, coalesce_key, now_utc_iso()),
         )
         conn.commit()
 

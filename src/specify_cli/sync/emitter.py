@@ -30,7 +30,7 @@ import platform
 import re
 import subprocess
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -39,6 +39,7 @@ from rich.console import Console
 
 from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.core.payload_shaping import apply_keep_none_fields
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.event_journal import (
     CaptureGateState,
     capture_teamspace_bound,
@@ -2001,7 +2002,7 @@ class EventEmitter:
                 "lamport_clock": clock_value,
                 "causation_id": causation_id,
                 "correlation_id": causation_id or event_id,
-                "timestamp": occurred_at if occurred_at is not None else datetime.now(UTC).isoformat(),
+                "timestamp": occurred_at if occurred_at is not None else now_utc_iso(),
                 "team_slug": team_slug,
                 "project_uuid": str(identity.project_uuid) if identity.project_uuid else None,
                 "project_slug": identity.project_slug,

@@ -25,14 +25,15 @@ Source-of-truth:
 from __future__ import annotations
 
 from mission_runtime import MissionArtifactKind
-from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.lanes.branch_naming import resolve_mid8
-from specify_cli.mission_metadata import load_meta_or_empty
 from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 import json
 import logging
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
+
+if TYPE_CHECKING:
+    from specify_cli.context.mission_resolver import ResolvedMission
 
 import yaml as _yaml
 
@@ -587,33 +588,43 @@ def apply_proposals(
 # ---------------------------------------------------------------------------
 
 
+def _resolve_mission_by_id(mission_id: MissionId, repo_root: Path) -> ResolvedMission | None:
+    """Find the mission whose ``mission_id`` matches, via the canonical resolver.
+
+    Adopts :class:`~specify_cli.context.mission_resolver.FsMissionResolver`
+    (mission-resolver-port-01KX1C05 WP03, FR-003/T015) in place of the two
+    duplicated hand-rolled ``kitty-specs/`` ``iterdir()`` + meta.json scans this
+    module used to run (:func:`_resolve_source_event_ids`,
+    :func:`_slug_for_mission` — now both single-line callers of this helper).
+    Uses :meth:`~mission_runtime.MissionResolver.all_missions` rather than
+    :meth:`~mission_runtime.MissionResolver.resolve`: both call sites already
+    tolerate "no match" by returning ``None`` / an empty set (a best-effort
+    provenance lookup), not the resolver's fail-closed-loud ``resolve()``
+    contract, which would raise on the very "not found" case these callers
+    treat as a normal, safe outcome.
+    """
+    from specify_cli.context.mission_resolver import FsMissionResolver
+
+    for mission in FsMissionResolver(repo_root).all_missions():
+        if mission.mission_id == mission_id:
+            return mission
+    return None
+
+
 def _resolve_source_event_ids(mission_id: MissionId, repo_root: Path) -> set[str]:
     """Return event ids from the source mission's event log.
 
-    Searches kitty-specs/ for a feature directory containing a meta.json
-    whose ``mission_id`` matches.  Falls back to an empty set on any I/O or
-    parsing error (the staleness check then rejects all proposals with
-    unresolvable evidence — safe / fail-closed).
+    Resolves the source mission's feature directory via
+    :func:`_resolve_mission_by_id` (WP03 adoption) and falls back to an empty
+    set when no mission matches (the staleness check then rejects all
+    proposals with unresolvable evidence — safe / fail-closed).
     """
-    mission_specs = repo_root / KITTY_SPECS_DIR
-    if not mission_specs.exists():
+    mission = _resolve_mission_by_id(mission_id, repo_root)
+    if mission is None:
+        # Fallback: if the mission slug is embedded in the mission_id derivation
+        # path we can't find it; return empty (fail-closed on staleness).
         return set()
-
-    for mission_dir in mission_specs.iterdir():
-        if not mission_dir.is_dir():
-            continue
-        # Routed onto the canonical meta.json reader (FR-005): the pre-#2091
-        # try/except silently skipped a missing OR malformed meta.json, which
-        # is exactly the ``load_meta_or_empty`` contract -- absorbing both to
-        # ``{}`` preserves the existing "unmatched, keep scanning" behavior.
-        meta = load_meta_or_empty(mission_dir)
-        if meta.get("mission_id") == mission_id:
-            # Found the source mission's feature directory
-            return _load_event_ids(mission_dir)
-
-    # Fallback: if the mission slug is embedded in the mission_id derivation
-    # path we can't find it; return empty (fail-closed on staleness).
-    return set()
+    return _load_event_ids(mission.feature_dir)
 
 
 def _plan_application(proposal: Proposal) -> PlannedApplication:
@@ -781,20 +792,13 @@ def _apply_one(
 
 
 def _slug_for_mission(mission_id: MissionId, repo_root: Path) -> str | None:
-    """Find the mission_slug for a given mission_id by scanning kitty-specs/."""
-    mission_specs = repo_root / KITTY_SPECS_DIR
-    if not mission_specs.exists():
-        return None
-    for mission_dir in mission_specs.iterdir():
-        if not mission_dir.is_dir():
-            continue
-        # Routed onto the canonical meta.json reader (FR-005): see the
-        # matching note in ``_resolve_source_event_ids`` -- same silent
-        # missing/malformed-skip contract, now via ``load_meta_or_empty``.
-        meta = load_meta_or_empty(mission_dir)
-        if meta.get("mission_id") == mission_id:
-            return str(mission_dir.name)
-    return None
+    """Find the mission_slug for a given mission_id via the canonical resolver.
+
+    See :func:`_resolve_mission_by_id` (WP03 adoption note) — this is the
+    second of the two duplicated scans it consolidates.
+    """
+    mission = _resolve_mission_by_id(mission_id, repo_root)
+    return mission.mission_slug if mission is not None else None
 
 
 def _emit_conflict_rejections(

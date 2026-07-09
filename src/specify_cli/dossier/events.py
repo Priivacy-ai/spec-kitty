@@ -35,11 +35,11 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
 
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.dossier.emitter_adapter import fire_dossier_event
 
 logger = logging.getLogger(__name__)
@@ -207,10 +207,6 @@ class MissionDossierParityDriftDetectedPayload(BaseModel):
 
 
 # ── Internal helpers ───────────────────────────────────────────────────
-
-
-def _iso_utc_now() -> str:
-    return datetime.now(UTC).isoformat()
 
 
 def _coerce_namespace(
@@ -399,7 +395,7 @@ def emit_artifact_indexed(
             namespace=ns,
             artifact_id=identity,
             content_ref=content_ref,
-            indexed_at=indexed_at or _iso_utc_now(),
+            indexed_at=indexed_at or now_utc_iso(),
             step_id=step_id,
             context_diagnostics=diagnostics or None,
             provenance=provenance,
@@ -475,7 +471,7 @@ def emit_artifact_missing(
             namespace=ns,
             expected_identity=identity,
             manifest_step=manifest_step or "default",
-            checked_at=checked_at or _iso_utc_now(),
+            checked_at=checked_at or now_utc_iso(),
             last_known_ref=last_known,
             remediation_hint=reason_detail,
             context_diagnostics=diagnostics or None,
@@ -541,7 +537,7 @@ def emit_snapshot_computed(
             snapshot_hash=parity_hash_sha256,
             artifact_count=total_artifacts,
             anomaly_count=(anomaly_count if anomaly_count is not None else required_missing),
-            computed_at=computed_at or _iso_utc_now(),
+            computed_at=computed_at or now_utc_iso(),
             algorithm="sha256",
             context_diagnostics=diagnostics or None,
         )
@@ -613,7 +609,7 @@ def emit_parity_drift_detected(
             expected_hash=baseline_parity_hash,
             actual_hash=local_parity_hash,
             drift_kind=drift_kind or "anomaly_introduced",
-            detected_at=detected_at or _iso_utc_now(),
+            detected_at=detected_at or now_utc_iso(),
             artifact_ids_changed=artifacts_changed,
             rebuild_hint=rebuild_hint,
             context_diagnostics=diagnostics or None,

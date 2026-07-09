@@ -7,10 +7,10 @@ import hashlib
 import json
 import socket
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, UTC
 from pathlib import Path
 
 from specify_cli.core.atomic import atomic_write
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.paths import get_runtime_root
 
 
@@ -78,7 +78,7 @@ class LamportClock:
         data = {
             "value": self.value,
             "node_id": self.node_id,
-            "updated_at": datetime.now(UTC).isoformat(),
+            "updated_at": now_utc_iso(),
         }
 
         content = json.dumps(data, indent=2)

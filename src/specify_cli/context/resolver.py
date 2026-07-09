@@ -8,7 +8,6 @@ no heuristic fallback, and no single-feature auto-detection.
 
 from __future__ import annotations
 
-from datetime import datetime, UTC
 from pathlib import Path
 
 from ulid import ULID
@@ -24,6 +23,9 @@ from specify_cli.context.errors import (
 from specify_cli.context.models import MissionContext
 from specify_cli.context.store import load_context as _load_context
 from specify_cli.context.store import save_context
+from specify_cli.core.git_ops import resolve_primary_branch
+from specify_cli.core.paths import read_target_branch_from_meta
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.persistence import require_lanes_json
 from specify_cli.mission_metadata import load_meta, mission_identity_fields
@@ -58,7 +60,7 @@ def _read_project_uuid(repo_root: Path) -> str:
     return str(uuid_val)
 
 
-def _read_meta_json(feature_dir: Path) -> dict[str, str]:
+def _read_meta_json(feature_dir: Path, repo_root: Path) -> dict[str, str]:
     """Read mission identity and target_branch from meta.json.
 
     Legacy missions authored before the identity backfill may lack
@@ -79,7 +81,15 @@ def _read_meta_json(feature_dir: Path) -> dict[str, str]:
         raise MissingIdentityError(msg) from exc
 
     mission_id = data.get("mission_id") or feature_dir.name
-    target_branch = data.get("target_branch", "main")
+    # FR-008 / #2139: delegate to the single read_target_branch_from_meta
+    # authority instead of re-embedding a local "main" default here. The
+    # authority itself owns the field-absent-vs-corrupt distinction; we only
+    # apply the documented primary-branch fallback when the field is
+    # genuinely absent (None), matching resolve_target_branch/
+    # get_feature_target_branch in core/git_ops.py and core/paths.py.
+    target_branch = read_target_branch_from_meta(feature_dir)
+    if target_branch is None:
+        target_branch = resolve_primary_branch(repo_root)
 
     identity = mission_identity_fields(
         str(data.get("mission_slug") or data.get("slug") or feature_dir.name),
@@ -217,7 +227,7 @@ def resolve_context(
         raise FeatureNotFoundError(msg)
 
     # 3. Read meta.json
-    meta = _read_meta_json(feature_dir)
+    meta = _read_meta_json(feature_dir, repo_root)
 
     # 4. Read WP frontmatter as typed WPMetadata
     wp_meta = _read_wp_metadata(feature_dir, wp_code)
@@ -233,6 +243,11 @@ def resolve_context(
     # lane_branch_name() returns target_branch for lane-planning (T011).
     # lanes.json is LANE_STATE (PRIMARY-partition) — use its truthful kind so a
     # future LANE_STATE re-partition does not silently misroute.
+    # OUT of FR-008 / #2139 routing (by design, per D-03/squad triage): this is
+    # a hard-KeyError read of the already-hydrated `meta` dict built by
+    # `_read_meta_json` above (which itself now routes through the
+    # read_target_branch_from_meta authority and always populates the key) --
+    # a construction-time dataclass-hydration read, not a meta.json field read.
     target_branch = meta["target_branch"]
     _lanes_dir = resolve_planning_read_dir(
         repo_root, mission_slug, kind=MissionArtifactKind.LANE_STATE
@@ -256,7 +271,7 @@ def resolve_context(
 
     # Generate opaque token
     token = _generate_token()
-    now = datetime.now(UTC).isoformat()
+    now = now_utc_iso()
 
     # Build context
     context = MissionContext(
@@ -266,6 +281,8 @@ def resolve_context(
         work_package_id=work_package_id,
         wp_code=wp_code,
         mission_slug=mission_slug,
+        # OUT of FR-008 / #2139 routing (same rationale as above): hard-KeyError
+        # hydration of the already-resolved `meta` dict, not a raw meta.json read.
         target_branch=meta["target_branch"],
         authoritative_repo=str(repo_root),
         authoritative_ref=authoritative_ref,

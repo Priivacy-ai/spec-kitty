@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
 from enum import StrEnum
 from typing import Any
+
+from specify_cli.core.time_utils import now_utc_iso
 
 SEVERITY_ORDER: dict[str, int] = {"low": 0, "medium": 1, "high": 2, "critical": 3}
 
@@ -81,9 +82,7 @@ class DecayReport:
     """
 
     findings: list[LintFinding] = field(default_factory=list)
-    scanned_at: str = field(
-        default_factory=lambda: datetime.now(tz=UTC).isoformat()
-    )
+    scanned_at: str = field(default_factory=now_utc_iso)
     feature_scope: str | None = None
     duration_seconds: float = 0.0
     drg_node_count: int = 0

@@ -6,7 +6,6 @@ import hashlib
 import io
 import re
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +21,7 @@ from charter.resolution import (
 # the charter-lint pipeline; the structured findings carrier validates against it.
 from specify_cli.charter_runtime.lint.findings import SEVERITY_ORDER
 from specify_cli.core.atomic import atomic_write
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.frontmatter import FrontmatterError, FrontmatterManager
 from specify_cli.mission_metadata import resolve_mission_identity
 
@@ -403,7 +403,7 @@ def write_analysis_report(
         "command": ANALYSIS_REPORT_COMMAND,
         "mission_slug": identity.mission_slug,
         "mission_id": identity.mission_id,
-        "generated_at": datetime.now(UTC).isoformat(),
+        "generated_at": now_utc_iso(),
         "analyzer_agent": analyzer_agent or "unknown",
         "input_artifacts": input_artifacts,
         "verdict": verdict,

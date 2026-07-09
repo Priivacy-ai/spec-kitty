@@ -5,10 +5,12 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
-from datetime import datetime, UTC
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 from collections.abc import Sequence
+
+from specify_cli.core.time_utils import now_utc_iso
 
 
 def _spec_kitty_dir() -> Path:
@@ -363,7 +365,7 @@ class TrackerSqliteStore:
         return _deserialize_issue(payload)
 
     async def upsert_issue(self, issue: Any) -> None:
-        now = datetime.now(UTC).isoformat()
+        now = now_utc_iso()
         payload = json.dumps(_serialize_issue(issue), separators=(",", ":"))
         ref = _read_attr(issue, "ref", {})
 
@@ -455,7 +457,7 @@ class TrackerSqliteStore:
             conn.close()
 
     def upsert_mapping(self, *, wp_id: str, ref: Any) -> None:
-        now = datetime.now(UTC).isoformat()
+        now = now_utc_iso()
         conn = self._connect()
         try:
             conn.execute(

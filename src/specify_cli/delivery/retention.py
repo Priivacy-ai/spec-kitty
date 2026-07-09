@@ -35,10 +35,10 @@ from __future__ import annotations
 import sqlite3
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.event_journal.models import COL_EVENT_ID, TABLE_NAME
 
 if TYPE_CHECKING:
@@ -49,10 +49,6 @@ if TYPE_CHECKING:
 # via a ``?`` placeholder, so there is no dynamic SQL and no injection surface
 # (mirrors the static-identifier pattern in ``event_journal/models.py``).
 _PURGE_SQL = f"DELETE FROM {TABLE_NAME} WHERE {COL_EVENT_ID} = ?"  # noqa: S608 — static module-constant identifiers; value via ?
-
-
-def _utc_now_iso() -> str:
-    return datetime.now(UTC).isoformat()
 
 
 @dataclass(frozen=True)
@@ -113,7 +109,7 @@ def archive_payloads(journal: EventJournal, *, event_ids: Sequence[str] | None =
     skipped, so the operation is idempotent. The delivery ledger is untouched.
     When *event_ids* is omitted, every currently-retained event is archived.
     """
-    timestamp = at or _utc_now_iso()
+    timestamp = at or now_utc_iso()
     before = _retained_payload_bytes(journal)
     archived: list[str] = []
     skipped: list[str] = []

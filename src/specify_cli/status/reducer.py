@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any, Literal
 
@@ -24,11 +23,6 @@ from .models import Lane, RetrospectiveSnapshot, StatusEvent, StatusSnapshot
 from .store import read_events, read_events_raw
 
 SNAPSHOT_FILENAME = "status.json"
-
-
-def _now_utc() -> str:
-    """Return the current UTC time as an ISO 8601 string."""
-    return datetime.now(UTC).isoformat()
 
 
 def _is_rollback_event(event: StatusEvent) -> bool:

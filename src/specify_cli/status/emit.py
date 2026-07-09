@@ -32,6 +32,7 @@ from typing import Any, cast
 import ulid as _ulid_mod
 from pydantic import ValidationError
 
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.mission_metadata import load_meta
 from specify_cli.frontmatter import FrontmatterError, read_frontmatter, write_frontmatter
 from specify_cli.workspace import canonicalize_feature_dir
@@ -108,11 +109,6 @@ def _generate_ulid() -> str:
     return str(_ulid_mod.ULID())
 
 
-def _now_utc() -> str:
-    """Return the current UTC time as an ISO 8601 string."""
-    return datetime.now(UTC).isoformat()
-
-
 # ---------------------------------------------------------------------------
 # WP06 (T028) -- pure status-domain helpers
 # ---------------------------------------------------------------------------
@@ -175,7 +171,7 @@ def build_status_event(  # noqa: PLR0913 -- pass-through to a dataclass construc
         wp_id=wp_id,
         from_lane=Lane(from_lane),
         to_lane=Lane(to_lane),
-        at=at or _now_utc(),
+        at=at or now_utc_iso(),
         actor=actor,
         force=force,
         execution_mode=execution_mode,
@@ -551,7 +547,7 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
                 wp_id=wp_id,
                 from_lane=Lane(from_lane),
                 to_lane=Lane(resolved_lane),
-                at=_now_utc(),
+                at=now_utc_iso(),
                 actor=actor,
                 force=force,
                 execution_mode=execution_mode,
@@ -596,7 +592,7 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
             wp_id=wp_id,
             from_lane=Lane(from_lane),
             to_lane=Lane(resolved_lane),
-            at=_now_utc(),
+            at=now_utc_iso(),
             actor=actor,
             force=force,
             execution_mode=execution_mode,

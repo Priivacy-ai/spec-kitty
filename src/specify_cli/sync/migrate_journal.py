@@ -46,6 +46,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.event_journal import Event, EventJournal, JournalTransaction
 
 if TYPE_CHECKING:  # pragma: no cover - typing-only (avoid the queue<->authority cycle)
@@ -87,10 +88,6 @@ def migration_target_token(raw: str) -> str:
     is always ``.isascii()`` and stable for a given input.
     """
     return _NON_IDENTIFIER_CHARS.sub("_", raw)
-
-
-def _utc_now_iso() -> str:
-    return datetime.now(UTC).isoformat()
 
 
 # --- discovered source records (T056) -------------------------------------
@@ -212,7 +209,7 @@ class MigrationAudit:
             "INSERT OR IGNORE INTO migration_provenance "
             "(event_id, source_digest, target_id, payload_sha, recorded_at) "
             "VALUES (?, ?, ?, ?, ?)",
-            (event_id, source_digest, target_id, payload_sha, _utc_now_iso()),
+            (event_id, source_digest, target_id, payload_sha, now_utc_iso()),
         )
 
     def record_conflict(self, conflict: MigrationConflict) -> None:
@@ -227,7 +224,7 @@ class MigrationAudit:
                 conflict.existing_sha,
                 conflict.incoming_sha,
                 conflict.detail,
-                _utc_now_iso(),
+                now_utc_iso(),
             ),
         )
 
@@ -397,7 +394,7 @@ def _build_event(row: _QueuedRow, payload: bytes) -> Event:
     when = (
         datetime.fromtimestamp(row.timestamp, tz=UTC).isoformat()
         if row.timestamp is not None
-        else _utc_now_iso()
+        else now_utc_iso()
     )
     return Event(
         event_id=row.event_id,

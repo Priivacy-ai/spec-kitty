@@ -10,10 +10,10 @@ from __future__ import annotations
 import json
 import subprocess
 from dataclasses import asdict, dataclass, field
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.merge.workspace import get_merge_runtime_dir
 
 __all__ = [
@@ -77,8 +77,8 @@ class MergeState:
     has_pending_conflicts: bool = False
     strategy: str = "merge"  # "merge", "squash", or "rebase"
     workspace_path: str | None = None  # Absolute path to merge workspace
-    started_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
-    updated_at: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
+    started_at: str = field(default_factory=now_utc_iso)
+    updated_at: str = field(default_factory=now_utc_iso)
     mission_number_baked: bool = False  # WP04 — set True once mission_number is committed
     push_requested: bool = False  # WP02 — True when --push was passed at merge start
 
@@ -118,17 +118,17 @@ class MergeState:
             self.completed_wps.append(wp_id)
         self.current_wp = None
         self.has_pending_conflicts = False
-        self.updated_at = datetime.now(UTC).isoformat()
+        self.updated_at = now_utc_iso()
 
     def set_current_wp(self, wp_id: str) -> None:
         """Set the currently-merging WP."""
         self.current_wp = wp_id
-        self.updated_at = datetime.now(UTC).isoformat()
+        self.updated_at = now_utc_iso()
 
     def set_pending_conflicts(self, has_conflicts: bool = True) -> None:
         """Mark that there are pending conflicts to resolve."""
         self.has_pending_conflicts = has_conflicts
-        self.updated_at = datetime.now(UTC).isoformat()
+        self.updated_at = now_utc_iso()
 
 
 def get_state_path(repo_root: Path, mission_id: str | None = None) -> Path:
@@ -155,7 +155,7 @@ def save_state(state: MergeState, repo_root: Path) -> None:
     """
     state_path = get_state_path(repo_root, state.mission_id)
     state_path.parent.mkdir(parents=True, exist_ok=True)
-    state.updated_at = datetime.now(UTC).isoformat()
+    state.updated_at = now_utc_iso()
 
     with open(state_path, "w", encoding="utf-8") as f:
         json.dump(state.to_dict(), f, indent=2)
@@ -285,7 +285,7 @@ def acquire_merge_lock(mission_id: str, repo_root: Path) -> bool:
     try:
         # Atomic exclusive create — fails immediately if lock already exists.
         with lock_path.open("x", encoding="utf-8") as fh:
-            fh.write(datetime.now(UTC).isoformat())
+            fh.write(now_utc_iso())
         return True
     except FileExistsError:
         return False
