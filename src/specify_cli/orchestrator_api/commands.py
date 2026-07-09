@@ -947,7 +947,11 @@ def _resolve_start_workspace(
             cmd,
             "LANE_ALLOCATION_FAILED",
             str(exc),
-            {**_mission_identity_payload(mission_dir), "wp_id": wp},
+            # #2512: include the refusal reason in the data payload so the
+            # orchestrator can surface a diagnostic without parsing the envelope
+            # message string.  The message field already carries str(exc) but is
+            # not structurally queryable; "reason" makes the cause machine-readable.
+            {**_mission_identity_payload(mission_dir), "wp_id": wp, "reason": str(exc)},
         )
 
     # _fail is NoReturn (always raises typer.Exit), so this is reached only on the

@@ -151,6 +151,22 @@ def extract_scalar(frontmatter: str, key: str) -> str | None:
     return raw_value.strip() or None
 
 
+def delete_scalar(frontmatter: str, key: str) -> str:
+    """Remove a scalar key-value line from frontmatter, if present.
+
+    Removes the entire line (including its trailing newline) without
+    disturbing surrounding content or comment lines.  Returns frontmatter
+    unchanged when the key is absent.
+    """
+    match = match_frontmatter_line(frontmatter, key)
+    if not match:
+        return frontmatter
+    line_end = match.end()
+    if line_end < len(frontmatter) and frontmatter[line_end] == "\n":
+        line_end += 1  # consume the trailing newline so no blank line is left
+    return frontmatter[: match.start()] + frontmatter[line_end:]
+
+
 def set_scalar(frontmatter: str, key: str, value: str) -> str:
     """Replace or insert a scalar value while preserving trailing comments."""
     match = match_frontmatter_line(frontmatter, key)
