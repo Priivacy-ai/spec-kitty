@@ -135,7 +135,12 @@ _ACTION_WILDCARDS: frozenset[str] = frozenset({"any", "generic"})
 
 
 #: Allowed values for the optional ``artifact_kind`` disambiguator. Mirrors
-#: the eight artifact-kind properties exposed by ``DoctrineService``.
+#: the artifact-kind properties exposed by ``DoctrineService``. ``templates``
+#: and ``assets`` are node-declarable org-pack DRG kinds (see
+#: ``doctrine.drg.org_pack_loader._ORG_DRG_CANONICAL_KINDS``) and must move in
+#: lockstep with this set and ``charter.pack_context._BUILTIN_ARTIFACT_KINDS`` —
+#: the drift guard in ``tests/doctrine/test_org_pack_augmentation.py`` fails if
+#: any one of the three mirrors is updated alone.
 _ALLOWED_KINDS: frozenset[str] = frozenset(
     {
         "directives",
@@ -146,6 +151,8 @@ _ALLOWED_KINDS: frozenset[str] = frozenset(
         "procedures",
         "agent_profiles",
         "mission_step_contracts",
+        "templates",
+        "assets",
     }
 )
 

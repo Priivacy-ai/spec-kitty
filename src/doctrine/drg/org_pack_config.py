@@ -25,6 +25,7 @@ __all__ = [
     "PackRegistry",
     "load_pack_registry",
     "resolve_org_roots",
+    "resolve_relative_path_within_root",
     "save_pack_registry",
 ]
 
@@ -95,6 +96,51 @@ def _empty_expanded_env_token(raw: str) -> str | None:
         if os.environ.get(var_name) == "":
             return token
     return None
+
+
+def resolve_relative_path_within_root(root: Path, relative_path: str) -> Path:
+    """Resolve *relative_path* under *root*, enforcing containment.
+
+    Shared containment primitive: :meth:`OrgPackConfig.effective_root` uses
+    this for ``subdir`` containment, and
+    ``specify_cli.doctrine.pack_validator._check_asset_path_containment``
+    reuses it for ASSET sidecar manifest ``path`` containment (FR-009 /
+    NFR-005) — a single canonical escape-detection implementation rather than
+    a hand-rolled resolve-then-``relative_to`` at each call site.
+
+    Rejects (raising :class:`OrgPackSubdirEscapeError`):
+
+    * an absolute *relative_path* (POSIX, Windows drive-letter, or UNC form);
+    * a path with a string-level ``..`` component;
+    * a path that resolves (``Path.resolve(strict=False)``) outside *root*
+      (e.g. a symlink escape).
+
+    Does not otherwise touch the filesystem — a not-yet-materialised *root*
+    or *relative_path* is not an error by itself (``strict=False``).
+    """
+    if PurePosixPath(relative_path).is_absolute() or PureWindowsPath(
+        relative_path
+    ).is_absolute():
+        raise OrgPackSubdirEscapeError(
+            f"path {relative_path!r} must be a relative path, got an absolute path"
+        )
+    posix_parts = PurePosixPath(relative_path).parts
+    win_parts = PureWindowsPath(relative_path).parts
+    if ".." in posix_parts or ".." in win_parts:
+        raise OrgPackSubdirEscapeError(
+            f"path {relative_path!r} must not contain '..' components"
+        )
+
+    resolved_root = root.resolve(strict=False)
+    resolved_candidate = (root / relative_path).resolve(strict=False)
+    try:
+        resolved_candidate.relative_to(resolved_root)
+    except ValueError as exc:
+        raise OrgPackSubdirEscapeError(
+            f"path {relative_path!r} resolves outside root {resolved_root}: "
+            f"{resolved_candidate}"
+        ) from exc
+    return resolved_candidate
 
 
 def _yaml() -> YAML:
@@ -236,21 +282,10 @@ class OrgPackConfig(BaseModel):
         if self.subdir is None:
             return pack_root.resolve(strict=False)
 
-        # Step 2 — join subdir
-        candidate = pack_root / self.subdir
-
-        # Step 3 — containment check (strict=False so missing dirs don't crash)
-        resolved_pack_root = pack_root.resolve(strict=False)
-        resolved_candidate = candidate.resolve(strict=False)
-        try:
-            resolved_candidate.relative_to(resolved_pack_root)
-        except ValueError as exc:
-            raise OrgPackSubdirEscapeError(
-                f"subdir {self.subdir!r} resolves outside pack root "
-                f"{resolved_pack_root}: {resolved_candidate}"
-            ) from exc
-
-        return resolved_candidate
+        # Steps 2-3 — join subdir + resolution-time containment check, via
+        # the shared primitive (also reused for ASSET manifest path
+        # containment in pack_validator.py).
+        return resolve_relative_path_within_root(pack_root, self.subdir)
 
 
 class PackRegistry(BaseModel):

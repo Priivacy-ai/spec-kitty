@@ -1,0 +1,4 @@
+id: malformed-mime-asset
+mime: notamimetype
+path: icon.png
+title: Malformed mime shape (must be rejected — asset_mime_invalid)

@@ -1,0 +1,26 @@
+pack_name: regnology-template-asset-fixture
+source_kind: local_path
+source_ref: "/nonexistent/regnology-template-asset-fixture"
+layer_index: 1
+nodes:
+  - id: regnology-house-style
+    kind: styleguides
+    title: "Regnology House Style"
+  - id: meeting-minutes
+    kind: templates
+    title: "Meeting Minutes Template"
+  - id: meeting-minutes-orphan
+    kind: templates
+    title: "Orphan Meeting Notes Template (no inbound/outbound edges)"
+  - id: company-logo
+    kind: assets
+    title: "Regnology Company Logo"
+edges:
+  - source: regnology-house-style
+    target: meeting-minutes
+    relation: requires
+    reason: "House style mandates the meeting-minutes template for internal reviews"
+  - source: meeting-minutes
+    target: company-logo
+    relation: requires
+    reason: "The template embeds the Regnology company logo asset"

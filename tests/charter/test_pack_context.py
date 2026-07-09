@@ -10,8 +10,8 @@ Covers:
 - T040-5: ``activated_kinds`` is a ``frozenset``.
 - T040-6: ``PackContext`` can be used as a dict key (frozen dataclasses are
   hashable).
-- T040-7: ``activated_kinds`` defaults to all eight built-in kinds when key
-  is absent.
+- T040-7: ``activated_kinds`` defaults to all built-in kinds (incl.
+  ``templates``/``assets``, FR-001/FR-011) when key is absent.
 - T040-8: ``activated_kinds`` is read from config when key is present.
 - T040-9: ``mission_type_activations`` list is read from config when present.
 - T040-10: ``org_pack_names`` and extra pack roots populated from config.
@@ -179,12 +179,17 @@ def test_pack_context_is_hashable(tmp_path: Path) -> None:
 
 
 def test_activated_kinds_defaults_to_all_builtin_when_key_absent(tmp_path: Path) -> None:
-    """When activated_kinds key is absent → all eight built-in kinds."""
+    """When activated_kinds key is absent -> all built-in kinds (incl. templates/assets)."""
     _write_config(tmp_path, _MINIMAL_CONFIG)
     ctx = PackContext.from_config(tmp_path)
 
     assert ctx.activated_kinds == _BUILTIN_ARTIFACT_KINDS
-    assert len(ctx.activated_kinds) == 8
+    # FR-001/FR-011 (asset-kind mission): templates + assets are node-declarable
+    # org-pack DRG kinds added to the default set in lockstep with
+    # ``charter.activations._ALLOWED_KINDS`` and
+    # ``doctrine.drg.org_pack_loader._ORG_DRG_CANONICAL_KINDS``.
+    assert len(ctx.activated_kinds) == 10
+    assert {"templates", "assets"} <= ctx.activated_kinds
 
 
 # ---------------------------------------------------------------------------

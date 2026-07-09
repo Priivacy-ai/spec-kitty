@@ -25,3 +25,23 @@ def test_mission_step_contract_is_valid_drg_node_kind() -> None:
     )
 
     assert node.kind is NodeKind.MISSION_STEP_CONTRACT
+
+
+def test_asset_is_valid_drg_node_kind() -> None:
+    """T002: NodeKind.ASSET exists and accepts a bare `asset:<id>` URN."""
+    node = DRGNode(
+        urn="asset:example-asset",
+        kind=NodeKind.ASSET,
+    )
+
+    assert node.kind is NodeKind.ASSET
+
+
+def test_template_urn_stays_bare() -> None:
+    """Companion pin: `template:<id>` URNs stay bare (no `<pack>/` qualifier)."""
+    node = DRGNode(
+        urn="template:example-template",
+        kind=NodeKind.TEMPLATE,
+    )
+
+    assert node.kind is NodeKind.TEMPLATE

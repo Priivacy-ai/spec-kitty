@@ -50,6 +50,7 @@ _PLURALS: dict[str, str] = {
     "agent_profile": "agent_profiles",
     "mission_step_contract": "mission_step_contracts",
     "template": "templates",
+    "asset": "assets",
 }
 
 _PATTERNS: dict[str, str] = {
@@ -62,6 +63,7 @@ _PATTERNS: dict[str, str] = {
     "agent_profile": "*.agent.yaml",
     "mission_step_contract": "*.step-contract.yaml",
     "template": "",
+    "asset": "*.asset.yaml",
 }
 
 #: Operator token (hyphenated CLI surface) that callers must explicitly route to
@@ -86,6 +88,7 @@ class ArtifactKind(StrEnum):
     AGENT_PROFILE = "agent_profile"
     MISSION_STEP_CONTRACT = "mission_step_contract"
     TEMPLATE = "template"
+    ASSET = "asset"
 
     @property
     def plural(self) -> str:
@@ -165,11 +168,25 @@ class ArtifactKind(StrEnum):
         )
 
 
-#: Charter kind universe: the 8 non-template artifact operator tokens + the
-#: special ``mission-type`` token. ``template`` is an :class:`ArtifactKind`
-#: member but resolves specially (no glob) and is *not* listed here.
+#: Canonical set of :class:`ArtifactKind` members that are never eligible for
+#: pack augmentation (``enhances``/``overrides``) or the charter kind universe.
+#: ``TEMPLATE`` is mission-tier and resolves specially (empty glob); ``ASSET``
+#: is a loose-contract kind excluded from the same surfaces (FR-005/FR-011).
+#: This is the **single** canonical exclusion set — downstream modules
+#: (``org_pack_loader.py``, the charter cascade) must import this rather than
+#: re-declaring their own exclusion list.
+_NON_AUGMENTATION_ELIGIBLE_KINDS: frozenset[ArtifactKind] = frozenset(
+    {ArtifactKind.TEMPLATE, ArtifactKind.ASSET}
+)
+
+
+#: Charter kind universe: the non-excluded artifact operator tokens + the
+#: special ``mission-type`` token. Members of :data:`_NON_AUGMENTATION_ELIGIBLE_KINDS`
+#: (``template``, ``asset``) resolve specially and are *not* listed here.
 CHARTER_KIND_TOKENS: tuple[str, ...] = tuple(
-    member.operator_token for member in ArtifactKind if member is not ArtifactKind.TEMPLATE
+    member.operator_token
+    for member in ArtifactKind
+    if member not in _NON_AUGMENTATION_ELIGIBLE_KINDS
 ) + (MISSION_TYPE_TOKEN,)
 
 

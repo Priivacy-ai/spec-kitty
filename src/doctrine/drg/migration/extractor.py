@@ -745,6 +745,7 @@ def _discover_built_in_artifact_nodes(
         ("toolguides/built-in", "toolguide", NodeKind.TOOLGUIDE),
         ("procedures/built-in", "procedure", NodeKind.PROCEDURE),
         ("agent_profiles/built-in", "agent_profile", NodeKind.AGENT_PROFILE),
+        ("assets/built-in", "asset", NodeKind.ASSET),
     ]
     for subdir, kind, node_kind in scan_dirs:
         built_in_dir = doctrine_root / subdir

@@ -34,6 +34,7 @@ from pydantic import ValidationError
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
 from doctrine.drg.merge import (
+    DuplicateURNError,
     OrgDRGConflictError,
     UnknownRelationError,
     merge_three_layers,
@@ -734,3 +735,122 @@ class TestReplaceableBuiltinsPolicy:
         )
         policy = load_replaceable_builtins(tmp_path)
         assert policy.reason_for("tactic:x") == ""
+
+
+# ---------------------------------------------------------------------------
+# WP03 T013 — global asset:/template: URN-uniqueness scan (FR-002/007/008)
+# ---------------------------------------------------------------------------
+
+
+class TestGlobalURNUniquenessScan:
+    """D-04 (revised): a single post-merge, order-independent, prefix-scoped
+    scan over the fully-assembled built-in/org/project node set hard-fails on
+    any duplicate ``asset:`` or ``template:`` URN — replacing the org-vs-org
+    silent first-wins for these two kinds and additionally covering the
+    built-in-vs-org and project-vs-any collision surfaces. The other 9 kinds'
+    layered-override tolerance (org-vs-org first-wins, built-in-vs-org
+    override, project-vs-any override) is untouched by construction."""
+
+    def test_two_org_packs_shipping_duplicate_asset_id_hard_fails(self) -> None:
+        """(a) Two org packs each declare ``asset:logo`` — an org-vs-org
+        collision that the old code silently resolved as first-wins now
+        hard-fails with the structured ``duplicate_asset_id`` code."""
+        pack_one = _fragment(
+            "pack-one",
+            nodes=[{"id": "logo", "kind": "assets", "title": "Logo"}],
+            edges=[],
+        )
+        pack_two = _fragment(
+            "pack-two",
+            nodes=[{"id": "logo", "kind": "assets", "title": "Logo Again"}],
+            edges=[],
+        )
+        with pytest.raises(DuplicateURNError) as exc_info:
+            merge_three_layers(
+                built_in=_graph(), org_fragments=[pack_one, pack_two], project=None
+            )
+        err = exc_info.value
+        assert err.code == "duplicate_asset_id"
+        assert err.urn == "asset:logo"
+        assert err.count == 2
+        assert "duplicate_asset_id" in str(err)
+
+    def test_builtin_and_org_duplicate_template_id_hard_fails_cross_layer(
+        self,
+    ) -> None:
+        """(b) A built-in ``template:x`` and an org-declared ``template:x``
+        collide across layers. Same-kind built-in-vs-org collisions are
+        normally a PERMITTED override (``_resolve_builtin_collision``); the
+        new global scan overrides that tolerance specifically for TEMPLATE
+        (and ASSET) and hard-fails with ``duplicate_template_id``."""
+        built_in = _graph(
+            nodes=[DRGNode(urn="template:x", kind=NodeKind.TEMPLATE, label="Shipped")]
+        )
+        org = _fragment(
+            "acme",
+            nodes=[{"id": "x", "kind": "templates", "title": "Org"}],
+            edges=[],
+        )
+        with pytest.raises(DuplicateURNError) as exc_info:
+            merge_three_layers(built_in=built_in, org_fragments=[org], project=None)
+        err = exc_info.value
+        assert err.code == "duplicate_template_id"
+        assert err.urn == "template:x"
+        assert err.count == 2
+
+    def test_single_owner_asset_and_template_merge_cleanly(self) -> None:
+        """(c) One asset and one template, each declared exactly once across
+        the three layers, merge without error and land in the output graph."""
+        built_in = _graph(
+            nodes=[DRGNode(urn="template:shipped-tpl", kind=NodeKind.TEMPLATE)]
+        )
+        org = _fragment(
+            "acme",
+            nodes=[{"id": "logo", "kind": "assets", "title": "Logo"}],
+            edges=[],
+        )
+        merged = merge_three_layers(
+            built_in=built_in, org_fragments=[org], project=None
+        )
+        urns = {n.urn for n in merged.nodes}
+        assert "template:shipped-tpl" in urns
+        assert "asset:logo" in urns
+
+    def test_different_kind_same_id_override_still_tolerated_not_hard_failed(
+        self,
+    ) -> None:
+        """(d) REGRESSION: the new global scan is scoped strictly to
+        ``asset:``/``template:`` prefixes. An org ``directive:x`` overriding a
+        built-in ``directive:x`` (same URN, same kind, neither asset nor
+        template) is UNCHANGED — still a permitted, non-fatal override, never
+        routed through :class:`DuplicateURNError`."""
+        built_in = _graph(
+            nodes=[
+                DRGNode(urn="directive:x", kind=NodeKind.DIRECTIVE, label="Built-in")
+            ]
+        )
+        org = _fragment(
+            "acme",
+            nodes=[{"id": "x", "kind": "directives", "title": "Override"}],
+            edges=[],
+        )
+        merged = merge_three_layers(built_in=built_in, org_fragments=[org], project=None)
+        node = next(n for n in merged.nodes if n.urn == "directive:x")
+        assert node.provenance == "org:acme"
+        assert node.label == "Override"
+
+    def test_asset_duplicate_scan_ignores_other_kind_prefixes(self) -> None:
+        """The scan is prefix-scoped: a duplicate ``tactic:`` URN (a 9-kind
+        collision, resolved by the existing override machinery) must never be
+        mistaken for an asset/template duplicate."""
+        built_in = _graph(
+            nodes=[DRGNode(urn="tactic:shared", kind=NodeKind.TACTIC, label="Base")]
+        )
+        org = _fragment(
+            "acme",
+            nodes=[{"id": "shared", "kind": "tactics", "title": "Override"}],
+            edges=[],
+        )
+        # Does not raise DuplicateURNError — the override machinery handles it.
+        merged = merge_three_layers(built_in=built_in, org_fragments=[org], project=None)
+        assert any(n.urn == "tactic:shared" for n in merged.nodes)

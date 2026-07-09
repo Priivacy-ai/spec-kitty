@@ -10,12 +10,16 @@ import textwrap
 from pathlib import Path
 
 import pytest
+from ruamel.yaml import YAML
 
 from specify_cli.doctrine.pack_validator import (
     ValidationResult,
     render_validation_result,
     validate_pack,
 )
+
+_yaml = YAML(typ="safe")
+_yaml.default_flow_style = False
 
 
 # ---------------------------------------------------------------------------
@@ -52,6 +56,38 @@ def _write_directive(
     path = directives / name
     path.write_text("\n".join(body_lines) + "\n", encoding="utf-8")
     return path
+
+
+def _write_asset_manifest(
+    pack_dir: Path,
+    *,
+    artifact_id: str | None,
+    mime: str | None = "image/png",
+    path_value: str | None = "branding/acme-logo.png",
+    title: str | None = "Acme brand logo (PNG)",
+    filename: str | None = None,
+    drop_id: bool = False,
+) -> Path:
+    """Write a ``*.asset.yaml`` sidecar manifest under ``pack_dir/assets/``.
+
+    Realistic, production-shaped defaults (a real PNG-shaped manifest) —
+    callers override individual fields to exercise a single failure mode.
+    """
+    assets = pack_dir / "assets"
+    assets.mkdir(parents=True, exist_ok=True)
+    payload: dict[str, str] = {}
+    if not drop_id and artifact_id is not None:
+        payload["id"] = artifact_id
+    if mime is not None:
+        payload["mime"] = mime
+    if path_value is not None:
+        payload["path"] = path_value
+    if title is not None:
+        payload["title"] = title
+    name = filename or f"{(artifact_id or 'manifest').lower()}.asset.yaml"
+    manifest_path = assets / name
+    _yaml.dump(payload, manifest_path)
+    return manifest_path
 
 
 # ---------------------------------------------------------------------------
@@ -510,3 +546,151 @@ class TestRenderValidationResult:
         captured = capsys.readouterr().out
         assert "Error" in captured
         assert "Pack validation:" in captured
+
+
+# ---------------------------------------------------------------------------
+# WP04: ASSET sidecar manifest validation (T014-T018)
+# ---------------------------------------------------------------------------
+
+
+class TestAssetManifestValidation:
+    """ASSET (``*.asset.yaml``) sidecar manifest + safety contract.
+
+    The referenced blob is never scanned; only the sidecar manifest is
+    schema-validated (T014), plus a separate containment (T016) and mime
+    (T017) safety pass. Global id-uniqueness across packs is explicitly
+    OUT of scope here (WP03's merge scan).
+    """
+
+    def test_valid_manifest_passes(self, tmp_path: Path) -> None:
+        """A well-formed, contained, mime-consistent manifest is clean."""
+        _write_asset_manifest(
+            tmp_path,
+            artifact_id="acme-brand-logo-png",
+            mime="image/png",
+            path_value="branding/acme-logo.png",
+            title="Acme brand logo (PNG)",
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is True, result.errors
+        assert result.errors == []
+
+    def test_missing_id_fails_schema(self, tmp_path: Path) -> None:
+        _write_asset_manifest(
+            tmp_path,
+            artifact_id=None,
+            drop_id=True,
+            filename="acme-logo-no-id.asset.yaml",
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is False
+        assert any(
+            issue.artifact_type == "assets" and issue.category == "schema_invalid"
+            for issue in result.errors
+        ), result.errors
+
+    def test_blank_id_fails_schema(self, tmp_path: Path) -> None:
+        _write_asset_manifest(
+            tmp_path,
+            artifact_id="",
+            filename="acme-logo-blank-id.asset.yaml",
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is False
+        assert any(
+            issue.artifact_type == "assets" and issue.category == "schema_invalid"
+            for issue in result.errors
+        ), result.errors
+
+    def test_path_escape_via_dotdot_rejected(self, tmp_path: Path) -> None:
+        """T016: an escaping ``path`` is rejected as ``asset_path_escape``."""
+        _write_asset_manifest(
+            tmp_path,
+            artifact_id="acme-logo-escape",
+            mime="image/png",
+            path_value="../../../etc/passwd",
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is False
+        escape_errors = [
+            e for e in result.errors if e.category == "asset_path_escape"
+        ]
+        assert escape_errors, result.errors
+        assert escape_errors[0].artifact_id == "acme-logo-escape"
+
+    def test_absolute_path_rejected(self, tmp_path: Path) -> None:
+        """T016: an absolute ``path`` is also rejected as ``asset_path_escape``."""
+        _write_asset_manifest(
+            tmp_path,
+            artifact_id="acme-logo-absolute",
+            mime="image/png",
+            path_value="/etc/passwd",
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is False
+        escape_errors = [
+            e for e in result.errors if e.category == "asset_path_escape"
+        ]
+        assert escape_errors, result.errors
+        assert escape_errors[0].artifact_id == "acme-logo-absolute"
+
+    def test_malformed_mime_rejected(self, tmp_path: Path) -> None:
+        """T017: ``mime`` without a ``type/subtype`` shape is rejected."""
+        _write_asset_manifest(
+            tmp_path,
+            artifact_id="acme-logo-badmime",
+            mime="notamimetype",
+            path_value="branding/acme-logo.png",
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is False
+        mime_errors = [e for e in result.errors if e.category == "asset_mime_invalid"]
+        assert mime_errors, result.errors
+        assert mime_errors[0].artifact_id == "acme-logo-badmime"
+
+    def test_mime_extension_mismatch_rejected(self, tmp_path: Path) -> None:
+        """T017: declared ``mime`` disagreeing with the path extension is rejected."""
+        _write_asset_manifest(
+            tmp_path,
+            artifact_id="acme-logo-mismatch",
+            mime="image/png",
+            path_value="branding/acme-logo.txt",
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is False
+        mime_errors = [e for e in result.errors if e.category == "asset_mime_invalid"]
+        assert mime_errors, result.errors
+        assert mime_errors[0].artifact_id == "acme-logo-mismatch"
+
+    def test_multiple_assets_independent(self, tmp_path: Path) -> None:
+        """Multiple manifests in one pack are each validated independently."""
+        _write_asset_manifest(
+            tmp_path,
+            artifact_id="acme-brand-logo-png",
+            mime="image/png",
+            path_value="branding/acme-logo.png",
+        )
+        _write_asset_manifest(
+            tmp_path,
+            artifact_id="acme-brand-font-woff2",
+            mime="font/woff2",
+            path_value="branding/acme-brand.woff2",
+        )
+
+        result = validate_pack(tmp_path)
+
+        assert result.ok is True, result.errors

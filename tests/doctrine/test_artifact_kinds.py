@@ -4,7 +4,11 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.artifact_kinds import ArtifactKind
+from doctrine.artifact_kinds import (
+    CHARTER_KIND_TOKENS,
+    ArtifactKind,
+    _NON_AUGMENTATION_ELIGIBLE_KINDS,
+)
 
 pytestmark = pytest.mark.fast
 
@@ -21,6 +25,7 @@ class TestArtifactKindValues:
             "agent_profile",
             "mission_step_contract",
             "template",
+            "asset",
         }
         assert {m.value for m in ArtifactKind} == expected
 
@@ -41,6 +46,7 @@ class TestPluralProperty:
             (ArtifactKind.PROCEDURE, "procedures"),
             (ArtifactKind.AGENT_PROFILE, "agent_profiles"),
             (ArtifactKind.TEMPLATE, "templates"),
+            (ArtifactKind.ASSET, "assets"),
         ],
     )
     def test_plural(self, kind: ArtifactKind, expected_plural: str) -> None:
@@ -63,6 +69,7 @@ class TestGlobPatternProperty:
             (ArtifactKind.PROCEDURE, "*.procedure.yaml"),
             (ArtifactKind.AGENT_PROFILE, "*.agent.yaml"),
             (ArtifactKind.TEMPLATE, ""),
+            (ArtifactKind.ASSET, "*.asset.yaml"),
         ],
     )
     def test_glob_pattern(self, kind: ArtifactKind, expected_pattern: str) -> None:
@@ -81,6 +88,7 @@ class TestFromPlural:
             ("tactics", ArtifactKind.TACTIC),
             ("agent_profiles", ArtifactKind.AGENT_PROFILE),
             ("templates", ArtifactKind.TEMPLATE),
+            ("assets", ArtifactKind.ASSET),
         ],
     )
     def test_from_plural(self, plural: str, expected: ArtifactKind) -> None:
@@ -133,3 +141,27 @@ class TestPydanticIntegration:
 
         with pytest.raises(ValidationError):
             DirectiveReference.model_validate({"type": "unknown_type", "id": "x"})
+
+
+class TestNonAugmentationEligibleKinds:
+    """T003/T004: the canonical exclusion set and its consumer, CHARTER_KIND_TOKENS."""
+
+    def test_exclusion_set_is_exactly_template_and_asset(self) -> None:
+        assert frozenset({ArtifactKind.TEMPLATE, ArtifactKind.ASSET}) == _NON_AUGMENTATION_ELIGIBLE_KINDS
+
+    def test_asset_not_in_charter_kind_tokens(self) -> None:
+        assert ArtifactKind.ASSET.operator_token not in CHARTER_KIND_TOKENS
+        assert ArtifactKind.ASSET not in CHARTER_KIND_TOKENS
+
+    def test_template_not_in_charter_kind_tokens(self) -> None:
+        assert ArtifactKind.TEMPLATE.operator_token not in CHARTER_KIND_TOKENS
+        assert ArtifactKind.TEMPLATE not in CHARTER_KIND_TOKENS
+
+    def test_charter_kind_tokens_derived_from_exclusion_set(self) -> None:
+        expected_artifact_tokens = {
+            member.operator_token
+            for member in ArtifactKind
+            if member not in _NON_AUGMENTATION_ELIGIBLE_KINDS
+        }
+        actual_artifact_tokens = {t for t in CHARTER_KIND_TOKENS if t != "mission-type"}
+        assert actual_artifact_tokens == expected_artifact_tokens

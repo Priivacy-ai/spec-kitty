@@ -38,7 +38,7 @@ from typing import Any, ClassVar, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from doctrine.artifact_kinds import ArtifactKind
+from doctrine.artifact_kinds import _NON_AUGMENTATION_ELIGIBLE_KINDS, ArtifactKind
 from doctrine.drg.models import Relation
 
 __all__ = [
@@ -100,6 +100,14 @@ _ORG_DRG_KIND_ALIASES: dict[str, str] = {
     "mission_types": "mission_types",
     # Singular spelling accepted on input for ergonomics; resolves to plural.
     "mission_type": "mission_types",
+    # FR-001/FR-007/FR-011 (asset-kind mission): ``templates`` and ``assets``
+    # are node-declarable org-pack DRG kinds (an org pack may declare a
+    # template/asset node and reference it in edges) but are excluded from
+    # augmentation and the charter activation surfaces — see
+    # :data:`AUGMENTATION_ELIGIBLE_KINDS` / :data:`_AUGMENTATION_GLOBS` below,
+    # which derive their exclusion from ``artifact_kinds._NON_AUGMENTATION_ELIGIBLE_KINDS``.
+    "templates": "templates",
+    "assets": "assets",
 }
 
 #: Accepted input forms = every alias key (canonical forms + backward-compat
@@ -127,8 +135,11 @@ _MISSION_TYPE_UNIVERSE_EXTENSION: frozenset[str] = frozenset({"mission_types"})
 # Coverage is now all 9 augmentation-eligible kinds (FR-028, T015): the
 # original five (tactic, styleguide, paradigm, procedure, agent_profile) plus
 # the four previously-uncovered kinds (directive, toolguide,
-# mission_step_contract, mission_type). ``template`` is the one ``ArtifactKind``
-# member that is NOT augmentation-eligible (no augmentation vocabulary).
+# mission_step_contract, mission_type). ``template`` and ``asset`` are the
+# ``ArtifactKind`` members that are NOT augmentation-eligible (D-03 / FR-011);
+# the exclusion is driven off the single canonical set
+# :data:`doctrine.artifact_kinds._NON_AUGMENTATION_ELIGIBLE_KINDS` so this
+# module never re-declares its own "everything except template" list.
 
 #: The mission-tier "kind" that is not an :class:`ArtifactKind` member but is
 #: augmentation-eligible after the FR-032 universe expansion. Modelled here as a
@@ -139,13 +150,15 @@ _MISSION_TYPE_PLURAL = "mission_types"
 
 #: SINGLE SOURCE OF TRUTH (FR-030). Maps the singular URN kind to its plural
 #: directory/universe form for every augmentation-eligible kind. Derived from
-#: :class:`ArtifactKind` (minus ``template``) plus the mission-type extension —
-#: no second kind enumeration is hand-maintained.
+#: :class:`ArtifactKind` (minus the kinds in
+#: :data:`doctrine.artifact_kinds._NON_AUGMENTATION_ELIGIBLE_KINDS` — currently
+#: ``template`` and ``asset``) plus the mission-type extension — no second
+#: kind enumeration is hand-maintained.
 AUGMENTATION_ELIGIBLE_KINDS: dict[str, str] = {
     **{
         kind.value: kind.plural
         for kind in ArtifactKind
-        if kind is not ArtifactKind.TEMPLATE
+        if kind not in _NON_AUGMENTATION_ELIGIBLE_KINDS
     },
     _MISSION_TYPE_SINGULAR: _MISSION_TYPE_PLURAL,
 }
@@ -172,11 +185,13 @@ TOPOLOGY_KINDS: frozenset[str] = frozenset(
 #: emission path (see :func:`_collect_field_projection_edges`). Built from the
 #: single source above; ``ArtifactKind.glob_pattern`` supplies the pattern for
 #: every artifact kind, and mission types have no per-file glob (they are
-#: authored as fragment edges only).
+#: authored as fragment edges only). Excludes the same
+#: :data:`doctrine.artifact_kinds._NON_AUGMENTATION_ELIGIBLE_KINDS` set as
+#: :data:`AUGMENTATION_ELIGIBLE_KINDS` (``template``, ``asset``).
 _AUGMENTATION_GLOBS: dict[str, str] = {
     kind.plural: kind.glob_pattern
     for kind in ArtifactKind
-    if kind is not ArtifactKind.TEMPLATE
+    if kind not in _NON_AUGMENTATION_ELIGIBLE_KINDS
 }
 
 

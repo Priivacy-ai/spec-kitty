@@ -38,6 +38,7 @@ _ARTIFACT_TO_NODE_KIND: dict[ArtifactKind, NodeKind] = {
     ArtifactKind.AGENT_PROFILE: NodeKind.AGENT_PROFILE,
     ArtifactKind.MISSION_STEP_CONTRACT: NodeKind.MISSION_STEP_CONTRACT,
     ArtifactKind.TEMPLATE: NodeKind.TEMPLATE,
+    ArtifactKind.ASSET: NodeKind.ASSET,
 }
 
 # FR-008 / Phase 6 #505: this table is for built-in missions ONLY.

@@ -1,0 +1,4 @@
+id: evil-asset
+mime: image/png
+path: ../../../etc/passwd
+title: Path-escape attempt (must be rejected — asset_path_escape)

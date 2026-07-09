@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-07-08'
+updated: '2026-07-09'
 ---
 # Changelog
 
@@ -18,6 +18,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
+
+- **First-class TEMPLATE + loose-contract ASSET doctrine kinds (#2495, #2469).**
+  Org-pack **templates** are now first-class, graph-addressable, edge-wireable
+  DRG nodes, and a new loose-contract **`asset`** doctrine kind lets a pack ship
+  and reference arbitrary addressable files (image, `.docx`, blob) via a sidecar
+  `*.asset.yaml` manifest (`id`/`mime`/`path`, no blob schema). A single canonical
+  `_NON_AUGMENTATION_ELIGIBLE_KINDS` set makes both kinds node-declarable but not
+  augmentation-eligible or charter-activatable — closing the silent-leak defect
+  class by construction. Safety is enforced from day one: **global URN-uniqueness**
+  for `asset:`/`template:` (a single post-merge scan → `duplicate_asset_id` /
+  `duplicate_template_id`), **path-containment** (`asset_path_escape`), and **mime
+  validation** (`asset_mime_invalid`). A new totality guard asserts every
+  `ArtifactKind`/`NodeKind`-keyed mapping table stays exhaustive. The 9 existing
+  kinds are unchanged.
 
 ### 🐛 Fixed
 

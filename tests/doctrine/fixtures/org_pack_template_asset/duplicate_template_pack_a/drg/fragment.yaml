@@ -1,0 +1,9 @@
+pack_name: regnology-pack-a
+source_kind: local_path
+source_ref: "/nonexistent/regnology-pack-a"
+layer_index: 1
+nodes:
+  - id: quarterly-report
+    kind: templates
+    title: "Pack A's Quarterly Report Template"
+edges: []
