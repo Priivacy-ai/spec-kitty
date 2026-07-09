@@ -5,6 +5,7 @@ Internal doctrine/DRG contract (no HTTP surface). Binds the behavior of the two 
 ## Sidecar manifest (`assets/<pack>/<name>.asset.yaml`)
 
 ```yaml
+# round-trip: skip: illustrative sidecar-manifest shape sketch — the executable AssetManifest schema + round-trip coverage live in tests/specify_cli/doctrine/test_pack_validator.py (this block documents the on-disk convention, not a registered Pydantic contract)
 id: company-logo            # required; bare URN -> asset:company-logo (no <pack>/ qualifier — D-05 revised)
 mime: image/png             # required; type/subtype + must match path extension
 path: logo.png              # required; relative, under assets/<pack>/, no ../ or absolute
