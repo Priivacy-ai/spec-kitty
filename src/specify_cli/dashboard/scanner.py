@@ -862,6 +862,7 @@ def _process_wp_file(
     project_dir: Path,
     default_lane: str,
     status_dir: Path | None = None,
+    tasks_md_text: str | None = None,
 ) -> dict[str, Any] | None:
     """Process a single WP file and return task data or None on error."""
     content, error = read_file_resilient(prompt_file, auto_fix=True)
@@ -940,13 +941,24 @@ def _process_wp_file(
     if not model_str:
         model_str = str(wp_meta_dict.model or "") if wp_meta_dict.model else ""
 
-    # Progress from the canonical checkbox rows in the WP body (#2504) —
-    # the same rows the lane-transition guard counts, via the shared
-    # definition. (0, 0) when the WP doesn't track completion via checkboxes;
-    # the frontend then falls back to the plain frontmatter count badge.
-    from specify_cli.core.subtask_rows import count_subtask_rows
+    # Progress from the canonical ``- [ ] T###`` checkbox rows (#2504), via the
+    # shared definitions the lane-transition guard consumes. Standard layout
+    # keeps them in tasks.md's per-WP section (the guard's blocking source) —
+    # prefer that; fall back to rows in the WP body for repos that keep the
+    # checklist in the prompt file. (0, 0) when neither tracks completion via
+    # checkboxes; the frontend then shows the plain frontmatter count badge.
+    from specify_cli.core.subtask_rows import (
+        count_subtask_rows,
+        count_wp_section_subtask_rows,
+    )
 
-    subtasks_done, subtasks_total = count_subtask_rows(prompt_body)
+    subtasks_done, subtasks_total = 0, 0
+    if tasks_md_text is not None:
+        subtasks_done, subtasks_total = count_wp_section_subtask_rows(
+            tasks_md_text, canonical_wp_id
+        )
+    if subtasks_total == 0:
+        subtasks_done, subtasks_total = count_subtask_rows(prompt_body)
 
     return {
         "id": wp_id,
@@ -1002,12 +1014,26 @@ def scan_feature_kanban(project_dir: Path, feature_id: str) -> dict[str, list[di
         # as legacy without iterating lane subdirectories.
         return lanes
 
+    # Read tasks.md once for the whole board: its per-WP sections carry the
+    # canonical subtask checkbox rows used for card progress (#2504).
+    tasks_md_text: str | None = None
+    tasks_md = planning_dir / "tasks.md"
+    if tasks_md.exists():
+        with contextlib.suppress(OSError, UnicodeDecodeError):
+            tasks_md_text = tasks_md.read_text(encoding="utf-8-sig")
+
     # New format: scan flat tasks/ directory, lane from event log
     from specify_cli.status import CanonicalStatusNotFoundError
 
     for prompt_file in tasks_dir.glob("WP*.md"):
         try:
-            task_data = _process_wp_file(prompt_file, project_dir, "planned", status_dir=status_dir)
+            task_data = _process_wp_file(
+                prompt_file,
+                project_dir,
+                "planned",
+                status_dir=status_dir,
+                tasks_md_text=tasks_md_text,
+            )
             if task_data is not None:
                 raw_lane = task_data.get("lane", "planned")
                 state = wp_state_for(raw_lane)
