@@ -464,50 +464,17 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
     # command rows (e.g. ``- [ ] swift test``, ``- [ ] git status --short``),
     # prose, and anything inside fenced code blocks are intentionally ignored —
     # they are not work-package subtasks and must not block a lane transition.
-    lines = content.split("\n")
-    unchecked: list[str] = []
-    in_wp_section = False
-    in_code_fence = False
+    #
+    # Section walking + row patterns are the single shared definition in
+    # ``core.subtask_rows`` (also consumed by the dashboard's progress counts,
+    # #2504) — including the #2346/#2324 first-WPxx-token heading rule.
+    from specify_cli.core.subtask_rows import iter_wp_section_subtask_rows
 
-    # Canonical subtask row: ``- [ ] T001 ...`` — single shared definition
-    # (core.subtask_rows, also consumed by the dashboard's progress counts).
-    from specify_cli.core.subtask_rows import UNCHECKED_SUBTASK_ROW
-
-    canonical_unchecked = UNCHECKED_SUBTASK_ROW
-
-    for line in lines:
-        stripped = line.strip()
-
-        # Toggle fenced-code-block state on ``` or ~~~ markers. Task-like lines
-        # inside fenced code blocks (examples in implementation notes) must not
-        # be treated as real subtasks.
-        if stripped.startswith(("```", "~~~")):
-            in_code_fence = not in_code_fence
-            continue
-
-        if in_code_fence:
-            continue
-
-        # A heading belongs to the WP named by its FIRST ``WPxx`` token (the
-        # section's own id), NOT any mention — so ``### WP03 ... (depends: WP01,
-        # WP02)`` does not re-enter WP01/WP02's section (#2346 / #2324).
-        heading_wp: str | None = None
-        if re.match(r"^#{2,4}[^#]", line):
-            wp_tokens = re.findall(r"\bWP\d{2,}\b", line)
-            heading_wp = wp_tokens[0] if wp_tokens else None
-        if heading_wp == wp_id:
-            in_wp_section = True
-            continue
-        if in_wp_section and heading_wp is not None and heading_wp != wp_id:
-            break  # entered a different WP's section
-
-        # Look for unchecked canonical task rows in this WP's section
-        if in_wp_section:
-            unchecked_match = canonical_unchecked.match(stripped)
-            if unchecked_match:
-                unchecked.append(unchecked_match.group(1))
-
-    return unchecked
+    return [
+        task_id
+        for task_id, checked in iter_wp_section_subtask_rows(content, wp_id)
+        if not checked
+    ]
 
 
 def _validate_ready_for_review(
