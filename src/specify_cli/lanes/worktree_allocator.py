@@ -163,6 +163,26 @@ def allocate_lane_worktree(
         )
         return worktree_path, branch
 
+    # #2512: crash-recovery path — branch exists but worktree directory was
+    # lost (e.g. agent process killed by OS idle-sleep).  Re-attach the
+    # worktree to its existing branch instead of creating a new branch (which
+    # would fail with "branch already exists").  Prune stale worktree registry
+    # entries first so git does not reject the re-attachment on the grounds
+    # that the branch is "already checked out" in the now-gone worktree.
+    if _branch_exists(repo_root, branch):
+        subprocess.run(
+            ["git", "worktree", "prune"],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+        )
+        _recover_lane_worktree(repo_root, worktree_path, branch)
+        _validate_worktree_clean(worktree_path, lane.lane_id)
+        _merge_dependency_lane_tips(
+            repo_root, worktree_path, mission_slug, lane, lanes_manifest
+        )
+        return worktree_path, branch
+
     # #1348 (WP04): pick the parent branch.
     #
     #   New-topology missions (meta.json has ``coordination_branch``):
