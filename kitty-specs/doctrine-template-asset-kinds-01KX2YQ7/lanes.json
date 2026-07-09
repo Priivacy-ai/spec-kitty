@@ -1,0 +1,184 @@
+{
+  "version": 1,
+  "mission_slug": "doctrine-template-asset-kinds-01KX2YQ7",
+  "mission_id": "01KX2YQ7GV9A6FZEZRP8Z31YX4",
+  "mission_branch": "kitty/mission-doctrine-template-asset-kinds-01KX2YQ7",
+  "target_branch": "feat/doctrine-template-asset-kinds-2495",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/doctrine/artifact_kinds.py",
+        "src/doctrine/drg/models.py",
+        "tests/doctrine/drg/test_nodekind_artifactkind.py",
+        "tests/doctrine/test_artifact_kinds.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/activations.py",
+        "src/charter/pack_context.py",
+        "src/doctrine/drg/org_pack_loader.py",
+        "tests/charter/test_pack_context.py",
+        "tests/doctrine/test_org_pack_augmentation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/doctrine/assets/**",
+        "src/doctrine/drg/org_pack_config.py",
+        "src/specify_cli/doctrine/pack_validator.py",
+        "tests/specify_cli/doctrine/test_pack_validator.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/doctrine/drg/migration/extractor.py",
+        "src/specify_cli/cli/commands/doctrine.py",
+        "tests/doctrine/drg/test_extractor_asset.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/charter/_activation_render.py",
+        "src/charter/consistency_check.py",
+        "src/charter/context.py",
+        "src/charter/kind_vocabulary.py",
+        "src/charter/pack_manager.py",
+        "src/charter/synthesizer/project_drg.py",
+        "src/specify_cli/cli/commands/charter/list_cmd.py",
+        "tests/charter/test_drg_filtering.py",
+        "tests/charter/test_kind_cascade_exhaustive.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/doctrine/drg/merge.py",
+        "tests/doctrine/test_drg_merge.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 2
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "src/doctrine/drg/query.py",
+        "src/doctrine/template_catalog.py",
+        "src/specify_cli/mission_step_contracts/executor.py",
+        "tests/doctrine/drg/test_kind_mapping_totality.py",
+        "tests/doctrine/test_drg_relations.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-f"
+      ],
+      "parallel_group": 3
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "tests/doctrine/fixtures/org_pack_template_asset/**",
+        "tests/doctrine/test_template_asset_e2e.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d",
+        "lane-e",
+        "lane-f",
+        "lane-g"
+      ],
+      "parallel_group": 4
+    }
+  ],
+  "computed_at": "2026-07-09T10:29:11.037443+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
