@@ -59,12 +59,55 @@ def test_ids_past_t999_still_match() -> None:
     assert CHECKED_SUBTASK_ROW.match("- [x] T1000 big mission")
 
 
-def test_guard_consumes_the_shared_unchecked_pattern() -> None:
-    """The lane-transition guard and the dashboard must share ONE definition."""
+def test_wp_section_counts_only_that_wps_rows() -> None:
+    tasks_md = (
+        "# Tasks\n"
+        "## WP01 — Acquisition (depends: none)\n"
+        "- [x] T001 fetchChangedFileContents (WP01)\n"
+        "- [ ] T002 Windowing + caps (WP01)\n"
+        "## WP02 — Rendering (depends: WP01)\n"
+        "- [ ] T006 ReviewRequest fields (WP02)\n"
+        "- [x] T007 Block-B rendering (WP02)\n"
+    )
+    from specify_cli.core.subtask_rows import count_wp_section_subtask_rows
+
+    assert count_wp_section_subtask_rows(tasks_md, "WP01") == (1, 2)
+    assert count_wp_section_subtask_rows(tasks_md, "WP02") == (1, 2)
+    assert count_wp_section_subtask_rows(tasks_md, "WP03") == (0, 0)
+
+
+def test_wp_section_depends_heading_does_not_reenter() -> None:
+    """#2346/#2324: a heading mentioning WP01 in its depends list belongs to
+    the WP named by its FIRST WPxx token and must not re-enter WP01's section."""
+    tasks_md = (
+        "## WP01 — First\n"
+        "- [ ] T001 real WP01 work\n"
+        "## WP03 — Third (depends: WP01, WP02)\n"
+        "- [ ] T009 WP03 work that must not count for WP01\n"
+    )
+    from specify_cli.core.subtask_rows import count_wp_section_subtask_rows
+
+    assert count_wp_section_subtask_rows(tasks_md, "WP01") == (0, 1)
+    assert count_wp_section_subtask_rows(tasks_md, "WP03") == (0, 1)
+
+
+def test_wp_section_walker_yields_ids_and_checked_state() -> None:
+    from specify_cli.core.subtask_rows import iter_wp_section_subtask_rows
+
+    tasks_md = "## WP01\n- [x] T001 done\n- [ ] T002 pending\n"
+    assert list(iter_wp_section_subtask_rows(tasks_md, "WP01")) == [
+        ("T001", True),
+        ("T002", False),
+    ]
+
+
+def test_guard_consumes_the_shared_section_walker() -> None:
+    """The lane-transition guard and the dashboard must share ONE definition
+    of both the row patterns and the WP-section walk."""
     import inspect
 
     from specify_cli.cli.commands.agent import tasks_shared
 
     source = inspect.getsource(tasks_shared._check_unchecked_subtasks)
-    assert "UNCHECKED_SUBTASK_ROW" in source
+    assert "iter_wp_section_subtask_rows" in source
     assert 're.compile(r"^-' not in source

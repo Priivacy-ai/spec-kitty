@@ -82,6 +82,46 @@ agent: codex
     assert task["subtasks"] == ["T001", "T002", "T003"]  # frontmatter untouched
 
 
+def test_wp_progress_prefers_tasks_md_sections(tmp_path):
+    """Standard layout (#2504): the canonical ``- [ ] T###`` rows live in
+    tasks.md's per-WP sections (the guard's blocking source); the WP body
+    carries unnumbered acceptance checkboxes that must NOT count."""
+    feature_dir = _create_feature(tmp_path)
+    (feature_dir / "tasks.md").write_text(
+        """# Tasks
+
+## WP01 — Demo (depends: none)
+- [x] T001 Build the thing (WP01)
+- [x] T002 Wire the thing (WP01)
+- [ ] T003 Verify the thing (WP01)
+
+## WP02 — Other
+- [ ] T006 Unrelated row that must not count for WP01
+""",
+        encoding="utf-8",
+    )
+    (feature_dir / "tasks" / "WP01-demo.md").write_text(
+        """---
+work_package_id: WP01
+subtasks: ["T001", "T002", "T003"]
+agent: codex
+---
+# Work Package Prompt: Demo
+
+Acceptance criteria (unnumbered — not canonical subtask rows):
+- [ ] bounded concurrency; per-file fail-open
+- [ ] deterministic output
+""",
+        encoding="utf-8",
+    )
+
+    lanes = scanner.scan_feature_kanban(tmp_path, feature_dir.name)
+    task = next(t for lane in lanes.values() for t in lane)
+
+    assert task["subtasks_done"] == 2
+    assert task["subtasks_total"] == 3
+
+
 def test_wp_without_checkbox_rows_reports_zero_totals(tmp_path):
     """No checkbox rows → (0, 0); the frontend falls back to the plain
     frontmatter count badge rather than showing a false 0/N."""
