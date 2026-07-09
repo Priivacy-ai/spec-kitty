@@ -141,7 +141,7 @@ _TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) — 21 symbols
     "_render_stale_status",
 )
 
-_TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 51 symbols
+_TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 52 symbols (#2513: +_mt_uncheck_rollback_subtasks)
     "_default_move_task_ports",
     "_MoveTaskState",
     "_mt_warn_worktree_kitty_specs",
@@ -166,6 +166,7 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 51 symbols
     "_mt_commit_wp_file",
     "_mt_persist_tracker_refs",
     "_mt_persist_wp_file",
+    "_mt_uncheck_rollback_subtasks",
     "_mt_release_review_lock",
     "_mt_execute",
     "_mt_output",
@@ -351,10 +352,11 @@ def test_no_required_symbol_duplicated_in_survey() -> None:
     assert total_declared == len(SYMBOL_TO_MODULE)
 
 
-def test_guard_covers_full_129_symbol_surface() -> None:
+def test_guard_covers_full_130_symbol_surface() -> None:
     """Traceability pin: the guard's total symbol count matches the sum of
     the 6 seams' counts recorded in the seam files' own docstrings at
-    authoring time (8 + 15 + 21 + 21 + 51 + 13 = 129). A change here is
+    authoring time (8 + 15 + 21 + 21 + 52 + 13 = 130). A change here is
     expected when a future WP relocates symbols; it should be a deliberate,
-    reviewed edit — not a silent drift."""
-    assert len(SYMBOL_TO_MODULE) == 129
+    reviewed edit — not a silent drift. #2513 added
+    ``_mt_uncheck_rollback_subtasks`` to the tasks_move_task seam (51 -> 52)."""
+    assert len(SYMBOL_TO_MODULE) == 130
