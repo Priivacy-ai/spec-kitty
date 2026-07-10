@@ -43,6 +43,7 @@ from specify_cli.cli.commands.agent.tasks_parsing_validation import (
 )
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.vcs.git import merge_base_changed_files
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.missions._read_path_resolver import (
     candidate_feature_dir_for_mission,
@@ -650,8 +651,10 @@ def _list_wp_branch_mission_specs_changes(worktree_path: Path, base_branch: str)
 
     Uses a two-pass strategy (FR-007 / #2274):
 
-    1. Merge-base history diff: ``git diff --name-only <merge_base>..HEAD``
-       identifies candidate paths touched on the lane branch.
+    1. Merge-base history diff: ``merge_base_changed_files(worktree_path,
+       base_branch, pathspec="kitty-specs/")`` (mission merge-base-diff-ssot-01KX44SD
+       / FR-003) identifies candidate paths touched on the lane branch since
+       the merge-base with ``base_branch``.
     2. Content re-check: ``git diff <planning_tip> HEAD -- <path>`` filters out
        any candidate whose content is byte-identical to the planning-branch tip.
 
@@ -660,37 +663,11 @@ def _list_wp_branch_mission_specs_changes(worktree_path: Path, base_branch: str)
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
 
-    merge_base_result = _tasks.subprocess.run(
-        ["git", "merge-base", "HEAD", base_branch],
-        cwd=worktree_path,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if merge_base_result.returncode != 0:
-        return []
-
-    merge_base = merge_base_result.stdout.strip()
-    if not merge_base:
-        return []
-
-    diff_result = _tasks.subprocess.run(
-        ["git", "diff", "--name-only", f"{merge_base}..HEAD", "--", f"{KITTY_SPECS_DIR}/"],
-        cwd=worktree_path,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if diff_result.returncode != 0:
-        return []
+    changed = merge_base_changed_files(worktree_path, base_branch, pathspec=f"{KITTY_SPECS_DIR}/")
 
     seen: set[str] = set()
     candidates: list[str] = []
-    for raw in diff_result.stdout.splitlines():
+    for raw in changed:
         path = raw.strip()
         if not path or not path.startswith(f"{KITTY_SPECS_DIR}/"):
             continue

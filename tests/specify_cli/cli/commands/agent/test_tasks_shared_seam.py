@@ -251,12 +251,23 @@ def test_patched_kitty_specs_alias_intercepts_guard(tmp_path: Path) -> None:
 
 
 def test_patched_filter_intercepts_list_wp_branch_changes(tmp_path: Path) -> None:
-    """``tasks._filter_by_planning_tip_content`` moved-sibling route in the two-pass list."""
+    """``tasks._filter_by_planning_tip_content`` moved-sibling route in the two-pass list.
+
+    The first-pass merge-base/diff call is delegated to the canonical
+    ``core.vcs.git.merge_base_changed_files`` surface (mission
+    merge-base-diff-ssot-01KX44SD / FR-003), so the subprocess patch target
+    moves from ``_tasks.subprocess`` to ``specify_cli.core.vcs.git.subprocess``
+    — only the patch target changes, not the expected values (contract:
+    ``merge-base-diff-surface.md`` "Consumer expectations").
+    """
     merge_base = MagicMock(returncode=0, stdout="0123456789abcdef0123456789abcdef01234567\n")
     name_only = MagicMock(returncode=0, stdout="kitty-specs/mission-x/tasks.md\n")
     marker = ["kitty-specs/mission-x/tasks.md"]
     with (
-        patch(f"{_TASKS}.subprocess.run", side_effect=[merge_base, name_only]),
+        patch(
+            "specify_cli.core.vcs.git.subprocess.run",
+            side_effect=[merge_base, name_only],
+        ),
         patch(
             f"{_TASKS}._filter_by_planning_tip_content", return_value=marker
         ) as filter_mock,

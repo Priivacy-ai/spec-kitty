@@ -24,6 +24,7 @@ from typer.testing import CliRunner
 from specify_cli.acceptance import (
     AcceptanceError,
     AcceptanceSummary,
+    _changed_workflow_files,
     acceptance_lane_derivations,
     collect_feature_summary,
     perform_acceptance,
@@ -449,6 +450,70 @@ def test_collect_feature_summary_allows_workflow_changes_with_runner_evidence(tm
 
     summary = collect_feature_summary(repo_root, _FEATURE_SLUG)
     assert not any("Workflow run evidence required" in issue for issue in summary.activity_issues)
+
+
+def test_changed_workflow_files_three_dot_two_arg_equivalence(tmp_path: Path) -> None:
+    """FR-008 / mission merge-base-diff-ssot-01KX44SD (acceptance 5th copy).
+
+    ``_changed_workflow_files`` now delegates to
+    ``merge_base_changed_files(..., pathspec=".github/workflows",
+    diff_filter="AMR")``, which runs the TWO-ARG
+    ``git diff --name-only --diff-filter=AMR <mb> HEAD -- .github/workflows``
+    form; the pre-repoint code used the THREE-DOT ``<mb>...HEAD`` form.
+
+    What this actually pins (honest scope): that the delegation threads the
+    pathspec + ``--diff-filter=AMR`` correctly and returns the expected
+    workflow-file set on a real repo. It does NOT — and cannot — exercise a
+    three-dot-vs-two-dot *divergence*: none is constructible here because
+    ``mb`` is by construction the merge-base of HEAD and ``base_ref`` (an
+    ancestor of HEAD), so ``mb...HEAD`` ≡ ``mb..HEAD`` ≡ ``mb HEAD`` for
+    ``--name-only``. That equivalence is a git invariant, not something a test
+    can falsify at this call site. The real negative control against the
+    dangerous mis-wire (using the HEAD-relative convenience where a non-HEAD
+    target is required) lives in ``test_non_head_branch_target_fences_f1``.
+    """
+    repo_root, feature_dir = _create_test_feature(tmp_path)
+    subprocess.run(["git", "-C", str(repo_root), "branch", "-M", "main"], check=True, capture_output=True)
+    subprocess.run(["git", "-C", str(repo_root), "checkout", "-b", "kitty/mission-workflow-lane-a"], check=True, capture_output=True)
+
+    workflow_path = repo_root / ".github" / "workflows" / "ci.yml"
+    workflow_path.parent.mkdir(parents=True)
+    workflow_path.write_text("name: CI\non: [pull_request]\njobs: {}\n")
+    (repo_root / "src" / "unrelated.py").write_text("x = 1\n")
+    subprocess.run(
+        ["git", "-C", str(repo_root), "add", ".github/workflows/ci.yml", "src/unrelated.py"],
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(repo_root), "commit", "-m", "Add workflow + unrelated"],
+        check=True,
+        capture_output=True,
+    )
+
+    merge_base = subprocess.run(
+        ["git", "-C", str(repo_root), "merge-base", "HEAD", "main"],
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout.strip()
+    assert merge_base, "merge-base must resolve for the equivalence to be meaningful"
+
+    raw_three_dot = subprocess.run(
+        [
+            "git", "-C", str(repo_root), "diff", "--name-only", "--diff-filter=AMR",
+            f"{merge_base}...HEAD", "--", ".github/workflows",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    expected = sorted({line.strip() for line in raw_three_dot.stdout.splitlines() if line.strip()})
+    assert expected == [".github/workflows/ci.yml"]
+
+    result = _changed_workflow_files(repo_root, feature_dir, "kitty/mission-workflow-lane-a")
+
+    assert result == expected
 
 
 @pytest.mark.parametrize(

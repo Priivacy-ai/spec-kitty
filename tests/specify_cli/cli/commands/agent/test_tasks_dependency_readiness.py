@@ -302,3 +302,38 @@ def test_behind_commits_no_changed_files_returns_true(tmp_path: Path) -> None:
     with patch("subprocess.run", side_effect=responses):
         result = _behind_commits_touch_only_planning_artifacts(tmp_path, "main", MISSION_SLUG)
     assert result is True
+
+
+def test_behind_commits_diffs_check_branch_not_head(tmp_path: Path) -> None:
+    """Regression (F1, mission merge-base-diff-ssot-01KX44SD): the diff TARGET
+    is ``check_branch``, not HEAD.
+
+    ``_behind_commits_touch_only_planning_artifacts`` must compute its
+    merge-base via the canonical two-ref ``git_merge_base`` primitive — never
+    the HEAD-relative ``merge_base_changed_files`` convenience — and must diff
+    ``merge_base..check_branch``, never ``merge_base..HEAD``, which would
+    silently invert which commits are inspected.
+    """
+    recorded_cmds: list[list[str]] = []
+
+    def _record(cmd: list[str], **_kwargs: object) -> MagicMock:
+        recorded_cmds.append(list(cmd))
+        if cmd[:2] == ["git", "merge-base"]:
+            return _subproc(returncode=0, stdout="abc123\n")
+        return _subproc(returncode=0, stdout="")
+
+    with patch("subprocess.run", side_effect=_record):
+        result = _behind_commits_touch_only_planning_artifacts(tmp_path, "release/upstream", MISSION_SLUG)
+
+    assert result is True  # empty diff → non-blocking
+
+    diff_cmds = [cmd for cmd in recorded_cmds if cmd[:2] == ["git", "diff"]]
+    assert len(diff_cmds) == 1, f"expected exactly one diff invocation, got {recorded_cmds!r}"
+    # The consolidated site now routes through core.vcs.git.git_diff_names_checked,
+    # which uses the two-arg <base> <head> form (equivalent to base..head for
+    # --name-only). The diff TARGET must still be check_branch, never HEAD (F1).
+    diff_base, diff_head = diff_cmds[0][-2], diff_cmds[0][-1]
+    assert (diff_base, diff_head) == ("abc123", "release/upstream"), (
+        f"diff must target merge_base..check_branch, not merge_base..HEAD (F1 regression): {diff_cmds[0]!r}"
+    )
+    assert "HEAD" not in diff_cmds[0], f"diff must not reference HEAD (F1): {diff_cmds[0]!r}"

@@ -10,10 +10,10 @@ glob-level matching to avoid false positives.
 
 from __future__ import annotations
 
-import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from specify_cli.core.vcs.git import git_diff_names, git_merge_base
 from specify_cli.lanes.models import ExecutionLane
 
 
@@ -51,20 +51,20 @@ def check_lane_staleness(
         StaleCheckResult with is_stale, overlapping files, and remediation.
     """
     # Find merge-base.
-    merge_base = _git_merge_base(repo_root, lane_branch, mission_branch)
+    merge_base = git_merge_base(repo_root, lane_branch, mission_branch)
     if merge_base is None:
         # No common ancestor — branches are unrelated. Not stale.
         return StaleCheckResult(is_stale=False)
 
     # Files changed in mission since merge-base.
-    mission_files = _git_diff_names(repo_root, merge_base, mission_branch)
+    mission_files = set(git_diff_names(repo_root, merge_base, mission_branch))
 
     if not mission_files:
         # Mission hasn't advanced with any file changes. Not stale.
         return StaleCheckResult(is_stale=False)
 
     # Files changed in lane since merge-base.
-    lane_files = _git_diff_names(repo_root, merge_base, lane_branch)
+    lane_files = set(git_diff_names(repo_root, merge_base, lane_branch))
 
     # Intersection = files both sides changed.
     overlap = sorted(mission_files & lane_files)
@@ -80,29 +80,3 @@ def check_lane_staleness(
             f"Run: cd .worktrees/*-{lane.lane_id} && git merge {mission_branch}"
         ),
     )
-
-
-def _git_merge_base(repo_root: Path, ref_a: str, ref_b: str) -> str | None:
-    """Return the merge-base commit between two refs, or None."""
-    result = subprocess.run(
-        ["git", "merge-base", ref_a, ref_b],
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        return None
-    return result.stdout.strip()
-
-
-def _git_diff_names(repo_root: Path, base: str, head: str) -> set[str]:
-    """Return the set of files changed between base and head."""
-    result = subprocess.run(
-        ["git", "diff", "--name-only", base, head],
-        cwd=str(repo_root),
-        capture_output=True,
-        text=True,
-    )
-    if result.returncode != 0:
-        return set()
-    return {line.strip() for line in result.stdout.splitlines() if line.strip()}

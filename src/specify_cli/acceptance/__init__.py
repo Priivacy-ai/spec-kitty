@@ -19,6 +19,7 @@ from typing import Any
 from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.core.paths import read_target_branch_from_meta
 from specify_cli.core.paths import require_explicit_feature as _require_explicit_feature
+from specify_cli.core.vcs.git import merge_base_changed_files
 from specify_cli.decisions.models import DecisionStatus
 from specify_cli.decisions.store import load_index
 from specify_cli.mission import MissionError, get_deliverables_path, get_mission_for_feature
@@ -1095,25 +1096,10 @@ def _changed_workflow_files(repo_root: Path, feature_dir: Path, branch: str | No
     if not _git_ref_exists(repo_root, base_ref):
         return []
 
-    merge_base = run_git(["merge-base", "HEAD", base_ref], cwd=repo_root, check=False)
-    if merge_base.returncode != 0 or not merge_base.stdout.strip():
-        return []
-
-    diff = run_git(
-        [
-            "diff",
-            "--name-only",
-            "--diff-filter=AMR",
-            f"{merge_base.stdout.strip()}...HEAD",
-            "--",
-            ".github/workflows",
-        ],
-        cwd=repo_root,
-        check=False,
+    changed = merge_base_changed_files(
+        repo_root, base_ref, pathspec=".github/workflows", diff_filter="AMR"
     )
-    if diff.returncode != 0:
-        return []
-    return sorted({line.strip() for line in diff.stdout.splitlines() if line.strip()})
+    return sorted({line.strip() for line in changed if line.strip()})
 
 
 def _workflow_evidence_missing(feature_dir: Path) -> bool:
