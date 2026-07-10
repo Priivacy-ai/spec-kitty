@@ -1,0 +1,88 @@
+{
+  "mission_slug": "merge-base-diff-ssot-01KX44SD",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Canonical merge-base/diff surface in core/vcs/git.py (git_merge_base, git_diff_names[pathspec,diff_filter], merge_base_changed_files)",
+      "proof_type": "automated_test",
+      "evidence": "WP01 approved (reviewer-renata). Three module-level fns added to core/vcs/git.py with two-arg diff form + standardized subprocess kwargs (C-002); None/empty degradation; never raises on git non-zero. GitVCS internal merge-base (~L415) untouched.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (acceptance)",
+      "verified_at": "2026-07-10T00:00:00Z",
+      "notes": "commit 96973dbe4"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "tasks_move_task._mt_pre_review_changed_files repointed to merge_base_changed_files; tuple/()-degradation preserved",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved (reviewer-renata). One-line delegation; NFR-001 held (0 expected-value test edits); 199 affected tests green.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (acceptance)",
+      "verified_at": "2026-07-10T00:00:00Z",
+      "notes": "commit e0ac337fa"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "tasks_shared first-pass repointed to merge_base_changed_files(pathspec=kitty-specs/); content re-check second pass preserved verbatim",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved (reviewer-renata). Only the first-pass diff delegates; _filter_by_planning_tip_content (FR-007/#2274 content re-check) + startswith/dedup preserved byte-for-byte — #2274 false-positive-after-rebase guard intact.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (acceptance)",
+      "verified_at": "2026-07-10T00:00:00Z",
+      "notes": "commit c7dbb1ff5"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "tasks_dependency_graph upstream check uses two-ref primitive (git_merge_base(HEAD,check_branch) + git_diff_names(mb,check_branch)), NOT the HEAD convenience",
+      "proof_type": "automated_test",
+      "evidence": "WP02 approved (reviewer-renata). F1 inversion risk fenced (merge-base half consolidated via primitives; new test asserts diff range is mb..check_branch, not ..HEAD). DOCUMENTED NFR-002 exception: the diff call stays direct to preserve fail-closed semantics (diff-failure->False) unexpressible via git_diff_names.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (acceptance)",
+      "verified_at": "2026-07-10T00:00:00Z",
+      "notes": "commit e0ac337fa; fail-closed exception documented in spec Out-of-scope + issue-matrix"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "lanes/stale_check _git_merge_base/_git_diff_names deleted and repointed to surface primitives (2-ref); set + None/empty degradation preserved; C-002 kwargs adopted",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved (reviewer-renata). Both private helpers deleted (repo-wide grep = 0 refs; no dead-symbol guard left red); callers use git_merge_base + set(git_diff_names(...)).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (acceptance)",
+      "verified_at": "2026-07-10T00:00:00Z",
+      "notes": "commit c7dbb1ff5"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Direct surface tests incl. non-HEAD branch-target (F1 fence) + range/two-arg equivalence",
+      "proof_type": "automated_test",
+      "evidence": "WP01 approved (reviewer-renata). 14 direct tests green covering all branches; F1 test uses head=side!=HEAD (fails red on a HEAD-convenience swap); equivalence test compares two-arg vs raw mb..HEAD on a real temp repo.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (acceptance)",
+      "verified_at": "2026-07-10T00:00:00Z",
+      "notes": "commit 96973dbe4"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "ScopeResult.from_override classmethod retires hand-built override-tier construction; _MOVE_SET symbol guard preserved",
+      "proof_type": "automated_test",
+      "evidence": "WP04 approved (reviewer-renata). from_override is field-identical to the hand-built form (frozen dataclass ==); no module-level symbol added/removed (test_tasks_move_task_seam module_defs==_MOVE_SET green); 68 tests green.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (acceptance)",
+      "verified_at": "2026-07-10T00:00:00Z",
+      "notes": "commit 8179d449b"
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "acceptance/_changed_workflow_files (5th copy) repointed to merge_base_changed_files(pathspec=.github/workflows, diff_filter=AMR); three-dot->two-arg equivalence pinned; sorted() preserved",
+      "proof_type": "automated_test",
+      "evidence": "WP03 approved (reviewer-renata). 5th copy (the split-brain the post-plan squad caught) consolidated; three-dot ...HEAD == two-arg pinned by an added test (safe because mb is an ancestor of HEAD).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata (per-WP) + orchestrator (acceptance)",
+      "verified_at": "2026-07-10T00:00:00Z",
+      "notes": "commit c7dbb1ff5"
+    }
+  ]
+}
