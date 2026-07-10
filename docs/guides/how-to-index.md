@@ -54,5 +54,5 @@ have Spec Kitty installed and walks one task end to end.
 
 ## See also
 
-- [Tutorials](index.md) — learning-oriented walkthroughs.
+- [Tutorials](tutorials-index.md) — learning-oriented walkthroughs.
 - [Reference](../api/index.md) — authoritative command and schema references.
