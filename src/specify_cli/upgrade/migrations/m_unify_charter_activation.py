@@ -31,11 +31,12 @@ Absent-key built-in safety (WP06 LAND-BLOCKER, reviewer caveat)
 :func:`promote_activations` materializes the supplied ``default_ids`` for a
 kind whose ``config.activated_<kind>`` key is *absent* before appending the
 promoted ids — but only if the caller actually supplies the real built-in set.
-This migration loads the shipped default pack (mirroring
-``m_3_2_0rc35_default_charter_pack``'s direct read of the same
-``src/charter/packs/default.yaml`` file — see :func:`_load_default_pack_ids`)
-and passes it as ``default_ids`` so a first-run/absent-key project keeps every
-built-in active rather than collapsing to a bare, newly-promoted list.
+This migration loads the shipped default pack via the shared
+:func:`charter.default_pack.load_default_pack_activation_ids` loader (the
+same primitive :func:`specify_cli.doctrine.org_charter._promote_org_required_to_config`
+uses — squad finding #2530 dedup) and passes it as ``default_ids`` so a
+first-run/absent-key project keeps every built-in active rather than
+collapsing to a bare, newly-promoted list.
 
 Scope note
 ----------
@@ -55,6 +56,7 @@ from ruamel.yaml import YAML
 
 from charter.activation_engine import promote_activations
 from charter.catalog import resolve_doctrine_root
+from charter.default_pack import load_default_pack_activation_ids
 from charter.kind_vocabulary import (
     UnknownArtifactIdError,
     resolve_artifact_urn,
@@ -85,16 +87,6 @@ _PROMOTABLE_KINDS: tuple[ArtifactKind, ...] = (
 _CONFIG_RELATIVE_PATH = Path(".kittify") / "config.yaml"
 _ANSWERS_RELATIVE_PATH = Path(".kittify") / "charter" / "interview" / "answers.yaml"
 
-#: Absolute path to the default charter pack shipped with spec-kitty.
-#: Four ``.parent`` hops: migrations/ -> upgrade/ -> specify_cli/ -> src/.
-#: Computed independently of ``pack_manager._load_default_pack``'s identical
-#: path (and ``m_3_2_0rc35_default_charter_pack``'s ``_DEFAULT_YAML_PATH``) —
-#: this module carries no charter-internal-module import beyond the public
-#: seams, matching the layer-boundary style of the sibling rc35 migration.
-_DEFAULT_PACK_PATH: Path = (
-    Path(__file__).parent.parent.parent.parent / "charter" / "packs" / "default.yaml"
-)
-
 
 def _load_yaml(path: Path) -> dict[str, Any]:
     """Safe-load a YAML mapping file; returns ``{}`` when absent/empty/non-mapping."""
@@ -111,14 +103,17 @@ def _load_yaml(path: Path) -> dict[str, Any]:
 def load_default_pack_ids() -> dict[str, list[str]]:
     """Load the shipped default-pack IDs, keyed by ``config.yaml`` activation key.
 
-    Public (imported by ``interview.py``'s promotion wiring, T024) so both
-    consumers of the WP06 primitive supply the same real built-in
-    ``default_ids`` rather than each re-deriving it independently.
+    Public (imported by ``interview.py``'s promotion wiring, T024, and by
+    ``specify_cli.doctrine.org_charter``) so every consumer of the WP06
+    ``promote_activations`` primitive supplies the same real built-in
+    ``default_ids`` rather than each re-deriving it independently. Thin
+    re-export of the canonical :func:`charter.default_pack.load_default_pack_activation_ids`
+    loader — kept under this name (rather than inlined at each call site)
+    because this migration's own tests and ``interview.py`` import it from
+    this module (squad finding #2530: the duplicate *implementations* are
+    gone; the public name here is now a one-line delegation).
     """
-    if not _DEFAULT_PACK_PATH.exists():
-        return {}
-    raw = _load_yaml(_DEFAULT_PACK_PATH)
-    return {key: list(value) for key, value in raw.items() if isinstance(value, list)}
+    return load_default_pack_activation_ids()
 
 
 def resolve_selected_id_to_stem(
