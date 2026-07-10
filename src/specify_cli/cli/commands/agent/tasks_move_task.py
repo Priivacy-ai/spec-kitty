@@ -87,6 +87,7 @@ from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import is_worktree_context
 from specify_cli.core.utils import write_text_within_directory
+from specify_cli.core.vcs.git import merge_base_changed_files
 from specify_cli.git import SafeCommitPathPolicyError
 from specify_cli.missions._read_path_resolver import (
     _canonicalize_primary_read_handle,
@@ -814,41 +815,15 @@ def _mt_resolve_pre_review_workspace(st: _MoveTaskState) -> Path | None:
 def _mt_pre_review_changed_files(worktree_path: Path, base_branch: str) -> tuple[str, ...]:
     """Merge-base diff of the WP's worktree HEAD vs. its target branch.
 
-    Mirrors ``tasks_shared._list_wp_branch_mission_specs_changes``'s
-    merge-base pattern (``git merge-base HEAD <base>`` then
-    ``git diff --name-only``), generalized to every changed file rather than
-    a ``kitty-specs/`` subset — the gate scopes tests off the WP's FULL
+    Routes through the canonical merge-base/diff surface
+    (``core.vcs.git.merge_base_changed_files``, mission
+    merge-base-diff-ssot-01KX44SD) rather than an inline ``git merge-base`` /
+    ``git diff --name-only`` pair, generalized to every changed file rather
+    than a ``kitty-specs/`` subset — the gate scopes tests off the WP's FULL
     changed-file set, not just spec docs. Any git failure degrades to an
     empty tuple (folds into a cheap ``no_coverage`` warn), never a crash.
     """
-    from specify_cli.cli.commands.agent import tasks as _tasks
-
-    merge_base_result = _tasks.subprocess.run(
-        ["git", "merge-base", "HEAD", base_branch],
-        cwd=str(worktree_path),
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if merge_base_result.returncode != 0:
-        return ()
-    merge_base = merge_base_result.stdout.strip()
-    if not merge_base:
-        return ()
-    diff_result = _tasks.subprocess.run(
-        ["git", "diff", "--name-only", f"{merge_base}..HEAD"],
-        cwd=str(worktree_path),
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if diff_result.returncode != 0:
-        return ()
-    return tuple(line.strip() for line in diff_result.stdout.splitlines() if line.strip())
+    return merge_base_changed_files(worktree_path, base_branch)
 
 
 def _mt_pre_review_gate_with_override_scope(
@@ -871,13 +846,7 @@ def _mt_pre_review_gate_with_override_scope(
     composite-dir wording would be misleading — this keeps its own literal
     "override test scope is empty" reason instead.
     """
-    scope = pre_review_gate.ScopeResult(
-        test_targets=test_targets,
-        matched_shard_groups=(),
-        matched_composite_dirs=(),
-        empty_cone_composite_dirs=(),
-        excluded_scope_files=(),
-    )
+    scope = pre_review_gate.ScopeResult.from_override(test_targets)
     if scope.is_empty:
         return pre_review_gate.GateVerdict(
             outcome=pre_review_gate.GateOutcome.NO_COVERAGE,

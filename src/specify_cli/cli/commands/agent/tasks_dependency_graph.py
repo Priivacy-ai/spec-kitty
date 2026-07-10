@@ -24,13 +24,13 @@ One-way import rule (INV-2): this module MUST NOT import from
 from __future__ import annotations
 
 import contextlib
-import subprocess
 from pathlib import Path
 
 from rich.console import Console
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.core.paths import get_main_repo_root
+from specify_cli.core.vcs.git import git_diff_names_checked, git_merge_base
 from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 from specify_cli.status import Lane, resolve_lane_alias
 from specify_cli.workspace.context import resolve_workspace_for_wp
@@ -174,37 +174,35 @@ def _behind_commits_touch_only_planning_artifacts(
 
     This prevents lane transitions from being blocked by commits that update
     task metadata on the planning branch (for example mark-status/move-task).
+
+    Diffs ``merge_base..check_branch`` — the diff TARGET is ``check_branch``,
+    not ``HEAD`` (mission merge-base-diff-ssot-01KX44SD, F1 guard). The
+    merge-base step routes through the canonical two-ref
+    ``core.vcs.git.git_merge_base`` primitive, which eliminates any risk of
+    this site ever drifting onto the HEAD-relative ``merge_base_changed_files``
+    convenience (that convenience computes ``mb..HEAD`` and would silently
+    invert which commits are inspected).
+
+    Fully consolidated onto the shared surface: the diff step uses
+    ``core.vcs.git.git_diff_names_checked``, the fail-CLOSED variant that
+    returns ``None`` on a diff subprocess failure (→ ``False``, block) as
+    distinct from an empty tuple on a genuinely empty diff (→ ``True``,
+    non-blocking). This resolves the prior NFR-002 exception where the diff
+    stayed a direct subprocess call because ``git_diff_names`` collapsed
+    "failed" and "empty" into the same empty tuple.
     """
-    merge_base_result = subprocess.run(
-        ["git", "merge-base", "HEAD", check_branch],
-        cwd=worktree_path,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if merge_base_result.returncode != 0:
+    merge_base = git_merge_base(worktree_path, "HEAD", check_branch)
+    if merge_base is None:
         return False
 
-    merge_base = merge_base_result.stdout.strip()
-    if not merge_base:
+    # Compare merge-base..check_branch to inspect only commits that HEAD is
+    # behind on (the branch, not HEAD, is the diff target). Fail-closed: a diff
+    # failure (None) blocks; a genuinely empty diff (()) is non-blocking.
+    changed = git_diff_names_checked(worktree_path, merge_base, check_branch)
+    if changed is None:
         return False
 
-    # Compare merge-base..base to inspect only commits that HEAD is behind on.
-    result = subprocess.run(
-        ["git", "diff", "--name-only", f"{merge_base}..{check_branch}"],
-        cwd=worktree_path,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if result.returncode != 0:
-        return False
-
-    changed_files = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+    changed_files = list(changed)
     if not changed_files:
         return True
 

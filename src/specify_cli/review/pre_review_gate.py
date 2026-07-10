@@ -259,6 +259,21 @@ class ScopeResult:
             "group (core_misc/e2e/any_src) or matched no dorny group at all"
         )
 
+    @classmethod
+    def from_override(cls, targets: tuple[str, ...]) -> ScopeResult:
+        """Build a ``ScopeResult`` for an explicit override scope (FR-004).
+
+        An override IS the test scope, by definition — no shard-group or
+        composite-dir matching runs for it, and no scope files are excluded.
+        """
+        return cls(
+            test_targets=targets,
+            matched_shard_groups=(),
+            matched_composite_dirs=(),
+            empty_cone_composite_dirs=(),
+            excluded_scope_files=(),
+        )
+
 
 def derive_test_scope(
     changed_files: Sequence[str],
