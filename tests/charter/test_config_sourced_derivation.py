@@ -1,0 +1,318 @@
+"""Unit tests for the config-sourced doctrine derivation switch (WP02, FR-001/FR-002).
+
+Covers both derivation paths the mission's IC-01 slice repoints from
+``answers.selected_*`` to ``config.activated_*``:
+
+- ``charter.compiler.compile_charter`` / ``_build_references_from_service``
+  -- the compiled reference set (``references.yaml``) path.
+- ``specify_cli.cli.commands.charter._synthesis._build_synthesis_request``
+  -- the project-graph (``interview_snapshot``/``drg_snapshot``) path.
+
+Plus the two squad LAND-BLOCKER requirements pinned as regression tests:
+
+- **T026 direct roots**: a kind activated directly in
+  ``config.activated_styleguides``/``activated_toolguides`` (and the
+  remaining directly-activatable kinds -- tactics, procedures, agent
+  profiles) resolves in the compiled set even when no selected directive's
+  transitive closure reaches it (the real #2524 baseline danglers
+  ``aggregate-design-rules`` / ``contextive`` are exercised directly).
+- **Reject-not-drop**: an unresolvable ``config.activated_*`` stem raises
+  (via WP01's ``resolve_artifact_urn``), closing the C-006 silent-drop
+  vector that ``_sanitize_catalog_selection`` left open for the retired
+  answers-sourced path.
+
+This module is UNIT-level per the WP02 prompt: it does not regenerate or
+assert against the committed ``references.yaml``/``graph.yaml`` artefacts
+(that is WP03's IC-01-consequence slice).
+"""
+
+from __future__ import annotations
+
+import dataclasses
+from pathlib import Path
+
+import pytest
+
+from charter.catalog import load_doctrine_catalog
+from charter.compiler import (
+    ConfigActivatedRoots,
+    compile_charter,
+    resolve_config_activated_roots,
+)
+from charter.interview import CharterInterview, default_interview, write_interview_answers
+from charter.kind_vocabulary import UnknownArtifactIdError
+from charter.pack_context import PackContext
+
+pytestmark = [pytest.mark.fast, pytest.mark.unit]
+
+
+# --------------------------------------------------------------------------- #
+# Fixtures / helpers
+# --------------------------------------------------------------------------- #
+
+_ALL_ACTIVATED_KINDS = frozenset(
+    {
+        "directives",
+        "tactics",
+        "styleguides",
+        "toolguides",
+        "paradigms",
+        "procedures",
+        "agent_profiles",
+        "mission_step_contracts",
+    }
+)
+
+
+def _base_pack_context(tmp_path: Path) -> PackContext:
+    """A ``PackContext`` with every per-kind activation left at the default (``None``)."""
+    return PackContext(
+        activated_kinds=_ALL_ACTIVATED_KINDS,
+        activated_mission_types=frozenset({"software-dev"}),
+        pack_roots=(),
+        org_pack_names=(),
+        repo_root=tmp_path,
+    )
+
+
+def _interview_with(**overrides: object) -> CharterInterview:
+    interview = default_interview(mission="software-dev", profile="minimal")
+    return dataclasses.replace(interview, **overrides)
+
+
+# --------------------------------------------------------------------------- #
+# compile_charter: config is the source, interview.selected_* is inert
+# --------------------------------------------------------------------------- #
+
+
+def test_compiled_directives_come_from_config_not_interview() -> None:
+    """FR-001/FR-002: compiled directives are config.activated_directives, not answers."""
+    interview = _interview_with(selected_directives=["DIRECTIVE_003"], selected_paradigms=[])
+    pack_context = dataclasses.replace(
+        _base_pack_context(Path(".")),
+        activated_directives=frozenset({"010-specification-fidelity-requirement"}),
+    )
+
+    compiled = compile_charter(mission="software-dev", interview=interview, pack_context=pack_context)
+
+    assert compiled.selected_directives == ["DIRECTIVE_010"]
+    assert "DIRECTIVE_003" not in compiled.selected_directives
+    assert "Specification Fidelity Requirement (`DIRECTIVE_010`)" in compiled.markdown
+    # The interview's own selection never appears in the rendered directive body.
+    assert "Decision Documentation Requirement (`DIRECTIVE_003`)" not in compiled.markdown
+
+
+def test_compiled_paradigms_come_from_config_not_interview() -> None:
+    """Editing answers.selected_paradigms without a config change has no effect (SC-004 precursor)."""
+    interview = _interview_with(selected_paradigms=["deep-module-design"], selected_directives=[])
+    pack_context = dataclasses.replace(
+        _base_pack_context(Path(".")),
+        activated_directives=frozenset(),
+        activated_paradigms=frozenset({"domain-driven-design"}),
+    )
+
+    compiled = compile_charter(mission="software-dev", interview=interview, pack_context=pack_context)
+
+    assert compiled.selected_paradigms == ["domain-driven-design"]
+    assert "deep-module-design" not in compiled.selected_paradigms
+    assert any(ref.id == "PARADIGM:domain-driven-design" for ref in compiled.references)
+
+
+def test_no_pack_context_and_no_repo_root_defaults_to_all_builtins_active() -> None:
+    """Absent-key semantics: no project config at all -> every built-in directive is active.
+
+    Mirrors the three-state default already documented on
+    :class:`~charter.pack_context.PackContext` (``None`` -> "all built-ins
+    available"), which is also what ``charter.resolver`` already applies when
+    filtering paradigms/procedures/agent profiles.
+    """
+    interview = _interview_with(selected_directives=["DIRECTIVE_003"], selected_paradigms=[])
+    catalog = load_doctrine_catalog()
+
+    compiled = compile_charter(mission="software-dev", interview=interview)
+
+    assert sorted(compiled.selected_directives) == sorted(catalog.directives)
+    assert "DIRECTIVE_010" in compiled.selected_directives
+
+
+# --------------------------------------------------------------------------- #
+# Reject-not-drop: an unresolvable config stem raises (closes the C-006 seam)
+# --------------------------------------------------------------------------- #
+
+
+def test_unresolvable_config_directive_stem_raises() -> None:
+    interview = _interview_with(selected_directives=[], selected_paradigms=[])
+    pack_context = dataclasses.replace(
+        _base_pack_context(Path(".")),
+        activated_directives=frozenset({"999-does-not-exist"}),
+    )
+
+    with pytest.raises(UnknownArtifactIdError):
+        compile_charter(mission="software-dev", interview=interview, pack_context=pack_context)
+
+
+def test_unresolvable_config_styleguide_stem_raises_not_silently_dropped() -> None:
+    """The direct-root path routes through the raising resolver too, not the lenient sanitizer."""
+    interview = _interview_with(selected_directives=[], selected_paradigms=[])
+    pack_context = dataclasses.replace(
+        _base_pack_context(Path(".")),
+        activated_directives=frozenset(),
+        activated_styleguides=frozenset({"no-such-styleguide"}),
+    )
+
+    with pytest.raises(UnknownArtifactIdError):
+        compile_charter(mission="software-dev", interview=interview, pack_context=pack_context)
+
+
+# --------------------------------------------------------------------------- #
+# T026: direct roots -- a directly-activated kind resolves with no directive edge
+# --------------------------------------------------------------------------- #
+
+
+def test_direct_root_styleguide_resolves_with_no_directive_selected() -> None:
+    """The real #2524 baseline dangler: `aggregate-design-rules` has no directive edge."""
+    interview = _interview_with(selected_directives=[], selected_paradigms=[])
+    pack_context = dataclasses.replace(
+        _base_pack_context(Path(".")),
+        activated_directives=frozenset(),
+        activated_styleguides=frozenset({"aggregate-design-rules"}),
+    )
+
+    compiled = compile_charter(mission="software-dev", interview=interview, pack_context=pack_context)
+
+    assert compiled.selected_directives == []
+    assert any(ref.id == "STYLEGUIDE:aggregate-design-rules" for ref in compiled.references)
+
+
+def test_direct_root_toolguide_resolves_with_no_directive_selected() -> None:
+    """The real #2524 baseline dangler: `contextive` has no directive edge."""
+    interview = _interview_with(selected_directives=[], selected_paradigms=[])
+    pack_context = dataclasses.replace(
+        _base_pack_context(Path(".")),
+        activated_directives=frozenset(),
+        activated_toolguides=frozenset({"contextive"}),
+    )
+
+    compiled = compile_charter(mission="software-dev", interview=interview, pack_context=pack_context)
+
+    assert compiled.selected_directives == []
+    assert any(ref.id == "TOOLGUIDE:contextive" for ref in compiled.references)
+
+
+def test_direct_root_tactic_procedure_and_agent_profile_resolve_with_no_directive_selected() -> None:
+    """T026's "remaining directly-activatable kinds" -- tactics, procedures, agent profiles."""
+    interview = _interview_with(selected_directives=[], selected_paradigms=[])
+    pack_context = dataclasses.replace(
+        _base_pack_context(Path(".")),
+        activated_directives=frozenset(),
+        activated_tactics=frozenset({"acceptance-test-first"}),
+        activated_procedures=frozenset({"refactoring"}),
+        activated_agent_profiles=frozenset({"paula-patterns"}),
+    )
+
+    compiled = compile_charter(mission="software-dev", interview=interview, pack_context=pack_context)
+
+    reference_ids = {ref.id for ref in compiled.references}
+    assert "TACTIC:acceptance-test-first" in reference_ids
+    assert "PROCEDURE:refactoring" in reference_ids
+    assert "AGENT_PROFILE:paula-patterns" in reference_ids
+
+
+def test_direct_root_is_additive_to_directive_closure_not_a_replacement() -> None:
+    """Selecting a directive AND a direct-root styleguide keeps both -- union, not either/or."""
+    interview = _interview_with(selected_directives=[], selected_paradigms=[])
+    pack_context = dataclasses.replace(
+        _base_pack_context(Path(".")),
+        activated_directives=frozenset({"010-specification-fidelity-requirement"}),
+        activated_styleguides=frozenset({"aggregate-design-rules"}),
+    )
+
+    compiled = compile_charter(mission="software-dev", interview=interview, pack_context=pack_context)
+
+    reference_ids = {ref.id for ref in compiled.references}
+    assert "DIRECTIVE:DIRECTIVE_010" in reference_ids
+    assert "STYLEGUIDE:aggregate-design-rules" in reference_ids
+
+
+# --------------------------------------------------------------------------- #
+# resolve_config_activated_roots: the shared charter-layer seam, from real disk config
+# --------------------------------------------------------------------------- #
+
+
+def test_resolve_config_activated_roots_reads_kittify_config_yaml(tmp_path: Path) -> None:
+    config_path = tmp_path / ".kittify" / "config.yaml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(
+        "activated_directives:\n"
+        "  - 010-specification-fidelity-requirement\n"
+        "activated_styleguides:\n"
+        "  - aggregate-design-rules\n",
+        encoding="utf-8",
+    )
+
+    roots = resolve_config_activated_roots(repo_root=tmp_path)
+
+    assert isinstance(roots, ConfigActivatedRoots)
+    assert roots.directives == ["DIRECTIVE_010"]
+    assert roots.styleguides == ["aggregate-design-rules"]
+    # No `activated_paradigms` key in this fixture's config.yaml -> all built-ins.
+    catalog = load_doctrine_catalog()
+    assert sorted(roots.paradigms) == sorted(catalog.paradigms)
+
+
+def test_resolve_config_activated_roots_raises_on_unresolvable_stem(tmp_path: Path) -> None:
+    config_path = tmp_path / ".kittify" / "config.yaml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(
+        "activated_directives:\n  - not-a-real-directive-stem\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(UnknownArtifactIdError):
+        resolve_config_activated_roots(repo_root=tmp_path)
+
+
+# --------------------------------------------------------------------------- #
+# _synthesis.py: the project-graph derivation path also reads config, not answers
+# --------------------------------------------------------------------------- #
+
+
+def test_build_synthesis_request_sources_selections_from_config_not_answers(tmp_path: Path) -> None:
+    from specify_cli.cli.commands.charter._synthesis import _build_synthesis_request
+
+    answers_path = tmp_path / ".kittify" / "charter" / "interview" / "answers.yaml"
+    write_interview_answers(
+        answers_path,
+        _interview_with(selected_directives=["DIRECTIVE_003"], selected_paradigms=["deep-module-design"]),
+    )
+
+    config_path = tmp_path / ".kittify" / "config.yaml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(
+        "activated_directives:\n  - 010-specification-fidelity-requirement\n"
+        "activated_paradigms:\n  - domain-driven-design\n",
+        encoding="utf-8",
+    )
+
+    request, _adapter = _build_synthesis_request(tmp_path, "fixture")
+
+    assert request.interview_snapshot["selected_directives"] == ["DIRECTIVE_010"]
+    assert request.interview_snapshot["selected_paradigms"] == ["domain-driven-design"]
+    assert "DIRECTIVE_003" not in request.interview_snapshot["selected_directives"]
+    assert "deep-module-design" not in request.interview_snapshot["selected_paradigms"]
+    assert request.drg_snapshot["nodes"] == [
+        {"urn": "directive:DIRECTIVE_010", "kind": "directive", "id": "DIRECTIVE_010"}
+    ]
+
+
+def test_build_synthesis_request_with_no_config_defaults_to_all_builtin_directives(tmp_path: Path) -> None:
+    """No `.kittify/config.yaml` at all -> absent-key default, all built-ins active."""
+    from specify_cli.cli.commands.charter._synthesis import _build_synthesis_request
+
+    answers_path = tmp_path / ".kittify" / "charter" / "interview" / "answers.yaml"
+    write_interview_answers(answers_path, _interview_with(selected_directives=["DIRECTIVE_003"]))
+
+    request, _adapter = _build_synthesis_request(tmp_path, "fixture")
+
+    catalog = load_doctrine_catalog()
+    assert sorted(request.interview_snapshot["selected_directives"]) == sorted(catalog.directives)

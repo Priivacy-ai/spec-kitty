@@ -34,6 +34,7 @@ Public API
 
 from __future__ import annotations
 
+import functools
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -255,6 +256,128 @@ class OrgCharterExtensionError(Exception):
 def _yaml() -> YAML:
     y = YAML(typ="safe")
     return y
+
+
+# ---------------------------------------------------------------------------
+# T014 — org-required union into ``config.activated_<kind>``
+#
+# ``promote_activations`` (charter.activation_engine, WP06) is the single
+# append-only write path used below. It never re-derives the built-in id
+# universe itself (C-008: default ids arrive as caller-supplied data), so
+# this module loads the shipped default pack directly.
+# ---------------------------------------------------------------------------
+
+
+def _load_config_yaml(config_path: Path) -> tuple[dict[str, Any], YAML]:
+    """Round-trip load ``.kittify/config.yaml`` (comments/formatting kept).
+
+    Mirrors ``charter.pack_manager._load_config``. Duplicated locally rather
+    than imported: this module's WP04 ownership boundary is ``org_charter.py``
+    only, and ``pack_manager``'s loader is a private (leading-underscore)
+    module symbol not meant for cross-module reuse.
+    """
+    yaml = YAML()
+    yaml.preserve_quotes = True
+    if config_path.exists():
+        with config_path.open("r", encoding="utf-8") as fh:
+            data = yaml.load(fh)
+    else:
+        data = {}
+    if data is None:
+        data = {}
+    if not isinstance(data, dict):
+        raise ValueError(f"{config_path} root must be a mapping.")
+    return data, yaml
+
+
+def _save_config_yaml(config_path: Path, data: dict[str, Any], *, yaml: YAML) -> None:
+    """Single-write ``save`` callable for :func:`charter.activation_engine.commit_plan`."""
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    with config_path.open("w", encoding="utf-8") as fh:
+        yaml.dump(data, fh)
+
+
+def _load_default_pack_ids() -> dict[str, list[str]]:
+    """Load the shipped built-in pack's ``activated_<kind>`` id lists.
+
+    Returns the top-level list-valued keys of ``src/charter/packs/default.yaml``
+    verbatim (already in ``activated_<kind>`` form) — callers select only the
+    keys they need via ``dict.get``. This is the caller-supplied
+    ``default_ids`` :func:`~charter.activation_engine.promote_activations`
+    requires to avoid the absent-key built-in drop (see
+    :func:`_promote_org_required_to_config`).
+
+    TODO(#follow-up): consolidate with WP07's ``load_default_pack_ids``
+    helper (``charter.pack_manager`` / interview command) post-merge — this
+    mission's WP04 base predates WP07, so the loader is duplicated here.
+    """
+    import charter as _charter_pkg
+
+    default_pack_path = Path(_charter_pkg.__file__).resolve().parent / "packs" / "default.yaml"
+    with default_pack_path.open("r", encoding="utf-8") as fh:
+        raw = _yaml().load(fh)
+    if not isinstance(raw, dict):
+        return {}
+    return {key: list(value) for key, value in raw.items() if isinstance(value, list)}
+
+
+def _promote_org_required_to_config(
+    policy: OrgCharterPolicy, repo_root: Path
+) -> list[str]:
+    """Union every ``required_<kind>`` in *policy* into ``config.activated_<kind>``.
+
+    Mechanism note (squad finding): ``apply_org_charter_to_interview`` used to
+    mutate only ``interview_data.selected_<kind>``, which fed the charter
+    compiler before WP02. Once the compiler switched to reading
+    ``config.activated_*`` exclusively (WP02, FR-003), that mutation became
+    inert — org-required artefacts would silently stop reaching the compiled
+    reference set. This promotes the SAME ids directly into
+    ``.kittify/config.yaml`` through
+    :func:`charter.activation_engine.promote_activations`, the shared
+    append-only primitive (WP06) — the only write path used here (no
+    hand-rolled second writer, no direct ``save`` call).
+
+    Only kinds with a non-empty ``required_<kind>`` are included in the
+    promotion set, so kinds the org pack does not mandate are left in their
+    existing three-state ``config.yaml`` shape — an absent key still means
+    "all built-ins active" (:meth:`charter.pack_context.PackContext.from_config`)
+    for those kinds.
+
+    Absent-key safety: for a kind whose ``activated_<kind>`` key is not yet
+    present in ``config.yaml``, ``promote_activations`` needs the real
+    built-in id set as ``default_ids`` or it would write a bare restrictive
+    list and silently drop every other built-in for that kind (the WP06
+    LAND-BLOCKER). :func:`_load_default_pack_ids` supplies that real set —
+    never an empty/omitted default.
+    """
+    promotions: dict[str, list[str]] = {
+        f"activated_{kind}": list(getattr(policy, f"required_{kind}"))
+        for kind in REQUIRED_KIND_FIELDS
+        if getattr(policy, f"required_{kind}")
+    }
+    if not promotions:
+        return []
+
+    from charter.activation_engine import promote_activations
+
+    config_path = repo_root / ".kittify" / "config.yaml"
+    config_data, yaml = _load_config_yaml(config_path)
+    default_ids = _load_default_pack_ids()
+
+    plans = promote_activations(
+        promotions,
+        config_path=config_path,
+        config_data=config_data,
+        save=functools.partial(_save_config_yaml, yaml=yaml),
+        default_ids=default_ids,
+    )
+
+    return [
+        f"Promoted {len(plan.activated)} org-required id(s) into "
+        f"{plan.yaml_key} (config-authority)."
+        for plan in plans
+        if plan.activated
+    ]
 
 
 def load_org_charter_policy(pack_path: Path) -> OrgCharterPolicy | None:
@@ -672,21 +795,30 @@ def apply_org_charter_to_interview(
     repo_root: Path,
     pack_context: PackContext | None = None,
 ) -> list[str]:
-    """Pre-fill an in-memory ``CharterInterview`` with org charter defaults.
+    """Pre-fill an in-memory ``CharterInterview`` with org charter defaults,
+    and promote org-required artefacts to config-authority (T014).
 
     Mutates ``interview_data.answers`` and ``interview_data.selected_<kind>``
-    in place for every kind in :data:`REQUIRED_KIND_FIELDS`.  Behaviour is
-    non-destructive:
+    in place for every kind in :data:`REQUIRED_KIND_FIELDS`, AND unions every
+    ``required_<kind>`` into ``.kittify/config.yaml`` ``activated_<kind>`` via
+    :func:`_promote_org_required_to_config`. Behaviour is non-destructive:
 
     * Sets a key in ``interview_data.answers`` only when it is missing,
       so the interactive prompt then shows the org default as its starting
       value and the operator can confirm or override it (FR-026).
     * Appends entries from each ``required_<kind>`` to
       ``interview_data.selected_<kind>`` only when not already present
-      (union-preserving-first-seen-order).
+      (union-preserving-first-seen-order). This mutation is now purely an
+      interview-record / interactive-prompt convenience — the charter
+      compiler reads ``config.activated_*`` exclusively (WP02, FR-003), so
+      ``interview_data.selected_<kind>`` is inert for activation (SC-004).
     * Initialises ``selected_<kind>`` to an empty list when the interview
       object does not already declare the attribute — keeps pre-fill safe
       for legacy interview objects that predate the Mission B schema.
+    * Appends the same ``required_<kind>`` ids into
+      ``config.yaml``'s ``activated_<kind>`` (append-only, idempotent) so the
+      artefacts the org pack mandates actually resolve in the compiled
+      reference set — this is the channel that matters post-WP02.
 
     Returns a list of human-readable messages describing what was applied.
     Returns ``[]`` when no org packs are configured, none ship an
@@ -712,6 +844,8 @@ def apply_org_charter_to_interview(
         if key not in interview_data.answers:
             interview_data.answers[key] = str(value)
             prefilled += 1
+
+    messages.extend(_promote_org_required_to_config(merged_policy, repo_root))
 
     for kind in REQUIRED_KIND_FIELDS:
         required_list: list[str] = list(getattr(merged_policy, f"required_{kind}"))

@@ -122,8 +122,8 @@ def _scan_roots(
     doctrine_root: Path,
     org_roots: list[Path] | None,
     layer_roots: dict[str, Path] | None,
-) -> list[Path]:
-    """Return the directories to scan for *kind*, in precedence order.
+) -> list[tuple[Path, bool]]:
+    """Return the ``(directory, recursive)`` pairs to scan for *kind*.
 
     Roots are supplied as data (C-008). ``doctrine_root`` is the resolved
     doctrine package root. ``org_roots`` preserves the legacy package-shaped
@@ -131,15 +131,24 @@ def _scan_roots(
     ``layer_roots`` is the modern charter layer map. Org roots contribute
     ``<root>/doctrine/<plural>/org``. Project roots contribute
     ``<root>/doctrine/<singular>`` for live ``.kittify/doctrine`` overlays.
+
+    The ``recursive`` flag mirrors :class:`doctrine.base.BaseDoctrineRepository`
+    (the live loader backing ``DoctrineService``/DRG resolution), whose
+    three-source pattern is *built-in rglob + org glob + project glob*: several
+    built-in kinds (tactics, styleguides, toolguides) organize artifacts into
+    category subdirectories under ``built-in/`` (e.g.
+    ``tactics/built-in/testing/acceptance-test-first.tactic.yaml``), which a
+    non-recursive scan would silently miss — the exact silent-drop failure
+    mode C-006 forbids.
     """
     roots: list[Path] = [doctrine_root]
     if org_roots:
         roots.extend(org_roots)
-    dirs: list[Path] = []
+    dirs: list[tuple[Path, bool]] = []
     for root in roots:
         candidate = root / kind.plural / "built-in"
         if candidate.is_dir():
-            dirs.append(candidate)
+            dirs.append((candidate, True))
     if layer_roots:
         for layer, root in layer_roots.items():
             candidate = (
@@ -148,7 +157,7 @@ def _scan_roots(
                 else root / "doctrine" / kind.plural / layer
             )
             if candidate.is_dir():
-                dirs.append(candidate)
+                dirs.append((candidate, False))
     return dirs
 
 
@@ -163,13 +172,14 @@ def _iter_artifact_paths(
     if not pattern:
         return []
     paths: list[Path] = []
-    for scan_dir in _scan_roots(
+    for scan_dir, recursive in _scan_roots(
         kind,
         doctrine_root=doctrine_root,
         org_roots=org_roots,
         layer_roots=layer_roots,
     ):
-        paths.extend(sorted(scan_dir.glob(pattern)))
+        matches = scan_dir.rglob(pattern) if recursive else scan_dir.glob(pattern)
+        paths.extend(sorted(matches))
     return paths
 
 

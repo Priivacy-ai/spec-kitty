@@ -26,6 +26,12 @@ Consumers
   engine. The :class:`ActivationPlan` and the structured error are the seam
   surface.
 * The CLI (WP12) renders ``plan.warnings`` and the structured error message.
+* :func:`promote_activations` (WP06) is a second, append-only entry point onto
+  the same :func:`commit_plan` chokepoint, used by the config-seeded migration
+  and the interview command (WP07) and by the org-pack ``required_*`` union
+  (WP04) to promote an arbitrary ``{yaml_key: [config-stem ids]}`` set in one
+  pass — deliberately not limited to directive/paradigm roots, since org packs
+  can mandate non-root kinds (tactics, styleguides, toolguides, ...).
 
 Layering
 --------
@@ -63,6 +69,7 @@ __all__ = [
     "commit_plan",
     "plan_activation",
     "plan_deactivation",
+    "promote_activations",
 ]
 
 
@@ -385,3 +392,129 @@ def commit_plan(
     config_data[plan.yaml_key] = list(plan.new_list)
     save(config_path, config_data)
     return plan
+
+
+# ---------------------------------------------------------------------------
+# Append-promotion primitive (WP06, FR-006/FR-007)
+# ---------------------------------------------------------------------------
+
+
+def _plan_promotion(
+    yaml_key: str,
+    ids: Iterable[str],
+    *,
+    config_data: Mapping[str, Any],
+    default_ids: Iterable[str],
+) -> ActivationPlan:
+    """Compute the append-only post-state for promoting *ids* into *yaml_key*.
+
+    Pure — no writes (mirrors :func:`plan_activation` / :func:`plan_deactivation`).
+    This is a **separate** planner from :func:`plan_activation`: it never raises
+    on an unknown ID (the caller owns ID validation, e.g. via
+    :func:`charter.kind_vocabulary.resolve_artifact_urn`) and it does not reuse
+    :func:`plan_activation`'s absent-key branch.
+
+    Absent-key semantics (the LAND-BLOCKER guarded by :func:`promote_activations`):
+    :class:`~charter.pack_context.PackContext.from_config` treats an absent
+    ``activated_<kind>`` key as "all built-ins active" (three-state contract).
+    Writing a bare restrictive list into a previously-absent key would flip that
+    to "only these ids active", silently dropping every other built-in. So when
+    *yaml_key* is absent, this materializes *default_ids* (the caller-supplied,
+    already-discovered built-in ID set — passed in as data, C-008) into the plan
+    **before** appending *ids*, preserving all-built-ins-active rather than
+    replacing it.
+    """
+    current = _current_list(config_data, yaml_key)
+    warnings: list[str] = []
+
+    if current is None:
+        new_list = list(dict.fromkeys(default_ids))
+        warnings.append(
+            f"Key {yaml_key!r} had no explicit activation set. "
+            f"Preserved {len(new_list)} built-in entries before promotion "
+            f"(absent-key parity)."
+        )
+    else:
+        new_list = list(current)
+
+    activated: list[str] = []
+    for artifact_id in dict.fromkeys(ids):
+        if artifact_id in new_list:
+            warnings.append(
+                f"{artifact_id!r} is already activated for key {yaml_key!r}."
+            )
+        else:
+            new_list.append(artifact_id)
+            activated.append(artifact_id)
+
+    return ActivationPlan(
+        yaml_key=yaml_key,
+        new_list=new_list,
+        warnings=warnings,
+        activated=activated,
+    )
+
+
+def promote_activations(
+    promotions: Mapping[str, Iterable[str]],
+    *,
+    config_path: Path,
+    config_data: dict[str, Any],
+    save: Callable[[Path, dict[str, Any]], None],
+    default_ids: Mapping[str, Iterable[str]] | None = None,
+) -> list[ActivationPlan]:
+    """Promote an arbitrary ``{yaml_key: [config-stem ids]}`` set, append-only.
+
+    Shared by the config-seeded migration + interview command (WP07) and the
+    org-pack ``required_*`` union (WP04). Deliberately **not** roots-only: org
+    packs can mandate non-root kinds (tactics, styleguides, toolguides, ...),
+    so *promotions* accepts any resolved ``config.yaml`` activation key, not
+    just ``activated_directives`` / ``activated_paradigms``.
+
+    Write mechanism (C-002): builds one :class:`ActivationPlan` per
+    ``yaml_key`` via :func:`_plan_promotion` (a planner distinct from
+    :func:`plan_activation` — it never triggers that function's default-pack
+    branch) and applies it with exactly one :func:`commit_plan` call per key.
+    There is no other write path here: ``save`` is never invoked directly.
+
+    Parameters
+    ----------
+    promotions:
+        Maps a resolved ``config.yaml`` activation key (e.g.
+        ``"activated_directives"``, ``"activated_tactics"``) to the
+        config-stem IDs to append. Callers resolve the key themselves (e.g.
+        via ``doctrine.artifact_kinds`` or ``pack_manager.YAML_KEY_MAP`` — this
+        module has zero charter-internal imports and does not re-derive it).
+        Omit a key entirely to skip it; an included key with no IDs still
+        performs a single no-op commit for that key.
+    config_path:
+        Destination ``config.yaml`` path (passed through to ``save``).
+    config_data:
+        The mutable, already-loaded config mapping (same object shape as
+        :func:`commit_plan` expects); mutated in place, one key at a time.
+    save:
+        Single-write callable, forwarded verbatim to :func:`commit_plan` for
+        every key. The only place any of the keys are persisted.
+    default_ids:
+        Optional map of ``yaml_key`` to the caller-discovered built-in ID set
+        for that kind (as data, C-008). Used only when a key is absent from
+        ``config_data``, to preserve all-built-ins-active (see
+        :func:`_plan_promotion`). A key missing from this map defaults to an
+        empty default set.
+
+    Returns
+    -------
+    list[ActivationPlan]
+        The committed plans, one per key in *promotions*, in iteration order.
+    """
+    defaults = default_ids or {}
+    committed: list[ActivationPlan] = []
+    for yaml_key, ids in promotions.items():
+        plan = _plan_promotion(
+            yaml_key,
+            ids,
+            config_data=config_data,
+            default_ids=defaults.get(yaml_key, ()),
+        )
+        committed.append(commit_plan(config_path, config_data, plan, save=save))
+    return committed

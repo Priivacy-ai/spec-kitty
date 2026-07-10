@@ -357,8 +357,19 @@ class TestSelectedTacticsRoundTrip:
 
     Pre-fix, ``selected_tactics`` was read by the activation helper but never
     written by the charter compiler. This test exercises the full pipeline:
-    interview answers carrying ``selected_tactics`` -> compiled charter.md ->
+    config activation carrying a single tactic -> compiled charter.md ->
     re-extracted governance.yaml -> activation helper recognising the pack.
+
+    WP03 re-pin (T028): the activation input moved from
+    ``interview.selected_tactics`` (``apply_answer_overrides``) to
+    ``config.activated_tactics`` (a ``PackContext``) -- WP02 (FR-001/FR-002)
+    retired ``interview.selected_*`` as an activation source, so driving this
+    scenario through the interview no longer reaches the compiler's
+    activation selection at all. The underlying invariant this test protects
+    -- a single directly-activated tactic reaches the markdown Governance
+    Activation block, round-trips through extraction into governance.yaml,
+    and the SPDD activation helper recognises it from disk -- is still real
+    and still worth pinning, so it is re-pinned rather than deleted.
     """
 
     def setup_method(self) -> None:
@@ -369,20 +380,43 @@ class TestSelectedTacticsRoundTrip:
     ) -> None:
         from charter.compiler import compile_charter
         from charter.extractor import Extractor
-        from charter.interview import default_interview, apply_answer_overrides
+        from charter.interview import default_interview
+        from charter.pack_context import PackContext
         from charter.schemas import emit_yaml
 
-        # 1. Build an interview that selects only the canvas-fill tactic.
-        base = default_interview(mission="software-dev")
-        interview = apply_answer_overrides(
-            base,
-            selected_tactics=["reasons-canvas-fill"],
+        # 1. Build a PackContext that activates ONLY the canvas-fill tactic
+        #    (every other kind explicitly narrowed to empty so nothing else
+        #    contributes a selector -- isolates this one activation path).
+        pack_context = PackContext(
+            activated_kinds=frozenset(
+                {
+                    "directives",
+                    "tactics",
+                    "styleguides",
+                    "toolguides",
+                    "paradigms",
+                    "procedures",
+                    "agent_profiles",
+                    "mission_step_contracts",
+                }
+            ),
+            activated_mission_types=frozenset({"software-dev"}),
+            pack_roots=(),
+            org_pack_names=(),
+            repo_root=tmp_path,
+            activated_directives=frozenset(),
+            activated_tactics=frozenset({"reasons-canvas-fill"}),
+            activated_styleguides=frozenset(),
+            activated_toolguides=frozenset(),
+            activated_paradigms=frozenset(),
+            activated_procedures=frozenset(),
+            activated_agent_profiles=frozenset(),
         )
-        assert interview.selected_tactics == ["reasons-canvas-fill"]
+        interview = default_interview(mission="software-dev")
 
         # 2. Compile the charter — selected_tactics must reach the markdown
         #    Governance Activation block AND the CompiledCharter dataclass.
-        compiled = compile_charter(mission="software-dev", interview=interview)
+        compiled = compile_charter(mission="software-dev", interview=interview, pack_context=pack_context)
         assert "reasons-canvas-fill" in compiled.selected_tactics
         assert "selected_tactics: [reasons-canvas-fill]" in compiled.markdown
 
