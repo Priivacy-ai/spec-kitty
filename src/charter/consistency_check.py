@@ -19,8 +19,25 @@ from charter.pack_manager import YAML_KEY_MAP, CharterPackManager
 
 __all__ = [
     "ConsistencyReport",
+    "ReferencesCorruptError",
     "run_consistency_check",
 ]
+
+
+class ReferencesCorruptError(RuntimeError):
+    """``references.yaml`` exists but is unreadable or structurally invalid (#2530).
+
+    Raised by :func:`_load_reference_ids_by_kind` when the compiled reference
+    set is present on disk but cannot be trusted -- unparseable YAML, a
+    non-mapping document root, or a missing/malformed ``references`` list.
+    Deliberately distinct from the ``None`` return of that same function,
+    which signals the legitimate "no charter synthesis has run yet" no-op
+    skip. Callers must fail closed on this exception (surface a
+    ``ConsistencyReport.verification_errors`` entry and treat the report as
+    NOT coherent), never treat it the same as the ``None``/skip case --
+    an empty finding list must mean "verified coherent", never "could not
+    verify".
+    """
 
 # ---------------------------------------------------------------------------
 # DRG source kinds: these carry edges to other kinds in the DRG (Pattern A).
@@ -86,8 +103,8 @@ class ConsistencyReport:
 
     Attributes:
         coherent: True when no unknown references, missing cross-references,
-            kind violations, duplicates, or config<->derived parity
-            divergences were found.
+            kind violations, duplicates, config<->derived parity
+            divergences, or verification failures were found.
         unknown_references: IDs activated for a kind that do not exist in doctrine.
         missing_from_doctrine: IDs referenced by DRG edges but absent from the
             target kind's activation set.
@@ -107,6 +124,16 @@ class ConsistencyReport:
             that kind is a whole-kind dangler. Deliberately KIND-granular,
             not ID-granular (the config<->graph ID map is punted, see
             ``_check_drg_cross_kind_refs``).
+        verification_errors: #2530 -- fail-closed signal distinct from every
+            other (empty) finding list above. Populated when a parity check
+            could not run at all because its input was unreadable or
+            structurally invalid (a corrupt/truncated
+            ``references.yaml``, or a DRG load/validation failure) -- as
+            opposed to the legitimate "not yet synthesized" no-op skip (no
+            ``references.yaml`` on disk yet). An empty finding list must
+            mean "verified coherent", never "could not verify"; this field
+            is how the guard reports the latter instead of silently
+            reporting the former.
         suggestions: Human-readable resolution instructions for each finding.
     """
 
@@ -116,6 +143,7 @@ class ConsistencyReport:
     kind_violations: list[str] = field(default_factory=list)
     reference_id_divergences: list[str] = field(default_factory=list)
     graph_kind_gaps: list[str] = field(default_factory=list)
+    verification_errors: list[str] = field(default_factory=list)
     suggestions: list[str] = field(default_factory=list)
 
     def to_json(self) -> str:
@@ -128,6 +156,7 @@ class ConsistencyReport:
                 "kind_violations": self.kind_violations,
                 "reference_id_divergences": self.reference_id_divergences,
                 "graph_kind_gaps": self.graph_kind_gaps,
+                "verification_errors": self.verification_errors,
                 "suggestions": self.suggestions,
             },
             indent=2,
@@ -373,10 +402,16 @@ def _check_kind_violations(
 def _load_reference_ids_by_kind(ctx: ProjectContext) -> dict[str, frozenset[str]] | None:
     """Parse ``.kittify/charter/references.yaml``, grouped by kind.
 
-    Returns ``None`` when the compiled reference set has not been
-    materialised yet (no charter synthesis has run) or is unparseable -- the
-    ID-level parity check (T017) is then skipped, matching the best-effort
-    pattern already used by the FR-012 cross-kind DRG check.
+    Returns ``None`` only when the compiled reference set has not been
+    materialised yet (no ``references.yaml`` on disk) -- a legitimate no-op
+    skip (T017 has nothing to check against), NOT a corruption signal.
+
+    Raises:
+        ReferencesCorruptError: ``references.yaml`` exists but cannot be
+            trusted -- unparseable YAML, a non-mapping document root, or a
+            missing/malformed ``references`` list (#2530). Fail-closed: a
+            guard that cannot read its own input must never report a silent
+            pass by treating "corrupt" the same as "not yet synthesized".
     """
     references_path = ctx.require_repo_root() / ".kittify" / "charter" / "references.yaml"
     if not references_path.exists():
@@ -384,13 +419,22 @@ def _load_reference_ids_by_kind(ctx: ProjectContext) -> dict[str, frozenset[str]
 
     yaml = YAML(typ="safe")
     try:
-        data = yaml.load(references_path) or {}
-    except Exception:  # noqa: BLE001 -- malformed references.yaml: skip, don't crash the guard.
-        return None
+        data = yaml.load(references_path)
+    except Exception as exc:  # noqa: BLE001 -- re-raised as a typed, fail-closed signal below.
+        raise ReferencesCorruptError(
+            f"{references_path} could not be parsed: {exc}"
+        ) from exc
 
-    entries = data.get("references") if isinstance(data, dict) else None
+    if not isinstance(data, dict):
+        raise ReferencesCorruptError(
+            f"{references_path} does not contain a YAML mapping at its document root."
+        )
+
+    entries = data.get("references")
     if not isinstance(entries, list):
-        return None
+        raise ReferencesCorruptError(
+            f"{references_path} is missing a valid 'references' list."
+        )
 
     by_kind: dict[str, set[str]] = {}
     for entry in entries:
@@ -409,6 +453,7 @@ def _check_reference_id_parity(
     ctx: ProjectContext,
     raw_activated_by_kind: dict[str, list[str] | None],
     reference_id_divergences: list[str],
+    verification_errors: list[str],
     suggestions: list[str],
 ) -> None:
     """FR-005/T017: config.activated_* <-> references.yaml, at ID level.
@@ -431,12 +476,43 @@ def _check_reference_id_parity(
     ``config.activated_tactics`` entry), so "extra" entries there are
     expected, not a divergence -- flagging them would be a false-positive
     machine, not a regression guard.
+
+    Org/project overlay resolution (#2529): ``resolve_artifact_urn`` must be
+    given the SAME ``org_roots`` that ``compiler.py``'s equivalent resolver
+    call threads through (``list(pack_context.pack_roots[1:])`` --
+    ``pack_roots`` is ``(builtin_root, *org_pack_roots)``, so slicing off
+    index 0 leaves only the configured org/project overlay roots; empty for
+    a project with no org packs, so behaviour is unchanged there). Without
+    this, a config-activated ORG-only artefact raises
+    ``UnknownArtifactIdError`` here, is swallowed by the ``except`` below,
+    and the guard silently skips it -- while the compiler's un-caught
+    resolver call crashes on the exact same stem. That is a false negative,
+    not a best-effort skip.
+
+    Fail-closed on corrupt input (#2530): a ``references.yaml`` that exists
+    but cannot be parsed/trusted raises :class:`ReferencesCorruptError` from
+    :func:`_load_reference_ids_by_kind`; that is caught here and surfaced as
+    a *verification_errors* entry (not silently treated as "nothing to
+    check against", which is reserved for the file genuinely not existing
+    yet).
     """
-    references_by_kind = _load_reference_ids_by_kind(ctx)
+    try:
+        references_by_kind = _load_reference_ids_by_kind(ctx)
+    except ReferencesCorruptError as exc:
+        verification_errors.append(f"references.yaml: {exc}")
+        suggestions.append(
+            f"references.yaml: Could not verify config<->references parity "
+            f"({exc}). Run 'spec-kitty charter synthesize' (or "
+            f"resynthesize) to regenerate .kittify/charter/references.yaml, "
+            f"or restore it from version control."
+        )
+        return
     if references_by_kind is None:
         return  # No compiled reference set yet -- nothing to check against.
 
     doctrine_root = resolve_doctrine_root()
+    pack_context = ctx.require_pack_context()
+    org_roots = list(pack_context.pack_roots[1:])
 
     for cli_kind in YAML_KEY_MAP:
         try:
@@ -451,7 +527,9 @@ def _check_reference_id_parity(
         known_ref_ids = references_by_kind.get(kind_enum.value, frozenset())
         for stem in sorted(set(raw_list)):
             try:
-                urn = resolve_artifact_urn(kind_enum, stem, doctrine_root=doctrine_root)
+                urn = resolve_artifact_urn(
+                    kind_enum, stem, doctrine_root=doctrine_root, org_roots=org_roots
+                )
             except UnknownArtifactIdError:
                 continue  # Already reported by _check_unknown_references.
             _, _, canonical_id = urn.partition(":")
@@ -482,6 +560,7 @@ def _check_graph_kind_parity(
     ctx: ProjectContext,
     raw_activated_by_kind: dict[str, list[str] | None],
     graph_kind_gaps: list[str],
+    verification_errors: list[str],
     suggestions: list[str],
 ) -> None:
     """FR-005/T018: config.activated_* <-> DRG graph, at KIND level only.
@@ -505,6 +584,15 @@ def _check_graph_kind_parity(
     use ``charter.drg.filter_graph_by_activation`` -- see the module-level
     ``_DRG_SINGULAR_TO_ACTIVATED_KINDS_MEMBER`` docstring for why that
     helper's per-ID gate is unsuitable for a KIND-level check.
+
+    Fail-closed on DRG-load failure (#2530): the built-in DRG graph is
+    always bundled with the package, so a failure loading/validating it
+    (``load_validated_graph`` raises on ``assert_valid`` rejection) or
+    resolving ``ctx``'s required fields is a genuine "could not verify"
+    condition, never a legitimate "not yet synthesized" skip -- unlike
+    ``references.yaml``, there is no not-yet-materialised state for the DRG.
+    A failure here is therefore surfaced as a *verification_errors* entry
+    instead of a silent early return.
     """
     try:
         from charter._drg_helpers import load_validated_graph  # noqa: PLC0415
@@ -512,7 +600,16 @@ def _check_graph_kind_parity(
         repo_root = ctx.require_repo_root()
         pack_context = ctx.require_pack_context()
         full_drg = load_validated_graph(repo_root)
-    except Exception:  # noqa: BLE001 -- DRG load is best-effort; failures are surfaced by other tooling.
+    except Exception as exc:  # noqa: BLE001 -- fail-closed signal below, not a silent pass.
+        verification_errors.append(
+            f"drg: Could not verify config<->graph kind parity "
+            f"({type(exc).__name__}: {exc})."
+        )
+        suggestions.append(
+            f"drg: Could not verify config<->graph kind parity "
+            f"({type(exc).__name__}: {exc}). Regenerate graph.yaml / run "
+            f"'spec-kitty charter resynthesize' and retry."
+        )
         return
 
     graph_kinds_present: set[str] = set()
@@ -549,6 +646,9 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
       - Unknown references (activated IDs absent from doctrine).
       - Cross-kind DRG edge references where the target kind is empty (FR-012).
       - Kind violations and duplicate IDs within activation sets.
+      - Config<->references.yaml ID parity and config<->DRG kind parity
+        (FR-005), fail-closed on unreadable/corrupt input (#2530) rather
+        than silently reporting an empty, passing result.
 
     WP template scanning is explicitly out of scope.
 
@@ -563,6 +663,7 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
     kind_violations: list[str] = []
     reference_id_divergences: list[str] = []
     graph_kind_gaps: list[str] = []
+    verification_errors: list[str] = []
     suggestions: list[str] = []
 
     manager = CharterPackManager()
@@ -588,10 +689,14 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
         activated_by_kind, all_doctrine_ids, unknown_references, kind_violations
     )
     _check_reference_id_parity(
-        ctx, raw_activated_by_kind, reference_id_divergences, suggestions
+        ctx,
+        raw_activated_by_kind,
+        reference_id_divergences,
+        verification_errors,
+        suggestions,
     )
     _check_graph_kind_parity(
-        ctx, raw_activated_by_kind, graph_kind_gaps, suggestions
+        ctx, raw_activated_by_kind, graph_kind_gaps, verification_errors, suggestions
     )
 
     coherent = not (
@@ -600,6 +705,7 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
         or kind_violations
         or reference_id_divergences
         or graph_kind_gaps
+        or verification_errors
     )
     return ConsistencyReport(
         coherent=coherent,
@@ -608,5 +714,6 @@ def run_consistency_check(ctx: ProjectContext) -> ConsistencyReport:
         kind_violations=kind_violations,
         reference_id_divergences=reference_id_divergences,
         graph_kind_gaps=graph_kind_gaps,
+        verification_errors=verification_errors,
         suggestions=suggestions,
     )
