@@ -276,6 +276,143 @@ class TestOrgRequiredPromotedIntoConfig:
 
 
 # ---------------------------------------------------------------------------
+# #2529 -- org required_<kind> id-form normalization (canonical -> stem)
+# ---------------------------------------------------------------------------
+
+
+class TestOrgRequiredIdFormNormalizedBeforePromotion:
+    """Squad finding #2529: ``config.activated_<kind>`` stores config/file-
+    stem ids and the derivation (:mod:`charter.compiler`,
+    :func:`~charter.kind_vocabulary.resolve_artifact_urn`) reads stems --
+    promoting an org-required id in its natural canonical ``id:`` form
+    (e.g. ``DIRECTIVE_001``) verbatim writes a value the derivation can never
+    match, crashing even for a built-in org-required directive.
+    ``_promote_org_required_to_config`` now normalizes every id to stem form
+    first, via the same ``resolve_config_id``-based two-direction resolution
+    ``m_unify_charter_activation.resolve_selected_id_to_stem`` uses for
+    ``answers.selected_<kind>``.
+    """
+
+    _DIRECTIVE_001_STEM = "001-architectural-integrity-standard"
+    _DIRECTIVE_001_CANONICAL = "DIRECTIVE_001"
+
+    def test_canonical_form_required_directive_promoted_as_stem(
+        self, tmp_path: Path
+    ) -> None:
+        pack = tmp_path / "pack"
+        _write_org_charter(
+            pack,
+            f"""
+            schema_version: "1"
+            org_name: "ATDD"
+            required_directives:
+              - {self._DIRECTIVE_001_CANONICAL}
+            """,
+        )
+        consumer = tmp_path / "consumer"
+        consumer.mkdir()
+        # A non-empty pinned preseed avoids the YAML null-vs-empty-list
+        # ambiguity (an explicitly-empty preseed round-trips as a null
+        # scalar, which the absent-key LAND-BLOCKER safety materializes
+        # every built-in for -- orthogonal to what this test pins down).
+        _write_consumer_config(
+            consumer, [("pack", pack)], preseed={"activated_directives": ["project-pinned"]}
+        )
+
+        apply_org_charter_to_interview(_Interview(), consumer)
+
+        written = _read_config_yaml(consumer).get("activated_directives")
+        assert written == ["project-pinned", self._DIRECTIVE_001_STEM], (
+            "an org-required id written in its natural canonical form "
+            "(DIRECTIVE_001) must be promoted into config.activated_directives "
+            "in config-STEM form -- the form config.yaml stores and the "
+            "derivation (resolve_artifact_urn) reads"
+        )
+
+        # Round-trips through the real activation surface the compiler
+        # consumes -- proves this is not just a string-shape assertion.
+        ctx = PackContext.from_config(consumer)
+        assert ctx.activated_directives is not None
+        assert self._DIRECTIVE_001_STEM in ctx.activated_directives
+        assert self._DIRECTIVE_001_CANONICAL not in ctx.activated_directives
+
+    def test_stem_form_required_directive_is_idempotent(self, tmp_path: Path) -> None:
+        """Already-stem input round-trips unchanged -- normalization is a
+        no-op on the common case, not a mandatory rewrite (idempotent)."""
+        pack = tmp_path / "pack"
+        _write_org_charter(
+            pack,
+            f"""
+            schema_version: "1"
+            required_directives:
+              - {self._DIRECTIVE_001_STEM}
+            """,
+        )
+        consumer = tmp_path / "consumer"
+        consumer.mkdir()
+        _write_consumer_config(
+            consumer, [("pack", pack)], preseed={"activated_directives": ["project-pinned"]}
+        )
+
+        apply_org_charter_to_interview(_Interview(), consumer)
+
+        written = _read_config_yaml(consumer).get("activated_directives")
+        assert written == ["project-pinned", self._DIRECTIVE_001_STEM]
+
+    def test_prefix_verbatim_canonical_id_would_not_resolve_as_a_stem(self) -> None:
+        """Regression proof: the pre-fix behaviour (writing the canonical id
+        verbatim into ``config.activated_directives``) is provably broken --
+        :func:`~charter.kind_vocabulary.resolve_artifact_urn`, the same
+        resolver :mod:`charter.compiler` uses to turn a config stem into a
+        DRG URN, does NOT recognize the canonical form as a stem. This is
+        why the fix is needed, not merely a stylistic preference.
+        """
+        from charter.catalog import resolve_doctrine_root
+        from charter.kind_vocabulary import UnknownArtifactIdError, resolve_artifact_urn
+        from doctrine.artifact_kinds import ArtifactKind
+
+        doctrine_root = resolve_doctrine_root()
+        with pytest.raises(UnknownArtifactIdError):
+            resolve_artifact_urn(
+                ArtifactKind.DIRECTIVE,
+                self._DIRECTIVE_001_CANONICAL,
+                doctrine_root=doctrine_root,
+            )
+        # The stem form, by contrast, resolves cleanly -- confirming the fix
+        # writes the form the derivation actually needs.
+        resolve_artifact_urn(
+            ArtifactKind.DIRECTIVE, self._DIRECTIVE_001_STEM, doctrine_root=doctrine_root
+        )
+
+    def test_unresolvable_required_id_passes_through_verbatim(
+        self, tmp_path: Path
+    ) -> None:
+        """An id that resolves in neither direction (not a known stem NOR a
+        known canonical id) is promoted unchanged rather than dropped -- a
+        malformed/unknown org-required id must fail loudly downstream at
+        derivation, not vanish silently during promotion."""
+        pack = tmp_path / "pack"
+        _write_org_charter(
+            pack,
+            """
+            schema_version: "1"
+            required_directives:
+              - 999-does-not-exist-anywhere
+            """,
+        )
+        consumer = tmp_path / "consumer"
+        consumer.mkdir()
+        _write_consumer_config(
+            consumer, [("pack", pack)], preseed={"activated_directives": ["project-pinned"]}
+        )
+
+        apply_org_charter_to_interview(_Interview(), consumer)
+
+        written = _read_config_yaml(consumer).get("activated_directives")
+        assert written == ["project-pinned", "999-does-not-exist-anywhere"]
+
+
+# ---------------------------------------------------------------------------
 # T015 -- SC-004: answers.selected_* is inert for activation
 # ---------------------------------------------------------------------------
 

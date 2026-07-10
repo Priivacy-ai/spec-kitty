@@ -316,3 +316,81 @@ def test_load_default_pack_ids_matches_shipped_default_yaml() -> None:
     assert _DIRECTIVE_010_STEM in ids["activated_directives"]
     assert "activated_paradigms" in ids
     assert _PARADIGM_DDD in ids["activated_paradigms"]
+
+
+# ---------------------------------------------------------------------------
+# charter.default_pack.load_default_pack_activation_ids — shared-loader
+# coverage (squad finding #2530: org_charter.py's ``_load_default_pack_ids``
+# and this migration's ``load_default_pack_ids`` were near-identical
+# independent readers of the same ``src/charter/packs/default.yaml`` file;
+# both now delegate to this one canonical charter-layer helper).
+# ---------------------------------------------------------------------------
+
+
+def test_load_default_pack_ids_is_a_pure_reexport_of_shared_helper() -> None:
+    """This migration's public ``load_default_pack_ids`` name is kept for
+    backward compatibility (``interview.py`` and this file both import it
+    from here) but must carry no independent implementation — it must
+    delegate to the shared ``charter.default_pack`` loader verbatim."""
+    from charter.default_pack import load_default_pack_activation_ids
+
+    assert load_default_pack_ids() == load_default_pack_activation_ids()
+
+
+def test_load_default_pack_activation_ids_returns_real_per_kind_builtin_stems() -> None:
+    """The shared helper returns the real per-kind built-in stem sets from
+    the shipped ``src/charter/packs/default.yaml`` — every one of the 8
+    charter activation kinds ships a non-empty built-in set, and spot-checked
+    ids are the config-stem form (not the canonical ``id:`` form)."""
+    from charter.default_pack import load_default_pack_activation_ids
+
+    ids = load_default_pack_activation_ids()
+
+    for kind_key in (
+        "activated_directives",
+        "activated_tactics",
+        "activated_styleguides",
+        "activated_toolguides",
+        "activated_paradigms",
+        "activated_procedures",
+        "activated_agent_profiles",
+        "activated_mission_step_contracts",
+    ):
+        assert kind_key in ids and ids[kind_key], (
+            f"shipped default.yaml must ship a non-empty built-in set for {kind_key}"
+        )
+
+    assert _DIRECTIVE_010_STEM in ids["activated_directives"]
+    assert _DIRECTIVE_010_CANONICAL not in ids["activated_directives"], (
+        "default.yaml ships config-stem ids, not canonical id: form"
+    )
+    assert _PARADIGM_DDD in ids["activated_paradigms"]
+
+
+def test_load_default_pack_activation_ids_missing_file_returns_empty(tmp_path: Path) -> None:
+    """An absent ``packs/default.yaml`` under the supplied root degrades to
+    ``{}`` rather than raising -- callers treat that as "no real default
+    available" (see the WP06 absent-key LAND-BLOCKER note)."""
+    from charter.default_pack import load_default_pack_activation_ids
+
+    assert load_default_pack_activation_ids(charter_pkg_root=tmp_path) == {}
+
+
+def test_load_default_pack_activation_ids_filters_non_list_values(tmp_path: Path) -> None:
+    """Only list-valued top-level keys are returned -- a scalar/mapping key
+    (e.g. a future ``schema_version:`` entry) is silently excluded rather
+    than raising, matching the pre-dedup behaviour of both original readers."""
+    from charter.default_pack import load_default_pack_activation_ids
+
+    packs_dir = tmp_path / "packs"
+    packs_dir.mkdir(parents=True)
+    (packs_dir / "default.yaml").write_text(
+        "schema_version: 1\n"
+        "activated_directives:\n"
+        "  - 001-architectural-integrity-standard\n",
+        encoding="utf-8",
+    )
+
+    ids = load_default_pack_activation_ids(charter_pkg_root=tmp_path)
+
+    assert ids == {"activated_directives": ["001-architectural-integrity-standard"]}

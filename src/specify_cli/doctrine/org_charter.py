@@ -42,6 +42,13 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 from ruamel.yaml import YAML
 
 from charter.activations import ActivationEntry, _activation_identity_key
+from charter.default_pack import load_default_pack_activation_ids
+from charter.kind_vocabulary import (
+    UnknownArtifactIdError,
+    resolve_artifact_urn,
+    resolve_config_id,
+)
+from doctrine.artifact_kinds import ArtifactKind
 
 if TYPE_CHECKING:
     from charter.pack_context import PackContext
@@ -297,28 +304,58 @@ def _save_config_yaml(config_path: Path, data: dict[str, Any], *, yaml: YAML) ->
         yaml.dump(data, fh)
 
 
-def _load_default_pack_ids() -> dict[str, list[str]]:
-    """Load the shipped built-in pack's ``activated_<kind>`` id lists.
+def _resolve_required_id_to_stem(
+    kind: ArtifactKind, raw_id: str, *, doctrine_root: Path
+) -> str | None:
+    """Best-effort normalize *raw_id* (already-stem OR canonical id) to config-stem form.
 
-    Returns the top-level list-valued keys of ``src/charter/packs/default.yaml``
-    verbatim (already in ``activated_<kind>`` form) — callers select only the
-    keys they need via ``dict.get``. This is the caller-supplied
-    ``default_ids`` :func:`~charter.activation_engine.promote_activations`
-    requires to avoid the absent-key built-in drop (see
-    :func:`_promote_org_required_to_config`).
-
-    TODO(#follow-up): consolidate with WP07's ``load_default_pack_ids``
-    helper (``charter.pack_manager`` / interview command) post-merge — this
-    mission's WP04 base predates WP07, so the loader is duplicated here.
+    Org packs may declare ``required_<kind>`` entries in either the
+    config/file-stem form (``"001-architectural-integrity-standard"``) or the
+    artefact's canonical ``id:`` field (``"DIRECTIVE_001"``) — the same
+    two-form ambiguity :func:`~specify_cli.upgrade.migrations.m_unify_charter_activation.resolve_selected_id_to_stem`
+    resolves for ``answers.selected_<kind>`` (WP01, C-006). Tries *raw_id* as
+    a config stem first (the already-normalized, idempotent case — the common
+    path once this normalization has run once), then falls back to treating
+    it as the canonical ``id:`` value. Returns ``None`` when neither
+    direction resolves — the caller passes the id through verbatim rather
+    than dropping it, so an org author's malformed/unknown id still fails
+    loudly downstream (at derivation) instead of vanishing silently here.
     """
-    import charter as _charter_pkg
+    try:
+        resolve_artifact_urn(kind, raw_id, doctrine_root=doctrine_root)
+        return raw_id
+    except UnknownArtifactIdError:
+        pass
+    try:
+        return resolve_config_id(f"{kind.value}:{raw_id}", doctrine_root=doctrine_root)
+    except (ValueError, UnknownArtifactIdError):
+        return None
 
-    default_pack_path = Path(_charter_pkg.__file__).resolve().parent / "packs" / "default.yaml"
-    with default_pack_path.open("r", encoding="utf-8") as fh:
-        raw = _yaml().load(fh)
-    if not isinstance(raw, dict):
-        return {}
-    return {key: list(value) for key, value in raw.items() if isinstance(value, list)}
+
+def _normalize_required_ids(
+    kind_plural: str, raw_ids: list[str], *, doctrine_root: Path | None
+) -> list[str]:
+    """Normalize every id in *raw_ids* (a ``required_<kind_plural>`` list) to stem form.
+
+    ``config.activated_<kind>`` stores config/file-stem ids and the
+    derivation reads stems (:mod:`charter.compiler`,
+    :func:`~charter.kind_vocabulary.resolve_artifact_urn`) — promoting an
+    org-required id verbatim in its natural canonical form
+    (e.g. ``DIRECTIVE_001``) writes a value the derivation can never match,
+    crashing the compiled reference set even for a built-in org-required
+    directive (squad finding #2529). When *doctrine_root* could not be
+    resolved (best-effort — see the call site), or an individual id resolves
+    in neither direction, that id is passed through unchanged rather than
+    dropped.
+    """
+    if doctrine_root is None:
+        return list(raw_ids)
+    kind = ArtifactKind.from_plural(kind_plural)
+    normalized: list[str] = []
+    for raw_id in raw_ids:
+        stem = _resolve_required_id_to_stem(kind, raw_id, doctrine_root=doctrine_root)
+        normalized.append(stem if stem is not None else raw_id)
+    return normalized
 
 
 def _promote_org_required_to_config(
@@ -337,6 +374,14 @@ def _promote_org_required_to_config(
     append-only primitive (WP06) — the only write path used here (no
     hand-rolled second writer, no direct ``save`` call).
 
+    Id-form normalization (squad finding #2529): each ``required_<kind>`` id
+    is normalized to config-stem form via :func:`_normalize_required_ids`
+    before being handed to ``promote_activations`` — see that function's
+    docstring. Resolving the doctrine root is best-effort: if it cannot be
+    resolved (rare — a broken/uninstalled doctrine package), ids are
+    promoted verbatim, matching this function's pre-fix behaviour rather
+    than failing the whole (non-destructive, advisory) pre-fill flow.
+
     Only kinds with a non-empty ``required_<kind>`` are included in the
     promotion set, so kinds the org pack does not mandate are left in their
     existing three-state ``config.yaml`` shape — an absent key still means
@@ -347,22 +392,35 @@ def _promote_org_required_to_config(
     present in ``config.yaml``, ``promote_activations`` needs the real
     built-in id set as ``default_ids`` or it would write a bare restrictive
     list and silently drop every other built-in for that kind (the WP06
-    LAND-BLOCKER). :func:`_load_default_pack_ids` supplies that real set —
-    never an empty/omitted default.
+    LAND-BLOCKER). :func:`~charter.default_pack.load_default_pack_activation_ids`
+    supplies that real set — never an empty/omitted default.
     """
-    promotions: dict[str, list[str]] = {
-        f"activated_{kind}": list(getattr(policy, f"required_{kind}"))
+    required_by_kind: dict[str, list[str]] = {
+        kind: list(getattr(policy, f"required_{kind}"))
         for kind in REQUIRED_KIND_FIELDS
         if getattr(policy, f"required_{kind}")
     }
-    if not promotions:
+    if not required_by_kind:
         return []
 
     from charter.activation_engine import promote_activations
+    from charter.catalog import resolve_doctrine_root
+
+    try:
+        doctrine_root: Path | None = resolve_doctrine_root()
+    except Exception:  # noqa: BLE001 — normalization is best-effort, see docstring
+        doctrine_root = None
+
+    promotions: dict[str, list[str]] = {
+        f"activated_{kind}": _normalize_required_ids(
+            kind, raw_ids, doctrine_root=doctrine_root
+        )
+        for kind, raw_ids in required_by_kind.items()
+    }
 
     config_path = repo_root / ".kittify" / "config.yaml"
     config_data, yaml = _load_config_yaml(config_path)
-    default_ids = _load_default_pack_ids()
+    default_ids = load_default_pack_activation_ids()
 
     plans = promote_activations(
         promotions,
