@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+from pathlib import Path
 from typing import Any
 
 import typer
@@ -36,6 +37,86 @@ from specify_cli.cli.commands.charter._widen import (
 import specify_cli.cli.commands.charter as _charter_pkg
 
 __all__ = ["interview"]
+
+
+def _promote_interview_selections(repo_root: Path, interview_data: Any) -> list[str]:
+    """Append-promote captured interview selections into ``config.activated_<kind>`` (FR-007).
+
+    Only the three roots :class:`~charter.interview.CharterInterview` actually
+    captures (directives, tactics, paradigms) are promoted here — a project's
+    ``answers.yaml`` may separately carry hand-authored non-root selections
+    (e.g. ``selected_styleguides``); those are the config-seeded migration's
+    job (``m_unify_charter_activation``, T023), not this per-interview-run
+    wiring. Routes through the shared :func:`charter.activation_engine.promote_activations`
+    primitive (WP06) — the same append-only, absent-key-built-in-safe seam the
+    migration uses — reusing (not duplicating) the WP01 ID-form resolver and
+    the default-pack loader via ``m_unify_charter_activation`` (T023's sibling
+    consumer).
+
+    Best-effort / non-fatal by contract: the caller wraps this in a broad
+    ``except`` so a promotion failure never blocks the interview answers
+    already written to disk. Returns human-readable warning strings (empty
+    when there is nothing to surface).
+    """
+    from ruamel.yaml import YAML
+
+    from charter.activation_engine import promote_activations
+    from charter.catalog import resolve_doctrine_root
+    from doctrine.artifact_kinds import ArtifactKind
+
+    from specify_cli.upgrade.migrations.m_unify_charter_activation import (
+        load_default_pack_ids,
+        resolve_selected_id_to_stem,
+    )
+
+    kind_to_selection: dict[ArtifactKind, list[str]] = {
+        ArtifactKind.DIRECTIVE: list(interview_data.selected_directives),
+        ArtifactKind.TACTIC: list(interview_data.selected_tactics),
+        ArtifactKind.PARADIGM: list(interview_data.selected_paradigms),
+    }
+
+    doctrine_root = resolve_doctrine_root()
+    promotions: dict[str, list[str]] = {}
+    warnings: list[str] = []
+    for kind, raw_ids in kind_to_selection.items():
+        stems: list[str] = []
+        for raw_id in raw_ids:
+            stem = resolve_selected_id_to_stem(kind, raw_id, doctrine_root=doctrine_root)
+            if stem is None:
+                warnings.append(
+                    f"Could not resolve selected {kind.operator_token} id {raw_id!r}; skipped."
+                )
+            elif stem not in stems:
+                stems.append(stem)
+        if stems:
+            promotions[f"activated_{kind.plural}"] = stems
+
+    if not promotions:
+        return warnings
+
+    config_path = repo_root / ".kittify" / "config.yaml"
+    yaml = YAML()
+    yaml.preserve_quotes = True
+    config_data: Any = (
+        yaml.load(config_path.read_text(encoding="utf-8")) if config_path.exists() else {}
+    )
+    if not isinstance(config_data, dict):
+        config_data = {}
+
+    def _save(path: Path, data: dict[str, Any]) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        with path.open("w", encoding="utf-8") as fh:
+            yaml.dump(data, fh)
+
+    plans = promote_activations(
+        promotions,
+        config_path=config_path,
+        config_data=config_data,
+        save=_save,
+        default_ids=load_default_pack_ids(),
+    )
+    warnings.extend(warning for plan in plans for warning in plan.warnings)
+    return warnings
 
 
 @charter_app.command()
@@ -332,6 +413,17 @@ def interview(  # noqa: C901
         answers_path = _interview_path(repo_root)
         write_interview_answers(answers_path, interview_data)
 
+        # FR-007 — append-promote captured selections into config.activated_*
+        # via the WP06 primitive. Best-effort / non-fatal: a promotion failure
+        # must never block the interview answers already written to disk.
+        promotion_warnings: list[str] = []
+        try:
+            promotion_warnings = _promote_interview_selections(repo_root, interview_data)
+        except Exception as exc:  # noqa: BLE001 — promotion is best-effort, never blocks the interview
+            promotion_warnings = []
+            if not json_output:
+                console.print(f"[yellow]Selection promotion skipped:[/yellow] {exc}")
+
         if json_output:
             print(
                 json.dumps(
@@ -346,6 +438,7 @@ def interview(  # noqa: C901
                         "available_tools": interview_data.available_tools,
                         "org_prefill_messages": org_prefill_messages,
                         "org_prefill_warning": org_prefill_warning,
+                        "promotion_warnings": promotion_warnings,
                     },
                     indent=2,
                 )
@@ -356,6 +449,8 @@ def interview(  # noqa: C901
         console.print(f"Interview file: {answers_path.relative_to(repo_root)}")
         console.print(f"Mission: {interview_data.mission}")
         console.print(f"Profile: {interview_data.profile}")
+        for msg in promotion_warnings:
+            console.print(f"[yellow]Selection promotion:[/yellow] {msg}")
 
     except (TaskCliError, ValueError) as e:
         _emit_error(console, json_output=json_output, message=str(e))

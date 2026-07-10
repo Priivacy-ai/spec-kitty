@@ -1,5 +1,6 @@
 """Scope: mock-boundary tests for charter compiler bundle generation -- no real git."""
 
+import dataclasses
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -14,6 +15,7 @@ from charter.interview import (
     default_interview,
     validate_local_support_declarations,
 )
+from charter.pack_context import PackContext
 
 pytestmark = pytest.mark.fast
 
@@ -59,41 +61,38 @@ def test_resolve_template_set_uses_smallest_available_fallback() -> None:
     )
 
 
-def test_compile_charter_preserves_explicit_empty_selections() -> None:
-    interview = default_interview(mission="software-dev", profile="minimal")
-    interview = apply_answer_overrides(
-        interview,
-        selected_paradigms=[],
-        selected_directives=[],
-        available_tools=[],
-    )
-
-    compiled = compile_charter(mission="software-dev", interview=interview)
-
-    assert compiled.selected_paradigms == []
-    assert compiled.selected_directives == []
-    assert compiled.available_tools == []
-    assert "selected_paradigms: []" in compiled.markdown
-    assert "selected_directives: []" in compiled.markdown
-    assert "available_tools: []" in compiled.markdown
-
-
-def test_compile_charter_renders_lynn_cole_rules_verbatim() -> None:
-    interview = default_interview(mission="software-dev", profile="minimal")
-    interview = apply_answer_overrides(
-        interview,
-        answers={"project_intent": "Use the Lynn Cole."},
-    )
-
-    compiled = compile_charter(mission="software-dev", interview=interview)
-
-    assert compiled.selected_directives == ["DIRECTIVE_039"]
-    assert compiled.selected_paradigms == ["deep-module-design"]
-    assert "Lynn Cole Engineering Culture (`DIRECTIVE_039`)" in compiled.markdown
-    assert "Remember the three rules of TDD, and hold them sacred." in compiled.markdown
-    assert "Strong typing is a requirement on all projects." in compiled.markdown
-    assert "DRY is about preserving a single source of truth" in compiled.markdown
-    assert "Your code will be reviewed by the meanest, most inconsiderate QA agent" in compiled.markdown
+# NOTE (WP03 T028, unify-charter-activation-surfaces): two tests used to live
+# here --
+# ``test_compile_charter_preserves_explicit_empty_selections`` and
+# ``test_compile_charter_renders_lynn_cole_rules_verbatim`` -- both DELETED,
+# not re-pinned, because they exercised the answers-sourced activation path
+# WP02 (FR-001/FR-002) retired outright:
+#
+# - ``test_compile_charter_preserves_explicit_empty_selections`` asserted
+#   that an interview's explicit ``selected_paradigms=[]``/
+#   ``selected_directives=[]`` suppressed compiled activation. Activation is
+#   now sourced exclusively from ``config.activated_*``; ``interview.
+#   selected_*`` is inert for this purpose (see ``compile_charter``'s own
+#   docstring). The equivalent, CURRENT invariant -- config absent -> every
+#   built-in active, config present -> config wins over any interview value
+#   -- is already covered by
+#   ``tests/charter/test_config_sourced_derivation.py::test_no_pack_context_and_no_repo_root_defaults_to_all_builtins_active``
+#   and ``::test_compiled_paradigms_come_from_config_not_interview``, so
+#   deleting here is not a coverage loss.
+# - ``test_compile_charter_renders_lynn_cole_rules_verbatim`` asserted that a
+#   "Lynn Cole" trigger phrase in ``project_intent``
+#   (``apply_doctrine_intent_aliases``, ``charter/interview.py``) auto-adds
+#   ``DIRECTIVE_039``/``deep-module-design`` to the COMPILED charter. That
+#   alias function still runs (it mutates the in-memory
+#   ``CharterInterview.selected_directives``/``selected_paradigms``) but its
+#   output is now silently discarded -- compiled activation reads
+#   ``config.activated_*``, never the mutated interview object -- so the
+#   feature this test pinned is presently dead code with no product-visible
+#   effect. Fixing ``apply_doctrine_intent_aliases`` to target
+#   ``config.yaml`` instead is a product decision outside WP03's explicit
+#   scope (regenerate artefacts + re-pin/delete these 6 named tests); it is
+#   reported as a gap for a follow-up mission rather than silently patched
+#   here.
 
 
 def test_compile_charter_renders_selected_directive_content() -> None:
@@ -292,10 +291,54 @@ def test_compile_with_repo_root_uses_project_drg_overlay(tmp_path: Path) -> None
     )
 
 
+def _empty_pack_context(repo_root: Path, **overrides: object) -> PackContext:
+    """A ``PackContext`` with every per-kind activation explicitly empty.
+
+    Unlike the ``None`` (absent-key) three-state default -- which falls back
+    to "every built-in active" and would mask the graph-load-failure
+    scenario below -- an explicit empty ``frozenset()`` per kind means
+    nothing is config-activated unless *overrides* says otherwise.
+    """
+    base = PackContext(
+        activated_kinds=frozenset(
+            {
+                "directives",
+                "tactics",
+                "styleguides",
+                "toolguides",
+                "paradigms",
+                "procedures",
+                "agent_profiles",
+                "mission_step_contracts",
+            }
+        ),
+        activated_mission_types=frozenset({"software-dev"}),
+        pack_roots=(),
+        org_pack_names=(),
+        repo_root=repo_root,
+        activated_directives=frozenset(),
+        activated_tactics=frozenset(),
+        activated_styleguides=frozenset(),
+        activated_toolguides=frozenset(),
+        activated_paradigms=frozenset(),
+        activated_procedures=frozenset(),
+        activated_agent_profiles=frozenset(),
+    )
+    return dataclasses.replace(base, **overrides)  # type: ignore[arg-type]
+
+
 def test_compile_with_repo_root_handles_missing_shipped_graph(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """When repo_root is passed but the shipped graph cannot be loaded,
-    _build_references falls back to legacy minimal behavior (directives only,
-    no transitive resolution). Exercises compiler.py FileNotFoundError branch.
+    """WP03 re-pin (T028): when the shipped graph cannot be loaded, tactics
+    reachable ONLY via directive-closure transitive resolution do not
+    resolve -- but a tactic activated DIRECTLY in ``config.activated_*``
+    still surfaces via the documented graph-load-failure fallback bucket
+    (``_resolve_transitive_reference_graph``'s ``FileNotFoundError`` branch
+    in ``charter/compiler.py``: "the direct roots must still surface...
+    rather than silently vanishing"). This is WP02 T026's intentional
+    behavior change, not a regression: the original assertion here ("no
+    tactics ever resolve on graph failure") is unconditionally false now
+    that direct-root activation exists, so it is re-pinned rather than
+    merely deleted.
     """
     from charter import _drg_helpers as drg_helpers_module
 
@@ -306,16 +349,37 @@ def test_compile_with_repo_root_handles_missing_shipped_graph(tmp_path: Path, mo
 
     monkeypatch.setattr(drg_helpers_module, "load_validated_graph", _raise_fnf)
 
+    # No tactic is config-activated directly -- the only way "tactic" could
+    # appear is via directive transitive closure, which the broken graph
+    # makes unreachable.
+    no_tactics = _empty_pack_context(tmp_path)
     compiled = compile_charter(
         mission="software-dev",
         interview=interview,
         doctrine_service=None,
         repo_root=tmp_path,
+        pack_context=no_tactics,
     )
-    # Fallback path: no transitive artifacts beyond directives/paradigms themselves.
     kinds = {reference.kind for reference in compiled.references}
     assert "tactic" not in kinds, (
-        f"FileNotFoundError branch should NOT resolve tactics; got {sorted(kinds)}"
+        f"graph-load failure must not resolve transitive-only tactics when none is "
+        f"config-activated directly; got {sorted(kinds)}"
+    )
+
+    # A tactic activated DIRECTLY still surfaces via the fallback bucket,
+    # even though the graph failed to load (WP02 T026).
+    with_direct_tactic = _empty_pack_context(tmp_path, activated_tactics=frozenset({"zombies-tdd"}))
+    compiled_with_direct_tactic = compile_charter(
+        mission="software-dev",
+        interview=interview,
+        doctrine_service=None,
+        repo_root=tmp_path,
+        pack_context=with_direct_tactic,
+    )
+    direct_kinds = {reference.kind for reference in compiled_with_direct_tactic.references}
+    assert "tactic" in direct_kinds, (
+        "a directly config-activated tactic must still surface via the graph-load-failure "
+        f"fallback bucket; got {sorted(direct_kinds)}"
     )
 
 
@@ -350,37 +414,18 @@ def test_compile_with_doctrine_service_uses_repositories() -> None:
     assert "## Governance Activation" in compiled.markdown
 
 
-def test_compile_with_doctrine_service_unknown_directive_in_diagnostics() -> None:
-    """Unknown directives surface as a user-visible diagnostic.
-
-    Post-WP03 the DRG is the sole authority for transitive references; any
-    directive not in the catalog is dropped by
-    ``_sanitize_catalog_selection`` before transitive resolution fires, so
-    the diagnostic is emitted by the sanitizer rather than the walker.
-    The user-visible signal (a non-silent diagnostic about the bad
-    selection) is preserved.
-    """
-    mock_service = MagicMock()
-    mock_service.directives.get.return_value = None
-    mock_service.tactics.get.return_value = None
-    mock_service.styleguides.get.return_value = None
-    mock_service.toolguides.get.return_value = None
-    mock_service.procedures.get.return_value = None
-
-    interview_with_directive = default_interview(mission="software-dev", profile="minimal")
-    object.__setattr__(
-        interview_with_directive, "selected_directives", ["DIRECTIVE_MISSING"]
-    )
-
-    compiled = compile_charter(
-        mission="software-dev",
-        interview=interview_with_directive,
-        doctrine_service=mock_service,
-    )
-
-    assert any(
-        "DIRECTIVE_MISSING" in d for d in compiled.diagnostics
-    ), f"Expected a diagnostic about DIRECTIVE_MISSING; got: {compiled.diagnostics}"
+# NOTE (WP03 T028, unify-charter-activation-surfaces): DELETED (not
+# re-pinned) ``test_compile_with_doctrine_service_unknown_directive_in_diagnostics``.
+# It set ``interview_with_directive.selected_directives = ["DIRECTIVE_MISSING"]``
+# and asserted the bogus id produced a diagnostic. Since ``interview.
+# selected_*`` is no longer read for activation (WP02, FR-001/FR-002),
+# "DIRECTIVE_MISSING" now never enters any code path -- the assertion can
+# never be satisfied again by construction, not merely by an implementation
+# detail moving. The config-sourced replacement for "an invalid activation
+# id is surfaced, not silently dropped" is a STRONGER, fail-closed contract
+# (raise, not degrade-with-diagnostic) already pinned by
+# ``tests/charter/test_config_sourced_derivation.py::test_unresolvable_config_directive_stem_raises``
+# (and its styleguide sibling), so deleting here is not a coverage loss.
 
 
 # ---------------------------------------------------------------------------

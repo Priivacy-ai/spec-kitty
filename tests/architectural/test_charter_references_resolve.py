@@ -32,6 +32,7 @@ import pytest
 
 from charter.compiler import compile_charter
 from charter.interview import read_interview_answers
+from charter.pack_context import PackContext
 from doctrine.service import DoctrineService
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
@@ -47,30 +48,25 @@ ANSWERS_PATH = REPO_ROOT / ".kittify" / "charter" / "interview" / "answers.yaml"
 _MISSION_TOKENS = frozenset({"model-task-routing", "autonomous-operation-protocol"})
 
 # Frozen-baseline shrink-only ratchet (mirrors the dead-module allowlist
-# pattern in ``tests/architectural/``). These charter tokens are cited in the
-# **Governing Principles** section but do not resolve to a compiled charter
-# reference today. They are PRE-EXISTING danglers that predate this mission
-# and are out of WP06's scope to fix; #2380 owns wiring them into
-# DRG/interview reachability. The ratchet lets the invariant be GREEN on the
-# lane while still catching any NEW dangling reference (regression guard),
-# and it is SHRINK-ONLY: once #2380 makes any of these resolve, the test
-# fails until it is removed from the baseline (so the baseline can never
-# silently mask a regression that happens to reuse one of these names).
-PRE_EXISTING_DANGLING_BASELINE = frozenset(
-    {
-        # #2380: `domain-driven-design` paradigm is cited but
-        # ``interview/answers.yaml`` ``selected_paradigms`` is empty, so no
-        # PARADIGM reference is ever compiled.
-        "domain-driven-design",
-        # #2380: `aggregate-design-rules` styleguide is only reachable in
-        # graph.yaml via a suggests edge from a tactic that is not itself
-        # reachable from any activated directive.
-        "aggregate-design-rules",
-        # #2380: `contextive` toolguide is only reachable via a suggests edge
-        # from a non-activated-directive-reachable tactic.
-        "contextive",
-    }
-)
+# pattern in ``tests/architectural/``). It is SHRINK-ONLY: any token added
+# back here without provably still dangling would let the baseline mask a
+# regression that happens to reuse the same name; :func:`test_dangling_baseline_is_shrink_only`
+# below enforces that invariant on whatever this set currently holds.
+#
+# #2380 CLOSED (WP03, unify-charter-activation-surfaces): all three tokens
+# that used to live in this baseline now resolve, so the baseline is empty.
+# WP02 (T026) made ``.kittify/config.yaml`` ``activated_*`` the direct
+# activation root for styleguides/toolguides/tactics/procedures/agent
+# profiles (not just directive-transitive-closure reachable), and paradigms
+# are read directly from ``config.activated_paradigms`` rather than the
+# retired ``interview.selected_paradigms``:
+# - `domain-driven-design` now resolves: the paradigm is listed in
+#   ``config.activated_paradigms`` and is loaded as a direct root.
+# - `aggregate-design-rules` / `contextive` now resolve: both are listed in
+#   ``config.activated_styleguides`` / ``config.activated_toolguides`` and
+#   are seeded as direct roots (WP02 T026), independent of directive
+#   transitive-closure reachability.
+PRE_EXISTING_DANGLING_BASELINE: frozenset[str] = frozenset()
 
 # The charter's citation marker: a bare arrow introduces a doctrine reference,
 # e.g. "... enforced. → `DIRECTIVE_044`, `canonical-source-unification`."
@@ -175,16 +171,27 @@ def _compiled_reference_id_suffixes() -> set[str]:
     rooted at ``src/doctrine`` so a resolved suffix is proof the reference
     is DRG/interview reachable, never merely a string dropped by hand into
     ``references.yaml``.
+
+    WP03 (IC-01 consequence): the activation source is
+    ``.kittify/config.yaml`` ``activated_*`` (FR-001/FR-002), not
+    ``interview.selected_*`` -- ``pack_context`` is built explicitly here
+    (mirroring the same explicit construction ``charter generate`` performs,
+    see ``specify_cli.cli.commands.charter.generate.generate``) rather than
+    left for :func:`compile_charter` to build implicitly from *repo_root*,
+    so the config-sourced derivation this guard depends on is visible at the
+    call site, not just an internal default.
     """
     interview = read_interview_answers(ANSWERS_PATH)
     assert interview is not None, "expected the project's real interview answers to load"
 
     doctrine_service = DoctrineService(built_in_root=REPO_ROOT / "src" / "doctrine")
+    pack_context = PackContext.from_config(REPO_ROOT)
     compiled = compile_charter(
         mission=interview.mission,
         interview=interview,
         repo_root=REPO_ROOT,
         doctrine_service=doctrine_service,
+        pack_context=pack_context,
     )
 
     return {reference.id.split(":", 1)[-1] for reference in compiled.references}

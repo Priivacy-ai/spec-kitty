@@ -30,6 +30,7 @@ def _build_synthesis_request(
     """
     import uuid
 
+    from charter.compiler import resolve_config_activated_roots
     from charter.interview import read_interview_answers
     from charter.synthesizer.fixture_adapter import FixtureAdapter
     from charter.synthesizer.generated_artifact_adapter import GeneratedArtifactAdapter
@@ -45,11 +46,20 @@ def _build_synthesis_request(
             "Run 'spec-kitty charter interview' first."
         )
 
-    # Build a minimal interview snapshot from the interview data
+    # FR-001/FR-002 (WP02): the project-graph derivation reads
+    # ``config.activated_*``, not ``answers.selected_*`` -- ``answers.yaml``
+    # remains the captured interview record (still folded into the snapshot
+    # below via ``interview_data.answers``) but is retired as an activation
+    # source. ``resolve_config_activated_roots`` is the shared charter-layer
+    # seam that also drives the ``references.yaml`` derivation in
+    # ``charter.compiler.compile_charter``, so both derivation paths agree.
+    config_roots = resolve_config_activated_roots(repo_root=repo_root)
+
+    # Build a minimal interview snapshot, config-activated selections + answers
     interview_snapshot: dict[str, Any] = {
         "mission_id": interview_data.mission,
-        "selected_directives": interview_data.selected_directives,
-        "selected_paradigms": interview_data.selected_paradigms,
+        "selected_directives": config_roots.directives,
+        "selected_paradigms": config_roots.paradigms,
     }
     interview_snapshot.update(dict(interview_data.answers))
 
@@ -60,9 +70,9 @@ def _build_synthesis_request(
         "styleguides": {},
     }
 
-    # Build a minimal DRG snapshot with built-in directives as nodes
+    # Build a minimal DRG snapshot with config-activated directives as nodes
     drg_nodes = []
-    for directive_id in interview_data.selected_directives:
+    for directive_id in config_roots.directives:
         drg_nodes.append({
             "urn": f"directive:{directive_id}",
             "kind": "directive",

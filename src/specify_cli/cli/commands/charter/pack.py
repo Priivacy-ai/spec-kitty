@@ -42,6 +42,10 @@ def consistency_check_cmd(
                 console.print(f"  [yellow]Missing from doctrine:[/yellow] {ref}")
             for v in report.kind_violations:
                 console.print(f"  [red]Kind violation:[/red] {v}")
+            for ref in report.reference_id_divergences:
+                console.print(f"  [red]Reference ID divergence:[/red] {ref}")
+            for kind in report.graph_kind_gaps:
+                console.print(f"  [red]Graph kind gap:[/red] {kind}")
             for s in report.suggestions:
                 console.print(f"  [dim]Suggestion:[/dim] {s}")
     raise typer.Exit(0 if report.coherent else 1)

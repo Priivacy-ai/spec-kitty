@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime, UTC
 from io import StringIO
@@ -20,7 +21,9 @@ from charter.interview import (
     apply_doctrine_intent_aliases,
     validate_local_support_declarations,
 )
+from charter.kind_vocabulary import ArtifactKind, resolve_artifact_urn
 from charter.language_scope import extract_declared_languages
+from charter.pack_context import PackContext
 from charter.resolver import DEFAULT_TOOL_REGISTRY
 
 __all__ = [
@@ -28,8 +31,16 @@ __all__ = [
     "CompiledCharter",
     "WriteBundleResult",
     "compile_charter",
+    "resolve_config_activated_roots",
     "write_compiled_charter",
 ]
+# NOTE: ``ConfigActivatedRoots`` is intentionally NOT public API -- it is the
+# return type of ``resolve_config_activated_roots`` but every real caller
+# (e.g. ``specify_cli.cli.commands.charter._synthesis``) consumes the
+# returned instance by attribute access and never imports the class name
+# itself; only its own test module imports it directly, which does not
+# count as a caller under ``test_no_public_symbol_in_all_is_unimported``
+# (WP05/T021b, mission unify-charter-activation-surfaces-01KX5SJ9).
 
 
 
@@ -39,6 +50,168 @@ class _SelectionBundle:
 
     paradigms: list[str]
     directives: list[str]
+
+
+@dataclass(frozen=True)
+class ConfigActivatedRoots:
+    """Config-sourced activation roots (FR-001/FR-002), resolved to bare DRG ids.
+
+    Replaces the retired ``answers.selected_*`` derivation source (WP02,
+    IC-01). Directives and paradigms feed the legacy pipelines unchanged
+    (directive-closure seed; paradigm direct YAML load); tactics, styleguides,
+    toolguides, procedures, and agent profiles are *additionally* seeded as
+    direct roots (T026) so an artefact activated directly in
+    ``config.activated_*`` resolves in the compiled set even when no selected
+    directive's transitive closure reaches it.
+    """
+
+    directives: list[str]
+    paradigms: list[str]
+    tactics: list[str]
+    styleguides: list[str]
+    toolguides: list[str]
+    procedures: list[str]
+    agent_profiles: list[str]
+
+
+def _resolve_config_activated_ids(
+    kind: ArtifactKind,
+    activated_stems: frozenset[str] | None,
+    *,
+    doctrine_root: Path,
+    fallback_ids: frozenset[str],
+) -> list[str]:
+    """Resolve ``config.activated_<kind>`` stems to bare canonical DRG ids.
+
+    ``activated_stems is None`` mirrors the three-state semantics documented
+    on :class:`charter.pack_context.PackContext`: the key is absent from
+    ``.kittify/config.yaml`` (or no project config is available at all), so
+    every built-in id for *kind* is available -- the same default already
+    applied by ``charter.resolver`` when filtering paradigms/procedures/agent
+    profiles.
+
+    A stem that cannot be resolved to a canonical id raises
+    :class:`~charter.kind_vocabulary.UnknownArtifactIdError` (propagated from
+    :func:`~charter.kind_vocabulary.resolve_artifact_urn`) rather than being
+    silently dropped -- this closes the C-006 silent-drop vector that
+    ``_sanitize_catalog_selection`` left open for the answers-sourced path.
+    """
+    if activated_stems is None:
+        return sorted(fallback_ids)
+
+    resolved = {
+        resolve_artifact_urn(kind, stem, doctrine_root=doctrine_root).split(":", 1)[1]
+        for stem in activated_stems
+    }
+    return sorted(resolved)
+
+
+def _resolve_config_activated_roots(
+    *,
+    pack_context: PackContext | None,
+    catalog: DoctrineCatalog,
+    doctrine_root: Path,
+) -> ConfigActivatedRoots:
+    """Build the full config-sourced activation bundle for one compile."""
+
+    def _stems(field_name: str) -> frozenset[str] | None:
+        return getattr(pack_context, field_name) if pack_context is not None else None
+
+    return ConfigActivatedRoots(
+        directives=_resolve_config_activated_ids(
+            ArtifactKind.DIRECTIVE,
+            _stems("activated_directives"),
+            doctrine_root=doctrine_root,
+            fallback_ids=catalog.directives,
+        ),
+        paradigms=_resolve_config_activated_ids(
+            ArtifactKind.PARADIGM,
+            _stems("activated_paradigms"),
+            doctrine_root=doctrine_root,
+            fallback_ids=catalog.paradigms,
+        ),
+        tactics=_resolve_config_activated_ids(
+            ArtifactKind.TACTIC,
+            _stems("activated_tactics"),
+            doctrine_root=doctrine_root,
+            fallback_ids=catalog.tactics,
+        ),
+        styleguides=_resolve_config_activated_ids(
+            ArtifactKind.STYLEGUIDE,
+            _stems("activated_styleguides"),
+            doctrine_root=doctrine_root,
+            fallback_ids=catalog.styleguides,
+        ),
+        toolguides=_resolve_config_activated_ids(
+            ArtifactKind.TOOLGUIDE,
+            _stems("activated_toolguides"),
+            doctrine_root=doctrine_root,
+            fallback_ids=catalog.toolguides,
+        ),
+        procedures=_resolve_config_activated_ids(
+            ArtifactKind.PROCEDURE,
+            _stems("activated_procedures"),
+            doctrine_root=doctrine_root,
+            fallback_ids=catalog.procedures,
+        ),
+        agent_profiles=_resolve_config_activated_ids(
+            ArtifactKind.AGENT_PROFILE,
+            _stems("activated_agent_profiles"),
+            doctrine_root=doctrine_root,
+            fallback_ids=catalog.agent_profiles,
+        ),
+    )
+
+
+def _direct_root_urns(config_roots: ConfigActivatedRoots) -> frozenset[str]:
+    """Direct-activation root URNs (WP02 T026).
+
+    These are the kinds that may be activated directly in
+    ``config.activated_*`` with no directive edge reaching them (e.g. a
+    styleguide or toolguide with only a ``suggests`` edge from an
+    unreachable tactic). Directives seed the transitive closure separately
+    (see :func:`_resolve_transitive_reference_graph`); paradigms are never
+    DRG-reachable and are loaded directly from YAML, so neither appears here.
+    """
+    urns: set[str] = set()
+    urns.update(f"{ArtifactKind.TACTIC.value}:{artifact_id}" for artifact_id in config_roots.tactics)
+    urns.update(f"{ArtifactKind.STYLEGUIDE.value}:{artifact_id}" for artifact_id in config_roots.styleguides)
+    urns.update(f"{ArtifactKind.TOOLGUIDE.value}:{artifact_id}" for artifact_id in config_roots.toolguides)
+    urns.update(f"{ArtifactKind.PROCEDURE.value}:{artifact_id}" for artifact_id in config_roots.procedures)
+    urns.update(f"{ArtifactKind.AGENT_PROFILE.value}:{artifact_id}" for artifact_id in config_roots.agent_profiles)
+    return frozenset(urns)
+
+
+def _bare_ids_for_kind(urns: frozenset[str], kind: ArtifactKind) -> list[str]:
+    """Strip the ``"<kind>:"`` prefix from every URN in *urns* matching *kind*."""
+    prefix = f"{kind.value}:"
+    return [urn[len(prefix) :] for urn in urns if urn.startswith(prefix)]
+
+
+def resolve_config_activated_roots(
+    *,
+    repo_root: Path,
+    doctrine_catalog: DoctrineCatalog | None = None,
+) -> ConfigActivatedRoots:
+    """Resolve ``.kittify/config.yaml`` ``activated_*`` stems to bare canonical ids.
+
+    Public entry point shared by both FR-002 derivation paths: this module's
+    own :func:`compile_charter` (the ``references.yaml`` path) and
+    ``specify_cli.cli.commands.charter._synthesis`` (the project-graph path,
+    ``interview_snapshot``/``drg_snapshot``). Keeping the config-read + stem
+    mapping logic here (rather than duplicating it in ``specify_cli``) is the
+    charter/specify_cli layer rule for this mission: config-read and mapping
+    logic live in ``charter``; ``specify_cli`` orchestrates.
+    """
+    catalog = doctrine_catalog or load_doctrine_catalog()
+    pack_context = PackContext.from_config(repo_root)
+    doctrine_root = resolve_doctrine_root()
+    return _resolve_config_activated_roots(
+        pack_context=pack_context,
+        catalog=catalog,
+        doctrine_root=doctrine_root,
+    )
+
 
 if TYPE_CHECKING:
     from doctrine.service import DoctrineService
@@ -89,6 +262,7 @@ def compile_charter(
     doctrine_catalog: DoctrineCatalog | None = None,
     doctrine_service: DoctrineService | None = None,
     repo_root: Path | None = None,
+    pack_context: PackContext | None = None,
 ) -> CompiledCharter:
     """Compile charter markdown, references manifest, and library docs.
 
@@ -96,6 +270,17 @@ def compile_charter(
     typed repository API and DRG-backed path. When *doctrine_service* is not
     supplied, a default service rooted at built-in doctrine (and an optional
     project overlay under *repo_root*) is constructed automatically.
+
+    The activated-doctrine selection (paradigms, directives, tactics,
+    styleguides, toolguides, procedures, agent profiles) is sourced from
+    ``config.activated_*`` (FR-001/FR-002), never from
+    ``interview.selected_*`` -- ``answers.selected_*`` is retired as an
+    activation source and is captured purely as an interview record (see
+    ``_user_profile_reference``). When *pack_context* is not supplied, it is
+    built from ``.kittify/config.yaml`` under *repo_root* (mirroring
+    :func:`_default_doctrine_service`); when neither is available, every kind
+    resolves to "all built-ins active" -- the same absent-key default
+    :class:`~charter.pack_context.PackContext` already documents.
     """
     interview = apply_doctrine_intent_aliases(interview)
     active_languages = extract_declared_languages("\n".join(str(value) for value in interview.answers.values()))
@@ -105,25 +290,17 @@ def compile_charter(
     if doctrine_service is None:
         doctrine_service = _default_doctrine_service(repo_root)
 
+    if pack_context is None and repo_root is not None:
+        pack_context = PackContext.from_config(repo_root)
+
+    doctrine_root = resolve_doctrine_root()
+    config_roots = _resolve_config_activated_roots(
+        pack_context=pack_context,
+        catalog=catalog,
+        doctrine_root=doctrine_root,
+    )
+
     template = _resolve_template_set(mission=mission, requested_template_set=template_set, catalog=catalog)
-    selected_paradigms = _sanitize_catalog_selection(
-        values=interview.selected_paradigms,
-        allowed=set(catalog.paradigms),
-        label="selected_paradigms",
-        diagnostics=diagnostics,
-    )
-    selected_directives = _sanitize_catalog_selection(
-        values=interview.selected_directives,
-        allowed=set(catalog.directives),
-        label="selected_directives",
-        diagnostics=diagnostics,
-    )
-    selected_tactics = _sanitize_catalog_selection(
-        values=interview.selected_tactics,
-        allowed=set(catalog.tactics),
-        label="selected_tactics",
-        diagnostics=diagnostics,
-    )
     available_tools = _sanitize_catalog_selection(
         values=interview.available_tools,
         allowed=set(DEFAULT_TOOL_REGISTRY),
@@ -141,8 +318,7 @@ def compile_charter(
         mission=mission,
         template_set=template,
         interview=interview,
-        paradigms=selected_paradigms,
-        directives=selected_directives,
+        config_roots=config_roots,
         doctrine_service=doctrine_service,
         repo_root=repo_root,
         diagnostics=diagnostics,
@@ -161,9 +337,9 @@ def compile_charter(
         mission=mission,
         template_set=template,
         interview=interview,
-        selected_paradigms=selected_paradigms,
-        selected_directives=selected_directives,
-        selected_tactics=selected_tactics,
+        selected_paradigms=config_roots.paradigms,
+        selected_directives=config_roots.directives,
+        selected_tactics=config_roots.tactics,
         available_tools=available_tools,
         references=references,
         doctrine_service=doctrine_service,
@@ -172,13 +348,13 @@ def compile_charter(
     return CompiledCharter(
         mission=mission,
         template_set=template,
-        selected_paradigms=selected_paradigms,
-        selected_directives=selected_directives,
+        selected_paradigms=config_roots.paradigms,
+        selected_directives=config_roots.directives,
         available_tools=available_tools,
         markdown=markdown,
         references=references,
         diagnostics=diagnostics,
-        selected_tactics=selected_tactics,
+        selected_tactics=config_roots.tactics,
         active_languages=active_languages,
     )
 
@@ -350,8 +526,7 @@ def _build_references(
     mission: str,
     template_set: str,
     interview: CharterInterview,
-    paradigms: list[str],
-    directives: list[str],
+    config_roots: ConfigActivatedRoots,
     doctrine_service: DoctrineService,
     repo_root: Path | None = None,
     diagnostics: list[str] | None = None,
@@ -364,8 +539,7 @@ def _build_references(
         _build_references_from_service(
             mission=mission,
             template_set=template_set,
-            paradigms=paradigms,
-            directives=directives,
+            config_roots=config_roots,
             doctrine_root=doctrine_root,
             doctrine_service=doctrine_service,
             repo_root=repo_root,
@@ -425,12 +599,44 @@ def _build_references_from_yaml(
     return references
 
 
+def _render_kind_references(
+    ids: list[str],
+    *,
+    kind: str,
+    repository: Any,
+    id_of: Callable[[Any], str],
+    title_of: Callable[[Any], str],
+    summary_of: Callable[[Any], str],
+) -> list[CharterReference]:
+    """Render one :class:`CharterReference` per id, via a typed repository lookup.
+
+    Shared by every DRG-backed kind in :func:`_build_references_from_service`
+    (directive, tactic, styleguide, toolguide, procedure, agent profile) so
+    the five near-identical "look up, else fall back to a bare YAML
+    reference" loops collapse to one call site per kind.
+    """
+    references: list[CharterReference] = []
+    for raw_id in ids:
+        model = repository.get(raw_id)
+        if model is not None:
+            references.append(
+                _doctrine_model_reference(
+                    kind=kind,
+                    raw_id=id_of(model),
+                    title=title_of(model),
+                    summary=summary_of(model),
+                )
+            )
+        else:
+            references.append(_doctrine_yaml_reference(kind=kind, raw_id=raw_id, source=None))
+    return references
+
+
 def _build_references_from_service(
     *,
     mission: str,
     template_set: str,
-    paradigms: list[str],
-    directives: list[str],
+    config_roots: ConfigActivatedRoots,
     doctrine_root: Path,
     doctrine_service: DoctrineService,
     repo_root: Path | None,
@@ -439,9 +645,10 @@ def _build_references_from_service(
     """Load references via typed repository queries and DRG-backed transitive resolution."""
     references: list[CharterReference] = []
 
-    # Paradigms: still loaded via YAML scanning (no typed paradigm references in graph)
+    # Paradigms: still loaded via YAML scanning (no typed paradigm references in graph).
+    # Selection-only per the mission decision -- never DRG-reachable.
     paradigm_sources = _index_yaml_assets(doctrine_root / "paradigms", "*.paradigm.yaml")
-    for paradigm in paradigms:
+    for paradigm in config_roots.paradigms:
         references.append(
             _doctrine_yaml_reference(
                 kind="paradigm",
@@ -450,81 +657,78 @@ def _build_references_from_service(
             )
         )
 
+    # T026: tactics/styleguides/toolguides/procedures/agent profiles activated
+    # directly in config.activated_* seed the transitive walk as additional
+    # roots, unioned with the directive-closure result -- so an artefact with
+    # no directive edge (e.g. the #2524 baseline danglers `aggregate-design-
+    # rules` / `contextive`) still resolves.
     graph = _resolve_transitive_reference_graph(
         doctrine_root=doctrine_root,
-        directives=directives,
+        directives=config_roots.directives,
+        direct_root_urns=_direct_root_urns(config_roots),
         repo_root=repo_root,
     )
 
-    for directive_id in graph.directives:
-        directive = doctrine_service.directives.get(directive_id)
-        if directive is not None:
-            references.append(
-                _doctrine_model_reference(
-                    kind="directive",
-                    raw_id=directive.id,
-                    title=directive.title,
-                    summary=directive.intent,
-                )
-            )
-        else:
-            references.append(_doctrine_yaml_reference(kind="directive", raw_id=directive_id, source=None))
-
-    for tactic_id in graph.tactics:
-        tactic = doctrine_service.tactics.get(tactic_id)
-        if tactic is not None:
-            references.append(
-                _doctrine_model_reference(
-                    kind="tactic",
-                    raw_id=tactic.id,
-                    title=tactic.name,
-                    summary=tactic.purpose or f"Tactic: {tactic.name}",
-                )
-            )
-        else:
-            references.append(_doctrine_yaml_reference(kind="tactic", raw_id=tactic_id, source=None))
-
-    for sg_id in graph.styleguides:
-        sg = doctrine_service.styleguides.get(sg_id)
-        if sg is not None:
-            references.append(
-                _doctrine_model_reference(
-                    kind="styleguide",
-                    raw_id=sg.id,
-                    title=sg.title,
-                    summary=sg.principles[0] if sg.principles else f"Styleguide: {sg.title}",
-                )
-            )
-        else:
-            references.append(_doctrine_yaml_reference(kind="styleguide", raw_id=sg_id, source=None))
-
-    for tg_id in graph.toolguides:
-        tg = doctrine_service.toolguides.get(tg_id)
-        if tg is not None:
-            references.append(
-                _doctrine_model_reference(
-                    kind="toolguide",
-                    raw_id=tg.id,
-                    title=tg.title,
-                    summary=tg.summary,
-                )
-            )
-        else:
-            references.append(_doctrine_yaml_reference(kind="toolguide", raw_id=tg_id, source=None))
-
-    for proc_id in graph.procedures:
-        proc = doctrine_service.procedures.get(proc_id)
-        if proc is not None:
-            references.append(
-                _doctrine_model_reference(
-                    kind="procedure",
-                    raw_id=proc.id,
-                    title=proc.name,
-                    summary=proc.purpose,
-                )
-            )
-        else:
-            references.append(_doctrine_yaml_reference(kind="procedure", raw_id=proc_id, source=None))
+    references.extend(
+        _render_kind_references(
+            graph.directives,
+            kind="directive",
+            repository=doctrine_service.directives,
+            id_of=lambda d: str(d.id),
+            title_of=lambda d: str(d.title),
+            summary_of=lambda d: str(d.intent),
+        )
+    )
+    references.extend(
+        _render_kind_references(
+            graph.tactics,
+            kind="tactic",
+            repository=doctrine_service.tactics,
+            id_of=lambda t: str(t.id),
+            title_of=lambda t: str(t.name),
+            summary_of=lambda t: str(t.purpose or f"Tactic: {t.name}"),
+        )
+    )
+    references.extend(
+        _render_kind_references(
+            graph.styleguides,
+            kind="styleguide",
+            repository=doctrine_service.styleguides,
+            id_of=lambda sg: str(sg.id),
+            title_of=lambda sg: str(sg.title),
+            summary_of=lambda sg: str(sg.principles[0] if sg.principles else f"Styleguide: {sg.title}"),
+        )
+    )
+    references.extend(
+        _render_kind_references(
+            graph.toolguides,
+            kind="toolguide",
+            repository=doctrine_service.toolguides,
+            id_of=lambda tg: str(tg.id),
+            title_of=lambda tg: str(tg.title),
+            summary_of=lambda tg: str(tg.summary),
+        )
+    )
+    references.extend(
+        _render_kind_references(
+            graph.procedures,
+            kind="procedure",
+            repository=doctrine_service.procedures,
+            id_of=lambda proc: str(proc.id),
+            title_of=lambda proc: str(proc.name),
+            summary_of=lambda proc: str(proc.purpose),
+        )
+    )
+    references.extend(
+        _render_kind_references(
+            graph.agent_profiles,
+            kind="agent_profile",
+            repository=doctrine_service.agent_profiles,
+            id_of=lambda ap: str(ap.profile_id),
+            title_of=lambda ap: str(ap.name),
+            summary_of=lambda ap: str(ap.description or f"Agent profile: {ap.name}"),
+        )
+    )
 
     # Record unresolved refs in diagnostics
     for artifact_type, artifact_id in graph.unresolved:
@@ -540,9 +744,18 @@ def _resolve_transitive_reference_graph(
     doctrine_root: Path,
     directives: list[str],
     repo_root: Path | None,
+    direct_root_urns: frozenset[str] = frozenset(),
     pack_context: Any = None,
 ) -> Any:
-    """Resolve directive transitive closure from built-in/project DRG layers."""
+    """Resolve the transitive closure from built-in/project DRG layers.
+
+    *directives* seed the closure as before. *direct_root_urns* (WP02 T026)
+    are additional non-directive roots -- e.g. ``"styleguide:aggregate-
+    design-rules"`` -- for kinds activated directly in
+    ``config.activated_*`` with no directive edge reaching them; they are
+    unioned into the same BFS start set so they (and anything they in turn
+    require/suggest) resolve alongside the directive closure.
+    """
     from charter._drg_helpers import load_validated_graph
     from charter.drg import filter_graph_by_activation
     from doctrine.drg.loader import load_graph_or_dir
@@ -550,19 +763,32 @@ def _resolve_transitive_reference_graph(
     from doctrine.drg.query import ResolveTransitiveRefsResult, resolve_transitive_refs
     from doctrine.drg.validator import assert_valid
 
-    if not directives:
+    start_urns = {f"directive:{directive_id}" for directive_id in directives} | set(direct_root_urns)
+    if not start_urns:
         return ResolveTransitiveRefsResult()
+
+    # Graph-load-failure fallback: no transitive resolution, but the direct
+    # roots must still surface (bare ids, one bucket per kind) rather than
+    # silently vanishing alongside the directive closure.
+    fallback = ResolveTransitiveRefsResult(
+        directives=sorted(directives),
+        tactics=sorted(_bare_ids_for_kind(direct_root_urns, ArtifactKind.TACTIC)),
+        styleguides=sorted(_bare_ids_for_kind(direct_root_urns, ArtifactKind.STYLEGUIDE)),
+        toolguides=sorted(_bare_ids_for_kind(direct_root_urns, ArtifactKind.TOOLGUIDE)),
+        procedures=sorted(_bare_ids_for_kind(direct_root_urns, ArtifactKind.PROCEDURE)),
+        agent_profiles=sorted(_bare_ids_for_kind(direct_root_urns, ArtifactKind.AGENT_PROFILE)),
+    )
 
     try:
         if repo_root is not None:
             merged = load_validated_graph(repo_root)
         else:
             if not doctrine_root.exists():
-                return ResolveTransitiveRefsResult(directives=sorted(directives))
+                return fallback
             merged = load_graph_or_dir(doctrine_root)
             assert_valid(merged)
     except Exception:
-        return ResolveTransitiveRefsResult(directives=sorted(directives))
+        return fallback
 
     # FR-032, FR-035 (WP08): apply activation filter after load, before resolution.
     if pack_context is not None:
@@ -570,7 +796,7 @@ def _resolve_transitive_reference_graph(
 
     return resolve_transitive_refs(
         merged,
-        start_urns={f"directive:{directive_id}" for directive_id in directives},
+        start_urns=start_urns,
         relations={Relation.REQUIRES, Relation.SUGGESTS},
     )
 

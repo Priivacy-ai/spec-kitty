@@ -235,6 +235,7 @@ def generate(
       replace it with a regular runtime charter.
     """
     from charter.compiler import compile_charter, write_compiled_charter
+    from charter.pack_context import PackContext
     from charter.sync import sync as sync_charter
 
     try:
@@ -291,12 +292,22 @@ def generate(
             profile=profile,
         )
 
+        # FR-001/FR-002 (WP02): `.kittify/config.yaml` `activated_*` is the
+        # activation authority the compiled reference set derives from --
+        # built and passed explicitly (rather than left for `compile_charter`
+        # to construct implicitly from `repo_root`) so the config-sourced
+        # derivation is visible at the call site, not just an internal
+        # default. `interview_data` still flows through for the interview
+        # record (`_user_profile_reference`) and non-doctrine answers
+        # (testing/quality/deployment prose); it is no longer read for
+        # activation selection.
         compiled = compile_charter(
             mission=resolved_mission,
             interview=interview_data,
             template_set=template_set,
             repo_root=repo_root,
             doctrine_service=_build_doctrine_service_with_org_layer(repo_root),
+            pack_context=PackContext.from_config(repo_root),
         )
         bundle_result = write_compiled_charter(
             charter_dir,
