@@ -1,0 +1,70 @@
+{
+  "event_count": 49,
+  "last_event_id": "01KX6NS1HXMFGK0E0DP72N22DB",
+  "materialized_at": "2026-07-10T18:48:57.149826+00:00",
+  "mission_number": "172",
+  "mission_slug": "unify-charter-activation-surfaces-01KX5SJ9",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 7,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KX6NRXFNT5Z31ZYP3W4C5J71",
+      "last_transition_at": "2026-07-10T18:48:52.981301+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KX6NRY3MWPP958HJ1RKGDHY5",
+      "last_transition_at": "2026-07-10T18:48:53.620310+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KX6NRZPBQNHAAKJZ0SY2HMR8",
+      "last_transition_at": "2026-07-10T18:48:55.243283+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KX6NS0Y7KQ8V7W2CX1PH0S1A",
+      "last_transition_at": "2026-07-10T18:48:56.519561+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KX6NS1HXMFGK0E0DP72N22DB",
+      "last_transition_at": "2026-07-10T18:48:57.149826+00:00"
+    },
+    "WP06": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KX6NRYQ3E6KWT45XKB3T06YF",
+      "last_transition_at": "2026-07-10T18:48:54.243499+00:00"
+    },
+    "WP07": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KX6NS0AET095YVXSHKBNV9M9",
+      "last_transition_at": "2026-07-10T18:48:55.886633+00:00"
+    }
+  }
+}
