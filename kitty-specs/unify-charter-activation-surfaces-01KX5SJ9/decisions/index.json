@@ -1,0 +1,30 @@
+{
+  "entries": [
+    {
+      "created_at": "2026-07-10T10:36:26.548464Z",
+      "decision_id": "01KX5SK7HMAK0SYYERNGPY2TG6",
+      "final_answer": "config-single-authority: config.activated_* is THE single activation authority; references.yaml + graph + the compiled reference set derive from config.activated_*; answers.selected_* is retired as an activation source (interview-record only); consistency_check asserts references/graph parity with config and fails closed on divergence.",
+      "input_key": "reconciliation_direction",
+      "mission_id": "01KX5SJ9P0HXTVWZDJ121JBP60",
+      "mission_slug": "unify-charter-activation-surfaces-01KX5SJ9",
+      "opened_by": "cli",
+      "options": [
+        "write-through-plus-resynthesize",
+        "config-single-authority",
+        "explicit-resynthesize-flag"
+      ],
+      "origin_flow": "specify",
+      "other_answer": false,
+      "question": "How should config.activated_* and answers.selected_* be reconciled so activation never dangles?",
+      "rationale": null,
+      "resolved_at": "2026-07-10T10:55:00.119160Z",
+      "resolved_by": null,
+      "slot_key": "specify.reconciliation.direction",
+      "status": "resolved",
+      "step_id": null,
+      "summary_json": null
+    }
+  ],
+  "mission_id": "01KX5SJ9P0HXTVWZDJ121JBP60",
+  "version": 1
+}
