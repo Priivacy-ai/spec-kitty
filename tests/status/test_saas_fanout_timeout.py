@@ -17,6 +17,10 @@ import pytest
 
 from specify_cli.status import adapters
 
+# Pure-module threading behaviour (no subprocess/git/network); not `fast`
+# because the orphan-thread teardown joins push some cases past sub-second.
+pytestmark = [pytest.mark.unit]
+
 
 @pytest.fixture(autouse=True)
 def _clean_handlers() -> None:
