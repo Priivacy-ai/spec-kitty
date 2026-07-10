@@ -249,3 +249,11 @@ class TestGitDiffNamesChecked:
         with patch("specify_cli.core.vcs.git.subprocess.run", return_value=fake):
             assert git_diff_names_checked(tmp_path, "base", "head") is None
             assert git_diff_names(tmp_path, "base", "head") == ()
+
+    def test_timeout_is_passed_through(self, tmp_path):
+        fake = MagicMock(returncode=0, stdout="")
+        with patch(
+            "specify_cli.core.vcs.git.subprocess.run", return_value=fake
+        ) as mock_run:
+            git_diff_names(tmp_path, "base", "head", timeout=10)
+        assert mock_run.call_args.kwargs["timeout"] == 10

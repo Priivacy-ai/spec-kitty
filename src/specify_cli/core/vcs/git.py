@@ -1325,6 +1325,7 @@ def git_diff_names(
     *,
     pathspec: str | None = None,
     diff_filter: str | None = None,
+    timeout: float | None = None,
 ) -> tuple[str, ...]:
     """
     Return the ``--name-only`` changed-file set between two refs.
@@ -1342,13 +1343,17 @@ def git_diff_names(
         head: Head ref (commit-ish) to diff against ``base``.
         pathspec: Optional pathspec restricting the diff (``-- <pathspec>``).
         diff_filter: Optional ``--diff-filter`` value (e.g. ``"AMR"``).
+        timeout: Optional subprocess timeout (seconds). When set and the diff
+            exceeds it, ``subprocess.TimeoutExpired`` propagates — callers that
+            want empty-on-timeout must wrap the call (mirrors ``subprocess``
+            semantics; the surface never silently swallows a timeout).
 
     Returns:
         Tuple of stripped, non-empty repo-relative paths; empty tuple on
         non-zero exit.
     """
     result = git_diff_names_checked(
-        repo, base, head, pathspec=pathspec, diff_filter=diff_filter
+        repo, base, head, pathspec=pathspec, diff_filter=diff_filter, timeout=timeout
     )
     return () if result is None else result
 
@@ -1360,6 +1365,7 @@ def git_diff_names_checked(
     *,
     pathspec: str | None = None,
     diff_filter: str | None = None,
+    timeout: float | None = None,
 ) -> tuple[str, ...] | None:
     """Fail-distinguishing variant of :func:`git_diff_names`.
 
@@ -1378,6 +1384,8 @@ def git_diff_names_checked(
         head: Head ref (commit-ish) to diff against ``base``.
         pathspec: Optional pathspec restricting the diff (``-- <pathspec>``).
         diff_filter: Optional ``--diff-filter`` value (e.g. ``"AMR"``).
+        timeout: Optional subprocess timeout (seconds); ``TimeoutExpired``
+            propagates (not swallowed).
 
     Returns:
         Tuple of stripped, non-empty repo-relative paths on success (possibly
@@ -1398,6 +1406,7 @@ def git_diff_names_checked(
         encoding="utf-8",
         errors="replace",
         check=False,
+        timeout=timeout,
     )
     if result.returncode != 0:
         return None
