@@ -12,10 +12,10 @@ from __future__ import annotations
 
 import logging
 import re
-import subprocess
 from pathlib import Path
 from typing import Any
 
+from specify_cli.core.vcs.git import git_diff_names
 from specify_cli.ownership.inference import (
     infer_authoritative_surface,
     infer_execution_mode,
@@ -40,17 +40,9 @@ def _git_diff_files(repo_root: Path, base_branch: str, wp_branch: str) -> list[s
         Sorted list of relative file paths touched by the lane branch.
     """
     try:
-        result = subprocess.run(
-            ["git", "diff", "--name-only", f"{base_branch}..{wp_branch}"],
-            capture_output=True,
-            text=True,
-            cwd=repo_root,
-            timeout=10,
-        )
-        if result.returncode == 0:
-            files = [line.strip() for line in result.stdout.splitlines() if line.strip()]
-            logger.debug("git diff %s..%s: %d files", base_branch, wp_branch, len(files))
-            return sorted(files)
+        files = sorted(git_diff_names(repo_root, base_branch, wp_branch, timeout=10))
+        logger.debug("git diff %s..%s: %d files", base_branch, wp_branch, len(files))
+        return files
     except Exception as exc:
         logger.debug("git diff failed for branch %s: %s", wp_branch, exc)
     return []
