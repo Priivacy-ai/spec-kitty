@@ -1275,3 +1275,162 @@ def git_stash_pop(workspace_path: Path) -> bool:
         return result.returncode == 0
     except (subprocess.TimeoutExpired, OSError):
         return False
+
+
+# =============================================================================
+# Canonical merge-base / diff surface
+# =============================================================================
+#
+# Single source of truth for the "git merge-base -> git diff --name-only"
+# idiom (mission merge-base-diff-ssot-01KX44SD). Do NOT add another inline
+# copy of this idiom elsewhere — consume these primitives instead. This is
+# deliberately separate from GitVCS's internal merge-base usage for rebase
+# statistics (~L415 above), which is a different comparison and out of scope.
+
+
+def git_merge_base(repo: Path, ref_a: str, ref_b: str) -> str | None:
+    """
+    Return the merge-base commit SHA between two refs, or None.
+
+    Runs ``git merge-base <ref_a> <ref_b>`` in ``repo``. Never raises for a
+    git non-zero exit; degrades to None instead.
+
+    Args:
+        repo: Repository/worktree path to run the command in.
+        ref_a: First ref (commit-ish).
+        ref_b: Second ref (commit-ish).
+
+    Returns:
+        The stripped merge-base SHA, or None on non-zero exit or empty stdout.
+    """
+    result = subprocess.run(
+        ["git", "merge-base", ref_a, ref_b],
+        cwd=str(repo),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    merge_base = result.stdout.strip()
+    return merge_base or None
+
+
+def git_diff_names(
+    repo: Path,
+    base: str,
+    head: str,
+    *,
+    pathspec: str | None = None,
+    diff_filter: str | None = None,
+) -> tuple[str, ...]:
+    """
+    Return the ``--name-only`` changed-file set between two refs.
+
+    Runs ``git diff --name-only [--diff-filter=<diff_filter>] <base> <head>
+    [-- <pathspec>]`` in ``repo``, using the two-arg ``<base> <head>`` form
+    (equivalent to ``<base>..<head>`` for ``--name-only``). ``base``/``head``
+    are explicit refs — this does not assume ``head`` is ``HEAD``, so callers
+    that need to diff a non-HEAD branch target (e.g. an upstream-only
+    planning check) can do so directly.
+
+    Args:
+        repo: Repository/worktree path to run the command in.
+        base: Base ref (commit-ish), typically a merge-base SHA.
+        head: Head ref (commit-ish) to diff against ``base``.
+        pathspec: Optional pathspec restricting the diff (``-- <pathspec>``).
+        diff_filter: Optional ``--diff-filter`` value (e.g. ``"AMR"``).
+
+    Returns:
+        Tuple of stripped, non-empty repo-relative paths; empty tuple on
+        non-zero exit.
+    """
+    result = git_diff_names_checked(
+        repo, base, head, pathspec=pathspec, diff_filter=diff_filter
+    )
+    return () if result is None else result
+
+
+def git_diff_names_checked(
+    repo: Path,
+    base: str,
+    head: str,
+    *,
+    pathspec: str | None = None,
+    diff_filter: str | None = None,
+) -> tuple[str, ...] | None:
+    """Fail-distinguishing variant of :func:`git_diff_names`.
+
+    Identical command and output to :func:`git_diff_names`, except the failure
+    mode is *distinguishable*: returns ``None`` when the ``git diff`` command
+    exits non-zero, versus an empty tuple when the diff genuinely reports no
+    changed files. Use this from **fail-closed** callers that must treat an
+    undetermined diff differently from an empty one (e.g. the dependency-graph
+    upstream-only-planning check, where a failed diff must block rather than be
+    read as "no changes"). Callers that want empty-on-failure should use
+    :func:`git_diff_names`, which is a thin wrapper mapping ``None`` → ``()``.
+
+    Args:
+        repo: Repository/worktree path to run the command in.
+        base: Base ref (commit-ish), typically a merge-base SHA.
+        head: Head ref (commit-ish) to diff against ``base``.
+        pathspec: Optional pathspec restricting the diff (``-- <pathspec>``).
+        diff_filter: Optional ``--diff-filter`` value (e.g. ``"AMR"``).
+
+    Returns:
+        Tuple of stripped, non-empty repo-relative paths on success (possibly
+        empty); ``None`` on non-zero exit.
+    """
+    cmd = ["git", "diff", "--name-only"]
+    if diff_filter:
+        cmd.append(f"--diff-filter={diff_filter}")
+    cmd.extend([base, head])
+    if pathspec:
+        cmd.extend(["--", pathspec])
+
+    result = subprocess.run(
+        cmd,
+        cwd=str(repo),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode != 0:
+        return None
+    return tuple(line.strip() for line in result.stdout.splitlines() if line.strip())
+
+
+def merge_base_changed_files(
+    worktree: Path,
+    base_ref: str,
+    *,
+    pathspec: str | None = None,
+    diff_filter: str | None = None,
+) -> tuple[str, ...]:
+    """
+    HEAD-relative convenience: changed files since the merge-base with ``base_ref``.
+
+    Composes ``git_merge_base(worktree, "HEAD", base_ref)`` then
+    ``git_diff_names(worktree, merge_base, "HEAD", ...)``. Not for diff
+    targets other than HEAD — callers that need to diff a non-HEAD branch
+    target (e.g. an upstream-only planning check) must call
+    ``git_merge_base``/``git_diff_names`` directly instead.
+
+    Args:
+        worktree: Repository/worktree path to run the commands in.
+        base_ref: Ref to compute the merge-base against HEAD.
+        pathspec: Optional pathspec restricting the diff (``-- <pathspec>``).
+        diff_filter: Optional ``--diff-filter`` value (e.g. ``"AMR"``).
+
+    Returns:
+        Changed-file tuple; empty tuple on any failure (no merge-base, or
+        diff failure).
+    """
+    merge_base = git_merge_base(worktree, "HEAD", base_ref)
+    if merge_base is None:
+        return ()
+    return git_diff_names(worktree, merge_base, "HEAD", pathspec=pathspec, diff_filter=diff_filter)
