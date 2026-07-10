@@ -41,6 +41,7 @@ activated_directives:
 - 045-prs-only-and-read-intent
 - 041-tests-as-scaffold-not-friction
 - 042-common-docs
+- 046-readable-consistent-prs
 activated_tactics:
 - acceptance-test-first
 - adr-drafting-workflow
@@ -182,6 +183,7 @@ activated_procedures:
 - mission-tracer-files
 - adversarial-squad-deployment
 - post-merge-arch-gate-adjudication
+- mission-wrap-up-sequence
 activated_paradigms:
 - atomic-design
 - behaviour-driven-development

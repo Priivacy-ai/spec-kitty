@@ -92,6 +92,8 @@ selected_directives:
   - DIRECTIVE_043
   - DIRECTIVE_044
   - DIRECTIVE_045
+  # Mission wrap-up + readable-PRs doctrine (mission-wrapup-doctrine):
+  - DIRECTIVE_046
 
 # Tactics: use canonical id: field (same as filename stem for tactics).
 # Includes catfooding tactics from WP02 (§5a arch-gate non-vacuity),

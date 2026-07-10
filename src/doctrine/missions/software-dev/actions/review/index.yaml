@@ -3,6 +3,7 @@ directives:
   - 010-specification-fidelity-requirement
   - 037-living-documentation-sync
   - 030-test-and-typecheck-quality-gate
+  - 046-readable-consistent-prs
 tactics:
   - usage-examples-sync
   - review-intent-and-risk-first
@@ -10,4 +11,5 @@ tactics:
   - stopping-conditions
 styleguides: []
 toolguides: []
-procedures: []
+procedures:
+  - mission-wrap-up-sequence
