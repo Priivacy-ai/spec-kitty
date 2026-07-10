@@ -667,12 +667,15 @@ _CHECKOUT_GRAMMAR_ALLOW_LIST_SEED: tuple[tuple[str, int, str], ...] = (
     ),
     (
         "src/specify_cli/cli/commands/agent/tasks_move_task.py",
-        454,
+        455,
         "PERMANENT: _mt_commit_lane_deliverables commits arbitrary "
         "implementer deliverables onto the LANE's own branch "
         "(workspace.branch_name) -- not a MissionArtifactKind placement "
         "decision; the lane branch is fixed by lane allocation, never "
-        "resolved via the placement seam. Out of IC-04 scope.",
+        "resolved via the placement seam. Out of IC-04 scope. Line drift "
+        "454 -> 455 from #2450 WP04 (ScopeResult.from_override extraction "
+        "in _mt_pre_review_gate_with_override_scope); same construction, "
+        "verified by re-scan.",
     ),
 )
 
