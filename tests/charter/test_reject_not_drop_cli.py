@@ -32,7 +32,7 @@ from typer.testing import CliRunner
 from charter.kind_vocabulary import UnknownArtifactIdError
 from specify_cli.cli.commands.charter import charter_app
 
-pytestmark = [pytest.mark.fast, pytest.mark.unit]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 
