@@ -24,6 +24,28 @@ Covers:
   discipline pinned per the WP -- ``consistency_check`` must stay disjoint
   from ``freshness/computer.py`` (a ``specify_cli`` module that imports
   ``charter`` back) and must never import ``specify_cli`` at all.
+
+Post-WP05 adversarial-squad findings on this same guard (mission
+``unify-charter-activation-surfaces-01KX5SJ9``, PR #2528):
+
+- ``test_org_overlay_activated_artefact_resolves_for_parity``: #2529 --
+  ``_check_reference_id_parity`` must resolve org/project-overlay
+  artefacts (``org_roots``), not built-in doctrine only; otherwise a
+  config-activated ORG artefact silently skips the parity check instead of
+  being caught as a dangler.
+- ``test_corrupt_references_yaml_fails_closed`` /
+  ``test_references_yaml_malformed_schema_fails_closed`` /
+  ``test_references_yaml_absent_is_still_a_clean_skip``: #2530 -- an
+  unreadable/corrupt ``references.yaml`` must surface a
+  ``verification_errors`` finding and NOT-coherent report, distinct from
+  the legitimate "not yet synthesized" no-op skip (file simply absent).
+- ``test_drg_load_failure_fails_closed``: #2530 -- the KIND-level
+  config<->DRG check must fail closed the same way on a DRG load/validate
+  failure, not silently return an empty (passing) result.
+- ``test_paradigm_canonical_id_equals_config_stem_invariant``: pins the
+  invariant the reverse paradigm parity check depends on (paradigm
+  canonical id == config stem, no normalization step) via the same
+  resolver bridge the forward check uses, so it cannot silently rot.
 """
 
 from __future__ import annotations
@@ -34,8 +56,10 @@ from pathlib import Path
 import pytest
 from ruamel.yaml import YAML
 
+from charter.catalog import resolve_doctrine_root
 from charter.consistency_check import run_consistency_check
 from charter.invocation_context import ProjectContext
+from charter.kind_vocabulary import ArtifactKind, resolve_artifact_urn
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -89,6 +113,25 @@ def _reference_entry(ref_id: str, kind: str) -> dict[str, str]:
         "source_path": "",
         "local_path": "x",
     }
+
+
+def _write_org_directive(org_pack_root: Path, *, stem: str, canonical_id: str) -> None:
+    """Write a minimal org-pack-only directive artefact for #2529 org resolution.
+
+    ``resolve_artifact_urn``'s ``org_roots`` scan
+    (``charter.kind_vocabulary._scan_roots``) treats every org root the same
+    way it treats the built-in doctrine root: it looks for
+    ``<root>/<plural>/built-in/*.yaml``. This mirrors that exact shape so the
+    fixture is reachable through the precise code path Fix A repairs -- not
+    the (different) ``<root>/<plural>/*.yaml`` layout used by
+    ``doctrine.service.DoctrineService``'s org layer elsewhere in the suite.
+    """
+    directive_dir = org_pack_root / "directives" / "built-in"
+    directive_dir.mkdir(parents=True, exist_ok=True)
+    (directive_dir / f"{stem}.directive.yaml").write_text(
+        f"schema_version: '1.0'\nid: {canonical_id}\ntitle: x\nintent: x\nenforcement: required\n",
+        encoding="utf-8",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -233,6 +276,220 @@ def test_config_kind_present_in_activated_kinds_is_coherent(tmp_path: Path) -> N
     report = run_consistency_check(ctx)
 
     assert report.graph_kind_gaps == []
+
+
+# ---------------------------------------------------------------------------
+# #2529: the guard must resolve org/project-overlay artefacts, not
+# built-in-only.
+# ---------------------------------------------------------------------------
+
+
+def test_org_overlay_activated_artefact_resolves_for_parity(tmp_path: Path) -> None:
+    """#2529: an org-only activated artefact must be caught, not silently skipped.
+
+    Before the fix, ``_check_reference_id_parity`` called
+    ``resolve_artifact_urn`` with no ``org_roots``, so a config-activated
+    ORG-only directive raised ``UnknownArtifactIdError``; the guard's
+    ``except UnknownArtifactIdError: continue`` swallowed it silently and
+    ``reference_id_divergences`` stayed empty even though the artefact is
+    dangling exactly like the #2524 class (activated in config, absent from
+    the compiled reference set) -- while ``compiler.py``'s equivalent
+    resolver call, which does NOT catch that exception, crashes on the exact
+    same stem. That is a false negative, not a best-effort skip. Threading
+    ``org_roots=list(pack_context.pack_roots[1:])`` into the guard's
+    ``resolve_artifact_urn`` call closes it: the org-only stem now resolves
+    and the real dangler is caught.
+    """
+    org_pack_root = tmp_path / "org-pack"
+    _write_org_directive(
+        org_pack_root, stem="org-only-directive", canonical_id="DIRECTIVE_ORG_ONLY"
+    )
+
+    kittify = _write_config(
+        tmp_path,
+        (
+            "activated_directives:\n"
+            "  - org-only-directive\n"
+            "doctrine:\n"
+            "  org:\n"
+            "    packs:\n"
+            "      - name: test-org\n"
+            f"        local_path: {org_pack_root.as_posix()}\n"
+        ),
+    )
+    # Compiled WITHOUT the org directive -- the exact #2524 dangler shape.
+    _write_references(kittify, [])
+
+    ctx = ProjectContext.from_repo(tmp_path)
+    assert ctx.pack_context is not None
+    assert len(ctx.pack_context.pack_roots) == 2, (
+        "fixture sanity check: exactly one org pack root must be configured "
+        "so this test actually exercises org resolution"
+    )
+
+    report = run_consistency_check(ctx)
+
+    # This is the assertion Fix A controls: without org_roots, the stem
+    # raises UnknownArtifactIdError inside _check_reference_id_parity and is
+    # silently skipped, leaving reference_id_divergences empty even though
+    # the artefact is a genuine dangler. With org_roots threaded, the stem
+    # resolves and the missing compiled entry is correctly reported.
+    #
+    # (`unknown_references` also fires here via a separate, pre-existing
+    # gap: `_collect_all_doctrine_ids`/`CharterPackManager.list_available`
+    # is called with no `layer_roots` either, so it never sees org
+    # artefacts. That is a different call site than the one #2529 reports
+    # and is out of scope for this fix -- it does not change what this
+    # assertion demonstrates about `_check_reference_id_parity`.)
+    assert "directive/org-only-directive" in report.reference_id_divergences
+    assert report.coherent is False
+
+
+# ---------------------------------------------------------------------------
+# #2530: the guard must fail closed on unreadable/corrupt input, distinct
+# from the legitimate "not yet synthesized" no-op skip.
+# ---------------------------------------------------------------------------
+
+
+def test_corrupt_references_yaml_fails_closed(tmp_path: Path) -> None:
+    """#2530: unparseable references.yaml must surface a verification error.
+
+    Before the fix, ``_load_reference_ids_by_kind`` caught every exception
+    from the YAML parse and returned ``None`` -- the exact same return value
+    used for "no charter synthesis has run yet". ``_check_reference_id_parity``
+    then treated a truncated/corrupt file identically to a legitimately
+    absent one: "nothing to check against", reporting ``coherent=True``.
+    """
+    kittify = _write_config(
+        tmp_path,
+        f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n",
+    )
+    charter_dir = kittify / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    # Truncated YAML: an unterminated flow mapping -- a real ParserError,
+    # not a benign empty-document parse.
+    (charter_dir / "references.yaml").write_text(
+        "references: [{id: 'x'\n", encoding="utf-8"
+    )
+
+    ctx = ProjectContext.from_repo(tmp_path)
+    report = run_consistency_check(ctx)
+
+    assert report.coherent is False
+    assert report.verification_errors, (
+        "a corrupt references.yaml must be reported as 'could not verify', "
+        "not silently treated as an empty, passing result"
+    )
+    assert any("references.yaml" in entry for entry in report.verification_errors)
+    assert any(
+        "could not verify config<->references parity" in s.lower()
+        for s in report.suggestions
+    )
+
+
+def test_references_yaml_malformed_schema_fails_closed(tmp_path: Path) -> None:
+    """#2530: valid YAML with no 'references' list is still corrupt, not a skip."""
+    kittify = _write_config(
+        tmp_path,
+        f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n",
+    )
+    charter_dir = kittify / "charter"
+    charter_dir.mkdir(parents=True, exist_ok=True)
+    (charter_dir / "references.yaml").write_text(
+        "schema_version: '1.0.0'\n", encoding="utf-8"
+    )
+
+    ctx = ProjectContext.from_repo(tmp_path)
+    report = run_consistency_check(ctx)
+
+    assert report.coherent is False
+    assert report.verification_errors
+
+
+def test_references_yaml_absent_is_still_a_clean_skip(tmp_path: Path) -> None:
+    """Sibling GREEN case: 'not yet synthesized' (file simply absent) stays a
+    legitimate no-op skip, distinct from the corruption cases above (#2530)."""
+    _write_config(
+        tmp_path,
+        f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n",
+    )
+    # No .kittify/charter/references.yaml written at all.
+
+    ctx = ProjectContext.from_repo(tmp_path)
+    report = run_consistency_check(ctx)
+
+    assert report.verification_errors == []
+    assert report.reference_id_divergences == []
+    assert report.coherent is True
+
+
+def test_drg_load_failure_fails_closed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#2530: a DRG load/validation failure must surface a verification error.
+
+    Before the fix, ``_check_graph_kind_parity`` caught every exception from
+    ``load_validated_graph`` (and from resolving ``ctx``'s required fields)
+    and returned silently -- ``graph_kind_gaps`` stayed empty and the report
+    was ``coherent=True`` even though the KIND-level check never actually
+    ran. Unlike ``references.yaml``, the built-in DRG graph is always
+    bundled with the package, so there is no legitimate "not yet
+    synthesized" skip state here -- any load/validate failure is a genuine
+    "could not verify".
+    """
+    _write_config(
+        tmp_path,
+        f"activated_directives:\n  - {_REAL_DIRECTIVE_STEM}\n",
+    )
+
+    def _raise_corrupt_drg(*_args: object, **_kwargs: object) -> None:
+        raise ValueError("simulated corrupt/invalid DRG graph")
+
+    monkeypatch.setattr(
+        "charter._drg_helpers.load_validated_graph", _raise_corrupt_drg
+    )
+
+    ctx = ProjectContext.from_repo(tmp_path)
+    report = run_consistency_check(ctx)
+
+    assert report.coherent is False
+    assert report.verification_errors, (
+        "a DRG load/validation failure must be reported as 'could not "
+        "verify', not silently treated as an empty, passing result"
+    )
+    assert any(
+        "could not verify config<->graph kind parity" in entry.lower()
+        for entry in report.verification_errors
+    )
+
+
+# ---------------------------------------------------------------------------
+# NIT: pin the invariant the reverse paradigm parity check depends on.
+# ---------------------------------------------------------------------------
+
+
+def test_paradigm_canonical_id_equals_config_stem_invariant() -> None:
+    """Pin the invariant ``_check_reference_id_parity``'s reverse direction relies on.
+
+    The reverse direction (paradigms only) compares ``references.yaml``
+    paradigm ids directly against ``config.activated_paradigms`` *stems*,
+    with no canonicalization step in between -- that is only sound because
+    a paradigm's canonical id equals its config stem (paradigms are
+    rendered 1:1, never DRG-transitively expanded; see
+    ``consistency_check._check_reference_id_parity``'s docstring). If this
+    invariant silently rotted -- e.g. a paradigm artefact's ``id:`` field
+    diverged from its filename stem -- the reverse check would start
+    comparing incomparable ID spaces with no test catching it. Pin it here
+    via the same resolver bridge (``resolve_artifact_urn``) the forward
+    check uses.
+    """
+    doctrine_root = resolve_doctrine_root()
+    urn = resolve_artifact_urn(
+        ArtifactKind.PARADIGM, _REAL_PARADIGM_STEM, doctrine_root=doctrine_root
+    )
+    _, _, canonical_id = urn.partition(":")
+
+    assert canonical_id == _REAL_PARADIGM_STEM
 
 
 # ---------------------------------------------------------------------------
