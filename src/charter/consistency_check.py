@@ -19,11 +19,14 @@ from charter.pack_manager import YAML_KEY_MAP, CharterPackManager
 
 __all__ = [
     "ConsistencyReport",
-    "ReferencesCorruptError",
     "run_consistency_check",
 ]
 
 
+# Internal-only (not exported): raised and caught within this module to route a
+# corrupt/unreadable references.yaml into the fail-closed verification_errors
+# path. Kept out of __all__ per the symbol-level dead-code gate — no external
+# caller imports it (the fail-closed tests trigger it via corrupt input).
 class ReferencesCorruptError(RuntimeError):
     """``references.yaml`` exists but is unreadable or structurally invalid (#2530).
 
