@@ -11,6 +11,7 @@ directives:
   - 034-test-first-development
   - 036-black-box-integration-testing
   - 037-living-documentation-sync
+  - 046-readable-consistent-prs
 tactics:
   - acceptance-test-first
   - tdd-red-green-refactor

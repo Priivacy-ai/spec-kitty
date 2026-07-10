@@ -285,6 +285,14 @@ The 1.x/2.x branch split was originally documented in [ADR-12: Two-Branch Strate
 - **CI checks must pass** (tests, type checking, linting)
 - **Pre-commit hooks** must pass (UTF-8 encoding validation)
 
+**Readable and consistent PRs are binding** (directive `046-readable-consistent-prs`, active). Every mission branch / PR an agent hands the operator must be:
+
+- **Linear** — rebased onto the current upstream base and compacted into a small set of logically-sliced commits (rebase over merge; a non-reordering, behaviour-preserving snapshot chain per the `clean-linear-commit-history` tactic, never an interactive reorder).
+- **Consistent / complete** — the intended scope is finished; only genuinely high-effort / mission-sized work is deferred, and only as a tracked follow-up with a rationale.
+- **Independently reviewed** — the aggregate diff has had an independent review before, or in parallel to, opening the draft PR, with real findings folded in while it is still a draft; an adversarial review squad is the recommended mechanism (not a mandated gate).
+
+The standing close-out sequence that produces such a PR — accept → resolve issue verdicts → aggregate review squad → local merge → compact history → rebase onto upstream → draft PR + pre-merge squad → hand off — is captured as the `mission-wrap-up-sequence` procedure (active). The operator, not the agent, performs the mainline merge (`045-prs-only-and-read-intent`).
+
 ### Code Review Checklist
 
 - Tests added for new functionality

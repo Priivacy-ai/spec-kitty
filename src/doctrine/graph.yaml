@@ -188,6 +188,9 @@ nodes:
 - urn: directive:DIRECTIVE_045
   kind: directive
   label: PRs-Only and Read-Intent Before High-Risk Operations
+- urn: directive:DIRECTIVE_046
+  kind: directive
+  label: Readable and Consistent Pull Requests
 - urn: paradigm:anemic-domain-model
   kind: paradigm
 - urn: paradigm:atomic-design
@@ -271,6 +274,9 @@ nodes:
 - urn: procedure:mission-tracer-files
   kind: procedure
   label: Mission Tracer Files
+- urn: procedure:mission-wrap-up-sequence
+  kind: procedure
+  label: Mission Wrap-Up Sequence
 - urn: procedure:onboard-external-agent-to-pack
   kind: procedure
   label: Onboard an External Agent into the Pack
@@ -986,6 +992,9 @@ edges:
   target: directive:DIRECTIVE_037
   relation: scope
 - source: action:software-dev/implement
+  target: directive:DIRECTIVE_046
+  relation: scope
+- source: action:software-dev/implement
   target: paradigm:execution-lanes
   relation: scope
 - source: action:software-dev/implement
@@ -1142,6 +1151,9 @@ edges:
   target: directive:DIRECTIVE_037
   relation: scope
 - source: action:software-dev/review
+  target: directive:DIRECTIVE_046
+  relation: scope
+- source: action:software-dev/review
   target: paradigm:execution-lanes
   relation: scope
 - source: action:software-dev/review
@@ -1158,6 +1170,9 @@ edges:
   relation: scope
 - source: action:software-dev/review
   target: procedure:legacy-codebase-triage
+  relation: scope
+- source: action:software-dev/review
+  target: procedure:mission-wrap-up-sequence
   relation: scope
 - source: action:software-dev/review
   target: procedure:refactoring
@@ -1179,9 +1194,6 @@ edges:
   relation: scope
 - source: action:software-dev/review
   target: tactic:change-apply-smallest-viable-diff
-  relation: scope
-- source: action:software-dev/review
-  target: tactic:dependency-hygiene
   relation: scope
 - source: action:software-dev/review
   target: tactic:quality-gate-verification
@@ -1730,6 +1742,24 @@ edges:
 - source: directive:DIRECTIVE_045
   target: procedure:post-merge-arch-gate-adjudication
   relation: suggests
+- source: directive:DIRECTIVE_046
+  target: directive:DIRECTIVE_045
+  relation: requires
+- source: directive:DIRECTIVE_046
+  target: procedure:adversarial-squad-deployment
+  relation: suggests
+- source: directive:DIRECTIVE_046
+  target: procedure:mission-wrap-up-sequence
+  relation: suggests
+- source: directive:DIRECTIVE_046
+  target: tactic:clean-linear-commit-history
+  relation: suggests
+- source: directive:DIRECTIVE_046
+  target: tactic:review-intent-and-risk-first
+  relation: suggests
+- source: directive:DIRECTIVE_046
+  target: tactic:reviewer-implementer-role-separation
+  relation: suggests
 - source: paradigm:behaviour-driven-development
   target: directive:DIRECTIVE_034
   relation: requires
@@ -2023,6 +2053,21 @@ edges:
 - source: procedure:mission-tracer-files
   target: styleguide:adversarial-squad-cadence
   relation: suggests
+- source: procedure:mission-wrap-up-sequence
+  target: directive:DIRECTIVE_045
+  relation: requires
+- source: procedure:mission-wrap-up-sequence
+  target: procedure:adversarial-squad-deployment
+  relation: requires
+- source: procedure:mission-wrap-up-sequence
+  target: procedure:mission-tracer-files
+  relation: requires
+- source: procedure:mission-wrap-up-sequence
+  target: procedure:post-merge-arch-gate-adjudication
+  relation: requires
+- source: procedure:mission-wrap-up-sequence
+  target: tactic:clean-linear-commit-history
+  relation: requires
 - source: procedure:onboard-external-agent-to-pack
   target: directive:DIRECTIVE_003
   relation: requires

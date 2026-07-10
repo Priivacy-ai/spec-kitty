@@ -40,11 +40,13 @@ steps:
     actor: agent
   - title: Assess — review and act at mission close
     description: >
-      Before marking the mission as done (or as part of the accept step),
-      review all three tracer files. Summarise the most significant insights
-      in the mission retrospective. File any unresolved tooling-friction items
-      in the tracker so they feed the tooling-gap backlog. Confirm the tracer
-      files are committed to the mission branch before closing.
+      Before marking the mission as done (or as part of the accept step and the
+      mission wrap-up sequence's hand-off), review all three tracer files.
+      Summarise the most significant insights in the mission retrospective. File
+      any unresolved tooling-friction items in the tracker so they feed the
+      tooling-gap backlog. Confirm the tracer files are committed to the mission
+      branch before closing — note that the wrap-up sequence compacts the branch,
+      so the tracer files must be part of the retained, logically-sliced history.
     actor: agent
 anti_patterns:
   - name: Retroactive fill-in
