@@ -13,6 +13,7 @@ registry is a no-op.
 from __future__ import annotations
 
 import logging
+import math
 import os
 import threading
 from collections.abc import Callable
@@ -34,14 +35,38 @@ _SAAS_FANOUT_TIMEOUT_ENV = "SPEC_KITTY_SAAS_FANOUT_TIMEOUT"
 
 
 def _saas_fanout_timeout_s() -> float:
-    """Resolve the per-handler fan-out timeout from the environment."""
+    """Resolve the per-handler fan-out timeout from the environment.
+
+    Non-finite values (``nan``/``inf``) are rejected: ``Thread.join(nan)``
+    raises immediately (defeating the bound) and ``join(inf)`` overflows
+    platform time — both would silently disable the safety mechanism, so they
+    fall back to the default.
+    """
     raw = os.environ.get(_SAAS_FANOUT_TIMEOUT_ENV)
     if raw is None or not raw.strip():
         return _DEFAULT_SAAS_FANOUT_TIMEOUT_S
     try:
-        return float(raw)
+        value = float(raw)
     except ValueError:
         return _DEFAULT_SAAS_FANOUT_TIMEOUT_S
+    if math.isnan(value) or math.isinf(value):
+        return _DEFAULT_SAAS_FANOUT_TIMEOUT_S
+    return value
+
+
+class _FanoutHandlerBusyError(RuntimeError):
+    """A prior invocation of this handler is still running (orphaned past its timeout)."""
+
+
+# Handler-identity keys whose bounded worker has not yet returned. A handler
+# that hangs past its timeout stays here until its orphaned worker finally
+# unwinds, so a later fan-out for the same handler is skipped rather than
+# overlapped — this caps orphan threads at one per handler and prevents two
+# live invocations from concurrently touching the handler's non-atomic writers
+# (e.g. the Lamport clock / offline queue). Only relevant in a long-lived
+# process (a daemon); one-shot CLI processes exit before it matters.
+_inflight_fanout_handlers: set[str] = set()
+_inflight_lock = threading.Lock()
 
 
 def _run_fanout_handler_bounded(
@@ -49,15 +74,23 @@ def _run_fanout_handler_bounded(
 ) -> None:
     """Run one fan-out handler with a wall-time bound.
 
-    Raises ``TimeoutError`` if the handler outlives the configured timeout so
-    the caller can log and move on; re-raises any handler exception so the
-    existing per-handler ``except`` keeps catching it. A non-positive timeout
-    runs the handler inline (no thread), preserving legacy behaviour.
+    Raises ``TimeoutError`` if the handler outlives the configured timeout, or
+    ``_FanoutHandlerBusyError`` if a prior invocation of the same handler is
+    still in flight, so the caller can log and move on; re-raises any handler
+    exception so the existing per-handler ``except`` keeps catching it. A
+    non-positive timeout runs the handler inline (no thread), preserving legacy
+    behaviour.
     """
     timeout_s = _saas_fanout_timeout_s()
     if timeout_s <= 0:
         handler(**kwargs)
         return
+
+    key = _handler_key(handler)
+    with _inflight_lock:
+        if key in _inflight_fanout_handlers:
+            raise _FanoutHandlerBusyError(f"{label} handler still in flight")
+        _inflight_fanout_handlers.add(key)
 
     error: list[Exception] = []
 
@@ -66,11 +99,16 @@ def _run_fanout_handler_bounded(
             handler(**kwargs)
         except Exception as exc:  # mirror the caller's per-handler catch
             error.append(exc)
+        finally:
+            with _inflight_lock:
+                _inflight_fanout_handlers.discard(key)
 
     worker = threading.Thread(target=_target, name=f"{label}-handler", daemon=True)
     worker.start()
     worker.join(timeout_s)
     if worker.is_alive():
+        # Leave `key` in-flight: the orphaned worker clears it on unwind, which
+        # is what suppresses an overlapping invocation until then.
         raise TimeoutError(f"{label} handler exceeded {timeout_s:.1f}s")
     if error:
         raise error[0]
@@ -209,6 +247,14 @@ def fire_saas_fanout(**kwargs: Any) -> None:
     for handler in _saas_handlers:
         try:
             _run_fanout_handler_bounded(handler, kwargs, label="SaaS fan-out")
+        except _FanoutHandlerBusyError:
+            logger.warning(
+                "SaaS fan-out handler still in flight from a prior transition; "
+                "skipped to avoid overlap (wp_id=%s from=%s to=%s)",
+                kwargs.get("wp_id"),
+                kwargs.get("from_lane"),
+                kwargs.get("to_lane"),
+            )
         except TimeoutError:
             logger.warning(
                 "SaaS fan-out handler timed out; canonical status log unaffected "
@@ -235,6 +281,11 @@ def fire_lifecycle_saas_fanout(**kwargs: Any) -> None:
     for handler in _lifecycle_saas_handlers:
         try:
             _run_fanout_handler_bounded(handler, kwargs, label="Lifecycle SaaS fan-out")
+        except _FanoutHandlerBusyError:
+            logger.warning(
+                "Lifecycle SaaS fan-out handler still in flight from a prior "
+                "transition; skipped to avoid overlap",
+            )
         except TimeoutError:
             logger.warning(
                 "Lifecycle SaaS fan-out handler timed out; canonical lifecycle log unaffected",

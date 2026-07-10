@@ -85,6 +85,49 @@ def test_raising_saas_handler_is_still_caught(monkeypatch: pytest.MonkeyPatch) -
     )
 
 
+@pytest.mark.parametrize("bad", ["nan", "inf", "-inf", "Infinity"])
+def test_nonfinite_timeout_falls_back_to_default_not_disabled(
+    monkeypatch: pytest.MonkeyPatch, bad: str
+) -> None:
+    # A non-finite value must NOT reach Thread.join() (nan raises immediately,
+    # inf overflows) — that would silently disable the bound. It falls back to
+    # the default, so a well-behaved handler still runs to completion.
+    monkeypatch.setenv("SPEC_KITTY_SAAS_FANOUT_TIMEOUT", bad)
+    assert adapters._saas_fanout_timeout_s() == adapters._DEFAULT_SAAS_FANOUT_TIMEOUT_S
+    calls: list[object] = []
+    adapters.register_saas_fanout_handler(lambda **k: calls.append(k.get("wp_id")))
+    adapters.fire_saas_fanout(wp_id="WP09", from_lane="planned", to_lane="claimed")
+    assert calls == ["WP09"]
+
+
+def test_orphaned_handler_suppresses_an_overlapping_invocation(
+    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    monkeypatch.setenv("SPEC_KITTY_SAAS_FANOUT_TIMEOUT", "0.3")
+    release = threading.Event()
+    entry_count: list[int] = []
+    lock = threading.Lock()
+
+    def hanging_handler(**_kwargs: object) -> None:
+        with lock:
+            entry_count.append(1)
+        release.wait(timeout=10)
+
+    adapters.register_saas_fanout_handler(hanging_handler)
+
+    # First call: spawns a worker that hangs past the 0.3s bound (orphaned).
+    adapters.fire_saas_fanout(wp_id="WP10", from_lane="planned", to_lane="claimed")
+    # Second call while the orphan is still running: must be skipped, NOT spawn
+    # a second concurrent invocation of the same handler.
+    with caplog.at_level(logging.WARNING):
+        adapters.fire_saas_fanout(wp_id="WP11", from_lane="claimed", to_lane="in_progress")
+
+    assert sum(entry_count) == 1, "the handler must not run a second, overlapping time"
+    assert any("still in flight" in r.getMessage().lower() for r in caplog.records)
+
+    release.set()  # let the orphan unwind and clear the in-flight key
+
+
 def test_hanging_lifecycle_handler_does_not_block(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
