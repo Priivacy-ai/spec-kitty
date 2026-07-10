@@ -225,9 +225,19 @@ def resolve_artifact_urn(
             if artifact_id:
                 return f"{kind.value}:{artifact_id}"
     raise UnknownArtifactIdError(
-        f"No {kind.value} artifact with config ID {config_id!r} found "
-        f"under doctrine root {doctrine_root}."
+        f"No {kind.value} artifact with config ID {config_id!r} found under "
+        f"doctrine root {doctrine_root}{_org_roots_clause(org_roots)}. "
+        f"Check `.kittify/config.yaml` activated_{kind.plural} for a stale or "
+        f"misspelled entry, or run `spec-kitty doctor doctrine` to verify the "
+        f"doctrine corpus (including any org packs) is intact."
     )
+
+
+def _org_roots_clause(org_roots: list[Path] | None) -> str:
+    """Name the org roots that were also scanned, when any were supplied."""
+    if not org_roots:
+        return ""
+    return f" or org/project pack roots {[str(root) for root in org_roots]}"
 
 
 def resolve_config_id(
@@ -279,6 +289,9 @@ def resolve_config_id(
         if _read_id(path, id_field, yaml) == artifact_id:
             return _config_stem(path)
     raise UnknownArtifactIdError(
-        f"No {kind.value} artifact with id {artifact_id!r} found "
-        f"under doctrine root {doctrine_root}."
+        f"No {kind.value} artifact with id {artifact_id!r} found under "
+        f"doctrine root {doctrine_root}{_org_roots_clause(org_roots)}. "
+        f"Check `.kittify/config.yaml` activated_{kind.plural} for a stale or "
+        f"misspelled entry, or run `spec-kitty doctor doctrine` to verify the "
+        f"doctrine corpus (including any org packs) is intact."
     )

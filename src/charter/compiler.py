@@ -18,7 +18,6 @@ from charter.catalog import DoctrineCatalog, load_doctrine_catalog, resolve_doct
 from charter.interview import (
     CharterInterview,
     LocalSupportDeclaration,
-    apply_doctrine_intent_aliases,
     validate_local_support_declarations,
 )
 from charter.kind_vocabulary import ArtifactKind, resolve_artifact_urn
@@ -80,6 +79,7 @@ def _resolve_config_activated_ids(
     *,
     doctrine_root: Path,
     fallback_ids: frozenset[str],
+    org_roots: list[Path] | None = None,
 ) -> list[str]:
     """Resolve ``config.activated_<kind>`` stems to bare canonical DRG ids.
 
@@ -90,7 +90,14 @@ def _resolve_config_activated_ids(
     applied by ``charter.resolver`` when filtering paradigms/procedures/agent
     profiles.
 
-    A stem that cannot be resolved to a canonical id raises
+    *org_roots* extends the artefact scan to org/project-overlay pack roots
+    (:attr:`charter.pack_context.PackContext.pack_roots`, sans the built-in
+    root at index 0) so a config-activated ORG artefact resolves instead of
+    raising -- an activated stem that only exists in an org pack is not an
+    unknown id (#2529).
+
+    A stem that cannot be resolved to a canonical id (in *either* the
+    built-in doctrine root or an org root) raises
     :class:`~charter.kind_vocabulary.UnknownArtifactIdError` (propagated from
     :func:`~charter.kind_vocabulary.resolve_artifact_urn`) rather than being
     silently dropped -- this closes the C-006 silent-drop vector that
@@ -100,7 +107,7 @@ def _resolve_config_activated_ids(
         return sorted(fallback_ids)
 
     resolved = {
-        resolve_artifact_urn(kind, stem, doctrine_root=doctrine_root).split(":", 1)[1]
+        resolve_artifact_urn(kind, stem, doctrine_root=doctrine_root, org_roots=org_roots).split(":", 1)[1]
         for stem in activated_stems
     }
     return sorted(resolved)
@@ -117,48 +124,62 @@ def _resolve_config_activated_roots(
     def _stems(field_name: str) -> frozenset[str] | None:
         return getattr(pack_context, field_name) if pack_context is not None else None
 
+    # ``pack_context.pack_roots`` is ``(builtin_root, *org_pack_roots)``
+    # (``PackContext.from_config``); the built-in root is already threaded
+    # separately as ``doctrine_root``, so only the org/project-overlay
+    # entries need to be passed to the resolver. Empty for non-org projects
+    # (no behavior change) -- see #2529.
+    org_roots: list[Path] | None = list(pack_context.pack_roots[1:]) if pack_context is not None else None
+
     return ConfigActivatedRoots(
         directives=_resolve_config_activated_ids(
             ArtifactKind.DIRECTIVE,
             _stems("activated_directives"),
             doctrine_root=doctrine_root,
             fallback_ids=catalog.directives,
+            org_roots=org_roots,
         ),
         paradigms=_resolve_config_activated_ids(
             ArtifactKind.PARADIGM,
             _stems("activated_paradigms"),
             doctrine_root=doctrine_root,
             fallback_ids=catalog.paradigms,
+            org_roots=org_roots,
         ),
         tactics=_resolve_config_activated_ids(
             ArtifactKind.TACTIC,
             _stems("activated_tactics"),
             doctrine_root=doctrine_root,
             fallback_ids=catalog.tactics,
+            org_roots=org_roots,
         ),
         styleguides=_resolve_config_activated_ids(
             ArtifactKind.STYLEGUIDE,
             _stems("activated_styleguides"),
             doctrine_root=doctrine_root,
             fallback_ids=catalog.styleguides,
+            org_roots=org_roots,
         ),
         toolguides=_resolve_config_activated_ids(
             ArtifactKind.TOOLGUIDE,
             _stems("activated_toolguides"),
             doctrine_root=doctrine_root,
             fallback_ids=catalog.toolguides,
+            org_roots=org_roots,
         ),
         procedures=_resolve_config_activated_ids(
             ArtifactKind.PROCEDURE,
             _stems("activated_procedures"),
             doctrine_root=doctrine_root,
             fallback_ids=catalog.procedures,
+            org_roots=org_roots,
         ),
         agent_profiles=_resolve_config_activated_ids(
             ArtifactKind.AGENT_PROFILE,
             _stems("activated_agent_profiles"),
             doctrine_root=doctrine_root,
             fallback_ids=catalog.agent_profiles,
+            org_roots=org_roots,
         ),
     )
 
@@ -281,8 +302,18 @@ def compile_charter(
     :func:`_default_doctrine_service`); when neither is available, every kind
     resolves to "all built-ins active" -- the same absent-key default
     :class:`~charter.pack_context.PackContext` already documents.
+
+    *interview* is used as-is: doctrine-intent aliasing (e.g. the "Lynn
+    Cole" free-text shorthand -> ``DIRECTIVE_039`` + ``deep-module-design``)
+    happens at interview *construction* time (``charter.interview``'s
+    ``default_interview``/``from_dict``/``apply_answer_overrides``, all of
+    which return an already-aliased :class:`CharterInterview`) and, for the
+    interactive CLI flow, is promoted into ``config.activated_*`` before
+    compilation ever runs (``specify_cli.cli.commands.charter.interview.
+    _promote_interview_selections``). Re-aliasing here was a no-op for that
+    path and had zero effect on the config-sourced activation set for any
+    path (#2530) -- removed rather than re-applied a second time.
     """
-    interview = apply_doctrine_intent_aliases(interview)
     active_languages = extract_declared_languages("\n".join(str(value) for value in interview.answers.values()))
     catalog = doctrine_catalog or load_doctrine_catalog(active_languages=active_languages)
     diagnostics: list[str] = []

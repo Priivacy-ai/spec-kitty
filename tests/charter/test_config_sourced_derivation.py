@@ -32,6 +32,7 @@ import dataclasses
 from pathlib import Path
 
 import pytest
+from ruamel.yaml import YAML
 
 from charter.catalog import load_doctrine_catalog
 from charter.compiler import (
@@ -39,7 +40,13 @@ from charter.compiler import (
     compile_charter,
     resolve_config_activated_roots,
 )
-from charter.interview import CharterInterview, default_interview, write_interview_answers
+from charter.interview import (
+    CharterInterview,
+    apply_answer_overrides,
+    default_interview,
+    write_interview_answers,
+)
+from charter.catalog import resolve_doctrine_root
 from charter.kind_vocabulary import UnknownArtifactIdError
 from charter.pack_context import PackContext
 
@@ -78,6 +85,15 @@ def _base_pack_context(tmp_path: Path) -> PackContext:
 def _interview_with(**overrides: object) -> CharterInterview:
     interview = default_interview(mission="software-dev", profile="minimal")
     return dataclasses.replace(interview, **overrides)
+
+
+def _write_yaml(path: Path, data: dict[str, object]) -> None:
+    """Write *data* as YAML to *path*, creating parent dirs as needed."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    yaml = YAML()
+    yaml.default_flow_style = False
+    with path.open("w", encoding="utf-8") as fh:
+        yaml.dump(data, fh)
 
 
 # --------------------------------------------------------------------------- #
@@ -316,3 +332,114 @@ def test_build_synthesis_request_with_no_config_defaults_to_all_builtin_directiv
 
     catalog = load_doctrine_catalog()
     assert sorted(request.interview_snapshot["selected_directives"]) == sorted(catalog.directives)
+
+
+# --------------------------------------------------------------------------- #
+# #2529: org/project-overlay artefacts must resolve, not crash `charter
+# generate`. `_resolve_config_activated_ids` previously called
+# `resolve_artifact_urn` with no `org_roots`, so a config-activated ORG
+# artefact raised `UnknownArtifactIdError`. The fix threads
+# `list(pack_context.pack_roots[1:])` (PackContext.pack_roots is
+# `(builtin_root, *org_pack_roots)`) down to the resolver.
+# --------------------------------------------------------------------------- #
+
+
+def test_org_only_paradigm_activated_in_config_resolves_via_org_roots(tmp_path: Path) -> None:
+    """An org-pack-only paradigm activated in config.activated_paradigms
+    resolves in the compiled reference set instead of raising
+    ``UnknownArtifactIdError`` (the real #2524-class dangler/crash for org
+    projects)."""
+    org_root = tmp_path / "org-pack"
+    _write_yaml(
+        org_root / "paradigms" / "built-in" / "org-only-paradigm.paradigm.yaml",
+        {
+            "schema_version": "1.0",
+            "id": "org-only-paradigm",
+            "title": "Org-Only Paradigm",
+            "summary": "An org-pack-only paradigm with no built-in counterpart.",
+        },
+    )
+
+    interview = _interview_with(selected_directives=[], selected_paradigms=[])
+    pack_context = dataclasses.replace(
+        _base_pack_context(tmp_path),
+        pack_roots=(resolve_doctrine_root(), org_root),
+        activated_directives=frozenset(),
+        activated_paradigms=frozenset({"org-only-paradigm"}),
+    )
+
+    compiled = compile_charter(mission="software-dev", interview=interview, pack_context=pack_context)
+
+    assert compiled.selected_paradigms == ["org-only-paradigm"]
+    assert any(ref.id == "PARADIGM:org-only-paradigm" for ref in compiled.references)
+
+
+def test_org_only_paradigm_without_org_roots_would_have_raised(tmp_path: Path) -> None:
+    """Regression guard for the pre-fix crash: with `pack_roots` collapsed to
+    just the built-in root (no org root threaded), the same org-only stem is
+    genuinely unresolvable and must still raise -- this is what closed the
+    C-006 silent-drop vector, not a free pass for any unknown stem."""
+    org_root = tmp_path / "org-pack"
+    _write_yaml(
+        org_root / "paradigms" / "built-in" / "org-only-paradigm.paradigm.yaml",
+        {"schema_version": "1.0", "id": "org-only-paradigm", "title": "Org-Only Paradigm", "summary": "x"},
+    )
+
+    interview = _interview_with(selected_directives=[], selected_paradigms=[])
+    pack_context = dataclasses.replace(
+        _base_pack_context(tmp_path),
+        pack_roots=(resolve_doctrine_root(),),  # no org root -- stem stays unresolvable
+        activated_directives=frozenset(),
+        activated_paradigms=frozenset({"org-only-paradigm"}),
+    )
+
+    with pytest.raises(UnknownArtifactIdError):
+        compile_charter(mission="software-dev", interview=interview, pack_context=pack_context)
+
+
+# --------------------------------------------------------------------------- #
+# #2530: "Lynn Cole" free-text doctrine-intent alias. `apply_doctrine_intent_
+# aliases` fires at interview *construction* time (`default_interview` /
+# `CharterInterview.from_dict` / `apply_answer_overrides`, charter.interview)
+# and WP07's promotion wiring carries the aliased selection into
+# `config.activated_*` -- the sole activation source `compile_charter` reads.
+# `compile_charter` itself no longer re-applies the alias (removed as a
+# dead-effect no-op, see its docstring); this pins that the end-to-end
+# feature (free text -> compiled activation) is unaffected by that removal.
+# --------------------------------------------------------------------------- #
+
+
+def test_lynn_cole_free_text_intent_activates_end_to_end_via_config_promotion(tmp_path: Path) -> None:
+    from specify_cli.cli.commands.charter.interview import _promote_interview_selections
+
+    interview = apply_answer_overrides(
+        default_interview(mission="software-dev", profile="minimal"),
+        answers={"project_intent": "Our agents write too much code and it bloats the repo."},
+    )
+    # Construction-time aliasing already fired on the interview object itself.
+    assert "DIRECTIVE_039" in interview.selected_directives
+    assert "deep-module-design" in interview.selected_paradigms
+
+    warnings = _promote_interview_selections(tmp_path, interview)
+    # No promotion FAILURE (e.g. an unresolvable id) -- the "absent-key
+    # parity" notices below are expected, informational bookkeeping for a
+    # project with no pre-existing config.yaml, not an error:
+    #   "Key 'activated_directives' had no explicit activation set. Preserved
+    #    19 built-in entries before promotion (absent-key parity)."
+    assert not any("Could not resolve" in warning for warning in warnings)
+    assert (tmp_path / ".kittify" / "config.yaml").exists()
+
+    pack_context = PackContext.from_config(tmp_path)
+    assert pack_context.activated_directives is not None
+    assert pack_context.activated_paradigms is not None
+
+    # A FRESH, non-aliased interview (no Lynn Cole text in its answers) --
+    # proves activation flows through config, not interview mutation.
+    plain_interview = default_interview(mission="software-dev", profile="minimal")
+    assert "DIRECTIVE_039" not in plain_interview.selected_directives
+
+    compiled = compile_charter(mission="software-dev", interview=plain_interview, pack_context=pack_context)
+
+    assert "DIRECTIVE_039" in compiled.selected_directives
+    assert "deep-module-design" in compiled.selected_paradigms
+    assert "Lynn Cole Engineering Culture (`DIRECTIVE_039`)" in compiled.markdown
