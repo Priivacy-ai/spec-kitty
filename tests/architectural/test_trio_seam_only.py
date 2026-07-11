@@ -489,7 +489,7 @@ _IO_ALLOWLIST_SITES: tuple[tuple[str, int, str], ...] = (
     ),
     (
         "specify_cli/cli/commands/implement_cores.py",
-        272,
+        278,
         "_drop_vcs_lock_only_meta reads the CALLER-supplied working-tree "
         "meta.json path to compare it against the committed baseline (via "
         "the injected GitPort) -- the filesystem twin of the GitPort pattern "
@@ -497,7 +497,7 @@ _IO_ALLOWLIST_SITES: tuple[tuple[str, int, str], ...] = (
     ),
     (
         "specify_cli/cli/commands/implement_cores.py",
-        304,
+        308,
         "_files_changed_vs_ref reads the CALLER-supplied working-tree path "
         "to test idempotency against the committed ref (via the injected "
         "GitPort) -- same rationale as _drop_vcs_lock_only_meta above.",

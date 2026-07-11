@@ -195,10 +195,7 @@ def _accept_dirty_gate(
         status_feature_dir,
     )
     git_dirty = [
-        line
-        for line in git_dirty_raw
-        if _porcelain_dirty_path(line) not in accept_owned_dirty_paths
-        and not is_self_bookkeeping_path(_porcelain_dirty_path(line))
+        line for line in git_dirty_raw if _porcelain_dirty_path(line) not in accept_owned_dirty_paths and not is_self_bookkeeping_path(_porcelain_dirty_path(line))
     ]
     return _filter_coordination_residue(git_dirty, repo_root=repo_root, feature=feature)
 
@@ -225,13 +222,7 @@ def _filter_coordination_residue(
 
     if not _mission_routes_through_coordination(repo_root, feature):
         return dirty_lines
-    return [
-        line
-        for line in dirty_lines
-        if not is_coordination_artifact_residue_path(
-            _porcelain_dirty_path(line), mission_slug=feature
-        )
-    ]
+    return [line for line in dirty_lines if not is_coordination_artifact_residue_path(_porcelain_dirty_path(line), mission_slug=feature)]
 
 
 class AcceptanceError(TaskCliError):
@@ -304,11 +295,7 @@ class AcceptanceSummary:
             "not_done": [
                 *(wp_id for lane in _LEGACY_NOT_DONE_LANES for wp_id in self.lanes.get(lane, [])),
             ],
-            "lane_blockers": [
-                _format_lane_blocker(lane, wp_id)
-                for lane in _ACTIONABLE_LANE_BLOCKER_HINTS
-                for wp_id in self.lanes.get(lane, [])
-            ],
+            "lane_blockers": [_format_lane_blocker(lane, wp_id) for lane in _ACTIONABLE_LANE_BLOCKER_HINTS for wp_id in self.lanes.get(lane, [])],
             "metadata": self.metadata_issues,
             "activity": self.activity_issues,
             "unchecked_tasks": self.unchecked_tasks,
@@ -320,11 +307,7 @@ class AcceptanceSummary:
         return {key: value for key, value in buckets.items() if value}
 
     def failed_checks(self) -> list[AcceptanceCheckDiagnostic]:
-        return [
-            AcceptanceCheckDiagnostic(check=check, detail=detail)
-            for check, details in self.outstanding().items()
-            for detail in details
-        ]
+        return [AcceptanceCheckDiagnostic(check=check, detail=detail) for check, details in self.outstanding().items() for detail in details]
 
     def to_dict(self) -> dict[str, object]:
         identity = resolve_mission_identity(self.feature_dir)
@@ -554,28 +537,72 @@ def _missing_artifacts(feature_dir: Path) -> tuple[list[str], list[str]]:
     return missing_required, missing_optional
 
 
+# Unicode smart-punctuation -> ASCII equivalents, applied by
+# :func:`_recover_normalized_text`.
+_ENCODING_NORMALIZE_MAP = {
+    "‘": "'",  # Left single quotation mark -> apostrophe
+    "’": "'",  # Right single quotation mark -> apostrophe
+    "‚": "'",  # Single low-9 quotation mark -> apostrophe
+    "“": '"',  # Left double quotation mark -> straight quote
+    "”": '"',  # Right double quotation mark -> straight quote
+    "„": '"',  # Double low-9 quotation mark -> straight quote
+    "—": "--",  # Em dash -> double hyphen
+    "–": "-",  # En dash -> hyphen
+    "…": "...",  # Horizontal ellipsis -> three dots
+    " ": " ",  # Non-breaking space -> regular space
+    "•": "*",  # Bullet -> asterisk
+    "·": "*",  # Middle dot -> asterisk
+}
+
+
+def _gather_primary_encoding_candidates(feature_dir: Path) -> list[Path]:
+    """Every artifact ``normalize_feature_encoding`` scans: the
+    ``PRIMARY_ARTIFACT_FILES`` planning docs plus the ``tasks/``, ``research/``
+    and ``checklists/`` markdown subtrees (all PRIMARY-partition kinds)."""
+    candidates: list[Path] = [feature_dir / artifact_name for artifact_name in PRIMARY_ARTIFACT_FILES]
+    result = [p for p in candidates if p.exists()]
+    for subdir in (feature_dir / "tasks", feature_dir / "research", feature_dir / "checklists"):
+        if subdir.exists():
+            result.extend(subdir.rglob("*.md"))
+    return result
+
+
+def _recover_normalized_text(data: bytes) -> str | None:
+    """Decode legacy-encoded bytes to UTF-8 text with ASCII character mapping.
+
+    Returns ``None`` when ``data`` is already valid UTF-8 (nothing to rewrite);
+    otherwise the recovered + normalized text. Tries cp1252 then latin-1, falls
+    back to a lossy UTF-8 replace, strips a leading BOM, and maps Unicode
+    smart-punctuation to ASCII via :data:`_ENCODING_NORMALIZE_MAP`.
+    """
+    try:
+        data.decode("utf-8")
+        return None
+    except UnicodeDecodeError:
+        pass
+
+    text: str | None = None
+    for encoding in ("cp1252", "latin-1"):
+        try:
+            text = data.decode(encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    if text is None:
+        text = data.decode("utf-8", errors="replace")
+
+    text = text.lstrip("﻿")  # strip UTF-8 BOM if present
+    for unicode_char, ascii_replacement in _ENCODING_NORMALIZE_MAP.items():
+        text = text.replace(unicode_char, ascii_replacement)
+    return text
+
+
 def normalize_feature_encoding(repo_root: Path, feature: str) -> list[Path]:
     """Normalize file encoding from Windows-1252 to UTF-8 with ASCII character mapping.
 
     Converts Windows-1252 encoded files to UTF-8, replacing Unicode smart quotes
     and special characters with ASCII equivalents for maximum compatibility.
     """
-    # Map Unicode characters to ASCII equivalents
-    NORMALIZE_MAP = {
-        "\u2018": "'",  # Left single quotation mark -> apostrophe
-        "\u2019": "'",  # Right single quotation mark -> apostrophe
-        "\u201a": "'",  # Single low-9 quotation mark -> apostrophe
-        "\u201c": '"',  # Left double quotation mark -> straight quote
-        "\u201d": '"',  # Right double quotation mark -> straight quote
-        "\u201e": '"',  # Double low-9 quotation mark -> straight quote
-        "\u2014": "--",  # Em dash -> double hyphen
-        "\u2013": "-",  # En dash -> hyphen
-        "\u2026": "...",  # Horizontal ellipsis -> three dots
-        "\u00a0": " ",  # Non-breaking space -> regular space
-        "\u2022": "*",  # Bullet -> asterisk
-        "\u00b7": "*",  # Middle dot -> asterisk
-    }
-
     # Every artifact this normalizer touches — the planning docs in
     # ``PRIMARY_ARTIFACT_FILES`` plus the ``tasks/`` (WORK_PACKAGE_TASK),
     # ``research/`` (RESEARCH) and ``checklists/`` (CHECKLIST) subtrees — is a
@@ -590,47 +617,17 @@ def normalize_feature_encoding(repo_root: Path, feature: str) -> list[Path]:
     if not feature_dir.exists():
         return []
 
-    candidates: list[Path] = []
-    primary_files = [feature_dir / artifact_name for artifact_name in PRIMARY_ARTIFACT_FILES]
-    candidates.extend(p for p in primary_files if p.exists())
-
-    for subdir in [feature_dir / "tasks", feature_dir / "research", feature_dir / "checklists"]:
-        if subdir.exists():
-            candidates.extend(path for path in subdir.rglob("*.md"))
-
     rewritten: list[Path] = []
     seen: set[Path] = set()
-    for path in candidates:
+    for path in _gather_primary_encoding_candidates(feature_dir):
         if path in seen or not path.exists():
             continue
         seen.add(path)
-        data = path.read_bytes()
-        try:
-            data.decode("utf-8")
-            continue
-        except UnicodeDecodeError:
-            pass
-
-        text: str | None = None
-        for encoding in ("cp1252", "latin-1"):
-            try:
-                text = data.decode(encoding)
-                break
-            except UnicodeDecodeError:
-                continue
+        text = _recover_normalized_text(path.read_bytes())
         if text is None:
-            text = data.decode("utf-8", errors="replace")
-
-        # Strip UTF-8 BOM if present in the text
-        text = text.lstrip("\ufeff")
-
-        # Normalize Unicode characters to ASCII equivalents
-        for unicode_char, ascii_replacement in NORMALIZE_MAP.items():
-            text = text.replace(unicode_char, ascii_replacement)
-
+            continue
         path.write_text(text, encoding="utf-8")
         rewritten.append(path)
-
     return rewritten
 
 
@@ -804,9 +801,7 @@ def _wp_tasks_read_dir(repo_root: Path, feature: str) -> Path:
             "longer a PRIMARY-partition kind; the WP-task read dir must be resolved "
             "against its current partition (closeout N+1 / data-model.md)."
         )
-    read_dir: Path = resolve_planning_read_dir(
-        repo_root, feature, kind=MissionArtifactKind.WORK_PACKAGE_TASK
-    )
+    read_dir: Path = resolve_planning_read_dir(repo_root, feature, kind=MissionArtifactKind.WORK_PACKAGE_TASK)
     return read_dir
 
 
@@ -900,9 +895,7 @@ def collect_feature_summary(
     # the ``PRIMARY_METADATA`` home, not a specific artifact's content.
     from mission_runtime import MissionArtifactKind, placement_seam
 
-    read_feature_dir = placement_seam(repo_root, feature).read_dir(
-        MissionArtifactKind.PRIMARY_METADATA
-    )
+    read_feature_dir = placement_seam(repo_root, feature).read_dir(MissionArtifactKind.PRIMARY_METADATA)
     feature_dir = _primary_anchor_feature_dir(repo_root, feature, read_feature_dir)
     tasks_dir = feature_dir / "tasks"
     if not feature_dir.exists():
@@ -954,9 +947,7 @@ def collect_feature_summary(
 
         wp_snapshot = snapshot_wps.get(wp_id)
         canonical_lane = wp_snapshot.get("lane") if wp_snapshot else None
-        state, wp_metadata_issues = build_work_package_state(
-            wp, wp_id, canonical_lane, repo_root=repo_root, strict_metadata=strict_metadata
-        )
+        state, wp_metadata_issues = build_work_package_state(wp, wp_id, canonical_lane, repo_root=repo_root, strict_metadata=strict_metadata)
         bucket_lane = state.lane
         if bucket_lane in lanes:
             lanes[bucket_lane].append(wp_id)
@@ -992,9 +983,7 @@ def collect_feature_summary(
     except MissionError:
         mission = None
 
-    path_violations, path_convention_warning = evaluate_path_conventions(
-        mission, repo_root, feature_dir, planning_read_dir, strict_metadata=strict_metadata
-    )
+    path_violations, path_convention_warning = evaluate_path_conventions(mission, repo_root, feature_dir, planning_read_dir, strict_metadata=strict_metadata)
 
     warnings = build_warnings(
         missing_optional=missing_optional,
@@ -1208,10 +1197,7 @@ def _commit_acceptance_meta_via_router(
         return parent_commit, None, False
 
     if router_result.status not in ("committed",):
-        raise AcceptanceError(
-            f"Acceptance commit failed ({router_result.status}): "
-            + (router_result.diagnostic or "no diagnostic available")
-        )
+        raise AcceptanceError(f"Acceptance commit failed ({router_result.status}): " + (router_result.diagnostic or "no diagnostic available"))
 
     accept_commit: str | None = router_result.commit_hash
 
@@ -1251,23 +1237,25 @@ def _build_acceptance_instructions(
         if is_integration_branch:
             instructions.append(f"Acceptance recorded on integration branch `{branch}`. Push and open a pull request if needed.")
         else:
-            instructions.extend([
-                f"Review the acceptance commit on branch `{branch}`.",
-                f"Run the mission merge when ready: `spec-kitty merge --mission {summary.feature}`",
-                "After merge, run /spec-kitty-mission-review and the retrospective workflow.",
-            ])
+            instructions.extend(
+                [
+                    f"Review the acceptance commit on branch `{branch}`.",
+                    f"Run the mission merge when ready: `spec-kitty merge --mission {summary.feature}`",
+                    "After merge, run /spec-kitty-mission-review and the retrospective workflow.",
+                ]
+            )
     elif mode == "local":
         if is_integration_branch:
             instructions.append(f"Acceptance recorded directly on `{branch}`. No merge needed.")
         else:
-            instructions.extend([
-                f"Acceptance passed. Run the mission merge: `spec-kitty merge --mission {summary.feature}`",
-                "After merge, run /spec-kitty-mission-review and the retrospective workflow.",
-            ])
+            instructions.extend(
+                [
+                    f"Acceptance passed. Run the mission merge: `spec-kitty merge --mission {summary.feature}`",
+                    "After merge, run /spec-kitty-mission-review and the retrospective workflow.",
+                ]
+            )
     else:  # checklist
-        instructions.append(
-            f"All checks passed. Recommended next step: `spec-kitty merge --mission {summary.feature}`."
-        )
+        instructions.append(f"All checks passed. Recommended next step: `spec-kitty merge --mission {summary.feature}`.")
 
     if summary.worktree_root != summary.primary_repo_root:
         cleanup_instructions.append(f"After merging, remove the worktree: `git worktree remove {summary.worktree_root}`")
