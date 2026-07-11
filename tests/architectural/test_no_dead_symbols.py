@@ -133,7 +133,6 @@ _CATEGORY_B_GRANDFATHERED_LEGACY: frozenset[str] = frozenset(
         "doctrine.shared::TermSurface",
         "doctrine.tactics::ArtifactKind",
         "specify_cli.acceptance::AcceptanceMode",
-        "specify_cli.acceptance::WorkPackageState",
         "specify_cli.acceptance::detect_mission_slug",
         "specify_cli.auth.refresh_transaction::RefreshResult",
         "specify_cli.cli.commands._auth_doctor::DaemonSummary",

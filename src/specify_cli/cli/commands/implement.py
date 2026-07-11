@@ -6,10 +6,9 @@ import functools
 import json
 import re
 import subprocess
-from collections.abc import Iterable, Mapping
 from io import StringIO
 from pathlib import Path
-from typing import Annotated, Any, NamedTuple
+from typing import Annotated, Any
 
 import typer
 from pydantic import ValidationError
@@ -39,7 +38,7 @@ from mission_runtime import (
     routes_through_coordination,
 )
 from specify_cli.lanes.implement_support import create_lane_workspace
-from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
+from specify_cli.lanes.persistence import require_lanes_json
 from specify_cli.coordination.status_transition import emit_status_transition_transactional
 from specify_cli.status import COORD_OWNED_STATUS_FILES
 from specify_cli.status import TransitionError
@@ -52,18 +51,30 @@ from specify_cli.status import (
 from specify_cli.task_utils import TaskCliError, find_repo_root
 from specify_cli.workspace.context import resolve_workspace_for_wp
 
+# WP03 / T019: re-export shim -- bare import (NOT added to __all__, see the
+# bottom of this file). implement_cores.py houses the pure git-porcelain/diff
+# and placement decision cores (git injected as a port); this module keeps
+# them importable at their historical `specify_cli.cli.commands.implement.*`
+# location for external callers/tests and is the "git executor" for the one
+# staging-decision core (_ensure_planning_artifacts_committed_git, T016).
+from specify_cli.cli.commands.implement_cores import (  # noqa: F401 -- shim re-export
+    _committed_meta_mapping,
+    _drop_vcs_lock_only_meta,
+    _exclude_coord_owned,
+    _feature_dir_status_entries,
+    _files_changed_vs_ref,
+    _is_vcs_lock_only_meta_diff,
+    _parse_meta_mapping,
+    _placement_coord_filter,
+    _PorcelainEntry,
+    _resolve_claim_commit_target,
+    _resolve_placement_ref,
+    _status_paths_for_commit,
+    resolve_planning_artifact_staging,
+)
+
 console = Console()
 _WP_ID_RE = re.compile(r"^WP\d{2}$", re.IGNORECASE)
-_META_JSON_FILENAME = "meta.json"
-# vcs-lock fields written by ``mission_metadata.set_vcs_lock`` (the canonical
-# writer). #2222 / C-003: this lock is one-time VCS-TYPE state, NOT the
-# concurrency mutex, so a dependency-free back-to-back claim must not be blocked
-# by the prior claim's own uncommitted lock self-write. Mirrored here as a named
-# constant (S1192) rather than imported because ``mission_metadata`` exposes no
-# field-name constant and this WP must not edit that module (upstream gap: a
-# ``VCS_LOCK_FIELDS`` export there would let this be imported instead).
-_VCS_LOCK_META_FIELDS: frozenset[str] = frozenset({"vcs", "vcs_locked_at"})
-_MISSING_META_VALUE = object()
 # WP03 / S1192: the rich-markup error prefix, repeated across the
 # planning-artifact commit helper this WP touches -- hoisted to one constant
 # rather than restated at each ``console.print`` call site.
@@ -270,60 +281,6 @@ def _git_stdout(repo_root: Path, args: list[str]) -> str:
     return result.stdout.strip()
 
 
-class _PorcelainEntry(NamedTuple):
-    """A single ``git status --porcelain`` record for a feature-dir path.
-
-    ``xy`` is the 2-char status code, ``path`` the current/new repo-relative
-    path. ``is_structural`` marks deletions and renames/copies — changes that
-    ``BookkeepingTransaction.write_artifact`` (a write-only API) cannot apply,
-    so they must be committed to the coordination branch out-of-band or the
-    claim must fail closed rather than silently leave the branch incoherent.
-    """
-
-    xy: str
-    path: str
-    is_structural: bool
-
-
-def _feature_dir_status_entries(
-    repo_root: Path, feature_dir: Path
-) -> list[_PorcelainEntry]:
-    # NOTE: must read raw stdout here, NOT via _git_stdout(): porcelain v1 emits
-    # "XY<space>PATH" (a fixed 3-char prefix). For a tracked file that is
-    # modified-but-not-staged, X is a space (" M path"); _git_stdout()'s outer
-    # .strip() would remove the leading space of the *first* line, shifting its
-    # columns so line[3:] truncated the first path character (KITTY_SPECS_DIR ->
-    # "itty-specs"). Parse column 3 from each *unstripped* line so the path is
-    # always intact, and classify deletions/renames as structural.
-    result = subprocess.run(
-        ["git", "status", "--porcelain", "--untracked-files=all", str(feature_dir)],
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        errors="replace",
-        check=False,
-    )
-    if result.returncode != 0:
-        return []
-    entries: list[_PorcelainEntry] = []
-    for line in result.stdout.splitlines():
-        if len(line) <= 3:
-            continue
-        xy = line[:2]
-        rest = line[3:]
-        if " -> " in rest:
-            # Rename/copy: "old -> new". The old path must be removed on coord —
-            # a write-only transaction cannot do that, so this is structural.
-            new_path = rest.split(" -> ", 1)[1].strip()
-            entries.append(_PorcelainEntry(xy=xy, path=new_path, is_structural=True))
-            continue
-        # Deletions (D in either index or worktree column) are structural too.
-        is_structural = "D" in xy
-        entries.append(_PorcelainEntry(xy=xy, path=rest.strip(), is_structural=is_structural))
-    return entries
-
-
 def _feature_dir_status_paths(repo_root: Path, feature_dir: Path) -> list[str]:
     """Repo-relative paths of *writable* (non-structural) feature-dir changes."""
     return [
@@ -467,48 +424,6 @@ def _resolve_bookkeeping_transaction_identifiers(
     return coord_branch, mission_id, mid8, effective_mission_id, effective_mid8
 
 
-def _coord_branch_blob(repo_root: Path, ref: str, repo_rel_path: str) -> bytes | None:
-    """Return the bytes of *repo_rel_path* at *ref*, or ``None`` if absent there."""
-    result = subprocess.run(
-        ["git", "show", f"{ref}:{repo_rel_path}"],
-        cwd=repo_root,
-        capture_output=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        return None
-    return result.stdout
-
-
-def _files_changed_vs_ref(
-    repo_root: Path, files: list[str], ref: str | None
-) -> list[str]:
-    """Drop files whose working-tree content already matches *ref*.
-
-    The coordination model commits claim-time planning-artifact edits to the
-    coordination branch but leaves them uncommitted in the main checkout. The
-    next claim re-discovers those edits as "uncommitted" even though their
-    content is already on the coordination branch. Committing them again would
-    produce an empty commit, which ``safe_commit`` rejects ("git commit failed")
-    — silently blocking every claim after the first. Filtering to genuinely
-    changed files makes the planning-artifact commit idempotent.
-    """
-    if not ref:
-        return files
-    changed: list[str] = []
-    for repo_rel in files:
-        source = (repo_root / Path(repo_rel)).resolve()
-        if not source.exists():
-            # Defensive: callers pass only writable (non-structural) paths, which
-            # exist on disk. Structural deletions/renames are rejected upstream
-            # (fail-closed) before reaching here, so a missing path here is
-            # unexpected — skip it rather than crash the claim.
-            continue
-        if _coord_branch_blob(repo_root, ref, repo_rel) != source.read_bytes():
-            changed.append(repo_rel)
-    return changed
-
-
 def _feature_dir_file_paths(repo_root: Path, feature_dir: Path) -> list[str]:
     # FR-005 / Issue #1887: reject calls where feature_dir resolves under
     # .worktrees/.  Relativizing a coord-worktree path against the primary repo
@@ -568,192 +483,7 @@ def _planning_artifact_source_dir(repo_root: Path, feature_dir: Path, mission_sl
     return feature_dir
 
 
-def _exclude_coord_owned(paths: Iterable[str], coord_branch_for_filter: str | None) -> list[str]:
-    """Drop the canonical status log/snapshot (``COORD_OWNED_STATUS_FILES``) from
-    *paths* on coordination-topology missions only.
-
-    On a coordination mission those files are owned by the transactional emitter on
-    the coord branch, and the primary checkout's copies are stale — committing them
-    would clobber the seeded lane state (#1589). On a non-coordination (flat/legacy)
-    mission there is no coord authority, so the primary checkout's status files ARE
-    canonical and must be committed; excluding them there silently drops a status
-    edit (review M3). Single predicate for both commit-path sources (review F-03).
-    """
-    if coord_branch_for_filter:
-        return [p for p in paths if Path(p).name not in COORD_OWNED_STATUS_FILES]
-    return list(paths)
-
-
-def _status_paths_for_commit(
-    entries: list[_PorcelainEntry], coord_branch_for_filter: str | None
-) -> list[str]:
-    """The feature-dir paths to commit from ``git status`` entries — see
-    :func:`_exclude_coord_owned`."""
-    return _exclude_coord_owned((e.path for e in entries), coord_branch_for_filter)
-
-
-def _is_vcs_lock_only_meta_diff(
-    committed: Mapping[str, Any] | None, working: Mapping[str, Any]
-) -> bool:
-    """Pure decision: is the meta.json change ONLY the one-time vcs-lock fields?
-
-    Returns ``True`` iff every key whose value differs between the *committed*
-    baseline and the *working*-tree meta.json is a member of
-    :data:`_VCS_LOCK_META_FIELDS` (#2222 / C-003). The comparison is on parsed
-    JSON, so it is robust to byte-level reformatting by ``write_meta``.
-
-    An empty diff returns ``False`` (nothing to exclude); any non-lock key in
-    the diff returns ``False`` so a genuinely dirty meta.json still blocks the
-    claim (the required negative guard — the exclusion is lock-field-only, never
-    a blanket meta.json bypass).
-    """
-    base: Mapping[str, Any] = committed or {}
-    changed_keys = {
-        key
-        for key in set(base) | set(working)
-        if base.get(key, _MISSING_META_VALUE)
-        != working.get(key, _MISSING_META_VALUE)
-    }
-    return bool(changed_keys) and changed_keys <= _VCS_LOCK_META_FIELDS
-
-
-def _parse_meta_mapping(raw: bytes) -> dict[str, Any] | None:
-    """Parse meta.json *raw* bytes to a dict, or ``None`` when it is not a JSON
-    object (defensive: a non-object/corrupt meta is never treated as lock-only)."""
-    try:
-        parsed = json.loads(raw.decode("utf-8"))
-    except (UnicodeDecodeError, json.JSONDecodeError):
-        return None
-    return parsed if isinstance(parsed, dict) else None
-
-
-def _committed_meta_mapping(
-    repo_root: Path, repo_rel: str, ref: str | None
-) -> dict[str, Any] | None:
-    """The committed meta.json mapping at *ref* (or ``HEAD`` for flat/legacy
-    missions), or ``None`` when the path is absent there or unparseable."""
-    blob = _coord_branch_blob(repo_root, ref or "HEAD", repo_rel)
-    if blob is None:
-        return None
-    return _parse_meta_mapping(blob)
-
-
-def _drop_vcs_lock_only_meta(
-    repo_root: Path, paths: list[str], ref: str | None, *, auto_commit: bool
-) -> list[str]:
-    """Drop a vcs-lock-only meta.json change from the dirty-tree claim guard.
-
-    #2222 / C-003: ``mission_metadata.set_vcs_lock`` writes a one-time VCS-TYPE
-    lock to meta.json — never the concurrency mutex. Under ``auto_commit=False``
-    the prior dependency-free claim leaves that self-write uncommitted; without
-    this exclusion the next claim's dirty-tree guard wrongly aborts. Excluding a
-    lock-only diff is stop-gating (the lock stays uncommitted), NOT
-    auto-committing it, and opens no race.
-
-    Byte-identical no-op on the default ``auto_commit=True`` path (NFR-001): the
-    exclusion is gated here so the guard's commit set is untouched when
-    auto-commit is on. The exclusion is scoped strictly to the lock-field-only
-    diff (see :func:`_is_vcs_lock_only_meta_diff`); any non-lock meta.json edit
-    is kept and still blocks the claim.
-    """
-    if auto_commit:
-        return paths
-    kept: list[str] = []
-    for repo_rel in paths:
-        if Path(repo_rel).name != _META_JSON_FILENAME:
-            kept.append(repo_rel)
-            continue
-        source = (repo_root / Path(repo_rel)).resolve()
-        if not source.exists():
-            kept.append(repo_rel)
-            continue
-        working = _parse_meta_mapping(source.read_bytes())
-        committed = _committed_meta_mapping(repo_root, repo_rel, ref)
-        if working is not None and _is_vcs_lock_only_meta_diff(committed, working):
-            continue
-        kept.append(repo_rel)
-    return kept
-
-
-def _resolve_placement_ref(
-    repo_root: Path, *, mission_slug: str, wp_id: str
-) -> CommitTarget | None:
-    """Resolve the context's artifact-placement ref (C-PLACE-1 / IC-05).
-
-    Routes through the single canonical resolver (``resolve_action_context``,
-    C-CTX-1) and returns ``context.artifact_placement.placement_ref`` — the ONE
-    :class:`CommitTarget` that planning artifacts AND status events resolve to.
-    On any resolution failure it returns ``None`` so the caller keeps the legacy
-    meta-derived placement path (C-004 strangler: never break the implement
-    lifecycle on a context-resolution edge case).
-    """
-    from mission_runtime import (
-        ActionContextError,
-        resolve_action_context,
-    )
-
-    try:
-        context = resolve_action_context(
-            repo_root,
-            action="implement",
-            feature=mission_slug,
-            wp_id=wp_id,
-        )
-    except ActionContextError:
-        return None
-    placement = context.artifact_placement
-    return placement.placement_ref if placement is not None else None
-
-
-def _resolve_claim_commit_target(placement_ref: CommitTarget | None) -> CommitTarget:
-    """Resolve the WP status claim-commit target (T012 / D11 fail-closed).
-
-    A small, pure extraction (Sonar-testable) over the single seam-resolved
-    ``placement_ref`` (the SAME :class:`CommitTarget` planning artifacts AND
-    status events resolve to, C-PLACE-1). Replaces the forbidden
-    ``_get_current_branch(repo_root) or planning_branch`` grammar: when
-    ``placement_ref`` failed to resolve, this FAILS CLOSED with
-    :class:`PlacementResolutionRequired` instead of silently committing the
-    WP claim to whatever branch happens to be checked out.
-    """
-    if placement_ref is None:
-        raise PlacementResolutionRequired(
-            "Cannot resolve the canonical write placement for this mission's "
-            "WP status claim commit -- refusing to commit to the currently "
-            "checked-out branch (D11 fail-closed). This usually means the "
-            "mission's stored topology could not be resolved (e.g. a "
-            "coordination branch declared in meta.json is missing/torn down "
-            "in git). Run `spec-kitty doctor workspaces --fix`, or flatten "
-            "the mission by removing `coordination_branch` from meta.json if "
-            "the coordination topology was never used, then retry."
-        )
-    return placement_ref
-
-
-def _placement_coord_filter(
-    repo_root: Path, mission_slug: str, placement_ref: CommitTarget | None
-) -> str | None:
-    """Return the coord-owned-exclusion ref implied by the mission's topology.
-
-    WP06 / T019 / C-PLACE-1: the coord/flattened/primary decision reads the WP02
-    STORED topology via the ONE canonical :func:`routes_through_coordination`
-    predicate (FR-005 / FR-001b) — never a per-ref ``.kind`` (the retired arm) and
-    not independent meta.json/git logic (C-005). Only a genuine *coordination*
-    topology owns the status files on a separate branch and therefore excludes
-    them from the primary-checkout commit; a flattened/primary topology has no
-    primary↔coord split, so the primary status files are NOT filtered out —
-    preserving the #1816 implement-claim fix. The excluded ref is the context's
-    single ``placement_ref.ref`` (the SAME CommitTarget status events resolve to).
-    Returns ``None`` for flattened/primary topologies.
-    """
-    if placement_ref is None:
-        return None
-    if routes_through_coordination(resolve_topology(repo_root, mission_slug)):
-        return placement_ref.ref
-    return None
-
-
-def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestration helper; unrelated to issue #1386
+def _ensure_planning_artifacts_committed_git(
     repo_root: Path,
     feature_dir: Path,
     mission_slug: str,
@@ -776,29 +506,6 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
     artifact_source_dir = _planning_artifact_source_dir(
         repo_root, feature_dir, mission_slug
     )
-    entries = _feature_dir_status_entries(repo_root, artifact_source_dir)
-
-    # Fail closed on structural changes (deletions, renames, copies). The
-    # planning-artifact commit goes through ``BookkeepingTransaction.write_artifact``,
-    # a write-only API that cannot remove an old path from the coordination
-    # branch. Silently committing only the additions would leave the branch
-    # incoherent (stale deleted/renamed-from artifacts), so the claim must
-    # refuse rather than proceed — restoring the pre-idempotency fail-closed
-    # contract (#1598 review). The operator commits the structural change to the
-    # coordination branch out-of-band, then re-runs the claim.
-    structural = [e for e in entries if e.is_structural]
-    if structural:
-        console.print(
-            f"\n{_RED_ERROR_PREFIX}Uncommitted structural planning-artifact changes "
-            "(deletions/renames) cannot be auto-committed to the coordination branch:"
-        )
-        for entry in structural:
-            console.print(f"  {entry.xy.strip() or entry.xy} {entry.path}")
-        console.print(
-            "\nCommit these structural changes to the coordination branch yourself "
-            "(e.g. `git rm`/`git mv` + commit), then re-run the claim."
-        )
-        raise typer.Exit(1)
 
     # WP06 / T019 / C-PLACE-1: when the context supplies a placement ref, the
     # coord/flattened/primary decision comes from that single CommitTarget — no
@@ -813,40 +520,49 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
             feature_dir, mission_slug, repo_root
         )[0]
 
-    status_paths = _status_paths_for_commit(entries, coord_branch_for_filter)
-    # #2222 / C-003: under auto_commit=False, ignore the mission's own one-time
-    # vcs-lock self-write to meta.json so a back-to-back dependency-free claim is
-    # not blocked by it (no-op when auto_commit=True — NFR-001). Helper-gated so
-    # the guard gains no new branch (it keeps its existing C901 complexity waiver).
-    status_paths = _drop_vcs_lock_only_meta(
-        repo_root, status_paths, coord_branch_for_filter, auto_commit=auto_commit
+    # T016: the staging DECISION (structural fail-closed check, #2222
+    # vcs-lock exclusion, dedup, idempotency filtering) is a pure core in
+    # implement_cores.py; this function is the git EXECUTOR -- it turns a
+    # non-empty ``plan.structural`` into the fail-closed print+exit below and
+    # an empty ``plan.files_to_commit`` into a silent no-op return, then does
+    # the actual BookkeepingTransaction I/O.
+    extra_file_paths = (
+        _feature_dir_file_paths(repo_root, artifact_source_dir) if coord_branch_for_filter else []
     )
-    files_to_commit = list(status_paths)
-    if coord_branch_for_filter:
-        files_to_commit.extend(
-            _exclude_coord_owned(
-                _feature_dir_file_paths(repo_root, artifact_source_dir),
-                coord_branch_for_filter,
-            )
+    plan = resolve_planning_artifact_staging(
+        repo_root,
+        artifact_source_dir,
+        coord_branch_for_filter,
+        extra_file_paths,
+        auto_commit=auto_commit,
+    )
+
+    # Fail closed on structural changes (deletions, renames, copies). The
+    # planning-artifact commit goes through ``BookkeepingTransaction.write_artifact``,
+    # a write-only API that cannot remove an old path from the coordination
+    # branch. Silently committing only the additions would leave the branch
+    # incoherent (stale deleted/renamed-from artifacts), so the claim must
+    # refuse rather than proceed — restoring the pre-idempotency fail-closed
+    # contract (#1598 review). The operator commits the structural change to the
+    # coordination branch out-of-band, then re-runs the claim.
+    if plan.structural:
+        console.print(
+            f"\n{_RED_ERROR_PREFIX}Uncommitted structural planning-artifact changes "
+            "(deletions/renames) cannot be auto-committed to the coordination branch:"
         )
-    files_to_commit = list(dict.fromkeys(files_to_commit))
-    files_to_commit = _drop_vcs_lock_only_meta(
-        repo_root, files_to_commit, coord_branch_for_filter, auto_commit=auto_commit
-    )
+        for entry in plan.structural:
+            console.print(f"  {entry.xy.strip() or entry.xy} {entry.path}")
+        console.print(
+            "\nCommit these structural changes to the coordination branch yourself "
+            "(e.g. `git rm`/`git mv` + commit), then re-run the claim."
+        )
+        raise typer.Exit(1)
+
+    files_to_commit = plan.files_to_commit
     if not files_to_commit:
         return
 
-    # Idempotency guard: skip files already identical on the coordination branch
-    # so a re-discovered (but already-committed) edit does not produce an empty
-    # commit that ``safe_commit`` rejects. See ``_files_changed_vs_ref``.
-    files_to_commit = _files_changed_vs_ref(
-        repo_root, files_to_commit, coord_branch_for_filter
-    )
-    if not files_to_commit:
-        return
-
-    status_paths_to_commit = set(_files_changed_vs_ref(repo_root, status_paths, coord_branch_for_filter))
-    if status_paths_to_commit:
+    if plan.status_paths_to_commit:
         _print_uncommitted_planning_artifacts(files_to_commit)
         _print_planning_artifact_commit_instructions(
             current_branch,
@@ -861,14 +577,56 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
         f"Auto-committed by spec-kitty before creating the lane worktree for {wp_id}"
     )
 
-    # WP06 T026: route planning-artifact commits through
-    # BookkeepingTransaction so the commit lands on the mission's
-    # coordination branch (FR-005) and any write of status events is
-    # atomically reversible (FR-010).
-    #
-    # Legacy missions (created pre-WP03) have no ``coordination_branch``
-    # in meta.json. For those, fall back to the legacy raw-git path.
-    # WP08 will replace this fallback with a proper legacy bridge.
+    _commit_planning_artifacts_transaction(
+        repo_root=repo_root,
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        planning_branch=planning_branch,
+        files_to_commit=files_to_commit,
+        commit_msg=commit_msg,
+        placement_ref=placement_ref,
+    )
+
+
+def _commit_planning_artifacts_transaction(
+    *,
+    repo_root: Path,
+    feature_dir: Path,
+    mission_slug: str,
+    planning_branch: str,
+    files_to_commit: list[str],
+    commit_msg: str,
+    placement_ref: CommitTarget | None,
+) -> None:
+    """T016 git-executor tail: run the BookkeepingTransaction commit.
+
+    Split out of :func:`_ensure_planning_artifacts_committed_git` so that
+    function's own complexity stays scoped to the staging decision it drives;
+    this helper owns only the transaction I/O (identifier resolution,
+    destination-ref selection, ``BookkeepingTransaction`` write+commit,
+    legacy-vs-coordination status prints).
+
+    WP06 T026: route planning-artifact commits through BookkeepingTransaction
+    so the commit lands on the mission's coordination branch (FR-005) and any
+    write of status events is atomically reversible (FR-010). Legacy missions
+    (created pre-WP03) have no ``coordination_branch`` in meta.json; the
+    transaction's built-in legacy fallback (``_is_legacy_mission`` +
+    ``_resolve_legacy_lane_destination`` in ``coordination/transaction.py``)
+    overrides ``destination_ref`` with the actual checked-out lane branch, so
+    the pre-flight policy gate, surgical rollback, and feature-status lock
+    apply uniformly to coordination-branch and legacy missions alike (FR-027).
+
+    WP03 / T011 / D11: no inline ``coord_branch if coord_branch else
+    planning_branch`` grammar (the forbidden pattern named in
+    contracts/seam-api.md's consumer table). When a ``placement_ref`` was
+    threaded (modern, non-legacy missions), it is already the ONE
+    seam-resolved :class:`CommitTarget` planning artifacts AND status events
+    resolve to (C-PLACE-1) -- use its ``.ref`` directly instead of
+    reconstructing the coord/primary choice a second time from
+    ``coord_branch``. Genuinely-legacy missions (no ``placement_ref``) keep
+    the existing meta-derived placeholder -- out of this WP's scope (#2453;
+    the value is never persisted).
+    """
     (
         coord_branch,
         mission_id,
@@ -890,40 +648,8 @@ def _ensure_planning_artifacts_committed_git(  # noqa: C901 -- legacy orchestrat
     if placement_ref is not None:
         coord_branch = _placement_coord_filter(repo_root, mission_slug, placement_ref)
 
-    # Route ALL planning-artifact commits through BookkeepingTransaction.
-    # The transaction has a built-in legacy fallback (see
-    # ``_is_legacy_mission`` + ``_resolve_legacy_lane_destination`` in
-    # ``coordination/transaction.py``) so the pre-flight policy gate,
-    # surgical rollback, and feature-status lock apply uniformly to
-    # coordination-branch and legacy missions alike (FR-027).
-    #
-    # Modern (post-WP03) missions have ``coordination_branch``,
-    # ``mission_id``, and ``mid8`` in meta; the transaction routes the
-    # commit to the coord branch.
-    #
-    # Legacy missions lack ``coordination_branch``; the transaction
-    # detects this via ``_is_legacy_mission`` and overrides the caller-
-    # supplied ``destination_ref`` with the actual checked-out lane
-    # branch resolved from HEAD. We synthesize ``mission_id`` / ``mid8``
-    # from the slug if meta lacks them (truly pre-WP03 missions).
     from specify_cli.coordination.transaction import BookkeepingTransaction
 
-    # Synthesize identifiers for legacy missions that lack them in meta.
-    # The legacy fallback in BookkeepingTransaction overrides
-    # destination_ref from HEAD, so the placeholder coord_branch value
-    # below is never persisted; the routing just needs *some* shape-valid
-    # ref name to satisfy the pre-flight policy gate's normalisation.
-    #
-    # WP03 / T011 / D11: no inline ``coord_branch if coord_branch else
-    # planning_branch`` grammar (the forbidden pattern named in
-    # contracts/seam-api.md's consumer table). When a ``placement_ref`` was
-    # threaded (modern, non-legacy missions), it is already the ONE
-    # seam-resolved :class:`CommitTarget` planning artifacts AND status
-    # events resolve to (C-PLACE-1) -- use its ``.ref`` directly instead of
-    # reconstructing the coord/primary choice a second time from
-    # ``coord_branch``. Genuinely-legacy missions (no ``placement_ref``) keep
-    # the existing meta-derived placeholder -- out of this WP's scope
-    # (#2453; the value is never persisted, see comment above).
     if placement_ref is not None:
         effective_destination_ref = placement_ref.ref
     elif coord_branch:
@@ -1100,9 +826,461 @@ def _run_recover_mode(
                 console.print(f"    - {err}")
 
 
+# ---------------------------------------------------------------------------
+# T017: implement() decomposition helpers -- each owns one leaf decision or
+# side effect so the Typer-shell function itself stays a thin orchestration
+# sequence (S3776 <=15). None of these change externally-observed behavior;
+# see the WP03 tracer for the extraction rationale.
+# ---------------------------------------------------------------------------
+
+
+def _detect_wp_context(
+    mission: str, wp_id: str, repo_root: Path, auto_commit: bool | None
+) -> tuple[bool | None, str, Path, Path, Any]:
+    """Resolve ``(auto_commit, mission_slug, feature_dir, wp_file,
+    declared_deps)`` for the ``detect`` step. Exceptions propagate to the
+    caller's tracker-aware ``except`` clause unchanged."""
+    from specify_cli.core.agent_config import get_auto_commit_default
+    from specify_cli.core.dependency_graph import parse_wp_dependencies
+
+    if auto_commit is None:
+        auto_commit = get_auto_commit_default(repo_root)
+    _mission_number, mission_slug = detect_feature_context(mission, repo_root=repo_root)
+    # read-surface-ssot-closeout WP05 / FR-001 / NFR-001: route through the
+    # kind-aware placement seam instead of the kind-blind
+    # ``resolve_feature_dir_for_mission`` (which could return the
+    # coordination worktree's mission dir once materialized -- the #2453
+    # coord-husk-shadows-primary defect NFR-001 closes). ``SPEC`` is a
+    # PRIMARY-partition kind (mission_runtime.artifacts), so ``read_dir``
+    # resolves the topology-blind primary directory directly: the SAME
+    # directory every downstream read in this function needs (meta.json,
+    # spec.md, tasks.md, the occurrence-map gate). This collapses the
+    # former three-step meta.json-existence cascade (resolve -> candidate
+    # fallback -> primary fallback), which existed ONLY to paper over the
+    # kind-blind resolver's coord-husk shadowing -- the kind-correct seam
+    # never returns a meta-less coord husk in the first place.
+    feature_dir = placement_seam(repo_root, mission_slug).read_dir(
+        MissionArtifactKind.SPEC
+    )
+    wp_file = find_wp_file(repo_root, mission_slug, wp_id)
+    declared_deps = parse_wp_dependencies(wp_file)
+    return auto_commit, mission_slug, feature_dir, wp_file, declared_deps
+
+
+def _raise_if_status_commit_protected(repo_root: Path, planning_branch: str, auto_commit: bool | None) -> None:
+    """Raise ``ValueError`` when auto-commit is on and the pre-lane status
+    commit would target a protected branch."""
+    if not auto_commit:
+        return
+    status_destination = _status_commit_destination_branch(repo_root, fallback_branch=planning_branch)
+    protected_error = _protected_branch_status_commit_error(status_destination, repo_root)
+    if protected_error is not None:
+        raise ValueError(protected_error)
+
+
+def _execution_mode_for_workspace(resolved_workspace: Any) -> str:
+    """``"direct_repo"`` for a repository-root planning workspace, else
+    ``"worktree"``."""
+    return "direct_repo" if resolved_workspace.resolution_kind == "repo_root" else "worktree"
+
+
+def _ensure_wp_claim_preconditions(status_feature_dir: Path, wp_id: str, declared_deps: Any) -> None:
+    """Raise if *wp_id* is unseeded (T012 / Contract 3) or a declared
+    dependency is not yet ``approved``/``done``."""
+    from specify_cli.core.dependency_graph import dependency_readiness_for_wp
+    from specify_cli.status import reduce as _reduce_events
+    from specify_cli.status import read_events as _read_events
+
+    wp_lanes = {
+        _wp_id: _state.get("lane", Lane.GENESIS)
+        for _wp_id, _state in _reduce_events(_read_events(status_feature_dir)).work_packages.items()
+    }
+    # T012 / Contract 3: reject unseeded WPs BEFORE any workspace
+    # allocation. A genesis WP has not been through finalize-tasks; the
+    # user must run it first to seed the genesis→planned bootstrap event.
+    current_wp_lane = wp_lanes.get(wp_id, Lane.GENESIS)
+    if current_wp_lane == Lane.GENESIS:
+        # FR-009: same rejection (and exception type) as the lifecycle layer,
+        # so programmatic callers catching WorkPackageStartRejected see this
+        # path too (review M5).
+        raise WorkPackageStartRejected(
+            f"WP {wp_id} is not finalized; run `spec-kitty agent mission finalize-tasks`"
+        )
+    dependency_readiness = dependency_readiness_for_wp(wp_id, declared_deps, wp_lanes)
+    if not dependency_readiness.satisfied:
+        blocked = ", ".join(dependency_readiness.unsatisfied)
+        raise ValueError(
+            f"dependencies_not_satisfied: {wp_id} depends on {blocked}; "
+            "all dependencies must be approved or done before implementation can start"
+        )
+
+
+def _run_bulk_edit_gate_and_inference(
+    feature_dir: Path, wp_file: Path, mission_slug: str, wp_id: str, acknowledge_not_bulk_edit: bool
+) -> None:
+    """Bulk-edit occurrence-classification gate (FR-006) + inference warning
+    (FR-009). Raises ``typer.Exit(1)`` on a gate failure or an un-acknowledged
+    triggered inference; a silent return means the claim may proceed."""
+    from specify_cli.bulk_edit.gate import ensure_occurrence_classification_ready, render_gate_failure
+
+    gate_result = ensure_occurrence_classification_ready(feature_dir)
+    if not gate_result.passed:
+        render_gate_failure(gate_result, console)
+        raise typer.Exit(1)
+
+    if gate_result.change_mode is not None:
+        return
+
+    from specify_cli.bulk_edit.inference import (
+        scan_spec_file,
+        wp_authors_bulk_edit_planning_artifact,
+    )
+
+    inference = scan_spec_file(feature_dir)
+    planning_wp = wp_authors_bulk_edit_planning_artifact(wp_file, mission_slug)
+    if inference.triggered and planning_wp:
+        matched = ", ".join(f"'{p}' ({w}pt)" for p, w in inference.matched_phrases)
+        console.print(Panel(
+            f"This mission's spec contains language suggesting a bulk edit "
+            f"(score: {inference.score}/{inference.threshold}), but {wp_id} owns "
+            f"the occurrence-map planning artifact.\n"
+            f"  Matched: {matched}\n\n"
+            f"Continuing without --acknowledge-not-bulk-edit for this planning WP.",
+            title="[bold yellow]Bulk Edit Inference Informational[/]",
+            border_style="yellow",
+        ))
+        return
+    if inference.triggered and not acknowledge_not_bulk_edit:
+        matched = ", ".join(f"'{p}' ({w}pt)" for p, w in inference.matched_phrases)
+        console.print(Panel(
+            f"This mission's spec contains language suggesting a bulk edit "
+            f"(score: {inference.score}/{inference.threshold}):\n"
+            f"  Matched: {matched}\n\n"
+            f"If this IS a bulk edit, set change_mode to 'bulk_edit' in meta.json.\n"
+            f"If it is NOT, re-run with --acknowledge-not-bulk-edit to suppress.",
+            title="[bold yellow]Bulk Edit Inference Warning[/]",
+            border_style="yellow",
+        ))
+        raise typer.Exit(1)
+
+
+def _resolve_execution_lane(
+    resolved_workspace: Any, lanes_feature_dir: Path, wp_id: str, tracker: StepTracker
+) -> tuple[Any, Any]:
+    """Resolve ``(lanes_manifest, lane)`` for a lane workspace, or ``(None,
+    None)`` for a repository-root planning workspace. Completes the
+    ``validate`` tracker step either way."""
+    from specify_cli.lanes.compute import is_planning_lane
+
+    if is_planning_lane(resolved_workspace):
+        tracker.complete("validate", "Execution: repository root planning workspace")
+        return None, None
+    lanes_manifest = require_lanes_json(lanes_feature_dir)
+    lane = lanes_manifest.lane_for_wp(wp_id)
+    if lane is None:
+        raise ValueError(f"{wp_id} is not assigned to any lane in lanes.json")
+    tracker.complete("validate", f"Lane: {lane.lane_id}")
+    return lanes_manifest, lane
+
+
+def _resolve_active_lanes_manifest(
+    repo_root: Path, base: str | None, resolved_workspace: Any, lanes_manifest: Any
+) -> Any:
+    """Apply ``--base`` (#1684): validate the ref and patch the manifest's
+    ``mission_branch`` so the allocator branches from the explicit base
+    instead of auto-detecting. ``--base`` selects only the ROOT the lane
+    branches from; the allocator still merges approved ``depends_on_lanes``
+    tips on top, so cross-lane code propagation is preserved regardless of
+    the chosen root. Returns *lanes_manifest* unchanged when ``--base`` does
+    not apply."""
+    from specify_cli.lanes.compute import is_planning_lane
+
+    if base is None:
+        return lanes_manifest
+    if is_planning_lane(resolved_workspace):
+        console.print("[yellow]Warning:[/yellow] --base is ignored for repository-root planning work")
+        return lanes_manifest
+    _validate_base_ref(repo_root, base)
+    # Shallow-patch the manifest's mission_branch so
+    # allocate_lane_worktree branches from the explicit ref.
+    from dataclasses import replace as _dc_replace
+
+    console.print(f"[cyan]→ Using explicit base ref: {base}[/cyan]")
+    return _dc_replace(lanes_manifest, mission_branch=base)
+
+
+def _emit_blocked_on_alloc_failure(
+    feature_dir: Path,
+    mission_slug: str,
+    wp_id: str,
+    effective_actor: str,
+    status_execution_mode: str,
+    repo_root: Path,
+    exc: Exception,
+) -> None:
+    """Best-effort BLOCKED transition after a workspace-allocation failure;
+    a no-op when the WP's current lane cannot validly transition to
+    BLOCKED."""
+    current_lane = _get_wp_lane_from_event_log(feature_dir, wp_id)
+    if current_lane not in {Lane.PLANNED, Lane.CLAIMED, Lane.IN_PROGRESS}:
+        return
+    try:
+        emit_status_transition_transactional(
+            TransitionRequest(
+                feature_dir=feature_dir,
+                mission_slug=mission_slug,
+                wp_id=wp_id,
+                to_lane=Lane.BLOCKED,
+                actor=effective_actor,
+                execution_mode=status_execution_mode,
+                reason="worktree_alloc_failed",
+                policy_metadata={"evidence": str(exc)},
+                repo_root=repo_root,
+            )
+        )
+    except Exception as _blocked_exc:  # noqa: BLE001 -- best-effort, never mask the real alloc failure
+        console.print(
+            f"[yellow]Warning:[/yellow] Could not emit blocked transition after alloc failure: {_blocked_exc}"
+        )
+
+
+def _commit_wp_claim_status(
+    *,
+    repo_root: Path,
+    feature_dir: Path,
+    mission_slug: str,
+    wp_id: str,
+    wp_file: Path,
+    auto_commit: bool | None,
+    placement_ref: CommitTarget | None,
+    status_result: Any,
+) -> None:
+    """Auto-commit (or staged-only) side effect for a WP's claimed->'doing'
+    transition. A no-op when *status_result* shows no lane change occurred.
+
+    Split out of ``implement()`` so the outer try/except there keeps its
+    exact ``SafeCommitPathPolicyError`` / ``PlacementResolutionRequired`` /
+    soft-warning shape (D11 -- see
+    ``test_implement_placement_routing.py::test_structured_error_is_not_swallowed_as_soft_warning``,
+    which asserts on ``implement()``'s own source).
+    """
+    if status_result is None or not status_result.status_changed:
+        return
+    if not auto_commit:
+        console.print(f"[cyan]→ {wp_id} moved to 'doing' (auto-commit disabled, changes staged only)[/cyan]")
+        return
+
+    from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
+
+    commit_msg = f"chore: {wp_id} claimed for implementation"
+    meta_file = feature_dir / "meta.json"
+    config_file = repo_root / ".kittify" / "config.yaml"
+    # #2155 (FR-002 / T011): bundle ONLY primary-surface artifacts into
+    # the primary-root claim commit. The status transition was already
+    # committed to the coordination branch by
+    # ``start_implementation_status`` (the transactional emitter); under
+    # coord topology the coord-owned status files (events.jsonl /
+    # status.json) resolved by ``_collect_status_artifacts`` live UNDER
+    # ``.worktrees/``, so staging them from the primary root trips the
+    # #1887 ``SafeCommitPathPolicyError`` guard — which the former broad
+    # ``except`` swallowed as an "Auto-commit skipped" warning, leaving
+    # the feature branch dirty (the surviving #2155 residual). The
+    # canonical ``COORD_OWNED_STATUS_FILES`` partition drops those files
+    # on coord topology only; on a flat/legacy mission they ARE canonical
+    # on PRIMARY and stay in the bundle.
+    if routes_through_coordination(resolve_topology(repo_root, mission_slug)):
+        status_paths = [
+            path.resolve()
+            for path in _collect_status_artifacts(feature_dir)
+            if path.name not in COORD_OWNED_STATUS_FILES
+        ]
+    else:
+        status_paths = [path.resolve() for path in _collect_status_artifacts(feature_dir)]
+    files_to_commit = [wp_file.resolve(), *status_paths]
+    if meta_file.exists():
+        files_to_commit.append(meta_file.resolve())
+    if config_file.exists():
+        files_to_commit.append(config_file.resolve())
+
+    # WP03 / T011 / T012 / D11: the status claim commit routes through
+    # the SAME seam-resolved ``placement_ref`` planning artifacts
+    # resolve to (C-PLACE-1) instead of the forbidden
+    # ``_get_current_branch(repo_root) or planning_branch``
+    # checkout-derived grammar. A resolution failure now FAILS CLOSED
+    # (see ``_resolve_claim_commit_target``) rather than silently
+    # committing to whatever branch is checked out.
+    claim_commit_target = _resolve_claim_commit_target(placement_ref)
+    try:
+        safe_commit(
+            repo_root=repo_root,
+            worktree_root=repo_root,
+            target=claim_commit_target,
+            message=commit_msg,
+            paths=tuple(files_to_commit),
+        )
+        console.print(f"[cyan]→ {wp_id} moved to 'doing'[/cyan]")
+    except SafeCommitPathPolicyError:
+        # #2155 (FR-002 / T011): a wrong-surface guard refusal is a real
+        # defect, not an "Auto-commit skipped" warning — re-raise so it
+        # surfaces instead of leaving the branch silently dirty. The
+        # partition above prevents this on a correct bundle; reaching here
+        # means a coord-owned path leaked into the primary commit and the
+        # C-006 guard MUST stay authoritative (never swallowed).
+        raise
+    except Exception as _commit_exc:  # noqa: BLE001 — non-policy git failures stay soft
+        console.print(
+            f"[yellow]Warning:[/yellow] Could not auto-commit lane change: {_commit_exc}"
+        )
+
+
+def _build_implement_json_payload(
+    repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    workspace_path: Path,
+    branch_name: str | None,
+    result: Any,
+    resolved_workspace: Any,
+) -> dict[str, Any]:
+    """Assemble the ``--json`` success payload (FR-004/FR-005 #2186 identity
+    anchor + FR-006 lane-test-env passthrough)."""
+    result_execution_mode = result.execution_mode if isinstance(result.execution_mode, str) else resolved_workspace.execution_mode
+    workspace_rel = str(workspace_path.relative_to(repo_root))
+    # FR-004/FR-005 (#2186): the JSON ``mission_slug``/``mission_number``/
+    # ``mission_type`` come from meta.json, which lives ONLY on the PRIMARY
+    # checkout. ``feature_dir`` above may have landed on the coord husk (the
+    # topology-aware resolve→candidate cascade); give the identity read its OWN
+    # PRIMARY anchor rather than relying on the conditional meta-fallback above
+    # (C-EXCL-FALLBACK — so that fallback can be retired later). NFR-004: no
+    # primary-dir stub — this resolves the durable PRIMARY home for real.
+    from specify_cli.missions._read_path_resolver import (
+        _canonicalize_primary_read_handle,
+        primary_feature_dir_for_mission,
+    )
+
+    identity_dir = primary_feature_dir_for_mission(
+        repo_root, _canonicalize_primary_read_handle(repo_root, mission_slug)
+    )
+    identity = resolve_mission_identity(identity_dir)
+    return {
+        "workspace": workspace_rel,
+        "workspace_path": workspace_rel,
+        "branch": branch_name,
+        "mission_slug": identity.mission_slug,
+        "mission_number": identity.mission_number,
+        "mission_type": identity.mission_type,
+        "wp_id": wp_id,
+        "lane_id": result.lane_id,
+        "execution_mode": result_execution_mode,
+        "status": "created",
+        # FR-006: surface the lane-suffixed test DB env so
+        # downstream agents / test runners can `os.environ.update`
+        # without re-deriving the helper. Empty dict for
+        # planning-artifact workspaces (lane_id is None) or
+        # when the result type doesn't carry a real dict
+        # (e.g. a MagicMock in unit tests).
+        "lane_test_env": (
+            result.lane_test_env
+            if isinstance(getattr(result, "lane_test_env", None), dict)
+            else {}
+        ),
+    }
+
+
+def _start_wp_implementation_status(
+    *,
+    feature_dir: Path,
+    mission_slug: str,
+    wp_id: str,
+    effective_actor: str,
+    workspace_path: Path,
+    status_execution_mode: str,
+    repo_root: Path,
+) -> Any:
+    """Call ``start_implementation_status``, translating claim-conflict /
+    transition failures into a printed error + ``typer.Exit(1)``."""
+    try:
+        return start_implementation_status(
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            actor=effective_actor,
+            workspace_context=f"{status_execution_mode}:{workspace_path}",
+            execution_mode=status_execution_mode,
+            repo_root=repo_root,
+        )
+    except WorkPackageClaimConflict as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
+    except TransitionError as exc:
+        console.print(f"[red]Error:[/red] Could not start implementation status: {exc}")
+        raise typer.Exit(1) from exc
+
+
+def _report_workspace_created(tracker: StepTracker, result: Any, workspace_path: Path, repo_root: Path) -> None:
+    """Complete the ``create`` tracker step and print the workspace/branch
+    summary lines shared by the repo-root and lane-worktree cases."""
+    if result.lane_id is None:
+        tracker.complete("create", f"Repository root: {workspace_path.relative_to(repo_root)}")
+    elif result.is_reuse:
+        tracker.complete("create", f"Reused lane {result.lane_id}: {workspace_path.relative_to(repo_root)}")
+    else:
+        tracker.complete("create", f"Lane {result.lane_id}: {workspace_path.relative_to(repo_root)}")
+    console.print(tracker.render())
+    if result.mission_branch:
+        console.print(f"[cyan]→ Mission branch: {result.mission_branch}[/cyan]")
+    if result.branch_name:
+        console.print(f"[cyan]→ Lane branch: {result.branch_name}[/cyan]")
+    else:
+        console.print("[cyan]→ Workspace contract: repository root planning workspace[/cyan]")
+
+
+def _print_workspace_ready_banner(result: Any, workspace_path: Path) -> None:
+    """Human-readable "workspace ready" banner (repo-root planning vs lane
+    worktree), plus the FR-006 lane-test-env export block."""
+    if result.lane_id is None:
+        console.print("\n[bold green]✓ Repository-root workspace ready[/bold green]")
+        console.print()
+        console.print("[bold yellow]" + "=" * 72 + "[/bold yellow]")
+        console.print("[bold yellow]Planning-artifact work for this WP happens in the repository root[/bold yellow]")
+        console.print("[bold yellow]" + "=" * 72 + "[/bold yellow]")
+        console.print()
+        console.print(f"  [bold]cd {workspace_path}[/bold]")
+        console.print()
+        console.print("[dim]This WP does not get a lane worktree or workspace context file.[/dim]")
+        console.print("[dim]Make planning-artifact changes directly in the repository root.[/dim]")
+        return
+
+    console.print("\n[bold green]✓ Lane worktree ready[/bold green]")
+    console.print()
+    console.print("[bold yellow]" + "=" * 72 + "[/bold yellow]")
+    console.print("[bold yellow]CRITICAL: Change to the lane worktree before editing files[/bold yellow]")
+    console.print("[bold yellow]" + "=" * 72 + "[/bold yellow]")
+    console.print()
+    console.print(f"  [bold]cd {workspace_path}[/bold]")
+    console.print()
+    console.print("[dim]All file edits, writes, and commits MUST happen in this directory.[/dim]")
+    console.print("[dim]Writing to the main repository instead of the lane worktree is a critical error.[/dim]")
+
+    # FR-006: surface the lane-suffixed test DB env so the agent can
+    # export it before running the project's test suite. Persisted to
+    # WorkspaceContext for resurrection by later commands; printed here
+    # so a human operator can copy/paste in their shell.
+    lane_env = getattr(result, "lane_test_env", None)
+    if isinstance(lane_env, dict) and lane_env:
+        console.print()
+        console.print("[bold cyan]Lane-specific test environment (FR-006):[/bold cyan]")
+        for key, value in sorted(lane_env.items()):
+            console.print(f"  export {key}={value}")
+        console.print(
+            "[dim]Two parallel SaaS / Django lanes will collide on a single shared test DB"
+            " unless these are exported in the lane's test process.[/dim]"
+        )
+
+
 @_json_safe_output
 @require_main_repo
-def implement(  # noqa: C901 — orchestration function, complexity inherent
+def implement(
     wp_id: str = typer.Argument(..., help="Work package ID (for example, WP01)"),
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (for example, 001-my-feature)")] = None,
     auto_commit: Annotated[
@@ -1145,9 +1323,6 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
     This command remains available as a compatibility surface for direct callers.
     See FR-503 and D-4 in the 3.1.1 spec.
     """
-    from specify_cli.core.agent_config import get_auto_commit_default
-    from specify_cli.core.dependency_graph import dependency_readiness_for_wp, parse_wp_dependencies
-
     # SC-003 no-selector guard: exit 2 when --mission is omitted (mirrors
     # all other commands and aligns with the no-selector-error-contract).
     # Guard runs BEFORE --recover so that `implement --recover` with no
@@ -1175,27 +1350,9 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         from specify_cli.charter_runtime.preflight.hook import run_preflight_or_abort
 
         run_preflight_or_abort(repo_root, consumer="implement")
-        if auto_commit is None:
-            auto_commit = get_auto_commit_default(repo_root)
-        _mission_number, mission_slug = detect_feature_context(mission, repo_root=repo_root)
-        # read-surface-ssot-closeout WP05 / FR-001 / NFR-001: route through the
-        # kind-aware placement seam instead of the kind-blind
-        # ``resolve_feature_dir_for_mission`` (which could return the
-        # coordination worktree's mission dir once materialized -- the #2453
-        # coord-husk-shadows-primary defect NFR-001 closes). ``SPEC`` is a
-        # PRIMARY-partition kind (mission_runtime.artifacts), so ``read_dir``
-        # resolves the topology-blind primary directory directly: the SAME
-        # directory every downstream read in this function needs (meta.json,
-        # spec.md, tasks.md, the occurrence-map gate). This collapses the
-        # former three-step meta.json-existence cascade (resolve -> candidate
-        # fallback -> primary fallback), which existed ONLY to paper over the
-        # kind-blind resolver's coord-husk shadowing -- the kind-correct seam
-        # never returns a meta-less coord husk in the first place.
-        feature_dir = placement_seam(repo_root, mission_slug).read_dir(
-            MissionArtifactKind.SPEC
+        auto_commit, mission_slug, feature_dir, wp_file, declared_deps = _detect_wp_context(
+            mission, wp_id, repo_root, auto_commit
         )
-        wp_file = find_wp_file(repo_root, mission_slug, wp_id)
-        declared_deps = parse_wp_dependencies(wp_file)
         tracker.complete("detect", f"Feature: {mission_slug}")
     except (TaskCliError, FileNotFoundError, FrontmatterError, ValidationError, typer.Exit) as exc:
         tracker.error("detect", str(exc))
@@ -1205,17 +1362,8 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
     tracker.start("validate")
     try:
         planning_branch = resolve_feature_target_branch(mission_slug, repo_root)
-        if auto_commit:
-            status_destination = _status_commit_destination_branch(
-                repo_root,
-                fallback_branch=planning_branch,
-            )
-            protected_error = _protected_branch_status_commit_error(status_destination, repo_root)
-            if protected_error is not None:
-                raise ValueError(protected_error)
+        _raise_if_status_commit_protected(repo_root, planning_branch, auto_commit)
 
-        from specify_cli.status import reduce as _reduce_events
-        from specify_cli.status import read_events as _read_events
         from specify_cli.coordination.surface_resolver import (
             resolve_status_surface_with_anchor as _resolve_status_surface,
         )
@@ -1239,28 +1387,9 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         # logic is unit-testable without infrastructure mocks.
         _lanes_feature_dir: Path = _resolve_lanes_dir(repo_root, mission_slug)
 
-        _wp_lanes = {
-            _wp_id: _state.get("lane", Lane.GENESIS)
-            for _wp_id, _state in _reduce_events(_read_events(_status_feature_dir)).work_packages.items()
-        }
-        # T012 / Contract 3: reject unseeded WPs BEFORE any workspace
-        # allocation.  A genesis WP has not been through finalize-tasks; the
-        # user must run it first to seed the genesis→planned bootstrap event.
-        _current_wp_lane = _wp_lanes.get(wp_id, Lane.GENESIS)
-        if _current_wp_lane == Lane.GENESIS:
-            # FR-009: same rejection (and exception type) as the lifecycle layer,
-            # so programmatic callers catching WorkPackageStartRejected see this
-            # path too (review M5).
-            raise WorkPackageStartRejected(
-                f"WP {wp_id} is not finalized; run `spec-kitty agent mission finalize-tasks`"
-            )
-        _dependency_readiness = dependency_readiness_for_wp(wp_id, declared_deps, _wp_lanes)
-        if not _dependency_readiness.satisfied:
-            blocked = ", ".join(_dependency_readiness.unsatisfied)
-            raise ValueError(
-                f"dependencies_not_satisfied: {wp_id} depends on {blocked}; "
-                "all dependencies must be approved or done before implementation can start"
-            )
+        # T012 / Contract 3 + dependency gate: reject unseeded WPs and
+        # not-yet-ready dependencies BEFORE any workspace allocation.
+        _ensure_wp_claim_preconditions(_status_feature_dir, wp_id, declared_deps)
 
         # WP06 / T019 / C-PLACE-1: resolve the single artifact-placement ref from
         # the canonical context so implement-claim never reconciles a
@@ -1282,46 +1411,9 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
             placement_ref=_placement_ref,
         )
 
-        # Bulk edit occurrence classification gate (FR-006)
-        from specify_cli.bulk_edit.gate import ensure_occurrence_classification_ready, render_gate_failure
-
-        gate_result = ensure_occurrence_classification_ready(feature_dir)
-        if not gate_result.passed:
-            render_gate_failure(gate_result, console)
-            raise typer.Exit(1)
-
-        # Inference warning for potentially unmarked bulk edits (FR-009)
-        if gate_result.change_mode is None:
-            from specify_cli.bulk_edit.inference import (
-                scan_spec_file,
-                wp_authors_bulk_edit_planning_artifact,
-            )
-
-            inference = scan_spec_file(feature_dir)
-            planning_wp = wp_authors_bulk_edit_planning_artifact(wp_file, mission_slug)
-            if inference.triggered and planning_wp:
-                matched = ", ".join(f"'{p}' ({w}pt)" for p, w in inference.matched_phrases)
-                console.print(Panel(
-                    f"This mission's spec contains language suggesting a bulk edit "
-                    f"(score: {inference.score}/{inference.threshold}), but {wp_id} owns "
-                    f"the occurrence-map planning artifact.\n"
-                    f"  Matched: {matched}\n\n"
-                    f"Continuing without --acknowledge-not-bulk-edit for this planning WP.",
-                    title="[bold yellow]Bulk Edit Inference Informational[/]",
-                    border_style="yellow",
-                ))
-            elif inference.triggered and not acknowledge_not_bulk_edit:
-                matched = ", ".join(f"'{p}' ({w}pt)" for p, w in inference.matched_phrases)
-                console.print(Panel(
-                    f"This mission's spec contains language suggesting a bulk edit "
-                    f"(score: {inference.score}/{inference.threshold}):\n"
-                    f"  Matched: {matched}\n\n"
-                    f"If this IS a bulk edit, set change_mode to 'bulk_edit' in meta.json.\n"
-                    f"If it is NOT, re-run with --acknowledge-not-bulk-edit to suppress.",
-                    title="[bold yellow]Bulk Edit Inference Warning[/]",
-                    border_style="yellow",
-                ))
-                raise typer.Exit(1)
+        # Bulk edit occurrence classification gate (FR-006) + inference
+        # warning for potentially unmarked bulk edits (FR-009).
+        _run_bulk_edit_gate_and_inference(feature_dir, wp_file, mission_slug, wp_id, acknowledge_not_bulk_edit)
 
         # FR-017 / NFR-004: build and validate the runtime OperationalContext
         # BEFORE any worktree allocation. The shared claim builder is read-only
@@ -1345,22 +1437,14 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
 
         resolved_workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
 
-        lanes_manifest = None
-        lane = None
-        from specify_cli.lanes.compute import is_planning_lane
-        if not is_planning_lane(resolved_workspace):
-            lanes_manifest = require_lanes_json(_lanes_feature_dir)
-            lane = lanes_manifest.lane_for_wp(wp_id)
-            if lane is None:
-                raise ValueError(f"{wp_id} is not assigned to any lane in lanes.json")
-            tracker.complete("validate", f"Lane: {lane.lane_id}")
-        else:
-            tracker.complete("validate", "Execution: repository root planning workspace")
-    except (CorruptLanesError, MissingLanesError, WorkPackageStartRejected, ValueError, typer.Exit) as exc:
-        tracker.error("validate", str(exc))
-        console.print(tracker.render())
-        raise typer.Exit(1) from exc
+        lanes_manifest, _lane = _resolve_execution_lane(resolved_workspace, _lanes_feature_dir, wp_id, tracker)
     except Exception as exc:
+        # Catches (among others) CorruptLanesError, MissingLanesError,
+        # WorkPackageStartRejected, ValueError, typer.Exit -- every failure
+        # in this block maps to the same "report + exit 1" outcome, so one
+        # generic handler (Exception is a strict superset) replaces the
+        # former specific-tuple + generic-fallback pair without changing
+        # behavior for any of them.
         tracker.error("validate", str(exc))
         console.print(tracker.render())
         raise typer.Exit(1) from exc
@@ -1368,7 +1452,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
     tracker.start("create")
     effective_actor = actor or "implement-command"
     status_result = None
-    status_execution_mode = "direct_repo" if resolved_workspace.resolution_kind == "repo_root" else "worktree"
+    status_execution_mode = _execution_mode_for_workspace(resolved_workspace)
     try:
         import os as _os
 
@@ -1378,20 +1462,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         # When --base is provided, validate the ref and build a patched
         # LanesManifest that uses it as the mission_branch so the worktree
         # allocator branches from the explicit base instead of auto-detecting.
-        # #1684 composition: --base selects only the ROOT the lane branches from;
-        # the allocator still merges approved depends_on_lanes tips on top, so
-        # cross-lane code propagation is preserved regardless of the chosen root.
-        active_lanes_manifest = lanes_manifest
-        if base is not None and not is_planning_lane(resolved_workspace):
-            _validate_base_ref(repo_root, base)
-            # Shallow-patch the manifest's mission_branch so
-            # allocate_lane_worktree branches from the explicit ref.
-            from dataclasses import replace as _dc_replace
-
-            active_lanes_manifest = _dc_replace(lanes_manifest, mission_branch=base)
-            console.print(f"[cyan]→ Using explicit base ref: {base}[/cyan]")
-        elif base is not None:
-            console.print("[yellow]Warning:[/yellow] --base is ignored for repository-root planning work")
+        active_lanes_manifest = _resolve_active_lanes_manifest(repo_root, base, resolved_workspace, lanes_manifest)
 
         result = create_lane_workspace(
             repo_root=repo_root,
@@ -1406,36 +1477,17 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         workspace_path = result.workspace_path
         branch_name = result.branch_name
 
-        try:
-            status_result = start_implementation_status(
-                feature_dir=feature_dir,
-                mission_slug=mission_slug,
-                wp_id=wp_id,
-                actor=effective_actor,
-                workspace_context=f"{status_execution_mode}:{workspace_path}",
-                execution_mode=status_execution_mode,
-                repo_root=repo_root,
-            )
-        except WorkPackageClaimConflict as exc:
-            console.print(f"[red]Error:[/red] {exc}")
-            raise typer.Exit(1) from exc
-        except TransitionError as exc:
-            console.print(f"[red]Error:[/red] Could not start implementation status: {exc}")
-            raise typer.Exit(1) from exc
+        status_result = _start_wp_implementation_status(
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            effective_actor=effective_actor,
+            workspace_path=workspace_path,
+            status_execution_mode=status_execution_mode,
+            repo_root=repo_root,
+        )
 
-        if result.lane_id is None:
-            tracker.complete("create", f"Repository root: {workspace_path.relative_to(repo_root)}")
-        elif result.is_reuse:
-            tracker.complete("create", f"Reused lane {result.lane_id}: {workspace_path.relative_to(repo_root)}")
-        else:
-            tracker.complete("create", f"Lane {result.lane_id}: {workspace_path.relative_to(repo_root)}")
-        console.print(tracker.render())
-        if result.mission_branch:
-            console.print(f"[cyan]→ Mission branch: {result.mission_branch}[/cyan]")
-        if result.branch_name:
-            console.print(f"[cyan]→ Lane branch: {result.branch_name}[/cyan]")
-        else:
-            console.print("[cyan]→ Workspace contract: repository root planning workspace[/cyan]")
+        _report_workspace_created(tracker, result, workspace_path, repo_root)
     except typer.Exit:
         console.print(tracker.render())
         raise
@@ -1443,96 +1495,22 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         tracker.error("create", f"workspace allocation failed: {exc}")
         console.print(tracker.render())
         console.print(f"\n[red]Error:[/red] Workspace allocation failed: {exc}")
-        current_lane = _get_wp_lane_from_event_log(feature_dir, wp_id)
-        if current_lane in {Lane.PLANNED, Lane.CLAIMED, Lane.IN_PROGRESS}:
-            try:
-                emit_status_transition_transactional(
-                    TransitionRequest(
-                        feature_dir=feature_dir,
-                        mission_slug=mission_slug,
-                        wp_id=wp_id,
-                        to_lane=Lane.BLOCKED,
-                        actor=effective_actor,
-                        execution_mode=status_execution_mode,
-                        reason="worktree_alloc_failed",
-                        policy_metadata={"evidence": str(exc)},
-                        repo_root=repo_root,
-                    )
-                )
-            except Exception as _blocked_exc:
-                console.print(
-                    f"[yellow]Warning:[/yellow] Could not emit blocked transition after alloc failure: {_blocked_exc}"
-                )
+        _emit_blocked_on_alloc_failure(
+            feature_dir, mission_slug, wp_id, effective_actor, status_execution_mode, repo_root, exc
+        )
         raise typer.Exit(1) from exc
 
     try:
-        if status_result is not None and status_result.status_changed:
-            commit_msg = f"chore: {wp_id} claimed for implementation"
-            if auto_commit:
-                from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
-
-                meta_file = feature_dir / "meta.json"
-                config_file = repo_root / ".kittify" / "config.yaml"
-                # #2155 (FR-002 / T011): bundle ONLY primary-surface artifacts into
-                # the primary-root claim commit. The status transition was already
-                # committed to the coordination branch by
-                # ``start_implementation_status`` (the transactional emitter); under
-                # coord topology the coord-owned status files (events.jsonl /
-                # status.json) resolved by ``_collect_status_artifacts`` live UNDER
-                # ``.worktrees/``, so staging them from the primary root trips the
-                # #1887 ``SafeCommitPathPolicyError`` guard — which the former broad
-                # ``except`` swallowed as an "Auto-commit skipped" warning, leaving
-                # the feature branch dirty (the surviving #2155 residual). The
-                # canonical ``COORD_OWNED_STATUS_FILES`` partition drops those files
-                # on coord topology only; on a flat/legacy mission they ARE canonical
-                # on PRIMARY and stay in the bundle.
-                if routes_through_coordination(resolve_topology(repo_root, mission_slug)):
-                    from specify_cli.status import COORD_OWNED_STATUS_FILES
-
-                    status_paths = [
-                        path.resolve()
-                        for path in _collect_status_artifacts(feature_dir)
-                        if path.name not in COORD_OWNED_STATUS_FILES
-                    ]
-                else:
-                    status_paths = [path.resolve() for path in _collect_status_artifacts(feature_dir)]
-                files_to_commit = [wp_file.resolve(), *status_paths]
-                if meta_file.exists():
-                    files_to_commit.append(meta_file.resolve())
-                if config_file.exists():
-                    files_to_commit.append(config_file.resolve())
-
-                # WP03 / T011 / T012 / D11: the status claim commit routes
-                # through the SAME seam-resolved ``_placement_ref`` planning
-                # artifacts resolve to (C-PLACE-1) instead of the forbidden
-                # ``_get_current_branch(repo_root) or planning_branch``
-                # checkout-derived grammar. A resolution failure now FAILS
-                # CLOSED (see ``_resolve_claim_commit_target``) rather than
-                # silently committing to whatever branch is checked out.
-                _claim_commit_target = _resolve_claim_commit_target(_placement_ref)
-                try:
-                    safe_commit(
-                        repo_root=repo_root,
-                        worktree_root=repo_root,
-                        target=_claim_commit_target,
-                        message=commit_msg,
-                        paths=tuple(files_to_commit),
-                    )
-                    console.print(f"[cyan]→ {wp_id} moved to 'doing'[/cyan]")
-                except SafeCommitPathPolicyError:
-                    # #2155 (FR-002 / T011): a wrong-surface guard refusal is a real
-                    # defect, not an "Auto-commit skipped" warning — re-raise so it
-                    # surfaces instead of leaving the branch silently dirty. The
-                    # partition above prevents this on a correct bundle; reaching here
-                    # means a coord-owned path leaked into the primary commit and the
-                    # C-006 guard MUST stay authoritative (never swallowed).
-                    raise
-                except Exception as _commit_exc:  # noqa: BLE001 — non-policy git failures stay soft
-                    console.print(
-                        f"[yellow]Warning:[/yellow] Could not auto-commit lane change: {_commit_exc}"
-                    )
-            else:
-                console.print(f"[cyan]→ {wp_id} moved to 'doing' (auto-commit disabled, changes staged only)[/cyan]")
+        _commit_wp_claim_status(
+            repo_root=repo_root,
+            feature_dir=feature_dir,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            wp_file=wp_file,
+            auto_commit=auto_commit,
+            placement_ref=_placement_ref,
+            status_result=status_result,
+        )
     except SafeCommitPathPolicyError:
         # #2155 (FR-002 / T011): a wrong-surface guard refusal must NOT be folded
         # into the soft "Could not update WP status" warning — let it propagate so
@@ -1549,91 +1527,12 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         console.print(f"[yellow]Warning:[/yellow] Could not update WP status: {exc}")
 
     if json_output:
-        result_execution_mode = result.execution_mode if isinstance(result.execution_mode, str) else resolved_workspace.execution_mode
-        workspace_rel = str(workspace_path.relative_to(repo_root))
-        # FR-004/FR-005 (#2186): the JSON ``mission_slug``/``mission_number``/
-        # ``mission_type`` come from meta.json, which lives ONLY on the PRIMARY
-        # checkout. ``feature_dir`` above may have landed on the coord husk (the
-        # topology-aware resolve→candidate cascade); give the identity read its OWN
-        # PRIMARY anchor rather than relying on the conditional meta-fallback above
-        # (C-EXCL-FALLBACK — so that fallback can be retired later). NFR-004: no
-        # primary-dir stub — this resolves the durable PRIMARY home for real.
-        from specify_cli.missions._read_path_resolver import (
-            _canonicalize_primary_read_handle,
-            primary_feature_dir_for_mission,
-        )
-
-        _identity_dir = primary_feature_dir_for_mission(
-            repo_root, _canonicalize_primary_read_handle(repo_root, mission_slug)
-        )
-        identity = resolve_mission_identity(_identity_dir)
-        print(
-            json.dumps(
-                {
-                    "workspace": workspace_rel,
-                    "workspace_path": workspace_rel,
-                    "branch": branch_name,
-                    "mission_slug": identity.mission_slug,
-                    "mission_number": identity.mission_number,
-                    "mission_type": identity.mission_type,
-                    "wp_id": wp_id,
-                    "lane_id": result.lane_id,
-                    "execution_mode": result_execution_mode,
-                    "status": "created",
-                    # FR-006: surface the lane-suffixed test DB env so
-                    # downstream agents / test runners can `os.environ.update`
-                    # without re-deriving the helper. Empty dict for
-                    # planning-artifact workspaces (lane_id is None) or
-                    # when the result type doesn't carry a real dict
-                    # (e.g. a MagicMock in unit tests).
-                    "lane_test_env": (
-                        result.lane_test_env
-                        if isinstance(getattr(result, "lane_test_env", None), dict)
-                        else {}
-                    ),
-                }
-            )
-        )
+        print(json.dumps(_build_implement_json_payload(
+            repo_root, mission_slug, wp_id, workspace_path, branch_name, result, resolved_workspace
+        )))
         return
 
-    if result.lane_id is None:
-        console.print("\n[bold green]✓ Repository-root workspace ready[/bold green]")
-        console.print()
-        console.print("[bold yellow]" + "=" * 72 + "[/bold yellow]")
-        console.print("[bold yellow]Planning-artifact work for this WP happens in the repository root[/bold yellow]")
-        console.print("[bold yellow]" + "=" * 72 + "[/bold yellow]")
-        console.print()
-        console.print(f"  [bold]cd {workspace_path}[/bold]")
-        console.print()
-        console.print("[dim]This WP does not get a lane worktree or workspace context file.[/dim]")
-        console.print("[dim]Make planning-artifact changes directly in the repository root.[/dim]")
-        return
-
-    console.print("\n[bold green]✓ Lane worktree ready[/bold green]")
-    console.print()
-    console.print("[bold yellow]" + "=" * 72 + "[/bold yellow]")
-    console.print("[bold yellow]CRITICAL: Change to the lane worktree before editing files[/bold yellow]")
-    console.print("[bold yellow]" + "=" * 72 + "[/bold yellow]")
-    console.print()
-    console.print(f"  [bold]cd {workspace_path}[/bold]")
-    console.print()
-    console.print("[dim]All file edits, writes, and commits MUST happen in this directory.[/dim]")
-    console.print("[dim]Writing to the main repository instead of the lane worktree is a critical error.[/dim]")
-
-    # FR-006: surface the lane-suffixed test DB env so the agent can
-    # export it before running the project's test suite. Persisted to
-    # WorkspaceContext for resurrection by later commands; printed here
-    # so a human operator can copy/paste in their shell.
-    lane_env = getattr(result, "lane_test_env", None)
-    if isinstance(lane_env, dict) and lane_env:
-        console.print()
-        console.print("[bold cyan]Lane-specific test environment (FR-006):[/bold cyan]")
-        for key, value in sorted(lane_env.items()):
-            console.print(f"  export {key}={value}")
-        console.print(
-            "[dim]Two parallel SaaS / Django lanes will collide on a single shared test DB"
-            " unless these are exported in the lane's test process.[/dim]"
-        )
+    _print_workspace_ready_banner(result, workspace_path)
 
 
 __all__ = ["_ensure_vcs_in_meta", "detect_feature_context", "find_wp_file", "implement"]
