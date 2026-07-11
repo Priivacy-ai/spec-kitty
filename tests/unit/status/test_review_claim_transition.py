@@ -80,29 +80,16 @@ class TestReviewClaimDoesNotEmitInProgress:
         from pathlib import Path
 
         repo_root = Path(__file__).resolve().parents[3]
-        workflow_path = (
-            repo_root
-            / "src"
-            / "specify_cli"
-            / "cli"
-            / "commands"
-            / "agent"
-            / "workflow.py"
-        )
-        text = workflow_path.read_text(encoding="utf-8")
+        # The review command's implementation spans the thin Typer shell
+        # (workflow.py) and its extracted executor (workflow_executor.py) after
+        # the coord-authority trio degod (#2464). The delegation call to the
+        # shared review lifecycle lives wherever the review body sits, so scan
+        # both surfaces rather than pinning the pre-degod file location.
+        agent_dir = repo_root / "src" / "specify_cli" / "cli" / "commands" / "agent"
+        review_impl_text = "\n".join((agent_dir / name).read_text(encoding="utf-8") for name in ("workflow.py", "workflow_executor.py"))
 
-        assert "start_review_status(" in text, (
-            "workflow.review must delegate the review claim to the shared review lifecycle"
-        )
+        assert "start_review_status(" in review_impl_text, "workflow.review must delegate the review claim to the shared review lifecycle"
 
-        lifecycle_path = (
-            repo_root
-            / "src"
-            / "specify_cli"
-            / "status"
-            / "work_package_lifecycle.py"
-        )
+        lifecycle_path = repo_root / "src" / "specify_cli" / "status" / "work_package_lifecycle.py"
         lifecycle_text = lifecycle_path.read_text(encoding="utf-8")
-        assert "to_lane=Lane.IN_REVIEW" in lifecycle_text, (
-            "shared review lifecycle must emit Lane.IN_REVIEW for the review claim"
-        )
+        assert "to_lane=Lane.IN_REVIEW" in lifecycle_text, "shared review lifecycle must emit Lane.IN_REVIEW for the review claim"

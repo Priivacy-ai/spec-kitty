@@ -33,6 +33,7 @@ from specify_cli.cli.commands.implement_cores import (
     _PorcelainEntry,
     _resolve_claim_commit_target,
     _status_paths_for_commit,
+    detect_structural_planning_changes,
     resolve_planning_artifact_staging,
 )
 from specify_cli.core.errors import PlacementResolutionRequired
@@ -69,6 +70,33 @@ def test_default_git_port_conforms_to_protocol() -> None:
     assert isinstance(DEFAULT_GIT_PORT, GitPort)
 
 
+class TestDetectStructuralPlanningChanges:
+    """Squad-B1 (#2464): the git-executor fires the #1598 fail-closed guard via
+    this coord-independent detector BEFORE resolving the coordination filter, so
+    a topology fault never preempts the structural-refusal message."""
+
+    def test_deletion_and_rename_are_reported(self) -> None:
+        fake = _FakeGitPort(porcelain=" D kitty-specs/m/tasks/WP01.md\nR  a.md -> kitty-specs/m/tasks/WP02.md\n")
+        structural = detect_structural_planning_changes(Path("/repo"), Path("kitty-specs/m"), git=fake)
+        assert [e.is_structural for e in structural] == [True, True]
+        assert {e.path for e in structural} == {
+            "kitty-specs/m/tasks/WP01.md",
+            "kitty-specs/m/tasks/WP02.md",
+        }
+
+    def test_modified_and_untracked_are_not_structural(self) -> None:
+        fake = _FakeGitPort(porcelain=" M kitty-specs/m/status.json\n?? kitty-specs/m/new.md\n")
+        assert detect_structural_planning_changes(Path("/repo"), Path("kitty-specs/m"), git=fake) == []
+
+    def test_reads_only_git_status_not_the_coordination_filter(self) -> None:
+        """The detector's git surface is a single ``status`` call -- it never
+        resolves coord/topology, which is what can raise (the ordering fix)."""
+        fake = _FakeGitPort(porcelain="")
+        detect_structural_planning_changes(Path("/repo"), Path("kitty-specs/m"), git=fake)
+        assert len(fake.status_calls) == 1
+        assert fake.show_calls == []
+
+
 # ---------------------------------------------------------------------------
 # _parse_porcelain_entries / _feature_dir_status_entries
 # ---------------------------------------------------------------------------
@@ -79,9 +107,7 @@ class TestParsePorcelainEntries:
         """Regression anchor (see implement.py history): a leading-space
         status code (" M path") must not lose its first path character."""
         entries = _parse_porcelain_entries(" M kitty-specs/demo/status.json\n")
-        assert entries == [
-            _PorcelainEntry(xy=" M", path="kitty-specs/demo/status.json", is_structural=False)
-        ]
+        assert entries == [_PorcelainEntry(xy=" M", path="kitty-specs/demo/status.json", is_structural=False)]
 
     def test_untracked_file_is_not_structural(self) -> None:
         entries = _parse_porcelain_entries("?? kitty-specs/demo/new.md\n")
@@ -92,14 +118,8 @@ class TestParsePorcelainEntries:
         assert entries[0].is_structural is True
 
     def test_rename_uses_new_path_and_is_structural(self) -> None:
-        entries = _parse_porcelain_entries(
-            "R  kitty-specs/demo/tasks/WP01.md -> kitty-specs/demo/tasks/WP01-renamed.md\n"
-        )
-        assert entries == [
-            _PorcelainEntry(
-                xy="R ", path="kitty-specs/demo/tasks/WP01-renamed.md", is_structural=True
-            )
-        ]
+        entries = _parse_porcelain_entries("R  kitty-specs/demo/tasks/WP01.md -> kitty-specs/demo/tasks/WP01-renamed.md\n")
+        assert entries == [_PorcelainEntry(xy="R ", path="kitty-specs/demo/tasks/WP01-renamed.md", is_structural=True)]
 
     def test_blank_and_too_short_lines_are_skipped(self) -> None:
         assert _parse_porcelain_entries("\n  \nXY\n") == []
@@ -120,9 +140,7 @@ class TestFeatureDirStatusEntries:
         fake = _FakeGitPort(porcelain=" M kitty-specs/demo/status.json\n")
         feature_dir = tmp_path / "kitty-specs" / "demo"
         entries = _feature_dir_status_entries(tmp_path, feature_dir, git=fake)
-        assert entries == [
-            _PorcelainEntry(xy=" M", path="kitty-specs/demo/status.json", is_structural=False)
-        ]
+        assert entries == [_PorcelainEntry(xy=" M", path="kitty-specs/demo/status.json", is_structural=False)]
         assert fake.status_calls == [(tmp_path, feature_dir)]
 
     def test_default_git_param_is_the_module_default(self, tmp_path: Path) -> None:
@@ -187,9 +205,7 @@ class TestIsVcsLockOnlyMetaDiff:
             ),
         ],
     )
-    def test_truth_table(
-        self, committed: dict[str, str] | None, working: dict[str, str], expected: bool
-    ) -> None:
+    def test_truth_table(self, committed: dict[str, str] | None, working: dict[str, str], expected: bool) -> None:
         assert _is_vcs_lock_only_meta_diff(committed, working) is expected
 
 
@@ -257,15 +273,11 @@ class TestDropVcsLockOnlyMeta:
         assert kept == [meta_rel]
 
     def test_keeps_non_meta_paths_untouched(self, tmp_path: Path) -> None:
-        kept = _drop_vcs_lock_only_meta(
-            tmp_path, ["kitty-specs/m/tasks.md"], None, auto_commit=False, git=_FakeGitPort()
-        )
+        kept = _drop_vcs_lock_only_meta(tmp_path, ["kitty-specs/m/tasks.md"], None, auto_commit=False, git=_FakeGitPort())
         assert kept == ["kitty-specs/m/tasks.md"]
 
     def test_missing_meta_source_is_kept_defensively(self, tmp_path: Path) -> None:
-        kept = _drop_vcs_lock_only_meta(
-            tmp_path, ["kitty-specs/m/meta.json"], None, auto_commit=False, git=_FakeGitPort()
-        )
+        kept = _drop_vcs_lock_only_meta(tmp_path, ["kitty-specs/m/meta.json"], None, auto_commit=False, git=_FakeGitPort())
         assert kept == ["kitty-specs/m/meta.json"]
 
 
@@ -296,18 +308,14 @@ class TestFilesChangedVsRef:
 class TestResolvePlanningArtifactStaging:
     def test_structural_change_short_circuits(self, tmp_path: Path) -> None:
         fake = _FakeGitPort(porcelain=" D kitty-specs/m/tasks/WP01.md\n")
-        plan = resolve_planning_artifact_staging(
-            tmp_path, tmp_path / "kitty-specs" / "m", None, [], auto_commit=True, git=fake
-        )
+        plan = resolve_planning_artifact_staging(tmp_path, tmp_path / "kitty-specs" / "m", None, [], auto_commit=True, git=fake)
         assert plan.structural
         assert plan.files_to_commit == []
         assert plan.status_paths_to_commit == []
 
     def test_no_changes_yields_empty_plan(self, tmp_path: Path) -> None:
         fake = _FakeGitPort(porcelain="")
-        plan = resolve_planning_artifact_staging(
-            tmp_path, tmp_path / "kitty-specs" / "m", None, [], auto_commit=True, git=fake
-        )
+        plan = resolve_planning_artifact_staging(tmp_path, tmp_path / "kitty-specs" / "m", None, [], auto_commit=True, git=fake)
         assert plan == PlanningArtifactStagingPlan(structural=[], files_to_commit=[], status_paths_to_commit=[])
 
     def test_extra_file_paths_only_added_under_coord_branch(self, tmp_path: Path) -> None:
@@ -319,9 +327,7 @@ class TestResolvePlanningArtifactStaging:
         # path must be materialized for it to survive the coord-branch plan.
         (artifact_dir / "extra.md").write_bytes(b"extra")
         fake = _FakeGitPort(porcelain="")
-        no_coord_plan = resolve_planning_artifact_staging(
-            tmp_path, artifact_dir, None, ["kitty-specs/m/extra.md"], auto_commit=True, git=fake
-        )
+        no_coord_plan = resolve_planning_artifact_staging(tmp_path, artifact_dir, None, ["kitty-specs/m/extra.md"], auto_commit=True, git=fake)
         assert no_coord_plan.files_to_commit == []
 
         coord_plan = resolve_planning_artifact_staging(
@@ -347,9 +353,7 @@ class TestResolvePlanningArtifactStaging:
             porcelain=" M kitty-specs/m/tasks.md\n",
             blobs={(coord_ref, "kitty-specs/m/tasks.md"): b"# tasks"},
         )
-        plan = resolve_planning_artifact_staging(
-            tmp_path, artifact_dir, coord_ref, [], auto_commit=True, git=fake
-        )
+        plan = resolve_planning_artifact_staging(tmp_path, artifact_dir, coord_ref, [], auto_commit=True, git=fake)
         assert plan.files_to_commit == []
 
     def test_genuinely_changed_file_is_kept_and_flagged_for_instructions(self, tmp_path: Path) -> None:
@@ -362,9 +366,7 @@ class TestResolvePlanningArtifactStaging:
             porcelain=" M kitty-specs/m/tasks.md\n",
             blobs={(coord_ref, "kitty-specs/m/tasks.md"): b"# tasks v1"},
         )
-        plan = resolve_planning_artifact_staging(
-            tmp_path, artifact_dir, coord_ref, [], auto_commit=True, git=fake
-        )
+        plan = resolve_planning_artifact_staging(tmp_path, artifact_dir, coord_ref, [], auto_commit=True, git=fake)
         assert plan.files_to_commit == ["kitty-specs/m/tasks.md"]
         assert plan.status_paths_to_commit == ["kitty-specs/m/tasks.md"]
 
@@ -403,8 +405,6 @@ class TestPlacementCoordFilter:
 
         import specify_cli.cli.commands.implement_cores as cores_module
 
-        monkeypatch.setattr(
-            cores_module, "resolve_topology", lambda _root, _slug: MissionTopology.SINGLE_BRANCH
-        )
+        monkeypatch.setattr(cores_module, "resolve_topology", lambda _root, _slug: MissionTopology.SINGLE_BRANCH)
         target = CommitTarget(ref="main")
         assert _placement_coord_filter(tmp_path, "m", target) is None

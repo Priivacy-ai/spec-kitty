@@ -184,7 +184,10 @@ _ALLOW_LIST_SEED: tuple[tuple[str, int], ...] = (
     # implement.py -> implement_cores.py decomposition, shifting the same,
     # untouched ``_status_commit_destination_branch`` selector 88 -> 99 (pure
     # line drift, verified by re-scan -- not a new offender).
-    ("src/specify_cli/cli/commands/implement.py", 99),
+    # squad-B1 (#2464) re-anchor: the ``detect_structural_planning_changes``
+    # import added one line to the shim block ahead of this selector, shifting
+    # the same untouched selector 99 -> 100 (pure line drift, verified by re-scan).
+    ("src/specify_cli/cli/commands/implement.py", 100),
 )
 
 

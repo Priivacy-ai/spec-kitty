@@ -43,6 +43,10 @@ from specify_cli.acceptance.summary_core import (
     build_work_package_state,
     evaluate_path_conventions,
 )
+from specify_cli.acceptance import (
+    _gather_primary_encoding_candidates,
+    _recover_normalized_text,
+)
 from specify_cli.task_utils import WorkPackage
 
 pytestmark = [pytest.mark.unit]
@@ -84,9 +88,7 @@ class TestBuildWorkPackageState:
     def test_active_lane_missing_all_three_flags_all_issues(self, tmp_path: Path) -> None:
         wp = _wp(path=tmp_path / "tasks" / "WP01.md", agent=None, assignee=None, shell_pid=None)
 
-        state, issues = build_work_package_state(
-            wp, "WP01", "in_progress", repo_root=tmp_path, strict_metadata=True
-        )
+        state, issues = build_work_package_state(wp, "WP01", "in_progress", repo_root=tmp_path, strict_metadata=True)
 
         assert issues == [
             "WP01: missing agent in frontmatter",
@@ -103,27 +105,21 @@ class TestBuildWorkPackageState:
         still required; assignee/shell_pid are exempt outside active lanes."""
         wp = _wp(path=tmp_path / "tasks" / "WP01.md", agent="claude", assignee=None, shell_pid=None)
 
-        _state, issues = build_work_package_state(
-            wp, "WP01", "done", repo_root=tmp_path, strict_metadata=True
-        )
+        _state, issues = build_work_package_state(wp, "WP01", "done", repo_root=tmp_path, strict_metadata=True)
 
         assert issues == []
 
     def test_non_strict_metadata_suppresses_all_issues(self, tmp_path: Path) -> None:
         wp = _wp(path=tmp_path / "tasks" / "WP01.md", agent=None, assignee=None, shell_pid=None)
 
-        _state, issues = build_work_package_state(
-            wp, "WP01", "in_progress", repo_root=tmp_path, strict_metadata=False
-        )
+        _state, issues = build_work_package_state(wp, "WP01", "in_progress", repo_root=tmp_path, strict_metadata=False)
 
         assert issues == []
 
     def test_canonical_lane_none_buckets_to_planned(self, tmp_path: Path) -> None:
         wp = _wp(path=tmp_path / "tasks" / "WP01.md")
 
-        state, _issues = build_work_package_state(
-            wp, "WP01", None, repo_root=tmp_path, strict_metadata=True
-        )
+        state, _issues = build_work_package_state(wp, "WP01", None, repo_root=tmp_path, strict_metadata=True)
 
         assert state.lane == "planned"
         assert state.has_lane_entry is False
@@ -133,18 +129,14 @@ class TestBuildWorkPackageState:
         wp_path = tmp_path / "kitty-specs" / "trio-mission" / "tasks" / "WP01.md"
         wp = _wp(path=wp_path)
 
-        state, _issues = build_work_package_state(
-            wp, "WP01", "approved", repo_root=tmp_path, strict_metadata=True
-        )
+        state, _issues = build_work_package_state(wp, "WP01", "approved", repo_root=tmp_path, strict_metadata=True)
 
         assert state.path == str(Path("kitty-specs") / "trio-mission" / "tasks" / "WP01.md")
 
     def test_title_strips_surrounding_quotes(self, tmp_path: Path) -> None:
         wp = _wp(path=tmp_path / "WP01.md", title='"Quoted Title"')
 
-        state, _issues = build_work_package_state(
-            wp, "WP01", "approved", repo_root=tmp_path, strict_metadata=True
-        )
+        state, _issues = build_work_package_state(wp, "WP01", "approved", repo_root=tmp_path, strict_metadata=True)
 
         assert state.title == "Quoted Title"
 
@@ -202,9 +194,7 @@ class TestEvaluatePathConventions:
         assert violations == []
         assert warning == "missing src/ (advisory)"
 
-    def test_empty_format_errors_falls_back_to_default_message(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_empty_format_errors_falls_back_to_default_message(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         mission = SimpleNamespace(config=SimpleNamespace(paths=["src/"]), domain="software-dev")
         monkeypatch.setattr(
             "specify_cli.acceptance.summary_core.validate_mission_paths",
@@ -228,9 +218,7 @@ class TestBuildWarnings:
         assert result == ["Optional artifacts missing: quickstart.md"]
 
     def test_path_violations_wins_over_convention_warning(self) -> None:
-        result = build_warnings(
-            missing_optional=[], path_violations=["bad"], path_convention_warning="advisory"
-        )
+        result = build_warnings(missing_optional=[], path_violations=["bad"], path_convention_warning="advisory")
 
         assert result == ["Path conventions not satisfied."]
 
@@ -267,9 +255,7 @@ class TestFixOrderPredicates:
 
 
 class TestResolveLanesManifestOrStop:
-    def test_missing_manifest_returns_none_with_no_side_effects(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_missing_manifest_returns_none_with_no_side_effects(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr("specify_cli.lanes.persistence.read_lanes_json", lambda _fd: None)
         activity_issues: list[str] = []
         skipped: list[AcceptanceCheckDiagnostic] = []
@@ -280,9 +266,7 @@ class TestResolveLanesManifestOrStop:
         assert result is None
         assert activity_issues == [] and skipped == [] and blocked == []
 
-    def test_corrupt_manifest_returns_none_with_blocked_and_skipped(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_corrupt_manifest_returns_none_with_blocked_and_skipped(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         from specify_cli.lanes.persistence import CorruptLanesError
 
         def _raise(_fd: Path) -> Any:
@@ -317,9 +301,7 @@ class TestEvaluateBranchGate:
         activity_issues: list[str] = []
         blocked: list[AcceptanceCheckDiagnostic] = []
 
-        should_continue = _evaluate_branch_gate(
-            self._manifest(), tmp_path, "feat/target", activity_issues, [], blocked
-        )
+        should_continue = _evaluate_branch_gate(self._manifest(), tmp_path, "feat/target", activity_issues, [], blocked)
 
         assert should_continue is False
         assert len(blocked) == 1 and blocked[0].check == "mission_branch"
@@ -331,25 +313,19 @@ class TestEvaluateBranchGate:
         activity_issues: list[str] = []
         blocked: list[AcceptanceCheckDiagnostic] = []
 
-        should_continue = _evaluate_branch_gate(
-            self._manifest(), tmp_path, "some-other-branch", activity_issues, [], blocked
-        )
+        should_continue = _evaluate_branch_gate(self._manifest(), tmp_path, "some-other-branch", activity_issues, [], blocked)
 
         assert should_continue is False
         assert "must run on mission or target branch" in activity_issues[0]
 
-    def test_planning_artifact_only_stops_with_skip_only(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_planning_artifact_only_stops_with_skip_only(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr("specify_cli.acceptance._target_branch_for_feature", lambda _fd: None)
         monkeypatch.setattr("specify_cli.lanes.compute.is_planning_artifact_only", lambda _m: True)
         activity_issues: list[str] = []
         skipped: list[AcceptanceCheckDiagnostic] = []
         blocked: list[AcceptanceCheckDiagnostic] = []
 
-        should_continue = _evaluate_branch_gate(
-            self._manifest(), tmp_path, "feat/target", activity_issues, skipped, blocked
-        )
+        should_continue = _evaluate_branch_gate(self._manifest(), tmp_path, "feat/target", activity_issues, skipped, blocked)
 
         assert should_continue is False
         assert activity_issues == [] and blocked == []
@@ -359,9 +335,7 @@ class TestEvaluateBranchGate:
         monkeypatch.setattr("specify_cli.acceptance._target_branch_for_feature", lambda _fd: None)
         monkeypatch.setattr("specify_cli.lanes.compute.is_planning_artifact_only", lambda _m: False)
 
-        should_continue = _evaluate_branch_gate(
-            self._manifest(), tmp_path, "kitty/mission-x", [], [], []
-        )
+        should_continue = _evaluate_branch_gate(self._manifest(), tmp_path, "kitty/mission-x", [], [], [])
 
         assert should_continue is True
 
@@ -378,9 +352,7 @@ class TestEvaluateAcceptanceMatrix:
         assert len(blocked) == 1 and blocked[0].check == "acceptance_matrix"
         assert len(skipped) == 3
 
-    def test_negative_invariants_enforced_when_mutate_true(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_negative_invariants_enforced_when_mutate_true(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         matrix = SimpleNamespace(negative_invariants=[SimpleNamespace(name="no-secrets")], overall_verdict="pass")
         monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: matrix)
         monkeypatch.setattr("specify_cli.acceptance.matrix.validate_matrix_evidence", lambda _m: [])
@@ -390,17 +362,13 @@ class TestEvaluateAcceptanceMatrix:
             "specify_cli.acceptance.matrix.enforce_negative_invariants",
             lambda _repo, invariants: enforce_calls.append(invariants) or invariants,
         )
-        monkeypatch.setattr(
-            "specify_cli.acceptance.matrix.write_acceptance_matrix", lambda _fd, m: write_calls.append(m)
-        )
+        monkeypatch.setattr("specify_cli.acceptance.matrix.write_acceptance_matrix", lambda _fd, m: write_calls.append(m))
 
         _evaluate_acceptance_matrix(tmp_path, tmp_path, [], [], [], mutate_matrix=True)
 
         assert enforce_calls and write_calls
 
-    def test_negative_invariants_skipped_when_mutate_false(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_negative_invariants_skipped_when_mutate_false(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         matrix = SimpleNamespace(negative_invariants=[SimpleNamespace(name="no-secrets")], overall_verdict="pass")
         monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: matrix)
         monkeypatch.setattr("specify_cli.acceptance.matrix.validate_matrix_evidence", lambda _m: [])
@@ -423,9 +391,7 @@ class TestEvaluateAcceptanceMatrix:
             ("pending", "verdict is 'pending'"),
         ],
     )
-    def test_verdict_fail_and_pending_become_activity_issues(
-        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, verdict: str, expected_fragment: str
-    ) -> None:
+    def test_verdict_fail_and_pending_become_activity_issues(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch, verdict: str, expected_fragment: str) -> None:
         matrix = SimpleNamespace(negative_invariants=[], overall_verdict=verdict)
         monkeypatch.setattr("specify_cli.acceptance.matrix.read_acceptance_matrix", lambda _fd: matrix)
         monkeypatch.setattr("specify_cli.acceptance.matrix.validate_matrix_evidence", lambda _m: [])
@@ -444,3 +410,49 @@ class TestEvaluateAcceptanceMatrix:
         _evaluate_acceptance_matrix(tmp_path, tmp_path, activity_issues, [], [], mutate_matrix=True)
 
         assert activity_issues == []
+
+
+class TestRecoverNormalizedText:
+    """F1 campsite (#2464 squad): the encoding-recovery decision extracted from
+    ``normalize_feature_encoding`` into a pure ``bytes -> str | None`` core."""
+
+    def test_valid_utf8_returns_none(self) -> None:
+        assert _recover_normalized_text(b"already clean\n") is None
+
+    def test_cp1252_smart_punctuation_is_mapped_to_ascii(self) -> None:
+        # Right single quote (’), em dash (—), ellipsis (…) in cp1252.
+        data = "it’s — done…".encode("cp1252")
+        assert _recover_normalized_text(data) == "it's -- done..."
+
+    def test_utf8_bom_file_is_already_valid_and_skipped(self) -> None:
+        # A leading UTF-8 BOM is itself valid UTF-8, so such a file needs no
+        # recovery -- the decoder returns None (skip) before the defensive
+        # BOM-lstrip, which only guards the legacy-decode fallback path.
+        data = "﻿heading".encode()
+        assert _recover_normalized_text(data) is None
+
+    def test_undecodable_bytes_fall_back_to_lossy_replace(self) -> None:
+        # 0x81 is undefined in cp1252 -> latin-1 decodes it, no crash.
+        result = _recover_normalized_text(b"plain \x81 tail")
+        assert result is not None and "plain" in result and "tail" in result
+
+
+class TestGatherPrimaryEncodingCandidates:
+    """F1 campsite: the candidate-gathering walk (primary docs + tasks/research/
+    checklists markdown) extracted as a pure filesystem helper."""
+
+    def test_gathers_existing_primary_docs_and_markdown_subtrees(self, tmp_path: Path) -> None:
+        (tmp_path / "spec.md").write_text("s", encoding="utf-8")
+        (tmp_path / "plan.md").write_text("p", encoding="utf-8")
+        tasks = tmp_path / "tasks"
+        tasks.mkdir()
+        (tasks / "WP01.md").write_text("w", encoding="utf-8")
+        (tmp_path / "research").mkdir()
+        (tmp_path / "research" / "note.md").write_text("r", encoding="utf-8")
+
+        found = {p.name for p in _gather_primary_encoding_candidates(tmp_path)}
+        assert {"spec.md", "plan.md", "WP01.md", "note.md"} <= found
+
+    def test_absent_subtrees_are_skipped(self, tmp_path: Path) -> None:
+        # No tasks/research/checklists dirs and no primary docs -> empty result.
+        assert _gather_primary_encoding_candidates(tmp_path) == []

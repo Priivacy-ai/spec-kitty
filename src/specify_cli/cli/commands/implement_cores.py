@@ -159,11 +159,27 @@ def _parse_porcelain_entries(raw_stdout: str) -> list[_PorcelainEntry]:
     return entries
 
 
-def _feature_dir_status_entries(
-    repo_root: Path, feature_dir: Path, *, git: GitPort = DEFAULT_GIT_PORT
-) -> list[_PorcelainEntry]:
+def _feature_dir_status_entries(repo_root: Path, feature_dir: Path, *, git: GitPort = DEFAULT_GIT_PORT) -> list[_PorcelainEntry]:
     raw = git.status_porcelain(repo_root, feature_dir)
     return _parse_porcelain_entries(raw)
+
+
+def _structural_entries(entries: list[_PorcelainEntry]) -> list[_PorcelainEntry]:
+    """Deletions/renames/copies -- changes that cannot be auto-committed to the
+    coordination branch and must fail closed (#1598)."""
+    return [e for e in entries if e.is_structural]
+
+
+def detect_structural_planning_changes(repo_root: Path, artifact_source_dir: Path, *, git: GitPort = DEFAULT_GIT_PORT) -> list[_PorcelainEntry]:
+    """Structural planning-artifact changes from git porcelain alone.
+
+    Independent of coord/topology resolution, so the git-executor can fire the
+    #1598 fail-closed guard BEFORE resolving the coordination-branch filter
+    (which can raise on a broken topology). Restores the pre-degod ordering
+    (#2464 squad-B1) where a structural change is reported to the operator even
+    when topology resolution would fault.
+    """
+    return _structural_entries(_feature_dir_status_entries(repo_root, artifact_source_dir, git=git))
 
 
 def _exclude_coord_owned(paths: Iterable[str], coord_branch_for_filter: str | None) -> list[str]:
@@ -182,17 +198,13 @@ def _exclude_coord_owned(paths: Iterable[str], coord_branch_for_filter: str | No
     return list(paths)
 
 
-def _status_paths_for_commit(
-    entries: list[_PorcelainEntry], coord_branch_for_filter: str | None
-) -> list[str]:
+def _status_paths_for_commit(entries: list[_PorcelainEntry], coord_branch_for_filter: str | None) -> list[str]:
     """The feature-dir paths to commit from ``git status`` entries -- see
     :func:`_exclude_coord_owned`."""
     return _exclude_coord_owned((e.path for e in entries), coord_branch_for_filter)
 
 
-def _is_vcs_lock_only_meta_diff(
-    committed: Mapping[str, Any] | None, working: Mapping[str, Any]
-) -> bool:
+def _is_vcs_lock_only_meta_diff(committed: Mapping[str, Any] | None, working: Mapping[str, Any]) -> bool:
     """Pure decision: is the meta.json change ONLY the one-time vcs-lock fields?
 
     Returns ``True`` iff every key whose value differs between the *committed*
@@ -206,11 +218,7 @@ def _is_vcs_lock_only_meta_diff(
     never a blanket meta.json bypass).
     """
     base: Mapping[str, Any] = committed or {}
-    changed_keys = {
-        key
-        for key in set(base) | set(working)
-        if base.get(key, _MISSING_META_VALUE) != working.get(key, _MISSING_META_VALUE)
-    }
+    changed_keys = {key for key in set(base) | set(working) if base.get(key, _MISSING_META_VALUE) != working.get(key, _MISSING_META_VALUE)}
     return bool(changed_keys) and changed_keys <= _VCS_LOCK_META_FIELDS
 
 
@@ -224,9 +232,7 @@ def _parse_meta_mapping(raw: bytes) -> dict[str, Any] | None:
     return parsed if isinstance(parsed, dict) else None
 
 
-def _committed_meta_mapping(
-    repo_root: Path, repo_rel: str, ref: str | None, *, git: GitPort = DEFAULT_GIT_PORT
-) -> dict[str, Any] | None:
+def _committed_meta_mapping(repo_root: Path, repo_rel: str, ref: str | None, *, git: GitPort = DEFAULT_GIT_PORT) -> dict[str, Any] | None:
     """The committed meta.json mapping at *ref* (or ``HEAD`` for flat/legacy
     missions), or ``None`` when the path is absent there or unparseable."""
     blob = git.show_blob(repo_root, ref or "HEAD", repo_rel)
@@ -277,9 +283,7 @@ def _drop_vcs_lock_only_meta(
     return kept
 
 
-def _files_changed_vs_ref(
-    repo_root: Path, files: list[str], ref: str | None, *, git: GitPort = DEFAULT_GIT_PORT
-) -> list[str]:
+def _files_changed_vs_ref(repo_root: Path, files: list[str], ref: str | None, *, git: GitPort = DEFAULT_GIT_PORT) -> list[str]:
     """Drop files whose working-tree content already matches *ref*.
 
     The coordination model commits claim-time planning-artifact edits to the
@@ -351,21 +355,17 @@ def resolve_planning_artifact_staging(
     and ``git show`` via the injected port.
     """
     entries = _feature_dir_status_entries(repo_root, artifact_source_dir, git=git)
-    structural = [e for e in entries if e.is_structural]
+    structural = _structural_entries(entries)
     if structural:
         return PlanningArtifactStagingPlan(structural=structural, files_to_commit=[], status_paths_to_commit=[])
 
     status_paths = _status_paths_for_commit(entries, coord_branch_for_filter)
-    status_paths = _drop_vcs_lock_only_meta(
-        repo_root, status_paths, coord_branch_for_filter, auto_commit=auto_commit, git=git
-    )
+    status_paths = _drop_vcs_lock_only_meta(repo_root, status_paths, coord_branch_for_filter, auto_commit=auto_commit, git=git)
     files_to_commit = list(status_paths)
     if coord_branch_for_filter:
         files_to_commit.extend(_exclude_coord_owned(extra_file_paths, coord_branch_for_filter))
     files_to_commit = list(dict.fromkeys(files_to_commit))
-    files_to_commit = _drop_vcs_lock_only_meta(
-        repo_root, files_to_commit, coord_branch_for_filter, auto_commit=auto_commit, git=git
-    )
+    files_to_commit = _drop_vcs_lock_only_meta(repo_root, files_to_commit, coord_branch_for_filter, auto_commit=auto_commit, git=git)
     if not files_to_commit:
         return PlanningArtifactStagingPlan(structural=[], files_to_commit=[], status_paths_to_commit=[])
 
@@ -389,9 +389,7 @@ def resolve_planning_artifact_staging(
 # ---------------------------------------------------------------------------
 
 
-def _resolve_placement_ref(
-    repo_root: Path, *, mission_slug: str, wp_id: str
-) -> CommitTarget | None:
+def _resolve_placement_ref(repo_root: Path, *, mission_slug: str, wp_id: str) -> CommitTarget | None:
     """Resolve the context's artifact-placement ref (C-PLACE-1 / IC-05).
 
     Routes through the single canonical resolver (``resolve_action_context``,
@@ -439,9 +437,7 @@ def _resolve_claim_commit_target(placement_ref: CommitTarget | None) -> CommitTa
     return placement_ref
 
 
-def _placement_coord_filter(
-    repo_root: Path, mission_slug: str, placement_ref: CommitTarget | None
-) -> str | None:
+def _placement_coord_filter(repo_root: Path, mission_slug: str, placement_ref: CommitTarget | None) -> str | None:
     """Return the coord-owned-exclusion ref implied by the mission's topology.
 
     The coord/flattened/primary decision reads the STORED topology via the ONE
