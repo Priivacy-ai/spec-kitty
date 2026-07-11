@@ -9,7 +9,6 @@ from specify_cli.missions._read_path_resolver import (
 )
 import logging
 import os
-import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -19,15 +18,13 @@ from typing import Any
 from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.core.paths import read_target_branch_from_meta
 from specify_cli.core.paths import require_explicit_feature as _require_explicit_feature
-from specify_cli.core.vcs.git import merge_base_changed_files
 from specify_cli.decisions.models import DecisionStatus
 from specify_cli.decisions.store import load_index
-from specify_cli.mission import MissionError, get_deliverables_path, get_mission_for_feature
+from specify_cli.mission import MissionError, get_mission_for_feature
 from specify_cli.mission_metadata import load_meta, record_acceptance, resolve_mission_identity, write_meta
 from specify_cli.status import CanonicalStatusNotFoundError
 from specify_cli.status import Lane
 from specify_cli.status import EVENTS_FILENAME, StoreError
-from specify_cli.validators.paths import validate_mission_paths
 
 from specify_cli.task_utils import (
     LANES,
@@ -40,15 +37,37 @@ from specify_cli.task_utils import (
 )
 from specify_cli.upgrade.pre30_guard import check_pre30_layout
 
+# WP04 (coord-authority-trio-degod-01KX7094) split: pure lane-gate/workflow-evidence
+# checks live in ``gates_core`` (T022), pure WP-summary/path-convention helpers live
+# in ``summary_core`` (T021). Bare re-export shims, NOT added to ``__all__`` (T025) —
+# ``accept.py`` and the WP01 characterization suite keep importing these names
+# straight off ``specify_cli.acceptance``; only ``collect_feature_summary`` /
+# ``perform_acceptance`` (the executor) and the already-public ``WorkPackageState``
+# are load-bearing package exports.
+# ``_changed_workflow_files`` has no in-module caller after the T022 extraction
+# (it is called via ``_check_workflow_run_evidence``, which now lives in
+# ``gates_core`` too) — it is re-exported solely because
+# ``tests/specify_cli/test_acceptance_regressions.py`` imports it directly
+# off ``specify_cli.acceptance``. Not a dead symbol; noqa is narrowly scoped.
+from .gates_core import (
+    AcceptanceCheckDiagnostic,
+    _changed_workflow_files,  # noqa: F401 -- re-export consumed by test_acceptance_regressions.py
+    _check_lane_gates,
+    _check_workflow_run_evidence,
+    _find_unchecked_tasks,
+    _normalized_unchecked_tasks,
+)
+from .summary_core import (
+    WorkPackageState,
+    _build_recommended_fix_order,
+    build_warnings,
+    build_work_package_state,
+    evaluate_path_conventions,
+)
+
 logger = logging.getLogger(__name__)
 
 AcceptanceMode = str  # Expected values: "pr", "local", "checklist"
-
-# The active-work lanes: a WP in one of these is still in flight, so the
-# strict-metadata gate requires the active-phase artifacts (``assignee`` and the
-# live-shell ``shell_pid``). A terminal (done/approved) WP is exempt — the
-# ``assignee`` and ``shell_pid`` gates key on exactly this set (#2369).
-_ACTIVE_METADATA_LANES = frozenset({"doing", Lane.IN_PROGRESS, Lane.FOR_REVIEW})
 
 SPEC_FILE = "spec.md"
 PLAN_FILE = "plan.md"
@@ -56,8 +75,6 @@ TASKS_FILE = "tasks.md"
 QUICKSTART_FILE = "quickstart.md"
 DATA_MODEL_FILE = "data-model.md"
 RESEARCH_FILE = "research.md"
-WORKFLOW_EVIDENCE_FILE = "workflow-evidence.md"
-WORKFLOW_RUN_URL_RE = re.compile(r"https://github\.com/[\w.-]+/[\w.-]+/actions/runs/\d+\b")
 PRIMARY_ARTIFACT_FILES = (
     SPEC_FILE,
     PLAN_FILE,
@@ -69,7 +86,6 @@ PRIMARY_ARTIFACT_FILES = (
 
 _DECISION_ID_MARKER = "decision_id:"
 _ACCEPTED_READY_LANES = frozenset({"approved", "done"})
-_PATH_CONVENTIONS_NOT_SATISFIED = "Path conventions not satisfied."
 
 # Paths written by the accept pipeline itself.  These must be excluded from the
 # git-dirty gate so that a second accept run on unchanged mission state produces
@@ -232,26 +248,6 @@ class ArtifactEncodingError(AcceptanceError):
         super().__init__(message)
         self.path = path
         self.error = error
-
-
-@dataclass
-class WorkPackageState:
-    work_package_id: str
-    lane: str
-    title: str
-    path: str
-    has_lane_entry: bool
-    latest_lane: str | None
-    metadata: dict[str, str | None] = field(default_factory=dict)
-
-
-@dataclass
-class AcceptanceCheckDiagnostic:
-    check: str
-    detail: str
-
-    def to_dict(self) -> dict[str, str]:
-        return {"check": self.check, "detail": self.detail}
 
 
 def _format_lane_blocker(lane: str, wp_id: str) -> str:
@@ -496,60 +492,6 @@ def _read_text_strict(path: Path) -> str:
 
 def _read_file(path: Path) -> str:
     return _read_text_strict(path) if path.exists() else ""
-
-
-def _find_unchecked_tasks(tasks_file: Path) -> list[str]:
-    if not tasks_file.exists():
-        return [f"{TASKS_FILE} missing"]
-
-    unchecked: list[str] = []
-    for line in _read_text_strict(tasks_file).splitlines():
-        if re.match(r"^\s*-\s*\[ \]", line):
-            unchecked.append(line.strip())
-    return unchecked
-
-
-def _normalized_unchecked_tasks(
-    unchecked_tasks: list[str],
-    lanes: Mapping[str, list[str]],
-) -> list[str]:
-    """Apply FR-009 + the ``tasks.md missing`` normalization to unchecked tasks.
-
-    FR-009 (#2085a): unchecked-tasks completion derives from WP terminal status.
-    When every tracked WP is approved/done, the work landed through the lane
-    lifecycle, so the redundant ``tasks.md`` checkbox bookkeeping is not
-    required — unticked checkboxes must not strand a finished mission. A mission
-    with a non-terminal WP (e.g. ``in_review`` / ``for_review``) still reports
-    its unchecked items. The ``[<tasks.md> missing]`` sentinel is also dropped
-    (it is surfaced separately via the missing-artifacts gate).
-
-    The acceptance-MATRIX gate (C-010) is untouched: it remains the genuine
-    verification surface — this normalization only governs the checkbox gate.
-    """
-    if unchecked_tasks == [f"{TASKS_FILE} missing"]:
-        return []
-    if _all_work_packages_terminal(lanes):
-        return []
-    return unchecked_tasks
-
-
-def _all_work_packages_terminal(lanes: Mapping[str, list[str]]) -> bool:
-    """True when every tracked WP is in a terminal-ready lane (approved/done).
-
-    FR-009: WP terminal status is the authority for completion, so an
-    orchestrated mission whose work landed through the lane lifecycle is
-    complete even if the ``tasks.md`` checkboxes were never hand-ticked. Mirrors
-    :attr:`AcceptanceSummary.all_done` but operates on the lane buckets directly
-    so the ``unchecked_tasks`` derivation does not depend on summary
-    construction order. Returns ``False`` when no WP is tracked at all (an empty
-    mission has nothing terminal to vouch for completion).
-    """
-    tracked = any(wp_ids for wp_ids in lanes.values())
-    if not tracked:
-        return False
-    return not any(
-        wp_ids for lane, wp_ids in lanes.items() if lane not in _ACCEPTED_READY_LANES
-    )
 
 
 def _check_needs_clarification(files: Sequence[Path]) -> list[str]:
@@ -935,143 +877,6 @@ def _validate_wp_readiness(
             activity_issues.append(f"{wp_id}: canonical lane is '{wp_snapshot.get('lane')}', expected 'approved' or 'done'")
 
 
-def _append_skipped_lane_checks(
-    skipped_checks: list[AcceptanceCheckDiagnostic],
-    *,
-    reason: str,
-    include_matrix_presence: bool = False,
-) -> None:
-    checks = [
-        ("acceptance_matrix_presence", "Acceptance matrix presence check"),
-        ("acceptance_matrix_evidence", "Acceptance matrix evidence validation"),
-        ("negative_invariants", "Negative invariant execution"),
-        ("acceptance_matrix_verdict", "Acceptance matrix verdict evaluation"),
-    ]
-    for check, label in checks[0 if include_matrix_presence else 1:]:
-        skipped_checks.append(
-            AcceptanceCheckDiagnostic(
-                check=check,
-                detail=f"{label} skipped: {reason}",
-            )
-        )
-
-
-def _path_prefix_for_mission(mission: Any, feature_dir: Path) -> str | None:
-    if getattr(mission, "domain", None) != "research":
-        return None
-    return get_deliverables_path(feature_dir, mission_slug=feature_dir.name)
-
-
-def _check_lane_gates(
-    repo_root: Path,
-    feature_dir: Path,
-    branch: str | None,
-    activity_issues: list[str],
-    skipped_checks: list[AcceptanceCheckDiagnostic],
-    blocked_checks: list[AcceptanceCheckDiagnostic],
-    *,
-    mutate_matrix: bool = True,
-) -> None:
-    """Enforce lane-based acceptance gates and acceptance matrix."""
-    from specify_cli.lanes.compute import is_planning_artifact_only
-    from specify_cli.lanes.persistence import CorruptLanesError, read_lanes_json
-
-    try:
-        lanes_manifest = read_lanes_json(feature_dir)
-    except CorruptLanesError as exc:
-        message = str(exc)
-        activity_issues.append(message)
-        blocked_checks.append(AcceptanceCheckDiagnostic(check="lanes_manifest", detail=message))
-        _append_skipped_lane_checks(
-            skipped_checks,
-            reason="lanes.json is corrupt or malformed",
-            include_matrix_presence=True,
-        )
-        return
-
-    if lanes_manifest is None:
-        return
-
-    meta_target_branch = _target_branch_for_feature(feature_dir)
-    if meta_target_branch and meta_target_branch != lanes_manifest.target_branch:
-        message = (
-            "Acceptance target branch mismatch: "
-            f"meta.json targets {meta_target_branch}, lanes.json targets {lanes_manifest.target_branch}"
-        )
-        activity_issues.append(message)
-        blocked_checks.append(AcceptanceCheckDiagnostic(check="mission_branch", detail=message))
-        _append_skipped_lane_checks(
-            skipped_checks,
-            reason="meta.json target_branch does not match lanes.json target_branch",
-            include_matrix_presence=True,
-        )
-        return
-
-    planning_artifact_only = is_planning_artifact_only(lanes_manifest)
-    allowed_branches = {lanes_manifest.target_branch}
-    if not planning_artifact_only:
-        allowed_branches.add(lanes_manifest.mission_branch)
-
-    if branch is None or branch not in allowed_branches:
-        allowed_label = ", ".join(sorted(branch_name for branch_name in allowed_branches if branch_name))
-        current_label = branch or "detached HEAD"
-        message = f"Acceptance must run on mission or target branch ({allowed_label}), not {current_label}"
-        activity_issues.append(message)
-        blocked_checks.append(AcceptanceCheckDiagnostic(check="mission_branch", detail=message))
-        _append_skipped_lane_checks(
-            skipped_checks,
-            reason="current branch is neither mission branch nor target branch",
-            include_matrix_presence=True,
-        )
-        return
-
-    if planning_artifact_only:
-        _append_skipped_lane_checks(
-            skipped_checks,
-            reason="planning_artifact-only missions do not produce acceptance-matrix.json",
-            include_matrix_presence=True,
-        )
-        return
-
-    from specify_cli.acceptance.matrix import (
-        enforce_negative_invariants,
-        read_acceptance_matrix,
-        validate_matrix_evidence,
-        write_acceptance_matrix,
-    )
-
-    acc_matrix = read_acceptance_matrix(feature_dir)
-    if acc_matrix is None:
-        message = "Acceptance matrix (acceptance-matrix.json) is required for lane-based features but was not found"
-        activity_issues.append(message)
-        blocked_checks.append(AcceptanceCheckDiagnostic(check="acceptance_matrix", detail=message))
-        _append_skipped_lane_checks(
-            skipped_checks,
-            reason="acceptance-matrix.json is missing",
-        )
-        return
-
-    if acc_matrix.negative_invariants and mutate_matrix:
-        acc_matrix.negative_invariants = enforce_negative_invariants(repo_root, acc_matrix.negative_invariants)
-        write_acceptance_matrix(feature_dir, acc_matrix)
-    elif acc_matrix.negative_invariants:
-        skipped_checks.append(
-            AcceptanceCheckDiagnostic(
-                check="negative_invariants",
-                detail="Negative invariant execution skipped: diagnose mode is read-only",
-            )
-        )
-
-    for err in validate_matrix_evidence(acc_matrix):
-        activity_issues.append(f"Evidence: {err}")
-
-    verdict = acc_matrix.overall_verdict
-    if verdict == "fail":
-        activity_issues.append("Acceptance matrix verdict is 'fail' — negative invariants or criteria not satisfied")
-    elif verdict == "pending":
-        activity_issues.append("Acceptance matrix verdict is 'pending' — criteria or invariants have not been verified")
-
-
 def _target_branch_for_feature(feature_dir: Path) -> str | None:
     """Thin adapter over the single ``target_branch`` read authority (FR-008 / #2139)."""
     # str(...) narrows the cross-module Any mypy sees under this repo's
@@ -1080,133 +885,6 @@ def _target_branch_for_feature(feature_dir: Path) -> str | None:
     # mirroring the same cast pattern in core/paths.py:723.
     value = read_target_branch_from_meta(feature_dir)
     return str(value) if value is not None else None
-
-
-def _git_ref_exists(repo_root: Path, ref: str) -> bool:
-    return run_git(["rev-parse", "--verify", "--quiet", ref], cwd=repo_root, check=False).returncode == 0
-
-
-def _changed_workflow_files(repo_root: Path, feature_dir: Path, branch: str | None) -> list[str]:
-    """Return workflow files changed by the current mission branch."""
-    target_branch = _target_branch_for_feature(feature_dir)
-    if not target_branch or branch == target_branch:
-        return []
-
-    base_ref = target_branch if _git_ref_exists(repo_root, target_branch) else f"origin/{target_branch}"
-    if not _git_ref_exists(repo_root, base_ref):
-        return []
-
-    changed = merge_base_changed_files(
-        repo_root, base_ref, pathspec=".github/workflows", diff_filter="AMR"
-    )
-    return sorted({line.strip() for line in changed if line.strip()})
-
-
-def _workflow_evidence_missing(feature_dir: Path) -> bool:
-    evidence_path = feature_dir / WORKFLOW_EVIDENCE_FILE
-    if not evidence_path.is_file():
-        return True
-    text = evidence_path.read_text(encoding="utf-8", errors="replace")
-    if not text.strip():
-        return True
-    return WORKFLOW_RUN_URL_RE.search(text) is None and not _contains_workflow_run_id(text)
-
-
-def _contains_workflow_run_id(text: str) -> bool:
-    """Return True when evidence text includes a standalone GitHub Actions run id."""
-
-    for raw_line in text.splitlines():
-        normalized = _normalize_workflow_evidence_line(raw_line)
-        if normalized is None:
-            continue
-        remainder = _extract_workflow_run_remainder(normalized)
-        if remainder is None:
-            continue
-        if remainder.isdigit() and len(remainder) >= 5:
-            return True
-    return False
-
-
-def _normalize_workflow_evidence_line(raw_line: str) -> str | None:
-    normalized = " ".join(raw_line.strip().lower().split())
-    if not normalized:
-        return None
-    for prefix in ("successful ", "github actions "):
-        if normalized.startswith(prefix):
-            normalized = normalized[len(prefix) :]
-    return normalized
-
-
-def _extract_workflow_run_remainder(normalized: str) -> str | None:
-    if normalized.startswith("run id"):
-        remainder = normalized[len("run id") :]
-    elif normalized.startswith("run"):
-        remainder = normalized[len("run") :]
-    else:
-        return None
-    remainder = remainder.lstrip()
-    if remainder[:1] in ":#-":
-        remainder = remainder[1:].lstrip()
-    return remainder
-
-
-def _check_workflow_run_evidence(
-    repo_root: Path,
-    feature_dir: Path,
-    branch: str | None,
-    activity_issues: list[str],
-) -> None:
-    changed = _changed_workflow_files(repo_root, feature_dir, branch)
-    if changed and _workflow_evidence_missing(feature_dir):
-        activity_issues.append(
-            "Workflow run evidence required: this mission changes "
-            + ", ".join(changed)
-            + f". Add a successful real GitHub Actions run ID or URL to {feature_dir.name}/{WORKFLOW_EVIDENCE_FILE}."
-        )
-
-
-def _build_recommended_fix_order(
-    *,
-    lanes: dict[str, list[str]],
-    metadata_issues: list[str],
-    activity_issues: list[str],
-    unchecked_tasks: list[str],
-    needs_clarification: list[str],
-    missing_artifacts: list[str],
-    git_dirty: list[str],
-    path_violations: list[str],
-    blocked_checks: list[AcceptanceCheckDiagnostic],
-) -> list[str]:
-    recommendations: list[str] = []
-
-    if git_dirty:
-        recommendations.append("Commit, stash, or discard working tree changes before acceptance.")
-    if any(item.check == "mission_branch" for item in blocked_checks):
-        recommendations.append("Switch to the mission branch or configured target branch named in the branch failure.")
-    if missing_artifacts:
-        recommendations.append("Restore required mission artifacts before acceptance.")
-    if metadata_issues:
-        recommendations.append("Fix work-package metadata issues.")
-    if any(wp_ids for lane, wp_ids in lanes.items() if lane not in {"approved", "done"}):
-        recommendations.append("Move all work packages to approved or done.")
-    if unchecked_tasks:
-        recommendations.append("Complete unchecked items in tasks.md.")
-    if needs_clarification:
-        recommendations.append("Resolve open NEEDS CLARIFICATION markers.")
-    if any(item.check == "acceptance_matrix" for item in blocked_checks):
-        recommendations.append("Create or restore kitty-specs/<mission>/acceptance-matrix.json.")
-    if any(item.check == "lanes_manifest" for item in blocked_checks):
-        recommendations.append("Restore or regenerate kitty-specs/<mission>/lanes.json.")
-    if any("Evidence:" in issue for issue in activity_issues):
-        recommendations.append("Fill missing acceptance matrix evidence fields.")
-    if any("Acceptance matrix verdict is" in issue for issue in activity_issues):
-        recommendations.append("Resolve pending or failing acceptance matrix criteria and negative invariants.")
-    if any("Workflow run evidence required" in issue for issue in activity_issues):
-        recommendations.append("Add successful GitHub Actions run evidence for workflow changes.")
-    if path_violations:
-        recommendations.append("Fix mission path convention violations.")
-
-    return recommendations
 
 
 def collect_feature_summary(
@@ -1272,49 +950,20 @@ def collect_feature_summary(
     expected_wp_ids: list[str] = []
     for wp in _iter_work_packages(repo_root, primary_slug):
         wp_id = wp.work_package_id or wp.path.stem
-        title = (wp.title or "").strip('"')
         expected_wp_ids.append(wp_id)
 
         wp_snapshot = snapshot_wps.get(wp_id)
         canonical_lane = wp_snapshot.get("lane") if wp_snapshot else None
-        bucket_lane = canonical_lane if canonical_lane is not None else "planned"
+        state, wp_metadata_issues = build_work_package_state(
+            wp, wp_id, canonical_lane, repo_root=repo_root, strict_metadata=strict_metadata
+        )
+        bucket_lane = state.lane
         if bucket_lane in lanes:
             lanes[bucket_lane].append(wp_id)
         else:
             lanes["planned"].append(wp_id)
-
-        metadata: dict[str, str | None] = {
-            "lane": canonical_lane,
-            "agent": wp.agent,
-            "assignee": wp.assignee,
-            "shell_pid": wp.shell_pid,
-        }
-
-        if strict_metadata:
-            if not wp.agent:
-                metadata_issues.append(f"{wp_id}: missing agent in frontmatter")
-            if canonical_lane in _ACTIVE_METADATA_LANES and not wp.assignee:
-                metadata_issues.append(f"{wp_id}: missing assignee in frontmatter")
-            # ``shell_pid`` identifies the live interactive shell that claimed a WP
-            # in ``spec-kitty next`` — an artifact of the ACTIVE-work phase, and one
-            # the orchestrator executor never stamps. Require it only for active
-            # lanes, mirroring the ``assignee`` gate above: a terminal (done/approved)
-            # WP has no live shell, so demanding it there is a false positive that
-            # blocks every orchestrator-completed mission from passing accept (#2369).
-            if canonical_lane in _ACTIVE_METADATA_LANES and not wp.shell_pid:
-                metadata_issues.append(f"{wp_id}: missing shell_pid in frontmatter")
-
-        work_packages.append(
-            WorkPackageState(
-                work_package_id=wp_id,
-                lane=bucket_lane,
-                title=title,
-                path=str(wp.path.relative_to(repo_root)),
-                has_lane_entry=canonical_lane is not None,
-                latest_lane=canonical_lane,
-                metadata=metadata,
-            )
-        )
+        metadata_issues.extend(wp_metadata_issues)
+        work_packages.append(state)
 
     _validate_wp_readiness(expected_wp_ids, snapshot_wps, status_feature_dir / EVENTS_FILENAME, activity_issues)
 
@@ -1338,50 +987,20 @@ def collect_feature_summary(
     )
     missing_required, missing_optional = _missing_artifacts(planning_read_dir)
 
-    path_violations: list[str] = []
-    path_convention_warning: str | None = None
     try:
         mission = get_mission_for_feature(feature_dir)
     except MissionError:
         mission = None
 
-    if mission and mission.config.paths:
-        # Mission path conventions block acceptance by default, but under
-        # ``--lenient`` (``strict_metadata=False``) they are advisory: surface
-        # them as a non-blocking warning instead of a hard ``path_violations``
-        # so repos with a non-default layout (e.g. a Go service using
-        # ``internal/`` with no top-level ``tests/``) can be accepted with
-        # ``accept --lenient`` rather than the empty-directory workaround
-        # (issue #1892). ``validate_mission_paths`` is invoked non-strict here so
-        # we own the blocking decision rather than catching a raise.
-        path_result = validate_mission_paths(
-            mission,
-            repo_root,
-            strict=False,
-            path_prefix=_path_prefix_for_mission(mission, feature_dir),
-            # Mission-artifact paths (e.g. ``contracts/``) live on the PRIMARY
-            # mission surface, not the repo root — resolve them via the canonical
-            # ``planning_read_dir`` seam (same surface ``_missing_artifacts`` uses),
-            # never ``repo_root`` (#2115 / #1716 residual). Build paths stay repo-root.
-            feature_dir=planning_read_dir,
-        )
-        if path_result.missing_paths:
-            if strict_metadata:
-                path_violations.append(
-                    path_result.format_errors() or _PATH_CONVENTIONS_NOT_SATISFIED
-                )
-            else:
-                path_convention_warning = (
-                    path_result.format_warnings() or _PATH_CONVENTIONS_NOT_SATISFIED
-                )
+    path_violations, path_convention_warning = evaluate_path_conventions(
+        mission, repo_root, feature_dir, planning_read_dir, strict_metadata=strict_metadata
+    )
 
-    warnings: list[str] = []
-    if missing_optional:
-        warnings.append("Optional artifacts missing: " + ", ".join(missing_optional))
-    if path_violations:
-        warnings.append(_PATH_CONVENTIONS_NOT_SATISFIED)
-    elif path_convention_warning:
-        warnings.append(path_convention_warning)
+    warnings = build_warnings(
+        missing_optional=missing_optional,
+        path_violations=path_violations,
+        path_convention_warning=path_convention_warning,
+    )
 
     # T028: use coord-resolved read_feature_dir for lane-gate checks so that
     # lanes.json and acceptance-matrix.json are read from the coordination

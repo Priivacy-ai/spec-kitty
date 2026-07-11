@@ -241,6 +241,14 @@ jobs:
               - 'tests/dossier/**'
               - 'tests/git_ops/**'
               - 'tests/tasks/**'
+              # WP05 (coord-authority-trio-degod-01KX7094): tests/characterization/
+              # (the trio's CLI-envelope characterization suite) was an unrouted
+              # test directory -- no path filter or job path picked it up, so its
+              # git_repo/integration-marked tests were selected by zero CI gates
+              # (test_no_new_orphan_surfaces / test_split_preserves_zero_orphans).
+              # Routed to the misc shard below, matching its cross-cutting
+              # accept/implement/workflow scope.
+              - 'tests/characterization/**'
             e2e:
               - '.github/workflows/ci-quality.yml'
               - 'tests/e2e/**'
@@ -1632,6 +1640,7 @@ jobs:
             paths: >-
               tests/_support
               tests/calibration
+              tests/characterization
               tests/ci
               tests/concurrency
               tests/contract

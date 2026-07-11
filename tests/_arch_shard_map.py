@@ -87,6 +87,11 @@ _ARCH_SHARD_2_FILES: tuple[str, ...] = (
     # lightest by file count (29 vs 30/30) at the time this WP was
     # implemented, so it lands here.
     "tests/architectural/test_arch_shard_marker_completeness.py",
+    # Added post-data-model.md (new file, mission
+    # coord-authority-trio-degod-01KX7094 WP05 -- the trio seam-only +
+    # cores-no-I/O gates, FR-004/FR-007). shard_2 was the lightest by file
+    # count (32 vs 33/34) when this file landed, so it lands here.
+    "tests/architectural/test_trio_seam_only.py",
     "tests/architectural/test_artifact_selection_completeness.py",
     "tests/architectural/test_charter_runtime_canonical_paths.py",
     "tests/architectural/test_commit_target_kind_guard.py",

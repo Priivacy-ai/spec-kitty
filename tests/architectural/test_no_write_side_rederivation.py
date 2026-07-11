@@ -179,7 +179,12 @@ _ALLOW_LIST_SEED: tuple[tuple[str, int], ...] = (
     # and its staleness twin-guard while keeping the checkout_head_selector grammar
     # + implement.py in _ADOPTED_MODULES; restored here re-anchored 87 -> 88 (same
     # pre-existing selector, verified by re-scan, not a new offender).
-    ("src/specify_cli/cli/commands/implement.py", 88),
+    # coord-authority-trio-degod WP03 (#2173) re-anchor: implement.py grew an
+    # 11-line re-export shim block (T019) ahead of this line during the
+    # implement.py -> implement_cores.py decomposition, shifting the same,
+    # untouched ``_status_commit_destination_branch`` selector 88 -> 99 (pure
+    # line drift, verified by re-scan -- not a new offender).
+    ("src/specify_cli/cli/commands/implement.py", 99),
 )
 
 
@@ -657,13 +662,20 @@ _CHECKOUT_GRAMMAR_ALLOW_LIST_SEED: tuple[tuple[str, int, str], ...] = (
     ),
     (
         "src/specify_cli/cli/commands/agent/workflow.py",
-        557,
+        592,
         "tracked: #2453 - _commit_via_legacy_safe_commit's target_branch "
         "parameter is a pre-coordination-topology legacy mission's "
         "checked-out branch; same deferred bucket as the other #2453 "
         "residuals. post-merge re-anchor (coord-primary-partition-lock "
         "aggregate landing): cumulative cross-lane line drift shifted this "
-        "524 -> 523 (same construction, verified by re-scan).",
+        "524 -> 523 (same construction, verified by re-scan). WP02 "
+        "(coord-authority-trio-degod-01KX7094) re-anchor: the #2508 fix "
+        "(PRIMARY_METADATA read) plus the T009/T010 ImplementRequest/"
+        "ReviewRequest wiring added lines ahead of this site, shifting "
+        "557 -> 591 -> 593; same construction, verified by re-scan. WP05 "
+        "(coord-authority-trio-degod-01KX7094) re-anchor: removing the dead "
+        "KITTY_SPECS_DIR import (T027 seam-only gate campsite cleanup) "
+        "shifted this 593 -> 592; same construction, verified by re-scan.",
     ),
     (
         "src/specify_cli/cli/commands/agent/tasks_move_task.py",

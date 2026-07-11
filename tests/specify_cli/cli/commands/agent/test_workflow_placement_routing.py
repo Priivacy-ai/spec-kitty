@@ -309,6 +309,16 @@ def test_commit_workflow_change_legacy_path_routes_through_the_seam(
             assert kind is MissionArtifactKind.STATUS_STATE
             return CommitTarget(ref="SEAM-ROUTED-REF")
 
+        def read_dir(self, kind: MissionArtifactKind) -> Path:
+            # #2508 fix (FR-010): _commit_workflow_change also resolves the
+            # PRIMARY_METADATA read dir (to anchor _load_coord_branch_meta on
+            # primary, not the STATUS_STATE-partition feature_dir) before the
+            # write-side seam call this test exercises. _load_coord_branch_meta
+            # is monkeypatched below and ignores its argument, so the returned
+            # path is unused by this test -- only the method needs to exist.
+            assert kind is MissionArtifactKind.PRIMARY_METADATA
+            return tmp_path / "primary-meta-dir"
+
     monkeypatch.setattr(mission_runtime, "placement_seam", _StubSeam)
     monkeypatch.setattr(workflow, "_load_coord_branch_meta", lambda _fd: (None, None, None))
 
@@ -357,12 +367,18 @@ def test_dossier_sync_except_handler_is_not_empty() -> None:
 
     Symbol-anchored (not line-anchored, #2032 drift): locates the
     ``try/except`` guarding the ``trigger_feature_dossier_sync_if_enabled``
-    call inside the ``implement`` command body and asserts its handler body
-    is not the bare Sonar-flagged ``pass`` (empty-except campsite, T021).
-    """
-    from specify_cli.cli.commands.agent import workflow
+    call and asserts its handler body is not the bare Sonar-flagged ``pass``
+    (empty-except campsite, T021).
 
-    source = inspect.getsource(workflow)
+    coord-authority-trio-degod-01KX7094 WP02 (T009): the dossier-sync call
+    (previously inline in ``implement()``) now lives in
+    ``workflow_executor._implement_trigger_dossier_sync`` — a genuine "moved
+    monkeypatch/AST-anchor target" case (T013), not a weakened assertion; the
+    except-handler-is-not-bare-pass check is unchanged.
+    """
+    from specify_cli.cli.commands.agent import workflow_executor
+
+    source = inspect.getsource(workflow_executor)
     tree = ast.parse(source)
 
     target_call = "trigger_feature_dossier_sync_if_enabled"

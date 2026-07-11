@@ -256,9 +256,14 @@ class TestWiringIsLive:
         assert "require_active_role" in src
 
     def test_workflow_claim_calls_builder_and_guard(self) -> None:
-        import specify_cli.cli.commands.agent.workflow as workflow_mod
+        # coord-authority-trio-degod-01KX7094 WP02 (T009): the claim-transition
+        # wiring (previously inline in workflow.implement()) now lives in
+        # workflow_executor._implement_start_claim -- a moved AST-anchor
+        # target (T013), not a weakened assertion; the same builder+guard
+        # call-site check applies to its new home.
+        import specify_cli.cli.commands.agent.workflow_executor as workflow_executor_mod
 
-        src = inspect.getsource(workflow_mod)
+        src = inspect.getsource(workflow_executor_mod)
         assert "build_operational_context_for_claim" in src
         assert "require_active_role" in src
 

@@ -1179,3 +1179,62 @@ def test_raw_handle_reinjection_is_caught() -> None:
         and r.key().startswith("specify_cli/cli/commands/agent/context.py:")
     ]
     assert not post, "raw_handle re-injection mutation was not reverted cleanly."
+
+
+# ---------------------------------------------------------------------------
+# WP05 (coord-authority-trio-degod-01KX7094) -- trio-split files carry zero
+# raw-path-join rows (T027 extension).
+#
+# The trio decomposition (agent/workflow.py, cli/commands/implement.py,
+# acceptance/__init__.py -> shell + pure core(s) + executor) added five new
+# source files to the tree. None of the _ALLOWLISTED_RAW_JOINS entries above
+# reference any of them -- the split kept every raw-join site (allowlisted or
+# not) inside the pre-existing seam/resolver modules. This guard is additive,
+# not a weakening of anything above: it does not touch _ALLOWLISTED_RAW_JOINS
+# or any existing assertion, it only asserts that discover_rows() -- the SAME
+# live walker every other test in this file uses -- finds zero raw-path-join
+# rows specifically inside the five new files. See
+# ``tests/architectural/test_trio_seam_only.py`` for the trio's other two
+# invariants (T027 seam-only imports, T028 cores-no-I/O).
+# ---------------------------------------------------------------------------
+
+_TRIO_SPLIT_FILES: frozenset[str] = frozenset(
+    {
+        "specify_cli/cli/commands/agent/workflow_cores.py",
+        "specify_cli/cli/commands/agent/workflow_executor.py",
+        "specify_cli/cli/commands/implement_cores.py",
+        "specify_cli/acceptance/summary_core.py",
+        "specify_cli/acceptance/gates_core.py",
+    }
+)
+
+
+def test_trio_split_files_carry_no_raw_bypass_rows() -> None:
+    """The five new trio-split files introduce zero raw-path-join rows.
+
+    If a future edit moved (or introduced) a raw ``KITTY_SPECS_DIR``/slug join
+    into one of the split-out files, this guard -- not just the whole-tree
+    zero-bypass guard above -- calls it out by the specific new file it landed
+    in, since ``_ALLOWLISTED_RAW_JOINS`` has (correctly) never had to carry an
+    entry for any of them.
+    """
+    rows = discover_rows()
+    leaks = [
+        row.key()
+        for row in rows
+        if row.call_name == "raw-path-join" and row.rel_path in _TRIO_SPLIT_FILES
+    ]
+    assert not leaks, (
+        "New raw KITTY_SPECS_DIR/slug joins found in a trio-split file "
+        f"(none were expected -- these files are new in this mission and carry "
+        f"no _ALLOWLISTED_RAW_JOINS entries): {leaks}"
+    )
+
+
+def test_trio_split_files_are_covered_by_the_live_walker() -> None:
+    """Anti-vacuous companion: the five trio-split files actually exist and are
+    on the walker's search path, so the zero-leaks assertion above is not
+    trivially satisfied by scanning nothing.
+    """
+    missing = [rel for rel in sorted(_TRIO_SPLIT_FILES) if not (_SRC_ROOT / rel).is_file()]
+    assert not missing, f"Trio-split files missing from the current tree: {missing}"

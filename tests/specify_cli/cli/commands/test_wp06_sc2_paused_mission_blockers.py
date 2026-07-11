@@ -54,12 +54,25 @@ def _patch_mission_topology(
 def _patch_implement_topology(
     monkeypatch: pytest.MonkeyPatch, *, coord: bool
 ) -> None:
-    """Stub the implement module's stored-topology read (FR-001b routing reads topology)."""
+    """Stub the implement module's stored-topology read (FR-001b routing reads topology).
+
+    coord-authority-trio-degod WP03 (#2173) relocated the placement family
+    (``_placement_coord_filter`` et al.) into ``implement_cores`` -- that
+    module now holds its own ``resolve_topology`` import and is the one a
+    directly-invoked ``_placement_coord_filter`` actually reads at call time.
+    ``implement.py`` still calls ``resolve_topology`` inline too (e.g. the WP
+    claim-status commit), so both module namespaces are patched to keep every
+    call path -- direct-core and through-implement -- stubbed consistently.
+    """
     from specify_cli.cli.commands import implement as _implement_mod
+    from specify_cli.cli.commands import implement_cores as _implement_cores_mod
 
     topology = MissionTopology.COORD if coord else MissionTopology.SINGLE_BRANCH
     monkeypatch.setattr(
         _implement_mod, "resolve_topology", lambda _root, _slug: topology
+    )
+    monkeypatch.setattr(
+        _implement_cores_mod, "resolve_topology", lambda _root, _slug: topology
     )
 
 
