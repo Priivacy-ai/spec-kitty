@@ -1,0 +1,16 @@
+{
+  "baseline_merge_commit": "6f2e5672bbc6e008c7444be17952f1834b603652",
+  "coordination_branch": "kitty/mission-relocation-hardened-dead-code-scanners-01KX958P",
+  "created_at": "2026-07-11T17:58:07.843978+00:00",
+  "flattened": false,
+  "friendly_name": "Relocation-Hardened Dead-Code Scanners",
+  "mission_id": "01KX958PQ3K34ZFPMWCNWAPJ0Y",
+  "mission_number": 174,
+  "mission_slug": "relocation-hardened-dead-code-scanners-01KX958P",
+  "mission_type": "software-dev",
+  "purpose_context": "The dead-code scanners' 342-entry allow-list keys on module::Name, so relocating a sanctioned symbol forces a manual edit. A prior spike proved a relocation-tolerant key is feasible for the ~278 simple entries (the ~60 re-export/facade/fan-out entries stay collision-safe but relocation-forfeit by necessity). This mission delivers that key + symbol-granular category auto-derivation while preserving every dead-code invariant (T004 no-false-negative, known_modules, the bidirectional ratchet).",
+  "purpose_tldr": "Re-key the architectural dead-code allow-lists onto a relocation-tolerant symbol identity (WS2 carved from #2546) so a behaviour-preserving symbol relocation no longer forces a hand-edit, while preserving the gate's full bite.",
+  "slug": "relocation-hardened-dead-code-scanners-01KX958P",
+  "target_branch": "analysis/test-change-coupling",
+  "topology": "coord"
+}

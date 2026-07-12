@@ -7,6 +7,35 @@ docs/architecture/00_landscape/README.md:
 
 A violation here means a package imports from a package it should not.
 See ADR 2026-03-27-1 for rationale.
+
+---
+
+FR-012 audit verdict (#2548 ratio=1.00 audit, WP01 of mission
+content-address-ratchet-allowlists-01KX8M4D — see research.md D-context and
+the post-spec adversarial squad classification referenced there):
+
+The post-spec squad classified all thirteen ratio=1.00 architectural tests.
+Two of the thirteen (``test_unified_model_resolves_at_new_location`` and
+``test_legacy_contract_types_resolve_at_new_location``, both below) were
+positive-literal ``__module__ == "..."`` re-pins and were converted to
+behavioural assertions by this WP (FR-011). The remaining **ten** were
+audited and validated as legitimate KEEP — behavioural, negative, or
+import-layer invariants that do not re-pin a literal path — and were left
+UNCHANGED:
+
+    test_no_raw_mission_spec_paths
+    test_safe_commit_import_boundary
+    test_pytest_marker_convention
+    test_auth_transport_singleton
+    test_status_module_boundary
+    test_tid251_enforcement
+    test_guard_capability_call_sites
+    test_pytest_marker_correctness
+    test_charter_facades_reexport_doctrine
+    (plus the shared architectural ``conftest`` infra)
+
+This closes the #2548 audit obligation. Do NOT re-open or re-classify these
+ten without a fresh audit — see spec.md WS3 (FR-010/FR-011/FR-012).
 """
 from __future__ import annotations
 
@@ -319,6 +348,23 @@ class TestRuntimeBoundary:
 # --- Invariant 4: WP01 — unified MissionStep model location ---
 
 
+def _non_canonical_instances(objs: Iterable[object], canonical: type) -> list[str]:
+    """Return a description for every ``obj`` that is not an instance of ``canonical``.
+
+    Pure function of its inputs (FR-011/FR-013) so the plant-and-catch
+    negative test can drive it with a synthetic wrong-wiring object and
+    prove non-vacuity without touching disk or real resolver state. Used in
+    place of literal ``__module__ == "..."`` comparisons: identity/usage
+    is what matters, not which module a class happens to report.
+    """
+    return [
+        f"{obj!r} is {type(obj).__module__}.{type(obj).__qualname__}, "
+        f"not {canonical.__qualname__}"
+        for obj in objs
+        if not isinstance(obj, canonical)
+    ]
+
+
 class TestUnifiedMissionStepBoundary:
     """WP01 (mission charter-doctrine-mission-type-configuration-01KSWJVX).
 
@@ -359,17 +405,39 @@ class TestUnifiedMissionStepBoundary:
         )
 
     def test_unified_model_resolves_at_new_location(self) -> None:
-        """The unified :class:`MissionStep` must live at the documented
-        ``doctrine.missions.models`` path. This anchor prevents drift if
-        a future refactor relocates the model again.
+        """The unified :class:`MissionStep` is BOTH importable via its
+        public surface AND the exact class the doctrine mission-step
+        resolver actually instantiates when parsing on-disk ``step.yaml``
+        definitions (FR-011) — not merely a same-named class that happens
+        to report a pinned literal ``__module__`` string.
+
+        Behavioural, not literal: this stays GREEN across a relocation that
+        keeps the resolver correctly wired, and it REDS if the resolver
+        were ever wired to a decoy/duplicate class (see
+        ``test_plant_and_catch_wrong_mission_step_wiring`` below).
         """
+        from doctrine.missions.mission_step_repository import MissionStepRepository
         from doctrine.missions.models import MissionStep
 
-        assert MissionStep.__module__ == "doctrine.missions.models"
+        resolved = MissionStepRepository.default().resolve_all_for_mission_type(
+            "software-dev"
+        )
+        assert resolved, (
+            "expected the shipped software-dev built-in mission-steps to "
+            "resolve at least one step"
+        )
+        offenders = _non_canonical_instances(resolved.values(), MissionStep)
+        assert not offenders, (
+            "the mission-step resolver produced steps that are not "
+            f"instances of the canonical MissionStep class: {offenders}"
+        )
 
     def test_legacy_contract_types_resolve_at_new_location(self) -> None:
-        """The relocated legacy step-contract types live in
-        ``doctrine.missions.step_contracts`` (not the deleted subpackage).
+        """The relocated legacy step-contract types are BOTH importable at
+        ``doctrine.missions.step_contracts`` AND the exact classes the
+        shipped ``*.step-contract.yaml`` loader actually instantiates
+        (FR-011) — not merely same-named classes at a pinned literal
+        module path.
         """
         from doctrine.missions.step_contracts import (
             DelegatesTo,
@@ -378,16 +446,51 @@ class TestUnifiedMissionStepBoundary:
             MissionStepContractStep,
         )
 
-        for cls in (
-            DelegatesTo,
-            MissionStepContract,
-            MissionStepContractRepository,
-            MissionStepContractStep,
-        ):
-            assert cls.__module__ == "doctrine.missions.step_contracts", (
-                f"{cls.__name__} must live in doctrine.missions.step_contracts; "
-                f"found at {cls.__module__}."
-            )
+        repo = MissionStepContractRepository()
+        contract = repo.get("implement")
+        assert contract is not None, (
+            "expected the shipped 'implement' step contract to load"
+        )
+        assert isinstance(contract, MissionStepContract)
+
+        offenders = _non_canonical_instances(contract.steps, MissionStepContractStep)
+        assert not offenders, (
+            f"loaded contract.steps produced non-canonical instances: {offenders}"
+        )
+
+        delegating_steps = [s for s in contract.steps if s.delegates_to is not None]
+        assert delegating_steps, (
+            "expected at least one shipped 'implement' step (e.g. 'workspace') "
+            "to populate delegates_to — the fixture this test relies on has drifted"
+        )
+        offenders = _non_canonical_instances(
+            (s.delegates_to for s in delegating_steps), DelegatesTo
+        )
+        assert not offenders, (
+            f"loaded delegates_to values are not canonical DelegatesTo "
+            f"instances: {offenders}"
+        )
+
+    def test_plant_and_catch_wrong_mission_step_wiring(self) -> None:
+        """Non-vacuity guard for the two behavioural tests above (FR-013).
+
+        Feeds :func:`_non_canonical_instances` a synthetic decoy object that
+        is NOT an instance of the canonical class (simulating a resolver
+        accidentally wired to a same-named-but-different class) and asserts
+        it is flagged. Without this test, a resolver silently rewired to
+        the wrong class could pass the behavioural tests above vacuously.
+        """
+
+        class _DecoyMissionStep:
+            """Same-named decoy — proves identity/usage checks have teeth."""
+
+        from doctrine.missions.models import MissionStep
+
+        offenders = _non_canonical_instances([_DecoyMissionStep()], MissionStep)
+        assert offenders, (
+            "expected the decoy instance to be flagged as non-canonical — "
+            "the wrong-wiring self-test has lost its teeth"
+        )
 
 
 # --- Invariant 5: WP08 — mission_runtime outbound boundary (FR-009, #2327) ---
