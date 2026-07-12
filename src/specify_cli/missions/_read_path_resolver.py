@@ -25,13 +25,16 @@ Spec source: FR-030, SC-02.
 from __future__ import annotations
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.paths import WorkspaceRootNotFound, resolve_canonical_root
 from collections.abc import Mapping
 import enum
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
+
+from mission_runtime import MissionArtifactKind
 
 if TYPE_CHECKING:
-    from mission_runtime import MissionArtifactKind, MissionResolver, MissionTopology
+    from mission_runtime import MissionResolver, MissionTopology
 
 
 STATUS_READ_PATH_NOT_FOUND_CODE = "STATUS_READ_PATH_NOT_FOUND"
@@ -1429,6 +1432,50 @@ def resolve_planning_read_dir(
     return candidate_feature_dir_for_mission(repo_root, mission_slug, resolver=resolver)
 
 
+def resolve_subtasks_gate_dir(feature_dir: Path, repo_root: Path | None, mission_slug: str) -> Path:
+    """Resolve the PRIMARY mission dir the subtask-completeness gate reads ``tasks.md`` from.
+
+    The single canonical seam (closes #2574) for the "resolve PRIMARY
+    TASKS_INDEX dir for the subtask gate" adapter, previously triplicated
+    across ``status/emit.py::_resolve_primary_subtasks_dir``,
+    ``status/aggregate.py::_resolve_review_gate_inputs``'s inline resolver, and
+    the weak inline fallback in
+    ``coordination/status_transition.py::_prepare_event`` (which used to read
+    ``feature_dir`` directly, unrecovered, whenever ``repo_root`` was
+    ``None``). On a coord-topology mission ``feature_dir`` at these call sites
+    may be the coordination-branch husk rather than the primary planning
+    surface where ``tasks.md`` actually lives — every call site now routes
+    through this seam, which threads :func:`resolve_planning_read_dir` (the
+    TASKS_INDEX-partition resolver) so the gate always reads the PRIMARY
+    surface.
+
+    Contract (the superset of the three prior sites — plan D1):
+
+    1. ``repo_root`` when supplied is used directly (the two already-strong
+       sites' behavior — NFR-001).
+    2. Otherwise :func:`~specify_cli.core.paths.resolve_canonical_root` derives
+       it from ``feature_dir``'s git ancestry (the fallback the weak site now
+       gains — FR-002).
+    3. When neither yields a root (``WorkspaceRootNotFound`` — e.g. a bare
+       ``tmp_path`` fixture with no git ancestry), ``feature_dir`` is returned
+       unchanged, preserving pre-existing non-repo test behavior.
+    """
+    primary_root = repo_root
+    if primary_root is None:
+        try:
+            primary_root = resolve_canonical_root(feature_dir)
+        except WorkspaceRootNotFound:
+            return feature_dir
+    # cast: follow_imports=skip (pyproject.toml [[tool.mypy.overrides]] for
+    # specify_cli.*) makes resolve_planning_read_dir's declared `-> Path`
+    # return type invisible to mypy from this call site (C-002 — carried
+    # verbatim from the prior ``_resolve_primary_subtasks_dir`` site).
+    return cast(
+        Path,
+        resolve_planning_read_dir(primary_root, mission_slug, kind=MissionArtifactKind.TASKS_INDEX),
+    )
+
+
 def resolve_bare_modern_mission_dir_name(
     repo_root: Path, mission_slug: str
 ) -> str | None:
@@ -1578,5 +1625,6 @@ __all__ = [
     "resolve_planning_read_dir",
     "resolve_feature_dir_for_mission",
     "resolve_handle_to_read_path",
+    "resolve_subtasks_gate_dir",
     "resolve_surface_dir_or_typed_error",
 ]
