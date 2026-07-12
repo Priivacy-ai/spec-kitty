@@ -24,11 +24,11 @@
 │ *    task_ids      TASK_IDS...  Task ID(s) - space-separated (e.g., T001 T002 T003) [required]   │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────────────────────────╮
-│ *  --status                             TEXT  Status: done/pending [required]                    │
-│    --mission                            TEXT  Mission slug                                       │
-│    --auto-commit    --no-auto-commit          Automatically commit tasks.md changes to target    │
-│                                               branch (default: from project config)              │
-│    --json                                     Output JSON format                                 │
-│    --help                                     Show this message and exit.                        │
+│ *  --status                               TEXT  Status: done/pending [required]                  │
+│    --mission                              TEXT  Mission slug                                     │
+│    --auto-commit      --no-auto-commit          Automatically commit tasks.md changes to target  │
+│                                                 branch (default: from project config)            │
+│    --json                                       Output JSON format                               │
+│    --help         -h                            Show this message and exit.                      │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 

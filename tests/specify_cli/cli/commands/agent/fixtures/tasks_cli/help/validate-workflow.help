@@ -10,8 +10,8 @@
 │ *    task_id      TEXT  Task ID (e.g., WP01) [required]                                          │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────────────────────────╮
-│ --mission        TEXT  Mission slug                                                              │
-│ --json                 Output JSON format                                                        │
-│ --help                 Show this message and exit.                                               │
+│ --mission          TEXT  Mission slug                                                            │
+│ --json                   Output JSON format                                                      │
+│ --help     -h            Show this message and exit.                                             │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 

@@ -4,10 +4,10 @@
  Task workflow commands for AI agents                                                               
                                                                                                     
 ╭─ Options ────────────────────────────────────────────────────────────────────────────────────────╮
-│ --install-completion          Install completion for the current shell.                          │
-│ --show-completion             Show completion for the current shell, to copy it or customize the │
-│                               installation.                                                      │
-│ --help                        Show this message and exit.                                        │
+│ --install-completion            Install completion for the current shell.                        │
+│ --show-completion               Show completion for the current shell, to copy it or customize   │
+│                                 the installation.                                                │
+│ --help                -h        Show this message and exit.                                      │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────────────────────────╮
 │ move-task          Move task between lanes (planned → doing → for_review → approved → done).     │
