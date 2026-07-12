@@ -1934,6 +1934,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/guides/manage-issue-tracker.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/guides/merge-feature.md
   tag: current
   divio_type: none
