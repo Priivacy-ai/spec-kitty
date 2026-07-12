@@ -42,10 +42,36 @@ def _committed_router_result(*, commit_success: bool = True) -> CommitRouterResu
     """
     if commit_success:
         return CommitRouterResult(
-            status="committed", placement_ref="main", commit_hash=_FAKE_SHA
+            status="committed",
+            placement_ref="main",
+            commit_hash=_FAKE_SHA,
+            commit_hashes=(("main", _FAKE_SHA),),
         )
     return CommitRouterResult(
         status="error", placement_ref="main", diagnostic="safe_commit: git commit failed"
+    )
+
+
+_FAKE_COORD_SHA = "b" * 40
+_COORD_BRANCH = "kitty/mission-001-test-A1B2C3D4"
+
+
+def _committed_router_result_coord_split() -> CommitRouterResult:
+    """Build the split-commit CommitRouterResult a coord-topology finalize returns.
+
+    #2549 facet B: under coord topology, ``commit_for_mission`` issues TWO
+    commits -- one for primary-partition artifacts (tasks.md, lanes.json,
+    tasks/WP*) landing on the feature branch, one for placement-partition
+    artifacts (status.events.jsonl, status.json, acceptance-matrix.json,
+    issue-matrix.md) landing on the coordination branch. The legacy single
+    ``commit_hash`` still names the feature-branch commit (the caller
+    partition); ``commit_hashes`` carries BOTH.
+    """
+    return CommitRouterResult(
+        status="committed",
+        placement_ref="main",
+        commit_hash=_FAKE_SHA,
+        commit_hashes=(("main", _FAKE_SHA), (_COORD_BRANCH, _FAKE_COORD_SHA)),
     )
 
 
@@ -340,6 +366,93 @@ class TestFinalizeTasks:
         assert isinstance(payload["files_committed"], list)
         assert isinstance(payload["updated_wp_count"], int)
         assert isinstance(payload["tasks_dir"], str)
+
+    def test_json_output_commit_hashes_reports_both_branches_under_coord_topology(
+        self, tmp_path: Path
+    ) -> None:
+        """#2549 facet B: under coord topology, JSON reports BOTH commit hashes.
+
+        A coord-topology finalize issues two commits (feature branch + coord
+        branch) as separate commits on separate branches. Pre-fix, the JSON
+        payload named only the feature-branch ``commit_hash`` while
+        ``files_committed`` listed files from BOTH partitions -- misleading
+        automated callers. This pins the fix: the new ``commit_hashes`` field
+        carries an entry per branch, and the coord-branch hash is present and
+        genuinely differs from the feature-branch hash.
+        """
+        feature_dir, _ = _build_feature(tmp_path)
+
+        with (
+            patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.agent.mission._find_feature_directory", return_value=feature_dir),
+            patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main")),
+            patch(
+                "specify_cli.coordination.commit_router.commit_for_mission",
+                return_value=_committed_router_result_coord_split(),
+            ),
+            patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
+            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
+        ):
+            result = runner.invoke(app, ["finalize-tasks", "--json"])
+
+        assert result.exit_code == 0, result.stdout
+        import json as _json
+
+        lines = [l for l in result.stdout.splitlines() if l.strip().startswith("{")]
+        payload = _json.loads(lines[-1])
+
+        # Backward-compatible single-value field still names the feature-branch commit.
+        assert payload["commit_hash"] == _FAKE_SHA
+
+        assert "commit_hashes" in payload, "JSON must include commit_hashes"
+        commit_hashes = payload["commit_hashes"]
+        assert isinstance(commit_hashes, list)
+        assert len(commit_hashes) == 2, f"expected 2 branch commits, got {commit_hashes!r}"
+
+        hashes_by_branch = {entry["branch"]: entry["hash"] for entry in commit_hashes}
+        assert hashes_by_branch["main"] == _FAKE_SHA
+        assert hashes_by_branch[_COORD_BRANCH] == _FAKE_COORD_SHA
+        assert hashes_by_branch[_COORD_BRANCH] is not None
+        assert hashes_by_branch[_COORD_BRANCH] != hashes_by_branch["main"], (
+            "the coordination-branch commit hash must be reported and must "
+            "differ from the feature-branch commit hash"
+        )
+
+    def test_json_output_commit_hashes_single_entry_for_flat_topology(self, tmp_path: Path) -> None:
+        """#2549 facet B backward compat: a flat/single_branch finalize reports one hash.
+
+        A flat/single_branch mission has no coordination partition -- everything
+        commits in one commit on one branch. ``commit_hashes`` must carry exactly
+        that one ``{branch, hash}`` entry, matching the legacy ``commit_hash``
+        field, so existing single-commit callers see no behavioural change.
+        """
+        feature_dir, _ = _build_feature(tmp_path)
+
+        with (
+            patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.agent.mission._find_feature_directory", return_value=feature_dir),
+            patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main")),
+            patch(
+                "specify_cli.coordination.commit_router.commit_for_mission",
+                return_value=_committed_router_result(),
+            ),
+            patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
+            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
+        ):
+            result = runner.invoke(app, ["finalize-tasks", "--json"])
+
+        assert result.exit_code == 0, result.stdout
+        import json as _json
+
+        lines = [l for l in result.stdout.splitlines() if l.strip().startswith("{")]
+        payload = _json.loads(lines[-1])
+
+        commit_hashes = payload["commit_hashes"]
+        assert isinstance(commit_hashes, list)
+        assert commit_hashes == [{"branch": "main", "hash": _FAKE_SHA}], (
+            f"flat topology must report exactly one branch commit, got {commit_hashes!r}"
+        )
+        assert payload["commit_hash"] == commit_hashes[0]["hash"]
 
     def test_json_reports_modified_unchanged_preserved(self, tmp_path: Path) -> None:
         """Success JSON output must include modified_wps, unchanged_wps, preserved_wps (T008/T009)."""

@@ -315,3 +315,134 @@ def test_single_partition_batch_keeps_the_fast_path(
         "data-model.md",
     }
     assert result.status == "committed"
+
+
+# ---------------------------------------------------------------------------
+# #2549 facet B — CommitRouterResult.commit_hashes reports the FULL commit set
+# ---------------------------------------------------------------------------
+
+
+class _SequencedCommitResult:
+    """A ``safe_commit`` stand-in that returns a distinct sha per invocation.
+
+    ``_FakeCommitResult`` above returns the SAME constant sha for every call,
+    which cannot prove that a mixed-partition (coord-topology) batch reports
+    TWO *different* commit hashes -- the exact defect #2549 facet B closes
+    (finalize-tasks --json reported one commit_hash, silently dropping the
+    coordination-branch commit). This stub hands out ``feature-branch-sha`` /
+    ``coord-branch-sha`` in call order so the assertions below can pin that the
+    two hashes actually differ, not just that two calls happened.
+    """
+
+    def __init__(self, shas: list[str]) -> None:
+        self._shas = iter(shas)
+
+    def __call__(self, **kwargs: object) -> object:
+        class _Result:
+            sha = next(self._shas)  # noqa: B023 - captured per-instance, not per-loop
+
+        return _Result()
+
+
+def test_mixed_batch_result_reports_commit_hashes_for_both_partitions(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#2549 facet B: a split (coord-topology) commit reports BOTH commit hashes.
+
+    Pre-fix, ``_merge_group_results`` discarded every group's result except the
+    caller-partition one -- the coordination-branch commit landed for real
+    (``_group_files_by_partition`` already splits and commits it, proven by
+    ``test_mixed_batch_routes_each_file_to_its_own_partition_ref`` above) but its
+    sha was never surfaced on the returned ``CommitRouterResult``. This pins the
+    fix: ``commit_hashes`` carries a ``(ref, sha)`` pair for EACH partition group
+    that committed, and the two shas are genuinely distinct (proving the second
+    commit's identity survives the merge, not just its ref).
+    """
+    mission_slug = "001-demo"
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
+    feature_dir.mkdir(parents=True)
+
+    tasks_file = feature_dir / "tasks.md"
+    tasks_file.write_text("# Tasks\n", encoding="utf-8")
+    matrix_file = feature_dir / "acceptance-matrix.json"
+    matrix_file.write_text("{}", encoding="utf-8")
+
+    coord_worktree = tmp_path / ".worktrees" / "coord"
+    coord_worktree.mkdir(parents=True)
+
+    _install_common_fakes(monkeypatch, coord_worktree=coord_worktree)
+    monkeypatch.setattr(
+        commit_router,
+        "safe_commit",
+        _SequencedCommitResult(["feature-branch-sha-0001", "coord-branch-sha-0002"]),
+    )
+    policy = _make_policy(protected=False)
+
+    result = commit_router.commit_for_mission(
+        tmp_path,
+        mission_slug,
+        (tasks_file, matrix_file),
+        "chore: finalize tasks",
+        policy,
+        kind=MissionArtifactKind.TASKS_INDEX,
+    )
+
+    assert result.status == "committed"
+    hashes_by_ref = dict(result.commit_hashes)
+    assert len(result.commit_hashes) == 2, (
+        f"expected one commit hash per partition group, got {result.commit_hashes!r}"
+    )
+    assert hashes_by_ref[_PRIMARY_REF] == "feature-branch-sha-0001"
+    assert hashes_by_ref[_COORD_REF] == "coord-branch-sha-0002"
+    assert hashes_by_ref[_PRIMARY_REF] != hashes_by_ref[_COORD_REF], (
+        "the feature-branch and coordination-branch commits are genuinely "
+        "distinct commits and must report distinct hashes"
+    )
+    # Backward compatibility: the legacy single-value fields still describe the
+    # caller-partition (TASKS_INDEX -> PRIMARY -> feature-branch) commit.
+    assert result.commit_hash == "feature-branch-sha-0001"
+    assert result.placement_ref == _PRIMARY_REF
+
+
+def test_single_partition_batch_commit_hashes_matches_legacy_single_commit_hash(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Backward compatibility: a flat/single-partition commit reports ONE hash.
+
+    Under a topology with no coordination routing (``SINGLE_BRANCH`` / flat
+    missions), every artifact lands in ONE partition group, so
+    ``commit_hashes`` must carry exactly the one ``(ref, hash)`` pair that
+    ``commit_hash`` / ``placement_ref`` already describe -- no caller depending
+    on the historical single-value fields sees any change.
+    """
+    mission_slug = "001-demo"
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
+    feature_dir.mkdir(parents=True)
+
+    spec_file = feature_dir / "spec.md"
+    spec_file.write_text("# Spec\n", encoding="utf-8")
+
+    monkeypatch.setattr(
+        commit_router, "resolve_placement_only", lambda *_a, **_kw: CommitTarget(ref=_PRIMARY_REF)
+    )
+    monkeypatch.setattr(
+        commit_router, "resolve_topology", lambda *_a, **_kw: MissionTopology.SINGLE_BRANCH
+    )
+    monkeypatch.setattr(
+        commit_router, "_resolve_primary_target_branch", lambda *_a, **_kw: _PRIMARY_REF
+    )
+    monkeypatch.setattr(commit_router, "safe_commit", lambda **_kw: _FakeCommitResult())
+    policy = _make_policy(protected=False)
+
+    result = commit_router.commit_for_mission(
+        tmp_path,
+        mission_slug,
+        (spec_file,),
+        "chore: spec",
+        policy,
+        kind=MissionArtifactKind.SPEC,
+    )
+
+    assert result.status == "committed"
+    assert result.commit_hashes == ((_PRIMARY_REF, result.commit_hash),)
+    assert result.commit_hash == _FakeCommitResult.sha

@@ -26,7 +26,7 @@ from __future__ import annotations
 import logging
 import shutil
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Final, Literal, Protocol, runtime_checkable
 
@@ -93,11 +93,23 @@ class CommitRouterResult:
     - ``_STATUS_UNCHANGED``        — benign no-op: artifact present + already committed.
     - ``_STATUS_NO_OP_WRONG_SURFACE`` — artifact absent at resolved placement.
     - ``_STATUS_ERROR``            — commit failed unexpectedly.
+
+    ``commit_hash`` / ``placement_ref`` remain the historical single-commit
+    projection (the CALLER-partition outcome — see :func:`_merge_group_results`)
+    for backward compatibility. ``commit_hashes`` (#2549 facet B) additionally
+    carries the FULL commit set as ``(placement_ref, commit_hash)`` pairs, one
+    per partition group that actually committed. For the common single-group
+    case this holds exactly the same one entry as ``commit_hash`` /
+    ``placement_ref``; for a genuinely split (mixed-partition, coord-topology)
+    batch it also carries the second commit — e.g. the coordination-branch
+    commit alongside the caller-partition (feature-branch) one — that the
+    single-value fields alone cannot express.
     """
 
     status: Literal["committed", "unchanged", "no_op_wrong_surface", "error"]
     placement_ref: str
     commit_hash: str | None = None
+    commit_hashes: tuple[tuple[str, str], ...] = ()
     diagnostic: str | None = None
 
 
@@ -326,6 +338,7 @@ def _commit_partition_group(
         status=_STATUS_COMMITTED,
         placement_ref=placement.ref,
         commit_hash=commit_hash,
+        commit_hashes=((placement.ref, commit_hash),) if commit_hash else (),
     )
 
 
@@ -437,17 +450,25 @@ def _merge_group_results(
     3. If no group matches the caller's own partition (should not happen once
        :func:`_group_files_by_partition` always includes it when present),
        fall back to the first group's result deterministically.
+
+    #2549 facet B: regardless of which group is authoritative for the legacy
+    single-value ``commit_hash`` / ``placement_ref`` fields, the returned
+    result's ``commit_hashes`` is always the UNION of every committed group's
+    ``commit_hashes`` — so a genuinely split commit (e.g. feature-branch +
+    coordination-branch) reports BOTH hashes, not just the caller-partition one.
     """
     for result in results:
         if result.status == _STATUS_ERROR:
             return result
 
+    all_commit_hashes = tuple(pair for result in results for pair in result.commit_hashes)
+
     caller_is_primary = is_primary_artifact_kind(caller_kind)
     for (group_kind, _group_files), result in zip(groups, results, strict=True):
         if is_primary_artifact_kind(group_kind) == caller_is_primary:
-            return result
+            return replace(result, commit_hashes=all_commit_hashes)
 
-    return results[0]
+    return replace(results[0], commit_hashes=all_commit_hashes)
 
 
 def _resolve_primary_target_branch(repo_root: Path, mission_slug: str) -> str:
