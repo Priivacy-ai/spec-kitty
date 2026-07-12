@@ -71,6 +71,7 @@ from specify_cli.status import (
     StatusSnapshot,
     resolve_lane_alias,
 )
+from specify_cli.frontmatter import SHELL_PID_BASELINE_FIELD
 from specify_cli.task_utils import extract_scalar, split_frontmatter
 from specify_cli.workspace.context import get_normalized_wp
 
@@ -256,6 +257,13 @@ def _st_load_work_packages(st: _StatusState) -> None:
                 "agent": extract_scalar(front, "agent") or "",
                 "agent_profile": extract_scalar(front, "agent_profile") or "",
                 "shell_pid": extract_scalar(front, "shell_pid") or "",
+                # PID-reuse identity baseline (FR-005/#2575), co-written with
+                # shell_pid at claim time. Threaded here so check_doing_wps_for_staleness
+                # can compare it (recycled-PID -> stale-eligible). Both the JSON
+                # (_st_emit_json) and human (_st_render_human) staleness paths read
+                # this same dict object -- _kanban_rollup groups by reference, so a
+                # single addition here feeds both consumers.
+                SHELL_PID_BASELINE_FIELD: extract_scalar(front, SHELL_PID_BASELINE_FIELD) or None,
                 "execution_mode": execution_mode,
                 "workspace_kind": workspace_kind,
             }

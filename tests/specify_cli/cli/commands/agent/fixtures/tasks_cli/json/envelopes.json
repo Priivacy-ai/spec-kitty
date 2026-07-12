@@ -113,6 +113,7 @@
           "lane": "str",
           "phase": "str",
           "shell_pid": "str",
+          "shell_pid_created_at": "NoneType",
           "title": "str",
           "workspace_kind": "str"
         }
