@@ -36,6 +36,7 @@ Run directly to refresh the baseline or check drift::
 
     uv run python -m tests.architectural._gate_coverage --update-baseline
     uv run python -m tests.architectural._gate_coverage --check
+    uv run python -m tests.architectural._gate_coverage --freeze-baselines
 """
 
 from __future__ import annotations
@@ -56,7 +57,7 @@ import pytest
 import yaml
 
 if TYPE_CHECKING:
-    from collections.abc import Sequence
+    from collections.abc import Iterable, Sequence
 
 # pytest's own marker-expression evaluator — guarantees identical semantics to a
 # real ``-m`` selection. This is a *private* pytest API and ``pytest`` is floored
@@ -683,7 +684,82 @@ def collect_universe(repo_root: Path | None = None) -> list[TestRecord]:
                 f"--- stderr (tail) ---\n{result.stderr[-2000:]}",
             )
         universe: list[TestRecord] = json.loads(dump.read_text(encoding="utf-8"))
+        # Portability (#2607): normalize the worktree-root prefix out of node-ids
+        # so the modeled-current side matches the repo-relative baseline (see
+        # collect_job_nodeids). Absolute-path parametrize ids (e.g.
+        # test_tasks_prompt_ownership_metadata) would otherwise diverge from the
+        # normalized baseline on pure checkout-path noise.
+        repo_prefix = f"{repo}{os.sep}"
+        for rec in universe:
+            rec["nodeid"] = rec["nodeid"].replace(repo_prefix, "")
         return universe
+
+
+# A ``-q --collect-only`` node-id line contains a ``.py::`` selector; the
+# trailing summary line ("39/72 tests collected (33 deselected) in 25.04s")
+# and warning/error lines do not, so this pattern isolates the real selection.
+_NODEID_LINE_RE = re.compile(r"^\S+\.py::")
+
+
+def collect_job_nodeids(gate: Gate, repo_root: Path | None = None) -> list[str]:
+    """Real, scoped ``pytest --collect-only -q`` node-ids for one job's exact CLI.
+
+    Restricted to ``gate.paths``/``gate.ignores``/``gate.marker_expr`` — the
+    exact CLI ``ci-quality.yml`` runs for this job. Parses pytest's OWN
+    ``-q --collect-only`` stdout (one selected node-id per line) rather than the
+    marker-dumping :data:`_COLLECT_PLUGIN`: that plugin clears the item list in
+    ``pytest_collection_modifyitems`` and so records items BEFORE pytest's own
+    ``-m`` deselection runs — capturing the UNFILTERED path set, not the real
+    ``-m``-narrowed selection. Native ``-q`` output reflects the true
+    marker-and-ignore deselection, giving a genuinely independent real
+    collection: the E3 baseline authority (:func:`freeze_baselines`) that the
+    GC-2b guard compares the modeled-current selection against, and the
+    fidelity anchor's fresh real reference (:class:`CompiledGate` over the
+    universe must equal THIS for every baselined job).
+    """
+    repo = repo_root or REPO_ROOT
+    env = dict(os.environ)
+    env["HOME"] = tempfile.mkdtemp(prefix="sk-gatecov-home-")
+    args = [
+        sys.executable,
+        "-m",
+        "pytest",
+        "--collect-only",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "-o",
+        "addopts=",
+        *(gate.paths or [_TESTS_ROOT]),
+        *(f"--ignore={ig}" for ig in gate.ignores),
+    ]
+    if gate.marker_expr:
+        args += ["-m", gate.marker_expr]
+    result = subprocess.run(
+        args, cwd=repo, env=env, capture_output=True, text=True, timeout=900, check=False,
+    )
+    if result.returncode not in _COLLECT_OK_CODES:
+        raise RuntimeError(
+            f"scoped gate collection for job {gate.job!r} did not complete cleanly "
+            f"(exit {result.returncode}, expected one of {sorted(_COLLECT_OK_CODES)}) "
+            "— refusing to freeze/compare a partial selection.\n"
+            f"--- stdout (tail) ---\n{result.stdout[-2000:]}\n"
+            f"--- stderr (tail) ---\n{result.stderr[-2000:]}",
+        )
+    # Portability (#2607): some tests parametrize on ABSOLUTE paths (e.g.
+    # tests/prompts/test_tasks_prompt_ownership_metadata.py embeds the worktree
+    # root in its parametrize ids). Frozen from one worktree (`…-lane-f`) those
+    # ids would never match a different checkout (the primary tree, another
+    # lane, or CI's `/home/runner/work/…`), reddening GC-2b on pure path noise.
+    # Strip the collecting worktree-root prefix so node-ids are repo-relative
+    # and checkout-portable. Applied identically in freeze and compare (both go
+    # through this function), so the two sides stay consistent.
+    repo_prefix = f"{repo}{os.sep}"
+    return sorted(
+        line.strip().replace(repo_prefix, "")
+        for line in result.stdout.splitlines()
+        if _NODEID_LINE_RE.match(line.strip())
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1217,6 +1293,37 @@ def same_tier_shard_counts(
     }
 
 
+def _selected_nodeids(gates: Sequence[Gate], universe: Sequence[TestRecord]) -> frozenset[str]:
+    """Node-ids any of ``gates`` selects, evaluated over ``universe``."""
+    compiled = [CompiledGate(g) for g in gates]
+    return frozenset(
+        test["nodeid"]
+        for test in universe
+        if any(
+            cg.selects(test["relpath"], test["nodeid"], set(test["markers"]))
+            for cg in compiled
+        )
+    )
+
+
+def cross_job_disjoint_selection(
+    job_a_gates: Sequence[Gate],
+    job_b_gates: Sequence[Gate],
+    universe: Sequence[TestRecord],
+) -> frozenset[str]:
+    """Intersection of node-ids two gate groups select (GC-2 cross-job disjointness).
+
+    Empty == the two jobs' selections never double-run the same test — the
+    invariant for e.g. the serial ``-n0`` orphan-sweep job's selection vs. the
+    parallel sync pool's selection. Pure over its inputs (``universe`` supplied
+    by the caller via :func:`collect_universe`) and reuses
+    :class:`CompiledGate`/``selects()`` — the same evaluator
+    :func:`shard_counts_for_test` uses — rather than a second selection engine
+    (D-044/C-003).
+    """
+    return _selected_nodeids(job_a_gates, universe) & _selected_nodeids(job_b_gates, universe)
+
+
 # --- Census assembly + regeneration CLI (NFR-006) --------------------------
 
 
@@ -1309,6 +1416,184 @@ def _verify_census() -> int:
 
 
 # ---------------------------------------------------------------------------
+# E3 baseline node-id manifests + GC-2b diff guard (mission
+# ci-test-topology-performance-01KXBJRT WP02, FR-007/NFR-005 — this mission's
+# load-bearing invariant).
+#
+# SCOPE (corrected after a first cut baselined all 22 suite-running jobs and
+# compared a MODELED-current selection against a REAL baseline): WP06 only
+# CHANGES the SELECTED test set for three jobs —
+#   - integration-tests-next: sharded into a next_shard_1/2/3 matrix (E1).
+#   - slow-tests: path-narrowed (risk of a dropped directory).
+#   - fast-tests-core-misc: shard-rebalanced (already 2 legs today).
+# Everything else WP06 touches (WP-G's ``-n auto``, the fast-tests-charter
+# job split, ...) is parallelization-only — the selected test set is
+# unchanged — so baselining it adds cost with no coverage-preservation
+# signal. GC-2b therefore guards exactly these three jobs.
+#
+# COMPARISON SHAPE (modeled-current vs real-baseline): the committed
+# ``baseline`` side is REAL — a scoped ``pytest --collect-only -q`` per job leg
+# (:func:`collect_real_union_for_target` / :func:`collect_job_nodeids`), frozen
+# once by ``--freeze-baselines``. The day-to-day ``current`` side is the MODEL
+# (:class:`CompiledGate` via :func:`_selected_nodeids`) evaluated over ONE shared
+# :func:`collect_universe`, so the parametrized cases reuse a single collection
+# instead of spawning a real ``--collect-only`` per case (a CI-speed mission must
+# not add ~10min to its own arch shard). Because the baseline is real and
+# model-independent, a ``selects()`` that mis-parsed a job's ``-m`` expression or
+# positional path DIVERGES from the real baseline and GC-2b reds — the real
+# baseline IS the fidelity check for these three jobs. A separate scoped
+# model-fidelity anchor (modeled == a FRESH real collect) is kept for the
+# sharded ``next`` tier in ``test_gate_coverage.py`` to catch a mis-model on the
+# job most at risk of one.
+# ---------------------------------------------------------------------------
+
+BASELINES_DIR = Path(__file__).with_name("baselines")
+
+
+@dataclass(frozen=True)
+class BaselineTarget:
+    """One selection-changing job this WP freezes a REAL E3 baseline for.
+
+    Matched against parsed :class:`Gate` entries by ``(workflow, job)``
+    alone — not by shard — so a target transparently covers however many
+    shard legs the job has TODAY (a single command, e.g.
+    ``integration-tests-next`` pre-WP06) or GROWS to under WP06 (a matrix):
+    :func:`collect_real_union_for_target` unions every matching leg's real
+    selection, so a shard split alone (same total coverage, more legs) cannot
+    false-red GC-2b.
+    """
+
+    slug: str
+    workflow: str
+    job: str
+
+
+# T008: the three jobs WP06 actually changes the SELECTION for (see the scope
+# note above) — the pre-WP06 (pre-change) state GC-2b protects.
+BASELINE_TARGETS: tuple[BaselineTarget, ...] = (
+    BaselineTarget("integration-tests-next", "ci-quality.yml", "integration-tests-next"),
+    BaselineTarget("slow-tests", "ci-quality.yml", "slow-tests"),
+    BaselineTarget("fast-tests-core-misc", "ci-quality.yml", "fast-tests-core-misc"),
+)
+
+
+def target_by_slug(slug: str) -> BaselineTarget:
+    """The single :data:`BASELINE_TARGETS` entry named ``slug``."""
+    for target in BASELINE_TARGETS:
+        if target.slug == slug:
+            return target
+    raise KeyError(f"no BaselineTarget with slug {slug!r}")
+
+
+def gates_for_target(gates: Sequence[Gate], target: BaselineTarget) -> list[Gate]:
+    """Every parsed :class:`Gate` leg belonging to one guarded job.
+
+    Raises loudly (rather than silently baselining zero legs) if the
+    workflow was restructured and the target's job no longer parses to any
+    gate — a stale ``BASELINE_TARGETS`` entry must be fixed, not ignored.
+    """
+    matches = [
+        g for g in gates if g.workflow == target.workflow and g.job == target.job
+    ]
+    if not matches:
+        raise RuntimeError(
+            f"baseline target {target.slug!r} resolved to 0 gates for "
+            f"workflow={target.workflow!r} job={target.job!r} — the workflow "
+            "was restructured or the job renamed; update BASELINE_TARGETS to "
+            "match.",
+        )
+    return matches
+
+
+def _baseline_path(target: BaselineTarget) -> Path:
+    return BASELINES_DIR / f"{target.slug}-nodeids.txt"
+
+
+def _baseline_header(target: BaselineTarget) -> str:
+    return (
+        f"# E3 baseline (mission ci-test-topology-performance-01KXBJRT WP02). "
+        f"REAL `pytest --collect-only` node-id UNION across every leg of "
+        f"job={target.job!r} (workflow={target.workflow!r}), captured "
+        "pre-WP06. Regenerate ONLY with an explicit provenance comment "
+        "(data-model E3) when a WP legitimately changes this job's "
+        "selection: uv run python -m tests.architectural._gate_coverage "
+        "--freeze-baselines"
+    )
+
+
+def load_baseline_nodeids(target: BaselineTarget) -> frozenset[str]:
+    """The committed E3 baseline node-id set for one target (``#``-comment lines skipped)."""
+    lines = _baseline_path(target).read_text(encoding="utf-8").splitlines()
+    return frozenset(
+        stripped
+        for stripped in (line.strip() for line in lines)
+        if stripped and not stripped.startswith("#")
+    )
+
+
+def write_baseline_nodeids(target: BaselineTarget, nodeids: Iterable[str]) -> None:
+    """Commit one target's E3 baseline file (sorted, provenance-commented)."""
+    BASELINES_DIR.mkdir(parents=True, exist_ok=True)
+    body = "\n".join(sorted(nodeids))
+    _baseline_path(target).write_text(
+        _baseline_header(target) + "\n" + body + "\n", encoding="utf-8",
+    )
+
+
+def collect_real_union_for_target(
+    target: BaselineTarget,
+    gates: Sequence[Gate],
+    repo_root: Path | None = None,
+) -> frozenset[str]:
+    """REAL current selection for one guarded job (GC-2b's ``current`` side).
+
+    Union of every leg's real ``pytest --collect-only`` selection
+    (:func:`collect_job_nodeids`) — no modeled (``CompiledGate.selects()``)
+    step anywhere. Both :func:`freeze_baselines` (the ``baseline`` side) and
+    the day-to-day GC-2b test (the ``current`` side) call this SAME function,
+    so the two sides of the comparison are captured by the identical method
+    (data-model E3) and cannot drift apart via a modeling difference.
+    """
+    union: set[str] = set()
+    for gate in gates_for_target(gates, target):
+        union.update(collect_job_nodeids(gate, repo_root))
+    return frozenset(union)
+
+
+def freeze_baselines(repo_root: Path | None = None) -> dict[str, int]:
+    """Capture every :data:`BASELINE_TARGETS` job's REAL current selection to disk.
+
+    One-time (or deliberate-regeneration) authoring entry point — day-to-day
+    GC-2b comparisons read the committed files this writes, they never call
+    this.
+    """
+    gates = load_gates()
+    counts: dict[str, int] = {}
+    for target in BASELINE_TARGETS:
+        nodeids = collect_real_union_for_target(target, gates, repo_root)
+        write_baseline_nodeids(target, nodeids)
+        counts[target.slug] = len(nodeids)
+    return counts
+
+
+def baseline_diff(
+    current: Iterable[str],
+    baseline: Iterable[str],
+) -> tuple[frozenset[str], frozenset[str]]:
+    """Pure GC-2b comparator: ``(dropped, added)`` — the symmetric-difference halves.
+
+    ``dropped`` = in ``baseline`` but not ``current`` (a real coverage loss);
+    ``added`` = in ``current`` but not ``baseline`` (an un-provenanced
+    selection widening, or a tampered/stale baseline). Both empty ==
+    the GC-2b invariant holds. Deliberately takes plain iterables (not a
+    :class:`BaselineTarget`/gates) so the fault-injection tests can feed it a
+    synthetic pair directly, with no I/O or subprocess involved.
+    """
+    current_set, baseline_set = frozenset(current), frozenset(baseline)
+    return baseline_set - current_set, current_set - baseline_set
+
+
+# ---------------------------------------------------------------------------
 # Baseline I/O + CLI
 # ---------------------------------------------------------------------------
 
@@ -1376,6 +1661,12 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     if "--check" in args:
         return check()
+    if "--freeze-baselines" in args:
+        counts = freeze_baselines()
+        for slug, count in counts.items():
+            print(f"  {slug}: {count} node-ids -> {BASELINES_DIR / f'{slug}-nodeids.txt'}")
+        print(f"froze {len(counts)} E3 baseline(s) under {BASELINES_DIR}")
+        return 0
     print(__doc__)
     return 0
 

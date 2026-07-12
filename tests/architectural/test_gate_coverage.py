@@ -71,6 +71,15 @@ _REQUIRED_MARKER_TOKENS: tuple[str, ...] = ("windows_ci", "quarantine", "timing"
 # (under-counting selection) would otherwise inflate the orphan set unnoticed.
 _MIN_EXPECTED_GATES = 40
 
+# Mission ci-test-topology-performance-01KXBJRT WP02 (T007, GC-1/GC-2 linkage):
+# `next_shard_1/2/3` become required matrix legs once WP06 (T014) converts
+# `integration-tests-next` into a 3-leg matrix — mirrors
+# `_REQUIRED_CORE_MISC_SHARDS`'s "a shard with no leg fails" contract for the
+# `next` group WP01 registered into the shared shard-group registry.
+_REQUIRED_NEXT_SHARDS: frozenset[str] = frozenset(
+    {"next_shard_1", "next_shard_2", "next_shard_3"},
+)
+
 
 @pytest.fixture(scope="module")
 def gates() -> list[gc.Gate]:
@@ -79,9 +88,15 @@ def gates() -> list[gc.Gate]:
 
 
 @pytest.fixture(scope="module")
-def coverage_report() -> gc.CoverageReport:
-    """Collect the whole suite once and analyze it (shared across ratchet tests)."""
-    return gc.analyze(gc.load_gates(), gc.collect_universe())
+def universe() -> list[gc.TestRecord]:
+    """Collect the whole suite once, shared by every fixture/test that needs it."""
+    return gc.collect_universe()
+
+
+@pytest.fixture(scope="module")
+def coverage_report(universe: list[gc.TestRecord]) -> gc.CoverageReport:
+    """Analyze the shared universe (no second collection pass)."""
+    return gc.analyze(gc.load_gates(), universe)
 
 
 # ---------------------------------------------------------------------------
@@ -135,6 +150,166 @@ def test_required_selection_structures_present(gates: list[gc.Gate]) -> None:
         f"Marker selectors no longer present in any gate: {missing_tokens}. If a "
         "selector genuinely went away, update _REQUIRED_MARKER_TOKENS; otherwise a "
         "gate that used to cover those tests was dropped."
+    )
+    _assert_next_shards_complete_if_present(shards)
+
+
+def _assert_next_shards_complete_if_present(shards: set[str]) -> None:
+    """Conditional-on-presence completeness check for the `next_shard_*` legs.
+
+    Mission ci-test-topology-performance-01KXBJRT WP02 (T007). A no-op TODAY:
+    WP06 (T014) has not yet converted `integration-tests-next` into a 3-leg
+    matrix, so no `next_shard_*` name is a parsed `Gate.shard` value and
+    ``present`` below is empty — asserting the legs unconditionally would
+    bare-RED this WP's own PR (freeze-before-change: WP02 must land BEFORE
+    WP06 touches the workflow). The moment ANY `next_shard_N` leg appears in
+    the live parsed model (WP06 lands), this auto-activates and requires ALL
+    three, with no code change needed here. Extracted as its own function so
+    ``test_next_shard_completeness_logic_is_wired`` below can prove the logic
+    itself detects a missing leg using SYNTHETIC shard sets, independent of
+    whether WP06 has landed on this branch yet (an anti-vacuous canary that
+    never reds due to WP06's landing status, unlike a canary pinned to
+    "legs are absent").
+    """
+    present = shards & _REQUIRED_NEXT_SHARDS
+    if not present:
+        return
+    missing = _REQUIRED_NEXT_SHARDS - shards
+    assert not missing, (
+        f"next_shard leg(s) missing from the parsed gate model: {sorted(missing)}. "
+        "WP06's integration-tests-next matrix must define all three next_shard_N "
+        "legs once any one of them exists (GC-1's linkage requirement into the "
+        "GC-2 model)."
+    )
+
+
+def test_next_shard_completeness_logic_is_wired() -> None:
+    """Anti-vacuous canary (synthetic, no real gates): the conditional logic bites.
+
+    Proves :func:`_assert_next_shards_complete_if_present` genuinely detects a
+    missing leg once ANY next_shard appears — using constructed shard-name
+    sets, not the live parsed model. Stays green regardless of whether WP06
+    has shipped the real matrix on this branch: it is testing the FUNCTION,
+    not today's CI topology, so it cannot silently rot into a no-op forever.
+    """
+    # No next_shard present yet -> no-op (today's real state).
+    _assert_next_shards_complete_if_present({"arch_shard_1", "misc"})
+    # All three present -> passes (WP06's shipped end-state).
+    _assert_next_shards_complete_if_present(
+        {"next_shard_1", "next_shard_2", "next_shard_3", "misc"},
+    )
+    # Partial (2 of 3) -> must red, naming the missing leg.
+    with pytest.raises(AssertionError, match="next_shard_3"):
+        _assert_next_shards_complete_if_present({"next_shard_1", "next_shard_2"})
+
+
+def test_integration_tests_next_is_tier_classified_integration() -> None:
+    """T006: confirm `integration-tests-next` is ALREADY tier `"integration"`.
+
+    `_gate_tier` matches by job-name PREFIX (`_INTEGRATION_TIER_PREFIX =
+    "integration-tests"`), so `integration-tests-next` — and each of its
+    future `next_shard_N` matrix legs, which share the same job name — is
+    already classified without any new hardcoded branch. Documented here per
+    the WP02 prompt's instruction to verify rather than add a redundant
+    branch (D-044/C-003): a same-tier-uniqueness regression on the `next`
+    group would be caught by :func:`gc.same_tier_shard_counts` once WP06 ships
+    the matrix, with zero code change required in this module for T006's tier
+    registration.
+    """
+    gate = gc.Gate(
+        workflow="ci-quality.yml",
+        job="integration-tests-next",
+        shard="next_shard_1",
+        paths=["tests/next/"],
+        marker_expr="not windows_ci and (git_repo or integration)",
+    )
+    assert gc._gate_tier(gate) == "integration", (
+        "integration-tests-next stopped being tier-classified 'integration' — "
+        "same_tier_shard_counts would silently stop covering its next_shard_N "
+        "legs once WP06 ships the matrix."
+    )
+
+
+def test_cross_job_disjoint_selection_is_pure_and_detects_overlap() -> None:
+    """T006 unit guard (synthetic, no collection): the disjointness primitive.
+
+    ``cross_job_disjoint_selection`` must return the EMPTY set for two
+    non-overlapping gate groups and the actual overlapping node-ids
+    otherwise — this is the fault-injectable core of GC-2's cross-job
+    disjointness clause, pinned deterministically before trusting it against
+    the real orphan-sweep-vs-sync-pool case below.
+    """
+    universe: list[gc.TestRecord] = [
+        {"nodeid": "tests/sync/test_a.py::t", "relpath": "tests/sync/test_a.py", "markers": ["fast"]},
+        {
+            "nodeid": "tests/sync/test_orphan_sweep.py::t",
+            "relpath": "tests/sync/test_orphan_sweep.py",
+            "markers": ["fast"],
+        },
+    ]
+    orphan_gate = gc.Gate(
+        workflow="ci-quality.yml", job="fast-tests-sync", shard=None,
+        paths=["tests/sync/test_orphan_sweep.py"], marker_expr="not windows_ci",
+    )
+    pool_gate = gc.Gate(
+        workflow="ci-quality.yml", job="fast-tests-sync", shard=None,
+        paths=["tests/sync/"], ignores=["tests/sync/test_orphan_sweep.py"],
+        marker_expr="fast and not windows_ci",
+    )
+    disjoint = gc.cross_job_disjoint_selection([orphan_gate], [pool_gate], universe)
+    assert disjoint == frozenset(), (
+        f"expected disjoint selections (ignore excludes the overlap), got {disjoint}"
+    )
+    # Fault-injection: drop the `--ignore` and the same two gates now overlap
+    # on the orphan-sweep test — the primitive must detect it.
+    pool_gate_no_ignore = gc.Gate(
+        workflow="ci-quality.yml", job="fast-tests-sync", shard=None,
+        paths=["tests/sync/"], marker_expr="fast and not windows_ci",
+    )
+    overlap = gc.cross_job_disjoint_selection([orphan_gate], [pool_gate_no_ignore], universe)
+    assert overlap == frozenset({"tests/sync/test_orphan_sweep.py::t"}), (
+        f"disjointness primitive failed to detect a real overlap: {overlap}"
+    )
+
+
+def test_orphan_sweep_and_sync_pool_are_disjoint_today(
+    gates: list[gc.Gate], universe: list[gc.TestRecord],
+) -> None:
+    """GC-2 cross-job disjointness, evaluated against the REAL current topology.
+
+    ``fast-tests-sync``'s parallel pool step and the orphan-sweep serial pass
+    must select disjoint node-ids. Mission ci-test-topology-performance-01KXBJRT
+    WP06 (T016) extracted the orphan-sweep step out of ``fast-tests-sync``
+    into its own concurrent job (``fast-tests-sync-orphan-sweep``) so it stops
+    sitting on ``fast-tests-sync``'s critical path — the invariant now holds
+    ACROSS those two jobs instead of within one (the pool's ``--ignore``
+    still excludes exactly the orphan-sweep file).
+    """
+    # `fast-tests-sync` / `fast-tests-sync-orphan-sweep` are parallelization-only
+    # for this mission (not a GC-2b baseline target — see the scope note above
+    # `gc.BASELINE_TARGETS`), so the two legs are located directly by their
+    # distinguishing `(job, marker_expr)` rather than through the
+    # BaselineTarget registry.
+    sync_gates = [
+        g
+        for g in gates
+        if g.workflow == "ci-quality.yml"
+        and g.job in {"fast-tests-sync", "fast-tests-sync-orphan-sweep"}
+    ]
+    orphan_gate = next(
+        g
+        for g in sync_gates
+        if g.job == "fast-tests-sync-orphan-sweep" and g.marker_expr == "not windows_ci"
+    )
+    pool_gate = next(
+        g
+        for g in sync_gates
+        if g.job == "fast-tests-sync" and g.marker_expr == "fast and not windows_ci"
+    )
+    overlap = gc.cross_job_disjoint_selection([orphan_gate], [pool_gate], universe)
+    assert not overlap, (
+        f"{len(overlap)} test(s) double-run between the orphan-sweep step and "
+        f"the parallel sync pool: {sorted(overlap)[:20]}"
     )
 
 
@@ -472,3 +647,261 @@ def test_duplicate_selection_is_reported(
             "This is report-only; some fast↔integration overlap is intentional.",
         )
     assert isinstance(dupes, list)
+
+
+# ---------------------------------------------------------------------------
+# GC-2b — E3 baseline node-id diff guard + its two fault seams (mission
+# ci-test-topology-performance-01KXBJRT WP02, T008; FR-007/NFR-005 — this
+# mission's load-bearing invariant). Every job WP06 re-topologizes must still
+# execute the exact same set of tests it did before, enforced against a
+# committed pre-change baseline (data-model E3), not just an internal
+# partition-consistency claim (GC-1).
+#
+# Kept in THIS already-arch-sharded, WP02-owned module (rather than a new
+# sibling file) so it inherits the arch shard-marker assignment without a
+# cross-lane edit to WP01's tests/_arch_shard_map.py — the alternative the T008
+# guidance names first ("a new test in test_gate_coverage.py ... or a sibling
+# module").
+#
+# SCOPE + DESIGN: WP06 CHANGES the selected test set for the THREE jobs in
+# ``gc.BASELINE_TARGETS`` (see the scope note above it) — integration-tests-next
+# (T014 shard matrix), slow-tests (T015 path-narrow), and fast-tests-core-misc
+# (T017 shard rebalance, a two-leg job); everything else WP06 touches is
+# parallelization-only (adds ``-n auto``, same test set) and is coverage-safe by
+# construction. The committed baseline for each target is a REAL native
+# ``pytest --collect-only -q`` UNION across its legs
+# (:func:`gc.collect_real_union_for_target` / :func:`gc.collect_job_nodeids`,
+# which parse pytest's own ``-m``-honouring output — NOT the marker-dump plugin,
+# which clears items before ``-m`` deselection and would freeze the UNFILTERED
+# set). GC-2b then compares the modeled-current selection
+# (:func:`gc._selected_nodeids` = :class:`gc.CompiledGate` over ONE shared
+# :func:`gc.collect_universe`) against that REAL baseline: one collection reused
+# across all parametrized cases, so this stays fast (a CI-speed mission must not
+# add ~10min of per-job ``--collect-only`` fan-out to its own arch shard).
+# Because the BASELINE is real and model-independent, GC-2b is itself a fidelity
+# check (a mis-parsed ``-m``/path in ``selects()`` would diverge from the real
+# baseline and RED); the ``next``-tier spot-check keeps that model==real proof
+# LIVE at one subprocess. A comparison that only fault-injects the baseline side
+# is a FAKEABLE seam for the producer side (reviewer-renata, MEDIUM); the two
+# fault-injection tests below close both halves (baseline-file side AND
+# producer/real-selection side).
+# ---------------------------------------------------------------------------
+
+_DIFF_PREVIEW = 20
+# The sharded-tier job the scoped model-fidelity spot-check anchors on: the
+# mission's `next` star — small and marker-selected, so one real collection
+# proves selects()==real cheaply for the tier most at risk of a mis-model.
+_FIDELITY_SPOTCHECK_SLUG = "integration-tests-next"
+
+
+def _most_represented_file(nodeids: frozenset[str]) -> str:
+    """The test file contributing the most node-ids in ``nodeids`` (deterministic).
+
+    Used by the producer-side fault injection to pick an ``--ignore=`` target
+    that is provably IN a job's real committed baseline — derived from the
+    baseline itself rather than hard-coded, so file churn under the ``next``
+    roots cannot silently make the injection a no-op (the failure mode that
+    slipped the first cut: a hard-coded ``fast``-only file that the integration
+    marker never selected, so ignoring it dropped nothing).
+    """
+    counts: dict[str, int] = {}
+    for nodeid in nodeids:
+        relpath = nodeid.split("::", 1)[0]
+        counts[relpath] = counts.get(relpath, 0) + 1
+    # Sort by (-count, name) for a stable, highest-impact pick.
+    return min(counts, key=lambda relpath: (-counts[relpath], relpath))
+
+
+def test_baseline_files_exist_for_all_targets() -> None:
+    """Every registered :data:`gc.BASELINE_TARGETS` slug has a committed,
+    NON-EMPTY baseline.
+
+    The non-empty floor closes a vacuous-pass class: a future WP that narrows a
+    selection-changing job to zero tests AND re-freezes would write an empty
+    baseline that then compares equal to an empty modeled selection (green),
+    silently accepting a total coverage drop. An E3 job that legitimately
+    selects zero tests is itself the bug this guard should red on.
+    """
+    missing = [
+        target.slug
+        for target in gc.BASELINE_TARGETS
+        if not (gc.BASELINES_DIR / f"{target.slug}-nodeids.txt").is_file()
+    ]
+    assert not missing, (
+        f"no committed E3 baseline file for target(s): {missing}. Freeze with: "
+        "uv run python -m tests.architectural._gate_coverage --freeze-baselines"
+    )
+    empty = [target.slug for target in gc.BASELINE_TARGETS if not gc.load_baseline_nodeids(target)]
+    assert not empty, (
+        f"E3 baseline is empty for target(s): {empty}. A zero-test selection is a "
+        "coverage drop, not a valid baseline — investigate before re-freezing."
+    )
+
+
+@pytest.mark.parametrize("target", gc.BASELINE_TARGETS, ids=lambda t: t.slug)
+def test_gc2b_current_selection_matches_baseline(
+    target: gc.BaselineTarget, gates: list[gc.Gate], universe: list[gc.TestRecord],
+) -> None:
+    """GC-2b: the modeled-current selection == the committed REAL E3 baseline.
+
+    The committed baseline is a REAL native ``pytest --collect-only -q`` union
+    across the job's legs (:func:`gc.collect_real_union_for_target`, frozen once
+    by ``--freeze-baselines``). The ``current`` side is the model
+    (:class:`gc.CompiledGate` via :func:`gc._selected_nodeids`) evaluated over
+    ONE shared :func:`gc.collect_universe` — so all 22 parametrized cases reuse
+    a single collection instead of spawning 22 real ``--collect-only``
+    subprocesses per run (a CI-speed mission must not add ~10min to its own
+    arch shard). Because the BASELINE is real and model-independent, GC-2b is
+    itself the fidelity check: a ``selects()`` that mis-parsed a job's ``-m``
+    expr or a positional/ignore path would diverge from the real baseline and
+    RED here — ``selects()``-vs-real was verified equal across every
+    representative target before this design was adopted, and the ``next``-tier
+    spot-check below keeps that proof live at one subprocess. Symmetric-
+    difference must be empty for every guarded job (0 dropped, 0 double-run —
+    data-model E3). A nonzero ``dropped``/``added`` set names every node-id,
+    truncated, mirroring ``test_arch_shard_marker_completeness.py``'s style.
+    """
+    current = gc._selected_nodeids(gc.gates_for_target(gates, target), universe)
+    baseline = gc.load_baseline_nodeids(target)
+    dropped, added = gc.baseline_diff(current, baseline)
+    assert not dropped and not added, (
+        f"GC-2b baseline drift for {target.slug!r}: "
+        f"{len(dropped)} dropped (in baseline, no longer selected), "
+        f"{len(added)} added (selected but not in baseline).\n"
+        f"dropped (first {_DIFF_PREVIEW}): {sorted(dropped)[:_DIFF_PREVIEW]}\n"
+        f"added (first {_DIFF_PREVIEW}): {sorted(added)[:_DIFF_PREVIEW]}\n"
+        "If this selection change is a LEGITIMATE re-topologization (e.g. WP06 "
+        "landing), regenerate the baseline WITH a provenance comment: "
+        "uv run python -m tests.architectural._gate_coverage --freeze-baselines"
+    )
+
+
+def test_gc2b_bites_on_baseline_file_side_injection() -> None:
+    """Fault-injection (baseline-file side): a tampered/stale baseline is caught.
+
+    Simulates an out-of-band hand-edit of a committed baseline file (a node-id
+    silently dropped from it while the real/current selection is unchanged) —
+    ``baseline_diff`` is pure over plain iterables precisely so this needs no
+    disk I/O or subprocess. This is the ORIGINAL fault-injection case, distinct
+    from the producer-side case below (which reviewer-renata found missing).
+    """
+    current = {
+        "tests/next/test_a.py::test_1",
+        "tests/next/test_a.py::test_2",
+        "tests/next/test_b.py::test_3",
+    }
+    tampered_baseline = current - {"tests/next/test_b.py::test_3"}
+    dropped, added = gc.baseline_diff(current, tampered_baseline)
+    assert not dropped, "nothing should be 'dropped' when only the baseline shrank"
+    assert added == {"tests/next/test_b.py::test_3"}, (
+        f"expected the baseline-side injection to surface as 'added', got {added}"
+    )
+
+
+def test_gc2b_bites_on_producer_side_selection_shrink(
+    gates: list[gc.Gate], tmp_path: Path,
+) -> None:
+    """Fault-injection (producer side, reviewer-renata MEDIUM): a job's REAL
+    selection shrinking (not the baseline file) must also red the guard.
+
+    Closes the seam a baseline-file-only injection leaves open: a job's real
+    YAML selection could shrink (e.g. a stray ``--ignore=`` on its pytest
+    command) while a baseline-file-only check never notices, because it never
+    re-derives the job's OWN selection from a (possibly edited) workflow.
+
+    Builds a SYNTHETIC copy of one guarded job (``integration-tests-next``) —
+    NOT the real ``ci-quality.yml``, which this WP does not own — with a
+    spurious ``--ignore=`` injected, re-parses it through the REAL
+    ``parse_workflow`` (no hand-rolled substitute, D-044/C-003), REAL-collects
+    it via the SAME :func:`gc.collect_job_nodeids` GC-2b itself uses (not a
+    modeled selection), and asserts the result is a strict subset of the
+    committed baseline — proving the GC-2b comparator would RED on this
+    producer-side shrink.
+
+    Generalized over however many legs :func:`gc.gates_for_target` returns
+    (mission ci-test-topology-performance-01KXBJRT WP06 T014 converted
+    ``integration-tests-next`` from a single-leg job to a 3-leg
+    ``next_shard_N`` matrix — each real leg only selects its OWN shard, so a
+    fixture built from a single hardcoded leg would compare a partial
+    selection against the FULL union baseline and false-red on every OTHER
+    leg's node-ids, not just the injected file's). One synthetic job per real
+    leg, each carrying that leg's own ``marker_expr`` plus the injected
+    ``--ignore=``, unioned the same way :func:`gc.collect_real_union_for_target`
+    unions real legs — this keeps the fixture correct whether the target is a
+    single-leg job or an N-leg matrix, with no re-hardcoded leg count.
+    """
+    target = gc.target_by_slug("integration-tests-next")
+    real_gates = gc.gates_for_target(gates, target)
+    baseline = gc.load_baseline_nodeids(target)
+    injected_file = _most_represented_file(baseline)
+    job_blocks = "\n".join(
+        f"""\
+  integration-tests-next-leg-{index}:
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          uv run python -m pytest {" ".join(real_gate.paths)} \\
+            --ignore={injected_file} \\
+            -m '{real_gate.marker_expr}' -q --tb=short
+"""
+        for index, real_gate in enumerate(real_gates)
+    )
+    fixture = f"name: fixture\non: push\njobs:\n{job_blocks}"
+    fixture_path = tmp_path / "_producer_side_fault_injection_wf.yml"
+    fixture_path.write_text(fixture, encoding="utf-8")
+    shrunk_gates = gc.parse_workflow(fixture_path)
+    assert len(shrunk_gates) == len(real_gates), (
+        f"fixture workflow parsed into {len(shrunk_gates)} gates, expected "
+        f"{len(real_gates)} (one per real leg)"
+    )
+    shrunk_current: frozenset[str] = frozenset().union(
+        *(gc.collect_job_nodeids(gate) for gate in shrunk_gates),
+    )
+    assert shrunk_current < baseline, (
+        "producer-side fault injection did not shrink the REAL selection: a "
+        f"spurious --ignore={injected_file} on integration-tests-next's real "
+        "command(s) should strictly narrow its real collection relative to the "
+        "committed baseline — the GC-2b guard's producer-side seam is not closed."
+    )
+    dropped, _added = gc.baseline_diff(shrunk_current, baseline)
+    assert all(injected_file in nodeid for nodeid in dropped), (
+        f"expected every dropped node-id to come from the ignored file "
+        f"{injected_file!r}, got (first {_DIFF_PREVIEW}): "
+        f"{sorted(dropped)[:_DIFF_PREVIEW]}"
+    )
+
+
+def test_model_fidelity_spotcheck_sharded_next_tier(
+    gates: list[gc.Gate], universe: list[gc.TestRecord],
+) -> None:
+    """Scoped model-fidelity anchor: modeled ``selects()`` == a FRESH real collect.
+
+    GC-2b's ``current`` side is the model over a shared universe (for speed);
+    this keeps a LIVE, independent proof that the model is faithful — that
+    ``CompiledGate.selects()`` is not silently mis-modelling a job's ``-m``
+    expr or a positional/ignore path while the modeled and real-baseline sides
+    happen to agree (reviewer-renata, MEDIUM). It re-derives ONE job's
+    selection through a completely independent path at runtime — a real, scoped
+    ``pytest --collect-only`` subprocess (:func:`gc.collect_job_nodeids`, which
+    parses pytest's own ``-m``-honouring output) — and asserts it equals the
+    model over the universe.
+
+    Scoped to the sharded ``next`` tier (not fanned out over all 22 targets):
+    the mission's headline re-topologization, and a marker-selected,
+    multi-positional command — exactly the shape most at risk of a mis-model —
+    so the live proof costs one small collection, not twenty-two (a per-job
+    real subprocess for every target would add ~10min to the arch shard, which
+    a CI-speed mission must not do).
+    """
+    target = gc.target_by_slug(_FIDELITY_SPOTCHECK_SLUG)
+    job_gates = gc.gates_for_target(gates, target)
+    modeled = gc._selected_nodeids(job_gates, universe)
+    fresh_real = gc.collect_real_union_for_target(target, gates)
+    only_modeled = sorted(modeled - fresh_real)[:_DIFF_PREVIEW]
+    only_real = sorted(fresh_real - modeled)[:_DIFF_PREVIEW]
+    assert modeled == fresh_real, (
+        f"model-fidelity mismatch for {target.slug!r}: CompiledGate.selects() "
+        "diverges from a fresh real `pytest --collect-only` of this job's actual "
+        f"command.\nonly in modeled (first {_DIFF_PREVIEW}): {only_modeled}\n"
+        f"only in fresh real collection (first {_DIFF_PREVIEW}): {only_real}"
+    )
