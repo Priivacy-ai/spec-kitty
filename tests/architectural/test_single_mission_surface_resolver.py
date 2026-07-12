@@ -126,13 +126,20 @@ C-003 status: PRESENT on the base. T038/T040 may build on it.
 
 from __future__ import annotations
 
+import functools
 import importlib.util
 import sys
 from pathlib import Path
 
 import pytest
 
-from tests.architectural._ratchet_keys import composite_key_from_file
+from tests.architectural._ratchet_keys import (
+    CompositeKey,
+    ContentDescriptor,
+    composite_key_from_file,
+    descriptor_still_live,
+    resolve_descriptor,
+)
 
 pytestmark = pytest.mark.architectural
 
@@ -187,28 +194,38 @@ _ALLOWLISTED_SELECTION_CALLSITES: dict[str, str] = (
 _MIN_DISCOVERED_ROWS: int = 20
 
 # ---------------------------------------------------------------------------
-# Allowlisted raw-path-join rows (T030 — explicit disposition with rationale).
+# Allowlisted raw-path-join rows (T030 — explicit disposition with rationale;
+# WP04 content-descriptor migration, #2469 IC-DESCRIPTOR).
 #
-# Each entry is keyed by the drift-proof ``(enclosing_qualname, token_line)``
-# composite key (FR-008 / WP06 re-key) — NOT a bare ``<rel_path>:<line>``
-# locator.  A composite key survives benign line drift: the seam WPs (WP02 edits
-# ``mission_creation.py:328``, WP04 rewrites ``_read_path_resolver.py:885``) may
-# move these exact lines without false-RED-ing the gate, because the key is
-# content-addressed (enclosing function + tokenized code line), not line-number
-# addressed.  A line re-key would just re-pin to a line the seam then moves
-# again; this front-loads a key that stays green through those edits.
+# Each entry is a :class:`ContentDescriptor` (``rel_path``, ``qualname``,
+# ``token_substring``, ``occurrence``, ``rationale``) — a two-axis
+# content-addressed pointer (enclosing function + a substring of its
+# NORMALIZED token line), never a bare ``<rel_path>:<line>`` locator and never
+# a hand-authored composite-key literal (NFR-004).  ``resolve_descriptor``
+# (``tests/architectural/_ratchet_keys.py``, IC-DESCRIPTOR/WP02) resolves each
+# descriptor against the LIVE source to the **exactly one** finding it names —
+# RAISING (RED) rather than silently picking a match if the descriptor is
+# ambiguous or has drifted off its site entirely.  A descriptor survives
+# benign line drift (a seam WP inserting code above the site) AND, unlike a
+# bare composite key seeded from a single line, requires no re-anchoring NOTE
+# every time an unrelated edit shifts the line — the descriptor is authored
+# once against the finding's own qualname + token line and never touched
+# again (see ``kitty-specs/content-address-ratchet-allowlists-01KX8M4D/contracts/descriptor-resolver.md``).
 #
 # These are the ONLY raw-path-join rows permitted on the final collapsed tree.
 # Any new raw-path-join row whose composite key is NOT in this set is treated
 # as a functional FS-bypass and the guard FAILS.
 #
-# To keep the key honest (NFR-004: never hand-author a composite literal), the
-# composite keys are derived LIVE from the audit-discovered ``(rel_path, line)``
-# of each allowlisted site via ``composite_key_from_file`` at import time — the
-# ``_RAW_JOIN_SITES`` seed below maps each site to its verbatim rationale, and
-# ``_build_allowlisted_raw_joins`` resolves the composite key from the live
-# source.  ``test_allowlist_entries_are_not_stale`` re-derives the same way, so a
-# site that drifts off its function or whose code line changes is caught loudly.
+# ``_RAW_JOIN_SEEDED_KEYS`` resolves every descriptor ONCE at import time to
+# its live ``(rel_path, qualname, token_line)`` composite key.
+# ``_build_allowlisted_raw_joins`` narrows that to the 2-tuple
+# ``(qualname, token_line)`` shape ``test_zero_functional_raw_bypass_on_collapsed_tree``
+# compares discovered rows against (via ``composite_key_from_file``).
+# ``test_allowlist_entries_are_not_stale`` re-resolves each descriptor against
+# the live source and compares it to its seeded key via ``descriptor_still_live``
+# (exactly-one AND key-equal), so a site that drifts off its function, whose
+# code line changes, or that gains a same-qualname sibling with a colliding
+# substring is caught loudly.
 #
 # Classification:
 #   DIAG   — diagnostic-payload join: path composed only for a ``raise``
@@ -220,78 +237,43 @@ _MIN_DISCOVERED_ROWS: int = 20
 #             ``assert_safe_path_segment`` and the join feeds a blessed resolver.
 # ---------------------------------------------------------------------------
 
-#: Seed mapping each allowlisted raw-join site to ``(rel_path-under-src, line,
-#: rationale)``.  ``rel_path`` matches ``ResolutionRow.rel_path`` (relative to
-#: ``src/``); ``line`` is the current discovered line used ONLY to derive the
-#: drift-proof composite key once at import.  The composite key — not this line —
-#: is what gates; once derived, the line may drift without flipping the ratchet.
-_RAW_JOIN_SITES: tuple[tuple[str, int, str], ...] = (
+#: Seed of content descriptors for each allowlisted raw-join site.  Each
+#: ``token_substring`` is authored from the finding's OWN normalized token
+#: line (never a raw-source substring — see the descriptor-resolver
+#: contract's "Authoring rule"); RJ#1/RJ#2 share the ``_coord_mid8`` qualname
+#: and disambiguate purely by ``token_substring``, proving the two-axis
+#: descriptor shape.
+_RAW_JOIN_SITES: tuple[ContentDescriptor, ...] = (
     # ----- surface_resolver.py: _coord_mid8 fail-closed raise payloads -----
     # Both joins compose paths ONLY inside a ``StatusReadPathNotFound(...)``
     # constructor call inside a ``raise`` statement.  No FS open/stat/write
     # ever happens — the exception is raised immediately.  Rationale: the
     # diagnostic paths document what the resolver searched; they are not used
-    # to read any mission file.
-    # NOTE (WP04 re-key, 01KVN754): these two _coord_mid8 fail-closed raise
-    # payloads drifted 518→472 and 523→477 when WP04 deleted
-    # ``CoordinationWorktreeEmpty`` + ``_is_coord_empty_condition`` +
-    # ``_canonicalize_or_enrich_coord_empty`` (coord-empty Option B). Same
-    # diagnostic joins — only their line drifted. The composite re-key below
-    # makes the disposition survive future drift of these exact lines.
-    # NOTE (WP03 re-key, single-planning-surface-authority-01KVPR00): drifted
-    # 472→487 and 477→492 when WP03 added the ``_COORD_SURFACE_TOPOLOGIES`` constant
-    # + ``_topology_uses_coord_surface`` helper near the top of surface_resolver.py
-    # (the stored-topology surface-shape SSOT). Same diagnostic joins — only their
-    # line drifted; the composite re-key keeps the disposition stable.
-    # NOTE (WP02 re-key, single-authority-topology-cleanup-01KVRJ6P): drifted
-    # 489→494 and 494→499 when WP02 (FR-005) collapsed the four coord-routing
-    # frozensets onto ONE canonical ``_COORD_ROUTING_TOPOLOGIES`` set — removing the
-    # ``_COORD_SURFACE_TOPOLOGIES`` constant + body near the top of
-    # surface_resolver.py and widening the ``from mission_runtime import`` block.
-    # Same two ``_coord_mid8`` fail-closed raise payloads — only their seed line
-    # drifted; the composite key (qualname ``_coord_mid8`` + join token line) is
-    # re-pointed at the identical joins, NOT a raw ``file.py:NNN`` line bump (CT1 /
-    # WP02 test-DoD (a)).
-    # NOTE (post-merge re-key, 3.2.3-coord-surface-regressions): drifted 494→493
-    # and 499→498 when the #2119/#2125 retrospective-home seam edited the
-    # ``_coord_mid8`` docstring/error prose above these joins, shifting the two
-    # fail-closed raise payloads up one line each. Same two ``_coord_mid8``
-    # DIAG joins — byte-identical inside the immediate ``raise`` — only their
-    # seed line drifted; the composite key (qualname ``_coord_mid8`` + join token
-    # line) is re-pointed at the identical joins, NOT a raw ``file.py:NNN`` line
-    # bump (CT1 / no new bypass).
-    # NOTE (WP04 re-key, single-authority-resolution-gates-01KW1P0F): drifted
-    # 493→494 and 498→499 when WP04 routed ``resolve_status_surface_with_anchor``
-    # through ``_canonicalize_primary_read_handle`` (import line + 3-line call
-    # split added above these joins). Same two ``_coord_mid8`` DIAG joins —
-    # byte-identical inside the immediate ``raise`` — only their seed line drifted;
-    # the composite key (qualname ``_coord_mid8`` + join token line) is re-pointed
-    # at the identical joins, NOT a raw ``file.py:NNN`` line bump (CT1 / no new bypass).
-    # NOTE (PR #2277 re-key, reliability-papercut-sweep-01KWD0V5): drifted 494→495
-    # and 499→500 when WP02 (#2250) added the ``CoordinationBranchDeleted``
-    # StatusReadPathNotFound subclass (~:175) above ``_coord_mid8``, pushing both
-    # fail-closed raise payloads down one line. Same two ``_coord_mid8`` DIAG joins —
-    # byte-identical inside the immediate ``raise`` — only their seed line drifted;
-    # the composite key is re-pointed at the identical joins, NOT a raw
-    # ``file.py:NNN`` line bump (CT1 / no new bypass).
-    # NOTE (post-merge re-key, coord-primary-partition-lock aggregate landing):
-    # drifted 495→499 and 500→504 -- cumulative cross-lane line drift on local
-    # main (no code shape change to this function). Same two _coord_mid8 DIAG
-    # joins -- only their seed line drifted; re-verified against the live
-    # source at the new lines.
-    (
-        "specify_cli/coordination/surface_resolver.py",
-        499,
-        "DIAG — _coord_mid8 fail-closed raise payload: "
-        "CoordinationWorkspace.worktree_path(...) / KITTY_SPECS_DIR / mission_slug "
-        "inside StatusReadPathNotFound constructor; no FS sink (raise is immediate).",
+    # to read any mission file.  RJ#1 (``coord_candidate``) and RJ#2
+    # (``primary_candidate``) share the ``_coord_mid8`` qualname; the distinct
+    # ``token_substring`` per entry is the disambiguator (no ``occurrence``
+    # ordinal needed).
+    ContentDescriptor(
+        rel_path="specify_cli/coordination/surface_resolver.py",
+        qualname="_coord_mid8",
+        token_substring="coord_candidate = repo_root",
+        occurrence=None,
+        rationale=(
+            "DIAG — _coord_mid8 fail-closed raise payload: "
+            "CoordinationWorkspace.worktree_path(...) / KITTY_SPECS_DIR / mission_slug "
+            "inside StatusReadPathNotFound constructor; no FS sink (raise is immediate)."
+        ),
     ),
-    (
-        "specify_cli/coordination/surface_resolver.py",
-        504,
-        "DIAG — _coord_mid8 fail-closed raise payload: "
-        "repo_root / KITTY_SPECS_DIR / mission_slug for primary_candidate field; "
-        "no FS sink (raise is immediate).",
+    ContentDescriptor(
+        rel_path="specify_cli/coordination/surface_resolver.py",
+        qualname="_coord_mid8",
+        token_substring="primary_candidate = repo_root / KITTY_SPECS_DIR / mission_slug",
+        occurrence=None,
+        rationale=(
+            "DIAG — _coord_mid8 fail-closed raise payload: "
+            "repo_root / KITTY_SPECS_DIR / mission_slug for primary_candidate field; "
+            "no FS sink (raise is immediate)."
+        ),
     ),
     # ----- _read_path_resolver.py: primary_feature_dir_for_mission definition -----
     # This IS the topology-blind primitive (``primary_feature_dir_for_mission``).
@@ -299,72 +281,45 @@ _RAW_JOIN_SITES: tuple[tuple[str, int, str], ...] = (
     # join and wraps ``get_main_repo_root(repo_root)`` on the left.  The join is
     # the DEFINITION of the blessed seam, not a bypass of it.  All callers that
     # need topology-blind primary-dir access delegate through THIS function.
-    # NOTE (WP01 → WP05 re-key, 01KVN754): the ``primary_feature_dir_for_mission``
-    # definition relocated from :511 → :641 → :737 → :744 as the read-side seam grew.
-    # The composite key is anchored on the ``primary_feature_dir_for_mission``
-    # qualname + the join's token line, so WP04's rewrite may move it again
-    # without flipping this ratchet RED (the whole point of the front-load).
-    (
-        "specify_cli/missions/_read_path_resolver.py",
-        1282,
-        "TBYD — IS the primary_feature_dir_for_mission primitive definition; "
-        "assert_safe_path_segment called just above (NFR-002); "
-        "get_main_repo_root wraps the left operand; "
-        "this function is the canonical topology-blind entry point. "
-        "(Re-keyed :869 -> :885 -> :1078 -> :1162 -> :1244 -> :1240 -> :1239 -> :1282: "
-        "WP04 added the "
-        "stored-topology helpers (stored_topology_from_meta / "
-        "_declares_coordination_branch / _canonicalize_bare_modern_handle) + "
-        "topology threading above; 01KVRJ6P WP06 added classify_from_meta (read-path "
-        "boundary topology absorption) above this definition; then 01KVRJ6P WP17 "
-        "DELETED the 6th coord-routing predicate _topology_routes_through_coord + the "
-        "now-unused ``import json`` (the local meta-reader moved onto canonical "
-        "load_meta), shifting this definition UP by 4 lines (1244 -> 1240); then mission "
-        "implement-loop-coord-authority-completion-01KW2E7A (#2160) deleted the now-unused "
-        "FEATURE_CONTEXT_UNRESOLVED_CODE module constant above, shifting this definition UP "
-        "by 1 line (1240 -> 1239); then mission mission-resolver-port-01KX1C05 WP03 threaded "
-        "the injected ``resolver: MissionResolver | None`` param through the shell +  "
-        "canonicalizer chain above this definition, shifting it DOWN by 43 lines "
-        "(1239 -> 1282). The "
-        "composite key is anchored on the qualname + join token line, so only the "
-        "seed line drifted — NOT a raw file.py:NNN line bump (CT1 / WP03 census sync).)",
+    ContentDescriptor(
+        rel_path="specify_cli/missions/_read_path_resolver.py",
+        qualname="primary_feature_dir_for_mission",
+        token_substring=(
+            "primary_dir : Path = get_main_repo_root ( repo_root ) / "
+            "KITTY_SPECS_DIR / mission_slug"
+        ),
+        occurrence=None,
+        rationale=(
+            "TBYD — IS the primary_feature_dir_for_mission primitive definition; "
+            "assert_safe_path_segment called just above (NFR-002); "
+            "get_main_repo_root wraps the left operand; "
+            "this function is the canonical topology-blind entry point."
+        ),
     ),
     # ----- mission_creation.py: seam-grammar output -----
-    # ``mission_slug_formatted = mission_dir_name(mission_slug, mid8=...)`` at :323.
-    # The slug on the RHS of the join is NOT raw operator input: it is the OUTPUT
-    # of the canonical ``mission_dir_name`` grammar seam (FR-032/FR-044), which
-    # produces a validated ``<human-slug>-<mid8>`` dir name.  The join is therefore
-    # using a seam-produced, pre-composed name — not a raw slug bypass.  Composite
-    # re-key: WP02 (IC-02) edits this site; the ``create_mission_core`` qualname +
-    # join token line anchor survives that edit.
-    (
-        "specify_cli/core/mission_creation.py",
-        342,
-        "TBYD — join uses ``mission_slug_formatted``, the OUTPUT of the canonical "
-        "mission_dir_name(mission_slug, mid8=...) grammar seam (not raw operator input); "
-        "seam is defined in lanes/branch_naming.py (FR-032/FR-044). Create-time-canonical: "
-        "the mission dir is being created here (feature_dir.mkdir follows immediately), so "
-        "there is no prior surface to resolve through. (Re-keyed :323 -> :328 -> :337 -> :336 -> "
-        ":324: lifecycle-tooling-friction WP03 edited create_mission_core, drifting the seam-output "
-        "join down 9 lines; then mission integration-boundary-01KW0PBE (#614) removed the "
-        "module-level ``from specify_cli.sync.events import emit_mission_created`` import above "
-        "(Leak #1 / FR-004), shifting the seam-output join UP 1 line (337 -> 336); then PR #2270 "
-        "(canonical-mission-payload, landed via #2398) collapsed the duplicated "
-        "``_default_mission_*`` helpers into ``core/mission_payload.py``, shifting the seam-output "
-        "join UP 12 lines (336 -> 324); then mission coord-primary-partition-lock-01KWZ46V WP02 "
-        "(IC-02) routed the create-time spec commit through ``placement_seam.write_target(SPEC)`` "
-        "and hoisted the ``_META_KEY_MISSION_TYPE``/``_META_KEY_CREATED_AT`` constants above this "
-        "site, shifting the seam-output join DOWN 19 lines (324 -> 343); then mission "
-        "read-surface-ssot-closeout-01KWZV91 shifted the seam-output join UP 1 line "
-        "(343 -> 342) via cumulative read-side seam edits above this site (upstream/main "
-        "carries it at 343). The "
-        "composite key is anchored on the create_mission_core qualname "
-        "+ join token line, so only the seed line drifted — NOT a raw file.py:NNN line bump "
-        "and NOT a new bypass; same seam-composed join.)",
+    # ``mission_slug_formatted = mission_dir_name(mission_slug, mid8=...)`` is
+    # composed just above.  The slug on the RHS of the join is NOT raw operator
+    # input: it is the OUTPUT of the canonical ``mission_dir_name`` grammar
+    # seam (FR-032/FR-044), which produces a validated ``<human-slug>-<mid8>``
+    # dir name.  The join is therefore using a seam-produced, pre-composed
+    # name — not a raw slug bypass.
+    ContentDescriptor(
+        rel_path="specify_cli/core/mission_creation.py",
+        qualname="create_mission_core",
+        token_substring="feature_dir = resolved_root / KITTY_SPECS_DIR / mission_slug_formatted",
+        occurrence=None,
+        rationale=(
+            "TBYD — join uses mission_slug_formatted, the OUTPUT of the canonical "
+            "mission_dir_name(mission_slug, mid8=...) grammar seam (not raw operator "
+            "input); seam is defined in lanes/branch_naming.py (FR-032/FR-044). "
+            "Create-time-canonical: the mission dir is being created here "
+            "(feature_dir.mkdir follows immediately), so there is no prior surface "
+            "to resolve through."
+        ),
     ),
     # ----- DRAINED by mission retrospective-durable-home-01KVYM1W (#2136/#2164):
-    # the raw ``KITTY_SPECS_DIR / parts.mission_slug`` join formerly at
-    # review/cycle.py:185 in ``resolve_review_cycle_pointer`` was routed through the
+    # the raw ``KITTY_SPECS_DIR / parts.mission_slug`` join formerly in
+    # ``resolve_review_cycle_pointer`` (review/cycle.py) was routed through the
     # shared write-seam resolver ``candidate_feature_dir_for_mission`` (which folds
     # every handle form and propagates ``MissionSelectorAmbiguous`` — no silent pick,
     # C-009), matching the WRITE seam ``create_rejected_review_cycle``.  No raw join
@@ -372,32 +327,52 @@ _RAW_JOIN_SITES: tuple[tuple[str, int, str], ...] = (
     # (``test_allowlist_entries_are_not_stale``).  The downstream ``wp_slug``
     # path-joins remain dispositioned in the untrusted-path inventory.
     # ----- DRAINED by WP02 (FR-002): the four read-CLI raw-join bootstraps that
-    # formerly lived here (decision.py:464 D-6 factory boundary +
-    # agent/context.py:72, agent/mission.py:1327, agent/mission.py:1378 #2046
-    # read-side-desync residuals) have been migrated onto the single guarded
-    # read-side seam ``resolve_handle_to_read_path`` (and, for the primary-only
-    # existence probe at mission.py:1378, the topology-blind
-    # ``primary_feature_dir_for_mission`` primitive).  None of them performs a raw
-    # ``KITTY_SPECS_DIR / <handle>`` join any longer, so their allowlist entries
-    # were removed to keep this guard precise (``test_allowlist_entries_are_not_stale``).
-    # The seam adds the ``assert_safe_path_segment`` guard (FR-004) each bootstrap
-    # previously lacked.  WP05 confirms the drain by re-derivation against the
+    # formerly lived here (decision.py D-6 factory boundary +
+    # agent/context.py, agent/mission.py x2 #2046 read-side-desync residuals)
+    # have been migrated onto the single guarded read-side seam
+    # ``resolve_handle_to_read_path`` (and, for the primary-only existence
+    # probe, the topology-blind ``primary_feature_dir_for_mission`` primitive).
+    # None of them performs a raw ``KITTY_SPECS_DIR / <handle>`` join any
+    # longer, so their allowlist entries were removed to keep this guard
+    # precise (``test_allowlist_entries_are_not_stale``).  The seam adds the
+    # ``assert_safe_path_segment`` guard (FR-004) each bootstrap previously
+    # lacked.  WP05 confirms the drain by re-derivation against the
     # equivalence matrix.
 )
 
 
-def _build_allowlisted_raw_joins() -> dict[tuple[str, str], str]:
-    """Derive the composite-keyed allowlist live from ``_RAW_JOIN_SITES``.
+@functools.cache
+def _raw_join_source(rel_path: str) -> str:
+    """Read (and cache) a ``_RAW_JOIN_SITES`` descriptor's source file, once.
 
-    Never hand-authors a ``(qualname, token_line)`` literal (NFR-004): each
-    composite key is computed from the live source via ``composite_key_from_file``
-    against the seed ``(rel_path, line)``.  The rationale string is carried
-    verbatim from the seed.  ``rel_path`` is relative to ``src/`` (matching
-    ``ResolutionRow.rel_path``), so the absolute path is ``_SRC_ROOT / rel_path``.
+    Several descriptors (RJ#1/RJ#2) share a file — caching avoids re-reading it
+    once per descriptor.
+    """
+    return (_SRC_ROOT / rel_path).read_text(encoding="utf-8")
+
+
+#: Every ``_RAW_JOIN_SITES`` descriptor resolved ONCE at import time to its
+#: live full ``(rel_path, qualname, token_line)`` composite key (NFR-004:
+#: never hand-author the key literal).  RAISES :class:`DescriptorResolutionError`
+#: at import time if a descriptor is already ambiguous or dangling — the
+#: earliest possible surfacing of a mis-authored ``token_substring`` (GAP-1).
+_RAW_JOIN_SEEDED_KEYS: dict[ContentDescriptor, CompositeKey] = {
+    descriptor: resolve_descriptor(_raw_join_source(descriptor.rel_path), descriptor)
+    for descriptor in _RAW_JOIN_SITES
+}
+
+
+def _build_allowlisted_raw_joins() -> dict[tuple[str, str], str]:
+    """Narrow ``_RAW_JOIN_SEEDED_KEYS`` to the ``(qualname, token_line)`` shape.
+
+    ``test_zero_functional_raw_bypass_on_collapsed_tree`` (T030) keys
+    discovered rows via ``composite_key_from_file`` — a bare 2-tuple with no
+    ``rel_path`` component — so the allowlist it consults must match that
+    shape.  The rationale is carried verbatim from the descriptor.
     """
     return {
-        composite_key_from_file(_SRC_ROOT / rel_path, line): rationale
-        for rel_path, line, rationale in _RAW_JOIN_SITES
+        (qualname, token_line): descriptor.rationale
+        for descriptor, (_rel_path, qualname, token_line) in _RAW_JOIN_SEEDED_KEYS.items()
     }
 
 
@@ -500,35 +475,41 @@ def test_zero_functional_raw_bypass_on_collapsed_tree() -> None:
 
 
 def test_allowlist_entries_are_not_stale() -> None:
-    """Every entry in _ALLOWLISTED_RAW_JOINS corresponds to a live discovered row.
+    """Every ``_RAW_JOIN_SITES`` descriptor still resolves to its seeded key.
 
-    A stale allowlist entry (a key that no longer appears in ``discover_rows()``)
-    indicates either a line-number shift (an upstream refactoring changed the
-    layout of a seam file) or a removal of the join.  Either way, the allowlist
-    must be updated to reflect the current tree — a stale entry silently widens
-    the allowlist and defeats the precision of the guard.
+    A stale descriptor — one that no longer resolves via ``descriptor_still_live``
+    (exactly-one AND key-equal, per the descriptor-resolver contract's D-1
+    rule) — indicates either the site drifted off its qualname/token line (an
+    upstream refactoring changed the shape of a seam file), the join was
+    removed, or a NEW same-qualname sibling now collides with the
+    ``token_substring`` and the descriptor can no longer disambiguate to a
+    single finding.  Any of these must be caught loudly: a stale descriptor
+    that silently keeps "passing" would widen the allowlist and defeat the
+    precision of the guard (never "≥1 finding matches" semantics — the D-1
+    bite hole).
 
     This assertion is the twin of ``test_zero_functional_raw_bypass_on_collapsed_tree``:
     that test rejects new bypasses; this test rejects stale exemptions.
     """
-    rows = discover_rows()
-    live_raw_bypass_keys = {
-        composite_key_from_file(_SRC_ROOT / row.rel_path, row.line)
-        for row in rows
-        if row.call_name == "raw-path-join"
-    }
-
     stale: list[str] = []
-    for key in sorted(_ALLOWLISTED_RAW_JOINS):
-        if key not in live_raw_bypass_keys:
-            stale.append(f"  {key!r}  — no longer in discovered raw-path-join rows")
+    for descriptor, seeded_key in _RAW_JOIN_SEEDED_KEYS.items():
+        source = _raw_join_source(descriptor.rel_path)
+        if not descriptor_still_live(source, descriptor, seeded_key):
+            stale.append(
+                f"  {descriptor.rel_path}::{descriptor.qualname} "
+                f"substring={descriptor.token_substring!r} "
+                f"(seeded key={seeded_key!r}) — no longer resolves to exactly "
+                "one live finding equal to its seeded key"
+            )
 
     assert not stale, (
-        "Stale allowlist entries in _ALLOWLISTED_RAW_JOINS:\n"
+        "Stale _RAW_JOIN_SITES descriptors:\n"
         + "\n".join(stale)
-        + "\n\nThe join at these locators no longer exists at those exact lines.\n"
-        "Either a seam file was refactored (update the locator) or the join\n"
-        "was removed entirely (remove the allowlist entry).\n"
+        + "\n\nEither the site drifted off its qualname/token line (a seam edit "
+        "changed the layout), the join was removed entirely, or a new "
+        "same-qualname sibling now collides with the token_substring.  Re-author "
+        "the descriptor against the live source, or remove the entry if the join "
+        "is gone.\n"
         "Run ``python tests/architectural/surface_resolution_audit/audit.py`` "
         "to identify the current discovered rows."
     )
@@ -661,6 +642,157 @@ def test_all_allowlisted_entries_have_rationale() -> None:
         + "\n\nEvery allowlisted raw join must carry a disposition tag "
         "(DIAG or TBYD) and a one-sentence rationale."
     )
+
+
+# ===========================================================================
+# T019 — plant-and-catch battery for the WP04 content-descriptor migration.
+#
+# FR-013 / NFR-001 / NFR-002: proves the descriptor migration (T016/T017) is
+# neither a false-red trap (a benign line insertion above a migrated site must
+# stay green — the whole point of content-addressing) nor a false-green hole
+# (a genuinely new/ambiguous raw join must RED).  Three scenarios, per the WP
+# prompt:
+#   (a) motion battery  — line insertion above a migrated site -> green.
+#   (b) bite            — a new un-allowlisted raw KITTY_SPECS_DIR join -> red.
+#   (c) same-qualname sibling — a THIRD un-sanctioned raw join planted inside
+#       ``_coord_mid8`` with a token line matching RJ#1's sanctioned
+#       substring -> red (proves ``resolve_descriptor``'s exactly-one rule
+#       does NOT silently absorb the sibling into the existing allowance).
+# ===========================================================================
+
+
+class _SourceInsertion:
+    """Context manager: insert a line right after the first line containing
+    ``anchor_substring`` in a real source file, then restore.
+
+    Unlike :class:`_SourceMutation` (which only appends at EOF), this shifts
+    every line AFTER the insertion point down by one — the exact "line
+    inserted above a migrated site" shape the T019 motion battery must prove
+    stays green.  The original bytes are restored on exit even if the body
+    raises.
+    """
+
+    def __init__(self, path: Path, anchor_substring: str, inserted_line: str) -> None:
+        self._path = path
+        self._anchor_substring = anchor_substring
+        self._inserted_line = inserted_line
+        self._original: str = ""
+
+    def __enter__(self) -> Path:
+        self._original = self._path.read_text(encoding="utf-8")
+        lines = self._original.splitlines(keepends=True)
+        anchor_index = next(
+            i for i, line in enumerate(lines) if self._anchor_substring in line
+        )
+        lines.insert(anchor_index + 1, self._inserted_line + "\n")
+        self._path.write_text("".join(lines), encoding="utf-8")
+        return self._path
+
+    def __exit__(self, *exc: object) -> None:
+        self._path.write_text(self._original, encoding="utf-8")
+
+
+#: The shared file both the motion-battery and same-qualname-sibling plants
+#: mutate — it hosts RJ#1/RJ#2's ``_coord_mid8`` qualname.
+_COORD_MID8_FILE = _SRC_SPECIFY_CLI / "coordination" / "surface_resolver.py"
+
+#: Anchor line inside ``_coord_mid8`` (just before the fail-closed raise) used
+#: to insert a benign comment ABOVE both RJ#1/RJ#2 join lines without changing
+#: their content.
+_COORD_MID8_ANCHOR = "mid8 = resolve_declared_mid8(meta, mission_slug)"
+
+
+def test_raw_join_motion_battery_zero_false_reds() -> None:
+    """A comment inserted above RJ#1/RJ#2 does NOT flip the twin-guard RED.
+
+    NFR-001: content-addressing (qualname + normalized token line) survives a
+    benign ``+1`` line-drift caused by an unrelated edit above the site — the
+    entire premise the WP04 migration exists to prove.  Both RJ#1
+    (``coord_candidate``) and RJ#2 (``primary_candidate``) live in the SAME
+    ``_coord_mid8`` qualname, so a single insertion exercises both at once.
+    """
+    with _SourceInsertion(
+        _COORD_MID8_FILE,
+        _COORD_MID8_ANCHOR,
+        "    # T019 motion-battery witness: benign comment, no semantic change.",
+    ):
+        for descriptor, seeded_key in _RAW_JOIN_SEEDED_KEYS.items():
+            if descriptor.rel_path != "specify_cli/coordination/surface_resolver.py":
+                continue
+            source = _COORD_MID8_FILE.read_text(encoding="utf-8")
+            assert descriptor_still_live(source, descriptor, seeded_key), (
+                f"Motion battery FALSE-RED: {descriptor.qualname} / "
+                f"{descriptor.token_substring!r} stopped resolving to its seeded "
+                "key after a benign comment insertion above the site — the "
+                "descriptor is NOT content-addressed as intended."
+            )
+
+
+def test_raw_join_bite_battery_new_unsanctioned_join_reds() -> None:
+    """A brand-new, non-allowlisted raw KITTY_SPECS_DIR join IS caught (red).
+
+    NFR-002: mirrors ``test_zero_functional_raw_bypass_on_collapsed_tree``'s
+    own logic against a mutated tree — a genuinely new raw-path-join row whose
+    composite key is absent from ``_ALLOWLISTED_RAW_JOINS`` must be flagged as
+    an unexpected functional bypass, proving the migration didn't accidentally
+    widen the guard.
+    """
+    snippet = (
+        "\n\n"
+        "def _wp04_bite_witness(repo_root, mission_slug):  # noqa: injected T019\n"
+        "    return repo_root / KITTY_SPECS_DIR / mission_slug\n"
+    )
+    with _SourceMutation(_SRC_SPECIFY_CLI / "core" / "mission_creation.py", snippet):
+        unexpected = [
+            row
+            for row in discover_rows()
+            if row.call_name == "raw-path-join"
+            and composite_key_from_file(_SRC_ROOT / row.rel_path, row.line)
+            not in _ALLOWLISTED_RAW_JOINS
+        ]
+        witness = [
+            row for row in unexpected if row.rel_path.endswith("core/mission_creation.py")
+        ]
+        assert witness, (
+            "Bite battery FALSE-GREEN: the injected _wp04_bite_witness raw "
+            "KITTY_SPECS_DIR/mission_slug join was NOT flagged as an unexpected "
+            "functional bypass."
+        )
+
+
+def test_raw_join_same_qualname_sibling_bites() -> None:
+    """A THIRD un-sanctioned raw join sharing RJ#1's qualname+substring RED's.
+
+    NFR-002 / D-1: plants a second ``_coord_mid8``-named function (same
+    qualname string) whose join line duplicates RJ#1's sanctioned
+    ``token_substring`` (``coord_candidate = repo_root``).  With the sibling
+    present, ``resolve_descriptor`` sees TWO candidates for RJ#1 inside the
+    ``_coord_mid8`` qualname and — per the exactly-one rule (never "≥1 finding
+    matches") — must RAISE rather than silently keep resolving to the
+    original site.  This proves the twin-guard does not let a routed-away
+    allowance mask a genuinely new same-qualname offender.
+    """
+    snippet = (
+        "\n\n"
+        "def _coord_mid8(meta, mission_slug, repo_root):  # noqa: injected T019 sibling\n"
+        "    coord_candidate = repo_root  # duplicate RJ#1 token line\n"
+        "    return coord_candidate\n"
+    )
+    rj1 = next(
+        descriptor
+        for descriptor in _RAW_JOIN_SITES
+        if descriptor.qualname == "_coord_mid8"
+        and descriptor.token_substring == "coord_candidate = repo_root"
+    )
+    seeded_key = _RAW_JOIN_SEEDED_KEYS[rj1]
+    with _SourceMutation(_COORD_MID8_FILE, snippet):
+        source = _COORD_MID8_FILE.read_text(encoding="utf-8")
+        assert not descriptor_still_live(source, rj1, seeded_key), (
+            "Same-qualname-sibling battery FALSE-GREEN: RJ#1 kept resolving "
+            "(exactly-one) even with a colliding sibling planted in a second "
+            "_coord_mid8-named function — the sibling was silently absorbed "
+            "instead of breaking the exactly-one resolution."
+        )
 
 
 # ===========================================================================
@@ -1102,13 +1234,13 @@ def test_drained_keys_are_not_in_allowlist() -> None:
     test asserts the specific drained-key invariant directly.
     """
     # The composite-keyed allowlist no longer carries a file path in its KEY, so
-    # the drained-file check runs against the ``_RAW_JOIN_SITES`` seed (which holds
-    # the rel_path each composite key was derived from) — a lingering drained
+    # the drained-file check runs against the ``_RAW_JOIN_SITES`` descriptor seed
+    # (each descriptor still carries its own ``rel_path``) — a lingering drained
     # entry would still be seeded there.
     lingering = [
-        f"{rel_path}:{line}"
-        for rel_path, line, _rationale in _RAW_JOIN_SITES
-        if any(rel_path.startswith(f) for f in _DRAINED_READ_CLI_FILES)
+        f"{descriptor.rel_path}::{descriptor.qualname}"
+        for descriptor in _RAW_JOIN_SITES
+        if any(descriptor.rel_path.startswith(f) for f in _DRAINED_READ_CLI_FILES)
     ]
     assert not lingering, (
         "Drained read-CLI keys still present in _ALLOWLISTED_RAW_JOINS "

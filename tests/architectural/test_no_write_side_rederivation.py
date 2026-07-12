@@ -43,7 +43,14 @@ from pathlib import Path
 
 import pytest
 
-from tests.architectural._ratchet_keys import code_tokens_by_line, composite_key
+from tests.architectural._ratchet_keys import (
+    CompositeKey,
+    ContentDescriptor,
+    code_tokens_by_line,
+    composite_key,
+    descriptor_still_live,
+    resolve_descriptor,
+)
 
 pytestmark = pytest.mark.architectural
 
@@ -68,6 +75,18 @@ _ADOPTED_MODULES: tuple[Path, ...] = (
     _SRC / "core" / "mission_creation.py",
     _SRC / "cli" / "commands" / "implement.py",
     _SRC / "cli" / "commands" / "agent" / "workflow.py",
+    # coord-authority-trio-degod (#2464/#2465/#2508): workflow.py's god-function
+    # write-side logic was split out into these two modules (workflow.py keeps
+    # bare re-export shims for the moved names) -- the boundary contract must
+    # keep following the CODE, not the original filename, so both successor
+    # modules join the adopted scope alongside the still-real-content workflow.py.
+    _SRC / "cli" / "commands" / "agent" / "workflow_cores.py",
+    _SRC / "cli" / "commands" / "agent" / "workflow_executor.py",
+    # coord-authority-trio-degod (#2464/#2465/#2508): implement.py's WP03
+    # decomposition split pure helpers into implement_cores.py; same
+    # code-follows-the-move rationale as workflow_cores.py/workflow_executor.py
+    # above.
+    _SRC / "cli" / "commands" / "implement_cores.py",
     _SRC / "cli" / "commands" / "agent" / "tasks_move_task.py",
     _SRC / "cli" / "commands" / "agent" / "mission_record_analysis.py",
 )
@@ -83,125 +102,124 @@ class _Finding:
     code: str
     source: str
 
-    def as_allow_key(self) -> tuple[str, str]:
-        """The drift-proof ``(qualname, token_line)`` composite allow-list key.
+    def as_allow_key(self) -> CompositeKey:
+        """The drift-proof ``(rel_path, qualname, token_line)`` composite allow-list key.
 
-        Content-addressed (enclosing function + tokenized code line), not
-        line-number addressed, so a benign blank/comment-line insertion above the
-        guarded site leaves the key unchanged (FR-008 / WP06).
+        Content-addressed (path + enclosing function + tokenized code line),
+        matching the WP02 resolver's :class:`CompositeKey` shape (IC-DESCRIPTOR),
+        not line-number addressed, so a benign blank/comment-line insertion above
+        the guarded site leaves the key unchanged (FR-008 / WP06 / #2469 WP02).
         """
-        return composite_key(self.source, self.lineno)
+        qualname, token_line = composite_key(self.source, self.lineno)
+        rel_path = self.path.relative_to(_REPO_ROOT).as_posix()
+        return (rel_path, qualname, token_line)
 
 
-#: Line-scoped allow-list, re-keyed onto the drift-proof
-#: ``(enclosing_qualname, token_line)`` composite key (FR-008 / WP06).  It is
-#: still line-SCOPED (a single specific deferred line, NOT a blanket file
-#: escape), but content-addressed rather than line-NUMBER addressed: a benign
-#: blank/comment insertion above the site no longer flips the ratchet RED.
+#: Content-descriptor allow-list (IC-DESCRIPTOR, #2469 WP02/WP03): each entry
+#: pins a deferred finding by ``(rel_path, qualname, token_substring)`` — the
+#: WP02 shared resolver (:func:`resolve_descriptor`) resolves it LIVE to the
+#: **exactly one** matching finding's ``(rel_path, qualname, token_line)``
+#: composite key. Unlike a line-number seed, this survives ANY line drift
+#: (blank/comment insertion, unrelated edits above the site, cross-lane
+#: rebases) as long as the finding's enclosing function and tokenized code
+#: line are unchanged — no re-anchoring "343 -> 347 -> ..." bookkeeping is
+#: needed (#2072).
 #:
-#: The single seed is ``coordination/status_transition.py`` line ~336
-#: (re-grounded from ~295 by the single-mission-surface-resolver WP06 #1900
-#: predicate migration, which added the canonical-seam delegating helpers above
-#: this line — same deferred selector, shifted lineno, NOT a new offender):
-#: ``return coord_branch or _current_branch(repo_root)`` — the FALLBACK arm of
-#: ``_resolve_write_target``, reached only when ``resolve_placement_only`` cannot
-#: resolve the mission (pre-meta create window / ad-hoc fixture). It is the last
-#: surviving ``_current_branch`` git-HEAD selector and belongs to the deferred
-#: #1716 write-surface-SELECTION ladder (spec C-003 / plan D-1, OUT of scope).
-#: It is NOT on the genuine-simple-case path (NFR-006) and is asserted as deferred
+#: WS#1 — ``coordination/status_transition.py`` / ``_resolve_write_target``:
+#: the FALLBACK arm ``return coord_branch or _current_branch(repo_root)``,
+#: reached only when ``resolve_placement_only`` cannot resolve the mission
+#: (pre-meta create window / ad-hoc fixture). It is the last surviving
+#: ``_current_branch`` git-HEAD selector and belongs to the deferred #1716
+#: write-surface-SELECTION ladder (spec C-003 / plan D-1, OUT of scope). It is
+#: NOT on the genuine-simple-case path (NFR-006) and is asserted as deferred
 #: residual in ``test_simple_case_flat_topology.py``.
 #:
-#: Adding a NEW entry here is a deliberate scope decision, not a routine escape:
-#: it must point at a specific deferred-by-spec line, with a one-line rationale.
-
-#: Seed mapping each deferred line to ``(rel_path, line)``.  The composite key is
-#: derived LIVE from this seed via ``composite_key`` at import (NFR-004: never
-#: hand-author a ``(qualname, token_line)`` literal).  ``_ALLOW_LIST_SEED`` is
-#: also the staleness anchor — ``test_allow_listed_line_is_the_deferred_head_selector``
-#: re-reads the seed file to prove the composite key still holds the deferred
-#: HEAD selector.
+#: WS#2 — ``cli/commands/agent/workflow.py`` / ``_review_feedback_root``: the
+#: sole, deduplicated ``feature_dir.parent.parent`` READ-side
+#: review-feedback-root navigation (coord-primary-partition-lock WP07 /
+#: T034) — categorically distinct from the WS#1 write-target selector (it
+#: never touches ``mission_id``/``mid8``/``primary_root`` or a write
+#: ``CommitTarget``).
 #:
-#: coord-primary-partition-lock WP07 (T034, FR-011): contracts/ratchet-contract.md
-#: projected this seed re-anchoring 343 -> 347 via a "#1842 tombstone hook" that,
-#: as of this WP landing in this lane, has NOT touched
-#: ``status_transition.py`` (the live line is still 343 -- verified by re-scan,
-#: not assumed). The composite ``(qualname, token_line)`` key is the authoritative
-#: comparand regardless (NFR-004); the seed below points at the line that is
-#: ACTUALLY live today, honestly, rather than a projected number that would
-#: silently resolve to the wrong code line via ``_composite_key_for_seed``.
+#: WS#3 — ``cli/commands/implement.py`` / ``_status_commit_destination_branch``:
+#: tracked #2453 — the ``get_current_branch(repo_root) or fallback_branch``
+#: git-HEAD selector. It ONLY predicts the pre-lane status-commit branch for
+#: the protected-branch guard (``_protected_branch_status_commit_error``) —
+#: it never feeds a write ``CommitTarget``/``destination_ref``. Routing the
+#: prediction through the placement seam would change which branch the guard
+#: evaluates (a behavior change), so it is deferred to the #2453 read-site
+#: sweep bucket (D-1/C-003) rather than routed here.
 #:
-#: A SECOND entry is added here (``workflow.py``): expanding ``_ADOPTED_MODULES``
-#: (T034) pulled in two pre-existing ``feature_dir.parent.parent`` occurrences in
-#: ``_latest_review_feedback_reference`` / ``_resolve_review_feedback_context``
-#: (workflow.py:843/885 pre-WP07). These are READ-side review-feedback-pointer
-#: root navigation -- NOT an FR-005 write-target/identity re-derivation (they
-#: never touch mission_id/mid8/primary_root or a write CommitTarget). WP07
-#: deduplicated both call sites into one ``_review_feedback_root`` helper
-#: (workflow.py) so the ratchet has exactly ONE new line to allow-list instead of
-#: two duplicate ones. The write-side allow-list therefore grows 1 -> 2 here,
-#: honestly reported: the ratchet-contract.md "seed stays at floor=1" baseline
-#: did not anticipate this pre-existing, orthogonal READ-path helper being pulled
-#: into scope by the T034 module-set expansion.
-_ALLOW_LIST_SEED: tuple[tuple[str, int], ...] = (
-    # write-surface-coherence WP02 / T031: threading the required STATUS_STATE kind
-    # into ``_resolve_write_target`` shifted the deferred HEAD-selector fallback arm
-    # from :336 to :343 (the ``coord_branch or _current_branch`` line). The seed is
-    # re-anchored to the live line so the composite key still resolves it.
-    # post-merge re-anchor (coord-primary-partition-lock aggregate landing):
-    # cumulative cross-lane line drift on local main shifted the fallback arm
-    # 343 -> 347 (same deferred selector, verified by re-scan, not a new offender).
-    ("src/specify_cli/coordination/status_transition.py", 347),
-    # coord-primary-partition-lock WP07 (T034): the sole, deduplicated
-    # ``feature_dir.parent.parent`` READ-side review-feedback-root navigation
-    # (see docstring above) -- categorically distinct from the deferred #1716
-    # write-target selector above.
-    # post-merge re-anchor (coord-primary-partition-lock aggregate landing):
-    # cumulative cross-lane line drift shifted this 833 -> 838 (same helper,
-    # verified by re-scan).
-    # post-merge re-anchor (read-surface-ssot-closeout aggregate landing): WP04's
-    # workflow.py campsite extractions (_render_isolation_banner /
-    # _render_wp_prompt_wrapper + routing) shifted _review_feedback_root's
-    # ``return feature_dir.parent.parent`` 838 -> 872 (same READ-side helper,
-    # verified by re-scan, not a new offender).
-    ("src/specify_cli/cli/commands/agent/workflow.py", 872),
-    # tracked: #2453 - _status_commit_destination_branch's
-    # ``get_current_branch(repo_root) or fallback_branch`` git-HEAD selector.
-    # It ONLY predicts the pre-lane status-commit branch for the protected-branch
-    # guard (_protected_branch_status_commit_error) -- it never feeds a write
-    # CommitTarget/destination_ref. Newly pulled into the ratchet's field of view
-    # by the checkout_head_selector grammar (above) so this last checkout-derived
-    # selector in an adopted module cannot silently drift; routing the prediction
-    # through the placement seam would change which branch the guard evaluates
-    # (a behavior change), so it is deferred to the #2453 read-site sweep bucket
-    # (D-1/C-003) rather than routed here.
-    # post-merge re-anchor (read-surface-ssot-closeout aggregate landing): the
-    # read-surface routing that merged into this test file dropped this seed entry
-    # and its staleness twin-guard while keeping the checkout_head_selector grammar
-    # + implement.py in _ADOPTED_MODULES; restored here re-anchored 87 -> 88 (same
-    # pre-existing selector, verified by re-scan, not a new offender).
-    # coord-authority-trio-degod WP03 (#2173) re-anchor: implement.py grew an
-    # 11-line re-export shim block (T019) ahead of this line during the
-    # implement.py -> implement_cores.py decomposition, shifting the same,
-    # untouched ``_status_commit_destination_branch`` selector 88 -> 99 (pure
-    # line drift, verified by re-scan -- not a new offender).
-    # squad-B1 (#2464) re-anchor: the ``detect_structural_planning_changes``
-    # import added one line to the shim block ahead of this selector, shifting
-    # the same untouched selector 99 -> 100 (pure line drift, verified by re-scan).
-    ("src/specify_cli/cli/commands/implement.py", 100),
+#: Adding a NEW entry here is a deliberate scope decision, not a routine
+#: escape: it must point at a specific deferred-by-spec finding, with a
+#: one-line rationale (per-descriptor, in ``rationale``).
+_ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
+    ContentDescriptor(
+        rel_path="src/specify_cli/coordination/status_transition.py",
+        qualname="_resolve_write_target",
+        token_substring="coord_branch or _current_branch",
+        occurrence=None,
+        rationale=(
+            "deferred #1716 write-surface-SELECTION ladder line (spec C-003 / "
+            "plan D-1, OUT of scope) -- the FALLBACK arm of "
+            "_resolve_write_target, reached only when resolve_placement_only "
+            "cannot resolve the mission."
+        ),
+    ),
+    ContentDescriptor(
+        rel_path="src/specify_cli/cli/commands/agent/workflow_cores.py",
+        qualname="review_feedback_root",
+        token_substring="return feature_dir . parent . parent",
+        occurrence=None,
+        rationale=(
+            "coord-primary-partition-lock WP07 (T034): the sole, deduplicated "
+            "feature_dir.parent.parent READ-side review-feedback-root "
+            "navigation -- categorically distinct from the WS#1 write-target "
+            "selector (never touches mission_id/mid8/primary_root or a write "
+            "CommitTarget). coord-authority-trio-degod (#2464/#2465/#2508): the "
+            "function moved from workflow.py to workflow_cores.py (bare "
+            "re-export shim left behind in workflow.py as "
+            "`review_feedback_root as _review_feedback_root`); descriptor "
+            "re-pointed to the new location, same underlying code."
+        ),
+    ),
+    ContentDescriptor(
+        rel_path="src/specify_cli/cli/commands/implement.py",
+        qualname="_status_commit_destination_branch",
+        token_substring="get_current_branch ( repo_root ) or fallback_branch",
+        occurrence=None,
+        rationale=(
+            "tracked: #2453 - predicts the pre-lane status-commit branch for "
+            "the protected-branch guard only; never feeds a write "
+            "CommitTarget/destination_ref. Deferred to the #2453 read-site "
+            "sweep bucket (D-1/C-003)."
+        ),
+    ),
 )
 
-
-def _composite_key_for_seed(rel_path: str, lineno: int) -> tuple[str, str]:
-    """Derive the composite key for a seed entry from the live source file."""
-    source = (_REPO_ROOT / rel_path).read_text(encoding="utf-8")
-    return composite_key(source, lineno)
-
-
-#: Composite-keyed allow-list: ``frozenset[(qualname, token_line)]``.
-_ALLOW_LIST: frozenset[tuple[str, str]] = frozenset(
-    _composite_key_for_seed(rel_path, lineno)
-    for rel_path, lineno in _ALLOW_LIST_SEED
+#: Composite key resolved LIVE for each ``_ALLOW_LIST_SEED`` entry (parallel,
+#: order-preserving with the seed tuple — the staleness twin-guards below index
+#: into both by descriptor identity, never a bare position).
+_ALLOW_LIST_KEYS: tuple[CompositeKey, ...] = tuple(
+    resolve_descriptor((_REPO_ROOT / descriptor.rel_path).read_text(encoding="utf-8"), descriptor)
+    for descriptor in _ALLOW_LIST_SEED
 )
+
+#: Composite-keyed allow-list: ``frozenset[(rel_path, qualname, token_line)]``.
+_ALLOW_LIST: frozenset[CompositeKey] = frozenset(_ALLOW_LIST_KEYS)
+
+
+def _seed_and_key_for(rel_path: str) -> tuple[ContentDescriptor, CompositeKey]:
+    """The ``(descriptor, seeded_key)`` pair whose descriptor targets ``rel_path``.
+
+    Looks the entry up by its own ``rel_path`` rather than a positional index,
+    so the twin-guards below stay correct if ``_ALLOW_LIST_SEED``'s entry order
+    ever changes.
+    """
+    for descriptor, seeded_key in zip(_ALLOW_LIST_SEED, _ALLOW_LIST_KEYS, strict=True):
+        if descriptor.rel_path == rel_path:
+            return descriptor, seeded_key
+    raise AssertionError(f"no _ALLOW_LIST_SEED entry targets {rel_path!r}")
 
 
 def _scan_source(source: str, path: Path) -> list[_Finding]:
@@ -328,22 +346,27 @@ def test_ratchet_ignores_prose_quoting_a_prior_walk() -> None:
 
 
 def test_allow_list_is_line_scoped_not_a_blanket_file_escape() -> None:
-    """The allow-list keys are ``(qualname, token_line)`` composites — never bare paths.
+    """The allow-list keys are ``(rel_path, qualname, token_line)`` composites — never bare paths.
 
     A file-scoped allow-list would silently excuse any future re-derivation added
     anywhere in that file (a blanket escape, rejected by paula SF-2). The
-    composite re-key (FR-008 / WP06) keeps the entry line-SCOPED — it pins a
-    specific enclosing function AND a specific tokenized code line, NOT a whole
-    file. This re-expresses the original anti-blanket-escape intent for the new
-    key shape: each entry must be a 2-tuple of non-empty ``str``s whose second
-    component (the token_line) is a real code line, never a whole-file wildcard.
+    content-descriptor re-key (FR-008 / WP06, #2469 WP02/WP03) keeps the entry
+    line-SCOPED — it pins a specific path, a specific enclosing function, AND a
+    specific tokenized code line, NOT a whole file. This re-expresses the
+    original anti-blanket-escape intent for the descriptor key shape: each entry
+    must be a 3-tuple of non-empty ``str``s whose third component (the
+    token_line) is a real code line, never a whole-file wildcard.
     """
     assert _ALLOW_LIST, "the allow-list must seed the known deferred S2 #1716 line"
     for entry in _ALLOW_LIST:
-        assert isinstance(entry, tuple) and len(entry) == 2, (
-            f"allow-list entry must be a (qualname, token_line) composite, got {entry!r}"
+        assert isinstance(entry, tuple) and len(entry) == 3, (
+            f"allow-list entry must be a (rel_path, qualname, token_line) "
+            f"composite, got {entry!r}"
         )
-        qualname, token_line = entry
+        rel_path, qualname, token_line = entry
+        assert isinstance(rel_path, str) and rel_path, (
+            f"rel_path component must be a non-empty str, got {rel_path!r}"
+        )
         assert isinstance(qualname, str) and qualname, (
             f"qualname component must be a non-empty str, got {qualname!r}"
         )
@@ -354,64 +377,58 @@ def test_allow_list_is_line_scoped_not_a_blanket_file_escape() -> None:
 
 
 def test_allow_listed_line_is_the_deferred_head_selector() -> None:
-    """The single allow-listed line really IS the deferred #1716 HEAD selector.
+    """The WS#1 allow-listed descriptor really IS the deferred #1716 HEAD selector.
 
-    Guards against allow-list rot: if the seeded line drifts off the
-    ``coord_branch or _current_branch`` fallback (e.g. the file is re-ordered or
-    the deferred ladder is finally retired), this test fails loudly so the
-    allow-list is re-grounded rather than silently masking a moved offender.
-
-    Resolves the composite key back to its live token_line (the second component
-    IS the tokenized source line) and asserts it still holds the selector. Also
-    cross-checks the seed file still produces that composite key, so a function
-    rename or code-line change is caught too.
+    Guards against allow-list rot: if the descriptor drifts off the
+    ``coord_branch or _current_branch`` fallback (e.g. the site is renamed or
+    the deferred ladder is finally retired), :func:`descriptor_still_live`
+    (exactly-one, key-equal) fails loudly so the allow-list is re-grounded
+    rather than silently masking a moved offender — a stale/ambiguous
+    descriptor RAISES rather than silently picking a candidate.
     """
-    rel_path, lineno = _ALLOW_LIST_SEED[0]
-    key = _composite_key_for_seed(rel_path, lineno)
-    _qualname, token_line = key
-    assert "coord_branch or _current_branch" in token_line, (
-        f"allow-listed {rel_path}:{lineno} no longer holds the deferred HEAD "
-        f"selector (got token_line {token_line!r}); re-ground the allow-list "
-        "against the current deferred S2 #1716 ladder line or remove the entry "
-        "if it was retired."
+    descriptor, seeded_key = _seed_and_key_for(
+        "src/specify_cli/coordination/status_transition.py"
     )
-    # The seed must still resolve to an allow-listed composite key (no drift off
-    # the function / code line).
-    assert key in _ALLOW_LIST, (
-        f"the seed {rel_path}:{lineno} composite key {key!r} is not in _ALLOW_LIST "
-        "— the seed and the derived allow-list are out of sync."
+    source = (_REPO_ROOT / descriptor.rel_path).read_text(encoding="utf-8")
+    assert descriptor_still_live(source, descriptor, seeded_key), (
+        f"WS#1 descriptor {descriptor!r} is no longer live — it no longer "
+        "resolves to exactly one finding equal to its seeded key; the deferred "
+        "#1716 HEAD selector may have moved, been renamed, or been retired. "
+        "Re-ground the allow-list or remove the entry if it was retired."
+    )
+    _rel_path, _qualname, token_line = seeded_key
+    assert "coord_branch or _current_branch" in token_line, (
+        f"allow-listed {descriptor.rel_path} ({descriptor.qualname}) no longer "
+        f"holds the deferred HEAD selector (got token_line {token_line!r})."
     )
 
 
 def test_checkout_head_selector_entry_is_still_a_live_finding() -> None:
-    """Staleness twin-guard for the tracked #2453 checkout-HEAD selector seed.
+    """Staleness twin-guard for the tracked #2453 checkout-HEAD selector descriptor.
 
-    The ``implement.py`` seed pins ``_status_commit_destination_branch``'s
+    The ``implement.py`` descriptor pins ``_status_commit_destination_branch``'s
     ``get_current_branch(repo_root) or fallback_branch`` prediction selector. If
-    that site is finally routed through the placement seam (or removed) the
-    ``checkout_head_selector`` grammar stops flagging it and this test fails
-    loudly — the fix is to DELETE the now-stale seed entry (shrink-only), never
-    to leave a vacuous allow-list rule masking nothing.
+    that site is finally routed through the placement seam (or removed),
+    :func:`descriptor_still_live` returns ``False`` (0 matches, or a
+    key-inequality) and this test fails loudly — the fix is to DELETE the
+    now-stale allow-list entry (shrink-only), never to leave a vacuous
+    allow-list rule masking nothing.
     """
-    rel_path = "src/specify_cli/cli/commands/implement.py"
-    module = _REPO_ROOT / rel_path
-    live = {
-        f.lineno for f in _scan_module(module) if f.kind == "checkout_head_selector"
-    }
-    seed_linenos = {
-        lineno for path, lineno in _ALLOW_LIST_SEED if path == rel_path
-    }
-    assert seed_linenos and seed_linenos <= live, (
-        f"{rel_path} checkout_head_selector seed {seed_linenos} no longer matches "
-        f"a live finding {live} — the site was routed through the seam (or "
-        "removed); DELETE the now-stale allow-list entry (shrink-only)."
+    descriptor, seeded_key = _seed_and_key_for(
+        "src/specify_cli/cli/commands/implement.py"
     )
-    # The pinned line really IS the get_current_branch HEAD selector.
-    (lineno,) = tuple(seed_linenos)
-    _qualname, token_line = _composite_key_for_seed(rel_path, lineno)
+    source = (_REPO_ROOT / descriptor.rel_path).read_text(encoding="utf-8")
+    assert descriptor_still_live(source, descriptor, seeded_key), (
+        f"{descriptor.rel_path} ({descriptor.qualname}) checkout_head_selector "
+        "descriptor no longer resolves to its seeded live finding — the site "
+        "was routed through the seam (or removed); DELETE the now-stale "
+        "allow-list entry (shrink-only)."
+    )
+    # The pinned finding really IS the get_current_branch HEAD selector.
+    _rel_path, _qualname, token_line = seeded_key
     assert "get_current_branch (" in token_line, (
-        f"allow-listed {rel_path}:{lineno} no longer holds the get_current_branch "
-        f"HEAD selector (got token_line {token_line!r})."
+        f"allow-listed {descriptor.rel_path} ({descriptor.qualname}) no longer "
+        f"holds the get_current_branch HEAD selector (got token_line {token_line!r})."
     )
 
 
@@ -490,9 +507,11 @@ class _CheckoutGrammarFinding:
     callee: str
     source: str
 
-    def as_allow_key(self) -> tuple[str, str]:
-        """The drift-proof ``(qualname, token_line)`` composite allow-list key."""
-        return composite_key(self.source, self.lineno)
+    def as_allow_key(self) -> CompositeKey:
+        """The drift-proof ``(rel_path, qualname, token_line)`` composite allow-list key."""
+        qualname, token_line = composite_key(self.source, self.lineno)
+        rel_path = self.path.relative_to(_REPO_ROOT).as_posix()
+        return (rel_path, qualname, token_line)
 
 
 def _checkout_grammar_callee_name(call: ast.Call) -> str | None:
@@ -631,79 +650,85 @@ def _scan_checkout_grammar_module(path: Path) -> list[_CheckoutGrammarFinding]:
     return _scan_checkout_grammar(path.read_text(encoding="utf-8"), path)
 
 
-#: Tracked-VISIBLE allow-list (squad H-1/H-4/L-2, contracts/ratchet-contract.md):
-#: every entry names a REAL, still-checkout-derived construction, each with an
-#: explicit rationale -- flagged VISIBLE, never silently ignored. ``tracked:
-#: #2453`` entries share the deferred read-site sweep bucket (D-1/C-003); the
-#: ``PERMANENT`` entry documents a construction that will never route through
-#: the MissionArtifactKind placement seam because it is not a placement
-#: decision at all.
-_CHECKOUT_GRAMMAR_ALLOW_LIST_SEED: tuple[tuple[str, int, str], ...] = (
-    # NOTE: the former src/specify_cli/orchestrator_api/commands.py:1452 entry
-    # (_resolve_history_commit_args' unresolvable-mission fallback) was
-    # DELETED (shrink-only ratchet) after read-surface-ssot-closeout FR-004:
-    # the ActionContextError catch now raises PlacementResolutionRequired
-    # (fail-closed) instead of constructing a CommitTarget(ref=current_branch)
-    # via 'git branch --show-current' -- there is no longer a checkout-grammar
-    # construction at that site.
-    (
-        "src/specify_cli/coordination/transaction.py",
-        1070,
-        "tracked: #2453 - BookkeepingTransaction.commit()'s legacy-mission "
-        "override (_resolve_legacy_lane_destination reads the lane worktree's "
-        "HEAD) constructs CommitTarget(ref=self.destination_ref) for "
-        "pre-coordination-topology missions; deferred to the #2453 sweep.",
+#: Tracked-VISIBLE content-descriptor allow-list (squad H-1/H-4/L-2,
+#: contracts/ratchet-contract.md; re-keyed onto content descriptors by
+#: #2469 WP02/WP03): every entry names a REAL, still-checkout-derived
+#: construction, each with an explicit rationale -- flagged VISIBLE, never
+#: silently ignored. ``tracked: #2453`` entries share the deferred read-site
+#: sweep bucket (D-1/C-003); the ``PERMANENT`` entry documents a construction
+#: that will never route through the MissionArtifactKind placement seam
+#: because it is not a placement decision at all.
+#:
+#: NOTE: the former ``orchestrator_api/commands.py``
+#: ``_resolve_history_commit_args`` unresolvable-mission-fallback entry was
+#: DELETED (shrink-only ratchet) after read-surface-ssot-closeout FR-004: the
+#: ``ActionContextError`` catch now raises ``PlacementResolutionRequired``
+#: (fail-closed) instead of constructing a ``CommitTarget(ref=current_branch)``
+#: via ``git branch --show-current`` -- there is no longer a checkout-grammar
+#: construction at that site.
+_CHECKOUT_GRAMMAR_ALLOW_LIST_SEED: tuple[ContentDescriptor, ...] = (
+    ContentDescriptor(
+        rel_path="src/specify_cli/coordination/transaction.py",
+        qualname="BookkeepingTransaction.commit",
+        token_substring="CommitTarget ( ref = self . destination_ref )",
+        occurrence=None,
+        rationale=(
+            "tracked: #2453 - BookkeepingTransaction.commit()'s legacy-mission "
+            "override (_resolve_legacy_lane_destination reads the lane "
+            "worktree's HEAD) constructs CommitTarget(ref=self.destination_ref) "
+            "for pre-coordination-topology missions; deferred to the #2453 "
+            "sweep."
+        ),
     ),
-    (
-        "src/specify_cli/cli/commands/agent/tasks_map_requirements.py",
-        177,
-        "tracked: #2453 - st.target_branch is the "
-        "_ensure_target_branch_checked_out current-checkout branch, not the "
-        "seam-resolved placement; deferred to the #2453 sweep (this call "
-        "predates the STATUS_STATE routing WP05 added elsewhere in this "
-        "module).",
+    ContentDescriptor(
+        rel_path="src/specify_cli/cli/commands/agent/tasks_map_requirements.py",
+        qualname="_mr_resolve_context",
+        token_substring="CommitTarget ( ref = st . target_branch )",
+        occurrence=None,
+        rationale=(
+            "tracked: #2453 - st.target_branch is the "
+            "_ensure_target_branch_checked_out current-checkout branch, not "
+            "the seam-resolved placement; deferred to the #2453 sweep (this "
+            "call predates the STATUS_STATE routing WP05 added elsewhere in "
+            "this module)."
+        ),
     ),
-    (
-        "src/specify_cli/cli/commands/agent/workflow.py",
-        592,
-        "tracked: #2453 - _commit_via_legacy_safe_commit's target_branch "
-        "parameter is a pre-coordination-topology legacy mission's "
-        "checked-out branch; same deferred bucket as the other #2453 "
-        "residuals. post-merge re-anchor (coord-primary-partition-lock "
-        "aggregate landing): cumulative cross-lane line drift shifted this "
-        "524 -> 523 (same construction, verified by re-scan). WP02 "
-        "(coord-authority-trio-degod-01KX7094) re-anchor: the #2508 fix "
-        "(PRIMARY_METADATA read) plus the T009/T010 ImplementRequest/"
-        "ReviewRequest wiring added lines ahead of this site, shifting "
-        "557 -> 591 -> 593; same construction, verified by re-scan. WP05 "
-        "(coord-authority-trio-degod-01KX7094) re-anchor: removing the dead "
-        "KITTY_SPECS_DIR import (T027 seam-only gate campsite cleanup) "
-        "shifted this 593 -> 592; same construction, verified by re-scan.",
+    ContentDescriptor(
+        rel_path="src/specify_cli/cli/commands/agent/workflow.py",
+        qualname="_commit_via_legacy_safe_commit",
+        token_substring="CommitTarget ( ref = target_branch )",
+        occurrence=None,
+        rationale=(
+            "tracked: #2453 - _commit_via_legacy_safe_commit's target_branch "
+            "parameter is a pre-coordination-topology legacy mission's "
+            "checked-out branch; same deferred bucket as the other #2453 "
+            "residuals."
+        ),
     ),
-    (
-        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
-        455,
-        "PERMANENT: _mt_commit_lane_deliverables commits arbitrary "
-        "implementer deliverables onto the LANE's own branch "
-        "(workspace.branch_name) -- not a MissionArtifactKind placement "
-        "decision; the lane branch is fixed by lane allocation, never "
-        "resolved via the placement seam. Out of IC-04 scope. Line drift "
-        "454 -> 455 from #2450 WP04 (ScopeResult.from_override extraction "
-        "in _mt_pre_review_gate_with_override_scope); same construction, "
-        "verified by re-scan.",
+    ContentDescriptor(
+        rel_path="src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        qualname="_mt_commit_lane_deliverables",
+        token_substring="CommitTarget ( ref = workspace . branch_name )",
+        occurrence=None,
+        rationale=(
+            "PERMANENT: _mt_commit_lane_deliverables commits arbitrary "
+            "implementer deliverables onto the LANE's own branch "
+            "(workspace.branch_name) -- not a MissionArtifactKind placement "
+            "decision; the lane branch is fixed by lane allocation, never "
+            "resolved via the placement seam. Out of IC-04 scope."
+        ),
     ),
 )
 
+#: Composite key resolved LIVE for each ``_CHECKOUT_GRAMMAR_ALLOW_LIST_SEED``
+#: entry (parallel, order-preserving with the seed tuple).
+_CHECKOUT_GRAMMAR_ALLOW_LIST_KEYS: tuple[CompositeKey, ...] = tuple(
+    resolve_descriptor((_REPO_ROOT / descriptor.rel_path).read_text(encoding="utf-8"), descriptor)
+    for descriptor in _CHECKOUT_GRAMMAR_ALLOW_LIST_SEED
+)
 
-def _checkout_grammar_composite_key_for_seed(rel_path: str, lineno: int) -> tuple[str, str]:
-    """Derive the composite key for a checkout-grammar seed entry from live source."""
-    source = (_REPO_ROOT / rel_path).read_text(encoding="utf-8")
-    return composite_key(source, lineno)
-
-
-_CHECKOUT_GRAMMAR_ALLOW_LIST: frozenset[tuple[str, str]] = frozenset(
-    _checkout_grammar_composite_key_for_seed(rel_path, lineno)
-    for rel_path, lineno, _rationale in _CHECKOUT_GRAMMAR_ALLOW_LIST_SEED
+_CHECKOUT_GRAMMAR_ALLOW_LIST: frozenset[CompositeKey] = frozenset(
+    _CHECKOUT_GRAMMAR_ALLOW_LIST_KEYS
 )
 
 
@@ -759,20 +784,24 @@ def test_adopted_and_residual_modules_have_no_checkout_derived_commit_target() -
 
 
 def test_checkout_grammar_allow_list_entries_are_still_live() -> None:
-    """Staleness twin-guard: every seeded entry still matches a REAL live finding.
+    """Staleness twin-guard: every seeded descriptor still resolves to its live finding.
 
     If a residual site is finally routed through the seam,
-    ``_scan_checkout_grammar`` stops flagging it and this test fails loudly —
-    the fix is to DELETE the now-stale seed entry (shrink-only governance),
-    never to leave a vacuous allow-list rule masking nothing.
+    :func:`descriptor_still_live` returns ``False`` (the descriptor resolves to
+    zero matches, or to a different key) and this test fails loudly — the fix
+    is to DELETE the now-stale seed entry (shrink-only governance), never to
+    leave a vacuous allow-list rule masking nothing. Exactly-one + key-equal:
+    NEVER "≥1 finding matches" (D-1 bite hole).
     """
-    for rel_path, lineno, _rationale in _CHECKOUT_GRAMMAR_ALLOW_LIST_SEED:
-        module = _REPO_ROOT / rel_path
-        live_linenos = {f.lineno for f in _scan_checkout_grammar_module(module)}
-        assert lineno in live_linenos, (
-            f"{rel_path}:{lineno} no longer produces a checkout-grammar finding "
-            "— the site was routed through the seam (or removed); DELETE this "
-            "now-stale allow-list entry (shrink-only, never leave a vacuous rule)."
+    for descriptor, seeded_key in zip(
+        _CHECKOUT_GRAMMAR_ALLOW_LIST_SEED, _CHECKOUT_GRAMMAR_ALLOW_LIST_KEYS, strict=True
+    ):
+        source = (_REPO_ROOT / descriptor.rel_path).read_text(encoding="utf-8")
+        assert descriptor_still_live(source, descriptor, seeded_key), (
+            f"{descriptor.rel_path} ({descriptor.qualname}) no longer resolves "
+            "to its seeded live checkout-grammar finding — the site was routed "
+            "through the seam (or removed); DELETE this now-stale allow-list "
+            "entry (shrink-only, never leave a vacuous rule)."
         )
 
 
@@ -869,4 +898,127 @@ def test_checkout_grammar_ignores_prose_quoting_the_pattern() -> None:
     )
     assert (
         _scan_checkout_grammar(fixture_source, _SRC / "core" / "mission_creation.py") == []
+    )
+
+
+# ===========================================================================
+# T015 (WP03 / FR-013, NFR-001/002) — plant-and-catch + motion battery.
+# ===========================================================================
+#
+# Proves the content-descriptor migration (WP02/WP03) actually delivers what
+# it promises: (1) benign line-drift above a migrated site never false-reds
+# (the motion battery); (2) a genuinely new, un-allowlisted offender is never
+# silently absorbed (the bite); (3) the D-1 same-qualname-sibling trap -- a
+# NEW un-sanctioned offender landing in the SAME qualname with the SAME
+# token line as a sanctioned site -- is caught by the exactly-one semantics,
+# never masked by a naive "≥1 finding matches" staleness check.
+
+
+def test_motion_battery_blank_and_comment_insertion_stays_green() -> None:
+    """FR-013 / NFR-001/002 motion battery: benign insertion above a migrated
+    site leaves ``descriptor_still_live`` GREEN.
+
+    A blank line, a comment line, and a multi-line docstring inserted ABOVE a
+    migrated site all shift its line number, but the descriptor's
+    ``(qualname, token_substring)`` resolution is unaffected -- content
+    descriptors are qualname + tokenized-code-line addressed, never
+    line-number addressed (the whole point of the WP02/WP03 migration; #2072).
+    """
+    descriptor = ContentDescriptor(
+        rel_path="fixture.py",
+        qualname="_adopted_write_site",
+        token_substring="coord_branch or _current_branch",
+        occurrence=None,
+        rationale="motion-battery fixture",
+    )
+    base_source = (
+        "def _adopted_write_site(coord_branch, repo_root):\n"
+        "    return coord_branch or _current_branch(repo_root)\n"
+    )
+    seeded_key = resolve_descriptor(base_source, descriptor)
+
+    motions = (
+        "\n",  # a blank line
+        "    # a comment line inserted above the site\n",
+        '    """A multi-line docstring inserted above the site.\n\n'
+        '    More prose describing unrelated behavior.\n    """\n',
+    )
+    for motion in motions:
+        drifted_source = (
+            "def _adopted_write_site(coord_branch, repo_root):\n"
+            f"{motion}"
+            "    return coord_branch or _current_branch(repo_root)\n"
+        )
+        assert descriptor_still_live(drifted_source, descriptor, seeded_key), (
+            f"motion battery false-red: benign insertion {motion!r} above the "
+            "migrated site flipped the gate -- content descriptors must be "
+            "immune to line drift caused by benign insertions."
+        )
+
+
+def test_bite_unallowlisted_rederivation_is_not_absorbed_by_the_allow_list() -> None:
+    """T015 bite: a planted, un-allowlisted re-derivation is NOT excused.
+
+    Distinct from ``test_ratchet_bites_on_planted_rederivation`` (which only
+    proves the scanner FLAGS the pattern): this proves the flagged finding's
+    composite allow-key is NOT a member of ``_ALLOW_LIST`` -- planting a new
+    offender in a qualname that carries no seeded descriptor produces a
+    finding the ratchet would reject, never one silently absorbed by an
+    existing allow-list entry.
+    """
+    fixture_source = (
+        "def _new_unsanctioned_write_site(coord_branch, repo_root):\n"
+        "    return coord_branch or _current_branch(repo_root)\n"
+    )
+    findings = _scan_source(
+        fixture_source, _SRC / "coordination" / "status_transition.py"
+    )
+    offending = [f for f in findings if f.kind == "write_target_head_selector"]
+    assert offending, "the bite fixture must actually plant a flagged finding"
+    for finding in offending:
+        assert finding.as_allow_key() not in _ALLOW_LIST, (
+            f"planted un-allowlisted finding {finding.as_allow_key()!r} was "
+            "absorbed by the allow-list -- a fresh qualname must never "
+            "collide with a real seeded descriptor."
+        )
+
+
+def test_same_qualname_sibling_offender_reds_the_twin_guard() -> None:
+    """T015 D-1 same-qualname-sibling bite: a new sibling offender REDS, never silently absorbed.
+
+    research.md's D-1 bite hole: a naive "≥1 finding matches" staleness check
+    would stay GREEN even after a NEW un-sanctioned offender lands in the SAME
+    qualname with the SAME token line as the sanctioned site -- silently
+    absorbing (masking) the new offender under cover of the pre-existing
+    allow-list entry. The exactly-one ``resolve_descriptor`` semantics instead
+    RED the moment a second candidate appears in that qualname (a
+    ``DescriptorResolutionError`` that :func:`descriptor_still_live` turns
+    into ``False``), proving the sibling is NOT absorbed.
+    """
+    descriptor = ContentDescriptor(
+        rel_path="fixture.py",
+        qualname="_resolve_write_target",
+        token_substring="coord_branch or _current_branch",
+        occurrence=None,
+        rationale="D-1 same-qualname-sibling fixture",
+    )
+    sanctioned_source = (
+        "def _resolve_write_target(coord_branch, repo_root):\n"
+        "    return coord_branch or _current_branch(repo_root)\n"
+    )
+    seeded_key = resolve_descriptor(sanctioned_source, descriptor)
+
+    # A second, un-sanctioned offender lands in the SAME qualname with the
+    # SAME token line (e.g. a copy-pasted duplicate branch) -- exactly the D-1
+    # shape: the sanctioned site is still there, but it is no longer alone.
+    sibling_source = (
+        "def _resolve_write_target(coord_branch, repo_root):\n"
+        "    if repo_root is None:\n"
+        "        return coord_branch or _current_branch(repo_root)\n"
+        "    return coord_branch or _current_branch(repo_root)\n"
+    )
+    assert not descriptor_still_live(sibling_source, descriptor, seeded_key), (
+        "D-1 bite hole: a same-qualname sibling offender with an identical "
+        "token line was silently absorbed instead of reding the twin-guard -- "
+        "the resolver must require exactly-one, never '≥1 finding matches'."
     )
