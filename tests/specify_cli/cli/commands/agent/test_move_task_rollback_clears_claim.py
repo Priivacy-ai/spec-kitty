@@ -108,15 +108,9 @@ def _run_persist_wp_file(
     ports = MagicMock()
     ports.coord.commit_artifact.return_value = MagicMock(status="committed")
 
-    with (
-        patch(
-            "specify_cli.cli.commands.agent.tasks_move_task.write_text_within_directory",
-            side_effect=lambda path, content, **_: path.write_text(content, encoding="utf-8"),
-        ),
-        patch(
-            "specify_cli.cli.commands.agent.tasks._tasks",
-            create=True,
-        ),
+    with patch(
+        "specify_cli.cli.commands.agent.tasks_move_task.write_text_within_directory",
+        side_effect=lambda path, content, **_: path.write_text(content, encoding="utf-8"),
     ):
         _mt_persist_wp_file(st, ports)
 

@@ -721,6 +721,11 @@ def _seed_wp_approved(feature_dir: Path, mission_slug: str, wp_id: str) -> None:
         )
     )
     for to_lane in ("claimed", "in_progress", "for_review", "in_review"):
+        # Post-#2160 the ``in_progress -> for_review`` gate is fail-closed and
+        # requires completed subtasks or force+reason. This helper manufactures
+        # a terminal ``approved`` state for a merge/persistence test — it is not
+        # exercising the subtask gate — so the gating hop is seeded with force.
+        gating = to_lane == "for_review"
         emit_status_transition(
             TransitionRequest(
                 feature_dir=feature_dir,
@@ -728,6 +733,8 @@ def _seed_wp_approved(feature_dir: Path, mission_slug: str, wp_id: str) -> None:
                 wp_id=wp_id,
                 to_lane=to_lane,
                 actor="seed",
+                force=gating,
+                reason="seed: manufacture reviewable state" if gating else None,
             )
         )
     emit_status_transition(
