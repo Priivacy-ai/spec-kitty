@@ -76,6 +76,30 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **Implement-loop friction quick-wins (#2581, #2573, #2549, #2577).** Four independent
+  loop-friction fixes: `mission create` / `spec-kitty specify` now derive the create-time
+  topology from context — a non-primary feature branch without `--pr-bound` defaults to
+  `single_branch` instead of minting a coordination branch the operator must manually flatten
+  (primary branch, `--pr-bound`, and explicit `--topology` still default to `coord`);
+  `move-task --to for_review` gains a `--skip-pre-review-gate` flag, honors the
+  `SPEC_KITTY_SYNC_DISABLE` / `SPEC_KITTY_SYNC_MINIMAL_IMPORT` disable env, and surfaces a
+  progress notice so the scoped-test gate no longer reads as a hang (the full async redesign
+  stays deferred on #2573); `finalize-tasks --json` reports per-branch commit hashes
+  (`commit_hashes`) for the two-branch coord-topology commit set instead of a single
+  `commit_hash` that omitted the coordination-branch commit (#2549 facet B; facet A deferred);
+  and `charter synthesize` no longer fails closed on an empty/first-run config demanding a
+  companion tactic for every built-in directive — first-run parity restored (#2526 regression).
+
+- **Coord-shadows follow-ups: canonical-source consolidation + gate/liveness robustness
+  (#2574, #2575, #2576, #2567, #2568).** The triplicated subtask-gate-dir resolver is unified
+  onto one `resolve_subtasks_gate_dir` seam with the strong git-ancestry fallback (the weak
+  `status_transition` site no longer reads a stale coordination husk); `core/process_liveness`
+  guards against PID reuse via a persisted creation-time baseline co-written at every claim site
+  (a recycled PID no longer reads as a live claim); the rollback-uncheck write routes through the
+  house path-guard and surfaces failures instead of silently leaving checked rows; the acceptance
+  gate's stray checkbox parser is migrated onto the canonical `core/subtask_rows`; and the review
+  lock folds onto the canonical `is_process_alive` (last stray `os.kill` liveness probe removed).
+
 - **Coord-shadows-primary read/gate arm closed (#2502, #2504, #2510, #2512, #2513, #1231).**
   The `for_review` subtask gate no longer fails open: `_infer_subtasks_complete` reads the
   PRIMARY planning surface at every emit-layer caller and blocks on unchecked rows on both the
