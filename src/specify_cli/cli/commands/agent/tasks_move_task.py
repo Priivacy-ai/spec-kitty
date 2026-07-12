@@ -201,6 +201,13 @@ class _MoveTaskState:
     # --- phase E/F: emit + persist ---
     event: StatusEvent | None = None
     final_hop_actor: str | None = None
+    # --- phase G: rollback-uncheck (out-of-lock, #2576) ---
+    # Set when the read/write half of ``_mt_uncheck_rollback_subtasks`` fails
+    # so the failure is SURFACED (result envelope + error log) instead of
+    # silently leaving ``- [x]`` rows on a WP rolled back to ``planned``
+    # (#2513 could otherwise re-manifest without any signal). ``None`` means
+    # either the uncheck succeeded or there was nothing to uncheck.
+    rollback_uncheck_error: str | None = None
 
 
 # --- phase A: resolve targets (I/O) -----------------------------------------
@@ -1484,8 +1491,22 @@ def _mt_uncheck_rollback_subtasks(st: _MoveTaskState, ports: TasksPorts) -> None
     (same anchor as the subtask gate and ``mark-status``).  Auto-commit
     follows the same ``commit_artifact`` route used by ``mark-status``.
 
-    Failures are non-fatal (logged, never ``typer.Exit``): a missing
-    ``tasks.md`` is silently skipped; commit failures are warnings.
+    This runs OUT-OF-LOCK by design (C-001): it must not hold
+    ``feature_status_lock`` while it performs its own commit, and a bare
+    uncaught exception here would skip ``_mt_release_review_lock`` (D2
+    ordering in ``_mt_execute``). So the two failure modes are handled
+    differently and MUST NOT be merged into one handler:
+
+    - Read/write failure (#2576): would leave stale ``- [x]`` rows on a
+      ``planned`` WP *without any signal* — the exact silent re-manifestation
+      of #2513 this WP closes. Caught, routed through
+      ``write_text_within_directory`` (house guard), and SURFACED on
+      ``st.rollback_uncheck_error`` (never swallowed) plus an error-level log
+      line, but never re-raised — the caller must still reach
+      ``_mt_release_review_lock``.
+    - Commit failure: the uncheck already landed on disk; only the auto-commit
+      bookkeeping failed. Logged as a warning and swallowed — matches the
+      pre-existing (#2513) behavior for this leg.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
     handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug)
@@ -1493,11 +1514,26 @@ def _mt_uncheck_rollback_subtasks(st: _MoveTaskState, ports: TasksPorts) -> None
     tasks_md = feature_dir / TASKS_MD_FILENAME
     if not tasks_md.exists():
         return
-    original = tasks_md.read_text(encoding="utf-8")
-    updated = uncheck_wp_section_subtask_rows(original, st.task_id)
-    if updated == original:
-        return  # nothing to uncheck — no write, no commit
-    tasks_md.write_text(updated, encoding="utf-8")
+    try:
+        original = tasks_md.read_text(encoding="utf-8")
+        updated = uncheck_wp_section_subtask_rows(original, st.task_id)
+        if updated == original:
+            return  # nothing to uncheck — no write, no commit
+        write_text_within_directory(tasks_md, updated, root=feature_dir, encoding="utf-8")
+    except Exception as exc:
+        # #2576: SEPARATE from the commit-failure handler below — this one
+        # must be recorded on state, not swallowed, or a WP rolled back to
+        # ``planned`` can silently keep its subtask rows checked (#2513).
+        st.rollback_uncheck_error = str(exc)
+        logging.getLogger(__name__).error(
+            "Failed to uncheck subtask rows for %s in %s — rollback to "
+            "planned left tasks.md unchanged (stale checked rows, #2513 "
+            "risk): %s",
+            st.task_id,
+            st.mission_slug,
+            exc,
+        )
+        return
     if not st.resolved_auto_commit:
         return
     spec_number = st.mission_slug.split("-")[0] if "-" in st.mission_slug else st.mission_slug
@@ -1631,6 +1667,13 @@ def _mt_output(st: _MoveTaskState) -> None:
         result["review_feedback"] = st.review_feedback_pointer
     if st.pre_review_gate_metadata is not None:
         result["pre_review_gate"] = st.pre_review_gate_metadata
+    if st.rollback_uncheck_error is not None:
+        # #2576: a failed rollback-uncheck write must be visible in the
+        # command result, not just the log — the caller (or a human reading
+        # ``--json`` output) needs to know tasks.md may still have stale
+        # ``- [x]`` rows for this WP.
+        result["rollback_uncheck_failed"] = True
+        result["rollback_uncheck_error"] = st.rollback_uncheck_error
     _tasks._output_result(
         st.json_output,
         result,
