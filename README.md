@@ -208,7 +208,7 @@ See the [Contributing guide](docs/guides/contributing.md) for contribution guide
 
 The `drift-detector` required check protects the shared identity-boundary
 contract across Spec Kitty repos. Contributor and admin details live in
-[Identity-Boundary CI Gate](docs/development/identity-boundary-ci-gate.md).
+[Identity-Boundary CI Gate](docs/operations/identity-boundary-ci-gate.md).
 
 ## Support
 
