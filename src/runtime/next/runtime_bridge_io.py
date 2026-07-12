@@ -80,7 +80,7 @@ import os
 import re
 import shutil
 import tempfile
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, TypedDict
@@ -174,16 +174,53 @@ def save_feature_runs(path: Path, index: dict[str, _FeatureRunEntry]) -> None:
 
 
 def _mission_key_for_run_ref(run_ref: MissionRunRef, default: str) -> str:
-    """Read the mission key from the run ref."""
-    mission_key = run_ref.mission_key
+    """Read the mission key from either runtime field name."""
+    mission_key = getattr(run_ref, "mission_key", None)
     if isinstance(mission_key, str) and mission_key.strip():
         return mission_key
+    mission_type = getattr(run_ref, "mission_type", None)
+    if isinstance(mission_type, str) and mission_type.strip():
+        return mission_type
     return default
 
 
-def _build_run_ref(*, run_id: str, run_dir: str, mission_type: str) -> MissionRunRef:
-    """Construct MissionRunRef."""
-    return MissionRunRef(run_id=run_id, run_dir=run_dir, mission_key=mission_type)
+def _build_run_ref(
+    *,
+    run_id: str,
+    run_dir: str,
+    mission_type: str,
+    run_ref_cls: Callable[..., MissionRunRef] = MissionRunRef,
+) -> MissionRunRef:
+    """Construct MissionRunRef across runtime versions.
+
+    ``run_ref_cls`` defaults to this module's own :class:`MissionRunRef` import
+    but callers (notably the ``runtime_bridge._build_run_ref`` compat delegate)
+    pass their own module-level binding through explicitly. This is load-bearing:
+    ``tests/next/test_runtime_bridge_unit.py::
+    test_build_run_ref_falls_back_when_runtime_uses_mission_type`` monkeypatches
+    ``runtime_bridge.MissionRunRef`` to a fake class and expects the delegate to
+    honor that substitution rather than closing over this module's own import.
+
+    Typed as ``Callable[..., MissionRunRef]`` rather than ``type[MissionRunRef]``
+    deliberately: the ``except TypeError`` fallback below calls it with a
+    ``mission_type=`` keyword that the *current* ``MissionRunRef`` field
+    (``mission_key``) does not accept — that branch exists for legacy/fake
+    run-ref constructors from other runtime versions (see the test above), so
+    pinning the parameter to the exact present-day field shape would make
+    mypy correctly reject a call this function must support duck-typed.
+    """
+    try:
+        return run_ref_cls(
+            run_id=run_id,
+            run_dir=run_dir,
+            mission_key=mission_type,
+        )
+    except TypeError:
+        return run_ref_cls(
+            run_id=run_id,
+            run_dir=run_dir,
+            mission_type=mission_type,
+        )
 
 
 # ---------------------------------------------------------------------------

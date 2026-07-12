@@ -89,7 +89,16 @@ from runtime.next import runtime_bridge_cores as _cores
 from runtime.next import runtime_bridge_engine as _engine_adapter
 from runtime.next import runtime_bridge_io as _io_seam
 
-logger = logging.getLogger(__name__)
+
+# Hardcoded (not ``__name__``) is deliberate: before #2531 WP08 moved this
+# cluster out of ``runtime_bridge.py``, its INFO/exception logging carried the
+# ``runtime.next.runtime_bridge`` logger identity. Operator triage tooling and
+# ``tests/specify_cli/next/test_runtime_bridge_composition.py`` (FR-008) key
+# off that exact logger name; letting it drift to
+# ``runtime.next.runtime_bridge_composition`` via ``__name__`` silently breaks
+# both, since a differently-named logger's effective level is not raised by
+# ``caplog.at_level(logging.INFO, logger="runtime.next.runtime_bridge")``.
+logger = logging.getLogger("runtime.next.runtime_bridge")
 
 # Duplicated from runtime_bridge.py (same precedent as runtime_bridge_io.py's
 # own KITTIFY_DIR — see that module's docstring): a top-level import of the
