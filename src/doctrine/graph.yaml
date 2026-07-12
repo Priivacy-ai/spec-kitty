@@ -244,6 +244,9 @@ nodes:
 - urn: procedure:bdd-scenario-lifecycle
   kind: procedure
   label: BDD Scenario Lifecycle
+- urn: procedure:development-assist-test-cleanup
+  kind: procedure
+  label: Development-Assist Test Cleanup
 - urn: procedure:disciplined-defect-diagnosis
   kind: procedure
   label: Disciplined Defect Diagnosis
@@ -1925,6 +1928,18 @@ edges:
 - source: procedure:bdd-scenario-lifecycle
   target: tactic:behavior-driven-development
   relation: requires
+- source: procedure:development-assist-test-cleanup
+  target: directive:DIRECTIVE_025
+  relation: requires
+- source: procedure:development-assist-test-cleanup
+  target: directive:DIRECTIVE_041
+  relation: requires
+- source: procedure:development-assist-test-cleanup
+  target: procedure:mission-tracer-files
+  relation: requires
+- source: procedure:development-assist-test-cleanup
+  target: tactic:delete-the-assertion-not-the-test
+  relation: requires
 - source: procedure:disciplined-defect-diagnosis
   target: directive:DIRECTIVE_030
   relation: requires
@@ -2044,6 +2059,9 @@ edges:
   relation: requires
 - source: procedure:mission-wrap-up-sequence
   target: procedure:adversarial-squad-deployment
+  relation: requires
+- source: procedure:mission-wrap-up-sequence
+  target: procedure:development-assist-test-cleanup
   relation: requires
 - source: procedure:mission-wrap-up-sequence
   target: procedure:mission-tracer-files
