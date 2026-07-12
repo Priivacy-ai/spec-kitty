@@ -92,6 +92,7 @@ from specify_cli.core.paths import is_worktree_context
 from specify_cli.core.subtask_rows import uncheck_wp_section_subtask_rows
 from specify_cli.core.utils import write_text_within_directory
 from specify_cli.core.vcs.git import merge_base_changed_files
+from specify_cli.frontmatter import write_shell_pid_claim
 from specify_cli.git import SafeCommitPathPolicyError
 from specify_cli.missions._read_path_resolver import (
     _canonicalize_primary_read_handle,
@@ -1347,6 +1348,74 @@ def _mt_wp_commit_success_message(st: _MoveTaskState, status_placement_ref: str 
     return message
 
 
+def _write_wp_fallback(st: _MoveTaskState, wp_path: Path, updated_doc: str) -> None:
+    """Shared WP-file fallback write (T025 campsite, S1192).
+
+    The write+encoding pair recurred 3x across the split write/commit-recovery
+    paths (:func:`_mt_write_and_commit_wp_file`'s primary write and
+    :func:`_mt_commit_wp_file`'s two exception-recovery legs) — hoisted to the
+    one call site rather than left duplicated three times.
+    """
+    write_text_within_directory(
+        wp_path, updated_doc, root=st.main_repo_root, encoding=_WP_FILE_WRITE_ENCODING
+    )
+
+
+def _mt_untracked_planning_artifact_paths(st: _MoveTaskState, wp_path: Path) -> tuple[Path, ...]:
+    """T025 / FR-010 (#2555.1): discover OTHER untracked-on-primary planning
+    artifacts via WP01's canonical :func:`resolve_planning_artifact_staging`
+    seam, so they land on the resolved primary/coord authority surface in the
+    SAME ``commit_artifact`` call as the WP file — instead of being left dirty
+    for a lane-branch commit to (wrongly) pick up and trip
+    ``commit_guard.block_mission_specs`` (the manual ``git restore`` recovery
+    this closes). K-7: reuses the ONE staging-decision core; does not fork a
+    parallel move-task recovery.
+
+    Best-effort and additive: any resolution failure or a structural
+    (delete/rename) diff returns no extra paths, so this staging leg can never
+    become a NEW way for the WP-file transition itself to fail (mirrors
+    :func:`_mt_resolve_status_placement_ref`'s degrade-never-crash discipline).
+    *wp_path* is excluded from the result — it is already the router call's
+    explicit primary argument, never duplicated here.
+    """
+    from specify_cli.cli.commands.implement import (
+        _feature_dir_file_paths,
+        _planning_artifact_source_dir,
+        _resolve_bookkeeping_transaction_identifiers,
+    )
+    from specify_cli.cli.commands.implement_cores import resolve_planning_artifact_staging
+
+    try:
+        artifact_source_dir = _planning_artifact_source_dir(
+            st.main_repo_root, st.feature_dir, st.mission_slug
+        )
+        coord_branch_for_filter = _resolve_bookkeeping_transaction_identifiers(
+            st.feature_dir, st.mission_slug, st.main_repo_root
+        )[0]
+        extra_file_paths = (
+            _feature_dir_file_paths(st.main_repo_root, artifact_source_dir)
+            if coord_branch_for_filter
+            else []
+        )
+        plan = resolve_planning_artifact_staging(
+            st.main_repo_root,
+            artifact_source_dir,
+            coord_branch_for_filter,
+            extra_file_paths,
+            auto_commit=st.resolved_auto_commit,
+        )
+    except Exception:
+        return ()
+    if plan.structural:
+        return ()
+    wp_rel = wp_path.resolve()
+    return tuple(
+        resolved
+        for rel in plan.files_to_commit
+        if (resolved := (st.main_repo_root / rel).resolve()) != wp_rel
+    )
+
+
 def _mt_write_and_commit_wp_file(
     st: _MoveTaskState,
     ports: TasksPorts,
@@ -1367,6 +1436,11 @@ def _mt_write_and_commit_wp_file(
     ``WORK_PACKAGE_TASK`` commit; the coord-owned status files are already
     committed to the coordination branch by the transactional emitter.
 
+    T025 (FR-010 / #2555.1): ALSO bundle any other untracked-on-primary
+    planning artifacts (:func:`_mt_untracked_planning_artifact_paths`) into
+    this SAME router-routed commit — the authority path — so the lane branch
+    is never asked to commit ``kitty-specs/``.
+
     Returns:
         ``(file_written, commit_success, router_result, status_placement_ref)``.
     """
@@ -1386,21 +1460,20 @@ def _mt_write_and_commit_wp_file(
             )
         return False, False, None, status_placement_ref
 
-    write_text_within_directory(
-        wp.path, updated_doc, root=st.main_repo_root, encoding=_WP_FILE_WRITE_ENCODING
-    )
+    _write_wp_fallback(st, wp.path, updated_doc)
     status_artifacts = _tasks._primary_bundle_status_artifacts(
         st.main_repo_root,
         st.mission_slug,
         _collect_status_artifacts(st.feature_dir),
     )
+    extra_planning_artifacts = _mt_untracked_planning_artifact_paths(st, wp.path)
     # The WP file is WORK_PACKAGE_TASK (primary): route the commit through
     # the coord WRITE ``commit_artifact`` capability (over the ONE canonical
     # ``commit_for_mission`` entry point). The router owns placement
     # resolution AND the protected-primary refusal.
     router_result = ports.coord.commit_artifact(
         MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug),
-        (wp.path.resolve(), *status_artifacts),
+        (wp.path.resolve(), *status_artifacts, *extra_planning_artifacts),
         commit_msg,
         kind=MissionArtifactKind.WORK_PACKAGE_TASK,
         policy=_tasks.ProtectionPolicy.resolve(st.main_repo_root),
@@ -1450,15 +1523,11 @@ def _mt_commit_wp_file(
     except SafeCommitPathPolicyError:
         # #2155: a wrong-surface guard refusal is a real defect — re-raise, never hide.
         if not file_written:
-            write_text_within_directory(
-                wp.path, updated_doc, root=st.main_repo_root, encoding=_WP_FILE_WRITE_ENCODING
-            )
+            _write_wp_fallback(st, wp.path, updated_doc)
         raise
     except Exception as e:
         if not file_written:
-            write_text_within_directory(
-                wp.path, updated_doc, root=st.main_repo_root, encoding=_WP_FILE_WRITE_ENCODING
-            )
+            _write_wp_fallback(st, wp.path, updated_doc)
         if not st.json_output:
             _tasks.console.print(f"[yellow]Warning:[/yellow] Auto-commit skipped: {e}")
 
@@ -1521,7 +1590,12 @@ def _mt_persist_wp_file(st: _MoveTaskState, ports: TasksPorts) -> None:
     if st.agent:
         updated_front = set_scalar(updated_front, "agent", st.agent)
     if st.shell_pid:
-        updated_front = set_scalar(updated_front, "shell_pid", st.shell_pid)
+        # #2580: the ONE canonical claim-write helper (frontmatter.py) so
+        # ``shell_pid`` is never written without its PID-reuse baseline
+        # (``shell_pid_created_at``) — the same symbol WP01 designates and
+        # ``workflow_executor.py`` already routes through. Closes the 4th
+        # divergent writer this bare ``set_scalar`` call was.
+        updated_front = write_shell_pid_claim(updated_front, int(st.shell_pid))
     timestamp = datetime.now(UTC).strftime(_tasks.UTC_SECOND_TIMESTAMP_FORMAT)
     agent_name = st.final_hop_actor or "unknown"
     shell_pid_val = st.shell_pid or extract_scalar(updated_front, "shell_pid") or ""

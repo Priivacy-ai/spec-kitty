@@ -201,6 +201,11 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 56 symbols (#2513/#216
     "_mt_resolve_status_placement_ref",
     "_mt_write_and_commit_wp_file",
     "_mt_wp_commit_success_message",
+    # WP07 (loop-friction-quickwins-2-01KXBWA4, T025, FR-010/#2555.1): the
+    # authority-path planning-artifact staging discovery + the shared
+    # fallback-write helper join the family surface like every other def.
+    "_mt_untracked_planning_artifact_paths",
+    "_write_wp_fallback",
 )
 
 _TASKS_MARK_STATUS: tuple[str, ...] = (  # WP08 (wave2) — 13 symbols
@@ -359,14 +364,17 @@ def test_no_required_symbol_duplicated_in_survey() -> None:
     assert total_declared == len(SYMBOL_TO_MODULE)
 
 
-def test_guard_covers_full_134_symbol_surface() -> None:
+def test_guard_covers_full_136_symbol_surface() -> None:
     """Traceability pin: the guard's total symbol count matches the sum of
     the 6 seams' counts recorded in the seam files' own docstrings at
-    authoring time (8 + 15 + 21 + 21 + 56 + 13 = 134). A change here is
+    authoring time (8 + 15 + 21 + 21 + 58 + 13 = 136). A change here is
     expected when a future WP relocates symbols; it should be a deliberate,
     reviewed edit — not a silent drift. #2513/#2160 added
     ``_mt_uncheck_rollback_subtasks``, ``_mt_clear_rollback_claim_markers`` and
     ``_mt_reset_for_planned_rollback`` to the tasks_move_task seam (51 -> 54).
     #2573 fast-follow added ``_mt_pre_review_gate_env_disable_reason`` and
-    ``_mt_pre_review_gate_skip_reason`` (54 -> 56)."""
-    assert len(SYMBOL_TO_MODULE) == 134
+    ``_mt_pre_review_gate_skip_reason`` (54 -> 56). WP07
+    (loop-friction-quickwins-2-01KXBWA4, T025, #2555.1) added
+    ``_mt_untracked_planning_artifact_paths`` and ``_write_wp_fallback``
+    (56 -> 58)."""
+    assert len(SYMBOL_TO_MODULE) == 136
