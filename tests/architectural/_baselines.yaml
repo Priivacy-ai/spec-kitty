@@ -221,8 +221,8 @@ test_no_dead_symbols:
   # migration class / re-export shim) and are no longer hand-listed here.
   # Honest live count (not the naive 215-2=213 the 2-drop alone would give,
   # since drift + the auto-exempt migration both shrank this category):
-  # ``len(_CATEGORY_B_GRANDFATHERED_LEGACY)`` = 194.
-  category_b_grandfathered_legacy: 194
+  # ``len(_CATEGORY_B_GRANDFATHERED_LEGACY)`` = 193 (194 -2 stale -19 FR-010 auto-exempt, then -1 WorkPackageState pruned at the upstream/main reconciliation).
+  category_b_grandfathered_legacy: 193
   # 6->4 (org-doctrine close-out WP04): removed the now-wired
   # charter.invocation_context::{OperationalContext,build_operational_context}
   # (WP14 added live src/ callers). Remaining 4: the two require_active_*
