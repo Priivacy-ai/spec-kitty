@@ -1,0 +1,191 @@
+{
+  "mission_slug": "coord-shadows-arm-closeout-01KXAST2",
+  "mission_type": "software-dev",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "canonical _walk_wp_section; counters+writer consume it (WP01)",
+      "proof_type": "automated_test",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "evidence": "WP01 opus-reviewed+approved"
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "_infer_subtasks_complete row semantics on count_wp_section_subtask_rows (WP02)",
+      "proof_type": "automated_test",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "evidence": "WP02 opus-reviewed+approved"
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "primary-surface resolution at all _infer callers (WP02)",
+      "proof_type": "automated_test",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "evidence": "WP02 opus-reviewed+approved"
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "for_review blocked on unchecked rows via emit layer (native+orchestrator) (WP02)",
+      "proof_type": "automated_test",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "evidence": "WP02 opus-reviewed+approved"
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "#2511 per-door pre-derivation removed; door blocks via shared layer (WP03)",
+      "proof_type": "automated_test",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "evidence": "WP03 opus-reviewed+approved"
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "recovery re-registers sparse-checkout via one helper; no status leak (WP04)",
+      "proof_type": "automated_test",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "evidence": "WP04 opus-reviewed+approved"
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "is_process_alive promoted to core/process_liveness; stale indicator suppresses live claim (WP05)",
+      "proof_type": "automated_test",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "evidence": "WP05 opus-reviewed+approved"
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "freshness checkbox-insensitivity regression guard (no new logic, #1764) (WP06)",
+      "proof_type": "automated_test",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "evidence": "WP06 opus-reviewed+approved"
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "single _mt_reset_for_planned_rollback seam; lock boundary preserved (WP06)",
+      "proof_type": "code_review",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "evidence": "WP06 opus-reviewed+approved"
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "issue-matrix terminal verdicts authored (WP06)",
+      "proof_type": "code_review",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "evidence": "WP06 opus-reviewed+approved"
+    },
+    {
+      "criterion_id": "NFR-001",
+      "description": "production-path tests (all)",
+      "proof_type": "automated_test",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "evidence": "all opus-reviewed+approved"
+    },
+    {
+      "criterion_id": "NFR-002",
+      "description": "arch 0-failed + no regressions (all)",
+      "proof_type": "automated_test",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "evidence": "all opus-reviewed+approved"
+    },
+    {
+      "criterion_id": "NFR-003",
+      "description": "ruff+mypy clean no new suppressions (all)",
+      "proof_type": "automated_test",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "evidence": "all opus-reviewed+approved"
+    },
+    {
+      "criterion_id": "NFR-004",
+      "description": "liveness never raises (all)",
+      "proof_type": "automated_test",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "evidence": "all opus-reviewed+approved"
+    },
+    {
+      "criterion_id": "NFR-005",
+      "description": "bite-preserving guard==dashboard==rollback (all)",
+      "proof_type": "automated_test",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "evidence": "all opus-reviewed+approved"
+    },
+    {
+      "criterion_id": "NFR-006",
+      "description": "dead-code gate green (all)",
+      "proof_type": "automated_test",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "evidence": "all opus-reviewed+approved"
+    },
+    {
+      "criterion_id": "SC-001",
+      "description": "success criterion 1 met (all)",
+      "proof_type": "code_review",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "evidence": "all opus-reviewed+approved"
+    },
+    {
+      "criterion_id": "SC-002",
+      "description": "success criterion 2 met (all)",
+      "proof_type": "code_review",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "evidence": "all opus-reviewed+approved"
+    },
+    {
+      "criterion_id": "SC-003",
+      "description": "success criterion 3 met (all)",
+      "proof_type": "code_review",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "evidence": "all opus-reviewed+approved"
+    },
+    {
+      "criterion_id": "SC-004",
+      "description": "success criterion 4 met (all)",
+      "proof_type": "code_review",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "evidence": "all opus-reviewed+approved"
+    },
+    {
+      "criterion_id": "SC-005",
+      "description": "success criterion 5 met (all)",
+      "proof_type": "code_review",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "evidence": "all opus-reviewed+approved"
+    },
+    {
+      "criterion_id": "SC-006",
+      "description": "success criterion 6 met (all)",
+      "proof_type": "code_review",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "evidence": "all opus-reviewed+approved"
+    },
+    {
+      "criterion_id": "SC-007",
+      "description": "success criterion 7 met (all)",
+      "proof_type": "code_review",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata",
+      "evidence": "all opus-reviewed+approved"
+    }
+  ],
+  "negative_invariants": []
+}

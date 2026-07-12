@@ -76,6 +76,18 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **Coord-shadows-primary read/gate arm closed (#2502, #2504, #2510, #2512, #2513, #1231).**
+  The `for_review` subtask gate no longer fails open: `_infer_subtasks_complete` reads the
+  PRIMARY planning surface at every emit-layer caller and blocks on unchecked rows on both the
+  native `agent status` and orchestrator-api paths (the redundant #2511 per-door pre-derivation
+  is retired). A single canonical `core/subtask_rows._walk_wp_section` now defines a WP subtask
+  row for the guard, the dashboard count, and rollback-uncheck (the writer no longer re-enters a
+  re-appearing `## WPnn` heading). A recovered coordination-topology lane re-registers its
+  sparse-checkout and leaks no `status.events.jsonl`/`status.json`. Process liveness is promoted
+  to `core/process_liveness.is_process_alive` (with a `sync/daemon` re-export alias) so the
+  stale-WP indicator suppresses false-stale for a live claim. Freshness-hash checkbox-insensitivity
+  (#1764) is pinned by a regression guard; #1862 is verified-already-fixed.
+
 - **Arch-suite warnings remediated at root (#2553, #2554).** Report-only diagnostics
   (migration patch-skips, duplicate-gate selection, ratchet shrinkage, legacy-contract
   backfill) are routed off the `warnings` channel via `record_property` (signal
