@@ -1,3 +1,10 @@
+---
+title: 'Fast-Follow Spec: Implement-Loop Friction Quick-Wins'
+description: 'Fast-follow spec for the implement-loop friction quick-wins: topology default, pre-review-gate escape hatch, finalize per-branch hashes, and charter first-run parity.'
+doc_status: active
+updated: '2026-07-12'
+---
+
 # Mission Spec (materialization-ready): Implement-Loop Friction Quick-Wins
 
 **Status**: Draft spec — ready to materialize via `spec-kitty agent mission create` in a clean project-root checkout.
