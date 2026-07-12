@@ -57,6 +57,17 @@ def _normalize(raw: str) -> str:
     return json.dumps(data, indent=2, sort_keys=True) + "\n"
 
 
+def _normalize_wp03_contract(raw: str) -> str:
+    """Compare the immutable WP03 contract while ignoring later additive API fields."""
+    data = json.loads(raw)
+    for feature in data.get("features", []):
+        # ``mission_status`` was added by #2586 after this baseline captured
+        # the WPState/Lane reader cutover. Its own API/static tests guard it;
+        # it is not part of the historical WP03 equivalence assertion.
+        feature.pop("mission_status", None)
+    return json.dumps(data, indent=2, sort_keys=True) + "\n"
+
+
 def test_dashboard_typed_contracts_are_byte_identical_to_baseline() -> None:
     """Byte-identical assertion against the committed baseline.
 
@@ -67,7 +78,7 @@ def test_dashboard_typed_contracts_are_byte_identical_to_baseline() -> None:
     assert _BASELINE_JSON.exists(), f"baseline JSON anchor missing: {_BASELINE_JSON}"
 
     expected = _normalize(_BASELINE_JSON.read_text(encoding="utf-8"))
-    actual = _normalize(_run_capture())
+    actual = _normalize_wp03_contract(_run_capture())
 
     if expected == actual:
         return

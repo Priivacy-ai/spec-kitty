@@ -217,7 +217,7 @@ def _derive_mission_status(kanban_stats: dict[str, Any]) -> str:
     Returns one of ``"active"``, ``"planned"``, ``"done"``, or ``"draft"``.
 
     - ``"active"``  — at least one WP is in ``doing``, ``for_review``, or ``approved``
-    - ``"planned"`` — WPs exist but none have been started
+    - ``"planned"`` — no WP is active and planned work remains
     - ``"done"``    — WPs exist and all are in terminal lanes (done/canceled)
     - ``"draft"``   — no WPs yet, or the event log is unreadable
     """
@@ -225,7 +225,10 @@ def _derive_mission_status(kanban_stats: dict[str, Any]) -> str:
         return "draft"
     if kanban_stats.get("doing", 0) or kanban_stats.get("for_review", 0) or kanban_stats.get("approved", 0):
         return "active"
-    if kanban_stats.get("planned", 0) == kanban_stats.get("total", 0):
+    # Remaining planned work means the mission is not done, even when some
+    # WPs are already terminal. With no currently-active lane, ``planned`` is
+    # the least misleading actionable bucket.
+    if kanban_stats.get("planned", 0):
         return "planned"
     return "done"
 

@@ -298,8 +298,8 @@ class TestDeriveMissionStatus:
     def test_planned_when_all_planned(self):
         assert scanner._derive_mission_status(self._stats(total=4, planned=4)) == "planned"
 
-    def test_done_when_planned_and_done_are_mixed(self):
-        assert scanner._derive_mission_status(self._stats(total=4, planned=1, done=3)) == "done"
+    def test_planned_when_planned_and_done_are_mixed(self):
+        assert scanner._derive_mission_status(self._stats(total=4, planned=1, done=3)) == "planned"
 
     def test_done_when_all_done(self):
         assert scanner._derive_mission_status(self._stats(total=3, done=3)) == "done"
