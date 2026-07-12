@@ -133,17 +133,28 @@ def _git(
 
 
 def _branch_commit_exists(repo_root: Path, ref: str) -> bool:
-    result = _git(repo_root, ["rev-parse", "--verify", f"{ref}^{{commit}}"])
+    result = _git(
+        repo_root, ["rev-parse", "--verify", "--end-of-options", f"{ref}^{{commit}}"]
+    )
     return result.returncode == 0
 
 
 def _resolve_tracking_branch(repo_root: Path, target_branch: str) -> str | None:
+    # NOTE: without ``--verify``, ``git rev-parse`` echoes ``--end-of-options``
+    # back onto stdout verbatim instead of treating it purely as an option
+    # terminator (a quirk of its non-``--verify`` argument-scanning mode) —
+    # confirmed against real git 2.43. ``--verify`` restores the intended
+    # single-ref "resolve or fail" contract this call already relies on
+    # (checked via ``returncode``/``stdout``) and keeps ``--end-of-options``
+    # effective, matching the documented ``--verify --end-of-options`` idiom.
     upstream = _git(
         repo_root,
         [
             "rev-parse",
             "--abbrev-ref",
             "--symbolic-full-name",
+            "--verify",
+            "--end-of-options",
             f"{target_branch}@{{upstream}}",
         ],
     )

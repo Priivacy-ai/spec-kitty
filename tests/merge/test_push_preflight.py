@@ -235,3 +235,87 @@ def test_resume_cannot_add_push_to_local_only_merge() -> None:
     )
     with patch("specify_cli.merge.preflight.load_state", return_value=state):
         assert _effective_push_requested(Path("/fake/repo"), "mission-01KT", True) is False
+
+
+# ---------------------------------------------------------------------------
+# Alert #63 (SonarCloud S6350): option-injection separator for rev-parse sinks
+#
+# ``_branch_commit_exists`` and ``_resolve_tracking_branch`` pass an
+# internally-derived ref/branch to ``git rev-parse`` unprefixed. A value
+# starting with ``-`` could be parsed as an option instead of the revspec
+# positional. ``--end-of-options`` (not ``--``, which is a *pathspec*
+# separator for rev-parse) makes the value unambiguously positional.
+# ---------------------------------------------------------------------------
+
+
+def test_branch_commit_exists_inserts_end_of_options_before_ref() -> None:
+    """``rev-parse --verify`` gets ``--end-of-options`` immediately before the ref."""
+    from specify_cli.merge.push_preflight import _branch_commit_exists
+
+    calls: list[list[str]] = []
+
+    def _fake_git(_repo_root: Path, args: list[str]) -> MagicMock:
+        calls.append(args)
+        return MagicMock(returncode=0)
+
+    with patch("specify_cli.merge.push_preflight._git", side_effect=_fake_git):
+        hostile_ref = "--upload-pack=touch /tmp/pwned"
+        _branch_commit_exists(Path("/fake/repo"), hostile_ref)
+
+    assert len(calls) == 1
+    argv = calls[0]
+    assert argv == ["rev-parse", "--verify", "--end-of-options", f"{hostile_ref}^{{commit}}"]
+    sep_index = argv.index("--end-of-options")
+    assert argv[sep_index + 1] == f"{hostile_ref}^{{commit}}"
+
+
+def test_resolve_tracking_branch_inserts_end_of_options_before_ref() -> None:
+    """The upstream rev-parse call gets ``--end-of-options`` before the composed ref."""
+    from specify_cli.merge.push_preflight import _resolve_tracking_branch
+
+    calls: list[list[str]] = []
+
+    def _fake_git(_repo_root: Path, args: list[str]) -> MagicMock:
+        calls.append(args)
+        return MagicMock(returncode=1, stdout="")  # force fall-through to origin check
+
+    with patch("specify_cli.merge.push_preflight._git", side_effect=_fake_git):
+        hostile_branch = "-D"
+        _resolve_tracking_branch(Path("/fake/repo"), hostile_branch)
+
+    upstream_calls = [argv for argv in calls if "--symbolic-full-name" in argv]
+    assert len(upstream_calls) == 1
+    argv = upstream_calls[0]
+    expected_ref = f"{hostile_branch}@{{upstream}}"
+    # ``--verify`` is required alongside ``--end-of-options`` here: plain
+    # (non-``--verify``) ``git rev-parse`` echoes ``--end-of-options`` back
+    # onto stdout verbatim instead of consuming it as a pure option
+    # terminator, corrupting the resolved ref. ``--verify`` restores the
+    # documented ``--verify --end-of-options`` idiom (see
+    # ``test_resolve_tracking_branch_still_resolves_real_upstream`` below for
+    # the live-git regression this guards).
+    assert argv == [
+        "rev-parse",
+        "--abbrev-ref",
+        "--symbolic-full-name",
+        "--verify",
+        "--end-of-options",
+        expected_ref,
+    ]
+    sep_index = argv.index("--end-of-options")
+    assert argv[sep_index + 1] == expected_ref
+
+
+def test_resolve_tracking_branch_still_resolves_real_upstream() -> None:
+    """The separator is transparent for a legitimate upstream ref (no regression)."""
+    from specify_cli.merge.push_preflight import _resolve_tracking_branch
+
+    def _fake_git(_repo_root: Path, args: list[str]) -> MagicMock:
+        if "--symbolic-full-name" in args:
+            return MagicMock(returncode=0, stdout="origin/main\n")
+        return MagicMock(returncode=0, stdout="")
+
+    with patch("specify_cli.merge.push_preflight._git", side_effect=_fake_git):
+        result = _resolve_tracking_branch(Path("/fake/repo"), "main")
+
+    assert result == "origin/main"

@@ -28,7 +28,16 @@ from pathlib import Path
 
 def _verify(repo_root: Path, refspec: str, *, env: dict[str, str] | None = None) -> bool:
     result = subprocess.run(
-        ["git", "-C", str(repo_root), "rev-parse", "--verify", "--quiet", refspec],
+        [
+            "git",
+            "-C",
+            str(repo_root),
+            "rev-parse",
+            "--verify",
+            "--quiet",
+            "--end-of-options",
+            refspec,
+        ],
         capture_output=True,
         text=True,
         check=False,
