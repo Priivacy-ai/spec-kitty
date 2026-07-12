@@ -72,6 +72,15 @@ def _write_meta(feature_dir: Path, **fields: object) -> None:
 def _materialise_coord_empty(repo_root: Path, slug: str) -> Path:
     """Primary declares coord branch; coord worktree ROOT exists but is empty.
 
+    ``topology`` is explicit ``lanes_with_coord`` (WP08 / #2533): this module
+    tests the TRUE-POSITIVE "coord worktree unexpectedly empty" case (a coord
+    mission WITH lanes, where lane worktrees were provisioned to write there),
+    which still warns after WP08 differentiated it from the legitimate solo
+    (no-lanes, ``MissionTopology.COORD``) empty-coord state — see
+    ``tests/coordination/test_surface_resolver_solo_coord_primary.py`` and
+    ``test_surface_resolver_coord_empty_warning.py`` for the quiet-primary
+    sibling.
+
     Returns the expected PRIMARY mission dir the Option-B fallback resolves to.
     """
     _init_repo(repo_root)
@@ -80,6 +89,7 @@ def _materialise_coord_empty(repo_root: Path, slug: str) -> Path:
         primary_dir,
         mission_id=MISSION_ID,
         coordination_branch=COORD_BRANCH,
+        topology="lanes_with_coord",
     )
     _git(repo_root, "branch", COORD_BRANCH)
     coord_root = CoordinationWorkspace.worktree_path(repo_root, slug, MID8)

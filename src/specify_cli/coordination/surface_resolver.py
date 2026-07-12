@@ -13,15 +13,22 @@ here; the C-002 topology-ratchet allowlist entry that reserved them is drained
 reaching for a parallel resolution path should treat this constraint as
 load-bearing (NFR-003 compliance boundary).
 
-The coord-empty case (a materialized-but-empty coordination worktree) is now an
+The coord-empty case (a materialized-but-empty coordination worktree) is an
 operator-decided **loud primary fallback** (Option B; FR-001 / FR-003 / #1716):
-the resolver falls back to the primary checkout and proceeds, emitting a single
-``logging.WARNING`` (:data:`_COORD_EMPTY_FALLBACK_WARNING`) that names the
-stale-surface risk AND both operator recovery paths — flatten (drop
-``coordination_branch`` from ``meta.json``) OR run
-``spec-kitty doctor workspaces --fix``. It NEVER silently degrades: the warning makes the
-fallback observable so an operator or orchestrating agent can intervene. The
-decision is recorded in
+the resolver falls back to the primary checkout and proceeds. For a coord
+mission WITH lanes (``MissionTopology.LANES_WITH_COORD`` — lane worktrees were
+provisioned to write there), an empty coord root is genuinely unexpected, so
+the fallback emits a single ``logging.WARNING``
+(:data:`_COORD_EMPTY_FALLBACK_WARNING`) that names the stale-surface risk AND
+both operator recovery paths — flatten (drop ``coordination_branch`` from
+``meta.json``) OR run ``spec-kitty doctor workspaces --fix``. For a solo
+coord mission with no lanes (``MissionTopology.COORD``), an empty coord root
+is the EXPECTED steady state until the mission's first coordination-branch
+write self-materializes it (#2533 / WP08 T029-T031): the fallback stays
+quiet — no warning, no manual flatten prompted for a condition that is not an
+error. It NEVER silently degrades for the genuinely unexpected case: the
+warning makes that fallback observable so an operator or orchestrating agent
+can intervene. The decision is recorded in
 ``docs/adr/3.x/2026-06-19-1-coord-empty-surface-fallback.md`` and bound
 to this single resolver. (The sibling coord-*deleted* case stays a hard-fail —
 :class:`CoordinationBranchDeleted`, #1848 — because a deleted branch carrying
@@ -620,11 +627,18 @@ def resolve_status_surface_with_anchor(
        materialized, compose the coord path **directly** (one derivation, via
        WP01's :func:`coord_feature_dir`). When the coord worktree root *is*
        materialized but lacks the mission dir (the coord-empty state), apply
-       Option B: return the PRIMARY checkout surface and emit a single loud
+       Option B: return the PRIMARY checkout surface. For a solo (no-lanes)
+       coord mission (``MissionTopology.COORD``) this is the EXPECTED steady
+       state pre-first-write, so the fallback is quiet — no warning (#2533 /
+       WP08). For a mission WITH lanes (``MissionTopology.LANES_WITH_COORD``,
+       lane worktrees were provisioned to write there) an empty coord root is
+       genuinely unexpected, so the fallback still emits a single loud
        ``logging.WARNING`` (:data:`_COORD_EMPTY_FALLBACK_WARNING`) naming the
-       stale-surface risk and both recovery paths (#1716 / FR-001 / FR-003). The
-       coord-state decision routes through WP01's :func:`probe_coord_state`
-       (adopted, not re-derived); the ``CoordState.DELETED`` case still hard-fails
+       stale-surface risk and both recovery paths (#1716 / FR-001 / FR-003).
+       The coord-state decision routes through WP01's :func:`probe_coord_state`
+       (adopted, not re-derived); the solo-vs-lanes split reuses the
+       ``effective_topology`` already disposed above (no parallel derivation).
+       The ``CoordState.DELETED`` case still hard-fails
        (:class:`CoordinationBranchDeleted`, #1848).
 
     Raises FileNotFoundError when meta.json is absent.
@@ -794,10 +808,22 @@ def resolve_status_surface_with_anchor(
     # primary checkout authoritative one level up (the aggregate's not-yet-
     # materialized gate).
     if coord_state is CoordState.EMPTY:
-        logger.warning(
-            _COORD_EMPTY_FALLBACK_WARNING,
-            {"slug": mission_slug, "coord_root": composed_coord_dir.parent.parent},
-        )
+        # #2533: a solo (no-lanes) coord-topology mission whose coord worktree
+        # never received a write is an EXPECTED empty state, not a stale
+        # split-brain — routing it to PRIMARY is the correct, quiet outcome
+        # (WP08 T029). Only ``MissionTopology.LANES_WITH_COORD`` implies real
+        # lane worktrees were provisioned to write there; for THAT shape an
+        # empty coord root is genuinely unexpected and the loud warning's
+        # true-positive signal must survive (WP08 T031). ``effective_topology``
+        # is the SAME value already disposed above (no re-derivation, no
+        # parallel ``pr_bound`` signal) — solo ``COORD`` is the only other
+        # coord-routing member (``_topology_uses_coord_surface`` gated this
+        # branch to exactly {COORD, LANES_WITH_COORD} already).
+        if effective_topology is MissionTopology.LANES_WITH_COORD:
+            logger.warning(
+                _COORD_EMPTY_FALLBACK_WARNING,
+                {"slug": mission_slug, "coord_root": composed_coord_dir.parent.parent},
+            )
         return ResolvedStatusSurface(
             surface_path=feature_dir / _STATUS_EVENTS_FILENAME,
             primary_anchor=feature_dir,

@@ -67,7 +67,18 @@ def repo(tmp_path: Path) -> Path:
 
 
 def _build_mission(repo: Path, *, dirname: str) -> Path:
-    """Coord-topology mission in the primary checkout + commit."""
+    """Coord-topology mission in the primary checkout + commit.
+
+    No ``topology`` field is stored in ``meta.json`` (the un-backfilled-legacy
+    shape this module's WP06-absorption tests exercise) — the ``lanes.json``
+    disk signal instead makes the derived shape ``LANES_WITH_COORD`` (a coord
+    mission WITH lanes). WP08 (#2533) makes the coord-empty warning's
+    true-positive signal conditional on that derived shape (a solo, no-lanes
+    ``MissionTopology.COORD`` mission stays quiet instead — see
+    ``tests/coordination/test_surface_resolver_solo_coord_primary.py``), so
+    every one of THIS module's coord-empty fixtures declares lanes to keep
+    pinning the still-warns case.
+    """
     feature_dir = repo / "kitty-specs" / dirname
     feature_dir.mkdir(parents=True)
     meta = {
@@ -80,6 +91,21 @@ def _build_mission(repo: Path, *, dirname: str) -> Path:
     }
     (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
     (feature_dir / "tasks").mkdir()
+    lanes_manifest = {
+        "version": 1,
+        "mission_slug": dirname,
+        "mission_id": _MISSION_ID,
+        "mission_branch": f"kitty/mission-{dirname}",
+        "target_branch": "main",
+        "lanes": [
+            {"lane_id": "lane-a", "wp_ids": ["WP01"]},
+        ],
+        "computed_at": "2026-07-12T00:00:00+00:00",
+        "computed_from": "dependency_graph+ownership",
+    }
+    (feature_dir / "lanes.json").write_text(
+        json.dumps(lanes_manifest), encoding="utf-8"
+    )
     _git(repo, "add", ".")
     _git(repo, "commit", "-q", "-m", "fixture")
     return feature_dir

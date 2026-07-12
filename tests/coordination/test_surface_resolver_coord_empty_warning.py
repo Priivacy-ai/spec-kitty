@@ -1,13 +1,25 @@
-"""WP04 coord-empty Option B — the loud primary-fallback warning (NON-FAKEABLE).
+"""WP04/WP08 coord-empty Option B — the loud primary-fallback warning (NON-FAKEABLE).
 
 Mission ``mission-surface-resolver-safety-net-01KVN754`` applies the operator-
 decided **Option B**: a materialized-but-empty coordination worktree no longer
 hard-fails. ``resolve_status_surface_with_anchor`` falls back to the PRIMARY
-checkout and proceeds, emitting a single **loud, observable** warning so an
-operator or orchestrating agent can intervene (FR-001 / FR-003 / NFR-003; #1716).
+checkout and proceeds. WP08 (#2533) refines WHEN the fallback is loud:
 
-The centerpiece is a **3-part conjunctive** assertion that a ``print`` or a
-``logging.DEBUG`` line could NOT satisfy:
+* a coord mission WITH lanes (``MissionTopology.LANES_WITH_COORD`` — lane
+  worktrees were provisioned to write there) hitting an empty coord root is
+  genuinely unexpected, so the fallback still emits a single **loud,
+  observable** warning so an operator or orchestrating agent can intervene
+  (FR-001 / FR-003 / NFR-003 / #1716) — the TRUE-POSITIVE case this module
+  pins;
+* a solo coord mission with no lanes (``MissionTopology.COORD``) hitting an
+  empty coord root is the EXPECTED steady state before its first
+  coordination-branch write self-materializes it — the fallback stays quiet,
+  no warning, no manual-flatten prompt for a condition that is not an error
+  (#2533 / WP08 T029-T031, pinned by
+  ``tests/coordination/test_surface_resolver_solo_coord_primary.py``).
+
+The true-positive centerpiece is a **3-part conjunctive** assertion that a
+``print`` or a ``logging.DEBUG`` line could NOT satisfy:
 
   (a) a record at EXACTLY ``logging.WARNING`` from the named module logger
       ``specify_cli.coordination.surface_resolver``;
@@ -45,6 +57,13 @@ BARE_SLUG = "coord-empty-warning-mission"
 SLUG_WITH_MID8 = f"{BARE_SLUG}-{MID8}"
 COORD_BRANCH = f"kitty/mission-{SLUG_WITH_MID8}"
 
+# A distinct solo-mission identity for the legitimate-empty (no-warning) case,
+# so the two scenarios never share a fixture slug/branch.
+SOLO_MISSION_ID = "01KTDVJ2N8VZ0A5C1XKJH0Q9RB"
+SOLO_MID8 = SOLO_MISSION_ID[:8]
+SOLO_SLUG = f"solo-pr-bound-coord-mission-{SOLO_MID8}"
+SOLO_COORD_BRANCH = f"kitty/mission-{SOLO_SLUG}"
+
 # The single named logger the resolver emits through (grep anchor for review).
 _LOGGER_NAME = "specify_cli.coordination.surface_resolver"
 
@@ -70,8 +89,22 @@ def _write_meta(feature_dir: Path, **fields: object) -> None:
     (feature_dir / "meta.json").write_text(json.dumps(fields), encoding="utf-8")
 
 
-def _materialise_coord_empty(repo_root: Path, slug: str) -> Path:
+def _materialise_coord_empty(
+    repo_root: Path,
+    slug: str,
+    *,
+    mission_id: str = MISSION_ID,
+    coordination_branch: str = COORD_BRANCH,
+    topology: str = "lanes_with_coord",
+) -> Path:
     """Primary declares coord branch; coord worktree ROOT exists but is empty.
+
+    ``topology`` defaults to the WITH-lanes shape (``lanes_with_coord`` — the
+    true-positive warning scenario this module pins): the stored ``topology``
+    field is written explicitly, matching the real post-083 production shape
+    (``meta.json`` is authoritative — mirrors ``tests/mission_runtime/
+    test_placement_seam.py``'s ``_build_mission``), rather than relying on the
+    legacy no-stored-topology derivation path.
 
     Returns the expected PRIMARY mission dir the resolver must fall back to.
     """
@@ -79,26 +112,31 @@ def _materialise_coord_empty(repo_root: Path, slug: str) -> Path:
     primary_dir = repo_root / "kitty-specs" / slug
     _write_meta(
         primary_dir,
-        mission_id=MISSION_ID,
-        coordination_branch=COORD_BRANCH,
+        mission_id=mission_id,
+        coordination_branch=coordination_branch,
+        topology=topology,
     )
-    _git(repo_root, "branch", COORD_BRANCH)
-    coord_root = CoordinationWorkspace.worktree_path(repo_root, slug, MID8)
+    _git(repo_root, "branch", coordination_branch)
+    mid8 = mission_id[:8]
+    coord_root = CoordinationWorkspace.worktree_path(repo_root, slug, mid8)
     coord_root.mkdir(parents=True)  # materialised, NO mission dir inside
     return primary_dir
 
 
 @pytest.mark.parametrize("slug", [BARE_SLUG, SLUG_WITH_MID8], ids=["bare", "slug-mid8"])
-def test_coord_empty_warns_loudly_and_returns_primary(
+def test_coord_empty_with_lanes_warns_loudly_and_returns_primary(
     tmp_path: Path, slug: str, caplog: pytest.LogCaptureFixture
 ) -> None:
     """3-part conjunction: WARNING level + BOTH recovery tokens + PRIMARY dir.
 
-    A ``print`` (no log record), a ``logging.DEBUG`` line (wrong level), or a
-    message missing either recovery token all FAIL this test. The fallback must
-    be observable AND actionable AND must resolve to the primary checkout.
+    The TRUE-POSITIVE case (WP08 T031): a coord mission WITH lanes
+    (``lanes_with_coord``) whose coord worktree is unexpectedly empty STILL
+    warns — a ``print`` (no log record), a ``logging.DEBUG`` line (wrong
+    level), or a message missing either recovery token all FAIL this test.
+    The fallback must be observable AND actionable AND must resolve to the
+    primary checkout.
     """
-    primary_dir = _materialise_coord_empty(tmp_path, slug)
+    primary_dir = _materialise_coord_empty(tmp_path, slug, topology="lanes_with_coord")
 
     with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
         resolved = resolve_status_surface_with_anchor(tmp_path, slug)
@@ -110,8 +148,8 @@ def test_coord_empty_warns_loudly_and_returns_primary(
         if r.name == _LOGGER_NAME and r.levelno == logging.WARNING
     ]
     assert warning_records, (
-        "coord-empty must emit a record at EXACTLY logging.WARNING from "
-        f"{_LOGGER_NAME!r} — a print or DEBUG line must NOT satisfy this. "
+        "coord-empty WITH lanes must emit a record at EXACTLY logging.WARNING "
+        f"from {_LOGGER_NAME!r} — a print or DEBUG line must NOT satisfy this. "
         f"Records seen: {[(r.name, r.levelname) for r in caplog.records]}"
     )
     # No DEBUG/INFO downgrade smuggled the message in below WARNING.
@@ -134,5 +172,46 @@ def test_coord_empty_warns_loudly_and_returns_primary(
     assert resolved.read_dir.resolve() == primary_dir.resolve(), (
         "coord-empty Option B must resolve to the PRIMARY checkout, not the "
         f"coord dir. Got: {resolved.read_dir}"
+    )
+    assert resolved.primary_anchor.resolve() == primary_dir.resolve()
+
+
+def test_coord_empty_solo_no_lanes_stays_quiet_and_returns_primary(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    """WP08 T031/T032: the legitimate-solo-empty case does NOT warn.
+
+    A solo (no-lanes) coord-topology mission (``MissionTopology.COORD``)
+    whose coord worktree is materialized-but-empty is the EXPECTED
+    pre-first-write state (#2533) — the resolver must still return the
+    PRIMARY surface (Option B fallback unchanged), but MUST NOT emit
+    ``_COORD_EMPTY_FALLBACK_WARNING``: this is not an error condition and
+    should not prompt a manual flatten.
+    """
+    primary_dir = _materialise_coord_empty(
+        tmp_path,
+        SOLO_SLUG,
+        mission_id=SOLO_MISSION_ID,
+        coordination_branch=SOLO_COORD_BRANCH,
+        topology="coord",
+    )
+
+    with caplog.at_level(logging.WARNING, logger=_LOGGER_NAME):
+        resolved = resolve_status_surface_with_anchor(tmp_path, SOLO_SLUG)
+
+    warning_records = [
+        r
+        for r in caplog.records
+        if r.name == _LOGGER_NAME and r.levelno == logging.WARNING
+    ]
+    assert not warning_records, (
+        "a solo (no-lanes) coord mission's legitimately empty coord worktree "
+        "must NOT emit the split-brain warning — it is an expected, "
+        f"self-healing pre-first-write state. Records seen: "
+        f"{[(r.name, r.levelname, r.getMessage()) for r in warning_records]}"
+    )
+    assert resolved.read_dir.resolve() == primary_dir.resolve(), (
+        "the legitimate-solo-empty case must still resolve to the PRIMARY "
+        f"checkout (Option B routing unchanged). Got: {resolved.read_dir}"
     )
     assert resolved.primary_anchor.resolve() == primary_dir.resolve()
