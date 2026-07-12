@@ -124,6 +124,86 @@ def test_analysis_report_survives_subtask_checkbox_churn(tmp_path):
     assert "tasks.md" in freshness.mismatches
 
 
+def test_analysis_report_survives_pipe_table_status_churn(tmp_path):
+    """#2493.1/#1862: ``mark-status`` flipping a pipe-table status cell
+    (`[ ]`/`[x]`/`[X]`/`[D]`/`[P]`, written by
+    ``tasks_materialization.py``'s pipe-table row updater) must NOT
+    invalidate a recorded analysis. A mixed bullet+pipe-table churn must
+    also stay current."""
+    repo_root = tmp_path
+    feature_dir = repo_root / "kitty-specs" / "sample-01KS"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("# Spec\n\nFR-001.\n", encoding="utf-8")
+    (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
+    (feature_dir / "tasks.md").write_text(
+        "# Tasks\n\n"
+        "- [ ] T003 Do a bullet thing (WP01)\n\n"
+        "| ID | Description | Status |\n"
+        "|----|--------------|--------|\n"
+        "| T001 | Do the thing | [ ] |\n"
+        "| T002 | Do the other thing | [ ] |\n",
+        encoding="utf-8",
+    )
+    write_analysis_report(feature_dir=feature_dir, repo_root=repo_root, body="# Report\n\nPASS\n")
+    assert check_analysis_report_current(feature_dir, repo_root).ok is True
+
+    # Pipe-table status churn only: mark-status flips [ ] -> [D]/[P]/[x].
+    (feature_dir / "tasks.md").write_text(
+        "# Tasks\n\n"
+        "- [ ] T003 Do a bullet thing (WP01)\n\n"
+        "| ID | Description | Status |\n"
+        "|----|--------------|--------|\n"
+        "| T001 | Do the thing | [D] |\n"
+        "| T002 | Do the other thing | [P] |\n",
+        encoding="utf-8",
+    )
+    assert check_analysis_report_current(feature_dir, repo_root).ok is True
+
+    # Mixed churn: the existing bullet checkbox AND pipe-table cells both flip.
+    (feature_dir / "tasks.md").write_text(
+        "# Tasks\n\n"
+        "- [x] T003 Do a bullet thing (WP01)\n\n"
+        "| ID | Description | Status |\n"
+        "|----|--------------|--------|\n"
+        "| T001 | Do the thing | [x] |\n"
+        "| T002 | Do the other thing | [X] |\n",
+        encoding="utf-8",
+    )
+    assert check_analysis_report_current(feature_dir, repo_root).ok is True
+
+
+def test_analysis_report_stales_on_pipe_table_description_change(tmp_path):
+    """A substantive change to a pipe-table row's DESCRIPTION cell (not the
+    status cell) must still stale the report — guards against an over-broad
+    pipe-table normalizer (#2493.1)."""
+    repo_root = tmp_path
+    feature_dir = repo_root / "kitty-specs" / "sample-01KS"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("# Spec\n\nFR-001.\n", encoding="utf-8")
+    (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
+    (feature_dir / "tasks.md").write_text(
+        "# Tasks\n\n"
+        "| ID | Description | Status |\n"
+        "|----|--------------|--------|\n"
+        "| T001 | Do the thing | [ ] |\n",
+        encoding="utf-8",
+    )
+    write_analysis_report(feature_dir=feature_dir, repo_root=repo_root, body="# Report\n\nPASS\n")
+    assert check_analysis_report_current(feature_dir, repo_root).ok is True
+
+    # Substantive change to the row's description text: still goes stale.
+    (feature_dir / "tasks.md").write_text(
+        "# Tasks\n\n"
+        "| ID | Description | Status |\n"
+        "|----|--------------|--------|\n"
+        "| T001 | Do a DIFFERENT thing | [ ] |\n",
+        encoding="utf-8",
+    )
+    freshness = check_analysis_report_current(feature_dir, repo_root)
+    assert freshness.ok is False
+    assert "tasks.md" in freshness.mismatches
+
+
 def test_charter_hash_resolves_canonical_root_from_worktree(tmp_path):
     """#1823: analysis reports read from a linked worktree must hash the
     canonical (main checkout) charter, not the worktree-local copy."""

@@ -143,15 +143,27 @@ def _sha256_text(text: str) -> str:
 _TASKS_ARTIFACT = "tasks.md"
 _CHECKBOX_RE = re.compile(r"(?m)^(\s*[-*]\s*)\[[ xX]\]")
 
+# A pipe-table cell whose entire (trimmed) content is a status marker
+# (``[ ]``/``[x]``/``[X]``/``[D]``/``[P]``), as written by
+# ``tasks_materialization.py``'s pipe-table row updater. The trailing ``|`` is
+# matched via a zero-width lookahead (not consumed) so adjacent status cells
+# on the same row still match in sequence. Requiring the literal ``|``
+# boundary on both sides (rather than just the bracket token) keeps this
+# anchored to a table-cell context: prose containing a bracketed letter is
+# never a whole cell by itself, so it is never normalized away (#2493.1).
+_PIPE_STATUS_RE = re.compile(r"\|(\s*)\[[ xXDP]\](\s*)(?=\|)")
+
 
 def _normalize_tasks_md(text: str) -> str:
     """Strip status churn (subtask checkbox state) from ``tasks.md`` so the
     freshness hash reflects only substantive content. ``mark-status``/``move-task``
-    toggle ``- [ ]``↔``- [x]`` on every transition; canonicalising the marker means
-    a recorded analysis stays current across status churn but still goes stale on a
-    real spec/plan/task-definition change (#1764)."""
+    toggle ``- [ ]``↔``- [x]`` on every transition, and toggle pipe-table status
+    cells among ``[ ]``/``[x]``/``[X]``/``[D]``/``[P]``; canonicalising both marker
+    forms means a recorded analysis stays current across status churn but still
+    goes stale on a real spec/plan/task-definition change (#1764, #2493.1)."""
 
-    return _CHECKBOX_RE.sub(r"\1[ ]", text)
+    normalized = _CHECKBOX_RE.sub(r"\1[ ]", text)
+    return _PIPE_STATUS_RE.sub(r"|\1[ ]\2", normalized)
 
 
 def _artifact_hash_entry(path: Path) -> dict[str, str | None]:
