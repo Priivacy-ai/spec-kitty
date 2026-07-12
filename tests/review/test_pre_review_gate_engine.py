@@ -205,22 +205,64 @@ def test_empty_test_targets_never_invokes_subprocess() -> None:
     assert "empty test scope" in (result.error or "")
 
 
+def _spy_on_resolve_pytest_command(
+    monkeypatch: pytest.MonkeyPatch,
+) -> list[tuple[tuple[str, ...], Path]]:
+    """Wrap (not replace) ``resolve_pytest_command`` so the real command is
+    still built and run, while recording every call.
+
+    #2570.3 unmask: prior to WP03, these two real-subprocess tests only
+    proved that *some* interpreter with pytest installed could run the
+    scoped suite — the ambient ``sys.executable`` running this very test
+    process necessarily has pytest, so a regression back to the hardcoded
+    ``sys.executable`` literal (bypassing the interpreter-resolution seam
+    entirely) would still pass every assertion below. Spying on the seam
+    itself closes that gap: it fails loudly (``AttributeError`` on
+    bug-present code, where the attribute does not exist; a call-count
+    mismatch on a reintroduced hardcoded literal) instead of passing
+    silently.
+    """
+    calls: list[tuple[tuple[str, ...], Path]] = []
+    real_resolve = pre_review_gate.resolve_pytest_command
+
+    def _spy(pytest_args: list[str], *, repo_root: Path) -> list[str]:
+        calls.append((tuple(pytest_args), repo_root))
+        return real_resolve(pytest_args, repo_root=repo_root)
+
+    monkeypatch.setattr(pre_review_gate, "resolve_pytest_command", _spy)
+    return calls
+
+
 @pytest.mark.integration
-def test_real_subprocess_run_parses_junit_and_captures_current_failures(tmp_path: Path) -> None:
+def test_real_subprocess_run_parses_junit_and_captures_current_failures(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
     _write_tiny_pytest_project(tmp_path, failing=True)
+    calls = _spy_on_resolve_pytest_command(monkeypatch)
+
     result = pre_review_gate.run_scoped_tests_at_head(["test_sample.py"], repo_root=tmp_path)
+
     assert result.ran is True
     failing_names = {f.test for f in result.current_failures}
     assert any("test_break" in name for name in failing_names)
     assert not any("test_pass" in name for name in failing_names)
+    assert len(calls) == 1
+    assert calls[0][1] == tmp_path
 
 
 @pytest.mark.integration
-def test_real_subprocess_run_with_no_failures_yields_empty_current_failures(tmp_path: Path) -> None:
+def test_real_subprocess_run_with_no_failures_yields_empty_current_failures(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
+) -> None:
     _write_tiny_pytest_project(tmp_path, failing=False)
+    calls = _spy_on_resolve_pytest_command(monkeypatch)
+
     result = pre_review_gate.run_scoped_tests_at_head(["test_sample.py"], repo_root=tmp_path)
+
     assert result.ran is True
     assert result.current_failures == ()
+    assert len(calls) == 1
+    assert calls[0][1] == tmp_path
 
 
 @pytest.mark.fast
