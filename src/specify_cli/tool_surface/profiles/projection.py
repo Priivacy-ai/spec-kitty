@@ -31,6 +31,7 @@ from ..findings import (
     make_finding,
 )
 from ..model import NativeAgentProfile
+from ._paths import relativize_under_root
 from .manifest import PROJECTION_VERSION, hash_file as hash_source_file
 from .renderers import ProfileRenderer, get_renderer, native_name_violation
 
@@ -52,11 +53,7 @@ def _profile_urn(profile: AgentProfile) -> str:
 def _manifest_source_path(source_path: Path | None, project_root: Path) -> str | None:
     if source_path is None:
         return None
-    resolved = source_path.resolve()
-    try:
-        return resolved.relative_to(project_root.resolve()).as_posix()
-    except ValueError:
-        return str(resolved)
+    return relativize_under_root(source_path, project_root)
 
 
 def _source_hash(source_path: Path | None) -> str | None:
