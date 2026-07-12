@@ -73,8 +73,25 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   fixed so `terminology-guard.toolguide.yaml` validates (clearing the `base.py` skip
   warning); and three agent profiles now cite `bdd-scenario-lifecycle` as a *procedure*
   rather than a tactic (clearing `CharterCatalogMissWarning`).
+- **Coord-authority `safe_commit` misfired on a coordination-husk identity read
+  (#2508).** Identity-meta was read off the coordination husk rather than the primary
+  checkout, so `safe_commit` could target the wrong tree; the read now anchors on the
+  primary checkout (`_load_coord_branch_meta` / `_commit_workflow_change`). Pinned
+  red-first by a dedicated regression that fails against the pre-fix code.
 
 ### ♻️ Changed
+
+- **Internal: the coord-authority trio is decomposed into ports + pure cores
+  (#2464, #2465).** The three coord-authority god-modules are restructured
+  behaviour-preservingly into the shipped Typer-shell + request-dataclass + pure-cores
+  (ports injected) + executor pattern — following `MissionResolver` (#2494) and
+  `tasks.py` (#2308): `workflow.py` → `workflow_cores.py` + `workflow_executor.py`,
+  `implement.py` → `implement_cores.py` (a `GitPort` injected and two `# noqa: C901`
+  suppressions removed), and `acceptance/` → `summary_core.py` + `gates_core.py`. The
+  trio's leaf resolvers now consume the kind-aware placement seam, preserving all three
+  (lenient) read contracts (#2465). No user-facing behaviour change; pinned by
+  seam-only + cores-no-I/O architectural tests and a characterization safety net over
+  implement / review / accept / next.
 
 ## [3.2.5] - 2026-07-08
 
