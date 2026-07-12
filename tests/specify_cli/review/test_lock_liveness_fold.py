@@ -28,7 +28,7 @@ pytestmark = pytest.mark.fast
 
 def _make_lock(pid: int) -> ReviewLock:
     return ReviewLock(
-        worktree_path="/tmp/does-not-matter",
+        worktree_path="/nonexistent/review-lock-wt",  # sentinel; is_stale never reads it
         wp_id="WP01",
         agent="claude",
         started_at="2026-07-12T12:00:00+00:00",

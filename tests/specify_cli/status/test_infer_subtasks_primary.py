@@ -239,3 +239,66 @@ def test_allowed_when_wp_section_has_zero_rows(tmp_path: Path) -> None:
     payload = json.loads(result.stdout)
     assert payload["from_lane"] == "in_progress"
     assert payload["to_lane"] == "for_review"
+
+
+def _build_flat_mission(tmp_path: Path, slug: str, *, tasks_md_body: str | None) -> Path:
+    """Build a FLAT (single_branch) mission whose PRIMARY event log already has
+    WP01 in ``in_progress``.
+
+    A flat mission has no coordination branch, so ``in_progress -> for_review``
+    routes through ``emit_status_transition`` directly (not the coord
+    ``_prepare_event`` / ``aggregate.py`` path), exercising the
+    ``resolve_subtasks_gate_dir`` inference branch in ``status/emit.py`` (WP01).
+    """
+    mission_id = "01FLAT7654321098765432109"
+    repo = _make_git_repo(tmp_path)
+    primary_dir = repo / "kitty-specs" / slug
+    primary_dir.mkdir(parents=True)
+    (primary_dir / "meta.json").write_text(
+        json.dumps(
+            {"mission_id": mission_id, "mission_slug": slug, "topology": "single_branch"}
+        ),
+        encoding="utf-8",
+    )
+    if tasks_md_body is not None:
+        (primary_dir / "tasks.md").write_text(tasks_md_body, encoding="utf-8")
+    _write_events(
+        primary_dir,
+        [
+            _status_event(slug, "WP01", "planned", "claimed", "01HXYZ0123456789ABCDEFGH40"),
+            _status_event(slug, "WP01", "claimed", "in_progress", "01HXYZ0123456789ABCDEFGH41"),
+        ],
+    )
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "flat mission in_progress")
+    return repo
+
+
+def test_flat_mission_for_review_infers_through_gate_dir_seam(tmp_path: Path) -> None:
+    """FR-001 (WP01) coverage: a FLAT mission's ``in_progress -> for_review``
+    routes through ``emit_status_transition``, which resolves the primary
+    subtasks dir via ``resolve_subtasks_gate_dir`` (status/emit.py) and infers
+    completeness from the PRIMARY ``tasks.md`` -- all rows checked -> allowed."""
+    slug = "flat-allowed"
+    tasks_md = "# Tasks\n\n## WP01\n- [x] T001 implement thing\n"
+    repo = _build_flat_mission(tmp_path, slug, tasks_md_body=tasks_md)
+
+    result = _emit_for_review(repo, slug, implementation_evidence_present=True)
+
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(result.stdout)
+    assert payload["from_lane"] == "in_progress"
+    assert payload["to_lane"] == "for_review"
+
+
+def test_flat_mission_for_review_blocks_on_unchecked_primary_rows(tmp_path: Path) -> None:
+    """The flat emit path is fail-closed too: an unchecked PRIMARY T### row ->
+    blocked (no fail-open), proving the seam-resolved dir feeds the gate."""
+    slug = "flat-blocked"
+    tasks_md = "# Tasks\n\n## WP01\n- [ ] T001 implement thing\n"
+    repo = _build_flat_mission(tmp_path, slug, tasks_md_body=tasks_md)
+
+    result = _emit_for_review(repo, slug)
+
+    assert result.exit_code != 0, result.stdout
+    assert "completed subtasks" in result.stdout

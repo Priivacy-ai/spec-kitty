@@ -201,7 +201,7 @@ class TestBranchHasCommitsBeyondSeparator:
 
         monkeypatch.setattr(recovery_mod.subprocess, "run", _fake_run)
 
-        hostile_branch = "--upload-pack=touch /tmp/pwned"
+        hostile_branch = "--upload-pack=touch /pwned-marker"
         recovery_mod._branch_has_commits_beyond(tmp_path, hostile_branch, "main")
 
         assert len(calls) == 1
@@ -460,7 +460,7 @@ class TestWorktreeRecovery:
         _make_git_repo(repo)
         _setup_feature(repo)
 
-        hostile_branch = "--upload-pack=touch /tmp/pwned"
+        hostile_branch = "--upload-pack=touch /pwned-marker"
         monkeypatch.setattr(
             recovery_mod, "_resolve_mission_branch", lambda *_a, **_kw: hostile_branch
         )

@@ -463,7 +463,7 @@ def find_banned_io_calls(source: str) -> list[_IoViolation]:
 _IO_ALLOWLIST_SITES: tuple[tuple[str, int, str], ...] = (
     (
         "specify_cli/acceptance/gates_core.py",
-        332,
+        329,
         "_workflow_evidence_missing reads ONE small, already-scoped local "
         "evidence file (workflow-evidence.md) -- the same class of "
         "'lightweight, already-scoped filesystem read' workflow_cores.py's "

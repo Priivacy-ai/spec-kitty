@@ -188,7 +188,7 @@ def test_verify_inserts_end_of_options_before_refspec(
 
     monkeypatch.setattr(git_mod.subprocess, "run", _fake_run)
 
-    hostile_ref = "--upload-pack=touch /tmp/pwned"
+    hostile_ref = "--upload-pack=touch /pwned-marker"
     assert git_mod._verify(Path("/fake/repo"), hostile_ref) is True
 
     assert len(calls) == 1
