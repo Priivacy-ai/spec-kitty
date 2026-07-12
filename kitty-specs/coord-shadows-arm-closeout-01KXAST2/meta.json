@@ -1,0 +1,32 @@
+{
+  "accept_commit": "fc20a827ce577a7415c0da995873884e47b85451",
+  "acceptance_history": [
+    {
+      "accept_commit": "fc20a827ce577a7415c0da995873884e47b85451",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-12T12:45:17.388449+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "50870cee95c79d53dd8f57ce08418ea682d8b96e"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-12T12:45:17.388449+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "50870cee95c79d53dd8f57ce08418ea682d8b96e",
+  "baseline_merge_commit": "e9cd1ccccc7496703670d280d96adc2764314686",
+  "created_at": "2026-07-12T09:16:22.788777+00:00",
+  "flattened": false,
+  "friendly_name": "Close #2160 Coord-Shadows Read/Gate Arm",
+  "mission_id": "01KXAST2C4XYGJK3KFYE8FNSCS",
+  "mission_number": 175,
+  "mission_slug": "coord-shadows-arm-closeout-01KXAST2",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "Five external-contributor fixes for the coord-shadows-primary bug class were aggregated onto this branch but each patched a symptom. This mission aligns them into one coherent slice: a single canonical definition of a work-package subtask row, a fully-closed fail-open in the status gate (so a work package can never reach review with unfinished subtasks on any code path), a recovered execution lane that never re-leaks status files, and a live claim-liveness check that stops false 'stale' warnings. It closes the remaining children of epic #2160 plus two coupled friction issues.",
+  "purpose_tldr": "Make the WP subtask and claim signals trustworthy, coord-correct, and cheap to update — closing the last read/gate arm of the coord-shadows-primary defect class.",
+  "slug": "coord-shadows-arm-closeout-01KXAST2",
+  "target_branch": "rework/ray-cluster-aggregation",
+  "topology": "coord",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-12T11:03:02.840296+00:00"
+}
