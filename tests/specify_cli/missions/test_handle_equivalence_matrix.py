@@ -623,11 +623,29 @@ def test_coord_empty_window_resolves_primary_with_warning_for_all_handles(
     canonical surface returns the PRIMARY checkout + a loud warning and the
     aggregate inherits PRIMARY, so every handle form resolves the same primary
     mission dir.
+
+    WP08 (#2533) makes the warning conditional on the mission's derived
+    topology (a coord mission WITH lanes hitting an unexpected empty coord
+    still warns; a solo, no-lanes ``MissionTopology.COORD`` mission does not —
+    see ``tests/coordination/test_surface_resolver_solo_coord_primary.py``).
+    This call path (``MissionStatus.load`` -> ``resolve_surface_dir_or_typed_
+    error`` -> ``resolve_status_surface`` with no threaded topology) hits
+    ``resolve_status_surface_with_anchor``'s un-backfilled-legacy tier, which
+    derives via ``classify_topology(coord_branch, has_lanes=False)`` — a disk
+    ``lanes.json`` is NOT consulted on this leg. So Mission B's ``meta.json``
+    (written by the shared ``repo`` fixture with no stored ``topology`` field)
+    is patched here with an explicit ``topology: "lanes_with_coord"`` to keep
+    deriving the still-warns shape this test pins, without touching the
+    shared fixture used by the other tests in this module.
     """
     import logging
 
     # coord worktree ROOT materialized, but the mission dir inside it is absent.
     (repo / ".worktrees" / f"{_COORD_SLUG}-coord").mkdir(parents=True)
+    coord_meta_path = repo / "kitty-specs" / _COORD_SLUG / "meta.json"
+    coord_meta = json.loads(coord_meta_path.read_text(encoding="utf-8"))
+    coord_meta["topology"] = "lanes_with_coord"
+    coord_meta_path.write_text(json.dumps(coord_meta), encoding="utf-8")
 
     expected_primary = (repo / "kitty-specs" / _COORD_SLUG).resolve()
     with caplog.at_level(

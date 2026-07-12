@@ -257,6 +257,12 @@ def test_coord_empty_resolves_primary_with_warning(
         primary_dir,
         mission_id=MISSION_ID,
         coordination_branch=coord_branch,
+        # WP08 (#2533) split the coord-empty warning by stored topology: a
+        # coord mission WITH lanes still warns on an unexpected empty coord
+        # (the TRUE-POSITIVE case this test pins); a solo (no-lanes)
+        # ``MissionTopology.COORD`` mission does not — see
+        # tests/coordination/test_surface_resolver_solo_coord_primary.py.
+        topology="lanes_with_coord",
     )
     # Materialise the coord worktree ROOT but NOT its mission dir (coord-empty).
     coord_root = CoordinationWorkspace.worktree_path(tmp_path, SLUG_WITH_MID8, MID8)

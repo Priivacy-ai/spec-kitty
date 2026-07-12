@@ -58,11 +58,18 @@ _MISSION = "my-mission"
 _COORD_BRANCH = f"kitty/mission-{_MISSION}-{_MID8}"
 
 
-def _seed_primary_meta(repo_root: Path, *, coordination_branch: str | None) -> Path:
+def _seed_primary_meta(
+    repo_root: Path,
+    *,
+    coordination_branch: str | None,
+    topology: str | None = None,
+) -> Path:
     feature_dir = repo_root / "kitty-specs" / _MISSION
     fields: dict[str, object] = {"mission_id": "01KTDVHZKGCHCW6HQ4V577PNES"}
     if coordination_branch is not None:
         fields["coordination_branch"] = coordination_branch
+    if topology is not None:
+        fields["topology"] = topology
     _write_meta(feature_dir, **fields)
     return feature_dir
 
@@ -120,7 +127,13 @@ def test_r2prime_materialized_root_missing_dir_falls_back_to_primary_loudly(
     repo_root = tmp_path / "repo"
     _init_repo(repo_root)
     _git(repo_root, "branch", _COORD_BRANCH)
-    feature_dir = _seed_primary_meta(repo_root, coordination_branch=_COORD_BRANCH)
+    # WP08 (#2533): the loud warning is now the TRUE-POSITIVE case (a coord
+    # mission WITH lanes hitting an unexpected empty coord). A solo (no-lanes)
+    # ``MissionTopology.COORD`` mission stays quiet — see
+    # tests/coordination/test_surface_resolver_solo_coord_primary.py.
+    feature_dir = _seed_primary_meta(
+        repo_root, coordination_branch=_COORD_BRANCH, topology="lanes_with_coord"
+    )
     # Coord worktree root exists but lacks the mission dir.
     coord_root = repo_root / ".worktrees" / f"{_MISSION}-{_MID8}-coord"
     coord_root.mkdir(parents=True)
