@@ -1,0 +1,56 @@
+{
+  "event_count": 40,
+  "last_event_id": "01KX9HMZ0GH5D6B8WAQCAF9CJ8",
+  "materialized_at": "2026-07-11T21:34:32.464037+00:00",
+  "mission_number": "174",
+  "mission_slug": "relocation-hardened-dead-code-scanners-01KX958P",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KX9HMVXCCGQSXAG0XDY0FW83",
+      "last_transition_at": "2026-07-11T21:34:29.292674+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KX9HMXV94QKW1Z8WJ5G4EXWQ",
+      "last_transition_at": "2026-07-11T21:34:31.273066+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KX9HMZ0GH5D6B8WAQCAF9CJ8",
+      "last_transition_at": "2026-07-11T21:34:32.464037+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KX9HMWJ0CDZZ73TKREVKRM3N",
+      "last_transition_at": "2026-07-11T21:34:29.952314+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KX9HMX5VWJYHS3H4XZV0DQ21",
+      "last_transition_at": "2026-07-11T21:34:30.587741+00:00"
+    }
+  }
+}
