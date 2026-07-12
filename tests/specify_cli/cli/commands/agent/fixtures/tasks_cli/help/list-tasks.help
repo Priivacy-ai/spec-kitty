@@ -8,9 +8,9 @@
  spec-kitty agent tasks list-tasks --lane doing --json                                              
                                                                                                     
 ╭─ Options ────────────────────────────────────────────────────────────────────────────────────────╮
-│ --lane           TEXT  Filter by lane                                                            │
-│ --mission        TEXT  Mission slug                                                              │
-│ --json                 Output JSON format                                                        │
-│ --help                 Show this message and exit.                                               │
+│ --lane             TEXT  Filter by lane                                                          │
+│ --mission          TEXT  Mission slug                                                            │
+│ --json                   Output JSON format                                                      │
+│ --help     -h            Show this message and exit.                                             │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 

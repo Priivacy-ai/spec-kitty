@@ -16,10 +16,10 @@
      spec-kitty agent tasks status --stale-threshold 15                                             
                                                                                                     
 ╭─ Options ────────────────────────────────────────────────────────────────────────────────────────╮
-│ --mission                TEXT     Mission slug                                                   │
-│ --json                            Output as JSON                                                 │
-│ --stale-threshold        INTEGER  Minutes of inactivity before a WP is considered stale          │
-│                                   [default: 10]                                                  │
-│ --help                            Show this message and exit.                                    │
+│ --mission                  TEXT     Mission slug                                                 │
+│ --json                              Output as JSON                                               │
+│ --stale-threshold          INTEGER  Minutes of inactivity before a WP is considered stale        │
+│                                     [default: 10]                                                │
+│ --help             -h               Show this message and exit.                                  │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 

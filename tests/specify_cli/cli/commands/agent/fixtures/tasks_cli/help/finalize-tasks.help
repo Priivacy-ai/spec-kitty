@@ -12,9 +12,9 @@
      spec-kitty agent tasks finalize-tasks --mission 021-my-feature --json                          
                                                                                                     
 ╭─ Options ────────────────────────────────────────────────────────────────────────────────────────╮
-│ --mission              TEXT  Mission slug                                                        │
-│ --json                       Output JSON format                                                  │
-│ --validate-only              Validate without writing changes                                    │
-│ --help                       Show this message and exit.                                         │
+│ --mission                TEXT  Mission slug                                                      │
+│ --json                         Output JSON format                                                │
+│ --validate-only                Validate without writing changes                                  │
+│ --help           -h            Show this message and exit.                                       │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 

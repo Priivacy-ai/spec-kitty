@@ -10,11 +10,11 @@
 │ *    task_id      TEXT  Task ID (e.g., WP01) [required]                                          │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 ╭─ Options ────────────────────────────────────────────────────────────────────────────────────────╮
-│ *  --note             TEXT  History note [required]                                              │
-│    --mission          TEXT  Mission slug                                                         │
-│    --agent            TEXT  Agent name                                                           │
-│    --shell-pid        TEXT  Shell PID                                                            │
-│    --json                   Output JSON format                                                   │
-│    --help                   Show this message and exit.                                          │
+│ *  --note               TEXT  History note [required]                                            │
+│    --mission            TEXT  Mission slug                                                       │
+│    --agent              TEXT  Agent name                                                         │
+│    --shell-pid          TEXT  Shell PID                                                          │
+│    --json                     Output JSON format                                                 │
+│    --help       -h            Show this message and exit.                                        │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 
