@@ -1,0 +1,137 @@
+{
+  "version": 1,
+  "mission_slug": "runtime-bridge-degod-01KX8M1C",
+  "mission_id": "01KX8M1CBPNQ77M1FPFRRHEB62",
+  "mission_branch": "kitty/mission-runtime-bridge-degod-01KX8M1C",
+  "target_branch": "design/runtime-bridge-degod",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "tests/runtime/_bridge_oracle.py",
+        "tests/runtime/fixtures/bridge/README.md",
+        "tests/runtime/test_bridge_parity.py"
+      ],
+      "predicted_surfaces": [
+        "app-shell",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/runtime/test_bridge_compat_surface.py"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP08",
+        "WP09",
+        "WP10"
+      ],
+      "write_scope": [
+        "src/runtime/next/runtime_bridge.py",
+        "src/runtime/next/runtime_bridge_composition.py",
+        "src/runtime/next/runtime_bridge_cores.py",
+        "src/runtime/next/runtime_bridge_engine.py",
+        "src/runtime/next/runtime_bridge_identity.py",
+        "src/runtime/next/runtime_bridge_io.py",
+        "src/runtime/next/runtime_bridge_retrospective.py",
+        "tests/runtime/test_bridge_composition.py",
+        "tests/runtime/test_bridge_cores.py",
+        "tests/runtime/test_bridge_decide_next.py",
+        "tests/runtime/test_bridge_decision_builder.py",
+        "tests/runtime/test_bridge_engine.py",
+        "tests/runtime/test_bridge_identity.py",
+        "tests/runtime/test_bridge_io.py",
+        "tests/runtime/test_bridge_retrospective.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-07-11T14:18:42.973921+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP04",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/runtime/next/runtime_bridge.py' vs 'src/runtime/next/runtime_bridge.py'; WP04 depends on WP03"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP05",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/runtime/next/runtime_bridge.py' vs 'src/runtime/next/runtime_bridge.py'"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP06",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/runtime/next/runtime_bridge.py' vs 'src/runtime/next/runtime_bridge.py'"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP07",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/runtime/next/runtime_bridge.py' vs 'src/runtime/next/runtime_bridge.py'"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP08",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/runtime/next/runtime_bridge.py' vs 'src/runtime/next/runtime_bridge.py'"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP09",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/runtime/next/runtime_bridge.py' vs 'src/runtime/next/runtime_bridge.py'"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP10",
+        "rule": "write_scope_overlap",
+        "evidence": "overlapping globs: 'src/runtime/next/runtime_bridge.py' vs 'src/runtime/next/runtime_bridge.py'"
+      }
+    ],
+    "total_merges": 7,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "write_scope_overlap": 7
+    }
+  }
+}
