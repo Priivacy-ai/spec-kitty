@@ -1,8 +1,8 @@
 # Mission Specification: Alphabetical Command Listing
 
-**Mission Branch**: `alphabetical-command-listing-01KW6N8W`  
-**Created**: 2026-06-28  
-**Status**: Draft  
+**Mission Branch**: `alphabetical-command-listing-01KW6N8W`
+**Created**: 2026-06-28
+**Status**: Draft
 **Input**: User description: "arrange commands by alphabetical order when running `spec-kitty` without any parameters or subcommands"
 
 ## User Scenarios & Testing *(mandatory)*

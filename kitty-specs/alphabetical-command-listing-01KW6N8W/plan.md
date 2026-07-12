@@ -9,14 +9,14 @@ Ensure root command listings shown by a bare `spec-kitty` invocation are alphabe
 
 ## Technical Context
 
-**Language/Version**: Python 3.11+  
-**Primary Dependencies**: Typer, Click, Rich, pytest  
-**Storage**: N/A; no persisted data changes  
-**Testing**: Focused CLI tests inspecting root command listing order  
-**Target Platform**: Cross-platform command-line interface on macOS, Linux, and Windows  
-**Project Type**: Single Python CLI package  
-**Performance Goals**: Sorting has negligible overhead for the current root command count  
-**Constraints**: Do not rename commands or change command hierarchy  
+**Language/Version**: Python 3.11+
+**Primary Dependencies**: Typer, Click, Rich, pytest
+**Storage**: N/A; no persisted data changes
+**Testing**: Focused CLI tests inspecting root command listing order
+**Target Platform**: Cross-platform command-line interface on macOS, Linux, and Windows
+**Project Type**: Single Python CLI package
+**Performance Goals**: Sorting has negligible overhead for the current root command count
+**Constraints**: Do not rename commands or change command hierarchy
 **Scale/Scope**: Root command listing for bare `spec-kitty`
 
 ## Charter Check
