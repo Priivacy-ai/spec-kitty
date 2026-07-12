@@ -66,6 +66,8 @@
   href: use-dashboard.md
 - name: Manage the Glossary
   href: manage-glossary.md
+- name: Manage the Issue Tracker
+  href: manage-issue-tracker.md
 - name: Non-Interactive Init
   href: non-interactive-init.md
 - name: Set Up Project Governance
