@@ -71,6 +71,35 @@ def count_subtask_rows(text: str) -> tuple[int, int]:
     return done, total
 
 
+def iter_unchecked_subtask_rows(text: str) -> Iterator[str]:
+    """Yield the raw (stripped) unchecked canonical subtask rows in *text*.
+
+    Whole-file, fence-aware, ``T###``-scoped — the canonical substitute for a
+    bespoke ``re.match(r"^\\s*-\\s*\\[ \\]")`` whole-file scan (#2567). Unlike
+    that stray regex, prose ``- [ ]`` checkboxes without a ``T###`` id, and
+    any row inside a fenced code block, are not real implementation subtasks
+    and are not yielded — this is an intentional narrowing of what counts as
+    "unchecked" (FR-009), ratified by a characterization test rather than
+    folded in silently.
+
+    Mirrors ``count_subtask_rows``'s fence loop exactly, sharing the same
+    ``UNCHECKED_SUBTASK_ROW`` constant, but yields the offending line string
+    instead of a count — callers that need to *report* unchecked rows (e.g.
+    the acceptance gate) need the strings; ``count_subtask_rows`` only needs
+    the totals.
+    """
+    in_code_fence = False
+    for line in text.split("\n"):
+        stripped = line.strip()
+        if stripped.startswith(("```", "~~~")):
+            in_code_fence = not in_code_fence
+            continue
+        if in_code_fence:
+            continue
+        if UNCHECKED_SUBTASK_ROW.match(stripped):
+            yield stripped
+
+
 def _heading_wp_token(line: str) -> str | None:
     """Return the FIRST ``WPxx`` token in *line* if it is a ``##``-``####`` heading."""
     if not re.match(r"^#{2,4}[^#]", line):
