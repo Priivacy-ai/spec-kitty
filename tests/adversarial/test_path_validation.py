@@ -8,7 +8,7 @@ Tests for validate_deliverables_path() to ensure:
 - Empty/whitespace paths are rejected
 - Special paths (home, absolute) are rejected
 
-Target: src/specify_cli/mission.py:608-637
+Target: src/specify_cli/mission.py::validate_deliverables_path
 """
 
 from __future__ import annotations
@@ -40,8 +40,6 @@ class TestDirectoryTraversal:
         """Directory traversal paths must be rejected."""
         is_valid, error = validate_deliverables_path(malicious_path)
 
-        if is_valid:
-            pytest.xfail("Traversal not blocked in current implementation")
         assert not is_valid, f"Path '{malicious_path}' should be rejected ({description})"
         assert error, f"Should provide error message for: {description}"
         # Error should mention traversal or invalid path
@@ -58,7 +56,12 @@ class TestDirectoryTraversal:
 
 
 class TestCaseSensitivityBypass:
-    """Test case-sensitivity bypass prevention (macOS/Windows)."""
+    """Test case-sensitivity bypass prevention (macOS/Windows).
+
+    The validator folds case in code (it does not rely on the host
+    filesystem's case sensitivity), so these must be rejected
+    unconditionally, on every platform.
+    """
 
     @pytest.mark.parametrize(
         "case_variant",
@@ -70,16 +73,11 @@ class TestCaseSensitivityBypass:
             "KITTY-specs/test/",
         ],
     )
-    def test_case_variants_rejected(self, case_variant: str, case_insensitive_fs: bool):
-        """Case variants of kitty-specs should be rejected on case-insensitive FS."""
-        if not case_insensitive_fs:
-            pytest.skip("Case-sensitivity test only runs on case-insensitive filesystems")
-
+    def test_case_variants_rejected(self, case_variant: str):
+        """Case variants of kitty-specs should be rejected, regardless of filesystem."""
         is_valid, error = validate_deliverables_path(case_variant)
 
-        if is_valid:
-            pytest.xfail("Case-variant bypass not blocked in current implementation")
-        assert not is_valid, f"Case variant '{case_variant}' should be rejected on case-insensitive FS"
+        assert not is_valid, f"Case variant '{case_variant}' should be rejected (in-code case-folding)"
         assert error, "Should provide error message"
 
     def test_case_sensitivity_check_documented(self):
@@ -111,8 +109,6 @@ class TestEmptyPaths:
         """Empty/whitespace paths must be rejected with clear error."""
         is_valid, error = validate_deliverables_path(empty_path)
 
-        if is_valid:
-            pytest.xfail("Empty/whitespace paths not blocked in current implementation")
         assert not is_valid, f"'{description}' should be rejected"
         assert error, f"Should provide error message for: {description}"
 
@@ -120,16 +116,20 @@ class TestEmptyPaths:
         """Paths like '..' or '.' should be rejected."""
         for dot_path in ["..", ".", ".../", "../.."]:
             is_valid, error = validate_deliverables_path(dot_path)
-            if is_valid:
-                pytest.xfail("Dot paths not blocked in current implementation")
             assert not is_valid, f"Dot path '{dot_path}' should be rejected"
+            assert error, f"Should provide error message for: {dot_path}"
 
     def test_trailing_whitespace_handled(self):
-        """Paths with trailing whitespace should be normalized."""
-        # This documents expected behavior - trailing whitespace should be stripped
+        """Paths with trailing whitespace should be normalized and accepted.
+
+        Positive case: 'docs/research/  ' has no traversal/absolute/reserved
+        markers once the trailing whitespace is stripped, so it should be a
+        valid path (not rejected, and not raise).
+        """
         is_valid, error = validate_deliverables_path("docs/research/  ")
-        # Either rejected (strict) or normalized (lenient) - both are acceptable
-        # Key is it shouldn't cause an exception
+
+        assert is_valid, f"Trailing whitespace should be stripped and the path accepted: {error}"
+        assert not error, "Should not have an error for a valid path with trailing whitespace"
 
 
 class TestSymlinkAttacks:
@@ -141,8 +141,12 @@ class TestSymlinkAttacks:
     """
 
     @pytest.mark.requires_symlinks
-    def test_symlink_to_kitty_specs_rejected(self, tmp_path: Path, symlink_factory):
+    def test_symlink_to_kitty_specs_rejected(self, tmp_path: Path, symlink_factory, monkeypatch: pytest.MonkeyPatch):
         """Symlink pointing to kitty-specs/ should be rejected."""
+        # The validator resolves relative to the current working directory,
+        # so the project root for this test IS tmp_path.
+        monkeypatch.chdir(tmp_path)
+
         # Create mock kitty-specs directory
         kitty_specs = tmp_path / "kitty-specs"
         kitty_specs.mkdir()
@@ -156,14 +160,37 @@ class TestSymlinkAttacks:
         # Validation should resolve the symlink and reject
         relative_path = "docs/innocent-link/"
 
-        # Note: This tests if the implementation resolves symlinks
-        # If this test fails, it indicates a vulnerability
         is_valid, error = validate_deliverables_path(relative_path)
 
-        # Current implementation may not check symlinks - document behavior
-        # If validation passes, this is a bug that should be fixed
-        if is_valid:
-            pytest.xfail("validate_deliverables_path does not resolve symlinks - security gap")
+        assert not is_valid, "Symlink resolving into kitty-specs/ must be rejected"
+        assert error, "Should provide error message for symlink-into-kitty-specs"
+
+    @pytest.mark.requires_symlinks
+    def test_symlink_escaping_project_root_rejected(
+        self,
+        tmp_path: Path,
+        symlink_factory,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path_factory: pytest.TempPathFactory,
+    ):
+        """Symlink resolving outside the project root should be rejected."""
+        # symlink_factory anchors links under this fixture's own tmp_path, so
+        # tmp_path itself (not a subdirectory of it) must be the project root
+        # for the symlink to actually land inside the chdir'd cwd.
+        monkeypatch.chdir(tmp_path)
+
+        # A directory in a genuinely unrelated tmp location (a sibling base
+        # dir from tmp_path_factory, never a descendant of tmp_path).
+        outside = tmp_path_factory.mktemp("outside-project-root")
+
+        link = symlink_factory(outside, "docs/escape-link")
+        if link is None:
+            pytest.skip("Symlinks not supported on this platform")
+
+        is_valid, error = validate_deliverables_path("docs/escape-link/payload/")
+
+        assert not is_valid, "Symlink escaping the project root must be rejected"
+        assert error, "Should provide error message for symlink-escaping-project-root"
 
 
 class TestSpecialPaths:
@@ -173,16 +200,13 @@ class TestSpecialPaths:
         """Paths with ~ (home directory) should be rejected."""
         for home_path in ["~/research/", "~user/research/", "~/", "~"]:
             is_valid, error = validate_deliverables_path(home_path)
-            if is_valid:
-                pytest.xfail("Home directory paths not blocked in current implementation")
             assert not is_valid, f"Home path '{home_path}' should be rejected"
+            assert error, f"Should provide error message for: {home_path}"
 
     def test_absolute_path_rejected(self):
         """Absolute paths should be rejected."""
         for abs_path in ["/nonexistent/research/", "/etc/passwd", "/home/user/", "C:\\Users\\test\\"]:
             is_valid, error = validate_deliverables_path(abs_path)
-            if is_valid:
-                pytest.xfail("Absolute paths not blocked in current implementation")
             assert not is_valid, f"Absolute path '{abs_path}' should be rejected"
             assert error, "Should provide error message"
 
@@ -195,22 +219,32 @@ class TestSpecialPaths:
         ]
         for null_path in null_paths:
             is_valid, error = validate_deliverables_path(null_path)
-            if is_valid:
-                pytest.xfail("Null byte paths not blocked in current implementation")
             assert not is_valid, "Null byte path should be rejected"
+            assert error, "Should provide error message for null byte path"
 
     def test_project_root_rejected(self):
-        """Empty path (project root) should be rejected as ambiguous."""
-        # Per ADR 7: "deliverables_path should not be at project root"
+        """Bare './' (project root) should be rejected as ambiguous.
+
+        Per ADR 7: "deliverables_path should not be at project root". This
+        is a genuine malicious/ambiguous-input vector: it resolves to the
+        project root itself, which is never a valid deliverables location.
+        """
         is_valid, error = validate_deliverables_path("./")
-        # Should either reject or warn about ambiguity
+
+        assert not is_valid, "Bare './' should be rejected as an ambiguous project-root reference"
+        assert error, "Should provide error message for './'"
 
 
 class TestUnicodePaths:
     """Test Unicode path handling."""
 
     def test_valid_unicode_accepted(self):
-        """Valid Unicode paths should be accepted."""
+        """Valid Unicode paths should be accepted (positive case).
+
+        None of these contain traversal, absolute, home, or reserved-path
+        markers, so they must be treated the same as any other legitimate
+        relative path.
+        """
         valid_unicode = [
             "docs/研究/",
             "docs/исследование/",
@@ -219,36 +253,44 @@ class TestUnicodePaths:
         ]
         for path in valid_unicode:
             is_valid, error = validate_deliverables_path(path)
-            # Should not raise exception; acceptance is optional
-            # Key is graceful handling
+            assert is_valid, f"Valid Unicode path should be accepted: {path} ({error})"
+            assert not error, f"Should not have an error for valid Unicode path: {path}"
 
     def test_rtl_override_rejected(self):
         """Right-to-left override characters should be rejected.
 
-        RTL override (\u202e) can be used to spoof paths:
-        'docs/\u202etset/' appears as 'docs/test/' visually
+        RTL override (U+202E) can be used to spoof paths so that
+        'docs/<RTL-override>tset/' appears as 'docs/test/' visually.
+        Built via chr() rather than embedding the raw override character in
+        this source file, so the file itself stays visually unambiguous.
         """
+        rtl_override = chr(0x202E)  # RIGHT-TO-LEFT OVERRIDE
+        pop_directional = chr(0x202C)  # POP DIRECTIONAL FORMATTING
         rtl_paths = [
-            "docs/\u202e/test/",  # RTL override
-            "docs/a\u202eb\u202c/",  # RTL + pop directional
+            f"docs/{rtl_override}/test/",
+            f"docs/a{rtl_override}b{pop_directional}/",
         ]
         for rtl_path in rtl_paths:
             is_valid, error = validate_deliverables_path(rtl_path)
-            # Should reject or at least handle without crash
-            # RTL characters in paths are suspicious
+            assert not is_valid, f"RTL/bidi override path should be rejected: {rtl_path!r}"
+            assert error, f"Should provide error message for: {rtl_path!r}"
 
     def test_unicode_normalization_consistent(self):
         """Unicode normalization should be consistent.
 
         NFC vs NFD can cause same-looking paths to differ:
         'café' (NFC) vs 'café' (NFD - e + combining acute)
+
+        This is a consistency guard, not a rejection vector: neither form
+        contains any forbidden marker, so both must be treated the same way
+        (both valid) rather than diverging based on incidental byte layout.
         """
-        # This documents expected behavior
-        nfc_path = "docs/caf\u00e9/"  # é as single char
-        nfd_path = "docs/cafe\u0301/"  # e + combining acute
+        nfc_path = "docs/caf" + chr(0x00E9) + "/"  # precomposed LATIN SMALL LETTER E WITH ACUTE
+        nfd_path = "docs/cafe" + chr(0x0301) + "/"  # e + COMBINING ACUTE ACCENT (decomposed)
 
-        # Both should be handled consistently (both valid or both invalid)
-        nfc_valid, _ = validate_deliverables_path(nfc_path)
-        nfd_valid, _ = validate_deliverables_path(nfd_path)
+        nfc_valid, nfc_error = validate_deliverables_path(nfc_path)
+        nfd_valid, nfd_error = validate_deliverables_path(nfd_path)
 
-        # Ideally should normalize before comparison
+        assert nfc_valid, f"NFC unicode path should be valid: {nfc_error}"
+        assert nfd_valid, f"NFD unicode path should be valid: {nfd_error}"
+        assert nfc_valid == nfd_valid, "NFC and NFD variants must be handled consistently"
