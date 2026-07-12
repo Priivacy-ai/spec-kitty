@@ -3,7 +3,8 @@
 Mission ``tasks-py-degod-wave2-01KWH9EQ`` — parity-contract Layer 4 (NFR-002):
 ``kitty-specs/tasks-py-degod-wave2-01KWH9EQ/contracts/parity-contract.md``.
 
-Two batteries (the WP02 pattern, applied to the ``tasks_move_task`` move-set):
+This file now carries ONE battery (the WP06 / dev-assist-retire-path-hardening
+ruling, mission ``dev-assist-retire-path-hardening-01KXAVR0``, #2565):
 
 1. **Interception** — each test patches ``...agent.tasks.<symbol>`` with a
    sentinel and drives a relocated ``_mt_*`` phase helper (or ``_do_move_task``
@@ -11,12 +12,23 @@ Two batteries (the WP02 pattern, applied to the ``tasks_move_task`` move-set):
    hit — proving the lazy ``_tasks.<attr>`` seam bridge preserves patch
    interception, not merely import resolution. The C-001 divergence wiring
    (``_skip_target_branch_commit`` pre-gate position + auto-commit gating) is
-   pinned explicitly.
+   pinned explicitly. This coverage is UNIQUE — no observable-contract test
+   (including the Fake-port ``test_move_task_orchestration.py`` projections)
+   proves a call-site is still routed through the patchable ``tasks.<attr>``
+   seam, since those tests never patch ``tasks.<attr>`` to assert phase-helper
+   routing; they drive ``_do_move_task`` with injected Fake ports instead. A
+   same-object identity check cannot observe patchability either. KEEP is the
+   default per the WP05 review ruling.
 
-2. **Identity** — parametrized ``tasks.<sym> is tasks_move_task.<sym>`` over
-   the FULL 26-symbol move-set (binding present and the SAME object; cheap,
-   non-fakeable), plus a completeness guard so a def added to
-   ``tasks_move_task`` without a battery row goes RED.
+The **identity** battery (``test_tasks_binding_is_tasks_move_task_object``,
+parametrized over the 51-symbol move-set) and the exact-set completeness pin
+(``test_move_set_matches_tasks_move_task_defs``) were RETIRED at WP06: both
+are mechanically subsumed by WP05's consolidated re-export guard —
+``tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py``
+(``test_tasks_binding_is_seam_object`` for identity;
+``test_guard_symbol_is_genuinely_native_to_its_seam`` +
+``test_guard_keyset_is_superset_of_all_six_seams_native_defs`` for the
+exact-set/completeness claim over the same 51 ``tasks_move_task`` symbols).
 
 Seam checklist (per-symbol evidence):
 ``kitty-specs/tasks-py-degod-wave2-01KWH9EQ/seam-checklist.md``.
@@ -38,73 +50,6 @@ from specify_cli.status import Lane
 pytestmark = pytest.mark.fast
 
 _TASKS = "specify_cli.cli.commands.agent.tasks"
-
-#: The definitive WP05 move-set. One row per relocated symbol; the identity
-#: battery below parametrizes over ALL of them (no spot-checking).
-_MOVE_SET: tuple[str, ...] = (
-    "_default_move_task_ports",
-    "_MoveTaskState",
-    "_mt_warn_worktree_kitty_specs",
-    "_mt_resolve_targets",
-    "_mt_resolve_feedback",
-    "_mt_build_request",
-    # #2335: for_review deliverable-recovery pair (porcelain parser + pre-guard
-    # auto-commit), re-exported through ``tasks`` like the rest of the family.
-    "_lane_deliverable_paths",
-    "_mt_commit_lane_deliverables",
-    "_mt_gather_review_facts",
-    "_mt_fire_override_persist",
-    "_mt_done_ancestry_facts",
-    "_mt_issue_matrix_facts",
-    "_mt_approval_facts",
-    "_mt_gather_late_facts",
-    "_mt_fire_arbiter_persist",
-    "_mt_run_decision",
-    "_mt_finalize_plan",
-    "_mt_current_event_lane",
-    "_mt_hop_review_result",
-    "_mt_hop_actor",
-    "_mt_emit_transitions",
-    "_mt_commit_wp_file",
-    "_mt_persist_tracker_refs",
-    "_mt_persist_wp_file",
-    "_mt_release_review_lock",
-    "_mt_execute",
-    "_mt_output",
-    "_do_move_task",
-    # WP09 (FR-008, IC-07): the final registration-shim sweep relocated the
-    # six family stragglers that stayed ``tasks.py``-resident at WP05; the
-    # identity battery covers them like every other moved symbol.
-    "_primary_bundle_status_artifacts",
-    "_coord_status_events_path",
-    "_status_event_result_fields",
-    "_detect_reviewer_name",
-    "_detect_arbiter_override",
-    "_run_arbiter_override",
-    # WP02 (review-regression-gate-01KWX6DF, T004/T005): the for_review
-    # pre-review regression-gate hook + its precedence/messaging helpers join
-    # the family surface like every other def in this module.
-    "_mt_run_pre_review_gate",
-    "_mt_resolve_pre_review_workspace",
-    "_mt_pre_review_changed_files",
-    "_mt_pre_review_gate_with_override_scope",
-    "_mt_empty_scope_verdict",
-    "_mt_pre_review_gate_verdict",
-    "_mt_pre_review_gate_metadata",
-    "_mt_pre_review_gate_console_warning",
-    "_mt_pre_review_gate_block_message",
-    "_mt_review_config_section",
-    "_mt_pre_review_block_enabled",
-    "_mt_pre_review_scope_override",
-    "_pre_review_gate_filter_groups",
-    "_pre_review_gate_composite_routing",
-    # coord-primary-partition-lock WP05 (T023/T024): the STATUS_STATE seam
-    # lookup + the extracted write/commit core + the enriched success message
-    # join the family surface like every other def.
-    "_mt_resolve_status_placement_ref",
-    "_mt_write_and_commit_wp_file",
-    "_mt_wp_commit_success_message",
-)
 
 
 class _SentinelHit(Exception):
@@ -428,29 +373,14 @@ def test_default_ports_constructs_through_tasks_bindings() -> None:
     assert ports.render is render_cls.return_value
 
 
-# ---------------------------------------------------------------------------
-# Identity battery — binding present AND the same object, for the FULL
-# move-set (parity-contract Layer 4 leg (a); cheap and non-fakeable).
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("symbol", _MOVE_SET)
-def test_tasks_binding_is_tasks_move_task_object(symbol: str) -> None:
-    """``tasks.<sym>`` is the SAME object as ``tasks_move_task.<sym>``."""
-    assert getattr(tasks, symbol) is getattr(tasks_move_task, symbol)
-
-
-def test_move_set_matches_tasks_move_task_defs() -> None:
-    """The parametrized move-set list is the COMPLETE tasks_move_task surface.
-
-    Guards the identity battery against silently drifting out of sync with
-    ``tasks_move_task`` (a def added there without a ``tasks`` re-export row
-    would otherwise escape the battery).
-    """
-    module_defs = {
-        name
-        for name, obj in vars(tasks_move_task).items()
-        if getattr(obj, "__module__", None) == tasks_move_task.__name__
-        and callable(obj)
-    }
-    assert module_defs == set(_MOVE_SET)
+# NOTE (WP06 / #2565): the identity battery
+# (``test_tasks_binding_is_tasks_move_task_object``, 51 symbols) and the
+# exact-set completeness pin (``test_move_set_matches_tasks_move_task_defs``)
+# formerly lived here. Both are RETIRED — mechanically subsumed by WP05's
+# consolidated guard, ``test_tasks_compat_surface.py``
+# (``test_tasks_binding_is_seam_object`` for identity;
+# ``test_guard_symbol_is_genuinely_native_to_its_seam`` +
+# ``test_guard_keyset_is_superset_of_all_six_seams_native_defs`` for the
+# exact-set claim), which covers the same 51-symbol ``tasks_move_task``
+# surface. See the module docstring above for the reconcile ruling on the
+# interception battery kept in this file.

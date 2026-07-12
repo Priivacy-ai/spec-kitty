@@ -1,10 +1,13 @@
 """Seam test for the relocated mission-number bake cluster (mission #2057, WP07).
 
 Covers the bake orchestrator's short-circuits (already-baked, non-git-repo,
-no-op-on-target, dry-run) and the helper predicates, and proves the shim
-re-exports ``_bake_mission_number_into_mission_branch`` and that the bake
-cluster keeps its lazy imports lazy (C-007) without reaching back into the shim
-(INV-2).
+no-op-on-target, dry-run) and the helper predicates. The re-export-identity
+guard for ``_bake_mission_number_into_mission_branch`` and the one-way-import
+guard (INV-2) live in the consolidated
+``tests/merge/test_merge_compat_surface.py`` (WP04,
+dev-assist-retire-path-hardening-01KXAVR0 / #2565) — this file keeps only the
+functional coverage plus the lazy-import guard below (C-007), which is a
+distinct concern from one-way-import.
 """
 
 from __future__ import annotations
@@ -15,7 +18,6 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.cli.commands import merge as shim
 from specify_cli.merge import ordering
 from specify_cli.merge.state import MergeState
 
@@ -26,26 +28,6 @@ def _state(baked: bool = False) -> MergeState:
     s = MergeState(mission_id="01ID", mission_slug="m", target_branch="main", wp_order=["WP01"])
     s.mission_number_baked = baked
     return s
-
-
-def test_shim_re_exports_bake_entrypoint() -> None:
-    assert shim._bake_mission_number_into_mission_branch is ordering._bake_mission_number_into_mission_branch
-
-
-def test_ordering_does_not_import_command_shim() -> None:
-    import ast
-    import inspect
-
-    tree = ast.parse(inspect.getsource(ordering))
-    modules: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.module:
-            modules.add(node.module)
-        elif isinstance(node, ast.Import):
-            modules.update(alias.name for alias in node.names)
-    assert not any(
-        m.startswith("specify_cli.cli.commands.merge") for m in modules
-    ), sorted(modules)
 
 
 def test_lazy_imports_stay_lazy() -> None:

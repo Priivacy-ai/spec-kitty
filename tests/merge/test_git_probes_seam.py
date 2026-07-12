@@ -2,9 +2,10 @@
 
 Covers the relocated low-level git primitives (porcelain classification,
 linear-history detection, worktree-path predicate, branch/tree probes,
-post-merge refresh) and proves the command shim re-exports the same objects so
-``doctor.py`` / ``agent/mission.py`` and the public ``path_is_under_worktrees``
-importer need zero edits (FR-006, C-006). Also enforces one-way imports (INV-2).
+post-merge refresh). The re-export-identity and one-way-import guards for this
+seam live in the consolidated ``tests/merge/test_merge_compat_surface.py``
+(WP04, dev-assist-retire-path-hardening-01KXAVR0 / #2565) — this file keeps
+only the functional coverage.
 """
 
 from __future__ import annotations
@@ -14,58 +15,12 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.cli.commands import merge as shim
 from specify_cli.merge import git_probes
 
 # The subprocess-backed probes below spawn real ``git`` on a tmp repo, so this
 # file is an integration test that requires a git repo (Rule 1) and must NOT
 # carry ``fast`` (Rule 2 — subprocess work would poison the inner-loop profile).
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
-
-
-# --- Re-export / one-way-import contract ------------------------------------
-
-RELOCATED_NAMES = [
-    "_lane_already_integrated",
-    "_branch_trees_equal",
-    "path_is_under_worktrees",
-    "_raw_porcelain_status",
-    "_classify_porcelain_lines",
-    "_is_linear_history_rejection",
-    "_emit_remediation_hint",
-    "_refresh_primary_checkout_after_merge",
-    "_paths_have_status_changes",
-    "_is_git_repo",
-    "_has_branch_ref",
-]
-
-
-@pytest.mark.parametrize("name", RELOCATED_NAMES)
-def test_shim_re_exports_the_same_object(name: str) -> None:
-    assert getattr(shim, name) is getattr(git_probes, name)
-
-
-def test_git_probes_does_not_import_the_command_shim() -> None:
-    """One-way import (C-006/INV-2): the seam never imports the merge command shim.
-
-    Importing shared helpers (``cli.helpers.console``) is allowed — the rule
-    forbids reaching back into ``cli.commands.merge`` (the shim), which would
-    create a cycle.
-    """
-    import ast
-    import inspect
-
-    tree = ast.parse(inspect.getsource(git_probes))
-    modules: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.module:
-            modules.add(node.module)
-        elif isinstance(node, ast.Import):
-            modules.update(alias.name for alias in node.names)
-    assert "specify_cli.cli.commands.merge" not in modules, sorted(modules)
-    assert not any(
-        m.startswith("specify_cli.cli.commands.merge") for m in modules
-    ), sorted(modules)
 
 
 # --- path_is_under_worktrees -----------------------------------------------
@@ -140,7 +95,7 @@ def test_emit_remediation_hint_prints_squash_guidance() -> None:
         def print(self, msg: str) -> None:
             captured.append(msg)
 
-    git_probes._emit_remediation_hint(_FakeConsole())  # type: ignore[arg-type]
+    git_probes._emit_remediation_hint(_FakeConsole())
     assert any("--strategy squash" in line for line in captured)
     assert any("linear-history" in line for line in captured)
 

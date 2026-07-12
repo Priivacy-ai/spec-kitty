@@ -3,22 +3,23 @@
 Mission ``tasks-py-degod-wave2-01KWH9EQ`` — parity-contract Layer 4 (NFR-002):
 ``kitty-specs/tasks-py-degod-wave2-01KWH9EQ/contracts/parity-contract.md``.
 
-Two batteries (the WP02/WP05 pattern, applied to the ``tasks_map_requirements``
-move-set):
+**Interception battery only** (dev-assist-retire-path-hardening-01KXAVR0
+WP05a / #2565): each test patches ``...agent.tasks.<symbol>`` with a sentinel
+and drives a relocated ``_mr_*`` phase helper (or
+``_default_map_requirements_ports`` construction) THROUGH the moved body,
+asserting the sentinel is hit — proving the lazy ``_tasks.<attr>`` seam
+bridge preserves patch interception, not merely import resolution. The
+C-001 divergence wiring (REFUSE-exit-1 through
+``_protected_branch_status_commit_error`` with NO
+``_skip_target_branch_commit`` pre-gate) is pinned explicitly.
 
-1. **Interception** — each test patches ``...agent.tasks.<symbol>`` with a
-   sentinel and drives a relocated ``_mr_*`` phase helper (or
-   ``_default_map_requirements_ports`` construction) THROUGH the moved body,
-   asserting the sentinel is hit — proving the lazy ``_tasks.<attr>`` seam
-   bridge preserves patch interception, not merely import resolution. The
-   C-001 divergence wiring (REFUSE-exit-1 through
-   ``_protected_branch_status_commit_error`` with NO
-   ``_skip_target_branch_commit`` pre-gate) is pinned explicitly.
-
-2. **Identity** — parametrized ``tasks.<sym> is tasks_map_requirements.<sym>``
-   over the FULL 14-symbol move-set (binding present and the SAME object;
-   cheap, non-fakeable), plus a completeness guard so a def added to
-   ``tasks_map_requirements`` without a battery row goes RED.
+The identity re-export battery
+(``test_tasks_binding_is_tasks_map_requirements_object``) and its exact-set
+completeness pin (``test_move_set_matches_tasks_map_requirements_defs``)
+were retired here — folded into the consolidated
+``tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py`` guard,
+which covers this seam's full symbol surface alongside the other 5
+``tasks_*`` seams in one place.
 
 Seam checklist (per-symbol evidence):
 ``kitty-specs/tasks-py-degod-wave2-01KWH9EQ/seam-checklist.md``.
@@ -41,29 +42,6 @@ from specify_cli.cli.commands.agent.tasks_map_requirements import _MapReqState
 pytestmark = pytest.mark.fast
 
 _TASKS = "specify_cli.cli.commands.agent.tasks"
-
-#: The definitive WP06 move-set. One row per relocated symbol; the identity
-#: battery below parametrizes over ALL of them (no spot-checking).
-_MOVE_SET: tuple[str, ...] = (
-    "_default_map_requirements_ports",
-    "_MapReqState",
-    "_mr_validate_modes",
-    "_mr_resolve_context",
-    "_mr_build_new_mappings",
-    "_mr_unknown_wp_gate",
-    "_mr_resolve_read_dirs",
-    "_mr_plan",
-    "_mr_gate_offenders",
-    "_mr_write_frontmatter",
-    "_mr_stale_gate",
-    "_mr_auto_commit",
-    "_mr_emit_output",
-    "_do_map_requirements",
-    # WP09 (FR-008, IC-07): the final registration-shim sweep relocated the
-    # family straggler that stayed ``tasks.py``-resident at WP06; the identity
-    # battery covers it like every other moved symbol.
-    "_map_requirements_feature_dir",
-)
 
 
 class _SentinelHit(Exception):
@@ -408,32 +386,3 @@ def test_default_ports_constructs_through_tasks_bindings() -> None:
     assert ports.fs is fs_cls.return_value
     assert ports.git is git_cls.return_value
     assert ports.render is render_cls.return_value
-
-
-# ---------------------------------------------------------------------------
-# Identity battery — binding present AND the same object, for the FULL
-# move-set (parity-contract Layer 4 leg (a); cheap and non-fakeable).
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("symbol", _MOVE_SET)
-def test_tasks_binding_is_tasks_map_requirements_object(symbol: str) -> None:
-    """``tasks.<sym>`` is the SAME object as ``tasks_map_requirements.<sym>``."""
-    assert getattr(tasks, symbol) is getattr(tasks_map_requirements, symbol)
-
-
-def test_move_set_matches_tasks_map_requirements_defs() -> None:
-    """The parametrized move-set list is the COMPLETE tasks_map_requirements
-    surface.
-
-    Guards the identity battery against silently drifting out of sync with
-    ``tasks_map_requirements`` (a def added there without a ``tasks`` re-export
-    row would otherwise escape the battery).
-    """
-    module_defs = {
-        name
-        for name, obj in vars(tasks_map_requirements).items()
-        if getattr(obj, "__module__", None) == tasks_map_requirements.__name__
-        and callable(obj)
-    }
-    assert module_defs == set(_MOVE_SET)

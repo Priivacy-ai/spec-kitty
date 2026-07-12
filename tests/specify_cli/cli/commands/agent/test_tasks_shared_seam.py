@@ -3,18 +3,24 @@
 Mission ``tasks-py-degod-wave2-01KWH9EQ`` — parity-contract Layer 4 (NFR-002):
 ``kitty-specs/tasks-py-degod-wave2-01KWH9EQ/contracts/parity-contract.md``.
 
-Two batteries:
+**Interception battery only** (dev-assist-retire-path-hardening-01KXAVR0
+WP05a / #2565): each test patches ``...agent.tasks.<symbol>`` with a
+sentinel and invokes a shared helper THROUGH the ``tasks`` namespace,
+asserting the sentinel is hit. These tests were committed GREEN against the
+pre-move tree (helpers still defined in ``tasks.py``) and must stay green
+after the relocation to ``tasks_shared.py`` — proving the lazy
+``_tasks.<attr>`` seam bridge preserves patch interception, not merely
+import resolution.
 
-1. **Interception** — each test patches ``...agent.tasks.<symbol>`` with a
-   sentinel and invokes a shared helper THROUGH the ``tasks`` namespace,
-   asserting the sentinel is hit. These tests were committed GREEN against the
-   pre-move tree (helpers still defined in ``tasks.py``) and must stay green
-   after the relocation to ``tasks_shared.py`` — proving the lazy
-   ``_tasks.<attr>`` seam bridge preserves patch interception, not merely
-   import resolution.
-
-2. **Identity** — parametrized ``tasks.<sym> is tasks_shared.<sym>`` over the
-   FULL move-set (binding present and the SAME object; cheap, non-fakeable).
+The identity re-export battery (``test_tasks_binding_is_tasks_shared_object``)
+and its exact-set completeness pin (``test_move_set_matches_tasks_shared_public_defs``)
+were retired here — folded into the consolidated
+``tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py`` guard,
+which covers this seam's full symbol surface alongside the other 5
+``tasks_*`` seams in one place. ``test_kitty_specs_dynamic_alias_bound_in_tasks_namespace``
+below is KEPT — it is a genuine observable-contract test for a
+dynamically-constructed alias name distinct from the canonical move-set
+symbols, not part of the retired scaffolding.
 
 Seam checklist (per-symbol evidence):
 ``kitty-specs/tasks-py-degod-wave2-01KWH9EQ/seam-checklist.md``.
@@ -34,32 +40,6 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 pytestmark = pytest.mark.fast
 
 _TASKS = "specify_cli.cli.commands.agent.tasks"
-
-#: The definitive WP02 move-set (T007). One row per relocated symbol; the
-#: identity battery below parametrizes over ALL of them (no spot-checking).
-_MOVE_SET: tuple[str, ...] = (
-    "resolve_primary_branch",
-    "_review_currency_check_branch",
-    "_RUNTIME_STATE_DENY_LIST",
-    "_filter_runtime_state_paths",
-    "_emit_sparse_session_warning",
-    "_ensure_target_branch_checked_out",
-    "_find_mission_slug",
-    "_output_result",
-    "_output_error",
-    "_protected_branch_status_commit_error",
-    "_coord_topology_active",
-    "_skip_target_branch_commit",
-    "_mission_identity_payload",
-    "_resolve_git_common_dir",
-    "_check_unchecked_subtasks",
-    "_validate_ready_for_review",
-    "_wp_branch_merged_into_target",
-    "_filter_by_planning_tip_content",
-    "_list_wp_branch_mission_specs_changes",
-    "_list_wp_branch_specs_changes_for_guard",
-    "_mark_status_json_payload",
-)
 
 
 class _SentinelHit(Exception):
@@ -296,18 +276,6 @@ def test_patched_locate_project_root_intercepts_list_tasks_command() -> None:
     locate_mock.assert_called_once()
 
 
-# ---------------------------------------------------------------------------
-# Identity battery — binding present AND the same object, for the FULL
-# move-set (parity-contract Layer 4 leg (a); cheap and non-fakeable).
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("symbol", _MOVE_SET)
-def test_tasks_binding_is_tasks_shared_object(symbol: str) -> None:
-    """``tasks.<sym>`` is the SAME object as ``tasks_shared.<sym>``."""
-    assert getattr(tasks, symbol) is getattr(tasks_shared, symbol)
-
-
 def test_kitty_specs_dynamic_alias_bound_in_tasks_namespace() -> None:
     """The dynamically-named guard alias stays assigned in ``tasks`` globals.
 
@@ -319,20 +287,3 @@ def test_kitty_specs_dynamic_alias_bound_in_tasks_namespace() -> None:
     assert alias_name == "_list_wp_branch_kitty_specs_changes"
     alias = getattr(tasks, alias_name)
     assert alias is tasks_shared._list_wp_branch_mission_specs_changes
-
-
-def test_move_set_matches_tasks_shared_public_defs() -> None:
-    """The parametrized move-set list is the COMPLETE tasks_shared surface.
-
-    Guards the identity battery against silently drifting out of sync with
-    ``tasks_shared`` (a def added there without a ``tasks`` re-export row
-    would otherwise escape the battery).
-    """
-    module_defs = {
-        name
-        for name, obj in vars(tasks_shared).items()
-        if getattr(obj, "__module__", None) == tasks_shared.__name__
-        and callable(obj)
-    }
-    module_defs.add("_RUNTIME_STATE_DENY_LIST")
-    assert module_defs == set(_MOVE_SET)

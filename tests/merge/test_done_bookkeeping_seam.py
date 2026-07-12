@@ -3,8 +3,11 @@
 Exercises the decomposed helpers of the CC22 ``_mark_wp_merged_done`` (PLANNED
 fallback, force-done, approved replay, dedup) and the CC16
 ``_assert_merged_wps_done_on_target`` split (in-branch path resolution + event
-parsing). Proves the shim re-exports the orchestrator_api-consumed symbols and
-enforces one-way imports (FR-003, FR-005, FR-006, INV-2).
+parsing). The re-export-identity and one-way-import guards (FR-003, FR-005,
+FR-006, INV-2) live in the consolidated
+``tests/merge/test_merge_compat_surface.py`` (WP04,
+dev-assist-retire-path-hardening-01KXAVR0 / #2565) — this file keeps only the
+functional coverage.
 """
 
 from __future__ import annotations
@@ -15,42 +18,10 @@ from unittest.mock import patch
 import pytest
 import typer
 
-from specify_cli.cli.commands import merge as shim
 from specify_cli.merge import done_bookkeeping as db
 from specify_cli.status import Lane
 
 pytestmark = pytest.mark.fast
-
-
-SHIM_REEXPORTED = [
-    "_mark_wp_merged_done",
-    "_assert_merged_wps_reached_done",
-    "_assert_merged_wps_done_on_target",
-    "_reconcile_completed_wps_for_resume",
-    "_has_transition_to",
-    "_resolve_merge_actor",
-]
-
-
-@pytest.mark.parametrize("name", SHIM_REEXPORTED)
-def test_shim_re_exports_the_same_object(name: str) -> None:
-    assert getattr(shim, name) is getattr(db, name)
-
-
-def test_done_bookkeeping_does_not_import_command_shim() -> None:
-    import ast
-    import inspect
-
-    tree = ast.parse(inspect.getsource(db))
-    modules: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.module:
-            modules.add(node.module)
-        elif isinstance(node, ast.Import):
-            modules.update(alias.name for alias in node.names)
-    assert not any(
-        m.startswith("specify_cli.cli.commands.merge") for m in modules
-    ), sorted(modules)
 
 
 # --- _resolve_merge_actor ---------------------------------------------------
