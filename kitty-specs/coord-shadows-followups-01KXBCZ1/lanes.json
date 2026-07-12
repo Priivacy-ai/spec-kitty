@@ -1,0 +1,105 @@
+{
+  "version": 1,
+  "mission_slug": "coord-shadows-followups-01KXBCZ1",
+  "mission_id": "01KXBCZ1SCR7MJ99XQQYC4KSSE",
+  "mission_branch": "kitty/mission-coord-shadows-followups-01KXBCZ1",
+  "target_branch": "rework/coord-shadows-followups",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/coordination/status_transition.py",
+        "src/specify_cli/missions/_read_path_resolver.py",
+        "src/specify_cli/status/aggregate.py",
+        "src/specify_cli/status/emit.py",
+        "tests/specify_cli/status/test_subtasks_gate_dir_seam.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/workflow_executor.py",
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/core/process_liveness.py",
+        "src/specify_cli/core/stale_detection.py",
+        "src/specify_cli/frontmatter.py",
+        "src/specify_cli/status/wp_metadata.py",
+        "tests/specify_cli/core/test_process_liveness.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "dashboard",
+        "legacy-cleanup",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks_move_task.py",
+        "tests/specify_cli/cli/commands/agent/test_move_task_rollback_uncheck_robust.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/acceptance/gates_core.py",
+        "src/specify_cli/core/subtask_rows.py",
+        "tests/specify_cli/acceptance/test_find_unchecked_tasks_canon.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/review/lock.py",
+        "tests/specify_cli/review/test_lock_liveness_fold.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-07-12T15:17:40.063097+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

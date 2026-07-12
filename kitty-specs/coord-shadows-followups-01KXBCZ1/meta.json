@@ -1,0 +1,16 @@
+{
+  "created_at": "2026-07-12T14:51:08.972851+00:00",
+  "flattened": true,
+  "friendly_name": "Coord-Shadows Follow-ups Closeout",
+  "mission_id": "01KXBCZ1SCR7MJ99XQQYC4KSSE",
+  "mission_number": null,
+  "mission_slug": "coord-shadows-followups-01KXBCZ1",
+  "mission_type": "software-dev",
+  "purpose_context": "After the coord-shadows-arm-closeout mission (PR #2572) merged, a re-verification squad confirmed five residual defects still reproduce on main: a triplicated subtask-gate directory resolver with a weak fallback that can read a stale coordination husk, a process-liveness check blind to PID reuse, an unguarded rollback-uncheck write, a stray fifth checkbox parser, and a duplicate liveness probe in the review lock. This mission consolidates each duplicated operation onto its single canonical seam and hardens the just-shipped helpers, so the coord-topology reliability epic keeps converging on one authoritative source per surface.",
+  "purpose_tldr": "Close five post-#2572 tech-debt residuals by consolidating the duplicated subtask-gate resolver and hardening the gate and liveness helpers each onto one canonical authority.",
+  "slug": "coord-shadows-followups-01KXBCZ1",
+  "target_branch": "rework/coord-shadows-followups",
+  "topology": "single_branch",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-12T15:27:34.015524+00:00"
+}
