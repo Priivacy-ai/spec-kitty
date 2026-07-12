@@ -82,7 +82,7 @@ def _make_state(**overrides: Any) -> _MoveTaskState:
             assert key in field_names, f"unknown _MoveTaskState field: {key!r}"
             setattr(st, key, value)
     st.target_lane = Lane.FOR_REVIEW
-    st.main_repo_root = Path("/tmp/does-not-need-to-exist-for-skip")
+    st.main_repo_root = Path("/var/empty/does-not-need-to-exist-for-skip")
     st.target_branch = "main"
     st.mission_slug = "test-pre-review-escape"
     st.wp = SimpleNamespace(path=Path("WP01-x.md"), frontmatter="")
