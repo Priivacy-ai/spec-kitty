@@ -132,15 +132,14 @@ def test_mission_reexports_required_symbol(name: str) -> None:
     )
 
 
-def test_record_analysis_shim_gaps_closed() -> None:
-    """#2056 WP09: the two WP04-seam helpers left importable only from the seam
-    are now re-exported (closes the pre-existing
-    ``test_protected_primary_spec_commit.py::*[record_analysis]`` + the
-    ``test_wp06_sc2_paused_mission_blockers.py`` import gap)."""
-    from specify_cli.cli.commands.agent import mission_record_analysis as seam
-
-    assert mission_mod._resolve_record_analysis_placement_ref is seam._resolve_record_analysis_placement_ref
-    assert mission_mod._enforce_analysis_report_write_preflight is seam._enforce_analysis_report_write_preflight
+# ``test_record_analysis_shim_gaps_closed`` (#2056 WP09 one-shot "gap closed"
+# pin) was retired here (#2076, WP03): both
+# ``_resolve_record_analysis_placement_ref`` and
+# ``_enforce_analysis_report_write_preflight`` are literal ``as``-reexports in
+# ``mission.py`` (`from .mission_record_analysis import X as X`), so
+# ``mission_mod.X is seam.X`` holds by construction; the two symbols already
+# live in the ``_RECORD_ANALYSIS`` tuple above and are covered by the
+# parametrized ``test_mission_reexports_required_symbol`` battery.
 
 
 def test_no_required_symbol_duplicated_in_survey() -> None:

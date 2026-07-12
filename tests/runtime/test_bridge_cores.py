@@ -3,16 +3,16 @@
 Three independent concerns, all in-memory / no I/O (NFR-003, SC-004):
 
 1. **Non-vacuousness / compat-guard checks** — the seam actually defines the
-   relocated tasks.md parse family and the guard-evaluation cluster;
-   ``_check_cli_guards`` / ``_check_composed_action_guard`` stay NATIVE
-   ``def`` statements on ``runtime_bridge`` (thin delegates forwarding to
-   :func:`runtime_bridge_cores.evaluate_guards`), never a plain re-export —
-   the same discipline WP03-WP05 already apply, required because
+   relocated tasks.md parse family and the guard-evaluation cluster. The
+   per-file native-delegate assertion for the tracked guard/parse symbols
+   (``_check_cli_guards`` / ``_check_composed_action_guard`` / the tracked
+   parse helpers) was RETIRED in the #2557 dev-assist cleanup: that invariant
+   is covered family-wide by the frozen
    ``test_bridge_compat_surface.py::test_guard_b_identity_reexport_for_
-   relocated_symbols`` (frozen) hardcodes the tolerated cross-module
-   identity-baseline to 3 pre-existing ``runtime.next.decision``-origin
-   names. The five UNTRACKED parse-family helpers (nothing patches them) ARE
-   plain re-exports and DO satisfy the identity check.
+   relocated_symbols``, so duplicating it here was redundant. This file now
+   retains only the UNTRACKED parse-family identity check — the five helpers
+   nothing patches ARE plain re-exports and DO satisfy the identity check
+   (unique coverage the family guard's ``_``-private inventory does not track).
 
 2. **Parse family** — realistic tasks.md fragments (production-shaped WP ids
    / headings / requirement refs) -> assert parsed structures, exercised
@@ -55,33 +55,12 @@ _UNTRACKED_PLAIN_REEXPORTS = (
     "_is_requirement_heading",
 )
 
-_TRACKED_NATIVE_DELEGATES = (
-    "_check_cli_guards",
-    "_check_composed_action_guard",
-    "_parse_wp_sections_from_tasks_md",
-    "_parse_requirement_refs_from_tasks_md",
-    "_check_requirement_mapping_ready",
-)
-
-
 def test_untracked_parse_helpers_are_identity_reexports() -> None:
     """Nothing patches these five (grep-verified against
     ``test_bridge_compat_surface.py``), so a plain re-export is both correct
     and required by that frozen guard's exact-baseline assertion."""
     for name in _UNTRACKED_PLAIN_REEXPORTS:
         assert getattr(rb, name) is getattr(cores, name), f"{name} is not an identity re-export"
-
-
-def test_tracked_guard_and_parse_symbols_are_native_delegates() -> None:
-    """These five are WP02 compat-tracked (patched directly) -- each MUST be
-    a real ``def`` on ``runtime_bridge`` (``__module__ == "runtime.next.
-    runtime_bridge"``), never a copy of the cores object, or
-    ``test_guard_b_identity_reexport_for_relocated_symbols`` (frozen) would
-    trip its hardcoded 3-symbol baseline."""
-    for name in _TRACKED_NATIVE_DELEGATES:
-        obj = getattr(rb, name)
-        assert obj.__module__ == rb.__name__, f"{name} is not natively defined on runtime_bridge"
-        assert callable(obj)
 
 
 def test_evaluate_guards_is_a_real_function_on_cores() -> None:
