@@ -44,14 +44,15 @@ from specify_cli.workspace.context import resolve_workspace_for_wp
 def _workflow_for(mission_dir_str: str) -> WorkflowSequence:
     """Return the ``WorkflowSequence`` for *mission_dir_str*.
 
-    Uses ``_resolve_workflow_for_mission`` from ``planner`` so the resolver
-    logic is co-located with the DAG-based runtime engine and not duplicated.
-    Project-authored workflow files are mutable, so this helper intentionally
-    performs a fresh load.
+    Routes through ``runtime_bridge_engine.resolve_workflow_for_mission`` (the
+    FR-013 sole home of the ``_internal_runtime`` engine/planner private
+    surface) so the resolver logic is co-located with the DAG-based runtime
+    engine and not duplicated. Project-authored workflow files are mutable,
+    so this helper intentionally performs a fresh load.
     """
-    from runtime.next._internal_runtime.planner import _resolve_workflow_for_mission
+    from runtime.next.runtime_bridge_engine import resolve_workflow_for_mission
 
-    return _resolve_workflow_for_mission(Path(mission_dir_str))
+    return resolve_workflow_for_mission(Path(mission_dir_str))
 
 
 def build_prompt(

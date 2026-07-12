@@ -515,7 +515,7 @@ def _evaluate_cli_tasks_guard(step_id: str, snapshot: _ArtifactPresenceSnapshotL
 def _evaluate_composed_tasks_packages_guard(snapshot: _ArtifactPresenceSnapshotLike) -> list[str]:
     failures = _check_artifact_present(snapshot, TASKS_ARTIFACT)
     if not _tasks_dir_ready(snapshot):
-        failures.append("Required: at least one tasks/WP*.md file")
+        failures.append(MISSING_TASK_FILES_MESSAGE)
     else:
         failures.extend(snapshot.status_facts["requirement_mapping_failures"])
     return failures
@@ -526,7 +526,7 @@ def _evaluate_composed_tasks_terminal_guard(snapshot: _ArtifactPresenceSnapshotL
     the union of all three legacy substep checks (no weakening)."""
     failures = _check_artifact_present(snapshot, TASKS_ARTIFACT)
     if not _tasks_dir_ready(snapshot):
-        failures.append("Required: at least one tasks/WP*.md file")
+        failures.append(MISSING_TASK_FILES_MESSAGE)
     else:
         failures.extend(snapshot.status_facts["requirement_mapping_failures"])
         failures.extend(_first_missing_dependency_failure(snapshot))

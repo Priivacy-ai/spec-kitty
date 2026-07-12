@@ -61,8 +61,9 @@ from runtime.next.decision import DecisionKind
 # _resolve_workflow_for_mission, resolve_next_workflow_action) are intentionally
 # kept as non-exported symbols so the symbol-level dead-code gate does not
 # require them to have callers in other src/ files.  They are exercised by
-# integration tests and by prompt_builder._workflow_for (which calls
-# _resolve_workflow_for_mission directly).
+# integration tests and by prompt_builder._workflow_for, which reaches this
+# function indirectly via runtime_bridge_engine.resolve_workflow_for_mission
+# (the FR-013 sole-home adapter wrapper) rather than importing it directly.
 
 
 # ---------------------------------------------------------------------------

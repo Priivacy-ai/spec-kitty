@@ -174,30 +174,16 @@ def save_feature_runs(path: Path, index: dict[str, _FeatureRunEntry]) -> None:
 
 
 def _mission_key_for_run_ref(run_ref: MissionRunRef, default: str) -> str:
-    """Read the mission key from either runtime field name."""
-    mission_key = getattr(run_ref, "mission_key", None)
+    """Read the mission key from the run ref."""
+    mission_key = run_ref.mission_key
     if isinstance(mission_key, str) and mission_key.strip():
         return mission_key
-    mission_type = getattr(run_ref, "mission_type", None)
-    if isinstance(mission_type, str) and mission_type.strip():
-        return mission_type
     return default
 
 
 def _build_run_ref(*, run_id: str, run_dir: str, mission_type: str) -> MissionRunRef:
-    """Construct MissionRunRef across runtime versions."""
-    try:
-        return MissionRunRef(
-            run_id=run_id,
-            run_dir=run_dir,
-            mission_key=mission_type,
-        )
-    except TypeError:
-        return MissionRunRef(
-            run_id=run_id,
-            run_dir=run_dir,
-            mission_type=mission_type,  # type: ignore[call-arg]  # pre-existing cross-version defensive fallback (unmodified by this move): the current pydantic MissionRunRef only has `mission_key`, but this branch guards against an older runtime-package shape (pre-internalization) that used `mission_type` — mypy can only see the one concrete model, not the hypothetical alternate shape this except clause defends against.
-        )
+    """Construct MissionRunRef."""
+    return MissionRunRef(run_id=run_id, run_dir=run_dir, mission_key=mission_type)
 
 
 # ---------------------------------------------------------------------------

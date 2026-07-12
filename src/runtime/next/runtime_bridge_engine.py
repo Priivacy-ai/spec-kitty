@@ -3,11 +3,12 @@
 **Sole home of the FR-013 grep-complete ``_internal_runtime`` engine/planner
 private surface** — the five names ``_read_snapshot`` / ``_load_frozen_template``
 (from ``_internal_runtime.engine``), ``_append_event`` / ``_write_snapshot``, and
-``plan_next`` (from ``_internal_runtime.planner``). (Scope note: this is the
-WP03 boundary from ``data-model.md`` §Engine-adapter surface; a different
-planner private, ``_resolve_workflow_for_mission``, is still imported by
-``prompt_builder.py`` and is out of scope for WP03 — folding it into the adapter
-is a later-WP follow-up, not covered by the arch guard's 5-name check.)
+``plan_next`` (from ``_internal_runtime.planner``), plus the sixth name,
+``_resolve_workflow_for_mission`` (also from ``_internal_runtime.planner``),
+concentrated here via the ``resolve_workflow_for_mission`` wrapper as the
+retro follow-up to the WP03 boundary from ``data-model.md`` §Engine-adapter
+surface. ``prompt_builder.py`` now routes through that wrapper instead of
+importing the planner private directly — the concentration is complete.
 Concentrates every one of the five call sites that used to live scattered across
 ``runtime_bridge.py`` into a single seam — the grep-complete site list from
 ``data-model.md`` §Engine-adapter surface: ``:1322``/``:1375``
@@ -73,6 +74,7 @@ from spec_kitty_events.mission_next import (
 
 if TYPE_CHECKING:
     from runtime.next._internal_runtime import MissionRunRef, NextDecision
+    from runtime.next._internal_runtime.workflow_schema import WorkflowSequence
     from runtime.next.decision import Decision
     from specify_cli.sync.runtime_event_emitter import SyncRuntimeEventEmitter
 
@@ -116,6 +118,12 @@ def plan_next(
         actor_context=actor_context,
         live_template_path=live_template_path,
     )
+
+
+def resolve_workflow_for_mission(mission_dir: Path) -> WorkflowSequence:
+    """Wrap ``_internal_runtime.planner._resolve_workflow_for_mission`` (live
+    attribute lookup; FR-013 concentration)."""
+    return _planner._resolve_workflow_for_mission(mission_dir)
 
 
 # ---------------------------------------------------------------------------
