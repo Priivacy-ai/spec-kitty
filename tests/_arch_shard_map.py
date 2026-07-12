@@ -120,6 +120,11 @@ _ARCH_SHARD_2_FILES: tuple[str, ...] = (
     "tests/architectural/test_pyproject_shape.py",
     "tests/architectural/test_pytest_marker_convention.py",
     "tests/architectural/test_ratchet_baselines.py",
+    # Added post-data-model.md (new file at implementation time, mission
+    # content-address-ratchet-allowlists-01KX8M4D WP05, #2469/#2495 IC-METAGUARD
+    # standing positional-anchor ban). shard_2 was the lightest by file count
+    # (32 vs 33/34) when this file landed, so it lands here.
+    "tests/architectural/test_ratchet_positional_anchor_ban.py",
     "tests/architectural/test_status_sync_boundary.py",
     "tests/architectural/test_surface_resolution_audit.py",
     "tests/architectural/test_tasks_command_surface.py",

@@ -10,14 +10,14 @@ generalising the hand-rolled ``test_no_legacy_*`` family into ONE driver.
 Advisory / report-only (v1)
 ---------------------------
 Per FR-005 / NFR-002 (design §6 "What stays advisory vs enforcing in v1") this
-arm is **report-only**: a live occurrence emits a
-:class:`RetiredContractLiveOccurrenceWarning`, it **NEVER** ``pytest.fail`` /
-``assert``\\ s on a live-tree find, so it can never block CI. Enforcement (flip
-``advisory -> enforcing`` per proven-stable record) is a deferred follow-up
-(design §7 WP6). The module carries ``@pytest.mark.filterwarnings("always")`` on
-the live-tree arm so the advisory warning can never be escalated to an error by
-a ``-W error`` shard — keeping the "never blocks CI" invariant structural, not a
-happenstance of the current warning config.
+arm is **report-only**: a live occurrence is recorded via the built-in
+``record_property`` fixture (surfaced in the JUnit/report output), it **NEVER**
+``pytest.fail`` / ``assert``\\ s on a live-tree find, so it can never block CI.
+Enforcement (flip ``advisory -> enforcing`` per proven-stable record) is a
+deferred follow-up (design §7 WP6). Recording the finding as a report property
+(rather than emitting on the ``warnings`` channel) keeps the "never blocks CI"
+invariant structural — it can never be escalated to an error by a ``-W error``
+shard — AND keeps the arch-suite warnings channel first-party-clean (NFR-006).
 
 Anti-vacuity control (mandatory)
 --------------------------------
@@ -50,8 +50,7 @@ parity test drives against a fabricated fixture tree.
 
 from __future__ import annotations
 
-import warnings
-from collections.abc import Iterator, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 from typing import NamedTuple
 
@@ -71,6 +70,12 @@ from specify_cli.contracts.registry import (
 
 pytestmark = [pytest.mark.architectural]
 
+# Type of the built-in ``record_property`` fixture: records a (name, value)
+# pair into the JUnit/report output. Used to route the report-only advisory
+# live-occurrence diagnostic off the ``warnings`` channel (NFR-006) while
+# preserving the full signal.
+RecordPropertyFn = Callable[[str, object], None]
+
 
 # A distinctive token that appears nowhere in the live tree — used by the
 # exemption / over-flag control so this file never has to embed a real
@@ -86,14 +91,6 @@ class Finding(NamedTuple):
     path: str  # repo-root-relative POSIX path of the consumer file
     lineno: int  # 1-based line number of the occurrence
     line: str  # the matching line, stripped
-
-
-class RetiredContractLiveOccurrenceWarning(UserWarning):
-    """Advisory signal (FR-005 / NFR-002): a retired anchor still appears live.
-
-    Emitted — never raised — by the report-only live-tree sweep. A dedicated
-    category lets downstream tooling filter on exactly this signal.
-    """
 
 
 # ---------------------------------------------------------------------------
@@ -232,15 +229,20 @@ def _format_report(record: ContractRecord, findings: list[Finding]) -> str:
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.filterwarnings("always")
-def test_retired_anchors_absence_sweep_is_advisory() -> None:
+def test_retired_anchors_absence_sweep_is_advisory(
+    record_property: RecordPropertyFn,
+) -> None:
     """Sweep every seeded ``status=retired`` record; REPORT live finds, never block.
 
-    The ``filterwarnings("always")`` mark makes the advisory warning immune to
-    ``-W error`` escalation, so this arm can never turn a live-tree find into a
-    CI failure — enforcement is deferred (design §7 WP6). The only assertion here
-    guards the driver's INPUT (at least one retired record exists, so the sweep
-    is not vacuously green); it does NOT assert on any live-tree finding.
+    Live-tree findings are recorded via ``record_property`` (was
+    ``warnings.warn(RetiredContractLiveOccurrenceWarning)``) so this arm can
+    never turn a live-tree find into a CI failure — enforcement is deferred
+    (design §7 WP6) — AND the diagnostic no longer pollutes the arch-suite
+    warnings channel that NFR-006 requires to stay first-party-clean. The
+    report property preserves the full signal (each finding is recorded); the
+    only assertion here guards the driver's INPUT (at least one retired record
+    exists, so the sweep is not vacuously green); it does NOT assert on any
+    live-tree finding.
     """
     records = _retired_records()
     assert records, (
@@ -251,10 +253,9 @@ def test_retired_anchors_absence_sweep_is_advisory() -> None:
     for record in records:
         findings = sweep_record(record, _repo_root())
         if findings:
-            warnings.warn(
+            record_property(
+                f"retired_contract_live_occurrence[{record.id}]",
                 _format_report(record, findings),
-                RetiredContractLiveOccurrenceWarning,
-                stacklevel=2,
             )
     # No assert on `findings`: this arm is report-only (FR-005 / NFR-002).
 

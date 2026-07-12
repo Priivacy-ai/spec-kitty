@@ -30,14 +30,19 @@ from __future__ import annotations
 
 import json
 import subprocess
-import warnings
 from pathlib import Path
+from collections.abc import Callable
 
 import pytest
 
 from tests.architectural import _gate_coverage as gc
 
 pytestmark = [pytest.mark.architectural]
+
+# Type of the built-in ``record_property`` fixture: records a (name, value)
+# pair into the JUnit/report output. Used to route report-only diagnostics
+# off the ``warnings`` channel (NFR-006) while preserving the signal.
+RecordPropertyFn = Callable[[str, object], None]
 
 
 # Selection structures the orphan analysis depends on. If a workflow refactor
@@ -424,38 +429,46 @@ def test_no_new_orphan_surfaces(coverage_report: gc.CoverageReport) -> None:
     )
 
 
-def test_orphan_backlog_does_not_grow(coverage_report: gc.CoverageReport) -> None:
-    """Shrinkage is good news (warn); growth in file count is caught above.
+def test_orphan_backlog_does_not_grow(
+    coverage_report: gc.CoverageReport, record_property: RecordPropertyFn
+) -> None:
+    """Shrinkage is good news (report); growth in file count is caught above.
 
-    Emits a nudge to lock in a smaller baseline when the backlog shrinks, mirroring
-    the repo's ratchet-baseline shrinkage convention.
+    Records a nudge to lock in a smaller baseline when the backlog shrinks,
+    mirroring the repo's ratchet-baseline shrinkage convention. Report-only —
+    routed via ``record_property`` (not ``warnings.warn``) so the diagnostic
+    surfaces in the JUnit/report output without polluting the warnings channel
+    NFR-006 requires to stay first-party-clean.
     """
     baseline = gc.load_baseline()
     recorded = set(baseline.get("orphan_files", []))
     current = set(coverage_report.orphan_files)
     cleared = sorted(recorded - current)
     if cleared:
-        warnings.warn(
+        record_property(
+            "gate_coverage_backlog_shrank",
             f"Gate-coverage backlog shrank by {len(cleared)} file(s) "
             f"(now {len(current)} vs baseline {len(recorded)}). Lock it in: "
             "uv run python -m tests.architectural._gate_coverage --update-baseline",
-            UserWarning,
-            stacklevel=2,
         )
 
 
-def test_duplicate_selection_is_reported(coverage_report: gc.CoverageReport) -> None:
+def test_duplicate_selection_is_reported(
+    coverage_report: gc.CoverageReport, record_property: RecordPropertyFn
+) -> None:
     """Duplicates (>=2 gates) are REPORTED, never enforced — overlap is intentional.
 
     fast↔integration domain splits deliberately overlap; this surfaces the count
-    for visibility without failing CI.
+    for visibility without failing CI. Report-only — routed via
+    ``record_property`` (not ``warnings.warn``) so the diagnostic surfaces in
+    the JUnit/report output without polluting the warnings channel NFR-006
+    requires to stay first-party-clean.
     """
     dupes = coverage_report.duplicate_nodeids
     if dupes:
-        warnings.warn(
+        record_property(
+            "gate_coverage_duplicate_selection",
             f"{len(dupes)} test(s) are selected by >=2 CI gates (duplicate run). "
             "This is report-only; some fast↔integration overlap is intentional.",
-            UserWarning,
-            stacklevel=2,
         )
     assert isinstance(dupes, list)

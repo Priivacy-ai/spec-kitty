@@ -376,8 +376,6 @@ nodes:
 - urn: tactic:avoid-gold-plating
   kind: tactic
   label: Avoid Gold Plating
-- urn: tactic:bdd-scenario-lifecycle
-  kind: tactic
 - urn: tactic:behavior-driven-development
   kind: tactic
   label: Behavior-Driven Development
@@ -1329,10 +1327,6 @@ edges:
   target: directive:DIRECTIVE_034
   relation: requires
 - source: agent_profile:frontend-freddy
-  target: tactic:bdd-scenario-lifecycle
-  relation: requires
-  reason: Formulation to Automation lifecycle applies to frontend acceptance tests
-- source: agent_profile:frontend-freddy
   target: tactic:behavior-driven-development
   relation: requires
   reason: BDD scenarios define acceptance criteria for browser components; wire Cucumber-JS/Playwright e2e scenarios as acceptance tests before implementation
@@ -1377,10 +1371,6 @@ edges:
 - source: agent_profile:java-jenny
   target: directive:DIRECTIVE_034
   relation: requires
-- source: agent_profile:java-jenny
-  target: tactic:bdd-scenario-lifecycle
-  relation: requires
-  reason: 'Apply the Formulation to Automation lifecycle: write Gherkin first, run red, implement minimal production code, run green, publish Serenity BDD report.'
 - source: agent_profile:java-jenny
   target: tactic:behavior-driven-development
   relation: requires
@@ -1553,10 +1543,6 @@ edges:
 - source: agent_profile:reviewer-renata
   target: directive:DIRECTIVE_041
   relation: requires
-- source: agent_profile:reviewer-renata
-  target: tactic:bdd-scenario-lifecycle
-  relation: requires
-  reason: Verify that every behavior covered in scope has a passing executable scenario before approving the WP. Scenarios not yet wired to step definitions block approval.
 - source: agent_profile:reviewer-renata
   target: tactic:code-review-incremental
   relation: requires

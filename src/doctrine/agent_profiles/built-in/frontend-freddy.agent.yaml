@@ -34,6 +34,7 @@ context-sources:
     - coding-standards
     - accessibility-guidelines
     - design-system-tokens
+    - bdd-scenario-lifecycle-procedure
 
 purpose: >
   Translate UI specifications and component designs into tested, accessible, performant
@@ -180,8 +181,6 @@ self-review-protocol:
 tactic-references:
   - id: behavior-driven-development
     rationale: BDD scenarios define acceptance criteria for browser components; wire Cucumber-JS/Playwright e2e scenarios as acceptance tests before implementation
-  - id: bdd-scenario-lifecycle
-    rationale: Formulation to Automation lifecycle applies to frontend acceptance tests
   - id: bug-fixing-checklist
     rationale: Reproduce browser defects with a failing test before fixing production code
 

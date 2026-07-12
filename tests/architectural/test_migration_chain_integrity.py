@@ -67,8 +67,8 @@ produced this gate.
 from __future__ import annotations
 
 import re
-import warnings
 from pathlib import Path
+from collections.abc import Callable
 
 import pytest
 from packaging.version import Version
@@ -77,6 +77,12 @@ from specify_cli.upgrade.migrations import auto_discover_migrations
 from specify_cli.upgrade.registry import MigrationRegistry
 
 pytestmark = [pytest.mark.architectural]
+
+# Type of the built-in ``record_property`` fixture: records a (name, value)
+# pair into the JUnit/report output. Used to route the report-only
+# patch-skip diagnostic off the ``warnings`` channel (NFR-006) while
+# preserving the signal (each patch-skip is recorded, not silenced).
+RecordPropertyFn = Callable[[str, object], None]
 
 
 # Implicit start of the migration chain. The upgrade runner does not
@@ -196,7 +202,9 @@ def _project_version() -> str:
     return match.group(1)
 
 
-def test_migration_chain_is_consistent_and_uninterrupted() -> None:
+def test_migration_chain_is_consistent_and_uninterrupted(
+    record_property: RecordPropertyFn,
+) -> None:
     """The migration chain MUST be a monotonic, uninterrupted progression.
 
     Walks every registered migration in semver order from
@@ -208,9 +216,11 @@ def test_migration_chain_is_consistent_and_uninterrupted() -> None:
     3. The chain's terminal target_version, modulo pre/post/dev
        suffixes, is at least the current ``pyproject.toml`` version.
 
-    Patch-skips emit warnings rather than failing -- a release may
-    legitimately ship without a migration if no schema or template
-    change occurred.
+    Patch-skips are recorded via ``record_property`` rather than failing or
+    warning -- a release may legitimately ship without a migration if no
+    schema or template change occurred. Routed off the ``warnings`` channel
+    (NFR-006) while preserving the signal: each patch-skip is a separate
+    recorded property, visible in the JUnit/report output.
     """
     # Ensure the full registry is populated. We always call
     # auto-discovery (it is idempotent for already-registered migrations)
@@ -274,12 +284,14 @@ def test_migration_chain_is_consistent_and_uninterrupted() -> None:
         if step == "patch-skip":
             # Patch skips are tolerated -- a patch release may have
             # shipped without a migration if no fixup was required.
-            warnings.warn(
+            # Report-only diagnostic: recorded (not warned) so it stays
+            # load-bearing/visible without tripping NFR-006's warnings gate.
+            record_property(
+                f"migration_chain_patch_skip[{idx}]",
                 f"Patch-skip in migration chain at {mig_id}: "
                 f"{from_v_str} -> {to_v_str} "
                 f"(skips intermediate patch versions). "
                 "This is allowed but may warrant verification.",
-                stacklevel=2,
             )
             continue
         if step in ("minor-skip", "major-skip"):

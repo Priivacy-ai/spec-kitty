@@ -17,3 +17,10 @@ class Toolguide(BaseModel):
     commands: list[str] = Field(default_factory=list)
     applies_to_languages: list[str] = Field(default_factory=list)
     last_updated: str | None = None
+    references: list[str] = Field(default_factory=list)
+    """Optional related doctrine artifact paths (plain file-path strings).
+
+    Additive schema change per DIRECTIVE_018 (see ``toolguide.schema.yaml``);
+    walked by the DRG extractor to emit ``suggests`` edges. Existing
+    toolguides without this field remain valid (default empty list).
+    """

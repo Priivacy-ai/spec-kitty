@@ -36,6 +36,7 @@ context-sources:
     - review-checklist
     - security-guidelines
     - performance-benchmarks
+    - bdd-scenario-lifecycle-procedure
 
 purpose: >
   Evaluate code, designs, and specifications for correctness, quality, security,
@@ -163,10 +164,6 @@ tactic-references:
       Apply the dual-perspective reconstruction check during review: read only the
       test suite and attempt to reconstruct system behavior, then compare against
       the specification. Tests that fail reconstruction are documentation gaps.
-  - id: bdd-scenario-lifecycle
-    rationale: >
-      Verify that every behavior covered in scope has a passing executable scenario
-      before approving the WP. Scenarios not yet wired to step definitions block approval.
   - id: test-scaffolding-as-design-smell
     rationale: >
       Treat heavy test setup or many infrastructure mocks in a diff as a design
