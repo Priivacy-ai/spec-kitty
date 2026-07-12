@@ -473,7 +473,7 @@ _IO_ALLOWLIST_SITES: tuple[tuple[str, int, str], ...] = (
     ),
     (
         "specify_cli/cli/commands/implement_cores.py",
-        87,
+        98,
         "_SubprocessGitPort.status_porcelain -- the module docstring names "
         "this class 'the ONE git-subprocess I/O boundary in this module -- "
         "a thin adapter, not decision logic', isolated behind the injectable "
@@ -482,14 +482,14 @@ _IO_ALLOWLIST_SITES: tuple[tuple[str, int, str], ...] = (
     ),
     (
         "specify_cli/cli/commands/implement_cores.py",
-        101,
+        112,
         "_SubprocessGitPort.show_blob -- same injected-port I/O boundary as "
         "status_porcelain above; the second (and last) subprocess call in "
         "the module.",
     ),
     (
         "specify_cli/cli/commands/implement_cores.py",
-        278,
+        289,
         "_drop_vcs_lock_only_meta reads the CALLER-supplied working-tree "
         "meta.json path to compare it against the committed baseline (via "
         "the injected GitPort) -- the filesystem twin of the GitPort pattern "
@@ -497,7 +497,17 @@ _IO_ALLOWLIST_SITES: tuple[tuple[str, int, str], ...] = (
     ),
     (
         "specify_cli/cli/commands/implement_cores.py",
-        308,
+        391,
+        "_drop_runtime_frontmatter_only_wp reads the CALLER-supplied "
+        "working-tree WP##.md path to compare its frontmatter against the "
+        "committed baseline (via the injected GitPort) -- the exact "
+        "filesystem twin of _drop_vcs_lock_only_meta above (WP01/#2570.1), "
+        "same lightweight already-scoped read, not a subprocess/worktree/"
+        "placement decision.",
+    ),
+    (
+        "specify_cli/cli/commands/implement_cores.py",
+        428,
         "_files_changed_vs_ref reads the CALLER-supplied working-tree path "
         "to test idempotency against the committed ref (via the injected "
         "GitPort) -- same rationale as _drop_vcs_lock_only_meta above.",
