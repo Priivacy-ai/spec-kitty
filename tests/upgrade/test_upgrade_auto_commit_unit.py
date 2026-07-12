@@ -655,18 +655,24 @@ def test_upgrade_no_migrations_stamps_missing_schema_version(
     )
     monkeypatch.setattr(Path, "cwd", lambda: project_path)
 
+    # Stateful fake mirroring real git: once a path is committed it stops
+    # appearing in porcelain, so the post-repair second pass (#2491) is a
+    # clean no-op here.
     status_calls = {"count": 0}
+    committed_paths: set[str] = set()
 
     def _fake_status(_repo_path: Path) -> set[str]:
         status_calls["count"] += 1
         if status_calls["count"] == 1:
             return set()
-        return {".kittify/metadata.yaml"}
+        return {".kittify/metadata.yaml"} - committed_paths
 
     safe_commit_calls: list[list[str]] = []
 
     def _fake_safe_commit(**kwargs: object) -> object:
-        safe_commit_calls.append([str(path) for path in kwargs["paths"]])
+        paths = [str(path) for path in kwargs["paths"]]
+        safe_commit_calls.append(paths)
+        committed_paths.update(paths)
         return object()
 
     monkeypatch.setattr(autocommit, "git_status_paths", _fake_status)
@@ -727,7 +733,10 @@ def test_upgrade_no_migrations_stamps_existing_worktree_schema_version(
 
     monkeypatch.setattr(Path, "cwd", lambda: project_path)
 
+    # Stateful fake: committed paths drop out of porcelain (real-git parity),
+    # so the post-repair second pass (#2491) has nothing left to commit.
     status_calls = {"count": 0}
+    committed_paths: set[str] = set()
 
     def _fake_status(_repo_path: Path) -> set[str]:
         status_calls["count"] += 1
@@ -736,12 +745,14 @@ def test_upgrade_no_migrations_stamps_existing_worktree_schema_version(
         return {
             ".kittify/metadata.yaml",
             ".worktrees/001-feature-lane-a/.kittify/metadata.yaml",
-        }
+        } - committed_paths
 
     safe_commit_calls: list[list[str]] = []
 
     def _fake_safe_commit(**kwargs: object) -> object:
-        safe_commit_calls.append([str(path) for path in kwargs["paths"]])
+        paths = [str(path) for path in kwargs["paths"]]
+        safe_commit_calls.append(paths)
+        committed_paths.update(paths)
         return object()
 
     monkeypatch.setattr(autocommit, "git_status_paths", _fake_status)
@@ -1028,6 +1039,73 @@ def test_upgrade_baseline_failure_skips_auto_commit(
     assert safe_commit_called["called"] is False
 
 
+def test_upgrade_commits_post_repair_writes_in_second_pass(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    """#2491: surface repair runs AFTER the first auto-commit, so its writes
+    (e.g. the command-skills manifest refresh) used to be left dirty. The
+    second pass with the same pre-run baseline must capture exactly them."""
+    project_path = _setup_upgrade_project(tmp_path)
+    monkeypatch.setattr(Path, "cwd", lambda: project_path)
+
+    # Timeline the fake plays out: baseline clean → migration churn appears →
+    # first commit cleans it → surface repair dirties the manifest → second
+    # pass commits it.
+    status_calls = {"n": 0}
+    committed: set[str] = set()
+    dirt = {".kittify/metadata.yaml"}
+
+    def _fake_status(_repo_path: Path) -> set[str]:
+        status_calls["n"] += 1
+        if status_calls["n"] == 1:
+            return set()
+        return set(dirt) - committed
+
+    safe_commit_calls: list[list[str]] = []
+
+    def _fake_safe_commit(**kwargs: object) -> object:
+        paths = [str(path) for path in kwargs["paths"]]
+        safe_commit_calls.append(paths)
+        committed.update(paths)
+        return object()
+
+    def _fake_repair(*_a: object, **_kw: object) -> None:
+        # Surface repair refreshes the per-project command-skills manifest —
+        # the write observed dirty in the field (#2491).
+        dirt.add(".kittify/command-skills-manifest.json")
+        return None
+
+    monkeypatch.setattr(autocommit, "git_status_paths", _fake_status)
+    monkeypatch.setattr(autocommit, "safe_commit", _fake_safe_commit)
+    monkeypatch.setattr(upgrade_cmd, "_run_upgrade_surface_repair", _fake_repair)
+
+    _run_upgrade(
+        dry_run=False,
+        force=True,
+        target="1.0.0a1",
+        json_output=True,
+        verbose=False,
+        no_worktrees=True,
+        cli=False,
+        project=False,
+    )
+
+    assert safe_commit_calls == [
+        [".kittify/metadata.yaml"],
+        [".kittify/command-skills-manifest.json"],
+    ], "second pass must commit exactly the post-repair writes"
+
+    data = json.loads(capsys.readouterr().out.strip())
+    assert data["auto_committed"] is True
+    assert data["auto_commit_paths"] == [
+        ".kittify/metadata.yaml",
+        ".kittify/command-skills-manifest.json",
+    ]
+    assert data["warnings"] == []
+
+
 def test_upgrade_no_migrations_rich_output_shows_auto_commit(
     tmp_path: Path,
     monkeypatch,
@@ -1036,19 +1114,22 @@ def test_upgrade_no_migrations_rich_output_shows_auto_commit(
     project_path = _setup_upgrade_project(tmp_path)
     monkeypatch.setattr(Path, "cwd", lambda: project_path)
 
+    # Stateful fake: the committed path drops out of porcelain, so the
+    # post-repair second pass (#2491) is a no-op for the rich summary.
     call_count = {"n": 0}
+    committed: set[str] = set()
 
     def _fake_status(repo_path):
         call_count["n"] += 1
         if call_count["n"] == 1:
             return set()
-        return {"kitty-specs/001/tasks/WP01.md"}
+        return {"kitty-specs/001/tasks/WP01.md"} - committed
 
     monkeypatch.setattr(autocommit, "git_status_paths", _fake_status)
     monkeypatch.setattr(
         autocommit,
         "safe_commit",
-        lambda **_kw: object(),
+        lambda **kw: committed.update(str(p) for p in kw["paths"]) or object(),
     )
 
     captured_output: list[str] = []
