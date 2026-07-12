@@ -38,19 +38,22 @@ half of the fix (the CLI hook + config/override wiring is WP02):
 """
 from __future__ import annotations
 
+import contextlib
 import fnmatch
 import importlib
 import os
 import subprocess
 import sys
 import tempfile
-from collections.abc import Callable, Mapping, Sequence
+import time
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from types import ModuleType
 from typing import cast
 
+from specify_cli.review._interpreter import resolve_pytest_command
 from specify_cli.review.baseline import (
     BaselineFailure,
     BaselineTestResult,
@@ -355,6 +358,74 @@ class HeadRunResult:
     error: str | None = None
 
 
+_SCOPED_RUN_LOCK_FILENAME = "pre-review-gate-run.lock"
+
+# K-9: the lock-acquire wait is bounded on ITS OWN short timeout, deliberately
+# DECOUPLED from ``_DEFAULT_HEAD_RUN_TIMEOUT`` (300s) below. Charging a
+# lock-wait against the subprocess run timeout would re-create the exact
+# #2493 contention bug FR-004 removes: under N concurrent lanes a shard that
+# is fast on its own could still see ``TimeoutExpired`` purely from queueing
+# behind a sibling lane's run. A module-level (not a bound default-argument)
+# constant so tests can monkeypatch it without needing to re-import the call
+# site — a default argument value is frozen at function-definition time and
+# a monkeypatch of the constant afterwards would not be observed.
+_LOCK_ACQUIRE_TIMEOUT_DEFAULT: float = 5.0
+_LOCK_RETRY_SLEEP_S: float = 0.05
+
+
+@contextlib.contextmanager
+def _scoped_run_lock(repo_root: Path, *, acquire_timeout: float | None = None) -> Iterator[None]:
+    """Advisory lock serializing concurrent scoped subprocess runs (#2493).
+
+    Uses a scoped ``fcntl.flock`` rather than the canonical
+    :class:`specify_cli.core.file_lock.MachineFileLock`: that helper is an
+    ``async`` context manager (built for the async OAuth-refresh call site),
+    while this call site is a single synchronous ``subprocess.run``. Bridging
+    one bounded, already-synchronous critical section through an event loop
+    for a single advisory lock is materially more machinery than the problem
+    needs — a scoped, function-local ``fcntl.flock`` (POSIX-only, imported
+    lazily so importing this module never breaks on Windows) is the simpler
+    sync-native fit and is self-contained to this one call site.
+
+    Acquisition is a short, independently-timed, non-blocking retry loop
+    bounded by ``acquire_timeout`` (default :data:`_LOCK_ACQUIRE_TIMEOUT_DEFAULT`)
+    — never the caller's (much larger) subprocess run timeout. If the lock
+    cannot be acquired within that bound, the caller proceeds WITHOUT it
+    (fallback-to-run): losing the advisory serialization guarantee is
+    preferable to a gate that blocks indefinitely or trips a false timeout.
+    On Windows (no ``fcntl``) this is a no-op — advisory contention
+    protection is a POSIX-only nicety here, not a correctness requirement.
+    """
+    if sys.platform == "win32":  # pragma: no cover - platform-specific, advisory-only nicety
+        yield
+        return
+
+    import fcntl  # POSIX-only; local import keeps this module importable on Windows.
+
+    timeout = _LOCK_ACQUIRE_TIMEOUT_DEFAULT if acquire_timeout is None else acquire_timeout
+    lock_path = repo_root / ".spec-kitty" / _SCOPED_RUN_LOCK_FILENAME
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR)
+    acquired = False
+    try:
+        deadline = time.monotonic() + timeout
+        while True:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                acquired = True
+                break
+            except OSError:
+                if time.monotonic() >= deadline:
+                    break
+                time.sleep(_LOCK_RETRY_SLEEP_S)
+        yield
+    finally:
+        if acquired:
+            with contextlib.suppress(OSError):
+                fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
+
+
 def run_scoped_tests_at_head(
     test_targets: Sequence[str],
     *,
@@ -367,6 +438,11 @@ def run_scoped_tests_at_head(
     ``capture_baseline`` runs one whole, un-scoped ``review.test_command``
     and has no head-side runner of its own) — but the JUnit parsing is
     ``baseline.py``'s existing ``_parse_junit_xml``, reused unchanged (C-001).
+
+    The subprocess command is built via :func:`resolve_pytest_command`
+    (#2570.3) so it runs under whichever interpreter actually has ``pytest``
+    installed, and the subprocess itself is serialized against concurrent
+    scoped runs via :func:`_scoped_run_lock` (#2493).
     """
     if not test_targets:
         return HeadRunResult(ran=False, error="empty test scope — nothing to run")
@@ -376,24 +452,21 @@ def run_scoped_tests_at_head(
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         junit_path = Path(tmp_dir) / "pre-review-junit.xml"
-        command = [
-            sys.executable,
-            "-m",
-            "pytest",
-            *test_targets,
-            f"--junitxml={junit_path}",
-            "-q",
-        ]
+        command = resolve_pytest_command(
+            [*test_targets, f"--junitxml={junit_path}", "-q"],
+            repo_root=repo_root,
+        )
         try:
-            result = subprocess.run(
-                command,
-                cwd=str(repo_root),
-                env=env,
-                capture_output=True,
-                text=True,
-                timeout=timeout,
-                check=False,
-            )
+            with _scoped_run_lock(repo_root):
+                result = subprocess.run(
+                    command,
+                    cwd=str(repo_root),
+                    env=env,
+                    capture_output=True,
+                    text=True,
+                    timeout=timeout,
+                    check=False,
+                )
         except subprocess.TimeoutExpired as exc:
             return HeadRunResult(ran=False, error=f"scoped test run timed out after {timeout}s: {exc}")
         except OSError as exc:
