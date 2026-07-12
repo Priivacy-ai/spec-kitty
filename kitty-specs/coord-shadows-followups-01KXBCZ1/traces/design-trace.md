@@ -24,4 +24,14 @@ Extends the #2572-shipped seams (`core/subtask_rows`, `core/process_liveness`) r
 
 ## Assess (close)
 
-<!-- fill at close: which KEEP-set invariants held, which bent, forward-alignment check -->
+KEEP-set invariants — all held, verified by opus per-WP reviews + the pre-merge aggregate squad:
+1. **One canonical authority per operation** — HELD. `resolve_subtasks_gate_dir` (one seam, 3 consumers, duplicate deleted), `iter_unchecked_subtask_rows` (stray regex removed), `is_process_alive` (review-lock folded on). Dead-code gate green.
+2. **Strong fallback, no husk read** — HELD. status_transition.py's weak `repo_root=None → feature_dir` husk path now recovers primary via git-ancestry; proven by an A/B repro in the WP01 review (parent RAISES, HEAD succeeds).
+3. **Behavior preservation on strong paths** — HELD. Characterization tests pin emit/aggregate byte-identical + the review-lock 3-branch equivalence.
+4. **Load-bearing casts stay** — HELD. `cast(Path,...)` carried verbatim; the resulting redundant-cast advisory is the expected C-002 artifact (relocated from base emit.py:338), net-zero-new.
+5. **Liveness conservatism + frozen signature** — HELD. `is_process_alive(pid)->bool` byte-identical (confirmed by review); reuse-compare in a companion; additive degradation (absent baseline → live-PID trust, zero regression); baseline = one additive field (C-007).
+6. **F3 out-of-lock preserved** — HELD. C-001 honored; failure surfaced-not-swallowed via `_MoveTaskState`, lock-release-safe.
+7. **#2567 tightening RATIFIED** — HELD. Characterization test captures old→new flagging; judged SAFE (unifies with the guard/dashboard/writer).
+8. **Scope containment** — HELD. No psutil-consumer sweep; F3 owned_files tight (no #2573 collision). One invariant-completing gap found post-hoc (the 4th shell_pid writer) → filed #2580, not fixed here (C-004 fence).
+
+Forward alignment: extended the #2572 seams (subtask_rows, process_liveness) rather than redesigning; epic #2160 keeps converging on single-authority-per-surface. No KEEP-set invariant bent.
