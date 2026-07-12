@@ -73,6 +73,9 @@ def _should_suppress_nag(argv: list[str] | None = None) -> bool:
 class BannerGroup(TyperGroup):
     """Custom Typer group that renders the banner before help output."""
 
+    def list_commands(self, ctx: click.Context) -> list[str]:
+        return sorted(super().list_commands(ctx))
+
     def format_help(self, ctx: click.Context, formatter: click.HelpFormatter) -> None:
         if _should_use_simple_help():
             _format_simple_help(self, ctx, formatter)
@@ -263,9 +266,7 @@ def _render_nag_if_needed(ctx: typer.Context) -> None:
 def callback(ctx: typer.Context) -> None:
     """Display the banner when CLI is invoked without a subcommand."""
     if ctx.invoked_subcommand is None and "--help" not in sys.argv and "-h" not in sys.argv:
-        show_banner()
-        console.print(Align.center("[dim]Run 'spec-kitty --help' for usage information[/dim]"))
-        console.print()
+        click.echo(ctx.get_help(), color=ctx.color)
 
     # Teamspace CLI auth/upgrade readiness coordinator
     # (Priivacy-ai/spec-kitty#1093). First-gated on is_saas_sync_enabled();

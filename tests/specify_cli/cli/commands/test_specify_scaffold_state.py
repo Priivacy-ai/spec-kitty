@@ -36,7 +36,7 @@ def test_specify_json_exposes_scaffold_only_state(monkeypatch) -> None:
         assert mission_slug == "my-feature"
         assert mission_type is None
         assert json_output is True
-        assert topology is MissionTopology.COORD  # default when --topology omitted (#2218)
+        assert topology is None  # delegated context-derived default (#2581)
         print(
             json.dumps(
                 {
@@ -96,7 +96,7 @@ def test_specify_human_output_explains_scaffold_only_state(monkeypatch) -> None:
         assert mission_slug == "my-feature"
         assert mission_type is None
         assert json_output is False
-        assert topology is MissionTopology.COORD  # default when --topology omitted (#2218)
+        assert topology is None  # delegated context-derived default (#2581)
         lifecycle._console.print("[green]OK[/green] Mission created: my-feature")
 
     monkeypatch.setattr(lifecycle.agent_feature, "create_mission", fake_create_mission)
