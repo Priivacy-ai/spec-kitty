@@ -32,8 +32,13 @@ from typer.main import get_command
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.doctor import app
+from specify_cli.cli.commands import _apply_short_help_options
 
 pytestmark = [pytest.mark.fast]
+
+# Match the root registration policy explicitly so this standalone singleton
+# is deterministic regardless of test import order.
+_apply_short_help_options(app)
 
 # --- Frozen contract: the 17 subcommand names (cli-surface-contract.md) -------
 # 16 de-godding names (#2059) + ``contracts`` (#2441, Contract Registry validator).
@@ -112,7 +117,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         'spec-kitty doctor command-files --json',
         'Options',
         '--json          Machine-readable JSON output',
-        '--help          Show this message and exit.',
+        '--help -h  Show this message and exit.',
     ],
     'skills': [
         'Usage: doctor skills [OPTIONS]',
@@ -120,7 +125,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         'Options',
         '--fix           Repair missing command-skill files',
         '--json          Machine-readable JSON output',
-        '--help          Show this message and exit.',
+        '--help -h  Show this message and exit.',
     ],
     'tool-surfaces': [
         'Usage: doctor tool-surfaces [OPTIONS]',
@@ -134,7 +139,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         '--tool        TEXT  Filter to a single configured tool key',
         '--fix               Repair missing or stale surfaces',
         '--json              Machine-readable JSON output',
-        '--help              Show this message and exit.',
+        '--help -h  Show this message and exit.',
     ],
     'state-roots': [
         'Usage: doctor state-roots [OPTIONS]',
@@ -147,7 +152,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         'spec-kitty doctor state-roots --json',
         'Options',
         '--json          Machine-readable JSON output',
-        '--help          Show this message and exit.',
+        '--help -h  Show this message and exit.',
     ],
     'workspaces': [
         'Usage: doctor workspaces [OPTIONS]',
@@ -163,7 +168,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         '--fix           Remove husks that are NOT registered in `git worktree list` (registered',
         'worktrees are never removed)',
         '--json          Machine-readable JSON output',
-        '--help          Show this message and exit.',
+        '--help -h  Show this message and exit.',
     ],
     'identity': [
         'Usage: doctor identity [OPTIONS]',
@@ -186,7 +191,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         '--mission        TEXT  Scope report to a single mission slug',
         '--fail-on        TEXT  Exit non-zero if any mission is in the given state(s). Comma-separated',
         'list of: assigned, pending, legacy, orphan.',
-        '--help                 Show this message and exit.',
+        '--help -h  Show this message and exit.',
     ],
     'topology': [
         'Usage: doctor topology [OPTIONS]',
@@ -202,7 +207,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         'Options',
         '--json                 Emit structured JSON output (suitable for CI)',
         '--mission        TEXT  Scope report to a single mission slug',
-        '--help                 Show this message and exit.',
+        '--help -h  Show this message and exit.',
     ],
     'sparse-checkout': [
         'Usage: doctor sparse-checkout [OPTIONS]',
@@ -219,7 +224,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         'spec-kitty doctor sparse-checkout --fix',
         'Options',
         '--fix           Apply remediation (disable sparse-checkout on primary + worktrees).',
-        '--help          Show this message and exit.',
+        '--help -h  Show this message and exit.',
     ],
     'shim-registry': [
         'Usage: doctor shim-registry [OPTIONS]',
@@ -237,7 +242,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         'spec-kitty doctor shim-registry --json',
         'Options',
         '--json          Machine-readable JSON output',
-        '--help          Show this message and exit.',
+        '--help -h  Show this message and exit.',
     ],
     'contracts': [
         'Usage: doctor contracts [OPTIONS]',
@@ -256,7 +261,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         'spec-kitty doctor contracts --json',
         'Options',
         '--json          Machine-readable JSON output',
-        '--help          Show this message and exit.',
+        '--help -h  Show this message and exit.',
     ],
     'invocation-pairing': [
         'Usage: doctor invocation-pairing [OPTIONS]',
@@ -273,7 +278,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         'spec-kitty doctor invocation-pairing --json',
         'Options',
         '--json          Machine-readable JSON output',
-        '--help          Show this message and exit.',
+        '--help -h  Show this message and exit.',
     ],
     'ops': [
         'Usage: doctor ops [OPTIONS]',
@@ -284,7 +289,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         '(closed_by=doctor_sweep)',
         '--threshold          FLOAT  Staleness threshold in hours (default 24; 0 closes all). Requires',
         '--close-stale.',
-        '--help                      Show this message and exit.',
+        '--help -h  Show this message and exit.',
     ],
     'orphan-daemons': [
         'Usage: doctor orphan-daemons [OPTIONS]',
@@ -303,7 +308,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         'spec-kitty doctor orphan-daemons --json',
         'Options',
         '--json          Machine-readable JSON output',
-        '--help          Show this message and exit.',
+        '--help -h  Show this message and exit.',
     ],
     'restart-daemon': [
         'Usage: doctor restart-daemon [OPTIONS]',
@@ -322,7 +327,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         'spec-kitty doctor restart-daemon --json',
         'Options',
         '--json          Emit a single JSON object instead of human-readable text.',
-        '--help          Show this message and exit.',
+        '--help -h  Show this message and exit.',
     ],
     'mission-state': [
         'Usage: doctor mission-state [OPTIONS]',
@@ -341,7 +346,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         '--include-fixtures               Audit the bundled mission-state survey fixtures',
         '--manifest-path            PATH  Path for --fix migration manifest',
         '--allow-dirty                    Allow --fix when relevant git paths are already dirty',
-        '--help                           Show this message and exit.',
+        '--help -h  Show this message and exit.',
     ],
     'doctrine': [
         'Usage: doctor doctrine [OPTIONS]',
@@ -367,7 +372,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         'spec-kitty doctor doctrine --json',
         'Options',
         '--json          Machine-readable JSON output',
-        '--help          Show this message and exit.',
+        '--help -h  Show this message and exit.',
     ],
     'coordination': [
         'Usage: doctor coordination [OPTIONS]',
@@ -380,7 +385,7 @@ EXPECTED_HELP: dict[str, list[str]] = {
         'findings exit 0 but are still printed.',
         'Options',
         '--json          Machine-readable JSON output',
-        '--help          Show this message and exit.',
+        '--help -h  Show this message and exit.',
     ],
 }
 
@@ -390,6 +395,7 @@ def _normalize_help(text: str) -> list[str]:
     out: list[str] = []
     for line in text.splitlines():
         cleaned = re.sub(r"[│╭╮╰╯─]", "", line).strip()
+        cleaned = re.sub(r"\s+", " ", cleaned)
         if cleaned:
             out.append(cleaned)
     return out
@@ -463,7 +469,8 @@ def test_subcommand_option_contract(name: str) -> None:
 def test_subcommand_help_snapshot(name: str, runner: CliRunner) -> None:
     result = runner.invoke(app, [name, "--help"])
     assert result.exit_code == 0
-    assert _normalize_help(result.output) == EXPECTED_HELP[name]
+    expected = _normalize_help("\n".join(EXPECTED_HELP[name]))
+    assert _normalize_help(result.output) == expected
 
 
 # --- T003: exit-code contracts + load-bearing names --------------------------
