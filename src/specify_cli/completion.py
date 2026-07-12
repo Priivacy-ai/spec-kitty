@@ -241,14 +241,7 @@ def _main(argv: list[str]) -> int:
 
 
 __all__ = [
-    "PROG_NAME",
-    "COMPLETE_VAR",
-    "build_manifest_from_command",
-    "generate_manifest",
     "maybe_run_completion",
-    "regenerate_manifest_file",
-    "render_manifest_json",
-    "run_completion",
 ]
 
 
