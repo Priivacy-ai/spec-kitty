@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-07-09'
+updated: '2026-07-12'
 ---
 # Changelog
 
@@ -19,6 +19,19 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
 
+- **Relocation-hardened architectural dead-code scanners + content-addressed
+  ratchet allow-lists (#2546, #2547, #2072, #2548, #2077).** The `tests/architectural/`
+  ratchet allow-lists are re-keyed off *position* anchors (line numbers, `module::Name`)
+  onto **content descriptors**, and the 394-entry dead-symbol allow-list onto a
+  **relocation-tolerant `SymbolKey`** — content-only by default, escalating a
+  byte-identical same-name collision to a `module_path` tier (or fail-closing) via a
+  **live, gate-time collision classifier** — so a behaviour-preserving relocation no
+  longer forces a hand-edit **without re-blinding the T004 no-false-negative
+  invariant**. Adds a standing int-to-line-sink meta-guard, a tier-specific
+  dangling-entry ratchet, and the full production-path bite battery. The relocation
+  promise is honestly downscoped: relocation-proof for simple single-definition
+  entries; re-export/facade/fan-out entries stay `module_path`-keyed (documented, not
+  a bug). Ships with a CaaCS change-coupling analysis of the test suite (epic #2071).
 - **First-class TEMPLATE + loose-contract ASSET doctrine kinds (#2495, #2469).**
   Org-pack **templates** are now first-class, graph-addressable, edge-wireable
   DRG nodes, and a new loose-contract **`asset`** doctrine kind lets a pack ship
@@ -39,6 +52,14 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
   change bumps the orchestrator API to 1.3.0.
 
 ### 🐛 Fixed
+
+- **Arch-suite warnings remediated at root (#2553, #2554).** Report-only diagnostics
+  (migration patch-skips, duplicate-gate selection, ratchet shrinkage, legacy-contract
+  backfill) are routed off the `warnings` channel via `record_property` (signal
+  preserved, no blanket `filterwarnings=ignore`); a Toolguide model-vs-schema drift is
+  fixed so `terminology-guard.toolguide.yaml` validates (clearing the `base.py` skip
+  warning); and three agent profiles now cite `bdd-scenario-lifecycle` as a *procedure*
+  rather than a tactic (clearing `CharterCatalogMissWarning`).
 
 ### ♻️ Changed
 
