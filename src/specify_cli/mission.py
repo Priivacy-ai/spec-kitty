@@ -7,6 +7,7 @@ writing, etc.) with domain-specific templates, workflows, and validation.
 
 from specify_cli.core.constants import KITTY_SPECS_DIR
 import os
+import re
 import warnings
 from pathlib import Path
 from typing import Any, Dict, List, Literal, Optional, Tuple
@@ -615,13 +616,65 @@ def get_deliverables_path(feature_dir: Path, mission_slug: str | None = None) ->
     return None
 
 
+# Control characters and bidirectional-formatting overrides that can spoof
+# a rendered path (e.g. RTL override making 'evil' read as 'live') or smuggle
+# a null byte past a downstream C-string-based file API.
+_FORBIDDEN_DELIVERABLES_CHARS = frozenset(
+    {
+        chr(0x00),  # NULL -- classic C-string truncation vector
+        chr(0x202A),  # LEFT-TO-RIGHT EMBEDDING
+        chr(0x202B),  # RIGHT-TO-LEFT EMBEDDING
+        chr(0x202C),  # POP DIRECTIONAL FORMATTING
+        chr(0x202D),  # LEFT-TO-RIGHT OVERRIDE
+        chr(0x202E),  # RIGHT-TO-LEFT OVERRIDE
+        chr(0x2066),  # LEFT-TO-RIGHT ISOLATE
+        chr(0x2067),  # RIGHT-TO-LEFT ISOLATE
+        chr(0x2068),  # FIRST STRONG ISOLATE
+        chr(0x2069),  # POP DIRECTIONAL ISOLATE
+    }
+)
+
+# Windows-style absolute path: a drive letter followed by a separator, e.g.
+# 'C:\' or 'C:/'. Path.is_absolute() on POSIX is False for these — they need
+# an explicit rule.
+_WINDOWS_DRIVE_ABSOLUTE_RE = re.compile(r"^[A-Za-z]:[\\/]")
+
+
 def validate_deliverables_path(deliverables_path: str) -> tuple[bool, str]:
     """Validate that a deliverables_path is acceptable.
 
-    Rules:
-    - Must NOT be inside kitty-specs/
-    - Must NOT be just 'research/' at root (ambiguous)
-    - Should be a relative path
+    Validation happens in two phases:
+
+    1. Lexical checks against the RAW input (never a resolved path):
+       - No control characters or bidirectional-override characters (null
+         byte, RTL/LTR overrides/isolates) — these can smuggle bytes past
+         downstream APIs or visually spoof the rendered path.
+       - Must not be empty/whitespace-only (including strings that are only
+         slashes, which normalize to nothing).
+       - Must not reference a home directory (``~``).
+       - Must not be a Windows-style absolute path (leading backslash or a
+         drive letter such as ``C:\\``) or a POSIX absolute path (leading
+         ``/``). ``Path.is_absolute()`` is False for the Windows form on
+         POSIX, so both need explicit rules.
+       - Must not contain ``..`` anywhere — a substring check, matching the
+         canonical dotted-traversal guard in
+         ``core/paths.py::assert_safe_path_segment``, so it also rejects
+         dot-only segments like ``"..."`` without a separate rule.
+       - Must not be a bare ``.``/``./`` (ambiguous project-root reference).
+       - Must not be exactly ``research`` or ``research/`` at root
+         (ambiguous — see ADR 7).
+
+    2. Containment checks on a SEPARATE resolved copy (the raw string is
+       never resolved for the checks above, since resolving makes every
+       path absolute and would defeat the absolute-path rule):
+       - The resolved path must stay within the project root (current
+         working directory) — symlinks that escape the root are rejected
+         via ``Path.relative_to`` (NOT ``str.startswith``, which is
+         vulnerable to the sibling-prefix bypass — see the same pattern in
+         ``doctrine/sources/https_source.py``).
+       - The resolved path, relative to the project root, must not land in
+         ``kitty-specs/`` (reserved for planning artifacts) — compared
+         case-insensitively so a case-variant or a symlink cannot bypass it.
 
     Args:
         deliverables_path: The path to validate
@@ -630,22 +683,66 @@ def validate_deliverables_path(deliverables_path: str) -> tuple[bool, str]:
         Tuple of (is_valid, error_message)
         If valid, error_message is empty string.
     """
-    path = deliverables_path.strip().rstrip("/")
+    raw = deliverables_path
 
-    # Check if inside kitty-specs/
-    if path.startswith(f"{KITTY_SPECS_DIR}/") or path.startswith(KITTY_SPECS_DIR):
-        return False, "deliverables_path must NOT be inside kitty-specs/ (reserved for planning artifacts)"
+    if any(char in raw for char in _FORBIDDEN_DELIVERABLES_CHARS):
+        return (
+            False,
+            "deliverables_path must not contain control characters or bidirectional "
+            "text overrides (e.g. null bytes, RTL/LTR overrides)",
+        )
 
-    # Check if just 'research/' at root
-    if path == "research" or path == "research/":
+    stripped = raw.strip()
+    if not stripped:
+        return False, "deliverables_path must not be empty or whitespace-only"
+
+    if stripped.startswith("~"):
+        return False, "deliverables_path must not reference a home directory (~)"
+
+    if stripped.startswith("\\") or _WINDOWS_DRIVE_ABSOLUTE_RE.match(stripped):
+        return (
+            False,
+            "deliverables_path should be a relative path, not a Windows-style absolute path",
+        )
+
+    if stripped.startswith("/"):
+        return False, "deliverables_path should be a relative path, not absolute"
+
+    if ".." in stripped:
+        return False, "deliverables_path must not contain directory traversal ('..')"
+
+    normalized = stripped.rstrip("/")
+
+    if normalized in ("", "."):
+        return (
+            False,
+            "deliverables_path must not be a bare '.' (ambiguous project-root reference)",
+        )
+
+    if normalized == "research":
         return (
             False,
             "deliverables_path should not be just 'research/' at root (ambiguous). Use 'docs/research/<feature>/' or 'research-outputs/<feature>/' instead.",
         )
 
-    # Check if absolute path
-    if path.startswith("/"):
-        return False, "deliverables_path should be a relative path, not absolute"
+    # --- Phase 2: containment checks on a SEPARATE resolved copy ---
+    project_root = Path.cwd().resolve()
+    candidate = (project_root / normalized).resolve()
+    try:
+        relative = candidate.relative_to(project_root)
+    except ValueError:
+        return (
+            False,
+            "deliverables_path must resolve to a location inside the project root "
+            "(symlink escape detected)",
+        )
+
+    relative_posix = relative.as_posix().lower()
+    if relative_posix == KITTY_SPECS_DIR or relative_posix.startswith(f"{KITTY_SPECS_DIR}/"):
+        return (
+            False,
+            f"deliverables_path must NOT resolve inside {KITTY_SPECS_DIR}/ (reserved for planning artifacts)",
+        )
 
     return True, ""
 
