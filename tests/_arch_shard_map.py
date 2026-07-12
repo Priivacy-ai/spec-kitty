@@ -1,35 +1,47 @@
-"""Single-source arch-adversarial pole shard-assignment table (FR-004, FR-005).
+"""Shard registry — ``arch`` group row (data-model E1) + shared lookup (FR-002).
 
-Mission ``ci-health-charter-path-and-arch-shard-01KWRTB2`` WP02 (#2397). The
-``arch-adversarial`` CI job today runs the 4 pole roots — ``tests/adversarial``,
+Originated as the single-source arch-adversarial pole shard-assignment table
+(mission ``ci-health-charter-path-and-arch-shard-01KWRTB2`` WP02, #2397), now
+generalized into an **N-group registry** (mission
+``ci-test-topology-performance-01KXBJRT`` WP01, FR-002/C-003/D-044): ``arch``
+and ``next`` (registered by the sibling ``tests/_next_shard_map.py``) are two
+rows of *one* mechanism — :data:`SHARD_GROUPS` — not a cloned second table,
+hook, or completeness guard.
+
+The ``arch-adversarial`` CI job runs the 4 pole roots — ``tests/adversarial``,
 ``tests/architectural``, ``tests/architecture``, ``tests/lint`` — as a single
-14.4-minute matrix leg. This module is the **single committed source of truth**
-for splitting that pole into 3 balanced, disjoint shards, keyed by whole
-test-file (for ``tests/architectural/*.py``) or whole directory (for the other
-three pole roots, folded in as functional units per the operator's
-"whole test files kept intact, not split" steer, Decision Moment
+matrix leg. This module owns that group's row: 3 balanced, disjoint shards,
+keyed by whole test-file (for ``tests/architectural/*.py``) or whole directory
+(for the other three pole roots, folded in as functional units per the
+operator's "whole test files kept intact, not split" steer, Decision Moment
 ``DM-01KWRWB0PPF5TQPNYF5D07XY3W``).
 
 The concrete assignment below is copied **verbatim** from
 ``kitty-specs/ci-health-charter-path-and-arch-shard-01KWRTB2/data-model.md``
 (a 216 / 215 / 215 greedy bin-packing result balanced by a ``def test_`` count
 proxy — see ``research.md`` R2 for the honesty caveat that this is a structural
-projection, not a live-duration measurement). Do not re-derive a different
-split here; rebalance by editing this table directly if a future CI run shows
-material drift.
+projection, not a live-duration measurement) and reshaped into the
+:class:`ShardGroup` row **byte-for-byte** — no relpath moves shard as part of
+this generalization. Rebalance by editing this table directly if a future CI
+run shows material drift.
 
 ``tests/conftest.py``'s ``pytest_collection_modifyitems`` hook applies the
-matching ``arch_shard_<N>`` marker to every collected test whose file falls
-under one of the 4 pole roots, looked up via :func:`shard_for`. Nothing outside
-those roots is touched: :func:`shard_for` returns ``None`` for any other path,
-which is what keeps the hook scoped (enforced by
-``tests/architectural/test_arch_shard_marker_completeness.py``, IC-03).
+matching ``<marker_prefix>_<N>`` marker to every collected test whose file
+falls under one of a registered group's roots, driven by iterating
+:data:`SHARD_GROUPS`, looked up via :func:`shard_for`. Nothing outside a
+group's roots is touched: :func:`shard_for` returns ``None`` for any path not
+covered by the requested group, which is what keeps the hook scoped (enforced
+by ``tests/architectural/test_arch_shard_marker_completeness.py`` /
+``test_next_shard_marker_completeness.py``, GC-1).
 
 This module is pure data + one lookup function — no pytest import, no side
-effects — so it stays trivially unit-testable and reviewable as "just a table."
+effects — so it stays trivially unit-testable and reviewable as "just a
+table."
 """
 
 from __future__ import annotations
+
+from dataclasses import dataclass, field
 
 # Whole-directory pole roots folded in as single functional units (never
 # split across shards).
@@ -40,6 +52,22 @@ _ARCH_SHARD_3_DIRS: tuple[str, ...] = ("tests/architecture",)
 # Individual `tests/architectural/*.py` file assignments — copied verbatim from
 # data-model.md's committed 216 / 215 / 215 split.
 _ARCH_SHARD_1_FILES: tuple[str, ...] = (
+    # Added post-data-model.md (new file at implementation time, mission
+    # ci-test-topology-performance-01KXBJRT WP01, FR-002 — the ``next`` group's
+    # completeness guard, sibling to test_arch_shard_marker_completeness.py).
+    # shard_1 was the lightest by file count (33 vs 34/34) when this file
+    # landed, so it lands here.
+    "tests/architectural/test_next_shard_marker_completeness.py",
+    # Added post-data-model.md (new file, mission
+    # ci-test-topology-performance-01KXBJRT WP04, #2590 — the GC-5
+    # marker-baseline guard). WP04 landed this file without registering it in
+    # this shard map, leaving it selected by zero arch_shard_N marker (GC-1
+    # violation); WP06 (T014/T020, sole owner of ci-quality.yml and the
+    # cross-lane roster pass) closes the gap as a follow-on data edit. All
+    # three shards were tied at 34 files each when this fix landed; shard_1
+    # was picked first (alphabetically paired with test_workflow_dist_lint.py
+    # in shard_2 below) to keep the pick auditable.
+    "tests/architectural/test_marker_baseline.py",
     # Added post-data-model.md (new file at implementation time, mission
     # cmd-output-file-leak-guard-01KWVZX7 #2169 WP01). All three shards were
     # tied at 30 files each when this guard landed; shard_1 was picked
@@ -81,6 +109,14 @@ _ARCH_SHARD_1_FILES: tuple[str, ...] = (
 )
 
 _ARCH_SHARD_2_FILES: tuple[str, ...] = (
+    # Added post-data-model.md (new file, mission
+    # ci-test-topology-performance-01KXBJRT WP04, #2590 — the GC-4
+    # workflow-dist lint guard). Same landing gap as
+    # test_marker_baseline.py above (WP04 forgot to register it in this shard
+    # map); WP06 closes it as a follow-on data edit. Paired into shard_2
+    # (sibling of shard_1's pick above) while shards were still tied at 34
+    # files each.
+    "tests/architectural/test_workflow_dist_lint.py",
     # Added post-data-model.md (new file at implementation time — data-model.md
     # §"Any tests/architectural/*.py file not listed above ... is an
     # assignment gap the completeness guard must catch"). shard_2 was the
@@ -190,7 +226,7 @@ _ARCH_SHARD_3_FILES: tuple[str, ...] = (
 )
 
 # ``relpath -> shard`` for exact-file (architectural) units.
-ARCH_SHARD_FILE_MAP: dict[str, int] = {
+_ARCH_FILE_ASSIGNMENT: dict[str, int] = {
     **dict.fromkeys(_ARCH_SHARD_1_FILES, 1),
     **dict.fromkeys(_ARCH_SHARD_2_FILES, 2),
     **dict.fromkeys(_ARCH_SHARD_3_FILES, 3),
@@ -198,15 +234,16 @@ ARCH_SHARD_FILE_MAP: dict[str, int] = {
 
 # ``dirpath -> shard`` for whole-directory (adversarial / architecture / lint)
 # units.
-ARCH_SHARD_DIR_MAP: dict[str, int] = {
+_ARCH_DIR_ASSIGNMENT: dict[str, int] = {
     **dict.fromkeys(_ARCH_SHARD_1_DIRS, 1),
     **dict.fromkeys(_ARCH_SHARD_2_DIRS, 2),
     **dict.fromkeys(_ARCH_SHARD_3_DIRS, 3),
 }
 
-# The 4 pole roots this table (and the collection hook) is scoped to. Anything
-# outside these roots must never receive an ``arch_shard_N`` marker.
-POLE_ROOTS: tuple[str, ...] = (
+# The 4 pole roots the ``arch`` group (and the collection hook, for this
+# group) is scoped to. Anything outside these roots must never receive an
+# ``arch_shard_N`` marker.
+_ARCH_POLE_ROOTS: tuple[str, ...] = (
     "tests/adversarial",
     "tests/architectural",
     "tests/architecture",
@@ -214,25 +251,71 @@ POLE_ROOTS: tuple[str, ...] = (
 )
 
 
-def shard_for(relpath: str) -> int | None:
-    """Return the ``arch_shard_N`` number (1/2/3) for *relpath*, or ``None``.
+@dataclass(frozen=True)
+class ShardGroup:
+    """One row of the shard registry (data-model E1).
 
-    *relpath* is a repo-root-relative path using ``/`` separators (as produced
-    by pytest's own nodeid/relpath reporting). Resolution order:
-
-    1. Whole-directory pole roots (``tests/adversarial``, ``tests/architecture``,
-       ``tests/lint``) — any path under one of these directories resolves to
-       that directory's single shard.
-    2. Exact file match in :data:`ARCH_SHARD_FILE_MAP` (the
-       ``tests/architectural/*.py`` per-file assignment).
-    3. ``None`` for anything outside the 4 pole roots (including
-       non-test infra modules inside ``tests/architectural/`` such as
-       ``__init__.py`` / ``conftest.py`` / ``_gate_coverage.py`` /
-       ``_gate_collect_plugin.py`` / ``_ratchet_keys.py``, and any path that
-       isn't under one of :data:`POLE_ROOTS` at all).
+    ``dir_assignment`` / ``file_assignment`` are kept as two internal maps
+    (rather than one merged dict) purely for :func:`shard_for`'s lookup
+    efficiency — a handful of whole-directory prefixes checked first, then an
+    ``O(1)`` exact-file lookup — mirroring the pre-generalization resolution
+    order exactly (byte-stable for ``arch``). :attr:`assignment` is the
+    public, merged ``relpath/dirpath -> shard_idx`` view the data model
+    describes.
     """
+
+    group: str
+    roots: tuple[str, ...]
+    shard_count: int
+    marker_prefix: str
+    dir_assignment: dict[str, int] = field(default_factory=dict)
+    file_assignment: dict[str, int] = field(default_factory=dict)
+
+    @property
+    def assignment(self) -> dict[str, int]:
+        """Merged ``relpath/dirpath -> shard_idx`` map (data-model E1 field)."""
+        return {**self.dir_assignment, **self.file_assignment}
+
+
+# The single-source registry: ``group name -> ShardGroup``. This module owns
+# only the ``arch`` row; ``tests/_next_shard_map.py`` registers the sibling
+# ``next`` row into this SAME dict at import time (D-044/C-003 — one
+# registry, not a cloned second one). ``tests/conftest.py`` imports
+# ``_next_shard_map`` (for its registration side effect) alongside this
+# module, then iterates :data:`SHARD_GROUPS`, never hardcoding a group name.
+SHARD_GROUPS: dict[str, ShardGroup] = {
+    "arch": ShardGroup(
+        group="arch",
+        roots=_ARCH_POLE_ROOTS,
+        shard_count=3,
+        marker_prefix="arch_shard",
+        dir_assignment=_ARCH_DIR_ASSIGNMENT,
+        file_assignment=_ARCH_FILE_ASSIGNMENT,
+    ),
+}
+
+
+def shard_for(group: str, relpath: str) -> int | None:
+    """Return the ``<marker_prefix>_N`` shard number for *relpath* in *group*.
+
+    ``None`` when *group* is not registered, or *relpath* falls outside that
+    group's assignment. *relpath* is a repo-root-relative path using ``/``
+    separators (as produced by pytest's own nodeid/relpath reporting).
+    Resolution order (per group, identical to the pre-generalization
+    ``arch``-only behavior):
+
+    1. Whole-directory roots — any path under one of the group's directory
+       units resolves to that directory's single shard.
+    2. Exact file match in the group's file assignment.
+    3. ``None`` for anything outside the group's roots (including non-test
+       infra modules such as ``__init__.py`` / ``conftest.py`` / helper
+       modules, and any path not covered by the group's assignment at all).
+    """
+    spec = SHARD_GROUPS.get(group)
+    if spec is None:
+        return None
     normalized = relpath.replace("\\", "/")
-    for dirpath, shard in ARCH_SHARD_DIR_MAP.items():
+    for dirpath, shard in spec.dir_assignment.items():
         if normalized == dirpath or normalized.startswith(f"{dirpath}/"):
             return shard
-    return ARCH_SHARD_FILE_MAP.get(normalized)
+    return spec.file_assignment.get(normalized)
