@@ -460,6 +460,11 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _primary_bundle_status_artifacts as _primary_bundle_status_artifacts,
     _run_arbiter_override as _run_arbiter_override,
     _status_event_result_fields as _status_event_result_fields,
+    # WP07 (loop-friction-quickwins-2-01KXBWA4, T025, FR-010/#2555.1): the
+    # authority-path planning-artifact staging discovery + the shared
+    # fallback-write helper join the family surface like every other def.
+    _mt_untracked_planning_artifact_paths as _mt_untracked_planning_artifact_paths,
+    _write_wp_fallback as _write_wp_fallback,
 )
 
 
