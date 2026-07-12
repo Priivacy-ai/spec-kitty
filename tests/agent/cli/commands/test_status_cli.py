@@ -234,6 +234,19 @@ class TestEmitCommand:
     def test_emit_evidence_json_parsing(self, tmp_path: Path, feature_dir: Path):
         """Valid --evidence-json should be parsed and passed through."""
         _seed_planned(feature_dir)
+        # #2160 gate (FR-002/FR-003): the in_progress -> for_review transition
+        # requires provably-complete subtasks. Emit fails closed when tasks.md is
+        # absent, so seed a realistic tasks.md whose WP01 section has all its
+        # T### rows checked — this exercises the real completeness gate rather
+        # than bypassing it with --force.
+        (feature_dir / "tasks.md").write_text(
+            "# Tasks: 034-test-feature\n\n"
+            "## WP01 — Status emit evidence plumbing\n\n"
+            "- [x] T001 Wire evidence-json parsing into the emit command\n"
+            "- [x] T002 Persist evidence payload on the done transition\n"
+            "- [x] T003 Cover evidence round-trip with an integration test\n",
+            encoding="utf-8",
+        )
         patches = _patch_detection(tmp_path)
 
         # Build up state: planned -> claimed -> in_progress -> for_review -> in_review
