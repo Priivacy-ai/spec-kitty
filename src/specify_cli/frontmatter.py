@@ -17,6 +17,14 @@ from typing import Any
 from ruamel.yaml import YAML
 from ruamel.yaml.comments import CommentedMap
 
+# The additive PID-reuse identity baseline (C-007) co-written alongside
+# ``shell_pid`` at every claim-write site (D3b). Declared once here — the
+# single shared constant mirrors the ``"shell_pid"`` field-name pattern in
+# ``WP_FIELD_ORDER`` below — and read by :func:`write_shell_pid_claim` (this
+# module) and ``core.stale_detection`` (the claim-liveness consumer) so the
+# field name cannot drift into a re-duplicated literal (Sonar S1192).
+SHELL_PID_BASELINE_FIELD = "shell_pid_created_at"
+
 
 class FrontmatterError(Exception):
     """Error in frontmatter operations."""
@@ -55,6 +63,7 @@ class FrontmatterManager:
         "assignee",
         "agent",
         "shell_pid",
+        SHELL_PID_BASELINE_FIELD,  # PID-reuse identity baseline co-written with shell_pid (C-007)
         "scope",  # Optional: "codebase-wide" for audit/cutover WPs that need whole-repo access
         "history",
     ]
@@ -323,6 +332,60 @@ def validate_frontmatter(file_path: Path) -> list[str]:
     return _manager.validate(file_path)
 
 
+def write_shell_pid_claim(frontmatter_text: str, pid: int) -> str:
+    """Co-write ``shell_pid`` and its PID-reuse identity baseline (D3b).
+
+    The ONE claim-write helper (close-by-construction): every ``shell_pid``
+    write site routes through this function so a ``shell_pid`` can never be
+    written without an attempt to pair it with a baseline. Uses a single write
+    mechanism — ``set_scalar`` string mutation — so callers with a raw
+    frontmatter string (``workflow_executor``'s in-memory claim sites) and
+    callers with a WP file on disk (:func:`write_shell_pid_claim_to_file`,
+    used by ``spec-kitty implement``) share identical mutation semantics; no
+    per-caller branch on write-API shape.
+
+    The baseline (:func:`~specify_cli.core.process_liveness.capture_creation_time_baseline`)
+    is best-effort: a claim still succeeds when it cannot be captured (C-007) —
+    the write simply omits the baseline field, which ``stale_detection``
+    treats as a legacy claim (D3a, zero regression).
+
+    Args:
+        frontmatter_text: Raw frontmatter text (no ``---`` fences).
+        pid: The claiming process's PID.
+
+    Returns:
+        The updated frontmatter text with ``shell_pid`` set to ``pid`` and,
+        when capturable, :data:`SHELL_PID_BASELINE_FIELD` set to its
+        creation-time baseline.
+    """
+    from specify_cli.core.process_liveness import capture_creation_time_baseline
+    from specify_cli.task_utils.support import set_scalar
+
+    updated = set_scalar(frontmatter_text, "shell_pid", str(pid))
+    baseline = capture_creation_time_baseline(pid)
+    if baseline is not None:
+        updated = set_scalar(updated, SHELL_PID_BASELINE_FIELD, baseline)
+    return updated
+
+
+def write_shell_pid_claim_to_file(file_path: Path, pid: int) -> None:
+    """File-based wrapper around :func:`write_shell_pid_claim` (D3b).
+
+    Reads *file_path*'s raw frontmatter text, applies the single claim-write
+    helper, and writes the result back — so the file-based caller
+    (``spec-kitty implement``, which historically wrote via the dict-based
+    :meth:`FrontmatterManager.update_fields`) round-trips through the exact
+    same ``set_scalar`` mutation as the in-memory ``workflow_executor`` claim
+    sites (one write mechanism, no per-caller API branch).
+    """
+    from specify_cli.task_utils.support import build_document, split_frontmatter
+
+    text = file_path.read_text(encoding="utf-8-sig")
+    front, body, padding = split_frontmatter(text)
+    updated_front = write_shell_pid_claim(front, pid)
+    file_path.write_text(build_document(updated_front, body, padding), encoding="utf-8")
+
+
 def normalize_file(file_path: Path) -> bool:
     """Normalize an existing file's frontmatter.
 
@@ -349,6 +412,7 @@ def normalize_file(file_path: Path) -> bool:
 
 
 __all__ = [
+    "SHELL_PID_BASELINE_FIELD",
     "FrontmatterError",
     "FrontmatterManager",
     "read_frontmatter",
@@ -358,4 +422,6 @@ __all__ = [
     "add_history_entry",
     "validate_frontmatter",
     "normalize_file",
+    "write_shell_pid_claim",
+    "write_shell_pid_claim_to_file",
 ]

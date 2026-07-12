@@ -62,6 +62,7 @@ from specify_cli.missions._read_path_resolver import (
     _canonicalize_primary_read_handle,
     primary_feature_dir_for_mission,
 )
+from specify_cli.frontmatter import write_shell_pid_claim
 from specify_cli.status import Lane, WorkPackageClaimConflict, WorkPackageStartRejected, read_wp_frontmatter
 from specify_cli.task_utils import append_activity_log, build_document, extract_scalar, set_scalar
 from specify_cli.workspace.context import ResolvedWorkspace, husk_resolution_error
@@ -665,7 +666,7 @@ def _implement_write_claim_and_commit(
     # Update operational metadata in frontmatter (NO lane — event log is sole authority)
     updated_front = wp.frontmatter
     updated_front = set_scalar(updated_front, "agent", agent)
-    updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
+    updated_front = write_shell_pid_claim(updated_front, int(shell_pid))
 
     # Build history entry (no lane= segment; event log is sole lane authority)
     timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -1335,7 +1336,7 @@ def review_claim_transition(
         wp_content = wp.path.read_text(encoding="utf-8-sig")
         updated_front, updated_body, updated_padding = split_frontmatter(wp_content)
         updated_front = set_scalar(updated_front, "agent", agent)
-        updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
+        updated_front = write_shell_pid_claim(updated_front, int(shell_pid))
 
         # Build history entry (no lane= segment; event log is sole lane authority)
         timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")

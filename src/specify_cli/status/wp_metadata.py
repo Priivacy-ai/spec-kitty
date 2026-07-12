@@ -249,6 +249,13 @@ class WPMetadata(BaseModel):
     agent_profile: str | None = None
     role: str | None = None
     shell_pid: int | None = None
+    # PID-reuse identity baseline (C-007/D3b) co-written with shell_pid at
+    # claim time. Field name mirrors specify_cli.frontmatter.SHELL_PID_BASELINE_FIELD
+    # ("shell_pid_created_at") verbatim -- Pydantic attribute names cannot be
+    # sourced from an imported constant, so this is kept in lockstep by
+    # convention with that shared string constant, which is what the
+    # claim-write helper and stale_detection's consumer actually read/write.
+    shell_pid_created_at: str | None = None
     history: list[Any] = Field(default_factory=list)
     lane: Lane | None = None
     feature_slug: str | None = None
