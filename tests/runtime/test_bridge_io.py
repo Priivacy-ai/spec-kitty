@@ -180,16 +180,19 @@ def test_build_run_ref_uses_mission_key() -> None:
     assert ref.mission_key == "software-dev"
 
 
-def test_mission_key_for_run_ref_prefers_mission_key_then_mission_type_then_default() -> None:
-    # _mission_key_for_run_ref reads both fields via getattr(...) duck-typing
-    # (it tolerates cross-runtime-version MissionRunRef shapes -- see its
-    # docstring), so a plain object stand-in is cast to the real type here
-    # rather than constructing a full MissionRunRef for a field-presence test.
-    ref_partial = cast(MissionRunRef, SimpleNamespace(mission_key="  ", mission_type="software-dev"))
-    assert io_seam._mission_key_for_run_ref(ref_partial, default="fallback") == "software-dev"
+def test_mission_key_for_run_ref_prefers_mission_key_then_default() -> None:
+    ref_present = cast(MissionRunRef, SimpleNamespace(mission_key="software-dev"))
+    assert io_seam._mission_key_for_run_ref(ref_present, default="fallback") == "software-dev"
 
-    ref_neither = cast(MissionRunRef, SimpleNamespace(mission_key="", mission_type=None))
-    assert io_seam._mission_key_for_run_ref(ref_neither, default="fallback") == "fallback"
+    # Blank/whitespace-only mission_key falls through to the default -- the
+    # sole remaining field (the retired cross-version `mission_type` fallback
+    # was confirmed dead: the real MissionRunRef model only ever has
+    # `mission_key`) -- see runtime_bridge_io.py.
+    ref_blank = cast(MissionRunRef, SimpleNamespace(mission_key="  "))
+    assert io_seam._mission_key_for_run_ref(ref_blank, default="fallback") == "fallback"
+
+    ref_empty = cast(MissionRunRef, SimpleNamespace(mission_key=""))
+    assert io_seam._mission_key_for_run_ref(ref_empty, default="fallback") == "fallback"
 
 
 # ---------------------------------------------------------------------------

@@ -4,25 +4,27 @@ Two independent concerns:
 
 1. **Architecture guard** (``test_no_sibling_module_accesses_engine_planner_privates``)
    — asserts no module under ``src/runtime/next/`` other than
-   ``runtime_bridge_engine.py`` accesses the 5 grep-complete
+   ``runtime_bridge_engine.py`` accesses the 6 grep-complete
    ``_internal_runtime.engine`` / ``.planner`` privates this WP concentrates:
    ``_read_snapshot``, ``_load_frozen_template``, ``_append_event``,
-   ``_write_snapshot`` (from ``.engine``), ``plan_next`` (from ``.planner``) —
-   see ``data-model.md`` §Engine-adapter surface for the authoritative site
-   list. Deliberately scoped to exactly those 5 names, NOT every private
+   ``_write_snapshot`` (from ``.engine``), ``plan_next`` and
+   ``_resolve_workflow_for_mission`` (from ``.planner``) — see
+   ``data-model.md`` §Engine-adapter surface for the authoritative site
+   list. Deliberately scoped to exactly those 6 names, NOT every private
    symbol in ``.engine``/``.planner`` wholesale:
 
    * ``planner.compose_template_with_workflow`` has no leading underscore —
      it is a *public* planner API (out of this WP's FR-013 boundary; still
      imported directly by ``runtime_bridge.py`` pending a later composition
      WP).
-   * ``prompt_builder.py``'s pre-existing import of the *different* private
-     ``_resolve_workflow_for_mission`` is unrelated to the 5-symbol site list
-     this WP owns and is out of scope here.
+   * ``prompt_builder.py`` now routes ``_resolve_workflow_for_mission``
+     through ``runtime_bridge_engine.resolve_workflow_for_mission`` instead
+     of importing the planner private directly — the retro follow-up that
+     completed the concentration this WP started.
 
-   A non-vacuousness check (``test_adapter_defines_all_five_engine_planner_wrappers``)
+   A non-vacuousness check (``test_adapter_defines_all_six_engine_planner_wrappers``)
    guards against the "no other module reaches in" assertion passing for the
-   wrong reason (e.g. if the adapter itself stopped wrapping one of the 5).
+   wrong reason (e.g. if the adapter itself stopped wrapping one of the 6).
 
 2. **Focused unit tests (FR-006)** against ``_internal_runtime.engine`` /
    ``.planner`` *stubs* (monkeypatched), never the real runtime — that
@@ -59,10 +61,18 @@ from runtime.next._internal_runtime.schema import MissionRunSnapshot, NextDecisi
 _SRC_RUNTIME_NEXT = Path(__file__).resolve().parents[2] / "src" / "runtime" / "next"
 
 # The grep-complete site list this WP concentrates (data-model.md
-# §Engine-adapter surface) — the FR-013 boundary for WP03. See module
-# docstring for why this is NOT "every private symbol in .engine/.planner".
+# §Engine-adapter surface) — the FR-013 boundary for WP03, plus the
+# ``_resolve_workflow_for_mission`` retro follow-up. See module docstring
+# for why this is NOT "every private symbol in .engine/.planner".
 _ENGINE_PLANNER_PRIVATE_NAMES = frozenset(
-    {"_read_snapshot", "_load_frozen_template", "_append_event", "_write_snapshot", "plan_next"}
+    {
+        "_read_snapshot",
+        "_load_frozen_template",
+        "_append_event",
+        "_write_snapshot",
+        "plan_next",
+        "_resolve_workflow_for_mission",
+    }
 )
 
 
@@ -134,14 +144,22 @@ def test_no_sibling_module_accesses_engine_planner_privates() -> None:
     )
 
 
+# ``_resolve_workflow_for_mission`` is re-exposed under a public name
+# (``resolve_workflow_for_mission``, no leading underscore) since it is the
+# adapter's externally-called entry point for ``prompt_builder.py`` rather
+# than an internal delegate; the other 5 keep their original private names.
+_ADAPTER_WRAPPER_NAME = {"_resolve_workflow_for_mission": "resolve_workflow_for_mission"}
+
+
 @pytest.mark.architectural
-def test_adapter_defines_all_five_engine_planner_wrappers() -> None:
-    """Non-vacuousness check: the adapter must actually wrap all 5 grep-complete
+def test_adapter_defines_all_six_engine_planner_wrappers() -> None:
+    """Non-vacuousness check: the adapter must actually wrap all 6 grep-complete
     names, or the "no other module reaches in" assertion above would pass for
     the wrong reason (nobody needing them at all)."""
     for name in sorted(_ENGINE_PLANNER_PRIVATE_NAMES):
-        assert hasattr(engine_adapter, name), f"adapter is missing wrapper {name!r}"
-        assert callable(getattr(engine_adapter, name))
+        wrapper_name = _ADAPTER_WRAPPER_NAME.get(name, name)
+        assert hasattr(engine_adapter, wrapper_name), f"adapter is missing wrapper for {name!r}"
+        assert callable(getattr(engine_adapter, wrapper_name))
 
 
 # ---------------------------------------------------------------------------
