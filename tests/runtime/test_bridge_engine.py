@@ -54,6 +54,8 @@ from runtime.next import runtime_bridge_engine as engine_adapter
 from runtime.next._internal_runtime.engine import MissionRunRef
 from runtime.next._internal_runtime.schema import MissionRunSnapshot, NextDecision
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 # ---------------------------------------------------------------------------
 # 1. Architecture guard (T013)
 # ---------------------------------------------------------------------------

@@ -41,6 +41,8 @@ from runtime.next import runtime_bridge as rb
 from runtime.next import runtime_bridge_cores as cores
 from runtime.next.runtime_bridge_io import ArtifactPresenceSnapshot
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 # ---------------------------------------------------------------------------
 # 1. Non-vacuousness / compat-guard checks
 # ---------------------------------------------------------------------------

@@ -43,6 +43,8 @@ import pytest
 
 from runtime.next import runtime_bridge_retrospective as retro
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 # ---------------------------------------------------------------------------
 # 1. Architecture boundary (non-vacuousness-checked)
 # ---------------------------------------------------------------------------

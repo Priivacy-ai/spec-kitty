@@ -44,6 +44,8 @@ import pytest
 from runtime.next._internal_runtime import MissionRunRef
 from runtime.next import runtime_bridge_io as io_seam
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 # ---------------------------------------------------------------------------
 # 1. Non-vacuousness / compat-guard checks
 # ---------------------------------------------------------------------------
@@ -174,9 +176,11 @@ def test_feature_runs_path_composes_kittify_runtime_location(tmp_path: Path) -> 
 
 
 def test_build_run_ref_uses_mission_key() -> None:
-    ref = io_seam._build_run_ref(run_id="r1", run_dir="/tmp/r1", mission_type="software-dev")
+    # Non-shared-temp-dir absolute sentinel (category B, test_no_tmp_paths_in_tests):
+    # no real I/O happens against this path -- it is only echoed back as a string.
+    ref = io_seam._build_run_ref(run_id="r1", run_dir="/fake-run-store/r1", mission_type="software-dev")
     assert ref.run_id == "r1"
-    assert ref.run_dir == "/tmp/r1"
+    assert ref.run_dir == "/fake-run-store/r1"
     assert ref.mission_key == "software-dev"
 
 

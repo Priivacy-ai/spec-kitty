@@ -44,6 +44,8 @@ from runtime.next import runtime_bridge_cores as cores_seam
 from runtime.next import runtime_bridge_engine as engine_seam
 from runtime.next import runtime_bridge_io as io_seam
 
+pytestmark = [pytest.mark.unit, pytest.mark.fast]
+
 # ---------------------------------------------------------------------------
 # 1. Compat surface (non-vacuousness-checked)
 # ---------------------------------------------------------------------------
@@ -104,7 +106,7 @@ def test_runtime_bridge_keeps_native_thin_delegates_for_compat_guarded_names() -
 def test_runtime_bridge_keeps_plain_reexports_for_untracked_helpers() -> None:
     """The two untracked helpers are plain re-exports (identical object,
     origin module is the seam) -- a native delegate would be unnecessary
-    ceremony since nothing patches them."""
+    boilerplate since nothing patches them."""
     from runtime.next import runtime_bridge as rb
 
     for name in sorted(_PLAIN_REEXPORT_NAMES):

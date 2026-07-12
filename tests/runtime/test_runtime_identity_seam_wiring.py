@@ -34,7 +34,9 @@ def test_thin_delegates_forward_to_the_seam(monkeypatch: pytest.MonkeyPatch) -> 
         return real_primary(repo_root, mission_slug)
 
     monkeypatch.setattr(identity, "_primary_runtime_feature_dir", _spy_primary)
-    rb._primary_runtime_feature_dir(Path("/tmp/repo"), "some-slug")
+    # Non-shared-temp-dir absolute sentinel (category B, test_no_tmp_paths_in_tests):
+    # the spy short-circuits before any real filesystem access happens.
+    rb._primary_runtime_feature_dir(Path("/fake-repo"), "some-slug")
 
     assert calls == ["primary"], "runtime_bridge._primary_runtime_feature_dir did not forward to the seam"
 
