@@ -24,4 +24,12 @@ Tracked under #2095.
 
 ## Assess (close)
 
-<!-- fill at close: squad-cadence ROI, which point-cut caught the most, front-load value -->
+- **Squad cadence paid off at EVERY point-cut** — the strongest ROI of the mission:
+  - Pre-spec (4 lenses): killed #2566 from scope (wrong epic), found F1's better home (existing port), reframed #2567 as a semantics-change, filed F2/F3 as new issues.
+  - Post-spec (2 lenses): added C-007 (fence the baseline) + reworded the US2 test seam.
+  - **Post-plan (2 lenses): the single highest-value catch — alphonso found the IC-02 claim-write GAP** (implement.py:1400 was NOT the only shell_pid writer; workflow_executor:668/1338 too). Without it the primary loop would have shipped baseline-less claims = a dormant/regressing fix. Caught at PLAN altitude, not at implement.
+  - Post-tasks (2 lenses): confirmed the 5 non-droppable test rows survived as discrete subtasks + folded 4 new-code-coverage tests.
+  - Pre-merge (3 lenses on the aggregate): cross-WP integration check.
+- **Per-WP opus reviews caught real completeness gaps:** the WP02 review found the DORMANT-fix wiring gap (baseline captured but CLI reader not threaded) — completed via a follow-up round; and the 4th shell_pid writer (→ #2580). Reviews were not rubber-stamps.
+- **WP sizing held:** 1 IC → 1 WP, no split needed; IC-02 stayed monolithic (correct — splitting would have added a serial edge). Cherry-pick integration was conflict-free (disjoint owned_files, as priti predicted).
+- **Front-loading verdict:** the four pre-implementation squads + code-grounded plan decisions (D1–D5, D3a/D3b) meant implementation was near-rework-free; the only rework was the honest WP02 wiring completion (a scoped-out gap, not a defect).

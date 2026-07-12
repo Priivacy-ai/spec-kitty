@@ -21,4 +21,7 @@ Seed → append-during-implement → assess-at-close. Tracked under #2095.
 
 ## Assess (close)
 
-<!-- fill at mission close: which frictions recurred, which are worth escalating -->
+- **Highest-cost friction: the shared-checkout cross-mission collision.** A concurrent `ci-test-topology-performance` mission ran in the SAME checkout and raced the shared git HEAD/branch — committing a foreign `backfill topology across missions` onto this mission's branch tip and stranding a bookkeeping commit on the wrong branch. Recovery required an isolated-worktree rebuild from tagged lane tips. ESCALATE: spec-kitty missions assume exclusive use of a checkout; there is no guard against two missions mutating the same HEAD. Worth a doctrine/tooling note ("one mission per checkout") and/or a lock.
+- **Recurring loop friction (fed the fast-follow):** the coord-topology-default-on-feature-branch flatten (→ #2581), the synchronous pre-review-gate (#2573), the first-approval issue-matrix gate + clean-tree gate (→ #2583, post-mission op), the missing analyze-step handoff (→ #2582, post-mission op). All routed to the fast-follow / ops list — the trace directly produced the fast-follow scope.
+- **Advisory, no action:** the pre-review-gate `unverified_baseline` (degrades to WARN by design), the `record-analysis` verdict-`unknown` (needs an `analysis-findings/v1` carrier — by design, not a bug).
+- **ROI of the running trace:** HIGH — capturing friction live (not reconstructed at close) is exactly what let the mid-mission friction investigation map each entry to an existing/new ticket and produce a scoped fast-follow. Validates the #2095 experiment for this mission.
