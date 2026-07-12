@@ -210,14 +210,14 @@ def _coerce_sort_mission_number(value: object) -> int | None:
 _MISSION_STATUS_PRIORITY: dict[str, int] = {"active": 3, "planned": 2, "done": 1, "draft": 0}
 
 
-def _derive_mission_status(kanban_stats: dict[str, Any]) -> str:
-    """Derive mission lifecycle status from WP lane counts.
+def _derive_mission_status(kanban_stats: dict[str, Any], meta_data: dict[str, Any] | None = None) -> str:
+    """Derive mission lifecycle status from WP lane counts and lifecycle markers.
 
     Returns one of ``"active"``, ``"planned"``, ``"done"``, or ``"draft"``.
 
-    - ``"active"``  — at least one WP is in ``doing``, ``for_review``, or ``approved``
-    - ``"planned"`` — WPs exist but none have been started
-    - ``"done"``    — WPs exist and all are in terminal lanes (done/canceled)
+    - ``"active"``  — WPs in flight, OR all WPs terminal but mission not yet accepted
+    - ``"planned"`` — no WP is active and planned work remains
+    - ``"done"``    — all WPs terminal AND ``accepted_at`` is set in meta.json
     - ``"draft"``   — no WPs yet, or the event log is unreadable
     """
     if kanban_stats.get("error") or not kanban_stats.get("total", 0):
@@ -226,6 +226,9 @@ def _derive_mission_status(kanban_stats: dict[str, Any]) -> str:
         return "active"
     if kanban_stats.get("planned", 0):
         return "planned"
+    # All WPs terminal — only "done" once the operator has accepted the mission
+    if meta_data and not meta_data.get("accepted_at"):
+        return "active"
     return "done"
 
 
@@ -875,7 +878,7 @@ def scan_all_features(project_dir: Path) -> list[dict[str, Any]]:
                 "artifacts": artifacts,
                 "workflow": workflow,
                 "kanban_stats": kanban_stats,
-                "mission_status": _derive_mission_status(kanban_stats),
+                "mission_status": _derive_mission_status(kanban_stats, meta_data),
                 "next_action": _derive_next_action(meta_data or {}, kanban_stats),
                 "meta": meta_data or {},
                 "worktree": worktree,

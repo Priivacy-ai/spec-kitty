@@ -216,12 +216,28 @@ class TestDeriveMissionStatus:
     def test_planned_when_all_planned(self):
         assert scanner._derive_mission_status(self._stats(total=4, planned=4)) == "planned"
 
-    def test_done_when_all_done(self):
-        assert scanner._derive_mission_status(self._stats(total=3, done=3)) == "done"
+    def test_active_when_all_wps_done_but_not_accepted(self):
+        # All WPs done but operator hasn't run spec-kitty accept — still needs attention
+        meta = {"mission_slug": "042-foo"}
+        assert scanner._derive_mission_status(self._stats(total=3, done=3), meta) == "active"
 
-    def test_done_when_mix_of_done_and_canceled(self):
+    def test_active_when_merged_but_not_accepted(self):
+        meta = {"baseline_merge_commit": "abc123", "mission_slug": "042-foo"}
+        assert scanner._derive_mission_status(self._stats(total=3, done=3), meta) == "active"
+
+    def test_done_when_accepted(self):
+        meta = {"accepted_at": "2026-07-12T00:00:00+00:00", "mission_slug": "042-foo"}
+        assert scanner._derive_mission_status(self._stats(total=3, done=3), meta) == "done"
+
+    def test_done_when_no_meta(self):
+        # Legacy missions with no meta.json fall through to done
+        assert scanner._derive_mission_status(self._stats(total=3, done=3)) == "done"
+        assert scanner._derive_mission_status(self._stats(total=3, done=3), None) == "done"
+
+    def test_done_when_mix_of_done_and_canceled_and_accepted(self):
         # canceled WPs are not counted in total; total==done means mission is done
-        assert scanner._derive_mission_status(self._stats(total=2, done=2)) == "done"
+        meta = {"accepted_at": "2026-07-12T00:00:00+00:00"}
+        assert scanner._derive_mission_status(self._stats(total=2, done=2), meta) == "done"
 
 
 class TestDeriveNextAction:
