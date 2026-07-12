@@ -237,6 +237,42 @@ def test_specify_omitted_topology_defaults_to_coord_and_mints_branch(
     assert coord_branch in refs, f"minted coordination branch {coord_branch!r} is not a real ref"
 
 
+def _add_origin_on_main(repo: Path, tmp_path: Path) -> None:
+    """Give *repo* an ``origin`` whose HEAD is ``main`` so ``resolve_primary_branch``
+    resolves the primary branch from ``origin/HEAD`` independently of the branch
+    currently checked out (Method 1 in ``core.git_ops.resolve_primary_branch``)."""
+    bare = tmp_path / "origin.git"
+    _run(["git", "init", "-qb", "main", "--bare", str(bare)], repo)
+    _git(repo, "remote", "add", "origin", str(bare))
+    _git(repo, "push", "-q", "origin", "main")
+    _git(repo, "remote", "set-head", "origin", "main")
+
+
+def test_specify_omitted_topology_on_non_primary_branch_derives_single_branch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#2581: omitting ``--topology`` on a NON-primary feature branch now derives
+    ``single_branch`` (no coordination branch minted) through the shared
+    context-derivation — closing the gotcha at the ``/spec-kitty.specify`` entry
+    point, not just ``agent mission create``. On the primary branch (T010) the
+    default stays ``coord``; here, with ``origin/HEAD -> main`` and HEAD on a
+    feature branch, the derivation sees a genuine primary/non-primary mismatch."""
+    repo = _init_project(tmp_path)
+    _add_origin_on_main(repo, tmp_path)
+    _git(repo, "checkout", "-qb", "feat/non-primary-change")
+    with _in_project(repo, monkeypatch):
+        result = _invoke_specify(["non-primary-demo", "--json"])
+
+    assert result.exit_code == 0, f"exit {result.exit_code}:\n{result.output}"
+    feature_dir = _only_feature_dir(repo)
+    meta = _read_meta(feature_dir)
+    assert meta["topology"] == "single_branch", meta
+    assert "coordination_branch" not in meta, (
+        f"a non-primary-branch specify without --pr-bound must NOT mint a "
+        f"coordination branch (got {meta.get('coordination_branch')!r})"
+    )
+
+
 # ---------------------------------------------------------------------------
 # T009 — mandatory end-to-end non-coord proof
 #

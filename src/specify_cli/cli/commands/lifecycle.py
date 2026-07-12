@@ -64,7 +64,7 @@ def _emit_scaffold_only_guidance(mission_slug: str) -> None:
     _console.print(f"[cyan]Next:[/cyan] {_scaffold_next_action(mission_slug)}")
 
 
-def _create_mission_for_specify_json(slug: str, mission_type: str | None, topology: MissionTopology) -> None:
+def _create_mission_for_specify_json(slug: str, mission_type: str | None, topology: MissionTopology | None) -> None:
     """Run mission creation and enrich its single JSON payload for direct specify."""
     capture = io.StringIO()
     try:
@@ -131,14 +131,16 @@ def specify(
     mission: str = typer.Argument(..., help="Mission name or slug (e.g., user-authentication)"),
     mission_type: str | None = typer.Option(None, "--mission-type", help="Mission type (e.g., software-dev, research)"),
     mission_type_alias: str | None = typer.Option(None, "--mission", hidden=True, help="(deprecated) Use --mission-type"),
-    topology: MissionTopology = typer.Option(
-        MissionTopology.COORD,
+    topology: MissionTopology | None = typer.Option(
+        None,
         "--topology",
         help=(
             "Create-time mission shape: single_branch | lanes | coord | "
             "lanes_with_coord. Coordination-bearing shapes (coord, "
             "lanes_with_coord) mint a coordination branch; branch-flat shapes "
-            "(single_branch, lanes) do not. Default: coord."
+            "(single_branch, lanes) do not. Default: context-derived (#2581) — "
+            "coord on the primary branch or with --pr-bound, single_branch on a "
+            "non-primary feature branch."
         ),
     ),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
