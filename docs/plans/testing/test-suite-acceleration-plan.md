@@ -2,8 +2,65 @@
 title: Test Suite Acceleration — Final Remediation Plan
 description: Final remediation plan for accelerating the test suite, including the HOME-isolation hazard (Path.home()/.spec-kitty in an autouse conftest) and its fixes.
 doc_status: draft
-updated: '2026-06-20'
+updated: '2026-07-12'
+related:
+- docs/guides/testing-parallel.md
+- docs/plans/testing/ci-job-timings.md
+- docs/plans/testing/ci-coverage-union-audit.md
 ---
+
+## Status update (`ci-test-topology-performance-01KXBJRT`, 2026-07-12)
+
+This plan predates and is **separate from** the `ci-test-topology-performance-01KXBJRT`
+mission (its own Action Table below never names `integration-tests-next` —
+the 69.2-min headline offender that later mission's spec is grounded in —
+nor `slow-tests`, `fast-tests-core-misc`'s rebalance, the Sonar
+coverage-denominator fix, or the UI-e2e coverage feed; those are that
+mission's own scope, recorded in
+[`docs/guides/testing-parallel.md`](../../guides/testing-parallel.md)'s "CI
+shard topology" section and
+[`ci-job-timings.md`](ci-job-timings.md)/[`ci-coverage-union-audit.md`](ci-coverage-union-audit.md)).
+This mission's WP09 reconciles this document's own currency instead of
+leaving it silently stale, per FR-009:
+
+**Verified shipped** (direct evidence checked, not assumed from the plan's own age):
+- **A2/PP-05 — per-worker HOME/XDG isolation** (Wave 2): live — see
+  [`docs/guides/testing-parallel.md`](../../guides/testing-parallel.md)'s
+  "Per-worker HOME isolation" section and `tests/conftest.py`.
+- **R4/PP-06(a) — ULID volume env-gate** (Wave 1): live — see
+  [`docs/guides/testing-parallel.md`](../../guides/testing-parallel.md)'s
+  "Volume env gates" section (`SPEC_KITTY_ULID_VOLUME_FULL`).
+- **R5/A4/PP-02 — charter `elapsed<0.1` → `@pytest.mark.timeout`** (Wave 1):
+  live — `tests/charter/test_integration.py` lines 405 and 427 both carry
+  `@pytest.mark.timeout(2)` (converted, not deleted).
+- **R1/A5 — FSM parity matrix collapse** (Wave 3): live —
+  `tests/status/test_transitions.py`'s `_PARITY_ROWS` accumulate-all loop
+  with the anti-vacuity `assert checked == len(_PARITY_ROWS)` guard exactly
+  as this plan's safeguard specified.
+- **A1/PP-01/R6 — fast-* shard flips, charter first** (Wave 4): landed in
+  `.github/workflows/ci-quality.yml` (`fast-tests-charter`,
+  `fast-tests-doctrine`, `fast-tests-cli`, `fast-tests-agent`,
+  `fast-tests-status`'s re-route all carry `-n auto --dist loadfile`), but
+  **not yet 3×-green-ratchet-confirmed** — each still carries a
+  `PENDING-CI` comment in the workflow file. See
+  [`docs/guides/testing-parallel.md`](../../guides/testing-parallel.md)'s
+  "Status: local default vs CI shard flips" section. **This is a distinct,
+  still-open item — `ci-test-topology-performance-01KXBJRT` does not close
+  it.**
+
+**Not verified as part of this reconciliation** (Waves 3, 5 items not
+directly checked by this WP — do not assume shipped or stale without
+re-checking against the live code): R3 (migration read-only fixture
+share), R7/PP-04(d) (AST/DRG cache), A3/PP-03 (templated git-repo fixture),
+B2/PP-04(a) (collect-only consolidation), R9/R10(part2) (xfail
+strictness/concurrency trim), A6/R8 (status re-route + xdist enablement —
+though the `PENDING-CI (T022)` comments above suggest the re-route landed
+and is itself mid-ratchet). A full audit of this plan's remaining Action
+Table rows is out of `ci-test-topology-performance-01KXBJRT`'s scope; file
+a dedicated follow-up if this plan's own currency needs a complete pass.
+
+---
+
 All load-bearing facts are confirmed. The HOME hazard is real (`Path.home() / ".spec-kitty"` at conftest.py:119, autouse in agent conftest with no HOME monkeypatch), the FSM parametrize is exactly as described, and the CI critical-path chain is verified. I have sufficient verified ground truth to produce the final synthesis report.
 
 # Test Suite Acceleration — Final Remediation Plan
