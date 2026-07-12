@@ -58,13 +58,18 @@ def test_mission_re_exports_relocated_symbols() -> None:
     # while the shim retains its original import binding — an ``is`` check is
     # order-dependent and flakes under that reload, but the relocation invariant
     # (symbol owned by commit_router, re-exported by the shim) still holds.
+    #
+    # Presence on ``mission_mod`` is NOT re-asserted here (#2076, WP03 dedupe):
+    # all three names are members of ``_COMMIT_RESIDUE`` in
+    # ``test_mission_shim_reexports.py`` and already covered by the
+    # parametrized ``test_mission_reexports_required_symbol`` shim guard;
+    # ``getattr`` below still raises loudly if a re-export is ever dropped.
     for name in (
         "_planning_commit_worktree",
         "_resolve_planning_placement",
         "_stage_finalize_artifacts_in_coord_worktree",
     ):
         shim_obj = getattr(mission_mod, name)
-        assert shim_obj is not None, f"mission shim dropped re-export of {name}"
         # ``_stage_finalize_artifacts_in_coord_worktree`` is the reconciled alias
         # of ``_stage_artifacts_in_coord_worktree`` (same defining module).
         assert shim_obj.__module__ == commit_router.__name__, (

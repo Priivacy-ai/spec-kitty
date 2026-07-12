@@ -50,22 +50,10 @@ def test_contracted_symbol_resolves_from_doctor(name: str) -> None:
     )
 
 
-def test_app_is_a_typer_group_with_seventeen_commands() -> None:
-    from typer.main import get_command
-
-    from specify_cli.cli.commands.doctor import app
-
-    cli = get_command(app)
-    # Named for the original de-godding 16; #2441 added ``contracts`` -> 17.
-    assert len(cli.commands) == 17  # type: ignore[attr-defined]
-
-
-def test_pointer_comment_references_issue_2059() -> None:
-    from pathlib import Path
-
-    import specify_cli.cli.commands.doctor as doctor_mod
-
-    source = Path(doctor_mod.__file__).read_text(encoding="utf-8")
-    head = "\n".join(source.splitlines()[:12])
-    assert "2059" in head
-    assert "do NOT add new responsibilities" in head
+# ``test_app_is_a_typer_group_with_seventeen_commands`` (count-only) and
+# ``test_pointer_comment_references_issue_2059`` (source-header string pin) were
+# retired here (#2076, WP03): the command count is strictly subsumed by
+# ``test_doctor_cli_surface_golden.py::test_registered_command_names_match_frozen_subcommands``,
+# which asserts frozenset-equality (a stronger, name-aware contract that implies
+# the count); the pointer-comment test asserted a source string with no
+# behavioural contract.

@@ -99,24 +99,6 @@ def test_seam_defines_every_relocated_symbol() -> None:
         assert hasattr(retro, name), f"seam is missing relocated symbol {name!r}"
 
 
-def test_runtime_bridge_keeps_native_thin_delegates_for_compat_guarded_names() -> None:
-    """Every compat-guarded symbol must stay a NATIVE ``def``/``class``
-    statement in runtime_bridge.py (a thin delegate), never a plain
-    ``import`` alias -- otherwise the WP02 compat guard's hardcoded
-    identity/relocated-symbol baseline
-    (``test_guard_b_identity_reexport_for_relocated_symbols``) trips."""
-    from runtime.next import runtime_bridge as rb
-
-    for name in sorted(_COMPAT_GUARDED_NAMES):
-        obj = getattr(rb, name)
-        assert obj.__module__ == rb.__name__, (
-            f"{name!r} on runtime_bridge is NOT natively defined there "
-            f"(__module__={obj.__module__!r}) -- it must be a native thin "
-            "delegate, not a plain re-export, or guard B's hardcoded "
-            "relocated-symbol baseline will fail."
-        )
-
-
 # ---------------------------------------------------------------------------
 # 2a. _BufferingRuntimeEmitter
 # ---------------------------------------------------------------------------

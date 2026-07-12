@@ -411,13 +411,14 @@ def _fixed_terminal_width(monkeypatch: pytest.MonkeyPatch) -> None:
 # --- T001: names + per-subcommand params ------------------------------------
 
 
-def test_registered_command_names_are_exactly_the_frozen_sixteen() -> None:
-    # Named for the original de-godding 16; #2441 added ``contracts`` → 17.
+def test_registered_command_names_match_frozen_subcommands() -> None:
+    # Frozenset-equality subsumes a length check: two equal sets have equal
+    # cardinality, and equality also pins the exact names (a stale count would
+    # miss a same-size rename/swap that this catches).
     cli = get_command(app)
     assert hasattr(cli, "commands")
     registered = frozenset(cli.commands.keys())
     assert registered == FROZEN_SUBCOMMANDS
-    assert len(registered) == 17
 
 
 def _is_option_param(param: object) -> bool:

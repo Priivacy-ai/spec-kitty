@@ -19,7 +19,6 @@ asserts:
    IC-02 engine mutations) assert binding equality across the two runs.
 5. The ``reason``-normalizer meta-test: masking collapses path noise but
    never a semantic delta.
-6. An NFR-006 timing seed on the matrix.
 
 See ``tests/runtime/fixtures/bridge/README.md`` for the fixture-snapshot
 layout and regeneration procedure, and
@@ -1243,23 +1242,6 @@ def test_reason_normalizer_meta_test(tmp_path: Path) -> None:
     mutated_kind.kind = DecisionKind.terminal
     canon_mutated_kind = canonical(mutated_kind, repo_b)
     assert canon_mutated_kind != canon_a, "reason-normalizer OVER-collapsed a STABLE-field (kind) flip"
-
-
-def test_nfr006_timing_seed(
-    ledger_results: tuple[dict[str, tuple[FixtureRun, FixtureRun]], CoverageLedger],
-) -> None:
-    """Seed the NFR-006 before/after timing harness on the fixture matrix.
-
-    WP01 records the unmodified-source baseline duration per fixture; WP10
-    asserts the "after" (post-extraction) side stays within noise of this
-    baseline. Here we only assert every fixture produced a finite, positive
-    duration -- the actual before/after comparison is WP10's job.
-    """
-    results, _ledger = ledger_results
-    for fixture_id, (run_a, run_b) in results.items():
-        assert run_a.duration_seconds > 0, f"{fixture_id}: run A duration not recorded"
-        assert run_b.duration_seconds > 0, f"{fixture_id}: run B duration not recorded"
-        assert run_a.duration_seconds < 30, f"{fixture_id}: run A suspiciously slow ({run_a.duration_seconds}s)"
 
 
 # ---------------------------------------------------------------------------

@@ -3,14 +3,15 @@
 Four independent concerns:
 
 1. **Non-vacuousness / compat-guard checks** — the seam actually defines every
-   symbol T017-T019 relocated, and every one of those the WP02 compat guard
-   binds stays a NATIVE ``def``/``class`` statement on ``runtime_bridge``
-   (never a plain ``import`` alias) — the exact discipline WP03's
-   ``runtime_bridge_engine`` and WP04's ``runtime_bridge_retrospective``
-   already apply, required because ``test_bridge_compat_surface.py``'s
-   ``test_guard_b_identity_reexport_for_relocated_symbols`` (frozen) hardcodes
+   symbol T017-T019 relocated. Native-delegate status for the `_`-prefixed
+   compat-guarded set is verified solely by the frozen family guard now
+   (``test_bridge_compat_surface.py``'s
+   ``test_guard_b_identity_reexport_for_relocated_symbols``, which hardcodes
    the tolerated cross-module baseline to the 3 pre-existing
-   ``runtime.next.decision``-origin names.
+   ``runtime.next.decision``-origin names); this file additionally guards the
+   two PUBLIC relocated names (``get_or_start_run``,
+   ``build_operational_context_for_claim``) that grep-derived guard does not
+   cover (it only tracks leading-underscore names).
 
 2. **Focused unit tests (FR-006)** against the moved ports in isolation —
    stubbing the underlying I/O (tmp_path fixtures, monkeypatched
@@ -101,21 +102,21 @@ def test_seam_defines_every_relocated_symbol() -> None:
         assert hasattr(io_seam, name), f"seam is missing relocated symbol {name!r}"
 
 
-def test_runtime_bridge_keeps_native_thin_delegates_for_compat_guarded_names() -> None:
-    """Every compat-guarded symbol must stay a NATIVE ``def``/``class``
-    statement in runtime_bridge.py (a thin delegate), never a plain
-    ``import`` alias -- otherwise the WP02 compat guard's hardcoded
-    identity/relocated-symbol baseline
-    (``test_guard_b_identity_reexport_for_relocated_symbols``) trips."""
+def test_runtime_bridge_keeps_native_thin_delegates_for_public_relocated_names() -> None:
+    """The two PUBLIC relocated names must stay a NATIVE ``def`` statement in
+    runtime_bridge.py (a thin delegate), never a plain ``import`` alias. The
+    frozen family guard's grep-derived inventory only tracks leading-
+    underscore (``_``-prefixed) symbols, so it does NOT cover these two public
+    names -- this is their only native-delegate guard."""
     from runtime.next import runtime_bridge as rb
 
-    for name in sorted(_COMPAT_GUARDED_NAMES | _PUBLIC_RELOCATED_NAMES):
+    for name in sorted(_PUBLIC_RELOCATED_NAMES):
         obj = getattr(rb, name)
         assert obj.__module__ == rb.__name__, (
             f"{name!r} on runtime_bridge is NOT natively defined there "
             f"(__module__={obj.__module__!r}) -- it must be a native thin "
-            "delegate, not a plain re-export, or guard B's hardcoded "
-            "relocated-symbol baseline will fail."
+            "delegate, not a plain re-export; unlike the `_`-prefixed compat "
+            "set, no other guard covers this public name."
         )
 
 

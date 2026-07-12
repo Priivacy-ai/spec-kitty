@@ -3,10 +3,10 @@
 Four concerns, mirroring the WP03/WP04/WP05 test-file pattern:
 
 1. **Compat surface** (``test_seam_defines_every_relocated_symbol``,
-   ``test_runtime_bridge_keeps_native_thin_delegates_for_compat_guarded_names``,
    ``test_runtime_bridge_keeps_plain_reexports_for_untracked_helpers``) — the
-   non-vacuousness + native-thin-delegate / plain-reexport split contract from
-   contracts/compat-surface.md.
+   non-vacuousness + plain-reexport half of the split contract from
+   contracts/compat-surface.md; the native-thin-delegate half is now covered
+   solely by the frozen family guard (``test_bridge_compat_surface.py``).
 
 2. **FR-008 both-branch fixture** (``test_should_dispatch_via_composition_*``)
    — the selection seam exercised for BOTH outcomes (dispatch / no-dispatch),
@@ -79,28 +79,14 @@ _INTERNAL_ONLY_NAMES = frozenset({"_resolve_step_binding", "_LEGACY_TASKS_STEP_I
 
 
 def test_seam_defines_every_relocated_symbol() -> None:
-    """Non-vacuousness check: the seam must actually define all relocated
-    names, or the delegate/re-export assertions below would pass for the
-    wrong reason (nobody needing the cluster at all)."""
+    """Non-vacuousness check: the seam must actually define every relocated
+    name. Native-thin-delegate status for the compat-guarded set is the
+    frozen family guard's job now (``test_bridge_compat_surface.py::
+    test_guard_b_identity_reexport_for_relocated_symbols``); this check only
+    guards the re-export assertion below against passing for the wrong
+    reason (nobody needing the cluster at all)."""
     for name in sorted(_COMPAT_GUARDED_NAMES | _PLAIN_REEXPORT_NAMES | _INTERNAL_ONLY_NAMES):
         assert hasattr(composition, name), f"seam is missing relocated symbol {name!r}"
-
-
-def test_runtime_bridge_keeps_native_thin_delegates_for_compat_guarded_names() -> None:
-    """Every compat-guarded symbol must stay a NATIVE ``def`` statement in
-    runtime_bridge.py (a thin delegate), never a plain ``import`` alias --
-    otherwise the WP02 compat guard's hardcoded identity/relocated-symbol
-    baseline (``test_guard_b_identity_reexport_for_relocated_symbols``) trips."""
-    from runtime.next import runtime_bridge as rb
-
-    for name in sorted(_COMPAT_GUARDED_NAMES):
-        obj = getattr(rb, name)
-        assert obj.__module__ == rb.__name__, (
-            f"{name!r} on runtime_bridge is NOT natively defined there "
-            f"(__module__={obj.__module__!r}) -- it must be a native thin "
-            "delegate, not a plain re-export, or guard B's hardcoded "
-            "relocated-symbol baseline will fail."
-        )
 
 
 def test_runtime_bridge_keeps_plain_reexports_for_untracked_helpers() -> None:
