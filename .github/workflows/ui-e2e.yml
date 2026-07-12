@@ -31,6 +31,36 @@
 #
 # See docs/development/ui-e2e.md for how to boot the synthetic dashboard
 # fixture locally and add another e2e test to this suite.
+#
+# Coverage feed (FR-013, mission ci-test-topology-performance-01KXBJRT WP08):
+# this job now emits Python coverage for src/specify_cli/dashboard/** (the
+# server-side code Playwright drives) and uploads it as ui-e2e-coverage-
+# reports. Deliberate scope decisions, both documented rather than silently
+# left broken:
+#
+#   - FR-013a (Python, T023): the artifact is produced and uploaded, but
+#     ci-quality.yml's sonarcloud job today only discovers artifacts from
+#     its OWN workflow run (see that file's `download-artifact@v8` steps,
+#     including the `prev_run` fallback scoped to
+#     `workflow_id: 'ci-quality.yml'`) — a same-run pattern that cannot see
+#     an artifact uploaded by this separate ui-e2e.yml workflow run. Wiring
+#     a ui-e2e.yml-scoped download-artifact step into the sonarcloud job is
+#     tracked as a fast-follow through ci-quality.yml's own owner (WP06);
+#     it is out of this file's scope. Until that lands, coverage-ui-e2e.xml
+#     is available for local/manual Sonar runs and for the future wiring,
+#     but is NOT YET part of the automated Sonar-consumed coverage.xml set.
+#
+#   - FR-013b (JS, T024): dashboard.js (~720 lines) has no JS coverage
+#     collection wired here. Spiking Playwright's CDP coverage API
+#     (page.coverage.startJSCoverage/stopJSCoverage) or an nyc/istanbul
+#     instrumented-serve step into an lcov report consumable via
+#     sonar.javascript.lcov.reportPaths was judged out of budget for this
+#     job's timeout-minutes: 15 within this mission. DEFERRED: the interim
+#     mitigation is sonar-project.properties' sonar.coverage.exclusions
+#     entry for **/static/** (WP07), which removes dashboard.js from the
+#     coverage denominator instead of crediting it with real coverage. A
+#     follow-up mission may wire real JS coverage; sonar-project.properties
+#     is WP07's owned surface and is not edited from this file.
 
 name: ui-e2e
 
@@ -81,8 +111,30 @@ jobs:
       - name: Install Playwright Chromium (cached, --with-deps)
         run: uv run playwright install --with-deps chromium
 
+      - name: Create coverage output directory
+        run: mkdir -p out/reports/coverage
+
       # Headless (NFR-002): tests/conftest.py hardcodes PWHEADLESS=1 for
       # every test process already; passing it explicitly here matches the
       # documented local-run command byte-for-byte (docs/development/ui-e2e.md).
+      #
+      # --cov is scoped to src/specify_cli/dashboard only (FR-013a) — the
+      # server-side package Playwright actually drives through the browser.
+      # Do not widen this scope: a broader --cov would double-credit code
+      # already covered by other ci-quality.yml jobs and risks masking a
+      # real coverage drop elsewhere (see this file's header comment for
+      # the cross-workflow consumption gap this artifact does not yet close).
       - name: Run the dashboard e2e regression guard (headless)
-        run: PWHEADLESS=1 uv run pytest tests/ui/ -q
+        run: |
+          PWHEADLESS=1 uv run pytest tests/ui/ \
+            --cov=src/specify_cli/dashboard \
+            --cov-report=xml:out/reports/coverage/coverage-ui-e2e.xml \
+            -q
+
+      - name: Upload ui-e2e coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-e2e-coverage-reports
+          path: out/reports/coverage/coverage-ui-e2e.xml
+          if-no-files-found: warn

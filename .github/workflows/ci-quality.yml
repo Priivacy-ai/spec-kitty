@@ -998,40 +998,76 @@ jobs:
           python-version: '3.12'
       - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
-      # PENDING-CI: T019 flip — collection-equivalence verified locally
-      # (serial == parallel nodeids); requires CI green x3 (run-twice/thrice
-      # ratchet) before trusting this flip. Safe after WP04 HOME isolation.
-      # C-SERIAL (T021): the daemon/real-port orphan-sweep suite is excluded
-      # from this parallel pool and runs serially (-n0) in the step below —
-      # HOME isolation does not protect OS-global port binds (9400-9449).
-      # See mission test-suite-acceleration.
-      - name: "Run fast tests — sync (parallel, orphan-sweep excluded)"
+      # C-SERIAL: the whole real-port ``find_free_port_in_range`` daemon
+      # family (tests/_real_port_suites.FIXED_RANGE_SUITES) is excluded from
+      # this parallel pool — HOME isolation does not protect OS-global port
+      # binds (9400-9449). test_orphan_sweep.py's own serial pass now runs as
+      # its own concurrent job (``fast-tests-sync-orphan-sweep``, mission
+      # ci-test-topology-performance-01KXBJRT WP06 T016/FR-004) instead of a
+      # second step here, so it stops sitting on this job's critical path.
+      # Closes #2590 (mission ci-test-topology-performance-01KXBJRT WP03/WP06):
+      # the other 3 family members were previously excluded from this
+      # selection ONLY by their module-level `pytest.mark.integration` marker
+      # not matching `-m "fast and not windows_ci"` — a marker-only guarantee,
+      # not a structural one. These explicit --ignore= entries make the
+      # exclusion structural (defense-in-depth; no selection change today,
+      # since the marker mismatch already excluded them).
+      - name: "Run fast tests — sync (parallel, real-port suites excluded)"
         run: |
           uv run python -m pytest tests/sync/ -m "fast and not windows_ci" -q --tb=short \
             --ignore=tests/sync/test_orphan_sweep.py \
+            --ignore=tests/sync/test_daemon_orphan_classification.py \
+            --ignore=tests/sync/test_daemon_cleanup_boundary.py \
+            --ignore=tests/sync/test_issue_1071_singleton_reconfirmation.py \
             -n auto --dist loadfile \
             --durations=50 \
             --cov=src/specify_cli/sync \
             --cov-report=xml:out/reports/coverage/coverage-fast-sync.xml
-      # PENDING-CI (T021): daemon/real-port serial pass. orphan-sweep binds the
-      # reserved daemon port range (9400-9449); OS-global binds are not
-      # protected by per-worker HOME isolation, so this MUST run serial (-n0)
-      # and outside the parallel sync selector (C-SERIAL, FR-005). Requires CI
-      # green x3 before trusting. See mission test-suite-acceleration.
+      - name: "Upload fast-sync coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fast-test-sync-reports
+          path: out/reports/
+
+  # ---------------------------------------------------------------------------
+  # fast-tests-sync-orphan-sweep: the daemon/real-port orphan-sweep suite,
+  # extracted into its own concurrent job (mission
+  # ci-test-topology-performance-01KXBJRT WP06 T016/FR-004). It used to be
+  # step 2 of ``fast-tests-sync`` (serial, running AFTER that job's parallel
+  # step completed), sitting on that job's critical path even though it never
+  # touches the parallel worker pool. Same trigger condition as
+  # ``fast-tests-sync`` (``needs: [changes]``, gated on the ``sync`` filter
+  # group) so it runs CONCURRENTLY with it instead of after it.
+  # test_orphan_sweep.py binds the reserved daemon port range (9400-9449);
+  # OS-global port binds are not protected by per-worker HOME isolation, so
+  # this MUST stay serial (-n0) — still serial, just not blocking a sibling
+  # job's own completion.
+  # ---------------------------------------------------------------------------
+  fast-tests-sync-orphan-sweep:
+    runs-on: ubuntu-latest
+    needs: [changes]
+    if: always() && needs.changes.outputs.sync == 'true'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          python-version: '3.12'
+      - run: uv sync --frozen --all-extras
+      - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — sync orphan-sweep (serial, real ports)"
         run: |
           uv run python -m pytest tests/sync/test_orphan_sweep.py -q --tb=short \
             -m "not windows_ci" \
             -n0 \
             --cov=src/specify_cli/sync \
-            --cov-append \
             --cov-report=xml:out/reports/coverage/coverage-fast-sync-orphan-sweep.xml \
             || test $? -eq 5
-      - name: "Upload fast-sync coverage"
+      - name: "Upload fast-sync-orphan-sweep coverage"
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: fast-test-sync-reports
+          name: fast-test-sync-orphan-sweep-reports
           path: out/reports/
 
   fast-tests-merge:
@@ -1431,6 +1467,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # specify-cli-rest was badly imbalanced against core-misc (12.2 min
+          # vs 4.7 min, run 29196440986). Rebalanced (mission
+          # ci-test-topology-performance-01KXBJRT WP06 T017/FR-010) by carving
+          # its heaviest real subdirectories/files (measured via a real
+          # `-m "fast and not windows_ci"` collect-only pass: 3241 of the
+          # combined 6320 tests) into a sibling `specify-cli-rest-2` shard.
+          # `specify-cli-rest` keeps its required-shard name (WP02's
+          # `_REQUIRED_CORE_MISC_SHARDS` canary) but is now scoped down via the
+          # SAME `--ignore=` residual pattern `core-misc` already uses, rather
+          # than a second sharding mechanism — the two new shards are a plain
+          # bin-split (no WP01 marker-registry row), consistent with how this
+          # job (and `integration-tests-core-misc`'s own specify-cli-heavy /
+          # specify-cli-rest / misc split) already partitions by
+          # paths/ignore_args, not by pytest marker. Verified disjoint +
+          # union-complete locally: 3241 + 3079 == 6320 (today's real
+          # `specify-cli-rest` selection, unchanged).
           - shard: specify-cli-rest
             paths: tests/specify_cli
             ignore_args: >-
@@ -1442,6 +1494,23 @@ jobs:
               --ignore=tests/specify_cli/charter_freshness
               --ignore=tests/specify_cli/charter_lint
               --ignore=tests/specify_cli/charter_preflight
+              --ignore=tests/specify_cli/test_lane_regression_guard.py
+              --ignore=tests/specify_cli/test_template_lane_guard.py
+              --ignore=tests/specify_cli/compat
+              --ignore=tests/specify_cli/tool_surface
+              --ignore=tests/specify_cli/invocation
+              --ignore=tests/specify_cli/core
+              --ignore=tests/specify_cli/regression
+          - shard: specify-cli-rest-2
+            paths: >-
+              tests/specify_cli/test_lane_regression_guard.py
+              tests/specify_cli/test_template_lane_guard.py
+              tests/specify_cli/compat
+              tests/specify_cli/tool_surface
+              tests/specify_cli/invocation
+              tests/specify_cli/core
+              tests/specify_cli/regression
+            ignore_args: ''
           - shard: core-misc
             paths: ''
             ignore_args: >-
@@ -1948,15 +2017,26 @@ jobs:
           path: out/reports/
 
   # ---------------------------------------------------------------------------
-  # fast-tests-agent: agent surface (agent_utils + workflow tests), depends on charter.
+  # fast-tests-agent: agent surface (agent_utils + workflow tests).
+  # De-serialized from fast-tests-charter (mission
+  # ci-test-topology-performance-01KXBJRT WP06 T018/FR-011, 12.0 min ->
+  # concurrent legs): the `needs: fast-tests-charter` edge was a historical
+  # serialization artifact, not a true cross-job data dependency — the two
+  # jobs run on separate GitHub Actions runners with separate checkouts, and
+  # `tests/agent`'s import of charter fixtures/modules is in-process test
+  # coupling, not shared runtime state across jobs. Its `needs:` now mirrors
+  # `fast-tests-charter`'s own upstream needs so both run concurrently off the
+  # same predecessors (see docs/guides/testing-parallel.md — no documented
+  # rationale ties agent's suite to charter's completion).
   # ---------------------------------------------------------------------------
   fast-tests-agent:
     runs-on: ubuntu-latest
-    needs: [changes, fast-tests-charter]
+    needs: [changes, kernel-tests, fast-tests-doctrine]
     if: >-
       always() &&
       needs.changes.outputs.agent == 'true' &&
-      needs.fast-tests-charter.result != 'failure'
+      needs.kernel-tests.result != 'failure' &&
+      needs.fast-tests-doctrine.result != 'failure'
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -2006,6 +2086,7 @@ jobs:
           uv run python -m pytest tests/agent \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
+            -n auto --dist loadfile -p no:cacheprovider \
             --cov=src/specify_cli/agent_utils \
             --cov-report=xml:out/reports/coverage/coverage-integration-agent.xml
       - name: "Upload integration-agent coverage"
@@ -2046,6 +2127,7 @@ jobs:
             -v \
             tests/doctrine/ \
             -m "integration and not windows_ci" \
+            -n auto --dist loadfile -p no:cacheprovider \
             --cov=src/doctrine \
             --cov-report=xml:out/reports/coverage/coverage-integration-doctrine.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-integration-doctrine-${{ github.run_id }}.xml
@@ -2080,6 +2162,7 @@ jobs:
             tests/specify_cli/charter_preflight \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
+            -n auto --dist loadfile -p no:cacheprovider \
             --cov=src/charter \
             --cov=src/specify_cli/charter_runtime \
             --cov-report=xml:out/reports/coverage/coverage-integration-charter.xml
@@ -2090,6 +2173,19 @@ jobs:
           name: integration-test-charter-reports
           path: out/reports/
 
+  # ---------------------------------------------------------------------------
+  # integration-tests-sync: split real-port-first (mission
+  # ci-test-topology-performance-01KXBJRT WP06 T019/FR-006). This is the one
+  # job in the sweep that touches tests/sync/, so it must exclude the whole
+  # FIXED_RANGE_SUITES family (tests/_real_port_suites.py, WP03) BEFORE adding
+  # -n auto — naively parallelizing the whole tree would reintroduce the exact
+  # OS-global port-bind hazard GC-3/WP03 exists to prevent. The 3
+  # integration-tier family members run in the dedicated
+  # integration-tests-sync-real-port job below instead (test_orphan_sweep.py
+  # is unit-tier, not integration-tier, and has zero tests under this job's
+  # marker expression — its serial pass lives in fast-tests-sync-orphan-sweep
+  # and is listed here only for symmetry/defense-in-depth with the registry).
+  # ---------------------------------------------------------------------------
   integration-tests-sync:
     runs-on: ubuntu-latest
     needs: [changes, fast-tests-sync]
@@ -2104,11 +2200,16 @@ jobs:
           python-version: '3.12'
       - run: uv sync --frozen --all-extras
       - run: mkdir -p out/reports/coverage
-      - name: "Run integration tests — sync"
+      - name: "Run integration tests — sync (parallel, real-port suites excluded)"
         run: |
           uv run python -m pytest tests/sync/ \
+            --ignore=tests/sync/test_orphan_sweep.py \
+            --ignore=tests/sync/test_daemon_orphan_classification.py \
+            --ignore=tests/sync/test_daemon_cleanup_boundary.py \
+            --ignore=tests/sync/test_issue_1071_singleton_reconfirmation.py \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
+            -n auto --dist loadfile -p no:cacheprovider \
             --cov=src/specify_cli/sync \
             --cov-report=xml:out/reports/coverage/coverage-integration-sync.xml
       - name: "Upload integration-sync coverage"
@@ -2116,6 +2217,46 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: integration-test-sync-reports
+          path: out/reports/
+
+  # ---------------------------------------------------------------------------
+  # integration-tests-sync-real-port: dedicated serial (-n0) home for the
+  # integration-tier FIXED_RANGE_SUITES members (mission
+  # ci-test-topology-performance-01KXBJRT WP06 T019/FR-006, mirroring T016's
+  # fast-tests-sync-orphan-sweep pattern). Same trigger condition as
+  # integration-tests-sync so it runs concurrently with it, not after it.
+  # ---------------------------------------------------------------------------
+  integration-tests-sync-real-port:
+    runs-on: ubuntu-latest
+    needs: [changes, fast-tests-sync]
+    if: >-
+      always() &&
+      needs.changes.outputs.sync == 'true' &&
+      needs.fast-tests-sync.result == 'success'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: astral-sh/setup-uv@v8.1.0
+        with:
+          python-version: '3.12'
+      - run: uv sync --frozen --all-extras
+      - run: mkdir -p out/reports/coverage
+      - name: "Run integration tests — sync real-port (serial, fixed daemon range)"
+        run: |
+          uv run python -m pytest \
+            tests/sync/test_daemon_orphan_classification.py \
+            tests/sync/test_daemon_cleanup_boundary.py \
+            tests/sync/test_issue_1071_singleton_reconfirmation.py \
+            -m 'not windows_ci and (git_repo or integration)' \
+            -q --tb=short \
+            -n0 \
+            --cov=src/specify_cli/sync \
+            --cov-report=xml:out/reports/coverage/coverage-integration-sync-real-port.xml \
+            || test $? -eq 5
+      - name: "Upload integration-sync-real-port coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-test-sync-real-port-reports
           path: out/reports/
 
   integration-tests-merge:
@@ -2137,6 +2278,7 @@ jobs:
           uv run python -m pytest tests/merge/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
+            -n auto --dist loadfile -p no:cacheprovider \
             --cov=src/specify_cli/merge \
             --cov-report=xml:out/reports/coverage/coverage-integration-merge.xml
       - name: "Upload integration-merge coverage"
@@ -2165,6 +2307,7 @@ jobs:
           uv run python -m pytest tests/missions/ tests/specify_cli/missions/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
+            -n auto --dist loadfile -p no:cacheprovider \
             --cov=src/specify_cli/mission \
             --cov=src/specify_cli/mission_metadata \
             --cov=src/doctrine/missions \
@@ -2195,6 +2338,7 @@ jobs:
           uv run python -m pytest tests/post_merge/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
+            -n auto --dist loadfile -p no:cacheprovider \
             --cov=src/specify_cli/post_merge \
             --cov-report=xml:out/reports/coverage/coverage-integration-post-merge.xml \
             || test $? -eq 5
@@ -2224,6 +2368,7 @@ jobs:
           uv run python -m pytest tests/release/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
+            -n auto --dist loadfile -p no:cacheprovider \
             --cov=src/specify_cli/release \
             --cov-report=xml:out/reports/coverage/coverage-integration-release.xml
       - name: "Upload integration-release coverage"
@@ -2276,6 +2421,7 @@ jobs:
             -v \
             tests/status/ tests/specify_cli/status/ \
             -m "not windows_ci and (git_repo or integration)" \
+            -n auto --dist loadfile -p no:cacheprovider \
             --cov=src/specify_cli/status \
             --cov=src/specify_cli/coordination \
             --cov-report=xml:out/reports/coverage/coverage-integration-status.xml \
@@ -2307,6 +2453,7 @@ jobs:
           uv run python -m pytest tests/review/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
+            -n auto --dist loadfile -p no:cacheprovider \
             --cov=src/specify_cli/review \
             --cov-report=xml:out/reports/coverage/coverage-integration-review.xml
       - name: "Upload integration-review coverage"
@@ -2316,13 +2463,48 @@ jobs:
           name: integration-test-review-reports
           path: out/reports/
 
+  # ---------------------------------------------------------------------------
+  # integration-tests-next: the mission's headline offender (69.2 min fully
+  # serial, run 29196440986). Mission ci-test-topology-performance-01KXBJRT
+  # WP06 (T014/FR-001/FR-002) converts it to a 3-leg ``next_shard_N`` matrix
+  # driven by the shared shard-group registry (tests/_next_shard_map.py, WP01)
+  # — the same registry+conftest-hook mechanism ``arch-adversarial`` already
+  # uses for ``arch_shard_1/2/3`` (D-044/C-003: one mechanism, not a cloned
+  # second one). ``paths`` stays identical across all three legs — the
+  # ``next_shard_N`` marker (applied at collection time by the shared
+  # ``pytest_collection_modifyitems`` hook), not ``paths``, does the
+  # partitioning. A GitHub Actions matrix shares one job id across all legs,
+  # so this does NOT add new ``quality-gate.needs`` entries (T020) — the
+  # existing single ``integration-tests-next`` entry continues to gate on all
+  # three legs succeeding.
+  # ---------------------------------------------------------------------------
   integration-tests-next:
+    name: integration-tests-next (${{ matrix.shard }})
     runs-on: ubuntu-latest
     needs: [changes, fast-tests-next]
     if: >-
       always() &&
       needs.changes.outputs.next == 'true' &&
       needs.fast-tests-next.result == 'success'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - shard: next_shard_1
+            paths: >-
+              tests/next
+              tests/specify_cli/next
+              tests/runtime
+          - shard: next_shard_2
+            paths: >-
+              tests/next
+              tests/specify_cli/next
+              tests/runtime
+          - shard: next_shard_3
+            paths: >-
+              tests/next
+              tests/specify_cli/next
+              tests/runtime
     steps:
       - uses: actions/checkout@v6
       - uses: astral-sh/setup-uv@v8.1.0
@@ -2333,16 +2515,18 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — next"
         run: |
-          uv run python -m pytest tests/next/ tests/specify_cli/next/ tests/runtime/ \
-            -m 'not windows_ci and (git_repo or integration)' \
+          uv run python -m pytest ${{ matrix.paths }} \
+            -m '${{ matrix.shard }} and not windows_ci and (git_repo or integration)' \
             -q --tb=short \
+            -n auto --dist loadfile -p no:cacheprovider \
+            --durations=25 \
             --cov=src/runtime/next \
-            --cov-report=xml:out/reports/coverage/coverage-integration-next.xml
+            --cov-report=xml:out/reports/coverage/coverage-integration-next-${{ matrix.shard }}.xml
       - name: "Upload integration-next coverage"
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: integration-test-next-reports
+          name: integration-test-next-${{ matrix.shard }}-reports
           path: out/reports/
 
   integration-tests-lanes:
@@ -2364,6 +2548,7 @@ jobs:
           uv run python -m pytest tests/lanes/ tests/specify_cli/lanes/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
+            -n auto --dist loadfile -p no:cacheprovider \
             --cov=src/specify_cli/lanes \
             --cov-report=xml:out/reports/coverage/coverage-integration-lanes.xml
       - name: "Upload integration-lanes coverage"
@@ -2392,6 +2577,7 @@ jobs:
           uv run python -m pytest tests/test_dashboard/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
+            -n auto --dist loadfile -p no:cacheprovider \
             --cov=src/specify_cli/dashboard \
             --cov-report=xml:out/reports/coverage/coverage-integration-dashboard.xml \
             || test $? -eq 5
@@ -2421,6 +2607,7 @@ jobs:
           uv run python -m pytest tests/upgrade/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
+            -n auto --dist loadfile -p no:cacheprovider \
             --cov=src/specify_cli/upgrade \
             --cov-report=xml:out/reports/coverage/coverage-integration-upgrade.xml
       - name: "Upload integration-upgrade coverage"
@@ -2449,6 +2636,7 @@ jobs:
           uv run python -m pytest tests/cli/ tests/specify_cli/cli/ \
             -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
+            -n auto --dist loadfile -p no:cacheprovider \
             --cov=src/specify_cli/cli \
             --cov-report=xml:out/reports/coverage/coverage-integration-cli.xml
       - name: "Upload integration-cli coverage"
@@ -2489,9 +2677,20 @@ jobs:
       - run: uv sync --frozen --all-extras
       - name: "Run unit/contract residual (full-tree marker selection)"
         run: |
+          # This is a WHOLE-TREE `-n auto` run, so it must structurally --ignore
+          # the fixed-range real-port family (ports 9400-9449). test_orphan_sweep
+          # is `unit`-marked (the other 3 members are `integration`, already
+          # excluded by `not integration`), so without this it would be scattered
+          # onto the -n auto pool AND double-run vs its own serial job. The
+          # marker negation alone does not cover it; the ignore is the structural
+          # guard (mirrors slow-tests). See tests/_real_port_suites.py.
           uv run python -m pytest tests/ \
             -m "(unit or contract) and not (fast or integration or git_repo or slow or e2e or architectural or distribution or windows_ci or quarantine or timing or docs_scoped or arch_shard_1 or arch_shard_2 or arch_shard_3)" \
             -q --tb=short \
+            --ignore=tests/sync/test_orphan_sweep.py \
+            --ignore=tests/sync/test_daemon_orphan_classification.py \
+            --ignore=tests/sync/test_daemon_cleanup_boundary.py \
+            --ignore=tests/sync/test_issue_1071_singleton_reconfirmation.py \
             -n auto --dist loadfile \
             --durations=25
 
@@ -2500,6 +2699,7 @@ jobs:
     needs:
       - fast-tests-doctrine
       - fast-tests-sync
+      - fast-tests-sync-orphan-sweep
       - fast-tests-merge
       - fast-tests-missions
       - fast-tests-post-merge
@@ -2534,13 +2734,52 @@ jobs:
           mkdir -p out/reports/xunit-reports
           mkdir -p out/reports/coverage
 
+      # Path-narrowed to the directories that actually hold @slow-marked tests
+      # (mission ci-test-topology-performance-01KXBJRT WP06 T015/FR-003),
+      # derived via `git grep -rl "pytest.mark.slow" tests/` at implementation
+      # time (re-derive the same way if this drifts — do not guess). The
+      # --ignore=tests/e2e --ignore=tests/cross_cutting pair is PRESERVED
+      # verbatim as defensive no-ops (those two dirs are already excluded from
+      # the narrowed path list below; keeping the ignores guards against a
+      # future re-widening of the path list silently reintroducing an
+      # unguarded selection). Collection-equivalence verified locally against
+      # the pre-narrowing `tests/` selection (identical 44-test set).
+      # The narrowed path list includes `tests/sync` (it hosts 2 real @slow
+      # tests) — adding `-n auto` here would structurally sweep the whole
+      # FIXED_RANGE_SUITES real-port family (tests/_real_port_suites.py, WP03)
+      # into the parallel pool even though none of them carry the `slow`
+      # marker (a marker-only exclusion GC-3/GC-4 treat as insufficient, per
+      # #2590's own lesson) — these --ignore= entries make the exclusion
+      # structural, mirroring fast-tests-sync/integration-tests-sync.
       - name: "[ENFORCED] Run slow tests with coverage"
         run: |
           uv run python -m pytest \
+            tests/adversarial \
+            tests/architectural \
+            tests/auth/concurrency \
+            tests/concurrency \
+            tests/contract \
+            tests/core \
+            tests/doctrine \
+            tests/integration \
+            tests/perf \
+            tests/specify_cli/cli/commands \
+            tests/specify_cli/dossier \
+            tests/specify_cli/invocation \
+            tests/specify_cli/migration \
+            tests/specify_cli/next \
+            tests/stress \
+            tests/sync \
+            tests/upgrade \
             -v \
             -m "slow and not windows_ci" \
             --ignore=tests/e2e \
             --ignore=tests/cross_cutting \
+            --ignore=tests/sync/test_orphan_sweep.py \
+            --ignore=tests/sync/test_daemon_orphan_classification.py \
+            --ignore=tests/sync/test_daemon_cleanup_boundary.py \
+            --ignore=tests/sync/test_issue_1071_singleton_reconfirmation.py \
+            -n auto --dist loadfile \
             --durations=50 \
             --cov=src/specify_cli --cov=src/charter --cov=src/doctrine \
             --cov-report=xml:out/reports/coverage/coverage-slow.xml \
@@ -2882,6 +3121,10 @@ jobs:
       - kernel-tests
       - fast-tests-doctrine
       - fast-tests-sync
+      # fast-tests-sync-orphan-sweep emits --cov=src/specify_cli/sync (extracted
+      # from fast-tests-sync's own serial step, WP06 T016) — a sonarcloud
+      # coverage-consumer sibling of fast-tests-sync (C-005).
+      - fast-tests-sync-orphan-sweep
       - fast-tests-merge
       - fast-tests-missions
       - fast-tests-post-merge
@@ -2899,6 +3142,10 @@ jobs:
       - integration-tests-doctrine
       - integration-tests-charter
       - integration-tests-sync
+      # integration-tests-sync-real-port emits --cov=src/specify_cli/sync
+      # (extracted real-port residual of integration-tests-sync, WP06 T019) —
+      # a sonarcloud coverage-consumer sibling of integration-tests-sync (C-005).
+      - integration-tests-sync-real-port
       - integration-tests-merge
       - integration-tests-missions
       - integration-tests-post-merge
@@ -3524,6 +3771,7 @@ jobs:
       - kernel-tests
       - fast-tests-doctrine
       - fast-tests-sync
+      - fast-tests-sync-orphan-sweep
       - fast-tests-merge
       - fast-tests-missions
       - fast-tests-post-merge
@@ -3544,6 +3792,7 @@ jobs:
       - integration-tests-doctrine
       - integration-tests-charter
       - integration-tests-sync
+      - integration-tests-sync-real-port
       - integration-tests-merge
       - integration-tests-missions
       - integration-tests-post-merge
@@ -3612,6 +3861,7 @@ jobs:
               "kernel-tests": ["kernel"],
               "fast-tests-doctrine": ["doctrine"],
               "fast-tests-sync": ["sync"],
+              "fast-tests-sync-orphan-sweep": ["sync"],
               "fast-tests-merge": ["merge"],
               "fast-tests-missions": ["missions"],
               "fast-tests-post-merge": ["post_merge"],
@@ -3631,6 +3881,7 @@ jobs:
               "integration-tests-doctrine": ["doctrine"],
               "integration-tests-charter": ["charter"],
               "integration-tests-sync": ["sync"],
+              "integration-tests-sync-real-port": ["sync"],
               "integration-tests-merge": ["merge"],
               "integration-tests-missions": ["missions"],
               "integration-tests-post-merge": ["post_merge"],
