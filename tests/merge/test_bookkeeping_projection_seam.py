@@ -3,8 +3,10 @@
 Covers the security-sensitive path-trust assertions (trusted AND rejected
 branches), the snapshot capture/restore round-trip (byte-identical), and the
 ``_restore_final_bookkeeping_snapshots`` signature the executor depends on
-(INV-6). Proves the shim re-exports the trust/snapshot/projection symbols and
-enforces one-way imports (FR-003, FR-006, INV-2).
+(INV-6). The re-export-identity and one-way-import guards (FR-003, FR-006,
+INV-2) live in the consolidated ``tests/merge/test_merge_compat_surface.py``
+(WP04, dev-assist-retire-path-hardening-01KXAVR0 / #2565) — this file keeps
+only the functional coverage.
 """
 
 from __future__ import annotations
@@ -14,45 +16,10 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.cli.commands import merge as shim
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.merge import bookkeeping_projection as bp
 
 pytestmark = pytest.mark.fast
-
-
-SHIM_REEXPORTED = [
-    "_validate_mission_slug_path_segment",
-    "_target_bookkeeping_status_paths",
-    "_assert_status_path_within_target_surface",
-    "_assert_status_surface_path_is_trusted",
-    "_assert_bookkeeping_snapshot_path_is_trusted",
-    "_capture_bookkeeping_snapshots",
-    "_restore_final_bookkeeping_snapshots",
-    "_target_branch_still_at_baseline",
-    "_project_status_bookkeeping_to_target",
-]
-
-
-@pytest.mark.parametrize("name", SHIM_REEXPORTED)
-def test_shim_re_exports_the_same_object(name: str) -> None:
-    assert getattr(shim, name) is getattr(bp, name)
-
-
-def test_projection_does_not_import_command_shim() -> None:
-    import ast
-    import inspect
-
-    tree = ast.parse(inspect.getsource(bp))
-    modules: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.module:
-            modules.add(node.module)
-        elif isinstance(node, ast.Import):
-            modules.update(alias.name for alias in node.names)
-    assert not any(
-        m.startswith("specify_cli.cli.commands.merge") for m in modules
-    ), sorted(modules)
 
 
 def test_restore_final_bookkeeping_snapshots_signature_stable() -> None:

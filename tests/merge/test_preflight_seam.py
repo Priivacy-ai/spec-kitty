@@ -2,9 +2,11 @@
 
 Covers the hollow-review warning split (force_count + ReviewerSelfApproval),
 both review-artifact-gate branches, target-branch validation, mission-branch
-checks, and effective-push resolution. Proves the shim re-exports the
-test-imported preflight symbols and enforces one-way imports (FR-003, FR-005,
-FR-006, C-002, INV-2).
+checks, and effective-push resolution. The re-export-identity and one-way-
+import guards (FR-003, FR-005, FR-006, C-002, INV-2) live in the consolidated
+``tests/merge/test_merge_compat_surface.py`` (WP04,
+dev-assist-retire-path-hardening-01KXAVR0 / #2565) — this file keeps only the
+functional coverage and the domain/publish-layer import-boundary guard below.
 """
 
 from __future__ import annotations
@@ -17,44 +19,13 @@ from unittest.mock import patch
 import pytest
 import typer
 
-from specify_cli.cli.commands import merge as shim
-from specify_cli.merge import preflight, push_preflight
+from specify_cli.merge import preflight
 from specify_cli.merge._constants import HollowReviewWarnings
 from specify_cli.merge.state import MergeState
 from specify_cli.status import REVIEWER_SELF_APPROVAL
 from specify_cli.status.lifecycle_events import emit_reviewer_self_approval
 
 pytestmark = pytest.mark.fast
-
-
-# Domain-layer preflights live in ``merge.preflight``; the push/target-sync
-# preflight lives in the publish-layer ``merge.push_preflight`` (issue #1706).
-SHIM_REEXPORTED_FROM_PREFLIGHT = [
-    "_check_mission_branch",
-    "_effective_push_requested",
-    "_enforce_canonical_status_history",
-    "_enforce_review_artifact_consistency",
-    "_validate_target_branch",
-    "_enforce_git_preflight",
-    "_enforce_planning_artifact_target_branch",
-    "_collect_hollow_review_warnings",
-    "_warn_or_confirm_hollow_reviews",
-]
-
-SHIM_REEXPORTED_FROM_PUSH_PREFLIGHT = [
-    "_enforce_target_branch_sync_preflight",
-    "_target_branch_sync_payload",
-]
-
-
-@pytest.mark.parametrize("name", SHIM_REEXPORTED_FROM_PREFLIGHT)
-def test_shim_re_exports_preflight_object(name: str) -> None:
-    assert getattr(shim, name) is getattr(preflight, name)
-
-
-@pytest.mark.parametrize("name", SHIM_REEXPORTED_FROM_PUSH_PREFLIGHT)
-def test_shim_re_exports_push_preflight_object(name: str) -> None:
-    assert getattr(shim, name) is getattr(push_preflight, name)
 
 
 def test_domain_preflight_has_no_push_preflight_module_import() -> None:
@@ -89,22 +60,6 @@ def test_domain_preflight_has_no_push_preflight_module_import() -> None:
         and not under_type_checking(n)
     ]
     assert runtime == []
-
-
-def test_preflight_does_not_import_the_command_shim() -> None:
-    import ast
-    import inspect
-
-    tree = ast.parse(inspect.getsource(preflight))
-    modules: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.module:
-            modules.add(node.module)
-        elif isinstance(node, ast.Import):
-            modules.update(alias.name for alias in node.names)
-    assert not any(
-        m.startswith("specify_cli.cli.commands.merge") for m in modules
-    ), sorted(modules)
 
 
 # --- hollow-review split: force_count -------------------------------------

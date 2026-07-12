@@ -3,7 +3,10 @@
 Locks the ``merge --dry-run`` forecast contract at the seam: the exact JSON key
 set (cli-surface-contract.md §2), the REJECTED_REVIEW_ARTIFACT_CONFLICT gate
 preview (human + JSON), unresolved-slug / missing-lanes errors, and the
-would_assign_mission_number scan. One-way import enforced (INV-2).
+would_assign_mission_number scan. The one-way-import guard (INV-2) lives in
+the consolidated ``tests/merge/test_merge_compat_surface.py`` (WP04,
+dev-assist-retire-path-hardening-01KXAVR0 / #2565) — ``forecast`` has no
+relocated identity symbols of its own, so this file carries no re-export test.
 """
 
 from __future__ import annotations
@@ -46,22 +49,6 @@ EXPECTED_DRY_RUN_PAYLOAD_KEYS = frozenset(
         "would_assign_mission_number",
     }
 )
-
-
-def test_forecast_does_not_import_command_shim() -> None:
-    import ast
-    import inspect
-
-    tree = ast.parse(inspect.getsource(forecast))
-    modules: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.module:
-            modules.add(node.module)
-        elif isinstance(node, ast.Import):
-            modules.update(alias.name for alias in node.names)
-    assert not any(
-        m.startswith("specify_cli.cli.commands.merge") for m in modules
-    ), sorted(modules)
 
 
 def test_unresolved_slug_raises_exit_1(capsys: pytest.CaptureFixture[str]) -> None:

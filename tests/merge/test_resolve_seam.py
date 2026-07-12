@@ -1,9 +1,12 @@
 """Seam test for ``specify_cli.merge.resolve`` (mission #2057, WP04).
 
 Covers slug extraction, merge-state key-candidate ordering, state load/clear/
-cleanup, and target-branch resolution. Proves the command shim re-exports the
-test-imported resolvers and enforces one-way imports (FR-006, C-002, INV-2).
-The state-key candidate ORDER (modern ULID before legacy slug) is locked.
+cleanup, and target-branch resolution. The re-export-identity and one-way-
+import guards live in the consolidated
+``tests/merge/test_merge_compat_surface.py`` (WP04,
+dev-assist-retire-path-hardening-01KXAVR0 / #2565) — this file keeps only the
+functional coverage. The state-key candidate ORDER (modern ULID before legacy
+slug) is locked.
 """
 
 from __future__ import annotations
@@ -13,45 +16,10 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.cli.commands import merge as shim
 from specify_cli.merge import resolve
 from specify_cli.merge.state import MergeState
 
 pytestmark = pytest.mark.fast
-
-
-# --- Re-export / one-way-import contract ------------------------------------
-
-SHIM_REEXPORTED = [
-    "_resolve_mission_slug",
-    "_resolve_target_branch",
-    "_load_merge_state_for_mission",
-    "_load_merge_state_entry_for_mission",
-    "_load_or_create_merge_state",
-    "_clear_merge_state_for_mission",
-    "_cleanup_merge_workspaces_for_state",
-]
-
-
-@pytest.mark.parametrize("name", SHIM_REEXPORTED)
-def test_shim_re_exports_the_same_object(name: str) -> None:
-    assert getattr(shim, name) is getattr(resolve, name)
-
-
-def test_resolve_does_not_import_the_command_shim() -> None:
-    import ast
-    import inspect
-
-    tree = ast.parse(inspect.getsource(resolve))
-    modules: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.ImportFrom) and node.module:
-            modules.add(node.module)
-        elif isinstance(node, ast.Import):
-            modules.update(alias.name for alias in node.names)
-    assert not any(
-        m.startswith("specify_cli.cli.commands.merge") for m in modules
-    ), sorted(modules)
 
 
 # --- _extract_mission_slug --------------------------------------------------

@@ -3,8 +3,8 @@
 Mission ``tasks-py-degod-wave2-01KWH9EQ`` — parity-contract Layer 4 (NFR-002):
 ``kitty-specs/tasks-py-degod-wave2-01KWH9EQ/contracts/parity-contract.md``.
 
-Two batteries (the WP02/WP05/WP06/WP07 pattern, applied to the
-``tasks_mark_status`` move-set):
+This file now carries ONE battery (the WP06 / dev-assist-retire-path-hardening
+ruling, mission ``dev-assist-retire-path-hardening-01KXAVR0``, #2565):
 
 1. **Interception** — each test patches ``...agent.tasks.<symbol>`` with a
    sentinel and drives a relocated ``_ms_*`` phase helper (or
@@ -14,12 +14,26 @@ Two batteries (the WP02/WP05/WP06/WP07 pattern, applied to the
    C-001 divergence wiring (REFUSE-exit-1 through
    ``_protected_branch_status_commit_error`` with NO
    ``_skip_target_branch_commit`` pre-gate) is pinned explicitly and
-   positionally (``skip_mock.assert_not_called()``).
+   positionally (``skip_mock.assert_not_called()``). This coverage is
+   UNIQUE — no observable-contract test (including the coreless
+   ``test_tasks_coreless_orchestration.py`` T033 projections) proves a
+   call-site is still routed through the patchable ``tasks.<attr>`` seam,
+   since those tests never patch ``tasks.<attr>`` to assert phase-helper
+   routing; they drive ``_do_mark_status`` with injected Fake ports instead
+   (coreless's two seam-patches merely suppress/pin ``emit_history_added`` /
+   ``commit_for_mission``, neither of which this file carries a proof for). A same-object
+   identity check cannot observe patchability either. KEEP is the default
+   per the WP05 review ruling.
 
-2. **Identity** — parametrized ``tasks.<sym> is tasks_mark_status.<sym>``
-   over the FULL 12-symbol move-set (binding present and the SAME object;
-   cheap, non-fakeable), plus a completeness guard so a def added to
-   ``tasks_mark_status`` without a battery row goes RED.
+The **identity** battery (``test_tasks_binding_is_tasks_mark_status_object``,
+parametrized over the 13-symbol move-set) and the exact-set completeness pin
+(``test_move_set_matches_tasks_mark_status_defs``) were RETIRED at WP06:
+both are mechanically subsumed by WP05's consolidated re-export guard —
+``tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py``
+(``test_tasks_binding_is_seam_object`` for identity;
+``test_guard_symbol_is_genuinely_native_to_its_seam`` +
+``test_guard_keyset_is_superset_of_all_six_seams_native_defs`` for the
+exact-set/completeness claim over the same 13 ``tasks_mark_status`` symbols).
 
 Seam checklist (per-symbol evidence):
 ``kitty-specs/tasks-py-degod-wave2-01KWH9EQ/seam-checklist.md``.
@@ -48,27 +62,6 @@ from specify_cli.cli.commands.agent.tasks_outline import (
 pytestmark = pytest.mark.fast
 
 _TASKS = "specify_cli.cli.commands.agent.tasks"
-
-#: The definitive WP08 mark_status move-set. One row per relocated symbol; the
-#: identity battery below parametrizes over ALL of them (no spot-checking).
-_MOVE_SET: tuple[str, ...] = (
-    "_MarkStatusState",
-    "_default_mark_status_ports",
-    "_ms_validate_inputs",
-    "_ms_resolve_context",
-    "_ms_resolve_read_dir",
-    "_ms_report_none_resolved",
-    "_ms_commit",
-    "_ms_apply_updates",
-    "_ms_emit_history",
-    "_ms_dossier_sync",
-    "_ms_output",
-    "_do_mark_status",
-    # WP09 (FR-008, IC-07): the final registration-shim sweep relocated the
-    # family straggler that stayed ``tasks.py``-resident at WP08; the identity
-    # battery covers it like every other moved symbol.
-    "_resolve_inline_subtasks",
-)
 
 
 class _SentinelHit(Exception):
@@ -477,30 +470,15 @@ def test_default_ports_constructs_through_tasks_bindings() -> None:
     assert ports.render is render_cls.return_value
 
 
-# ---------------------------------------------------------------------------
-# Identity battery — binding present AND the same object, for the FULL
-# move-set (parity-contract Layer 4 leg (a); cheap and non-fakeable).
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("symbol", _MOVE_SET)
-def test_tasks_binding_is_tasks_mark_status_object(symbol: str) -> None:
-    """``tasks.<sym>`` is the SAME object as ``tasks_mark_status.<sym>``."""
-    assert getattr(tasks, symbol) is getattr(tasks_mark_status, symbol)
-
-
-def test_move_set_matches_tasks_mark_status_defs() -> None:
-    """The parametrized move-set list is the COMPLETE tasks_mark_status
-    surface.
-
-    Guards the identity battery against silently drifting out of sync with
-    ``tasks_mark_status`` (a def added there without a ``tasks`` re-export row
-    would otherwise escape the battery).
-    """
-    module_defs = {
-        name
-        for name, obj in vars(tasks_mark_status).items()
-        if getattr(obj, "__module__", None) == tasks_mark_status.__name__
-        and callable(obj)
-    }
-    assert module_defs == set(_MOVE_SET)
+# NOTE (WP06 / #2565): the identity battery
+# (``test_tasks_binding_is_tasks_mark_status_object``, 13 symbols) and the
+# exact-set completeness pin
+# (``test_move_set_matches_tasks_mark_status_defs``) formerly lived here.
+# Both are RETIRED — mechanically subsumed by WP05's consolidated guard,
+# ``test_tasks_compat_surface.py``
+# (``test_tasks_binding_is_seam_object`` for identity;
+# ``test_guard_symbol_is_genuinely_native_to_its_seam`` +
+# ``test_guard_keyset_is_superset_of_all_six_seams_native_defs`` for the
+# exact-set claim), which covers the same 13-symbol ``tasks_mark_status``
+# surface. See the module docstring above for the reconcile ruling on the
+# interception battery kept in this file.
