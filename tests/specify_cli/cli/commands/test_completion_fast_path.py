@@ -97,7 +97,7 @@ def test_manifest_matches_live_cli(monkeypatch: pytest.MonkeyPatch) -> None:
     # the SaaS-gated commands; build the live app the same way to compare.
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
 
-    live = completion.build_manifest_from_command(_real_command())
+    live = completion.generate_manifest()
     committed = completion._load_manifest()
 
     assert live == committed, (

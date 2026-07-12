@@ -9,14 +9,14 @@ Enable Spec Kitty's root CLI completion surface so users can install and use she
 
 ## Technical Context
 
-**Language/Version**: Python 3.11+  
-**Primary Dependencies**: Typer, Click, Rich, pytest  
-**Storage**: N/A; no persisted data changes  
-**Testing**: Focused CLI tests with Typer `CliRunner`, plus targeted command invocation checks where useful  
-**Target Platform**: Cross-platform command-line interface on macOS, Linux, and Windows  
-**Project Type**: Single Python CLI package  
-**Performance Goals**: Completion command generation remains fast enough for shell completion, under 500 ms for representative command paths  
-**Constraints**: Completion generation must not mutate repository files or mission state  
+**Language/Version**: Python 3.11+
+**Primary Dependencies**: Typer, Click, Rich, pytest
+**Storage**: N/A; no persisted data changes
+**Testing**: Focused CLI tests with Typer `CliRunner`, plus targeted command invocation checks where useful
+**Target Platform**: Cross-platform command-line interface on macOS, Linux, and Windows
+**Project Type**: Single Python CLI package
+**Performance Goals**: Completion command generation remains fast enough for shell completion, under 500 ms for representative command paths
+**Constraints**: Completion generation must not mutate repository files or mission state
 **Scale/Scope**: Root command surface and nested Typer command groups exposed by `spec-kitty`
 
 ## Charter Check

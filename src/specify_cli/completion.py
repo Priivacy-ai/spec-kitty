@@ -36,12 +36,6 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 PROG_NAME = "spec-kitty"
 COMPLETE_VAR = "_SPEC_KITTY_COMPLETE"
 
-# Top-level surfaces that are only registered when hosted SaaS sync is opted in
-# (see ``register_commands`` / ``saas.rollout``).  The manifest is generated with
-# SaaS enabled so it contains them; at completion time we drop them unless the
-# environment opts in, so coverage matches the real surface in both configs.
-SAAS_GATED_TOP_LEVEL: tuple[str, ...] = ("tracker", "issue-search")
-
 # Environment variables the Typer completion classes read to learn the current
 # command line.  We only consult them to decide whether an option token is
 # present (the fast-path fallback gate); Typer itself re-reads them when it
@@ -100,8 +94,11 @@ def _build_command_tree(manifest: dict[str, Any], *, saas_enabled: bool) -> Any:
 
     root_children = dict(manifest.get("commands", {}))
     if not saas_enabled:
-        for gated in SAAS_GATED_TOP_LEVEL:
-            root_children.pop(gated, None)
+        root_children = {
+            name: node
+            for name, node in root_children.items()
+            if not node.get("saas_gated", False)
+        }
     root = {**manifest, "commands": root_children}
     return build(root, PROG_NAME)
 
@@ -200,8 +197,23 @@ def generate_manifest() -> dict[str, Any]:
     import specify_cli
     from typer.main import get_command
 
-    command = get_command(specify_cli._get_app())
-    return build_manifest_from_command(command)
+    previous = os.environ.get("SPEC_KITTY_ENABLE_SAAS_SYNC")
+    try:
+        os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "1"
+        enabled = build_manifest_from_command(get_command(specify_cli._build_app()))
+        os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = "0"
+        disabled = build_manifest_from_command(get_command(specify_cli._build_app()))
+    finally:
+        if previous is None:
+            os.environ.pop("SPEC_KITTY_ENABLE_SAAS_SYNC", None)
+        else:
+            os.environ["SPEC_KITTY_ENABLE_SAAS_SYNC"] = previous
+
+    disabled_names = set(disabled.get("commands", {}))
+    for name, node in enabled.get("commands", {}).items():
+        if name not in disabled_names:
+            node["saas_gated"] = True
+    return enabled
 
 
 def render_manifest_json(manifest: dict[str, Any]) -> str:
@@ -231,7 +243,6 @@ def _main(argv: list[str]) -> int:
 __all__ = [
     "PROG_NAME",
     "COMPLETE_VAR",
-    "SAAS_GATED_TOP_LEVEL",
     "build_manifest_from_command",
     "generate_manifest",
     "maybe_run_completion",

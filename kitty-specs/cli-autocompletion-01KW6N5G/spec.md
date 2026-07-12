@@ -1,8 +1,8 @@
 # Mission Specification: CLI Autocompletion
 
-**Mission Branch**: `cli-autocompletion-01KW6N5G`  
-**Created**: 2026-06-28  
-**Status**: Draft  
+**Mission Branch**: `cli-autocompletion-01KW6N5G`
+**Created**: 2026-06-28
+**Status**: Draft
 **Input**: User description: "add cli autocompletion so that hitting TAB will autocomplete the available commands. If subcommands are available, they should also be autocompleted"
 
 ## User Scenarios & Testing *(mandatory)*
