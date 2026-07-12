@@ -160,7 +160,7 @@ def test_top_level_help_lists_exactly_the_nine_commands() -> None:
 def test_group_help_matches_golden_fixture() -> None:
     result = runner.invoke(app, ["--help"], env=HELP_ENV)
     assert result.exit_code == 0
-    fixture = (HELP_FIXTURES / "_group.txt").read_text(encoding="utf-8")
+    fixture = (HELP_FIXTURES / "_group.help").read_text(encoding="utf-8")
     assert result.stdout == fixture
 
 
@@ -169,8 +169,22 @@ def test_command_help_matches_golden_fixture(command: str) -> None:
     """CONTRACT-2 (text): each command's rendered help is byte-frozen."""
     result = runner.invoke(app, [command, "--help"], env=HELP_ENV)
     assert result.exit_code == 0, result.stdout
-    fixture = (HELP_FIXTURES / f"{command}.txt").read_text(encoding="utf-8")
+    fixture = (HELP_FIXTURES / f"{command}.help").read_text(encoding="utf-8")
     assert result.stdout == fixture
+
+
+@pytest.mark.regression
+def test_help_fixtures_avoid_dependabot_requirements_trap() -> None:
+    """Help snapshots must not use ``.txt`` — Dependabot's pip scanner treats any
+    ``*requirements*.txt`` file as a requirements manifest and fails to evaluate
+    the repo's Python dependencies (which blocks code scanning). The ``.help``
+    extension keeps ``map-requirements`` help snapshots invisible to that scanner.
+    """
+    stray_txt = sorted(p.name for p in HELP_FIXTURES.glob("*.txt"))
+    assert not stray_txt, (
+        f"help fixtures must use the '.help' extension, not '.txt': {stray_txt}. "
+        "A '*requirements*.txt' fixture breaks Dependabot's Python evaluation."
+    )
 
 
 @pytest.mark.parametrize("command", COMMANDS)
