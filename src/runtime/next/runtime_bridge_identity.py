@@ -72,8 +72,9 @@ each document for their own relocated symbols.
 Import DAG (research.md §Import DAG): this module may import
 ``runtime_bridge_io`` (not needed today — none of the three functions above
 requires an I/O-port call); it must NOT be imported by ``runtime_bridge_
-cores`` (enforced by ``tests/runtime/test_bridge_identity.py``'s architecture
-boundary test). No top-level ``decision.py -> runtime_bridge*`` edge is
+cores`` (enforced by ``tests/runtime/test_runtime_bridge_family_arch.py``'s
+``test_identity_seam_not_imported_by_cores``). No top-level
+``decision.py -> runtime_bridge*`` edge is
 introduced (C-007) — this module imports neither ``runtime_bridge`` nor
 ``decision`` at module scope.
 
