@@ -20,6 +20,7 @@ from pathlib import Path
 from specify_cli.skills.manifest_store import fingerprint, fingerprint_file
 
 from ..model import NativeAgentProfile
+from ._paths import absolutize_from_root, relativize_under_root
 
 MANIFEST_FILENAME = "agent_profiles_manifest.json"
 _KITTIFY_DIR = ".kittify"
@@ -63,9 +64,10 @@ class ProfileManifest:
     def _read(self) -> None:
         if not self.manifest_path.exists():
             return
+        project_root = self.manifest_path.parent.parent
         data = json.loads(self.manifest_path.read_text(encoding="utf-8"))
         for raw in data.get("entries", []):
-            entry = _entry_from_json(raw)
+            entry = _entry_from_json(raw, project_root)
             self._entries[str(entry.output_path)] = entry
 
     def record(self, profile: NativeAgentProfile) -> None:
@@ -88,9 +90,10 @@ class ProfileManifest:
     def save(self) -> None:
         """Write the manifest to disk, creating ``.kittify/`` as needed."""
         self.manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        project_root = self.manifest_path.parent.parent
         payload = {
             "schema_version": SCHEMA_VERSION,
-            "entries": [_entry_to_json(e) for e in self.all_entries()],
+            "entries": [_entry_to_json(e, project_root) for e in self.all_entries()],
         }
         self.manifest_path.write_text(
             json.dumps(payload, indent=2, sort_keys=True) + "\n",
@@ -98,12 +101,15 @@ class ProfileManifest:
         )
 
 
-def _entry_to_json(entry: NativeAgentProfile) -> dict[str, object]:
+def _entry_to_json(entry: NativeAgentProfile, project_root: Path) -> dict[str, object]:
     return {
         "profile_urn": entry.profile_urn,
         "source_layer": entry.source_layer,
         "tool_key": entry.tool_key,
-        "output_path": str(entry.output_path),
+        # Repo-relative on disk (#2589); the in-memory Path and the manifest
+        # KEY (str(entry.output_path), used by get_hash/prune/.exists() below)
+        # stay absolute -- only this serialized copy is relativized.
+        "output_path": relativize_under_root(entry.output_path, project_root),
         "format": entry.format,
         "file_hash": entry.file_hash,
         # Provenance (#1940). Always written by the current projector so new
@@ -136,12 +142,12 @@ def _opt_int(raw: dict[str, object], key: str) -> int | None:
     raise TypeError(f"manifest field {key!r} must be an int, got {type(value)!r}")
 
 
-def _entry_from_json(raw: dict[str, object]) -> NativeAgentProfile:
+def _entry_from_json(raw: dict[str, object], project_root: Path) -> NativeAgentProfile:
     return NativeAgentProfile(
         profile_urn=str(raw["profile_urn"]),
         source_layer=str(raw["source_layer"]),
         tool_key=str(raw["tool_key"]),
-        output_path=Path(str(raw["output_path"])),
+        output_path=absolutize_from_root(str(raw["output_path"]), project_root),
         format=str(raw["format"]),
         file_hash=_opt_str(raw, "file_hash"),
         source_path=_opt_str(raw, "source_path"),
