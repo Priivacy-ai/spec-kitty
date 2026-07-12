@@ -32,6 +32,7 @@ def _build_synthesis_request(
 
     from charter.compiler import resolve_config_activated_roots
     from charter.interview import read_interview_answers
+    from charter.pack_context import PackContext
     from charter.synthesizer.fixture_adapter import FixtureAdapter
     from charter.synthesizer.generated_artifact_adapter import GeneratedArtifactAdapter
     from charter.synthesizer.request import SynthesisRequest, SynthesisTarget
@@ -55,10 +56,32 @@ def _build_synthesis_request(
     # ``charter.compiler.compile_charter``, so both derivation paths agree.
     config_roots = resolve_config_activated_roots(repo_root=repo_root)
 
+    # #2577 (fast-follow fix of the #2526 regression): `config_roots.directives`
+    # already applied the three-state absent-key fallback documented on
+    # `PackContext` -- when `.kittify/config.yaml` has no `activated_directives`
+    # key at all, `resolve_config_activated_roots()` returns EVERY built-in
+    # directive (the correct default for the `compile_charter`/references.yaml
+    # consumer, see `test_no_pack_context_and_no_repo_root_defaults_to_all_
+    # builtins_active`). Feeding that same "all built-ins" list into
+    # `interview_snapshot["selected_directives"]` is wrong for THIS consumer:
+    # `resolve_sections()` expands one `how-we-apply-<directive>` companion-
+    # tactic target per entry, so a first-run project with no explicit
+    # activation yet demanded ~25 companion tactics nobody asked for and
+    # failed `charter synthesize` closed on the first missing YAML. Read the
+    # raw three-state signal directly so the absent-key case (first run) is
+    # distinguished from an explicit (possibly empty) activation list -- only
+    # the latter should drive companion-tactic expansion, matching the
+    # pre-#2526 behavior where this field was sourced from
+    # `answers.selected_directives` and defaulted to `[]` on a fresh interview.
+    pack_context = PackContext.from_config(repo_root)
+    directives_for_synthesis: list[str] = (
+        [] if pack_context.activated_directives is None else config_roots.directives
+    )
+
     # Build a minimal interview snapshot, config-activated selections + answers
     interview_snapshot: dict[str, Any] = {
         "mission_id": interview_data.mission,
-        "selected_directives": config_roots.directives,
+        "selected_directives": directives_for_synthesis,
         "selected_paradigms": config_roots.paradigms,
     }
     interview_snapshot.update(dict(interview_data.answers))
@@ -70,9 +93,13 @@ def _build_synthesis_request(
         "styleguides": {},
     }
 
-    # Build a minimal DRG snapshot with config-activated directives as nodes
+    # Build a minimal DRG snapshot with config-activated directives as nodes.
+    # Sourced from the SAME `directives_for_synthesis` list as
+    # `selected_directives` above (rather than the raw `config_roots.directives`
+    # fallback) so the two never drift into an inconsistent state where nodes
+    # exist for directives no target references.
     drg_nodes = []
-    for directive_id in config_roots.directives:
+    for directive_id in directives_for_synthesis:
         drg_nodes.append({
             "urn": f"directive:{directive_id}",
             "kind": "directive",

@@ -321,17 +321,93 @@ def test_build_synthesis_request_sources_selections_from_config_not_answers(tmp_
     ]
 
 
-def test_build_synthesis_request_with_no_config_defaults_to_all_builtin_directives(tmp_path: Path) -> None:
-    """No `.kittify/config.yaml` at all -> absent-key default, all built-ins active."""
+def test_build_synthesis_request_first_run_empty_config_selects_zero_directives(tmp_path: Path) -> None:
+    """#2577: No ``.kittify/config.yaml`` at all -- first-run / empty-config parity.
+
+    ``PackContext.activated_directives is None`` (absent key) is the shared
+    three-state signal for "no explicit activation yet". ``compile_charter``
+    (the ``references.yaml`` consumer) legitimately treats that as "all
+    built-ins active" -- see
+    ``test_no_pack_context_and_no_repo_root_defaults_to_all_builtins_active``
+    above, a *different, still-correct* consumer of the same fallback.
+
+    ``_build_synthesis_request`` must NOT inherit that fallback for
+    ``interview_snapshot["selected_directives"]``: that field drives
+    ``resolve_sections()``'s ``how-we-apply-<directive>`` companion-tactic
+    expansion (one target per selected directive), so feeding it "all ~25
+    built-in directives" on a project that has activated nothing yet demands
+    ~25 companion tactics nobody asked for and fails ``charter synthesize``
+    closed on the first missing YAML (the #2526 regression of pre-#2526
+    parity, where this field was sourced from ``answers.selected_directives``
+    and defaulted to ``[]`` on a fresh interview). First run must demand
+    ZERO companion tactics, matching pre-#2526 behavior.
+    """
     from specify_cli.cli.commands.charter._synthesis import _build_synthesis_request
 
     answers_path = tmp_path / ".kittify" / "charter" / "interview" / "answers.yaml"
     write_interview_answers(answers_path, _interview_with(selected_directives=["DIRECTIVE_003"]))
+    # Deliberately no .kittify/config.yaml -- the genuine first-run signal.
 
     request, _adapter = _build_synthesis_request(tmp_path, "fixture")
 
-    catalog = load_doctrine_catalog()
-    assert sorted(request.interview_snapshot["selected_directives"]) == sorted(catalog.directives)
+    assert request.interview_snapshot["selected_directives"] == []
+    assert request.drg_snapshot["nodes"] == []
+
+
+def test_build_synthesis_request_first_run_demands_zero_companion_tactics(tmp_path: Path) -> None:
+    """#2577 RED-FIRST: first-run request resolves to ZERO companion-tactic targets.
+
+    Exercises the real downstream consumer (``resolve_sections()``) rather
+    than only inspecting the snapshot, so the assertion is pinned to the
+    actual fail-closed surface the bug report described.
+    """
+    from charter.synthesizer.interview_mapping import normalize_interview_snapshot, resolve_sections
+
+    from specify_cli.cli.commands.charter._synthesis import _build_synthesis_request
+
+    answers_path = tmp_path / ".kittify" / "charter" / "interview" / "answers.yaml"
+    write_interview_answers(answers_path, _interview_with(selected_directives=["DIRECTIVE_003"]))
+    # Deliberately no .kittify/config.yaml -- the genuine first-run signal.
+
+    request, _adapter = _build_synthesis_request(tmp_path, "fixture")
+    snapshot = normalize_interview_snapshot(dict(request.interview_snapshot))
+    sections = resolve_sections(snapshot)
+
+    companion_tactic_sections = [label for label, _ctx in sections if label == "selected_directives"]
+    assert companion_tactic_sections == []
+
+
+def test_build_synthesis_request_explicit_activation_still_demands_companion_tactics(tmp_path: Path) -> None:
+    """Regression guard: an EXPLICIT ``config.activated_directives`` selection
+    still expands into one ``how-we-apply-<directive>`` companion-tactic
+    target per activated directive -- the #2577 fix must not silence the
+    intended (non-empty) expansion, only the first-run/absent-key case."""
+    from charter.synthesizer.interview_mapping import normalize_interview_snapshot, resolve_sections
+
+    from specify_cli.cli.commands.charter._synthesis import _build_synthesis_request
+
+    answers_path = tmp_path / ".kittify" / "charter" / "interview" / "answers.yaml"
+    write_interview_answers(answers_path, _interview_with(selected_directives=[]))
+
+    config_path = tmp_path / ".kittify" / "config.yaml"
+    config_path.parent.mkdir(parents=True, exist_ok=True)
+    config_path.write_text(
+        "activated_directives:\n"
+        "  - 010-specification-fidelity-requirement\n"
+        "  - 024-locality-of-change\n",
+        encoding="utf-8",
+    )
+
+    request, _adapter = _build_synthesis_request(tmp_path, "fixture")
+
+    assert sorted(request.interview_snapshot["selected_directives"]) == ["DIRECTIVE_010", "DIRECTIVE_024"]
+
+    snapshot = normalize_interview_snapshot(dict(request.interview_snapshot))
+    sections = resolve_sections(snapshot)
+    demanded_directive_ids = sorted(
+        ctx["directive_id"] for label, ctx in sections if label == "selected_directives"
+    )
+    assert demanded_directive_ids == ["DIRECTIVE_010", "DIRECTIVE_024"]
 
 
 # --------------------------------------------------------------------------- #
