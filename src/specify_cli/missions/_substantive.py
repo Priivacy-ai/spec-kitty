@@ -234,6 +234,28 @@ def describe_technical_context_gap(body: str) -> str | None:
     )
 
 
+def is_pristine_scaffold(content: str, template_content: str) -> bool:
+    """Return True iff ``content`` is byte-identical to a freshly-copied scaffold.
+
+    FR-009 / #2566: distinguishes the FIRST happy-path scaffold write (an
+    artifact that has never been touched since the template was copied) from
+    populated-but-insufficient content (someone started editing but has not
+    yet filled in the required substantive fields). The comparison is
+    intentionally strict byte-equality: any edit — even whitespace-only — moves
+    the file out of "pristine" and into the (still exercised)
+    populated-but-insufficient path, which stays ``blocked`` (K-1 / NFR-005).
+
+    Args:
+        content: The current on-disk content of the artifact being checked.
+        template_content: The content of the template that was copied to
+            scaffold the artifact.
+
+    Returns:
+        True iff ``content == template_content``.
+    """
+    return content == template_content
+
+
 def is_substantive(file_path: Path, kind: Kind) -> bool:
     """Section-presence-only substantive-content gate.
 
@@ -355,4 +377,9 @@ def is_committed(
 
 # Kind: demoted — used only within this module; no cross-module src/
 # from-import callers (WP01 harden-dead-symbol-gate-01KW0RJR).
-__all__ = ["describe_technical_context_gap", "is_committed", "is_substantive"]
+__all__ = [
+    "describe_technical_context_gap",
+    "is_committed",
+    "is_pristine_scaffold",
+    "is_substantive",
+]
