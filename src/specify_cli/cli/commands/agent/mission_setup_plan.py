@@ -404,6 +404,65 @@ def _scaffold_plan_template(plan_file: Path, repo_root: Path) -> None:
     shutil.copy2(plan_template.path, plan_file)
 
 
+def _resolve_plan_result_state(
+    *, is_substantive: bool, is_pristine: bool, committed: bool
+) -> tuple[Literal["success", "blocked"], bool]:
+    """Pure state-resolution for the plan-scaffold result (FR-009 / #2566).
+
+    Mirrors the shipped ``mission_create`` twin's ``scaffold_only`` flag
+    (``mission_create.py`` ``_build_create_payload``, which sets
+    ``"scaffold_only": True`` unconditionally at create time): the FIRST
+    happy-path scaffold write is a non-error state, not ``blocked``. Does NOT
+    introduce a new ``result`` value — ``setup-plan``'s JSON is a distinct
+    contract from `next --result`'s fixed vocabulary
+    (``next_cmd.py`` ``_VALID_RESULTS``), which never sees this field.
+
+    Args:
+        is_substantive: ``plan.md`` passes the #846 substantive-content gate.
+        is_pristine: ``plan.md`` is byte-identical to the freshly-copied
+            template (see
+            :func:`specify_cli.missions._substantive.is_pristine_scaffold`).
+        committed: ``plan.md`` is already committed at ``HEAD`` of its git
+            surface.
+
+    Returns:
+        ``(result, scaffold_only)``:
+
+        * substantive -> ``("success", False)`` — a real, committed plan.
+        * pristine and not yet committed -> ``("success", True)`` — the first
+          happy-path scaffold write; NOT the populated-but-insufficient case.
+        * otherwise -> ``("blocked", False)`` — populated-but-insufficient
+          content (K-1 / NFR-005 unchanged).
+    """
+    if is_substantive:
+        return "success", False
+    if is_pristine and not committed:
+        return "success", True
+    return "blocked", False
+
+
+def _is_plan_pristine(plan_file: Path, repo_root: Path) -> bool:
+    """Return True iff ``plan_file`` is byte-identical to the freshly-copied template.
+
+    Resolves the SAME template :func:`_scaffold_plan_template` would copy, so a
+    file that has never been touched since scaffolding reads as pristine no
+    matter how many times ``setup-plan`` re-runs against it. Returns False
+    (never pristine) when the template cannot be resolved — that degrades to
+    the pre-existing populated-but-insufficient path rather than raising.
+    """
+    from specify_cli.cli.commands.agent import mission as _mission
+    from specify_cli.missions._substantive import is_pristine_scaffold
+
+    try:
+        plan_template = _mission.resolve_template("plan-template.md", repo_root, mission="software-dev")
+    except FileNotFoundError:
+        return False
+    return is_pristine_scaffold(
+        plan_file.read_text(encoding="utf-8"),
+        plan_template.path.read_text(encoding="utf-8"),
+    )
+
+
 def _emit_spec_plan_phase_events(feature_dir: Path, mission_slug: str, spec_file: Path, repo_root: Path) -> None:
     """Record SpecifyCompleted + PlanStarted lifecycle markers (issue #1067)."""
     from specify_cli.cli.commands.agent import mission as _mission
@@ -440,15 +499,20 @@ def _commit_plan_if_substantive(
     *,
     target_branch: str,
     json_output: bool,
-) -> tuple[CommitToBranchResult | None, str | None]:
-    """Commit plan.md when substantive; otherwise build the blocked reason.
+) -> tuple[CommitToBranchResult | None, str | None, bool]:
+    """Commit plan.md when substantive; otherwise resolve blocked vs. scaffold_only.
 
-    Returns ``(commit_result, blocked_reason)``. Routes ``_commit_to_branch``
-    through the ``mission`` module so the ``mission._commit_to_branch`` patch
-    seam keeps working.
+    Returns ``(commit_result, blocked_reason, scaffold_only)``. Routes
+    ``_commit_to_branch`` through the ``mission`` module so the
+    ``mission._commit_to_branch`` patch seam keeps working.
+
+    FR-009 / #2566: a freshly-scaffolded, byte-identical-to-template plan.md
+    resolves to ``scaffold_only=True`` (``blocked_reason=None`` — a non-error
+    state), NOT the populated-but-insufficient ``blocked`` path — see
+    :func:`_resolve_plan_result_state`.
     """
     from specify_cli.cli.commands.agent import mission as _mission
-    from specify_cli.missions._substantive import is_substantive
+    from specify_cli.missions._substantive import is_committed, is_substantive
 
     if is_substantive(plan_file, "plan"):
         commit_result = _mission._commit_to_branch(plan_file, mission_slug, "plan", repo_root, target_branch, json_output)
@@ -464,7 +528,17 @@ def _commit_plan_if_substantive(
             )
         except Exception as _plan_exc:  # noqa: BLE001
             logger.debug("PlanCompleted emission skipped: %s", _plan_exc)
-        return commit_result, None
+        return commit_result, None, False
+
+    _, scaffold_only = _resolve_plan_result_state(
+        is_substantive=False,
+        is_pristine=_is_plan_pristine(plan_file, repo_root),
+        committed=is_committed(plan_file, repo_root),
+    )
+    if scaffold_only:
+        if not json_output:
+            console.print(f"[cyan]→[/cyan] Plan scaffolded at {plan_file}; populate Technical Context and re-run setup-plan.")
+        return None, None, True
 
     # FR-013 (#1896): name the offending Technical Context format.
     from specify_cli.missions._substantive import describe_technical_context_gap
@@ -479,7 +553,7 @@ def _commit_plan_if_substantive(
         blocked_reason = f"{blocked_reason} Detail: {_plan_gap}"
     if not json_output:
         console.print(f"[yellow]Plan not committed:[/yellow] {blocked_reason}")
-    return None, blocked_reason
+    return None, blocked_reason, False
 
 
 def _run_documentation_gap_analysis(
@@ -636,14 +710,23 @@ def _emit_setup_plan_result(
     target_branch: str,
     current_branch: str,
     json_output: bool,
+    plan_scaffold_only: bool = False,
 ) -> None:
-    """Emit the setup-plan result in JSON or human form."""
+    """Emit the setup-plan result in JSON or human form.
+
+    FR-009 / #2566: ``plan_scaffold_only=True`` marks the first happy-path
+    scaffold write (a pristine, byte-identical-to-template plan.md) as a
+    non-error ``success`` + ``scaffold_only`` flag — mirroring the
+    ``mission_create`` twin — instead of ``blocked``. ``phase_complete``
+    stays tied to ``plan_is_substantive`` alone, so the scaffold_only case
+    still reports ``phase_complete: false``.
+    """
     if not json_output:
         console.print(f"[green]✓[/green] Plan scaffolded: {plan_file}")
         return
 
     result: dict[str, object] = {
-        "result": "success" if plan_is_substantive else "blocked",
+        "result": "success" if (plan_is_substantive or plan_scaffold_only) else "blocked",
         "phase_complete": plan_is_substantive,
         "mission_slug": mission_slug,
         "plan_file": str(plan_file),
@@ -651,6 +734,8 @@ def _emit_setup_plan_result(
         "spec_file": str(spec_file),
         "plan_substantive": plan_is_substantive,
     }
+    if plan_scaffold_only:
+        result["scaffold_only"] = True
     if plan_blocked_reason is not None:
         result["blocked_reason"] = plan_blocked_reason
     # FR-006 / D-5: surface the real commit hash and the typed no-op
@@ -811,7 +896,7 @@ def setup_plan(
         from specify_cli.missions._substantive import is_substantive
 
         plan_is_substantive = is_substantive(plan_file, "plan")
-        plan_commit_result, plan_blocked_reason = _commit_plan_if_substantive(
+        plan_commit_result, plan_blocked_reason, plan_scaffold_only = _commit_plan_if_substantive(
             plan_file,
             feature_dir,
             mission_slug,
@@ -839,6 +924,7 @@ def setup_plan(
             target_branch=target_branch,
             current_branch=current_branch,
             json_output=json_output,
+            plan_scaffold_only=plan_scaffold_only,
         )
 
     except typer.Exit:
