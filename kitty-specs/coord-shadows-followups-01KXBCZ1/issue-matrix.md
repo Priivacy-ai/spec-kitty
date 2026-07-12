@@ -6,11 +6,11 @@ Per FR-037 of the spec-kitty-mission-review skill Gate-4. One row per issue refe
 
 | Issue | Title | Verdict | Evidence ref |
 |-------|-------|---------|--------------|
-| #2574 | Consolidate triplicated subtask-gate-dir resolver → resolve_subtasks_gate_dir() | in-mission | WP01 (FR-001/002/003) — canonical seam in missions/_read_path_resolver.py; weak status_transition site gains git-ancestry fallback; duplicate deleted |
-| #2575 | is_process_alive does not guard against PID reuse | in-mission | WP02 (FR-004/005/006) — persisted create_time baseline at all 3 claim sites; companion is_claiming_process_alive; additive degradation |
-| #2576 | Harden _mt_uncheck_rollback_subtasks read/write path (follow-up to #2513) | in-mission | WP03 (FR-007) — house-guard write + surfaced-not-swallowed failure mode; out-of-lock design preserved |
-| #2567 | acceptance gate _find_unchecked_tasks is a fifth divergent checkbox parser | in-mission | WP04 (FR-008/009) — canonical iter_unchecked_subtask_rows; stray regex removed; tightening ratified |
-| #2568 | review lock LockInfo.is_stale uses independent os.kill liveness probe | in-mission | WP05 (FR-010) — folds onto canonical core/process_liveness.is_process_alive |
+| #2574 | Consolidate triplicated subtask-gate-dir resolver → resolve_subtasks_gate_dir() | fixed | WP01 (FR-001/002/003) — canonical seam in missions/_read_path_resolver.py; weak status_transition site gains git-ancestry fallback; duplicate deleted |
+| #2575 | is_process_alive does not guard against PID reuse | fixed | WP02 (FR-004/005/006) — persisted create_time baseline at all 3 claim sites; companion is_claiming_process_alive; additive degradation |
+| #2576 | Harden _mt_uncheck_rollback_subtasks read/write path (follow-up to #2513) | fixed | WP03 (FR-007) — house-guard write + surfaced-not-swallowed failure mode; out-of-lock design preserved |
+| #2567 | acceptance gate _find_unchecked_tasks is a fifth divergent checkbox parser | fixed | WP04 (FR-008/009) — canonical iter_unchecked_subtask_rows; stray regex removed; tightening ratified |
+| #2568 | review lock LockInfo.is_stale uses independent os.kill liveness probe | fixed | WP05 (FR-010) — folds onto canonical core/process_liveness.is_process_alive |
 | #2513 | uncheck tasks.md subtask rows on WP rollback to planned (F3 origin) | verified-already-fixed | Shipped in coord-shadows-arm-closeout; #2576/WP03 hardens robustness (relate-only) |
 | #2572 | coord-shadows-arm-closeout PR (predecessor, merged) | verified-already-fixed | Merged; this mission closes its post-merge residuals |
 | #2160 | Coord topology: unify artifact authority (parent epic, P0) | deferred-with-followup | This mission is one functional child slice; epic stays open. #2574/#2575/#2576 are native sub-issues |
