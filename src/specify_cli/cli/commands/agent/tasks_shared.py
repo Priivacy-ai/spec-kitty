@@ -34,7 +34,6 @@ from typing import Any
 
 import typer
 
-from kernel._safe_re import re
 from mission_runtime import MissionArtifactKind
 from specify_cli.agent_tasks_ports import Render
 from specify_cli.cli.commands.agent.tasks_outline import TASKS_MD_FILENAME, TaskIdResolutionOutcome, TaskIdResult

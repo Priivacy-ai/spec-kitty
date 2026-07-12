@@ -826,7 +826,8 @@ def _mt_pre_review_changed_files(worktree_path: Path, base_branch: str) -> tuple
     changed-file set, not just spec docs. Any git failure degrades to an
     empty tuple (folds into a cheap ``no_coverage`` warn), never a crash.
     """
-    return merge_base_changed_files(worktree_path, base_branch)
+    changed: tuple[str, ...] = merge_base_changed_files(worktree_path, base_branch)
+    return changed
 
 
 def _mt_pre_review_gate_with_override_scope(
@@ -1255,7 +1256,8 @@ def _mt_resolve_status_placement_ref(st: _MoveTaskState) -> str | None:
         )
     except Exception:
         return None
-    return target.ref
+    ref: str | None = target.ref
+    return ref
 
 
 def _mt_wp_commit_success_message(st: _MoveTaskState, status_placement_ref: str | None) -> str:
@@ -1411,6 +1413,27 @@ def _mt_persist_tracker_refs(st: _MoveTaskState, skip_target_commit: bool) -> No
             )
 
 
+def _mt_clear_rollback_claim_markers(frontmatter: str) -> str:
+    """FR-010 / #2512: strip the ``agent``/``shell_pid`` claim markers.
+
+    Rolling a WP back to ``planned`` releases the implementation claim — clear
+    the markers so a stale pid cannot block the next allocator call (liveness
+    check) or mislead the orchestrator resume path. The caller may immediately
+    re-plant them via ``_mt_persist_wp_file`` if ``--agent``/``--shell-pid``
+    are provided, but on a plain rollback those flags are absent.
+
+    Pure string transform — no I/O, no lock interaction — so it can be called
+    from inside ``_mt_persist_wp_file``'s in-lock frontmatter mutation without
+    changing what runs under ``feature_status_lock``. This is one of the two
+    "reset on rollback" seams; see ``_mt_reset_for_planned_rollback`` for the
+    umbrella entry point and why the two resets cannot share a single call
+    site.
+    """
+    frontmatter = delete_scalar(frontmatter, "agent")
+    frontmatter = delete_scalar(frontmatter, "shell_pid")
+    return frontmatter
+
+
 def _mt_persist_wp_file(st: _MoveTaskState, ports: TasksPorts) -> None:
     """Apply operational frontmatter + history, then write/commit the WP file."""
     from specify_cli.cli.commands.agent import tasks as _tasks
@@ -1418,14 +1441,8 @@ def _mt_persist_wp_file(st: _MoveTaskState, ports: TasksPorts) -> None:
     wp = st.wp
     wp_content = wp.path.read_text(encoding="utf-8-sig")
     updated_front, updated_body, updated_padding = split_frontmatter(wp_content)
-    # #2512: rolling a WP back to planned releases the implementation claim —
-    # clear the agent/shell_pid markers so a stale pid cannot block the next
-    # allocator call (liveness check) or mislead the orchestrator resume path.
-    # The caller may immediately re-plant them below if --agent/--shell-pid are
-    # provided, but on a plain rollback those flags are absent.
     if st.target_lane == Lane.PLANNED:
-        updated_front = delete_scalar(updated_front, "agent")
-        updated_front = delete_scalar(updated_front, "shell_pid")
+        updated_front = _mt_clear_rollback_claim_markers(updated_front)
     if st.assignee:
         updated_front = set_scalar(updated_front, "assignee", st.assignee)
     if st.agent:
@@ -1502,6 +1519,30 @@ def _mt_uncheck_rollback_subtasks(st: _MoveTaskState, ports: TasksPorts) -> None
         )
 
 
+def _mt_reset_for_planned_rollback(st: _MoveTaskState, ports: TasksPorts) -> None:
+    """FR-010: single named seam for "reset on rollback to planned".
+
+    A rollback to ``planned`` triggers two independent resets (#2512, #2513):
+    clearing the ``agent``/``shell_pid`` claim markers, and unchecking the
+    WP's subtask rows so the gate cannot pass on stale progress. The two
+    resets run at different points relative to ``_tasks.feature_status_lock``
+    today — the claim-marker clear happens *inside* the lock, as part of
+    ``_mt_persist_wp_file``'s in-memory frontmatter mutation
+    (``_mt_clear_rollback_claim_markers``), while the subtask uncheck needs to
+    run *after* the lock exits (it does its own commit via
+    ``ports.coord.commit_artifact`` and must not hold the status lock while
+    doing so). Merging them into one physical call site would require either
+    widening the lock's scope or restructuring its boundary — both are real
+    behavior changes that FR-010 explicitly rules out ("no new reset
+    behavior"). This function is therefore the umbrella *entry point* for the
+    out-of-lock half: a future reader searching for "what happens on rollback
+    to planned" finds this one clearly-named seam (and, via its docstring,
+    the in-lock counterpart) instead of a bare conditional at the
+    ``_mt_execute`` call site.
+    """
+    _mt_uncheck_rollback_subtasks(st, ports)
+
+
 # --- phase H: review-lock release + result output ----------------------------
 
 
@@ -1551,7 +1592,7 @@ def _mt_execute(st: _MoveTaskState, ports: TasksPorts) -> None:
             )
         _mt_persist_wp_file(st, ports)
     if st.target_lane == Lane.PLANNED:
-        _mt_uncheck_rollback_subtasks(st, ports)
+        _mt_reset_for_planned_rollback(st, ports)
     _mt_release_review_lock(st)
 
 

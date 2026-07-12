@@ -470,12 +470,17 @@ class TestEmitStatusTransition:
         assert e2.from_lane == Lane.CLAIMED
         assert e2.to_lane == Lane.IN_PROGRESS
 
+        # WP02/T009: a genuinely-absent tasks.md is unprovable and now blocks
+        # (fail-open removal) -- this test exercises chaining, not the
+        # subtasks-completeness gate, so it supplies the input explicitly like
+        # a real caller with known-complete subtasks would.
         e3 = emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="for_review",
             actor="agent-1",
+            subtasks_complete=True,
         ))
         assert e3.from_lane == Lane.IN_PROGRESS
         assert e3.to_lane == Lane.FOR_REVIEW
@@ -754,12 +759,16 @@ class TestDoneEvidence:
             to_lane="in_progress",
             actor="a",
         ))
+        # WP02/T009: fail-open removal means a genuinely-absent tasks.md now
+        # blocks; these tests exercise the done/evidence guards downstream of
+        # for_review, not the subtasks-completeness gate itself.
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test",
             wp_id="WP01",
             to_lane="for_review",
             actor="a",
+            subtasks_complete=True,
         ))
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
@@ -798,12 +807,16 @@ class TestDoneEvidence:
             to_lane="in_progress",
             actor="a",
         ))
+        # WP02/T009: fail-open removal means a genuinely-absent tasks.md now
+        # blocks; these tests exercise the done/evidence guards downstream of
+        # for_review, not the subtasks-completeness gate itself.
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test",
             wp_id="WP01",
             to_lane="for_review",
             actor="a",
+            subtasks_complete=True,
         ))
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
@@ -847,12 +860,16 @@ class TestDoneEvidence:
             to_lane="in_progress",
             actor="a",
         ))
+        # WP02/T009: fail-open removal means a genuinely-absent tasks.md now
+        # blocks; these tests exercise the done/evidence guards downstream of
+        # for_review, not the subtasks-completeness gate itself.
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test",
             wp_id="WP01",
             to_lane="for_review",
             actor="a",
+            subtasks_complete=True,
         ))
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
@@ -1015,12 +1032,16 @@ class TestPhase1CompatibilityBridge:
             to_lane="in_progress",
             actor="agent-1",
         ))
+        # WP02/T009: fail-open removal means a genuinely-absent tasks.md now
+        # blocks; this test exercises the for_review -> in_review alias, not
+        # the subtasks-completeness gate itself.
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="for_review",
             actor="agent-1",
+            subtasks_complete=True,
         ))
 
         event = emit_status_transition(TransitionRequest(
@@ -1253,12 +1274,16 @@ class TestReviewRefGuard:
             to_lane="in_progress",
             actor="a",
         ))
+        # WP02/T009: fail-open removal means a genuinely-absent tasks.md now
+        # blocks; these tests exercise the done/evidence guards downstream of
+        # for_review, not the subtasks-completeness gate itself.
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test",
             wp_id="WP01",
             to_lane="for_review",
             actor="a",
+            subtasks_complete=True,
         ))
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
@@ -1296,12 +1321,16 @@ class TestReviewRefGuard:
             to_lane="in_progress",
             actor="a",
         ))
+        # WP02/T009: fail-open removal means a genuinely-absent tasks.md now
+        # blocks; these tests exercise the done/evidence guards downstream of
+        # for_review, not the subtasks-completeness gate itself.
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,
             mission_slug="034-test",
             wp_id="WP01",
             to_lane="for_review",
             actor="a",
+            subtasks_complete=True,
         ))
         emit_status_transition(TransitionRequest(
             feature_dir=feature_dir,

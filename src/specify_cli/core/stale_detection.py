@@ -16,9 +16,11 @@ from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any
 
+from specify_cli.core.process_liveness import is_process_alive
 from specify_cli.workspace.context import resolve_workspace_for_wp
 
 PLANNING_ARTIFACT_REPO_ROOT_REASON = "planning_artifact_repo_root_shared_workspace"
+LIVE_CLAIM_PROCESS_REASON = "live_claim_process"
 
 
 @dataclass(frozen=True)
@@ -215,10 +217,31 @@ def get_last_meaningful_commit_time(worktree_path: Path) -> tuple[datetime | Non
         return None, False
 
 
+def _is_claiming_process_alive(shell_pid: str | None) -> bool:
+    """Return whether ``shell_pid`` (as read from WP frontmatter) is a live process.
+
+    Reuses the existing ``task_utils``-style frontmatter value (already extracted
+    by callers via ``extract_scalar``/``WorkPackage.shell_pid`` — no new parse
+    happens here) and the canonical ``core.process_liveness.is_process_alive``
+    check (C-002). Conservative: an absent or unparseable ``shell_pid`` is treated
+    as "not provably alive" so the timestamp heuristic remains the fallback.
+    """
+    if not shell_pid:
+        return False
+    try:
+        pid = int(shell_pid)
+    except (TypeError, ValueError):
+        return False
+    # bool() wrap: keeps per-file `mypy --strict` clean (follow_imports=skip erases the
+    # imported `-> bool`), matching emit.py's defensive pattern at the same boundary.
+    return bool(is_process_alive(pid))
+
+
 def check_wp_staleness(
     wp_id: str,
     worktree_path: Path,
     threshold_minutes: int = 10,
+    shell_pid: str | None = None,
 ) -> StaleCheckResult:
     """
     Check if a work package is stale based on VCS activity.
@@ -231,10 +254,19 @@ def check_wp_staleness(
     A WP with a worktree but NO commits since diverging is NOT stale - the agent
     just started and hasn't committed yet.
 
+    A WP whose claiming ``shell_pid`` (FR-007) is a live process is never flagged
+    stale, regardless of commit age — this suppresses false positives for an
+    agent that is reading/planning for minutes before its first commit
+    (Scenario 3). This is a *suppression* of the timestamp heuristic, not a
+    replacement: when no ``shell_pid`` is recorded, it is unparseable, or the
+    process is not alive, the timestamp-based logic below still applies.
+
     Args:
         wp_id: Work package ID (e.g., "WP01")
         worktree_path: Path to the WP's worktree
         threshold_minutes: Minutes of inactivity before considered stale
+        shell_pid: The WP's claiming shell PID, as read from frontmatter (may be
+            ``None``, empty, or unparseable — handled conservatively)
 
     Returns:
         StaleCheckResult with staleness status
@@ -244,6 +276,14 @@ def check_wp_staleness(
             wp_id=wp_id,
             stale=StaleState(status="fresh"),
             workspace_exists=False,
+            workspace_kind="lane_workspace",
+        )
+
+    if _is_claiming_process_alive(shell_pid):
+        return StaleCheckResult(
+            wp_id=wp_id,
+            stale=StaleState(status="fresh", reason=LIVE_CLAIM_PROCESS_REASON),
+            workspace_exists=True,
             workspace_kind="lane_workspace",
         )
 
@@ -333,7 +373,11 @@ def check_doing_wps_for_staleness(
             continue
 
         if workspace.exists:
-            result = check_wp_staleness(wp_id, workspace.worktree_path, threshold_minutes)
+            # Reuse the shell_pid already extracted from frontmatter by the caller
+            # (task_utils.support.extract_scalar — the same reader backing
+            # WorkPackage.shell_pid) — no new frontmatter parse (C-002).
+            shell_pid = wp.get("shell_pid") or None
+            result = check_wp_staleness(wp_id, workspace.worktree_path, threshold_minutes, shell_pid=shell_pid)
         else:
             result = StaleCheckResult(
                 wp_id=wp_id,

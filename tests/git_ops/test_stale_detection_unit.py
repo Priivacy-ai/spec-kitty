@@ -314,6 +314,89 @@ def test_check_wp_staleness_old_commit(git_repo_with_main: Path):
     assert result.worktree_exists is True
 
 
+def _make_old_commit(repo: Path, branch: str = "kitty/mission-feature-lane-a") -> None:
+    """Create a feature branch with a commit well past any staleness threshold."""
+    import os
+
+    subprocess.run(
+        ["git", "checkout", "-b", branch],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+    (repo / "feature.txt").write_text("Old work")
+    subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
+
+    old_timestamp = str(int((datetime.now(UTC) - timedelta(hours=12)).timestamp()))
+    env = os.environ.copy()
+    env["GIT_AUTHOR_DATE"] = f"@{old_timestamp}"
+    env["GIT_COMMITTER_DATE"] = f"@{old_timestamp}"
+    subprocess.run(
+        ["git", "commit", "-m", "Old work"],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        env=env,
+    )
+
+
+def test_check_wp_staleness_live_shell_pid_suppresses_stale(
+    git_repo_with_main: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """FR-007: a WP whose claiming shell_pid is a live process is never stale,
+
+    even with a commit well past the threshold (Scenario 3 — an agent reading
+    and planning for minutes before its first commit must not be falsely
+    flagged).
+    """
+    _make_old_commit(git_repo_with_main)
+
+    monkeypatch.setattr(
+        "specify_cli.core.stale_detection.is_process_alive",
+        lambda pid: True,
+    )
+
+    result = check_wp_staleness(
+        "WP01", git_repo_with_main, threshold_minutes=10, shell_pid="4242"
+    )
+
+    assert result.wp_id == "WP01"
+    assert result.is_stale is False
+    assert result.stale.reason == "live_claim_process"
+    assert result.worktree_exists is True
+
+
+def test_check_wp_staleness_dead_shell_pid_falls_back_to_timestamp(
+    git_repo_with_main: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression guard: a dead/no shell_pid must NOT make everything "always fresh" —
+
+    the timestamp heuristic still governs when liveness cannot vouch for the
+    claim.
+    """
+    _make_old_commit(git_repo_with_main)
+
+    monkeypatch.setattr(
+        "specify_cli.core.stale_detection.is_process_alive",
+        lambda pid: False,
+    )
+
+    dead_result = check_wp_staleness(
+        "WP01", git_repo_with_main, threshold_minutes=10, shell_pid="99999"
+    )
+    assert dead_result.is_stale is True
+
+    no_pid_result = check_wp_staleness(
+        "WP01", git_repo_with_main, threshold_minutes=10, shell_pid=None
+    )
+    assert no_pid_result.is_stale is True
+
+    unparseable_result = check_wp_staleness(
+        "WP01", git_repo_with_main, threshold_minutes=10, shell_pid="not-a-pid"
+    )
+    assert unparseable_result.is_stale is True
+
+
 def test_check_wp_staleness_recent_commit(git_repo_with_main: Path):
     """Test that worktree with recent commit is NOT stale."""
     import os

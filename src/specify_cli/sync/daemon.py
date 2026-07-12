@@ -57,6 +57,7 @@ from specify_cli.core.loopback_http import (
     build_loopback_url,
     create_loopback_server,
 )
+from specify_cli.core.process_liveness import is_process_alive
 from specify_cli.paths import get_runtime_root
 from specify_cli.sync.diagnostics import SyncDiagnosticCode, emit_sync_diagnostic
 
@@ -317,16 +318,12 @@ def _write_daemon_file(path: Path, url: str, port: int, token: str | None, pid: 
     atomic_write(path, "\n".join(lines) + "\n", mkdir=True)
 
 
-def _is_process_alive(pid: int) -> bool:
-    try:
-        proc = psutil.Process(pid)
-        return bool(proc.is_running())
-    except psutil.NoSuchProcess:
-        return False
-    except psutil.AccessDenied:
-        return True
-    except Exception:
-        return False
+#: Thin re-export alias (C-002 promotion): ``is_process_alive`` now lives in
+#: ``core/process_liveness.py`` so ``core``/``lanes`` can consult it without
+#: depending on this module's socket/HTTPServer machinery. This alias exists
+#: solely because ``dashboard/lifecycle.py`` (out of scope for this change) does
+#: ``from specify_cli.sync.daemon import _is_process_alive`` — do not remove it.
+_is_process_alive = is_process_alive
 
 
 def _find_free_port(start_port: int = DAEMON_PORT_START, max_attempts: int = DAEMON_PORT_MAX_ATTEMPTS) -> int:
@@ -625,7 +622,7 @@ def _should_self_retire(
 
     # Superseded check (prompt retirement — no idle wait).
     if parsed_port is not None and parsed_port != my_port and parsed_pid is not None:
-        if _is_process_alive(parsed_pid):
+        if is_process_alive(parsed_pid):
             return True, "superseded"
 
     # General idle timeout (FR-011).
@@ -1223,7 +1220,7 @@ def _ensure_sync_daemon_running_locked(
             return url, port, True
         time.sleep(delay)
 
-    if _is_process_alive(proc.pid):
+    if is_process_alive(proc.pid):
         _kill_and_cleanup(proc.pid)
 
     raise RuntimeError(f"Sync daemon failed health check on port {port}")
@@ -1277,7 +1274,7 @@ def _reuse_or_cleanup_existing_daemon() -> tuple[str, int, bool] | None:
         _kill_and_cleanup(existing_pid)
         return None
 
-    if existing_pid is not None and not _is_process_alive(existing_pid):
+    if existing_pid is not None and not is_process_alive(existing_pid):
         _daemon_state_file().unlink(missing_ok=True)
     elif existing_pid is not None:
         _kill_and_cleanup(existing_pid)

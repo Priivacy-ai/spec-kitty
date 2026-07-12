@@ -32,6 +32,8 @@ from typing import Any, cast
 import ulid as _ulid_mod
 from pydantic import ValidationError
 
+from specify_cli.core.paths import WorkspaceRootNotFound, resolve_canonical_root
+from specify_cli.core.subtask_rows import count_wp_section_subtask_rows
 from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.mission_metadata import load_meta
 from specify_cli.frontmatter import FrontmatterError, read_frontmatter, write_frontmatter
@@ -58,6 +60,12 @@ from .locking import feature_status_lock
 logger = logging.getLogger(__name__)
 
 _LEGACY_LANE_FIELD = "lane"
+
+#: ``tasks.md``'s canonical filename (local module constant — mirrors the
+#: convention in ``cli.commands.agent.mission``/``mission_finalize``; not
+#: imported cross-package from ``cli.commands.agent.tasks_outline`` to avoid
+#: a status-layer -> cli-layer dependency).
+TASKS_MD_FILENAME = "tasks.md"
 
 # ---------------------------------------------------------------------------
 # SaaS package capability gate (T022, WP04)
@@ -270,29 +278,67 @@ def _build_done_evidence(evidence: dict[str, Any]) -> DoneEvidence:
 
 
 def _infer_subtasks_complete(feature_dir: Path, wp_id: str) -> bool:
-    """Infer subtask completion from tasks.md checkboxes for a WP section."""
-    tasks_path = feature_dir / "tasks.md"
-    if not tasks_path.exists():
-        return True
-    content = tasks_path.read_text(encoding="utf-8")
-    lines = content.splitlines()
-    in_wp_section = False
-    unchecked_found = False
+    """Infer subtask completion from ``tasks.md``'s canonical T### rows for a WP section.
 
-    for line in lines:
-        if re.search(rf"^#{{2,4}}(?!#).*\b{re.escape(wp_id)}\b", line):
-            in_wp_section = True
-            continue
-        if in_wp_section and re.search(r"^#{2,4}(?!#)\s+", line):
-            break
-        if not in_wp_section:
-            continue
-        if re.match(r"^\s*-\s*\[\s*\]\s+", line):
-            unchecked_found = True
-            break
-    if not in_wp_section:
+    Row semantics are fully delegated to WP01's canonical, fence-aware,
+    first-``WPxx``-heading counter (``core.subtask_rows.count_wp_section_subtask_rows``)
+    — the same counter the lane-transition guard and the dashboard use — so this
+    function never re-derives its own divergent regex/heading walk.
+
+    ``total == 0`` (the WP section genuinely has no ``T###`` rows, including
+    when the WP heading itself is never found) is "nothing to block on" and
+    returns ``True`` (complete) per the spec's zero-rows edge case.
+
+    A genuinely-absent ``tasks.md`` is NOT treated as "no subtasks exist" —
+    per FR-002/FR-003, an unprovable completeness state must **block**, never
+    fail open. Returns ``False`` in that case.
+    """
+    tasks_path = feature_dir / TASKS_MD_FILENAME
+    if not tasks_path.exists():
+        return False
+    content = tasks_path.read_text(encoding="utf-8")
+    # cast: follow_imports=skip (pyproject.toml [[tool.mypy.overrides]] for
+    # specify_cli.*) makes count_wp_section_subtask_rows's real tuple[int, int]
+    # annotation invisible to mypy from this call site.
+    done, total = cast("tuple[int, int]", count_wp_section_subtask_rows(content, wp_id))
+    if total == 0:
         return True
-    return not unchecked_found
+    return done == total
+
+
+def _resolve_primary_subtasks_dir(
+    feature_dir: Path, repo_root: Path | None, mission_slug: str
+) -> Path:
+    """Resolve the PRIMARY mission dir that ``_infer_subtasks_complete`` reads ``tasks.md`` from.
+
+    T011/FR-003: on a coord-topology mission, ``feature_dir`` at this call site
+    may be the coordination-branch husk rather than the primary planning
+    surface where ``tasks.md`` actually lives. When a canonical repo root is
+    derivable (either an explicit ``repo_root`` or one resolved from
+    ``feature_dir``'s git ancestry), route through
+    ``resolve_planning_read_dir`` — the same TASKS_INDEX-partition resolver
+    T010 threads at ``aggregate.py``.
+
+    ``resolve_canonical_root`` raises ``WorkspaceRootNotFound`` when
+    ``feature_dir`` has no git ancestry (e.g. a bare ``tmp_path`` fixture used
+    by library-internal unit tests) -- that case falls back to the original
+    ``feature_dir`` unchanged, preserving pre-existing non-repo test behavior.
+    """
+    from mission_runtime import MissionArtifactKind  # noqa: PLC0415
+    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir  # noqa: PLC0415
+
+    primary_root = repo_root
+    if primary_root is None:
+        try:
+            primary_root = resolve_canonical_root(feature_dir)
+        except WorkspaceRootNotFound:
+            return feature_dir
+    # cast: follow_imports=skip erases resolve_planning_read_dir's declared
+    # `-> Path` return type from this call site.
+    return cast(
+        Path,
+        resolve_planning_read_dir(primary_root, mission_slug, kind=MissionArtifactKind.TASKS_INDEX),
+    )
 
 
 def _infer_implementation_evidence(feature_dir: Path, wp_id: str) -> bool:
@@ -532,7 +578,8 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
             context_root = repo_root if repo_root is not None else feature_dir
             workspace_context = f"{execution_mode}:{context_root}"
         if subtasks_complete is None and from_lane == Lane.IN_PROGRESS and resolved_lane == Lane.FOR_REVIEW:
-            subtasks_complete = _infer_subtasks_complete(feature_dir, wp_id)
+            primary_subtasks_dir = _resolve_primary_subtasks_dir(feature_dir, repo_root, mission_slug)
+            subtasks_complete = _infer_subtasks_complete(primary_subtasks_dir, wp_id)
         if implementation_evidence_present is None and from_lane == Lane.IN_PROGRESS and resolved_lane == Lane.FOR_REVIEW:
             implementation_evidence_present = _infer_implementation_evidence(feature_dir, wp_id)
 
@@ -687,7 +734,8 @@ def emit_status_transition_batch(  # noqa: C901 — composite transition orchest
         subtasks_complete = request.subtasks_complete
         implementation_evidence_present = request.implementation_evidence_present
         if subtasks_complete is None and from_lane == Lane.IN_PROGRESS and resolved_lane == Lane.FOR_REVIEW:
-            subtasks_complete = _infer_subtasks_complete(feature_dir, wp_id)
+            primary_subtasks_dir = _resolve_primary_subtasks_dir(feature_dir, request.repo_root, mission_slug)
+            subtasks_complete = _infer_subtasks_complete(primary_subtasks_dir, wp_id)
         if implementation_evidence_present is None and from_lane == Lane.IN_PROGRESS and resolved_lane == Lane.FOR_REVIEW:
             implementation_evidence_present = _infer_implementation_evidence(feature_dir, wp_id)
 
