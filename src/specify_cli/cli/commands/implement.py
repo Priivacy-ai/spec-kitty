@@ -59,13 +59,16 @@ from specify_cli.workspace.context import resolve_workspace_for_wp
 # staging-decision core (_ensure_planning_artifacts_committed_git, T016).
 from specify_cli.cli.commands.implement_cores import (  # noqa: F401 -- shim re-export
     _committed_meta_mapping,
+    _drop_runtime_frontmatter_only_wp,
     _drop_vcs_lock_only_meta,
     _exclude_coord_owned,
     _feature_dir_status_entries,
     detect_structural_planning_changes,
     _files_changed_vs_ref,
+    _is_runtime_frontmatter_only_wp_diff,
     _is_vcs_lock_only_meta_diff,
     _parse_meta_mapping,
+    _parse_wp_frontmatter,
     _placement_coord_filter,
     _PorcelainEntry,
     _resolve_claim_commit_target,

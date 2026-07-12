@@ -22,6 +22,7 @@ contract (T019 / FR-009).
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from collections.abc import Iterable, Mapping
 from pathlib import Path
@@ -34,9 +35,13 @@ from mission_runtime import (
     resolve_topology,
     routes_through_coordination,
 )
+from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
 from specify_cli.core.errors import PlacementResolutionRequired
+from specify_cli.frontmatter import WP_RUNTIME_FIELDS
 from specify_cli.status import COORD_OWNED_STATUS_FILES
+from specify_cli.task_utils.support import split_frontmatter
 
 if TYPE_CHECKING:
     pass
@@ -48,6 +53,12 @@ if TYPE_CHECKING:
 _VCS_LOCK_META_FIELDS: frozenset[str] = frozenset({"vcs", "vcs_locked_at"})
 _META_JSON_FILENAME = "meta.json"
 _MISSING_META_VALUE = object()
+
+# tasks/WP##[-slug].md filenames (#2570.1) -- e.g. "WP01.md" or the canonical
+# "WP01-allocator-runtime-frontmatter.md" shape ``find_wp_file`` resolves
+# (see its ``wp_name_re``). The runtime-frontmatter exclusion below is scoped
+# to exactly this shape, never a generic "*.md" match.
+_WP_FILENAME_PATTERN = re.compile(r"^WP\d{2}(?:[-_.].+)?\.md$", re.IGNORECASE)
 
 
 # ---------------------------------------------------------------------------
@@ -283,6 +294,115 @@ def _drop_vcs_lock_only_meta(
     return kept
 
 
+def _is_wp_filename(repo_rel: str) -> bool:
+    """Is *repo_rel* a ``tasks/WP##.md``-shaped path (the runtime-frontmatter
+    exclusion is scoped strictly to this filename shape, never any markdown)?"""
+    return bool(_WP_FILENAME_PATTERN.match(Path(repo_rel).name))
+
+
+def _parse_wp_frontmatter(text: str) -> tuple[Mapping[str, Any] | None, str, str]:
+    """Split WP-markdown *text* into ``(frontmatter mapping, body, padding)``.
+
+    Returns ``(None, body, padding)`` when *text* has no frontmatter block or
+    the block does not parse to a YAML mapping -- defensive: a malformed or
+    frontmatter-less WP file can never be treated as a runtime-only diff.
+    """
+    front_text, body, padding = split_frontmatter(text)
+    if not front_text:
+        return None, body, padding
+    try:
+        parsed = YAML(typ="safe").load(front_text)
+    except YAMLError:
+        return None, body, padding
+    return (parsed if isinstance(parsed, dict) else None), body, padding
+
+
+def _is_runtime_frontmatter_only_wp_diff(
+    committed_front: Mapping[str, Any] | None,
+    working_front: Mapping[str, Any] | None,
+    committed_tail: str,
+    working_tail: str,
+) -> bool:
+    """Pure decision: is the WP##.md change ONLY runtime claim/workspace
+    frontmatter (T001's :data:`~specify_cli.frontmatter.WP_RUNTIME_FIELDS`)?
+
+    Structural analogue of :func:`_is_vcs_lock_only_meta_diff` for WP markdown
+    files. Returns ``True`` iff (1) both the committed and working frontmatter
+    parsed to a mapping, (2) the markdown body -- everything after the
+    frontmatter block, byte-compared as ``padding + body`` -- is unchanged,
+    AND (3) every frontmatter key whose value differs is a member of
+    :data:`~specify_cli.frontmatter.WP_RUNTIME_FIELDS` (K-1/NFR-005: the body
+    check alone is not enough -- a non-runtime frontmatter key change must
+    also still block).
+    """
+    if committed_front is None or working_front is None:
+        return False
+    if committed_tail != working_tail:
+        return False
+    changed_keys = {
+        key
+        for key in set(committed_front) | set(working_front)
+        if committed_front.get(key, _MISSING_META_VALUE) != working_front.get(key, _MISSING_META_VALUE)
+    }
+    return bool(changed_keys) and changed_keys <= WP_RUNTIME_FIELDS
+
+
+def _drop_runtime_frontmatter_only_wp(
+    repo_root: Path,
+    paths: list[str],
+    ref: str | None,
+    *,
+    auto_commit: bool,
+    git: GitPort = DEFAULT_GIT_PORT,
+) -> list[str]:
+    """Drop a WP##.md change from the dirty-tree claim guard when its only
+    diff vs the placement ref is runtime claim/workspace frontmatter (#2570.1).
+
+    ``spec-kitty implement`` writes ``shell_pid``/``shell_pid_created_at`` at
+    claim time and ``base_branch``/``base_commit``/``planning_base_branch`` at
+    workspace-creation time into ``tasks/WP##.md``. Under
+    ``auto_commit=False`` that self-write is left uncommitted, so the NEXT
+    lane's dependency-free claim wrongly sees it as a dirty planning artifact
+    and refuses. Structural analogue of :func:`_drop_vcs_lock_only_meta`,
+    scoped to WP##.md paths and gated by
+    :func:`_is_runtime_frontmatter_only_wp_diff` (body byte-identical AND
+    every differing key in
+    :data:`~specify_cli.frontmatter.WP_RUNTIME_FIELDS`, the T001 canonical
+    source both this helper and WP07's ``move-task`` guard reuse).
+
+    Byte-identical no-op on the default ``auto_commit=True`` path (NFR-001,
+    mirrors :func:`_drop_vcs_lock_only_meta`).
+    """
+    if auto_commit:
+        return paths
+    kept: list[str] = []
+    for repo_rel in paths:
+        if not _is_wp_filename(repo_rel):
+            kept.append(repo_rel)
+            continue
+        source = (repo_root / Path(repo_rel)).resolve()
+        if not source.exists():
+            kept.append(repo_rel)
+            continue
+        committed_blob = git.show_blob(repo_root, ref or "HEAD", repo_rel)
+        if committed_blob is None:
+            kept.append(repo_rel)
+            continue
+        working_front, working_body, working_padding = _parse_wp_frontmatter(source.read_text(encoding="utf-8-sig"))
+        committed_front, committed_body, committed_padding = _parse_wp_frontmatter(
+            committed_blob.decode("utf-8", errors="replace")
+        )
+        if _is_runtime_frontmatter_only_wp_diff(
+            committed_front,
+            working_front,
+            committed_padding + committed_body,
+            working_padding + working_body,
+        ):
+            continue
+        kept.append(repo_rel)
+    return kept
+
+
 def _files_changed_vs_ref(repo_root: Path, files: list[str], ref: str | None, *, git: GitPort = DEFAULT_GIT_PORT) -> list[str]:
     """Drop files whose working-tree content already matches *ref*.
 
@@ -361,11 +481,13 @@ def resolve_planning_artifact_staging(
 
     status_paths = _status_paths_for_commit(entries, coord_branch_for_filter)
     status_paths = _drop_vcs_lock_only_meta(repo_root, status_paths, coord_branch_for_filter, auto_commit=auto_commit, git=git)
+    status_paths = _drop_runtime_frontmatter_only_wp(repo_root, status_paths, coord_branch_for_filter, auto_commit=auto_commit, git=git)
     files_to_commit = list(status_paths)
     if coord_branch_for_filter:
         files_to_commit.extend(_exclude_coord_owned(extra_file_paths, coord_branch_for_filter))
     files_to_commit = list(dict.fromkeys(files_to_commit))
     files_to_commit = _drop_vcs_lock_only_meta(repo_root, files_to_commit, coord_branch_for_filter, auto_commit=auto_commit, git=git)
+    files_to_commit = _drop_runtime_frontmatter_only_wp(repo_root, files_to_commit, coord_branch_for_filter, auto_commit=auto_commit, git=git)
     if not files_to_commit:
         return PlanningArtifactStagingPlan(structural=[], files_to_commit=[], status_paths_to_commit=[])
 

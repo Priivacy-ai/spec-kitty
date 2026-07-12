@@ -297,6 +297,28 @@ class FrontmatterManager:
         return errors
 
 
+# The runtime claim/workspace-creation frontmatter fields ``spec-kitty implement``
+# writes into ``tasks/WP##.md`` at claim time (``shell_pid``/``shell_pid_created_at``)
+# and at workspace-creation time (``base_branch``/``base_commit``/``planning_base_branch``).
+# Derived from :attr:`FrontmatterManager.WP_FIELD_ORDER` -- the ONE canonical
+# field-name source -- so this set can never diverge from the class that
+# actually owns those field names (#2570.1). Consumed by
+# ``cli.commands.implement_cores._drop_runtime_frontmatter_only_wp`` (WP01,
+# the allocator's dirty-tree claim guard); move-task (WP07) reaches the same
+# decision transitively by reusing that ``resolve_planning_artifact_staging``
+# seam rather than re-classifying keys itself -- the ONE shared source so no
+# consumer hardcodes a fresh (and driftable) runtime-field tuple.
+_RUNTIME_FIELD_NAMES = (
+    "shell_pid",
+    SHELL_PID_BASELINE_FIELD,
+    "base_branch",
+    "base_commit",
+    "planning_base_branch",
+)
+WP_RUNTIME_FIELDS: frozenset[str] = frozenset(
+    field for field in FrontmatterManager.WP_FIELD_ORDER if field in _RUNTIME_FIELD_NAMES
+)
+
 # Global instance for convenience
 _manager = FrontmatterManager()
 
@@ -413,6 +435,7 @@ def normalize_file(file_path: Path) -> bool:
 
 __all__ = [
     "SHELL_PID_BASELINE_FIELD",
+    "WP_RUNTIME_FIELDS",
     "FrontmatterError",
     "FrontmatterManager",
     "read_frontmatter",

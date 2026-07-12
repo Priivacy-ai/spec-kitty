@@ -11,6 +11,18 @@ real coordination-topology git repo with a lanes manifest and assert:
   lane branch beyond its base.
 
 Uses git (unlike test_orchestrator_commands_integration.py, which is git-free).
+
+WP01 / #2570.1 note: the sequential-N-lane / zero-inter-allocation-commits
+assertion belongs conceptually here, but this file's ``start-implementation``
+path (``orchestrator_api.commands`` -> ``allocate_lane_worktree``) never
+touches ``tasks/WP##.md`` frontmatter or the ``implement.py`` dirty-tree
+guard (``_ensure_planning_artifacts_committed_git`` /
+``resolve_planning_artifact_staging``) that #2570.1 fixes -- the bug and its
+regression coverage live entirely on the ``spec-kitty implement`` claim
+surface. Per the WP01 task guidance, that assertion was added instead to
+``tests/specify_cli/cli/commands/test_implement_runtime_frontmatter_claim.py``
+(``test_sequential_n_lane_allocation_needs_zero_inter_allocation_commits``),
+which drives the real ``implement()`` claim path.
 """
 
 from __future__ import annotations
