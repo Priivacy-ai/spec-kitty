@@ -165,7 +165,7 @@ def build_manifest_from_command(command: Any) -> dict[str, Any]:
 
     Used by the manifest generator and the drift-guard test, not at runtime.
     """
-    import typer._click as tc
+    import click
 
     def walk(cmd: Any) -> dict[str, Any]:
         node: dict[str, Any] = {
@@ -174,7 +174,9 @@ def build_manifest_from_command(command: Any) -> dict[str, Any]:
             "deprecated": bool(getattr(cmd, "deprecated", False)),
         }
         if hasattr(cmd, "list_commands"):
-            ctx = tc.Context(cmd, info_name=cmd.name)
+            # Use Click's public API. Typer 0.26 removed the private
+            # ``typer._click`` compatibility module.
+            ctx = click.Context(cmd, info_name=cmd.name)
             names = cmd.list_commands(ctx)
             if names:
                 commands: dict[str, Any] = {}

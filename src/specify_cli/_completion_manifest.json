@@ -114,7 +114,7 @@
    "deprecated": false
   },
   "upgrade": {
-   "help": "Upgrade a Spec Kitty project to the current version.\n\nDetects the project's current version and applies all necessary migrations\nto bring it up to date with the installed CLI version.\n\n**New flags (WP09)**:\n  ``--cli``     Emit CLI upgrade guidance only.  No project detection;\n                succeeds outside any project (FR-014).\n  ``--project`` Run project migrations only; suppresses CLI nag.\n                Errors outside a project.\n  ``--yes``/``-y``  Non-interactive confirmation (alias for ``--force``).\n                    Does NOT bypass schema-incompatibility blocks (CHK037/A-006).\n  ``--no-nag``  Suppress upgrade-nag banner even when a CLI update exists.\n\nMutual exclusion: ``--cli`` and ``--project`` together exit 2.\n\n**Exit codes** (R-08):\n  0  Success / ALLOW / ALLOW_WITH_NAG / any ``--dry-run``\n  2  ``--cli --project`` flag conflict\n  4  Project migration required (BLOCK_PROJECT_MIGRATION)\n  5  Project is too new for this CLI (BLOCK_CLI_UPGRADE) — not bypassable\n  6  Project metadata corrupt (BLOCK_PROJECT_CORRUPT)\n  1  General error\n\nSee also: ``docs/how-to/install-and-upgrade.md``\n\nExamples:\n    spec-kitty upgrade              # Upgrade to current version\n    spec-kitty upgrade --dry-run    # Preview changes\n    spec-kitty upgrade --target 0.6.5  # Upgrade to specific version\n    spec-kitty upgrade --cli        # Show CLI upgrade hint, no project needed\n    spec-kitty upgrade --project    # Project migrations only\n    spec-kitty upgrade --yes        # Non-interactive (same as --force)\n    spec-kitty upgrade --dry-run --json  # Machine-readable plan",
+   "help": "Upgrade a Spec Kitty project to the current version.\n\nDetects the project's current version and applies all necessary migrations\nto bring it up to date with the installed CLI version.\n\n**New flags (WP09)**:\n  ``--cli``     Emit CLI upgrade guidance only.  No project detection;\n                succeeds outside any project (FR-014).\n  ``--project`` Run project migrations only; suppresses CLI nag.\n                Errors outside a project.\n  ``--yes``/``-y``  Non-interactive confirmation (alias for ``--force``).\n                    Does NOT bypass schema-incompatibility blocks (CHK037/A-006).\n  ``--no-nag``  Suppress upgrade-nag banner even when a CLI update exists.\n\nMutual exclusion: ``--cli`` and ``--project`` together exit 2.\n\n**Exit codes** (R-08):\n  0  Success / ALLOW / ALLOW_WITH_NAG / any ``--dry-run``\n  2  ``--cli --project`` flag conflict\n  4  Project migration required (BLOCK_PROJECT_MIGRATION)\n  5  Project is too new for this CLI (BLOCK_CLI_UPGRADE) — not bypassable\n  6  Project metadata corrupt (BLOCK_PROJECT_CORRUPT)\n  1  General error\n\nSee also: ``docs/guides/install-and-upgrade.md``\n\nExamples:\n    spec-kitty upgrade              # Upgrade to current version\n    spec-kitty upgrade --dry-run    # Preview changes\n    spec-kitty upgrade --target 0.6.5  # Upgrade to specific version\n    spec-kitty upgrade --cli        # Show CLI upgrade hint, no project needed\n    spec-kitty upgrade --project    # Project migrations only\n    spec-kitty upgrade --yes        # Non-interactive (same as --force)\n    spec-kitty upgrade --dry-run --json  # Machine-readable plan",
    "hidden": false,
    "deprecated": false
   },
@@ -670,7 +670,12 @@
      "deprecated": false
     },
     "shim-registry": {
-     "help": "Check for overdue compatibility shims in the shim registry.\n\nReads architecture/2.x/shim-registry.yaml and compares each entry's\nremoval_target_release against the current project version. Fails with\nexit code 1 if any shim is overdue (removal release has shipped but\nshim file still exists on disk).\n\nExit codes:\n  0  All entries are pending, removed, or grandfathered.\n  1  At least one entry is overdue — shim must be deleted or window extended.\n  2  Configuration error (registry file or pyproject.toml missing/invalid).\n\nExamples:\n    spec-kitty doctor shim-registry\n    spec-kitty doctor shim-registry --json",
+     "help": "Check for overdue compatibility shims in the shim registry.\n\nReads docs/migrations/shim-registry.yaml and compares each entry's\nremoval_target_release against the current project version. Fails with\nexit code 1 if any shim is overdue (removal release has shipped but\nshim file still exists on disk).\n\nExit codes:\n  0  All entries are pending, removed, or grandfathered.\n  1  At least one entry is overdue — shim must be deleted or window extended.\n  2  Configuration error (registry file or pyproject.toml missing/invalid).\n\nExamples:\n    spec-kitty doctor shim-registry\n    spec-kitty doctor shim-registry --json",
+     "hidden": false,
+     "deprecated": false
+    },
+    "contracts": {
+     "help": "Validate the Contract Registry for well-formedness.\n\nReads docs/contracts/contract-registry.yaml and validates every record\nagainst the schema: required fields present, kind/status/enforcement in\nrange, semver + tracker refs well-formed, anchors resolve, and — the DIR-041\nself-consistency gate (NFR-003) — NO positional file:line anchoring anywhere.\nStructural validation is the only enforcing gate in v1; the retirement\nabsence-sweep is advisory.\n\nExit codes:\n  0  Registry is well-formed (or empty).\n  2  Configuration error (registry file missing) or a schema violation.\n\nExamples:\n    spec-kitty doctor contracts\n    spec-kitty doctor contracts --json",
      "hidden": false,
      "deprecated": false
     },
@@ -874,7 +879,7 @@
      "deprecated": false
     },
     "close": {
-     "help": "Close a mission. Wraps FR-016 lifecycle teardown.\n\nWithout ``--discard``: tear down the coordination worktree only.\nThis is a safe no-op after a successful ``spec-kitty merge`` (the\nmerge command already runs the same teardown); useful when the\nteardown was skipped (e.g. legacy merge path) or interrupted.\n\nWith ``--discard``: abandon the mission mid-flight. Deletes the\ncoordination branch and every lane branch named in\n``lanes.json``, then tears down the coordination worktree and the\noperator-visible lane worktrees. Requires confirmation unless\n``--force`` is also passed. The coordination + lane branches are\ndeleted with ``git branch -D`` (force-delete) because mid-flight\nabandonment by definition leaves uncommitted or unmerged work.\n\nImplements FR-016 from\n``kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW``.",
+     "help": "Close a mission. Wraps FR-016 lifecycle teardown.\n\nWithout ``--discard``: run the merge-completion teardown — persist the\nmission retrospective to its durable home and tear down the coordination\nworktree. Idempotent after a successful ``spec-kitty merge`` (which already\nran the same teardown); useful when the teardown was skipped (e.g. the legacy\nplain-git/GitHub merge path) or interrupted. NOTE: on a mission that was\nmerged without a retrospective, this generates one\n(``kitty-specs/<slug>/retrospective.yaml``) plus a ``RetrospectiveCaptured``\nevent and commits both — it is not a pure no-op in that case.\n\nWith ``--discard``: abandon the mission mid-flight. Deletes the\ncoordination branch and every lane branch named in\n``lanes.json``, then tears down the coordination worktree and the\noperator-visible lane worktrees. Requires confirmation unless\n``--force`` is also passed. The coordination + lane branches are\ndeleted with ``git branch -D`` (force-delete) because mid-flight\nabandonment by definition leaves uncommitted or unmerged work.\n\nImplements FR-016 from\n``kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW``.",
      "hidden": false,
      "deprecated": false
     },
@@ -931,7 +936,7 @@
      "deprecated": false
     },
     "close": {
-     "help": "Close a mission. Wraps FR-016 lifecycle teardown.\n\nWithout ``--discard``: tear down the coordination worktree only.\nThis is a safe no-op after a successful ``spec-kitty merge`` (the\nmerge command already runs the same teardown); useful when the\nteardown was skipped (e.g. legacy merge path) or interrupted.\n\nWith ``--discard``: abandon the mission mid-flight. Deletes the\ncoordination branch and every lane branch named in\n``lanes.json``, then tears down the coordination worktree and the\noperator-visible lane worktrees. Requires confirmation unless\n``--force`` is also passed. The coordination + lane branches are\ndeleted with ``git branch -D`` (force-delete) because mid-flight\nabandonment by definition leaves uncommitted or unmerged work.\n\nImplements FR-016 from\n``kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW``.",
+     "help": "Close a mission. Wraps FR-016 lifecycle teardown.\n\nWithout ``--discard``: run the merge-completion teardown — persist the\nmission retrospective to its durable home and tear down the coordination\nworktree. Idempotent after a successful ``spec-kitty merge`` (which already\nran the same teardown); useful when the teardown was skipped (e.g. the legacy\nplain-git/GitHub merge path) or interrupted. NOTE: on a mission that was\nmerged without a retrospective, this generates one\n(``kitty-specs/<slug>/retrospective.yaml``) plus a ``RetrospectiveCaptured``\nevent and commits both — it is not a pure no-op in that case.\n\nWith ``--discard``: abandon the mission mid-flight. Deletes the\ncoordination branch and every lane branch named in\n``lanes.json``, then tears down the coordination worktree and the\noperator-visible lane worktrees. Requires confirmation unless\n``--force`` is also passed. The coordination + lane branches are\ndeleted with ``git branch -D`` (force-delete) because mid-flight\nabandonment by definition leaves uncommitted or unmerged work.\n\nImplements FR-016 from\n``kitty-specs/mission-coordination-branch-atomic-event-log-01KSPTVW``.",
      "hidden": false,
      "deprecated": false
     },
@@ -1006,6 +1011,11 @@
      "hidden": false,
      "deprecated": false
     },
+    "resolve-workspace": {
+     "help": "Read-only: resolve a WP's lane workspace_path + prompt_path (+ lane fields).\n\nDoes NOT allocate/create/validate-clean/transition — the read-only companion\nof ``start-implementation`` for a WP already past implementation (e.g. a\n``for_review`` WP an external orchestrator wants to review on resume, where\ncalling start-implementation would wrongly re-transition it). Contract >= 1.2.0.",
+     "hidden": false,
+     "deprecated": false
+    },
     "start-implementation": {
      "help": "Composite transition: planned->claimed->in_progress (idempotent).",
      "hidden": false,
@@ -1074,12 +1084,32 @@
      "deprecated": false
     },
     "server": {
-     "help": "Show or set sync server URL.\n\nExamples:\n    spec-kitty sync server\n    spec-kitty sync server https://spec-kitty-dev.fly.dev",
+     "help": "Show or set sync server URL.\n\nExamples:\n    spec-kitty sync server\n    spec-kitty sync server https://spec-kitty-dev.fly.dev\n    spec-kitty sync server http://localhost:8000",
      "hidden": false,
      "deprecated": false
     },
     "now": {
      "help": "Trigger immediate sync of all queued events.\n\nDrains the offline queue completely, uploading events to the server\nin batches of 1000 until the queue is empty or all remaining events\nhave exceeded their retry limit.\n\nExamples:\n    spec-kitty sync now\n    spec-kitty sync now --report failures.json\n    spec-kitty sync now --no-strict",
+     "hidden": false,
+     "deprecated": false
+    },
+    "gc": {
+     "help": "Purge event payloads delivered to all known targets (explicit, destructive).\n\nDeletes journal payload rows only for events with a terminal-success\ndelivery to **every** registered target; payloads still owed to any known\ntarget are kept so the durable, re-drainable copy is never lost (FR-005).\nThe delivery ledger is never touched, so delivery history survives (FR-010).\nRuns only on this explicit invocation — never from ``sync now``.\n\nExamples:\n    spec-kitty sync gc",
+     "hidden": false,
+     "deprecated": false
+    },
+    "archive": {
+     "help": "Archive retained event payloads (explicit, non-destructive).\n\nStamps the journal's archive marker so events move off the live retained\nsurface without deleting bytes. Idempotent and never touches the delivery\nledger (FR-010). Runs only on this explicit invocation.\n\nExamples:\n    spec-kitty sync archive",
+     "hidden": false,
+     "deprecated": false
+    },
+    "migrate": {
+     "help": "Migrate legacy hash-scoped queue DBs into the append-only event journal.\n\nLifts every currently-queued payload from the legacy ``queue.db`` and each\nscoped ``queues/queue-<digest>.db`` into the WP03 event journal, recording\nper-source provenance and quarantining divergent-duplicate collisions into\nthe migration-audit store. Source DBs are opened read-only and are never\nmodified. Exits non-zero when an unresolved conflict blocks cleanup (SC-011).\n\nExamples:\n    spec-kitty sync migrate",
+     "hidden": false,
+     "deprecated": false
+    },
+    "mode": {
+     "help": "Show or set the event-sync retention x delivery mode.\n\nWith no argument, prints the current mode. Mode semantics (which receiver,\nwhether the journal retains) are owned by the policy layer; the CLI only\nroutes the operator token through it (FR-006).\n\nExamples:\n    spec-kitty sync mode\n    spec-kitty sync mode LOCAL_RETENTION\n    spec-kitty sync mode EXTERNAL_RECEIVER --endpoint https://receiver.example/events",
      "hidden": false,
      "deprecated": false
     },
