@@ -22,8 +22,6 @@ import pytest
 
 from specify_cli import completion
 
-pytestmark = [pytest.mark.fast]
-
 # Modules whose import cost is exactly what the fast path exists to avoid.  If
 # any of these load while serving a command-name completion, the latency
 # contract is at risk and this is a regression.
