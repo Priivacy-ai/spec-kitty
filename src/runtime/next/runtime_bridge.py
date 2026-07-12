@@ -581,8 +581,14 @@ def _mission_key_for_run_ref(run_ref: MissionRunRef, default: str) -> str:
 
 
 def _build_run_ref(*, run_id: str, run_dir: str, mission_type: str) -> MissionRunRef:
-    """Thin compat delegate — forwards to :func:`runtime_bridge_io._build_run_ref`."""
-    return _io_seam._build_run_ref(run_id=run_id, run_dir=run_dir, mission_type=mission_type)
+    """Thin compat delegate — forwards to :func:`runtime_bridge_io._build_run_ref`.
+
+    Passes this module's own ``MissionRunRef`` binding through explicitly
+    (rather than letting the io module close over its own import) so tests
+    that monkeypatch ``runtime_bridge.MissionRunRef`` observe the substitution."""
+    return _io_seam._build_run_ref(
+        run_id=run_id, run_dir=run_dir, mission_type=mission_type, run_ref_cls=MissionRunRef
+    )
 
 
 # ---------------------------------------------------------------------------
