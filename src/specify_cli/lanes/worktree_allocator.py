@@ -163,6 +163,26 @@ def allocate_lane_worktree(
         )
         return worktree_path, branch
 
+    # #1348 (WP04): pick the parent branch.
+    #
+    #   New-topology missions (meta.json has ``coordination_branch``):
+    #     parent the lane on the coordination branch and register the
+    #     status-files sparse-checkout exclusion.
+    #
+    #   Legacy missions (no ``coordination_branch``): fall back to the
+    #     ``mission_branch`` field. No sparse-checkout. WP08 will harden
+    #     the legacy path further; for now we preserve existing behaviour.
+    #
+    # #2514 (WP04): hoisted above the crash-recovery branch below so BOTH the
+    # recovery path and the fresh-create path see the same two values without
+    # recomputing them twice — see ``_register_sparse_checkout_if_coord``.
+    coordination_branch = _read_coordination_branch(repo_root, mission_slug)
+    # Route through the authoritative resolver (WP03 / FR-009, F-1). The
+    # former raising ``mid8`` + try/except is replaced by resolve_mid8's
+    # decline-to-``""`` contract; ``or None`` preserves the prior ``None``
+    # behaviour so the downstream registration guard is unchanged.
+    short_id = resolve_mid8(mission_slug, mission_id=lanes_manifest.mission_id) or None
+
     # #2512: crash-recovery path — branch exists but worktree directory was
     # lost (e.g. agent process killed by OS idle-sleep).  Re-attach the
     # worktree to its existing branch instead of creating a new branch (which
@@ -178,21 +198,16 @@ def allocate_lane_worktree(
         )
         _recover_lane_worktree(repo_root, worktree_path, branch)
         _validate_worktree_clean(worktree_path, lane.lane_id)
+        # #2514: re-register the sparse-checkout exclusion on recovery too —
+        # a recovered coord-topology lane worktree must not re-leak
+        # status.events.jsonl / status.json (Scenario 2).
+        _register_sparse_checkout_if_coord(
+            worktree_path, mission_slug, coordination_branch, short_id,
+        )
         _merge_dependency_lane_tips(
             repo_root, worktree_path, mission_slug, lane, lanes_manifest
         )
         return worktree_path, branch
-
-    # #1348 (WP04): pick the parent branch.
-    #
-    #   New-topology missions (meta.json has ``coordination_branch``):
-    #     parent the lane on the coordination branch and register the
-    #     status-files sparse-checkout exclusion.
-    #
-    #   Legacy missions (no ``coordination_branch``): fall back to the
-    #     ``mission_branch`` field. No sparse-checkout. WP08 will harden
-    #     the legacy path further; for now we preserve existing behaviour.
-    coordination_branch = _read_coordination_branch(repo_root, mission_slug)
 
     if coordination_branch is not None:
         _ensure_branch_exists(
@@ -203,13 +218,9 @@ def allocate_lane_worktree(
         # NOT contain status.events.jsonl / status.json. Only meaningful
         # when we have a mid8; new-topology missions always do because
         # WP03 mints the coord branch only when mission_id is present.
-        # Route through the authoritative resolver (WP03 / FR-009, F-1). The
-        # former raising ``mid8`` + try/except is replaced by resolve_mid8's
-        # decline-to-``""`` contract; ``or None`` preserves the prior ``None``
-        # behaviour so the downstream registration guard is unchanged.
-        short_id = resolve_mid8(mission_slug, mission_id=lanes_manifest.mission_id) or None
-        if short_id is not None:
-            register_lane_sparse_checkout(worktree_path, mission_slug, short_id)
+        _register_sparse_checkout_if_coord(
+            worktree_path, mission_slug, coordination_branch, short_id,
+        )
     else:
         # Legacy path: parent on the mission_branch field.
         mission_branch = lanes_manifest.mission_branch
@@ -382,6 +393,32 @@ def _merge_dependency_lane_tips(
             raise DependencyLaneMergeConflictError(
                 lane.lane_id, dep_lane.lane_id, dep_branch
             )
+
+
+def _register_sparse_checkout_if_coord(
+    worktree_path: Path,
+    mission_slug: str,
+    coordination_branch: str | None,
+    short_id: str | None,
+) -> None:
+    """Register the status-files sparse-checkout exclusion, if applicable.
+
+    #2514 (WP04): the single call site for the coord-topology sparse-checkout
+    guard — both the fresh-create path and the crash-recovery path
+    (:func:`allocate_lane_worktree`) route through here instead of
+    maintaining two independently-drifting copies of the same guard. A
+    recovered coord-topology lane worktree must not re-leak
+    ``status.events.jsonl`` / ``status.json`` any more than a freshly-created
+    one does.
+
+    Both guards are preserved exactly as explicit ``is not None`` checks
+    (never weakened to implicit truthiness): ``coordination_branch`` is
+    ``None`` for legacy (no-coord) missions, and ``short_id`` is ``None``
+    when ``resolve_mid8`` declines to resolve a mid8. Either ``None`` makes
+    this a no-op — byte-identical to the pre-WP04 non-coord path.
+    """
+    if coordination_branch is not None and short_id is not None:
+        register_lane_sparse_checkout(worktree_path, mission_slug, short_id)
 
 
 def _read_coordination_branch(

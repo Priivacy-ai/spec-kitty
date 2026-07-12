@@ -14,6 +14,7 @@ to the orchestrator as ``LANE_ALLOCATION_FAILED`` with no actionable reason.
 
 from __future__ import annotations
 
+import json
 import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
@@ -27,6 +28,14 @@ pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
 MISSION_SLUG = "review-context-depth-01KX2EQ9"
 MISSION_BRANCH = f"kitty/mission-{MISSION_SLUG}"
+
+# #2514 (WP04): coord-topology recovery fixtures — mirrors the
+# ``test_worktree_allocator_coord.py`` new-topology fixture so the recovery
+# test exercises the SAME meta.json / coordination_branch shape a real
+# post-WP03 mission carries.
+COORD_MISSION_SLUG = "lane-recovery-01KX9YZ1"
+COORD_MISSION_ID = "01KX9YZ1ABCDEFGHJKMNPQRSTV"  # full ULID, mid8 = "01KX9YZ1"
+COORD_BRANCH = f"kitty/mission-{COORD_MISSION_SLUG}"
 
 
 def _git(repo: Path, *args: str) -> None:
@@ -133,6 +142,145 @@ def test_crash_recovery_worktree_is_clean_after_reattach(git_repo: Path) -> None
     )
     # work.txt must be present (from the committed state of the branch).
     assert (recovered_path / "work.txt").exists()
+
+
+@pytest.fixture()
+def coord_git_repo(tmp_path: Path) -> Path:
+    """Coord-topology repo: ``meta.json`` carries ``coordination_branch``.
+
+    Mirrors ``test_worktree_allocator_coord.py``'s ``new_topology_repo``
+    fixture — a post-WP03 mission with status files that the sparse-checkout
+    exclusion must keep out of the lane worktree, on BOTH the fresh-create
+    and the crash-recovery path (#2514).
+    """
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    _git(repo, "init", "-b", "main")
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "Test")
+    _git(repo, "config", "commit.gpgsign", "false")
+
+    spec_dir = repo / "kitty-specs" / COORD_MISSION_SLUG
+    spec_dir.mkdir(parents=True)
+    (spec_dir / "spec.md").write_text("# spec\n")
+    (spec_dir / "status.events.jsonl").write_text(
+        '{"actor":"test","wp_id":"WP01"}\n'
+    )
+    (spec_dir / "status.json").write_text("{}\n")
+    (spec_dir / "meta.json").write_text(json.dumps({
+        "mission_id": COORD_MISSION_ID,
+        "mission_slug": COORD_MISSION_SLUG,
+        "coordination_branch": COORD_BRANCH,
+    }))
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "seed")
+    _git(repo, "branch", COORD_BRANCH)
+    return repo
+
+
+def _make_coord_manifest(*, lane_id: str = "lane-1", wp_id: str = "WP01") -> LanesManifest:
+    return LanesManifest(
+        version=1,
+        mission_slug=COORD_MISSION_SLUG,
+        mission_id=COORD_MISSION_ID,
+        mission_branch=COORD_BRANCH,
+        target_branch="main",
+        lanes=[ExecutionLane(
+            lane_id=lane_id,
+            wp_ids=(wp_id,),
+            write_scope=(),
+            predicted_surfaces=(),
+            depends_on_lanes=(),
+            parallel_group=0,
+        )],
+        computed_at=datetime.now(UTC).isoformat(),
+        computed_from="test",
+    )
+
+
+def test_crash_recovery_reregisters_sparse_checkout_for_coord_lane(
+    coord_git_repo: Path,
+) -> None:
+    """#2514: a recovered coord-topology lane must not re-leak status files.
+
+    Prior to WP04 the crash-recovery branch (~:172-184) omitted the
+    sparse-checkout registration that the fresh-create path applies, so a
+    lane recovered after an OS-kill/idle-sleep re-materialized
+    ``status.events.jsonl`` / ``status.json`` into the lane worktree —
+    reintroducing the exact husk defect this mission closes (Scenario 2).
+    """
+    manifest = _make_coord_manifest()
+    worktree_path, branch = allocate_lane_worktree(
+        repo_root=coord_git_repo,
+        mission_slug=COORD_MISSION_SLUG,
+        wp_id="WP01",
+        lanes_manifest=manifest,
+    )
+    lane_spec_dir = worktree_path / "kitty-specs" / COORD_MISSION_SLUG
+    # Sanity: fresh-create already excludes the status files.
+    assert not (lane_spec_dir / "status.events.jsonl").exists()
+    assert not (lane_spec_dir / "status.json").exists()
+
+    # Simulate the directory being lost (OS kill during sleep, manual rm, etc.)
+    # while the branch survives — the crash-recovery path.
+    import shutil
+    shutil.rmtree(worktree_path)
+    assert not worktree_path.exists(), "pre-condition: worktree gone"
+
+    recovered_path, recovered_branch = allocate_lane_worktree(
+        repo_root=coord_git_repo,
+        mission_slug=COORD_MISSION_SLUG,
+        wp_id="WP01",
+        lanes_manifest=manifest,
+    )
+    assert recovered_path == worktree_path
+    assert recovered_branch == branch
+    assert recovered_path.exists(), "worktree directory must be re-created"
+
+    # The Scenario 2 acceptance bar: assert ABSENCE of the actual status
+    # files on the recovered worktree, not just that the sparse-checkout
+    # helper was invoked.
+    recovered_spec_dir = recovered_path / "kitty-specs" / COORD_MISSION_SLUG
+    assert (recovered_spec_dir / "spec.md").exists(), "non-excluded files still present"
+    assert not (recovered_spec_dir / "status.events.jsonl").exists(), (
+        "recovered coord lane re-leaked status.events.jsonl"
+    )
+    assert not (recovered_spec_dir / "status.json").exists(), (
+        "recovered coord lane re-leaked status.json"
+    )
+
+
+def test_crash_recovery_noncoord_lane_is_noop(git_repo: Path) -> None:
+    """A recovered non-coord (legacy ``mission_branch``) lane stays a no-op.
+
+    No ``coordination_branch`` in ``meta.json`` (the ``git_repo`` fixture has
+    no ``kitty-specs`` dir at all) → ``_register_sparse_checkout_if_coord``
+    must be a byte-identical no-op on recovery, exactly as it already is on
+    the fresh-create path.
+    """
+    manifest = _make_manifest()
+    worktree_path, _ = _first_allocation(git_repo, manifest)
+
+    import shutil
+    shutil.rmtree(worktree_path)
+
+    recovered_path, _ = allocate_lane_worktree(
+        repo_root=git_repo,
+        mission_slug=MISSION_SLUG,
+        wp_id="WP03",
+        lanes_manifest=manifest,
+    )
+    assert recovered_path.exists()
+
+    # No sparse-checkout was applied — legacy/non-coord recovery must remain
+    # byte-identical to the pre-WP04 behaviour: no `core.sparseCheckout` set.
+    result = subprocess.run(
+        ["git", "-C", str(recovered_path), "config",
+         "--get", "core.sparseCheckout"],
+        capture_output=True, text=True,
+    )
+    # config --get returns 1 when unset.
+    assert result.returncode != 0 or result.stdout.strip() != "true"
 
 
 def test_reuse_path_still_works_when_worktree_exists(git_repo: Path) -> None:

@@ -294,7 +294,11 @@ class TestHealthCheckRetryWindow:
         monkeypatch.setattr(daemon.subprocess, "Popen", fake_popen)
         monkeypatch.setattr(daemon, "_find_free_port", lambda **kw: 9400)
         monkeypatch.setattr(daemon, "_check_sync_daemon_health", lambda *a, **kw: False)
-        monkeypatch.setattr(daemon, "_is_process_alive", lambda pid: False)
+        # daemon.py's internal call sites use the promoted `is_process_alive`
+        # name directly (core/process_liveness.py, C-002) — the `_is_process_alive`
+        # attribute is now only a re-export alias, so patch the name actually
+        # referenced at the call site.
+        monkeypatch.setattr(daemon, "is_process_alive", lambda pid: False)
 
         def counting_sleep(seconds):
             total_sleep["s"] += seconds
@@ -319,7 +323,9 @@ class TestHealthCheckRetryWindow:
         monkeypatch.setattr(daemon, "DAEMON_LOG_FILE", tmp_path / "sync-daemon.log")
         monkeypatch.setattr(daemon, "_find_free_port", lambda **kw: 9400)
         monkeypatch.setattr(daemon, "_check_sync_daemon_health", lambda *a, **kw: False)
-        monkeypatch.setattr(daemon, "_is_process_alive", lambda pid: True)
+        # See note above: patch the promoted `is_process_alive` name, the one
+        # actually referenced at daemon.py's internal call site.
+        monkeypatch.setattr(daemon, "is_process_alive", lambda pid: True)
         monkeypatch.setattr(daemon.time, "sleep", lambda seconds: None)
 
         class FakeProc:

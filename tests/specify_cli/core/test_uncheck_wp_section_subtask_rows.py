@@ -102,3 +102,56 @@ def test_heading_without_wp_token_does_not_end_section() -> None:
 """
     result = uncheck_wp_section_subtask_rows(tasks, "WP06")
     assert "- [ ] T010" in result
+
+
+def test_uncheck_does_not_reenter_reappearing_wp_heading() -> None:
+    """NFR-005 correction (T003): the writer must NOT re-enter a re-appearing
+    ``## WP01`` heading later in the document — only the FIRST section's
+    checked rows are ever flipped, matching the guard's break semantic. This
+    pins the intentional behavior change: the pre-unification writer used to
+    reopen the section and unchecked this row too."""
+    tasks = """\
+## WP01 — First block
+
+- [x] T001 first block done
+
+## WP02 — Middle
+
+- [x] T010 WP02 work
+
+## WP01 — Second block (stray duplicate)
+
+- [x] T020 second block done
+"""
+    result = uncheck_wp_section_subtask_rows(tasks, "WP01")
+    assert "- [ ] T001 first block done" in result
+    assert "- [x] T020 second block done" in result  # untouched — second block not re-entered
+    assert "- [x] T010 WP02 work" in result  # untouched — different WP entirely
+
+
+def test_content_after_section_end_passes_through_unmodified() -> None:
+    """Prose and rows after the target WP's section has closed pass through
+    verbatim and are never unchecked, regardless of a later re-appearing
+    heading."""
+    tasks = """\
+## WP01 — Work
+
+- [x] T001 done
+
+## WP02 — Next
+
+- [x] T010 WP02 work
+
+Trailing prose after the doc's sections.
+- [x] T050 stray checked row in trailing prose
+"""
+    result = uncheck_wp_section_subtask_rows(tasks, "WP01")
+    assert "- [x] T010 WP02 work" in result
+    assert "- [x] T050 stray checked row in trailing prose" in result
+    assert "Trailing prose after the doc's sections." in result
+
+
+def test_uncheck_ids_past_t999_still_unchecked() -> None:
+    tasks = "## WP07 — Big mission\n\n- [x] T1000 big row\n"
+    result = uncheck_wp_section_subtask_rows(tasks, "WP07")
+    assert "- [ ] T1000 big row" in result

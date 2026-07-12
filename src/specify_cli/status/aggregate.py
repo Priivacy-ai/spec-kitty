@@ -714,7 +714,18 @@ class MissionStatus:
         implementation_evidence_present = request.implementation_evidence_present
         entering_review = from_lane_str == lane_in_progress and resolved_to_lane == lane_for_review
         if entering_review and subtasks_complete is None:
-            subtasks_complete = status_emit._infer_subtasks_complete(self.read_dir, request.wp_id or "")
+            # T010/FR-003: route through the TASKS_INDEX-partition resolver so a
+            # coord-topology mission's completeness check reads the PRIMARY
+            # tasks.md, not ``self.read_dir`` (which is the coordination-branch
+            # husk for coord-topology missions) -- ``self.repo_root``/``self.mission_slug``
+            # are dataclass-required fields, so no None-guard is needed here.
+            from mission_runtime import MissionArtifactKind
+            from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
+
+            subtasks_dir = resolve_planning_read_dir(
+                self.repo_root, self.mission_slug, kind=MissionArtifactKind.TASKS_INDEX
+            )
+            subtasks_complete = status_emit._infer_subtasks_complete(subtasks_dir, request.wp_id or "")
         if entering_review and implementation_evidence_present is None:
             implementation_evidence_present = status_emit._infer_implementation_evidence(
                 self.read_dir, request.wp_id or ""

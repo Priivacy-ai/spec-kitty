@@ -375,7 +375,15 @@ def test_transition_helper_prefers_explicit_workspace_context(tmp_path: Path) ->
 
 
 def test_transition_helper_infers_missing_review_gate_inputs(tmp_path: Path) -> None:
-    """Aggregate helper infers both review-gate booleans on enter-review."""
+    """Aggregate helper infers both review-gate booleans on enter-review.
+
+    WP02/T010: the subtasks-completeness read now threads through
+    ``resolve_planning_read_dir(..., kind=TASKS_INDEX)`` (PRIMARY-partition),
+    landing on ``repo_root / "kitty-specs" / mission_slug`` rather than the
+    raw ``self.read_dir`` -- even though this legacy-topology fixture's
+    ``read_dir == repo_root == tmp_path`` pre-resolution. Implementation
+    evidence is untouched by this WP and still reads ``self.read_dir`` as-is.
+    """
     from specify_cli.status import TransitionRequest
     from specify_cli.status.aggregate import MissionStatus
     from specify_cli.status.models import Lane
@@ -395,11 +403,12 @@ def test_transition_helper_infers_missing_review_gate_inputs(tmp_path: Path) -> 
         feature_dir=tmp_path,
         mission_slug=ms.mission_slug,
     )
+    expected_primary_subtasks_dir = tmp_path / "kitty-specs" / ms.mission_slug
 
     class _StatusEmit:
         @staticmethod
         def _infer_subtasks_complete(read_dir: Path, wp_id: str) -> bool:
-            assert read_dir == tmp_path
+            assert read_dir == expected_primary_subtasks_dir
             assert wp_id == "WP07"
             return True
 

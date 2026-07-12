@@ -13,8 +13,10 @@ These tests lock the two acceptance criteria for the daemon half of #1789:
   (pre-marker spawns) is never killed (reaper-over-kill guard, #1071).
 * **SC-7** — exactly ONE daemon-lifecycle reaper and ONE liveness probe remain
   after the three-reaper collapse. Verified by source inspection (``rg``-style
-  scan): the canonical kill path, the canonical reaper entry point, and
-  ``_is_process_alive`` are each defined once across ``sync/`` + ``dashboard/``.
+  scan): the canonical kill path and the canonical reaper entry point are each
+  defined once across ``sync/`` + ``dashboard/``, and ``is_process_alive`` has
+  its one real implementation in ``core/process_liveness.py`` (promoted per
+  C-002) with ``sync/daemon.py`` carrying only a re-export alias.
 
 No real ``run_sync_daemon`` subprocess is spawned here, so there is no
 test-induced daemon leak: the reaper is exercised against in-memory fake
@@ -714,18 +716,29 @@ def test_exactly_one_canonical_reaper_entry_point() -> None:
 
 
 def test_exactly_one_liveness_probe_implementation() -> None:
-    """SC-7: ``_is_process_alive`` has a single real implementation in sync/daemon.py.
+    """SC-7: ``is_process_alive`` has a single real implementation, promoted to
 
-    The dashboard retains a same-named wrapper that delegates to the canonical
-    one (preserving its import surface), so its body must be a one-line
-    delegation — never a second psutil-based implementation.
+    ``core/process_liveness.py`` (C-002) so ``core``/``lanes`` can consult it
+    without depending on the daemon's socket/HTTPServer machinery. ``sync/daemon.py``
+    keeps only a thin re-export alias (``_is_process_alive = is_process_alive``),
+    never a redefinition — ``dashboard/lifecycle.py`` retains a same-named wrapper
+    that delegates to the canonical one (preserving its import surface), so its
+    body must be a one-line delegation — never a second psutil-based
+    implementation.
     """
+    core_text = (_SRC_ROOT / "core/process_liveness.py").read_text(encoding="utf-8")
     daemon_text = (_SRC_ROOT / "sync/daemon.py").read_text(encoding="utf-8")
     lifecycle_text = (_SRC_ROOT / "dashboard/lifecycle.py").read_text(encoding="utf-8")
 
-    # Canonical: defines and uses psutil directly.
-    assert "def _is_process_alive(pid: int) -> bool:" in daemon_text
-    assert "psutil.Process(pid)" in daemon_text
+    # Canonical: core/process_liveness.py defines and uses psutil directly.
+    assert "def is_process_alive(pid: int) -> bool:" in core_text
+    assert "psutil.Process(pid)" in core_text
+
+    # sync/daemon.py must not redefine _is_process_alive as a function — only a
+    # thin re-export alias binding to the promoted core implementation.
+    assert "def _is_process_alive(pid: int) -> bool:" not in daemon_text
+    assert "_is_process_alive = is_process_alive" in daemon_text
+    assert "from specify_cli.core.process_liveness import is_process_alive" in daemon_text
 
     # Dashboard wrapper must delegate, not re-implement against psutil.
     assert "_canonical_is_process_alive(pid)" in lifecycle_text

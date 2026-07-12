@@ -1415,19 +1415,6 @@ def transition(
 
     if to_lane == Lane.FOR_REVIEW:
         _enforce_for_review_commit_gate(cmd, main_repo_root, mission, mission_dir, wp, force)
-        if subtasks_complete is None and not force:
-            # Subtask-gate parity with native move-task (#2510): left as None,
-            # the emit-time inference reads tasks.md off the STATUS feature
-            # dir — the coord worktree husk mid-mission, where tasks.md (a
-            # PRIMARY-partition artifact) never exists — and FAILS OPEN,
-            # letting WPs into for_review with every subtask unchecked.
-            # Derive server-side from the PRIMARY planning surface instead;
-            # an explicit caller assertion keeps working, --force bypasses.
-            from specify_cli.status.emit import _infer_subtasks_complete
-
-            subtasks_complete = _infer_subtasks_complete(
-                _planning_read_dir(main_repo_root, mission), wp
-            )
 
     from specify_cli.coordination.status_transition import emit_status_transition_transactional
     from specify_cli.status import TransitionError

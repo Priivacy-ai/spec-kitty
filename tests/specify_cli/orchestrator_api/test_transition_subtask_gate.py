@@ -1,4 +1,5 @@
-"""#2510: the orchestrator-api transition derives subtasks_complete server-side.
+"""#2510/#2511 -> WP03: the orchestrator-api transition door blocks on unchecked
+PRIMARY subtask rows SOLELY through the shared emit layer.
 
 Field repro: an orchestrator-driven coordination mission moved four WPs
 ``in_progress -> for_review`` with ``force=false`` while every ``- [ ] T###``
@@ -7,14 +8,23 @@ row in ``tasks.md`` was unchecked. The orchestrator passes no
 ``tasks.md`` off the STATUS feature dir (the coord worktree husk — where the
 PRIMARY-partition ``tasks.md`` never exists) and FAILED OPEN.
 
-The API now mirrors the commit-gate precedent: when the caller does not
-assert the flag (and is not forcing), it derives the value from the PRIMARY
-planning surface before building the TransitionRequest.
+#2511 patched this locally in ``orchestrator_api/commands.py`` by pre-deriving
+``subtasks_complete`` from the PRIMARY surface *before* calling into the
+shared emit layer. WP02 (FR-002/003/004) fixed the shared layer itself
+(``coordination/status_transition.py:444`` / ``status/emit.py:580``) to read
+the PRIMARY surface via ``repo_root``, making the per-door pre-derivation
+redundant. WP03 removes it; these tests now drive the REAL production route
+(``orchestrator_api.commands.app`` -> ``emit_status_transition_transactional``
+-> the shared emit layer) end-to-end, proving the door still blocks/allows
+correctly with the per-door patch gone -- mirroring the pattern established by
+``tests/specify_cli/status/test_infer_subtasks_primary.py`` for the native
+``agent status emit`` door.
 """
 
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -23,13 +33,22 @@ from typer.testing import CliRunner
 
 from specify_cli.orchestrator_api.commands import app
 
-pytestmark = [pytest.mark.fast]
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
 
 runner = CliRunner()
 
 _MISSION_ID = "01KV8NPCQ9ZX3R7W2M5T8H4FBD"
 _MID8 = _MISSION_ID[:8]
-_MISSION_SLUG = f"subtask-gate-repro-{_MID8}"
+# Deliberately does NOT end in ``-{mid8}`` (unlike the coord-dir naming
+# grammar): a slug shaped like ``<slug>-<mid8>`` makes the transaction-dir
+# probe (``_transaction_dir_name``) collapse onto this SAME primary dir,
+# flipping ``transaction_meta_exists`` true and routing the transition
+# through ``BookkeepingTransaction`` -- an unrelated, heavier machinery this
+# WP does not touch. Keeping the slug mid8-free routes through the flat/
+# non-coordination ``_emit.emit_status_transition`` path instead, which is
+# the SAME shared-layer route WP02 fixed and the one this WP's removal
+# affects.
+_MISSION_SLUG = "subtask-gate-repro"
 
 _POLICY = json.dumps(
     {
@@ -44,8 +63,70 @@ _POLICY = json.dumps(
 )
 
 
+@pytest.fixture(autouse=True)
+def _disable_emit_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep these tests focused on the transition + completeness gate.
+
+    Mirrors ``test_infer_subtasks_primary.py``'s fixture: the real
+    (non-mocked) production route is exercised end-to-end, so SaaS fan-out
+    and dossier sync -- both fire-and-forget side effects unrelated to this
+    gate -- are neutralized rather than allowed to hit the network/daemon.
+    """
+    import specify_cli.status.emit as status_emit
+
+    monkeypatch.setattr(status_emit, "_saas_fan_out", lambda *args, **kwargs: None)
+    monkeypatch.setattr(status_emit, "fire_dossier_sync", lambda *args, **kwargs: None)
+
+
+def _git(repo: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", "-C", str(repo), *args],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
+def _make_git_repo(root: Path) -> Path:
+    repo = root / "repo"
+    repo.mkdir()
+    subprocess.run(["git", "init", "-b", "main"], cwd=repo, check=True, capture_output=True, text=True)
+    _git(repo, "config", "user.email", "test@example.com")
+    _git(repo, "config", "user.name", "Test User")
+    (repo / ".kittify").mkdir()
+    (repo / "README.md").write_text("test repo\n", encoding="utf-8")
+    _git(repo, "add", ".")
+    _git(repo, "commit", "-m", "init")
+    return repo
+
+
+def _status_event(wp_id: str, from_lane: str, to_lane: str, event_id: str) -> dict:
+    return {
+        "event_id": event_id,
+        "mission_slug": _MISSION_SLUG,
+        "wp_id": wp_id,
+        "from_lane": from_lane,
+        "to_lane": to_lane,
+        "at": "2026-06-01T12:00:00+00:00",
+        "actor": "test-orch",
+        "force": False,
+        "execution_mode": "worktree",
+        "evidence": None,
+        "reason": None,
+        "review_ref": None,
+    }
+
+
 def _seed_mission(tmp_path: Path, *, tasks_md: str) -> Path:
-    repo_root = tmp_path / "repo"
+    """Build a real, flat (no coordination-branch) mission: a git repo whose
+    ``kitty-specs/<slug>/`` IS the STATUS read dir AND the PRIMARY planning
+    surface -- so the transition runs through the shared emit layer's
+    non-transactional route (``_transaction_topology_available`` is False for
+    a flat mission), exercising the SAME ``_infer_subtasks_complete`` fix
+    WP02 landed at ``status/emit.py:580-582``.
+    """
+    repo_root = _make_git_repo(tmp_path)
     primary = repo_root / "kitty-specs" / _MISSION_SLUG
     tasks_dir = primary / "tasks"
     tasks_dir.mkdir(parents=True)
@@ -69,22 +150,30 @@ def _seed_mission(tmp_path: Path, *, tasks_md: str) -> Path:
         "---\nwork_package_id: WP01\ntitle: Example\ndependencies: []\n---\n\nbody\n",
         encoding="utf-8",
     )
+    # WP01 already sits in in_progress -- the only lane from which
+    # in_progress -> for_review is even a legal edge.
+    events = [
+        _status_event("WP01", "planned", "claimed", "01HXYZ0123456789ABCDEFGH40"),
+        _status_event("WP01", "claimed", "in_progress", "01HXYZ0123456789ABCDEFGH41"),
+    ]
+    primary.joinpath("status.events.jsonl").write_text(
+        "\n".join(json.dumps(event) for event in events) + "\n",
+        encoding="utf-8",
+    )
+    _git(repo_root, "add", ".")
+    _git(repo_root, "commit", "-m", "seed mission")
     return repo_root
 
 
-def _run_transition(repo_root: Path, extra_args: list[str] | None = None) -> object | None:
-    """Invoke ``transition WP01 -> for_review`` capturing the TransitionRequest."""
-    captured: list[object] = []
+def _run_transition(repo_root: Path, extra_args: list[str] | None = None):
+    """Invoke the real ``transition WP01 -> for_review`` orchestrator door.
 
-    def _capture(request, **_kwargs):  # noqa: ANN001 — mirrors the real signature
-        captured.append(request)
-
-        class _Event:
-            from_lane = "in_progress"
-            to_lane = "for_review"
-
-        return _Event()
-
+    Only the ``to_lane == FOR_REVIEW`` commit gate (a separate, unrelated
+    guard) is bypassed -- ``emit_status_transition_transactional`` and
+    everything downstream of it runs for real, so a pass here proves the
+    door blocks/allows through the shared emit layer alone, with no per-door
+    pre-derivation left in ``orchestrator_api/commands.py``.
+    """
     with (
         patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
@@ -94,12 +183,8 @@ def _run_transition(repo_root: Path, extra_args: list[str] | None = None) -> obj
             "specify_cli.orchestrator_api.commands._enforce_for_review_commit_gate",
             return_value=None,
         ),
-        patch(
-            "specify_cli.coordination.status_transition.emit_status_transition_transactional",
-            side_effect=_capture,
-        ),
     ):
-        result = runner.invoke(
+        return runner.invoke(
             app,
             [
                 "transition",
@@ -116,8 +201,6 @@ def _run_transition(repo_root: Path, extra_args: list[str] | None = None) -> obj
                 *(extra_args or []),
             ],
         )
-    assert result.exit_code == 0, result.output
-    return captured[0] if captured else None
 
 
 _UNCHECKED_TASKS_MD = (
@@ -128,32 +211,50 @@ _CHECKED_TASKS_MD = (
 )
 
 
-def test_unasserted_flag_is_derived_false_from_primary_tasks_md(tmp_path: Path) -> None:
+def test_unasserted_flag_blocks_on_unchecked_primary_rows(tmp_path: Path) -> None:
     """The field repro: no --subtasks-complete + unchecked PRIMARY rows must
-    reach the guard as False — never None (which fails open off the husk)."""
+    still BLOCK -- now via the shared emit layer, not the removed per-door
+    pre-derivation."""
     repo_root = _seed_mission(tmp_path, tasks_md=_UNCHECKED_TASKS_MD)
-    request = _run_transition(repo_root)
-    assert request is not None
-    assert request.subtasks_complete is False
+    result = _run_transition(repo_root)
+
+    assert result.exit_code != 0, result.output
+    payload = json.loads(result.output)
+    assert payload["success"] is False
+    assert payload["error_code"] == "TRANSITION_REJECTED"
 
 
-def test_unasserted_flag_is_derived_true_when_all_checked(tmp_path: Path) -> None:
+def test_unasserted_flag_allows_when_all_primary_rows_checked(tmp_path: Path) -> None:
     repo_root = _seed_mission(tmp_path, tasks_md=_CHECKED_TASKS_MD)
-    request = _run_transition(repo_root)
-    assert request is not None
-    assert request.subtasks_complete is True
+    result = _run_transition(repo_root, ["--implementation-evidence-present"])
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["success"] is True
+    assert payload["data"]["from_lane"] == "in_progress"
+    assert payload["data"]["to_lane"] == "for_review"
 
 
-def test_explicit_caller_assertion_is_respected(tmp_path: Path) -> None:
-    """Contract compatibility: an explicit --subtasks-complete is not overridden."""
+def test_explicit_caller_assertion_bypasses_unchecked_rows(tmp_path: Path) -> None:
+    """Contract compatibility: an explicit --subtasks-complete is respected
+    even when the PRIMARY rows are unchecked -- the caller's assertion is not
+    overridden by inference."""
     repo_root = _seed_mission(tmp_path, tasks_md=_UNCHECKED_TASKS_MD)
-    request = _run_transition(repo_root, ["--subtasks-complete"])
-    assert request is not None
-    assert request.subtasks_complete is True
+    result = _run_transition(
+        repo_root, ["--subtasks-complete", "--implementation-evidence-present"]
+    )
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["success"] is True
 
 
-def test_force_skips_derivation(tmp_path: Path) -> None:
+def test_force_bypasses_the_subtask_guard_entirely(tmp_path: Path) -> None:
+    """--force (with reason) bypasses the guard outright, regardless of the
+    PRIMARY rows' checked state."""
     repo_root = _seed_mission(tmp_path, tasks_md=_UNCHECKED_TASKS_MD)
-    request = _run_transition(repo_root, ["--force"])
-    assert request is not None
-    assert request.subtasks_complete is None
+    result = _run_transition(repo_root, ["--force", "--note", "forced advance"])
+
+    assert result.exit_code == 0, result.output
+    payload = json.loads(result.output)
+    assert payload["success"] is True

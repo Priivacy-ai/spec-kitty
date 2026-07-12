@@ -401,6 +401,11 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _lane_deliverable_paths as _lane_deliverable_paths,
     _mt_approval_facts as _mt_approval_facts,
     _mt_build_request as _mt_build_request,
+    # WP06 (coord-shadows-arm-closeout-01KXAST2, FR-010, T027): the
+    # rollback-to-planned claim-marker clear (pure helper) + the umbrella
+    # reset seam that consolidates it with the subtask uncheck join the
+    # family surface like every other def — same seam-bridge rule.
+    _mt_clear_rollback_claim_markers as _mt_clear_rollback_claim_markers,
     _mt_commit_lane_deliverables as _mt_commit_lane_deliverables,
     _mt_commit_wp_file as _mt_commit_wp_file,
     _mt_current_event_lane as _mt_current_event_lane,
@@ -440,6 +445,7 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_resolve_feedback as _mt_resolve_feedback,
     _mt_resolve_pre_review_workspace as _mt_resolve_pre_review_workspace,
     _mt_resolve_targets as _mt_resolve_targets,
+    _mt_reset_for_planned_rollback as _mt_reset_for_planned_rollback,
     _mt_uncheck_rollback_subtasks as _mt_uncheck_rollback_subtasks,
     _mt_review_config_section as _mt_review_config_section,
     _mt_run_decision as _mt_run_decision,

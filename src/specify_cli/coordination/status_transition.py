@@ -441,7 +441,24 @@ def _prepare_event(
     subtasks_complete = request.subtasks_complete
     implementation_evidence_present = request.implementation_evidence_present
     if subtasks_complete is None and from_lane == Lane.IN_PROGRESS and resolved_lane == Lane.FOR_REVIEW:
-        subtasks_complete = _emit._infer_subtasks_complete(feature_dir, request.wp_id)
+        # T012/FR-003: resolve the PRIMARY planning surface via the
+        # TASKS_INDEX-partition resolver (mirroring T010's aggregate.py wiring
+        # and the in-file precedent at resolve_planning_read_dir's other call
+        # site below) so a coord-topology mission's completeness check reads
+        # the primary tasks.md, not a coordination-branch husk. Falls back to
+        # the existing feature_dir when request.repo_root is None -- this
+        # function is also called from non-orchestrator paths that don't
+        # populate repo_root.
+        if request.repo_root is not None:
+            from mission_runtime import MissionArtifactKind  # noqa: PLC0415
+            from specify_cli.missions._read_path_resolver import resolve_planning_read_dir  # noqa: PLC0415
+
+            subtasks_dir = resolve_planning_read_dir(
+                request.repo_root, mission_slug, kind=MissionArtifactKind.TASKS_INDEX
+            )
+        else:
+            subtasks_dir = feature_dir
+        subtasks_complete = _emit._infer_subtasks_complete(subtasks_dir, request.wp_id)
     if implementation_evidence_present is None and from_lane == Lane.IN_PROGRESS and resolved_lane == Lane.FOR_REVIEW:
         implementation_evidence_present = _emit._infer_implementation_evidence(feature_dir, request.wp_id)
 

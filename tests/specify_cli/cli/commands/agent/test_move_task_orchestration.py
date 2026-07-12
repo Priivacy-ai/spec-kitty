@@ -36,12 +36,14 @@ from specify_cli.agent_tasks_ports import (
     MissionHandle,
     TasksPorts,
 )
+from specify_cli.core.subtask_rows import count_wp_section_subtask_rows
 from specify_cli.missions._read_path_resolver import (
     resolve_feature_dir_for_mission,
     resolve_planning_read_dir,
 )
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
+from specify_cli.task_utils import extract_scalar, split_frontmatter
 from tests.mocked_env import setup_mocked_env
 from tests.specify_cli.cli.commands.agent.test_tasks_ports import (
     FakeCoordCommitRouter,
@@ -121,6 +123,7 @@ def _run_move(
     target_branch: str = "wip-lane",
     auto_commit: bool,
     json_output: bool = True,
+    review_feedback_file: Path | None = None,
     extra_patches: dict[str, object] | None = None,
 ) -> None:
     with setup_mocked_env(
@@ -141,7 +144,7 @@ def _run_move(
             assignee=None,
             shell_pid=None,
             note=None,
-            review_feedback_file=None,
+            review_feedback_file=review_feedback_file,
             approval_ref=None,
             reviewer=None,
             self_review_fallback=False,
@@ -264,3 +267,78 @@ def test_coord_skip_arm_suppresses_commit_artifact(
     assert payload["result"] == "success"
     assert payload["wp_file_update"] == "skipped"
     assert "coordination branch" in payload["wp_file_update_reason"]
+
+
+_TASKS_MD_WITH_CHECKED_WP01 = """\
+## WP01 — Build widget
+
+- [x] T001 Design the API
+- [x] T002 Implement the handler
+- [ ] T003 Write tests
+
+## WP02 — Ship widget
+
+- [x] T004 Ship it
+"""
+
+
+def test_wp06_t028_rollback_to_planned_is_fully_reimplementable(tmp_path: Path) -> None:
+    """T027/T028 (FR-010, SC-006): the production ``move-task --to planned`` path
+    leaves a rolled-back WP fully re-implementable — no ``[x]`` rows remain in its
+    ``tasks.md`` section and the ``agent``/``shell_pid`` claim markers are cleared.
+
+    Drives the SAME ``_do_move_task`` entry point the CLI invokes (not
+    ``_mt_uncheck_rollback_subtasks``/``_mt_clear_rollback_claim_markers`` in
+    isolation), proving the consolidated ``_mt_reset_for_planned_rollback`` seam
+    fires both resets end to end.
+    """
+    feature_dir, wp_file = _build_wp_file(tmp_path, _MISSION, "WP01")
+    # Overwrite with a WP carrying a live claim (agent/shell_pid), mirroring the
+    # #2512 field repro (killed process leaves stale claim markers).
+    front, body, padding = split_frontmatter(wp_file.read_text(encoding="utf-8"))
+    from specify_cli.task_utils import build_document, set_scalar
+
+    front = set_scalar(front, "agent", "claude-code")
+    front = set_scalar(front, "shell_pid", "41417")
+    wp_file.write_text(build_document(front, body, padding), encoding="utf-8")
+    (feature_dir / "tasks.md").write_text(
+        _TASKS_MD_WITH_CHECKED_WP01, encoding="utf-8"
+    )
+    _seed_wp_event(feature_dir, "WP01", "in_review")
+
+    coord = FakeCoordCommitRouter(
+        write_dir=feature_dir, status_result=CommitStatusResult(event=None, skipped=False)
+    )
+    # planning_read_dir must resolve the real on-disk feature_dir so the
+    # subtask-uncheck reset can find tasks.md (mirrors production wiring).
+    ports = TasksPorts(
+        fs=FakeFsReader(default_planning_dir=feature_dir),
+        coord=coord,
+        git=FakeGitOps(),
+        render=FakeRender(),
+    )
+
+    feedback_file = tmp_path / "feedback.md"
+    feedback_file.write_text("**Issue**: rollback for rework\n", encoding="utf-8")
+
+    _run_move(
+        tmp_path,
+        to="planned",
+        ports=ports,
+        auto_commit=True,
+        review_feedback_file=feedback_file,
+    )
+
+    # No [x] rows remain in WP01's tasks.md section — fully re-implementable.
+    done, total = count_wp_section_subtask_rows(
+        (feature_dir / "tasks.md").read_text(encoding="utf-8"), "WP01"
+    )
+    assert done == 0
+    assert total == 3
+    # WP02's rows are untouched (rollback is scoped to WP01 only).
+    assert "- [x] T004" in (feature_dir / "tasks.md").read_text(encoding="utf-8")
+
+    # The claim markers are cleared on the WP file that was actually rewritten.
+    updated_front, _, _ = split_frontmatter(wp_file.read_text(encoding="utf-8"))
+    assert extract_scalar(updated_front, "agent") is None
+    assert extract_scalar(updated_front, "shell_pid") is None

@@ -537,7 +537,18 @@ class TestTransitionHappyPath:
         assert ms._resolve_workspace_context(request) == "explicit-context"
 
     def test_resolve_review_gate_inputs_infers_missing_review_guards(self, tmp_path: Path) -> None:
-        """Entering review infers both guard inputs when omitted."""
+        """Entering review infers both guard inputs when omitted.
+
+        WP02/T010: ``_resolve_review_gate_inputs`` now threads the
+        subtasks-completeness read through ``resolve_planning_read_dir(...,
+        kind=TASKS_INDEX)`` (the PRIMARY-partition resolver) instead of the
+        raw ``self.read_dir`` -- so the completeness check reaches
+        ``repo_root / "kitty-specs" / mission_slug``, not ``repo_root``
+        itself, even though this fixture's ``read_dir == repo_root ==
+        tmp_path`` (a legacy/no-coord-husk topology where the two happen to
+        coincide pre-resolution). The implementation-evidence check is
+        untouched by this WP and keeps consulting ``self.read_dir`` directly.
+        """
         from specify_cli.status import TransitionRequest
         from specify_cli.status.aggregate import MissionStatus
         from specify_cli.status.models import Lane
@@ -557,11 +568,12 @@ class TestTransitionHappyPath:
             feature_dir=tmp_path,
             mission_slug=ms.mission_slug,
         )
+        expected_primary_subtasks_dir = tmp_path / "kitty-specs" / ms.mission_slug
 
         class _StatusEmit:
             @staticmethod
             def _infer_subtasks_complete(read_dir: Path, wp_id: str) -> bool:
-                assert read_dir == tmp_path
+                assert read_dir == expected_primary_subtasks_dir
                 assert wp_id == "WP07"
                 return True
 
