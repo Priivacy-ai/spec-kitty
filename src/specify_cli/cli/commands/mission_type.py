@@ -936,7 +936,7 @@ def _force_delete_branch_if_exists(repo_root: Path, branch_name: str) -> None:
     if rev_parse.returncode != 0:
         return
     _subprocess.run(
-        ["git", "branch", "-D", branch_name],
+        ["git", "branch", "-D", "--", branch_name],
         cwd=repo_root,
         capture_output=True,
         text=True,

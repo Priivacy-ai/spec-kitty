@@ -162,3 +162,68 @@ def test_lane_has_commit_beyond_base_false_on_unparseable_count(
 
     monkeypatch.setattr(git_mod.subprocess, "run", _fake_run)
     assert lane_has_commit_beyond_base(tmp_path, "base") is False
+
+
+# ---------------------------------------------------------------------------
+# Alert #69 (SonarCloud S6350): option-injection separator for ``_verify``
+#
+# ``_verify`` (the shared plumbing behind both ``branch_exists`` and
+# ``ref_exists``) passes an internally-derived refspec to
+# ``git rev-parse --verify`` unprefixed. ``--end-of-options`` makes the value
+# unambiguously positional, so a hostile refspec starting with ``-`` cannot be
+# parsed as an option.
+# ---------------------------------------------------------------------------
+
+
+def test_verify_inserts_end_of_options_before_refspec(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import specify_cli.lanes._git as git_mod
+
+    calls: list[list[str]] = []
+
+    def _fake_run(argv: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        calls.append(list(argv))
+        return subprocess.CompletedProcess(args=argv, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(git_mod.subprocess, "run", _fake_run)
+
+    hostile_ref = "--upload-pack=touch /tmp/pwned"
+    assert git_mod._verify(Path("/fake/repo"), hostile_ref) is True
+
+    assert len(calls) == 1
+    argv = calls[0]
+    assert argv == [
+        "git",
+        "-C",
+        "/fake/repo",
+        "rev-parse",
+        "--verify",
+        "--quiet",
+        "--end-of-options",
+        hostile_ref,
+    ]
+    sep_index = argv.index("--end-of-options")
+    assert argv[sep_index + 1] == hostile_ref
+
+
+def test_branch_exists_with_hostile_name_places_it_after_separator(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """``branch_exists`` composes ``refs/heads/<branch>`` — still lands after the separator."""
+    import specify_cli.lanes._git as git_mod
+
+    calls: list[list[str]] = []
+
+    def _fake_run(argv: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+        calls.append(list(argv))
+        return subprocess.CompletedProcess(args=argv, returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr(git_mod.subprocess, "run", _fake_run)
+
+    hostile_branch = "-D"
+    assert branch_exists(Path("/fake/repo"), hostile_branch) is True
+
+    argv = calls[0]
+    sep_index = argv.index("--end-of-options")
+    assert argv[sep_index + 1] == f"refs/heads/{hostile_branch}"

@@ -179,6 +179,56 @@ def _create_lane_branch_with_commits(
     return lane_branch
 
 
+class TestBranchHasCommitsBeyondSeparator:
+    """Alert #65 (SonarCloud S6350): option-injection separator for ``git log``.
+
+    ``_branch_has_commits_beyond`` composes ``{base}..{branch}`` from
+    internally-derived branch names and passes it to ``git log`` unprefixed.
+    ``--end-of-options`` (inserted after the flags, before the range) makes the
+    value unambiguously positional data.
+    """
+
+    def test_inserts_end_of_options_before_the_range(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        import specify_cli.lanes.recovery as recovery_mod
+
+        calls: list[list[str]] = []
+
+        def _fake_run(argv: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+            calls.append(list(argv))
+            return subprocess.CompletedProcess(args=argv, returncode=0, stdout="", stderr="")
+
+        monkeypatch.setattr(recovery_mod.subprocess, "run", _fake_run)
+
+        hostile_branch = "--upload-pack=touch /tmp/pwned"
+        recovery_mod._branch_has_commits_beyond(tmp_path, hostile_branch, "main")
+
+        assert len(calls) == 1
+        argv = calls[0]
+        expected_range = f"main..{hostile_branch}"
+        assert argv == ["git", "log", "--oneline", "-1", "--end-of-options", expected_range]
+        sep_index = argv.index("--end-of-options")
+        assert argv[sep_index + 1] == expected_range
+
+    def test_still_detects_real_commits_beyond_base(self, tmp_path: Path) -> None:
+        """The separator is transparent for a legitimate range (no regression)."""
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _make_git_repo(repo)
+        _setup_feature(repo)
+        lane_branch = _create_lane_branch_with_commits(repo)
+
+        import specify_cli.lanes.recovery as recovery_mod
+
+        assert recovery_mod._branch_has_commits_beyond(
+            repo, lane_branch, "kitty/mission-010-feat"
+        ) is True
+        assert recovery_mod._branch_has_commits_beyond(
+            repo, "kitty/mission-010-feat", "kitty/mission-010-feat"
+        ) is False
+
+
 class TestScanRecoveryState:
     """T007: Recovery scan tests."""
 
@@ -360,6 +410,18 @@ class TestWorktreeRecovery:
         assert loaded.created_by == "recovery"
         assert loaded.lane_wp_ids == ["WP01", "WP02"]
 
+        # Regression guard (S6350 hardening, alert #66): the base-commit
+        # rev-parse must resolve to exactly the mission branch's sha — not a
+        # value corrupted by a stray echoed option token. A plain (non
+        # ``--verify``) ``git rev-parse ... --end-of-options <ref>`` call
+        # would otherwise print the literal string "--end-of-options" on its
+        # own line ahead of the sha, which this exact-match assertion pins.
+        expected_sha = subprocess.run(
+            ["git", "rev-parse", "kitty/mission-010-feat"],
+            cwd=str(repo), capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        assert loaded.base_commit == expected_sha
+
     def test_recover_context_uses_none_when_base_commit_unavailable(self, tmp_path: Path) -> None:
         """Missing mission branch must not persist the legacy 'unknown' sentinel."""
         repo = tmp_path / "repo"
@@ -384,6 +446,61 @@ class TestWorktreeRecovery:
         loaded = load_context(repo, "010-feat-lane-a")
         assert loaded is not None
         assert loaded.base_commit is None
+
+    def test_recover_context_rev_parse_inserts_end_of_options_before_branch(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Alert #66 (S6350): the base-commit rev-parse gets ``--end-of-options``
+        immediately before the (potentially hostile) mission branch value.
+        """
+        import specify_cli.lanes.recovery as recovery_mod
+
+        repo = tmp_path / "repo"
+        repo.mkdir()
+        _make_git_repo(repo)
+        _setup_feature(repo)
+
+        hostile_branch = "--upload-pack=touch /tmp/pwned"
+        monkeypatch.setattr(
+            recovery_mod, "_resolve_mission_branch", lambda *_a, **_kw: hostile_branch
+        )
+
+        calls: list[list[str]] = []
+
+        def _spy_run(argv: list[str], **_kwargs: object) -> subprocess.CompletedProcess[str]:
+            # recover_context's only subprocess call is the base-commit rev-parse.
+            calls.append(list(argv))
+            return subprocess.CompletedProcess(args=argv, returncode=1, stdout="", stderr="")
+
+        monkeypatch.setattr(recovery_mod.subprocess, "run", _spy_run)
+
+        state = RecoveryState(
+            wp_id="WP01",
+            lane_id="lane-a",
+            branch_name="kitty/mission-010-feat-lane-a",
+            branch_exists=True,
+            worktree_exists=True,
+            context_exists=False,
+            status_lane="planned",
+            has_commits=True,
+            recovery_action="recreate_context",
+        )
+
+        recovery_mod.recover_context(repo, "010-feat", state)
+
+        rev_parse_calls = [argv for argv in calls if argv[:2] == ["git", "rev-parse"]]
+        assert len(rev_parse_calls) == 1
+        argv = rev_parse_calls[0]
+        # ``--verify`` is required alongside ``--end-of-options`` here: plain
+        # (non-``--verify``) ``git rev-parse`` echoes ``--end-of-options``
+        # back onto stdout verbatim instead of consuming it as a pure option
+        # terminator, corrupting the resolved base commit. ``--verify``
+        # restores the documented ``--verify --end-of-options`` idiom (see
+        # ``test_recover_context_from_branch`` above for the live-git
+        # base_commit assertion this guards).
+        assert argv == ["git", "rev-parse", "--verify", "--end-of-options", hostile_branch]
+        sep_index = argv.index("--end-of-options")
+        assert argv[sep_index + 1] == hostile_branch
 
 
 class TestStatusReconciliation:

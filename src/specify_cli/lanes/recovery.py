@@ -155,7 +155,7 @@ def _branch_has_commits_beyond(
 ) -> bool:
     """Check if a branch has commits beyond a base branch."""
     result = subprocess.run(
-        ["git", "log", f"{base_branch}..{branch}", "--oneline", "-1"],
+        ["git", "log", "--oneline", "-1", "--end-of-options", f"{base_branch}..{branch}"],
         cwd=str(repo_root),
         capture_output=True,
         text=True,
@@ -714,9 +714,16 @@ def recover_context(
     wp_ids = _find_wp_ids_for_lane(feature_dir, state.lane_id)
     mission_branch = _resolve_mission_branch(feature_dir, mission_slug)
 
-    # Get base commit
+    # Get base commit.
+    # NOTE: without ``--verify``, ``git rev-parse`` echoes ``--end-of-options``
+    # back onto stdout verbatim instead of treating it purely as an option
+    # terminator (a quirk of its non-``--verify`` argument-scanning mode) —
+    # confirmed against real git 2.43. ``--verify`` restores the intended
+    # single-ref "resolve or fail" contract this call already relies on
+    # (checked via ``returncode``/``stdout``) and keeps ``--end-of-options``
+    # effective, matching the documented ``--verify --end-of-options`` idiom.
     result = subprocess.run(
-        ["git", "rev-parse", mission_branch],
+        ["git", "rev-parse", "--verify", "--end-of-options", mission_branch],
         cwd=str(repo_root),
         capture_output=True,
         text=True,
