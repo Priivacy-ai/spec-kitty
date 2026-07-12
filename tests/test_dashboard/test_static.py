@@ -80,6 +80,8 @@ def test_dashboard_selector_options_use_dom_text_nodes():
 
     assert "document.createElement('option')" in source
     assert "option.textContent = getFeatureDisplayName(f);" in source
+    assert "`${name} [${statusLabel}]`" in source
+    assert "active: '⚡ active'" in source
     assert "select.replaceChildren(options);" in source
     assert "select.innerHTML = features.map" not in source
     assert '<option value="${f.id}"' not in source

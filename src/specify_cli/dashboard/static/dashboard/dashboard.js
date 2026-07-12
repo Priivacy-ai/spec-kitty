@@ -1140,10 +1140,10 @@ function updateWorkflowIcons(workflow) {
 }
 
 const MISSION_STATUS_LABELS = {
-    active: '⚡ active:',
-    planned: '○ planned:',
-    done: '✓ done:',
-    draft: '· draft:',
+    active: '⚡ active',
+    planned: '○ planned',
+    done: '✓ done',
+    draft: '· draft',
 };
 
 function getFeatureDisplayName(feature) {
@@ -1152,7 +1152,7 @@ function getFeatureDisplayName(feature) {
     }
     const name = feature.display_name || feature.name || feature.id || 'Unknown mission';
     const statusLabel = MISSION_STATUS_LABELS[feature.mission_status];
-    return statusLabel ? `${statusLabel} ${name}` : name;
+    return statusLabel ? `${name} [${statusLabel}]` : name;
 }
 
 function normalizeFeatureList(features) {

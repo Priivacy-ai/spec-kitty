@@ -117,6 +117,7 @@
         "total": 3,
         "weighted_percentage": "<ts>"
       },
+      "mission_status": "active",
       "meta": {
         "friendly_name": "Demo Feature",
         "mission_id": "01HXBASELINEDEMO000000000Z",
