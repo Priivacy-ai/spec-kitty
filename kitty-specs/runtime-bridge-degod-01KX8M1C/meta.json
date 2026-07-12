@@ -1,0 +1,17 @@
+{
+  "baseline_merge_commit": "a72c764580b002e86284d91eb1d862cfc0e82c3e",
+  "coordination_branch": "kitty/mission-runtime-bridge-degod-01KX8M1C",
+  "created_at": "2026-07-11T12:57:02.071393+00:00",
+  "flattened": false,
+  "friendly_name": "Runtime-Bridge God-Module Decomposition",
+  "mission_id": "01KX8M1CBPNQ77M1FPFRRHEB62",
+  "mission_number": 174,
+  "mission_slug": "runtime-bridge-degod-01KX8M1C",
+  "mission_type": "software-dev",
+  "pr_bound": true,
+  "purpose_context": "runtime_bridge.py is the single largest module in the repo (3,813 LOC, +49% since the 2026-05 CaaCS audit), carrying two C901-suppressed guard functions and a ~535-line decide_next_via_runtime orchestrator, all far past the complexity ceiling of 15. This mission gives it the Ports+cores treatment per #2173 (inject I/O — meta.json, git, feature-runs.json, template discovery — as ports; keep tasks.md parsing, decision mapping, and guard predicates as pure cores), matching the sibling god-module decomposes (#2056/#2057/#2059/#2464). Closes #2531 under epics #1619 (runtime/state overhaul) and #2173 (infra-logic separation).",
+  "purpose_tldr": "Decompose the 3,813-LOC runtime_bridge.py god-module into narrow ports + pure, unit-testable cores, leaving a thin orchestration surface — with no change to the spec-kitty next / decide_next() CLI contract.",
+  "slug": "runtime-bridge-degod-01KX8M1C",
+  "target_branch": "design/runtime-bridge-degod",
+  "topology": "coord"
+}
