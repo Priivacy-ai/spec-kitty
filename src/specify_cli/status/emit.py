@@ -32,7 +32,6 @@ from typing import Any, cast
 import ulid as _ulid_mod
 from pydantic import ValidationError
 
-from specify_cli.core.paths import WorkspaceRootNotFound, resolve_canonical_root
 from specify_cli.core.subtask_rows import count_wp_section_subtask_rows
 from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.mission_metadata import load_meta
@@ -306,41 +305,6 @@ def _infer_subtasks_complete(feature_dir: Path, wp_id: str) -> bool:
     return done == total
 
 
-def _resolve_primary_subtasks_dir(
-    feature_dir: Path, repo_root: Path | None, mission_slug: str
-) -> Path:
-    """Resolve the PRIMARY mission dir that ``_infer_subtasks_complete`` reads ``tasks.md`` from.
-
-    T011/FR-003: on a coord-topology mission, ``feature_dir`` at this call site
-    may be the coordination-branch husk rather than the primary planning
-    surface where ``tasks.md`` actually lives. When a canonical repo root is
-    derivable (either an explicit ``repo_root`` or one resolved from
-    ``feature_dir``'s git ancestry), route through
-    ``resolve_planning_read_dir`` — the same TASKS_INDEX-partition resolver
-    T010 threads at ``aggregate.py``.
-
-    ``resolve_canonical_root`` raises ``WorkspaceRootNotFound`` when
-    ``feature_dir`` has no git ancestry (e.g. a bare ``tmp_path`` fixture used
-    by library-internal unit tests) -- that case falls back to the original
-    ``feature_dir`` unchanged, preserving pre-existing non-repo test behavior.
-    """
-    from mission_runtime import MissionArtifactKind  # noqa: PLC0415
-    from specify_cli.missions._read_path_resolver import resolve_planning_read_dir  # noqa: PLC0415
-
-    primary_root = repo_root
-    if primary_root is None:
-        try:
-            primary_root = resolve_canonical_root(feature_dir)
-        except WorkspaceRootNotFound:
-            return feature_dir
-    # cast: follow_imports=skip erases resolve_planning_read_dir's declared
-    # `-> Path` return type from this call site.
-    return cast(
-        Path,
-        resolve_planning_read_dir(primary_root, mission_slug, kind=MissionArtifactKind.TASKS_INDEX),
-    )
-
-
 def _infer_implementation_evidence(feature_dir: Path, wp_id: str) -> bool:
     """Infer implementation evidence from prior canonical events for this WP."""
     return any(event.wp_id == wp_id for event in _store.read_events(feature_dir))
@@ -578,7 +542,9 @@ def emit_status_transition(  # NOSONAR — central orchestration hub; 15 of 20 p
             context_root = repo_root if repo_root is not None else feature_dir
             workspace_context = f"{execution_mode}:{context_root}"
         if subtasks_complete is None and from_lane == Lane.IN_PROGRESS and resolved_lane == Lane.FOR_REVIEW:
-            primary_subtasks_dir = _resolve_primary_subtasks_dir(feature_dir, repo_root, mission_slug)
+            from specify_cli.missions._read_path_resolver import resolve_subtasks_gate_dir  # noqa: PLC0415
+
+            primary_subtasks_dir = resolve_subtasks_gate_dir(feature_dir, repo_root, mission_slug)
             subtasks_complete = _infer_subtasks_complete(primary_subtasks_dir, wp_id)
         if implementation_evidence_present is None and from_lane == Lane.IN_PROGRESS and resolved_lane == Lane.FOR_REVIEW:
             implementation_evidence_present = _infer_implementation_evidence(feature_dir, wp_id)
@@ -734,7 +700,9 @@ def emit_status_transition_batch(  # noqa: C901 — composite transition orchest
         subtasks_complete = request.subtasks_complete
         implementation_evidence_present = request.implementation_evidence_present
         if subtasks_complete is None and from_lane == Lane.IN_PROGRESS and resolved_lane == Lane.FOR_REVIEW:
-            primary_subtasks_dir = _resolve_primary_subtasks_dir(feature_dir, request.repo_root, mission_slug)
+            from specify_cli.missions._read_path_resolver import resolve_subtasks_gate_dir  # noqa: PLC0415
+
+            primary_subtasks_dir = resolve_subtasks_gate_dir(feature_dir, request.repo_root, mission_slug)
             subtasks_complete = _infer_subtasks_complete(primary_subtasks_dir, wp_id)
         if implementation_evidence_present is None and from_lane == Lane.IN_PROGRESS and resolved_lane == Lane.FOR_REVIEW:
             implementation_evidence_present = _infer_implementation_evidence(feature_dir, wp_id)
