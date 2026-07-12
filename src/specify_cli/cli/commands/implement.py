@@ -23,7 +23,7 @@ from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.core.git_ops import get_current_branch
 from specify_cli.core.vcs import VCSBackend
 from specify_cli.mission_metadata import resolve_mission_identity, set_vcs_lock
-from specify_cli.frontmatter import FrontmatterError, update_fields
+from specify_cli.frontmatter import FrontmatterError, write_shell_pid_claim_to_file
 from specify_cli.git import safe_commit
 from specify_cli.git.commit_helpers import (
     SafeCommitPathPolicyError,
@@ -1397,7 +1397,7 @@ def implement(
     try:
         import os as _os
 
-        update_fields(wp_file, {"shell_pid": str(_os.getppid())})
+        write_shell_pid_claim_to_file(wp_file, _os.getppid())
         vcs_backend = _ensure_vcs_in_meta(feature_dir, repo_root)
 
         # When --base is provided, validate the ref and build a patched

@@ -16,7 +16,8 @@ from datetime import datetime, timezone, UTC
 from pathlib import Path
 from typing import Any
 
-from specify_cli.core.process_liveness import is_process_alive
+from specify_cli.core.process_liveness import is_claiming_process_alive, is_process_alive
+from specify_cli.frontmatter import SHELL_PID_BASELINE_FIELD
 from specify_cli.workspace.context import resolve_workspace_for_wp
 
 PLANNING_ARTIFACT_REPO_ROOT_REASON = "planning_artifact_repo_root_shared_workspace"
@@ -217,14 +218,25 @@ def get_last_meaningful_commit_time(worktree_path: Path) -> tuple[datetime | Non
         return None, False
 
 
-def _is_claiming_process_alive(shell_pid: str | None) -> bool:
+def _is_claiming_process_alive(shell_pid: str | None, shell_pid_baseline: str | None = None) -> bool:
     """Return whether ``shell_pid`` (as read from WP frontmatter) is a live process.
 
     Reuses the existing ``task_utils``-style frontmatter value (already extracted
     by callers via ``extract_scalar``/``WorkPackage.shell_pid`` — no new parse
-    happens here) and the canonical ``core.process_liveness.is_process_alive``
-    check (C-002). Conservative: an absent or unparseable ``shell_pid`` is treated
-    as "not provably alive" so the timestamp heuristic remains the fallback.
+    happens here). Conservative: an absent or unparseable ``shell_pid`` is
+    treated as "not provably alive" so the timestamp heuristic remains the
+    fallback.
+
+    ``shell_pid_baseline`` (FR-005) is the persisted creation-time identity
+    baseline co-written alongside ``shell_pid`` at claim time. Gated on
+    presence (D3a, additive degradation):
+
+    - Absent (a legacy claim written before the baseline field existed) ->
+      delegates to the canonical ``core.process_liveness.is_process_alive``
+      check verbatim (C-002) — today's exact live-PID trust, zero regression.
+    - Present -> delegates to the PID-reuse-aware
+      ``core.process_liveness.is_claiming_process_alive`` compare (FR-004): a
+      mismatch (the PID was recycled) is treated as not alive.
     """
     if not shell_pid:
         return False
@@ -234,7 +246,9 @@ def _is_claiming_process_alive(shell_pid: str | None) -> bool:
         return False
     # bool() wrap: keeps per-file `mypy --strict` clean (follow_imports=skip erases the
     # imported `-> bool`), matching emit.py's defensive pattern at the same boundary.
-    return bool(is_process_alive(pid))
+    if not shell_pid_baseline:
+        return bool(is_process_alive(pid))
+    return bool(is_claiming_process_alive(pid, shell_pid_baseline))
 
 
 def check_wp_staleness(
@@ -242,6 +256,7 @@ def check_wp_staleness(
     worktree_path: Path,
     threshold_minutes: int = 10,
     shell_pid: str | None = None,
+    shell_pid_baseline: str | None = None,
 ) -> StaleCheckResult:
     """
     Check if a work package is stale based on VCS activity.
@@ -267,6 +282,10 @@ def check_wp_staleness(
         threshold_minutes: Minutes of inactivity before considered stale
         shell_pid: The WP's claiming shell PID, as read from frontmatter (may be
             ``None``, empty, or unparseable — handled conservatively)
+        shell_pid_baseline: The PID-reuse identity baseline (FR-005) co-written
+            alongside ``shell_pid`` at claim time, as read from frontmatter.
+            ``None`` (absent — a legacy claim) preserves today's live-PID trust
+            (D3a); present-but-mismatched treats the claim as not alive.
 
     Returns:
         StaleCheckResult with staleness status
@@ -279,7 +298,7 @@ def check_wp_staleness(
             workspace_kind="lane_workspace",
         )
 
-    if _is_claiming_process_alive(shell_pid):
+    if _is_claiming_process_alive(shell_pid, shell_pid_baseline):
         return StaleCheckResult(
             wp_id=wp_id,
             stale=StaleState(status="fresh", reason=LIVE_CLAIM_PROCESS_REASON),
@@ -375,9 +394,20 @@ def check_doing_wps_for_staleness(
         if workspace.exists:
             # Reuse the shell_pid already extracted from frontmatter by the caller
             # (task_utils.support.extract_scalar — the same reader backing
-            # WorkPackage.shell_pid) — no new frontmatter parse (C-002).
+            # WorkPackage.shell_pid) — no new frontmatter parse (C-002). Same for
+            # the paired baseline (FR-005): if the caller's wp dict doesn't carry
+            # SHELL_PID_BASELINE_FIELD, this is None and staleness falls back to
+            # today's live-PID trust (D3a) — no regression for callers not yet
+            # updated to surface the new field.
             shell_pid = wp.get("shell_pid") or None
-            result = check_wp_staleness(wp_id, workspace.worktree_path, threshold_minutes, shell_pid=shell_pid)
+            shell_pid_baseline = wp.get(SHELL_PID_BASELINE_FIELD) or None
+            result = check_wp_staleness(
+                wp_id,
+                workspace.worktree_path,
+                threshold_minutes,
+                shell_pid=shell_pid,
+                shell_pid_baseline=shell_pid_baseline,
+            )
         else:
             result = StaleCheckResult(
                 wp_id=wp_id,
