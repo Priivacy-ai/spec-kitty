@@ -286,3 +286,29 @@ def is_file_line_anchor(value: str) -> bool:
     if not prefix:
         return False
     return "/" in prefix or "\\" in prefix or bool(_PATHISH_PREFIX_RE.search(prefix))
+
+
+# ---------------------------------------------------------------------------
+# IC-METAGUARD escape hatch (mission content-address-ratchet-allowlists-01KX8M4D,
+# WP05, FR-004) — shared by the standing positional-anchor ban.
+# ---------------------------------------------------------------------------
+
+#: A genuinely new diagnostic int that is NOT a line-locator sink may carry
+#: this comment on its own source line to opt out of the standing
+#: positional-anchor ban explicitly (contracts/positional-anchor-ban.md
+#: "Authoritative-vs-diagnostic detection"), rather than the ban's predicate
+#: silently widening to accommodate it.
+DIAGNOSTIC_LOCATOR_MARKER = "# diagnostic-locator"
+
+
+def has_diagnostic_locator_marker(source_lines: list[str], lineno: int) -> bool:
+    """Return ``True`` when the 1-based *lineno* physical line in *source_lines*
+    carries the :data:`DIAGNOSTIC_LOCATOR_MARKER` escape-hatch comment.
+
+    Used by ``test_ratchet_positional_anchor_ban.py`` (IC-METAGUARD) to let a
+    genuinely new diagnostic int opt out of the ban explicitly rather than
+    forcing the predicate itself to grow a case for it.
+    """
+    if 1 <= lineno <= len(source_lines):
+        return DIAGNOSTIC_LOCATOR_MARKER in source_lines[lineno - 1]
+    return False

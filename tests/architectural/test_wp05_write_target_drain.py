@@ -38,20 +38,41 @@ from pathlib import Path
 
 import pytest
 
-from tests.architectural._ratchet_keys import composite_key
+from tests.architectural._ratchet_keys import ContentDescriptor, descriptor_still_live, resolve_descriptor
 
 pytestmark = [pytest.mark.architectural, pytest.mark.git_repo]
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 _STATUS_TRANSITION_REL = "src/specify_cli/coordination/status_transition.py"
-# write-surface-coherence WP02 / T031: the required STATUS_STATE kind threading in
-# ``_resolve_write_target`` shifted the deferred HEAD-selector fallback arm from
-# :336 to :343 (the ``coord_branch or _current_branch`` line); the #1842
-# workspace-context tombstone cancel hook then shifted it :343 → :347. The numeral
-# in the docstrings/test names is descriptive history; this constant is the live
-# anchor. (This drift-on-line-shift is exactly what #2072 exists to eliminate.)
-_ALLOW_LISTED_LINE = 347
 _DEFERRED_SELECTOR = "coord_branch or _current_branch"
+
+#: Content-descriptor anchor (#2469 WP02/WP03) for the ``:336`` write-target
+#: FALLBACK arm — the WP00 allow-list entry this WP05 negative-probe backs.
+#: Replaces the former line-number scalar (``_ALLOW_LISTED_LINE``), which had
+#: to be hand re-anchored every time an unrelated edit shifted the site
+#: (336 -> 343 -> 347 -> ...; exactly the drift #2072 exists to eliminate):
+#: the descriptor instead resolves LIVE, by enclosing qualname + normalized
+#: token line, to the exactly-one matching finding.
+_WRITE_TARGET_DESCRIPTOR = ContentDescriptor(
+    rel_path=_STATUS_TRANSITION_REL,
+    qualname="_resolve_write_target",
+    token_substring=_DEFERRED_SELECTOR,
+    occurrence=None,
+    rationale=(
+        "the last surviving git-HEAD write-target selector; deferred #1716 "
+        "write-surface-SELECTION ladder line (spec C-003 / plan D-1, OUT of "
+        "scope). Reached only when resolve_placement_only cannot resolve the "
+        "mission (pre-meta create window / ad-hoc fixture)."
+    ),
+)
+
+#: Composite key resolved LIVE for ``_WRITE_TARGET_DESCRIPTOR`` — the seeded
+#: comparand :func:`descriptor_still_live` checks staleness against
+#: (exactly-one, key-equal; never "≥1").
+_WRITE_TARGET_SEEDED_KEY = resolve_descriptor(
+    (_REPO_ROOT / _WRITE_TARGET_DESCRIPTOR.rel_path).read_text(encoding="utf-8"),
+    _WRITE_TARGET_DESCRIPTOR,
+)
 
 
 def _init_repo(repo: Path) -> None:
@@ -158,19 +179,25 @@ def test_336_short_circuits_to_coord_branch_when_present(
 
 
 def test_allow_list_still_carries_the_336_selector_after_left_verdict() -> None:
-    """The WP00 re-keyed allow-list still pins ``:336`` — the LEFT verdict's invariant.
+    """The WP00 re-keyed allow-list still pins the ``:336`` selector — the LEFT verdict's invariant.
 
-    The negative-probe proved ``:336`` reachable, so the verdict is LEAVE: WP00's
-    content-addressed allow-list entry MUST remain (a drain would remove it). This
-    asserts the composite key for the deferred selector still resolves to the live
-    ``coord_branch or _current_branch`` line, so a silent retirement of the entry
-    (which would un-defer a still-live arm) is caught here too.
+    The negative-probe proved the arm reachable, so the verdict is LEAVE: WP00's
+    content-addressed allow-list entry MUST remain (a drain would remove it).
+    This asserts :func:`descriptor_still_live` (exactly-one, key-equal — never
+    "≥1") still resolves the descriptor to the live ``coord_branch or
+    _current_branch`` selector, so a silent retirement of the entry (which
+    would un-defer a still-live arm) is caught here too.
     """
     source = (_REPO_ROOT / _STATUS_TRANSITION_REL).read_text(encoding="utf-8")
-    _qualname, token_line = composite_key(source, _ALLOW_LISTED_LINE)
+    assert descriptor_still_live(source, _WRITE_TARGET_DESCRIPTOR, _WRITE_TARGET_SEEDED_KEY), (
+        f"{_STATUS_TRANSITION_REL} ({_WRITE_TARGET_DESCRIPTOR.qualname}) no "
+        "longer resolves to its seeded live finding; the WP05 LEFT verdict "
+        "assumes the allow-listed descriptor is still the live :336 fallback. "
+        "Re-run the T029 negative-probe before re-grounding or removing the "
+        "entry."
+    )
+    _rel_path, _qualname, token_line = _WRITE_TARGET_SEEDED_KEY
     assert _DEFERRED_SELECTOR in token_line, (
-        f"{_STATUS_TRANSITION_REL}:{_ALLOW_LISTED_LINE} no longer holds the "
-        f"deferred HEAD selector (got {token_line!r}); the WP05 LEFT verdict "
-        "assumes the allow-listed line is still the live :336 fallback. Re-run "
-        "the T029 negative-probe before re-grounding or removing the entry."
+        f"{_STATUS_TRANSITION_REL} ({_WRITE_TARGET_DESCRIPTOR.qualname}) no "
+        f"longer holds the deferred HEAD selector (got {token_line!r})."
     )
