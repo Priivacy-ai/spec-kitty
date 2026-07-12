@@ -251,8 +251,9 @@ def test_feature_recency_helpers_cover_timestamp_and_legacy_fallbacks():
     assert scanner._coerce_sort_mission_number("042") == 42
     assert scanner._coerce_sort_mission_number("WP42") is None
 
+    # status_priority=0 (draft, no mission_status field), then recency fallbacks
     fallback_key = scanner._feature_recency_sort_key({"id": "legacy-mission", "meta": "not-a-dict"})
-    assert fallback_key == (False, float("-inf"), False, "", False, -1, "legacy-mission")
+    assert fallback_key == (0, False, float("-inf"), False, "", False, -1, "legacy-mission")
 
 
 def test_read_dashboard_feature_meta_ignores_malformed_and_non_object_json(tmp_path):
@@ -267,6 +268,78 @@ def test_read_dashboard_feature_meta_ignores_malformed_and_non_object_json(tmp_p
     (non_object / "meta.json").write_text('["not", "an", "object"]', encoding="utf-8")
 
     assert scanner._read_dashboard_feature_meta(non_object) == ("002-non-object-meta", None)
+
+
+class TestDeriveMissionStatus:
+    """_derive_mission_status returns the correct lifecycle bucket."""
+
+    def _stats(self, **kwargs: int) -> dict:
+        base = {"total": 0, "planned": 0, "doing": 0, "for_review": 0, "approved": 0, "done": 0}
+        base.update(kwargs)
+        return base
+
+    def test_draft_when_total_zero(self):
+        assert scanner._derive_mission_status(self._stats()) == "draft"
+
+    def test_draft_when_error_key_present(self):
+        s = self._stats(total=3, planned=3)
+        s["error"] = "Event log not found"
+        assert scanner._derive_mission_status(s) == "draft"
+
+    def test_active_when_doing(self):
+        assert scanner._derive_mission_status(self._stats(total=2, doing=1, planned=1)) == "active"
+
+    def test_active_when_for_review(self):
+        assert scanner._derive_mission_status(self._stats(total=2, for_review=1, done=1)) == "active"
+
+    def test_active_when_approved(self):
+        assert scanner._derive_mission_status(self._stats(total=3, approved=1, done=2)) == "active"
+
+    def test_planned_when_all_planned(self):
+        assert scanner._derive_mission_status(self._stats(total=4, planned=4)) == "planned"
+
+    def test_done_when_all_done(self):
+        assert scanner._derive_mission_status(self._stats(total=3, done=3)) == "done"
+
+    def test_done_when_mix_of_done_and_canceled(self):
+        # canceled WPs are not counted in total; total==done means mission is done
+        assert scanner._derive_mission_status(self._stats(total=2, done=2)) == "done"
+
+
+class TestFeatureStatusSortOrder:
+    """Active missions sort before planned, planned before done/draft."""
+
+    def _feature(self, status: str, created_at: str = "2026-01-01T00:00:00+00:00") -> dict:
+        return {
+            "id": f"mission-{status}",
+            "mission_status": status,
+            "meta": {"created_at": created_at},
+        }
+
+    def test_active_sorts_before_planned(self):
+        features = [self._feature("planned"), self._feature("active")]
+        features.sort(key=scanner._feature_recency_sort_key, reverse=True)
+        assert features[0]["mission_status"] == "active"
+
+    def test_planned_sorts_before_done(self):
+        features = [self._feature("done"), self._feature("planned")]
+        features.sort(key=scanner._feature_recency_sort_key, reverse=True)
+        assert features[0]["mission_status"] == "planned"
+
+    def test_done_sorts_before_draft(self):
+        features = [self._feature("draft"), self._feature("done")]
+        features.sort(key=scanner._feature_recency_sort_key, reverse=True)
+        assert features[0]["mission_status"] == "done"
+
+    def test_within_bucket_newest_first(self):
+        features = [
+            self._feature("active", "2026-01-01T00:00:00+00:00"),
+            self._feature("active", "2026-06-01T00:00:00+00:00"),
+        ]
+        features[0]["id"] = "mission-a"
+        features[1]["id"] = "mission-b"
+        features.sort(key=scanner._feature_recency_sort_key, reverse=True)
+        assert features[0]["id"] == "mission-b"  # newer
 
 
 def test_build_legacy_kanban_stats_counts_lane_directories(tmp_path):
