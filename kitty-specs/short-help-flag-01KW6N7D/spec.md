@@ -1,8 +1,8 @@
 # Mission Specification: Short Help Flag
 
-**Mission Branch**: `short-help-flag-01KW6N7D`  
-**Created**: 2026-06-28  
-**Status**: Draft  
+**Mission Branch**: `short-help-flag-01KW6N7D`
+**Created**: 2026-06-28
+**Status**: Draft
 **Input**: User description: "add an expected `-h`. Currently we only have `--help`; make sure the `-h` works anywhere `--help` works."
 
 ## User Scenarios & Testing *(mandatory)*

@@ -9,14 +9,14 @@ Add `-h` as an equivalent help flag wherever `--help` is accepted across the Spe
 
 ## Technical Context
 
-**Language/Version**: Python 3.11+  
-**Primary Dependencies**: Typer, Click, Rich, pytest  
-**Storage**: N/A; no persisted data changes  
-**Testing**: Focused CLI tests with Typer `CliRunner` for root, command group, and nested subcommand help paths  
-**Target Platform**: Cross-platform command-line interface on macOS, Linux, and Windows  
-**Project Type**: Single Python CLI package  
-**Performance Goals**: Help requests remain immediate, under 500 ms for representative command paths  
-**Constraints**: `--help` remains available; `-h` must not execute command actions  
+**Language/Version**: Python 3.11+
+**Primary Dependencies**: Typer, Click, Rich, pytest
+**Storage**: N/A; no persisted data changes
+**Testing**: Focused CLI tests with Typer `CliRunner` for root, command group, and nested subcommand help paths
+**Target Platform**: Cross-platform command-line interface on macOS, Linux, and Windows
+**Project Type**: Single Python CLI package
+**Performance Goals**: Help requests remain immediate, under 500 ms for representative command paths
+**Constraints**: `--help` remains available; `-h` must not execute command actions
 **Scale/Scope**: Full user-facing Typer command hierarchy exposed by `spec-kitty`
 
 ## Charter Check
