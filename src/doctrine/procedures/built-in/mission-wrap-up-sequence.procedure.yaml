@@ -32,6 +32,19 @@ steps:
       before proceeding. Acceptance is a pre-merge check, not a substitute for
       per-WP review or the merge gate.
     actor: agent
+  - title: Retire or split the mission's development-assist tests
+    description: >
+      Judge the tests the mission wrote to facilitate its own slices (characterization
+      oracles, parity/timing gates, per-WP shape/delegate/__module__ checks) before
+      they land as permanent suite bloat, following the development-assist-test-cleanup
+      procedure: identify what the mission added to assist itself, assign each a
+      keep / retire / split verdict applying DIRECTIVE_041's keep-vs-delete axis, execute
+      (delete-the-assertion, split mixed mega-files by kind, strip WP##/NFR-### labels
+      off promoted tests, re-point named docstrings), and file the suite-wide audit for
+      the copy-pasted residue rather than sweeping it into the landing PR. This governs
+      only debt the mission itself created; pre-existing debt in touched areas is
+      DIRECTIVE_025.
+    actor: agent
   - title: Resolve every tracked-issue verdict to terminal
     description: >
       For each issue referenced in the spec, set a terminal issue-matrix verdict
@@ -84,10 +97,11 @@ steps:
     actor: agent
   - title: Hand off to the operator
     description: >
-      Summarise the outcome (what shipped, the review verdicts, open follow-ups)
-      and hand the draft PR to the operator to mark ready and merge. Capture
-      durable learnings in the mission retrospective and memory. Do not mark the
-      PR ready or merge to the mainline on the agent's own initiative.
+      Summarise the outcome (what shipped, the review verdicts, which
+      development-assist tests were retired / split / kept-and-renamed, open
+      follow-ups) and hand the draft PR to the operator to mark ready and merge.
+      Capture durable learnings in the mission retrospective and memory. Do not mark
+      the PR ready or merge to the mainline on the agent's own initiative.
     actor: agent
 anti_patterns:
   - name: Per-WP green treated as the final gate
@@ -117,9 +131,10 @@ notes: |
   the per-work-package implement/review loop: the loop makes each WP correct, this
   procedure makes the mission land cleanly and reviewably.
 
-  Sequence summary: accept -> resolve issue verdicts -> aggregate review squad ->
-  local merge -> compact history -> rebase onto upstream -> draft PR + pre-merge
-  squad -> hand off. The operator performs the mainline merge (DIRECTIVE_045).
+  Sequence summary: accept -> retire/split dev-assist tests -> resolve issue verdicts
+  -> aggregate review squad -> local merge -> compact history -> rebase onto upstream
+  -> draft PR + pre-merge squad -> hand off. The operator performs the mainline merge
+  (DIRECTIVE_045).
 
   The three quality pillars this enforces are captured as a standard in the
   readable-consistent-prs directive (DIRECTIVE_046): linear, consistent/complete,
@@ -141,6 +156,12 @@ references:
     reason: >
       The assess step of the tracer-files procedure feeds this sequence's hand-off:
       tracer insights are summarised in the retrospective at close-out.
+  - type: procedure
+    id: development-assist-test-cleanup
+    reason: >
+      The "retire or split the mission's development-assist tests" step is an instance
+      of the development-assist-test-cleanup procedure applied at the wrap-up point-cut,
+      so a mission's own scaffolding tests are judged before they land as suite bloat.
   - type: tactic
     id: clean-linear-commit-history
     reason: >

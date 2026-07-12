@@ -19,6 +19,19 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ✨ Added
 
+- **Development-assist test cleanup is now a standing wrap-up procedure (#2557).**
+  A new built-in `development-assist-test-cleanup` procedure codifies a proactive,
+  judge-the-test pass at mission close (identify → judge → execute → scope-the-residue)
+  that retires or splits the scaffolding tests a mission wrote to drive its own
+  slices — characterization/parity oracles, before/after timing gates, per-WP
+  shape / `__module__` / delegate assertions — before they land as permanent suite
+  bloat. It applies `DIRECTIVE_041`'s keep-vs-delete axis and its
+  duplicate-test-knowledge-has-one-source rule as the *proactive* companion to that
+  *reactive* failing-test rubric, and is scoped distinct from `DIRECTIVE_025`
+  (pre-existing debt in touched areas). It is wired into `mission-wrap-up-sequence`
+  as a new "retire or split the mission's development-assist tests" step after
+  acceptance (DRG: +1 node, +5 edges), and the wrap-up hand-off / notes summary now
+  records which tests were retired / split / kept-and-renamed.
 - **Relocation-hardened architectural dead-code scanners + content-addressed
   ratchet allow-lists (#2546, #2547, #2072, #2548, #2077).** The `tests/architectural/`
   ratchet allow-lists are re-keyed off *position* anchors (line numbers, `module::Name`)
