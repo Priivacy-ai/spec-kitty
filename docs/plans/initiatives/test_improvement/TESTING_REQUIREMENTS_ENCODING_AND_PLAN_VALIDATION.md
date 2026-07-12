@@ -8,7 +8,7 @@ updated: '2026-06-12'
 
 ## Overview
 
-This document specifies the functional tests required to lock in the encoding validation and plan validation guardrails implemented in PR #XXX.
+This document specifies the functional tests required to lock in the encoding validation and plan validation guardrails.
 
 **Target Test Files:**
 - `tests/test_encoding_validation_functional.py` (new)

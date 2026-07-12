@@ -428,7 +428,7 @@ Full runbook: [docs/migrations/mission-id-canonical-identity.md](docs/migrations
 
 - **Runtime:** `src/runtime/next/_internal_runtime/` (canonical). `src/specify_cli/next/` is a deprecation shim removed in 3.3.0 — do not anchor new code there. `spec-kitty-runtime` PyPI package is retired.
 - **Events / Tracker:** External PyPI dependencies. Consume only via `spec_kitty_events.*` / `spec_kitty_tracker.*` public imports. Vendored copies removed.
-- **Dev editable/path overrides:** never committed in `pyproject.toml [tool.uv.sources]`. See [docs/development/local-overrides.md](docs/development/local-overrides.md).
+- **Dev editable/path overrides:** never committed in `pyproject.toml [tool.uv.sources]`. See [docs/guides/local-overrides.md](docs/guides/local-overrides.md).
 
 Enforced by `tests/architectural/test_shared_package_boundary.py`, `test_pyproject_shape.py`, and the `clean-install-verification` CI job.
 
