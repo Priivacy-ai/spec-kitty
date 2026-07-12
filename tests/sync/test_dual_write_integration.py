@@ -35,6 +35,16 @@ def _setup_mission_dir(tmp_path: Path, mission_slug: str = "099-test") -> Path:
         encoding="utf-8",
     )
 
+    # Seed a PRIMARY tasks.md with a completed WP01 section so the
+    # ``in_progress -> for_review`` subtask gate passes on its own. Post-#2160
+    # (FR-002/FR-003) that gate is fail-CLOSED: an absent tasks.md blocks the
+    # transition. These dual-write tests exercise event/frontmatter persistence,
+    # not the gate, so the WP is seeded as genuinely reviewable (all rows [x]).
+    (mission_dir / "tasks.md").write_text(
+        "# Tasks\n\n## WP01 — Test WP\n- [x] T001 Done (WP01)\n",
+        encoding="utf-8",
+    )
+
     # Set up phase 1 (dual-write) via meta.json
     meta = {"status_phase": 1}
     (mission_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
