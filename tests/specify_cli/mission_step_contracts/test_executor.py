@@ -543,9 +543,8 @@ def test_resolve_pack_context_propagates_org_pack_env_var_unset_error(
     )
 
     executor = StepContractExecutor(repo_root=repo_root)
-    with patch("charter.pack_context.PackContext.from_config", side_effect=error):
-        with pytest.raises(OrgPackEnvVarUnsetError):
-            executor._resolve_pack_context(repo_root)
+    with patch("charter.pack_context.PackContext.from_config", side_effect=error), pytest.raises(OrgPackEnvVarUnsetError):
+        executor._resolve_pack_context(repo_root)
 
 
 def test_profile_hint_required_when_no_action_default_exists(tmp_path: Path) -> None:

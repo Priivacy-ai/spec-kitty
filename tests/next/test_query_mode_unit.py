@@ -746,10 +746,17 @@ class TestQueryCurrentStateErrorPaths:
             return path
 
         with (
-            patch("runtime.next.runtime_bridge.tempfile.mkdtemp", side_effect=tracking_mkdtemp),
+            # #2531 decomposition: the real implementation (and its
+            # ``tempfile``/``start_mission_run`` bindings) now lives in
+            # ``runtime_bridge_io`` -- ``runtime_bridge._start_ephemeral_query_run``
+            # is a thin compat delegate that forwards to it. ``_runtime_template_key``
+            # / ``_build_discovery_context`` are still resolved via the io module's
+            # ``_rb`` (``runtime_bridge``) back-reference, so those two patch targets
+            # are unchanged.
+            patch("runtime.next.runtime_bridge_io.tempfile.mkdtemp", side_effect=tracking_mkdtemp),
             patch("runtime.next.runtime_bridge._runtime_template_key", return_value="software-dev"),
             patch("runtime.next.runtime_bridge._build_discovery_context", return_value=None),
-            patch("runtime.next.runtime_bridge.start_mission_run", side_effect=RuntimeError("template missing")),
+            patch("runtime.next.runtime_bridge_io.start_mission_run", side_effect=RuntimeError("template missing")),
             pytest.raises(RuntimeError, match="template missing"),
         ):
             _start_ephemeral_query_run("069-test", "software-dev", tmp_path)

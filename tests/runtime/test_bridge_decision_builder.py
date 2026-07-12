@@ -85,7 +85,7 @@ class _RecordingPromptExists:
 def test_blocked_branch_is_pure_and_preserves_all_fields() -> None:
     envelope = _minimal_envelope(
         kind=DecisionKind.blocked,
-        reason="Feature directory not found: /tmp/x",
+        reason="Feature directory not found: /fake-feature-dir/x",
         action="implement",
         wp_id="WP03",
         workspace_path="/repo/.worktrees/x",
@@ -102,7 +102,7 @@ def test_blocked_branch_is_pure_and_preserves_all_fields() -> None:
     assert decision.mission == "software-dev"
     assert decision.mission_state == "implement"
     assert decision.timestamp == "2026-07-11T00:00:00+00:00"
-    assert decision.reason == "Feature directory not found: /tmp/x"
+    assert decision.reason == "Feature directory not found: /fake-feature-dir/x"
     assert decision.action == "implement"
     assert decision.wp_id == "WP03"
     assert decision.workspace_path == "/repo/.worktrees/x"
@@ -150,7 +150,7 @@ def test_decision_required_branch_is_pure_and_carries_its_own_fields() -> None:
         input_key="answer",
         question="Which WP?",
         options=["WP01", "WP02"],
-        prompt_file="/tmp/decision-prompt.md",
+        prompt_file="/fake-prompt-dir/decision-prompt.md",
     )
     decision = cores.step_or_blocked(envelope, [], prompt_exists=_RaisingPromptExists())
     assert decision.kind == DecisionKind.decision_required
@@ -158,7 +158,7 @@ def test_decision_required_branch_is_pure_and_carries_its_own_fields() -> None:
     assert decision.input_key == "answer"
     assert decision.question == "Which WP?"
     assert decision.options == ["WP01", "WP02"]
-    assert decision.prompt_file == "/tmp/decision-prompt.md"
+    assert decision.prompt_file == "/fake-prompt-dir/decision-prompt.md"
     assert decision.is_query is False
 
 
@@ -259,7 +259,7 @@ def test_step_branch_falls_back_to_blocked_when_prompt_exists_returns_false() ->
         kind=DecisionKind.step,
         action="implement",
         wp_id="WP03",
-        prompt_file="/tmp/WP03-prompt-vanished.md",
+        prompt_file="/fake-prompt-dir/WP03-prompt-vanished.md",
         reason="this-must-not-be-used",
         run_id="run-1",
         step_id="implement",
@@ -268,7 +268,7 @@ def test_step_branch_falls_back_to_blocked_when_prompt_exists_returns_false() ->
 
     assert decision.kind == DecisionKind.blocked
     assert decision.reason == "prompt_file_not_resolvable"
-    assert prompt_exists.calls == ["/tmp/WP03-prompt-vanished.md"]
+    assert prompt_exists.calls == ["/fake-prompt-dir/WP03-prompt-vanished.md"]
 
 
 def test_step_branch_invalid_step_decision_race_guard_still_fires(tmp_path: object) -> None:

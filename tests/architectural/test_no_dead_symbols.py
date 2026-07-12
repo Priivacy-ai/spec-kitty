@@ -797,6 +797,49 @@ _CATEGORY_C_SYNC_RESET_RESULT_ENTRIES: frozenset[SymbolKey] = frozenset(
 )
 
 
+# ---------- C. runtime-bridge-degod-01KX8M1C (#2531) compat-surface entries ----------
+# ``runtime_bridge``'s ``__all__`` is a deliberate, spec'd 8-name public surface
+# (contracts/compat-surface.md: "Introduce __all__ for the 8 public names
+# (sibling merge.py parity)"; mirrored by the FR-007 comment at the top of
+# the ``__all__`` block in runtime_bridge.py itself). These 4 entries all
+# have REAL src/ callers -- ``get_or_start_run``/``query_current_state``/
+# ``answer_decision_via_runtime`` via ``cli.commands.next_cmd``'s
+# ``_runtime_bridge_module()`` patchable lazy accessor (docstring: "Return
+# the patched bridge when tests/consumers installed one") and
+# ``mission_loader.command``'s ``from runtime.next import runtime_bridge``
+# + attribute access; ``QueryModeValidationError`` is read off the same
+# patched accessor in ``next_cmd._run_query_mode``. The gate's static
+# scanner cannot see either shape: a function-return-bound module
+# reference is invisible to any AST import walk, and an un-aliased
+# ``from X import Y`` binding a submodule (``alias.asname is None``) is
+# skipped by ``_build_alias_map_and_consts`` by design (T004 -- only
+# ``as``-aliased or flat ``import module`` bindings populate the module-
+# attr alias map). Converting the call sites to a direct
+# ``from runtime.next.runtime_bridge import get_or_start_run`` was
+# considered and rejected: it would defeat the very patchability the
+# dynamic accessor exists for and breaks a live regression test
+# (``tests/integration/test_identity_coord_read.py::
+# test_answer_flow_get_mission_type_reads_primary_type``, which
+# monkeypatches ``next_cmd._runtime_bridge_module`` and asserts the
+# patched fake is actually invoked). The whole surface is independently
+# guarded end-to-end by ``tests/runtime/test_bridge_compat_surface.py``
+# (behavioral sentinel + static AST re-export guard covering these same
+# three canonical entries). Tracker: #2531 (runtime-bridge-degod).
+
+_CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE: frozenset[SymbolKey] = frozenset(
+    {
+        # runtime.next.runtime_bridge::get_or_start_run
+        SymbolKey("get_or_start_run", "31ef7985cc120215cb252464807c71cf5b6b406727882975cd6fecb2e1a5e14f"),
+        # runtime.next.runtime_bridge::query_current_state
+        SymbolKey("query_current_state", "f31f030003389c22b3e8253170ecad77cc9953c3a2cfe1601ec676174251ebcb"),
+        # runtime.next.runtime_bridge::answer_decision_via_runtime
+        SymbolKey("answer_decision_via_runtime", "76c688126974bfdef2889700fabfaecf35875bd6dfcdf8b9086ff4066a94b3ee"),
+        # runtime.next.runtime_bridge::QueryModeValidationError
+        SymbolKey("QueryModeValidationError", "9085a088412ad365734f83d47eb569eb3bebd9edf4b84f14c4c0a3a6be4e98da"),
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``). Entries are
@@ -822,6 +865,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_MERGE_DECOMP_SHIM_REEXPORT_2057
     | _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY
     | _CATEGORY_C_SYNC_RESET_RESULT_ENTRIES
+    | _CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE
 )
 
 

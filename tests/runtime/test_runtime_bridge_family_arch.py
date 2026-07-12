@@ -12,7 +12,11 @@ from pathlib import Path
 
 import pytest
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
+# `integration`, not `fast`: test_zero_c901_offenders_across_the_runtime_bridge_family
+# shells out to `uv run ruff` via subprocess, which would poison the `fast` lane's
+# wall-clock (test_pytest_marker_correctness.py Rule 2). Scoped module-wide so all six
+# guards in this permanent family-arch file run together under integration-tests-next.
+pytestmark = [pytest.mark.unit, pytest.mark.integration]
 
 _SRC_NEXT_DIR = Path(__file__).resolve().parents[2] / "src" / "runtime" / "next"
 
