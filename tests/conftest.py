@@ -16,7 +16,8 @@ import yaml
 from filelock import FileLock, Timeout
 
 from runtime.next._tmp_namespace import prompt_tmp_dir
-from tests._arch_shard_map import shard_for as arch_shard_for
+from tests import _next_shard_map  # noqa: F401 — import-time SHARD_GROUPS["next"] registration
+from tests._arch_shard_map import SHARD_GROUPS, shard_for
 from tests._support.quarantine import (
     QUARANTINE_MARKER,
     quarantine_opted_in,
@@ -212,27 +213,31 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
             item.add_marker(skip_windows)
         if apply_quarantine_skip and item.get_closest_marker(QUARANTINE_MARKER):
             item.add_marker(skip_quarantine)
-        _apply_arch_shard_marker(item)
+        _apply_shard_markers(item)
     _fail_on_wall_clock_assertions(items)
 
 
-def _apply_arch_shard_marker(item: pytest.Item) -> None:
-    """WP02 (mission ci-health-charter-path-and-arch-shard-01KWRTB2, #2397).
+def _apply_shard_markers(item: pytest.Item) -> None:
+    """WP01 (mission ci-test-topology-performance-01KXBJRT, FR-002).
 
-    Applies the ``arch_shard_1``/``arch_shard_2``/``arch_shard_3`` mark to
-    every collected test whose file falls under one of the 4 arch-adversarial
-    pole roots, looked up via the single-source table in
-    ``tests/_arch_shard_map.py``. ``shard_for()`` returns ``None`` for
-    anything outside those roots, so this never marks unrelated tests — no
-    fallback default shard is applied.
+    Applies the ``<marker_prefix>_<N>`` mark to every collected test whose
+    file falls under one of a registered shard group's roots, iterating
+    ``SHARD_GROUPS`` (the single-source registry in
+    ``tests/_arch_shard_map.py`` — ``arch``'s own row — plus
+    ``tests/_next_shard_map.py``'s ``next`` row, registered at import time).
+    One hook drives every group: no group name is hardcoded here, so a future
+    group needs only a new registry row, not a second call site.
+    ``shard_for()`` returns ``None`` for anything outside a group's roots, so
+    this never marks unrelated tests — no fallback default shard is applied.
     """
     try:
         relpath = Path(str(item.path)).resolve().relative_to(REPO_ROOT).as_posix()
     except (ValueError, OSError):
         return
-    shard = arch_shard_for(relpath)
-    if shard is not None:
-        item.add_marker(getattr(pytest.mark, f"arch_shard_{shard}"))
+    for group in SHARD_GROUPS.values():
+        shard = shard_for(group.group, relpath)
+        if shard is not None:
+            item.add_marker(getattr(pytest.mark, f"{group.marker_prefix}_{shard}"))
 
 
 def _fail_on_wall_clock_assertions(items: list[pytest.Item]) -> None:
