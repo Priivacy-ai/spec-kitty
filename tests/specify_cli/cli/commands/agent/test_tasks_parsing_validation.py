@@ -58,6 +58,25 @@ def _write_issue_matrix(
     )
 
 
+def _write_malformed_issue_matrix(feature_dir: Path) -> None:
+    """An issue-matrix.md whose mandatory ``issue`` column is misspelled.
+
+    ``issue_id`` does not normalize to the canonical ``issue`` column (no
+    ``COLUMN_ALIASES`` entry), so the validator bails out with zero parsed
+    rows and an ``ISSUE_MATRIX_SCHEMA_DRIFT`` diagnostic (FR-007/#2555.5).
+    """
+    (feature_dir / "issue-matrix.md").write_text(
+        "\n".join(
+            [
+                "| issue_id | verdict | evidence_ref |",
+                "| --- | --- | --- |",
+                "| #1582 | fixed | tests/test_demo.py |",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
 def _write_review_cycle(wp_dir: Path, cycle_n: int, verdict: str) -> Path:
     wp_dir.mkdir(parents=True, exist_ok=True)
     artifact = wp_dir / f"review-cycle-{cycle_n}.md"
@@ -181,6 +200,38 @@ def test_issue_matrix_approval_blocker_no_spec_returns_none(tmp_path: Path) -> N
     feature_dir.mkdir(parents=True)
     # No spec.md at all → no referenced issues → nothing to block.
     assert _issue_matrix_approval_blocker(feature_dir) is None
+
+
+def test_issue_matrix_approval_blocker_names_schema_drift_column(tmp_path: Path) -> None:
+    """FR-007 (#2555.5), T018(a): a malformed mandatory column names the
+    offending/normalized column instead of listing every referenced issue
+    as an all-issues "Missing rows" — the header problem is the real cause.
+    """
+    feature_dir = tmp_path / "kitty-specs" / "demo"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("Fix Priivacy-ai/spec-kitty issue #1582.\n", encoding="utf-8")
+    _write_malformed_issue_matrix(feature_dir)
+
+    blocker = _issue_matrix_approval_blocker(feature_dir)
+    assert blocker is not None
+    assert "Mandatory column(s) missing: issue" in blocker
+    assert "Found columns after normalization" in blocker
+    assert "Missing rows" not in blocker
+
+
+def test_issue_matrix_approval_blocker_keeps_missing_rows_when_parsed(tmp_path: Path) -> None:
+    """FR-007 (#2555.5), T018(b) preservation branch: when the header is
+    well-formed and rows actually parse, a genuinely row-incomplete matrix
+    still emits "Missing rows" for the referenced issue that has no row.
+    """
+    feature_dir = tmp_path / "kitty-specs" / "demo"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("Fix Priivacy-ai/spec-kitty issue #1582.\n", encoding="utf-8")
+    _write_issue_matrix(feature_dir, "fixed", issue="#1111")
+
+    blocker = _issue_matrix_approval_blocker(feature_dir)
+    assert blocker is not None
+    assert "Missing rows: #1582" in blocker
 
 
 def test_issue_matrix_approval_uses_primary_verdicts_when_coord_copy_stale(tmp_path: Path) -> None:

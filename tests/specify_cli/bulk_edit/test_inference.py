@@ -33,7 +33,12 @@ class TestScoreSpecForBulkEdit:
         )
         assert result.score == 3
         assert ("codemod", 3) in result.matched_phrases
-        assert result.triggered is False  # 3 < 4
+        # FR-008/R-08 (#2555.3): a HIGH-weight phrase is a strong enough
+        # standalone signal to trigger even though its raw score (3) falls
+        # short of INFERENCE_THRESHOLD (4) -- see
+        # test_single_high_phrase_bulk_edit_still_trips for the pinned
+        # regression this guards.
+        assert result.triggered is True
 
     def test_single_medium_keyword_scores_2(self) -> None:
         result = score_spec_for_bulk_edit("Rename the function to something better.")
@@ -43,7 +48,9 @@ class TestScoreSpecForBulkEdit:
 
     def test_single_low_keyword_scores_1(self) -> None:
         result = score_spec_for_bulk_edit("Update the module configuration.")
-        assert result.score == 1
+        # FR-008 (#2555.3): LOW-weight keywords are recorded for display but
+        # excluded from the numeric score used for detection.
+        assert result.score == 0
         assert ("update", 1) in result.matched_phrases
         assert result.triggered is False
 
@@ -59,8 +66,9 @@ class TestScoreSpecForBulkEdit:
 
     def test_threshold_not_reached_low_only(self) -> None:
         result = score_spec_for_bulk_edit("Update and change the config file.")
-        # "update" = 1, "change" = 1 => total = 2
-        assert result.score == 2
+        # "update" = 1, "change" = 1, both LOW-weight and excluded from the
+        # score used for detection (FR-008/#2555.3) => total = 0
+        assert result.score == 0
         assert result.triggered is False
 
     def test_no_double_counting(self) -> None:
@@ -120,6 +128,42 @@ class TestScoreSpecForBulkEdit:
         # "update" won't match because of word boundary regex
         assert result.score == 0
         assert result.triggered is False
+
+    # -----------------------------------------------------------------------
+    # T020 (WP05/#2555.3): ordinary refactor prose vs. genuine bulk edit,
+    # including the single-HIGH-phrase true-positive at risk from dropping
+    # LOW-weight keywords out of the triggered sum.
+    # -----------------------------------------------------------------------
+
+    def test_ordinary_refactor_prose_does_not_trip(self) -> None:
+        """(a) refactor+update+change+single rename, non-bulk => False."""
+        result = score_spec_for_bulk_edit(
+            "Refactor the module, update the docs, and change one config "
+            "value while we rename this single helper function."
+        )
+        assert result.triggered is False
+
+    def test_rename_all_occurrences_trips(self) -> None:
+        """(b) a HIGH phrase alone is a genuine bulk edit => True."""
+        result = score_spec_for_bulk_edit(
+            "Rename all occurrences of the legacy config key."
+        )
+        assert result.triggered is True
+
+    def test_rename_across_the_codebase_trips(self) -> None:
+        """(b) MEDIUM keyword + scale qualifier reaches the threshold => True."""
+        result = score_spec_for_bulk_edit("Apply this rename across the codebase.")
+        assert result.triggered is True
+
+    def test_single_high_phrase_bulk_edit_still_trips(self) -> None:
+        """(c) the true-positive at risk: a single HIGH phrase, plus ordinary
+        LOW-weight prose that no longer contributes to the score, must still
+        trigger (NFR-005, renata F10 KEEP invariant)."""
+        result = score_spec_for_bulk_edit(
+            "This mission performs a bulk edit of the deprecated setting. "
+            "We should update the docs and change the changelog afterwards."
+        )
+        assert result.triggered is True
 
 
 # ---------------------------------------------------------------------------

@@ -60,6 +60,13 @@ _VALID_VERDICTS: frozenset[str] = frozenset(
     {"approved", "approved_after_orchestrator_fix", "arbiter_override", "rejected"}
 )
 
+# S1192 (WP05/#2555.5): the "ERROR: issue-matrix.md ..." prefix and the
+# "before approving" hint each recur across the approval-blocker error
+# strings below — hoisted so a 4th message does not reintroduce the
+# duplication.
+_ISSUE_MATRIX_ERROR_PREFIX = "ERROR: issue-matrix.md"
+_FILL_VERDICTS_HINT = "before approving"
+
 
 # ---------------------------------------------------------------------------
 # Issue-matrix evaluation helpers (verbatim move from tasks.py, WP06/T022)
@@ -112,15 +119,27 @@ def _issue_matrix_in_mission_rows(
 
 
 def _issue_matrix_diagnostic_lines(result: IssueMatrixValidationResult) -> tuple[list[str], list[str]]:
+    """Split diagnostics into unknown-verdict issue ids and free-form messages.
+
+    FR-007 (#2555.5): a ``ISSUE_MATRIX_SCHEMA_DRIFT`` diagnostic (e.g. a
+    mandatory column spelled non-canonically) carries a ``detail`` payload
+    naming the found/normalized columns. Surfacing it here lets the
+    approval blocker name the offending column instead of leaving the
+    caller to infer schema drift from an all-issues "Missing rows" list.
+    """
     from specify_cli.cli.commands.review._diagnostics import MissionReviewDiagnostic
 
     unknown_issues: list[str] = []
     other_messages: list[str] = []
     for diagnostic in result.diagnostics:
         message = diagnostic.get("message", "")
-        if diagnostic.get("diagnostic_code") == str(MissionReviewDiagnostic.ISSUE_MATRIX_VERDICT_UNKNOWN):
+        code = diagnostic.get("diagnostic_code")
+        if code == str(MissionReviewDiagnostic.ISSUE_MATRIX_VERDICT_UNKNOWN):
             match = re.search(r"issue '([^']+)'", message)
             unknown_issues.append(match.group(1) if match else message)
+        elif code == str(MissionReviewDiagnostic.ISSUE_MATRIX_SCHEMA_DRIFT):
+            detail = diagnostic.get("detail")
+            other_messages.append(f"{message} ({detail})" if detail else message)
         else:
             other_messages.append(message)
     return unknown_issues, other_messages
@@ -158,9 +177,9 @@ def _issue_matrix_approval_blocker(
     except Exception as exc:  # noqa: BLE001 -- approval guard must fail closed
         logger.debug("Could not evaluate issue-matrix approval blocker: %s", exc)
         return (
-            "ERROR: issue-matrix.md could not be evaluated before approval.\n"
+            f"{_ISSUE_MATRIX_ERROR_PREFIX} could not be evaluated before approval.\n"
             f"Reason: {exc}\n"
-            "Fix the issue-matrix check before approving."
+            f"Fix the issue-matrix check {_FILL_VERDICTS_HINT}."
         )
 
     if not refs:
@@ -177,9 +196,9 @@ def _issue_matrix_approval_blocker(
             return None
         issue_list = ", ".join(f"#{ref.number}" for ref in refs)
         return (
-            "ERROR: issue-matrix.md is required before approval.\n"
+            f"{_ISSUE_MATRIX_ERROR_PREFIX} is required before approval.\n"
             f"Referenced issues: {issue_list}\n"
-            "Fill verdicts before approving."
+            f"Fill verdicts {_FILL_VERDICTS_HINT}."
         )
 
     result, _, missing_issues, unresolved_in_mission = _issue_matrix_evaluation(
@@ -201,8 +220,15 @@ def _issue_matrix_approval_blocker(
 
     unknown_issues, other_messages = _issue_matrix_diagnostic_lines(result)
 
-    lines = ["ERROR: issue-matrix.md has unresolved entries. Fill in verdicts before approving."]
-    if missing_issues:
+    lines = [
+        f"{_ISSUE_MATRIX_ERROR_PREFIX} has unresolved entries. Fill in verdicts {_FILL_VERDICTS_HINT}."
+    ]
+    # FR-007 (#2555.5): only claim rows are "missing" when rows were actually
+    # parsed. A malformed mandatory column (schema drift) makes the parser
+    # bail out with zero rows, at which point every referenced issue looks
+    # "missing" even though the real problem is the header — that signal is
+    # already surfaced via ``other_messages`` (schema-drift detail) above.
+    if missing_issues and result.rows:
         lines.append(f"Missing rows: {', '.join(missing_issues)}")
     if unknown_issues:
         lines.append(f"Unknown: {', '.join(sorted(set(unknown_issues)))}")

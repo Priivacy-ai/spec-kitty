@@ -50,6 +50,12 @@ LOW_WEIGHT_KEYWORDS: list[str] = [
 
 INFERENCE_THRESHOLD: int = 4
 
+# R-08 fallback (WP05/#2555.3): scale-qualifier MEDIUM keywords that, like a
+# HIGH-weight phrase, are strong enough signals of a genuine bulk edit to
+# trigger detection on their own -- kept as a subset reference into
+# MEDIUM_WEIGHT_KEYWORDS rather than a duplicate literal list.
+_SCALE_QUALIFIER_KEYWORDS: frozenset[str] = frozenset({"replace all", "across the codebase"})
+
 # ---------------------------------------------------------------------------
 # Result dataclass
 # ---------------------------------------------------------------------------
@@ -88,6 +94,16 @@ def score_spec_for_bulk_edit(spec_content: str) -> InferenceResult:
     Higher-weight phrases are matched first. A lower-weight keyword that is a
     substring of an already-matched higher-weight phrase is skipped to prevent
     double counting.
+
+    FR-008 (#2555.3): ``LOW_WEIGHT_KEYWORDS`` (update/change/modify/refactor)
+    are common in ordinary, non-bulk spec prose, so they are recorded in
+    ``matched_phrases`` for display but excluded from the numeric score used
+    to decide ``triggered`` -- otherwise routine refactor language alone
+    crosses ``INFERENCE_THRESHOLD``. Dropping their contribution can let a
+    single HIGH-weight phrase (3 points, below the 4-point threshold on its
+    own) escape detection, so ``triggered`` also fires whenever a HIGH-weight
+    phrase or a scale-qualifier MEDIUM keyword (e.g. "across the codebase",
+    "replace all") is present, independent of the numeric score (R-08).
     """
     lowered = spec_content.lower()
     matched: list[tuple[str, int]] = []
@@ -116,11 +132,13 @@ def score_spec_for_bulk_edit(spec_content: str) -> InferenceResult:
             matched.append((keyword, 1))
             consumed_phrases.append(keyword)
 
-    total = sum(weight for _, weight in matched)
+    total = sum(weight for _, weight in matched if weight > 1)
+    has_high_phrase = any(weight == 3 for _, weight in matched)
+    has_scale_qualifier = any(keyword in _SCALE_QUALIFIER_KEYWORDS for keyword, _ in matched)
     return InferenceResult(
         score=total,
         threshold=INFERENCE_THRESHOLD,
-        triggered=total >= INFERENCE_THRESHOLD,
+        triggered=total >= INFERENCE_THRESHOLD or has_high_phrase or has_scale_qualifier,
         matched_phrases=matched,
     )
 
