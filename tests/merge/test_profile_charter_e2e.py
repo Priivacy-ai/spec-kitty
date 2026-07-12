@@ -130,11 +130,18 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
             "schema_version": "1.0",
             "generated_at": "2026-04-14T00:00:00Z",
             "generated_by": "test",
+            # Post-#2526: config-activated agent_profiles are DRG BFS roots
+            # (reject-not-drop, #2530), so the profile MUST be a first-class
+            # graph node like production's generated graph.yaml emits — with a
+            # `requires` edge to each directive it references. A fixture that
+            # omits the node makes the profile an unknown start URN, which the
+            # resolver correctly records as unresolved.
             "nodes": [
                 {"urn": "directive:REVIEW_FIRST", "kind": "directive"},
                 {"urn": "directive:INTERVIEW_ONLY", "kind": "directive"},
                 {"urn": "tactic:review-tactic", "kind": "tactic"},
                 {"urn": "styleguide:review-style", "kind": "styleguide"},
+                {"urn": "agent_profile:reviewer", "kind": "agent_profile"},
             ],
             "edges": [
                 {
@@ -145,6 +152,11 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
                 {
                     "source": "tactic:review-tactic",
                     "target": "styleguide:review-style",
+                    "relation": "requires",
+                },
+                {
+                    "source": "agent_profile:reviewer",
+                    "target": "directive:REVIEW_FIRST",
                     "relation": "requires",
                 },
             ],
