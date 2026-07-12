@@ -41,7 +41,7 @@ def test_force_delete_branch_inserts_separator_before_branch_name(
 
     monkeypatch.setattr(subprocess, "run", _fake_run)
 
-    branch_name = "--upload-pack=touch /tmp/pwned"
+    branch_name = "--upload-pack=touch /pwned-marker"
     mission_type._force_delete_branch_if_exists(Path("/fake/repo"), branch_name)
 
     delete_calls = [argv for argv in calls if argv[:2] == ["git", "branch"]]

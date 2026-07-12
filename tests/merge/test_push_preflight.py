@@ -259,7 +259,7 @@ def test_branch_commit_exists_inserts_end_of_options_before_ref() -> None:
         return MagicMock(returncode=0)
 
     with patch("specify_cli.merge.push_preflight._git", side_effect=_fake_git):
-        hostile_ref = "--upload-pack=touch /tmp/pwned"
+        hostile_ref = "--upload-pack=touch /pwned-marker"
         _branch_commit_exists(Path("/fake/repo"), hostile_ref)
 
     assert len(calls) == 1

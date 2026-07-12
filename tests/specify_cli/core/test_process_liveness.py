@@ -18,7 +18,9 @@ from specify_cli.core.process_liveness import (
     is_process_alive,
 )
 
-pytestmark = [pytest.mark.unit, pytest.mark.fast]
+# Not `fast`: test_real_spawn_then_kill_liveness spawns a real subprocess, which the
+# marker-correctness guard (fast excludes subprocess) bans from the `-m fast` profile.
+pytestmark = [pytest.mark.unit]
 
 
 class _FakeAliveProcess:
