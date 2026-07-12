@@ -3272,6 +3272,18 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/testing/ci-coverage-union-audit.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/testing/ci-job-timings.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/testing/index.md
   tag: current
   divio_type: none
