@@ -1263,10 +1263,21 @@ def _scaffold_acceptance_matrix_if_lane_based(
 
 @dataclass
 class _CommitOutcome:
-    """Outcome of the finalize commit phase."""
+    """Outcome of the finalize commit phase.
+
+    ``commit_hash`` remains the historical single-value projection (the
+    feature-branch commit for the common case) for backward compatibility.
+    ``commit_hashes`` (#2549 facet B) additionally carries the FULL per-branch
+    commit set the router actually issued — under coord topology this includes
+    BOTH the feature-branch commit (primary-partition artifacts: tasks.md,
+    lanes.json, tasks/WP*) AND the coordination-branch commit (placement-
+    partition artifacts: status.events.jsonl, status.json, acceptance-
+    matrix.json, issue-matrix.md), which ``commit_hash`` alone cannot express.
+    """
 
     commit_created: bool = False
     commit_hash: str | None = None
+    commit_hashes: list[dict[str, str]] = field(default_factory=list)
     files_committed: list[str] = field(default_factory=list)
 
 
@@ -1331,6 +1342,9 @@ def _commit_finalize_artifacts(
         if router_result.status == "committed":
             outcome.commit_hash = router_result.commit_hash
             outcome.commit_created = True
+            outcome.commit_hashes = [
+                {"branch": ref, "hash": commit_hash} for ref, commit_hash in router_result.commit_hashes
+            ]
             if not json_output:
                 console.print(f"[green]✓[/green] Tasks committed to {router_result.placement_ref}")
                 if outcome.commit_hash:
@@ -1404,6 +1418,7 @@ def _emit_success_report(
             "tasks_dir": str(tasks_dir),
             "commit_created": commit_outcome.commit_created,
             "commit_hash": commit_outcome.commit_hash,
+            "commit_hashes": commit_outcome.commit_hashes,
             "files_committed": commit_outcome.files_committed,
             "dependencies_parsed": dep_resolution.wp_dependencies,
             "requirement_refs_parsed": dep_resolution.wp_requirement_refs,
