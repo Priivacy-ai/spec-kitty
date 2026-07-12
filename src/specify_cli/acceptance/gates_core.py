@@ -33,6 +33,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from specify_cli.core.subtask_rows import iter_unchecked_subtask_rows
 from specify_cli.core.vcs.git import merge_base_changed_files
 from specify_cli.task_utils import run_git
 
@@ -108,11 +109,7 @@ def _find_unchecked_tasks(tasks_file: Path) -> list[str]:
 
     from specify_cli import acceptance as _acceptance_pkg
 
-    unchecked: list[str] = []
-    for line in _acceptance_pkg._read_text_strict(tasks_file).splitlines():
-        if re.match(r"^\s*-\s*\[ \]", line):
-            unchecked.append(line.strip())
-    return unchecked
+    return list(iter_unchecked_subtask_rows(_acceptance_pkg._read_text_strict(tasks_file)))
 
 
 def _append_skipped_lane_checks(
