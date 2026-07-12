@@ -1,0 +1,56 @@
+{
+  "event_count": 27,
+  "last_event_id": "01KXBJ6ADF7A029TNCHEYZ46EZ",
+  "materialized_at": "2026-07-12T16:22:30.062539+00:00",
+  "mission_number": "",
+  "mission_slug": "coord-shadows-followups-01KXBCZ1",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 4,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 1,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KXBH5PGABWVYHA9XNGWS2DN1",
+      "last_transition_at": "2026-07-12T16:04:41.098606+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KXBJ5EFFARA9FZGFBB4DXPTW",
+      "last_transition_at": "2026-07-12T16:22:01.455541+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KXBGKBAEC9PPV305PB72Q1AH",
+      "last_transition_at": "2026-07-12T15:54:39.822828+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KXBGR6Z96D8MWYWX0ATFYF1D",
+      "last_transition_at": "2026-07-12T15:57:19.209467+00:00"
+    },
+    "WP05": {
+      "actor": "claude",
+      "force_count": 0,
+      "lane": "in_progress",
+      "last_event_id": "01KXBJ6ADF7A029TNCHEYZ46EZ",
+      "last_transition_at": "2026-07-12T16:22:30.062539+00:00"
+    }
+  }
+}
