@@ -1,0 +1,121 @@
+{
+  "version": 1,
+  "mission_slug": "dev-assist-retire-path-hardening-01KXAVR0",
+  "mission_id": "01KXAVR0HMS2S7YFT3N6Z7W6CG",
+  "mission_branch": "kitty/mission-dev-assist-retire-path-hardening-01KXAVR0",
+  "target_branch": "feat/dev-assist-retire-path-hardening",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/specify_cli/mission.py",
+        "tests/adversarial/test_path_validation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "tests/runtime/test_bridge_composition.py",
+        "tests/runtime/test_bridge_cores.py",
+        "tests/runtime/test_bridge_io.py",
+        "tests/runtime/test_bridge_parity.py",
+        "tests/runtime/test_bridge_retrospective.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "tests/specify_cli/cli/commands/agent/test_mission_shim_reexports.py",
+        "tests/specify_cli/cli/commands/test_doctor_cli_surface_golden.py",
+        "tests/specify_cli/cli/commands/test_doctor_shim_reexports.py",
+        "tests/specify_cli/coordination/test_commit_router_planning_residue.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "tests/merge/test_bookkeeping_projection_seam.py",
+        "tests/merge/test_constants_seam.py",
+        "tests/merge/test_done_bookkeeping_seam.py",
+        "tests/merge/test_forecast_seam.py",
+        "tests/merge/test_git_probes_seam.py",
+        "tests/merge/test_merge_compat_surface.py",
+        "tests/merge/test_ordering_bake_seam.py",
+        "tests/merge/test_preflight_seam.py",
+        "tests/merge/test_resolve_seam.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "tests/specify_cli/cli/commands/agent/test_tasks_compat_surface.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_finalize_seam.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_map_requirements_seam.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_shared_seam.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "tests/specify_cli/cli/commands/agent/test_tasks_mark_status_seam.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_move_task_seam.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_status_cmd_seam.py"
+      ],
+      "predicted_surfaces": [
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-e"
+      ],
+      "parallel_group": 1
+    }
+  ],
+  "computed_at": "2026-07-12T10:45:57.697509+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

@@ -1,0 +1,69 @@
+{
+  "mission_slug": "dev-assist-retire-path-hardening-01KXAVR0",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "passed",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "validate_deliverables_path rejects every malicious-path class (traversal, case-variant, empty/whitespace, dot-only, control-char incl. null+RTL, home, absolute POSIX+Windows, symlink-escape)",
+      "proof_type": "automated_test",
+      "evidence": "WP01 lane-a f383cce5c; tests/adversarial/test_path_validation.py 44 passed / 0 xfail / 0 skip; review a09189b5 LAND (all vectors rejected, anti-vacuity re-reds 11)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-12T12:00:00+00:00",
+      "notes": "Function hardened; runtime wiring deferred to #2539/#2536 (validator has no production callers) — latent hardening, per operator scope decision."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "The 8 xfail masks + case-variant skip + 5 assertion-free tests replaced by strict red-first assertions",
+      "proof_type": "automated_test",
+      "evidence": "WP01 f383cce5c; 0 xfail / 0 skip remaining; red-first proven (25 failed against unhardened validator)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-12T12:00:00+00:00",
+      "notes": "#2073 fixed."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Runtime-bridge dev-assist tests retired/narrowed with coverage proven by the family compat-surface guard",
+      "proof_type": "automated_test",
+      "evidence": "WP02 lane-b 4900bf615; 604 passed tests/runtime/; review a106606a LAND (50-symbol subsumption, io narrowed to unique public symbols, family guard untouched + planted-regression)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-12T12:00:00+00:00",
+      "notes": "#2557 fixed."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Sibling-mission (doctor/mission/commit-router) dev-assist tests retired/narrowed where a standing guard subsumes the invariant",
+      "proof_type": "automated_test",
+      "evidence": "WP03 lane-c ec06001da; 123 owned / 2617 full passed; review a55fb964 LAND (golden set-equality subsumes count, same-size-rename mutation reds it)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-12T12:00:00+00:00",
+      "notes": "#2076 partially — doctor golden-count subset; broader tail stays open (deferred-with-followup)."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Fragmented per-seam re-export identity batteries consolidated into one per-family compat-surface guard (merge + tasks), symbol coverage a strict superset",
+      "proof_type": "automated_test",
+      "evidence": "WP04 lane-d fe8296fd2 (merge 54-symbol guard, reviews ae26da13 LAND) + WP05 lane-e 8553a92bf (tasks 129-symbol guard, review a062de8d LAND) + WP06 lane-f b7de38118 (heavy-seam retirements, review afe81ef8 LAND). Superset proofs verified; interception proofs kept as unique routing coverage.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-12T12:00:00+00:00",
+      "notes": "#2565 fixed. Doctor family already single-guarded (no work)."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Source/test docstrings naming moved or deleted tests re-pointed",
+      "proof_type": "manual_review",
+      "evidence": "WP02/WP06 re-pointed the composition/io/mark_status/move_task docstrings; 3 residual cosmetic doc-nits (test_bridge_cores concern#1, WP05 acceptance-text, WP06 wave1-patch overclaim) folded in the wrap-up campsite commit.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-12T12:00:00+00:00",
+      "notes": "Residual doc-nits folded at wrap-up before PR."
+    }
+  ],
+  "negative_invariants": []
+}
