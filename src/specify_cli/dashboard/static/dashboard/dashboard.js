@@ -416,6 +416,14 @@ function loadOverview() {
     progressBar.appendChild(progressFill);
     completedCard.appendChild(progressBar);
 
+    const nextAction = feature.next_action;
+    const nextActionEl = nextAction ? (() => {
+        const el = document.createElement('div');
+        el.className = 'next-action-callout';
+        el.innerHTML = `<span class="next-action-icon">▶</span> <strong>Next step:</strong> <code>${nextAction}</code>`;
+        return el;
+    })() : null;
+
     const artifactsHeading = document.createElement('h3');
     artifactsHeading.style.marginTop = '30px';
     artifactsHeading.style.marginBottom = '15px';
@@ -436,7 +444,10 @@ function loadOverview() {
         artifactsGrid.appendChild(item);
     });
 
-    overviewContent.replaceChildren(header, statusSummary, artifactsHeading, artifactsGrid);
+    const overviewChildren = [header, statusSummary];
+    if (nextActionEl) overviewChildren.push(nextActionEl);
+    overviewChildren.push(artifactsHeading, artifactsGrid);
+    overviewContent.replaceChildren(...overviewChildren);
 }
 
 function loadKanban() {
