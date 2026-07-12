@@ -104,7 +104,7 @@ class TestFeaturesListContract:
 
     def test_feature_item_keys_declared_in_typeddict(self) -> None:
         keys = _typed_dict_keys(FeatureItem)
-        for k in ("id", "name", "display_name", "path", "artifacts", "workflow", "kanban_stats", "meta", "worktree", "is_legacy"):
+        for k in ("id", "name", "display_name", "path", "artifacts", "workflow", "kanban_stats", "mission_status", "meta", "worktree", "is_legacy"):
             assert k in keys, f"FeatureItem missing key: {k}"
 
     def test_workflow_status_keys_in_js(self, js_identifiers: set[str]) -> None:

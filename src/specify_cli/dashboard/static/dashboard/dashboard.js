@@ -1139,12 +1139,20 @@ function updateWorkflowIcons(workflow) {
     document.getElementById('icon-implement').textContent = iconMap[workflow.implement] || '⏳';
 }
 
+const MISSION_STATUS_LABELS = {
+    active: '⚡ active',
+    planned: '○ planned',
+    done: '✓ done',
+    draft: '· draft',
+};
+
 function getFeatureDisplayName(feature) {
     if (!feature) {
         return 'Unknown mission';
     }
-
-    return feature.display_name || feature.name || feature.id || 'Unknown mission';
+    const name = feature.display_name || feature.name || feature.id || 'Unknown mission';
+    const statusLabel = MISSION_STATUS_LABELS[feature.mission_status];
+    return statusLabel ? `${name} [${statusLabel}]` : name;
 }
 
 function normalizeFeatureList(features) {
