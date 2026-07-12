@@ -195,6 +195,37 @@ def _enforce_branch_strategy_gate_phase(
         raise typer.Exit(1)
 
 
+def _resolve_default_topology_phase(
+    *,
+    explicit_topology: MissionTopology | None,
+    repo_root: Path | None,
+    current_branch: str | None,
+    pr_bound: bool,
+) -> MissionTopology:
+    """Derive the create-time topology default from branch/pr-bound context (#2581).
+
+    An explicit ``--topology`` always wins. Otherwise: PR-bound missions and
+    missions created on the repository's primary branch keep the historical
+    ``coord`` default (a coordination branch is minted). A mission created on
+    a non-primary feature/fork branch without ``--pr-bound`` defaults to
+    ``single_branch`` instead — minting a coordination branch there just to
+    have the operator manually flatten it is the exact friction #2581 closes.
+    """
+    if explicit_topology is not None:
+        return explicit_topology
+    if pr_bound:
+        return MissionTopology.COORD
+    if repo_root is None or current_branch is None:
+        return MissionTopology.COORD
+
+    from specify_cli.core.git_ops import resolve_primary_branch
+
+    primary_branch = resolve_primary_branch(repo_root)
+    if current_branch == primary_branch:
+        return MissionTopology.COORD
+    return MissionTopology.SINGLE_BRANCH
+
+
 def _print_worktree_navigation_hint(mission_slug: str, error_msg: str) -> None:
     """Print the 'run from main repo' hint when a worktree error blocked creation."""
     if "worktree" not in error_msg.lower():
@@ -388,17 +419,20 @@ def create_mission(
     purpose_context: Annotated[str | None, typer.Option("--purpose-context", help="Short stakeholder-facing paragraph for the mission")] = None,
     pr_bound: Annotated[bool, typer.Option("--pr-bound/--no-pr-bound", help="Mark mission as PR-bound (gate fires on merge_target_branch)")] = False,
     topology: Annotated[
-        MissionTopology,
+        MissionTopology | None,
         typer.Option(
             "--topology",
             help=(
                 "Create-time mission shape: single_branch | lanes | coord | "
                 "lanes_with_coord. Coordination-bearing shapes (coord, "
                 "lanes_with_coord) mint a coordination branch; branch-flat "
-                "shapes (single_branch, lanes) do not. Default: coord."
+                "shapes (single_branch, lanes) do not. Default: context-derived "
+                "(#2581) — coord on the primary branch, with --pr-bound, or "
+                "when explicitly requested; single_branch on a non-primary "
+                "feature/fork branch without --pr-bound."
             ),
         ),
-    ] = MissionTopology.COORD,
+    ] = None,
     branch_strategy: Annotated[
         str | None,
         typer.Option(
@@ -463,6 +497,13 @@ def create_mission(
         json_output=json_output,
     )
 
+    resolved_topology = _resolve_default_topology_phase(
+        explicit_topology=topology,
+        repo_root=repo_root,
+        current_branch=current_branch,
+        pr_bound=pr_bound,
+    )
+
     # Import the tracker package here (NOT at module scope) so ``tracker/__init__.py``
     # registers ``consume_pending_origin_impl`` with ``core.adapters`` BEFORE
     # ``create_mission_core`` runs ``consume_pending_origin`` (register-before-use,
@@ -480,7 +521,7 @@ def create_mission(
         friendly_name=friendly_name,
         purpose_tldr=purpose_tldr,
         purpose_context=purpose_context,
-        topology=topology,
+        topology=resolved_topology,
         force_recreate_coordination_branch=force_recreate_coordination_branch,
         json_output=json_output,
     )

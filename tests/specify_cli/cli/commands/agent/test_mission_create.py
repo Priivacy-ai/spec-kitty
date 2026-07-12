@@ -75,6 +75,21 @@ def _mission_summary(slug: str) -> dict[str, str]:
     }
 
 
+def _mission_summary_args(title: str) -> list[str]:
+    """CLI-flag form of ``_mission_summary`` for driving the typer entry point."""
+    return [
+        "--friendly-name",
+        title,
+        "--purpose-tldr",
+        f"Deliver {title} cleanly for the team.",
+        "--purpose-context",
+        (
+            f"This mission delivers {title} so product and engineering can move "
+            "forward with a clear outcome and shared understanding."
+        ),
+    ]
+
+
 def _patch_repo_environment(repo: Path) -> list[AbstractContextManager[Any]]:
     """Common patch stack for ``create_mission_core`` against ``repo``."""
     return [
@@ -341,6 +356,165 @@ def test_create_json_output_contains_coordination_branch(tmp_path: Path) -> None
     assert payload["scaffold_only"] is True
     assert payload["requires_agent_authoring"] is True
     assert payload["plan_guard"] == "SPEC_NOT_SUBSTANTIVE_OR_UNCOMMITTED"
+
+
+# ---------------------------------------------------------------------------
+# Issue #2581 — context-derived topology default
+#
+# Coordination-bearing topology (coord) mints a coordination branch that a
+# non-primary-branch mission (created without --pr-bound) has to be manually
+# flattened out of afterwards. The default must instead be derived from
+# context: single_branch on a non-primary feature/fork branch with no
+# --pr-bound; coord everywhere else (primary branch, --pr-bound, or an
+# explicit --topology choice).
+# ---------------------------------------------------------------------------
+
+
+def test_create_on_non_primary_branch_without_pr_bound_defaults_to_single_branch(
+    tmp_path: Path,
+) -> None:
+    """RED before #2581: a feature-branch create with no ``--topology``/``--pr-bound``
+    must default to ``single_branch`` and mint NO coordination branch.
+
+    The on-disk repo stays on ``main`` (``resolve_primary_branch`` falls back to
+    the real current branch when no ``origin`` is configured); the CLI's view of
+    "current branch" is mocked to a feature branch so the derivation sees a
+    genuine primary/non-primary mismatch.
+    """
+    _init_repo(tmp_path)
+
+    runner = CliRunner()
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="feature/my-fix"),
+        patch("specify_cli.status.fire_dossier_sync"),
+        patch(f"{_CORE_MODULE}._commit_feature_file"),
+        patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="feature/my-fix"),
+    ):
+        result = runner.invoke(
+            mission_app,
+            [
+                "create",
+                "feature-branch-default",
+                "--json",
+                "--target-branch",
+                "feature/my-fix",
+                *_mission_summary_args("Feature Branch Default"),
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    payload = _json_payload_from_output(result.output)
+    assert payload["topology"] == "single_branch", payload
+    assert payload.get("coordination_branch") is None, payload
+    assert payload.get("coordination_branch_created") is False, payload
+
+
+def test_create_on_primary_branch_still_defaults_to_coord(tmp_path: Path) -> None:
+    """Non-regression: a primary-branch create with no ``--topology`` still gets ``coord``."""
+    _init_repo(tmp_path)
+
+    runner = CliRunner()
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+        patch("specify_cli.status.fire_dossier_sync"),
+        patch(f"{_CORE_MODULE}._commit_feature_file"),
+        patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="main"),
+    ):
+        result = runner.invoke(
+            mission_app,
+            [
+                "create",
+                "primary-branch-default",
+                "--json",
+                "--target-branch",
+                "main",
+                *_mission_summary_args("Primary Branch Default"),
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    payload = _json_payload_from_output(result.output)
+    assert payload["topology"] == "coord", payload
+    assert payload["coordination_branch"].startswith("kitty/mission-primary-branch-default-")
+    assert payload["coordination_branch_created"] is True
+
+
+def test_create_pr_bound_on_non_primary_branch_still_defaults_to_coord(tmp_path: Path) -> None:
+    """Non-regression: ``--pr-bound`` keeps the ``coord`` default even off the primary branch."""
+    _init_repo(tmp_path)
+
+    runner = CliRunner()
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="feature/my-fix"),
+        patch("specify_cli.status.fire_dossier_sync"),
+        patch(f"{_CORE_MODULE}._commit_feature_file"),
+        patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="feature/my-fix"),
+    ):
+        result = runner.invoke(
+            mission_app,
+            [
+                "create",
+                "pr-bound-non-primary",
+                "--pr-bound",
+                "--json",
+                "--target-branch",
+                "main",
+                *_mission_summary_args("PR Bound Non Primary"),
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    payload = _json_payload_from_output(result.output)
+    assert payload["topology"] == "coord", payload
+    assert payload["coordination_branch"].startswith("kitty/mission-pr-bound-non-primary-")
+    assert payload["coordination_branch_created"] is True
+
+
+def test_create_explicit_topology_overrides_context_derivation(tmp_path: Path) -> None:
+    """An explicit ``--topology single_branch`` wins even on the primary branch."""
+    _init_repo(tmp_path)
+
+    runner = CliRunner()
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+        patch("specify_cli.status.fire_dossier_sync"),
+        patch(f"{_CORE_MODULE}._commit_feature_file"),
+        patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+        patch("specify_cli.cli.commands.agent.mission.get_current_branch", return_value="main"),
+    ):
+        result = runner.invoke(
+            mission_app,
+            [
+                "create",
+                "explicit-topology-override",
+                "--json",
+                "--target-branch",
+                "main",
+                "--topology",
+                "single_branch",
+                *_mission_summary_args("Explicit Topology Override"),
+            ],
+        )
+
+    assert result.exit_code == 0, result.output
+    payload = _json_payload_from_output(result.output)
+    assert payload["topology"] == "single_branch", payload
+    assert payload.get("coordination_branch") is None, payload
 
 
 def test_pr_bound_create_json_refuses_with_json_instead_of_prompt_abort(tmp_path: Path) -> None:
