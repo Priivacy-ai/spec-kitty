@@ -103,11 +103,11 @@ def test_acquire_blocks_on_active_lock(tmp_path: Path) -> None:
 
 def test_acquire_overwrites_stale_lock(tmp_path: Path) -> None:
     """Stale lock (dead PID) is overwritten without raising an error."""
-    # Simulate a dead PID by mocking os.kill to raise ProcessLookupError.
+    # Simulate a dead PID via the canonical is_process_alive seam.
     dead_pid = 999999999  # Very unlikely to exist
     _make_lock(tmp_path, pid=dead_pid, agent="old-agent", wp_id="WP01")
 
-    with patch("specify_cli.review.lock.os.kill", side_effect=ProcessLookupError):
+    with patch("specify_cli.review.lock.is_process_alive", return_value=False):
         new_lock = ReviewLock.acquire(tmp_path, wp_id="WP01", agent="new-agent")
 
     assert new_lock.agent == "new-agent"
@@ -121,7 +121,7 @@ def test_acquire_overwrites_stale_lock(tmp_path: Path) -> None:
 
 
 def test_is_stale_with_dead_pid(tmp_path: Path) -> None:
-    """is_stale() returns True when os.kill raises ProcessLookupError."""
+    """is_stale() returns True when is_process_alive reports the PID is dead."""
     lock = ReviewLock(
         worktree_path=str(tmp_path),
         wp_id="WP01",
@@ -130,7 +130,7 @@ def test_is_stale_with_dead_pid(tmp_path: Path) -> None:
         pid=999999999,
     )
 
-    with patch("specify_cli.review.lock.os.kill", side_effect=ProcessLookupError):
+    with patch("specify_cli.review.lock.is_process_alive", return_value=False):
         assert lock.is_stale() is True
 
 
@@ -140,7 +140,7 @@ def test_is_stale_with_dead_pid(tmp_path: Path) -> None:
 
 
 def test_is_stale_with_alive_pid(tmp_path: Path) -> None:
-    """is_stale() returns False when os.kill succeeds (process exists)."""
+    """is_stale() returns False when is_process_alive reports the PID is live."""
     lock = ReviewLock(
         worktree_path=str(tmp_path),
         wp_id="WP01",
@@ -149,8 +149,7 @@ def test_is_stale_with_alive_pid(tmp_path: Path) -> None:
         pid=os.getpid(),
     )
 
-    # os.kill(pid, 0) on the current process should succeed (returns None).
-    with patch("specify_cli.review.lock.os.kill", return_value=None):
+    with patch("specify_cli.review.lock.is_process_alive", return_value=True):
         assert lock.is_stale() is False
 
 
@@ -266,7 +265,11 @@ def test_release_no_lock_file_is_safe(tmp_path: Path) -> None:
 
 
 def test_is_stale_permission_error(tmp_path: Path) -> None:
-    """is_stale() returns False on PermissionError (process exists, diff user)."""
+    """is_stale() returns False when the process exists but cannot be inspected.
+
+    Mirrors is_process_alive's conservative AccessDenied -> True (alive) posture:
+    the process exists but permissions block inspection (e.g. different user).
+    """
     lock = ReviewLock(
         worktree_path=str(tmp_path),
         wp_id="WP01",
@@ -275,12 +278,12 @@ def test_is_stale_permission_error(tmp_path: Path) -> None:
         pid=1234,
     )
 
-    with patch("specify_cli.review.lock.os.kill", side_effect=PermissionError):
+    with patch("specify_cli.review.lock.is_process_alive", return_value=True):
         assert lock.is_stale() is False
 
 
 def test_is_stale_os_error(tmp_path: Path) -> None:
-    """is_stale() returns True on a generic OSError."""
+    """is_stale() returns True when is_process_alive cannot confirm liveness."""
     lock = ReviewLock(
         worktree_path=str(tmp_path),
         wp_id="WP01",
@@ -289,7 +292,7 @@ def test_is_stale_os_error(tmp_path: Path) -> None:
         pid=1234,
     )
 
-    with patch("specify_cli.review.lock.os.kill", side_effect=OSError("unknown")):
+    with patch("specify_cli.review.lock.is_process_alive", return_value=False):
         assert lock.is_stale() is True
 
 

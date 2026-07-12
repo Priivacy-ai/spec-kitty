@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from specify_cli.core.process_liveness import is_process_alive
 from specify_cli.core.time_utils import now_utc_iso
 
 logger = logging.getLogger(__name__)
@@ -74,25 +75,14 @@ class ReviewLock:
     def is_stale(self) -> bool:
         """Check if the lock's process is still alive.
 
-        Uses ``os.kill(pid, 0)`` which performs an existence check without
-        sending an actual signal.
+        Delegates to the canonical :func:`is_process_alive` liveness check
+        (C-003) instead of an improvised probe.
 
         Returns:
             True  — process is dead (stale lock)
             False — process is alive or exists but belongs to another user
         """
-        try:
-            os.kill(self.pid, 0)  # signal 0 = existence check only
-            return False  # process is alive
-        except ProcessLookupError:
-            return True  # process does not exist
-        except PermissionError:
-            # Process exists but we cannot signal it (e.g. different user).
-            # Conservative: treat as NOT stale.
-            return False
-        except OSError:
-            # Any other OS-level error: assume stale to be safe.
-            return True
+        return not is_process_alive(self.pid)
 
     # ------------------------------------------------------------------
     # Persistence
