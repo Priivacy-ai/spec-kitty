@@ -788,12 +788,6 @@
   owning_workstream: none
   current_target: true
   notes: null
-- path: docs/analysis/test-change-coupling-caacs.md
-  tag: current
-  divio_type: none
-  owning_workstream: none
-  current_target: true
-  notes: null
 - path: docs/api/README.md
   tag: current
   divio_type: none
@@ -3249,6 +3243,12 @@
   current_target: true
   notes: null
 - path: docs/plans/reviews/test-plan-pr305.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/test-change-coupling-caacs.md
   tag: current
   divio_type: none
   owning_workstream: none
