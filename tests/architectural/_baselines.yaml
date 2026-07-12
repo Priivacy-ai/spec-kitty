@@ -212,7 +212,17 @@ test_no_dead_symbols:
   # other category_b entries went stale). Recomputed to the live
   # ``len(_CATEGORY_B_GRANDFATHERED_LEGACY)`` = 215 (NFR-004, honest live count).
   # Shrink-only direction overall (237->215); the growth-above-baseline gate stays enforced.
-  category_b_grandfathered_legacy: 215
+  # relocation-hardened-dead-code-scanners-01KX958P WP02 (T011, doc hygiene
+  # only -- this key is NOT read by test_ratchet_baselines, which maps only
+  # test_no_dead_modules CATEGORY_1..7 + fixed single-ratchets; dropping
+  # entries here trips no shrink-warn): re-keyed onto SymbolKey (FR-007);
+  # dropped 2 stale (charter_activate_app/charter_deactivate_app, FR-006);
+  # 18 more entries moved to the T013 structural auto-exempt (registered
+  # migration class / re-export shim) and are no longer hand-listed here.
+  # Honest live count (not the naive 215-2=213 the 2-drop alone would give,
+  # since drift + the auto-exempt migration both shrank this category):
+  # ``len(_CATEGORY_B_GRANDFATHERED_LEGACY)`` = 194.
+  category_b_grandfathered_legacy: 194
   # 6->4 (org-doctrine close-out WP04): removed the now-wired
   # charter.invocation_context::{OperationalContext,build_operational_context}
   # (WP14 added live src/ callers). Remaining 4: the two require_active_*

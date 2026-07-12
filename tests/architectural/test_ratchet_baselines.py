@@ -36,6 +36,7 @@ from __future__ import annotations
 
 import importlib
 import warnings
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any, cast
 
@@ -44,6 +45,22 @@ import yaml
 from pydantic import BaseModel
 
 pytestmark = [pytest.mark.architectural]
+
+# Type of the built-in ``record_property`` fixture: records a (name, value)
+# pair into the JUnit/report output. Used to route the report-only shrinkage
+# diagnostic off the ``warnings`` channel (NFR-006) while preserving the signal.
+RecordPropertyFn = Callable[[str, object], None]
+
+# Dotted path of the round-trip contract module whose module-level
+# ``_discover_examples()`` emits the legacy-contract-backfill ``UserWarning``s
+# (``# pydantic_model:`` convention not yet backfilled on ~14 legacy contracts).
+# That backfill is DEFERRED and out of this arch suite's scope (tracked in
+# GH #2553); the diagnostic remains load-bearing when the contract suite runs
+# directly (``pytest tests/contract/test_example_round_trip.py``). We import
+# this module here only to read two integer-sized ratchet constants, so we
+# scope-suppress its import-time warnings to keep the arch-suite warnings
+# channel first-party-clean (NFR-006) WITHOUT silencing the signal at source.
+_ROUND_TRIP_CONTRACT_MODULE = "tests.contract.test_example_round_trip"
 
 
 # ---------------------------------------------------------------------------
@@ -152,8 +169,25 @@ def _import_module_attr(module_dotted: str, attr_name: str) -> frozenset[Any]:
     """Import *module_dotted* and return its *attr_name* attribute.
 
     Used to look up gated test modules' allowlist symbols by name.
+
+    The round-trip contract module emits DEFERRED, out-of-arch-scope
+    legacy-backfill ``UserWarning``s at import time (GH #2553). We only read
+    its ratchet-size constants here, so we scope-suppress warnings originating
+    from that specific module during its import — preserving the signal at its
+    real home (the contract suite) while keeping the arch-suite warnings
+    channel first-party-clean (NFR-006). This is a narrow, module-scoped
+    filter, not a blanket ignore.
     """
-    module = importlib.import_module(module_dotted)
+    if module_dotted == _ROUND_TRIP_CONTRACT_MODULE:
+        # Tight block scope: the only code that runs here is this single
+        # import, whose sole warning output is the deferred #2553
+        # legacy-backfill subset. category=UserWarning keeps the filter
+        # narrow (not a blanket ``ignore``).
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning)
+            module = importlib.import_module(module_dotted)
+    else:
+        module = importlib.import_module(module_dotted)
     if not hasattr(module, attr_name):
         raise AttributeError(
             f"Module `{module_dotted}` does not export `{attr_name}`. The "
@@ -294,13 +328,18 @@ def test_growing_an_allowlist_above_baseline_fails() -> None:
     )
 
 
-def test_growth_fails_shrinkage_warns() -> None:
-    """AC-6: shrinkage below baseline emits a pytest warning, never fails.
+def test_growth_fails_shrinkage_warns(
+    record_property: RecordPropertyFn,
+) -> None:
+    """AC-6: shrinkage below baseline is REPORTED, never fails.
 
-    The warning nudges the PR author to lock in the new lower bound by
+    The report nudges the PR author to lock in the new lower bound by
     editing ``_baselines.yaml`` in the same PR. Shrinkage is good news
     (a previously-grandfathered orphan got wired or deleted) so it must
-    not block CI.
+    not block CI. Routed off the ``warnings`` channel via ``record_property``
+    (was ``warnings.warn``) so the diagnostic surfaces in the JUnit/report
+    output without polluting the arch-suite warnings channel that NFR-006
+    requires to stay first-party-clean.
     """
     data = _load_baselines()
     shrinkage_messages: list[str] = []
@@ -378,15 +417,15 @@ def test_growth_fails_shrinkage_warns() -> None:
                 f"Edit _baselines.yaml to lock in the shrinkage."
             )
 
-    # Emit warnings (one per shrinkage) so pytest surfaces them.
-    for msg in shrinkage_messages:
-        warnings.warn(
+    # Record each shrinkage (one property per shrinkage) so pytest surfaces
+    # them in the report output without emitting on the warnings channel.
+    for idx, msg in enumerate(shrinkage_messages):
+        record_property(
+            f"ratchet_baseline_shrinkage[{idx}]",
             f"Ratchet baseline SHRINKAGE (informational, not failing): {msg}",
-            UserWarning,
-            stacklevel=2,
         )
 
-    # This test never fails on shrinkage. It exists to (a) emit the
-    # warning surface, and (b) assert that the contract API holds (i.e.
+    # This test never fails on shrinkage. It exists to (a) record the
+    # shrinkage surface, and (b) assert that the contract API holds (i.e.
     # the baselines load and the ratchets are introspectable).
     assert isinstance(data, dict)

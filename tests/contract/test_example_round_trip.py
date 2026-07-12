@@ -38,9 +38,12 @@ burn-down allowlist below.
 Legacy allowlist (FR-141)
 -------------------------
 Contracts from missions **predating** this convention are tracked file-level in
-``_LEGACY_CONTRACT_ALLOWLIST``.  Files in the allowlist emit a ``warnings.warn``
-instead of failing when their YAML codeblocks lack frontmatter, and keep
-file-level leniency (a tagged block does not force the rest to be tagged). The
+``_LEGACY_CONTRACT_ALLOWLIST``.  Files in the allowlist do not fail when their
+YAML codeblocks lack frontmatter, and keep file-level leniency (a tagged block
+does not force the rest to be tagged); a backfill nudge is instead recorded via
+the built-in ``record_property`` fixture (surfaced in the JUnit/report output,
+not the ``warnings`` channel — NFR-006) by
+``test_legacy_contract_backfill_nudges_are_reported``. The
 allowlist count is pinned in
 ``tests/architectural/_baselines.yaml::test_example_round_trip.legacy_contract_allowlist``
 and MUST shrink over time as legacy contracts are backfilled (C-004 burn-down).
@@ -59,7 +62,7 @@ from __future__ import annotations
 
 import importlib
 import re
-import warnings
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -68,6 +71,14 @@ import pytest
 import yaml
 
 pytestmark = [pytest.mark.contract, pytest.mark.fast]
+
+# Type of the built-in ``record_property`` fixture: records a (name, value)
+# pair into the JUnit/report output. Used to route the report-only legacy
+# backfill nudge off the ``warnings`` channel (NFR-006) while preserving the
+# signal — consistent with this repo's convention for report-only
+# diagnostics (see ``test_migration_chain_integrity.py``,
+# ``test_gate_coverage.py``, ``test_retired_contracts_absent.py``).
+RecordPropertyFn = Callable[[str, object], None]
 
 # ---------------------------------------------------------------------------
 # Repo root (resolve relative to this file: tests/contract/ -> tests/ -> root)
@@ -407,17 +418,34 @@ def _classify_yaml_block(block_body: str) -> tuple[str, dict[str, Any]]:
     return "missing", {}
 
 
+# Report-only nudges collected during discovery (module-import time — see
+# ``_DISCOVERED`` below), surfaced later by
+# ``test_legacy_contract_backfill_nudges_are_reported`` via ``record_property``.
+# Discovery runs before any test function/fixture context exists, so the
+# diagnostic cannot go through ``record_property`` at collection time itself;
+# collecting here and reporting from a dedicated test is the two-stage shape
+# this repo uses whenever a report-only finding is produced outside a test
+# body (NFR-006: no ``warnings.warn`` for report-only diagnostics).
+_LEGACY_BACKFILL_NUDGES: list[tuple[str, str]] = []
+
+
 def _collect_legacy_blocks(
     rel: str,
     yaml_blocks: list[str],
     examples: list[tuple[str, str, str, str, str | None]],
+    nudges: list[tuple[str, str]] | None = None,
 ) -> None:
     """Collect executable cases from a legacy (pre-Slice-F) contract.
 
     Legacy contracts keep file-level burn-down leniency: tagged blocks still
-    execute, but untagged blocks are tolerated. A warning fires only when the
-    file carries NO frontmatter at all, nudging backfill. Block-level strictness
+    execute, but untagged blocks are tolerated. A backfill nudge is recorded
+    only when the file carries NO frontmatter at all. Block-level strictness
     is deferred until the file is backfilled out of ``_LEGACY_CONTRACT_ALLOWLIST``.
+
+    *nudges* defaults to the module-level ``_LEGACY_BACKFILL_NUDGES`` collector
+    used by real discovery; tests pass their own list to keep the module-level
+    collector — which real ``_discover_examples()`` also populates at import
+    time — untouched by unit-test invocations.
     """
     found_any_frontmatter = False
     for block_idx, block_body in enumerate(yaml_blocks, start=1):
@@ -435,14 +463,16 @@ def _collect_legacy_blocks(
             )
         )
     if not found_any_frontmatter:
-        warnings.warn(
-            f"Legacy contract '{rel}' has {len(yaml_blocks)} YAML codeblock(s) "
-            f"but none carry ``# pydantic_model:`` frontmatter. "
-            f"Consider backfilling the convention to shrink the legacy allowlist "
-            f"(tests/architectural/_baselines.yaml::test_example_round_trip"
-            f".legacy_contract_allowlist).",
-            UserWarning,
-            stacklevel=2,
+        target = _LEGACY_BACKFILL_NUDGES if nudges is None else nudges
+        target.append(
+            (
+                rel,
+                f"Legacy contract '{rel}' has {len(yaml_blocks)} YAML codeblock(s) "
+                f"but none carry ``# pydantic_model:`` frontmatter. "
+                f"Consider backfilling the convention to shrink the legacy allowlist "
+                f"(tests/architectural/_baselines.yaml::test_example_round_trip"
+                f".legacy_contract_allowlist).",
+            )
         )
 
 
@@ -751,12 +781,20 @@ def test_strict_collection_tagged_sibling_does_not_mask_untagged() -> None:
     assert "a.b.C" in kinds
 
 
-def test_legacy_collection_warns_and_does_not_fail_when_untagged() -> None:
+def test_legacy_collection_nudges_and_does_not_fail_when_untagged(
+    recwarn: pytest.WarningsRecorder,
+) -> None:
     out: list[tuple[str, str, str, str, str | None]] = []
-    with pytest.warns(UserWarning, match="Legacy contract"):
-        _collect_legacy_blocks("x/contracts/y.md", ["a: 1\n"], out)
+    nudges: list[tuple[str, str]] = []
+    _collect_legacy_blocks("x/contracts/y.md", ["a: 1\n"], out, nudges=nudges)
     # Legacy files never emit a MISSING_FRONTMATTER failure case.
     assert out == []
+    # The nudge is recorded (for later record_property reporting), not warned
+    # (NFR-006: the warnings channel stays first-party-clean).
+    assert len(nudges) == 1
+    assert nudges[0][0] == "x/contracts/y.md"
+    assert "Legacy contract" in nudges[0][1]
+    assert len(recwarn.list) == 0
 
 
 def test_skip_marked_blocks_invariants() -> None:
@@ -780,3 +818,25 @@ def test_skip_marked_blocks_invariants() -> None:
         kind, info = _classify_yaml_block(blocks[block_idx - 1])
         assert kind == "skip"
         assert info["reason"], f"skip marker in {label} must carry a reason"
+
+
+def test_legacy_contract_backfill_nudges_are_reported(
+    record_property: RecordPropertyFn,
+) -> None:
+    """Report-only: nudge maintainers to backfill ``# pydantic_model:`` frontmatter.
+
+    Real discovery (``_discover_examples()``, module-import time) populates
+    ``_LEGACY_BACKFILL_NUDGES`` with one entry per legacy-allowlisted contract
+    whose YAML codeblocks carry no frontmatter at all. Discovery runs before
+    any test function/fixture context exists, so it cannot call
+    ``record_property`` directly — this test surfaces the collected nudges via
+    ``record_property`` instead of ``warnings.warn``, consistent with this
+    repo's convention for report-only diagnostics (NFR-006: the warnings
+    channel stays first-party-clean; see ``test_migration_chain_integrity.py``,
+    ``test_gate_coverage.py``, ``test_retired_contracts_absent.py``). Never
+    fails: the legacy allowlist shrinks over time (C-004 burn-down), tracked
+    separately via the allowlist count baseline in
+    ``tests/architectural/_baselines.yaml``.
+    """
+    for rel, message in _LEGACY_BACKFILL_NUDGES:
+        record_property(f"legacy_contract_backfill_nudge[{rel}]", message)

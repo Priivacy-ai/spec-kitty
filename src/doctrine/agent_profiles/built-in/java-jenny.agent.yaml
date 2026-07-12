@@ -33,6 +33,7 @@ context-sources:
     - test-strategy
     - java-conventions
     - maven-review-checks
+    - bdd-scenario-lifecycle-procedure
 
 purpose: >
   Deliver idiomatic, well-tested Java code that respects style conventions,
@@ -189,7 +190,3 @@ tactic-references:
     rationale: >
       BDD scenarios define acceptance criteria for Java features. Wire Gherkin
       scenarios via Cucumber-JVM as acceptance tests before implementing production code.
-  - id: bdd-scenario-lifecycle
-    rationale: >
-      Apply the Formulation to Automation lifecycle: write Gherkin first, run red,
-      implement minimal production code, run green, publish Serenity BDD report.
