@@ -1,0 +1,349 @@
+"""#2573 fast-follow (partial): ``--skip-pre-review-gate`` flag + disable-env
+honoring + running-progress legibility on ``_mt_run_pre_review_gate``.
+
+``move-task --to for_review`` runs a synchronous, potentially multi-minute
+scoped pytest subprocess (``pre_review_gate.run_scoped_tests_at_head``) with
+no way to skip it — the loop-friction fast-follow spec
+(``docs/plans/loop-friction-fastfollow-spec.md`` FR-002/FR-003) adds:
+
+1. an explicit ``--skip-pre-review-gate`` CLI flag (``st.skip_pre_review_gate``),
+2. honoring the sync layer's existing ``SPEC_KITTY_SYNC_DISABLE`` /
+   ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` env vars as a process-wide opt-out,
+3. a console notice before the scoped run starts, so it never reads as a
+   silent hang.
+
+Every skip scenario below proves the workspace is NEVER touched (no
+``_mt_resolve_pre_review_workspace`` call, so no diff/subprocess can follow)
+— the escape hatch must short-circuit BEFORE any I/O, not merely suppress
+the eventual verdict. The default-behavior test proves the opposite: with
+neither the flag nor an env var set, the gate still attempts to resolve the
+workspace exactly as before this fix (NFR-003 backward compatibility).
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
+from unittest.mock import patch
+
+import click
+import pytest
+from typer.main import get_command
+from typer.testing import CliRunner
+
+from specify_cli.cli.commands.agent import tasks_move_task
+from specify_cli.cli.commands.agent.tasks import app
+from specify_cli.cli.commands.agent.tasks_move_task import _MoveTaskState
+from specify_cli.review import pre_review_gate
+from specify_cli.status import Lane
+
+pytestmark = pytest.mark.fast
+
+_TASKS = "specify_cli.cli.commands.agent.tasks"
+_MODULE = "specify_cli.cli.commands.agent.tasks_move_task"
+
+runner = CliRunner()
+
+
+class _WorkspaceTouched(Exception):
+    """Raised by the sentinel workspace resolver to prove it was reached."""
+
+
+def _make_state(**overrides: Any) -> _MoveTaskState:
+    kwargs: dict[str, Any] = {
+        "task_id": "WP01",
+        "to": "for_review",
+        "mission": "test-pre-review-escape",
+        "agent": "claude",
+        "assignee": None,
+        "shell_pid": None,
+        "note": None,
+        "review_feedback_file": None,
+        "approval_ref": None,
+        "reviewer": None,
+        "self_review_fallback": False,
+        "intended_reviewer": None,
+        "reviewer_failure_reason": None,
+        "done_override_reason": None,
+        "force": False,
+        "tracker_ref": None,
+        "skip_review_artifact_check": False,
+        "auto_commit": None,
+        "json_output": False,
+        "skip_pre_review_gate": False,
+    }
+    field_names = set(_MoveTaskState.__dataclass_fields__)
+    field_overrides = {k: v for k, v in overrides.items() if k in kwargs}
+    kwargs.update(field_overrides)
+    st = _MoveTaskState(**kwargs)
+    for key, value in overrides.items():
+        if key not in field_overrides:
+            assert key in field_names, f"unknown _MoveTaskState field: {key!r}"
+            setattr(st, key, value)
+    st.target_lane = Lane.FOR_REVIEW
+    st.main_repo_root = Path("/tmp/does-not-need-to-exist-for-skip")
+    st.target_branch = "main"
+    st.mission_slug = "test-pre-review-escape"
+    st.wp = SimpleNamespace(path=Path("WP01-x.md"), frontmatter="")
+    return st
+
+
+# --------------------------------------------------------------------------- #
+# Skip escape hatches (FR-002) — must short-circuit BEFORE any workspace I/O.
+# --------------------------------------------------------------------------- #
+
+
+def test_skip_flag_skips_gate_without_touching_workspace() -> None:
+    """``--skip-pre-review-gate`` never resolves a workspace or runs pytest."""
+    st = _make_state(skip_pre_review_gate=True)
+    with patch(
+        f"{_MODULE}._mt_resolve_pre_review_workspace", side_effect=_WorkspaceTouched
+    ) as workspace_mock:
+        tasks_move_task._mt_run_pre_review_gate(st)
+    workspace_mock.assert_not_called()
+    assert st.pre_review_gate_metadata is not None
+    assert st.pre_review_gate_metadata["outcome"] == pre_review_gate.GateOutcome.NO_COVERAGE.value
+    assert "--skip-pre-review-gate flag" in (st.pre_review_gate_metadata["reason"] or "")
+    assert st.pre_review_gate_metadata["blocked"] is False
+
+
+@pytest.mark.parametrize("env_var", ["SPEC_KITTY_SYNC_DISABLE", "SPEC_KITTY_SYNC_MINIMAL_IMPORT"])
+def test_disable_env_var_skips_gate_without_touching_workspace(
+    env_var: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Either sync-layer disable env var short-circuits the gate the same way
+    as the explicit flag — no workspace resolution, no subprocess."""
+    monkeypatch.setenv(env_var, "1")
+    st = _make_state()
+    with patch(
+        f"{_MODULE}._mt_resolve_pre_review_workspace", side_effect=_WorkspaceTouched
+    ) as workspace_mock:
+        tasks_move_task._mt_run_pre_review_gate(st)
+    workspace_mock.assert_not_called()
+    assert st.pre_review_gate_metadata is not None
+    assert env_var in (st.pre_review_gate_metadata["reason"] or "")
+
+
+@pytest.mark.parametrize("falsy_value", ["0", "false", "", "no"])
+def test_falsy_env_value_does_not_skip_gate(
+    falsy_value: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A present-but-falsy env var must NOT trip the skip — only recognized
+    truthy tokens (the ``core.env.is_truthy`` grammar) do."""
+    monkeypatch.setenv("SPEC_KITTY_SYNC_DISABLE", falsy_value)
+    st = _make_state()
+    with patch(
+        f"{_MODULE}._mt_resolve_pre_review_workspace", return_value=None
+    ) as workspace_mock:
+        tasks_move_task._mt_run_pre_review_gate(st)
+    workspace_mock.assert_called_once()
+
+
+def test_skip_prints_explicit_skip_notice(monkeypatch: pytest.MonkeyPatch) -> None:
+    """FR-003 legibility: a skip is announced, not silent."""
+    st = _make_state(skip_pre_review_gate=True, json_output=False)
+    with (
+        patch(f"{_MODULE}._mt_resolve_pre_review_workspace", side_effect=_WorkspaceTouched),
+        patch(f"{_TASKS}.console") as console_mock,
+    ):
+        tasks_move_task._mt_run_pre_review_gate(st)
+    printed = " ".join(str(call.args[0]) for call in console_mock.print.call_args_list)
+    assert "SKIPPED" in printed
+    assert "--skip-pre-review-gate flag" in printed
+
+
+def test_skip_prints_nothing_under_json_output() -> None:
+    """``--json`` output stays machine-readable — no console noise on skip."""
+    st = _make_state(skip_pre_review_gate=True, json_output=True)
+    with (
+        patch(f"{_MODULE}._mt_resolve_pre_review_workspace", side_effect=_WorkspaceTouched),
+        patch(f"{_TASKS}.console") as console_mock,
+    ):
+        tasks_move_task._mt_run_pre_review_gate(st)
+    console_mock.print.assert_not_called()
+
+
+# --------------------------------------------------------------------------- #
+# Default behavior (NFR-003) — neither flag nor env set: gate still runs.
+# --------------------------------------------------------------------------- #
+
+
+def test_default_still_attempts_to_resolve_workspace_and_run_gate() -> None:
+    """With no flag and no env var set, the gate is NOT skipped — it still
+    resolves the workspace exactly as before this fix."""
+    st = _make_state()
+    with patch(
+        f"{_MODULE}._mt_resolve_pre_review_workspace", return_value=None
+    ) as workspace_mock:
+        tasks_move_task._mt_run_pre_review_gate(st)
+    workspace_mock.assert_called_once()
+    assert st.pre_review_gate_metadata is not None
+    reason = st.pre_review_gate_metadata["reason"] or ""
+    assert "gate skipped" not in reason
+    assert "--skip-pre-review-gate" not in reason
+    assert "SPEC_KITTY_SYNC_DISABLE" not in reason
+    assert "SPEC_KITTY_SYNC_MINIMAL_IMPORT" not in reason
+
+
+def test_default_does_not_print_skip_notice() -> None:
+    """The ordinary (non-skip) console line must not claim SKIPPED."""
+    st = _make_state()
+    with (
+        patch(f"{_MODULE}._mt_resolve_pre_review_workspace", return_value=None),
+        patch(f"{_TASKS}.console") as console_mock,
+    ):
+        tasks_move_task._mt_run_pre_review_gate(st)
+    printed = " ".join(str(call.args[0]) for call in console_mock.print.call_args_list)
+    assert "SKIPPED" not in printed
+
+
+# --------------------------------------------------------------------------- #
+# Progress legibility (FR-003) — a non-empty scope prints a running notice
+# BEFORE the (mocked) scoped test run, so it never reads as a silent hang.
+# --------------------------------------------------------------------------- #
+
+
+def test_progress_notice_printed_before_running_nonempty_scope() -> None:
+    """An explicit override scope (frontmatter ``pre_review_test_scope``) is a
+    non-empty scope — the gate prints a running notice before evaluating it.
+    ``pre_review_gate.evaluate_with_scope`` is mocked so no real subprocess
+    ever spawns; the assertion is purely about notice-before-evaluate
+    ordering + content.
+    """
+    st = _make_state()
+    st.wp = SimpleNamespace(
+        path=Path("WP01-x.md"), frontmatter="pre_review_test_scope: tests/foo/test_bar.py\n"
+    )
+    call_order: list[str] = []
+    fake_verdict = pre_review_gate.GateVerdict(
+        outcome=pre_review_gate.GateOutcome.NO_COVERAGE,
+        scope=pre_review_gate.ScopeResult(
+            test_targets=("tests/foo/test_bar.py",),
+            matched_shard_groups=(),
+            matched_composite_dirs=(),
+            empty_cone_composite_dirs=(),
+            excluded_scope_files=(),
+        ),
+        reason="mocked — no real run",
+    )
+
+    def _fake_evaluate_with_scope(*args: Any, **kwargs: Any) -> pre_review_gate.GateVerdict:
+        call_order.append("evaluate")
+        return fake_verdict
+
+    with (
+        patch(f"{_MODULE}._mt_resolve_pre_review_workspace", return_value=None),
+        patch(f"{_MODULE}._resolve_wp_slug", return_value="WP01-fake"),
+        patch(
+            "specify_cli.review.baseline.BaselineTestResult.load", return_value=None
+        ),
+        patch.object(
+            pre_review_gate, "evaluate_with_scope", side_effect=_fake_evaluate_with_scope
+        ),
+        patch(f"{_TASKS}.console") as console_mock,
+    ):
+        console_mock.print.side_effect = lambda *a, **k: call_order.append("print")
+        tasks_move_task._mt_run_pre_review_gate(st)
+
+    assert call_order[0] == "print", "the progress notice must print BEFORE the scoped run"
+    printed = " ".join(str(call.args[0]) for call in console_mock.print.call_args_list)
+    assert "running scoped tests at head" in printed
+    assert "may take a few minutes" in printed
+
+
+def test_no_progress_notice_when_scope_is_empty() -> None:
+    """No override, no changed files -> the cheap empty-scope path never
+    claims it's "running" anything (it isn't)."""
+    st = _make_state()
+    with (
+        patch(f"{_MODULE}._mt_resolve_pre_review_workspace", return_value=None),
+        patch(f"{_TASKS}.console") as console_mock,
+    ):
+        tasks_move_task._mt_run_pre_review_gate(st)
+    printed = " ".join(str(call.args[0]) for call in console_mock.print.call_args_list)
+    assert "running scoped tests at head" not in printed
+
+
+# --------------------------------------------------------------------------- #
+# Not-a-for_review-move: the gate does not even reach the skip check.
+# --------------------------------------------------------------------------- #
+
+
+def test_non_for_review_lane_returns_before_any_skip_logic() -> None:
+    st = _make_state(skip_pre_review_gate=True)
+    st.target_lane = Lane.IN_PROGRESS
+    with patch(
+        f"{_MODULE}._mt_resolve_pre_review_workspace", side_effect=_WorkspaceTouched
+    ) as workspace_mock:
+        tasks_move_task._mt_run_pre_review_gate(st)
+    workspace_mock.assert_not_called()
+    assert st.pre_review_gate_metadata is None
+
+
+# --------------------------------------------------------------------------- #
+# CLI wiring — the ``move-task`` Typer command declares ``--skip-pre-review-gate``
+# and forwards it to ``_do_move_task`` (the orchestrator this module tests
+# above). These prove the flag actually reaches the seam, not just that the
+# seam behaves correctly once fed it.
+# --------------------------------------------------------------------------- #
+
+
+def test_skip_pre_review_gate_flag_is_registered_on_move_task_help() -> None:
+    result = runner.invoke(app, ["move-task", "--help"], terminal_width=160)
+
+    assert result.exit_code == 0, result.output
+    group = get_command(app)
+    assert isinstance(group, click.Group)
+    click_command = group.commands["move-task"]
+    option = next(
+        param
+        for param in click_command.params
+        if isinstance(param, click.Option) and param.name == "skip_pre_review_gate"
+    )
+    assert "--skip-pre-review-gate" in option.opts
+    assert option.default is False
+    assert "SPEC_KITTY_SYNC_DISABLE" in (option.help or "")
+    assert "SPEC_KITTY_SYNC_MINIMAL_IMPORT" in (option.help or "")
+
+
+def test_move_task_cli_forwards_skip_flag_to_orchestrator() -> None:
+    """The Typer wrapper passes ``--skip-pre-review-gate`` through as
+    ``skip_pre_review_gate=True`` — proving the CLI-declared flag actually
+    reaches ``_do_move_task`` (not just that it parses)."""
+    with patch(f"{_TASKS}._do_move_task") as do_move_task_mock:
+        result = runner.invoke(
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "for_review",
+                "--skip-pre-review-gate",
+                "--mission",
+                "test-mission",
+            ],
+        )
+    assert result.exit_code == 0, result.output
+    do_move_task_mock.assert_called_once()
+    assert do_move_task_mock.call_args.kwargs["skip_pre_review_gate"] is True
+
+
+def test_move_task_cli_default_omits_skip_flag() -> None:
+    """Without the flag, the orchestrator receives ``skip_pre_review_gate=False``
+    — the default stays the enforcing behavior (NFR-003)."""
+    with patch(f"{_TASKS}._do_move_task") as do_move_task_mock:
+        result = runner.invoke(
+            app,
+            [
+                "move-task",
+                "WP01",
+                "--to",
+                "for_review",
+                "--mission",
+                "test-mission",
+            ],
+        )
+    assert result.exit_code == 0, result.output
+    do_move_task_mock.assert_called_once()
+    assert do_move_task_mock.call_args.kwargs["skip_pre_review_gate"] is False

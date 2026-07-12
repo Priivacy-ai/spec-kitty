@@ -431,7 +431,11 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_pre_review_changed_files as _mt_pre_review_changed_files,
     _mt_pre_review_gate_block_message as _mt_pre_review_gate_block_message,
     _mt_pre_review_gate_console_warning as _mt_pre_review_gate_console_warning,
+    # #2573 fast-follow (FR-002): the --skip-pre-review-gate flag + disable-env
+    # skip-reason resolution join the family surface like every other def.
+    _mt_pre_review_gate_env_disable_reason as _mt_pre_review_gate_env_disable_reason,
     _mt_pre_review_gate_metadata as _mt_pre_review_gate_metadata,
+    _mt_pre_review_gate_skip_reason as _mt_pre_review_gate_skip_reason,
     _mt_pre_review_gate_verdict as _mt_pre_review_gate_verdict,
     _mt_pre_review_gate_with_override_scope as _mt_pre_review_gate_with_override_scope,
     _mt_pre_review_scope_override as _mt_pre_review_scope_override,
@@ -606,6 +610,18 @@ def move_task(
         bool | None, typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit WP file changes to target branch (default: from project config)")
     ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+    skip_pre_review_gate: Annotated[
+        bool,
+        typer.Option(
+            "--skip-pre-review-gate",
+            help=(
+                "Skip the pre-review regression gate on a --to for_review move "
+                "(also honored via the SPEC_KITTY_SYNC_DISABLE / "
+                "SPEC_KITTY_SYNC_MINIMAL_IMPORT env vars). The gate still runs "
+                "and enforces by default."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Move task between lanes (planned → doing → for_review → approved → done).
 
@@ -639,6 +655,7 @@ def move_task(
         skip_review_artifact_check=skip_review_artifact_check,
         auto_commit=auto_commit,
         json_output=json_output,
+        skip_pre_review_gate=skip_pre_review_gate,
     )
 
 

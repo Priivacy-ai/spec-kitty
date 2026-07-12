@@ -44,6 +44,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import os
 import traceback
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
@@ -86,6 +87,7 @@ from specify_cli.cli.commands.agent.tasks_transition_core import (
 )
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.env import is_truthy
 from specify_cli.core.paths import is_worktree_context
 from specify_cli.core.subtask_rows import uncheck_wp_section_subtask_rows
 from specify_cli.core.utils import write_text_within_directory
@@ -167,6 +169,7 @@ class _MoveTaskState:
     skip_review_artifact_check: bool
     auto_commit: bool | None
     json_output: bool
+    skip_pre_review_gate: bool = False
     # --- phase A: resolved targets ---
     target_lane: Lane = Lane.PLANNED
     repo_root: Path = field(default_factory=Path)
@@ -722,6 +725,21 @@ _PRE_REVIEW_CONFIG_KEY_BLOCK = "fail_on_pre_review_regression"
 _PRE_REVIEW_CONFIG_KEY_TEST_COMMAND = "pre_review_test_command"
 _PRE_REVIEW_FRONTMATTER_KEY = "pre_review_test_scope"
 
+#: #2573 fast-follow (FR-002): env vars the gate honors as a "skip the
+#: subprocess" signal, ordered by precedence for the skip-reason message.
+#: ``SPEC_KITTY_SYNC_DISABLE`` is the sync layer's existing "keep this
+#: process light" toggle (also consumed by the sync daemon per
+#: ``docs/plans/loop-friction-fastfollow-spec.md`` FR-002/FR-006);
+#: ``SPEC_KITTY_SYNC_MINIMAL_IMPORT`` is the sibling "minimal import, no
+#: heavy registration" signal (``sync/__init__.py``, ``sync/daemon.py``,
+#: ``specify_cli/__init__.py``). Neither was ever wired to the gate's own
+#: multi-minute subprocess before this fix — the gate reuses the SAME
+#: signals rather than inventing a third env var.
+_PRE_REVIEW_GATE_DISABLE_ENV_VARS: tuple[str, ...] = (
+    "SPEC_KITTY_SYNC_DISABLE",
+    "SPEC_KITTY_SYNC_MINIMAL_IMPORT",
+)
+
 
 def _pre_review_gate_filter_groups() -> Mapping[str, tuple[str, ...]] | None:
     """Test seam: production always returns ``None``.
@@ -772,6 +790,29 @@ def _mt_review_config_section(main_repo_root: Path) -> Mapping[str, Any]:
 def _mt_pre_review_block_enabled(main_repo_root: Path) -> bool:
     """FR-001/NFR-001: opt-in block toggle — ``review.fail_on_pre_review_regression``."""
     return bool(_mt_review_config_section(main_repo_root).get(_PRE_REVIEW_CONFIG_KEY_BLOCK, False))
+
+
+def _mt_pre_review_gate_env_disable_reason() -> str | None:
+    """#2573 FR-002: the first honored disable env var, or ``None`` if none set."""
+    for env_var in _PRE_REVIEW_GATE_DISABLE_ENV_VARS:
+        if is_truthy(os.environ.get(env_var)):
+            return f"{env_var} is set"
+    return None
+
+
+def _mt_pre_review_gate_skip_reason(st: _MoveTaskState) -> str | None:
+    """#2573 FR-002: why the gate should be skipped this move, or ``None`` to run it.
+
+    The ``--skip-pre-review-gate`` flag is checked first (an explicit, per-
+    invocation opt-out); the disable env vars are checked second (a
+    process-wide opt-out already used by the sync layer). Either one skips
+    the gate WITHOUT ever resolving a workspace or spawning the scoped
+    pytest subprocess — the default (neither set) still runs/enforces the
+    gate exactly as before this fix.
+    """
+    if st.skip_pre_review_gate:
+        return "--skip-pre-review-gate flag"
+    return _mt_pre_review_gate_env_disable_reason()
 
 
 def _mt_pre_review_scope_override(wp_frontmatter: str, main_repo_root: Path) -> tuple[str, ...] | None:
@@ -1024,6 +1065,20 @@ def _mt_run_pre_review_gate(st: _MoveTaskState) -> None:
         return
     from specify_cli.cli.commands.agent import tasks as _tasks
 
+    # #2573 FR-002: the opt-out escape hatch — checked BEFORE touching the
+    # workspace or WP frontmatter, so a skip never resolves a lane workspace,
+    # diffs changed files, or spawns the scoped pytest subprocess. Default
+    # behavior (neither the flag nor an env var set) is untouched below.
+    skip_reason = _mt_pre_review_gate_skip_reason(st)
+    if skip_reason is not None:
+        verdict = _mt_empty_scope_verdict(f"gate skipped — {skip_reason}")
+        st.pre_review_gate_metadata = _mt_pre_review_gate_metadata(
+            verdict, block_enabled=False, blocked=False, force_bypassed=False,
+        )
+        if not st.json_output:
+            _tasks.console.print(f"[yellow]Pre-review regression gate: SKIPPED ({skip_reason})[/yellow]")
+        return
+
     assert st.wp is not None
     try:
         worktree_path = _mt_resolve_pre_review_workspace(st)
@@ -1037,6 +1092,17 @@ def _mt_run_pre_review_gate(st: _MoveTaskState) -> None:
         wp_slug = _resolve_wp_slug(st.main_repo_root, st.mission_slug, st.task_id)
         baseline_path = st.feature_dir / "tasks" / wp_slug / "baseline-tests.json"
         baseline = BaselineTestResult.load(baseline_path)
+        # #2573 FR-003: a non-empty scope means the gate is about to spawn a
+        # (potentially multi-minute) scoped pytest subprocess — surface that
+        # BEFORE the run so it never reads as a silent hang. An empty scope
+        # (no override, no changed files) stays silent here; it degrades to
+        # the cheap ``_mt_empty_scope_verdict`` path below without running
+        # anything.
+        if (override_targets is not None or changed_files) and not st.json_output:
+            _tasks.console.print(
+                "[cyan]Pre-review regression gate: running scoped tests at head "
+                "(may take a few minutes)...[/cyan]"
+            )
         verdict = _mt_pre_review_gate_verdict(
             changed_files=changed_files,
             override_targets=override_targets,
@@ -1705,6 +1771,7 @@ def _do_move_task(
     skip_review_artifact_check: bool,
     auto_commit: bool | None,
     json_output: bool,
+    skip_pre_review_gate: bool = False,
     *,
     ports: TasksPorts | None = None,
 ) -> None:
@@ -1737,6 +1804,7 @@ def _do_move_task(
         skip_review_artifact_check=skip_review_artifact_check,
         auto_commit=auto_commit,
         json_output=json_output,
+        skip_pre_review_gate=skip_pre_review_gate,
     )
     try:
         _mt_resolve_targets(st, ports)
