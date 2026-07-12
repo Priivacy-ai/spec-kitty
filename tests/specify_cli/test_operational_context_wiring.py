@@ -268,7 +268,16 @@ class TestWiringIsLive:
         assert "require_active_role" in src
 
     def test_decide_next_calls_decision_helper(self) -> None:
-        called = _calls_in(runtime_bridge.decide_next_via_runtime)
+        # #2531 WP09 (runtime-bridge-degod, FR-010): decide_next_via_runtime's
+        # body was rewritten into a four-phase early-return chain; the
+        # OperationalContext build now lives in the bootstrap phase
+        # (runtime_bridge._dn_bootstrap), which decide_next_via_runtime calls
+        # as phase 1/4 -- a moved AST-anchor target (mirrors the
+        # coord-authority-trio-degod precedent above), not a weakened
+        # assertion. The two-hop check preserves the original single-hop
+        # guarantee: decide_next_via_runtime -> _dn_bootstrap -> the helper.
+        assert "_dn_bootstrap" in _calls_in(runtime_bridge.decide_next_via_runtime)
+        called = _calls_in(runtime_bridge._dn_bootstrap)
         assert "_build_operational_context_for_decision" in called
 
     def test_decision_helper_calls_pure_assembler(self) -> None:

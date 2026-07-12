@@ -17,14 +17,131 @@ A tracked-mission-to-run compatibility index currently lives at
 ``.kittify/runtime/feature-runs.json``.
 """
 
+# ─────────────────────────────────────────────────────────────────────────────
+# #2531 DECOMPOSITION IN PROGRESS (mission runtime-bridge-degod-01KX8M1C).
+#
+# This module is being progressively decomposed from a single ~3800-LOC /
+# 62-symbol god module into cohesive, independently-tested seams under
+# ``runtime/next/``. Extracted so far:
+#
+#   runtime_bridge_engine.py   sole home of ``_internal_runtime`` engine /
+#                              planner private access (FR-013); also owns the
+#                              ``advance_run_state_after_composition`` logic
+#                              (former CC23 ``_advance_run_state_after_composition``
+#                              body, reduced to <=15) — this module keeps only
+#                              a thin residual compat delegate under the same
+#                              name so its 8x-patch/9x-attr monkeypatch surface
+#                              still intercepts (contracts/compat-surface.md).
+#
+#   runtime_bridge_retrospective.py   sole home of the self-contained
+#                              Confirm.ask-gated retrospective / learning-
+#                              capture cluster (FR-006). This module keeps a
+#                              native thin compat delegate under each of the 9
+#                              symbols the WP02 compat guard binds (see the
+#                              seam module's docstring for why a plain
+#                              re-export is insufficient here — the guard's
+#                              identity check hardcodes the cross-module
+#                              baseline).
+#
+#   runtime_bridge_io.py       sole home of the narrow I/O ports (IC-04):
+#                              feature-runs.json index, template/pack
+#                              discovery, run lifecycle, the OperationalContext
+#                              builder, the FR-009 gather_artifact_presence
+#                              fact-port, and the pure resolve_commit_target
+#                              lifted out of _wrap_with_decision_git_log. Same
+#                              native-thin-delegate rule as the retrospective
+#                              seam applies to every compat-tracked symbol
+#                              moved there.
+#
+#   runtime_bridge_cores.py    sole home of the pure, zero-dependency leaves
+#                              (FR-009): the tasks.md parse family and the
+#                              guard inversion (`evaluate_guards(snapshot)`
+#                              folding `_check_cli_guards` /
+#                              `_check_composed_action_guard` /
+#                              `_check_requirement_mapping_ready`'s decision
+#                              tail over the WP05 `ArtifactPresenceSnapshot`
+#                              fact-port). Same native-thin-delegate rule for
+#                              every compat-tracked symbol moved there; two
+#                              symbols (`_parse_wp_sections_from_tasks_md` /
+#                              `_parse_requirement_refs_from_tasks_md`) use a
+#                              same-module live-lookup between their two
+#                              residual delegates rather than forwarding to
+#                              the cores-internal call, closing the
+#                              intra-seam false-green trap for their mutual
+#                              call (see their docstrings below).
+#
+#   runtime_bridge_cores.py    ALSO owns the Decision-builder (FR-011,
+#                              WP07): ``DecisionEnvelope`` + ``step_or_
+#                              blocked`` collapse the 29 open-coded
+#                              ``Decision(...)`` constructions (+ the 4x
+#                              ``_state_to_action -> _build_prompt_or_error
+#                              -> step-or-blocked`` triad) that used to be
+#                              scattered across this module's three public
+#                              entries. This module keeps ``_materialize_
+#                              decision`` (the thin residual wrapper
+#                              supplying the production ``prompt_exists``
+#                              port) plus ``_map_wp_step_decision`` /
+#                              ``_map_non_wp_step_decision`` /
+#                              ``_build_decision_required_prompt_file``, the
+#                              extractions that keep ``_map_runtime_
+#                              decision`` / ``query_current_state`` at or
+#                              under the complexity ceiling.
+#
+#   runtime_bridge_composition.py   sole home of the composition-dispatch
+#                              cluster (WP08): the dispatch entry
+#                              (``_dispatch_via_composition``), the
+#                              composed-action guard
+#                              (``_check_composed_action_guard``), the
+#                              composition-input resolution helpers, the
+#                              research/documentation guard-fact readers, and
+#                              — the FR-008 headline — the
+#                              ``_should_dispatch_via_composition`` selection
+#                              seam isolated as a clean, gates-#2535-free
+#                              predicate for a future WP14 consumer to route
+#                              through. Same native-thin-delegate rule for
+#                              every compat-tracked symbol moved there.
+#                              ``_advance_run_state_after_composition``
+#                              (WP03) is unaffected — its logic already lives
+#                              in the engine adapter and its thin residual
+#                              delegate stays defined right here, unmoved.
+#
+#   runtime_bridge_identity.py   sole home of the hottest fracture line
+#                              (WP10, LAST): coord-branch naming
+#                              (``_resolve_coordination_branch``), mission-ULID
+#                              resolution (``_resolve_mission_ulid``), and
+#                              primary-feature-dir resolution
+#                              (``_primary_runtime_feature_dir``) — the scars
+#                              #2091/#1978/#1918/#1814/#2069 cluster. Same
+#                              native-thin-delegate rule for every compat-
+#                              tracked symbol moved there; both intra-seam
+#                              callers of ``_primary_runtime_feature_dir``
+#                              (patched 6x) route back through THIS module's
+#                              own delegate via a live, deferred lookup rather
+#                              than a bare intra-seam call (research.md
+#                              §Compat's grounded false-green trap).
+#                              ``_wrap_with_decision_git_log`` (the cluster's
+#                              caller) and ``_mission_routes_through_
+#                              coordination`` are KEEP-IN-PLACE here, unmoved.
+#
+# This is the FINAL extraction (WP10) — see
+# ``kitty-specs/runtime-bridge-degod-01KX8M1C/``.
+#
+# RULES (do NOT regress):
+#   * Never reach into ``_internal_runtime.engine`` / ``.planner`` directly
+#     from this module — go through ``runtime_bridge_engine`` (arch-guarded,
+#     see ``tests/runtime/test_bridge_engine.py``).
+#   * ``__all__`` (below) covers the 8 public names only (governs
+#     ``import *``); the ~50 private symbols tests patch stay preserved by the
+#     explicit guarded compat re-export block, not by ``__all__`` (FR-012).
+#
+# De-godding effort: https://github.com/Priivacy-ai/spec-kitty/issues/2531
+# ─────────────────────────────────────────────────────────────────────────────
+
 from __future__ import annotations
 
-import json
+import dataclasses
 import logging
-import os
-import re
 import shutil
-import tempfile
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -32,30 +149,67 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from charter.invocation_context import OperationalContext as OperationalContextT
 
-import yaml
 from runtime.next._internal_runtime import (
     DiscoveryContext,
-    MissionPolicySnapshot,
     MissionRunRef,
     NextDecision,
-    NullEmitter,
     next_step as runtime_next_step,
     provide_decision_answer as runtime_provide_decision_answer,
-    start_mission_run,
 )
 from runtime.next._internal_runtime.schema import ActorIdentity, MissionRuntimeError, load_mission_template_file
+from runtime.next import runtime_bridge_composition as _composition
+from runtime.next import runtime_bridge_cores as _cores
+from runtime.next import runtime_bridge_engine as _engine_adapter
+from runtime.next import runtime_bridge_identity as _identity_seam
+from runtime.next import runtime_bridge_io as _io_seam
+from runtime.next import runtime_bridge_retrospective as _retrospective_seam
 
-from specify_cli.core.atomic import atomic_write
-from specify_cli.core.constants import MISSION_TYPE_SOFTWARE_DEV
+# _extract_wp_heading / _collect_requirement_refs_for_section /
+# _iter_requirement_refs / _requirement_inline_refs_suffix /
+# _is_requirement_heading are NOT in the WP02 compat guard's tracked symbol
+# inventory (nothing patches them — grep-verified against
+# test_bridge_compat_surface.py), so a plain re-export is safe here (unlike
+# the two native thin delegates below for the two tracked parse-family
+# symbols). The redundant "as X" self-alias is mypy's explicit-reexport
+# idiom (see the analogous note on the decision.py import below).
+from runtime.next.runtime_bridge_cores import (
+    _collect_requirement_refs_for_section as _collect_requirement_refs_for_section,
+    _extract_wp_heading as _extract_wp_heading,
+    _is_requirement_heading as _is_requirement_heading,
+    _iter_requirement_refs as _iter_requirement_refs,
+    _requirement_inline_refs_suffix as _requirement_inline_refs_suffix,
+)
+
+# _retrospective_blocks_completion is NOT in the WP02 compat guard's tracked
+# symbol inventory (nothing patches it — see test_bridge_engine.py's analogous
+# note), so a plain re-export is safe here (unlike the 9 thin native delegates
+# below). The redundant "as X" self-alias is mypy's explicit-reexport idiom —
+# without it, strict mode's --no-implicit-reexport blocks attribute access
+# from other checked modules (e.g. runtime_bridge_engine.py's _rb.<name> live
+# lookup) even though the name is a genuine module-level import.
+from runtime.next.runtime_bridge_retrospective import (
+    _retrospective_blocks_completion as _retrospective_blocks_completion,
+)
+
+# _composition_dispatch_inputs / _has_generated_docs are NOT in the WP02
+# compat guard's tracked symbol inventory (nothing patches them), so a plain
+# re-export is safe here (unlike the native thin delegates below for the
+# tracked composition symbols): ``decide_next_via_runtime`` still calls
+# ``_composition_dispatch_inputs`` bare, and ``runtime_bridge_io.gather_
+# artifact_presence`` still reaches ``_has_generated_docs`` via its own live
+# ``_rb._has_generated_docs(...)`` lookup (#2531 WP08).
+from runtime.next.runtime_bridge_composition import (
+    _composition_dispatch_inputs as _composition_dispatch_inputs,
+    _has_generated_docs as _has_generated_docs,
+)
+
 from specify_cli.mission import get_mission_type
-from specify_cli.mission_metadata import load_meta, load_meta_or_empty
 from specify_cli.status import CanonicalStatusNotFoundError
 from specify_cli.status import Lane
 from specify_cli.status import wp_state_for
 from runtime.next.decision import (
     Decision,
     DecisionKind,
-    InvalidStepDecision,
     _build_prompt_or_error,
     _build_prompt_safe,
     _compute_wp_progress,
@@ -68,81 +222,41 @@ from mission_runtime import routes_through_coordination
 logger = logging.getLogger(__name__)
 
 KITTIFY_DIR = ".kittify"
-MISSION_RUNTIME_YAML = "mission-runtime.yaml"
-MISSION_YAML = "mission.yaml"
+# MISSION_RUNTIME_YAML / MISSION_YAML moved to runtime_bridge_io.py (T017 —
+# their only residual users, the discovery cluster, moved with them).
 
 class DecisionGitLogUnavailable(RuntimeError):
     """Decision audit logging cannot be made durable for a modern mission."""
 
 
 def _primary_runtime_feature_dir(repo_root: Path, mission_slug: str) -> Path:
-    """Return the PRIMARY-checkout mission feature dir for identity/meta reads.
-
-    Mission identity (``mission_id``, ``coordination_branch``, stored topology)
-    is persisted ONLY on the primary checkout's ``meta.json``. Under coordination
-    topology the topology-aware resolver (``candidate_feature_dir_for_mission``)
-    returns the coordination worktree once it is materialized — whose mission dir
-    has NO ``meta.json`` — so reading identity there found nothing and fell back
-    to the bare slug, yielding an empty ``mid8`` and a malformed
-    ``kitty/mission-<slug>-`` coord branch (#2091). Anchor on the topology-BLIND
-    :func:`primary_feature_dir_for_mission`, mirroring
-    :func:`_mission_routes_through_coordination` above and the canonical
-    precedent in ``core/paths.py`` (the same bug-class fixed for the merge
-    target): the coord-aware resolver fail-closes for a materialized-but-empty
-    coord worktree, so it must not gate primary-anchored identity reads.
-    """
-    from specify_cli.missions._read_path_resolver import (
-        _canonicalize_primary_read_handle,
-        primary_feature_dir_for_mission,
-    )
-
-    # WP05/FR-005: route through _canonicalize_primary_read_handle.
-    return primary_feature_dir_for_mission(
-        repo_root,
-        _canonicalize_primary_read_handle(repo_root, mission_slug),
-    )
+    """Thin compat delegate (native ``def``; FR-012 compat surface, #2531
+    WP10) — forwards to :func:`runtime_bridge_identity._primary_runtime_feature_dir`.
+    Patched 6x by ``tests/runtime/test_runtime_bridge_identity.py`` — kept as a
+    native ``def`` (never a plain re-export) so this name's ``__module__``
+    stays ``runtime_bridge``, and both intra-seam callers of the real
+    implementation (:func:`runtime_bridge_identity._resolve_coordination_branch`
+    / ``._resolve_mission_ulid``) route back through THIS delegate via a live,
+    deferred lookup rather than a bare intra-seam call — see
+    ``runtime_bridge_identity``'s module docstring for the false-green
+    mechanism this closes."""
+    return _identity_seam._primary_runtime_feature_dir(repo_root, mission_slug)
 
 
 def _resolve_coordination_branch(mission_slug: str, repo_root: Path) -> str:
-    """Return the coordination branch for a mission from meta.json.
-
-    When meta.json declares ``coordination_branch`` explicitly, that value is
-    authoritative. Otherwise the branch is composed via the fail-closed WP01
-    seam (:func:`coord_branch_name`/:func:`mission_branch_name_required`) using
-    the declared ``mission_id``, instead of a bare ``kitty/mission-<slug>``
-    f-string that drops the ``-<mid8>`` disambiguator (#1978). When the mission
-    is legacy/unresolvable the seam still composes the legacy branch; a modern
-    slug with no recoverable identity raises :class:`BranchIdentityUnresolved`,
-    surfacing the lost identity rather than silently mis-composing.
-    """
-    # load_meta_or_empty (post-#2091 silent contract) absorbs a missing or
-    # malformed meta.json to {}, matching the prior try/except-{} absorption.
-    meta: dict[str, Any] = load_meta_or_empty(
-        _primary_runtime_feature_dir(repo_root, mission_slug)
-    )
-    branch = meta.get("coordination_branch")
-    if isinstance(branch, str) and branch.strip():
-        return branch.strip()
-
-    from specify_cli.lanes.branch_naming import mission_branch_name_required
-
-    mission_id = meta.get("mission_id")
-    resolved_id = mission_id.strip() if isinstance(mission_id, str) and mission_id.strip() else None
-    return mission_branch_name_required(mission_slug, resolved_id)
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_identity._resolve_coordination_branch` (FR-012
+    compat surface, #2531 WP10; see module-level comment above and
+    ``runtime_bridge_identity``'s docstring)."""
+    return _identity_seam._resolve_coordination_branch(mission_slug, repo_root)
 
 
 def _resolve_mission_ulid(mission_slug: str, repo_root: Path) -> str | None:
-    """Read the canonical ULID mission_id from meta.json via the identity SSOT.
-
-    WP04/FR-004: Routes through ``mission_metadata.resolve_mission_identity``
-    (the single source of truth) instead of hand-rolling a json.loads read.
-    Returns the ULID string when present, or ``None`` when absent — fail-closed:
-    callers must NOT substitute the slug for the absent ULID.
-    """
-    from specify_cli.mission_metadata import resolve_mission_identity  # noqa: PLC0415
-
-    feature_dir = _primary_runtime_feature_dir(repo_root, mission_slug)
-    return resolve_mission_identity(feature_dir).mission_id
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_identity._resolve_mission_ulid` (FR-012 compat
+    surface, #2531 WP10; see module-level comment above and
+    ``runtime_bridge_identity``'s docstring)."""
+    return _identity_seam._resolve_mission_ulid(mission_slug, repo_root)
 
 
 def _mission_routes_through_coordination(mission_slug: str, repo_root: Path) -> bool:
@@ -199,36 +313,27 @@ def _wrap_with_decision_git_log(
         mission_slug, repo_root,
     )
     try:
-        from mission_runtime import CommitTarget
         from specify_cli.coordination.workspace import CoordinationWorkspace
         from specify_cli.events.decision_log import DecisionGitLog
 
         coordination_branch = _resolve_coordination_branch(mission_slug, repo_root)
         mission_id = _resolve_mission_ulid(mission_slug, repo_root)  # str | None
 
-        # Resolve coord worktree path (pure static method, no side effects).
-        # Derive the mid8 authoritatively from the declared mission_id via the
-        # WP01 seam (FR-004): the heuristic mid8_from_slug trusts a coincidental
-        # 8-char tail with no identity to confirm against, so it must not sit on
-        # this correctness path (#1918). resolve_mid8 returns mission_id[:8] when
-        # a ULID is declared, and declines (``""``) on a bare slug or None.
-        # WP04: slug-as-sentinel removed — mission_id is now str | None from SSOT.
-        from specify_cli.lanes.branch_naming import resolve_mid8 as _resolve_mid8
-        _mid8 = _resolve_mid8(mission_slug, mission_id=mission_id)
-
-        # Fail loud, never compose a malformed ``kitty/mission-<slug>-`` branch
-        # (#2091): an empty mid8 on a coord-routing mission means identity was
-        # unresolvable, so refuse here with a clear message rather than letting
-        # ``git worktree add`` fail with an opaque exit-128 on a non-existent
-        # branch. With the primary-anchored identity read above this is
-        # belt-and-suspenders, but it closes the dormant mask if any future read
-        # path loses the ULID again.
-        if coord_routing_topology and not _mid8:
-            raise DecisionGitLogUnavailable(
-                f"Cannot resolve mid8 for coordination-topology mission "
-                f"{mission_slug!r} (mission_id unresolvable); refusing to compose "
-                "a malformed coordination branch without durable decision evidence."
-            )
+        # T019 (#2531 WP05): mid8 derivation + the fail-closed mid8-required
+        # validation + CommitTarget/worktree_root-candidate selection is the
+        # ONE pure decision that used to live inline here — lifted into
+        # runtime_bridge_io.resolve_commit_target (data-model.md §Ports). See
+        # that function's docstring for why this call raises
+        # DecisionGitLogUnavailable identically to the pre-extraction inline
+        # code (still caught by the except below) and why the .exists()-gated
+        # branch remains here as the one genuinely I/O-bearing decision.
+        _mid8, worktree_root_candidate, decision_target = _io_seam.resolve_commit_target(
+            coord_routing_topology=coord_routing_topology,
+            mission_slug=mission_slug,
+            mission_id=mission_id,
+            coordination_branch=coordination_branch,
+            repo_root=repo_root,
+        )
 
         # The decision-target topology SHAPE is READ from the WP02 stored topology
         # (FR-004 / SC-001) — never from ``_coord_path.exists()`` (the retired
@@ -238,27 +343,19 @@ def _wrap_with_decision_git_log(
         # use it; not-yet-materialized → compose via ``CoordinationWorkspace.resolve``)
         # — it is NOT the topology classifier.
         if coord_routing_topology:
-            _coord_path = CoordinationWorkspace.worktree_path(
-                repo_root, mission_slug, _mid8
-            )
             # C-011 risk site: the worktree_root selection is preserved EXACTLY —
             # keyed off the stored-topology coord-routing decision and the C-006
             # transient on-disk materialization check, never ``.kind``.
             worktree_root = (
-                _coord_path
-                if _coord_path.exists()
+                worktree_root_candidate
+                if worktree_root_candidate.exists()
                 else CoordinationWorkspace.resolve(repo_root, mission_slug, _mid8)
             )
-            # The vestigial topology ``.kind`` carrier is dropped (WP04 drain):
-            # DecisionGitLog → safe_commit reads only ``target.ref``. The VO field
-            # defaults transitionally until WP16 removes it.
-            decision_target = CommitTarget(ref=coordination_branch)
         else:
             # Coord-less topology: decisions land on the primary checkout's
             # current branch (a lane/mission branch); landing == coordination ==
             # target. worktree_root is the repo_root (preserved exactly).
-            worktree_root = repo_root
-            decision_target = CommitTarget(ref=coordination_branch)
+            worktree_root = worktree_root_candidate
 
         return DecisionGitLog(
             repo_root=repo_root,
@@ -332,266 +429,69 @@ class MissionNotFoundError(Exception):
 
 
 # ---------------------------------------------------------------------------
-# Feature → Run index
+# Feature → Run index — bodies moved to runtime_bridge_io.py (T017); see
+# ``_load_feature_runs`` below for the residual thin compat delegate.
+#
+# tasks.md parse family — bodies moved to runtime_bridge_cores.py (#2531
+# WP06, T021; verbatim, zero-dependency pure leaf). ``TASKS_GLOB`` stays
+# here (still used by ``_should_advance_wp_step`` / ``_check_requirement_
+# mapping_ready``, neither of which moved).
 # ---------------------------------------------------------------------------
 
-_FEATURE_RUNS_FILE = "feature-runs.json"
 TASKS_GLOB = "WP*.md"
-_REQUIREMENT_REF_PATTERN = re.compile(r"\b(?:FR|NFR|C)-\d+\b", re.IGNORECASE)
-
-
-def _extract_wp_heading(line: str) -> tuple[str, int] | None:
-    """Return ``(wp_id, matched_prefix_len)`` for a tasks.md WP heading line."""
-    heading_level = 0
-    while heading_level < len(line) and line[heading_level] == "#":
-        heading_level += 1
-    if heading_level < 2 or heading_level > 4:
-        return None
-    if heading_level >= len(line) or not line[heading_level].isspace():
-        return None
-
-    cursor = heading_level
-    while cursor < len(line) and line[cursor].isspace():
-        cursor += 1
-
-    work_package_prefix = "Work Package"
-    if line.startswith(work_package_prefix, cursor):
-        prefix_end = cursor + len(work_package_prefix)
-        if prefix_end >= len(line) or not line[prefix_end].isspace():
-            return None
-        cursor = prefix_end
-        while cursor < len(line) and line[cursor].isspace():
-            cursor += 1
-
-    if not line.startswith("WP", cursor):
-        return None
-    digit_start = cursor + 2
-    digit_end = digit_start + 2
-    if digit_end > len(line) or not line[digit_start:digit_end].isdigit():
-        return None
-
-    wp_id = line[cursor:digit_end]
-    if digit_end == len(line):
-        return wp_id, digit_end
-
-    trailing = line[digit_end]
-    if trailing == ":" or not (trailing.isalnum() or trailing == "_"):
-        return wp_id, digit_end
-    return None
 
 
 def _parse_wp_sections_from_tasks_md(tasks_content: str) -> dict[str, str]:
-    """Extract WP sections from tasks.md keyed by WP ID."""
-    sections: dict[str, str] = {}
-    matches: list[tuple[str, int, int]] = []
-    content_len = len(tasks_content)
-    search_at = 0
-
-    while True:
-        wp_pos = tasks_content.find("WP", search_at)
-        if wp_pos == -1:
-            break
-
-        line_start = tasks_content.rfind("\n", 0, wp_pos) + 1
-        newline = tasks_content.find("\n", wp_pos)
-        line_end = content_len if newline == -1 else newline + 1
-        search_at = line_end
-
-        if not tasks_content.startswith("##", line_start):
-            continue
-
-        line = tasks_content[line_start:line_end]
-        heading = _extract_wp_heading(line)
-        if heading is not None:
-            wp_id, matched_prefix_len = heading
-            matches.append((wp_id, line_start + matched_prefix_len, line_start))
-
-    for idx, (wp_id, start, _line_start) in enumerate(matches):
-        end = matches[idx + 1][2] if idx + 1 < len(matches) else len(tasks_content)
-        sections[wp_id] = tasks_content[start:end]
-
-    return sections
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_cores._parse_wp_sections_from_tasks_md`."""
+    return _cores._parse_wp_sections_from_tasks_md(tasks_content)
 
 
 def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[str]]:
-    """Parse requirement references per WP from tasks.md content."""
+    """Thin compat delegate — parse requirement references per WP.
+
+    Composed via THIS module's own :func:`_parse_wp_sections_from_tasks_md`
+    delegate (bare call, resolved against ``runtime_bridge``'s own globals)
+    rather than forwarding to :func:`runtime_bridge_cores._parse_requirement_
+    refs_from_tasks_md` (whose internal call to the cores-local
+    ``_parse_wp_sections_from_tasks_md`` would resolve against
+    ``runtime_bridge_cores``'s globals instead). Both symbols are WP02
+    compat-tracked and patched independently
+    (``tests/runtime/test_bridge_compat_surface.py``'s ``REACH`` map); a
+    blind forward here would make ``monkeypatch.setattr(runtime_bridge,
+    "_parse_wp_sections_from_tasks_md", ...)`` a no-op false-green for any
+    scenario that reaches it only through this function (the exact
+    intra-seam-call trap research.md §Compat documents for
+    ``_primary_runtime_feature_dir``)."""
     return {
-        wp_id: _collect_requirement_refs_for_section(section_content)
+        wp_id: _cores._collect_requirement_refs_for_section(section_content)
         for wp_id, section_content in _parse_wp_sections_from_tasks_md(tasks_content).items()
     }
 
 
-def _collect_requirement_refs_for_section(section_content: str) -> list[str]:
-    """Collect deduplicated requirement refs from one WP section."""
-    refs: list[str] = []
-    in_requirement_ref_list = False
-    for line in section_content.splitlines():
-        stripped_line = line.strip()
-        if in_requirement_ref_list:
-            if not stripped_line:
-                continue
-            if stripped_line.startswith(("-", "*")):
-                refs.extend(_iter_requirement_refs(stripped_line))
-                continue
-            in_requirement_ref_list = False
-
-        suffix = _requirement_inline_refs_suffix(line)
-        if suffix is not None:
-            refs.extend(_iter_requirement_refs(suffix))
-            continue
-        if _is_requirement_heading(stripped_line):
-            in_requirement_ref_list = True
-    return list(dict.fromkeys(refs))
-
-
-def _iter_requirement_refs(text: str) -> list[str]:
-    """Return normalized requirement refs found in ``text``."""
-    return [ref_id.upper() for ref_id in _REQUIREMENT_REF_PATTERN.findall(text)]
-
-
-def _requirement_inline_refs_suffix(line: str) -> str | None:
-    """Return inline requirement-ref suffix when ``line`` is a label/value row."""
-    lower_line = line.lower()
-    if "requirement" not in lower_line:
-        return None
-    prefix, separator, suffix = line.partition(":")
-    if separator and "requirement" in prefix.lower():
-        return suffix
-    return None
-
-
-def _is_requirement_heading(stripped_line: str) -> bool:
-    """Return whether a markdown heading denotes a requirement refs section."""
-    if not stripped_line.startswith("#"):
-        return False
-
-    body = stripped_line.lstrip("#").strip()
-    if not body:
-        return False
-
-    normalized_body = body.replace("*", "").strip().lower()
-    return normalized_body in {"requirement", "requirements", "requirement refs", "requirements refs"}
-
-
-class _BufferingRuntimeEmitter:
-    """Records runtime emit calls in order and replays them on flush.
-
-    Used on the legacy DAG dispatch path when the retrospective gate is
-    opted in: the engine's ``next_step()`` synchronously calls the
-    emitter's ``emit_mission_run_completed`` (and its sync side-effects:
-    remote dispatch, queueing, etc.) the moment a terminal advance lands.
-    A naive rollback that only restores local files would leave those
-    sync events fired and unretractable.
-
-    The buffer captures every emit call in order. After the engine
-    returns, the bridge either flushes the buffer to the real emitter
-    (gate allowed) or drops it (gate blocked). The ``flush`` is a single
-    one-shot replay; subsequent calls flush nothing.
-
-    Implements the ``RuntimeEventEmitter`` Protocol structurally — every
-    emit method records ``(method_name, payload)`` and returns ``None``.
-    """
-
-    def __init__(self) -> None:
-        self._calls: list[tuple[str, Any]] = []
-        self._flushed = False
-
-    def _record(self, method_name: str, payload: Any) -> None:
-        self._calls.append((method_name, payload))
-
-    def emit_mission_run_started(self, payload: Any) -> None:
-        self._record("emit_mission_run_started", payload)
-
-    def emit_next_step_issued(self, payload: Any) -> None:
-        self._record("emit_next_step_issued", payload)
-
-    def emit_next_step_auto_completed(self, payload: Any) -> None:
-        self._record("emit_next_step_auto_completed", payload)
-
-    def emit_decision_input_requested(self, payload: Any) -> None:
-        self._record("emit_decision_input_requested", payload)
-
-    def emit_decision_input_answered(self, payload: Any) -> None:
-        self._record("emit_decision_input_answered", payload)
-
-    def emit_mission_run_completed(self, payload: Any) -> None:
-        self._record("emit_mission_run_completed", payload)
-
-    def emit_significance_evaluated(self, payload: Any) -> None:
-        self._record("emit_significance_evaluated", payload)
-
-    def emit_decision_timeout_expired(self, payload: Any) -> None:
-        self._record("emit_decision_timeout_expired", payload)
-
-    def seed_from_snapshot(self, snapshot: Any) -> None:
-        # Pass-through for SyncRuntimeEventEmitter compatibility; not
-        # buffered because seed is idempotent and side-effect-free.
-        del snapshot
-
-    def call_count(self) -> int:
-        return len(self._calls)
-
-    def discard(self) -> None:
-        """Drop all buffered calls without replaying them."""
-        self._calls.clear()
-        self._flushed = True
-
-    def flush(self, target: Any) -> None:
-        """Replay all buffered calls into ``target`` and mark as flushed.
-
-        Re-flushing is a no-op so the same buffer can safely be passed
-        through multiple paths without double-emitting.
-        """
-        if self._flushed:
-            return
-        for method_name, payload in self._calls:
-            method = getattr(target, method_name, None)
-            if method is None:
-                continue
-            method(payload)
-        # Also seed phase state on the target from any buffered events that
-        # imply phase transitions, since the buffered emitter did not run
-        # the SyncRuntimeEventEmitter's _enter_phase logic.
-        self._calls.clear()
-        self._flushed = True
+class _BufferingRuntimeEmitter(_retrospective_seam._BufferingRuntimeEmitter):
+    """Thin compat delegate (native ``class`` statement; FR-012 compat
+    surface, #2531 WP04). Real implementation lives in
+    :class:`runtime_bridge_retrospective._BufferingRuntimeEmitter` — inherited
+    unchanged (no override). Kept as a native subclass definition (not a
+    plain re-export alias) so ``_BufferingRuntimeEmitter.__module__`` stays
+    ``runtime_bridge`` — the WP02 compat guard's identity/relocated-symbol
+    check only tolerates the pre-existing ``runtime.next.decision``-origin
+    cross-module symbols; see the module-level #2531 comment block above and
+    ``runtime_bridge_retrospective``'s docstring."""
 
 
 def _rich_hic_prompt() -> tuple[bool, str | None]:
-    """Operator-facing Rich prompt for the HiC retrospective lifecycle.
-
-    Lives in the bridge layer so the ``_internal_runtime/`` package keeps a
-    rich/typer-free import surface (test_internal_runtime_parity).
-    """
-    from rich.prompt import Confirm, Prompt
-
-    run_now: bool = Confirm.ask("Run retrospective now?", default=True)
-    if run_now:
-        return True, None
-
-    skip_reason: str = ""
-    while not skip_reason.strip():
-        skip_reason = Prompt.ask("Skip reason (required, must be non-empty)")
-    return False, skip_reason.strip()
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_retrospective._rich_hic_prompt` (FR-012 compat
+    surface, #2531 WP04; see module-level comment above)."""
+    return _retrospective_seam._rich_hic_prompt()
 
 
 def _resolve_mission_id_for_terminus(feature_dir: Path) -> str:
-    """Read the canonical ULID mission_id from ``meta.json`` next to the feature.
-
-    Used by the retrospective terminus wiring to identify the mission for
-    event emission and gate consultation. Falls back to the feature_dir name
-    when meta.json is missing or malformed (older missions predating the
-    ULID identity rollout); the gate handles missing identities defensively.
-    """
-    # load_meta_or_empty (post-#2091 silent contract) absorbs a missing or
-    # malformed meta.json to {}, matching the prior try/except-fallback.
-    meta = load_meta_or_empty(feature_dir)
-    mission_id = meta.get("mission_id") if isinstance(meta, dict) else None
-    if isinstance(mission_id, str) and mission_id.strip():
-        return mission_id
-    return feature_dir.name
-
-
-_RESOLUTION_ERROR = "<resolution_error>"
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_retrospective._resolve_mission_id_for_terminus`."""
+    return _retrospective_seam._resolve_mission_id_for_terminus(feature_dir)
 
 
 def _build_retrospective_facilitator_callback(
@@ -599,196 +499,19 @@ def _build_retrospective_facilitator_callback(
     repo_root: Path,
     provenance_kind: str = "runtime_post_completion",
 ) -> Any:
-    """Build the facilitator callback that wires WP01/02/03 surfaces into the terminus.
-
-    Returns a callable suitable for ``facilitator_callback=`` in ``run_terminus()``.
-    When invoked by the terminus, it:
-
-    1. Resolves policy via WP01 ``resolve_policy()``.
-    2. Dispatches to the generator via WP02 ``generate_retrospective()``.
-    3. Writes the record via WP03 ``write_gen_record(mode="error")``.
-    4. Emits a ``RetrospectiveCaptured`` lifecycle event (WP03 ``emit_captured()``).
-
-    The callback returns a ``RetrospectiveRecord`` (the old pydantic-based schema type)
-    to satisfy the terminus contract.  Generator failures are classified and logged;
-    the caller (terminus) decides whether to block or continue based on the exception
-    propagating upward.
-
-    WP04 — T018/T019/T020/T021
-    """
-    del repo_root
-    # Late imports to keep the module-level import graph clean and to allow
-    # the terminus to remain the single import point for heavy optional deps.
-    from specify_cli.retrospective.policy import (
-        PolicyResolutionError,
-        resolve_policy,
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_retrospective._build_retrospective_facilitator_callback`."""
+    return _retrospective_seam._build_retrospective_facilitator_callback(
+        mission_slug, repo_root, provenance_kind
     )
-    from specify_cli.retrospective.generator import generate_retrospective
-    from specify_cli.retrospective.writer import RecordExistsError, write_gen_record
-    from specify_cli.retrospective.lifecycle_events import (
-        Actor as RetroActor,
-        emit_captured,
-        emit_capture_failed,
-    )
-
-    _prov: str = provenance_kind  # captured in closure
-
-    def _facilitator(
-        *,
-        mission_id: str,
-        feature_dir: Path,  # noqa: ARG001
-        repo_root: Path,
-        **_kwargs: Any,
-    ) -> Any:
-        """WP04 facilitator: policy-resolve → generate → write → emit."""
-        # Step 1: Resolve policy.
-        try:
-            policy, source_map = resolve_policy(repo_root)
-        except PolicyResolutionError as exc:
-            source_map = _resolution_error_source_map()
-            _classify_and_emit_failure(
-                mission_id=mission_id,
-                mission_slug=mission_slug,
-                repo_root=repo_root,
-                exc=exc,
-                source_map=source_map,
-                provenance_kind=_prov,
-                emit_capture_failed=emit_capture_failed,
-            )
-            raise
-
-        # Short-circuit if policy disabled.
-        if not policy.enabled:
-            return None  # terminus interprets None as no-op for disabled paths
-
-        # Step 2: Generate.
-        try:
-            record = generate_retrospective(
-                mission_slug,
-                policy,
-                repo_root,
-                provenance_kind=_prov,  # type: ignore[arg-type]
-                policy_source=source_map,
-            )
-        except FileNotFoundError as exc:
-            _classify_and_emit_failure(
-                mission_id=mission_id,
-                mission_slug=mission_slug,
-                repo_root=repo_root,
-                exc=exc,
-                source_map=source_map,
-                provenance_kind=_prov,
-                emit_capture_failed=emit_capture_failed,
-            )
-            raise
-
-        except Exception as exc:  # noqa: BLE001
-            _classify_and_emit_failure(
-                mission_id=mission_id,
-                mission_slug=mission_slug,
-                repo_root=repo_root,
-                exc=exc,
-                source_map=source_map,
-                provenance_kind=_prov,
-                emit_capture_failed=emit_capture_failed,
-            )
-            raise
-
-        # Step 3: Write record.
-        try:
-            write_gen_record(record, repo_root=repo_root, mode="error")
-        except RecordExistsError:
-            # Record already written (e.g. backfill ran first).  Treat as
-            # non-fatal: emit Captured with existing record path and continue.
-            logger.debug(
-                "Retrospective record already exists for mission %s — skipping write.",
-                mission_slug,
-            )
-        except Exception as exc:  # noqa: BLE001
-            _classify_and_emit_failure(
-                mission_id=mission_id,
-                mission_slug=mission_slug,
-                repo_root=repo_root,
-                exc=exc,
-                source_map=source_map,
-                provenance_kind=_prov,
-                emit_capture_failed=emit_capture_failed,
-            )
-            raise
-
-        # Step 4: Emit RetrospectiveCaptured lifecycle event.
-        # Guard against emit failure after a successful record write — without
-        # this guard, an emit-side failure (event log corruption, disk full
-        # during JSONL append, etc.) leaves an orphan retrospective.yaml on
-        # disk with no corresponding RetrospectiveCaptured event in the log.
-        # That breaks the summary classifier (read on disk + absence of
-        # Captured/Failed event → state misreported as "missing" or "failed").
-        # Mission review (TOCTOU finding) caught this; we now downgrade to a
-        # Failed event so the on-disk record AND the event log agree.
-        runtime_actor = RetroActor(kind="runtime", id="spec-kitty-generator")
-        try:
-            emit_captured(
-                record,
-                repo_root,
-                provenance_kind=_prov,  # type: ignore[arg-type]
-                actor=runtime_actor,
-            )
-        except Exception as exc:  # noqa: BLE001
-            logger.warning(
-                "Retrospective record written but RetrospectiveCaptured emit "
-                "failed for mission %s; emitting RetrospectiveCaptureFailed.",
-                mission_slug,
-                exc_info=exc,
-            )
-            _classify_and_emit_failure(
-                mission_id=mission_id,
-                mission_slug=mission_slug,
-                repo_root=repo_root,
-                exc=exc,
-                source_map=source_map,
-                provenance_kind=_prov,
-                emit_capture_failed=emit_capture_failed,
-            )
-            # Do NOT re-raise — the record is on disk; mission completion
-            # should proceed under default-warn policy. Strict-block policy
-            # would have already raised before reaching this step.
-
-        # Return a minimal stub satisfying the terminus protocol.
-        # The terminus uses this as a truthy "record was produced" sentinel.
-        return record
-
-    return _facilitator
-
-
-def _resolution_error_source_map() -> dict[str, str]:
-    """Return a minimal policy source map for malformed policy failures."""
-    return {
-        "enabled": _RESOLUTION_ERROR,
-        "timing": _RESOLUTION_ERROR,
-        "failure_policy": _RESOLUTION_ERROR,
-    }
 
 
 def _resolve_retrospective_policy_for_runtime(
     repo_root: Path,
 ) -> tuple[Any, dict[str, str], Exception | None]:
-    """Resolve retrospective policy for runtime dispatch without raising."""
-    from specify_cli.retrospective.policy import default_policy, resolve_policy
-
-    try:
-        policy, source_map = resolve_policy(repo_root)
-    except Exception as exc:  # noqa: BLE001
-        return default_policy(), _resolution_error_source_map(), exc
-    return policy, source_map, None
-
-
-def _retrospective_blocks_completion(policy: Any) -> bool:
-    """Return True for the explicit strict pre-completion gate policy."""
-    return (
-        bool(getattr(policy, "enabled", False))
-        and getattr(policy, "timing", None) == "before_completion"
-        and getattr(policy, "failure_policy", None) == "block"
-    )
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_retrospective._resolve_retrospective_policy_for_runtime`."""
+    return _retrospective_seam._resolve_retrospective_policy_for_runtime(repo_root)
 
 
 def _run_retrospective_learning_capture(
@@ -799,53 +522,27 @@ def _run_retrospective_learning_capture(
     repo_root: Path,
     block_on_failure: bool,
 ) -> None:
-    """Run the policy-driven retrospective capture path.
-
-    The default product path is best-effort post-completion learning: write the
-    record and emit canonical RetrospectiveCaptured/CaptureFailed events, but do
-    not hold mission completion hostage. Strict projects opt into blocking by
-    policy via timing=before_completion + failure_policy=block.
-    """
-    callback = _build_retrospective_facilitator_callback(
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_retrospective._run_retrospective_learning_capture`."""
+    _retrospective_seam._run_retrospective_learning_capture(
+        mission_id=mission_id,
         mission_slug=mission_slug,
+        feature_dir=feature_dir,
         repo_root=repo_root,
-        provenance_kind="runtime_strict_gate" if block_on_failure else "runtime_post_completion",
+        block_on_failure=block_on_failure,
     )
-    try:
-        callback(mission_id=mission_id, feature_dir=feature_dir, repo_root=repo_root)
-    except Exception:
-        logger.exception(
-            "retrospective capture failed for mission %s (block_on_failure=%s)",
-            mission_slug,
-            block_on_failure,
-        )
-        if block_on_failure:
-            raise
 
 
 def _classify_exc(exc: Exception) -> str:
-    """Map an exception to a failure_category string per T019 classify() table."""
-    from specify_cli.retrospective.writer import RecordExistsError  # noqa: PLC0415
-
-    if isinstance(exc, RecordExistsError):
-        return "other"
-    if isinstance(exc, (FileNotFoundError, IsADirectoryError)):
-        return "missing_artifacts"
-    # Default: generator_exception
-    return "generator_exception"
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_retrospective._classify_exc`."""
+    return _retrospective_seam._classify_exc(exc)
 
 
 def _remediation_hint(exc: Exception, source_map: dict[str, str]) -> str | None:
-    """Return a remediation hint appropriate for the given exception."""
-    from specify_cli.retrospective.writer import RecordExistsError  # noqa: PLC0415
-
-    if isinstance(exc, RecordExistsError):
-        return "Re-run with --overwrite to replace the existing record."
-    if isinstance(exc, (FileNotFoundError, IsADirectoryError)):
-        return "Run `spec-kitty migrate normalize-lifecycle` to repair missing artifacts."
-    # PolicyResolutionError: surface the source
-    sources = ", ".join(sorted(set(source_map.values()))) if source_map else "unknown"
-    return f"Check policy configuration at: {sources}"
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_retrospective._remediation_hint`."""
+    return _retrospective_seam._remediation_hint(exc, source_map)
 
 
 def _classify_and_emit_failure(
@@ -858,83 +555,34 @@ def _classify_and_emit_failure(
     provenance_kind: str,
     emit_capture_failed: Any,
 ) -> None:
-    """Classify ``exc`` and emit a ``RetrospectiveCaptureFailed`` event."""
-    from specify_cli.retrospective.lifecycle_events import Actor as RetroActor  # noqa: PLC0415
-
-    failure_category = _classify_exc(exc)
-    hint = _remediation_hint(exc, source_map)
-    runtime_actor = RetroActor(kind="runtime", id="spec-kitty-generator")
-
-    # Trim message — no stack traces in events (T019).
-    message = str(exc)[:400] if exc else "Unknown error"
-
-    missing: list[str] | None = None
-    if isinstance(exc, FileNotFoundError):
-        missing = [str(exc.filename)] if getattr(exc, "filename", None) else None
-
-    try:
-        emit_capture_failed(
-            mission_id=mission_id,
-            mission_slug=mission_slug,
-            repo_root=repo_root,
-            failure_category=failure_category,  # type: ignore[arg-type]
-            failure_message=message,
-            remediation_hint=hint,
-            policy_source=source_map,
-            attempted_provenance_kind=provenance_kind,  # type: ignore[arg-type]
-            missing_artifacts=missing,
-            actor=runtime_actor,
-        )
-    except Exception:  # noqa: BLE001
-        # If emission itself fails, log but don't mask the original exception.
-        logger.warning("Failed to emit RetrospectureCaptureFailed event", exc_info=True)
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_retrospective._classify_and_emit_failure`."""
+    _retrospective_seam._classify_and_emit_failure(
+        mission_id=mission_id,
+        mission_slug=mission_slug,
+        repo_root=repo_root,
+        exc=exc,
+        source_map=source_map,
+        provenance_kind=provenance_kind,
+        emit_capture_failed=emit_capture_failed,
+    )
 
 
-def _feature_runs_path(repo_root: Path) -> Path:
-    return repo_root / KITTIFY_DIR / "runtime" / _FEATURE_RUNS_FILE
-
-
-def _load_feature_runs(repo_root: Path) -> dict[str, dict[str, str]]:
-    path = _feature_runs_path(repo_root)
-    if not path.exists():
-        return {}
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (json.JSONDecodeError, OSError):
-        return {}
-
-
-def _save_feature_runs(repo_root: Path, index: dict[str, dict[str, str]]) -> None:
-    path = _feature_runs_path(repo_root)
-    content = json.dumps(index, indent=2, sort_keys=True)
-    atomic_write(path, content, mkdir=True)
+def _load_feature_runs(repo_root: Path) -> dict[str, _io_seam._FeatureRunEntry]:
+    """Thin compat delegate — forwards to :func:`runtime_bridge_io.load_feature_runs`
+    (via the repo_root -> path resolver :func:`runtime_bridge_io._feature_runs_path`)."""
+    return _io_seam.load_feature_runs(_io_seam._feature_runs_path(repo_root))
 
 
 def _mission_key_for_run_ref(run_ref: MissionRunRef, default: str) -> str:
-    """Read the mission key from either runtime field name."""
-    mission_key = getattr(run_ref, "mission_key", None)
-    if isinstance(mission_key, str) and mission_key.strip():
-        return mission_key
-    mission_type = getattr(run_ref, "mission_type", None)
-    if isinstance(mission_type, str) and mission_type.strip():
-        return mission_type
-    return default
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_io._mission_key_for_run_ref`."""
+    return _io_seam._mission_key_for_run_ref(run_ref, default)
 
 
 def _build_run_ref(*, run_id: str, run_dir: str, mission_type: str) -> MissionRunRef:
-    """Construct MissionRunRef across runtime versions."""
-    try:
-        return MissionRunRef(
-            run_id=run_id,
-            run_dir=run_dir,
-            mission_key=mission_type,
-        )
-    except TypeError:
-        return MissionRunRef(
-            run_id=run_id,
-            run_dir=run_dir,
-            mission_type=mission_type,
-        )
+    """Thin compat delegate — forwards to :func:`runtime_bridge_io._build_run_ref`."""
+    return _io_seam._build_run_ref(run_id=run_id, run_dir=run_dir, mission_type=mission_type)
 
 
 # ---------------------------------------------------------------------------
@@ -1047,62 +695,29 @@ def _wp_blocks_step(step_id: str, state: Any) -> bool:
 
 
 SPEC_ARTIFACT = "spec.md"
-PLAN_ARTIFACT = "plan.md"
 TASKS_ARTIFACT = "tasks.md"
 STATE_FILE = "state.json"
-MISSING_ARTIFACT_MESSAGE = "Required artifact missing: {name}"
-MISSING_TASK_FILES_MESSAGE = f"Required: at least one tasks/{TASKS_GLOB} file"
 
 
-def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:  # noqa: C901
-    """Check CLI-level guard conditions before completing a step.
+def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_cores.evaluate_guards` over a
+    :func:`runtime_bridge_io.gather_artifact_presence` snapshot (#2531 WP06,
+    T022). ``wp_advance_ready`` is threaded through separately (not gathered
+    by the snapshot) for ``implement``/``review`` so the pre-existing,
+    unmoved :func:`_should_advance_wp_step` I/O read — and its own WP02
+    compat reach — stay exactly where they were.
 
-    Returns list of failure descriptions. Empty list means all guards pass.
+    Returns list of failure descriptions; empty list means all guards pass.
     """
-    failures: list[str] = []
-
-    if step_id == "specify":
-        if not (feature_dir / SPEC_ARTIFACT).exists():
-            failures.append(MISSING_ARTIFACT_MESSAGE.format(name=SPEC_ARTIFACT))
-
-    elif step_id == "plan":
-        if not (feature_dir / PLAN_ARTIFACT).exists():
-            failures.append(MISSING_ARTIFACT_MESSAGE.format(name=PLAN_ARTIFACT))
-
-    elif step_id == "tasks_outline":
-        if not (feature_dir / TASKS_ARTIFACT).exists():
-            failures.append(MISSING_ARTIFACT_MESSAGE.format(name=TASKS_ARTIFACT))
-
-    elif step_id == "tasks_packages":
-        tasks_dir = feature_dir / "tasks"
-        if not tasks_dir.is_dir() or not list(tasks_dir.glob(TASKS_GLOB)):
-            failures.append(MISSING_TASK_FILES_MESSAGE)
-        else:
-            failures.extend(_check_requirement_mapping_ready(feature_dir))
-
-    elif step_id == "tasks_finalize":
-        tasks_dir = feature_dir / "tasks"
-        if not tasks_dir.is_dir():
-            failures.append("Required: tasks/ directory with finalized WP files")
-        else:
-            wp_files = sorted(tasks_dir.glob(TASKS_GLOB))
-            if not wp_files:
-                failures.append(MISSING_TASK_FILES_MESSAGE)
-            else:
-                for wp_file in wp_files:
-                    if not _has_raw_dependencies_field(wp_file):
-                        failures.append(f"WP {wp_file.stem} missing 'dependencies' in frontmatter (run 'spec-kitty agent mission finalize-tasks')")
-                        break  # One failure message is enough
-        failures.extend(_occurrence_gate_failures(feature_dir))
-
-    elif step_id == "implement":
-        if not _should_advance_wp_step("implement", feature_dir):
-            failures.append("Not all work packages have required status (for_review, approved, or done)")
-
-    elif step_id == "review" and not _should_advance_wp_step("review", feature_dir):
-        failures.append("Not all work packages are approved or done")
-
-    return failures
+    snapshot = _io_seam.gather_artifact_presence(
+        feature_dir, mission_family="software-dev", step_id=step_id
+    )
+    if step_id in ("implement", "review"):
+        snapshot = dataclasses.replace(
+            snapshot, wp_advance_ready=_should_advance_wp_step(step_id, feature_dir)
+        )
+    return _cores.evaluate_guards(snapshot)
 
 
 def _occurrence_gate_failures(feature_dir: Path) -> list[str]:
@@ -1125,6 +740,13 @@ def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
     This intentionally mirrors ``agent mission finalize-tasks`` requirement
     source precedence: WP frontmatter is primary, and ``tasks.md`` is only a
     legacy fallback when no ``wps.yaml`` manifest is present.
+
+    Gather-only shell (#2531 WP06, T023): reads spec.md/tasks.md/the WPs
+    manifest and builds a :class:`runtime_bridge_cores.RequirementMappingFacts`
+    bundle; the missing/unknown/unmapped decision itself (former CC~22 tail)
+    now lives in the pure :func:`runtime_bridge_cores._evaluate_requirement_
+    mapping` — the ``# noqa: C901`` this function used to carry is REMOVED,
+    not relocated (FR-004/NFR-002).
     """
     spec_md = feature_dir / SPEC_ARTIFACT
     if not spec_md.exists():
@@ -1158,45 +780,15 @@ def _check_requirement_mapping_ready(feature_dir: Path) -> list[str]:
     except Exception as exc:
         return [f"Requirement mapping preflight failed: {exc}"]
 
-    wp_ids = sorted(wp_file.stem.split("-", 1)[0] for wp_file in tasks_dir.glob(TASKS_GLOB))
-    missing_requirement_refs_wps: list[str] = []
-    unknown_requirement_refs: dict[str, list[str]] = {}
-    mapped_requirement_ids: set[str] = set()
-
-    for wp_id in wp_ids:
-        refs = wp_requirement_refs.get(wp_id, [])
-        if not refs:
-            missing_requirement_refs_wps.append(wp_id)
-            continue
-
-        unknown_refs = sorted(ref for ref in refs if ref not in all_spec_requirement_ids)
-        if unknown_refs:
-            unknown_requirement_refs[wp_id] = unknown_refs
-        else:
-            mapped_requirement_ids.update(refs)
-
-    unmapped_functional_requirements = sorted(functional_requirement_ids - mapped_requirement_ids)
-    if not (missing_requirement_refs_wps or unknown_requirement_refs or unmapped_functional_requirements):
-        return []
-
-    details: list[str] = []
-    if missing_requirement_refs_wps:
-        details.append(f"missing refs for WPs: {', '.join(missing_requirement_refs_wps)}")
-    if unknown_requirement_refs:
-        unknown_parts = [
-            f"{wp_id}: {', '.join(refs)}"
-            for wp_id, refs in sorted(unknown_requirement_refs.items())
-        ]
-        details.append(f"unknown refs: {'; '.join(unknown_parts)}")
-    if unmapped_functional_requirements:
-        details.append(f"unmapped FRs: {', '.join(unmapped_functional_requirements)}")
-
-    return [
-        "Requirement mapping incomplete before finalize-tasks: "
-        + "; ".join(details)
-        + ". Run `spec-kitty agent tasks map-requirements --batch ... --mission "
-        + f"{feature_dir.name} --json` or update WP requirement_refs before finalizing."
-    ]
+    wp_ids = tuple(sorted(wp_file.stem.split("-", 1)[0] for wp_file in tasks_dir.glob(TASKS_GLOB)))
+    facts = _cores.RequirementMappingFacts(
+        spec_requirement_ids=frozenset(all_spec_requirement_ids),
+        functional_requirement_ids=frozenset(functional_requirement_ids),
+        wp_ids=wp_ids,
+        wp_requirement_refs={wp_id: tuple(refs) for wp_id, refs in wp_requirement_refs.items()},
+        feature_dir_name=feature_dir.name,
+    )
+    return _cores._evaluate_requirement_mapping(facts)
 
 
 def _has_raw_dependencies_field(wp_file: Path) -> bool:
@@ -1224,41 +816,31 @@ def _has_raw_dependencies_field(wp_file: Path) -> bool:
 # Composition dispatch (WP02 / mission software-dev-composition-rewrite-01KQ26CY)
 # ---------------------------------------------------------------------------
 #
-# These helpers route the live runtime path for the built-in ``software-dev``
-# mission's five public actions (``specify``, ``plan``, ``tasks``,
-# ``implement``, ``review``) through ``StepContractExecutor.execute`` instead
-# of the legacy mission-runtime.yaml DAG step handlers. All other missions and
-# step IDs continue to fall through to the runtime planner path unchanged
-# (constraint C-008).
+# The cluster itself now lives in ``runtime_bridge_composition.py`` (#2531
+# WP08) — see that module's docstring for the constraints (C-001/C-002/
+# C-003/C-008) that still govern it. This residual keeps:
 #
-# Constraints active here:
-#   - C-001: the composition path MUST go through ``StepContractExecutor``;
-#     never call ``ProfileInvocationExecutor`` directly.
-#   - C-002: composition produces invocation payloads; this bridge does NOT
-#     generate text or call models.
-#   - C-003 / FR-007: any lane-state writes inside composed steps go through
-#     ``emit_status_transition`` -- this bridge writes no raw lane strings.
-#   - C-008: dispatch is hard-guarded on ``mission == "software-dev"``.
-
-# Legacy run snapshots and project-local templates may still contain the old
-# tasks substep IDs. Normalize them into the single public ``tasks`` action so
-# existing in-flight missions can advance through the composition path.
-_LEGACY_TASKS_STEP_IDS: frozenset[str] = frozenset(
-    {"tasks_outline", "tasks_packages", "tasks_finalize"}
-)
+#   * a **native thin compat delegate** for every WP02-tracked symbol
+#     (FR-012) below, so ``monkeypatch.setattr(runtime_bridge, "<name>", …)``
+#     keeps intercepting exactly as before the move;
+#   * a **plain re-export** for the two untracked helpers
+#     (``_composition_dispatch_inputs``, ``_has_generated_docs``) that
+#     ``decide_next_via_runtime`` / ``runtime_bridge_io`` still reach bare /
+#     via live lookup, respectively.
+#
+# ``_resolve_step_binding`` and ``_LEGACY_TASKS_STEP_IDS`` have no caller left
+# in this module and are not compat-tracked — they live ONLY in
+# ``runtime_bridge_composition.py`` now, with no residual re-export.
+# (``_composition_dispatch_inputs`` / ``_has_generated_docs`` plain
+# re-exports live in the top-of-file import block above, alongside the
+# other untracked-helper re-exports, to keep them module-level per E402.)
 
 
 def _normalize_action_for_composition(step_id: str) -> str:
-    """Map a legacy DAG step ID to its composed action ID.
-
-    The legacy ``mission-runtime.yaml`` splits ``tasks`` into three steps;
-    the composition layer exposes a single ``tasks`` action whose contract
-    holds the substructure internally. All other step IDs pass through
-    unchanged.
-    """
-    if step_id in _LEGACY_TASKS_STEP_IDS:
-        return "tasks"
-    return step_id
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_composition._normalize_action_for_composition`
+    (FR-012 compat surface, #2531 WP08)."""
+    return _composition._normalize_action_for_composition(step_id)
 
 
 def _should_dispatch_via_composition(
@@ -1268,89 +850,21 @@ def _should_dispatch_via_composition(
     run_dir: Path | None = None,
     repo_root: Path | None = None,
 ) -> bool:
-    """Return True iff ``(mission, step_id)`` routes through composition.
-
-    Order is critical and load-bearing:
-
-    1. **Live charter lookup** (FR-007 / FR-008): calls
-       ``charter.resolve_action_sequence(mission, repo_root)`` to obtain the
-       action sequence from the resolved mission-type profile.  When
-       ``repo_root`` is ``None`` (e.g., the very first ``decide_next`` call
-       before a run is started), fall through directly to the custom widening
-       path below without a charter lookup.
-    2. **Custom mission widening** (Phase 6 / R-005): consulted only when
-       ``run_dir`` is provided AND the charter lookup did not already return
-       ``True``. The active step's explicit binding is read from the frozen
-       template; a non-empty ``agent_profile`` OR ``contract_ref`` triggers
-       composition. Empty / missing bindings fall through to the legacy DAG
-       handler unchanged.
-    """
-    # Live charter lookup path (FR-007 / FR-008).  ``repo_root`` is required;
-    # without it skip directly to the custom widening path.
-    if repo_root is not None:
-        try:
-            from charter.mission_type_profiles import (  # noqa: PLC0415
-                resolve_action_sequence as _charter_resolve_action_sequence,
-            )
-
-            action_sequence = _charter_resolve_action_sequence(mission, repo_root)
-            if _normalize_action_for_composition(step_id) in action_sequence:
-                return True
-        except Exception:
-            # Degrade gracefully: if charter is unavailable or the mission type
-            # is unknown, fall through to the custom widening path below so
-            # in-flight missions are not broken.
-            pass
-
-    # Custom mission widening (R-005). ``run_dir`` is required to read the
-    # frozen template; without it (e.g., on the very first decide_next call
-    # before the run is started), fall through to the legacy DAG handler.
-    if run_dir is None:
-        return False
-    profile, contract_ref = _resolve_step_binding(run_dir, step_id)
-    return bool(profile or contract_ref)  # treat empty strings as falsy
-
-
-def _resolve_step_binding(run_dir: Path, step_id: str) -> tuple[str | None, str | None]:
-    """Return ``(agent_profile, contract_ref)`` for ``step_id`` in the frozen template.
-
-    Missing templates, missing steps, and empty strings all resolve to
-    ``None`` values so callers fail closed through the legacy path or the
-    executor's structured error surface.
-    """
-    try:
-        from runtime.next._internal_runtime.engine import _load_frozen_template
-
-        template = _load_frozen_template(run_dir)
-    except Exception:
-        return None, None
-
-    normalized = _normalize_action_for_composition(step_id)
-    for step in template.steps:
-        if step.id == step_id or step.id == normalized:
-            profile = step.agent_profile.strip() if step.agent_profile else None
-            contract_ref = step.contract_ref.strip() if step.contract_ref else None
-            return profile or None, contract_ref or None
-    return None, None
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_composition._should_dispatch_via_composition`
+    (FR-008 selection seam; FR-012 compat surface, #2531 WP08). See the seam
+    module's docstring for the full order-critical charter-lookup /
+    custom-widening contract."""
+    return _composition._should_dispatch_via_composition(
+        mission, step_id, run_dir=run_dir, repo_root=repo_root
+    )
 
 
 def _resolve_step_agent_profile(run_dir: Path, step_id: str) -> str | None:
-    """Return the ``agent_profile`` set on ``step_id`` in the frozen template.
-
-    Returns ``None`` when:
-
-    - ``run_dir`` lacks a frozen template (e.g., the run has not been started
-      yet, or template load otherwise raises).
-    - The step is not present in the template.
-    - The step's ``agent_profile`` is ``None`` or an empty string (treated as
-      falsy so the gate widens only for explicit author opt-in).
-
-    The lookup tolerates legacy ``tasks_outline`` / ``tasks_packages`` /
-    ``tasks_finalize`` substep IDs by normalizing through
-    ``_normalize_action_for_composition``.
-    """
-    profile, _contract_ref = _resolve_step_binding(run_dir, step_id)
-    return profile
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_composition._resolve_step_agent_profile`
+    (FR-012 compat surface, #2531 WP08)."""
+    return _composition._resolve_step_agent_profile(run_dir, step_id)
 
 
 def _resolve_runtime_contract_for_step(
@@ -1360,321 +874,43 @@ def _resolve_runtime_contract_for_step(
     mission: str,
     step_id: str,
 ) -> Any | None:
-    """Resolve a custom step contract from durable frozen-template state.
-
-    ``mission run`` and ``next`` normally execute in separate CLI processes,
-    so the process-local registry populated by ``mission run`` cannot be the
-    only handoff for synthesized contracts.
-    """
-    try:
-        from doctrine.missions.step_contracts import (
-            MissionStepContractRepository,
-        )
-        from specify_cli.mission_loader.contract_synthesis import synthesize_contracts
-        from specify_cli.mission_loader.registry import lookup_contract
-        from runtime.next._internal_runtime.engine import _load_frozen_template
-
-        template = _load_frozen_template(run_dir)
-    except Exception:
-        return None
-
-    normalized = _normalize_action_for_composition(step_id)
-    for step in template.steps:
-        if step.id != step_id and step.id != normalized:
-            continue
-        contract_ref = step.contract_ref.strip() if step.contract_ref else None
-        if contract_ref:
-            repository = MissionStepContractRepository(
-                project_dir=repo_root
-                / KITTIFY_DIR
-                / "doctrine"
-                / "mission_step_contracts"
-            )
-            return lookup_contract(contract_ref, repository)
-        profile = step.agent_profile.strip() if step.agent_profile else None
-        if profile:
-            contract_id = f"custom:{mission}:{normalized}"
-            for contract in synthesize_contracts(template):
-                if contract.id == contract_id:
-                    return contract
-        return None
-    return None
-
-
-def _composition_dispatch_inputs(
-    *,
-    repo_root: Path,
-    run_dir: Path,
-    mission: str,
-    step_id: str,
-    action: str,
-) -> tuple[str | None, Any | None]:
-    """Return ``(profile_hint, contract)`` for a composition dispatch."""
-    try:
-        from charter.mission_type_profiles import (  # noqa: PLC0415
-            resolve_action_sequence as _charter_resolve_action_sequence,
-        )
-
-        action_sequence = _charter_resolve_action_sequence(mission, repo_root)
-        if action in action_sequence:
-            return None, None
-    except Exception:
-        pass
-    return (
-        _resolve_step_agent_profile(run_dir, step_id),
-        _resolve_runtime_contract_for_step(
-            repo_root=repo_root,
-            run_dir=run_dir,
-            mission=mission,
-            step_id=step_id,
-        ),
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_composition._resolve_runtime_contract_for_step`
+    (identity-only compat surface — GUARD_B_ONLY_IMPORT_SURFACE in
+    contracts/compat-surface.md; #2531 WP08)."""
+    return _composition._resolve_runtime_contract_for_step(
+        repo_root=repo_root, run_dir=run_dir, mission=mission, step_id=step_id
     )
 
 
 def _count_source_documented_events(feature_dir: Path) -> int:
-    """Return the number of ``source_documented`` events in the mission event log.
-
-    Mirrors the v1 ``event_count`` guard primitive (see
-    ``src/specify_cli/mission_v1/guards.py``): reads
-    ``feature_dir / "mission-events.jsonl"``, treats each line as a JSON
-    record, and counts those whose ``type`` equals ``"source_documented"``.
-
-    Missing or unreadable logs return ``0`` so the guard fails closed at the
-    research ``gathering`` branch.
-    """
-    log_path = feature_dir / "mission-events.jsonl"
-    if not log_path.is_file():
-        return 0
-    count = 0
-    try:
-        for raw_line in log_path.read_text(encoding="utf-8").splitlines():
-            line = raw_line.strip()
-            if not line:
-                continue
-            try:
-                entry = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if isinstance(entry, dict) and entry.get("type") == "source_documented":
-                count += 1
-    except OSError:
-        return 0
-    return count
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_composition._count_source_documented_events`
+    (FR-012 compat surface, #2531 WP08)."""
+    return _composition._count_source_documented_events(feature_dir)
 
 
 def _publication_approved(feature_dir: Path) -> bool:
-    """Return True iff the mission event log carries a ``publication_approved`` gate event.
-
-    Mirrors the v1 ``gate_passed`` guard primitive: a gate event is recorded
-    as ``{"type": "gate_passed", "name": "<gate_name>"}`` in
-    ``feature_dir / "mission-events.jsonl"``. Missing or unreadable logs
-    return ``False`` so the research ``output`` guard fails closed.
-
-    This signal was chosen because the research mission's existing v1
-    ``mission.yaml`` declares the same surface
-    (``gate_passed("publication_approved")``) for both the source-side gate
-    check and the publication-approval gate. Keeping the runtime bridge's
-    guard reading from the same JSONL the v1 guard primitives consume
-    avoids forking the gate-event surface during the v2 composition
-    rewrite.
-    """
-    log_path = feature_dir / "mission-events.jsonl"
-    if not log_path.is_file():
-        return False
-    try:
-        for raw_line in log_path.read_text(encoding="utf-8").splitlines():
-            line = raw_line.strip()
-            if not line:
-                continue
-            try:
-                entry = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if (
-                isinstance(entry, dict)
-                and entry.get("type") == "gate_passed"
-                and entry.get("name") == "publication_approved"
-            ):
-                return True
-    except OSError:
-        return False
-    return False
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_composition._publication_approved`
+    (FR-012 compat surface, #2531 WP08)."""
+    return _composition._publication_approved(feature_dir)
 
 
-def _has_generated_docs(feature_dir: Path) -> bool:
-    """Return True iff at least one *.md file exists under feature_dir / 'docs'.
-
-    Used by the documentation `generate` guard branch (D6 of plan.md).
-    """
-    docs_root = feature_dir / "docs"
-    if not docs_root.is_dir():
-        return False
-    return next(docs_root.rglob("*.md"), None) is not None
-
-
-def _check_composed_action_guard(  # noqa: C901
+def _check_composed_action_guard(
     action: str,
     feature_dir: Path,
     *,
     mission: str = "software-dev",
     legacy_step_id: str | None = None,
 ) -> list[str]:
-    """CLI-level guards that fire AFTER a composed action completes.
-
-    Mirrors ``_check_cli_guards`` semantics for the composed actions.
-
-    The ``mission`` keyword-only parameter selects the guard branch family:
-
-    * ``mission="software-dev"`` (default) routes through the original
-      software-dev guard chain (``specify`` / ``plan`` / ``tasks`` /
-      ``implement`` / ``review``).
-    * ``mission="research"`` routes through the research guard chain
-      (``scoping`` / ``methodology`` / ``gathering`` / ``synthesis`` /
-      ``output``) plus a **fail-closed default** for any unknown research
-      action — closing the v1 P1 silent-pass finding where unknown actions
-      fell through with empty failures.
-
-    For ``tasks``, the assertion shape depends on which surface invoked us:
-
-    * **Legacy DAG path** (``legacy_step_id`` is ``"tasks_outline"`` /
-      ``"tasks_packages"`` / ``"tasks_finalize"``): the runtime engine fires
-      the bridge **once per substep**, so the guard must reflect the artifact
-      state the user is **expected** to have produced **at that substep**, not
-      the terminal post-finalize state. Demanding the terminal state on
-      ``tasks_outline`` blocks the user with "Required: at least one
-      tasks/WP*.md file" while the surfaced retry action is still
-      ``tasks-outline`` — an unsatisfiable loop. (Mission-review follow-up to
-      the original WP02 collapsed guard, which conflated dispatch
-      normalization with guard semantics.)
-
-    * **Composition-only path** (``legacy_step_id`` is ``None``): a direct
-      ``action="tasks"`` invocation represents the terminal state of the
-      whole composed action; the guard demands the **union** of all three
-      legacy substep checks (no weakening).
-
-    Returns a list of failure descriptions; an empty list means all guards
-    pass.
-    """
-    failures: list[str] = []
-
-    if mission == "research":
-        # Research composition guard chain (D3) + fail-closed default for
-        # unknown research actions (T022 — closes the v1 P1 silent-pass
-        # finding). Every (mission="research", action=<unknown>) tuple
-        # produces a non-empty failures list, which the dispatch surface
-        # propagates as a structured error with no run-state advancement.
-        if action == "scoping":
-            if not (feature_dir / SPEC_ARTIFACT).is_file():
-                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=SPEC_ARTIFACT))
-        elif action == "methodology":
-            if not (feature_dir / PLAN_ARTIFACT).is_file():
-                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=PLAN_ARTIFACT))
-        elif action == "gathering":
-            if not (feature_dir / "source-register.csv").is_file():
-                failures.append("Required artifact missing: source-register.csv")
-            if _count_source_documented_events(feature_dir) < 3:
-                failures.append("Insufficient sources documented (need >=3)")
-        elif action == "synthesis":
-            if not (feature_dir / "findings.md").is_file():
-                failures.append("Required artifact missing: findings.md")
-        elif action == "output":
-            if not (feature_dir / "report.md").is_file():
-                failures.append("Required artifact missing: report.md")
-            if not _publication_approved(feature_dir):
-                failures.append("Publication approval gate not passed")
-        else:
-            failures.append(
-                f"No guard registered for research action: {action}"
-            )
-        return failures
-
-    if mission == "documentation":
-        if action == "discover":
-            if not (feature_dir / SPEC_ARTIFACT).is_file():
-                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=SPEC_ARTIFACT))
-        elif action == "audit":
-            if not (feature_dir / "gap-analysis.md").is_file():
-                failures.append("Required artifact missing: gap-analysis.md")
-        elif action == "design":
-            if not (feature_dir / PLAN_ARTIFACT).is_file():
-                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=PLAN_ARTIFACT))
-        elif action == "generate":
-            if not _has_generated_docs(feature_dir):
-                failures.append(
-                    "Required artifact missing: docs/**/*.md "
-                    "(no Markdown files found under docs/)"
-                )
-        elif action == "validate":
-            if not (feature_dir / "audit-report.md").is_file():
-                failures.append("Required artifact missing: audit-report.md")
-        elif action == "publish":
-            if not (feature_dir / "release.md").is_file():
-                failures.append("Required artifact missing: release.md")
-        elif action == "accept":
-            pass  # terminal status commit step; publish gate is sufficient
-        else:
-            failures.append(
-                f"No guard registered for documentation action: {action}"
-            )
-        return failures
-
-    if action == "specify":
-        if not (feature_dir / SPEC_ARTIFACT).exists():
-            failures.append(MISSING_ARTIFACT_MESSAGE.format(name=SPEC_ARTIFACT))
-
-    elif action == "plan":
-        if not (feature_dir / PLAN_ARTIFACT).exists():
-            failures.append(MISSING_ARTIFACT_MESSAGE.format(name=PLAN_ARTIFACT))
-
-    elif action == "tasks":
-        if legacy_step_id == "tasks_outline":
-            # After tasks_outline the user is expected to have produced
-            # tasks.md. WP files and dependencies come in later substeps.
-            if not (feature_dir / TASKS_ARTIFACT).exists():
-                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=TASKS_ARTIFACT))
-        elif legacy_step_id == "tasks_packages":
-            # After tasks_packages: tasks.md AND >=1 WP file. Dependencies
-            # are not yet expected — finalize-tasks adds them in the next
-            # substep. Requirement mapping must already be complete so the
-            # next surfaced prompt does not blindly run finalize-tasks.
-            if not (feature_dir / TASKS_ARTIFACT).exists():
-                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=TASKS_ARTIFACT))
-            tasks_dir = feature_dir / "tasks"
-            if not tasks_dir.is_dir() or not list(tasks_dir.glob("WP*.md")):
-                failures.append("Required: at least one tasks/WP*.md file")
-            else:
-                failures.extend(_check_requirement_mapping_ready(feature_dir))
-        else:
-            # legacy_step_id == "tasks_finalize" OR composition-only
-            # (legacy_step_id is None): demand the full terminal state.
-            # Union of legacy tasks_outline + tasks_packages + tasks_finalize
-            # checks; no weakening of assertions.
-            if not (feature_dir / TASKS_ARTIFACT).exists():
-                failures.append(MISSING_ARTIFACT_MESSAGE.format(name=TASKS_ARTIFACT))
-            tasks_dir = feature_dir / "tasks"
-            if not tasks_dir.is_dir() or not list(tasks_dir.glob("WP*.md")):
-                failures.append("Required: at least one tasks/WP*.md file")
-            else:
-                failures.extend(_check_requirement_mapping_ready(feature_dir))
-                for wp_file in sorted(tasks_dir.glob("WP*.md")):
-                    if not _has_raw_dependencies_field(wp_file):
-                        failures.append(
-                            f"WP {wp_file.stem} missing 'dependencies' in frontmatter "
-                            "(run 'spec-kitty agent mission finalize-tasks')"
-                        )
-                        break  # One failure message is enough
-            failures.extend(_occurrence_gate_failures(feature_dir))
-
-    elif action == "implement":
-        if not _should_advance_wp_step("implement", feature_dir):
-            failures.append(
-                "Not all work packages have required status (for_review, approved, or done)"
-            )
-
-    elif action == "review" and not _should_advance_wp_step("review", feature_dir):
-        failures.append("Not all work packages are approved or done")
-
-    return failures
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_composition._check_composed_action_guard`
+    (FR-012 compat surface, #2531 WP08). See the seam module's docstring for
+    the full guard-branch-family / legacy-vs-composition-only contract."""
+    return _composition._check_composed_action_guard(
+        action, feature_dir, mission=mission, legacy_step_id=legacy_step_id
+    )
 
 
 def _dispatch_via_composition(
@@ -1690,113 +926,38 @@ def _dispatch_via_composition(
     legacy_step_id: str | None = None,
     contract: Any | None = None,
 ) -> list[str] | None:
-    """Run a composed action via ``StepContractExecutor``; then guard.
-
-    Returns:
-      - ``None`` on success (composition succeeded AND post-action guard
-        passed). On the live ``decide_next_via_runtime`` path the caller then
-        invokes :func:`_advance_run_state_after_composition` to progress run
-        state without entering the legacy DAG dispatch handler
-        (single-dispatch, FR-001/FR-002).
-      - A non-empty list of failure descriptions if the executor raised
-        ``StepContractExecutionError`` (FR-009: structured CLI surface, not a
-        Python traceback) or the post-action guard failed. The caller turns
-        this into a ``Decision`` with ``guard_failures`` populated.
-
-    Constraint C-001 is preserved: this function only ever invokes
-    ``StepContractExecutor.execute``; it never touches
-    ``ProfileInvocationExecutor`` directly.
-
-    The follow-up advancement is performed by
-    :func:`_advance_run_state_after_composition`, which reuses the same
-    primitives ``runtime_next_step(...)`` uses internally for state, lane,
-    and prompt progression. The legacy ``runtime_next_step`` is **not**
-    called for composition-backed actions (FR-001).
-    """
-    # Local import keeps module load lean and avoids circular import risk.
-    from specify_cli.mission_step_contracts.executor import (
-        StepContractExecutionContext,
-        StepContractExecutionError,
-        StepContractExecutor,
-    )
-
-    context = StepContractExecutionContext(
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_composition._dispatch_via_composition`
+    (FR-012 compat surface, #2531 WP08). See the seam module's docstring for
+    the full ``StepContractExecutor`` handoff / structured-failure contract."""
+    return _composition._dispatch_via_composition(
         repo_root=repo_root,
         mission=mission,
         action=action,
-        actor=actor or "unknown",
+        actor=actor,
         profile_hint=profile_hint,
         request_text=request_text,
         mode_of_work=mode_of_work,
+        feature_dir=feature_dir,
+        legacy_step_id=legacy_step_id,
+        contract=contract,
     )
-    # For custom missions, prefer the durable contract resolved from the
-    # frozen template during ``next``. Fall back to the process-local registry
-    # for in-process tests and callers, and then to the executor's repository
-    # lookup for built-in software-dev dispatch.
-    from specify_cli.mission_loader.registry import get_runtime_contract_registry
-
-    selected_contract = contract or get_runtime_contract_registry().lookup(
-        f"custom:{mission}:{action}"
-    )
-    try:
-        result = StepContractExecutor(repo_root=repo_root).execute(
-            context, contract=selected_contract
-        )
-    except StepContractExecutionError as exc:
-        # Structured CLI failure surface (FR-009) — caller turns this into a
-        # Decision; no Python traceback escapes.
-        return [f"composition failed for {mission}/{action}: {exc}"]
-    except Exception as exc:  # noqa: BLE001 — FR-009 contract: any executor
-        # exception class must surface as a structured CLI failure rather than
-        # a Python traceback. The narrow ``StepContractExecutionError`` catch
-        # above handles the documented executor failure mode; this widened
-        # catch defends against contract drift (e.g., a future executor change
-        # that raises ``ValueError`` from a malformed YAML, or a transient
-        # ``OSError`` reading a contract file). The exception detail is logged
-        # for operator triage; the structured surface preserves the FR-009 UX.
-        logger.exception(
-            "unexpected exception in composition for %s/%s", mission, action
-        )
-        return [
-            f"composition crashed for {mission}/{action}: "
-            f"{type(exc).__name__}: {exc}"
-        ]
-
-    # FR-008: forward the invocation_id chain produced by the executor to the
-    # bridge log so downstream event/trail writers and operators can correlate
-    # the composed action with its underlying ProfileInvocationExecutor calls.
-    # Defensive ``getattr`` + duck-typed length so test mocks (MagicMock) and
-    # real ``StepContractExecutionResult`` instances both flow through cleanly.
-    invocation_ids = getattr(result, "invocation_ids", ()) or ()
-    try:
-        invocation_count = len(invocation_ids)
-    except TypeError:
-        invocation_count = 0
-    logger.info(
-        "composed %s/%s emitted %d invocation(s): %s",
-        mission,
-        action,
-        invocation_count,
-        invocation_ids,
-    )
-
-    failures = _check_composed_action_guard(
-        action, feature_dir, mission=mission, legacy_step_id=legacy_step_id
-    )
-    if failures:
-        return failures
-    return None
 
 
 # Single-dispatch invariant (FR-001 / phase6-composition-stabilization-01KQ2JAS):
 # After a composition-backed software-dev action succeeds, run state must still
 # advance through the next public step — but the legacy ``runtime_next_step``
-# DAG dispatch handler MUST NOT be invoked for the same action attempt. The
-# helper below performs the equivalent run-state, event, and prompt
-# progression by reusing the same engine primitives ``runtime_next_step`` uses
-# internally (``_read_snapshot``, ``_append_event``, ``_load_frozen_template``,
-# ``plan_next``, ``_write_snapshot``) plus the same ``SyncRuntimeEventEmitter``
-# the legacy path uses, without re-entering the legacy DAG dispatch.
+# DAG dispatch handler MUST NOT be invoked for the same action attempt.
+#
+# THIN RESIDUAL COMPAT DELEGATE (#2531 WP03, FR-013): the logic that used to
+# live here now lives at ``runtime_bridge_engine.advance_run_state_after_composition``
+# (adapter-owned — it reuses the same engine primitives ``runtime_next_step``
+# uses internally: ``_read_snapshot``, ``_append_event``, ``_load_frozen_template``,
+# ``plan_next``, ``_write_snapshot``). This delegate exists ONLY so the heavy
+# monkeypatch surface tests bind to (8x ``monkeypatch.setattr``/``mocker.patch``
+# + 9x bare-attribute reads across the suite, per contracts/compat-surface.md)
+# keeps resolving against ``runtime_bridge._advance_run_state_after_composition``
+# unchanged. Do not add logic here — extend the adapter instead.
 def _advance_run_state_after_composition(
     *,
     run_ref: MissionRunRef,
@@ -1810,237 +971,21 @@ def _advance_run_state_after_composition(
     origin: dict[str, Any],
     sync_emitter: SyncRuntimeEventEmitter,
 ) -> Decision:
-    """Advance run state after a successful composed action and return a Decision.
-
-    Reuses the same engine primitives as ``runtime_next_step(...)`` for state,
-    lane-event, and prompt progression — but does NOT invoke
-    ``runtime_next_step``. This is the single-dispatch enforcement point for
-    composition-backed software-dev actions (FR-001, FR-002).
-
-    Behavior mirrors the success branch of
-    ``spec_kitty_runtime.engine.next_step``:
-
-    1. Read the current snapshot.
-    2. Mark the issued step as completed; emit ``NextStepAutoCompleted``.
-    3. Plan the next decision via ``plan_next`` against the frozen template.
-    4. On a ``step`` decision, emit ``NextStepIssued`` and stamp
-       ``issued_step_id`` so the next bridge call sees fresh state.
-    5. On a ``terminal`` decision (a step actually completed), emit
-       ``MissionRunCompleted``.
-    6. Persist the snapshot.
-    7. Return the mapped ``Decision`` via :func:`_map_runtime_decision`.
-
-    Returns the same ``Decision`` shape ``runtime_next_step(...)`` would have
-    produced for the same advance (FR-005); only the dispatch path differs.
-    """
-    # Local imports keep the legacy import block at the top of the module
-    # focused and mirror the pattern used by ``_dispatch_via_composition``.
-    from datetime import UTC, datetime
-
-    from runtime.next._internal_runtime.engine import (
-        _append_event,
-        _load_frozen_template,
-        _read_snapshot,
-        _write_snapshot,
-    )
-    from runtime.next._internal_runtime.events import (
-        DECISION_INPUT_REQUESTED,
-        MISSION_RUN_COMPLETED,
-        NEXT_STEP_AUTO_COMPLETED,
-        NEXT_STEP_ISSUED,
-    )
-    from spec_kitty_events.mission_next import (
-        DecisionInputRequestedPayload,
-        MissionRunCompletedPayload,
-        NextStepAutoCompletedPayload,
-        NextStepIssuedPayload,
-        RuntimeActorIdentity,
-    )
-    from runtime.next._internal_runtime.planner import plan_next
-    from runtime.next._internal_runtime.schema import DecisionRequest, MissionRunSnapshot
-
-    run_dir = Path(run_ref.run_dir)
-    snapshot = _read_snapshot(run_dir)
-    sync_emitter.seed_from_snapshot(snapshot)
-
-    did_complete_step = snapshot.issued_step_id is not None
-
-    # Step 1 — mark current step completed (success path only; composition
-    # surfaces failures via ``_dispatch_via_composition``'s failure list).
-    if snapshot.issued_step_id is not None:
-        completed_steps = list(snapshot.completed_steps)
-        completed_step_id = snapshot.issued_step_id
-        if completed_step_id not in completed_steps:
-            completed_steps.append(completed_step_id)
-
-        snapshot = MissionRunSnapshot(
-            run_id=snapshot.run_id,
-            mission_key=snapshot.mission_key,
-            template_path=snapshot.template_path,
-            template_hash=snapshot.template_hash,
-            policy_snapshot=snapshot.policy_snapshot,
-            issued_step_id=None,
-            completed_steps=completed_steps,
-            inputs=snapshot.inputs,
-            decisions=snapshot.decisions,
-            pending_decisions=snapshot.pending_decisions,
-            blocked_reason=snapshot.blocked_reason,
-            mission_id=snapshot.mission_id,
-            mission_slug=snapshot.mission_slug,
-        )
-        ac_actor = RuntimeActorIdentity(actor_id=agent, actor_type="llm")
-        ac_payload = NextStepAutoCompletedPayload(
-            run_id=snapshot.run_id,
-            step_id=completed_step_id,
-            agent_id=agent,
-            result="success",
-            actor=ac_actor,
-        )
-        _append_event(
-            run_dir, NEXT_STEP_AUTO_COMPLETED, ac_payload.model_dump(mode="json")
-        )
-        sync_emitter.emit_next_step_auto_completed(ac_payload)
-
-    # Step 2 — plan the next decision against the frozen template, mirroring
-    # ``runtime_next_step``'s drift-detection plumbing.
-    template = _load_frozen_template(run_dir)
-    live_template_path: Path | None = None
-    if snapshot.template_path:
-        candidate = Path(snapshot.template_path)
-        if candidate.exists():
-            live_template_path = candidate
-
-    decision = plan_next(
-        snapshot,
-        template,
-        snapshot.policy_snapshot,
-        actor_context={"agent_id": agent},
-        live_template_path=live_template_path,
-    )
-
-    # Step 3 — record issued step / completion-of-mission / decision-required
-    # events as the engine does, so downstream consumers of the run event log
-    # see equivalent state. The three branches mirror
-    # ``spec_kitty_runtime.engine.next_step``:
-    #   - ``step``           → emit ``NextStepIssued``, stamp issued_step_id.
-    #   - ``decision_required`` → persist ``pending_decisions[decision_id]``
-    #     and emit ``DecisionInputRequested`` so a downstream caller can answer
-    #     it. Required for project/runtime overrides and custom missions that
-    #     introduce input/audit gates after a composed step (mission-review.md
-    #     RISK-2 fix).
-    #   - ``terminal``       → emit ``MissionRunCompleted`` if a step actually
-    #     just completed (avoid duplicate emit on re-poll).
-    issued_step_id = snapshot.issued_step_id
-    pending_decisions = dict(snapshot.pending_decisions)
-    if decision.kind == DecisionKind.step and decision.step_id:
-        issued_step_id = decision.step_id
-        si_actor = RuntimeActorIdentity(actor_id=agent, actor_type="llm")
-        si_payload = NextStepIssuedPayload(
-            run_id=snapshot.run_id,
-            step_id=decision.step_id,
-            agent_id=agent,
-            actor=si_actor,
-        )
-        _append_event(run_dir, NEXT_STEP_ISSUED, si_payload.model_dump(mode="json"))
-        sync_emitter.emit_next_step_issued(si_payload)
-    elif decision.kind == DecisionKind.decision_required and decision.decision_id:
-        # Persist input-keyed decisions in pending_decisions so they're
-        # answerable; only emit + persist on first occurrence to avoid
-        # duplicates on re-poll. Mirrors engine.next_step's branch verbatim
-        # (modulo the runtime emitter passed in, which is the same instance).
-        if decision.decision_id not in pending_decisions:
-            dr_actor = RuntimeActorIdentity(actor_id=agent, actor_type="llm")
-            req = DecisionRequest(
-                decision_id=decision.decision_id,
-                step_id=decision.step_id or "",
-                question=decision.question or "",
-                options=decision.options or [],
-                requested_by=dr_actor,
-                requested_at=datetime.now(UTC),
-            )
-            pending_decisions[decision.decision_id] = req.model_dump(mode="json")
-
-            dr_payload = DecisionInputRequestedPayload(
-                run_id=snapshot.run_id,
-                decision_id=decision.decision_id,
-                step_id=decision.step_id or "",
-                question=decision.question or "",
-                options=tuple(decision.options or []),
-                input_key=decision.input_key,
-                actor=dr_actor,
-            )
-            _append_event(
-                run_dir, DECISION_INPUT_REQUESTED, dr_payload.model_dump(mode="json")
-            )
-            sync_emitter.emit_decision_input_requested(dr_payload)
-    elif decision.kind == DecisionKind.terminal and did_complete_step:
-        policy, _source_map, policy_error = _resolve_retrospective_policy_for_runtime(repo_root)
-        retrospective_enabled = bool(getattr(policy, "enabled", False))
-        block_on_retrospective = _retrospective_blocks_completion(policy)
-        mission_id = _resolve_mission_id_for_terminus(feature_dir)
-
-        if retrospective_enabled and block_on_retrospective:
-            if policy_error is not None:
-                raise policy_error
-            _run_retrospective_learning_capture(
-                mission_id=mission_id,
-                mission_slug=mission_slug,
-                feature_dir=feature_dir,
-                repo_root=repo_root,
-                block_on_failure=True,
-            )
-
-        mc_actor = RuntimeActorIdentity(actor_id=agent, actor_type="llm")
-        mc_payload = MissionRunCompletedPayload(
-            run_id=snapshot.run_id,
-            mission_type=snapshot.mission_key,
-            actor=mc_actor,
-        )
-        _append_event(
-            run_dir, MISSION_RUN_COMPLETED, mc_payload.model_dump(mode="json")
-        )
-        sync_emitter.emit_mission_run_completed(mc_payload)
-
-        if retrospective_enabled and not block_on_retrospective:
-            _run_retrospective_learning_capture(
-                mission_id=mission_id,
-                mission_slug=mission_slug,
-                feature_dir=feature_dir,
-                repo_root=repo_root,
-                block_on_failure=False,
-            )
-
-    # Step 4 — persist the new snapshot so the next ``decide_next_via_runtime``
-    # call observes the fresh issued_step_id and any new pending_decisions.
-    snapshot = MissionRunSnapshot(
-        run_id=snapshot.run_id,
-        mission_key=snapshot.mission_key,
-        template_path=snapshot.template_path,
-        template_hash=snapshot.template_hash,
-        policy_snapshot=snapshot.policy_snapshot,
-        issued_step_id=issued_step_id,
-        completed_steps=snapshot.completed_steps,
-        inputs=snapshot.inputs,
-        decisions=snapshot.decisions,
-        pending_decisions=pending_decisions,
-        blocked_reason=snapshot.blocked_reason,
-        mission_id=snapshot.mission_id,
-        mission_slug=snapshot.mission_slug,
-    )
-    _write_snapshot(run_dir, snapshot)
-
-    # Step 5 — map the runtime decision to the public ``Decision`` shape using
-    # the same mapper the legacy path uses, preserving FR-005.
-    return _map_runtime_decision(
-        decision,
-        agent,
-        mission_slug,
-        mission_type,
-        repo_root,
-        feature_dir,
-        timestamp,
-        progress,
-        origin,
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_engine.advance_run_state_after_composition`. See the
+    module-level comment above for why this delegate must stay (FR-012 compat
+    surface) even though the logic itself moved (FR-013)."""
+    return _engine_adapter.advance_run_state_after_composition(
+        run_ref=run_ref,
+        agent=agent,
+        mission_slug=mission_slug,
+        mission_type=mission_type,
+        repo_root=repo_root,
+        feature_dir=feature_dir,
+        timestamp=timestamp,
+        progress=progress,
+        origin=origin,
+        sync_emitter=sync_emitter,
     )
 
 
@@ -2050,165 +995,26 @@ def _advance_run_state_after_composition(
 
 
 def _build_discovery_context(repo_root: Path) -> DiscoveryContext:
-    """Build a DiscoveryContext that finds the runtime mission template."""
-    import specify_cli  # noqa: PLC0415
-
-    # Runtime bridge uses the legacy runtime templates under specify_cli/missions.
-    # The doctrine mission catalog is not behaviorally equivalent yet.
-    package_root = Path(specify_cli.__file__).resolve().parent / "missions"
-    return DiscoveryContext(
-        project_dir=repo_root,
-        builtin_roots=[package_root],
-    )
-
-
-def _split_env_paths(value: str) -> list[Path]:
-    if not value.strip():
-        return []
-    return [Path(chunk) for chunk in value.split(os.pathsep) if chunk.strip()]
-
-
-def _project_config_pack_paths(repo_root: Path) -> list[Path]:
-    config_file = repo_root / KITTIFY_DIR / "config.yaml"
-    if not config_file.exists():
-        return []
-    try:
-        raw = yaml.safe_load(config_file.read_text(encoding="utf-8")) or {}
-    except Exception:
-        return []
-    mission_packs = raw.get("mission_packs", [])
-    if not isinstance(mission_packs, list):
-        return []
-    return [repo_root / pack for pack in mission_packs if isinstance(pack, str)]
-
-
-def _candidate_templates_for_root(root: Path, mission_type: str) -> list[Path]:
-    candidates: list[Path] = []
-
-    if root.is_file():
-        if root.name in {MISSION_RUNTIME_YAML, MISSION_YAML}:
-            candidates.append(root)
-    elif root.exists() and root.is_dir():
-        candidates.extend(
-            [
-                root / mission_type / MISSION_RUNTIME_YAML,
-                root / mission_type / MISSION_YAML,
-                root / "missions" / mission_type / MISSION_RUNTIME_YAML,
-                root / "missions" / mission_type / MISSION_YAML,
-                root / MISSION_RUNTIME_YAML,
-                root / MISSION_YAML,
-            ]
-        )
-
-    # De-duplicate while preserving order.
-    unique: list[Path] = []
-    seen: set[str] = set()
-    for candidate in candidates:
-        key = str(candidate)
-        if key in seen:
-            continue
-        seen.add(key)
-        unique.append(candidate)
-    return unique
-
-
-def _template_key_for_file(path: Path) -> str | None:
-    try:
-        template = load_mission_template_file(path)
-        return template.mission.key
-    except Exception:
-        return None
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_io._build_discovery_context`. Flagged 🔴 high-risk in
+    research.md §Compat (patched at ``test_query_mode_unit.py:751``, reached
+    only via intra-seam movers in ``runtime_bridge_io.py``) — every one of
+    those intra-seam callers routes back through this delegate via a live
+    lookup rather than a bare intra-module call; see the seam module's
+    docstring."""
+    return _io_seam._build_discovery_context(repo_root)
 
 
 def _resolve_runtime_template_in_root(root: Path, mission_type: str) -> Path | None:
-    for candidate in _candidate_templates_for_root(root, mission_type):
-        if not candidate.exists() or not candidate.is_file():
-            continue
-
-        paths_to_try = [candidate]
-        # Prefer mission-runtime.yaml sidecar when candidate is mission.yaml.
-        if candidate.name == MISSION_YAML:
-            runtime_sidecar = candidate.with_name(MISSION_RUNTIME_YAML)
-            if runtime_sidecar.exists() and runtime_sidecar.is_file():
-                paths_to_try = [runtime_sidecar, candidate]
-
-        for path in paths_to_try:
-            template_key = _template_key_for_file(path)
-            if template_key == mission_type:
-                return path.resolve()
-
-    return None
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_io._resolve_runtime_template_in_root`."""
+    return _io_seam._resolve_runtime_template_in_root(root, mission_type)
 
 
 def _runtime_template_key(mission_type: str, repo_root: Path) -> str:
-    """Resolve the runtime template path for a mission key.
-
-    Uses deterministic runtime discovery precedence for mission-runtime YAML:
-    explicit -> env -> project override -> project legacy -> project config
-    -> user global -> built-in.
-
-    For the built-in ``software-dev`` mission, the packaged runtime template is
-    canonical after this composition rewrite. Stale user-global mission packs
-    from earlier installs must not reintroduce the legacy tasks_* DAG, while
-    explicit, env, and project-scoped overrides remain honored.
-    """
-    context = _build_discovery_context(repo_root)
-    env_value = os.environ.get(context.env_var_name, "")
-    project_tiers: list[list[Path]] = [
-        list(context.explicit_paths),
-        _split_env_paths(env_value),
-        [repo_root / KITTIFY_DIR / "overrides" / "missions"],
-        [repo_root / KITTIFY_DIR / "missions"],
-        _project_config_pack_paths(repo_root),
-    ]
-    global_tier = [context.user_home / KITTIFY_DIR / "missions"]
-    builtin_tier = list(context.builtin_roots)
-    tiers = (
-        project_tiers + [builtin_tier, global_tier]
-        if mission_type == MISSION_TYPE_SOFTWARE_DEV
-        else project_tiers + [global_tier, builtin_tier]
-    )
-
-    for roots in tiers:
-        for root in roots:
-            resolved = _resolve_runtime_template_in_root(root, mission_type)
-            if resolved is not None:
-                return str(resolved)
-
-    # Fallback: let runtime resolve mission key via mission.yaml discovery.
-    return mission_type
-
-
-def _workflow_runtime_template(
-    mission_slug: str,
-    mission_type: str,
-    repo_root: Path,
-    template_key: str,
-):
-    """Compose a runtime template when mission meta selects a workflow."""
-    del mission_type
-    mission_dir = _resolve_runtime_feature_dir(repo_root, mission_slug)
-    # load_meta (post-#2091 canonical contract): allow_missing=True absorbs a
-    # missing meta.json to None; malformed content still raises (on_malformed
-    # defaults to "raise"), matching the prior unguarded json.loads.
-    meta = load_meta(mission_dir)
-    if meta is None:
-        return None, None
-
-    workflow_id = meta.get("workflow_id")
-    if workflow_id is None:
-        return None, None
-
-    from runtime.next._internal_runtime.discovery import load_mission_template
-    from runtime.next._internal_runtime.planner import compose_template_with_workflow
-    from runtime.next._internal_runtime.workflow_registry import get_workflow
-
-    context = _build_discovery_context(repo_root)
-    base_template = load_mission_template(template_key, context=context)
-    workflow = get_workflow(str(workflow_id), project_root=repo_root)
-    template = compose_template_with_workflow(base_template, workflow)
-    template_path = f"{template_key}#workflow:{workflow.workflow_id}"
-    return template, template_path
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_io._runtime_template_key`."""
+    return _io_seam._runtime_template_key(mission_type, repo_root)
 
 
 def _existing_run_ref(
@@ -2216,23 +1022,9 @@ def _existing_run_ref(
     repo_root: Path,
     mission_type: str,
 ) -> MissionRunRef | None:
-    """Return an existing run without creating a new one."""
-    index = _load_feature_runs(repo_root)
-
-    if mission_slug not in index:
-        return None
-
-    entry = index[mission_slug]
-    run_dir = Path(entry["run_dir"])
-    if not (run_dir / STATE_FILE).exists():
-        return None
-
-    stored_mission_type = entry.get("mission_type") or entry.get("mission_key") or mission_type
-    return _build_run_ref(
-        run_id=entry["run_id"],
-        run_dir=entry["run_dir"],
-        mission_type=stored_mission_type,
-    )
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_io._existing_run_ref`."""
+    return _io_seam._existing_run_ref(mission_slug, repo_root, mission_type)
 
 
 def _start_ephemeral_query_run(
@@ -2240,35 +1032,9 @@ def _start_ephemeral_query_run(
     mission_type: str,
     repo_root: Path,
 ) -> tuple[MissionRunRef, Path]:
-    """Start a fresh query-only run outside the repository.
-
-    This keeps fresh query mode non-mutating for the project working tree and
-    `.kittify/runtime/feature-runs.json` while still using the runtime's own
-    snapshot/bootstrap behavior. The temp run store is cleaned up if any
-    bootstrap step raises so we never leak directories on failure paths.
-    """
-    run_store = Path(tempfile.mkdtemp(prefix="spec-kitty-query-run-"))
-    try:
-        template_key = _runtime_template_key(mission_type, repo_root)
-        template_override, template_path_override = _workflow_runtime_template(
-            mission_slug, mission_type, repo_root, template_key
-        )
-        context = _build_discovery_context(repo_root)
-
-        run_ref = start_mission_run(
-            template_key=template_key,
-            inputs={"mission_slug": mission_slug},
-            policy_snapshot=MissionPolicySnapshot(),
-            context=context,
-            run_store=run_store,
-            emitter=NullEmitter(),
-            template_override=template_override,
-            template_path_override=template_path_override,
-        )
-    except Exception:
-        shutil.rmtree(run_store, ignore_errors=True)
-        raise
-    return run_ref, run_store
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_io._start_ephemeral_query_run`."""
+    return _io_seam._start_ephemeral_query_run(mission_slug, mission_type, repo_root)
 
 
 def get_or_start_run(
@@ -2278,119 +1044,42 @@ def get_or_start_run(
     *,
     emitter: Any | None = None,
 ) -> MissionRunRef:
-    """Load existing run or start a new one.
+    """Thin compat delegate — forwards to :func:`runtime_bridge_io.get_or_start_run`.
 
     Run mapping stored in .kittify/runtime/feature-runs.json:
     { "042-test-feature": { "run_id": "abc", "run_dir": "..." } }
     """
-    index = _load_feature_runs(repo_root)
-
-    if mission_slug in index:
-        entry = index[mission_slug]
-        run_dir = Path(entry["run_dir"])
-        if (run_dir / STATE_FILE).exists():
-            stored_mission_type = entry.get("mission_type") or entry.get("mission_key") or mission_type
-            return _build_run_ref(
-                run_id=entry["run_id"],
-                run_dir=entry["run_dir"],
-                mission_type=stored_mission_type,
-            )
-
-    # Start a new run
-    run_store = repo_root / KITTIFY_DIR / "runtime" / "runs"
-    template_key = _runtime_template_key(mission_type, repo_root)
-    template_override, template_path_override = _workflow_runtime_template(
-        mission_slug, mission_type, repo_root, template_key
+    return _io_seam.get_or_start_run(
+        mission_slug, repo_root, mission_type, emitter=emitter
     )
-    context = _build_discovery_context(repo_root)
-
-    run_ref = start_mission_run(
-        template_key=template_key,
-        inputs={"mission_slug": mission_slug},
-        policy_snapshot=MissionPolicySnapshot(),
-        context=context,
-        run_store=run_store,
-        emitter=emitter or NullEmitter(),
-        template_override=template_override,
-        template_path_override=template_path_override,
-    )
-
-    # Persist to index
-    resolved_mission_type = _mission_key_for_run_ref(run_ref, mission_type)
-    resolved_mission_id = _resolve_mission_ulid(mission_slug, repo_root)
-    index[mission_slug] = {
-        "run_id": run_ref.run_id,
-        "run_dir": run_ref.run_dir,
-        "mission_type": resolved_mission_type,
-        "mission_key": resolved_mission_type,
-        "mission_id": resolved_mission_id,
-        "mission_slug": mission_slug,
-    }
-    _save_feature_runs(repo_root, index)
-
-    return run_ref
 
 
 # ---------------------------------------------------------------------------
-# OperationalContext wiring (FR-017, NFR-004)
+# OperationalContext wiring (FR-017, NFR-004) — bodies live in
+# runtime_bridge_io.py (T017); these are native thin compat delegates.
 # ---------------------------------------------------------------------------
 
 
 def _resolve_run_dir_for_mission(
     repo_root: Path, mission_slug: str
 ) -> Path | None:
-    """Return the persisted run directory for ``mission_slug``, read-only.
-
-    Looks the run up in the durable ``feature-runs.json`` index without
-    starting a new run (unlike :func:`get_or_start_run`). Returns ``None`` when
-    no run has been recorded yet. This keeps OC construction at the claim sites
-    free of any run-start side effect (NFR-004).
-    """
-    index = _load_feature_runs(repo_root)
-    entry = index.get(mission_slug)
-    if not entry:
-        return None
-    run_dir_raw = entry.get("run_dir")
-    if not run_dir_raw:
-        return None
-    return Path(run_dir_raw)
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_io._resolve_run_dir_for_mission`."""
+    return _io_seam._resolve_run_dir_for_mission(repo_root, mission_slug)
 
 
 def _resolve_tech_stack_for_profile(
     repo_root: Path, profile_id: str | None
 ) -> frozenset[str]:
-    """Best-effort resolution of the in-scope tech stack for ``profile_id``.
-
-    The tech stack is sourced from the resolved agent profile's
-    ``applies_to_languages`` / specialization-context languages (charter/meta
-    per data-model §7). This is best-effort: any resolution failure yields an
-    empty frozenset rather than raising, so populating an
-    :class:`~charter.invocation_context.OperationalContext` never blocks a
-    claim or decision. The lookup is read-only and creates no worktree or
-    status side effects (NFR-004).
-    """
-    if not profile_id:
-        return frozenset()
-    try:
-        from doctrine.agent_profiles import AgentProfileRepository  # noqa: PLC0415
-
-        repo = AgentProfileRepository(project_dir=repo_root / KITTIFY_DIR / "doctrine")
-        profile = repo.resolve_profile(profile_id)
-    except Exception:
-        return frozenset()
-    if profile is None:
-        return frozenset()
-    languages: list[str] = list(getattr(profile, "applies_to_languages", []) or [])
-    spec_ctx = getattr(profile, "specialization_context", None)
-    if spec_ctx is not None:
-        languages.extend(getattr(spec_ctx, "languages", []) or [])
-    return frozenset(lang for lang in languages if lang)
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_io._resolve_tech_stack_for_profile`."""
+    return _io_seam._resolve_tech_stack_for_profile(repo_root, profile_id)
 
 
 def build_operational_context_for_claim(
     *,
     repo_root: Path,
-    feature_dir: Path,  # noqa: ARG001 — accepted for call-site symmetry; OC fields derive from run state/profile
+    feature_dir: Path,
     mission_slug: str,
     wp_id: str,
     actor: str | None,
@@ -2399,54 +1088,20 @@ def build_operational_context_for_claim(
     current_activity: str = "implement",
     active_profile: str | None = None,
 ) -> OperationalContextT:
-    """Build a populated ``OperationalContext`` for a WP-claim call site.
-
-    Shared by the two claim entry points (``implement.py`` and
-    ``agent/workflow.py``) so OC-construction logic is not forked between them
-    (T062/T063). Resolves the active profile from the frozen mission template
-    step (via :func:`_resolve_step_agent_profile`) when the caller does not
-    supply one explicitly, and derives ``tech_stack`` from that profile.
-
-    This builder is read-only: it consults durable run state and profile
-    definitions but performs no worktree allocation and emits no status event,
-    so callers may invoke it before or after their own precondition checks
-    without violating NFR-004.
-
-    Args:
-        repo_root: Repository root.
-        feature_dir: Feature directory for the mission.
-        mission_slug: Mission slug (used to locate the run directory).
-        wp_id: Work package being claimed (current activity scope).
-        actor: Claim actor — becomes ``active_role`` when ``active_role`` is
-            not supplied.
-        active_model: The ``--agent`` value for the claim.
-        active_role: Explicit active role; falls back to ``actor``.
-        current_activity: Activity label (defaults to ``"implement"``).
-        active_profile: Explicit profile id; resolved from the template step
-            when ``None``.
-
-    Returns:
-        A populated :class:`~charter.invocation_context.OperationalContext`.
-    """
-    from charter.invocation_context import build_operational_context  # noqa: PLC0415
-
-    resolved_profile = active_profile
-    if resolved_profile is None:
-        try:
-            run_dir = _resolve_run_dir_for_mission(repo_root, mission_slug)
-            if run_dir is not None:
-                resolved_profile = _resolve_step_agent_profile(
-                    run_dir, current_activity
-                )
-        except Exception:
-            resolved_profile = None
-
-    return build_operational_context(
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_io.build_operational_context_for_claim`. See that
+    function's docstring for the full OC-builder contract (shared by the two
+    claim entry points, ``implement.py`` and ``agent/workflow.py``)."""
+    return _io_seam.build_operational_context_for_claim(
+        repo_root=repo_root,
+        feature_dir=feature_dir,
+        mission_slug=mission_slug,
+        wp_id=wp_id,
+        actor=actor,
         active_model=active_model,
-        active_profile=resolved_profile,
-        active_role=active_role or actor,
-        current_activity=current_activity or wp_id,
-        tech_stack=_resolve_tech_stack_for_profile(repo_root, resolved_profile),
+        active_role=active_role,
+        current_activity=current_activity,
+        active_profile=active_profile,
     )
 
 
@@ -2454,37 +1109,20 @@ def _build_operational_context_for_decision(
     *,
     agent: str,
     run_ref: MissionRunRef,
-    feature_dir: Path,  # noqa: ARG001 — part of the R-011-E helper contract; OC fields derive from run_ref/step_id
+    feature_dir: Path,
     repo_root: Path,
     step_id: str | None,
     mission_state: str | None = None,
 ) -> OperationalContextT:
-    """Build a populated ``OperationalContext`` for the ``next`` decision boundary.
-
-    Extracted helper (T064) so ``decide_next_via_runtime`` — already flagged
-    ``# noqa: C901`` — does not grow in complexity. Resolves the active profile
-    from the issued step via :func:`_resolve_step_agent_profile`, uses
-    ``step_id`` / ``mission_state`` as the current activity, and derives the
-    tech stack from the resolved profile. Read-only; no side effects (NFR-004).
-    """
-    from charter.invocation_context import build_operational_context  # noqa: PLC0415
-
-    activity = step_id or mission_state
-    resolved_profile: str | None = None
-    if step_id is not None:
-        try:
-            resolved_profile = _resolve_step_agent_profile(
-                Path(run_ref.run_dir), step_id
-            )
-        except Exception:
-            resolved_profile = None
-
-    return build_operational_context(
-        active_model=agent,
-        active_profile=resolved_profile,
-        active_role=agent,
-        current_activity=activity,
-        tech_stack=_resolve_tech_stack_for_profile(repo_root, resolved_profile),
+    """Thin compat delegate — forwards to
+    :func:`runtime_bridge_io._build_operational_context_for_decision`."""
+    return _io_seam._build_operational_context_for_decision(
+        agent=agent,
+        run_ref=run_ref,
+        feature_dir=feature_dir,
+        repo_root=repo_root,
+        step_id=step_id,
+        mission_state=mission_state,
     )
 
 
@@ -2503,9 +1141,11 @@ def _resolve_runtime_feature_dir(repo_root: Path, mission_slug: str) -> Path:
     ``_resolve_mission_ulid`` → ``resolve_mid8`` cascade here (FR-002, C-007).
 
     Boundary-safe fold-in (C-007): ``runtime_bridge`` already imports
-    ``specify_cli.missions._read_path_resolver`` (see ``_primary_runtime_feature_dir``
-    at module top), so consuming ``resolve_handle_to_read_path`` from the same
-    module adds NO new package-boundary edge.
+    ``specify_cli.missions._read_path_resolver`` (see
+    ``_mission_routes_through_coordination`` above; ``_primary_runtime_
+    feature_dir`` moved to ``runtime_bridge_identity`` at #2531 WP10 but keeps
+    the same import), so consuming ``resolve_handle_to_read_path`` from the
+    same module adds NO new package-boundary edge.
 
     Subsumption note (T013): the retired body derived ``mid8`` as
     ``resolve_mid8(slug, mission_id=<declared ULID or None>)`` — exactly tier 2 of
@@ -2521,35 +1161,96 @@ def _resolve_runtime_feature_dir(repo_root: Path, mission_slug: str) -> Path:
     return _resolve_handle(repo_root, mission_slug)
 
 
-def decide_next_via_runtime(  # noqa: C901
+# ---------------------------------------------------------------------------
+# Decision-builder residual (#2531 WP07, FR-011) — every ``Decision(...)``
+# construction below is routed through ``runtime_bridge_cores.step_or_
+# blocked`` over a ``runtime_bridge_cores.DecisionEnvelope``. This module
+# supplies the one genuinely I/O-bearing dependency the pure core needs (the
+# step branch's on-disk prompt-file check) and threads the caller-computed
+# non-deterministic fields (timestamp/run_id/decision_id) — the core itself
+# never stamps them (NFR-003).
+# ---------------------------------------------------------------------------
+
+
+def _prompt_exists(path: str) -> bool:
+    """Production ``prompt_exists`` port for :func:`runtime_bridge_cores.step_or_blocked`.
+
+    Mirrors ``Decision.__post_init__``'s own check (``decision.py:129``)
+    exactly (``Path(prompt).is_file()``) — the injected predicate and the
+    dataclass invariant agree on what "resolves on disk" means.
+    """
+    return Path(path).is_file()
+
+
+def _materialize_decision(
+    envelope: _cores.DecisionEnvelope,
+    guard_failures: list[str] | None = None,
+) -> Decision:
+    """Thin residual wrapper around :func:`runtime_bridge_cores.step_or_blocked`
+    supplying the production ``prompt_exists`` port (FR-011)."""
+    return _cores.step_or_blocked(envelope, guard_failures, prompt_exists=_prompt_exists)
+
+
+@dataclasses.dataclass(frozen=True)
+class DecideNextContext:
+    """Frozen value carrier threading ``decide_next_via_runtime``'s shared
+    locals through its four-phase early-return chain (FR-010,
+    data-model.md §DecideNextContext): bootstrap -> dependency-gate ->
+    composition-dispatch -> decision-materialize.
+
+    Populated once by the bootstrap phase; carries no I/O of its own. This
+    is an internal residual type — never re-exported, not a new public
+    surface (NFR-004) — so the ``decision.py:428`` lazy edge to the
+    orchestrator stays lazy (C-007).
+    """
+
+    agent: str
+    mission_slug: str
+    result: str
+    repo_root: Path
+    feature_dir: Path
+    now: str
+    mission_type: str
+    sync_emitter: SyncRuntimeEventEmitter
+    emitter_for_engine: Any
+    origin: dict[str, Any]
+    progress: dict[str, int | float] | None
+    run_ref: MissionRunRef
+    run_dir: Path
+    current_step_id: str | None
+
+
+def _dn_bootstrap(
     agent: str,
     mission_slug: str,
     result: str,
     repo_root: Path,
-) -> Decision:
-    """Main entry point replacing old decide_next().
+) -> tuple[DecideNextContext | None, Decision | None]:
+    """Phase 1/4 of ``decide_next_via_runtime`` (FR-010) — resolve
+    feature/mission/run and build the shared :class:`DecideNextContext`.
 
-    Flow:
-    1. Resolve mission_type from meta.json
-    2. get_or_start_run() to obtain MissionRunRef
-    3. Check if current step is a WP-iteration step
-       a. If yes and WPs remain: skip runtime advance, build WP prompt, return step
-       b. If yes and all WPs done: call next_step(result="success") to advance
-    4. For non-WP steps: call next_step(run_ref, agent, result) directly
-    5. Map NextDecision -> Decision (preserving JSON contract)
+    Unlike the other three phases this one cannot accept a
+    ``DecideNextContext`` as input (there is nothing to thread yet), so its
+    signature is the raw entry params in, ``(ctx, decision)`` out: exactly
+    one of the pair is non-``None``. A non-``None`` ``Decision`` means
+    bootstrap itself short-circuited (feature dir missing / run failed to
+    start) and the caller must return it immediately without running the
+    remaining phases.
     """
     feature_dir = _resolve_runtime_feature_dir(repo_root, mission_slug)
     now = datetime.now(UTC).isoformat()
 
     if not feature_dir.is_dir():
-        return Decision(
-            kind=DecisionKind.blocked,
-            agent=agent,
-            mission_slug=mission_slug,
-            mission="unknown",
-            mission_state="unknown",
-            timestamp=now,
-            reason=f"Feature directory not found: {feature_dir}",
+        return None, _materialize_decision(
+            _cores.DecisionEnvelope(
+                kind=DecisionKind.blocked,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission="unknown",
+                mission_state="unknown",
+                timestamp=now,
+                reason=f"Feature directory not found: {feature_dir}",
+            )
         )
 
     mission_type = get_mission_type(feature_dir)
@@ -2589,30 +1290,32 @@ def decide_next_via_runtime(  # noqa: C901
             emitter=emitter_for_engine,
         )
     except Exception as exc:
-        return Decision(
-            kind=DecisionKind.blocked,
-            agent=agent,
-            mission_slug=mission_slug,
-            mission=mission_type,
-            mission_state="unknown",
-            timestamp=now,
-            reason=f"Failed to start/load runtime run: {exc}",
-            progress=progress,
-            origin=origin,
+        return None, _materialize_decision(
+            _cores.DecisionEnvelope(
+                kind=DecisionKind.blocked,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state="unknown",
+                timestamp=now,
+                reason=f"Failed to start/load runtime run: {exc}",
+                progress=progress,
+                origin=origin,
+            )
         )
+
+    run_dir = Path(run_ref.run_dir)
 
     # Read current run state
     try:
-        from runtime.next._internal_runtime.engine import _read_snapshot
-
-        snapshot = _read_snapshot(Path(run_ref.run_dir))
+        snapshot = _engine_adapter._read_snapshot(run_dir)
         current_step_id = snapshot.issued_step_id
         sync_emitter.seed_from_snapshot(snapshot)
     except Exception:
         current_step_id = None
 
     # FR-017: populate the runtime OperationalContext at the `next` decision
-    # boundary via the extracted helper (keeps this C901 function flat). The
+    # boundary via the extracted helper (keeps the bootstrap phase flat). The
     # builder is read-only — it never allocates a worktree or emits a status
     # event (NFR-004).
     operational_context = _build_operational_context_for_decision(
@@ -2631,24 +1334,65 @@ def decide_next_via_runtime(  # noqa: C901
         operational_context.current_activity,
     )
 
+    return (
+        DecideNextContext(
+            agent=agent,
+            mission_slug=mission_slug,
+            result=result,
+            repo_root=repo_root,
+            feature_dir=feature_dir,
+            now=now,
+            mission_type=mission_type,
+            sync_emitter=sync_emitter,
+            emitter_for_engine=emitter_for_engine,
+            origin=origin,
+            progress=progress,
+            run_ref=run_ref,
+            run_dir=run_dir,
+            current_step_id=current_step_id,
+        ),
+        None,
+    )
+
+
+def _dn_dependency_gate(ctx: DecideNextContext) -> Decision | None:
+    """Phase 2/4 of ``decide_next_via_runtime`` (FR-010) — the
+    dependency/guard gate: the WP-iteration stay-in-step check (plus its
+    on-advance guard check), and the non-WP-step guard check. Returns a
+    blocked/step ``Decision`` when a guard holds the run in place, else
+    ``None`` to fall through to composition-dispatch.
+    """
+    agent = ctx.agent
+    mission_slug = ctx.mission_slug
+    mission_type = ctx.mission_type
+    feature_dir = ctx.feature_dir
+    repo_root = ctx.repo_root
+    now = ctx.now
+    progress = ctx.progress
+    origin = ctx.origin
+    run_ref = ctx.run_ref
+    current_step_id = ctx.current_step_id
+
     # WP iteration check: if we're on a WP step and WPs remain, don't advance runtime
-    if result == "success" and current_step_id and _is_wp_iteration_step(current_step_id):
+    if ctx.result == "success" and current_step_id and _is_wp_iteration_step(current_step_id):
         try:
             should_advance = _should_advance_wp_step(current_step_id, feature_dir)
         except CanonicalStatusNotFoundError as exc:
-            return Decision(
-                kind=DecisionKind.blocked,
-                agent=agent,
-                mission_slug=mission_slug,
-                mission=mission_type,
-                mission_state=current_step_id,
-                timestamp=now,
-                reason=str(exc),
-                guard_failures=[str(exc)],
-                progress=progress,
-                origin=origin,
-                run_id=run_ref.run_id,
-                step_id=current_step_id,
+            return _materialize_decision(
+                _cores.DecisionEnvelope(
+                    kind=DecisionKind.blocked,
+                    agent=agent,
+                    mission_slug=mission_slug,
+                    mission=mission_type,
+                    mission_state=current_step_id,
+                    timestamp=now,
+                    reason=str(exc),
+                    progress=progress,
+                    origin=origin,
+                    run_id=run_ref.run_id,
+                    step_id=current_step_id,
+                ),
+                [str(exc)],
             )
         if not should_advance:
             # Stay in current step, return WP-level action
@@ -2682,7 +1426,7 @@ def decide_next_via_runtime(  # noqa: C901
             )
 
     # Check guards for non-WP steps before advancing
-    if result == "success" and current_step_id and not _is_wp_iteration_step(current_step_id):
+    if ctx.result == "success" and current_step_id and not _is_wp_iteration_step(current_step_id):
         guard_failures = _check_cli_guards(current_step_id, feature_dir)
         if guard_failures:
             action, wp_id, workspace_path = _state_to_action(
@@ -2708,89 +1452,128 @@ def decide_next_via_runtime(  # noqa: C901
                 prompt_error = (
                     f"no action mapped for step '{current_step_id}'; cannot resolve prompt"
                 )
-            if prompt_file is None:
-                # WP06 (FR-006/FR-013): never issue kind=step with prompt_file=None.
-                # When a prompt cannot be resolved, surface a structured blocked
-                # decision so callers can stop, not partial-execute.
-                return Decision(
-                    kind=DecisionKind.blocked,
-                    agent=agent,
-                    mission_slug=mission_slug,
-                    mission=mission_type,
-                    mission_state=current_step_id,
-                    timestamp=now,
-                    reason=prompt_error or "prompt_file_not_resolvable",
-                    action=action,
-                    wp_id=wp_id,
-                    workspace_path=workspace_path,
-                    guard_failures=guard_failures,
-                    progress=progress,
-                    origin=origin,
-                    run_id=run_ref.run_id,
-                    step_id=current_step_id,
-                )
-            try:
-                return Decision(
+            # WP06 (FR-006/FR-013) / WP07 (FR-011): step_or_blocked never
+            # issues kind=step with an unresolvable prompt_file — it falls
+            # back to kind=blocked using this pre-computed reason (matches
+            # the original "prompt_file is None" branch's literal exactly;
+            # the "resolved-but-vanished-by-construction-time" race uses the
+            # core's own hard-coded literal — see DecisionEnvelope's
+            # docstring for why that is safe to share across sites).
+            return _materialize_decision(
+                _cores.DecisionEnvelope(
                     kind=DecisionKind.step,
                     agent=agent,
                     mission_slug=mission_slug,
                     mission=mission_type,
                     mission_state=current_step_id,
                     timestamp=now,
-                    action=action,
-                    wp_id=wp_id,
-                    workspace_path=workspace_path,
-                    prompt_file=prompt_file,
-                    guard_failures=guard_failures,
-                    progress=progress,
-                    origin=origin,
-                    run_id=run_ref.run_id,
-                    step_id=current_step_id,
-                )
-            except InvalidStepDecision:
-                # C-005: keep the kind=step prompt contract as a hard
-                # constructor invariant. If the file disappears between
-                # resolution and construction, surface a structured blocker.
-                return Decision(
-                    kind=DecisionKind.blocked,
-                    agent=agent,
-                    mission_slug=mission_slug,
-                    mission=mission_type,
-                    mission_state=current_step_id,
-                    timestamp=now,
                     reason=prompt_error or "prompt_file_not_resolvable",
                     action=action,
                     wp_id=wp_id,
                     workspace_path=workspace_path,
-                    guard_failures=guard_failures,
+                    prompt_file=prompt_file,
                     progress=progress,
                     origin=origin,
                     run_id=run_ref.run_id,
                     step_id=current_step_id,
-                )
+                ),
+                guard_failures,
+            )
 
-    # Composition dispatch (mission `software-dev-composition-rewrite-01KQ26CY`).
-    #
-    # For the built-in `software-dev` mission's five public actions, route the
-    # just-completed step through `StepContractExecutor.execute` BEFORE we let
-    # the runtime planner advance run state. The composition produces the
-    # invocation_id chain (host harness interprets it); a structured guard
-    # failure surface (Decision.kind=blocked, guard_failures populated) is
-    # used in lieu of a Python traceback when the executor raises
-    # `StepContractExecutionError`. C-008 hard-guards this on
-    # `mission == "software-dev"`; every other mission falls through to the
-    # runtime planner unchanged.
+    return None
+
+
+def _dn_composition_blocked_decision(
+    ctx: DecideNextContext,
+    current_step_id: str,
+    composition_failures: list[str],
+) -> Decision:
+    """Build the blocked ``Decision`` for a composition-dispatch guard
+    failure — the ``_state_to_action`` -> ``_build_prompt_safe`` prompt
+    resolution the composition-dispatch phase needs when the executor
+    reports guard failures instead of advancing (FR-008 composition
+    guard-failure surface). Split out of ``_dn_composition_dispatch`` to
+    keep that phase's own complexity down; it re-extracts nothing WP06-08
+    already own — it is pure orchestration plumbing local to this phase.
+    """
+    action, wp_id, workspace_path = _state_to_action(
+        current_step_id,
+        ctx.mission_slug,
+        ctx.feature_dir,
+        ctx.repo_root,
+        ctx.mission_type,
+    )
+    prompt_file = (
+        _build_prompt_safe(
+            action or current_step_id,
+            ctx.feature_dir,
+            ctx.mission_slug,
+            wp_id,
+            ctx.agent,
+            ctx.repo_root,
+            ctx.mission_type,
+        )
+        if action
+        else None
+    )
+    return _materialize_decision(
+        _cores.DecisionEnvelope(
+            kind=DecisionKind.blocked,
+            agent=ctx.agent,
+            mission_slug=ctx.mission_slug,
+            mission=ctx.mission_type,
+            mission_state=current_step_id,
+            timestamp=ctx.now,
+            reason=composition_failures[0],
+            action=action,
+            wp_id=wp_id,
+            workspace_path=workspace_path,
+            prompt_file=prompt_file,
+            progress=ctx.progress,
+            origin=ctx.origin,
+            run_id=ctx.run_ref.run_id,
+            step_id=current_step_id,
+        ),
+        composition_failures,
+    )
+
+
+def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
+    """Phase 3/4 of ``decide_next_via_runtime`` (FR-010) — composition
+    dispatch (mission `software-dev-composition-rewrite-01KQ26CY`).
+
+    For the built-in `software-dev` mission's five public actions, route the
+    just-completed step through `StepContractExecutor.execute` BEFORE we let
+    the runtime planner advance run state. The composition produces the
+    invocation_id chain (host harness interprets it); a structured guard
+    failure surface (Decision.kind=blocked, guard_failures populated) is
+    used in lieu of a Python traceback when the executor raises
+    `StepContractExecutionError`. C-008 hard-guards this on
+    `mission == "software-dev"`; every other mission falls through (returns
+    ``None``) to composition unchanged so decision-materialize runs the
+    runtime planner next.
+    """
+    agent = ctx.agent
+    mission_slug = ctx.mission_slug
+    mission_type = ctx.mission_type
+    feature_dir = ctx.feature_dir
+    repo_root = ctx.repo_root
+    now = ctx.now
+    progress = ctx.progress
+    origin = ctx.origin
+    run_ref = ctx.run_ref
+    current_step_id = ctx.current_step_id
+
     if (
-        result == "success"
+        ctx.result == "success"
         and current_step_id
         and _should_dispatch_via_composition(
             mission_type,
             current_step_id,
-            run_dir=Path(run_ref.run_dir),
+            run_dir=ctx.run_dir,
             repo_root=repo_root,
         )
     ):
-        run_dir = Path(run_ref.run_dir)
         composed_action = _normalize_action_for_composition(current_step_id)
         # R-005: for custom missions, the active step's ``agent_profile`` is
         # the source of truth for ``profile_hint``. For built-in missions
@@ -2800,7 +1583,7 @@ def decide_next_via_runtime(  # noqa: C901
         # — preserving byte-identical built-in dispatch behavior (FR-010).
         resolved_profile, runtime_contract = _composition_dispatch_inputs(
             repo_root=repo_root,
-            run_dir=run_dir,
+            run_dir=ctx.run_dir,
             mission=mission_type,
             step_id=current_step_id,
             action=composed_action,
@@ -2823,43 +1606,8 @@ def decide_next_via_runtime(  # noqa: C901
             contract=runtime_contract,
         )
         if composition_failures:
-            action, wp_id, workspace_path = _state_to_action(
-                current_step_id,
-                mission_slug,
-                feature_dir,
-                repo_root,
-                mission_type,
-            )
-            prompt_file = (
-                _build_prompt_safe(
-                    action or current_step_id,
-                    feature_dir,
-                    mission_slug,
-                    wp_id,
-                    agent,
-                    repo_root,
-                    mission_type,
-                )
-                if action
-                else None
-            )
-            return Decision(
-                kind=DecisionKind.blocked,
-                agent=agent,
-                mission_slug=mission_slug,
-                mission=mission_type,
-                mission_state=current_step_id,
-                timestamp=now,
-                reason=composition_failures[0],
-                action=action,
-                wp_id=wp_id,
-                workspace_path=workspace_path,
-                prompt_file=prompt_file,
-                guard_failures=composition_failures,
-                progress=progress,
-                origin=origin,
-                run_id=run_ref.run_id,
-                step_id=current_step_id,
+            return _dn_composition_blocked_decision(
+                ctx, current_step_id, composition_failures
             )
         # Composition succeeded; advance run state via the
         # composition-specific advancement helper and short-circuit the
@@ -2879,7 +1627,7 @@ def decide_next_via_runtime(  # noqa: C901
                 timestamp=now,
                 progress=progress,
                 origin=origin,
-                sync_emitter=sync_emitter,
+                sync_emitter=ctx.sync_emitter,
             )
         except Exception as exc:  # noqa: BLE001 — EDGE-003 contract: any
             # advancement-helper failure must surface as a structured
@@ -2890,28 +1638,142 @@ def decide_next_via_runtime(  # noqa: C901
                 mission_type,
                 composed_action,
             )
-            return Decision(
-                kind=DecisionKind.blocked,
-                agent=agent,
-                mission_slug=mission_slug,
-                mission=mission_type,
-                mission_state=current_step_id,
-                timestamp=now,
-                reason=(
-                    f"Run-state advancement after composition failed for "
-                    f"{mission_type}/{composed_action}: "
-                    f"{type(exc).__name__}: {exc}"
-                ),
-                progress=progress,
-                origin=origin,
-                run_id=run_ref.run_id,
-                step_id=current_step_id,
+            return _materialize_decision(
+                _cores.DecisionEnvelope(
+                    kind=DecisionKind.blocked,
+                    agent=agent,
+                    mission_slug=mission_slug,
+                    mission=mission_type,
+                    mission_state=current_step_id,
+                    timestamp=now,
+                    reason=(
+                        f"Run-state advancement after composition failed for "
+                        f"{mission_type}/{composed_action}: "
+                        f"{type(exc).__name__}: {exc}"
+                    ),
+                    progress=progress,
+                    origin=origin,
+                    run_id=run_ref.run_id,
+                    step_id=current_step_id,
+                )
             )
 
-    # Strict retrospective policy remains a pre-completion gate. The default
-    # post-completion policy is best-effort and must not buffer or roll back
-    # MissionRunCompleted; it runs after terminal events have flushed.
-    policy, _source_map, policy_error = _resolve_retrospective_policy_for_runtime(repo_root)
+    return None
+
+
+def _dn_capture_pre_speculative_state(
+    run_dir: Path,
+) -> tuple[bytes | None, int | None] | None:
+    """Capture ``(state.json bytes, run.events.jsonl size)`` before a
+    speculative engine advance, so a later retrospective-gate refusal can
+    roll back cleanly. Returns ``None`` on a disk-read failure — the caller
+    must then surface a blocked ``Decision`` rather than advance into a
+    state it cannot retract (mirrors the original inline try/except
+    exactly)."""
+    state_path = run_dir / STATE_FILE
+    events_path = run_dir / "run.events.jsonl"
+    try:
+        pre_state_bytes = state_path.read_bytes() if state_path.exists() else None
+        pre_events_size = events_path.stat().st_size if events_path.exists() else 0
+    except OSError:
+        return None
+    return pre_state_bytes, pre_events_size
+
+
+def _dn_rollback_buffered_run_state(
+    run_dir: Path,
+    pre_state_bytes: bytes | None,
+    pre_events_size: int | None,
+) -> None:
+    """Restore state.json / truncate run.events.jsonl to their pre-speculative-
+    advance values after the retrospective gate refuses completion. Mirrors
+    the original inline rollback exactly, including its error-logging-only
+    failure mode — a failed rollback is logged, not itself surfaced as a
+    Decision (the caller has already committed to returning the gate-refused
+    blocked Decision)."""
+    if pre_state_bytes is not None:
+        try:
+            (run_dir / STATE_FILE).write_bytes(pre_state_bytes)
+        except OSError as restore_exc:
+            logger.error(
+                "rollback of state.json failed after gate block: %s",
+                restore_exc,
+            )
+    if pre_events_size is not None:
+        events_path = run_dir / "run.events.jsonl"
+        try:
+            if events_path.exists():
+                with open(events_path, "r+b") as handle:
+                    handle.truncate(pre_events_size)
+        except OSError as restore_exc:
+            logger.error(
+                "rollback of run.events.jsonl failed after gate block: %s",
+                restore_exc,
+            )
+
+
+def _dn_terminal_retrospective_gate(
+    ctx: DecideNextContext,
+    policy_error: Exception | None,
+    buffer: _BufferingRuntimeEmitter | None,
+    pre_state_bytes: bytes | None,
+    pre_events_size: int | None,
+) -> Decision | None:
+    """Run the strict (block-on) retrospective gate for a just-produced
+    terminal ``Decision``. On refusal: drop the buffered emit calls (so no
+    ``MissionRunCompleted`` ever reaches the real emitter), roll back
+    state.json/run.events.jsonl, and return the blocked ``Decision``. On
+    success (gate passes, or was never entered because ``policy_error`` is
+    ``None`` and capture raises nothing) returns ``None`` so the caller
+    proceeds to flush the buffer. Split out of ``_dn_decision_materialize``
+    to keep that phase's own complexity down — pure orchestration plumbing
+    local to this phase, not a re-extraction of WP04's retrospective seam.
+    """
+    mission_id = _resolve_mission_id_for_terminus(ctx.feature_dir)
+    try:
+        if policy_error is not None:
+            raise policy_error
+        _run_retrospective_learning_capture(
+            mission_id=mission_id,
+            mission_slug=ctx.mission_slug,
+            feature_dir=ctx.feature_dir,
+            repo_root=ctx.repo_root,
+            block_on_failure=True,
+        )
+    except Exception as exc:
+        # Gate refused. Drop the buffered emit calls (so no
+        # MissionRunCompleted ever reaches the real emitter) and
+        # restore state.json + truncate run.events.jsonl to pre-call.
+        if buffer is not None:
+            buffer.discard()
+        _dn_rollback_buffered_run_state(ctx.run_dir, pre_state_bytes, pre_events_size)
+        return _materialize_decision(
+            _cores.DecisionEnvelope(
+                kind=DecisionKind.blocked,
+                agent=ctx.agent,
+                mission_slug=ctx.mission_slug,
+                mission=ctx.mission_type,
+                mission_state=ctx.current_step_id or "unknown",
+                timestamp=ctx.now,
+                reason=f"Retrospective gate refused completion: {exc}",
+                progress=ctx.progress,
+                origin=ctx.origin,
+            )
+        )
+    return None
+
+
+def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
+    """Phase 4/4 of ``decide_next_via_runtime`` (FR-010) — advance via the
+    runtime planner and materialize the terminal/step/query ``Decision``
+    through WP07's Decision-builder. Always returns a ``Decision`` (never
+    ``None``): this is the chain's terminal phase.
+
+    Strict retrospective policy remains a pre-completion gate. The default
+    post-completion policy is best-effort and must not buffer or roll back
+    MissionRunCompleted; it runs after terminal events have flushed.
+    """
+    policy, _source_map, policy_error = _resolve_retrospective_policy_for_runtime(ctx.repo_root)
     retrospective_enabled = bool(getattr(policy, "enabled", False))
     block_on_retrospective = _retrospective_blocks_completion(policy)
 
@@ -2919,142 +1781,139 @@ def decide_next_via_runtime(  # noqa: C901
     pre_events_size: int | None = None
     # Use the DecisionGitLog-wrapped emitter as the engine's emitter so that
     # decision events are durably committed to the coordination branch.
-    engine_emitter: Any = emitter_for_engine
+    engine_emitter: Any = ctx.emitter_for_engine
     buffer: _BufferingRuntimeEmitter | None = None
 
     if block_on_retrospective:
-        run_dir = Path(run_ref.run_dir)
-        state_path = run_dir / STATE_FILE
-        events_path = run_dir / "run.events.jsonl"
-        try:
-            pre_state_bytes = state_path.read_bytes() if state_path.exists() else None
-            pre_events_size = events_path.stat().st_size if events_path.exists() else 0
-        except OSError:
+        captured = _dn_capture_pre_speculative_state(ctx.run_dir)
+        if captured is None:
             # If we cannot capture pre-state we cannot guarantee a clean
             # rollback. Surface this as a blocked Decision rather than
             # advancing into a state we cannot retract.
-            return Decision(
-                kind=DecisionKind.blocked,
-                agent=agent,
-                mission_slug=mission_slug,
-                mission=mission_type,
-                mission_state=current_step_id or "unknown",
-                timestamp=now,
-                reason=(
-                    "Cannot read run state.json / run.events.jsonl before "
-                    "speculative engine advance; refusing to advance"
-                ),
-                progress=progress,
-                origin=origin,
+            return _materialize_decision(
+                _cores.DecisionEnvelope(
+                    kind=DecisionKind.blocked,
+                    agent=ctx.agent,
+                    mission_slug=ctx.mission_slug,
+                    mission=ctx.mission_type,
+                    mission_state=ctx.current_step_id or "unknown",
+                    timestamp=ctx.now,
+                    reason=(
+                        "Cannot read run state.json / run.events.jsonl before "
+                        "speculative engine advance; refusing to advance"
+                    ),
+                    progress=ctx.progress,
+                    origin=ctx.origin,
+                )
             )
+        pre_state_bytes, pre_events_size = captured
         buffer = _BufferingRuntimeEmitter()
         engine_emitter = buffer
 
     # Advance via runtime
     try:
         runtime_decision = runtime_next_step(
-            run_ref,
-            agent_id=agent,
-            result=result,
+            ctx.run_ref,
+            agent_id=ctx.agent,
+            result=ctx.result,
             emitter=engine_emitter,
         )
     except Exception as exc:
         # Engine raised: discard any buffered events; nothing left to flush.
         if buffer is not None:
             buffer.discard()
-        return Decision(
-            kind=DecisionKind.blocked,
-            agent=agent,
-            mission_slug=mission_slug,
-            mission=mission_type,
-            mission_state=current_step_id or "unknown",
-            timestamp=now,
-            reason=f"Runtime engine error: {exc}",
-            progress=progress,
-            origin=origin,
+        return _materialize_decision(
+            _cores.DecisionEnvelope(
+                kind=DecisionKind.blocked,
+                agent=ctx.agent,
+                mission_slug=ctx.mission_slug,
+                mission=ctx.mission_type,
+                mission_state=ctx.current_step_id or "unknown",
+                timestamp=ctx.now,
+                reason=f"Runtime engine error: {exc}",
+                progress=ctx.progress,
+                origin=ctx.origin,
+            )
         )
 
     if block_on_retrospective and runtime_decision.kind == DecisionKind.terminal:
-        mission_id = _resolve_mission_id_for_terminus(feature_dir)
-        try:
-            if policy_error is not None:
-                raise policy_error
-            _run_retrospective_learning_capture(
-                mission_id=mission_id,
-                mission_slug=mission_slug,
-                feature_dir=feature_dir,
-                repo_root=repo_root,
-                block_on_failure=True,
-            )
-        except Exception as exc:
-            # Gate refused. Drop the buffered emit calls (so no
-            # MissionRunCompleted ever reaches the real emitter) and
-            # restore state.json + truncate run.events.jsonl to pre-call.
-            if buffer is not None:
-                buffer.discard()
-            run_dir = Path(run_ref.run_dir)
-            if pre_state_bytes is not None:
-                try:
-                    (run_dir / STATE_FILE).write_bytes(pre_state_bytes)
-                except OSError as restore_exc:
-                    logger.error(
-                        "rollback of state.json failed after gate block: %s",
-                        restore_exc,
-                    )
-            if pre_events_size is not None:
-                events_path = run_dir / "run.events.jsonl"
-                try:
-                    if events_path.exists():
-                        with open(events_path, "r+b") as handle:
-                            handle.truncate(pre_events_size)
-                except OSError as restore_exc:
-                    logger.error(
-                        "rollback of run.events.jsonl failed after gate block: %s",
-                        restore_exc,
-                    )
-            return Decision(
-                kind=DecisionKind.blocked,
-                agent=agent,
-                mission_slug=mission_slug,
-                mission=mission_type,
-                mission_state=current_step_id or "unknown",
-                timestamp=now,
-                reason=f"Retrospective gate refused completion: {exc}",
-                progress=progress,
-                origin=origin,
-            )
+        gate_decision = _dn_terminal_retrospective_gate(
+            ctx, policy_error, buffer, pre_state_bytes, pre_events_size
+        )
+        if gate_decision is not None:
+            return gate_decision
 
     # Gate either passed (terminal allow) or never ran (non-terminal /
     # not opted in): flush any buffered emit calls into the real sync
     # emitter so observers receive them in original order.
     if buffer is not None:
-        buffer.flush(sync_emitter)
+        buffer.flush(ctx.sync_emitter)
 
     if (
         retrospective_enabled
         and not block_on_retrospective
         and runtime_decision.kind == DecisionKind.terminal
     ):
-        mission_id = _resolve_mission_id_for_terminus(feature_dir)
+        mission_id = _resolve_mission_id_for_terminus(ctx.feature_dir)
         _run_retrospective_learning_capture(
             mission_id=mission_id,
-            mission_slug=mission_slug,
-            feature_dir=feature_dir,
-            repo_root=repo_root,
+            mission_slug=ctx.mission_slug,
+            feature_dir=ctx.feature_dir,
+            repo_root=ctx.repo_root,
             block_on_failure=False,
         )
 
     return _map_runtime_decision(
         runtime_decision,
-        agent,
-        mission_slug,
-        mission_type,
-        repo_root,
-        feature_dir,
-        now,
-        progress,
-        origin,
+        ctx.agent,
+        ctx.mission_slug,
+        ctx.mission_type,
+        ctx.repo_root,
+        ctx.feature_dir,
+        ctx.now,
+        ctx.progress,
+        ctx.origin,
     )
+
+
+def decide_next_via_runtime(
+    agent: str,
+    mission_slug: str,
+    result: str,
+    repo_root: Path,
+) -> Decision:
+    """Main entry point replacing old decide_next().
+
+    A linear four-phase early-return chain over :class:`DecideNextContext`
+    (FR-010): bootstrap builds the context (and may itself short-circuit —
+    feature dir missing / run failed to start); dependency-gate,
+    composition-dispatch, and decision-materialize each take ``ctx`` and
+    return ``Decision | None``, the first non-``None`` short-circuiting.
+    decision-materialize is the terminal phase and always resolves.
+
+    Flow:
+    1. Resolve mission_type from meta.json
+    2. get_or_start_run() to obtain MissionRunRef
+    3. Check if current step is a WP-iteration step
+       a. If yes and WPs remain: skip runtime advance, build WP prompt, return step
+       b. If yes and all WPs done: call next_step(result="success") to advance
+    4. For non-WP steps: call next_step(run_ref, agent, result) directly
+    5. Map NextDecision -> Decision (preserving JSON contract)
+    """
+    ctx, early_decision = _dn_bootstrap(agent, mission_slug, result, repo_root)
+    if early_decision is not None:
+        return early_decision
+    assert ctx is not None  # _dn_bootstrap always pairs a ctx with None (or vice versa)
+
+    for phase in (_dn_dependency_gate, _dn_composition_dispatch, _dn_decision_materialize):
+        decision = phase(ctx)
+        if decision is not None:
+            return decision
+
+    raise AssertionError(  # pragma: no cover — decision-materialize always resolves
+        "decide_next_via_runtime: no phase produced a Decision"
+    )
+
 
 def _build_finalized_override_query_decision(
     *,
@@ -3092,19 +1951,20 @@ def _build_finalized_override_query_decision(
             override_wp_id = preview.wp_id
             if preview.wp_id is None and preview.selection_reason is not None:
                 reason = preview.selection_reason
-    return Decision(
-        kind=DecisionKind.query,
-        agent=agent,
-        mission_slug=mission_slug,
-        mission=mission_type,
-        mission_state=mission_state,
-        timestamp=now,
-        is_query=True,
-        reason=reason,
-        progress=progress,
-        run_id=emitted_run_id,
-        preview_step=preview_step,
-        wp_id=override_wp_id,
+    return _materialize_decision(
+        _cores.DecisionEnvelope(
+            kind=DecisionKind.query,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state=mission_state,
+            timestamp=now,
+            reason=reason,
+            progress=progress,
+            run_id=emitted_run_id,
+            preview_step=preview_step,
+            wp_id=override_wp_id,
+        )
     )
 
 
@@ -3118,18 +1978,19 @@ def _build_initial_query_decision(
     progress: dict | None,
     emitted_run_id: str | None,
 ) -> Decision:
-    return Decision(
-        kind=DecisionKind.query,
-        agent=agent,
-        mission_slug=mission_slug,
-        mission=mission_type,
-        mission_state="not_started",
-        timestamp=now,
-        is_query=True,
-        reason=None,
-        progress=progress,
-        run_id=emitted_run_id,
-        preview_step=runtime_decision.step_id,
+    return _materialize_decision(
+        _cores.DecisionEnvelope(
+            kind=DecisionKind.query,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state="not_started",
+            timestamp=now,
+            reason=None,
+            progress=progress,
+            run_id=emitted_run_id,
+            preview_step=runtime_decision.step_id,
+        )
     )
 
 
@@ -3144,22 +2005,23 @@ def _build_decision_required_query(
     progress: dict | None,
     emitted_run_id: str | None,
 ) -> Decision:
-    return Decision(
-        kind=DecisionKind.query,
-        agent=agent,
-        mission_slug=mission_slug,
-        mission=mission_type,
-        mission_state=snapshot.issued_step_id or runtime_decision.step_id or "unknown",
-        timestamp=now,
-        is_query=True,
-        reason=None,
-        progress=progress,
-        run_id=emitted_run_id,
-        step_id=snapshot.issued_step_id or runtime_decision.step_id,
-        decision_id=runtime_decision.decision_id,
-        input_key=runtime_decision.input_key,
-        question=runtime_decision.question,
-        options=runtime_decision.options,
+    return _materialize_decision(
+        _cores.DecisionEnvelope(
+            kind=DecisionKind.query,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state=snapshot.issued_step_id or runtime_decision.step_id or "unknown",
+            timestamp=now,
+            reason=None,
+            progress=progress,
+            run_id=emitted_run_id,
+            step_id=snapshot.issued_step_id or runtime_decision.step_id,
+            decision_id=runtime_decision.decision_id,
+            input_key=runtime_decision.input_key,
+            question=runtime_decision.question,
+            options=runtime_decision.options,
+        )
     )
 
 
@@ -3181,18 +2043,19 @@ def _build_runtime_query_decision(
     elif runtime_decision.kind == DecisionKind.blocked:
         mission_state = snapshot.issued_step_id or runtime_decision.step_id or "blocked"
         blocked_reason = snapshot.blocked_reason or getattr(runtime_decision, "reason", None)
-    return Decision(
-        kind=DecisionKind.query,
-        agent=agent,
-        mission_slug=mission_slug,
-        mission=mission_type,
-        mission_state=mission_state,
-        timestamp=now,
-        is_query=True,
-        reason=blocked_reason,
-        progress=progress,
-        run_id=emitted_run_id,
-        step_id=snapshot.issued_step_id or runtime_decision.step_id,
+    return _materialize_decision(
+        _cores.DecisionEnvelope(
+            kind=DecisionKind.query,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state=mission_state,
+            timestamp=now,
+            reason=blocked_reason,
+            progress=progress,
+            run_id=emitted_run_id,
+            step_id=snapshot.issued_step_id or runtime_decision.step_id,
+        )
     )
 
 
@@ -3258,23 +2121,20 @@ def query_current_state(
     # on every return path (success, raise, or early exit).
     try:
         try:
-            from runtime.next._internal_runtime import engine
-            from runtime.next._internal_runtime.planner import plan_next
-
             if run_ref is None:
                 run_ref, ephemeral_run_store = _start_ephemeral_query_run(
                     mission_slug,
                     mission_type,
                     repo_root,
                 )
-                snapshot = engine._read_snapshot(Path(run_ref.run_dir))
+                snapshot = _engine_adapter._read_snapshot(Path(run_ref.run_dir))
                 template_path = Path(run_ref.run_dir) / "mission_template_frozen.yaml"
                 template = load_mission_template_file(template_path)
             else:
-                snapshot = engine._read_snapshot(Path(run_ref.run_dir))
+                snapshot = _engine_adapter._read_snapshot(Path(run_ref.run_dir))
                 template_path = Path(snapshot.template_path)
                 template = load_mission_template_file(template_path)
-            runtime_decision = plan_next(
+            runtime_decision = _engine_adapter.plan_next(
                 snapshot,
                 template,
                 snapshot.policy_snapshot,
@@ -3413,9 +2273,7 @@ def answer_decision_via_runtime(
         mission_type=mission_type,
     )
     try:
-        from runtime.next._internal_runtime.engine import _read_snapshot
-
-        sync_emitter.seed_from_snapshot(_read_snapshot(Path(run_ref.run_dir)))
+        sync_emitter.seed_from_snapshot(_engine_adapter._read_snapshot(Path(run_ref.run_dir)))
     except Exception as exc:
         logger.warning(
             "answer_decision_via_runtime: failed to seed emitter from snapshot for run %r: %s",
@@ -3465,19 +2323,21 @@ def _build_wp_iteration_decision(
     )
 
     if action is None:
-        return Decision(
-            kind=DecisionKind.blocked,
-            agent=agent,
-            mission_slug=mission_slug,
-            mission=mission_type,
-            mission_state=step_id,
-            timestamp=timestamp,
-            reason=f"No action mapped for step '{step_id}'",
-            guard_failures=guard_failures or [],
-            progress=progress,
-            origin=origin,
-            run_id=run_ref.run_id,
-            step_id=step_id,
+        return _materialize_decision(
+            _cores.DecisionEnvelope(
+                kind=DecisionKind.blocked,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state=step_id,
+                timestamp=timestamp,
+                reason=f"No action mapped for step '{step_id}'",
+                progress=progress,
+                origin=origin,
+                run_id=run_ref.run_id,
+                step_id=step_id,
+            ),
+            guard_failures or [],
         )
 
     prompt_file, prompt_error = _build_prompt_or_error(
@@ -3489,12 +2349,14 @@ def _build_wp_iteration_decision(
         repo_root,
         mission_type,
     )
-    if prompt_file is None:
-        # WP06 (FR-006/FR-013): kind=step decisions must always carry a
-        # non-empty resolvable prompt_file. When prompt resolution fails,
-        # surface a structured blocked decision instead of a partial step.
-        return Decision(
-            kind=DecisionKind.blocked,
+    # WP06 (FR-006/FR-013) / WP07 (FR-011): step_or_blocked never issues
+    # kind=step with an unresolvable prompt_file; see the analogous note in
+    # decide_next_via_runtime for why the shared core's hard-coded
+    # "prompt_file_not_resolvable" literal is safe for the
+    # resolved-but-vanished-by-construction-time race.
+    return _materialize_decision(
+        _cores.DecisionEnvelope(
+            kind=DecisionKind.step,
             agent=agent,
             mission_slug=mission_slug,
             mission=mission_type,
@@ -3504,37 +2366,99 @@ def _build_wp_iteration_decision(
             action=action,
             wp_id=wp_id,
             workspace_path=workspace_path,
-            guard_failures=guard_failures or [],
+            prompt_file=prompt_file,
             progress=progress,
             origin=origin,
             run_id=run_ref.run_id,
             step_id=step_id,
-        )
+        ),
+        guard_failures or [],
+    )
+
+
+def _build_decision_required_prompt_file(
+    decision: NextDecision,
+    mission_slug: str,
+    repo_root: Path,
+    agent: str,
+) -> str | None:
+    """Best-effort ``decision_required`` prompt build (silently ``None`` on failure).
+
+    Verbatim extraction of ``_map_runtime_decision``'s former inline
+    try/except (#2531 WP07/T026 — CC reduction; no behavior change: a failed
+    ``build_decision_prompt`` still yields ``prompt_file=None``, same as
+    before)."""
+    if not decision.question:
+        return None
+    from runtime.next.prompt_builder import build_decision_prompt
 
     try:
-        return Decision(
-            kind=DecisionKind.step,
-            agent=agent,
+        _, prompt_path = build_decision_prompt(
+            question=decision.question,
+            options=decision.options,
+            decision_id=decision.decision_id or "unknown",
             mission_slug=mission_slug,
-            mission=mission_type,
-            mission_state=step_id,
-            timestamp=timestamp,
-            action=action,
-            wp_id=wp_id,
-            workspace_path=workspace_path,
-            prompt_file=prompt_file,
-            guard_failures=guard_failures or [],
-            progress=progress,
-            origin=origin,
-            run_id=run_ref.run_id,
-            step_id=step_id,
+            repo_root=repo_root,
+            agent=agent,
         )
-    except InvalidStepDecision:
-        # C-005: prompt_builder failed to produce a usable prompt for this
-        # WP iteration. Route to kind=blocked rather than emitting a
-        # kind=step with a null/unresolvable prompt_file.
-        return Decision(
-            kind=DecisionKind.blocked,
+        return str(prompt_path)
+    except Exception:
+        return None
+
+
+def _map_wp_step_decision(
+    *,
+    step_id: str,
+    agent: str,
+    mission_slug: str,
+    mission_type: str,
+    repo_root: Path,
+    feature_dir: Path,
+    timestamp: str,
+    progress: dict | None,
+    origin: dict,
+    run_id: str | None,
+) -> Decision:
+    """WP-iteration branch of the ``kind="step"`` mapping (#2531 WP07/T026).
+
+    Extracted verbatim from ``_map_runtime_decision``'s former WP-step
+    triad — the ``action is None`` early-blocked case, plus the
+    ``step_or_blocked`` collapse of the former prompt-resolution triad."""
+    action, wp_id, workspace_path = _state_to_action(
+        step_id,
+        mission_slug,
+        feature_dir,
+        repo_root,
+        mission_type,
+    )
+    if action is None:
+        return _materialize_decision(
+            _cores.DecisionEnvelope(
+                kind=DecisionKind.blocked,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state=step_id,
+                timestamp=timestamp,
+                reason=f"No action mapped for WP step '{step_id}'",
+                progress=progress,
+                origin=origin,
+                run_id=run_id,
+                step_id=step_id,
+            )
+        )
+    prompt_file, prompt_error = _build_prompt_or_error(
+        action,
+        feature_dir,
+        mission_slug,
+        wp_id,
+        agent,
+        repo_root,
+        mission_type,
+    )
+    return _materialize_decision(
+        _cores.DecisionEnvelope(
+            kind=DecisionKind.step,
             agent=agent,
             mission_slug=mission_slug,
             mission=mission_type,
@@ -3544,12 +2468,73 @@ def _build_wp_iteration_decision(
             action=action,
             wp_id=wp_id,
             workspace_path=workspace_path,
-            guard_failures=guard_failures or [],
+            prompt_file=prompt_file,
             progress=progress,
             origin=origin,
-            run_id=run_ref.run_id,
+            run_id=run_id,
             step_id=step_id,
         )
+    )
+
+
+def _map_non_wp_step_decision(
+    *,
+    step_id: str | None,
+    agent: str,
+    mission_slug: str,
+    mission_type: str,
+    repo_root: Path,
+    feature_dir: Path,
+    timestamp: str,
+    progress: dict | None,
+    origin: dict,
+    run_id: str | None,
+) -> Decision:
+    """Non-WP branch of the ``kind="step"`` mapping (#2531 WP07/T026).
+
+    Extracted verbatim from ``_map_runtime_decision``'s former non-WP
+    triad — template-resolution via ``_state_to_action`` +
+    ``_build_prompt_or_error``, collapsed via ``step_or_blocked``."""
+    action, wp_id, workspace_path = _state_to_action(
+        step_id or "unknown",
+        mission_slug,
+        feature_dir,
+        repo_root,
+        mission_type,
+    )
+    prompt_file: str | None = None
+    prompt_error: str | None = None
+    if action or step_id:
+        prompt_file, prompt_error = _build_prompt_or_error(
+            action or step_id or "unknown",
+            feature_dir,
+            mission_slug,
+            wp_id,
+            agent,
+            repo_root,
+            mission_type,
+        )
+    else:
+        prompt_error = "no action and no step_id; cannot resolve prompt"
+    return _materialize_decision(
+        _cores.DecisionEnvelope(
+            kind=DecisionKind.step,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state=step_id or "unknown",
+            timestamp=timestamp,
+            reason=prompt_error or "no_prompt_template",
+            action=action or step_id,
+            wp_id=wp_id,
+            workspace_path=workspace_path,
+            prompt_file=prompt_file,
+            progress=progress,
+            origin=origin,
+            run_id=run_id,
+            step_id=step_id,
+        )
+    )
 
 
 def _map_runtime_decision(
@@ -3574,240 +2559,116 @@ def _map_runtime_decision(
     the kind semantics. Verified by:
     - ``tests/next/test_next_command_integration.py::TestNextCommandCLI::test_terminal_state_exit_code_zero``
     - ``tests/next/test_next_command_integration.py::TestNextCommandCLI::test_blocked_result_exit_code``
+
+    #2531 WP07/T026: every branch now builds a
+    :class:`runtime_bridge_cores.DecisionEnvelope` and materializes it via
+    :func:`runtime_bridge_cores.step_or_blocked` (FR-011); the WP-step and
+    non-WP-step branches (the former CC-heaviest part of this function) are
+    extracted to :func:`_map_wp_step_decision` / :func:`_map_non_wp_step_
+    decision` so this dispatcher stays a flat kind-lookup.
     """
     step_id = decision.step_id
     run_id = decision.run_id
 
     if decision.kind == DecisionKind.terminal:
-        return Decision(
-            kind=DecisionKind.terminal,
-            agent=agent,
-            mission_slug=mission_slug,
-            mission=mission_type,
-            mission_state="done",
-            timestamp=timestamp,
-            reason=decision.reason or "Mission complete",
-            progress=progress,
-            origin=origin,
-            run_id=run_id,
-            step_id=step_id,
+        return _materialize_decision(
+            _cores.DecisionEnvelope(
+                kind=DecisionKind.terminal,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state="done",
+                timestamp=timestamp,
+                reason=decision.reason or "Mission complete",
+                progress=progress,
+                origin=origin,
+                run_id=run_id,
+                step_id=step_id,
+            )
         )
 
     if decision.kind == DecisionKind.blocked:
-        return Decision(
-            kind=DecisionKind.blocked,
-            agent=agent,
-            mission_slug=mission_slug,
-            mission=mission_type,
-            mission_state=step_id or "unknown",
-            timestamp=timestamp,
-            reason=decision.reason,
-            progress=progress,
-            origin=origin,
-            run_id=run_id,
-            step_id=step_id,
+        return _materialize_decision(
+            _cores.DecisionEnvelope(
+                kind=DecisionKind.blocked,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state=step_id or "unknown",
+                timestamp=timestamp,
+                reason=decision.reason,
+                progress=progress,
+                origin=origin,
+                run_id=run_id,
+                step_id=step_id,
+            )
         )
 
     if decision.kind == DecisionKind.decision_required:
-        prompt_file = None
-        if decision.question:
-            from runtime.next.prompt_builder import build_decision_prompt
-
-            try:
-                _, prompt_path = build_decision_prompt(
-                    question=decision.question,
-                    options=decision.options,
-                    decision_id=decision.decision_id or "unknown",
-                    mission_slug=mission_slug,
-                    repo_root=repo_root,
-                    agent=agent,
-                )
-                prompt_file = str(prompt_path)
-            except Exception:
-                pass
-
-        return Decision(
-            kind=DecisionKind.decision_required,
-            agent=agent,
-            mission_slug=mission_slug,
-            mission=mission_type,
-            mission_state=step_id or "unknown",
-            timestamp=timestamp,
-            reason=decision.reason or "Decision required",
-            progress=progress,
-            origin=origin,
-            run_id=run_id,
-            step_id=step_id,
-            decision_id=decision.decision_id,
-            input_key=decision.input_key,
-            question=decision.question,
-            options=decision.options,
-            prompt_file=prompt_file,
+        prompt_file = _build_decision_required_prompt_file(decision, mission_slug, repo_root, agent)
+        return _materialize_decision(
+            _cores.DecisionEnvelope(
+                kind=DecisionKind.decision_required,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state=step_id or "unknown",
+                timestamp=timestamp,
+                reason=decision.reason or "Decision required",
+                progress=progress,
+                origin=origin,
+                run_id=run_id,
+                step_id=step_id,
+                decision_id=decision.decision_id,
+                input_key=decision.input_key,
+                question=decision.question,
+                options=decision.options,
+                prompt_file=prompt_file,
+            )
         )
 
     # kind == "step"
     if step_id and _is_wp_iteration_step(step_id):
-        # WP step: map to implement/review action with WP selection
-        action, wp_id, workspace_path = _state_to_action(
-            step_id,
-            mission_slug,
-            feature_dir,
-            repo_root,
-            mission_type,
+        return _map_wp_step_decision(
+            step_id=step_id,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission_type=mission_type,
+            repo_root=repo_root,
+            feature_dir=feature_dir,
+            timestamp=timestamp,
+            progress=progress,
+            origin=origin,
+            run_id=run_id,
         )
-        if action is None:
-            return Decision(
-                kind=DecisionKind.blocked,
-                agent=agent,
-                mission_slug=mission_slug,
-                mission=mission_type,
-                mission_state=step_id,
-                timestamp=timestamp,
-                reason=f"No action mapped for WP step '{step_id}'",
-                progress=progress,
-                origin=origin,
-                run_id=run_id,
-                step_id=step_id,
-            )
-        prompt_file, prompt_error = _build_prompt_or_error(
-            action,
-            feature_dir,
-            mission_slug,
-            wp_id,
-            agent,
-            repo_root,
-            mission_type,
-        )
-        if prompt_file is None:
-            # WP06 (FR-006/FR-013): kind=step requires a resolvable prompt;
-            # fall through to blocked when one cannot be built.
-            return Decision(
-                kind=DecisionKind.blocked,
-                agent=agent,
-                mission_slug=mission_slug,
-                mission=mission_type,
-                mission_state=step_id,
-                timestamp=timestamp,
-                reason=prompt_error or "prompt_file_not_resolvable",
-                action=action,
-                wp_id=wp_id,
-                workspace_path=workspace_path,
-                progress=progress,
-                origin=origin,
-                run_id=run_id,
-                step_id=step_id,
-            )
-        try:
-            return Decision(
-                kind=DecisionKind.step,
-                agent=agent,
-                mission_slug=mission_slug,
-                mission=mission_type,
-                mission_state=step_id,
-                timestamp=timestamp,
-                action=action,
-                wp_id=wp_id,
-                workspace_path=workspace_path,
-                prompt_file=prompt_file,
-                progress=progress,
-                origin=origin,
-                run_id=run_id,
-                step_id=step_id,
-            )
-        except InvalidStepDecision:
-            return Decision(
-                kind=DecisionKind.blocked,
-                agent=agent,
-                mission_slug=mission_slug,
-                mission=mission_type,
-                mission_state=step_id,
-                timestamp=timestamp,
-                reason=prompt_error or "prompt_file_not_resolvable",
-                action=action,
-                wp_id=wp_id,
-                workspace_path=workspace_path,
-                progress=progress,
-                origin=origin,
-                run_id=run_id,
-                step_id=step_id,
-            )
 
-    # Non-WP step: map step_id to action via template resolution
-    action, wp_id, workspace_path = _state_to_action(
-        step_id or "unknown",
-        mission_slug,
-        feature_dir,
-        repo_root,
-        mission_type,
+    return _map_non_wp_step_decision(
+        step_id=step_id,
+        agent=agent,
+        mission_slug=mission_slug,
+        mission_type=mission_type,
+        repo_root=repo_root,
+        feature_dir=feature_dir,
+        timestamp=timestamp,
+        progress=progress,
+        origin=origin,
+        run_id=run_id,
     )
-    prompt_file: str | None = None
-    prompt_error: str | None = None
-    if action or step_id:
-        prompt_file, prompt_error = _build_prompt_or_error(
-            action or step_id or "unknown",
-            feature_dir,
-            mission_slug,
-            wp_id,
-            agent,
-            repo_root,
-            mission_type,
-        )
-    else:
-        prompt_error = "no action and no step_id; cannot resolve prompt"
-    if prompt_file is None:
-        # WP06 (FR-006/FR-013): emit a structured blocked decision rather than
-        # an issued step that has no resolvable prompt.
-        return Decision(
-            kind=DecisionKind.blocked,
-            agent=agent,
-            mission_slug=mission_slug,
-            mission=mission_type,
-            mission_state=step_id or "unknown",
-            timestamp=timestamp,
-            reason=prompt_error or "no_prompt_template",
-            action=action or step_id,
-            wp_id=wp_id,
-            workspace_path=workspace_path,
-            progress=progress,
-            origin=origin,
-            run_id=run_id,
-            step_id=step_id,
-        )
 
-    try:
-        return Decision(
-            kind=DecisionKind.step,
-            agent=agent,
-            mission_slug=mission_slug,
-            mission=mission_type,
-            mission_state=step_id or "unknown",
-            timestamp=timestamp,
-            action=action or step_id,
-            wp_id=wp_id,
-            workspace_path=workspace_path,
-            prompt_file=prompt_file,
-            progress=progress,
-            origin=origin,
-            run_id=run_id,
-            step_id=step_id,
-        )
-    except InvalidStepDecision:
-        # C-005: non-WP step path — prompt resolution failed (no template,
-        # build error, or null step_id with no action). Surface as blocked
-        # rather than emit kind=step with a null/unresolvable prompt.
-        return Decision(
-            kind=DecisionKind.blocked,
-            agent=agent,
-            mission_slug=mission_slug,
-            mission=mission_type,
-            mission_state=step_id or "unknown",
-            timestamp=timestamp,
-            reason=prompt_error or "prompt_file_not_resolvable",
-            action=action or step_id,
-            wp_id=wp_id,
-            workspace_path=workspace_path,
-            progress=progress,
-            origin=origin,
-            run_id=run_id,
-            step_id=step_id,
-        )
+
+# ---------------------------------------------------------------------------
+# Public surface (FR-007 / #2531 WP03). Governs ``from runtime_bridge import *``
+# ONLY — it does NOT preserve the ~50 private symbols tests patch (those live
+# in the explicit guarded compat re-export block introduced as later WPs
+# relocate them; see contracts/compat-surface.md §``__all__``).
+# ---------------------------------------------------------------------------
+__all__ = [
+    "DecisionGitLogUnavailable",
+    "MissionNotFoundError",
+    "QueryModeValidationError",
+    "answer_decision_via_runtime",
+    "build_operational_context_for_claim",
+    "decide_next_via_runtime",
+    "get_or_start_run",
+    "query_current_state",
+]
