@@ -57,6 +57,13 @@
 │                                                              changes to target branch (default:  │
 │                                                              from project config)                │
 │    --json                                                    Output JSON format                  │
+│    --skip-pre-review-gate                                    Skip the pre-review regression gate │
+│                                                              on a --to for_review move (also     │
+│                                                              honored via the                     │
+│                                                              SPEC_KITTY_SYNC_DISABLE /           │
+│                                                              SPEC_KITTY_SYNC_MINIMAL_IMPORT env  │
+│                                                              vars). The gate still runs and      │
+│                                                              enforces by default.                │
 │    --help                                                    Show this message and exit.         │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
 

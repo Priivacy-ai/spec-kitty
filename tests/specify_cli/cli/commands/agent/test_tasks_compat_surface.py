@@ -141,7 +141,7 @@ _TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) — 21 symbols
     "_render_stale_status",
 )
 
-_TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 54 symbols (#2513/#2160: +uncheck/clear-markers/reset-rollback)
+_TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 56 symbols (#2513/#2160: +uncheck/clear-markers/reset-rollback; #2573: +gate skip-reason pair)
     "_default_move_task_ports",
     "_MoveTaskState",
     "_mt_warn_worktree_kitty_specs",
@@ -192,6 +192,9 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 54 symbols (#2513/#216
     "_mt_pre_review_gate_block_message",
     "_mt_review_config_section",
     "_mt_pre_review_block_enabled",
+    # #2573 fast-follow: the --skip-pre-review-gate flag + disable-env seam.
+    "_mt_pre_review_gate_env_disable_reason",
+    "_mt_pre_review_gate_skip_reason",
     "_mt_pre_review_scope_override",
     "_pre_review_gate_filter_groups",
     "_pre_review_gate_composite_routing",
@@ -356,12 +359,14 @@ def test_no_required_symbol_duplicated_in_survey() -> None:
     assert total_declared == len(SYMBOL_TO_MODULE)
 
 
-def test_guard_covers_full_132_symbol_surface() -> None:
+def test_guard_covers_full_134_symbol_surface() -> None:
     """Traceability pin: the guard's total symbol count matches the sum of
     the 6 seams' counts recorded in the seam files' own docstrings at
-    authoring time (8 + 15 + 21 + 21 + 54 + 13 = 132). A change here is
+    authoring time (8 + 15 + 21 + 21 + 56 + 13 = 134). A change here is
     expected when a future WP relocates symbols; it should be a deliberate,
     reviewed edit — not a silent drift. #2513/#2160 added
     ``_mt_uncheck_rollback_subtasks``, ``_mt_clear_rollback_claim_markers`` and
-    ``_mt_reset_for_planned_rollback`` to the tasks_move_task seam (51 -> 54)."""
-    assert len(SYMBOL_TO_MODULE) == 132
+    ``_mt_reset_for_planned_rollback`` to the tasks_move_task seam (51 -> 54).
+    #2573 fast-follow added ``_mt_pre_review_gate_env_disable_reason`` and
+    ``_mt_pre_review_gate_skip_reason`` (54 -> 56)."""
+    assert len(SYMBOL_TO_MODULE) == 134
