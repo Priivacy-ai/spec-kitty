@@ -20,9 +20,9 @@ from __future__ import annotations
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.git_ops import resolve_primary_branch
 from specify_cli.core.paths import read_target_branch_from_meta
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.lanes.branch_naming import resolve_mid8
 import contextlib
-import datetime
 import json
 import logging
 import re
@@ -1152,7 +1152,7 @@ def generate_retrospective(
         RecordValidationError: If the generator produces an invalid record (indicates a bug).
     """
     if invoked_at is None:
-        invoked_at = datetime.datetime.now(datetime.UTC).isoformat()
+        invoked_at = now_utc_iso()
 
     if actor is None:
         actor = GenActor(kind="runtime", id="spec-kitty-generator", display="Spec Kitty Generator")

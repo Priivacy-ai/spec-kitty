@@ -10,7 +10,6 @@ The invocation executor must NEVER claim a first-load token.
 from __future__ import annotations
 
 import dataclasses
-import datetime
 import hashlib
 import json as _json_mod
 import logging
@@ -31,6 +30,7 @@ import ulid as _ulid_mod  # matches codebase pattern: status/emit.py, core/missi
 from charter.context import build_charter_context
 from mission_runtime import CommitTarget
 from specify_cli.core.commit_guard import GuardCapability
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.git import safe_commit
 from specify_cli.invocation.errors import InvalidModeForEvidenceError, InvocationError
 from specify_cli.invocation.modes import ModeOfWork
@@ -297,7 +297,7 @@ class ProfileInvocationExecutor:
             bundle = GlossaryObservationBundle(matched_urns=(), high_severity=(), all_conflicts=(), tokens_checked=0, duration_ms=0.0, error_msg=repr(_exc))
 
         # 3. Write started record (raises InvocationWriteError on fs failure)
-        started_at = datetime.datetime.now(datetime.UTC).isoformat()
+        started_at = now_utc_iso()
         record = OpStartedEvent(
             invocation_id=invocation_id,
             profile_id=profile.profile_id,
@@ -378,7 +378,7 @@ class ProfileInvocationExecutor:
         # Step 3: Append completed event (existing behaviour).
         completed = OpCompletedEvent(
             invocation_id=invocation_id,
-            completed_at=datetime.datetime.now(datetime.UTC).isoformat(),
+            completed_at=now_utc_iso(),
             outcome=outcome,
             closed_by=closed_by,
             evidence_ref=evidence_ref,

@@ -154,6 +154,14 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### ♻️ Changed
 
+- **Internal: remaining `specify_cli` datetime stamp sites consolidated onto
+  `now_utc_iso()` (#2496).** Follow-up to #2494's clock-consolidation sweep; routes the
+  remaining byte-identical `datetime.now(UTC).isoformat()` "now"-stamp call sites in
+  `specify_cli` (14 sites, 11 files) onto the single canonical `now_utc_iso()` helper.
+  Behaviour-preserving: the `UTC` / `timezone.utc` spellings serialize byte-identically
+  under `requires-python >=3.11`. Boundary packages (`charter`/`glossary`, blocked by the
+  architectural layer contract) and non-`now` sites (`timespec=`, naive, subprocess-string)
+  are left as-is by design.
 - **Internal: the coord-authority trio is decomposed into ports + pure cores
   (#2464, #2465).** The three coord-authority god-modules are restructured
   behaviour-preservingly into the shipped Typer-shell + request-dataclass + pure-cores

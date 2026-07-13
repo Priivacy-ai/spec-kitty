@@ -13,7 +13,6 @@ import logging
 import re
 import shutil
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +26,7 @@ from specify_cli.core.mission_payload import (
     default_mission_purpose_context,
 )
 from specify_cli.core.paths import is_worktree_context, locate_project_root
+from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.git import safe_commit
 from specify_cli.lanes.branch_naming import mission_dir_name, resolve_mid8
 from specify_cli.mission_metadata import load_meta_or_empty, validate_purpose_summary
@@ -403,7 +403,7 @@ def create_mission_core(
     meta.setdefault("purpose_context", normalized_purpose_context)
     meta.setdefault(_META_KEY_MISSION_TYPE, mission or "software-dev")
     meta.setdefault("target_branch", planning_branch)
-    meta.setdefault(_META_KEY_CREATED_AT, datetime.now(timezone.utc).isoformat())  # noqa: UP017
+    meta.setdefault(_META_KEY_CREATED_AT, now_utc_iso())
 
     # ------------------------------------------------------------------
     # 6.5 Coordination branch (WP03 / issue #1348, #2218)
