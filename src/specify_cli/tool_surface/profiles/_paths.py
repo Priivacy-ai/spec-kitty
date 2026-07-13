@@ -1,4 +1,4 @@
-"""Shared path-relativization helpers for the agent-profiles manifest (#2589).
+"""Shared path-relativization helpers for the agent_profiles manifest (#2589).
 
 Both :mod:`.manifest` (``output_path``, the manifest key) and :mod:`.projection`
 (``source_path``, provenance) need the identical "store repo-relative on disk,
