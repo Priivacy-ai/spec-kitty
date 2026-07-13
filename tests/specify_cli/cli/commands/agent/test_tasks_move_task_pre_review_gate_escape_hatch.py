@@ -82,7 +82,9 @@ def _make_state(**overrides: Any) -> _MoveTaskState:
             assert key in field_names, f"unknown _MoveTaskState field: {key!r}"
             setattr(st, key, value)
     st.target_lane = Lane.FOR_REVIEW
-    st.main_repo_root = Path("/tmp/does-not-need-to-exist-for-skip")
+    # Category-B sentinel (not a shared-temp-dir literal): the gate is skipped,
+    # so this repo root is never touched — a fixed non-existent absolute path.
+    st.main_repo_root = Path("/nonexistent/pre-review-skip-repo-root")
     st.target_branch = "main"
     st.mission_slug = "test-pre-review-escape"
     st.wp = SimpleNamespace(path=Path("WP01-x.md"), frontmatter="")
