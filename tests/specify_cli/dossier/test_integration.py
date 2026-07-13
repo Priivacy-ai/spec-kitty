@@ -249,6 +249,31 @@ class TestOptionalArtifactHandling:
 
         assert dossier.completeness_status == 'complete'
 
+    def test_lint_report_indexes_as_runtime_class(self, tmp_path):
+        """#2481: a staged lint-report.json indexes as runtime.charter-lint.decay."""
+        feature_dir = tmp_path / "feature"
+        feature_dir.mkdir()
+
+        (feature_dir / "spec.md").write_text("# Spec\n", encoding='utf-8')
+        (feature_dir / "lint-report.json").write_text(
+            json.dumps({"feature_scope": "047-x", "findings": []}),
+            encoding='utf-8',
+        )
+
+        indexer = Indexer(ManifestRegistry())
+        dossier = indexer.index_feature(feature_dir, 'software-dev')
+
+        lint = next(
+            (a for a in dossier.artifacts if a.relative_path == "lint-report.json"),
+            None,
+        )
+        assert lint is not None, "lint-report.json should be indexed"
+        assert lint.is_present is True
+        assert lint.artifact_key == "runtime.charter-lint.decay"
+        assert lint.artifact_class == "runtime"
+        # Optional artifact: must not block completeness.
+        assert dossier.completeness_status == 'complete'
+
 
 # ============================================================================
 # T053: Unreadable Artifact Handling

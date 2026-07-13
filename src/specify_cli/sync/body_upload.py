@@ -39,6 +39,7 @@ _TOP_LEVEL_ARTIFACTS: frozenset[str] = frozenset(
         "research.md",
         "quickstart.md",
         "data-model.md",
+        "lint-report.json",
     }
 )
 

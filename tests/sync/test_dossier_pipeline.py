@@ -458,6 +458,33 @@ class TestSyncFeatureDossier:
 
         assert mock_emit.call_args.kwargs["step_id"] == "plan"
 
+    @patch("specify_cli.sync.lint_report_staging.stage_charter_lint_report")
+    def test_stages_lint_report_with_mission_slug(
+        self,
+        mock_stage: MagicMock,
+        mock_registry_cls: MagicMock,
+        mock_indexer_cls: MagicMock,
+        mock_emit: MagicMock,
+        mock_emit_snapshot: MagicMock,
+        mock_prepare: MagicMock,
+        tmp_path: Path,
+    ) -> None:
+        dossier = _make_dossier([])
+        mock_indexer = MagicMock()
+        mock_indexer.index_feature.return_value = dossier
+        mock_indexer_cls.return_value = mock_indexer
+        mock_emit_snapshot.return_value = None
+        mock_prepare.return_value = []
+        mock_stage.return_value = True
+
+        ns = _make_namespace()
+        queue = MagicMock()
+        result = sync_feature_dossier(tmp_path, ns, queue)
+
+        # Staging runs with this mission's feature_dir + slug, before indexing.
+        mock_stage.assert_called_once_with(tmp_path, ns.mission_slug)
+        assert result.success is True
+
     @patch("specify_cli.dossier.events.emit_parity_drift_detected")
     @patch("specify_cli.dossier.drift_detector.detect_drift")
     def test_emits_snapshot_and_drift_with_namespace(
