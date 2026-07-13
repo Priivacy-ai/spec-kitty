@@ -2685,7 +2685,7 @@ jobs:
           # marker negation alone does not cover it; the ignore is the structural
           # guard (mirrors slow-tests). See tests/_real_port_suites.py.
           uv run python -m pytest tests/ \
-            -m "(unit or contract) and not (fast or integration or git_repo or slow or e2e or architectural or distribution or windows_ci or quarantine or timing or docs_scoped or arch_shard_1 or arch_shard_2 or arch_shard_3)" \
+            -m "(unit or contract) and not (fast or integration or git_repo or slow or e2e or architectural or distribution or windows_ci or quarantine or timing or docs_scoped or arch_shard_1 or arch_shard_2 or arch_shard_3 or next_shard_1 or next_shard_2 or next_shard_3)" \
             -q --tb=short \
             --ignore=tests/sync/test_orphan_sweep.py \
             --ignore=tests/sync/test_daemon_orphan_classification.py \
