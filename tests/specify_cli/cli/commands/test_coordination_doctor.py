@@ -383,3 +383,100 @@ def test_no_doctor_merge_import_cycle() -> None:
 
     importlib.import_module("specify_cli.cli.commands.doctor")
     importlib.import_module("specify_cli.cli.commands.merge")
+
+
+# --- _fix_never_created_branches ---------------------------------------------
+
+
+def test_fix_removes_coordination_branch_key(tmp_path: Path) -> None:
+    """_fix_never_created_branches deletes coordination_branch from meta.json."""
+    import json
+
+    mission_dir = tmp_path / "kitty-specs" / "my-mission-01AB"
+    mission_dir.mkdir(parents=True)
+    meta = {"mission_slug": "my-mission-01AB", "coordination_branch": "kitty/mission-my-mission-01AB"}
+    (mission_dir / "meta.json").write_text(json.dumps(meta))
+
+    finding = cd.DoctorFinding(
+        severity="warning",
+        message="branch absent",
+        error_code="COORDINATION_WORKTREE_NEVER_CREATED",
+        extra={"meta_path": str(mission_dir / "meta.json")},
+    )
+    fixed = cd._fix_never_created_branches([finding])
+    assert fixed == ["my-mission-01AB"]
+    written = json.loads((mission_dir / "meta.json").read_text())
+    assert "coordination_branch" not in written
+
+
+def test_fix_skips_unrelated_error_codes(tmp_path: Path) -> None:
+    """_fix_never_created_branches ignores findings with other error codes."""
+    finding = cd.DoctorFinding(
+        severity="warning",
+        message="worktree missing",
+        error_code="COORDINATION_WORKTREE_MISSING",
+        extra={"meta_path": str(tmp_path / "meta.json")},
+    )
+    assert cd._fix_never_created_branches([finding]) == []
+
+
+def test_fix_skips_finding_without_meta_path(tmp_path: Path) -> None:
+    """_fix_never_created_branches is safe when meta_path is absent from extra."""
+    finding = cd.DoctorFinding(
+        severity="warning",
+        message="branch absent",
+        error_code="COORDINATION_WORKTREE_NEVER_CREATED",
+    )
+    assert cd._fix_never_created_branches([finding]) == []
+
+
+def test_fix_is_idempotent_when_key_already_absent(tmp_path: Path) -> None:
+    """_fix_never_created_branches does not list missions that had no key to remove."""
+    import json
+
+    mission_dir = tmp_path / "kitty-specs" / "already-flat-01AB"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text(json.dumps({"mission_slug": "already-flat-01AB"}))
+
+    finding = cd.DoctorFinding(
+        severity="warning",
+        message="branch absent",
+        error_code="COORDINATION_WORKTREE_NEVER_CREATED",
+        extra={"meta_path": str(mission_dir / "meta.json")},
+    )
+    assert cd._fix_never_created_branches([finding]) == []
+
+
+# --- _collect_coordination_findings injects meta_path -----------------------
+
+
+def test_collect_injects_meta_path_for_never_created_findings(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """_collect_coordination_findings stamps meta_path on COORDINATION_WORKTREE_NEVER_CREATED."""
+    import json
+
+    specs = tmp_path / "kitty-specs" / "demo-01AB"
+    specs.mkdir(parents=True)
+    (specs / "meta.json").write_text(
+        json.dumps({"mission_slug": "demo-01AB", "coordination_branch": "kitty/mission-demo-01AB"})
+    )
+
+    monkeypatch.setattr(cd, "_check_git_version", lambda: [])
+    monkeypatch.setattr(cd, "_check_tracked_worktrees_content", lambda _r: [])
+    monkeypatch.setattr(
+        cd,
+        "_check_coordination_worktree_health",
+        lambda _r, _m: [cd.DoctorFinding(
+            severity="warning",
+            message="never created",
+            error_code="COORDINATION_WORKTREE_NEVER_CREATED",
+        )],
+    )
+    monkeypatch.setattr(cd, "_check_lane_sparse_checkout_drift", lambda _r, _m: [])
+
+    findings = cd._collect_coordination_findings(tmp_path)
+    never_created = [f for f in findings if f.error_code == "COORDINATION_WORKTREE_NEVER_CREATED"]
+    assert never_created, "expected NEVER_CREATED finding from monkeypatched check"
+    assert "meta_path" in never_created[0].extra
+    assert never_created[0].extra["meta_path"].endswith("meta.json")
