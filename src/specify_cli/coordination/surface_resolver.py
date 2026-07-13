@@ -208,9 +208,9 @@ class CoordinationBranchDeleted(StatusReadPathNotFound):  # type: ignore[misc, u
         self.next_step = (
             f"The coordination branch {coordination_branch!r} declared in "
             f"meta.json does not exist in git (never created or deleted). "
-            f"Flatten the mission by removing the `coordination_branch` key from "
-            f"meta.json (if the coordination topology was never used or was torn down), "
-            f"or recreate the worktree by running `spec-kitty doctor workspaces --fix`."
+            f"Run `spec-kitty doctor coordination --fix` to repair automatically, "
+            f"or manually remove the `coordination_branch` key from meta.json and "
+            f"run `spec-kitty migrate backfill-topology`."
         )
         super().__init__(
             repo_root=repo_root,

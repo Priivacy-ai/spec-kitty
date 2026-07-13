@@ -538,9 +538,43 @@ def _collect_coordination_findings(repo_root: Path) -> list[DoctorFinding]:
         meta = load_meta(mission_dir, on_malformed="none")
         if meta is None:
             continue
-        findings.extend(_check_coordination_worktree_health(repo_root, meta))
+        coord_findings = _check_coordination_worktree_health(repo_root, meta)
+        for f in coord_findings:
+            if f.error_code == "COORDINATION_WORKTREE_NEVER_CREATED":
+                f.extra["meta_path"] = str(mission_dir / "meta.json")
+        findings.extend(coord_findings)
         findings.extend(_check_lane_sparse_checkout_drift(repo_root, meta))
     return findings
+
+
+def _fix_never_created_branches(findings: list[DoctorFinding]) -> list[str]:
+    """Remove stale ``coordination_branch`` keys from meta.json.
+
+    Targets only ``COORDINATION_WORKTREE_NEVER_CREATED`` findings that carry
+    a ``meta_path`` in their ``extra`` dict (populated by
+    :func:`_collect_coordination_findings`). After removal, call
+    :func:`~specify_cli.migration.backfill_topology.backfill_topology_repo` so
+    topology is re-derived from the now-absent key.
+
+    Returns a list of mission slugs that were modified.
+    """
+    from specify_cli.mission_metadata import load_meta_or_empty, write_meta
+
+    fixed: list[str] = []
+    for f in findings:
+        if f.error_code != "COORDINATION_WORKTREE_NEVER_CREATED":
+            continue
+        meta_path_str = f.extra.get("meta_path")
+        if not meta_path_str:
+            continue
+        mission_dir = Path(str(meta_path_str)).parent
+        meta = load_meta_or_empty(mission_dir)
+        if "coordination_branch" not in meta:
+            continue
+        del meta["coordination_branch"]
+        write_meta(mission_dir, meta, validate=False)
+        fixed.append(mission_dir.name)
+    return fixed
 
 
 def _emit_coordination_findings(findings: list[DoctorFinding], json_output: bool) -> None:
@@ -567,8 +601,14 @@ def _emit_coordination_findings(findings: list[DoctorFinding], json_output: bool
             console.print(f"  → {f.next_step}")
 
 
-def run_coordination_health(json_output: bool) -> None:
-    """Entry point for ``doctor coordination`` (exit 1 iff any ``error`` finding)."""
+def run_coordination_health(json_output: bool, fix: bool = False) -> None:
+    """Entry point for ``doctor coordination`` (exit 1 iff any ``error`` finding).
+
+    When *fix* is ``True``, automatically removes stale ``coordination_branch``
+    keys from ``meta.json`` for any ``COORDINATION_WORKTREE_NEVER_CREATED``
+    findings, then re-runs :func:`~specify_cli.migration.backfill_topology.backfill_topology_repo`
+    to re-derive topology from the now-absent key.
+    """
     try:
         repo_root = locate_project_root()
     except Exception as exc:
@@ -579,5 +619,24 @@ def run_coordination_health(json_output: bool) -> None:
         raise typer.Exit(1)
 
     findings = _collect_coordination_findings(repo_root)
+
+    if fix:
+        fixable = [f for f in findings if f.error_code == "COORDINATION_WORKTREE_NEVER_CREATED"]
+        if fixable:
+            fixed_slugs = _fix_never_created_branches(fixable)
+            for slug in fixed_slugs:
+                console.print(
+                    f"[green]Flattened:[/green] removed coordination_branch from {slug}/meta.json"
+                )
+            if fixed_slugs:
+                from specify_cli.migration.backfill_topology import backfill_topology_repo
+                backfill_topology_repo(repo_root)
+                console.print(
+                    "[green]Topology backfilled.[/green] "
+                    "Run `spec-kitty doctor coordination` to verify."
+                )
+            # Re-collect findings after fix so the exit code reflects the new state.
+            findings = _collect_coordination_findings(repo_root)
+
     _emit_coordination_findings(findings, json_output)
     raise typer.Exit(1 if any(f.severity == "error" for f in findings) else 0)

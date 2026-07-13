@@ -1195,6 +1195,17 @@ def _render_unsanctioned_override_findings(report: DoctrineHealthReport) -> None
 
 @app.command(name="coordination")
 def coordination_health(
+    fix: Annotated[
+        bool,
+        typer.Option(
+            "--fix",
+            help=(
+                "Remove stale coordination_branch keys from meta.json for missions "
+                "whose coord branch was never created, then re-derive topology via "
+                "`migrate backfill-topology`."
+            ),
+        ),
+    ] = False,
     json_output: Annotated[
         bool, typer.Option("--json", help="Machine-readable JSON output"),
     ] = False,
@@ -1209,5 +1220,15 @@ def coordination_health(
 
     Exits with code 1 if any ``error`` finding is emitted; ``warning``
     findings exit 0 but are still printed.
+
+    With ``--fix``, automatically flattens missions that have a stale
+    ``coordination_branch`` key (branch never created or already deleted)
+    and re-derives topology. Safe to run on 100%-done missions before
+    ``spec-kitty next`` or ``spec-kitty merge``.
+
+    Examples:
+        spec-kitty doctor coordination
+        spec-kitty doctor coordination --fix
+        spec-kitty doctor coordination --json
     """
-    run_coordination_health(json_output)
+    run_coordination_health(json_output, fix)

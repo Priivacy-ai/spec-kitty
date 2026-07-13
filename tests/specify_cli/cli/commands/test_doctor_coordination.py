@@ -434,3 +434,63 @@ def test_coord_worktree_needs_refresh_detached_head(
     stale, branch = wh._coord_worktree_needs_refresh(wt, fresh_mission_repo)
     assert stale is False
     assert branch == ""
+
+
+# ---------------------------------------------------------------------------
+# _fix_never_created_branches / --fix end-to-end
+# ---------------------------------------------------------------------------
+
+
+def test_collect_injects_meta_path_on_real_repo(fresh_mission_repo: Path) -> None:
+    """_collect_coordination_findings stamps meta_path for NEVER_CREATED findings."""
+    from specify_cli.cli.commands import _coordination_doctor as cd
+
+    spec_dir = fresh_mission_repo / "kitty-specs" / MISSION_SLUG
+    spec_dir.mkdir(parents=True, exist_ok=True)
+    # Override meta with a branch that was never created.
+    stale_meta = {
+        **_meta(),
+        "coordination_branch": "kitty/mission-never-created-00000000",
+    }
+    (spec_dir / "meta.json").write_text(json.dumps(stale_meta))
+
+    findings = cd._collect_coordination_findings(fresh_mission_repo)
+    never_created = [f for f in findings if f.error_code == "COORDINATION_WORKTREE_NEVER_CREATED"]
+    assert never_created, "expected NEVER_CREATED finding for absent coord branch"
+    assert "meta_path" in never_created[0].extra, (
+        "_collect must inject meta_path so --fix knows which file to patch"
+    )
+
+
+def test_fix_removes_key_and_backfill_derives_topology(fresh_mission_repo: Path) -> None:
+    """_fix_never_created_branches removes stale key; backfill_topology_repo then
+    writes a non-coord topology for the mission.
+    """
+    from specify_cli.cli.commands import _coordination_doctor as cd
+    from specify_cli.migration.backfill_topology import backfill_topology_repo
+
+    spec_dir = fresh_mission_repo / "kitty-specs" / MISSION_SLUG
+    spec_dir.mkdir(parents=True, exist_ok=True)
+    stale_meta = {
+        **_meta(),
+        "coordination_branch": "kitty/mission-never-created-00000000",
+    }
+    (spec_dir / "meta.json").write_text(json.dumps(stale_meta))
+
+    findings = cd._collect_coordination_findings(fresh_mission_repo)
+    fixable = [f for f in findings if f.error_code == "COORDINATION_WORKTREE_NEVER_CREATED"]
+    assert fixable
+
+    fixed = cd._fix_never_created_branches(fixable)
+    assert MISSION_SLUG in fixed
+
+    written = json.loads((spec_dir / "meta.json").read_text())
+    assert "coordination_branch" not in written, "key must be gone after fix"
+
+    # backfill-topology should now succeed (no stale key to block it).
+    results = backfill_topology_repo(fresh_mission_repo, mission_slug=MISSION_SLUG)
+    assert results, "backfill must visit the mission"
+    assert results[0].action == "wrote", f"expected 'wrote', got {results[0].action!r}"
+    assert results[0].topology in ("single_branch", "lanes"), (
+        "flattened mission must resolve to a non-coord topology"
+    )
