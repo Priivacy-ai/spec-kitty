@@ -31,13 +31,20 @@ def _make_mission_dir(root: Path, slug: str) -> Path:
     return mission_dir
 
 
-def _write_meta(mission_dir: Path, mission_id: str | None = None, coordination_branch: str | None = None) -> None:
+def _write_meta(
+    mission_dir: Path,
+    mission_id: str | None = None,
+    coordination_branch: str | None = None,
+    topology: str | None = None,
+) -> None:
     """Write a meta.json to a mission directory."""
     meta: dict = {}
     if mission_id is not None:
         meta["mission_id"] = mission_id
     if coordination_branch is not None:
         meta["coordination_branch"] = coordination_branch
+    if topology is not None:
+        meta["topology"] = topology
     (mission_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
 
@@ -266,10 +273,15 @@ class TestLoadCoordUnavailableFailsClosed:
         full_slug = f"stale-feature-{mid8}"
 
         primary_dir = _make_mission_dir(tmp_path, full_slug)
+        # WP08 (#2533) split the coord-empty warning by stored topology: a coord
+        # mission WITH lanes still warns on an unexpected empty coord (the
+        # TRUE-POSITIVE this test pins); a solo (no-lanes) COORD mission routes to
+        # primary silently. Declare the with-lanes shape so the warning still fires.
         _write_meta(
             primary_dir,
             mission_id=mission_id,
             coordination_branch=f"kitty/mission-{full_slug}",
+            topology="lanes_with_coord",
         )
         _write_events_file(primary_dir, [
             _make_event(full_slug, "WP01", "planned", "claimed"),
