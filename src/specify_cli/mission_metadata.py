@@ -15,7 +15,6 @@ always either the old version or the new version, never a partial write.
 
 from __future__ import annotations
 
-import datetime as _dt
 import json
 import re
 from dataclasses import dataclass
@@ -24,6 +23,7 @@ from typing import Any, Literal, TypedDict
 
 from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import safe_mission_slug
+from specify_cli.core.time_utils import now_utc_iso
 
 # Hoisted S1192 literals (campsite #1970) -- the meta.json filename and the two
 # decode encodings appear across this module and the legacy contracts it absorbs.
@@ -123,7 +123,7 @@ class MissionIdentity:
 
 def _now_iso() -> str:
     """Current UTC time in ISO 8601."""
-    return _dt.datetime.now(_dt.UTC).isoformat()
+    return now_utc_iso()
 
 
 def mission_number_from_slug(mission_slug: str) -> int | None:
