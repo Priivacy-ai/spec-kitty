@@ -163,7 +163,9 @@ _ALLOW_LIST_SEED: tuple[tuple[str, int], ...] = (
     # _render_wp_prompt_wrapper + routing) shifted _review_feedback_root's
     # ``return feature_dir.parent.parent`` 838 -> 872 (same READ-side helper,
     # verified by re-scan, not a new offender).
-    ("src/specify_cli/cli/commands/agent/workflow.py", 872),
+    # post-merge re-anchor (worktree_root fix #2607): _worktree_root_for_feature_dir
+    # insertion shifted _review_feedback_root's return line 872 -> 893.
+    ("src/specify_cli/cli/commands/agent/workflow.py", 893),
     # tracked: #2453 - _status_commit_destination_branch's
     # ``get_current_branch(repo_root) or fallback_branch`` git-HEAD selector.
     # It ONLY predicts the pre-lane status-commit branch for the protected-branch
@@ -657,13 +659,12 @@ _CHECKOUT_GRAMMAR_ALLOW_LIST_SEED: tuple[tuple[str, int, str], ...] = (
     ),
     (
         "src/specify_cli/cli/commands/agent/workflow.py",
-        557,
+        576,
         "tracked: #2453 - _commit_via_legacy_safe_commit's target_branch "
         "parameter is a pre-coordination-topology legacy mission's "
         "checked-out branch; same deferred bucket as the other #2453 "
-        "residuals. post-merge re-anchor (coord-primary-partition-lock "
-        "aggregate landing): cumulative cross-lane line drift shifted this "
-        "524 -> 523 (same construction, verified by re-scan).",
+        "residuals. post-merge re-anchor (worktree_root fix #2607): "
+        "_worktree_root_for_feature_dir helper insertion shifted line to 576.",
     ),
     (
         "src/specify_cli/cli/commands/agent/tasks_move_task.py",

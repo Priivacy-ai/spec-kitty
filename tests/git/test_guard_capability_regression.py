@@ -258,6 +258,7 @@ def test_legacy_workflow_commit_refused_on_protected_target(
     with pytest.raises(ProtectedBranchRefused):
         workflow._commit_via_legacy_safe_commit(
             repo_root=repo.repo_root,
+            worktree_root=repo.repo_root,
             target_branch=repo.target_branch,
             paths=[changed],
             message="chore: workflow status bookkeeping",

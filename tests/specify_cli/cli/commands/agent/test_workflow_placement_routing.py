@@ -347,6 +347,98 @@ def test_commit_workflow_change_legacy_path_routes_through_the_seam(
     )
 
 
+def test_worktree_root_for_feature_dir_inside_worktrees(tmp_path: Path) -> None:
+    """_worktree_root_for_feature_dir returns the worktree root for coord dirs."""
+    from specify_cli.cli.commands.agent.workflow import _worktree_root_for_feature_dir
+
+    worktree_dir = tmp_path / ".worktrees" / "my-mission-abc123-coord"
+    feature_dir = worktree_dir / "kitty-specs" / "001-demo"
+    feature_dir.mkdir(parents=True)
+
+    result = _worktree_root_for_feature_dir(tmp_path, feature_dir)
+
+    assert result == worktree_dir
+
+
+def test_worktree_root_for_feature_dir_in_primary_checkout(tmp_path: Path) -> None:
+    """_worktree_root_for_feature_dir returns repo_root for primary-checkout dirs."""
+    from specify_cli.cli.commands.agent.workflow import _worktree_root_for_feature_dir
+
+    feature_dir = tmp_path / "kitty-specs" / "001-demo"
+    feature_dir.mkdir(parents=True)
+
+    result = _worktree_root_for_feature_dir(tmp_path, feature_dir)
+
+    assert result == tmp_path
+
+
+def test_commit_workflow_change_legacy_path_uses_coord_worktree_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Legacy path passes the coord worktree root (not repo_root) to safe_commit.
+
+    When feature_dir is inside .worktrees/<name>/..., the legacy fallback must
+    supply worktree_root=.worktrees/<name> so that absolute paths under the coord
+    worktree normalise correctly and do not trigger SafeCommitPathPolicyError.
+    """
+    import mission_runtime
+    from mission_runtime import CommitTarget, MissionArtifactKind
+    from specify_cli.cli.commands.agent import workflow
+
+    worktree_name = "001-demo-abc123-coord"
+    coord_worktree = tmp_path / ".worktrees" / worktree_name
+    feature_dir = coord_worktree / "kitty-specs" / "001-demo"
+    feature_dir.mkdir(parents=True)
+    events_path = feature_dir / "status.events.jsonl"
+    status_path = feature_dir / "status.json"
+    events_path.write_text('{"event_id":"before"}\n', encoding="utf-8")
+    status_path.write_text('{"before":true}\n', encoding="utf-8")
+
+    class _StubSeam:
+        def __init__(self, repo_root: Path, mission_slug: str) -> None:
+            del repo_root, mission_slug
+
+        def write_target(self, kind: MissionArtifactKind) -> CommitTarget:
+            assert kind is MissionArtifactKind.STATUS_STATE
+            return CommitTarget(ref="lane-branch")
+
+    monkeypatch.setattr(mission_runtime, "placement_seam", _StubSeam)
+    monkeypatch.setattr(workflow, "_load_coord_branch_meta", lambda _fd: (None, None, None))
+
+    captured: dict[str, object] = {}
+
+    class _StubResult:
+        sha = "cafebabe"
+
+    def _fake_safe_commit(**kwargs: object) -> _StubResult:
+        captured.update(kwargs)
+        return _StubResult()
+
+    monkeypatch.setattr(workflow, "safe_commit", _fake_safe_commit)
+    workflow._reset_workflow_receipts()
+
+    workflow._commit_workflow_change(
+        repo_root=tmp_path,
+        feature_dir=feature_dir,
+        mission_slug="001-demo",
+        target_branch="lane-branch",
+        paths=[events_path, status_path],
+        message="chore: WP01 in_review [claude]",
+        operation="for_review -> in_review for WP01",
+        wp_id="WP01",
+        pre_emit_event_size=len('{"event_id":"before"}\n'),
+        pre_emit_status_bytes=b'{"before":true}\n',
+    )
+
+    assert "worktree_root" in captured, "safe_commit was never invoked"
+    assert captured["worktree_root"] == coord_worktree, (
+        f"legacy path passed worktree_root={captured['worktree_root']!r}; "
+        f"expected coord worktree root {coord_worktree!r}. "
+        "Paths under .worktrees/ will raise SafeCommitPathPolicyError when "
+        "normalised against repo_root."
+    )
+
+
 # ---------------------------------------------------------------------------
 # T021 campsite regression anchor — empty except at the dossier-sync site
 # ---------------------------------------------------------------------------
