@@ -208,9 +208,10 @@ class CoordinationBranchDeleted(StatusReadPathNotFound):  # type: ignore[misc, u
         self.next_step = (
             f"The coordination branch {coordination_branch!r} declared in "
             f"meta.json does not exist in git (never created or deleted). "
-            f"Run `spec-kitty doctor coordination --fix` to repair automatically, "
-            f"or manually remove the `coordination_branch` key from meta.json and "
-            f"run `spec-kitty migrate backfill-topology`."
+            f"Flatten the mission — drop the `coordination_branch` key from "
+            f"meta.json — to recover: run `spec-kitty doctor coordination --fix` "
+            f"to flatten automatically, or remove the key manually and run "
+            f"`spec-kitty migrate backfill-topology`."
         )
         super().__init__(
             repo_root=repo_root,
@@ -405,7 +406,28 @@ def _coord_branch_exists(repo_root: Path, coord_branch: str) -> bool:
         )
     except OSError:
         return True
-    return result.returncode == 0
+    if result.returncode == 0:
+        return True
+    # Local head absent, but a coordination branch that lives only on a remote
+    # (fresh clone, CI checkout, pruned local branch) is NOT "never created".
+    # Firing R3 here lets `doctor coordination --fix` delete a genuinely-coord
+    # mission's coordination_branch and silently flatten it (#2614 data-loss vector).
+    try:
+        remotes = subprocess.run(
+            ["git", "-C", str(repo_root), "for-each-ref", "--format=%(refname)", "refs/remotes/"],
+            check=False, capture_output=True, text=True,
+        )
+    except OSError:
+        return True
+    if remotes.returncode == 0:
+        prefix = "refs/remotes/"
+        for line in remotes.stdout.splitlines():
+            if not line.startswith(prefix):
+                continue
+            _, _, branch = line[len(prefix):].partition("/")  # <remote>/<branch...>
+            if branch == coord_branch:
+                return True
+    return False
 
 
 @dataclass(frozen=True)

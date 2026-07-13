@@ -14,6 +14,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+import typer
 
 from specify_cli.cli.commands.doctor import (
     DoctorFinding,
@@ -494,3 +495,186 @@ def test_fix_removes_key_and_backfill_derives_topology(fresh_mission_repo: Path)
     assert results[0].topology in ("single_branch", "lanes"), (
         "flattened mission must resolve to a non-coord topology"
     )
+
+
+# ---------------------------------------------------------------------------
+# #2614 adversarial-squad remediation: Findings 1-3
+# ---------------------------------------------------------------------------
+
+
+def test_fix_clears_stale_coord_topology_so_backfill_flattens(
+    fresh_mission_repo: Path,
+) -> None:
+    """FINDING 1 (#2614, false-green flatten): a mission with a PRE-STORED
+    ``topology: "coord"`` AND a ``coordination_branch`` whose branch was never
+    created in git must be FULLY flattened by ``--fix``.
+
+    Pre-fix: ``_fix_never_created_branches`` only deletes ``coordination_branch``;
+    it never clears the pre-existing ``topology: "coord"`` key, and
+    ``backfill_topology_repo`` never overwrites an already-valid ``topology``
+    value (``migration/backfill_topology.py`` `action="skip"`) — so the mission
+    stays routed through coordination even after ``--fix`` runs. RED on
+    unmodified code (the ``written.get("topology") != "coord"`` assertion fails).
+    """
+    from mission_runtime import routes_through_coordination
+
+    from specify_cli.cli.commands import _coordination_doctor as cd
+    from specify_cli.migration.backfill_topology import (
+        backfill_topology_repo,
+        read_topology,
+    )
+
+    spec_dir = fresh_mission_repo / "kitty-specs" / MISSION_SLUG
+    stale_meta = {
+        **_meta(),
+        "coordination_branch": "kitty/mission-never-created-00000000",
+        "topology": "coord",
+        "flattened": False,
+    }
+    (spec_dir / "meta.json").write_text(json.dumps(stale_meta))
+
+    findings = cd._collect_coordination_findings(fresh_mission_repo)
+    fixable = [f for f in findings if f.error_code == "COORDINATION_WORKTREE_NEVER_CREATED"]
+    assert fixable, "expected a NEVER_CREATED finding for the stale coord mission"
+
+    fixed = cd._fix_never_created_branches(fixable)
+    assert MISSION_SLUG in fixed
+
+    backfill_topology_repo(fresh_mission_repo, mission_slug=MISSION_SLUG)
+
+    written = json.loads((spec_dir / "meta.json").read_text())
+    assert "coordination_branch" not in written, "key must be gone after fix"
+    assert written.get("topology") != "coord", (
+        "stale topology:'coord' must be cleared by the fix so backfill re-derives "
+        "a non-coord topology — leaving it stored is a false-green flatten (#2614)"
+    )
+    assert written.get("topology") == "single_branch"
+    assert written.get("flattened") is True
+
+    assert not routes_through_coordination(read_topology(spec_dir)), (
+        "a mission flattened via --fix must no longer route through coordination"
+    )
+
+
+def test_run_coordination_health_fix_end_to_end(
+    fresh_mission_repo: Path, monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """FINDING 3 (#2614, coverage gap): drive ``run_coordination_health(fix=True)``
+    end-to-end through the real entry point (no internal-function shortcuts),
+    pinning both the "fix ran" behaviour and the exit-code-after-re-collect claim.
+
+    Case A: one fixable NEVER_CREATED mission and no other error finding →
+    exit code 0 after --fix, and the fix actually mutated meta.json.
+
+    Case B: an additional UNFIXABLE ``error`` finding (tracked content under
+    ``.worktrees/`` — ``TRACKED_WORKTREES_CONTENT``) survives the fix pass →
+    exit code 1, proving the post-fix re-collect is real (not a rubber stamp).
+    """
+    from specify_cli.cli.commands import _coordination_doctor as cd
+
+    spec_dir = fresh_mission_repo / "kitty-specs" / MISSION_SLUG
+    stale_meta = {
+        **_meta(),
+        "coordination_branch": "kitty/mission-never-created-00000000",
+    }
+    (spec_dir / "meta.json").write_text(json.dumps(stale_meta))
+
+    monkeypatch.setattr(cd, "locate_project_root", lambda: fresh_mission_repo)
+
+    # ---- Case A: fixable-only → exit 0, fix actually ran ------------------
+    with pytest.raises(typer.Exit) as exc_a:
+        cd.run_coordination_health(json_output=False, fix=True)
+    assert exc_a.value.exit_code == 0, "a fully-fixed mission with no other errors must exit 0"
+    written = json.loads((spec_dir / "meta.json").read_text())
+    assert "coordination_branch" not in written, (
+        "run_coordination_health(fix=True) must actually invoke the fix, "
+        "not merely report the finding"
+    )
+
+    # ---- Case B: add an unfixable error finding, re-run --------------------
+    stale_meta_b = {
+        **_meta(),
+        "mission_slug": "second-mission-01J6ZZ00",
+        "mission_id": "01J6ZZ00ABCDEFGHJKMNPQRSTV",
+        "coordination_branch": "kitty/mission-second-never-created-00000001",
+    }
+    spec_dir_b = fresh_mission_repo / "kitty-specs" / "second-mission-01J6ZZ00"
+    spec_dir_b.mkdir(parents=True)
+    (spec_dir_b / "meta.json").write_text(json.dumps(stale_meta_b))
+    (spec_dir_b / "status.events.jsonl").write_text("{}\n")
+
+    worktrees_dir = fresh_mission_repo / ".worktrees"
+    worktrees_dir.mkdir(exist_ok=True)
+    junk = worktrees_dir / "junk.txt"
+    junk.write_text("tracked scratch content\n")
+    _git(fresh_mission_repo, "add", "-f", str(junk), str(spec_dir_b))
+    _git(fresh_mission_repo, "commit", "-q", "-m", "add tracked worktrees junk + 2nd mission")
+
+    with pytest.raises(typer.Exit) as exc_b:
+        cd.run_coordination_health(json_output=False, fix=True)
+    assert exc_b.value.exit_code == 1, (
+        "an unfixable error finding (TRACKED_WORKTREES_CONTENT) must survive "
+        "the fix pass and force a non-zero exit code"
+    )
+    written_b = json.loads((spec_dir_b / "meta.json").read_text())
+    assert "coordination_branch" not in written_b, (
+        "the second mission's fixable NEVER_CREATED finding must still be fixed "
+        "even though an unrelated error finding keeps the overall exit non-zero"
+    )
+
+
+def test_never_created_check_treats_remote_only_branch_as_present(
+    fresh_mission_repo: Path,
+) -> None:
+    """FINDING 2 (#2614, data-loss vector): a coordination_branch that lives
+    ONLY as a remote-tracking ref (fresh clone / CI checkout / pruned local
+    branch) must NOT be classified NEVER_CREATED.
+
+    Pre-fix: ``_coord_branch_exists`` probes ``refs/heads/<branch>`` only, so a
+    remote-only branch reads as absent → NEVER_CREATED fires → ``--fix`` would
+    delete ``coordination_branch`` from a genuinely-coord mission and silently
+    flatten it. RED on unmodified code (the ``not never_created`` assertion
+    fails because a NEVER_CREATED finding IS produced).
+    """
+    remote_only_branch = "kitty/mission-remote-only-01J6XW9K"
+    spec_dir = fresh_mission_repo / "kitty-specs" / MISSION_SLUG
+    meta = {**_meta(), "coordination_branch": remote_only_branch}
+    (spec_dir / "meta.json").write_text(json.dumps(meta))
+
+    head_sha = subprocess.check_output(
+        ["git", "-C", str(fresh_mission_repo), "rev-parse", "HEAD"], text=True,
+    ).strip()
+    _git(
+        fresh_mission_repo, "update-ref",
+        f"refs/remotes/origin/{remote_only_branch}", head_sha,
+    )
+
+    from specify_cli.cli.commands import _coordination_doctor as cd
+
+    findings = cd._collect_coordination_findings(fresh_mission_repo)
+    never_created = [
+        f for f in findings if f.error_code == "COORDINATION_WORKTREE_NEVER_CREATED"
+    ]
+    assert not never_created, (
+        "a coordination_branch present only as a remote-tracking ref must NOT be "
+        "treated as never-created — firing NEVER_CREATED here lets --fix delete "
+        "a genuinely-coord mission's coordination_branch and silently flatten it "
+        "(#2614 data-loss vector)"
+    )
+
+
+def test_coordination_branch_deleted_next_step_message_pin(tmp_path: Path) -> None:
+    """Pin the ``CoordinationBranchDeleted.next_step`` operator-recovery text so
+    a future reword cannot silently drop either recovery command (#2614)."""
+    from specify_cli.coordination.surface_resolver import CoordinationBranchDeleted
+
+    err = CoordinationBranchDeleted(
+        repo_root=tmp_path,
+        mission_slug=MISSION_SLUG,
+        mid8=MID8,
+        coordination_branch=COORD_BRANCH,
+        coord_candidate=tmp_path / ".worktrees" / f"{MISSION_SLUG}-coord",
+        primary_candidate=tmp_path / "kitty-specs" / MISSION_SLUG,
+    )
+    assert "spec-kitty doctor coordination --fix" in err.next_step
+    assert "spec-kitty migrate backfill-topology" in err.next_step
