@@ -36,6 +36,7 @@ from __future__ import annotations
 
 from specify_cli.core.constants import (
     MISSION_TYPE_RESEARCH,
+    WORKTREES_DIR,
 )
 from specify_cli.missions._read_path_resolver import (
     _canonicalize_primary_read_handle,
@@ -575,9 +576,27 @@ def _resolve_workflow_read_dir(
     return read_dir
 
 
+def _worktree_root_for_feature_dir(repo_root: Path, feature_dir: Path) -> Path:
+    """Return the correct worktree_root for safe_commit, derived from feature_dir.
+
+    When feature_dir lives inside .worktrees/<name>/..., returns
+    .worktrees/<name> so that absolute paths under that worktree normalize
+    correctly (preventing SafeCommitPathPolicyError on paths whose first
+    component is .worktrees/).  For primary-checkout feature_dirs, returns
+    repo_root unchanged.
+    """
+    worktrees_parent = repo_root / WORKTREES_DIR
+    try:
+        rel = feature_dir.resolve().relative_to(worktrees_parent.resolve())
+        return worktrees_parent / rel.parts[0]
+    except ValueError:
+        return repo_root
+
+
 def _commit_via_legacy_safe_commit(
     *,
     repo_root: Path,
+    worktree_root: Path,
     target_branch: str,
     paths: list[Path],
     message: str,
@@ -622,7 +641,7 @@ def _commit_via_legacy_safe_commit(
     # tracking ``main``) is REFUSED by the guard, never waived (FR-008).
     result = safe_commit(
         repo_root=repo_root,
-        worktree_root=repo_root,
+        worktree_root=worktree_root,
         target=CommitTarget(ref=target_branch),
         message=message,
         paths=tuple(paths),
@@ -635,8 +654,6 @@ def _commit_via_legacy_safe_commit(
         sha=getattr(result, "sha", None),
         wp_id=wp_id,
     )
-
-
 
 
 def _print_commit_summary(*, command_name: str, json_output: bool = False) -> None:

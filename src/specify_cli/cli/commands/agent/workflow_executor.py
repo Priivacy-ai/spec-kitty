@@ -280,9 +280,11 @@ def commit_workflow_change(
         return
 
     # Legacy fallback (TODO(WP08): replace with the legacy bridge).
+    legacy_worktree_root = w._worktree_root_for_feature_dir(repo_root, feature_dir)
     try:
         w._commit_via_legacy_safe_commit(
             repo_root=repo_root,
+            worktree_root=legacy_worktree_root,
             target_branch=placement.ref,
             paths=paths,
             message=message,
