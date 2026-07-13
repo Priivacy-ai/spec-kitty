@@ -273,7 +273,7 @@ def test_coordination_branch_deleted_raised_when_branch_gone(tmp_path: Path) -> 
     err = excinfo.value
     assert err.error_code == "COORDINATION_BRANCH_DELETED"
     assert err.coordination_branch == "kitty/mission-my-mission-01KTDVHZ-coord"
-    assert "doctor workspaces --fix" in err.next_step
+    assert "doctor coordination --fix" in err.next_step
 
 
 def test_coord_mid8_derived_from_slug_when_meta_lacks_id(tmp_path: Path) -> None:

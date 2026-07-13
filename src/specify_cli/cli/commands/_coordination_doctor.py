@@ -572,6 +572,13 @@ def _fix_never_created_branches(findings: list[DoctorFinding]) -> list[str]:
         if "coordination_branch" not in meta:
             continue
         del meta["coordination_branch"]
+        # Clear the stale stored topology so backfill_topology_repo re-derives it:
+        # backfill never overwrites an existing topology (migration/backfill_topology.py),
+        # and every mission minted post-#2069 stores `topology` at create time — leaving it
+        # would keep the mission routed through coordination (false-green flatten). Record the
+        # flatten via the provenance flag. (#2614 adversarial-squad remediation)
+        meta.pop("topology", None)
+        meta["flattened"] = True
         write_meta(mission_dir, meta, validate=False)
         fixed.append(mission_dir.name)
     return fixed

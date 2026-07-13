@@ -95,7 +95,7 @@ EXPECTED_OPTIONS: dict[str, dict[str, str]] = {
         "--allow-dirty": "flag",
     },
     "doctrine": {"--json": "flag"},
-    "coordination": {"--json": "flag"},
+    "coordination": {"--fix": "flag", "--json": "flag"},
 }
 
 # Golden ``--help`` snapshots (whitespace-normalized) per subcommand.
@@ -378,7 +378,18 @@ EXPECTED_HELP: dict[str, list[str]] = {
         'Also runs the minimum git-version (RR-01) check.',
         'Exits with code 1 if any ``error`` finding is emitted; ``warning``',
         'findings exit 0 but are still printed.',
+        'With ``--fix``, automatically flattens missions that have a stale',
+        '``coordination_branch`` key (branch never created or already deleted)',
+        'and re-derives topology. Safe to run on 100%-done missions before',
+        '``spec-kitty next`` or ``spec-kitty merge``.',
+        'Examples:',
+        'spec-kitty doctor coordination',
+        'spec-kitty doctor coordination --fix',
+        'spec-kitty doctor coordination --json',
         'Options',
+        '--fix           Remove stale coordination_branch keys from meta.json for missions whose coord',
+        'branch was never created, then re-derive topology via `migrate',
+        'backfill-topology`.',
         '--json          Machine-readable JSON output',
         '--help          Show this message and exit.',
     ],
