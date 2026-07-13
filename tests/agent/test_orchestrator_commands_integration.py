@@ -39,6 +39,27 @@ def _disable_status_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
 # ── Fixtures ──────────────────────────────────────────────────────
 
 
+def _write_tasks_index(mission_dir: Path, wp_rows: dict[str, int]) -> None:
+    """Write ``tasks.md`` with a ``## WPxx`` section + ``- [x] T### …`` rows per WP.
+
+    Mirrors the real tasks.md shape counted by
+    ``core.subtask_rows.count_wp_section_subtask_rows`` — a heading whose first
+    ``WPxx`` token names the section, followed by canonical checked subtask
+    rows. All rows are checked ([x]) so ``_infer_subtasks_complete`` reports the
+    WP complete and the in_progress -> for_review gate passes.
+    """
+    lines = ["# Tasks", ""]
+    task_no = 1
+    for wp_id, count in wp_rows.items():
+        lines.append(f"## {wp_id} Test {wp_id}")
+        lines.append("")
+        for _ in range(count):
+            lines.append(f"- [x] T{task_no:03d} subtask for {wp_id}")
+            task_no += 1
+        lines.append("")
+    (mission_dir / "tasks.md").write_text("\n".join(lines), encoding="utf-8")
+
+
 def _make_mission(tmp_path: Path, mission_slug: str = "099-test-mission") -> tuple[Path, Path]:
     """Create a minimal mission directory with tasks.
 
@@ -55,6 +76,12 @@ def _make_mission(tmp_path: Path, mission_slug: str = "099-test-mission") -> tup
             f"---\nwork_package_id: {wp_id}\ntitle: Test {wp_id}\nlane: planned\ndependencies: []\n---\n\n# {wp_id}\n",
             encoding="utf-8",
         )
+
+    # Top-level tasks.md index carrying the canonical checkbox rows the
+    # in_progress -> for_review subtask-completeness gate (#846 / #2574) reads.
+    # Rows are complete ([x]) by default so the standard "advance to for_review"
+    # setups pass; tests needing an INCOMPLETE WP tailor their own setup.
+    _write_tasks_index(mission_dir, {"WP01": 2, "WP02": 2})
 
     meta = {
         "mission_number": mission_slug.split("-")[0],
@@ -1710,6 +1737,9 @@ def _make_mission_with_suffixed_wps(tmp_path: Path, mission_slug: str = "040-tes
     )
     # Also include a non-WP file to verify it is excluded
     (tasks_dir / "README.md").write_text("# Tasks\n", encoding="utf-8")
+
+    # Top-level tasks.md index for the subtask-completeness gate (#2574).
+    _write_tasks_index(mission_dir, {"WP01": 2, "WP07": 2})
 
     (mission_dir / "meta.json").write_text(json.dumps({"status_phase": 1}), encoding="utf-8")
     _seed_planned_events(mission_dir, mission_slug, ("WP01", "WP07"))
