@@ -529,7 +529,12 @@ def test_setup_plan_scaffolds_from_doctrine_package_default(
     )
     plan_file = feature_dir / "plan.md"
 
-    assert payload.get("result") == "blocked"
+    # #2566/WP06: a pristine scaffold (plan.md byte-equal to the template, not
+    # yet committed) is a non-error `success` + `scaffold_only` state — mirroring
+    # the specify twin — NOT `blocked`. phase_complete stays False.
+    assert payload.get("result") == "success"
+    assert payload.get("scaffold_only") is True
+    assert payload.get("phase_complete") is False
     assert plan_file.read_text(encoding="utf-8") == doctrine_plan.read_text(encoding="utf-8")
     assert _file_in_head(tmp_path, str(plan_file.relative_to(tmp_path))) is False
 
