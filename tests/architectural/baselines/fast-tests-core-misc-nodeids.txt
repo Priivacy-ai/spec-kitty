@@ -4375,6 +4375,7 @@ tests/specify_cli/dossier/test_integration.py::TestMissingRequiredArtifactDetect
 tests/specify_cli/dossier/test_integration.py::TestMissingRequiredArtifactDetection::test_missing_required_artifacts_detected
 tests/specify_cli/dossier/test_integration.py::TestMissingRequiredArtifactDetection::test_multiple_missing_artifacts_all_detected
 tests/specify_cli/dossier/test_integration.py::TestOptionalArtifactHandling::test_gap_analysis_optional_not_blocking
+tests/specify_cli/dossier/test_integration.py::TestOptionalArtifactHandling::test_lint_report_indexes_as_runtime_class
 tests/specify_cli/dossier/test_integration.py::TestOptionalArtifactHandling::test_optional_artifacts_not_required
 tests/specify_cli/dossier/test_integration.py::TestOptionalArtifactHandling::test_optional_artifacts_not_trigger_events
 tests/specify_cli/dossier/test_integration.py::TestUnreadableArtifactHandling::test_invalid_utf8_artifact_recorded
@@ -7185,6 +7186,7 @@ tests/specify_cli/test_lane_regression_guard.py::test_runtime_no_frontmatter_lan
 tests/specify_cli/test_lane_regression_guard.py::test_runtime_no_frontmatter_lane_access[src/specify_cli/sync/events.py]
 tests/specify_cli/test_lane_regression_guard.py::test_runtime_no_frontmatter_lane_access[src/specify_cli/sync/feature_flags.py]
 tests/specify_cli/test_lane_regression_guard.py::test_runtime_no_frontmatter_lane_access[src/specify_cli/sync/git_metadata.py]
+tests/specify_cli/test_lane_regression_guard.py::test_runtime_no_frontmatter_lane_access[src/specify_cli/sync/lint_report_staging.py]
 tests/specify_cli/test_lane_regression_guard.py::test_runtime_no_frontmatter_lane_access[src/specify_cli/sync/local_commit.py]
 tests/specify_cli/test_lane_regression_guard.py::test_runtime_no_frontmatter_lane_access[src/specify_cli/sync/migrate_journal.py]
 tests/specify_cli/test_lane_regression_guard.py::test_runtime_no_frontmatter_lane_access[src/specify_cli/sync/namespace.py]
