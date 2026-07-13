@@ -19,6 +19,7 @@ debriefs.
 - [Slice F Mission Debrief](slice-f-mission-debrief.md)
 - [Follow-up mission preparation debrief — tasks.py render-seam + shim relocation](tasks-py-degod-followup-mission-debrief.md)
 - [WP04 re-section classification audit](wp04-resection-classification-audit.md)
+- [QA Mission — Tidy-First Sequencing (degod-as-enabler for the #2071 test-QA slice)](../testing/qa-tidy-first-sequencing.md)
 
 ## See also
 

@@ -3284,6 +3284,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/plans/testing/qa-tidy-first-sequencing.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/plans/testing/quality_check_structure.md
   tag: current
   divio_type: none

@@ -16,6 +16,7 @@ remediation, the friction audit, and CI quality/coverage gate tuning notes.
 - [CI Quality Workflow Structure](quality_check_structure.md)
 - [Test Suite Acceleration — Final Remediation Plan](test-suite-acceleration-plan.md)
 - [Test-Suite Friction Audit — "Tests as scaffold, not friction"](test-suite-friction-audit.md)
+- [QA Mission — Tidy-First Sequencing (does degod-before-test-QA pay off?)](qa-tidy-first-sequencing.md)
 
 ## See also
 
