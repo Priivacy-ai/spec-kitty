@@ -92,9 +92,19 @@ gates pass:
 
 2. **Exit gate.** `plan.md` is only auto-committed when its Technical Context
    section contains a real `Language/Version` value (and at least one peer
-   field) — not the `[e.g., …]` / `[NEEDS CLARIFICATION …]` placeholders. If
-   the plan is left as scaffold, it stays untracked on disk and the CLI
-   returns `phase_complete=false` with a substantive-plan `blocked_reason`.
+   field) — not the `[e.g., …]` / `[NEEDS CLARIFICATION …]` placeholders.
+
+   - The FIRST `setup-plan` call after the entry gate passes scaffolds
+     `plan.md` from the template. This is a **non-error** state: the CLI
+     returns `result: "success"` with `scaffold_only: true` and
+     `phase_complete: false` — it means "plan.md is ready for you to
+     populate", not a failure. Do **not** treat this call as blocked; proceed
+     to fill in the Technical Context.
+   - Once `plan.md` has been edited but its Technical Context is still not
+     substantive, the CLI returns `result: "blocked"` with
+     `phase_complete: false` and a populated-but-insufficient
+     `blocked_reason` naming the missing field(s) — populate the section and
+     re-run.
 
 Section presence is the only signal — adding arbitrary prose without the
 required structural rows does **not** count as substantive (no byte-length
@@ -268,6 +278,7 @@ If the mission is not a bulk edit<!-- glossary:glossary:bulk-edit -->, skip this
 
 3. **Setup**: If step 2 did not already return a successful setup payload, run `spec-kitty agent mission setup-plan --mission <mission-slug> --json` from the repository root and parse JSON for:
    - `result`: "success" or error message
+   - `scaffold_only`: `true` only on the first happy-path scaffold write (plan.md freshly copied from the template, untouched). This is `result: "success"` and NOT an error — populate the Technical Context and re-run `setup-plan` to commit. `phase_complete` stays `false` until then.
    - `mission_slug`: Resolved feature slug<!-- glossary:glossary:feature-slug -->
    - `spec_file`: Absolute path to resolved spec.md
    - `plan_file`: Absolute path to the created plan.md
