@@ -173,6 +173,13 @@ def coord_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         encoding="utf-8",
     )
     (feature_dir / "tasks" / "WP01.md").write_text(_WP_FILE, encoding="utf-8")
+    # Top-level tasks.md index carrying the canonical checked subtask rows the
+    # in_progress -> for_review subtask-completeness gate (#2574) reads. Complete
+    # ([x]) so the gate turns on the commit requirement (S3), not on subtasks.
+    (feature_dir / "tasks.md").write_text(
+        "# Tasks\n\n## WP01 Test WP01\n\n- [x] T001 subtask for WP01\n- [x] T002 subtask for WP01\n",
+        encoding="utf-8",
+    )
     write_lanes_json(feature_dir, _manifest())
     _git(repo, "add", "kitty-specs")
     _git(repo, "commit", "-q", "-m", "seed mission")
