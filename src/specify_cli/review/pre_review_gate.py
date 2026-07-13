@@ -53,6 +53,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import cast
 
+from specify_cli.paths import get_runtime_root
 from specify_cli.review._interpreter import resolve_pytest_command
 from specify_cli.review.baseline import (
     BaselineFailure,
@@ -374,7 +375,7 @@ _LOCK_RETRY_SLEEP_S: float = 0.05
 
 
 @contextlib.contextmanager
-def _scoped_run_lock(repo_root: Path, *, acquire_timeout: float | None = None) -> Iterator[None]:
+def _scoped_run_lock(*, acquire_timeout: float | None = None) -> Iterator[None]:
     """Advisory lock serializing concurrent scoped subprocess runs (#2493).
 
     Uses a scoped ``fcntl.flock`` rather than the canonical
@@ -403,7 +404,12 @@ def _scoped_run_lock(repo_root: Path, *, acquire_timeout: float | None = None) -
     import fcntl  # POSIX-only; local import keeps this module importable on Windows.
 
     timeout = _LOCK_ACQUIRE_TIMEOUT_DEFAULT if acquire_timeout is None else acquire_timeout
-    lock_path = repo_root / ".spec-kitty" / _SCOPED_RUN_LOCK_FILENAME
+    # Lock lives under the canonical runtime root (FR-010: no hand-rolled
+    # ``.spec-kitty`` home literal). One machine-wide lock is the right scope
+    # for CPU contention: concurrent gate runs across lanes/worktrees on the
+    # same machine serialize on it (a per-repo_root lock would not, since each
+    # worktree has a distinct root).
+    lock_path = get_runtime_root().base / "gate-locks" / _SCOPED_RUN_LOCK_FILENAME
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     fd = os.open(str(lock_path), os.O_CREAT | os.O_RDWR)
     acquired = False
@@ -457,7 +463,7 @@ def run_scoped_tests_at_head(
             repo_root=repo_root,
         )
         try:
-            with _scoped_run_lock(repo_root):
+            with _scoped_run_lock():
                 result = subprocess.run(
                     command,
                     cwd=str(repo_root),

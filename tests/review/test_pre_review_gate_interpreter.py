@@ -149,7 +149,7 @@ def test_pytest_lacking_sys_executable_still_yields_real_verdict_via_uv(
 
 
 @pytest.mark.fast
-def test_scoped_run_lock_serializes_two_overlapping_holders(tmp_path: Path) -> None:
+def test_scoped_run_lock_serializes_two_overlapping_holders() -> None:
     """Two overlapping ``_scoped_run_lock`` holders never run their critical
     section concurrently — whichever thread enters first must also exit
     before the second thread's entry is recorded."""
@@ -159,7 +159,7 @@ def test_scoped_run_lock_serializes_two_overlapping_holders(tmp_path: Path) -> N
 
     def hold(tag: str) -> None:
         barrier.wait(timeout=5)
-        with pre_review_gate._scoped_run_lock(tmp_path, acquire_timeout=2.0):
+        with pre_review_gate._scoped_run_lock(acquire_timeout=2.0):
             with lock_guard:
                 events.append(f"{tag}-enter")
             time.sleep(0.05)
