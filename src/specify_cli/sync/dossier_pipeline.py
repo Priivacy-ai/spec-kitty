@@ -61,9 +61,19 @@ def sync_feature_dossier(
     from specify_cli.dossier.snapshot import compute_snapshot, save_snapshot
 
     from .body_upload import log_upload_outcomes, prepare_body_uploads
+    from .lint_report_staging import stage_charter_lint_report
     from .namespace import UploadStatus
 
     errors: list[str] = []
+
+    # Step 0: Stage the repo-global charter-lint decay report into this
+    # mission's dossier BEFORE indexing, but only when the report was produced
+    # for this mission (issue #2481, unblocks saas #392). Best-effort no-op.
+    if stage_charter_lint_report(feature_dir, namespace_ref.mission_slug):
+        logger.info(
+            "Staged charter-lint decay report into dossier for %s",
+            namespace_ref.mission_slug,
+        )
 
     # Step 1: Index
     try:

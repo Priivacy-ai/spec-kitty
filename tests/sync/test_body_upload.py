@@ -101,6 +101,10 @@ class TestSurfaceFiltering:
     def test_meta_json_rejected(self) -> None:
         assert _is_supported_surface("meta.json") is False
 
+    def test_lint_report_json_accepted(self) -> None:
+        # #2481: the charter-lint decay report ships its body to SaaS.
+        assert _is_supported_surface("lint-report.json") is True
+
     def test_unknown_file_rejected(self) -> None:
         assert _is_supported_surface("unknown.txt") is False
 
