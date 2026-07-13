@@ -2,7 +2,7 @@
 title: Changelog
 description: Canonical changelog for the Spec Kitty CLI and templates, following Keep a Changelog and Semantic Versioning, with added, breaking, and fixed entries per release.
 doc_status: active
-updated: '2026-07-12'
+updated: '2026-07-13'
 ---
 # Changelog
 
@@ -76,6 +76,26 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **Implement-loop friction quick-wins II (#2570, #2493, #2555, #2566, #2589, #2533, #2580).**
+  Eight fixes that make lifecycle guards no-op-stable against their own runtime writes and the
+  pre-review gate return real verdicts, each preserving the guard's true-positive:
+  the lane allocator ignores the `shell_pid`/`base_*` WP frontmatter it just wrote (batch lane
+  allocation needs no inter-commit); the analysis-report freshness check ignores pipe-table
+  `[D]`/`[P]` status-marker churn from `mark-status`; the pre-review gate resolves `pytest` via
+  `uv run` (a real verdict instead of a spurious `--force` on a green tree) and serializes
+  concurrent runs behind a machine-wide lock whose acquire-timeout is decoupled from the run
+  timeout; the `agent_profiles` manifest stores `output_path` repo-relative so `spec-kitty
+  upgrade` is cross-machine deterministic; the issue-matrix approval error names the offending
+  schema-drift column instead of a misleading "Missing rows"; bulk-edit inference no longer
+  trips on ordinary refactor verbs while genuine bulk edits still trip; `setup-plan`'s first
+  scaffold write returns `success` + `scaffold_only` (mirroring the specify twin) instead of
+  reading as `blocked`; `move-task` routes coord-lane planning-artifact staging through the
+  commit-router authority path (no lane `kitty-specs/` commit, STATUS_STATE placement
+  byte-unchanged) and closes the 4th divergent `shell_pid` writer; and a solo PR-bound coord
+  mission routes its empty-coord status surface cleanly to primary instead of tripping a
+  split-brain warning. Successor to the loop-friction fast-follow; follow-ups filed for the
+  topology-derivation revisit (#2602), de-god debt (#2603, #2604), the `implement --json`
+  output contract (#2605), and worktree-aware `doctor tool-surfaces --fix` (#2613).
 - **Implement-loop friction quick-wins (#2581, #2573, #2549, #2577).** Four independent
   loop-friction fixes: `mission create` / `spec-kitty specify` now derive the create-time
   topology from context — a non-primary feature branch without `--pr-bound` defaults to
