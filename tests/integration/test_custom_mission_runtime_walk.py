@@ -451,7 +451,7 @@ def test_software_dev_specify_dispatch_unchanged(tmp_path: Path) -> None:
             return_value=fake_result,
         ) as mock_execute,
         patch(
-            "runtime.next.runtime_bridge._advance_run_state_after_composition",
+            "runtime.next.runtime_bridge_engine.advance_run_state_after_composition",
             return_value=sentinel_decision,
         ),
     ):
@@ -590,7 +590,7 @@ def test_next_dispatch_synthesizes_contract_after_registry_clear(
             return_value=fake_result,
         ) as mock_execute,
         patch(
-            "runtime.next.runtime_bridge._advance_run_state_after_composition",
+            "runtime.next.runtime_bridge_engine.advance_run_state_after_composition",
             return_value=sentinel_decision,
         ),
     ):

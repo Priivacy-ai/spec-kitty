@@ -47,20 +47,26 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 # 1. Non-vacuousness / compat-guard checks
 # ---------------------------------------------------------------------------
 
-_UNTRACKED_PLAIN_REEXPORTS = (
-    "_extract_wp_heading",
-    "_collect_requirement_refs_for_section",
-    "_iter_requirement_refs",
-    "_requirement_inline_refs_suffix",
-    "_is_requirement_heading",
-)
+# WP18 (#2561): the five ``runtime_bridge_cores`` parse-family helpers no
+# longer carry a ``runtime_bridge`` façade re-export — every caller reaches
+# them directly on ``cores`` (nothing patched them via the façade path). The
+# retired ``test_untracked_parse_helpers_are_identity_reexports`` asserted the
+# now-removed re-export identity; the parse family stays covered below via the
+# ``cores.<name>`` call surface.
 
-def test_untracked_parse_helpers_are_identity_reexports() -> None:
-    """Nothing patches these five (grep-verified against
-    ``test_bridge_compat_surface.py``), so a plain re-export is both correct
-    and required by that frozen guard's exact-baseline assertion."""
-    for name in _UNTRACKED_PLAIN_REEXPORTS:
-        assert getattr(rb, name) is getattr(cores, name), f"{name} is not an identity re-export"
+
+def test_parse_helpers_are_defined_on_the_cores_seam() -> None:
+    """Non-vacuousness: the parse family lives on the ``cores`` seam (their
+    canonical home after WP18 retired the runtime_bridge re-exports)."""
+    for name in (
+        "_extract_wp_heading",
+        "_collect_requirement_refs_for_section",
+        "_iter_requirement_refs",
+        "_requirement_inline_refs_suffix",
+        "_is_requirement_heading",
+    ):
+        assert callable(getattr(cores, name)), f"{name} is not defined on the cores seam"
+        assert not hasattr(rb, name), f"{name} unexpectedly still re-exported on runtime_bridge"
 
 
 def test_evaluate_guards_is_a_real_function_on_cores() -> None:

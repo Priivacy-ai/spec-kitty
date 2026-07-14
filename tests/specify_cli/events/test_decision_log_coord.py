@@ -152,11 +152,11 @@ class TestWrapWithDecisionGitLogCoordRouting:
                 side_effect=_fake_decision_git_log,
             ),
             patch(
-                "runtime.next.runtime_bridge._resolve_coordination_branch",
+                "runtime.next.runtime_bridge_identity._resolve_coordination_branch",
                 return_value="kitty/mission-my-feature-01KT3YBD",
             ),
             patch(
-                "runtime.next.runtime_bridge._resolve_mission_ulid",
+                "runtime.next.runtime_bridge_identity._resolve_mission_ulid",
                 return_value="01KT3YBDABCDEFGHIJKLMNOP",
             ),
         ):
@@ -226,11 +226,11 @@ class TestWrapWithDecisionGitLogCoordRouting:
                 side_effect=_fake_decision_git_log,
             ),
             patch(
-                "runtime.next.runtime_bridge._resolve_coordination_branch",
+                "runtime.next.runtime_bridge_identity._resolve_coordination_branch",
                 return_value="kitty/mission-my-feature-01KT3YBD",
             ),
             patch(
-                "runtime.next.runtime_bridge._resolve_mission_ulid",
+                "runtime.next.runtime_bridge_identity._resolve_mission_ulid",
                 return_value="01KT3YBDABCDEFGHIJKLMNOP",
             ),
         ):
@@ -383,11 +383,11 @@ class TestWorktreeRootPreservedThroughKindDrain:
                 side_effect=_fake_decision_git_log,
             ),
             patch(
-                "runtime.next.runtime_bridge._resolve_coordination_branch",
+                "runtime.next.runtime_bridge_identity._resolve_coordination_branch",
                 return_value=coord_branch,
             ),
             patch(
-                "runtime.next.runtime_bridge._resolve_mission_ulid",
+                "runtime.next.runtime_bridge_identity._resolve_mission_ulid",
                 return_value="01KT3YBDABCDEFGHIJKLMNOP",
             ),
         ):

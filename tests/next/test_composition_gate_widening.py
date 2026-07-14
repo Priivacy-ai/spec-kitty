@@ -102,7 +102,7 @@ def test_builtin_software_dev_short_circuits_without_run_dir(tmp_path: Path) -> 
     We patch ``_resolve_step_agent_profile`` and assert it was never called.
     """
     with patch(
-        "runtime.next.runtime_bridge._resolve_step_agent_profile"
+        "runtime.next.runtime_bridge_composition._resolve_step_agent_profile"
     ) as mock_resolve:
         # Charter lookup returns True for software-dev/specify before
         # _resolve_step_agent_profile (frozen-template path) is ever reached.

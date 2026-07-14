@@ -994,7 +994,7 @@ def test_composition_success_skips_legacy_dispatch(composed_software_dev_project
             return_value=fake_result,
         ),
         patch(
-            "runtime.next.runtime_bridge._advance_run_state_after_composition",
+            "runtime.next.runtime_bridge_engine.advance_run_state_after_composition",
             return_value=sentinel_decision,
         ) as mock_advance,
         patch(
@@ -1412,7 +1412,7 @@ def test_non_composed_action_uses_legacy_runtime_next_step(
 
     with (
         patch("specify_cli.mission_step_contracts.executor.StepContractExecutor.execute") as mock_execute,
-        patch("runtime.next.runtime_bridge._advance_run_state_after_composition") as mock_advance,
+        patch("runtime.next.runtime_bridge_engine.advance_run_state_after_composition") as mock_advance,
         patch(
             "runtime.next.runtime_bridge.runtime_next_step",
             return_value=sentinel_runtime_decision,
@@ -1451,7 +1451,7 @@ def test_advancement_helper_failure_propagates_no_legacy_fallback(
             return_value=fake_result,
         ),
         patch(
-            "runtime.next.runtime_bridge._advance_run_state_after_composition",
+            "runtime.next.runtime_bridge_engine.advance_run_state_after_composition",
             side_effect=RuntimeError("boom: snapshot persistence broken"),
         ) as mock_advance,
         patch(
@@ -1555,7 +1555,7 @@ class TestCustomMissionComposition:
                 return_value=fake_result,
             ) as mock_execute,
             patch(
-                "runtime.next.runtime_bridge._advance_run_state_after_composition",
+                "runtime.next.runtime_bridge_engine.advance_run_state_after_composition",
                 return_value=sentinel_decision,
             ),
         ):
@@ -1612,7 +1612,7 @@ class TestCustomMissionComposition:
                 return_value=fake_result,
             ) as mock_execute,
             patch(
-                "runtime.next.runtime_bridge._advance_run_state_after_composition",
+                "runtime.next.runtime_bridge_engine.advance_run_state_after_composition",
                 return_value=sentinel_decision,
             ),
         ):
@@ -1708,7 +1708,7 @@ class TestCustomMissionComposition:
                     return_value=fake_result,
                 ) as mock_execute,
                 patch(
-                    "runtime.next.runtime_bridge._advance_run_state_after_composition",
+                    "runtime.next.runtime_bridge_engine.advance_run_state_after_composition",
                     return_value=sentinel_decision,
                 ),
             ):
