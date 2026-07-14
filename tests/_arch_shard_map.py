@@ -250,6 +250,14 @@ _ARCH_SHARD_3_FILES: tuple[str, ...] = (
     # def-test_ count (258 vs 261/296), so both land here.
     "tests/architectural/test_suite_jobs_gate_blocking.py",
     "tests/architectural/test_ui_e2e_coverage_discovered.py",
+    # Added post-data-model.md (new files, mission
+    # test-suite-friction-remediation-01KXDKBX review-remediation / #2632 --
+    # the allow_worktree_context blast-radius guard (squad finding, alphonso)
+    # and the CliConsole single-seam guard (#2632). shard_3 remained the
+    # lightest by def-test_ count when these landed, matching the WP11/WP17
+    # appends above.
+    "tests/architectural/test_no_production_worktree_guard_bypass.py",
+    "tests/architectural/test_cli_console_single_seam.py",
 )
 
 # ``relpath -> shard`` for exact-file (architectural) units.
