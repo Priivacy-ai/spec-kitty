@@ -1707,6 +1707,7 @@ jobs:
             marker_extra: ''
           - shard: misc
             paths: >-
+              tests/_factories
               tests/_support
               tests/calibration
               tests/characterization

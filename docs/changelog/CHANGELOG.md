@@ -76,6 +76,18 @@ _The 3.2.6 development cycle is open. Entries land here as missions merge._
 
 ### 🐛 Fixed
 
+- **`--json` output is now plain regardless of terminal colour; CLI tests are colour-deterministic (#2632).**
+  Under a colour-forcing harness (e.g. `FORCE_COLOR=3`) Rich syntax-highlighted `--json`
+  output — splicing ANSI escapes into the payload so `json.loads` and `| jq` choked — and
+  split literal substrings in styled human output, red-ing ~81 pre-existing tests. All CLI
+  output now routes through a single canonical `CliConsole` seam
+  (`specify_cli.cli.console`) whose machine-output methods (`emit_json`/`print_json`) are
+  plain by construction, so `--json` is safe under any colour environment. Test determinism
+  comes from toggling colour on that one shared object (`set_plain`), never from mutating
+  `os.environ`. The whole CLI layer (~77 ad-hoc `Console()` constructions) was moved onto the
+  seam — no shim — and an architectural guard forbids a raw `Console()` under
+  `src/specify_cli/cli/`. Deferred non-CLI consoles (including an active `retrospective/cli.py`
+  `--json` corruption vector) are tracked in #2634. ADR: `2026-07-14-1-canonical-cli-console-seam`.
 - **Implement-loop friction quick-wins II (#2570, #2493, #2555, #2566, #2589, #2533, #2580).**
   Eight fixes that make lifecycle guards no-op-stable against their own runtime writes and the
   pre-review gate return real verdicts, each preserving the guard's true-positive:
