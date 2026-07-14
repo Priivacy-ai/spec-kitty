@@ -457,7 +457,9 @@ def test_charter_interview_from_dict_parses_local_supporting_files() -> None:
         ],
     }
     interview = CharterInterview.from_dict(data)
-    assert len(interview.local_supporting_files) == 1
+    assert {d.path for d in interview.local_supporting_files} == {
+        "docs/governance/project-planning.md"
+    }
     decl = interview.local_supporting_files[0]
     assert decl.path == "docs/governance/project-planning.md"
     assert decl.action == "plan"
@@ -549,14 +551,14 @@ def test_validate_rejects_directory_trailing_slash() -> None:
 def test_validate_accepts_valid_explicit_path() -> None:
     decls = [LocalSupportDeclaration(path="docs/governance/project-planning.md")]
     valid, errors = validate_local_support_declarations(decls)
-    assert len(valid) == 1
+    assert {v.path for v in valid} == {"docs/governance/project-planning.md"}
     assert errors == []
 
 
 def test_validate_normalizes_unknown_action_to_none() -> None:
     decls = [LocalSupportDeclaration(path="docs/guide.md", action="deploy")]
     valid, errors = validate_local_support_declarations(decls)
-    assert len(valid) == 1
+    assert {v.path for v in valid} == {"docs/guide.md"}
     assert valid[0].action is None
     # An error/warning message should describe the unknown action
     assert any("deploy" in e for e in errors)
@@ -566,7 +568,7 @@ def test_validate_accepts_known_actions() -> None:
     for action in ("specify", "plan", "implement", "review"):
         decls = [LocalSupportDeclaration(path="docs/guide.md", action=action)]
         valid, errors = validate_local_support_declarations(decls)
-        assert len(valid) == 1
+        assert {v.path for v in valid} == {"docs/guide.md"}
         assert valid[0].action == action
         assert errors == []
 
@@ -577,7 +579,7 @@ def test_validate_mixed_valid_and_invalid() -> None:
         LocalSupportDeclaration(path="docs/**"),
     ]
     valid, errors = validate_local_support_declarations(decls)
-    assert len(valid) == 1
+    assert {v.path for v in valid} == {"docs/guide.md"}
     assert len(errors) == 1
 
 
@@ -594,7 +596,7 @@ def test_compile_with_local_support_file_creates_local_reference() -> None:
     compiled = compile_charter(mission="software-dev", interview=interview)
 
     local_refs = [r for r in compiled.references if r.kind == "local_support"]
-    assert len(local_refs) == 1
+    assert {r.id for r in local_refs} == {"LOCAL:docs/governance/project-planning.md"}
     ref = local_refs[0]
     assert ref.id == "LOCAL:docs/governance/project-planning.md"
     assert ref.source_path == "docs/governance/project-planning.md"
@@ -619,7 +621,7 @@ def test_compile_local_support_reference_is_additive_not_replacement() -> None:
 
     local_refs = [r for r in compiled.references if r.kind == "local_support"]
     shipped_refs = [r for r in compiled.references if r.kind != "local_support"]
-    assert len(local_refs) == 1
+    assert {r.id for r in local_refs} == {"LOCAL:docs/custom-directive.md"}
     # Shipped refs must still be present
     assert len(shipped_refs) > 0
 

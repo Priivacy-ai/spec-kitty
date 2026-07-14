@@ -126,7 +126,9 @@ class TestSetGeneratorsFormat:
         ]
         set_generators_configured(meta_file, generators)
         parsed = _assert_standard_format(meta_file)
-        assert len(parsed["documentation_state"]["generators_configured"]) == 1
+        assert frozenset(
+            g["name"] for g in parsed["documentation_state"]["generators_configured"]
+        ) == frozenset({"sphinx"})
 
 
 class TestSetAuditMetadataFormat:

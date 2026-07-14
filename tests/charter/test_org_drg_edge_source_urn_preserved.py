@@ -69,7 +69,9 @@ class TestShippedEdgeSourceUrnPreservedAfterMerge:
         built_in = _built_in_with_edge("directive:alpha", "directive:beta")
         merged = merge_three_layers(built_in=built_in, org_fragments=[], project=None)
 
-        assert len(merged.edges) == 1, "edge must survive the merge"
+        assert {(e.source, e.target) for e in merged.edges} == {
+            ("directive:alpha", "directive:beta")
+        }, "edge must survive the merge"
         edge = merged.edges[0]
 
         # The declared Pydantic field must still hold the URN — not the
@@ -132,7 +134,7 @@ class TestOrgBridgeEdgeSourceUrnPreserved:
         )
 
         org_edges = list(merged.edges)
-        assert len(org_edges) == 1, "org edge must be bridged into the merged graph"
+        assert len(org_edges) == 1, "org edge must be bridged into the merged graph"  # golden-count: cardinality-is-contract
         edge = org_edges[0]
 
         # Before the fix, edge.source was "org:acme" (the pack provenance).

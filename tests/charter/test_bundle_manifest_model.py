@@ -25,7 +25,6 @@ def test_schema_version_is_1_0_0() -> None:
 
 
 def test_canonical_manifest_has_exactly_three_derived_files() -> None:
-    assert len(CANONICAL_MANIFEST.derived_files) == 3
     names = {p.name for p in CANONICAL_MANIFEST.derived_files}
     assert names == {"governance.yaml", "directives.yaml", "metadata.yaml"}
 

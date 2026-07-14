@@ -38,7 +38,9 @@ class TestArtifactClassEnum:
 
     def test_enum_has_six_values(self):
         """Verify exactly 6 artifact classes."""
-        assert len(list(ArtifactClassEnum)) == 6
+        assert frozenset(m.name for m in ArtifactClassEnum) == frozenset(
+            {"INPUT", "WORKFLOW", "OUTPUT", "EVIDENCE", "POLICY", "RUNTIME"}
+        )
 
 
 class TestExpectedArtifactSpec:
@@ -154,8 +156,8 @@ class TestExpectedArtifactManifest:
             required_always=[spec1],
             optional_always=[spec2],
         )
-        assert len(manifest.required_always) == 1
-        assert len(manifest.optional_always) == 1
+        assert [s.artifact_key for s in manifest.required_always] == ["input.spec.main"]
+        assert [s.artifact_key for s in manifest.optional_always] == ["evidence.research"]
 
     def test_create_manifest_with_step_specs(self):
         """Create a manifest with step-specific specs."""
@@ -278,8 +280,7 @@ class TestManifestRegistry:
         )
         specs = [spec1, spec2]
         blocking = ManifestRegistry.get_blocking_artifacts(specs)
-        assert len(blocking) == 1
-        assert blocking[0].artifact_key == "key1"
+        assert [b.artifact_key for b in blocking] == ["key1"]
 
     def test_get_optional_artifacts(self):
         """Get optional artifacts from manifest."""

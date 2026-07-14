@@ -218,10 +218,7 @@ class TestAPICompatibility:
     def test_get_states(self, two_phase_mission):
         pm = PhaseMission(two_phase_mission)
         states = pm.get_states()
-        assert "alpha" in states
-        assert "beta" in states
-        assert "done" in states
-        assert len(states) == 3
+        assert set(states) == {"alpha", "beta", "done"}
 
     def test_get_states_software_dev(self, software_dev_mission):
         pm = PhaseMission(software_dev_mission)
@@ -241,7 +238,9 @@ class TestLegacyDelegation:
     def test_get_workflow_phases(self, software_dev_mission):
         pm = PhaseMission(software_dev_mission)
         phases = pm.get_workflow_phases()
-        assert len(phases) == 5
+        assert frozenset(p["name"] for p in phases) == frozenset(
+            {"research", "design", "implement", "test", "review"}
+        )
         assert phases[0]["name"] == "research"
         assert phases[4]["name"] == "review"
 
@@ -341,7 +340,7 @@ class TestEdgeCases:
         pm = PhaseMission(mission)
 
         # Should have 21 states (20 phases + done)
-        assert len(pm.get_states()) == 21
+        assert set(pm.get_states()) == {f"phase_{i}" for i in range(20)} | {"done"}
         assert pm.state == "phase_0"
 
         # Advance through all phases

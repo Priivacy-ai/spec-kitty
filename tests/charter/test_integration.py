@@ -69,7 +69,7 @@ Pre-commit hooks required.
         assert "directives.yaml" in result.files_written
 
         config = load_directives_config(tmp_path)
-        assert len(config.directives) == 2
+        assert {d.id for d in config.directives} == {"DIR-001", "DIR-002"}
         assert config.directives[0].id == "DIR-001"
 
     def test_modify_charter_auto_syncs_stale_bundle(
@@ -231,7 +231,7 @@ We use pytest as our framework and mypy --strict for type checking.
 
         config = load_directives_config(tmp_path)
 
-        assert len(config.directives) == 2
+        assert {d.id for d in config.directives} == {"DIR-001", "DIR-002"}
         assert (charter_dir / "governance.yaml").exists()
         assert (charter_dir / "directives.yaml").exists()
         assert (charter_dir / "metadata.yaml").exists()
@@ -443,4 +443,4 @@ directives:
         config = load_directives_config(tmp_path)
 
         assert isinstance(config, DirectivesConfig)
-        assert len(config.directives) == 2
+        assert {d.id for d in config.directives} == {"D001", "D002"}

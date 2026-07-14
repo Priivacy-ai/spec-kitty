@@ -377,7 +377,7 @@ class TestRefreshThroughTransport:
         assert "stale_access_token" not in result.stdout
 
         # The refreshed session was persisted to storage.
-        assert len(seeded_tm.writes) == 1
+        assert len(seeded_tm.writes) == 1  # golden-count: cardinality-is-contract
         assert seeded_tm.writes[0].access_token == "refreshed_access_token"
 
         # Output confirms the connection probe succeeded.

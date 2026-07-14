@@ -107,7 +107,7 @@ def _dict_target_and_value(stmt: ast.stmt) -> tuple[ast.Name, ast.expr] | None:
     """Return ``(target, value)`` for a module-level ``NAME = {...}`` / ``NAME: T = {...}``."""
     if (
         isinstance(stmt, ast.Assign)
-        and len(stmt.targets) == 1
+        and len(stmt.targets) == 1  # golden-count: cardinality-is-contract
         and isinstance(stmt.targets[0], ast.Name)
     ):
         return stmt.targets[0], stmt.value

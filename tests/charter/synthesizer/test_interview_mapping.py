@@ -415,7 +415,7 @@ class TestResolveFullSnapshot:
         assert isinstance(result, list)
         for item in result:
             assert isinstance(item, tuple)
-            assert len(item) == 2
+            assert len(item) == 2  # golden-count: cardinality-is-contract
 
     def test_context_is_dict(self) -> None:
         """Every answer_context is a dict."""

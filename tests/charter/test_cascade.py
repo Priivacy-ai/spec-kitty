@@ -270,7 +270,7 @@ def test_deactivation_removes_exclusive_skips_shared_diamond() -> None:
 
     assert isinstance(plan, DeactivationPlan)
     assert plan.deactivate == ["tactic:private"]
-    assert len(plan.skipped_shared) == 1
+    assert {s.urn for s in plan.skipped_shared} == {"tactic:shared"}
     skip = plan.skipped_shared[0]
     assert skip.urn == "tactic:shared"
     assert skip.referencing_active_urn == "agent_profile:renata"

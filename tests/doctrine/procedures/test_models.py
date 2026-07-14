@@ -23,7 +23,11 @@ class TestProcedureModel:
         p = Procedure.model_validate(sample_procedure_data)
         assert p.id == "curation-interview"
         assert p.name == "Doctrine Curation Interview"
-        assert len(p.steps) == 3
+        assert [s.title for s in p.steps] == [
+            "Present artifact for review",
+            "Record verdict",
+            "Promote accepted artifacts",
+        ]
         assert p.entry_condition.startswith("At least one")
 
     def test_enriched_procedure(self, enriched_procedure_data: dict) -> None:
@@ -33,7 +37,10 @@ class TestProcedureModel:
         # Post-WP02: step-level `tactic_refs` has been excised from
         # ProcedureStep; relationships live in src/doctrine/graph.yaml.
         assert not hasattr(p.steps[0], "tactic_refs")
-        assert len(p.references) == 2
+        assert [r.type for r in p.references] == [
+            ProcedureReferenceType.DIRECTIVE,
+            ProcedureReferenceType.TEMPLATE,
+        ]
         assert p.references[0].type == ProcedureReferenceType.DIRECTIVE
         assert p.references[1].type == ProcedureReferenceType.TEMPLATE
 

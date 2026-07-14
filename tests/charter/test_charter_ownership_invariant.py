@@ -106,7 +106,7 @@ def test_charter_ownership_invariant(repo_root: Path) -> None:
         found = _find_defs(repo_root, fn_name)
         found_strs = [str(p) for p in found]
 
-        if len(found) == 1 and found_strs[0] == canonical:
+        if found_strs == [canonical]:
             # Invariant satisfied.
             continue
 

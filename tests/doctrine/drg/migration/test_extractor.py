@@ -185,7 +185,7 @@ class TestExtractArtifactEdges:
             if e.source == "directive:DIRECTIVE_024"
             and e.relation == Relation.REPLACES
         ]
-        assert len(d024_replaces) == 1
+        assert {e.target for e in d024_replaces} == {"directive:DIRECTIVE_025"}
         assert d024_replaces[0].target == "directive:DIRECTIVE_025"
 
     def test_paradigm_directive_refs_normalised(self) -> None:
@@ -365,7 +365,11 @@ class TestExtractActionEdges:
             if e.source == "action:software-dev/specify"
         ]
         # specify has 2 directives + 1 tactic = 3 scope edges
-        assert len(specify_edges) == 3
+        assert {e.target for e in specify_edges} == {
+            "directive:DIRECTIVE_010",
+            "directive:DIRECTIVE_003",
+            "tactic:requirements-validation-workflow",
+        }
 
     def test_agent_profile_scope_edges(self) -> None:
         """Action indexes may scope built-in agent profiles."""
@@ -404,7 +408,15 @@ class TestExtractActionEdges:
             e for e in edges
             if e.source == "action:software-dev/tasks"
         ]
-        assert len(tasks_edges) == 7
+        assert {e.target for e in tasks_edges} == {
+            "directive:DIRECTIVE_003",
+            "directive:DIRECTIVE_010",
+            "directive:DIRECTIVE_024",
+            "tactic:adr-drafting-workflow",
+            "tactic:problem-decomposition",
+            "tactic:requirements-validation-workflow",
+            "procedure:issue-triage-state-machine",
+        }
 
     def test_nonexistent_doctrine_root(self) -> None:
         nodes, edges = extract_action_edges(Path("/nonexistent"))

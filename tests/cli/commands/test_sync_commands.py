@@ -858,7 +858,7 @@ def test_sync_now_posts_exactly_once_and_drains_body(
     assert result.exit_code == 0, result.output
 
     # Exactly ONE POST, to the batch endpoint (no legacy + dispatch double-POST).
-    assert len(posts) == 1, posts
+    assert len(posts) == 1, posts  # golden-count: cardinality-is-contract
     assert posts[0].endswith(BATCH_ENDPOINT_PATH)
     # Body uploads still drained.
     assert drained["body"] is True

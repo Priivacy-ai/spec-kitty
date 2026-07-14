@@ -22,7 +22,7 @@ class TestProcedureRepository:
     def test_list_all_from_shipped(self, tmp_procedure_dir: Path) -> None:
         repo = ProcedureRepository(built_in_dir=tmp_procedure_dir)
         procedures = repo.list_all()
-        assert len(procedures) == 1
+        assert {p.id for p in procedures} == {"curation-interview"}
         assert procedures[0].id == "curation-interview"
 
     def test_get_by_id(self, tmp_procedure_dir: Path) -> None:

@@ -174,7 +174,7 @@ def test_changelog_includes_accepted_missions(tmp_path: Path) -> None:
 
     assert "Mission A" in changelog or "010-mission-a" in changelog
     assert "Mission B" in changelog or "011-mission-b" in changelog
-    assert len(slugs) == 2
+    assert set(slugs) == {"010-mission-a", "011-mission-b"}
 
 
 def test_changelog_excludes_missions_with_no_accepted_wps(tmp_path: Path) -> None:

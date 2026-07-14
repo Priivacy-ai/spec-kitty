@@ -218,11 +218,11 @@ def test_all_dataclasses_are_hashable() -> None:
 
     # Usable as dict keys
     d = {cs: "code_signals", entry: "entry", snap: "snap", bundle: "bundle"}
-    assert len(d) == 4
+    assert len(d) == 4  # golden-count: cardinality-is-contract
 
     # Usable in sets
     s = {cs, entry, snap, bundle}
-    assert len(s) == 4
+    assert len(s) == 4  # golden-count: cardinality-is-contract
 
 
 def test_identical_bundles_have_same_hash() -> None:

@@ -223,4 +223,6 @@ frontend/
         # Should pass - only 2 markers
         is_unfilled, markers = detect_unfilled_plan(plan_path)
         assert is_unfilled is False
-        assert len(markers) == 2  # Only 2 markers present
+        assert frozenset(markers) == frozenset(
+            {"or NEEDS CLARIFICATION", "[Gates determined based on charter file]"}
+        )

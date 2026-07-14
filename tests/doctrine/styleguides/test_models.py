@@ -46,7 +46,7 @@ class TestStyleguide:
         sg = Styleguide.model_validate(sample_styleguide_data)
         assert sg.id == "test-style"
         assert sg.scope == StyleguideScope.CODE
-        assert len(sg.principles) == 1
+        assert set(sg.principles) == {"Write clear code"}
         assert sg.anti_patterns == []
         assert sg.quality_test is None
         assert sg.references == []
@@ -54,11 +54,11 @@ class TestStyleguide:
     def test_enriched_construction(self, enriched_styleguide_data: dict) -> None:
         sg = Styleguide.model_validate(enriched_styleguide_data)
         assert sg.scope == StyleguideScope.TESTING
-        assert len(sg.principles) == 2
-        assert len(sg.anti_patterns) == 1
+        assert set(sg.principles) == {"Test first", "Test often"}
+        assert {ap.name for ap in sg.anti_patterns} == {"Test After"}
         assert sg.anti_patterns[0].name == "Test After"
         assert sg.quality_test is not None
-        assert len(sg.references) == 1
+        assert set(sg.references) == {"docs/testing.md"}
 
     def test_frozen_model(self, sample_styleguide_data: dict) -> None:
         sg = Styleguide.model_validate(sample_styleguide_data)

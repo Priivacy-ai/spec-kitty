@@ -308,14 +308,14 @@ def test_list_fields_merged_by_union(us6_repo: AgentProfileRepository) -> None:
     assert "D010" in directive_codes
     assert "D020" in directive_codes
     assert "D030" in directive_codes
-    assert len(directive_codes) == 3
+    assert set(directive_codes) == {"D010", "D020", "D030"}
 
     cap_names = resolved.capabilities
     # Parent has base-cap-1, base-cap-2; child adds child-cap-1 → all three present
     assert "base-cap-1" in cap_names
     assert "base-cap-2" in cap_names
     assert "child-cap-1" in cap_names
-    assert len(cap_names) == 3
+    assert set(cap_names) == {"base-cap-1", "base-cap-2", "child-cap-1"}
 
 
 def test_excluding_value_removed(us6_repo: AgentProfileRepository) -> None:

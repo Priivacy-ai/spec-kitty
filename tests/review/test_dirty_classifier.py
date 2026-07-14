@@ -58,7 +58,7 @@ def test_other_wp_task_files_are_benign():
     ]
     blocking, benign = _classify(paths, wp_id="WP01")
     assert blocking == []
-    assert len(benign) == 3
+    assert set(benign) == set(paths)
 
 
 # ---------------------------------------------------------------------------
@@ -112,7 +112,7 @@ def test_kittify_paths_are_benign():
     ]
     blocking, benign = _classify(paths)
     assert blocking == []
-    assert len(benign) == 3
+    assert set(benign) == set(paths)
 
 
 # ---------------------------------------------------------------------------

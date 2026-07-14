@@ -14,7 +14,7 @@ class TestMissionStepContractRepository:
     def test_list_all_from_shipped(self, tmp_contract_dir: Path) -> None:
         repo = MissionStepContractRepository(built_in_dir=tmp_contract_dir)
         contracts = repo.list_all()
-        assert len(contracts) == 1
+        assert {c.id for c in contracts} == {"test-implement"}
         assert contracts[0].id == "test-implement"
 
     def test_get_by_id(self, tmp_contract_dir: Path) -> None:

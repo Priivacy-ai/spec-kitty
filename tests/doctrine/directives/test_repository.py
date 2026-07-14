@@ -15,7 +15,7 @@ class TestDirectiveRepository:
         """list_all returns all directives from the given directory."""
         repo = DirectiveRepository(built_in_dir=tmp_directive_dir)
         directives = repo.list_all()
-        assert len(directives) == 1
+        assert {d.id for d in directives} == {"DIRECTIVE_999"}
         assert directives[0].id == "DIRECTIVE_999"
 
     def test_get_by_full_id(self, tmp_directive_dir: Path) -> None:
@@ -47,7 +47,7 @@ class TestDirectiveRepository:
     def test_load_from_custom_shipped_dir(self, tmp_directive_dir: Path) -> None:
         repo = DirectiveRepository(built_in_dir=tmp_directive_dir)
         directives = repo.list_all()
-        assert len(directives) == 1
+        assert {d.id for d in directives} == {"DIRECTIVE_999"}
         assert directives[0].id == "DIRECTIVE_999"
 
     def test_malformed_yaml_skipped_with_warning(self, tmp_path: Path) -> None:

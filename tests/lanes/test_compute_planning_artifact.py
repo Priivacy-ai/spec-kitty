@@ -104,10 +104,7 @@ class TestCodeWPsStillGetNormalLanes:
         }
         result = compute_lanes(graph, manifests, "079-test")
         code_lanes = [l for l in result.lanes if l.lane_id != PLANNING_LANE_ID]
-        assert len(code_lanes) == 2
-        code_lane_ids = {l.lane_id for l in code_lanes}
-        assert "lane-a" in code_lane_ids
-        assert "lane-b" in code_lane_ids
+        assert {l.lane_id for l in code_lanes} == {"lane-a", "lane-b"}
 
     def test_code_lane_has_non_empty_write_scope(self):
         """Code lanes must carry their owned_files in write_scope."""

@@ -47,7 +47,9 @@ class TestSharedParentDirs:
             _lane("lane-b", ["WP02"], ["templates/dashboard.html"]),
         ])
         report = compute_risk_report(manifest)
-        assert len(report.lane_pair_risks) == 1
+        assert frozenset(
+            (r.lane_a, r.lane_b) for r in report.lane_pair_risks
+        ) == frozenset({("lane-a", "lane-b")})
         assert report.lane_pair_risks[0].shared_parent_dirs == ()
 
 

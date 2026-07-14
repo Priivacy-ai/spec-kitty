@@ -199,17 +199,36 @@ def test_emit_does_not_call_transactional_emit_directly(
     assert seen == [slug]
 
 
-def test_command_module_has_no_direct_transactional_reference() -> None:
-    """Static guard: the command module body has no direct transactional call.
+def test_emit_persists_transition_event_to_status_events_log(tmp_path: Path) -> None:
+    """Observable-contract replacement for the source-as-text wiring guard (WP08).
 
-    Reads the source of the status command module and asserts that the
-    ``emit_status_transition_transactional`` symbol is not referenced as a call
-    anywhere in it (FR-004 review guidance).
+    The retired guard read the command module's *source text* and asserted a
+    banned substring was absent -- a fake could satisfy it while still routing
+    around the aggregate at runtime. This test exercises ``emit`` end-to-end
+    with no ``@patch`` on the aggregate/transactional path (only the CLI's
+    project-root/slug resolution boundary is patched, as elsewhere in this
+    file) and asserts the transition actually landed in the persisted
+    ``status.events.jsonl`` event log -- proof the command reaches the real
+    write path through ``MissionStatus.transition`` rather than merely lacking
+    a string in its source.
     """
-    import specify_cli.cli.commands.agent.status as status_cmd
+    slug = "017-test-feature"
+    repo = _make_repo_with_mission(tmp_path, slug)
 
-    source = Path(status_cmd.__file__).read_text(encoding="utf-8")
-    assert "emit_status_transition_transactional(" not in source
+    exit_code, payload = _emit_via_command(repo, slug)
+    assert exit_code == 0, payload
+
+    events_path = repo / "kitty-specs" / slug / "status.events.jsonl"
+    assert events_path.exists(), "expected the emit command to persist an event log"
+    lines = [line for line in events_path.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert lines, "expected at least one persisted event"
+    persisted_event = json.loads(lines[-1])
+
+    assert persisted_event["wp_id"] == "WP01"
+    assert persisted_event["from_lane"] == "planned"
+    assert persisted_event["to_lane"] == "claimed"
+    assert persisted_event["actor"] == "codex"
+    assert persisted_event["event_id"]
 
 
 # ---------------------------------------------------------------------------

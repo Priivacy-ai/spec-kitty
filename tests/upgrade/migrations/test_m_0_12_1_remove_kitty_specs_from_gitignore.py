@@ -60,8 +60,7 @@ kitty-specs/
 .kittify/
 """)
         entries = find_blocking_entries(gitignore)
-        assert len(entries) == 1
-        assert entries[0] == (4, "kitty-specs/")
+        assert entries == [(4, "kitty-specs/")]
 
     def test_finds_multiple_blocking_entries(self, tmp_path: Path):
         """Should find all blocking entries."""
@@ -71,9 +70,7 @@ node_modules/
 /kitty-specs/
 """)
         entries = find_blocking_entries(gitignore)
-        assert len(entries) == 2
-        assert entries[0] == (1, "kitty-specs")
-        assert entries[1] == (3, "/kitty-specs/")
+        assert entries == [(1, "kitty-specs"), (3, "/kitty-specs/")]
 
     def test_ignores_subpath_patterns(self, tmp_path: Path):
         """Should ignore patterns that only block specific subpaths."""
@@ -261,9 +258,7 @@ class TestRealWorldScenarios:
 
         # Should find at line 105
         entries = find_blocking_entries(gitignore)
-        assert len(entries) == 1
-        assert entries[0][0] == 105
-        assert entries[0][1] == "kitty-specs/"
+        assert entries == [(105, "kitty-specs/")]
 
         # Should fix
         result = migration.apply(tmp_path)

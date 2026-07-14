@@ -38,8 +38,7 @@ def test_classify_tracked_modification_is_offending() -> None:
     """' M' lines for tracked files are offending."""
     lines = [" M src/specify_cli/some_module.py"]
     offending, skipped = _classify_porcelain_lines(lines, set())
-    assert len(offending) == 1
-    assert " M src/specify_cli/some_module.py" in offending
+    assert offending == [" M src/specify_cli/some_module.py"]
     assert skipped == 0
 
 
@@ -47,8 +46,7 @@ def test_classify_mixed_untracked_and_tracked() -> None:
     """Mix of ?? and ' M': tracked line is offending, untracked is not."""
     lines = ["?? .claude/", " M src/specify_cli/some_module.py"]
     offending, skipped = _classify_porcelain_lines(lines, set())
-    assert len(offending) == 1
-    assert " M src/specify_cli/some_module.py" in offending
+    assert offending == [" M src/specify_cli/some_module.py"]
     assert skipped == 1
 
 
@@ -56,8 +54,7 @@ def test_classify_deletion_is_offending() -> None:
     """' D' lines are offending."""
     lines = [" D src/specify_cli/old_module.py"]
     offending, skipped = _classify_porcelain_lines(lines, set())
-    assert len(offending) == 1
-    assert " D src/specify_cli/old_module.py" in offending
+    assert offending == [" D src/specify_cli/old_module.py"]
     assert skipped == 0
 
 
@@ -74,7 +71,7 @@ def test_classify_empty_lines_ignored() -> None:
     """Empty and whitespace-only lines are silently dropped."""
     lines = ["", "   ", " M src/specify_cli/some_module.py"]
     offending, skipped = _classify_porcelain_lines(lines, set())
-    assert len(offending) == 1
+    assert offending == [" M src/specify_cli/some_module.py"]
 
 
 def test_classify_malformed_lines_ignored() -> None:

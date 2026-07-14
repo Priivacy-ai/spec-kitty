@@ -269,7 +269,9 @@ async def test_concurrent_refresh_serializes_through_machine_lock(
         if record.name == "specify_cli.auth.token_manager"
         and record.message.startswith("refresh_transaction outcome=")
     ]
-    assert len(outcomes) == 2, f"Expected 2 outcome records, got {outcomes!r}"
+    assert len(outcomes) == 2, (  # golden-count: cardinality-is-contract
+        f"Expected 2 outcome records, got {outcomes!r}"
+    )
 
     # The first to complete must have done the network refresh; the
     # second must have adopted the persisted rotation.

@@ -32,4 +32,4 @@ def test_generic_agent_references_directive_028() -> None:
 
     directive_codes = [ref.code for ref in profile.directive_references]
     assert "028" in directive_codes, f"Expected code '028' in directive_references, got: {directive_codes}"
-    assert len(directive_codes) == 1, f"Expected exactly 1 directive reference, got: {directive_codes}"
+    assert directive_codes == ["028"], f"Expected exactly 1 directive reference, got: {directive_codes}"

@@ -61,7 +61,9 @@ def _findings_by_rule(findings: list[FreshnessFinding]) -> Counter[str]:
 
 def test_load_inventory_clean(clean_workspace: Path) -> None:
     entries = load_inventory(clean_workspace / "inventory.yaml")
-    assert len(entries) == 3
+    assert frozenset(e.path for e in entries) == frozenset(
+        {"docs/current/index.md", "docs/archive/legacy.md", "docs/migrations/from-2x.md"}
+    )
     assert entries[0].path == "docs/current/index.md"
     assert entries[0].tag is VersionTag.CURRENT
     assert entries[0].divio_type is DivioType.HOW_TO

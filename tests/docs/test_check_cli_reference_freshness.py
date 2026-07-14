@@ -176,8 +176,7 @@ class TestRules:
             saas_sync_enabled=True,
         )
         missing = [f for f in findings if f.rule_id == "REF-MISSING"]
-        assert len(missing) == 1
-        assert missing[0].path == ("bar", "baz")
+        assert frozenset(f.path for f in missing) == frozenset({("bar", "baz")})
 
     def test_extra_reference_emits_ref_extra(self) -> None:
         findings = freshness.evaluate_reference(
@@ -187,8 +186,7 @@ class TestRules:
             saas_sync_enabled=True,
         )
         extra = [f for f in findings if f.rule_id == "REF-EXTRA"]
-        assert len(extra) == 1
-        assert extra[0].path == ("ghost-cmd",)
+        assert frozenset(f.path for f in extra) == frozenset({("ghost-cmd",)})
 
     def test_saas_sync_off_short_circuits(self) -> None:
         findings = freshness.evaluate_reference(
@@ -304,7 +302,7 @@ class TestRules:
             saas_sync_enabled=True,
         )
         drift = [f for f in findings if f.rule_id == "HELP-DRIFT"]
-        assert len(drift) == 1
+        assert frozenset(f.path for f in drift) == frozenset({("foo",)})
         assert drift[0].severity == "warning"
 
     def test_help_drift_error_in_strict_mode(self) -> None:

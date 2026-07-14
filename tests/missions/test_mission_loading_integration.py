@@ -403,5 +403,4 @@ class TestBackwardCompatibility:
         """Mission.get_workflow_phases() still works."""
         m = Mission(v0_mission_dir)
         phases = m.get_workflow_phases()
-        assert len(phases) == 2
-        assert phases[0]["name"] == "research"
+        assert [p["name"] for p in phases] == ["research", "implement"]

@@ -78,7 +78,7 @@ class TestEmitProjectLayer:
         target = _make_target(kind="directive", artifact_id="PROJECT_001")
         graph = emit_project_layer([target], "0.1.0", shipped)
 
-        assert len(graph.nodes) == 1
+        assert {n.urn for n in graph.nodes} == {"directive:PROJECT_001"}
         assert graph.nodes[0].urn == "directive:PROJECT_001"
         assert graph.nodes[0].kind == NodeKind.DIRECTIVE
 
@@ -91,7 +91,7 @@ class TestEmitProjectLayer:
         )
         graph = emit_project_layer([target], "0.1.0", shipped)
 
-        assert len(graph.nodes) == 1
+        assert {n.urn for n in graph.nodes} == {"tactic:how-we-apply-directive-003"}
         assert graph.nodes[0].urn == "tactic:how-we-apply-directive-003"
         assert graph.nodes[0].kind == NodeKind.TACTIC
 
@@ -150,7 +150,10 @@ class TestEmitProjectLayer:
             ),
         ]
         graph = emit_project_layer(targets, "0.1.0", shipped)
-        assert len(graph.nodes) == 2
+        assert {n.urn for n in graph.nodes} == {
+            "directive:PROJECT_001",
+            "tactic:how-we-apply-p1",
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -171,7 +174,9 @@ class TestEdgeDerivedFromSourceUrns:
             source_section=None,
         )
         graph = emit_project_layer([target], "0.1.0", shipped)
-        assert len(graph.edges) == 1
+        assert {(e.source, e.target, e.relation) for e in graph.edges} == {
+            ("directive:PROJECT_001", "directive:DIRECTIVE_003", Relation.REQUIRES)
+        }
         edge = graph.edges[0]
         assert edge.source == "directive:PROJECT_001"
         assert edge.target == "directive:DIRECTIVE_003"
@@ -189,7 +194,9 @@ class TestEdgeDerivedFromSourceUrns:
             source_section=None,
         )
         graph = emit_project_layer([target], "0.1.0", shipped)
-        assert len(graph.edges) == 1
+        assert {(e.source, e.target, e.relation) for e in graph.edges} == {
+            ("tactic:how-we-apply-003", "directive:DIRECTIVE_003", Relation.APPLIES)
+        }
         assert graph.edges[0].relation == Relation.APPLIES
 
     def test_multiple_source_urns_produce_multiple_edges(self) -> None:
@@ -206,7 +213,10 @@ class TestEdgeDerivedFromSourceUrns:
             source_section=None,
         )
         graph = emit_project_layer([target], "0.1.0", shipped)
-        assert len(graph.edges) == 2
+        assert {(e.source, e.target, e.relation) for e in graph.edges} == {
+            ("directive:PROJECT_001", "directive:DIRECTIVE_003", Relation.REQUIRES),
+            ("directive:PROJECT_001", "directive:DIRECTIVE_010", Relation.REQUIRES),
+        }
 
     def test_no_source_urns_produces_no_edges(self) -> None:
         shipped = _make_shipped_graph()
@@ -297,7 +307,7 @@ class TestAdditiveOnlyEnforcement:
         )
         # Should NOT raise
         graph = emit_project_layer([target], "0.1.0", shipped)
-        assert len(graph.nodes) == 1
+        assert {n.urn for n in graph.nodes} == {"directive:PROJECT_001"}
 
 
 # ---------------------------------------------------------------------------
@@ -326,7 +336,7 @@ class TestPersistRoundTrip:
         assert written_path.exists()
 
         loaded = load_graph(written_path)
-        assert len(loaded.nodes) == 1
+        assert {n.urn for n in loaded.nodes} == {"directive:PROJECT_001"}
         assert loaded.nodes[0].urn == "directive:PROJECT_001"
         assert loaded.generated_by == graph.generated_by
 

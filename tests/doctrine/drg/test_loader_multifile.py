@@ -117,7 +117,7 @@ def test_directory_multiple_fragments(tmp_path: Path) -> None:
         "directive:DIRECTIVE_001",
         "tactic:tactic-001",
     }
-    assert len(graph.edges) == 1
+    assert {e.source for e in graph.edges} == {"tactic:tactic-001"}
     assert graph.edges[0].source == "tactic:tactic-001"
 
 

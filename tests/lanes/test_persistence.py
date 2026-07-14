@@ -51,7 +51,7 @@ def test_write_and_read(tmp_path: Path) -> None:
     restored = read_lanes_json(tmp_path)
     assert restored is not None
     assert restored.mission_slug == "010-feature"
-    assert len(restored.lanes) == 1
+    assert [lane.lane_id for lane in restored.lanes] == ["lane-a"]
     assert restored.lanes[0].wp_ids == ("WP01", "WP02")
 
 

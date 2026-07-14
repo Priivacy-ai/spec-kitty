@@ -92,12 +92,15 @@ def test_phase3_evidence_bundle_structure() -> None:
     assert bundle.code_signals.scope_tag == "python"
     assert "django" in bundle.code_signals.frameworks
     assert "pytest" in bundle.code_signals.test_frameworks
-    assert len(bundle.url_list) == 2
+    assert bundle.url_list == (
+        "https://docs.djangoproject.com/",
+        "https://docs.pytest.org/",
+    )
     assert "https://docs.djangoproject.com/" in bundle.url_list
     assert bundle.corpus_snapshot is not None, "corpus_snapshot must be populated"
     assert bundle.corpus_snapshot.snapshot_id == "python-v1.0.0"
     assert bundle.corpus_snapshot.profile_key == "python"
-    assert len(bundle.corpus_snapshot.entries) == 1
+    assert {e.topic for e in bundle.corpus_snapshot.entries} == {"testing philosophy"}
     assert bundle.corpus_snapshot.entries[0].topic == "testing philosophy"
 
 

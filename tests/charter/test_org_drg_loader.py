@@ -308,7 +308,7 @@ class TestLoadOrgDrg:
             ),
         )
         fragments = load_org_drg(tmp_path)
-        assert len(fragments) == 1
+        assert {f.pack_name for f in fragments} == {"rel-pack"}
         assert "rel-pack" in fragments[0].source_ref
 
     def test_operator_config_wins_over_pack_side_fields(self, tmp_path: Path) -> None:
@@ -529,7 +529,7 @@ class TestMergeThreeLayers:
         org_edges = [
             e for e in merged.edges if getattr(e, "provenance", None) == "org:edge-pack"
         ]
-        assert len(org_edges) == 1
+        assert {e.relation for e in org_edges} == {Relation.REQUIRES}
         assert org_edges[0].relation == Relation.REQUIRES
 
     def test_org_to_shipped_edge_targets_synthesized_urn(self) -> None:
@@ -563,7 +563,9 @@ class TestMergeThreeLayers:
         cross_edges = [
             e for e in merged.edges if e.target == "directive:caveman-comments"
         ]
-        assert len(cross_edges) == 1
+        assert {(e.source, e.target, e.relation) for e in cross_edges} == {
+            ("directive:policy", "directive:caveman-comments", Relation.APPLIES)
+        }
 
     def test_edge_with_unknown_relation_raises(self) -> None:
         """FR-003 / C0.3 (mission

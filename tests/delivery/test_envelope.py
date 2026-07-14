@@ -108,7 +108,7 @@ def test_journal_stores_full_envelope_so_dispatch_posts_contract_event(
     # The receiver received exactly the per-event wire object the dispatcher built
     # from the journal BLOB — it must carry the WHOLE envelope, not the inner payload.
     received = receiver.received_events()
-    assert len(received) == 1
+    assert len(received) == 1  # golden-count: cardinality-is-contract
     wire = dict(received[0].payload)
     missing = _REQUIRED_ENVELOPE_FIELDS - wire.keys()
     assert not missing, f"wire event missing contract envelope fields: {missing}"

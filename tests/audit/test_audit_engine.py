@@ -144,8 +144,7 @@ def test_mission_filter_scoping(tmp_path: Path) -> None:
         )
     )
 
-    assert len(report.missions) == 1
-    assert report.missions[0].mission_slug == "001-alpha"
+    assert frozenset(m.mission_slug for m in report.missions) == frozenset({"001-alpha"})
     assert report.repo_summary["total_missions"] == 1
 
 
@@ -211,7 +210,9 @@ def test_corrupt_jsonl_does_not_crash_engine(tmp_path: Path) -> None:
 
     report = run_audit(_options(tmp_path))
 
-    assert len(report.missions) == 1
+    assert frozenset(m.mission_slug for m in report.missions) == frozenset(
+        {"bad-events-mission"}
+    )
     result = report.missions[0]
     codes = {f.code for f in result.findings}
 
@@ -229,7 +230,9 @@ def test_non_object_meta_and_status_json_do_not_crash_engine(tmp_path: Path) -> 
 
     report = run_audit(_options(tmp_path))
 
-    assert len(report.missions) == 1
+    assert frozenset(m.mission_slug for m in report.missions) == frozenset(
+        {"non-object-json-mission"}
+    )
     result = report.missions[0]
     findings_by_artifact = {
         (finding.artifact_path, finding.code): finding for finding in result.findings
@@ -322,7 +325,9 @@ def test_performance_204_missions(tmp_path: Path) -> None:
     report = run_audit(opts)
     elapsed = time.perf_counter() - start
 
-    assert len(report.missions) == 204, f"Expected 204 missions, got {len(report.missions)}"
+    assert len(report.missions) == 204, (  # golden-count: cardinality-is-contract
+        f"Expected 204 missions, got {len(report.missions)}"
+    )
     assert elapsed < 30.0, f"204-mission audit took {elapsed:.2f}s, expected < 30s"
 
 

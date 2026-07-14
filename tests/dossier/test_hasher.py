@@ -28,9 +28,9 @@ class TestHashFile:
         hashes = [hash_file(test_file) for _ in range(10)]
 
         # All hashes should be identical
-        assert len(set(hashes)) == 1, "All 10 hashes should be identical"
+        assert len(set(hashes)) == 1, "All 10 hashes should be identical"  # golden-count: cardinality-is-contract
         # Verify it's a 64-char hex string (SHA256)
-        assert len(hashes[0]) == 64
+        assert len(hashes[0]) == 64  # golden-count: cardinality-is-contract
         assert all(c in "0123456789abcdef" for c in hashes[0])
 
     def test_hash_different_files(self, tmp_path):
@@ -311,7 +311,7 @@ class TestHasher:
         parity = hasher.compute_parity_hash()
 
         # Should be SHA256 of the single hash
-        assert len(parity) == 64
+        assert len(parity) == 64  # golden-count: cardinality-is-contract
         assert all(c in "0123456789abcdef" for c in parity)
 
     def test_hasher_duplicate_hashes_included(self):
@@ -377,7 +377,7 @@ class TestHasher:
         hasher.add_artifact_hash("a" * 64)
         parity = hasher.compute_parity_hash()
 
-        assert len(parity) == 64
+        assert len(parity) == 64  # golden-count: cardinality-is-contract
         assert all(c in "0123456789abcdef" for c in parity)
 
     def test_hasher_different_hash_lists_different_parity(self):
@@ -400,7 +400,7 @@ class TestHasher:
         hasher.add_artifact_hash("hash123")
 
         parity = hasher.compute_parity_hash()
-        assert len(parity) == 64  # Result is still SHA256
+        assert len(parity) == 64  # Result is still SHA256  # golden-count: cardinality-is-contract
 
     def test_hasher_workflow(self):
         """Complete workflow: add hashes, compute parity, verify determinism."""

@@ -526,7 +526,7 @@ class TestRunUpgradeUxFourChoices:
         assert outcome.guidance_only is False
         assert runs == [1]
         # Cache mutated.
-        assert len(cache_state["writes"]) == 1
+        assert len(cache_state["writes"]) == 1  # golden-count: cardinality-is-contract
         written = cache_state["writes"][0]
         assert written.remote_version_seen == "2.0"
         assert written.snooze_step is None

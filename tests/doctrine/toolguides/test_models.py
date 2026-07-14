@@ -18,7 +18,7 @@ class TestToolguide:
     def test_enriched_construction(self, enriched_toolguide_data: dict) -> None:
         toolguide = Toolguide.model_validate(enriched_toolguide_data)
         assert toolguide.tool == "git"
-        assert len(toolguide.commands) == 2
+        assert set(toolguide.commands) == {"git", "spec-kitty"}
 
     def test_frozen_model(self, sample_toolguide_data: dict) -> None:
         toolguide = Toolguide.model_validate(sample_toolguide_data)

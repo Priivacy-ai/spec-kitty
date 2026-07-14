@@ -19,15 +19,32 @@ pytestmark = pytest.mark.fast
 
 
 class TestLaneEnum:
-    def test_lane_enum_has_nine_values(self) -> None:
+    def test_lane_member_names_exact(self) -> None:
         """10-lane model: the 9 display lanes plus the non-display 'genesis' lane.
 
         'genesis' models the pre-finalize state of a WP (created but not yet
         seeded into the lane lifecycle). It is excluded from CANONICAL_LANES and
         never the current lane of a materialized WP, but it is a valid enum
         member and from_lane.
+
+        Asserts the exact frozenset of member *names* (the canonical identity),
+        not a golden count: adding, removing, or renaming a lane forces a
+        content edit here rather than silently passing at an unchanged count.
         """
-        assert len(Lane) == 10
+        assert frozenset(member.name for member in Lane) == frozenset(
+            {
+                "GENESIS",
+                "PLANNED",
+                "CLAIMED",
+                "IN_PROGRESS",
+                "FOR_REVIEW",
+                "IN_REVIEW",
+                "APPROVED",
+                "DONE",
+                "BLOCKED",
+                "CANCELED",
+            }
+        )
 
     def test_lane_enum_string_values(self) -> None:
         expected = {

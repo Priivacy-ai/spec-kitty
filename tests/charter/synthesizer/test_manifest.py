@@ -170,8 +170,8 @@ def test_manifest_round_trip(tmp_path: Path, guard: PathGuard) -> None:
     assert loaded.adapter_id == "fixture"
     assert loaded.adapter_version == "1.0.0"
     assert loaded.synthesizer_version == "3.2.0a5"
-    assert len(loaded.manifest_hash) == 64
-    assert len(loaded.artifacts) == 1
+    assert len(loaded.manifest_hash) == 64  # golden-count: cardinality-is-contract
+    assert {a.slug for a in loaded.artifacts} == {"my-tactic"}
     assert loaded.artifacts[0].kind == "tactic"
     assert loaded.artifacts[0].slug == "my-tactic"
     assert loaded.artifacts[0].content_hash == "a" * 64
@@ -507,7 +507,7 @@ def test_manifest_artifact_ordering(tmp_path: Path, guard: PathGuard) -> None:
     dump_yaml(manifest, out_path, guard)
     loaded = load_yaml(out_path)
     # Verify round-trip preserves the order
-    assert len(loaded.artifacts) == 3
+    assert [a.slug for a in loaded.artifacts] == ["z-tactic", "a-directive", "a-tactic"]
 
 
 # ---------------------------------------------------------------------------

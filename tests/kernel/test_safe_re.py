@@ -521,8 +521,7 @@ class TestSplitMutationKills:
         (one split). With maxsplit=0 (mutant behaviour) we would get 3.
         """
         parts = re.split(r",", "a,b,c", maxsplit=1)  # type: ignore[attr-defined]
-        assert parts == ["a", "b,c"]
-        assert len(parts) == 2  # exactly one split happened
+        assert parts == ["a", "b,c"]  # exactly one split happened
 
     def test_split_with_maxsplit_two_stops_after_second_match(self) -> None:
         """Boundary-pair upper bound: maxsplit=2 over three commas yields
@@ -530,7 +529,6 @@ class TestSplitMutationKills:
         """
         parts = re.split(r",", "a,b,c,d,e", maxsplit=2)  # type: ignore[attr-defined]
         assert parts == ["a", "b", "c,d,e"]
-        assert len(parts) == 3
 
     def test_split_with_maxsplit_zero_splits_all(self) -> None:
         """Boundary-pair reference: maxsplit=0 means 'no limit'. This is
@@ -550,7 +548,6 @@ class TestSplitMutationKills:
         # Original (flags forwarded): both X and x are separators → 3 chunks.
         # Mutant (flags dropped): only X is a separator → 2 chunks.
         assert parts == ["a", "b", "c"]
-        assert len(parts) == 3
 
     def test_split_without_flag_remains_case_sensitive(self) -> None:
         """Reference assertion for Non-Identity Inputs — confirms the
@@ -655,7 +652,7 @@ class TestSubnMutationKills:
         """
         out = re.subn(r"\d+", "N", "1 2")  # type: ignore[attr-defined]
         assert isinstance(out, tuple)
-        assert len(out) == 2
+        assert len(out) == 2  # golden-count: cardinality-is-contract (2-tuple structure)
         new_str, n = out
         assert isinstance(new_str, str)
         assert isinstance(n, int)

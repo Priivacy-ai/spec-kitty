@@ -84,7 +84,9 @@ def test_two_urls_same_scope_yield_two_targets(registry: SqliteDeliveryTargetReg
 
     assert a.url_hash != b.url_hash
     assert a.target_id != b.target_id
-    assert len(registry.list_targets()) == 2
+    assert frozenset(t.target_id for t in registry.list_targets()) == frozenset(
+        {a.target_id, b.target_id}
+    )
 
 
 def test_same_url_same_scope_is_idempotent(registry: SqliteDeliveryTargetRegistry) -> None:
@@ -92,15 +94,19 @@ def test_same_url_same_scope_is_idempotent(registry: SqliteDeliveryTargetRegistr
     again = registry.register(url=URL_A, team_slug=TEAM, user_email=EMAIL)
 
     assert first.target_id == again.target_id
-    assert len(registry.list_targets()) == 1
+    assert frozenset(t.target_id for t in registry.list_targets()) == frozenset(
+        {first.target_id}
+    )
 
 
 def test_distinct_scope_yields_distinct_target(registry: SqliteDeliveryTargetRegistry) -> None:
-    registry.register(url=URL_A, team_slug=TEAM, user_email=EMAIL)
-    registry.register(url=URL_A, team_slug="other-team", user_email=EMAIL)
-    registry.register(url=URL_A, team_slug=TEAM, user_email="someone@else.example")
+    t1 = registry.register(url=URL_A, team_slug=TEAM, user_email=EMAIL)
+    t2 = registry.register(url=URL_A, team_slug="other-team", user_email=EMAIL)
+    t3 = registry.register(url=URL_A, team_slug=TEAM, user_email="someone@else.example")
 
-    assert len(registry.list_targets()) == 3
+    assert frozenset(t.target_id for t in registry.list_targets()) == frozenset(
+        {t1.target_id, t2.target_id, t3.target_id}
+    )
 
 
 def test_anonymous_scope_none_and_empty_collapse(registry: SqliteDeliveryTargetRegistry) -> None:
@@ -108,7 +114,9 @@ def test_anonymous_scope_none_and_empty_collapse(registry: SqliteDeliveryTargetR
     empty_scope = registry.register(url=URL_A, team_slug="", user_email="")
 
     assert none_scope.target_id == empty_scope.target_id
-    assert len(registry.list_targets()) == 1
+    assert frozenset(t.target_id for t in registry.list_targets()) == frozenset(
+        {none_scope.target_id}
+    )
     assert none_scope.team_slug == ""
     assert none_scope.user_email == ""
 
@@ -136,7 +144,9 @@ def test_cosmetic_url_variants_canonicalize_equal(variant: str) -> None:
 def test_cosmetic_variants_register_as_one_target(registry: SqliteDeliveryTargetRegistry) -> None:
     for variant in ("https://x.example", "https://x.example/", "https://X.EXAMPLE:443"):
         registry.register(url=variant, team_slug=TEAM, user_email=EMAIL)
-    assert len(registry.list_targets()) == 1
+    assert frozenset(t.url_hash for t in registry.list_targets()) == frozenset(
+        {compute_url_hash(canonicalize_url("https://x.example"))}
+    )
 
 
 def test_distinct_endpoints_hash_distinct() -> None:
@@ -146,7 +156,7 @@ def test_distinct_endpoints_hash_distinct() -> None:
 def test_url_hash_is_one_way_digest() -> None:
     digest = compute_url_hash(canonicalize_url(URL_A))
     assert URL_A not in digest
-    assert len(digest) == 64  # sha256 hexdigest
+    assert len(digest) == 64  # golden-count: cardinality-is-contract (sha256 hexdigest)
 
 
 @pytest.mark.parametrize(
@@ -232,7 +242,9 @@ def test_new_metadata_updates_provenance_without_forking(registry: SqliteDeliver
         user_email=EMAIL,
         deployment_metadata={"server_instance_id": "srv-1", "deployment_id": "dep-2"},
     )
-    assert len(registry.list_targets()) == 1
+    assert frozenset(t.url_hash for t in registry.list_targets()) == frozenset(
+        {compute_url_hash(canonicalize_url(URL_A))}
+    )
     stored = registry.get(compute_url_hash(canonicalize_url(URL_A)), TEAM, EMAIL)
     assert stored is not None
     assert stored.deployment_id == "dep-2"  # latest provenance recorded
@@ -259,7 +271,9 @@ def test_reset_flagged_on_stable_field_change(registry: SqliteDeliveryTargetRegi
     assert isinstance(signal, ResetSignal)
     assert "server_instance_id" in signal.changed_fields
     # detect_reset is read-only: no identity fork.
-    assert len(registry.list_targets()) == 1
+    assert frozenset(t.url_hash for t in registry.list_targets()) == frozenset(
+        {compute_url_hash(canonicalize_url(URL_A))}
+    )
 
 
 def test_deployment_id_only_change_is_not_a_reset(registry: SqliteDeliveryTargetRegistry) -> None:
@@ -276,7 +290,9 @@ def test_deployment_id_only_change_is_not_a_reset(registry: SqliteDeliveryTarget
         new_deployment_metadata={"server_instance_id": "srv-1", "deployment_id": "dep-2"},
     )
     assert signal is None
-    assert len(registry.list_targets()) == 1
+    assert frozenset(t.url_hash for t in registry.list_targets()) == frozenset(
+        {compute_url_hash(canonicalize_url(URL_A))}
+    )
 
 
 def test_reset_none_when_target_unregistered(registry: SqliteDeliveryTargetRegistry) -> None:
@@ -357,7 +373,9 @@ def test_register_from_resolved_anonymous(
     )
     assert target.team_slug == ""
     assert target.user_email == ""
-    assert len(registry.list_targets()) == 1
+    assert frozenset(t.target_id for t in registry.list_targets()) == frozenset(
+        {target.target_id}
+    )
 
 
 # --------------------------------------------------------------------------
@@ -394,4 +412,6 @@ def test_registry_is_a_context_manager() -> None:
     with SqliteDeliveryTargetRegistry(":memory:") as reg:
         target = reg.register(url=URL_A, team_slug=TEAM, user_email=EMAIL)
         assert target.url_hash == compute_url_hash(canonicalize_url(URL_A))
-        assert len(reg.list_targets()) == 1
+        assert frozenset(t.target_id for t in reg.list_targets()) == frozenset(
+            {target.target_id}
+        )

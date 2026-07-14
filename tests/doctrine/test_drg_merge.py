@@ -202,7 +202,9 @@ class TestSpecializesFromAndUnknownRelation:
         lineage_edges = [
             e for e in merged.edges if e.relation is Relation.SPECIALIZES_FROM
         ]
-        assert len(lineage_edges) == 1
+        assert {(e.source, e.target) for e in lineage_edges} == {
+            ("agent_profile:child", "agent_profile:parent")
+        }
         assert lineage_edges[0].source == "agent_profile:child"
         assert lineage_edges[0].target == "agent_profile:parent"
         assert getattr(lineage_edges[0], "provenance", None) == "org:lineage-pack"
@@ -243,7 +245,7 @@ class TestSpecializesFromAndUnknownRelation:
         merged = merge_three_layers(
             built_in=_graph(), org_fragments=[org], project=None
         )
-        assert len(merged.edges) == 1
+        assert {e.relation for e in merged.edges} == {Relation.REFINES}
         assert merged.edges[0].relation is Relation.REFINES
 
     def test_org_extends_relation_maps_to_lineage_not_applies(self) -> None:
@@ -260,7 +262,7 @@ class TestSpecializesFromAndUnknownRelation:
         merged = merge_three_layers(
             built_in=_graph(), org_fragments=[org], project=None
         )
-        assert len(merged.edges) == 1
+        assert {e.relation for e in merged.edges} == {Relation.SPECIALIZES_FROM}
         assert merged.edges[0].relation is Relation.SPECIALIZES_FROM
 
     @pytest.mark.parametrize("relation", [r.value for r in Relation])
@@ -281,7 +283,7 @@ class TestSpecializesFromAndUnknownRelation:
         merged = merge_three_layers(
             built_in=_graph(), org_fragments=[org], project=None
         )
-        assert len(merged.edges) == 1
+        assert {e.relation.value for e in merged.edges} == {relation}
         assert merged.edges[0].relation.value == relation
 
     def test_no_relation_alias_maps_to_the_inert_applies_sink(self) -> None:
@@ -512,7 +514,9 @@ class TestInvariantsPreserved:
             "org:p",
         )
 
-        assert len(conflicts) == 1
+        assert {(c.kind, c.resolution_applied) for c in conflicts} == {
+            ("node_override", "org_override")
+        }
         assert conflicts[0].kind == "node_override"
         assert conflicts[0].resolution_applied == "org_override"
         # Substitution happened in place.

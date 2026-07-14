@@ -196,7 +196,7 @@ class TestDetectConflictsDirect:
             _remove_edge(PID[1], "A", "B", "uses"),
         ]
         groups = detect_conflicts(proposals)
-        assert len(groups) == 1
+        assert {frozenset(g.proposal_ids) for g in groups} == {frozenset({PID[0], PID[1]})}
         assert set(groups[0].proposal_ids) == {PID[0], PID[1]}
         assert "add_edge" in groups[0].reason
         assert "remove_edge" in groups[0].reason
@@ -225,7 +225,7 @@ class TestDetectConflictsDirect:
             _rewire_edge(PID[1], "X", "Y", "A", "B", "uses"),  # edge_new = (A, B, uses)
         ]
         groups = detect_conflicts(proposals)
-        assert len(groups) == 1
+        assert {frozenset(g.proposal_ids) for g in groups} == {frozenset({PID[0], PID[1]})}
         assert set(groups[0].proposal_ids) == {PID[0], PID[1]}
 
     def test_p2_no_conflict_different_destination(self) -> None:
@@ -244,7 +244,7 @@ class TestDetectConflictsDirect:
             _rewire_edge(PID[1], "A", "B", "C", "D", "uses"),  # edge_old = (A, B, uses)
         ]
         groups = detect_conflicts(proposals)
-        assert len(groups) == 1
+        assert {frozenset(g.proposal_ids) for g in groups} == {frozenset({PID[0], PID[1]})}
         assert set(groups[0].proposal_ids) == {PID[0], PID[1]}
 
     def test_p3_no_conflict_different_source(self) -> None:
@@ -262,7 +262,7 @@ class TestDetectConflictsDirect:
             _add_gloss(PID[1], "doctrine", "hash-b"),
         ]
         groups = detect_conflicts(proposals)
-        assert len(groups) == 1
+        assert {frozenset(g.proposal_ids) for g in groups} == {frozenset({PID[0], PID[1]})}
         assert set(groups[0].proposal_ids) == {PID[0], PID[1]}
 
     def test_p4_no_conflict_same_hash(self) -> None:
@@ -289,7 +289,7 @@ class TestDetectConflictsDirect:
             _upd_gloss(PID[1], "doctrine", "hash-b"),
         ]
         groups = detect_conflicts(proposals)
-        assert len(groups) == 1
+        assert {frozenset(g.proposal_ids) for g in groups} == {frozenset({PID[0], PID[1]})}
         assert set(groups[0].proposal_ids) == {PID[0], PID[1]}
 
     def test_p5_no_conflict_same_hash(self) -> None:
@@ -307,7 +307,7 @@ class TestDetectConflictsDirect:
             _synth_directive(PID[1], "dir-001", "hash-b"),
         ]
         groups = detect_conflicts(proposals)
-        assert len(groups) == 1
+        assert {frozenset(g.proposal_ids) for g in groups} == {frozenset({PID[0], PID[1]})}
         assert set(groups[0].proposal_ids) == {PID[0], PID[1]}
 
     def test_p6a_synthesize_directive_no_conflict_same_hash(self) -> None:
@@ -333,7 +333,7 @@ class TestDetectConflictsDirect:
             _synth_tactic(PID[1], "tac-001", "hash-b"),
         ]
         groups = detect_conflicts(proposals)
-        assert len(groups) == 1
+        assert {frozenset(g.proposal_ids) for g in groups} == {frozenset({PID[0], PID[1]})}
         assert set(groups[0].proposal_ids) == {PID[0], PID[1]}
 
     # Predicate 6c: synthesize_procedure
@@ -343,7 +343,7 @@ class TestDetectConflictsDirect:
             _synth_procedure(PID[1], "proc-001", "hash-b"),
         ]
         groups = detect_conflicts(proposals)
-        assert len(groups) == 1
+        assert {frozenset(g.proposal_ids) for g in groups} == {frozenset({PID[0], PID[1]})}
         assert set(groups[0].proposal_ids) == {PID[0], PID[1]}
 
     # Predicate 7: flag_not_helpful never conflicts
@@ -377,7 +377,10 @@ class TestDetectConflictsDirect:
             _add_gloss(PID[3], "term", "hash-b"),  # conflict with PID[2]
         ]
         groups = detect_conflicts(proposals)
-        assert len(groups) == 2
+        assert {frozenset(g.proposal_ids) for g in groups} == {
+            frozenset({PID[0], PID[1]}),
+            frozenset({PID[2], PID[3]}),
+        }
 
 
 # ---------------------------------------------------------------------------

@@ -309,8 +309,7 @@ class TestCreateCommand:
         assert data["code"] == "MISSION_NOT_COMPLETED"
         assert data["mission_id"] == MISSION_ID_OPEN
         assert "open_wps" in data
-        assert len(data["open_wps"]) == 1
-        assert data["open_wps"][0]["wp_id"] == "WP01"
+        assert frozenset(wp["wp_id"] for wp in data["open_wps"]) == frozenset({"WP01"})
         assert data["open_wps"][0]["lane"] == "in_progress"
         assert data["exit_code"] == 1
 

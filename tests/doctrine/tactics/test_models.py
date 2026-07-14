@@ -84,7 +84,7 @@ class TestTactic:
         assert tactic.purpose == "A fully enriched tactic for testing."
         assert len(tactic.steps) == 2
         assert len(tactic.steps[0].references) == 1
-        assert len(tactic.references) == 1
+        assert {r.type for r in tactic.references} == {ReferenceType.STYLEGUIDE}
         assert tactic.references[0].type == ReferenceType.STYLEGUIDE
 
     def test_frozen_model(self, sample_tactic_data: dict) -> None:

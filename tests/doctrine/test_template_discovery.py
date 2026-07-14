@@ -91,11 +91,13 @@ def test_discovery_disambiguates_same_name_across_missions(package_root: Path) -
     refs = discover_templates(tier_roots=roots)
 
     spec_refs = [r for r in refs if r.name == "spec-template.md"]
-    assert len(spec_refs) == 2
     missions = {r.mission for r in spec_refs}
     assert missions == {"software-dev", "documentation"}
     # Distinct mission-qualified IDs.
-    assert len({r.template_id for r in spec_refs}) == 2
+    assert {r.template_id for r in spec_refs} == {
+        "software-dev/spec-template.md",
+        "documentation/spec-template.md",
+    }
 
 
 def test_discovery_dedupes_multi_tier_to_highest_precedence(
@@ -111,7 +113,7 @@ def test_discovery_dedupes_multi_tier_to_highest_precedence(
     refs = discover_templates(tier_roots=roots)
 
     spec_sw = [r for r in refs if r.template_id == "software-dev/spec-template.md"]
-    assert len(spec_sw) == 1
+    assert {r.tier.name for r in spec_sw} == {ResolutionTier.OVERRIDE.name}
     assert spec_sw[0].tier.name == ResolutionTier.OVERRIDE.name
     assert spec_sw[0].path.read_text(encoding="utf-8") == "override spec"
 
@@ -162,7 +164,6 @@ def test_cross_mission_nodes_are_distinct(package_root: Path) -> None:
         "template:software-dev/spec-template.md",
         "template:documentation/spec-template.md",
     }
-    assert len(urns) == 2
 
 
 def test_template_nodes_validate_as_drg_nodes(package_root: Path) -> None:

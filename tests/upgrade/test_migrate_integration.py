@@ -337,7 +337,7 @@ class TestExecuteMigration:
         monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(global_home / "missions"))
 
         project = tmp_path / "project"
-        _setup_project_kittify(
+        kittify = _setup_project_kittify(
             project,
             identical_files={
                 "templates/spec.md": "global spec content",
@@ -356,10 +356,19 @@ class TestExecuteMigration:
         )
 
         report = execute_migration(project, dry_run=True)
-        assert len(report.removed) == 2  # spec.md + plan.md are identical
-        assert len(report.moved) == 1  # tasks.md is customized
-        assert len(report.kept) == 2  # config.yaml + memory/notes.md
-        assert len(report.unknown) == 1  # random/stuff.txt
+        # Report lists are populated in sorted-path scan order (execute_migration
+        # walks `sorted(kittify_dir.rglob("*"))`); pinning the exact members (not
+        # just the count) makes an add/rename/drop of any tracked file fail here.
+        assert report.removed == [
+            kittify / "templates" / "plan.md", kittify / "templates" / "spec.md"
+        ]  # spec.md + plan.md are identical
+        assert report.moved == [
+            (kittify / "templates" / "tasks.md", kittify / "overrides" / "templates" / "tasks.md")
+        ]  # tasks.md is customized
+        assert report.kept == [
+            kittify / "config.yaml", kittify / "memory" / "notes.md"
+        ]  # config.yaml + memory/notes.md
+        assert report.unknown == [kittify / "random" / "stuff.txt"]
 
     def test_actual_execution_removes_identical(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -379,7 +388,7 @@ class TestExecuteMigration:
 
         report = execute_migration(project, dry_run=False)
 
-        assert len(report.removed) == 1
+        assert report.removed == [kittify / "templates" / "spec.md"]
         # Identical file should be gone from filesystem
         assert not (kittify / "templates" / "spec.md").exists()
         # Project-specific file should still exist
@@ -406,7 +415,12 @@ class TestExecuteMigration:
 
         report = execute_migration(project, dry_run=False)
 
-        assert len(report.moved) == 1
+        assert report.moved == [
+            (
+                kittify / "templates" / "my-custom-template.md",
+                kittify / "overrides" / "templates" / "my-custom-template.md",
+            )
+        ]
         # Original should be gone
         assert not (kittify / "templates" / "my-custom-template.md").exists()
         # Override should exist with correct content
@@ -486,9 +500,11 @@ class TestMigrateDryRun:
         report = execute_migration(project, dry_run=True)
 
         # Verify report has correct dispositions
-        assert len(report.removed) == 1
-        assert len(report.moved) == 1
-        assert len(report.kept) == 1
+        assert report.removed == [kittify / "templates" / "spec.md"]
+        assert report.moved == [
+            (kittify / "templates" / "tasks.md", kittify / "overrides" / "templates" / "tasks.md")
+        ]
+        assert report.kept == [kittify / "config.yaml"]
         assert report.dry_run is True
 
         # Verify filesystem is UNCHANGED
@@ -513,7 +529,7 @@ class TestMigrateIdempotent:
         monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(global_home / "missions"))
 
         project = tmp_path / "project"
-        _setup_project_kittify(
+        kittify = _setup_project_kittify(
             project,
             identical_files={
                 "templates/spec.md": "global spec content",
@@ -529,8 +545,12 @@ class TestMigrateIdempotent:
 
         # First migration
         report1 = execute_migration(project, dry_run=False)
-        assert len(report1.removed) == 2
-        assert len(report1.moved) == 1
+        assert report1.removed == [
+            kittify / "templates" / "plan.md", kittify / "templates" / "spec.md"
+        ]
+        assert report1.moved == [
+            (kittify / "templates" / "tasks.md", kittify / "overrides" / "templates" / "tasks.md")
+        ]
 
         # Capture state after first migration
         kittify = project / ".kittify"
@@ -601,10 +621,9 @@ class TestCustomizedFilesMovedToOverrides:
         report = execute_migration(project)
 
         # Verify: customized file moved to overrides
-        assert len(report.moved) == 1
-        src, dst = report.moved[0]
-        assert src == kittify / "templates" / "my-custom.md"
-        assert dst == kittify / "overrides" / "templates" / "my-custom.md"
+        assert report.moved == [
+            (kittify / "templates" / "my-custom.md", kittify / "overrides" / "templates" / "my-custom.md")
+        ]
 
         # Verify on filesystem
         assert (kittify / "overrides" / "templates" / "my-custom.md").exists()
@@ -636,7 +655,14 @@ class TestCustomizedFilesMovedToOverrides:
 
         report = execute_migration(project)
 
-        assert len(report.moved) == 3
+        assert report.moved == [
+            (
+                kittify / "command-templates" / "my-workflow.md",
+                kittify / "overrides" / "command-templates" / "my-workflow.md",
+            ),
+            (kittify / "scripts" / "custom-script.sh", kittify / "overrides" / "scripts" / "custom-script.sh"),
+            (kittify / "templates" / "my-custom.md", kittify / "overrides" / "templates" / "my-custom.md"),
+        ]
 
         # All should exist under overrides/
         assert (kittify / "overrides" / "templates" / "my-custom.md").exists()
@@ -675,7 +701,7 @@ class TestCustomizedFilesMovedToOverrides:
         report = execute_migration(project)
 
         # AGENTS.md has a package counterpart, so it's superseded (not moved to overrides)
-        assert len(report.superseded) == 1
+        assert report.superseded == [kittify / "AGENTS.md"]
         assert len(report.moved) == 0
         assert not (kittify / "AGENTS.md").exists()
         assert not (kittify / "overrides" / "AGENTS.md").exists()
@@ -703,20 +729,22 @@ class TestCustomizedFilesMovedToOverrides:
         report = execute_migration(project)
 
         # Identical removed
-        assert len(report.removed) == 1
+        assert report.removed == [kittify / "templates" / "spec.md"]
         assert not (kittify / "templates" / "spec.md").exists()
 
         # Superseded removed (old default for plan.md)
-        assert len(report.superseded) == 1
+        assert report.superseded == [kittify / "templates" / "plan.md"]
         assert not (kittify / "templates" / "plan.md").exists()
 
         # Customized moved (user-created, no package counterpart)
-        assert len(report.moved) == 1
+        assert report.moved == [
+            (kittify / "templates" / "my-custom.md", kittify / "overrides" / "templates" / "my-custom.md")
+        ]
         assert (kittify / "overrides" / "templates" / "my-custom.md").exists()
         assert (kittify / "overrides" / "templates" / "my-custom.md").read_text() == "user-created content"
 
         # Project-specific kept
-        assert len(report.kept) == 1
+        assert report.kept == [kittify / "config.yaml"]
         assert (kittify / "config.yaml").exists()
         assert (kittify / "config.yaml").read_text() == "my config"
 
@@ -886,7 +914,7 @@ class TestExecuteMigrationSuperseded:
         report = execute_migration(project, dry_run=False)
 
         # Old defaults should be classified as superseded and removed
-        assert len(report.superseded) == 2
+        assert report.superseded == [kittify / "templates" / "plan.md", kittify / "templates" / "spec.md"]
         assert len(report.moved) == 0  # NOT moved to overrides
 
         # Files should be gone from filesystem
@@ -918,7 +946,12 @@ class TestExecuteMigrationSuperseded:
 
         report = execute_migration(project, dry_run=False)
 
-        assert len(report.moved) == 1
+        assert report.moved == [
+            (
+                kittify / "templates" / "my-custom-template.md",
+                kittify / "overrides" / "templates" / "my-custom-template.md",
+            )
+        ]
         assert (kittify / "overrides" / "templates" / "my-custom-template.md").exists()
 
     def test_version_skew_scenario_end_to_end(
@@ -958,7 +991,7 @@ class TestExecuteMigrationSuperseded:
         report = execute_migration(project, dry_run=False)
 
         # Key assertion: old defaults are SUPERSEDED, not moved to overrides
-        assert len(report.superseded) == 2
+        assert report.superseded == [kittify / "templates" / "plan.md", kittify / "templates" / "spec.md"]
         assert len(report.moved) == 0
         assert not (kittify / "overrides").exists()
 
@@ -982,7 +1015,7 @@ class TestExecuteMigrationSuperseded:
         monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
 
         project = tmp_path / "project"
-        _setup_project_kittify(
+        kittify = _setup_project_kittify(
             project,
             identical_files={
                 # Matches package default exactly
@@ -996,5 +1029,5 @@ class TestExecuteMigrationSuperseded:
 
         report = execute_migration(project, dry_run=False)
 
-        assert len(report.removed) == 1  # identical
-        assert len(report.superseded) == 1  # superseded (old default)
+        assert report.removed == [kittify / "templates" / "spec.md"]  # identical
+        assert report.superseded == [kittify / "templates" / "plan.md"]  # superseded (old default)

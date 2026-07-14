@@ -382,7 +382,9 @@ def test_resolve_branch_legacy_emits_one_shot_warning(monkeypatch) -> None:
     assert first == "kitty/mission-057-foo"
     assert second == "kitty/mission-058-bar"
     dep = [w for w in caught if issubclass(w.category, DeprecationWarning)]
-    assert len(dep) == 1, f"expected exactly one one-shot warning, got {len(dep)}"
+    assert len(dep) == 1, (  # golden-count: cardinality-is-contract (one-shot-firing invariant)
+        f"expected exactly one one-shot warning, got {len(dep)}"
+    )
 
 
 def test_resolve_branch_legacy_warning_suppressed_by_env(monkeypatch) -> None:

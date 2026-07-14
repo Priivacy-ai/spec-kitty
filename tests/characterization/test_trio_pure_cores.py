@@ -273,7 +273,7 @@ class TestCheckLaneGates:
         acceptance_module._check_lane_gates(tmp_path, tmp_path, "main", activity_issues, skipped, blocked)
 
         # Assert
-        assert len(blocked) == 1 and blocked[0].check == "lanes_manifest"
+        assert {item.check for item in blocked} == {"lanes_manifest"}
         assert activity_issues and "invalid JSON" in activity_issues[0]
         assert {item.check for item in skipped} == {
             "acceptance_matrix_presence",
@@ -305,9 +305,14 @@ class TestCheckLaneGates:
 
         acceptance_module._check_lane_gates(tmp_path, tmp_path, "feat/target", activity_issues, skipped, blocked)
 
-        assert len(blocked) == 1 and blocked[0].check == "mission_branch"
+        assert {item.check for item in blocked} == {"mission_branch"}
         assert "target branch mismatch" in activity_issues[0]
-        assert len(skipped) == 4  # include_matrix_presence=True
+        assert {item.check for item in skipped} == {  # include_matrix_presence=True
+            "acceptance_matrix_presence",
+            "acceptance_matrix_evidence",
+            "negative_invariants",
+            "acceptance_matrix_verdict",
+        }
 
     def test_branch_outside_allowed_set_blocks(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
@@ -322,7 +327,7 @@ class TestCheckLaneGates:
 
         acceptance_module._check_lane_gates(tmp_path, tmp_path, "some-other-branch", activity_issues, skipped, blocked)
 
-        assert len(blocked) == 1 and blocked[0].check == "mission_branch"
+        assert {item.check for item in blocked} == {"mission_branch"}
         assert "must run on mission or target branch" in activity_issues[0]
 
     def test_detached_head_reports_detached_head_label(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -357,7 +362,12 @@ class TestCheckLaneGates:
         acceptance_module._check_lane_gates(tmp_path, tmp_path, "feat/target", activity_issues, skipped, blocked)
 
         assert activity_issues == [] and blocked == []
-        assert len(skipped) == 4  # include_matrix_presence=True
+        assert {item.check for item in skipped} == {  # include_matrix_presence=True
+            "acceptance_matrix_presence",
+            "acceptance_matrix_evidence",
+            "negative_invariants",
+            "acceptance_matrix_verdict",
+        }
 
     def test_missing_acceptance_matrix_blocks(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setattr(
@@ -373,9 +383,8 @@ class TestCheckLaneGates:
 
         acceptance_module._check_lane_gates(tmp_path, tmp_path, "kitty/mission-x", activity_issues, skipped, blocked)
 
-        assert len(blocked) == 1 and blocked[0].check == "acceptance_matrix"
-        assert len(skipped) == 3  # include_matrix_presence=False (default)
-        assert {item.check for item in skipped} == {
+        assert {item.check for item in blocked} == {"acceptance_matrix"}
+        assert {item.check for item in skipped} == {  # include_matrix_presence=False (default)
             "acceptance_matrix_evidence",
             "negative_invariants",
             "acceptance_matrix_verdict",

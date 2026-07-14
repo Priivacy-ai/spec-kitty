@@ -200,7 +200,7 @@ class TestGlossarySeedFileValid:
                 ),
             ]
         )
-        assert len(seed.terms) == 2
+        assert {t.surface for t in seed.terms} == {"alpha", "beta"}
         assert seed.terms[0].surface == "alpha"
 
     def test_empty_terms_list_allowed(self) -> None:

@@ -99,7 +99,7 @@ def test_write_creates_salt_file_with_0600(storage: FastFileFallback, tmp_path: 
     if hasattr(os, "getuid"):
         mode = stat.S_IMODE(salt_file.stat().st_mode)
         assert mode == 0o600
-    assert len(salt_file.read_bytes()) == 16
+    assert len(salt_file.read_bytes()) == 16  # golden-count: cardinality-is-contract
 
 
 def test_write_creates_credentials_file_with_0600(

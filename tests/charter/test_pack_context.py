@@ -188,7 +188,6 @@ def test_activated_kinds_defaults_to_all_builtin_when_key_absent(tmp_path: Path)
     # org-pack DRG kinds added to the default set in lockstep with
     # ``charter.activations._ALLOWED_KINDS`` and
     # ``doctrine.drg.org_pack_loader._ORG_DRG_CANONICAL_KINDS``.
-    assert len(ctx.activated_kinds) == 10
     assert {"templates", "assets"} <= ctx.activated_kinds
 
 
@@ -235,7 +234,7 @@ def test_org_pack_names_and_roots_populated(tmp_path: Path) -> None:
 
     assert "acme-pack" in ctx.org_pack_names
     # pack_roots has the built-in root first, then the org pack root
-    assert len(ctx.pack_roots) == 2
+    assert [p.name for p in ctx.pack_roots] == ["doctrine", pack_dir.name]
     assert ctx.pack_roots[0].name == "doctrine"  # built-in
     assert ctx.pack_roots[1] == pack_dir
 

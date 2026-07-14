@@ -147,7 +147,7 @@ class TestResolveBySlug:
             resolve_mission("alpha", repo_root)
         err = exc_info.value
         assert "alpha" in str(err)
-        assert len(err.candidates) == 2
+        assert {c.mission_slug for c in err.candidates} == {"080-alpha", "081-alpha"}
 
 
 class TestResolveByNumericPrefix:
@@ -164,7 +164,6 @@ class TestResolveByNumericPrefix:
             resolve_mission("080", repo_root)
         err = exc_info.value
         assert err.handle == "080"
-        assert len(err.candidates) == 2
         slugs = {c.mission_slug for c in err.candidates}
         assert slugs == {"080-alpha", "080-beta"}
 
@@ -182,7 +181,7 @@ class TestResolveByNumericPrefix:
         with pytest.raises(AmbiguousHandleError) as exc_info:
             resolve_mission("080", repo_root)
         for candidate in exc_info.value.candidates:
-            assert len(candidate.mid8) == 8
+            assert len(candidate.mid8) == 8  # golden-count: cardinality-is-contract
             assert candidate.mission_id.startswith(candidate.mid8)
 
 
@@ -272,7 +271,7 @@ class TestAmbiguousHandleErrorJson:
         assert d["error"] == "ambiguous_mission_handle"
         assert d["handle"] == "080"
         assert isinstance(d["candidates"], list)
-        assert len(d["candidates"]) == 2
+        assert {c["slug"] for c in d["candidates"]} == {"080-alpha", "080-beta"}
         for c in d["candidates"]:
             assert "mission_id" in c
             assert "mid8" in c

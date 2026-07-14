@@ -95,7 +95,12 @@ def test_absent_noop(
 
     outcomes = migrate_windows_state()
 
-    assert len(outcomes) == 4
+    assert {o.legacy_id for o in outcomes} == {
+        "spec_kitty_home",
+        "kittify_localappdata",
+        "kittify_home",
+        "auth_xdg_home",
+    }
     for outcome in outcomes:
         assert outcome.status == "absent", f"Expected absent, got {outcome.status!r} for {outcome.legacy_id}"
 
@@ -215,7 +220,12 @@ def test_idempotent_second_run(
     # Second run: legacy is gone → all absent (4 outcomes after DRIFT-3 fix
     # added kittify_localappdata to the legacy source set).
     second = migrate_windows_state()
-    assert len(second) == 4
+    assert {o.legacy_id for o in second} == {
+        "spec_kitty_home",
+        "kittify_localappdata",
+        "kittify_home",
+        "auth_xdg_home",
+    }
     for outcome in second:
         assert outcome.status == "absent", (
             f"Second run: expected 'absent' for {outcome.legacy_id}, got {outcome.status!r}"

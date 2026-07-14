@@ -28,8 +28,7 @@ class TestLoadWpsManifest:
         )
         manifest = load_wps_manifest(tmp_path)
         assert manifest is not None
-        assert len(manifest.work_packages) == 1
-        assert manifest.work_packages[0].id == "WP01"
+        assert frozenset(wp.id for wp in manifest.work_packages) == frozenset({"WP01"})
         assert manifest.work_packages[0].title == "First WP"
 
     def test_absent_returns_none(self, tmp_path: Path) -> None:
@@ -69,7 +68,7 @@ class TestLoadWpsManifest:
         )
         manifest = load_wps_manifest(tmp_path)
         assert manifest is not None
-        assert len(manifest.work_packages) == 2
+        assert frozenset(wp.id for wp in manifest.work_packages) == frozenset({"WP01", "WP02"})
         assert manifest.work_packages[1].dependencies == ["WP01"]
 
     def test_invalid_dependency_raises(self, tmp_path: Path) -> None:

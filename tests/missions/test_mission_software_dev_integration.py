@@ -74,7 +74,9 @@ class TestStateMachineStructure:
 
     def test_six_states_defined(self, software_dev_config: dict) -> None:
         states = software_dev_config["states"]
-        assert len(states) == 6
+        assert frozenset(s["name"] for s in states) == frozenset(
+            {"discovery", "specify", "plan", "implement", "review", "done"}
+        )
 
     def test_state_names(self, software_dev_config: dict) -> None:
         names = [s["name"] for s in software_dev_config["states"]]
@@ -92,15 +94,28 @@ class TestStateMachineStructure:
 
     def test_six_transitions_defined(self, software_dev_config: dict) -> None:
         transitions = software_dev_config["transitions"]
-        assert len(transitions) == 6
+        assert frozenset(
+            (t["source"], t["trigger"]) for t in transitions
+        ) == frozenset(
+            {
+                ("discovery", "advance"),
+                ("specify", "advance"),
+                ("plan", "advance"),
+                ("implement", "advance"),
+                ("review", "advance"),
+                ("review", "rework"),
+            }
+        )
 
     def test_advance_transitions_count(self, software_dev_config: dict) -> None:
         advance_transitions = [t for t in software_dev_config["transitions"] if t["trigger"] == "advance"]
-        assert len(advance_transitions) == 5
+        assert frozenset(t["source"] for t in advance_transitions) == frozenset(
+            {"discovery", "specify", "plan", "implement", "review"}
+        )
 
     def test_rework_transition_exists(self, software_dev_config: dict) -> None:
         rework_transitions = [t for t in software_dev_config["transitions"] if t["trigger"] == "rework"]
-        assert len(rework_transitions) == 1
+        assert frozenset(t["source"] for t in rework_transitions) == frozenset({"review"})
         rework = rework_transitions[0]
         assert rework["source"] == "review"
         assert rework["dest"] == "implement"
@@ -198,7 +213,9 @@ class TestGuardsSection:
 
     def test_five_guards_defined(self, software_dev_config: dict) -> None:
         guards = software_dev_config["guards"]
-        assert len(guards) == 5
+        assert frozenset(guards.keys()) == frozenset(
+            {"has_spec", "has_plan", "has_tasks", "all_wps_accepted", "review_passed"}
+        )
 
     def test_guard_names(self, software_dev_config: dict) -> None:
         expected = {"has_spec", "has_plan", "has_tasks", "all_wps_accepted", "review_passed"}
@@ -269,7 +286,9 @@ class TestV0BackwardCompatibility:
     def test_v0_workflow_preserved(self, software_dev_config: dict) -> None:
         assert "workflow" in software_dev_config
         phases = software_dev_config["workflow"]["phases"]
-        assert len(phases) == 5
+        assert frozenset(p["name"] for p in phases) == frozenset(
+            {"research", "design", "implement", "test", "review"}
+        )
 
     def test_v0_artifacts_preserved(self, software_dev_config: dict) -> None:
         assert "artifacts" in software_dev_config

@@ -259,7 +259,6 @@ def test_row_for_other_target_only_is_still_selectable(ledger: SqliteDeliveryLed
 
 def test_select_undelivered_respects_limit(ledger: SqliteDeliveryLedger) -> None:
     selected = ledger.select_undelivered(target_id=TARGET_A, event_universe=JOURNAL, limit=2)
-    assert len(selected) == 2
     assert selected == [EVT_1, EVT_2]
 
 

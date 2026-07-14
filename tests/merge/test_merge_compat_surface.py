@@ -239,7 +239,11 @@ def test_consolidated_map_is_superset_of_retired_batteries() -> None:
     per-seam identity batteries bound -- a dropped symbol fails here, loudly,
     next to the shim, instead of silently vanishing when the fragmented tests
     were deleted."""
-    assert len(_RETIRED_BATTERY_UNION) == 54
+    # The union's members are already fully enumerated above via named literal
+    # sets; this pins the union produced no accidental duplicate-symbol
+    # collisions across the 8 retired per-seam batteries (a count invariant,
+    # not a membership one -- membership is pinned by the literals themselves).
+    assert len(_RETIRED_BATTERY_UNION) == 54  # golden-count: cardinality-is-contract
     missing = _RETIRED_BATTERY_UNION - set(SYMBOL_RESIDUAL_MAP)
     assert not missing, f"consolidated guard dropped symbols: {sorted(missing)}"
     assert set(SYMBOL_RESIDUAL_MAP) >= _RETIRED_BATTERY_UNION

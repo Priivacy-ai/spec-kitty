@@ -269,7 +269,7 @@ def test_record_migration_is_idempotent_for_identical_records() -> None:
 
     assert first is True
     assert second is False
-    assert len([m for m in metadata.applied_migrations if m.id == "9.9.9_not_needed"]) == 1
+    assert [m.result for m in metadata.applied_migrations if m.id == "9.9.9_not_needed"] == ["skipped"]
 
 
 def test_record_migration_appends_on_result_transition() -> None:
@@ -307,8 +307,7 @@ def test_repeated_not_needed_upgrade_does_not_grow_applied_migrations(
     metadata = ProjectMetadata.load(project_path / ".kittify")
     assert metadata is not None
     skipped = [m for m in metadata.applied_migrations if m.id == migration.migration_id]
-    assert len(skipped) == 1
-    assert skipped[0].result == "skipped"
+    assert [m.result for m in skipped] == ["skipped"]
 
 
 def test_worktree_skipped_migration_keeps_last_upgraded_at_stable_on_rerun(
@@ -343,7 +342,7 @@ def test_worktree_skipped_migration_keeps_last_upgraded_at_stable_on_rerun(
 
     # Exactly one skipped record, and the timestamp did not move on the no-op re-run.
     skipped = [m for m in after_second.applied_migrations if m.id == migration.migration_id]
-    assert len(skipped) == 1
+    assert [m.result for m in skipped] == ["skipped"]
     assert after_second.last_upgraded_at == stamp_first
 
 

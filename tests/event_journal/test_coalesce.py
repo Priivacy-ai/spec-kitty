@@ -107,10 +107,11 @@ def test_undelivered_events_with_same_key_collapse_to_one_row(
     journal.append(_event("evt-2", payload=b"v2", key="grp", created_at=T2))
 
     keyed = [e for e in journal.read_all() if e.coalesce_key == "grp"]
-    assert len(keyed) == 1, "two undelivered same-key events must collapse to one row"
     # latest-wins collapse: the surviving (undelivered) row keeps its own id (C-005,
     # no id rewrite) but carries the most recent payload.
-    assert keyed[0].event_id == "evt-1"
+    assert frozenset(e.event_id for e in keyed) == frozenset(
+        {"evt-1"}
+    ), "two undelivered same-key events must collapse to one row"
     assert _payload_on_disk(journal.db_path, "evt-1") == b"v2"
     assert journal.read_by_id("evt-2") is None
     assert read_supersede_markers(journal) == []
@@ -140,10 +141,9 @@ def test_coalesce_against_delivered_event_leaves_bytes_unchanged(
     assert new_row.payload == b"new-bytes"
 
     markers = read_supersede_markers(journal)
-    assert len(markers) == 1
-    assert markers[0].superseded_event_id == "evt-1"
-    assert markers[0].superseded_by_event_id == "evt-2"
-    assert markers[0].coalesce_key == "grp"
+    assert frozenset(
+        (m.superseded_event_id, m.superseded_by_event_id, m.coalesce_key) for m in markers
+    ) == frozenset({("evt-1", "evt-2", "grp")})
 
 
 def test_superseded_prior_remains_inspectable_and_not_archived(
@@ -218,5 +218,5 @@ def test_registration_is_idempotent(
     journal.append(_event("evt-2", payload=b"new", key="grp", created_at=T2))
 
     # exactly one marker, not one-per-installed-strategy
-    assert len(read_supersede_markers(journal)) == 1
+    assert len(read_supersede_markers(journal)) == 1  # golden-count: cardinality-is-contract
     assert _payload_on_disk(journal.db_path, "evt-1") == b"original"

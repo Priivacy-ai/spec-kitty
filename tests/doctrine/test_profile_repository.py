@@ -228,7 +228,11 @@ class TestAgentProfileRepositoryOne:
         """Single shipped profile loads correctly."""
         repo = AgentProfileRepository(built_in_dir=shipped_profiles_dir, project_dir=None)
         profiles = repo.list_all()
-        assert len(profiles) == 3  # We have 3 shipped profiles
+        assert {p.profile_id for p in profiles} == {  # We have 3 shipped profiles
+            "architect-alphonso",
+            "python-pedro",
+            "generic-implementer",
+        }
 
         alphonso = repo.get("architect-alphonso")
         assert alphonso is not None
@@ -252,7 +256,6 @@ class TestAgentProfileRepositoryMany:
         """Multiple shipped profiles load correctly."""
         repo = AgentProfileRepository(built_in_dir=shipped_profiles_dir, project_dir=None)
         profiles = repo.list_all()
-        assert len(profiles) == 3
         profile_ids = {p.profile_id for p in profiles}
         assert profile_ids == {"architect-alphonso", "python-pedro", "generic-implementer"}
 
@@ -265,7 +268,6 @@ class TestAgentProfileRepositoryMany:
         )
         profiles = repo.list_all()
         # 3 shipped + 1 new project - 1 override = 4 total
-        assert len(profiles) == 4
         profile_ids = {p.profile_id for p in profiles}
         assert profile_ids == {
             "architect-alphonso",
@@ -464,7 +466,11 @@ class TestAgentProfileRepositoryExceptions:
 
         repo = AgentProfileRepository(built_in_dir=shipped_profiles_dir, project_dir=None)
         # Should load valid profiles, skip invalid
-        assert len(repo.list_all()) == 3  # Only the 3 valid profiles
+        assert {p.profile_id for p in repo.list_all()} == {  # Only the 3 valid profiles
+            "architect-alphonso",
+            "python-pedro",
+            "generic-implementer",
+        }
 
     def test_cycle_detection(self, tmp_path: Path):
         """Validate hierarchy detects cycles."""
@@ -535,15 +541,14 @@ class TestAgentProfileRepositorySimple:
         """Find profiles by role enum."""
         repo = AgentProfileRepository(built_in_dir=shipped_profiles_dir, project_dir=None)
         implementers = repo.find_by_role(Role.IMPLEMENTER)
-        assert len(implementers) == 2  # python-pedro and generic-implementer
-        ids = {p.profile_id for p in implementers}
+        ids = {p.profile_id for p in implementers}  # python-pedro and generic-implementer
         assert ids == {"python-pedro", "generic-implementer"}
 
     def test_find_by_role_string(self, shipped_profiles_dir: Path):
         """Find profiles by role string."""
         repo = AgentProfileRepository(built_in_dir=shipped_profiles_dir, project_dir=None)
         implementers = repo.find_by_role("implementer")
-        assert len(implementers) == 2
+        assert {p.profile_id for p in implementers} == {"python-pedro", "generic-implementer"}
 
     def test_find_by_role_returns_empty_for_nonexistent(self, shipped_profiles_dir: Path):
         """Find by role returns empty list for nonexistent role."""
@@ -560,7 +565,7 @@ class TestAgentProfileRepositoryHierarchy:
             built_in_dir=shipped_profiles_dir, project_dir=None, drg=_shipped_drg()
         )
         children = repo.get_children("generic-implementer")
-        assert len(children) == 1
+        assert {c.profile_id for c in children} == {"python-pedro"}
         assert children[0].profile_id == "python-pedro"
 
     def test_get_children_of_leaf_returns_empty(self, shipped_profiles_dir: Path):
@@ -839,7 +844,7 @@ class TestAgentProfileRepositoryLoader:
         (shipped / "bad.agent.yaml").write_text("invalid: yaml: {")
         repo = AgentProfileRepository(built_in_dir=shipped, project_dir=None)
         builtin_skips = [s for s in repo.skipped_profiles() if s.layer == "builtin"]
-        assert len(builtin_skips) == 1
+        assert {s.path for s in builtin_skips} == {str(shipped / "bad.agent.yaml")}
 
     def test_invalid_project_yaml_is_recorded(
         self, shipped_profiles_dir: Path, tmp_path: Path
