@@ -327,14 +327,20 @@ def test_facilitator_reraises_write_failure_after_failed_event(tmp_path: Path, m
 
 def test_run_retrospective_learning_capture_failure_policy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from runtime.next import runtime_bridge as bridge
+    from runtime.next import runtime_bridge_retrospective
 
     def _raising_callback(**_kwargs: Any) -> None:
         raise RuntimeError("capture failed")
 
     monkeypatch.setattr(
-        bridge,
+        runtime_bridge_retrospective,
         "_build_retrospective_facilitator_callback",
-        lambda **kwargs: _raising_callback,
+        # The façade's own thin delegate forwards to this seam function
+        # positionally (mission_slug, repo_root, provenance_kind), unlike the
+        # keyword-only call the façade itself receives from
+        # runtime_bridge_retrospective._run_retrospective_learning_capture's
+        # deferred ``_rb.`` lookup — accept both call shapes here.
+        lambda *args, **kwargs: _raising_callback,
     )
 
     bridge._run_retrospective_learning_capture(
@@ -679,6 +685,7 @@ def test_legacy_path_blocks_and_rolls_back_on_terminal(tmp_path: Path, monkeypat
     4. roll back state.json so it does not say all-completed.
     """
     from runtime.next import runtime_bridge as bridge
+    from runtime.next import runtime_bridge_retrospective
     from runtime.next._internal_runtime.events import NullEmitter
 
     repo_root, feature_dir = _scaffold_opt_in_project(tmp_path)
@@ -699,7 +706,7 @@ def test_legacy_path_blocks_and_rolls_back_on_terminal(tmp_path: Path, monkeypat
 
     monkeypatch.setattr(bridge.SyncRuntimeEventEmitter, "for_feature", _wrapped_for_feature)
     monkeypatch.setattr(
-        bridge,
+        runtime_bridge_retrospective,
         "_run_retrospective_learning_capture",
         lambda **kwargs: (_ for _ in ()).throw(RuntimeError("strict retrospective failed")),
     )
@@ -764,6 +771,7 @@ def test_legacy_path_blocks_when_prestate_cannot_be_captured(tmp_path: Path, mon
 
 def test_legacy_path_default_policy_runs_post_completion_capture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from runtime.next import runtime_bridge as bridge
+    from runtime.next import runtime_bridge_retrospective
     from runtime.next._internal_runtime.schema import NextDecision
 
     repo_root, _feature_dir = _scaffold_opt_in_project(tmp_path)
@@ -804,7 +812,7 @@ def test_legacy_path_default_policy_runs_post_completion_capture(tmp_path: Path,
 
     captures: list[dict[str, Any]] = []
     monkeypatch.setattr(
-        bridge,
+        runtime_bridge_retrospective,
         "_run_retrospective_learning_capture",
         lambda **kwargs: captures.append(dict(kwargs)),
     )
@@ -851,6 +859,7 @@ def test_legacy_path_discards_buffer_when_runtime_engine_raises(tmp_path: Path, 
 
 def test_legacy_path_logs_rollback_failures_after_gate_block(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture) -> None:
     from runtime.next import runtime_bridge as bridge
+    from runtime.next import runtime_bridge_retrospective
     from runtime.next._internal_runtime.schema import NextDecision
 
     repo_root, _feature_dir = _scaffold_opt_in_project(tmp_path)
@@ -877,7 +886,7 @@ def test_legacy_path_logs_rollback_failures_after_gate_block(tmp_path: Path, mon
         lambda *args, **kwargs: NextDecision(kind="terminal", run_id="run-1", mission_key="software-dev"),
     )
     monkeypatch.setattr(
-        bridge,
+        runtime_bridge_retrospective,
         "_run_retrospective_learning_capture",
         lambda **kwargs: (_ for _ in ()).throw(RuntimeError("gate blocked")),
     )
@@ -908,6 +917,7 @@ def test_legacy_path_logs_rollback_failures_after_gate_block(tmp_path: Path, mon
 
 def test_legacy_path_blocks_on_strict_policy_resolution_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from runtime.next import runtime_bridge as bridge
+    from runtime.next import runtime_bridge_retrospective
     from runtime.next._internal_runtime.schema import NextDecision
 
     repo_root, _feature_dir = _scaffold_opt_in_project(tmp_path)
@@ -939,7 +949,7 @@ def test_legacy_path_blocks_on_strict_policy_resolution_error(tmp_path: Path, mo
         lambda *args, **kwargs: NextDecision(kind="terminal", run_id="run-1", mission_key="software-dev"),
     )
     monkeypatch.setattr(
-        bridge,
+        runtime_bridge_retrospective,
         "_resolve_retrospective_policy_for_runtime",
         lambda repo_root: (strict_policy, {"enabled": "test"}, policy_error),
     )

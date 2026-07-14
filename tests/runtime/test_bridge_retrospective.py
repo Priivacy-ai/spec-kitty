@@ -69,11 +69,12 @@ _COMPAT_GUARDED_NAMES = frozenset(
 )
 
 # The one symbol in the cluster that is NOT part of the WP02 compat guard's
-# tracked inventory (nothing patches it) -- re-exported as a plain
-# module-level import instead of a thin delegate. Kept out of the frozen
-# guard's grep-derived inventory deliberately (see test_bridge_engine.py's
-# analogous note on this exact symbol).
-_PLAIN_REEXPORT_NAME = "_retrospective_blocks_completion"
+# tracked inventory (nothing patches it). WP18 (#2561) retired its
+# ``runtime_bridge`` façade re-export -- every caller now reaches it directly
+# on this seam (``runtime_bridge.py`` and ``runtime_bridge_engine.py`` both
+# call ``_retrospective_seam._retrospective_blocks_completion``). It stays a
+# genuine seam-owned symbol, verified re-export-free below.
+_INTERNAL_ONLY_NAME = "_retrospective_blocks_completion"
 
 
 @pytest.mark.architectural
@@ -95,8 +96,15 @@ def test_seam_defines_every_relocated_symbol() -> None:
     """Non-vacuousness check: the seam must actually define all 10 relocated
     names, or the "residual doesn't import retrospective.*" assertion above
     would pass for the wrong reason (nobody needing the cluster at all)."""
-    for name in sorted(_COMPAT_GUARDED_NAMES | {_PLAIN_REEXPORT_NAME}):
+    from runtime.next import runtime_bridge as rb
+
+    for name in sorted(_COMPAT_GUARDED_NAMES | {_INTERNAL_ONLY_NAME}):
         assert hasattr(retro, name), f"seam is missing relocated symbol {name!r}"
+    # WP18 (#2561): the internal-only symbol is reached on the seam, not via a
+    # retired ``runtime_bridge`` façade re-export.
+    assert not hasattr(rb, _INTERNAL_ONLY_NAME), (
+        f"{_INTERNAL_ONLY_NAME!r} unexpectedly still re-exported on runtime_bridge"
+    )
 
 
 # ---------------------------------------------------------------------------

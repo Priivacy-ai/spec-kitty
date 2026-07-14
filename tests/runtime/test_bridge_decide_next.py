@@ -29,8 +29,11 @@ import ast
 import pytest
 
 from runtime.next import runtime_bridge as rb
+from runtime.next import runtime_bridge_composition as _composition_seam
 from runtime.next import runtime_bridge_cores as _cores
 from runtime.next import runtime_bridge_engine as _engine_adapter
+from runtime.next import runtime_bridge_io as _io_seam
+from runtime.next import runtime_bridge_retrospective as _retrospective_seam
 from runtime.next._internal_runtime import MissionRunRef
 from runtime.next._internal_runtime.schema import NextDecision
 from runtime.next.decision import Decision, DecisionKind
@@ -322,7 +325,7 @@ def test_bootstrap_builds_full_context_on_happy_path(
     monkeypatch.setattr(
         _engine_adapter, "_read_snapshot", lambda rd: SimpleNamespace(issued_step_id="implement")
     )
-    monkeypatch.setattr(rb, "_build_operational_context_for_decision", lambda **_kw: OperationalContext())
+    monkeypatch.setattr(_io_seam, "_build_operational_context_for_decision", lambda **_kw: OperationalContext())
 
     def _raise_not_found(mission_type: str, repo_root: Path) -> Any:
         raise FileNotFoundError(f"no mission template for {mission_type}")
@@ -377,7 +380,7 @@ def test_bootstrap_defaults_current_step_id_to_none_when_snapshot_read_fails(
         raise RuntimeError("state.json unreadable")
 
     monkeypatch.setattr(_engine_adapter, "_read_snapshot", _raise_snapshot)
-    monkeypatch.setattr(rb, "_build_operational_context_for_decision", lambda **_kw: OperationalContext())
+    monkeypatch.setattr(_io_seam, "_build_operational_context_for_decision", lambda **_kw: OperationalContext())
 
     ctx, decision = rb._dn_bootstrap("agent-x", "042-mission", "success", tmp_path)
 
@@ -564,8 +567,8 @@ def test_composition_dispatch_returns_none_when_not_applicable(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     ctx = _make_ctx(tmp_path)
-    monkeypatch.setattr(rb, "_should_dispatch_via_composition", lambda *a, **kw: False)
-    monkeypatch.setattr(rb, "_dispatch_via_composition", _raising)
+    monkeypatch.setattr(_composition_seam, "_should_dispatch_via_composition", lambda *a, **kw: False)
+    monkeypatch.setattr(_composition_seam, "_dispatch_via_composition", _raising)
 
     assert rb._dn_composition_dispatch(ctx) is None
 
@@ -574,7 +577,7 @@ def test_composition_dispatch_skips_selection_seam_when_result_not_success(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     ctx = _make_ctx(tmp_path, result="failed")
-    monkeypatch.setattr(rb, "_should_dispatch_via_composition", _raising)
+    monkeypatch.setattr(_composition_seam, "_should_dispatch_via_composition", _raising)
 
     assert rb._dn_composition_dispatch(ctx) is None
 
@@ -583,7 +586,7 @@ def test_composition_dispatch_returns_none_when_no_current_step(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     ctx = _make_ctx(tmp_path, current_step_id=None)
-    monkeypatch.setattr(rb, "_should_dispatch_via_composition", _raising)
+    monkeypatch.setattr(_composition_seam, "_should_dispatch_via_composition", _raising)
 
     assert rb._dn_composition_dispatch(ctx) is None
 
@@ -592,12 +595,12 @@ def test_composition_dispatch_returns_blocked_decision_on_guard_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     ctx = _make_ctx(tmp_path, current_step_id="tasks_outline")
-    monkeypatch.setattr(rb, "_should_dispatch_via_composition", lambda *a, **kw: True)
-    monkeypatch.setattr(rb, "_normalize_action_for_composition", lambda step: "tasks-outline")
-    monkeypatch.setattr(rb, "_composition_dispatch_inputs", lambda **kw: (None, {"contract": True}))
-    monkeypatch.setattr(rb, "_dispatch_via_composition", lambda **kw: ["composition guard failed"])
+    monkeypatch.setattr(_composition_seam, "_should_dispatch_via_composition", lambda *a, **kw: True)
+    monkeypatch.setattr(_composition_seam, "_normalize_action_for_composition", lambda step: "tasks-outline")
+    monkeypatch.setattr(_composition_seam, "_composition_dispatch_inputs", lambda **kw: (None, {"contract": True}))
+    monkeypatch.setattr(_composition_seam, "_dispatch_via_composition", lambda **kw: ["composition guard failed"])
     monkeypatch.setattr(rb, "_state_to_action", lambda *a: (None, None, None))
-    monkeypatch.setattr(rb, "_advance_run_state_after_composition", _raising)
+    monkeypatch.setattr(_engine_adapter, "advance_run_state_after_composition", _raising)
 
     decision = rb._dn_composition_dispatch(ctx)
 
@@ -611,10 +614,10 @@ def test_composition_dispatch_advances_run_state_on_success(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     ctx = _make_ctx(tmp_path, current_step_id="tasks_outline")
-    monkeypatch.setattr(rb, "_should_dispatch_via_composition", lambda *a, **kw: True)
-    monkeypatch.setattr(rb, "_normalize_action_for_composition", lambda step: "tasks-outline")
-    monkeypatch.setattr(rb, "_composition_dispatch_inputs", lambda **kw: (None, {"contract": True}))
-    monkeypatch.setattr(rb, "_dispatch_via_composition", lambda **kw: [])
+    monkeypatch.setattr(_composition_seam, "_should_dispatch_via_composition", lambda *a, **kw: True)
+    monkeypatch.setattr(_composition_seam, "_normalize_action_for_composition", lambda step: "tasks-outline")
+    monkeypatch.setattr(_composition_seam, "_composition_dispatch_inputs", lambda **kw: (None, {"contract": True}))
+    monkeypatch.setattr(_composition_seam, "_dispatch_via_composition", lambda **kw: [])
 
     sentinel = _sentinel_decision("advanced")
     captured_kwargs: dict[str, Any] = {}
@@ -623,7 +626,7 @@ def test_composition_dispatch_advances_run_state_on_success(
         captured_kwargs.update(kw)
         return sentinel
 
-    monkeypatch.setattr(rb, "_advance_run_state_after_composition", _fake_advance)
+    monkeypatch.setattr(_engine_adapter, "advance_run_state_after_composition", _fake_advance)
 
     decision = rb._dn_composition_dispatch(ctx)
 
@@ -636,15 +639,15 @@ def test_composition_dispatch_returns_blocked_decision_when_advance_raises(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     ctx = _make_ctx(tmp_path, current_step_id="tasks_outline")
-    monkeypatch.setattr(rb, "_should_dispatch_via_composition", lambda *a, **kw: True)
-    monkeypatch.setattr(rb, "_normalize_action_for_composition", lambda step: "tasks-outline")
-    monkeypatch.setattr(rb, "_composition_dispatch_inputs", lambda **kw: (None, {"contract": True}))
-    monkeypatch.setattr(rb, "_dispatch_via_composition", lambda **kw: [])
+    monkeypatch.setattr(_composition_seam, "_should_dispatch_via_composition", lambda *a, **kw: True)
+    monkeypatch.setattr(_composition_seam, "_normalize_action_for_composition", lambda step: "tasks-outline")
+    monkeypatch.setattr(_composition_seam, "_composition_dispatch_inputs", lambda **kw: (None, {"contract": True}))
+    monkeypatch.setattr(_composition_seam, "_dispatch_via_composition", lambda **kw: [])
 
     def _raise_advance(**_kw: Any) -> Decision:
         raise RuntimeError("advance boom")
 
-    monkeypatch.setattr(rb, "_advance_run_state_after_composition", _raise_advance)
+    monkeypatch.setattr(_engine_adapter, "advance_run_state_after_composition", _raise_advance)
 
     decision = rb._dn_composition_dispatch(ctx)
 
@@ -719,7 +722,7 @@ def test_decision_materialize_returns_blocked_when_engine_raises(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     ctx = _make_ctx(tmp_path)
-    monkeypatch.setattr(rb, "_resolve_retrospective_policy_for_runtime", lambda repo_root: (None, {}, None))
+    monkeypatch.setattr(_retrospective_seam, "_resolve_retrospective_policy_for_runtime", lambda repo_root: (None, {}, None))
 
     def _raise(*_a: Any, **_kw: Any) -> NextDecision:
         raise RuntimeError("engine boom")
@@ -738,7 +741,7 @@ def test_decision_materialize_returns_blocked_when_pre_state_capture_fails(
     ctx = _make_ctx(tmp_path)
     (ctx.run_dir / "state.json").mkdir()  # forces _dn_capture_pre_speculative_state -> None
     policy = SimpleNamespace(enabled=True, timing="before_completion", failure_policy="block")
-    monkeypatch.setattr(rb, "_resolve_retrospective_policy_for_runtime", lambda repo_root: (policy, {}, None))
+    monkeypatch.setattr(_retrospective_seam, "_resolve_retrospective_policy_for_runtime", lambda repo_root: (policy, {}, None))
     monkeypatch.setattr(rb, "runtime_next_step", _raising)
 
     decision = rb._dn_decision_materialize(ctx)
@@ -758,7 +761,7 @@ def test_decision_materialize_rolls_back_state_on_retrospective_gate_refusal(
     events_path.write_text("event-1\n")
 
     policy = SimpleNamespace(enabled=True, timing="before_completion", failure_policy="block")
-    monkeypatch.setattr(rb, "_resolve_retrospective_policy_for_runtime", lambda repo_root: (policy, {}, None))
+    monkeypatch.setattr(_retrospective_seam, "_resolve_retrospective_policy_for_runtime", lambda repo_root: (policy, {}, None))
 
     def _fake_runtime_next_step(run_ref: Any, *, agent_id: str, result: str, emitter: Any) -> NextDecision:
         # Simulate the engine's speculative write before returning terminal —
@@ -773,8 +776,8 @@ def test_decision_materialize_rolls_back_state_on_retrospective_gate_refusal(
     def _raising_capture(**_kw: Any) -> None:
         raise RuntimeError("gate refused")
 
-    monkeypatch.setattr(rb, "_run_retrospective_learning_capture", _raising_capture)
-    monkeypatch.setattr(rb, "_resolve_mission_id_for_terminus", lambda feature_dir: "mission-id")
+    monkeypatch.setattr(_retrospective_seam, "_run_retrospective_learning_capture", _raising_capture)
+    monkeypatch.setattr(_retrospective_seam, "_resolve_mission_id_for_terminus", lambda feature_dir: "mission-id")
 
     decision = rb._dn_decision_materialize(ctx)
 
@@ -789,12 +792,12 @@ def test_decision_materialize_flushes_buffer_and_materializes_after_gate_passes(
 ) -> None:
     ctx = _make_ctx(tmp_path)
     policy = SimpleNamespace(enabled=True, timing="before_completion", failure_policy="block")
-    monkeypatch.setattr(rb, "_resolve_retrospective_policy_for_runtime", lambda repo_root: (policy, {}, None))
+    monkeypatch.setattr(_retrospective_seam, "_resolve_retrospective_policy_for_runtime", lambda repo_root: (policy, {}, None))
 
     runtime_decision = NextDecision(kind="terminal", run_id="run-042", mission_key="042-mission")
     monkeypatch.setattr(rb, "runtime_next_step", lambda run_ref, *, agent_id, result, emitter: runtime_decision)
-    monkeypatch.setattr(rb, "_run_retrospective_learning_capture", lambda **kw: None)
-    monkeypatch.setattr(rb, "_resolve_mission_id_for_terminus", lambda feature_dir: "mission-id")
+    monkeypatch.setattr(_retrospective_seam, "_run_retrospective_learning_capture", lambda **kw: None)
+    monkeypatch.setattr(_retrospective_seam, "_resolve_mission_id_for_terminus", lambda feature_dir: "mission-id")
 
     sentinel = _sentinel_decision("terminal-sentinel")
     calls: list[tuple[Any, ...]] = []
@@ -830,18 +833,18 @@ def test_decision_materialize_fires_non_blocking_retrospective_after_terminal(
     # enabled + NOT before_completion/block -> retrospective_enabled True,
     # block_on_retrospective False (real _retrospective_blocks_completion).
     policy = SimpleNamespace(enabled=True, timing="after_completion", failure_policy="best_effort")
-    monkeypatch.setattr(rb, "_resolve_retrospective_policy_for_runtime", lambda repo_root: (policy, {}, None))
+    monkeypatch.setattr(_retrospective_seam, "_resolve_retrospective_policy_for_runtime", lambda repo_root: (policy, {}, None))
 
     runtime_decision = NextDecision(kind="terminal", run_id="run-042", mission_key="042-mission")
     monkeypatch.setattr(rb, "runtime_next_step", lambda run_ref, *, agent_id, result, emitter: runtime_decision)
-    monkeypatch.setattr(rb, "_resolve_mission_id_for_terminus", lambda feature_dir: "mission-id")
+    monkeypatch.setattr(_retrospective_seam, "_resolve_mission_id_for_terminus", lambda feature_dir: "mission-id")
 
     calls: list[dict[str, Any]] = []
 
     def _fake_capture(**kwargs: Any) -> None:
         calls.append(kwargs)
 
-    monkeypatch.setattr(rb, "_run_retrospective_learning_capture", _fake_capture)
+    monkeypatch.setattr(_retrospective_seam, "_run_retrospective_learning_capture", _fake_capture)
 
     sentinel = _sentinel_decision("fire-and-forget")
     monkeypatch.setattr(rb, "_map_runtime_decision", lambda *a: sentinel)
@@ -865,12 +868,12 @@ def test_decision_materialize_skips_retrospective_for_non_terminal_decision(
 ) -> None:
     ctx = _make_ctx(tmp_path)
     policy = SimpleNamespace(enabled=True, timing="after_completion", failure_policy="best_effort")
-    monkeypatch.setattr(rb, "_resolve_retrospective_policy_for_runtime", lambda repo_root: (policy, {}, None))
+    monkeypatch.setattr(_retrospective_seam, "_resolve_retrospective_policy_for_runtime", lambda repo_root: (policy, {}, None))
 
     runtime_decision = NextDecision(kind="step", run_id="run-042", mission_key="042-mission", step_id="implement")
     monkeypatch.setattr(rb, "runtime_next_step", lambda run_ref, *, agent_id, result, emitter: runtime_decision)
-    monkeypatch.setattr(rb, "_run_retrospective_learning_capture", _raising)
-    monkeypatch.setattr(rb, "_resolve_mission_id_for_terminus", _raising)
+    monkeypatch.setattr(_retrospective_seam, "_run_retrospective_learning_capture", _raising)
+    monkeypatch.setattr(_retrospective_seam, "_resolve_mission_id_for_terminus", _raising)
 
     sentinel = _sentinel_decision("non-terminal")
     monkeypatch.setattr(rb, "_map_runtime_decision", lambda *a: sentinel)

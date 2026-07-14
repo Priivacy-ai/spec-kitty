@@ -453,8 +453,8 @@ class TestQueryCurrentStateErrorPaths:
         feature_dir.mkdir(parents=True)
 
         with (
-            patch("runtime.next.runtime_bridge._existing_run_ref", return_value=None),
-            patch("runtime.next.runtime_bridge._start_ephemeral_query_run", side_effect=RuntimeError("run init failed")),
+            patch("runtime.next.runtime_bridge_io._existing_run_ref", return_value=None),
+            patch("runtime.next.runtime_bridge_io._start_ephemeral_query_run", side_effect=RuntimeError("run init failed")),
             patch("runtime.next.runtime_bridge.get_mission_type", return_value="software-dev"),
             patch("runtime.next.runtime_bridge._compute_wp_progress", return_value=None),
         ):
@@ -504,7 +504,7 @@ class TestQueryCurrentStateErrorPaths:
         blocked.step_id = None
 
         with (
-            patch("runtime.next.runtime_bridge._existing_run_ref", return_value=mock_run_ref),
+            patch("runtime.next.runtime_bridge_io._existing_run_ref", return_value=mock_run_ref),
             patch("runtime.next.runtime_bridge.get_mission_type", return_value="software-dev"),
             patch("runtime.next.runtime_bridge._compute_wp_progress", return_value=None),
             patch("runtime.next._internal_runtime.engine._read_snapshot", return_value=snapshot),
@@ -541,7 +541,7 @@ class TestQueryCurrentStateErrorPaths:
         decision_required.options = ["yes", "no"]
 
         with (
-            patch("runtime.next.runtime_bridge._existing_run_ref", return_value=mock_run_ref),
+            patch("runtime.next.runtime_bridge_io._existing_run_ref", return_value=mock_run_ref),
             patch("runtime.next.runtime_bridge.get_mission_type", return_value="software-dev"),
             patch("runtime.next.runtime_bridge._compute_wp_progress", return_value=None),
             patch("runtime.next._internal_runtime.engine._read_snapshot", return_value=snapshot),
@@ -588,9 +588,9 @@ class TestQueryCurrentStateErrorPaths:
         ephemeral_store.mkdir()
 
         with (
-            patch("runtime.next.runtime_bridge._existing_run_ref", return_value=None),
+            patch("runtime.next.runtime_bridge_io._existing_run_ref", return_value=None),
             patch(
-                "runtime.next.runtime_bridge._start_ephemeral_query_run",
+                "runtime.next.runtime_bridge_io._start_ephemeral_query_run",
                 return_value=(ephemeral_ref, ephemeral_store),
             ),
             patch("runtime.next.runtime_bridge.get_mission_type", return_value="software-dev"),
@@ -634,7 +634,7 @@ class TestQueryCurrentStateErrorPaths:
         next_step.step_id = "plan"
 
         with (
-            patch("runtime.next.runtime_bridge._existing_run_ref", return_value=persisted_ref),
+            patch("runtime.next.runtime_bridge_io._existing_run_ref", return_value=persisted_ref),
             patch("runtime.next.runtime_bridge.get_mission_type", return_value="software-dev"),
             patch("runtime.next.runtime_bridge._compute_wp_progress", return_value=None),
             patch("runtime.next._internal_runtime.engine._read_snapshot", return_value=snapshot),
@@ -668,7 +668,7 @@ class TestQueryCurrentStateErrorPaths:
         snapshot.policy_snapshot = MagicMock()
 
         with (
-            patch("runtime.next.runtime_bridge._existing_run_ref", return_value=mock_run_ref),
+            patch("runtime.next.runtime_bridge_io._existing_run_ref", return_value=mock_run_ref),
             patch("runtime.next.runtime_bridge.get_mission_type", return_value="software-dev"),
             patch("runtime.next.runtime_bridge._compute_wp_progress", return_value=None),
             patch("runtime.next._internal_runtime.engine._read_snapshot", return_value=snapshot),
@@ -704,7 +704,7 @@ class TestQueryCurrentStateErrorPaths:
         terminal.step_id = None
 
         with (
-            patch("runtime.next.runtime_bridge._existing_run_ref", return_value=mock_run_ref),
+            patch("runtime.next.runtime_bridge_io._existing_run_ref", return_value=mock_run_ref),
             patch("runtime.next.runtime_bridge.get_mission_type", return_value="software-dev"),
             patch("runtime.next.runtime_bridge._compute_wp_progress", return_value=None),
             patch("runtime.next._internal_runtime.engine._read_snapshot", return_value=snapshot),
@@ -730,7 +730,7 @@ class TestQueryCurrentStateErrorPaths:
         # so the caller will fall back to bootstrapping a fresh ephemeral run.
         (tmp_path / "stale_run").mkdir()
 
-        with patch("runtime.next.runtime_bridge._load_feature_runs", return_value=index):
+        with patch("runtime.next.runtime_bridge_io.load_feature_runs", return_value=index):
             assert _existing_run_ref("069-test", tmp_path, "software-dev") is None
 
     def test_start_ephemeral_query_run_cleans_up_on_bootstrap_failure(self, tmp_path: Path) -> None:
@@ -754,8 +754,8 @@ class TestQueryCurrentStateErrorPaths:
             # ``_rb`` (``runtime_bridge``) back-reference, so those two patch targets
             # are unchanged.
             patch("runtime.next.runtime_bridge_io.tempfile.mkdtemp", side_effect=tracking_mkdtemp),
-            patch("runtime.next.runtime_bridge._runtime_template_key", return_value="software-dev"),
-            patch("runtime.next.runtime_bridge._build_discovery_context", return_value=None),
+            patch("runtime.next.runtime_bridge_io._runtime_template_key", return_value="software-dev"),
+            patch("runtime.next.runtime_bridge_io._build_discovery_context", return_value=None),
             patch("runtime.next.runtime_bridge_io.start_mission_run", side_effect=RuntimeError("template missing")),
             pytest.raises(RuntimeError, match="template missing"),
         ):
@@ -791,7 +791,7 @@ class TestQueryCurrentStateErrorPaths:
         blocked.reason = "Waiting on external approval"
 
         with (
-            patch("runtime.next.runtime_bridge._existing_run_ref", return_value=mock_run_ref),
+            patch("runtime.next.runtime_bridge_io._existing_run_ref", return_value=mock_run_ref),
             patch("runtime.next.runtime_bridge.get_mission_type", return_value="software-dev"),
             patch("runtime.next.runtime_bridge._compute_wp_progress", return_value=None),
             patch("runtime.next._internal_runtime.engine._read_snapshot", return_value=snapshot),

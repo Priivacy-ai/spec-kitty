@@ -68,14 +68,19 @@ _COMPAT_GUARDED_NAMES = frozenset(
     }
 )
 
-# The two symbols in the cluster that are NOT part of the WP02 compat guard's
-# tracked inventory (nothing patches them) -- re-exported as plain
-# module-level imports instead of thin delegates.
-_PLAIN_REEXPORT_NAMES = frozenset({"_composition_dispatch_inputs", "_has_generated_docs"})
-
-# Symbols that moved into this seam but have NO external caller left at all
-# (purely internal helpers) -- no residual re-export of any kind.
-_INTERNAL_ONLY_NAMES = frozenset({"_resolve_step_binding", "_LEGACY_TASKS_STEP_IDS"})
+# Symbols that live on this seam but have NO ``runtime_bridge`` façade
+# re-export -- callers reach them directly on the seam. WP18 (#2561) retired
+# the ``_composition_dispatch_inputs`` / ``_has_generated_docs`` plain
+# re-exports (nothing patched them via the façade path), joining the two
+# helpers that were already re-export-free.
+_INTERNAL_ONLY_NAMES = frozenset(
+    {
+        "_resolve_step_binding",
+        "_LEGACY_TASKS_STEP_IDS",
+        "_composition_dispatch_inputs",
+        "_has_generated_docs",
+    }
+)
 
 
 def test_seam_defines_every_relocated_symbol() -> None:
@@ -83,25 +88,23 @@ def test_seam_defines_every_relocated_symbol() -> None:
     name. Native-thin-delegate status for the compat-guarded set is the
     frozen family guard's job now (``test_bridge_compat_surface.py::
     test_guard_b_identity_reexport_for_relocated_symbols``); this check only
-    guards the re-export assertion below against passing for the wrong
-    reason (nobody needing the cluster at all)."""
-    for name in sorted(_COMPAT_GUARDED_NAMES | _PLAIN_REEXPORT_NAMES | _INTERNAL_ONLY_NAMES):
+    guards against passing for the wrong reason (nobody needing the cluster
+    at all)."""
+    for name in sorted(_COMPAT_GUARDED_NAMES | _INTERNAL_ONLY_NAMES):
         assert hasattr(composition, name), f"seam is missing relocated symbol {name!r}"
 
 
-def test_runtime_bridge_keeps_plain_reexports_for_untracked_helpers() -> None:
-    """The two untracked helpers are plain re-exports (identical object,
-    origin module is the seam) -- a native delegate would be unnecessary
-    boilerplate since nothing patches them."""
+def test_untracked_helpers_have_no_runtime_bridge_reexport() -> None:
+    """WP18 (#2561): the two untracked helpers are reached directly on the
+    seam -- the ``runtime_bridge`` façade re-export was retired, so nothing
+    resolves them through ``runtime_bridge.<name>`` any more."""
     from runtime.next import runtime_bridge as rb
 
-    for name in sorted(_PLAIN_REEXPORT_NAMES):
-        rb_obj = getattr(rb, name)
-        seam_obj = getattr(composition, name)
-        assert rb_obj is seam_obj, f"{name!r} re-export is a copy, not an identity re-export"
-        assert rb_obj.__module__ == composition.__name__, (
-            f"{name!r} unexpectedly natively defined on runtime_bridge -- "
-            "expected a plain re-export from the seam"
+    for name in ("_composition_dispatch_inputs", "_has_generated_docs"):
+        assert callable(getattr(composition, name)), f"{name!r} missing from the seam"
+        assert not hasattr(rb, name), (
+            f"{name!r} unexpectedly still exported on runtime_bridge -- the WP18 "
+            "façade-re-export retirement regressed"
         )
 
 

@@ -159,6 +159,7 @@ class TestRuntimeTemplateKey:
         repo_root = _scaffold_project(tmp_path)
 
         import runtime.next.runtime_bridge as runtime_bridge
+        import runtime.next.runtime_bridge_io as runtime_bridge_io
         import specify_cli
 
         builtin_root = Path(specify_cli.__file__).resolve().parent / "missions"
@@ -166,7 +167,7 @@ class TestRuntimeTemplateKey:
         # Force deterministic discovery context for this test so user-global
         # ~/.kittify content cannot shadow the builtin fallback tier.
         monkeypatch.setattr(
-            runtime_bridge,
+            runtime_bridge_io,
             "_build_discovery_context",
             lambda root: DiscoveryContext(
                 project_dir=root,
@@ -287,6 +288,7 @@ class TestWorkflowRuntimeTemplate:
         repo_root = _scaffold_project(tmp_path)
 
         import runtime.next.runtime_bridge as runtime_bridge
+        import runtime.next.runtime_bridge_io as runtime_bridge_io
         import specify_cli
 
         builtin_root = Path(specify_cli.__file__).resolve().parent / "missions"
@@ -303,7 +305,7 @@ class TestWorkflowRuntimeTemplate:
         )
 
         monkeypatch.setattr(
-            runtime_bridge,
+            runtime_bridge_io,
             "_build_discovery_context",
             lambda root: DiscoveryContext(
                 project_dir=root,

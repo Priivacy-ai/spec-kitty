@@ -301,7 +301,7 @@ def test_advance_run_state_preserves_identity_through_autocomplete_reconstructio
             ),
         ),
         patch(
-            "runtime.next.runtime_bridge._resolve_retrospective_policy_for_runtime",
+            "runtime.next.runtime_bridge_retrospective._resolve_retrospective_policy_for_runtime",
             return_value=(None, {}, None),
         ),
         patch(
@@ -391,7 +391,7 @@ def test_advance_run_state_preserves_identity_through_final_persist_reconstructi
             ),
         ),
         patch(
-            "runtime.next.runtime_bridge._resolve_retrospective_policy_for_runtime",
+            "runtime.next.runtime_bridge_retrospective._resolve_retrospective_policy_for_runtime",
             return_value=(None, {}, None),
         ),
         patch(

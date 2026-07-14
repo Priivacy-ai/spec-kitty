@@ -157,7 +157,7 @@ class TestRunRetrospectivePostcondition:
         feature_dir = _make_feature_dir(tmp_path)
 
         with patch(
-            "runtime.next.runtime_bridge._run_retrospective_learning_capture"
+            "runtime.next.runtime_bridge_retrospective._run_retrospective_learning_capture"
         ) as mock_bridge:
             from specify_cli.post_merge.retrospective_terminus import _invoke_capture
 
