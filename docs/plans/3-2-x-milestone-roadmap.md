@@ -2,7 +2,7 @@
 title: 3.2.x Milestone — Roadmap
 description: 'Operator-facing roadmap for the 3.2.x milestone: the epic dependency spine, degod/unshim wave status, milestone census, exit criteria, and watch items.'
 doc_status: active
-updated: '2026-07-13'
+updated: '2026-07-14'
 related:
 - docs/changelog/index.md
 - docs/plans/index.md
@@ -45,6 +45,47 @@ The epic graph is now encoded **natively in the tracker** as blocked-by edges (2
 5. **#1931** (test quality & suite hygiene) runs as a standing campsite epic: folded opportunistically into missions, never a blocker.
 6. **#2392** (upgrade-worktree coherence, child of #1619) is the same kind of standing consolidation epic as #1931, not a blocking node — it exists to fold a git-state bug cluster (#2385, #1873, #2105, and the partly-fenced #2367) into **one** canonical fix seam instead of letting each land as an independent partial patch. Alphonso's design: a canonical invariant (*every write in every checkout the upgrade run touches ends in exactly one auto-commit — derived from real `git status --porcelain`, not a hardcoded list — or is intentionally reverted*), landed via a single `commit_touched_checkout` helper extracted from `_auto_commit_upgrade_changes` (`upgrade.py`) and applied symmetrically across main + every `.worktrees/*` enumerated by `runner.py`. #2367 is flagged as one-invariant-three-seams and kept OUT of this helper (see Watch items).
 7. **#2400** (metadata & profile authority, **P1**, sub-epic of #1799) is a second standing consolidation epic of the same shape as #1931/#2392, not a blocking node — it exists to fold the "instructed, not enforced" defect class (the same class as #2364's dispatch-time model-discipline rule) into one canonical resolver/event-log authority instead of leaving it as prompt instructions or drifting hardcoded frontmatter. Members: **#2399** (structurally enforce agent-profile loading across all four invocation contexts — ops/ad-hoc/dispatch/mission-WP) and **#2093** (WP-metadata authority split: static design-intent stays frontmatter-canonical; dynamic runtime state — `agent`/`shell_pid`/`history`/reviews — retires to event-log/invocation authority, generalizing the `lane` retirement; architect-alphonso's DECISION already rules this REWORK-staged). Related but not reparented: #1841 (WP-claim Python profile-load) and #1840 (skills subagent-delegation preamble). Mutual coupling: splitting `agent_profile` (intent vs. resolved-binding, #2093) is the **precondition** for #2399's enforcement seam; #2399's resolve→materialize→record mechanism is the **mechanism** that makes #2093's dynamic half real — sequence the pair together (see Watch items).
+
+## The G1 doctrine & charter arc (off-spine)
+
+The dependency spine above is the **G2/G3** program — strangling the core domains onto SSOTs and the DevEx enablers that make it enforceable. But 3.2.x's *first* stated goal is **G1: deepen Doctrine/Charter/DRG impact on runtime execution**, and that goal has its own epic arc which sits **outside the blocking spine by design** — it is depth, not a blocker of the mission-execution root #1619. This section makes the arc visible so the roadmap reflects the whole milestone, not just the strangler.
+
+*Added 2026-07-14 after an epic-graph audit found this arc unmodeled here and several of its epics unprioritized. Priority/milestone fixes applied in the same pass: #2466→P1, #1799→P1; the two P1 Glossary-as-doctrine epics #1629/#1418 pulled into 3.2.x. The doctrine arc's internal edges were audited and found already modeled at the right granularity (keystone-child, not coarse parent) — no new blocked-by edges were warranted.*
+
+**The arc has four roots and one internal keystone:**
+
+```
+#2466 pack ecosystem (P1) ──[keystone #2467: split built-in → packs]──┐
+   ├─ #2468 mission-types + step-contracts as doctrine kinds           │ #2467 blocks:
+   ├─ #2469 loose-contract ASSET kind ✅ · #2495 templates as DRG ✅    │  #2468 #2470 #2471 #2216
+   ├─ #2470 shortcodes-as-doctrine · #2471 pack-validator CI · #2472 procedure-kind fate
+   ├─ #2473 model-discipline currency · #2537 DRG at_tension_with edge
+   ├─ #2535 doctrine-controlled transition gates (P1) — sub-epic, needs #2468/#2469
+   │     └─ #2595 ScopeSource port · #2596 pre-review handler · #2597 gate-binding schema
+   │        #2598 invert move-task hook · #2599 executable ASSET handlers · #2540 trust baseline
+   └─ #2539 pack trust / verifiability (→ 3.3.x) — sub-epic, verified distribution
+
+#1799 charter & doctrine governance (P1)
+   ├─ #2216 governance tiers (P2) — blocked_by #2467 — component-type immutability
+   │     └─ #2591 schema · #2592 merge-time enforcement · #2593 AUTHORITATIVE master-switch · #2594 migrate replaceable-builtins
+   └─ #2400 metadata & profile authority (P1) — consolidation sub-epic (see spine reading-order #7)
+
+#2519 charter authoring & lifecycle robustness (P1)
+   └─ #2526 foundation ✅ → #2522 authoring scaffold → #2521 init-freshness preflight → #2520 charter domain events   (see Hot list)
+
+#2314 docsite (P2) + doctrine-docs #2053 / #2302 (codify docs-as-doctrine) / #2352
+Glossary-as-doctrine: #1629 + #1418 (P1, now 3.2.x) — first-order glossary artifact / packs
+```
+
+**Reading order within the arc:**
+
+1. **#2467 is the keystone.** Splitting built-in doctrine into packs (built-in → org → project, `depends_on` DAG) is the substrate everything downstream builds against; it already blocks #2468/#2470/#2471/#2216.
+2. **Extensibility kinds next.** #2468 (mission-types + step-contracts as doctrine kinds) and the closed #2469 (ASSET kind) are the prerequisites the **gates** sub-epic #2535 makes executable at a transition boundary.
+3. **Governance semantics.** #2216 (component-type immutability + AUTHORITATIVE charters) rides on the pack tiers from #2467 — the edge exists at keystone-child granularity (#2216 blocked_by #2467), not a coarse parent edge.
+4. **Authoring robustness.** #2519 runs its own #2526→#2522→#2521→#2520 sequence (foundation shipped); it is a sibling root, not gated by #2466.
+5. **Trust / distribution (#2539) is 3.3.x** — the verified-pack story builds on this cycle's pack model but ships next milestone.
+
+**Exit-criteria implication:** the milestone's G1 goal is not satisfied merely because the spine closes. At minimum the arc's **keystone #2467** and the extensibility kinds it unblocks (#2468 and #2535's declarative-gate half) must land for G1 to have "deepened Doctrine/Charter/DRG impact on runtime execution" as declared. The governance-tier tail (#2216) and trust/distribution (#2539) may legitimately carry into 3.3.x — but as an **explicit re-milestone decision, not silent drift** (the same standing counter-measure as the milestone-drift watch item below).
 
 ## Wave status board (degod/unshim roadmap)
 
