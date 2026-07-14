@@ -85,7 +85,3 @@ optional_always:
     artifact_class: "evidence"
     path_pattern: "audit-report.md"
     blocking: false
-  - artifact_key: "runtime.charter-lint.decay"
-    artifact_class: "runtime"
-    path_pattern: "lint-report.json"
-    blocking: false
