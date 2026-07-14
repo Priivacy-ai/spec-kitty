@@ -8,7 +8,7 @@ on:
 jobs:
   changes:
     name: Detect Windows-critical changes
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     outputs:
       windows_critical: ${{ steps.filter.outputs.windows_critical }}
     steps:
@@ -52,7 +52,7 @@ jobs:
     name: Windows critical (pipx, pytest -m windows_ci)
     needs: [changes]
     if: needs.changes.outputs.windows_critical == 'true'
-    runs-on: windows-latest
+    runs-on: blacksmith-4vcpu-windows-2025
     timeout-minutes: 20
     env:
       PYTHONUTF8: "1"
