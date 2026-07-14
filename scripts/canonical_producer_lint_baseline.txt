@@ -59,8 +59,6 @@ tests/delivery/test_receivers.py::CP001
 tests/e2e/test_mission_create_clean_output.py::CP001
 tests/integration/test_offline_queue_overflow.py::CP001
 tests/integration/test_offline_queue_overflow.py::CP002
-tests/integration/test_replay_tenant_collision.py::CP001
-tests/integration/test_replay_tenant_collision.py::CP002
 tests/merge/test_merge_bootstrap_history_gate.py::CP001
 tests/migration/test_mission_state_repair.py::CP001
 tests/migration/test_teamspace_migration_rehearsal.py::CP001

@@ -1,6 +1,6 @@
 ---
 title: 'runtime_bridge compat-delegate classification'
-description: 'Authoritative forwarding-vs-real-seam classification of the 45 runtime_bridge compat-delegate candidates, driving the Lane-0 deshim chain (WP02 classify → WP03/WP04 repoint → WP18 delete) of the Test-Suite Friction Remediation mission.'
+description: 'Forwarding-vs-real-seam classification of the 45 runtime_bridge compat-delegate candidates driving the Lane-0 deshim chain (classify → repoint → delete).'
 doc_status: active
 updated: '2026-07-13'
 related:

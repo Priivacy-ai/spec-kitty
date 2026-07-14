@@ -202,6 +202,8 @@ class TestSpecializesFromAndUnknownRelation:
         lineage_edges = [
             e for e in merged.edges if e.relation is Relation.SPECIALIZES_FROM
         ]
+        # cardinality-is-contract: merge must not duplicate the lineage edge when layers re-declare it; the projection collapses duplicates
+        assert len(lineage_edges) == 1  # golden-count: cardinality-is-contract
         assert {(e.source, e.target) for e in lineage_edges} == {
             ("agent_profile:child", "agent_profile:parent")
         }
@@ -245,6 +247,8 @@ class TestSpecializesFromAndUnknownRelation:
         merged = merge_three_layers(
             built_in=_graph(), org_fragments=[org], project=None
         )
+        # cardinality-is-contract: merge yields exactly one edge; projecting only .relation collapses duplicate/extra edges
+        assert len(merged.edges) == 1  # golden-count: cardinality-is-contract
         assert {e.relation for e in merged.edges} == {Relation.REFINES}
         assert merged.edges[0].relation is Relation.REFINES
 
@@ -262,6 +266,8 @@ class TestSpecializesFromAndUnknownRelation:
         merged = merge_three_layers(
             built_in=_graph(), org_fragments=[org], project=None
         )
+        # cardinality-is-contract: merge yields exactly one edge; projecting only .relation collapses duplicate/extra edges
+        assert len(merged.edges) == 1  # golden-count: cardinality-is-contract
         assert {e.relation for e in merged.edges} == {Relation.SPECIALIZES_FROM}
         assert merged.edges[0].relation is Relation.SPECIALIZES_FROM
 
@@ -283,6 +289,8 @@ class TestSpecializesFromAndUnknownRelation:
         merged = merge_three_layers(
             built_in=_graph(), org_fragments=[org], project=None
         )
+        # cardinality-is-contract: merge yields exactly one edge per mapped relation; the projection collapses a duplicated edge
+        assert len(merged.edges) == 1  # golden-count: cardinality-is-contract
         assert {e.relation.value for e in merged.edges} == {relation}
         assert merged.edges[0].relation.value == relation
 
@@ -514,6 +522,8 @@ class TestInvariantsPreserved:
             "org:p",
         )
 
+        # cardinality-is-contract: a single node override records exactly one conflict; the projection collapses duplicate conflict records
+        assert len(conflicts) == 1  # golden-count: cardinality-is-contract
         assert {(c.kind, c.resolution_applied) for c in conflicts} == {
             ("node_override", "org_override")
         }
