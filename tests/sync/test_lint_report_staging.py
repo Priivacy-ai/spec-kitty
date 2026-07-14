@@ -140,3 +140,101 @@ def test_noop_when_repo_root_not_locatable(tmp_path: Path, monkeypatch) -> None:
 
     assert staged is False
     assert not (feature_dir / LINT_REPORT_FILENAME).exists()
+
+
+def test_noop_when_feature_dir_unwritable(tmp_path: Path, monkeypatch) -> None:
+    """The OSError-on-write branch: an unwritable feature_dir is a quiet no-op."""
+    repo_root, feature_dir = _make_repo(tmp_path)
+    _write_report(repo_root, feature_scope=MISSION_SLUG)
+
+    def _boom(*_args, **_kwargs):
+        raise OSError("read-only file system")
+
+    monkeypatch.setattr(Path, "write_text", _boom)
+
+    staged = stage_charter_lint_report(feature_dir, MISSION_SLUG)
+
+    assert staged is False
+
+
+# ── #2628 fold: identity-form matching against the real DecayReport serializer ──
+
+# mission_id is a 26-char ULID; mid8 is its first 8 chars (see Mission Identity
+# Model). A mission scoped under any of these handles must still stage.
+_MISSION_ID = "01KX3T12M7VMEV4JX1BZTDS6KQ"
+_MID8 = _MISSION_ID[:8]
+_META_SLUG = "decay-watch"
+
+
+def _make_identified_repo(tmp_path: Path) -> tuple[Path, Path]:
+    """Repo + feature_dir carrying a real meta.json (mission_id + mission_slug).
+
+    ``feature_dir.name`` (the canonical directory name the sync consumer keys by)
+    deliberately differs from the meta ``mission_slug`` so the alias-set match is
+    genuinely exercised rather than coincidentally passing on the directory name.
+    """
+    repo_root = tmp_path / "repo"
+    (repo_root / ".kittify").mkdir(parents=True)
+    feature_dir = repo_root / "kitty-specs" / f"{_META_SLUG}-{_MID8}"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_id": _MISSION_ID, "mission_slug": _META_SLUG}),
+        encoding="utf-8",
+    )
+    return repo_root, feature_dir
+
+
+def _write_real_report(repo_root: Path, *, feature_scope: str | None) -> str:
+    """Serialize a genuine DecayReport so the staging gate stays coupled to the
+    producer's real key names, not a hand-built dict."""
+    from specify_cli.charter_runtime.lint.findings import DecayReport, LintFinding
+
+    report = DecayReport(
+        feature_scope=feature_scope,
+        findings=[
+            LintFinding(
+                category="orphan",
+                type="orphaned_directive",
+                id="urn:directive:x",
+                severity="high",
+                message="orphaned",
+                feature_id=feature_scope,
+                remediation_hint="wire it up",
+            ),
+        ],
+    )
+    raw = report.to_json()
+    (repo_root / ".kittify" / LINT_REPORT_FILENAME).write_text(raw, encoding="utf-8")
+    return raw
+
+
+@pytest.mark.parametrize(
+    "handle",
+    [_MISSION_ID, _MID8, _META_SLUG],
+    ids=["mission_id", "mid8", "meta_slug"],
+)
+def test_stages_when_feature_scope_is_any_mission_handle(
+    tmp_path: Path, handle: str,
+) -> None:
+    """A report scoped under mission_id / mid8 / slug all stage, even though the
+    sync consumer keys by the (different) directory name."""
+    repo_root, feature_dir = _make_identified_repo(tmp_path)
+    # The consumer passes the canonical directory name as mission_slug — which is
+    # NOT equal to any of the handles under test, proving the alias set is used.
+    raw = _write_real_report(repo_root, feature_scope=handle)
+
+    staged = stage_charter_lint_report(feature_dir, feature_dir.name)
+
+    assert staged is True, f"report scoped under {handle!r} should stage"
+    dest = feature_dir / LINT_REPORT_FILENAME
+    assert dest.read_text(encoding="utf-8") == raw
+
+
+def test_does_not_stage_when_scope_is_a_different_mission(tmp_path: Path) -> None:
+    repo_root, feature_dir = _make_identified_repo(tmp_path)
+    _write_real_report(repo_root, feature_scope="01JJJJJJJJJJJJJJJJJJJJJJJJ")
+
+    staged = stage_charter_lint_report(feature_dir, feature_dir.name)
+
+    assert staged is False
+    assert not (feature_dir / LINT_REPORT_FILENAME).exists()
