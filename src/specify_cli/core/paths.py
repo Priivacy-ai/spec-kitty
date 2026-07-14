@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .constants import KITTIFY_DIR, WORKTREES_DIR
+from .constants import KITTIFY_DIR, LINT_REPORT_FILENAME, WORKTREES_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -265,6 +265,17 @@ def locate_project_root(start: Path | None = None) -> Path | None:
             return candidate
 
     return None
+
+
+def lint_report_path(repo_root: Path) -> Path:
+    """Return the canonical path of the repo-global charter-lint decay report.
+
+    The lint engine writes ``<repo_root>/.kittify/lint-report.json``; the
+    dashboard tile and the dossier stager read it back. This accessor is the
+    single source of truth for that location — no caller should re-compose the
+    ``.kittify`` / filename literals by hand (#2628 SSOT fold).
+    """
+    return repo_root / KITTIFY_DIR / LINT_REPORT_FILENAME
 
 
 def is_worktree_context(path: Path) -> bool:
@@ -854,6 +865,7 @@ def require_explicit_feature(feature: str | None, *, command_hint: str = "") -> 
 __all__ = [
     "assert_safe_path_segment",
     "locate_project_root",
+    "lint_report_path",
     "is_worktree_context",
     "resolve_with_context",
     "check_broken_symlink",

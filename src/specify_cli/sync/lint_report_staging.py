@@ -32,11 +32,17 @@ import json
 import logging
 from pathlib import Path
 
-from specify_cli.core.paths import locate_project_root
+from specify_cli.core.paths import (
+    LINT_REPORT_FILENAME,
+    lint_report_path,
+    locate_project_root,
+)
 
 logger = logging.getLogger(__name__)
 
-LINT_REPORT_FILENAME = "lint-report.json"
+# Re-exported from core.paths so callers/tests that import it from this module
+# keep working; the canonical definition lives in core.constants (#2628 SSOT).
+__all__ = ["LINT_REPORT_FILENAME", "stage_charter_lint_report"]
 
 _MID8_LEN = 8
 
@@ -86,7 +92,7 @@ def stage_charter_lint_report(feature_dir: Path, mission_slug: str) -> bool:
     if repo_root is None:
         return False
 
-    report_path = repo_root / ".kittify" / LINT_REPORT_FILENAME
+    report_path = lint_report_path(repo_root)
     try:
         raw = report_path.read_text(encoding="utf-8")
     except OSError:

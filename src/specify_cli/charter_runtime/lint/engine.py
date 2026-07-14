@@ -160,7 +160,9 @@ class LintEngine:
     def _persist(self, report: DecayReport) -> None:
         """Write *report* to ``.kittify/lint-report.json`` (silent on OSError)."""
         try:
-            report_path = self._repo_root / ".kittify" / "lint-report.json"
+            from specify_cli.core.paths import lint_report_path
+
+            report_path = lint_report_path(self._repo_root)
             report_path.parent.mkdir(parents=True, exist_ok=True)
             report_path.write_text(report.to_json(), encoding="utf-8")
         except OSError as exc:
