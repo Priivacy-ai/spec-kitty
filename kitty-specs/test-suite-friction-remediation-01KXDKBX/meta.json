@@ -1,0 +1,31 @@
+{
+  "accept_commit": "c68b842eff730182513801a2c4848cd1df7e2102",
+  "acceptance_history": [
+    {
+      "accept_commit": "c68b842eff730182513801a2c4848cd1df7e2102",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-13T21:41:17.573403+00:00",
+      "accepted_by": "Stijn Dejongh (orchestrated)",
+      "accepted_from_commit": "2b123b485bb85229d1414bc512f8a4abc29e05e6"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-13T21:41:17.573403+00:00",
+  "accepted_by": "Stijn Dejongh (orchestrated)",
+  "accepted_from_commit": "2b123b485bb85229d1414bc512f8a4abc29e05e6",
+  "baseline_merge_commit": "fcb7f180f8c0e5eecc52673ba0d017de83c5aaec",
+  "created_at": "2026-07-13T11:21:30.796998+00:00",
+  "flattened": false,
+  "friendly_name": "Test-Suite Friction Remediation",
+  "mission_id": "01KXDKBXDCDVZPXAHBKVGP9MWS",
+  "mission_number": 177,
+  "mission_slug": "test-suite-friction-remediation-01KXDKBX",
+  "mission_type": "software-dev",
+  "purpose_context": "The test suite still has pockets that go red on a correct refactor instead of catching a real regression. This mission pays that down where it genuinely remains — after the 2026-07-12 wave already landed the composite-key ratchet re-key, the relocation-hardened dead-code scanners, and the security xfail de-theater — by unblinding the dead-code gate to first-party dynamic access, retiring the runtime_bridge compat delegates, and re-pointing the remaining source-as-text and stale-golden-count tests to observable contracts. It also closes three structural CI guard holes surfaced while shipping the sibling test-topology performance mission (#2609), so a forgotten suite job, an un-gated coverage source, or an evaded positional-anchor ban can no longer slip through unnoticed.",
+  "purpose_tldr": "Retire test-as-scaffold friction (#2071) via tidy-first deshim and targeted test rewrites, and close three CI-topology guard holes from the perf mission's tail.",
+  "slug": "test-suite-friction-remediation-01KXDKBX",
+  "target_branch": "feat/test-suite-friction-remediation",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-13T14:12:07.570209+00:00"
+}

@@ -1,0 +1,169 @@
+{
+  "mission_slug": "test-suite-friction-remediation-01KXDKBX",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Dead-code gate recognises first-party module.attr dynamic access as live.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 added find_module_factory_functions/bind_call_accessor_aliases in _symbol_key.py + fixture tests (both directions) + live-tree test; WP05 wired _record_dynamic_call_accessor_edges into the production _imports_by_target (commit bc8b6bada). tests/architectural/test_no_dead_symbols.py 24/24 green.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-13T21:38:05+00:00",
+      "notes": "Wiring proven load-bearing by reviewer-renata: the 4 fa\u00e7ade symbols are only reachable via next_cmd._runtime_bridge_module() call-bound accessor (invisible to static AST) \u2014 un-wiring reds the offenders check."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "The 4 runtime_bridge fa\u00e7ade symbols removed from the permanent allowlist and pass as live.",
+      "proof_type": "automated_test",
+      "evidence": "WP05 (bc8b6bada): _CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE -> frozenset(); get_or_start_run/query_current_state/answer_decision_via_runtime/QueryModeValidationError now pass reachability via the wired dynamic-access detector. Aggregate allowlist 317->313 (strict decrease). Gate green.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-13T21:38:05+00:00",
+      "notes": "git grep confirms all 4 retain live src callers (removals, not deletions)."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "Retire the runtime_bridge compat-delegate surface: delete forwarding delegates + repoint all monkeypatch sites.",
+      "proof_type": "automated_test",
+      "evidence": "Repoint: WP03 (tests/next, 23 sites, e9ea977d9) + WP04 (batch B, 47 sites, 6540d1dea) \u2014 100% of forwarding consumer sites repointed to owning seams. Delete: WP18 (5e82681ef) retired 8 delegates (5 cores parse-family + 3 flagged re-exports) + refactored 4 production _rb.<name> call-sites + co-evolved 4 seam-family wiring suites. All green (dead-code gate 24, tests/runtime 602/1skip, parity 10, compat guard 62 byte-identical).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-13T21:38:05+00:00",
+      "notes": "PARTIAL BY DESIGN / MAXIMAL-SAFE: reviewer-renata PROVED completeness \u2014 of 36 surviving thin delegates, 34 are REACH-entangled with mission #2531's FROZEN test_bridge_compat_surface guard (deleting them requires retiring #2531's round-trip sentinels, a #2531-co-owned effort) + 2 are the canonical __all__ pair. 0 were deletable without touching another mission's frozen guard. FOLLOW-UP OWED: a #2531-co-owned 'retire the round-trip sentinels' issue for the 34; disclosed in PR body. WP02 was re-sequenced to classification-only + new WP18 as the post-repoint deletion pole."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Burn down the category_b_grandfathered_legacy subset that FR-001 reclassifies as genuinely dead; allowlist count decreases.",
+      "proof_type": "automated_test",
+      "evidence": "WP05 (bc8b6bada) mechanically audited all 193 category_b entries under the now-wired gate: _compute_dangling=0, _compute_stale=0 -> the FR-001-reclassified-dead subset is EMPTY, so the burndown of that subset is vacuously complete (0 removals). No live-by-dynamic-access / doctrine.* re-export deleted. Aggregate allowlist decreased 317->313 (via FR-002).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-13T21:38:05+00:00",
+      "notes": "PREMISE DISSOLVED BY RE-SEQUENCE: FR-004 assumed WP02's delegate deletions would create genuinely-dead category_b symbols; WP02 was re-scoped to classification-only (0 deletions) and WP18's 8 deletions are private non-__all__ names never eligible for category_b. Reviewer-renata traced Mission/Severity/AcceptanceMode as live and confirmed test_ratchet_baselines.py does NOT validate the category_b_grandfathered_legacy key (so 193 unchanged reds nothing). WP05 refused to fabricate a decrease (NFR-002/NFR-005). Evidence-backed finding, not a skipped obligation."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Close the seed-tuple laundering hole in the positional-anchor ban; convert residual raw seeds.",
+      "proof_type": "automated_test",
+      "evidence": "WP06: extended test_ratchet_positional_anchor_ban.py to flag (rel,int) laundered via loop var into composite_key(source,N); converted test_trio_seam_only._IO_ALLOWLIST_SITES to content-addressed keys; found+closed a REAL bypass on the live tree. git grep -E '.py\", *[0-9]{3})' tests/architectural/ = 0.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-13T21:38:05+00:00",
+      "notes": "test_no_write_side_rederivation.py verified already content-addressed \u2014 records-and-skips."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "status/test_models.py asserts exact Lane member-name frozenset (not len==N); renamed off '\u2026nine_values'.",
+      "proof_type": "automated_test",
+      "evidence": "WP07: count assertion -> frozenset(m.name for m in Lane) == {...}; test renamed test_lane_member_names_exact. Exemplar pattern for FR-014 sweep. tests/status/test_models.py green.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-13T21:38:05+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "Re-point the confirmed source-as-text wiring test to an observable contract; audit 3 siblings.",
+      "proof_type": "automated_test",
+      "evidence": "WP08: test_agent_status_emit_aggregate_wiring.py :211 read_text() guard replaced by test_emit_persists_transition_event_to_status_events_log (exercises emit end-to-end, asserts persisted event fields, no @patch on SUT). 3 siblings audited -> already observable-outcome, kept as-is (no false shared helper).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-13T21:38:05+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Production-delegating mission factory: tests/_factories.make_mission() delegates to create_mission_core().",
+      "proof_type": "automated_test",
+      "evidence": "WP09: make_mission() thin wrapper over create_mission_core(); factory-parity test asserts meta.json byte-identical after normalizing auto-minted {mission_id,mid8,created_at} minus overrides; _factories/__init__.py non-empty with >=1 real importer.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-13T21:38:05+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Resolve the #2553 legacy-contract-backfill warning drain to a verified state.",
+      "proof_type": "automated_test",
+      "evidence": "WP10: verified #2553 is a real contract fix (not a suppression); closed/minimal-fix per bounded scope; zero production behaviour change.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-13T21:38:05+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "Re-count the CI-quarantine backlog against current main and triage the residue.",
+      "proof_type": "automated_test",
+      "evidence": "WP10: recount = 1 active quarantine marker (test_summary_tolerance.py) not the stale 17; tracked-reason disposition confirmed; #2309-owned reaper tests not re-enabled; count not driven to 0. conftest.py untouched.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-13T21:38:05+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "Explicit shard-registry seam: idempotent register()/all_groups() + expected-group manifest; diagnosable failure.",
+      "proof_type": "automated_test",
+      "evidence": "WP16: introduced tests/_shard_registry.py register()/all_groups() + EXPECTED_GROUPS manifest; refactored _arch_shard_map/_next_shard_map to register via the seam; completeness guard fails diagnosably ('group not registered', never bare KeyError); unmarked tests/next universe fails loud. New-guard-file DoD (self-register + refreeze).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-13T21:38:05+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-012",
+      "description": "Guard: every pytest-invoking CI job is in quality-gate.needs minus a reasoned NON_BLOCKING_ALLOWLIST.",
+      "proof_type": "automated_test",
+      "evidence": "WP17 (a50ce86bf): test_suite_jobs_gate_blocking.py parses ci-quality.yml, asserts pytest_jobs - allowlist \u2286 quality-gate.needs; fault-injection (fake job) bites; added slow-tests to needs (safe: filter_true=False); allowlisted mutation-testing (if:false) + quarantine-visibility (C-005) with rationale.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-13T21:38:05+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-013",
+      "description": "UI-e2e coverage reaches Sonar's denominator: cross-workflow head-SHA discovery + wiring guard.",
+      "proof_type": "automated_test",
+      "evidence": "WP17: sonarcloud job discovers ui-e2e.yml coverage-ui-e2e.xml via github-script listWorkflowRuns (head_sha) + download-artifact + find sweep; test_ui_e2e_coverage_discovered.py wiring guard asserts the path is discovered; 4 fault-injections bite.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-13T21:38:05+00:00",
+      "notes": "Live Sonar effect verifiable only POST-MERGE (SONAR_TOKEN + schedule trigger); pre-merge guard is the wiring proxy \u2014 disclosed in PR body."
+    },
+    {
+      "criterion_id": "FR-014",
+      "description": "Golden-count friction solved across batch-owned clean dirs: AST inventory + recurrence guard + baselined burndown; excluded dirs ledgered to #2625.",
+      "proof_type": "automated_test",
+      "evidence": "WP11: AST inventory (2034 sites, ~646 files) classified keep/convert; test_golden_count_ban.py recurrence guard (escape hatch # golden-count: cardinality-is-contract). WP12/13/14: ~350 sites converted across ~15 clean dirs, per-dir ceilings dropped, guard green. Excluded co-owned dirs (e.g. tests/specify_cli 262 sites) ledgered to follow-up #2625.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-13T21:38:05+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-015",
+      "description": "gc2b exact-selection ratchet scoped to orphans (or advisory) per #2616; orphan-detection preserved.",
+      "proof_type": "automated_test",
+      "evidence": "WP15: test_gc2b_current_selection_matches_baseline now asserts only gc2b_orphaned_drift(dropped, orphan_nodeids); raw dropped/added from routine add/remove is record_property advisory-only (no red, no forced --freeze-baselines). Regression proves both halves; orphan-detection true-positive retained.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-13T21:38:05+00:00",
+      "notes": ""
+    },
+    {
+      "criterion_id": "FR-016",
+      "description": "Catalog every ratchet/parity suite touched into the design-decisions tracer w/ invariant-vs-shape discriminator; keep/consolidate/retire verdict per suite at close; follow-up for net-negatives.",
+      "proof_type": "artifact",
+      "evidence": "tracer-design-decisions.md carries the STANDING CATALOG appended in-the-moment per WP (NFR-007), with invariant-vs-shape discriminator + CaaCS churn + keep/consolidate/retire verdict per suite (dead-code ratchet, positional-anchor ban, gc2b, source-as-text->observable, Lane frozenset, factory parity, golden-count ban, shard-registry, CI-gate). Close-out verdict recorded; net-negative-suite follow-up owed at mission close.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-13T21:38:05+00:00",
+      "notes": "Operator hypothesis (net-negative dev-scaffold) evidence gathered, not remediated wholesale \u2014 by design."
+    }
+  ],
+  "negative_invariants": []
+}

@@ -1,0 +1,147 @@
+{
+  "event_count": 133,
+  "last_event_id": "01KXEQJ42RZQVY274DCCZ2KJ2K",
+  "materialized_at": "2026-07-13T21:54:02.968073+00:00",
+  "mission_number": "177",
+  "mission_slug": "test-suite-friction-remediation-01KXDKBX",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 1,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 17,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KXEQFN1751BNB5E4NSRPSKKZ",
+      "last_transition_at": "2026-07-13T21:52:42.023948+00:00"
+    },
+    "WP02": {
+      "actor": "claude:opus:reviewer-renata:reviewer",
+      "force_count": 5,
+      "lane": "approved",
+      "last_event_id": "01KXE9JH9QAT6SEZA49167K909",
+      "last_transition_at": "2026-07-13T17:49:36.439140+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KXEQGQJSJPCF263SD767ZSPK",
+      "last_transition_at": "2026-07-13T21:53:17.401557+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KXEQH1HD75FH1HTWC0DC9SP3",
+      "last_transition_at": "2026-07-13T21:53:27.597108+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KXEQJ42RZQVY274DCCZ2KJ2K",
+      "last_transition_at": "2026-07-13T21:54:02.968073+00:00"
+    },
+    "WP06": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXEQFT4GXQ27N9PGP8DEMRD4",
+      "last_transition_at": "2026-07-13T21:52:47.248288+00:00"
+    },
+    "WP07": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXEQFZ25HPS38FTXRV0BGT28",
+      "last_transition_at": "2026-07-13T21:52:52.293824+00:00"
+    },
+    "WP08": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXEQG41CDN74VM1MAZ45W5Q5",
+      "last_transition_at": "2026-07-13T21:52:57.388779+00:00"
+    },
+    "WP09": {
+      "actor": "merge",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KXEQG8VVY9VYC73D1CD93PR7",
+      "last_transition_at": "2026-07-13T21:53:02.331796+00:00"
+    },
+    "WP10": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KXEQGDTKSD824CCTNGXQZQ5C",
+      "last_transition_at": "2026-07-13T21:53:07.411798+00:00"
+    },
+    "WP11": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KXEQGWKW6P7P56JBCRZX6YBP",
+      "last_transition_at": "2026-07-13T21:53:22.556142+00:00"
+    },
+    "WP12": {
+      "actor": "merge",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KXEQHBHNNG5W62W7MYZ48FRV",
+      "last_transition_at": "2026-07-13T21:53:37.845428+00:00"
+    },
+    "WP13": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KXEQHGDGTF9E4Q7A8S2Y9QWW",
+      "last_transition_at": "2026-07-13T21:53:42.832887+00:00"
+    },
+    "WP14": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KXEQHN8CXAPBQAYSD4DQAKGS",
+      "last_transition_at": "2026-07-13T21:53:47.788470+00:00"
+    },
+    "WP15": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KXEQGJRCXS5NSW62HA1YS351",
+      "last_transition_at": "2026-07-13T21:53:12.460826+00:00"
+    },
+    "WP16": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KXEQHT7QCTX4GHJZWJSZZ8W1",
+      "last_transition_at": "2026-07-13T21:53:52.887513+00:00"
+    },
+    "WP17": {
+      "actor": "merge",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KXEQHZ6JS7YP3KBVJRM030Z1",
+      "last_transition_at": "2026-07-13T21:53:57.970093+00:00"
+    },
+    "WP18": {
+      "actor": "merge",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KXEQH6DZSRAK893QRZMHYFD3",
+      "last_transition_at": "2026-07-13T21:53:32.607447+00:00"
+    }
+  }
+}

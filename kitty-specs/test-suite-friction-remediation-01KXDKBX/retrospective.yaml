@@ -1,0 +1,400 @@
+schema_version: 1
+mission_id: 01KXDKBXDCDVZPXAHBKVGP9MWS
+mission_slug: test-suite-friction-remediation-01KXDKBX
+mission_number:
+friendly_name: Test-Suite Friction Remediation
+mission_type: software-dev
+target_branch: feat/test-suite-friction-remediation
+created_at: '2026-07-13T21:46:06.090799+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-07-13T21:46:06.090799+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-005
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-006
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-007
+  category: implementation
+  summary: WP07 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-008
+  category: implementation
+  summary: WP08 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-009
+  category: implementation
+  summary: WP09 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-010
+  category: implementation
+  summary: WP10 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-011
+  category: implementation
+  summary: WP11 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-012
+  category: implementation
+  summary: WP12 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-013
+  category: implementation
+  summary: WP13 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-014
+  category: implementation
+  summary: WP14 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-015
+  category: implementation
+  summary: WP15 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-016
+  category: implementation
+  summary: WP16 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-017
+  category: implementation
+  summary: WP17 completed without rejection cycles
+  evidence_refs:
+  - e-023
+- id: h-018
+  category: implementation
+  summary: WP18 completed without rejection cycles
+  evidence_refs:
+  - e-023
+not_helpful:
+- id: n-016
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-040
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+    issues and decisions.
+- id: n-001
+  category: process
+  summary: WP01 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-024
+  details: WP WP01 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-002
+  category: process
+  summary: WP02 required 5 --force override(s) during workflow
+  evidence_refs:
+  - e-025
+  details: WP WP02 required 5 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-003
+  category: process
+  summary: WP03 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-026
+  details: WP WP03 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-004
+  category: process
+  summary: WP04 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-027
+  details: WP WP04 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-005
+  category: process
+  summary: WP05 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-028
+  details: WP WP05 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-006
+  category: process
+  summary: WP09 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-029
+  details: WP WP09 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-007
+  category: process
+  summary: WP10 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-030
+  details: WP WP10 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-008
+  category: process
+  summary: WP11 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-031
+  details: WP WP11 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-009
+  category: process
+  summary: WP12 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-032
+  details: WP WP12 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-010
+  category: process
+  summary: WP13 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-033
+  details: WP WP13 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-011
+  category: process
+  summary: WP14 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-034
+  details: WP WP14 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-012
+  category: process
+  summary: WP15 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-035
+  details: WP WP15 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-013
+  category: process
+  summary: WP16 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-036
+  details: WP WP16 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-014
+  category: process
+  summary: WP17 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-037
+  details: WP WP17 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-015
+  category: process
+  summary: WP18 required 3 --force override(s) during workflow
+  evidence_refs:
+  - e-038
+  details: WP WP18 required 3 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+gaps:
+- id: g-001
+  category: process
+  summary: Arbiter override needed for WP02 (4x)
+  evidence_refs:
+  - e-039
+  details: WP WP02 required 4 arbiter override(s). Arbiter overrides are an escape hatch; recurring use suggests the 
+    normal review path is blocked and the underlying policy/guard may need adjustment.
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/tasks/WP01-dead-code-dynamic-access.md
+- id: e-006
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/tasks/WP02-runtime-bridge-delegate-deletion.md
+- id: e-007
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/tasks/WP03-repoint-monkeypatch-batch-a.md
+- id: e-008
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/tasks/WP04-repoint-monkeypatch-batch-b.md
+- id: e-009
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/tasks/WP05-allowlist-reconciliation-burndown.md
+- id: e-010
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/tasks/WP06-positional-anchor-ban-hole.md
+- id: e-011
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/tasks/WP07-lane-enum-frozenset.md
+- id: e-012
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/tasks/WP08-source-as-text-observable.md
+- id: e-013
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/tasks/WP09-mission-factory-delegation.md
+- id: e-014
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/tasks/WP10-verify-close-hygiene.md
+- id: e-015
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/tasks/WP11-golden-count-inventory-guard.md
+- id: e-016
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/tasks/WP12-golden-count-batch-doctrine-charter.md
+- id: e-017
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/tasks/WP13-golden-count-batch-lifecycle-upgrade.md
+- id: e-018
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/tasks/WP14-golden-count-batch-cli-auth-tail.md
+- id: e-019
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/tasks/WP15-gc2b-scope-to-orphan.md
+- id: e-020
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/tasks/WP16-shard-registry-seam.md
+- id: e-021
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/tasks/WP17-ci-gate-coverage-guards.md
+- id: e-022
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/tasks/WP18-runtime-bridge-src-delegate-retirement.md
+- id: e-023
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/status.events.jsonl
+- id: e-024
+  kind: event_range
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/status.events.jsonl
+  range: 01KXDYN89E59FFVF3Y1P6K66ZE..01KXE00KXBC5DMV1TQ4M0S359Z
+- id: e-025
+  kind: event_range
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/status.events.jsonl
+  range: 01KXE3BV3JQC61H8ZYY2JSN2TN..01KXE9JH9QAT6SEZA49167K909
+- id: e-026
+  kind: event_range
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/status.events.jsonl
+  range: 01KXEBVFEV4X2M9GXSJ7TFKTTB..01KXEC8P5JT92Q0AW1Z6RHSKSK
+- id: e-027
+  kind: event_range
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/status.events.jsonl
+  range: 01KXEFZNHJQFGP7NPZ2T1GE5BB..01KXEGEAW6RRV7QJ3771NEFEKE
+- id: e-028
+  kind: event_range
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/status.events.jsonl
+  range: 01KXEP788124MAS3N9RHD0X45F..01KXEPFFXBTZPH6GQNSXF4X9AB
+- id: e-029
+  kind: event_range
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/status.events.jsonl
+  range: 01KXDYQ2EBN4451RCXNB5601V1..01KXE02BH4W7HGVFNP5B1GHJEE
+- id: e-030
+  kind: event_range
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/status.events.jsonl
+  range: 01KXDXVXGYNKPQG4G75TH7HNYY
+- id: e-031
+  kind: event_range
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/status.events.jsonl
+  range: 01KXE38NNA9JFV0EYJ9A6ZA587
+- id: e-032
+  kind: event_range
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/status.events.jsonl
+  range: 01KXE779506PEBR6MV6KVD3CJX..01KXE7MDBZGZRNPZDXAV7JCEGV
+- id: e-033
+  kind: event_range
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/status.events.jsonl
+  range: 01KXE77FQ7R9VKFYS04652N0M2..01KXE7K19DSNMM8TVZN8AWXEGS
+- id: e-034
+  kind: event_range
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/status.events.jsonl
+  range: 01KXE7K8MQ60Z5V00Q2KPHV207..01KXE80Y6D18ACPMH7ZS3YMV3C
+- id: e-035
+  kind: event_range
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/status.events.jsonl
+  range: 01KXDYE7XBW1XMJBQS9MM7YAPD
+- id: e-036
+  kind: event_range
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/status.events.jsonl
+  range: 01KXE5AQ1ZEVD2S8VNYFTFZP04..01KXE7VRPM3RCJZV20G5CGHRCW
+- id: e-037
+  kind: event_range
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/status.events.jsonl
+  range: 01KXECC7D1FEYEGHDFKN8EJEEP..01KXECQF4BGYSZNVJQ42CBJV1T
+- id: e-038
+  kind: event_range
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/status.events.jsonl
+  range: 01KXEMP4MKN871C23HFVY6PN2P..01KXEN2AVM2MAAPSSJQ28PSZCT
+- id: e-039
+  kind: event_range
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/status.events.jsonl
+  range: 01KXE3BV3JQC61H8ZYY2JSN2TN..01KXE9JH9QAT6SEZA49167K909
+- id: e-040
+  kind: file
+  path: kitty-specs/test-suite-friction-remediation-01KXDKBX/analysis-report.md
+generator_version: '1.0'
+provenance_history: []
