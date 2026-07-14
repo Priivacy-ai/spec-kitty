@@ -238,3 +238,48 @@ def test_does_not_stage_when_scope_is_a_different_mission(tmp_path: Path) -> Non
 
     assert staged is False
     assert not (feature_dir / LINT_REPORT_FILENAME).exists()
+
+
+# ── #2628 fold: stale-copy lifecycle (reconcile downward) ──────────────────────
+
+
+@pytest.mark.parametrize(
+    "next_scope",
+    [None, "099-someone-else"],
+    ids=["global_rerun", "other_mission"],
+)
+def test_discards_stale_stage_when_source_rescoped(
+    tmp_path: Path, next_scope: str | None,
+) -> None:
+    """A copy staged by an earlier scoped run is removed once the repo-global
+    report is re-scoped away from this mission — no stale decay state lingers."""
+    repo_root, feature_dir = _make_repo(tmp_path)
+    _write_report(repo_root, feature_scope=MISSION_SLUG)
+    assert stage_charter_lint_report(feature_dir, MISSION_SLUG) is True
+    dest = feature_dir / LINT_REPORT_FILENAME
+    assert dest.exists()  # staged by the scoped run
+
+    # A later run overwrites the single repo-global report with a non-matching
+    # scope; staging must reconcile the dossier by removing the stale copy.
+    _write_report(repo_root, feature_scope=next_scope)
+
+    assert stage_charter_lint_report(feature_dir, MISSION_SLUG) is False
+    assert not dest.exists()
+
+
+def test_preserves_stage_on_transient_unreadable_source(tmp_path: Path) -> None:
+    """A transient corrupt/unreadable source must NOT wipe the last-known staged
+    copy — only a positively-different valid scope reconciles downward."""
+    repo_root, feature_dir = _make_repo(tmp_path)
+    _write_report(repo_root, feature_scope=MISSION_SLUG)
+    assert stage_charter_lint_report(feature_dir, MISSION_SLUG) is True
+    dest = feature_dir / LINT_REPORT_FILENAME
+    assert dest.exists()
+
+    # Source goes briefly unparseable (mid-write / disk hiccup).
+    (repo_root / ".kittify" / LINT_REPORT_FILENAME).write_text(
+        "{corrupt", encoding="utf-8",
+    )
+
+    assert stage_charter_lint_report(feature_dir, MISSION_SLUG) is False
+    assert dest.exists(), "transient read failure must preserve last-known copy"
