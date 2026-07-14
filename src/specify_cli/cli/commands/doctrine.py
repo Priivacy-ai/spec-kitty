@@ -43,7 +43,7 @@ from pathlib import Path
 
 import typer
 from charter.drg import ArtifactKind
-from rich.console import Console
+from specify_cli.cli.console import console
 from rich.table import Table
 
 __all__ = ["app"]
@@ -77,7 +77,6 @@ mission_type_app = typer.Typer(
 )
 app.add_typer(mission_type_app, name="mission-type")
 
-console = Console()
 
 
 # ----------------------------------------------------------------------

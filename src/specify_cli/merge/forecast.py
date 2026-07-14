@@ -19,7 +19,7 @@ from pathlib import Path
 import typer
 
 from specify_cli import __version__ as SPEC_KITTY_VERSION
-from specify_cli.cli.helpers import console
+from specify_cli.cli.console import console
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.paths import get_main_repo_root
 from specify_cli.lanes.persistence import (

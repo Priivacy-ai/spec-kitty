@@ -47,6 +47,7 @@ from pathlib import Path
 from typing import Any, Literal, cast
 
 from rich.console import Console
+from specify_cli.cli.console import console
 from rich.table import Table
 
 from specify_cli.auth import get_token_manager
@@ -87,7 +88,6 @@ __all__ = [
     "render_report_json",
 ]
 
-console = Console()
 
 # Schema version for the JSON payload. Bump on breaking schema changes.
 # v2: orphans[] entries are full DaemonIdentityRecord dicts (FR-004);

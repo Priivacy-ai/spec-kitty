@@ -37,7 +37,8 @@ from pathlib import Path
 from typing import Annotated, cast
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console
+from specify_cli.cli.console import err_console
 
 from kernel._safe_re import re
 from mission_runtime import ActionContextError, MissionArtifactKind
@@ -86,7 +87,6 @@ from specify_cli.cli.commands.agent.mission_parsing import (
 )
 
 logger = logging.getLogger(__name__)
-console = Console()
 
 TASKS_MD_FILENAME = "tasks.md"
 ISSUE_MATRIX_FILENAME = "issue-matrix.md"
@@ -991,7 +991,7 @@ def _record_ownership_glob_diagnostics(
     state.ownership_warnings.extend(glob_result.warnings)
     if json_output:
         return
-    stderr_console = Console(stderr=True)
+    stderr_console = err_console
     for note in glob_result.info:
         stderr_console.print(f"[blue]INFO:[/blue] {note}")
     for warning in glob_result.warnings:
@@ -1158,7 +1158,7 @@ def _compute_and_write_lanes(
     glob_result = validate_glob_matches(wp_manifests, repo_root, create_intent=create_intent)
     if not glob_result.passed:
         if not json_output:
-            lane_stderr = Console(stderr=True)
+            lane_stderr = err_console
             for err in glob_result.errors:
                 lane_stderr.print(f"[red]ERROR:[/red] Lane-compute re-validation: {err}")
         error_msg = "Lane computation aborted: literal-path owned_files entries match zero files. Fix the paths before lanes.json is written."

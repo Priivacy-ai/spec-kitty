@@ -10,7 +10,8 @@ import typer
 from rich.panel import Panel
 
 from specify_cli.cli import StepTracker
-from specify_cli.cli.helpers import console, get_project_root_or_exit, show_banner
+from specify_cli.cli.console import console
+from specify_cli.cli.helpers import get_project_root_or_exit, show_banner
 from specify_cli.core import MISSION_CHOICES
 from specify_cli.core.project_resolver import resolve_template_path
 from specify_cli.missions._read_path_resolver import (

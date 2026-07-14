@@ -5,7 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import CliConsole
+from specify_cli.cli.console import console
 from rich.table import Table
 
 from charter.invocation_context import ProjectContext
@@ -24,7 +25,6 @@ charter_list_app = typer.Typer(
     no_args_is_help=False,
     invoke_without_command=True,
 )
-console = Console()
 
 #: Display order for the charter kinds. Derived from the canonical charter kind
 #: universe (:data:`doctrine.artifact_kinds.CHARTER_KIND_TOKENS`, WP01) so this
@@ -206,6 +206,6 @@ def list_cmd(
     # it at a generous fixed width so artifact IDs are never word-wrapped into
     # unreadable fragments on narrow / non-tty terminals.
     if all_layers:
-        Console(width=200).print(table)
+        CliConsole(width=200).print(table)
     else:
         console.print(table)

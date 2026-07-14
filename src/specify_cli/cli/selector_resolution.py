@@ -27,7 +27,7 @@ from typing import Any
 
 import click
 import typer
-from rich.console import Console
+from specify_cli.cli.console import err_console as _err_console
 
 from specify_cli.context.errors import MissingIdentityError
 from specify_cli.context.mission_resolver import (
@@ -38,7 +38,6 @@ from specify_cli.context.mission_resolver import (
 )
 from specify_cli.core.paths import require_explicit_feature
 
-_err_console = Console(stderr=True)
 _warned: set[tuple[int, str, str]] = set()
 _direct_invocation_counter: int = 0
 

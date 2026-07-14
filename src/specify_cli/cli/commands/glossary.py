@@ -14,7 +14,7 @@ import logging
 from pathlib import Path
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import CliConsole
 from rich.table import Table
 
 from glossary.events import (
@@ -43,7 +43,7 @@ from glossary.strictness import Strictness
 logger = logging.getLogger(__name__)
 
 app = typer.Typer(help="Glossary management commands")
-console = Console(width=120)
+console = CliConsole(width=120)
 
 # Valid scope values for validation
 _VALID_SCOPES = {s.value for s in GlossaryScope}

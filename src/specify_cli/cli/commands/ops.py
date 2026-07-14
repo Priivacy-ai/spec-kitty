@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console
 from rich.table import Table
 
 from specify_cli.core.vcs import (
@@ -23,7 +23,6 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-console = Console()
 
 
 def _display_operations(ops: list[OperationInfo]) -> None:

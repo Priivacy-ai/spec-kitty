@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console
 from rich.table import Table
 
 from specify_cli.core.config import AGENT_COMMAND_CONFIG
@@ -44,7 +44,6 @@ app = typer.Typer(
     help="Manage project AI agent configuration (add, remove, list agents)",
     no_args_is_help=True,
 )
-console = Console()
 
 # Reverse mapping: key to (dir, subdir)
 KEY_TO_AGENT_DIR = {

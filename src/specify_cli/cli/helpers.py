@@ -11,15 +11,14 @@ from pathlib import Path
 import click
 import typer
 from rich.align import Align
-from rich.console import Console
 from rich.text import Text
 from typer.core import TyperGroup
 
+from specify_cli.cli.console import CliConsole, console
 from specify_cli.core.config import BANNER
 from specify_cli.core.env import is_truthy
 from specify_cli.core.project_resolver import locate_project_root
 
-console = Console()
 TAGLINE = "Spec Kitty - Spec-Driven Development Toolkit (forked from GitHub Spec Kit)"
 
 # ---------------------------------------------------------------------------
@@ -229,7 +228,7 @@ def _render_nag_if_needed(ctx: typer.Context) -> None:
         from typing import Literal  # noqa: PLC0415
 
         _color: Literal["auto"] | None = "auto" if sys.stderr.isatty() else None
-        stderr_console = Console(stderr=True, color_system=_color)
+        stderr_console = CliConsole(stderr=True, color_system=_color)
         message = result.rendered_human.rstrip()
         if message:
             stderr_console.print(message)

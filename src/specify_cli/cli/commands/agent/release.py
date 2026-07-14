@@ -25,7 +25,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console
 from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
@@ -38,7 +38,6 @@ app = typer.Typer(
     help="Release packaging commands for AI agents",
     no_args_is_help=True,
 )
-console = Console()
 
 
 def _render_text(payload: ReleasePrepPayload) -> None:

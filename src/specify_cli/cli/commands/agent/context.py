@@ -8,6 +8,7 @@ from typing import Optional, cast
 
 import typer
 from rich.console import Console
+from specify_cli.cli.console import console
 from typing_extensions import Annotated
 
 from specify_cli.cli.selector_resolution import resolve_mission_handle
@@ -25,7 +26,6 @@ app = typer.Typer(
     no_args_is_help=True
 )
 
-console = Console()
 
 
 def _find_feature_directory(

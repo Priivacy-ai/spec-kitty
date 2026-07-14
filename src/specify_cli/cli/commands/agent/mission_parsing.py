@@ -18,14 +18,13 @@ import json
 from pathlib import Path
 
 from kernel._safe_re import re
-from rich.console import Console
+from specify_cli.cli.console import console
 
 from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.status import WPMetadata
 from specify_cli.task_utils import TIMESTAMP_FORMAT
 
-console = Console()
 
 
 # ---------------------------------------------------------------------------

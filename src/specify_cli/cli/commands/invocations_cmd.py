@@ -33,7 +33,8 @@ from pathlib import Path
 from typing import Iterator
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console
+from specify_cli.cli.console import err_console as _console_err
 from rich.table import Table
 
 from specify_cli.invocation.errors import LegacyRecordError
@@ -42,8 +43,6 @@ from specify_cli.invocation.writer import EVENTS_DIR, INDEX_PATH
 from specify_cli.task_utils import find_repo_root
 
 app = typer.Typer(name="invocations", help="Query local invocation records.")
-console = Console()
-_console_err = Console(stderr=True)
 
 # Read this many bytes at a time from the end of the index when scanning in
 # reverse.  4 KiB covers ~30-60 typical index lines per read, keeping I/O

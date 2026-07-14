@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Literal
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console
 
 from specify_cli.cli.commands.dispatch import _build_executor
 from specify_cli.invocation.errors import (
@@ -26,7 +26,6 @@ from specify_cli.task_utils import find_repo_root
 # Shared utilities
 # ---------------------------------------------------------------------------
 
-console = Console()
 
 
 def _get_repo_root() -> Path:

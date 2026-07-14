@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     from specify_cli.lanes.merge import MissionMergeResult
     from specify_cli.lanes.models import LanesManifest
 
-from specify_cli.cli.helpers import console
+from specify_cli.cli.console import console
 from specify_cli.core.constants import KITTIFY_DIR
 from specify_cli.coordination.surface_resolver import (
     is_under_worktrees_segment,

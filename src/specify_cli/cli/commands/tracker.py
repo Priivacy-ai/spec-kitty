@@ -15,6 +15,7 @@ from typing import Any
 
 import typer
 from rich.console import Console
+from specify_cli.cli.console import console
 from rich.table import Table
 
 from specify_cli.cli.commands._teamspace_mission_state_gate import (
@@ -86,7 +87,7 @@ def _print_ticket_rows(rows: list[dict[str, Any]]) -> None:
             str(state.get("name") or ""),
         )
 
-    Console().print(table)
+    console.print(table)
 
 
 def _resolve_active_feature_slug(repo_root: Path) -> str | None:
@@ -238,7 +239,7 @@ def _check_readiness(
             repo_root = Path.cwd()
 
     enforce_teamspace_mission_state_ready(
-        console=Console(),
+        console=console,
         command_name="spec-kitty tracker",
     )
 
@@ -489,7 +490,6 @@ def discover_command(
     # Numbering is 1-indexed: discover row N corresponds to --select N
     # because discover lists resources in host-returned order and
     # --select N maps to the Nth item (1-based).
-    console = Console()
     table = Table(title="Bindable Resources")
     table.add_column("#", justify="right", style="cyan", no_wrap=True)
     table.add_column("Resource", style="bold")
@@ -656,7 +656,6 @@ def _bind_saas(
     Raises ``TrackerServiceError`` on failures (caught by ``_run_or_exit``).
     Raises ``typer.Exit(1)`` for user input errors.
     """
-    console = Console()
     repo_root = require_repo_root()
 
     # Re-bind confirmation (skip for non-interactive modes)
@@ -817,11 +816,9 @@ def status_command(
 
 def _print_installation_wide_status(payload: dict) -> None:
     """Render installation-wide tracker status using Rich for visual distinction."""
-    from rich.console import Console
     from rich.panel import Panel
     from rich.table import Table
 
-    console = Console()
 
     provider = payload.get("provider", "unknown")
     connected = payload.get("connected", payload.get("status", "unknown"))

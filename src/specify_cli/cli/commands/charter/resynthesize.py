@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import err_console
 from rich.panel import Panel
 from rich.text import Text
 
@@ -92,7 +92,6 @@ def charter_resynthesize(  # noqa: C901
         render_error_panel,
     )
 
-    err_console = Console(stderr=True)
 
     try:
         repo_root = _charter_pkg.find_repo_root()

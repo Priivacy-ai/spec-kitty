@@ -21,7 +21,7 @@ from typing import Annotated, Any
 
 import typer
 
-from specify_cli.cli.helpers import console
+from specify_cli.cli.console import console
 from specify_cli.core.project_resolver import locate_project_root
 
 # mypy's summary lines we never want to surface as "errors".

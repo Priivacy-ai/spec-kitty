@@ -19,6 +19,8 @@ from typing import Optional
 
 import typer
 from rich.console import Console
+from specify_cli.cli.console import console as _console
+from specify_cli.cli.console import err_console as _err_console
 from rich.table import Table
 from typing_extensions import Annotated
 
@@ -62,8 +64,6 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-_console = Console()
-_err_console = Console(stderr=True)
 
 
 def resolve_mission_handle(handle: str, repo_root: Path, *, json_mode: bool = False) -> ResolvedMission:

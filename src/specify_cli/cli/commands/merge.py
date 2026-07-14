@@ -61,7 +61,8 @@ from typing import TYPE_CHECKING
 import typer
 
 from specify_cli import __version__ as SPEC_KITTY_VERSION
-from specify_cli.cli.helpers import console, show_banner
+from specify_cli.cli.console import console
+from specify_cli.cli.helpers import show_banner
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.paths import MissionMetaReadError, get_main_repo_root
 from specify_cli.git.sparse_checkout import (

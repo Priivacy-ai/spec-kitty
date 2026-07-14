@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from specify_cli.cli.helpers import console
+from specify_cli.cli.console import console
 from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
 from specify_cli.core.dependency_graph import (
     build_dependency_graph,

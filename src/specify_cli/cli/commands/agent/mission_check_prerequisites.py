@@ -25,7 +25,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Annotated, Any, cast
 
-from rich.console import Console
+from specify_cli.cli.console import console
 import typer
 
 from mission_runtime import ActionContextError
@@ -42,7 +42,6 @@ from specify_cli.cli.commands.agent.mission_parsing import (
     _emit_json,
 )
 
-console = Console()
 
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
 PROJECT_ROOT_NOT_FOUND_MESSAGE = f"{PROJECT_ROOT_NOT_FOUND}. Run from within spec-kitty repository."

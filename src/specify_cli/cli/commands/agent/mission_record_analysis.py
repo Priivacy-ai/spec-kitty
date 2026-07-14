@@ -21,7 +21,7 @@ import subprocess
 import sys
 from typing import Annotated
 
-from rich.console import Console
+from specify_cli.cli.console import console
 import typer
 
 from mission_runtime import (
@@ -47,7 +47,6 @@ from specify_cli.cli.commands.agent.mission_feature_resolution import (
 )
 from specify_cli.cli.commands.agent.mission_parsing import _emit_json
 
-console = Console()
 
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
 # WP03 / S1192: the rich-markup error prefix and the ``success``/``error``

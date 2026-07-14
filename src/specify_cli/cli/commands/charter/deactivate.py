@@ -26,7 +26,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console
 
 from charter.activation_engine import NoActivationRestrictionsError
 from charter.cascade import CascadeScope, deactivation_plan
@@ -49,7 +49,6 @@ from specify_cli.cli.commands.charter._layer_roots import resolve_layer_roots
 
 __all__ = ["deactivate_cmd"]
 
-console = Console()
 
 
 def _source_urn(

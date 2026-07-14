@@ -26,6 +26,8 @@ from typing import Annotated, Any
 
 import typer
 from rich.console import Console
+from specify_cli.cli.console import console
+from specify_cli.cli.console import err_console
 
 from specify_cli.core.paths import locate_project_root
 from specify_cli.paths import get_runtime_root, render_runtime_path
@@ -42,7 +44,6 @@ app = typer.Typer(
     no_args_is_help=False,
     invoke_without_command=True,
 )
-console = Console()
 
 
 @app.callback(invoke_without_command=True)
@@ -545,7 +546,6 @@ def normalize_lifecycle(
 
 def _error(message: str) -> None:
     """Print an error message to stderr via Rich console."""
-    err_console = Console(stderr=True)
     err_console.print(f"[red]Error:[/red] {message}")
 
 

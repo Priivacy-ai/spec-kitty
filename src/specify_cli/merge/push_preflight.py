@@ -20,7 +20,7 @@ from typing import Literal
 import typer
 
 from specify_cli import __version__ as SPEC_KITTY_VERSION
-from specify_cli.cli.helpers import console
+from specify_cli.cli.console import console
 from specify_cli.merge._constants import (
     TARGET_BRANCH_NOT_SYNCHRONIZED,
     TARGET_BRANCH_SYNC_INVARIANT,

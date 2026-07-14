@@ -11,7 +11,8 @@ import typer
 from rich.panel import Panel
 from rich.table import Table
 
-from specify_cli.cli.helpers import console, get_project_root_or_exit
+from specify_cli.cli.console import console
+from specify_cli.cli.helpers import get_project_root_or_exit
 from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
 from specify_cli.task_metadata_validation import (
     repair_lane_mismatch,

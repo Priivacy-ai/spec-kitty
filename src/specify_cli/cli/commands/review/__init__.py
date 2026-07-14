@@ -375,9 +375,8 @@ def review_mission(
     verdict.  See module docstring for known false-positive scenarios in the
     dead-code scan step.
     """
-    from rich.console import Console
+    from specify_cli.cli.console import console
 
-    console = Console()
     repo_root = _resolve_repo_root(console)
     try:
         assert_pytest_available(repo_root)

@@ -24,7 +24,7 @@ import json
 from pathlib import Path
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console
 from rich.table import Table
 
 from charter.mission_type_profiles import UnknownMissionTypeError, existing_mission_types, resolve_action_sequence
@@ -40,7 +40,6 @@ charter_mission_type_app = typer.Typer(
     no_args_is_help=True,
 )
 
-console = Console()
 
 
 @charter_mission_type_app.command("list")

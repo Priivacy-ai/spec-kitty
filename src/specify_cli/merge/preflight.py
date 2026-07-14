@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any
 import typer
 
 from specify_cli import __version__ as SPEC_KITTY_VERSION
-from specify_cli.cli.helpers import console
+from specify_cli.cli.console import console
 from specify_cli.core.git_ops import run_command
 from specify_cli.core.git_preflight import (
     build_git_preflight_failure_payload,

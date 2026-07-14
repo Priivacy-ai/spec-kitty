@@ -12,6 +12,7 @@ from typing import Optional
 
 import typer
 from rich.console import Console
+from specify_cli.cli.console import console
 from rich.table import Table
 from typing_extensions import Annotated
 
@@ -24,7 +25,6 @@ from specify_cli.workspace.context import (
     load_context,
 )
 
-console = Console()
 app = typer.Typer(help="Query workspace context information")
 
 

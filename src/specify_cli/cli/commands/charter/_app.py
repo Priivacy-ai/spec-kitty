@@ -12,8 +12,12 @@ from __future__ import annotations
 import logging
 
 import typer
-from rich.console import Console
 
+# Re-export the canonical CLI console seam so every charter subcommand module
+# can ``from ..._app import charter_app, console`` unchanged. The redundant
+# ``as console`` alias marks this as an intentional re-export (PEP 484) so
+# pyflakes does not treat it as an unused import.
+from specify_cli.cli.console import console as console
 from specify_cli.cli.commands.charter.activate import activate_cmd
 from specify_cli.cli.commands.charter.deactivate import deactivate_cmd
 from specify_cli.cli.commands.charter.list_cmd import charter_list_app
@@ -57,6 +61,3 @@ charter_app.add_typer(charter_list_app, name="list")
 
 # WP06 (FR-011): ``spec-kitty charter pack consistency-check`` — pack management.
 charter_app.add_typer(charter_pack_app, name="pack")
-
-#: Module-level Rich console for all subcommand handlers.
-console = Console()

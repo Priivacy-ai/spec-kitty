@@ -26,7 +26,7 @@ from __future__ import annotations
 import contextlib
 from pathlib import Path
 
-from rich.console import Console
+from specify_cli.cli.console import console
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.core.paths import get_main_repo_root
@@ -41,7 +41,6 @@ __all__ = [
     "_behind_commits_touch_only_planning_artifacts",
 ]
 
-console = Console()
 
 
 def compute_incomplete_dependents(wp_id: str, feature_dir: Path, graph: dict[str, list[str]]) -> list[str]:

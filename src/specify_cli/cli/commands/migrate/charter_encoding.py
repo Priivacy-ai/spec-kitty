@@ -26,10 +26,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console as _console
+from specify_cli.cli.console import err_console as _err_console
 
-_console = Console()
-_err_console = Console(stderr=True)
 
 # ---------------------------------------------------------------------------
 # Corpus patterns (FR-026 / research.md R-9)

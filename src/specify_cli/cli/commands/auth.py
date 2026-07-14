@@ -21,10 +21,9 @@ from __future__ import annotations
 import asyncio
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console
 
 app = typer.Typer(name="auth", help="Authenticate with spec-kitty SaaS.")
-console = Console()
 
 
 @app.command()

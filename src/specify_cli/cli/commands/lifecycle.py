@@ -13,7 +13,7 @@ import re
 
 import typer
 from mission_runtime import MissionTopology
-from rich.console import Console
+from specify_cli.cli.console import console as _console
 
 from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.cli.commands.agent import mission as agent_feature
@@ -39,7 +39,6 @@ PLAN_WIDEN_QUESTIONS: list[tuple[str, str]] = [
     ("dependencies", "What upstream dependencies does this plan rely on?"),
 ]
 
-_console = Console()
 
 
 def _scaffold_next_action(mission_slug: str) -> str:

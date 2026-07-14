@@ -6,7 +6,8 @@ import sys
 from pathlib import Path
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console
+from specify_cli.cli.console import err_console
 
 from specify_cli.intake.errors import (
     IntakeFileMissingError,
@@ -28,8 +29,6 @@ from specify_cli.mission_brief import (
 )
 from specify_cli.task_utils import TaskCliError, find_repo_root
 
-console = Console()
-err_console = Console(stderr=True)
 
 # Maximum size for a mission brief file. Resolved from `.kittify/config.yaml`
 # (`intake.max_brief_bytes`) at request time via `load_max_brief_bytes()`. The

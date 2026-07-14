@@ -862,7 +862,7 @@ def implement_try_render_fix_mode_prompt(
         return None
 
     try:
-        from rich.console import Console as RichConsole
+        from specify_cli.cli.console import console
         from specify_cli.review.artifacts import ReviewCycleArtifact
         from specify_cli.review.fix_prompt import generate_fix_prompt
 
@@ -874,7 +874,6 @@ def implement_try_render_fix_mode_prompt(
         if latest_artifact is None:
             return None
 
-        console = RichConsole()
         console.print(
             f"[bold]Fix mode[/bold]: generating focused prompt from "
             f"review-cycle-{latest_artifact.cycle_number} "
@@ -1241,15 +1240,14 @@ def review_enforce_bulk_edit_gate(
     *, feature_dir: Path, main_repo_root: Path, target_branch: str, review_workspace: ResolvedWorkspace
 ) -> None:
     """Bulk edit occurrence classification + per-file diff compliance gate (FR-006/7/8)."""
-    from rich.console import Console as RichConsole
     from specify_cli.bulk_edit.gate import (
         check_review_diff_compliance,
         ensure_occurrence_classification_ready,
         render_diff_check_failure,
         render_gate_failure,
     )
+    from specify_cli.cli.console import console as rich_console
 
-    rich_console = RichConsole()
     gate_result = ensure_occurrence_classification_ready(feature_dir)
     if not gate_result.passed:
         render_gate_failure(gate_result, rich_console)

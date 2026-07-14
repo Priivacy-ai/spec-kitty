@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import json
 import webbrowser
 
 import typer
 
-from specify_cli.cli.helpers import console, get_project_root_or_exit
+from specify_cli.cli.console import console
+from specify_cli.cli.helpers import get_project_root_or_exit
 from specify_cli.dashboard import ensure_dashboard_running, stop_dashboard
 
 
@@ -49,7 +49,7 @@ def dashboard(
             "missions": registry,
             "display_order": display_order,
         }
-        console.print(json.dumps(payload, indent=2, ensure_ascii=False))
+        console.emit_json(payload)
         return
 
     console.print()
