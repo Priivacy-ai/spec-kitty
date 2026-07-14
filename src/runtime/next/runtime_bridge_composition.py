@@ -409,10 +409,10 @@ def _has_generated_docs(feature_dir: Path) -> bool:
     """Return True iff at least one *.md file exists under feature_dir / 'docs'.
 
     Used by the documentation `generate` guard branch (D6 of plan.md). Not
-    part of the WP02 compat guard's tracked symbol inventory (nothing
-    patches it), but ``runtime_bridge_io.gather_artifact_presence`` reaches
-    it via a live ``_rb._has_generated_docs`` lookup, so the residual keeps a
-    plain re-export.
+    part of the WP02 compat guard's tracked symbol inventory (nothing patches
+    it); ``runtime_bridge_io.gather_artifact_presence`` reaches it directly
+    from this seam (WP18 / #2561 retired the ``runtime_bridge`` façade
+    re-export and its ``_rb._has_generated_docs`` round-trip).
     """
     docs_root = feature_dir / "docs"
     if not docs_root.is_dir():
