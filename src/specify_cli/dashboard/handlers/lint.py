@@ -40,7 +40,9 @@ class LintTileHandler(DashboardHandler):
         try:
             if self.project_dir is None:
                 raise RuntimeError("dashboard project_dir is not configured")
-            report_path = Path(self.project_dir) / ".kittify" / "lint-report.json"
+            from specify_cli.core.paths import lint_report_path
+
+            report_path = lint_report_path(Path(self.project_dir))
 
             if not report_path.exists():
                 response: DecayWatchTileResponse = dict(_EMPTY_RESPONSE)  # type: ignore[assignment]

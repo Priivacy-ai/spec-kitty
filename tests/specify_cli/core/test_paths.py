@@ -16,7 +16,18 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.core.paths import locate_project_root
+from specify_cli.core.constants import KITTIFY_DIR, LINT_REPORT_FILENAME
+from specify_cli.core.paths import lint_report_path, locate_project_root
+
+
+def test_lint_report_path_is_canonical(tmp_path: Path) -> None:
+    """#2628 SSOT: the accessor composes the one canonical report location so
+    the engine (writer), dashboard, and dossier stager cannot drift."""
+    repo_root = tmp_path / "repo"
+    result = lint_report_path(repo_root)
+    assert result == repo_root / KITTIFY_DIR / LINT_REPORT_FILENAME
+    assert result.name == "lint-report.json"
+    assert result.parent.name == ".kittify"
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
