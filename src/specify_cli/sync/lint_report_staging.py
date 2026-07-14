@@ -32,11 +32,8 @@ import json
 import logging
 from pathlib import Path
 
-from specify_cli.core.paths import (
-    LINT_REPORT_FILENAME,
-    lint_report_path,
-    locate_project_root,
-)
+from specify_cli.core.constants import LINT_REPORT_FILENAME
+from specify_cli.core.paths import lint_report_path, locate_project_root
 
 logger = logging.getLogger(__name__)
 
