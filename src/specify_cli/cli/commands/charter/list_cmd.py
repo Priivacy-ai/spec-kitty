@@ -19,6 +19,12 @@ from specify_cli.cli.commands.charter._layer_roots import resolve_layer_roots
 
 __all__ = ["charter_list_app"]
 
+# The layer-aware table is intentionally rendered at a generous fixed width so
+# artifact IDs never word-wrap. Module-level (not per-call) so it registers with
+# CliConsole and the test set_all_plain seam reaches it (#2632) — a per-call
+# instance would be born after the colour-neutralising fixture and leak ANSI.
+_wide_console = CliConsole(width=200)
+
 charter_list_app = typer.Typer(
     name="list",
     help="List activated doctrine artifacts by kind.",
@@ -206,6 +212,6 @@ def list_cmd(
     # it at a generous fixed width so artifact IDs are never word-wrapped into
     # unreadable fragments on narrow / non-tty terminals.
     if all_layers:
-        CliConsole(width=200).print(table)
+        _wide_console.print(table)
     else:
         console.print(table)

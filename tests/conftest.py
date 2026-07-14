@@ -309,25 +309,24 @@ def _plain_cli_console_seam() -> Iterator[None]:
     """Force the shared CLI console seam colourless for every test (#2632).
 
     All CLI modules render through the single ``console`` / ``err_console``
-    singletons in :mod:`specify_cli.cli.console`. Determinism is a property of
-    the *object*, not the environment: we toggle ``set_plain`` on those shared
-    instances so ``CliRunner`` substring / ``--json`` assertions are stable
-    under any ``FORCE_COLOR`` harness (the Claude Code harness exports
-    ``FORCE_COLOR=3``). We never mutate ``os.environ`` — env writes leak into
-    subprocesses and sibling tests. Reset to styled afterwards so nothing but
-    the test window is affected.
+    singletons in :mod:`specify_cli.cli.console` — plus a few deliberately-
+    distinct specials (glossary/list fixed-width consoles, stderr consoles).
+    Determinism is a property of the *object*, not the environment:
+    ``set_all_plain`` toggles EVERY live ``CliConsole`` instance so ``CliRunner``
+    substring / ``--json`` assertions are stable under any ``FORCE_COLOR``
+    harness (the Claude Code harness exports ``FORCE_COLOR=3``). We never mutate
+    ``os.environ`` — env writes leak into subprocesses and sibling tests. Reset
+    to styled afterwards so nothing but the test window is affected.
     """
     # Lazy import keeps conftest's import graph free of the CLI bootstrap until
     # the first test actually runs.
-    from specify_cli.cli.console import console, err_console
+    from specify_cli.cli.console import CliConsole
 
-    console.set_plain(True)
-    err_console.set_plain(True)
+    CliConsole.set_all_plain(True)
     try:
         yield
     finally:
-        console.set_plain(False)
-        err_console.set_plain(False)
+        CliConsole.set_all_plain(False)
 
 
 def reset_spec_kitty_queue_state() -> None:
