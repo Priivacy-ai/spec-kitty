@@ -103,7 +103,7 @@ def _add_synthesis_manifest(
         kind = "directive"
         base = name[: -len(".directive.yaml")]
         parts = base.split("-", 1)
-        slug = parts[1] if len(parts) == 2 and parts[0].isdigit() else base
+        slug = parts[1] if len(parts) == 2 and parts[0].isdigit() else base  # golden-count: cardinality-is-contract
     elif name.endswith(".tactic.yaml"):
         kind, slug = "tactic", name[: -len(".tactic.yaml")]
     elif name.endswith(".styleguide.yaml"):

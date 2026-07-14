@@ -159,7 +159,7 @@ def test_auto_emit_deduplicates_hand_authored_edge(tmp_path: Path) -> None:
         and e.target == "tactic:builtin-tactic-id"
         and e.relation == Relation.ENHANCES.value
     ]
-    assert len(matching) == 1, (
+    assert len(matching) == 1, (  # golden-count: cardinality-is-contract
         f"Hand-authored + auto-emitted edge should collapse to one. "
         f"Found {len(matching)}: {matching}"
     )

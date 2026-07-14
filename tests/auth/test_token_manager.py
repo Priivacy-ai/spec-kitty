@@ -783,7 +783,7 @@ async def test_refresh_logs_outcome_at_info(install_fake_refresh_flow, caplog):
         r for r in caplog.records
         if r.levelno == logging.INFO and "refresh_transaction outcome=" in r.getMessage()
     ]
-    assert len(matching) == 1
+    assert len(matching) == 1  # golden-count: cardinality-is-contract
     assert "outcome=refreshed" in matching[0].getMessage()
     assert "network_call=True" in matching[0].getMessage()
 

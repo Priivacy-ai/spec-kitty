@@ -84,7 +84,7 @@ class TestBaselineKey:
         )
         hash_val = key.compute_hash()
         assert isinstance(hash_val, str)
-        assert len(hash_val) == 64
+        assert len(hash_val) == 64  # golden-count: cardinality-is-contract
         assert all(c in "0123456789abcdef" for c in hash_val)
 
     def test_baseline_key_hash_deterministic(self):

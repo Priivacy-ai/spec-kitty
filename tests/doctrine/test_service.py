@@ -73,7 +73,7 @@ def test_service_loads_all_repositories_from_built_in_defaults(tmp_path: Path) -
 
     service = DoctrineService(built_in_root=built_in_root)
 
-    assert len(service.directives.list_all()) == 1
+    assert {d.id for d in service.directives.list_all()} == {"DIRECTIVE_001"}
     assert service.tactics.get("test-tactic") is not None
     assert service.styleguides.get("test-style") is not None
     assert service.toolguides.get("test-tool") is not None

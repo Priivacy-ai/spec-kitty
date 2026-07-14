@@ -361,7 +361,7 @@ class TestStatePersistence:
         assert loaded_a.mission_id == "feature-a"
         assert loaded_b is not None
         assert loaded_b.mission_id == "feature-b"
-        assert len(loaded_b.wp_order) == 2
+        assert loaded_b.wp_order == ["WP01", "WP02"]
 
 
 class TestHasActiveMerge:

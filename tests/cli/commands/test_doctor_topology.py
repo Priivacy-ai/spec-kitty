@@ -70,7 +70,7 @@ def test_mission_scoping(repo: Path) -> None:
 
     assert result.exit_code == 0
     missions = json.loads(result.stdout)["missions"]
-    assert len(missions) == 1
+    assert frozenset(m["slug"] for m in missions) == frozenset({"mission-a"})
     assert missions[0]["slug"] == "mission-a"
     assert missions[0]["topology"] == "lanes"
 

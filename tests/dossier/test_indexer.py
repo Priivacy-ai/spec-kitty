@@ -44,13 +44,9 @@ class TestIndexerScanning:
         indexer = Indexer(ManifestRegistry())
         files = list(indexer._scan_directory(tmp_path))
 
-        # Should have 4 files
-        assert len(files) == 4
+        # Should have exactly these 4 files (membership is the contract, not just count).
         file_names = {f.name for f in files}
-        assert "spec.md" in file_names
-        assert "plan.md" in file_names
-        assert "WP01.md" in file_names
-        assert "WP02.md" in file_names
+        assert file_names == {"spec.md", "plan.md", "WP01.md", "WP02.md"}
 
     def test_scan_directory_skips_hidden_files(self, tmp_path):
         """Indexer._scan_directory skips hidden files (names starting with .)."""
@@ -63,8 +59,7 @@ class TestIndexerScanning:
         files = list(indexer._scan_directory(tmp_path))
 
         # Should only have spec.md
-        assert len(files) == 1
-        assert files[0].name == "spec.md"
+        assert {f.name for f in files} == {"spec.md"}
 
     def test_scan_directory_skips_kittify_directory(self, tmp_path):
         """Indexer._scan_directory skips .kittify directory."""
@@ -75,8 +70,7 @@ class TestIndexerScanning:
         indexer = Indexer(ManifestRegistry())
         files = list(indexer._scan_directory(tmp_path))
 
-        assert len(files) == 1
-        assert files[0].name == "spec.md"
+        assert {f.name for f in files} == {"spec.md"}
 
     def test_scan_directory_recursive(self, tmp_path):
         """Indexer._scan_directory recursively traverses subdirectories."""
@@ -89,11 +83,8 @@ class TestIndexerScanning:
         indexer = Indexer(ManifestRegistry())
         files = list(indexer._scan_directory(tmp_path))
 
-        assert len(files) == 3
         names = {f.name for f in files}
-        assert "level1.md" in names
-        assert "level2.md" in names
-        assert "level3.md" in names
+        assert names == {"level1.md", "level2.md", "level3.md"}
 
 
 class TestArtifactClassification:
@@ -245,8 +236,7 @@ class TestMissingArtifactDetection:
         ):
             missing = indexer._detect_missing_artifacts(dossier)
 
-        assert len(missing) == 1
-        assert missing[0].artifact_key == "input.spec.main"
+        assert [m.artifact_key for m in missing] == ["input.spec.main"]
         assert missing[0].error_reason == "not_found"
         assert missing[0].is_present is False
         assert missing[0].required_status == "required"
@@ -285,10 +275,7 @@ class TestMissingArtifactDetection:
         ):
             missing = indexer._detect_missing_artifacts(dossier)
 
-        assert len(missing) == 2
-        keys = {m.artifact_key for m in missing}
-        assert "input.spec.main" in keys
-        assert "workflow.plan" in keys
+        assert {m.artifact_key for m in missing} == {"input.spec.main", "workflow.plan"}
 
     def test_no_missing_when_all_required_present(self):
         """No missing artifacts when all required artifacts are present."""
@@ -387,8 +374,7 @@ class TestMissingArtifactDetection:
             # Check for planning step
             missing = indexer._detect_missing_artifacts(dossier, step_id="planning")
 
-        assert len(missing) == 1
-        assert missing[0].artifact_key == "workflow.tasks"
+        assert [m.artifact_key for m in missing] == ["workflow.tasks"]
 
 
 class TestUnreadableArtifactHandling:
@@ -445,14 +431,12 @@ class TestUnreadableArtifactHandling:
                 if artifact:
                     indexed_artifacts.append(artifact)
 
-            # Should have 2 artifacts (one readable, one unreadable)
-            assert len(indexed_artifacts) == 2
-            # One should be readable, one unreadable
-            present = [a for a in indexed_artifacts if a.is_present]
-            unreadable = [a for a in indexed_artifacts if not a.is_present]
-            assert len(present) == 1
-            assert len(unreadable) == 1
-            assert unreadable[0].error_reason == "unreadable"
+            # Should have exactly these 2 artifacts, one readable and one not.
+            by_path = {a.relative_path: a for a in indexed_artifacts}
+            assert set(by_path) == {"readable.md", "protected.md"}
+            assert by_path["readable.md"].is_present is True
+            assert by_path["protected.md"].is_present is False
+            assert by_path["protected.md"].error_reason == "unreadable"
         finally:
             os.chmod(protected_file, 0o644)
 
@@ -654,8 +638,10 @@ class TestLargeScaleIndexing:
         indexer = Indexer(ManifestRegistry())
         dossier = indexer.index_feature(tmp_path, "software-dev")
 
-        # Should have indexed 35 artifacts without errors
-        assert len(dossier.artifacts) == 35
+        # Should have indexed 35 artifacts without errors -- this test is
+        # specifically about scale (30+ generated files), not particular
+        # filenames, so the count itself is the contract.
+        assert len(dossier.artifacts) == 35  # golden-count: cardinality-is-contract
         # All should be present (no errors)
         present = [a for a in dossier.artifacts if a.is_present]
-        assert len(present) == 35
+        assert len(present) == 35  # golden-count: cardinality-is-contract

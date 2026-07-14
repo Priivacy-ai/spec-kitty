@@ -62,9 +62,9 @@ def test_review_cycle_artifact_to_dict_round_trip() -> None:
     assert restored.reviewed_at == original.reviewed_at
     assert restored.reproduction_command == original.reproduction_command
     assert restored.body == original.body
-    assert len(restored.affected_files) == 1
-    assert restored.affected_files[0].path == "src/specify_cli/cli/commands/agent/tasks.py"
-    assert restored.affected_files[0].line_range == "245-265"
+    assert restored.affected_files == [
+        AffectedFile(path="src/specify_cli/cli/commands/agent/tasks.py", line_range="245-265")
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -87,9 +87,7 @@ def test_write_and_from_file_round_trip(tmp_path: Path) -> None:
     assert restored.reviewed_at == artifact.reviewed_at
     assert restored.reproduction_command == artifact.reproduction_command
     assert restored.body.strip() == artifact.body.strip()
-    assert len(restored.affected_files) == 1
-    assert restored.affected_files[0].path == artifact.affected_files[0].path
-    assert restored.affected_files[0].line_range == artifact.affected_files[0].line_range
+    assert restored.affected_files == artifact.affected_files
 
 
 def test_write_and_from_file_preserves_complete_override(tmp_path: Path) -> None:

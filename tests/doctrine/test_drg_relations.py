@@ -79,7 +79,9 @@ def test_edges_to_returns_incoming_edges() -> None:
         edges=[("agent_profile:child", "agent_profile:parent", Relation.SPECIALIZES_FROM)],
     )
     incoming = graph.edges_to("agent_profile:parent")
-    assert len(incoming) == 1
+    assert {(e.source, e.target, e.relation) for e in incoming} == {
+        ("agent_profile:child", "agent_profile:parent", Relation.SPECIALIZES_FROM)
+    }
     assert incoming[0].source == "agent_profile:child"
     assert incoming[0].target == "agent_profile:parent"
     assert incoming[0].relation is Relation.SPECIALIZES_FROM
@@ -114,7 +116,10 @@ def test_edges_to_relation_filter() -> None:
     assert [e.source for e in suggests] == ["agent_profile:other"]
 
     # Unfiltered returns both incoming edges.
-    assert len(graph.edges_to("agent_profile:parent")) == 2
+    assert {e.source for e in graph.edges_to("agent_profile:parent")} == {
+        "agent_profile:child",
+        "agent_profile:other",
+    }
 
 
 def test_edges_to_no_incoming_edges() -> None:

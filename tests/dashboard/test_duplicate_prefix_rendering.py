@@ -122,12 +122,9 @@ def test_registry_has_three_distinct_mission_id_keys(
 ) -> None:
     """Three ``080-*`` missions must produce three distinct registry rows."""
     registry = build_mission_registry(colliding_080_repo)
-    assert len(registry) == 3, (
-        f"Expected 3 distinct records, got {len(registry)}: {list(registry)}"
+    assert set(registry.keys()) == {ULID_FOO, ULID_BAR, ULID_BAZ}, (
+        f"Expected exactly these 3 distinct records, got: {list(registry)}"
     )
-    assert ULID_FOO in registry
-    assert ULID_BAR in registry
-    assert ULID_BAZ in registry
     # Directory slugs must NEVER be used as registry keys.
     for slug in ("080-foo", "080-bar", "080-baz"):
         assert slug not in registry, (
@@ -173,8 +170,8 @@ def test_mid8_is_distinct_across_missions(colliding_080_repo: Path) -> None:
     """The mid8 prefix must be unique across all 3 collision candidates."""
     registry = build_mission_registry(colliding_080_repo)
     mid8s = {record["mid8"] for record in registry.values()}
-    assert len(mid8s) == 3, (
-        f"Expected 3 distinct mid8 values, got {mid8s}"
+    assert mid8s == {ULID_FOO[:8], ULID_BAR[:8], ULID_BAZ[:8]}, (
+        f"Expected exactly these 3 distinct mid8 values, got {mid8s}"
     )
 
 
@@ -230,11 +227,10 @@ def test_dashboard_json_cli_renders_three_distinct_rows(
     assert "display_order" in payload
 
     missions = payload["missions"]
-    assert len(missions) == 3, (
-        f"Expected 3 missions in --json output, got {len(missions)}: {sorted(missions)}"
+    # All three ULIDs appear as keys, exactly.
+    assert set(missions.keys()) == {ULID_FOO, ULID_BAR, ULID_BAZ}, (
+        f"Expected exactly 3 missions in --json output, got: {sorted(missions)}"
     )
-    # All three ULIDs appear as keys.
-    assert set(missions.keys()) == {ULID_FOO, ULID_BAR, ULID_BAZ}
 
     # Each emitted record keeps the MissionRecord shape.
     for ulid, record in missions.items():
@@ -244,9 +240,8 @@ def test_dashboard_json_cli_renders_three_distinct_rows(
         assert record["mid8"] == ulid[:8]
         assert record["display_number"] == 80
 
-    # display_order must include all 3 keys (no coalescing).
-    assert len(payload["display_order"]) == 3
-    assert set(payload["display_order"]) == {ULID_FOO, ULID_BAR, ULID_BAZ}
+    # display_order must include all 3 keys, exactly once each (no coalescing).
+    assert sorted(payload["display_order"]) == sorted({ULID_FOO, ULID_BAR, ULID_BAZ})
 
 
 # ---------------------------------------------------------------------------

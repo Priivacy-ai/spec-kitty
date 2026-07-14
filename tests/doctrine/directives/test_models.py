@@ -50,13 +50,18 @@ class TestDirective:
     def test_enriched_construction(self, enriched_directive_data: dict) -> None:
         directive = Directive.model_validate(enriched_directive_data)
         assert directive.scope == "Applies to all test scenarios."
-        assert len(directive.procedures) == 2
-        assert len(directive.references) == 1
+        assert set(directive.procedures) == {
+            "Write acceptance test first",
+            "Run test suite",
+        }
+        assert {r.id for r in directive.references} == {"git-agent-commit-signing"}
         assert directive.references[0].type == DirectiveReferenceType.TOOLGUIDE
         assert directive.references[0].id == "git-agent-commit-signing"
-        assert len(directive.integrity_rules) == 1
-        assert len(directive.validation_criteria) == 1
-        assert len(directive.explicit_allowances) == 1
+        assert set(directive.integrity_rules) == {"Tests must pass before merge"}
+        assert set(directive.validation_criteria) == {"Coverage above 90%"}
+        assert set(directive.explicit_allowances) == {
+            "Documented exceptions may expand scope when they reduce implementation risk."
+        }
         # Post-WP02: inline `tactic_refs` is no longer a Directive attribute.
         assert not hasattr(directive, "tactic_refs")
 

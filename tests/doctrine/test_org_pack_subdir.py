@@ -307,7 +307,7 @@ class TestResolveOrgRoots:
         _write_config_with_subdir(tmp_path, pack_path=str(pack_root))
 
         roots = resolve_org_roots(tmp_path)
-        assert len(roots) == 1
+        assert roots == [pack_root.resolve(strict=False)]
         assert roots[0] == pack_root.resolve(strict=False)
 
     def test_subdir_pack_returns_joined_effective_root(
@@ -318,7 +318,7 @@ class TestResolveOrgRoots:
         _write_config_with_subdir(tmp_path, pack_path=str(pack_root), subdir="core")
 
         roots = resolve_org_roots(tmp_path)
-        assert len(roots) == 1
+        assert roots == [(pack_root / "core").resolve(strict=False)]
         assert roots[0] == (pack_root / "core").resolve(strict=False)
 
     def test_multiple_packs_mixed_subdir(self, tmp_path: Path) -> None:
@@ -342,7 +342,10 @@ class TestResolveOrgRoots:
         )
 
         roots = resolve_org_roots(tmp_path)
-        assert len(roots) == 2
+        assert roots == [
+            pack_a.resolve(strict=False),
+            (pack_b / "inner").resolve(strict=False),
+        ]
         assert roots[0] == pack_a.resolve(strict=False)
         assert roots[1] == (pack_b / "inner").resolve(strict=False)
 
@@ -365,7 +368,7 @@ class TestRoundTrip:
         save_pack_registry(tmp_path, registry)
 
         loaded = load_pack_registry(tmp_path)
-        assert len(loaded.packs) == 1
+        assert {p.subdir for p in loaded.packs} == {"doctrine/v2"}
         assert loaded.packs[0].subdir == "doctrine/v2"
 
     def test_no_subdir_does_not_emit_key(self, tmp_path: Path) -> None:
@@ -402,7 +405,7 @@ class TestRoundTrip:
         )
 
         loaded = load_pack_registry(tmp_path)
-        assert len(loaded.packs) == 1
+        assert {p.subdir for p in loaded.packs} == {"doctrine"}
         assert loaded.packs[0].subdir == "doctrine"
 
     def test_legacy_single_pack_no_subdir_stays_none(self, tmp_path: Path) -> None:
@@ -576,7 +579,9 @@ class TestEnvVarExpansion:
         assert "${SPEC_KITTY_PACK_HOME}/org-pack" in config_text
 
         loaded = load_pack_registry(tmp_path)
-        assert len(loaded.packs) == 1
+        assert {str(p.local_path) for p in loaded.packs} == {
+            "${SPEC_KITTY_PACK_HOME}/org-pack"
+        }
         assert str(loaded.packs[0].local_path) == "${SPEC_KITTY_PACK_HOME}/org-pack"
 
     def test_empty_env_var_raises_named_error(

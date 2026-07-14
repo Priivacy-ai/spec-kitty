@@ -461,8 +461,9 @@ def test_stub_received_events_read_surface() -> None:
     batch = [_event("01JMBY0000000000000000000V")]
     stub.deliver(batch)
     received = stub.received_events()
-    assert len(received) == 1
-    assert received[0].event_id == "01JMBY0000000000000000000V"
+    assert frozenset(e.event_id for e in received) == frozenset(
+        {"01JMBY0000000000000000000V"}
+    )
 
 
 def test_delivery_result_is_transport_agnostic_value() -> None:

@@ -862,7 +862,10 @@ class TestAddEdgeExisting:
         with edges_path.open("r") as fh:
             loaded = _yaml.safe_load(fh)
         assert isinstance(loaded, list)
-        assert len(loaded) == 2
+        assert loaded == [
+            {"from_node": "X", "to_node": "Y", "kind": "provides"},
+            {"from_node": "A", "to_node": "B", "kind": "uses"},
+        ]
 
 
 # ---------------------------------------------------------------------------

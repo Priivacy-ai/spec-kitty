@@ -488,7 +488,7 @@ class TestDiffBaseline:
         ]
         pre, new, fixed = diff_baseline(sentinel, current_failures)
         assert len(pre) == 0
-        assert len(new) == 2
+        assert set(new) == set(current_failures)
         assert len(fixed) == 0
 
     def test_diff_baseline_mixed(self) -> None:

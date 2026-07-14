@@ -88,7 +88,7 @@ def test_parse_context_description(sample_md_file: Path) -> None:
 
 def test_parse_terms_count(sample_md_file: Path) -> None:
     ctx = gen.parse_context_file(sample_md_file)
-    assert len(ctx.terms) == 2
+    assert frozenset(t.name for t in ctx.terms) == frozenset({"Alpha Term", "Beta Term"})
 
 
 def test_parse_terms_sorted_alphabetically(sample_md_file: Path) -> None:
@@ -199,8 +199,7 @@ def test_render_scope_yaml_uses_relative_path(tmp_path: Path) -> None:
 def test_load_map(sample_map_yaml: Path) -> None:
     tmap = gen.load_map(sample_map_yaml)
     assert tmap.context_base_dir == "src/.contextive"
-    assert len(tmap.scopes) == 1
-    assert tmap.scopes[0].path == "src/alpha"
+    assert frozenset(s.path for s in tmap.scopes) == frozenset({"src/alpha"})
     assert tmap.scopes[0].contexts == ["testdomain"]
 
 

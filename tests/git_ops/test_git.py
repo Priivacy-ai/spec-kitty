@@ -343,7 +343,7 @@ class TestCommitOperations:
 
         changes = git_vcs.get_changes(git_repo, revision_range=f"{initial_commit}..HEAD")
 
-        assert len(changes) == 2
+        assert frozenset(c.message for c in changes) == frozenset({"Commit 0", "Commit 1"})
 
     def test_commit(self, git_repo, git_vcs):
         """commit should create a new commit."""
@@ -472,8 +472,7 @@ More normal content
         vcs = GitVCS()
         ranges = vcs._parse_conflict_markers(conflict_file)
 
-        assert len(ranges) == 1
-        assert ranges[0] == (2, 6)  # Lines 2-6 contain the conflict
+        assert ranges == [(2, 6)]  # Lines 2-6 contain the conflict
 
 
 # =============================================================================

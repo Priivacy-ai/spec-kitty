@@ -257,7 +257,9 @@ def test_find_duplicate_prefixes_three_080(tmp_path: Path) -> None:
     _mission_dir(specs, "080-gamma", _ULID_C, 80)
     dupes = find_duplicate_prefixes(tmp_path)
     assert "080" in dupes
-    assert len(dupes["080"]) == 3
+    assert frozenset(s.slug for s in dupes["080"]) == frozenset(
+        {"080-alpha", "080-beta", "080-gamma"}
+    )
 
 
 def test_find_duplicate_prefixes_single_not_flagged(tmp_path: Path) -> None:
@@ -293,7 +295,7 @@ def test_find_duplicate_prefixes_skips_non_directory_entries(tmp_path: Path) -> 
     dupes = find_duplicate_prefixes(tmp_path)
 
     assert "080" in dupes
-    assert len(dupes["080"]) == 2
+    assert frozenset(s.slug for s in dupes["080"]) == frozenset({"080-one", "080-two"})
 
 
 def test_find_duplicate_prefixes_skips_no_prefix(tmp_path: Path) -> None:
@@ -316,8 +318,8 @@ def test_find_duplicate_prefixes_distinct_07x(tmp_path: Path) -> None:
     dupes = find_duplicate_prefixes(tmp_path)
     assert "070" in dupes
     assert "071" in dupes
-    assert len(dupes["070"]) == 2
-    assert len(dupes["071"]) == 2
+    assert frozenset(s.slug for s in dupes["070"]) == frozenset({"070-a", "070-b"})
+    assert frozenset(s.slug for s in dupes["071"]) == frozenset({"071-c", "071-d"})
 
 
 # ---------------------------------------------------------------------------
@@ -334,7 +336,9 @@ def test_find_ambiguous_selectors_three_080(tmp_path: Path) -> None:
     states = audit_repo(tmp_path)
     ambiguous = find_ambiguous_selectors(states)
     assert "080" in ambiguous
-    assert len(ambiguous["080"]) == 3
+    assert frozenset(s.slug for s in ambiguous["080"]) == frozenset(
+        {"080-alpha", "080-beta", "080-gamma"}
+    )
 
 
 def test_find_ambiguous_selectors_shared_human_slug(tmp_path: Path) -> None:
@@ -345,7 +349,9 @@ def test_find_ambiguous_selectors_shared_human_slug(tmp_path: Path) -> None:
     states = audit_repo(tmp_path)
     ambiguous = find_ambiguous_selectors(states)
     assert "foo-bar" in ambiguous
-    assert len(ambiguous["foo-bar"]) == 2
+    assert frozenset(s.slug for s in ambiguous["foo-bar"]) == frozenset(
+        {"081-foo-bar", "082-foo-bar"}
+    )
 
 
 def test_find_ambiguous_selectors_no_ambiguity(tmp_path: Path) -> None:
@@ -378,7 +384,9 @@ def test_find_ambiguous_selectors_distinct_081_and_081_bar(tmp_path: Path) -> No
     states = audit_repo(tmp_path)
     ambiguous = find_ambiguous_selectors(states)
     assert "081" in ambiguous
-    assert len(ambiguous["081"]) == 2
+    assert frozenset(s.slug for s in ambiguous["081"]) == frozenset(
+        {"081-foo", "081-bar"}
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -429,9 +437,15 @@ def test_identity_json_schema(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
 
     # Missions list
     missions = doc["missions"]
-    assert len(missions) == 6
     slugs = {m["slug"] for m in missions}
-    assert "001-assigned" in slugs
+    assert slugs == {
+        "001-assigned",
+        "002-pending",
+        "003-legacy",
+        "004-orphan",
+        "080-foo",
+        "080-bar",
+    }
 
     # Each mission entry has the documented fields
     for m in missions:
@@ -444,7 +458,9 @@ def test_identity_json_schema(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
 
     # Duplicate prefixes
     assert "080" in doc["duplicate_prefixes"]
-    assert len(doc["duplicate_prefixes"]["080"]) == 2
+    assert frozenset(m["slug"] for m in doc["duplicate_prefixes"]["080"]) == frozenset(
+        {"080-foo", "080-bar"}
+    )
 
     # fail_on_triggered is False when --fail-on not given
     assert doc["fail_on_triggered"] is False
@@ -508,8 +524,7 @@ def test_identity_mission_scope(tmp_path: Path, monkeypatch: pytest.MonkeyPatch)
 
     assert result.exit_code == 0
     doc = json.loads(result.output)
-    assert len(doc["missions"]) == 1
-    assert doc["missions"][0]["slug"] == "001-alpha"
+    assert frozenset(m["slug"] for m in doc["missions"]) == frozenset({"001-alpha"})
 
 
 # ---------------------------------------------------------------------------
@@ -560,7 +575,7 @@ def test_nfr_002_timing_200_missions() -> None:
         elapsed = time.monotonic() - start
 
         # Sanity checks: the data is correct
-        assert len(states) == 200
+        assert len(states) == 200  # golden-count: cardinality-is-contract
         assert all(s.state == "assigned" for s in states)
         assert dupes == {}  # all distinct prefixes
         assert ambiguous == {}  # all distinct human slugs

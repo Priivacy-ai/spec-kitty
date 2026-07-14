@@ -88,7 +88,7 @@ def test_high_severity_returns_notice(tmp_path: Path) -> None:
     _write_event_log(tmp_path, [_make_event(severity="high")])
     surface = ObservationSurface()
     notices = surface.collect_notices(tmp_path)
-    assert len(notices) == 1
+    assert {n.term_id for n in notices} == {"glossary:deployment-target"}
     notice = notices[0]
     assert notice.term == "deployment-target"
     assert notice.term_id == "glossary:deployment-target"
@@ -103,7 +103,7 @@ def test_critical_severity_returns_notice(tmp_path: Path) -> None:
     _write_event_log(tmp_path, [_make_event(severity="critical")])
     surface = ObservationSurface()
     notices = surface.collect_notices(tmp_path)
-    assert len(notices) == 1
+    assert {n.severity for n in notices} == {"critical"}
     assert notices[0].severity == "critical"
 
 
@@ -142,7 +142,6 @@ def test_multiple_terms_multiple_notices(tmp_path: Path) -> None:
     _write_event_log(tmp_path, events)
     surface = ObservationSurface()
     notices = surface.collect_notices(tmp_path)
-    assert len(notices) == 2
     term_ids = {n.term_id for n in notices}
     assert term_ids == {"glossary:term-a", "glossary:term-b"}
 
@@ -169,7 +168,7 @@ def test_same_term_deduplicated_last_seen_wins(tmp_path: Path) -> None:
     _write_event_log(tmp_path, [event_first, event_last])
     surface = ObservationSurface()
     notices = surface.collect_notices(tmp_path)
-    assert len(notices) == 1
+    assert {n.conflict_type for n in notices} == {"polysemy"}
     # Last-seen wins: should be the second event's data
     assert notices[0].conflict_type == "polysemy"
     assert notices[0].severity == "critical"
@@ -203,7 +202,7 @@ def test_malformed_json_line_skipped(tmp_path: Path) -> None:
 
     surface = ObservationSurface()
     notices = surface.collect_notices(tmp_path)
-    assert len(notices) == 1
+    assert {n.term for n in notices} == {"good-term"}
     assert notices[0].term == "good-term"
 
 
@@ -223,11 +222,10 @@ def test_invocation_id_filter(tmp_path: Path) -> None:
     surface = ObservationSurface()
 
     notices_001 = surface.collect_notices(tmp_path, invocation_id="INV-001")
-    assert len(notices_001) == 2
     assert {n.term for n in notices_001} == {"term-a", "term-c"}
 
     notices_002 = surface.collect_notices(tmp_path, invocation_id="INV-002")
-    assert len(notices_002) == 1
+    assert {n.term for n in notices_002} == {"term-b"}
     assert notices_002[0].term == "term-b"
 
 

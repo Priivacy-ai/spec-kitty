@@ -128,8 +128,8 @@ class TestPersistence:
         restored = read_acceptance_matrix(tmp_path)
         assert restored is not None
         assert restored.mission_slug == "010-feat"
-        assert len(restored.criteria) == 1
-        assert len(restored.negative_invariants) == 1
+        assert [c.criterion_id for c in restored.criteria] == ["AC-01"]
+        assert [n.invariant_id for n in restored.negative_invariants] == ["NI-01"]
         assert restored.overall_verdict == "pass"
 
     def test_missing_returns_none(self, tmp_path):
@@ -532,7 +532,7 @@ class TestScaffoldAcceptanceMatrix:
         assert matrix is not None
         assert matrix.mission_slug == "010-feat"
         # Empty-but-valid scaffold has a clear TODO marker.
-        assert len(matrix.criteria) == 1
+        assert [c.criterion_id for c in matrix.criteria] == ["AC-001"]
         assert SCAFFOLD_TODO_MARKER in (matrix.criteria[0].notes or "")
         # Verdict stays pending until evidence is supplied.
         assert matrix.overall_verdict == "pending"

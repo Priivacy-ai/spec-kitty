@@ -36,7 +36,7 @@ def test_hook_rendering_shape(tmp_path: Path) -> None:
     assert lines[0] == "#!/bin/sh", f"First line must be #!/bin/sh, got {lines[0]!r}"
 
     exec_lines = [line for line in lines if line.startswith("exec ")]
-    assert len(exec_lines) == 1, (
+    assert len(exec_lines) == 1, (  # golden-count: cardinality-is-contract
         f"Expected exactly one 'exec ' line, found {len(exec_lines)}: {exec_lines}"
     )
     exec_line = exec_lines[0]

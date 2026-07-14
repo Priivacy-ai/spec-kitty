@@ -213,9 +213,23 @@ def test_allowed_mission_types_is_a_frozenset() -> None:
 
 def test_allowed_actions_is_the_canonical_10_token_set() -> None:
     assert isinstance(ALLOWED_ACTIONS, frozenset)
-    assert len(ALLOWED_ACTIONS) == 10, (
-        "data-model.md §7 pins _ALLOWED_ACTIONS at exactly 10 tokens; "
-        f"observed {len(ALLOWED_ACTIONS)}: {sorted(ALLOWED_ACTIONS)}"
+    expected_actions = frozenset(
+        {
+            "specify",
+            "plan",
+            "tasks",
+            "implement",
+            "review",
+            "merge",
+            "accept",
+            "charter.interview",
+            "charter.generate",
+            "charter.context",
+        }
+    )
+    assert expected_actions == ALLOWED_ACTIONS, (
+        "data-model.md §7 pins _ALLOWED_ACTIONS at exactly these 10 tokens; "
+        f"observed {sorted(ALLOWED_ACTIONS)}"
     )
 
 

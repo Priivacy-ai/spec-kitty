@@ -59,7 +59,7 @@ def test_initialize_documentation_state(tmp_path):
 
     assert state["iteration_mode"] == "initial"
     assert state["divio_types_selected"] == ["tutorial", "reference"]
-    assert len(state["generators_configured"]) == 1
+    assert frozenset(g["name"] for g in state["generators_configured"]) == frozenset({"sphinx"})
     assert state["target_audience"] == "developers"
     assert state["last_audit_date"] is None
     assert state["coverage_percentage"] == 0.0
@@ -183,8 +183,9 @@ def test_set_generators_configured(tmp_path):
 
     with open(meta_file) as f:
         meta = json.load(f)
-    assert len(meta["documentation_state"]["generators_configured"]) == 1
-    assert meta["documentation_state"]["generators_configured"][0]["name"] == "sphinx"
+    assert frozenset(
+        g["name"] for g in meta["documentation_state"]["generators_configured"]
+    ) == frozenset({"sphinx"})
 
 
 def test_set_audit_metadata(tmp_path):

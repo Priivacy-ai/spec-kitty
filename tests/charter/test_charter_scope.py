@@ -166,7 +166,7 @@ def test_charter_scope_config_accepts_valid_payload() -> None:
         ]
     }
     model = CharterScopeConfig.model_validate(payload)
-    assert len(model.charter_scopes) == 2
+    assert {s.root for s in model.charter_scopes} == {"packages/auth", "packages/web"}
     assert model.charter_scopes[0].root == "packages/auth"
     assert model.charter_scopes[1].name == "web"
 

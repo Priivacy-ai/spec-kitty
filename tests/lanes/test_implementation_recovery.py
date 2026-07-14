@@ -244,7 +244,7 @@ class TestScanRecoveryState:
 
         # Should detect lane-a WPs (WP01, WP02)
         lane_a_states = [s for s in states if s.lane_id == "lane-a"]
-        assert len(lane_a_states) == 2
+        assert {s.wp_id for s in lane_a_states} == {"WP01", "WP02"}
         assert all(s.branch_exists for s in lane_a_states)
         assert all(not s.worktree_exists for s in lane_a_states)
         assert all(not s.context_exists for s in lane_a_states)
@@ -277,7 +277,7 @@ class TestScanRecoveryState:
         states = scan_recovery_state(repo, "010-feat")
 
         lane_a_states = [s for s in states if s.lane_id == "lane-a"]
-        assert len(lane_a_states) == 2  # WP01, WP02
+        assert {s.wp_id for s in lane_a_states} == {"WP01", "WP02"}
         assert all(s.worktree_exists for s in lane_a_states)
         assert all(not s.context_exists for s in lane_a_states)
         assert all(s.recovery_action == "recreate_context" for s in lane_a_states)

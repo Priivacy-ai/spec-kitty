@@ -48,7 +48,7 @@ class TestEmitEvent:
         assert events_file.exists()
 
         lines = events_file.read_text().splitlines()
-        assert len(lines) == 1
+        assert len(lines) == 1  # golden-count: cardinality-is-contract
 
         event = json.loads(lines[0])
         assert event["type"] == "phase_entered"

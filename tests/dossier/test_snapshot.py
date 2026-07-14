@@ -260,7 +260,7 @@ class TestComputeSnapshotDeterministic:
 
         snapshot = compute_snapshot(dossier)
 
-        assert len(snapshot.artifact_summaries) == 1
+        assert [s["artifact_key"] for s in snapshot.artifact_summaries] == ["spec.main"]
         summary = snapshot.artifact_summaries[0]
         assert summary["artifact_key"] == "spec.main"
         assert summary["artifact_class"] == "input"
@@ -360,7 +360,7 @@ class TestParityHashAlgorithm:
         hash2 = compute_parity_hash_from_dossier(dossier)
 
         assert hash1 == hash2
-        assert len(hash1) == 64  # SHA256 is 64 hex characters
+        assert len(hash1) == 64  # SHA256 is 64 hex characters  # golden-count: cardinality-is-contract
 
     def test_parity_hash_order_independence(self) -> None:
         """Same artifacts in different order should produce same parity hash."""
@@ -563,9 +563,7 @@ class TestParityHashAlgorithm:
         )
 
         components = get_parity_hash_components(dossier)
-        assert len(components) == 2  # Both hashes included, not deduplicated
-        assert components[0] == "a" * 64
-        assert components[1] == "a" * 64
+        assert components == ["a" * 64, "a" * 64]  # Both hashes included, not deduplicated
 
 
 class TestSnapshotPersistence:
@@ -892,7 +890,7 @@ class TestSnapshotEquality:
         )
 
         snapshot_set = {snapshot1, snapshot2}
-        assert len(snapshot_set) == 2
+        assert snapshot_set == {snapshot1, snapshot2}
         assert snapshot1 in snapshot_set
 
 
@@ -936,8 +934,8 @@ class TestLargeSnapshot:
         assert snapshot.optional_artifacts == 15
         assert snapshot.optional_present == 8
         assert snapshot.completeness_status == "complete"
-        assert len(snapshot.parity_hash_sha256) == 64
-        assert len(snapshot.artifact_summaries) == 35
+        assert len(snapshot.parity_hash_sha256) == 64  # golden-count: cardinality-is-contract
+        assert len(snapshot.artifact_summaries) == 35  # golden-count: cardinality-is-contract
 
 
 # ---------------------------------------------------------------------------

@@ -91,7 +91,7 @@ def test_glossary_urn_prefix() -> None:
     urn = glossary_urn("workspace")
     assert urn.startswith("glossary:")
     hex_part = urn.split(":")[1]
-    assert len(hex_part) == 8
+    assert len(hex_part) == 8  # golden-count: cardinality-is-contract
     assert all(c in "0123456789abcdef" for c in hex_part)
 
 
@@ -274,7 +274,7 @@ def test_build_index_senses_list_populated() -> None:
     index = build_index(store, ["spec_kitty_core"])
 
     assert "lane" in index.surface_to_senses
-    assert len(index.surface_to_senses["lane"]) == 1
+    assert index.surface_to_senses["lane"] == [sense]
     assert index.surface_to_senses["lane"][0] is sense
 
 

@@ -21,7 +21,7 @@ def test_collect_governance_references_reports_missing_doc(tmp_path: Path) -> No
         ["spec/constitution.md"],
     )
 
-    assert len(statuses) == 1
+    assert [status.path for status in statuses] == ["spec/constitution.md"]
     assert statuses[0].exists is False
     assert statuses[0].safe is True
     assert "Missing governance reference spec/constitution.md" in str(statuses[0].warning)
@@ -34,7 +34,7 @@ def test_collect_governance_references_rejects_escape(tmp_path: Path) -> None:
         ["../outside.md"],
     )
 
-    assert len(statuses) == 1
+    assert [status.path for status in statuses] == ["../outside.md"]
     assert statuses[0].safe is False
     assert "parent-directory traversal is not allowed" in str(statuses[0].warning)
 
@@ -49,12 +49,13 @@ def test_collect_governance_references_ignores_blank_entries(tmp_path: Path) -> 
 
 
 def test_collect_governance_references_rejects_absolute_path(tmp_path: Path) -> None:
+    abs_ref = str(tmp_path / "constitution.md")
     statuses = collect_governance_reference_status(
         tmp_path,
-        [str(tmp_path / "constitution.md")],
+        [abs_ref],
     )
 
-    assert len(statuses) == 1
+    assert [status.path for status in statuses] == [abs_ref]
     assert statuses[0].safe is False
     assert "not absolute" in str(statuses[0].warning)
 
@@ -67,7 +68,7 @@ def test_collect_governance_references_reports_directory(tmp_path: Path) -> None
         ["spec"],
     )
 
-    assert len(statuses) == 1
+    assert [status.path for status in statuses] == ["spec"]
     assert statuses[0].exists is True
     assert statuses[0].safe is True
     assert "is not a file" in str(statuses[0].warning)
@@ -88,7 +89,7 @@ def test_collect_governance_references_rejects_symlink_escape(tmp_path: Path) ->
         ["linked-governance.md"],
     )
 
-    assert len(statuses) == 1
+    assert [status.path for status in statuses] == ["linked-governance.md"]
     assert statuses[0].safe is False
     assert "escapes the repository root" in str(statuses[0].warning)
 

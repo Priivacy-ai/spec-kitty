@@ -332,7 +332,7 @@ class TestPartition:
         entries = [self._entry(("inner",), hidden=True)]
         main, _, hidden = build.partition_paths(entries, include_hidden=True)
         assert main == []
-        assert len(hidden) == 1
+        assert frozenset(e.path for e in hidden) == frozenset({("inner",)})
 
 
 # ---------------------------------------------------------------------------

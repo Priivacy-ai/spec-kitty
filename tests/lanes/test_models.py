@@ -64,9 +64,7 @@ def test_lanes_manifest_round_trip():
     assert restored.mission_slug == manifest.mission_slug
     assert restored.mission_id == "01HXYZ_ULID"
     assert restored.mission_branch == manifest.mission_branch
-    assert len(restored.lanes) == 2
-    assert restored.lanes[0] == manifest.lanes[0]
-    assert restored.lanes[1] == manifest.lanes[1]
+    assert restored.lanes == manifest.lanes
 
 
 def test_lanes_manifest_from_dict_missing_mission_id_fails_closed():
@@ -151,8 +149,8 @@ def test_parallel_groups():
         computed_from="test",
     )
     groups = manifest.parallel_groups()
-    assert len(groups[0]) == 2
-    assert len(groups[1]) == 1
+    assert [lane.lane_id for lane in groups[0]] == ["lane-a", "lane-b"]
+    assert [lane.lane_id for lane in groups[1]] == ["lane-c"]
 
 
 def test_lanes_manifest_with_collapse_report_round_trip():

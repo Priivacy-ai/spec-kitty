@@ -27,7 +27,9 @@ pytestmark = [pytest.mark.integration]
 class TestSeverity:
     def test_has_exactly_three_members(self) -> None:
         members = list(Severity)
-        assert len(members) == 3
+        assert frozenset(member.name for member in members) == frozenset(
+            {"ERROR", "WARNING", "INFO"}
+        )
 
     def test_member_names(self) -> None:
         assert Severity.ERROR
@@ -361,7 +363,9 @@ class TestRepoAuditReport:
         report = self._make_report()
         d = report.to_dict()
         assert isinstance(d["missions"], list)
-        assert len(d["missions"]) == 2  # type: ignore[arg-type]
+        assert frozenset(m["mission_slug"] for m in d["missions"]) == frozenset(  # type: ignore[union-attr]
+            {"alpha", "beta"}
+        )
 
 
 class TestAuditOptions:

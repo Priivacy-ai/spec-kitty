@@ -195,7 +195,7 @@ def test_json_orphan_record_has_cleanup_class(
 
     payload = json.loads(output.getvalue())
     orphans = payload["orphans"]
-    assert len(orphans) == 2
+    assert frozenset(o["port"] for o in orphans) == frozenset({9401, 9405})
 
     ports_to_class = {o["port"]: o["cleanup_class"] for o in orphans}
     assert ports_to_class[9401] == "safe_auto"
@@ -294,12 +294,11 @@ def test_reset_json_has_reset_result(
     assert "skipped" in rr
     assert "failed" in rr
 
-    assert len(rr["swept"]) == 1
-    assert rr["swept"][0]["port"] == 9401
+    assert frozenset(entry["port"] for entry in rr["swept"]) == frozenset({9401})
     assert rr["swept"][0]["cleanup_path"] == "http_shutdown"
     assert rr["swept"][0]["reason"] == "safe_auto stale-version"
-    assert len(rr["skipped"]) == 0
-    assert len(rr["failed"]) == 0
+    assert rr["skipped"] == []
+    assert rr["failed"] == []
 
 
 def test_reset_json_skipped_has_cleanup_class(
@@ -331,7 +330,7 @@ def test_reset_json_skipped_has_cleanup_class(
 
     payload = json.loads(output.getvalue())
     skipped = payload["reset_result"]["skipped"]
-    assert len(skipped) == 1
+    assert frozenset(entry["port"] for entry in skipped) == frozenset({9405})
     assert skipped[0]["cleanup_class"] == "operator_required"
     assert skipped[0]["skip_reason"] == "pre_marker"
     assert skipped[0]["port"] == 9405
@@ -476,8 +475,7 @@ def test_no_reset_performs_no_sweep(
     payload = json.loads(output.getvalue())
     assert "reset_result" not in payload
     # Orphans still appear in the scan output
-    assert len(payload["orphans"]) == 1
-    assert payload["orphans"][0]["port"] == 9401
+    assert frozenset(o["port"] for o in payload["orphans"]) == frozenset({9401})
 
 
 def test_no_reset_no_sweep_human_output(

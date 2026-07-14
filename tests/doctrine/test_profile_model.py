@@ -113,12 +113,12 @@ class TestAgentProfileOne:
 
         assert profile.profile_id == "architect"
         assert profile.role == Role.ARCHITECT
-        assert len(profile.capabilities) == 5
+        assert set(profile.capabilities) == {"read", "write", "search", "edit", "bash"}
         assert profile.routing_priority == 50
-        assert len(profile.collaboration.handoff_to) == 2
-        assert len(profile.mode_defaults) == 1
+        assert set(profile.collaboration.handoff_to) == {"planner", "implementer"}
+        assert {m.mode for m in profile.mode_defaults} == {"/analysis-mode"}
         assert profile.specialization_context is not None
-        assert len(profile.specialization_context.languages) == 2
+        assert set(profile.specialization_context.languages) == {"python", "typescript"}
 
 
 class TestAgentProfileMany:
@@ -148,7 +148,6 @@ class TestAgentProfileMany:
             )
             profiles.append(profile)
 
-        assert len(profiles) == 8
         assert all(isinstance(p.role, Role) for p in profiles)
         assert {p.role for p in profiles} == {Role(r) for r in Role._KNOWN}
 
@@ -426,7 +425,7 @@ class TestTaskContext:
         )
         assert ctx.language == "python"
         assert ctx.framework == "fastapi"
-        assert len(ctx.file_paths) == 1
+        assert ctx.file_paths == ["src/api/routes.py"]
         assert ctx.complexity == "high"
         assert ctx.required_role == Role.IMPLEMENTER
 

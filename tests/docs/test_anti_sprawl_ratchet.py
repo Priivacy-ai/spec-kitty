@@ -159,7 +159,6 @@ _EXPECTED_SECTIONS = [
 def test_floor_is_the_enumerated_thirteen_sections() -> None:
     floor = ratchet.floor_baseline()
     assert floor["sections"] == _EXPECTED_SECTIONS
-    assert len(floor["sections"]) == 13
     assert floor["sections"]  # never empty — would pass everything otherwise
     assert floor["doc_roots"] == 1
 

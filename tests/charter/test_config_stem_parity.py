@@ -118,7 +118,7 @@ def test_config_declares_exactly_the_expected_directive_count(
     # Pins the observed count from spec.md (Context & Motivation: "25 vs 24
     # directives observed") so a silent addition/removal in config.yaml is
     # visible as an intentional test update, not an invisible drift.
-    assert len(activated_directive_stems) == 25
+    assert len(activated_directive_stems) == 25  # golden-count: cardinality-is-contract
 
 
 def _directive_stems_for_parametrize() -> list[str]:

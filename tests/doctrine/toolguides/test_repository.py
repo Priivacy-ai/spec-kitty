@@ -15,7 +15,7 @@ class TestToolguideRepository:
         """list_all returns all toolguides from the given directory."""
         repo = ToolguideRepository(built_in_dir=tmp_toolguide_dir)
         toolguides = repo.list_all()
-        assert len(toolguides) == 1
+        assert {t.id for t in toolguides} == {"test-toolguide"}
 
     def test_get_by_id(self, tmp_toolguide_dir: Path) -> None:
         """get() returns toolguide by ID."""
@@ -31,7 +31,7 @@ class TestToolguideRepository:
     def test_load_from_custom_shipped_dir(self, tmp_toolguide_dir: Path) -> None:
         repo = ToolguideRepository(built_in_dir=tmp_toolguide_dir)
         toolguides = repo.list_all()
-        assert len(toolguides) == 1
+        assert {t.id for t in toolguides} == {"test-toolguide"}
         assert toolguides[0].id == "test-toolguide"
 
     def test_malformed_yaml_skipped_with_warning(self, tmp_path: Path) -> None:

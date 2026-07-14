@@ -325,7 +325,9 @@ class TestRewriteBodyHelper:
             body, "docs/guides/install.md", resolver
         )
         assert "(../api/cli.md)" in new_body
-        assert len(rewrites) == 1
+        assert frozenset((r.old_link, r.new_link) for r in rewrites) == frozenset(
+            {("../reference/cli.md", "../api/cli.md")}
+        )
         assert unresolved == []
 
 
@@ -443,7 +445,9 @@ class TestNoExcludeFlag:
             "scripts.docs.relative_link_fixer.check_dead_body_links", spy
         )
         main(["--check", "--no-exclude", "--repo-root", str(repo)])
-        assert len(captured) == 1, f"Expected spy called once, got {len(captured)}"
+        assert len(captured) == 1, (  # golden-count: cardinality-is-contract (call-count spy)
+            f"Expected spy called once, got {len(captured)}"
+        )
         assert captured[0] == (), (
             f"--no-exclude must pass exclude_prefixes=() to check_dead_body_links,"
             f" got {captured[0]!r}"
@@ -579,8 +583,11 @@ class TestDeliberateBreakage:
             "See [second broken](../ghost/two.md) here.\n",  # line 5
         )
         dead = check_dead_body_links(repo)
-        assert len(dead) == 2, f"Expected 2 dead links, got {len(dead)}: {dead}"
         findings = {(u.file, u.line, u.link) for u in dead}
+        assert findings == {
+            ("docs/section/a.md", 3, "../ghost/one.md"),
+            ("docs/section/a.md", 5, "../ghost/two.md"),
+        }, f"Expected exactly these 2 dead links, got: {findings}"
         assert ("docs/section/a.md", 3, "../ghost/one.md") in findings, (
             f"Expected line 3 for first broken link; findings: {findings}"
         )
@@ -606,7 +613,9 @@ class TestDeliberateBreakage:
         )
         # Use exclude_prefixes=() so docs/adr/ is in scope for this test.
         dead = check_dead_body_links(repo, exclude_prefixes=())
-        assert len(dead) == 1, f"Expected 1 dead link, got {len(dead)}: {dead}"
+        assert frozenset((u.file, u.line, u.link) for u in dead) == frozenset(
+            {("docs/adr/3.x/example.md", 6, "../ghost/missing.md")}
+        )
         assert dead[0].line == 6, (
             f"Expected line 6 (editor-absolute, accounting for 4-line frontmatter),"
             f" got {dead[0].line} — frontmatter offset not applied correctly"

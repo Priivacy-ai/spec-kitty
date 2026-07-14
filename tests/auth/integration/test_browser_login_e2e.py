@@ -212,13 +212,15 @@ class TestBrowserLoginE2E:
         # Exactly one session was written through the TokenManager
         # pipeline. This confirms FR-016: the flow reached secure storage
         # via ``get_token_manager().set_session`` rather than bypassing it.
-        assert len(fake_storage.writes) == 1
+        assert len(fake_storage.writes) == 1  # golden-count: cardinality-is-contract
         stored = fake_storage.writes[0]
         assert stored.user_id == "u_alice"
         assert stored.email == "alice@example.com"
         assert stored.auth_method == "authorization_code"
         assert stored.default_team_id == "tm_acme"
-        assert len(stored.teams) == 2
+        assert frozenset(team.id for team in stored.teams) == frozenset(
+            {"tm_acme", "tm_beta"}
+        )
         # Storage backend matches the fake backend we injected.
         assert stored.storage_backend == "file"
 
@@ -350,7 +352,7 @@ class TestBrowserLoginE2E:
         # Old session deleted, new session written — hence at least 1 delete
         # and exactly 1 write (new session).
         assert fake_storage.deletes >= 1
-        assert len(fake_storage.writes) == 1
+        assert len(fake_storage.writes) == 1  # golden-count: cardinality-is-contract
         assert fake_storage.writes[0].email == "alice@example.com"
         assert "at_bob_old" not in result.stdout
 

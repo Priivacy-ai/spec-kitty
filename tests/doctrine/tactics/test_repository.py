@@ -15,7 +15,7 @@ class TestTacticRepository:
         """list_all returns all tactics from the given directory."""
         repo = TacticRepository(built_in_dir=tmp_tactic_dir)
         tactics = repo.list_all()
-        assert len(tactics) == 1
+        assert {t.id for t in tactics} == {"test-tactic"}
         assert tactics[0].id == "test-tactic"
 
     def test_get_by_id(self, tmp_tactic_dir: Path) -> None:
@@ -33,7 +33,7 @@ class TestTacticRepository:
     def test_load_from_custom_shipped_dir(self, tmp_tactic_dir: Path) -> None:
         repo = TacticRepository(built_in_dir=tmp_tactic_dir)
         tactics = repo.list_all()
-        assert len(tactics) == 1
+        assert {t.id for t in tactics} == {"test-tactic"}
         assert tactics[0].id == "test-tactic"
 
     def test_malformed_yaml_skipped_with_warning(self, tmp_path: Path) -> None:

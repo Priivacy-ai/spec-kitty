@@ -68,8 +68,14 @@ class TestFireDossierEventDirect:
         assert result is not None
         assert result["event_id"] == "e-1"
         assert result["event_type"] == "MissionDossierArtifactIndexed"
-        assert len(captured) == 1
-        assert captured[0]["aggregate_type"] == "MissionDossier"
+        assert captured == [
+            {
+                "event_type": "MissionDossierArtifactIndexed",
+                "aggregate_id": "042:input.spec",
+                "aggregate_type": "MissionDossier",
+                "payload": {"mission_slug": "042"},
+            }
+        ]
 
     def test_emitter_exception_returns_none_does_not_raise(self) -> None:
         def boom(**kwargs: object) -> dict:
@@ -156,7 +162,7 @@ class TestEmitArtifactIndexedThroughAdapter:
 
         assert result is not None
         assert result["event_id"] == "e-2"
-        assert len(captured) == 1
+        assert len(captured) == 1  # golden-count: cardinality-is-contract (call-count; content pinned below)
         call = captured[0]
         assert call["event_type"] == "MissionDossierArtifactIndexed"
         # New aggregate_id pins (mission_slug, path) — the legacy

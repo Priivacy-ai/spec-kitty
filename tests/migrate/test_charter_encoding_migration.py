@@ -182,7 +182,7 @@ def test_yes_flag_normalizes_without_prompt(tmp_path: Path) -> None:
     assert result.exit_code == 0, result.output
     payload = _extract_json(result.output)
     assert payload["result"] == "success"
-    assert len(payload["normalized"]) == 1
+    assert [Path(r["path"]).name for r in payload["normalized"]] == ["charter.yaml"]
     # File must now be valid UTF-8 (no UnicodeDecodeError).
     normalized_text = cp1252_file.read_text(encoding="utf-8")
     assert len(normalized_text) > 0
@@ -220,7 +220,7 @@ def test_yes_exits_nonzero_on_ambiguous_file(tmp_path: Path) -> None:
     assert result.exit_code != 0
     payload = _extract_json(result.output)
     assert payload["result"] == "ambiguous_present"
-    assert len(payload["ambiguous"]) == 1
+    assert [Path(r["path"]).name for r in payload["ambiguous"]] == ["charter.yaml"]
 
 
 # ---------------------------------------------------------------------------
@@ -249,7 +249,7 @@ def test_idempotency_second_run_is_noop(tmp_path: Path) -> None:
     )
     assert result1.exit_code == 0, result1.output
     payload1 = _extract_json(result1.output)
-    assert len(payload1["normalized"]) == 1
+    assert [Path(r["path"]).name for r in payload1["normalized"]] == ["charter.yaml"]
 
     # Count provenance records written by the first run.
     provenance_path = tmp_path / "kitty-specs" / "042-foo" / ".encoding-provenance.jsonl"
@@ -265,7 +265,7 @@ def test_idempotency_second_run_is_noop(tmp_path: Path) -> None:
     payload2 = _extract_json(result2.output)
     # File is in already_utf8 bucket, not normalized
     assert len(payload2["normalized"]) == 0
-    assert len(payload2["already_utf8"]) == 1
+    assert [Path(p).name for p in payload2["already_utf8"]] == ["charter.yaml"]
 
     # No new provenance records written on second run.
     records_after_second_run = _count_provenance_records(provenance_path)
@@ -296,7 +296,7 @@ def test_idempotency_precheck_skips_utf8_files_without_chokepoint(tmp_path: Path
 
     assert result.exit_code == 0, result.output
     payload = _extract_json(result.output)
-    assert len(payload["already_utf8"]) == 1
+    assert [Path(p).name for p in payload["already_utf8"]] == ["charter.yaml"]
     assert len(payload["normalized"]) == 0
 
 

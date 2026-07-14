@@ -254,8 +254,7 @@ class TestBuildSession:
         assert session.user_id == "user-1"
         assert session.email == "alice@example.com"
         assert session.name == "Alice"
-        assert len(session.teams) == 1
-        assert session.teams[0].id == "t1"
+        assert frozenset(team.id for team in session.teams) == frozenset({"t1"})
         assert session.default_team_id == "t1"  # client-picked
         assert session.access_token == "access-xyz"
         assert session.refresh_token == "refresh-xyz"

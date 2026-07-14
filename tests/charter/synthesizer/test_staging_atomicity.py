@@ -246,7 +246,7 @@ def test_promote_success_writes_files_and_manifest(tmp_path: Path) -> None:
     assert manifest_path.exists()
     loaded = load_manifest(manifest_path)
     assert loaded.run_id == RUN_ID
-    assert len(loaded.artifacts) == 1
+    assert {a.slug for a in loaded.artifacts} == {"my-tactic"}
 
     # Staging dir wiped
     assert not stage.root.exists()

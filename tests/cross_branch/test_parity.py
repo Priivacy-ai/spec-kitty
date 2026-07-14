@@ -115,7 +115,7 @@ class TestReducerParity:
 
         # All events should have the same mission_slug
         slugs = {e.mission_slug for e in events}
-        assert len(slugs) == 1
+        assert slugs == {"099-parity-test"}
         assert slugs.pop() == expected.get("mission_slug", expected.get("mission_slug"))
 
         # All event_ids should be unique

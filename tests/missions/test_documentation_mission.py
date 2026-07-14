@@ -52,8 +52,6 @@ def test_documentation_mission_workflow_phases():
     mission = Mission(mission_dir)
     phases = mission.get_workflow_phases()
 
-    assert len(phases) == 6
-
     # Check phase names in order
     phase_names = [p["name"] for p in phases]
     assert phase_names == ["discover", "audit", "design", "generate", "validate", "publish"]

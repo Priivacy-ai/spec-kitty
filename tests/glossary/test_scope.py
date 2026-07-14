@@ -164,7 +164,7 @@ class TestLoadSeedFile:
     def test_valid_file_loads_senses(self, tmp_path: Path) -> None:
         _write_seed(tmp_path, GlossaryScope.SPEC_KITTY_CORE, VALID_SEED_YAML)
         senses = load_seed_file(GlossaryScope.SPEC_KITTY_CORE, tmp_path)
-        assert len(senses) == 2
+        assert {s.surface.surface_text for s in senses} == {"workspace", "mission"}
         assert senses[0].surface.surface_text == "workspace"
         assert senses[0].definition == "A user-owned container for projects"
         assert senses[0].confidence == 1.0
@@ -272,7 +272,7 @@ class TestSaveSeedFile:
         terms = [_make_sense("alpha", "First letter", 0.8, SenseStatus.DRAFT)]
         save_seed_file(GlossaryScope.SPEC_KITTY_CORE, tmp_path, terms)
         loaded = load_seed_file(GlossaryScope.SPEC_KITTY_CORE, tmp_path)
-        assert len(loaded) == 1
+        assert {s.surface.surface_text for s in loaded} == {"alpha"}
         assert loaded[0].surface.surface_text == "alpha"
         assert loaded[0].definition == "First letter"
         assert loaded[0].confidence == 0.8

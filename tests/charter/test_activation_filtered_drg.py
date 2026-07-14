@@ -311,7 +311,7 @@ def test_org_pack_loader_resolves_legacy_mission_step_contracts_alias() -> None:
         }
     )
 
-    assert len(fragment.nodes) == 1
+    assert {n.id for n in fragment.nodes} == {"implement"}
     # Canonical post-WP01 form is the singular ``mission_steps``.
     assert fragment.nodes[0].kind == "mission_steps"
 

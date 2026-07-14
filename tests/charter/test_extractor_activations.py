@@ -218,7 +218,7 @@ def test_activations_round_trips_through_governance_config_model_validate(
     emit_yaml(result.governance, out)
     reloaded_raw = YAML().load(out)
     reloaded = GovernanceConfig.model_validate(reloaded_raw)
-    assert len(reloaded.activations) == 1
+    assert {a.artifact_id for a in reloaded.activations} == {"caveman-comments"}
     entry = reloaded.activations[0]
     assert isinstance(entry, ActivationEntry)
     assert entry.activation_context == {

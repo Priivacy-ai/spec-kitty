@@ -279,7 +279,10 @@ class TestEmitCatalogMissWarning:
         relevant = [
             r for r in caplog.records if r.name == "charter._catalog_miss"
         ]
-        assert len(relevant) == 1
+        assert {
+            (r.kind, r.id, r.cause, r.context)  # type: ignore[attr-defined]
+            for r in relevant
+        } == {("tactic", "ghost", "missing_artifact", "profile:python-pedro")}
         record = relevant[0]
         assert record.kind == "tactic"  # type: ignore[attr-defined]
         assert record.id == "ghost"  # type: ignore[attr-defined]
@@ -330,7 +333,7 @@ class TestRendererIntegration:
         miss = [
             w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
         ]
-        assert len(miss) == 1
+        assert len(miss) == 1  # golden-count: cardinality-is-contract
         assert "typo_suspected" in str(miss[0].message)
 
     def test_missing_artifact_case_renders_dual_hint_and_warns(self) -> None:
@@ -359,7 +362,7 @@ class TestRendererIntegration:
         miss = [
             w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
         ]
-        assert len(miss) == 1
+        assert len(miss) == 1  # golden-count: cardinality-is-contract
         assert "missing_artifact" in str(miss[0].message)
 
     def test_schema_failure_case_surfaces_validate_hint(self) -> None:
@@ -386,7 +389,7 @@ class TestRendererIntegration:
         miss = [
             w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
         ]
-        assert len(miss) == 1
+        assert len(miss) == 1  # golden-count: cardinality-is-contract
 
 
 # ---------------------------------------------------------------------------
@@ -441,7 +444,7 @@ class TestProfileRendererIntegration:
         miss = [
             w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
         ]
-        assert len(miss) == 1
+        assert len(miss) == 1  # golden-count: cardinality-is-contract
         assert "profile:ghost-cite" in str(miss[0].message)
 
 
@@ -517,7 +520,7 @@ class TestScopeFilteredRendererIntegration:
         miss = [
             w for w in captured if issubclass(w.category, CharterCatalogMissWarning)
         ]
-        assert len(miss) == 1
+        assert len(miss) == 1  # golden-count: cardinality-is-contract
         assert "scope_filtered" in str(miss[0].message)
 
     def test_genuinely_absent_artifact_still_emits_missing_artifact(

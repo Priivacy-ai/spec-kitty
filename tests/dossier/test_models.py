@@ -472,9 +472,7 @@ class TestMissionDossier:
             feature_dir="/path/to/feature",
             artifacts=artifacts,
         )
-        assert len(dossier.artifacts) == 2
-        assert dossier.artifacts[0].artifact_key == "spec"
-        assert dossier.artifacts[1].artifact_key == "tasks"
+        assert [a.artifact_key for a in dossier.artifacts] == ["spec", "tasks"]
 
     def test_get_required_artifacts(self):
         """MissionDossier.get_required_artifacts() filters by required_status."""
@@ -512,7 +510,7 @@ class TestMissionDossier:
             artifacts=artifacts,
         )
         required = dossier.get_required_artifacts()
-        assert len(required) == 2
+        assert {a.artifact_key for a in required} == {"required1", "required2"}
         assert all(a.required_status == "required" for a in required)
 
     def test_get_missing_required_artifacts(self):
@@ -546,8 +544,7 @@ class TestMissionDossier:
             artifacts=artifacts,
         )
         missing = dossier.get_missing_required_artifacts()
-        assert len(missing) == 1
-        assert missing[0].artifact_key == "tasks"
+        assert [m.artifact_key for m in missing] == ["tasks"]
 
     def test_completeness_status_complete(self):
         """MissionDossier.completeness_status == 'complete' when all required present."""

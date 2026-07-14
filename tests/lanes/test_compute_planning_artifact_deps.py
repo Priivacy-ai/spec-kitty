@@ -101,7 +101,7 @@ def test_planning_wp_depends_on_code_wp_creates_lane_edge(tmp_path):
     code_lane_ids = [
         lane.lane_id for lane in manifest.lanes if lane.lane_id != PLANNING_LANE_ID
     ]
-    assert len(code_lane_ids) == 1
+    assert code_lane_ids == ["lane-a"]
     code_lane_id = code_lane_ids[0]
 
     assert code_lane_id in planning_lane.depends_on_lanes, (

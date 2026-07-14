@@ -153,7 +153,7 @@ class TestActivityEntries:
 """
         entries = activity_entries(body)
 
-        assert len(entries) == 1
+        assert frozenset(e['agent'] for e in entries) == frozenset({'cursor'})
         assert entries[0]['timestamp'] == '2026-01-26T15:00:00Z'
         assert entries[0]['agent'] == 'cursor'
         assert entries[0]['shell_pid'] == '12345'
@@ -174,7 +174,9 @@ class TestActivityEntries:
 """
         entries = activity_entries(body)
 
-        assert len(entries) == 2
+        assert frozenset(e['agent'] for e in entries) == frozenset(
+            {'claude-reviewer', 'cursor-agent'}
+        )
 
         # First entry with hyphenated agent name
         assert entries[0]['agent'] == 'claude-reviewer'
@@ -193,8 +195,7 @@ class TestActivityEntries:
 """
         entries = activity_entries(body)
 
-        assert len(entries) == 1
-        assert entries[0]['agent'] == 'my-custom-ai-agent'
+        assert frozenset(e['agent'] for e in entries) == frozenset({'my-custom-ai-agent'})
 
     def test_parse_without_shell_pid(self):
         """Test parsing activity log without shell_pid (optional field)."""
@@ -203,7 +204,7 @@ class TestActivityEntries:
 """
         entries = activity_entries(body)
 
-        assert len(entries) == 1
+        assert frozenset(e['agent'] for e in entries) == frozenset({'system'})
         assert entries[0]['agent'] == 'system'
         assert entries[0]['shell_pid'] == ''
         assert entries[0]['lane'] == 'planned'
@@ -220,7 +221,9 @@ class TestActivityEntries:
 """
         entries = activity_entries(body)
 
-        assert len(entries) == 4
+        assert frozenset(e['agent'] for e in entries) == frozenset(
+            {'system', 'cursor-agent', 'cursor', 'claude-reviewer'}
+        )
         assert entries[0]['agent'] == 'system'
         assert entries[1]['agent'] == 'cursor-agent'
         assert entries[2]['agent'] == 'cursor'
@@ -233,7 +236,7 @@ class TestActivityEntries:
 """
         entries = activity_entries(body)
 
-        assert len(entries) == 1
+        assert frozenset(e['agent'] for e in entries) == frozenset({'cursor-agent'})
         assert entries[0]['agent'] == 'cursor-agent'
         assert entries[0]['lane'] == 'doing'
 
@@ -244,7 +247,7 @@ class TestActivityEntries:
 """
         entries = activity_entries(body)
 
-        assert len(entries) == 1
+        assert frozenset(e['agent'] for e in entries) == frozenset({'cursor-agent'})
         assert entries[0]['agent'] == 'cursor-agent'
         assert entries[0]['lane'] == 'doing'
 
@@ -255,7 +258,7 @@ class TestActivityEntries:
 """
         entries = activity_entries(body)
 
-        assert len(entries) == 1
+        assert frozenset(e['agent'] for e in entries) == frozenset({'cursor-agent'})
         assert entries[0]['note'] == 'Complex note with - hyphens and – dashes'
 
     def test_parse_empty_body(self):
@@ -283,7 +286,9 @@ This is not an activity log.
 """
         entries = activity_entries(body)
 
-        assert len(entries) == 4
+        assert frozenset(e['lane'] for e in entries) == frozenset(
+            {'planned', 'doing', 'for_review', 'done'}
+        )
         assert entries[0]['lane'] == 'planned'
         assert entries[1]['lane'] == 'doing'
         assert entries[2]['lane'] == 'for_review'

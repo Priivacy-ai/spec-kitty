@@ -87,7 +87,7 @@ class TestSkippedDiagnostics:
         repo = AgentProfileRepository(built_in_dir=built_in, project_dir=None, drg=_empty_drg())
 
         skipped = repo.skipped_profiles()
-        assert len(skipped) == 1
+        assert {(s.layer, s.path) for s in skipped} == {("builtin", str(bad))}
         record = skipped[0]
         assert isinstance(record, SkippedProfile)
         assert record.layer == "builtin"
@@ -106,7 +106,7 @@ class TestSkippedDiagnostics:
         repo = AgentProfileRepository(built_in_dir=built_in, project_dir=None, drg=_empty_drg())
 
         skipped = repo.skipped_profiles()
-        assert len(skipped) == 1
+        assert {s.profile_id for s in skipped} == {None}
         assert skipped[0].profile_id is None
         assert skipped[0].error_summary
 
@@ -126,7 +126,7 @@ class TestSkippedDiagnostics:
 
         ids = [p.profile_id for p in repo.list_all()]
         assert ids == ["good"]
-        assert len(repo.skipped_profiles()) == 1
+        assert {s.layer for s in repo.skipped_profiles()} == {"builtin"}
 
 
 # ── NFR-002: determinism ─────────────────────────────────────────────────────

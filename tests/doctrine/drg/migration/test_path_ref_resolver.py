@@ -169,7 +169,7 @@ class TestResolvePathRefMissPatterns:
 
 def test_path_kind_patterns_count() -> None:
     """There are exactly 7 path-kind patterns covering the canonical built-in kinds."""
-    assert len(_PATH_KIND_PATTERNS) == 7
+    assert len(_PATH_KIND_PATTERNS) == 7  # golden-count: cardinality-is-contract
 
 
 def test_path_kind_patterns_cover_expected_kinds() -> None:

@@ -268,7 +268,9 @@ def test_plan_backfill_walks_the_inventory(tmp_path: Path) -> None:
         ],
     )
     # Sanity: the inventory loads under the real loader.
-    assert len(load_inventory(inventory)) == 2
+    assert frozenset(e.path for e in load_inventory(inventory)) == frozenset(
+        {"docs/current.md", "docs/archive.md"}
+    )
 
     plan = plan_backfill(
         inventory_path=inventory,

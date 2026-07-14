@@ -138,7 +138,9 @@ class TestShimRegistryReadersResolveNewHome:
         """Read 4: registry only at the NEW home → load_registry finds it."""
         _write_registry(tmp_path, NEW_SHIM_REGISTRY)
         entries = load_registry(tmp_path)
-        assert len(entries) == 1
+        assert frozenset(e.legacy_path for e in entries) == frozenset(
+            {"specify_cli.old_module"}
+        )
         assert isinstance(entries[0], ShimEntry)
 
     def test_check_shim_registry_reports_new_home(self, tmp_path: Path) -> None:

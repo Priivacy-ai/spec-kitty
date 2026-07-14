@@ -58,7 +58,17 @@ def manager() -> CharterPackManager:
 
 class TestYamlKeyMap:
     def test_has_exactly_nine_entries(self) -> None:
-        assert len(YAML_KEY_MAP) == 9
+        assert YAML_KEY_MAP == {
+            "agent-profile": "activated_agent_profiles",
+            "directive": "activated_directives",
+            "mission-step-contract": "activated_mission_step_contracts",
+            "mission-type": "mission_type_activations",
+            "paradigm": "activated_paradigms",
+            "procedure": "activated_procedures",
+            "styleguide": "activated_styleguides",
+            "tactic": "activated_tactics",
+            "toolguide": "activated_toolguides",
+        }
 
     def test_mission_type_maps_to_correct_key(self) -> None:
         assert YAML_KEY_MAP["mission-type"] == "mission_type_activations"

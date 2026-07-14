@@ -15,7 +15,7 @@ class TestParadigmRepository:
         """list_all returns all paradigms from the given directory."""
         repo = ParadigmRepository(built_in_dir=tmp_paradigm_dir)
         paradigms = repo.list_all()
-        assert len(paradigms) == 1
+        assert {p.id for p in paradigms} == {"test-first"}
 
     def test_get_by_id(self, tmp_paradigm_dir: Path) -> None:
         """get() returns paradigm by ID."""
@@ -31,7 +31,7 @@ class TestParadigmRepository:
     def test_load_from_custom_shipped_dir(self, tmp_paradigm_dir: Path) -> None:
         repo = ParadigmRepository(built_in_dir=tmp_paradigm_dir)
         paradigms = repo.list_all()
-        assert len(paradigms) == 1
+        assert {p.id for p in paradigms} == {"test-first"}
         assert paradigms[0].id == "test-first"
 
     def test_malformed_yaml_skipped_with_warning(self, tmp_path: Path) -> None:

@@ -16,7 +16,7 @@ class TestStyleguideRepository:
         """list_all returns all styleguides from the given directory."""
         repo = StyleguideRepository(built_in_dir=tmp_styleguide_dir)
         styleguides = repo.list_all()
-        assert len(styleguides) == 1
+        assert {s.id for s in styleguides} == {"test-style"}
         assert styleguides[0].id == "test-style"
 
     def test_get_by_id(self, tmp_styleguide_dir: Path) -> None:
@@ -61,7 +61,7 @@ class TestStyleguideRepository:
     ) -> None:
         repo = StyleguideRepository(built_in_dir=tmp_styleguide_dir)
         styleguides = repo.list_all()
-        assert len(styleguides) == 1
+        assert {s.id for s in styleguides} == {"test-style"}
         assert styleguides[0].id == "test-style"
 
     def test_malformed_yaml_skipped_with_warning(self, tmp_path: Path) -> None:
