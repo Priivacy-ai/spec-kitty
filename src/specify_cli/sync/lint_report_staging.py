@@ -72,6 +72,18 @@ def _mission_alias_set(feature_dir: Path, mission_slug: str) -> set[str]:
     return {alias for alias in aliases if alias}
 
 
+def _discard_staged_report(feature_dir: Path) -> None:
+    """Best-effort removal of a previously-staged lint report (never raises)."""
+    try:
+        (feature_dir / LINT_REPORT_FILENAME).unlink(missing_ok=True)
+    except OSError as exc:
+        logger.warning(
+            "Failed to discard stale staged charter-lint report in %s: %s",
+            feature_dir,
+            exc,
+        )
+
+
 def stage_charter_lint_report(feature_dir: Path, mission_slug: str) -> bool:
     """Copy the repo-global charter-lint report into a mission dossier if scoped to it.
 
@@ -81,6 +93,13 @@ def stage_charter_lint_report(feature_dir: Path, mission_slug: str) -> bool:
     handles (see :func:`_mission_alias_set`) — writes a non-hidden
     ``lint-report.json`` into ``feature_dir`` so the existing dossier indexer
     scan picks it up.
+
+    Reconciles downward: when a valid report is read whose ``feature_scope``
+    names a *different* scope (a null/global run or another mission), any copy
+    a previous scoped run staged is removed, so the dossier never keeps shipping
+    a stale decay report as this mission's current state. Transient/anomalous
+    reads (missing/unreadable/unparseable report) deliberately leave the
+    last-known staged copy untouched.
 
     Never raises: a missing repo root, missing/unreadable report, unparseable
     JSON, a ``feature_scope`` matching no mission handle (including the null
@@ -117,6 +136,13 @@ def stage_charter_lint_report(feature_dir: Path, mission_slug: str) -> bool:
         not isinstance(feature_scope, str)
         or feature_scope not in _mission_alias_set(feature_dir, mission_slug)
     ):
+        # The current repo-global report is definitively NOT this mission's (a
+        # null/global run, or a scope naming a different mission). Reconcile
+        # downward: drop any copy a previous scoped run staged, so the dossier
+        # never keeps shipping a stale decay report as this mission's current
+        # state. Transient/anomalous reads (handled above) deliberately leave
+        # the last-known copy in place instead.
+        _discard_staged_report(feature_dir)
         return False
 
     try:
