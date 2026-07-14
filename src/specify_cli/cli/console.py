@@ -26,7 +26,8 @@ Two invariants motivate the seam (GitHub #2632):
 from __future__ import annotations
 
 import json as _json
-from typing import IO, Any
+import weakref
+from typing import IO, Any, ClassVar
 
 from rich.console import Console
 
@@ -40,6 +41,16 @@ class CliConsole(Console):
     ``Live(console=...)``/``Progress(console=...)`` all work unchanged because
     this *is* a ``Console``). Only the machine-output path is specialised.
     """
+
+    # Every live instance — the shared singletons AND the deliberately-distinct
+    # specials (fixed-width / stderr consoles). ``set_all_plain`` reaches all of
+    # them so the test seam neutralises colour across the WHOLE CLI surface with
+    # one call, not just the two singletons.
+    _instances: ClassVar[weakref.WeakSet[CliConsole]] = weakref.WeakSet()
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        CliConsole._instances.add(self)
 
     def _write_plain(self, payload: str) -> None:
         out: IO[str] = self.file
@@ -98,6 +109,18 @@ class CliConsole(Console):
         """
         self.no_color = plain
         self._color_system = None if plain else self._detect_color_system()
+
+    @classmethod
+    def set_all_plain(cls, plain: bool = True) -> None:
+        """Toggle plain rendering on EVERY live CliConsole instance.
+
+        Covers the shared singletons and the deliberately-distinct specials
+        (glossary/list fixed-width consoles, the stderr consoles) in one call.
+        The test-determinism seam uses this so a single toggle neutralises
+        colour across the whole CLI surface — object-level, never ``os.environ``.
+        """
+        for instance in list(cls._instances):
+            instance.set_plain(plain)
 
 
 console = CliConsole()
