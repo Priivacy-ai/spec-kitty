@@ -32,7 +32,7 @@ on:
 jobs:
   validate-claude-plugin:
     name: Build and validate Claude Code plugin bundle
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - uses: actions/checkout@v4
 
@@ -68,7 +68,7 @@ jobs:
 
   validate-codex-plugin:
     name: Build and validate Codex plugin bundle
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     # Codex ships no ``codex plugin validate`` CLI, so the bundle's manifest
     # correctness is enforced by the repo's own ``_validate_manifest`` path,
     # which asserts the forbidden ``hooks``/``agents`` keys are absent and the

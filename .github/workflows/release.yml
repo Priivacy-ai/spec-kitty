@@ -26,7 +26,7 @@ env:
 
 jobs:
   build-release:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     env:
       REPO_OWNER: ${{ github.repository_owner }}
       CROSS_REPO_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' && secrets.SPEC_KITTY_SAAS_READ_TOKEN || github.token }}
@@ -282,7 +282,7 @@ jobs:
     name: Verify downstream consumer compatibility
     needs: build-release
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.skip_downstream != true }}
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     env:
       REPO_OWNER: ${{ github.repository_owner }}
       CROSS_REPO_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' && secrets.SPEC_KITTY_SAAS_READ_TOKEN || github.token }}
@@ -346,7 +346,7 @@ jobs:
     name: Publish to PyPI
     needs: [build-release, downstream-consumer-verify]
     if: ${{ always() && needs.build-release.result == 'success' && (needs.downstream-consumer-verify.result == 'success' || (github.event_name == 'workflow_dispatch' && inputs.skip_downstream == true)) }}
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     permissions:
       contents: write
       id-token: write
@@ -411,7 +411,7 @@ jobs:
     name: Verify PyPI exact install
     needs: publish-pypi
     if: ${{ always() && needs.publish-pypi.result == 'success' }}
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Check out repository
         uses: actions/checkout@v6

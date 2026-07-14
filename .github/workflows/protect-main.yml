@@ -29,7 +29,7 @@ permissions:
 
 jobs:
   check-merge-compliance:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
