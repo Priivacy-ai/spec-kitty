@@ -67,9 +67,12 @@ from tests.architectural._symbol_key import (
     CorpusModule,
     Location,
     SymbolKey,
+    bind_call_accessor_aliases,
     classify_collisions,
     definition_span,
+    find_module_factory_functions,
     key_tier,
+    record_call_chain_attr_edges,
     resolve_symbol_key,
 )
 
@@ -801,20 +804,26 @@ _CATEGORY_C_SYNC_RESET_RESULT_ENTRIES: frozenset[SymbolKey] = frozenset(
 # ``runtime_bridge``'s ``__all__`` is a deliberate, spec'd 8-name public surface
 # (contracts/compat-surface.md: "Introduce __all__ for the 8 public names
 # (sibling merge.py parity)"; mirrored by the FR-007 comment at the top of
-# the ``__all__`` block in runtime_bridge.py itself). These 4 entries all
-# have REAL src/ callers -- ``get_or_start_run``/``query_current_state``/
+# the ``__all__`` block in runtime_bridge.py itself). The 4 dynamically-
+# accessed entries -- ``get_or_start_run``/``query_current_state``/
 # ``answer_decision_via_runtime`` via ``cli.commands.next_cmd``'s
 # ``_runtime_bridge_module()`` patchable lazy accessor (docstring: "Return
 # the patched bridge when tests/consumers installed one") and
 # ``mission_loader.command``'s ``from runtime.next import runtime_bridge``
 # + attribute access; ``QueryModeValidationError`` is read off the same
-# patched accessor in ``next_cmd._run_query_mode``. The gate's static
-# scanner cannot see either shape: a function-return-bound module
-# reference is invisible to any AST import walk, and an un-aliased
-# ``from X import Y`` binding a submodule (``alias.asname is None``) is
-# skipped by ``_build_alias_map_and_consts`` by design (T004 -- only
-# ``as``-aliased or flat ``import module`` bindings populate the module-
-# attr alias map). Converting the call sites to a direct
+# patched accessor in ``next_cmd._run_query_mode`` -- previously required a
+# hand-curated allowlist row because the gate's static scanner could not
+# see either shape: a function-return-bound module reference is invisible
+# to any AST import walk, and an un-aliased ``from X import Y`` binding a
+# submodule (``alias.asname is None``) is skipped by
+# ``_build_alias_map_and_consts`` by design (T004 -- only ``as``-aliased or
+# flat ``import module`` bindings populate the module-attr alias map).
+# WP05 (FR-002) wires detector (e) -- first-party dynamic call-accessor
+# access, ``_record_dynamic_call_accessor_edges`` -- into
+# :func:`_imports_by_target` proper, so the gate now recognises these 4
+# names as live via ``_runtime_bridge_module()``'s call-bound accessor
+# pattern WITHOUT a permanent allowlist row; the 4 entries are removed
+# here in the same commit. Converting the call sites to a direct
 # ``from runtime.next.runtime_bridge import get_or_start_run`` was
 # considered and rejected: it would defeat the very patchability the
 # dynamic accessor exists for and breaks a live regression test
@@ -824,20 +833,9 @@ _CATEGORY_C_SYNC_RESET_RESULT_ENTRIES: frozenset[SymbolKey] = frozenset(
 # patched fake is actually invoked). The whole surface is independently
 # guarded end-to-end by ``tests/runtime/test_bridge_compat_surface.py``
 # (behavioral sentinel + static AST re-export guard covering these same
-# three canonical entries). Tracker: #2531 (runtime-bridge-degod).
+# three canonical entries). Tracker: #2531 (runtime-bridge-degod), #2559.
 
-_CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE: frozenset[SymbolKey] = frozenset(
-    {
-        # runtime.next.runtime_bridge::get_or_start_run
-        SymbolKey("get_or_start_run", "31ef7985cc120215cb252464807c71cf5b6b406727882975cd6fecb2e1a5e14f"),
-        # runtime.next.runtime_bridge::query_current_state
-        SymbolKey("query_current_state", "f31f030003389c22b3e8253170ecad77cc9953c3a2cfe1601ec676174251ebcb"),
-        # runtime.next.runtime_bridge::answer_decision_via_runtime
-        SymbolKey("answer_decision_via_runtime", "76c688126974bfdef2889700fabfaecf35875bd6dfcdf8b9086ff4066a94b3ee"),
-        # runtime.next.runtime_bridge::QueryModeValidationError
-        SymbolKey("QueryModeValidationError", "9085a088412ad365734f83d47eb569eb3bebd9edf4b84f14c4c0a3a6be4e98da"),
-    }
-)
+_CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE: frozenset[SymbolKey] = frozenset()
 
 
 # Aggregate. The gate consults this; the per-category frozensets are
@@ -1188,6 +1186,16 @@ def _imports_by_target(
     * ``star_targets`` is the set of modules wildcard-imported via
       ``from X import *`` somewhere in ``src/``. A wildcard import
       satisfies every name in the target's ``__all__``.
+
+    Detector (e) -- first-party dynamic (call-bound) module access
+    (:func:`_record_dynamic_call_accessor_edges`, IC-01 / FR-001 / FR-002 /
+    #2559) is folded in here (WP05 / FR-002): the production
+    offender/stale/dangling ratchet now sees ``factory().attr`` /
+    ``bound = factory(); bound.attr`` dynamic-access edges, which is what
+    lets the 4 ``runtime.next.runtime_bridge`` façade rows in
+    ``_CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE`` be recognised live
+    WITHOUT a permanent allowlist entry (see the WP05 row removal + this
+    wiring landing in the same commit, NFR-001 safety ordering).
     """
     per_symbol: dict[str, set[str]] = {}
     star_targets: set[str] = set()
@@ -1211,7 +1219,43 @@ def _imports_by_target(
         _record_module_attr_edges(tree, alias_map, per_symbol, known_modules)
         _record_getattr_str_edges(tree, alias_map, per_symbol, known_modules)
         _record_facade_edges(tree, containing, str_consts, per_symbol, known_modules)
+    _record_dynamic_call_accessor_edges(path_to_dotted, path_to_tree, per_symbol)
     return per_symbol, star_targets
+
+
+def _record_dynamic_call_accessor_edges(
+    path_to_dotted: dict[Path, str],
+    path_to_tree: dict[Path, ast.Module],
+    per_symbol: dict[str, set[str]],
+) -> None:
+    """Overlay detector (e) -- first-party dynamic (call-bound) module access
+    (IC-01 / FR-001 / FR-002 / #2559) -- on top of an existing ``per_symbol``
+    map.
+
+    Folded into :func:`_imports_by_target` proper as of WP05 (FR-002): the
+    4 ``runtime.next.runtime_bridge`` façade rows previously hand-carried in
+    ``_CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE`` are removed in the
+    same commit that wires this call in, so the production
+    offender/stale/dangling ratchet and the allowlist-row removal land
+    atomically (NFR-001 safety ordering -- removing the rows without this
+    wiring would red the offenders check; wiring this in without removing
+    the rows would red the stale-allowlist check). Kept as a separate
+    function (rather than inlined) because it is independently exercised by
+    ``test_wp01_runtime_bridge_facade_symbols_recognised_live_without_allowlist``
+    against the real live corpus.
+    """
+    known_modules = frozenset(path_to_dotted.values())
+    for path, tree in path_to_tree.items():
+        containing = _package_of(path)
+        alias_map, str_consts = _build_alias_map_and_consts(tree, containing)
+        factories = find_module_factory_functions(
+            tree, alias_map, str_consts, containing, known_modules, _resolve_relative_module
+        )
+        if not factories:
+            continue
+        merged_alias_map = {**alias_map, **bind_call_accessor_aliases(tree, factories)}
+        _record_module_attr_edges(tree, merged_alias_map, per_symbol, known_modules)
+        record_call_chain_attr_edges(tree, factories, per_symbol)
 
 
 def _symbol_has_caller(
@@ -1767,6 +1811,139 @@ def test_no_false_negative_aliased_symbol_import_does_not_reblind() -> None:
     assert _symbol_has_caller("NAME", "M", ps_unguarded, _submodule_index(ps_unguarded)), (
         "control: with M.SomeClass treated as a module, the collision rescues M::NAME"
     )
+
+
+def test_no_false_negative_call_accessor_detector_direct_chain() -> None:
+    """Detector (e) -- dynamic-access→live, direct call-chain shape (IC-01/#2559).
+
+    ``factory().attr`` -- a zero-arg module-scope function whose body
+    resolves ``target_mod`` via ``importlib.import_module(...)``, called and
+    immediately attribute-accessed with no intermediate local -- rescues
+    ``target_mod::Live`` exactly as a plain ``alias.Live`` import-bound
+    access would. Resolved generally (no name special-case for
+    ``runtime_bridge`` anywhere in the resolver).
+    """
+    src = (
+        "import importlib\n"
+        "def _factory():\n"
+        "    return importlib.import_module('target_mod')\n"
+        "_factory().Live\n"
+    )
+    tree = ast.parse(src)
+    alias_map, str_consts = _build_alias_map_and_consts(tree, "")
+    known_modules = frozenset({"target_mod"})
+    factories = find_module_factory_functions(
+        tree, alias_map, str_consts, "", known_modules, _resolve_relative_module
+    )
+    ps: dict[str, set[str]] = {}
+    record_call_chain_attr_edges(tree, factories, ps)
+    sub_idx = _submodule_index(ps)
+
+    assert _symbol_has_caller("Live", "target_mod", ps, sub_idx), (
+        "target_mod::Live must be rescued by _factory().Live where _factory() "
+        "dynamically resolves target_mod via importlib.import_module"
+    )
+    assert not _symbol_has_caller("Live", "unrelated_mod", ps, sub_idx), (
+        "unrelated_mod::Live must NOT be rescued -- the resolver must not "
+        "widen liveness to any attribute access (contract anti-goal)"
+    )
+
+
+def test_no_false_negative_call_accessor_detector_bound_local() -> None:
+    """Detector (e) -- dynamic-access→live, the bound-local two-step shape
+    actually used by the known ``_runtime_bridge_module()`` call sites in
+    ``next_cmd.py`` (``bridge = _runtime_bridge_module(); bridge.attr``).
+    """
+    src = (
+        "import importlib\n"
+        "def _factory():\n"
+        "    return importlib.import_module('target_mod')\n"
+        "bridge = _factory()\n"
+        "bridge.Live\n"
+    )
+    tree = ast.parse(src)
+    alias_map, str_consts = _build_alias_map_and_consts(tree, "")
+    known_modules = frozenset({"target_mod"})
+    factories = find_module_factory_functions(
+        tree, alias_map, str_consts, "", known_modules, _resolve_relative_module
+    )
+    merged_alias_map = {**alias_map, **bind_call_accessor_aliases(tree, factories)}
+    ps: dict[str, set[str]] = {}
+    _record_module_attr_edges(tree, merged_alias_map, ps, known_modules)
+    sub_idx = _submodule_index(ps)
+
+    assert _symbol_has_caller("Live", "target_mod", ps, sub_idx), (
+        "target_mod::Live must be rescued by bridge.Live where bridge = "
+        "_factory() and _factory() dynamically resolves target_mod via "
+        "importlib.import_module"
+    )
+    assert not _symbol_has_caller("Live", "unrelated_mod", ps, sub_idx)
+
+
+def test_no_false_negative_call_accessor_detector_unreferenced_stays_dead() -> None:
+    """Negative direction (contract dead-code-dynamic-access.md): a symbol with
+    no static import AND no first-party dynamic access must still be
+    classified dead -- the new detector rescues only the SPECIFIC attribute
+    actually accessed through the recognised factory, not every symbol that
+    happens to live in the factory's resolved module.
+    """
+    src = (
+        "import importlib\n"
+        "def _factory():\n"
+        "    return importlib.import_module('target_mod')\n"
+        "bridge = _factory()\n"
+        "bridge.Live\n"  # only ``Live`` is actually accessed
+    )
+    tree = ast.parse(src)
+    alias_map, str_consts = _build_alias_map_and_consts(tree, "")
+    known_modules = frozenset({"target_mod"})
+    factories = find_module_factory_functions(
+        tree, alias_map, str_consts, "", known_modules, _resolve_relative_module
+    )
+    merged_alias_map = {**alias_map, **bind_call_accessor_aliases(tree, factories)}
+    ps: dict[str, set[str]] = {}
+    _record_module_attr_edges(tree, merged_alias_map, ps, known_modules)
+    record_call_chain_attr_edges(tree, factories, ps)
+    sub_idx = _submodule_index(ps)
+
+    assert _symbol_has_caller("Live", "target_mod", ps, sub_idx)
+    assert not _symbol_has_caller("NeverAccessed", "target_mod", ps, sub_idx), (
+        "target_mod::NeverAccessed must stay dead -- the gate must not go "
+        "blind and rescue every symbol reachable from a recognised factory's "
+        "module, only the ones actually attribute-accessed"
+    )
+
+
+def test_wp01_runtime_bridge_facade_symbols_recognised_live_without_allowlist() -> None:
+    """IC-01/WP05 DoD (FR-001/FR-002): the 4 known ``runtime.next.runtime_bridge``
+    façade symbols are recognised-live via their dynamic
+    ``_runtime_bridge_module()`` accessor call sites in ``next_cmd.py`` --
+    with NO permanent allowlist entry
+    (``_CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE`` no longer carries
+    these 4 rows as of WP05). This test proves the gate's caller-detection
+    sees them via the now-wired :func:`_imports_by_target` -- driven
+    through the REAL live ``src/`` corpus, not a fixture.
+    """
+    decls, path_to_dotted, path_to_tree, _corpus = _walk_modules()
+    per_symbol, _star_targets = _imports_by_target(path_to_dotted, path_to_tree)
+    submodule_index = _submodule_index(per_symbol)
+
+    mod_dotted = "runtime.next.runtime_bridge"
+    for name in (
+        "get_or_start_run",
+        "query_current_state",
+        "answer_decision_via_runtime",
+        "QueryModeValidationError",
+    ):
+        assert name in decls.get(mod_dotted, frozenset()), (
+            f"{mod_dotted}::{name} must still be declared in __all__ -- this "
+            "test targets the real live corpus, not a stale fixture"
+        )
+        assert _symbol_has_caller(name, mod_dotted, per_symbol, submodule_index), (
+            f"{mod_dotted}::{name} must be recognised-live via the "
+            "_runtime_bridge_module() dynamic accessor WITHOUT its allowlist "
+            "row (IC-01 / FR-001 / FR-002)"
+        )
 
 
 def test_gate_still_flags_a_truly_dead_symbol() -> None:

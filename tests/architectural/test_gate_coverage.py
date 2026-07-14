@@ -685,6 +685,19 @@ def test_duplicate_selection_is_reported(
 # is a FAKEABLE seam for the producer side (reviewer-renata, MEDIUM); the two
 # fault-injection tests below close both halves (baseline-file side AND
 # producer/real-selection side).
+#
+# RE-SCOPE (mission test-suite-friction-remediation-01KXDKBX WP15, #2616):
+# exact ``dropped``/``added`` equality over-fires on ROUTINE test-file
+# add/remove — this mission alone does that 4-5x via new guard/regression
+# files, forcing a ``--freeze-baselines`` refreeze every time nothing actually
+# regressed. ``test_gc2b_current_selection_matches_baseline`` below now
+# enforces only the LOAD-BEARING orphan-detection signal (a ``dropped``
+# node-id that is a genuine orphan — still exists, selected by ZERO gates —
+# via :func:`gc.gc2b_orphaned_drift`), and reports raw drift ADVISORY-only via
+# ``record_property`` so a refreeze is a nudge, not a red. The two
+# fault-injection tests and the ``next``-tier fidelity spot-check are
+# untouched — they exercise :func:`gc.baseline_diff` / real collection
+# directly and still prove true-positives.
 # ---------------------------------------------------------------------------
 
 _DIFF_PREVIEW = 20
@@ -740,9 +753,13 @@ def test_baseline_files_exist_for_all_targets() -> None:
 
 @pytest.mark.parametrize("target", gc.BASELINE_TARGETS, ids=lambda t: t.slug)
 def test_gc2b_current_selection_matches_baseline(
-    target: gc.BaselineTarget, gates: list[gc.Gate], universe: list[gc.TestRecord],
+    target: gc.BaselineTarget,
+    gates: list[gc.Gate],
+    universe: list[gc.TestRecord],
+    coverage_report: gc.CoverageReport,
+    record_property: RecordPropertyFn,
 ) -> None:
-    """GC-2b: the modeled-current selection == the committed REAL E3 baseline.
+    """GC-2b: the modeled-current selection has no GENUINE orphan vs. baseline.
 
     The committed baseline is a REAL native ``pytest --collect-only -q`` union
     across the job's legs (:func:`gc.collect_real_union_for_target`, frozen once
@@ -751,28 +768,102 @@ def test_gc2b_current_selection_matches_baseline(
     ONE shared :func:`gc.collect_universe` — so all 22 parametrized cases reuse
     a single collection instead of spawning 22 real ``--collect-only``
     subprocesses per run (a CI-speed mission must not add ~10min to its own
-    arch shard). Because the BASELINE is real and model-independent, GC-2b is
-    itself the fidelity check: a ``selects()`` that mis-parsed a job's ``-m``
-    expr or a positional/ignore path would diverge from the real baseline and
-    RED here — ``selects()``-vs-real was verified equal across every
-    representative target before this design was adopted, and the ``next``-tier
-    spot-check below keeps that proof live at one subprocess. Symmetric-
-    difference must be empty for every guarded job (0 dropped, 0 double-run —
-    data-model E3). A nonzero ``dropped``/``added`` set names every node-id,
-    truncated, mirroring ``test_arch_shard_marker_completeness.py``'s style.
+    arch shard).
+
+    Mission test-suite-friction-remediation-01KXDKBX WP15 (#2616) re-scopes
+    this from exact symmetric-difference (which over-fires on routine
+    test-file add/remove) to the LOAD-BEARING signal alone: a ``dropped``
+    node-id (in the frozen baseline, not in ``current``) that is a GENUINE
+    orphan today — it still exists in the collected universe AND is selected
+    by ZERO of the ~40 CI gates (:func:`gc.gc2b_orphaned_drift`, reusing the
+    same whole-suite orphan set :func:`gc.analyze` computes). A ``dropped``
+    node-id whose file was deleted, or whose coverage moved to a DIFFERENT
+    gate, is routine churn — not asserted, only reported ADVISORY-only via
+    ``record_property`` (NFR-006) so a refreeze stays a nudge rather than a
+    red. ``added`` (new node-ids not yet in the frozen baseline) is pure
+    membership growth and never a fidelity problem — advisory-only for the
+    same reason. Real fidelity is proven by the two fault-injection tests
+    below (:func:`gc.baseline_diff` / real collection, direct) and the
+    ``next``-tier spot-check.
     """
     current = gc._selected_nodeids(gc.gates_for_target(gates, target), universe)
     baseline = gc.load_baseline_nodeids(target)
     dropped, added = gc.baseline_diff(current, baseline)
-    assert not dropped and not added, (
-        f"GC-2b baseline drift for {target.slug!r}: "
-        f"{len(dropped)} dropped (in baseline, no longer selected), "
-        f"{len(added)} added (selected but not in baseline).\n"
-        f"dropped (first {_DIFF_PREVIEW}): {sorted(dropped)[:_DIFF_PREVIEW]}\n"
-        f"added (first {_DIFF_PREVIEW}): {sorted(added)[:_DIFF_PREVIEW]}\n"
-        "If this selection change is a LEGITIMATE re-topologization (e.g. WP06 "
-        "landing), regenerate the baseline WITH a provenance comment: "
-        "uv run python -m tests.architectural._gate_coverage --freeze-baselines"
+    if dropped or added:
+        record_property(
+            "gc2b_baseline_drift",
+            f"{target.slug}: {len(dropped)} dropped, {len(added)} added vs. the "
+            "frozen E3 baseline. Advisory-only (routine test-file churn is "
+            "expected); refreeze to clear: uv run python -m "
+            "tests.architectural._gate_coverage --freeze-baselines",
+        )
+    orphaned = gc.gc2b_orphaned_drift(dropped, coverage_report.orphan_nodeids)
+    assert not orphaned, (
+        f"GC-2b GENUINE orphan drift for {target.slug!r}: {len(orphaned)} "
+        "node-id(s) this target's baseline selected are now selected by ZERO "
+        "CI gates — a real coverage-hole regression, not routine test-file "
+        f"churn (first {_DIFF_PREVIEW}): {sorted(orphaned)[:_DIFF_PREVIEW]}\n"
+        "Fix: restore coverage (give the test a marker/path a gate selects) "
+        "or, if this drop is intentional, refreeze: uv run python -m "
+        "tests.architectural._gate_coverage --freeze-baselines"
+    )
+
+
+def test_gc2b_orphan_drift_ignores_routine_test_file_churn() -> None:
+    """T071(a): routine test-file add/remove must NOT trip the re-scoped ratchet.
+
+    Mission test-suite-friction-remediation-01KXDKBX WP15 (#2616): this mission
+    alone adds/removes guard/regression files 4-5x, and each one used to force
+    a ``--freeze-baselines`` refreeze even though nothing regressed. Exercises
+    :func:`gc.gc2b_orphaned_drift` directly (pure, no subprocess/fixtures —
+    mirrors the fault-injection tests below) against the two shapes of
+    routine churn a ``dropped`` node-id can take:
+
+    1. the file was DELETED — it no longer exists anywhere in today's
+       collected universe, so it cannot appear in ``orphan_nodeids`` (which
+       :func:`gc.analyze` only ever populates from tests it actually
+       collected);
+    2. the file's coverage MOVED to a different gate — it still exists and is
+       still selected by >=1 gate, so it is also absent from
+       ``orphan_nodeids``.
+
+    Neither shape is a genuine coverage-hole regression, so neither may
+    surface from :func:`gc.gc2b_orphaned_drift`.
+    """
+    baseline = {
+        "tests/architectural/test_deleted_guard.py::test_x",
+        "tests/architectural/test_moved_guard.py::test_y",
+    }
+    current: frozenset[str] = frozenset()  # this target no longer selects either
+    dropped, _added = gc.baseline_diff(current, baseline)
+    assert dropped == baseline, "sanity: both node-ids must show up as 'dropped'"
+    # Neither node-id is selected-by-zero-gates today: test_deleted_guard.py no
+    # longer exists (not in the universe `analyze()` walks), test_moved_guard.py
+    # is still selected by whichever gate its coverage moved to.
+    orphan_nodeids: list[str] = []
+    orphaned = gc.gc2b_orphaned_drift(dropped, orphan_nodeids)
+    assert not orphaned, (
+        f"routine test-file add/remove must not trip the re-scoped ratchet, "
+        f"got {orphaned}"
+    )
+
+
+def test_gc2b_orphan_drift_bites_on_genuine_orphan() -> None:
+    """T071(b): a genuine orphan (selected by ZERO gates) must still FAIL.
+
+    Preserves the load-bearing GC-2b signal the re-scope (#2616) must not
+    weaken: if a node-id this target's baseline selected is now selected by
+    NOTHING — not the file being deleted, not coverage moving elsewhere, a
+    real coverage-hole regression — :func:`gc.gc2b_orphaned_drift` must still
+    surface it.
+    """
+    baseline = {"tests/architectural/test_regressed_guard.py::test_z"}
+    current: frozenset[str] = frozenset()
+    dropped, _added = gc.baseline_diff(current, baseline)
+    orphan_nodeids = ["tests/architectural/test_regressed_guard.py::test_z"]
+    orphaned = gc.gc2b_orphaned_drift(dropped, orphan_nodeids)
+    assert orphaned == {"tests/architectural/test_regressed_guard.py::test_z"}, (
+        f"a genuine orphan must still trip the re-scoped ratchet, got {orphaned}"
     )
 
 

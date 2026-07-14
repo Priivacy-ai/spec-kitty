@@ -66,13 +66,19 @@ these four files that is not on this list fails the guard.
 from __future__ import annotations
 
 import ast
+import functools
 import textwrap
 from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
 
-from specify_cli.contracts.anchoring import composite_key_from_file, composite_key
+from specify_cli.contracts.anchoring import composite_key
+from tests.architectural._ratchet_keys import (
+    CompositeKey,
+    ContentDescriptor,
+    resolve_descriptor,
+)
 
 pytestmark = [pytest.mark.architectural]
 
@@ -456,72 +462,137 @@ def find_banned_io_calls(source: str) -> list[_IoViolation]:
 # ---------------------------------------------------------------------------
 # Allowlist: the five already-documented, intentional I/O sites (T028).
 #
-# Seeded as (rel_path-under-src, line, rationale); the composite key is
-# derived live at import time (DIR-041 -- never a hand-authored positional
-# key), exactly like ``_ALLOWLISTED_RAW_JOINS`` in the sibling resolver guard.
+# Content-descriptor seeded (rel_path, qualname, token_substring, occurrence,
+# rationale) -- IC-DESCRIPTOR, #2564. NOT a raw (rel_path, int_line, rationale)
+# seed tuple: that shape stored a bare int line-number directly in a
+# module-level seed constant, and even though the composite key was *derived*
+# live via composite_key_from_file, the int itself reached that call's 2nd
+# positional arg only after being laundered through the dict-comprehension's
+# ``line`` loop variable -- invisible to both the direct int-literal predicate
+# (``_is_composite_key_line_arg``) and the ``file.py:NNN``-string grep (the
+# seed spanned multiple source lines). Every entry below is now qualname +
+# normalized-token-substring addressed and resolved to its composite key LIVE
+# at import time via :func:`resolve_descriptor` (never a hand-authored line
+# number), exactly like ``_ALLOWLISTED_RAW_JOINS``
+# (test_single_mission_surface_resolver.py) and ``_ALLOW_LIST_SEED``
+# (test_no_write_side_rederivation.py).
 # ---------------------------------------------------------------------------
-_IO_ALLOWLIST_SITES: tuple[tuple[str, int, str], ...] = (
-    (
-        "specify_cli/acceptance/gates_core.py",
-        329,
-        "_workflow_evidence_missing reads ONE small, already-scoped local "
-        "evidence file (workflow-evidence.md) -- the same class of "
-        "'lightweight, already-scoped filesystem read' workflow_cores.py's "
-        "own docstring carves out for its status-event read (.exists()/"
-        ".glob() are likewise not banned). Not a subprocess/worktree/network "
-        "operation.",
+_IO_ALLOWLIST_SITES: tuple[ContentDescriptor, ...] = (
+    ContentDescriptor(
+        rel_path="specify_cli/acceptance/gates_core.py",
+        qualname="_workflow_evidence_missing",
+        token_substring="evidence_path . read_text",
+        occurrence=None,
+        rationale=(
+            "_workflow_evidence_missing reads ONE small, already-scoped local "
+            "evidence file (workflow-evidence.md) -- the same class of "
+            "'lightweight, already-scoped filesystem read' workflow_cores.py's "
+            "own docstring carves out for its status-event read (.exists()/"
+            ".glob() are likewise not banned). Not a subprocess/worktree/network "
+            "operation."
+        ),
     ),
-    (
-        "specify_cli/cli/commands/implement_cores.py",
-        98,
-        "_SubprocessGitPort.status_porcelain -- the module docstring names "
-        "this class 'the ONE git-subprocess I/O boundary in this module -- "
-        "a thin adapter, not decision logic', isolated behind the injectable "
-        "GitPort Protocol so every decision function above it can be tested "
-        "with a fake port.",
+    ContentDescriptor(
+        rel_path="specify_cli/cli/commands/implement_cores.py",
+        qualname="_SubprocessGitPort.status_porcelain",
+        token_substring="subprocess . run (",
+        occurrence=None,
+        rationale=(
+            "_SubprocessGitPort.status_porcelain -- the module docstring names "
+            "this class 'the ONE git-subprocess I/O boundary in this module -- "
+            "a thin adapter, not decision logic', isolated behind the injectable "
+            "GitPort Protocol so every decision function above it can be tested "
+            "with a fake port."
+        ),
     ),
-    (
-        "specify_cli/cli/commands/implement_cores.py",
-        112,
-        "_SubprocessGitPort.show_blob -- same injected-port I/O boundary as "
-        "status_porcelain above; the second (and last) subprocess call in "
-        "the module.",
+    ContentDescriptor(
+        rel_path="specify_cli/cli/commands/implement_cores.py",
+        qualname="_SubprocessGitPort.show_blob",
+        token_substring="subprocess . run (",
+        occurrence=None,
+        rationale=(
+            "_SubprocessGitPort.show_blob -- same injected-port I/O boundary as "
+            "status_porcelain above; the second (and last) subprocess call in "
+            "the module."
+        ),
     ),
-    (
-        "specify_cli/cli/commands/implement_cores.py",
-        289,
-        "_drop_vcs_lock_only_meta reads the CALLER-supplied working-tree "
-        "meta.json path to compare it against the committed baseline (via "
-        "the injected GitPort) -- the filesystem twin of the GitPort pattern "
-        "above, not a subprocess/worktree/placement decision.",
+    ContentDescriptor(
+        rel_path="specify_cli/cli/commands/implement_cores.py",
+        qualname="_drop_vcs_lock_only_meta",
+        token_substring="source . read_bytes ( )",
+        occurrence=None,
+        rationale=(
+            "_drop_vcs_lock_only_meta reads the CALLER-supplied working-tree "
+            "meta.json path to compare it against the committed baseline (via "
+            "the injected GitPort) -- the filesystem twin of the GitPort pattern "
+            "above, not a subprocess/worktree/placement decision."
+        ),
     ),
-    (
-        "specify_cli/cli/commands/implement_cores.py",
-        391,
-        "_drop_runtime_frontmatter_only_wp reads the CALLER-supplied "
-        "working-tree WP##.md path to compare its frontmatter against the "
-        "committed baseline (via the injected GitPort) -- the exact "
-        "filesystem twin of _drop_vcs_lock_only_meta above (WP01/#2570.1), "
-        "same lightweight already-scoped read, not a subprocess/worktree/"
-        "placement decision.",
+    ContentDescriptor(
+        rel_path="specify_cli/cli/commands/implement_cores.py",
+        qualname="_drop_runtime_frontmatter_only_wp",
+        token_substring="source . read_text ( encoding =",
+        occurrence=None,
+        rationale=(
+            "_drop_runtime_frontmatter_only_wp reads the CALLER-supplied "
+            "working-tree WP##.md path to compare its frontmatter against the "
+            "committed baseline (via the injected GitPort) -- the exact "
+            "filesystem twin of _drop_vcs_lock_only_meta above (WP01/#2570.1), "
+            "same lightweight already-scoped read, not a subprocess/worktree/"
+            "placement decision."
+        ),
     ),
-    (
-        "specify_cli/cli/commands/implement_cores.py",
-        428,
-        "_files_changed_vs_ref reads the CALLER-supplied working-tree path "
-        "to test idempotency against the committed ref (via the injected "
-        "GitPort) -- same rationale as _drop_vcs_lock_only_meta above.",
+    ContentDescriptor(
+        rel_path="specify_cli/cli/commands/implement_cores.py",
+        qualname="_files_changed_vs_ref",
+        token_substring="source . read_bytes ( )",
+        occurrence=None,
+        rationale=(
+            "_files_changed_vs_ref reads the CALLER-supplied working-tree path "
+            "to test idempotency against the committed ref (via the injected "
+            "GitPort) -- same rationale as _drop_vcs_lock_only_meta above."
+        ),
     ),
 )
 
 
+@functools.cache
+def _io_allowlist_source(rel_path: str) -> str:
+    """Read (and cache) an ``_IO_ALLOWLIST_SITES`` descriptor's source file,
+    once. Two descriptors (the ``_SubprocessGitPort`` pair) share a file --
+    caching avoids re-reading it once per descriptor.
+    """
+    return (_SRC_ROOT / rel_path).read_text(encoding="utf-8")
+
+
+#: Every ``_IO_ALLOWLIST_SITES`` descriptor resolved ONCE at import time to its
+#: live full ``(rel_path, qualname, token_line)`` composite key (NFR-004:
+#: never hand-author the key literal). RAISES ``DescriptorResolutionError`` at
+#: import time if a descriptor is already ambiguous or dangling -- the
+#: earliest possible surfacing of a mis-authored ``token_substring``.
+_IO_ALLOWLIST_SEEDED_KEYS: dict[ContentDescriptor, CompositeKey] = {
+    descriptor: resolve_descriptor(_io_allowlist_source(descriptor.rel_path), descriptor)
+    for descriptor in _IO_ALLOWLIST_SITES
+}
+
+
 def _build_io_allowlist() -> dict[tuple[str, str], str]:
+    """Narrow ``_IO_ALLOWLIST_SEEDED_KEYS`` to the ``(qualname, token_line)``
+    shape.
+
+    ``_unallowlisted_io_violations`` / ``test_io_allowlist_entries_are_not_stale``
+    key discovered/live sites via ``composite_key(source, lineno)`` -- a bare
+    2-tuple with no ``rel_path`` component -- so the allowlist they consult
+    must match that shape (mirrors
+    ``test_single_mission_surface_resolver.py``'s ``_build_allowlisted_raw_joins``).
+    """
     return {
-        composite_key_from_file(_SRC_ROOT / rel_path, line): rationale
-        for rel_path, line, rationale in _IO_ALLOWLIST_SITES
+        (qualname, token_line): descriptor.rationale
+        for descriptor, (_rel_path, qualname, token_line) in _IO_ALLOWLIST_SEEDED_KEYS.items()
     }
 
 
+#: Composite-keyed allowlist: ``(qualname, token_line) -> rationale``.
 _IO_ALLOWLIST: dict[tuple[str, str], str] = _build_io_allowlist()
 
 

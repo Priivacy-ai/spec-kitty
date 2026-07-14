@@ -24,7 +24,13 @@ Two predicates, mechanically decidable (no fragile heuristic):
   :func:`specify_cli.contracts.anchoring.is_file_line_anchor` to flag a
   ``path:NNN`` string literal embedded in a module-level allow-list seed
   constant (tuple/list/set/frozenset/dict) — the string-shaped twin of the
-  same DIR-041 rot.
+  same DIR-041 rot. **#2564 seed-tuple-laundering hole**: also flags a
+  module-level seed constant holding raw ``(rel, int, ...)`` row tuples whose
+  int element is unpacked by a ``for``/comprehension clause into a bare loop
+  variable that then reaches ``composite_key(...)``'s / ``composite_key_from_
+  file(...)``'s 2nd positional arg — the laundering vector that evades both
+  (a) (the 2nd arg there is a ``Name``, not an ``ast.Constant``) and the
+  ``file.py:NNN`` grep (the seed spans multiple source lines).
 * **YAML** — a field-name rule over the two YAML allow-lists
   (``resolution_gate_allowlist.yaml``, ``inline_meta_read_allowlist.yaml``):
   an int is permitted ONLY as a ``line`` locator (documented
@@ -57,6 +63,7 @@ contracts/positional-anchor-ban.md; research.md Decision (deferred census).
 from __future__ import annotations
 
 import ast
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -298,16 +305,178 @@ def _seed_string_line_anchor_violations(
     return violations
 
 
+def _seed_row_int_position(container: ast.expr) -> int | None:
+    """Index of the bare-int-literal element within ``container``'s sub-tuples
+    / sub-lists, assuming a uniform positional row shape (row[index] is a
+    bare int for every row). ``None`` when no row carries a bare int literal
+    (e.g. every row is a ``ContentDescriptor(...)`` call, not a raw tuple —
+    the already-clean shape)."""
+    for row in getattr(container, "elts", []):
+        if not isinstance(row, (ast.Tuple, ast.List)):
+            continue
+        for index, item in enumerate(row.elts):
+            if _is_int_constant(item):
+                return index
+    return None
+
+
+def _module_level_named_seed_containers(tree: ast.Module) -> list[tuple[str, ast.expr]]:
+    """``(target_name, container_literal)`` for every module-level
+    ``Assign``/``AnnAssign`` binding a single ``Name`` to a container literal —
+    the subset of :func:`_module_level_seed_containers` that also exposes the
+    binding name a ``for``/comprehension clause could iterate by reference.
+    """
+    named: list[tuple[str, ast.expr]] = []
+    for node in tree.body:
+        targets: list[ast.expr]
+        if isinstance(node, ast.Assign):
+            value, targets = node.value, list(node.targets)
+        elif isinstance(node, ast.AnnAssign) and node.value is not None:
+            value, targets = node.value, [node.target]
+        else:
+            continue
+        if not _is_container_literal(value):
+            continue
+        for target in targets:
+            if isinstance(target, ast.Name):
+                named.append((target.id, value))
+    return named
+
+
+def _unpack_target_name_at(target: ast.expr, index: int) -> str | None:
+    """The bare ``Name`` at position ``index`` of a tuple/list unpacking
+    target (a ``for a, b, c in ...`` / comprehension clause target), or
+    ``None`` when the target isn't a tuple/list of bare Names wide enough to
+    hold ``index``."""
+    if not isinstance(target, (ast.Tuple, ast.List)):
+        return None
+    if not (0 <= index < len(target.elts)):
+        return None
+    elt = target.elts[index]
+    return elt.id if isinstance(elt, ast.Name) else None
+
+
+def _sink_call_using_name(node: ast.AST, laundered_name: str) -> ast.Call | None:
+    """A ``composite_key(...)``/``composite_key_from_file(...)`` call nested in
+    ``node`` whose 2nd positional arg is a bare reference to
+    ``laundered_name`` — the laundered-seed shape :func:`_is_composite_key_line_arg`
+    cannot see (its 2nd arg here is an ``ast.Name``, not an ``ast.Constant``).
+    """
+    for call in ast.walk(node):
+        if not isinstance(call, ast.Call):
+            continue
+        if _call_func_name(call) not in _LINE_SINK_CALL_NAMES:
+            continue
+        if len(call.args) < 2:
+            continue
+        second = call.args[1]
+        if isinstance(second, ast.Name) and second.id == laundered_name:
+            return call
+    return None
+
+
+def _comprehension_value_exprs(node: ast.AST) -> list[ast.AST]:
+    """The element/key/value sub-expressions a comprehension node evaluates
+    per iteration — where a laundered sink call would actually appear."""
+    if isinstance(node, ast.DictComp):
+        return [node.key, node.value]
+    if isinstance(node, (ast.ListComp, ast.SetComp, ast.GeneratorExp)):
+        return [node.elt]
+    return []
+
+
+def _laundering_violation_for_clause(
+    iter_name: str,
+    target: ast.expr,
+    int_positions: dict[str, int],
+    search_nodes: Sequence[ast.AST],
+    source_lines: list[str],
+    relpath: str,
+) -> LineSinkViolation | None:
+    """One ``for``/comprehension clause -> at most one laundering violation.
+
+    ``iter_name`` must reference a module-level named seed whose row carries a
+    bare int at ``int_positions[iter_name]``; ``target`` must unpack that
+    position into a bare loop variable that ``value_exprs`` then feeds into a
+    ``composite_key(...)``/``composite_key_from_file(...)`` sink.
+    """
+    if iter_name not in int_positions:
+        return None
+    laundered = _unpack_target_name_at(target, int_positions[iter_name])
+    if laundered is None:
+        return None
+    for search_node in search_nodes:
+        call = _sink_call_using_name(search_node, laundered)
+        if call is None or has_diagnostic_locator_marker(source_lines, call.lineno):
+            continue
+        return LineSinkViolation(
+            relpath,
+            call.lineno,
+            f"seed-tuple int element (from {iter_name!r}) laundered through "
+            f"loop/comprehension variable {laundered!r} into "
+            "composite_key(...)'s line-locator arg",
+        )
+    return None
+
+
+def _seed_tuple_laundering_violations(
+    tree: ast.Module, source_lines: list[str], relpath: str
+) -> list[LineSinkViolation]:
+    """#2564: a module-level ``(rel, int, ...)`` seed tuple whose int element is
+    laundered through a ``for``/comprehension unpacking variable into a
+    ``composite_key(...)``/``composite_key_from_file(...)`` line-locator sink.
+
+    This is the residual bypass :func:`_is_composite_key_line_arg` cannot see
+    (there the 2nd arg is a bare ``ast.Constant``; here it is an ``ast.Name``
+    bound by the unpacking clause) and the ``file.py:NNN`` grep cannot see
+    (the seed spans multiple source lines, so no single line matches the
+    pattern).
+    """
+    seeds = _module_level_named_seed_containers(tree)
+    if not seeds:
+        return []
+    int_positions = {
+        name: pos
+        for name, container in seeds
+        for pos in [_seed_row_int_position(container)]
+        if pos is not None
+    }
+    if not int_positions:
+        return []
+
+    violations: list[LineSinkViolation] = []
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.ListComp, ast.SetComp, ast.GeneratorExp, ast.DictComp)):
+            value_exprs = _comprehension_value_exprs(node)
+            for gen in node.generators:
+                if not isinstance(gen.iter, ast.Name):
+                    continue
+                violation = _laundering_violation_for_clause(
+                    gen.iter.id, gen.target, int_positions, value_exprs, source_lines, relpath
+                )
+                if violation is not None:
+                    violations.append(violation)
+        elif isinstance(node, ast.For) and isinstance(node.iter, ast.Name):
+            violation = _laundering_violation_for_clause(
+                node.iter.id, node.target, int_positions, node.body, source_lines, relpath
+            )
+            if violation is not None:
+                violations.append(violation)
+    return violations
+
+
 def _scan_python_source(source: str, relpath: str) -> list[LineSinkViolation]:
-    """Parse ``source`` once and run both Python sink-shape walkers over it."""
+    """Parse ``source`` once and run all Python sink-shape walkers over it."""
     try:
         tree = ast.parse(source, filename=relpath)
     except SyntaxError:
         return []
     source_lines = source.splitlines()
-    return _call_arg_line_sink_violations(
-        tree, source_lines, relpath
-    ) + _seed_string_line_anchor_violations(tree, source_lines, relpath)
+    return (
+        _call_arg_line_sink_violations(tree, source_lines, relpath)
+        + _seed_string_line_anchor_violations(tree, source_lines, relpath)
+        + _seed_tuple_laundering_violations(tree, source_lines, relpath)
+    )
 
 
 def _scan_python_file(path: Path) -> list[LineSinkViolation]:
@@ -630,6 +799,54 @@ def test_non_vacuity_escape_hatch_opts_out() -> None:
     assert _scan_python_source(planted, "scratch/escaped_seed.py") == []
 
 
+def test_non_vacuity_plants_laundered_seed_tuple_and_reds() -> None:
+    """T024/T025 (#2564) -- the seed-tuple-laundering arm bites on a plant.
+
+    Mirrors the EXACT pre-conversion ``test_trio_seam_only._IO_ALLOWLIST_SITES``
+    shape: a module-level tuple of ``(rel, int, rationale)`` rows, unpacked by a
+    dict-comprehension clause into ``composite_key_from_file(rel, line)``'s 2nd
+    positional arg via the ``line`` loop variable. Neither existing predicate
+    sees this: the 2nd arg is an ``ast.Name`` (not a bare int literal, so
+    :func:`_is_composite_key_line_arg` misses it), and the seed spans multiple
+    source lines (so the ``file.py:NNN`` grep misses it too).
+    """
+    planted = (
+        "from tests.architectural._ratchet_keys import composite_key_from_file\n\n"
+        "_SEED_SITES = (\n"
+        '    ("a.py", 42, "rationale one"),\n'
+        '    ("b.py", 91, "rationale two"),\n'
+        ")\n\n"
+        "_ALLOWLIST = {\n"
+        "    composite_key_from_file(rel, line): rationale\n"
+        "    for rel, line, rationale in _SEED_SITES\n"
+        "}\n"
+    )
+    violations = _scan_python_source(planted, "scratch/planted_laundered_seed.py")
+    assert violations, "planted laundered seed-tuple must be flagged (#2564 non-vacuity)"
+    assert "laundered" in violations[0].detail
+    assert "line" in violations[0].detail
+
+
+def test_non_vacuity_laundering_arm_permits_live_line_comprehension() -> None:
+    """Paired negative (T025): a comprehension iterating the SAME shaped,
+    int-carrying seed row does NOT trip the laundering arm when the sink's 2nd
+    arg is a genuine live-line expression (not a bare reference to the
+    unpacked int loop variable) -- no false positive on a legitimate
+    content-addressed comprehension that merely shares the seed's row shape.
+    """
+    compliant = (
+        "from tests.architectural._ratchet_keys import composite_key_from_file\n\n"
+        "_SEED_SITES = (\n"
+        '    ("a.py", 42, "rationale one"),\n'
+        ")\n\n"
+        "_ALLOWLIST = {\n"
+        "    composite_key_from_file(rel, resolve_live_line(rel)): rationale\n"
+        "    for rel, line, rationale in _SEED_SITES\n"
+        "}\n"
+    )
+    assert _scan_python_source(compliant, "scratch/live_line_comprehension.py") == []
+
+
 def test_non_vacuity_compliant_snippet_stays_green() -> None:
     """A compliant, content-addressed seed (variable 2nd arg, no bare
     ``path:NNN`` string) stays GREEN — the guard does not over-fire.
@@ -652,3 +869,42 @@ def test_non_vacuity_real_compliant_yamls_stay_green() -> None:
         assert _yaml_int_field_violations(doc) == [], (
             f"{name} unexpectedly failed the compliant-YAML non-vacuity check"
         )
+
+
+# ---------------------------------------------------------------------------
+# T027 -- #2564 non-fakeable DoD: the real converted launderer stays closed.
+#
+# Part (a), "the extended ban run against the UNCONVERTED _IO_ALLOWLIST_SITES
+# MUST FAIL", is proven by test_non_vacuity_plants_laundered_seed_tuple_and_reds
+# above: that fixture reproduces the EXACT pre-conversion shape (a raw
+# ``(rel, int, rationale)`` tuple unpacked by a dict-comprehension clause into
+# ``composite_key_from_file``'s 2nd arg) and asserts the ban flags it. Part
+# (b), the structural positive proof, is below: the real, POST-conversion
+# ``test_trio_seam_only._IO_ALLOWLIST_SITES`` no longer carries a bare int
+# anywhere in its row shape. Part (c) is the ordinary green-on-real-tree run
+# of this file (``test_no_int_line_sink_in_architectural_python_seeds``
+# scans every tests/architectural/**/*.py file, including
+# test_trio_seam_only.py).
+# ---------------------------------------------------------------------------
+
+
+def test_io_allowlist_sites_carry_no_bare_int_element() -> None:
+    """Structural proof (#2564 T027): every ``_IO_ALLOWLIST_SITES`` row is
+    content-addressed (``ContentDescriptor`` — rel_path/qualname/token_substring
+    /occurrence/rationale) with NO bare int line-number member anywhere in its
+    shape. Booleans are ``int`` subclasses in Python but are never a
+    line-number, so they are excluded from the check.
+    """
+    from tests.architectural.test_trio_seam_only import _IO_ALLOWLIST_SITES
+
+    assert _IO_ALLOWLIST_SITES, "the real _IO_ALLOWLIST_SITES must be non-empty"
+    offenders = [
+        (entry, field)
+        for entry in _IO_ALLOWLIST_SITES
+        for field in entry
+        if isinstance(field, int) and not isinstance(field, bool)
+    ]
+    assert not offenders, (
+        "_IO_ALLOWLIST_SITES still carries a bare int line-number member — the "
+        f"#2564 seed-tuple laundering hole is not closed: {offenders!r}"
+    )
