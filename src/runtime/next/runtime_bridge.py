@@ -164,44 +164,14 @@ from runtime.next import runtime_bridge_identity as _identity_seam
 from runtime.next import runtime_bridge_io as _io_seam
 from runtime.next import runtime_bridge_retrospective as _retrospective_seam
 
-# _extract_wp_heading / _collect_requirement_refs_for_section /
-# _iter_requirement_refs / _requirement_inline_refs_suffix /
-# _is_requirement_heading are NOT in the WP02 compat guard's tracked symbol
-# inventory (nothing patches them — grep-verified against
-# test_bridge_compat_surface.py), so a plain re-export is safe here (unlike
-# the two native thin delegates below for the two tracked parse-family
-# symbols). The redundant "as X" self-alias is mypy's explicit-reexport
-# idiom (see the analogous note on the decision.py import below).
-from runtime.next.runtime_bridge_cores import (
-    _collect_requirement_refs_for_section as _collect_requirement_refs_for_section,
-    _extract_wp_heading as _extract_wp_heading,
-    _is_requirement_heading as _is_requirement_heading,
-    _iter_requirement_refs as _iter_requirement_refs,
-    _requirement_inline_refs_suffix as _requirement_inline_refs_suffix,
-)
-
-# _retrospective_blocks_completion is NOT in the WP02 compat guard's tracked
-# symbol inventory (nothing patches it — see test_bridge_engine.py's analogous
-# note), so a plain re-export is safe here (unlike the 9 thin native delegates
-# below). The redundant "as X" self-alias is mypy's explicit-reexport idiom —
-# without it, strict mode's --no-implicit-reexport blocks attribute access
-# from other checked modules (e.g. runtime_bridge_engine.py's _rb.<name> live
-# lookup) even though the name is a genuine module-level import.
-from runtime.next.runtime_bridge_retrospective import (
-    _retrospective_blocks_completion as _retrospective_blocks_completion,
-)
-
-# _composition_dispatch_inputs / _has_generated_docs are NOT in the WP02
-# compat guard's tracked symbol inventory (nothing patches them), so a plain
-# re-export is safe here (unlike the native thin delegates below for the
-# tracked composition symbols): ``decide_next_via_runtime`` still calls
-# ``_composition_dispatch_inputs`` bare, and ``runtime_bridge_io.gather_
-# artifact_presence`` still reaches ``_has_generated_docs`` via its own live
-# ``_rb._has_generated_docs(...)`` lookup (#2531 WP08).
-from runtime.next.runtime_bridge_composition import (
-    _composition_dispatch_inputs as _composition_dispatch_inputs,
-    _has_generated_docs as _has_generated_docs,
-)
+# WP18 (#2561) — the untracked self-alias re-exports that formerly lived here
+# (the five ``runtime_bridge_cores`` parse-family helpers, plus
+# ``_retrospective_blocks_completion`` / ``_composition_dispatch_inputs`` /
+# ``_has_generated_docs``) were retired now that no consumer patches them via
+# the ``runtime_bridge.<name>`` façade path. Their leaves are reached directly
+# from the owning seam (``_cores`` / ``_retrospective_seam`` / ``_composition``)
+# at each call site below; the seam ``_rb.<name>`` round-trips were repointed to
+# the owning seam in the same change.
 
 from specify_cli.mission import get_mission_type
 from specify_cli.status import CanonicalStatusNotFoundError
@@ -1587,7 +1557,7 @@ def _dn_composition_dispatch(ctx: DecideNextContext) -> Decision | None:
         # ``agent_profile``, so this resolves to ``None`` and the executor's
         # ``_resolve_profile_hint`` falls back to ``_ACTION_PROFILE_DEFAULTS``
         # — preserving byte-identical built-in dispatch behavior (FR-010).
-        resolved_profile, runtime_contract = _composition_dispatch_inputs(
+        resolved_profile, runtime_contract = _composition._composition_dispatch_inputs(
             repo_root=repo_root,
             run_dir=ctx.run_dir,
             mission=mission_type,
@@ -1781,7 +1751,7 @@ def _dn_decision_materialize(ctx: DecideNextContext) -> Decision:
     """
     policy, _source_map, policy_error = _resolve_retrospective_policy_for_runtime(ctx.repo_root)
     retrospective_enabled = bool(getattr(policy, "enabled", False))
-    block_on_retrospective = _retrospective_blocks_completion(policy)
+    block_on_retrospective = _retrospective_seam._retrospective_blocks_completion(policy)
 
     pre_state_bytes: bytes | None = None
     pre_events_size: int | None = None

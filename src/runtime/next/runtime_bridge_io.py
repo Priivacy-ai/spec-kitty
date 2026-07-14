@@ -773,6 +773,7 @@ def gather_artifact_presence(
     snapshot replaces the guards' own reads.
     """
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415
+    from runtime.next import runtime_bridge_composition as _composition  # noqa: PLC0415 — deferred; composition imports this module at top level
 
     present: set[str] = set()
     for tag in _PRESENCE_FILE_TAGS:
@@ -785,7 +786,10 @@ def gather_artifact_presence(
     if wp_files:
         present.add("tasks_wp_files")
 
-    has_generated_docs = bool(_rb._has_generated_docs(feature_dir))
+    # WP18 (#2561): reach _has_generated_docs directly from its owning seam now
+    # that the runtime_bridge façade re-export was retired (nothing patches
+    # ``runtime_bridge._has_generated_docs``).
+    has_generated_docs = bool(_composition._has_generated_docs(feature_dir))
     if has_generated_docs:
         present.add("generated_docs")
 

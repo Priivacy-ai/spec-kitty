@@ -243,10 +243,14 @@ def _emit_terminal(
     sentinel patches on ``runtime_bridge.<name>`` observed unchanged.
     """
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415 — deferred to avoid the circular top-level import (runtime_bridge imports this adapter)
+    from runtime.next import runtime_bridge_retrospective as _retrospective  # noqa: PLC0415 — deferred, mirrors the _rb pattern
 
     policy, _source_map, policy_error = _rb._resolve_retrospective_policy_for_runtime(repo_root)
     retrospective_enabled = bool(getattr(policy, "enabled", False))
-    block_on_retrospective = _rb._retrospective_blocks_completion(policy)
+    # WP18 (#2561): _retrospective_blocks_completion is reached directly from
+    # its owning seam now that the runtime_bridge façade re-export was retired
+    # (nothing patches ``runtime_bridge._retrospective_blocks_completion``).
+    block_on_retrospective = _retrospective._retrospective_blocks_completion(policy)
     mission_id = _rb._resolve_mission_id_for_terminus(feature_dir)
 
     if retrospective_enabled and block_on_retrospective:

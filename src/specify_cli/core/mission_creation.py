@@ -214,6 +214,7 @@ def create_mission_core(
     purpose_context: str | None = None,
     topology: MissionTopology = MissionTopology.COORD,
     force_recreate_coordination_branch: bool = False,
+    allow_worktree_context: bool = False,
 ) -> MissionCreationResult:
     """Create a new feature with all scaffolding.
 
@@ -252,6 +253,17 @@ def create_mission_core(
         the mint and never write ``coordination_branch``. The explicit choice
         is persisted verbatim into ``meta.json`` — never re-derived from
         ``classify_topology`` (which cannot reproduce ``LANES`` pre-finalize).
+    allow_worktree_context:
+        Bypass the worktree-context guard (step 2) that otherwise raises when
+        the *process* ``cwd`` resolves inside a git worktree. Defaults to
+        ``False``, preserving the interactive/CLI guard that protects
+        operators from accidentally scaffolding a mission inside a lane
+        worktree instead of the project root checkout. Intended for
+        programmatic callers — notably ``tests/_factories.make_mission()``
+        (FR-008) — that pass an explicit ``repo_root`` pointing at an
+        isolated (often temporary) repository while the test process itself
+        happens to be running from within a lane worktree checkout, which is
+        this project's normal execution context for its own test suite.
 
     Returns
     -------
@@ -289,7 +301,7 @@ def create_mission_core(
     # 2. Context guards
     # ------------------------------------------------------------------
     cwd = Path.cwd().resolve()
-    if is_worktree_context(cwd):
+    if not allow_worktree_context and is_worktree_context(cwd):
         raise MissionCreationError("Cannot create missions from inside a worktree. Run from the project root checkout.")
 
     resolved_root = repo_root
