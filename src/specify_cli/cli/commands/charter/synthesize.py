@@ -12,6 +12,7 @@ from typing import Any
 
 import typer
 from rich.console import Console
+from specify_cli.cli.console import err_console
 
 from specify_cli.diagnostics import mark_invocation_succeeded
 from specify_cli.task_utils import TaskCliError
@@ -135,7 +136,6 @@ def charter_synthesize(  # noqa: C901
     """
     from charter.synthesizer.errors import NeutralityGateViolation, SynthesisError, render_error_panel
 
-    err_console = Console(stderr=True)
 
     # FR-001: warnings collected so far. Initialised here (outside the
     # try/except) so failure-branch envelopes can carry the same

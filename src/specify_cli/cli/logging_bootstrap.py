@@ -85,10 +85,11 @@ def _build_handler() -> logging.Handler:
     so operators can distinguish WARNING from DEBUG output.
     """
     try:
-        from rich.console import Console
         from rich.logging import RichHandler
 
-        console = Console(stderr=True, highlight=False)
+        from specify_cli.cli.console import CliConsole
+
+        console = CliConsole(stderr=True, highlight=False)
         handler: logging.Handler = RichHandler(
             console=console,
             show_time=False,

@@ -20,7 +20,7 @@ import logging
 from typing import TYPE_CHECKING, cast
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console
 
 from specify_cli.auth import (
     AuthenticationError,
@@ -37,7 +37,6 @@ if TYPE_CHECKING:
     from specify_cli.auth.token_manager import TokenManager
 
 log = logging.getLogger(__name__)
-console = Console()
 
 
 async def login_impl(*, headless: bool, force: bool) -> None:

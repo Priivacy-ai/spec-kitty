@@ -12,7 +12,7 @@ from typing import Annotated, Any
 
 import typer
 from pydantic import ValidationError
-from rich.console import Console
+from specify_cli.cli.console import console
 from rich.panel import Panel
 
 from specify_cli.cli import StepTracker
@@ -77,7 +77,6 @@ from specify_cli.cli.commands.implement_cores import (  # noqa: F401 -- shim re-
     resolve_planning_artifact_staging,
 )
 
-console = Console()
 _WP_ID_RE = re.compile(r"^WP\d{2}$", re.IGNORECASE)
 # WP03 / S1192: the rich-markup error prefix, repeated across the
 # planning-artifact commit helper this WP touches -- hoisted to one constant

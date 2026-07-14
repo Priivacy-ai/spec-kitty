@@ -25,7 +25,7 @@ import subprocess
 from pathlib import Path
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console
 
 from mission_runtime import MissionArtifactKind
 from specify_cli.coordination.commit_router import CommitRouterResult, commit_for_mission
@@ -33,7 +33,6 @@ from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.git.protection_policy import ProtectionPolicy
 from specify_cli.task_utils import find_repo_root
 
-console = Console()
 
 # ---------------------------------------------------------------------------
 # Helpers

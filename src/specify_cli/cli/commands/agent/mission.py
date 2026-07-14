@@ -36,7 +36,7 @@ import logging
 from pathlib import Path
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console
 from typing import cast
 
 # Re-exported so the WP06 merge seam's ``mission.resolve_mission_handle`` access
@@ -325,7 +325,6 @@ app.command(name="accept")(accept_feature)
 app.command(name="merge")(merge_feature)
 app.command(name="finalize-tasks")(finalize_tasks)
 
-console = Console()
 
 TASKS_MD_FILENAME = "tasks.md"
 SETUP_PLAN_COMMAND_NAME = "spec-kitty agent mission setup-plan"

@@ -20,6 +20,8 @@ from typing import Any
 import typer
 from pydantic import ValidationError
 from rich.console import Console
+from specify_cli.cli.console import console
+from specify_cli.cli.console import err_console
 
 from charter.bundle import (
     CANONICAL_MANIFEST,
@@ -328,8 +330,6 @@ def validate(
     ),
 ) -> None:
     """Validate the charter bundle against CharterBundleManifest v1.0.0."""
-    console = Console()
-    err_console = Console(stderr=True)
 
     try:
         canonical_root = resolve_canonical_repo_root(Path.cwd())

@@ -35,7 +35,7 @@ import sys
 from pathlib import Path
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console
 
 from mission_runtime import (
     CommitTarget,
@@ -51,7 +51,6 @@ from specify_cli.git.commit_helpers import (
 )
 from specify_cli.task_utils import TaskCliError, find_repo_root
 
-console = Console()
 
 
 def _current_worktree_root() -> Path:

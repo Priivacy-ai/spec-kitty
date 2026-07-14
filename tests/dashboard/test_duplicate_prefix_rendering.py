@@ -190,9 +190,7 @@ def test_dashboard_json_cli_renders_three_distinct_rows(
     path without spawning a subprocess.
     """
     import typer
-    from rich.console import Console as _Console
 
-    from specify_cli.cli.commands import dashboard as dashboard_mod
     from specify_cli.cli.commands.dashboard import dashboard as dashboard_cmd
 
     # Monkeypatch the project-root resolver the CLI uses internally so it
@@ -201,12 +199,9 @@ def test_dashboard_json_cli_renders_three_distinct_rows(
         "specify_cli.cli.commands.dashboard.get_project_root_or_exit",
         lambda: colliding_080_repo,
     )
-    # Rich's default Console wraps output to the terminal width; replace it
-    # with a wide no-wrap Console so the emitted JSON survives as a single
-    # parseable string (otherwise linewrap inserts newlines inside quoted
-    # strings and breaks json.loads).
-    wide_console = _Console(width=100_000, soft_wrap=True, no_color=True)
-    monkeypatch.setattr(dashboard_mod, "console", wide_console)
+    # ``--json`` is emitted through the console seam's ``emit_json`` (#2632),
+    # which bypasses Rich rendering entirely — no width-wrapping or ANSI can
+    # corrupt the payload, so no console monkeypatch is required.
 
     # Build a tiny typer app wrapper so CliRunner can invoke the handler.
     # We use the default callback surface so invoking with ``["--json"]``
@@ -282,17 +277,15 @@ def test_rendered_json_contains_every_mid8(
     ``spec-kitty dashboard --json | jq`` can eyeball the collision directly.
     """
     import typer
-    from rich.console import Console as _Console
 
-    from specify_cli.cli.commands import dashboard as dashboard_mod
     from specify_cli.cli.commands.dashboard import dashboard as dashboard_cmd
 
     monkeypatch.setattr(
         "specify_cli.cli.commands.dashboard.get_project_root_or_exit",
         lambda: colliding_080_repo,
     )
-    wide_console = _Console(width=100_000, soft_wrap=True, no_color=True)
-    monkeypatch.setattr(dashboard_mod, "console", wide_console)
+    # ``--json`` uses the seam's ``emit_json`` (#2632) — intrinsically plain and
+    # unwrapped, so no width/no-color console monkeypatch is needed.
 
     app = typer.Typer()
     app.command()(dashboard_cmd)

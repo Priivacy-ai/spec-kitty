@@ -25,7 +25,8 @@ from pathlib import Path
 from typing import Annotated, Literal
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console as _console
+from specify_cli.cli.console import err_console as _err_console
 from rich.panel import Panel
 from rich.progress import Progress, SpinnerColumn, TextColumn
 
@@ -65,8 +66,6 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-_console = Console()
-_err_console = Console(stderr=True)
 
 
 # ---------------------------------------------------------------------------

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console
 from rich.table import Table
 
 from specify_cli.task_utils import find_repo_root
@@ -17,7 +17,6 @@ if TYPE_CHECKING:
     from doctrine.agent_profiles.repository import AgentProfileRepository
 
 app = typer.Typer(name="profiles", help="Manage and list agent profiles.")
-console = Console()
 _KITTIFY_DIR = ".kittify"
 _PROFILE_ID_LABEL = "Profile ID"
 _EMPTY_VALUE = "[dim]—[/dim]"

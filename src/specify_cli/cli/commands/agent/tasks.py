@@ -35,7 +35,7 @@ from datetime import datetime, UTC
 from pathlib import Path
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console
 from typing import Annotated
 
 # ``emit_error_logged`` keeps an explicit ``as`` re-export: its direct call
@@ -340,6 +340,7 @@ __all__ = [
     "_wp_lane_from_status_events",
     "app",
     "compute_incomplete_dependents",
+    "console",
     "resolve_topology",
     "resolve_workspace_for_wp",
     "routes_through_coordination",
@@ -357,7 +358,6 @@ UTC_SECOND_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
 app = typer.Typer(name="tasks", help="Task workflow commands for AI agents", no_args_is_help=True)
 
-console = Console()
 
 
 globals()["_list_wp_branch_" + KITTY_SPECS_DIR.replace("-", "_") + "_changes"] = (

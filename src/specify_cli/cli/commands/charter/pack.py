@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console
 
 from charter.invocation_context import ProjectContext
 
@@ -16,7 +16,6 @@ charter_pack_app = typer.Typer(
     help="Charter pack management commands.",
     no_args_is_help=True,
 )
-console = Console()
 
 
 @charter_pack_app.command("consistency-check")

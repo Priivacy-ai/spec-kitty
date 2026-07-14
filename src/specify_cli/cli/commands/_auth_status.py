@@ -27,12 +27,11 @@ from __future__ import annotations
 
 from datetime import datetime, UTC
 
-from rich.console import Console
+from specify_cli.cli.console import console
 
 from specify_cli.auth import get_token_manager
 from specify_cli.auth.session import StoredSession
 
-console = Console()
 
 # Mapping from the StorageBackend literal (see session.py) to a
 # user-friendly label. Keep this in sync with the supported encrypted-file

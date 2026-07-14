@@ -8,12 +8,11 @@ from __future__ import annotations
 
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console
 from rich.table import Table
 
 from specify_cli.task_utils import find_repo_root
 
-console = Console()
 
 
 def config(

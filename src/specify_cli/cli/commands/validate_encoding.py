@@ -12,7 +12,8 @@ from rich.table import Table
 
 from mission_runtime import MissionArtifactKind, placement_seam
 
-from specify_cli.cli.helpers import console, get_project_root_or_exit
+from specify_cli.cli.console import console
+from specify_cli.cli.helpers import get_project_root_or_exit
 from specify_cli.task_utils import TaskCliError, find_repo_root
 from specify_cli.text_sanitization import detect_problematic_characters, sanitize_directory
 

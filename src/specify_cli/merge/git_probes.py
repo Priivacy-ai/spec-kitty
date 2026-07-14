@@ -17,7 +17,7 @@ from pathlib import Path
 
 from rich.console import Console
 
-from specify_cli.cli.helpers import console
+from specify_cli.cli.console import console
 from specify_cli.coordination.surface_resolver import is_under_worktrees_segment
 from specify_cli.core.constants import KITTIFY_DIR
 from specify_cli.core.git_ops import run_command

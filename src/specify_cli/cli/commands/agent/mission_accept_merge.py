@@ -31,13 +31,12 @@ import sys
 from pathlib import Path
 from typing import Annotated, cast
 
-from rich.console import Console
+from specify_cli.cli.console import console
 import typer
 
 from specify_cli.merge.config import MergeStrategy
 from specify_cli.workspace.context import resolve_feature_worktree
 
-console = Console()
 
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
 

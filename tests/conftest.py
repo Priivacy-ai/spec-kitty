@@ -304,6 +304,32 @@ def _enable_saas_sync_feature_flag(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
 
 
+@pytest.fixture(autouse=True)
+def _plain_cli_console_seam() -> Iterator[None]:
+    """Force the shared CLI console seam colourless for every test (#2632).
+
+    All CLI modules render through the single ``console`` / ``err_console``
+    singletons in :mod:`specify_cli.cli.console`. Determinism is a property of
+    the *object*, not the environment: we toggle ``set_plain`` on those shared
+    instances so ``CliRunner`` substring / ``--json`` assertions are stable
+    under any ``FORCE_COLOR`` harness (the Claude Code harness exports
+    ``FORCE_COLOR=3``). We never mutate ``os.environ`` — env writes leak into
+    subprocesses and sibling tests. Reset to styled afterwards so nothing but
+    the test window is affected.
+    """
+    # Lazy import keeps conftest's import graph free of the CLI bootstrap until
+    # the first test actually runs.
+    from specify_cli.cli.console import console, err_console
+
+    console.set_plain(True)
+    err_console.set_plain(True)
+    try:
+        yield
+    finally:
+        console.set_plain(False)
+        err_console.set_plain(False)
+
+
 def reset_spec_kitty_queue_state() -> None:
     """Empty the user-scoped spec-kitty queue rows to a clean baseline.
 
@@ -681,6 +707,17 @@ def isolated_env() -> dict[str, str]:
     env["SPEC_KITTY_CLI_VERSION"] = source_version
     env["SPEC_KITTY_TEST_MODE"] = "1"
     env["SPEC_KITTY_TEMPLATE_ROOT"] = str(REPO_ROOT)
+
+    # Colour-neutralise the CHILD process env (#2632). The in-process
+    # ``set_plain`` seam toggle cannot reach a spawned CLI subprocess, so a dev
+    # harness that exports ``FORCE_COLOR`` (the Claude Code harness sets
+    # ``FORCE_COLOR=3``) would otherwise leak ANSI into the subprocess' human /
+    # ``--json`` output and false-RED substring/JSON assertions that pass in CI's
+    # plain environment. This curates the explicit child-env dict — it is NOT an
+    # ``os.environ`` mutation that could leak into sibling in-process tests.
+    env.pop("FORCE_COLOR", None)
+    env.pop("CLICOLOR_FORCE", None)
+    env["NO_COLOR"] = "1"
 
     return env
 

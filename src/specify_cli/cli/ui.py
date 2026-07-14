@@ -10,6 +10,8 @@ from rich.live import Live
 from rich.panel import Panel
 from rich.table import Table
 
+from specify_cli.cli.console import console as _default_console
+
 from .step_tracker import StepTracker
 
 
@@ -35,7 +37,7 @@ def get_key() -> str:
 
 
 def _resolve_console(console: Console | None) -> Console:
-    return console or Console()
+    return console or _default_console
 
 
 def select_with_arrows(

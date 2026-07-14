@@ -19,6 +19,7 @@ from urllib.parse import urlparse
 
 import typer
 from rich.console import Console
+from specify_cli.cli.console import console
 from rich.panel import Panel
 from rich.table import Table
 
@@ -58,7 +59,6 @@ from specify_cli.sync.feature_flags import (
     saas_sync_disabled_message,
 )
 
-console = Console()
 
 _LOG = logging.getLogger(__name__)
 

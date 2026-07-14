@@ -12,7 +12,8 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console
+from specify_cli.cli.console import err_console
 from rich.table import Table
 
 from specify_cli.post_merge.stale_assertions import (
@@ -27,8 +28,6 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-console = Console()
-err_console = Console(stderr=True)
 
 
 def _report_to_dict(report: StaleAssertionReport) -> dict:  # type: ignore[type-arg]

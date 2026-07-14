@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 
 import typer
 
-from specify_cli.cli.helpers import console
+from specify_cli.cli.console import console
 from specify_cli.coordination.surface_resolver import resolve_status_surface
 from specify_cli.core.constants import KITTY_SPECS_DIR
 from specify_cli.core.git_ops import run_command

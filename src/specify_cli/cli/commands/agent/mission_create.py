@@ -27,7 +27,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Annotated, cast
 
 from mission_runtime import MissionTopology
-from rich.console import Console
+from specify_cli.cli.console import console
 import typer
 
 from specify_cli.cli.selector_resolution import resolve_selector
@@ -45,7 +45,6 @@ from specify_cli.cli.commands.agent.mission_parsing import _emit_json
 if TYPE_CHECKING:
     from specify_cli.core.mission_creation import MissionCreationResult
 
-console = Console()
 
 # ``--start-branch`` / ``--target-branch`` must name the same branch because
 # mission creation stores exactly one planning branch.

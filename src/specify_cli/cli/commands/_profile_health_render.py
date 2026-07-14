@@ -28,6 +28,7 @@ import json
 from typing import TYPE_CHECKING
 
 from rich.console import Console
+from specify_cli.cli.console import console
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -48,7 +49,6 @@ __all__ = [
 
 #: Shared Rich console singleton for the ``doctor`` command surface.  ``doctor.py``
 #: re-imports this name so both modules emit through the same instance.
-console = Console()
 
 #: Canonical artifact-kind plurals as surfaced by ``doctor doctrine`` in the
 #: Selections section.  Ordering is the operator-facing reading order from

@@ -28,6 +28,7 @@ from pathlib import Path
 
 import typer
 from rich.console import Console
+from specify_cli.cli.console import console
 
 from charter.cascade import (
     CascadeScope,
@@ -50,7 +51,6 @@ from specify_cli.cli.commands.charter._layer_roots import resolve_layer_roots
 
 __all__ = ["activate_cmd"]
 
-console = Console()
 
 
 def render_pack_config_error(exc: CharterPackConfigError, console: Console) -> None:

@@ -28,14 +28,13 @@ from __future__ import annotations
 import logging
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console
 
 from specify_cli.auth import ConfigurationError, get_token_manager
 from specify_cli.auth.config import get_saas_base_url
 from specify_cli.auth.flows.revoke import RevokeFlow, RevokeOutcome
 
 log = logging.getLogger(__name__)
-console = Console()
 
 
 async def logout_impl(*, force: bool) -> None:

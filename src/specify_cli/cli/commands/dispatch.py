@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console
 from rich.panel import Panel
 
 if TYPE_CHECKING:
@@ -31,7 +31,6 @@ from specify_cli.invocation.registry import ProfileRegistry
 from specify_cli.invocation.router import ActionRouter
 from specify_cli.task_utils import find_repo_root
 
-console = Console()
 
 
 def _get_repo_root() -> Path:

@@ -35,7 +35,7 @@ from pathlib import Path
 import subprocess
 from typing import Annotated
 
-from rich.console import Console
+from specify_cli.cli.console import console
 import typer
 
 from specify_cli.core.git_ops import get_current_branch
@@ -49,7 +49,6 @@ from specify_cli.cli.commands.agent.mission_parsing import (
     _utc_now_iso,
 )
 
-console = Console()
 
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
 PROJECT_ROOT_NOT_FOUND_MESSAGE = f"{PROJECT_ROOT_NOT_FOUND}. Run from within spec-kitty repository."

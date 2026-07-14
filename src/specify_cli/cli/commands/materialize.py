@@ -13,12 +13,11 @@ import json
 from typing import Annotated, Any
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console
 
 from specify_cli.core.paths import locate_project_root
 from specify_cli.core.time_utils import now_utc_iso
 
-console = Console()
 
 
 def materialize(

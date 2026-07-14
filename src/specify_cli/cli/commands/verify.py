@@ -12,7 +12,8 @@ from rich.panel import Panel
 from rich.table import Table
 
 from specify_cli.cli import StepTracker
-from specify_cli.cli.helpers import console, get_project_root_or_exit
+from specify_cli.cli.console import console
+from specify_cli.cli.helpers import get_project_root_or_exit
 from specify_cli.core.paths import locate_project_root
 from specify_cli.core.tool_checker import check_tool_for_tracker
 from specify_cli.dashboard.diagnostics import run_diagnostics
@@ -155,7 +156,7 @@ def _run_diagnostics_mode(json_output: bool, check_tools: bool, *, feature: str 
 
         if json_output:
             # Machine-readable output for scripts and tools
-            console.print(json.dumps(diag, indent=2, default=str))
+            console.emit_json(diag, default=str)
         else:
             # Human-readable output with Rich panels
             _print_diagnostics(diag, check_tools)
@@ -166,7 +167,7 @@ def _run_diagnostics_mode(json_output: bool, check_tools: bool, *, feature: str 
                 "status": "error",
                 "message": str(exc),
             }
-            console.print(json.dumps(error_output, indent=2))
+            console.emit_json(error_output)
         else:
             console.print(f"[red]✗ Diagnostics failed:[/red] {exc}")
         raise typer.Exit(1) from exc

@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Annotated, Any
 
 import typer
-from rich.console import Console
+from specify_cli.cli.console import console
 from rich.table import Table
 
 from specify_cli.cli.selector_resolution import resolve_mission_handle
@@ -33,7 +33,6 @@ app = typer.Typer(
     no_args_is_help=True,
 )
 
-console = Console()
 PROJECT_ROOT_NOT_FOUND = "Could not locate project root"
 
 

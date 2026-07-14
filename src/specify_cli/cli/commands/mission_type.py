@@ -35,7 +35,8 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
-from specify_cli.cli.helpers import console, get_project_root_or_exit
+from specify_cli.cli.console import console
+from specify_cli.cli.helpers import get_project_root_or_exit
 from specify_cli.mission import (
     Mission,
     MissionError,

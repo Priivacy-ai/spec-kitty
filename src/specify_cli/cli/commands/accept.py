@@ -23,7 +23,8 @@ from specify_cli.acceptance import (
 from specify_cli.upgrade.pre30_guard import Pre30LayoutError
 from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_mission_handle
-from specify_cli.cli.helpers import console, show_banner
+from specify_cli.cli.console import console
+from specify_cli.cli.helpers import show_banner
 from specify_cli.task_utils import (
     LANES,
     TaskCliError,

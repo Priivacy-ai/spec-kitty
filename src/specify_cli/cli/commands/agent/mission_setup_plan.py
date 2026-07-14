@@ -36,7 +36,7 @@ import shutil
 import subprocess
 from typing import Annotated, Literal, cast
 
-from rich.console import Console
+from specify_cli.cli.console import console
 import typer
 
 from mission_runtime import MissionArtifactKind
@@ -54,7 +54,6 @@ from specify_cli.cli.commands.agent.mission_feature_resolution import (
     _sole_mission_slug_or_none,
 )
 
-console = Console()
 
 
 def _emit_json(payload: dict[str, object]) -> None:
