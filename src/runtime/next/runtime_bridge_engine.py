@@ -63,6 +63,7 @@ from runtime.next._internal_runtime.events import (
     NEXT_STEP_ISSUED,
 )
 from runtime.next._internal_runtime.schema import DecisionRequest, MissionPolicySnapshot, MissionRunSnapshot, MissionTemplate
+from runtime.next import runtime_bridge_retrospective as _retrospective
 from runtime.next.decision import DecisionKind
 from spec_kitty_events.mission_next import (
     DecisionInputRequestedPayload,
@@ -243,7 +244,6 @@ def _emit_terminal(
     sentinel patches on ``runtime_bridge.<name>`` observed unchanged.
     """
     from runtime.next import runtime_bridge as _rb  # noqa: PLC0415 — deferred to avoid the circular top-level import (runtime_bridge imports this adapter)
-    from runtime.next import runtime_bridge_retrospective as _retrospective  # noqa: PLC0415 — deferred, mirrors the _rb pattern
 
     policy, _source_map, policy_error = _rb._resolve_retrospective_policy_for_runtime(repo_root)
     retrospective_enabled = bool(getattr(policy, "enabled", False))

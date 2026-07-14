@@ -109,6 +109,8 @@ def test_undelivered_events_with_same_key_collapse_to_one_row(
     keyed = [e for e in journal.read_all() if e.coalesce_key == "grp"]
     # latest-wins collapse: the surviving (undelivered) row keeps its own id (C-005,
     # no id rewrite) but carries the most recent payload.
+    # cardinality-is-contract: two same-key rows must collapse to ONE; frozenset on event_id would mask a duplicated surviving row
+    assert len(keyed) == 1  # golden-count: cardinality-is-contract
     assert frozenset(e.event_id for e in keyed) == frozenset(
         {"evt-1"}
     ), "two undelivered same-key events must collapse to one row"
@@ -141,6 +143,8 @@ def test_coalesce_against_delivered_event_leaves_bytes_unchanged(
     assert new_row.payload == b"new-bytes"
 
     markers = read_supersede_markers(journal)
+    # cardinality-is-contract: exactly one supersede marker, not one-per-strategy (cf. test_registration_is_idempotent)
+    assert len(markers) == 1  # golden-count: cardinality-is-contract
     assert frozenset(
         (m.superseded_event_id, m.superseded_by_event_id, m.coalesce_key) for m in markers
     ) == frozenset({("evt-1", "evt-2", "grp")})

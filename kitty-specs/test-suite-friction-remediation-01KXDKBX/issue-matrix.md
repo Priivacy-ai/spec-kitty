@@ -12,8 +12,8 @@ Per FR-037 of the spec-kitty-mission-review skill Gate-4. One row per issue refe
 | #2564 | test-gate hole: seed-tuple laundering evades #2077 ban | in-mission | WP06 (Lane A) — FR-005 |
 | #2559 | dead-code gate blind to first-party module.attr access | in-mission | WP01 (Lane 0) — FR-001/002 |
 | #2075 | CT4: re-point mock-wiring 'assert HOW not WHAT' tests | in-mission | WP08 (Lane A) — FR-007 |
-| #2561 | runtime_bridge compat-delegate surface (retire) | in-mission | WP02/WP03/WP04 (Lane 0) — FR-003 |
-| #2293 | unshim: burn down category_b_grandfathered_legacy | in-mission | WP05 (Lane 0) — FR-004 |
+| #2561 | runtime_bridge compat-delegate surface (retire) | deferred-with-followup | Partial by design — 8/45 delegates retired (the non-REACH-guarded set); the 34 pinned by #2531's frozen `test_bridge_compat_surface.py` REACH guard tracked as follow-up **#2633**. #2561 stays open. |
+| #2293 | unshim: burn down category_b_grandfathered_legacy | deferred-with-followup | Premise dissolved — under the now-wired gate (FR-001) the reclassified-dead `category_b` subset is empty (`dangling=0`/`stale=0`), so there is nothing genuinely-dead to burn; the 193-entry carry-over persists. FR-004's literal count-reduction DoD is superseded, not met — #2293 stays open pending operator acceptance of the re-scope. We refused to fabricate a decrease. |
 | #2076 | CT5: stale golden-count assertions + tail | in-mission | WP07 flagship + WP11-14 sweep (Lane A/C) — FR-006/014 |
 | #2074 | CT3: meta/mission test factory delegating to production | in-mission | WP09 (Lane A) — FR-008 |
 | #2553 | test_example_round_trip legacy-contract backfill | verified-already-fixed | WP10 confirmed real record_property fix (14 nudges surface, 0 warnings) — closeable |
