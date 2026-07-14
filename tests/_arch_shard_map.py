@@ -1,12 +1,19 @@
-"""Shard registry — ``arch`` group row (data-model E1) + shared lookup (FR-002).
+"""Shard registry — ``arch`` group row (data-model E1), registered via the seam.
 
 Originated as the single-source arch-adversarial pole shard-assignment table
-(mission ``ci-health-charter-path-and-arch-shard-01KWRTB2`` WP02, #2397), now
-generalized into an **N-group registry** (mission
+(mission ``ci-health-charter-path-and-arch-shard-01KWRTB2`` WP02, #2397), then
+generalized into an N-group registry (mission
 ``ci-test-topology-performance-01KXBJRT`` WP01, FR-002/C-003/D-044): ``arch``
 and ``next`` (registered by the sibling ``tests/_next_shard_map.py``) are two
-rows of *one* mechanism — :data:`SHARD_GROUPS` — not a cloned second table,
-hook, or completeness guard.
+rows of *one* mechanism.
+
+Mission ``test-suite-friction-remediation-01KXDKBX`` WP16 (FR-011, #2621)
+replaced the shared ``SHARD_GROUPS`` dict this module used to own and mutate
+directly with the explicit ``register()``/``all_groups()`` seam in
+``tests/_shard_registry.py`` — see that module's docstring for the rationale
+(diagnosable failure on a missing group, no import-side-effect dict
+mutation). This module now owns only the ``arch`` row's data and registers it
+through the seam; it holds no registry mechanism of its own.
 
 The ``arch-adversarial`` CI job runs the 4 pole roots — ``tests/adversarial``,
 ``tests/architectural``, ``tests/architecture``, ``tests/lint`` — as a single
@@ -21,27 +28,28 @@ The concrete assignment below is copied **verbatim** from
 (a 216 / 215 / 215 greedy bin-packing result balanced by a ``def test_`` count
 proxy — see ``research.md`` R2 for the honesty caveat that this is a structural
 projection, not a live-duration measurement) and reshaped into the
-:class:`ShardGroup` row **byte-for-byte** — no relpath moves shard as part of
-this generalization. Rebalance by editing this table directly if a future CI
-run shows material drift.
+``ShardGroup`` row **byte-for-byte** — no relpath moves shard as part of this
+generalization. Rebalance by editing this table directly if a future CI run
+shows material drift.
 
 ``tests/conftest.py``'s ``pytest_collection_modifyitems`` hook applies the
 matching ``<marker_prefix>_<N>`` marker to every collected test whose file
 falls under one of a registered group's roots, driven by iterating
-:data:`SHARD_GROUPS`, looked up via :func:`shard_for`. Nothing outside a
-group's roots is touched: :func:`shard_for` returns ``None`` for any path not
-covered by the requested group, which is what keeps the hook scoped (enforced
-by ``tests/architectural/test_arch_shard_marker_completeness.py`` /
+``tests._shard_registry.all_groups()``, looked up via
+``tests._shard_registry.shard_for``. Nothing outside a group's roots is
+touched: ``shard_for`` returns ``None`` for any path not covered by the
+requested group, which is what keeps the hook scoped (enforced by
+``tests/architectural/test_arch_shard_marker_completeness.py`` /
 ``test_next_shard_marker_completeness.py``, GC-1).
 
-This module is pure data + one lookup function — no pytest import, no side
-effects — so it stays trivially unit-testable and reviewable as "just a
+This module is pure data + one ``register()`` call at import time — no
+pytest import — so it stays trivially unit-testable and reviewable as "just a
 table."
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from tests._shard_registry import ShardGroup, register
 
 # Whole-directory pole roots folded in as single functional units (never
 # split across shards).
@@ -174,6 +182,17 @@ _ARCH_SHARD_2_FILES: tuple[str, ...] = (
 )
 
 _ARCH_SHARD_3_FILES: tuple[str, ...] = (
+    # Added post-data-model.md (new file, mission
+    # test-suite-friction-remediation-01KXDKBX WP11, #2076/FR-014 -- the
+    # golden-count recurrence guard). shard_3 was the lightest by file count
+    # (34 vs 35/35) when this file landed, so it lands here. NOTE: WP16 (this
+    # mission, #2621/FR-011) is the downstream serial dependent that replaces
+    # this SHARD_GROUPS-dict idiom with the `register()` seam described in
+    # this module's docstring -- WP11 registers under the CURRENT idiom (the
+    # only one that exists at WP11's landing time) and WP16 carries this exact
+    # entry forward into the new seam. This is a recorded out-of-map append to
+    # WP16's owned file, not a cross-lane trivial-merge conflict to resolve.
+    "tests/architectural/test_golden_count_ban.py",
     "tests/architectural/test_activation_registry_schema.py",
     "tests/architectural/test_all_declarations_required.py",
     "tests/architectural/test_arch_pole_deserialized.py",
@@ -223,6 +242,14 @@ _ARCH_SHARD_3_FILES: tuple[str, ...] = (
     "tests/architectural/test_tasks_domain_gate_visibility.py",
     "tests/architectural/test_template_governance_payload_contract.py",
     "tests/architectural/test_worktrees_index_clean.py",
+    # Added post-data-model.md (new files, mission
+    # test-suite-friction-remediation-01KXDKBX WP17, #2622/#2623 -- the
+    # quality-gate.needs containment guard (FR-012) and the Sonar UI-e2e
+    # coverage-discovery wiring guard (FR-013). All three shards were tied at
+    # 35 files each when these landed; shard_3 was the lightest by
+    # def-test_ count (258 vs 261/296), so both land here.
+    "tests/architectural/test_suite_jobs_gate_blocking.py",
+    "tests/architectural/test_ui_e2e_coverage_discovered.py",
 )
 
 # ``relpath -> shard`` for exact-file (architectural) units.
@@ -251,71 +278,20 @@ _ARCH_POLE_ROOTS: tuple[str, ...] = (
 )
 
 
-@dataclass(frozen=True)
-class ShardGroup:
-    """One row of the shard registry (data-model E1).
-
-    ``dir_assignment`` / ``file_assignment`` are kept as two internal maps
-    (rather than one merged dict) purely for :func:`shard_for`'s lookup
-    efficiency — a handful of whole-directory prefixes checked first, then an
-    ``O(1)`` exact-file lookup — mirroring the pre-generalization resolution
-    order exactly (byte-stable for ``arch``). :attr:`assignment` is the
-    public, merged ``relpath/dirpath -> shard_idx`` view the data model
-    describes.
-    """
-
-    group: str
-    roots: tuple[str, ...]
-    shard_count: int
-    marker_prefix: str
-    dir_assignment: dict[str, int] = field(default_factory=dict)
-    file_assignment: dict[str, int] = field(default_factory=dict)
-
-    @property
-    def assignment(self) -> dict[str, int]:
-        """Merged ``relpath/dirpath -> shard_idx`` map (data-model E1 field)."""
-        return {**self.dir_assignment, **self.file_assignment}
-
-
-# The single-source registry: ``group name -> ShardGroup``. This module owns
-# only the ``arch`` row; ``tests/_next_shard_map.py`` registers the sibling
-# ``next`` row into this SAME dict at import time (D-044/C-003 — one
-# registry, not a cloned second one). ``tests/conftest.py`` imports
-# ``_next_shard_map`` (for its registration side effect) alongside this
-# module, then iterates :data:`SHARD_GROUPS`, never hardcoding a group name.
-SHARD_GROUPS: dict[str, ShardGroup] = {
-    "arch": ShardGroup(
+# Register the ``arch`` row through the explicit seam (`tests/_shard_registry`,
+# FR-011/#2621) — the one place this module's row is assembled. No shared
+# dict is mutated here; `tests/_next_shard_map.py` registers its own `next`
+# row into the SAME seam independently (D-044/C-003 — one registry, not a
+# cloned second one), and `tests/conftest.py` / the completeness guard consume
+# both rows via `tests._shard_registry.all_groups()` / `get_group()`, never a
+# hardcoded group name.
+register(
+    ShardGroup(
         group="arch",
         roots=_ARCH_POLE_ROOTS,
         shard_count=3,
         marker_prefix="arch_shard",
         dir_assignment=_ARCH_DIR_ASSIGNMENT,
         file_assignment=_ARCH_FILE_ASSIGNMENT,
-    ),
-}
-
-
-def shard_for(group: str, relpath: str) -> int | None:
-    """Return the ``<marker_prefix>_N`` shard number for *relpath* in *group*.
-
-    ``None`` when *group* is not registered, or *relpath* falls outside that
-    group's assignment. *relpath* is a repo-root-relative path using ``/``
-    separators (as produced by pytest's own nodeid/relpath reporting).
-    Resolution order (per group, identical to the pre-generalization
-    ``arch``-only behavior):
-
-    1. Whole-directory roots — any path under one of the group's directory
-       units resolves to that directory's single shard.
-    2. Exact file match in the group's file assignment.
-    3. ``None`` for anything outside the group's roots (including non-test
-       infra modules such as ``__init__.py`` / ``conftest.py`` / helper
-       modules, and any path not covered by the group's assignment at all).
-    """
-    spec = SHARD_GROUPS.get(group)
-    if spec is None:
-        return None
-    normalized = relpath.replace("\\", "/")
-    for dirpath, shard in spec.dir_assignment.items():
-        if normalized == dirpath or normalized.startswith(f"{dirpath}/"):
-            return shard
-    return spec.file_assignment.get(normalized)
+    )
+)

@@ -1,11 +1,13 @@
 """Shard registry — ``next`` group row (data-model E1, FR-002).
 
 Mission ``ci-test-topology-performance-01KXBJRT`` WP01. Registers the
-``next`` row into the SAME :data:`tests._arch_shard_map.SHARD_GROUPS` registry
-``tests/_arch_shard_map.py`` owns — one shard mechanism (registry + conftest
-hook + parametrized completeness guard) shared by ``arch`` and ``next``, not a
-cloned second one (D-044/C-003). ``tests/_arch_shard_map.py`` stays
-``arch``-only; this sibling module owns the ``next`` row exclusively.
+``next`` row into the shared seam (``tests/_shard_registry.register()``,
+FR-011/#2621 — mission ``test-suite-friction-remediation-01KXDKBX`` WP16
+replaced the ``tests/_arch_shard_map.SHARD_GROUPS`` dict-mutation idiom this
+module used with the explicit seam) — one shard mechanism (registry +
+conftest hook + parametrized completeness guard) shared by ``arch`` and
+``next``, not a cloned second one (D-044/C-003). ``tests/_arch_shard_map.py``
+stays ``arch``-only; this sibling module owns the ``next`` row exclusively.
 
 ``roots`` are the exact 3 paths ``integration-tests-next`` runs today
 (``.github/workflows/ci-quality.yml`` — the ``Run integration tests — next``
@@ -25,7 +27,7 @@ split here.
 
 from __future__ import annotations
 
-from tests._arch_shard_map import SHARD_GROUPS, ShardGroup
+from tests._shard_registry import ShardGroup, register
 
 # Whole-file assignments under ``tests/next``.
 _NEXT_SHARD_1_FILES: tuple[str, ...] = (
@@ -145,12 +147,14 @@ _NEXT_ROOTS: tuple[str, ...] = (
     "tests/runtime",
 )
 
-# Register the ``next`` row into the shared registry (import-time side
-# effect — this is the one place ``SHARD_GROUPS["next"]`` is assigned).
-SHARD_GROUPS["next"] = ShardGroup(
-    group="next",
-    roots=_NEXT_ROOTS,
-    shard_count=3,
-    marker_prefix="next_shard",
-    file_assignment=_NEXT_FILE_ASSIGNMENT,
+# Register the ``next`` row through the explicit seam (import-time side
+# effect — this is the one place the ``next`` group is registered).
+register(
+    ShardGroup(
+        group="next",
+        roots=_NEXT_ROOTS,
+        shard_count=3,
+        marker_prefix="next_shard",
+        file_assignment=_NEXT_FILE_ASSIGNMENT,
+    )
 )

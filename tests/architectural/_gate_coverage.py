@@ -1593,6 +1593,31 @@ def baseline_diff(
     return baseline_set - current_set, current_set - baseline_set
 
 
+def gc2b_orphaned_drift(
+    dropped: Iterable[str],
+    orphan_nodeids: Iterable[str],
+) -> frozenset[str]:
+    """The subset of a GC-2b ``dropped`` set that is a GENUINE orphan today.
+
+    Mission test-suite-friction-remediation-01KXDKBX WP15 (#2616): GC-2b used to
+    require ``dropped`` (and ``added``) to be empty outright, which fires on
+    routine test-file add/remove — this mission alone adds/removes guard files
+    4-5x, forcing a baseline refreeze every time even though nothing regressed.
+
+    Most ``dropped`` entries are exactly that noise: the file was deleted
+    (it no longer exists in today's collected universe, so it cannot be an
+    orphan) or its coverage moved to a DIFFERENT CI gate (still selected by
+    >=1 of the ~40 gates, just not this target's) — neither is a coverage
+    problem. The load-bearing GC-2b signal this ratchet must still catch is a
+    node-id that still exists in the suite AND is now selected by ZERO gates
+    (``orphan_nodeids`` — the same whole-suite orphan set :func:`analyze`
+    computes): a genuine coverage-hole regression, not membership churn.
+    Intersecting ``dropped`` with ``orphan_nodeids`` scopes the ratchet to
+    exactly that signal.
+    """
+    return frozenset(dropped) & frozenset(orphan_nodeids)
+
+
 # ---------------------------------------------------------------------------
 # Baseline I/O + CLI
 # ---------------------------------------------------------------------------

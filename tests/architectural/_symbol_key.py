@@ -68,11 +68,14 @@ __all__ = [
     "Location",
     "SymbolKey",
     "alias_body_hash",
+    "bind_call_accessor_aliases",
     "body_hash",
     "classify_collisions",
     "definition_span",
+    "find_module_factory_functions",
     "key_tier",
     "perf_budget_seconds",
+    "record_call_chain_attr_edges",
     "resolve_symbol_key",
     "timed_classify_collisions",
     "unresolved_reason",
@@ -533,6 +536,160 @@ def key_tier(
         # (module_path itself would not disambiguate) -> fail-closed.
         return None
     return SymbolKey(bare_name=key.bare_name, body_hash=key.body_hash, module_path=module_path)
+
+
+# ---------------------------------------------------------------------------
+# IC-01 -- first-party dynamic (call-bound) module-attr access (FR-001/FR-002,
+# #2559, test-suite-friction-remediation-01KXDKBX WP01)
+# ---------------------------------------------------------------------------
+#
+# The gate's plain-import module-attr detector (``_record_module_attr_edges``
+# in ``test_no_dead_symbols.py``) only sees an alias bound by a STATIC
+# ``import``/``from ... import ... as`` statement. A first-party module
+# obtained from a local zero-arg factory function -- the
+# ``_runtime_bridge_module()`` shape ("Return the patched bridge when
+# tests/consumers installed one", `src/specify_cli/cli/commands/next_cmd.py`)
+# -- is invisible to that walk: the module reference is bound to a NAME via a
+# function CALL, not an import. The two helpers below resolve that shape
+# generally (no reference to ``runtime_bridge`` anywhere in this module):
+#
+# 1. :func:`find_module_factory_functions` recognises a module-scope function
+#    whose body resolves a KNOWN first-party module via a
+#    ``importlib.import_module("<literal>")`` call (the accessor's own
+#    control flow -- a ``sys.modules.get(...) or ...`` short-circuit, a cache
+#    check, etc. -- is deliberately NOT pattern-matched, only the presence of
+#    that resolvable call).
+# 2. :func:`bind_call_accessor_aliases` covers the actual call-site shape used
+#    in practice -- ``bridge = _runtime_bridge_module(); bridge.attr`` -- by
+#    extending the SAME alias map the plain-import detector already consumes,
+#    so ``bridge.attr`` is rescued by the existing ``_record_module_attr_edges``
+#    walk with zero new attribute-matching logic.
+# 3. :func:`record_call_chain_attr_edges` additionally covers the direct
+#    ``factory().attr`` chain (no intermediate local) for completeness.
+#
+# Scope is deliberately narrow (anti-goal, contracts/dead-code-dynamic-access.md):
+# this does NOT widen liveness to *any* attribute access -- only to attribute
+# access on a name/call-chain that resolves, via a real ``import_module`` call,
+# to a module already present in the corpus (``known_modules``), mirroring the
+# no-false-negative guard the sibling detectors already enforce (T004).
+
+
+def _is_import_module_call(node: ast.AST, alias_map: Mapping[str, str]) -> bool:
+    """True iff *node* is a call shaped ``importlib.import_module(...)``.
+
+    ``importlib`` is resolved through *alias_map* (a bare ``import importlib``
+    is recorded there under its own name by the caller's alias-map builder),
+    so an aliased import (``import importlib as il``) is recognised too.
+    """
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "import_module"
+        and isinstance(node.func.value, ast.Name)
+        and alias_map.get(node.func.value.id) == "importlib"
+    )
+
+
+def _import_module_literal(call: ast.Call, str_consts: Mapping[str, str]) -> str | None:
+    """The dotted module string passed as the first arg to an ``import_module(...)`` call."""
+    if not call.args:
+        return None
+    arg = call.args[0]
+    if isinstance(arg, ast.Constant) and isinstance(arg.value, str):
+        return arg.value
+    if isinstance(arg, ast.Name) and arg.id in str_consts:
+        return str_consts[arg.id]
+    return None
+
+
+def find_module_factory_functions(
+    tree: ast.Module,
+    alias_map: Mapping[str, str],
+    str_consts: Mapping[str, str],
+    containing_pkg: str,
+    known_modules: frozenset[str],
+    resolve_relative_module: Callable[[str, str], str],
+) -> dict[str, str]:
+    """Map a local zero-arg 'module factory' function name to the first-party
+    module dotted path it resolves at call time.
+
+    Scoped to TOP-LEVEL function definitions only (the accessor is a
+    module-scope helper, not a nested closure) and to modules already present
+    in ``known_modules`` -- the same no-false-negative guard the plain-import
+    detector relies on, so a typo'd or non-first-party literal cannot record
+    a bogus edge.
+    """
+    factories: dict[str, str] = {}
+    for node in tree.body:
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for call in ast.walk(node):
+            if not (isinstance(call, ast.Call) and _is_import_module_call(call, alias_map)):
+                continue
+            literal = _import_module_literal(call, str_consts)
+            if literal is None:
+                continue
+            resolved = resolve_relative_module(literal, containing_pkg)
+            if resolved in known_modules:
+                factories[node.name] = resolved
+            break
+    return factories
+
+
+def bind_call_accessor_aliases(
+    tree: ast.Module,
+    factories: Mapping[str, str],
+) -> dict[str, str]:
+    """Extend an alias map with locals bound from a recognised factory call.
+
+    For every ``name = factory()`` (or annotated ``name: T = factory()``)
+    assignment anywhere in the module where ``factory`` is a name in
+    *factories* (see :func:`find_module_factory_functions`), maps
+    ``name -> factories[factory]``. Merging the result into the alias map the
+    plain-import module-attr detector already consumes means a call-bound
+    local (``bridge = _runtime_bridge_module()``) is rescued by the SAME
+    ``alias.attr`` walk as a real ``import module as alias`` binding -- no
+    separate attribute-matching logic is needed for this shape.
+    """
+    aliases: dict[str, str] = {}
+    for node in ast.walk(tree):
+        target: ast.expr | None = None
+        value: ast.expr | None = None
+        if isinstance(node, ast.Assign) and len(node.targets) == 1:
+            target, value = node.targets[0], node.value
+        elif isinstance(node, ast.AnnAssign):
+            target, value = node.target, node.value
+        if not (
+            isinstance(target, ast.Name)
+            and isinstance(value, ast.Call)
+            and isinstance(value.func, ast.Name)
+            and value.func.id in factories
+        ):
+            continue
+        aliases[target.id] = factories[value.func.id]
+    return aliases
+
+
+def record_call_chain_attr_edges(
+    tree: ast.Module,
+    factories: Mapping[str, str],
+    per_symbol: dict[str, set[str]],
+) -> None:
+    """Record caller-edges from a direct ``factory().attr`` call-chain access.
+
+    Covers the general form the IC-01 contract illustrates (no intermediate
+    local variable). Complements :func:`bind_call_accessor_aliases`, which
+    covers the ``local = factory(); local.attr`` two-step shape actually used
+    by the known ``_runtime_bridge_module()`` call sites.
+    """
+    for node in ast.walk(tree):
+        if (
+            isinstance(node, ast.Attribute)
+            and isinstance(node.value, ast.Call)
+            and isinstance(node.value.func, ast.Name)
+            and node.value.func.id in factories
+        ):
+            per_symbol.setdefault(factories[node.value.func.id], set()).add(node.attr)
 
 
 # ---------------------------------------------------------------------------

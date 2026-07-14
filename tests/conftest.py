@@ -16,8 +16,9 @@ import yaml
 from filelock import FileLock, Timeout
 
 from runtime.next._tmp_namespace import prompt_tmp_dir
-from tests import _next_shard_map  # noqa: F401 — import-time SHARD_GROUPS["next"] registration
-from tests._arch_shard_map import SHARD_GROUPS, shard_for
+from tests import _arch_shard_map  # noqa: F401 — import-time `arch` group registration via register()
+from tests import _next_shard_map  # noqa: F401 — import-time `next` group registration via register()
+from tests._shard_registry import all_groups, shard_for
 from tests._support.quarantine import (
     QUARANTINE_MARKER,
     quarantine_opted_in,
@@ -222,19 +223,20 @@ def _apply_shard_markers(item: pytest.Item) -> None:
 
     Applies the ``<marker_prefix>_<N>`` mark to every collected test whose
     file falls under one of a registered shard group's roots, iterating
-    ``SHARD_GROUPS`` (the single-source registry in
-    ``tests/_arch_shard_map.py`` — ``arch``'s own row — plus
-    ``tests/_next_shard_map.py``'s ``next`` row, registered at import time).
-    One hook drives every group: no group name is hardcoded here, so a future
-    group needs only a new registry row, not a second call site.
-    ``shard_for()`` returns ``None`` for anything outside a group's roots, so
-    this never marks unrelated tests — no fallback default shard is applied.
+    ``tests._shard_registry.all_groups()`` (the single-source seam —
+    ``tests/_arch_shard_map.py``'s ``arch`` row plus
+    ``tests/_next_shard_map.py``'s ``next`` row, each registered explicitly at
+    import time via ``register()``, FR-011/#2621). One hook drives every
+    group: no group name is hardcoded here, so a future group needs only a
+    new ``register()`` call, not a second call site. ``shard_for()`` returns
+    ``None`` for anything outside a group's roots, so this never marks
+    unrelated tests — no fallback default shard is applied.
     """
     try:
         relpath = Path(str(item.path)).resolve().relative_to(REPO_ROOT).as_posix()
     except (ValueError, OSError):
         return
-    for group in SHARD_GROUPS.values():
+    for group in all_groups().values():
         shard = shard_for(group.group, relpath)
         if shard is not None:
             item.add_marker(getattr(pytest.mark, f"{group.marker_prefix}_{shard}"))

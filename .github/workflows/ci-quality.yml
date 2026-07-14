@@ -3288,6 +3288,53 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
 
+      # ---------------------------------------------------------------------
+      # FR-013 / IC-12 (#2623): coverage-ui-e2e.xml (--cov=src/specify_cli/
+      # dashboard) is produced by the SEPARATE ui-e2e.yml workflow, not this
+      # one — the download-artifact steps above only ever look at THIS
+      # workflow's own runs (ci-quality.yml), so the ui-e2e coverage silently
+      # never reached Sonar's denominator (ui-e2e.yml's own header comment
+      # documents this exact gap as a fast-follow through this file's owner).
+      # These two steps resolve and fetch it cross-workflow, keyed to the
+      # HEAD SHA this sonarcloud run is analyzing (not merely "most recent
+      # overall" like the prev_run fallback above — a stale/unrelated
+      # commit's coverage must never be silently substituted).
+      # ---------------------------------------------------------------------
+      - name: "[ENFORCED] Find head-SHA ui-e2e.yml run for cross-workflow coverage"
+        if: steps.sonar_token.outputs.enabled == 'true'
+        id: ui_e2e_run
+        uses: actions/github-script@v9
+        with:
+          script: |
+            // Find the most recent SUCCESSFUL ui-e2e.yml run for the SAME
+            // head commit this sonarcloud run is analyzing (head_sha-keyed).
+            const { data } = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'ui-e2e.yml',
+              head_sha: context.sha,
+              status: 'completed',
+              per_page: 10,
+            });
+            const run = data.workflow_runs.find(r => r.conclusion === 'success');
+            const runId = run ? String(run.id) : '';
+            core.setOutput('run_id', runId);
+            if (run) {
+              console.log(`ui-e2e coverage run: ${run.id} (head_sha=${context.sha})`);
+            } else {
+              console.log(`No successful ui-e2e.yml run found for head_sha=${context.sha}.`);
+            }
+
+      - name: "[ENFORCED] Download ui-e2e coverage artifact (cross-workflow, head-SHA-keyed)"
+        if: steps.sonar_token.outputs.enabled == 'true' && steps.ui_e2e_run.outputs.run_id != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: ui-e2e-coverage-reports
+          path: out/reports/artifacts/ui-e2e
+          run-id: ${{ steps.ui_e2e_run.outputs.run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+
       - name: "[ENFORCED] Discover coverage XMLs and build Sonar config"
         id: coverage_paths
         if: steps.sonar_token.outputs.enabled == 'true'
@@ -3295,7 +3342,10 @@ jobs:
           mkdir -p out/reports/coverage
 
           # Build coverage path list: current-run artifacts take priority;
-          # fallback (previous run) fills in for jobs that did not re-run.
+          # fallback (previous run) fills in for jobs that did not re-run;
+          # the ui-e2e cross-workflow artifact (FR-013/#2623) fills in last —
+          # its basename (coverage-ui-e2e.xml) never collides with a
+          # current/fallback key, but the same-key-guard is kept for symmetry.
           declare -A seen_reports
 
           # 1. Current-run artifacts (highest priority)
@@ -3312,6 +3362,16 @@ jobs:
               echo "::notice::Using fallback coverage for $(dirname "$f" | xargs basename)"
             fi
           done < <(find out/reports/artifacts/fallback -name 'coverage-*.xml' -print0 2>/dev/null)
+
+          # 3. ui-e2e.yml cross-workflow artifact (coverage-ui-e2e.xml,
+          # FR-013/IC-12/#2623) — head-SHA-keyed (step: ui_e2e_run above).
+          while IFS= read -r -d '' f; do
+            key=$(basename "$f")
+            if [[ -z "${seen_reports[$key]+_}" ]]; then
+              seen_reports["$key"]="$f"
+              echo "::notice::Using cross-workflow ui-e2e coverage for $(basename "$f")"
+            fi
+          done < <(find out/reports/artifacts/ui-e2e -name 'coverage-*.xml' -print0 2>/dev/null)
 
           echo "Discovered coverage reports:"
           for f in "${seen_reports[@]}"; do echo "  $f"; done
@@ -3762,6 +3822,18 @@ jobs:
   # full-run supersede, no draft exemption), and any unmet release-required
   # job. `quarantine-visibility` stays OUT of the blocking set (C-005 — the
   # script trips exit 2 if it ever appears in the payload).
+  #
+  # `slow-tests` (mission test-suite-friction-remediation-01KXDKBX WP17,
+  # FR-012/#2622): added below to close the "un-gated by convention" gap —
+  # it carries no dorny filter-group `if:` gate (group-less/always-on, like
+  # `lint`/`kernel-tests`/`unit-contract-residual` above), so
+  # scripts/ci/quality_gate_decision.py's `filter_true` is vacuously False for
+  # it and its `skipped` result on every pull_request event (it only runs on
+  # push/workflow_dispatch) is legitimately OK — but a real `failure` on a
+  # push run now blocks the gate, closing the gap. `mutation-testing` stays
+  # OUT of `needs:` — see tests/architectural/test_suite_jobs_gate_blocking.py's
+  # `NON_BLOCKING_ALLOWLIST` for its explicit non-blocking rationale (it is
+  # `if: false`-disabled and invokes no pytest today).
   # ---------------------------------------------------------------------------
   quality-gate:
     needs:
@@ -3789,6 +3861,7 @@ jobs:
       - fast-tests-agent
       - mission-loader-coverage
       - unit-contract-residual
+      - slow-tests
       - integration-tests-doctrine
       - integration-tests-charter
       - integration-tests-sync
