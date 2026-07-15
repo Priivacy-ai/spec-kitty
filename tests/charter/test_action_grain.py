@@ -15,6 +15,7 @@ Self-contained: uses the real built-in missions root (via the session-scoped
 
 from __future__ import annotations
 
+import dataclasses
 from pathlib import Path
 
 import pytest
@@ -93,6 +94,24 @@ class TestActionIndexToMapping:
         mapping["directives"].append("injected")
 
         assert index.directives == ["003-decision-documentation-requirement"]
+
+    def test_governance_kinds_match_action_index_fields(self) -> None:
+        """1:1 drift guard: ``_GOVERNANCE_KINDS`` MUST mirror the ``ActionIndex``
+        governance fields exactly.
+
+        ``action_index_to_mapping`` projects an ``ActionIndex`` onto
+        ``_GOVERNANCE_KINDS`` via ``getattr``. If a new artifact-kind field is
+        added to ``ActionIndex`` but not to ``_GOVERNANCE_KINDS``, that kind is
+        silently dropped from every action grain (and from FR-013 cross-grain
+        detection) with no test failure — the exact whack-a-field drift this
+        mission exists to close. Pin the two lists together so the omission is
+        a hard failure at the source, not a silent gap downstream.
+        """
+        from charter.mission_type_profiles import _GOVERNANCE_KINDS  # noqa: PLC0415 — lazy; mirrors the module's own cycle-avoidance convention
+
+        action_index_fields = {f.name for f in dataclasses.fields(ActionIndex)}
+        # ``action`` names the action itself, not a governance kind.
+        assert action_index_fields - {"action"} == set(_GOVERNANCE_KINDS)
 
 
 # ---------------------------------------------------------------------------
