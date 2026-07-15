@@ -50,10 +50,18 @@ from pathlib import Path
 
 from doctrine.missions.action_index import ActionIndex, load_action_index
 
+# Only ``aggregate_action_grain`` is exported: it is the single seam a runtime
+# ``src`` consumer imports (``charter.mission_type_profiles``). The other two
+# module functions are intentionally NOT in ``__all__`` — the symbol-level
+# dead-code gate (``tests/architectural/test_no_dead_symbols.py``) flags an
+# ``__all__`` member with no ``src`` importer, and today both are invoked only
+# from tests: ``action_index_to_mapping`` is a pure internal adapter, and
+# ``scan_builtin_cross_grain_duplicates`` is the FR-013 integrity-gate
+# entrypoint whose runtime consumer (``doctor``/CI wiring) is tracked in #2666.
+# Both remain public module-level functions and are imported directly by their
+# tests; re-add to ``__all__`` once a runtime caller exists.
 __all__ = [
-    "action_index_to_mapping",
     "aggregate_action_grain",
-    "scan_builtin_cross_grain_duplicates",
 ]
 
 
