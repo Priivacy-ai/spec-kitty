@@ -26,11 +26,12 @@ import re
 import subprocess
 from collections.abc import Iterable, Mapping
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, NamedTuple, Protocol, runtime_checkable
+from typing import Any, NamedTuple, Protocol, runtime_checkable
 
 from mission_runtime import (
     ActionContextError,
     CommitTarget,
+    is_coordination_artifact_residue_path,
     resolve_action_context,
     resolve_topology,
     routes_through_coordination,
@@ -42,9 +43,6 @@ from specify_cli.core.errors import PlacementResolutionRequired
 from specify_cli.frontmatter import WP_RUNTIME_FIELDS
 from specify_cli.status import COORD_OWNED_STATUS_FILES
 from specify_cli.task_utils.support import split_frontmatter
-
-if TYPE_CHECKING:
-    pass
 
 # vcs-lock fields written by ``mission_metadata.set_vcs_lock`` (the canonical
 # writer). #2222 / C-003: this lock is one-time VCS-TYPE state, NOT the
@@ -243,10 +241,41 @@ def _parse_meta_mapping(raw: bytes) -> dict[str, Any] | None:
     return parsed if isinstance(parsed, dict) else None
 
 
+def resolve_precondition_ref(repo_rel_path: str, coord_branch_for_filter: str | None) -> str:
+    """Resolve the SINGLE ref *repo_rel_path* must be compared against for the
+    implement-claim precondition (contracts/resolve-precondition-ref.md,
+    corrected post-tasks-squad; FR-001/FR-002/BLOCKER-2).
+
+    Per-path, not per-staging-call: on a coordination mission
+    ``coord_branch_for_filter`` is one non-``None`` branch for every
+    candidate, so only the PATH distinguishes a PRIMARY ``spec.md`` (compares
+    against the primary/target branch -- ``HEAD`` in the local checkout) from
+    a COORD ``status.events.jsonl`` (compares against the coordination ref).
+
+    Uses :func:`~mission_runtime.is_coordination_artifact_residue_path`
+    (None-safe over an unrecognized kind) -- NOT
+    ``is_primary_artifact_kind(kind_for_mission_file(path))``:
+    ``kind_for_mission_file("meta.json")`` returns ``None``, so that form is
+    both a ``mypy --strict`` error and would misroute ``meta.json`` to coord,
+    reintroducing #2533 (BLOCKER-2).
+
+    Defaults toward primary (fail-safe direction, NFR-004): everything not
+    explicitly coord-residue -- PRIMARY kinds, ``meta.json`` (kind ``None``),
+    and unrecognized paths -- resolves to ``"HEAD"``. A PRIMARY artifact is
+    never compared against the coordination branch. Pure: no filesystem/git
+    side effects.
+    """
+    if coord_branch_for_filter and is_coordination_artifact_residue_path(repo_rel_path):
+        return coord_branch_for_filter
+    return "HEAD"
+
+
 def _committed_meta_mapping(repo_root: Path, repo_rel: str, ref: str | None, *, git: GitPort = DEFAULT_GIT_PORT) -> dict[str, Any] | None:
-    """The committed meta.json mapping at *ref* (or ``HEAD`` for flat/legacy
-    missions), or ``None`` when the path is absent there or unparseable."""
-    blob = git.show_blob(repo_root, ref or "HEAD", repo_rel)
+    """The committed meta.json mapping at the path-resolved precondition ref
+    (:func:`resolve_precondition_ref` -- ``HEAD`` for meta.json, which is
+    always a PRIMARY kind), or ``None`` when the path is absent there or
+    unparseable."""
+    blob = git.show_blob(repo_root, resolve_precondition_ref(repo_rel, ref), repo_rel)
     if blob is None:
         return None
     return _parse_meta_mapping(blob)
@@ -384,7 +413,7 @@ def _drop_runtime_frontmatter_only_wp(
         if not source.exists():
             kept.append(repo_rel)
             continue
-        committed_blob = git.show_blob(repo_root, ref or "HEAD", repo_rel)
+        committed_blob = git.show_blob(repo_root, resolve_precondition_ref(repo_rel, ref), repo_rel)
         if committed_blob is None:
             kept.append(repo_rel)
             continue
@@ -428,6 +457,35 @@ def _files_changed_vs_ref(repo_root: Path, files: list[str], ref: str | None, *,
         if git.show_blob(repo_root, ref, repo_rel) != source.read_bytes():
             changed.append(repo_rel)
     return changed
+
+
+def _files_changed_vs_precondition_ref(
+    repo_root: Path,
+    files: list[str],
+    coord_branch_for_filter: str | None,
+    *,
+    git: GitPort = DEFAULT_GIT_PORT,
+) -> list[str]:
+    """Per-path idempotency filter (T003, contracts/resolve-precondition-ref.md
+    "Preferred design"): partition *files* by :func:`resolve_precondition_ref`
+    into a PRIMARY group (diffed against ``HEAD``) and a COORD-residue group
+    (diffed against *coord_branch_for_filter*), calling
+    :func:`_files_changed_vs_ref` once per group so ITS OWN
+    ``(repo_root, files, ref)`` signature stays untouched (its direct unit
+    tests keep passing). Preserves the original relative order of *files* in
+    the result -- callers print ``files_to_commit`` verbatim in the "not
+    committed" instructions.
+    """
+    primary_files: list[str] = []
+    coord_files: list[str] = []
+    for repo_rel in files:
+        if resolve_precondition_ref(repo_rel, coord_branch_for_filter) == "HEAD":
+            primary_files.append(repo_rel)
+        else:
+            coord_files.append(repo_rel)
+    changed = set(_files_changed_vs_ref(repo_root, primary_files, "HEAD", git=git))
+    changed |= set(_files_changed_vs_ref(repo_root, coord_files, coord_branch_for_filter, git=git))
+    return [repo_rel for repo_rel in files if repo_rel in changed]
 
 
 # ---------------------------------------------------------------------------
@@ -491,14 +549,16 @@ def resolve_planning_artifact_staging(
     if not files_to_commit:
         return PlanningArtifactStagingPlan(structural=[], files_to_commit=[], status_paths_to_commit=[])
 
-    # Idempotency guard: skip files already identical on the coordination branch
-    # so a re-discovered (but already-committed) edit does not produce an empty
-    # commit that ``safe_commit`` rejects. See ``_files_changed_vs_ref``.
-    files_to_commit = _files_changed_vs_ref(repo_root, files_to_commit, coord_branch_for_filter, git=git)
+    # Idempotency guard: skip files already identical on THEIR OWN partition ref
+    # (PRIMARY kinds -> HEAD, COORD-residue kinds -> the coordination branch;
+    # see ``resolve_precondition_ref``) so a re-discovered (but
+    # already-committed) edit does not produce an empty commit that
+    # ``safe_commit`` rejects. See ``_files_changed_vs_precondition_ref``.
+    files_to_commit = _files_changed_vs_precondition_ref(repo_root, files_to_commit, coord_branch_for_filter, git=git)
     if not files_to_commit:
         return PlanningArtifactStagingPlan(structural=[], files_to_commit=[], status_paths_to_commit=[])
 
-    status_paths_to_commit = _files_changed_vs_ref(repo_root, status_paths, coord_branch_for_filter, git=git)
+    status_paths_to_commit = _files_changed_vs_precondition_ref(repo_root, status_paths, coord_branch_for_filter, git=git)
     return PlanningArtifactStagingPlan(
         structural=[],
         files_to_commit=files_to_commit,
