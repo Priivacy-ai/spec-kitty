@@ -203,6 +203,18 @@ nodes:
 - urn: directive:DIRECTIVE_046
   kind: directive
   label: Readable and Consistent Pull Requests
+- urn: mission_type:documentation
+  kind: mission_type
+  label: Documentation
+- urn: mission_type:plan
+  kind: mission_type
+  label: Plan
+- urn: mission_type:research
+  kind: mission_type
+  label: Research
+- urn: mission_type:software-dev
+  kind: mission_type
+  label: Software Development
 - urn: paradigm:anemic-domain-model
   kind: paradigm
 - urn: paradigm:atomic-design

@@ -765,6 +765,33 @@ def _discover_built_in_artifact_nodes(
             _ensure_node(nodes_by_urn, urn, node_kind, label or None)
 
 
+def _discover_mission_type_nodes(
+    doctrine_root: Path,
+    nodes_by_urn: dict[str, DRGNode],
+) -> None:
+    """Register a ``mission_type`` node for each shipped mission-type YAML.
+
+    Mirrors :func:`_discover_built_in_artifact_nodes`: one node per
+    ``src/doctrine/missions/mission_types/*.yaml`` file, ``urn=mission_type:<id>``,
+    labelled with the file's ``display_name``. Nodes only -- no edges are
+    emitted here (edges are a deliberate S0-continuation; do not add a
+    ``_KIND_MAP`` entry until edges exist).
+    """
+    mission_types_dir = doctrine_root / "missions" / "mission_types"
+    if not mission_types_dir.is_dir():
+        return
+    for path in sorted(mission_types_dir.glob("*.yaml")):
+        data = _load_yaml(path)
+        if data is None:
+            continue
+        mission_type_id: str = data.get("id", "")
+        label: str = data.get("display_name", "")
+        if not mission_type_id:
+            continue
+        urn = artifact_to_urn("mission_type", mission_type_id)
+        _ensure_node(nodes_by_urn, urn, NodeKind.MISSION_TYPE, label or None)
+
+
 def generate_graph(
     doctrine_root: Path,
     output_path: Path,
@@ -796,6 +823,9 @@ def generate_graph(
 
     # Step 4: Discover built-in artifacts not yet tracked
     _discover_built_in_artifact_nodes(doctrine_root, nodes_by_urn)
+
+    # Step 4b: Discover mission-type nodes (nodes only -- no edges, S0-continuation)
+    _discover_mission_type_nodes(doctrine_root, nodes_by_urn)
 
     # Step 5: Merge all edges
     all_edges = artifact_edges + action_edges
