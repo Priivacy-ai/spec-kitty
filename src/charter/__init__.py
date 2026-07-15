@@ -71,7 +71,6 @@ from .org_extends import (
     resolve_extends_order,
 )
 from .mission_type_profiles import (
-    CANONICAL_MISSION_TYPES,
     CrossGrainDoubleDeclarationError,
     GovernancePayload,
     MissionTypeProfile,
@@ -144,7 +143,6 @@ __all__ = [
     "resolve_governance_for_profile",
     "resolve_project_governance",
     "collect_governance_diagnostics",
-    "CANONICAL_MISSION_TYPES",
     "CrossGrainDoubleDeclarationError",
     "GovernancePayload",
     "MissionTypeProfile",

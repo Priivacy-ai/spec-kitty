@@ -25,8 +25,8 @@ from charter.action_grain import (
     aggregate_action_grain,
     scan_builtin_cross_grain_duplicates,
 )
-from charter.mission_type_profiles import CANONICAL_MISSION_TYPES
 from doctrine.missions.action_index import ActionIndex
+from doctrine.missions.mission_type_repository import builtin_mission_type_ids
 
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
@@ -198,9 +198,9 @@ class TestScanBuiltinCrossGrainDuplicates:
     def test_all_four_shipped_types_are_disjoint(self) -> None:
         scanned = scan_builtin_cross_grain_duplicates()
 
-        assert set(scanned) == set(CANONICAL_MISSION_TYPES)
+        assert set(scanned) == set(builtin_mission_type_ids())
 
     def test_explicit_built_in_dir_matches_default(self, missions_root: Path) -> None:
         scanned = scan_builtin_cross_grain_duplicates(built_in_dir=missions_root)
 
-        assert set(scanned) == set(CANONICAL_MISSION_TYPES)
+        assert set(scanned) == set(builtin_mission_type_ids())

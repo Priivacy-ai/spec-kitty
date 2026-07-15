@@ -68,7 +68,6 @@ if TYPE_CHECKING:
     from charter.mission_type_profile_repository import MissionTypeProfileRepository
 
 __all__ = [
-    "CANONICAL_MISSION_TYPES",
     "CrossGrainDoubleDeclarationError",
     "GovernancePayload",
     "MissionTypeProfile",
@@ -79,21 +78,6 @@ __all__ = [
     "resolve_mission_type_context",
     "resolve_mission_type_key",
 ]
-
-
-# ---------------------------------------------------------------------------
-# Canonical mission types
-# ---------------------------------------------------------------------------
-
-#: The four canonical mission types that MUST each ship a governance
-#: profile.  Pinned by
-#: ``tests/missions/test_mission_type_profile_resolution.py``.
-CANONICAL_MISSION_TYPES: tuple[str, ...] = (
-    "software-dev",
-    "documentation",
-    "research",
-    "plan",
-)
 
 
 #: The ordered governance kinds carried by :class:`ResolvedGovernance`.  The

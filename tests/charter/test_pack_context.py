@@ -28,8 +28,8 @@ from charter.pack_context import (
     CharterPackConfigError,
     PackContext,
     _BUILTIN_ARTIFACT_KINDS,
-    _BUILTIN_MISSION_TYPE_IDS,
 )
+from doctrine.missions.mission_type_repository import builtin_mission_type_id_set
 
 
 pytestmark = [pytest.mark.fast]
@@ -85,7 +85,7 @@ def test_from_config_minimal_config_uses_builtin_mission_types(tmp_path: Path) -
 
     ctx = PackContext.from_config(tmp_path)
 
-    assert ctx.activated_mission_types == _BUILTIN_MISSION_TYPE_IDS
+    assert ctx.activated_mission_types == builtin_mission_type_id_set()
     assert "software-dev" in ctx.activated_mission_types
     assert "documentation" in ctx.activated_mission_types
     assert "research" in ctx.activated_mission_types
@@ -102,7 +102,7 @@ def test_from_config_no_config_yaml_returns_fallback(tmp_path: Path) -> None:
     # Don't write any config
     ctx = PackContext.from_config(tmp_path)
 
-    assert ctx.activated_mission_types == _BUILTIN_MISSION_TYPE_IDS
+    assert ctx.activated_mission_types == builtin_mission_type_id_set()
     assert ctx.activated_kinds == _BUILTIN_ARTIFACT_KINDS
     assert ctx.org_pack_names == ()
     assert ctx.repo_root == tmp_path
