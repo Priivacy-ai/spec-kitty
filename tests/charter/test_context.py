@@ -19,7 +19,6 @@ from charter.context import (
     _project_charter_json_block,
     _project_directive_entries,
     _relative_json_path,
-    _render_action_scoped,
     _render_bootstrap,
     build_charter_context,
     build_charter_context_json,
@@ -163,6 +162,10 @@ class TestBuildContextV2:
                 action=action,
                 depth=depth,
                 mark_loaded=mark_loaded,
+                # WP04 (#883): the fixture graph is a software-dev graph; the
+                # mission type is now declared explicitly rather than inferred
+                # from the project-level ``template_set`` proxy (FR-002).
+                mission_type="software-dev",
             )
 
     def test_returns_charter_context_result(self, tmp_path: Path) -> None:
@@ -346,7 +349,10 @@ class TestBuildContextV2:
             patch("doctrine.drg.validator.assert_valid"),
             patch("charter.sync.ensure_charter_bundle_fresh", return_value=None),
         ):
-            result = build_charter_context(tmp_path, action="implement", depth=2, mark_loaded=False)
+            result = build_charter_context(
+                tmp_path, action="implement", depth=2, mark_loaded=False,
+                mission_type="software-dev",
+            )
 
         assert "DIRECTIVE_039" in result.text
         assert "boring-code-review" in result.text
@@ -424,7 +430,10 @@ class TestBuildContextV2:
             patch("doctrine.drg.validator.assert_valid"),
             patch("charter.sync.ensure_charter_bundle_fresh", return_value=None),
         ):
-            result = build_charter_context(tmp_path, action="implement", depth=2, mark_loaded=False)
+            result = build_charter_context(
+                tmp_path, action="implement", depth=2, mark_loaded=False,
+                mission_type="software-dev",
+            )
 
         action_block = result.text.split("Action Doctrine (implement):", 1)[1]
         assert "DIRECTIVE_039" in action_block
@@ -704,25 +713,86 @@ class TestBuildContextV2:
         assert directive_ids == ["DIR-LOCAL"]
 
 
+# ---------------------------------------------------------------------------
+# WP04 (#883) — action-path leak closure: key off meta.json mission_type,
+# never the project-level ``template_set`` proxy.
+# ---------------------------------------------------------------------------
+
+_LEAK_GRAPH_YAML = textwrap.dedent("""\
+    schema_version: "1.0"
+    generated_at: "2026-07-14T10:00:00+00:00"
+    generated_by: "test"
+    nodes:
+      - urn: "action:software-dev/implement"
+        kind: action
+        label: implement
+      - urn: "action:documentation/implement"
+        kind: action
+        label: implement
+      - urn: "directive:DIRECTIVE_001"
+        kind: directive
+        label: Software Dev Directive
+      - urn: "directive:DIRECTIVE_100"
+        kind: directive
+        label: Documentation Directive
+    edges:
+      - source: "action:software-dev/implement"
+        target: "directive:DIRECTIVE_001"
+        relation: scope
+      - source: "action:documentation/implement"
+        target: "directive:DIRECTIVE_100"
+        relation: scope
+""")
+
+
+def test_action_doctrine_keys_off_meta_json_not_template_set(tmp_path: Path) -> None:
+    """A non-software mission must not inherit software-dev action doctrine (FR-002).
+
+    The project's ``template_set`` is ``software-dev-default`` (the legacy
+    proxy), but the mission's ``meta.json`` declares ``documentation``.  The
+    shared action name ``implement`` exists under BOTH mission types in the
+    graph.  The rendered context must resolve the *documentation* action node
+    (DIRECTIVE_100), never leak the *software-dev* one (DIRECTIVE_001).
+
+    This is the #883 leak reproduction — RED before the rewire, GREEN after.
+    """
+    from io import StringIO
+
+    from doctrine.drg.models import DRGGraph
+    from ruamel.yaml import YAML
+
+    _setup_fixture_repo(tmp_path)  # governance.yaml: template_set=software-dev-default
+
+    feature_dir = tmp_path / "kitty-specs" / "883-doc-mission"
+    feature_dir.mkdir(parents=True, exist_ok=True)
+    (feature_dir / "meta.json").write_text(
+        '{"mission_type": "documentation"}', encoding="utf-8"
+    )
+
+    yaml = YAML(typ="safe")
+    mock_graph = DRGGraph.model_validate(yaml.load(StringIO(_LEAK_GRAPH_YAML)))
+
+    with (
+        patch("doctrine.drg.loader.load_graph", side_effect=lambda _p: mock_graph),
+        patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+        patch("doctrine.drg.validator.assert_valid"),
+    ):
+        result = build_charter_context(
+            tmp_path,
+            action="implement",
+            depth=2,
+            mark_loaded=False,
+            feature_dir=feature_dir,
+        )
+
+    # Documentation mission resolves ITS OWN action doctrine ...
+    assert "DIRECTIVE_100" in result.text
+    # ... and never leaks the software-dev action doctrine (the #883 defect).
+    assert "DIRECTIVE_001" not in result.text
+
+
 def test_render_bootstrap_uses_fallback_labels_without_summary_or_references() -> None:
     text = _render_bootstrap(Path("/nonexistent/charter.md"), [], [])
-
-    assert "Policy Summary:" in text
-    assert "No explicit policy summary section found in charter.md." in text
-    assert "Reference Docs:" in text
-    assert "No references manifest found." in text
-
-
-def test_render_action_scoped_uses_fallback_labels_without_summary_or_references(tmp_path: Path) -> None:
-    with patch("charter.context._append_action_doctrine_lines") as append_action_doctrine_lines:
-        append_action_doctrine_lines.return_value = None
-        text = _render_action_scoped(
-            tmp_path,
-            "implement",
-            tmp_path / "charter.md",
-            [],
-            [],
-        )
 
     assert "Policy Summary:" in text
     assert "No explicit policy summary section found in charter.md." in text

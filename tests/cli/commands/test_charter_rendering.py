@@ -261,6 +261,8 @@ def test_context_json_uses_same_depth_as_rendered_context(tmp_path: Path) -> Non
         depth: int | None,
         org_root: Path | None,
         org_charter_block: dict[str, object],
+        mission_type: str | None = None,
+        feature_dir: Path | None = None,
     ) -> dict[str, object]:
         assert repo_root == project
         assert action == "plan"

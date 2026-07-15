@@ -41,7 +41,7 @@ class TestMissionTypeModel:
         assert mt.display_name == "My Type"
         assert mt.action_sequence == ["step-a", "step-b"]
         assert mt.extends is None
-        assert mt.governance_refs == []
+        assert not hasattr(mt, "governance_refs")
         assert mt.template_set is None
 
     def test_empty_action_sequence_raises(self) -> None:

@@ -1,9 +1,9 @@
-"""NFR-002 regression gate: _build_prompt_or_error via charter.resolve_action_sequence.
+"""NFR-002 regression gate: _build_prompt_or_error via charter.resolve_mission_type_context.
 
 WP07 / FR-007 / FR-008 / NFR-002.
 
 After deleting _COMPOSED_ACTIONS_FOR_PROMPT, _build_prompt_or_error uses
-charter.resolve_action_sequence to check whether an action is a composed action
+charter.resolve_mission_type_context to check whether an action is a composed action
 (and therefore produces a marker prompt file) or a file-based template action.
 
 These tests verify the new path works correctly for all software-dev steps and
@@ -13,6 +13,7 @@ that the frozenset table is gone.
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -71,8 +72,8 @@ class TestComposedActionMarkerFile:
     ) -> None:
         """For software-dev composed actions (wp_id=None), returns a marker path."""
         with patch(
-            "charter.mission_type_profiles.resolve_action_sequence",
-            return_value=_SW_DEV_ACTIONS,
+            "charter.mission_type_profiles.resolve_mission_type_context",
+            return_value=SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
         ):
             path, error = _build_prompt_or_error(
                 action=action,
@@ -96,8 +97,8 @@ class TestComposedActionMarkerFile:
     ) -> None:
         """For documentation composed actions (wp_id=None), returns a marker path."""
         with patch(
-            "charter.mission_type_profiles.resolve_action_sequence",
-            return_value=_DOCUMENTATION_ACTIONS,
+            "charter.mission_type_profiles.resolve_mission_type_context",
+            return_value=SimpleNamespace(action_sequence=_DOCUMENTATION_ACTIONS),
         ):
             path, error = _build_prompt_or_error(
                 action=action,
@@ -120,8 +121,8 @@ class TestComposedActionMarkerFile:
     ) -> None:
         """For research composed actions (wp_id=None), returns a marker path."""
         with patch(
-            "charter.mission_type_profiles.resolve_action_sequence",
-            return_value=_RESEARCH_ACTIONS,
+            "charter.mission_type_profiles.resolve_mission_type_context",
+            return_value=SimpleNamespace(action_sequence=_RESEARCH_ACTIONS),
         ):
             path, error = _build_prompt_or_error(
                 action=action,
@@ -145,18 +146,20 @@ class TestComposedActionMarkerFile:
 
 
 class TestCharterCallSiteReached:
-    """_build_prompt_or_error uses charter.resolve_action_sequence, not a table."""
+    """_build_prompt_or_error uses charter.resolve_mission_type_context, not a table."""
 
     def test_charter_called_for_composed_action(self, tmp_path: Path) -> None:
-        """_build_prompt_or_error calls charter.resolve_action_sequence."""
+        """_build_prompt_or_error calls charter.resolve_mission_type_context."""
         call_log: list[str] = []
 
-        def _record_call(mission_type_id: str, _repo_root: object) -> list[str]:
-            call_log.append(mission_type_id)
-            return _SW_DEV_ACTIONS
+        def _record_call(
+            repo_root: object, *, mission_type: str | None = None, feature_dir: object = None
+        ) -> SimpleNamespace:
+            call_log.append(mission_type)
+            return SimpleNamespace(action_sequence=_SW_DEV_ACTIONS)
 
         with patch(
-            "charter.mission_type_profiles.resolve_action_sequence",
+            "charter.mission_type_profiles.resolve_mission_type_context",
             side_effect=_record_call,
         ):
             _build_prompt_or_error(
@@ -170,7 +173,7 @@ class TestCharterCallSiteReached:
             )
 
         assert "software-dev" in call_log, (
-            "_build_prompt_or_error did not call charter.resolve_action_sequence"
+            "_build_prompt_or_error did not call charter.resolve_mission_type_context"
         )
 
 
@@ -188,8 +191,8 @@ class TestWpIdGuard:
         (tmp_path / "spec.md").write_text("# spec", encoding="utf-8")
 
         with patch(
-            "charter.mission_type_profiles.resolve_action_sequence",
-            return_value=_SW_DEV_ACTIONS,
+            "charter.mission_type_profiles.resolve_mission_type_context",
+            return_value=SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
         ):
             # With wp_id set, the code should NOT take the composed path.
             # It will try to call build_prompt and either fail gracefully or succeed.
@@ -233,8 +236,8 @@ class TestMarkerFileContents:
     def test_marker_file_contains_mission_type_and_action(self, tmp_path: Path) -> None:
         """Marker file for a composed action names the mission type and action."""
         with patch(
-            "charter.mission_type_profiles.resolve_action_sequence",
-            return_value=_SW_DEV_ACTIONS,
+            "charter.mission_type_profiles.resolve_mission_type_context",
+            return_value=SimpleNamespace(action_sequence=_SW_DEV_ACTIONS),
         ):
             path, error = _build_prompt_or_error(
                 action="specify",

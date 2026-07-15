@@ -171,7 +171,7 @@ def test_non_activated_mission_type_steps_are_dropped() -> None:
 
 
 def test_fr006_mission_type_scoped_directive_dropped_when_kind_not_activated() -> None:
-    """A tactic that is part of an activated mission type's governance_refs
+    """A tactic that is scoped to an activated mission type
     is still filtered out when the project charter does not activate
     ``tactics`` as a kind. This is the FR-006 binding: mission-type-scoped
     artifacts respect the per-kind activation set."""

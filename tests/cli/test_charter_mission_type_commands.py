@@ -239,14 +239,15 @@ def test_mission_type_show_json_is_valid() -> None:
 
 
 def test_mission_type_show_json_has_required_fields() -> None:
-    """``show --json`` dict has id, display_name, action_sequence, governance_refs,
+    """``show --json`` dict has id, display_name, action_sequence,
     template_set, source_layer."""
     result = runner.invoke(mission_type_app, ["show", "software-dev", "--json"])
     assert result.exit_code == 0, result.output
     data = json.loads(result.output.strip())
-    required_keys = {"id", "display_name", "action_sequence", "governance_refs", "template_set", "source_layer"}
+    required_keys = {"id", "display_name", "action_sequence", "template_set", "source_layer"}
     missing = required_keys - set(data.keys())
     assert not missing, f"Missing keys: {missing!r} in data {data!r}"
+    assert "governance_refs" not in data, "retired governance_refs must not resurface"
 
 
 def test_mission_type_show_json_action_sequence_is_list() -> None:
@@ -311,5 +312,5 @@ def test_charter_mission_type_module_does_not_import_specify_cli() -> None:
 
     assert has_charter_import, (
         "charter/mission_type.py must import from charter.* for activation "
-        "state (existing_mission_types, resolve_action_sequence)"
+        "state (existing_mission_types, resolve_mission_type_context)"
     )

@@ -124,7 +124,8 @@ def _bootstrap_text(repo_root: Path) -> str:
         patch("charter.sync.ensure_charter_bundle_fresh", return_value=None),
     ):
         result = build_charter_context(
-            repo_root, action="implement", depth=2, mark_loaded=False
+            repo_root, action="implement", depth=2, mark_loaded=False,
+            mission_type="software-dev",
         )
     assert result.mode == "bootstrap", (
         f"expected bootstrap mode, got {result.mode!r} — the entry point "

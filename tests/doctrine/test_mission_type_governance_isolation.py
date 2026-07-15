@@ -1,0 +1,299 @@
+"""Enduring enforcement: mission-type governance isolation (contract C5).
+
+WP12 — the join. These are **behavioural** assertions on the *resolved URN set*
+that a real mission of each type surfaces through the single charter-mediated
+seam (:func:`charter.mission_type_profiles.resolve_mission_type_context`) unioned
+with the doctrine action grain (:func:`doctrine.missions.action_index.load_action_index`).
+They deliberately do **not** ratchet on code shape — they assert on the doctrine a
+mission would actually be governed by.
+
+The four contract obligations (C5 / resolution-and-enforcement.md):
+
+* **Non-leakage** — for each non-software type (documentation / research / plan)
+  the resolved *(type ⊕ action)* URN set is **disjoint** from a curated,
+  URN-normalized software-dev-only denylist.
+* **Non-vacuity twin** — the SAME denylist **is** resolved by ``software-dev``,
+  exercised through an action name (``implement``) that is applied to *every*
+  type by the shared probe list, so the non-leakage pass cannot succeed
+  vacuously (i.e. by never resolving anything). If ``software-dev`` stops
+  resolving the denylist, :func:`test_non_vacuity_twin_software_dev_resolves_denylist`
+  fails loud.
+* **Determinism (NFR-007)** — two resolutions of identical inputs are
+  byte-identical.
+* **Hard-fail / degrade** — an unknown *typed* mission raises; a known type with
+  an empty grain resolves empty (no error); a typeless caller degrades neutrally
+  (never software-dev).
+
+The denylist is the software-dev *implement*-action doctrine — TDD/git-flow
+governance that is meaningless for a documentation, research, or plan mission.
+It is homed **only** in ``src/doctrine/missions/software-dev/actions/implement/index.yaml``;
+this test pins that it never leaks into the other three domains.
+
+Known follow-up (not a WP12 blocker): FR-013 cross-grain disjointness currently
+fires only on synthetic data because the seam still threads an EMPTY action grain
+into ``_resolve_governance_slot`` (WP04's ``action_grain`` deferral). This test
+unions the action grain *itself* via ``load_action_index``, so it exercises the
+real doctrine regardless of that deferral.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+import doctrine.missions
+from charter.mission_type_profiles import (
+    ResolvedGovernance,
+    UnknownMissionTypeError,
+    resolve_mission_type_context,
+)
+from doctrine.missions.action_index import ActionIndex, load_action_index
+
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+
+
+# ---------------------------------------------------------------------------
+# Doctrine source roots + canonical URN normalization
+# ---------------------------------------------------------------------------
+
+#: On-disk root of the shipped mission doctrine (``src/doctrine/missions``).
+MISSIONS_ROOT: Path = Path(doctrine.missions.__file__).resolve().parent
+
+#: The non-software mission types whose resolved governance MUST be free of
+#: software-dev-only doctrine (FR-005 / SC-001).
+NON_SOFTWARE_TYPES: tuple[str, ...] = ("documentation", "research", "plan")
+
+#: Plural governance-kind → singular URN prefix (the form the shipped DRG uses,
+#: e.g. ``paradigm:git-flow``). Load-bearing for the disjointness comparison key.
+_KIND_SINGULAR: dict[str, str] = {
+    "directives": "directive",
+    "tactics": "tactic",
+    "paradigms": "paradigm",
+    "styleguides": "styleguide",
+    "toolguides": "toolguide",
+    "procedures": "procedure",
+    "agent_profiles": "agent_profile",
+}
+
+#: The shared probe action list applied to **every** mission type. It is exactly
+#: the software-dev action set, so ``implement`` — the sole home of the denylist
+#: doctrine — is exercised uniformly across all four types. This is what makes
+#: the non-leakage assertion non-vacuous: documentation/research/plan are probed
+#: with the *same* ``implement`` action that surfaces the denylist for
+#: software-dev; they simply have no such action index, so it contributes
+#: nothing (an empty fallback), which is precisely the property under test.
+_SHARED_PROBE_ACTIONS: tuple[str, ...] = (
+    "implement",
+    "plan",
+    "specify",
+    "tasks",
+    "review",
+    "retrospect",
+)
+
+#: The software-dev-only governance denylist, expressed as canonical URNs. Every
+#: entry is authored **only** in
+#: ``src/doctrine/missions/software-dev/actions/implement/index.yaml`` and is
+#: nonsensical for a docs/research/plan mission (TDD, git-flow branching,
+#: refactoring/bug-fix procedures).
+SOFTWARE_DEV_ONLY_DENYLIST: frozenset[str] = frozenset(
+    {
+        "paradigm:git-flow",
+        "paradigm:trunk-based",
+        "paradigm:shared-branch-ci",
+        "directive:034-test-first-development",
+        "tactic:tdd-red-green-refactor",
+        "tactic:acceptance-test-first",
+        "procedure:refactoring",
+        "procedure:test-first-bug-fixing",
+    }
+)
+
+
+def _canonical_urn(kind_plural: str, raw: str) -> str:
+    """Normalize an artifact reference to a ``<kind>:<slug>`` canonical URN.
+
+    Both sides of the disjointness comparison are normalized through this one
+    function so ``git-flow`` (raw slug) and ``urn:paradigm:git-flow`` (URN form)
+    collapse to the same ``paradigm:git-flow`` key. Including the kind prefix
+    keeps distinct kinds that share a slug (or numeric code) from colliding.
+    """
+    text = raw.strip().lower()
+    if text.startswith("urn:"):
+        segments = text.split(":")
+        return f"{segments[1]}:{segments[-1]}"
+    return f"{_KIND_SINGULAR[kind_plural]}:{text}"
+
+
+def _governance_urns(governance: ResolvedGovernance | None) -> set[str]:
+    """Canonical URNs carried by a resolved type-grain governance bundle."""
+    if governance is None:
+        return set()
+    urns: set[str] = set()
+    for kind_plural in _KIND_SINGULAR:
+        for raw in getattr(governance, f"selected_{kind_plural}"):
+            urns.add(_canonical_urn(kind_plural, raw))
+    return urns
+
+
+def _action_urns(index: ActionIndex) -> set[str]:
+    """Canonical URNs carried by a resolved doctrine action index (action grain)."""
+    urns: set[str] = set()
+    for kind_plural in _KIND_SINGULAR:
+        for raw in getattr(index, kind_plural):
+            urns.add(_canonical_urn(kind_plural, raw))
+    return urns
+
+
+def _own_action_names(mission_type: str) -> tuple[str, ...]:
+    """The action directories a mission type actually ships, sorted."""
+    actions_dir = MISSIONS_ROOT / mission_type / "actions"
+    if not actions_dir.is_dir():
+        return ()
+    return tuple(sorted(p.name for p in actions_dir.iterdir() if p.is_dir()))
+
+
+def _resolve_union(mission_type: str, actions: tuple[str, ...], *, repo_root: Path) -> set[str]:
+    """Resolve the unioned *(type-grain ⊕ action-grain)* URN set for a type.
+
+    * type-grain — the charter-mediated seam (``resolve_mission_type_context``).
+    * action-grain — the doctrine ``load_action_index`` for each probe action.
+
+    This is the exact set a mission of ``mission_type`` would be governed by,
+    canonicalized for comparison.
+    """
+    bundle = resolve_mission_type_context(repo_root, mission_type=mission_type)
+    union = _governance_urns(bundle.governance)
+    for action in actions:
+        union |= _action_urns(load_action_index(MISSIONS_ROOT, mission_type, action))
+    return union
+
+
+# ---------------------------------------------------------------------------
+# Non-leakage (SC-001 / FR-005) — the core enduring guarantee
+# ---------------------------------------------------------------------------
+
+
+class TestNonLeakage:
+    """No software-dev-only doctrine leaks into a non-software mission type."""
+
+    @pytest.mark.parametrize("mission_type", NON_SOFTWARE_TYPES)
+    def test_resolved_governance_is_disjoint_from_software_dev_denylist(
+        self, mission_type: str, tmp_path: Path
+    ) -> None:
+        actions = tuple(sorted({*_own_action_names(mission_type), *_SHARED_PROBE_ACTIONS}))
+        union = _resolve_union(mission_type, actions, repo_root=tmp_path)
+        leaked = union & SOFTWARE_DEV_ONLY_DENYLIST
+        assert not leaked, (
+            f"SC-001 regression: mission type {mission_type!r} resolved "
+            f"software-dev-only doctrine {sorted(leaked)}. This doctrine is homed "
+            "in software-dev/actions/implement/index.yaml and is meaningless for a "
+            f"{mission_type} mission — it must not leak across the type boundary."
+        )
+
+    @pytest.mark.parametrize("mission_type", NON_SOFTWARE_TYPES)
+    def test_governance_text_has_no_software_dev_default(
+        self, mission_type: str, tmp_path: Path
+    ) -> None:
+        bundle = resolve_mission_type_context(tmp_path, mission_type=mission_type)
+        assert "software-dev-default" not in bundle.governance_text.lower(), (
+            f"FR-011 regression: {mission_type!r} governance text leaked the "
+            "software-dev-default template set."
+        )
+
+
+# ---------------------------------------------------------------------------
+# Non-vacuity twin (MANDATORY) — proves the non-leakage pass is real
+# ---------------------------------------------------------------------------
+
+
+class TestNonVacuityTwin:
+    """The SAME denylist IS resolved by software-dev — so non-leakage is real."""
+
+    def test_probe_action_implement_is_shared_and_load_bearing(self) -> None:
+        """``implement`` (the denylist home) is applied to every type uniformly.
+
+        The non-leakage pass probes each non-software type with the SAME
+        ``implement`` action that surfaces the denylist for software-dev. The
+        non-software types simply lack that action index, so it resolves empty —
+        which is the exact disjointness under test, not a skipped comparison.
+        """
+        assert "implement" in _SHARED_PROBE_ACTIONS
+        for mission_type in NON_SOFTWARE_TYPES:
+            index = load_action_index(MISSIONS_ROOT, mission_type, "implement")
+            assert not (_action_urns(index) & SOFTWARE_DEV_ONLY_DENYLIST)
+
+    def test_non_vacuity_twin_software_dev_resolves_denylist(self, tmp_path: Path) -> None:
+        """software-dev DOES resolve the whole denylist through the shared probe.
+
+        This is the twin that keeps :class:`TestNonLeakage` honest: it runs the
+        identical resolution machinery (``_resolve_union``) against
+        ``software-dev`` over the SAME shared probe actions. If a regression made
+        resolution return nothing (making non-leakage pass vacuously), this
+        assertion fails loud because the denylist would no longer be a subset.
+        """
+        union = _resolve_union("software-dev", _SHARED_PROBE_ACTIONS, repo_root=tmp_path)
+        missing = SOFTWARE_DEV_ONLY_DENYLIST - union
+        assert not missing, (
+            "Non-vacuity twin broke: software-dev no longer resolves the "
+            f"software-dev-only denylist entries {sorted(missing)} via the shared "
+            "'implement' action. Either the denylist drifted from "
+            "software-dev/actions/implement/index.yaml or the resolution seam "
+            "stopped surfacing action-grain doctrine — the non-leakage guarantee "
+            "is now unverifiable and this test refuses to pass silently."
+        )
+
+
+# ---------------------------------------------------------------------------
+# Determinism (NFR-007) — identical inputs render byte-identical
+# ---------------------------------------------------------------------------
+
+
+class TestDeterminism:
+    @pytest.mark.parametrize("mission_type", ("software-dev", *NON_SOFTWARE_TYPES))
+    def test_two_resolutions_are_byte_identical(
+        self, mission_type: str, tmp_path: Path
+    ) -> None:
+        first = resolve_mission_type_context(tmp_path, mission_type=mission_type)
+        second = resolve_mission_type_context(tmp_path, mission_type=mission_type)
+        assert first == second
+        assert first.governance_text == second.governance_text
+        assert first.governance == second.governance
+
+    @pytest.mark.parametrize("mission_type", NON_SOFTWARE_TYPES)
+    def test_resolved_union_is_stable_across_resolutions(
+        self, mission_type: str, tmp_path: Path
+    ) -> None:
+        actions = tuple(sorted({*_own_action_names(mission_type), *_SHARED_PROBE_ACTIONS}))
+        first = _resolve_union(mission_type, actions, repo_root=tmp_path)
+        second = _resolve_union(mission_type, actions, repo_root=tmp_path)
+        assert first == second
+
+
+# ---------------------------------------------------------------------------
+# Hard-fail / degrade (FR-003 / FR-003a / FR-004)
+# ---------------------------------------------------------------------------
+
+
+class TestHardFailAndDegrade:
+    def test_unknown_typed_mission_raises(self, tmp_path: Path) -> None:
+        with pytest.raises(UnknownMissionTypeError):
+            resolve_mission_type_context(tmp_path, mission_type="totally-made-up-type")
+
+    def test_known_type_with_empty_grain_resolves_empty_without_error(
+        self, tmp_path: Path
+    ) -> None:
+        """software-dev ships an empty type-grain — it resolves empty, no error."""
+        bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+        assert bundle.mission_type == "software-dev"
+        assert bundle.governance is not None
+        assert _governance_urns(bundle.governance) == set()
+
+    def test_typeless_caller_degrades_neutrally_never_software_dev(
+        self, tmp_path: Path
+    ) -> None:
+        bundle = resolve_mission_type_context(tmp_path)
+        assert bundle.mission_type is None
+        assert bundle.governance is None
+        assert bundle.governance_text == ""

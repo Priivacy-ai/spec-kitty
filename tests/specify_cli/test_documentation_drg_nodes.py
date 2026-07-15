@@ -66,6 +66,11 @@ _SLUG_TO_URN: dict[str, str] = {
     "requirements-validation-workflow": "tactic:requirements-validation-workflow",
     "premortem-risk-identification": "tactic:premortem-risk-identification",
     "adr-drafting-workflow": "tactic:adr-drafting-workflow",
+    # WP06 homed the audience/review-flow tactics into the documentation action
+    # indices (discover -> stakeholder-alignment; validate/accept ->
+    # documentation-curation-audit). Both are shipped graph.yaml nodes.
+    "stakeholder-alignment": "tactic:stakeholder-alignment",
+    "documentation-curation-audit": "tactic:documentation-curation-audit",
 }
 
 

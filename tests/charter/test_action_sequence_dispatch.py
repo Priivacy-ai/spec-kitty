@@ -1,10 +1,10 @@
-"""Tests for charter API: existing_mission_types() and resolve_action_sequence() (WP05).
+"""Tests for charter API: existing_mission_types() and _action_sequence() (WP05).
 
 T035 — write charter API tests covering:
 - existing_mission_types() returns sorted built-in types when no charter config exists
 - existing_mission_types() returns only activated types when charter config specifies activation
-- resolve_action_sequence("software-dev", repo_root) returns the built-in action sequence
-- resolve_action_sequence("nonexistent", repo_root) raises UnknownMissionTypeError with registered_ids
+- _action_sequence("software-dev", repo_root) returns the built-in action sequence
+- _action_sequence("nonexistent", repo_root) raises UnknownMissionTypeError with registered_ids
 - UnknownMissionTypeError.registered_ids contains the sorted list of activated types
 - MissionTypeProfile(mission_type="anything", ...) succeeds (no Literal constraint at model time)
 
@@ -12,7 +12,7 @@ Patching strategy:
 - existing_mission_types() uses a lazy import of PackContext inside the function.
   Tests for existing_mission_types() itself patch the lazy-imported module at its
   source path using sys.modules injection.
-- Tests for resolve_action_sequence() patch existing_mission_types() directly
+- Tests for _action_sequence() patch existing_mission_types() directly
   (at charter.mission_type_profiles.existing_mission_types) and inject
   MissionTypeRepository via sys.modules for the inner import.
 """
@@ -30,8 +30,18 @@ from charter.mission_type_profiles import (
     MissionTypeProfile,
     UnknownMissionTypeError,
     existing_mission_types,
-    resolve_action_sequence,
+    resolve_mission_type_context,
 )
+
+
+def _action_sequence(mission_type: str, repo_root: Path) -> list[str]:
+    """Resolve just the action sequence via the unified seam (test helper).
+
+    WP03 subsumed ``resolve_action_sequence`` into
+    :func:`resolve_mission_type_context`; these tests exercise the action slot
+    of the bundle.
+    """
+    return resolve_mission_type_context(repo_root, mission_type=mission_type).action_sequence
 
 
 pytestmark = pytest.mark.unit
@@ -186,17 +196,17 @@ class TestExistingMissionTypes:
 
 
 # ---------------------------------------------------------------------------
-# resolve_action_sequence()
+# _action_sequence()
 # ---------------------------------------------------------------------------
 
 
 class TestResolveActionSequence:
-    """resolve_action_sequence() returns the built-in action sequence and raises
+    """_action_sequence() returns the built-in action sequence and raises
     UnknownMissionTypeError for unregistered types.
     """
 
     def test_software_dev_returns_builtin_sequence(self, tmp_path: Path) -> None:
-        """resolve_action_sequence('software-dev', repo_root) returns the built-in sequence."""
+        """_action_sequence('software-dev', repo_root) returns the built-in sequence."""
         expected = ["specify", "plan", "tasks", "implement", "review"]
         software_dev = _make_mission_type("software-dev", expected)
         mock_repo = _make_repo(software_dev)
@@ -207,19 +217,19 @@ class TestResolveActionSequence:
                 "charter.mission_type_profiles.existing_mission_types",
                 return_value=["documentation", "plan", "research", "software-dev"],
             ):
-                result = resolve_action_sequence("software-dev", tmp_path)
+                result = _action_sequence("software-dev", tmp_path)
         finally:
             _restore_modules(saved)
 
         assert result == expected
 
     def test_nonexistent_raises_unknown_mission_type_error(self, tmp_path: Path) -> None:
-        """resolve_action_sequence('nonexistent', ...) raises UnknownMissionTypeError."""
+        """_action_sequence('nonexistent', ...) raises UnknownMissionTypeError."""
         with patch(
             "charter.mission_type_profiles.existing_mission_types",
             return_value=["documentation", "plan", "research", "software-dev"],
         ), pytest.raises(UnknownMissionTypeError) as exc_info:
-            resolve_action_sequence("nonexistent-type", tmp_path)
+            _action_sequence("nonexistent-type", tmp_path)
 
         assert "nonexistent-type" in str(exc_info.value)
 
@@ -231,13 +241,13 @@ class TestResolveActionSequence:
             "charter.mission_type_profiles.existing_mission_types",
             return_value=registered,
         ), pytest.raises(UnknownMissionTypeError) as exc_info:
-            resolve_action_sequence("unknown-type", tmp_path)
+            _action_sequence("unknown-type", tmp_path)
 
         err = exc_info.value
         assert err.registered_ids == registered
 
     def test_result_is_a_list(self, tmp_path: Path) -> None:
-        """resolve_action_sequence() returns a list, not another iterable type."""
+        """_action_sequence() returns a list, not another iterable type."""
         software_dev = _make_mission_type(
             "software-dev",
             ["specify", "plan", "tasks", "implement", "review"],
@@ -250,14 +260,14 @@ class TestResolveActionSequence:
                 "charter.mission_type_profiles.existing_mission_types",
                 return_value=["software-dev"],
             ):
-                result = resolve_action_sequence("software-dev", tmp_path)
+                result = _action_sequence("software-dev", tmp_path)
         finally:
             _restore_modules(saved)
 
         assert isinstance(result, list)
 
     def test_not_cached_across_calls(self, tmp_path: Path) -> None:
-        """resolve_action_sequence() reads fresh from disk on each invocation (FR-007)."""
+        """_action_sequence() reads fresh from disk on each invocation (FR-007)."""
         software_dev = _make_mission_type(
             "software-dev",
             ["specify", "plan", "tasks", "implement", "review"],
@@ -286,8 +296,8 @@ class TestResolveActionSequence:
                 "charter.mission_type_profiles.existing_mission_types",
                 return_value=["software-dev"],
             ):
-                resolve_action_sequence("software-dev", tmp_path)
-                resolve_action_sequence("software-dev", tmp_path)
+                _action_sequence("software-dev", tmp_path)
+                _action_sequence("software-dev", tmp_path)
         finally:
             _restore_modules(saved)
 
@@ -311,7 +321,7 @@ class TestResolveActionSequence:
                 "charter.mission_type_profiles.existing_mission_types",
                 return_value=["software-dev", "custom-dev"],
             ):
-                result = resolve_action_sequence("custom-dev", tmp_path)
+                result = _action_sequence("custom-dev", tmp_path)
         finally:
             _restore_modules(saved)
 
@@ -336,7 +346,7 @@ class TestResolveActionSequence:
                 "charter.mission_type_profiles.existing_mission_types",
                 return_value=["software-dev", "custom-dev"],
             ):
-                result = resolve_action_sequence("custom-dev", tmp_path)
+                result = _action_sequence("custom-dev", tmp_path)
         finally:
             _restore_modules(saved)
 
@@ -354,7 +364,7 @@ class TestMissionTypeProfileNoLiteralConstraint:
     These tests document the behavior change introduced by T029 — the Literal
     constraint is gone, so any string value is accepted by the Pydantic model.
     Runtime validation (UnknownMissionTypeError) is deferred to call time via
-    existing_mission_types() / resolve_action_sequence().
+    existing_mission_types() / _action_sequence().
     """
 
     def test_custom_mission_type_succeeds_at_model_time(self) -> None:
@@ -394,7 +404,7 @@ class TestMissionTypeProfileNoLiteralConstraint:
             "charter.mission_type_profiles.existing_mission_types",
             return_value=registered,
         ), pytest.raises(UnknownMissionTypeError) as exc_info:
-            resolve_action_sequence("custom-type", tmp_path)
+            _action_sequence("custom-type", tmp_path)
 
         err = exc_info.value
         assert err.mission_type_id == "custom-type"
