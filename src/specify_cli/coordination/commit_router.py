@@ -33,6 +33,7 @@ from typing import Final, Literal, Protocol, runtime_checkable
 from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
+    is_coordination_artifact_residue_path,
     is_primary_artifact_kind,
     kind_for_mission_file,
     resolve_placement_only,
@@ -347,6 +348,52 @@ def _commit_partition_group(
 # ---------------------------------------------------------------------------
 
 
+#  FR-005 / C-007: canonical fallback representative kinds used ONLY when a
+#  bucket's ref must be resolved but none of its files carry a recognised
+#  kind (``kind_for_mission_file`` returns ``None`` for every member — e.g. a
+#  solo ``meta.json`` / unrecognised-path batch). The specific member does not
+#  matter: ``resolve_placement_only`` resolves the IDENTICAL ref for any kind
+#  sharing a partition (see the module docstring below). A COORD bucket never
+#  needs this fallback in practice — every coord-residue path already carries
+#  a recognised kind by construction (``is_coordination_artifact_residue_path``
+#  requires a non-``None`` classification to return True) — but a fallback is
+#  still supplied defensively so the helper never raises on a malformed input.
+_FALLBACK_PRIMARY_KIND: Final = MissionArtifactKind.SPEC
+_FALLBACK_COORD_KIND: Final = MissionArtifactKind.STATUS_STATE
+
+
+def _representative_kind_for_bucket(
+    files: list[Path],
+    mission_slug: str,
+    *,
+    expect_primary: bool,
+    fallback: MissionArtifactKind,
+) -> MissionArtifactKind:
+    """Best-effort concrete kind for a partition bucket, for ref resolution only.
+
+    Tries each file's OWN classification (``kind_for_mission_file``) first —
+    preferring a kind the bucket's files actually carry, but only when that
+    kind's OWN partition agrees with ``expect_primary`` (the partition
+    :func:`_group_files_by_partition` already decided this bucket is, via the
+    residue predicate) — and falls back to ``fallback`` (a fixed member of the
+    target partition) when no file's classification agrees (e.g. every file
+    in the bucket is ``kind=None``). The ``expect_primary`` cross-check keeps
+    the residue predicate the SOLE partition authority end-to-end: even a
+    ``kind_for_mission_file`` classification that disagreed with it (never
+    happens for real paths — the two are derived from the same underlying
+    classifier and their partitions are disjoint and exhaustive — but is
+    cheap to guard) could otherwise mislabel the bucket's ref-resolution kind
+    without ever touching MEMBERSHIP (that is decided exclusively by
+    :func:`~mission_runtime.is_coordination_artifact_residue_path` in
+    :func:`_group_files_by_partition`, never by this helper).
+    """
+    for file in files:
+        kind_f = kind_for_mission_file(file, mission_slug=mission_slug)
+        if kind_f is not None and is_primary_artifact_kind(kind_f) == expect_primary:
+            return kind_f
+    return fallback
+
+
 def _group_files_by_partition(
     repo_root: Path,
     files: tuple[Path, ...],
@@ -354,75 +401,107 @@ def _group_files_by_partition(
     *,
     kind: MissionArtifactKind,
 ) -> list[tuple[MissionArtifactKind, tuple[Path, ...]]]:
-    """Group ``files`` by PARTITION (PRIMARY vs PLACEMENT), not by exact kind (T002).
+    """Group ``files`` by PARTITION (PRIMARY vs COORD), not by exact kind (T023).
 
-    contracts/partition-aware-commit-seam.md: for each file, classify
-    ``kind_f = kind_for_mission_file(file, mission_slug=mission_slug)``. A
-    ``None`` classification (unrecognised path) falls back to the
-    caller-supplied ``kind`` — never dropped, never coerced into the other
-    partition (FR-007). Files are grouped by SURFACE, keyed by ONE
-    representative kind per surface, because every kind within one partition
-    resolves to the IDENTICAL placement ref (``resolve_placement_only``
-    resolves the primary ``target_branch`` for any ``_PRIMARY_ARTIFACT_KINDS``
-    member, and the same topology-routed ``destination_ref`` for any placement
-    kind) — so a single ``resolve_placement_only`` call per group suffices.
+    FR-005 / C-007 (#2650 / #2533): each file's partition membership is
+    decided by the SAME absolute authority the read-side (``implement_cores.
+    py::resolve_precondition_ref``) and write-side cli
+    (``implement.py::_partition_files_for_commit``) sites already use —
+    :func:`~mission_runtime.is_coordination_artifact_residue_path` — instead
+    of the divergent ``kind_for_mission_file(file) or kind`` classifier this
+    helper used before. A ``None`` classification (``meta.json``, an
+    unrecognised path) is NOT coord-residue, so it now routes PRIMARY
+    UNCONDITIONALLY — never falling back to (and never inheriting) the
+    caller's own partition. This closes the #2533-class hole: previously a
+    ``kind=None`` file bundled under a COORD-kind caller (e.g. a ``move_task``
+    status commit) silently joined the caller's COORD group instead of its
+    own (PRIMARY) home.
 
-    C-002: this NEVER changes kind→partition membership — it only decides which
-    of the (at most two) existing partitions each file belongs to.
+    The buckets are ABSOLUTE, not relative to the caller: a PRIMARY-partition
+    file always resolves against a PRIMARY ref and a COORD-partition file
+    always resolves against the COORD ref, regardless of which partition
+    ``kind`` (the caller's own artifact kind) belongs to. ``resolve_placement_
+    only`` is still the sole ref-resolution authority for both buckets (the
+    swap is classifier-only, not ref-resolution) — see
+    :func:`_representative_kind_for_bucket` for how a concrete kind is chosen
+    per bucket to drive that call.
 
     Coordless-topology coincidence (regression guard, #2155): under a topology
     that does not route through coordination (``SINGLE_BRANCH`` / ``LANES``),
-    EVERY kind's placement — primary or placement-partition — resolves to the
-    SAME ``target_branch`` (``routes_through_coordination`` gates the coord
-    divergence). Splitting such a batch into two commits would be a pure
-    regression (an existing atomic-commit caller, ``move_task``'s
-    ``WORK_PACKAGE_TASK`` + ``STATUS_STATE`` bundle, expects ONE commit) with no
-    INV-C1 benefit — both partitions' own ref IS the same ref. So the two
-    candidate refs are resolved ONCE each (only when both partitions are
-    actually present) and the groups are collapsed back into the historical
-    single-group call when they coincide; only a genuine ref DIVERGENCE
-    (coordination topology routing a placement kind elsewhere) is split.
+    EVERY kind's placement — primary or coord-partition — resolves to the SAME
+    ``target_branch``. Splitting a genuinely mixed batch into two commits in
+    that case would be a pure regression (an existing atomic-commit caller,
+    ``move_task``'s ``WORK_PACKAGE_TASK`` + ``STATUS_STATE`` bundle, expects
+    ONE commit) with no benefit — both buckets' own ref IS the same ref. So
+    when both buckets are non-empty their refs are resolved and compared, and
+    the groups collapse back into the historical single-group call when they
+    coincide; only a genuine ref DIVERGENCE is split.
 
     Returns a list of ``(representative_kind, files)`` groups:
 
     - Zero groups when ``files`` is empty.
     - One group ``(kind, files)`` when every file shares the caller's OWN
-      partition, OR when both partitions are present but resolve to the SAME
-      ref (the fast path's byte-identical-to-today guarantee).
-    - One group ``(other_kind, files)`` when EVERY file belongs to the OTHER
-      partition (a batch that was entirely misrouted under the caller's
-      ``kind`` pre-fix — this is itself the bug fix, not a fast-path case).
+      partition (the byte-identical-to-today fast path — no
+      ``resolve_placement_only`` call is made in this branch).
+    - One group ``(representative_kind, files)`` when every file belongs to
+      the SAME (single) partition even though it disagrees with the caller's
+      own ``kind`` — the #2533-class fix: this partition's OWN ref is used,
+      never the caller's.
+    - One group ``(kind, files)`` when both partitions are present but
+      resolve to the SAME ref (the coordless-topology collapse above).
     - Two groups when the batch is genuinely mixed AND the two partitions'
       refs diverge (the #2404 defect shape).
     """
+    if not files:
+        return []
+
     caller_is_primary = is_primary_artifact_kind(kind)
-    same_partition: list[Path] = []
-    other_partition: list[Path] = []
-    other_kind: MissionArtifactKind | None = None
-
+    primary_files: list[Path] = []
+    coord_files: list[Path] = []
     for file in files:
-        kind_f = kind_for_mission_file(file, mission_slug=mission_slug) or kind
-        if is_primary_artifact_kind(kind_f) == caller_is_primary:
-            same_partition.append(file)
+        if is_coordination_artifact_residue_path(file, mission_slug=mission_slug):
+            coord_files.append(file)
         else:
-            other_partition.append(file)
-            if other_kind is None:
-                other_kind = kind_f
+            primary_files.append(file)
 
-    if not other_partition or other_kind is None:
-        return [(kind, files)] if files else []
-
-    same_ref = resolve_placement_only(repo_root, mission_slug, kind=kind).ref
-    other_ref = resolve_placement_only(repo_root, mission_slug, kind=other_kind).ref
-    if same_ref == other_ref:
-        # No real routing divergence (coordless topology) — keep the historical
-        # single-commit fast path instead of a gratuitous second commit.
+    caller_partition_holds_everything = (
+        caller_is_primary and not coord_files
+    ) or (not caller_is_primary and not primary_files)
+    if caller_partition_holds_everything:
+        # Every file lands in the caller's own partition — the historical
+        # fast path: no extra resolve_placement_only call, byte-identical to
+        # the pre-#2650 single-group call.
         return [(kind, files)]
 
+    primary_kind = (
+        kind
+        if caller_is_primary
+        else _representative_kind_for_bucket(
+            primary_files, mission_slug, expect_primary=True, fallback=_FALLBACK_PRIMARY_KIND
+        )
+    )
+    coord_kind = (
+        kind
+        if not caller_is_primary
+        else _representative_kind_for_bucket(
+            coord_files, mission_slug, expect_primary=False, fallback=_FALLBACK_COORD_KIND
+        )
+    )
+
+    if primary_files and coord_files:
+        primary_ref = resolve_placement_only(repo_root, mission_slug, kind=primary_kind).ref
+        coord_ref = resolve_placement_only(repo_root, mission_slug, kind=coord_kind).ref
+        if primary_ref == coord_ref:
+            # No real routing divergence (coordless topology) — keep the
+            # historical single-commit fast path instead of a gratuitous
+            # second commit.
+            return [(kind, files)]
+
     groups: list[tuple[MissionArtifactKind, tuple[Path, ...]]] = []
-    if same_partition:
-        groups.append((kind, tuple(same_partition)))
-    groups.append((other_kind, tuple(other_partition)))
+    if primary_files:
+        groups.append((primary_kind, tuple(primary_files)))
+    if coord_files:
+        groups.append((coord_kind, tuple(coord_files)))
     return groups
 
 
