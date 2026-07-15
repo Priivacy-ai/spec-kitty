@@ -65,6 +65,8 @@ import json
 
 from pydantic import BaseModel, ConfigDict, field_validator
 
+from doctrine.missions.mission_type_repository import builtin_mission_type_id_set
+
 __all__ = [
     "ActivationEntry",
     "ALLOWED_MISSION_TYPES",
@@ -81,10 +83,17 @@ __all__ = [
 
 
 #: Canonical closed vocabulary for ``activation_context.mission_type``.
+#: Derived from the canonical accessor
+#: :func:`doctrine.missions.mission_type_repository.builtin_mission_type_id_set`
+#: (single source of truth, #2669 IC-1a) plus the wildcard tokens ``any`` /
+#: ``generic``. This triggers one cached ``mission_types/`` filesystem read
+#: at import of this module — the accepted NFR-001 carve-out for a
+#: module-level derived value (C-012); the import is layer-legal
+#: (charter -> doctrine) and cycle-free (doctrine never imports charter).
 #: Mirrors the expected vocabulary pinned in
 #: ``tests/architectural/test_activation_registry_schema.py``.
 ALLOWED_MISSION_TYPES: frozenset[str] = frozenset(
-    {"software-dev", "documentation", "research", "plan", "any", "generic"}
+    builtin_mission_type_id_set() | {"any", "generic"}
 )
 
 

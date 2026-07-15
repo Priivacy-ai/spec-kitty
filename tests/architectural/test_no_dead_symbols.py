@@ -113,7 +113,7 @@ _CATEGORY_A_SLICE_F_DEFERRED: frozenset[SymbolKey] = frozenset(
         SymbolKey("CharterCatalogMissError", "f0f2057a37b2ac491094023a2059ce8904848d1ae6e6e63e84b627fc508ab1b8"),  # charter._catalog_miss::CharterCatalogMissError
         # charter._catalog_miss::CharterCatalogMissWarning
         SymbolKey("CharterCatalogMissWarning", "7e5a4824e4b5a66125cf3e5ac266279983bfd23e5a02f3abd661eefaa0f93be8"),
-        SymbolKey("ALLOWED_MISSION_TYPES", "0188ad499e11afbb0457146f8ebcc7f8bb1b2c65626ba76910d9f54fec71bba6"),  # charter.activations::ALLOWED_MISSION_TYPES
+        SymbolKey("ALLOWED_MISSION_TYPES", "66f78adc4726573209f4e4eba6c766601762ead6492b8a86131ef45184ef69fd"),  # charter.activations::ALLOWED_MISSION_TYPES (body_hash refreshed WP03/#2669: derived from builtin_mission_type_id_set())
         SymbolKey("REGISTERED_TRIGGERS", "4582c6fc202160e4708ef2cec5b63a041e7331f9dc704abd9020800abe042c0f"),  # charter.activations::REGISTERED_TRIGGERS
         SymbolKey("CompactView", "88c5804b596411b484f9a7d6ff3404a60d31a3c554ef77b96491aa4966b5aad2"),  # charter.compact::CompactView
         SymbolKey("extract_section_anchors", "98ff665e1c40a10a69f25707ce30f4be7366667f472fb3abb3f457b8370e6633"),  # charter.compact::extract_section_anchors

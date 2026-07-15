@@ -19,9 +19,12 @@ import pytest
 
 pytestmark = pytest.mark.fast
 
+from doctrine.missions.mission_type_repository import (
+    MissionTypeRepository,
+    builtin_mission_type_ids,
+)
 from specify_cli.upgrade.migrations.m_3_2_0rc35_activate_builtin_mission_types import (
     ActivateBuiltinMissionTypesMigration,
-    _BUILTIN_MISSION_TYPES,
 )
 
 
@@ -133,7 +136,7 @@ def test_apply_adds_all_four_builtins(
     data = yaml.load(config_file.read_text()) or {}
     assert "mission_type_activations" in data
     written = data["mission_type_activations"]
-    assert sorted(written) == sorted(_BUILTIN_MISSION_TYPES)
+    assert sorted(written) == sorted(builtin_mission_type_ids())
 
 
 def test_apply_adds_all_four_builtins_minimal_config(
@@ -148,7 +151,7 @@ def test_apply_adds_all_four_builtins_minimal_config(
 
     yaml = YAML(typ="safe")
     data = yaml.load(config_file.read_text()) or {}
-    assert set(data["mission_type_activations"]) == set(_BUILTIN_MISSION_TYPES)
+    assert set(data["mission_type_activations"]) == set(builtin_mission_type_ids())
 
 
 # ---------------------------------------------------------------------------
@@ -300,11 +303,76 @@ def test_ruamel_roundtrip_preserves_comments(
 # ---------------------------------------------------------------------------
 
 
-def test_builtin_types_contains_expected_ids() -> None:
-    """_BUILTIN_MISSION_TYPES must contain the four canonical built-in IDs."""
-    assert set(_BUILTIN_MISSION_TYPES) == {
+def test_builtin_ids_match_expected_canonical_set() -> None:
+    """The canonical accessor still yields the four shipped built-in IDs."""
+    assert set(builtin_mission_type_ids()) == {
         "software-dev",
         "documentation",
         "research",
         "plan",
     }
+
+
+# ---------------------------------------------------------------------------
+# apply(): call-time live-read from the accessor (C-004)
+# ---------------------------------------------------------------------------
+
+
+def test_apply_reads_live_from_accessor_at_call_time(
+    tmp_path: Path, migration: ActivateBuiltinMissionTypesMigration, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """apply() resolves the written set from the live accessor at call time.
+
+    A synthetic mission-type YAML injected via a monkeypatched
+    ``MissionTypeRepository.default`` root is picked up by ``apply()``
+    without any hardcoded roster in the migration module — proving the
+    written set is derived, not a frozen literal (C-004).
+    """
+    shipped_dir = (
+        Path(__file__).resolve().parents[2]
+        / "src"
+        / "doctrine"
+        / "missions"
+        / "mission_types"
+    )
+    synthetic_root = tmp_path / "mission_types_src"
+    synthetic_root.mkdir()
+    for yaml_file in shipped_dir.glob("*.yaml"):
+        (synthetic_root / yaml_file.name).write_text(
+            yaml_file.read_text(encoding="utf-8"), encoding="utf-8"
+        )
+    (synthetic_root / "analysis.yaml").write_text(
+        "schema_version: 1\n"
+        "id: analysis\n"
+        'display_name: "Analysis"\n'
+        "action_sequence:\n"
+        "  - specify\n"
+        "  - plan\n",
+        encoding="utf-8",
+    )
+
+    def _fake_default(cls: type[MissionTypeRepository]) -> MissionTypeRepository:
+        return cls(synthetic_root)
+
+    monkeypatch.setattr(MissionTypeRepository, "default", classmethod(_fake_default))
+    builtin_mission_type_ids.cache_clear()
+
+    config_file = _write_config(tmp_path, "agents:\n  available:\n    - claude\n")
+    try:
+        result = migration.apply(tmp_path)
+
+        assert result.success
+        from ruamel.yaml import YAML
+
+        yaml = YAML(typ="safe")
+        data = yaml.load(config_file.read_text()) or {}
+        written = data["mission_type_activations"]
+        assert set(written) == {
+            "software-dev",
+            "documentation",
+            "research",
+            "plan",
+            "analysis",
+        }
+    finally:
+        builtin_mission_type_ids.cache_clear()

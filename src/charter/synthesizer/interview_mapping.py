@@ -47,6 +47,7 @@ from dataclasses import dataclass
 from typing import Any, Literal
 
 from charter.language_scope import extract_declared_languages
+from doctrine.missions.mission_type_repository import builtin_mission_type_ids
 
 __all__ = [
     "canonicalize_interview_section_label",
@@ -143,13 +144,22 @@ _INTERVIEW_SECTION_ALIASES: dict[str, tuple[str, ...]] = {
     "language_scope": ("languages_frameworks",),
 }
 
+# The sole consumer (``_section_answer_with_source``) tests membership via
+# ``_normalize_section_selector(canonical) in _MISSION_IDENTIFIER_ANSWERS``,
+# and ``_normalize_section_selector`` replaces ``-`` with ``_`` before the
+# lookup — so the functionally reachable members are underscore-normalized
+# ids. Derived from the canonical accessor (single source of truth, #2669
+# IC-1a): a naive ``frozenset(builtin_mission_type_ids())`` would keep the
+# shipped hyphen spellings (e.g. ``software-dev``) and silently drop the
+# essential underscore alias ``software_dev``, breaking software-dev
+# identifier matching. One cached ``mission_types/`` read at import of this
+# module is the accepted NFR-001 carve-out for a module-level derived value
+# (C-012) — this table is private with a single internal consumer, so a
+# lazy form would be over-engineering.
 _MISSION_IDENTIFIER_ANSWERS: frozenset[str] = frozenset(
     {
-        "documentation",
-        "plan",
-        "research",
-        "software_dev",
-        "software-dev",
+        mission_type_id.replace("-", "_")
+        for mission_type_id in builtin_mission_type_ids()
     }
 )
 
