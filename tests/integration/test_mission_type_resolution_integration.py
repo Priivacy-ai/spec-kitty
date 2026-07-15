@@ -15,6 +15,15 @@ pins three acceptance criteria end-to-end:
 * **SC-004** — each type's resolved *(type ⊕ action)* set is a **superset** of
   the domain's authored + referenced governance ids, making "covers the domain"
   a checkable positive assertion rather than a vibe.
+
+WP03 wired the live action-grain union into ``bundle.governance`` itself
+(lazily, via :func:`charter.action_grain.aggregate_action_grain` — covering
+EVERY action the mission type ships). WP05 reconciled
+``_resolve_union_from_mission`` onto that single source (C-002 / FR-006): it
+used to independently re-union ``load_action_index`` over the type's own
+actions after already reading ``bundle.governance`` — a second, competing
+implementation of the same union. That loop is deleted; the helper now reads
+``bundle.governance`` directly.
 """
 
 from __future__ import annotations
@@ -24,18 +33,14 @@ from pathlib import Path
 
 import pytest
 
-import doctrine.missions
 from charter.mission_type_profiles import (
     ResolvedGovernance,
     UnknownMissionTypeError,
     resolve_mission_type_context,
 )
-from doctrine.missions.action_index import ActionIndex, load_action_index
 
 pytestmark = [pytest.mark.integration]
 
-
-MISSIONS_ROOT: Path = Path(doctrine.missions.__file__).resolve().parent
 
 _KIND_SINGULAR: dict[str, str] = {
     "directives": "directive",
@@ -114,21 +119,6 @@ def _governance_urns(governance: ResolvedGovernance | None) -> set[str]:
     return urns
 
 
-def _action_urns(index: ActionIndex) -> set[str]:
-    urns: set[str] = set()
-    for kind_plural in _KIND_SINGULAR:
-        for raw in getattr(index, kind_plural):
-            urns.add(_canonical_urn(kind_plural, raw))
-    return urns
-
-
-def _own_action_names(mission_type: str) -> tuple[str, ...]:
-    actions_dir = MISSIONS_ROOT / mission_type / "actions"
-    if not actions_dir.is_dir():
-        return ()
-    return tuple(sorted(p.name for p in actions_dir.iterdir() if p.is_dir()))
-
-
 def _stage_mission(repo_root: Path, mission_type: str) -> Path:
     """Stage a real ``kitty-specs/<slug>/meta.json`` declaring ``mission_type``.
 
@@ -147,13 +137,16 @@ def _stage_mission(repo_root: Path, mission_type: str) -> Path:
 
 
 def _resolve_union_from_mission(repo_root: Path, feature_dir: Path, mission_type: str) -> set[str]:
-    """Resolve the unioned *(type ⊕ action)* URN set via the live meta.json path."""
+    """Resolve the *(type ⊕ action)* URN set via the live meta.json path.
+
+    Reads ``bundle.governance`` directly — post-WP03 it already carries the
+    FR-013 union of the type grain with the FULL action grain (every action
+    the mission type ships). No independent ``load_action_index`` re-union is
+    performed here (C-002 / FR-006).
+    """
     bundle = resolve_mission_type_context(repo_root, feature_dir=feature_dir)
     assert bundle.mission_type == mission_type
-    union = _governance_urns(bundle.governance)
-    for action in _own_action_names(mission_type):
-        union |= _action_urns(load_action_index(MISSIONS_ROOT, mission_type, action))
-    return union
+    return _governance_urns(bundle.governance)
 
 
 # ---------------------------------------------------------------------------

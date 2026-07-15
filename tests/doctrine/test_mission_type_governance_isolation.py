@@ -2,8 +2,7 @@
 
 WP12 — the join. These are **behavioural** assertions on the *resolved URN set*
 that a real mission of each type surfaces through the single charter-mediated
-seam (:func:`charter.mission_type_profiles.resolve_mission_type_context`) unioned
-with the doctrine action grain (:func:`doctrine.missions.action_index.load_action_index`).
+seam (:func:`charter.mission_type_profiles.resolve_mission_type_context`).
 They deliberately do **not** ratchet on code shape — they assert on the doctrine a
 mission would actually be governed by.
 
@@ -13,11 +12,10 @@ The four contract obligations (C5 / resolution-and-enforcement.md):
   the resolved *(type ⊕ action)* URN set is **disjoint** from a curated,
   URN-normalized software-dev-only denylist.
 * **Non-vacuity twin** — the SAME denylist **is** resolved by ``software-dev``,
-  exercised through an action name (``implement``) that is applied to *every*
-  type by the shared probe list, so the non-leakage pass cannot succeed
-  vacuously (i.e. by never resolving anything). If ``software-dev`` stops
-  resolving the denylist, :func:`test_non_vacuity_twin_software_dev_resolves_denylist`
-  fails loud.
+  exercised through the shared ``bundle.governance`` union, so the non-leakage
+  pass cannot succeed vacuously (i.e. by never resolving anything). If
+  ``software-dev`` stops resolving the denylist,
+  :func:`test_non_vacuity_twin_software_dev_resolves_denylist` fails loud.
 * **Determinism (NFR-007)** — two resolutions of identical inputs are
   byte-identical.
 * **Hard-fail / degrade** — an unknown *typed* mission raises; a known type with
@@ -29,11 +27,18 @@ governance that is meaningless for a documentation, research, or plan mission.
 It is homed **only** in ``src/doctrine/missions/software-dev/actions/implement/index.yaml``;
 this test pins that it never leaks into the other three domains.
 
-Known follow-up (not a WP12 blocker): FR-013 cross-grain disjointness currently
-fires only on synthetic data because the seam still threads an EMPTY action grain
-into ``_resolve_governance_slot`` (WP04's ``action_grain`` deferral). This test
-unions the action grain *itself* via ``load_action_index``, so it exercises the
-real doctrine regardless of that deferral.
+WP03 wired the live action-grain union into ``bundle.governance`` itself (lazily,
+behind a ``cached_property`` thunk — accessing ``.governance`` now triggers the
+real ``charter.action_grain.aggregate_action_grain`` union, covering EVERY
+action the mission type ships, not just a probe subset). WP05 reconciled this
+test onto that single source (C-002 / FR-006): ``_resolve_union`` used to
+independently re-union ``load_action_index`` over a probe action list — a
+second, competing implementation of the exact union ``bundle.governance``
+already performs. That loop is deleted; ``_resolve_union`` now reads
+``bundle.governance`` directly. ``test_probe_action_implement_is_shared_and_load_bearing``
+below still calls ``load_action_index`` directly (not via ``_resolve_union``) to
+probe the *raw* action index in isolation from the resolver — that is a
+deliberate, independent check, not a union loop.
 """
 
 from __future__ import annotations
@@ -146,28 +151,18 @@ def _action_urns(index: ActionIndex) -> set[str]:
     return urns
 
 
-def _own_action_names(mission_type: str) -> tuple[str, ...]:
-    """The action directories a mission type actually ships, sorted."""
-    actions_dir = MISSIONS_ROOT / mission_type / "actions"
-    if not actions_dir.is_dir():
-        return ()
-    return tuple(sorted(p.name for p in actions_dir.iterdir() if p.is_dir()))
+def _resolve_union(mission_type: str, *, repo_root: Path) -> set[str]:
+    """Resolve the *(type-grain ⊕ action-grain)* URN set for a type.
 
-
-def _resolve_union(mission_type: str, actions: tuple[str, ...], *, repo_root: Path) -> set[str]:
-    """Resolve the unioned *(type-grain ⊕ action-grain)* URN set for a type.
-
-    * type-grain — the charter-mediated seam (``resolve_mission_type_context``).
-    * action-grain — the doctrine ``load_action_index`` for each probe action.
-
-    This is the exact set a mission of ``mission_type`` would be governed by,
-    canonicalized for comparison.
+    Reads ``resolve_mission_type_context(...).governance`` directly — post-WP03
+    that property already carries the FR-013 union of the type grain
+    (``governance-profile.yaml``) with the FULL action grain (every action the
+    mission type ships, via :func:`charter.action_grain.aggregate_action_grain`),
+    not a probe subset. This is the single production union (C-002); no second,
+    independent ``load_action_index`` loop is performed here.
     """
     bundle = resolve_mission_type_context(repo_root, mission_type=mission_type)
-    union = _governance_urns(bundle.governance)
-    for action in actions:
-        union |= _action_urns(load_action_index(MISSIONS_ROOT, mission_type, action))
-    return union
+    return _governance_urns(bundle.governance)
 
 
 # ---------------------------------------------------------------------------
@@ -182,8 +177,7 @@ class TestNonLeakage:
     def test_resolved_governance_is_disjoint_from_software_dev_denylist(
         self, mission_type: str, tmp_path: Path
     ) -> None:
-        actions = tuple(sorted({*_own_action_names(mission_type), *_SHARED_PROBE_ACTIONS}))
-        union = _resolve_union(mission_type, actions, repo_root=tmp_path)
+        union = _resolve_union(mission_type, repo_root=tmp_path)
         leaked = union & SOFTWARE_DEV_ONLY_DENYLIST
         assert not leaked, (
             f"SC-001 regression: mission type {mission_type!r} resolved "
@@ -229,11 +223,11 @@ class TestNonVacuityTwin:
 
         This is the twin that keeps :class:`TestNonLeakage` honest: it runs the
         identical resolution machinery (``_resolve_union``) against
-        ``software-dev`` over the SAME shared probe actions. If a regression made
-        resolution return nothing (making non-leakage pass vacuously), this
-        assertion fails loud because the denylist would no longer be a subset.
+        ``software-dev``. If a regression made resolution return nothing (making
+        non-leakage pass vacuously), this assertion fails loud because the
+        denylist would no longer be a subset.
         """
-        union = _resolve_union("software-dev", _SHARED_PROBE_ACTIONS, repo_root=tmp_path)
+        union = _resolve_union("software-dev", repo_root=tmp_path)
         missing = SOFTWARE_DEV_ONLY_DENYLIST - union
         assert not missing, (
             "Non-vacuity twin broke: software-dev no longer resolves the "
@@ -265,9 +259,8 @@ class TestDeterminism:
     def test_resolved_union_is_stable_across_resolutions(
         self, mission_type: str, tmp_path: Path
     ) -> None:
-        actions = tuple(sorted({*_own_action_names(mission_type), *_SHARED_PROBE_ACTIONS}))
-        first = _resolve_union(mission_type, actions, repo_root=tmp_path)
-        second = _resolve_union(mission_type, actions, repo_root=tmp_path)
+        first = _resolve_union(mission_type, repo_root=tmp_path)
+        second = _resolve_union(mission_type, repo_root=tmp_path)
         assert first == second
 
 
@@ -281,14 +274,22 @@ class TestHardFailAndDegrade:
         with pytest.raises(UnknownMissionTypeError):
             resolve_mission_type_context(tmp_path, mission_type="totally-made-up-type")
 
-    def test_known_type_with_empty_grain_resolves_empty_without_error(
+    def test_known_type_with_empty_type_grain_resolves_without_error(
         self, tmp_path: Path
     ) -> None:
-        """software-dev ships an empty type-grain — it resolves empty, no error."""
+        """software-dev ships an empty TYPE-grain — accessing governance never errors (FR-004).
+
+        Post-WP03, ``bundle.governance`` is the type-grain UNION action-grain, so
+        the resolved URN set is no longer empty — software-dev's action grain
+        (every ``actions/*/index.yaml`` under the type) is substantial. Only the
+        TYPE grain (``governance-profile.yaml``) is empty for software-dev. The
+        FR-004 guarantee under test is "no error on an empty grain", not "empty
+        result" — accessing ``.governance`` must resolve without raising even
+        though the type-grain alone contributes nothing.
+        """
         bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
         assert bundle.mission_type == "software-dev"
         assert bundle.governance is not None
-        assert _governance_urns(bundle.governance) == set()
 
     def test_typeless_caller_degrades_neutrally_never_software_dev(
         self, tmp_path: Path
