@@ -35,6 +35,7 @@ from specify_cli.cli.commands.implement_cores import (
     _status_paths_for_commit,
     detect_structural_planning_changes,
     resolve_planning_artifact_staging,
+    resolve_precondition_ref,
 )
 from specify_cli.core.errors import PlacementResolutionRequired
 from mission_runtime import CommitTarget
@@ -281,6 +282,46 @@ class TestDropVcsLockOnlyMeta:
         assert kept == ["kitty-specs/m/meta.json"]
 
 
+class TestResolvePreconditionRef:
+    """T001/T002 -- contracts/resolve-precondition-ref.md is authoritative.
+
+    Single owner of the "compare-against-which-ref" decision, resolved PER
+    FILE PATH (not once per staging call): on a coord mission
+    ``coord_branch_for_filter`` is a single non-``None`` branch for every
+    candidate; only the path distinguishes a PRIMARY ``spec.md`` from a COORD
+    ``status.events.jsonl``.
+    """
+
+    _COORD_BRANCH = "kitty/mission-m-AAAA1111"
+
+    def test_primary_kind_resolves_to_head(self) -> None:
+        assert resolve_precondition_ref("kitty-specs/m/spec.md", self._COORD_BRANCH) == "HEAD"
+
+    def test_meta_json_resolves_to_head_even_on_coord_mission(self) -> None:
+        """BLOCKER-2 lock: ``meta.json`` is a PRIMARY-partition kind
+        (``kind_for_mission_file`` cannot classify it -- routing it through
+        that None-returning lookup would misroute it to coord and
+        reintroduce #2533). This is the exact file
+        ``_committed_meta_mapping`` exists for."""
+        assert resolve_precondition_ref("kitty-specs/m/meta.json", self._COORD_BRANCH) == "HEAD"
+
+    def test_coord_residue_kind_resolves_to_coord_branch(self) -> None:
+        assert resolve_precondition_ref("kitty-specs/m/status.events.jsonl", self._COORD_BRANCH) == self._COORD_BRANCH
+
+    def test_no_coord_branch_resolves_to_head_even_for_coord_kind(self) -> None:
+        """A flattened/non-coord mission (``coord_branch_for_filter is None``)
+        never routes to coord, even for an otherwise-coord-residue path."""
+        assert resolve_precondition_ref("kitty-specs/m/spec.md", None) == "HEAD"
+
+    def test_no_coord_branch_resolves_status_events_to_head_too(self) -> None:
+        assert resolve_precondition_ref("kitty-specs/m/status.events.jsonl", None) == "HEAD"
+
+    def test_unknown_path_defaults_to_head(self) -> None:
+        """Fail-safe direction (NFR-004): an unrecognized path is never routed
+        to coord -- everything not explicitly coord-residue defaults primary."""
+        assert resolve_precondition_ref("kitty-specs/m/unknown-file.txt", self._COORD_BRANCH) == "HEAD"
+
+
 class TestFilesChangedVsRef:
     def test_no_ref_returns_all_files(self, tmp_path: Path) -> None:
         files = ["a.txt", "b.txt"]
@@ -340,10 +381,18 @@ class TestResolvePlanningArtifactStaging:
         )
         assert coord_plan.files_to_commit == ["kitty-specs/m/extra.md"]
 
-    def test_idempotent_when_already_matching_coord_ref(self, tmp_path: Path) -> None:
+    def test_idempotent_when_already_matching_its_partition_ref(self, tmp_path: Path) -> None:
         """Idempotency guard: a discovered-but-already-committed edit
-        (content identical to the coord ref) yields an empty plan, not an
-        empty-commit attempt (see _files_changed_vs_ref)."""
+        (content identical to the ref for ITS OWN partition) yields an empty
+        plan, not an empty-commit attempt (see _files_changed_vs_ref).
+
+        Re-pinned (WP01 / T004): ``tasks.md`` is a PRIMARY-partition kind
+        (``TASKS_INDEX``), so on a coord mission it is compared against
+        ``HEAD`` -- never the coordination ref -- even though this staging
+        call carries a non-``None`` ``coord_branch_for_filter`` (#2533: the
+        pre-fix single-ref comparison wrongly diffed it against coord instead,
+        where it is legitimately absent, and flagged it as changed).
+        """
         artifact_dir = tmp_path / "kitty-specs" / "m"
         artifact_dir.mkdir(parents=True)
         tasks_path = artifact_dir / "tasks.md"
@@ -351,12 +400,16 @@ class TestResolvePlanningArtifactStaging:
         coord_ref = "kitty/mission-m-AAAA1111"
         fake = _FakeGitPort(
             porcelain=" M kitty-specs/m/tasks.md\n",
-            blobs={(coord_ref, "kitty-specs/m/tasks.md"): b"# tasks"},
+            blobs={("HEAD", "kitty-specs/m/tasks.md"): b"# tasks"},
         )
         plan = resolve_planning_artifact_staging(tmp_path, artifact_dir, coord_ref, [], auto_commit=True, git=fake)
         assert plan.files_to_commit == []
 
-    def test_genuinely_changed_file_is_kept_and_flagged_for_instructions(self, tmp_path: Path) -> None:
+    def test_genuinely_changed_primary_file_is_kept_and_flagged_for_instructions(self, tmp_path: Path) -> None:
+        """Re-pinned (WP01 / T004, INV-5): a genuinely-dirty PRIMARY artifact
+        (``tasks.md``) is still detected and staged on a coord mission -- the
+        fix corrects WHICH ref it compares against (``HEAD``), it must not
+        blind the check entirely."""
         artifact_dir = tmp_path / "kitty-specs" / "m"
         artifact_dir.mkdir(parents=True)
         tasks_path = artifact_dir / "tasks.md"
@@ -364,11 +417,74 @@ class TestResolvePlanningArtifactStaging:
         coord_ref = "kitty/mission-m-AAAA1111"
         fake = _FakeGitPort(
             porcelain=" M kitty-specs/m/tasks.md\n",
-            blobs={(coord_ref, "kitty-specs/m/tasks.md"): b"# tasks v1"},
+            blobs={("HEAD", "kitty-specs/m/tasks.md"): b"# tasks v1"},
         )
         plan = resolve_planning_artifact_staging(tmp_path, artifact_dir, coord_ref, [], auto_commit=True, git=fake)
         assert plan.files_to_commit == ["kitty-specs/m/tasks.md"]
         assert plan.status_paths_to_commit == ["kitty-specs/m/tasks.md"]
+
+    def test_dirty_spec_md_still_staged_against_head_on_coord_mission(self, tmp_path: Path) -> None:
+        """INV-5 invariant: a genuinely-dirty PRIMARY ``spec.md`` on a coord
+        mission is still staged (compared against ``HEAD``, never coord)."""
+        artifact_dir = tmp_path / "kitty-specs" / "m"
+        artifact_dir.mkdir(parents=True)
+        (artifact_dir / "spec.md").write_bytes(b"# spec v2")
+        coord_ref = "kitty/mission-m-AAAA1111"
+        fake = _FakeGitPort(
+            porcelain=" M kitty-specs/m/spec.md\n",
+            blobs={("HEAD", "kitty-specs/m/spec.md"): b"# spec v1"},
+        )
+        plan = resolve_planning_artifact_staging(tmp_path, artifact_dir, coord_ref, [], auto_commit=True, git=fake)
+        assert plan.files_to_commit == ["kitty-specs/m/spec.md"]
+
+    def test_dirty_coord_kind_file_still_resolves_to_coord_ref(self, tmp_path: Path) -> None:
+        """NFR-002 coord non-regression: a genuinely-dirty COORD-partition
+        artifact (``issue-matrix.md`` -- not one of the ``COORD_OWNED_STATUS_FILES``
+        excluded earlier in the pipeline) is still diffed against and staged
+        for the coordination ref, exactly as before the fix."""
+        artifact_dir = tmp_path / "kitty-specs" / "m"
+        artifact_dir.mkdir(parents=True)
+        (artifact_dir / "issue-matrix.md").write_bytes(b"# issues v2")
+        coord_ref = "kitty/mission-m-AAAA1111"
+        fake = _FakeGitPort(
+            porcelain=" M kitty-specs/m/issue-matrix.md\n",
+            blobs={(coord_ref, "kitty-specs/m/issue-matrix.md"): b"# issues v1"},
+        )
+        plan = resolve_planning_artifact_staging(tmp_path, artifact_dir, coord_ref, [], auto_commit=True, git=fake)
+        assert plan.files_to_commit == ["kitty-specs/m/issue-matrix.md"]
+        # A copy identical to coord is the idempotent no-op -- confirms the
+        # comparison ref really is coord, not HEAD (which the fake has no
+        # blob for and would therefore always read as "changed").
+        fake_idempotent = _FakeGitPort(
+            porcelain=" M kitty-specs/m/issue-matrix.md\n",
+            blobs={(coord_ref, "kitty-specs/m/issue-matrix.md"): b"# issues v2"},
+        )
+        idempotent_plan = resolve_planning_artifact_staging(tmp_path, artifact_dir, coord_ref, [], auto_commit=True, git=fake_idempotent)
+        assert idempotent_plan.files_to_commit == []
+
+    def test_meta_json_on_coord_mission_resolves_to_head(self, tmp_path: Path) -> None:
+        """BLOCKER-2 lock, exercised at the staging-core level: a ``meta.json``
+        that is clean/committed on the primary (target) branch but naturally
+        absent on the (empty) coordination branch must NOT be treated as
+        changed and staged -- it is compared against ``HEAD``, where its
+        content matches, and drops out of the plan entirely (#2533)."""
+        artifact_dir = tmp_path / "kitty-specs" / "m"
+        artifact_dir.mkdir(parents=True)
+        (artifact_dir / "meta.json").write_bytes(b'{"mission_slug": "m"}')
+        coord_ref = "kitty/mission-m-AAAA1111"
+        fake = _FakeGitPort(
+            porcelain="",
+            blobs={("HEAD", "kitty-specs/m/meta.json"): b'{"mission_slug": "m"}'},
+        )
+        plan = resolve_planning_artifact_staging(
+            tmp_path,
+            artifact_dir,
+            coord_ref,
+            ["kitty-specs/m/meta.json"],
+            auto_commit=True,
+            git=fake,
+        )
+        assert plan.files_to_commit == []
 
 
 # ---------------------------------------------------------------------------
