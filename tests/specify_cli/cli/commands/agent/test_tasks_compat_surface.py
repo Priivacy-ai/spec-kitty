@@ -141,9 +141,12 @@ _TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) — 21 symbols
     "_render_stale_status",
 )
 
-_TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 56 symbols (#2513/#2160: +uncheck/clear-markers/reset-rollback; #2573: +gate skip-reason pair)
+_TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 63 symbols
+    # (#2513/#2160: +uncheck/clear-markers/reset-rollback; #2573: +gate
+    # skip-reason pair; WP07 #2649: +param-object + commit/uncheck degod helpers)
     "_default_move_task_ports",
     "_MoveTaskState",
+    "_MoveTaskArgs",
     "_mt_warn_worktree_kitty_specs",
     "_mt_resolve_targets",
     "_mt_resolve_feedback",
@@ -164,12 +167,21 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 56 symbols (#2513/#216
     "_mt_hop_actor",
     "_mt_emit_transitions",
     "_mt_commit_wp_file",
+    # WP07 (#2649, T034): helpers extracted out of ``_mt_commit_wp_file`` for
+    # complexity headroom (folds #2604).
+    "_mt_wp_commit_message",
+    "_mt_report_commit_outcome",
     "_mt_persist_tracker_refs",
     # #2160 (coord-shadows-arm-closeout, FR-010): rollback-to-planned claim-marker
     # clear + the umbrella reset entry point join the family surface.
     "_mt_clear_rollback_claim_markers",
     "_mt_persist_wp_file",
     "_mt_uncheck_rollback_subtasks",
+    # WP07 (#2649, T035): helpers extracted out of
+    # ``_mt_uncheck_rollback_subtasks`` for complexity headroom, preserving
+    # the #2576/#2513 dual-handler split (C-001).
+    "_mt_attempt_uncheck_write",
+    "_mt_commit_uncheck_tasks_md",
     "_mt_reset_for_planned_rollback",
     "_mt_release_review_lock",
     "_mt_execute",
@@ -364,10 +376,10 @@ def test_no_required_symbol_duplicated_in_survey() -> None:
     assert total_declared == len(SYMBOL_TO_MODULE)
 
 
-def test_guard_covers_full_136_symbol_surface() -> None:
+def test_guard_covers_full_141_symbol_surface() -> None:
     """Traceability pin: the guard's total symbol count matches the sum of
     the 6 seams' counts recorded in the seam files' own docstrings at
-    authoring time (8 + 15 + 21 + 21 + 58 + 13 = 136). A change here is
+    authoring time (8 + 15 + 21 + 21 + 63 + 13 = 141). A change here is
     expected when a future WP relocates symbols; it should be a deliberate,
     reviewed edit — not a silent drift. #2513/#2160 added
     ``_mt_uncheck_rollback_subtasks``, ``_mt_clear_rollback_claim_markers`` and
@@ -376,5 +388,9 @@ def test_guard_covers_full_136_symbol_surface() -> None:
     ``_mt_pre_review_gate_skip_reason`` (54 -> 56). WP07
     (loop-friction-quickwins-2-01KXBWA4, T025, #2555.1) added
     ``_mt_untracked_planning_artifact_paths`` and ``_write_wp_fallback``
-    (56 -> 58)."""
-    assert len(SYMBOL_TO_MODULE) == 136
+    (56 -> 58). WP07 (implement-loop-commit-hardening-01KXJ1ZX, #2649) added
+    the ``_MoveTaskArgs`` param object plus the ``_mt_commit_wp_file`` /
+    ``_mt_uncheck_rollback_subtasks`` degod helpers (``_mt_wp_commit_message``,
+    ``_mt_report_commit_outcome``, ``_mt_attempt_uncheck_write``,
+    ``_mt_commit_uncheck_tasks_md``) (58 -> 63)."""
+    assert len(SYMBOL_TO_MODULE) == 141

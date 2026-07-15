@@ -30,7 +30,7 @@ import pytest
 
 from mission_runtime import MissionArtifactKind
 
-from specify_cli.cli.commands.agent.tasks import _do_move_task, seam_coord_router
+from specify_cli.cli.commands.agent.tasks import _do_move_task, _MoveTaskArgs, seam_coord_router
 from specify_cli.agent_tasks_ports import (
     CommitStatusResult,
     MissionHandle,
@@ -137,25 +137,27 @@ def _run_move(
         },
     ):
         _do_move_task(
-            task_id="WP01",
-            to=to,
-            mission=_MISSION,
-            agent=None,
-            assignee=None,
-            shell_pid=None,
-            note=None,
-            review_feedback_file=review_feedback_file,
-            approval_ref=None,
-            reviewer=None,
-            self_review_fallback=False,
-            intended_reviewer=None,
-            reviewer_failure_reason=None,
-            done_override_reason=None,
-            force=False,
-            tracker_ref=None,
-            skip_review_artifact_check=False,
-            auto_commit=auto_commit,
-            json_output=json_output,
+            _MoveTaskArgs(
+                task_id="WP01",
+                to=to,
+                mission=_MISSION,
+                agent=None,
+                assignee=None,
+                shell_pid=None,
+                note=None,
+                review_feedback_file=review_feedback_file,
+                approval_ref=None,
+                reviewer=None,
+                self_review_fallback=False,
+                intended_reviewer=None,
+                reviewer_failure_reason=None,
+                done_override_reason=None,
+                force=False,
+                tracker_ref=None,
+                skip_review_artifact_check=False,
+                auto_commit=auto_commit,
+                json_output=json_output,
+            ),
             ports=ports,
         )
 

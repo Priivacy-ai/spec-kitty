@@ -390,6 +390,13 @@ def test_legacy_warning_classification_matrix(
         flattened=flattened,
     )
     monkeypatch.chdir(mission["lane_worktree"])
+    # #2453: a stored-topology/flattened (non-warning) shape now routes to
+    # repo_root on the caller-supplied destination_ref instead of the
+    # cwd-derived lane branch, so "kitty/x" must exist as a real branch for
+    # the shared post-legacy-branch policy gate (WorkflowMutationPolicy) to
+    # accept it. Genuinely-legacy/malformed-topology cases still discard it
+    # (cwd override), so this is a no-op for those parametrizations.
+    _run(repo_root, "git", "branch", "kitty/x", "main")
 
     with BookkeepingTransaction.acquire(
         repo_root=repo_root,
@@ -416,26 +423,46 @@ def test_legacy_warning_classification_matrix(
         assert not marker.exists()
 
 
-def test_legacy_routing_and_write_contract_unaffected_by_topology(
+def test_legacy_routing_unaffected_but_modern_coordinationless_routes_to_repo_root(
     repo_root: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """FR-005/C-002/C-005: the shared routing + write-contract selection is
-    provably unaffected by the topology-aware warning classifier.
+    """FR-005/C-002/C-005 routing split, UPDATED for the #2453 write-side fix.
 
-    ``single_branch``/``lanes`` missions must still resolve the legacy
-    lane-worktree destination and select the identical event-log
-    write-contract a genuine-legacy mission selects — only the warning
-    emission trigger changed, never routing or write-contract selection.
+    Genuinely-legacy (no stored topology) missions are UNCHANGED: routing
+    still resolves the operator's cwd lane worktree + its checked-out branch
+    — there is no other reliable write target for a pre-SSOT mission.
+
+    ``single_branch``/``lanes`` (modern coordination-less) missions NO LONGER
+    share that destination. Before #2453 this test pinned all three shapes
+    landing on the IDENTICAL lane-worktree destination with an IDENTICAL
+    event-log write-contract — that uniformity WAS the #2453/#2647 bug (a
+    stale lane-worktree cwd silently won), not an invariant to protect.
+    Post-fix, modern coordination-less missions route to ``repo_root`` on the
+    caller-supplied ``destination_ref`` instead, and — as a direct
+    consequence — their write-contract selection legitimately diverges from
+    the genuine-legacy family too (``PRIMARY_CHECKOUT_APPEND`` vs
+    ``COORDINATION_TRANSACTION_APPEND``, since the resolved ``feature_dir`` no
+    longer sits under a ``.worktrees/...`` path).
     """
-    captured_targets: list[EventLogWriteTarget] = []
+    captured_targets: dict[str, EventLogWriteTarget] = {}
     real_append_event_log = transaction_module.append_event_log
 
     def _spy_append_event_log(contract: EventLogWriteContract, event: StatusEvent) -> None:
-        captured_targets.append(contract.target)
+        captured_targets[event.mission_slug] = contract.target
         real_append_event_log(contract, event)
 
     monkeypatch.setattr(transaction_module, "append_event_log", _spy_append_event_log)
+
+    # Modern coordination-less routing now lands on repo_root itself, so its
+    # destination_ref must be a REAL, existing, non-protected branch checked
+    # out THERE (the #2453 fix no longer overrides it from cwd) — mirroring
+    # the coordination-less invariant that the primary checkout stays on the
+    # mission's own branch for the mission's whole lifetime (CLAUDE.md's
+    # coord/primary partition: SINGLE_BRANCH/LANES route everything to
+    # primary).
+    modern_destination_ref = "kitty/modern-target"
+    _run(repo_root, "git", "checkout", "-q", "-b", modern_destination_ref)
 
     scenarios = [
         ("routing-genuine-legacy", "01KROUTE1ZZZZZZZZZZZZZZZZ", None),
@@ -450,17 +477,25 @@ def test_legacy_routing_and_write_contract_unaffected_by_topology(
             topology=topology,
         )
         monkeypatch.chdir(mission["lane_worktree"])
+        caller_destination_ref = "kitty/x" if topology is None else modern_destination_ref
         with BookkeepingTransaction.acquire(
             repo_root=repo_root,
             mission_id=mission["mission_id"],
             mission_slug=mission["mission_slug"],
             mid8=mission["mid8"],
-            destination_ref="kitty/x",
+            destination_ref=caller_destination_ref,
             operation="routing_invariance",
         ) as txn:
-            # Routing (C-002): still the legacy lane-worktree destination.
-            assert txn.worktree_root == mission["lane_worktree"]
-            assert txn.destination_ref == mission["lane_branch"]
+            if topology is None:
+                # Genuine-legacy (C-002): UNCHANGED — still the operator's
+                # cwd lane worktree, caller_destination_ref discarded.
+                assert txn.worktree_root == mission["lane_worktree"]
+                assert txn.destination_ref == mission["lane_branch"]
+            else:
+                # Modern coordination-less: THE #2453 FIX — repo_root, not
+                # the stale cwd lane worktree; caller_destination_ref kept.
+                assert txn.worktree_root == repo_root
+                assert txn.destination_ref == modern_destination_ref
             assert txn._legacy_mode is True
             event = build_status_event(
                 mission_slug=mission["mission_slug"],
@@ -472,10 +507,20 @@ def test_legacy_routing_and_write_contract_unaffected_by_topology(
             )
             txn.append_event(event)
 
-    # Write-contract selection (C-005): identical across all three shapes —
-    # topology has zero effect on which EventLogWriteTarget is chosen.
-    assert len(captured_targets) == len(scenarios)
-    assert len(set(captured_targets)) == 1
+    # Write-contract selection now legitimately DIFFERS between the two
+    # families (#2453) — never uniform across all three shapes as it was
+    # pre-fix.
+    assert (
+        captured_targets["routing-genuine-legacy"]
+        == EventLogWriteTarget.COORDINATION_TRANSACTION_APPEND
+    )
+    assert (
+        captured_targets["routing-single-branch"]
+        == EventLogWriteTarget.PRIMARY_CHECKOUT_APPEND
+    )
+    assert (
+        captured_targets["routing-lanes"] == EventLogWriteTarget.PRIMARY_CHECKOUT_APPEND
+    )
 
 
 def test_backfill_suppresses_future_legacy_warning(
@@ -493,6 +538,10 @@ def test_backfill_suppresses_future_legacy_warning(
         mission_id="01KBACKFILLZZZZZZZZZZZZZZ",
     )
     monkeypatch.chdir(mission["lane_worktree"])
+    # #2453: post-backfill the mission becomes modern coordination-less and
+    # routes to repo_root on the caller-supplied destination_ref -- "kitty/x"
+    # must exist as a real branch for the post-legacy-branch policy gate.
+    _run(repo_root, "git", "branch", "kitty/x", "main")
 
     # Pre-backfill: genuinely legacy, warning fires.
     with BookkeepingTransaction.acquire(
