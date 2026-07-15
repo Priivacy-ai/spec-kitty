@@ -495,6 +495,7 @@ def _files_changed_vs_precondition_ref(
     files: list[str],
     coord_branch_for_filter: str | None,
     *,
+    verbatim_ref: str | None = None,
     git: GitPort = DEFAULT_GIT_PORT,
 ) -> list[str]:
     """Per-path idempotency filter (T003, contracts/resolve-precondition-ref.md
@@ -506,7 +507,23 @@ def _files_changed_vs_precondition_ref(
     tests keep passing). Preserves the original relative order of *files* in
     the result -- callers print ``files_to_commit`` verbatim in the "not
     committed" instructions.
+
+    ``verbatim_ref`` (PR #2662 squad fix): when the caller commits the WHOLE
+    batch to ONE ref (the healthy ``placement_ref is not None`` verbatim path in
+    ``_commit_planning_artifacts_transaction``, which the C-004/#2160 deferral
+    leaves un-partitioned), the idempotency comparison MUST use that same single
+    write target for EVERY file -- not the PRIMARY-vs-``HEAD`` split. Otherwise a
+    PRIMARY artifact already-identical on the coord write ref but differing from
+    ``HEAD`` is compared vs ``HEAD`` (still "changed"), re-committed verbatim to
+    coord, produces an empty commit, and ``safe_commit`` hard-fails the claim
+    (confirmed on coordination missions; the read=HEAD / write=coord divergence
+    is a concrete instance of the overloaded "primary ref", #2653). Proper fix
+    (partition the verbatim write so PRIMARY lands on the primary branch) is
+    deferred to #2160.
     """
+    if verbatim_ref is not None:
+        changed_verbatim = set(_files_changed_vs_ref(repo_root, files, verbatim_ref, git=git))
+        return [repo_rel for repo_rel in files if repo_rel in changed_verbatim]
     primary_ref = _primary_ref_for(None)
     primary_files: list[str] = []
     coord_files: list[str] = []
@@ -548,6 +565,7 @@ def resolve_planning_artifact_staging(
     extra_file_paths: list[str],
     *,
     auto_commit: bool,
+    verbatim_ref: str | None = None,
     git: GitPort = DEFAULT_GIT_PORT,
 ) -> PlanningArtifactStagingPlan:
     """Pure staging decision for planning-artifact commits (T016).
@@ -563,6 +581,13 @@ def resolve_planning_artifact_staging(
     listing (a plain filesystem walk, not part of this git-porcelain core);
     passing it in keeps this function's git surface limited to ``git status``
     and ``git show`` via the injected port.
+
+    ``verbatim_ref`` (PR #2662 squad fix) is the single ref the whole batch will
+    be committed to on the healthy ``placement_ref is not None`` verbatim path;
+    when set, the idempotency filter compares EVERY file against it so a
+    PRIMARY artifact already-identical on the (coord) write ref is dropped
+    instead of re-committed into an empty commit that hard-fails the claim. See
+    :func:`_files_changed_vs_precondition_ref`.
     """
     entries = _feature_dir_status_entries(repo_root, artifact_source_dir, git=git)
     structural = _structural_entries(entries)
@@ -586,11 +611,11 @@ def resolve_planning_artifact_staging(
     # see ``resolve_precondition_ref``) so a re-discovered (but
     # already-committed) edit does not produce an empty commit that
     # ``safe_commit`` rejects. See ``_files_changed_vs_precondition_ref``.
-    files_to_commit = _files_changed_vs_precondition_ref(repo_root, files_to_commit, coord_branch_for_filter, git=git)
+    files_to_commit = _files_changed_vs_precondition_ref(repo_root, files_to_commit, coord_branch_for_filter, verbatim_ref=verbatim_ref, git=git)
     if not files_to_commit:
         return PlanningArtifactStagingPlan(structural=[], files_to_commit=[], status_paths_to_commit=[])
 
-    status_paths_to_commit = _files_changed_vs_precondition_ref(repo_root, status_paths, coord_branch_for_filter, git=git)
+    status_paths_to_commit = _files_changed_vs_precondition_ref(repo_root, status_paths, coord_branch_for_filter, verbatim_ref=verbatim_ref, git=git)
     return PlanningArtifactStagingPlan(
         structural=[],
         files_to_commit=files_to_commit,
