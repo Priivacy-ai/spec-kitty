@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import functools
 from pathlib import Path
 from typing import Any
 
@@ -9,7 +10,11 @@ from ruamel.yaml import YAML
 
 from .models import MissionType
 
-__all__ = ["MissionTypeRepository"]
+__all__ = [
+    "MissionTypeRepository",
+    "builtin_mission_type_id_set",
+    "builtin_mission_type_ids",
+]
 
 
 class MissionTypeRepository:
@@ -125,3 +130,31 @@ class MissionTypeRepository:
             index[mission_type.id] = mission_type
 
         return index
+
+
+# ----------------------------------------------------------------------------
+# Module-level canonical accessors (single source of truth, IC-1a / #2669)
+# ----------------------------------------------------------------------------
+
+
+@functools.cache
+def builtin_mission_type_ids() -> tuple[str, ...]:
+    """The built-in mission-type ids, derived from the doctrine mission_types/*.yaml source.
+
+    Single canonical authority for "which mission types ship". Sorted (lexicographic).
+    Cached: one filesystem scan per process (NFR-002). Raises transitively if the
+    repository loud-fails on an id/stem mismatch or invalid schema.
+
+    Test seam (C-010): tests inject a synthetic roster by monkeypatching
+    :meth:`MissionTypeRepository.default` (or the root it resolves to), then calling
+    ``builtin_mission_type_ids.cache_clear()`` (auto-provided by ``functools.cache``)
+    before asserting. Production never adds/removes built-in type YAMLs mid-process,
+    so the cache is safe there; tests must never write into the real bundled
+    ``mission_types/`` directory to exercise this seam.
+    """
+    return tuple(MissionTypeRepository.default().ids())
+
+
+def builtin_mission_type_id_set() -> frozenset[str]:
+    """Frozenset projection of :func:`builtin_mission_type_ids` for membership/default consumers."""
+    return frozenset(builtin_mission_type_ids())
