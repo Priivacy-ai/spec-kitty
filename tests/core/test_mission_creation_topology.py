@@ -107,3 +107,38 @@ def test_no_coord_create_mints_single_branch(tmp_path: Path) -> None:
     assert meta["topology"] == "single_branch"
     mint.assert_not_called()  # branch-flat shape: the mint is skipped entirely
     assert meta["flattened"] is False
+
+
+def test_coordinationless_create_persists_topology_so_2453_routing_is_not_cwd(
+    tmp_path: Path,
+) -> None:
+    """PR #2662 squad (debbie LOW): the ONLY thing keeping a modern
+    coordination-less mission out of the #2453/#2647 ``Path.cwd()`` write-side
+    path is a READABLE stored ``topology`` in meta.json — a mission lacking it
+    is (fail-safe) classified genuinely-legacy and routes through the operator's
+    cwd lane worktree. So mission-creation MUST persist it, and the classifier
+    must read the created mission as modern. This pins the linkage end-to-end.
+    """
+    from specify_cli.coordination.transaction import _warrants_legacy_warning
+
+    with _patched_context(tmp_path), patch("specify_cli.missions._create.ensure_coordination_branch"):
+        from mission_runtime import MissionTopology
+
+        create_mission_core(
+            tmp_path,
+            "topology-2453-linkage",
+            topology=MissionTopology.SINGLE_BRANCH,
+            **_mission_summary("topology-2453-linkage"),
+        )
+
+    meta = _read_meta(tmp_path)
+    # Invariant: a readable, non-empty topology is persisted.
+    assert meta.get("topology"), "coordination-less create MUST persist a readable topology"
+    assert "coordination_branch" not in meta
+
+    # Linkage: the classifier reads this created mission as MODERN
+    # coordination-less (NOT genuinely-legacy) -> #2453 routes it to repo_root,
+    # not Path.cwd(). If creation ever stopped writing topology, this flips True
+    # (genuinely-legacy) and silently reopens #2647.
+    mid8 = str(meta["mission_id"])[:8]
+    assert _warrants_legacy_warning(tmp_path, "topology-2453-linkage", mid8) is False

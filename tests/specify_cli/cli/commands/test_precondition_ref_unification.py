@@ -310,3 +310,47 @@ class TestDetachedHeadRegression:
 
         assert _primary_ref_for(_PLANNING_BRANCH) == _PLANNING_BRANCH
         assert _primary_ref_for(_PLANNING_BRANCH) != "HEAD"
+
+
+class TestVerbatimRefReadMatchesWriteSurface:
+    """PR #2662 squad (paula LOW-1 / renata HIGH): the idempotency READ must
+    compare against the SAME surface the WRITE lands on. On the healthy
+    ``placement_ref is not None`` verbatim path the whole batch is committed to
+    one ref, so ``verbatim_ref`` makes the filter compare EVERY file against
+    that ref — a PRIMARY file already-identical on the write ref but differing
+    from ``HEAD`` is dropped (not re-committed into an empty commit)."""
+
+    def _seed_divergent_primary(self, tmp_path: Path) -> tuple[Path, str, str]:
+        """spec.md == content A on branch ``write-surface`` and in the working
+        tree, but == content B on HEAD. Returns (repo, spec_rel, write_ref)."""
+        repo = tmp_path / "repo"
+        _init_repo(repo, branch="main")
+        spec = repo / "spec.md"
+        spec.write_text("A\n", encoding="utf-8")
+        _git(repo, "add", "spec.md")
+        _git(repo, "commit", "-q", "-m", "spec=A")
+        _git(repo, "branch", "write-surface")  # write-surface:spec.md == A
+        spec.write_text("B\n", encoding="utf-8")
+        _git(repo, "add", "spec.md")
+        _git(repo, "commit", "-q", "-m", "spec=B (HEAD)")  # HEAD:spec.md == B
+        spec.write_text("A\n", encoding="utf-8")  # working tree == A (== write-surface, != HEAD)
+        return repo, "spec.md", "write-surface"
+
+    def test_file_identical_on_write_ref_is_dropped_via_verbatim_ref(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands.implement_cores import _files_changed_vs_precondition_ref
+
+        repo, spec_rel, write_ref = self._seed_divergent_primary(tmp_path)
+
+        # verbatim_ref = the write surface -> spec.md is identical there -> dropped.
+        dropped = _files_changed_vs_precondition_ref(repo, [spec_rel], None, verbatim_ref=write_ref)
+        assert dropped == [], "a file identical on the verbatim write ref must be dropped"
+
+    def test_without_verbatim_ref_the_primary_vs_head_split_still_sees_it_changed(self, tmp_path: Path) -> None:
+        from specify_cli.cli.commands.implement_cores import _files_changed_vs_precondition_ref
+
+        repo, spec_rel, _write_ref = self._seed_divergent_primary(tmp_path)
+
+        # No verbatim_ref -> PRIMARY compares vs HEAD (content B) -> "changed".
+        # This is the divergence the verbatim path would turn into an empty commit.
+        changed = _files_changed_vs_precondition_ref(repo, [spec_rel], None)
+        assert changed == [spec_rel]

@@ -783,6 +783,17 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
                 # the flat/base arm). Do NOT re-derive from ``Path.cwd()`` —
                 # that is the #2647 taint (a lane worktree's operator cwd can
                 # carry a stale local ``status.events.jsonl`` snapshot).
+                #
+                # CALLER CONTRACT (PR #2662 squad, paula LOW-2): correctness of
+                # this arm depends on EVERY caller passing a CWD-invariant
+                # ``destination_ref`` (resolved from the mission's stored
+                # topology / target branch, never from ``Path.cwd()``). This
+                # module cannot inspect a ref's provenance, so a future caller
+                # threading a cwd-derived ref would silently reopen #2647. The
+                # guard is the caller contract + the routing tests
+                # (``test_transaction_legacy_topology_routing`` asserts this arm
+                # lands on ``repo_root`` from a stale lane cwd), NOT a runtime
+                # provenance check here.
                 worktree_root = repo_root
         else:
             coord_branch = CoordinationWorkspace.branch_name(safe_mission_slug, safe_mid8)
