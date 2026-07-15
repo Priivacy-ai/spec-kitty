@@ -1,0 +1,105 @@
+{
+  "event_count": 67,
+  "last_event_id": "01KXJ23R5X2NGKQVZSBRYCJCZT",
+  "materialized_at": "2026-07-15T04:56:09.661430+00:00",
+  "mission_number": "",
+  "mission_slug": "mission-type-doctrine-authority-01KXH6GE",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 7,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 3,
+    "in_progress": 0,
+    "in_review": 1,
+    "planned": 1
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KXHBTXTX1PVF271R6FY5FPN5",
+      "last_transition_at": "2026-07-14T22:26:51.869607+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KXHCDTSVMA8JMA6P1GKZSTEK",
+      "last_transition_at": "2026-07-14T22:37:11.355458+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KXHGCWH30NS2XQ56D3ZSBT66",
+      "last_transition_at": "2026-07-14T23:46:34.659655+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KXJ003H2D6PEK04VX2V07BGD",
+      "last_transition_at": "2026-07-15T04:19:13.058471+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KXJ04XXEVRCS8TQ80WNRF449",
+      "last_transition_at": "2026-07-15T04:21:51.150975+00:00"
+    },
+    "WP06": {
+      "actor": "claude:sonnet:python-pedro:implementer",
+      "force_count": 0,
+      "lane": "for_review",
+      "last_event_id": "01KXJ14QES5AF5Z8D6H5WWYE5Z",
+      "last_transition_at": "2026-07-15T04:39:13.113525+00:00"
+    },
+    "WP07": {
+      "actor": "claude:sonnet:python-pedro:implementer",
+      "force_count": 1,
+      "lane": "for_review",
+      "last_event_id": "01KXJ138GMFNMNQENQ7FD878CK",
+      "last_transition_at": "2026-07-15T04:38:25.044829+00:00"
+    },
+    "WP08": {
+      "actor": "claude:opus:reviewer-renata:reviewer",
+      "force_count": 1,
+      "lane": "in_review",
+      "last_event_id": "01KXJ0Z8Q99B8GBDB58376F7ZY",
+      "last_transition_at": "2026-07-15T04:36:14.185997+00:00"
+    },
+    "WP09": {
+      "actor": "user",
+      "force_count": 0,
+      "lane": "approved",
+      "last_event_id": "01KXHBW4QVD04V9M88C7S98EHE",
+      "last_transition_at": "2026-07-14T22:27:31.707444+00:00"
+    },
+    "WP10": {
+      "actor": "claude:sonnet:python-pedro:implementer",
+      "force_count": 1,
+      "lane": "for_review",
+      "last_event_id": "01KXJ13SVR2B14NSXM84CEX9AQ",
+      "last_transition_at": "2026-07-15T04:38:42.808120+00:00"
+    },
+    "WP11": {
+      "actor": "user",
+      "force_count": 6,
+      "lane": "approved",
+      "last_event_id": "01KXJ23R5X2NGKQVZSBRYCJCZT",
+      "last_transition_at": "2026-07-15T04:56:09.661430+00:00"
+    },
+    "WP12": {
+      "actor": "merge",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KXJ71V10GTY0X1EM0V558RS6",
+      "last_transition_at": "2026-07-15T06:22:29.920319+00:00"
+    }
+  }
+}
