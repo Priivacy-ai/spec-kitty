@@ -2,10 +2,11 @@
 title: The Mission System Explained
 description: "Why mission types exist and how they nest: the Mission Type, Mission, Work Package, and Workspace hierarchy, the four blueprints, and the two state machines next coordinates."
 doc_status: active
-updated: '2026-06-26'
+updated: '2026-07-14'
 related:
 - docs/architecture/divio-documentation.md
 - docs/architecture/kanban-workflow.md
+- docs/architecture/mission-type-resolution.md
 - docs/architecture/spec-driven-development.md
 ---
 # The Mission System Explained
@@ -92,6 +93,55 @@ Different missions can use different mission types simultaneously:
 - `kitty-specs/043-market-analysis/` -- mission type `research`
 - `kitty-specs/044-api-docs/` -- mission type `documentation`
 - `kitty-specs/045-roadmap/` -- mission type `plan`
+
+## Mission Types Are Doctrine Artifacts
+
+A mission type is not hardcoded into the runtime — it is a **doctrine-defined
+artifact**. The canonical catalogue lives in `src/doctrine/missions/<type>/`,
+where each type *offers* its governance, action indices, step contracts, and
+templates. The runtime is a finite-state machine that reads the *resolved* mission
+type keyed off the `mission` field in `meta.json`; it holds no per-type knowledge
+of its own.
+
+The `MissionType` doctrine artifact is **load-bearing**: it is the single source of
+truth for *"what is this mission type, what steps does it contain, and what gates
+are checked?"* The end-state retires the derived `src/specify_cli/missions/` copies
+entirely — the doctrine path (much of it a dead read-path today) goes live and the
+`specify_cli` copies are removed in a **user-invisible swap**, verified during
+migration by transitional parity scaffolds that are then deleted (no surviving
+parity ratchet). #883 is slice 1: governance and the dossier gate reader.
+
+### software-dev is a peer, not a special case
+
+Historically `software-dev` was the default and carried hardcoded status woven
+through the core loop. The direction now is that `software-dev` is an ordinary
+built-in doctrine mission type on equal footing with `documentation`, `research`,
+and `plan`. Its behaviour resolves from `meta.json` through the same path as the
+other three, with no `software-dev-default` special-casing. `software-dev` remains
+the fallback mission type when `meta.json` omits the `mission` field, but that
+fallback governs only template-file selection — it no longer leaks software-dev
+*governance* onto non-software missions. See
+[Mission-Type Resolution](mission-type-resolution.md) for the seam that makes this
+so, and [ADR 2026-07-14-2](../adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md)
+for the decision.
+
+### The dual missions tree and its retirement trajectory
+
+Two mission trees exist today:
+
+| Tree | Role |
+|------|------|
+| `src/doctrine/missions/<type>/` | **Canonical** — the source of truth for mission-type behaviour |
+| `src/specify_cli/missions/<type>/` | **Derived copies** that a shrinking set of core readers still bind to directly |
+
+The derived tree is **on the deprecation path**, not to be entrenched: no new
+content is added to it, and no "keep the trees in sync" guard is introduced (that
+would entrench the split). The direction is derive-then-delete — each reader is
+migrated to the doctrine tree one slice at a time, after which the derived copies
+and finally the copy step are removed. The first migration (planned as slice 1 of
+this retirement — issue #883) flips the dossier gate reader to the doctrine-tree
+source. Later slices migrate templates, gates, and step contracts before the
+`specify_cli/missions/` tree is deleted outright.
 
 ## How Missions Work
 
@@ -412,6 +462,7 @@ These instructions guide AI agents to behave appropriately for the domain.
 ## See Also
 
 - [Spec-Driven Development](spec-driven-development.md) - The methodology missions implement
+- [Mission-Type Resolution](mission-type-resolution.md) - How per-mission-type behaviour resolves through the doctrine → charter → core seam
 - [Divio Documentation](divio-documentation.md) - The documentation system used by Documentation Kitty
 - [Kanban Workflow](kanban-workflow.md) - How work moves through lanes (applies to all missions)
 

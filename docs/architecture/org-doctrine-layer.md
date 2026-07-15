@@ -2,9 +2,10 @@
 title: Understanding the Org Doctrine Layer
 description: How the three-layer doctrine model resolves built-in, org, and project artifacts, how provenance tracking works, and how org charter policy composes with the project charter.
 doc_status: active
-updated: '2026-06-12'
+updated: '2026-07-14'
 related:
 - docs/architecture/charter-synthesis-drg.md
+- docs/architecture/mission-type-resolution.md
 - docs/migrations/doctrine-local-overlay-to-org-layer.md
 ---
 # Understanding the Org Doctrine Layer
@@ -159,6 +160,46 @@ See [ADR 2026-05-16-1](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/
 for the rationale behind this design.
 
 ---
+
+## Per-mission-type governance override
+
+The same three-layer overlay stack is what carries **per-mission-type governance
+customisation** — the charter "activate and customise" step for a mission type.
+
+A project override for a mission type's governance lives at:
+
+```
+.kittify/doctrine/mission_types/<type>/governance-profile.yaml
+```
+
+Because it sits under `.kittify/doctrine/`, it is an ordinary **project-layer**
+artifact resolved through the existing `doctrine/base.py` overlay loader, giving it
+the same three behaviours as every other overlaid artifact:
+
+- **Builtin → org → project ordering.** The shipped mission-type governance is the
+  builtin layer; an org pack may layer on top; the project override wins last.
+- **Field-level merge.** Fields present in the override replace same-named fields;
+  absent fields fall through from the lower layer — so an override that adjusts a
+  single selection need not restate the whole profile.
+- **`DoctrineLayerCollisionWarning`.** The resolver emits the same collision
+  warning when the override shadows a lower layer, and `spec-kitty doctor doctrine`
+  audits it alongside every other override.
+
+Reusing the overlay stack is deliberate — it avoids duplicating the layer-merge
+contract — but it is **not zero-cost plumbing**. The `base.py` overlay loader keys
+project artifacts on an `id` field and skips files that lack one, whereas
+`governance-profile.yaml` keys on `mission_type`. Wiring the profile onto the stack
+therefore requires an adapter: either giving `MissionTypeProfile` an `id` and a
+`BaseDoctrineRepository` subclass, or a small explicit field-merge in the resolver.
+That adapter is owned, tested work — not a free ride. Modulo that adapter, per-type
+governance layering reuses rather than reinvents the merge contract in
+[ADR 2026-05-16-1](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-05-16-1-doctrine-layer-merge-semantics.md).
+Mission-type governance itself resolves through a single charter-mediated seam
+keyed off `meta.json`; this override is the project-tier customisation layer of
+that seam. For the whole resolution model — the two governance grains, the reserved
+slots for templates and gates, and the leak-closure invariant — see
+[Mission-Type Resolution](mission-type-resolution.md) and
+[ADR 2026-07-14-2](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md).
 
 ## DRG composition
 
@@ -368,3 +409,4 @@ installed pack contents.
 - [Migrating shared doctrine to the org layer](../migrations/doctrine-local-overlay-to-org-layer.md)
 - [How to set up project governance](../guides/setup-governance.md)
 - [Understanding Charter: Synthesis, DRG, and Governed Context](charter-synthesis-drg.md)
+- [Mission-Type Resolution](mission-type-resolution.md)

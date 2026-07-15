@@ -770,6 +770,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/README.md
   tag: current
   divio_type: none
@@ -977,6 +983,18 @@
 - path: docs/architecture/06_unified_charter_bundle.md
   tag: current
   divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/architecture/883-mission-type-authority-brief.md
+  tag: current
+  divio_type: explanation
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/architecture/883-research-synthesis.md
+  tag: current
+  divio_type: explanation
   owning_workstream: none
   current_target: true
   notes: null
@@ -1229,6 +1247,12 @@
 - path: docs/architecture/mission-system.md
   tag: current
   divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/architecture/mission-type-resolution.md
+  tag: current
+  divio_type: explanation
   owning_workstream: none
   current_target: true
   notes: null
