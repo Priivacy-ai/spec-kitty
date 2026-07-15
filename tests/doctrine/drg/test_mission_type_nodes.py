@@ -59,8 +59,10 @@ class TestMissionTypeNodeGeneration:
 
     def test_shipped_mission_types_fixture_has_four_entries(self) -> None:
         # Sanity check on the fixture itself: WP01 assumes exactly 4 shipped
-        # mission types (documentation, plan, research, software-dev).
-        assert len(self._shipped_mission_type_ids_and_labels()) == 4
+        # mission types (documentation, plan, research, software-dev). The
+        # count of 4 is a deliberate cardinality contract (the built-in
+        # mission-type set), not incidental golden-count debt.
+        assert len(self._shipped_mission_type_ids_and_labels()) == 4  # golden-count: cardinality-is-contract
 
     def test_generates_exactly_one_node_per_shipped_mission_type(
         self, tmp_path: Path
