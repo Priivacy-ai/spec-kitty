@@ -75,11 +75,14 @@ Each entry in `collapse_report` lists the WPs that were merged into a single lan
 
 ## See Also
 
-- [Branch-Target Routing](branch-target-routing.md) — where each diff type lands:
-  planning artifacts, status events, and lane definitions go to the coordination branch;
-  code changes go to the lane branch; shared documentation and the merge target go to the
-  base branch. Also explains the simple-case flat-topology collapse when no coordination
-  branch or lane worktrees are configured.
+- [Branch-Target Routing](branch-target-routing.md) — where each diff type lands, decided
+  per artifact kind (`src/mission_runtime/artifacts.py`): planning + identity artifacts
+  (spec, plan, tasks, work-package files, `data-model.md`, `lanes.json`, `meta.json`) go to
+  the primary target branch for every topology; coordination-owned artifacts (status events,
+  `acceptance-matrix.json`, `issue-matrix.md`, `analysis-report.md`) go to the coordination
+  branch; code changes go to the lane branch; shared documentation and the merge target go
+  to the base branch. Also explains the simple-case flat-topology collapse when no
+  coordination branch or lane worktrees are configured.
 
 ## Lane-Specific Test Database Isolation (FR-006)
 
