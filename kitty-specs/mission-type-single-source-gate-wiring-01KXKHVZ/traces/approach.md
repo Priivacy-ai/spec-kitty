@@ -21,4 +21,17 @@ Seeded at planning; appended during implementation; assessed at close.
 
 ## What actually happened (assess at close)
 
-- _(to be filled at mission close)_
+- All 6 WPs landed ATDD red-first, each independently reviewed (reviewer-renata). WP01 took one
+  reject-cycle (a test-file ruff UP035 the source-only gate missed).
+- The IC order held; the terminal WP06's aggregate arch pole surfaced a **cross-lane symbol collision**
+  (WP05's new gate test imported the `CANONICAL_MISSION_TYPES` WP02 retired — invisible per-lane because
+  WP05's lane predated WP02's retirement). Fixed at the merge pass.
+- The **pre-merge aggregate review** earned its keep: it caught 3 aggregate-only regressions the per-lane
+  reviews structurally could not see — a doctor RC=1 test made vacuous by WP06's accessor-seam change; an
+  NFR-001 import-time-I/O regression from the C-012 module-scope derivation colliding with the eager
+  `charter/__init__` chain; and a CI-scope ruff E501. The `__getattr__` true-zero fix was attempted and
+  rejected (dead-symbol gate can't span a PEP-562 attribute) → honest ≤1-cached bound documented in the spec.
+- Operator directed folding the residual `runtime/` rosters (home.py, show_origin.py) rather than deferring;
+  done in an isolated worktree in parallel with the blocker fix. Only `kernel/paths.py` remains literal.
+- Delivered as a clean 10-commit linear PR rebased on upstream/main (which had moved; its own #2651 landing
+  fold overlapped our shard-map registration — reconciled during rebase).
