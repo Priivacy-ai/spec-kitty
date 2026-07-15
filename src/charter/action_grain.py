@@ -50,18 +50,19 @@ from pathlib import Path
 
 from doctrine.missions.action_index import ActionIndex, load_action_index
 
-# Only ``aggregate_action_grain`` is exported: it is the single seam a runtime
-# ``src`` consumer imports (``charter.mission_type_profiles``). The other two
-# module functions are intentionally NOT in ``__all__`` — the symbol-level
-# dead-code gate (``tests/architectural/test_no_dead_symbols.py``) flags an
-# ``__all__`` member with no ``src`` importer, and today both are invoked only
-# from tests: ``action_index_to_mapping`` is a pure internal adapter, and
-# ``scan_builtin_cross_grain_duplicates`` is the FR-013 integrity-gate
-# entrypoint whose runtime consumer (``doctor``/CI wiring) is tracked in #2666.
-# Both remain public module-level functions and are imported directly by their
-# tests; re-add to ``__all__`` once a runtime caller exists.
+# ``aggregate_action_grain`` and ``scan_builtin_cross_grain_duplicates`` are
+# exported: both now have a real ``src`` caller.  ``aggregate_action_grain``
+# is the seam ``charter.mission_type_profiles`` imports; ``scan_builtin_cross_grain_duplicates``
+# is called from ``specify_cli.cli.commands._doctrine_collect._run_cross_grain_check``
+# (WP05, #2666), which wires the FR-013 built-in dup-scan into
+# ``spec-kitty doctor doctrine`` so the integrity gate is load-bearing outside
+# pytest. ``action_index_to_mapping`` stays out of ``__all__`` — it is a pure
+# internal adapter with no runtime caller (only exercised by its own tests) —
+# so the symbol-level dead-code gate (``tests/architectural/test_no_dead_symbols.py``)
+# does not flag it.
 __all__ = [
     "aggregate_action_grain",
+    "scan_builtin_cross_grain_duplicates",
 ]
 
 
