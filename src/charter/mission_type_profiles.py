@@ -55,11 +55,12 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from functools import cached_property
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, cast
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from ruamel.yaml import YAML
 
+from charter.action_grain import aggregate_action_grain
 from charter.activations import ActivationEntry
 from charter.mission_type_key import canonical_mission_type_key
 
@@ -106,6 +107,17 @@ _GOVERNANCE_KINDS: tuple[str, ...] = (
     "procedures",
     "agent_profiles",
 )
+
+
+#: The parsed ``<type>/expected-artifacts.yaml`` manifest: a top-level mapping
+#: (``schema_version`` / ``mission_type`` / ``required_by_step`` / ...) owned
+#: and versioned by doctrine (``doctrine.missions.repository``).  This is a
+#: **type alias**, not a pydantic model — a model would force ``src/charter``
+#: to own and validate a schema that belongs to the doctrine layer, crossing
+#: the charter -> doctrine boundary the wrong direction (C-001).  Charter
+#: treats the manifest as opaque passthrough data; only its outer shape
+#: (a string-keyed mapping) is asserted here.
+_ExpectedArtifactsManifest = Mapping[str, Any]
 
 
 # ---------------------------------------------------------------------------
@@ -308,30 +320,42 @@ class ResolvedMissionType:
     """In-memory bundle produced by :func:`resolve_mission_type_context`.
 
     ``mission_type`` is the canonicalized key (``None`` for a typeless mission).
-    ``governance`` / ``governance_text`` / ``action_sequence`` are populated
-    eagerly on the hot path; ``template_set`` (later slice) is reserved.
+    ``governance_text`` / ``action_sequence`` are populated eagerly on the hot
+    path; ``template_set`` (later slice) is reserved.
 
-    ``expected_artifacts`` (WP10) and ``step_contracts`` (WP11) are resolved
-    **lazily** (NFR-001): each reads the doctrine gate tree / step-contract
-    artefact off disk, but the FSM / runtime-next callers of
-    :func:`resolve_mission_type_context` consume only ``action_sequence``.
-    Deferring those two disk-reading slots behind ``@cached_property`` keeps the
-    hot path well under the 100ms budget while preserving the public read shape:
-    ``bundle.expected_artifacts`` is still a non-``None`` dict for a registered
-    type and ``bundle.step_contracts`` is still the ordered list. Each is
-    memoised on first access, so repeated reads stay cheap.
+    ``governance`` (WP03), ``expected_artifacts`` (WP10) and ``step_contracts``
+    (WP11) are resolved **lazily** (NFR-001): ``governance`` triggers the
+    FR-013 type-grain / action-grain union (which reads every one of the
+    mission type's ``actions/*/index.yaml`` files off disk via
+    :func:`charter.action_grain.aggregate_action_grain`); ``expected_artifacts``
+    and ``step_contracts`` each read a separate doctrine artefact off disk. The
+    FSM / runtime-next callers of :func:`resolve_mission_type_context` consume
+    only ``action_sequence``, so none of the three ever fire on the hot path.
+    Deferring all three disk-reading slots behind ``@cached_property`` keeps the
+    hot path well under the 100ms budget while preserving the public read
+    shape: ``bundle.governance`` is still a non-``None``
+    :class:`ResolvedGovernance` for a registered type, ``bundle.expected_artifacts``
+    is still a non-``None`` dict for a registered type, and
+    ``bundle.step_contracts`` is still the ordered list. Each is memoised on
+    first access, so repeated reads stay cheap.
     """
 
     mission_type: str | None
-    governance: ResolvedGovernance | None
     governance_text: str
     action_sequence: list[str]
     provenance: str
     template_set: str | None = None
+    #: Deferred resolver for ``governance``. ``None`` yields ``None`` (the
+    #: neutral/typeless bundle). Excluded from ``eq``/``repr``: equality and
+    #: determinism hinge on the eager, hot-path fields plus the memoised
+    #: values callers actually assert on, not on the thunk identity.
+    _governance_thunk: Callable[[], ResolvedGovernance] | None = field(
+        default=None, repr=False, compare=False
+    )
     #: Deferred resolver for ``expected_artifacts``. ``None`` yields ``None``
     #: (the neutral/typeless bundle). Excluded from ``eq``/``repr`` so equality
     #: and determinism hinge on the eager, hot-path fields only.
-    _expected_artifacts_thunk: Callable[[], object | None] | None = field(
+    _expected_artifacts_thunk: Callable[[], _ExpectedArtifactsManifest | None] | None = field(
         default=None, repr=False, compare=False
     )
     #: Deferred resolver for ``step_contracts``. ``None`` yields ``[]``.
@@ -340,7 +364,21 @@ class ResolvedMissionType:
     )
 
     @cached_property
-    def expected_artifacts(self) -> object | None:
+    def governance(self) -> ResolvedGovernance | None:
+        """Lazily resolve the FR-013 type-grain/action-grain union (memoised).
+
+        ``None`` for the neutral/typeless bundle. Triggers
+        :class:`CrossGrainDoubleDeclarationError` on first access if a URN is
+        double-declared — a construction-time concern deferred to first read,
+        NOT eliminated. Nothing on the hot ``action_sequence`` path touches
+        this property (verified: no ``src/`` reader besides this class).
+        """
+        if self._governance_thunk is None:
+            return None
+        return self._governance_thunk()
+
+    @cached_property
+    def expected_artifacts(self) -> _ExpectedArtifactsManifest | None:
         """Lazily resolve the WP10 expected-artifacts slot (memoised)."""
         if self._expected_artifacts_thunk is None:
             return None
@@ -385,14 +423,7 @@ def existing_mission_types(repo_root: Path) -> list[str]:
     list[str]
         Sorted, deduplicated activated mission type IDs.
     """
-    try:
-        from charter.pack_context import PackContext  # noqa: PLC0415 — lazy; avoids circular
-    except ImportError:
-        # PackContext is provided by WP06 (charter.pack_context).  When that
-        # module is not yet available (parallel WP development before merge),
-        # fall back to the canonical built-in set so existing callers do not
-        # hard-fail.
-        return sorted(CANONICAL_MISSION_TYPES)
+    from charter.pack_context import PackContext  # noqa: PLC0415 — lazy; avoids circular
 
     pack_context = PackContext.from_config(repo_root)
     return sorted(pack_context.activated_mission_types)
@@ -449,7 +480,7 @@ def resolve_mission_type_context(
     is_registered = type_key in registered
     has_override = _project_has_doctrine_overrides(repo_root)
 
-    governance, governance_text = _resolve_governance_slot(
+    governance_provenance, governance_text, governance_thunk = _resolve_governance_slot(
         type_key,
         registered=registered,
         is_registered=is_registered,
@@ -463,14 +494,15 @@ def resolve_mission_type_context(
     )
     return ResolvedMissionType(
         mission_type=type_key,
-        governance=governance,
         governance_text=governance_text,
         action_sequence=action_sequence,
-        provenance=governance.provenance,
+        provenance=governance_provenance,
         template_set=None,  # reserved — a later slice populates template-file selection.
-        # WP11 (step-contract artefact, FR-008) + WP10 (doctrine gate tree) both
-        # read off disk; defer them so the FSM hot path (action_sequence only)
-        # stays under the NFR-001 100ms budget. Memoised on first access.
+        # The FR-013 union (governance) + WP11 (step-contract artefact, FR-008)
+        # + WP10 (doctrine gate tree) each read off disk; defer all three so the
+        # FSM hot path (action_sequence only) stays under the NFR-001 100ms
+        # budget. Each is memoised on first access.
+        _governance_thunk=governance_thunk,
         _step_contracts_thunk=lambda: _resolve_step_contracts_slot(
             type_key, is_registered=is_registered
         ),
@@ -516,13 +548,13 @@ def _neutral_context() -> ResolvedMissionType:
     """Return the neutral (typeless) bundle — never software-dev (FR-003a)."""
     return ResolvedMissionType(
         mission_type=None,
-        governance=None,
         governance_text="",
         action_sequence=[],
         provenance="builtin",
         template_set=None,
-        # Typeless bundle: both lazy slots stay at their neutral defaults
-        # (``expected_artifacts`` -> ``None``, ``step_contracts`` -> ``[]``).
+        # Typeless bundle: all three lazy slots stay at their neutral defaults
+        # (``governance`` -> ``None``, ``expected_artifacts`` -> ``None``,
+        # ``step_contracts`` -> ``[]``).
     )
 
 
@@ -534,11 +566,19 @@ def _resolve_type_key(mission_type: str | None, feature_dir: Path | None) -> str
     software-dev default.
     """
     if mission_type is not None:
-        return canonical_mission_type_key(mission_type)
+        # cast: pyproject.toml's [[tool.mypy.overrides]] sets
+        # `follow_imports = "skip"` for `charter.*` (a documented, repo-wide
+        # transitional quarantine — see the override's own comment), so a
+        # narrow ``mypy --strict`` invocation of THIS file alone loses
+        # ``canonical_mission_type_key``'s real ``str | None`` signature and
+        # infers ``Any``. The function is strictly typed at its own
+        # definition (charter/mission_type_key.py); this cast restores that
+        # signature at the call site rather than suppressing the check.
+        return cast(str | None, canonical_mission_type_key(mission_type))
     if feature_dir is None:
         return None
     raw = _read_meta_mission_type(feature_dir)
-    return canonical_mission_type_key(raw)
+    return cast(str | None, canonical_mission_type_key(raw))
 
 
 def _read_meta_mission_type(feature_dir: Path) -> str | None:
@@ -566,19 +606,36 @@ def _resolve_governance_slot(
     is_registered: bool,
     has_override: bool,
     repo_root: Path,
-) -> tuple[ResolvedGovernance, str]:
+) -> tuple[str, str, Callable[[], ResolvedGovernance]]:
     """Resolve the governance slot under the **tolerant** hard-fail policy.
 
     Hard-fails only when the type is neither registered nor covered by a project
     override — otherwise it resolves (an unknown type with a project override is
-    tolerated; a known type with an empty grain resolves empty, FR-004).
+    tolerated; a known type with an empty grain resolves empty, FR-004). This
+    **registration guard stays eager** — it is a cheap, in-memory activation-set
+    check, not a disk-reading concern, so there is no reason to defer it (and
+    deferring it would turn a construction-time hard-fail into a
+    first-property-access hard-fail, changing the FR-003 contract).
 
     The profile is loaded through :class:`~charter.mission_type_profile_repository.MissionTypeProfileRepository`
     so a per-type project override at
     ``.kittify/doctrine/mission_types/<type>/governance-profile.yaml`` field-merges
     onto the shipped baseline via the shared ``doctrine/base.py`` overlay
     (project > org > builtin) — no second merge site is added here.  ``provenance``
-    reflects the winning layer for that type.
+    reflects the winning layer for that type and is computed **eagerly** here
+    (``repo.get_provenance``), independent of the governance union — callers must
+    not force the union just to read the provenance.
+
+    Only the FR-013 type-grain/action-grain union is deferred: it is returned as
+    a closure (``governance_thunk``) rather than resolved inline.  The union
+    reads every one of ``mission_type``'s ``actions/*/index.yaml`` files off disk
+    (:func:`charter.action_grain.aggregate_action_grain`), so deferring it keeps
+    the hot ``action_sequence`` path free of that I/O (NFR-001).
+
+    Returns
+    -------
+    tuple[str, str, Callable[[], ResolvedGovernance]]
+        ``(provenance, governance_text, governance_thunk)``.
     """
     if not is_registered and not has_override:
         raise UnknownMissionTypeError(mission_type, registered_ids=registered)
@@ -587,12 +644,17 @@ def _resolve_governance_slot(
     profile = repo.get(mission_type)
     provenance = repo.get_provenance(mission_type) or "project"
     text = _render_profile_payload(profile, mission_type)
-    governance = ResolvedGovernance.from_grains(
-        type_grain=_profile_type_grain(profile),
-        action_grain=_EMPTY_GRAIN,  # action grain threaded through the seam by WP04.
-        provenance=provenance,
-    )
-    return governance, text
+
+    def governance_thunk() -> ResolvedGovernance:
+        built_in_dir = repo._default_built_in_dir()  # noqa: SLF001 — WP-documented root authority; no public accessor (mirrors charter.action_grain.scan_builtin_cross_grain_duplicates).
+        action_grain = aggregate_action_grain(built_in_dir, mission_type)
+        return ResolvedGovernance.from_grains(
+            type_grain=_profile_type_grain(profile),
+            action_grain=action_grain,
+            provenance=provenance,
+        )
+
+    return provenance, text, governance_thunk
 
 
 def _resolve_action_slot(
@@ -634,14 +696,17 @@ def _resolve_expected_artifacts_slot(
     mission_type: str,
     *,
     is_registered: bool,
-) -> object | None:
+) -> _ExpectedArtifactsManifest | None:
     """Resolve the expected-artifacts gate manifest from the doctrine tree.
 
     Populated from the now-canonical doctrine ``<type>/expected-artifacts.yaml``
     (WP10 / IC-07) after the upward reconcile, so the bundle carries the gate
     manifest that the dossier reader also reads.  Returns the parsed manifest
     mapping (doctrine-native; ``src/charter`` must not import ``specify_cli``,
-    C-001), or ``None`` when the type is unregistered or has no gate manifest.
+    C-001), or ``None`` when the type is unregistered, has no gate manifest, or
+    the parsed YAML is not a top-level mapping (a malformed manifest — every
+    shipped ``expected-artifacts.yaml`` is a mapping keyed on ``schema_version``
+    / ``mission_type`` / ``required_by_step`` / ...).
     """
     if not is_registered:
         return None
@@ -650,7 +715,12 @@ def _resolve_expected_artifacts_slot(
 
     repo = MissionTemplateRepository.default()
     result = repo.get_expected_artifacts(mission_type)
-    return result.parsed if result is not None else None
+    if result is None:
+        return None
+    parsed = result.parsed
+    if not isinstance(parsed, Mapping):
+        return None
+    return parsed
 
 
 def _resolve_step_contracts_slot(
@@ -681,13 +751,10 @@ def _resolve_step_contracts_slot(
 # ---------------------------------------------------------------------------
 
 
-_EMPTY_GRAIN: Mapping[str, list[str]] = {}
-
-
 def _profile_type_grain(profile: MissionTypeProfile | None) -> Mapping[str, list[str]]:
     """Project a :class:`MissionTypeProfile` into a governance grain mapping."""
     if profile is None:
-        return _EMPTY_GRAIN
+        return {}
     return {
         "directives": list(profile.selected_directives),
         "tactics": list(profile.selected_tactics),
@@ -782,19 +849,34 @@ def _load_mission_type_profile(
     whose declared type disagrees with its directory is simply not found under
     ``mission_type`` (returns ``None``) rather than silently mis-routed.
 
+    Not on the resolver's own path
+    -------------------------------
+    :func:`resolve_mission_type_context` (via :func:`_resolve_governance_slot`)
+    calls the repository's ``.get()`` directly and does not route through this
+    wrapper.  The wrapper's live caller is
+    :func:`charter.action_grain.scan_builtin_cross_grain_duplicates` (the IC-11
+    built-in dup-scan), which needs the bare profile lookup without the
+    resolver's registration/hard-fail branching.
+
     Returns
     -------
     MissionTypeProfile | None
-        ``None`` when no profile exists for ``mission_type`` in any layer (the
-        resolver decides the hard-fail policy).  A resolved
-        :class:`MissionTypeProfile` otherwise.
+        ``None`` when no profile exists for ``mission_type`` in any layer.  A
+        resolved :class:`MissionTypeProfile` otherwise.
 
     Raises
     ------
     pydantic.ValidationError
         When a matching YAML is structurally malformed.
     """
-    return _mission_type_profile_repository(repo_root).get(mission_type)
+    # cast: see the analogous comment in `_resolve_type_key` — the repo-wide
+    # `follow_imports = "skip"` override for `charter.*` loses
+    # `MissionTypeProfileRepository.get`'s real `MissionTypeProfile | None`
+    # signature under a narrow, single-file `mypy --strict` invocation.
+    return cast(
+        MissionTypeProfile | None,
+        _mission_type_profile_repository(repo_root).get(mission_type),
+    )
 
 
 # ---------------------------------------------------------------------------
