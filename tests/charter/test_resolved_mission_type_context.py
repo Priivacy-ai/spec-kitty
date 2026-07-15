@@ -8,9 +8,9 @@ Covers ``resolve_mission_type_context`` and the ``ResolvedGovernance`` /
 * T017 — hard-fail policies + empty grain (FR-003 / FR-004).
 * T018 — determinism (two resolutions byte-identical, NFR-007).
 
-The transitional software-dev byte-parity scaffold lives in a separate file
-(``test_swdev_governance_parity_scaffold.py``) and is deleted in the WP's final
-commit; the enduring determinism assertions live here.
+No transitional byte-parity scaffold survives in this suite (C-003) —
+``tests/architectural/test_no_parity_scaffold.py`` enforces that as a
+reappearance guard; the enduring determinism assertions live here.
 """
 
 from __future__ import annotations
@@ -18,12 +18,14 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from ruamel.yaml import YAML
 
 from charter.mission_type_profiles import (
     CrossGrainDoubleDeclarationError,
     ResolvedGovernance,
     ResolvedMissionType,
     UnknownMissionTypeError,
+    existing_mission_types,
     resolve_mission_type_context,
 )
 from charter.mission_type_profiles import (
@@ -183,3 +185,95 @@ class TestResolverDeterminism:
         ):
             assert isinstance(selection, list)
             assert selection == sorted(selection)
+
+
+# ---------------------------------------------------------------------------
+# T007-T011 (WP03) — lazy governance thunk severs the FR-013 coupling
+# ---------------------------------------------------------------------------
+
+
+def _write_colliding_override(repo_root: Path) -> None:
+    """Write a project override whose type-grain collides with software-dev's
+    OWN built-in action grain (``001-architectural-integrity-standard`` is
+    authored in ``src/doctrine/missions/software-dev/actions/*/index.yaml``).
+
+    Declaring the SAME artifact (different form: ``DIRECTIVE_001``) in the
+    type-grain override forces :class:`CrossGrainDoubleDeclarationError` the
+    moment the FR-013 union actually runs — i.e. on first ``.governance``
+    access, not at ``resolve_mission_type_context`` construction time.
+    """
+    override_dir = repo_root / ".kittify" / "doctrine" / "mission_types" / "software-dev"
+    override_dir.mkdir(parents=True, exist_ok=True)
+    yaml = YAML()
+    yaml.default_flow_style = False
+    data = {
+        "mission_type": "software-dev",
+        "id": "software-dev",
+        "selected_directives": ["DIRECTIVE_001"],
+    }
+    with (override_dir / "governance-profile.yaml").open("w") as fh:
+        yaml.dump(data, fh)
+
+
+class TestGovernanceThunkSeversCoupling:
+    """The lazy ``governance`` thunk (T007-T009) must not couple the hot
+    ``action_sequence`` path — or the registration-based hard-fail guard — to
+    the FR-013 disk-reading union.
+    """
+
+    def test_colliding_grain_does_not_fail_construction_or_action_sequence(
+        self, tmp_path: Path
+    ) -> None:
+        """A cross-grain collision is invisible to construction and ``.action_sequence``.
+
+        ``resolve_mission_type_context`` MUST NOT raise even though the
+        resolved type's grains collide — the union (and its FR-013 raise) is
+        deferred behind the ``governance`` thunk. ``.action_sequence`` reads a
+        wholly separate slot (``_resolve_action_slot``) and MUST also resolve
+        cleanly.
+        """
+        _write_colliding_override(tmp_path)
+
+        bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+
+        assert bundle.mission_type == "software-dev"
+        assert bundle.action_sequence  # the strict action-sequence policy is unaffected
+
+    def test_colliding_grain_raises_only_on_governance_access(self, tmp_path: Path) -> None:
+        """``.governance`` — and only ``.governance`` — surfaces the FR-013 raise."""
+        _write_colliding_override(tmp_path)
+
+        bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+        # action_sequence already resolved without error (previous test); prove
+        # it again here so the ordering (access action_sequence THEN governance)
+        # can't matter — the thunk isn't shared/consumed by action_sequence.
+        assert bundle.action_sequence
+
+        with pytest.raises(CrossGrainDoubleDeclarationError) as exc:
+            _ = bundle.governance
+        assert exc.value.kind == "directives"
+        assert exc.value.artifact == "001-architectural-integrity-standard"
+
+    def test_existing_mission_types_and_action_sequence_ignore_governance_grain(
+        self, tmp_path: Path
+    ) -> None:
+        """``existing_mission_types`` / ``activated_mission_types`` / ``.action_sequence``
+        never read the governance grain — a colliding override (which would
+        blow up ``.governance``) leaves them untouched (C-001 regression pin).
+        """
+        _write_colliding_override(tmp_path)
+
+        # existing_mission_types() reads only the activation set (PackContext),
+        # never the profile's selected_* grain — unaffected by the collision.
+        activated = existing_mission_types(tmp_path)
+        assert activated == sorted(activated)
+        assert "software-dev" in activated
+
+        bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+        assert bundle.action_sequence == [
+            "specify",
+            "plan",
+            "tasks",
+            "implement",
+            "review",
+        ]

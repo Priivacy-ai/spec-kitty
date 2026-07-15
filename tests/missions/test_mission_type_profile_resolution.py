@@ -81,8 +81,12 @@ def test_load_mission_type_profile_returns_mission_type_profile(mission_type: st
     """
     try:
         # WP03 subsumed the public loader into the resolver; the loader survives
-        # only as the module-internal ``_load_mission_type_profile``.
-        from charter.mission_type_profiles import (  # type: ignore[import-not-found]
+        # as the module-internal ``_load_mission_type_profile`` — NOT called by
+        # ``resolve_mission_type_context`` itself (which reads the repository
+        # directly), but still live as the backing helper for
+        # ``charter.action_grain.scan_builtin_cross_grain_duplicates`` (the
+        # IC-11 built-in dup-scan).
+        from charter.mission_type_profiles import (
             _load_mission_type_profile,
         )
     except ImportError as exc:
@@ -161,7 +165,7 @@ def test_resolve_governance_picks_documentation_profile_for_documentation_missio
     Fails today on ImportError or because no documentation profile exists.
     """
     try:
-        from charter.mission_type_profiles import (  # type: ignore[import-not-found]
+        from charter.mission_type_profiles import (
             resolve_mission_type_context,
         )
     except ImportError as exc:
@@ -215,7 +219,7 @@ def test_resolve_governance_hard_fails_for_unknown_mission_type(tmp_path: Path) 
     message naming the unknown mission_type.
     """
     try:
-        from charter.mission_type_profiles import (  # type: ignore[import-not-found]
+        from charter.mission_type_profiles import (
             resolve_mission_type_context,
         )
     except ImportError as exc:
