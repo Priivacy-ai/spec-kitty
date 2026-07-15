@@ -1,0 +1,69 @@
+{
+  "mission_slug": "implement-loop-commit-hardening-01KXJ1ZX",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pending",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "move-task succeeds from a lane-worktree cwd (status surface resolved cwd-independently). Root cause was the write-side transaction.py cwd re-derivation (#2453); fixed by routing modern coordination-less missions to repo_root.",
+      "proof_type": "automated_test",
+      "evidence": "WP06 commit 9409d4c07; tests/specify_cli/cli/commands/test_tasks_move_task_cwd.py::test_write_side_from_lane_rederivation_no_longer_reproduces_2647 (+ repo-root no-regression); dogfood: real move-task from lane-c cwd succeeded.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-15T14:55:56Z",
+      "notes": "Verified via the WP implement-review cycle (all 7 WPs approved by reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Silent protected-branch coord-divert removed; narrow-triple (placement_ref None + coord_branch + protected planning_branch) fails closed with PlacementResolutionRequired (same message as the status half); legacy 755/790 arms preserved.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 commit 1800a925c; test_implement_writeside.py::TestNarrowTripleProtectedPlanningBranchFailsClosed (RED->GREEN); 3 write-side None tests + #2533 regression stay green.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-15T14:55:56Z",
+      "notes": "Verified via the WP implement-review cycle (all 7 WPs approved by reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "implement.py god-functions (_json_safe_output, _resolve_bookkeeping_transaction_identifiers, _run_recover_mode) decomposed behavior-preserving with characterization tests; C-006 5-tuple frozen.",
+      "proof_type": "automated_test",
+      "evidence": "WP02 (test_implement_bookkeeping_identifiers.py, 5-tuple contract) + WP03 (test_implement_json_safe_output.py, dual-exception + recover branches); 45 tests green.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-15T14:55:56Z",
+      "notes": "Verified via the WP implement-review cycle (all 7 WPs approved by reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "tasks_move_task.py degod: _do_move_task param-object (2 params, from 21, <=13 gate), _mt_commit_wp_file (folds #2604), _mt_uncheck_rollback_subtasks preserving the #2576 dual-handler.",
+      "proof_type": "automated_test",
+      "evidence": "WP07 commit 7ea10f1aa; test_tasks_move_task_degod.py (dual-handler + degrade-never-crash + param-count ceiling); 248 tests green.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-15T14:55:56Z",
+      "notes": "Verified via the WP implement-review cycle (all 7 WPs approved by reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "Three partition-decision sites consolidated onto the existing is_coordination_artifact_residue_path predicate (kind=None->PRIMARY, C-007); read/write primary ref unified via _primary_ref_for; commit_router classifier swapped to absolute buckets without ref inversion.",
+      "proof_type": "automated_test",
+      "evidence": "WP04 (_primary_ref_for, cli ref-unif) + WP05 (commit_router:462 classifier swap, TestCallerIsPrimaryBucketsStayAbsolute); #2533 + #2648 regressions green; 321 tests.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-15T14:55:56Z",
+      "notes": "Verified via the WP implement-review cycle (all 7 WPs approved by reviewer-renata)."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "Characterization gate pins the three sites + the 'non-coord path under a coord caller' disagreement set + INV-7 (flat/legacy None->755) before the FR-005 swap; no cross-lane xfail (AST-guarded).",
+      "proof_type": "automated_test",
+      "evidence": "WP04 test_partition_authority_characterization.py (12 tests) + the no-xfail AST guard; gate authored before WP05's swap.",
+      "pass_fail": "pass",
+      "verified_by": "claude:opus:reviewer-renata:reviewer",
+      "verified_at": "2026-07-15T14:55:56Z",
+      "notes": "Verified via the WP implement-review cycle (all 7 WPs approved by reviewer-renata)."
+    }
+  ],
+  "negative_invariants": []
+}
