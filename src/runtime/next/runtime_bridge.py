@@ -1229,7 +1229,22 @@ def _dn_bootstrap(
             )
         )
 
-    mission_type = get_mission_type(feature_dir)
+    # ``meta.json`` (the mission-type source) lives on the topology-BLIND PRIMARY
+    # checkout; the coordination worktree's sparse policy excludes it. Reading the
+    # type off the coord-aware ``feature_dir`` yields an empty meta -> the neutral
+    # ``""`` from ``get_mission_type`` (post-#883 no software-dev default), which
+    # then breaks runtime template resolution. Anchor the type read on the primary
+    # dir, mirroring ``_mission_routes_through_coordination`` above (FR-001).
+    from specify_cli.missions._read_path_resolver import (  # noqa: PLC0415
+        _canonicalize_primary_read_handle,
+        primary_feature_dir_for_mission,
+    )
+
+    mission_type = get_mission_type(
+        primary_feature_dir_for_mission(
+            repo_root, _canonicalize_primary_read_handle(repo_root, mission_slug)
+        )
+    )
     sync_emitter = SyncRuntimeEventEmitter.for_feature(
         feature_dir=feature_dir,
         mission_slug=mission_slug,
