@@ -296,64 +296,60 @@ class TestPerformance:
         )
 
 
-class TestPerformanceRealIO:
-    """NFR-001: PackContext.from_config() ≤100ms p99 under real filesystem I/O."""
+class TestNFR001LazyGovernanceBoundary:
+    """NFR-001: the real hot path never triggers action-grain I/O (WP05).
 
-    @pytest.mark.slow
-    def test_pack_context_from_config_p99_under_100ms(self, tmp_path: Path) -> None:
-        """Real I/O: PackContext.from_config() p99 ≤ 100ms over 50 runs."""
-        import time
+    The previous NFR-001 gate here (``test_pack_context_from_config_p99_under_100ms``)
+    timed ``charter.pack_context.PackContext.from_config()`` — a function that
+    never calls :func:`~charter.mission_type_profiles.resolve_mission_type_context`
+    or ``load_action_index`` at all, so it could never regress under the budget
+    it claimed to protect. It is replaced with a direct spy over the ACTUAL
+    disk-reading call the budget exists for:
+    ``charter.mission_type_profiles.aggregate_action_grain`` (imported from
+    :mod:`charter.action_grain`), which the ``governance_thunk`` built by
+    ``_resolve_governance_slot`` invokes lazily behind
+    ``ResolvedMissionType.governance``'s ``@cached_property`` — and which
+    transitively fans out to
+    :func:`doctrine.missions.action_index.load_action_index` for every action
+    a mission type ships.
 
-        from charter.pack_context import PackContext
+    ``TestPerformance.test_resolve_mission_type_context_within_100ms`` above
+    (mocks ``.action_sequence`` via an injected ``MissionTypeRepository``) is a
+    separate smoke timing; it is not the hot-path proof — a call-count spy is a
+    stronger, environment-independent guarantee than a millisecond budget.
+    """
 
-        kittify = tmp_path / ".kittify"
-        kittify.mkdir()
-        config_text = (
-            "mission_type_activations:\n"
-            "  - software-dev\n"
-            "  - documentation\n"
-            "  - research\n"
-            "  - plan\n"
-            "activated_kinds:\n"
-            "  - directives\n"
-            "  - tactics\n"
-            "  - styleguides\n"
-            "  - toolguides\n"
-            "  - paradigms\n"
-            "  - procedures\n"
-            "  - agent_profiles\n"
-            "  - mission_step_contracts\n"
-            "activated_directives:\n"
-            "  - python-style-guide\n"
-            "  - clean-code\n"
-            "activated_agent_profiles:\n"
-            "  - python-pedro\n"
-            "  - reviewer-renata\n"
-        )
-        (kittify / "config.yaml").write_text(config_text, encoding="utf-8")
+    def test_action_sequence_only_path_never_triggers_action_grain(
+        self, tmp_path: Path
+    ) -> None:
+        """The real production hot path (``.action_sequence`` only) does zero action-grain I/O."""
+        from charter.mission_type_profiles import resolve_mission_type_context
 
-        # Warm run — excludes import overhead from the measurement.
-        PackContext.from_config(tmp_path)
+        with patch(
+            "charter.mission_type_profiles.aggregate_action_grain"
+        ) as spy_aggregate:
+            bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+            # This is the real hot path: runtime-next's FSM reads only
+            # `.action_sequence`, never `.governance`.
+            assert bundle.action_sequence == _SW_DEV_ACTIONS
 
-        timings_ms: list[float] = []
-        for _ in range(100):
-            start = time.monotonic()
-            PackContext.from_config(tmp_path)
-            elapsed_ms = (time.monotonic() - start) * 1000
-            timings_ms.append(elapsed_ms)
+        spy_aggregate.assert_not_called()
 
-        timings_ms.sort()
-        # A genuine p99 over 100 samples (index 98) — NOT the single worst
-        # observation. `from_config` is real-I/O; on a shared CI runner a lone
-        # iteration can spike from a GC pause / disk / CPU-steal hiccup, and a
-        # worst-of-N gate turns that pure measurement noise into a red build.
-        # p99 tolerates exactly one such outlier while still catching real
-        # regressions, which shift the whole distribution (median → budget).
-        # Measured locally the entire distribution is ~1.5-2ms, ~50x under the
-        # 100ms NFR-001 budget.
-        p99 = timings_ms[98]
-        p50 = timings_ms[49]
-        assert p99 <= 100, (
-            f"PackContext.from_config() p99={p99:.2f}ms > 100ms NFR-001 budget. "
-            f"p50={p50:.2f}ms, max={timings_ms[-1]:.2f}ms"
-        )
+    def test_first_governance_access_triggers_action_grain_aggregation(
+        self, tmp_path: Path
+    ) -> None:
+        """Proves the lazy boundary is real: first ``.governance`` read DOES call it."""
+        from charter.mission_type_profiles import resolve_mission_type_context
+
+        with patch(
+            "charter.mission_type_profiles.aggregate_action_grain",
+            return_value={},
+        ) as spy_aggregate:
+            bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+            spy_aggregate.assert_not_called()
+
+            _ = bundle.governance
+
+        spy_aggregate.assert_called_once()
+        called_type = spy_aggregate.call_args.args[1]
+        assert called_type == "software-dev"
