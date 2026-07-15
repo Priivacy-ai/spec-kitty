@@ -2,10 +2,11 @@
 title: The Runtime Loop Explained
 description: "How spec-kitty next inverts control so the runtime picks the next action: query versus advancing mode and the four decisions, step, decision_required, blocked, and terminal."
 doc_status: active
-updated: '2026-06-03'
+updated: '2026-07-14'
 related:
 - docs/architecture/kanban-workflow.md
 - docs/architecture/mission-system.md
+- docs/architecture/mission-type-resolution.md
 - docs/architecture/multi-agent-orchestration.md
 ---
 # The Runtime Loop Explained
@@ -73,6 +74,32 @@ Use query mode when you want to inspect the current run state without changing i
 Use advancing mode when an agent is actively executing the loop. In this mode, `--result` reports the outcome of the previous issued step and the runtime may advance mission state.
 
 Planning-artifact work packages follow the same runtime loop, but they execute in repository root outside the lane graph. Their workspace is the main checkout rather than a lane worktree.
+
+## What the Runtime Consumes: a Single Resolved Mission Type
+
+The runtime is a finite-state machine that consumes a mission type it does not
+itself define. Per-mission-type behaviour is resolved **once**, upstream, into a
+single `ResolvedMissionType` bundle, and the FSM reads that bundle rather than
+reaching into any mission-type catalogue directly.
+
+The bundle is keyed off the **same** `mission_type` (the `mission` field in
+`meta.json`) that the FSM already uses to read a mission's action sequence.
+Governance rides alongside the action sequence as a **sibling field of the same
+resolved bundle — not a property of any individual state or transition**. When
+"states & transitions as config" fully lands, the state loader and the governance
+slot both read the same `ResolvedMissionType`, but they stay distinct fields so the
+two configuration axes remain separable.
+
+This also closes the **software-dev-default leak**. Previously the action-scoped
+context path inferred a mission's type from `template_set`, defaulting to
+`software-dev` when it was unset — so a documentation, research, or plan mission
+that never set `template_set` silently loaded software-dev's test-first,
+implementation, and code-review doctrine. The runtime now keys governance off the
+real `mission_type` from `meta.json`; a missing or unknown type is a hard error,
+never a software-dev fallback. Governance is the first consumer of this bundle;
+templates, gates, and step contracts fill reserved slots in later slices. See
+[Mission-Type Resolution](mission-type-resolution.md) and
+[ADR 2026-07-14-2](../adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md).
 
 ## The Four Advancing Decisions
 
@@ -210,6 +237,7 @@ Certain mission steps (such as `discovery`) do not have command templates. When 
 
 - [Multi-Agent Orchestration](multi-agent-orchestration.md) -- The coordination model for running multiple agents
 - [Mission System](mission-system.md) -- How missions define the workflow that the runtime follows
+- [Mission-Type Resolution](mission-type-resolution.md) -- The doctrine → charter → core seam that resolves the bundle the runtime consumes
 - [Kanban Workflow](kanban-workflow.md) -- The lane-based status model that the runtime reads
 
 ---

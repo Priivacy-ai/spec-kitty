@@ -2,7 +2,7 @@
 title: Explanation
 description: 'Understanding-oriented background on Spec Kitty: spec-driven development, the mission system, execution lanes, git workflow, and multi-agent orchestration.'
 doc_status: active
-updated: '2026-06-27'
+updated: '2026-07-14'
 related:
 - docs/architecture/ai-agent-architecture.md
 - docs/architecture/execution-lanes.md
@@ -10,6 +10,7 @@ related:
 - docs/architecture/git-worktrees.md
 - docs/architecture/kanban-workflow.md
 - docs/architecture/mission-system.md
+- docs/architecture/mission-type-resolution.md
 - docs/architecture/multi-agent-orchestration.md
 - docs/architecture/runtime-loop.md
 - docs/architecture/spec-driven-development.md
@@ -23,6 +24,7 @@ here when you want the mental model behind a feature rather than step-by-step in
 
 - [Spec-driven development](spec-driven-development.md) — the core methodology.
 - [Mission system](mission-system.md) — how missions and work packages relate.
+- [Mission-type resolution](mission-type-resolution.md) — the doctrine → charter → core seam that resolves per-mission-type behaviour.
 - [Execution lanes](execution-lanes.md) and [git worktrees](git-worktrees.md) — the parallel execution model.
 - [Git workflow](git-workflow.md) — what git operations the runtime owns versus the agent.
 - [Multi-agent orchestration](multi-agent-orchestration.md) — coordinating work across agents.

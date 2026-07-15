@@ -1,0 +1,217 @@
+---
+title: Mission-Type Resolution — the doctrine → charter → core seam
+description: "Why per-mission-type behaviour resolves through one doctrine → charter → core seam keyed off the mission_type in meta.json, with governance as the first consumer."
+doc_status: active
+updated: '2026-07-14'
+type: explanation
+related:
+- docs/architecture/mission-system.md
+- docs/architecture/runtime-loop.md
+- docs/architecture/org-doctrine-layer.md
+- docs/architecture/charter-synthesis-drg.md
+- docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md
+---
+# Mission-Type Resolution — the doctrine → charter → core seam
+
+This page explains *why* Spec Kitty resolves per-mission-type behaviour through a
+single seam, and how that seam is shaped to grow. It is background and rationale,
+not a how-to. For the decision record and its load-bearing anchors, see
+[ADR 2026-07-14-2 — Doctrine → Charter → Core Mission-Type Resolution Unification](../adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md).
+
+## The one path: doctrine defines, charter customises, core consumes
+
+Everything a mission type contributes — its governance today; its templates,
+gates, and step contracts in later slices — flows through **one** path:
+
+```
+doctrine (offers)  →  charter (activates & customises)  →  core FSM (consumes)
+```
+
+- **Doctrine offers.** The canonical catalogue of mission types lives in
+  `src/doctrine/missions/<type>/`. It *offers* a mission type's governance,
+  action indices, step contracts, and templates.
+- **Charter activates and customises.** The charter layer selects a mission type
+  and overlays project-specific customisation onto it, exactly as it overlays any
+  other doctrine artifact (see [the per-type override](#the-charter-customise-layer)).
+- **Core consumes.** The runtime is a finite-state machine, "semi-prepared for
+  states & transitions as config." It reads the *resolved* mission type and acts
+  on it — it holds no hardcoded per-type knowledge.
+
+The seam is keyed off a single fact: the mission type recorded in the mission's
+`meta.json`. That is the same key the FSM already uses to read a mission's action
+sequence, which is what lets governance ride alongside without becoming a
+property of any one state (see [Governance is a sibling, not a property](#governance-is-a-sibling-not-a-property)).
+
+## Why one seam instead of three surfaces
+
+Before this decision, per-mission-type behaviour resolved through **two parallel
+mission trees and three competing governance surfaces**:
+
+- `src/doctrine/missions/<type>/` — the canonical catalogue (the source of truth).
+- `src/specify_cli/missions/<type>/` — **derived copies** that several core
+  readers still bind to directly. The two trees drifted with no parity guard.
+- Three governance surfaces per type: an inert-and-dangling `governance_refs`
+  field on the mission-type YAML; a live-but-empty type-grain
+  `governance-profile.yaml`; and a live, populated action-grain action index.
+
+Three surfaces and two trees violate single canonical authority. The chosen path
+does not add a fourth surface or a "keep the trees in sync" guard — either would
+entrench the split. Instead it **collapses** the governance surfaces to two
+hand-authored grains resolved through one function, and puts the derived
+`specify_cli/missions/` tree on the deprecation path (derive-then-delete, never
+grow).
+
+## The resolver and the bundle shaped to grow
+
+A single charter-mediated resolver is the one entry point for per-mission-type
+resolution:
+
+```
+charter.mission_type_profiles.resolve_mission_type_context(
+    repo_root, *, mission_type=None, feature_dir=None
+) -> ResolvedMissionType
+```
+
+`ResolvedMissionType` is a **bundle shaped to grow**. Today it carries a populated
+`governance` slot and a resolved `action_sequence`, plus **reserved, empty** slots
+for `template_set`, `expected_artifacts`, and `step_contracts`. Those reserved
+slots are not speculative scaffolding: each maps 1:1 onto an existing doctrine-tree
+reader that already takes a `missions_root`, so a later slice fills a slot and
+repoints one reader rather than inventing new plumbing.
+
+Governance is simply the **first consumer** of a path that templates, gates, and
+step contracts flow through next.
+
+## Resolution order — and the leak it closes
+
+The resolver determines the mission type in a strict order, and **never guesses**:
+
+1. an explicit `mission_type` argument, when the caller knows it;
+2. otherwise `feature_dir/meta.json`;
+3. otherwise a **hard error** (`UnknownMissionTypeError`).
+
+It never infers the type from `template_set`, and it never defaults to
+`software-dev`. That closes a real defect by construction. Previously the
+action-scoped context path inferred the mission type as
+`(template_set or "software-dev-default").removesuffix("-default")` because the
+scope router resolved the mission's `feature_dir` and then discarded it — so a
+documentation, research, or plan mission that never set `template_set` silently
+loaded **software-dev** doctrine (test-first, implementation, code-review).
+
+The fix threads the real `mission_type` / `feature_dir` through the scope router
+into the action-doctrine rendering, and makes a missing governance source a loud,
+remediable error rather than a software-dev fallback. `template_set` is **split**:
+it is retained for its legitimate job (selecting spec/plan template files) and
+removed as the mission-type proxy in governance routing. For planning-time
+`charter context --action` invocations that run from the repository root with no
+`meta.json`, an explicit `--mission-type` is required.
+
+### The leak-closure invariant
+
+The invariant is enforced, not aspirational: **no non-software mission resolves
+any software-dev-only doctrine artifact**, proven together with a non-vacuity twin
+showing software-dev *does* resolve it (so the test cannot pass emptily). An
+unknown or missing `mission_type` raises a hard error on every resolution path.
+
+## Two governance grains, unioned, no overlap
+
+Governance is authored at two grains, and the resolver unions and de-dupes them:
+
+| Grain | Canonical source | What it carries |
+|-------|------------------|-----------------|
+| **Action-grain** | `missions/<type>/actions/<action>/index.yaml` | Per-action `scope` edges (already live; generate DRG scope edges consumed by `charter context --action`) |
+| **Type-grain** | `missions/<type>/governance-profile.yaml` (`selected_*`) | The type-wide directive/tactic/styleguide/paradigm selections, and the project-override target |
+
+Neither grain is a generated rollup of the other — a rollup would incur a
+freshness gate and erase the grain distinction. An enforcement test forbids the
+same ID appearing in both grains. Both consumers of governance — the work-package
+prompt and the step-bootstrap context — obtain `(mission_type, selections)` from
+this one resolver, then render the grain each needs.
+
+Governance resolves to a **structured** object whose `selected_*` collections are
+**ordered** (list-backed with an explicit, tested sort — not sets); the rendered
+text becomes a *rendering of* that object. Ordering is a correctness property of the
+resolver, verified by a doctrine-module test — not a byte-snapshot of a
+soon-to-be-removed path. During the migration a transitional parity scaffold proves
+the swap is user-invisible, then is deleted; enduring verification is behavioural,
+at the doctrine-module and integration level.
+
+## The charter customise layer
+
+The charter "activate and customise" step is where a project adjusts a shipped
+mission type. The per-type project override lives at
+`.kittify/doctrine/mission_types/<type>/governance-profile.yaml` and is resolved
+through the **existing** doctrine overlay loader — inheriting builtin → org →
+project ordering and `DoctrineLayerCollisionWarning` field-merge semantics. Reusing
+that loader avoids duplicating the merge contract, but it is not zero-cost: the
+loader keys on an `id` field the profile does not carry (it keys on `mission_type`),
+so an adapter — an `id` on the profile plus a repository subclass, or an explicit
+field-merge in the resolver — is owned, tested work. See
+[Understanding the Org Doctrine Layer](org-doctrine-layer.md#per-mission-type-governance-override)
+for how that overlay stack resolves collisions.
+
+## `governance_refs` is retired
+
+The `governance_refs` field on the mission-type model is deleted, along with the
+dangling references it carried (for example, the `software-dev` mission type
+referenced `DIR-010` / `DIR-011`, which resolved to nothing — the real IDs are
+`DIRECTIVE_0NN`). The field was inert: no runtime reader consumed it, so
+populating it changed nothing and gave a freshness gate false assurance. Its role
+is fully subsumed by the two canonical grains. If a display still needs it, it is
+exposed as a **read-only computed property** derived from the resolver, never a
+hand-authored twin.
+
+## Governance is a sibling, not a property
+
+Governance resolution is keyed off the same `mission_type` the FSM already uses to
+read its action sequence. It is **not** attached to individual FSM state or
+transition definitions. When full "states & transitions as config" lands, the
+state loader and the governance slot both read the same `ResolvedMissionType` but
+remain distinct fields — the two configuration axes stay separable.
+
+## software-dev becomes a peer
+
+`software-dev` stops being special-cased. Its governance resolves from `meta.json`
+like the other three types, through the same resolver, with **zero new authoring**
+— its `governance-profile.yaml` and action indices already exist. For the first
+slice its resolved governance is **behaviourally frozen**: only documentation,
+research, and plan gain content, and the software-dev golden suite is the
+byte-for-byte regression gate. The end-state direction is that `software-dev`
+becomes an ordinary built-in **doctrine** mission type on equal footing with
+`documentation`, `research`, and `plan`.
+
+## Slices — what is built now, what is planned
+
+This seam is delivered as **slice 1 of a `specify_cli/missions` retirement epic**
+(issue #883). Scoping it into slices keeps each reader migration independently
+verifiable.
+
+**In scope now (slice 1):** the resolver seam, the leak fix, `governance_refs`
+retirement, the per-type override, authored governance for
+documentation/research/plan, and **one** reader migration — the dossier gate
+reader flips from `specify_cli/missions/*/expected-artifacts.yaml` to the
+doctrine-tree reader, deleting the derived copies.
+
+**Planned (later slices):**
+
+- **Templates** — fill the reserved `template_set` slot and repoint template
+  resolution at the doctrine tree.
+- **Gates** — widen the migrated `expected_artifacts` reader beyond the dossier.
+- **Step contracts** — fill the reserved `step_contracts` slot from
+  `built_in_step_contracts/`.
+- **Mission enumeration / runtime** — remove the remaining hardcoded
+  `software-dev` fallback.
+- **Delete the split** — retire the doctrine → `specify_cli/missions/` copy step
+  and the `specify_cli/missions/` tree entirely.
+
+**Specified but not built:** a mission-instance addendum layer (a top field-merge
+layer read from a `meta.json` governance addendum) is designed for completeness
+but deferred — no surface exists today and the layer is unproven (YAGNI).
+
+## See also
+
+- [The Mission System Explained](mission-system.md) — mission types, missions, work packages, and the two state machines.
+- [The Runtime Loop Explained](runtime-loop.md) — how the FSM core consumes the resolved mission type.
+- [Understanding the Org Doctrine Layer](org-doctrine-layer.md) — the builtin → org → project overlay stack the per-type override rides.
+- [Understanding Charter: Synthesis, DRG, and Governed Context](charter-synthesis-drg.md) — how governed context flows to agents.
+- [ADR 2026-07-14-2 — Doctrine → Charter → Core Mission-Type Resolution Unification](../adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md) — the decision record.

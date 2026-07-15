@@ -10,6 +10,8 @@
   href: git-workflow.md
 - name: Mission System
   href: mission-system.md
+- name: Mission-Type Resolution
+  href: mission-type-resolution.md
 - name: Kanban Workflow
   href: kanban-workflow.md
 - name: AI Agent Architecture
