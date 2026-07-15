@@ -1,0 +1,130 @@
+{
+  "version": 1,
+  "mission_slug": "mission-type-single-source-gate-wiring-01KXKHVZ",
+  "mission_id": "01KXKHVZE3MV3F935WCXBBBJAT",
+  "mission_branch": "kitty/mission-mission-type-single-source-gate-wiring-01KXKHVZ",
+  "target_branch": "feat/mission-type-single-source-gate-wiring",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "src/doctrine/missions/mission_type_repository.py",
+        "tests/doctrine/missions/test_builtin_mission_type_ids.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/doctrine/missions/action_index.py",
+        "tests/doctrine/missions/test_action_index.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP02"
+      ],
+      "write_scope": [
+        "src/charter/__init__.py",
+        "src/charter/mission_type_profiles.py",
+        "src/charter/pack_context.py",
+        "tests/charter/test_action_grain.py",
+        "tests/charter/test_charter_import_time_io.py",
+        "tests/charter/test_mission_type_profile_override.py",
+        "tests/charter/test_pack_context.py",
+        "tests/doctrine/drg/test_cross_grain_integrity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/charter/activations.py",
+        "src/charter/synthesizer/interview_mapping.py",
+        "src/specify_cli/upgrade/migrations/m_3_2_0rc35_activate_builtin_mission_types.py",
+        "tests/architectural/test_no_dead_symbols.py",
+        "tests/charter/test_activations.py",
+        "tests/charter/test_interview_mapping_mission_alias.py",
+        "tests/upgrade/test_activate_builtin_types_migration.py"
+      ],
+      "predicted_surfaces": [
+        "api"
+      ],
+      "depends_on_lanes": [
+        "lane-a"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/charter/action_grain.py",
+        "src/specify_cli/cli/commands/doctor.py",
+        "tests/architectural/test_cross_grain_builtin_gate.py",
+        "tests/specify_cli/cli/commands/test_doctor_doctrine_integrity.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-d"
+      ],
+      "parallel_group": 1
+    },
+    {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/charter/mission_type_profile_repository.py",
+        "tests/charter/test_builtin_missions_root.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [
+        "lane-b",
+        "lane-c",
+        "lane-e"
+      ],
+      "parallel_group": 2
+    }
+  ],
+  "computed_at": "2026-07-15T19:19:53.657666+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}
