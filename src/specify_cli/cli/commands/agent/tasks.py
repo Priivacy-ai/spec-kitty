@@ -408,6 +408,7 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_clear_rollback_claim_markers as _mt_clear_rollback_claim_markers,
     _mt_commit_lane_deliverables as _mt_commit_lane_deliverables,
     _mt_commit_wp_file as _mt_commit_wp_file,
+    _mt_complete_deferred_for_review_readiness as _mt_complete_deferred_for_review_readiness,
     # WP07 (#2649, T034/T035): helpers extracted out of ``_mt_commit_wp_file``
     # (folds #2604) and ``_mt_uncheck_rollback_subtasks`` join the family
     # surface like every other def — same seam-bridge rule.
@@ -436,6 +437,7 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_persist_wp_file as _mt_persist_wp_file,
     _mt_pre_review_block_enabled as _mt_pre_review_block_enabled,
     _mt_pre_review_changed_files as _mt_pre_review_changed_files,
+    _mt_pre_review_dirty_paths as _mt_pre_review_dirty_paths,
     _mt_pre_review_gate_block_message as _mt_pre_review_gate_block_message,
     _mt_pre_review_gate_console_warning as _mt_pre_review_gate_console_warning,
     # #2573 fast-follow (FR-002): the --skip-pre-review-gate flag + disable-env

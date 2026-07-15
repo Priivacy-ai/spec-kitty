@@ -61,7 +61,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.fast]
 # treats the union as one required key-set). Counts noted per group for
 # traceability against the seam files' own docstring counts at authoring
 # time (finalize=8, map_requirements=15, shared=21, status_cmd=21,
-# move_task=51, mark_status=13 — 129 total).
+# move_task=60, mark_status=13 — 138 total).
 # ---------------------------------------------------------------------------
 
 _TASKS_FINALIZE: tuple[str, ...] = (  # WP08 (wave2) — 8 symbols
@@ -144,9 +144,10 @@ _TASKS_STATUS_CMD: tuple[str, ...] = (  # WP07 (wave2) — 21 symbols
     "_render_stale_status",
 )
 
-_TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 63 symbols
+_TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 65 symbols
     # (#2513/#2160: +uncheck/clear-markers/reset-rollback; #2573: +gate
-    # skip-reason pair; WP07 #2649: +param-object + commit/uncheck degod helpers)
+    # skip-reason pair; WP07 #2649: +param-object + commit/uncheck degod helpers;
+    # #2639: +complete-deferred-readiness + pre-review-dirty-paths)
     "_default_move_task_ports",
     "_MoveTaskState",
     "_MoveTaskArgs",
@@ -156,6 +157,7 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 63 symbols
     "_mt_build_request",
     "_lane_deliverable_paths",
     "_mt_commit_lane_deliverables",
+    "_mt_complete_deferred_for_review_readiness",
     "_mt_gather_review_facts",
     "_mt_fire_override_persist",
     "_mt_done_ancestry_facts",
@@ -199,6 +201,7 @@ _TASKS_MOVE_TASK: tuple[str, ...] = (  # WP05 (wave2) — 63 symbols
     "_mt_run_pre_review_gate",
     "_mt_resolve_pre_review_workspace",
     "_mt_pre_review_changed_files",
+    "_mt_pre_review_dirty_paths",
     "_mt_pre_review_gate_with_override_scope",
     "_mt_empty_scope_verdict",
     "_mt_pre_review_gate_verdict",
@@ -379,10 +382,10 @@ def test_no_required_symbol_duplicated_in_survey() -> None:
     assert total_declared == len(SYMBOL_TO_MODULE)
 
 
-def test_guard_covers_full_140_symbol_surface() -> None:
+def test_guard_covers_full_142_symbol_surface() -> None:
     """Traceability pin: the guard's total symbol count matches the sum of
     the 6 seams' counts recorded in the seam files' own docstrings at
-    authoring time (8 + 15 + 20 + 21 + 63 + 13 = 140). A change here is
+    authoring time (8 + 15 + 20 + 21 + 65 + 13 = 142). A change here is
     expected when a future WP relocates symbols; it should be a deliberate,
     reviewed edit — not a silent drift. #2513/#2160 added
     ``_mt_uncheck_rollback_subtasks``, ``_mt_clear_rollback_claim_markers`` and
@@ -397,6 +400,9 @@ def test_guard_covers_full_140_symbol_surface() -> None:
     ``_mt_report_commit_outcome``, ``_mt_attempt_uncheck_write``,
     ``_mt_commit_uncheck_tasks_md``) (58 -> 63). FR-007
     (primary-merge-vocabulary, WP04) retired the ``tasks_shared``
-    ``resolve_primary_branch`` delegating shim (tasks_shared 21 -> 20; total
-    141 -> 140)."""
-    assert len(SYMBOL_TO_MODULE) == 140  # golden-count: cardinality-is-contract
+    ``resolve_primary_branch`` delegating shim (tasks_shared 21 -> 20). #2639
+    (pre-review transitions observable/interruption-safe) added
+    ``_mt_complete_deferred_for_review_readiness`` and
+    ``_mt_pre_review_dirty_paths`` (63 -> 65). Net tasks-surface total
+    141 -> 142."""
+    assert len(SYMBOL_TO_MODULE) == 142  # golden-count: cardinality-is-contract

@@ -46,7 +46,7 @@ import contextlib
 import logging
 import os
 import traceback
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from pathlib import Path
@@ -451,7 +451,7 @@ def _mt_commit_lane_deliverables(st: _MoveTaskState) -> None:
         return
     # Reuse the guard's runtime-state filter so we only commit genuine deliverables
     # (never spec-kitty's own review-lock / .kittify bookkeeping).
-    filtered = _tasks._filter_runtime_state_paths(status.stdout.strip())
+    filtered = _tasks._filter_runtime_state_paths(status.stdout)
     if not filtered:
         return
     paths = _lane_deliverable_paths(worktree_path, filtered)
@@ -510,24 +510,26 @@ def _mt_gather_review_facts(st: _MoveTaskState) -> None:
     review_ready = True
     review_guidance: tuple[str, ...] = ()
     if st.target_lane in (Lane.FOR_REVIEW, Lane.APPROVED, Lane.DONE):
-        # #2335: on the implement→review handoff, recover a killed implementer's
-        # uncommitted deliverables by committing them via the tool (auto-commit
-        # policy) BEFORE the readiness guard runs — so recovery never dead-ends
-        # demanding a manual worktree commit. Scoped to for_review ONLY:
-        # approved/done deliverables are already committed (they passed review),
-        # so a dirty tree there is a real signal the guard should still surface.
-        # --force still bypasses; auto-commit-off defers to the guard.
-        if st.target_lane == Lane.FOR_REVIEW and st.resolved_auto_commit and not st.force:
-            _mt_commit_lane_deliverables(st)
-        is_valid, guidance = _tasks._validate_ready_for_review(
-            st.repo_root,
-            st.mission_slug,
-            st.task_id,
-            st.force,
-            target_lane=str(st.target_lane),
+        # A for_review auto-commit is deliberately deferred until the real
+        # pre-review gate permits progress. The initial decision still runs
+        # every other read-only guard before that gate; readiness is refreshed
+        # immediately after the deferred commit. Other lanes and explicit
+        # no-auto-commit moves retain their original validation order.
+        defer_readiness = (
+            st.target_lane == Lane.FOR_REVIEW
+            and st.resolved_auto_commit
+            and not st.force
         )
-        review_ready = is_valid
-        review_guidance = tuple(guidance)
+        if not defer_readiness:
+            is_valid, guidance = _tasks._validate_ready_for_review(
+                st.repo_root,
+                st.mission_slug,
+                st.task_id,
+                st.force,
+                target_lane=str(st.target_lane),
+            )
+            review_ready = is_valid
+            review_guidance = tuple(guidance)
     st.request = _mt_build_request(
         st,
         protected_error=protected_error,
@@ -538,6 +540,33 @@ def _mt_gather_review_facts(st: _MoveTaskState) -> None:
         review_ready=review_ready,
         review_guidance=review_guidance,
     )
+
+
+def _mt_complete_deferred_for_review_readiness(st: _MoveTaskState) -> None:
+    """Commit deliverables and refresh readiness only after the gate permits."""
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    if not (
+        st.target_lane == Lane.FOR_REVIEW
+        and st.resolved_auto_commit
+        and not st.force
+    ):
+        return
+    assert st.request is not None
+    _mt_commit_lane_deliverables(st)
+    is_valid, guidance = _tasks._validate_ready_for_review(
+        st.repo_root,
+        st.mission_slug,
+        st.task_id,
+        st.force,
+        target_lane=str(st.target_lane),
+    )
+    st.request = replace(
+        st.request,
+        review_ready=is_valid,
+        review_guidance=tuple(guidance),
+    )
+    _mt_run_decision(st)
 
 
 # --- phase C: two-pass decision + partial-write persists ---------------------
@@ -875,8 +904,35 @@ def _mt_pre_review_changed_files(worktree_path: Path, base_branch: str) -> tuple
     changed-file set, not just spec docs. Any git failure degrades to an
     empty tuple (folds into a cheap ``no_coverage`` warn), never a crash.
     """
-    changed: tuple[str, ...] = merge_base_changed_files(worktree_path, base_branch)
-    return changed
+    changed = set(merge_base_changed_files(worktree_path, base_branch))
+    changed.update(_mt_pre_review_dirty_paths(worktree_path))
+    return tuple(sorted(changed))
+
+
+def _mt_pre_review_dirty_paths(worktree_path: Path) -> tuple[str, ...]:
+    """Return relevant staged, unstaged, and untracked deliverable paths."""
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    status = _tasks.subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=str(worktree_path),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if status.returncode != 0:
+        return ()
+    filtered = _tasks._filter_runtime_state_paths(status.stdout)
+    paths = _lane_deliverable_paths(worktree_path, filtered)
+    return tuple(
+        sorted(
+            str(path.relative_to(worktree_path))
+            for path in paths
+            if path.is_relative_to(worktree_path)
+        )
+    )
 
 
 def _mt_pre_review_gate_with_override_scope(
@@ -884,6 +940,7 @@ def _mt_pre_review_gate_with_override_scope(
     *,
     repo_root: Path,
     baseline: BaselineTestResult | None,
+    progress_callback: Callable[[float], None] | None = None,
 ) -> pre_review_gate.GateVerdict:
     """Compose a verdict for an EXPLICIT override scope (FR-004).
 
@@ -906,7 +963,12 @@ def _mt_pre_review_gate_with_override_scope(
             scope=scope,
             reason="override test scope is empty",
         )
-    return pre_review_gate.evaluate_with_scope(scope, repo_root=repo_root, baseline=baseline)
+    return pre_review_gate.evaluate_with_scope(
+        scope,
+        repo_root=repo_root,
+        baseline=baseline,
+        progress_callback=progress_callback,
+    )
 
 
 def _mt_empty_scope_verdict(reason: str, *, excluded_scope_files: tuple[str, ...] = ()) -> pre_review_gate.GateVerdict:
@@ -930,6 +992,7 @@ def _mt_pre_review_gate_verdict(
     override_targets: tuple[str, ...] | None,
     gate_repo_root: Path,
     baseline: BaselineTestResult | None,
+    progress_callback: Callable[[float], None] | None = None,
 ) -> pre_review_gate.GateVerdict:
     """Resolve the FR-004 precedence tier, then evaluate the gate.
 
@@ -943,7 +1006,10 @@ def _mt_pre_review_gate_verdict(
     """
     if override_targets is not None:
         return _mt_pre_review_gate_with_override_scope(
-            override_targets, repo_root=gate_repo_root, baseline=baseline,
+            override_targets,
+            repo_root=gate_repo_root,
+            baseline=baseline,
+            progress_callback=progress_callback,
         )
     if not changed_files:
         return _mt_empty_scope_verdict("no changed files detected for this WP — skipping the gate cheaply")
@@ -954,6 +1020,7 @@ def _mt_pre_review_gate_verdict(
             baseline=baseline,
             filter_groups=_pre_review_gate_filter_groups(),
             composite_routing=_pre_review_gate_composite_routing(),
+            progress_callback=progress_callback,
         )
     except pre_review_gate.GateAuthoritiesUnavailable as exc:
         return _mt_empty_scope_verdict(
@@ -968,6 +1035,7 @@ def _mt_pre_review_gate_metadata(
     block_enabled: bool,
     blocked: bool,
     force_bypassed: bool,
+    new_checkout_paths: tuple[str, ...] = (),
 ) -> dict[str, Any]:
     """The FR-004 transition-evidence payload recorded via ``policy_metadata``."""
     scope = verdict.scope
@@ -984,6 +1052,8 @@ def _mt_pre_review_gate_metadata(
         "block_enabled": block_enabled,
         "blocked": blocked,
         "force_bypassed": force_bypassed,
+        "run_state": verdict.run_state.value,
+        "new_checkout_paths": list(new_checkout_paths),
     }
 
 
@@ -1032,6 +1102,8 @@ def _mt_pre_review_gate_console_warning(verdict: pre_review_gate.GateVerdict, *,
                 f"(outcome={outcome.value}: {verdict.reason or 'unverified'})"
             )
         return f"[dim]Pre-review regression gate: {outcome.value} — {verdict.reason or 'unverified'}[/dim]"
+    if outcome in (pre_review_gate.GateOutcome.TIMED_OUT, pre_review_gate.GateOutcome.CANCELLED):
+        return f"[red]Pre-review regression gate: {outcome.value} — {verdict.reason or 'interrupted'}[/red]"
     return "[dim]Pre-review regression gate: no new failures[/dim]"
 
 
@@ -1081,8 +1153,15 @@ def _mt_run_pre_review_gate(st: _MoveTaskState) -> None:
         return
 
     assert st.wp is not None
+    worktree_path: Path | None = None
+    dirty_paths_before: tuple[str, ...] = ()
     try:
         worktree_path = _mt_resolve_pre_review_workspace(st)
+        dirty_paths_before = (
+            _mt_pre_review_dirty_paths(worktree_path)
+            if worktree_path is not None
+            else ()
+        )
         changed_files = (
             _mt_pre_review_changed_files(worktree_path, st.target_branch)
             if worktree_path is not None
@@ -1104,25 +1183,78 @@ def _mt_run_pre_review_gate(st: _MoveTaskState) -> None:
                 "[cyan]Pre-review regression gate: running scoped tests at head "
                 "(may take a few minutes)...[/cyan]"
             )
+        progress_callback = None
+        if not st.json_output:
+            def _emit_progress(elapsed: float) -> None:
+                _tasks.console.print(
+                    f"[cyan]Pre-review regression gate: still running "
+                    f"({elapsed:.0f}s elapsed)...[/cyan]"
+                )
+
+            progress_callback = _emit_progress
         verdict = _mt_pre_review_gate_verdict(
             changed_files=changed_files,
             override_targets=override_targets,
             gate_repo_root=gate_repo_root,
             baseline=baseline,
+            progress_callback=progress_callback,
+        )
+    except KeyboardInterrupt:
+        verdict = pre_review_gate.GateVerdict(
+            outcome=pre_review_gate.GateOutcome.CANCELLED,
+            scope=pre_review_gate.ScopeResult.from_override(()),
+            reason="scoped test run cancelled",
+            run_state=pre_review_gate.HeadRunState.CANCELLED,
         )
     except Exception as exc:  # An internal gate failure must never break move-task (FR-003 spirit).
         verdict = _mt_empty_scope_verdict(f"pre-review gate evaluation failed — unverified: {exc}")
+
+    dirty_paths_after = (
+        _mt_pre_review_dirty_paths(worktree_path)
+        if worktree_path is not None
+        else ()
+    )
+    new_checkout_paths = tuple(sorted(set(dirty_paths_after) - set(dirty_paths_before)))
 
     block_enabled = _mt_pre_review_block_enabled(st.main_repo_root)
     would_block = block_enabled and verdict.outcome is pre_review_gate.GateOutcome.NEW_FAILURES
     force_bypassed = would_block and st.force
     blocked = would_block and not force_bypassed
     st.pre_review_gate_metadata = _mt_pre_review_gate_metadata(
-        verdict, block_enabled=block_enabled, blocked=blocked, force_bypassed=force_bypassed,
+        verdict,
+        block_enabled=block_enabled,
+        blocked=blocked,
+        force_bypassed=force_bypassed,
+        new_checkout_paths=new_checkout_paths,
     )
+
+    terminal_interruption = verdict.outcome in (
+        pre_review_gate.GateOutcome.TIMED_OUT,
+        pre_review_gate.GateOutcome.CANCELLED,
+    )
+    if terminal_interruption:
+        st.pre_review_gate_metadata["transition_applied"] = False
 
     if not st.json_output:
         _tasks.console.print(_mt_pre_review_gate_console_warning(verdict, block_enabled=block_enabled))
+        if new_checkout_paths:
+            _tasks.console.print(
+                "[yellow]Pre-review tests created or changed additional paths; "
+                f"preserved without cleanup: {', '.join(new_checkout_paths)}[/yellow]"
+            )
+
+    if terminal_interruption:
+        _tasks._output_error(
+            st.json_output,
+            f"Pre-review regression gate {verdict.outcome.value}; transition not applied",
+            diagnostic={
+                "result": "error",
+                "error": f"pre-review gate {verdict.outcome.value}",
+                "transition_applied": False,
+                "pre_review_gate": st.pre_review_gate_metadata,
+            },
+        )
+        raise typer.Exit(1)
 
     if blocked:
         _tasks._output_error(st.json_output, _mt_pre_review_gate_block_message(verdict))
@@ -1970,6 +2102,7 @@ def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> No
         _mt_gather_review_facts(st)
         _mt_run_decision(st)
         _mt_run_pre_review_gate(st)
+        _mt_complete_deferred_for_review_readiness(st)
         _mt_finalize_plan(st)
         _mt_execute(st, ports)
         _mt_output(st)

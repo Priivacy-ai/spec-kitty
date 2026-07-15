@@ -42,6 +42,7 @@ import contextlib
 import fnmatch
 import importlib
 import os
+import signal
 import subprocess
 import sys
 import tempfile
@@ -111,6 +112,8 @@ _LoadWorkflowModels = Callable[[], dict[str, object]]
 _AggregateFilterGroups = Callable[[dict[str, object]], dict[str, tuple[str, ...]]]
 
 _DEFAULT_HEAD_RUN_TIMEOUT = 300  # seconds; mirrors baseline.py's capture_baseline timeout.
+_HEAD_RUN_HEARTBEAT_INTERVAL = 30.0
+_HEAD_RUN_TERMINATE_GRACE = 5.0
 
 
 class GateAuthoritiesUnavailable(RuntimeError):
@@ -349,6 +352,16 @@ def derive_test_scope(
 # ---------------------------------------------------------------------------
 
 
+class HeadRunState(StrEnum):
+    """Typed completion state for the runner-owned subprocess lifecycle."""
+
+    COMPLETED = "completed"
+    TIMED_OUT = "timed_out"
+    CANCELLED = "cancelled"
+    LAUNCH_FAILED = "launch_failed"
+    INCOMPLETE_OUTPUT = "incomplete_output"
+
+
 @dataclass(frozen=True)
 class HeadRunResult:
     """Outcome of invoking the derived test scope at head."""
@@ -357,6 +370,9 @@ class HeadRunResult:
     current_failures: tuple[BaselineFailure, ...] = ()
     returncode: int | None = None
     error: str | None = None
+    state: HeadRunState = HeadRunState.COMPLETED
+    stdout: str = ""
+    stderr: str = ""
 
 
 _SCOPED_RUN_LOCK_FILENAME = "pre-review-gate-run.lock"
@@ -432,11 +448,141 @@ def _scoped_run_lock(*, acquire_timeout: float | None = None) -> Iterator[None]:
         os.close(fd)
 
 
+_ProgressCallback = Callable[[float], None]
+_ProcessWait = Callable[[subprocess.Popen[str], float], tuple[str, str]]
+
+
+def _default_process_wait(process: subprocess.Popen[str], timeout: float) -> tuple[str, str]:
+    """Drain both pipes while waiting for at most ``timeout`` seconds."""
+    return process.communicate(timeout=timeout)
+
+
+def _run_windows_taskkill(command: Sequence[str]) -> subprocess.CompletedProcess[str]:
+    """Invoke Windows' tree-aware process terminator without a shell."""
+    return subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+
+
+def _signal_owned_process_tree(
+    process: subprocess.Popen[str],
+    *,
+    force: bool,
+    platform: str | None = None,
+    windows_tree_kill: Callable[[Sequence[str]], subprocess.CompletedProcess[str]] = (
+        _run_windows_taskkill
+    ),
+) -> None:
+    """Signal only the process group created for this runner-owned child."""
+    platform = platform or os.name
+    if platform == "nt":
+        command = ["taskkill", "/PID", str(process.pid), "/T"]
+        if force:
+            command.append("/F")
+        result = windows_tree_kill(command)
+        if result.returncode != 0 and process.poll() is None:
+            # The tree-aware authority can race a naturally exiting child. If
+            # it genuinely fails while the parent is still alive, ensure at
+            # least that direct child receives the requested signal; the
+            # non-zero taskkill diagnostic remains captured by the caller's
+            # process output rather than widening to unrelated host PIDs.
+            (process.kill if force else process.terminate)()
+        return
+    try:
+        os.killpg(process.pid, signal.SIGKILL if force else signal.SIGTERM)
+    except (OSError, ProcessLookupError):
+        (process.kill if force else process.terminate)()
+
+
+def _terminate_and_reap(
+    process: subprocess.Popen[str],
+    *,
+    wait: _ProcessWait,
+) -> tuple[str, str]:
+    """Request termination, escalate after a bound, and reap the owned child."""
+    _signal_owned_process_tree(process, force=False)
+    try:
+        return wait(process, _HEAD_RUN_TERMINATE_GRACE)
+    except subprocess.TimeoutExpired:
+        _signal_owned_process_tree(process, force=True)
+        return process.communicate()
+
+
+def _observe_process(
+    process: subprocess.Popen[str],
+    *,
+    timeout: float,
+    progress_callback: _ProgressCallback | None,
+    monotonic: Callable[[], float],
+    wait: _ProcessWait,
+) -> tuple[HeadRunState, str, str]:
+    """Drain, observe, and clean up one runner-owned process."""
+    started_at = monotonic()
+    deadline = started_at + timeout
+    while True:
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            stdout, stderr = _terminate_and_reap(process, wait=wait)
+            return HeadRunState.TIMED_OUT, stdout, stderr
+        try:
+            stdout, stderr = wait(process, min(_HEAD_RUN_HEARTBEAT_INTERVAL, remaining))
+            return HeadRunState.COMPLETED, stdout, stderr
+        except subprocess.TimeoutExpired:
+            now = monotonic()
+            if now >= deadline:
+                stdout, stderr = _terminate_and_reap(process, wait=wait)
+                return HeadRunState.TIMED_OUT, stdout, stderr
+            if progress_callback is not None:
+                progress_callback(now - started_at)
+        except KeyboardInterrupt:
+            stdout, stderr = _terminate_and_reap(process, wait=wait)
+            return HeadRunState.CANCELLED, stdout, stderr
+        except BaseException:
+            _terminate_and_reap(process, wait=wait)
+            raise
+
+
+def _launch_scoped_process(
+    command: Sequence[str],
+    *,
+    repo_root: Path,
+    env: Mapping[str, str],
+    platform: str | None = None,
+) -> subprocess.Popen[str]:
+    """Launch one isolated process group using platform-native flags."""
+    platform = platform or os.name
+    if platform == "nt":
+        return subprocess.Popen(
+            command,
+            cwd=str(repo_root),
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0),
+        )
+    return subprocess.Popen(
+        command,
+        cwd=str(repo_root),
+        env=env,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        start_new_session=True,
+    )
+
+
 def run_scoped_tests_at_head(
     test_targets: Sequence[str],
     *,
     repo_root: Path,
     timeout: int = _DEFAULT_HEAD_RUN_TIMEOUT,
+    progress_callback: _ProgressCallback | None = None,
+    monotonic: Callable[[], float] = time.monotonic,
+    wait: _ProcessWait = _default_process_wait,
 ) -> HeadRunResult:
     """Run ``test_targets`` at head and parse JUnit into ``current_failures``.
 
@@ -451,7 +597,11 @@ def run_scoped_tests_at_head(
     scoped runs via :func:`_scoped_run_lock` (#2493).
     """
     if not test_targets:
-        return HeadRunResult(ran=False, error="empty test scope — nothing to run")
+        return HeadRunResult(
+            ran=False,
+            error="empty test scope — nothing to run",
+            state=HeadRunState.INCOMPLETE_OUTPUT,
+        )
 
     env = dict(os.environ)
     env["PWHEADLESS"] = "1"  # never pop a browser window during an automated gate run
@@ -464,28 +614,55 @@ def run_scoped_tests_at_head(
         )
         try:
             with _scoped_run_lock():
-                result = subprocess.run(
+                process = _launch_scoped_process(
                     command,
-                    cwd=str(repo_root),
+                    repo_root=repo_root,
                     env=env,
-                    capture_output=True,
-                    text=True,
-                    timeout=timeout,
-                    check=False,
                 )
-        except subprocess.TimeoutExpired as exc:
-            return HeadRunResult(ran=False, error=f"scoped test run timed out after {timeout}s: {exc}")
+                state, stdout, stderr = _observe_process(
+                    process,
+                    timeout=timeout,
+                    progress_callback=progress_callback,
+                    monotonic=monotonic,
+                    wait=wait,
+                )
         except OSError as exc:
-            return HeadRunResult(ran=False, error=f"scoped test run failed to launch: {exc}")
+            return HeadRunResult(
+                ran=False,
+                error=f"scoped test run failed to launch: {exc}",
+                state=HeadRunState.LAUNCH_FAILED,
+            )
+
+        if state is HeadRunState.TIMED_OUT:
+            return HeadRunResult(
+                ran=False,
+                returncode=process.returncode,
+                error=f"scoped test run timed out after {timeout}s; stderr tail: {stderr[-500:]}",
+                state=state,
+                stdout=stdout,
+                stderr=stderr,
+            )
+        if state is HeadRunState.CANCELLED:
+            return HeadRunResult(
+                ran=False,
+                returncode=process.returncode,
+                error=f"scoped test run cancelled; stderr tail: {stderr[-500:]}",
+                state=state,
+                stdout=stdout,
+                stderr=stderr,
+            )
 
         if not junit_path.exists():
             return HeadRunResult(
                 ran=False,
-                returncode=result.returncode,
+                returncode=process.returncode,
                 error=(
-                    f"no JUnit XML produced by the scoped run (exit={result.returncode}); "
-                    f"stderr tail: {result.stderr[-500:]}"
+                    f"no JUnit XML produced by the scoped run (exit={process.returncode}); "
+                    f"stderr tail: {stderr[-500:]}"
                 ),
+                state=HeadRunState.INCOMPLETE_OUTPUT,
+                stdout=stdout,
+                stderr=stderr,
             )
 
         try:
@@ -495,11 +672,21 @@ def run_scoped_tests_at_head(
         except Exception as exc:
             return HeadRunResult(
                 ran=False,
-                returncode=result.returncode,
+                returncode=process.returncode,
                 error=f"failed to parse scoped-run JUnit XML: {exc}",
+                state=HeadRunState.INCOMPLETE_OUTPUT,
+                stdout=stdout,
+                stderr=stderr,
             )
 
-    return HeadRunResult(ran=True, current_failures=tuple(failures), returncode=result.returncode)
+    return HeadRunResult(
+        ran=True,
+        current_failures=tuple(failures),
+        returncode=process.returncode,
+        state=HeadRunState.COMPLETED,
+        stdout=stdout,
+        stderr=stderr,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -514,6 +701,8 @@ class GateOutcome(StrEnum):
     NO_NEW_FAILURES = "no_new_failures"  # non-empty run, no new failures vs. baseline
     NEW_FAILURES = "new_failures"  # non-empty run, >=1 new failure vs. baseline
     UNVERIFIED_BASELINE = "unverified_baseline"  # FR-003: baseline uncomputable -> warn
+    TIMED_OUT = "timed_out"
+    CANCELLED = "cancelled"
 
 
 @dataclass(frozen=True)
@@ -525,6 +714,7 @@ class GateVerdict:
     reason: str | None = None
     new_failures: tuple[BaselineFailure, ...] = ()
     pre_existing_failures: tuple[BaselineFailure, ...] = ()
+    run_state: HeadRunState = HeadRunState.COMPLETED
 
 
 def evaluate_with_scope(
@@ -533,6 +723,9 @@ def evaluate_with_scope(
     repo_root: Path,
     baseline: BaselineTestResult | None,
     timeout: int = _DEFAULT_HEAD_RUN_TIMEOUT,
+    progress_callback: _ProgressCallback | None = None,
+    monotonic: Callable[[], float] = time.monotonic,
+    wait: _ProcessWait = _default_process_wait,
 ) -> GateVerdict:
     """The shared verdict tail: run ``scope`` at head, diff vs. ``baseline``.
 
@@ -559,12 +752,34 @@ def evaluate_with_scope(
     if scope.is_empty:
         return GateVerdict(outcome=GateOutcome.NO_COVERAGE, scope=scope, reason=scope.describe_empty_reason())
 
-    run_result = run_scoped_tests_at_head(scope.test_targets, repo_root=repo_root, timeout=timeout)
+    run_result = run_scoped_tests_at_head(
+        scope.test_targets,
+        repo_root=repo_root,
+        timeout=timeout,
+        progress_callback=progress_callback,
+        monotonic=monotonic,
+        wait=wait,
+    )
+    if run_result.state is HeadRunState.TIMED_OUT:
+        return GateVerdict(
+            outcome=GateOutcome.TIMED_OUT,
+            scope=scope,
+            reason=run_result.error,
+            run_state=run_result.state,
+        )
+    if run_result.state is HeadRunState.CANCELLED:
+        return GateVerdict(
+            outcome=GateOutcome.CANCELLED,
+            scope=scope,
+            reason=run_result.error,
+            run_state=run_result.state,
+        )
     if not run_result.ran:
         return GateVerdict(
             outcome=GateOutcome.NO_COVERAGE,
             scope=scope,
             reason=f"scoped test run did not complete: {run_result.error}",
+            run_state=run_result.state,
         )
 
     if baseline is None or baseline.failed == -1:
@@ -598,6 +813,9 @@ def evaluate_pre_review_gate(
     timeout: int = _DEFAULT_HEAD_RUN_TIMEOUT,
     filter_groups: Mapping[str, tuple[str, ...]] | None = None,
     composite_routing: Mapping[str, _CompositeRoute] | None = None,
+    progress_callback: _ProgressCallback | None = None,
+    monotonic: Callable[[], float] = time.monotonic,
+    wait: _ProcessWait = _default_process_wait,
 ) -> GateVerdict:
     """Compose scope derivation + the shared head-run/verdict tail.
 
@@ -612,4 +830,12 @@ def evaluate_pre_review_gate(
         filter_groups=filter_groups,
         composite_routing=composite_routing,
     )
-    return evaluate_with_scope(scope, repo_root=repo_root, baseline=baseline, timeout=timeout)
+    return evaluate_with_scope(
+        scope,
+        repo_root=repo_root,
+        baseline=baseline,
+        timeout=timeout,
+        progress_callback=progress_callback,
+        monotonic=monotonic,
+        wait=wait,
+    )
