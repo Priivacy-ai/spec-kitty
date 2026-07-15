@@ -33,6 +33,7 @@ from specify_cli.core.constants import WORKTREES_DIR
 from mission_runtime import (
     CommitTarget,
     MissionArtifactKind,
+    is_coordination_artifact_residue_path,
     placement_seam,
     resolve_topology,
     routes_through_coordination,
@@ -82,6 +83,13 @@ _WP_ID_RE = re.compile(r"^WP\d{2}$", re.IGNORECASE)
 # planning-artifact commit helper this WP touches -- hoisted to one constant
 # rather than restated at each ``console.print`` call site.
 _RED_ERROR_PREFIX = "[red]Error:[/red] "
+# WP02 / T008 / S1192: the workspace-ready banner's rich-markup open/close
+# tags, repeated ~8x in ``_print_workspace_ready_banner`` -- hoisted to
+# constants rather than restated at each call site. The distinct
+# ``title="[bold yellow]...[/]"`` uses elsewhere in this module (bulk-edit
+# inference banners) use a different close tag and are left as-is.
+_BANNER_OPEN = "[bold yellow]"
+_BANNER_CLOSE = "[/bold yellow]"
 
 
 def _protected_branch_status_commit_error(branch: str, repo_root: Path) -> str | None:
@@ -574,6 +582,69 @@ def _ensure_planning_artifacts_committed_git(
     )
 
 
+def _partition_files_for_commit(files_to_commit: list[str]) -> tuple[list[str], list[str]]:
+    """Split *files_to_commit* into PRIMARY and COORD-residue groups (T007).
+
+    Mirrors ``commit_router._group_files_by_partition``: classifies each
+    repo-relative path with the same
+    :func:`~mission_runtime.is_coordination_artifact_residue_path` predicate
+    WP01 wired into the read-side ``resolve_precondition_ref`` -- one
+    authority (NFR-004), no new partition literal. Everything NOT explicitly
+    COORD-residue (PRIMARY kinds, ``meta.json``, unrecognized paths) defaults
+    to the PRIMARY group -- the same fail-safe-toward-primary direction as
+    the read side.
+    """
+    primary_files: list[str] = []
+    coord_files: list[str] = []
+    for path_str in files_to_commit:
+        if is_coordination_artifact_residue_path(path_str):
+            coord_files.append(path_str)
+        else:
+            primary_files.append(path_str)
+    return primary_files, coord_files
+
+
+def _run_planning_artifact_commit(
+    *,
+    repo_root: Path,
+    mission_id: str,
+    mission_slug: str,
+    mid8: str,
+    destination_ref: str,
+    files: list[str],
+    commit_msg: str,
+) -> None:
+    """Execute ONE ``BookkeepingTransaction`` commit of *files* to *destination_ref*.
+
+    Extracted from :func:`_commit_planning_artifacts_transaction` (T007) so
+    the partition-aware caller below can run this once per PRIMARY/COORD-
+    residue group without duplicating the transaction I/O + exception
+    handling. Preserves the pre-partition byte-for-byte behavior for a single
+    group covering all of ``files_to_commit``.
+    """
+    from specify_cli.coordination.transaction import BookkeepingTransaction
+
+    with BookkeepingTransaction.acquire(
+        repo_root=repo_root,
+        mission_id=mission_id,
+        mission_slug=mission_slug,
+        mid8=mid8,
+        destination_ref=destination_ref,
+        operation=f"planning artifacts for {mission_slug}",
+    ) as txn:
+        for path_str in files:
+            repo_path = Path(path_str)
+            source_path = (repo_root / repo_path).resolve()
+            if not source_path.exists():
+                continue
+            txn.write_artifact(repo_path, source_path.read_bytes())
+        try:
+            txn.commit(commit_msg)
+        except Exception as exc:  # noqa: BLE001 — surface as exit-1
+            console.print(f"{_RED_ERROR_PREFIX}Failed to commit planning artifacts to {destination_ref}: {exc}")
+            raise typer.Exit(1) from exc
+
+
 def _commit_planning_artifacts_transaction(
     *,
     repo_root: Path,
@@ -584,7 +655,7 @@ def _commit_planning_artifacts_transaction(
     commit_msg: str,
     placement_ref: CommitTarget | None,
 ) -> None:
-    """T016 git-executor tail: run the BookkeepingTransaction commit.
+    """T016 git-executor tail: run the BookkeepingTransaction commit(s).
 
     Split out of :func:`_ensure_planning_artifacts_committed_git` so that
     function's own complexity stays scoped to the staging decision it drives;
@@ -612,6 +683,34 @@ def _commit_planning_artifacts_transaction(
     ``coord_branch``. Genuinely-legacy missions (no ``placement_ref``) keep
     the existing meta-derived placeholder -- out of this WP's scope (#2453;
     the value is never persisted).
+
+    WP02 / T007 / FR-003 / INV-1: pre-fix, the ``elif coord_branch:`` (meta-
+    derived) branch below committed EVERY file in ``files_to_commit`` through
+    ONE transaction to the coordination branch, so a genuinely-dirty PRIMARY
+    artifact would land on coordination, never the primary/target branch.
+    Post-fix, THAT branch partitions ``files_to_commit``
+    (:func:`_partition_files_for_commit`) into a PRIMARY group (committed to
+    ``planning_branch``, the mission's target branch) and a COORD-residue
+    group (committed to the coordination branch) -- two transactions when
+    both groups are non-empty, mirroring
+    ``commit_router._group_files_by_partition``'s own two-group split.
+
+    C-004 (mission scope): the ``if placement_ref is not None:`` branch is
+    UNCHANGED by this WP -- it keeps committing the whole batch to
+    ``placement_ref.ref`` verbatim (WP03 / T011 / D11's pinned "no
+    re-derivation" contract, ``test_effective_destination_ref_is_placement_ref_verbatim``).
+    C-004 explicitly defers retiring that seam path's "one ref for
+    everything" model (and its now-false C-PLACE-1 docstring) to the
+    separate #2160 placement-seam SSOT cluster -- out of scope here.
+
+    Protected-branch edge case: ``BookkeepingTransaction`` refuses ANY commit
+    to a protected ref (main/master) under standard capability -- see
+    ``commit_router._commit_partition_group``'s identical refusal for a
+    PRIMARY-kind commit onto a protected primary target. A real mission's
+    ``planning_branch`` is never main/master (it is the mission's dedicated
+    feature branch), so this only fires for a degenerate fixture/edge case;
+    when it does, the meta-derived branch below falls back to the historical
+    single coordination-branch transaction rather than hard-failing the claim.
     """
     (
         coord_branch,
@@ -632,15 +731,6 @@ def _commit_planning_artifacts_transaction(
     if placement_ref is not None:
         coord_branch = _placement_coord_filter(repo_root, mission_slug, placement_ref)
 
-    from specify_cli.coordination.transaction import BookkeepingTransaction
-
-    if placement_ref is not None:
-        effective_destination_ref = placement_ref.ref
-    elif coord_branch:
-        effective_destination_ref = str(coord_branch)
-    else:
-        effective_destination_ref = planning_branch
-
     is_legacy = not (coord_branch and mission_id and mid8)
     if is_legacy:
         console.print(
@@ -649,26 +739,80 @@ def _commit_planning_artifacts_transaction(
             f"routed through BookkeepingTransaction for FR-020/FR-027 atomicity)[/dim]"
         )
 
-    with BookkeepingTransaction.acquire(
-        repo_root=repo_root,
-        mission_id=effective_mission_id,
-        mission_slug=mission_slug,
-        mid8=effective_mid8,
-        destination_ref=effective_destination_ref,
-        operation=f"planning artifacts for {mission_slug}",
-    ) as txn:
-        for path_str in files_to_commit:
-            repo_path = Path(path_str)
-            source_path = (repo_root / repo_path).resolve()
-            if not source_path.exists():
-                continue
-            txn.write_artifact(repo_path, source_path.read_bytes())
-        try:
-            txn.commit(commit_msg)
-        except Exception as exc:  # noqa: BLE001 — surface as exit-1
-            target = coord_branch or planning_branch
-            console.print(f"{_RED_ERROR_PREFIX}Failed to commit planning artifacts to {target}: {exc}")
-            raise typer.Exit(1) from exc
+    if placement_ref is not None:
+        # WP03 / T011 / D11 (unchanged, C-004): the seam-resolved value is
+        # used VERBATIM for the whole batch -- no re-derivation, no per-file
+        # partition override.
+        _run_planning_artifact_commit(
+            repo_root=repo_root,
+            mission_id=effective_mission_id,
+            mission_slug=mission_slug,
+            mid8=effective_mid8,
+            destination_ref=placement_ref.ref,
+            files=files_to_commit,
+            commit_msg=commit_msg,
+        )
+    elif not coord_branch:
+        # Flattened/legacy mission: no coordination branch at all -- the
+        # historical single transaction to ``planning_branch``.
+        _run_planning_artifact_commit(
+            repo_root=repo_root,
+            mission_id=effective_mission_id,
+            mission_slug=mission_slug,
+            mid8=effective_mid8,
+            destination_ref=planning_branch,
+            files=files_to_commit,
+            commit_msg=commit_msg,
+        )
+    elif ProtectionPolicy.resolve(repo_root).is_protected(planning_branch):
+        # Edge case: a coord mission whose OWN ``planning_branch`` is itself a
+        # protected branch (main/master). A real mission's target/feature
+        # branch is never main/master (see this mission's own meta.json
+        # ``target_branch``) -- ``BookkeepingTransaction`` refuses ANY commit
+        # to a protected ref under standard capability, mirroring
+        # ``commit_router._commit_partition_group``'s own refusal to
+        # auto-commit a PRIMARY-kind artifact onto a protected primary
+        # target. Rather than hard-failing the whole claim on this
+        # degenerate edge case, fall back to the historical single
+        # transaction to the coordination branch (C-004 strangler
+        # precedent: "never break the implement lifecycle on a
+        # context-resolution edge case", mirrored from
+        # ``_resolve_placement_ref`` above).
+        _run_planning_artifact_commit(
+            repo_root=repo_root,
+            mission_id=effective_mission_id,
+            mission_slug=mission_slug,
+            mid8=effective_mid8,
+            destination_ref=str(coord_branch),
+            files=files_to_commit,
+            commit_msg=commit_msg,
+        )
+    else:
+        # T007: meta-derived coordination mission -- partition-aware commit.
+        # A genuinely-dirty PRIMARY artifact lands on ``planning_branch``
+        # (never coordination); COORD-residue artifacts still land on the
+        # coordination branch. Only the group(s) that are non-empty run.
+        primary_files, coord_files = _partition_files_for_commit(files_to_commit)
+        if primary_files:
+            _run_planning_artifact_commit(
+                repo_root=repo_root,
+                mission_id=effective_mission_id,
+                mission_slug=mission_slug,
+                mid8=effective_mid8,
+                destination_ref=planning_branch,
+                files=primary_files,
+                commit_msg=commit_msg,
+            )
+        if coord_files:
+            _run_planning_artifact_commit(
+                repo_root=repo_root,
+                mission_id=effective_mission_id,
+                mission_slug=mission_slug,
+                mid8=effective_mid8,
+                destination_ref=str(coord_branch),
+                files=coord_files,
+                commit_msg=commit_msg,
+            )
 
     if is_legacy:
         console.print(f"[green]✓[/green] Planning artifacts committed to {planning_branch}")
@@ -1191,9 +1335,9 @@ def _print_workspace_ready_banner(result: Any, workspace_path: Path) -> None:
     if result.lane_id is None:
         console.print("\n[bold green]✓ Repository-root workspace ready[/bold green]")
         console.print()
-        console.print("[bold yellow]" + "=" * 72 + "[/bold yellow]")
-        console.print("[bold yellow]Planning-artifact work for this WP happens in the repository root[/bold yellow]")
-        console.print("[bold yellow]" + "=" * 72 + "[/bold yellow]")
+        console.print(_BANNER_OPEN + "=" * 72 + _BANNER_CLOSE)
+        console.print(_BANNER_OPEN + "Planning-artifact work for this WP happens in the repository root" + _BANNER_CLOSE)
+        console.print(_BANNER_OPEN + "=" * 72 + _BANNER_CLOSE)
         console.print()
         console.print(f"  [bold]cd {workspace_path}[/bold]")
         console.print()
@@ -1203,9 +1347,9 @@ def _print_workspace_ready_banner(result: Any, workspace_path: Path) -> None:
 
     console.print("\n[bold green]✓ Lane worktree ready[/bold green]")
     console.print()
-    console.print("[bold yellow]" + "=" * 72 + "[/bold yellow]")
-    console.print("[bold yellow]CRITICAL: Change to the lane worktree before editing files[/bold yellow]")
-    console.print("[bold yellow]" + "=" * 72 + "[/bold yellow]")
+    console.print(_BANNER_OPEN + "=" * 72 + _BANNER_CLOSE)
+    console.print(_BANNER_OPEN + "CRITICAL: Change to the lane worktree before editing files" + _BANNER_CLOSE)
+    console.print(_BANNER_OPEN + "=" * 72 + _BANNER_CLOSE)
     console.print()
     console.print(f"  [bold]cd {workspace_path}[/bold]")
     console.print()
