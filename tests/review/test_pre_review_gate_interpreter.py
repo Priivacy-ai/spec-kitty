@@ -14,7 +14,6 @@ literal this WP removes.
 from __future__ import annotations
 
 import os
-import subprocess
 import sys
 import threading
 import time
@@ -182,8 +181,8 @@ def test_lock_acquire_timeout_falls_back_without_charging_run_timeout(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path,
 ) -> None:
     """K-9: under permanent lock contention the acquire loop gives up after
-    its OWN short bound and the run proceeds anyway — the subprocess call's
-    ``timeout`` kwarg (and the wall-clock spent) must reflect only the SHORT
+    its OWN short bound and the run proceeds anyway — the process observation
+    ``timeout`` budget (and the wall-clock spent) must reflect only the SHORT
     lock-acquire bound, never the (much larger) run timeout."""
     monkeypatch.setattr(pre_review_gate, "_LOCK_ACQUIRE_TIMEOUT_DEFAULT", 0.05)
 
@@ -194,23 +193,39 @@ def test_lock_acquire_timeout_falls_back_without_charging_run_timeout(
 
     monkeypatch.setattr(fcntl, "flock", _always_contended)
 
-    captured_timeouts: list[object] = []
+    captured_command: list[str] = []
+    captured_timeouts: list[float] = []
 
-    def _fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
-        captured_timeouts.append(kwargs["timeout"])
-        junit_arg = next(arg for arg in command if arg.startswith("--junitxml="))
+    class _FakeProcess:
+        returncode = 0
+
+    def _fake_launch(command: list[str], **_kwargs: object) -> _FakeProcess:
+        captured_command.extend(command)
+        return _FakeProcess()
+
+    def _fake_wait(_process: object, timeout: float) -> tuple[str, str]:
+        captured_timeouts.append(timeout)
+        junit_arg = next(arg for arg in captured_command if arg.startswith("--junitxml="))
         junit_path = Path(junit_arg.split("=", 1)[1])
         junit_path.write_text(
             '<testsuite><testcase classname="t" name="ok" /></testsuite>', encoding="utf-8",
         )
-        return subprocess.CompletedProcess(args=command, returncode=0, stdout="", stderr="")
+        return "", ""
 
-    monkeypatch.setattr(pre_review_gate.subprocess, "run", _fake_run)
+    monkeypatch.setattr(pre_review_gate, "_HEAD_RUN_HEARTBEAT_INTERVAL", 300.0)
+    monkeypatch.setattr(pre_review_gate, "_launch_scoped_process", _fake_launch)
+    observation_clock = iter((100.0, 100.0))
 
     start = time.monotonic()
-    result = pre_review_gate.run_scoped_tests_at_head(["tests/status"], repo_root=tmp_path, timeout=300)
+    result = pre_review_gate.run_scoped_tests_at_head(
+        ["tests/status"],
+        repo_root=tmp_path,
+        timeout=300,
+        monotonic=lambda: next(observation_clock),
+        wait=_fake_wait,
+    )
     elapsed = time.monotonic() - start
 
     assert result.ran is True
-    assert captured_timeouts == [300]  # the run timeout kwarg is untouched by the lock wait
+    assert captured_timeouts == [300]  # process observation receives the full run budget
     assert elapsed < 2.0  # bounded by the short lock-acquire timeout, not the 300s run timeout
