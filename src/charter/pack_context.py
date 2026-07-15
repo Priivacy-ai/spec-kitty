@@ -43,11 +43,6 @@ class CharterPackConfigError(KittyInternalConsistencyError):
 # Built-in constants
 # ---------------------------------------------------------------------------
 
-#: IDs of the four built-in mission types shipped with spec-kitty.
-#: Used as the default for ``activated_mission_types`` when config.yaml
-#: has no ``mission_type_activations`` key (backward-compat / new project).
-_BUILTIN_MISSION_TYPE_IDS: frozenset[str] = frozenset({"software-dev", "documentation", "research", "plan"})
-
 #: All built-in artifact kinds (plural form used by DoctrineService).
 #: Mirrors ``charter.activations._ALLOWED_KINDS`` and
 #: ``doctrine.drg.org_pack_loader._ORG_DRG_CANONICAL_KINDS``. ``templates``
@@ -263,12 +258,22 @@ def _read_activated_kinds(data: dict[str, Any]) -> frozenset[str]:
 def _read_activated_mission_types(data: dict[str, Any]) -> frozenset[str]:
     """Extract ``mission_type_activations`` from parsed config data.
 
-    Falls back to the four built-in mission type IDs when the key is
-    absent (new project / pre-migration state — FR-019 migration intent).
-    An explicit empty list ``[]`` returns ``frozenset()`` (FR-039 fix).
+    Falls back to the built-in mission type IDs when the key is absent
+    (new project / pre-migration state — FR-019 migration intent). An
+    explicit empty list ``[]`` returns ``frozenset()`` (FR-039 fix).
+
+    The default is derived lazily from the single canonical accessor
+    (:func:`doctrine.missions.mission_type_repository.builtin_mission_type_id_set`,
+    #2669 Roster B) rather than a hardcoded literal — importing this module
+    must not read ``mission_types/`` off disk (NFR-001), so the import is
+    function-local and only fires when the key is actually absent.
     """
+    from doctrine.missions.mission_type_repository import (  # noqa: PLC0415 — lazy; import-time-I/O timing (NFR-001), not cycle avoidance
+        builtin_mission_type_id_set,
+    )
+
     activated = _read_list_key(data, "mission_type_activations")
-    return _BUILTIN_MISSION_TYPE_IDS if activated is None else activated
+    return builtin_mission_type_id_set() if activated is None else activated
 
 
 def _read_activated_directives(data: dict[str, Any]) -> frozenset[str] | None:

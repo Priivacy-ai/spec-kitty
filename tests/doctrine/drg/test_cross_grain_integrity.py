@@ -66,12 +66,12 @@ import pytest
 
 from charter.action_grain import aggregate_action_grain, scan_builtin_cross_grain_duplicates
 from charter.mission_type_profiles import (
-    CANONICAL_MISSION_TYPES,
     CrossGrainDoubleDeclarationError,
     ResolvedGovernance,
     _profile_type_grain,
 )
 from charter.mission_type_profile_repository import MissionTypeProfileRepository
+from doctrine.missions.mission_type_repository import builtin_mission_type_ids
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
@@ -101,7 +101,7 @@ class TestCrossGrainIntegrityGate:
         """WP02's IC-11 dup-scan is the assertion — no second scanner (C-002)."""
         scanned = scan_builtin_cross_grain_duplicates()
 
-        assert set(scanned) == set(CANONICAL_MISSION_TYPES)
+        assert set(scanned) == set(builtin_mission_type_ids())
 
     @pytest.mark.parametrize("mission_type", sorted(CONTENT_BEARING_MISSION_TYPES))
     def test_content_bearing_type_action_grain_is_non_empty(self, mission_type: str) -> None:

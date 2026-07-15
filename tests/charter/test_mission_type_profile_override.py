@@ -26,11 +26,11 @@ from ruamel.yaml import YAML
 
 from charter.mission_type_profile_repository import MissionTypeProfileRepository
 from charter.mission_type_profiles import (
-    CANONICAL_MISSION_TYPES,
     MissionTypeProfile,
     resolve_mission_type_context,
 )
 from doctrine.base import DoctrineLayerCollisionWarning
+from doctrine.missions.mission_type_repository import builtin_mission_type_ids
 
 pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
 
@@ -94,7 +94,7 @@ class TestShippedProfilesHonourInvariant:
 
     def test_all_shipped_profiles_have_id_equal_to_mission_type(self) -> None:
         repo = MissionTypeProfileRepository()
-        for mission_type in CANONICAL_MISSION_TYPES:
+        for mission_type in builtin_mission_type_ids():
             profile = repo.get(mission_type)
             assert profile is not None, (
                 f"shipped profile for {mission_type!r} did not load — the "
