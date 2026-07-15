@@ -296,13 +296,13 @@ def resolve_project_governance(
     that surface: it does NOT read ``meta.json`` or per-mission overrides.
 
     The companion resolver
-    :func:`charter.mission_type_profiles.resolve_mission_type_governance`
+    :func:`charter.mission_type_profiles.resolve_mission_type_context`
     handles **mission-type** scoped governance (``meta.json mission_type``
     → built-in governance profile).  The two resolvers compose at the
     prompt-builder layer: the mission-type resolver runs first to fill
     documentation / research / plan defaults, then this resolver fills
     project + org selections on top.  Keeping them as two named functions
-    (rather than one umbrella) preserves the FR-011 hard-fail contract on
+    (rather than one umbrella) preserves the FR-003 hard-fail contract on
     the mission-type side and the rich :class:`GovernanceResolution`
     dataclass on the project + org side.
 

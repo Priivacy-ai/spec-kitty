@@ -63,4 +63,10 @@ def build_with_scope(
     # For the single-project default, scope.root == repo_root and this call
     # is byte-identical to today. For monorepos, scope.root is the
     # per-package charter root.
+    #
+    # WP04 (#883): the same *feature_dir* also keys the action-doctrine grain
+    # off ``meta.json mission_type`` (never the project-level ``template_set``
+    # proxy).  Callers that already pass ``mission_type``/``feature_dir`` in
+    # *kwargs* keep precedence; otherwise the scope feature_dir supplies it.
+    kwargs.setdefault("feature_dir", feature_dir)
     return build_charter_context(scope.root, **kwargs)

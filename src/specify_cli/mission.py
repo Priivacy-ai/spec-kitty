@@ -5,7 +5,11 @@ which allow Spec Kitty to support multiple domains (software dev, research,
 writing, etc.) with domain-specific templates, workflows, and validation.
 """
 
-from specify_cli.core.constants import KITTY_SPECS_DIR
+from specify_cli.core.constants import (
+    KITTY_SPECS_DIR,
+    MISSION_TYPE_RESEARCH,
+    MISSION_TYPE_SOFTWARE_DEV,
+)
 import os
 import re
 import warnings
@@ -15,6 +19,9 @@ from typing import Any, Dict, List, Literal, Optional, Tuple
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+# WP02 / FR-012 (C-001): the single boundary-safe mission-type canonicalizer lives
+# in ``charter`` so ``specify_cli`` may consume it without crossing the layer rule.
+from charter.mission_type_key import canonical_mission_type_key
 from specify_cli.mission_metadata import load_meta_or_empty
 
 
@@ -532,47 +539,43 @@ def get_mission_by_name(mission_name: str, kittify_dir: Path | None = None) -> M
 # =============================================================================
 
 
-def get_mission_key(mission_dir: Path) -> str:
-    """Extract mission key from mission's meta.json, defaulting to software-dev.
+def _canonical_meta_mission_type(meta: dict[str, Any]) -> str | None:
+    """Return the canonical mission-type key recorded in ``meta``, or ``None``.
 
-    This is a helper function for reading the mission field from a mission's
-    metadata file. It handles missing files and invalid JSON gracefully.
-
-    Args:
-        mission_dir: Path to the mission directory (kitty-specs/<mission>/)
-
-    Returns:
-        Mission key string (e.g., 'software-dev', 'research')
+    Reads the canonical ``mission_type`` field first, then the legacy ``mission``
+    field, routing each through the single boundary-safe canonicalizer
+    (WP02 / FR-012). Non-string values (malformed metadata) and blank values are
+    treated as absent — the result is ``None`` (typeless), never a substituted
+    ``software-dev`` default (FR-001 / FR-003a).
     """
-    meta = load_meta_or_empty(mission_dir)
-    return meta.get("mission", "software-dev")
-
-
-def get_feature_mission_key(mission_dir: Path) -> str:
-    """Compatibility alias for pre-mission callers."""
-    return get_mission_key(mission_dir)
+    for field in ("mission_type", "mission"):
+        raw = meta.get(field)
+        key = canonical_mission_type_key(raw if isinstance(raw, str) else None)
+        if key is not None:
+            return key
+    return None
 
 
 def get_mission_type(feature_dir: Path) -> str:
-    """Extract mission key from feature's meta.json, defaulting to software-dev.
+    """Extract the canonical mission-type key from a feature's meta.json.
 
-    This is a helper function for reading the mission field from a feature's
-    metadata file. It handles missing files and invalid JSON gracefully.
+    Reads the recorded ``mission_type`` (or legacy ``mission``) field via the
+    single boundary-safe canonicalizer. A typeless / absent / unreadable
+    meta.json degrades to the empty string — the **neutral** governance result
+    (FR-003a) — and is NEVER silently defaulted to ``software-dev`` (FR-001 /
+    FR-012). Callers that need a concrete template for a typeless mission handle
+    the neutral value at their own boundary (e.g. template-file selection in
+    :func:`get_mission_for_feature`, preserved per C-006).
 
     Args:
         feature_dir: Path to the feature directory (kitty-specs/<feature>/)
 
     Returns:
-        Mission key string (e.g., 'software-dev', 'research')
+        The canonical mission-type key (e.g. ``'software-dev'``, ``'research'``),
+        or ``''`` when the mission is typeless.
     """
     meta = load_meta_or_empty(feature_dir)
-    mission_type = str(meta.get("mission_type", "")).strip()
-    if mission_type:
-        return mission_type
-    legacy_mission = str(meta.get("mission", "")).strip()
-    if legacy_mission:
-        return legacy_mission
-    return "software-dev"
+    return _canonical_meta_mission_type(meta) or ""
 
 
 def get_deliverables_path(feature_dir: Path, mission_slug: str | None = None) -> str | None:
@@ -601,9 +604,12 @@ def get_deliverables_path(feature_dir: Path, mission_slug: str | None = None) ->
         if deliverables_path:
             return deliverables_path
 
-        # Check if this is a research mission - provide default if so
-        mission = meta.get("mission_type") or meta.get("mission", "software-dev")
-        if mission == "research":
+        # Check if this is a research mission - provide default if so.
+        # Route through the single canonicalizer (WP02 / FR-012); a typeless
+        # mission yields ``None`` here — never a ``software-dev`` default — which
+        # is behaviour-preserving since only ``research`` produces a path.
+        mission = _canonical_meta_mission_type(meta)
+        if mission == MISSION_TYPE_RESEARCH:
             # Generate default path using slug from meta or directory name
             slug = meta.get("slug") or mission_slug or feature_dir.name
             return f"docs/research/{slug}/"
@@ -764,8 +770,14 @@ def get_mission_for_feature(feature_dir: Path, project_root: Path | None = None)
     Raises:
         MissionNotFoundError: If feature meta.json not found and no default available
     """
-    # Get the mission key from meta.json
-    mission_type = get_mission_type(feature_dir)
+    # Get the mission key from meta.json. This is a TEMPLATE-FILE-SELECTION path
+    # (it returns a ``Mission`` template object), not a governance read: per C-006
+    # the ``software-dev`` template default is deliberately preserved here (the
+    # same policy as the ``kittify_dir/missions/software-dev`` fallback above).
+    # A typeless mission yields the neutral empty key from ``get_mission_type``
+    # (FR-003a) which we coalesce to the software-dev *template* so legacy,
+    # pre-mission-type features load without a spurious "not found" warning.
+    mission_type = get_mission_type(feature_dir) or MISSION_TYPE_SOFTWARE_DEV
 
     # Find project root if not provided
     if project_root is None:

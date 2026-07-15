@@ -32,6 +32,16 @@ def context(
         ),
     ),
     mark_loaded: bool = typer.Option(True, "--mark-loaded/--no-mark-loaded", help="Persist first-load state"),
+    mission_type: str | None = typer.Option(
+        None,
+        "--mission-type",
+        help=(
+            "Canonical mission type (e.g. documentation|research|plan|software-dev) "
+            "for the action doctrine grain. Required when rendering action context "
+            "from the repo root — without it, and without a mission's meta.json, "
+            "the action grain is typeless and never inherits software-dev (#883)."
+        ),
+    ),
     json_output: bool = typer.Option(
         False,
         "--json",
@@ -92,6 +102,7 @@ def context(
             action=action,
             mark_loaded=mark_loaded,
             org_root=org_root,
+            mission_type=mission_type,
         )
 
         if json_output:
@@ -107,6 +118,7 @@ def context(
                 depth=result.depth,
                 org_root=org_root,
                 org_charter_block=org_charter_block,
+                mission_type=mission_type,
             )
             print(
                 json.dumps(

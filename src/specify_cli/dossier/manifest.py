@@ -15,10 +15,27 @@ See: kitty-specs/042-local-mission-dossier-authority-parity-export/data-model.md
 
 from enum import StrEnum
 from pathlib import Path
+from typing import TYPE_CHECKING
 from pydantic import BaseModel, Field
 import logging
 
+if TYPE_CHECKING:
+    from doctrine.missions.repository import MissionTemplateRepository
+
 logger = logging.getLogger(__name__)
+
+
+def _doctrine_repository() -> "MissionTemplateRepository":
+    """Return the doctrine mission repository bound to the bundled doctrine tree.
+
+    Lazy import keeps the ``specify_cli.dossier`` package free of an
+    import-time dependency on the ``doctrine`` package. The repository is the
+    single authority for reading ``<type>/expected-artifacts.yaml`` from the
+    canonical doctrine mission tree (WP10 / IC-07).
+    """
+    from doctrine.missions.repository import MissionTemplateRepository  # noqa: PLC0415
+
+    return MissionTemplateRepository.default()
 
 
 class ArtifactClassEnum(StrEnum):
@@ -161,10 +178,15 @@ class ManifestRegistry:
 
     @staticmethod
     def load_manifest(mission_type: str) -> ExpectedArtifactManifest | None:
-        """Load manifest for mission type.
+        """Load manifest for mission type from the canonical doctrine tree.
 
-        Returns cached manifest if available. Gracefully returns None if manifest
-        not found (degraded mode for custom/unknown missions).
+        Reads ``<type>/expected-artifacts.yaml`` from the doctrine mission tree
+        via :meth:`MissionTemplateRepository.get_expected_artifacts` and adapts
+        the returned :class:`ConfigResult` into an
+        :class:`ExpectedArtifactManifest` (WP10 / IC-07). The adapted model —
+        not the raw ``ConfigResult`` — is cached, preserving the registry cache
+        semantics. Gracefully returns ``None`` if the manifest is not found
+        (degraded mode for custom/unknown missions).
 
         Args:
             mission_type: Mission type (e.g., 'software-dev', 'research')
@@ -175,15 +197,15 @@ class ManifestRegistry:
         if mission_type in ManifestRegistry._cache:
             return ManifestRegistry._cache[mission_type]
 
-        manifest_path = Path(__file__).parent.parent / "missions" / mission_type / "expected-artifacts.yaml"
+        config = _doctrine_repository().get_expected_artifacts(mission_type)
 
-        if not manifest_path.exists():
+        if config is None:
             logger.debug(f"Manifest not found for mission type: {mission_type}")
             ManifestRegistry._cache[mission_type] = None
             return None
 
         try:
-            manifest = ExpectedArtifactManifest.from_yaml_file(manifest_path)
+            manifest = ExpectedArtifactManifest.model_validate(config.parsed)
             ManifestRegistry._cache[mission_type] = manifest
             logger.info(f"Loaded manifest for {mission_type}: {len(manifest.get_step_ids())} steps")
             return manifest

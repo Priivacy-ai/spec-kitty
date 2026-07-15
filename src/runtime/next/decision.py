@@ -595,10 +595,12 @@ def _build_prompt_or_error(
     _is_composed_action = False
     try:
         from charter.mission_type_profiles import (  # noqa: PLC0415
-            resolve_action_sequence as _charter_resolve_action_sequence,
+            resolve_mission_type_context,
         )
 
-        action_sequence = _charter_resolve_action_sequence(mission_type, repo_root)
+        action_sequence = resolve_mission_type_context(
+            repo_root, mission_type=mission_type
+        ).action_sequence
         _is_composed_action = wp_id is None and action in action_sequence
     except Exception:
         pass

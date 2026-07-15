@@ -135,11 +135,23 @@ def build_charter_context(
     depth: int | None = None,
     org_root: Path | None = None,
     scope: CharterScope | None = None,
+    mission_type: str | None = None,
+    feature_dir: Path | None = None,
 ) -> CharterContextResult:
     """Build charter context by querying the Doctrine Reference Graph.
 
     Parameters
     ----------
+    mission_type:
+        Explicit canonical mission type (e.g. ``documentation``) for the action
+        doctrine grain.  Takes precedence over ``feature_dir``.  When both are
+        ``None`` the action grain is typeless and resolves to an empty bundle —
+        never software-dev (FR-003a).  This replaces the retired
+        ``template_set``-as-mission-type inference (#883 / FR-002).
+    feature_dir:
+        The mission's ``kitty-specs/<mission-slug>/`` directory; its
+        ``meta.json`` ``mission_type`` field keys the action doctrine grain when
+        ``mission_type`` is not given.
     org_root:
         Optional path to the configured org doctrine snapshot.  When provided,
         the three-layer (built-in + org + project) DRG overlay is used and the
@@ -255,6 +267,8 @@ def build_charter_context(
         effective_depth=state_bundle.effective_depth,
         org_root=effective_org_root,
         pack_context=_pack_ctx,
+        mission_type=mission_type,
+        feature_dir=feature_dir,
     )
     charter_content = charter_path.read_text(encoding="utf-8")
     summary = _extract_policy_summary(charter_content)
@@ -854,15 +868,32 @@ def _load_action_doctrine_bundle(
     effective_depth: int,
     org_root: Path | None = None,
     pack_context: PackContext | None = None,
+    mission_type: str | None = None,
+    feature_dir: Path | None = None,
 ) -> _ActionDoctrineBundle:
-    """Load DRG-backed action doctrine artifacts for bootstrap rendering."""
+    """Load DRG-backed action doctrine artifacts for bootstrap rendering.
+
+    The mission type keying off which the ``action:<mission_type>/<action>``
+    node is resolved comes from ``meta.json`` (via ``feature_dir``) or an
+    explicit ``mission_type`` argument — NEVER from the project-level
+    ``template_set`` (the #883 leak, WP04 / FR-002).  ``template_set`` is
+    retained solely for template-file selection (C-004) and no longer proxies
+    the mission type on this governance path.
+
+    A typeless mission (no ``mission_type`` and no ``meta.json`` type — the
+    genuinely mission-less callers) degrades to an EMPTY action bundle; it is
+    never resolved as software-dev (FR-003a).
+    """
     from charter._drg_helpers import load_validated_graph
     from charter.drg import filter_graph_by_activation
+    from charter.mission_type_profiles import resolve_mission_type_key
     from doctrine.drg.loader import DRGLoadError
     from doctrine.drg.query import resolve_context
 
     doctrine_selection = _load_doctrine_selection(repo_root)
-    mission = (doctrine_selection.template_set or "software-dev-default").removesuffix("-default")
+    resolved_type = resolve_mission_type_key(
+        mission_type=mission_type, feature_dir=feature_dir
+    )
     project_directives = {_normalize_directive_id(d) for d in doctrine_selection.selected_directives}
     selected_tactics = {t for t in doctrine_selection.selected_tactics if t}
     selected_paradigms = {p for p in doctrine_selection.selected_paradigms if p}
@@ -884,31 +915,34 @@ def _load_action_doctrine_bundle(
     tactic_ids: list[str] = []
     styleguide_ids: list[str] = []
     toolguide_ids: list[str] = []
-    try:
-        merged = load_validated_graph(repo_root, org_root=org_root)
-        # FR-032, FR-035 (WP08): apply activation filter before resolving context.
-        if pack_context is not None:
-            merged = filter_graph_by_activation(merged, pack_context)
-        action_urn = f"action:{mission}/{action}"
-        resolved = resolve_context(merged, action_urn, depth=effective_depth)
-        directive_ids, tactic_ids, styleguide_ids, toolguide_ids = _classify_artifact_urns(
-            resolved.artifact_urns,
-            merged,
-            project_directives,
-            selected_tactics,
-            selected_paradigms,
-        )
-    except DRGLoadError as exc:
-        _LOGGER.warning(
-            "DRG action resolution skipped for %s/%s: %s. "
-            "Charter-level selections still render.",
-            mission,
-            action,
-            exc,
-        )
+    # A typeless mission has no action:<type>/<action> node to resolve; skip the
+    # DRG action resolution entirely so no doctrine is inferred (FR-003a).
+    if resolved_type is not None:
+        try:
+            merged = load_validated_graph(repo_root, org_root=org_root)
+            # FR-032, FR-035 (WP08): apply activation filter before resolving context.
+            if pack_context is not None:
+                merged = filter_graph_by_activation(merged, pack_context)
+            action_urn = f"action:{resolved_type}/{action}"
+            resolved = resolve_context(merged, action_urn, depth=effective_depth)
+            directive_ids, tactic_ids, styleguide_ids, toolguide_ids = _classify_artifact_urns(
+                resolved.artifact_urns,
+                merged,
+                project_directives,
+                selected_tactics,
+                selected_paradigms,
+            )
+        except DRGLoadError as exc:
+            _LOGGER.warning(
+                "DRG action resolution skipped for %s/%s: %s. "
+                "Charter-level selections still render.",
+                resolved_type,
+                action,
+                exc,
+            )
 
     return _ActionDoctrineBundle(
-        mission=mission,
+        mission=resolved_type or "",
         directive_ids=directive_ids,
         tactic_ids=tactic_ids,
         styleguide_ids=styleguide_ids,
@@ -1377,175 +1411,6 @@ def _normalize_directive_id(raw: str) -> str:
         number = match.group(1).zfill(3)
         return f"DIRECTIVE_{number}"
     return raw.upper()
-
-
-def _build_directive_lines(
-    action_index: object,
-    project_directives: set[str],
-    doctrine_service: object,
-) -> list[str]:
-    """Build formatted directive lines for the action doctrine section."""
-    directive_lines: list[str] = []
-    for raw_id in action_index.directives:  # type: ignore[attr-defined]
-        norm_id = _normalize_directive_id(raw_id)
-        if project_directives and norm_id not in project_directives:
-            continue
-        try:
-            directive = doctrine_service.directives.get(norm_id)  # type: ignore[attr-defined]
-            if directive is not None:
-                directive_lines.append(f"    - {norm_id}: {directive.title} — {directive.intent}")
-            else:
-                directive_lines.append(f"    - {norm_id}")
-        except (AttributeError, KeyError):
-            directive_lines.append(f"    - {norm_id}")
-    return directive_lines
-
-
-def _build_tactic_lines(action_index: object, doctrine_service: object) -> list[str]:
-    """Build formatted tactic lines for the action doctrine section."""
-    tactic_lines: list[str] = []
-    for tactic_id in action_index.tactics:  # type: ignore[attr-defined]
-        try:
-            tactic = doctrine_service.tactics.get(tactic_id)  # type: ignore[attr-defined]
-            if tactic is not None:
-                desc = tactic.description or ""
-                tactic_lines.append(f"    - {tactic_id}: {tactic.title} — {desc}".rstrip(" —"))
-            else:
-                tactic_lines.append(f"    - {tactic_id}")
-        except (AttributeError, KeyError):
-            tactic_lines.append(f"    - {tactic_id}")
-    return tactic_lines
-
-
-def _build_extended_lines(action_index: object, doctrine_service: object) -> list[str]:
-    """Build styleguide + toolguide lines for depth-3 extended context."""
-    extended: list[str] = []
-
-    styleguide_lines: list[str] = []
-    for sg_id in action_index.styleguides:  # type: ignore[attr-defined]
-        try:
-            sg = doctrine_service.styleguides.get(sg_id)  # type: ignore[attr-defined]
-            styleguide_lines.append(f"    - {sg_id}: {sg.title}" if sg else f"    - {sg_id}")
-        except (AttributeError, KeyError):
-            styleguide_lines.append(f"    - {sg_id}")
-
-    if styleguide_lines:
-        extended.append("  Styleguides:")
-        extended.extend(styleguide_lines)
-
-    toolguide_lines: list[str] = []
-    for tg_id in action_index.toolguides:  # type: ignore[attr-defined]
-        try:
-            tg = doctrine_service.toolguides.get(tg_id)  # type: ignore[attr-defined]
-            toolguide_lines.append(f"    - {tg_id}: {tg.title}" if tg else f"    - {tg_id}")
-        except (AttributeError, KeyError):
-            toolguide_lines.append(f"    - {tg_id}")
-
-    if toolguide_lines:
-        extended.append("  Toolguides:")
-        extended.extend(toolguide_lines)
-
-    return extended
-
-
-def _append_action_doctrine_lines(
-    lines: list[str],
-    repo_root: Path,
-    action: str,
-    *,
-    include_extended: bool,
-) -> None:
-    """Append action doctrine content to lines list. Degrades gracefully on error."""
-    from doctrine.missions import MissionTemplateRepository
-    from doctrine.missions.action_index import load_action_index
-
-    try:
-        repo = MissionTemplateRepository.default()
-        doctrine_selection = _load_doctrine_selection(repo_root)
-        template_set = doctrine_selection.template_set or "software-dev-default"
-        mission = template_set.removesuffix("-default")
-        action_index = load_action_index(repo._missions_root, mission, action)
-        project_directives: set[str] = {_normalize_directive_id(d) for d in doctrine_selection.selected_directives}
-        doctrine_service = _build_doctrine_service(repo_root)
-
-        lines.append(f"Action Doctrine ({action}):")
-
-        directive_lines = _build_directive_lines(action_index, project_directives, doctrine_service)
-        if directive_lines:
-            lines.append("  Directives:")
-            lines.extend(directive_lines)
-
-        tactic_lines = _build_tactic_lines(action_index, doctrine_service)
-        if tactic_lines:
-            lines.append("  Tactics:")
-            lines.extend(tactic_lines)
-
-        if include_extended:
-            lines.extend(_build_extended_lines(action_index, doctrine_service))
-
-        # Action guidelines
-        guidelines_result = repo.get_action_guidelines(mission, action)
-        if guidelines_result is not None:
-            guidelines_content = guidelines_result.content.strip()
-            if guidelines_content:
-                lines.append("  Guidelines:")
-                for gl_line in guidelines_content.splitlines():
-                    lines.append(f"    {gl_line}")
-
-    except Exception:  # noqa: BLE001, S110
-        # Degrade gracefully - skip action doctrine section on any error
-        pass
-
-
-def _render_action_scoped(
-    repo_root: Path,
-    action: str,
-    charter_path: Path,
-    summary: list[str],
-    references: list[dict[str, str]],
-    *,
-    include_extended: bool = False,
-) -> str:
-    """Render action-scoped bootstrap context (depth >= 2).
-
-    Loads the action index, intersects project directives, fetches doctrine
-    content, and renders a structured context block.
-    """
-    lines: list[str] = [
-        BOOTSTRAP_HEADER,
-        f"  - Source: {charter_path}",
-        FIRST_LOAD_GUIDANCE,
-        "",
-        POLICY_SUMMARY_HEADER,
-    ]
-
-    if summary:
-        for item in summary[:8]:
-            lines.append(f"  - {item}")
-    else:
-        lines.append(NO_POLICY_SUMMARY_MESSAGE)
-
-    lines.append("")
-
-    _append_action_doctrine_lines(lines, repo_root, action, include_extended=include_extended)
-
-    lines.append("")
-
-    # --- Reference Docs section ---
-    lines.append(REFERENCE_DOCS_HEADER)
-
-    filtered_references = _filter_references_for_action(references, action)
-
-    if filtered_references:
-        for reference in filtered_references[:10]:
-            ref_id = reference.get("id", "unknown")
-            title = reference.get("title", "")
-            local_path = reference.get("local_path", "")
-            lines.append(f"  - {ref_id}: {title} ({local_path})")
-    else:
-        lines.append(MISSING_REFERENCES_MESSAGE)
-
-    return "\n".join(lines)
 
 
 def _filter_references_for_action(references: list[dict[str, str]], action: str) -> list[dict[str, str]]:
@@ -3189,6 +3054,8 @@ def build_charter_context_json(
     org_root: Path | None = None,
     depth: int | None = None,
     org_charter_block: dict[str, object] | None = None,
+    mission_type: str | None = None,
+    feature_dir: Path | None = None,
 ) -> dict[str, object]:
     """Return the structured JSON payload for ``charter context --json``.
 
@@ -3257,6 +3124,8 @@ def build_charter_context_json(
         effective_depth=state_bundle.effective_depth,
         org_root=org_root,
         pack_context=_pack_ctx_json,
+        mission_type=mission_type,
+        feature_dir=feature_dir,
     )
     service = bundle.service
     payload["directives"] = _collect_typed_artifacts(service.directives, bundle.directive_ids)  # type: ignore[attr-defined]
