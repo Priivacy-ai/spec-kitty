@@ -26,6 +26,18 @@ nodes:
 - urn: action:documentation/validate
   kind: action
   label: validate
+- urn: action:plan/plan
+  kind: action
+  label: plan
+- urn: action:plan/research
+  kind: action
+  label: research
+- urn: action:plan/review
+  kind: action
+  label: review
+- urn: action:plan/specify
+  kind: action
+  label: specify
 - urn: action:research/gathering
   kind: action
   label: gathering
@@ -292,6 +304,9 @@ nodes:
 - urn: procedure:situational-assessment
   kind: procedure
   label: Situational Assessment
+- urn: procedure:spike-timebox-policy
+  kind: procedure
+  label: Spike Timebox Policy
 - urn: procedure:test-first-bug-fixing
   kind: procedure
   label: Test-First Bug Fixing
@@ -310,6 +325,15 @@ nodes:
 - urn: styleguide:deployable-skill-authoring
   kind: styleguide
   label: Deployable Skill Authoring Styleguide
+- urn: styleguide:divio-type-discipline
+  kind: styleguide
+  label: Divio Type Discipline Styleguide
+- urn: styleguide:docs-accessibility
+  kind: styleguide
+  label: Documentation Accessibility Styleguide
+- urn: styleguide:docs-freshness-sla
+  kind: styleguide
+  label: Documentation Freshness SLA Styleguide
 - urn: styleguide:java-conventions
   kind: styleguide
   label: Java Conventions Styleguide
@@ -319,15 +343,24 @@ nodes:
 - urn: styleguide:mutation-aware-test-design
   kind: styleguide
   label: Mutation-Aware Test Design
+- urn: styleguide:plain-language
+  kind: styleguide
+  label: Plain Language Styleguide
 - urn: styleguide:planning-and-tracking
   kind: styleguide
   label: Planning & Tracking Styleguide
+- urn: styleguide:publication-authority
+  kind: styleguide
+  label: Publication Authority Styleguide
 - urn: styleguide:python-conventions
   kind: styleguide
   label: Python Conventions Styleguide
 - urn: styleguide:reasons-canvas-writing
   kind: styleguide
   label: REASONS Canvas Writing Styleguide
+- urn: styleguide:research-citation-discipline
+  kind: styleguide
+  label: Research Citation Discipline Styleguide
 - urn: styleguide:test-desiderata-and-boundaries
   kind: styleguide
   label: Test Desiderata and Clear Test Boundaries
@@ -783,6 +816,9 @@ edges:
   target: directive:DIRECTIVE_037
   relation: scope
 - source: action:documentation/accept
+  target: tactic:documentation-curation-audit
+  relation: scope
+- source: action:documentation/accept
   target: tactic:requirements-validation-workflow
   relation: scope
 - source: action:documentation/audit
@@ -820,6 +856,9 @@ edges:
   relation: scope
 - source: action:documentation/discover
   target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:documentation/discover
+  target: tactic:stakeholder-alignment
   relation: scope
 - source: action:documentation/generate
   target: directive:DIRECTIVE_010
@@ -871,6 +910,9 @@ edges:
   relation: scope
 - source: action:documentation/validate
   target: directive:DIRECTIVE_037
+  relation: scope
+- source: action:documentation/validate
+  target: tactic:documentation-curation-audit
   relation: scope
 - source: action:documentation/validate
   target: tactic:premortem-risk-identification
@@ -2162,6 +2204,12 @@ edges:
 - source: procedure:situational-assessment
   target: template:system-context-canvas-template
   relation: suggests
+- source: procedure:spike-timebox-policy
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: procedure:spike-timebox-policy
+  target: tactic:safe-to-fail-experiment
+  relation: requires
 - source: procedure:test-first-bug-fixing
   target: directive:DIRECTIVE_030
   relation: requires
@@ -2216,6 +2264,30 @@ edges:
 - source: styleguide:common-docs
   target: tactic:common-docs-write
   relation: suggests
+- source: styleguide:divio-type-discipline
+  target: styleguide:common-docs
+  relation: suggests
+- source: styleguide:docs-accessibility
+  target: styleguide:common-docs
+  relation: suggests
+- source: styleguide:docs-accessibility
+  target: toolguide:mermaid-diagramming
+  relation: suggests
+- source: styleguide:docs-accessibility
+  target: toolguide:plantuml-diagramming
+  relation: suggests
+- source: styleguide:docs-freshness-sla
+  target: directive:DIRECTIVE_037
+  relation: suggests
+- source: styleguide:docs-freshness-sla
+  target: procedure:documentation-gap-prioritization
+  relation: suggests
+- source: styleguide:docs-freshness-sla
+  target: styleguide:common-docs
+  relation: suggests
+- source: styleguide:docs-freshness-sla
+  target: styleguide:publication-authority
+  relation: suggests
 - source: styleguide:java-conventions
   target: agent_profile:java-jenny
   relation: suggests
@@ -2231,6 +2303,12 @@ edges:
 - source: styleguide:java-conventions
   target: toolguide:maven-review-checks
   relation: suggests
+- source: styleguide:plain-language
+  target: styleguide:common-docs
+  relation: suggests
+- source: styleguide:plain-language
+  target: tactic:glossary-curation-interview
+  relation: suggests
 - source: styleguide:planning-and-tracking
   target: styleguide:tiered-standards
   relation: suggests
@@ -2243,11 +2321,29 @@ edges:
 - source: styleguide:planning-and-tracking
   target: toolguide:github-tracker
   relation: suggests
+- source: styleguide:publication-authority
+  target: directive:DIRECTIVE_037
+  relation: suggests
+- source: styleguide:publication-authority
+  target: directive:DIRECTIVE_042
+  relation: suggests
+- source: styleguide:publication-authority
+  target: styleguide:common-docs
+  relation: suggests
+- source: styleguide:publication-authority
+  target: tactic:usage-examples-sync
+  relation: suggests
 - source: styleguide:python-conventions
   target: directive:DIRECTIVE_030
   relation: suggests
 - source: styleguide:python-conventions
   target: tactic:tdd-red-green-refactor
+  relation: suggests
+- source: styleguide:research-citation-discipline
+  target: directive:DIRECTIVE_003
+  relation: suggests
+- source: styleguide:research-citation-discipline
+  target: tactic:dialectic-research
   relation: suggests
 - source: styleguide:test-desiderata-and-boundaries
   target: directive:DIRECTIVE_030
