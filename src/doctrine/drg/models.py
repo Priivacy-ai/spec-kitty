@@ -43,6 +43,7 @@ class NodeKind(StrEnum):
     ACTION = "action"
     GLOSSARY_SCOPE = "glossary_scope"
     GLOSSARY = "glossary"           # URN prefix: "glossary:<id>"
+    MISSION_TYPE = "mission_type"   # URN prefix: "mission_type:<id>" (nodes only, no edges yet)
 
 
 class Relation(StrEnum):
