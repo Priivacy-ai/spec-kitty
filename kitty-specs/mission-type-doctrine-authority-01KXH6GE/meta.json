@@ -1,0 +1,31 @@
+{
+  "accept_commit": "1ecd4179304ec0240f6e3a16bf908fb2e8cebae1",
+  "acceptance_history": [
+    {
+      "accept_commit": "1ecd4179304ec0240f6e3a16bf908fb2e8cebae1",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-15T06:02:48.812548+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "82225b07d9daa57ea509c14a17dce86ef502a93b"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-15T06:02:48.812548+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "82225b07d9daa57ea509c14a17dce86ef502a93b",
+  "baseline_merge_commit": "1db1c2366a8e6190d3b339322202e09ded4b38b4",
+  "created_at": "2026-07-14T20:53:45.628961+00:00",
+  "flattened": false,
+  "friendly_name": "Mission-Type Doctrine Authority",
+  "mission_id": "01KXH6GEGW9631GGZFK3FHS9MR",
+  "mission_number": 178,
+  "mission_slug": "mission-type-doctrine-authority-01KXH6GE",
+  "mission_type": "software-dev",
+  "purpose_context": "Spec Kitty resolves each mission type's rules, steps, and gates through two parallel trees with a hardcoded software-dev bias, so documentation, research, and plan missions can silently inherit software-development doctrine. This mission makes the doctrine MissionType artefact the load-bearing source of truth — routing governance, gates, and steps through one charter-mediated path and closing that leak — as the first slice of retiring the duplicate specify_cli tree.",
+  "purpose_tldr": "Make the doctrine the single source of truth for what a mission type is, so non-software missions stop inheriting software-dev rules.",
+  "slug": "mission-type-doctrine-authority-01KXH6GE",
+  "target_branch": "mission/883-mission-type-governance-profiles",
+  "topology": "lanes",
+  "vcs": "git",
+  "vcs_locked_at": "2026-07-14T22:12:02.013114+00:00"
+}
