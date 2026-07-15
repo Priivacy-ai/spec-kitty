@@ -38,6 +38,7 @@ __all__ = [
     "_resolve_pack_version",
     "_count_pack_artifacts",
     "_collect_profile_health",
+    "_run_cross_grain_check",
     "_attach_pack_health",
     "_build_pack_entries",
     "_collect_doctrine_collisions",
@@ -199,6 +200,56 @@ def _collect_profile_health(repo_root: Path) -> DoctrineHealthReport:
         else:  # pragma: no cover — _collect_org_layer_data always returns a dict
             org_drg = {"errors": [load_error]}
     return DoctrineHealthReport(packs=packs, org_drg=org_drg)
+
+
+def _run_cross_grain_check(report: DoctrineHealthReport) -> None:
+    """Fold the FR-013 built-in cross-grain scan into *report* in place (#2666).
+
+    Runs :func:`charter.action_grain.scan_builtin_cross_grain_duplicates` — the
+    single IC-11 dup-scan authority (C-002) — against the shipped built-in
+    missions tree. Scope is deliberately built-in only (the scan's own scope
+    cap): no project/org multi-root engine is built here.
+
+    On :class:`~charter.mission_type_profiles.CrossGrainDoubleDeclarationError`
+    this mutates ``report.org_drg`` in place, mirroring the fail-loud pattern
+    :func:`_collect_profile_health` already uses for a collector crash:
+
+    * appends a human-readable message to ``org_drg["errors"]`` — the honest
+      ``DoctrineHealthReport.healthy`` flag reads this list, so a collision
+      forces the report unhealthy (RC=1) without a parallel health field.
+    * adds a structured ``org_drg["cross_grain_collisions"]`` finding
+      (``kind`` / ``artifact``) so both the ``--json`` payload and the human
+      renderer (:func:`._profile_health_render._render_cross_grain_findings`)
+      can surface *what* collided, not just *that* something collided.
+
+    On success (every shipped mission type disjoint) this is a no-op —
+    ``report`` is left untouched and the exit code is unaffected.
+
+    Diagnostics are READ-ONLY and must never crash ``doctor doctrine`` on a
+    genuine collision: the exception is caught and folded into the report,
+    not re-raised.
+    """
+    from charter.action_grain import scan_builtin_cross_grain_duplicates
+    from charter.mission_type_profiles import CrossGrainDoubleDeclarationError
+
+    try:
+        scan_builtin_cross_grain_duplicates()
+    except CrossGrainDoubleDeclarationError as exc:
+        org_drg = report.org_drg
+        if not isinstance(org_drg, dict):  # pragma: no cover — defensive; _collect_org_layer_data always returns a dict
+            return
+        message = (
+            f"cross-grain doctrine-integrity violation (FR-013): artifact "
+            f"{exc.artifact!r} ({exc.kind}) is declared in both the type grain "
+            "and the action grain for a shipped mission type."
+        )
+        existing_errors = org_drg.get("errors")
+        errors = list(existing_errors) if isinstance(existing_errors, list) else []
+        errors.append(message)
+        org_drg["errors"] = errors
+        org_drg["cross_grain_collisions"] = [
+            {"kind": exc.kind, "artifact": exc.artifact}
+        ]
 
 
 def _attach_pack_health(

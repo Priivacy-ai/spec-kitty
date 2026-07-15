@@ -190,6 +190,12 @@ _ARCH_SHARD_2_FILES: tuple[str, ...] = (
     "tests/architectural/test_wp05_write_target_drain.py",
     "tests/architectural/test_wp_prompt_build_latency.py",
     "tests/architectural/test_write_surface_placement_guard.py",
+    # Added post-data-model.md (new file, mission
+    # mission-type-single-source-gate-wiring-01KXKHVZ WP05, #2666 — the FR-013
+    # built-in cross-grain-scan structural gate). shard_1 and shard_2 were
+    # tied lightest by file count (35 vs 35/39) when this file landed;
+    # shard_2 was picked to keep the split even.
+    "tests/architectural/test_cross_grain_builtin_gate.py",
 )
 
 _ARCH_SHARD_3_FILES: tuple[str, ...] = (
