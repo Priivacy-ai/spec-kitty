@@ -653,12 +653,20 @@ def _ensure_planning_artifacts_committed_git(
     # an empty ``plan.files_to_commit`` into a silent no-op return, then does
     # the actual BookkeepingTransaction I/O.
     extra_file_paths = _feature_dir_file_paths(repo_root, artifact_source_dir) if coord_branch_for_filter else []
+    # PR #2662 squad fix: on the healthy ``placement_ref is not None`` path the
+    # whole batch commits VERBATIM to ``placement_ref.ref`` (the un-partitioned
+    # C-004/#2160 deferral). Compare every file against that same write target so
+    # a PRIMARY artifact already-identical on the (coord) ref is not re-committed
+    # into an empty commit that hard-fails the claim (read=HEAD / write=coord
+    # divergence; #2653). ``None`` keeps the PRIMARY-vs-HEAD / COORD-vs-coord split.
+    verbatim_ref = placement_ref.ref if placement_ref is not None else None
     plan = resolve_planning_artifact_staging(
         repo_root,
         artifact_source_dir,
         coord_branch_for_filter,
         extra_file_paths,
         auto_commit=auto_commit,
+        verbatim_ref=verbatim_ref,
     )
 
     files_to_commit = plan.files_to_commit
