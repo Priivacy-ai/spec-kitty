@@ -9,7 +9,7 @@ import subprocess
 from collections.abc import Callable
 from io import StringIO
 from pathlib import Path
-from typing import TYPE_CHECKING, Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any, NamedTuple
 
 import typer
 from pydantic import ValidationError
@@ -503,18 +503,36 @@ def _compute_effective_bookkeeping_ids(
     return effective_mission_id, effective_mid8
 
 
+class _BookkeepingTransactionIdentifiers(NamedTuple):
+    """The identifiers :func:`_resolve_bookkeeping_transaction_identifiers` returns.
+
+    A ``NamedTuple`` (PR #2662 squad LOW-3 hardening): it IS a 5-tuple, so the
+    frozen C-006 contract holds by construction — ``tasks_move_task.py`` reads
+    ``[0]`` cross-lane and the in-module caller unpacks all five, both unchanged
+    — while the fields are now named/structural instead of a bare positional
+    pin. Arity and order MUST NOT change (C-006).
+    """
+
+    coord_branch: str | None
+    mission_id: str | None
+    mid8: str | None
+    effective_mission_id: str
+    effective_mid8: str
+
+
 def _resolve_bookkeeping_transaction_identifiers(
     feature_dir: Path,
     mission_slug: str,
     repo_root: Path | None = None,
-) -> tuple[str | None, str | None, str | None, str, str]:
-    """Resolve the 5-tuple ``(coord_branch, mission_id, mid8,
-    effective_mission_id, effective_mid8)`` bookkeeping identifiers.
+) -> _BookkeepingTransactionIdentifiers:
+    """Resolve the ``(coord_branch, mission_id, mid8, effective_mission_id,
+    effective_mid8)`` bookkeeping identifiers as a 5-field NamedTuple.
 
     C-006 (frozen contract, #2649): ``tasks_move_task.py`` imports this
     symbol and reads only element ``[0]`` cross-lane, while the in-module
     caller (``_ensure_planning_artifacts_committed_git``) unpacks all five —
-    the 5-tuple arity and order MUST NOT change.
+    the 5-tuple arity and order MUST NOT change (a NamedTuple keeps both the
+    positional and the new named access working).
     """
     mission_meta = _load_primary_anchored_mission_meta(repo_root, mission_slug)
     if mission_meta is None:
@@ -526,7 +544,9 @@ def _resolve_bookkeeping_transaction_identifiers(
     effective_mission_id, effective_mid8 = _compute_effective_bookkeeping_ids(
         mission_slug, mission_id, mid8, coord_branch
     )
-    return coord_branch, mission_id, mid8, effective_mission_id, effective_mid8
+    return _BookkeepingTransactionIdentifiers(
+        coord_branch, mission_id, mid8, effective_mission_id, effective_mid8
+    )
 
 
 def _feature_dir_file_paths(repo_root: Path, feature_dir: Path) -> list[str]:
