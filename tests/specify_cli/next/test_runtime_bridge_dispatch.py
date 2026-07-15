@@ -336,17 +336,23 @@ class TestPerformanceRealIO:
         PackContext.from_config(tmp_path)
 
         timings_ms: list[float] = []
-        for _ in range(50):
+        for _ in range(100):
             start = time.monotonic()
             PackContext.from_config(tmp_path)
             elapsed_ms = (time.monotonic() - start) * 1000
             timings_ms.append(elapsed_ms)
 
         timings_ms.sort()
-        # Index 49 of 50 sorted values = 98th percentile proxy; use index 49
-        # for the worst observed value in a 50-run sample as the p99 estimate.
-        p99 = timings_ms[49]
-        p50 = timings_ms[24]
+        # A genuine p99 over 100 samples (index 98) — NOT the single worst
+        # observation. `from_config` is real-I/O; on a shared CI runner a lone
+        # iteration can spike from a GC pause / disk / CPU-steal hiccup, and a
+        # worst-of-N gate turns that pure measurement noise into a red build.
+        # p99 tolerates exactly one such outlier while still catching real
+        # regressions, which shift the whole distribution (median → budget).
+        # Measured locally the entire distribution is ~1.5-2ms, ~50x under the
+        # 100ms NFR-001 budget.
+        p99 = timings_ms[98]
+        p50 = timings_ms[49]
         assert p99 <= 100, (
             f"PackContext.from_config() p99={p99:.2f}ms > 100ms NFR-001 budget. "
             f"p50={p50:.2f}ms, max={timings_ms[-1]:.2f}ms"
