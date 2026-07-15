@@ -27,6 +27,11 @@ import typer
 
 from mission_runtime.context import CommitTarget
 
+# Real-git-repo + real BookkeepingTransaction integration test (mirrors the
+# sibling test_tasks_move_task_cwd.py markers so a CI gate selects it and the
+# marker-convention / orphan-surface arch gates stay green).
+pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
+
 _PLANNING_BRANCH = "mission/coord-idempotency-demo"
 
 
