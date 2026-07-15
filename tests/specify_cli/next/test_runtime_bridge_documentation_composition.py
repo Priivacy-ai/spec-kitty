@@ -54,7 +54,7 @@ def test_documentation_in_composed_actions(tmp_path: Path) -> None:
     """FR-002 + FR-015: documentation entry present with the 6 expected verbs.
 
     After WP07 (_COMPOSED_ACTIONS_BY_MISSION removed), the action sequence is
-    sourced from charter.resolve_action_sequence.  This test mocks the
+    sourced from charter.resolve_mission_type_context.  This test mocks the
     MissionTypeRepository so the test remains self-contained.
     """
     doc_mt = MagicMock()
@@ -74,13 +74,15 @@ def test_documentation_in_composed_actions(tmp_path: Path) -> None:
     saved = sys.modules.get("doctrine.missions.mission_type_repository")
     sys.modules["doctrine.missions.mission_type_repository"] = fake_module
     try:
-        from charter.mission_type_profiles import resolve_action_sequence
+        from charter.mission_type_profiles import resolve_mission_type_context
 
         with patch(
             "charter.mission_type_profiles.existing_mission_types",
             return_value=["documentation", "plan", "research", "software-dev"],
         ):
-            result = resolve_action_sequence("documentation", tmp_path)
+            result = resolve_mission_type_context(
+                tmp_path, mission_type="documentation"
+            ).action_sequence
     finally:
         if saved is None:
             sys.modules.pop("doctrine.missions.mission_type_repository", None)

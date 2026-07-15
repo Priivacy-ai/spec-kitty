@@ -3,11 +3,11 @@
 Covers:
 - MissionTypeProfile.mission_type accepts any str (no Literal constraint)
 - UnknownMissionTypeError carries mission_type_id and registered_ids
-- resolve_mission_type_governance() uses existing_mission_types() for validation
+- resolve_mission_type_context() uses existing_mission_types() for validation
 - Backward-compat: the hard-fail policy still works for truly unknown types
 
 T034 — update ATDD test suite: MissionTypeProfile(mission_type="custom-type", ...)
-       succeeds; UnknownMissionTypeError raised by resolve_action_sequence.
+       succeeds; UnknownMissionTypeError raised by resolve_mission_type_context.
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ import pytest
 from charter.mission_type_profiles import (
     MissionTypeProfile,
     UnknownMissionTypeError,
-    resolve_mission_type_governance,
+    resolve_mission_type_context,
 )
 
 
@@ -138,7 +138,7 @@ class TestUnknownMissionTypeError:
 
 
 # ---------------------------------------------------------------------------
-# T033 — resolve_mission_type_governance uses existing_mission_types()
+# T033 — resolve_mission_type_context uses existing_mission_types()
 # ---------------------------------------------------------------------------
 
 
@@ -170,7 +170,7 @@ def _git_init_minimal(repo_root: Path) -> None:
 
 
 class TestResolveMissionTypeGovernanceValidation:
-    """resolve_mission_type_governance() uses existing_mission_types() for
+    """resolve_mission_type_context() uses existing_mission_types() for
     validation (T033).
     """
 
@@ -189,9 +189,9 @@ class TestResolveMissionTypeGovernanceValidation:
             "charter.mission_type_profiles.existing_mission_types",
             return_value=["documentation", "plan", "research", "software-dev"],
         ):
-            payload = resolve_mission_type_governance(tmp_path, feature_dir)
+            bundle = resolve_mission_type_context(tmp_path, feature_dir=feature_dir)
 
-        assert payload.mission_type == "software-dev"
+        assert bundle.mission_type == "software-dev"
 
     def test_unknown_type_raises_unknown_mission_type_error(self, tmp_path: Path) -> None:
         """A mission type not in existing_mission_types() raises UnknownMissionTypeError."""
@@ -214,14 +214,15 @@ class TestResolveMissionTypeGovernanceValidation:
             patch(
                 "charter.mission_type_profiles._project_has_doctrine_overrides",
                 return_value=False,
-            ),pytest.raises(UnknownMissionTypeError) as exc_info
+            ),
+            pytest.raises(UnknownMissionTypeError) as exc_info,
         ):
-            resolve_mission_type_governance(tmp_path, feature_dir)
+            resolve_mission_type_context(tmp_path, feature_dir=feature_dir)
 
         assert "totally-custom-type" in str(exc_info.value)
 
     def test_error_includes_registered_ids(self, tmp_path: Path) -> None:
-        """UnknownMissionTypeError from resolve_mission_type_governance carries registered_ids."""
+        """UnknownMissionTypeError from resolve_mission_type_context carries registered_ids."""
         _git_init_minimal(tmp_path)
         feature_dir = tmp_path / "kitty-specs" / "unknown-001"
         feature_dir.mkdir(parents=True)
@@ -241,9 +242,10 @@ class TestResolveMissionTypeGovernanceValidation:
             patch(
                 "charter.mission_type_profiles._project_has_doctrine_overrides",
                 return_value=False,
-            ),pytest.raises(UnknownMissionTypeError) as exc_info
+            ),
+            pytest.raises(UnknownMissionTypeError) as exc_info,
         ):
-            resolve_mission_type_governance(tmp_path, feature_dir)
+            resolve_mission_type_context(tmp_path, feature_dir=feature_dir)
 
         err = exc_info.value
         assert err.registered_ids == activated
@@ -252,7 +254,7 @@ class TestResolveMissionTypeGovernanceValidation:
         self, tmp_path: Path
     ) -> None:
         """When project has doctrine overrides, unknown type skips the profile
-        (no hard fail).
+        (no hard fail) — the governance grain's *tolerant* policy.
         """
         _git_init_minimal(tmp_path)
         feature_dir = tmp_path / "kitty-specs" / "custom-mission-001"
@@ -274,13 +276,20 @@ class TestResolveMissionTypeGovernanceValidation:
                 return_value=True,
             ),
         ):
-            # Should NOT raise — project overrides bypass the unknown-type check
-            payload = resolve_mission_type_governance(tmp_path, feature_dir)
+            # Should NOT raise — project overrides bypass the unknown-type check.
+            bundle = resolve_mission_type_context(tmp_path, feature_dir=feature_dir)
 
-        assert payload.mission_type == "custom-type"
+        assert bundle.mission_type == "custom-type"
+        # An unregistered-but-tolerated type has no built-in action sequence.
+        assert bundle.action_sequence == []
 
-    def test_missing_mission_type_key_raises_value_error(self, tmp_path: Path) -> None:
-        """meta.json without 'mission_type' key raises ValueError (not UnknownMissionTypeError)."""
+    def test_missing_mission_type_key_degrades_neutrally(self, tmp_path: Path) -> None:
+        """meta.json without 'mission_type' key degrades to the neutral bundle (FR-003a).
+
+        The retired ``resolve_mission_type_governance`` raised a ValueError here;
+        the WP02 canonicalizer + resolver now treat an absent type as *typeless*
+        and degrade neutrally — never a software-dev default.
+        """
         _git_init_minimal(tmp_path)
         feature_dir = tmp_path / "kitty-specs" / "no-type-001"
         feature_dir.mkdir(parents=True)
@@ -292,8 +301,10 @@ class TestResolveMissionTypeGovernanceValidation:
         with patch(
             "charter.mission_type_profiles.existing_mission_types",
             return_value=["software-dev"],
-        ), pytest.raises((ValueError,)) as exc_info:
-            resolve_mission_type_governance(tmp_path, feature_dir)
+        ):
+            bundle = resolve_mission_type_context(tmp_path, feature_dir=feature_dir)
 
-        # The error must mention the missing key, not be an UnknownMissionTypeError
-        assert "mission_type" in str(exc_info.value)
+        assert bundle.mission_type is None
+        assert bundle.governance is None
+        assert bundle.governance_text == ""
+        assert bundle.action_sequence == []

@@ -2,7 +2,7 @@
 
 This is the FR-011 / journey-4 contract gate for WP08 cycle 2.  The cycle-1
 ATDD spec at ``tests/missions/test_mission_type_profile_resolution.py``
-exercised ``charter.mission_type_profiles.resolve_mission_type_governance``
+exercised ``charter.mission_type_profiles.resolve_mission_type_context``
 in isolation, which proved the loader/resolver was *correct in a sandbox*
 but did NOT prove a real documentation mission flowing through the
 implement-prompt pipeline avoids the ``software-dev-default`` leak.
@@ -17,7 +17,7 @@ during prompt assembly rather than the implementer-agent silently
 inheriting software-dev governance.
 
 If a future refactor strips the
-``resolve_mission_type_governance(repo_root, feature_dir)`` call from
+``resolve_mission_type_context(repo_root, feature_dir=feature_dir)`` call from
 ``_build_wp_prompt``, this test goes red and pins the regression
 immediately.
 
@@ -197,7 +197,7 @@ def test_documentation_mission_wp_prompt_declares_mission_type_profile_header(
         "WP08 wiring regression: the mission-type resolver's rendered payload "
         "(``Mission-Type Governance Profile: documentation``) is NOT present "
         "in the implement WP prompt. The call to "
-        "``resolve_mission_type_governance(repo_root, feature_dir)`` in "
+        "``resolve_mission_type_context(repo_root, feature_dir=feature_dir)`` in "
         "``_build_wp_prompt`` has been removed or short-circuited. "
         "See WP08 review-cycle-1.md.\n\n"
         "Prompt excerpt (first 800 chars):\n"

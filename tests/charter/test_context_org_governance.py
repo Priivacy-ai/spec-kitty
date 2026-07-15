@@ -250,7 +250,10 @@ def _resolve_bootstrap(repo_root: Path) -> CharterContextResult:
         patch("doctrine.drg.validator.assert_valid"),
         patch("charter.sync.ensure_charter_bundle_fresh", return_value=None),
     ):
-        return build_charter_context(repo_root, action="implement", depth=2, mark_loaded=False)
+        return build_charter_context(
+            repo_root, action="implement", depth=2, mark_loaded=False,
+            mission_type="software-dev",
+        )
 
 
 class TestActivationUnionShadowPathAndByteIdentity:

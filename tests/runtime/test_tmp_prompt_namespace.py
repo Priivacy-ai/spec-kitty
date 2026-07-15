@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import inspect
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -116,8 +117,8 @@ class TestDecisionComposedMarkersNamespaced:
     def test_fast_path_marker_is_namespaced(self, tmp_path: Path) -> None:
         """The ``_is_composed_action`` fast path (~decision.py:610)."""
         with patch(
-            "charter.mission_type_profiles.resolve_action_sequence",
-            return_value=["specify", "plan"],
+            "charter.mission_type_profiles.resolve_mission_type_context",
+            return_value=SimpleNamespace(action_sequence=["specify", "plan"]),
         ):
             path_str, error = _build_prompt_or_error(
                 action="specify",

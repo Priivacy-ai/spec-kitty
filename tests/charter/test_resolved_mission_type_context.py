@@ -1,0 +1,185 @@
+"""WP03 — enduring contract tests for the unified mission-type resolver seam.
+
+Covers ``resolve_mission_type_context`` and the ``ResolvedGovernance`` /
+``ResolvedMissionType`` bundle:
+
+* T012 — bundle shape: ordered ``selected_*`` lists, reserved slots.
+* T016 — cross-grain disjointness guard on **canonical URN** (FR-013).
+* T017 — hard-fail policies + empty grain (FR-003 / FR-004).
+* T018 — determinism (two resolutions byte-identical, NFR-007).
+
+The transitional software-dev byte-parity scaffold lives in a separate file
+(``test_swdev_governance_parity_scaffold.py``) and is deleted in the WP's final
+commit; the enduring determinism assertions live here.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+
+import pytest
+
+from charter.mission_type_profiles import (
+    CrossGrainDoubleDeclarationError,
+    ResolvedGovernance,
+    ResolvedMissionType,
+    UnknownMissionTypeError,
+    resolve_mission_type_context,
+)
+from charter.mission_type_profiles import (
+    _canonical_artifact_key,  # internal — the FR-013 normalization is contract-critical
+)
+
+
+pytestmark = [pytest.mark.unit, pytest.mark.git_repo]
+
+
+# ---------------------------------------------------------------------------
+# T016 — canonical URN normalization (the disjointness comparison key)
+# ---------------------------------------------------------------------------
+
+
+class TestCanonicalArtifactKey:
+    """The three declaration forms MUST collapse to one comparison key."""
+
+    def test_three_forms_normalize_equal(self) -> None:
+        numeric = _canonical_artifact_key("003-language-driven-design")
+        prefixed = _canonical_artifact_key("DIRECTIVE_003")
+        urn = _canonical_artifact_key("urn:directive:003")
+        assert numeric == prefixed == urn
+
+    def test_distinct_codes_do_not_collide(self) -> None:
+        assert _canonical_artifact_key("DIRECTIVE_003") != _canonical_artifact_key("DIRECTIVE_030")
+
+    def test_slug_only_reference_is_stable(self) -> None:
+        assert _canonical_artifact_key("python-style-guide") == _canonical_artifact_key(
+            "urn:styleguide:python-style-guide"
+        )
+
+
+# ---------------------------------------------------------------------------
+# T012 / T016 — ResolvedGovernance.from_grains: union, order, disjointness
+# ---------------------------------------------------------------------------
+
+
+class TestResolvedGovernanceFromGrains:
+    """type-grain ∪ action-grain, ordered, URN-deconflicted (FR-013, NFR-007)."""
+
+    def test_union_is_sorted_ordered_list(self) -> None:
+        gov = ResolvedGovernance.from_grains(
+            type_grain={"directives": ["DIRECTIVE_030", "DIRECTIVE_010"]},
+            action_grain={"directives": ["DIRECTIVE_024"]},
+        )
+        assert gov.selected_directives == ["DIRECTIVE_010", "DIRECTIVE_024", "DIRECTIVE_030"]
+        assert isinstance(gov.selected_directives, list)
+
+    def test_empty_grains_yield_empty_selections(self) -> None:
+        gov = ResolvedGovernance.from_grains(type_grain={}, action_grain={})
+        assert gov.selected_directives == []
+        assert gov.selected_tactics == []
+
+    def test_within_grain_duplicate_is_deduped(self) -> None:
+        gov = ResolvedGovernance.from_grains(
+            type_grain={"tactics": ["language-driven-design", "language-driven-design"]},
+            action_grain={},
+        )
+        assert gov.selected_tactics == ["language-driven-design"]
+
+    def test_cross_grain_double_declaration_raises_on_canonical_urn(self) -> None:
+        """The SAME artifact in both grains — via different forms — raises (FR-013)."""
+        with pytest.raises(CrossGrainDoubleDeclarationError) as exc:
+            ResolvedGovernance.from_grains(
+                type_grain={"directives": ["DIRECTIVE_003"]},
+                action_grain={"directives": ["003-language-driven-design"]},
+            )
+        assert exc.value.kind == "directives"
+
+    def test_disjoint_grains_do_not_raise(self) -> None:
+        gov = ResolvedGovernance.from_grains(
+            type_grain={"directives": ["DIRECTIVE_010"]},
+            action_grain={"directives": ["DIRECTIVE_024"]},
+        )
+        assert gov.selected_directives == ["DIRECTIVE_010", "DIRECTIVE_024"]
+
+    def test_provenance_is_carried(self) -> None:
+        gov = ResolvedGovernance.from_grains(
+            type_grain={}, action_grain={}, provenance="project"
+        )
+        assert gov.provenance == "project"
+
+
+# ---------------------------------------------------------------------------
+# T017 — hard-fail policies + empty grain (FR-003 / FR-003a / FR-004)
+# ---------------------------------------------------------------------------
+
+
+def _write_config(repo_root: Path, activations: list[str]) -> None:
+    kittify = repo_root / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    lines = "\n".join(f"  - {mt}" for mt in activations)
+    (kittify / "config.yaml").write_text(
+        f"mission_type_activations:\n{lines}\n", encoding="utf-8"
+    )
+
+
+class TestResolverHardFailPolicies:
+    def test_typeless_degrades_neutrally(self, tmp_path: Path) -> None:
+        """No mission_type and no feature_dir → neutral bundle, never software-dev."""
+        bundle = resolve_mission_type_context(tmp_path)
+        assert bundle.mission_type is None
+        assert bundle.governance is None
+        assert bundle.governance_text == ""
+        assert bundle.action_sequence == []
+
+    def test_unknown_typed_mission_hard_fails(self, tmp_path: Path) -> None:
+        """A recognised-but-unactivated type with no override raises (FR-003)."""
+        _write_config(tmp_path, ["software-dev"])
+        with pytest.raises(UnknownMissionTypeError):
+            resolve_mission_type_context(tmp_path, mission_type="totally-made-up")
+
+    def test_known_type_resolves_bundle(self, tmp_path: Path) -> None:
+        """A known, activated type resolves governance + action sequence (FR-004)."""
+        bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+        assert bundle.mission_type == "software-dev"
+        assert bundle.governance is not None
+        assert "Mission-Type Governance Profile: software-dev" in bundle.governance_text
+        assert bundle.action_sequence  # non-empty for the canonical software-dev type
+
+    def test_reserved_slots_and_populated_step_contracts(self, tmp_path: Path) -> None:
+        """expected_artifacts (WP10) + template_set remain reserved; step_contracts populated (WP11)."""
+        bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+        assert isinstance(bundle, ResolvedMissionType)
+        # WP10: expected_artifacts is now populated from the doctrine gate tree.
+        assert bundle.expected_artifacts is not None
+        assert isinstance(bundle.expected_artifacts, dict)
+        assert bundle.expected_artifacts["mission_type"] == "software-dev"
+        assert bundle.template_set is None
+        # WP11 routed step-contract resolution through the artefact bundle: a
+        # registered type now resolves its ordered step-contract ids.
+        assert bundle.step_contracts == ["implement", "plan", "review", "specify", "tasks"]
+
+
+# ---------------------------------------------------------------------------
+# T018 — determinism (two resolutions byte-identical, NFR-007)
+# ---------------------------------------------------------------------------
+
+
+class TestResolverDeterminism:
+    def test_two_resolutions_are_byte_identical(self, tmp_path: Path) -> None:
+        first = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+        second = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+        assert first == second
+        assert first.governance_text == second.governance_text
+        assert first.governance == second.governance
+        assert first.action_sequence == second.action_sequence
+
+    def test_governance_selections_are_ordered_lists(self, tmp_path: Path) -> None:
+        bundle = resolve_mission_type_context(tmp_path, mission_type="software-dev")
+        assert bundle.governance is not None
+        for selection in (
+            bundle.governance.selected_directives,
+            bundle.governance.selected_tactics,
+            bundle.governance.selected_agent_profiles,
+        ):
+            assert isinstance(selection, list)
+            assert selection == sorted(selection)
