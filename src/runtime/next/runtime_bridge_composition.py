@@ -161,8 +161,8 @@ def _should_dispatch_via_composition(
     without this mission coupling to it. Order is critical and load-bearing:
 
     1. **Live charter lookup** (FR-007 / FR-008): calls
-       ``charter.resolve_action_sequence(mission, repo_root)`` to obtain the
-       action sequence from the resolved mission-type profile.  When
+       ``charter.resolve_mission_type_context(repo_root, mission_type=mission)``
+       to obtain the action sequence from the resolved mission-type bundle.  When
        ``repo_root`` is ``None`` (e.g., the very first ``decide_next`` call
        before a run is started), fall through directly to the custom widening
        path below without a charter lookup.
@@ -180,10 +180,12 @@ def _should_dispatch_via_composition(
     if repo_root is not None:
         try:
             from charter.mission_type_profiles import (  # noqa: PLC0415
-                resolve_action_sequence as _charter_resolve_action_sequence,
+                resolve_mission_type_context,
             )
 
-            action_sequence = _charter_resolve_action_sequence(mission, repo_root)
+            action_sequence = resolve_mission_type_context(
+                repo_root, mission_type=mission
+            ).action_sequence
             if _rb._normalize_action_for_composition(step_id) in action_sequence:
                 return True
         except Exception:
@@ -313,10 +315,12 @@ def _composition_dispatch_inputs(
     """
     try:
         from charter.mission_type_profiles import (  # noqa: PLC0415
-            resolve_action_sequence as _charter_resolve_action_sequence,
+            resolve_mission_type_context,
         )
 
-        action_sequence = _charter_resolve_action_sequence(mission, repo_root)
+        action_sequence = resolve_mission_type_context(
+            repo_root, mission_type=mission
+        ).action_sequence
         if action in action_sequence:
             return None, None
     except Exception:

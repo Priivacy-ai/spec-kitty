@@ -1,11 +1,17 @@
-"""Mission-type-scoped governance profile loader and resolver.
+"""Mission-type-scoped governance resolution — the single charter-mediated seam.
 
 Mission-type profiles are built-in doctrine-side YAML files at
 ``src/doctrine/missions/<mission_type>/governance-profile.yaml``.  Each
 profile declares the default selections and activations for missions of
-that type.  The charter resolver reads ``meta.json mission_type``, picks
-the matching profile, and unions its declarations with project + org
-selections.
+that type.
+
+The **one** entry point is :func:`resolve_mission_type_context`.  It reads the
+mission type (explicit argument → ``feature_dir/meta.json``), then resolves an
+ordered, structured :class:`ResolvedMissionType` bundle both consumers converge
+on: ``runtime.next.prompt_builder`` (Surface B) and the action-doctrine path.
+It subsumes the three historical functions (``resolve_action_sequence``,
+``resolve_mission_type_governance``, ``load_profile``); no second resolution
+path remains (C-002).
 
 The four canonical mission types are:
 
@@ -14,50 +20,63 @@ The four canonical mission types are:
 * ``research``
 * ``plan``
 
-Profiles for other mission_type values are not part of the built-in profile set; the resolver
-hard-fails (``UnknownMissionTypeError``) when ``meta.json mission_type``
-matches no built-in profile AND the project charter has not declared its
-own ``selected_<kind>`` overrides.  Silent fallback to
-``software-dev-default`` is explicitly forbidden by FR-011 / journey 4 of
-the ``charter-mediated-doctrine-selection-01KRTZCA`` mission.
+Profiles for other mission_type values are not part of the built-in profile set.
+The resolver hard-fails (``UnknownMissionTypeError``) when the mission type
+matches no built-in profile AND the project charter has not declared its own
+``selected_<kind>`` overrides.  Silent fallback to ``software-dev-default`` is
+explicitly forbidden by FR-001 / FR-003.  A *typeless* mission (no type at all)
+degrades to a **neutral** bundle — never software-dev (FR-003a).
+
+Two distinct hard-fail policies are preserved as explicit branches:
+
+* **governance** tolerates an unknown type when a project override exists;
+* **action-sequence** validates strictly against the activation set.
 
 See:
 
-* ``kitty-specs/charter-mediated-doctrine-selection-01KRTZCA/contracts/mission-type-profile.md``
-  for the on-disk and runtime contract.
-* ``kitty-specs/charter-mediated-doctrine-selection-01KRTZCA/data-model.md`` §6
-  for the Pydantic shape.
-* ``tests/missions/test_mission_type_profile_resolution.py`` for the
-  14-assertion ATDD acceptance spec.
+* ``kitty-specs/mission-type-doctrine-authority-01KXH6GE/contracts/resolution-and-enforcement.md``
+  (C1) for the seam contract.
+* ``kitty-specs/mission-type-doctrine-authority-01KXH6GE/data-model.md`` for the
+  ``ResolvedMissionType`` / ``ResolvedGovernance`` shapes.
 
 Layer rule
 ----------
 ``src/charter/`` MUST NOT import from ``specify_cli`` (C-001, hard ratchet
-pinned by ``tests/architectural/test_layer_rules.py``).  This module
-stays self-contained accordingly; imports from ``doctrine`` are allowed
-(charter -> doctrine is the canonical dependency direction).
+pinned by ``tests/architectural/test_layer_rules.py``).  This module stays
+self-contained accordingly; imports from ``doctrine`` are allowed (charter ->
+doctrine is the canonical dependency direction).
 """
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+import re
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
+from functools import cached_property
 from pathlib import Path
+from typing import TYPE_CHECKING
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from ruamel.yaml import YAML
 
 from charter.activations import ActivationEntry
+from charter.mission_type_key import canonical_mission_type_key
+
+if TYPE_CHECKING:
+    from charter.mission_type_profile_repository import MissionTypeProfileRepository
 
 __all__ = [
     "CANONICAL_MISSION_TYPES",
+    "CrossGrainDoubleDeclarationError",
     "GovernancePayload",
     "MissionTypeProfile",
+    "ResolvedGovernance",
+    "ResolvedMissionType",
     "UnknownMissionTypeError",
     "existing_mission_types",
-    "load_profile",
-    "resolve_action_sequence",
-    "resolve_mission_type_governance",
+    "resolve_mission_type_context",
+    "resolve_mission_type_key",
 ]
 
 
@@ -76,11 +95,17 @@ CANONICAL_MISSION_TYPES: tuple[str, ...] = (
 )
 
 
-# ``src/charter/mission_type_profiles.py`` lives 2 dirs deep inside ``src/``,
-# so ``parents[2]`` points at the repository ``src/`` directory.  We compose
-# the doctrine root from there to keep the resolution layer-rule-clean
-# (charter -> doctrine is the canonical direction; no ``specify_cli`` import).
-_DOCTRINE_MISSIONS_ROOT: Path = Path(__file__).resolve().parents[1] / "doctrine" / "missions"
+#: The ordered governance kinds carried by :class:`ResolvedGovernance`.  The
+#: order is load-bearing for deterministic rendering (NFR-007).
+_GOVERNANCE_KINDS: tuple[str, ...] = (
+    "directives",
+    "tactics",
+    "paradigms",
+    "styleguides",
+    "toolguides",
+    "procedures",
+    "agent_profiles",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -95,11 +120,31 @@ class MissionTypeProfile(BaseModel):
     contracts/mission-type-profile.md.  ``extra="forbid"`` so typos in
     the YAML surface immediately rather than silently rendering empty
     selections.
+
+    Overlay identity (``id``)
+    -------------------------
+    ``BaseDoctrineRepository`` (``doctrine/base.py``) keys every overlay on the
+    raw YAML ``id`` field and **skips id-less overlay files** (``base.py:249``),
+    so a project override at
+    ``.kittify/doctrine/mission_types/<type>/governance-profile.yaml`` only
+    field-merges onto the shipped profile when it carries an ``id``.  This
+    profile therefore exposes an ``id`` that is bound to ``mission_type`` by an
+    invariant: **``id == mission_type`` for every profile** (shipped or
+    project).  When the YAML omits ``id`` the validator derives it from
+    ``mission_type`` (backward-compatible for direct model construction); when
+    both are present they MUST agree, or field-merge would mis-key silently.
+    Every shipped ``governance-profile.yaml`` (software-dev today; the other
+    three authored by WP06/07/08) MUST carry ``id`` equal to its
+    ``mission_type``.
     """
 
     model_config = ConfigDict(extra="forbid")
 
     mission_type: str
+    #: Overlay identity for the ``doctrine/base.py`` builtin → org → project
+    #: stack.  Bound to ``mission_type`` by :meth:`_bind_id_to_mission_type`
+    #: (defaults to ``mission_type`` when absent; MUST equal it when present).
+    id: str = ""
     template_set: str | None = None
     selected_directives: list[str] = Field(default_factory=list)
     selected_tactics: list[str] = Field(default_factory=list)
@@ -111,6 +156,27 @@ class MissionTypeProfile(BaseModel):
     selected_mission_step_contracts: list[str] = Field(default_factory=list)
     available_tools: list[str] = Field(default_factory=list)
     activations: list[ActivationEntry] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _bind_id_to_mission_type(self) -> MissionTypeProfile:
+        """Enforce the ``id == mission_type`` overlay invariant.
+
+        A blank ``id`` (the default, and the case for direct model construction
+        or an ``id``-less YAML) is derived from ``mission_type``.  A non-blank
+        ``id`` that disagrees with ``mission_type`` is a construction-time
+        error: ``doctrine/base.py`` keys overlays on ``id``, so a mismatch would
+        route a project override onto the wrong shipped profile silently.
+        """
+        if not self.id:
+            self.id = self.mission_type
+        elif self.id != self.mission_type:
+            raise ValueError(
+                f"MissionTypeProfile.id ({self.id!r}) must equal mission_type "
+                f"({self.mission_type!r}). The overlay stack in doctrine/base.py "
+                "keys on id; a mismatch would mis-key a project override onto the "
+                "wrong shipped profile."
+            )
+        return self
 
 
 @dataclass(frozen=True)
@@ -127,13 +193,12 @@ class GovernancePayload:
 
 
 class UnknownMissionTypeError(ValueError):
-    """Raised when ``meta.json mission_type`` matches no activated mission type.
+    """Raised when a mission type matches no activated mission type.
 
-    The hard-fail behaviour is the FR-011 / journey 4 contract: there
-    MUST NOT be a silent ``software-dev-default`` fallback for
-    non-software missions.  The message MUST contain the unknown
-    ``mission_type`` verbatim so operators can diagnose typos or missing
-    profile files.
+    The hard-fail behaviour is the FR-001 / FR-003 contract: there MUST NOT be
+    a silent ``software-dev-default`` fallback for non-software missions.  The
+    message MUST contain the unknown ``mission_type`` verbatim so operators can
+    diagnose typos or missing profile files.
 
     FR-009: The message MUST also list the registered (activated) mission
     type IDs so operators know what values are valid.
@@ -167,60 +232,130 @@ class UnknownMissionTypeError(ValueError):
         super().__init__(message)
 
 
-# ---------------------------------------------------------------------------
-# Loader
-# ---------------------------------------------------------------------------
+class CrossGrainDoubleDeclarationError(ValueError):
+    """Raised when one artifact is declared in both governance grains (FR-013).
 
+    A single artifact URN MUST appear in **at most one** grain — the type-grain
+    (``governance-profile.yaml``) OR the action-grain (action index) — never
+    both.  Comparison is on the **canonical URN**, so ``003-foo``,
+    ``DIRECTIVE_003`` and ``urn:directive:003`` all collide.  A double
+    declaration is a construction-time error, not a silent de-duplication.
 
-def load_profile(mission_type: str) -> MissionTypeProfile | None:
-    """Load the built-in governance profile for ``mission_type``.
-
-    Reads ``src/doctrine/missions/<mission_type>/governance-profile.yaml``
-    and validates it against :class:`MissionTypeProfile`.
-
-    Returns
-    -------
-    MissionTypeProfile | None
-        ``None`` when the profile file does not exist (caller decides
-        hard-fail policy via :func:`resolve_mission_type_governance`).  A parsed
-        :class:`MissionTypeProfile` otherwise.
-
-    Raises
-    ------
-    pydantic.ValidationError
-        When the YAML is structurally malformed.
-    ValueError
-        When the YAML's top-level ``mission_type`` field does not match
-        the parent directory name.  This catches accidental
-        misroutings (e.g. a file under ``documentation/`` declaring
-        ``mission_type: software-dev``) early at load time.
+    Attributes
+    ----------
+    kind:
+        The governance kind the collision was found in (e.g. ``directives``).
+    artifact:
+        The action-grain artifact id that collided with the type grain.
     """
-    profile_path = _DOCTRINE_MISSIONS_ROOT / mission_type / "governance-profile.yaml"
-    if not profile_path.exists():
-        return None
 
-    data = YAML(typ="safe").load(profile_path.read_text(encoding="utf-8"))
-    if not isinstance(data, dict):
-        raise ValueError(
-            f"Mission-type profile at {profile_path} must be a YAML mapping; "
-            f"got {type(data).__name__}."
+    def __init__(self, kind: str, artifact: str) -> None:
+        self.kind = kind
+        self.artifact = artifact
+        super().__init__(
+            f"Artifact {artifact!r} is declared in both the type grain and the "
+            f"action grain for governance kind {kind!r}. An artifact may appear "
+            "in at most one grain (FR-013); remove the duplicate declaration."
         )
 
-    profile = MissionTypeProfile.model_validate(data)
 
-    if profile.mission_type != mission_type:
-        raise ValueError(
-            f"Mission-type profile at {profile_path} declares "
-            f"mission_type={profile.mission_type!r} but lives under directory "
-            f"{mission_type!r}. The two MUST agree or the resolver would route "
-            f"missions to the wrong profile."
-        )
+@dataclass(frozen=True)
+class ResolvedGovernance:
+    """Structured, ordered governance selections for a mission type.
 
-    return profile
+    Each ``selected_*`` field is an **ordered** ``list[str]`` (an explicit,
+    tested sort — NFR-007), not a set, so rendering is deterministic.  Built by
+    unioning the type grain (``governance-profile.yaml``) with the action grain
+    (action index), de-conflicting on canonical URN (double declaration across
+    grains is forbidden, FR-013).
+    """
+
+    selected_directives: list[str] = field(default_factory=list)
+    selected_tactics: list[str] = field(default_factory=list)
+    selected_paradigms: list[str] = field(default_factory=list)
+    selected_styleguides: list[str] = field(default_factory=list)
+    selected_toolguides: list[str] = field(default_factory=list)
+    selected_procedures: list[str] = field(default_factory=list)
+    selected_agent_profiles: list[str] = field(default_factory=list)
+    provenance: str = "builtin"
+
+    @classmethod
+    def from_grains(
+        cls,
+        *,
+        type_grain: Mapping[str, list[str]],
+        action_grain: Mapping[str, list[str]],
+        provenance: str = "builtin",
+    ) -> ResolvedGovernance:
+        """Union ``type_grain`` ∪ ``action_grain`` into ordered selections.
+
+        For each governance kind the two grains are merged, de-conflicted on
+        canonical URN, and sorted deterministically.  A URN present in **both**
+        grains raises :class:`CrossGrainDoubleDeclarationError` (FR-013).
+        """
+        merged: dict[str, list[str]] = {}
+        for kind in _GOVERNANCE_KINDS:
+            merged[f"selected_{kind}"] = _merge_disjoint_grain(
+                kind,
+                list(type_grain.get(kind, [])),
+                list(action_grain.get(kind, [])),
+            )
+        return cls(provenance=provenance, **merged)
+
+
+@dataclass(frozen=True)
+class ResolvedMissionType:
+    """In-memory bundle produced by :func:`resolve_mission_type_context`.
+
+    ``mission_type`` is the canonicalized key (``None`` for a typeless mission).
+    ``governance`` / ``governance_text`` / ``action_sequence`` are populated
+    eagerly on the hot path; ``template_set`` (later slice) is reserved.
+
+    ``expected_artifacts`` (WP10) and ``step_contracts`` (WP11) are resolved
+    **lazily** (NFR-001): each reads the doctrine gate tree / step-contract
+    artefact off disk, but the FSM / runtime-next callers of
+    :func:`resolve_mission_type_context` consume only ``action_sequence``.
+    Deferring those two disk-reading slots behind ``@cached_property`` keeps the
+    hot path well under the 100ms budget while preserving the public read shape:
+    ``bundle.expected_artifacts`` is still a non-``None`` dict for a registered
+    type and ``bundle.step_contracts`` is still the ordered list. Each is
+    memoised on first access, so repeated reads stay cheap.
+    """
+
+    mission_type: str | None
+    governance: ResolvedGovernance | None
+    governance_text: str
+    action_sequence: list[str]
+    provenance: str
+    template_set: str | None = None
+    #: Deferred resolver for ``expected_artifacts``. ``None`` yields ``None``
+    #: (the neutral/typeless bundle). Excluded from ``eq``/``repr`` so equality
+    #: and determinism hinge on the eager, hot-path fields only.
+    _expected_artifacts_thunk: Callable[[], object | None] | None = field(
+        default=None, repr=False, compare=False
+    )
+    #: Deferred resolver for ``step_contracts``. ``None`` yields ``[]``.
+    _step_contracts_thunk: Callable[[], list[str]] | None = field(
+        default=None, repr=False, compare=False
+    )
+
+    @cached_property
+    def expected_artifacts(self) -> object | None:
+        """Lazily resolve the WP10 expected-artifacts slot (memoised)."""
+        if self._expected_artifacts_thunk is None:
+            return None
+        return self._expected_artifacts_thunk()
+
+    @cached_property
+    def step_contracts(self) -> list[str]:
+        """Lazily resolve the WP11 ordered step-contract IDs (memoised)."""
+        if self._step_contracts_thunk is None:
+            return []
+        return self._step_contracts_thunk()
 
 
 # ---------------------------------------------------------------------------
-# Charter API functions
+# Charter API — activation set
 # ---------------------------------------------------------------------------
 
 
@@ -263,137 +398,403 @@ def existing_mission_types(repo_root: Path) -> list[str]:
     return sorted(pack_context.activated_mission_types)
 
 
-def resolve_action_sequence(
-    mission_type_id: str,
-    repo_root: Path,
-) -> list[str]:
-    """Return the live action sequence for the given mission type.
+# ---------------------------------------------------------------------------
+# The seam: resolve_mission_type_context
+# ---------------------------------------------------------------------------
 
-    Reads the :class:`~doctrine.missions.mission_type_repository.MissionTypeRepository`
-    through the built-in → org → project DRG chain.  Called fresh at each
-    invocation; not cached across calls (FR-007: ≤100ms budget applies).
+
+def resolve_mission_type_context(
+    repo_root: Path,
+    *,
+    mission_type: str | None = None,
+    feature_dir: Path | None = None,
+) -> ResolvedMissionType:
+    """Resolve the single charter-mediated mission-type context bundle.
+
+    Behaviour (contract C1)
+    ------------------------
+    * Resolves the type key: explicit ``mission_type`` → ``feature_dir/meta.json``
+      → typeless.
+    * **Typeless** (no type at all) → a neutral bundle, never software-dev
+      (FR-003a).
+    * **Unknown *typed*** mission (type present, unrecognised, no project
+      override) → :class:`UnknownMissionTypeError` (FR-003).  Never software-dev.
+    * **Known type, empty grain** → empty resolved selections, no error (FR-004).
+    * Governance = type-grain ∪ action-grain, ordered, URN-deconflicted
+      (FR-013, NFR-007).
+    * The two hard-fail policies (governance tolerant when a project override
+      exists; action-sequence strict) are preserved as explicit branches.
 
     Parameters
     ----------
-    mission_type_id:
-        The mission type ID to resolve (e.g. ``"software-dev"``).
     repo_root:
-        Repository root used to determine which mission types are activated.
+        Repository root for the project under resolution.
+    mission_type:
+        Explicit mission type key (takes precedence over ``feature_dir``).
+    feature_dir:
+        The mission's ``kitty-specs/<mission-slug>/`` directory; its
+        ``meta.json`` is the source of truth for ``mission_type`` when
+        ``mission_type`` is not given.
 
     Returns
     -------
-    list[str]
-        Ordered action sequence (e.g. ``["specify", "plan", "tasks",
-        "implement", "review"]``).
-
-    Raises
-    ------
-    UnknownMissionTypeError
-        When ``mission_type_id`` is not in
-        :func:`existing_mission_types(repo_root) <existing_mission_types>`.
-        The exception carries the sorted list of activated IDs in
-        ``registered_ids``.
+    ResolvedMissionType
+        The resolved bundle (both consumers converge on this).
     """
+    type_key = _resolve_type_key(mission_type, feature_dir)
+    if type_key is None:
+        return _neutral_context()
+
     registered = existing_mission_types(repo_root)
-    if mission_type_id not in registered:
-        raise UnknownMissionTypeError(mission_type_id, registered_ids=registered)
+    is_registered = type_key in registered
+    has_override = _project_has_doctrine_overrides(repo_root)
+
+    governance, governance_text = _resolve_governance_slot(
+        type_key,
+        registered=registered,
+        is_registered=is_registered,
+        has_override=has_override,
+        repo_root=repo_root,
+    )
+    action_sequence = _resolve_action_slot(
+        type_key,
+        registered=registered,
+        is_registered=is_registered,
+    )
+    return ResolvedMissionType(
+        mission_type=type_key,
+        governance=governance,
+        governance_text=governance_text,
+        action_sequence=action_sequence,
+        provenance=governance.provenance,
+        template_set=None,  # reserved — a later slice populates template-file selection.
+        # WP11 (step-contract artefact, FR-008) + WP10 (doctrine gate tree) both
+        # read off disk; defer them so the FSM hot path (action_sequence only)
+        # stays under the NFR-001 100ms budget. Memoised on first access.
+        _step_contracts_thunk=lambda: _resolve_step_contracts_slot(
+            type_key, is_registered=is_registered
+        ),
+        _expected_artifacts_thunk=lambda: _resolve_expected_artifacts_slot(
+            type_key, is_registered=is_registered
+        ),
+    )
+
+
+def resolve_mission_type_key(
+    *,
+    mission_type: str | None = None,
+    feature_dir: Path | None = None,
+) -> str | None:
+    """Resolve the canonical mission-type key: explicit arg → ``meta.json`` → None.
+
+    This is the boundary-safe key resolver the action-doctrine path keys off
+    (WP04 / #883).  It is the *same* precedence and canonicalization the full
+    :func:`resolve_mission_type_context` seam applies, factored out so the
+    action-doctrine bundle can obtain the mission type WITHOUT triggering
+    governance / action-sequence resolution (and its ``UnknownMissionTypeError``
+    hard-fail, which is enforced on the governance surface separately).
+
+    A blank / absent value (typeless mission, or a genuinely mission-less
+    caller passing neither argument) degrades to ``None``.  ``None`` is the
+    neutral, typeless result — callers MUST treat it as "no mission type" and
+    degrade accordingly (FR-003a); it is NEVER substituted with a software-dev
+    default (FR-001, FR-012).
+
+    Parameters
+    ----------
+    mission_type:
+        Explicit mission type key (takes precedence over ``feature_dir``).
+    feature_dir:
+        The mission's ``kitty-specs/<mission-slug>/`` directory; its
+        ``meta.json`` ``mission_type`` field is the source of truth when
+        ``mission_type`` is not given.
+    """
+    return _resolve_type_key(mission_type, feature_dir)
+
+
+def _neutral_context() -> ResolvedMissionType:
+    """Return the neutral (typeless) bundle — never software-dev (FR-003a)."""
+    return ResolvedMissionType(
+        mission_type=None,
+        governance=None,
+        governance_text="",
+        action_sequence=[],
+        provenance="builtin",
+        template_set=None,
+        # Typeless bundle: both lazy slots stay at their neutral defaults
+        # (``expected_artifacts`` -> ``None``, ``step_contracts`` -> ``[]``).
+    )
+
+
+def _resolve_type_key(mission_type: str | None, feature_dir: Path | None) -> str | None:
+    """Resolve the canonical mission-type key: explicit arg → meta.json → None.
+
+    A blank / absent value degrades to ``None`` (typeless) via the single
+    boundary-safe canonicalizer (WP02); it is never substituted with a
+    software-dev default.
+    """
+    if mission_type is not None:
+        return canonical_mission_type_key(mission_type)
+    if feature_dir is None:
+        return None
+    raw = _read_meta_mission_type(feature_dir)
+    return canonical_mission_type_key(raw)
+
+
+def _read_meta_mission_type(feature_dir: Path) -> str | None:
+    """Return the raw ``mission_type`` string from ``feature_dir/meta.json``.
+
+    Best-effort: a missing / unreadable / malformed ``meta.json`` — or a
+    ``meta.json`` without a ``mission_type`` key — degrades to ``None`` (the
+    neutral, typeless result), never a software-dev default.
+    """
+    meta_path = feature_dir / "meta.json"
+    try:
+        data = json.loads(meta_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(data, dict):
+        return None
+    raw = data.get("mission_type")
+    return raw if isinstance(raw, str) else None
+
+
+def _resolve_governance_slot(
+    mission_type: str,
+    *,
+    registered: list[str],
+    is_registered: bool,
+    has_override: bool,
+    repo_root: Path,
+) -> tuple[ResolvedGovernance, str]:
+    """Resolve the governance slot under the **tolerant** hard-fail policy.
+
+    Hard-fails only when the type is neither registered nor covered by a project
+    override — otherwise it resolves (an unknown type with a project override is
+    tolerated; a known type with an empty grain resolves empty, FR-004).
+
+    The profile is loaded through :class:`~charter.mission_type_profile_repository.MissionTypeProfileRepository`
+    so a per-type project override at
+    ``.kittify/doctrine/mission_types/<type>/governance-profile.yaml`` field-merges
+    onto the shipped baseline via the shared ``doctrine/base.py`` overlay
+    (project > org > builtin) — no second merge site is added here.  ``provenance``
+    reflects the winning layer for that type.
+    """
+    if not is_registered and not has_override:
+        raise UnknownMissionTypeError(mission_type, registered_ids=registered)
+
+    repo = _mission_type_profile_repository(repo_root)
+    profile = repo.get(mission_type)
+    provenance = repo.get_provenance(mission_type) or "project"
+    text = _render_profile_payload(profile, mission_type)
+    governance = ResolvedGovernance.from_grains(
+        type_grain=_profile_type_grain(profile),
+        action_grain=_EMPTY_GRAIN,  # action grain threaded through the seam by WP04.
+        provenance=provenance,
+    )
+    return governance, text
+
+
+def _resolve_action_slot(
+    mission_type: str,
+    *,
+    registered: list[str],
+    is_registered: bool,
+) -> list[str]:
+    """Resolve the action sequence under the **strict** validation policy.
+
+    The action sequence validates against the activation set with no escape
+    hatch: an activated-but-undefined type raises.  An unregistered type that
+    was tolerated by the governance slot (project override present) has no
+    built-in action sequence, so it degrades to an empty list.
+    """
+    if not is_registered:
+        return []
 
     from doctrine.missions.mission_type_repository import MissionTypeRepository  # noqa: PLC0415
 
     repo = MissionTypeRepository.default()
-    mission_type = repo.get(mission_type_id)
-    if mission_type is None:
+    mission = repo.get(mission_type)
+    if mission is None:
         # The type is activated but has no YAML definition in the built-in
         # doctrine bundle.  This is a configuration inconsistency; report it
         # clearly rather than returning an empty sequence.
-        raise UnknownMissionTypeError(mission_type_id, registered_ids=registered)
+        raise UnknownMissionTypeError(mission_type, registered_ids=registered)
 
-    # Resolve extends: chain (single level — top-level extends only)
-    if mission_type.extends is not None:
-        parent = repo.get(mission_type.extends)
-        if parent is not None and not mission_type.action_sequence:
+    # Resolve extends: chain (single level — top-level extends only).
+    if mission.extends is not None:
+        parent = repo.get(mission.extends)
+        if parent is not None and not mission.action_sequence:
             return list(parent.action_sequence)
 
-    return list(mission_type.action_sequence)
+    return list(mission.action_sequence)
+
+
+def _resolve_expected_artifacts_slot(
+    mission_type: str,
+    *,
+    is_registered: bool,
+) -> object | None:
+    """Resolve the expected-artifacts gate manifest from the doctrine tree.
+
+    Populated from the now-canonical doctrine ``<type>/expected-artifacts.yaml``
+    (WP10 / IC-07) after the upward reconcile, so the bundle carries the gate
+    manifest that the dossier reader also reads.  Returns the parsed manifest
+    mapping (doctrine-native; ``src/charter`` must not import ``specify_cli``,
+    C-001), or ``None`` when the type is unregistered or has no gate manifest.
+    """
+    if not is_registered:
+        return None
+
+    from doctrine.missions.repository import MissionTemplateRepository  # noqa: PLC0415
+
+    repo = MissionTemplateRepository.default()
+    result = repo.get_expected_artifacts(mission_type)
+    return result.parsed if result is not None else None
+
+
+def _resolve_step_contracts_slot(
+    mission_type: str,
+    *,
+    is_registered: bool,
+) -> list[str]:
+    """Resolve the mission type's step contracts from the doctrine artefact.
+
+    FR-008 / SC-007: the doctrine ``MissionStepContractRepository`` is the
+    single source for a type's step contracts — there is no ``specify_cli``
+    copy. An unregistered type that the governance slot tolerated (a project
+    override is present) has no built-in step contracts, so it degrades to an
+    empty list, mirroring :func:`_resolve_action_slot`.
+    """
+    if not is_registered:
+        return []
+
+    from doctrine.missions.step_contracts import (  # noqa: PLC0415 — lazy; charter -> doctrine is canonical
+        resolve_step_contract_ids,
+    )
+
+    return resolve_step_contract_ids(mission_type)
 
 
 # ---------------------------------------------------------------------------
-# Resolver
+# Grain construction + disjointness guard (FR-013)
 # ---------------------------------------------------------------------------
 
 
-def resolve_mission_type_governance(repo_root: Path, feature_dir: Path) -> GovernancePayload:
-    """Resolve the governance payload for the mission at ``feature_dir``.
+_EMPTY_GRAIN: Mapping[str, list[str]] = {}
 
-    Reads ``feature_dir / "meta.json"``, looks up its ``mission_type``,
-    loads the matching built-in profile, and renders a
-    :class:`GovernancePayload` carrying the rendered text plus the
-    resolved ``mission_type``.
 
-    Hard-fail policy (FR-011)
-    -------------------------
-    Raises :class:`UnknownMissionTypeError` when:
+def _profile_type_grain(profile: MissionTypeProfile | None) -> Mapping[str, list[str]]:
+    """Project a :class:`MissionTypeProfile` into a governance grain mapping."""
+    if profile is None:
+        return _EMPTY_GRAIN
+    return {
+        "directives": list(profile.selected_directives),
+        "tactics": list(profile.selected_tactics),
+        "paradigms": list(profile.selected_paradigms),
+        "styleguides": list(profile.selected_styleguides),
+        "toolguides": list(profile.selected_toolguides),
+        "procedures": list(profile.selected_procedures),
+        "agent_profiles": list(profile.selected_agent_profiles),
+    }
 
-    * ``meta.json`` is missing the ``mission_type`` key, OR
-    * ``meta.json mission_type`` matches no built-in profile AND the
-      project charter declares no ``selected_<kind>`` overrides of its
-      own.
 
-    Silent fallback to ``software-dev-default`` is explicitly forbidden.
+def _merge_disjoint_grain(kind: str, type_ids: list[str], action_ids: list[str]) -> list[str]:
+    """Union two grains for one kind, forbidding cross-grain double declaration.
 
-    Parameters
-    ----------
-    repo_root:
-        Repository root for the project under resolution.  Used to look
-        up project-level overrides at
-        ``.kittify/charter/governance.yaml``.
-    feature_dir:
-        The mission's ``kitty-specs/<mission-slug>/`` directory.  Its
-        ``meta.json`` is the source of truth for ``mission_type``.
+    Comparison is on the **canonical URN** so ``003-foo`` / ``DIRECTIVE_003`` /
+    ``urn:directive:003`` collide.  The result is de-duplicated (within a grain)
+    and sorted deterministically (NFR-007).
+    """
+    type_keys = {_canonical_artifact_key(raw) for raw in type_ids}
+    for raw in action_ids:
+        if _canonical_artifact_key(raw) in type_keys:
+            raise CrossGrainDoubleDeclarationError(kind, raw)
+
+    seen: set[str] = set()
+    unique: list[str] = []
+    for raw in [*type_ids, *action_ids]:
+        key = _canonical_artifact_key(raw)
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(raw)
+    return sorted(unique)
+
+
+def _canonical_artifact_key(raw: str) -> str:
+    """Normalize an artifact reference to a canonical comparison key.
+
+    Handles the three declaration forms — ``003-slug``, ``DIRECTIVE_003`` and
+    ``urn:directive:003`` — collapsing each to the same numeric core.  A
+    reference with no numeric code degrades to its slugified, lower-cased form.
+    """
+    text = raw.strip().lower()
+    if text.startswith("urn:"):
+        text = text.split(":")[-1]
+    match = re.search(r"\d+", text)
+    if match:
+        return str(int(match.group(0)))
+    return re.sub(r"[^a-z0-9]+", "-", text).strip("-")
+
+
+# ---------------------------------------------------------------------------
+# Loader (internal — the historical ``load_profile`` public export is retired)
+# ---------------------------------------------------------------------------
+
+
+def _mission_type_profile_repository(
+    repo_root: Path | None,
+) -> MissionTypeProfileRepository:
+    """Construct the overlay-aware profile repository.
+
+    ``repo_root is None`` yields a **shipped-only** repository (built-in layer,
+    no project overlay) — the shape used by the built-in resolution ATDD suite.
+    A concrete ``repo_root`` wires the project overlay at
+    ``.kittify/doctrine/mission_types/`` so per-type overrides ride the
+    ``doctrine/base.py`` stack.
+
+    Imported lazily to avoid a charter-internal import cycle
+    (``mission_type_profile_repository`` imports this module for the schema).
+    """
+    from charter.mission_type_profile_repository import (  # noqa: PLC0415 — lazy; avoids cycle
+        MissionTypeProfileRepository,
+    )
+
+    if repo_root is None:
+        return MissionTypeProfileRepository()
+    return MissionTypeProfileRepository.for_project(repo_root)
+
+
+def _load_mission_type_profile(
+    mission_type: str,
+    repo_root: Path | None = None,
+) -> MissionTypeProfile | None:
+    """Load the governance profile for ``mission_type`` through the overlay stack.
+
+    Resolves ``src/doctrine/missions/<mission_type>/governance-profile.yaml`` as
+    the shipped baseline and — when ``repo_root`` is given — field-merges a
+    project override from
+    ``<repo_root>/.kittify/doctrine/mission_types/<mission_type>/governance-profile.yaml``
+    via :class:`~charter.mission_type_profile_repository.MissionTypeProfileRepository`
+    (project > org > builtin; :class:`~doctrine.base.DoctrineLayerCollisionWarning`
+    on shadow).  Keying on the ``id == mission_type`` invariant means a profile
+    whose declared type disagrees with its directory is simply not found under
+    ``mission_type`` (returns ``None``) rather than silently mis-routed.
 
     Returns
     -------
-    GovernancePayload
-        ``payload.text`` is the rendered governance text.  ``payload.mission_type``
-        equals the ``meta.json mission_type`` value.
+    MissionTypeProfile | None
+        ``None`` when no profile exists for ``mission_type`` in any layer (the
+        resolver decides the hard-fail policy).  A resolved
+        :class:`MissionTypeProfile` otherwise.
 
     Raises
     ------
-    UnknownMissionTypeError
-        Per the hard-fail policy above.  Message MUST contain the
-        unknown ``mission_type`` verbatim (pinned by
-        ``test_resolve_governance_hard_fails_for_unknown_mission_type``).
-    FileNotFoundError
-        When ``meta.json`` itself does not exist (callers MUST stage
-        the mission's metadata before resolving governance).
+    pydantic.ValidationError
+        When a matching YAML is structurally malformed.
     """
-    meta_path = feature_dir / "meta.json"
-    try:
-        meta = json.loads(meta_path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        raise
-    except json.JSONDecodeError as exc:
-        raise ValueError(
-            f"meta.json at {meta_path} is not valid JSON: {exc}"
-        ) from exc
-
-    mission_type = meta.get("mission_type")
-    if not mission_type:
-        raise ValueError(
-            f"meta.json at {meta_path} is missing the 'mission_type' key. "
-            "Every mission MUST declare its mission_type so the charter "
-            "resolver can route it to the matching governance profile."
-        )
-
-    registered = existing_mission_types(repo_root)
-    profile = load_profile(mission_type)
-    project_has_overrides = _project_has_doctrine_overrides(repo_root)
-
-    if mission_type not in registered and not project_has_overrides:
-        raise UnknownMissionTypeError(mission_type, registered_ids=registered)
-
-    rendered = _render_profile_payload(profile, mission_type)
-    return GovernancePayload(text=rendered, mission_type=mission_type)
+    return _mission_type_profile_repository(repo_root).get(mission_type)
 
 
 # ---------------------------------------------------------------------------
@@ -407,15 +808,14 @@ _PROJECT_GOVERNANCE_PATH: tuple[str, ...] = (".kittify", "charter", "governance.
 def _project_has_doctrine_overrides(repo_root: Path) -> bool:
     """Return ``True`` iff the project charter declares any selection.
 
-    A project "has overrides" when its
-    ``.kittify/charter/governance.yaml`` carries a ``doctrine:`` block
-    with at least one non-empty ``selected_<kind>`` list.  This is
-    consulted by :func:`resolve_mission_type_governance` to decide whether an
-    unknown ``mission_type`` should hard-fail (no overrides) or merely
-    skip the missing profile (overrides present).
+    A project "has overrides" when its ``.kittify/charter/governance.yaml``
+    carries a ``doctrine:`` block with at least one non-empty ``selected_<kind>``
+    list.  This is consulted by the governance slot to decide whether an unknown
+    ``mission_type`` should hard-fail (no overrides) or merely skip the missing
+    profile (overrides present).
 
-    Best-effort: any I/O or parse failure collapses to ``False`` so a
-    malformed governance file never silences the hard-fail contract.
+    Best-effort: any I/O or parse failure collapses to ``False`` so a malformed
+    governance file never silences the hard-fail contract.
     """
     governance_yaml = repo_root.joinpath(*_PROJECT_GOVERNANCE_PATH)
     if not governance_yaml.exists():
@@ -449,8 +849,8 @@ def _render_profile_payload(
 
     * The payload MUST NOT contain ``software-dev-default`` when the
       mission_type is not ``software-dev``.
-    * The payload object MUST expose ``.mission_type`` matching the
-      ``meta.json mission_type``.
+    * The payload text MUST carry a ``Mission-Type Governance Profile:
+      <mission_type>`` header matching the ``meta.json mission_type``.
 
     Richer formatting (full doctrine-text expansion, fetch stanzas,
     section bodies) is the responsibility of

@@ -166,11 +166,10 @@ def load_org_drg(repo_root: Path) -> list[OrgDRGFragment]:
 #                                                has opted in to.
 #
 # FR-006's two-tier directive scope is honoured by this filter because
-# mission-type-scoped directives (declared via ``governance_refs`` on a
-# mission type) only enter the resolved set when that mission type is
-# activated. Project-scoped directives (``required_directives`` from the
-# top-level charter) are never gated by the activation filter — they apply
-# unconditionally to every mission.
+# mission-type-scoped directives only enter the resolved set when that
+# mission type is activated. Project-scoped directives
+# (``required_directives`` from the top-level charter) are never gated by
+# the activation filter — they apply unconditionally to every mission.
 #
 # CRITICAL INVARIANT (WP11 T069): the activation filter applies ONLY to
 # charter-mediated resolution paths. Direct doctrine-API callers

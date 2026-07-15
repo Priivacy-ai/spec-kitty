@@ -11,7 +11,7 @@ Exposes activated mission types for the current project via:
 Implementation notes
 --------------------
 The ``charter`` API is the entry point for activation state
-(``charter.existing_mission_types``, ``charter.resolve_action_sequence``).
+(``charter.existing_mission_types``, ``charter.resolve_mission_type_context``).
 Display metadata (``display_name``) is loaded from
 :class:`doctrine.missions.mission_type_repository.MissionTypeRepository`
 via a lazy import; ``specify_cli`` modules may import ``doctrine.*``
@@ -27,7 +27,11 @@ import typer
 from specify_cli.cli.console import console
 from rich.table import Table
 
-from charter.mission_type_profiles import UnknownMissionTypeError, existing_mission_types, resolve_action_sequence
+from charter.mission_type_profiles import (
+    UnknownMissionTypeError,
+    existing_mission_types,
+    resolve_mission_type_context,
+)
 
 __all__ = [
     "charter_mission_type_app",
@@ -79,7 +83,9 @@ def charter_mission_type_list(
             )
             continue
         try:
-            action_seq = resolve_action_sequence(mt_id, repo_root)
+            action_seq = resolve_mission_type_context(
+                repo_root, mission_type=mt_id
+            ).action_sequence
         except UnknownMissionTypeError:
             action_seq = list(mt.action_sequence)
 

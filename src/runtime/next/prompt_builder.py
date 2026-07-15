@@ -25,7 +25,7 @@ from charter.scope import CharterScopeConflict, CharterScopeNotFound
 from charter.scope_router import build_with_scope
 from charter.mission_type_profiles import (
     UnknownMissionTypeError,
-    resolve_mission_type_governance,
+    resolve_mission_type_context,
 )
 from charter.resolver import GovernanceResolutionError, resolve_project_governance
 from runtime.next._tmp_namespace import prompt_tmp_dir
@@ -324,7 +324,7 @@ def _mission_type_governance_lines(repo_root: Path, feature_dir: Path) -> list[s
 def _mission_type_governance_payload(repo_root: Path, feature_dir: Path) -> str | None:
     """Resolve mission-type-scoped governance for a WP prompt (WP08, FR-011).
 
-    The mission-type resolver (``charter.mission_type_profiles.resolve_mission_type_governance``)
+    The mission-type resolver (``charter.mission_type_profiles.resolve_mission_type_context``)
     runs FIRST so the documentation / research / plan default selections
     fill any gaps the project + org layers leave empty.  The hard-fail
     contract (:class:`UnknownMissionTypeError`) is intentionally NOT
@@ -343,14 +343,15 @@ def _mission_type_governance_payload(repo_root: Path, feature_dir: Path) -> str 
     if not (feature_dir / "meta.json").exists():
         return None
     try:
-        payload = resolve_mission_type_governance(repo_root, feature_dir)
+        bundle = resolve_mission_type_context(repo_root, feature_dir=feature_dir)
     except UnknownMissionTypeError:
         # FR-011 hard-fail surface: propagate so the operator sees the
         # missing-profile diagnostic instead of a silent fallback.
         raise
     except Exception:
         return None
-    return payload.text.rstrip()
+    text = bundle.governance_text.rstrip()
+    return text or None
 
 
 def _governance_context(

@@ -146,10 +146,12 @@ def _emit_step_removal_warnings(kind: str, artifact_id: str, repo_root: Path) ->
 
     try:
         from charter.mission_type_profiles import (  # noqa: PLC0415
-            resolve_action_sequence,
+            resolve_mission_type_context,
         )
 
-        current_seq: list[str] = resolve_action_sequence(artifact_id, repo_root)
+        current_seq: list[str] = resolve_mission_type_context(
+            repo_root, mission_type=artifact_id
+        ).action_sequence
     except Exception:  # noqa: BLE001 — type not yet activated or unknown
         current_seq = []
 
