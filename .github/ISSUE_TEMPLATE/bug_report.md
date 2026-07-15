@@ -2,7 +2,7 @@
 name: "🐛 Bug report"
 about: "Something isn't working as documented"
 title: "[bug] "
-labels: ["bug"]
+type: "Bug"
 ---
 
 ## What happened

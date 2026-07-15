@@ -28,19 +28,21 @@ patterns:
       Labels on one ticket: priority:P1, P1-bug, P2-enhancement
       (dual/conflicting priority + type smuggled into a priority label)
     good_example: |
-      Labels on one ticket: priority:P1, bug
-      (one canonical priority; kind expressed via the issue type, not a label)
+      Labels on one ticket: priority:P1
+      (one canonical priority; kind expressed via the native issue type, not a label)
 
-  - name: Issue type mirrors the bug label
+  - name: Native issue type carries the kind of work
     description: >
-      Keep issue type and the `bug` label consistent: a ticket with the `bug`
-      label is typed Bug, and a Bug-typed ticket carries the `bug` label. Epics
-      are typed Feature. Type is the kind of work; it is derived objectively
-      from the conventional-commit prefix and existing labels.
+      The kind of work is expressed by the native GitHub issue type
+      (Bug / Feature / Task), not by a kind label. The `bug` kind-label has been
+      retired in favor of the native Bug type — a defect is typed Bug, an epic or
+      new capability is typed Feature, everything else is typed Task. Type is
+      derived objectively from the conventional-commit prefix
+      (`fix:` -> Bug, `feat:`/epic -> Feature, else Task).
     bad_example: |
-      Ticket labelled `bug` but typed Task; epic left untyped.
+      Defect left untyped, or its kind smuggled into a label; epic left untyped.
     good_example: |
-      `bug` label <-> type Bug; every epic typed Feature.
+      Defect typed Bug (no kind label); every epic typed Feature.
 
   - name: Triage namespace for pending disposition
     description: >
