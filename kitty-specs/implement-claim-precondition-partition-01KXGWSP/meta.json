@@ -1,0 +1,31 @@
+{
+  "accept_commit": "edbee32c5289a9c8dfedc1fc9499f848f8271ad4",
+  "acceptance_history": [
+    {
+      "accept_commit": "edbee32c5289a9c8dfedc1fc9499f848f8271ad4",
+      "acceptance_mode": "pr",
+      "accepted_at": "2026-07-14T22:06:24.059296+00:00",
+      "accepted_by": "stijn",
+      "accepted_from_commit": "f7b83960f21faf7205e20616cb13783b546f18cb"
+    }
+  ],
+  "acceptance_mode": "pr",
+  "accepted_at": "2026-07-14T22:06:24.059296+00:00",
+  "accepted_by": "stijn",
+  "accepted_from_commit": "f7b83960f21faf7205e20616cb13783b546f18cb",
+  "baseline_merge_commit": "95ef8917d0a4cbdb29d7bb9afa8b72fc733d488c",
+  "created_at": "2026-07-14T18:04:02.835034+00:00",
+  "flattened": false,
+  "friendly_name": "Partition-Aware Implement-Claim Precondition",
+  "mission_id": "01KXGWSPCJBDH6ZV12875NARJY",
+  "mission_number": 178,
+  "mission_slug": "implement-claim-precondition-partition-01KXGWSP",
+  "mission_type": "software-dev",
+  "purpose_context": "When a solo pull-request-bound mission runs on its own feature branch, agents currently cannot claim a work package: the tool wrongly reports the spec, plan, and tasks as uncommitted and stops. This mission makes the claim precondition aware of where each planning artifact actually lives, so work proceeds without manual git workarounds, closing a dogfooding blocker that halts PR-bound missions before implementation begins.",
+  "purpose_tldr": "Fix the false 'Planning artifacts not committed' abort that blocks claiming work on PR-bound missions.",
+  "slug": "implement-claim-precondition-partition-01KXGWSP",
+  "source_description": "Fixes #2533 (write/claim-side twin of WP08): implement-claim precondition compares PRIMARY planning artifacts against the coordination ref (C-PLACE-1 single-ref conflation), aborting the claim on solo PR-bound coord missions.",
+  "target_branch": "mission/2533-pr-bound-coord-claim-precondition",
+  "topology": "single_branch",
+  "vcs": "git"
+}

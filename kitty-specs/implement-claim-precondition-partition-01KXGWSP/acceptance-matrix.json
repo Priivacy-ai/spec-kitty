@@ -1,0 +1,69 @@
+{
+  "mission_slug": "implement-claim-precondition-partition-01KXGWSP",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pending",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "resolve_precondition_ref unit tests + TestResolvePlanningArtifactStaging partition tests classify each path per kind (PRIMARY->HEAD, COORD-residue->coord ref).",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_implement_cores.py (WP01, 3d57d5c50)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-15T00:00:00+00:00",
+      "notes": "Verified via approved WP review."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Integration repro TestSoloPrBoundCoordMissionClaimPrecondition: solo PR-bound coord mission with spec/plan/tasks/meta committed on feature branch -> claim proceeds, no 'Planning artifacts not committed', topology unchanged.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_implement.py (WP01, 3d57d5c50)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-15T00:00:00+00:00",
+      "notes": "Verified via approved WP review."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "test_dirty_primary_lands_on_target_dirty_coord_lands_on_coord: genuinely-dirty PRIMARY spec.md on a coord mission commits to the primary/target ref; dirty COORD status file -> coord ref (two-transaction partition).",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_implement_writeside.py (WP02, 052ab0fa2)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-15T00:00:00+00:00",
+      "notes": "Verified via approved WP review."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "Red-first verified by reviewer: reverting implement_cores.py to base makes the integration repro fail via the real _ensure_planning_artifacts_committed_git gate (typer.Exit(1)); passes after fix.",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_implement.py red-before/green-after (WP01)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-15T00:00:00+00:00",
+      "notes": "Verified via approved WP review."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "test_tasks_move_task_partition.py exercises the real _mt_untracked_planning_artifact_paths consumer: committed PRIMARY artifacts not flagged; dirty COORD kind still surfaced (silent-consumer guard).",
+      "proof_type": "automated_test",
+      "evidence": "tests/specify_cli/cli/commands/test_tasks_move_task_partition.py (WP03, 9d53095d1)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-15T00:00:00+00:00",
+      "notes": "Verified via approved WP review."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "branch-target-routing.md and execution-lanes.md corrected to the kind-based partition (ADR 2026-06-24-1); no residual single-ref claim; terminology guard green.",
+      "proof_type": "automated_test",
+      "evidence": "docs/architecture/branch-target-routing.md + execution-lanes.md (WP03, 9d53095d1)",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata",
+      "verified_at": "2026-07-15T00:00:00+00:00",
+      "notes": "Verified via approved WP review."
+    }
+  ],
+  "negative_invariants": []
+}
