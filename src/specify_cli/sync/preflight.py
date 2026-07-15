@@ -323,8 +323,9 @@ def _build_remediation_lines(
         )
     if legacy_rows > 0:
         remediation_lines.append(
-            f"  • Run `spec-kitty sync now` to flush {legacy_rows} legacy "
-            f"rows for the current scope after the boundary is coherent."
+            f"  • Run `spec-kitty sync migrate` to migrate {legacy_rows} "
+            f"legacy queue row(s) into the event journal so the boundary "
+            f"becomes coherent."
         )
     if auth_required and not auth_present:
         remediation_lines.append(

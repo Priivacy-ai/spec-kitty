@@ -28,7 +28,11 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands import auth as auth_module
 from specify_cli.cli.commands import doctor as doctor_module
 from specify_cli.cli.commands import sync as sync_module
-from specify_cli.sync.preflight import MismatchField, _REMEDIATION_HINTS
+from specify_cli.sync.preflight import (
+    MismatchField,
+    _build_remediation_lines,
+    _REMEDIATION_HINTS,
+)
 
 pytestmark = pytest.mark.fast
 
@@ -183,3 +187,21 @@ def test_no_unknown_commands_in_hints() -> None:
                     f"Hint for {field_name!r} mentions unknown group "
                     f"{head!r}. Tokens={tokens!r}."
                 )
+
+
+def test_legacy_rows_remediation_points_to_sync_migrate():
+    """Regression for #2665: the legacy-rows remediation must point to
+    ``spec-kitty sync migrate`` — which actually migrates legacy queue rows
+    into the event journal — and NOT ``spec-kitty sync now``. ``sync now`` is
+    itself gated on legacy rows, so the old wording was a circular dead-end.
+    """
+    lines = _build_remediation_lines(
+        (),
+        orphan_count=0,
+        legacy_rows=3,
+        auth_required=False,
+        auth_present=False,
+    )
+    joined = "\n".join(lines)
+    assert "spec-kitty sync migrate" in joined
+    assert "spec-kitty sync now" not in joined
