@@ -398,23 +398,25 @@ def test_matrix_lands_on_coord_via_all_three_write_paths_no_stale_copy(tmp_path:
 def test_per_batch_kind_regression_would_misroute_matrix_off_coord(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Simulates the PRE-WP01 defect shape and shows the seam's guard is real.
+    """Simulates a partition-classifier defect and shows the seam's guard is real.
 
-    Monkeypatches ``commit_router.kind_for_mission_file`` to always return
-    ``None`` — collapsing ``_group_files_by_partition``'s per-file
-    classification back to the caller-supplied ``kind`` for EVERY file (the
-    exact #2404 defect: "a mixed-partition batch under one ``kind`` misrouting
-    every file to that kind's partition"). Committing ``acceptance-matrix.json``
-    with the SPEC-commit's nominal ``kind=SPEC`` (a PRIMARY kind) under this
-    patched router must then land the matrix on the PRIMARY target branch
-    instead of coord — proving that ``test_matrix_lands_on_coord_via_all_
-    three_write_paths_no_stale_copy``'s ``resolved_1 == coord_feature_dir``
-    assertion is genuinely falsifiable, not a tautology.
+    Post-#2650 (WP05) ``_group_files_by_partition`` decides membership via
+    ``is_coordination_artifact_residue_path`` — the retired ``kind_for_mission_file``
+    per-file classifier no longer drives the split (patching it is a no-op now).
+    To keep this falsifiability check valid against the CURRENT classifier, monkeypatch
+    the residue predicate to always return ``False`` — collapsing EVERY file (including
+    the COORD-residue ``acceptance-matrix.json``) into the PRIMARY bucket. Committing the
+    matrix with the SPEC-commit's nominal ``kind=SPEC`` under this patched router must then
+    land it on the PRIMARY target branch instead of coord — proving that
+    ``test_matrix_lands_on_coord_via_all_three_write_paths_no_stale_copy``'s
+    ``resolved_1 == coord_feature_dir`` assertion is genuinely falsifiable, not a tautology.
     """
     result, coord_root, coord_feature_dir = _build_coord_mission_for_matrix(tmp_path)
     slug = result.mission_slug
 
-    monkeypatch.setattr(commit_router_mod, "kind_for_mission_file", lambda *_a, **_kw: None)
+    monkeypatch.setattr(
+        commit_router_mod, "is_coordination_artifact_residue_path", lambda *_a, **_kw: False
+    )
 
     matrix_path = write_acceptance_matrix(
         result.feature_dir, _matrix_with_marker(slug, "REGRESSION_MARKER")
