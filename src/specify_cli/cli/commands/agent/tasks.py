@@ -382,6 +382,7 @@ globals()["_list_wp_branch_" + KITTY_SPECS_DIR.replace("-", "_") + "_changes"] =
 # kitty-specs/tasks-py-degod-wave2-01KWH9EQ/seam-checklist.md.
 # ===========================================================================
 from specify_cli.cli.commands.agent.tasks_move_task import (
+    _MoveTaskArgs as _MoveTaskArgs,
     _MoveTaskState as _MoveTaskState,
     # WP09 (FR-008, IC-07): the six family stragglers that stayed behind at
     # WP05 — the arbiter override pair, the #2155 mixed-bundle partition, the
@@ -408,6 +409,13 @@ from specify_cli.cli.commands.agent.tasks_move_task import (
     _mt_clear_rollback_claim_markers as _mt_clear_rollback_claim_markers,
     _mt_commit_lane_deliverables as _mt_commit_lane_deliverables,
     _mt_commit_wp_file as _mt_commit_wp_file,
+    # WP07 (#2649, T034/T035): helpers extracted out of ``_mt_commit_wp_file``
+    # (folds #2604) and ``_mt_uncheck_rollback_subtasks`` join the family
+    # surface like every other def — same seam-bridge rule.
+    _mt_wp_commit_message as _mt_wp_commit_message,
+    _mt_report_commit_outcome as _mt_report_commit_outcome,
+    _mt_attempt_uncheck_write as _mt_attempt_uncheck_write,
+    _mt_commit_uncheck_tasks_md as _mt_commit_uncheck_tasks_md,
     _mt_current_event_lane as _mt_current_event_lane,
     _mt_done_ancestry_facts as _mt_done_ancestry_facts,
     _mt_emit_transitions as _mt_emit_transitions,
@@ -640,27 +648,31 @@ def move_task(
     # WP06 (#2116): thin orchestrator. The Typer command declares the CLI surface
     # (WP01 golden byte-identity) and delegates to ``_do_move_task``, which runs the
     # WP03 decision core and executes it through the WP02 coord READ/WRITE ports.
+    # WP07 (T033, #2649): the 19 raw inputs collapse into ONE ``_MoveTaskArgs``
+    # parameter object (``_do_move_task``'s ≤13-param ceiling).
     _do_move_task(
-        task_id=task_id,
-        to=to,
-        mission=mission,
-        agent=agent,
-        assignee=assignee,
-        shell_pid=shell_pid,
-        note=note,
-        review_feedback_file=review_feedback_file,
-        approval_ref=approval_ref,
-        reviewer=reviewer,
-        self_review_fallback=self_review_fallback,
-        intended_reviewer=intended_reviewer,
-        reviewer_failure_reason=reviewer_failure_reason,
-        done_override_reason=done_override_reason,
-        force=force,
-        tracker_ref=tracker_ref,
-        skip_review_artifact_check=skip_review_artifact_check,
-        auto_commit=auto_commit,
-        json_output=json_output,
-        skip_pre_review_gate=skip_pre_review_gate,
+        _MoveTaskArgs(
+            task_id=task_id,
+            to=to,
+            mission=mission,
+            agent=agent,
+            assignee=assignee,
+            shell_pid=shell_pid,
+            note=note,
+            review_feedback_file=review_feedback_file,
+            approval_ref=approval_ref,
+            reviewer=reviewer,
+            self_review_fallback=self_review_fallback,
+            intended_reviewer=intended_reviewer,
+            reviewer_failure_reason=reviewer_failure_reason,
+            done_override_reason=done_override_reason,
+            force=force,
+            tracker_ref=tracker_ref,
+            skip_review_artifact_check=skip_review_artifact_check,
+            auto_commit=auto_commit,
+            json_output=json_output,
+            skip_pre_review_gate=skip_pre_review_gate,
+        )
     )
 
 

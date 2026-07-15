@@ -1482,6 +1482,47 @@ def _mt_write_and_commit_wp_file(
     return True, commit_success, router_result, status_placement_ref
 
 
+def _mt_wp_commit_message(st: _MoveTaskState, agent_name: str) -> str:
+    """Build the WP-file auto-commit message (spec-number prefix + optional
+    agent suffix). Extracted from ``_mt_commit_wp_file`` (T034, folds #2604)
+    for complexity headroom; pure string assembly, no I/O."""
+    spec_number = st.mission_slug.split("-")[0] if "-" in st.mission_slug else st.mission_slug
+    commit_msg = f"chore: Move {st.task_id} to {st.target_lane} on spec {spec_number}"
+    if agent_name != "unknown":
+        commit_msg += f" [{agent_name}]"
+    return commit_msg
+
+
+def _mt_report_commit_outcome(
+    st: _MoveTaskState,
+    *,
+    commit_success: bool,
+    skip_target_commit: bool,
+    router_result: CommitArtifactResult | None,
+    status_placement_ref: str | None,
+) -> None:
+    """Console-report the WP-file commit outcome. Extracted from
+    ``_mt_commit_wp_file`` (T034, folds #2604) for complexity headroom.
+
+    #2155: a router error is surfaced as an explicit warning, never swallowed
+    as a soft "Failed to auto-commit" — that branch stays intact here.
+    """
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
+    if commit_success:
+        if not st.json_output:
+            _tasks.console.print(_mt_wp_commit_success_message(st, status_placement_ref))
+        return
+    if not skip_target_commit and router_result is not None:
+        diagnostic = router_result.diagnostic
+        detail = f": {diagnostic}" if diagnostic else ""
+        if not st.json_output:
+            _tasks.console.print(
+                f"[yellow]Warning:[/yellow] WP-file auto-commit "
+                f"did not land ({router_result.status}){detail}"
+            )
+
+
 def _mt_commit_wp_file(
     st: _MoveTaskState,
     ports: TasksPorts,
@@ -1495,37 +1536,36 @@ def _mt_commit_wp_file(
     ``WORK_PACKAGE_TASK`` commit; the coord-owned status files are already committed
     to the coordination branch by the transactional emitter. A guard refusal folded
     into ``status="error"`` is surfaced, never swallowed.
+
+    Degrade-never-crash: a placement-resolution failure inside
+    :func:`_mt_resolve_status_placement_ref` (routed through
+    :func:`_mt_write_and_commit_wp_file`) already degrades to ``None`` at its
+    own layer — this function's job is only to report the outcome and never
+    let ANY failure here crash the move-task (T032 pins this end-to-end).
     """
-    from specify_cli.cli.commands.agent import tasks as _tasks
     assert st.wp is not None
     wp = st.wp
-    spec_number = st.mission_slug.split("-")[0] if "-" in st.mission_slug else st.mission_slug
-    commit_msg = f"chore: Move {st.task_id} to {st.target_lane} on spec {spec_number}"
-    if agent_name != "unknown":
-        commit_msg += f" [{agent_name}]"
+    commit_msg = _mt_wp_commit_message(st, agent_name)
     file_written = False
     try:
         file_written, commit_success, router_result, status_placement_ref = (
             _mt_write_and_commit_wp_file(st, ports, updated_doc, commit_msg, skip_target_commit)
         )
-        if commit_success:
-            if not st.json_output:
-                _tasks.console.print(_mt_wp_commit_success_message(st, status_placement_ref))
-        elif not skip_target_commit and router_result is not None:
-            # #2155: do NOT swallow a router error as a soft "Failed to auto-commit".
-            diagnostic = router_result.diagnostic
-            detail = f": {diagnostic}" if diagnostic else ""
-            if not st.json_output:
-                _tasks.console.print(
-                    f"[yellow]Warning:[/yellow] WP-file auto-commit "
-                    f"did not land ({router_result.status}){detail}"
-                )
+        _mt_report_commit_outcome(
+            st,
+            commit_success=commit_success,
+            skip_target_commit=skip_target_commit,
+            router_result=router_result,
+            status_placement_ref=status_placement_ref,
+        )
     except SafeCommitPathPolicyError:
         # #2155: a wrong-surface guard refusal is a real defect — re-raise, never hide.
         if not file_written:
             _write_wp_fallback(st, wp.path, updated_doc)
         raise
     except Exception as e:
+        from specify_cli.cli.commands.agent import tasks as _tasks
+
         if not file_written:
             _write_wp_fallback(st, wp.path, updated_doc)
         if not st.json_output:
@@ -1618,52 +1658,28 @@ def _mt_persist_wp_file(st: _MoveTaskState, ports: TasksPorts) -> None:
 # --- phase G: subtask uncheck on planned rollback (#2513) --------------------
 
 
-def _mt_uncheck_rollback_subtasks(st: _MoveTaskState, ports: TasksPorts) -> None:
-    """Uncheck ``- [x] T### …`` rows for *st.task_id*'s section on rollback to planned.
+def _mt_attempt_uncheck_write(st: _MoveTaskState, tasks_md: Path, feature_dir: Path) -> bool:
+    """Read/transform/write ``tasks.md``; return ``True`` iff a write landed.
 
-    A WP rolled back to ``planned`` must be fully re-implemented.  Leaving its
-    subtask rows checked is a lie — the gate would pass immediately on the next
-    ``for_review`` transition without any work being re-done (#2513).
-
-    Read/write path: ``tasks.md`` is a TASKS_INDEX (primary-partition) artifact
-    — resolve through ``ports.fs.planning_read_dir(kind=TASKS_INDEX)`` so a
-    coord-topology mission's ``-coord`` husk cannot shadow the real primary
-    (same anchor as the subtask gate and ``mark-status``).  Auto-commit
-    follows the same ``commit_artifact`` route used by ``mark-status``.
-
-    This runs OUT-OF-LOCK by design (C-001): it must not hold
-    ``feature_status_lock`` while it performs its own commit, and a bare
-    uncaught exception here would skip ``_mt_release_review_lock`` (D2
-    ordering in ``_mt_execute``). So the two failure modes are handled
-    differently and MUST NOT be merged into one handler:
-
-    - Read/write failure (#2576): would leave stale ``- [x]`` rows on a
-      ``planned`` WP *without any signal* — the exact silent re-manifestation
-      of #2513 this WP closes. Caught, routed through
-      ``write_text_within_directory`` (house guard), and SURFACED on
-      ``st.rollback_uncheck_error`` (never swallowed) plus an error-level log
-      line, but never re-raised — the caller must still reach
-      ``_mt_release_review_lock``.
-    - Commit failure: the uncheck already landed on disk; only the auto-commit
-      bookkeeping failed. Logged as a warning and swallowed — matches the
-      pre-existing (#2513) behavior for this leg.
+    Extracted from ``_mt_uncheck_rollback_subtasks`` (T035) so the read/write
+    half's failure handling stays a single, focused unit. #2576: ANY failure
+    here (read or write) is recorded on ``st.rollback_uncheck_error`` and
+    logged at error level — NEVER re-raised, since the caller must still
+    reach ``_mt_release_review_lock``. This handler is DISTINCT from the
+    commit-failure handler in :func:`_mt_commit_uncheck_tasks_md` — the two
+    failure modes MUST NOT be merged into one (C-001).
     """
-    from specify_cli.cli.commands.agent import tasks as _tasks
-    handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug)
-    feature_dir = ports.fs.planning_read_dir(handle, kind=MissionArtifactKind.TASKS_INDEX)
-    tasks_md = feature_dir / TASKS_MD_FILENAME
-    if not tasks_md.exists():
-        return
     try:
         original = tasks_md.read_text(encoding="utf-8")
         updated = uncheck_wp_section_subtask_rows(original, st.task_id)
         if updated == original:
-            return  # nothing to uncheck — no write, no commit
+            return False  # nothing to uncheck — no write, no commit
         write_text_within_directory(tasks_md, updated, root=feature_dir, encoding="utf-8")
+        return True
     except Exception as exc:
-        # #2576: SEPARATE from the commit-failure handler below — this one
-        # must be recorded on state, not swallowed, or a WP rolled back to
-        # ``planned`` can silently keep its subtask rows checked (#2513).
+        # #2576: SEPARATE from the commit-failure handler — this one must be
+        # recorded on state, not swallowed, or a WP rolled back to ``planned``
+        # can silently keep its subtask rows checked (#2513).
         st.rollback_uncheck_error = str(exc)
         logging.getLogger(__name__).error(
             "Failed to uncheck subtask rows for %s in %s — rollback to "
@@ -1673,9 +1689,20 @@ def _mt_uncheck_rollback_subtasks(st: _MoveTaskState, ports: TasksPorts) -> None
             st.mission_slug,
             exc,
         )
-        return
-    if not st.resolved_auto_commit:
-        return
+        return False
+
+
+def _mt_commit_uncheck_tasks_md(
+    st: _MoveTaskState, ports: TasksPorts, handle: MissionHandle, tasks_md: Path
+) -> None:
+    """Auto-commit the ``tasks.md`` uncheck. Extracted from
+    ``_mt_uncheck_rollback_subtasks`` (T035): the uncheck already landed on
+    disk by construction (called only after a successful write) — only the
+    auto-commit bookkeeping can fail here, and it is logged as a warning and
+    swallowed, matching the pre-existing (#2513) behavior for this leg.
+    """
+    from specify_cli.cli.commands.agent import tasks as _tasks
+
     spec_number = st.mission_slug.split("-")[0] if "-" in st.mission_slug else st.mission_slug
     commit_msg = f"chore: Uncheck {st.task_id} subtasks on rollback to planned (spec {spec_number})"
     try:
@@ -1693,6 +1720,48 @@ def _mt_uncheck_rollback_subtasks(st: _MoveTaskState, ports: TasksPorts) -> None
             st.mission_slug,
             exc,
         )
+
+
+def _mt_uncheck_rollback_subtasks(st: _MoveTaskState, ports: TasksPorts) -> None:
+    """Uncheck ``- [x] T### …`` rows for *st.task_id*'s section on rollback to planned.
+
+    A WP rolled back to ``planned`` must be fully re-implemented.  Leaving its
+    subtask rows checked is a lie — the gate would pass immediately on the next
+    ``for_review`` transition without any work being re-done (#2513).
+
+    Read/write path: ``tasks.md`` is a TASKS_INDEX (primary-partition) artifact
+    — resolve through ``ports.fs.planning_read_dir(kind=TASKS_INDEX)`` so a
+    coord-topology mission's ``-coord`` husk cannot shadow the real primary
+    (same anchor as the subtask gate and ``mark-status``).  Auto-commit
+    follows the same ``commit_artifact`` route used by ``mark-status``.
+
+    This runs OUT-OF-LOCK by design (C-001): it must not hold
+    ``feature_status_lock`` while it performs its own commit, and a bare
+    uncaught exception here would skip ``_mt_release_review_lock`` (D2
+    ordering in ``_mt_execute``). So the two failure modes are handled by two
+    SEPARATE helpers and MUST NOT be merged into one handler:
+
+    - Read/write failure (#2576, :func:`_mt_attempt_uncheck_write`): would
+      leave stale ``- [x]`` rows on a ``planned`` WP *without any signal* —
+      the exact silent re-manifestation of #2513 this WP closes. Caught,
+      routed through ``write_text_within_directory`` (house guard), and
+      SURFACED on ``st.rollback_uncheck_error`` (never swallowed) plus an
+      error-level log line, but never re-raised.
+    - Commit failure (:func:`_mt_commit_uncheck_tasks_md`): the uncheck
+      already landed on disk; only the auto-commit bookkeeping failed.
+      Logged as a warning and swallowed — matches the pre-existing (#2513)
+      behavior for this leg.
+    """
+    handle = MissionHandle(repo_root=st.main_repo_root, mission_slug=st.mission_slug)
+    feature_dir = ports.fs.planning_read_dir(handle, kind=MissionArtifactKind.TASKS_INDEX)
+    tasks_md = feature_dir / TASKS_MD_FILENAME
+    if not tasks_md.exists():
+        return
+    if not _mt_attempt_uncheck_write(st, tasks_md, feature_dir):
+        return
+    if not st.resolved_auto_commit:
+        return
+    _mt_commit_uncheck_tasks_md(st, ports, handle, tasks_md)
 
 
 def _mt_reset_for_planned_rollback(st: _MoveTaskState, ports: TasksPorts) -> None:
@@ -1825,60 +1894,76 @@ def _mt_output(st: _MoveTaskState) -> None:
     )
 
 
-def _do_move_task(
-    task_id: str,
-    to: str,
-    mission: str | None,
-    agent: str | None,
-    assignee: str | None,
-    shell_pid: str | None,
-    note: str | None,
-    review_feedback_file: Path | None,
-    approval_ref: str | None,
-    reviewer: str | None,
-    self_review_fallback: bool,
-    intended_reviewer: str | None,
-    reviewer_failure_reason: str | None,
-    done_override_reason: str | None,
-    force: bool,
-    tracker_ref: list[str] | None,
-    skip_review_artifact_check: bool,
-    auto_commit: bool | None,
-    json_output: bool,
-    skip_pre_review_gate: bool = False,
-    *,
-    ports: TasksPorts | None = None,
-) -> None:
+@dataclass(frozen=True)
+class _MoveTaskArgs:
+    """Parameter object for ``_do_move_task``'s raw CLI-facing arguments.
+
+    T033 (#2649): the pre-extraction signature carried 21 individual
+    parameters (task_id..skip_pre_review_gate, plus the ``ports`` DI seam) —
+    over the local ≤13 ceiling. Grouping every raw input into ONE dataclass
+    (field set and defaults mirror the pre-extraction signature exactly,
+    NFR-002) collapses the call surface to ``(args, *, ports)`` — 2
+    parameters — leaving headroom for future flags (e.g. draft PR #2639) to
+    join this dataclass instead of re-breaching the ceiling. Module-private
+    (C-008/NFR-004): no net-new public symbol.
+    """
+
+    task_id: str
+    to: str
+    mission: str | None
+    agent: str | None
+    assignee: str | None
+    shell_pid: str | None
+    note: str | None
+    review_feedback_file: Path | None
+    approval_ref: str | None
+    reviewer: str | None
+    self_review_fallback: bool
+    intended_reviewer: str | None
+    reviewer_failure_reason: str | None
+    done_override_reason: str | None
+    force: bool
+    tracker_ref: list[str] | None
+    skip_review_artifact_check: bool
+    auto_commit: bool | None
+    json_output: bool
+    skip_pre_review_gate: bool = False
+
+
+def _do_move_task(args: _MoveTaskArgs, *, ports: TasksPorts | None = None) -> None:
     """Orchestrate ``move-task`` over the WP03 core + WP02 ports (C-005 seam).
 
     ``ports=None`` builds the production bundle (coord router bound to this
     module's patchable symbols). Tests inject a Fake bundle to observe the executed
     side-effects (T029). The phase helpers run in the SAME order as the original
     single body: resolve → gather → decide → finalize → execute → output.
+
+    T033 (#2649): ``args`` groups the 19 raw CLI-facing inputs the original
+    21-parameter signature carried individually — see :class:`_MoveTaskArgs`.
     """
     from specify_cli.cli.commands.agent import tasks as _tasks
     ports = ports or _default_move_task_ports()
     st = _MoveTaskState(
-        task_id=task_id,
-        to=to,
-        mission=mission,
-        agent=agent,
-        assignee=assignee,
-        shell_pid=shell_pid,
-        note=note,
-        review_feedback_file=review_feedback_file,
-        approval_ref=approval_ref,
-        reviewer=reviewer,
-        self_review_fallback=self_review_fallback,
-        intended_reviewer=intended_reviewer,
-        reviewer_failure_reason=reviewer_failure_reason,
-        done_override_reason=done_override_reason,
-        force=force,
-        tracker_ref=tracker_ref,
-        skip_review_artifact_check=skip_review_artifact_check,
-        auto_commit=auto_commit,
-        json_output=json_output,
-        skip_pre_review_gate=skip_pre_review_gate,
+        task_id=args.task_id,
+        to=args.to,
+        mission=args.mission,
+        agent=args.agent,
+        assignee=args.assignee,
+        shell_pid=args.shell_pid,
+        note=args.note,
+        review_feedback_file=args.review_feedback_file,
+        approval_ref=args.approval_ref,
+        reviewer=args.reviewer,
+        self_review_fallback=args.self_review_fallback,
+        intended_reviewer=args.intended_reviewer,
+        reviewer_failure_reason=args.reviewer_failure_reason,
+        done_override_reason=args.done_override_reason,
+        force=args.force,
+        tracker_ref=args.tracker_ref,
+        skip_review_artifact_check=args.skip_review_artifact_check,
+        auto_commit=args.auto_commit,
+        json_output=args.json_output,
+        skip_pre_review_gate=args.skip_pre_review_gate,
     )
     try:
         _mt_resolve_targets(st, ports)
@@ -1896,16 +1981,16 @@ def _do_move_task(
             _tasks.emit_error_logged(
                 error_type="runtime",
                 error_message=str(e),
-                wp_id=task_id,
+                wp_id=args.task_id,
                 stack_trace=traceback.format_exc(),
-                agent_id=agent,
+                agent_id=args.agent,
             )
         diagnostic = e.to_diagnostic() if isinstance(e, EventPersistenceError) else None
         if diagnostic is not None and st.canonical_lane is not None:
             diagnostic["failed_event_to_lane"] = diagnostic.get("to_lane")
             diagnostic["to_lane"] = st.canonical_lane
             diagnostic["requested_lane"] = st.canonical_lane
-        _tasks._output_error(json_output, str(e), diagnostic=diagnostic)
+        _tasks._output_error(args.json_output, str(e), diagnostic=diagnostic)
         raise typer.Exit(1) from None
 
 

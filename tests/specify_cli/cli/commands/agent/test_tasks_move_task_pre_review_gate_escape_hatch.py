@@ -312,7 +312,12 @@ def test_skip_pre_review_gate_flag_is_registered_on_move_task_help() -> None:
 def test_move_task_cli_forwards_skip_flag_to_orchestrator() -> None:
     """The Typer wrapper passes ``--skip-pre-review-gate`` through as
     ``skip_pre_review_gate=True`` — proving the CLI-declared flag actually
-    reaches ``_do_move_task`` (not just that it parses)."""
+    reaches ``_do_move_task`` (not just that it parses).
+
+    WP07 (T033, #2649): the wrapper now passes a single ``_MoveTaskArgs``
+    parameter object positionally rather than individual kwargs — assert on
+    the constructed object's field instead of a top-level kwarg.
+    """
     with patch(f"{_TASKS}._do_move_task") as do_move_task_mock:
         result = runner.invoke(
             app,
@@ -328,7 +333,8 @@ def test_move_task_cli_forwards_skip_flag_to_orchestrator() -> None:
         )
     assert result.exit_code == 0, result.output
     do_move_task_mock.assert_called_once()
-    assert do_move_task_mock.call_args.kwargs["skip_pre_review_gate"] is True
+    forwarded_args = do_move_task_mock.call_args.args[0]
+    assert forwarded_args.skip_pre_review_gate is True
 
 
 def test_move_task_cli_default_omits_skip_flag() -> None:
@@ -348,4 +354,5 @@ def test_move_task_cli_default_omits_skip_flag() -> None:
         )
     assert result.exit_code == 0, result.output
     do_move_task_mock.assert_called_once()
-    assert do_move_task_mock.call_args.kwargs["skip_pre_review_gate"] is False
+    forwarded_args = do_move_task_mock.call_args.args[0]
+    assert forwarded_args.skip_pre_review_gate is False

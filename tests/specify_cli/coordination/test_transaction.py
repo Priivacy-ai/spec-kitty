@@ -890,57 +890,64 @@ def test_nested_lock_attempt_times_out_from_other_thread(repo: Path) -> None:
 # C-004: legacy-HEAD-override block byte-freeze regression (WP14)
 # ---------------------------------------------------------------------------
 
-# The exact source text of the "legacy mode" HEAD-override block inside
-# ``_acquire_locked`` (WP08 T035-T036 / C-004). This block resolves
+# The exact source text of the GENUINELY-LEGACY HEAD-override sub-block inside
+# ``_acquire_locked`` (WP08 T035-T036 / C-004). This sub-block resolves
 # ``effective_destination_ref`` from the worktree's actual checked-out HEAD
-# for legacy (pre-coordination-branch) missions, and every other step of
-# ``acquire()`` depends on it applying uniformly across both the legacy and
-# new-topology paths. WP14 (read-surface-ssot-closeout) intentionally left
-# this block untouched while routing the surrounding meta.json reads onto
-# the canonical ``load_meta`` reader.
+# for GENUINELY-legacy (pre-coordination-branch, no stored topology) missions.
 #
-# Pinned by *content*, not line numbers: the block's line span (751-771 at
-# WP14 authoring time) naturally drifts as unrelated code above it changes
-# (e.g. import routing in this same WP shifted it up ~15 lines). A
-# line-number pin would false-positive on that drift; a content pin only
-# fires on an actual edit to the frozen block itself.
+# #2453 re-pin (operator-reviewed decision, implement-loop-commit-hardening
+# WP06): the original single-armed ``if legacy_mode:`` block was the #2647
+# write-side taint -- it routed EVERY coordination-less mission (including
+# modern ``single_branch``/``lanes`` missions whose shape was CHOSEN at
+# creation) through the ``Path.cwd()``-derived
+# ``_resolve_legacy_lane_destination``. The fix splits the legacy branch on
+# ``_warrants_legacy_warning``'s stored-topology classification: modern
+# coordination-less missions now route to ``repo_root`` on the caller-
+# supplied, CWD-invariant ``destination_ref`` (never re-pinned here -- it
+# carries no HEAD override), while GENUINELY-legacy missions keep the frozen
+# cwd-derivation below verbatim (a pre-SSOT mission has no other reliable
+# write target). This constant was re-pinned to the genuinely-legacy sub-block
+# as part of that explicit, reviewed decision -- NOT an incidental refactor.
+#
+# Pinned by *content*, not line numbers: the sub-block's line span naturally
+# drifts as unrelated code above it changes. A line-number pin would
+# false-positive on that drift; a content pin only fires on an actual edit to
+# the frozen sub-block itself.
 _LEGACY_HEAD_OVERRIDE_BLOCK = (
-    "        #     name resolved from the worktree's ``HEAD`` so the pre-flight\n"
-    "        #     policy gate and the ``safe_commit`` HEAD assertion see a\n"
-    "        #     consistent ref.\n"
-    "        #\n"
-    "        # Crucial invariant: **every other step of acquire() below — the\n"
-    "        # pre-flight policy gate, the feature-status lock, the surgical\n"
-    "        # truncate rollback, and the outbound deferral — applies\n"
-    "        # uniformly to both paths.**  Only ``worktree_root`` and (in\n"
-    "        # legacy mode) ``destination_ref`` differ.\n"
-    "        legacy_mode = _is_legacy_mission(repo_root, safe_mission_slug, safe_mid8)\n"
-    "        if legacy_mode:\n"
-    "            try:\n"
-    "                worktree_root, lane_branch = _resolve_legacy_lane_destination(\n"
-    "                    repo_root,\n"
-    "                )\n"
-    "            except BookkeepingLegacyResolutionFailed:\n"
-    "                raise\n"
-    "            # Override caller-supplied destination_ref with the actual\n"
-    "            # lane branch so policy + HEAD assertion both see truth.\n"
-    "            effective_normalized_ref = _normalize_ref(lane_branch)\n"
-    "            effective_destination_ref = effective_normalized_ref\n"
+    "            if genuinely_legacy:\n"
+    "                # Genuinely-legacy: unchanged pre-#2453 behaviour — resolve\n"
+    "                # the operator's current lane worktree + its checked-out\n"
+    "                # branch (there is no other reliable write target for a\n"
+    "                # mission that predates the coordination-branch topology).\n"
+    "                try:\n"
+    "                    worktree_root, lane_branch = _resolve_legacy_lane_destination(\n"
+    "                        repo_root,\n"
+    "                    )\n"
+    "                except BookkeepingLegacyResolutionFailed:\n"
+    "                    raise\n"
+    "                # Override caller-supplied destination_ref with the actual\n"
+    "                # lane branch so policy + HEAD assertion both see truth.\n"
+    "                effective_normalized_ref = _normalize_ref(lane_branch)\n"
+    "                effective_destination_ref = effective_normalized_ref\n"
 )
 
 
 def test_legacy_head_override_block_is_byte_unchanged() -> None:
-    """C-004: the legacy-mode HEAD-override block must never be edited.
+    """C-004: the genuinely-legacy HEAD-override sub-block must never be edited.
 
-    WP14 routed the module's other meta.json reads onto the canonical
-    ``load_meta`` reader but was required to leave this block byte-for-byte
-    identical. Guards against silent drift in a future edit.
+    Re-pinned (#2453, WP06 operator-reviewed decision) to the genuinely-legacy
+    arm after the write-side routing split closed #2647 for modern
+    coordination-less missions. Guards against silent drift in a future edit to
+    the still-frozen cwd-derivation used for pre-SSOT missions. The behavioral
+    counterpart (genuine-legacy stays cwd-derived; modern coordination-less
+    routes to ``repo_root``) is pinned in
+    ``test_transaction_legacy_topology_routing.py``.
     """
     source_path = Path(transaction_module.__file__)
     source_text = source_path.read_text(encoding="utf-8")
     assert _LEGACY_HEAD_OVERRIDE_BLOCK in source_text, (
-        "The C-004 legacy-HEAD-override block in coordination/transaction.py "
-        "has changed. This block is frozen by charter directive; any change "
-        "must go through an explicit, reviewed decision, not an incidental "
-        "refactor."
+        "The C-004 genuinely-legacy HEAD-override sub-block in "
+        "coordination/transaction.py has changed. This sub-block is frozen by "
+        "charter directive; any change must go through an explicit, reviewed "
+        "decision, not an incidental refactor."
     )

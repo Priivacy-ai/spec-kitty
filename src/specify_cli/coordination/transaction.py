@@ -744,18 +744,46 @@ class BookkeepingTransaction(AbstractContextManager["BookkeepingTransaction"]):
         # legacy mode) ``destination_ref`` differ.
         legacy_mode = _is_legacy_mission(repo_root, safe_mission_slug, safe_mid8)
         if legacy_mode:
-            try:
-                worktree_root, lane_branch = _resolve_legacy_lane_destination(
-                    repo_root,
-                )
-            except BookkeepingLegacyResolutionFailed:
-                raise
-            # Override caller-supplied destination_ref with the actual
-            # lane branch so policy + HEAD assertion both see truth.
-            effective_normalized_ref = _normalize_ref(lane_branch)
-            effective_destination_ref = effective_normalized_ref
-            if _warrants_legacy_warning(repo_root, safe_mission_slug, safe_mid8):
+            # #2453: ``_is_legacy_mission`` alone conflates two shapes that
+            # both merely lack ``coordination_branch`` — a genuinely-legacy
+            # (pre-SSOT) mission AND a MODERN coordination-less mission
+            # (``single_branch``/``lanes`` stored topology, or ``flattened``).
+            # ``_warrants_legacy_warning`` already carries the SAME
+            # stored-topology classification the sibling warning-fix (#2351)
+            # introduced (C-005) — reuse it here as the routing split too,
+            # rather than inventing a second classifier.
+            genuinely_legacy = _warrants_legacy_warning(
+                repo_root, safe_mission_slug, safe_mid8,
+            )
+            if genuinely_legacy:
+                # Genuinely-legacy: unchanged pre-#2453 behaviour — resolve
+                # the operator's current lane worktree + its checked-out
+                # branch (there is no other reliable write target for a
+                # mission that predates the coordination-branch topology).
+                try:
+                    worktree_root, lane_branch = _resolve_legacy_lane_destination(
+                        repo_root,
+                    )
+                except BookkeepingLegacyResolutionFailed:
+                    raise
+                # Override caller-supplied destination_ref with the actual
+                # lane branch so policy + HEAD assertion both see truth.
+                effective_normalized_ref = _normalize_ref(lane_branch)
+                effective_destination_ref = effective_normalized_ref
                 _emit_legacy_warning_once(repo_root, mission_id, safe_mission_slug)
+            else:
+                # Modern coordination-less mission (#2453 / #2647): its
+                # coordination-less shape was CHOSEN (stored topology) or is
+                # ``flattened`` — it is not pre-SSOT debt. The write target is
+                # the canonical mission surface: the primary checkout
+                # (``repo_root``) on the caller-supplied ``destination_ref``,
+                # which the caller already resolves CWD-invariantly (mirrors
+                # ``status_transition._resolve_write_target``'s
+                # ``resolve_placement_only(..., kind=STATUS_STATE).ref`` for
+                # the flat/base arm). Do NOT re-derive from ``Path.cwd()`` —
+                # that is the #2647 taint (a lane worktree's operator cwd can
+                # carry a stale local ``status.events.jsonl`` snapshot).
+                worktree_root = repo_root
         else:
             coord_branch = CoordinationWorkspace.branch_name(safe_mission_slug, safe_mid8)
             caller_change_set = GitChangeSet(

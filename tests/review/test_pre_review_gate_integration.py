@@ -40,7 +40,7 @@ from specify_cli.agent_tasks_ports import (
     TasksPorts,
 )
 from specify_cli.cli.commands.agent import tasks_move_task
-from specify_cli.cli.commands.agent.tasks_move_task import _do_move_task
+from specify_cli.cli.commands.agent.tasks_move_task import _do_move_task, _MoveTaskArgs
 from specify_cli.core.commit_guard import GuardCapability
 from specify_cli.review import pre_review_gate
 from specify_cli.review.baseline import BaselineFailure, BaselineTestResult
@@ -313,25 +313,27 @@ def _run_move(
         },
     ):
         _do_move_task(
-            task_id="WP01",
-            to="for_review",
-            mission=_MISSION,
-            agent=None,
-            assignee=None,
-            shell_pid=None,
-            note=None,
-            review_feedback_file=None,
-            approval_ref=None,
-            reviewer=None,
-            self_review_fallback=False,
-            intended_reviewer=None,
-            reviewer_failure_reason=None,
-            done_override_reason=None,
-            force=force,
-            tracker_ref=None,
-            skip_review_artifact_check=False,
-            auto_commit=False,
-            json_output=json_output,
+            _MoveTaskArgs(
+                task_id="WP01",
+                to="for_review",
+                mission=_MISSION,
+                agent=None,
+                assignee=None,
+                shell_pid=None,
+                note=None,
+                review_feedback_file=None,
+                approval_ref=None,
+                reviewer=None,
+                self_review_fallback=False,
+                intended_reviewer=None,
+                reviewer_failure_reason=None,
+                done_override_reason=None,
+                force=force,
+                tracker_ref=None,
+                skip_review_artifact_check=False,
+                auto_commit=False,
+                json_output=json_output,
+            ),
             ports=ports,
         )
 
