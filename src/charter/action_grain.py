@@ -189,7 +189,7 @@ def scan_builtin_cross_grain_duplicates(built_in_dir: Path | None = None) -> lis
         action grain for any shipped mission type.
     """
     from charter.mission_type_profile_repository import (  # noqa: PLC0415 — lazy; avoids charter.action_grain <-> charter.mission_type_profile_repository import cycle (T006)
-        MissionTypeProfileRepository,
+        builtin_missions_root,
     )
     from charter.mission_type_profiles import (  # noqa: PLC0415 — lazy; avoids charter.action_grain <-> charter.mission_type_profiles import cycle (T006)
         ResolvedGovernance,
@@ -200,7 +200,8 @@ def scan_builtin_cross_grain_duplicates(built_in_dir: Path | None = None) -> lis
         MissionTypeRepository,
     )
 
-    root = built_in_dir if built_in_dir is not None else MissionTypeProfileRepository._default_built_in_dir()  # noqa: SLF001 — the WP-documented root authority; MissionTypeProfileRepository has no public accessor for it.
+    # consume the promoted builtin_missions_root() — WP06 #2668
+    root = built_in_dir if built_in_dir is not None else builtin_missions_root()
 
     # Enumerate the mission types from the doctrine ``mission_types/*.yaml`` source
     # (the same source the DRG generator reads), NOT a hardcoded roster — so a
