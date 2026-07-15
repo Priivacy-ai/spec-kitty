@@ -241,6 +241,36 @@ def _parse_meta_mapping(raw: bytes) -> dict[str, Any] | None:
     return parsed if isinstance(parsed, dict) else None
 
 
+def _primary_ref_for(planning_branch: str | None) -> str:
+    """The ONE cli-local expression the read side and the write side both
+    derive the PRIMARY-partition ref from (FR-005, ref half; #2650 / WP04).
+
+    Pre-unification, the read side (:func:`resolve_precondition_ref`) hard-
+    coded the git-rev shorthand ``"HEAD"`` inline and the write side
+    (``implement.py::_commit_planning_artifacts_transaction``'s PRIMARY-group
+    destination) hard-coded the mission's ``planning_branch`` name inline --
+    two independently-written literals that happened to agree only because
+    every real claim runs from a checkout whose ``HEAD`` IS ``planning_branch``.
+    A detached-HEAD or off-target-branch checkout could silently break that
+    coincidence. Routing both sides through this single function removes the
+    two-literal duplication (NFR-004): a future edit to "what counts as the
+    PRIMARY ref" can only be made here, once.
+
+    ``planning_branch`` is ``None`` at the read-side call sites in this module
+    (``resolve_precondition_ref`` resolves a ref PER PATH, not per branch --
+    no branch name is in scope there) and always a real branch name at the
+    write-side call sites in ``implement.py`` (the mission's actual commit
+    destination is already resolved by the time the commit runs).
+
+    ``planning_branch or "HEAD"`` is NOT the C-009-forbidden default-BRANCH
+    fallback: an absent/empty ``planning_branch`` resolves to the LOCAL
+    CHECKOUT (``"HEAD"``, the read side's original constant), never a
+    hardcoded branch name such as ``main``. Pure: no filesystem/git side
+    effects.
+    """
+    return planning_branch or "HEAD"
+
+
 def resolve_precondition_ref(repo_rel_path: str, coord_branch_for_filter: str | None) -> str:
     """Resolve the SINGLE ref *repo_rel_path* must be compared against for the
     implement-claim precondition (contracts/resolve-precondition-ref.md,
@@ -261,13 +291,14 @@ def resolve_precondition_ref(repo_rel_path: str, coord_branch_for_filter: str | 
 
     Defaults toward primary (fail-safe direction, NFR-004): everything not
     explicitly coord-residue -- PRIMARY kinds, ``meta.json`` (kind ``None``),
-    and unrecognized paths -- resolves to ``"HEAD"``. A PRIMARY artifact is
+    and unrecognized paths -- resolves to the shared :func:`_primary_ref_for`
+    expression (``"HEAD"`` here; FR-005 ref half). A PRIMARY artifact is
     never compared against the coordination branch. Pure: no filesystem/git
     side effects.
     """
     if coord_branch_for_filter and is_coordination_artifact_residue_path(repo_rel_path):
         return coord_branch_for_filter
-    return "HEAD"
+    return _primary_ref_for(None)
 
 
 def _committed_meta_mapping(repo_root: Path, repo_rel: str, ref: str | None, *, git: GitPort = DEFAULT_GIT_PORT) -> dict[str, Any] | None:
@@ -476,14 +507,15 @@ def _files_changed_vs_precondition_ref(
     the result -- callers print ``files_to_commit`` verbatim in the "not
     committed" instructions.
     """
+    primary_ref = _primary_ref_for(None)
     primary_files: list[str] = []
     coord_files: list[str] = []
     for repo_rel in files:
-        if resolve_precondition_ref(repo_rel, coord_branch_for_filter) == "HEAD":
+        if resolve_precondition_ref(repo_rel, coord_branch_for_filter) == primary_ref:
             primary_files.append(repo_rel)
         else:
             coord_files.append(repo_rel)
-    changed = set(_files_changed_vs_ref(repo_root, primary_files, "HEAD", git=git))
+    changed = set(_files_changed_vs_ref(repo_root, primary_files, primary_ref, git=git))
     changed |= set(_files_changed_vs_ref(repo_root, coord_files, coord_branch_for_filter, git=git))
     return [repo_rel for repo_rel in files if repo_rel in changed]
 

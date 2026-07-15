@@ -6,9 +6,10 @@ import functools
 import json
 import re
 import subprocess
+from collections.abc import Callable
 from io import StringIO
 from pathlib import Path
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 import typer
 from pydantic import ValidationError
@@ -72,11 +73,19 @@ from specify_cli.cli.commands.implement_cores import (  # noqa: F401 -- shim re-
     _parse_wp_frontmatter,
     _placement_coord_filter,
     _PorcelainEntry,
+    _primary_ref_for,
     _resolve_claim_commit_target,
     _resolve_placement_ref,
     _status_paths_for_commit,
     resolve_planning_artifact_staging,
 )
+
+if TYPE_CHECKING:
+    # WP03 / T013: type-only -- ``_run_recover_mode`` and its extracted
+    # helpers keep the real import lazy (inside the function body) to match
+    # the module's existing deferred-import discipline; this gives mypy the
+    # shapes without adding a runtime import edge to ``specify_cli.lanes``.
+    from specify_cli.lanes.recovery import RecoveryReport, RecoveryState
 
 _WP_ID_RE = re.compile(r"^WP\d{2}$", re.IGNORECASE)
 # WP03 / S1192: the rich-markup error prefix, repeated across the
@@ -132,47 +141,81 @@ def _get_wp_lane_from_event_log(feature_dir: Path, wp_id: str) -> str:
     return Lane.GENESIS
 
 
-def _json_safe_output(func):
+def _json_wrapper_resolve_wp_id(args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
+    """Resolve the ``wp_id`` used for JSON error payloads: the ``wp_id``
+    kwarg first, else the first positional argument (the Typer commands
+    wrapped by ``_json_safe_output`` all take ``wp_id`` as arg 0)."""
+    wp_id = kwargs.get("wp_id")
+    if wp_id is None and args:
+        wp_id = args[0]
+    return wp_id
+
+
+def _json_wrapper_begin_capture(json_output: bool) -> tuple[bool, StringIO | None]:
+    """Snapshot ``console.quiet`` and, in ``--json`` mode, redirect console
+    output into an in-memory buffer so wrapped-function chatter never leaks
+    onto stdout ahead of the machine-readable payload."""
+    previous_quiet = console.quiet
+    capture_buffer: StringIO | None = None
+    if json_output:
+        capture_buffer = StringIO()
+        console.file = capture_buffer
+        console.quiet = False
+    return previous_quiet, capture_buffer
+
+
+def _json_wrapper_summarize_capture(capture_buffer: StringIO | None) -> str:
+    """Return the last 20 non-blank, rstripped lines captured from the
+    console -- the JSON error-summary shape pinned by T010."""
+    lines = [line.rstrip() for line in (capture_buffer.getvalue() if capture_buffer else "").splitlines() if line.strip()]
+    return "\n".join(lines[-20:]).strip() if lines else "implement command failed"
+
+
+def _json_wrapper_emit_error_payload(error: str, wp_id: Any) -> None:
+    payload: dict[str, Any] = {"status": "error", "error": error}
+    if wp_id:
+        payload["wp_id"] = str(wp_id)
+    print(json.dumps(payload))
+
+
+def _json_wrapper_handle_typer_exit(exc: typer.Exit, json_output: bool, capture_buffer: StringIO | None, wp_id: Any) -> None:
+    """Emit the JSON error payload for a ``typer.Exit`` failure -- unless
+    ``exit_code`` is falsy (0), which is a success exit and never gets a
+    payload. The caller re-raises ``exc`` verbatim afterwards; this helper
+    never raises."""
+    if json_output and getattr(exc, "exit_code", 1):
+        summary = _json_wrapper_summarize_capture(capture_buffer)
+        _json_wrapper_emit_error_payload(summary or "implement command failed", wp_id)
+
+
+def _json_wrapper_end_capture(previous_quiet: bool) -> None:
+    console.quiet = previous_quiet
+    # Reset _file to None so the console uses sys.stdout dynamically.
+    # Restoring previous_file can leave the console pointing at a closed
+    # pytest capsys buffer when tests run in sequence.
+    console._file = None
+
+
+def _json_safe_output(func: Callable[..., Any]) -> Callable[..., Any]:
     """Ensure --json mode stays machine-readable on both success and failure."""
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         json_output = bool(kwargs.get("json_output", False))
-        previous_quiet = console.quiet
-        capture_buffer: StringIO | None = None
-        if json_output:
-            capture_buffer = StringIO()
-            console.file = capture_buffer
-            console.quiet = False
-
-        wp_id = kwargs.get("wp_id")
-        if wp_id is None and args:
-            wp_id = args[0]
+        wp_id = _json_wrapper_resolve_wp_id(args, kwargs)
+        previous_quiet, capture_buffer = _json_wrapper_begin_capture(json_output)
 
         try:
             return func(*args, **kwargs)
         except typer.Exit as exc:
-            if json_output and getattr(exc, "exit_code", 1):
-                lines = [line.rstrip() for line in (capture_buffer.getvalue() if capture_buffer else "").splitlines() if line.strip()]
-                summary = "\n".join(lines[-20:]).strip() if lines else "implement command failed"
-                payload = {"status": "error", "error": summary or "implement command failed"}
-                if wp_id:
-                    payload["wp_id"] = str(wp_id)
-                print(json.dumps(payload))
+            _json_wrapper_handle_typer_exit(exc, json_output, capture_buffer, wp_id)
             raise
         except Exception as exc:  # pragma: no cover - defensive
             if json_output:
-                payload = {"status": "error", "error": str(exc)}
-                if wp_id:
-                    payload["wp_id"] = str(wp_id)
-                print(json.dumps(payload))
+                _json_wrapper_emit_error_payload(str(exc), wp_id)
             raise typer.Exit(1) from exc
         finally:
-            console.quiet = previous_quiet
-            # Reset _file to None so the console uses sys.stdout dynamically.
-            # Restoring previous_file can leave the console pointing at a closed
-            # pytest capsys buffer when tests run in sequence.
-            console._file = None
+            _json_wrapper_end_capture(previous_quiet)
 
     return wrapper
 
@@ -350,68 +393,105 @@ def _print_planning_artifact_commit_instructions(
     raise typer.Exit(1)
 
 
-def _resolve_bookkeeping_transaction_identifiers(
-    feature_dir: Path,
-    mission_slug: str,
-    repo_root: Path | None = None,
-) -> tuple[str | None, str | None, str | None, str, str]:
+def _load_primary_anchored_mission_meta(
+    repo_root: Path | None, mission_slug: str
+) -> dict[str, Any] | None:
+    """FR-003 cascade layer 1: read the PRIMARY-checkout ``meta.json``.
+
+    ``coordination_branch`` / ``mission_id`` / ``mid8`` live ONLY in the
+    PRIMARY-checkout meta.json; the coord worktree's mission dir has none.
+    ``feature_dir`` (the caller's fallback, see
+    :func:`_load_fallback_mission_meta`) is topology-aware and prefers the
+    coord worktree once materialized — reading meta there returns empty, so
+    every identifier silently fell back to the slug (``mid8`` ->
+    ``<slug>0000``), which then names a non-existent coord branch/worktree at
+    claim time ("Failed to resolve coordination worktree for
+    <slug>-<slug-fallback>"). Anchor the config read on the canonical primary
+    dir first (the caller threads the true main ``repo_root``), so config is
+    read before topology is resolved.
+
+    Returns ``None`` when *repo_root* is not supplied or the primary meta is
+    missing/corrupt (legacy). Does NOT catch an ambiguous-handle raise from
+    :func:`_canonicalize_primary_read_handle` — that must propagate (no
+    silent pick, C-009).
+    """
+    if repo_root is None:
+        return None
+
+    from specify_cli.mission_metadata import load_meta as _load_meta
+    from specify_cli.missions._read_path_resolver import (
+        _canonicalize_primary_read_handle,
+        primary_feature_dir_for_mission,
+    )
+
+    # FR-011 / T012: fold the handle to its canonical dir NAME first so a bare
+    # mid8 / human slug resolves the durable ``<slug>-<mid8>`` home (ambiguous
+    # handle RAISES — no silent pick).
+    _canonical_handle = _canonicalize_primary_read_handle(repo_root, mission_slug)
+    try:
+        return _load_meta(primary_feature_dir_for_mission(repo_root, _canonical_handle))
+    except Exception:  # noqa: BLE001 — meta missing/corrupt is legacy
+        return None
+
+
+def _load_fallback_mission_meta(feature_dir: Path) -> dict[str, Any] | None:
+    """FR-003 cascade layer 2: read ``meta.json`` off the passed *feature_dir*.
+
+    Only consulted when :func:`_load_primary_anchored_mission_meta` yields
+    ``None`` (no ``repo_root``, or the primary meta is missing/corrupt).
+    """
     from specify_cli.mission_metadata import load_meta as _load_meta
 
-    # FR-003 cascade layer 1: ``coordination_branch`` / ``mission_id`` / ``mid8``
-    # live ONLY in the PRIMARY-checkout meta.json; the coord worktree's mission
-    # dir has none. ``feature_dir`` is topology-aware and prefers the coord
-    # worktree once materialized — reading meta there returns empty, so every
-    # identifier silently fell back to the slug (``mid8`` -> ``<slug>0000``),
-    # which then names a non-existent coord branch/worktree at claim time
-    # ("Failed to resolve coordination worktree for <slug>-<slug-fallback>").
-    # Anchor the config read on the canonical primary dir first (the caller
-    # threads the true main ``repo_root``), before falling back to the passed
-    # dir, so config is read before topology is resolved.
-    mission_meta: dict[str, Any] | None = None
-    if repo_root is not None:
-        from specify_cli.missions._read_path_resolver import (
-            _canonicalize_primary_read_handle,
-            primary_feature_dir_for_mission,
+    try:
+        return _load_meta(feature_dir)
+    except Exception:  # noqa: BLE001 — meta missing/corrupt is legacy
+        return None
+
+
+def _extract_mission_identifiers_from_meta(
+    mission_meta: dict[str, Any] | None, mission_slug: str
+) -> tuple[str | None, str | None, str | None]:
+    """Pull ``(coord_branch, mission_id, mid8)`` out of a resolved meta dict.
+
+    mid8 precedence: the stored ``meta["mid8"]`` value wins; otherwise the
+    fallback routes through the authoritative :func:`resolve_mid8` resolver
+    (WP03 / FR-009). ``or None`` preserves the prior ``None`` contract
+    (``resolve_mid8`` declines to ``""``).
+    """
+    if not isinstance(mission_meta, dict):
+        return None, None, None
+
+    coord_branch: str | None = mission_meta.get("coordination_branch") or None
+    mission_id: str | None = mission_meta.get("mission_id") or None
+
+    from specify_cli.lanes.branch_naming import resolve_mid8
+
+    mid8: str | None = mission_meta.get("mid8") or (
+        resolve_mid8(
+            mission_slug,
+            mission_id=mission_id if isinstance(mission_id, str) else None,
         )
+        or None
+    )
+    return coord_branch, mission_id, mid8
 
-        # FR-011 / T012: fold the handle to its canonical dir NAME first so a bare
-        # mid8 / human slug resolves the durable ``<slug>-<mid8>`` home (ambiguous
-        # handle RAISES — no silent pick).
-        _canonical_handle = _canonicalize_primary_read_handle(repo_root, mission_slug)
-        try:
-            mission_meta = _load_meta(primary_feature_dir_for_mission(repo_root, _canonical_handle))
-        except Exception:  # noqa: BLE001 — meta missing/corrupt is legacy
-            mission_meta = None
-    if mission_meta is None:
-        try:
-            mission_meta = _load_meta(feature_dir)
-        except Exception:  # noqa: BLE001 — meta missing/corrupt is legacy
-            mission_meta = None
 
-    coord_branch: str | None = None
-    mission_id: str | None = None
-    mid8: str | None = None
-    if isinstance(mission_meta, dict):
-        coord_branch = mission_meta.get("coordination_branch") or None
-        mission_id = mission_meta.get("mission_id") or None
-        # Preserve the stored ``meta["mid8"]`` preference, then route the
-        # fallback through the authoritative resolver (WP03 / FR-009).
-        # ``or None`` preserves the prior ``None`` contract (resolve_mid8
-        # declines to ``""``).
-        from specify_cli.lanes.branch_naming import resolve_mid8
+def _compute_effective_bookkeeping_ids(
+    mission_slug: str,
+    mission_id: str | None,
+    mid8: str | None,
+    coord_branch: str | None,
+) -> tuple[str, str]:
+    """Derive ``(effective_mission_id, effective_mid8)`` from the resolved triple.
 
-        mid8 = mission_meta.get("mid8") or (
-            resolve_mid8(
-                mission_slug,
-                mission_id=mission_id if isinstance(mission_id, str) else None,
-            )
-            or None
-        )
-
+    ``effective_mission_id`` falls back to ``legacy-<slug>`` when no declared
+    ``mission_id`` is available. ``effective_mid8`` routes through the
+    canonical fail-closed authority (FR-007) rather than fabricating a
+    zero-padded mid8 from the slug — that idiom named a non-existent coord
+    branch/worktree at claim time.
+    """
     effective_mission_id = str(mission_id) if mission_id else f"legacy-{mission_slug}"
-    # FR-007: route the mid8 through the canonical fail-closed authority rather
-    # than fabricating a zero-padded mid8 from the slug — that idiom named a
-    # non-existent coord branch/worktree at claim time.
+
     from specify_cli.lanes.branch_naming import resolve_transaction_mid8
 
     effective_mid8 = resolve_transaction_mid8(
@@ -419,6 +499,32 @@ def _resolve_bookkeeping_transaction_identifiers(
         mission_id=str(mission_id) if mission_id else None,
         mid8=str(mid8) if mid8 else None,
         coordination_branch=coord_branch,
+    )
+    return effective_mission_id, effective_mid8
+
+
+def _resolve_bookkeeping_transaction_identifiers(
+    feature_dir: Path,
+    mission_slug: str,
+    repo_root: Path | None = None,
+) -> tuple[str | None, str | None, str | None, str, str]:
+    """Resolve the 5-tuple ``(coord_branch, mission_id, mid8,
+    effective_mission_id, effective_mid8)`` bookkeeping identifiers.
+
+    C-006 (frozen contract, #2649): ``tasks_move_task.py`` imports this
+    symbol and reads only element ``[0]`` cross-lane, while the in-module
+    caller (``_ensure_planning_artifacts_committed_git``) unpacks all five —
+    the 5-tuple arity and order MUST NOT change.
+    """
+    mission_meta = _load_primary_anchored_mission_meta(repo_root, mission_slug)
+    if mission_meta is None:
+        mission_meta = _load_fallback_mission_meta(feature_dir)
+
+    coord_branch, mission_id, mid8 = _extract_mission_identifiers_from_meta(
+        mission_meta, mission_slug
+    )
+    effective_mission_id, effective_mid8 = _compute_effective_bookkeeping_ids(
+        mission_slug, mission_id, mid8, coord_branch
     )
     return coord_branch, mission_id, mid8, effective_mission_id, effective_mid8
 
@@ -703,14 +809,32 @@ def _commit_planning_artifacts_transaction(
     everything" model (and its now-false C-PLACE-1 docstring) to the
     separate #2160 placement-seam SSOT cluster -- out of scope here.
 
-    Protected-branch edge case: ``BookkeepingTransaction`` refuses ANY commit
-    to a protected ref (main/master) under standard capability -- see
-    ``commit_router._commit_partition_group``'s identical refusal for a
-    PRIMARY-kind commit onto a protected primary target. A real mission's
-    ``planning_branch`` is never main/master (it is the mission's dedicated
-    feature branch), so this only fires for a degenerate fixture/edge case;
-    when it does, the meta-derived branch below falls back to the historical
-    single coordination-branch transaction rather than hard-failing the claim.
+    #2648 (WP01) narrow-triple fail-close: this function has exactly FOUR
+    ``placement_ref``/``coord_branch``/protection outcomes, and only ONE of
+    them raises --
+
+    - ``placement_ref is not None`` -- commit verbatim to ``placement_ref.ref``
+      (C-004, unchanged by this WP).
+    - ``placement_ref is None`` and ``not coord_branch`` -- flat/legacy
+      mission, single transaction to ``planning_branch`` (C-004 strangler,
+      unchanged).
+    - ``placement_ref is None`` and ``coord_branch`` truthy and
+      ``is_protected(planning_branch)`` -- the NARROW TRIPLE: raises
+      :class:`PlacementResolutionRequired` with the SAME operator message as
+      the status-commit half (``_resolve_claim_commit_target``,
+      implement_cores.py). A real mission's ``planning_branch`` is never
+      main/master (it is the mission's dedicated feature branch), so this
+      only fires for a degenerate fixture/edge case or a torn-down topology;
+      pre-fix, this arm silently diverted the WHOLE dirty-PRIMARY batch to
+      the coordination branch instead of raising -- a genuinely-dirty
+      PRIMARY artifact would never reach ``planning_branch`` and the operator
+      would get no signal that the write placement is undecidable. Loud
+      fail-close beats a silent wrong-branch commit here (D11).
+    - ``placement_ref is None`` and ``coord_branch`` truthy and
+      ``planning_branch`` is NOT protected -- meta-derived coordination
+      mission, partition-aware split (unchanged: see ``T007`` below).
+
+    Only the narrow triple raises; the other three outcomes still commit.
     """
     (
         coord_branch,
@@ -754,38 +878,41 @@ def _commit_planning_artifacts_transaction(
         )
     elif not coord_branch:
         # Flattened/legacy mission: no coordination branch at all -- the
-        # historical single transaction to ``planning_branch``.
+        # historical single transaction to ``planning_branch``, routed
+        # through the shared ``_primary_ref_for`` expression (FR-005 ref
+        # half) so this write-side destination and the read-side idempotency
+        # compare cannot silently diverge (#2650 / WP04).
         _run_planning_artifact_commit(
             repo_root=repo_root,
             mission_id=effective_mission_id,
             mission_slug=mission_slug,
             mid8=effective_mid8,
-            destination_ref=planning_branch,
+            destination_ref=_primary_ref_for(planning_branch),
             files=files_to_commit,
             commit_msg=commit_msg,
         )
     elif ProtectionPolicy.resolve(repo_root).is_protected(planning_branch):
-        # Edge case: a coord mission whose OWN ``planning_branch`` is itself a
-        # protected branch (main/master). A real mission's target/feature
-        # branch is never main/master (see this mission's own meta.json
-        # ``target_branch``) -- ``BookkeepingTransaction`` refuses ANY commit
-        # to a protected ref under standard capability, mirroring
-        # ``commit_router._commit_partition_group``'s own refusal to
-        # auto-commit a PRIMARY-kind artifact onto a protected primary
-        # target. Rather than hard-failing the whole claim on this
-        # degenerate edge case, fall back to the historical single
-        # transaction to the coordination branch (C-004 strangler
-        # precedent: "never break the implement lifecycle on a
-        # context-resolution edge case", mirrored from
-        # ``_resolve_placement_ref`` above).
-        _run_planning_artifact_commit(
-            repo_root=repo_root,
-            mission_id=effective_mission_id,
-            mission_slug=mission_slug,
-            mid8=effective_mid8,
-            destination_ref=str(coord_branch),
-            files=files_to_commit,
-            commit_msg=commit_msg,
+        # #2648 (WP01) narrow-triple fail-close: ``placement_ref is None`` AND
+        # the meta-derived ``coord_branch`` is truthy AND
+        # ``is_protected(planning_branch)`` -- EXACTLY the precondition where
+        # the status-commit half (``_resolve_claim_commit_target``,
+        # implement_cores.py) already raises ``PlacementResolutionRequired``.
+        # Pre-fix, this arm silently diverted the WHOLE dirty-PRIMARY batch to
+        # the coordination branch instead of the (protected) target branch --
+        # a genuinely-dirty PRIMARY artifact would never reach
+        # ``planning_branch``. Raising here (rather than falling back to a
+        # coord-only commit) makes both halves of the claim agree: neither
+        # commits partially or silently when the canonical write placement
+        # cannot be resolved for a protected planning branch.
+        raise PlacementResolutionRequired(
+            "Cannot resolve the canonical write placement for this mission's "
+            "WP status claim commit -- refusing to commit to the currently "
+            "checked-out branch (D11 fail-closed). This usually means the "
+            "mission's stored topology could not be resolved (e.g. a "
+            "coordination branch declared in meta.json is missing/torn down "
+            "in git). Run `spec-kitty doctor workspaces --fix`, or flatten "
+            "the mission by removing `coordination_branch` from meta.json if "
+            "the coordination topology was never used, then retry."
         )
     else:
         # T007: meta-derived coordination mission -- partition-aware commit.
@@ -794,12 +921,16 @@ def _commit_planning_artifacts_transaction(
         # coordination branch. Only the group(s) that are non-empty run.
         primary_files, coord_files = _partition_files_for_commit(files_to_commit)
         if primary_files:
+            # FR-005 ref half (#2650 / WP04): the PRIMARY-group destination
+            # is derived from the SAME ``_primary_ref_for`` expression the
+            # read-side idempotency compare uses -- one source of the
+            # cli-side PRIMARY ref, not two independently-written literals.
             _run_planning_artifact_commit(
                 repo_root=repo_root,
                 mission_id=effective_mission_id,
                 mission_slug=mission_slug,
                 mid8=effective_mid8,
-                destination_ref=planning_branch,
+                destination_ref=_primary_ref_for(planning_branch),
                 files=primary_files,
                 commit_msg=commit_msg,
             )
@@ -853,21 +984,11 @@ def _ensure_vcs_in_meta(feature_dir: Path, _repo_root: Path) -> VCSBackend:
     return VCSBackend.GIT
 
 
-def _run_recover_mode(
-    _wp_id: str,
-    mission: str | None,
-    json_output: bool,
-) -> None:
-    """Run crash recovery for the given mission.
+def _recover_resolve_context(mission: str | None, json_output: bool) -> tuple[Path, str]:
+    """Resolve ``(repo_root, mission_slug)`` for recovery.
 
-    Orchestrates scan + worktree/context/status reconciliation + reporting.
-    The _wp_id argument is accepted but ignored for recovery -- all WPs in
-    the mission are scanned.
-    """
-    from rich.table import Table
-
-    from specify_cli.lanes.recovery import run_recovery, scan_recovery_state
-
+    On failure, emits the JSON error payload (when requested) and exits 1 --
+    matching the pre-extraction behavior byte-for-byte (T011 branch 1)."""
     try:
         repo_root = find_repo_root()
         _mission_number, mission_slug = detect_feature_context(mission, repo_root=repo_root)
@@ -875,55 +996,59 @@ def _run_recover_mode(
         if json_output:
             print(json.dumps({"status": "error", "error": str(exc)}))
         raise typer.Exit(1) from None
+    return repo_root, mission_slug
 
-    # First, show what we found
-    states = scan_recovery_state(repo_root, mission_slug)
-    needs_recovery = [s for s in states if s.recovery_action != "no_action"]
 
-    if not needs_recovery:
-        if json_output:
-            print(
-                json.dumps(
-                    {
-                        "status": "ok",
-                        "message": "No crashed implementation sessions found.",
-                        "recovered_wps": [],
-                        "worktrees_recreated": 0,
-                        "transitions_emitted": 0,
-                        "errors": [],
-                    }
-                )
+def _recover_emit_no_action_result(json_output: bool) -> None:
+    """Report that the scan found nothing to recover (T011 branch 2)."""
+    if json_output:
+        print(
+            json.dumps(
+                {
+                    "status": "ok",
+                    "message": "No crashed implementation sessions found.",
+                    "recovered_wps": [],
+                    "worktrees_recreated": 0,
+                    "transitions_emitted": 0,
+                    "errors": [],
+                }
             )
-        else:
-            console.print("[green]No crashed implementation sessions found.[/green]")
-        return
+        )
+    else:
+        console.print("[green]No crashed implementation sessions found.[/green]")
 
-    if not json_output:
-        table = Table(title="Recovery Scan Results")
-        table.add_column("WP", style="cyan")
-        table.add_column("Lane", style="blue")
-        table.add_column("Branch", style="dim")
-        table.add_column("Worktree", style="green")
-        table.add_column("Context", style="green")
-        table.add_column("Status", style="yellow")
-        table.add_column("Action", style="bold")
 
-        for s in needs_recovery:
-            table.add_row(
-                s.wp_id,
-                s.lane_id,
-                s.branch_name,
-                "yes" if s.worktree_exists else "[red]NO[/red]",
-                "yes" if s.context_exists else "[red]NO[/red]",
-                s.status_lane,
-                s.recovery_action,
-            )
-        console.print(table)
-        console.print()
+def _recover_print_scan_table(needs_recovery: list[RecoveryState]) -> None:
+    """Console-only rendering of the pre-recovery scan results table."""
+    from rich.table import Table
 
-    # Run recovery
-    report = run_recovery(repo_root, mission_slug)
+    table = Table(title="Recovery Scan Results")
+    table.add_column("WP", style="cyan")
+    table.add_column("Lane", style="blue")
+    table.add_column("Branch", style="dim")
+    table.add_column("Worktree", style="green")
+    table.add_column("Context", style="green")
+    table.add_column("Status", style="yellow")
+    table.add_column("Action", style="bold")
 
+    for s in needs_recovery:
+        table.add_row(
+            s.wp_id,
+            s.lane_id,
+            s.branch_name,
+            "yes" if s.worktree_exists else "[red]NO[/red]",
+            "yes" if s.context_exists else "[red]NO[/red]",
+            s.status_lane,
+            s.recovery_action,
+        )
+    console.print(table)
+    console.print()
+
+
+def _recover_emit_report(report: RecoveryReport, json_output: bool) -> None:
+    """Emit the final recovery report -- json payload (no
+    ``contexts_recreated``) vs the console summary (which includes it),
+    plus the console-only errors block (T011 branches 3+4)."""
     if json_output:
         print(
             json.dumps(
@@ -936,16 +1061,47 @@ def _run_recover_mode(
                 }
             )
         )
-    else:
-        console.print("[bold green]Recovery complete[/bold green]")
-        console.print(f"  WPs recovered: {', '.join(report.recovered_wps) or 'none'}")
-        console.print(f"  Worktrees recreated: {report.worktrees_recreated}")
-        console.print(f"  Contexts recreated: {report.contexts_recreated}")
-        console.print(f"  Status transitions emitted: {report.transitions_emitted}")
-        if report.errors:
-            console.print("  [red]Errors:[/red]")
-            for err in report.errors:
-                console.print(f"    - {err}")
+        return
+    console.print("[bold green]Recovery complete[/bold green]")
+    console.print(f"  WPs recovered: {', '.join(report.recovered_wps) or 'none'}")
+    console.print(f"  Worktrees recreated: {report.worktrees_recreated}")
+    console.print(f"  Contexts recreated: {report.contexts_recreated}")
+    console.print(f"  Status transitions emitted: {report.transitions_emitted}")
+    if report.errors:
+        console.print("  [red]Errors:[/red]")
+        for err in report.errors:
+            console.print(f"    - {err}")
+
+
+def _run_recover_mode(
+    _wp_id: str,
+    mission: str | None,
+    json_output: bool,
+) -> None:
+    """Run crash recovery for the given mission.
+
+    Orchestrates scan + worktree/context/status reconciliation + reporting.
+    The _wp_id argument is accepted but ignored for recovery -- all WPs in
+    the mission are scanned.
+    """
+    from specify_cli.lanes.recovery import run_recovery, scan_recovery_state
+
+    repo_root, mission_slug = _recover_resolve_context(mission, json_output)
+
+    # First, show what we found
+    states = scan_recovery_state(repo_root, mission_slug)
+    needs_recovery = [s for s in states if s.recovery_action != "no_action"]
+
+    if not needs_recovery:
+        _recover_emit_no_action_result(json_output)
+        return
+
+    if not json_output:
+        _recover_print_scan_table(needs_recovery)
+
+    # Run recovery
+    report = run_recovery(repo_root, mission_slug)
+    _recover_emit_report(report, json_output)
 
 
 # ---------------------------------------------------------------------------

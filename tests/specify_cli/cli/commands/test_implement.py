@@ -491,7 +491,19 @@ class TestPlanningArtifactAutoCommit:
         mid8 = mission_id[:8]
         coord_branch = f"kitty/mission-{mission_slug}-{mid8}"
 
-        git("init", "-q", "-b", "main")
+        # #2648 (WP01): a real mission's planning_branch is never main/master
+        # (protected) -- see test_implement_writeside.py's module docstring.
+        # "main" used to double as an unrealistic stand-in that (pre-fix)
+        # happened to divert through the ``767`` protected-branch arm, which
+        # collapsed the whole batch onto ``coord_branch`` regardless of the
+        # requested destination. Post-fix, a protected ``planning_branch``
+        # here fails closed (``PlacementResolutionRequired``); check the repo
+        # out directly on a realistic, non-protected, mission-branch-shaped
+        # ref instead (``_print_planning_artifact_commit_instructions``
+        # requires the actual checked-out branch to equal ``planning_branch``).
+        planning_branch = f"mission/{mission_slug}"
+
+        git("init", "-q", "-b", planning_branch)
         git("config", "user.email", "t@example.com")
         git("config", "user.name", "Test")
         git("config", "commit.gpgsign", "false")
@@ -514,23 +526,23 @@ class TestPlanningArtifactAutoCommit:
             feature_dir=feature_dir,
             mission_slug=mission_slug,
             wp_id="WP01",
-            planning_branch="main",
+            planning_branch=planning_branch,
             auto_commit=True,
         )
 
-        assert git("rev-parse", "main") != git("rev-parse", coord_branch)
+        assert git("rev-parse", planning_branch) != git("rev-parse", coord_branch)
         assert (
             git("show", f"{coord_branch}:kitty-specs/{mission_slug}/tasks.md").strip()
             == "# tasks"
         )
-        main_tasks = subprocess.run(
-            ["git", "show", f"main:kitty-specs/{mission_slug}/tasks.md"],
+        planning_branch_tasks = subprocess.run(
+            ["git", "show", f"{planning_branch}:kitty-specs/{mission_slug}/tasks.md"],
             cwd=repo,
             capture_output=True,
             text=True,
             check=False,
         )
-        assert main_tasks.returncode != 0
+        assert planning_branch_tasks.returncode != 0
 
     def test_auto_commit_with_coord_feature_dir_uses_primary_artifact_source(
         self, tmp_path: Path
@@ -556,7 +568,12 @@ class TestPlanningArtifactAutoCommit:
         mid8 = mission_id[:8]
         coord_branch = f"kitty/mission-{mission_slug}-{mid8}"
 
-        git("init", "-q", "-b", "main")
+        # #2648 (WP01): "main" is protected -- see the sibling test above for
+        # the full rationale. Check the repo out directly on a realistic,
+        # non-protected, mission-branch-shaped ref.
+        planning_branch = f"mission/{mission_slug}"
+
+        git("init", "-q", "-b", planning_branch)
         git("config", "user.email", "t@example.com")
         git("config", "user.name", "Test")
         git("config", "commit.gpgsign", "false")
@@ -580,7 +597,7 @@ class TestPlanningArtifactAutoCommit:
             feature_dir=primary_feature_dir,
             mission_slug=mission_slug,
             wp_id="WP01",
-            planning_branch="main",
+            planning_branch=planning_branch,
             auto_commit=True,
         )
         coord_feature_dir = (
@@ -599,7 +616,7 @@ class TestPlanningArtifactAutoCommit:
             feature_dir=coord_feature_dir,
             mission_slug=mission_slug,
             wp_id="WP02",
-            planning_branch="main",
+            planning_branch=planning_branch,
             auto_commit=True,
         )
 

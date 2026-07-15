@@ -113,61 +113,66 @@ def _fake_bookkeeping_transaction(calls: list[tuple[str, list[str]]]) -> type:
     return _FakeBookkeepingTransaction
 
 
+def _seeded_coord_mission(
+    tmp_path: Path, *, monkeypatch: pytest.MonkeyPatch
+) -> tuple[Path, Path, str, str, str, list[tuple[str, list[str]]]]:
+    """Build a coord mission with a committed ``spec.md`` baseline and a
+    real (but empty) coordination branch, then monkeypatch
+    ``BookkeepingTransaction`` to record every ``acquire()`` call.
+
+    Module-level (not a method) so it can be shared across test classes --
+    including ``TestNarrowTripleProtectedPlanningBranchFailsClosed`` (#2648
+    / WP01) -- without a ``self``-type mismatch under ``mypy --strict``.
+
+    Returns ``(repo, feature_dir, mission_slug, spec_rel, events_rel, calls)``.
+    """
+    repo = tmp_path / "repo"
+    _init_repo(repo, branch=_PLANNING_BRANCH)
+
+    mission_slug = "wp02-writeside-demo"
+    mission_id = "01J9WP02WRITESIDEXXXXXXXXX"
+    mid8 = mission_id[:8]
+    coord_branch = f"kitty/mission-{mission_slug}-{mid8}"
+    _git(repo, "branch", coord_branch)
+
+    feature_dir = repo / "kitty-specs" / mission_slug
+    _make_meta(
+        feature_dir,
+        with_coord=True,
+        mission_id=mission_id,
+        mission_slug=mission_slug,
+        target_branch=_PLANNING_BRANCH,
+    )
+
+    spec_md = feature_dir / "spec.md"
+    spec_md.write_text("# Spec\noriginal\n", encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "commit", "-q", "-m", "seed feature dir")
+
+    # Genuinely-dirty PRIMARY artifact: differs from the committed HEAD
+    # baseline, uncommitted in the working tree.
+    spec_md.write_text("# Spec\nrevised\n", encoding="utf-8")
+
+    # Dirty COORD-residue artifact: new/untracked.
+    status_events = feature_dir / "status.events.jsonl"
+    status_events.write_text('{"event_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV"}\n', encoding="utf-8")
+
+    calls: list[tuple[str, list[str]]] = []
+    monkeypatch.setattr(
+        "specify_cli.coordination.transaction.BookkeepingTransaction",
+        _fake_bookkeeping_transaction(calls),
+    )
+
+    spec_rel = f"kitty-specs/{mission_slug}/spec.md"
+    events_rel = f"kitty-specs/{mission_slug}/status.events.jsonl"
+    return repo, feature_dir, mission_slug, spec_rel, events_rel, calls
+
+
 class TestPartitionAwarePlanningArtifactCommit:
     """T006/T007: a genuinely-dirty PRIMARY artifact lands on the
     primary/target ref; a dirty COORD-residue artifact still lands on the
     coordination ref -- via two transactions, not one collapsed commit.
     """
-
-    def _seeded_coord_mission(
-        self, tmp_path: Path, *, monkeypatch: pytest.MonkeyPatch
-    ) -> tuple[Path, Path, str, str, str, list[tuple[str, list[str]]]]:
-        """Build a coord mission with a committed ``spec.md`` baseline and a
-        real (but empty) coordination branch, then monkeypatch
-        ``BookkeepingTransaction`` to record every ``acquire()`` call.
-
-        Returns ``(repo, feature_dir, mission_slug, spec_rel, events_rel, calls)``.
-        """
-        repo = tmp_path / "repo"
-        _init_repo(repo, branch=_PLANNING_BRANCH)
-
-        mission_slug = "wp02-writeside-demo"
-        mission_id = "01J9WP02WRITESIDEXXXXXXXXX"
-        mid8 = mission_id[:8]
-        coord_branch = f"kitty/mission-{mission_slug}-{mid8}"
-        _git(repo, "branch", coord_branch)
-
-        feature_dir = repo / "kitty-specs" / mission_slug
-        _make_meta(
-            feature_dir,
-            with_coord=True,
-            mission_id=mission_id,
-            mission_slug=mission_slug,
-            target_branch=_PLANNING_BRANCH,
-        )
-
-        spec_md = feature_dir / "spec.md"
-        spec_md.write_text("# Spec\noriginal\n", encoding="utf-8")
-        _git(repo, "add", "-A")
-        _git(repo, "commit", "-q", "-m", "seed feature dir")
-
-        # Genuinely-dirty PRIMARY artifact: differs from the committed HEAD
-        # baseline, uncommitted in the working tree.
-        spec_md.write_text("# Spec\nrevised\n", encoding="utf-8")
-
-        # Dirty COORD-residue artifact: new/untracked.
-        status_events = feature_dir / "status.events.jsonl"
-        status_events.write_text('{"event_id": "01ARZ3NDEKTSV4RRFFQ69G5FAV"}\n', encoding="utf-8")
-
-        calls: list[tuple[str, list[str]]] = []
-        monkeypatch.setattr(
-            "specify_cli.coordination.transaction.BookkeepingTransaction",
-            _fake_bookkeeping_transaction(calls),
-        )
-
-        spec_rel = f"kitty-specs/{mission_slug}/spec.md"
-        events_rel = f"kitty-specs/{mission_slug}/status.events.jsonl"
-        return repo, feature_dir, mission_slug, spec_rel, events_rel, calls
 
     def test_dirty_primary_lands_on_target_dirty_coord_lands_on_coord(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -183,7 +188,7 @@ class TestPartitionAwarePlanningArtifactCommit:
             _commit_planning_artifacts_transaction,
         )
 
-        repo, feature_dir, mission_slug, spec_rel, events_rel, calls = self._seeded_coord_mission(
+        repo, feature_dir, mission_slug, spec_rel, events_rel, calls = _seeded_coord_mission(
             tmp_path, monkeypatch=monkeypatch
         )
         mission_id = "01J9WP02WRITESIDEXXXXXXXXX"
@@ -224,7 +229,7 @@ class TestPartitionAwarePlanningArtifactCommit:
             _commit_planning_artifacts_transaction,
         )
 
-        repo, feature_dir, mission_slug, spec_rel, _events_rel, calls = self._seeded_coord_mission(
+        repo, feature_dir, mission_slug, spec_rel, _events_rel, calls = _seeded_coord_mission(
             tmp_path, monkeypatch=monkeypatch
         )
 
@@ -296,6 +301,66 @@ class TestNonCoordinationMissionCommitCollapsesToOneTransaction:
         # single planning_branch transaction -- there is no coordination
         # branch for a flat/legacy mission to divide between.
         assert calls == [(_PLANNING_BRANCH, [spec_rel, events_rel])]
+
+
+class TestNarrowTripleProtectedPlanningBranchFailsClosed:
+    """#2648 (WP01): the narrow triple -- ``placement_ref is None`` AND the
+    meta-derived ``coord_branch`` is truthy AND ``is_protected(planning_branch)``
+    -- must fail closed with :class:`PlacementResolutionRequired` instead of
+    silently diverting the whole dirty-PRIMARY batch to the coordination
+    branch (the pre-fix ``767`` arm). This is EXACTLY the precondition where
+    the status-commit half (``_resolve_claim_commit_target``) already raises,
+    so both halves of a claim now agree.
+
+    Uses the same module-level ``_seeded_coord_mission`` harness as
+    ``TestPartitionAwarePlanningArtifactCommit`` (coord mission, genuinely-
+    dirty PRIMARY ``spec.md``) but passes a protected ``planning_branch``
+    (``"main"``) instead of the harness's non-protected default -- this
+    function only ever inspects the ``planning_branch`` *string* via
+    ``ProtectionPolicy.is_protected``, never the repo's actual checked-out
+    branch, so overriding the argument is sufficient to hit the narrow
+    triple without re-seeding the repo on ``main``.
+    """
+
+    def test_protected_planning_branch_raises_placement_resolution_required(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from specify_cli.cli.commands.implement import (
+            _commit_planning_artifacts_transaction,
+        )
+        from specify_cli.cli.commands.implement_cores import (
+            _resolve_claim_commit_target,
+        )
+        from specify_cli.core.errors import PlacementResolutionRequired
+
+        repo, feature_dir, mission_slug, spec_rel, events_rel, calls = _seeded_coord_mission(
+            tmp_path, monkeypatch=monkeypatch
+        )
+
+        with pytest.raises(PlacementResolutionRequired) as excinfo:
+            _commit_planning_artifacts_transaction(
+                repo_root=repo,
+                feature_dir=feature_dir,
+                mission_slug=mission_slug,
+                planning_branch="main",
+                files_to_commit=[spec_rel, events_rel],
+                commit_msg="chore: planning artifacts for wp02-writeside-demo",
+                placement_ref=None,
+            )
+
+        # SC-002: byte-identical operator remediation message as the
+        # status-commit half, so both halves are indistinguishable to the
+        # operator.
+        try:
+            _resolve_claim_commit_target(None)
+        except PlacementResolutionRequired as status_half_exc:
+            assert str(excinfo.value) == str(status_half_exc)
+        else:  # pragma: no cover -- _resolve_claim_commit_target(None) always raises
+            pytest.fail("_resolve_claim_commit_target(None) unexpectedly did not raise")
+
+        # No transaction of any kind (coord or primary) ran -- the fail-close
+        # is loud, not a partial/silent commit to either ref.
+        assert calls == []
 
 
 class TestBannerConstantsHoisted:
