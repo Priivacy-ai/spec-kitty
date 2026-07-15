@@ -18,10 +18,17 @@ mirrors the ``TestNonVacuityTwin`` fixture in
 ``tests/doctrine/drg/test_cross_grain_integrity.py`` — same production seam
 (``MissionTypeProfileRepository`` -> the type grain / action grain union),
 just driven through the real CLI instead of calling the union function
-directly, and pointed at the scan's root via a monkeypatch of
-``MissionTypeProfileRepository._default_built_in_dir`` rather than an explicit
-``built_in_dir=`` argument (the CLI path calls
-``scan_builtin_cross_grain_duplicates()`` with no arguments).
+directly, and pointed at the scan's root via a monkeypatch of the
+module-level ``charter.mission_type_profile_repository.builtin_missions_root``
+accessor rather than an explicit ``built_in_dir=`` argument (the CLI path
+calls ``scan_builtin_cross_grain_duplicates()`` with no arguments, which
+resolves its root via ``charter.action_grain``'s direct call to
+``builtin_missions_root()`` — WP06 (#2668) promoted that accessor to a
+public module-level function and demoted
+``MissionTypeProfileRepository._default_built_in_dir`` to a thin delegate
+that calls it too, so patching the classmethod no longer reaches the scan's
+own root resolution; the module-level function is the single seam that
+covers both call sites).
 """
 
 from __future__ import annotations
@@ -33,7 +40,6 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from charter.mission_type_profile_repository import MissionTypeProfileRepository
 from specify_cli.cli.commands.doctor import app as doctor_app
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
@@ -110,10 +116,9 @@ def kittify_project(tmp_path: Path) -> Path:
 
 def _invoke_doctrine_json(project_root: Path, built_in_root: Path) -> tuple[int, dict[str, object]]:
     with (
-        patch.object(
-            MissionTypeProfileRepository,
-            "_default_built_in_dir",
-            staticmethod(lambda: built_in_root),
+        patch(
+            "charter.mission_type_profile_repository.builtin_missions_root",
+            return_value=built_in_root,
         ),
         patch(
             "specify_cli.cli.commands.doctor.locate_project_root",
@@ -163,10 +168,9 @@ def test_doctor_doctrine_human_renders_loud_collision_line(
     )
 
     with (
-        patch.object(
-            MissionTypeProfileRepository,
-            "_default_built_in_dir",
-            staticmethod(lambda: built_in_root),
+        patch(
+            "charter.mission_type_profile_repository.builtin_missions_root",
+            return_value=built_in_root,
         ),
         patch(
             "specify_cli.cli.commands.doctor.locate_project_root",
