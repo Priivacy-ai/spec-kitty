@@ -393,4 +393,4 @@ def test_guard_covers_full_141_symbol_surface() -> None:
     ``_mt_uncheck_rollback_subtasks`` degod helpers (``_mt_wp_commit_message``,
     ``_mt_report_commit_outcome``, ``_mt_attempt_uncheck_write``,
     ``_mt_commit_uncheck_tasks_md``) (58 -> 63)."""
-    assert len(SYMBOL_TO_MODULE) == 141
+    assert len(SYMBOL_TO_MODULE) == 141  # golden-count: cardinality-is-contract
