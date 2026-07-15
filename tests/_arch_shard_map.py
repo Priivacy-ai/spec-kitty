@@ -76,6 +76,17 @@ _ARCH_SHARD_1_FILES: tuple[str, ...] = (
     # was picked first (alphabetically paired with test_workflow_dist_lint.py
     # in shard_2 below) to keep the pick auditable.
     "tests/architectural/test_marker_baseline.py",
+    # Added post-data-model.md (new file, mission
+    # resolver-seam-completion / #2651 commit 96e225d07 — the C-003
+    # ``*parity_scaffold*`` reappearance guard). That commit landed the file
+    # without registering it in this shard map, leaving it selected by zero
+    # ``arch_shard_N`` marker (GC-1 violation) AND absent from the
+    # gate-coverage baseline (a zero-gate orphan) — main went red on both
+    # ``test_arch_shard_marker_completeness`` and ``test_no_new_orphan_surfaces``.
+    # Folded here during the #2670 landing pass (campsite cleaning). shard_1
+    # and shard_2 were tied lightest by file count (35 vs 35/39) when this fix
+    # landed; shard_1 is the convention's default first pick on a tie.
+    "tests/architectural/test_no_parity_scaffold.py",
     # Added post-data-model.md (new file at implementation time, mission
     # cmd-output-file-leak-guard-01KWVZX7 #2169 WP01). All three shards were
     # tied at 30 files each when this guard landed; shard_1 was picked
