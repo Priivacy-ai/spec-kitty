@@ -630,7 +630,12 @@ def _resolve_governance_slot(
     text = _render_profile_payload(profile, mission_type)
 
     def governance_thunk() -> ResolvedGovernance:
-        built_in_dir = repo._default_built_in_dir()  # noqa: SLF001 — WP-documented root authority; no public accessor (mirrors charter.action_grain.scan_builtin_cross_grain_duplicates).
+        from charter.mission_type_profile_repository import (  # noqa: PLC0415 — lazy; avoids cycle (mirrors _mission_type_profile_repository below)
+            builtin_missions_root,
+        )
+
+        # consume the promoted builtin_missions_root() — WP06 #2668
+        built_in_dir = builtin_missions_root()
         action_grain = aggregate_action_grain(built_in_dir, mission_type)
         return ResolvedGovernance.from_grains(
             type_grain=_profile_type_grain(profile),

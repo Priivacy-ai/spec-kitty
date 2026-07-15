@@ -40,7 +40,7 @@ from pathlib import Path
 from charter.mission_type_profiles import MissionTypeProfile
 from doctrine.base import BaseDoctrineRepository
 
-__all__ = ["MissionTypeProfileRepository"]
+__all__ = ["MissionTypeProfileRepository", "builtin_missions_root"]
 
 #: Shipped built-in profiles live at
 #: ``src/doctrine/missions/<type>/governance-profile.yaml``; project overrides
@@ -49,6 +49,21 @@ _GOVERNANCE_PROFILE_GLOB = "governance-profile.yaml"
 
 #: Project override root relative to the repository root.
 _PROJECT_OVERRIDE_PARTS: tuple[str, ...] = (".kittify", "doctrine", "mission_types")
+
+
+def builtin_missions_root() -> Path:
+    """Shipped profiles root: ``src/doctrine/missions``.
+
+    ``src/charter/mission_type_profile_repository.py`` sits two directories
+    deep inside ``src/``; ``parents[1]`` is the ``src/`` root, keeping the
+    resolution layer-rule-clean (charter → doctrine, no ``specify_cli``).
+
+    Public module-level accessor (#2668) so cross-module consumers (e.g.
+    ``charter.action_grain``, ``charter.mission_type_profiles``) no longer
+    need to reach into :class:`MissionTypeProfileRepository`'s private
+    ``_default_built_in_dir`` classmethod.
+    """
+    return Path(__file__).resolve().parents[1] / "doctrine" / "missions"
 
 
 class MissionTypeProfileRepository(BaseDoctrineRepository[MissionTypeProfile]):
@@ -95,11 +110,12 @@ class MissionTypeProfileRepository(BaseDoctrineRepository[MissionTypeProfile]):
     def _default_built_in_dir() -> Path:
         """Shipped profiles root: ``src/doctrine/missions``.
 
-        ``src/charter/mission_type_profile_repository.py`` sits two directories
-        deep inside ``src/``; ``parents[1]`` is the ``src/`` root, keeping the
-        resolution layer-rule-clean (charter → doctrine, no ``specify_cli``).
+        Delegates to the public module-level :func:`builtin_missions_root`
+        (#2668) — kept as a thin classmethod wrapper so the existing
+        ``__init__`` call site (and any other intra-class caller) is
+        unaffected by the promotion.
         """
-        return Path(__file__).resolve().parents[1] / "doctrine" / "missions"
+        return builtin_missions_root()
 
     @property
     def _schema(self) -> type[MissionTypeProfile]:
