@@ -776,10 +776,18 @@ def _discover_mission_type_nodes(
     labelled with the file's ``display_name``. Nodes only -- no edges are
     emitted here (edges are a deliberate S0-continuation; do not add a
     ``_KIND_MAP`` entry until edges exist).
+
+    Raises:
+        ValueError: if two mission-type YAMLs declare the same ``id``. Left
+            unchecked, ``_ensure_node`` would silently collapse the pair onto
+            one URN (masking a real authoring collision behind a freshness-clean
+            graph); the loud failure mirrors ``MissionTypeRepository``'s
+            id/stem invariant.
     """
     mission_types_dir = doctrine_root / "missions" / "mission_types"
     if not mission_types_dir.is_dir():
         return
+    seen_ids: dict[str, Path] = {}
     for path in sorted(mission_types_dir.glob("*.yaml")):
         data = _load_yaml(path)
         if data is None:
@@ -788,6 +796,14 @@ def _discover_mission_type_nodes(
         label: str = data.get("display_name", "")
         if not mission_type_id:
             continue
+        if mission_type_id in seen_ids:
+            msg = (
+                f"Duplicate mission_type id {mission_type_id!r} declared by "
+                f"both {seen_ids[mission_type_id].name} and {path.name} in "
+                f"{mission_types_dir}"
+            )
+            raise ValueError(msg)
+        seen_ids[mission_type_id] = path
         urn = artifact_to_urn("mission_type", mission_type_id)
         _ensure_node(nodes_by_urn, urn, NodeKind.MISSION_TYPE, label or None)
 

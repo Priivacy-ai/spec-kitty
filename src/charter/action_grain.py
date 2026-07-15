@@ -92,10 +92,15 @@ def aggregate_action_grain(built_in_dir: Path, mission_type: str) -> dict[str, l
     concatenates the per-action mappings (:func:`action_index_to_mapping`)
     for each governance kind.
 
-    De-duplication is deliberately **not** performed here: collapsing a
-    cross-action or cross-grain repeat would hide a double declaration that
-    ``ResolvedGovernance.from_grains`` / ``_merge_disjoint_grain`` (the
-    caller) is responsible for detecting (FR-013). Concatenation only.
+    De-duplication is deliberately **not** performed here: this function only
+    concatenates. The *cross-grain* collision (an URN in both the type grain
+    and this action grain) is what ``ResolvedGovernance.from_grains`` /
+    ``_merge_disjoint_grain`` detects and raises on (FR-013), so the raw
+    (undeduped) lists must reach that caller intact. Note the asymmetry: a
+    *cross-action* repeat (the same URN declared by two of this type's actions)
+    is **not** a double declaration — ``_merge_disjoint_grain`` silently
+    deduplicates it when unioning the two grains; only the type-vs-action
+    overlap is an error. This function does not police cross-action repeats.
 
     A mission type with no ``actions/`` directory at all degrades to an
     empty-content mapping (every shipped type currently has an ``actions/``
@@ -142,10 +147,12 @@ def aggregate_action_grain(built_in_dir: Path, mission_type: str) -> dict[str, l
 def scan_builtin_cross_grain_duplicates(built_in_dir: Path | None = None) -> list[str]:
     """Assert no cross-grain URN duplicate exists for any shipped mission type.
 
-    IC-11 dup-scan: for each of the four canonical (shipped) mission types
-    (``charter.mission_type_profiles.CANONICAL_MISSION_TYPES``), loads the
-    type grain (``governance-profile.yaml`` ``selected_*``) and the action
-    grain (:func:`aggregate_action_grain`) and unions them through
+    IC-11 dup-scan: for every shipped mission type — enumerated from the
+    doctrine ``mission_types/*.yaml`` source via
+    :class:`~doctrine.missions.mission_type_repository.MissionTypeRepository`,
+    NOT a hardcoded roster, so a newly-shipped type is covered automatically —
+    loads the type grain (``governance-profile.yaml`` ``selected_*``) and the
+    action grain (:func:`aggregate_action_grain`) and unions them through
     ``ResolvedGovernance.from_grains`` — the same union the resolver uses —
     which raises :class:`~charter.mission_type_profiles.CrossGrainDoubleDeclarationError`
     the moment one artifact URN appears in both grains (FR-013). This is the
@@ -162,9 +169,9 @@ def scan_builtin_cross_grain_duplicates(built_in_dir: Path | None = None) -> lis
     Returns
     -------
     list[str]
-        The mission types that were scanned and confirmed disjoint — always
-        all four canonical types on success (never a partial list, since a
-        collision raises instead of being skipped).
+        The mission types that were scanned and confirmed disjoint — every
+        shipped type on success (never a partial list, since a collision
+        raises instead of being skipped).
 
     Raises
     ------
@@ -176,16 +183,23 @@ def scan_builtin_cross_grain_duplicates(built_in_dir: Path | None = None) -> lis
         MissionTypeProfileRepository,
     )
     from charter.mission_type_profiles import (  # noqa: PLC0415 — lazy; avoids charter.action_grain <-> charter.mission_type_profiles import cycle (T006)
-        CANONICAL_MISSION_TYPES,
         ResolvedGovernance,
         _load_mission_type_profile,
         _profile_type_grain,
     )
+    from doctrine.missions.mission_type_repository import (  # noqa: PLC0415 — lazy; the doctrine mission_types/*.yaml roster (post-review hardening: enumerate the derived source, not a hardcoded list, so a new type is auto-covered)
+        MissionTypeRepository,
+    )
 
     root = built_in_dir if built_in_dir is not None else MissionTypeProfileRepository._default_built_in_dir()  # noqa: SLF001 — the WP-documented root authority; MissionTypeProfileRepository has no public accessor for it.
 
+    # Enumerate the mission types from the doctrine ``mission_types/*.yaml`` source
+    # (the same source the DRG generator reads), NOT a hardcoded roster — so a
+    # newly-shipped mission type is automatically covered by this forward-looking
+    # gate. ``MissionTypeRepository`` additionally fails loud on a malformed
+    # mission-type YAML (id/stem mismatch or invalid schema).
     scanned: list[str] = []
-    for mission_type in CANONICAL_MISSION_TYPES:
+    for mission_type in MissionTypeRepository(root / "mission_types").ids():
         profile = _load_mission_type_profile(mission_type)
         type_grain = _profile_type_grain(profile)
         action_grain = aggregate_action_grain(root, mission_type)
