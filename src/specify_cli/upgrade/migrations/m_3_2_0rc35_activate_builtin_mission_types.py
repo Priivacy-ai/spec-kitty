@@ -27,10 +27,12 @@ from ruamel.yaml import YAML
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
-#: IDs of the four built-in mission types shipped with spec-kitty.
-#: Must match the IDs in ``src/charter/pack_context._BUILTIN_MISSION_TYPE_IDS``
-#: and the keys used by ``PackContext.from_config()`` (key: ``mission_type_activations``).
-_BUILTIN_MISSION_TYPES: list[str] = ["software-dev", "documentation", "research", "plan"]
+#: The written set is resolved at ``apply()``-time from the canonical
+#: accessor ``doctrine.missions.mission_type_repository.builtin_mission_type_ids()``
+#: (single source of truth, #2669 IC-1a) rather than a hardcoded literal here.
+#: That accessor is also the source read by ``PackContext.from_config()``'s
+#: default (key: ``mission_type_activations``), so this migration and the
+#: charter runtime can never drift.
 
 
 @MigrationRegistry.register
@@ -107,6 +109,10 @@ class ActivateBuiltinMissionTypesMigration(BaseMigration):
         Returns:
             MigrationResult describing the outcome.
         """
+        from doctrine.missions.mission_type_repository import (  # noqa: PLC0415 — lazy; call-time live-read (C-004), avoids import-time filesystem I/O in the migration registry
+            builtin_mission_type_ids,
+        )
+
         config_file = project_path / ".kittify" / "config.yaml"
 
         if not config_file.exists():
@@ -136,8 +142,10 @@ class ActivateBuiltinMissionTypesMigration(BaseMigration):
                 changes_made=["mission_type_activations already present; no changes needed"],
             )
 
+        builtin_types = sorted(builtin_mission_type_ids())
+
         change_description = (
-            f"Added mission_type_activations: {_BUILTIN_MISSION_TYPES}"
+            f"Added mission_type_activations: {builtin_types}"
         )
 
         if dry_run:
@@ -146,7 +154,7 @@ class ActivateBuiltinMissionTypesMigration(BaseMigration):
                 changes_made=[f"Would add: {change_description}"],
             )
 
-        data["mission_type_activations"] = _BUILTIN_MISSION_TYPES
+        data["mission_type_activations"] = builtin_types
 
         try:
             with config_file.open("w", encoding="utf-8") as fh:
