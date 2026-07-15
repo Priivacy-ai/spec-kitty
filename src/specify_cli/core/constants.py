@@ -18,11 +18,11 @@ RETROSPECTIVE_FILENAME = "retrospective.yaml"
 # forbidden (#2628 SSOT fold).
 LINT_REPORT_FILENAME = "lint-report.json"
 
-# Built-in mission-type identifiers.  These are the four canonical values that
-# ship with spec-kitty; they are the same strings defined in
-# ``m_3_2_0rc35_activate_builtin_mission_types._BUILTIN_MISSION_TYPES`` and
-# compared at the CLI comparison sites.  All callers MUST import from here
-# rather than embedding inline literals.
+# Named scalar aliases for individual built-in mission-type identifiers, used at
+# the CLI comparison sites.  The canonical *roster* (the full built-in set) is
+# ``doctrine.missions.mission_type_repository.builtin_mission_type_ids`` (#2669) —
+# these are per-type named constants for readability, not a competing roster.
+# All callers MUST import a name from here rather than embedding inline literals.
 MISSION_TYPE_SOFTWARE_DEV = "software-dev"
 MISSION_TYPE_DOCUMENTATION = "documentation"
 MISSION_TYPE_RESEARCH = "research"
