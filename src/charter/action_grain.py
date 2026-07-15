@@ -38,7 +38,7 @@ module level.
 Scope cap
 ---------
 Aggregation reads the **built-in** missions root only
-(``MissionTypeProfileRepository._default_built_in_dir()`` =
+(``builtin_missions_root()`` =
 ``src/doctrine/missions``). No project/org action-index overlay exists today;
 building a multi-root or field-merge engine here is explicitly out of scope
 for this module.
@@ -122,7 +122,7 @@ def aggregate_action_grain(built_in_dir: Path, mission_type: str) -> dict[str, l
     Parameters
     ----------
     built_in_dir:
-        The shipped missions root (``MissionTypeProfileRepository._default_built_in_dir()``
+        The shipped missions root (``builtin_missions_root()``
         == ``src/doctrine/missions``), **not** a project ``repo_root``.
     mission_type:
         The mission type key (e.g. ``"software-dev"``).
@@ -172,7 +172,7 @@ def scan_builtin_cross_grain_duplicates(built_in_dir: Path | None = None) -> lis
     ----------
     built_in_dir:
         The shipped missions root. Defaults to
-        ``MissionTypeProfileRepository._default_built_in_dir()``
+        ``builtin_missions_root()``
         (``src/doctrine/missions``).
 
     Returns

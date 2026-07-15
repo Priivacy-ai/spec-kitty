@@ -22,7 +22,7 @@ from __future__ import annotations
 import pytest
 
 from charter.action_grain import scan_builtin_cross_grain_duplicates
-from charter.mission_type_profiles import CANONICAL_MISSION_TYPES
+from doctrine.missions.mission_type_repository import builtin_mission_type_id_set
 
 pytestmark = [pytest.mark.architectural]
 
@@ -35,6 +35,6 @@ def test_shipped_tree_is_cross_grain_disjoint_and_covers_every_type() -> None:
     # rather than returning, so a returned value at all is already a partial
     # proof; the roster equality below closes the remaining gap (no shipped
     # type silently skipped).
-    assert set(scanned) == set(CANONICAL_MISSION_TYPES)
+    assert set(scanned) == builtin_mission_type_id_set()
     # No duplicate scan entries -- one pass per shipped type.
     assert len(scanned) == len(set(scanned))
