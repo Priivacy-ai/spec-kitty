@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 from specify_cli.runtime.show_origin import (
     OriginEntry,
+    _discover_mission_names,
     collect_origins,
 )
 
@@ -422,3 +423,21 @@ class TestShowOriginTierLabels:
         spec_entry = next(e for e in entries if e.name == "spec-template.md")
         assert spec_entry.tier == "package_default"
         assert spec_entry.resolved_path is not None
+
+
+class TestDiscoverMissionNamesFallback:
+    """The OSError fallback is single-sourced from the doctrine roster (#2669)."""
+
+    def test_oserror_fallback_returns_canonical_roster_including_plan(self) -> None:
+        from doctrine.missions.mission_type_repository import builtin_mission_type_ids
+
+        with patch(
+            "specify_cli.runtime.show_origin.get_package_asset_root",
+            side_effect=OSError("no package assets"),
+        ):
+            names = _discover_mission_names()
+
+        # Derived from the single source, not a hand-kept partial list. The old
+        # literal was missing ``plan``; the fallback must now include it.
+        assert names == sorted(builtin_mission_type_ids())
+        assert "plan" in names

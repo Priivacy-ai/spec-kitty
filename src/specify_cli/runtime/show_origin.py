@@ -69,7 +69,11 @@ def _discover_mission_names() -> list[str]:
         return sorted(d.name for d in pkg_root.iterdir() if d.is_dir() and (d / "mission.yaml").is_file())
     except OSError as exc:
         logger.debug("Cannot discover missions from package: %s", exc)
-        return ["software-dev", "research", "documentation"]
+        # Single-source the built-in roster (#2669) instead of a hand-kept
+        # partial list (the old literal was missing ``plan``).
+        from doctrine.missions.mission_type_repository import builtin_mission_type_ids  # noqa: PLC0415
+
+        return sorted(builtin_mission_type_ids())
 
 
 def _discover_command_names(mission: str) -> list[str]:
