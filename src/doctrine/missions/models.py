@@ -164,12 +164,10 @@ class MissionType(BaseModel):
         Human-readable label shown in CLI output.
     extends:
         Optional base mission-type id at the same layer.  When set, the
-        extending type inherits governance refs that are not overridden.
+        extending type inherits fields that are not overridden.
     action_sequence:
         Ordered list of action step ids.  Must be non-empty and contain
         no duplicates.
-    governance_refs:
-        Directive / tactic IDs that govern this mission type.
     template_set:
         Optional mapping from artifact-type key (e.g. ``"spec"``) to
         template filename (e.g. ``"spec-template.md"``).  ``None`` means
@@ -183,7 +181,6 @@ class MissionType(BaseModel):
     display_name: str
     extends: str | None = None
     action_sequence: list[str]
-    governance_refs: list[str] = Field(default_factory=list)
     template_set: dict[str, str] | None = None
 
     @field_validator("id")

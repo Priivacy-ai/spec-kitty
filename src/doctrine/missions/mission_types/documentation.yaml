@@ -9,5 +9,4 @@ action_sequence:
   - validate
   - publish
   - accept
-governance_refs: []
 template_set: null

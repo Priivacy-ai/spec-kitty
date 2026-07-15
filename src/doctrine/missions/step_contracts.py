@@ -34,6 +34,7 @@ __all__ = [
     "MissionStepContractRepository",
     "MissionStepInput",
     "MissionStepContractStep",
+    "resolve_step_contract_ids",
 ]
 
 
@@ -169,6 +170,18 @@ class MissionStepContractRepository(BaseDoctrineRepository[MissionStepContract])
                 return contract
         return None
 
+    def get_by_mission(self, mission: str) -> list[MissionStepContract]:
+        """Return every loaded step contract declared for ``mission``.
+
+        This is the doctrine-native answer to "which step contracts does a
+        mission type declare" (FR-008): it filters the loaded artefact set on
+        the contract ``mission`` field. The result is ordered by ``action`` so
+        callers get a deterministic sequence (NFR-007) independent of on-disk
+        discovery order.
+        """
+        matches = [c for c in self._items.values() if c.mission == mission]
+        return sorted(matches, key=lambda contract: contract.action)
+
     def save(self, contract: MissionStepContract) -> Path:
         """Save contract to project directory.
 
@@ -197,3 +210,36 @@ class MissionStepContractRepository(BaseDoctrineRepository[MissionStepContract])
 
         self._items[contract.id] = contract
         return yaml_file
+
+
+def resolve_step_contract_ids(
+    mission_type: str,
+    *,
+    repository: MissionStepContractRepository | None = None,
+) -> list[str]:
+    """Resolve the ordered step-contract IDs a mission type declares.
+
+    This is the single doctrine-sourced answer for a mission type's step
+    contracts (FR-008 / SC-007): step-contract resolution flows through the
+    doctrine :class:`MissionStepContractRepository` artefact — there is no
+    ``specify_cli`` copy. The charter seam
+    (:func:`charter.mission_type_profiles.resolve_mission_type_context`) calls
+    this to populate ``ResolvedMissionType.step_contracts``.
+
+    Parameters
+    ----------
+    mission_type:
+        The canonical mission-type key (e.g. ``"software-dev"``).
+    repository:
+        Optional pre-loaded repository (tests inject a fixture). When omitted a
+        default repository is constructed, loading the built-in doctrine
+        contracts only — the pure artefact answer, never a project override.
+
+    Returns
+    -------
+    list[str]
+        The declared step-contract IDs, ordered by action (NFR-007). Empty when
+        the type declares no step contracts.
+    """
+    repo = repository or MissionStepContractRepository()
+    return [contract.id for contract in repo.get_by_mission(mission_type)]

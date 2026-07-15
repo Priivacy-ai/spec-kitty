@@ -8,6 +8,14 @@
 # the 23-test ATDD suite at
 # tests/specify_cli/next/test_wp_prompt_governance_contract.py and for every
 # legacy fixture mission whose meta.json declares `mission_type: software-dev`.
+#
+# `id` is the overlay identity for the `doctrine/base.py` builtin → org →
+# project stack (it keys overlays on `id` and skips id-less files, base.py:249).
+# INVARIANT: `id == mission_type` for every governance-profile.yaml — shipped or
+# a project override at `.kittify/doctrine/mission_types/<type>/`. A project
+# override MUST repeat `id: <type>` or field-merge would skip it silently.
+# WP06/07/08 carry this same invariant into the other three shipped profiles.
+id: software-dev
 mission_type: software-dev
 template_set: software-dev-default
 selected_directives: []
