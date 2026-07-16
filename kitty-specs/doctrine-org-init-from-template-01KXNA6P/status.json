@@ -2,8 +2,8 @@
   "event_count": 19,
   "last_event_id": "01KXNGGJFHTXDYJY4YJP8SA24T",
   "materialized_at": "2026-07-16T13:05:33.169684+00:00",
-  "mission_number": "",
-  "mission_slug": "",
+  "mission_number": "178",
+  "mission_slug": "doctrine-org-init-from-template-01KXNA6P",
   "mission_type": "software-dev",
   "summary": {
     "approved": 0,
