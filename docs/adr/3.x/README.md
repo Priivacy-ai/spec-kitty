@@ -80,3 +80,4 @@ Use the shared template at [`docs/architecture/adr-template.md`](../../architect
 | 2026-07-08 | [MissionResolver Port — One Walk Trunk, Shell-Side DI, No Shared Container](2026-07-08-1-mission-resolver-port.md) |
 | 2026-07-14 | [Canonical CliConsole seam — one CLI output object, plain --json, object-not-env determinism](2026-07-14-1-canonical-cli-console-seam.md) |
 | 2026-07-14 | [Doctrine → Charter → Core Mission-Type Resolution Unification (governance first)](2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md) |
+| 2026-07-16 | [WP runtime-state authority — evict runtime-mutable state from tasks/WP##.md into the canonical event log](2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md) |

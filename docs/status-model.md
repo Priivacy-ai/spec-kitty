@@ -33,6 +33,18 @@ The status model uses a single canonical append-only event log per mission as th
 
 **3.1.0 addition**: Read-only status commands (including `materialize()` and `spec-kitty agent status materialize`) no longer dirty the git working tree. `status.json` is only written when there is a new event to materialize. The `materialized_at` field in `status.json` reflects the timestamp of the last event in the log, not the wall clock at the time the command was run.
 
+> **Forward-looking (Proposed):** the "frontmatter is static-only" principle above
+> is only half-delivered today — `lane` was evicted, but `shell_pid`,
+> subtask-checkbox state, review-cycle fields, `agent`/`assignee`, and the
+> activity-log narrative are still written into `tasks/WP##.md` at runtime. The
+> WP runtime-state eviction mission generalises the `lane` retirement to **all**
+> of these, introducing a **non-transition annotation event class** (`shell_refresh`
+> / `subtask_marked` / `activity_note`) alongside the transition ledger so the
+> 9-lane FSM stays unchanged. After it lands, `WP##.md` holds only static intent
+> and hashes stably across every runtime mutation. See
+> [ADR 2026-07-16-1](adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md)
+> and the [eviction design](architecture/wp-runtime-state-eviction.md).
+
 ## CLI Commands
 
 All status commands live under `spec-kitty agent status`.
