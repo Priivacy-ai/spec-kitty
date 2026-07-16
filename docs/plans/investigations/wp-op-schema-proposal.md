@@ -251,6 +251,202 @@ Same vocabulary at both grains — a mission WP and an ad-hoc Op now both answer
 
 ---
 
+---
+
+## Part 3 — Schema generation & registration
+
+Model-first, reusing `scripts/generate_schemas.py` (the machinery behind the 10
+doctrine schemas + the `--check` drift gate).
+
+### 3.1 One structural change: output-dir override
+
+Today `register()` writes every schema under a single module constant
+`SCHEMA_DIR = src/doctrine/schemas/` (`generate_schemas.py:34`). WP/Op models live
+outside the doctrine tree, so the only pipeline change needed is a **per-entry
+output directory**. Minimal, backward-compatible extension:
+
+```python
+# generate_schemas.py — add an optional schema_dir to the registry tuple
+def register(stem, module, cls, title, description, extra=None, *,
+             by_alias=False, schema_dir: Path = SCHEMA_DIR) -> None:
+    REGISTRY[stem] = (module, cls, title, description, extra, by_alias, schema_dir)
+# _emit() writes to that entry's schema_dir instead of the global SCHEMA_DIR.
+```
+
+New sink: `SPECIFY_SCHEMA_DIR = src/specify_cli/schemas/`. No doctrine schema moves;
+existing entries default to `SCHEMA_DIR` unchanged.
+
+### 3.2 Registration calls
+
+```python
+SPECIFY_SCHEMA_DIR = ROOT / "src" / "specify_cli" / "schemas"
+
+register(
+    "work-package-spec",
+    "specify_cli.core.wp_spec", "WorkPackageSpec",
+    "Work Package Spec",
+    "Canonical YAML-authoritative work-package record; tasks/WP##.md is derived.",
+    extra=lambda s: _add_item_patterns(s, {
+        "dependencies": r"^WP\d{2}$",
+        "plan_concern_refs": r"^IC-\d{2}$",
+    }),
+    schema_dir=SPECIFY_SCHEMA_DIR,
+)
+register(
+    "op-completed-event",
+    "specify_cli.invocation.record", "OpCompletedEvent",
+    "Op Completed Event",
+    "Op completion event carrying the mandatory structured debrief (why/what).",
+    schema_dir=SPECIFY_SCHEMA_DIR,
+)
+```
+
+`AcceptanceCriterion`/`WPStep`/`WPPromptBody`/`OpDebrief` need no separate entry —
+they emit as `definitions/*` inside their parent (same as `tactic_step`).
+
+### 3.3 Example generated output — `work-package-spec.schema.yaml`
+
+<details><summary>generated schema (abridged; mirrors the toolguide format)</summary>
+
+```yaml
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://spec-kitty.dev/schemas/doctrine/work-package-spec.schema.yaml
+title: Work Package Spec
+description: Canonical YAML-authoritative work-package record; tasks/WP##.md is derived.
+type: object
+additionalProperties: false          # ← from model_config extra="forbid"
+required:
+- id
+- title
+- prompt
+properties:
+  id:
+    type: string
+    pattern: ^WP\d{2}$
+  title:
+    type: string
+    minLength: 1                      # ← required string, auto-added
+  dependencies:
+    type: array
+    items: {type: string, pattern: ^WP\d{2}$}
+  requirement_refs:
+    type: array
+    items: {type: string}
+  plan_concern_refs:
+    type: array
+    items: {type: string, pattern: ^IC-\d{2}$}
+  owned_files:
+    type: array
+    items: {type: string}
+  create_intent:
+    type: array
+    items: {type: string}
+  authoritative_surface: {type: string}
+  scope: {type: string, enum: [codebase-wide]}
+  task_type: {type: string}
+  cross_cutting: {type: boolean}
+  agent_profile: {type: string}
+  tracker_refs:
+    type: array
+    items: {type: string}
+  prompt:
+    $ref: '#/definitions/wp_prompt_body'
+definitions:
+  acceptance_criterion:
+    type: object
+    additionalProperties: false
+    required: [id, statement]
+    properties:
+      id: {type: string, pattern: ^AC-\d{2}$}
+      statement: {type: string, minLength: 1}
+      verify: {type: string}
+  wp_step:
+    type: object
+    additionalProperties: false
+    required: [id, description]
+    properties:
+      id: {type: string, pattern: ^T\d{3}$}
+      description: {type: string, minLength: 1}
+      guidance: {type: string}
+  wp_prompt_body:
+    type: object
+    additionalProperties: false
+    required: [objective]
+    properties:
+      objective: {type: string, minLength: 1}
+      context: {type: string}
+      scope_note: {type: string}
+      steps:
+        type: array
+        items: {$ref: '#/definitions/wp_step'}
+      acceptance:
+        type: array
+        items: {$ref: '#/definitions/acceptance_criterion'}
+      non_goals: {type: array, items: {type: string}}
+      risks: {type: array, items: {type: string}}
+      test_strategy: {type: string}
+      review_guidance: {type: string}
+      references: {type: array, items: {type: string}}
+```
+</details>
+
+### 3.4 Example generated output — `op-completed-event.schema.yaml`
+
+<details><summary>generated schema (abridged)</summary>
+
+```yaml
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://spec-kitty.dev/schemas/doctrine/op-completed-event.schema.yaml
+title: Op Completed Event
+description: Op completion event carrying the mandatory structured debrief (why/what).
+type: object
+additionalProperties: false
+required:
+- event
+- invocation_id
+- completed_at
+- outcome
+- closed_by
+- debrief                            # ← now mandatory
+properties:
+  event: {type: string, const: completed}
+  invocation_id: {type: string, pattern: ^[0-9A-HJKMNP-TV-Z]{26}$}
+  completed_at: {type: string, minLength: 1}
+  outcome: {type: string, enum: [done, failed, abandoned]}
+  closed_by: {type: string, enum: [agent, doctor_sweep]}
+  evidence_ref: {type: string}
+  debrief:
+    $ref: '#/definitions/op_debrief'
+definitions:
+  op_debrief:
+    type: object
+    additionalProperties: false
+    required: [intent]               # graduated depth enforced in-model, not schema
+    properties:
+      intent: {type: string, minLength: 1}
+      change_surface: {type: array, items: {type: string}}
+      actions: {type: array, items: {type: string}}
+      decisions: {type: array, items: {type: string}}
+      follow_ups: {type: array, items: {type: string}}
+```
+</details>
+
+> **Note — where graduated depth lives.** JSON-Schema `required` is static, so the
+> schema fixes only the floor (`intent`). The mode-conditional depth (§2.3 —
+> `task_execution` also needs `change_surface`+`actions`) is a **Pydantic
+> `model_validator`** on `OpCompletedEvent` that reads the started event's
+> `mode_of_work`. Keep it in the model, not the JSON-Schema, so the drift gate and
+> the runtime enforce the same floor and the model adds the conditional ceiling.
+
+### 3.5 Drift gate
+
+`python scripts/generate_schemas.py --check` gains both stems; the
+`clean-install-verification` / schema-freshness tests fail if
+`wp_spec.py` / `record.py` drift from the emitted YAML — identical guarantee to the
+doctrine schemas today.
+
+---
+
 ## Risks & reconciliation
 
 | Risk (from grounding) | Mitigation in this design |
