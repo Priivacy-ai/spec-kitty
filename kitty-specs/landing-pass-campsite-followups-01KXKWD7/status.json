@@ -1,0 +1,70 @@
+{
+  "event_count": 49,
+  "last_event_id": "01KXM5Z12V7B6FSCKZ247687KS",
+  "materialized_at": "2026-07-16T00:41:58.107838+00:00",
+  "mission_number": "180",
+  "mission_slug": "landing-pass-campsite-followups-01KXKWD7",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 7,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXM5YX1VYXKP51CAT368E3ME",
+      "last_transition_at": "2026-07-16T00:41:53.979373+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXM5YXSEY5JVS9V8Y1TF2C70",
+      "last_transition_at": "2026-07-16T00:41:54.734123+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXM5YYF3HPHNB0NXWSV9C94E",
+      "last_transition_at": "2026-07-16T00:41:55.427806+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXM5YZ4368EEYVF3V5NHN7V4",
+      "last_transition_at": "2026-07-16T00:41:56.099030+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXM5YZRWB0W9XBDV1QSK337M",
+      "last_transition_at": "2026-07-16T00:41:56.764243+00:00"
+    },
+    "WP06": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXM5Z12V7B6FSCKZ247687KS",
+      "last_transition_at": "2026-07-16T00:41:58.107838+00:00"
+    },
+    "WP07": {
+      "actor": "merge",
+      "force_count": 0,
+      "lane": "done",
+      "last_event_id": "01KXM5Z0DNWJAB3PTZHRJQ73RW",
+      "last_transition_at": "2026-07-16T00:41:57.429515+00:00"
+    }
+  }
+}
