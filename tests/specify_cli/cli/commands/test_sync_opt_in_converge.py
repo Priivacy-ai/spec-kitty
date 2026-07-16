@@ -72,3 +72,17 @@ def test_auto_converge_swallows_runtime_open_failure(monkeypatch: pytest.MonkeyP
     monkeypatch.setattr(sync_cmd, "_open_event_sync_runtime", _boom)
     # Must not raise — the coherence gate downstream reports the incoherence.
     sync_cmd._auto_converge_legacy_on_enable()
+
+
+def test_auto_converge_swallows_converge_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A failure INSIDE converge (not just opening the runtime) is swallowed too,
+    so opt-in defers to the coherence gate instead of aborting with a traceback.
+    """
+    monkeypatch.setattr(sync_cmd, "_open_event_sync_runtime", lambda *a, **k: _FakeRuntime())
+
+    def _boom(*_a, **_k):
+        raise RuntimeError("journal API contract error mid-converge")
+
+    monkeypatch.setattr("specify_cli.sync.migrate_journal.converge_legacy_runtime", _boom)
+    # Must not raise — the runtime is still closed and control returns cleanly.
+    sync_cmd._auto_converge_legacy_on_enable()
