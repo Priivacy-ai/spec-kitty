@@ -195,28 +195,31 @@ class TestSynthesizeEntryPoint:
         self,
         full_request: SynthesisRequest,
         adapter: FixtureAdapter,
+        tmp_path: Path,
     ) -> None:
         """synthesize() returns a SynthesisResult object."""
         from charter.synthesizer.orchestrator import SynthesisResult
-        result = synthesize(full_request, adapter=adapter)
+        result = synthesize(full_request, adapter=adapter, repo_root=tmp_path)
         assert isinstance(result, SynthesisResult)
 
     def test_synthesize_result_has_target_kind(
         self,
         full_request: SynthesisRequest,
         adapter: FixtureAdapter,
+        tmp_path: Path,
     ) -> None:
         """SynthesisResult.target_kind matches the request's primary target."""
-        result = synthesize(full_request, adapter=adapter)
+        result = synthesize(full_request, adapter=adapter, repo_root=tmp_path)
         assert result.target_kind in {"directive", "tactic", "styleguide"}
 
     def test_synthesize_result_has_inputs_hash(
         self,
         full_request: SynthesisRequest,
         adapter: FixtureAdapter,
+        tmp_path: Path,
     ) -> None:
         """SynthesisResult.inputs_hash is a non-empty hex string."""
-        result = synthesize(full_request, adapter=adapter)
+        result = synthesize(full_request, adapter=adapter, repo_root=tmp_path)
         assert result.inputs_hash
         assert all(c in "0123456789abcdef" for c in result.inputs_hash)
 

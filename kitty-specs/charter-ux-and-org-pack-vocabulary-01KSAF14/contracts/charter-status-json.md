@@ -46,7 +46,7 @@ Fields `generation_state`, `evidence`, `provenance`, `manifest` keep their exist
 
 - `charter_source.state = "stale"` when the file's SHA-256 differs from the hash stored in `.kittify/charter/metadata.yaml`.
 - `synced_bundle.state = "stale"` when any bundle file's mtime is older than `charter_source.last_change`.
-- `synthesized_drg.state = "stale"` when `synthesis-manifest.yaml.run_id` references inputs whose mtime is older than `synced_bundle.last_change`.
+- `synthesized_drg.state = "stale"` when the synthesis manifest's `bundle_content_hash` does not match a freshly recomputed SHA-256 content-identity hash of the current synced bundle (`governance.yaml`, `directives.yaml`, `references.yaml`, `metadata.yaml` under `.kittify/charter/`, via `charter.bundle.compute_bundle_content_hash`) — a content comparison, not a timestamp comparison. A manifest that predates this field (missing `bundle_content_hash`) is treated as a mismatch: `stale`, self-healing to `fresh` on the next `spec-kitty charter synthesize` or `spec-kitty charter resynthesize` run. This check only runs once `synced_bundle.state == "fresh"`; an upstream-stale bundle still short-circuits `synthesized_drg` to `stale` first (see the bullet above).
 - `synthesized_drg.state = "missing"` when `.kittify/doctrine/graph.yaml` does not exist AND `synthesis-manifest.yaml` does not declare `built_in_only: true`.
 
 ## Backward compatibility
