@@ -17,6 +17,7 @@ reports.
 - [Issue #1111 Analysis — Branch Alignment Report](issue-1111-analysis.md)
 - [Mission-Next Compatibility Matrix](mission-next-compatibility.md)
 - [Model-First Schema Generation](model-first-schema-generation.md)
+- [WP & Op Schema Model](wp-op-schema-model.md)
 
 ## See also
 
