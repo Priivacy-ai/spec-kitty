@@ -118,7 +118,88 @@ becomes a spec:**
 - **Sizing:** is this one ADR + a multi-WP mission under #2652, or does it need to be sliced (steps-as-nodes →
   step-templates-as-edges → substeps → guards)? What is the smallest coherent first slice?
 
+## 6. Grounding squad findings (design + code + adversarial)
+
+Three profile-loaded lenses grounded §5 against the ADR and the live worktree. Consolidated verdict:
+**the naming narrowing is a solid, root-level win — adopt it; the *unification* is feasible incrementally but
+carries several design decisions and one unfixed bug that must be settled/sliced, not hand-waved.**
+
+- **architect-alphonso (design) → COHERENT.** Realizes ADR Claim 4 *more* fully than the ADR's own S4;
+  extends #2712 and subsumes #2689 without contradiction.
+- **paula-patterns (code) → FEASIBLE-INCREMENTAL.** ~80 files / ~8 load-bearing seams; shimmable, additive.
+- **reviewer-renata (adversarial) → SOUND-WITH-CAVEATS.** Rename correct; unification over-claims on 6 points.
+
+### 6a. The decisive discovery — the step already ships (promote, don't invent)
+`src/doctrine/missions/mission-steps/<type>/<step>/step.yaml` already parses into the `MissionStep` model
+(`doctrine/missions/models.py:87-125`) and is **live-consumed by the runtime** (`runtime_bridge*`, planner).
+It already carries `prompt_template` (= proposal `prompt`), `agent_profile` (= `recommended_role`),
+`delegates_to`, `depends_on`. **~70% of the proposed step is already implemented.** The real problem is a
+**split-brain**: `mission_types/*.yaml` authors a FLAT `action_sequence` + `template_set`, while the rich
+per-step data lives in a SEPARATE `step.yaml` tree — and the DRG extractor reads only the flat list
+(`extractor.py:835`), so the graph never sees `step.yaml`. This is *promote the existing step model to
+authority + retire the parallel flat surface*, not a greenfield build. Net-new fields are only three:
+`recommended_model_tier` (authored nowhere today), `template` (step→`template:` edge), `substeps` (recursion).
+
+### 6b. Decisions the squad settled (fold into the eventual spec)
+1. **"step" = the existing `ACTION`/`MissionStep`, ENRICHED — NOT a new `STEP` kind.** Action nodes already
+   ARE the steps (24 nodes, 21 `requires` in-edges, 157 `scope` out-edges). A parallel `STEP` kind would
+   double-model and orphan 178 edges. The `action→step` rename buys zero modelling value — defer it
+   indefinitely. **Substeps are the only structurally new capability.**
+2. **`step.template` uses the ONE `template:` NodeKind — the *relation* encodes the lifecycle** (resolving the
+   alphonso↔renata split). A step `instantiates` a fill-once *skeleton* template (`Relation.INSTANTIATES`,
+   already exists); tactics/directives *reference* a read-only *exemplar* template. Same kind, different
+   relation — so there is no "fourth template" (alphonso) AND the two lifecycles stay distinguishable (renata).
+   This requires minting the `spec`/`plan`/`task-prompt` scaffolds as `template:` nodes and teaching the
+   5-tier resolver to resolve-by-URN (paula's Risk 1 — the filesystem↔URN duality).
+3. **`recommended_role`/`recommended_model_tier` are ADVISORY doctrine *offers*, not routing truth.** Routing
+   (which agent, which model) is a charter/runtime choice per the ADR spine. Baking a value into shipped
+   doctrine freezes operational config in the offer layer (renata). The spec MUST define the override seam and
+   the consumer read-source switch — role/model is authored in ≥4 places today (WP frontmatter,
+   `MissionStep.agent_profile`, governance-profile, action-index); consolidation is only a win if consumers
+   switch to read the step grain, else it becomes a 5th parallel authority (paula's Risk 3).
+4. **Substeps need a new `DECOMPOSES_INTO` relation + a new validator acyclicity DFS.** URNs already allow
+   nested paths; but the validator only cycle-checks `requires`/`specializes_from` (`validator.py:78,145`), so
+   a substep edge is unguarded today — recursion is safe *only* with the new check. Do NOT overload `requires`.
+5. **Retain the governing-doctrine `scope` edges (the orphan).** The step schema in §2b has no slot for "which
+   directives/tactics/procedures govern this step" — the 157 `scope` out-edges. That population must survive.
+6. **`MISSION_STEP_CONTRACT` = the typed I/O of a step** (declared kind, 0 nodes today) — settle whether it's a
+   field-bundle on the step or a `step→mission_step_contract` edge (lean: edge, so contracts stay reusable).
+
+### 6c. Two things the unification does NOT fix (state plainly)
+- **The #2689 "3-of-4 default types uncreatable" bug is RELOCATED, not fixed.** Swapping `template_set: null`
+  for a null `step.template` still fail-closes at `resolver.py:395`. Closing it requires **populating**
+  `documentation`/`research`/`plan` with their own step templates — an authoring task the schema change
+  neither performs nor forces (`template` is optional). And do NOT assume `specify`/`plan` steps exist for all
+  types — `research` is `scoping→methodology→…`, `documentation` is `discover→audit→…`; each type's templates
+  hang on ITS OWN step names, not a software-dev shape (renata).
+- **Substeps vs the WP/task tree `/tasks` emits** is a second decomposition axis meeting at `implement` with
+  no arbiter (renata). The spec must declare the stop-rule: **substeps = doctrine-authored/static; WPs =
+  mission-emitted/dynamic** — a substep is authored decomposition, a WP is a runtime work unit; never both.
+
+### 6d. Revised slice roadmap (Risk-1-first — inverts §2/§4's order per paula + alphonso)
+- **Slice 1 (smallest coherent; closes #2712/#883): graph-back `template_set` as `step→template` `instantiates`
+  edges.** Mint `template:spec-skeleton`/`plan-skeleton`, teach the resolver URN resolution, wire the
+  `ResolvedMissionType.template_set` slot to read the edge. **Zero new NodeKind/Relation/validator change** —
+  `INSTANTIATES` exists. De-risks the filesystem↔URN duality in isolation. `template_set` stays a read-shim.
+- **Slice 2: collapse the split-brain** — make `step.yaml` the authority; derive `action_sequence`/`template_set`
+  as projections; add `recommended_model_tier` + `template` to the step schema; **switch consumers to read the
+  step grain** (materialize WP role/model as caches). Preserve the `scope` edges.
+- **Slice 3: substeps** — `DECOMPOSES_INTO` relation + validator acyclicity DFS + nested URNs + the
+  authored-vs-emitted stop-rule.
+- **Slice 4 (separate): guards** — new `GUARD` NodeKind + `GATES` relation (net-new artefact modelling).
+- **Cross-cutting:** every new NodeKind trips the golden-count + `_ARCH_SHARD_N_FILES` markers (mechanical);
+  preserve the #2660 meta-less/fail-closed path at every slice (do NOT reopen software-dev inference).
+
+### 6e. Recommendation
+**Split the proposal.** Land the **rename** (template→artefact, step→structure) as the framing win; treat the
+**merges** (template-population unification, role/model relocation, substep decomposition, guards) as
+separately-justified slices, each with an explicit override/lifecycle answer, sequenced Risk-1-first. This is a
+multi-slice epic under **#2652**, warranting its own ADR that pins the slice order and the six decisions in §6b.
+It builds additively on the merged #2712 (kept, foundational) and #2689 (transitional read-shim) — no rework of
+either.
+
 ---
 
-*Captured by the orchestrator for the operator's step-model unification proposal. Next: a design-and-code
-grounding squad grounds §5 against the ADR and the live code before this becomes a spec.*
+*Captured by the orchestrator for the operator's step-model unification proposal, grounded by a design + code +
+adversarial squad (alphonso COHERENT / paula FEASIBLE-INCREMENTAL / renata SOUND-WITH-CAVEATS). Next step is the
+operator's call: promote §6 into an ADR + a sliced epic under #2652, or iterate the proposal further.*
