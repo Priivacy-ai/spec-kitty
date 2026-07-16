@@ -613,6 +613,42 @@ def test_resolve_conflicts_keep_journal_archives_and_removes_source(tmp_path: Pa
     assert journal.read_by_id("dup") is not None
 
 
+def test_resolve_quarantine_is_durable_before_source_delete(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The divergent payload is committed to the audit store BEFORE the source
+    row is destroyed — a crash at the delete boundary must never lose it.
+
+    Regression for the write-ahead ordering: the source delete commits queue.db
+    immediately, so the quarantine archive has to be durable first. We inject a
+    failure at the delete boundary and assert the archive is already on disk
+    (visible to a fresh audit connection), i.e. the superseded copy is
+    recoverable exactly as the contract promises.
+    """
+    home = tmp_path / "home"
+    _seed_queue(_scoped_path(home, _digest("a")), [_event("dup", payload={"v": 1})])
+    _seed_queue(_scoped_path(home, _digest("b")), [_event("dup", payload={"v": 2})])
+    journal = _journal(home)
+    audit_path = home / "migration_audit.db"
+    audit = MigrationAudit(audit_path)
+
+    result = migrate_queues_to_journal(home, journal=journal, audit=audit)
+    assert len(result.conflicts) == 1
+
+    import specify_cli.sync.migrate_journal as mj
+
+    def _boom(*_args: Any, **_kwargs: Any) -> int:
+        raise sqlite3.OperationalError("crash at the delete boundary")
+
+    monkeypatch.setattr(mj, "_delete_migrated_rows", _boom)
+    with pytest.raises(sqlite3.OperationalError):
+        resolve_conflicts_keep_journal(home, journal=journal, audit=audit)
+
+    # A FRESH audit connection sees the archive → it was committed before the
+    # (failed) delete, so the divergent payload survives the crash window.
+    assert MigrationAudit(audit_path).quarantined_count() == 1
+
+
 def test_resolve_conflicts_skips_when_source_gone(tmp_path: Path) -> None:
     """A conflict whose source DB has vanished is left intact (never fabricated away)."""
     home = tmp_path / "home"

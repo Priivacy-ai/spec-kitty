@@ -875,6 +875,13 @@ def resolve_conflicts_keep_journal(
             existing_sha=conflict.existing_sha,
             incoming_sha=conflict.incoming_sha,
         )
+        # Write-ahead: the quarantine archive MUST be durable before the source
+        # row is destroyed (the delete below commits queue.db immediately). A
+        # crash between the two would otherwise leave the row deleted but the
+        # archive rolled back — losing the superseded payload the docstring
+        # promises is recoverable. Mirrors the import path's provenance-first
+        # commit ordering (see ``audit.commit()`` before ``txn.commit()`` above).
+        audit.commit()
         _delete_migrated_rows(source.path, [conflict.event_id])
         audit.clear_conflict(conflict.event_id, conflict.source_digest)
         resolution.resolved.append(conflict.event_id)

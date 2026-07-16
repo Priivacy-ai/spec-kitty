@@ -1396,7 +1396,8 @@ def _auto_converge_legacy_on_enable() -> None:
     surfaced with the explicit ``sync migrate --resolve-conflicts keep-journal``
     recovery, and the coherence gate that follows still refuses until they are
     resolved. Idempotent and lossless: a no-op on an already-converged runtime.
-    Any runtime-open failure is swallowed so the coherence gate handles it.
+    Any failure opening the runtime OR converging is swallowed so the coherence
+    gate that follows handles it, rather than aborting opt-in with a traceback.
     """
     from specify_cli.paths import get_runtime_root
     from specify_cli.sync.migrate_journal import (
@@ -1420,10 +1421,13 @@ def _auto_converge_legacy_on_enable() -> None:
             resolve_conflicts=False,
             cleanup=True,
         )
+    except Exception:  # converge failed — let the coherence gate report it
+        return
     finally:
         with contextlib.suppress(Exception):
             audit.close()
-        runtime.close()
+        with contextlib.suppress(Exception):
+            runtime.close()
 
     deleted = converge.cleanup.total_deleted if converge.cleanup is not None else 0
     if deleted:
