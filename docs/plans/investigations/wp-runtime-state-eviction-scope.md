@@ -1,6 +1,6 @@
 ---
 title: WP Runtime-State Eviction — Prerequisite Mission Scope
-description: 'Scope for the enabling mission that evicts all runtime-mutable state (shell_pid, history, subtask-checkbox state, review-cycle fields) out of tasks/WP##.md into the canonical event log — the prerequisite that unblocks a YAML-authoritative / markdown-derived WP prompt. Generalises the shipped lane retirement; the #2093/#2400 charter.'
+description: 'Scope for evicting runtime-mutable state (shell_pid, history, subtask-checkbox, review) from tasks/WP##.md into the event log — prerequisite for the WP-prompt flip.'
 doc_status: proposal
 updated: '2026-07-16'
 related:

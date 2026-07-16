@@ -1,6 +1,6 @@
 ---
 title: WP & Op Schema Model — Formalising Work-Package and Op Records
-description: 'Design idea + research grounding: formalising WP files and the facts-only Op record via a code-owned logical model + schema. Grounding finds the model ~60-70% already shipped; the real win is a narrow content-hash/field-eviction fix, not a new store.'
+description: 'Idea + grounding to formalise WP files and the Op record via code-owned models/schemas; the model is ~60-70% already shipped, so the win is a narrow hash/field-eviction fix.'
 doc_status: grounded
 updated: '2026-07-16'
 ---

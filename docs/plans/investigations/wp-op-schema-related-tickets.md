@@ -1,6 +1,6 @@
 ---
 title: WP & Op Schema Model — Related Open Tracker Tickets
-description: 'Deduped, relevance-judged map of open Priivacy-ai/spec-kitty issues pertaining to WP-metadata rework, ops/WP-template moves, model-first formalization, and WP prompt/template format friction — produced by a three-lens tracker sweep on 2026-07-16.'
+description: 'Deduped map of open tracker issues covering WP-metadata rework, ops/WP-template moves, model-first formalization, and WP prompt/template friction, from a three-lens sweep.'
 doc_status: reference
 updated: '2026-07-16'
 related:
