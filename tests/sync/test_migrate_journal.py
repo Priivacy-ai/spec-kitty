@@ -629,7 +629,7 @@ def test_resolve_conflicts_skips_when_source_gone(tmp_path: Path) -> None:
     resolution = resolve_conflicts_keep_journal(home, journal=journal, audit=audit)
 
     assert resolution.resolved_count == 0
-    assert len(resolution.skipped) == 1
+    assert resolution.skipped == ["dup"]  # the vanished-source conflict, left intact
     assert audit.quarantined_count() == 0
 
 

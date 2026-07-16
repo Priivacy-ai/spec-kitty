@@ -17,6 +17,8 @@ from specify_cli.sync.migrate_journal import (
     MigrationResult,
 )
 
+pytestmark = pytest.mark.fast
+
 
 class _FakeRuntime:
     journal = object()
