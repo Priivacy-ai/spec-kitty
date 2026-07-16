@@ -1,8 +1,10 @@
 """Tests for EvidenceOrchestrator and load_url_list_from_config."""
 from __future__ import annotations
 
+import re
 import subprocess
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -16,6 +18,34 @@ from charter.evidence.orchestrator import (    EvidenceOrchestrator,
 # Marked for mutmut sandbox skip — see ADR 2026-04-20-1.
 # Reason: trampoline bug: python -m specify_cli subprocess
 pytestmark = pytest.mark.non_sandbox
+
+# ANSI SGR escape sequence, e.g. "\x1b[33m" / "\x1b[1;36m" / "\x1b[0m".
+_ANSI_SGR_RE = re.compile(r"\x1b\[[0-9;]*m")
+
+
+@pytest.fixture
+def _synthesis_manifest_guard() -> Iterator[Path]:
+    """Snapshot + restore the repo's REAL synthesis manifest around a CLI subprocess test.
+
+    ``charter synthesize`` writes ``.kittify/charter/synthesis-manifest.yaml`` at a
+    path fixed relative to the resolved repo root — no CLI flag exposes a target
+    override (see ``src/charter/synthesizer/manifest.py::MANIFEST_PATH``), so this
+    test cannot simply redirect the write to a ``tmp_path`` sandbox. It guards the
+    on-disk bytes instead: snapshot before, restore in a ``finally`` block after —
+    so a future regression that reintroduces a real-manifest write (or any
+    exception mid-test) never leaves the working tree dirty (#2672).
+    """
+    repo_root = Path(__file__).parent.parent.parent.parent
+    manifest_path = repo_root / ".kittify" / "charter" / "synthesis-manifest.yaml"
+    original = manifest_path.read_bytes() if manifest_path.exists() else None
+    try:
+        yield manifest_path
+    finally:
+        if original is None:
+            if manifest_path.exists():
+                manifest_path.unlink()
+        elif not manifest_path.exists() or manifest_path.read_bytes() != original:
+            manifest_path.write_bytes(original)
 
 
 def test_full_collection_returns_bundle(tmp_path: Path) -> None:
@@ -87,7 +117,9 @@ def test_bundle_is_empty_when_all_skipped(tmp_path: Path) -> None:
 
 
 @pytest.mark.integration
-def test_dry_run_evidence_on_spec_kitty_repo() -> None:
+def test_dry_run_evidence_on_spec_kitty_repo(
+    _synthesis_manifest_guard: Path,
+) -> None:
     """charter synthesize --adapter fixture --dry-run-evidence exits 0 and detects a language.
 
     spec-kitty has both Python indicators (pyproject.toml, src/specify_cli/) and JavaScript
@@ -95,6 +127,21 @@ def test_dry_run_evidence_on_spec_kitty_repo() -> None:
     legitimately select either 'python' or 'javascript' as the primary language.  The test
     verifies that the detector commits to a specific, non-unknown language rather than
     checking for a particular one — either is acceptable (acceptance criterion #9).
+
+    Determinism (#2672): this test drives the CLI as a *subprocess*, so an in-process
+    ``CliConsole.set_plain()``/``set_all_plain()`` call would never reach the child. The
+    ``CliConsole`` seam (``src/specify_cli/cli/console.py``) documents that "determinism
+    is a property of the object, not the environment" — for a subprocess, the object-level
+    seam is driven by handing the child its own colour-free environment. Rich's
+    ``Console`` already honours ``NO_COLOR`` at construction time (reads
+    ``os.environ["NO_COLOR"]`` when ``no_color`` isn't explicitly passed), so setting it
+    in the ``env`` dict built below is TEST-LOCAL to the child process — it never mutates
+    the real ``os.environ`` and cannot leak into sibling tests or subprocesses. ``FORCE_COLOR``
+    is also forced here so the assertion is pinned against the worst case (the Claude Code
+    harness exports ``FORCE_COLOR=3``, which splices ANSI SGR codes into the
+    ``lang=<value>`` token via Rich's automatic repr-highlighter — reproducible, not
+    hypothetical) — ``NO_COLOR`` must win over an inherited ``FORCE_COLOR``. The stdout
+    match is additionally ANSI-stripped as a second, independent layer of insensitivity.
     """
     import os
 
@@ -103,6 +150,13 @@ def test_dry_run_evidence_on_spec_kitty_repo() -> None:
     env = os.environ.copy()
     existing_pythonpath = env.get("PYTHONPATH", "")
     env["PYTHONPATH"] = f"{src_path}:{existing_pythonpath}" if existing_pythonpath else src_path
+    # Test-local env for the CHILD process only — never mutates the real os.environ.
+    env["FORCE_COLOR"] = "3"  # pin the worst case: harnesses that force color on.
+    env["NO_COLOR"] = "1"  # NO_COLOR must win; Rich's Console honors it at construction.
+
+    manifest_path = _synthesis_manifest_guard
+    manifest_before = manifest_path.read_bytes() if manifest_path.exists() else None
+
     result = subprocess.run(
         [
             sys.executable,
@@ -119,11 +173,25 @@ def test_dry_run_evidence_on_spec_kitty_repo() -> None:
         cwd=str(repo_root),
         env=env,
     )
+
+    # Structural guard (#2672 mode b): the real repo manifest must never be mutated by
+    # this --dry-run-evidence invocation. Checked eagerly here (in addition to the
+    # fixture's unconditional restore) so a regression fails LOUDLY with a clear message
+    # rather than silently self-healing via teardown.
+    manifest_after = manifest_path.read_bytes() if manifest_path.exists() else None
+    assert manifest_after == manifest_before, (
+        "charter synthesize --dry-run-evidence must never mutate the real repo manifest "
+        f"at {manifest_path}"
+    )
+
     assert result.returncode == 0, f"stderr: {result.stderr}\nstdout: {result.stdout}"
-    assert "Evidence dry-run summary" in result.stdout
-    assert "Code signals:" in result.stdout
+    # ANSI-insensitive (#2672 mode a): strip SGR escapes before every substring match so
+    # the assertions hold whether or not the child emitted color.
+    stdout_plain = _ANSI_SGR_RE.sub("", result.stdout)
+    assert "Evidence dry-run summary" in stdout_plain
+    assert "Code signals:" in stdout_plain
     # spec-kitty has both pyproject.toml (Python) and package.json (JavaScript tooling),
     # so either language is a valid detection outcome — but "unknown" is not acceptable.
-    assert "lang=python" in result.stdout or "lang=javascript" in result.stdout, (
+    assert "lang=python" in stdout_plain or "lang=javascript" in stdout_plain, (
         f"Expected lang=python or lang=javascript in output, got:\n{result.stdout}"
     )
