@@ -2234,6 +2234,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/investigation/index.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/investigation/mission-type-step-model-unification.md
   tag: current
   divio_type: none
