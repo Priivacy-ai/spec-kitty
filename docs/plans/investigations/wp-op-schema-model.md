@@ -251,3 +251,18 @@ model; (4) #1868/#2173/#1797/#2468 sequencing.
 Slices 0–3 are legitimate, low-risk, and mostly filable as reconciliation items
 under existing epics rather than a new construction mission. Slice X is the only
 part matching the note's original ambition, and it is explicitly **not now**.
+
+## Related open tracker tickets
+
+A three-lens tracker sweep (2026-07-16) mapped the open issues across all four
+elements — see [wp-op-schema-related-tickets.md](wp-op-schema-related-tickets.md).
+Key result: the idea's headline ambitions are **already filed** — **#1676** (P0,
+deterministic structured authoring) and **#424/#425** (JSON-canonical planning
+artifacts, markdown-derived) are the Slice-X architecture; **#2093/#2400** already
+adjudicated the WP-metadata authority split. The template-move timing is owned by
+the **#2652** arc (#2658 templates-as-config, #2659 template discovery) + **#2677**
+(DRG edges → WP templates/assets). Only two elements are **unticketed**: the
+semantic-only content-hash fix, and an optional Op scope/intent field (which
+attaches to #2400 / ADR 2026-06-11-1, not a new epic — the #1804 Ops layer is
+closed/shipped). Disposition therefore firms up to **reconcile-and-attach**, not
+a new mission.
