@@ -100,7 +100,7 @@ The `.<kind>.yaml` suffix matches the shipped repository glob so fixtures round-
 ### Positive
 
 * Zero asyncio surface added — orchestration is simpler and CI does not need event-loop plumbing.
-* Protocol (not ABC) enables duck-typing — any object with `id`, `version`, and `generate` is a valid adapter. No inheritance ceremony.
+* Protocol (not ABC) enables duck-typing — any object with `id`, `version`, and `generate` is a valid adapter. No inheritance boilerplate.
 * `hasattr`-based batch detection means batch-capable adapters self-declare without requiring Protocol sub-specialization. Orchestration code has one `if hasattr` branch, not an elaborate dispatch tree.
 * Override-first provenance makes model rotation fully observable without manual provenance entry updates.
 * Fixture keying is stable across runs for identical inputs, making fixture-authoring ergonomic: "run once, check in the printed path".
