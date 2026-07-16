@@ -1,0 +1,56 @@
+{
+  "event_count": 25,
+  "last_event_id": "01KXP6BC65EA89SHD1XW012V5J",
+  "materialized_at": "2026-07-16T19:27:11.557582+00:00",
+  "mission_number": "",
+  "mission_slug": "synthesized-drg-stale-refresh-01KXN8KZ",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 1
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KXP6AXBA87104QJFRDW67SD7",
+      "last_transition_at": "2026-07-16T19:26:56.362861+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KXP6B21EE0MD2KP915THHXBT",
+      "last_transition_at": "2026-07-16T19:27:01.166484+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KXP6B6VQ376VEWPJ4ZRBFZ5P",
+      "last_transition_at": "2026-07-16T19:27:06.103478+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KXP6BC65EA89SHD1XW012V5J",
+      "last_transition_at": "2026-07-16T19:27:11.557582+00:00"
+    },
+    "WP05": {
+      "actor": "finalize-tasks",
+      "force_count": 0,
+      "lane": "planned",
+      "last_event_id": "01KXNGD4QHFNJVAM9SVSD2QJM4",
+      "last_transition_at": "2026-07-16T13:03:40.785823+00:00"
+    }
+  }
+}
