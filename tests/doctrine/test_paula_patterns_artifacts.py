@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from doctrine.drg.loader import load_graph
+from doctrine.drg.models import DRGGraph
 from doctrine.service import DoctrineService
 from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
 
@@ -48,8 +48,8 @@ def test_paula_patterns_profile_loads(service: DoctrineService) -> None:
     )
 
 
-def test_paula_patterns_graph_node_and_edges_exist() -> None:
-    graph = load_graph(BUILT_IN_ROOT / "graph.yaml")
+def test_paula_patterns_graph_node_and_edges_exist(built_in_graph: DRGGraph) -> None:
+    graph = built_in_graph
     nodes = graph.node_urns()
 
     assert "agent_profile:paula-patterns" in nodes

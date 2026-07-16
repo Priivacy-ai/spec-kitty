@@ -1,12 +1,18 @@
-"""Coverage for ``mission_type`` as a first-class DRG node kind (WP01).
+"""Coverage for ``mission_type`` as a first-class DRG node kind and its
+edge-complete contract.
 
 T001: ``NodeKind.MISSION_TYPE`` validates a ``mission_type:<id>`` URN and
 rejects a mismatched kind/prefix pairing.
 
 T002: ``generate_graph`` discovers exactly one ``mission_type`` node per
 shipped ``src/doctrine/missions/mission_types/*.yaml`` file, labelled with
-that file's ``display_name``. Additive only -- no edges are emitted for
-these nodes (S0-continuation is a follow-up).
+that file's ``display_name``.
+
+Each ``mission_type`` node now emits one ``requires`` edge per step in its
+``action_sequence`` to the matching ``action:<id>/<step>`` node (the
+edge-complete contract landed in the mission-type-drg-edges mission). The
+edges close the S0-continuation follow-on: mission_type nodes are no longer
+edge-free placeholders.
 """
 
 from __future__ import annotations
@@ -18,7 +24,7 @@ from pydantic import ValidationError
 from ruamel.yaml import YAML
 
 from doctrine.drg.migration.extractor import generate_graph
-from doctrine.drg.models import DRGNode, NodeKind
+from doctrine.drg.models import DRGNode, NodeKind, Relation
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
 
@@ -84,16 +90,44 @@ class TestMissionTypeNodeGeneration:
         }
         assert actual_by_urn == expected_by_urn
 
-    def test_mission_type_nodes_have_no_incident_edges(
+    def _shipped_action_sequences(self) -> dict[str, list[str]]:
+        sequences: dict[str, list[str]] = {}
+        for path in sorted(MISSION_TYPES_DIR.glob("*.yaml")):
+            data = _yaml.load(path)
+            assert isinstance(data, dict)
+            sequences[data["id"]] = list(data.get("action_sequence", []) or [])
+        return sequences
+
+    def test_mission_type_nodes_have_outbound_requires_edges(
         self, tmp_path: Path
     ) -> None:
-        # Nodes-only in WP01 -- edges are a deliberate S0-continuation.
+        # Edge-complete contract: every mission_type node emits exactly one
+        # ``requires`` edge per ``action_sequence`` step to its
+        # ``action:<id>/<step>`` node. This re-pins the retired nodes-only
+        # placeholder (the S0-continuation edges have since landed).
         output = tmp_path / "graph.yaml"
         graph = generate_graph(DOCTRINE_ROOT, output)
 
-        mission_type_urns = {
-            n.urn for n in graph.nodes if n.kind == NodeKind.MISSION_TYPE
-        }
-        for edge in graph.edges:
-            assert edge.source not in mission_type_urns
-            assert edge.target not in mission_type_urns
+        sequences = self._shipped_action_sequences()
+        for mission_id, steps in sequences.items():
+            source_urn = f"mission_type:{mission_id}"
+            outbound_requires = {
+                edge.target
+                for edge in graph.edges
+                if edge.source == source_urn
+                and edge.relation is Relation.REQUIRES
+            }
+            expected_targets = {
+                f"action:{mission_id}/{step}" for step in steps
+            }
+
+            # The sequence is non-empty for every shipped mission type, so a
+            # mission_type node with zero outbound edges would be a regression.
+            assert outbound_requires, (
+                f"{source_urn} has no outbound requires edges; the "
+                f"edge-complete contract was not applied."
+            )
+            assert outbound_requires == expected_targets, (
+                f"{source_urn} outbound requires targets {outbound_requires} "
+                f"do not match its action_sequence {expected_targets}."
+            )

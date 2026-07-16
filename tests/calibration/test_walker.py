@@ -9,10 +9,12 @@ edge-change recommendations).
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 import pytest
 
+from doctrine.drg.loader import built_in_graph_source
 from specify_cli.calibration.walker import (
     CalibrationFinding,
     EdgeChange,
@@ -28,6 +30,20 @@ from specify_cli.calibration.walker import (
 pytestmark = [pytest.mark.integration]
 
 _REPO_ROOT = Path(__file__).parent.parent.parent
+
+
+def _copy_built_in_graph_source(dest_dir: Path) -> None:
+    """Copy the shipped built-in DRG graph source file(s) into *dest_dir*.
+
+    Copies whatever layout the WP03 seam exposes — the ``graph.yaml`` monolith
+    today, ``*.graph.yaml`` fragments after WP05 — so the overlay tests survive
+    the monolith->fragment migration without a hardcoded ``graph.yaml`` path.
+    """
+    source = built_in_graph_source()
+    single = source / "graph.yaml"
+    graph_files = [single] if single.is_file() else sorted(source.glob("*.graph.yaml"))
+    for graph_file in graph_files:
+        shutil.copy(graph_file, dest_dir / graph_file.name)
 
 
 # ---------------------------------------------------------------------------
@@ -122,13 +138,11 @@ def test_no_recommended_changes_when_all_pass() -> None:
 
 def test_overlay_loading_does_not_break_when_file_absent(tmp_path: Path) -> None:
     """Walker works when no overlay file exists for the mission."""
-    # tmp_path has no graph.yaml; use the repo's shipped graph
-    # We patch repo_root to point to the real repo but use a tmp overlay dir
-    import shutil
-
+    # tmp_path has no graph source; seed it from the repo's shipped built-in DRG
+    # via the seam so the walker can resolve a real graph from repo_root=tmp_path.
     src_dir = tmp_path / "src" / "doctrine"
     src_dir.mkdir(parents=True)
-    shutil.copy(_REPO_ROOT / "src" / "doctrine" / "graph.yaml", src_dir / "graph.yaml")
+    _copy_built_in_graph_source(src_dir)
 
     # No .kittify/doctrine/overlays/ directory → should not raise
     findings = walk_mission(mission_key="software-dev", repo_root=tmp_path)
@@ -137,11 +151,9 @@ def test_overlay_loading_does_not_break_when_file_absent(tmp_path: Path) -> None
 
 def test_overlay_add_edge_extends_resolved_scope(tmp_path: Path) -> None:
     """An overlay add_edge increases the resolved scope for the targeted action."""
-    import shutil
-
     src_dir = tmp_path / "src" / "doctrine"
     src_dir.mkdir(parents=True)
-    shutil.copy(_REPO_ROOT / "src" / "doctrine" / "graph.yaml", src_dir / "graph.yaml")
+    _copy_built_in_graph_source(src_dir)
 
     overlays_dir = tmp_path / ".kittify" / "doctrine" / "overlays"
     overlays_dir.mkdir(parents=True)

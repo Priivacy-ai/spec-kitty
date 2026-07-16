@@ -18,11 +18,8 @@ Covers all 7 contract dimensions from
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import pytest
 
-from doctrine.drg.loader import load_graph, merge_layers
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode, NodeKind, Relation
 from doctrine.drg.query import (
     ResolveTransitiveRefsResult,
@@ -31,8 +28,6 @@ from doctrine.drg.query import (
 from doctrine.drg.validator import assert_valid
 
 pytestmark = [pytest.mark.doctrine, pytest.mark.fast]
-
-SHIPPED_GRAPH = Path(__file__).resolve().parents[3] / "src" / "doctrine" / "graph.yaml"
 
 
 # ---------------------------------------------------------------------------
@@ -322,12 +317,13 @@ def test_behavioral_equivalence_multi_kind_chain() -> None:
     assert drg.is_complete
 
 
-def test_behavioral_equivalence_against_shipped_graph_is_consistent() -> None:
+def test_behavioral_equivalence_against_shipped_graph_is_consistent(
+    built_in_graph: DRGGraph,
+) -> None:
     """Sanity check on the shipped graph: the DRG walk from every directive
     URN produces a deterministic bucketed result and never stores unresolved
     edges (``assert_valid`` guarantees that)."""
-    graph = load_graph(SHIPPED_GRAPH)
-    merged = merge_layers(graph, None)
+    merged = built_in_graph
     assert_valid(merged)
 
     directive_urns = [n.urn for n in merged.nodes if n.kind == NodeKind.DIRECTIVE]

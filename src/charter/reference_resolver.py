@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from charter._drg_helpers import load_validated_graph
 from charter.catalog import resolve_doctrine_root
 from charter.drg import filter_graph_by_activation
-from doctrine.drg.loader import load_graph_or_dir
+from doctrine.drg.loader import load_built_in_graph
 from doctrine.drg.models import DRGGraph, Relation
 from doctrine.drg.query import ResolveTransitiveRefsResult, resolve_transitive_refs
 from doctrine.drg.validator import assert_valid
@@ -54,7 +54,7 @@ def resolve_references_transitively(
                 doctrine_root = resolve_doctrine_root()
                 if not doctrine_root.exists():
                     return ResolveTransitiveRefsResult(directives=sorted(directive_ids))
-                resolved_graph = load_graph_or_dir(doctrine_root)
+                resolved_graph = load_built_in_graph()
                 assert_valid(resolved_graph)
         except FileNotFoundError:
             return ResolveTransitiveRefsResult(directives=sorted(directive_ids))

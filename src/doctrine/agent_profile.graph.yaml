@@ -1,0 +1,391 @@
+schema_version: '1.0'
+generated_at: STATIC
+generated_by: drg-migration-v1
+nodes:
+- urn: agent_profile:architect-alphonso
+  kind: agent_profile
+  label: Architect Alphonso
+- urn: agent_profile:curator-carla
+  kind: agent_profile
+  label: Curator Carla
+- urn: agent_profile:debugger-debbie
+  kind: agent_profile
+  label: Debugger Debbie
+- urn: agent_profile:designer-dagmar
+  kind: agent_profile
+  label: Designer Dagmar
+- urn: agent_profile:doctrine-daphne
+  kind: agent_profile
+  label: Doctrine Daphne
+- urn: agent_profile:frontend-freddy
+  kind: agent_profile
+  label: Frontend Freddy
+- urn: agent_profile:generic-agent
+  kind: agent_profile
+  label: Generic Agent
+- urn: agent_profile:human-in-charge
+  kind: agent_profile
+  label: Human in Charge
+- urn: agent_profile:implementer-ivan
+  kind: agent_profile
+  label: Implementer Ivan
+- urn: agent_profile:java-jenny
+  kind: agent_profile
+  label: Java Jenny
+- urn: agent_profile:node-norris
+  kind: agent_profile
+  label: Node Norris
+- urn: agent_profile:paula-patterns
+  kind: agent_profile
+  label: Paula Patterns
+- urn: agent_profile:planner-priti
+  kind: agent_profile
+  label: Planner Priti
+- urn: agent_profile:python-pedro
+  kind: agent_profile
+  label: Python Pedro
+- urn: agent_profile:randy-reducer
+  kind: agent_profile
+  label: Randy Reducer
+- urn: agent_profile:researcher-robbie
+  kind: agent_profile
+  label: Researcher Robbie
+- urn: agent_profile:retrospective-facilitator
+  kind: agent_profile
+  label: Retrospective Facilitator
+- urn: agent_profile:reviewer-renata
+  kind: agent_profile
+  label: Reviewer Renata
+edges:
+- source: agent_profile:architect-alphonso
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: agent_profile:architect-alphonso
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: agent_profile:architect-alphonso
+  target: directive:DIRECTIVE_031
+  relation: requires
+- source: agent_profile:architect-alphonso
+  target: directive:DIRECTIVE_032
+  relation: requires
+- source: agent_profile:architect-alphonso
+  target: directive:DIRECTIVE_041
+  relation: requires
+- source: agent_profile:architect-alphonso
+  target: directive:DIRECTIVE_043
+  relation: requires
+- source: agent_profile:architect-alphonso
+  target: directive:DIRECTIVE_044
+  relation: requires
+- source: agent_profile:architect-alphonso
+  target: tactic:development-bdd
+  relation: requires
+  reason: Use BDD behavioral contract definition during architecture design to express observable system boundaries in stakeholder-readable terms. Behavioral contracts precede implementation and shape system component boundaries.
+- source: agent_profile:curator-carla
+  target: directive:DIRECTIVE_018
+  relation: requires
+- source: agent_profile:debugger-debbie
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: agent_profile:debugger-debbie
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: agent_profile:debugger-debbie
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: agent_profile:debugger-debbie
+  target: directive:DIRECTIVE_032
+  relation: requires
+- source: agent_profile:debugger-debbie
+  target: tactic:code-review-incremental
+  relation: requires
+  reason: Applied to each sub-agent's output during convergence synthesis to identify gaps before authoring the fix plan
+- source: agent_profile:debugger-debbie
+  target: tactic:five-paradigm-parallel-debugging
+  relation: requires
+  reason: The procedural how-to for dispatching, prompting, and synthesizing the five paradigms
+- source: agent_profile:debugger-debbie
+  target: tactic:review-intent-and-risk-first
+  relation: requires
+  reason: The structural-fix plan must be evaluated for intent (does this close the class?) and risk (what is the blast radius of the structural change?) before handoff
+- source: agent_profile:designer-dagmar
+  target: directive:DIRECTIVE_031
+  relation: requires
+- source: agent_profile:doctrine-daphne
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: agent_profile:doctrine-daphne
+  target: directive:DIRECTIVE_018
+  relation: requires
+- source: agent_profile:doctrine-daphne
+  target: directive:DIRECTIVE_032
+  relation: requires
+- source: agent_profile:doctrine-daphne
+  target: directive:DIRECTIVE_043
+  relation: requires
+- source: agent_profile:doctrine-daphne
+  target: directive:DIRECTIVE_044
+  relation: requires
+- source: agent_profile:doctrine-daphne
+  target: procedure:onboard-external-agent-to-pack
+  relation: applies
+- source: agent_profile:frontend-freddy
+  target: agent_profile:implementer-ivan
+  relation: specializes_from
+- source: agent_profile:frontend-freddy
+  target: directive:DIRECTIVE_010
+  relation: requires
+- source: agent_profile:frontend-freddy
+  target: directive:DIRECTIVE_024
+  relation: requires
+- source: agent_profile:frontend-freddy
+  target: directive:DIRECTIVE_025
+  relation: requires
+- source: agent_profile:frontend-freddy
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: agent_profile:frontend-freddy
+  target: directive:DIRECTIVE_034
+  relation: requires
+- source: agent_profile:frontend-freddy
+  target: tactic:behavior-driven-development
+  relation: requires
+  reason: BDD scenarios define acceptance criteria for browser components; wire Cucumber-JS/Playwright e2e scenarios as acceptance tests before implementation
+- source: agent_profile:frontend-freddy
+  target: tactic:bug-fixing-checklist
+  relation: requires
+  reason: Reproduce browser defects with a failing test before fixing production code
+- source: agent_profile:generic-agent
+  target: directive:DIRECTIVE_028
+  relation: requires
+- source: agent_profile:implementer-ivan
+  target: directive:DIRECTIVE_010
+  relation: requires
+- source: agent_profile:implementer-ivan
+  target: directive:DIRECTIVE_043
+  relation: requires
+- source: agent_profile:implementer-ivan
+  target: directive:DIRECTIVE_044
+  relation: requires
+- source: agent_profile:implementer-ivan
+  target: directive:DIRECTIVE_045
+  relation: requires
+- source: agent_profile:implementer-ivan
+  target: tactic:bug-fixing-checklist
+  relation: requires
+  reason: Enforce test-first defect resolution — write a failing reproduction test before modifying production code. All specialist profiles (java-jenny, python-pedro, frontend-freddy, node-norris) inherit this discipline via union merge.
+- source: agent_profile:java-jenny
+  target: agent_profile:implementer-ivan
+  relation: specializes_from
+- source: agent_profile:java-jenny
+  target: directive:DIRECTIVE_010
+  relation: requires
+- source: agent_profile:java-jenny
+  target: directive:DIRECTIVE_024
+  relation: requires
+- source: agent_profile:java-jenny
+  target: directive:DIRECTIVE_025
+  relation: requires
+- source: agent_profile:java-jenny
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: agent_profile:java-jenny
+  target: directive:DIRECTIVE_034
+  relation: requires
+- source: agent_profile:java-jenny
+  target: tactic:behavior-driven-development
+  relation: requires
+  reason: BDD scenarios define acceptance criteria for Java features. Wire Gherkin scenarios via Cucumber-JVM as acceptance tests before implementing production code.
+- source: agent_profile:node-norris
+  target: agent_profile:implementer-ivan
+  relation: specializes_from
+- source: agent_profile:node-norris
+  target: directive:DIRECTIVE_010
+  relation: requires
+- source: agent_profile:node-norris
+  target: directive:DIRECTIVE_024
+  relation: requires
+- source: agent_profile:node-norris
+  target: directive:DIRECTIVE_025
+  relation: requires
+- source: agent_profile:node-norris
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: agent_profile:node-norris
+  target: directive:DIRECTIVE_034
+  relation: requires
+- source: agent_profile:node-norris
+  target: tactic:behavior-driven-development
+  relation: requires
+  reason: BDD scenarios define acceptance criteria for API endpoints; Cucumber-JS step definitions call the API via supertest
+- source: agent_profile:node-norris
+  target: tactic:bug-fixing-checklist
+  relation: requires
+  reason: Reproduce server-side defects with a failing integration test before fixing production code
+- source: agent_profile:paula-patterns
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: agent_profile:paula-patterns
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: agent_profile:paula-patterns
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: agent_profile:paula-patterns
+  target: directive:DIRECTIVE_032
+  relation: requires
+- source: agent_profile:paula-patterns
+  target: directive:DIRECTIVE_041
+  relation: requires
+- source: agent_profile:paula-patterns
+  target: tactic:anti-corruption-layer
+  relation: requires
+  reason: Use when external system details leak into domain or application decisions
+- source: agent_profile:paula-patterns
+  target: tactic:domain-event-capture
+  relation: requires
+  reason: Use when durable state transitions, replay, provenance, or event boundaries are missing
+- source: agent_profile:paula-patterns
+  target: tactic:paula-patterns-architecture-scout-review
+  relation: requires
+  reason: Canonical dispatch and synthesis procedure for the five architecture scouts and release-vs-long-term decision matrix
+- source: agent_profile:paula-patterns
+  target: tactic:review-intent-and-risk-first
+  relation: requires
+  reason: Evaluate whether the release fix closes the observed issue and what blast radius it carries before handoff
+- source: agent_profile:planner-priti
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: agent_profile:python-pedro
+  target: agent_profile:implementer-ivan
+  relation: specializes_from
+- source: agent_profile:python-pedro
+  target: directive:DIRECTIVE_010
+  relation: requires
+- source: agent_profile:python-pedro
+  target: directive:DIRECTIVE_024
+  relation: requires
+- source: agent_profile:python-pedro
+  target: directive:DIRECTIVE_025
+  relation: requires
+- source: agent_profile:python-pedro
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: agent_profile:python-pedro
+  target: directive:DIRECTIVE_041
+  relation: requires
+- source: agent_profile:python-pedro
+  target: directive:DIRECTIVE_043
+  relation: requires
+- source: agent_profile:python-pedro
+  target: directive:DIRECTIVE_044
+  relation: requires
+- source: agent_profile:python-pedro
+  target: directive:DIRECTIVE_045
+  relation: requires
+- source: agent_profile:python-pedro
+  target: tactic:delete-the-assertion-not-the-test
+  relation: requires
+  reason: When a touched test is friction (green for the wrong reason or false-red on a correct change), replace its assertion with a contract-pinned, red-first one and keep the setup/edge-cases — mine the non-obvious regressions first. Delete a whole test only when it is provably zero-coverage or superseded; never delete to dodge a red.
+- source: agent_profile:python-pedro
+  target: tactic:test-scaffolding-as-design-smell
+  relation: requires
+  reason: Write code whose behavior is testable without infrastructure. If a unit test would need real files, git, or several mocks to run, invert the dependency and extract a pure seam before adding the test, rather than expanding the mock setup.
+- source: agent_profile:randy-reducer
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: agent_profile:randy-reducer
+  target: directive:DIRECTIVE_024
+  relation: requires
+- source: agent_profile:randy-reducer
+  target: directive:DIRECTIVE_025
+  relation: requires
+- source: agent_profile:randy-reducer
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: agent_profile:randy-reducer
+  target: directive:DIRECTIVE_034
+  relation: requires
+- source: agent_profile:randy-reducer
+  target: directive:DIRECTIVE_041
+  relation: requires
+- source: agent_profile:randy-reducer
+  target: tactic:semantic-compression-abstraction-extraction
+  relation: requires
+  reason: Replace repeated concept implementations with one named abstraction
+- source: agent_profile:randy-reducer
+  target: tactic:semantic-compression-behavioral-boundary-mapping
+  relation: requires
+  reason: Establish the behavioral envelope before deleting or extracting code
+- source: agent_profile:randy-reducer
+  target: tactic:semantic-compression-dead-weight-elimination
+  relation: requires
+  reason: Remove code that has no protected observable effect
+- source: agent_profile:randy-reducer
+  target: tactic:semantic-compression-equivalence-verification
+  relation: requires
+  reason: Prove the smaller implementation still preserves the behavioral envelope
+- source: agent_profile:randy-reducer
+  target: tactic:semantic-compression-redundancy-discovery
+  relation: requires
+  reason: Find behavioral duplication across exact, parameterized, structural, and semantic levels
+- source: agent_profile:randy-reducer
+  target: tactic:semantic-compression-semantic-consolidation
+  relation: requires
+  reason: Collapse split business-rule paths into one canonical owner
+- source: agent_profile:randy-reducer
+  target: tactic:test-scaffolding-as-design-smell
+  relation: requires
+  reason: Heavy test setup signals duplicated, IO-coupled code paths and a missing seam — extract one pure boundary and collapse the variants.
+- source: agent_profile:researcher-robbie
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: agent_profile:retrospective-facilitator
+  target: directive:DIRECTIVE_003
+  relation: requires
+- source: agent_profile:retrospective-facilitator
+  target: directive:DIRECTIVE_010
+  relation: requires
+- source: agent_profile:retrospective-facilitator
+  target: directive:DIRECTIVE_018
+  relation: requires
+- source: agent_profile:reviewer-renata
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: agent_profile:reviewer-renata
+  target: directive:DIRECTIVE_024
+  relation: requires
+- source: agent_profile:reviewer-renata
+  target: directive:DIRECTIVE_030
+  relation: requires
+- source: agent_profile:reviewer-renata
+  target: directive:DIRECTIVE_032
+  relation: requires
+- source: agent_profile:reviewer-renata
+  target: directive:DIRECTIVE_041
+  relation: requires
+- source: agent_profile:reviewer-renata
+  target: tactic:code-review-incremental
+  relation: requires
+  reason: Structured review discipline — read intent first, identify risks by category, formulate observations not instructions
+- source: agent_profile:reviewer-renata
+  target: tactic:delete-the-assertion-not-the-test
+  relation: requires
+  reason: When remediating a friction test (passes for the wrong reason, false-reds a correct change, or asserts an implementation detail), replace the wrong assertion with a contract-pinned red-first one while preserving the test's setup and excavated edge-cases. Reserve outright deletion for provably zero-coverage or superseded tests — delete the assertion, not the test.
+- source: agent_profile:reviewer-renata
+  target: tactic:language-driven-design
+  relation: requires
+  reason: Detect terminology conflicts in diffs as early signals of architectural problems or missing bounded context boundaries
+- source: agent_profile:reviewer-renata
+  target: tactic:reverse-speccing
+  relation: requires
+  reason: Validate that tests serve as executable specifications by reconstructing system understanding from test code alone
+- source: agent_profile:reviewer-renata
+  target: tactic:test-readability-clarity-check
+  relation: requires
+  reason: 'Apply the dual-perspective reconstruction check during review: read only the test suite and attempt to reconstruct system behavior, then compare against the specification. Tests that fail reconstruction are documentation gaps.'
+- source: agent_profile:reviewer-renata
+  target: tactic:test-scaffolding-as-design-smell
+  relation: requires
+  reason: Treat heavy test setup or many infrastructure mocks in a diff as a design smell to flag, not accept — request a pure boundary/seam instead of more doubles.

@@ -14,8 +14,20 @@ from unittest.mock import patch
 import pytest
 
 from charter._drg_helpers import load_validated_graph
+from doctrine.drg.loader import load_graph_or_dir
 
 pytestmark = pytest.mark.fast
+
+
+def _built_in_from(root: Path) -> Any:
+    """Load a fixture built-in graph from *root* (a fake doctrine directory).
+
+    WP03 (mission #2680) routed ``load_validated_graph`` through the canonical
+    :func:`doctrine.drg.loader.load_built_in_graph` seam, so tests inject the
+    built-in layer by patching that seam rather than the retired
+    ``resolve_doctrine_root`` import.
+    """
+    return load_graph_or_dir(root)
 
 
 def test_load_validated_graph_invokes_assert_valid(tmp_path: Path) -> None:
@@ -33,8 +45,8 @@ def test_load_validated_graph_invokes_assert_valid(tmp_path: Path) -> None:
     )
 
     with patch(
-        "charter._drg_helpers.resolve_doctrine_root",
-        return_value=built_in_root,
+        "charter._drg_helpers.load_built_in_graph",
+        side_effect=lambda: _built_in_from(built_in_root),
     ), patch("charter._drg_helpers.assert_valid") as mock_validator:
         load_validated_graph(tmp_path)
     assert mock_validator.called, "assert_valid() was not called"
@@ -68,8 +80,8 @@ def test_load_validated_graph_overlays_project_graph(tmp_path: Path) -> None:
     )
 
     with patch(
-        "charter._drg_helpers.resolve_doctrine_root",
-        return_value=built_in_root,
+        "charter._drg_helpers.load_built_in_graph",
+        side_effect=lambda: _built_in_from(built_in_root),
     ):
         graph = load_validated_graph(tmp_path)
 
@@ -95,26 +107,24 @@ def test_load_validated_graph_rejects_invalid_merge(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     with patch(
-        "charter._drg_helpers.resolve_doctrine_root",
-        return_value=built_in_root,
+        "charter._drg_helpers.load_built_in_graph",
+        side_effect=lambda: _built_in_from(built_in_root),
     ):
         with pytest.raises(Exception):  # noqa: B017, assert_valid may raise a variety
             load_validated_graph(tmp_path)
 
 
 def test_shipped_graph_is_valid() -> None:
-    """Shipped ``src/doctrine/graph.yaml`` passes :func:`assert_valid` today.
+    """The shipped built-in DRG passes :func:`assert_valid` today.
 
     This is the live-path backstop: if the shipped graph regresses into an
     invalid shape (dangling edges, duplicate edges, cycles in ``requires``),
     every downstream charter build will fail loudly instead of silently
-    losing artifacts.
+    losing artifacts. Routed through the WP03 seam ``load_built_in_graph()`` so
+    it stays layout-agnostic across the WP05 monolith->fragment migration (the
+    seam raises if no built-in graph source can be loaded).
     """
-    repo_root = Path(__file__).resolve().parents[2]
-    from doctrine.drg.loader import load_graph, merge_layers
+    from doctrine.drg.loader import load_built_in_graph
     from doctrine.drg.validator import assert_valid
 
-    shipped_graph_path = repo_root / "src" / "doctrine" / "graph.yaml"
-    assert shipped_graph_path.is_file(), f"missing shipped graph: {shipped_graph_path}"
-    merged = merge_layers(load_graph(shipped_graph_path), None)
-    assert_valid(merged)
+    assert_valid(load_built_in_graph())

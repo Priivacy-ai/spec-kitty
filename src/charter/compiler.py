@@ -789,7 +789,7 @@ def _resolve_transitive_reference_graph(
     """
     from charter._drg_helpers import load_validated_graph
     from charter.drg import filter_graph_by_activation
-    from doctrine.drg.loader import load_graph_or_dir
+    from doctrine.drg.loader import load_built_in_graph
     from doctrine.drg.models import Relation
     from doctrine.drg.query import ResolveTransitiveRefsResult, resolve_transitive_refs
     from doctrine.drg.validator import assert_valid
@@ -816,7 +816,7 @@ def _resolve_transitive_reference_graph(
         else:
             if not doctrine_root.exists():
                 return fallback
-            merged = load_graph_or_dir(doctrine_root)
+            merged = load_built_in_graph()
             assert_valid(merged)
     except Exception:
         return fallback

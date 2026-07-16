@@ -1,0 +1,44 @@
+schema_version: '1.0'
+generated_at: STATIC
+generated_by: drg-migration-v1
+nodes:
+- urn: toolguide:contextive
+  kind: toolguide
+  label: Contextive
+- urn: toolguide:efficient-local-tooling
+  kind: toolguide
+  label: Efficient Local Tooling
+- urn: toolguide:git-agent-commit-signing
+  kind: toolguide
+  label: Git Agent Commit Signing
+- urn: toolguide:github-tracker
+  kind: toolguide
+  label: GitHub Issue-Tracker Operations (gh CLI + GraphQL)
+- urn: toolguide:maven-review-checks
+  kind: toolguide
+  label: Maven Review Checks
+- urn: toolguide:mermaid-diagramming
+  kind: toolguide
+  label: Mermaid Diagramming
+- urn: toolguide:plantuml-diagramming
+  kind: toolguide
+  label: PlantUML Diagramming
+- urn: toolguide:python-mutation-tools
+  kind: toolguide
+  label: Python Mutation Testing with mutmut
+- urn: toolguide:python-review-checks
+  kind: toolguide
+  label: Python Review Checks
+- urn: toolguide:rtk-search-tooling
+  kind: toolguide
+  label: RTK Interception and Search Tooling
+- urn: toolguide:terminology-guard
+  kind: toolguide
+  label: Terminology Guard
+- urn: toolguide:typescript-mutation-tools
+  kind: toolguide
+  label: TypeScript Mutation Testing with Stryker
+edges:
+- source: toolguide:terminology-guard
+  target: directive:DIRECTIVE_044
+  relation: suggests

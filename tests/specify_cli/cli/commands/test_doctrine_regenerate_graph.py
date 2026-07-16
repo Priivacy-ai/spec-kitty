@@ -15,18 +15,36 @@ from __future__ import annotations
 import json
 import shutil
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
-from ruamel.yaml import YAML
 from typer.testing import CliRunner
 
+from doctrine.drg.loader import load_built_in_graph
 from specify_cli.cli.commands.doctrine import app as doctrine_app
+
+if TYPE_CHECKING:
+    from doctrine.drg.models import DRGGraph
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
 runner = CliRunner()
 
 DOCTRINE_ROOT = Path(__file__).resolve().parents[4] / "src" / "doctrine"
+
+
+def _graph_files(doctrine_dir: Path) -> list[Path]:
+    """Return the DRG graph source files under *doctrine_dir* (layout-agnostic).
+
+    Mirrors :func:`doctrine.drg.loader.load_graph_or_dir` / the shape of
+    :func:`built_in_graph_source`: the ``graph.yaml`` monolith when present,
+    otherwise the ``*.graph.yaml`` fragments. This lets per-file byte-identity
+    assertions survive the WP05 monolith->fragment flip with no edit (DD-11).
+    """
+    single = doctrine_dir / "graph.yaml"
+    if single.is_file():
+        return [single]
+    return sorted(doctrine_dir.glob("*.graph.yaml"))
 
 #: WP05 / FR-009 / C-003 — orphan-count regression ceiling.
 #:
@@ -37,52 +55,58 @@ DOCTRINE_ROOT = Path(__file__).resolve().parents[4] / "src" / "doctrine"
 #: referent and is documented (with per-orphan rationale) in
 #: ``kitty-specs/mission-lifecycle-dispatch-drg-closeout-01KV0S99/drg-orphan-residual.md``.
 #:
-#: 2026-07-16 (ceiling 14 → 18): the mission-type-as-DRG-node work introduced 8
-#: new *structural* nodes that are edgeless by deliberate design, while 4 of the
-#: original 14 residuals gained natural inbound edges (net 14 → 18). Per D-C2
-#: none of the 8 is wirable without overriding a recorded design decision or
-#: fabricating a metric edge, so all are accepted residuals:
-#:   - ``mission_type:{documentation,plan,research,software-dev}`` — the graph
-#:     generator emits mission-type nodes *nodes-only by explicit design*
-#:     (``extractor._discover_mission_type_nodes``: edges are a deferred
-#:     S0-continuation; a ``_KIND_MAP`` entry is intentionally withheld until
-#:     the mission_type→action edge feature lands).
-#:   - ``action:plan/{plan,research,review,specify}`` — the ``plan`` mission's
-#:     action-grain indexes are *intentionally empty* (FR-004); plan governance
-#:     is type-wide (``missions/plan/governance-profile.yaml`` ``selected_*``)
-#:     and disjoint from the action grain (FR-013), so these action nodes carry
-#:     zero ``scope`` edges by design.
-#: Rationale + the 4 resolved originals are recorded in ``drg-orphan-residual.md``.
+#: 2026-07-16 (ceiling stays 14; empirical residual 10): an interim curation pass
+#: had briefly raised this to 18 to *accept* 8 structural mission-type nodes
+#: (``mission_type:{documentation,plan,research,software-dev}`` +
+#: ``action:plan/{plan,research,review,specify}``) as edgeless residuals, because
+#: the generator emitted mission-type nodes nodes-only pending a deferred
+#: S0-continuation edge feature. **Mission ``mission-type-drg-edges-01KXKY2N``
+#: (#2677) implemented that feature**: the generator now emits
+#: ``mission_type:X → action:X/<step>`` ``requires`` edges from each type's
+#: ``action_sequence`` (21 edges), so all 8 structural nodes are wired and leave
+#: the orphan set — the 18 raise is reverted to 14. In the same pass 4 of the
+#: original residuals were found already-wired (stale rows), taking the empirical
+#: residual from 14 to **10**. Full narrative + the 10 surviving rows are in
+#: ``drg-orphan-residual.md``.
 #:
 #: D-C2 / C-003 forbid deleting valid orphans to shrink this metric. This ceiling
 #: is a regression guard against the count silently *growing* — a new orphan must
 #: either be wired or added to the documented residual (and this ceiling raised
-#: with a rationale). It is NOT a mandate to prune to reach a lower number. When
-#: the S0-continuation edge feature lands, the 8 structural orphans wire in one
-#: pass and this ceiling should drop.
-DOCUMENTED_ORPHAN_RESIDUAL = 18
+#: with a rationale). It is NOT a mandate to prune to reach a lower number. The
+#: ceiling stays at the historical 14 baseline (empirical 10 leaves 4 slack, by
+#: deliberate D-C2 choice — a growth guard, not a pin to the current count).
+DOCUMENTED_ORPHAN_RESIDUAL = 14
 
 
-def _count_orphans(graph_path: Path) -> int:
-    """Return the number of nodes with no inbound or outbound edge."""
-    data = YAML(typ="safe").load(graph_path)
-    urns = {node["urn"] for node in data["nodes"]}
+def _count_orphans(graph: DRGGraph) -> int:
+    """Return the number of nodes with no inbound or outbound edge.
+
+    Operates on a loaded :class:`~doctrine.drg.models.DRGGraph` so the caller can
+    read *whatever layout is on disk* through the seam (monolith today, fragments
+    post-WP05) rather than re-parsing a hardcoded ``graph.yaml`` path.
+    """
+    urns = {node.urn for node in graph.nodes}
     incident: set[str] = set()
-    for edge in data["edges"]:
-        incident.add(edge["source"])
-        incident.add(edge["target"])
+    for edge in graph.edges:
+        incident.add(edge.source)
+        incident.add(edge.target)
     return len(urns - incident)
 
 
 def test_check_reports_committed_graph_fresh() -> None:
-    """The shipped graph must be fresh — operator twin of the freshness gate."""
+    """The shipped graph must be fresh — operator twin of the freshness gate.
+
+    Freshness is asserted via the ``--check`` result (exit 0 + ``status ==
+    'fresh'``), not the reported path shape: a ``payload['path'].endswith(
+    'graph.yaml')`` assertion would break the instant WP05 replaces the monolith
+    with ``*.graph.yaml`` fragments.
+    """
     result = runner.invoke(
         doctrine_app, ["regenerate-graph", "--check", "--json"]
     )
     assert result.exit_code == 0, result.output
     payload = json.loads(result.output)
     assert payload["status"] == "fresh"
-    assert payload["path"].endswith("src/doctrine/graph.yaml")
 
 
 def test_regenerate_twice_is_byte_identical(
@@ -96,17 +120,18 @@ def test_regenerate_twice_is_byte_identical(
     shutil.copytree(DOCTRINE_ROOT, fake_doctrine)
     monkeypatch.chdir(fake_repo)
 
-    graph_path = fake_doctrine / "graph.yaml"
-
     r1 = runner.invoke(doctrine_app, ["regenerate-graph"])
     assert r1.exit_code == 0, r1.output
-    first = graph_path.read_bytes()
+    first = {p.name: p.read_bytes() for p in _graph_files(fake_doctrine)}
+    assert first, "regenerate-graph produced no graph source files"
 
     r2 = runner.invoke(doctrine_app, ["regenerate-graph"])
     assert r2.exit_code == 0, r2.output
-    second = graph_path.read_bytes()
+    second = {p.name: p.read_bytes() for p in _graph_files(fake_doctrine)}
 
-    assert first == second, "regenerate-graph is not idempotent"
+    # DD-11: per-file byte-identity over the on-disk graph source (the
+    # ``graph.yaml`` monolith today, ``*.graph.yaml`` fragments after WP05).
+    assert first == second, "regenerate-graph is not idempotent (per-file byte drift)"
 
 
 def test_check_detects_stale_graph(
@@ -119,9 +144,11 @@ def test_check_detects_stale_graph(
     shutil.copytree(DOCTRINE_ROOT, fake_doctrine)
     monkeypatch.chdir(fake_repo)
 
-    graph_path = fake_doctrine / "graph.yaml"
-    graph_path.write_text(
-        graph_path.read_text(encoding="utf-8") + "\n# stale drift marker\n",
+    # Corrupt whichever graph source file is on disk (monolith today, a fragment
+    # after WP05) so the committed graph drifts from a fresh regeneration.
+    stale_target = _graph_files(fake_doctrine)[0]
+    stale_target.write_text(
+        stale_target.read_text(encoding="utf-8") + "\n# stale drift marker\n",
         encoding="utf-8",
     )
 
@@ -140,7 +167,7 @@ def test_shipped_graph_orphan_count_within_documented_residual() -> None:
     orphan must be wired or added to the documented residual (raising the
     ceiling with rationale), per the no-bulk-delete correction (D-C2).
     """
-    orphans = _count_orphans(DOCTRINE_ROOT / "graph.yaml")
+    orphans = _count_orphans(load_built_in_graph())
     assert orphans <= DOCUMENTED_ORPHAN_RESIDUAL, (
         f"DRG orphan count {orphans} exceeds documented residual "
         f"{DOCUMENTED_ORPHAN_RESIDUAL}; wire a real inbound edge or update "
@@ -150,7 +177,7 @@ def test_shipped_graph_orphan_count_within_documented_residual() -> None:
 
 def test_phantom_java_implementer_node_is_absent() -> None:
     """The repaired java-implementer reference must not mint a phantom node."""
-    data = YAML(typ="safe").load(DOCTRINE_ROOT / "graph.yaml")
-    urns = {node["urn"] for node in data["nodes"]}
+    graph = load_built_in_graph()
+    urns = {node.urn for node in graph.nodes}
     assert "agent_profile:java-implementer" not in urns
     assert "agent_profile:java-jenny" in urns

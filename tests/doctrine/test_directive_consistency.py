@@ -8,13 +8,16 @@ yet exist.  Only schema-syntactic checks run across both shipped and _proposed.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 import jsonschema
 from ruamel.yaml import YAML
 
 from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT, REPO_ROOT
+
+if TYPE_CHECKING:
+    from doctrine.drg.models import DRGGraph
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -397,14 +400,9 @@ def test_tactic_opposed_by_refs_resolve() -> None:
     assert not unresolved, "Unresolved tactic opposed_by references:\n" + "\n".join(unresolved)
 
 
-def test_paradigm_opposed_by_refs_resolve() -> None:
+def test_paradigm_opposed_by_refs_resolve(built_in_graph: DRGGraph) -> None:
     """All opposed_by entries in shipped paradigms must point to DRG nodes."""
-    graph = _load_yaml(_DOCTRINE_ROOT / "graph.yaml")
-    node_urns = {
-        str(node.get("urn", "")).strip()
-        for node in graph.get("nodes", []) or []
-        if isinstance(node, dict)
-    }
+    node_urns = {urn.strip() for urn in built_in_graph.node_urns()}
 
     unresolved: list[str] = []
     for path in _multi_glob([_SHIPPED_PARADIGMS_DIR], "*.paradigm.yaml"):

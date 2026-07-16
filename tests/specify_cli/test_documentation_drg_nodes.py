@@ -27,6 +27,7 @@ import pytest
 import yaml
 
 from charter._drg_helpers import load_validated_graph
+from doctrine.drg.loader import load_built_in_graph
 from doctrine.drg.query import resolve_context
 
 # The 6 advancing documentation actions covered by the mission-runtime sidecar.
@@ -75,12 +76,17 @@ _SLUG_TO_URN: dict[str, str] = {
 
 
 def _repo_root() -> Path:
-    """Locate the repository root that holds ``src/doctrine/graph.yaml``."""
+    """Locate the repository root via a delete-stable ``pyproject.toml`` marker.
+
+    Keyed on ``pyproject.toml`` rather than ``src/doctrine/graph.yaml`` so the
+    finder survives the WP05 monolith->fragment migration: the shipped
+    ``graph.yaml`` is deleted, but ``pyproject.toml`` is not.
+    """
     here = Path(__file__).resolve()
     for parent in (here, *here.parents):
-        if (parent / "src" / "doctrine" / "graph.yaml").is_file():
+        if (parent / "pyproject.toml").is_file():
             return parent
-    raise RuntimeError("Could not locate repo root containing src/doctrine/graph.yaml")
+    raise RuntimeError("Could not locate repo root containing pyproject.toml")
 
 
 @pytest.mark.parametrize("action", _DOC_ACTIONS)
@@ -119,14 +125,14 @@ def test_action_bundle_matches_drg_edges(action: str) -> None:
     )
     expected_urns = {_SLUG_TO_URN[slug] for slug in slugs}
 
-    graph_yaml = yaml.safe_load(
-        (repo_root / "src" / "doctrine" / "graph.yaml").read_text(encoding="utf-8")
-    )
+    # FR-006 edge check reads the built-in DRG through the WP03 seam so it stays
+    # layout-agnostic across the WP05 monolith->fragment migration.
+    graph = load_built_in_graph()
     actual_urns = {
-        edge["target"]
-        for edge in graph_yaml.get("edges", [])
-        if edge.get("source") == f"action:documentation/{action}"
-        and edge.get("relation") == "scope"
+        edge.target
+        for edge in graph.edges
+        if edge.source == f"action:documentation/{action}"
+        and str(edge.relation) == "scope"
     }
 
     assert expected_urns == actual_urns, (

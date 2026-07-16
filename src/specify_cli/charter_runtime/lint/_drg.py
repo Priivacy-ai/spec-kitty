@@ -62,30 +62,24 @@ def _load_project_drg(repo_root: Path) -> Any | None:
 def _load_built_in_drg() -> Any | None:
     """Try to load the built-in DRG shipped under ``src/doctrine/``.
 
-    Uses a lazy import of :func:`charter.catalog.resolve_doctrine_root` to
-    avoid creating an import cycle between ``charter_lint`` and ``charter``.
-    Returns ``None`` when the catalog cannot be resolved or the file is
-    missing.
+    Routes through the canonical :func:`doctrine.drg.loader.load_built_in_graph`
+    seam (WP03, mission #2680) so the built-in graph is read in exactly one
+    place and follows the monolith->fragment migration (WP05) transparently.
+    The lazy, exception-safe shape is preserved: returns ``None`` when the
+    doctrine package is not importable or the graph cannot be loaded, which the
+    caller maps to :class:`GraphState.MISSING`.
     """
     try:
-        from charter.catalog import resolve_doctrine_root
+        from doctrine.drg.loader import DRGLoadError, load_built_in_graph
     except Exception:  # noqa: BLE001
-        logger.debug("charter_lint._drg: charter.catalog not importable", exc_info=True)
+        logger.debug("charter_lint._drg: doctrine.drg.loader not importable", exc_info=True)
         return None
 
     try:
-        built_in_root = resolve_doctrine_root()
-    except Exception:  # noqa: BLE001
-        logger.debug("charter_lint._drg: resolve_doctrine_root() failed", exc_info=True)
+        return load_built_in_graph()
+    except DRGLoadError:
+        logger.debug("charter_lint._drg: load_built_in_graph() failed", exc_info=True)
         return None
-
-    if built_in_root is None:
-        return None
-
-    candidate = Path(built_in_root) / "graph.yaml"
-    if not candidate.exists():
-        return None
-    return _load_graph_file(candidate)
 
 
 def load_merged_drg(repo_root: Path) -> tuple[Any | None, GraphState]:
@@ -99,8 +93,8 @@ def load_merged_drg(repo_root: Path) -> tuple[Any | None, GraphState]:
        contract that a synthesized project DRG already incorporates the
        built-in and any org-pack layers; callers do not need to merge
        again.
-    2. Built-in DRG shipped under ``src/doctrine/`` via
-       :func:`charter.catalog.resolve_doctrine_root` →
+    2. Built-in DRG shipped under ``src/doctrine/`` via the canonical
+       :func:`doctrine.drg.loader.load_built_in_graph` seam →
        ``(graph, GraphState.BUILT_IN_ONLY)``.
     3. Nothing loadable → ``(None, GraphState.MISSING)``.
 
