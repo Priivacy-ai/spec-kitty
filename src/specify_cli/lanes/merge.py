@@ -101,13 +101,20 @@ def _try_auto_rebase_if_stale(
     return stale
 
 
-def merge_lane_to_mission(
+def consolidate_lane_into_mission(
     repo_root: Path,
     mission_slug: str,
     lane_id: str,
     lanes_manifest: LanesManifest | None = None,
 ) -> LaneMergeResult:
-    """Merge a lane branch into the mission integration branch.
+    """Consolidate a lane branch into the mission integration branch.
+
+    This is the *lane-consolidation* merge (one of a mission's several lane
+    branches folded into the single mission branch) -- distinct from
+    :func:`integrate_mission_into_target`, which performs the later
+    *branch-integration* merge of the whole mission branch into the target
+    (Primary) branch. Naming these two merge steps apart removes the
+    overloaded bare "merge" ambiguity (FR-003/FR-008).
 
     Performs stale-lane check before merging. If the lane is stale
     (overlapping files changed in mission), the merge is blocked.
@@ -178,7 +185,7 @@ def merge_lane_to_mission(
     )
 
 
-def merge_mission_to_target(
+def integrate_mission_into_target(
     repo_root: Path,
     mission_slug: str,
     lanes_manifest: LanesManifest | None = None,
@@ -186,9 +193,17 @@ def merge_mission_to_target(
     strategy: MergeStrategy = MergeStrategy.SQUASH,
     allow_already_applied: bool = False,
 ) -> MissionMergeResult:
-    """Merge the mission integration branch into the target branch (e.g., main).
+    """Integrate the mission branch into the target (Primary) branch.
 
-    This is the final step: only the mission branch may merge to main.
+    This is the *branch-integration* merge -- the final step of a mission,
+    folding the single mission integration branch into the repository's
+    target/Primary branch (e.g. ``main``). It is distinct from
+    :func:`consolidate_lane_into_mission`, the earlier *lane-consolidation*
+    merge that folds individual lane branches into the mission branch; keeping
+    the two named apart removes the overloaded bare "merge" ambiguity
+    (FR-003/FR-008).
+
+    Only the mission branch may integrate into the target branch.
 
     Args:
         repo_root: Repository root.

@@ -243,7 +243,7 @@ class TestSpecCommitE2EOnProtectedPrimary:
             lambda _root, _slug, *, kind: CommitTarget(ref=_COORD_BRANCH),
         )
         monkeypatch.setattr(
-            "specify_cli.coordination.commit_router._resolve_primary_target_branch",
+            "specify_cli.coordination.commit_router._resolve_mission_target_branch",
             lambda _root, _slug: "main",
         )
 

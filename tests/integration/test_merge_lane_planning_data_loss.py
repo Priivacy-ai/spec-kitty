@@ -5,13 +5,13 @@ This file holds two layers of regression pins:
 1. ``TestMergeIncludesPlanningLane`` — the **bookkeeping** assertion: every WP
    from every lane (planning + code) must appear in ``MergeState.wp_order``
    and reach the per-WP ``_mark_wp_merged_done`` pass. This layer mocks out
-   ``merge_lane_to_mission`` / ``merge_mission_to_target`` so the merge plan
+   ``consolidate_lane_into_mission`` / ``integrate_mission_into_target`` so the merge plan
    can be inspected without a real on-disk merge.
 
 2. ``TestPlanningArtifactReachesTarget`` — the **load-bearing** assertion:
    the planning-artifact file MUST be present on the target branch (``main``)
    after ``_run_lane_based_merge`` returns. This layer drives the **real**
-   ``merge_lane_to_mission`` / ``merge_mission_to_target`` / ``_merge_branch_into``
+   ``consolidate_lane_into_mission`` / ``integrate_mission_into_target`` / ``_merge_branch_into``
    functions against a real on-disk git repository. It mocks ONLY the side
    effects that touch state outside git (status emit, dossier sync, SaaS
    emit, stale-assertion check, sparse-checkout preflight, merge gates,
@@ -95,7 +95,7 @@ class TestMergeIncludesPlanningLane:
     """FR-001 bookkeeping: planning-lane WPs MUST appear in MergeState wp_order
     and must reach the per-WP mark-done pass.
 
-    This layer mocks ``merge_lane_to_mission`` and ``merge_mission_to_target``
+    This layer mocks ``consolidate_lane_into_mission`` and ``integrate_mission_into_target``
     so we can inspect the plan without driving real git.  It is the
     fast-feedback regression pin for the lane-iteration / WP-iteration loops.
     """
@@ -139,8 +139,8 @@ class TestMergeIncludesPlanningLane:
             patch("specify_cli.merge.done_bookkeeping.save_state", side_effect=fake_save_state),
             patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path),
             patch("specify_cli.merge.executor.require_no_sparse_checkout"),
-            patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
-            patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
+            patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=lane_result),
+            patch("specify_cli.lanes.merge.integrate_mission_into_target", return_value=mission_result),
             patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done", side_effect=fake_mark_wp_merged_done),
             patch("specify_cli.merge.executor.commit_merge_bookkeeping"),
             patch("specify_cli.merge.done_bookkeeping._assert_merged_wps_reached_done"),
@@ -214,8 +214,8 @@ class TestMergeIncludesPlanningLane:
 
 
 # ---------------------------------------------------------------------------
-# Layer 2 — real merge against real git (no mocks of merge_lane_to_mission /
-# merge_mission_to_target / _merge_branch_into).
+# Layer 2 — real merge against real git (no mocks of consolidate_lane_into_mission /
+# integrate_mission_into_target / _merge_branch_into).
 # ---------------------------------------------------------------------------
 
 
@@ -328,7 +328,7 @@ def _rel_paths(paths: object, repo: Path) -> set[str]:
 def _real_merge_external_mocks(repo_root: Path):
     """Mock only the side effects that touch state OUTSIDE git.
 
-    The real merge_lane_to_mission, merge_mission_to_target, and
+    The real consolidate_lane_into_mission, integrate_mission_into_target, and
     _merge_branch_into are NOT mocked — they execute real ``git merge``.
     """
     patches = [
@@ -897,7 +897,7 @@ class TestPlanningArtifactReachesTarget:
     """FR-001 load-bearing: planning-artifact files MUST end up on the target
     branch after ``_run_lane_based_merge`` runs against real git.
 
-    These tests do NOT mock merge_lane_to_mission, merge_mission_to_target,
+    These tests do NOT mock consolidate_lane_into_mission, integrate_mission_into_target,
     or _merge_branch_into — they exercise real ``git merge``, real branch
     refs, and real worktrees.  They mock only the side effects that touch
     state outside git (status emit, dossier sync, SaaS emit, etc.).
@@ -912,7 +912,7 @@ class TestPlanningArtifactReachesTarget:
         repo with workspace_path: null" — so the artifact lives on the
         planning_base branch (typically main) and ``lane_branch_name(
         "lane-planning", planning_base_branch="main")`` returns ``"main"``
-        so that ``merge_lane_to_mission`` for ``lane-planning`` brings any
+        so that ``consolidate_lane_into_mission`` for ``lane-planning`` brings any
         new commits from main into the mission branch (so the mission→main
         merge sees them).
 
@@ -970,8 +970,8 @@ class TestPlanningArtifactReachesTarget:
         # Return to main so the merge command does not run from a feature branch.
         _git(tmp_path, "checkout", "main")
 
-        # Drive the real merge.  No mocks of merge_lane_to_mission /
-        # merge_mission_to_target / _merge_branch_into.
+        # Drive the real merge.  No mocks of consolidate_lane_into_mission /
+        # integrate_mission_into_target / _merge_branch_into.
         with _real_merge_external_mocks(tmp_path):
             _run_lane_based_merge(
                 repo_root=tmp_path,

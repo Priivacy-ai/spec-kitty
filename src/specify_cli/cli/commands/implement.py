@@ -73,7 +73,7 @@ from specify_cli.cli.commands.implement_cores import (  # noqa: F401 -- shim re-
     _parse_wp_frontmatter,
     _placement_coord_filter,
     _PorcelainEntry,
-    _primary_ref_for,
+    _commit_target_ref_for,
     _resolve_claim_commit_target,
     _resolve_placement_ref,
     _status_paths_for_commit,
@@ -907,7 +907,7 @@ def _commit_planning_artifacts_transaction(
     elif not coord_branch:
         # Flattened/legacy mission: no coordination branch at all -- the
         # historical single transaction to ``planning_branch``, routed
-        # through the shared ``_primary_ref_for`` expression (FR-005 ref
+        # through the shared ``_commit_target_ref_for`` expression (FR-005 ref
         # half) so this write-side destination and the read-side idempotency
         # compare cannot silently diverge (#2650 / WP04).
         _run_planning_artifact_commit(
@@ -915,7 +915,7 @@ def _commit_planning_artifacts_transaction(
             mission_id=effective_mission_id,
             mission_slug=mission_slug,
             mid8=effective_mid8,
-            destination_ref=_primary_ref_for(planning_branch),
+            destination_ref=_commit_target_ref_for(planning_branch),
             files=files_to_commit,
             commit_msg=commit_msg,
         )
@@ -950,7 +950,7 @@ def _commit_planning_artifacts_transaction(
         primary_files, coord_files = _partition_files_for_commit(files_to_commit)
         if primary_files:
             # FR-005 ref half (#2650 / WP04): the PRIMARY-group destination
-            # is derived from the SAME ``_primary_ref_for`` expression the
+            # is derived from the SAME ``_commit_target_ref_for`` expression the
             # read-side idempotency compare uses -- one source of the
             # cli-side PRIMARY ref, not two independently-written literals.
             _run_planning_artifact_commit(
@@ -958,7 +958,7 @@ def _commit_planning_artifacts_transaction(
                 mission_id=effective_mission_id,
                 mission_slug=mission_slug,
                 mid8=effective_mid8,
-                destination_ref=_primary_ref_for(planning_branch),
+                destination_ref=_commit_target_ref_for(planning_branch),
                 files=primary_files,
                 commit_msg=commit_msg,
             )

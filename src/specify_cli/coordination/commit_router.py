@@ -238,7 +238,7 @@ def _commit_partition_group(
     # branch — i.e. only coordination kinds materialise the coord worktree (C-001).
     # A primary kind therefore NEVER routes to coordination even under coord
     # topology — this removes the planning→coord arm (write-surface-coherence WP02).
-    primary_target = _resolve_primary_target_branch(repo_root, mission_slug)
+    primary_target = _resolve_mission_target_branch(repo_root, mission_slug)
     use_coord = (
         routes_through_coordination(resolve_topology(repo_root, mission_slug))
         and placement.ref != primary_target
@@ -550,7 +550,7 @@ def _merge_group_results(
     return replace(results[0], commit_hashes=all_commit_hashes)
 
 
-def _resolve_primary_target_branch(repo_root: Path, mission_slug: str) -> str:
+def _resolve_mission_target_branch(repo_root: Path, mission_slug: str) -> str:
     """Resolve the mission's PRIMARY ``target_branch`` ref.
 
     This is the SAME ref ``resolve_placement_only`` returns for a primary kind

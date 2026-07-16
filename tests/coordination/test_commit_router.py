@@ -15,7 +15,7 @@ Covers:
 the primary ``target_branch`` for every topology and NEVER routes through
 coordination; a coordination kind keeps the topology-routed placement. The
 fixtures stub ``resolve_placement_only`` (the kind-aware placement),
-``resolve_topology`` (the routing topology), AND ``_resolve_primary_target_branch``
+``resolve_topology`` (the routing topology), AND ``_resolve_mission_target_branch``
 (the primary ref the router compares the placement against) so the three legs
 stay consistent.
 """
@@ -47,7 +47,7 @@ def _patch_primary_target(ref: str = _PRIMARY_BRANCH) -> object:
     pins the primary ref deterministically.
     """
     return patch(
-        "specify_cli.coordination.commit_router._resolve_primary_target_branch",
+        "specify_cli.coordination.commit_router._resolve_mission_target_branch",
         return_value=ref,
     )
 
@@ -283,7 +283,7 @@ def test_1718_no_materialisation_at_read_time(tmp_path: Path) -> None:
         with (
             patch.object(_mod, "resolve_topology", return_value=MissionTopology.COORD),
             patch.object(_mod, "resolve_placement_only", return_value=coord_target),
-            patch.object(_mod, "_resolve_primary_target_branch", return_value=_PRIMARY_BRANCH),
+            patch.object(_mod, "_resolve_mission_target_branch", return_value=_PRIMARY_BRANCH),
             patch.object(_mod, "_materialise_coord_worktree", side_effect=_fake_materialise),
             patch.object(_mod, "safe_commit", return_value=_FakeCommitResult()),
         ):

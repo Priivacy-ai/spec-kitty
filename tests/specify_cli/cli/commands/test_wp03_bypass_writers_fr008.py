@@ -175,7 +175,7 @@ class TestFR008MessagesNameFeatureBranch:
             "resolve_placement_only": lambda _r, _s, *, kind: CommitTarget(ref="main"),
             "resolve_topology": lambda _r, _s: None,
             "routes_through_coordination": lambda _t: False,
-            "_resolve_primary_target_branch": lambda _r, _s: "main",
+            "_resolve_mission_target_branch": lambda _r, _s: "main",
         }
         import pytest as _pytest
 
