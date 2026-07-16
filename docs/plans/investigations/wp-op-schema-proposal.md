@@ -27,6 +27,12 @@ the mitigations for the two risks that stance carries (§[Risks](#risks--reconci
 body-authoring collision, `wps.yaml` adoption (stalled at 5/278), and trivial-op
 friction.
 
+> **Status: pressure-tested → REWORK.** A 3-lens adversarial squad
+> ([Part 4](#part-4--squad-pressure-test-2026-07-16)) found the *intent* of both
+> choices sound but the *mechanism/sequencing* not buildable as written (4 BLOCKERs).
+> Both choices are preserved; Part 4 carries the corrected, buildable path. Read
+> Parts 1–3 as the design under review and **Part 4 as the current direction.**
+
 ---
 
 ## Part 1 — WP Prompt model
@@ -342,7 +348,7 @@ properties:
     type: array
     items: {type: string}
   authoritative_surface: {type: string}
-  scope: {type: string, enum: [codebase-wide]}
+  scope: {const: codebase-wide}      # single-value Literal emits const, not enum (see Part 4 F-S1)
   task_type: {type: string}
   cross_cutting: {type: boolean}
   agent_profile: {type: string}
@@ -401,15 +407,13 @@ title: Op Completed Event
 description: Op completion event carrying the mandatory structured debrief (why/what).
 type: object
 additionalProperties: false
-required:
-- event
+required:                            # NB: 'event' has a default → NOT in required (Part 4 F-S1)
 - invocation_id
 - completed_at
 - outcome
 - closed_by
-- debrief                            # ← now mandatory
 properties:
-  event: {type: string, const: completed}
+  event: {const: completed}
   invocation_id: {type: string, pattern: ^[0-9A-HJKMNP-TV-Z]{26}$}
   completed_at: {type: string, minLength: 1}
   outcome: {type: string, enum: [done, failed, abandoned]}
@@ -458,6 +462,11 @@ doctrine schemas today.
 
 ## Smallest shippable path (unchanged from grounding, now concrete)
 
+> ⚠ **Superseded by [Part 4](#part-4--squad-pressure-test-2026-07-16).** The
+> adversarial squad found steps 3–4 below blocked by runtime writers to `WP##.md`
+> (B3) and the debrief mechanism unbuildable as sketched (B1/B2). Follow Part 4's
+> revised path.
+
 1. **Tidy-first** — extract `WPPromptBody`/`WorkPackageSpec`, register in
    `generate_schemas.py`; make `WPMetadata` a read-projection. *No behaviour change.*
 2. **Semantic-only hash** — repoint `dossier`/`sync` hashing at the spec projection
@@ -478,3 +487,69 @@ doctrine schemas today.
    Op's git diff?
 4. **Should `agent_profile` (authored) vs resolved-binding** live as two names, to keep
    #2093's authored-intent/resolved-binding split crisp inside the spec?
+
+---
+
+# Part 4 — Squad pressure-test (2026-07-16)
+
+A three-lens adversarial squad (architect-alphonso · reviewer-renata ·
+paula-patterns), read-only against this proposal + the real code.
+**Verdict: 3 × REWORK, unanimous.** The design is directionally right but **not
+buildable as written** — four BLOCKERs, all verified against `file:line`, plus a
+cluster of MAJORs. The two locked operator choices survive *in intent*; only their
+*mechanism and sequencing* must change.
+
+## Consolidated findings
+
+| ID | Sev | Finding | Evidence |
+|---|---|---|---|
+| **B1** | BLOCKER | **Graduated-depth validator can't see `mode_of_work`.** It lives on `OpStartedEvent`, not `OpCompletedEvent`; a `model_validator` on the completed model literally cannot read it, and would fire on every historical read. | `record.py:48` vs `:65`; `parse_op_event` `:100`. **Fix:** enforce at `executor.complete_invocation`, which *already* reads it via `_read_started_mode()` (`executor.py:381`). |
+| **B2** | BLOCKER | **Required `debrief` breaks read-back of every existing Op.** `parse_op_event` validates historical `kitty-ops/*.jsonl` completed lines; a new required field reclassifies all of them `LegacyRecordError`. No Op-record migration was specified. | `record.py:100,106`. **Fix:** keep `debrief` **optional on the model** (read path); enforce **presence + depth at the emission seam** only. |
+| **B3** | BLOCKER | **`WP##.md` is written at runtime by live phase-2 code** — declaring it read-only-derived clobbers claim-liveness and done-inference. `implement.py:1730` writes `shell_pid` on *every* implement; subtask checkboxes are flipped and read back as implementation evidence. | `implement.py:1730`, `stale_detection.py:221`, `subtask_rows.py:181`, `tasks_mark_status.py:446`. **Fix:** evicting every runtime writer off `WP##.md` into the event log is a **prerequisite mission**, not a step in this one. |
+| **B4** | BLOCKER-for-"no-behaviour-change" | **The demotion is on the wrong axis → 4 authorities, not 1.** `WPMetadata` is a **superset** (static ⋈ runtime), so it cannot become a *read-projection* of a static-only `WorkPackageSpec`. Step-1 "make WPMetadata a projection, no behaviour change" is a no-op-alias (4 live lists) or requires the B3 migration first. | `wp_metadata.py:183,204-272`, `frontmatter.py:49`, `wps_manifest.py:16`. Grounding's own Slice-0 was the **reverse**: make `WP_FIELD_ORDER`+`WorkPackageEntry` derive from `WPMetadata`. |
+| **M1** | MAJOR | **Silent static-field loss.** Census sends Branch Strategy (1184×) to the spec, but the model omits `branch_strategy`/`merge_target_branch`/`planning_base_branch` (77+ consumer sites) and `priority`/`phase` — static planning intent, not runtime. | `wp_metadata.py` planning block; `worktree.py:229`. |
+| **M2** | MAJOR | **Hash-on-spec breaks `body_upload`.** It re-hashes raw bytes as a TOCTOU guard and uploads the rendered md; a spec hash → guaranteed `content_hash_mismatch`, or re-plumbing what the dashboard displays. Mixed spec/raw parity pool also breaks drift across 273 un-migrated missions. | `sync/body_upload.py:116,207`; `dossier/hasher.py:170`. |
+| **M3** | MAJOR | **The 5 existing `wps.yaml` become invalid.** `extra="forbid"` + required `prompt` rejects today's `subtasks:[…]`/`prompt_file:` shape. The "enriches, no flag day" framing is contradicted — the only adopters stop loading. | real `kitty-specs/083-*/wps.yaml`; `wps_manifest.py:15`. |
+| **M4** | MAJOR | **Fallback = permanent split-brain.** Spec-first + whole-file-hash fallback keeps two authoring models + two hash algorithms + a no-op-on-legacy renderer alive forever — *more* split surface than today. | `mission_finalize.py:1703` (renderer wired at planning only). |
+| **M5** | MAJOR | **`register()` override is 4 edits, not 1**, and the `$id` stays in the `/doctrine/` namespace. `generate_schema` unpacks a fixed 6-tuple (`:888`); `write_schema`/`check_schema`/`main` hardcode `SCHEMA_DIR` (`:954,974,1013`); `_schema_id` hardcodes the doctrine host (`:52`). | `generate_schemas.py:52,888,947-975`. |
+| **M6** | MAJOR | **Invented IDs unsupported by corpus.** `AC-\d{2}` appears in 3/1793 WPs; the backfill must *synthesize* acceptance IDs from freeform DoD checkboxes for 99.8% of missions — not "reliable." | body census. |
+| **M7** | MAJOR | **Event log can't reconstruct Activity-Log narrative or review-feedback text** — it carries transition fields + a `review_ref` pointer, not prose. "Rendered from event log" is silent data loss unless new event payloads are added. | `wp_metadata.py:271-272`; status event shape. |
+| **M8** | MAJOR | **#1619 dropped from Risks** though the grounding made "settle the mid-revision WP/Mission aggregate first" a hard precondition. Electing a WP authority model now front-runs it. | grounding §Sequencing; tickets.md #1666. |
+| **F-S1** | MINOR | **Example-schema divergences** (now corrected in Part 3): single-value `Literal`→`const` not `enum`; `event` has a default so is not `required`; `$id` namespace mismatch. `definitions/*` naming *was* faithful. | `generate_schemas.py:522,570`. |
+| **F-S2** | MINOR | **Dual cross-cutting encoding** — `scope: Literal["codebase-wide"]` *and* `cross_cutting: bool` both model "exempt from ownership checks" in the model meant to be canonical. Pick one. | §1.2. |
+
+## What survives, and the corrected direction
+
+**The two operator choices are honoured — mechanism/sequencing corrected:**
+
+- **Op debrief (required on close) — LANDABLE on its own, after a small relocation.**
+  Keep `debrief` **optional on `OpCompletedEvent`** (fixes B2's read-back break);
+  enforce **required-presence + graduated-depth at `executor.complete_invocation`**,
+  which already reads the started `mode_of_work` (fixes B1). "Required on close" is
+  preserved — presence is still mandatory, just enforced at the write seam, not in
+  a model that also parses history. This is a **clean, independent slice** (all three
+  reviewers agree) and should be carved out and shipped first.
+
+- **WP YAML-authority (markdown derived) — NOT landable as sequenced; it has a
+  prerequisite mission.** The derived-md flip is blocked behind **B3**: `shell_pid`
+  (claim-liveness), subtask-checkbox state (done-inference), Activity-Log narrative,
+  and review-feedback prose are all runtime-mutable state living *inside* `WP##.md`.
+  The real enabling mission is **"evict every runtime writer off `WP##.md` into the
+  event log"** (generalising the shipped `lane` retirement — this is exactly #2093/#2400's
+  charter). Only once the file holds *nothing runtime* can it become derived, the
+  content-hash move (M2) co-designed with `body_upload`, and the authority question
+  re-opened — and there, the grounding's original axis (enrich **`WPMetadata`**, not
+  elect the 9-field `WorkPackageEntry`) is the sounder election (B4).
+
+**Revised smallest path (supersedes §"Smallest shippable path"):**
+
+1. **Op debrief slice** — optional field + executor-seam enforcement + graduated depth. Independent, low-risk, ships now. *(Fixes B1, B2.)*
+2. **Runtime-writer eviction from `WP##.md`** — the real prerequisite mission (shell_pid, checkbox state, activity-log, review-feedback → event log). Reconcile with #2093/#2400. *(Unblocks B3, B4, M7.)*
+3. **Semantic-only content-hash** — co-designed with `body_upload`/parity, atomic across all missions (no mixed pool). *(Fixes M2, M4.)*
+4. **Then** — WP model formalization (enrich `WPMetadata`; full field reconciliation M1/M3/M6; register with the 4-edit `generate_schemas.py` change M5), and only last the YAML-authoritative/derived-markdown flip, gated on #1619 (M8).
+
+**Net:** the arc's original grounded disposition holds — the Op field and the
+semantic hash are the near-term wins; the full YAML-authoritative flip is real but
+sits behind a runtime-eviction mission and the #1619 aggregate. The maximal WP
+choice isn't wrong, it's **out of order**: the enabling migration is the mission,
+the schema is the finish.
