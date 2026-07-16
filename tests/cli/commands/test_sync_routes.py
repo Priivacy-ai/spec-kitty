@@ -13,7 +13,7 @@ from typer.testing import CliRunner
 
 from specify_cli.auth.session import StoredSession, Team
 from specify_cli.cli.commands import sync as sync_module
-from specify_cli.delivery.dispatcher import DispatchSummary
+from specify_cli.delivery.dispatcher import DispatchFailure, DispatchSummary
 
 runner = CliRunner()
 pytestmark = pytest.mark.fast
@@ -388,7 +388,11 @@ def test_now_logged_out_nonempty_queue_reports_unauthenticated_failures(
     service.drain_body_uploads_only.return_value = None
 
     # A logged-out dispatch: 3 events selected and attempted, none delivered
-    # (the whole batch came back transient — the 401 classification).
+    # (the whole batch came back transient — the 401 classification). A real 401
+    # maps each event to a transient failure carrying http_status=401 (see
+    # ``specify_cli.delivery.receivers.map_batch_response``); the message
+    # classifier keys on that status to report "not authenticated" rather than a
+    # generic transient / oversized message.
     unauthenticated_summary = DispatchSummary(
         target_id="t-1",
         selected=3,
@@ -398,6 +402,15 @@ def test_now_logged_out_nonempty_queue_reports_unauthenticated_failures(
         rejected=0,
         transient=3,
         terminal_failed=0,
+        failures=tuple(
+            DispatchFailure(
+                event_id=f"evt-{i}",
+                outcome="transient",
+                http_status=401,
+                error="not authenticated",
+            )
+            for i in range(3)
+        ),
     )
 
     monkeypatch.setattr(sync_module, "is_saas_sync_enabled", lambda: True)
@@ -423,3 +436,107 @@ def test_now_logged_out_nonempty_queue_reports_unauthenticated_failures(
     assert report["selected"] == 3
     assert report["transient"] == 3
     assert report["delivered"] == 0
+
+
+def _oversized_summary(sel: int) -> DispatchSummary:
+    """A batch the server 413'd wholesale: nothing delivered, all transient."""
+    return DispatchSummary(
+        target_id="t",
+        selected=sel,
+        delivered=0,
+        duplicate=0,
+        pending=0,
+        rejected=0,
+        transient=sel,
+        terminal_failed=0,
+        failures=tuple(
+            DispatchFailure(
+                event_id=f"e{i}",
+                outcome="transient",
+                http_status=413,
+                error="batch payload too large; retry with a smaller batch",
+            )
+            for i in range(sel)
+        ),
+    )
+
+
+def test_run_dispatch_batches_halves_on_oversized_then_drains(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A byte-oversized batch (HTTP 413) is halved and retried until it fits,
+    honoring the documented "retry with a smaller batch" contract instead of
+    surrendering the whole backlog as transient (the deadlock this fixes).
+    """
+    monkeypatch.setattr(sync_module, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", 8)
+
+    calls: list[int] = []
+    remaining = {"n": 5}
+
+    def fake_dispatch(*, journal, ledger, receiver, target, limit):  # noqa: ANN001, ANN202
+        calls.append(limit)
+        if limit >= 4:  # too large: server 413s the whole batch
+            return _oversized_summary(min(limit, remaining["n"]))
+        sel = min(limit, remaining["n"])  # fits: delivers what it selects
+        remaining["n"] -= sel
+        return DispatchSummary(
+            target_id="t",
+            selected=sel,
+            delivered=sel,
+            duplicate=0,
+            pending=0,
+            rejected=0,
+            transient=0,
+            terminal_failed=0,
+        )
+
+    monkeypatch.setattr("specify_cli.delivery.dispatcher.dispatch", fake_dispatch)
+
+    combined = sync_module._run_dispatch_batches(Mock(), Mock(), Mock())
+
+    # Shrank 8 -> 4 -> 2 before a batch fit, then drained all five events.
+    assert 8 in calls and 2 in calls
+    assert combined.delivered == 5
+    assert combined.transient == 0
+
+
+def test_transient_block_message_distinguishes_cause() -> None:
+    """The wholesale-transient message must not blame auth for a 413 or a 5xx.
+
+    This is the mislabel that made a batch-too-large failure read as a
+    logged-out session and sent operators chasing OAuth.
+    """
+    oversized = _oversized_summary(3)
+    assert sync_module._transient_block_message(oversized) == (
+        sync_module._OVERSIZED_SYNC_NOW_MESSAGE
+    )
+
+    unauth = DispatchSummary(
+        target_id="t",
+        selected=1,
+        delivered=0,
+        duplicate=0,
+        pending=0,
+        rejected=0,
+        transient=1,
+        terminal_failed=0,
+        failures=(DispatchFailure(event_id="e", outcome="transient", http_status=401),),
+    )
+    assert sync_module._transient_block_message(unauth) == (
+        sync_module._UNAUTHENTICATED_SYNC_NOW_MESSAGE
+    )
+
+    server_err = DispatchSummary(
+        target_id="t",
+        selected=1,
+        delivered=0,
+        duplicate=0,
+        pending=0,
+        rejected=0,
+        transient=1,
+        terminal_failed=0,
+        failures=(DispatchFailure(event_id="e", outcome="transient", http_status=503),),
+    )
+    assert sync_module._transient_block_message(server_err) == (
+        sync_module._TRANSIENT_SYNC_NOW_MESSAGE
+    )
