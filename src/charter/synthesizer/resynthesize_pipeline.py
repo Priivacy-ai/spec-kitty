@@ -34,17 +34,19 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from doctrine.drg.loader import load_graph_or_dir
 from doctrine.drg.models import DRGEdge, DRGGraph, DRGNode
+
+from charter.bundle import compute_bundle_content_hash
 
 from .artifact_naming import artifact_filename, doctrine_kind_subdir
 from .manifest import (
     MANIFEST_PATH,
     ManifestArtifactEntry,
     SynthesisManifest,
-    compute_manifest_hash,
+    finalize_manifest,
     load_yaml as load_manifest,
 )
 from .request import SynthesisRequest, SynthesisTarget
@@ -96,6 +98,7 @@ def _rewrite_manifest(
     existing: SynthesisManifest,
     new_results: list[tuple[Mapping[str, Any], ProvenanceEntry]],
     run_id: str,
+    repo_root: Path,
 ) -> SynthesisManifest:
     """Produce a new SynthesisManifest merging old entries with fresh ones.
 
@@ -114,6 +117,10 @@ def _rewrite_manifest(
         ``(body, ProvenanceEntry)`` tuples produced by the bounded pipeline.
     run_id:
         New ULID for this resynthesis run.
+    repo_root:
+        Repository root used to compute a fresh ``bundle_content_hash`` via
+        ``charter.bundle.compute_bundle_content_hash`` (FR-003/AS-3: both
+        remediation commands must clear staleness).
 
     Returns
     -------
@@ -183,29 +190,21 @@ def _rewrite_manifest(
     sorted_merged = sorted(merged, key=lambda e: (e.kind, e.slug))
     created_at = datetime.now(tz=UTC).isoformat()
 
-    # Compute manifest_hash over all fields except manifest_hash itself.
-    manifest_data_without_hash: dict[str, Any] = {
-        "schema_version": "2",
-        "mission_id": existing.mission_id,
-        "created_at": created_at,
-        "run_id": run_id,
-        "adapter_id": primary_adapter_id,
-        "adapter_version": primary_adapter_version,
-        "synthesizer_version": synthesizer_ver,
-        "artifacts": [e.model_dump(mode="python") for e in sorted_merged],
-    }
-    manifest_hash = compute_manifest_hash(manifest_data_without_hash)
-
-    return SynthesisManifest(
+    # Build a SynthesisManifest instance and route it through the single
+    # canonical finalizer (data-model.md "Contract: finalize_manifest")
+    # instead of hand-syncing a raw manifest_data_without_hash dict.
+    manifest = SynthesisManifest(
         mission_id=existing.mission_id,
         created_at=created_at,
         run_id=run_id,
         adapter_id=primary_adapter_id,
         adapter_version=primary_adapter_version,
         synthesizer_version=synthesizer_ver,
-        manifest_hash=manifest_hash,
+        manifest_hash="0" * 64,
         artifacts=sorted_merged,
+        bundle_content_hash=compute_bundle_content_hash(repo_root),
     )
+    return finalize_manifest(manifest)
 
 
 # ---------------------------------------------------------------------------
@@ -444,7 +443,7 @@ def run(
     # write a temporary bounded-only manifest before the authoritative full
     # manifest.
     # ------------------------------------------------------------------
-    new_manifest = _rewrite_manifest(existing_manifest, all_new_results, run_id)
+    new_manifest = _rewrite_manifest(existing_manifest, all_new_results, run_id, _repo_root)
 
     # ------------------------------------------------------------------
     # Step 7: Stage + promote bounded artifacts
@@ -562,13 +561,16 @@ def _load_merged_drg(
     Falls back to ``request.drg_snapshot`` if no project graph file exists.
     """
     project_graph_dir = repo_root / _KITTIFY_DIRNAME / "doctrine"
+    # cast: charter.* follow_imports=skip collapses SynthesisRequest.
+    # drg_snapshot's declared "Mapping[str, Any]" type to Any at this
+    # call site (request.py:144).
     if not project_graph_dir.exists():
-        return request.drg_snapshot
+        return cast("Mapping[str, Any]", request.drg_snapshot)
 
     try:
         project_graph_model = load_graph_or_dir(project_graph_dir)
     except Exception:  # noqa: BLE001
-        return request.drg_snapshot
+        return cast("Mapping[str, Any]", request.drg_snapshot)
     project_graph = project_graph_model.model_dump(mode="json")
 
     # Merge: combine nodes from both graphs (project overlay + built-in snapshot)

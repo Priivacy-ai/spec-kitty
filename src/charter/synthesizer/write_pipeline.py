@@ -38,6 +38,7 @@ from typing import Any, cast
 
 from kernel.atomic import substantively_equal as _substantively_equal_core
 
+from charter.bundle import compute_bundle_content_hash
 from charter.synthesizer._constants import GRAPH_FILENAME as _GRAPH_FILENAME
 
 from .artifact_naming import artifact_filename, doctrine_kind_subdir
@@ -47,8 +48,8 @@ from .manifest import (
     MANIFEST_PATH,
     ManifestArtifactEntry,
     SynthesisManifest,
-    compute_manifest_hash,
     dump_yaml as dump_manifest,
+    finalize_manifest,
 )
 from .manifest import load_yaml as load_manifest
 from .provenance import dump_yaml as dump_provenance, provenance_path_for
@@ -201,12 +202,16 @@ def _artifact_filename(kind: str, slug: str, artifact_id: str | None = None) -> 
     - tactic:    ``<slug>.tactic.yaml``
     - styleguide: ``<slug>.styleguide.yaml``
     """
-    return artifact_filename(kind, slug, artifact_id)
+    # cast: charter.* follow_imports=skip collapses artifact_filename's
+    # declared "-> str" return type to Any at this call site.
+    return cast("str", artifact_filename(kind, slug, artifact_id))
 
 
 def _doctrine_kind_subdir(kind: str) -> str:
     """Return the doctrine subdirectory name for a given artifact kind."""
-    return doctrine_kind_subdir(kind)
+    # cast: charter.* follow_imports=skip collapses doctrine_kind_subdir's
+    # declared "-> str" return type to Any at this call site.
+    return cast("str", doctrine_kind_subdir(kind))
 
 
 def _compute_content_hash(yaml_bytes: bytes) -> str:
@@ -663,29 +668,23 @@ def promote(
         synthesizer_ver = _get_synthesizer_version()
         sorted_artifacts = sorted(manifest_entries, key=lambda e: (e.kind, e.slug))
 
-        # Build the manifest data dict without manifest_hash first, then hash it.
-        manifest_data_without_hash: dict[str, Any] = {
-            "schema_version": "2",
-            "mission_id": mission_id,
-            "created_at": datetime.now(tz=UTC).isoformat(),
-            "run_id": run_id,
-            "adapter_id": primary_adapter_id,
-            "adapter_version": primary_adapter_version,
-            "synthesizer_version": synthesizer_ver,
-            "artifacts": [e.model_dump(mode="python") for e in sorted_artifacts],
-        }
-        manifest_hash = compute_manifest_hash(manifest_data_without_hash)
-
+        # Build a SynthesisManifest instance and route it through the single
+        # canonical finalizer (data-model.md "Contract: finalize_manifest")
+        # instead of hand-syncing a raw manifest_data_without_hash dict — the
+        # hash is always derived from the FULL instance, so no field (incl.
+        # bundle_content_hash) can be silently omitted (closes BLOCKER-2).
         manifest = SynthesisManifest(
             mission_id=mission_id,
-            created_at=manifest_data_without_hash["created_at"],
+            created_at=datetime.now(tz=UTC).isoformat(),
             run_id=run_id,
             adapter_id=primary_adapter_id,
             adapter_version=primary_adapter_version,
             synthesizer_version=synthesizer_ver,
-            manifest_hash=manifest_hash,
+            manifest_hash="0" * 64,
             artifacts=sorted_artifacts,
+            bundle_content_hash=compute_bundle_content_hash(repo_root),
         )
+        manifest = finalize_manifest(manifest)
     else:
         manifest = manifest_override
 
