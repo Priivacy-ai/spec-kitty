@@ -782,6 +782,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-07-16-1-wp-runtime-state-authority-event-log-eviction.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/README.md
   tag: current
   divio_type: none
@@ -1317,6 +1323,12 @@
   current_target: true
   notes: null
 - path: docs/architecture/vision/README.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/architecture/wp-runtime-state-eviction.md
   tag: current
   divio_type: none
   owning_workstream: none
@@ -3153,6 +3165,54 @@
   current_target: true
   notes: null
 - path: docs/plans/investigations/model-first-schema-generation.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/wp-op-schema-model.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/wp-op-schema-proposal.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/wp-op-schema-related-tickets.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/wp-op-schema-research/README.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/wp-op-schema-research/code-as-is.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/wp-op-schema-research/feasibility.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/wp-op-schema-research/roadmap-adr.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
+- path: docs/plans/investigations/wp-runtime-state-eviction-scope.md
   tag: current
   divio_type: none
   owning_workstream: none
