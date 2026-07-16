@@ -18,6 +18,7 @@ reports.
 - [Mission-Next Compatibility Matrix](mission-next-compatibility.md)
 - [Model-First Schema Generation](model-first-schema-generation.md)
 - [WP & Op Schema Model](wp-op-schema-model.md)
+- [WP & Op Schema Model — Related Open Tracker Tickets](wp-op-schema-related-tickets.md)
 
 ## See also
 
