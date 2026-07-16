@@ -118,9 +118,9 @@
 
 ### Included Subtasks
 
-- [ ] T011 RED: CliRunner template-path + minimal-scaffold regression
-- [ ] T012 Wire `--template` / `--org-name` / `--local-path` / `--branch` on `org_init`
-- [ ] T013 Error surfacing (NFR-001) + success output for render path
+- [x] T011 RED: CliRunner template-path + minimal-scaffold regression
+- [x] T012 Wire `--template` / `--org-name` / `--local-path` / `--branch` on `org_init`
+- [x] T013 Error surfacing (NFR-001) + success output for render path
 
 ### Implementation Notes
 

@@ -18,7 +18,8 @@ subtasks:
 - T013
 phase: Phase 3 - Operator surface
 assignee: ''
-agent: ''
+agent: "cursor"
+shell_pid: "24810"
 history:
 - at: '2026-07-16T12:22:00Z'
   actor: system
@@ -130,3 +131,7 @@ PWHEADLESS=1 uv run pytest tests/specify_cli/doctrine/test_template_render_*.py 
 ## Activity Log
 
 - 2026-07-16T12:22:00Z – system – Prompt created via /spec-kitty.tasks
+- 2026-07-16T13:01:16Z – cursor – shell_pid=24810 – Assigned agent via action command
+- 2026-07-16T13:04:28Z – cursor – shell_pid=24810 – Ready for review: CLI template options; 8 CliRunner tests green
+- 2026-07-16T13:04:30Z – user – shell_pid=24810 – Review passed: CLI wiring + CliRunner coverage
+- 2026-07-16T13:05:33Z – user – shell_pid=24810 – Done override: Merged lane-c into feat/doctrine-org-init-from-template
