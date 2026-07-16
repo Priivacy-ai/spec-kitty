@@ -1,6 +1,6 @@
 ---
 title: WP Runtime-State Eviction — Architecture Design
-description: 'Target architecture for evicting all runtime-mutable state (shell_pid, subtask-checkbox state, activity-log, review-cycle fields, agent/assignee) out of tasks/WP##.md into the canonical append-only event log via a non-transition annotation event class, leaving WP##.md as stable-hashing static intent.'
+description: 'Architecture design for evicting runtime-mutable state from tasks/WP##.md into the append-only event log via a non-transition annotation event class; ADR 2026-07-16-1.'
 doc_status: proposal
 updated: '2026-07-16'
 related:

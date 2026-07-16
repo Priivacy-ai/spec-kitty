@@ -1,6 +1,6 @@
 ---
 title: WP Prompt & Ops Debrief — Model / Schema Proposal
-description: 'Concrete model+schema suggestion for a YAML-authoritative WP prompt (markdown derived one-way) and a required-on-close structured Ops debrief, grounded in the existing WorkPackageEntry / WPMetadata / OpCompletedEvent surfaces.'
+description: 'Model+schema proposal for a YAML-authoritative WP prompt (markdown derived) and a required-on-close structured Ops debrief, including the adversarial squad pressure-test (REWORK).'
 doc_status: proposal
 updated: '2026-07-16'
 related:
