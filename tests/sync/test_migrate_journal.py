@@ -30,6 +30,7 @@ from specify_cli.sync.migrate_journal import (
     MigrationResult,
     SourceDb,
     cleanup_migrated_sources,
+    converge_legacy_runtime,
     discover_source_dbs,
     migrate_queues_to_journal,
     migration_target_token,
@@ -656,3 +657,51 @@ def test_resolve_then_remigrate_and_cleanup_converges(tmp_path: Path) -> None:
     # every source drained → boundary converges
     assert OfflineQueue(db_path=_scoped_path(home, _digest("a"))).size() == 0
     assert OfflineQueue(db_path=_scoped_path(home, _digest("b"))).size() == 0
+
+
+# ----------------------------------------------------------------------
+# #2665 — converge_legacy_runtime (the one-shot migration engine)
+# ----------------------------------------------------------------------
+
+
+def test_converge_legacy_runtime_converges_and_is_idempotent(tmp_path: Path) -> None:
+    """One converge pass drains a conflicted runtime; a second pass is a no-op."""
+    home = tmp_path / "home"
+    _seed_queue(
+        _scoped_path(home, _digest("a")),
+        [_event("dup", payload={"v": 1}), _event("clean1")],
+    )
+    _seed_queue(_scoped_path(home, _digest("b")), [_event("dup", payload={"v": 2})])
+    journal = _journal(home)
+    audit = MigrationAudit(home / "migration_audit.db")
+
+    converge = converge_legacy_runtime(
+        home, journal=journal, audit=audit, resolve_conflicts=True, cleanup=True
+    )
+
+    assert converge.converged is True
+    assert OfflineQueue(db_path=_scoped_path(home, _digest("a"))).size() == 0
+    assert OfflineQueue(db_path=_scoped_path(home, _digest("b"))).size() == 0
+
+    again = converge_legacy_runtime(
+        home, journal=journal, audit=audit, resolve_conflicts=True, cleanup=True
+    )
+    assert again.converged is True
+    assert again.migration.imported_event_ids == []  # nothing new — idempotent no-op
+
+
+def test_converge_without_resolve_leaves_conflicts_blocked(tmp_path: Path) -> None:
+    """Without resolve_conflicts a divergent duplicate blocks convergence."""
+    home = tmp_path / "home"
+    _seed_queue(_scoped_path(home, _digest("a")), [_event("dup", payload={"v": 1})])
+    _seed_queue(_scoped_path(home, _digest("b")), [_event("dup", payload={"v": 2})])
+    journal = _journal(home)
+    audit = MigrationAudit(home / "migration_audit.db")
+
+    converge = converge_legacy_runtime(
+        home, journal=journal, audit=audit, resolve_conflicts=False, cleanup=True
+    )
+
+    assert converge.converged is False
+    assert converge.blocked_conflicts == 1
+    assert converge.cleanup is None  # cleanup gated off while the conflict blocks
