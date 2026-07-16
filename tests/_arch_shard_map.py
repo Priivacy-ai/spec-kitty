@@ -38,9 +38,34 @@ falls under one of a registered group's roots, driven by iterating
 ``tests._shard_registry.all_groups()``, looked up via
 ``tests._shard_registry.shard_for``. Nothing outside a group's roots is
 touched: ``shard_for`` returns ``None`` for any path not covered by the
-requested group, which is what keeps the hook scoped (enforced by
+requested group and not auto-covered by the fallback described below, which
+is what keeps the hook scoped (enforced by
 ``tests/architectural/test_arch_shard_marker_completeness.py`` /
 ``test_next_shard_marker_completeness.py``, GC-1).
+
+**Auto-cover fallback (FR-011, #2671) — new files no longer require a manual
+edit to keep main green.** Before this WP, a new ``tests/architectural/*.py``
+file that was not appended to one of the ``_ARCH_SHARD_N_FILES`` tuples below
+resolved to ``shard_for(...) is None``: the collection hook applied no
+``arch_shard_N`` marker, and both the GC-1 completeness gate and the
+zero-gate-orphan gate (``tests/architectural/test_gate_coverage.py``) went
+red. This landing gap recurred 3+ times (see the "Added post-data-model.md"
+annotations scattered through the tables below — each one documents a prior
+occurrence that had to be hand-patched). This module's ``arch`` row now sets
+``default_fallback=True`` on its ``ShardGroup`` (``tests/_shard_registry.py``
+owns the mechanism): any under-root file that misses every explicit
+``dir_assignment`` / ``file_assignment`` entry is assigned a deterministic
+hash-bucket shard instead of ``None``, so a brand-new file is auto-covered by
+construction — **no manual table edit is required just to keep main green.**
+
+The explicit ``_ARCH_SHARD_N_FILES`` / ``_ARCH_SHARD_N_DIRS`` tables below
+remain the **authoritative balance control**, not a keep-green obligation:
+add a file here only when you want to pin it to a specific shard for load
+balance (or to keep a related family of tests on one leg, as several of the
+comments below do) — an explicit entry always overrides the hash-bucket
+fallback. The ``next`` group (``tests/_next_shard_map.py``) has deliberately
+NOT opted into the fallback (``default_fallback`` is omitted there, so it
+stays ``False``) — this generalization is scoped to ``arch`` only.
 
 This module is pure data + one ``register()`` call at import time — no
 pytest import — so it stays trivially unit-testable and reviewable as "just a
@@ -318,5 +343,6 @@ register(
         marker_prefix="arch_shard",
         dir_assignment=_ARCH_DIR_ASSIGNMENT,
         file_assignment=_ARCH_FILE_ASSIGNMENT,
+        default_fallback=True,
     )
 )

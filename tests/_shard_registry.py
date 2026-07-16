@@ -34,6 +34,7 @@ data of its own, only the registry mechanism and the ``ShardGroup`` shape.
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass, field
 
 
@@ -46,6 +47,14 @@ class ShardGroup:
     lookup efficiency — a handful of whole-directory prefixes checked first,
     then an ``O(1)`` exact-file lookup. :attr:`assignment` is the public,
     merged ``relpath/dirpath -> shard_idx`` view the data model describes.
+
+    :attr:`default_fallback` is an opt-in, per-group auto-cover switch
+    (FR-011, #2671): when ``True``, an under-root path that misses both
+    ``dir_assignment`` and ``file_assignment`` is assigned a deterministic
+    hash-bucket shard instead of resolving to ``None``. Defaults to
+    ``False`` so every existing ``ShardGroup(...)`` construction site keeps
+    its current behavior unchanged; a group opts in explicitly (see the
+    ``arch`` row in ``tests/_arch_shard_map.py``).
     """
 
     group: str
@@ -54,11 +63,23 @@ class ShardGroup:
     marker_prefix: str
     dir_assignment: dict[str, int] = field(default_factory=dict)
     file_assignment: dict[str, int] = field(default_factory=dict)
+    default_fallback: bool = False
 
     @property
     def assignment(self) -> dict[str, int]:
         """Merged ``relpath/dirpath -> shard_idx`` map (data-model E1 field)."""
         return {**self.dir_assignment, **self.file_assignment}
+
+
+def _under_roots(normalized: str, roots: tuple[str, ...]) -> bool:
+    """True when *normalized* is one of *roots* or nested under one of them.
+
+    Shared root-membership test (FR-011, #2671) — the same shape used for
+    ``dir_assignment`` prefix matching in :meth:`ShardRegistry.shard_for`,
+    reused as the hard gate for the opt-in default-fallback branch so a
+    fallback shard is never assigned outside a group's declared roots.
+    """
+    return any(normalized == root or normalized.startswith(f"{root}/") for root in roots)
 
 
 class ShardGroupNotRegisteredError(LookupError):
@@ -135,6 +156,17 @@ class ShardRegistry:
         checked first, then an exact-file match. *relpath* is a
         repo-root-relative path using ``/`` separators (as produced by
         pytest's own nodeid/relpath reporting).
+
+        When both explicit lookups miss and *group*'s
+        :attr:`ShardGroup.default_fallback` is ``True``, an under-root
+        *relpath* is assigned a deterministic hash-bucket shard instead of
+        ``None`` (FR-011, #2671) — the auto-cover safety net that keeps a
+        newly-added, not-yet-registered file from silently escaping every
+        ``arch_shard_N`` marker. The fallback never fires outside the
+        group's ``roots`` (a hard gate, same root-membership test used for
+        ``dir_assignment``), and explicit ``dir_assignment`` /
+        ``file_assignment`` entries always win because they are checked
+        first.
         """
         spec = self._groups.get(group)
         if spec is None:
@@ -143,7 +175,16 @@ class ShardRegistry:
         for dirpath, shard in spec.dir_assignment.items():
             if normalized == dirpath or normalized.startswith(f"{dirpath}/"):
                 return shard
-        return spec.file_assignment.get(normalized)
+        explicit = spec.file_assignment.get(normalized)
+        if explicit is not None:
+            return explicit
+        if spec.default_fallback and _under_roots(normalized, spec.roots):
+            # Deterministic, non-cryptographic bucket hash — spreads
+            # unregistered files across shards instead of piling them onto
+            # one "lightest shard" (see T003 review guidance).
+            digest = hashlib.sha1(normalized.encode())
+            return int(digest.hexdigest(), 16) % spec.shard_count + 1
+        return None
 
 
 # The single, module-level default registry every row-owner module
