@@ -676,6 +676,21 @@ class MissionStatus:
         ``Lane.GENESIS`` for unseeded WPs; the ``Lane.UNINITIALIZED`` read
         sentinel is handled here for any reader that still emits it (#1775
         review M4/Tier 3).
+
+        Verified unreachable via the current production feeder (#2675
+        harden): ``read_current_wp_state_transactional`` (the sole caller
+        wires ``specify_cli.coordination.status_transition``'s
+        implementation) converts ``UNINITIALIZED`` -> ``GENESIS`` itself on
+        every path before returning, so ``from_lane_enum`` never actually
+        equals ``UNINITIALIZED`` in production today. The branch is kept
+        anyway: ``read_current_wp_state_transactional`` is an injected
+        callable (typed ``Any`` precisely so tests can substitute readers),
+        this method is the single place documented as handling the
+        sentinel, and ``test_resolve_current_lane_maps_uninitialized_to_genesis``
+        / ``test_transition_helper_maps_uninitialized_lane_to_genesis`` pin
+        the mapping directly via an injected reader. Removing it would
+        silently drop that documented contract for any future reader
+        implementation that legitimately surfaces the sentinel.
         """
         from specify_cli.status.models import Lane as _Lane
 

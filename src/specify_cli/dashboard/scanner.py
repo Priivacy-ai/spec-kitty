@@ -21,6 +21,7 @@ from specify_cli.missions._read_path_resolver import (
 from specify_cli.upgrade.legacy_detector import is_legacy_format
 from specify_cli.status import wp_state_for
 from specify_cli.status import Lane
+from specify_cli.status import NON_DISPLAY_LANES
 from specify_cli.text_sanitization import sanitize_file
 
 
@@ -630,7 +631,10 @@ def _count_wps_by_lane(tasks_dir: Path, status_dir: Path | None = None) -> dict[
         lane = event_lanes.get(wp_id, Lane.GENESIS)
 
         # Genesis/uninitialized WPs are non-display and must not inflate planned.
-        if lane in {Lane.GENESIS, Lane.GENESIS.value, "uninitialized"}:
+        # NON_DISPLAY_LANES is the single canonical authority (models.py); Lane
+        # is a StrEnum so membership works whether ``lane`` is a Lane or a
+        # plain str (both hash/compare equal to the same string value).
+        if lane in NON_DISPLAY_LANES:
             continue
         state = wp_state_for(lane)
         column = _KANBAN_COLUMN_FOR_LANE.get(state.lane, "planned")
