@@ -1,8 +1,8 @@
 ---
 title: Mission-Type Resolution — the doctrine → charter → core seam
-description: "Why per-mission-type behaviour resolves through one doctrine → charter → core seam keyed off the mission_type in meta.json, with governance as the first consumer."
+description: "Why per-mission-type behaviour resolves through one doctrine → charter → core seam keyed off mission_type in meta.json."
 doc_status: active
-updated: '2026-07-14'
+updated: '2026-07-16'
 type: explanation
 related:
 - docs/architecture/mission-system.md
@@ -20,8 +20,9 @@ not a how-to. For the decision record and its load-bearing anchors, see
 
 ## The one path: doctrine defines, charter customises, core consumes
 
-Everything a mission type contributes — its governance today; its templates,
-gates, and step contracts in later slices — flows through **one** path:
+Everything a mission type contributes — governance, templates, expected
+artifacts, and step contracts today; additional runtime configuration in later
+slices — flows through **one** path:
 
 ```
 doctrine (offers)  →  charter (activates & customises)  →  core FSM (consumes)
@@ -72,15 +73,15 @@ charter.mission_type_profiles.resolve_mission_type_context(
 ) -> ResolvedMissionType
 ```
 
-`ResolvedMissionType` is a **bundle shaped to grow**. Today it carries a populated
-`governance` slot and a resolved `action_sequence`, plus **reserved, empty** slots
-for `template_set`, `expected_artifacts`, and `step_contracts`. Those reserved
-slots are not speculative scaffolding: each maps 1:1 onto an existing doctrine-tree
-reader that already takes a `missions_root`, so a later slice fills a slot and
-repoints one reader rather than inventing new plumbing.
+`ResolvedMissionType` is a **bundle shaped to grow**. It carries the resolved
+`action_sequence` plus lazy `governance`, `template_set`, `expected_artifacts`,
+and `step_contracts` slots. The template mapping is projected lazily and
+immutably from the activated mission type's doctrine artefact. Readers select a
+semantic artefact kind such as `spec` or `plan`, then pass the configured
+filename into the existing project/user/package path-precedence resolver.
 
-Governance is simply the **first consumer** of a path that templates, gates, and
-step contracts flow through next.
+These consumers share one mission-type authority while remaining separate
+configuration axes.
 
 ## Resolution order — and the leak it closes
 
@@ -180,7 +181,7 @@ byte-for-byte regression gate. The end-state direction is that `software-dev`
 becomes an ordinary built-in **doctrine** mission type on equal footing with
 `documentation`, `research`, and `plan`.
 
-## Slices — what is built now, what is planned
+## Slices — what is built and what follows
 
 This seam is delivered as **slice 1 of a `specify_cli/missions` retirement epic**
 (issue #883). Scoping it into slices keeps each reader migration independently
@@ -192,17 +193,15 @@ documentation/research/plan, and **one** reader migration — the dossier gate
 reader flips from `specify_cli/missions/*/expected-artifacts.yaml` to the
 doctrine-tree reader, deleting the derived copies.
 
-**Planned (later slices):**
+**Delivered follow-on slices:** template configuration now fills the
+`template_set` slot and the specification/planning readers select filenames
+through it (issue #2658). The `expected_artifacts` and `step_contracts` slots are
+also live doctrine-backed projections.
 
-- **Templates** — fill the reserved `template_set` slot and repoint template
-  resolution at the doctrine tree.
-- **Gates** — widen the migrated `expected_artifacts` reader beyond the dossier.
-- **Step contracts** — fill the reserved `step_contracts` slot from
-  `built_in_step_contracts/`.
-- **Mission enumeration / runtime** — remove the remaining hardcoded
-  `software-dev` fallback.
-- **Delete the split** — retire the doctrine → `specify_cli/missions/` copy step
-  and the `specify_cli/missions/` tree entirely.
+**Planned follow-on retirement work:** activation-driven enumeration (#2659),
+removal of the remaining meta-less software-development template fallback
+(#2660), and retirement of the doctrine → `specify_cli/missions/` copy step and
+derived tree (#2661).
 
 **Specified but not built:** a mission-instance addendum layer (a top field-merge
 layer read from a `meta.json` governance addendum) is designed for completeness

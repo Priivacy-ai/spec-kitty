@@ -82,8 +82,10 @@ itself define. Per-mission-type behaviour is resolved **once**, upstream, into a
 single `ResolvedMissionType` bundle, and the FSM reads that bundle rather than
 reaching into any mission-type catalogue directly.
 
-The bundle is keyed off the **same** `mission_type` (the `mission` field in
-`meta.json`) that the FSM already uses to read a mission's action sequence.
+The bundle is keyed off the canonical `mission_type` field in `meta.json` that
+the FSM already uses to read a mission's action sequence. The legacy `mission`
+field remains readable for metadata compatibility; issue #2660 separately owns
+removal of the meta-less software-development template fallback.
 Governance rides alongside the action sequence as a **sibling field of the same
 resolved bundle — not a property of any individual state or transition**. When
 "states & transitions as config" fully lands, the state loader and the governance
@@ -96,8 +98,11 @@ context path inferred a mission's type from `template_set`, defaulting to
 that never set `template_set` silently loaded software-dev's test-first,
 implementation, and code-review doctrine. The runtime now keys governance off the
 real `mission_type` from `meta.json`; a missing or unknown type is a hard error,
-never a software-dev fallback. Governance is the first consumer of this bundle;
-templates, gates, and step contracts fill reserved slots in later slices. See
+never a software-dev fallback. Governance, templates, expected artifacts, and
+step contracts are current consumers of this bundle. Template readers select a
+semantic artefact kind from the immutable doctrine-backed `template_set`, then
+apply the existing project/user/package path precedence to its configured
+filename. See
 [Mission-Type Resolution](mission-type-resolution.md) and
 [ADR 2026-07-14-2](../adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md).
 
