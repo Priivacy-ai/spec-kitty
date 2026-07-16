@@ -96,6 +96,26 @@ class TestFsmImportSafety:
 
         assert len(ALLOWED_TRANSITIONS) == 29
 
+    def test_uninitialized_is_unreachable_as_a_transition_endpoint(self) -> None:
+        """Harden (#2675): ``UNINITIALIZED`` must never be a from- or to-lane
+        of any allowed transition.
+
+        This is what makes it safe for ``_CANONICAL_LANE_VALUES``
+        (``sync/emitter.py``), ``VALID_LANES``
+        (``migration/mission_state.py``), and ``_VALID_LANES``
+        (``migration/rebuild_state.py``) to admit ``"uninitialized"`` merely
+        by deriving from ``get_all_lane_values()`` / full ``Lane`` iteration
+        — those whitelists stay inert only as long as no transition can ever
+        emit with ``from_lane`` or ``to_lane`` equal to ``"uninitialized"``.
+        If a future edge ever targets or originates from ``UNINITIALIZED``,
+        those widened whitelists stop being inert and this test must fail
+        first.
+        """
+        from specify_cli.status.transitions import ALLOWED_TRANSITIONS
+
+        endpoints = {lane for edge in ALLOWED_TRANSITIONS for lane in edge}
+        assert Lane.UNINITIALIZED.value not in endpoints
+
 
 class TestGetWpLaneEmptyEventLog:
     """Contract 2a: event log exists but is empty -> Lane.UNINITIALIZED."""

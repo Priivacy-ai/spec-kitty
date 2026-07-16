@@ -340,6 +340,43 @@ work_package_id: WP01
 
 
 @pytest.mark.fast
+def test_count_wps_by_lane_excludes_every_non_display_lane(tmp_path, monkeypatch):
+    """Regression guard (#2675 harden): ``_count_wps_by_lane`` must route its
+    exclusion check through :data:`NON_DISPLAY_LANES` — the single canonical
+    authority — not an inline ``{Lane.GENESIS, ...}`` literal, so a WP whose
+    read-time lane resolves to *any* member of ``NON_DISPLAY_LANES`` (today:
+    ``GENESIS`` and ``UNINITIALIZED``) is excluded from kanban counts.
+
+    ``UNINITIALIZED`` cannot arise naturally through this call path today
+    (``get_all_wp_lanes`` only returns lanes for WPs with events, and the
+    caller's own default is ``Lane.GENESIS``) — so this test injects it
+    directly via the ``get_all_wp_lanes`` seam to pin the *filter's*
+    behavior, not just today's reachable inputs.
+    """
+    feature_dir = tmp_path / "kitty-specs" / "001-non-display-lanes"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    for wp_id in ("WP01", "WP02", "WP03"):
+        (tasks_dir / f"{wp_id}-demo.md").write_text(
+            f"---\nwork_package_id: {wp_id}\n---\n# Work Package Prompt: Demo\n",
+            encoding="utf-8",
+        )
+
+    monkeypatch.setattr(
+        "specify_cli.status.get_all_wp_lanes",
+        lambda _feature_dir: {
+            "WP01": Lane.UNINITIALIZED,
+            "WP02": Lane.GENESIS,
+            "WP03": Lane.PLANNED,
+        },
+    )
+
+    counts = scanner._count_wps_by_lane(tasks_dir)
+
+    assert counts == {"planned": 1, "doing": 0, "for_review": 0, "approved": 0, "done": 0}
+
+
+@pytest.mark.fast
 def test_process_wp_file_uses_frontmatter_title_without_prompt_header(tmp_path):
     feature_dir = tmp_path / "kitty-specs" / "001-frontmatter-title"
     tasks_dir = feature_dir / "tasks"

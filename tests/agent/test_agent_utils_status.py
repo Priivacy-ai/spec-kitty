@@ -175,6 +175,70 @@ def test_show_kanban_status_reports_stalled_in_review_wp(
     ]
 
 
+def test_show_kanban_status_excludes_every_non_display_lane_wp(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Regression guard (#2675 harden): the kanban grouping / rollup counts
+    must route their genesis/uninitialized exclusion through
+    :data:`specify_cli.status.NON_DISPLAY_LANES` (the single canonical
+    authority), not an inline ``== Lane.GENESIS`` check, so a WP whose
+    lane resolves to *any* non-display sentinel — today ``GENESIS`` and
+    ``UNINITIALIZED`` — never inflates ``total_wps`` / the bucket counts.
+
+    This module builds its lane map from ``reduce()`` (event-log snapshot),
+    which never assigns ``UNINITIALIZED`` as a WP's current lane in
+    practice (the default for an eventless WP is ``Lane.GENESIS``). So this
+    test injects an ``UNINITIALIZED``-lane entry directly via the
+    ``specify_cli.status.reduce`` seam to pin the *filter's* behavior
+    rather than only today's reachable inputs.
+    """
+    mission_slug = "test-non-display-exclusion"
+    _write_project_root(tmp_path)
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
+    tasks_dir = feature_dir / "tasks"
+    _write_meta(feature_dir, mission_slug)
+    _write_wp(tasks_dir, "WP01", "Planned work")
+    _write_wp(tasks_dir, "WP02", "Ghost work")
+
+    _write_events(
+        feature_dir,
+        [
+            _event(
+                mission_slug,
+                "WP01",
+                "planned",
+                from_lane="genesis",
+                at="2026-01-01T00:00:00+00:00",
+            )
+        ],
+    )
+    _patch_project(monkeypatch, tmp_path)
+
+    import specify_cli.status as status_pkg
+
+    original_reduce = status_pkg.reduce
+
+    def _fake_reduce(events):
+        snapshot = original_reduce(events)
+        # Simulate the UNINITIALIZED read sentinel appearing as a WP's
+        # current lane in the reduced snapshot.
+        snapshot.work_packages["WP02"] = {"lane": "uninitialized"}
+        return snapshot
+
+    monkeypatch.setattr(status_pkg, "reduce", _fake_reduce)
+
+    result = show_kanban_status(mission_slug)
+
+    assert "error" not in result
+    assert result["total_wps"] == 1
+    assert result["planned_count"] == 1
+    assert (
+        result["planned_count"] + result["in_progress_count"] + result["done_count"]
+        == 1
+    )
+
+
 class _FakeDatetime:
     """Fake datetime replacement that returns a fixed now."""
 
