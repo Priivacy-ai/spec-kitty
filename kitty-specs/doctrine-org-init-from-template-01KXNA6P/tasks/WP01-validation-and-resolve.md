@@ -23,7 +23,8 @@ subtasks:
 - T005
 phase: Phase 1 - Library foundation
 assignee: ''
-agent: ''
+agent: "cursor"
+shell_pid: "10753"
 history:
 - at: '2026-07-16T12:22:00Z'
   actor: system
@@ -166,3 +167,4 @@ Mock or stub `GitSource.fetch` for unit tests; one optional integration mark is 
 ## Activity Log
 
 - 2026-07-16T12:22:00Z – system – Prompt created via /spec-kitty.tasks
+- 2026-07-16T12:31:28Z – cursor – shell_pid=10753 – Assigned agent via action command
