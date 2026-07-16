@@ -762,7 +762,6 @@ __all__ = [
     "KNOWN_PREFIX",
     "LEGACY_DIGEST",
     "MIGRATION_NOTE",
-    "CleanupOutcome",
     "CleanupResult",
     "MigrationAudit",
     "MigrationConflict",
