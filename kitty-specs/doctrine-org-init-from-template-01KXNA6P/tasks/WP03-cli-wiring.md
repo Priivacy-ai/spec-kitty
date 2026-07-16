@@ -18,7 +18,8 @@ subtasks:
 - T013
 phase: Phase 3 - Operator surface
 assignee: ''
-agent: ''
+agent: "cursor"
+shell_pid: "24810"
 history:
 - at: '2026-07-16T12:22:00Z'
   actor: system
@@ -130,3 +131,4 @@ PWHEADLESS=1 uv run pytest tests/specify_cli/doctrine/test_template_render_*.py 
 ## Activity Log
 
 - 2026-07-16T12:22:00Z – system – Prompt created via /spec-kitty.tasks
+- 2026-07-16T13:01:16Z – cursor – shell_pid=24810 – Assigned agent via action command
