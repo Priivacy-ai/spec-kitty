@@ -46,11 +46,11 @@
 
 ### Included Subtasks
 
-- [ ] T001 RED: ORG_NAME / LOCAL_PATH validation unit tests
-- [ ] T002 Implement validation helpers + rule_id errors
-- [ ] T003 [P] RED: TEMPLATE parse + branch conflict unit tests
-- [ ] T004 Implement local/git TEMPLATE resolve via GitSource
-- [ ] T005 Package public types (RenderRequest, ResolvedTemplateSource)
+- [x] T001 RED: ORG_NAME / LOCAL_PATH validation unit tests
+- [x] T002 Implement validation helpers + rule_id errors
+- [x] T003 [P] RED: TEMPLATE parse + branch conflict unit tests
+- [x] T004 Implement local/git TEMPLATE resolve via GitSource
+- [x] T005 Package public types (RenderRequest, ResolvedTemplateSource)
 
 ### Implementation Notes
 
