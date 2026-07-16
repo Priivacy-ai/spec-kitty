@@ -166,6 +166,15 @@ CREATE TABLE IF NOT EXISTS migration_conflicts (
     recorded_at   TEXT NOT NULL,
     PRIMARY KEY (event_id, source_digest)
 );
+CREATE TABLE IF NOT EXISTS quarantined_conflicts (
+    event_id      TEXT NOT NULL,
+    source_digest TEXT NOT NULL,
+    payload       BLOB NOT NULL,
+    existing_sha  TEXT NOT NULL,
+    incoming_sha  TEXT NOT NULL,
+    resolved_at   TEXT NOT NULL,
+    PRIMARY KEY (event_id, source_digest)
+);
 """
 
 
@@ -296,6 +305,40 @@ class MigrationAudit:
     def has_conflicts(self) -> bool:
         row = self._conn.execute("SELECT 1 FROM migration_conflicts LIMIT 1").fetchone()
         return row is not None
+
+    def quarantine_conflict(
+        self,
+        *,
+        event_id: str,
+        source_digest: str,
+        payload: bytes,
+        existing_sha: str,
+        incoming_sha: str,
+    ) -> None:
+        """Archive a divergent source payload before its source row is deleted.
+
+        Idempotent on ``(event_id, source_digest)`` so a re-run never duplicates
+        the archive. This preserves the superseded source copy — keep-journal
+        resolution converges the boundary without ever losing data.
+        """
+        self._conn.execute(
+            "INSERT OR IGNORE INTO quarantined_conflicts "
+            "(event_id, source_digest, payload, existing_sha, incoming_sha, resolved_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (event_id, source_digest, payload, existing_sha, incoming_sha, now_utc_iso()),
+        )
+
+    def clear_conflict(self, event_id: str, source_digest: str) -> None:
+        """Remove a resolved conflict from the active conflict table."""
+        self._conn.execute(
+            "DELETE FROM migration_conflicts WHERE event_id = ? AND source_digest = ?",
+            (event_id, source_digest),
+        )
+
+    def quarantined_count(self) -> int:
+        """Return the number of archived (quarantined) conflict payloads."""
+        row = self._conn.execute("SELECT COUNT(*) FROM quarantined_conflicts").fetchone()
+        return int(row[0]) if row else 0
 
 
 # --- per-source outcomes + overall result ---------------------------------
@@ -757,12 +800,95 @@ def cleanup_migrated_sources(
     return cleanup
 
 
+# --- keep-journal conflict resolution (#2665, explicit operator recovery) --
+
+
+@dataclass
+class ConflictResolution:
+    """Outcome of one :func:`resolve_conflicts_keep_journal` run."""
+
+    resolved: list[str] = field(default_factory=list)
+    skipped: list[str] = field(default_factory=list)
+    already_absent: list[str] = field(default_factory=list)
+
+    @property
+    def resolved_count(self) -> int:
+        return len(self.resolved)
+
+
+def _read_row_payload(source_path: Path, event_id: str) -> bytes | None:
+    """Return one queued row's canonical payload from *source_path* (read-only)."""
+    for row in _read_queued_rows(source_path):
+        if row.event_id == event_id:
+            return _canonical_payload(row.data)
+    return None
+
+
+def resolve_conflicts_keep_journal(
+    spec_kitty_dir: Path,
+    *,
+    journal: EventJournal,
+    audit: MigrationAudit,
+) -> ConflictResolution:
+    """Resolve divergent-duplicate conflicts by keeping the journal (canonical).
+
+    An explicit operator recovery path for the migrate-conflict deadlock: when a
+    source row and the journal disagree on the canonical payload for the same
+    ``event_id``, the migration quarantines it and blocks cleanup (FR-018), and
+    there is otherwise no way to converge the boundary. This resolves each such
+    conflict *journal-wins*:
+
+    1. only when the ``event_id`` is durable in the journal (the journal copy is
+       canonical/delivered; a conflict whose id is not in the journal is left
+       intact — never dropped);
+    2. archive the divergent SOURCE payload to the audit quarantine (nothing is
+       lost — the superseded copy is recoverable);
+    3. delete that row from its source queue by id; and
+    4. clear the conflict record so cleanup is no longer blocked.
+
+    The journal payload is never overwritten and no ``event_id`` is rewritten
+    (C-005/FR-018) — only the superseded source copy is removed, after it is
+    preserved. This is the only contract-legal resolution direction.
+    """
+    resolution = ConflictResolution()
+    conflicts = audit.conflicts()
+    if not conflicts:
+        return resolution
+    sources = {source.digest: source for source in discover_source_dbs(spec_kitty_dir)}
+    for conflict in conflicts:
+        if journal.read_by_id(conflict.event_id) is None:
+            resolution.skipped.append(conflict.event_id)  # not canonical yet — keep it
+            continue
+        source = sources.get(conflict.source_digest)
+        if source is None:
+            resolution.skipped.append(conflict.event_id)  # source gone from disk
+            continue
+        payload = _read_row_payload(source.path, conflict.event_id)
+        if payload is None:  # row already absent from source — just clear the record
+            audit.clear_conflict(conflict.event_id, conflict.source_digest)
+            resolution.already_absent.append(conflict.event_id)
+            continue
+        audit.quarantine_conflict(
+            event_id=conflict.event_id,
+            source_digest=conflict.source_digest,
+            payload=payload,
+            existing_sha=conflict.existing_sha,
+            incoming_sha=conflict.incoming_sha,
+        )
+        _delete_migrated_rows(source.path, [conflict.event_id])
+        audit.clear_conflict(conflict.event_id, conflict.source_digest)
+        resolution.resolved.append(conflict.event_id)
+    audit.commit()
+    return resolution
+
+
 __all__ = [
     "AUDIT_DB_NAME",
     "KNOWN_PREFIX",
     "LEGACY_DIGEST",
     "MIGRATION_NOTE",
     "CleanupResult",
+    "ConflictResolution",
     "MigrationAudit",
     "MigrationConflict",
     "MigrationResult",
@@ -773,4 +899,5 @@ __all__ = [
     "discover_source_dbs",
     "migrate_queues_to_journal",
     "migration_target_token",
+    "resolve_conflicts_keep_journal",
 ]

@@ -31,7 +31,12 @@ if TYPE_CHECKING:
     from specify_cli.delivery.retention import RetentionResult
     from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
     from specify_cli.event_journal.journal import EventJournal
-    from specify_cli.sync.migrate_journal import CleanupResult, MigrationAudit, MigrationResult
+    from specify_cli.sync.migrate_journal import (
+        CleanupResult,
+        ConflictResolution,
+        MigrationAudit,
+        MigrationResult,
+    )
     from specify_cli.sync.target_authority import ResolvedSyncTarget
 
 from specify_cli.cli.commands._auth_recovery import (
@@ -851,6 +856,21 @@ def _print_cleanup_result(cleanup: CleanupResult) -> None:
             console.print(
                 f"[red]Cleanup error on source {outcome.digest}[/red]: {outcome.error}"
             )
+
+
+def _print_resolution_result(resolution: ConflictResolution) -> None:
+    """Render keep-journal conflict resolution (#2665)."""
+    console.print(
+        "Conflict resolution (keep-journal): "
+        f"[green]resolved {resolution.resolved_count}[/green] (archived to quarantine)  "
+        f"[yellow]skipped {len(resolution.skipped)}[/yellow]  "
+        f"already-absent {len(resolution.already_absent)}"
+    )
+    if resolution.skipped:
+        console.print(
+            "[yellow]Skipped conflicts are not yet canonical in the journal or their "
+            "source is gone — left intact.[/yellow]"
+        )
 
 
 def _run_event_sync_dispatch() -> DispatchSummary | None:
@@ -2000,6 +2020,16 @@ def migrate(
             "boundary is converged; re-run `sync migrate` (without the flag) to clean up."
         ),
     ),
+    resolve_conflicts: str = typer.Option(
+        None,
+        "--resolve-conflicts",
+        help=(
+            "Resolve divergent-duplicate conflicts so the boundary can converge. "
+            "Only `keep-journal` is supported: the journal payload is canonical, so "
+            "each conflicting source row is archived (quarantined) then removed. "
+            "Explicit operator recovery; never overwrites the journal."
+        ),
+    ),
 ) -> None:
     """Migrate legacy hash-scoped queue DBs into the append-only event journal.
 
@@ -2011,12 +2041,19 @@ def migrate(
     On a clean migration (no conflicts, no source errors) the migrated rows are
     then deleted from their source queues so the legacy-row boundary converges
     and ``sync now`` / ``sync opt-in`` stop refusing (#2665). Pass
-    ``--no-cleanup`` to skip that step and inspect first. Exits non-zero when an
-    unresolved conflict blocks cleanup (SC-011).
+    ``--no-cleanup`` to skip that step and inspect first.
+
+    Divergent-duplicate conflicts (same ``event_id``, different payload than the
+    journal) block cleanup by default. Pass ``--resolve-conflicts keep-journal``
+    to resolve them journal-wins: each conflicting source payload is archived to
+    the audit quarantine and the source row removed, so the boundary can
+    converge. The journal is never overwritten. Exits non-zero when unresolved
+    conflicts still block cleanup (SC-011).
 
     Examples:
         spec-kitty sync migrate
         spec-kitty sync migrate --no-cleanup
+        spec-kitty sync migrate --resolve-conflicts keep-journal
     """
     from specify_cli.paths import get_runtime_root
     from specify_cli.sync.migrate_journal import (
@@ -2024,12 +2061,21 @@ def migrate(
         MigrationAudit,
         cleanup_migrated_sources,
         migrate_queues_to_journal,
+        resolve_conflicts_keep_journal,
     )
+
+    if resolve_conflicts is not None and resolve_conflicts != "keep-journal":
+        console.print(
+            f"[red]Unknown --resolve-conflicts strategy '{resolve_conflicts}'. "
+            "Only 'keep-journal' is supported.[/red]"
+        )
+        raise typer.Exit(2)
 
     spec_kitty_dir = get_runtime_root().base
     runtime = _open_event_sync_runtime()
     audit = MigrationAudit(spec_kitty_dir / AUDIT_DB_NAME)
     cleanup = None
+    resolution = None
     try:
         result = migrate_queues_to_journal(
             spec_kitty_dir,
@@ -2037,6 +2083,20 @@ def migrate(
             audit=audit,
             resolved_target=runtime.target,
         )
+        if resolve_conflicts == "keep-journal" and result.conflicts:
+            resolution = resolve_conflicts_keep_journal(
+                spec_kitty_dir,
+                journal=runtime.journal,
+                audit=audit,
+            )
+            # Re-run the migration now the conflicts are resolved so the result
+            # (and the cleanup gate below) reflects the converged state.
+            result = migrate_queues_to_journal(
+                spec_kitty_dir,
+                journal=runtime.journal,
+                audit=audit,
+                resolved_target=runtime.target,
+            )
         if not no_cleanup and not result.cleanup_blocked:
             cleanup = cleanup_migrated_sources(
                 spec_kitty_dir,
@@ -2049,6 +2109,8 @@ def migrate(
             audit.close()
         runtime.close()
     _print_migration_result(result)
+    if resolution is not None:
+        _print_resolution_result(resolution)
     if cleanup is not None:
         _print_cleanup_result(cleanup)
     if result.exit_code != 0:
