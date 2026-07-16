@@ -33,6 +33,7 @@ from specify_cli.sync.migrate_journal import (
     discover_source_dbs,
     migrate_queues_to_journal,
     migration_target_token,
+    resolve_conflicts_keep_journal,
 )
 from specify_cli.sync.queue import OfflineQueue
 from specify_cli.sync.target_authority import (
@@ -575,3 +576,83 @@ def test_remove_events_deletes_only_named_ids(tmp_path: Path) -> None:
     removed = queue.remove_events(["e1", "e3", "absent"])
     assert removed == 2
     assert queue.size() == 1
+
+
+# ----------------------------------------------------------------------
+# #2665 — keep-journal conflict resolution (explicit operator recovery)
+# ----------------------------------------------------------------------
+
+
+def test_resolve_conflicts_keep_journal_archives_and_removes_source(tmp_path: Path) -> None:
+    """A divergent duplicate is archived, its source row removed, conflict cleared."""
+    home = tmp_path / "home"
+    _seed_queue(_scoped_path(home, _digest("a")), [_event("dup", payload={"v": 1})])
+    _seed_queue(_scoped_path(home, _digest("b")), [_event("dup", payload={"v": 2})])
+    journal = _journal(home)
+    audit = MigrationAudit(home / "migration_audit.db")
+
+    result = migrate_queues_to_journal(home, journal=journal, audit=audit)
+    assert result.cleanup_blocked is True
+    assert len(result.conflicts) == 1
+
+    resolution = resolve_conflicts_keep_journal(home, journal=journal, audit=audit)
+
+    assert resolution.resolved_count == 1
+    assert audit.quarantined_count() == 1  # divergent payload preserved, not lost
+    assert audit.has_conflicts() is False  # boundary can converge now
+    # the conflicting source is drained; the canonical source keeps its row
+    sizes = sorted(
+        [
+            OfflineQueue(db_path=_scoped_path(home, _digest("a"))).size(),
+            OfflineQueue(db_path=_scoped_path(home, _digest("b"))).size(),
+        ]
+    )
+    assert sizes == [0, 1]
+    # journal payload is untouched — the event is still present
+    assert journal.read_by_id("dup") is not None
+
+
+def test_resolve_conflicts_skips_when_source_gone(tmp_path: Path) -> None:
+    """A conflict whose source DB has vanished is left intact (never fabricated away)."""
+    home = tmp_path / "home"
+    _seed_queue(_scoped_path(home, _digest("a")), [_event("dup", payload={"v": 1})])
+    _seed_queue(_scoped_path(home, _digest("b")), [_event("dup", payload={"v": 2})])
+    journal = _journal(home)
+    audit = MigrationAudit(home / "migration_audit.db")
+
+    result = migrate_queues_to_journal(home, journal=journal, audit=audit)
+    assert len(result.conflicts) == 1
+    # delete the conflicting source DB so resolution can't find it
+    _scoped_path(home, result.conflicts[0].source_digest).unlink()
+
+    resolution = resolve_conflicts_keep_journal(home, journal=journal, audit=audit)
+
+    assert resolution.resolved_count == 0
+    assert len(resolution.skipped) == 1
+    assert audit.quarantined_count() == 0
+
+
+def test_resolve_then_remigrate_and_cleanup_converges(tmp_path: Path) -> None:
+    """End-to-end: resolve conflicts, re-migrate clean, cleanup drains every source."""
+    home = tmp_path / "home"
+    _seed_queue(
+        _scoped_path(home, _digest("a")),
+        [_event("dup", payload={"v": 1}), _event("clean1")],
+    )
+    _seed_queue(_scoped_path(home, _digest("b")), [_event("dup", payload={"v": 2})])
+    journal = _journal(home)
+    audit = MigrationAudit(home / "migration_audit.db")
+
+    first = migrate_queues_to_journal(home, journal=journal, audit=audit)
+    assert first.cleanup_blocked is True  # conflict blocks
+
+    resolve_conflicts_keep_journal(home, journal=journal, audit=audit)
+
+    second = migrate_queues_to_journal(home, journal=journal, audit=audit)
+    assert second.cleanup_blocked is False  # conflicts resolved → clean
+
+    cleanup = cleanup_migrated_sources(home, journal=journal, audit=audit, result=second)
+    assert cleanup.ran is True
+    # every source drained → boundary converges
+    assert OfflineQueue(db_path=_scoped_path(home, _digest("a"))).size() == 0
+    assert OfflineQueue(db_path=_scoped_path(home, _digest("b"))).size() == 0
