@@ -53,20 +53,6 @@ from specify_cli.status import is_dossier_snapshot as _is_dossier_snapshot
 logger = logging.getLogger(__name__)
 
 
-def resolve_primary_branch(repo_root: Path) -> str:
-    """Resolve the primary branch name (main, master, etc.).
-
-    Delegates to the centralized implementation in core.git_ops.
-
-    Returns:
-        Detected primary branch name.
-    """
-    from specify_cli.core.git_ops import resolve_primary_branch as _resolve
-
-    branch: str = _resolve(repo_root)
-    return branch
-
-
 def _review_currency_check_branch(
     *,
     main_repo_root: Path,

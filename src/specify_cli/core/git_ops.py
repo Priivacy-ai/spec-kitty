@@ -267,22 +267,12 @@ def exclude_from_git_index(repo_path: Path, patterns: list[str]) -> None:
             pass  # Non-critical, continue silently
 
 
-def resolve_primary_branch(repo_root: Path) -> str:
-    """Detect the primary branch name for the repository.
+#: Branch names treated as a "primary"/trunk branch by the fallback heuristics.
+COMMON_PRIMARY_BRANCHES: tuple[str, ...] = ("main", "master", "develop")
 
-    Tries multiple methods in order:
-    1. origin/HEAD symbolic ref (most reliable for cloned repos)
-    2. Current branch (the user is standing on it for a reason)
-    3. Check which common branch exists (main, master, develop)
-    4. Fallback to "main"
 
-    Args:
-        repo_root: Repository root path
-
-    Returns:
-        Primary branch name (e.g., "main", "master", "develop", "2.x")
-    """
-    # Method 1: Get from origin's HEAD
+def _origin_head_branch(repo_root: Path) -> str | None:
+    """Return the branch ``origin/HEAD`` points at, or ``None`` if unresolved."""
     try:
         result = subprocess.run(
             ["git", "symbolic-ref", "refs/remotes/origin/HEAD"],
@@ -294,37 +284,106 @@ def resolve_primary_branch(repo_root: Path) -> str:
             timeout=5,
             check=False,
         )
-        if result.returncode == 0:
-            ref = result.stdout.strip()
-            if ref:
-                branch = ref.split("/")[-1]
-                if branch:
-                    return branch
     except subprocess.TimeoutExpired:
-        pass
+        return None
+    if result.returncode != 0:
+        return None
+    ref = result.stdout.strip()
+    if not ref:
+        return None
+    return ref.split("/")[-1] or None
 
-    # Method 2: Current branch (the user is standing on it for a reason)
-    current = get_current_branch(repo_root)
-    if current and current != "HEAD":
-        return current
 
-    # Method 3: Check which common branch exists
-    for branch in ["main", "master", "develop"]:
+def _common_branch_exists(repo_root: Path, branch: str, *, include_remote: bool) -> bool:
+    """Return ``True`` when ``branch`` resolves as a ref for the repository.
+
+    ``include_remote=False`` reproduces the feature-bias local-only probe
+    (``git rev-parse --verify <branch>``). ``include_remote=True`` reproduces the
+    no-feature-bias recommendation probe, which also accepts an ``origin`` ref
+    (``refs/heads/<branch>`` or ``refs/remotes/origin/<branch>``). A timeout is
+    treated as "unresolved" so the caller advances to the next candidate.
+    """
+    if include_remote:
+        arg_sets = [
+            ["git", "rev-parse", "--verify", "--quiet", f"refs/heads/{branch}"],
+            ["git", "rev-parse", "--verify", "--quiet", f"refs/remotes/origin/{branch}"],
+        ]
+    else:
+        arg_sets = [["git", "rev-parse", "--verify", branch]]
+    for args in arg_sets:
         try:
-            check = subprocess.run(
-                ["git", "rev-parse", "--verify", branch],
+            result = subprocess.run(
+                args,
                 cwd=repo_root,
                 capture_output=True,
                 timeout=5,
                 check=False,
             )
-            if check.returncode == 0:
-                return branch
         except subprocess.TimeoutExpired:
             continue
+        if result.returncode == 0:
+            return True
+    return False
+
+
+def resolve_primary_branch(
+    repo_root: Path,
+    *,
+    current_branch: str | None = None,
+    bias: bool = True,
+) -> str:
+    """Detect the primary branch name for the repository.
+
+    Tries multiple methods in order:
+    1. origin/HEAD symbolic ref (most reliable for cloned repos)
+    2. Current branch (the user is standing on it for a reason)
+    3. Check which common branch exists (main, master, develop)
+    4. Fallback to "main"
+
+    Args:
+        repo_root: Repository root path
+        current_branch: Pre-resolved checked-out branch. When ``None`` (default)
+            it is auto-detected with :func:`get_current_branch`; callers that
+            already know the branch can pass it to avoid a second ``git`` call.
+        bias: When ``True`` (default) the checked-out branch wins as the primary
+            branch (Method 2) — the historical "feature-branch bias" that keeps
+            planning stable on a ticket branch. When ``False`` (no-feature-bias
+            mode) the current branch is only honored if it is itself a common
+            primary name, the common-branch ladder is probed against local *and*
+            origin refs, and — if nothing matches — the resolver defers to the
+            default feature-bias cascade as a last resort. This is the mode the
+            branch-context recommender needs (see
+            ``mission_branch_context._resolve_primary_branch_for_recommendation``)
+            so a ticket branch is never mistaken for the primary branch (FR-007).
+
+    Returns:
+        Primary branch name (e.g., "main", "master", "develop", "2.x")
+    """
+    # Method 1: Get from origin's HEAD
+    origin_branch = _origin_head_branch(repo_root)
+    if origin_branch:
+        return origin_branch
+
+    # Method 2: Current branch
+    current = current_branch if current_branch is not None else get_current_branch(repo_root)
+    if bias:
+        if current and current != "HEAD":
+            return current
+    elif current in COMMON_PRIMARY_BRANCHES:
+        return current
+
+    # Method 3: Check which common branch exists
+    for branch in COMMON_PRIMARY_BRANCHES:
+        if _common_branch_exists(repo_root, branch, include_remote=not bias):
+            return branch
 
     # Method 4: Fallback
-    return "main"
+    if bias:
+        return "main"
+    # No-feature-bias exhausted the common-branch ladder; defer to the
+    # feature-bias cascade as a last resort (preserves the recommender's
+    # historical fallback to the canonical resolution).
+    return resolve_primary_branch(repo_root)
 
 
 def resolve_target_branch(
