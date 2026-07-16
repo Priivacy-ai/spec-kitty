@@ -22,7 +22,8 @@ subtasks:
 - T010
 phase: Phase 2 - Render pipeline
 assignee: ''
-agent: ''
+agent: "cursor"
+shell_pid: "20564"
 history:
 - at: '2026-07-16T12:22:00Z'
   actor: system
@@ -161,3 +162,6 @@ PWHEADLESS=1 uv run pytest \
 ## Activity Log
 
 - 2026-07-16T12:22:00Z – system – Prompt created via /spec-kitty.tasks
+- 2026-07-16T12:46:05Z – cursor – shell_pid=20564 – Assigned agent via action command
+- 2026-07-16T12:58:39Z – cursor – shell_pid=20564 – Ready for review: ignore-copy, substitute, pipeline; tests green
+- 2026-07-16T13:01:07Z – user – shell_pid=20564 – Review passed: ignore-copy, substitute, pipeline; tests green
