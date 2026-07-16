@@ -165,3 +165,4 @@ PWHEADLESS=1 uv run pytest \
 - 2026-07-16T12:46:05Z – cursor – shell_pid=20564 – Assigned agent via action command
 - 2026-07-16T12:58:39Z – cursor – shell_pid=20564 – Ready for review: ignore-copy, substitute, pipeline; tests green
 - 2026-07-16T13:01:07Z – user – shell_pid=20564 – Review passed: ignore-copy, substitute, pipeline; tests green
+- 2026-07-16T13:05:31Z – user – shell_pid=20564 – Done override: Merged lane-c (includes WP01–WP03) into feat/doctrine-org-init-from-template
