@@ -31,7 +31,7 @@ if TYPE_CHECKING:
     from specify_cli.delivery.retention import RetentionResult
     from specify_cli.delivery.targets import SqliteDeliveryTargetRegistry
     from specify_cli.event_journal.journal import EventJournal
-    from specify_cli.sync.migrate_journal import MigrationAudit, MigrationResult
+    from specify_cli.sync.migrate_journal import CleanupResult, MigrationAudit, MigrationResult
     from specify_cli.sync.target_authority import ResolvedSyncTarget
 
 from specify_cli.cli.commands._auth_recovery import (
@@ -834,6 +834,23 @@ def _print_migration_result(result: MigrationResult) -> None:
                 f"[red]Source {source.digest} failed[/red]: {source.error}"
             )
     console.print(f"[dim]{result.note}[/dim]")
+
+
+def _print_cleanup_result(cleanup: CleanupResult) -> None:
+    """Render the post-migration source-queue cleanup (#2665)."""
+    if not cleanup.ran:
+        return
+    console.print(
+        "Source cleanup: "
+        f"[green]deleted {cleanup.total_deleted}[/green] migrated row(s) "
+        f"from {cleanup.sources_cleaned} source queue(s) "
+        "(boundary now converges; sync now / opt-in no longer refuse)."
+    )
+    for outcome in cleanup.outcomes:
+        if outcome.error:
+            console.print(
+                f"[red]Cleanup error on source {outcome.digest}[/red]: {outcome.error}"
+            )
 
 
 def _run_event_sync_dispatch() -> DispatchSummary | None:
@@ -1973,28 +1990,46 @@ def archive() -> None:
 
 
 @app.command()
-def migrate() -> None:
+def migrate(
+    no_cleanup: bool = typer.Option(
+        False,
+        "--no-cleanup",
+        help=(
+            "Import into the journal but do NOT delete the migrated rows from the "
+            "source queues. Use to inspect the migration before the legacy-row "
+            "boundary is converged; re-run `sync migrate` (without the flag) to clean up."
+        ),
+    ),
+) -> None:
     """Migrate legacy hash-scoped queue DBs into the append-only event journal.
 
     Lifts every currently-queued payload from the legacy ``queue.db`` and each
     scoped ``queues/queue-<digest>.db`` into the WP03 event journal, recording
     per-source provenance and quarantining divergent-duplicate collisions into
-    the migration-audit store. Source DBs are opened read-only and are never
-    modified. Exits non-zero when an unresolved conflict blocks cleanup (SC-011).
+    the migration-audit store. Import opens source DBs read-only.
+
+    On a clean migration (no conflicts, no source errors) the migrated rows are
+    then deleted from their source queues so the legacy-row boundary converges
+    and ``sync now`` / ``sync opt-in`` stop refusing (#2665). Pass
+    ``--no-cleanup`` to skip that step and inspect first. Exits non-zero when an
+    unresolved conflict blocks cleanup (SC-011).
 
     Examples:
         spec-kitty sync migrate
+        spec-kitty sync migrate --no-cleanup
     """
     from specify_cli.paths import get_runtime_root
     from specify_cli.sync.migrate_journal import (
         AUDIT_DB_NAME,
         MigrationAudit,
+        cleanup_migrated_sources,
         migrate_queues_to_journal,
     )
 
     spec_kitty_dir = get_runtime_root().base
     runtime = _open_event_sync_runtime()
     audit = MigrationAudit(spec_kitty_dir / AUDIT_DB_NAME)
+    cleanup = None
     try:
         result = migrate_queues_to_journal(
             spec_kitty_dir,
@@ -2002,11 +2037,20 @@ def migrate() -> None:
             audit=audit,
             resolved_target=runtime.target,
         )
+        if not no_cleanup and not result.cleanup_blocked:
+            cleanup = cleanup_migrated_sources(
+                spec_kitty_dir,
+                journal=runtime.journal,
+                audit=audit,
+                result=result,
+            )
     finally:
         with contextlib.suppress(Exception):
             audit.close()
         runtime.close()
     _print_migration_result(result)
+    if cleanup is not None:
+        _print_cleanup_result(cleanup)
     if result.exit_code != 0:
         raise typer.Exit(result.exit_code)
 

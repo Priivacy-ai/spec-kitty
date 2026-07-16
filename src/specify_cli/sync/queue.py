@@ -1671,6 +1671,34 @@ class OfflineQueue:
         with self._row_count_lock:
             self._row_count = 0
 
+    def remove_events(self, event_ids: list[str]) -> int:
+        """Remove queued events by ``event_id``; return the number deleted.
+
+        Used by the queue->journal migration cleanup (#2665) to delete rows
+        that have been confirmed durable in the event journal. Deletes only the
+        given ids — never a blanket clear — so events enqueued after the
+        migration snapshot are preserved. Ids absent from the queue are simply
+        not counted (the return value is the *actual* number of rows removed).
+        """
+        if not event_ids:
+            return 0
+        conn = sqlite3.connect(self.db_path)
+        try:
+            placeholders = ",".join("?" * len(event_ids))
+            cursor = conn.execute(
+                f"DELETE FROM queue WHERE event_id IN ({placeholders})",  # noqa: S608  # nosec B608 - placeholders are count-derived only
+                list(event_ids),
+            )
+            removed = cursor.rowcount if cursor.rowcount and cursor.rowcount > 0 else 0
+            conn.commit()
+        finally:
+            conn.close()
+        if removed > 0:
+            with self._row_count_lock:
+                if self._row_count is not None:
+                    self._row_count = max(0, self._row_count - removed)
+        return removed
+
     def remove_project_events(self, project_uuid: str) -> int:
         """Remove queued events that belong to one project UUID."""
         if not project_uuid:
