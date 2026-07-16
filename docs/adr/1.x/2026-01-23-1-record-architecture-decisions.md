@@ -36,7 +36,7 @@ Without structured decision documentation, we face:
 ## Decision Outcome
 
 **Chosen option:** "Option 2: Architecture Decision Records (ADRs)", because:
-- Lightweight and low-ceremony (fits agile development)
+- Lightweight and low-overhead (fits agile development)
 - One decision per document (focused and digestible)
 - Immutable once accepted (provides historical record)
 - Widely adopted standard with excellent tooling

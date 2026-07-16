@@ -12,7 +12,7 @@ run the code path and assert only that nothing raised. When we wanted an objecti
 **effectiveness** (not just reach), we needed a different tool.
 
 The question was not *whether* to adopt mutation testing — the value is well-established — but at what
-level of ceremony, and with what scope.
+level of overhead, and with what scope.
 
 ## Decision
 
