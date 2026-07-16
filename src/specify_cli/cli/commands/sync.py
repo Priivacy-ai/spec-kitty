@@ -1386,6 +1386,58 @@ def opt_out(
     )
 
 
+def _auto_converge_legacy_on_enable() -> None:
+    """Converge any legacy queue residue into the journal when enabling sync (#2665).
+
+    Turning sync on for a checkout should make it coherent, not refuse. Runs the
+    clean-path convergence (import + cleanup) so the legacy-row boundary clears.
+    Divergent-duplicate conflicts are deliberately NOT auto-resolved here (that
+    would discard superseded source data, even if quarantined) — they are
+    surfaced with the explicit ``sync migrate --resolve-conflicts keep-journal``
+    recovery, and the coherence gate that follows still refuses until they are
+    resolved. Idempotent and lossless: a no-op on an already-converged runtime.
+    Any runtime-open failure is swallowed so the coherence gate handles it.
+    """
+    from specify_cli.paths import get_runtime_root
+    from specify_cli.sync.migrate_journal import (
+        AUDIT_DB_NAME,
+        MigrationAudit,
+        converge_legacy_runtime,
+    )
+
+    spec_kitty_dir = get_runtime_root().base
+    try:
+        runtime = _open_event_sync_runtime()
+    except Exception:  # runtime unavailable — let the coherence gate report it
+        return
+    audit = MigrationAudit(spec_kitty_dir / AUDIT_DB_NAME)
+    try:
+        converge = converge_legacy_runtime(
+            spec_kitty_dir,
+            journal=runtime.journal,
+            audit=audit,
+            resolved_target=runtime.target,
+            resolve_conflicts=False,
+            cleanup=True,
+        )
+    finally:
+        with contextlib.suppress(Exception):
+            audit.close()
+        runtime.close()
+
+    deleted = converge.cleanup.total_deleted if converge.cleanup is not None else 0
+    if deleted:
+        console.print(
+            f"[green]✓[/green] Converged {deleted} legacy queue row(s) into the event journal."
+        )
+    if converge.blocked_conflicts:
+        console.print(
+            f"[yellow]{converge.blocked_conflicts} divergent-duplicate conflict(s) remain. "
+            "Run `spec-kitty sync migrate --resolve-conflicts keep-journal` to resolve them, "
+            "then re-run opt-in.[/yellow]"
+        )
+
+
 @app.command(name="opt-in")
 def opt_in(
     checkout_only: bool = typer.Option(
@@ -1397,14 +1449,20 @@ def opt_in(
     """Enable SaaS sync for this checkout."""
     from specify_cli.sync.routing import enable_checkout_sync
 
-    _require_daemon_owner_coherence("spec-kitty sync opt-in")
-
     if not is_saas_sync_enabled():
         # Non-green + non-zero (#2264 item 3): opt-in cannot take effect while
         # the rollout flag is off, so a dim exit-0 "success" is misleading.
         # Surface the disabled state clearly and exit non-zero.
         console.print(f"[yellow]{saas_sync_disabled_message()}[/yellow]")
         raise typer.Exit(1)
+
+    # Turning sync on converges any legacy queue residue into the journal so the
+    # boundary is coherent instead of refusing (#2665). Conservative: clean-path
+    # only; divergent-duplicate conflicts are surfaced for an explicit
+    # `sync migrate --resolve-conflicts keep-journal` before opt-in can proceed.
+    _auto_converge_legacy_on_enable()
+
+    _require_daemon_owner_coherence("spec-kitty sync opt-in")
 
     enforce_teamspace_mission_state_ready(
         console=console,
