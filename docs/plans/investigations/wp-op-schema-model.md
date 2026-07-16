@@ -83,7 +83,7 @@ was done, not what was undertaken and to what end.
 This is **incongruent with Spec Kitty's core vision** (specifications ahead of
 implementation; traceability from intent to artefact) and it **blurs the line
 between `ad-hoc` and `op`**: if an Op leaves no more trace of intent than a raw
-ad-hoc action, the governance ceremony buys little.
+ad-hoc action, the governance overhead buys little.
 
 Applying the **same schema model** to Op scope would let an Op carry a
 lightweight, structured **intent + scope + outcome** record — a "small WP for a
