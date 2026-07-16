@@ -1,0 +1,7 @@
+evidence_id,source_id,finding,decision_impact
+E-001,S-001,"Issue reports success plus dirty PRIMARY tracking and raw missing-worktree failure after coordination recreation","Requires real persisted-context reproduction and six-surface observation"
+E-002,S-002,"Review claim commits before workspace preparation","Makes review ordering the primary RED candidate and favors readiness-before-mutation"
+E-003,S-003,"Persisted context and lifecycle sync can derive workspace independently","Requires one ResolvedWorkspace passed through lifecycle"
+E-004,S-004,"Move-task can emit durable status before a soft WP commit warning","In scope only if exact stale fixture triggers the arm"
+E-005,S-005,"Mark-status routes TASKS_INDEX without needing lane workspace","Treat as negative control rather than forcing uniform behavior"
+E-006,S-006,"Existing helper/integration tests cover branch-present husks but not full CLI ordering or branch-plus-worktree absent","Requires full entry-point witness and explicit delta matrix"

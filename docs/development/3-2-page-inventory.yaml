@@ -770,6 +770,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/adr/3.x/2026-07-14-2-cross-partition-workflow-transaction.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/adr/3.x/2026-07-14-2-doctrine-to-core-mission-type-resolution-unification.md
   tag: current
   divio_type: none
