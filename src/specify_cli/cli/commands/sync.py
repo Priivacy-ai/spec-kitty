@@ -74,6 +74,19 @@ _STATUS_LAST_SYNC_LABEL = "Last Sync"
 _UNAUTHENTICATED_SYNC_NOW_MESSAGE = (
     "not authenticated: no valid access token. Run `spec-kitty auth login`."
 )
+_OVERSIZED_SYNC_NOW_MESSAGE = (
+    "sync batch exceeded the server size limit; the CLI retried with smaller "
+    "batches. Re-run `spec-kitty sync now` if events remain."
+)
+_TRANSIENT_SYNC_NOW_MESSAGE = (
+    "sync delivery failed transiently; no events were lost. Re-run "
+    "`spec-kitty sync now` (see `--report` for per-event detail)."
+)
+# HTTP 413 is how the SaaS sync ingress (Fly proxy + edge) rejects an
+# over-cap batch; see apps/sync/limits.py (512 KiB decompressed ceiling).
+_HTTP_PAYLOAD_TOO_LARGE = 413
+_OVERSIZED_ERROR_MARKER = "too large"
+_HTTP_AUTH_STATUSES = frozenset({401, 403})
 _WARNING_HEADER_STYLE = "bold yellow"
 _ABSENT_VALUE = "<absent>"
 _UNSET_VALUE = "<unset>"
@@ -319,7 +332,7 @@ def _enforce_sync_now_exit_from_dispatch(
         _handle_sync_now_unauthenticated(strict)
         return
     if selected > 0 and progressed == 0 and summary.transient > 0:
-        console.print(f"[yellow]{_UNAUTHENTICATED_SYNC_NOW_MESSAGE}[/yellow]")
+        console.print(f"[yellow]{_transient_block_message(summary)}[/yellow]")
         if strict:
             raise typer.Exit(1)
         return
@@ -711,6 +724,39 @@ def _batch_left_selection_set(summary: DispatchSummary) -> bool:
     return summary.selected > terminal
 
 
+def _batch_is_oversized(summary: DispatchSummary) -> bool:
+    """Whether a batch was rejected wholesale for exceeding the server size cap.
+
+    The count-based batch limit cannot see decompressed byte size, so a backlog
+    whose events fit the 1000-event limit can still crowd the SaaS 512 KiB
+    ceiling (apps/sync/limits.py). The edge proxy answers HTTP 413 and the WP06
+    receiver maps that to a batch-wide ``transient`` carrying the oversized
+    error (``_BATCH_OVERSIZED_ERROR`` = "retry with a smaller batch"). This is
+    the signal that we should honor that documented contract and shrink.
+    """
+    return any(
+        failure.http_status == _HTTP_PAYLOAD_TOO_LARGE
+        or (failure.error is not None and _OVERSIZED_ERROR_MARKER in failure.error)
+        for failure in summary.failures
+    )
+
+
+def _transient_block_message(summary: DispatchSummary) -> str:
+    """Explain a wholesale-transient drain accurately instead of always blaming auth.
+
+    The legacy heuristic reported every all-transient batch as "not
+    authenticated", which mislabels a 413 (batch too large) or a 5xx as a
+    logged-out session and sends operators chasing auth. Classify by the actual
+    failure status instead.
+    """
+    statuses = {f.http_status for f in summary.failures if f.http_status is not None}
+    if _HTTP_PAYLOAD_TOO_LARGE in statuses:
+        return _OVERSIZED_SYNC_NOW_MESSAGE
+    if statuses & _HTTP_AUTH_STATUSES:
+        return _UNAUTHENTICATED_SYNC_NOW_MESSAGE
+    return _TRANSIENT_SYNC_NOW_MESSAGE
+
+
 def _run_dispatch_batches(
     runtime: _EventSyncRuntime,
     receiver: DeliveryReceiver,
@@ -719,16 +765,26 @@ def _run_dispatch_batches(
     from specify_cli.delivery.dispatcher import DispatchSummary, dispatch
 
     combined = DispatchSummary.empty()
+    limit = _EVENT_SYNC_DISPATCH_BATCH_LIMIT
     while True:
         batch = dispatch(
             journal=runtime.journal,
             ledger=runtime.ledger,
             receiver=receiver,
             target=delivery_target,
-            limit=_EVENT_SYNC_DISPATCH_BATCH_LIMIT,
+            limit=limit,
         )
+        # Honor the documented "retry with a smaller batch" contract: a
+        # byte-oversized batch (HTTP 413, nothing delivered) is halved and
+        # retried rather than surrendered as transient. dispatch() leaves those
+        # events undelivered, so the smaller re-selection picks the same events
+        # up. A single oversized event is terminal-failed by the receiver (not
+        # transient), so limit==1 can never loop forever.
+        if limit > 1 and batch.delivered == 0 and _batch_is_oversized(batch):
+            limit = max(1, limit // 2)
+            continue
         combined = _combine_dispatch_summaries(combined, batch)
-        if batch.selected < _EVENT_SYNC_DISPATCH_BATCH_LIMIT:
+        if batch.selected < limit:
             break
         if _batch_left_selection_set(batch):
             break
