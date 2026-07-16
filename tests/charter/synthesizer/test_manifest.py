@@ -25,7 +25,9 @@ from charter.synthesizer.errors import ManifestIntegrityError
 from charter.synthesizer.manifest import (
     ManifestArtifactEntry,
     SynthesisManifest,
+    compute_manifest_hash,
     dump_yaml,
+    finalize_manifest,
     load_yaml,
     verify,
     verify_manifest_hash,
@@ -55,7 +57,17 @@ def _compute_manifest_hash(
 
 
 def _make_manifest(run_id: str = "01KPE222TESTRUNID0000000001") -> SynthesisManifest:
-    """Create a sample v2 manifest for testing."""
+    """Create a sample v2 manifest for testing.
+
+    Builds the instance with a placeholder ``manifest_hash`` and routes it
+    through :func:`finalize_manifest` (WP01, synthesized-drg-stale-refresh)
+    rather than hand-computing the hash over a raw dict literal. A hand-
+    rolled ``data_without_hash`` dict silently omits any field a later
+    schema revision adds (exactly the class of bug fact #15/#16 and
+    BLOCKER-1/2 describe for production writers) — routing through the
+    single canonical finalizer keeps this fixture self-consistent by
+    construction as the model gains fields.
+    """
     artifacts = [
         ManifestArtifactEntry(
             kind="tactic",
@@ -65,20 +77,7 @@ def _make_manifest(run_id: str = "01KPE222TESTRUNID0000000001") -> SynthesisMani
             content_hash="a" * 64,
         ),
     ]
-    # Build the manifest_hash from the data without the hash field
-    data_without_hash = {
-        "schema_version": "2",
-        "mission_id": None,
-        "created_at": "2026-04-17T12:00:00+00:00",
-        "run_id": run_id,
-        "adapter_id": "fixture",
-        "adapter_version": "1.0.0",
-        "synthesizer_version": "3.2.0a5",
-        "artifacts": [a.model_dump(mode="python") for a in artifacts],
-        "built_in_only": False,
-    }
-    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()  # noqa: TID251 — charter synthesizer's own manifest/content-hash scheme, not the charter.hasher.hash_content() freshness algorithm
-    return SynthesisManifest(
+    manifest = SynthesisManifest(
         schema_version="2",
         mission_id=None,
         created_at="2026-04-17T12:00:00+00:00",
@@ -86,9 +85,10 @@ def _make_manifest(run_id: str = "01KPE222TESTRUNID0000000001") -> SynthesisMani
         adapter_id="fixture",
         adapter_version="1.0.0",
         synthesizer_version="3.2.0a5",
-        manifest_hash=manifest_hash,
+        manifest_hash="0" * 64,
         artifacts=artifacts,
     )
+    return finalize_manifest(manifest)
 
 
 def _make_manifest_for_artifacts(
@@ -200,9 +200,19 @@ def test_manifest_v2_schema_accepts_runtime_model_dump() -> None:
     )
     schema = YAML(typ="safe").load(schema_path.read_text(encoding="utf-8"))
 
-    jsonschema.Draft202012Validator(schema).validate(
-        _make_manifest().model_dump(mode="python")
-    )
+    # bundle_content_hash (WP01, synthesized-drg-stale-refresh) is an
+    # additive optional field the Pydantic model always serializes
+    # (defaulting to None) once schema_version is widened to
+    # Literal["2", "3"] — regardless of which version a given instance
+    # carries. The v2 JSON contract predates the field and declares
+    # `additionalProperties: false`; bumping that out-of-repo contract file
+    # is out of WP01's owned surface (no schema-contract bump is scoped to
+    # this mission — see data-model.md). Strip the field before validating
+    # the legacy v2 payload shape the contract actually pins.
+    dumped = _make_manifest().model_dump(mode="python")
+    dumped.pop("bundle_content_hash")
+
+    jsonschema.Draft202012Validator(schema).validate(dumped)
 
 
 def test_manifest_with_mission_id(tmp_path: Path, guard: PathGuard) -> None:
@@ -532,7 +542,7 @@ def test_manifest_hash_validates(tmp_path: Path, guard: PathGuard) -> None:
 
 def test_legacy_v2_manifest_hash_without_built_in_only_verifies(tmp_path: Path) -> None:
     """Pre-built_in_only v2 manifests remain readable and self-hash-valid."""
-    manifest_data = {
+    manifest_data: dict[str, object] = {
         "schema_version": "2",
         "mission_id": None,
         "created_at": "2026-04-17T12:00:00+00:00",
@@ -557,9 +567,163 @@ def test_legacy_v2_manifest_hash_without_built_in_only_verifies(tmp_path: Path) 
     verify_manifest_hash(loaded)
 
 
+# ---------------------------------------------------------------------------
+# WP01 (synthesized-drg-stale-refresh): bundle_content_hash field +
+# finalize_manifest + generalized verify_manifest_hash shim (T006)
+# ---------------------------------------------------------------------------
+
+
+def test_v2_manifest_with_built_in_only_but_no_bundle_content_hash_verifies(
+    tmp_path: Path,
+) -> None:
+    """T006(a) — green-preserving regression / intra-WP verify-shim cycle.
+
+    A v2 manifest carrying ``built_in_only`` but lacking
+    ``bundle_content_hash`` (the shape of every post-Phase-7 on-disk
+    manifest, pre-mission) must still ``verify_manifest_hash`` after the
+    field is added. This assertion goes momentarily RED the instant T001
+    adds the field (the primary model-normalized comparison now includes
+    ``bundle_content_hash: None`` and no longer matches the stored hash) and
+    back GREEN once T004's per-field shim lands — the intra-WP TDD cycle
+    C-011 scoping calls for on an infra WP.
+    """
+    manifest_data: dict[str, object] = {
+        "schema_version": "2",
+        "mission_id": None,
+        "created_at": "2026-04-17T12:00:00+00:00",
+        "run_id": "01KPE222TESTRUNID0000000001",
+        "adapter_id": "fixture",
+        "adapter_version": "1.0.0",
+        "synthesizer_version": "3.2.0a5",
+        "artifacts": [],
+        "built_in_only": True,
+    }
+    manifest_data["manifest_hash"] = hashlib.sha256(  # noqa: TID251 — legacy manifest self-hash compatibility
+        canonical_yaml(manifest_data)
+    ).hexdigest()
+    path = tmp_path / "synthesis-manifest.yaml"
+    yaml = YAML()
+    yaml.default_flow_style = False
+    with path.open("w", encoding="utf-8") as fh:
+        yaml.dump(manifest_data, fh)
+
+    loaded = load_yaml(path)
+
+    assert loaded.bundle_content_hash is None
+    verify_manifest_hash(loaded)  # must not raise
+
+
+def test_verify_manifest_hash_discriminates_present_field_tamper(
+    tmp_path: Path,
+) -> None:
+    """T006(b) — the DISCRIMINATING tamper fixture.
+
+    ``bundle_content_hash`` is PRESENT on disk, but the stored
+    ``manifest_hash`` was computed by the LEGACY raw hash over the OTHER
+    fields ONLY (excluding ``bundle_content_hash``) — reproducing exactly
+    what a legacy writer that never knew about the field would have stored,
+    with the key nonetheless present and carrying a tampered value.
+
+    ``verify_manifest_hash`` MUST raise. This test does not just assert that
+    outcome — it *proves* the discrimination empirically: a FIXED POP-LIST
+    shim would unconditionally drop ``bundle_content_hash`` before
+    recomputing, which is shown below to reproduce ``legacy_hash`` exactly
+    (i.e. a pop-list shim would FALSE-ACCEPT this file regardless of the
+    field's on-disk value). The per-field ``_raw_field_names``-gated shim
+    instead sees the key IS present on disk, includes the tampered value in
+    its comparison subset, and correctly raises.
+    """
+    fields_excluding_new: dict[str, object] = {
+        "schema_version": "3",
+        "mission_id": None,
+        "created_at": "2026-04-17T12:00:00+00:00",
+        "run_id": "01KPE222TESTRUNID0000000001",
+        "adapter_id": "fixture",
+        "adapter_version": "1.0.0",
+        "synthesizer_version": "3.2.0a5",
+        "artifacts": [],
+        "built_in_only": False,
+    }
+    legacy_hash = hashlib.sha256(  # noqa: TID251 — reproducing a legacy writer's stored self-hash for the fixture
+        canonical_yaml(fields_excluding_new)
+    ).hexdigest()
+
+    manifest_data: dict[str, object] = {
+        **fields_excluding_new,
+        "bundle_content_hash": "sha256:" + "b" * 64,  # tampered value
+        "manifest_hash": legacy_hash,
+    }
+    path = tmp_path / "synthesis-manifest.yaml"
+    yaml = YAML()
+    yaml.default_flow_style = False
+    with path.open("w", encoding="utf-8") as fh:
+        yaml.dump(manifest_data, fh)
+
+    loaded = load_yaml(path)
+    assert loaded.bundle_content_hash == "sha256:" + "b" * 64
+
+    # Empirical proof that a FIXED pop-list shim would false-accept: dropping
+    # bundle_content_hash unconditionally before recomputing reproduces
+    # legacy_hash exactly, independent of the field's actual value.
+    pop_list_subset = loaded.model_dump(mode="python")
+    pop_list_subset.pop("manifest_hash")
+    pop_list_subset.pop("bundle_content_hash")
+    pop_list_computed = hashlib.sha256(  # noqa: TID251 — reproducing the rejected pop-list algorithm to prove discrimination
+        canonical_yaml(pop_list_subset)
+    ).hexdigest()
+    assert pop_list_computed == legacy_hash, (
+        "fixture invariant broken: a pop-list recompute must reproduce the "
+        "stored legacy hash for this test to actually discriminate"
+    )
+
+    # The per-field shim, in contrast, must raise.
+    with pytest.raises(ValueError, match="manifest_hash mismatch"):
+        verify_manifest_hash(loaded)
+
+
+def test_verify_manifest_hash_raises_when_never_loaded_from_disk() -> None:
+    """Cover the ``raw_field_names is None`` guard (shim-never-attempted).
+
+    A manifest constructed in-memory (never round-tripped through
+    ``load_yaml``) keeps ``_raw_field_names is None`` — there is no captured
+    on-disk key set, so the legacy per-field shim MUST be skipped entirely
+    and a hash mismatch raises IMMEDIATELY. Build a valid manifest, then
+    forge a deliberately-wrong ``manifest_hash`` via ``model_copy`` (which
+    does NOT repopulate ``_raw_field_names``) and assert ``verify_manifest_
+    hash`` raises. Guards against a regression that lets the shim run on a
+    never-loaded manifest (e.g. dropping the ``is not None`` check).
+    """
+    manifest = _make_manifest()
+    assert manifest._raw_field_names is None  # never loaded from disk
+
+    tampered = manifest.model_copy(update={"manifest_hash": "d" * 64})
+    assert tampered._raw_field_names is None  # model_copy does not repopulate
+
+    with pytest.raises(ValueError, match="manifest_hash mismatch"):
+        verify_manifest_hash(tampered)
+
+
+def test_finalize_manifest_matches_inline_compute_manifest_hash() -> None:
+    """T006(c) — finalizer parity.
+
+    ``finalize_manifest`` must produce the same ``manifest_hash`` as the
+    pre-existing inline ``compute_manifest_hash`` path for identical
+    content (behavior-preserving refactor).
+    """
+    manifest = _make_manifest()
+    zeroed = manifest.model_copy(update={"manifest_hash": "0" * 64})
+    expected = compute_manifest_hash(zeroed)
+
+    finalized = finalize_manifest(manifest)
+
+    assert finalized.manifest_hash == expected
+    # Every other field is untouched.
+    assert finalized.model_copy(update={"manifest_hash": manifest.manifest_hash}) == manifest
+
+
 def test_manifest_synthesizer_version_empty_raises() -> None:
     """SynthesisManifest with synthesizer_version='' must raise ValidationError."""
-    data_without_hash = {
+    data_without_hash: dict[str, object] = {
         "schema_version": "2",
         "mission_id": None,
         "created_at": "2026-04-17T12:00:00+00:00",
