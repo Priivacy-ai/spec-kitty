@@ -13,6 +13,7 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 from textwrap import dedent
+from typing import cast
 
 
 def init_git_repo(repo: Path) -> None:
@@ -74,19 +75,61 @@ def seed_bundle_files(repo: Path) -> None:
         (charter_dir / name).write_text("schema_version: '1'\n", encoding="utf-8")
 
 
+class _AutoHash:
+    """Sentinel type distinguishing "caller left ``bundle_content_hash`` unset".
+
+    An unset value (→ auto-compute a genuinely-fresh manifest) must be
+    distinguishable from an explicit ``bundle_content_hash=None`` or a
+    deliberately-wrong string (→ honor verbatim, e.g. to model staleness).
+    A dedicated class keeps the parameter's union precise (``str | None |
+    _AutoHash``) so ``isinstance`` narrows cleanly instead of collapsing to
+    ``object``.
+    """
+
+
+_AUTO_HASH = _AutoHash()
+
+
 def seed_manifest(
     repo: Path,
     *,
     built_in_only: bool,
     created_at: str = "2099-01-01T00:00:00+00:00",
+    bundle_content_hash: str | None | _AutoHash = _AUTO_HASH,
 ) -> Path:
-    """Create ``synthesis-manifest.yaml`` with ``built_in_only`` set as desired."""
+    """Create ``synthesis-manifest.yaml`` with ``built_in_only`` set as desired.
+
+    ``bundle_content_hash`` is the content-identity digest of the synced
+    bundle (see ``charter.bundle.compute_bundle_content_hash``) that the
+    content-identity freshness reader compares against a fresh recompute
+    (synthesized-drg-stale-refresh).
+
+    Resolution of ``bundle_content_hash``:
+
+    * **Left unset (default)** — auto-compute a genuinely-fresh manifest:
+      when ``built_in_only=False`` AND the synced bundle files exist
+      (``compute_bundle_content_hash`` returns non-None), stamp
+      ``schema_version: '3'`` + the real hash so the synthesized DRG reads
+      as ``fresh``. This is what a real ``spec-kitty charter synthesize``
+      run writes, so ANY caller that seeded bundle files and expects a
+      non-blocking synthesized_drg gets it without threading the hash
+      through by hand. When ``built_in_only=True`` (short-circuits before
+      the hash check) or no bundle files exist (nothing to hash), fall back
+      to the hash-less ``schema_version: '2'`` shape.
+    * **Explicit value (incl. ``None`` or a wrong string)** — honored
+      verbatim: a real ``"sha256:..."`` forces fresh; ``None`` or a
+      deliberately-wrong digest forces the hash-less / mismatched shape a
+      staleness test wants.
+    """
+    resolved_hash = _resolve_bundle_hash(repo, built_in_only=built_in_only, bundle_content_hash=bundle_content_hash)
     manifest_path = repo / ".kittify" / "charter" / "synthesis-manifest.yaml"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    schema_version = "3" if resolved_hash is not None else "2"
+    hash_line = f"bundle_content_hash: {resolved_hash}\n" if resolved_hash is not None else ""
     manifest_path.write_text(
         dedent(
             f"""\
-            schema_version: '2'
+            schema_version: '{schema_version}'
             mission_id: null
             created_at: '{created_at}'
             run_id: 01JTESTRUNIDXXXXXXXXXXXXXX
@@ -97,10 +140,35 @@ def seed_manifest(
             artifacts: []
             built_in_only: {str(built_in_only).lower()}
             """
-        ),
+        )
+        + hash_line,
         encoding="utf-8",
     )
     return manifest_path
+
+
+def _resolve_bundle_hash(
+    repo: Path,
+    *,
+    built_in_only: bool,
+    bundle_content_hash: str | None | _AutoHash,
+) -> str | None:
+    """Resolve the ``bundle_content_hash`` value to write into the manifest."""
+    if not isinstance(bundle_content_hash, _AutoHash):
+        # Explicit caller override (real digest, ``None``, or a wrong string).
+        return bundle_content_hash
+    if built_in_only:
+        # built_in_only short-circuits before the hash check — no hash needed.
+        return None
+    # Auto-compute the genuinely-fresh digest (None when bundle files absent).
+    from charter.bundle import compute_bundle_content_hash  # noqa: PLC0415
+
+    # ``charter.*`` is ``follow_imports=skip``'d in the single-file (``spec-kitty
+    # lint``) mypy invocation, so this call's declared return type collapses to
+    # ``Any`` at the call site — cast it back, matching the repo-wide pattern
+    # (this mission's tracer F7). Reads as ``redundant-cast`` only under the
+    # advisory full-package run.
+    return cast("str | None", compute_bundle_content_hash(repo))
 
 
 def seed_graph(repo: Path) -> Path:
@@ -112,7 +180,15 @@ def seed_graph(repo: Path) -> Path:
 
 
 def make_fresh_repo(repo: Path) -> None:
-    """Materialise a fully-fresh repo: charter + bundle + synthesised graph."""
+    """Materialise a fully-fresh repo: charter + bundle + synthesised graph.
+
+    "Fresh" is defined by the content-identity freshness contract
+    (synthesized-drg-stale-refresh): because the bundle files are seeded
+    before the manifest, ``seed_manifest``'s default auto-compute stamps a
+    ``schema_version: '3'`` manifest whose ``bundle_content_hash`` matches a
+    fresh recompute — exactly what a real ``spec-kitty charter synthesize``
+    run would write, so the synthesized DRG reads as ``fresh``.
+    """
     init_git_repo(repo)
     charter_path, metadata_path = seed_charter(repo)
     write_metadata(metadata_path, charter_path)
