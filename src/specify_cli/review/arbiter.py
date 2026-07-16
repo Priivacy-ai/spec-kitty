@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, Any
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.core.time_utils import now_utc_iso
 from specify_cli.core.utils import write_text_within_directory
+from specify_cli.review.cycle import resolve_review_cycle_pointer
 
 if TYPE_CHECKING:
     from rich.console import Console
@@ -374,25 +375,44 @@ def _find_review_cycle_artifact(
 ) -> Path | None:
     """Locate the review-cycle artifact file for the given review_ref.
 
-    Searches in ``<feature_dir>/tasks/<wp-slug>/`` for markdown files whose
-    frontmatter ``review_ref`` or filename matches the pointer.  Returns
-    ``None`` when no artifact is found (e.g. WP01 hasn't landed yet).
+    Resolves via typed review-cycle pointer logic first, then applies a narrow
+    legacy compatibility fallback for pre-canonical ``review-cycle://`` values
+    that omit ``review-cycle-`` or ``.md`` in the filename.
     """
-    # review_ref is typically "feedback://mission/WP##/<filename>"
-    # The review-cycle artifacts live alongside WP files in tasks/
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.exists():
         return None
 
-    # Check tasks/<wp_id> subdirectory first
-    wp_subdir = tasks_dir / wp_id
-    if wp_subdir.exists():
-        for candidate in sorted(wp_subdir.glob("review-cycle-*.md")):
-            return candidate  # Return the most recently created one
+    if review_ref:
+        resolved = resolve_review_cycle_pointer(feature_dir.parent, review_ref)
+        if resolved.path is not None and resolved.path.exists():
+            return resolved.path
 
-    # Fallback: scan tasks/ level for review-cycle files
-    for candidate in sorted(tasks_dir.glob(f"*{wp_id}*review-cycle*.md")):
-        return candidate
+        if review_ref.startswith("review-cycle://"):
+            parts = review_ref[len("review-cycle://") :].split("/")
+            if len(parts) == 3:
+                _, wp_slug, filename = parts
+                normalized = filename
+                if re.fullmatch(r"\d+", normalized):
+                    normalized = f"review-cycle-{normalized}.md"
+                elif not normalized.endswith(".md"):
+                    normalized = f"{normalized}.md"
+
+                wp_dir = tasks_dir / wp_slug
+                candidate = wp_dir / normalized
+                if candidate.exists():
+                    return candidate
+
+                candidate = tasks_dir / f"{wp_id}-{normalized}"
+                if candidate.exists():
+                    return candidate
+
+                for directory in tasks_dir.iterdir():
+                    if not directory.is_dir() or not directory.name.startswith(wp_slug):
+                        continue
+                    maybe = directory / normalized
+                    if maybe.exists():
+                        return maybe
 
     return None
 

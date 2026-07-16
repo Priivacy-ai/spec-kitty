@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from mission_runtime import MissionArtifactKind, placement_seam
 from specify_cli.missions._read_path_resolver import resolve_planning_read_dir
-import re
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
@@ -24,6 +23,7 @@ from specify_cli.core.paths import (
     locate_project_root,
 )
 from specify_cli.mission_metadata import resolve_mission_identity
+from specify_cli.review.artifacts import _latest_review_cycle_path
 from specify_cli.status import Lane, NON_DISPLAY_LANES, StatusEvent
 from specify_cli.status import PROGRESS_SEMANTICS, compute_done_percentage, compute_weighted_progress
 from specify_cli.status import wp_state_for
@@ -32,34 +32,21 @@ from specify_cli.task_utils import extract_scalar, split_frontmatter
 console = Console()
 
 
-def _review_cycle_number(path: Path) -> int:
-    """Return the numeric review-cycle suffix for sorting review artifacts."""
-    match = re.search(r"review-cycle-(\d+)\.md", path.name)
-    return int(match.group(1)) if match else 0
-
-
 def _get_wp_review_verdict(wp_dir: Path) -> str | None:
-    """Return the verdict from the latest review-cycle-N.md in wp_dir, or None.
+    """Return the verdict from the latest review-cycle-N.md in *wp_dir*, or None.
 
-    Globs review-cycle-*.md files sorted by N (highest = latest), parses YAML
-    frontmatter, and returns the ``verdict`` field.  Returns None on any error
-    (file absent, malformed YAML, no frontmatter).
+    Uses the canonical latest-cycle path helper and a frontmatter-only parse, so
+    malformed or partial artifacts do not crash callers.
     """
-    cycles = sorted(
-        wp_dir.glob("review-cycle-*.md"),
-        key=_review_cycle_number,
-    )
-    if not cycles:
+    latest = _latest_review_cycle_path(wp_dir)
+    if latest is None:
         return None
     try:
-        text = cycles[-1].read_text(encoding="utf-8")
-        match = re.match(r"^---\n(.*?)\n---", text, re.DOTALL)
-        if not match:
+        frontmatter_str, _, _ = split_frontmatter(latest.read_text(encoding="utf-8"))
+        if not frontmatter_str:
             return None
-        import yaml  # noqa: PLC0415 — lazy import to avoid top-level dep
-        fm = yaml.safe_load(match.group(1)) or {}
-        return fm.get("verdict")
-    except Exception:  # noqa: BLE001 — review artifact may be absent or malformed; fail-open
+        return extract_scalar(frontmatter_str, "verdict")
+    except Exception:  # noqa: BLE001 — malformed review artifact is non-fatal in status view
         return None
 
 

@@ -173,7 +173,6 @@ from specify_cli.cli.commands.agent.tasks_materialization import (
     _materialize_inline_subtask_status as _materialize_inline_subtask_status,
     # WP09: ``_persist_inline_subtask_status`` left with ``_resolve_inline_subtasks``
     # (now imported directly by ``tasks_mark_status``); zero external refs via ``tasks``.
-    _persist_review_artifact_override_in_coord as _persist_review_artifact_override_in_coord,
     _persist_review_feedback as _persist_review_feedback,
     _update_pipe_table_status as _update_pipe_table_status,
 )

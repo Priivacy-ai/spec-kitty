@@ -67,7 +67,6 @@ from specify_cli.cli.commands.agent.tasks_outline import TASKS_MD_FILENAME
 from specify_cli.cli.commands.agent.tasks_materialization import (
     _collect_status_artifacts,
     _persist_review_artifact_override,
-    _persist_review_artifact_override_in_coord,
     _resolve_wp_slug,
 )
 from specify_cli.cli.commands.agent.tasks_parsing_validation import (
@@ -556,13 +555,6 @@ def _mt_fire_override_persist(st: _MoveTaskState) -> None:
     _persist_review_artifact_override(
         st.verdict_artifact_path,
         repo_root=st.main_repo_root,
-        wp_id=st.task_id,
-        actor=st.agent or "operator",
-        reason=override_reason,
-    )
-    _persist_review_artifact_override_in_coord(
-        st.verdict_artifact_path,
-        coord_feature_dir=st.mt_feature_dir,
         wp_id=st.task_id,
         actor=st.agent or "operator",
         reason=override_reason,

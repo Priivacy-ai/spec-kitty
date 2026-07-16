@@ -33,6 +33,44 @@ def _make_yaml() -> YAML:
     return yaml
 
 
+_REVIEW_CYCLE_FILENAME_RE = re.compile(r"^review-cycle-(?P<cycle>[1-9][0-9]*)\.md$")
+
+
+def _review_cycle_suffix(path: Path) -> int | None:
+    """Return the canonical cycle number suffix for a review-cycle file name.
+
+    Only positive-decimal canonical filenames are accepted.
+    """
+    match = _REVIEW_CYCLE_FILENAME_RE.fullmatch(path.name)
+    if match is None:
+        return None
+    return int(match.group("cycle"))
+
+
+def _valid_review_cycle_numbers(sub_artifact_dir: Path) -> list[int]:
+    """Collect all canonical review-cycle suffixes from a directory."""
+    return sorted(
+        number
+        for number in (
+            _review_cycle_suffix(path) for path in sub_artifact_dir.glob("review-cycle-*.md")
+        )
+        if number is not None
+    )
+
+
+def _latest_review_cycle_path(sub_artifact_dir: Path) -> Path | None:
+    """Return the canonical latest review-cycle artifact path, if any."""
+    candidates: dict[int, Path] = {}
+    for path in sub_artifact_dir.glob("review-cycle-*.md"):
+        suffix = _review_cycle_suffix(path)
+        if suffix is None:
+            continue
+        candidates[suffix] = path
+    if not candidates:
+        return None
+    return candidates[max(candidates.keys())]
+
+
 @dataclass(frozen=True)
 class AffectedFile:
     """A file affected by a review cycle."""
@@ -272,16 +310,10 @@ class ReviewCycleArtifact:
 
         Returns None if no review-cycle-*.md files exist.
         """
-        candidates = list(sub_artifact_dir.glob("review-cycle-*.md"))
-        if not candidates:
+        latest_path = _latest_review_cycle_path(sub_artifact_dir)
+        if latest_path is None:
             return None
-
-        def _cycle_num(p: Path) -> int:
-            m = re.search(r"review-cycle-(\d+)\.md$", p.name)
-            return int(m.group(1)) if m else 0
-
-        candidates.sort(key=_cycle_num)
-        return ReviewCycleArtifact.from_file(candidates[-1])
+        return ReviewCycleArtifact.from_file(latest_path)
 
     @staticmethod
     def next_cycle_number(sub_artifact_dir: Path) -> int:
@@ -289,8 +321,8 @@ class ReviewCycleArtifact:
 
         Returns 1 if no review-cycle-*.md files exist.
         """
-        candidates = list(sub_artifact_dir.glob("review-cycle-*.md"))
-        return len(candidates) + 1
+        latest_numbers = _valid_review_cycle_numbers(sub_artifact_dir)
+        return (max(latest_numbers) if latest_numbers else 0) + 1
 
 
 def latest_review_artifact_verdict(sub_artifact_dir: Path) -> LatestReviewArtifactVerdict | None:
@@ -304,12 +336,9 @@ def latest_review_artifact_verdict(sub_artifact_dir: Path) -> LatestReviewArtifa
     if not candidates:
         return None
 
-    def _cycle_num(p: Path) -> int:
-        m = re.search(r"review-cycle-(\d+)\.md$", p.name)
-        return int(m.group(1)) if m else 0
-
-    candidates.sort(key=_cycle_num)
-    path = candidates[-1]
+    path = _latest_review_cycle_path(sub_artifact_dir)
+    if path is None:
+        return None
     artifact = ReviewCycleArtifact.from_file(path)
     return LatestReviewArtifactVerdict(
         path=path,

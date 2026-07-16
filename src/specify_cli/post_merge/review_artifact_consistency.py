@@ -5,9 +5,11 @@ from __future__ import annotations
 from contextlib import suppress
 from dataclasses import dataclass
 from pathlib import Path
-import re
 
-from specify_cli.review.artifacts import rejected_review_artifact_for_terminal_lane
+from specify_cli.review.artifacts import (
+    _latest_review_cycle_path,
+    rejected_review_artifact_for_terminal_lane,
+)
 from specify_cli.status import materialize
 
 REJECTED_REVIEW_ARTIFACT_CONFLICT = "REJECTED_REVIEW_ARTIFACT_CONFLICT"
@@ -71,19 +73,6 @@ def _artifact_dirs_for_wp(feature_dir: Path, wp_id: str) -> list[Path]:
     return candidates
 
 
-def _review_cycle_number(path: Path) -> int:
-    match = re.search(r"review-cycle-(\d+)\.md$", path.name)
-    return int(match.group(1)) if match else 0
-
-
-def _latest_review_artifact_path(artifact_dir: Path) -> Path | None:
-    candidates = list(artifact_dir.glob("review-cycle-*.md"))
-    if not candidates:
-        return None
-    candidates.sort(key=_review_cycle_number)
-    return candidates[-1]
-
-
 def _schema_error_message(exc: ValueError, artifact_path: Path) -> str:
     """Strip machine-local paths from parser errors; path is reported separately."""
     message = str(exc)
@@ -117,7 +106,7 @@ def find_rejected_review_artifact_conflicts(
             continue
         lane = str(state.get("lane", ""))
         for artifact_dir in _artifact_dirs_for_wp(feature_dir, wp_id):
-            latest_path = _latest_review_artifact_path(artifact_dir)
+            latest_path = _latest_review_cycle_path(artifact_dir)
             if latest_path is None:
                 continue
             try:
