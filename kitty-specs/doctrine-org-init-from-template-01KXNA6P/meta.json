@@ -1,0 +1,15 @@
+{
+  "coordination_branch": "kitty/mission-doctrine-org-init-from-template-01KXNA6P",
+  "created_at": "2026-07-16T11:15:18.430449+00:00",
+  "flattened": false,
+  "friendly_name": "Doctrine Org Init From Template",
+  "mission_id": "01KXNA6PRW6JQ9Y9M7HA882PZ3",
+  "mission_number": null,
+  "mission_slug": "doctrine-org-init-from-template-01KXNA6P",
+  "mission_type": "software-dev",
+  "purpose_context": "Today doctrine org init only writes a minimal three-file skeleton. Operators who already maintain a reusable doctrine template need Spec Kitty to copy that template (from a local path or git URL with branch), exclude ignored paths, validate the org name, substitute identity and registration-path tokens, and write the result to a distinct pack destination—while keeping the minimal scaffold when no template is supplied.",
+  "purpose_tldr": "Let operators scaffold an org doctrine pack from a local or git template with validated ORG_NAME, LOCAL_PATH substitution, and .templateignore filtering.",
+  "slug": "doctrine-org-init-from-template-01KXNA6P",
+  "target_branch": "feat/doctrine-org-init-from-template",
+  "topology": "coord"
+}
