@@ -33,6 +33,7 @@ from runtime.next._tmp_namespace import prompt_tmp_dir
 from specify_cli.mission_metadata import mission_identity_fields
 from specify_cli.status import wp_state_for
 from specify_cli.status import Lane
+from specify_cli.status import NON_DISPLAY_LANES
 from specify_cli.workspace.context import resolve_workspace_for_wp
 
 
@@ -334,8 +335,11 @@ def _compute_wp_progress(
         # Default to GENESIS for unseeded WPs: they are not displayed in any
         # progress bucket until finalize-tasks seeds them (Contract 3, FR-008).
         lane = wp_lanes.get(wp_id, Lane.GENESIS)
-        # Genesis WPs are non-display; they belong in no progress bucket.
-        if lane == Lane.GENESIS:
+        # Non-display lanes (genesis, uninitialized) belong in no progress
+        # bucket — route through the single NON_DISPLAY_LANES authority rather
+        # than inlining an `== Lane.GENESIS` check (total_wps above still counts
+        # every WP file per the Contract-3 public-JSON contract).
+        if lane in NON_DISPLAY_LANES:
             continue
         state = wp_state_for(lane)
         if state.lane == Lane.DONE:
@@ -392,8 +396,9 @@ def _find_first_wp_by_lane(
         # Default to GENESIS for unseeded WPs: they are not claimable/findable
         # by any lane query until finalize-tasks seeds them (Contract 3, FR-008).
         wp_lane = wp_lanes.get(wp_id, Lane.GENESIS)
-        # Genesis WPs cannot be found by lane query — skip them.
-        if wp_lane == Lane.GENESIS:
+        # Non-display lanes cannot be found by a lane query — skip them via the
+        # single NON_DISPLAY_LANES authority.
+        if wp_lane in NON_DISPLAY_LANES:
             continue
         if wp_state_for(wp_lane).lane == target_lane:
             return wp_id
