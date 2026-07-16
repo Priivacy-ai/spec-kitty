@@ -274,6 +274,9 @@ def create_mission_core(
     ------
     MissionCreationError
         On any validation or creation failure.
+    specify_cli.runtime.resolver.TemplateConfigurationError
+        If the activated mission type cannot resolve its configured ``spec``
+        template. Resolution happens before any mission state is created.
     """
     # ------------------------------------------------------------------
     # 1. Input validation
@@ -334,6 +337,23 @@ def create_mission_core(
     if purpose_errors:
         raise MissionCreationError(" ".join(purpose_errors))
 
+    # Resolve the activated mission's specification template before creating
+    # any mission state. A configuration failure must not leave a directory,
+    # metadata, or lifecycle events that look like a successful creation.
+    from charter.mission_type_profiles import resolve_mission_type_context
+    from specify_cli.runtime.resolver import resolve_configured_template
+
+    selected_mission_type = mission or "software-dev"
+    mission_type_context = resolve_mission_type_context(
+        resolved_root,
+        mission_type=selected_mission_type,
+    )
+    spec_template = resolve_configured_template(
+        "spec",
+        resolved_root,
+        mission_type_context,
+    )
+
     # ------------------------------------------------------------------
     # 4. Directory creation — human-slug + mid8 format (FR-032, FR-044)
     #
@@ -376,19 +396,10 @@ def create_mission_core(
     # ------------------------------------------------------------------
     spec_file = feature_dir / "spec.md"
     if not spec_file.exists():
-        spec_template_candidates = [
-            resolved_root / ".kittify" / "templates" / "spec-template.md",
-            resolved_root / "templates" / "spec-template.md",
-        ]
-        for template in spec_template_candidates:
-            if template.exists():
-                shutil.copy2(template, spec_file)
-                break
-        else:
-            spec_file.touch()
+        shutil.copy2(spec_template.path, spec_file)
 
     # NOTE: spec.md is intentionally NOT committed here (issue #846).
-    # The empty scaffold remains on disk but untracked at create time.
+    # The configured scaffold remains on disk but untracked at create time.
     # The agent commits the populated spec.md from the /spec-kitty.specify
     # slash-template after writing substantive content. The substantive-content
     # gate at `setup-plan` entry (see specify_cli.missions._substantive) enforces
@@ -529,7 +540,7 @@ def create_mission_core(
             _local_evt_exc,
         )
 
-    # Mission creation immediately scaffolds an empty ``spec.md`` and opens
+    # Mission creation immediately scaffolds ``spec.md`` and opens
     # the specify phase. Record ``SpecifyStarted`` against the canonical
     # local log so that TeamSpace replay can show "currently specifying"
     # before the agent commits substantive spec content (which is where

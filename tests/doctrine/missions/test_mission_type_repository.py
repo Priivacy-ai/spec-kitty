@@ -182,9 +182,19 @@ class TestBuiltinYamlFiles:
         repo = _builtin_repo()
         mt = repo.get("software-dev")
         assert mt is not None
-        assert isinstance(mt.template_set, dict)
-        assert "spec" in mt.template_set
-        assert "plan" in mt.template_set
+        assert mt.template_set == {
+            "spec": "spec-template.md",
+            "plan": "plan-template.md",
+        }
+
+    @pytest.mark.parametrize("mission_type", ["documentation", "research", "plan"])
+    def test_non_software_builtin_template_set_is_explicitly_null(
+        self, mission_type: str
+    ) -> None:
+        repo = _builtin_repo()
+        mt = repo.get(mission_type)
+        assert mt is not None
+        assert mt.template_set is None
 
 
 # ── MissionTypeRepository lookup behavior ────────────────────────────────────

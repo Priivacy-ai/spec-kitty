@@ -2,7 +2,7 @@
 
 Issue #1067 requires the canonical lifecycle stream to record the
 specify-phase entry point, not just its completion. Mission creation
-already scaffolds an empty ``spec.md`` and opens the specify phase —
+already scaffolds ``spec.md`` from mission configuration and opens the specify phase —
 that is the canonical moment to emit ``SpecifyStarted``. Without it, a
 fresh mission's ``status.events.jsonl`` skips straight from
 ``MissionCreated`` to ``SpecifyCompleted`` (emitted at setup-plan time),
@@ -23,7 +23,9 @@ from unittest.mock import patch
 
 import pytest
 
+from charter.mission_type_profiles import ResolvedMissionType
 from specify_cli.core.mission_creation import create_mission_core
+from specify_cli.runtime.resolver import TemplateConfigurationError
 
 
 pytestmark = [pytest.mark.integration, pytest.mark.git_repo]
@@ -166,3 +168,36 @@ def test_mission_create_specify_started_is_idempotent(tmp_path: Path) -> None:
         f"got {len(specify_events)} rows: {specify_events}"
     )
     assert second is None
+
+
+def test_template_configuration_failure_emits_no_lifecycle_events(tmp_path: Path) -> None:
+    """Template selection fails before MissionCreated or SpecifyStarted can be emitted."""
+    _init_repo(tmp_path)
+    invalid_context = ResolvedMissionType(
+        mission_type="documentation",
+        governance_text="",
+        action_sequence=[],
+        provenance="test",
+        _template_set_thunk=lambda: None,
+    )
+
+    with (
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
+        patch(
+            "charter.mission_type_profiles.resolve_mission_type_context",
+            return_value=invalid_context,
+        ),
+        pytest.raises(TemplateConfigurationError),
+    ):
+        create_mission_core(
+            tmp_path,
+            "no-false-lifecycle",
+            mission="documentation",
+            **_mission_summary("no-false-lifecycle"),
+        )
+
+    event_logs = list((tmp_path / "kitty-specs").glob("*/status.events.jsonl"))
+    assert event_logs == []

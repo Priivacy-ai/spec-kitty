@@ -97,6 +97,7 @@ def _seed_mission_on_primary(
     meta: dict[str, object] = {
         "mission_id": mission_id,
         "mission_slug": mission_slug_field or slug,
+        "mission_type": "software-dev",
         "friendly_name": mission_slug_field or slug,
         "target_branch": "main",
     }

@@ -38,6 +38,11 @@ from charter.mission_type_profiles import (
     UnknownMissionTypeError,
     resolve_mission_type_context,
 )
+from charter.resolution import ResolutionTier
+from specify_cli.runtime.resolver import (
+    TemplateConfigurationError,
+    resolve_configured_template,
+)
 
 pytestmark = [pytest.mark.integration]
 
@@ -155,19 +160,15 @@ def _resolve_union_from_mission(repo_root: Path, feature_dir: Path, mission_type
 
 
 @pytest.mark.parametrize("mission_type", _DOMAIN_TYPES)
-def test_domain_mission_resolves_zero_software_dev_doctrine(
-    mission_type: str, tmp_path: Path
-) -> None:
+def test_domain_mission_resolves_zero_software_dev_doctrine(mission_type: str, tmp_path: Path) -> None:
     feature_dir = _stage_mission(tmp_path, mission_type)
     union = _resolve_union_from_mission(tmp_path, feature_dir, mission_type)
 
     leaked = union & SOFTWARE_DEV_ONLY_DENYLIST
-    assert not leaked, (
-        f"SC-001: a real {mission_type} mission (meta.json → resolver) resolved "
-        f"software-dev-only doctrine {sorted(leaked)}."
-    )
+    assert not leaked, f"SC-001: a real {mission_type} mission (meta.json → resolver) resolved software-dev-only doctrine {sorted(leaked)}."
     bundle = resolve_mission_type_context(tmp_path, feature_dir=feature_dir)
     assert "software-dev-default" not in bundle.governance_text.lower()
+    assert bundle.template_set is None
 
 
 # ---------------------------------------------------------------------------
@@ -176,9 +177,7 @@ def test_domain_mission_resolves_zero_software_dev_doctrine(
 
 
 @pytest.mark.parametrize("mission_type", _DOMAIN_TYPES)
-def test_domain_mission_covers_expected_membership(
-    mission_type: str, tmp_path: Path
-) -> None:
+def test_domain_mission_covers_expected_membership(mission_type: str, tmp_path: Path) -> None:
     feature_dir = _stage_mission(tmp_path, mission_type)
     union = _resolve_union_from_mission(tmp_path, feature_dir, mission_type)
 
@@ -197,8 +196,57 @@ def test_domain_mission_covers_expected_membership(
 
 
 def test_unknown_type_mission_raises_clear_error(tmp_path: Path) -> None:
+    misleading_template = tmp_path / ".kittify" / "overrides" / "templates" / "spec-template.md"
+    misleading_template.parent.mkdir(parents=True)
+    misleading_template.write_text("# Must not activate an unknown type\n", encoding="utf-8")
     feature_dir = _stage_mission(tmp_path, "quantum-astrology")
     with pytest.raises(UnknownMissionTypeError) as exc:
         resolve_mission_type_context(tmp_path, feature_dir=feature_dir)
     # The error names the offending type so an operator can fix the meta.json.
     assert "quantum-astrology" in str(exc.value)
+
+
+# ---------------------------------------------------------------------------
+# Templates-as-configuration — live activated context to content consumer
+# ---------------------------------------------------------------------------
+
+
+def test_software_development_mission_resolves_exact_configured_templates(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Own every tier this assertion constrains. Earlier e2e tests intentionally
+    # materialize a user-global software-development template home, so relying
+    # on the session's shared home makes PACKAGE_DEFAULT order-dependent.
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "empty-global-home"))
+    feature_dir = _stage_mission(tmp_path, "software-dev")
+    bundle = resolve_mission_type_context(tmp_path, feature_dir=feature_dir)
+
+    assert bundle.template_set == {
+        "spec": "spec-template.md",
+        "plan": "plan-template.md",
+    }
+    for artifact_kind, expected_filename in bundle.template_set.items():
+        result = resolve_configured_template(artifact_kind, tmp_path, bundle)
+        assert result.path.name == expected_filename
+        assert result.tier is ResolutionTier.PACKAGE_DEFAULT
+        assert result.mission == "software-dev"
+        assert result.path.read_bytes()
+
+
+@pytest.mark.parametrize("mission_type", _DOMAIN_TYPES)
+def test_null_template_mapping_fails_closed_with_stable_diagnostics(
+    mission_type: str,
+    tmp_path: Path,
+) -> None:
+    feature_dir = _stage_mission(tmp_path, mission_type)
+    bundle = resolve_mission_type_context(tmp_path, feature_dir=feature_dir)
+
+    with pytest.raises(TemplateConfigurationError) as exc_info:
+        resolve_configured_template("spec", tmp_path, bundle)
+
+    error = exc_info.value
+    assert error.mission_type == mission_type
+    assert error.artifact_kind == "spec"
+    assert error.mapped_filename is None
+    assert "has no configured template mapping" in str(error)

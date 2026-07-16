@@ -83,9 +83,7 @@ class TestFullCLIWorkflow:
             "smoke-test",
             "--json",
         )
-        assert result.returncode == 0, (
-            f"mission create failed (rc={result.returncode}):\nstdout: {result.stdout}\nstderr: {result.stderr}"
-        )
+        assert result.returncode == 0, f"mission create failed (rc={result.returncode}):\nstdout: {result.stdout}\nstderr: {result.stderr}"
 
         output = json.loads(result.stdout)
         assert output["result"] == "success"
@@ -128,13 +126,97 @@ class TestFullCLIWorkflow:
             mission_slug,
             "--json",
         )
-        assert result.returncode == 0, (
-            f"setup-plan failed (rc={result.returncode}):\nstdout: {result.stdout}\nstderr: {result.stderr}"
-        )
+        assert result.returncode == 0, f"setup-plan failed (rc={result.returncode}):\nstdout: {result.stdout}\nstderr: {result.stderr}"
 
         plan_file = feature_dir / "plan.md"
         assert plan_file.exists(), "plan.md not created by setup-plan"
         assert plan_file.stat().st_size > 0, "plan.md is empty"
+
+    def test_configured_spec_and_plan_project_overrides(
+        self,
+        e2e_project: Path,
+        run_cli,
+    ) -> None:
+        """Both live readers honor the configured mapping and override tier."""
+        override_dir = e2e_project / ".kittify" / "overrides" / "templates"
+        override_dir.mkdir(parents=True, exist_ok=True)
+        spec_bytes = b"# Configured specification override\n\n<!-- exact bytes -->\n"
+        plan_bytes = b"# Configured planning override\n\n<!-- exact bytes -->\n"
+        (override_dir / "spec-template.md").write_bytes(spec_bytes)
+        (override_dir / "plan-template.md").write_bytes(plan_bytes)
+        subprocess.run(
+            ["git", "add", "."],
+            cwd=e2e_project,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "Add configured template overrides"],
+            cwd=e2e_project,
+            check=True,
+            capture_output=True,
+        )
+
+        result = run_cli(
+            e2e_project,
+            "agent",
+            "mission",
+            "create",
+            "configured-template-smoke",
+            "--json",
+        )
+        assert result.returncode == 0, result.stderr
+        output = json.loads(result.stdout)
+        feature_dir = Path(output["feature_dir"])
+        assert (feature_dir / "spec.md").read_bytes() == spec_bytes
+
+        (feature_dir / "spec.md").write_text(SUBSTANTIVE_SPEC, encoding="utf-8")
+        subprocess.run(
+            ["git", "add", "."],
+            cwd=e2e_project,
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "commit", "-m", "Author configured-template smoke spec"],
+            cwd=e2e_project,
+            check=True,
+            capture_output=True,
+        )
+
+        result = run_cli(
+            e2e_project,
+            "agent",
+            "mission",
+            "setup-plan",
+            "--mission",
+            output["mission_slug"],
+            "--json",
+        )
+        assert result.returncode == 0, result.stderr
+        assert (feature_dir / "plan.md").read_bytes() == plan_bytes
+
+    def test_null_mapping_fails_before_mission_state_is_created(
+        self,
+        e2e_project: Path,
+        run_cli,
+    ) -> None:
+        result = run_cli(
+            e2e_project,
+            "agent",
+            "mission",
+            "create",
+            "documentation-template-smoke",
+            "--mission-type",
+            "documentation",
+            "--json",
+        )
+
+        assert result.returncode == 1
+        output = json.loads(result.stdout)
+        assert "documentation" in output["error"]
+        assert "has no configured template mapping" in output["error"]
+        assert not any(path.name.startswith("documentation-template-smoke-") for path in (e2e_project / "kitty-specs").glob("*"))
 
     def test_full_workflow_sequence(self, e2e_project: Path, run_cli) -> None:
         """Full mission create -> setup-plan -> finalize-tasks -> implement -> move-task.
@@ -327,10 +409,7 @@ Create a hello module.
 
         # Verify worktree was created
         assert worktree_dir.exists(), (
-            f"Workspace not created at {worktree_dir}\n"
-            f"implement stdout: {result.stdout}\n"
-            f"implement stderr: {result.stderr}\n"
-            f"implement rc: {result.returncode}"
+            f"Workspace not created at {worktree_dir}\nimplement stdout: {result.stdout}\nimplement stderr: {result.stderr}\nimplement rc: {result.returncode}"
         )
 
         # === Step 6: Make a change in the workspace and commit ===

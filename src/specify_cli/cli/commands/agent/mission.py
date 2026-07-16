@@ -98,8 +98,11 @@ from specify_cli.core.wps_manifest import (
 from specify_cli.missions._resolve_planning_branch import (
     PlanningBranchResolutionFailed as PlanningBranchResolutionFailed,
 )
-# Re-exported so the WP06 setup-plan seam's ``mission.resolve_template`` access
-# keeps resolving.
+# Re-exported so the setup-plan seam's historical patch boundary and configured
+# content-template selection remain available after setup-plan extraction.
+from specify_cli.runtime.resolver import (
+    resolve_configured_template as resolve_configured_template,
+)
 from specify_cli.runtime.resolver import resolve_template as resolve_template
 
 # Seam D (#2056 WP02): the shared feature-dir resolution surface lives in a
