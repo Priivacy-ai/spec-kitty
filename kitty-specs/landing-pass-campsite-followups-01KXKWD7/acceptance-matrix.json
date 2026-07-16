@@ -1,0 +1,118 @@
+{
+  "mission_slug": "landing-pass-campsite-followups-01KXKWD7",
+  "mission_number": "",
+  "mission_type": "software-dev",
+  "overall_verdict": "pass",
+  "criteria": [
+    {
+      "criterion_id": "FR-001",
+      "description": "Unregistered tests/architectural/*.py auto-assigned to exactly one shard via a deterministic default fallback; both the marker-completeness and orphan-surface gates pass without manual registration.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 commit 57c6edf29: added default_fallback field + root-gated sha1-hash-bucket branch in ShardRegistry.shard_for(); tests/test_shard_registry_fallback.py (7 tests) + GC-1 completeness + gate-coverage green (45 passed).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-16T00:40:37+00:00",
+      "notes": "Reviewer verified the fallback returns a valid shard for an unregistered under-root arch file with the group opted in."
+    },
+    {
+      "criterion_id": "FR-002",
+      "description": "Explicit shard-assignment entries continue to take precedence over the default fallback.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 57c6edf29: dir_assignment/file_assignment checked first in shard_for(); explicit-wins test in test_shard_registry_fallback.py.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP)",
+      "verified_at": "2026-07-16T00:40:37+00:00",
+      "notes": "Explicit override confirmed."
+    },
+    {
+      "criterion_id": "FR-003",
+      "description": "The shard-union invariant (no collected architectural test escapes all shards) is retained as the correctness net.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 57c6edf29: GC-1 union invariant unchanged; test_arch_shard_marker_completeness green with fallback active.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP)",
+      "verified_at": "2026-07-16T00:40:37+00:00",
+      "notes": "No gate weakened."
+    },
+    {
+      "criterion_id": "FR-004",
+      "description": "The default-fallback behaviour is opt-in per shard group; arch opts in, other groups unaffected.",
+      "proof_type": "automated_test",
+      "evidence": "WP01 57c6edf29: default_fallback=True on arch row only; next group untouched (returns None for unregistered). Per-group opt-in test confirms.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP)",
+      "verified_at": "2026-07-16T00:40:37+00:00",
+      "notes": "Blast radius bounded to arch."
+    },
+    {
+      "criterion_id": "FR-005",
+      "description": "The bite-battery source-mutation test no longer mutates a shared tracked source file that a concurrent scanner reads; parallel runs are deterministic; the audit still detects an unsanctioned raw path-join.",
+      "proof_type": "automated_test",
+      "evidence": "WP02 commit 996bbdf2c: _IsolatedSourceMutation copies to a tmp root outside the scanned tree + process-local audit-root monkeypatch; byte-unchanged-during-mutation structural gate; anti-tautology precondition; -n auto suite 53 passed; git porcelain on mission_creation.py empty.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP)",
+      "verified_at": "2026-07-16T00:40:37+00:00",
+      "notes": "Production mission_creation.py untouched (git log base..HEAD empty)."
+    },
+    {
+      "criterion_id": "FR-006",
+      "description": "The second scanner victimised by the same injection (#2638) is immune once the mutation is isolated.",
+      "proof_type": "automated_test",
+      "evidence": "WP02 996bbdf2c: cross-module immunity test proving test_surface_resolution_audit's discover_rows() is unchanged while a sibling runs the isolated mutation.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP)",
+      "verified_at": "2026-07-16T00:40:37+00:00",
+      "notes": "One fix closes both scanner victims."
+    },
+    {
+      "criterion_id": "FR-007",
+      "description": "The color/synthesis-manifest hygiene flake no longer depends on ambient color env or mutates a real repo file; deterministic output via the CliConsole seam.",
+      "proof_type": "automated_test",
+      "evidence": "WP03 commit 7429768cd: test-local NO_COLOR + defense-in-depth ANSI strip (no global os.environ mutation) + snapshot/restore manifest guard + byte-equality assertion; test green under FORCE_COLOR/NO_COLOR; manifest porcelain empty.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP)",
+      "verified_at": "2026-07-16T00:40:37+00:00",
+      "notes": "Reviewer confirmed the dry-run path exits before the manifest write today; guard is an honest regression net, not a fabricated RED."
+    },
+    {
+      "criterion_id": "FR-008",
+      "description": "Every sync-preflight remediation command (dict-backed or inline) is validated to resolve under --help.",
+      "proof_type": "automated_test",
+      "evidence": "WP04 commit c5d03461c: command-name guard repointed to iterate ALL_REMEDIATION_TEXTS; new test asserts the three inline-only commands (doctor orphan-daemons, sync migrate, auth login) resolve and a typo fails; 7 passed.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP)",
+      "verified_at": "2026-07-16T00:40:37+00:00",
+      "notes": "Whack-a-field trap avoided: guard scans the registry, not just the dict."
+    },
+    {
+      "criterion_id": "FR-009",
+      "description": "Remediation sentences are single-sourced; no remediation prose literal is duplicated; rendered output byte-identical.",
+      "proof_type": "automated_test",
+      "evidence": "WP04 c5d03461c: all remedy prose hoisted to named constants; both the dict and the inline builder reference them; byte-identical snapshot test passes.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP)",
+      "verified_at": "2026-07-16T00:40:37+00:00",
+      "notes": "Output unchanged; duplication removed."
+    },
+    {
+      "criterion_id": "FR-010",
+      "description": "The in-scope mypy errors are resolved to zero across the in-scope surfaces, fixed at their shared roots (not scattered casts), with no new suppressions.",
+      "proof_type": "automated_test",
+      "evidence": "WP05 6ed52c7ff (new Lane.UNINITIALIZED member + dedicated UninitializedState with empty allowed_targets + NON_DISPLAY_LANES authority across 5 sites + pure-Lane loader; ALLOWED_TRANSITIONS stays 29; green gate 2614 passed), WP06 66343ab8b (dead-except contracts made explicit in done_bookkeeping + coordination/status_transition; single _locate_wp cast wrapper; CI-authoritative mypy --strict cleared the 6 WP06 diagnostics), WP07 304f4410d (decision_id de-dup into existing widen/interview_helpers.py + 1 genuinely-redundant cast dropped).",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP) + orchestrator synthesis",
+      "verified_at": "2026-07-16T00:40:37+00:00",
+      "notes": "3 mission_type_profiles.py casts deferred (owned by shipped mission-type work); 2 emit.py/m_2_1_4 casts config-verified load-bearing (removing flips to no-any-return) and correctly left with rationale — no suppression added."
+    },
+    {
+      "criterion_id": "FR-011",
+      "description": "The load-bearing doctrine header of tests/_arch_shard_map.py is rewritten to document the automatic-default + explicit-override model.",
+      "proof_type": "manual_review",
+      "evidence": "WP01 57c6edf29: header rewritten to state new tests/architectural/*.py are auto-covered and the explicit table is a balance control, not a keep-green obligation; references FR-011/#2671.",
+      "pass_fail": "pass",
+      "verified_by": "reviewer-renata/opus (per-WP)",
+      "verified_at": "2026-07-16T00:40:37+00:00",
+      "notes": "Header no longer misinstructs future contributors."
+    }
+  ]
+}
