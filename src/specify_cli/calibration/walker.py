@@ -33,7 +33,7 @@ from charter.drg import (
     DRGNode,
     NodeKind,
     Relation,
-    load_graph,
+    load_built_in_graph,
     merge_layers,
     resolve_context,
 )
@@ -427,14 +427,15 @@ def _apply_remove_edges(graph: DRGGraph, repo_root: Path, mission_key: str) -> D
 # ---------------------------------------------------------------------------
 
 
-def _built_in_graph_path(repo_root: Path) -> Path:
-    """Return the path to the built-in ``src/doctrine/graph.yaml``."""
-    return repo_root / "src" / "doctrine" / "graph.yaml"
-
-
 def _build_graph(repo_root: Path, mission_key: str) -> DRGGraph:
-    """Load built-in graph, apply overlay (add + remove), return merged graph."""
-    built_in = load_graph(_built_in_graph_path(repo_root))
+    """Load built-in graph, apply overlay (add + remove), return merged graph.
+
+    The built-in graph is read through the canonical :func:`load_built_in_graph`
+    seam (WP03, mission #2680) rather than a bespoke ``repo_root``-relative path,
+    so it follows the monolith->fragment migration (WP05) transparently. Overlays
+    remain ``repo_root``-relative (project-local calibration input).
+    """
+    built_in = load_built_in_graph()
     overlay = _load_overlay_graph(repo_root, mission_key)
     merged = merge_layers(built_in, overlay)
     merged = _apply_remove_edges(merged, repo_root, mission_key)

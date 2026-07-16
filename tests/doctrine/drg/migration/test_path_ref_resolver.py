@@ -17,6 +17,7 @@ from pathlib import Path
 
 import pytest
 
+from doctrine.drg.loader import built_in_graph_source
 from doctrine.drg.migration.extractor import (
     _PATH_KIND_PATTERNS,  # noqa: PLC2701 – internal tested deliberately
     _resolve_path_ref,  # noqa: PLC2701 – internal tested deliberately
@@ -351,20 +352,36 @@ class TestGraphWithStyleguideEdges:
 
     @pytest.mark.fast
     def test_shipped_graph_is_fresh(self, tmp_path: Path) -> None:
-        """The committed graph.yaml must match regenerated output byte-for-byte (T029)."""
+        """The committed built-in DRG must match regenerated output byte-for-byte.
+
+        DD-11: read the committed source through the WP03 seam
+        (``built_in_graph_source()``) and compare per graph-source file so the
+        freshness twin survives the WP05 monolith->fragment migration — the
+        ``graph.yaml`` monolith today, ``*.graph.yaml`` fragments afterwards
+        (T029).
+        """
         import hashlib  # noqa: PLC0415 – local import to keep test self-contained
 
-        generated = tmp_path / "graph.yaml"
-        committed = DOCTRINE_ROOT / "graph.yaml"
-        generate_graph(DOCTRINE_ROOT, generated)
-        h_gen = hashlib.sha256(  # noqa: TID251 – DRG freshness check, not charter hashing
-            generated.read_bytes()
-        ).hexdigest()
-        h_com = hashlib.sha256(  # noqa: TID251 – DRG freshness check, not charter hashing
-            committed.read_bytes()
-        ).hexdigest()
-        assert h_gen == h_com, (
-            "src/doctrine/graph.yaml is stale after WP08 styleguide walk. "
-            "Regenerate: doctrine.drg.migration.extractor.generate_graph("
+        def _source_hashes(doctrine_dir: Path) -> dict[str, str]:
+            single = doctrine_dir / "graph.yaml"
+            files = (
+                [single]
+                if single.is_file()
+                else sorted(doctrine_dir.glob("*.graph.yaml"))
+            )
+            return {
+                p.name: hashlib.sha256(  # noqa: TID251 – DRG freshness check, not charter hashing
+                    p.read_bytes()
+                ).hexdigest()
+                for p in files
+            }
+
+        generate_graph(DOCTRINE_ROOT, tmp_path / "graph.yaml")
+        committed = _source_hashes(built_in_graph_source())
+        regenerated = _source_hashes(tmp_path)
+        assert regenerated == committed, (
+            "The committed built-in DRG source is stale after WP08 styleguide "
+            "walk (DD-11 per-file byte-identity). Regenerate: "
+            "doctrine.drg.migration.extractor.generate_graph("
             "Path('src/doctrine'), Path('src/doctrine/graph.yaml'))"
         )

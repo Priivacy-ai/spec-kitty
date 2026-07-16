@@ -1,0 +1,37 @@
+schema_version: '1.0'
+generated_at: STATIC
+generated_by: drg-migration-v1
+nodes:
+- urn: template:agent-brief-template
+  kind: template
+- urn: template:ammerse-analysis-template
+  kind: template
+- urn: template:bounded-context-canvas-template
+  kind: template
+- urn: template:c4-component-mermaid-template
+  kind: template
+- urn: template:c4-container-mermaid-template
+  kind: template
+- urn: template:c4-context-mermaid-template
+  kind: template
+- urn: template:decomposition-table-template
+  kind: template
+- urn: template:glossary-template
+  kind: template
+- urn: template:lightweight-prestudy-template
+  kind: template
+- urn: template:onboarded-artifact-set-template
+  kind: template
+- urn: template:out-of-scope-record-template
+  kind: template
+- urn: template:quality-attribute-assessment-template
+  kind: template
+- urn: template:risk-identification-assessment-template
+  kind: template
+- urn: template:source-agent-dossier-template
+  kind: template
+- urn: template:stakeholder-persona-template
+  kind: template
+- urn: template:system-context-canvas-template
+  kind: template
+edges: []

@@ -34,8 +34,7 @@ from pathlib import Path
 
 import pytest
 
-from charter.catalog import resolve_doctrine_root
-from doctrine.drg.loader import load_graph
+from doctrine.drg.loader import load_built_in_graph
 from doctrine.drg.merge import DuplicateURNError, merge_three_layers
 from doctrine.drg.models import DRGGraph, NodeKind, Relation
 from doctrine.drg.org_pack_loader import OrgDRGFragment, load_org_pack
@@ -53,14 +52,16 @@ _FIXTURES_ROOT = Path(__file__).parent / "fixtures" / "org_pack_template_asset"
 
 
 def _built_in_graph() -> DRGGraph:
-    """Load the real, shipped built-in DRG (``src/doctrine/graph.yaml``).
+    """Load the real, shipped built-in DRG via the WP03 seam.
 
     Using the real built-in graph (rather than a synthetic stub, as
     ``test_drg_merge.py`` uses for its narrower unit tests) is the stronger
     e2e proof: it demonstrates the two new kinds compose correctly against
-    the full 263-node shipped graph, not just an isolated fixture pair.
+    the full shipped graph, not just an isolated fixture pair. Routing through
+    ``load_built_in_graph()`` keeps this reader layout-agnostic across the
+    WP05 monolith->fragment migration.
     """
-    return load_graph(resolve_doctrine_root() / "graph.yaml")
+    return load_built_in_graph()
 
 
 def _load_fragment(pack_dir_name: str, *, pack_name: str, layer_index: int = 1) -> OrgDRGFragment:

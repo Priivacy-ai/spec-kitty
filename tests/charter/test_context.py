@@ -147,12 +147,13 @@ class TestBuildContextV2:
         graph_data = yaml.load(StringIO(_MINIMAL_GRAPH_YAML))
         mock_graph = DRGGraph.model_validate(graph_data)
 
-        def patched_load_graph(path: Path) -> DRGGraph:
-            # Return our minimal test graph regardless of path
-            return mock_graph
-
+        # Patch the merged-graph seam directly (mission #2680 WP05): the shipped
+        # DRG now loads as multiple ``*.graph.yaml`` fragments, so patching the
+        # per-file ``load_graph`` would return this fixture once per fragment and
+        # ``merge_layers`` would concatenate it into duplicate edges. Replacing
+        # ``load_validated_graph`` yields the fixture graph exactly once.
         with (
-            patch("doctrine.drg.loader.load_graph", side_effect=patched_load_graph),
+            patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
             patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
             patch("doctrine.drg.validator.assert_valid"),  # fixture may not pass full validation
         ):
@@ -344,7 +345,9 @@ class TestBuildContextV2:
         mock_graph = DRGGraph.model_validate(yaml.load(StringIO(graph_yaml)))
 
         with (
-            patch("doctrine.drg.loader.load_graph", return_value=mock_graph),
+            # WP05 (#2680): patch the merged-graph seam, not per-file load_graph,
+            # so the sharded fragment layout does not duplicate the fixture.
+            patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
             patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
             patch("doctrine.drg.validator.assert_valid"),
             patch("charter.sync.ensure_charter_bundle_fresh", return_value=None),
@@ -773,7 +776,9 @@ def test_action_doctrine_keys_off_meta_json_not_template_set(tmp_path: Path) -> 
     mock_graph = DRGGraph.model_validate(yaml.load(StringIO(_LEAK_GRAPH_YAML)))
 
     with (
-        patch("doctrine.drg.loader.load_graph", side_effect=lambda _p: mock_graph),
+        # WP05 (#2680): patch the merged-graph seam, not per-file load_graph, so
+        # the sharded fragment layout does not duplicate the fixture on merge.
+        patch("charter._drg_helpers.load_validated_graph", return_value=mock_graph),
         patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
         patch("doctrine.drg.validator.assert_valid"),
     ):

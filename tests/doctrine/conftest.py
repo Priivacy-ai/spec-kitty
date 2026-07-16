@@ -23,18 +23,21 @@ REPO_ROOT: Path = Path(__file__).resolve().parents[2]
 DOCTRINE_SOURCE_ROOT: Path = REPO_ROOT / "src" / "doctrine"
 """Canonical on-disk path to the doctrine source tree (``src/doctrine/``)."""
 
-SHIPPED_GRAPH_PATH: Path = DOCTRINE_SOURCE_ROOT / "graph.yaml"
-"""Canonical on-disk path to the shipped DRG (``src/doctrine/graph.yaml``)."""
-
 
 # ---------------------------------------------------------------------------
-# Shipped DRG graph cache (WP03/T012, FR-009, NFR-007)
+# Built-in DRG graph seam fixtures (WP03/T012 seam, WP04/T018, FR-009, NFR-007)
 # ---------------------------------------------------------------------------
 #
-# Several doctrine tests re-run ``load_graph(graph.yaml)`` (~0.18s each) and
-# then ``merge_layers``/``assert_valid`` on the SAME shipped graph. This
-# session fixture loads, merges, and validates the shipped graph exactly ONCE
-# and hands read-only consumers the resulting ``DRGGraph``.
+# The shipped DRG lives under ``src/doctrine/`` as a ``graph.yaml`` monolith
+# today and, after mission #2680 WP05, as ``*.graph.yaml`` fragments. Tests
+# MUST NOT reconstruct ``.../src/doctrine/graph.yaml`` themselves: that path
+# breaks the instant WP05 deletes the monolith. Instead they route through the
+# canonical WP03 seam — ``built_in_graph_source()`` (the *directory*) and
+# ``load_built_in_graph()`` (``load_graph_or_dir`` over that directory) — which
+# follows the monolith->fragment migration transparently.
+#
+# ``built_in_graph`` caches the parsed graph so the doctrine suite pays the
+# ~0.18s load once per session rather than once per test.
 #
 # READ-ONLY contract: consumers may only *read* the returned graph (node/edge
 # lookups, traversal). They must NOT mutate it — a ``DRGGraph`` mutated in one
@@ -50,17 +53,43 @@ SHIPPED_GRAPH_PATH: Path = DOCTRINE_SOURCE_ROOT / "graph.yaml"
 
 
 @pytest.fixture(scope="session")
-def shipped_drg_graph() -> DRGGraph:
-    """Load + merge + validate the shipped DRG once per session (read-only).
+def built_in_graph_dir() -> Path:
+    """Directory that ships the built-in DRG (monolith today, fragments post-WP05).
 
-    Imported lazily so that merely collecting the doctrine suite does not pay
-    the doctrine import cost; the fixture body runs only when a test requests
-    it. Consumers MUST treat the returned graph as read-only (see module note).
+    Backed by the WP03 seam ``built_in_graph_source()`` so callers never encode
+    the ``graph.yaml`` filename and survive the WP05 monolith->fragment flip.
     """
-    from doctrine.drg.loader import load_graph, merge_layers
+    from doctrine.drg.loader import built_in_graph_source
+
+    return built_in_graph_source()
+
+
+@pytest.fixture(scope="session")
+def built_in_graph() -> DRGGraph:
+    """Load the built-in DRG once per session via the WP03 seam (read-only).
+
+    Backed by ``load_built_in_graph()`` (``load_graph_or_dir`` over
+    ``built_in_graph_source()``), which prefers the ``graph.yaml`` monolith when
+    present and otherwise merges ``*.graph.yaml`` fragments. Imported lazily so
+    that merely collecting the doctrine suite does not pay the doctrine import
+    cost. Consumers MUST treat the returned graph as read-only (see module note).
+    """
+    from doctrine.drg.loader import load_built_in_graph
+
+    return load_built_in_graph()
+
+
+@pytest.fixture(scope="session")
+def shipped_drg_graph(built_in_graph: DRGGraph) -> DRGGraph:
+    """Validated built-in DRG once per session (read-only).
+
+    Delegates loading to the seam-backed ``built_in_graph`` fixture and runs
+    ``assert_valid`` once so validated-graph consumers share a single cached,
+    read-only graph. ``load_built_in_graph()`` already merges any project layer
+    absence (``merge_layers(built_in, None)`` is an identity), so no extra merge
+    step is needed here.
+    """
     from doctrine.drg.validator import assert_valid
 
-    graph = load_graph(SHIPPED_GRAPH_PATH)
-    merged = merge_layers(graph, None)
-    assert_valid(merged)
-    return merged
+    assert_valid(built_in_graph)
+    return built_in_graph

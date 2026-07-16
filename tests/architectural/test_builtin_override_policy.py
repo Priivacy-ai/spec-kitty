@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.loader import load_graph_or_dir
+from doctrine.drg.loader import built_in_graph_source, load_graph_or_dir
 from doctrine.drg.merge import merge_three_layers
 from doctrine.drg.models import DRGGraph, DRGNode, NodeKind
 from doctrine.drg.org_pack_loader import OrgDRGFragment
@@ -37,7 +37,10 @@ from doctrine.drg.override_policy import (
 pytestmark = pytest.mark.architectural
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
-_BUILT_IN_GRAPH = _REPO_ROOT / "src" / "doctrine" / "graph.yaml"
+#: Built-in DRG *source directory* (WP03 seam). Pointing at the directory rather
+#: than the ``graph.yaml`` file lets ``load_graph_or_dir`` resolve the monolith
+#: today and ``*.graph.yaml`` fragments after WP05 — layout-agnostic, no edit.
+_BUILT_IN_GRAPH = built_in_graph_source()
 
 
 def _load_org_fragments(repo_root: Path) -> list[OrgDRGFragment]:

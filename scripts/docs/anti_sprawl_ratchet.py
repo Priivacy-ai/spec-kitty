@@ -33,7 +33,7 @@ The report references the governing directive id via the **single shared
 constant** :data:`doctrine.directives.common_docs.COMMON_DOCS_DIRECTIVE_ID`
 (WP02's source of truth) — never a hard-coded string. The binding is a
 *resolvable contract*: :func:`directive_node_present` confirms the id resolves
-to a loaded node in ``src/doctrine/graph.yaml``, so a typo or placeholder fails
+to a loaded node in the doctrine graph (``src/doctrine/*.graph.yaml`` fragments), so a typo or placeholder fails
 rather than silently passing.
 """
 
@@ -298,8 +298,32 @@ def build_report(root: Path) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Directive binding resolution (T023 — the binding must resolve, C-003).
 # ---------------------------------------------------------------------------
-def _default_graph_path(root: Path) -> Path:
-    return root / "src" / "doctrine" / "graph.yaml"
+def _default_doctrine_dir(root: Path) -> Path:
+    return root / "src" / "doctrine"
+
+
+def _graph_documents(source: Path) -> list[dict[str, Any]]:
+    """Parse graph documents from *source* — layout-agnostic.
+
+    *source* may be a single graph file (e.g. the legacy ``graph.yaml`` monolith
+    or a test fixture) or the doctrine directory. Since mission #2680 the built-in
+    graph ships as per-kind ``src/doctrine/*.graph.yaml`` fragments; when *source*
+    is that directory this collects every fragment (falling back to a single
+    ``graph.yaml`` if one is still present).
+    """
+    if source.is_file():
+        files = [source]
+    elif source.is_dir():
+        monolith = source / "graph.yaml"
+        files = [monolith] if monolith.is_file() else sorted(source.glob("*.graph.yaml"))
+    else:
+        files = []
+    docs: list[dict[str, Any]] = []
+    for path in files:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            docs.append(data)
+    return docs
 
 
 def directive_node_present(
@@ -308,24 +332,23 @@ def directive_node_present(
     """Return True iff ``directive:<directive_id>`` is a loaded directive node.
 
     Confirms the binding constant resolves to a real node in the doctrine
-    relationship graph (``src/doctrine/graph.yaml``) — not merely that the
-    string appears in a message somewhere.
+    relationship graph — read layout-agnostically from either the legacy
+    ``graph.yaml`` monolith or the per-kind ``*.graph.yaml`` fragments (#2680) —
+    not merely that the string appears in a message somewhere.
     """
-    path = graph_path or _default_graph_path(root or _REPO_ROOT)
-    if not path.is_file():
-        return False
-    data = yaml.safe_load(path.read_text(encoding="utf-8"))
-    if not isinstance(data, dict):
-        return False
-    nodes = data.get("nodes")
-    if not isinstance(nodes, list):
-        return False
+    source = graph_path or _default_doctrine_dir(root or _REPO_ROOT)
     target_urn = f"directive:{directive_id}"
-    for node in nodes:
-        if not isinstance(node, dict):
+    for data in _graph_documents(source):
+        nodes = data.get("nodes")
+        if not isinstance(nodes, list):
             continue
-        if node.get("urn") == target_urn and node.get("kind") == "directive":
-            return True
+        for node in nodes:
+            if (
+                isinstance(node, dict)
+                and node.get("urn") == target_urn
+                and node.get("kind") == "directive"
+            ):
+                return True
     return False
 
 

@@ -8,7 +8,7 @@ class InlineReferenceRejectedError(ValueError):
     arrays such as ``tactic_refs``, ``paradigm_refs``, or ``applies_to``.
     Post-WP02 of the ``excise-doctrine-curation-and-inline-references-01KP54J6``
     mission (EPIC #461, Phase 1), the only legal reference channel is the
-    DRG edge set in ``src/doctrine/graph.yaml``. Per-kind validators reject
+    DRG edge set in ``src/doctrine/*.graph.yaml``. Per-kind validators reject
     any remaining inline reference with this error.
 
     See ``contracts/validator-rejection-error.schema.json`` for the

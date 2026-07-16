@@ -839,6 +839,31 @@ _CATEGORY_C_SYNC_RESET_RESULT_ENTRIES: frozenset[SymbolKey] = frozenset(
 _CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE: frozenset[SymbolKey] = frozenset()
 
 
+# ---------- C. mission-type-drg-edges (#2677) charter.drg facade re-export ----------
+# ``charter.drg`` is a contract-required FACADE module: the
+# ``runtime-charter-doctrine-boundary`` plan (docs/plans/doctrine, ~L57) and the
+# ``charter-facade-modules.md`` Symbol table mandate it re-export ``load_graph``
+# so consumers reach the DRG loader through ``charter.drg.*`` -- an invariant
+# independently enforced by ``test_charter_facades_reexport_doctrine``. WP03 of
+# this mission rerouted the LAST in-``src/`` consumer of ``charter.drg.load_graph``
+# to ``load_built_in_graph``, so the contract-required re-export now has no
+# cross-file src/ caller (removing it would break the facade gate -- two-gate
+# tension). ``load_graph`` is a LIVE COLLISION bare_name (3 live ``__all__``
+# locations; ``charter.drg`` + ``doctrine.drg`` share a body_hash), so the
+# FR-005 classifier escalates it to the module_path tier and it is deliberately
+# NOT covered by ``_is_reexport_shim_symbol`` (escalated keys are hand-curated
+# by design). Tracker: #2677 (FR-303).
+
+_CATEGORY_C_MISSION_TYPE_DRG_EDGES_FACADE_REEXPORT: frozenset[SymbolKey] = frozenset(
+    {
+        # charter.drg::load_graph (escalated: live collision) -- contract-required
+        # facade re-export (charter-facade-modules.md) with no internal caller
+        # after WP03 rerouting -- same status as MissionStep.
+        SymbolKey("load_graph", "ae679d7777f4e1d2ba6289c8aeef09d3f9f179ddf5d4f3501f631fcf2593a8aa", module_path="charter.drg"),
+    }
+)
+
+
 # Aggregate. The gate consults this; the per-category frozensets are
 # the surface introspected by the ratchet-baseline meta-test
 # (``tests/architectural/test_ratchet_baselines.py``). Entries are
@@ -865,6 +890,7 @@ _SYMBOL_ALLOWLIST: frozenset[SymbolKey] = (
     | _CATEGORY_C_EVENT_SYNC_RETENTION_DELIVERY
     | _CATEGORY_C_SYNC_RESET_RESULT_ENTRIES
     | _CATEGORY_C_RUNTIME_BRIDGE_DEGOD_COMPAT_SURFACE
+    | _CATEGORY_C_MISSION_TYPE_DRG_EDGES_FACADE_REEXPORT
 )
 
 

@@ -409,11 +409,10 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
     from charter.drg import (  # noqa: PLC0415
         OrgDRGConflictError,
         OrgPackMissingError,
+        load_built_in_graph,
         load_org_drg,
         merge_three_layers,
     )
-    from charter.catalog import resolve_doctrine_root  # noqa: PLC0415
-    from doctrine.drg.loader import load_graph_or_dir  # noqa: PLC0415
 
     result: dict[str, Any] = {
         "has_built_in": True,  # built-in layer is always present
@@ -448,7 +447,7 @@ def _collect_org_layer_status(repo_root: Path) -> dict[str, Any]:
 
     # Run merge to surface collision warnings (best-effort).
     try:
-        built_in = load_graph_or_dir(resolve_doctrine_root())
+        built_in = load_built_in_graph()
         merge_three_layers(built_in=built_in, org_fragments=fragments, project=None)
     except OrgDRGConflictError as exc:
         for conflict in exc.conflicts:

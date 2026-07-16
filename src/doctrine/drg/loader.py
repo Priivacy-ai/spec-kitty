@@ -5,6 +5,7 @@ Uses ``ruamel.yaml`` for round-trip safe YAML parsing.
 
 from __future__ import annotations
 
+from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
@@ -16,7 +17,9 @@ from doctrine.drg.models import DRGGraph, DRGNode
 
 __all__ = [
     "DRGLoadError",
+    "built_in_graph_source",
     "has_graph_files",
+    "load_built_in_graph",
     "load_graph",
     "load_graph_or_dir",
     "merge_layers",
@@ -102,6 +105,45 @@ def load_graph_or_dir(path: Path) -> DRGGraph:
     for fragment_path in fragment_paths[1:]:
         graph = merge_layers(graph, load_graph(fragment_path))
     return graph
+
+
+def built_in_graph_source() -> Path:
+    """Return the directory that ships the built-in DRG graph source.
+
+    This is the doctrine package root, which holds the per-kind ``*.graph.yaml``
+    fragments (mission #2680 sharded the former single ``graph.yaml`` monolith).
+    Resolving to the *directory* -- rather than a specific ``graph.yaml`` file --
+    is what let :func:`load_built_in_graph` absorb the monolith->fragment
+    migration transparently, with no call-site changes, and keeps either layout
+    loadable going forward.
+
+    Resolution mirrors the doctrine-local package lookup used elsewhere in this
+    package (e.g. ``agent_profiles.repository``). It deliberately does NOT import
+    ``charter.catalog.resolve_doctrine_root``: doctrine sits below charter in the
+    dependency graph (C-004) and must not import upward. In the dev/editable and
+    packaged layouts both resolve to the same ``doctrine`` directory.
+    """
+    try:
+        return Path(str(files("doctrine")))
+    except (ModuleNotFoundError, TypeError):
+        return Path(__file__).parent.parent
+
+
+def load_built_in_graph() -> DRGGraph:
+    """Load the shipped built-in DRG as a validated ``DRGGraph``.
+
+    Canonical accessor for the built-in graph. Every source reader of the
+    shipped graph routes through this one seam, which is what let the
+    monolith->fragment migration (mission #2680) be a single change here instead
+    of a scattered edit across ~22 call sites. Delegates to
+    :func:`load_graph_or_dir` on :func:`built_in_graph_source`, which prefers a
+    single ``graph.yaml`` when present and otherwise merges the shipped
+    ``*.graph.yaml`` fragments alphabetically.
+
+    Raises :class:`DRGLoadError` when no graph source can be loaded (the callers
+    that must degrade rather than crash catch this themselves).
+    """
+    return load_graph_or_dir(built_in_graph_source())
 
 
 def merge_layers(

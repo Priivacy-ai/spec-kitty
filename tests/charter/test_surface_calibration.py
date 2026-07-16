@@ -22,7 +22,7 @@ from pathlib import Path
 
 import pytest
 
-from doctrine.drg.loader import load_graph
+from doctrine.drg.loader import load_built_in_graph
 from doctrine.drg.models import DRGGraph, NodeKind
 from doctrine.drg.query import resolve_context
 
@@ -40,12 +40,6 @@ REVIEW_THRESHOLD = 0.80  # review must be >= 80% of implement
 _ACTIONS = ("specify", "plan", "tasks", "implement", "review")
 _ACTION_URNS = {a: f"action:software-dev/{a}" for a in _ACTIONS}
 
-# Real graph.yaml shipped with the project
-_GRAPH_PATH = (
-    Path(__file__).resolve().parents[2] / "src" / "doctrine" / "graph.yaml"
-)
-
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -53,12 +47,13 @@ _GRAPH_PATH = (
 
 @pytest.fixture(scope="module")
 def loaded_graph() -> DRGGraph:
-    """Load the real shipped DRG graph (not a test fixture)."""
-    assert _GRAPH_PATH.exists(), (
-        f"graph.yaml not found at {_GRAPH_PATH}. "
-        f"Was it removed or renamed?"
-    )
-    return load_graph(_GRAPH_PATH)
+    """Load the real shipped DRG via the WP03 seam (not a synthetic fixture).
+
+    Routing through ``load_built_in_graph()`` keeps this reader layout-agnostic
+    across the WP05 monolith->fragment migration; the seam raises if no built-in
+    graph source can be loaded.
+    """
+    return load_built_in_graph()
 
 
 # ---------------------------------------------------------------------------

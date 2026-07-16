@@ -249,3 +249,31 @@ class TestPackManifest:
         )
         assert "secret" not in manifest["source_url"]
         assert manifest["source_url"] == "https://example.com/pack.tar.gz"
+
+    def test_manifest_counts_top_level_graph_fragments(self, tmp_path: Path) -> None:
+        """FR-014 (mission #2680): top-level ``*.graph.yaml`` fragments count.
+
+        The sharded built-in layout (WP05) ships DRG fragments as top-level
+        ``*.graph.yaml`` files rather than under a ``drg/`` directory.
+        ``_count_artifacts`` must fold them into the ``drg_fragments`` bucket so
+        a sharded doctrine tree categorises identically to the ``drg/``-dir
+        layout.
+        """
+        local_path = tmp_path / "doctrine"
+        _populate_valid_pack(local_path)
+        (local_path / "directives.graph.yaml").write_text("nodes: []\nedges: []\n")
+        (local_path / "actions.graph.yaml").write_text("nodes: []\nedges: []\n")
+
+        write_pack_manifest(
+            local_path,
+            FetchResult(ok=True, artifacts_written=4, pack_version="v1"),
+            source_url="https://example.com/pack.tar.gz",
+            source_type="https",
+        )
+
+        manifest = yaml.safe_load(
+            (local_path / "pack-manifest.yaml").read_text()
+        )
+        assert manifest["artifact_counts"]["drg_fragments"] == 2
+        # Unrelated dir buckets remain intact (no double-counting).
+        assert manifest["artifact_counts"]["directives"] == 1

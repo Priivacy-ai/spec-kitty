@@ -4,11 +4,19 @@ Public API:
     extract_artifact_edges(doctrine_root) -> (nodes, edges)
     extract_action_edges(doctrine_root)   -> (nodes, edges)
     generate_graph(doctrine_root, output_path) -> DRGGraph
+
+``generate_graph`` composes + validates the graph and writes it to disk as
+per-populated-node-kind ``<kind>.graph.yaml`` fragments in ``output_path``'s
+directory, retiring any ``graph.yaml`` monolith in that directory atomically
+(mission #2680, WP05 — DD-7/DD-8). ``output_path``'s file name is used only to
+locate the target directory; the returned in-memory ``DRGGraph`` is unaffected.
 """
 
 from __future__ import annotations
 
 import re
+from collections import defaultdict
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
 
@@ -129,6 +137,7 @@ _KIND_MAP: dict[str, NodeKind] = {
     "agent_profile": NodeKind.AGENT_PROFILE,
     "template": NodeKind.TEMPLATE,
     "action": NodeKind.ACTION,
+    "mission_type": NodeKind.MISSION_TYPE,
 }
 
 # Reference types that are NOT DRG node kinds (skipped during extraction).
@@ -765,6 +774,29 @@ def _discover_built_in_artifact_nodes(
             _ensure_node(nodes_by_urn, urn, node_kind, label or None)
 
 
+def _iter_mission_type_data(
+    doctrine_root: Path,
+) -> Iterator[tuple[str, dict[str, Any], Path]]:
+    """Yield ``(id, data, path)`` for each shipped mission-type YAML.
+
+    Canonical discovery source for the ``src/doctrine/missions/mission_types/``
+    surface: both :func:`_discover_mission_type_nodes` (nodes) and
+    :func:`extract_mission_type_edges` (edges) consume it so the glob is defined
+    once. Files without an ``id`` or that fail to parse are skipped.
+    """
+    mission_types_dir = doctrine_root / "missions" / "mission_types"
+    if not mission_types_dir.is_dir():
+        return
+    for path in sorted(mission_types_dir.glob("*.yaml")):
+        data = _load_yaml(path)
+        if data is None:
+            continue
+        mission_type_id: str = data.get("id", "")
+        if not mission_type_id:
+            continue
+        yield mission_type_id, data, path
+
+
 def _discover_mission_type_nodes(
     doctrine_root: Path,
     nodes_by_urn: dict[str, DRGNode],
@@ -773,9 +805,10 @@ def _discover_mission_type_nodes(
 
     Mirrors :func:`_discover_built_in_artifact_nodes`: one node per
     ``src/doctrine/missions/mission_types/*.yaml`` file, ``urn=mission_type:<id>``,
-    labelled with the file's ``display_name``. Nodes only -- no edges are
-    emitted here (edges are a deliberate S0-continuation; do not add a
-    ``_KIND_MAP`` entry until edges exist).
+    labelled with the file's ``display_name``. Edges from each mission_type to
+    its ``action_sequence`` steps are emitted by
+    :func:`extract_mission_type_edges`, so ``_KIND_MAP`` now carries a
+    ``mission_type`` entry.
 
     Raises:
         ValueError: if two mission-type YAMLs declare the same ``id``. Left
@@ -784,28 +817,44 @@ def _discover_mission_type_nodes(
             graph); the loud failure mirrors ``MissionTypeRepository``'s
             id/stem invariant.
     """
-    mission_types_dir = doctrine_root / "missions" / "mission_types"
-    if not mission_types_dir.is_dir():
-        return
     seen_ids: dict[str, Path] = {}
-    for path in sorted(mission_types_dir.glob("*.yaml")):
-        data = _load_yaml(path)
-        if data is None:
-            continue
-        mission_type_id: str = data.get("id", "")
-        label: str = data.get("display_name", "")
-        if not mission_type_id:
-            continue
+    for mission_type_id, data, path in _iter_mission_type_data(doctrine_root):
         if mission_type_id in seen_ids:
             msg = (
                 f"Duplicate mission_type id {mission_type_id!r} declared by "
                 f"both {seen_ids[mission_type_id].name} and {path.name} in "
-                f"{mission_types_dir}"
+                f"{path.parent}"
             )
             raise ValueError(msg)
         seen_ids[mission_type_id] = path
+        label: str = data.get("display_name", "")
         urn = artifact_to_urn("mission_type", mission_type_id)
         _ensure_node(nodes_by_urn, urn, NodeKind.MISSION_TYPE, label or None)
+
+
+def extract_mission_type_edges(doctrine_root: Path) -> list[DRGEdge]:
+    """Emit ``mission_type:<id> --requires--> action:<id>/<step>`` edges.
+
+    For each shipped mission-type YAML, read its ``action_sequence`` and emit
+    one :attr:`Relation.REQUIRES` edge per step to the matching
+    ``action:<id>/<step>`` node minted by :func:`extract_action_edges`. Steps
+    absent from every ``action_sequence`` (e.g. ``retrospect``) get no edge;
+    they remain non-orphan via their own ``scope`` edges. Each edge is emitted
+    exactly once (steps within a sequence are unique), so no dedup is needed
+    here -- duplicate/dangling/cycle safety is enforced by ``assert_valid``.
+    """
+    edges: list[DRGEdge] = []
+    for mission_type_id, data, _path in _iter_mission_type_data(doctrine_root):
+        source_urn = artifact_to_urn("mission_type", mission_type_id)
+        for step in data.get("action_sequence", []) or []:
+            edges.append(
+                DRGEdge(
+                    source=source_urn,
+                    target=artifact_to_urn("action", f"{mission_type_id}/{step}"),
+                    relation=Relation.REQUIRES,
+                )
+            )
+    return edges
 
 
 def generate_graph(
@@ -818,7 +867,10 @@ def generate_graph(
 
     Args:
         doctrine_root: Path to ``src/doctrine/``.
-        output_path: Where to write the resulting YAML.
+        output_path: Locates the output *directory* (``output_path.parent``).
+            The graph is written there as per-kind ``<kind>.graph.yaml``
+            fragments and any ``graph.yaml`` monolith in that directory is
+            removed in the same write (DD-7/DD-8).
         generated_at: Optional fixed timestamp for deterministic output.
             If ``None``, ``"STATIC"`` is used so the output is always
             identical for the same input (idempotent).
@@ -840,11 +892,13 @@ def generate_graph(
     # Step 4: Discover built-in artifacts not yet tracked
     _discover_built_in_artifact_nodes(doctrine_root, nodes_by_urn)
 
-    # Step 4b: Discover mission-type nodes (nodes only -- no edges, S0-continuation)
+    # Step 4b: Discover mission-type nodes
     _discover_mission_type_nodes(doctrine_root, nodes_by_urn)
 
-    # Step 5: Merge all edges
-    all_edges = artifact_edges + action_edges
+    # Step 5: Merge all edges (mission_type->action edges join before
+    # calibration + the deterministic sort so they are treated uniformly)
+    mission_type_edges = extract_mission_type_edges(doctrine_root)
+    all_edges = artifact_edges + action_edges + mission_type_edges
 
     # Step 6: Calibrate surfaces
     all_nodes_list = list(nodes_by_urn.values())
@@ -882,16 +936,93 @@ def generate_graph(
     # Step 8: Validate
     assert_valid(graph)
 
-    # Step 9: Write YAML
+    # Step 9: Write sharded YAML fragments (per populated node-kind) and
+    # atomically retire the monolith in the same directory.
     _write_graph_yaml(graph, output_path)
 
     return graph
 
 
-def _write_graph_yaml(graph: DRGGraph, output_path: Path) -> None:
-    """Write the graph to *output_path* as sorted YAML."""
-    output_path.parent.mkdir(parents=True, exist_ok=True)
+#: File name of the retired single-file DRG layout. ``load_graph_or_dir``
+#: prefers it when present, so it must never coexist with fragments (DD-7).
+_MONOLITH_NAME = "graph.yaml"
+_FRAGMENT_SUFFIX = ".graph.yaml"
 
+
+def _partition_by_kind(graph: DRGGraph) -> dict[NodeKind, DRGGraph]:
+    """Partition *graph* into one sub-graph per **populated** node-kind (DD-8).
+
+    Every node-kind that owns at least one node yields a fragment carrying that
+    kind's node set plus the edges whose **source** node is of that kind. Each
+    node lands in exactly one fragment (by its kind) and each edge in exactly
+    one fragment (by its source-node kind), so concatenating the fragments
+    reconstructs the whole graph with no node or edge lost or duplicated.
+
+    Target-only kinds — kinds that own nodes but are never an edge source (e.g.
+    ``template``) — still get a fragment (with an empty edge list); omitting
+    them would silently drop their nodes on reload (not behaviour-preserving).
+
+    Each fragment is emitted in canonical intra-fragment order (DD-11): nodes by
+    URN, edges by ``(source, target, relation)``.
+    """
+    kind_by_urn: dict[str, NodeKind] = {n.urn: n.kind for n in graph.nodes}
+    nodes_by_kind: dict[NodeKind, list[DRGNode]] = defaultdict(list)
+    for node in graph.nodes:
+        nodes_by_kind[node.kind].append(node)
+    edges_by_kind: dict[NodeKind, list[DRGEdge]] = defaultdict(list)
+    for edge in graph.edges:
+        # ``assert_valid`` (run before writing) guarantees no dangling edge, so
+        # every source URN maps to a known node kind.
+        edges_by_kind[kind_by_urn[edge.source]].append(edge)
+
+    fragments: dict[NodeKind, DRGGraph] = {}
+    for kind, nodes in nodes_by_kind.items():
+        fragments[kind] = DRGGraph(
+            schema_version=graph.schema_version,
+            generated_at=graph.generated_at,
+            generated_by=graph.generated_by,
+            nodes=sorted(nodes, key=lambda n: n.urn),
+            edges=sorted(
+                edges_by_kind.get(kind, []),
+                key=lambda e: (e.source, e.target, e.relation.value),
+            ),
+        )
+    return fragments
+
+
+def _write_graph_yaml(graph: DRGGraph, output_path: Path) -> None:
+    """Write *graph* as per-kind fragments beside *output_path*; retire monolith.
+
+    DD-7/DD-8: the graph is stored as one ``<kind>.graph.yaml`` fragment per
+    populated node-kind in ``output_path.parent`` (the loader glob root). Any
+    ``graph.yaml`` monolith or stale fragment in that directory is removed in
+    the same write so the directory never carries both layouts — otherwise
+    ``load_graph_or_dir`` would prefer the monolith and silently mask the
+    fragments.
+    """
+    output_dir = output_path.parent
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    fragments = _partition_by_kind(graph)
+    written: set[str] = set()
+    for kind, fragment in fragments.items():
+        fragment_path = output_dir / f"{kind.value}{_FRAGMENT_SUFFIX}"
+        _dump_graph_document(fragment, fragment_path)
+        written.add(fragment_path.name)
+
+    # Remove stale fragments from a prior run whose kind is no longer populated.
+    for existing in output_dir.glob(f"*{_FRAGMENT_SUFFIX}"):
+        if existing.name not in written:
+            existing.unlink()
+
+    # Atomic monolith retirement (DD-7): never leave graph.yaml beside fragments.
+    monolith = output_dir / _MONOLITH_NAME
+    if monolith.is_file():
+        monolith.unlink()
+
+
+def _dump_graph_document(graph: DRGGraph, output_path: Path) -> None:
+    """Serialise a single ``DRGGraph`` document to *output_path* as sorted YAML."""
     # Build plain dict for YAML serialisation (sorted keys for determinism)
     data: dict[str, Any] = {
         "schema_version": graph.schema_version,

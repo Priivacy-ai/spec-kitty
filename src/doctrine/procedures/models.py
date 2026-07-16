@@ -24,7 +24,7 @@ def _reject_retired_relationship_fields(kind: str, data: Any) -> Any:
 
     The ``enhances``/``overrides`` fields were retired in the FR-028 hard
     cutover. Relationships are now authored exclusively as DRG fragment edges
-    merged into ``src/doctrine/graph.yaml``, never as inline artifact fields.
+    merged into ``src/doctrine/*.graph.yaml``, never as inline artifact fields.
     """
     if not isinstance(data, dict):
         return data
@@ -73,7 +73,7 @@ class ProcedureStep(BaseModel):
     """A single step within a procedure.
 
     Per-step tactic relationships are expressed as typed edges in
-    ``src/doctrine/graph.yaml`` (Phase 1 excision — mission
+    ``src/doctrine/*.graph.yaml`` (Phase 1 excision — mission
     ``excise-doctrine-curation-and-inline-references-01KP54J6`` WP02). The
     former inline ``tactic_refs`` field has been removed; with
     ``extra="forbid"`` a procedure YAML that still declares step-level

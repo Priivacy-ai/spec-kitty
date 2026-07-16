@@ -15,25 +15,22 @@ from the deleted charter transitive-reference module.
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
-from doctrine.drg.loader import load_graph, merge_layers
 from doctrine.drg.validator import assert_valid
+
+if TYPE_CHECKING:
+    from doctrine.drg.models import DRGGraph
 
 pytestmark = pytest.mark.fast
 
-SHIPPED_GRAPH = Path(__file__).resolve().parents[3] / "src" / "doctrine" / "graph.yaml"
+
+def test_shipped_graph_loads_and_validates(built_in_graph: DRGGraph) -> None:
+    assert_valid(built_in_graph)
 
 
-def test_shipped_graph_loads_and_validates() -> None:
-    graph = load_graph(SHIPPED_GRAPH)
-    merged = merge_layers(graph, None)
-    assert_valid(merged)
-
-
-def test_shipped_graph_has_at_least_one_edge() -> None:
+def test_shipped_graph_has_at_least_one_edge(built_in_graph: DRGGraph) -> None:
     """Smoke check that the graph file is non-degenerate."""
-    graph = load_graph(SHIPPED_GRAPH)
-    assert len(graph.edges) > 0, "shipped graph.yaml must contain edges"
+    assert len(built_in_graph.edges) > 0, "shipped graph must contain edges"

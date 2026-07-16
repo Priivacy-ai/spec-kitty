@@ -375,11 +375,10 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
     from charter.drg import (  # noqa: PLC0415
         OrgDRGConflictError,
         OrgPackMissingError,
+        load_built_in_graph,
         load_org_drg,
         merge_three_layers,
     )
-    from charter.catalog import resolve_doctrine_root  # noqa: PLC0415
-    from doctrine.drg.loader import load_graph_or_dir  # noqa: PLC0415
 
     result: dict[str, object] = {
         "configured_packs": [],
@@ -415,7 +414,7 @@ def _collect_org_layer_data(repo_root: Path) -> dict[str, object]:
         return result
 
     try:
-        built_in = load_graph_or_dir(resolve_doctrine_root())
+        built_in = load_built_in_graph()
         # WP08 (FR-010): reuse the SAME merge the org-layer section already runs
         # (C-006 — no new DRG plumbing). The merged graph is now captured, not
         # discarded, so the promoted predicates can adjudicate built-in overrides.

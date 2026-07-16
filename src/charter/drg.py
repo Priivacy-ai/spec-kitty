@@ -52,7 +52,11 @@ from pathlib import Path
 
 from charter.pack_context import PackContext
 from doctrine.artifact_kinds import ArtifactKind
-from doctrine.drg import load_graph, merge_layers
+from doctrine.drg import (
+    load_built_in_graph,
+    load_graph,
+    merge_layers,
+)
 from doctrine.drg.merge import (
     OrgDRGConflict,
     OrgDRGConflictError,
@@ -90,6 +94,7 @@ __all__ = [
     "ResolvedContext",
     "UnknownRelationError",
     "filter_graph_by_activation",
+    "load_built_in_graph",
     "load_graph",
     "load_org_drg",
     "merge_layers",

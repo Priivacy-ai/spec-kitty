@@ -265,11 +265,10 @@ def _render_org_layer_section(repo_root: Path, console: Console) -> None:
     from charter.drg import (  # noqa: PLC0415
         OrgDRGConflictError,
         OrgPackMissingError,
+        load_built_in_graph,
         load_org_drg,
         merge_three_layers,
     )
-    from charter.catalog import resolve_doctrine_root  # noqa: PLC0415
-    from doctrine.drg.loader import load_graph_or_dir  # noqa: PLC0415
 
     console.print("\n[bold]Organisation Layer[/bold] (WP07 / FR-007)")
 
@@ -298,7 +297,7 @@ def _render_org_layer_section(repo_root: Path, console: Console) -> None:
     # Merge with built-in layer to surface collision warnings.
     # Truncate to ≤3 lines per the WP07 risk table (risk 4: verbosity mitigation).
     try:
-        built_in = load_graph_or_dir(resolve_doctrine_root())
+        built_in = load_built_in_graph()
         merge_three_layers(built_in=built_in, org_fragments=fragments, project=None)
         console.print("  collisions: none")
     except OrgDRGConflictError as exc:
