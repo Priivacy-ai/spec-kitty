@@ -318,7 +318,6 @@ from specify_cli.cli.commands.agent.tasks_shared import (
     _skip_target_branch_commit as _skip_target_branch_commit,
     _validate_ready_for_review as _validate_ready_for_review,
     _wp_branch_merged_into_target as _wp_branch_merged_into_target,
-    resolve_primary_branch as resolve_primary_branch,
 )
 
 # Re-exported lane helpers consumed by tests via

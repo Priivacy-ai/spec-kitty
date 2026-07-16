@@ -93,8 +93,11 @@ _TASKS_MAP_REQUIREMENTS: tuple[str, ...] = (  # WP06 (wave2) — 15 symbols
     "_map_requirements_feature_dir",
 )
 
-_TASKS_SHARED: tuple[str, ...] = (  # WP02 (wave2) — 21 symbols
-    "resolve_primary_branch",
+_TASKS_SHARED: tuple[str, ...] = (  # WP02 (wave2) — 20 symbols
+    # ``resolve_primary_branch`` removed by FR-007 (mission
+    # primary-merge-vocabulary, WP04): the delegating shim was retired so the
+    # canonical ``core.git_ops.resolve_primary_branch`` is the single source
+    # (21 -> 20; total 141 -> 140).
     "_review_currency_check_branch",
     "_RUNTIME_STATE_DENY_LIST",
     "_filter_runtime_state_paths",
@@ -376,10 +379,10 @@ def test_no_required_symbol_duplicated_in_survey() -> None:
     assert total_declared == len(SYMBOL_TO_MODULE)
 
 
-def test_guard_covers_full_141_symbol_surface() -> None:
+def test_guard_covers_full_140_symbol_surface() -> None:
     """Traceability pin: the guard's total symbol count matches the sum of
     the 6 seams' counts recorded in the seam files' own docstrings at
-    authoring time (8 + 15 + 21 + 21 + 63 + 13 = 141). A change here is
+    authoring time (8 + 15 + 20 + 21 + 63 + 13 = 140). A change here is
     expected when a future WP relocates symbols; it should be a deliberate,
     reviewed edit — not a silent drift. #2513/#2160 added
     ``_mt_uncheck_rollback_subtasks``, ``_mt_clear_rollback_claim_markers`` and
@@ -392,5 +395,8 @@ def test_guard_covers_full_141_symbol_surface() -> None:
     the ``_MoveTaskArgs`` param object plus the ``_mt_commit_wp_file`` /
     ``_mt_uncheck_rollback_subtasks`` degod helpers (``_mt_wp_commit_message``,
     ``_mt_report_commit_outcome``, ``_mt_attempt_uncheck_write``,
-    ``_mt_commit_uncheck_tasks_md``) (58 -> 63)."""
-    assert len(SYMBOL_TO_MODULE) == 141  # golden-count: cardinality-is-contract
+    ``_mt_commit_uncheck_tasks_md``) (58 -> 63). FR-007
+    (primary-merge-vocabulary, WP04) retired the ``tasks_shared``
+    ``resolve_primary_branch`` delegating shim (tasks_shared 21 -> 20; total
+    141 -> 140)."""
+    assert len(SYMBOL_TO_MODULE) == 140  # golden-count: cardinality-is-contract

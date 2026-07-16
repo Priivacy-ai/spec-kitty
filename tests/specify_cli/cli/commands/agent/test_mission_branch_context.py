@@ -17,6 +17,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.cli.commands.agent import mission_branch_context as seam
+from specify_cli.core import git_ops as core_git_ops
 
 pytestmark = [pytest.mark.unit, pytest.mark.fast]
 
@@ -90,20 +91,44 @@ def test_branch_exists_false_when_no_ref(monkeypatch: pytest.MonkeyPatch, tmp_pa
 # ---------------------------------------------------------------------------
 
 
+# FR-007 fold: ``_resolve_primary_branch_for_recommendation`` now delegates to
+# the canonical ``git_ops.resolve_primary_branch(..., bias=False)``, so the git
+# calls route through ``core_git_ops.subprocess`` — the patch target moves there
+# in lockstep with the fold. The no-feature-bias contract is unchanged.
+
+
 def test_primary_recommendation_uses_symbolic_ref(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     class _Sym:
         returncode = 0
         stdout = "refs/remotes/origin/develop\n"
         stderr = ""
 
-    monkeypatch.setattr(seam.subprocess, "run", lambda *a, **k: _Sym())
+    monkeypatch.setattr(core_git_ops.subprocess, "run", lambda *a, **k: _Sym())
     assert seam._resolve_primary_branch_for_recommendation(tmp_path, "feat-x") == "develop"
 
 
 def test_primary_recommendation_falls_back_to_current_when_common(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    monkeypatch.setattr(seam.subprocess, "run", lambda *a, **k: _Result(1))
+    monkeypatch.setattr(core_git_ops.subprocess, "run", lambda *a, **k: _Result(1))
     # symbolic-ref fails (returncode 1) → current is a common primary → returned.
     assert seam._resolve_primary_branch_for_recommendation(tmp_path, "master") == "master"
+
+
+def test_primary_recommendation_ignores_feature_branch(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """No-feature-bias contract (the reason the recommender diverges from the
+    plain feature-biased resolver): with origin/HEAD unresolved and the current
+    branch a ticket branch, the recommender returns the common primary (main),
+    NOT the ticket branch. FR-007's fold must preserve this."""
+
+    def fake_run(args: list[str], *a: object, **k: object) -> _Result:
+        if "symbolic-ref" in args:
+            return _Result(1)
+        # no-feature-bias existence probe accepts a local ref for ``main``.
+        if args[-1] == "refs/heads/main":
+            return _Result(0)
+        return _Result(1)
+
+    monkeypatch.setattr(core_git_ops.subprocess, "run", fake_run)
+    assert seam._resolve_primary_branch_for_recommendation(tmp_path, "feat/ticket-9") == "main"
 
 
 # ---------------------------------------------------------------------------
