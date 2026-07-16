@@ -34,6 +34,7 @@ if TYPE_CHECKING:
     from specify_cli.sync.migrate_journal import (
         CleanupResult,
         ConflictResolution,
+        ConvergeResult,
         MigrationAudit,
         MigrationResult,
     )
@@ -2059,9 +2060,7 @@ def migrate(
     from specify_cli.sync.migrate_journal import (
         AUDIT_DB_NAME,
         MigrationAudit,
-        cleanup_migrated_sources,
-        migrate_queues_to_journal,
-        resolve_conflicts_keep_journal,
+        converge_legacy_runtime,
     )
 
     if resolve_conflicts is not None and resolve_conflicts != "keep-journal":
@@ -2074,47 +2073,26 @@ def migrate(
     spec_kitty_dir = get_runtime_root().base
     runtime = _open_event_sync_runtime()
     audit = MigrationAudit(spec_kitty_dir / AUDIT_DB_NAME)
-    cleanup = None
-    resolution = None
     try:
-        result = migrate_queues_to_journal(
+        converge: ConvergeResult = converge_legacy_runtime(
             spec_kitty_dir,
             journal=runtime.journal,
             audit=audit,
             resolved_target=runtime.target,
+            resolve_conflicts=(resolve_conflicts == "keep-journal"),
+            cleanup=not no_cleanup,
         )
-        if resolve_conflicts == "keep-journal" and result.conflicts:
-            resolution = resolve_conflicts_keep_journal(
-                spec_kitty_dir,
-                journal=runtime.journal,
-                audit=audit,
-            )
-            # Re-run the migration now the conflicts are resolved so the result
-            # (and the cleanup gate below) reflects the converged state.
-            result = migrate_queues_to_journal(
-                spec_kitty_dir,
-                journal=runtime.journal,
-                audit=audit,
-                resolved_target=runtime.target,
-            )
-        if not no_cleanup and not result.cleanup_blocked:
-            cleanup = cleanup_migrated_sources(
-                spec_kitty_dir,
-                journal=runtime.journal,
-                audit=audit,
-                result=result,
-            )
     finally:
         with contextlib.suppress(Exception):
             audit.close()
         runtime.close()
-    _print_migration_result(result)
-    if resolution is not None:
-        _print_resolution_result(resolution)
-    if cleanup is not None:
-        _print_cleanup_result(cleanup)
-    if result.exit_code != 0:
-        raise typer.Exit(result.exit_code)
+    _print_migration_result(converge.migration)
+    if converge.resolution is not None:
+        _print_resolution_result(converge.resolution)
+    if converge.cleanup is not None:
+        _print_cleanup_result(converge.cleanup)
+    if converge.migration.exit_code != 0:
+        raise typer.Exit(converge.migration.exit_code)
 
 
 @app.command()

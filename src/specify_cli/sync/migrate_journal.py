@@ -882,6 +882,69 @@ def resolve_conflicts_keep_journal(
     return resolution
 
 
+# --- one-shot legacy convergence (the migration engine, #2665/#2180) -------
+
+
+@dataclass
+class ConvergeResult:
+    """Observable outcome of one :func:`converge_legacy_runtime` run."""
+
+    migration: MigrationResult
+    resolution: ConflictResolution | None = None
+    cleanup: CleanupResult | None = None
+
+    @property
+    def converged(self) -> bool:
+        """True iff the boundary is coherent after the run (cleanup ran clean)."""
+        return not self.migration.cleanup_blocked and self.cleanup is not None and self.cleanup.ran
+
+    @property
+    def blocked_conflicts(self) -> int:
+        """Conflicts still blocking convergence (e.g. resolution disabled/partial)."""
+        return len(self.migration.conflicts)
+
+
+def converge_legacy_runtime(
+    spec_kitty_dir: Path,
+    *,
+    journal: EventJournal,
+    audit: MigrationAudit,
+    resolved_target: ResolvedSyncTarget | None = None,
+    resolve_conflicts: bool = False,
+    cleanup: bool = True,
+) -> ConvergeResult:
+    """Converge a legacy runtime into the journal in one idempotent pass.
+
+    The single orchestration shared by ``sync migrate`` and the auto-migration:
+
+    1. import queued events into the journal (read-only on sources);
+    2. optionally resolve divergent-duplicate conflicts journal-wins (archiving
+       each divergent source payload to the quarantine), then re-import so the
+       result reflects the converged state;
+    3. optionally delete the confirmed-migrated rows from their sources so the
+       legacy-row boundary converges.
+
+    Idempotent: on an already-converged runtime every step is a no-op. Nothing
+    is ever lost — import is read-only, conflict resolution quarantines before
+    removing, and cleanup deletes only journal-confirmed rows by id.
+    """
+    result = migrate_queues_to_journal(
+        spec_kitty_dir, journal=journal, audit=audit, resolved_target=resolved_target
+    )
+    resolution: ConflictResolution | None = None
+    if resolve_conflicts and result.conflicts:
+        resolution = resolve_conflicts_keep_journal(spec_kitty_dir, journal=journal, audit=audit)
+        result = migrate_queues_to_journal(
+            spec_kitty_dir, journal=journal, audit=audit, resolved_target=resolved_target
+        )
+    cleanup_result: CleanupResult | None = None
+    if cleanup and not result.cleanup_blocked:
+        cleanup_result = cleanup_migrated_sources(
+            spec_kitty_dir, journal=journal, audit=audit, result=result
+        )
+    return ConvergeResult(migration=result, resolution=resolution, cleanup=cleanup_result)
+
+
 __all__ = [
     "AUDIT_DB_NAME",
     "KNOWN_PREFIX",
@@ -889,15 +952,14 @@ __all__ = [
     "MIGRATION_NOTE",
     "CleanupResult",
     "ConflictResolution",
+    "ConvergeResult",
     "MigrationAudit",
     "MigrationConflict",
     "MigrationResult",
     "SourceDb",
     "SourceOutcome",
     "UNKNOWN_PREFIX",
-    "cleanup_migrated_sources",
+    "converge_legacy_runtime",
     "discover_source_dbs",
-    "migrate_queues_to_journal",
     "migration_target_token",
-    "resolve_conflicts_keep_journal",
 ]
