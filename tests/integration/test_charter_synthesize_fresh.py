@@ -17,6 +17,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from charter.synthesizer.manifest import load_yaml, verify_manifest_hash
 from specify_cli.cli.commands.charter import app as charter_app
 
 
@@ -160,6 +161,15 @@ def test_synthesize_on_fresh_project_via_public_cli(tmp_path: Path) -> None:
         "that charter preflight uses as its freshness marker"
     )
     assert "built_in_only: true" in manifest_path.read_text(encoding="utf-8")
+
+    # WP01 (synthesized-drg-stale-refresh) T006(d) — production-path pin:
+    # the REAL _fresh_seed_manifest_text output (routed through
+    # finalize_manifest) must load and self-verify. Without the T005
+    # reroute, the raw-hashlib path desyncs the moment
+    # bundle_content_hash exists as a model field (fact #15) — this
+    # assertion would go RED on the un-rerouted implementation.
+    loaded_manifest = load_yaml(manifest_path)
+    verify_manifest_hash(loaded_manifest)  # must not raise
 
     # WP02 / FR-002: the four contracted envelope fields are present
     # unconditionally — even on the fresh-project seed code path

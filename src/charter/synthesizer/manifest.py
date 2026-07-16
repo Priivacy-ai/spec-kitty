@@ -71,12 +71,23 @@ class SynthesisManifest(BaseModel):
     Schema version 2 (Phase 7): added synthesizer_version and manifest_hash.
     ``manifest_hash`` is the SHA-256 hex digest of ``canonical_yaml(all fields
     except manifest_hash)`` — allows readers to verify manifest self-integrity.
+
+    Schema version 3 (synthesized-drg-stale-refresh): added
+    ``bundle_content_hash``, the content-identity digest of the four synced
+    bundle files (see ``charter.bundle.compute_bundle_content_hash``) used by
+    the synthesized-DRG freshness comparison. The literal is widened to
+    ``Literal["2", "3"]`` so pre-fix ``"2"`` manifests keep validating. The
+    model default is ``"3"``: the real writers omit ``schema_version`` and rely
+    on this default to stamp new manifests, so they carry ``bundle_content_hash``.
+    The fresh-seed writer (``_fresh_seed_manifest_text``) deliberately overrides
+    to ``"2"`` (a built-in-only seed carries no content hash; see its rationale).
+    Do NOT revert the default to ``"2"`` — new writes must be ``"3"``.
     """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
     _raw_field_names: frozenset[str] | None = PrivateAttr(default=None)
 
-    schema_version: Literal["2"] = "2"
+    schema_version: Literal["2", "3"] = "3"
     mission_id: str | None = None
     created_at: str
     """ISO 8601 UTC timestamp."""
@@ -106,6 +117,21 @@ class SynthesisManifest(BaseModel):
 
     Default ``False`` preserves backward compatibility — manifests written by
     pre-WP02 synthesizers parse unchanged.
+    """
+
+    bundle_content_hash: str | None = None
+    """``"sha256:..."`` content-identity digest of the four synced bundle
+    files, produced by ``charter.bundle.compute_bundle_content_hash``.
+
+    **Substantive (non-volatile).** This field participates in no-op-stable
+    write comparisons and MUST NOT be added to
+    ``write_pipeline._VOLATILE_MANIFEST_FIELDS`` — unlike ``created_at`` or
+    ``run_id``, a changed value here means the synced bundle content genuinely
+    changed and the manifest write is not a no-op.
+
+    ``None`` on built-in-only seeds and post-condition flips (the freshness
+    reader short-circuits on ``built_in_only`` before comparing hashes) and on
+    any pre-fix ``schema_version: "2"`` manifest that predates this field.
     """
 
 
@@ -194,11 +220,41 @@ def compute_manifest_hash(manifest_or_data: SynthesisManifest | Mapping[str, Any
     return hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
 
 
+def finalize_manifest(manifest: SynthesisManifest) -> SynthesisManifest:
+    """Recompute ``manifest_hash`` from the full instance and return a copy.
+
+    The single canonical finalizer (data-model.md "Contract: finalize_
+    manifest") every manifest-persisting site routes through immediately
+    before writing. Because the hash is always derived from the FULL
+    instance (via :func:`compute_manifest_hash`, which model-normalizes
+    every field including future additions), no field can be silently
+    omitted from the hashed payload the way a hand-synced raw dict could
+    drop one.
+
+    Behavior-preserving: for content identical to today, this produces the
+    same ``manifest_hash`` the existing inline ``compute_manifest_hash``
+    call sites produce.
+    """
+    zeroed = manifest.model_copy(update={"manifest_hash": "0" * 64})
+    return manifest.model_copy(update={"manifest_hash": compute_manifest_hash(zeroed)})
+
+
 def verify_manifest_hash(manifest: SynthesisManifest) -> None:
     """Verify the manifest self-hash field.
 
     Recomputes SHA-256 of the canonical YAML serialization of all manifest
     fields except ``manifest_hash`` itself and compares to the stored value.
+
+    Legacy fallback: if the primary (model-normalized) comparison fails, and
+    the manifest was loaded from disk (``_raw_field_names`` populated),
+    recompute a **raw** hash over exactly the on-disk field subset (the keys
+    the file actually carried, per-field gated by ``_raw_field_names`` —
+    NOT a fixed pop-list). This lets a manifest written before a schema
+    field existed (e.g. a pre-fix ``schema_version: "2"`` file lacking
+    ``bundle_content_hash``) keep verifying, while a manifest that DOES
+    carry a field but with a tampered value still fails: the field is in
+    ``_raw_field_names`` so it is included in the subset and the tampered
+    value flows into the recomputed digest.
 
     Raises
     ------
@@ -208,11 +264,15 @@ def verify_manifest_hash(manifest: SynthesisManifest) -> None:
     computed = compute_manifest_hash(manifest)
     if computed != manifest.manifest_hash:
         raw_field_names = manifest._raw_field_names
-        if raw_field_names is not None and "built_in_only" not in raw_field_names:
-            legacy_data = manifest.model_dump(mode="python")
-            legacy_data.pop("manifest_hash", None)
-            legacy_data.pop("built_in_only", None)
-            legacy_computed = hashlib.sha256(canonical_yaml(legacy_data)).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
+        if raw_field_names is not None:
+            subset = {
+                k: v
+                for k, v in manifest.model_dump(mode="python").items()
+                if k in raw_field_names and k != "manifest_hash"
+            }
+            legacy_computed = hashlib.sha256(  # noqa: TID251 - production raw SHA-256 owner
+                canonical_yaml(subset)
+            ).hexdigest()
             if legacy_computed == manifest.manifest_hash:
                 return
 
@@ -308,7 +368,7 @@ __all__ = [
     "MANIFEST_PATH",
     "dump_yaml",
     "load_yaml",
-    "compute_manifest_hash",
+    "finalize_manifest",
     "verify",
     "verify_manifest_hash",
 ]

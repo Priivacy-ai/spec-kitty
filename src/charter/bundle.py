@@ -29,11 +29,27 @@ from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from .hasher import hash_content
+
 SCHEMA_VERSION: str = "1.0.0"
 CHARTER_MD = Path(".kittify/charter/charter.md")
 GOVERNANCE_YAML = Path(".kittify/charter/governance.yaml")
 DIRECTIVES_YAML = Path(".kittify/charter/directives.yaml")
 METADATA_YAML = Path(".kittify/charter/metadata.yaml")
+
+# Synthesized-DRG freshness content-identity input set (synthesized-drg-
+# stale-refresh mission). Intentionally the SAME four names as
+# ``specify_cli.charter_runtime.freshness.computer::_BUNDLE_FILES`` — minor
+# duplication (data-model.md Decision 5) to avoid pulling ``charter.bundle``
+# into that module's eager import path for the unrelated
+# ``_compute_synced_bundle`` code path. Do NOT import this constant from the
+# ``specify_cli`` reader — that would invert the dependency direction.
+BUNDLE_CONTENT_HASH_FILES: tuple[str, ...] = (
+    "governance.yaml",
+    "directives.yaml",
+    "references.yaml",
+    "metadata.yaml",
+)
 
 # Synthesis state paths (all relative to repo root)
 SYNTHESIS_MANIFEST_PATH = Path(".kittify/charter/synthesis-manifest.yaml")
@@ -107,6 +123,65 @@ CANONICAL_MANIFEST: CharterBundleManifest = CharterBundleManifest(
         str(METADATA_YAML),
     ],
 )
+
+
+# ---------------------------------------------------------------------------
+# synthesized-drg-stale-refresh: content-identity freshness helper
+# ---------------------------------------------------------------------------
+
+
+def compute_bundle_content_hash(repo_root: Path) -> str | None:
+    """Compute the content-identity digest of the synced bundle files.
+
+    Hashes each file in :data:`BUNDLE_CONTENT_HASH_FILES` (declared order)
+    INDEPENDENTLY via :func:`charter.hasher.hash_content` (per-file BOM-strip
+    + CRLF-normalize), then combines the four ``"sha256:..."`` digests
+    deterministically by hashing their newline-joined concatenation. Per-file
+    hashing (not concat-then-hash-once) is required: ``canonical_yaml`` only
+    strips a *leading* BOM of a whole payload, so a BOM on a non-first file
+    would otherwise survive undetected (data-model.md fact #14).
+
+    This is the single canonical write-side hashing recipe (C-005). It is
+    **pure and unwired** in this WP — no production caller imports it yet;
+    writers (WP02) and the freshness reader (WP03) both route through it so
+    there is exactly one recipe.
+
+    Parameters
+    ----------
+    repo_root:
+        Absolute project root.
+
+    Returns
+    -------
+    str | None
+        ``"sha256:<hex>"``, deterministic for fixed file content
+        (mtime-agnostic). ``None`` — fail-safe, never raises — when
+        ``.kittify/charter/`` is missing OR any of the four files is
+        individually missing or unreadable (``OSError``,
+        ``UnicodeDecodeError`` — a non-UTF-8 file raises the latter, which is
+        NOT an ``OSError`` subclass and must be caught explicitly). The
+        freshness reader maps ``None`` to ``stale``, never a crash (spec
+        fail-posture).
+    """
+    charter_dir = repo_root / ".kittify" / "charter"
+    digests: list[str] = []
+    for name in BUNDLE_CONTENT_HASH_FILES:
+        path = charter_dir / name
+        if not path.exists():
+            return None
+        try:
+            text = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            return None
+        # Explicit annotation: the ``charter.*`` mypy override (pyproject.toml
+        # [[tool.mypy.overrides]]) sets follow_imports="skip" for intra-package
+        # imports, which erases hash_content's declared "-> str" return type
+        # to Any at this call site. Annotating recovers the real type without
+        # a suppression comment.
+        digest: str = hash_content(text)
+        digests.append(digest)
+    combined: str = hash_content("\n".join(digests))
+    return combined
 
 
 # ---------------------------------------------------------------------------
@@ -342,6 +417,10 @@ __all__ = [
     "CANONICAL_MANIFEST",
     "CharterBundleManifest",
     "SCHEMA_VERSION",
+    # synthesized-drg-stale-refresh (BUNDLE_CONTENT_HASH_FILES is intentionally
+    # module-internal — the reader consumes the compute_bundle_content_hash
+    # helper, never the file-list constant — so it stays out of __all__)
+    "compute_bundle_content_hash",
     # WP03 extension (FR-015)
     "BundleValidationResult",
     "validate_synthesis_state",

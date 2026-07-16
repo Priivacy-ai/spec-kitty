@@ -7,7 +7,6 @@ LLM-authored YAMLs are present (see issue #839 / WP06 T031-T033).
 """
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 
 # T031 (#839 minimal artifact set): the runtime consumes ``.kittify/doctrine/``
@@ -56,7 +55,7 @@ def _fresh_seed_manifest_text() -> str:
     """Build the deterministic built-in-only synthesis manifest text."""
     from importlib.metadata import version as _pkg_version
 
-    from charter.synthesizer.manifest import SynthesisManifest
+    from charter.synthesizer.manifest import SynthesisManifest, finalize_manifest
     from charter.synthesizer.synthesize_pipeline import canonical_yaml
 
     try:
@@ -64,6 +63,12 @@ def _fresh_seed_manifest_text() -> str:
     except Exception:
         synthesizer_version = "unknown"
 
+    # schema_version STAYS "2" intentionally (data-model.md): the freshness
+    # reader short-circuits on built_in_only before any version/hash check,
+    # and versioning.py's v2 repair guards on != "2" — bumping here would
+    # only perturb test_bundle_validate_fresh_seed.py's golden with no
+    # benefit. bundle_content_hash stays None (model default) for the same
+    # reason.
     without_hash: dict[str, object] = {
         "schema_version": "2",
         "mission_id": None,
@@ -75,11 +80,18 @@ def _fresh_seed_manifest_text() -> str:
         "artifacts": [],
         "built_in_only": True,
     }
-    manifest_hash = hashlib.sha256(canonical_yaml(without_hash)).hexdigest()  # noqa: TID251 - production raw SHA-256 owner
     manifest = SynthesisManifest.model_validate(
-        {**without_hash, "manifest_hash": manifest_hash}
+        {**without_hash, "manifest_hash": "0" * 64}
     )
-    return canonical_yaml(manifest.model_dump(mode="python")).decode("utf-8")
+    manifest = finalize_manifest(manifest)
+    # Explicit annotation: the ``charter.*`` mypy override (pyproject.toml
+    # [[tool.mypy.overrides]]) sets follow_imports="skip" for intra-package
+    # imports, which erases canonical_yaml's declared "-> bytes" return type
+    # to Any here (pre-existing, not introduced by this reroute — confirmed
+    # present before the finalize_manifest change too). Annotating recovers
+    # the real type without a suppression comment.
+    text: str = canonical_yaml(manifest.model_dump(mode="python")).decode("utf-8")
+    return text
 
 
 def _materialize_fresh_doctrine(repo_root: Path) -> list[str]:
