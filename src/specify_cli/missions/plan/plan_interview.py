@@ -70,13 +70,6 @@ def _get_mission_id(repo_root: Path, mission_slug: str) -> str | None:
     return None
 
 
-def _is_already_widened(widen_store: Any, decision_id: str) -> bool:
-    """Return True if *decision_id* is already pending in the store."""
-    with contextlib.suppress(Exception):
-        return any(e.decision_id == decision_id for e in widen_store.list_pending())
-    return False
-
-
 # ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
@@ -108,7 +101,7 @@ def run_plan_interview(  # noqa: C901
     from specify_cli.decisions.models import OriginFlow as _DmOriginFlow
     from specify_cli.decisions.service import DecisionError as _DecisionError
     from specify_cli.widen.interview_helpers import (
-        render_already_widened_prompt,
+        resolve_already_widened_prompt,
         run_end_of_interview_pending_pass,
     )
 
@@ -169,24 +162,19 @@ def run_plan_interview(  # noqa: C901
             )
             current_decision_id = dm_response.decision_id
 
-        # T045 — Already-widened question prompt
-        _already_widened = (
-            widen_store is not None
-            and current_decision_id is not None
-            and _is_already_widened(widen_store, current_decision_id)
+        # T045 — Already-widened question prompt (narrow-once seam, #2675 T061)
+        _already_widened = resolve_already_widened_prompt(
+            widen_store=widen_store,
+            decision_id=current_decision_id,
+            saas_client=saas_client,
+            question_text=question_text,
+            mission_slug=mission_slug,
+            repo_root=repo_root,
+            dm_service=_dm_service,
+            actor=actor,
+            console=console,
         )
-        if _already_widened and saas_client is not None:
-            render_already_widened_prompt(
-                question_text=question_text,
-                decision_id=current_decision_id,
-                mission_slug=mission_slug,
-                repo_root=repo_root,
-                saas_client=saas_client,
-                widen_store=widen_store,
-                dm_service=_dm_service,
-                actor=actor,
-                console=console,
-            )
+        if _already_widened:
             answers[question_id] = ""
             continue  # next question
 

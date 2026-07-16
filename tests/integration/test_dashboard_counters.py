@@ -17,16 +17,16 @@ pytestmark = pytest.mark.fast
 class TestDashboardLaneColumnMapping:
     """All 9 display lanes must be accounted for in dashboard mapping.
 
-    'genesis' is a non-display lane (pre-finalize state); it is never the
-    current lane of a materialized WP and has no kanban column by design, so
-    it is excluded from the column map.
+    'genesis' and 'uninitialized' are non-display lanes: neither is ever the
+    current lane of a materialized WP, and neither has a kanban column by
+    design, so both are excluded from the column map (NON_DISPLAY_LANES).
     """
 
     def test_every_lane_maps_to_a_column(self) -> None:
         from specify_cli.dashboard.scanner import _KANBAN_COLUMN_FOR_LANE
-        from specify_cli.status.models import Lane, get_all_lanes
+        from specify_cli.status.models import NON_DISPLAY_LANES, get_all_lanes
 
-        all_lanes = {lane for lane in get_all_lanes() if lane is not Lane.GENESIS}
+        all_lanes = {lane for lane in get_all_lanes() if lane not in NON_DISPLAY_LANES}
         mapped = set(_KANBAN_COLUMN_FOR_LANE.keys())
         assert mapped == all_lanes, (
             f"Dashboard column mapping is missing lanes: {all_lanes - mapped}"

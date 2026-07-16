@@ -29,7 +29,7 @@ from specify_cli.core.paths import WorkspaceRootNotFound, resolve_canonical_root
 from collections.abc import Mapping
 import enum
 from pathlib import Path
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 from mission_runtime import MissionArtifactKind
 
@@ -1466,13 +1466,12 @@ def resolve_subtasks_gate_dir(feature_dir: Path, repo_root: Path | None, mission
             primary_root = resolve_canonical_root(feature_dir)
         except WorkspaceRootNotFound:
             return feature_dir
-    # cast: follow_imports=skip (pyproject.toml [[tool.mypy.overrides]] for
-    # specify_cli.*) makes resolve_planning_read_dir's declared `-> Path`
-    # return type invisible to mypy from this call site (C-002 — carried
-    # verbatim from the prior ``_resolve_primary_subtasks_dir`` site).
-    return cast(
-        Path,
-        resolve_planning_read_dir(primary_root, mission_slug, kind=MissionArtifactKind.TASKS_INDEX),
+    # resolve_planning_read_dir is defined in this same module, so its
+    # declared `-> Path` return type is visible to mypy directly (no
+    # follow_imports=skip boundary crossed here) — a cast was redundant
+    # (#2675 WP07 T062).
+    return resolve_planning_read_dir(
+        primary_root, mission_slug, kind=MissionArtifactKind.TASKS_INDEX
     )
 
 

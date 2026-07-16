@@ -18,7 +18,7 @@ from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from specify_cli.status.models import AgentAssignment, Lane
+from specify_cli.status.models import NON_DISPLAY_LANES, AgentAssignment, Lane
 
 
 def _resolve_agent_fallback(
@@ -377,15 +377,20 @@ class WPMetadata(BaseModel):
 
         The legacy alias ``"doing"`` is silently normalised to ``"in_progress"``
         so that older WP files written before the Lane enum still parse correctly.
+
+        ``genesis`` and ``uninitialized`` are both non-display read
+        sentinels (see ``NON_DISPLAY_LANES``), never authorable WP lane
+        values — a WP file must not declare ``lane: genesis`` or
+        ``lane: uninitialized`` in frontmatter.
         """
         if v is None or v == "":
             return None
         canonical = cls._LANE_ALIASES.get(str(v), str(v))
         valid = ", ".join(
-            [lane.value for lane in Lane if lane is not Lane.GENESIS]
+            [lane.value for lane in Lane if lane not in NON_DISPLAY_LANES]
             + sorted(cls._LANE_ALIASES)
         )
-        if canonical == Lane.GENESIS.value:
+        if canonical in {lane.value for lane in NON_DISPLAY_LANES}:
             raise ValueError(
                 f"Invalid lane value: {v!r}. Must be one of: {valid}"
             )

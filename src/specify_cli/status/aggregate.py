@@ -31,12 +31,6 @@ from typing import TYPE_CHECKING, Any, Literal
 from specify_cli.core.paths import assert_safe_path_segment
 from specify_cli.mission_metadata import load_meta
 
-# Legacy sentinel emitted by older transactional readers; not a Lane enum value.
-# Canonical definition lives in lane_reader (the canonical read surface); imported
-# as a private alias to preserve existing usage patterns throughout this module.
-# See LEGACY_UNINITIALIZED_SENTINEL in status/lane_reader.py for documentation.
-from .lane_reader import LEGACY_UNINITIALIZED_SENTINEL as _LEGACY_UNINITIALIZED_SENTINEL
-
 if TYPE_CHECKING:
     from specify_cli.coordination.types import CommitReceipt
     from specify_cli.status import TransitionRequest
@@ -679,16 +673,19 @@ class MissionStatus:
         An unseeded WP resolves to ``genesis`` (``lane_unseeded``), NOT ``planned``:
         a created-but-unfinalized WP cannot be claimed, and the FSM correctly
         rejects ``genesis -> claimed``. The transactional reader already returns
-        ``Lane.GENESIS`` for unseeded WPs; the ``"uninitialized"`` string sentinel
-        is handled here for any reader that still emits it (#1775 review M4/Tier 3).
+        ``Lane.GENESIS`` for unseeded WPs; the ``Lane.UNINITIALIZED`` read
+        sentinel is handled here for any reader that still emits it (#1775
+        review M4/Tier 3).
         """
+        from specify_cli.status.models import Lane as _Lane
+
         from_lane_enum, current_actor = read_current_wp_state_transactional(
             feature_dir=self.read_dir,
             mission_slug=self.mission_slug,
             wp_id=request.wp_id or "",
             repo_root=self.repo_root,
         )
-        if str(from_lane_enum) == _LEGACY_UNINITIALIZED_SENTINEL:
+        if from_lane_enum == _Lane.UNINITIALIZED:
             from_lane_enum = lane_unseeded
         return str(from_lane_enum), current_actor
 

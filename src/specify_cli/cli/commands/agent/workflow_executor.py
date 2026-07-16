@@ -39,7 +39,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 from types import ModuleType
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 import typer
 
@@ -88,6 +88,20 @@ def _wf() -> ModuleType:
 
     module: ModuleType = _workflow_module
     return module
+
+
+def _locate_wp(repo_root: Path, mission_slug: str, normalized_wp_id: str) -> WorkPackage:
+    """Typed accessor for ``workflow.locate_work_package`` (#2675 T054).
+
+    ``_wf()`` returns ``ModuleType``, so ``.locate_work_package(...)`` leaks
+    ``Any`` through every call site. This is the ONE sanctioned ``cast`` in
+    this module -- every ``locate_work_package`` call site (erroring or not)
+    routes through here instead of scattering casts at each read site.
+    """
+    return cast(
+        "WorkPackage",
+        _wf().locate_work_package(repo_root, mission_slug, normalized_wp_id),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -425,7 +439,7 @@ def implement_sparse_checkout_preflight(
 def implement_locate_wp(repo_root: Path, mission_slug: str, normalized_wp_id: str) -> WorkPackage:
     """Find the WP file, translating the canonical-status-missing case."""
     try:
-        return _wf().locate_work_package(repo_root, mission_slug, normalized_wp_id)
+        return _locate_wp(repo_root, mission_slug, normalized_wp_id)
     except RuntimeError as e:
         if is_missing_canonical_status_error(e):
             print(f"Error: {missing_canonical_status_message(normalized_wp_id, mission_slug)}")
@@ -663,6 +677,18 @@ def _implement_write_claim_and_commit(
 
     w = _wf()
 
+    # ``agent`` is guaranteed truthy here (#2675 T054): the caller only
+    # reaches this helper inside the ``if current_lane != Lane.IN_PROGRESS or
+    # needs_agent_assignment or agent:`` branch, and only after the
+    # `--agent required` guard (`if not agent and not (current_lane ==
+    # Lane.IN_PROGRESS and not needs_agent_assignment): raise`) has passed.
+    # The only way to satisfy both is ``agent`` truthy -- the falsy-agent
+    # disjunct of that guard (``current_lane == IN_PROGRESS and not
+    # needs_agent_assignment``) is exactly the case the outer ``if`` already
+    # excludes. Narrow explicitly rather than widen ``set_scalar``'s
+    # parameter type.
+    assert agent, "agent must be non-empty; caller validates this before calling _implement_write_claim_and_commit"
+
     # Update operational metadata in frontmatter (NO lane — event log is sole authority)
     updated_front = wp.frontmatter
     updated_front = set_scalar(updated_front, "agent", agent)
@@ -828,7 +854,7 @@ def implement_claim_transition(
         _implement_trigger_dossier_sync(repo_root, mission_slug)
 
         # Reload to get updated content
-        wp = _wf().locate_work_package(repo_root, mission_slug, normalized_wp_id)
+        wp = _locate_wp(repo_root, mission_slug, normalized_wp_id)
     else:
         print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Action implement will not move it to in_progress.")
 
@@ -867,6 +893,13 @@ def implement_try_render_fix_mode_prompt(
         from specify_cli.review.fix_prompt import generate_fix_prompt
 
         sub_artifact_dir = feature_dir / "tasks" / wp_slug
+        # Declared up front (#2675 T054): ``.from_file(...)`` returns a
+        # non-Optional ``ReviewCycleArtifact`` while ``.latest(...)`` returns
+        # ``ReviewCycleArtifact | None`` -- without this explicit annotation
+        # mypy infers ``latest_artifact``'s type from the first (non-Optional)
+        # branch and flags the second assignment as an incompatible
+        # redefinition.
+        latest_artifact: ReviewCycleArtifact | None
         if review_feedback_ref and review_feedback_ref.startswith("review-cycle://") and review_feedback_file is not None:
             latest_artifact = ReviewCycleArtifact.from_file(review_feedback_file)
         else:
@@ -1191,7 +1224,7 @@ def review_resolve_wp_and_lane_gate(
     w = _wf()
 
     try:
-        wp = _wf().locate_work_package(repo_root, mission_slug, normalized_wp_id)
+        wp = _locate_wp(repo_root, mission_slug, normalized_wp_id)
     except RuntimeError as e:
         if is_missing_canonical_status_error(e):
             raise RuntimeError(missing_canonical_status_message(normalized_wp_id, mission_slug)) from e
@@ -1369,7 +1402,7 @@ def review_claim_transition(
     print(f"✓ Claimed {normalized_wp_id} for review (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
 
     # Reload to get updated content
-    return _wf().locate_work_package(repo_root, mission_slug, normalized_wp_id)
+    return _locate_wp(repo_root, mission_slug, normalized_wp_id)
 
 
 def review_compute_dependents_warning(repo_root: Path, mission_slug: str, normalized_wp_id: str) -> list[str]:
