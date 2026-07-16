@@ -375,3 +375,66 @@ def test_main_selection_ghost_row_is_red(
 def test_audit_passes_on_current_tree() -> None:
     """The committed ``inventory.md`` matches the live scan (both directions green)."""
     assert audit.main() == 0
+
+
+def test_audit_passes_on_current_tree_immune_to_isolated_bite_mutation() -> None:
+    """WP02 (#2638): this scanner is immune to an active isolated bite mutation.
+
+    Root cause this guards against: the companion bite-battery in
+    ``test_single_mission_surface_resolver.py`` used to rewrite the REAL
+    ``mission_creation.py`` in place (restoring it on exit), so a sibling
+    ``pytest-xdist`` worker running THIS scanner — a SEPARATE module instance
+    of the same ``surface_resolution_audit/audit.py``, loaded here as
+    ``audit`` — could observe the injected witness mid-mutation and produce a
+    false RED. WP02 fixed the hazard at the source by isolating the mutation
+    to a tmp copy (``_IsolatedSourceMutation``) that never touches the real
+    file at all.
+
+    This test RELIES ON that same isolation contract (imported from the
+    companion module, not re-implemented here — see WP02 review guidance):
+    while ``_IsolatedSourceMutation`` is actively mutating an isolated tmp
+    copy through a WHOLLY SEPARATE loaded module instance
+    (``_surface_resolution_audit_wp01``), THIS module's own
+    ``discover_rows()`` — which always scans the REAL, un-patched tree via
+    its own root globals, and is the exact dimension the WP02 bite-battery
+    exercises — must return the exact same composite keys as before the
+    mutation started, and the real file's bytes must be untouched.
+
+    Scoped to ``discover_rows()`` rather than ``audit.main()``: ``main()``
+    also drives the read-SELECTION scanner, which a DIFFERENT, pre-existing
+    (out-of-WP02-scope) live-mutation battery
+    (``test_selection_discriminator_is_independent_of_raw_join_scanner``, a
+    real-file mutation of ``agent/context.py``) can race — an unrelated
+    hazard this WP does not claim to fix. Narrowing to ``discover_rows()``
+    keeps this proof targeted at exactly the isolation WP02 introduced.
+    """
+    from tests.architectural.test_single_mission_surface_resolver import (
+        _SRC_SPECIFY_CLI,
+        _IsolatedSourceMutation,
+    )
+    from tests.architectural.test_single_mission_surface_resolver import (
+        _audit_mod as _isolated_audit_mod,
+    )
+
+    baseline_keys = {row.composite_key() for row in audit.discover_rows()}
+    target = _SRC_SPECIFY_CLI / "core" / "mission_creation.py"
+    original_bytes = target.read_bytes()
+    snippet = (
+        "\n\n"
+        "def _wp02_immunity_witness(repo_root, mission_slug):  # noqa: injected T012\n"
+        "    return repo_root / KITTY_SPECS_DIR / mission_slug\n"
+    )
+
+    with _IsolatedSourceMutation(target, snippet, _isolated_audit_mod):
+        assert {row.composite_key() for row in audit.discover_rows()} == baseline_keys, (
+            "#2638 regression: this module's own real-tree discover_rows() "
+            "changed while a SIBLING module instance's isolated bite mutation "
+            "was active — the isolation leaked onto the real tree."
+        )
+        assert target.read_bytes() == original_bytes, (
+            "The real mission_creation.py was rewritten during a supposedly "
+            "isolated mutation window."
+        )
+
+    assert {row.composite_key() for row in audit.discover_rows()} == baseline_keys
+    assert target.read_bytes() == original_bytes
