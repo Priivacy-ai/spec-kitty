@@ -719,11 +719,6 @@ def _combine_dispatch_summaries(
     )
 
 
-def _batch_left_selection_set(summary: DispatchSummary) -> bool:
-    terminal = summary.delivered + summary.duplicate + summary.terminal_failed
-    return summary.selected > terminal
-
-
 def _batch_is_oversized(summary: DispatchSummary) -> bool:
     """Whether a batch was rejected wholesale for exceeding the server size cap.
 
@@ -766,6 +761,7 @@ def _run_dispatch_batches(
 
     combined = DispatchSummary.empty()
     limit = _EVENT_SYNC_DISPATCH_BATCH_LIMIT
+    skip: set[str] = set()
     while True:
         batch = dispatch(
             journal=runtime.journal,
@@ -773,6 +769,7 @@ def _run_dispatch_batches(
             receiver=receiver,
             target=delivery_target,
             limit=limit,
+            exclude=frozenset(skip),
         )
         # Honor the documented "retry with a smaller batch" contract: a
         # byte-oversized batch (HTTP 413, nothing delivered) is halved and
@@ -784,9 +781,15 @@ def _run_dispatch_batches(
             limit = max(1, limit // 2)
             continue
         combined = _combine_dispatch_summaries(combined, batch)
-        if batch.selected < limit:
-            break
-        if _batch_left_selection_set(batch):
+        # Advance past events that made no terminal-success this pass (content
+        # rejections, persistent transient). Skipping them for the REST OF THIS
+        # PASS lets deliverable events behind them drain instead of a poison
+        # batch halting the loop; the ledger keeps them selectable for the next
+        # `sync now`, so the non-terminal retry contract is preserved.
+        before = len(skip)
+        skip.update(failure.event_id for failure in batch.failures)
+        advanced = (batch.delivered + batch.duplicate) > 0 or len(skip) > before
+        if batch.selected == 0 or not advanced:
             break
     return combined
 
