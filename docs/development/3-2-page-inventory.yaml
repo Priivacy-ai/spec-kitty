@@ -2330,6 +2330,12 @@
   owning_workstream: none
   current_target: true
   notes: null
+- path: docs/notes/mission-type-completion-arc-research.md
+  tag: current
+  divio_type: none
+  owning_workstream: none
+  current_target: true
+  notes: null
 - path: docs/notes/runtime-bridge-delegate-classification.md
   tag: current
   divio_type: none
