@@ -19,6 +19,7 @@ reports.
 - [Model-First Schema Generation](model-first-schema-generation.md)
 - [WP & Op Schema Model](wp-op-schema-model.md)
 - [WP & Op Schema Model — Related Open Tracker Tickets](wp-op-schema-related-tickets.md)
+- [WP Prompt & Ops Debrief — Model / Schema Proposal](wp-op-schema-proposal.md)
 
 ## See also
 
