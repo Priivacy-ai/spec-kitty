@@ -1,7 +1,7 @@
 ---
 title: WP & Op Schema Model — Formalising Work-Package and Op Records
-description: 'Design idea: replace markdown-with-frontmatter WP files (and the facts-only Op record) with a code-owned logical model + schema, persisted as YAML/rendered markdown, extending the model-first doctrine-schema precedent to execution and op artefacts.'
-doc_status: idea
+description: 'Design idea + research grounding: formalising WP files and the facts-only Op record via a code-owned logical model + schema. Grounding finds the model ~60-70% already shipped; the real win is a narrow content-hash/field-eviction fix, not a new store.'
+doc_status: grounded
 updated: '2026-07-16'
 ---
 # WP & Op Schema Model
@@ -133,7 +133,121 @@ Op from an ungoverned ad-hoc edit.
    realistic given human-editing workflows and the many agents that read WP
    files? What breaks? What is the smallest first slice that de-risks the rest?
 
-## Next step
+---
 
-The research squad (below) grounds questions 1–4. Its synthesis determines
-whether this becomes a spec, a narrower slice, or a documented "not now".
+# Research Synthesis (2026-07-16)
+
+A three-lens research squad grounded the idea against the code as-is
+(architect-alphonso), the roadmap/vision + ADRs (researcher-robbie), and
+architectural feasibility / whack-a-field risk (paula-patterns). **All three
+converged independently.** Verbatim reports are archived alongside this note;
+the synthesis:
+
+## What the idea gets right (confirmed)
+
+- **The parse-surface sprawl is real and worse than stated.** There are
+  **5 distinct frontmatter parsers** (`frontmatter.py:327`,
+  `template/renderer.py:23`, `task_utils/support.py:191` regex-scraper,
+  `manifest.py:68`, `doc_analysis/gap_analysis.py:83`) and **2 typed WP models**
+  (`status/wp_metadata.py:183` `WPMetadata`; `task_utils/support.py:269`
+  `WorkPackage`, a raw-string regex scraper), across **~49 consumer modules**.
+  Consolidation onto one model is a genuine degodding-shaped win.
+- **The hash-churn pain is confirmed exactly.** The mission **dossier** hashes
+  the **whole WP file as opaque bytes** (`dossier/hasher.py:14`), feeds every
+  `wp*.md` into a parity hash (`dossier/indexer.py:242`,
+  `dossier/snapshot.py`), so *any* inert edit — a subtask checkbox flip, a
+  `history` append — trips drift. Sync's `body_upload.py:52,116,121`
+  whole-file-hashes the same files (`content_hash_mismatch` guard).
+- **The Op intent/scope gap is real.** `OpStartedEvent`/`OpCompletedEvent`
+  (`invocation/record.py:39,65`) persist `request_text` + `action` + `outcome`
+  but no structured **scope / change-surface / reasoning / done-criteria**.
+  Governance context is stored as a *hash*, not readable content. A contract
+  already exists to extend: `contracts/op-record-events.md`.
+- **The model-first machinery is proven and reusable.** `scripts/generate_schemas.py`
+  (10 doctrine schemas, `--check` drift gate) can register `WPMetadata` / the Op
+  models mechanically cheaply.
+
+## What the idea gets wrong / over-scopes (the decisive findings)
+
+1. **The "code-owned model" is ~60–70% already shipped.** `WPMetadata` is
+   *already* a frozen Pydantic v2 model, `extra="forbid"`, ~40 typed fields, and
+   *already the read authority* for 23 modules. The idea proposes building what
+   largely exists. It needs **electing** (make `WP_FIELD_ORDER` and
+   `WorkPackageEntry` *derive* from `WPMetadata`), not inventing.
+2. **"Bookkeeping churn needs a new store" is half-false.** Lane/review status
+   was *already evicted* from the file into the append-only `status.events.jsonl`
+   model (`frontmatter.py:47-49` comment; `status/reducer.py`); the residual
+   lane-in-frontmatter code is stamped **MIGRATION-ONLY**
+   (`task_metadata_validation.py:82,181`). The bookkeeping/semantic split the
+   idea calls its key unblock **is already the shipped architecture** for the
+   fields that churned most. Only `history` + `shell_pid`/`shell_pid_created_at`
+   + prose-body edits still perturb the hash.
+3. **The WP *body* cannot be one-way-derived.** The body IS the agent's work
+   order and is authored by humans *and* agents; the dashboard renders it
+   verbatim and even reads the card title from a body regex in preference to
+   frontmatter (`dashboard/scanner.py:895,950,976`). Only the **index**
+   (`tasks.md`) is safely derived — and *that already is*, generated one-way
+   from `wps.yaml` (`core/wps_manifest.py:170,184`). "Markdown becomes a derived
+   view" is undercut on contact unless it splits *index* from *prompt body*.
+4. **The structured-authoritative precedent already exists and stalled.**
+   `wps.yaml` (code-owned Pydantic + YAML + generated markdown) reached only
+   **5 of 278 missions**. The blocker was never the model — it was authority
+   migration and human/agent editing workflow. Any future "YAML authoritative"
+   push must first answer *why `wps.yaml` didn't win*.
+5. **Whack-a-field risk.** Dropping a new `WPRecord` "single source of truth"
+   next to the existing three field lists (`frontmatter.py:49`,
+   `wps_manifest.py:16`, `wp_metadata.py:197` — which already drift, held in sync
+   by a hand-maintained comment tax) makes **four** authorities, not one. The
+   prerequisite is unifying the existing three *first*.
+
+## Prior art — this ground is largely already owned
+
+- **#2093 / #2400 (WP-metadata authority split)** — *already adjudicated*
+  (REWORK-staged). It decided the semantic-vs-bookkeeping split **the opposite
+  way on authority**: static design-intent **stays frontmatter-canonical**;
+  dynamic runtime state (`agent`/`shell_pid`/`history`/reviews) retires to the
+  event log. This must be **reconciled with, not re-litigated**.
+- **ADR 2026-06-11-1 + epic #1804 (Op as first-class artifact)** — owns the Op
+  record shape and its enrichment, C-005 **no-parallel-primitive**. An Op
+  intent/scope field belongs here as a field extension; a separate
+  "small-WP-for-an-Op" primitive would re-open the exact divergence the ADR
+  closes. Must also respect `MinimalViableTrailPolicy` (`record.py:128`) — scope
+  is **opt-in Tier-2**, not mandatory.
+- **ADR 2026-06-06-1 + `wps.yaml`** — already a structured, `extra="forbid"`
+  machine-readable WP manifest. **ADR 2026-06-07-1 / status event model** — lane
+  already event-owned. The "no code-owned model exists" premise is only half
+  true.
+
+## Sequencing — this is a downstream consumer, not a peer of the current wave
+
+The 3.2.x milestone posture is explicitly **"no new shadow paths / adopt don't
+build."** This idea is a *consumer* of #1868 (seam-binding), #2173 (ports),
+#1797 (degod), and #2468's keystone #2467 — it belongs **behind** them, ideally
+expressed *as* a #2173-style port over WP/Op parsing. Critically, **#1619
+(runtime/state overhaul) is actively re-cutting the WP/Mission/MissionRun
+aggregate model** (its domain dialectic is unsettled — refutations at the
+consolidation gate); formalising a WP logical model now front-runs a domain map
+mid-revision.
+
+## Disposition — **document, narrow, re-parent. Not "spec now."**
+
+The instinct (code-owned models + model-first schemas) is the house style and
+on-direction, but the note as written is deflated: its two headline
+justifications are already owned, one decided the opposite way on authority.
+Recommended path, smallest-blast-radius first:
+
+| # | Slice | Owner / parent | Risk |
+|---|-------|----------------|------|
+| **0** | **Tidy-first:** unify the 3 field lists — make `WP_FIELD_ORDER` + `WorkPackageEntry` derive from `WPMetadata`; register `WPMetadata` in `generate_schemas.py`. Pure debt, no behaviour change. | degod / #1797 lineage | low |
+| **1** | **Semantic-only content-address:** hash a normalized `WPMetadata` projection (drop `history`/`shell_pid*`, normalize body) instead of raw bytes in `dossier/{hasher,indexer}.py` + `sync/body_upload.py`. **Kills the hash-churn pain with no authority migration, no markdown rewrite.** Highest signal. | dossier / sync | low–med |
+| **2** | Retire the `WorkPackage` regex scraper (`task_utils/support.py:269`) onto `WPMetadata`. | degod | low |
+| **3** | **Independent:** add an *optional* structured `scope`/`intent` field to `OpStartedEvent`, respecting `MinimalViableTrailPolicy`. Do **not** bundle with WP work. | ADR 2026-06-11-1 / **#1804** | low |
+| **X** | Full "YAML authoritative, markdown-body derived." | **Deferred** — needs `wps.yaml` post-mortem + #1619 aggregate boundaries settled + #2093/#2400 reconciliation. | high |
+
+**Reconcile-before-spec, in priority order:** (1) #2093/#2400 authority
+decision; (2) ADR 2026-06-11-1 / #1804 for the Op half; (3) #1619 aggregate
+model; (4) #1868/#2173/#1797/#2468 sequencing.
+
+Slices 0–3 are legitimate, low-risk, and mostly filable as reconciliation items
+under existing epics rather than a new construction mission. Slice X is the only
+part matching the note's original ambition, and it is explicitly **not now**.
