@@ -21,6 +21,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
+from charter.bundle import compute_bundle_content_hash
 from charter.hasher import hash_content
 
 pytestmark = [pytest.mark.integration]
@@ -85,9 +86,19 @@ def _write_charter_and_metadata(
         (charter_dir / name).write_text("schema_version: '1'\n", encoding="utf-8")
 
 
-def _write_manifest(repo: Path, *, built_in_only: bool) -> None:
+def _write_manifest(
+    repo: Path,
+    *,
+    built_in_only: bool,
+    bundle_content_hash: str | None = None,
+) -> None:
     path = repo / ".kittify" / "charter" / "synthesis-manifest.yaml"
     path.parent.mkdir(parents=True, exist_ok=True)
+    hash_line = (
+        f"bundle_content_hash: {bundle_content_hash}\n"
+        if bundle_content_hash is not None
+        else "bundle_content_hash: null\n"
+    )
     path.write_text(
         dedent(
             f"""\
@@ -102,7 +113,8 @@ def _write_manifest(repo: Path, *, built_in_only: bool) -> None:
             artifacts: []
             built_in_only: {str(built_in_only).lower()}
             """
-        ),
+        )
+        + hash_line,
         encoding="utf-8",
     )
 
@@ -155,19 +167,24 @@ def test_payload_includes_freshness_with_three_sub_objects(tmp_path: Path) -> No
 
 
 def test_freshness_state_fresh_when_all_artifacts_aligned(tmp_path: Path) -> None:
+    """Tightened per research fact #21: the old ``in {"fresh", "stale"}``
+    assertion was a live SYMPTOM of the #2681 mtime-comparison bug (it
+    admitted ``stale`` because the mtime rule was nondeterministic). Now
+    that ``bundle_content_hash`` is content-identity, a manifest whose
+    stored hash matches the real bundle content is unambiguously ``fresh``.
+    """
     _seed_minimum_repo(tmp_path)
     _write_charter_and_metadata(tmp_path)
-    _write_manifest(tmp_path, built_in_only=False)
+    bundle_content_hash = compute_bundle_content_hash(tmp_path)
+    assert bundle_content_hash is not None
+    _write_manifest(tmp_path, built_in_only=False, bundle_content_hash=bundle_content_hash)
     _write_graph(tmp_path)
 
     payload = _invoke_status_json(tmp_path)
     freshness = payload["freshness"]
     assert freshness["charter_source"]["state"] == "fresh"
     assert freshness["synced_bundle"]["state"] == "fresh"
-    assert freshness["synthesized_drg"]["state"] in {"fresh", "stale"}
-    # NOTE: "stale" is acceptable here because mtime ordering between
-    # bundle and manifest depends on test-machine clock; "fresh" or "stale"
-    # both prove the computer ran.  We assert the strict case below.
+    assert freshness["synthesized_drg"]["state"] == "fresh"
 
 
 def test_freshness_state_stale_when_hash_mismatch(tmp_path: Path) -> None:
@@ -180,6 +197,9 @@ def test_freshness_state_stale_when_hash_mismatch(tmp_path: Path) -> None:
 
 
 def test_freshness_state_missing_when_no_synthesis_artifacts(tmp_path: Path) -> None:
+    """Preserved by the #2681 fix — the ``missing`` branch sits above the
+    content-hash comparison. A regress here means T015 touched a branch it
+    should not have."""
     _seed_minimum_repo(tmp_path)
     _write_charter_and_metadata(tmp_path)
     payload = _invoke_status_json(tmp_path)
@@ -189,6 +209,9 @@ def test_freshness_state_missing_when_no_synthesis_artifacts(tmp_path: Path) -> 
 
 
 def test_freshness_state_built_in_only_when_manifest_marks_it(tmp_path: Path) -> None:
+    """Preserved by the #2681 fix — ``built_in_only`` short-circuits BEFORE
+    the content-hash comparison. A regress here means T015 touched a branch
+    it should not have."""
     _seed_minimum_repo(tmp_path)
     _write_charter_and_metadata(tmp_path)
     _write_manifest(tmp_path, built_in_only=True)

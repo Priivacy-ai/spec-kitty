@@ -19,6 +19,7 @@ Covers each documented sub-state:
 
 from __future__ import annotations
 
+import os
 import time
 from pathlib import Path
 from textwrap import dedent
@@ -30,7 +31,15 @@ from specify_cli.charter_runtime.freshness import (
     FreshnessSubState,
     compute_freshness,
 )
+from charter.bundle import BUNDLE_CONTENT_HASH_FILES, compute_bundle_content_hash
 from charter.hasher import hash_content
+from charter.synthesizer import (
+    FixtureAdapter,
+    SynthesisRequest,
+    SynthesisTarget,
+    synthesize,
+)
+from charter.synthesizer.resynthesize_pipeline import run as resynthesize_run
 
 
 pytestmark = [pytest.mark.fast]
@@ -75,9 +84,15 @@ def _seed_manifest(
     *,
     built_in_only: bool,
     created_at: str = "2099-01-01T00:00:00+00:00",
+    bundle_content_hash: str | None = None,
 ) -> Path:
     manifest_path = repo / ".kittify" / "charter" / "synthesis-manifest.yaml"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    hash_line = (
+        f"bundle_content_hash: {bundle_content_hash}\n"
+        if bundle_content_hash is not None
+        else "bundle_content_hash: null\n"
+    )
     manifest_path.write_text(
         dedent(
             f"""\
@@ -92,10 +107,21 @@ def _seed_manifest(
             artifacts: []
             built_in_only: {str(built_in_only).lower()}
             """
-        ),
+        )
+        + hash_line,
         encoding="utf-8",
     )
     return manifest_path
+
+
+def _seed_full_bundle(repo: Path) -> tuple[Path, Path]:
+    """Seed charter.md + metadata.yaml + the remaining three bundle files —
+    the complete ``BUNDLE_CONTENT_HASH_FILES`` set (fact #20) required for a
+    meaningful ``compute_bundle_content_hash`` comparison."""
+    charter_path, metadata_path = _seed_charter(repo)
+    _write_metadata(metadata_path, charter_path)
+    _seed_bundle_files(repo)
+    return charter_path, metadata_path
 
 
 def _seed_graph(repo: Path) -> Path:
@@ -103,6 +129,100 @@ def _seed_graph(repo: Path) -> Path:
     graph_path.parent.mkdir(parents=True, exist_ok=True)
     graph_path.write_text("schema_version: '1.0'\nnodes: []\nedges: []\n", encoding="utf-8")
     return graph_path
+
+
+def _bump_bundle_mtimes_to_future(repo: Path, *, offset_seconds: float = 100.0) -> None:
+    """Simulate a git checkout/rebase/clone/machine-migration bumping bundle
+    mtimes into the future with NO content change — the exact #2681 symptom.
+    A deterministic future offset (rather than relying on real elapsed
+    wall-clock time between calls) keeps the reproduction stable regardless
+    of how fast the test machine runs."""
+    bump = time.time() + offset_seconds
+    for name in BUNDLE_CONTENT_HASH_FILES:
+        os.utime(repo / ".kittify" / "charter" / name, (bump, bump))
+
+
+# ---------------------------------------------------------------------------
+# Real synthesize/resynthesize pipeline fixtures (AS-5 / SC-003 e2e proofs)
+#
+# ``synthesize()``/``resynthesize`` do not themselves write
+# ``.kittify/charter/{governance,directives,references,metadata}.yaml`` (fact
+# #20, ``bundle.py`` provenance — those are ``charter sync``'s output), so
+# tests that need a real ``bundle_content_hash`` must seed them directly.
+# These fixtures duplicate (rather than import) the pattern used by
+# ``tests/charter/synthesizer/test_orchestrator_resynthesize.py`` — WP03 does
+# not edit that WP02-owned file.
+# ---------------------------------------------------------------------------
+
+
+_SYNTH_FIXTURE_ROOT = Path(__file__).resolve().parent.parent.parent / "charter" / "fixtures" / "synthesizer"
+
+
+def _seed_pipeline_bundle_files(repo: Path) -> None:
+    """Seed charter.md + the four content-hash bundle files ahead of a real
+    pipeline run.
+
+    ``metadata.yaml`` is BOTH one of ``BUNDLE_CONTENT_HASH_FILES`` AND the
+    file ``_compute_charter_source`` reads for ``charter_hash`` — it must
+    carry a hash that actually matches ``charter.md``, or ``charter_source``
+    (and therefore ``synced_bundle``) reads as ``missing``/``stale`` and the
+    PRESERVED ``synced_bundle``-precedence branch short-circuits
+    ``synthesized_drg`` to ``stale`` before the content-hash comparison this
+    fixture exists to exercise ever runs.
+    """
+    charter_path, metadata_path = _seed_charter(repo)
+    _write_metadata(metadata_path, charter_path)
+    for name in BUNDLE_CONTENT_HASH_FILES:
+        if name == "metadata.yaml":
+            continue
+        (repo / ".kittify" / "charter" / name).write_text(
+            f"# {name} fixture content\n", encoding="utf-8"
+        )
+
+
+def _synth_adapter() -> FixtureAdapter:
+    return FixtureAdapter(fixture_root=_SYNTH_FIXTURE_ROOT)
+
+
+def _base_synthesis_request(run_id: str) -> SynthesisRequest:
+    target = SynthesisTarget(
+        kind="directive",
+        slug="mission-type-scope-directive",
+        title="Mission Type Scope Directive",
+        artifact_id="PROJECT_001",
+        source_section="mission_type",
+    )
+    return SynthesisRequest(
+        target=target,
+        interview_snapshot={
+            "mission_type": "software_dev",
+            "language_scope": ["python"],
+            "testing_philosophy": "test-driven development with high coverage",
+            "neutrality_posture": "balanced",
+            "selected_directives": ["DIRECTIVE_003"],
+            "risk_appetite": "moderate",
+        },
+        doctrine_snapshot={
+            "directives": {
+                "DIRECTIVE_003": {
+                    "id": "DIRECTIVE_003",
+                    "title": "Decision Documentation",
+                    "body": "Document significant architectural decisions via ADRs.",
+                }
+            },
+            "tactics": {},
+            "styleguides": {},
+        },
+        drg_snapshot={
+            "nodes": [
+                {"urn": "directive:DIRECTIVE_003", "kind": "directive", "id": "DIRECTIVE_003"},
+            ],
+            "edges": [],
+            "schema_version": "1",
+        },
+        run_id=run_id,
+        adapter_hints={"language": "python"},
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -202,6 +322,10 @@ def test_synced_bundle_fresh_when_matching_hash_but_bundle_mtime_older(tmp_path:
 
 
 def test_synthesized_drg_missing_when_no_graph_no_manifest(tmp_path: Path) -> None:
+    """Preserved by the #2681 fix — the ``missing`` branch (no ``graph.yaml``,
+    no built-in-only opt-in, no legacy seed marker) sits above the
+    content-hash comparison. A regress here means T015 touched a branch it
+    should not have."""
     charter_path, metadata_path = _seed_charter(tmp_path)
     _write_metadata(metadata_path, charter_path)
     _seed_bundle_files(tmp_path)
@@ -211,6 +335,9 @@ def test_synthesized_drg_missing_when_no_graph_no_manifest(tmp_path: Path) -> No
 
 
 def test_synthesized_drg_built_in_only_when_manifest_declares_it(tmp_path: Path) -> None:
+    """Preserved by the #2681 fix (data-model.md): ``built_in_only`` short-
+    circuits BEFORE the content-hash comparison. A regress here means T015
+    touched a branch it should not have."""
     charter_path, metadata_path = _seed_charter(tmp_path)
     _write_metadata(metadata_path, charter_path)
     _seed_bundle_files(tmp_path)
@@ -221,6 +348,9 @@ def test_synthesized_drg_built_in_only_when_manifest_declares_it(tmp_path: Path)
 
 
 def test_synthesized_drg_built_in_only_for_legacy_fresh_seed(tmp_path: Path) -> None:
+    """Preserved by the #2681 fix — the legacy-fresh-seed branch sits above
+    the content-hash comparison and is untouched by T015. A regress here
+    means T015 touched a branch it should not have."""
     charter_path, metadata_path = _seed_charter(tmp_path)
     _write_metadata(metadata_path, charter_path)
     _seed_bundle_files(tmp_path)
@@ -246,6 +376,10 @@ def test_synthesized_drg_residue_reports_built_in_only(tmp_path: Path) -> None:
     ``built_in_only`` state with a non-blocking diagnostic instead of the
     formerly-terminal ``invalid`` state — making the blocking branch
     unreachable for this condition (structural, not reactive).
+
+    Preserved by the #2681 fix — this branch also sits above the
+    content-hash comparison. A regress here means T015 touched a branch it
+    should not have.
     """
     charter_path, metadata_path = _seed_charter(tmp_path)
     _write_metadata(metadata_path, charter_path)
@@ -261,14 +395,194 @@ def test_synthesized_drg_residue_reports_built_in_only(tmp_path: Path) -> None:
     assert result.synthesized_drg.remediation is None
 
 
+def test_synthesized_drg_stale_when_synced_bundle_not_fresh(tmp_path: Path) -> None:
+    """Preserved precedence branch (data-model.md): an upstream-stale
+    ``synced_bundle`` short-circuits ``synthesized_drg`` to ``stale`` BEFORE
+    any content-hash comparison runs — even when the stored
+    ``bundle_content_hash`` still matches the current bundle content. A
+    regress here means T015 touched a branch it should not have."""
+    charter_path, metadata_path = _seed_charter(tmp_path)
+    _write_metadata(metadata_path, charter_path)
+    _seed_bundle_files(tmp_path)
+    _seed_graph(tmp_path)
+    real_hash = compute_bundle_content_hash(tmp_path)
+    assert real_hash is not None
+    _seed_manifest(tmp_path, built_in_only=False, bundle_content_hash=real_hash)
+
+    # Drift the charter (without updating metadata) so charter_source, and
+    # therefore synced_bundle, goes stale — even though bundle_content_hash
+    # itself still matches the (untouched) bundle files.
+    time.sleep(0.01)
+    charter_path.write_text("# Charter (drifted)\n", encoding="utf-8")
+
+    result = compute_freshness(tmp_path)
+
+    assert result.synced_bundle.state == "stale"
+    assert result.synthesized_drg.state == "stale"
+    assert result.synthesized_drg.remediation == "spec-kitty charter synthesize"
+
+
 def test_synthesized_drg_fresh_when_graph_followed_bundle(tmp_path: Path) -> None:
     charter_path, metadata_path = _seed_charter(tmp_path)
     _write_metadata(metadata_path, charter_path)
     _seed_bundle_files(tmp_path)
-    _seed_manifest(tmp_path, built_in_only=False)
     _seed_graph(tmp_path)
+    real_hash = compute_bundle_content_hash(tmp_path)
+    assert real_hash is not None
+    _seed_manifest(tmp_path, built_in_only=False, bundle_content_hash=real_hash)
     result = compute_freshness(tmp_path)
     assert result.synthesized_drg.state == "fresh"
+
+
+# ---------------------------------------------------------------------------
+# Content-identity comparison (WP03 / #2681 reader swap)
+# ---------------------------------------------------------------------------
+
+
+def test_synthesized_drg_fresh_after_mtime_only_bump(tmp_path: Path) -> None:
+    """AS-1 (fresh survives mtime perturbation).
+
+    A realistic past-dated ``created_at`` (e.g. ``2026-01-01…``, NOT the
+    ``2099-…`` sentinel — NFR-006) loses to a bumped bundle mtime under the
+    old ``manifest_ts + 1.0 < bundle_ts`` rule, so the pre-swap (still-mtime)
+    reader wrongly reports ``stale`` here. GREEN after T015 swaps the
+    comparison to content-identity — WP03's load-bearing per-WP red pin.
+    """
+    _seed_full_bundle(tmp_path)
+    _seed_graph(tmp_path)
+    real_hash = compute_bundle_content_hash(tmp_path)
+    assert real_hash is not None
+    _seed_manifest(
+        tmp_path,
+        built_in_only=False,
+        created_at="2026-01-01T00:00:00+00:00",  # realistic past date, NOT 2099
+        bundle_content_hash=real_hash,
+    )
+
+    _bump_bundle_mtimes_to_future(tmp_path)
+
+    result = compute_freshness(tmp_path)
+
+    assert result.synthesized_drg.state == "fresh"
+
+
+def test_synthesized_drg_stale_when_bundle_content_genuinely_changed(tmp_path: Path) -> None:
+    """AS-2 pin (fact #22): a genuine bundle-content edit is still ``stale``.
+
+    May coincidentally pass on the pre-swap mtime reader too (editing
+    content also bumps mtime) — its regression power activates once the
+    content-hash reader lands; it is NOT the red-first proof (see AS-1 for
+    that).
+    """
+    _seed_full_bundle(tmp_path)
+    _seed_graph(tmp_path)
+    real_hash = compute_bundle_content_hash(tmp_path)
+    assert real_hash is not None
+    _seed_manifest(
+        tmp_path,
+        built_in_only=False,
+        created_at="2026-01-01T00:00:00+00:00",
+        bundle_content_hash=real_hash,
+    )
+
+    # Genuinely edit bundle CONTENT (not just mtime) without re-seeding the
+    # manifest's stored hash.
+    governance_path = tmp_path / ".kittify" / "charter" / "governance.yaml"
+    governance_path.write_text("schema_version: '1'\nchanged: true\n", encoding="utf-8")
+
+    result = compute_freshness(tmp_path)
+
+    assert result.synthesized_drg.state == "stale"
+
+
+def test_synthesized_drg_2681_repro_cleared_via_synthesize(tmp_path: Path) -> None:
+    """AS-5 (#2681 full repro, ``synthesize`` entry point).
+
+    synthesize once -> a no-op-stable run occurs -> a git-style mtime bump
+    (content unchanged) -> the pre-swap reader wrongly reports ``stale`` and
+    STAYS stuck ``stale`` even after a ``synthesize`` remediation attempt
+    (remediation's own fresh ``created_at`` still lags the artificially
+    future-bumped bundle mtime — the exact #2681 "stuck stale" symptom).
+    RED on the pre-swap reader (both assertions below fail); GREEN after
+    T015 — one of WP03's two load-bearing per-WP red pins (with AS-1).
+    """
+    _seed_pipeline_bundle_files(tmp_path)
+    adapter = _synth_adapter()
+    synthesize(_base_synthesis_request("01AAAAAAAAAAAAAAAAAAAAAAAA"), adapter=adapter, repo_root=tmp_path)
+    # No-op-stable run: fresh run_id, identical inputs (#1912/#1914).
+    synthesize(_base_synthesis_request("01BBBBBBBBBBBBBBBBBBBBBBBB"), adapter=adapter, repo_root=tmp_path)
+
+    _bump_bundle_mtimes_to_future(tmp_path)
+
+    # Content unchanged by the mtime bump alone -> must already read fresh
+    # (AS-1's guarantee, exercised here inside the full #2681 timeline).
+    assert compute_freshness(tmp_path).synthesized_drg.state == "fresh"
+
+    # Remediation via `synthesize` -- must not leave the DRG stuck stale.
+    synthesize(_base_synthesis_request("01CCCCCCCCCCCCCCCCCCCCCCCC"), adapter=adapter, repo_root=tmp_path)
+
+    assert compute_freshness(tmp_path).synthesized_drg.state == "fresh"
+
+
+def test_synthesized_drg_2681_repro_cleared_via_resynthesize(tmp_path: Path) -> None:
+    """AS-5 (#2681 full repro, ``resynthesize`` entry point) — separate fresh
+    fixture, mirrors the ``synthesize`` case above via
+    ``resynthesize_pipeline.run``. RED-then-GREEN alongside AS-1 (NFR-006:
+    BOTH entry points covered)."""
+    _seed_pipeline_bundle_files(tmp_path)
+    adapter = _synth_adapter()
+    synthesize(_base_synthesis_request("01DDDDDDDDDDDDDDDDDDDDDDDD"), adapter=adapter, repo_root=tmp_path)
+    synthesize(_base_synthesis_request("01EEEEEEEEEEEEEEEEEEEEEEEE"), adapter=adapter, repo_root=tmp_path)
+
+    _bump_bundle_mtimes_to_future(tmp_path)
+
+    assert compute_freshness(tmp_path).synthesized_drg.state == "fresh"
+
+    resynthesize_run(
+        request=_base_synthesis_request("01FFFFFFFFFFFFFFFFFFFFFFFF"),
+        adapter=adapter,
+        topic="tactic:how-we-apply-directive-003",
+        repo_root=tmp_path,
+    )
+
+    assert compute_freshness(tmp_path).synthesized_drg.state == "fresh"
+
+
+def test_synthesized_drg_remediation_clears_genuine_content_change(tmp_path: Path) -> None:
+    """Genuine-content-change remediation e2e (SC-003/AS-3 full proof).
+
+    fresh -> edit ``governance.yaml`` CONTENT -> stale -> ``synthesize`` ->
+    fresh; repeat the stale -> ``resynthesize`` -> fresh cycle. Proves
+    WP02's writer recompute AND WP03's reader compose end-to-end — fails if
+    either half is broken.
+    """
+    _seed_pipeline_bundle_files(tmp_path)
+    adapter = _synth_adapter()
+    synthesize(_base_synthesis_request("01GGGGGGGGGGGGGGGGGGGGGGGG"), adapter=adapter, repo_root=tmp_path)
+
+    assert compute_freshness(tmp_path).synthesized_drg.state == "fresh"
+
+    governance_path = tmp_path / ".kittify" / "charter" / "governance.yaml"
+    governance_path.write_text(
+        governance_path.read_text(encoding="utf-8") + "# drift-marker\n", encoding="utf-8"
+    )
+    assert compute_freshness(tmp_path).synthesized_drg.state == "stale"
+
+    synthesize(_base_synthesis_request("01HHHHHHHHHHHHHHHHHHHHHHHH"), adapter=adapter, repo_root=tmp_path)
+    assert compute_freshness(tmp_path).synthesized_drg.state == "fresh"
+
+    governance_path.write_text(
+        governance_path.read_text(encoding="utf-8") + "# drift-marker-2\n", encoding="utf-8"
+    )
+    assert compute_freshness(tmp_path).synthesized_drg.state == "stale"
+
+    resynthesize_run(
+        request=_base_synthesis_request("01JJJJJJJJJJJJJJJJJJJJJJJJ"),
+        adapter=adapter,
+        topic="tactic:how-we-apply-directive-003",
+        repo_root=tmp_path,
+    )
+    assert compute_freshness(tmp_path).synthesized_drg.state == "fresh"
 
 
 def test_to_dict_shape_matches_contract(tmp_path: Path) -> None:

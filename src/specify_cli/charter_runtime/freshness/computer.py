@@ -7,9 +7,15 @@ Detection rules (per ``contracts/charter-status-json.md``):
 * ``synced_bundle.state = "stale"`` when any bundle file mtime is older than
   ``charter_source.last_change``.
 * ``synthesized_drg.state = "stale"`` when the synthesis manifest's
-  ``run_id`` references inputs whose mtime is older than
-  ``synced_bundle.last_change`` (proxy: the synthesis manifest's
-  ``created_at`` is older than the latest bundle mtime).
+  ``bundle_content_hash`` does not match a freshly recomputed content-identity
+  hash of the current synced bundle (``governance.yaml``, ``directives.yaml``,
+  ``references.yaml``, ``metadata.yaml`` under ``.kittify/charter/``, via
+  ``charter.bundle.compute_bundle_content_hash``) — a content comparison, not
+  a timestamp comparison. A manifest that predates this field (missing
+  ``bundle_content_hash``) is treated the same as a mismatch: ``stale``,
+  self-healing to ``fresh`` on the next ``spec-kitty charter synthesize`` or
+  ``spec-kitty charter resynthesize`` run. This comparison only runs once
+  ``synced_bundle.state == "fresh"`` (see the precedence rule below).
 * ``synthesized_drg.state = "missing"`` when ``.kittify/doctrine/graph.yaml``
   is absent AND the manifest does not declare ``built_in_only: true``.
 * ``synthesized_drg.state = "built_in_only"`` when the manifest declares
@@ -349,7 +355,6 @@ def _compute_synthesized_drg(
 
     built_in_only = bool(manifest.built_in_only) if manifest is not None else False
     graph_exists = graph_path.exists()
-    manifest_exists = manifest is not None
 
     legacy_fresh_seed = repo_root / _doctrine_dir() / "PROVENANCE.md"
 
@@ -408,32 +413,13 @@ def _compute_synthesized_drg(
             remediation="spec-kitty charter synthesize",
         )
 
-    try:
-        bundle_ts = datetime.fromisoformat(synced_bundle.last_change).timestamp()
-    except ValueError:
-        return FreshnessSubState(state="fresh", last_change=graph_mtime_iso, remediation=None)
+    # NFR-003: defer the ``charter.bundle`` import until this branch actually
+    # needs it, keeping it off the ``spec-kitty next`` startup hot path (LD-3).
+    from charter.bundle import compute_bundle_content_hash  # noqa: PLC0415
 
-    # Prefer the manifest's created_at when present (more precise than file
-    # mtime); fall back to graph mtime.
-    manifest_ts: float | None = None
-    if manifest is not None:
-        created_at = manifest.created_at
-        try:
-            manifest_ts = datetime.fromisoformat(created_at).timestamp()
-        except ValueError:
-            manifest_ts = None
-    if manifest_ts is None and manifest_exists:
-        try:
-            manifest_ts = manifest_path.stat().st_mtime
-        except OSError:
-            manifest_ts = None
-    if manifest_ts is None:
-        try:
-            manifest_ts = graph_path.stat().st_mtime
-        except OSError:
-            manifest_ts = None
-
-    if manifest_ts is not None and manifest_ts + 1.0 < bundle_ts:
+    current_hash = compute_bundle_content_hash(repo_root)
+    stored_hash = manifest.bundle_content_hash if manifest is not None else None
+    if stored_hash is None or current_hash is None or stored_hash != current_hash:
         return FreshnessSubState(
             state="stale",
             last_change=graph_mtime_iso,
