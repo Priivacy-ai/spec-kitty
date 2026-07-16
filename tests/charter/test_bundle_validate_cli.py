@@ -142,6 +142,14 @@ def _add_synthesis_manifest(
 
     manifest_path = repo_root / ".kittify" / "charter" / "synthesis-manifest.yaml"
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    # ``built_in_only: false`` is written to disk so the on-disk field set
+    # matches the ``data_without_hash`` dict the manifest_hash was computed
+    # over (disk-shape == hash-input-shape, like a real legacy-v2 manifest).
+    # Omitting it here left the per-field ``verify_manifest_hash`` fallback
+    # recomputing over an on-disk set that lacked ``built_in_only`` → mismatch
+    # once WP01's ``bundle_content_hash`` broke the lenient primary check that
+    # previously masked the inconsistency. ``bundle_content_hash`` stays absent
+    # (correct for a legacy-v2 manifest — the field post-dates schema "2").
     manifest_path.write_text(
         f"adapter_id: fixture\n"
         f"adapter_version: 1.0.0\n"
@@ -151,6 +159,7 @@ def _add_synthesis_manifest(
         f"  path: {full_artifact_rel}\n"
         f"  provenance_path: {provenance_rel}\n"
         f"  slug: {slug}\n"
+        f"built_in_only: false\n"
         f"created_at: '2026-04-30T00:00:00+00:00'\n"
         f"manifest_hash: {manifest_hash}\n"
         f"mission_id: null\n"

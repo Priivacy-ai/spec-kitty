@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
-from typing import Any
 
 
 from charter.bundle import (
@@ -34,6 +33,7 @@ from charter.synthesizer.manifest import (
     ManifestArtifactEntry,
     SynthesisManifest,
     dump_yaml as dump_manifest,
+    finalize_manifest,
 )
 from charter.synthesizer.path_guard import PathGuard
 
@@ -86,53 +86,48 @@ def _make_v2_manifest(
     adapter_id: str = "fixture",
     adapter_version: str = "1.0.0",
 ) -> SynthesisManifest:
-    """Build a valid v2 SynthesisManifest with computed manifest_hash."""
-    data_without_hash: dict[str, Any] = {
-        "schema_version": "2",
-        "mission_id": None,
-        "created_at": created_at,
-        "run_id": run_id,
-        "adapter_id": adapter_id,
-        "adapter_version": adapter_version,
-        "synthesizer_version": "3.2.0a5",
-        "artifacts": [a.model_dump(mode="python") for a in artifacts],
-        "built_in_only": False,
-    }
-    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()  # noqa: TID251 — charter synthesizer's own manifest/content-hash scheme, not charter.hasher.hash_content() freshness
-    return SynthesisManifest(
-        created_at=created_at,
-        run_id=run_id,
-        adapter_id=adapter_id,
-        adapter_version=adapter_version,
-        synthesizer_version="3.2.0a5",
-        manifest_hash=manifest_hash,
-        artifacts=artifacts,
+    """Build a valid SynthesisManifest with a self-consistent manifest_hash.
+
+    The ``manifest_hash`` is derived from the FULL model instance via the
+    canonical :func:`finalize_manifest`, so the on-disk shape written by
+    ``dump_manifest`` (``model_dump``) matches exactly what the hash was
+    computed over — disk-shape == hash-input-shape, like a real manifest.
+    (A prior hand-rolled ``data_without_hash`` dict hardcoded
+    ``schema_version: "2"`` and omitted ``bundle_content_hash``, diverging
+    from the model's current shape once WP01/WP02 added the field / bumped
+    the default; the old lenient primary check masked it, but the generalized
+    per-field ``verify_manifest_hash`` fallback correctly rejects it.)
+    """
+    return finalize_manifest(
+        SynthesisManifest(
+            created_at=created_at,
+            run_id=run_id,
+            adapter_id=adapter_id,
+            adapter_version=adapter_version,
+            synthesizer_version="3.2.0a5",
+            manifest_hash="0" * 64,
+            artifacts=artifacts,
+        )
     )
 
 
 def _make_fresh_seed_manifest() -> SynthesisManifest:
-    """Build a valid built_in_only=True manifest with no synthesized artifacts."""
-    data_without_hash: dict[str, Any] = {
-        "schema_version": "2",
-        "mission_id": None,
-        "created_at": "1970-01-01T00:00:00+00:00",
-        "run_id": "fresh-project-seed",
-        "adapter_id": "fresh-seed",
-        "adapter_version": "3.2.0rc44",
-        "synthesizer_version": "3.2.0rc44",
-        "artifacts": [],
-        "built_in_only": True,
-    }
-    manifest_hash = hashlib.sha256(canonical_yaml(data_without_hash)).hexdigest()  # noqa: TID251 — charter synthesizer's manifest self-hash scheme
-    return SynthesisManifest(
-        created_at="1970-01-01T00:00:00+00:00",
-        run_id="fresh-project-seed",
-        adapter_id="fresh-seed",
-        adapter_version="3.2.0rc44",
-        synthesizer_version="3.2.0rc44",
-        manifest_hash=manifest_hash,
-        artifacts=[],
-        built_in_only=True,
+    """Build a valid built_in_only=True manifest with no synthesized artifacts.
+
+    Uses the canonical :func:`finalize_manifest` so the self-hash matches the
+    ``model_dump`` disk shape (see :func:`_make_v2_manifest`).
+    """
+    return finalize_manifest(
+        SynthesisManifest(
+            created_at="1970-01-01T00:00:00+00:00",
+            run_id="fresh-project-seed",
+            adapter_id="fresh-seed",
+            adapter_version="3.2.0rc44",
+            synthesizer_version="3.2.0rc44",
+            manifest_hash="0" * 64,
+            artifacts=[],
+            built_in_only=True,
+        )
     )
 
 
