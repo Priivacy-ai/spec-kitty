@@ -1,0 +1,334 @@
+schema_version: 1
+mission_id: 01KXKY2NEGZKPW556M7SVN1RR0
+mission_slug: mission-type-drg-edges-01KXKY2N
+mission_number: 180
+friendly_name: Mission-Type DRG Edges
+mission_type: software-dev
+target_branch: feat/mission-type-drg-edges
+created_at: '2026-07-16T13:58:54.183330+00:00'
+created_by:
+  kind: runtime
+  id: spec-kitty-generator
+  display: Spec Kitty Generator
+provenance:
+  kind: runtime_post_completion
+  invoked_at: '2026-07-16T13:58:54.183330+00:00'
+  policy_resolved_from:
+    enabled: <default>
+    timing: <default>
+    failure_policy: <default>
+    write_record: <default>
+    generate_proposals: <default>
+    apply_proposals: <default>
+    permissions.write_record: <default>
+    permissions.inspect_mission_artifacts: <default>
+    permissions.propose_glossary_changes: <default>
+    permissions.propose_drg_changes: <default>
+    permissions.propose_doctrine_changes: <default>
+    permissions.apply_low_risk_changes: <default>
+    permissions.apply_structural_changes: <default>
+    precedence: <default>
+    generator: <default>
+policy_source:
+  enabled: <default>
+  timing: <default>
+  failure_policy: <default>
+  write_record: <default>
+  generate_proposals: <default>
+  apply_proposals: <default>
+  permissions.write_record: <default>
+  permissions.inspect_mission_artifacts: <default>
+  permissions.propose_glossary_changes: <default>
+  permissions.propose_drg_changes: <default>
+  permissions.propose_doctrine_changes: <default>
+  permissions.apply_low_risk_changes: <default>
+  permissions.apply_structural_changes: <default>
+  precedence: <default>
+  generator: <default>
+findings_status: has_findings
+helped:
+- id: h-001
+  category: implementation
+  summary: WP01 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-002
+  category: implementation
+  summary: WP02 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-003
+  category: implementation
+  summary: WP03 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-004
+  category: implementation
+  summary: WP04 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-005
+  category: implementation
+  summary: WP05 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-006
+  category: implementation
+  summary: WP06 completed without rejection cycles
+  evidence_refs:
+  - e-011
+- id: h-008
+  category: tooling
+  summary: 'Tracer: Byte-identity freshness gate'
+  evidence_refs:
+  - e-021
+  details: "- **Byte-identity freshness gate**: `graph.yaml` MUST be regenerated (`spec-kitty doctrine regenerate-graph`)\n\
+    \  and committed in the same WP, or the freshness twins red. Calibration may widen the diff beyond 21 lines\n  (DD-5)
+    — expected."
+- id: h-007
+  category: tooling
+  summary: 'Tracer: Equality proof (WP06):'
+  evidence_refs:
+  - e-020
+  details: "- **Equality proof (WP06):** the pre-sharding reference is `generate_graph(...)`'s **returned in-memory\n  `DRGGraph`**
+    (the composed/calibrated/sorted graph — layout-independent by construction), compared against\n  `load_built_in_graph()`
+    reloaded from the fragments. Because `merge_layers` concatenates fragments in file\n  order, the merged graph is **canonically
+    re-sorted** before comparing node/edge **sets + counts**. This is\n  non-vacuous (never sharded-vs-itself) and robust.\n\
+    \n## DD-12 — Red-first lives inside WP01's loop; WP02 is the green-pinning follow-on (renata M5)\n\nC-005 (ATDD red-first)
+    cannot be *observed* across the WP01→WP02 boundary because WP02 `depends: WP01` (its\ntests would be green-on-arrival).
+    Resolution: WP01 authors a failing edge assertion, watches it RED, then\nimplements to GREEN **within its own loop** (its
+    DoD carries the red-first step). WP02 is the comprehensive\ngreen-pinning + re-pin + residual-reconcile follow-on. The
+    misleading \"commit RED first (before WP"
+not_helpful:
+- id: n-007
+  category: doc
+  summary: analysis-report.md present with findings
+  evidence_refs:
+  - e-018
+  details: An analysis-report.md artifact is present for this mission. Review its findings to understand documented 
+    issues and decisions.
+- id: n-006
+  category: implementation
+  summary: WP05 needed 2 implementation cycles
+  evidence_refs:
+  - e-017
+  details: WP WP05 entered in_progress 2 times. Multiple implementation cycles suggest rework not captured as a 
+    documented review rejection; the WP scope or contract may need refinement.
+- id: n-001
+  category: process
+  summary: WP02 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-012
+  details: WP WP02 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-002
+  category: process
+  summary: WP03 required 1 --force override(s) during workflow
+  evidence_refs:
+  - e-013
+  details: WP WP03 required 1 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-003
+  category: process
+  summary: WP04 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-014
+  details: WP WP04 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-004
+  category: process
+  summary: WP05 required 5 --force override(s) during workflow
+  evidence_refs:
+  - e-015
+  details: WP WP05 required 5 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-005
+  category: process
+  summary: WP06 required 2 --force override(s) during workflow
+  evidence_refs:
+  - e-016
+  details: WP WP06 required 2 operator-driven --force lane transition(s). Force overrides typically indicate the runtime
+    guard failed or the operator routed around it; investigate the underlying cause.
+- id: n-020
+  category: tooling
+  summary: 'Tracer: Bare `python`/`pytest`'
+  evidence_refs:
+  - e-021
+  details: "- **Bare `python`/`pytest`** import the wrong src outside `uv run` — always `uv run` in a lane.\n\n## Friction
+    encountered (append during implementation)\n\n- _(none yet)_\n\n## Assessment (at close)\n\n- _(to be filled)_"
+- id: n-012
+  category: tooling
+  summary: 'Tracer: Blast radius ≈ 22 sites'
+  evidence_refs:
+  - e-020
+  details: "1. **Blast radius ≈ 22 sites**, not 1: ~6 src readers (3 hard-break, incl. 2 hardcoding `.../graph.yaml`;\n  \
+    \   `pack_validator.py:513`, `calibration/walker.py:437`, `charter_runtime/lint/_drg.py`) + ~16 test modules,\n     each
+    pinning the monolith path. No canonical seam exists to route them through."
+- id: n-016
+  category: tooling
+  summary: 'Tracer: Claimed benefit refuted'
+  evidence_refs:
+  - e-020
+  details: "5. **Claimed benefit refuted**: `calibrate_surfaces` is a *global* reweight, so sharding does NOT localize\n \
+    \    the C-008 diff (the original fold's stated benefit).\n- *Operator decision:* **keep bundled (proximity rationale
+    above), but resequence + rescope.**\n\n**Resolved shape:** **Phase 1 = edges (#2677)** against the monolith → clears the
+    red gate 18→10 (small,\nverified, ~2 src + 2 test files, no correctness traps). **Phase 2 = sharding (#2680)** — behavior-preserving\n\
+    migration of the now-edge-complete graph: impose the canonical seam FIRST (DD-6), switch all ~22 readers,\ndelete the
+    monolith atomically (DD-7), partition every populated node-kind (DD-8), prove equality under an\nexplicit merge-order
+    contract (DD-9) AND on the three silent-degrade surfaces' outputs (DD-10), and re-point\n`_count_orphans` + the freshness
+    twins at the sharded layout so every gate stays green. **Explicitly NOT** an\nin-YAML `import:`/`!include` directive.\n\
+    \n## DD-6 — Impose a canonical built-in-graph seam bef"
+- id: n-017
+  category: tooling
+  summary: 'Tracer: Freshness gate (WP04/WP05):'
+  evidence_refs:
+  - e-020
+  details: "- **Freshness gate (WP04/WP05):** each fragment is written in canonical intra-fragment order (nodes by URN,\n\
+    \  edges by `(source,target,relation)`). `regenerate-graph --check` + `test_regenerate_twice_is_byte_identical`\n  assert
+    **per-fragment byte-identity**. `_count_orphans` + the freshness twins read via\n  `built_in_graph_source()` (the dir),
+    so they are **layout-agnostic** — valid for the monolith (WP04, present)\n  and the fragments (WP05, present) with no
+    re-edit."
+- id: n-014
+  category: tooling
+  summary: 'Tracer: Not code-traced'
+  evidence_refs:
+  - e-020
+  details: "3. **Not code-traced**: FR-007 said fragments at `src/doctrine/*.graph.yaml`; the plan's structure block said\n\
+    \     `src/doctrine/drg/*.graph.yaml` — the 6 already-safe consumers glob `src/doctrine/`, so the plan's own\n     location
+    would raise `DRGLoadError`."
+- id: n-009
+  category: tooling
+  summary: 'Tracer: Phase 1 — edges (#2677), against the monolith.'
+  evidence_refs:
+  - e-019
+  details: "- **Phase 1 — edges (#2677), against the monolith.** IC-1 generator edge pass + regenerate; IC-2 tests/re-pin\n\
+    \  + orphan gate green + residual-doc reconcile. ATDD red-first: commit the edge/orphan assertions + the\n  inverted `test_mission_type_nodes`
+    first, then `extract_mission_type_edges`, then regenerate + commit\n  `graph.yaml`. ~2 tight WPs."
+- id: n-010
+  category: tooling
+  summary: 'Tracer: Phase 2 — sharding (#2680), the migration.'
+  evidence_refs:
+  - e-019
+  details: "- **Phase 2 — sharding (#2680), the migration.** IC-3, WP-split: (a) canonical `load_built_in_graph()` seam\n\
+    \  first, route ~22 readers; (b) generator per-populated-kind fragments + atomic monolith delete; (c) equality\n  (merge-order
+    contract) + partition-totality + 3 silent-degrade output proofs; (d) ~16 test-fixture +\n  snapshot + docstring sweep.
+    ATDD red-first: the equality/silent-degrade assertions before the monolith is\n  deleted. Runs after Phase 1 so the orphan
+    gate is already green when its reader is re-pointed. ~4 WPs."
+- id: n-013
+  category: tooling
+  summary: "Tracer: Sharding-first takes the mission's OWN gate red"
+  evidence_refs:
+  - e-020
+  details: "2. **Sharding-first takes the mission's OWN gate red**: `_count_orphans`\n     (`test_doctrine_regenerate_graph.py:47`)
+    reads the monolith directly, so deleting it breaks the exact\n     18→10 orphan gate #2677 exists to green."
+- id: n-018
+  category: tooling
+  summary: 'Tracer: Shared residual doc (#1923)'
+  evidence_refs:
+  - e-021
+  details: "- **Shared residual doc (#1923)**: `drg-orphan-residual.md` is co-owned; touch only the mission-type/plan-action\n\
+    \  rows to avoid a merge collision (C-003)."
+- id: n-015
+  category: tooling
+  summary: 'Tracer: Silent-degrade masking'
+  evidence_refs:
+  - e-020
+  details: "4. **Silent-degrade masking**: 3 readers swallow `DRGLoadError` → a naive delete gives green tests with lost\n\
+    \     profile lineage / charter-lint DRG / pack validation."
+- id: n-011
+  category: tooling
+  summary: 'Tracer: Squad history:'
+  evidence_refs:
+  - e-019
+  details: "- **Squad history:** pre-spec (architect) + post-spec (renata + paula) READY-TO-PLAN on the edges (18→10\n  reproduced
+    live; 21-edge + residual-10 folded); **post-plan** (architect + paula + renata) forced the\n  resequence + the ~22-site
+    sharding inventory (DD-0, DD-6..DD-10).\n\n## Deviations (append during implementation)\n\n- _(none yet)_\n\n## What actually
+    happened (assess at close)\n\n- _(to be filled)_"
+- id: n-008
+  category: tooling
+  summary: 'Tracer: Two-phase, single-subsystem'
+  evidence_refs:
+  - e-019
+  details: "- **Two-phase, single-subsystem** (`src/doctrine/drg`), **edges-first** (see research.md D-0 / DD-0 for why\n\
+    \  the order was reversed by the post-plan squad)."
+- id: n-019
+  category: tooling
+  summary: 'Tracer: `_KIND_MAP` silent-drop'
+  evidence_refs:
+  - e-021
+  details: "- **`_KIND_MAP` silent-drop**: endpoints missing from `_KIND_MAP` are silently dropped by the backfill loop —\n\
+    \  add the `mission_type` entry (DD-3) so this can't bite a future partial-node state."
+gaps: []
+proposals: []
+evidence_refs:
+- id: e-001
+  kind: file
+  path: kitty-specs/mission-type-drg-edges-01KXKY2N/meta.json
+- id: e-002
+  kind: file
+  path: kitty-specs/mission-type-drg-edges-01KXKY2N/spec.md
+- id: e-003
+  kind: file
+  path: kitty-specs/mission-type-drg-edges-01KXKY2N/plan.md
+- id: e-004
+  kind: file
+  path: kitty-specs/mission-type-drg-edges-01KXKY2N/tasks.md
+- id: e-005
+  kind: file
+  path: kitty-specs/mission-type-drg-edges-01KXKY2N/tasks/WP01-mission-type-edges.md
+- id: e-006
+  kind: file
+  path: kitty-specs/mission-type-drg-edges-01KXKY2N/tasks/WP02-phase1-tests-and-residual.md
+- id: e-007
+  kind: file
+  path: kitty-specs/mission-type-drg-edges-01KXKY2N/tasks/WP03-builtin-graph-seam.md
+- id: e-008
+  kind: file
+  path: kitty-specs/mission-type-drg-edges-01KXKY2N/tasks/WP04-test-reader-migration.md
+- id: e-009
+  kind: file
+  path: kitty-specs/mission-type-drg-edges-01KXKY2N/tasks/WP05-shard-write-partition.md
+- id: e-010
+  kind: file
+  path: kitty-specs/mission-type-drg-edges-01KXKY2N/tasks/WP06-behavior-preserving-proofs.md
+- id: e-011
+  kind: file
+  path: kitty-specs/mission-type-drg-edges-01KXKY2N/status.events.jsonl
+- id: e-012
+  kind: event_range
+  path: kitty-specs/mission-type-drg-edges-01KXKY2N/status.events.jsonl
+  range: 01KXN100KSH1D6J9X06SYQFQKE..01KXN1DKRSQFA0FRSW9TQ6K6PC
+- id: e-013
+  kind: event_range
+  path: kitty-specs/mission-type-drg-edges-01KXKY2N/status.events.jsonl
+  range: 01KXN44CV1TF8KY77NP5EJ6Y1K
+- id: e-014
+  kind: event_range
+  path: kitty-specs/mission-type-drg-edges-01KXKY2N/status.events.jsonl
+  range: 01KXN5T0Y550S5BS8NW123DRAD..01KXN6ESCYZVY8ZB9XNZ357Q2S
+- id: e-015
+  kind: event_range
+  path: kitty-specs/mission-type-drg-edges-01KXKY2N/status.events.jsonl
+  range: 01KXNA8M1HBJZPQM18NQFHG28A..01KXNFRMNQG81XXC65KW976MB1
+- id: e-016
+  kind: event_range
+  path: kitty-specs/mission-type-drg-edges-01KXKY2N/status.events.jsonl
+  range: 01KXNHQBYF25C786DZDWMWF5XK..01KXNK7MVE99G0W3W0GBDTARQ4
+- id: e-017
+  kind: event_range
+  path: kitty-specs/mission-type-drg-edges-01KXKY2N/status.events.jsonl
+  range: implementation_cycles
+- id: e-018
+  kind: file
+  path: kitty-specs/mission-type-drg-edges-01KXKY2N/analysis-report.md
+- id: e-019
+  kind: file
+  path: kitty-specs/mission-type-drg-edges-01KXKY2N/traces/approach.md
+- id: e-020
+  kind: file
+  path: kitty-specs/mission-type-drg-edges-01KXKY2N/traces/design-decisions.md
+- id: e-021
+  kind: file
+  path: kitty-specs/mission-type-drg-edges-01KXKY2N/traces/tooling-friction.md
+generator_version: '1.0'
+provenance_history: []
