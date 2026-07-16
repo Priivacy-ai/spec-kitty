@@ -88,8 +88,15 @@ _CANONICAL_FIELD_ORDER: tuple[MismatchField, ...] = (
 _UNSET_PLACEHOLDER = "<unset>"
 
 
-# Remediation hints, keyed by canonical field name. Kept short so the
-# refusal output fits within the NFR-004 25-line budget.
+# Remediation registry (#2674): every remediation sentence emitted by this
+# module — whether via `_REMEDIATION_HINTS` (consumed by `_build_mismatches`)
+# or via the inline bullet builder `_build_remediation_lines()` (consumed by
+# `PreflightResult.render()`) — lives in exactly ONE named constant below.
+# `ALL_REMEDIATION_TEXTS` is the canonical registry spanning both surfaces;
+# it is what the command-resolution guard in
+# `tests/specify_cli/sync/test_preflight_remediation_hints.py` scans, so a
+# typo in ANY remedy sentence (dict-keyed or inline-only) fails CI. Kept
+# short so the refusal output fits within the NFR-004 25-line budget.
 #
 # The four "restart-class" mismatches (package_version, executable_path,
 # source_path, queue_db_path) all share a single canonical remedy phrase
@@ -97,26 +104,58 @@ _UNSET_PLACEHOLDER = "<unset>"
 # action: run `spec-kitty doctor restart-daemon`, then verify with
 # `spec-kitty sync status --check`. The two auth-class mismatches
 # (server_url, team_or_user) keep their own phrasing because their
-# remedy involves an auth step before the restart.
+# remedy involves an auth step before the restart. `_ORPHAN_REMEDY` and
+# `_SYNC_MIGRATE_REMEDY` carry `{count}`/`{rows}` placeholders formatted by
+# the inline builder; `_AUTH_LOGIN_REMEDY` is the standalone auth-required
+# bullet. Placeholder names are aligned with the inline builder's kwargs
+# so `.format(...)` produces byte-identical rendered text to before.
 _RESTART_DAEMON_REMEDY: str = (
     "Run `spec-kitty doctor restart-daemon` to restart the daemon at the "
     "foreground version/source, then verify with `spec-kitty sync status "
     "--check`."
 )
 
+_SERVER_URL_REMEDY: str = (
+    "Reauthenticate (`spec-kitty auth login`) or restart the daemon "
+    "against the matching server."
+)
+
+_TEAM_OR_USER_REMEDY: str = (
+    "Re-authenticate as the foreground team/user (`spec-kitty auth "
+    "logout` then `spec-kitty auth login`) and then run `spec-kitty "
+    "doctor restart-daemon`."
+)
+
+_ORPHAN_REMEDY: str = (
+    "Run `spec-kitty doctor orphan-daemons` to clean up {count} orphan "
+    "daemon record(s)."
+)
+
+_SYNC_MIGRATE_REMEDY: str = (
+    "Run `spec-kitty sync migrate` to migrate {rows} legacy queue row(s) "
+    "into the event journal so the boundary becomes coherent."
+)
+
+_AUTH_LOGIN_REMEDY: str = (
+    "Run `spec-kitty auth login` — SaaS sync enabled but no authenticated "
+    "identity is available."
+)
+
+ALL_REMEDIATION_TEXTS: tuple[str, ...] = (
+    _RESTART_DAEMON_REMEDY,
+    _SERVER_URL_REMEDY,
+    _TEAM_OR_USER_REMEDY,
+    _ORPHAN_REMEDY,
+    _SYNC_MIGRATE_REMEDY,
+    _AUTH_LOGIN_REMEDY,
+)
+
 _REMEDIATION_HINTS: dict[MismatchField, str] = {
     "daemon_package_version": _RESTART_DAEMON_REMEDY,
     "daemon_executable_path": _RESTART_DAEMON_REMEDY,
     "daemon_source_path": _RESTART_DAEMON_REMEDY,
-    "daemon_server_url": (
-        "Reauthenticate (`spec-kitty auth login`) or restart the daemon "
-        "against the matching server."
-    ),
-    "daemon_team_or_user": (
-        "Re-authenticate as the foreground team/user (`spec-kitty auth "
-        "logout` then `spec-kitty auth login`) and then run `spec-kitty "
-        "doctor restart-daemon`."
-    ),
+    "daemon_server_url": _SERVER_URL_REMEDY,
+    "daemon_team_or_user": _TEAM_OR_USER_REMEDY,
     "daemon_queue_db_path": _RESTART_DAEMON_REMEDY,
 }
 
@@ -214,7 +253,10 @@ class PreflightResult:
         #
         # ``daemon_server_url`` and ``daemon_team_or_user`` keep their own
         # bullets because their remediations differ from the simple
-        # restart-daemon path (they involve auth).
+        # restart-daemon path (they involve auth). Every sentence below
+        # references the SAME named constants as ``_REMEDIATION_HINTS``
+        # (#2674) — this builder only ever prepends the ``"  • "`` bullet
+        # prefix, it never re-states the sentence text.
         remediation_lines = _build_remediation_lines(
             self.mismatches,
             orphan_count=n_orphan,
@@ -306,32 +348,15 @@ def _build_remediation_lines(
     if any(field_name in mismatch_fields for field_name in restart_class):
         remediation_lines.append(f"  • {_RESTART_DAEMON_REMEDY}")
     if "daemon_server_url" in mismatch_fields:
-        remediation_lines.append(
-            "  • Reauthenticate (`spec-kitty auth login`) or restart "
-            "the daemon against the matching server."
-        )
+        remediation_lines.append(f"  • {_SERVER_URL_REMEDY}")
     if "daemon_team_or_user" in mismatch_fields:
-        remediation_lines.append(
-            "  • Re-authenticate as the foreground team/user "
-            "(`spec-kitty auth logout` then `spec-kitty auth login`) "
-            "and then run `spec-kitty doctor restart-daemon`."
-        )
+        remediation_lines.append(f"  • {_TEAM_OR_USER_REMEDY}")
     if orphan_count:
-        remediation_lines.append(
-            f"  • Run `spec-kitty doctor orphan-daemons` to clean up "
-            f"{orphan_count} orphan daemon record(s)."
-        )
+        remediation_lines.append(f"  • {_ORPHAN_REMEDY.format(count=orphan_count)}")
     if legacy_rows > 0:
-        remediation_lines.append(
-            f"  • Run `spec-kitty sync migrate` to migrate {legacy_rows} "
-            f"legacy queue row(s) into the event journal so the boundary "
-            f"becomes coherent."
-        )
+        remediation_lines.append(f"  • {_SYNC_MIGRATE_REMEDY.format(rows=legacy_rows)}")
     if auth_required and not auth_present:
-        remediation_lines.append(
-            "  • Run `spec-kitty auth login` — SaaS sync enabled but "
-            "no authenticated identity is available."
-        )
+        remediation_lines.append(f"  • {_AUTH_LOGIN_REMEDY}")
     return remediation_lines
 
 
