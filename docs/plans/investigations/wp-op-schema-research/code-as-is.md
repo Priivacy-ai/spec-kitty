@@ -4,8 +4,8 @@ description: 'Verbatim research report: current reality of WP and Op records and
 doc_status: reference
 updated: '2026-07-16'
 related:
-- README.md
-- ../wp-op-schema-model.md
+- docs/plans/investigations/wp-op-schema-research/README.md
+- docs/plans/investigations/wp-op-schema-model.md
 ---
 # Code-As-Is Map: WP & Op Lifecycle and Content-Address Machinery
 

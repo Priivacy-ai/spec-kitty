@@ -4,8 +4,8 @@ description: 'Verbatim research report: architectural feasibility, ownership/bou
 doc_status: reference
 updated: '2026-07-16'
 related:
-- README.md
-- ../wp-op-schema-model.md
+- docs/plans/investigations/wp-op-schema-research/README.md
+- docs/plans/investigations/wp-op-schema-model.md
 ---
 # Paula Patterns — Feasibility & Whack-a-Field Review: WP/Op Schema Model
 

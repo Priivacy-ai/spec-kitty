@@ -4,8 +4,8 @@ description: 'Verbatim research report: roadmap/vision alignment and ADR binding
 doc_status: reference
 updated: '2026-07-16'
 related:
-- README.md
-- ../wp-op-schema-model.md
+- docs/plans/investigations/wp-op-schema-research/README.md
+- docs/plans/investigations/wp-op-schema-model.md
 ---
 # Roadmap / Vision / ADR Grounding — WP & Op Schema Model
 

@@ -4,8 +4,8 @@ description: 'Concrete model+schema suggestion for a YAML-authoritative WP promp
 doc_status: proposal
 updated: '2026-07-16'
 related:
-- wp-op-schema-model.md
-- wp-op-schema-related-tickets.md
+- docs/plans/investigations/wp-op-schema-model.md
+- docs/plans/investigations/wp-op-schema-related-tickets.md
 ---
 # WP Prompt & Ops Debrief — Model / Schema Proposal
 
