@@ -8,10 +8,10 @@
   "mission_slug": "doctrine-org-init-from-template-01KXNA6P",
   "mission_type": "software-dev",
   "pr_bound": true,
-  "purpose_context": "Today doctrine org init only writes a minimal three-file skeleton. Operators who already maintain a reusable doctrine template need Spec Kitty to copy that template (from a local path or git URL with branch), exclude ignored paths, validate the org name, substitute identity and registration-path tokens, and write the result to a distinct pack destination—while keeping the minimal scaffold when no template is supplied.",
-  "purpose_tldr": "Let operators scaffold an org doctrine pack from a local or git template with validated ORG_NAME, LOCAL_PATH substitution, and .templateignore filtering.",
+  "purpose_context": "Today doctrine org init only writes a minimal three-file skeleton. Operators who create their own doctrine need that same command extended so they can optionally initialise from an existing template (local path or git URL with branch): honour .templateignore, validate the org name, substitute identity and registration-path tokens, and write the full rendered tree to a distinct pack destination—while keeping the minimal scaffold when no template is supplied.",
+  "purpose_tldr": "Extend doctrine org init so operators creating their own doctrine can render from a local or git template with validated ORG_NAME, LOCAL_PATH, and .templateignore.",
   "slug": "doctrine-org-init-from-template-01KXNA6P",
-  "source_description": "Extend doctrine org init to render from a local or git TEMPLATE with ORG_NAME validation, LOCAL_PATH substitution, .templateignore filtering, and PACK_PATH as a distinct destination; minimal scaffold when TEMPLATE omitted.",
+  "source_description": "Extend spec-kitty doctrine org init for operators who create their own doctrine: optional TEMPLATE (local/git), ORG_NAME validation, LOCAL_PATH substitution, .templateignore, PACK_PATH as distinct destination; minimal scaffold when TEMPLATE omitted.",
   "target_branch": "feat/doctrine-org-init-from-template",
   "topology": "coord",
   "vcs": "git"

@@ -8,23 +8,23 @@
 
 Today `spec-kitty doctrine org init <PACK_PATH>` always scaffolds a minimal
 three-file org doctrine pack (`org-charter.yaml`, `drg/fragment.yaml`,
-`README.md`). Operators who maintain a reusable doctrine template (for example
-`~/projects/doctrine-template`) need the same command to optionally **render**
-that template into a concrete org pack: resolve a local or git template source,
-exclude ignored paths, validate the organisation name, substitute identity and
-registration-path tokens, and write the result to a destination path that is
-distinct from the registration path token.
+`README.md`). This mission **extends that same command** so operators who
+create their own doctrine can optionally initialise from an existing template
+(local path or git URL): resolve the template as-is, honour `.templateignore`,
+validate the organisation name, substitute identity and registration-path
+tokens, and write the result to a destination path that is distinct from the
+registration path token.
 
 When no template is supplied, behaviour remains the existing minimal scaffold.
+Authoring or maintaining the external template is out of scope — the template
+is consumed as provided.
 
 ## User Scenarios & Testing
 
 ### Primary actors
 
-- **Operator** — scaffolds or renders an org doctrine pack from the CLI.
-- **Template maintainer** — publishes a renderable template (local tree or git
-  repo) with `{{ORG_NAME}}` / `{{LOCAL_PATH}}` tokens and an optional
-  `.templateignore`.
+- **Operator** — creates their own doctrine by scaffolding or rendering an org
+  pack via `spec-kitty doctrine org init`.
 
 ### Primary scenario (happy path — template render)
 
@@ -36,9 +36,9 @@ When no template is supplied, behaviour remains the existing minimal scaffold.
 3. It resolves the template (local copy or clone/fetch of the named branch),
    applies `.templateignore` so ignored paths are not present in the rendered
    output, substitutes every literal `{{ORG_NAME}}` and `{{LOCAL_PATH}}`, and
-   writes the result under **PACK_PATH**.
-4. Operator can proceed to validate/use the rendered pack; no prior org
-   identity or ignored template scaffolding remains in the output.
+   writes the **entire** template tree (minus ignores) under **PACK_PATH**.
+4. Operator can proceed to use the rendered doctrine project; ignored template
+   paths are absent and tokens are filled.
 
 ### Alternate scenario (minimal scaffold)
 
@@ -142,14 +142,14 @@ When no template is supplied, behaviour remains the existing minimal scaffold.
 
 ## Assumptions
 
-- The reference consumer template is exemplified by `~/projects/doctrine-template`, which documents the ORG_NAME / LOCAL_PATH contract and ships `.templateignore`.
-- Git TEMPLATE branch identification is expressible in the TEMPLATE value the operator passes (URL-with-branch form); exact CLI flag shape for branch may be refined in plan as long as FR-003 is met.
+- An existing renderable template (e.g. a local clone or git URL of a doctrine-template-style repo) already provides `{{ORG_NAME}}` / `{{LOCAL_PATH}}` tokens and may ship `.templateignore`; this mission consumes it as-is.
+- Git branch may be passed via a dedicated `--branch` option and/or encoded in the TEMPLATE value; conflicting values fail clearly.
 - Built-in treatment of the `.templateignore` file itself (whether copied into the output) may follow the template's stated convention that the ignore file is not a deliverable.
-- Optional post-render pack validation (`doctrine pack validate` / template quality scripts) is desirable but not required for init success in this mission unless plan promotes it to a gated step.
+- Optional post-render pack validation is not required for init success in this mission.
 
 ## Out of Scope
 
-- Authoring or changing the contents of the external doctrine-template repository itself.
+- Authoring, publishing, or changing external doctrine template repositories (including “template maintainer” workflows).
 - Implementing a general multi-token templating language beyond `{{ORG_NAME}}` and `{{LOCAL_PATH}}`.
 - Changing `doctrine org validate` semantics except as needed to remain compatible with rendered packs.
 
