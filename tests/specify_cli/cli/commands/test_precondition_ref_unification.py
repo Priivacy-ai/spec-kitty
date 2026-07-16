@@ -8,10 +8,10 @@ commit destination) hard-coded the mission's ``planning_branch`` name inline
 real claim always runs from a checkout whose ``HEAD`` IS ``planning_branch``.
 This module pins the fix: both sides now derive the PRIMARY-partition ref
 from ONE cli-local, module-private expression --
-``implement_cores.py::_primary_ref_for`` -- so they cannot silently diverge
+``implement_cores.py::_commit_target_ref_for`` -- so they cannot silently diverge
 (e.g. under a detached-HEAD or off-target-branch checkout).
 
-C-008 (no net-new PUBLIC symbol): ``_primary_ref_for`` is `_`-prefixed,
+C-008 (no net-new PUBLIC symbol): ``_commit_target_ref_for`` is `_`-prefixed,
 module-private, and re-exported through the EXISTING ``implement.py`` shim
 import block alongside the other implement_cores.py helpers -- no new public
 API surface.
@@ -107,38 +107,38 @@ class TestPrimaryRefForExpression:
     default-BRANCH fallback."""
 
     def test_none_resolves_to_head(self) -> None:
-        from specify_cli.cli.commands.implement_cores import _primary_ref_for
+        from specify_cli.cli.commands.implement_cores import _commit_target_ref_for
 
-        assert _primary_ref_for(None) == "HEAD"
+        assert _commit_target_ref_for(None) == "HEAD"
 
     def test_empty_string_resolves_to_head_not_a_default_branch(self) -> None:
         """C-009: an empty/falsy ``planning_branch`` is NOT coerced to a
         hardcoded default branch (``main``) -- it resolves to the local
         checkout, exactly like ``None``."""
-        from specify_cli.cli.commands.implement_cores import _primary_ref_for
+        from specify_cli.cli.commands.implement_cores import _commit_target_ref_for
 
-        assert _primary_ref_for("") == "HEAD"
-        assert _primary_ref_for("") != "main"
+        assert _commit_target_ref_for("") == "HEAD"
+        assert _commit_target_ref_for("") != "main"
 
     def test_named_branch_resolves_to_itself(self) -> None:
-        from specify_cli.cli.commands.implement_cores import _primary_ref_for
+        from specify_cli.cli.commands.implement_cores import _commit_target_ref_for
 
-        assert _primary_ref_for(_PLANNING_BRANCH) == _PLANNING_BRANCH
+        assert _commit_target_ref_for(_PLANNING_BRANCH) == _PLANNING_BRANCH
 
     def test_helper_is_module_private(self) -> None:
         """C-008: no net-new PUBLIC symbol -- ``_`` prefix, not re-exported
         under a public name from either module."""
         from specify_cli.cli.commands import implement, implement_cores
 
-        assert not hasattr(implement_cores, "primary_ref_for")
-        assert not hasattr(implement, "primary_ref_for")
-        assert "_primary_ref_for" not in getattr(implement_cores, "__all__", [])
-        assert "_primary_ref_for" not in getattr(implement, "__all__", [])
+        assert not hasattr(implement_cores, "commit_target_ref_for")
+        assert not hasattr(implement, "commit_target_ref_for")
+        assert "_commit_target_ref_for" not in getattr(implement_cores, "__all__", [])
+        assert "_commit_target_ref_for" not in getattr(implement, "__all__", [])
 
 
 class TestReadSideDerivesFromTheSharedExpression:
     """T020 -- structural: no independent ``"HEAD"`` literal remains in the
-    read path; it is now the ONE literal inside ``_primary_ref_for``."""
+    read path; it is now the ONE literal inside ``_commit_target_ref_for``."""
 
     def test_resolve_precondition_ref_has_no_inline_head_literal(self) -> None:
         from specify_cli.cli.commands.implement_cores import resolve_precondition_ref
@@ -149,7 +149,7 @@ class TestReadSideDerivesFromTheSharedExpression:
         # calls the shared expression instead.
         body = source.split('"""', 2)[-1]
         assert '"HEAD"' not in body, f"unexpected inline HEAD literal in resolve_precondition_ref body:\n{body}"
-        assert "_primary_ref_for" in body
+        assert "_commit_target_ref_for" in body
 
     def test_files_changed_vs_precondition_ref_has_no_inline_head_literal(self) -> None:
         from specify_cli.cli.commands.implement_cores import (
@@ -159,7 +159,7 @@ class TestReadSideDerivesFromTheSharedExpression:
         source = inspect.getsource(_files_changed_vs_precondition_ref)
         body = source.split('"""', 2)[-1]
         assert '"HEAD"' not in body, f"unexpected inline HEAD literal in _files_changed_vs_precondition_ref body:\n{body}"
-        assert "_primary_ref_for" in body
+        assert "_commit_target_ref_for" in body
 
     def test_resolve_precondition_ref_still_returns_head_for_primary_paths(self) -> None:
         """Behavior-preserving (NFR-001): the observable return value is
@@ -176,7 +176,7 @@ class TestReadSideDerivesFromTheSharedExpression:
 class TestWriteSideDerivesFromTheSharedExpression:
     """T020/T021 -- structural + behavioral: the write-side PRIMARY-group
     commit destination is no longer an independent inline ``planning_branch``
-    reference -- it goes through ``_primary_ref_for`` too."""
+    reference -- it goes through ``_commit_target_ref_for`` too."""
 
     def test_commit_planning_artifacts_transaction_calls_the_shared_expression(self) -> None:
         from specify_cli.cli.commands.implement import (
@@ -187,14 +187,14 @@ class TestWriteSideDerivesFromTheSharedExpression:
         body = source.split('"""', 2)[-1]
         # Neither PRIMARY-group destination_ref assignment writes the bare
         # ``planning_branch`` variable directly any more -- both route
-        # through ``_primary_ref_for(planning_branch)``.
+        # through ``_commit_target_ref_for(planning_branch)``.
         assert "destination_ref=planning_branch," not in body, (
             "a write-side call site still assigns destination_ref=planning_branch "
-            "directly instead of _primary_ref_for(planning_branch)"
+            "directly instead of _commit_target_ref_for(planning_branch)"
         )
-        assert source.count("_primary_ref_for(planning_branch)") >= 2, (
+        assert source.count("_commit_target_ref_for(planning_branch)") >= 2, (
             "expected BOTH the flat/legacy (755) and partition-split (790) "
-            "PRIMARY-group call sites to route through _primary_ref_for"
+            "PRIMARY-group call sites to route through _commit_target_ref_for"
         )
 
     def test_flat_legacy_commit_still_lands_on_planning_branch(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -301,15 +301,15 @@ class TestDetachedHeadRegression:
         assert calls == [(_PLANNING_BRANCH, [spec_rel])]
         assert all(ref != "HEAD" for ref, _paths in calls)
 
-    def test_primary_ref_for_prioritises_the_named_branch_over_ambient_checkout(self) -> None:
+    def test_commit_target_ref_for_prioritises_the_named_branch_over_ambient_checkout(self) -> None:
         """The shared expression itself never consults ambient git state --
         it is pure and argument-driven, which is WHY the write side cannot
         accidentally pick up a detached "HEAD" (T020's structural guarantee,
         independent of any particular git fixture)."""
-        from specify_cli.cli.commands.implement_cores import _primary_ref_for
+        from specify_cli.cli.commands.implement_cores import _commit_target_ref_for
 
-        assert _primary_ref_for(_PLANNING_BRANCH) == _PLANNING_BRANCH
-        assert _primary_ref_for(_PLANNING_BRANCH) != "HEAD"
+        assert _commit_target_ref_for(_PLANNING_BRANCH) == _PLANNING_BRANCH
+        assert _commit_target_ref_for(_PLANNING_BRANCH) != "HEAD"
 
 
 class TestVerbatimRefReadMatchesWriteSurface:

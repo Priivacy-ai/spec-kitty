@@ -241,7 +241,7 @@ def _parse_meta_mapping(raw: bytes) -> dict[str, Any] | None:
     return parsed if isinstance(parsed, dict) else None
 
 
-def _primary_ref_for(planning_branch: str | None) -> str:
+def _commit_target_ref_for(planning_branch: str | None) -> str:
     """The ONE cli-local expression the read side and the write side both
     derive the PRIMARY-partition ref from (FR-005, ref half; #2650 / WP04).
 
@@ -291,14 +291,14 @@ def resolve_precondition_ref(repo_rel_path: str, coord_branch_for_filter: str | 
 
     Defaults toward primary (fail-safe direction, NFR-004): everything not
     explicitly coord-residue -- PRIMARY kinds, ``meta.json`` (kind ``None``),
-    and unrecognized paths -- resolves to the shared :func:`_primary_ref_for`
+    and unrecognized paths -- resolves to the shared :func:`_commit_target_ref_for`
     expression (``"HEAD"`` here; FR-005 ref half). A PRIMARY artifact is
     never compared against the coordination branch. Pure: no filesystem/git
     side effects.
     """
     if coord_branch_for_filter and is_coordination_artifact_residue_path(repo_rel_path):
         return coord_branch_for_filter
-    return _primary_ref_for(None)
+    return _commit_target_ref_for(None)
 
 
 def _committed_meta_mapping(repo_root: Path, repo_rel: str, ref: str | None, *, git: GitPort = DEFAULT_GIT_PORT) -> dict[str, Any] | None:
@@ -524,7 +524,7 @@ def _files_changed_vs_precondition_ref(
     if verbatim_ref is not None:
         changed_verbatim = set(_files_changed_vs_ref(repo_root, files, verbatim_ref, git=git))
         return [repo_rel for repo_rel in files if repo_rel in changed_verbatim]
-    primary_ref = _primary_ref_for(None)
+    primary_ref = _commit_target_ref_for(None)
     primary_files: list[str] = []
     coord_files: list[str] = []
     for repo_rel in files:

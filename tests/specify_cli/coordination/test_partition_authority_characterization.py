@@ -214,8 +214,8 @@ class TestIntendedUnifiedContractCliSideOnly:
 
         read_source = inspect.getsource(resolve_precondition_ref)
         write_source = inspect.getsource(_commit_planning_artifacts_transaction)
-        assert "_primary_ref_for" in read_source
-        assert "_primary_ref_for" in write_source
+        assert "_commit_target_ref_for" in read_source
+        assert "_commit_target_ref_for" in write_source
 
     def test_this_gate_file_plants_no_commit_router_side_xfail_markers(self) -> None:
         """squad RISK-4 / DoD: the commit_router-side structural contract is

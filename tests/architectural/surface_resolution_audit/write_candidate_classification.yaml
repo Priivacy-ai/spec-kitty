@@ -94,7 +94,7 @@ sites:
     verdict: read
   - site: src/specify_cli/lanes/merge.py:_resolve_lane_manifest:68
     verdict: read
-  - site: src/specify_cli/lanes/merge.py:merge_mission_to_target:198
+  - site: src/specify_cli/lanes/merge.py:integrate_mission_into_target:198
     verdict: read
   - site: src/specify_cli/lanes/recovery.py:recover_context:611
     verdict: read

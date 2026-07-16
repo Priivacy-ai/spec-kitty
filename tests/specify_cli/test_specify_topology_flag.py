@@ -291,8 +291,8 @@ def test_specify_omitted_topology_on_non_primary_branch_derives_single_branch(
 #      this test goes RED. Only the post-guard worktree allocation + status
 #      emit are patched — the canonical repo-harness pattern (the real
 #      ``git worktree add`` is the brittle part, not the contract under test).
-#   3. REAL merge: ``_run_lane_based_merge`` runs real ``merge_lane_to_mission``
-#      / ``merge_mission_to_target`` (file content reaches target) and real
+#   3. REAL merge: ``_run_lane_based_merge`` runs real ``consolidate_lane_into_mission``
+#      / ``integrate_mission_into_target`` (file content reaches target) and real
 #      ``_mark_wp_merged_done`` (event log reaches done). Only side effects that
 #      touch state OUTSIDE git are mocked.
 #
@@ -479,7 +479,7 @@ def _claim_allocation_patched(repo: Path, feature_dir: Path) -> Iterator[MagicMo
 @contextmanager
 def _real_merge_external_mocks(repo: Path) -> Iterator[None]:
     """Mock ONLY side effects that touch state outside git. The real
-    ``merge_lane_to_mission`` / ``merge_mission_to_target`` (file reaches target)
+    ``consolidate_lane_into_mission`` / ``integrate_mission_into_target`` (file reaches target)
     and the real ``_mark_wp_merged_done`` (event log reaches done) run."""
     with ExitStack() as stack:
         for target in (

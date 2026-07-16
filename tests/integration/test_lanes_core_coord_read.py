@@ -25,7 +25,7 @@ WP03 ROUTE / KEEP map (re-resolved on the lane-c tree, verified)
 | Site                                                       | Verdict | Kind             |
 |------------------------------------------------------------|---------|------------------|
 | lanes/merge.py `_resolve_lane_manifest` (:68)              | ROUTE   | LANE_STATE       |
-| lanes/merge.py `merge_mission_to_target` (:198)            | ROUTE   | LANE_STATE       |
+| lanes/merge.py `integrate_mission_into_target` (:198)            | ROUTE   | LANE_STATE       |
 | lanes/recovery.py `scan_recovery_state` lanes/tasks (:356) | ROUTE   | LANE_STATE/WP_TASK |
 | lanes/recovery.py `scan_recovery_state` events leg         | KEEP    | coord-aware (C-001) |
 | lanes/recovery.py `recover_context` (:611)                 | ROUTE   | LANE_STATE       |
@@ -147,11 +147,11 @@ def test_resolve_lane_manifest_reads_primary_lane_set(
     assert list(manifest.lanes[0].wp_ids) == ["WP01"]
 
 
-def test_merge_mission_to_target_reads_primary_lanes(
+def test_integrate_mission_into_target_reads_primary_lanes(
     coord_topology_mission_sentinel_meta: CoordTopologyContext,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """``merge_mission_to_target`` resolves the PRIMARY mission_branch from lanes.json.
+    """``integrate_mission_into_target`` resolves the PRIMARY mission_branch from lanes.json.
 
     Domain value: the ``mission_branch`` the function derives from the loaded
     manifest and hands to the branch-existence check. We CAPTURE it and stop.
@@ -171,7 +171,7 @@ def test_merge_mission_to_target_reads_primary_lanes(
     monkeypatch.setattr(merge_mod, "_branch_exists", _fake_branch_exists)
 
     with pytest.raises(_StopProbe):
-        merge_mod.merge_mission_to_target(ctx.repo, ctx.slug, lanes_manifest=None)
+        merge_mod.integrate_mission_into_target(ctx.repo, ctx.slug, lanes_manifest=None)
 
     assert captured["mission_branch"] == _PRIMARY_MISSION_BRANCH
 

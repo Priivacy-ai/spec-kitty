@@ -4,7 +4,7 @@ The most important test is test_done_events_committed_to_git which uses
 git show HEAD: to prove the events are durably committed after _run_lane_based_merge
 returns (the canonical mechanically-correct assertion — NOT git reset --hard HEAD).
 
-Note on patching: merge_lane_to_mission/merge_mission_to_target are imported locally inside
+Note on patching: consolidate_lane_into_mission/integrate_mission_into_target are imported locally inside
 _run_lane_based_merge, so they must be patched at the source module level
 (specify_cli.lanes.merge.*) not at specify_cli.cli.commands.merge.*.
 evaluate_merge_gates and load_policy_config are similarly patched at their source paths.
@@ -243,8 +243,8 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
             patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path),
             patch("specify_cli.merge.executor._enforce_target_branch_sync_preflight"),
             patch("specify_cli.status.get_wp_lane", return_value="done"),
-            patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
-            patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
+            patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=lane_result),
+            patch("specify_cli.lanes.merge.integrate_mission_into_target", return_value=mission_result),
             patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"),
             patch("specify_cli.merge.executor.commit_merge_bookkeeping", return_value=True) as mock_safe_commit,
             patch("specify_cli.post_merge.stale_assertions.run_check") as mock_run_check,
@@ -321,8 +321,8 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
             stack.enter_context(patch("specify_cli.merge.done_bookkeeping.save_state"))
             stack.enter_context(patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path))
             stack.enter_context(patch("specify_cli.merge.executor._enforce_target_branch_sync_preflight"))
-            stack.enter_context(patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result))
-            stack.enter_context(patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result))
+            stack.enter_context(patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=lane_result))
+            stack.enter_context(patch("specify_cli.lanes.merge.integrate_mission_into_target", return_value=mission_result))
             stack.enter_context(patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"))
             stack.enter_context(patch("specify_cli.merge.done_bookkeeping._assert_merged_wps_reached_done"))
             stack.enter_context(patch("specify_cli.merge.executor._bake_mission_number_into_mission_branch"))
@@ -388,8 +388,8 @@ class TestSafeCommitCalledAfterMarkDoneLoop:
             stack.enter_context(patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path))
             stack.enter_context(patch("specify_cli.merge.executor._enforce_target_branch_sync_preflight"))
             stack.enter_context(patch("specify_cli.status.get_wp_lane", return_value="done"))
-            stack.enter_context(patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result))
-            stack.enter_context(patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result))
+            stack.enter_context(patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=lane_result))
+            stack.enter_context(patch("specify_cli.lanes.merge.integrate_mission_into_target", return_value=mission_result))
             stack.enter_context(patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"))
             # WP10 (#2057): the bake (ordering seam) + the done-on-target assert
             # (done_bookkeeping seam) run real git against an unseeded branch in
@@ -530,8 +530,8 @@ class TestMergeDoneTransitions:
             patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path),
             patch("specify_cli.merge.executor._enforce_target_branch_sync_preflight"),
             patch("specify_cli.status.get_wp_lane", return_value="done"),
-            patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
-            patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
+            patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=lane_result),
+            patch("specify_cli.lanes.merge.integrate_mission_into_target", return_value=mission_result),
             patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"),
             patch("specify_cli.merge.executor.commit_merge_bookkeeping", side_effect=record_safe_commit),
             patch("specify_cli.post_merge.stale_assertions.run_check") as mock_run_check,
@@ -649,8 +649,8 @@ class TestDoneEventsCommittedToGit:
             patch("specify_cli.merge.resolve.load_state", return_value=None),
             patch("specify_cli.merge.done_bookkeeping.save_state"),
             patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path),
-            patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
-            patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result),
+            patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=lane_result),
+            patch("specify_cli.lanes.merge.integrate_mission_into_target", return_value=mission_result),
             patch("specify_cli.post_merge.stale_assertions.run_check") as mock_run_check,
             patch("specify_cli.policy.merge_gates.evaluate_merge_gates") as mock_gates,
             patch("specify_cli.policy.config.load_policy_config") as mock_policy,
@@ -760,7 +760,7 @@ class TestDoneEventsCommittedToGit:
         lane_result.success = True
         lane_result.errors = []
 
-        def _merge_mission_to_target(*_args, **_kwargs):  # noqa: ANN002, ANN003
+        def _integrate_mission_into_target(*_args, **_kwargs):  # noqa: ANN002, ANN003
             subprocess.run(["git", "checkout", "main"], cwd=tmp_path, check=True, capture_output=True)
             subprocess.run(
                 ["git", "-c", "commit.gpgsign=false", "merge", "--no-ff", coord_branch, "-m", "merge mission"],
@@ -781,8 +781,8 @@ class TestDoneEventsCommittedToGit:
             patch("specify_cli.merge.done_bookkeeping.save_state"),
             patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path),
             patch("specify_cli.cli.commands.merge._bake_mission_number_into_mission_branch"),
-            patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result),
-            patch("specify_cli.lanes.merge.merge_mission_to_target", side_effect=_merge_mission_to_target),
+            patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=lane_result),
+            patch("specify_cli.lanes.merge.integrate_mission_into_target", side_effect=_integrate_mission_into_target),
             patch("specify_cli.post_merge.stale_assertions.run_check") as mock_run_check,
             patch("specify_cli.policy.merge_gates.evaluate_merge_gates") as mock_gates,
             patch("specify_cli.policy.config.load_policy_config") as mock_policy,
@@ -860,8 +860,8 @@ class TestDoneEventsCommittedToGit:
             stack.enter_context(patch("specify_cli.merge.executor.get_main_repo_root", return_value=tmp_path))
             stack.enter_context(patch("specify_cli.merge.executor._enforce_target_branch_sync_preflight"))
             stack.enter_context(patch("specify_cli.status.get_wp_lane", return_value="done"))
-            stack.enter_context(patch("specify_cli.lanes.merge.merge_lane_to_mission", return_value=lane_result))
-            stack.enter_context(patch("specify_cli.lanes.merge.merge_mission_to_target", return_value=mission_result))
+            stack.enter_context(patch("specify_cli.lanes.merge.consolidate_lane_into_mission", return_value=lane_result))
+            stack.enter_context(patch("specify_cli.lanes.merge.integrate_mission_into_target", return_value=mission_result))
             stack.enter_context(patch("specify_cli.merge.done_bookkeeping._mark_wp_merged_done"))
             stack.enter_context(patch("specify_cli.merge.executor.commit_merge_bookkeeping", return_value=True))
             mock_run_check = stack.enter_context(patch("specify_cli.post_merge.stale_assertions.run_check"))

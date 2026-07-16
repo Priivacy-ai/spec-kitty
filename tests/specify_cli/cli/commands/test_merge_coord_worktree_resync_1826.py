@@ -25,8 +25,8 @@ Covered acceptance criteria (contracts/class-b-ref-advance-resync.md):
   refusal (``RefAdvanceDirtyWorktreeError``), no data is discarded
   (NFR-002/NFR-003), and the merge stays resumable.
 
-These tests drive the REAL ``merge_lane_to_mission`` /
-``merge_mission_to_target`` / ``_merge_branch_into`` /
+These tests drive the REAL ``consolidate_lane_into_mission`` /
+``integrate_mission_into_target`` / ``_merge_branch_into`` /
 ``_bake_mission_number_into_mission_branch`` /
 ``_record_merged_wps_done_for_merge`` functions against a real on-disk git
 repository with a real coordination worktree. They mock ONLY side effects
@@ -157,7 +157,7 @@ def _write_manifest(feature_dir: Path) -> LanesManifest:
         version=1,
         mission_slug=MISSION_SLUG,
         # mission_id == slug => legacy lane_branch_name form
-        # ``kitty/mission-<slug>-lane-<id>`` which merge_lane_to_mission constructs.
+        # ``kitty/mission-<slug>-lane-<id>`` which consolidate_lane_into_mission constructs.
         mission_id=MISSION_SLUG,
         mission_branch=COORD_BRANCH,
         target_branch="main",

@@ -429,7 +429,7 @@ class TestCreateWindowCommitBoundaryNFR001:
             "specify_cli.coordination.commit_router.resolve_placement_only",
             lambda _root, _slug, *, kind: CommitTarget(ref=_coord_branch),
         ), patch(
-            "specify_cli.coordination.commit_router._resolve_primary_target_branch",
+            "specify_cli.coordination.commit_router._resolve_mission_target_branch",
             lambda _root, _slug: "main",
         ), patch(
             "specify_cli.coordination.commit_router._resolve_mid8",

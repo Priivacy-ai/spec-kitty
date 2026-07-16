@@ -268,7 +268,7 @@ def _phase_merge_lanes(run: _MergeRunState) -> None:
     """Merge each lane branch into the mission branch (skipping integrated lanes)."""
     from specify_cli.lanes.branch_naming import lane_branch_name
     from specify_cli.lanes.compute import is_planning_lane
-    from specify_cli.lanes.merge import merge_lane_to_mission
+    from specify_cli.lanes.merge import consolidate_lane_into_mission
 
     lanes_manifest = run.lanes_manifest
     for lane in lanes_manifest.lanes:
@@ -296,7 +296,7 @@ def _phase_merge_lanes(run: _MergeRunState) -> None:
         run.any_lane_had_unintegrated_code = True
 
         console.print(f"  [dim]Checking and merging {lane.lane_id}...[/dim]")
-        lane_result = merge_lane_to_mission(run.main_repo, run.mission_slug, lane.lane_id, lanes_manifest)
+        lane_result = consolidate_lane_into_mission(run.main_repo, run.mission_slug, lane.lane_id, lanes_manifest)
         if lane_result.success:
             console.print(f"  [green]✓[/green] {lane.lane_id} → {lanes_manifest.mission_branch}")
         else:
@@ -467,7 +467,7 @@ def _phase_mission_to_target(run: _MergeRunState) -> None:
     if run.planning_artifact_only:
         return
 
-    from specify_cli.lanes.merge import merge_mission_to_target
+    from specify_cli.lanes.merge import integrate_mission_into_target
 
     lanes_manifest = run.lanes_manifest
     # FR-037 (#1772 Bug 3): gate the no-op squash recovery on tree equivalence.
@@ -479,7 +479,7 @@ def _phase_mission_to_target(run: _MergeRunState) -> None:
     _allow_noop = run.is_resume and _mission_integrated_into_target
     console.print(f"  [dim]Merging mission branch into {lanes_manifest.target_branch}...[/dim]")
     try:
-        mission_result = merge_mission_to_target(
+        mission_result = integrate_mission_into_target(
             run.main_repo,
             run.mission_slug,
             lanes_manifest,

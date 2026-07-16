@@ -89,7 +89,7 @@ def _install_common_fakes(
     """
     monkeypatch.setattr(commit_router, "resolve_placement_only", _fake_resolve_placement_only)
     monkeypatch.setattr(commit_router, "resolve_topology", lambda *_a, **_kw: MissionTopology.COORD)
-    monkeypatch.setattr(commit_router, "_resolve_primary_target_branch", lambda *_a, **_kw: _PRIMARY_REF)
+    monkeypatch.setattr(commit_router, "_resolve_mission_target_branch", lambda *_a, **_kw: _PRIMARY_REF)
 
     def _fake_materialise(
         repo_root: Path,
@@ -285,7 +285,7 @@ def test_single_partition_batch_keeps_the_fast_path(
         commit_router, "resolve_topology", lambda *_a, **_kw: MissionTopology.SINGLE_BRANCH
     )
     monkeypatch.setattr(
-        commit_router, "_resolve_primary_target_branch", lambda *_a, **_kw: _PRIMARY_REF
+        commit_router, "_resolve_mission_target_branch", lambda *_a, **_kw: _PRIMARY_REF
     )
 
     safe_commit_calls: list[dict[str, object]] = []
@@ -429,7 +429,7 @@ def test_single_partition_batch_commit_hashes_matches_legacy_single_commit_hash(
         commit_router, "resolve_topology", lambda *_a, **_kw: MissionTopology.SINGLE_BRANCH
     )
     monkeypatch.setattr(
-        commit_router, "_resolve_primary_target_branch", lambda *_a, **_kw: _PRIMARY_REF
+        commit_router, "_resolve_mission_target_branch", lambda *_a, **_kw: _PRIMARY_REF
     )
     monkeypatch.setattr(commit_router, "safe_commit", lambda **_kw: _FakeCommitResult())
     policy = _make_policy(protected=False)

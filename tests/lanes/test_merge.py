@@ -8,8 +8,8 @@ from specify_cli.lanes.merge import (
     LaneMergeResult,
     MissionMergeResult,
     _merge_branch_into,
-    merge_lane_to_mission,
-    merge_mission_to_target,
+    consolidate_lane_into_mission,
+    integrate_mission_into_target,
 )
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.merge.config import MergeStrategy
@@ -86,7 +86,7 @@ class TestMergeLaneToMission:
         _commit(repo, "src/new.py", "lane work\n", "lane commit")
         _run(["git", "checkout", "main"], repo)
 
-        result = merge_lane_to_mission(repo, "010-feat", "lane-a", manifest)
+        result = consolidate_lane_into_mission(repo, "010-feat", "lane-a", manifest)
 
         assert result.success is True
         assert result.lane_id == "lane-a"
@@ -107,7 +107,7 @@ class TestMergeLaneToMission:
         _commit(repo, "src/views.py", "lane\n", "lane change")
         _run(["git", "checkout", "main"], repo)
 
-        result = merge_lane_to_mission(repo, "010-feat", "lane-a", manifest)
+        result = consolidate_lane_into_mission(repo, "010-feat", "lane-a", manifest)
 
         assert result.success is False
         assert result.stale_check is not None
@@ -118,7 +118,7 @@ class TestMergeLaneToMission:
         manifest = _make_manifest()
         _run(["git", "branch", "kitty/mission-010-feat"], repo)
 
-        result = merge_lane_to_mission(repo, "010-feat", "lane-a", manifest)
+        result = consolidate_lane_into_mission(repo, "010-feat", "lane-a", manifest)
 
         assert result.success is False
         assert "does not exist" in result.errors[0]
@@ -127,7 +127,7 @@ class TestMergeLaneToMission:
         repo = _make_repo(tmp_path)
         manifest = _make_manifest()
 
-        result = merge_lane_to_mission(repo, "010-feat", "lane-z", manifest)
+        result = consolidate_lane_into_mission(repo, "010-feat", "lane-z", manifest)
 
         assert result.success is False
         assert "not found" in result.errors[0]
@@ -153,7 +153,7 @@ class TestMergeLaneToMission:
             ],
         )
 
-        result = merge_lane_to_mission(repo, "010-feat", "lane-planning", manifest)
+        result = consolidate_lane_into_mission(repo, "010-feat", "lane-planning", manifest)
 
         assert result.success is True
         assert result.lane_id == "lane-planning"
@@ -171,7 +171,7 @@ class TestMergeMissionToTarget:
         _commit(repo, "src/feature.py", "feature\n", "feature work")
         _run(["git", "checkout", "main"], repo)
 
-        result = merge_mission_to_target(repo, "010-feat", manifest)
+        result = integrate_mission_into_target(repo, "010-feat", manifest)
 
         assert result.success is True
         assert result.commit is not None
@@ -186,7 +186,7 @@ class TestMergeMissionToTarget:
         _commit(repo, "src/feature.py", "feature\n", "feature work")
         _run(["git", "checkout", "main"], repo)
 
-        first = merge_mission_to_target(
+        first = integrate_mission_into_target(
             repo,
             "010-feat",
             manifest,
@@ -200,7 +200,7 @@ class TestMergeMissionToTarget:
             check=True,
         ).stdout.strip()
 
-        retry = merge_mission_to_target(
+        retry = integrate_mission_into_target(
             repo,
             "010-feat",
             manifest,
@@ -228,7 +228,7 @@ class TestMergeMissionToTarget:
         _commit(repo, "src/feature.py", "feature\n", "feature work")
         _run(["git", "checkout", "main"], repo)
 
-        first = merge_mission_to_target(
+        first = integrate_mission_into_target(
             repo,
             "010-feat",
             manifest,
@@ -242,7 +242,7 @@ class TestMergeMissionToTarget:
             check=True,
         ).stdout.strip()
 
-        retry = merge_mission_to_target(
+        retry = integrate_mission_into_target(
             repo,
             "010-feat",
             manifest,
@@ -283,7 +283,7 @@ class TestMergeMissionToTarget:
             != 0
         )
 
-        result = merge_mission_to_target(repo, "010-feat", manifest)
+        result = integrate_mission_into_target(repo, "010-feat", manifest)
 
         assert result.success is True
         driver = subprocess.run(
@@ -299,7 +299,7 @@ class TestMergeMissionToTarget:
         repo = _make_repo(tmp_path)
         manifest = _make_manifest()
 
-        result = merge_mission_to_target(repo, "010-feat", manifest)
+        result = integrate_mission_into_target(repo, "010-feat", manifest)
 
         assert result.success is False
         assert "does not exist" in result.errors[0]

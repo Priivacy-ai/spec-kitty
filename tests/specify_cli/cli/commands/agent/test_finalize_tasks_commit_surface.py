@@ -10,7 +10,7 @@ primary ``main`` instead of the mission's ``target_branch`` (``feat/...``). The
 ``finalize_tasks`` body commits the TASKS_INDEX artifact through the canonical
 ``commit_for_mission`` entry point (``mission.py`` ~line 3927, ``kind=TASKS_INDEX``).
 ``commit_for_mission`` resolves the placement via ``resolve_placement_only`` /
-``_resolve_primary_target_branch``, BOTH of which read ``get_feature_target_branch``
+``_resolve_mission_target_branch``, BOTH of which read ``get_feature_target_branch``
 internally. Under coord topology that resolver anchored on the coord candidate (no
 ``meta.json``) and fell back to ``main`` → the placement landed on protected ``main``
 → the #2106 FR-008 guard correctly refused. The resolution to ``main`` is the bug.

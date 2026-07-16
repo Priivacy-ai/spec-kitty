@@ -530,7 +530,7 @@ def _execute_lane_merge(
     from specify_cli.core.git_ops import has_remote, run_command
     from specify_cli.lanes.branch_naming import lane_branch_name
     from specify_cli.lanes.compute import is_planning_artifact_only, is_planning_lane
-    from specify_cli.lanes.merge import merge_lane_to_mission, merge_mission_to_target
+    from specify_cli.lanes.merge import consolidate_lane_into_mission, integrate_mission_into_target
     from specify_cli.lanes.persistence import require_lanes_json
     from specify_cli.merge.config import MergeStrategy
     from specify_cli.policy.config import load_policy_config
@@ -568,11 +568,11 @@ def _execute_lane_merge(
         raise RuntimeError("; ".join(blocking) or "Merge gates failed.")
 
     for lane in lanes_manifest.lanes:
-        lane_result = merge_lane_to_mission(main_repo_root, mission_slug, lane.lane_id, lanes_manifest)
+        lane_result = consolidate_lane_into_mission(main_repo_root, mission_slug, lane.lane_id, lanes_manifest)
         if not lane_result.success:
             raise RuntimeError("; ".join(lane_result.errors) or f"Lane {lane.lane_id} merge failed.")
 
-    mission_result = merge_mission_to_target(
+    mission_result = integrate_mission_into_target(
         main_repo_root,
         mission_slug,
         lanes_manifest,

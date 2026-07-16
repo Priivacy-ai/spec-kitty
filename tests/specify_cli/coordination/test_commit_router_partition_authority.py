@@ -284,7 +284,7 @@ class TestCommitForMissionEndToEndPrimaryCallerRefsNotInverted:
             commit_router, "resolve_topology", lambda *_a, **_kw: MissionTopology.COORD
         )
         monkeypatch.setattr(
-            commit_router, "_resolve_primary_target_branch", lambda *_a, **_kw: _PRIMARY_REF
+            commit_router, "_resolve_mission_target_branch", lambda *_a, **_kw: _PRIMARY_REF
         )
 
         def _fake_materialise(
