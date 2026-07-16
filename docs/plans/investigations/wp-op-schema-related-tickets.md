@@ -4,8 +4,8 @@ description: 'Deduped, relevance-judged map of open Priivacy-ai/spec-kitty issue
 doc_status: reference
 updated: '2026-07-16'
 related:
-- wp-op-schema-model.md
-- wp-op-schema-research/README.md
+- docs/plans/investigations/wp-op-schema-model.md
+- docs/plans/investigations/wp-op-schema-research/README.md
 ---
 # WP & Op Schema Model — Related Open Tracker Tickets
 

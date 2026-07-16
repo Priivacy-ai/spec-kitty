@@ -4,7 +4,7 @@ description: 'Verbatim archived reports from the three-lens research squad that 
 doc_status: reference
 updated: '2026-07-16'
 related:
-- ../wp-op-schema-model.md
+- docs/plans/investigations/wp-op-schema-model.md
 ---
 # WP & Op Schema Model — Research Squad Reports
 
