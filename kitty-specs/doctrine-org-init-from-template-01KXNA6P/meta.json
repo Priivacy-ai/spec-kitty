@@ -18,7 +18,7 @@
   "flattened": false,
   "friendly_name": "Doctrine Org Init From Template",
   "mission_id": "01KXNA6PRW6JQ9Y9M7HA882PZ3",
-  "mission_number": null,
+  "mission_number": 178,
   "mission_slug": "doctrine-org-init-from-template-01KXNA6P",
   "mission_type": "software-dev",
   "pr_bound": true,
