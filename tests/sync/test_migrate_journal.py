@@ -29,6 +29,7 @@ from specify_cli.sync.migrate_journal import (
     MigrationAudit,
     MigrationResult,
     SourceDb,
+    cleanup_migrated_sources,
     discover_source_dbs,
     migrate_queues_to_journal,
     migration_target_token,
@@ -476,3 +477,101 @@ def test_non_json_payload_migrates_as_raw_bytes(tmp_path: Path) -> None:
     raw = journal.read_by_id("e_raw")
     assert raw is not None
     assert raw.payload == b"not-json{"
+
+
+# ----------------------------------------------------------------------
+# #2665 — post-migration source cleanup converges the legacy-row boundary
+# ----------------------------------------------------------------------
+
+
+def test_cleanup_deletes_migrated_rows_and_leaves_journal_intact(tmp_path: Path) -> None:
+    """A clean migration + cleanup drains every source but keeps the journal."""
+    home = tmp_path / "home"
+    legacy = _seed_queue(home / "queue.db", [_event("e1"), _event("e2")])
+    scoped = _seed_queue(_scoped_path(home, _digest("s")), [_event("e3")])
+    journal = _journal(home)
+    audit = MigrationAudit(home / "migration_audit.db")
+
+    result = migrate_queues_to_journal(home, journal=journal, audit=audit)
+    assert result.cleanup_blocked is False
+    # import is read-only: sources are still full after the migration proper
+    assert legacy.size() == 2
+    assert scoped.size() == 1
+
+    cleanup = cleanup_migrated_sources(home, journal=journal, audit=audit, result=result)
+
+    assert cleanup.ran is True
+    assert cleanup.total_deleted == 3
+    assert cleanup.had_errors is False
+    # sources drained (boundary converges)
+    assert OfflineQueue(db_path=home / "queue.db").size() == 0
+    assert OfflineQueue(db_path=_scoped_path(home, _digest("s"))).size() == 0
+    # journal keeps every migrated payload
+    stored = {event.event_id for event in journal.read_all()}
+    assert {"e1", "e2", "e3"} <= stored
+
+
+def test_cleanup_is_noop_when_blocked_by_conflict(tmp_path: Path) -> None:
+    """A divergent-duplicate conflict blocks cleanup entirely — nothing is dropped."""
+    home = tmp_path / "home"
+    a = _seed_queue(_scoped_path(home, _digest("a")), [_event("dup", payload={"v": 1})])
+    b = _seed_queue(_scoped_path(home, _digest("b")), [_event("dup", payload={"v": 2})])
+    journal = _journal(home)
+    audit = MigrationAudit(home / "migration_audit.db")
+
+    result = migrate_queues_to_journal(home, journal=journal, audit=audit)
+    assert result.cleanup_blocked is True
+
+    cleanup = cleanup_migrated_sources(home, journal=journal, audit=audit, result=result)
+
+    assert cleanup.ran is False
+    assert cleanup.total_deleted == 0
+    # both sources left fully intact while the conflict is unresolved
+    assert a.size() == 1
+    assert b.size() == 1
+
+
+def test_cleanup_is_idempotent(tmp_path: Path) -> None:
+    """Re-running cleanup after the sources are drained deletes nothing more."""
+    home = tmp_path / "home"
+    _seed_queue(_scoped_path(home, _digest("s")), [_event("e1")])
+    journal = _journal(home)
+    audit = MigrationAudit(home / "migration_audit.db")
+    result = migrate_queues_to_journal(home, journal=journal, audit=audit)
+
+    first = cleanup_migrated_sources(home, journal=journal, audit=audit, result=result)
+    assert first.total_deleted == 1
+
+    second = cleanup_migrated_sources(home, journal=journal, audit=audit, result=result)
+    assert second.ran is True
+    assert second.total_deleted == 0
+
+
+def test_cleanup_reports_error_without_crashing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """A locked/corrupt source at cleanup time is reported, not fatal."""
+    home = tmp_path / "home"
+    _seed_queue(_scoped_path(home, _digest("s")), [_event("e1")])
+    journal = _journal(home)
+    audit = MigrationAudit(home / "migration_audit.db")
+    result = migrate_queues_to_journal(home, journal=journal, audit=audit)
+
+    import specify_cli.sync.migrate_journal as mj
+
+    def _boom(*_args: Any, **_kwargs: Any) -> int:
+        raise sqlite3.OperationalError("database is locked")
+
+    monkeypatch.setattr(mj, "_delete_migrated_rows", _boom)
+
+    cleanup = mj.cleanup_migrated_sources(home, journal=journal, audit=audit, result=result)
+
+    assert cleanup.ran is True
+    assert cleanup.total_deleted == 0
+    assert cleanup.had_errors is True
+
+
+def test_remove_events_deletes_only_named_ids(tmp_path: Path) -> None:
+    """OfflineQueue.remove_events deletes exactly the named ids, by id."""
+    queue = _seed_queue(tmp_path / "queue.db", [_event("e1"), _event("e2"), _event("e3")])
+    removed = queue.remove_events(["e1", "e3", "absent"])
+    assert removed == 2
+    assert queue.size() == 1
