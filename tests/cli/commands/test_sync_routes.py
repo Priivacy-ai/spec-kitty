@@ -473,7 +473,7 @@ def test_run_dispatch_batches_halves_on_oversized_then_drains(
     calls: list[int] = []
     remaining = {"n": 5}
 
-    def fake_dispatch(*, journal, ledger, receiver, target, limit):  # noqa: ANN001, ANN202
+    def fake_dispatch(*, journal, ledger, receiver, target, limit, exclude=frozenset()):  # noqa: ANN001, ANN202
         calls.append(limit)
         if limit >= 4:  # too large: server 413s the whole batch
             return _oversized_summary(min(limit, remaining["n"]))
@@ -498,6 +498,62 @@ def test_run_dispatch_batches_halves_on_oversized_then_drains(
     assert 8 in calls and 2 in calls
     assert combined.delivered == 5
     assert combined.transient == 0
+
+
+def test_run_dispatch_batches_skips_rejected_and_drains_events_behind(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A poison chunk (content-rejected, no delivery) must not halt the drain:
+    the loop skips those events for the rest of the pass so deliverable events
+    behind them still drain, and terminates without re-selecting the poison.
+
+    Models the head-of-line block a small (post-oversized) batch limit exposes:
+    without the in-pass skip, the first all-rejected chunk stops the whole drain.
+    """
+    monkeypatch.setattr(sync_module, "_EVENT_SYNC_DISPATCH_BATCH_LIMIT", 2)
+
+    # Universe: two poison events up front, then three deliverable ones.
+    poison = ["p0", "p1"]
+    good = ["g0", "g1", "g2"]
+    universe = poison + good
+    delivered: list[str] = []
+
+    def fake_dispatch(*, journal, ledger, receiver, target, limit, exclude=frozenset()):  # noqa: ANN001, ANN202
+        selectable = [eid for eid in universe if eid not in exclude and eid not in delivered]
+        chunk = selectable[:limit]
+        if not chunk:
+            return DispatchSummary.empty()
+        rejected_ids = [eid for eid in chunk if eid in poison]
+        good_ids = [eid for eid in chunk if eid not in poison]
+        delivered.extend(good_ids)
+        return DispatchSummary(
+            target_id="t",
+            selected=len(chunk),
+            delivered=len(good_ids),
+            duplicate=0,
+            pending=0,
+            rejected=len(rejected_ids),
+            transient=0,
+            terminal_failed=0,
+            failures=tuple(
+                DispatchFailure(
+                    event_id=eid,
+                    outcome="rejected",
+                    http_status=400,
+                    error="requires force=True",
+                )
+                for eid in rejected_ids
+            ),
+        )
+
+    monkeypatch.setattr("specify_cli.delivery.dispatcher.dispatch", fake_dispatch)
+
+    combined = sync_module._run_dispatch_batches(Mock(), Mock(), Mock())
+
+    # All three deliverable events drained despite the poison at the head.
+    assert set(delivered) == set(good)
+    assert combined.delivered == 3
+    assert combined.rejected == 2
 
 
 def test_transient_block_message_distinguishes_cause() -> None:

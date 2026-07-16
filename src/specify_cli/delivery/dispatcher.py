@@ -189,6 +189,7 @@ def _select_undelivered(
     target_id: str,
     *,
     limit: int | None = None,
+    exclude: frozenset[str] = frozenset(),
 ) -> list[Event]:
     """Return journal events still needing delivery to *target_id* (FR-004 / FR-015).
 
@@ -197,12 +198,20 @@ def _select_undelivered(
     ``select_undelivered`` filters out every event that already has a terminal-success
     or terminal-failed row for the active target. Order is preserved so re-runs are
     reproducible. No SQL and no ``queue.py`` import lives here.
+
+    *exclude* is a caller-supplied, in-memory skip set applied to the universe
+    **before** the ledger query, so the ``limit`` still fills with selectable
+    events. It is a transient, per-call filter (a drain pass uses it to advance
+    past events that made no progress this pass); it never changes durable ledger
+    state, so the ledger's non-terminal re-selection contract is preserved.
     """
     universe = journal.read_all()
     by_id = {event.event_id: event for event in universe}
     selected_ids = ledger.select_undelivered(
         target_id=target_id,
-        event_universe=[event.event_id for event in universe],
+        event_universe=[
+            event.event_id for event in universe if event.event_id not in exclude
+        ],
         limit=limit,
     )
     return [by_id[event_id] for event_id in selected_ids]
@@ -342,6 +351,7 @@ def dispatch(
     receiver: DeliveryReceiver,
     target: DeliveryTarget | None,
     limit: int | None = None,
+    exclude: frozenset[str] = frozenset(),
 ) -> DispatchSummary:
     """Drain undelivered journal events to one active *target* (contract §3/§4).
 
@@ -355,11 +365,19 @@ def dispatch(
     Activates WP08 coalescing on this live path first (D-020 / FR-011), then runs
     select -> post -> record. A successful drain leaves the journal row count
     unchanged and writes terminal-success ledger rows (FR-001).
+
+    *exclude* is an optional in-memory skip set (event IDs) applied to this
+    selection only. A multi-batch drain uses it to advance past events that made
+    no progress earlier in the same pass, so a permanent content rejection cannot
+    head-of-line-block deliverable events behind it. It never mutates the ledger,
+    so those events stay selectable on the next drain.
     """
     _install_coalescing(ledger)
     if target is None:
         return DispatchSummary.empty()
-    events = _select_undelivered(journal, ledger, target.target_id, limit=limit)
+    events = _select_undelivered(
+        journal, ledger, target.target_id, limit=limit, exclude=exclude
+    )
     results = _post(receiver, events)
     return _record(ledger, target.target_id, results, selected=len(events))
 
