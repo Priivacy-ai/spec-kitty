@@ -32,16 +32,35 @@ DOCTRINE_ROOT = Path(__file__).resolve().parents[4] / "src" / "doctrine"
 #:
 #: After repairing the phantom ``java-implementer`` reference and wiring the
 #: refactoring-procedure → Fowler-catalog and mutation-workflow → mutation-tools
-#: inbound edges, the shipped DRG carries 14 orphaned-but-valid doctrine
+#: inbound edges, the shipped DRG carried 14 orphaned-but-valid doctrine
 #: artifacts. Each is a deliberately-authored artifact with no single natural
 #: referent and is documented (with per-orphan rationale) in
 #: ``kitty-specs/mission-lifecycle-dispatch-drg-closeout-01KV0S99/drg-orphan-residual.md``.
 #:
+#: 2026-07-16 (ceiling 14 → 18): the mission-type-as-DRG-node work introduced 8
+#: new *structural* nodes that are edgeless by deliberate design, while 4 of the
+#: original 14 residuals gained natural inbound edges (net 14 → 18). Per D-C2
+#: none of the 8 is wirable without overriding a recorded design decision or
+#: fabricating a metric edge, so all are accepted residuals:
+#:   - ``mission_type:{documentation,plan,research,software-dev}`` — the graph
+#:     generator emits mission-type nodes *nodes-only by explicit design*
+#:     (``extractor._discover_mission_type_nodes``: edges are a deferred
+#:     S0-continuation; a ``_KIND_MAP`` entry is intentionally withheld until
+#:     the mission_type→action edge feature lands).
+#:   - ``action:plan/{plan,research,review,specify}`` — the ``plan`` mission's
+#:     action-grain indexes are *intentionally empty* (FR-004); plan governance
+#:     is type-wide (``missions/plan/governance-profile.yaml`` ``selected_*``)
+#:     and disjoint from the action grain (FR-013), so these action nodes carry
+#:     zero ``scope`` edges by design.
+#: Rationale + the 4 resolved originals are recorded in ``drg-orphan-residual.md``.
+#:
 #: D-C2 / C-003 forbid deleting valid orphans to shrink this metric. This ceiling
 #: is a regression guard against the count silently *growing* — a new orphan must
 #: either be wired or added to the documented residual (and this ceiling raised
-#: with a rationale). It is NOT a mandate to prune to reach a lower number.
-DOCUMENTED_ORPHAN_RESIDUAL = 14
+#: with a rationale). It is NOT a mandate to prune to reach a lower number. When
+#: the S0-continuation edge feature lands, the 8 structural orphans wire in one
+#: pass and this ceiling should drop.
+DOCUMENTED_ORPHAN_RESIDUAL = 18
 
 
 def _count_orphans(graph_path: Path) -> int:

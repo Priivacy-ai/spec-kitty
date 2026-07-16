@@ -76,6 +76,50 @@ them; manufacturing an edge purely to zero the metric would be metric-gaming (pr
 | `toolguide:python-review-checks` | Python Review Checks | Review-tooling toolguide; consumed by reviewer agents at runtime, not via a built-in static edge. |
 | `toolguide:rtk-search-tooling` | RTK Interception and Search Tooling | System-tools toolguide; operator/runtime tooling, no doctrinal inbound edge. |
 
+## 2026-07-16 curation pass — structural DRG nodes (ceiling 14 → 18)
+
+**Trigger:** `test_shipped_graph_orphan_count_within_documented_residual` went red on a
+clean `upstream/main` checkout (`orphan count 18 exceeds documented residual 14`). This is
+a **pre-existing main-red**, unrelated to any in-flight mission. Curated per D-C2.
+
+**What changed since the 14 ceiling was set** — the graph now carries 18 orphans, but the
+set is **not** the original 14 plus 4:
+
+- **4 previously-documented orphans got naturally wired** (removed from the residual set)
+  by ordinary doctrine growth — no metric-gaming, each a genuine doctrinal edge:
+  - `tactic:clean-linear-commit-history` ← `directive:DIRECTIVE_046` (`suggests`),
+    `procedure:mission-wrap-up-sequence` (`requires`), and two related tactics.
+  - `tactic:zombies-tdd` ← `tactic:delete-the-assertion-not-the-test` (`suggests`).
+  - `tactic:documentation-curation-audit` ← `action:documentation/accept` and
+    `action:documentation/validate` (`scope`).
+  - `procedure:documentation-gap-prioritization` ← `styleguide:docs-freshness-sla`
+    (`suggests`).
+- **8 new structural nodes appeared** — all emitted by the mission-type-as-DRG-node work.
+  None is a hand-authored tactic/directive; each is edgeless **by deliberate design**, so
+  none is wirable without either overriding a recorded design decision or fabricating a
+  metric edge (both prohibited by D-C2). They are accepted residuals:
+
+| URN | Kind | Why residual (not wired, not deleted) |
+|-----|------|----------------------------------------|
+| `mission_type:documentation` | mission_type | The graph generator emits mission-type nodes **nodes-only by explicit design** — `extractor.py::_discover_mission_type_nodes` states *"no edges are emitted here (edges are a deliberate S0-continuation; do not add a `_KIND_MAP` entry until edges exist)."* Wiring these would require implementing the deferred generator feature (mission_type→action edges), which is scoped future work, not curation. Fabricating an edge to zero the metric is prohibited. |
+| `mission_type:plan` | mission_type | Same: deliberately nodes-only pending the S0-continuation edge feature. |
+| `mission_type:research` | mission_type | Same. |
+| `mission_type:software-dev` | mission_type | Same. |
+| `action:plan/plan` | action | The `plan` mission's action-grain indexes are **intentionally empty (FR-004)**: plan governance is type-wide (declared once in `missions/plan/governance-profile.yaml` `selected_*`), so no doctrine is scoped to the action grain (FR-013 keeps the grains disjoint). The action node exists for structural completeness but legitimately carries zero `scope` edges. Nothing scopes *into* an action node except its mission_type (deferred, above). |
+| `action:plan/research` | action | Same empty-grain-by-design (FR-004); type-wide governance lives in the plan governance-profile. |
+| `action:plan/review` | action | Same. |
+| `action:plan/specify` | action | Same. |
+
+> The other three mission types' action nodes (`documentation/*`, `research/*`,
+> `software-dev/*`) are **not** orphans: their action-grain indexes declare per-action
+> `scope` selections, producing outbound edges. Only `plan` chose the empty-grain form,
+> which is a valid FR-004 authoring decision — not a defect to "fix" with a manufactured edge.
+
+**Verdict:** no artifact deleted, no generator design overridden, no edge fabricated. The
+ceiling is raised to **18** (10 surviving original residuals + 8 new structural residuals).
+When the S0-continuation mission adds mission_type→action edges, all 8 structural orphans
+wire in one pass and the ceiling should drop accordingly.
+
 ## Follow-up ticket (required — residual is non-empty, C-003)
 
 The residual set is non-empty, so per C-003 a curation follow-up ticket is required
