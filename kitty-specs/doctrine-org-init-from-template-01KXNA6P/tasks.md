@@ -82,11 +82,11 @@
 
 ### Included Subtasks
 
-- [ ] T006 RED: `.templateignore` + built-in exclude copy tests
-- [ ] T007 Implement ignore matcher + full-tree copy
-- [ ] T008 [P] RED: token substitute + leftover-token tests
-- [ ] T009 Implement substitute walk + leftover assert
-- [ ] T010 Orchestrate validate→resolve→copy→substitute pipeline
+- [x] T006 RED: `.templateignore` + built-in exclude copy tests
+- [x] T007 Implement ignore matcher + full-tree copy
+- [x] T008 [P] RED: token substitute + leftover-token tests
+- [x] T009 Implement substitute walk + leftover assert
+- [x] T010 Orchestrate validate→resolve→copy→substitute pipeline
 
 ### Implementation Notes
 
