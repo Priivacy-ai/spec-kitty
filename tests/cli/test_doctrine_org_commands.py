@@ -166,3 +166,115 @@ def test_doctrine_org_validate_rejects_invalid_kind(tmp_path: Path) -> None:
     result = runner.invoke(app, ["org", "validate", str(pack_dir)])
 
     assert result.exit_code != 0, "Expected non-zero exit for invalid kind"
+
+
+# ---------------------------------------------------------------------------
+# Template render path (doctrine-org-init-from-template WP03)
+# ---------------------------------------------------------------------------
+
+
+def _write_mini_template(root: Path) -> None:
+    (root / "pack").mkdir()
+    (root / "pack" / "org-charter.yaml").write_text(
+        'org_name: "{{ORG_NAME}}"\npath: "{{LOCAL_PATH}}"\n',
+        encoding="utf-8",
+    )
+    (root / "README.md").write_text("# {{ORG_NAME}}\n", encoding="utf-8")
+    (root / "kitty-specs").mkdir()
+    (root / "kitty-specs" / "skip.md").write_text("skip\n", encoding="utf-8")
+    (root / ".templateignore").write_text("kitty-specs/\n", encoding="utf-8")
+
+
+def test_doctrine_org_init_template_happy_path(tmp_path: Path) -> None:
+    """``--template`` renders full tree with tokens substituted and ignores applied."""
+    tpl = tmp_path / "tpl"
+    tpl.mkdir()
+    _write_mini_template(tpl)
+    dest = tmp_path / "out"
+
+    result = runner.invoke(
+        app,
+        [
+            "org",
+            "init",
+            str(dest),
+            "--template",
+            str(tpl),
+            "--org-name",
+            "acme-corp",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    charter = (dest / "pack" / "org-charter.yaml").read_text(encoding="utf-8")
+    assert "acme-corp" in charter
+    assert "pack" in charter  # default LOCAL_PATH
+    assert "{{ORG_NAME}}" not in charter
+    assert not (dest / "kitty-specs").exists()
+    assert "rendered" in result.output.lower() or "Org doctrine" in result.output
+
+
+def test_doctrine_org_init_template_requires_org_name(tmp_path: Path) -> None:
+    tpl = tmp_path / "tpl"
+    tpl.mkdir()
+    _write_mini_template(tpl)
+    dest = tmp_path / "out"
+
+    result = runner.invoke(
+        app,
+        ["org", "init", str(dest), "--template", str(tpl)],
+    )
+
+    assert result.exit_code != 0
+    assert "org_name" in result.output.lower() or "ORG_NAME" in result.output
+
+
+def test_doctrine_org_init_template_rejects_invalid_org_name(tmp_path: Path) -> None:
+    tpl = tmp_path / "tpl"
+    tpl.mkdir()
+    _write_mini_template(tpl)
+    dest = tmp_path / "out"
+
+    result = runner.invoke(
+        app,
+        [
+            "org",
+            "init",
+            str(dest),
+            "--template",
+            str(tpl),
+            "--org-name",
+            "Acme",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "org_name.format" in result.output
+    assert not dest.exists()
+
+
+def test_doctrine_org_init_template_force_overwrite(tmp_path: Path) -> None:
+    tpl = tmp_path / "tpl"
+    tpl.mkdir()
+    _write_mini_template(tpl)
+    dest = tmp_path / "out"
+    dest.mkdir()
+    (dest / "stale.txt").write_text("old\n", encoding="utf-8")
+
+    result = runner.invoke(
+        app,
+        [
+            "org",
+            "init",
+            str(dest),
+            "--template",
+            str(tpl),
+            "--org-name",
+            "acme-corp",
+            "--force",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert (dest / "pack" / "org-charter.yaml").is_file()
+    assert not (dest / "stale.txt").exists()
