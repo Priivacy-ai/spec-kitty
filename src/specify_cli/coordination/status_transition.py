@@ -555,22 +555,31 @@ def read_current_wp_state_transactional(
         )
 
         try:
-            return Lane(resolve_lane_alias(get_wp_lane(identity.feature_dir, wp_id))), None
+            resolved_lane = Lane(resolve_lane_alias(get_wp_lane(identity.feature_dir, wp_id)))
         except (ValueError, FileNotFoundError, CanonicalStatusNotFoundError):
             # GENESIS-fallback contract (FR-008d / R7): exactly two expected
             # failure shapes mean "unseeded WP" and fall back to GENESIS
             # (matching _derive_from_lane on the write side — Contract 3,
             # FR-009): a pre-schema/unknown lane value (ValueError from
-            # Lane()/resolve_lane_alias, e.g. the "uninitialized" sentinel)
-            # and an absent log/WP file. ``CanonicalStatusNotFoundError`` is
-            # the codebase's concrete "absent log" signal (``get_wp_lane``
-            # raises it instead of FileNotFoundError; the contract names the
-            # shape, this names the type). Every other exception
-            # (PermissionError, corruption signals, ...) is a real error and
-            # MUST propagate — the former broad ``except Exception`` silently
-            # converted genesis-corruption signals into "unseeded WP" (#1736
-            # dormant mask 1).
+            # Lane()/resolve_lane_alias) and an absent log/WP file.
+            # ``CanonicalStatusNotFoundError`` is the codebase's concrete
+            # "absent log" signal (``get_wp_lane`` raises it instead of
+            # FileNotFoundError; the contract names the shape, this names the
+            # type). Every other exception (PermissionError, corruption
+            # signals, ...) is a real error and MUST propagate — the former
+            # broad ``except Exception`` silently converted genesis-corruption
+            # signals into "unseeded WP" (#1736 dormant mask 1).
             return Lane.GENESIS, None
+        if resolved_lane == Lane.UNINITIALIZED:
+            # #2675/WP05: ``Lane.UNINITIALIZED`` is now a real ``Lane`` member,
+            # so ``Lane("uninitialized")`` no longer raises here and the
+            # ``except`` above goes dead for the unseeded-sentinel case. This
+            # equality check preserves the same GENESIS-fallback contract
+            # explicitly instead of relying on the now-dead ``ValueError``
+            # branch: an absent-from-snapshot WP still means "unseeded" ->
+            # GENESIS, per FR-008d/R7.
+            return Lane.GENESIS, None
+        return resolved_lane, None
     return wp_lane_actor_from_events(events, wp_id)
 
 
@@ -819,6 +828,15 @@ def emit_status_transition_transactional(
         raise TypeError("transactional status emit requires feature_dir, mission_slug, and wp_id")
 
     identity = _identity_for_request(request)
+    # Declared once, up front: both branches below assign ``event`` with
+    # different (but here-compatible) shapes -- the early-return branch gets a
+    # non-Optional ``StatusEvent`` from ``_emit.emit_status_transition``, the
+    # transactional branch gets ``StatusEvent | None`` from ``_prepare_event``
+    # and narrows it via the ``is None`` guard before use. Without this
+    # explicit annotation mypy infers ``event``'s type from the first
+    # assignment (non-Optional) and then flags the second, Optional-typed
+    # assignment as an incompatible redefinition (T055, #2675).
+    event: StatusEvent | None
     if not _transaction_topology_available(identity, mission_slug):
         event = _emit.emit_status_transition(
             request,

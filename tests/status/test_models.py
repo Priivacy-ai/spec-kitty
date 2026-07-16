@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from specify_cli.status.models import (
+    NON_DISPLAY_LANES,
     DoneEvidence,
     Lane,
     RepoEvidence,
@@ -20,12 +21,16 @@ pytestmark = pytest.mark.fast
 
 class TestLaneEnum:
     def test_lane_member_names_exact(self) -> None:
-        """10-lane model: the 9 display lanes plus the non-display 'genesis' lane.
+        """11-lane model: the 9 display lanes plus the two non-display lanes.
 
         'genesis' models the pre-finalize state of a WP (created but not yet
-        seeded into the lane lifecycle). It is excluded from CANONICAL_LANES and
-        never the current lane of a materialized WP, but it is a valid enum
-        member and from_lane.
+        seeded into the lane lifecycle). 'uninitialized' models the lane-read
+        sentinel for a WP with no events at all (empty log or absent from the
+        snapshot) — distinct from genesis. Both are excluded from
+        CANONICAL_LANES and never the current lane of a materialized WP, but
+        both are valid enum members and 'genesis' is a valid from_lane
+        ('uninitialized' is never a from_lane or to_lane — it is
+        non-transitionable).
 
         Asserts the exact frozenset of member *names* (the canonical identity),
         not a golden count: adding, removing, or renaming a lane forces a
@@ -34,6 +39,7 @@ class TestLaneEnum:
         assert frozenset(member.name for member in Lane) == frozenset(
             {
                 "GENESIS",
+                "UNINITIALIZED",
                 "PLANNED",
                 "CLAIMED",
                 "IN_PROGRESS",
@@ -49,6 +55,7 @@ class TestLaneEnum:
     def test_lane_enum_string_values(self) -> None:
         expected = {
             "genesis",
+            "uninitialized",
             "planned",
             "claimed",
             "in_progress",
@@ -274,9 +281,10 @@ class TestStatusSnapshot:
         assert restored.summary == sample_status_snapshot.summary
 
     def test_summary_has_all_lane_keys(self, sample_status_snapshot: StatusSnapshot) -> None:
-        # 'genesis' is a non-display lane: it never appears as the current lane
-        # of a materialized WP and is excluded from board/summary surfaces.
-        expected_keys = {str(lane) for lane in Lane if lane is not Lane.GENESIS}
+        # 'genesis' and 'uninitialized' are non-display lanes: neither ever
+        # appears as the current lane of a materialized WP, so both are
+        # excluded from board/summary surfaces (NON_DISPLAY_LANES).
+        expected_keys = {str(lane) for lane in Lane if lane not in NON_DISPLAY_LANES}
         assert set(sample_status_snapshot.summary.keys()) == expected_keys
 
     def test_summary_counts_match_work_packages(self, sample_status_snapshot: StatusSnapshot) -> None:

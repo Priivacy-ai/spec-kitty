@@ -10,6 +10,13 @@ Public API:
     render_already_widened_prompt(...)
         Show the §1.3 already-widened prompt when a question already has a
         pending widen entry (T045).
+
+    resolve_already_widened_prompt(...)
+        Narrow-once seam (#2675 / WP07 T061) shared by the specify and plan
+        interview flows: gates ``render_already_widened_prompt`` directly on
+        a narrowed ``decision_id: str`` (never through an intermediate
+        stored bool) so mypy carries the ``str | None -> str`` narrowing to
+        the call.
 """
 
 from __future__ import annotations
@@ -24,6 +31,7 @@ from rich.panel import Panel
 __all__ = [
     "render_already_widened_prompt",
     "render_widen_hint_if_present",
+    "resolve_already_widened_prompt",
     "run_end_of_interview_pending_pass",
 ]
 
@@ -363,3 +371,77 @@ def render_already_widened_prompt(
         else:
             # Empty input — re-show hint
             console.print(f"[dim]{hint}[/dim]")
+
+
+# ---------------------------------------------------------------------------
+# T061 — Narrow-once decision_id seam shared by specify/plan interviews (#2675)
+# ---------------------------------------------------------------------------
+
+
+def _is_decision_already_widened(widen_store: Any, decision_id: str) -> bool:
+    """Return True if *decision_id* is already pending in *widen_store*."""
+    with contextlib.suppress(Exception):
+        return any(e.decision_id == decision_id for e in widen_store.list_pending())
+    return False
+
+
+def resolve_already_widened_prompt(
+    *,
+    widen_store: Any,
+    decision_id: str | None,
+    saas_client: Any,
+    question_text: str,
+    mission_slug: str,
+    repo_root: Path,
+    dm_service: Any,
+    actor: str,
+    console: Console,
+) -> bool:
+    """Render the §1.3 already-widened prompt once, if applicable.
+
+    Was byte-identical duplicated logic in ``specify_interview.py`` and
+    ``plan_interview.py``: each computed an intermediate ``_already_widened``
+    bool from ``current_decision_id is not None`` and then re-passed the
+    still-``str | None``-typed ``current_decision_id`` into
+    ``render_already_widened_prompt(decision_id: str)`` — mypy cannot carry a
+    narrowing through a stored bool, so both call sites raised a
+    ``str | None -> str`` ``arg-type`` error.
+
+    This seam narrows *decision_id* exactly once: the ``None``/pending checks
+    gate the ``render_already_widened_prompt`` call directly on the narrowed
+    local parameter (never via an intermediate stored bool), so mypy carries
+    the narrowing to the call without a cast or suppression.
+
+    Args:
+        widen_store:   WidenPendingStore (or None if unavailable).
+        decision_id:   The current question's Decision Moment id, if any.
+        saas_client:   SaasClient for fetching discussions (or None).
+        question_text: The human-readable question.
+        mission_slug:  Mission slug.
+        repo_root:     Repo root path.
+        dm_service:    Decisions service module.
+        actor:         Git actor identifier.
+        console:       Rich Console.
+
+    Returns:
+        True if *decision_id* was already pending and the already-widened
+        prompt was rendered — the caller should record an empty answer and
+        move on to the next question. False if the caller should proceed
+        with its normal question flow.
+    """
+    if widen_store is None or decision_id is None or saas_client is None:
+        return False
+    if not _is_decision_already_widened(widen_store, decision_id):
+        return False
+    render_already_widened_prompt(
+        question_text=question_text,
+        decision_id=decision_id,
+        mission_slug=mission_slug,
+        repo_root=repo_root,
+        saas_client=saas_client,
+        widen_store=widen_store,
+        dm_service=dm_service,
+        actor=actor,
+        console=console,
+    )
+    return True

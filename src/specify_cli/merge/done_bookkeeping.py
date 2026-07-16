@@ -148,16 +148,24 @@ def _resolve_lane_with_planned_fallback(
     try:
         primary_raw = _lane_reader.get_wp_lane(primary_feature_dir, wp_id)
     except CanonicalStatusNotFoundError:
-        primary_raw = "uninitialized"
-    try:
-        lane = _Lane(_resolve_lane_alias(str(primary_raw)))
-        # The coord has no events for this WP; force the done transition so
-        # the state machine doesn't reject it as an invalid jump from PLANNED.
-        return lane, True
-    except ValueError:
-        # Unknown sentinels such as "uninitialized" mean the primary surface
-        # has no usable lifecycle state for this WP either.
+        primary_raw = _Lane.UNINITIALIZED
+
+    # #2675/WP05: ``get_wp_lane`` always returns a real ``Lane`` member (never a
+    # bare, unparseable string) — the absent-log fallback above now assigns
+    # ``Lane.UNINITIALIZED`` instead of the pre-WP05 raw ``"uninitialized"``
+    # string. ``Lane(resolve_lane_alias(...))`` therefore can no longer raise
+    # ``ValueError`` for this input; the pre-WP05 ``except ValueError`` fallback
+    # is expressed explicitly below instead of relying on a now-dead branch.
+    lane = _Lane(_resolve_lane_alias(str(primary_raw)))
+    if lane == _Lane.UNINITIALIZED:
+        # The primary surface has no usable lifecycle state for this WP either
+        # (unseeded sentinel) — preserve the exact pre-WP05 contract: do NOT
+        # force the done jump.
         return coord_lane, False
+
+    # The coord has no events for this WP; force the done transition so
+    # the state machine doesn't reject it as an invalid jump from PLANNED.
+    return lane, True
 
 
 def _emit_approved_replay_if_needed(
@@ -371,12 +379,14 @@ def _assert_merged_wps_reached_done(
         incomplete: list[str] = []
         for wp_id in wp_ids:
             raw = get_wp_lane(feature_dir, wp_id)
-            try:
-                lane = Lane(resolve_lane_alias(raw))
-            except ValueError:
-                # Unrecognized sentinel (e.g. "uninitialized") — treat as not done
-                incomplete.append(f"{wp_id}={raw}")
-                continue
+            # #2675/WP05: ``get_wp_lane`` always returns a real ``Lane`` member,
+            # so ``Lane(resolve_lane_alias(raw))`` can no longer raise
+            # ``ValueError`` here (the pre-WP05 unrecognized-sentinel fallback
+            # is now genuinely unreachable and has been removed rather than
+            # left as a dead handler). ``Lane.UNINITIALIZED`` (unseeded
+            # sentinel) still compares unequal to ``Lane.DONE`` below, so the
+            # not-done treatment is preserved via the explicit equality check.
+            lane = Lane(resolve_lane_alias(raw))
             if lane != Lane.DONE:
                 incomplete.append(f"{wp_id}={lane.value}")
     except CanonicalStatusNotFoundError as exc:

@@ -22,6 +22,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from specify_cli.status.models import (
+    NON_DISPLAY_LANES,
     DoneEvidence,
     Lane,
     ReviewApproval,
@@ -565,11 +566,11 @@ class TestReducerDeterminism:
         assert snap_a.work_packages == snap_b.work_packages == {}
         assert snap_a.summary == snap_b.summary
 
-        # All active/display lane counts should be zero (genesis excluded — non-display invariant)
+        # All active/display lane counts should be zero (NON_DISPLAY_LANES excluded)
         for lane in Lane:
-            if lane is Lane.GENESIS:
+            if lane in NON_DISPLAY_LANES:
                 assert lane.value not in snap_a.summary, (
-                    "genesis must not appear in the summary (non-display invariant)"
+                    f"{lane.value} must not appear in the summary (non-display invariant)"
                 )
             else:
                 assert snap_a.summary[lane.value] == 0
@@ -809,15 +810,18 @@ class TestTransitionMatrixParity:
             assert Lane(lane_str), f"{lane_str} not in Lane enum"
 
     def test_all_enum_values_in_canonical_lanes(self):
-        """All Lane enum values are in CANONICAL_LANES, except 'genesis'.
+        """All Lane enum values are in CANONICAL_LANES, except NON_DISPLAY_LANES.
 
         'genesis' is a non-display lane modelling the pre-finalize state of a
-        WP. By design it is excluded from CANONICAL_LANES (board/display set)
-        while still being a valid enum member and from_lane.
+        WP. 'uninitialized' is a non-display read sentinel for a WP absent
+        from the snapshot / with an empty event log. Both are, by design,
+        excluded from CANONICAL_LANES (board/display set) while still being
+        valid enum members ('genesis' is also a valid from_lane;
+        'uninitialized' is never a from_lane or to_lane).
         """
         for lane in Lane:
-            if lane is Lane.GENESIS:
-                assert lane.value not in CANONICAL_LANES, "genesis must stay out of CANONICAL_LANES (non-display lane)"
+            if lane in NON_DISPLAY_LANES:
+                assert lane.value not in CANONICAL_LANES, f"{lane.value} must stay out of CANONICAL_LANES (non-display lane)"
                 continue
             assert lane.value in CANONICAL_LANES, f"{lane.value} in Lane enum but not in CANONICAL_LANES"
 

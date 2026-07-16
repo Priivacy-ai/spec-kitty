@@ -35,9 +35,22 @@ class Lane(StrEnum):
     snapshot; once seeded it is ``planned``). It therefore does not appear on
     the kanban board or in the board summary. The nine post-genesis states
     (``PLANNED``..``CANCELED``) are the active, displayed lifecycle lanes.
+
+    ``UNINITIALIZED`` is a *non-display, non-transitionable read sentinel*
+    returned by the lane-reader surface (``lane_reader.get_wp_lane`` /
+    ``get_all_wp_lanes``) when a WP is **absent from the reduced snapshot**
+    (no events yet) or the event log **exists but is empty**. It is
+    deliberately **distinct** from ``GENESIS``: ``GENESIS`` means "seeded WP
+    on an unseeded lane" (has a ``WPCreated`` event, pre-finalize), while
+    ``UNINITIALIZED`` means "no lane events exist for this WP at all" (a pure
+    read-time absence marker). ``UNINITIALIZED`` is never persisted to the
+    event log, never appears as a ``from_lane``/``to_lane`` in a transition,
+    and never appears in a display summary — see ``NON_DISPLAY_LANES`` below,
+    which is the single canonical authority for "which lanes never display."
     """
 
     GENESIS = "genesis"
+    UNINITIALIZED = "uninitialized"
     PLANNED = "planned"
     CLAIMED = "claimed"
     IN_PROGRESS = "in_progress"
@@ -47,6 +60,17 @@ class Lane(StrEnum):
     DONE = "done"
     BLOCKED = "blocked"
     CANCELED = "canceled"
+
+
+# Single canonical authority for "which lanes never display" (charter
+# single-canonical-authority principle). ``GENESIS`` (seeded-but-unfinalized)
+# and ``UNINITIALIZED`` (absent-from-snapshot read sentinel) are both
+# non-display: neither is ever the current lane of a materialized,
+# board-visible WP. Every display-filter site (reducer summaries, board
+# roster builders, kanban grouping) MUST consume this constant instead of
+# inlining an ``is not Lane.GENESIS``-style check, so a future non-display
+# lane cannot silently leak into a summary from a forgotten fifth site.
+NON_DISPLAY_LANES: frozenset[Lane] = frozenset({Lane.GENESIS, Lane.UNINITIALIZED})
 
 
 def get_all_lanes() -> tuple[Lane, ...]:

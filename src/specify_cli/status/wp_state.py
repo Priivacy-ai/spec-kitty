@@ -258,6 +258,43 @@ class GenesisState(WPState):
 
 
 @dataclass(frozen=True)
+class UninitializedState(WPState):
+    """Read sentinel for a WP with no lane events at all.
+
+    Distinct from ``GenesisState``: genesis means a WP was created and
+    seeded (has a ``WPCreated`` event) but not yet finalized into the lane
+    lifecycle; uninitialized means the lane-reader found NO events for the
+    WP whatsoever (empty event log, or WP absent from the reduced
+    snapshot). ``allowed_targets()`` is deliberately EMPTY — not a copy of
+    ``GenesisState``'s ``{PLANNED, CANCELED}`` — because this state must add
+    zero edges to the transition-matrix projection derived in
+    ``transitions.py`` and must be genuinely non-transitionable (never a
+    valid ``from_lane`` or ``to_lane`` in a real transition). Do not
+    "simplify" this into an alias of ``GenesisState``: that would inject
+    transition edges and make ``UNINITIALIZED`` transitionable, both of
+    which are contract violations (see ``docs/adr/3.x`` lane-uninitialized
+    notes / #2675).
+    """
+
+    @property
+    def lane(self) -> Lane:
+        return Lane.UNINITIALIZED
+
+    def allowed_targets(self) -> frozenset[Lane]:
+        return frozenset()
+
+    def progress_bucket(self) -> str:
+        return "not_started"
+
+    def display_category(self) -> str:
+        # Non-display lane: never a board column. Grouped under Planned for
+        # parity with GenesisState's placeholder, though this value is not
+        # expected to be consulted in practice (uninitialized WPs never
+        # materialize onto the board).
+        return "Planned"
+
+
+@dataclass(frozen=True)
 class PlannedState(WPState):
     """Work package is planned but not yet started."""
 
@@ -628,6 +665,7 @@ def _check_review_result_consistency(
 
 _STATE_MAP: dict[str, type[WPState]] = {
     "genesis": GenesisState,
+    "uninitialized": UninitializedState,
     "planned": PlannedState,
     "claimed": ClaimedState,
     "in_progress": InProgressState,

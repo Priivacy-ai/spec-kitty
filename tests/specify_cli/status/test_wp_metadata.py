@@ -205,10 +205,10 @@ class TestWPMetadataValidators:
 
     def test_all_display_lanes_accepted(self) -> None:
         """Every display Lane value is accepted."""
-        from specify_cli.status.models import Lane
+        from specify_cli.status.models import NON_DISPLAY_LANES, Lane
 
         for lane in Lane:
-            if lane is Lane.GENESIS:
+            if lane in NON_DISPLAY_LANES:
                 continue
             meta = WPMetadata(work_package_id="WP01", title="T", lane=lane.value)
             assert meta.lane is lane
@@ -217,6 +217,16 @@ class TestWPMetadataValidators:
         """Genesis is an event-log seed source, not an authorable WP lane."""
         with pytest.raises(ValidationError, match="Invalid lane value"):
             WPMetadata(work_package_id="WP01", title="T", lane="genesis")
+
+    def test_uninitialized_lane_rejected(self) -> None:
+        """Uninitialized is a read sentinel, not an authorable WP lane.
+
+        Mirrors ``test_genesis_lane_rejected``: a WP file must never declare
+        ``lane: uninitialized`` in frontmatter — it is only ever produced by
+        the lane-reader for a WP with no events.
+        """
+        with pytest.raises(ValidationError, match="Invalid lane value"):
+            WPMetadata(work_package_id="WP01", title="T", lane="uninitialized")
 
 
 class TestWPMetadataShellPid:

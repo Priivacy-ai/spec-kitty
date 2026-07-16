@@ -498,7 +498,7 @@ def resolve_active_wp_for_branch(
         active_candidates = [
             wp_id
             for wp_id in lane_wp_ids
-            if str(lanes_by_wp.get(wp_id)) == Lane.IN_PROGRESS.value
+            if lanes_by_wp.get(wp_id) == Lane.IN_PROGRESS
         ]
     except Exception as exc:
         return _active_wp_diagnostic(
@@ -510,7 +510,7 @@ def resolve_active_wp_for_branch(
     if len(active_candidates) != 1:
         candidates = ", ".join(active_candidates) if active_candidates else "none"
         lane_states = ", ".join(
-            f"{wp_id}={lanes_by_wp.get(wp_id, 'uninitialized')}"
+            f"{wp_id}={lanes_by_wp.get(wp_id, Lane.UNINITIALIZED)}"
             for wp_id in lane_wp_ids
         )
         return _active_wp_diagnostic(

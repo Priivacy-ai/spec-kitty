@@ -19,7 +19,13 @@ from typing import Any, Literal
 from specify_cli.core.paths import safe_mission_slug
 from specify_cli.mission_metadata import resolve_mission_identity
 
-from .models import Lane, RetrospectiveSnapshot, StatusEvent, StatusSnapshot
+from .models import (
+    NON_DISPLAY_LANES,
+    Lane,
+    RetrospectiveSnapshot,
+    StatusEvent,
+    StatusSnapshot,
+)
 from .store import read_events, read_events_raw
 
 SNAPSHOT_FILENAME = "status.json"
@@ -118,8 +124,9 @@ def reduce(events: list[StatusEvent]) -> StatusSnapshot:
     3. Iterate and track current lane per WP
     4. Apply rollback-aware precedence for concurrent events
     5. Build summary counts for the 9 active/display lanes
-       (Lane.GENESIS is excluded — it is a non-display lane and never
-       appears as the current lane of a materialised WP)
+       (lanes in ``NON_DISPLAY_LANES`` — currently ``GENESIS`` and
+       ``UNINITIALIZED`` — are excluded; neither ever appears as the
+       current lane of a materialised WP)
 
     Empty events returns a snapshot with mission_slug="", all zero
     counts, and no work packages.
@@ -131,7 +138,7 @@ def reduce(events: list[StatusEvent]) -> StatusSnapshot:
             event_count=0,
             last_event_id=None,
             work_packages={},
-            summary={lane.value: 0 for lane in Lane if lane is not Lane.GENESIS},
+            summary={lane.value: 0 for lane in Lane if lane not in NON_DISPLAY_LANES},
         )
 
     # Step 1: Deduplicate by event_id (keep first occurrence)
@@ -161,9 +168,10 @@ def reduce(events: list[StatusEvent]) -> StatusSnapshot:
             wp_states[event.wp_id] = _wp_state_from_event(event, current)
 
     # Step 5: Build summary counts for the 9 active/display lanes.
-    # Lane.GENESIS is excluded — it is a non-display lane and is never
-    # the current lane of a materialised WP (post-finalize there are none).
-    summary: dict[str, int] = {lane.value: 0 for lane in Lane if lane is not Lane.GENESIS}
+    # Lanes in NON_DISPLAY_LANES (GENESIS, UNINITIALIZED) are excluded —
+    # neither is ever the current lane of a materialised WP (post-finalize
+    # there are none).
+    summary: dict[str, int] = {lane.value: 0 for lane in Lane if lane not in NON_DISPLAY_LANES}
     for wp_state in wp_states.values():
         lane_val = wp_state["lane"]
         if lane_val in summary:

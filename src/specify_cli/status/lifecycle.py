@@ -21,7 +21,7 @@ from specify_cli.status.lifecycle_events import (
     mission_event_log_path,
     read_lifecycle_events,
 )
-from specify_cli.status.models import Lane, StatusSnapshot
+from specify_cli.status.models import NON_DISPLAY_LANES, Lane, StatusSnapshot
 from specify_cli.status.progress import compute_weighted_progress
 from specify_cli.status.store import EVENTS_FILENAME, read_events
 from specify_cli.status.wp_state import wp_state_for
@@ -110,13 +110,17 @@ class MissionLifecycleResult:
 
 
 def _empty_snapshot(mission_slug: str, mission_number: int | None, mission_type: str | None) -> StatusSnapshot:
+    # Fifth display-filter site (squad-found, #2675): previously built with NO
+    # filter at all, so it leaked "genesis": 0 today and would leak
+    # "uninitialized": 0 once that member exists. Route through the single
+    # NON_DISPLAY_LANES authority like every other summary builder.
     return StatusSnapshot(
         mission_slug=mission_slug,
         materialized_at="",
         event_count=0,
         last_event_id=None,
         work_packages={},
-        summary={lane.value: 0 for lane in Lane},
+        summary={lane.value: 0 for lane in Lane if lane not in NON_DISPLAY_LANES},
         mission_number=str(mission_number) if mission_number is not None else None,
         mission_type=mission_type,
     )

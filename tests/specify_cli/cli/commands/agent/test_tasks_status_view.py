@@ -37,7 +37,7 @@ from specify_cli.cli.commands.agent.tasks_status_view import (
 )
 from specify_cli.core.dependency_graph import DependencyReadiness
 from specify_cli.core.stale_detection import StaleCheckResult
-from specify_cli.status.models import Lane, StatusSnapshot
+from specify_cli.status.models import NON_DISPLAY_LANES, Lane, StatusSnapshot
 from tests.mocked_env import setup_mocked_env
 
 pytestmark = pytest.mark.fast
@@ -94,7 +94,7 @@ def test_rollup_groups_rows_by_lane_preserving_row_identity() -> None:
 def test_rollup_seeds_every_non_genesis_lane_even_when_empty() -> None:
     view = build_status_view(_req([_row("WP01", Lane.PLANNED)]))
     for lane in Lane:
-        if lane is Lane.GENESIS:
+        if lane in NON_DISPLAY_LANES:
             assert lane not in view.lanes
         else:
             assert lane in view.lanes
@@ -304,7 +304,7 @@ def _status_mission(root: Path, slug: str) -> Path:
 def _sentinel_view() -> StatusView:
     """A StatusView whose aggregates contradict the single-planned-WP fixture."""
     lanes: dict[Lane | str, list[dict[str, object]]] = {
-        lane: [] for lane in Lane if lane is not Lane.GENESIS
+        lane: [] for lane in Lane if lane not in NON_DISPLAY_LANES
     }
     return StatusView(
         lanes=lanes,

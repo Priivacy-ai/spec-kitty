@@ -11,12 +11,13 @@ from pathlib import Path
 from .models import Lane
 from .store import EVENTS_FILENAME
 
-# Sentinel returned by lane-reader functions when an event log exists but
-# contains no events for the requested WP.  Kept here (the canonical
-# lane-read surface) so every reader site can import a single shared
-# definition rather than inlining the raw ``"uninitialized"`` string.
-# ``status/aggregate.py`` imports this constant rather than redeclaring it.
-LEGACY_UNINITIALIZED_SENTINEL: str = "uninitialized"
+# Legacy string sentinel, retained for consumers (WP06/WP07 surfaces,
+# status/aggregate.py) that still compare a lane against the raw
+# ``"uninitialized"`` string. Tied to ``Lane.UNINITIALIZED.value`` so the
+# two can never drift apart. New code should prefer ``Lane.UNINITIALIZED``
+# directly — ``get_wp_lane``/``get_all_wp_lanes`` return the real enum
+# member, never this bare string.
+LEGACY_UNINITIALIZED_SENTINEL: str = Lane.UNINITIALIZED.value
 
 
 class CanonicalStatusNotFoundError(RuntimeError):
@@ -47,14 +48,17 @@ def _require_event_log(feature_dir: Path) -> None:
         )
 
 
-def get_wp_lane(feature_dir: Path, wp_id: str) -> Lane | str:
+def get_wp_lane(feature_dir: Path, wp_id: str) -> Lane:
     """Get canonical lane for a WP from the event log.
 
     Raises ``CanonicalStatusNotFoundError`` when the event log file is
     absent (feature not finalized).
 
-    Returns ``"uninitialized"`` when the event log exists but contains
-    no events for *wp_id*.
+    Returns ``Lane.UNINITIALIZED`` — a pure :class:`Lane`, never a bare
+    ``str`` — when the event log exists but contains no events for
+    *wp_id* (empty log, or the WP is absent from the reduced snapshot).
+    Because ``Lane`` is a ``StrEnum``, ``Lane.UNINITIALIZED == "uninitialized"``
+    still holds for any caller doing legacy string comparison.
     """
     _require_event_log(feature_dir)
     from .store import read_events
@@ -62,24 +66,24 @@ def get_wp_lane(feature_dir: Path, wp_id: str) -> Lane | str:
     events = read_events(feature_dir)
     if not events:
         # File exists but is empty — treat WP as uninitialized.
-        return LEGACY_UNINITIALIZED_SENTINEL
+        return Lane.UNINITIALIZED
     snapshot = reduce(events)
     wp_state = snapshot.work_packages.get(wp_id)
     if wp_state is None:
-        return LEGACY_UNINITIALIZED_SENTINEL
+        return Lane.UNINITIALIZED
     # Defensive default matches the write side (#1775 review M4 / I3 parity):
     # an entry that somehow lacks a lane is genesis (unseeded), not planned.
     return Lane(wp_state.get("lane", Lane.GENESIS))
 
 
-def get_all_wp_lanes(feature_dir: Path) -> dict[str, str]:
+def get_all_wp_lanes(feature_dir: Path) -> dict[str, Lane]:
     """Get canonical lanes for all WPs from the event log.
 
     Raises ``CanonicalStatusNotFoundError`` when the event log file is
     absent (feature not finalized).
 
-    Returns dict mapping wp_id -> lane string. WPs with no events are
-    *not* included (caller should treat missing keys as ``"uninitialized"``).
+    Returns dict mapping wp_id -> ``Lane``. WPs with no events are *not*
+    included (caller should treat missing keys as ``Lane.UNINITIALIZED``).
     """
     _require_event_log(feature_dir)
     from .store import read_events
