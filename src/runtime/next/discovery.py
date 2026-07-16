@@ -122,6 +122,9 @@ def _preview_from_candidates(
         # Default to GENESIS for unseeded WPs: a genesis WP is not claimable
         # and must not be reported as planned (Contract 3, FR-008).
         lane = wp_lanes.get(wp_id, Lane.GENESIS)
+        # GENESIS-specific (intentionally NOT NON_DISPLAY_LANES): this branch sets
+        # the distinct has_genesis_candidate signal for genesis WPs specifically,
+        # so it must match GENESIS alone, not the non-display set.
         if lane == Lane.GENESIS:
             has_genesis_candidate = True
             continue
