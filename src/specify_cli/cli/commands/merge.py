@@ -1,9 +1,14 @@
 """Merge command implementation.
 
-Lane worktrees are the only supported execution topology. Merge always follows
-the same two-step flow:
-1. Merge each lane branch into the mission branch.
-2. Merge the mission branch into the target branch.
+Lane worktrees are the only supported execution topology. ``spec-kitty merge``
+always follows the same two-step flow, and the two steps are two *distinct*
+"merge" operations (see the sense entries in ``docs/context/orchestration.md``):
+1. Lane consolidation (``merge`` Sense 1, LOCAL): consolidate each lane branch
+   into the mission branch — no remote push.
+2. Branch integration / git merge (``merge`` Sense 2): integrate the mission
+   branch into the target branch.
+Neither step is publish-to-origin/main (``merge`` Sense 3): that operator-only
+publish happens only under ``--push`` and is never implied by the command name.
 
 Planning-artifact-only missions are the exception: their artifacts are already
 committed to the target branch, so merge performs closeout bookkeeping directly
@@ -417,12 +422,12 @@ def merge(
     strategy: MergeStrategy | None = typer.Option(
         None,
         "--strategy",
-        help="Merge strategy for mission\u2192target step: merge | squash | rebase. Default: squash.",
+        help="Strategy for the branch-integration step (git merge of mission\u2192target): merge | squash | rebase. Default: squash.",
     ),
     delete_branch: bool = typer.Option(True, "--delete-branch/--keep-branch", help="Delete lane branches after merge"),
     remove_worktree: bool = typer.Option(True, "--remove-worktree/--keep-worktree", help="Remove lane worktrees after merge"),
-    push: bool = typer.Option(False, "--push", help="Push to origin after merge"),
-    target_branch: str = typer.Option(None, "--target", help="Target branch to merge into (auto-detected)"),
+    push: bool = typer.Option(False, "--push", help="Publish to origin after the local merge (the operator publish step; distinct from local lane consolidation)"),
+    target_branch: str = typer.Option(None, "--target", help="Target branch for the branch-integration step (auto-detected)"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without executing"),
     json_output: bool = typer.Option(False, "--json", help="Output deterministic JSON (dry-run mode)"),
     mission: str = typer.Option(None, "--mission", help="Mission slug when merging from main branch"),

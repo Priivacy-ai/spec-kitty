@@ -34,6 +34,17 @@ This section is the unified home (Mission B, FR-009) for:
   [How Charter Works](charter-overview.md) and the
   [Governance Files Reference](governance-files.md).
 
+### Glossary reference notes
+
+Companion notes to the glossary contexts, relocated here from the legacy
+`glossary/` surface (Mission `primary-merge-vocabulary`, FR-006):
+
+- [Naming Decision: Tool vs Agent](naming-decision-tool-vs-agent.md) — the
+  canonical split between *tool* (concrete execution product) and *agent*
+  (logical collaborator identity/role).
+- [Historical Terms and Mappings](historical-terms.md) — legacy wording mapped
+  to its current canonical term, with version scope and migration notes.
+
 ---
 
 ## Spec Kitty 3.2 Charter-era overview

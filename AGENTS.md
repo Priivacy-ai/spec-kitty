@@ -56,7 +56,7 @@ src/doctrine/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURCE)
 - `spec-kitty merge` merges to **local main** only. It does NOT push to origin/main.
 - After `spec-kitty merge`, if the user explicitly asks to share or publish: create a PR branch (`git checkout -b pr/<slug>`) and open a pull request (`gh pr create`). Do NOT do this automatically — wait for explicit user instruction.
 - Never run `git push origin main` or equivalent. Use a PR branch and `gh pr create`.
-- Always distinguish: **local main** (your checkout) vs **origin/main** (the remote). Never say just "main" — always qualify.
+- Distinguish **local main** (your checkout) vs **origin/main** (the remote); qualify which branch you mean (see the `primary`/`merge` footgun note under Terminology Canon).
 
 **Why:** The workflow is predicated on pull requests for review, CI gating, and audit trail. Direct pushes to origin/main bypass all of these.
 
@@ -70,6 +70,7 @@ src/doctrine/missions/mission-steps/{mission_type}/{step_id}/prompt.md  (SOURCE)
 - `Feature` / `Features` are prohibited in canonical, operator, and user-facing language for active systems.
 - Do not introduce or preserve `feature*` aliases (API/query params, routes, fields, flags, env vars, command names, or docs) when the domain object is a Mission.
 - Historical archived artifacts may retain legacy wording only as immutable snapshots, explicitly marked legacy.
+- **Overloaded terms `primary` and `merge` — footgun.** `primary` carries four senses (PRIMARY partition / Primary Branch / repository-root checkout / Target Ref) and `merge` three operations (lane consolidation / branch integration / publish to origin). The load-bearing trap is reading a **PRIMARY-partition** verdict as a **Primary-Branch (`main`)** instruction — and treating `spec-kitty merge` (local lane consolidation) as a **publish to origin**. Always name the sense; the canonical definitions and "Do NOT use when" guards live in the glossary: [`docs/context/orchestration.md`](docs/context/orchestration.md) (`#primary-partition`, `#primary-branch`, `#target-ref--commit-target`, `#lane-consolidation`, `#branch-integration--git-merge`, `#publish-to-originmain`) and [`docs/context/execution.md`](docs/context/execution.md#repository-root-checkout).
 
 ---
 
